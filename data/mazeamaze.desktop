@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=MazeAmaze
+Exec=mazeamaze
+Icon=granatier
+Terminal=false
+Categories=Science;Biology;
