@@ -263,8 +263,8 @@ QList<QPoint> VideoTracker::trackPoints(time_t time, const cv::Mat &image)
     
     // colors are in BGR
     // find red colored parts and erode noise
-    cv::inRange(image, cv::Scalar(0, 0, 248), cv::Scalar(160, 160, 255), redMaskMat);
-    cv::morphologyEx(redMaskMat, redMaskMat, cv::MORPH_CLOSE, cv::Mat::ones(5, 5, redMaskMat.type()));
+    cv::inRange(image, cv::Scalar(0, 0, 180), cv::Scalar(80, 80, 255), redMaskMat);
+    cv::morphologyEx(redMaskMat, redMaskMat, cv::MORPH_CLOSE, cv::Mat::ones(6, 6, redMaskMat.type()));
 
     // red maximum
     grayMat.copyTo(redMat, redMaskMat);
@@ -278,8 +278,8 @@ QList<QPoint> VideoTracker::trackPoints(time_t time, const cv::Mat &image)
     res.append(QPoint(maxLoc.x, maxLoc.y));
 
     // green maximum
-    cv::inRange(image, cv::Scalar(0, 100, 0), cv::Scalar(140, 255, 110), greenMaskMat);
-    cv::morphologyEx(greenMaskMat, greenMaskMat, cv::MORPH_CLOSE, cv::Mat::ones(5, 5, greenMaskMat.type()));
+    cv::inRange(image, cv::Scalar(0, 200, 0), cv::Scalar(110, 255, 180), greenMaskMat);
+    cv::morphologyEx(greenMaskMat, greenMaskMat, cv::MORPH_CLOSE, cv::Mat::ones(6, 6, greenMaskMat.type()));
     grayMat.copyTo(greenMat, greenMaskMat);
     
     cv::minMaxLoc(greenMat,
@@ -292,8 +292,8 @@ QList<QPoint> VideoTracker::trackPoints(time_t time, const cv::Mat &image)
     res.append(QPoint(maxLoc.x, maxLoc.y));
 
     // yellow maximum
-    cv::inRange(image, cv::Scalar(0, 210, 210), cv::Scalar(50, 255, 255), yellowMaskMat);
-    cv::morphologyEx(yellowMaskMat, yellowMaskMat, cv::MORPH_CLOSE, cv::Mat::ones(5, 5, yellowMaskMat.type()));
+    cv::inRange(image, cv::Scalar(0, 210, 210), cv::Scalar(40, 240, 240), yellowMaskMat);
+    cv::morphologyEx(yellowMaskMat, yellowMaskMat, cv::MORPH_CLOSE, cv::Mat::ones(6, 6, yellowMaskMat.type()));
     grayMat.copyTo(yellowMat, yellowMaskMat);
     
     cv::minMaxLoc(yellowMat,
