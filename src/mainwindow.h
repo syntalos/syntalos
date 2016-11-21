@@ -125,6 +125,7 @@ private:
     QSpinBox *m_eresHeightEdit;
     QCheckBox *m_gainCB;
     QLabel *m_ueyeConfFileLbl;
+    QCheckBox *m_saveTarCB;
 
     QDialog *m_aboutDialog;
 };

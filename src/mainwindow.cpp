@@ -273,6 +273,10 @@ MainWindow::MainWindow(QWidget *parent) :
         m_videoTracker->setUEyeConfigFile(fileName);
     });
 
+    m_saveTarCB = new QCheckBox(this);
+    m_saveTarCB->setChecked(true);
+    ui->cameraLayout->addRow(new QLabel("Store frames in compressed tarball", this), m_saveTarCB);
+
     // configure actions
     ui->actionRun->setEnabled(false);
     ui->actionStop->setEnabled(false);
@@ -555,6 +559,21 @@ void MainWindow::stopActionTriggered()
     m_statusWidget->setFirmataStatus(StatusWidget::Ready);
     m_statusWidget->setVideoStatus(StatusWidget::Ready);
     m_running = false;
+
+    // compress frame tarball, if selected
+    if (m_saveTarCB->isChecked()) {
+        QProgressDialog dialog(this);
+
+        dialog.setCancelButton(nullptr);
+        dialog.setLabelText("Packing and compressing frames...");
+        dialog.setWindowModality(Qt::WindowModal);
+        dialog.show();
+
+        if (!m_videoTracker->makeFrameTarball())
+            QMessageBox::critical(this, "Error writing frame tarball", m_videoTracker->lastError());
+
+        dialog.close();
+    }
 }
 
 /**

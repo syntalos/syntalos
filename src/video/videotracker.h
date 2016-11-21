@@ -35,6 +35,8 @@ class VideoTracker : public QObject
 public:
     explicit VideoTracker(QObject *parent = 0);
 
+    QString lastError() const;
+
     QList<QPair<QString, int>> getCameraList() const;
 
     void setResolution(const QSize& size);
@@ -61,6 +63,8 @@ public:
 
     void setUEyeConfigFile(const QString& fileName);
     QString uEyeConfigFile() const;
+
+    bool makeFrameTarball();
 public slots:
     void run();
     void stop();
@@ -74,6 +78,8 @@ signals:
 private:
     void emitErrorFinished(const QString &message);
     QList<QPoint> trackPoints(time_t time, const cv::Mat& image);
+
+    QString m_lastError;
 
     time_t m_startTime;
     QSize m_resolution;

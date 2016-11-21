@@ -30,6 +30,8 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
+#include <ktar.h>
+
 #include "ueyecamera.h"
 
 using namespace std::chrono;
@@ -44,6 +46,11 @@ VideoTracker::VideoTracker(QObject *parent)
     m_camera = nullptr;
     m_autoGain = true;
     m_exposureTime = 8;
+}
+
+QString VideoTracker::lastError() const
+{
+    return m_lastError;
 }
 
 void VideoTracker::setResolution(const QSize &size)
@@ -86,6 +93,7 @@ int VideoTracker::framerate() const
 void VideoTracker::emitErrorFinished(const QString &message)
 {
     emit error(message);
+    m_lastError = message;
     moveToThread(QApplication::instance()->thread()); // give back our object to the main thread
     emit finished();
 }
@@ -354,4 +362,31 @@ void VideoTracker::setExposureTime(double value)
 {
     m_exposureTime = value;
     qDebug() << "Exposure time set to" << value;
+}
+
+bool VideoTracker::makeFrameTarball()
+{
+    auto frameDirPath = QStringLiteral("%1/frames").arg(m_exportDir);
+    QDir frameDir(frameDirPath);
+
+    // check if we have work to do
+    if (!frameDir.exists())
+        return true;
+
+    auto frameTarFname = QStringLiteral("%1/%2_frames.tar.xz").arg(m_exportDir).arg(m_mouseId);
+    KTar tar(frameTarFname);
+    if (!tar.open(QIODevice::WriteOnly)) {
+        m_lastError = "Unable to open tarball for writing.";
+        return false;
+    }
+
+    if (!tar.addLocalDirectory(frameDirPath, QString())) {
+        m_lastError = "Could not add frame images to tarball.";
+        return false;
+    }
+
+    tar.close();
+    frameDir.removeRecursively();
+
+    return true;
 }
