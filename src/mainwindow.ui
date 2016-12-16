@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1308</width>
+    <width>1448</width>
     <height>843</height>
    </rect>
   </property>
@@ -39,7 +39,7 @@
       <property name="currentIndex">
        <number>0</number>
       </property>
-      <widget class="QWidget" name="viewTab">
+      <widget class="QWidget" name="tabView">
        <attribute name="title">
         <string>View</string>
        </attribute>
@@ -59,7 +59,7 @@
         </item>
        </layout>
       </widget>
-      <widget class="QWidget" name="generalTab">
+      <widget class="QWidget" name="tabGeneral">
        <attribute name="title">
         <string>General</string>
        </attribute>
@@ -94,8 +94,64 @@
              <string>Experiment Details</string>
             </property>
             <layout class="QFormLayout" name="formLayout_4">
-             <item row="0" column="0">
-              <layout class="QFormLayout" name="expDetailsLayout"/>
+             <item row="0" column="0" colspan="2">
+              <layout class="QFormLayout" name="expDetailsLayout">
+               <item row="2" column="0">
+                <widget class="QLabel" name="experimentIDLabel">
+                 <property name="text">
+                  <string>Experiment ID</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="1" column="0">
+                <widget class="QLabel" name="subjectLabel">
+                 <property name="text">
+                  <string>Subject</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="2" column="1">
+                <widget class="QLineEdit" name="expIdEdit">
+                 <property name="placeholderText">
+                  <string>Experiment ID, e.g. &quot;trial1&quot;</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="1" column="1">
+                <widget class="QWidget" name="subjectWidget" native="true">
+                 <property name="minimumSize">
+                  <size>
+                   <width>200</width>
+                   <height>0</height>
+                  </size>
+                 </property>
+                 <layout class="QHBoxLayout" name="horizontalLayout_6">
+                  <property name="leftMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="topMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="rightMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="bottomMargin">
+                   <number>0</number>
+                  </property>
+                  <item>
+                   <widget class="QComboBox" name="subjectSelectComboBox"/>
+                  </item>
+                  <item>
+                   <widget class="QLineEdit" name="subjectIdEdit">
+                    <property name="placeholderText">
+                     <string>Manually set a mouse ID, e.g. &quot;MM-18&quot;</string>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+              </layout>
              </item>
             </layout>
            </widget>
@@ -117,12 +173,214 @@
         </item>
        </layout>
       </widget>
-      <widget class="QWidget" name="intanTab">
+      <widget class="QWidget" name="tabTestSubjects">
+       <attribute name="title">
+        <string>Test Subjects</string>
+       </attribute>
+       <layout class="QHBoxLayout" name="horizontalLayout_4">
+        <item>
+         <widget class="QGroupBox" name="gbSubjectDetails">
+          <property name="title">
+           <string>Details</string>
+          </property>
+          <layout class="QFormLayout" name="formLayout_3">
+           <item row="0" column="0" colspan="2">
+            <layout class="QFormLayout" name="layoutSubjectDetails">
+             <property name="sizeConstraint">
+              <enum>QLayout::SetDefaultConstraint</enum>
+             </property>
+             <item row="1" column="0">
+              <widget class="QLabel" name="iDLabel">
+               <property name="text">
+                <string>ID</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="1">
+              <widget class="QLineEdit" name="idLineEdit">
+               <property name="placeholderText">
+                <string>e.g. &quot;Chell&quot; or &quot;MM-18&quot;</string>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="0">
+              <widget class="QLabel" name="groupLabel">
+               <property name="text">
+                <string>Group</string>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="1">
+              <widget class="QLineEdit" name="groupLineEdit">
+               <property name="baseSize">
+                <size>
+                 <width>0</width>
+                 <height>0</height>
+                </size>
+               </property>
+               <property name="placeholderText">
+                <string>e.g. &quot;Aperture Science&quot; or &quot;Wildtype&quot;</string>
+               </property>
+              </widget>
+             </item>
+             <item row="3" column="0">
+              <widget class="QLabel" name="subjectActiveLabel">
+               <property name="text">
+                <string>Active</string>
+               </property>
+              </widget>
+             </item>
+             <item row="3" column="1">
+              <widget class="QCheckBox" name="subjectActiveCheckBox">
+               <property name="checked">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+             <item row="4" column="0">
+              <widget class="QLabel" name="adaptorHeightLabel">
+               <property name="text">
+                <string>Adaptor Height</string>
+               </property>
+              </widget>
+             </item>
+             <item row="4" column="1">
+              <widget class="QWidget" name="adaptorHeightWidget" native="true">
+               <property name="minimumSize">
+                <size>
+                 <width>0</width>
+                 <height>0</height>
+                </size>
+               </property>
+               <layout class="QHBoxLayout" name="horizontalLayout_7">
+                <property name="spacing">
+                 <number>4</number>
+                </property>
+                <property name="leftMargin">
+                 <number>0</number>
+                </property>
+                <property name="topMargin">
+                 <number>0</number>
+                </property>
+                <property name="rightMargin">
+                 <number>0</number>
+                </property>
+                <property name="bottomMargin">
+                 <number>0</number>
+                </property>
+                <item>
+                 <widget class="QSpinBox" name="adaptorHeightSpinBox">
+                  <property name="maximum">
+                   <number>999</number>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="label">
+                  <property name="text">
+                   <string>mm</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
+             <item row="5" column="0">
+              <widget class="QLabel" name="remarksLabel">
+               <property name="text">
+                <string>Remarks</string>
+               </property>
+              </widget>
+             </item>
+             <item row="5" column="1">
+              <widget class="QPlainTextEdit" name="remarksTextEdit">
+               <property name="placeholderText">
+                <string>Use markdown for formatting</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QWidget" name="widget" native="true">
+          <layout class="QVBoxLayout" name="verticalLayout_10">
+           <property name="leftMargin">
+            <number>0</number>
+           </property>
+           <property name="topMargin">
+            <number>0</number>
+           </property>
+           <property name="rightMargin">
+            <number>0</number>
+           </property>
+           <property name="bottomMargin">
+            <number>0</number>
+           </property>
+           <item>
+            <widget class="QToolButton" name="btnSubjectAdd">
+             <property name="text">
+              <string>...</string>
+             </property>
+             <property name="icon">
+              <iconset theme="list-add">
+               <normaloff>.</normaloff>.</iconset>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QToolButton" name="btnSubjectApplyEdit">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
+             <property name="text">
+              <string>E</string>
+             </property>
+             <property name="icon">
+              <iconset theme="edit-entry">
+               <normaloff>.</normaloff>.</iconset>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QToolButton" name="btnSubjectRemove">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
+             <property name="text">
+              <string>...</string>
+             </property>
+             <property name="icon">
+              <iconset theme="list-remove">
+               <normaloff>.</normaloff>.</iconset>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="gbSubjects">
+          <property name="title">
+           <string>Subject List</string>
+          </property>
+          <layout class="QVBoxLayout" name="verticalLayout_11">
+           <item>
+            <widget class="QListView" name="subjectListView"/>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="tabIntan">
        <attribute name="title">
         <string>Intan</string>
        </attribute>
       </widget>
-      <widget class="QWidget" name="videoTab">
+      <widget class="QWidget" name="tabVideo">
        <attribute name="title">
         <string>Video</string>
        </attribute>
@@ -158,7 +416,7 @@
         </item>
        </layout>
       </widget>
-      <widget class="QWidget" name="ioTab">
+      <widget class="QWidget" name="tabIo">
        <attribute name="title">
         <string>I/O</string>
        </attribute>
@@ -206,7 +464,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1308</width>
+     <width>1448</width>
      <height>30</height>
     </rect>
    </property>
@@ -250,6 +508,9 @@
    <property name="text">
     <string>&amp;Quit</string>
    </property>
+   <property name="shortcut">
+    <string>Ctrl+Q</string>
+   </property>
   </action>
   <action name="actionRun">
    <property name="icon">
@@ -259,6 +520,9 @@
    <property name="text">
     <string>Run</string>
    </property>
+   <property name="shortcut">
+    <string>Ctrl+Space</string>
+   </property>
   </action>
   <action name="actionStop">
    <property name="icon">
@@ -267,6 +531,9 @@
    </property>
    <property name="text">
     <string>Stop</string>
+   </property>
+   <property name="shortcut">
+    <string>Space</string>
    </property>
   </action>
   <action name="actionOpen">
@@ -288,10 +555,16 @@
    <property name="text">
     <string>&amp;Load Settings</string>
    </property>
+   <property name="shortcut">
+    <string>Ctrl+O</string>
+   </property>
   </action>
   <action name="actionSaveSettings">
    <property name="text">
     <string>&amp;Save Settings</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+S</string>
    </property>
   </action>
   <action name="actionAbout">

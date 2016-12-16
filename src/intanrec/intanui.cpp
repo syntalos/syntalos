@@ -186,7 +186,7 @@ IntanUI::IntanUI(MainWindow *parentWindow)
 
     // Default data file format.
     setSaveFormat(SaveFormatIntan);
-    newSaveFilePeriodMinutes = 1;
+    newSaveFilePeriodMinutes = 10;
 
     // Default settings for display scale combo boxes.
     yScaleComboBox->setCurrentIndex(3);
@@ -274,7 +274,6 @@ void IntanUI::createLayout()
     int i;
 
     setSaveFormatButton = new QPushButton(tr("Select File Format"));
-
     changeBandwidthButton = new QPushButton(tr("Change Bandwidth"));
     renameChannelButton = new QPushButton(tr("Rename Channel"));
     enableChannelButton = new QPushButton(tr("Enable/Disable"));
@@ -451,6 +450,7 @@ void IntanUI::createLayout()
     numWaveformsLayout->addWidget(yScaleComboBox);
     numWaveformsLayout->addStretch(1);
     numWaveformsLayout->addWidget(spikeScopeButton);
+    numWaveformsLayout->addWidget(setSaveFormatButton);
 
     connect(spikeScopeButton, SIGNAL(clicked()),
             this, SLOT(spikeScope()));
@@ -1706,9 +1706,17 @@ void IntanUI::openInterfaceBoard()
         }
     }
 
+    // find FPGA bitfile
+    auto bitfilename_tmp = QStringLiteral("/usr/local/share/mazeamaze/main.bit");
+    if (!QFileInfo(bitfilename_tmp).isFile()) {
+        bitfilename_tmp = QStringLiteral("/usr/share/mazaamaze/main.bit");
+        if (!QFileInfo(bitfilename_tmp).isFile())
+            bitfilename_tmp = QString(QCoreApplication::applicationDirPath() + "/main.bit");
+    }
+
     // Load Rhythm FPGA configuration bitfile (provided by Intan Technologies).
-    string bitfilename =
-            QString(QCoreApplication::applicationDirPath() + "/main.bit").toStdString();
+    qDebug() << "Loading FPGA config bitfile from:" << bitfilename_tmp;
+    auto bitfilename = bitfilename_tmp.toStdString();
 
     if (!evalBoard->uploadFpgaBitfile(bitfilename)) {
         QMessageBox::critical(this, tr("FPGA Configuration File Upload Error"),
@@ -2404,7 +2412,7 @@ void IntanUI::writeSaveFileHeader(QDataStream &outStream, QDataStream &infoStrea
 
 // Start SPI communication to all connected RHD2000 amplifiers and stream
 // waveform data over USB port.
-void IntanUI::runInterfaceBoard()
+void IntanUI::runInterfaceBoard(bool waitUnblock)
 {
     bool newDataReady;
     int triggerIndex;
@@ -2488,6 +2496,11 @@ void IntanUI::runInterfaceBoard()
     } else {
         timer.start();
     }
+
+    // signal that we can start recording now
+    m_waiting = waitUnblock;
+    emit recordingReady();
+    while (m_waiting) { QCoreApplication::processEvents(); };
 
     while (running) {
         // If we are running in demo mode, use a timer to periodically generate more synthetic
@@ -3213,6 +3226,11 @@ void IntanUI::exportSettings(QDataStream &outStream)
     // version 1.5 additions
     outStream << (qint16) postTriggerTime;
     outStream << (qint16) saveTriggerChannel;
+}
+
+void IntanUI::unblockRecording()
+{
+    m_waiting = false;
 }
 
 // Enable or disable the display of electrode impedances.

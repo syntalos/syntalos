@@ -33,6 +33,18 @@ class VideoTracker : public QObject
 {
     Q_OBJECT
 public:
+    struct LEDTriangle
+    {
+        cv::Point red; // a
+        cv::Point green; // b
+        cv::Point blue; // c
+
+        cv::Point2f center;
+
+        double gamma; // angle at c
+        double turnAngle; // triangle turn angle
+    };
+
     explicit VideoTracker(QObject *parent = 0);
 
     QString lastError() const;
@@ -69,15 +81,23 @@ public slots:
     void run();
     void stop();
 
+    void triggerRecording();
+
 signals:
     void error(const QString& message);
     void finished();
     void newFrame(time_t time, const cv::Mat& image);
     void newTrackingFrame(time_t time, const cv::Mat& image);
 
+    void newInfoGraphic(const cv::Mat& image);
+
+    void progress(int max, int value);
+
+    void recordingReady();
+
 private:
     void emitErrorFinished(const QString &message);
-    QList<QPoint> trackPoints(time_t time, const cv::Mat& image);
+    LEDTriangle trackPoints(time_t time, const cv::Mat& image);
 
     QString m_lastError;
 
@@ -91,6 +111,7 @@ private:
     bool m_autoGain;
 
     bool m_running;
+    bool m_triggered;
 
     QString m_mouseId;
     QString m_exportDir;
@@ -98,6 +119,11 @@ private:
     UEyeCamera *m_camera;
 
     QString m_uEyeConfigFile;
+
+    std::vector<cv::Point2f> m_mazeRect;
+    uint m_mazeFindTrialCount;
+
+    cv::Mat m_mouseGraphicMat;
 };
 
 #endif // VIDEOTRACKER_H

@@ -49,10 +49,13 @@ public slots:
     void saveEvent(const QString& message);
     void saveEvent(const QStringList& messages);
 
+    void setEventsHeader(const QStringList& headers);
+
 signals:
     void valueChanged(const QString& pinName, bool value);
 
     void eventSaved(const QStringList& messages);
+    void headersSet(const QStringList& headers);
 
 private slots:
     void pinChangeReceived(bool value);

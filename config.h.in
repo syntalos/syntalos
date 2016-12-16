@@ -1,0 +1,11 @@
+#ifndef CONFIG_H
+#define CONFIG_H
+
+/* Paths */
+#define PREFIXDIR "@CMAKE_INSTALL_PREFIX@"
+#define DATADIR "@CMAKE_INSTALL_FULL_DATADIR@"
+#define LIBDIR "@CMAKE_INSTALL_FULL_LIBDIR@"
+
+#define OK_LIB_NAME "@OKLIB_FULL_PATH@"
+
+#endif /* CONFIG_H */

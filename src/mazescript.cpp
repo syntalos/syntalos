@@ -24,6 +24,7 @@
 #include <QEventLoop>
 #include <QFile>
 #include <QScriptEngineDebugger>
+#include <QMessageBox>
 
 #include "firmata/firmata.h"
 #include "firmata/backends/serialport.h"
@@ -45,6 +46,7 @@ const QString defaultSampleScript = QStringLiteral("\n//\n"
                                            "\n"
                                            "lastArm = \"unknown\"\n"
                                            "\n"
+                                           "mazeIO.setEventsHeader([\"State\"]);\n"
                                            "mazeIO.setTimeout(function() {\n"
                                            "    // light LED on port 2 briefly after 3 seconds\n"
                                            "    mazeIO.pinSetValue('signalPin', true);\n"
@@ -82,6 +84,7 @@ MazeScript::MazeScript(QObject *parent)
     
     m_mazeio = new MazeIO(m_firmata, this);
     connect(m_mazeio, &MazeIO::eventSaved, this, &MazeScript::eventReceived);
+    connect(m_mazeio, &MazeIO::headersSet, this, &MazeScript::headersReceived);
     
     // initialize the JS engine
     m_jseng = nullptr;
@@ -166,6 +169,9 @@ void MazeScript::run()
     }
 
     qDebug() << "Evaluating Maze Script";
+
+    // we don't have any events yet
+    m_haveEvents = false;
     
     // start timer for event log
     m_timer.start();
@@ -182,6 +188,26 @@ void MazeScript::run()
         emit evalError(m_jseng->uncaughtExceptionLineNumber(), result.toString());
 }
 
+void MazeScript::headersReceived(const QStringList& headers)
+{
+    // make copy
+    QStringList hdrs = headers;
+    hdrs.prepend("Time");
+    
+    if (m_haveEvents) {
+        QMessageBox::warning(nullptr, "Script Error", "Can not change headers after already receiving events.");
+        return;
+    }
+
+    emit headersSet(hdrs);
+    
+    // write headers
+    if (!m_eventFile->isOpen())
+        return;
+
+    m_eventFile->write(qPrintable(hdrs.join(";") + "\n"));
+}
+
 void MazeScript::eventReceived(const QStringList &messages)
 {
     QStringList msgs = messages;
@@ -189,6 +215,7 @@ void MazeScript::eventReceived(const QStringList &messages)
 
     emit mazeEvent(msgs);
 
+    m_haveEvents = true;
     // write to file if file is opened
     if (!m_eventFile->isOpen())
         return;

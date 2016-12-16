@@ -22,6 +22,8 @@
 
 #include <QMainWindow>
 
+#include "testsubjectlistmodel.h"
+
 namespace Ui {
 class MainWindow;
 }
@@ -53,6 +55,8 @@ public:
 
     void setStatusText(const QString& msg);
 
+    void changeExperimentId(const QString &text);
+    void changeTestSubject(const TestSubject& subject);
 private slots:
     void runActionTriggered();
     void stopActionTriggered();
@@ -61,13 +65,11 @@ private slots:
 
     void openDataExportDirectory();
 
-    void mouseIdChanged(const QString& text);
-    void experimentIdChanged(const QString& text);
-
     void firmataError(const QString& message);
     void scriptEvalError(int line, const QString& message);
 
     void onMazeEvent(const QStringList& data);
+    void onEventHeadersSet(const QStringList& headers);
 
     void videoError(const QString &message);
 
@@ -80,6 +82,13 @@ protected:
     void closeEvent(QCloseEvent *event);
 
 private:
+    enum LastReadyKind {
+        UnknownReady,
+        FirmataReady,
+        IntanReady,
+        VideoReady
+    };
+
     void setRunPossible(bool enabled);
     void setStopPossible(bool enabled);
 
@@ -94,15 +103,17 @@ private:
     QLabel *exportDirLabel;
     QLabel *exportDirInfoLabel;
 
-    IntanUI *intanUI;
+    IntanUI *m_intanUI;
 
-    QString mouseId;
-    QString experimentId;
-    QString currentDate;
+    QString m_experimentId;
+    QString m_currentDate;
 
-    QString dataExportBaseDir;
-    QString dataExportDir;
-    bool exportDirValid;
+    TestSubjectListModel *m_subjectList;
+    TestSubject m_currentSubject;
+
+    QString m_dataExportBaseDir;
+    QString m_dataExportDir;
+    bool m_exportDirValid;
 
     MazeScript *m_msintf;
 
@@ -118,6 +129,7 @@ private:
     VideoTracker *m_videoTracker;
     VideoViewWidget *m_rawVideoWidget;
     VideoViewWidget *m_trackVideoWidget;
+    VideoViewWidget *m_trackInfoWidget;
 
     QSpinBox *m_fpsEdit;
     QDoubleSpinBox *m_exposureEdit;
@@ -128,6 +140,8 @@ private:
     QCheckBox *m_saveTarCB;
 
     QDialog *m_aboutDialog;
+
+    LastReadyKind m_lastReady;
 };
 
 #endif // MAINWINDOW_H

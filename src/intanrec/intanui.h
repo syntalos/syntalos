@@ -80,7 +80,7 @@ public:
 
     QWidget *displayWidget() const;
 
-    void runInterfaceBoard();
+    void runInterfaceBoard(bool waitUnblock = true);
     void recordInterfaceBoard();
     void triggerRecordInterfaceBoard();
     void stopInterfaceBoard();
@@ -88,6 +88,12 @@ public:
     void setBaseFileName(const QString& fname);
     void loadSettings(const QByteArray &data);
     void exportSettings(QDataStream &outStream);
+
+signals:
+    void recordingReady();
+
+public slots:
+    void unblockRecording();
 
 protected:
     void closeEvent(QCloseEvent *event);
@@ -185,6 +191,7 @@ private:
     int evalBoardMode;
 
     bool running;
+    bool m_waiting;
     bool recording;
     bool triggerSet;
     bool triggered;

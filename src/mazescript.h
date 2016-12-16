@@ -51,9 +51,11 @@ signals:
     void evalError(int line, const QString& message);
     void firmataError(const QString& message);
     void mazeEvent(const QStringList& data);
+    void headersSet(const QStringList& headers);
     void finished();
 
 private slots:
+    void headersReceived(const QStringList& headers);
     void eventReceived(const QStringList& messages);
 
 private:
@@ -69,6 +71,7 @@ private:
     QString m_eventFileName;
     QFile *m_eventFile;
     bool m_running;
+    bool m_haveEvents;
 };
 
 #endif // MAZESCRIPT_H

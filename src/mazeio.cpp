@@ -116,6 +116,11 @@ void MazeIO::saveEvent(const QStringList& messages)
     emit eventSaved(messages);
 }
 
+void MazeIO::setEventsHeader(const QStringList &headers)
+{
+    emit headersSet(headers);
+}
+
 void MazeIO::sleep(uint msecs)
 {
     QEventLoop loop;

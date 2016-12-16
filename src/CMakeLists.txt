@@ -10,6 +10,8 @@ set(MAZEAMAZE_SRC
     mazescript.cpp
     statuswidget.h
     statuswidget.cpp
+    testsubjectlistmodel.h
+    testsubjectlistmodel.cpp
 )
 
 set(MAZEAMAZE_UI
@@ -141,3 +143,5 @@ target_link_libraries(mazeamaze
     ${OPENGL_LIBRARIES}
     ueye_api
 )
+
+install(TARGETS mazeamaze DESTINATION ${CMAKE_INSTALL_BINDIR})

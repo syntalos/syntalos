@@ -22,6 +22,7 @@ string( REPLACE "-rdynamic" "" CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS ${CMAKE_SHARE
 #
 # Dependencies
 #
+include(GNUInstallDirs)
 find_package(Qt5Widgets REQUIRED)
 find_package(Qt5SerialPort REQUIRED)
 find_package(Qt5Script REQUIRED)
@@ -35,4 +36,16 @@ find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
 find_package(OpenGL REQUIRED)
 
+#
+# Config file
+#
+set(OKLIB_FULL_PATH "${CMAKE_INSTALL_FULL_LIBDIR}/mazeamaze/libokFrontPanel.so")
+configure_file(config.h.in ${CMAKE_BINARY_DIR}/config.h)
+include_directories(${CMAKE_BINARY_DIR})
+
+#
+# Subdirectories
+#
 add_subdirectory(src)
+add_subdirectory(data)
+add_subdirectory(contrib)

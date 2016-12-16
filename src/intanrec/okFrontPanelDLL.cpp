@@ -29,6 +29,8 @@
 // $Rev: 1251 $ $Date: 2012-10-01 22:25:50 -0700 (Mon, 01 Oct 2012) $
 //------------------------------------------------------------------------
 
+#include "config.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
@@ -49,7 +51,7 @@
 	#define okLIB_NAME "libokFrontPanel.dylib"
 #elif defined(__linux__)
 	#include <dlfcn.h>
-	#define okLIB_NAME "./libokFrontPanel.so"
+    #define okLIB_NAME OK_LIB_NAME
 #elif defined(__QNX__)
 	#include <dlfcn.h>
 	#define okLIB_NAME "./libokFrontPanel.so.1"

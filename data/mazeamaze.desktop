@@ -2,6 +2,6 @@
 Type=Application
 Name=MazeAmaze
 Exec=mazeamaze
-Icon=granatier
+Icon=mazeamaze
 Terminal=false
 Categories=Science;Biology;
