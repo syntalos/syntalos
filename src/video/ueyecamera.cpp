@@ -26,7 +26,7 @@
 using namespace std::chrono;
 
 UEyeCamera::UEyeCamera(QObject *parent)
-    : QObject(parent),
+    : MACamera(parent),
       m_hCam(0)
 {
 }

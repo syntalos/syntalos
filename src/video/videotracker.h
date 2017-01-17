@@ -26,8 +26,36 @@
 #include <QPoint>
 #include <opencv2/core/core.hpp>
 
-class UEyeCamera;
+#include "../utils.h"
 
+
+class MACamera : public QObject
+{
+    Q_OBJECT
+public:
+    explicit MACamera(QObject *parent)
+        : QObject(parent) {}
+    virtual ~MACamera() {}
+
+    virtual QString lastError() const = 0;
+
+    virtual QList<QPair<QString, int>> getCameraList() const = 0;
+
+    virtual bool open(int cameraId, const QSize& size) = 0;
+    virtual bool close() = 0;
+    virtual bool setFramerate(double fps) = 0;
+
+    virtual QPair<time_t, cv::Mat> getFrame() = 0;
+    virtual void getFrame(time_t *time, cv::Mat& buffer) = 0;
+
+    virtual bool setAutoWhiteBalance(bool enabled) = 0;
+    virtual bool setAutoGain(bool enabled) = 0;
+    virtual bool setExposureTime(double val) = 0;
+
+    virtual QList<QSize> getResolutionList(int cameraId) = 0;
+
+    virtual void setConfFile(const QString& fileName) { Q_UNUSED(fileName); }
+};
 
 class VideoTracker : public QObject
 {
@@ -71,12 +99,14 @@ public:
     void setExposureTime(double value);
 
     bool openCamera();
-    bool closeCamera();
 
     void setUEyeConfigFile(const QString& fileName);
     QString uEyeConfigFile() const;
 
+    void setExperimentKind(ExperimentKind::Kind kind);
+
     bool makeFrameTarball();
+
 public slots:
     void run();
     void stop();
@@ -95,8 +125,15 @@ signals:
 
     void recordingReady();
 
+protected:
+    bool closeCamera();
+
 private:
     void emitErrorFinished(const QString &message);
+
+    bool runTracking(const QString &frameBasePath);
+    bool runRecordingOnly(const QString &frameBasePath);
+
     LEDTriangle trackPoints(time_t time, const cv::Mat& image);
 
     QString m_lastError;
@@ -116,7 +153,7 @@ private:
     QString m_mouseId;
     QString m_exportDir;
 
-    UEyeCamera *m_camera;
+    MACamera *m_camera;
 
     QString m_uEyeConfigFile;
 
@@ -124,6 +161,8 @@ private:
     uint m_mazeFindTrialCount;
 
     cv::Mat m_mouseGraphicMat;
+
+    ExperimentKind::Kind m_experimentKind;
 };
 
 #endif // VIDEOTRACKER_H

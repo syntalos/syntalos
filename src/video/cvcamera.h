@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef UEYECAMERA_H
-#define UEYECAMERA_H
+#ifndef CVCAMERA_H
+#define CVCAMERA_H
 
 #include <QObject>
 #include <QPair>
@@ -28,12 +28,16 @@
 
 #include "videotracker.h"
 
-class UEyeCamera : public MACamera
+namespace cv {
+class VideoCapture;
+}
+
+class CvCamera : public MACamera
 {
     Q_OBJECT
 public:
-    explicit UEyeCamera(QObject *parent = 0);
-    ~UEyeCamera();
+    explicit CvCamera(QObject *parent = 0);
+    ~CvCamera();
     QString lastError() const;
 
     QList<QPair<QString, int>> getCameraList() const;
@@ -45,28 +49,22 @@ public:
     QPair<time_t, cv::Mat> getFrame();
     void getFrame(time_t *time, cv::Mat& buffer);
 
-    bool setAutoWhiteBalance(bool enabled);
-    bool setAutoGain(bool enabled);
-    bool setExposureTime(double val);
-
-    void setConfFile(const QString& fileName);
-    QString confFile() const;
-
     QList<QSize> getResolutionList(int cameraId);
+
+    bool setAutoWhiteBalance(bool enabled) { Q_UNUSED(enabled); return true; };
+    bool setAutoGain(bool enabled) { Q_UNUSED(enabled); return true; };
+    bool setExposureTime(double val) { Q_UNUSED(val); return true; };
 
 public slots:
 
 private:
-    bool checkInit();
     void setError(const QString& message, int code = 0);
 
     QString m_lastError;
-    uint32_t m_hCam;
+    cv::VideoCapture *m_camera;
 
     QSize m_frameSize;
     cv::Mat m_mat;
-
-    QString m_confFile;
 };
 
-#endif // UEYECAMERA_H
+#endif // CVCAMERA_H
