@@ -22,6 +22,7 @@
 
 #include <QMainWindow>
 
+#include "utils.h"
 #include "testsubjectlistmodel.h"
 
 namespace Ui {
@@ -43,6 +44,7 @@ class VideoViewWidget;
 class QSpinBox;
 class QCheckBox;
 class QDoubleSpinBox;
+class QMdiSubWindow;
 
 
 class MainWindow : public QMainWindow
@@ -57,6 +59,7 @@ public:
 
     void changeExperimentId(const QString &text);
     void changeTestSubject(const TestSubject& subject);
+
 private slots:
     void runActionTriggered();
     void stopActionTriggered();
@@ -78,6 +81,8 @@ private slots:
 
     void aboutActionTriggered();
 
+    void changeExperimentKind(ExperimentKind::Kind newKind);
+
 protected:
     void closeEvent(QCloseEvent *event);
 
@@ -89,6 +94,8 @@ private:
         VideoReady
     };
 
+    void updateWindowTitle(const QString& fileName);
+
     void setRunPossible(bool enabled);
     void setStopPossible(bool enabled);
 
@@ -96,6 +103,8 @@ private:
     void updateDataExportDir();
 
     bool makeDirectory(const QString& dir);
+
+    ExperimentKind::Kind m_experimentKind;
 
     Ui::MainWindow *ui;
 
@@ -121,6 +130,7 @@ private:
     bool m_running;
 
     QTableWidget *m_mazeEventTable;
+    QMdiSubWindow *m_mazeEventTableWin;
 
     KTextEditor::View *m_mazeJSView;
 
@@ -128,8 +138,11 @@ private:
 
     VideoTracker *m_videoTracker;
     VideoViewWidget *m_rawVideoWidget;
+
     VideoViewWidget *m_trackVideoWidget;
     VideoViewWidget *m_trackInfoWidget;
+    QMdiSubWindow *m_trackVideoWidgetWin;
+    QMdiSubWindow *m_trackInfoWidgetWin;
 
     QSpinBox *m_fpsEdit;
     QDoubleSpinBox *m_exposureEdit;

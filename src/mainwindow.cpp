@@ -134,6 +134,18 @@ MainWindow::MainWindow(QWidget *parent) :
         changeTestSubject(sub);
     });
 
+    // add experiment selector
+    m_experimentKind = ExperimentKind::KindMaze;
+    updateWindowTitle(nullptr);
+    for (uint i = 1; i < ExperimentKind::KindLast; i++) {
+        auto kind = (ExperimentKind::Kind) i;
+        ui->expTypeComboBox->addItem(ExperimentKind::toHumanString(kind), QVariant(kind));
+    }
+
+    connect(ui->expTypeComboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), [=](int index) {
+        changeExperimentKind((ExperimentKind::Kind) ui->expTypeComboBox->itemData(index).toInt());
+    });
+
     // set up test subjects page
     m_subjectList = new TestSubjectListModel(this);
     ui->subjectListView->setModel(m_subjectList);
@@ -215,7 +227,8 @@ MainWindow::MainWindow(QWidget *parent) :
     m_mazeEventTable->setWindowFlags(m_mazeEventTable->windowFlags() & ~Qt::WindowCloseButtonHint);
     m_mazeEventTable->horizontalHeader()->hide();
     connect(m_msintf, &MazeScript::mazeEvent, this, &MainWindow::onMazeEvent);
-    ui->mdiArea->addSubWindow(m_mazeEventTable)->setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowMinMaxButtonsHint);
+    m_mazeEventTableWin = ui->mdiArea->addSubWindow(m_mazeEventTable);
+    m_mazeEventTableWin->setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowMinMaxButtonsHint);
 
     // set up code editor
     auto editor = KTextEditor::Editor::instance();
@@ -238,7 +251,8 @@ MainWindow::MainWindow(QWidget *parent) :
     });
 
     m_trackVideoWidget = new VideoViewWidget(this);
-    ui->mdiArea->addSubWindow(m_trackVideoWidget)->setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowMinMaxButtonsHint);
+    m_trackVideoWidgetWin = ui->mdiArea->addSubWindow(m_trackVideoWidget);
+    m_trackVideoWidgetWin->setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowMinMaxButtonsHint);
     m_trackVideoWidget->setWindowTitle("Tracking");
     connect(m_videoTracker, &VideoTracker::newTrackingFrame, [&](time_t time, const cv::Mat& image) {
         m_trackVideoWidget->setWindowTitle(QString("Tracking (at %1sec)").arg(time / 1000));
@@ -246,7 +260,8 @@ MainWindow::MainWindow(QWidget *parent) :
     });
 
     m_trackInfoWidget = new VideoViewWidget(this);
-    ui->mdiArea->addSubWindow(m_trackInfoWidget)->setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowMinMaxButtonsHint);
+    m_trackInfoWidgetWin = ui->mdiArea->addSubWindow(m_trackInfoWidget);
+    m_trackInfoWidgetWin->setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowMinMaxButtonsHint);
     m_trackInfoWidget->setWindowTitle("Subject Tracking");
     connect(m_videoTracker, &VideoTracker::newInfoGraphic, [&](const cv::Mat& image) {
         m_trackInfoWidget->showImage(image);
@@ -564,10 +579,12 @@ void MainWindow::runActionTriggered()
     }
 
     auto mazeEventDataDir = QString::fromUtf8("%1/maze").arg(m_dataExportDir);
-    if (!makeDirectory(mazeEventDataDir)) {
-        setRunPossible(true);
-        setStopPossible(false);
-        return;
+    if (m_experimentKind == ExperimentKind::KindMaze) {
+        if (!makeDirectory(mazeEventDataDir)) {
+            setRunPossible(true);
+            setStopPossible(false);
+            return;
+        }
     }
 
     auto videoDataDir = QString::fromUtf8("%1/video").arg(m_dataExportDir);
@@ -582,6 +599,7 @@ void MainWindow::runActionTriggered()
 
     QJsonObject manifest;
     manifest.insert("maVersion", QApplication::applicationVersion());
+    manifest.insert("experimentKind", ExperimentKind::toString(m_experimentKind));
     manifest.insert("subjectId", m_currentSubject.id);
     manifest.insert("subjectGroup", m_currentSubject.group);
     manifest.insert("subjectComment", m_currentSubject.comment);
@@ -622,35 +640,39 @@ void MainWindow::runActionTriggered()
     // after we opened the device, we can't change it anymore (or rather, were too lazy to implement this...)
     // so we disable the selection box.
     auto serialDevice = ui->portsComboBox->currentData().toString();
-    if (serialDevice.isEmpty()) {
-        auto reply = QMessageBox::question(this,
-                                           "Really continue?",
-                                           "No Firmata device was found for programmable data I/O. Do you really want to continue without this functionality?",
-                                           QMessageBox::Yes | QMessageBox::No);
-        if (reply == QMessageBox::No) {
-            setRunPossible(true);
-            setStopPossible(false);
-            return;
+    if (m_experimentKind == ExperimentKind::KindMaze) {
+        if (serialDevice.isEmpty()) {
+            auto reply = QMessageBox::question(this,
+                                               "Really continue?",
+                                               "No Firmata device was found for programmable data I/O. Do you really want to continue without this functionality?",
+                                               QMessageBox::Yes | QMessageBox::No);
+            if (reply == QMessageBox::No) {
+                setRunPossible(true);
+                setStopPossible(false);
+                return;
+            }
+            m_statusWidget->setFirmataStatus(StatusWidget::Broken);
+        } else {
+            m_msintf->initFirmata(serialDevice);
+            ui->portsComboBox->setEnabled(false);
+            if (m_failed)
+                return;
+
+            // clear previous events
+            m_mazeEventTable->clear();
+            m_mazeEventTable->setRowCount(0);
+
+            // configure & launch maze script
+            setStatusText("Evaluating maze script...");
+            m_msintf->setScript(m_mazeJSView->document()->text());
+            m_msintf->run();
+            if (m_failed)
+                return;
+
+            m_statusWidget->setFirmataStatus(StatusWidget::Active);
         }
-        m_statusWidget->setFirmataStatus(StatusWidget::Broken);
     } else {
-        m_msintf->initFirmata(serialDevice);
-        ui->portsComboBox->setEnabled(false);
-        if (m_failed)
-            return;
-
-        // clear previous events
-        m_mazeEventTable->clear();
-        m_mazeEventTable->setRowCount(0);
-
-        // configure & launch maze script
-        setStatusText("Evaluating maze script...");
-        m_msintf->setScript(m_mazeJSView->document()->text());
-        m_msintf->run();
-        if (m_failed)
-            return;
-
-        m_statusWidget->setFirmataStatus(StatusWidget::Active);
+        m_statusWidget->setFirmataStatus(StatusWidget::Disabled);
     }
 
     // launch video
@@ -685,11 +707,14 @@ void MainWindow::stopActionTriggered()
 
     // stop Maze script
     m_msintf->stop();
-    m_statusWidget->setFirmataStatus(StatusWidget::Ready);
+
+    if (m_experimentKind == ExperimentKind::KindMaze)
+        m_statusWidget->setFirmataStatus(StatusWidget::Ready);
+    else
+        m_statusWidget->setFirmataStatus(StatusWidget::Disabled);
 
     // stop video tracker
     m_videoTracker->stop();
-    m_videoTracker->closeCamera();
 
     // stop interface board
     m_intanUI->stopInterfaceBoard();
@@ -782,6 +807,33 @@ void MainWindow::changeTestSubject(const TestSubject &subject)
     updateDataExportDir();
 }
 
+void MainWindow::changeExperimentKind(ExperimentKind::Kind newKind)
+{
+    // never do an unknown experiment
+    if (newKind == ExperimentKind::KindUnknown)
+        return;
+
+    m_experimentKind = newKind;
+    switch (newKind) {
+    case ExperimentKind::KindMaze:
+        m_mazeEventTableWin->show();
+        m_trackVideoWidgetWin->show();
+        m_trackInfoWidgetWin->show();
+
+        break;
+
+    case ExperimentKind::KindRestingBox:
+        m_mazeEventTableWin->hide();
+        m_trackVideoWidgetWin->hide();
+        m_trackInfoWidgetWin->hide();
+        break;
+    default:
+        break;
+    }
+
+    updateWindowTitle(nullptr);
+}
+
 void MainWindow::changeExperimentId(const QString& text)
 {
     m_experimentId = text;
@@ -826,6 +878,7 @@ void MainWindow::saveSettingsActionTriggered()
     settings.insert("creationDate", QDateTime::currentDateTime().date().toString());
 
     settings.insert("exportDir", m_dataExportBaseDir);
+    settings.insert("experimentKind", ExperimentKind::toString(m_experimentKind));
     settings.insert("experimentId", m_experimentId);
 
     QJsonObject videoSettings;
@@ -856,9 +909,20 @@ void MainWindow::saveSettingsActionTriggered()
     tar.close();
 
     QFileInfo fi(fileName);
-    this->setWindowTitle(QStringLiteral("MazeAmaze - %1").arg(fi.fileName()));
+    this->updateWindowTitle(fi.fileName());
 
     setStatusText("Ready.");
+}
+
+void MainWindow::updateWindowTitle(const QString& fileName)
+{
+    if (fileName.isEmpty()) {
+        this->setWindowTitle(QStringLiteral("MazeAmaze [%1]").arg(ExperimentKind::toHumanString(m_experimentKind)));
+    } else {
+        this->setWindowTitle(QStringLiteral("MazeAmaze [%1] - %2")
+                                            .arg(ExperimentKind::toHumanString(m_experimentKind))
+                                            .arg(fileName));
+    }
 }
 
 void MainWindow::loadSettingsActionTriggered()
@@ -899,6 +963,7 @@ void MainWindow::loadSettingsActionTriggered()
 
     setDataExportBaseDir(rootObj.value("exportDir").toString());
     ui->expIdEdit->setText(rootObj.value("experimentId").toString());
+    changeExperimentKind(ExperimentKind::fromString(rootObj.value("experimentKind").toString()));
 
     auto videoSettings = rootObj.value("video").toObject();
     m_eresWidthEdit->setValue(videoSettings.value("exportWidth").toInt(800));
@@ -935,7 +1000,7 @@ void MainWindow::loadSettingsActionTriggered()
         m_mazeJSView->document()->setText(mazeScriptFile->data());
 
     QFileInfo fi(fileName);
-    this->setWindowTitle(QStringLiteral("MazeAmaze - %1").arg(fi.fileName()));
+    this->updateWindowTitle(fi.fileName());
 
     // we are ready, enable all UI elements again
     setStatusText("Ready.");

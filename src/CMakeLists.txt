@@ -2,6 +2,8 @@
 set(MAZEAMAZE_SRC
     main.cpp
     ma-private.h
+    utils.h
+    utils.cpp
     mainwindow.h
     mainwindow.cpp
     mazeio.h
@@ -107,6 +109,8 @@ set(INTANREC_SRC
 )
 
 set(VIDEO_SRC
+    video/cvcamera.h
+    video/cvcamera.cpp
     video/ueyecamera.h
     video/ueyecamera.cpp
     video/videotracker.h

@@ -32,6 +32,7 @@ class StatusWidget : public QWidget
 public:
     enum Status {
         Unknown,
+        Disabled,
         Configured,
         Ready,
         Active,

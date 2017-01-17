@@ -61,6 +61,10 @@ StatusWidget::StatusWidget(QWidget *parent)
 void StatusWidget::labelSetStatus(QLabel *label, Status status)
 {
     switch (status) {
+    case Disabled:
+        label->setText("disabled");
+        label->setStyleSheet("QLabel {background-color: sandybrown; color: black; }");
+        break;
     case Configured:
         label->setText("configured");
         label->setStyleSheet("QLabel {background-color: ghostwhite; color: black; }");
