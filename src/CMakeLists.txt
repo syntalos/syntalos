@@ -109,15 +109,23 @@ set(INTANREC_SRC
 )
 
 set(VIDEO_SRC
-    video/cvcamera.h
-    video/cvcamera.cpp
-    video/ueyecamera.h
-    video/ueyecamera.cpp
+    video/v4lcamera.h
+    video/v4lcamera.cpp
     video/videotracker.h
     video/videotracker.cpp
     video/videoviewwidget.h
     video/videoviewwidget.cpp
 )
+
+set(UYEYE_LIB "")
+set(VIDEO_UEYE_SRC "")
+if (UEYE_CAMERA)
+    set(UYEYE_LIB "ueye_api")
+    set(VIDEO_UEYE_SRC
+        video/ueyecamera.h
+        video/ueyecamera.cpp
+    )
+endif ()
 
 set(MAZEAMAZE_RES
     ../data/resources.qrc
@@ -132,6 +140,7 @@ add_executable(mazeamaze
     ${INTANREC_SRC}
     ${FIRMATA_SRC}
     ${VIDEO_SRC}
+    ${VIDEO_UEYE_SRC}
 )
 
 target_link_libraries(mazeamaze
@@ -145,7 +154,7 @@ target_link_libraries(mazeamaze
     Qt5::ScriptTools
     ${OpenCV_LIBS}
     ${OPENGL_LIBRARIES}
-    ueye_api
+    ${UYEYE_LIB}
 )
 
 install(TARGETS mazeamaze DESTINATION ${CMAKE_INSTALL_BINDIR})

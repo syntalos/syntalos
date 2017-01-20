@@ -964,6 +964,7 @@ void MainWindow::loadSettingsActionTriggered()
     setDataExportBaseDir(rootObj.value("exportDir").toString());
     ui->expIdEdit->setText(rootObj.value("experimentId").toString());
     changeExperimentKind(ExperimentKind::fromString(rootObj.value("experimentKind").toString()));
+    ui->expTypeComboBox->setCurrentIndex(m_experimentKind - 1);
 
     auto videoSettings = rootObj.value("video").toObject();
     m_eresWidthEdit->setValue(videoSettings.value("exportWidth").toInt(800));

@@ -44,7 +44,9 @@ option(UEYE_CAMERA "Use uEye camera instead of generic driver")
 #
 # Config file
 #
-set(USE_UEYE_CAMERA ${UEYE_CAMERA})
+if (UEYE_CAMERA)
+    set(USE_UEYE_CAMERA ON)
+endif ()
 set(OKLIB_FULL_PATH "${CMAKE_INSTALL_FULL_LIBDIR}/mazeamaze/libokFrontPanel.so")
 configure_file(config.h.in ${CMAKE_BINARY_DIR}/config.h)
 include_directories(${CMAKE_BINARY_DIR})

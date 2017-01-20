@@ -93,7 +93,7 @@ int main(int argc, char *argv[])
 
         if (!splash.isVisible())
             return;
-        auto message = splashMessages[qrand() % (splashMessagesCount + 1) - 1];
+        auto message = splashMessages[qrand() % (splashMessagesCount + 1)];
         splash.showMessage(message, Qt::AlignBottom | Qt::AlignRight);
         app.processEvents();
     });
