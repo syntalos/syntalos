@@ -37,7 +37,7 @@
 #ifdef USE_UEYE_CAMERA
 #include "ueyecamera.h"
 #endif
-#include "cvcamera.h"
+#include "v4lcamera.h"
 
 using namespace std::chrono;
 
@@ -91,7 +91,7 @@ QList<QSize> VideoTracker::resolutionList(int cameraId)
 #ifdef USE_UEYE_CAMERA
     auto camera = new UEyeCamera();
 #else
-    auto camera = new CvCamera();
+    auto camera = new V4LCamera();
 #endif
     auto ret = camera->getResolutionList(cameraId);
     delete camera;
@@ -133,7 +133,7 @@ bool VideoTracker::openCamera()
 #ifdef USE_UEYE_CAMERA
     m_camera = new UEyeCamera;
 #else
-    m_camera = new CvCamera;
+    m_camera = new V4LCamera;
 #endif
 
     if (!m_camera->open(m_cameraId, m_resolution)) {
@@ -384,6 +384,9 @@ void VideoTracker::run()
         moveToThread(QApplication::instance()->thread()); // give back our object to the main thread
         emit finished();
     }
+
+    // we no longer need the camera, it's safe to close it
+    closeCamera();
 
     qDebug() << "Finished video.";
 }
@@ -726,7 +729,7 @@ QList<QPair<QString, int>> VideoTracker::getCameraList() const
 #ifdef USE_UEYE_CAMERA
     auto camera = new UEyeCamera;
 #else
-    auto camera = new CvCamera;
+    auto camera = new V4LCamera;
 #endif
     auto ret = camera->getCameraList();
     delete camera;
