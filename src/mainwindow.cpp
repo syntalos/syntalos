@@ -571,6 +571,10 @@ void MainWindow::runActionTriggered()
 
     // determine and create the directory for ephys data
     qDebug() << "Initializing";
+
+    // make the experiment type known to the tracker
+    m_videoTracker->setExperimentKind(m_experimentKind);
+
     auto intanDataDir = QString::fromUtf8("%1/intan").arg(m_dataExportDir);
     if (!makeDirectory(intanDataDir)) {
         setRunPossible(true);
@@ -809,9 +813,11 @@ void MainWindow::changeTestSubject(const TestSubject &subject)
 
 void MainWindow::changeExperimentKind(ExperimentKind::Kind newKind)
 {
-    // never do an unknown experiment
-    if (newKind == ExperimentKind::KindUnknown)
-        return;
+    // never do an unknown experiment, change to Maze for backwards compatibility
+    if (newKind == ExperimentKind::KindUnknown) {
+        newKind = ExperimentKind::KindMaze;
+        qDebug() << "Unknown experiment type detected, falling back to \"Maze\"";
+    }
 
     m_experimentKind = newKind;
     switch (newKind) {
