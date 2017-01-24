@@ -151,6 +151,7 @@ private:
     QCheckBox *m_gainCB;
     QLabel *m_ueyeConfFileLbl;
     QCheckBox *m_saveTarCB;
+    QCheckBox *m_camFlashMode;
 
     QDialog *m_aboutDialog;
 

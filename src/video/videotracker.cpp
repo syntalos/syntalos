@@ -145,9 +145,10 @@ bool VideoTracker::openCamera()
     }
 
     m_camera->setConfFile(m_uEyeConfigFile);
-    m_camera->setFramerate(m_framerate);
     m_camera->setAutoGain(m_autoGain);
     m_camera->setExposureTime(m_exposureTime);
+    m_camera->setFramerate(m_framerate);
+    m_camera->setGPIOFlash(m_gpioFlash);
 
     return true;
 }
@@ -173,6 +174,16 @@ void VideoTracker::setUEyeConfigFile(const QString &fileName)
 QString VideoTracker::uEyeConfigFile() const
 {
     return m_uEyeConfigFile;
+}
+
+void VideoTracker::setGPIOFlash(bool enabled)
+{
+    m_gpioFlash = enabled;
+}
+
+bool VideoTracker::gpioFlash() const
+{
+    return m_gpioFlash;
 }
 
 void VideoTracker::setExperimentKind(ExperimentKind::Kind kind)

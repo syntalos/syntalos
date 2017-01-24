@@ -52,6 +52,8 @@ public:
     void setConfFile(const QString& fileName);
     QString confFile() const;
 
+    bool setGPIOFlash(bool enabled);
+
     QList<QSize> getResolutionList(int cameraId);
 
 public slots:

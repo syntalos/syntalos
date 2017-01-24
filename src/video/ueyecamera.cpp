@@ -74,6 +74,7 @@ bool UEyeCamera::checkInit()
 {
     if (m_hCam <= 0) {
         m_lastError = "Not initialized.";
+        qWarning() << "Tried to perform action on uninitialized uEye camera";
         return false;
     }
 
@@ -273,6 +274,68 @@ void UEyeCamera::setConfFile(const QString &fileName)
 QString UEyeCamera::confFile() const
 {
     return m_confFile;
+}
+
+bool UEyeCamera::setGPIOFlash(bool enabled)
+{
+    if (!checkInit())
+        return false;
+
+    auto nRet = IS_SUCCESS;
+
+    if (!enabled) {
+        // disable flash
+        UINT nMode = IO_FLASH_MODE_OFF;
+        nRet = is_IO(m_hCam, IS_IO_CMD_FLASH_SET_MODE, (void*)&nMode, sizeof(nMode));
+
+        // ensure flash is off and stays off
+        if (nRet != IS_SUCCESS)
+            return false;
+        qDebug() << "Disabled uEye GPIO flash";
+        return true;
+    }
+
+    // set the current values for flash delay and flash duration
+    IO_FLASH_PARAMS flashParams;
+    nRet = is_IO(m_hCam, IS_IO_CMD_FLASH_GET_GPIO_PARAMS_MIN, (void*)&flashParams, sizeof(flashParams));
+    if (nRet != IS_SUCCESS)
+        qWarning() << "uEye: Unable to get minimum GPIO flash params";
+
+    flashParams.u32Duration = 20000; // 20ms
+
+    nRet = is_IO(m_hCam, IS_IO_CMD_FLASH_SET_GPIO_PARAMS, (void*)&flashParams, sizeof(flashParams));
+    if (nRet != IS_SUCCESS)
+        qWarning() << "uEye: GPIO flash set-params failed";
+
+    // set trigger
+    nRet = is_SetExternalTrigger(m_hCam, IS_SET_TRIGGER_CONTINUOUS);
+    if (nRet != IS_SUCCESS)
+        qWarning() << "uEye: Failed to set continuous trigger:" << nRet;
+
+    auto nValue = IS_FLASH_AUTO_FREERUN_OFF;
+    nRet = is_IO(m_hCam, IS_IO_CMD_FLASH_SET_AUTO_FREERUN, (void*)&nValue, sizeof(nValue));
+
+    // set the flash to a high active pulse for each image
+    auto nMode = IO_FLASH_MODE_FREERUN_HI_ACTIVE;
+    nRet = is_IO(m_hCam, IS_IO_CMD_FLASH_SET_MODE, (void*)&nMode, sizeof(nMode));
+    if (nRet != IS_SUCCESS) {
+        qWarning() << "uEye: Failed to enable GPIO flash:" << nRet;
+        return false;
+    }
+
+    // Set configuration of GPIO1 (flash)
+    IO_GPIO_CONFIGURATION gpioConfiguration;
+    gpioConfiguration.u32Gpio = IO_GPIO_1;
+    gpioConfiguration.u32Configuration = IS_GPIO_FLASH;
+    gpioConfiguration.u32State = 0;
+
+    nRet = is_IO(m_hCam, IS_IO_CMD_GPIOS_SET_CONFIGURATION, (void*)&gpioConfiguration, sizeof(gpioConfiguration));
+    if (nRet != IS_SUCCESS)
+        qWarning() << "uEye: Unable to configure GPIO 1 as flash";
+
+    qDebug() << "Enabled uEye GPIO flash";
+
+    return true;
 }
 
 QList<QSize> UEyeCamera::getResolutionList(int cameraId)

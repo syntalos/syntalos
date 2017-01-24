@@ -17,6 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "config.h"
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
@@ -330,6 +331,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
     m_gainCB = new QCheckBox(this);
     m_gainCB->setChecked(false);
+    m_videoTracker->setAutoGain(false);
     connect(m_gainCB, &QCheckBox::toggled, [=](bool value) {
         m_videoTracker->setAutoGain(value);
     });
@@ -369,6 +371,21 @@ MainWindow::MainWindow(QWidget *parent) :
         m_ueyeConfFileLbl->setText(fileName);
         m_videoTracker->setUEyeConfigFile(fileName);
     });
+
+    m_camFlashMode = new QCheckBox(this);
+    m_camFlashMode->setChecked(true);
+    m_videoTracker->setGPIOFlash(true);
+    ui->cameraLayout->addRow(new QLabel("Enable GPIO flash", this), m_camFlashMode);
+    connect(m_camFlashMode, &QCheckBox::toggled, [=](bool value) {
+        m_videoTracker->setGPIOFlash(value);
+    });
+
+#ifndef USE_UEYE_CAMERA
+    // disable uEye specific stuff if we're building without it
+    ueyeConfFileWidget->setEnabled(false);
+    m_camFlashMode->setChecked(false);
+    m_camFlashMode->setEnabled(false);
+#endif
 
     m_saveTarCB = new QCheckBox(this);
     m_saveTarCB->setChecked(true);
@@ -609,6 +626,9 @@ void MainWindow::runActionTriggered()
     manifest.insert("subjectComment", m_currentSubject.comment);
     manifest.insert("frameTarball", m_saveTarCB->isChecked());
     manifest.insert("timestamp", curDateTime.toString(Qt::ISODate));
+
+    if (m_camFlashMode->isChecked())
+        manifest.insert("cameraGPIOFlash", true);
 
     QFile manifestFile(QStringLiteral("%1/manifest.json").arg(m_dataExportDir));
     if (!manifestFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
@@ -895,6 +915,7 @@ void MainWindow::saveSettingsActionTriggered()
     videoSettings.insert("exposureTime", m_exposureEdit->value());
     videoSettings.insert("uEyeConfig", confBaseDir.relativeFilePath(m_videoTracker->uEyeConfigFile()));
     videoSettings.insert("makeFrameTarball", m_saveTarCB->isChecked());
+    videoSettings.insert("gpioFlash", m_camFlashMode->isChecked());
     settings.insert("video", videoSettings);
 
     tar.writeFile ("main.json", QJsonDocument(settings).toJson());
@@ -979,6 +1000,7 @@ void MainWindow::loadSettingsActionTriggered()
     m_gainCB->setChecked(videoSettings.value("gainEnabled").toBool());
     m_exposureEdit->setValue(videoSettings.value("exposureTime").toDouble(6));
     m_saveTarCB->setChecked(videoSettings.value("makeFrameTarball").toBool(true));
+    m_camFlashMode->setChecked(videoSettings.value("gpioFlash").toBool(true));
 
     auto uEyeConfFile = videoSettings.value("uEyeConfig").toString();
     if (!uEyeConfFile.isEmpty()) {

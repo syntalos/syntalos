@@ -43,7 +43,6 @@ public:
 
     virtual bool open(int cameraId, const QSize& size) = 0;
     virtual bool close() = 0;
-    virtual bool setFramerate(double fps) = 0;
 
     virtual QPair<time_t, cv::Mat> getFrame() = 0;
     virtual void getFrame(time_t *time, cv::Mat& buffer) = 0;
@@ -51,10 +50,12 @@ public:
     virtual bool setAutoWhiteBalance(bool enabled) = 0;
     virtual bool setAutoGain(bool enabled) = 0;
     virtual bool setExposureTime(double val) = 0;
+    virtual bool setFramerate(double fps) = 0;
 
     virtual QList<QSize> getResolutionList(int cameraId) = 0;
 
     virtual void setConfFile(const QString& fileName) { Q_UNUSED(fileName); }
+    virtual bool setGPIOFlash(bool enabled) { Q_UNUSED(enabled); return true; }
 };
 
 class VideoTracker : public QObject
@@ -103,6 +104,9 @@ public:
     void setUEyeConfigFile(const QString& fileName);
     QString uEyeConfigFile() const;
 
+    void setGPIOFlash(bool enabled);
+    bool gpioFlash() const;
+
     void setExperimentKind(ExperimentKind::Kind kind);
 
     bool makeFrameTarball();
@@ -143,6 +147,7 @@ private:
     int m_framerate;
     QSize m_exportResolution;
     double m_exposureTime;
+    bool m_gpioFlash;
 
     int m_cameraId;
     bool m_autoGain;
