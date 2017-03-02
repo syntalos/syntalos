@@ -69,7 +69,7 @@ public:
 
 	QString statusText() const;
 
-	// Low level Firmata messages. These are typically called by Firmata
+    // Low level Firmata messages.
 	
 	//! Write a 14bit analog value
 	void writeAnalogPin(uint8_t pin, uint16_t value);

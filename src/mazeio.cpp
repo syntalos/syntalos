@@ -46,6 +46,7 @@ void MazeIO::newDigitalPin(int pinID, const QString& pinName, bool output)
     } else {
         // connect input pin
         m_firmata->setPinMode(pinID, IoMode::Input);
+        m_firmata->reportDigitalPort(pinID, true);
         qDebug() << "Pin" << pinID << "set as input";
     }
 
