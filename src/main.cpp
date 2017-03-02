@@ -37,19 +37,11 @@ static QString const splashMessages[] =
       "Petting mice...",
       "Writing thesis...",
       "Done.",
-      "Feeding Tux...",
-      "Getting mad...",
-      "Becoming very rich...",
-      "Defeating aliens...",
-      "Chasing mice...",
-      "Teaching mice how to fight back...",
       "Waiting for you...",
       "Reading your emails...",
       "Solving Riemann hypothesis...",
       "Doing research...",
       "Creating a universe...",
-      "Researching HIV vaccine...",
-      "Training mice...",
       "Finishing conversation with mice...",
       "Connecting to Intan device...",
       "Annoying my supervisor...",
@@ -61,7 +53,6 @@ static QString const splashMessages[] =
       "Getting excited...",
       "Counting stars...",
       "Dealing with the devil...",
-      "Baking cheesecake..."
     };
 static int const splashMessagesCount = sizeof(splashMessages) / sizeof(splashMessages[0]);
 
