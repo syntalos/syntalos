@@ -275,7 +275,7 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->cameraLayout->addRow(new QLabel("Resolution", this), resolutionsBox);
 
     connect(cameraBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), [=](int index) {
-        auto cameraId = cameraBox->itemData(index).toInt();
+        auto cameraId = cameraBox->itemData(index);
         m_videoTracker->setCameraId(cameraId);
 
         auto resList = m_videoTracker->resolutionList(cameraId);

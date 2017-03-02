@@ -21,7 +21,6 @@
 #include "videotracker.h"
 
 #include <QDebug>
-#include <chrono>
 #include <QThread>
 #include <QApplication>
 #include <QJsonDocument>
@@ -29,6 +28,7 @@
 #include <QFile>
 #include <QDir>
 #include <QtMath>
+#include <QThreadPool>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/features2d/features2d.hpp>
@@ -38,9 +38,9 @@
 #ifdef USE_UEYE_CAMERA
 #include "ueyecamera.h"
 #endif
-#include "v4lcamera.h"
+#include "genericcamera.h"
+#include "utils.h"
 
-using namespace std::chrono;
 
 VideoTracker::VideoTracker(QObject *parent)
     : QObject(parent),
@@ -76,23 +76,23 @@ void VideoTracker::setResolution(const QSize &size)
     qDebug() << "Camera resolution selected:" << size;
 }
 
-void VideoTracker::setCameraId(int cameraId)
+void VideoTracker::setCameraId(QVariant cameraId)
 {
     m_cameraId = cameraId;
     qDebug() << "Selected camera:" << m_cameraId;
 }
 
-int VideoTracker::cameraId() const
+QVariant VideoTracker::cameraId() const
 {
     return m_cameraId;
 }
 
-QList<QSize> VideoTracker::resolutionList(int cameraId)
+QList<QSize> VideoTracker::resolutionList(QVariant cameraId)
 {
 #ifdef USE_UEYE_CAMERA
     auto camera = new UEyeCamera();
 #else
-    auto camera = new V4LCamera();
+    auto camera = new GenericCamera();
 #endif
     auto ret = camera->getResolutionList(cameraId);
     delete camera;
@@ -123,18 +123,12 @@ void VideoTracker::emitErrorFinished(const QString &message)
     emit finished();
 }
 
-static time_t getMsecEpoch()
-{
-    auto ms = duration_cast<milliseconds>(high_resolution_clock::now().time_since_epoch());
-    return ms.count();
-}
-
 bool VideoTracker::openCamera()
 {
 #ifdef USE_UEYE_CAMERA
     m_camera = new UEyeCamera;
 #else
-    m_camera = new V4LCamera;
+    m_camera = new GenericCamera;
 #endif
 
     if (!m_camera->open(m_cameraId, m_resolution)) {
@@ -191,6 +185,63 @@ void VideoTracker::setExperimentKind(ExperimentKind::Kind kind)
     m_experimentKind = kind;
 }
 
+void VideoTracker::setStartTimestamp(const time_t time)
+{
+    m_startTime = time;
+    emit syncClock();
+}
+
+class FrameSaveTask : public QRunnable
+{
+private:
+    QString m_frameBasePath;
+    time_t m_timeSinceStart;
+    cv::Mat m_frame;
+    QSize m_exportResolution;
+
+public:
+    FrameSaveTask(const QString& frameBasePath, const time_t& timeSinceStart,
+                  const QSize& exportRes, cv::Mat frameImg)
+    {
+        m_frameBasePath = frameBasePath;
+        m_timeSinceStart = timeSinceStart;
+        m_frame = frameImg;
+        m_exportResolution = exportRes;
+    }
+
+    void run()
+    {
+        // store downscaled frame on disk
+        cv::Mat emat;
+
+        cv::resize(m_frame,
+                   emat,
+                   cv::Size(m_exportResolution.width(), m_exportResolution.height()));
+        cv::imwrite(QString("%1%2.jpg").arg(m_frameBasePath).arg(m_timeSinceStart).toStdString(), emat);
+    }
+};
+
+void VideoTracker::storeFrameAndWait(const QPair<time_t, cv::Mat> &frame, const QString& frameBasePath,
+                                     time_t *lastFrameTime, const time_t& timeSinceStart, const time_t& frameInterval)
+{
+    // enqueue frame to be stored on disk by a separate thread.
+    // the runnable is disposed of automatically.
+    auto task = new FrameSaveTask(frameBasePath, timeSinceStart,
+                                  m_exportResolution, frame.second);
+    QThreadPool::globalInstance()->start(task);
+
+    // wait the remaining time before requesting the next frame
+    time_t remainingTime;
+    if ((*lastFrameTime) != frame.first)
+        remainingTime = frameInterval - (frame.first - (*lastFrameTime));
+    else
+        remainingTime = 0; // we fetched the same frame twice - directly jump to the next one
+    (*lastFrameTime) = frame.first;
+
+    if (remainingTime > 0)
+        QThread::usleep(remainingTime * 1000); // sleep remainingTime msecs
+}
+
 bool VideoTracker::runTracking(const QString& frameBasePath)
 {
     // prepare position output CSV file
@@ -218,11 +269,19 @@ bool VideoTracker::runTracking(const QString& frameBasePath)
     while (!m_triggered) { QCoreApplication::processEvents(); }
 
     auto frameInterval = 1000 / m_framerate; // framerate in FPS, interval msec delay
-    m_startTime = getMsecEpoch();
 
+    auto firstFrame = true;
+    time_t lastFrameTime = 0;
     m_running = true;
     while (m_running) {
         auto frame = m_camera->getFrame();
+
+        // assume first frame is starting point
+        if (firstFrame) {
+            firstFrame = false;
+            setStartTimestamp(frame.first);
+            lastFrameTime = frame.first - (frameInterval / 1.5);
+        }
         auto timeSinceStart = frame.first - m_startTime;
         emit newFrame(timeSinceStart, frame.second);
 
@@ -249,18 +308,9 @@ bool VideoTracker::runTracking(const QString& frameBasePath)
 
         posInfoOut << "\n";
 
-        // store downscaled frame on disk
-        cv::Mat emat;
-
-        cv::resize(frame.second,
-                   emat,
-                   cv::Size(m_exportResolution.width(), m_exportResolution.height()));
-        cv::imwrite(QString("%1%2.jpg").arg(frameBasePath).arg(timeSinceStart).toStdString(), emat);
-
-        // wait the remaining time for the next frame
-        auto remainingTime = frameInterval - (getMsecEpoch() - frame.first);
-        if (remainingTime > 0)
-            QThread::usleep(remainingTime * 1000); // sleep remainingTime msecs
+        // enqueue frame to be stored on disk and wait the remaining time before requesting a new frame
+        storeFrameAndWait(frame, frameBasePath,
+                          &lastFrameTime, timeSinceStart, frameInterval);
     }
 
     m_startTime = 0;
@@ -314,26 +364,28 @@ bool VideoTracker::runRecordingOnly(const QString &frameBasePath)
     while (!m_triggered) { QCoreApplication::processEvents(); }
 
     auto frameInterval = 1000 / m_framerate; // framerate in FPS, interval msec delay
-    m_startTime = getMsecEpoch();
 
+    auto firstFrame = true;
+    time_t lastFrameTime = 0;
     m_running = true;
     while (m_running) {
         auto frame = m_camera->getFrame();
+        if (frame.first < 0) {
+            // we have an invalid frame, ignore it
+            continue;
+        }
+        // assume first frame is starting point
+        if (firstFrame) {
+            setStartTimestamp(frame.first);
+            firstFrame = false;
+            lastFrameTime = frame.first - (frameInterval / 1.5);
+        }
         auto timeSinceStart = frame.first - m_startTime;
         emit newFrame(timeSinceStart, frame.second);
 
-        // store downscaled frame on disk
-        cv::Mat emat;
-
-        cv::resize(frame.second,
-                   emat,
-                   cv::Size(m_exportResolution.width(), m_exportResolution.height()));
-        cv::imwrite(QString("%1%2.jpg").arg(frameBasePath).arg(timeSinceStart).toStdString(), emat);
-
-        // wait the remaining time for the next frame
-        auto remainingTime = frameInterval - (getMsecEpoch() - frame.first);
-        if (remainingTime > 0)
-            QThread::usleep(remainingTime * 1000); // sleep remainingTime msecs
+        // enqueue frame to be stored on disk and wait the remaining time before requesting a new frame
+        storeFrameAndWait(frame, frameBasePath,
+                          &lastFrameTime, timeSinceStart, frameInterval);
     }
 
     m_startTime = 0;
@@ -546,7 +598,7 @@ cv::Point2f calculateTriangleCentroid(VideoTracker::LEDTriangle& tri)
 static
 double calculateTriangleTurnAngle(VideoTracker::LEDTriangle& tri)
 {
-    if (tri.red.x == 0 && tri.green.x == 0 && tri.blue.x == 0) {
+    if (tri.red.x <= 0 && tri.green.x <= 0 && tri.blue.x <= 0) {
         // looks like we don't know where the triangle is
         tri.center.x = -1;
         tri.center.y = -1;
@@ -736,12 +788,12 @@ void VideoTracker::setAutoGain(bool enabled)
     m_autoGain = enabled;
 }
 
-QList<QPair<QString, int>> VideoTracker::getCameraList() const
+QList<QPair<QString, QVariant>> VideoTracker::getCameraList() const
 {
 #ifdef USE_UEYE_CAMERA
     auto camera = new UEyeCamera;
 #else
-    auto camera = new V4LCamera;
+    auto camera = new GenericCamera;
 #endif
     auto ret = camera->getCameraList();
     delete camera;

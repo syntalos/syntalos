@@ -17,63 +17,57 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef UEYECAMERA_H
-#define UEYECAMERA_H
+#ifndef GENERICCAMERA_H
+#define GENERICCAMERA_H
 
 #include <QObject>
 #include <QPair>
 #include <QList>
 #include <QSize>
+#include <QCamera>
 #include <opencv2/core/core.hpp>
 
 #include "videotracker.h"
 
-class UEyeCamera : public MACamera
+class GenericCamera : public MACamera
 {
     Q_OBJECT
 public:
-    explicit UEyeCamera(QObject *parent = 0);
-    ~UEyeCamera();
+    explicit GenericCamera(QObject *parent = 0);
+    ~GenericCamera();
     QString lastError() const;
 
     QList<QPair<QString, QVariant>> getCameraList() const;
 
-    bool open(QVariant cameraV, const QSize& size);
+    bool open(QVariant cameraId, const QSize& size);
     bool close();
     bool setFramerate(double fps);
 
     QPair<time_t, cv::Mat> getFrame();
     bool getFrame(time_t *time, cv::Mat& buffer);
 
-    bool setAutoWhiteBalance(bool enabled);
-    bool setAutoGain(bool enabled);
-    bool setExposureTime(double val);
-
-    void setConfFile(const QString& fileName);
-    QString confFile() const;
-
-    bool setGPIOFlash(bool enabled);
-
     QList<QSize> getResolutionList(QVariant cameraId);
+
+    bool setAutoWhiteBalance(bool enabled) { Q_UNUSED(enabled); return true; };
+    bool setAutoGain(bool enabled) { Q_UNUSED(enabled); return true; };
+    bool setExposureTime(double val) { Q_UNUSED(val); return true; };
 
 public slots:
 
+private slots:
+    void videoFrameReceived(const QVideoFrame &frame);
+    void recvCameraError();
+
 private:
-    bool checkInit();
     void setError(const QString& message, int code = 0);
-    bool freeCamBuffer();
-    bool reallocateCamBuffer();
 
     QString m_lastError;
-    uint32_t m_hCam;
-    char *m_camBuf;
-    int m_camBufId;
-    time_t m_lastFrameTime;
+    QCamera *m_camera;
+    QVideoFrame m_lastFrame;
+    
+    time_t m_lastTimestamp;
 
     QSize m_frameSize;
-    cv::Mat m_mat;
-
-    QString m_confFile;
 };
 
-#endif // UEYECAMERA_H
+#endif // GENERICCAMERA_H

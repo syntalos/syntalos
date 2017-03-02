@@ -19,6 +19,10 @@
 
 #include "utils.h"
 
+#include <chrono>
+
+using namespace std::chrono;
+
 QString
 ExperimentKind::toHumanString(ExperimentKind::Kind kind)
 {
@@ -54,4 +58,10 @@ ExperimentKind::fromString(const QString& str)
         return ExperimentKind::KindRestingBox;
     else
         return ExperimentKind::KindUnknown;
+}
+
+time_t getMsecEpoch()
+{
+    auto ms = duration_cast<milliseconds>(high_resolution_clock::now().time_since_epoch());
+    return ms.count();
 }

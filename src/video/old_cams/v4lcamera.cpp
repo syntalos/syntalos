@@ -372,14 +372,13 @@ void V4LCamera::getFrame(time_t *time, cv::Mat& buffer)
         return;
     }
 
-    // get millisecond-resolution timestamp
-    auto ms = duration_cast<milliseconds>(high_resolution_clock::now().time_since_epoch());
-    *time = ms.count();
-
     if(xioctl(m_cameraFD, VIDIOC_DQBUF, &buf) < 0) {
         setError("Unable to retrieve frame");
         return;
     }
+    
+    // get timestamp
+    (*time) = (buf.timestamp.tv_sec * 1000) + (buf.timestamp.tv_usec / 1000);
 
     buffer.create(m_frameSize.height(),
                   m_frameSize.width(),

@@ -24,6 +24,7 @@
 #include <QList>
 #include <QSize>
 #include <QPoint>
+#include <QVariant>
 #include <opencv2/core/core.hpp>
 
 #include "../utils.h"
@@ -39,20 +40,20 @@ public:
 
     virtual QString lastError() const = 0;
 
-    virtual QList<QPair<QString, int>> getCameraList() const = 0;
+    virtual QList<QPair<QString, QVariant>> getCameraList() const = 0;
 
-    virtual bool open(int cameraId, const QSize& size) = 0;
+    virtual bool open(QVariant cameraId, const QSize& size) = 0;
     virtual bool close() = 0;
 
     virtual QPair<time_t, cv::Mat> getFrame() = 0;
-    virtual void getFrame(time_t *time, cv::Mat& buffer) = 0;
+    virtual bool getFrame(time_t *time, cv::Mat& buffer) = 0;
 
     virtual bool setAutoWhiteBalance(bool enabled) = 0;
     virtual bool setAutoGain(bool enabled) = 0;
     virtual bool setExposureTime(double val) = 0;
     virtual bool setFramerate(double fps) = 0;
 
-    virtual QList<QSize> getResolutionList(int cameraId) = 0;
+    virtual QList<QSize> getResolutionList(QVariant cameraId) = 0;
 
     virtual void setConfFile(const QString& fileName) { Q_UNUSED(fileName); }
     virtual bool setGPIOFlash(bool enabled) { Q_UNUSED(enabled); return true; }
@@ -78,11 +79,11 @@ public:
 
     QString lastError() const;
 
-    QList<QPair<QString, int>> getCameraList() const;
+    QList<QPair<QString, QVariant>> getCameraList() const;
 
     void setResolution(const QSize& size);
-    void setCameraId(int cameraId);
-    int cameraId() const;
+    void setCameraId(QVariant cameraId);
+    QVariant cameraId() const;
 
     void setFramerate(int fps);
     int framerate() const;
@@ -92,7 +93,7 @@ public:
 
     void setAutoGain(bool enabled);
 
-    QList<QSize> resolutionList(int cameraId);
+    QList<QSize> resolutionList(QVariant cameraId);
 
     void setExportResolution(const QSize& size);
     QSize exportResolution() const;
@@ -129,6 +130,8 @@ signals:
 
     void recordingReady();
 
+    void syncClock();
+
 protected:
     bool closeCamera();
 
@@ -138,7 +141,12 @@ private:
     bool runTracking(const QString &frameBasePath);
     bool runRecordingOnly(const QString &frameBasePath);
 
+    void setStartTimestamp(const time_t time);
+
     LEDTriangle trackPoints(time_t time, const cv::Mat& image);
+
+    void storeFrameAndWait(const QPair<time_t, cv::Mat> &frame, const QString& frameBasePath,
+                           time_t *lastFrameTime, const time_t& timeSinceStart, const time_t &frameInterval);
 
     QString m_lastError;
 
@@ -149,7 +157,7 @@ private:
     double m_exposureTime;
     bool m_gpioFlash;
 
-    int m_cameraId;
+    QVariant m_cameraId;
     bool m_autoGain;
 
     bool m_running;

@@ -109,8 +109,10 @@ set(INTANREC_SRC
 )
 
 set(VIDEO_SRC
-    video/v4lcamera.h
-    video/v4lcamera.cpp
+    video/simplevprobe.h
+    video/simplevprobe.cpp
+    video/genericcamera.h
+    video/genericcamera.cpp
     video/videotracker.h
     video/videotracker.cpp
     video/videoviewwidget.h
@@ -152,6 +154,8 @@ target_link_libraries(mazeamaze
     KF5::Archive
     KF5::TextEditor
     Qt5::ScriptTools
+    Qt5::Multimedia
+    Qt5::MultimediaWidgets
     ${OpenCV_LIBS}
     ${OPENGL_LIBRARIES}
     ${UYEYE_LIB}

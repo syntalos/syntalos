@@ -82,19 +82,17 @@ void VideoViewWidget::renderImage()
                     m_resizedImg = m_renderQtImg;
                 else
                     m_resizedImg = m_renderQtImg.scaled(QSize(mRenderWidth, mRenderHeight),
-                                                      Qt::IgnoreAspectRatio,
-                                                      Qt::SmoothTransformation);
+                                                        Qt::IgnoreAspectRatio,
+                                                        Qt::SmoothTransformation);
             }
 
-            // ---> Centering image in draw area
-
+            // center image
             glRasterPos2i(mRenderPosX, mRenderPosY);
             glPixelZoom(1, -1);
             glDrawPixels(m_resizedImg.width(), m_resizedImg.height(), GL_RGBA, GL_UNSIGNED_BYTE, m_resizedImg.bits());
         }
         glPopMatrix();
 
-        // end
         glFlush();
     }
 }

@@ -36,4 +36,6 @@ QString toString(Kind kind);
 Kind fromString(const QString& str);
 }
 
+time_t getMsecEpoch();
+
 #endif // UTILS_H

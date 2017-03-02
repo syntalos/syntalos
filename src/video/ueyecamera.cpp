@@ -27,7 +27,8 @@ using namespace std::chrono;
 
 UEyeCamera::UEyeCamera(QObject *parent)
     : MACamera(parent),
-      m_hCam(0)
+      m_hCam(0),
+      m_camBuf(nullptr)
 {
 }
 
@@ -36,10 +37,10 @@ UEyeCamera::~UEyeCamera()
     close();
 }
 
-QList<QPair<QString, int>> UEyeCamera::getCameraList() const
+QList<QPair<QString, QVariant> > UEyeCamera::getCameraList() const
 {
     INT nNumCam;
-    QList<QPair<QString, int>> res;
+    QList<QPair<QString, QVariant>> res;
 
     if (is_GetNumberOfCameras(&nNumCam) != IS_SUCCESS)
         return res;
@@ -81,6 +82,19 @@ bool UEyeCamera::checkInit()
     return true;
 }
 
+bool UEyeCamera::freeCamBuffer()
+{
+    if (m_camBuf != nullptr) {
+        if (is_FreeImageMem(m_hCam, m_camBuf, m_camBufId) != IS_SUCCESS) {
+            setError("Unable to free camera buffer");
+            return false;
+        }
+        m_camBuf = nullptr;
+    }
+
+    return true;
+}
+
 void UEyeCamera::setError(const QString& message, int code)
 {
     if (code == 0)
@@ -94,19 +108,19 @@ QString UEyeCamera::lastError() const
     return m_lastError;
 }
 
-bool UEyeCamera::open(int cameraId, const QSize& size)
+bool UEyeCamera::open(QVariant cameraV, const QSize& size)
 {
+    auto cameraId = cameraV.toInt();
     if (cameraId < 0) {
         setError("Not initialized.");
         return false;
     }
 
+    m_lastFrameTime = -1;
     m_mat = cv::Mat(size.height(), size.width(), CV_8UC3);
     m_frameSize = size;
     qDebug() << "Opening camera with resolution:" << size;
 
-    char* ppcImgMem;
-    int pid;
     INT nAOISupported = 0;
 
     auto res = is_InitCamera(&m_hCam, 0);
@@ -127,13 +141,13 @@ bool UEyeCamera::open(int cameraId, const QSize& size)
         return false;
     }
 
-    res = is_AllocImageMem(m_hCam, size.width(), size.height(), 24, &ppcImgMem, &pid);
+    res = is_AllocImageMem(m_hCam, size.width(), size.height(), 24, &m_camBuf, &m_camBufId);
     if (res != IS_SUCCESS) {
         setError("Unable to allocate image memory", res);
         return false;
     }
 
-    res = is_SetImageMem(m_hCam, ppcImgMem, pid);
+    res = is_SetImageMem(m_hCam, m_camBuf, m_camBufId);
     if (res != IS_SUCCESS) {
         setError("Unable to set image memory", res);
         return false;
@@ -167,6 +181,9 @@ bool UEyeCamera::open(int cameraId, const QSize& size)
         return false;
     }
 
+    is_EnableEvent(m_hCam, IS_SET_EVENT_FRAME);
+    is_WaitEvent(m_hCam, IS_SET_EVENT_FRAME, 1000);
+
     return true;
 }
 
@@ -177,6 +194,8 @@ bool UEyeCamera::close()
         setError("Unable to exit camera", res);
         return false;
     }
+    if (!freeCamBuffer())
+        return false;
 
     m_hCam = 0;
     return true;
@@ -194,28 +213,37 @@ QPair<time_t, cv::Mat> UEyeCamera::getFrame()
 {
     QPair<time_t, cv::Mat> frame;
 
-    getFrame(&frame.first, m_mat);
+    auto ret = getFrame(&frame.first, m_mat);
+    if (!ret)
+        frame.first = -1;
     frame.second = m_mat;
 
     return frame;
 }
 
-void UEyeCamera::getFrame(time_t *time, cv::Mat& buffer)
+bool UEyeCamera::getFrame(time_t *time, cv::Mat& buffer)
 {
-    VOID* pMem;
+    UEYEIMAGEINFO imgInfo;
 
-    auto res = is_GetImageMem(m_hCam, &pMem);
-    if (res != IS_SUCCESS) {
-        setError("Unable to grab frame", res);
-        return;
+    is_WaitEvent(m_hCam, IS_SET_EVENT_FRAME, 1);
+
+    auto res = is_GetImageInfo (m_hCam, m_camBufId, &imgInfo, sizeof(imgInfo));
+    if (res == IS_SUCCESS) {
+        (*time) = imgInfo.u64TimestampDevice / 10000; // o.1µs resolution, but we want ms
+        if ((*time) == m_lastFrameTime) {
+            // we don't want to fetch the same frame twice
+            return false;
+        }
+        m_lastFrameTime = (*time);
+    } else {
+        qCritical() << "Unable to get camera timestamp.";
+        setError("Unable to get camera timestamp", res);
+        return false;
     }
 
-    // grab millisecond-resolution timestamp
-    auto ms = duration_cast<milliseconds>(high_resolution_clock::now().time_since_epoch());
-    *time = ms.count();
-
     // width * height * depth (depth == 3)
-    memcpy(buffer.ptr(), pMem, m_frameSize.width() * m_frameSize.height() * 3);
+    memcpy(buffer.ptr(), m_camBuf, m_frameSize.width() * m_frameSize.height() * 3);
+    return true;
 }
 
 bool UEyeCamera::setAutoWhiteBalance(bool enabled)
@@ -338,11 +366,11 @@ bool UEyeCamera::setGPIOFlash(bool enabled)
     return true;
 }
 
-QList<QSize> UEyeCamera::getResolutionList(int cameraId)
+QList<QSize> UEyeCamera::getResolutionList(QVariant cameraId)
 {
     QList<QSize> res;
 
-    HIDS hCam = cameraId;
+    HIDS hCam = cameraId.toInt();
     auto ret = is_InitCamera(&hCam, nullptr);
     if (ret != IS_SUCCESS) {
         setError("Unable to initialize camera", ret);
