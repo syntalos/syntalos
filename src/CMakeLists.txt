@@ -23,29 +23,13 @@ set(MAZEAMAZE_UI
 qt5_wrap_ui(MAZEAMAZE_UI_SRC ${MAZEAMAZE_UI})
 
 set(FIRMATA_SRC
-    firmata/backends/backend.cpp
-    firmata/backends/backend.h
-    firmata/backends/serialinfo.cpp
-    firmata/backends/serialinfo.h
-    firmata/backends/serialport.cpp
-    firmata/backends/serialport.h
-    firmata/firmata.cpp
-    firmata/firmata.h
-    firmata/pins/analogpin.cpp
-    firmata/pins/analogpin.h
-    firmata/pins/digitalpin.cpp
-    firmata/pins/digitalpin.h
-    firmata/pins/encoder.cpp
-    firmata/pins/encoder.h
-    firmata/pins/i2c.cpp
-    firmata/pins/i2c.h
-    firmata/pins/pin.cpp
-    firmata/pins/pin.h
-    firmata/pins/pwmpin.cpp
-    firmata/pins/pwmpin.h
-    firmata/pins/servo.cpp
-    firmata/pins/servo.h
-    firmata/utils.h
+    firmata/backend.cpp
+    firmata/backend.h
+    firmata/serialinfo.cpp
+    firmata/serialinfo.h
+    firmata/serialport.cpp
+    firmata/serialport.h
+    firmata/fmutils.h
 )
 
 set(INTANREC_SRC

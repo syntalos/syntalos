@@ -25,7 +25,7 @@
 #include <QElapsedTimer>
 
 class QScriptEngine;
-class Firmata;
+class SerialFirmata;
 class MazeIO;
 class QFile;
 
@@ -61,7 +61,7 @@ private slots:
 private:
     void resetEngine();
     
-    Firmata *m_firmata;
+    SerialFirmata *m_firmata;
     MazeIO *m_mazeio;
     QScriptEngine *m_jseng;
 

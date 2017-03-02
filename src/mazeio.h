@@ -25,14 +25,13 @@
 #include <QScriptValue>
 #include <QScriptable>
 
-class Firmata;
-class DigitalPin;
+class SerialFirmata;
 
 class MazeIO : public QObject, protected QScriptable
 {
     Q_OBJECT
 public:
-    explicit MazeIO(Firmata *firmata, QObject *parent = 0);
+    explicit MazeIO(SerialFirmata *firmata, QObject *parent = 0);
 
     void newDigitalPin(int pinID, const QString& pinName, bool output);
 
@@ -58,13 +57,13 @@ signals:
     void headersSet(const QStringList& headers);
 
 private slots:
-    void pinChangeReceived(bool value);
+    void onDigitalPinRead(uint8_t pin, bool value);
 
 private:
-    Firmata *m_firmata;
+    SerialFirmata *m_firmata;
 
-    QHash<QString, DigitalPin*> m_namePinMap;
-    QHash<DigitalPin*, QString> m_pinNameMap;
+    QHash<QString, int> m_namePinMap;
+    QHash<int, QString> m_pinNameMap;
 };
 
 #endif // MAZEIO_H

@@ -27,36 +27,30 @@
 #include <QScriptEngine>
 #include <QCoreApplication>
 
-#include "firmata/firmata.h"
-#include "firmata/pins/digitalpin.h"
+#include "firmata/serialport.h"
 
-MazeIO::MazeIO(Firmata *firmata, QObject *parent)
+MazeIO::MazeIO(SerialFirmata *firmata, QObject *parent)
     : QObject(parent),
       m_firmata(firmata)
 {
+    connect(m_firmata, &SerialFirmata::digitalPinRead, this, &MazeIO::onDigitalPinRead);
 }
 
 void MazeIO::newDigitalPin(int pinID, const QString& pinName, bool output)
 {
-    auto pin = new DigitalPin(this);
-    pin->setPin(pinID);
-    pin->setOutput(output);
-    m_firmata->addPin(pin);
     if (output) {
         // initialize output pin
-        pin->setValue(false);
+        m_firmata->setPinMode(pinID, IoMode::Output);
+        m_firmata->writeDigitalPin(pinID, false);
+        qDebug() << "Pin" << pinID << "set as output";
     } else {
         // connect input pin
-        connect(pin, &DigitalPin::valueChanged, this, &MazeIO::pinChangeReceived);
+        m_firmata->setPinMode(pinID, IoMode::Input);
+        qDebug() << "Pin" << pinID << "set as input";
     }
 
-    m_namePinMap.insert(pinName, pin);
-    m_pinNameMap.insert(pin, pinName);
-
-    if (output)
-        qDebug() << "Pin" << pinID << "set as output";
-    else
-        qDebug() << "Pin" << pinID << "set as input";
+    m_namePinMap.insert(pinName, pinID);
+    m_pinNameMap.insert(pinID, pinName);
 }
 
 void MazeIO::newDigitalPin(int pinID, const QString& pinName, const QString& kind)
@@ -71,13 +65,13 @@ void MazeIO::newDigitalPin(int pinID, const QString& pinName, const QString& kin
 
 void MazeIO::pinSetValue(const QString& pinName, bool value)
 {
-    auto pin = m_namePinMap.value(pinName);
-    if (pin == nullptr) {
+    auto pin = m_namePinMap.value(pinName, -1);
+    if (pin < 0) {
         QMessageBox::critical(nullptr, "MazeIO Error",
                               QString("Unable to deliver message to pin '%1' (pin does not exist)").arg(pinName));
         return;
     }
-    pin->setValue(value);
+    m_firmata->writeDigitalPin(pin, value);
 }
 
 void MazeIO::pinSignalPulse(const QString& pinName)
@@ -87,17 +81,16 @@ void MazeIO::pinSignalPulse(const QString& pinName)
     pinSetValue(pinName, false);
 }
 
-void MazeIO::pinChangeReceived(bool value)
+void MazeIO::onDigitalPinRead(uint8_t pin, bool value)
 {
     qDebug() << "Received pin value change.";
     auto sender = QObject::sender();
     if (sender == nullptr)
         return;
-    auto pin = dynamic_cast<DigitalPin*>(sender);
 
-    auto pinName = m_pinNameMap.value(pin);
+    auto pinName = m_pinNameMap.value(pin, QString());
     if (pinName.isEmpty()) {
-        qWarning() << "Ignored message from unregistered pin " << pin->pin();
+        qWarning() << "Ignored message from unregistered pin" << pin;
         return;
     }
 

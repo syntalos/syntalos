@@ -26,9 +26,7 @@
 #include <QScriptEngineDebugger>
 #include <QMessageBox>
 
-#include "firmata/firmata.h"
-#include "firmata/backends/serialport.h"
-#include "firmata/pins/digitalpin.h"
+#include "firmata/serialport.h"
 
 #include "mazeio.h"
 
@@ -73,8 +71,7 @@ const QString defaultSampleScript = QStringLiteral("\n//\n"
 MazeScript::MazeScript(QObject *parent)
     : QObject(parent)
 {
-    m_firmata = new Firmata(this);
-    m_firmata->setInitPins(true);
+    m_firmata = new SerialFirmata(this);
 
     m_script = defaultSampleScript;
 
@@ -101,27 +98,17 @@ MazeScript::~MazeScript()
 void MazeScript::initFirmata(const QString &serialDevice)
 {
     qDebug() << "Loading Firmata protocol (" << serialDevice << ")";
-    if (m_firmata->backend() == nullptr) {
-        auto serial = new SerialFirmata();
-        if (!serial->setDevice(serialDevice)) {
-            emit firmataError(serial->statusText());
+    if (m_firmata->device().isEmpty()) {
+        if (!m_firmata->setDevice(serialDevice)) {
+            emit firmataError(m_firmata->statusText());
             emit finished();
             return;
         }
-
-        m_firmata->setBackend(serial);
-
-        // wait for the device to become ready
-        {
-            QEventLoop loop;
-            loop.connect(m_firmata, SIGNAL(readyChanged(bool)), SLOT(quit()));
-            loop.exec();
-        }
     }
 
-    if (!m_firmata->isReady() || m_firmata->statusText().contains("Error")) {
+    if (!m_firmata->isAvailable() || m_firmata->statusText().contains("Error")) {
         emit firmataError(QString("Unable to open serial interface: %1").arg(m_firmata->statusText()));
-        m_firmata->setBackend(nullptr);
+        m_firmata->setDevice(QString());
         emit finished();
         return;
     }
