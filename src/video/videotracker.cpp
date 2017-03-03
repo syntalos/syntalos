@@ -275,6 +275,10 @@ bool VideoTracker::runTracking(const QString& frameBasePath)
     m_running = true;
     while (m_running) {
         auto frame = m_camera->getFrame();
+        if (frame.first < 0) {
+            // we have an invalid frame, ignore it
+            continue;
+        }
 
         // assume first frame is starting point
         if (firstFrame) {
@@ -442,12 +446,11 @@ void VideoTracker::run()
     else
         ret = runRecordingOnly(frameBasePath);
 
-    if (ret) {
-        // success! - finalize
-        m_startTime = 0;
-        moveToThread(QApplication::instance()->thread()); // give back our object to the main thread
-        emit finished();
-    }
+
+    // finalize
+    m_startTime = 0;
+    moveToThread(QApplication::instance()->thread()); // give back our object to the main thread
+    emit finished();
 
     // we no longer need the camera, it's safe to close it
     closeCamera();
