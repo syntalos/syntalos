@@ -25,9 +25,12 @@
 #include <QList>
 #include <QSize>
 #include <QCamera>
+#include <QMutex>
 #include <opencv2/core/core.hpp>
 
 #include "videotracker.h"
+
+class QCameraViewfinder;
 
 class GenericCamera : public MACamera
 {
@@ -62,9 +65,11 @@ private:
     void setError(const QString& message, int code = 0);
 
     QString m_lastError;
+
     QCamera *m_camera;
     QVideoFrame m_lastFrame;
-    
+    QMutex m_frameMutex;
+
     time_t m_lastTimestamp;
 
     QSize m_frameSize;

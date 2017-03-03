@@ -24,7 +24,7 @@
 #include <QFileInfo>
 #include <QVideoProbe>
 #include <QCameraInfo>
-#include <QCameraViewfinder>
+#include <QCameraImageCapture>
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui_c.h>
@@ -105,6 +105,10 @@ bool GenericCamera::open(QVariant cameraId, const QSize& size)
     // start reading images
     m_camera->start();
 
+    auto settings = m_camera->viewfinderSettings();
+    settings.setResolution(640, 480); // FIXME: Don't hardcode this!
+    m_camera->setViewfinderSettings(settings);
+
     if (!m_lastError.isEmpty()) {
         close ();
         return false;
@@ -148,31 +152,41 @@ QPair<time_t, cv::Mat> GenericCamera::getFrame()
 
 bool GenericCamera::getFrame(time_t *time, cv::Mat& buffer)
 {
-    if (!m_lastFrame.isValid())
-        return false;
-    if (m_lastFrame.startTime() == m_lastTimestamp)
-        return false; // frame is not new
-
-    // get timestamp
-    (*time) = m_lastFrame.startTime();
-    m_lastTimestamp = m_lastFrame.startTime();
+    m_frameMutex.lock();
 
     QImage tmpImg;
-    if (m_lastFrame.map(QAbstractVideoBuffer::ReadOnly)) {
-        auto format = QVideoFrame::imageFormatFromPixelFormat(m_lastFrame.pixelFormat());
-        tmpImg = QImage(m_lastFrame.bits(), m_lastFrame.width(), m_lastFrame.height(), m_lastFrame.bytesPerLine(), format);
+    QImage rgb;
+    cv::Mat tmpMat;
+
+    auto frame = m_lastFrame;
+    if (!frame.isValid())
+        goto fail;
+
+    // get timestamp, convert usec to msec
+    (*time) = frame.startTime() / 1000;
+    if ((*time) == m_lastTimestamp)
+        goto fail; // frame is not new
+    m_lastTimestamp = (*time);
+
+    if (frame.map(QAbstractVideoBuffer::ReadOnly)) {
+        auto format = QVideoFrame::imageFormatFromPixelFormat(frame.pixelFormat());
+        tmpImg = QImage(frame.bits(), frame.width(), frame.height(), frame.bytesPerLine(), format);
     } else {
         qCritical() << "Unable to map video frame!";
-        return false;
+        goto fail;
     }
 
-    auto rgb = tmpImg.convertToFormat(QImage::Format_RGB888);
-    auto tmpMat = cv::Mat(rgb.height(), rgb.width(), CV_8UC3, (void*) m_lastFrame.bits(), rgb.bytesPerLine());
-    tmpMat.copyTo(buffer);
+    rgb = tmpImg.convertToFormat(QImage::Format_RGB888);
+    tmpMat = cv::Mat(rgb.height(), rgb.width(), CV_8UC3, (void*) frame.bits(), rgb.bytesPerLine());
+    cv::cvtColor(tmpMat, buffer, CV_BGR2RGB);
 
-    m_lastFrame.unmap();
+    frame.unmap();
+    m_frameMutex.unlock();
 
     return true;
+fail:
+    m_frameMutex.unlock();
+    return false;
 }
 
 QList<QSize> GenericCamera::getResolutionList(QVariant cameraId)
@@ -188,13 +202,17 @@ QList<QSize> GenericCamera::getResolutionList(QVariant cameraId)
             camera = new QCamera(cameraInfo);
     }
 
-    if (m_camera == nullptr) {
+    if (camera == nullptr) {
         // we couldn't find the camera
         setError(QStringLiteral("Unable to find the camera '%1'").arg(camDevName));
+        qWarning() << "Unable to read resolutions: Camera was not found!";
         return res;
     }
 
-    res = camera->supportedViewfinderResolutions();
+    QCameraImageCapture *imageCapture = new QCameraImageCapture(camera);
+    camera->start();
+
+    res = imageCapture->supportedResolutions();
     delete camera;
 
     return res;
@@ -202,5 +220,8 @@ QList<QSize> GenericCamera::getResolutionList(QVariant cameraId)
 
 void GenericCamera::videoFrameReceived(const QVideoFrame &frame)
 {
+    if (!m_frameMutex.tryLock())
+        return;
     m_lastFrame = QVideoFrame(frame);
+    m_frameMutex.unlock();
 }

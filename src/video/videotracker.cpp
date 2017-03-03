@@ -87,6 +87,14 @@ QVariant VideoTracker::cameraId() const
     return m_cameraId;
 }
 
+static bool qsizeBiggerThan(const QSize &s1, const QSize &s2)
+{
+    auto s1v = s1.width() + s1.height();
+    auto s2v = s2.width() + s2.height();
+
+    return s1v > s2v;
+}
+
 QList<QSize> VideoTracker::resolutionList(QVariant cameraId)
 {
 #ifdef USE_UEYE_CAMERA
@@ -97,6 +105,7 @@ QList<QSize> VideoTracker::resolutionList(QVariant cameraId)
     auto ret = camera->getResolutionList(cameraId);
     delete camera;
 
+    qSort(ret.begin(), ret.end(), qsizeBiggerThan);
     return ret;
 }
 
