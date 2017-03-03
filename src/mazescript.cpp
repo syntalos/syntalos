@@ -54,6 +54,9 @@ const QString defaultSampleScript = QStringLiteral("\n//\n"
                                            "\n"
                                            "onDigitalInput = function inputReceived(pinName, value)\n"
                                            "{\n"
+                                           "    if (!value)\n"
+                                           "        return;\n"
+                                           "\n"
                                            "    if (pinName == lastArm)\n"
                                            "        return;\n"
                                            "    lastArm = pinName;\n"
@@ -97,7 +100,7 @@ MazeScript::~MazeScript()
 
 void MazeScript::initFirmata(const QString &serialDevice)
 {
-    qDebug() << "Loading Firmata protocol (" << serialDevice << ")";
+    qDebug() << "Loading Firmata interface (" << serialDevice << ")";
     if (m_firmata->device().isEmpty()) {
         if (!m_firmata->setDevice(serialDevice)) {
             emit firmataError(m_firmata->statusText());
@@ -106,7 +109,7 @@ void MazeScript::initFirmata(const QString &serialDevice)
         }
     }
 
-    if (!m_firmata->isAvailable() || m_firmata->statusText().contains("Error")) {
+    if (!m_firmata->waitForReady(4000) || m_firmata->statusText().contains("Error")) {
         emit firmataError(QString("Unable to open serial interface: %1").arg(m_firmata->statusText()));
         m_firmata->setDevice(QString());
         emit finished();

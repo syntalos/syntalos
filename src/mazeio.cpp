@@ -33,12 +33,18 @@ MazeIO::MazeIO(SerialFirmata *firmata, QObject *parent)
     : QObject(parent),
       m_firmata(firmata)
 {
+    connect(m_firmata, &SerialFirmata::digitalRead, this, &MazeIO::onDigitalRead);
     connect(m_firmata, &SerialFirmata::digitalPinRead, this, &MazeIO::onDigitalPinRead);
 }
 
 void MazeIO::newDigitalPin(int pinID, const QString& pinName, bool output)
 {
-    if (output) {
+    FmPin pin;
+    pin.kind = PinKind::Digital;
+    pin.id = pinID;
+    pin.output = output;
+
+    if (pin.output) {
         // initialize output pin
         m_firmata->setPinMode(pinID, IoMode::Output);
         m_firmata->writeDigitalPin(pinID, false);
@@ -46,12 +52,15 @@ void MazeIO::newDigitalPin(int pinID, const QString& pinName, bool output)
     } else {
         // connect input pin
         m_firmata->setPinMode(pinID, IoMode::Input);
-        m_firmata->reportDigitalPort(pinID, true);
+
+        auto port = pin.id >> 3;
+        m_firmata->reportDigitalPort(port, true);
+
         qDebug() << "Pin" << pinID << "set as input";
     }
 
-    m_namePinMap.insert(pinName, pinID);
-    m_pinNameMap.insert(pinID, pinName);
+    m_namePinMap.insert(pinName, pin);
+    m_pinNameMap.insert(pin.id, pinName);
 }
 
 void MazeIO::newDigitalPin(int pinID, const QString& pinName, const QString& kind)
@@ -66,13 +75,13 @@ void MazeIO::newDigitalPin(int pinID, const QString& pinName, const QString& kin
 
 void MazeIO::pinSetValue(const QString& pinName, bool value)
 {
-    auto pin = m_namePinMap.value(pinName, -1);
-    if (pin < 0) {
+    auto pin = m_namePinMap.value(pinName);
+    if (pin.kind == PinKind::Unknown) {
         QMessageBox::critical(nullptr, "MazeIO Error",
                               QString("Unable to deliver message to pin '%1' (pin does not exist)").arg(pinName));
         return;
     }
-    m_firmata->writeDigitalPin(pin, value);
+    m_firmata->writeDigitalPin(pin.id, value);
 }
 
 void MazeIO::pinSignalPulse(const QString& pinName)
@@ -82,16 +91,38 @@ void MazeIO::pinSignalPulse(const QString& pinName)
     pinSetValue(pinName, false);
 }
 
-void MazeIO::onDigitalPinRead(uint8_t pin, bool value)
+void MazeIO::onDigitalRead(uint8_t port, uint8_t value)
 {
-    qDebug() << "Received pin value change.";
+    qDebug() << "Firmata digital port read:" << int(value);
     auto sender = QObject::sender();
     if (sender == nullptr)
         return;
 
-    auto pinName = m_pinNameMap.value(pin, QString());
+    // value of a digital port changed: 8 possible pin changes
+    const int first = port * 8;
+    const int last = first + 7;
+
+    for (const FmPin p : m_namePinMap.values()) {
+        if ((!p.output) && (p.kind != PinKind::Unknown)) {
+            if ((p.id >= first) && (p.id <= last)) {
+                bool boolVal = value & (1 << (p.id - first));
+                auto pinName = m_pinNameMap.value(p.id);
+                emit valueChanged(pinName, boolVal);
+            }
+        }
+    }
+}
+
+void MazeIO::onDigitalPinRead(uint8_t pin, bool value)
+{
+    qDebug("Firmata digital pin read: %d=%d", pin, value);
+    auto sender = QObject::sender();
+    if (sender == nullptr)
+        return;
+
+    auto pinName = m_pinNameMap.value(pin);
     if (pinName.isEmpty()) {
-        qWarning() << "Ignored message from unregistered pin" << pin;
+        qWarning() << "Received state change for unknown pin:" << pin;
         return;
     }
 

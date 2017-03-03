@@ -27,6 +27,20 @@
 
 class SerialFirmata;
 
+enum PinKind
+{
+    Unknown,
+    Digital,
+    Analog
+};
+
+struct FmPin
+{
+    PinKind kind;
+    bool output;
+    uint8_t id;
+};
+
 class MazeIO : public QObject, protected QScriptable
 {
     Q_OBJECT
@@ -57,12 +71,13 @@ signals:
     void headersSet(const QStringList& headers);
 
 private slots:
+    void onDigitalRead(uint8_t port, uint8_t value);
     void onDigitalPinRead(uint8_t pin, bool value);
 
 private:
     SerialFirmata *m_firmata;
 
-    QHash<QString, int> m_namePinMap;
+    QHash<QString, FmPin> m_namePinMap;
     QHash<int, QString> m_pinNameMap;
 };
 
