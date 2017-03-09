@@ -135,6 +135,7 @@ target_link_libraries(mazeamaze
     Qt5::SerialPort
     Qt5::Script
     Qt5::OpenGL
+    KF5::DBusAddons
     KF5::Archive
     KF5::TextEditor
     Qt5::ScriptTools

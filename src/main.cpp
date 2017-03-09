@@ -23,6 +23,7 @@
 #include <QTimer>
 #include <QTime>
 #include <QDebug>
+#include <KDBusService>
 
 static QString const splashMessages[] =
     { "Loading MazeAmaze...",
@@ -63,7 +64,11 @@ int main(int argc, char *argv[])
 
     QApplication app(argc, argv);
     app.setApplicationName("MazeAmaze");
+    app.setOrganizationDomain("uni-heidelberg.de");
     app.setApplicationVersion("0.4");
+
+    // ensure we only ever run one instance of the application
+    KDBusService service(KDBusService::Unique);
 
     QPixmap pixmap(":/images/splash");
     QSplashScreen splash(pixmap);
