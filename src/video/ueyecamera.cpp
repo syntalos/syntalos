@@ -53,7 +53,6 @@ QList<QPair<QString, QVariant> > UEyeCamera::getCameraList() const
         pucl->dwCount = nNumCam;
 
         // Retrieve camera info
-
         if (is_GetCameraList(pucl) == IS_SUCCESS) {
             int iCamera;
 

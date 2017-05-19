@@ -69,8 +69,8 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->setupUi(this);
 
     // Create status bar
-    statusBarLabel = new QLabel(tr(""));
-    statusBar()->addWidget(statusBarLabel, 1);
+    m_statusBarLabel = new QLabel(tr(""));
+    statusBar()->addWidget(m_statusBarLabel, 1);
     statusBar()->setSizeGripEnabled(false);  // fixed window size
 
     // status widget
@@ -103,13 +103,13 @@ MainWindow::MainWindow(QWidget *parent) :
     auto dirInfoLabel = new QLabel("Export &Directory:");
     dirInfoLabel->setBuddy(openDirBtn);
 
-    exportDirLabel = new QLabel("???");
-    exportDirInfoLabel = new QLabel ("Recorded data will be stored in: The directory you select.");
+    m_exportDirLabel = new QLabel("???");
+    m_exportDirInfoLabel = new QLabel ("Recorded data will be stored in: The directory you select.");
 
     ui->dataExportDirLayout->addWidget(dirInfoLabel);
-    ui->dataExportDirLayout->addWidget(exportDirLabel);
+    ui->dataExportDirLayout->addWidget(m_exportDirLabel);
     ui->dataExportDirLayout->addWidget(openDirBtn);
-    ui->dataExportLayout->addWidget(exportDirInfoLabel);
+    ui->dataExportLayout->addWidget(m_exportDirInfoLabel);
 
     connect(openDirBtn, &QToolButton::clicked, this, &MainWindow::openDataExportDirectory);
 
@@ -795,7 +795,7 @@ void MainWindow::setDataExportBaseDir(const QString& dir)
 
     m_dataExportBaseDir = dir;
     m_exportDirValid = QDir().exists(m_dataExportBaseDir);
-    exportDirLabel->setText(m_dataExportBaseDir);
+    m_exportDirLabel->setText(m_dataExportBaseDir);
 
     // update the export directory
     updateDataExportDir();
@@ -813,7 +813,7 @@ void MainWindow::updateDataExportDir()
                                     .arg(m_currentSubject.id)
                                     .arg(m_currentDate)
                                     .arg(m_experimentId));
-    exportDirInfoLabel->setText(QString("Recorded data will be stored in: %1").arg(m_dataExportDir));
+    m_exportDirInfoLabel->setText(QString("Recorded data will be stored in: %1").arg(m_dataExportDir));
 }
 
 void MainWindow::openDataExportDirectory()
@@ -1043,6 +1043,6 @@ void MainWindow::aboutActionTriggered()
 
 void MainWindow::setStatusText(const QString& msg)
 {
-    statusBarLabel->setText(msg);
+    m_statusBarLabel->setText(msg);
     QApplication::processEvents();
 }

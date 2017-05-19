@@ -108,9 +108,9 @@ private:
 
     Ui::MainWindow *ui;
 
-    QLabel *statusBarLabel;
-    QLabel *exportDirLabel;
-    QLabel *exportDirInfoLabel;
+    QLabel *m_statusBarLabel;
+    QLabel *m_exportDirLabel;
+    QLabel *m_exportDirInfoLabel;
 
     IntanUI *m_intanUI;
 
