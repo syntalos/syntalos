@@ -21,6 +21,7 @@
 
 #include <QOpenGLFunctions>
 #include <opencv2/opencv.hpp>
+#include <QDebug>
 
 VideoViewWidget::VideoViewWidget(QWidget *parent)
     : QOpenGLWidget(parent)
@@ -118,6 +119,7 @@ void VideoViewWidget::recalculatePosition()
 
 bool VideoViewWidget::showImage(const cv::Mat& image)
 {
+    qDebug() << "(" << this->windowTitle() << ")" << "Render img start";
     if (image.channels() == 3)
         cvtColor(image, m_origImage, CV_BGR2RGBA);
     else if (image.channels() == 1)
@@ -129,9 +131,12 @@ bool VideoViewWidget::showImage(const cv::Mat& image)
                           m_origImage.cols, m_origImage.rows,
                           m_origImage.step1(), QImage::Format_RGB32);
 
+    qDebug() << "(" << this->windowTitle() << ")" << "AAA";
     recalculatePosition();
+    qDebug() << "(" << this->windowTitle() << ")" << "BBB";
     updateScene();
 
+    qDebug() << "(" << this->windowTitle() << ")" << "Render img done";
     return true;
 }
 
