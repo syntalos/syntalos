@@ -55,7 +55,7 @@
 #include "intanrec/intanui.h"
 #include "intanrec/waveplot.h"
 
-#include "video/videotracker.h"
+#include "video/mazevideo.h"
 #include "video/videoviewwidget.h"
 
 #include "mazescript.h"
@@ -241,12 +241,12 @@ MainWindow::MainWindow(QWidget *parent) :
     jsDoc->setHighlightingMode("javascript");
 
     // set up video and tracking
-    m_videoTracker = new VideoTracker;
-    connect(m_videoTracker, &VideoTracker::error, this, &MainWindow::videoError);
+    m_videoTracker = new MazeVideo;
+    connect(m_videoTracker, &MazeVideo::error, this, &MainWindow::videoError);
     m_rawVideoWidget = new VideoViewWidget(this);
     ui->mdiArea->addSubWindow(m_rawVideoWidget)->setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowMinMaxButtonsHint);
     m_rawVideoWidget->setWindowTitle("Raw Video");
-    connect(m_videoTracker, &VideoTracker::newFrame, [&](time_t time, const cv::Mat& image) {
+    connect(m_videoTracker, &MazeVideo::newFrame, [&](time_t time, const cv::Mat& image) {
         m_rawVideoWidget->setWindowTitle(QString("Raw Video (at %1sec)").arg(time / 1000));
         m_rawVideoWidget->showImage(image);
     });
@@ -255,7 +255,7 @@ MainWindow::MainWindow(QWidget *parent) :
     m_trackVideoWidgetWin = ui->mdiArea->addSubWindow(m_trackVideoWidget);
     m_trackVideoWidgetWin->setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowMinMaxButtonsHint);
     m_trackVideoWidget->setWindowTitle("Tracking");
-    connect(m_videoTracker, &VideoTracker::newTrackingFrame, [&](time_t time, const cv::Mat& image) {
+    connect(m_videoTracker, &MazeVideo::newTrackingFrame, [&](time_t time, const cv::Mat& image) {
         m_trackVideoWidget->setWindowTitle(QString("Tracking (at %1sec)").arg(time / 1000));
         m_trackVideoWidget->showImage(image);
     });
@@ -264,7 +264,7 @@ MainWindow::MainWindow(QWidget *parent) :
     m_trackInfoWidgetWin = ui->mdiArea->addSubWindow(m_trackInfoWidget);
     m_trackInfoWidgetWin->setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowMinMaxButtonsHint);
     m_trackInfoWidget->setWindowTitle("Subject Tracking");
-    connect(m_videoTracker, &VideoTracker::newInfoGraphic, [&](const cv::Mat& image) {
+    connect(m_videoTracker, &MazeVideo::newInfoGraphic, [&](const cv::Mat& image) {
         m_trackInfoWidget->showImage(image);
     });
 
@@ -401,28 +401,6 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->actionStop, &QAction::triggered, this, &MainWindow::stopActionTriggered);
     connect(ui->actionSaveSettings, &QAction::triggered, this, &MainWindow::saveSettingsActionTriggered);
     connect(ui->actionLoadSettings, &QAction::triggered, this, &MainWindow::loadSettingsActionTriggered);
-
-    // connect triggers
-    connect(m_intanUI, &IntanUI::recordingReady, [&]() {
-        qDebug() << "Intan is ready";
-        if (m_lastReady == VideoReady) {
-            m_intanUI->unblockRecording();
-            m_videoTracker->triggerRecording();
-            qDebug() << "Intan triggered start.";
-        }
-        m_lastReady = IntanReady;
-    });
-
-    connect(m_videoTracker, &VideoTracker::recordingReady, [&]() {
-        qDebug() << "Video and tracking is ready";
-        if (m_lastReady == IntanReady) {
-            m_intanUI->unblockRecording();
-            m_videoTracker->triggerRecording();
-            qDebug() << "Video triggered start.";
-        }
-
-        m_lastReady = VideoReady;
-    });
 
     // various
     ui->tabWidget->setCurrentIndex(0);
@@ -567,7 +545,6 @@ void MainWindow::runActionTriggered()
     setRunPossible(false);
     setStopPossible(true);
     m_failed = false;
-    m_lastReady = UnknownReady;
 
     // safeguard against accidental data removals
     QDir deDir(m_dataExportDir);
@@ -646,11 +623,11 @@ void MainWindow::runActionTriggered()
     if (m_currentSubject.id.isEmpty()) {
         intanBaseName = QString::fromUtf8("%1/ephys").arg(intanDataDir);
         m_msintf->setEventFile(QString("%1/events.csv").arg(mazeEventDataDir));
-        m_videoTracker->setMouseId("frame");
+        m_videoTracker->setSubjectId("frame");
     } else {
         intanBaseName = QString::fromUtf8("%1/%2_ephys").arg(intanDataDir).arg(m_currentSubject.id);
         m_msintf->setEventFile(QString("%1/%2_events.csv").arg(mazeEventDataDir).arg(m_currentSubject.id));
-        m_videoTracker->setMouseId(m_currentSubject.id);
+        m_videoTracker->setSubjectId(m_currentSubject.id);
     }
     m_videoTracker->setDataLocation(videoDataDir);
     m_intanUI->setBaseFileName(intanBaseName);
@@ -660,9 +637,14 @@ void MainWindow::runActionTriggered()
     if (!m_videoTracker->openCamera())
         return;
 
+
+    // barrier to synchronize all concurrent actions and thereby align timestamps as good as possible
+    Barrier barrier(2); // 2 threads: ephys and video
+
     // open Firmata connection via the selected serial interface.
     // after we opened the device, we can't change it anymore (or rather, were too lazy to implement this...)
     // so we disable the selection box.
+    setStatusText("Connecting serial I/O...");
     auto serialDevice = ui->portsComboBox->currentData().toString();
     if (m_experimentKind == ExperimentKind::KindMaze) {
         if (serialDevice.isEmpty()) {
@@ -700,14 +682,7 @@ void MainWindow::runActionTriggered()
     }
 
     // launch video
-    auto vThread = new QThread;
-    m_videoTracker->moveToThread(vThread);
-    connect(vThread, &QThread::started, m_videoTracker, &VideoTracker::run);
-    connect(m_videoTracker, &VideoTracker::finished, vThread, &QThread::quit);
-    connect(vThread, &QThread::finished, vThread, &QObject::deleteLater);
-
-    setStatusText("Starting video...");
-    vThread->start();
+    m_videoTracker->run(barrier);
     if (m_failed)
         return;
     m_statusWidget->setVideoStatus(StatusWidget::Active);
@@ -721,7 +696,7 @@ void MainWindow::runActionTriggered()
     setStatusText("Running.");
     m_running = true;
     m_statusWidget->setIntanStatus(StatusWidget::Active);
-    m_intanUI->recordInterfaceBoard();
+    m_intanUI->recordInterfaceBoard(barrier);
 }
 
 void MainWindow::stopActionTriggered()
@@ -755,7 +730,7 @@ void MainWindow::stopActionTriggered()
 
         std::unique_ptr<QMetaObject::Connection> pconn {new QMetaObject::Connection};
         QMetaObject::Connection &conn = *pconn;
-        conn = QObject::connect(m_videoTracker, &VideoTracker::progress, [&](int max, int value) {
+        conn = QObject::connect(m_videoTracker, &MazeVideo::progress, [&](int max, int value) {
             dialog.setMaximum(max);
             dialog.setValue(value);
             QApplication::processEvents();

@@ -2269,7 +2269,7 @@ int IntanUI::deviceId(Rhd2000DataBlock *dataBlock, int stream, int &register59Va
 }
 
 // Start recording data from USB interface board to disk.
-void IntanUI::recordInterfaceBoard()
+void IntanUI::recordInterfaceBoard(Barrier barrier)
 {
     // Create list of enabled channels that will be saved to disk.
     signalProcessor->createSaveList(signalSources, false, 0);
@@ -2290,7 +2290,7 @@ void IntanUI::recordInterfaceBoard()
     recording = true;
     triggerSet = false;
     triggered = false;
-    runInterfaceBoard();
+    runInterfaceBoard(barrier);
 }
 
 // Wait for user-defined trigger to start recording data from USB interface board to disk.
@@ -2321,7 +2321,7 @@ void IntanUI::triggerRecordInterfaceBoard()
         recording = false;
         triggerSet = true;
         triggered = false;
-        runInterfaceBoard();
+        runInterfaceBoard(Barrier(0));
     }
 
     //! wavePlot->setFocus();
@@ -2412,7 +2412,7 @@ void IntanUI::writeSaveFileHeader(QDataStream &outStream, QDataStream &infoStrea
 
 // Start SPI communication to all connected RHD2000 amplifiers and stream
 // waveform data over USB port.
-void IntanUI::runInterfaceBoard(bool waitUnblock)
+void IntanUI::runInterfaceBoard(Barrier barrier)
 {
     bool newDataReady;
     int triggerIndex;
@@ -2498,9 +2498,7 @@ void IntanUI::runInterfaceBoard(bool waitUnblock)
     }
 
     // signal that we can start recording now
-    m_waiting = waitUnblock;
-    emit recordingReady();
-    while (m_waiting) { QCoreApplication::processEvents(); };
+    barrier.wait();
 
     while (running) {
         // If we are running in demo mode, use a timer to periodically generate more synthetic
@@ -3226,11 +3224,6 @@ void IntanUI::exportSettings(QDataStream &outStream)
     // version 1.5 additions
     outStream << (qint16) postTriggerTime;
     outStream << (qint16) saveTriggerChannel;
-}
-
-void IntanUI::unblockRecording()
-{
-    m_waiting = false;
 }
 
 // Enable or disable the display of electrode impedances.

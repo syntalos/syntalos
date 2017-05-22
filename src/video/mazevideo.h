@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2017 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef VIDEOTRACKER_H
-#define VIDEOTRACKER_H
+#ifndef MAZEVIDEO_H
+#define MAZEVIDEO_H
 
 #include <QObject>
 #include <QList>
@@ -28,6 +28,7 @@
 #include <opencv2/core/core.hpp>
 
 #include "../utils.h"
+#include "../barrier.h"
 
 
 class MACamera : public QObject
@@ -59,23 +60,13 @@ public:
     virtual bool setGPIOFlash(bool enabled) { Q_UNUSED(enabled); return true; }
 };
 
-class VideoTracker : public QObject
+class Tracker;
+
+class MazeVideo : public QObject
 {
     Q_OBJECT
 public:
-    struct LEDTriangle
-    {
-        cv::Point red; // a
-        cv::Point green; // b
-        cv::Point blue; // c
-
-        cv::Point2f center;
-
-        double gamma; // angle at c
-        double turnAngle; // triangle turn angle
-    };
-
-    explicit VideoTracker(QObject *parent = 0);
+    explicit MazeVideo(QObject *parent = 0);
 
     QString lastError() const;
 
@@ -89,7 +80,7 @@ public:
     int framerate() const;
 
     void setDataLocation(const QString& dir);
-    void setMouseId(const QString& mid);
+    void setSubjectId(const QString& mid);
 
     void setAutoGain(bool enabled);
 
@@ -113,10 +104,8 @@ public:
     bool makeFrameTarball();
 
 public slots:
-    void run();
+    void run(Barrier barrier);
     void stop();
-
-    void triggerRecording();
 
 signals:
     void error(const QString& message);
@@ -128,29 +117,14 @@ signals:
 
     void progress(int max, int value);
 
-    void recordingReady();
-
-    void syncClock();
-
 protected:
     bool closeCamera();
 
 private:
     void emitErrorFinished(const QString &message);
 
-    bool runTracking(const QString &frameBasePath);
-    bool runRecordingOnly(const QString &frameBasePath);
-
-    void setStartTimestamp(const time_t time);
-
-    LEDTriangle trackPoints(time_t time, const cv::Mat& image);
-
-    void storeFrameAndWait(const QPair<time_t, cv::Mat> &frame, const QString& frameBasePath,
-                           time_t *lastFrameTime, const time_t& timeSinceStart, const time_t &frameInterval);
-
     QString m_lastError;
 
-    time_t m_startTime;
     QSize m_resolution;
     int m_framerate;
     QSize m_exportResolution;
@@ -160,22 +134,15 @@ private:
     QVariant m_cameraId;
     bool m_autoGain;
 
-    bool m_running;
-    bool m_triggered;
-
-    QString m_mouseId;
+    QString m_subjectId;
     QString m_exportDir;
 
     MACamera *m_camera;
+    Tracker *m_tracker;
 
     QString m_uEyeConfigFile;
-
-    std::vector<cv::Point2f> m_mazeRect;
-    uint m_mazeFindTrialCount;
-
-    cv::Mat m_mouseGraphicMat;
 
     ExperimentKind::Kind m_experimentKind;
 };
 
-#endif // VIDEOTRACKER_H
+#endif // MAZEVIDEO_H

@@ -2,6 +2,7 @@
 set(MAZEAMAZE_SRC
     main.cpp
     ma-private.h
+    barrier.h
     utils.h
     utils.cpp
     mainwindow.h
@@ -93,12 +94,14 @@ set(INTANREC_SRC
 )
 
 set(VIDEO_SRC
+    video/mazevideo.h
+    video/mazevideo.cpp
+    video/tracker.h
+    video/tracker.cpp
     video/simplevprobe.h
     video/simplevprobe.cpp
     video/genericcamera.h
     video/genericcamera.cpp
-    video/videotracker.h
-    video/videotracker.cpp
     video/videoviewwidget.h
     video/videoviewwidget.cpp
 )

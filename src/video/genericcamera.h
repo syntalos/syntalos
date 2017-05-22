@@ -28,7 +28,7 @@
 #include <QMutex>
 #include <opencv2/core/core.hpp>
 
-#include "videotracker.h"
+#include "mazevideo.h"
 
 class QCameraViewfinder;
 

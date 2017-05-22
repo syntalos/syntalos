@@ -24,6 +24,7 @@
 
 #include "utils.h"
 #include "testsubjectlistmodel.h"
+#include "barrier.h"
 
 namespace Ui {
 class MainWindow;
@@ -39,7 +40,7 @@ class WavePlot;
 class MazeScript;
 class QTableWidget;
 class StatusWidget;
-class VideoTracker;
+class MazeVideo;
 class VideoViewWidget;
 class QSpinBox;
 class QCheckBox;
@@ -87,13 +88,6 @@ protected:
     void closeEvent(QCloseEvent *event);
 
 private:
-    enum LastReadyKind {
-        UnknownReady,
-        FirmataReady,
-        IntanReady,
-        VideoReady
-    };
-
     void updateWindowTitle(const QString& fileName);
 
     void setRunPossible(bool enabled);
@@ -136,7 +130,7 @@ private:
 
     StatusWidget *m_statusWidget;
 
-    VideoTracker *m_videoTracker;
+    MazeVideo *m_videoTracker;
     VideoViewWidget *m_rawVideoWidget;
 
     VideoViewWidget *m_trackVideoWidget;
@@ -154,8 +148,6 @@ private:
     QCheckBox *m_camFlashMode;
 
     QDialog *m_aboutDialog;
-
-    LastReadyKind m_lastReady;
 };
 
 #endif // MAINWINDOW_H

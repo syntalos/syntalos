@@ -91,7 +91,7 @@ bool GenericCamera::open(QVariant cameraId, const QSize& size)
         return false;
     }
 
-    connect(m_camera, SIGNAL(error(QCamera::Error)), this, SLOT(displayCameraError()));
+    connect(m_camera, SIGNAL(error(QCamera::Error)), this, SLOT(recvCameraError()));
 
     m_camera->setCaptureMode(QCamera::CaptureVideo);
     auto videoProbe = new SimpleVProbe(m_camera);

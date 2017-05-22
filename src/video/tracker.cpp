@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2017 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -17,42 +17,31 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "config.h"
-#include "videotracker.h"
+#include "tracker.h"
 
 #include <QDebug>
-#include <QThread>
-#include <QApplication>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QFile>
 #include <QDir>
 #include <QtMath>
 #include <QThreadPool>
+#include <QTextStream>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/features2d/features2d.hpp>
 
-#include <ktar.h>
-
-#ifdef USE_UEYE_CAMERA
-#include "ueyecamera.h"
-#endif
-#include "genericcamera.h"
-#include "utils.h"
-
-
-VideoTracker::VideoTracker(QObject *parent)
-    : QObject(parent),
-      m_resolution(QSize(1280, 1024)),
-      m_cameraId(-1)
+Tracker::Tracker(Barrier barrier, MACamera *cam, int framerate, const QString& exportDir, const QString &frameBasePath,
+                 const QString& subjectId, const QSize &exportRes)
+    : QObject(nullptr),
+      m_barrier(barrier),
+      m_camera(cam),
+      m_framerate(framerate),
+      m_subjectId(subjectId),
+      m_exportDir(exportDir),
+      m_frameBasePath(frameBasePath),
+      m_exportResolution(exportRes)
 {
-    m_framerate = 20;
-    m_exportResolution = QSize(1024, 768);
-    m_camera = nullptr;
-    m_autoGain = false;
-    m_exposureTime = 8;
-
     // load mouse graphic from resource store
     QFile file(":/images/mouse-top.png");
     if(file.open(QIODevice::ReadOnly)) {
@@ -65,179 +54,20 @@ VideoTracker::VideoTracker(QObject *parent)
     }
 }
 
-QString VideoTracker::lastError() const
+bool Tracker::running() const
 {
-    return m_lastError;
+    return m_running;
 }
 
-void VideoTracker::setResolution(const QSize &size)
-{
-    m_resolution = size;
-    qDebug() << "Camera resolution selected:" << size;
-}
-
-void VideoTracker::setCameraId(QVariant cameraId)
-{
-    m_cameraId = cameraId;
-    qDebug() << "Selected camera:" << m_cameraId;
-}
-
-QVariant VideoTracker::cameraId() const
-{
-    return m_cameraId;
-}
-
-static bool qsizeBiggerThan(const QSize &s1, const QSize &s2)
-{
-    auto s1v = s1.width() + s1.height();
-    auto s2v = s2.width() + s2.height();
-
-    return s1v > s2v;
-}
-
-QList<QSize> VideoTracker::resolutionList(QVariant cameraId)
-{
-#ifdef USE_UEYE_CAMERA
-    auto camera = new UEyeCamera();
-#else
-    auto camera = new GenericCamera();
-#endif
-    auto ret = camera->getResolutionList(cameraId);
-    delete camera;
-
-    qSort(ret.begin(), ret.end(), qsizeBiggerThan);
-    return ret;
-}
-
-void VideoTracker::setFramerate(int fps)
-{
-    m_framerate = fps;
-    qDebug() << "Camera framerate set to" << fps << "FPS";
-}
-
-int VideoTracker::framerate() const
-{
-    return m_framerate;
-}
-
-void VideoTracker::emitErrorFinished(const QString &message)
-{
-    emit error(message);
-    m_lastError = message;
-    moveToThread(QApplication::instance()->thread()); // give back our object to the main thread
-
-    // we no longer need the camera, it's safe to close it
-    closeCamera();
-
-    emit finished();
-}
-
-bool VideoTracker::openCamera()
-{
-#ifdef USE_UEYE_CAMERA
-    m_camera = new UEyeCamera;
-#else
-    m_camera = new GenericCamera;
-#endif
-
-    if (!m_camera->open(m_cameraId, m_resolution)) {
-        emitErrorFinished(m_camera->lastError());
-        delete m_camera;
-        m_camera = nullptr;
-        return false;
-    }
-
-    m_camera->setConfFile(m_uEyeConfigFile);
-    m_camera->setAutoGain(m_autoGain);
-    m_camera->setExposureTime(m_exposureTime);
-    m_camera->setFramerate(m_framerate);
-    m_camera->setGPIOFlash(m_gpioFlash);
-
-    return true;
-}
-
-bool VideoTracker::closeCamera()
-{
-    if (m_running)
-        return false;
-    if (m_camera == nullptr)
-        return false;
-
-    delete m_camera;
-    m_camera = nullptr;
-
-    return true;
-}
-
-void VideoTracker::setUEyeConfigFile(const QString &fileName)
-{
-    m_uEyeConfigFile = fileName;
-}
-
-QString VideoTracker::uEyeConfigFile() const
-{
-    return m_uEyeConfigFile;
-}
-
-void VideoTracker::setGPIOFlash(bool enabled)
-{
-    m_gpioFlash = enabled;
-}
-
-bool VideoTracker::gpioFlash() const
-{
-    return m_gpioFlash;
-}
-
-void VideoTracker::setExperimentKind(ExperimentKind::Kind kind)
-{
-    m_experimentKind = kind;
-}
-
-void VideoTracker::setStartTimestamp(const time_t time)
-{
-    m_startTime = time;
-    emit syncClock();
-}
-
-class FrameSaveTask : public QRunnable
-{
-private:
-    QString m_frameBasePath;
-    time_t m_timeSinceStart;
-    cv::Mat m_frame;
-    QSize m_exportResolution;
-
-public:
-    FrameSaveTask(const QString& frameBasePath, const time_t& timeSinceStart,
-                  const QSize& exportRes, cv::Mat frameImg)
-    {
-        m_frameBasePath = frameBasePath;
-        m_timeSinceStart = timeSinceStart;
-        m_frame = frameImg;
-        m_exportResolution = exportRes;
-    }
-
-    void run()
-    {
-        // store downscaled frame on disk
-        cv::Mat emat;
-
-        cv::resize(m_frame,
-                   emat,
-                   cv::Size(m_exportResolution.width(), m_exportResolution.height()));
-        cv::imwrite(QString("%1%2.jpg").arg(m_frameBasePath).arg(m_timeSinceStart).toStdString(), emat);
-    }
-};
-
-void VideoTracker::storeFrameAndWait(const QPair<time_t, cv::Mat> &frame, const QString& frameBasePath,
+void Tracker::storeFrameAndWait(const QPair<time_t, cv::Mat> &frame, const QString& frameBasePath,
                                      time_t *lastFrameTime, const time_t& timeSinceStart, const time_t& frameInterval)
 {
-    // enqueue frame to be stored on disk by a separate thread.
-    // the runnable is disposed of automatically.
-    auto task = new FrameSaveTask(frameBasePath, timeSinceStart,
-                                  m_exportResolution, frame.second);
-    QThreadPool::globalInstance()->start(task);
+    // store downscaled frame on disk
+    cv::Mat emat;
+    cv::resize(frame.second,
+               emat,
+               cv::Size(m_exportResolution.width(), m_exportResolution.height()));
+    cv::imwrite(QString("%1%2.jpg").arg(frameBasePath).arg(timeSinceStart).toStdString(), emat);
 
     // wait the remaining time before requesting the next frame
     time_t remainingTime;
@@ -247,19 +77,26 @@ void VideoTracker::storeFrameAndWait(const QPair<time_t, cv::Mat> &frame, const 
         remainingTime = 0; // we fetched the same frame twice - directly jump to the next one
     (*lastFrameTime) = frame.first;
 
-    if (remainingTime > 0)
+    if (remainingTime > 2) // > 2 instead of > 0 to really only sleep when there is *much* delay needed
         QThread::usleep(remainingTime * 1000); // sleep remainingTime msecs
 }
 
-bool VideoTracker::runTracking(const QString& frameBasePath)
+void Tracker::runTracking()
 {
+    Q_ASSERT(!m_exportDir.isEmpty());
+    Q_ASSERT(!m_subjectId.isEmpty());
+    Q_ASSERT(m_camera != nullptr);
+
+    m_running = true;
+
     // prepare position output CSV file
-    auto posInfoPath = QStringLiteral("%1/%2_positions.csv").arg(m_exportDir).arg(m_mouseId);
+    auto posInfoPath = QStringLiteral("%1/%2_positions.csv").arg(m_exportDir).arg(m_subjectId);
     QFile posInfoFile(posInfoPath);
     if (!posInfoFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        emitErrorFinished("Unable to open position CSV file for writing.");
-        return false;
+        emitError("Unable to open position CSV file for writing.");
+        return;
     }
+
     QTextStream posInfoOut(&posInfoFile);
     posInfoOut << "Time (msec)" << ";"
                   "Red X" << ";" << "Red Y" << ";"
@@ -272,16 +109,13 @@ bool VideoTracker::runTracking(const QString& frameBasePath)
     m_mazeRect = std::vector<cv::Point2f>();
     m_mazeFindTrialCount = 0;
 
-    m_triggered = false;
-    emit recordingReady();
-    // spinlock until we received the ready signal
-    while (!m_triggered) { QCoreApplication::processEvents(); }
-
     auto frameInterval = 1000 / m_framerate; // framerate in FPS, interval msec delay
-
     auto firstFrame = true;
     time_t lastFrameTime = 0;
-    m_running = true;
+
+    // wait for barrier release, if there is any
+    waitOnBarrier();
+
     while (m_running) {
         auto frame = m_camera->getFrame();
         if (frame.first < 0) {
@@ -292,7 +126,7 @@ bool VideoTracker::runTracking(const QString& frameBasePath)
         // assume first frame is starting point
         if (firstFrame) {
             firstFrame = false;
-            setStartTimestamp(frame.first);
+            m_startTime = frame.first;
             lastFrameTime = frame.first - (frameInterval / 1.5);
         }
         auto timeSinceStart = frame.first - m_startTime;
@@ -322,7 +156,7 @@ bool VideoTracker::runTracking(const QString& frameBasePath)
         posInfoOut << "\n";
 
         // enqueue frame to be stored on disk and wait the remaining time before requesting a new frame
-        storeFrameAndWait(frame, frameBasePath,
+        storeFrameAndWait(frame, m_frameBasePath,
                           &lastFrameTime, timeSinceStart, frameInterval);
     }
 
@@ -332,7 +166,7 @@ bool VideoTracker::runTracking(const QString& frameBasePath)
     // get a frame and store details
     auto finalFrame = m_camera->getFrame();
 
-    auto infoPath = QStringLiteral("%1/%2_videoinfo.json").arg(m_exportDir).arg(m_mouseId);
+    auto infoPath = QStringLiteral("%1/%2_videoinfo.json").arg(m_exportDir).arg(m_subjectId);
     QJsonObject vInfo;
     vInfo.insert("frameWidth", finalFrame.second.cols);
     vInfo.insert("frameHeight", finalFrame.second.rows);
@@ -359,28 +193,31 @@ bool VideoTracker::runTracking(const QString& frameBasePath)
 
     QFile vInfoFile(infoPath);
     if (!vInfoFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        emitErrorFinished("Unable to open video info file for writing.");
-        return false;
+        emitError("Unable to open video info file for writing.");
+        return;
     }
 
     QTextStream vInfoFileOut(&vInfoFile);
     vInfoFileOut << QJsonDocument(vInfo).toJson();
 
-    return true;
+    emitFinishedSuccess();
 }
 
-bool VideoTracker::runRecordingOnly(const QString &frameBasePath)
+void Tracker::runRecordingOnly()
 {
-    m_triggered = false;
-    emit recordingReady();
-    // spinlock until we received the ready signal
-    while (!m_triggered) { QCoreApplication::processEvents(); }
+    Q_ASSERT(!m_exportDir.isEmpty());
+    Q_ASSERT(!m_subjectId.isEmpty());
+    Q_ASSERT(m_camera != nullptr);
+
+    m_running = true;
 
     auto frameInterval = 1000 / m_framerate; // framerate in FPS, interval msec delay
-
     auto firstFrame = true;
     time_t lastFrameTime = 0;
-    m_running = true;
+
+    // wait for barrier release, if there is any
+    waitOnBarrier();
+
     while (m_running) {
         auto frame = m_camera->getFrame();
         if (frame.first < 0) {
@@ -389,7 +226,7 @@ bool VideoTracker::runRecordingOnly(const QString &frameBasePath)
         }
         // assume first frame is starting point
         if (firstFrame) {
-            setStartTimestamp(frame.first);
+            m_startTime = frame.first;
             firstFrame = false;
             lastFrameTime = frame.first - (frameInterval / 1.5);
         }
@@ -397,7 +234,7 @@ bool VideoTracker::runRecordingOnly(const QString &frameBasePath)
         emit newFrame(timeSinceStart, frame.second);
 
         // enqueue frame to be stored on disk and wait the remaining time before requesting a new frame
-        storeFrameAndWait(frame, frameBasePath,
+        storeFrameAndWait(frame, m_frameBasePath,
                           &lastFrameTime, timeSinceStart, frameInterval);
     }
 
@@ -407,7 +244,7 @@ bool VideoTracker::runRecordingOnly(const QString &frameBasePath)
     // get a frame and store details
     auto finalFrame = m_camera->getFrame();
 
-    auto infoPath = QStringLiteral("%1/%2_videoinfo.json").arg(m_exportDir).arg(m_mouseId);
+    auto infoPath = QStringLiteral("%1/%2_videoinfo.json").arg(m_exportDir).arg(m_subjectId);
     QJsonObject vInfo;
     vInfo.insert("frameWidth", finalFrame.second.cols);
     vInfo.insert("frameHeight", finalFrame.second.rows);
@@ -417,54 +254,34 @@ bool VideoTracker::runRecordingOnly(const QString &frameBasePath)
 
     QFile vInfoFile(infoPath);
     if (!vInfoFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        emitErrorFinished("Unable to open video info file for writing.");
-        return false;
+        emitError("Unable to open video info file for writing.");
+        return;
     }
 
     QTextStream vInfoFileOut(&vInfoFile);
     vInfoFileOut << QJsonDocument(vInfo).toJson();
 
-    return true;
+    emitFinishedSuccess();
 }
 
-void VideoTracker::run()
+void Tracker::stop()
 {
-    if (m_exportDir.isEmpty()) {
-        emitErrorFinished("No visual analysis export location is set.");
-        return;
-    }
+    m_running = false;
+}
 
-    if (m_mouseId.isEmpty()) {
-        emitErrorFinished("No mouse ID is set.");
-        return;
-    }
+void Tracker::emitError(const QString &msg)
+{
+    emit finished(false, msg);
+}
 
-    if (m_camera == nullptr) {
-        emitErrorFinished("Camera was not opened.");
-        return;
-    }
+void Tracker::emitFinishedSuccess()
+{
+    emit finished(true, QString());
+}
 
-    // create storage location for frames
-    auto frameBaseDir = QStringLiteral("%1/frames").arg(m_exportDir);
-    QDir().mkpath(frameBaseDir);
-    auto frameBasePath = QStringLiteral("%1/%2_").arg(frameBaseDir).arg(m_mouseId);
-
-    bool ret;
-    if (m_experimentKind == ExperimentKind::KindMaze)
-        ret = runTracking(frameBasePath);
-    else
-        ret = runRecordingOnly(frameBasePath);
-
-
-    // finalize
-    m_startTime = 0;
-    moveToThread(QApplication::instance()->thread()); // give back our object to the main thread
-    emit finished();
-
-    // we no longer need the camera, it's safe to close it
-    closeCamera();
-
-    qDebug() << "Finished video.";
+void Tracker::waitOnBarrier()
+{
+    m_barrier.wait();
 }
 
 static
@@ -567,7 +384,7 @@ cv::Point findMaxColorBrightness(const cv::Mat& image, const cv::Mat& imageGray,
 }
 
 static
-double calculateTriangleGamma(VideoTracker::LEDTriangle& tri)
+double calculateTriangleGamma(Tracker::LEDTriangle& tri)
 {
     // sanity checks
     if ((tri.red.x < 0) || (tri.red.y < 0) || (tri.green.x < 0) || (tri.green.x < 0)) {
@@ -599,7 +416,7 @@ double calculateTriangleGamma(VideoTracker::LEDTriangle& tri)
 }
 
 static
-cv::Point2f calculateTriangleCentroid(VideoTracker::LEDTriangle& tri)
+cv::Point2f calculateTriangleCentroid(Tracker::LEDTriangle& tri)
 {
     auto x = (tri.red.x + tri.green.x + tri.blue.x) / 3;
     auto y = (tri.red.y + tri.green.y + tri.blue.y) / 3;
@@ -608,7 +425,7 @@ cv::Point2f calculateTriangleCentroid(VideoTracker::LEDTriangle& tri)
 }
 
 static
-double calculateTriangleTurnAngle(VideoTracker::LEDTriangle& tri)
+double calculateTriangleTurnAngle(Tracker::LEDTriangle& tri)
 {
     if (tri.red.x <= 0 && tri.green.x <= 0 && tri.blue.x <= 0) {
         // looks like we don't know where the triangle is
@@ -660,7 +477,7 @@ cvRectFuzzyEqual(const std::vector<cv::Point2f>& a, const std::vector<cv::Point2
     return true;
 }
 
-VideoTracker::LEDTriangle VideoTracker::trackPoints(time_t time, const cv::Mat &image)
+Tracker::LEDTriangle Tracker::trackPoints(time_t time, const cv::Mat &image)
 {
     cv::Point maxLoc;
     LEDTriangle res;
@@ -751,8 +568,8 @@ VideoTracker::LEDTriangle VideoTracker::trackPoints(time_t time, const cv::Mat &
                     0.8,
                     cv::Scalar(255, 180, 180));
         cv::putText(infoMat,
-                    m_mouseId.toStdString(),
-                    cv::Point(m_mouseGraphicMat.cols - (m_mouseId.length() * 18) - 6, 20),
+                    m_subjectId.toStdString(),
+                    cv::Point(m_mouseGraphicMat.cols - (m_subjectId.length() * 18) - 6, 20),
                     cv::FONT_HERSHEY_SIMPLEX,
                     0.8,
                     cv::Scalar(255, 180, 180));
@@ -773,93 +590,4 @@ VideoTracker::LEDTriangle VideoTracker::trackPoints(time_t time, const cv::Mat &
     emit newTrackingFrame(time, trackMat);
 
     return res;
-}
-
-void VideoTracker::stop()
-{
-    m_running = false;
-}
-
-void VideoTracker::triggerRecording()
-{
-    m_triggered = true;
-}
-
-void VideoTracker::setDataLocation(const QString& dir)
-{
-    m_exportDir = dir;
-}
-
-void VideoTracker::setMouseId(const QString& mid)
-{
-    m_mouseId = mid;
-}
-
-void VideoTracker::setAutoGain(bool enabled)
-{
-    m_autoGain = enabled;
-}
-
-QList<QPair<QString, QVariant>> VideoTracker::getCameraList() const
-{
-#ifdef USE_UEYE_CAMERA
-    auto camera = new UEyeCamera;
-#else
-    auto camera = new GenericCamera;
-#endif
-    auto ret = camera->getCameraList();
-    delete camera;
-
-    return ret;
-}
-
-void VideoTracker::setExportResolution(const QSize& size)
-{
-    m_exportResolution = size;
-}
-
-QSize VideoTracker::exportResolution() const
-{
-    return m_exportResolution;
-}
-
-void VideoTracker::setExposureTime(double value)
-{
-    m_exposureTime = value;
-    qDebug() << "Exposure time set to" << value;
-}
-
-bool VideoTracker::makeFrameTarball()
-{
-    auto frameDirPath = QStringLiteral("%1/frames").arg(m_exportDir);
-    QDir frameDir(frameDirPath);
-
-    // check if we have work to do
-    if (!frameDir.exists())
-        return true;
-
-    auto frameTarFname = QStringLiteral("%1/%2_frames.tar.gz").arg(m_exportDir).arg(m_mouseId);
-    KTar tar(frameTarFname);
-    if (!tar.open(QIODevice::WriteOnly)) {
-        m_lastError = "Unable to open tarball for writing.";
-        return false;
-    }
-
-    auto files = frameDir.entryList(QDir::Files);
-    auto max = files.count();
-
-    auto i = 0;
-    foreach (auto fname, files) {
-        if (!tar.addLocalFile(frameDir.absoluteFilePath(fname), fname)) {
-            m_lastError = QStringLiteral("Could not add frame '%1' images to tarball.").arg(fname);
-            return false;
-        }
-        emit progress(max, i);
-        i++;
-    }
-
-    tar.close();
-    frameDir.removeRecursively();
-
-    return true;
 }

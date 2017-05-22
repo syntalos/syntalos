@@ -28,6 +28,8 @@
 #include "globalconstants.h"
 #include "qtincludes.h"
 
+#include "barrier.h"
+
 class QAction;
 class QPushButton;
 class QButtonGroup;
@@ -80,20 +82,14 @@ public:
 
     QWidget *displayWidget() const;
 
-    void runInterfaceBoard(bool waitUnblock = true);
-    void recordInterfaceBoard();
+    void runInterfaceBoard(Barrier barrier = true);
+    void recordInterfaceBoard(Barrier barrier);
     void triggerRecordInterfaceBoard();
     void stopInterfaceBoard();
 
     void setBaseFileName(const QString& fname);
     void loadSettings(const QByteArray &data);
     void exportSettings(QDataStream &outStream);
-
-signals:
-    void recordingReady();
-
-public slots:
-    void unblockRecording();
 
 protected:
     void closeEvent(QCloseEvent *event);
@@ -191,7 +187,6 @@ private:
     int evalBoardMode;
 
     bool running;
-    bool m_waiting;
     bool recording;
     bool triggerSet;
     bool triggered;
