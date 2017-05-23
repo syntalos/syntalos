@@ -310,8 +310,8 @@ bool MazeVideo::makeFrameTarball()
         return true;
 
     auto frameTarFname = QStringLiteral("%1/%2_frames.tar.gz").arg(m_exportDir).arg(m_subjectId);
-    QScopedPointer<KTar> tar(new KTar(frameTarFname));
-    if (!tar->open(QIODevice::WriteOnly)) {
+    KTar tar(frameTarFname);
+    if (!tar.open(QIODevice::WriteOnly)) {
         m_lastError = "Unable to open tarball for writing.";
         return false;
     }
@@ -321,15 +321,15 @@ bool MazeVideo::makeFrameTarball()
 
     auto i = 0;
     foreach (auto fname, files) {
-        if (!tar->addLocalFile(frameDir.absoluteFilePath(fname), fname)) {
-            m_lastError = QStringLiteral("Could not add frame '%1' images to tarball.").arg(fname);
+        if (!tar.addLocalFile(frameDir.absoluteFilePath(fname), fname)) {
+            m_lastError = QStringLiteral("Could not add frame '%1' image to tarball.").arg(fname);
             return false;
         }
         emit progress(max, i);
         i++;
     }
 
-    tar->close();
+    tar.close();
     frameDir.removeRecursively();
 
     return true;

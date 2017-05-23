@@ -21,7 +21,7 @@
 #define VIDEOVIEWWIDGET_H
 
 #include <QOpenGLWidget>
-#include <QOpenGLFunctions_2_0>
+#include <QOpenGLFunctions>
 #include <opencv2/core/core.hpp>
 
 class VideoViewWidget: public QOpenGLWidget
@@ -46,18 +46,13 @@ protected:
 private:
     void recalculatePosition();
 
-    QImage m_renderQtImg;
-    QImage m_resizedImg;
+    QColor m_bgColor;
     cv::Mat m_origImage;
 
-    QColor mBgColor;
-
-    float mImgRatio;
-
-    int mRenderWidth;
-    int mRenderHeight;
-    int mRenderPosX;
-    int mRenderPosY;
+    int m_renderWidth;
+    int m_renderHeight;
+    int m_renderPosX;
+    int m_renderPosY;
 };
 
 #endif // VIDEOVIEWWIDGET_H
