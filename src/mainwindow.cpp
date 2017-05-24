@@ -44,6 +44,7 @@
 #include <QDoubleSpinBox>
 #include <memory>
 #include <QSettings>
+#include <QListWidgetItem>
 
 #include <KTextEditor/Document>
 #include <KTextEditor/Editor>
@@ -60,6 +61,9 @@
 
 #include "mazescript.h"
 #include "statuswidget.h"
+
+#include "traceplot/traceplotproxy.h"
+#include "traceplot/traceview.h"
 
 
 MainWindow::MainWindow(QWidget *parent) :
@@ -440,6 +444,19 @@ MainWindow::MainWindow(QWidget *parent) :
 
     connect(aboutQuitButton, &QPushButton::clicked, m_aboutDialog, &QDialog::accept);
     connect(ui->actionAbout, &QAction::triggered, this, &MainWindow::aboutActionTriggered);
+
+    // set the combined trace parameters and data proxy for the "Trace" tab
+    m_traceProxy = new TracePlotProxy(this);
+    ui->traceView0->setChart(m_traceProxy->plot());
+    ui->traceView0->setRenderHint(QPainter::Antialiasing);
+
+    // there are 6 ports on the Intan eval port - we hardcode that at time
+    for (uint port = 0; port < 6; port++) {
+        auto item = new QListWidgetItem;
+        item->setData(Qt::UserRole, port);
+        item->setText(QString("%1").arg(port));
+        ui->portListWidget->addItem(item);
+    }
 
     // lastly, restore our geometry and widget state
     QSettings settings("DraguhnLab", "MazeAmaze");
@@ -1020,4 +1037,26 @@ void MainWindow::setStatusText(const QString& msg)
 {
     m_statusBarLabel->setText(msg);
     QApplication::processEvents();
+}
+
+void MainWindow::on_portListWidget_itemActivated(QListWidgetItem *item)
+{
+    auto port = item->data(Qt::UserRole).toInt();
+    auto waveplot = m_intanUI->getWavePlot();
+
+    ui->chanListWidget->clear();
+    if (!waveplot->isPortEnabled(port)) {
+        ui->chanListWidget->setEnabled(false);
+        ui->chanSettingsGroupBox->setEnabled(false);
+        return;
+    }
+    ui->chanListWidget->setEnabled(true);
+    ui->chanSettingsGroupBox->setEnabled(true);
+
+    for (int chan = 0; chan < waveplot->getNumFramesIndex(port); chan++) {
+        auto item = new QListWidgetItem;
+        item->setData(Qt::UserRole, chan);
+        item->setText(waveplot->getChannelName(port, chan));
+        ui->chanListWidget->addItem(item);
+    }
 }

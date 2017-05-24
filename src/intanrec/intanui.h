@@ -91,6 +91,8 @@ public:
     void loadSettings(const QByteArray &data);
     void exportSettings(QDataStream &outStream);
 
+    WavePlot *getWavePlot() const;
+
 protected:
     void closeEvent(QCloseEvent *event);
 
@@ -284,10 +286,6 @@ private:
     QMenu *optionsMenu;
     QMenu *helpMenu;
 
-    QPushButton *renameChannelButton;
-    QPushButton *enableChannelButton;
-    QPushButton *enableAllButton;
-    QPushButton *disableAllButton;
     QPushButton *spikeScopeButton;
     QPushButton *changeBandwidthButton;
     QPushButton *impedanceFreqSelectButton;

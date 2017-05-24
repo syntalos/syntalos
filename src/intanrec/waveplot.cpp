@@ -833,6 +833,11 @@ void WavePlot::setNumUsbBlocksToPlot(int numBlocks)
     numUsbBlocksToPlot = numBlocks;
 }
 
+bool WavePlot::isPortEnabled(int port) const
+{
+    return signalSources->signalPort[port].enabled;
+}
+
 // Plot waveforms on screen.
 void WavePlot::drawWaveforms()
 {

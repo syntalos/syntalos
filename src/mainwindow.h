@@ -46,6 +46,8 @@ class QSpinBox;
 class QCheckBox;
 class QDoubleSpinBox;
 class QMdiSubWindow;
+class QListWidgetItem;
+class TracePlotProxy;
 
 
 class MainWindow : public QMainWindow
@@ -83,6 +85,8 @@ private slots:
     void aboutActionTriggered();
 
     void changeExperimentKind(ExperimentKind::Kind newKind);
+
+    void on_portListWidget_itemActivated(QListWidgetItem *item);
 
 protected:
     void closeEvent(QCloseEvent *event);
@@ -148,6 +152,8 @@ private:
     QCheckBox *m_camFlashMode;
 
     QDialog *m_aboutDialog;
+
+    TracePlotProxy *m_traceProxy;
 };
 
 #endif // MAINWINDOW_H

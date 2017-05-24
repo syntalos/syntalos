@@ -275,10 +275,6 @@ void IntanUI::createLayout()
 
     setSaveFormatButton = new QPushButton(tr("Select File Format"));
     changeBandwidthButton = new QPushButton(tr("Change Bandwidth"));
-    renameChannelButton = new QPushButton(tr("Rename Channel"));
-    enableChannelButton = new QPushButton(tr("Enable/Disable"));
-    enableAllButton = new QPushButton(tr("Enable All on Port"));
-    disableAllButton = new QPushButton(tr("Disable All on Port"));
     spikeScopeButton = new QPushButton(tr("Open Spike Scope"));
 
     helpDialogChipFiltersButton = new QPushButton(tr("?"));
@@ -325,18 +321,8 @@ void IntanUI::createLayout()
     displayLayout->addStretch(1);
     portGroupBox->setLayout(displayLayout);
 
-    QGroupBox *channelGroupBox = new QGroupBox(tr("Channels"));
-    QVBoxLayout *channelLayout = new QVBoxLayout;
-    channelLayout->addWidget(renameChannelButton);
-    channelLayout->addWidget(enableChannelButton);
-    channelLayout->addWidget(enableAllButton);
-    channelLayout->addWidget(disableAllButton);
-    channelLayout->addStretch(1);
-    channelGroupBox->setLayout(channelLayout);
-
     QHBoxLayout *portChannelLayout = new QHBoxLayout;
     portChannelLayout->addWidget(portGroupBox);
-    portChannelLayout->addWidget(channelGroupBox);
 
     // Combo box for selecting number of frames displayed on screen.
     numFramesComboBox = new QComboBox();
@@ -408,10 +394,6 @@ void IntanUI::createLayout()
     notchFilterComboBox->setCurrentIndex(0);
 
     connect(changeBandwidthButton, SIGNAL(clicked()), this, SLOT(changeBandwidth()));
-    connect(renameChannelButton, SIGNAL(clicked()), this, SLOT(renameChannel()));
-    connect(enableChannelButton, SIGNAL(clicked()), this, SLOT(toggleChannelEnable()));
-    connect(enableAllButton, SIGNAL(clicked()), this, SLOT(enableAllChannels()));
-    connect(disableAllButton, SIGNAL(clicked()), this, SLOT(disableAllChannels()));
     connect(setSaveFormatButton, SIGNAL(clicked()), this, SLOT(setSaveFormatDialog()));
 
     connect(numFramesComboBox, SIGNAL(currentIndexChanged(int)),
@@ -2280,9 +2262,6 @@ void IntanUI::recordInterfaceBoard(Barrier barrier)
     writeSaveFileHeader(*saveStream, *infoStream, saveFormat, signalProcessor->getNumTempSensors());
 
     // Disable some GUI buttons while recording is in progress.
-    enableChannelButton->setEnabled(false);
-    enableAllButton->setEnabled(false);
-    disableAllButton->setEnabled(false);
     sampleRateComboBox->setEnabled(false);
     // recordFileSpinBox->setEnabled(false);
     setSaveFormatButton->setEnabled(false);
@@ -2311,9 +2290,6 @@ void IntanUI::triggerRecordInterfaceBoard()
         signalProcessor->createSaveList(signalSources, saveTriggerChannel, recordTriggerChannel);
 
         // Disable some GUI buttons while recording is in progress.
-        enableChannelButton->setEnabled(false);
-        enableAllButton->setEnabled(false);
-        disableAllButton->setEnabled(false);
         sampleRateComboBox->setEnabled(false);
         // recordFileSpinBox->setEnabled(false);
         setSaveFormatButton->setEnabled(false);
@@ -2439,7 +2415,6 @@ void IntanUI::runInterfaceBoard(Barrier barrier)
     running = true;
     //! wavePlot->setFocus();
 
-    renameChannelButton->setEnabled(false);
     changeBandwidthButton->setEnabled(false);
     impedanceFreqSelectButton->setEnabled(false);
     runImpedanceTestButton->setEnabled(false);
@@ -2736,7 +2711,6 @@ void IntanUI::runInterfaceBoard(Barrier barrier)
 
     setStatusBarReady();
 
-    renameChannelButton->setEnabled(true);
     changeBandwidthButton->setEnabled(true);
     impedanceFreqSelectButton->setEnabled(true);
     runImpedanceTestButton->setEnabled(impedanceFreqValid);
@@ -2744,9 +2718,6 @@ void IntanUI::runInterfaceBoard(Barrier barrier)
     setCableDelayButton->setEnabled(true);
     digOutButton->setEnabled(true);
 
-    enableChannelButton->setEnabled(true);
-    enableAllButton->setEnabled(true);
-    disableAllButton->setEnabled(true);
     sampleRateComboBox->setEnabled(true);
     setSaveFormatButton->setEnabled(true);
 }
@@ -3224,6 +3195,11 @@ void IntanUI::exportSettings(QDataStream &outStream)
     // version 1.5 additions
     outStream << (qint16) postTriggerTime;
     outStream << (qint16) saveTriggerChannel;
+}
+
+WavePlot *IntanUI::getWavePlot() const
+{
+    return wavePlot;
 }
 
 // Enable or disable the display of electrode impedances.

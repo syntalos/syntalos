@@ -30,6 +30,7 @@ find_package(Qt5ScriptTools REQUIRED)
 find_package(Qt5OpenGL REQUIRED)
 find_package(Qt5Multimedia REQUIRED)
 find_package(Qt5MultimediaWidgets REQUIRED)
+find_package(Qt5Charts REQUIRED)
 
 find_package(KF5Archive REQUIRED)
 find_package(KF5TextEditor NO_MODULE REQUIRED)

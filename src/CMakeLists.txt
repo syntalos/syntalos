@@ -106,6 +106,15 @@ set(VIDEO_SRC
     video/videoviewwidget.cpp
 )
 
+set(PLOT_SRC
+    traceplot/traceplot.h
+    traceplot/traceplot.cpp
+    traceplot/traceview.h
+    traceplot/traceview.cpp
+    traceplot/traceplotproxy.h
+    traceplot/traceplotproxy.cpp
+)
+
 set(UYEYE_LIB "")
 set(VIDEO_UEYE_SRC "")
 if (UEYE_CAMERA)
@@ -129,6 +138,7 @@ add_executable(mazeamaze
     ${INTANREC_SRC}
     ${FIRMATA_SRC}
     ${VIDEO_SRC}
+    ${PLOT_SRC}
     ${VIDEO_UEYE_SRC}
 )
 
@@ -144,6 +154,7 @@ target_link_libraries(mazeamaze
     Qt5::ScriptTools
     Qt5::Multimedia
     Qt5::MultimediaWidgets
+    Qt5::Charts
     ${OpenCV_LIBS}
     ${OPENGL_LIBRARIES}
     ${UYEYE_LIB}

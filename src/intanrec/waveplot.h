@@ -74,6 +74,8 @@ public:
     void setSampleRate(double newSampleRate);
     void setNumUsbBlocksToPlot(int numBlocks);
 
+    bool isPortEnabled(int port) const;
+
     QSize minimumSizeHint() const;
     QSize sizeHint() const;
     
