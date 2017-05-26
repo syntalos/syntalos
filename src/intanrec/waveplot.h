@@ -33,6 +33,8 @@ class SignalProcessor;
 class SignalSources;
 class IntanUI;
 
+class TracePlotProxy;
+
 class WavePlot : public QWidget
 {
     Q_OBJECT
@@ -74,10 +76,11 @@ public:
     void setSampleRate(double newSampleRate);
     void setNumUsbBlocksToPlot(int numBlocks);
 
-    bool isPortEnabled(int port) const;
-
     QSize minimumSizeHint() const;
     QSize sizeHint() const;
+
+    bool isPortEnabled(int port) const;
+    void setPlotProxy(TracePlotProxy *pp);
     
 signals:
     void selectedChannelChanged(SignalChannel* newChannel);
@@ -120,6 +123,7 @@ private:
     SignalProcessor *signalProcessor;
     SignalSources *signalSources;
     IntanUI *intanUI;
+    TracePlotProxy *plotProxy;
 
     QPixmap pixmap;
 

@@ -110,13 +110,20 @@
                 <widget class="QListWidget" name="portListWidget"/>
                </item>
                <item>
-                <widget class="QListWidget" name="chanListWidget"/>
+                <widget class="QListWidget" name="chanListWidget">
+                 <property name="enabled">
+                  <bool>false</bool>
+                 </property>
+                </widget>
                </item>
               </layout>
              </widget>
             </item>
             <item>
              <widget class="QGroupBox" name="chanSettingsGroupBox">
+              <property name="enabled">
+               <bool>false</bool>
+              </property>
               <property name="title">
                <string>Channel Settings</string>
               </property>
@@ -130,6 +137,47 @@
                </item>
                <item row="0" column="1">
                 <widget class="QCheckBox" name="chanDisplayCheckBox"/>
+               </item>
+               <item row="2" column="0">
+                <widget class="QLabel" name="multiplierLabel">
+                 <property name="text">
+                  <string>Multiplier</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="2" column="1">
+                <widget class="QDoubleSpinBox" name="multiplierDoubleSpinBox">
+                 <property name="value">
+                  <double>1.000000000000000</double>
+                 </property>
+                </widget>
+               </item>
+               <item row="3" column="0">
+                <widget class="QLabel" name="yShiftLabel">
+                 <property name="text">
+                  <string>Y Shift</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="3" column="1">
+                <widget class="QDoubleSpinBox" name="yShiftDoubleSpinBox"/>
+               </item>
+               <item row="1" column="0" colspan="2">
+                <widget class="Line" name="line">
+                 <property name="orientation">
+                  <enum>Qt::Horizontal</enum>
+                 </property>
+                </widget>
+               </item>
+               <item row="4" column="1">
+                <widget class="QPushButton" name="plotApplyButton">
+                 <property name="text">
+                  <string>Apply</string>
+                 </property>
+                 <property name="icon">
+                  <iconset theme="dialog-ok-apply"/>
+                 </property>
+                </widget>
                </item>
               </layout>
              </widget>

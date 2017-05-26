@@ -21,28 +21,91 @@
 
 #include <QtCore/QtMath>
 #include <QtCharts/QLineSeries>
+#include <QtCharts/QScatterSeries>
 #include <QtCharts/QValueAxis>
+#include <QDebug>
 
 TracePlotProxy::TracePlotProxy(QObject *parent)
-    : QObject(parent)
+    : QObject(parent),
+      m_maxXVal(0)
 {
     m_plot = new TracePlot();
 
-    QLineSeries *series = new QLineSeries();
-    for (int i = 0; i < 500; i++) {
-        QPointF p((qreal) i, qSin(M_PI / 50 * i) * 100);
-        p.ry() += qrand() % 20;
-        *series << p;
-    }
-    m_plot->addSeries(series);
-    m_series.append(series);
-
-    m_plot->setAnimationOptions(QChart::SeriesAnimations);
     m_plot->legend()->hide();
     m_plot->createDefaultAxes();
+}
+
+static inline int makePortChanMapId(int port, int chan)
+{
+    return port * 1000 + chan;
 }
 
 TracePlot *TracePlotProxy::plot() const
 {
     return m_plot;
+}
+
+void TracePlotProxy::addChannel(int port, int chan)
+{
+    auto details = new ChannelDetails(this);
+    details->portChan = qMakePair(port, chan);
+
+    QLineSeries *series = new QLineSeries();
+    series->setUseOpenGL(true);
+    m_plot->addSeries(series);
+    details->series = series;
+
+    m_plot->createDefaultAxes();
+    m_plot->axisY(series)->setMax(250);
+    m_plot->axisY(series)->setMin(-250);
+
+    details->series->points().reserve(20000);
+    m_channels.insert(makePortChanMapId(port, chan), details);
+
+    m_plot->setAnimationOptions(QChart::SeriesAnimations);
+}
+
+void TracePlotProxy::removeChannel(int port, int chan)
+{
+    auto key = makePortChanMapId(port, chan);
+    if (!m_channels.contains(key))
+        return;
+    auto details = m_channels.value(key);
+    m_plot->removeSeries(details->series);
+    m_channels.remove(key);
+
+    delete details;
+}
+
+QList<ChannelDetails *> TracePlotProxy::channels() const
+{
+    return m_channels.values();
+}
+
+void TracePlotProxy::updatePlot()
+{
+    ChannelDetails *details;
+
+    foreach (details, m_channels.values()) {
+        // replace is *much* faster than append(QPointF)
+        // see https://bugreports.qt.io/browse/QTBUG-55714
+        details->series->replace(details->data);
+        if (details->xPos > m_maxXVal)
+            m_maxXVal = details->xPos;
+    }
+
+    adjustView();
+}
+
+ChannelDetails *TracePlotProxy::getDetails(int port, int chan) const
+{
+    auto key = makePortChanMapId(port, chan);
+    if (!m_channels.contains(key))
+        return nullptr;
+    return m_channels.value(key);
+}
+
+void TracePlotProxy::adjustView()
+{
+    m_plot->axisX()->setRange(m_maxXVal - 2000, m_maxXVal);
 }

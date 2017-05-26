@@ -88,6 +88,10 @@ private slots:
 
     void on_portListWidget_itemActivated(QListWidgetItem *item);
 
+    void on_chanDisplayCheckBox_toggled(bool checked);
+
+    void on_chanListWidget_itemActivated(QListWidgetItem *item);
+
 protected:
     void closeEvent(QCloseEvent *event);
 

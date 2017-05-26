@@ -34,6 +34,8 @@
 #include "signalsources.h"
 #include "signalprocessor.h"
 
+#include "traceplot/traceplotproxy.h"
+
 // The WavePlot widget displays multiple waveform plots in the Main Window.
 // Five types of waveforms may be displayed: amplifier, auxiliary input, supply
 // voltage, ADC input, and digital input waveforms.  Users may navigate through
@@ -42,8 +44,9 @@
 
 // Constructor.
 WavePlot::WavePlot(SignalProcessor *inSignalProcessor, SignalSources *inSignalSources,
-                   IntanUI *inIntanUI, QWidget *parent) :
-    QWidget(parent)
+                   IntanUI *inIntanUI, QWidget *parent)
+    : QWidget(parent),
+      plotProxy(nullptr)
 {
     setBackgroundRole(QPalette::Window);
     setAutoFillBackground(true);
@@ -308,6 +311,11 @@ QSize WavePlot::minimumSizeHint() const
 QSize WavePlot::sizeHint() const
 {
     return QSize(860, 690);
+}
+
+void WavePlot::setPlotProxy(TracePlotProxy *pp)
+{
+    plotProxy = pp;
 }
 
 void WavePlot::paintEvent(QPaintEvent * /* event */)
@@ -856,6 +864,34 @@ void WavePlot::drawWaveforms()
     // Assume all frames are the same size.
     yAxisLength = (frameList[numFramesIndex[selectedPort]][0].height() - 2) / 2.0;
     tAxisLength = frameList[numFramesIndex[selectedPort]][0].width() - 1;
+
+    if (plotProxy != nullptr) {
+        auto dispChanSize = plotProxy->channels().size();
+        for (int k = 0; k < dispChanSize; k++) {
+            auto chan = plotProxy->channels()[k];
+            auto portId = chan->portChan.first;
+            auto chanId = chan->portChan.second;
+
+            stream = signalSources->signalPort[portId].channelByIndex(chanId)->boardStream;
+            channel = signalSources->signalPort[portId].channelByIndex(chanId)->chipChannel;
+            type = signalSources->signalPort[portId].channelByIndex(chanId)->signalType;
+
+            if (type == AmplifierSignal) {
+                for (i = 0; i < length; ++i) {
+                    chan->data.append(QPointF(chan->xPos, signalProcessor->amplifierPostFilter.at(stream).at(channel).at(i)));
+                    chan->xPos += 1;
+                }
+            } else if (type == BoardDigInSignal) {
+                for (i = 0; i < length; ++i) {
+                    chan->data.append(QPointF(chan->xPos, signalProcessor->boardDigIn.at(channel).at(i)));
+                    chan->xPos += 1;
+                }
+            }
+        }
+
+        if (dispChanSize > 0)
+            plotProxy->updatePlot();
+    }
 
     for (j = 0; j < frameList[numFramesIndex[selectedPort]].size(); ++j) {
         stream = selectedChannel(j + topLeftFrame[selectedPort])->boardStream;

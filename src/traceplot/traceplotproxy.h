@@ -21,12 +21,43 @@
 #define TRACEPLOTPROXY_H
 
 #include <QObject>
+#include <QMap>
 
 #include "traceplot.h"
 
 namespace QtCharts {
-class QLineSeries;
+class QXYSeries;
 }
+
+class ChannelDetails : public QObject
+{
+    Q_OBJECT
+public:
+    explicit ChannelDetails(QObject *parent = 0)
+        : QObject(parent),
+          xPos(0)
+    {
+        data.reserve(20000);
+    }
+
+    void reset ()
+    {
+        xPos = 0;
+        prevData = data;
+        data.clear();
+    }
+
+    QXYSeries *series;
+    QPair<int, int> portChan;
+
+    double multiplier;
+    double yShift;
+
+    QList<QPointF> data;
+    QList<QPointF> prevData;
+
+    ssize_t xPos;
+};
 
 class TracePlotProxy : public QObject
 {
@@ -36,13 +67,27 @@ public:
 
     TracePlot *plot() const;
 
+    void addChannel(int port, int chan);
+    void removeChannel(int port, int chan);
+
+    QList<ChannelDetails*> channels() const;
+
+    void updatePlot();
+
+    ChannelDetails *getDetails(int port, int chan) const;
+
+    void adjustView();
+
 signals:
 
 public slots:
 
 private:
     TracePlot *m_plot;
-    QList<QLineSeries*> m_series;
+
+    QMap<int, ChannelDetails*> m_channels;
+
+    int m_maxXVal;
 };
 
 #endif // TRACEPLOTPROXY_H
