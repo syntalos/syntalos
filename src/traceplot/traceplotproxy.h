@@ -35,7 +35,10 @@ class ChannelDetails : public QObject
 public:
     explicit ChannelDetails(QObject *parent = 0)
         : QObject(parent),
-          xPos(0)
+          enabled(true),
+          multiplier(1),
+          xPos(0),
+          storeOrig(false)
     {
         data.reserve(20000);
     }
@@ -43,9 +46,30 @@ public:
     void reset ()
     {
         xPos = 0;
-        prevData = data;
+        dataPrev = data;
         data.clear();
+        dataOrig.clear();
     }
+
+    void addNewYValue(double xval)
+    {
+        if ((multiplier > 1) || (yShift != 0)) {
+            if (multiplier == 0)
+                multiplier = 1;
+
+            storeOrig = true;
+            data.append(QPointF(xPos, xval * multiplier + yShift));
+        } else {
+            data.append(QPointF(xPos, xval));
+        }
+
+        if (storeOrig)
+            dataOrig.append(QPointF(xPos, xval));
+
+        xPos += 1;
+    }
+
+    bool enabled;
 
     QXYSeries *series;
     QPair<int, int> portChan;
@@ -54,9 +78,11 @@ public:
     double yShift;
 
     QList<QPointF> data;
-    QList<QPointF> prevData;
+    QList<QPointF> dataOrig;
+    QList<QPointF> dataPrev;
 
     ssize_t xPos;
+    bool storeOrig;
 };
 
 class TracePlotProxy : public QObject
@@ -77,6 +103,10 @@ public:
     ChannelDetails *getDetails(int port, int chan) const;
 
     void adjustView();
+
+    void applyDisplayModifiers();
+
+    void reset();
 
 signals:
 

@@ -48,6 +48,7 @@ class QDoubleSpinBox;
 class QMdiSubWindow;
 class QListWidgetItem;
 class TracePlotProxy;
+class ChannelDetails;
 
 
 class MainWindow : public QMainWindow
@@ -87,10 +88,12 @@ private slots:
     void changeExperimentKind(ExperimentKind::Kind newKind);
 
     void on_portListWidget_itemActivated(QListWidgetItem *item);
-
-    void on_chanDisplayCheckBox_toggled(bool checked);
-
     void on_chanListWidget_itemActivated(QListWidgetItem *item);
+    void on_multiplierDoubleSpinBox_valueChanged(double arg1);
+    void on_plotApplyButton_clicked();
+    void on_yShiftDoubleSpinBox_valueChanged(double arg1);
+    void on_prevPlotButton_toggled(bool checked);
+    void on_chanDisplayCheckBox_clicked(bool checked);
 
 protected:
     void closeEvent(QCloseEvent *event);
@@ -105,6 +108,8 @@ private:
     void updateDataExportDir();
 
     bool makeDirectory(const QString& dir);
+
+    ChannelDetails *selectedPlotChannelDetails();
 
     ExperimentKind::Kind m_experimentKind;
 

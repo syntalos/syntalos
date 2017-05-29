@@ -450,8 +450,10 @@ MainWindow::MainWindow(QWidget *parent) :
     m_traceProxy = new TracePlotProxy(this);
     ui->traceView0->setChart(m_traceProxy->plot());
     ui->traceView0->setRenderHint(QPainter::Antialiasing);
-    ui->traceView0->addScrollBarWidget(new QScrollBar(this), Qt::AlignBottom);
+    auto twScrollBar = new QScrollBar(this);
+    ui->traceView0->addScrollBarWidget(twScrollBar, Qt::AlignBottom);
     m_intanUI->getWavePlot()->setPlotProxy(m_traceProxy);
+    twScrollBar->show();
 
     // there are 6 ports on the Intan eval port - we hardcode that at time
     for (uint port = 0; port < 6; port++) {
@@ -558,6 +560,21 @@ bool MainWindow::makeDirectory(const QString &dir)
     }
 
     return true;
+}
+
+ChannelDetails *MainWindow::selectedPlotChannelDetails()
+{
+    if (ui->portListWidget->selectedItems().isEmpty() || ui->chanListWidget->selectedItems().isEmpty()) {
+        qCritical() << "Can not determine selected trace: Port/Channel selection does not make sense";
+        return nullptr;
+    }
+
+    auto portId = ui->portListWidget->selectedItems()[0]->data(Qt::UserRole).toInt();
+    auto chanId = ui->chanListWidget->selectedItems()[0]->data(Qt::UserRole).toInt();
+
+    auto details = m_traceProxy->getDetails(portId, chanId);
+
+    return details;
 }
 
 void MainWindow::runActionTriggered()
@@ -701,6 +718,9 @@ void MainWindow::runActionTriggered()
         m_statusWidget->setFirmataStatus(StatusWidget::Disabled);
     }
 
+    // reset trace plot data
+    m_traceProxy->reset();
+
     // launch video
     m_videoTracker->run(barrier);
     if (m_failed)
@@ -780,6 +800,10 @@ void MainWindow::intanRunActionTriggered()
     setRunPossible(false);
     setStopPossible(true);
 
+    // reset the trace plot
+    m_traceProxy->reset();
+
+    // run Intan acquisition
     m_statusWidget->setIntanStatus(StatusWidget::Active);
     m_intanUI->runInterfaceBoard();
 }
@@ -1064,7 +1088,58 @@ void MainWindow::on_portListWidget_itemActivated(QListWidgetItem *item)
     }
 }
 
-void MainWindow::on_chanDisplayCheckBox_toggled(bool checked)
+void MainWindow::on_chanListWidget_itemActivated(QListWidgetItem *item)
+{
+    Q_UNUSED(item);
+    auto details = selectedPlotChannelDetails();
+    ui->chanSettingsGroupBox->setEnabled(true);
+
+    if (details != nullptr) {
+        ui->chanDisplayCheckBox->setChecked(true);
+        ui->multiplierDoubleSpinBox->setValue(details->multiplier);
+        ui->yShiftDoubleSpinBox->setValue(details->yShift);
+    } else {
+        ui->chanDisplayCheckBox->setChecked(false);
+        ui->multiplierDoubleSpinBox->setValue(1);
+        ui->yShiftDoubleSpinBox->setValue(0);
+    }
+}
+
+void MainWindow::on_multiplierDoubleSpinBox_valueChanged(double arg1)
+{
+    auto details = selectedPlotChannelDetails();
+    if (details == nullptr)
+        return;
+
+    ui->plotApplyButton->setEnabled(true);
+
+    details->multiplier = arg1;
+}
+
+void MainWindow::on_plotApplyButton_clicked()
+{
+    ui->plotApplyButton->setEnabled(false);
+    m_traceProxy->applyDisplayModifiers();
+}
+
+void MainWindow::on_yShiftDoubleSpinBox_valueChanged(double arg1)
+{
+    auto details = selectedPlotChannelDetails();
+    if (details == nullptr)
+        return;
+
+    ui->plotApplyButton->setEnabled(true);
+
+    details->yShift = arg1;
+}
+
+void MainWindow::on_prevPlotButton_toggled(bool checked)
+{
+    Q_UNUSED(checked);
+    // TODO
+}
+
+void MainWindow::on_chanDisplayCheckBox_clicked(bool checked)
 {
     if (ui->portListWidget->selectedItems().isEmpty() || ui->chanListWidget->selectedItems().isEmpty()) {
         qCritical() << "Can not determine which graph to display: Port/Channel selection does not make sense";
@@ -1078,29 +1153,4 @@ void MainWindow::on_chanDisplayCheckBox_toggled(bool checked)
         m_traceProxy->addChannel(portId, chanId);
     else
         m_traceProxy->removeChannel(portId, chanId);
-}
-
-void MainWindow::on_chanListWidget_itemActivated(QListWidgetItem *item)
-{
-    Q_UNUSED(item);
-    if (ui->portListWidget->selectedItems().isEmpty() || ui->chanListWidget->selectedItems().isEmpty()) {
-        qCritical() << "Can not determine which graph to display: Port/Channel selection does not make sense";
-        return;
-    }
-
-    auto portId = ui->portListWidget->selectedItems()[0]->data(Qt::UserRole).toInt();
-    auto chanId = ui->chanListWidget->selectedItems()[0]->data(Qt::UserRole).toInt();
-
-    auto details = m_traceProxy->getDetails(portId, chanId);
-    ui->chanSettingsGroupBox->setEnabled(true);
-
-    if (details != nullptr) {
-        ui->chanDisplayCheckBox->setChecked(true);
-        ui->multiplierDoubleSpinBox->setValue(details->multiplier);
-        ui->yShiftDoubleSpinBox->setValue(details->yShift);
-    } else {
-        ui->chanDisplayCheckBox->setChecked(false);
-        ui->multiplierDoubleSpinBox->setValue(1);
-        ui->yShiftDoubleSpinBox->setValue(0);
-    }
 }

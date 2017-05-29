@@ -147,6 +147,12 @@
                </item>
                <item row="2" column="1">
                 <widget class="QDoubleSpinBox" name="multiplierDoubleSpinBox">
+                 <property name="minimum">
+                  <double>-1000.000000000000000</double>
+                 </property>
+                 <property name="maximum">
+                  <double>1000.990000000000009</double>
+                 </property>
                  <property name="value">
                   <double>1.000000000000000</double>
                  </property>
@@ -160,7 +166,14 @@
                 </widget>
                </item>
                <item row="3" column="1">
-                <widget class="QDoubleSpinBox" name="yShiftDoubleSpinBox"/>
+                <widget class="QDoubleSpinBox" name="yShiftDoubleSpinBox">
+                 <property name="minimum">
+                  <double>-9999.000000000000000</double>
+                 </property>
+                 <property name="maximum">
+                  <double>9999.989999999999782</double>
+                 </property>
+                </widget>
                </item>
                <item row="1" column="0" colspan="2">
                 <widget class="Line" name="line">
@@ -171,11 +184,15 @@
                </item>
                <item row="4" column="1">
                 <widget class="QPushButton" name="plotApplyButton">
+                 <property name="enabled">
+                  <bool>false</bool>
+                 </property>
                  <property name="text">
                   <string>Apply</string>
                  </property>
                  <property name="icon">
-                  <iconset theme="dialog-ok-apply"/>
+                  <iconset theme="dialog-ok-apply">
+                   <normaloff>.</normaloff>.</iconset>
                  </property>
                 </widget>
                </item>
@@ -183,7 +200,7 @@
              </widget>
             </item>
             <item>
-             <spacer name="horizontalSpacer">
+             <spacer name="horizontalSpacer_2">
               <property name="orientation">
                <enum>Qt::Horizontal</enum>
               </property>
@@ -194,6 +211,56 @@
                </size>
               </property>
              </spacer>
+            </item>
+            <item>
+             <widget class="QWidget" name="widget_2" native="true">
+              <layout class="QVBoxLayout" name="verticalLayout_13">
+               <property name="spacing">
+                <number>0</number>
+               </property>
+               <property name="leftMargin">
+                <number>0</number>
+               </property>
+               <property name="topMargin">
+                <number>0</number>
+               </property>
+               <property name="rightMargin">
+                <number>0</number>
+               </property>
+               <property name="bottomMargin">
+                <number>0</number>
+               </property>
+               <item>
+                <widget class="QPushButton" name="prevPlotButton">
+                 <property name="text">
+                  <string>Show previous plot</string>
+                 </property>
+                 <property name="checkable">
+                  <bool>true</bool>
+                 </property>
+                 <property name="checked">
+                  <bool>false</bool>
+                 </property>
+                 <property name="flat">
+                  <bool>true</bool>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <spacer name="verticalSpacer_3">
+                 <property name="orientation">
+                  <enum>Qt::Vertical</enum>
+                 </property>
+                 <property name="sizeHint" stdset="0">
+                  <size>
+                   <width>20</width>
+                   <height>40</height>
+                  </size>
+                 </property>
+                </spacer>
+               </item>
+              </layout>
+             </widget>
             </item>
            </layout>
           </widget>

@@ -878,19 +878,19 @@ void WavePlot::drawWaveforms()
 
             if (type == AmplifierSignal) {
                 for (i = 0; i < length; ++i) {
-                    chan->data.append(QPointF(chan->xPos, signalProcessor->amplifierPostFilter.at(stream).at(channel).at(i)));
-                    chan->xPos += 1;
+                    chan->addNewYValue(signalProcessor->amplifierPostFilter.at(stream).at(channel).at(i));
                 }
             } else if (type == BoardDigInSignal) {
                 for (i = 0; i < length; ++i) {
-                    chan->data.append(QPointF(chan->xPos, signalProcessor->boardDigIn.at(channel).at(i)));
-                    chan->xPos += 1;
+                    chan->addNewYValue(signalProcessor->boardDigIn.at(channel).at(i));
                 }
             }
         }
 
-        if (dispChanSize > 0)
+        if (dispChanSize > 0) {
             plotProxy->updatePlot();
+            plotProxy->adjustView();
+        }
     }
 
     for (j = 0; j < frameList[numFramesIndex[selectedPort]].size(); ++j) {

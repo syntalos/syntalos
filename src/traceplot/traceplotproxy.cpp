@@ -87,14 +87,15 @@ void TracePlotProxy::updatePlot()
     ChannelDetails *details;
 
     foreach (details, m_channels.values()) {
+        if (!details->enabled)
+            continue;
+
         // replace is *much* faster than append(QPointF)
         // see https://bugreports.qt.io/browse/QTBUG-55714
         details->series->replace(details->data);
         if (details->xPos > m_maxXVal)
             m_maxXVal = details->xPos;
     }
-
-    adjustView();
 }
 
 ChannelDetails *TracePlotProxy::getDetails(int port, int chan) const
@@ -108,4 +109,36 @@ ChannelDetails *TracePlotProxy::getDetails(int port, int chan) const
 void TracePlotProxy::adjustView()
 {
     m_plot->axisX()->setRange(m_maxXVal - 2000, m_maxXVal);
+}
+
+void TracePlotProxy::applyDisplayModifiers()
+{
+    ChannelDetails *details;
+
+    foreach (details, m_channels.values()) {
+        if (details->dataOrig.size() == 0)
+            details->dataOrig = details->data;
+
+        if (details->multiplier == 0)
+            details->multiplier = 1;
+
+        details->storeOrig = true;
+
+        for (auto i = 0; i < details->dataOrig.size(); i++) {
+            details->data[i].setY(details->dataOrig[i].y() * details->multiplier + details->yShift);
+        }
+    }
+
+    updatePlot();
+}
+
+void TracePlotProxy::reset()
+{
+    ChannelDetails *details;
+
+    foreach (details, m_channels.values()) {
+        details->reset();
+    }
+
+    m_maxXVal = 0;
 }
