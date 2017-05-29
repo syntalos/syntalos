@@ -27,7 +27,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -45,12 +45,12 @@
      id="namedview8"
      showgrid="false"
      inkscape:zoom="0.7407056"
-     inkscape:cx="442.60607"
-     inkscape:cy="280.47908"
+     inkscape:cx="553.97601"
+     inkscape:cy="290.30649"
      inkscape:window-x="0"
      inkscape:window-y="0"
      inkscape:window-maximized="1"
-     inkscape:current-layer="g3790"
+     inkscape:current-layer="svg1901"
      fit-margin-top="0"
      fit-margin-left="0"
      fit-margin-right="0"
@@ -1110,7 +1110,7 @@
      y="0"
      rx="0" />
   <g
-     transform="matrix(0.99214972,0,0,0.99214972,-292.84889,111.39919)"
+     transform="matrix(1.000016,0,0,0.99214972,-299.22062,111.39919)"
      id="layer1"
      style="opacity:0.18300003">
     <g
@@ -1133,7 +1133,7 @@
   </g>
   <text
      xml:space="preserve"
-     style="font-style:normal;font-weight:normal;line-height:0%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;filter:url(#filter4411)"
+     style="font-style:normal;font-weight:normal;line-height:0%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#e3a857;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;filter:url(#filter4411);"
      x="387.13004"
      y="175.24445"
      id="text4171"
@@ -1142,19 +1142,19 @@
        x="387.13004"
        y="175.24445"
        id="tspan4175"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:80px;line-height:1.25;font-family:'never ending maze';-inkscape-font-specification:'never ending maze';fill:#d45500;fill-opacity:1;stroke:none">Maze</tspan></text>
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:80px;line-height:1.25;font-family:'never ending maze';-inkscape-font-specification:'never ending maze';fill:#e3a857;fill-opacity:1;stroke:none;">Maze</tspan></text>
   <text
      xml:space="preserve"
-     style="font-style:normal;font-weight:normal;line-height:0%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;filter:url(#filter4423)"
+     style="font-style:normal;font-weight:normal;line-height:0%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#e3a857;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;filter:url(#filter4423);"
      x="612.69708"
      y="275.07129"
      id="text4179"
-     transform="matrix(1.0666667,0,0,1.0666667,-92.805954,5.8030966)"><tspan
+     transform="matrix(1.0666667,0,0,1.0666667,-124.80595,7.803097)"><tspan
        sodipodi:role="line"
        id="tspan4181"
        x="612.69708"
        y="275.07129"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:70px;line-height:1.25;font-family:'never ending maze';-inkscape-font-specification:'never ending maze';fill:#d45500">Amaze</tspan></text>
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:70px;line-height:1.25;font-family:'never ending maze';-inkscape-font-specification:'never ending maze';fill:#e3a857;fill-opacity:1;">Amaze</tspan></text>
   <g
      transform="matrix(0.383495,0,0,0.383495,47.345327,206.29149)"
      id="layer1-3">
@@ -1162,15 +1162,16 @@
        transform="translate(111.264,777.184)"
        id="g3790">
       <path
-         d="m 60.340267,148.032 c 0,0 -158.858667,-149.664 -82.128,-248.45867 C 54.9472,-199.22133 -181.01973,-280.384 -181.01973,-280.384 c 0,0 207.423997,83.09973 124.94933,183.850667 C -138.54507,4.2272 57.326933,199.31733 57.326933,199.31733 Z"
+         d="m 122.63117,74.00239 c 0,0 -158.858668,-149.664 -82.128001,-248.45867 76.734931,-98.79466 -159.231999,-179.95733 -159.231999,-179.95733 0,0 207.423999,83.09973 124.949332,183.85067 -82.47467,100.76053 113.397328,295.85066 113.397328,295.85066 z"
          id="path3768"
          inkscape:connector-curvature="0"
          style="fill:#8c8c8c;stroke:#1a1a1a;stroke-width:8.53333378;stroke-linecap:square" />
       <path
-         d="M 467.63733,250.60267 V -111.43467 H 787.43467 L 534.00533,-379.94667 730.016,-572.75733 C 673.58187,-635.3248 628.03627,-706.688 500.64,-711.936 l -129.55733,197.728 -259.456,-185.54667 C 14.289067,-638.5152 -35.232,-550.70933 -60.341333,-449.344 l 301.696003,45.30133 C 73.504,-195.072 60.896,33.813333 42.24,250.63467 Z"
+         d="M 467.63733,-111.43467 H 787.43467 L 534.00533,-379.94667 730.016,-572.75733 C 673.58187,-635.3248 628.03627,-706.688 500.64,-711.936 l -129.55733,197.728 -259.456,-185.54667 C 14.289067,-638.5152 -35.232,-550.70933 -60.341333,-449.344 l 301.696003,45.30133 c -469.06439,623.28322 225.18129,830.45749 226.28266,292.608 z"
          id="path3766"
          inkscape:connector-curvature="0"
-         style="fill:#8c8c8c;stroke:#1a1a1a;stroke-width:8.53333378;stroke-linecap:square" />
+         style="fill:#8c8c8c;stroke:#1a1a1a;stroke-width:8.53333378;stroke-linecap:square"
+         sodipodi:nodetypes="cccccccccc" />
       <path
          d="m 619.98933,-111.43467 h 167.44534 l -90.7904,-96.19413 z"
          id="path3770"
