@@ -26,7 +26,7 @@
 #include <QSize>
 #include <opencv2/core/core.hpp>
 
-#include "videotracker.h"
+#include "mazevideo.h"
 
 class UEyeCamera : public MACamera
 {
