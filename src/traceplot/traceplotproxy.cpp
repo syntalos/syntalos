@@ -23,6 +23,7 @@
 #include <QtCharts/QLineSeries>
 #include <QtCharts/QScatterSeries>
 #include <QtCharts/QValueAxis>
+#include <QTimer>
 #include <QDebug>
 
 TracePlotProxy::TracePlotProxy(QObject *parent)
@@ -33,6 +34,10 @@ TracePlotProxy::TracePlotProxy(QObject *parent)
 
     m_plot->legend()->hide();
     m_plot->createDefaultAxes();
+    m_plot->setAnimationOptions(QChart::SeriesAnimations);
+
+    m_timer = new QTimer(this);
+    connect(m_timer, &QTimer::timeout, this, &TracePlotProxy::repaintPlot);
 }
 
 static inline int makePortChanMapId(int port, int chan)
@@ -82,7 +87,17 @@ QList<ChannelDetails *> TracePlotProxy::channels() const
     return m_channels.values();
 }
 
-void TracePlotProxy::updatePlot()
+void TracePlotProxy::updatePlot(bool nowait)
+{
+    if (nowait) {
+        repaintPlot();
+    } else {
+        if (!m_timer->isActive())
+            m_timer->start(600);
+    }
+}
+
+void TracePlotProxy::repaintPlot()
 {
     ChannelDetails *details;
 
@@ -93,8 +108,12 @@ void TracePlotProxy::updatePlot()
         // replace is *much* faster than append(QPointF)
         // see https://bugreports.qt.io/browse/QTBUG-55714
         details->series->replace(details->data);
-        if (details->xPos > m_maxXVal)
+
+        // set & broadcast our maximum horizontal position
+        if (details->xPos > m_maxXVal) {
             m_maxXVal = details->xPos;
+            emit maxHorizontalPositionChanged(m_maxXVal);
+        }
     }
 }
 
@@ -109,6 +128,11 @@ ChannelDetails *TracePlotProxy::getDetails(int port, int chan) const
 void TracePlotProxy::adjustView()
 {
     m_plot->axisX()->setRange(m_maxXVal - 2000, m_maxXVal);
+}
+
+void TracePlotProxy::moveTo(int position)
+{
+    m_plot->axisX()->setRange(position, position + 2000);
 }
 
 void TracePlotProxy::applyDisplayModifiers()
@@ -129,7 +153,7 @@ void TracePlotProxy::applyDisplayModifiers()
         }
     }
 
-    updatePlot();
+    updatePlot(true);
 }
 
 void TracePlotProxy::reset()

@@ -28,6 +28,7 @@
 namespace QtCharts {
 class QXYSeries;
 }
+class QTimer;
 
 class ChannelDetails : public QObject
 {
@@ -98,8 +99,6 @@ public:
 
     QList<ChannelDetails*> channels() const;
 
-    void updatePlot();
-
     ChannelDetails *getDetails(int port, int chan) const;
 
     void adjustView();
@@ -109,11 +108,18 @@ public:
     void reset();
 
 signals:
+    void maxHorizontalPositionChanged(int maxPos);
 
 public slots:
+    void updatePlot(bool nowait = false);
+    void moveTo(int position);
+
+private slots:
+    void repaintPlot();
 
 private:
     TracePlot *m_plot;
+    QTimer *m_timer;
 
     QMap<int, ChannelDetails*> m_channels;
 

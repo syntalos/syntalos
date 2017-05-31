@@ -453,7 +453,9 @@ MainWindow::MainWindow(QWidget *parent) :
     auto twScrollBar = new QScrollBar(this);
     ui->traceView0->addScrollBarWidget(twScrollBar, Qt::AlignBottom);
     m_intanUI->getWavePlot()->setPlotProxy(m_traceProxy);
-    twScrollBar->show();
+    connect(m_traceProxy, &TracePlotProxy::maxHorizontalPositionChanged, ui->plotScrollBar, &QScrollBar::setMaximum);
+    connect(m_traceProxy, &TracePlotProxy::maxHorizontalPositionChanged, ui->plotScrollBar, &QScrollBar::setValue);
+    connect(ui->plotScrollBar, &QScrollBar::valueChanged, m_traceProxy, &TracePlotProxy::moveTo);
 
     // there are 6 ports on the Intan eval port - we hardcode that at time
     for (uint port = 0; port < 6; port++) {
