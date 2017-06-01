@@ -28,7 +28,8 @@
 
 TracePlotProxy::TracePlotProxy(QObject *parent)
     : QObject(parent),
-      m_maxXVal(0)
+      m_maxXVal(0),
+      m_refreshTime(400)
 {
     m_plot = new TracePlot();
 
@@ -89,11 +90,11 @@ QList<ChannelDetails *> TracePlotProxy::channels() const
 
 void TracePlotProxy::updatePlot(bool nowait)
 {
-    if (nowait) {
+    if (nowait || m_refreshTime == 0) {
         repaintPlot();
     } else {
         if (!m_timer->isActive())
-            m_timer->start(600);
+            m_timer->start(m_refreshTime);
     }
 }
 
@@ -165,4 +166,14 @@ void TracePlotProxy::reset()
     }
 
     m_maxXVal = 0;
+}
+
+int TracePlotProxy::refreshTime() const
+{
+    return m_refreshTime;
+}
+
+void TracePlotProxy::setRefreshTime(int v)
+{
+    m_refreshTime = v;
 }

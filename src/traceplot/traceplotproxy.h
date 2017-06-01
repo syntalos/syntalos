@@ -107,6 +107,9 @@ public:
 
     void reset();
 
+    int refreshTime() const;
+    void setRefreshTime(int v);
+
 signals:
     void maxHorizontalPositionChanged(int maxPos);
 
@@ -124,6 +127,7 @@ private:
     QMap<int, ChannelDetails*> m_channels;
 
     int m_maxXVal;
+    int m_refreshTime;
 };
 
 #endif // TRACEPLOTPROXY_H

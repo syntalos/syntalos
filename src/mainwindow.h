@@ -95,6 +95,8 @@ private slots:
     void on_prevPlotButton_toggled(bool checked);
     void on_chanDisplayCheckBox_clicked(bool checked);
 
+    void on_plotRefreshSpinBox_valueChanged(int arg1);
+
 protected:
     void closeEvent(QCloseEvent *event);
 

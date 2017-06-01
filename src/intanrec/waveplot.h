@@ -81,6 +81,7 @@ public:
 
     bool isPortEnabled(int port) const;
     void setPlotProxy(TracePlotProxy *pp);
+    int getChannelCount(int port) const;
     
 signals:
     void selectedChannelChanged(SignalChannel* newChannel);

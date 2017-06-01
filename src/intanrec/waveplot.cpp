@@ -318,6 +318,11 @@ void WavePlot::setPlotProxy(TracePlotProxy *pp)
     plotProxy = pp;
 }
 
+int WavePlot::getChannelCount(int port) const
+{
+    return frameList[numFramesIndex[port]].size();
+}
+
 void WavePlot::paintEvent(QPaintEvent * /* event */)
 {
     QStylePainter stylePainter(this);

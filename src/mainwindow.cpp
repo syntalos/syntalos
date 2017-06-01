@@ -456,12 +456,13 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(m_traceProxy, &TracePlotProxy::maxHorizontalPositionChanged, ui->plotScrollBar, &QScrollBar::setMaximum);
     connect(m_traceProxy, &TracePlotProxy::maxHorizontalPositionChanged, ui->plotScrollBar, &QScrollBar::setValue);
     connect(ui->plotScrollBar, &QScrollBar::valueChanged, m_traceProxy, &TracePlotProxy::moveTo);
+    ui->plotRefreshSpinBox->setValue(m_traceProxy->refreshTime());
 
     // there are 6 ports on the Intan eval port - we hardcode that at time
     for (uint port = 0; port < 6; port++) {
         auto item = new QListWidgetItem;
         item->setData(Qt::UserRole, port);
-        item->setText(QString("%1").arg(port));
+        item->setText(QString("Port %1").arg(port));
         ui->portListWidget->addItem(item);
     }
 
@@ -1082,7 +1083,7 @@ void MainWindow::on_portListWidget_itemActivated(QListWidgetItem *item)
     }
     ui->chanListWidget->setEnabled(true);
 
-    for (int chan = 0; chan < waveplot->getNumFramesIndex(port); chan++) {
+    for (int chan = 0; chan < waveplot->getChannelCount(port); chan++) {
         auto item = new QListWidgetItem;
         item->setData(Qt::UserRole, chan);
         item->setText(waveplot->getChannelName(port, chan));
@@ -1155,4 +1156,9 @@ void MainWindow::on_chanDisplayCheckBox_clicked(bool checked)
         m_traceProxy->addChannel(portId, chanId);
     else
         m_traceProxy->removeChannel(portId, chanId);
+}
+
+void MainWindow::on_plotRefreshSpinBox_valueChanged(int arg1)
+{
+    m_traceProxy->setRefreshTime(arg1);
 }
