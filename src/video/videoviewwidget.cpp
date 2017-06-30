@@ -120,7 +120,8 @@ void VideoViewWidget::resizeGL(int width, int height)
 
 void VideoViewWidget::updateScene()
 {
-    if (this->isVisible()) update();
+    //if (this->isVisible())
+        update();
 }
 
 void VideoViewWidget::paintGL()
