@@ -2854,13 +2854,17 @@ void IntanUI::loadSettings(const QByteArray &data)
 
     inStream >> tempQint16;
     sampleRateComboBox->setCurrentIndex(tempQint16);
-    inStream >> tempQint16;
-    yScaleComboBox->setCurrentIndex(tempQint16);
 
     scanPorts();
 
     inStream >> tempQint16;
+    yScaleComboBox->setCurrentIndex(tempQint16);
+
+    inStream >> tempQint16;
     tScaleComboBox->setCurrentIndex(tempQint16);
+
+    changeTScale(tScaleComboBox->currentIndex());
+    changeYScale(yScaleComboBox->currentIndex());
 
     inStream >> tempQint16;
     notchFilterComboBox->setCurrentIndex(tempQint16);
