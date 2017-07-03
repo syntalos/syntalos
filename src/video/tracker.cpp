@@ -493,19 +493,19 @@ Tracker::LEDTriangle Tracker::trackPoints(time_t time, const cv::Mat &image)
     // red maximum
     maxLoc = findMaxColorBrightness(image, grayMat, cv::Scalar(0, 0, 180), cv::Scalar(80, 80, 255));
     if (maxLoc.x > 0)
-        cv::circle(trackMat, maxLoc, 6, cv::Scalar(255, 0, 0), -1);
+        cv::circle(trackMat, maxLoc, 6, cv::Scalar(0, 0, 255), -1); // BGR colors
     res.red = maxLoc;
 
     // green maximum
     maxLoc = findMaxColorBrightness(image, grayMat, cv::Scalar(0, 200, 0), cv::Scalar(110, 255, 180));
     if (maxLoc.x > 0)
-        cv::circle(trackMat, maxLoc, 6, cv::Scalar(0, 255, 0), -1);
+        cv::circle(trackMat, maxLoc, 6, cv::Scalar(0, 255, 0), -1); // BGR colors
     res.green = maxLoc;
 
     // blue maximum
     maxLoc = findMaxColorBrightness(image, grayMat, cv::Scalar(210, 0, 0), cv::Scalar(255, 240, 70));
     if (maxLoc.x > 0)
-        cv::circle(trackMat, maxLoc, 6, cv::Scalar(0, 0, 255), -1);
+        cv::circle(trackMat, maxLoc, 6, cv::Scalar(255, 0, 0), -1); // BGR colors
     res.blue = maxLoc;
 
     // calculate gamma angle
@@ -521,11 +521,11 @@ Tracker::LEDTriangle Tracker::trackPoints(time_t time, const cv::Mat &image)
     // find the maze
     if (m_mazeRect.size() == 4) {
         // draw maze rect
-        cv::line(trackMat, m_mazeRect[0],  m_mazeRect[1], cv::Scalar(255, 50, 50), 2);
-        cv::line(trackMat, m_mazeRect[2],  m_mazeRect[3], cv::Scalar(255, 50, 50), 2);
+        cv::line(trackMat, m_mazeRect[0],  m_mazeRect[1], cv::Scalar(40, 120, 120), 2);
+        cv::line(trackMat, m_mazeRect[2],  m_mazeRect[3], cv::Scalar(40, 120, 120), 2);
 
-        cv::line(trackMat, m_mazeRect[0],  m_mazeRect[2], cv::Scalar(255, 50, 50), 2);
-        cv::line(trackMat, m_mazeRect[1],  m_mazeRect[3], cv::Scalar(255, 50, 50), 2);
+        cv::line(trackMat, m_mazeRect[0],  m_mazeRect[2], cv::Scalar(40, 120, 120), 2);
+        cv::line(trackMat, m_mazeRect[1],  m_mazeRect[3], cv::Scalar(40, 120, 120), 2);
 
         // we need to try to find the maze a few times, to not make assumptions based
         // on a bad initial image delivered by the camera warming up.

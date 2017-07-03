@@ -180,9 +180,10 @@ void VideoViewWidget::recalculatePosition()
 
 bool VideoViewWidget::showImage(const cv::Mat& image)
 {
-    if (image.channels() == 1)
+    auto channels = image.channels();
+    if (channels == 1)
         cvtColor(image, m_origImage, CV_GRAY2BGR);
-    else if (image.channels() == 4)
+    else if (channels == 4)
         cvtColor(image, m_origImage, CV_BGRA2BGR);
     else
         m_origImage = image;
