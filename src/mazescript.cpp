@@ -82,12 +82,9 @@ MazeScript::MazeScript(QObject *parent)
 
     m_running = false;
     
-    m_mazeio = new MazeIO(m_firmata, this);
-    connect(m_mazeio, &MazeIO::eventSaved, this, &MazeScript::eventReceived);
-    connect(m_mazeio, &MazeIO::headersSet, this, &MazeScript::headersReceived);
-    
     // initialize the JS engine
     m_jseng = nullptr;
+    m_mazeio = nullptr;
     resetEngine();
 }
 
@@ -140,6 +137,13 @@ void MazeScript::resetEngine()
     m_jseng = new QScriptEngine;
     QScriptEngineDebugger debugger;
     debugger.attachTo(m_jseng);
+
+    if (m_mazeio)
+        delete m_mazeio;
+
+    m_mazeio = new MazeIO(m_firmata, this);
+    connect(m_mazeio, &MazeIO::eventSaved, this, &MazeScript::eventReceived);
+    connect(m_mazeio, &MazeIO::headersSet, this, &MazeScript::headersReceived);
 }
 
 void MazeScript::run()
