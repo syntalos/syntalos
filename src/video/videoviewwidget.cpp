@@ -55,8 +55,7 @@ static GLuint matToTexture(cv::Mat &mat, GLenum minFilter, GLenum magFilter, GLe
     if (magFilter == GL_LINEAR_MIPMAP_LINEAR  ||
             magFilter == GL_LINEAR_MIPMAP_NEAREST ||
             magFilter == GL_NEAREST_MIPMAP_LINEAR ||
-            magFilter == GL_NEAREST_MIPMAP_NEAREST)
-    {
+            magFilter == GL_NEAREST_MIPMAP_NEAREST) {
         qWarning() << "You can't use MIPMAPs for magnification - setting filter to GL_LINEAR";
         magFilter = GL_LINEAR;
     }
@@ -74,8 +73,7 @@ static GLuint matToTexture(cv::Mat &mat, GLenum minFilter, GLenum magFilter, GLe
     // GL_LUMINANCE for CV_CAP_OPENNI_DISPARITY_MAP,
     // Work out other mappings as required ( there's a list in comments in main() )
     GLenum inputColourFormat = GL_BGR;
-    if (mat.channels() == 1)
-    {
+    if (mat.channels() == 1) {
         inputColourFormat = GL_LUMINANCE;
     }
 
@@ -94,8 +92,7 @@ static GLuint matToTexture(cv::Mat &mat, GLenum minFilter, GLenum magFilter, GLe
     if (minFilter == GL_LINEAR_MIPMAP_LINEAR  ||
             minFilter == GL_LINEAR_MIPMAP_NEAREST ||
             minFilter == GL_NEAREST_MIPMAP_LINEAR ||
-            minFilter == GL_NEAREST_MIPMAP_NEAREST)
-    {
+            minFilter == GL_NEAREST_MIPMAP_NEAREST) {
 #ifdef OPENGL_3
         glGenerateMipmap(GL_TEXTURE_2D);
 #endif
