@@ -186,7 +186,7 @@ bool VideoViewWidget::showImage(const cv::Mat& image)
     else if (channels == 4)
         cvtColor(image, m_origImage, CV_BGRA2BGR);
     else
-        m_origImage = image;
+        image.copyTo(m_origImage);
 
     recalculatePosition();
     updateScene();
