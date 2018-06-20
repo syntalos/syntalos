@@ -228,7 +228,7 @@ bool UEyeCamera::getFrame(time_t *time, cv::Mat& buffer)
 
     auto res = is_GetImageInfo (m_hCam, m_camBufId, &imgInfo, sizeof(imgInfo));
     if (res == IS_SUCCESS) {
-        (*time) = imgInfo.u64TimestampDevice / 10000; // o.1µs resolution, but we want ms
+        (*time) = imgInfo.u64TimestampDevice / 10000; // 0.1µs resolution, but we want ms
         if ((*time) == m_lastFrameTime) {
             // we don't want to fetch the same frame twice
             return false;
