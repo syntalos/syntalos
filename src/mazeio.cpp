@@ -87,7 +87,7 @@ void MazeIO::pinSetValue(const QString& pinName, bool value)
 void MazeIO::pinSignalPulse(const QString& pinName)
 {
     pinSetValue(pinName, true);
-    this->sleep(2);
+    this->sleep(50);
     pinSetValue(pinName, false);
 }
 
