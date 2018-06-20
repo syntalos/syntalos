@@ -37,7 +37,7 @@ MazeIO::MazeIO(SerialFirmata *firmata, QObject *parent)
     connect(m_firmata, &SerialFirmata::digitalPinRead, this, &MazeIO::onDigitalPinRead);
 }
 
-void MazeIO::newDigitalPin(int pinID, const QString& pinName, bool output)
+void MazeIO::newDigitalPin(int pinID, const QString& pinName, bool output, bool pullUp)
 {
     FmPin pin;
     pin.kind = PinKind::Digital;
@@ -51,7 +51,10 @@ void MazeIO::newDigitalPin(int pinID, const QString& pinName, bool output)
         qDebug() << "Pin" << pinID << "set as output";
     } else {
         // connect input pin
-        m_firmata->setPinMode(pinID, IoMode::Input);
+        if (pullUp)
+            m_firmata->setPinMode(pinID, IoMode::PullUp);
+        else
+            m_firmata->setPinMode(pinID, IoMode::Input);
 
         auto port = pin.id >> 3;
         m_firmata->reportDigitalPort(port, true);
@@ -66,9 +69,11 @@ void MazeIO::newDigitalPin(int pinID, const QString& pinName, bool output)
 void MazeIO::newDigitalPin(int pinID, const QString& pinName, const QString& kind)
 {
     if (kind == "output")
-        newDigitalPin(pinID, pinName, true);
+        newDigitalPin(pinID, pinName, true, false);
     else if (kind == "input")
-        newDigitalPin(pinID, pinName, false);
+        newDigitalPin(pinID, pinName, false, false);
+    else if (kind == "input-pullup")
+        newDigitalPin(pinID, pinName, false, true);
     else
         qCritical() << "Invalid pin kind:" << kind;
 }

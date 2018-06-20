@@ -47,7 +47,7 @@ class MazeIO : public QObject, protected QScriptable
 public:
     explicit MazeIO(SerialFirmata *firmata, QObject *parent = 0);
 
-    void newDigitalPin(int pinID, const QString& pinName, bool output);
+    void newDigitalPin(int pinID, const QString& pinName, bool output, bool pullUp);
 
 public slots:
     void newDigitalPin(int pinID, const QString& pinName, const QString& kind);
