@@ -24,40 +24,63 @@
 using namespace std::chrono;
 
 QString
-ExperimentKind::toHumanString(ExperimentKind::Kind kind)
+ExperimentFeatures::toHumanString()
 {
-    switch (kind) {
-    case ExperimentKind::KindMaze:
+    if (videoEnabled && trackingEnabled && ephysEnabled && ioEnabled)
         return QStringLiteral("Maze");
-    case ExperimentKind::KindRestingBox:
+    if (videoEnabled && ephysEnabled && !ioEnabled && !trackingEnabled)
         return QStringLiteral("Resting Box");
-    default:
-        return QStringLiteral("Unknown");
-    }
+
+    return QStringLiteral("Custom");
 }
 
 QString
-ExperimentKind::toString(ExperimentKind::Kind kind)
+ExperimentFeatures::toString()
 {
-    switch (kind) {
-    case ExperimentKind::KindMaze:
+    if (videoEnabled && trackingEnabled && ephysEnabled && ioEnabled)
         return QStringLiteral("maze");
-    case ExperimentKind::KindRestingBox:
+    if (videoEnabled && ephysEnabled && !ioEnabled && !trackingEnabled)
         return QStringLiteral("resting-box");
-    default:
-        return QStringLiteral("unknown");
-    }
+
+    return QStringLiteral("custom");
 }
 
-ExperimentKind::Kind
-ExperimentKind::fromString(const QString& str)
+QJsonObject
+ExperimentFeatures::toJson()
 {
-    if (str == "maze")
-        return ExperimentKind::KindMaze;
-    else if (str == "resting-box")
-        return ExperimentKind::KindRestingBox;
-    else
-        return ExperimentKind::KindUnknown;
+    QJsonObject json;
+    json.insert("ephys", ephysEnabled);
+    json.insert("io", ioEnabled);
+    json.insert("video", videoEnabled);
+    json.insert("tracking", trackingEnabled);
+
+    return json;
+}
+
+void ExperimentFeatures::fromJson(const QJsonObject& json)
+{
+    if (json.empty()) {
+        this->enableAll(); // backwards compatibility
+        return;
+    }
+
+    ephysEnabled = json.value("ephys").toBool();
+    ioEnabled    = json.value("io").toBool();
+    videoEnabled = json.value("video").toBool();
+    trackingEnabled = json.value("tracking").toBool();
+}
+
+bool ExperimentFeatures::isAnyEnabled()
+{
+    return ephysEnabled || ioEnabled || videoEnabled || trackingEnabled;
+}
+
+void ExperimentFeatures::enableAll()
+{
+    videoEnabled = true;
+    trackingEnabled = true;
+    ephysEnabled = true;
+    ioEnabled = true;
 }
 
 time_t getMsecEpoch()

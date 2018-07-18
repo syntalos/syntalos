@@ -89,7 +89,8 @@ MainWindow::MainWindow(QWidget *parent) :
     intanLayout->addWidget(m_intanUI);
     ui->tabIntan->setLayout(intanLayout);
 
-    ui->mdiArea->addSubWindow(m_intanUI->displayWidget())->setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowMinMaxButtonsHint);
+    m_intanTraceWin = ui->mdiArea->addSubWindow(m_intanUI->displayWidget());
+    m_intanTraceWin->setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowMinMaxButtonsHint);
 
     // add Intan menu actions
     ui->menuIntan->addSeparator();
@@ -141,15 +142,32 @@ MainWindow::MainWindow(QWidget *parent) :
     });
 
     // add experiment selector
-    m_experimentKind = ExperimentKind::KindMaze;
+    m_features.enableAll();
     updateWindowTitle(nullptr);
-    for (uint i = 1; i < ExperimentKind::KindLast; i++) {
-        auto kind = (ExperimentKind::Kind) i;
-        ui->expTypeComboBox->addItem(ExperimentKind::toHumanString(kind), QVariant(kind));
-    }
+
+    ui->expTypeComboBox->addItem("Maze");
+    ui->expTypeComboBox->addItem("Resting Box");
+    ui->expTypeComboBox->addItem("Custom");
 
     connect(ui->expTypeComboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), [=](int index) {
-        changeExperimentKind((ExperimentKind::Kind) ui->expTypeComboBox->itemData(index).toInt());
+        if (index == 0) {
+            // Maze setting, enable all
+            m_features.enableAll();
+            applyExperimentFeatureChanges();
+            ui->panelFeatureCustomize->setEnabled(false);
+        } else if (index == 1) {
+            // Resting box setting
+            m_features.enableAll();
+            m_features.ioEnabled = false;
+            m_features.trackingEnabled = false;
+            applyExperimentFeatureChanges();
+            ui->panelFeatureCustomize->setEnabled(false);
+        } else if (index == 2) {
+            // Custom feature selection
+            ui->panelFeatureCustomize->setEnabled(true);
+        } else {
+            qCritical("Invalid experiment feature setting selected!");
+        }
     });
 
     // set up test subjects page
@@ -249,7 +267,8 @@ MainWindow::MainWindow(QWidget *parent) :
     m_videoTracker = new MazeVideo;
     connect(m_videoTracker, &MazeVideo::error, this, &MainWindow::videoError);
     m_rawVideoWidget = new VideoViewWidget(this);
-    ui->mdiArea->addSubWindow(m_rawVideoWidget)->setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowMinMaxButtonsHint);
+    m_rawVideoWidgetWin = ui->mdiArea->addSubWindow(m_rawVideoWidget);
+    m_rawVideoWidgetWin->setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowMinMaxButtonsHint);
     m_rawVideoWidget->setWindowTitle("Raw Video");
     connect(m_videoTracker, &MazeVideo::newFrame, [&](time_t time, const cv::Mat& image) {
         m_rawVideoWidget->setWindowTitle(QString("Raw Video (at %1sec)").arg(time / 1000));
@@ -466,6 +485,9 @@ MainWindow::MainWindow(QWidget *parent) :
         ui->portListWidget->addItem(item);
     }
 
+    // ensure the default feature selection is properly visible, now that we initialized all UI
+    applyExperimentFeatureChanges();
+
     // lastly, restore our geometry and widget state
     QSettings settings("DraguhnLab", "MazeAmaze");
     restoreGeometry(settings.value("main/geometry").toByteArray());
@@ -586,6 +608,13 @@ void MainWindow::runActionTriggered()
     setStopPossible(true);
     m_failed = false;
 
+    if (!m_features.isAnyEnabled()) {
+        QMessageBox::warning(this, "Configuration error", "You have selected not a single recording feature to be active.\nPlease select at least one feature to give this recording a purpose.");
+        setRunPossible(true);
+        setStopPossible(false);
+        return;
+    }
+
     // safeguard against accidental data removals
     QDir deDir(m_dataExportDir);
     if (deDir.exists()) {
@@ -607,29 +636,35 @@ void MainWindow::runActionTriggered()
     qDebug() << "Initializing";
 
     // make the experiment type known to the tracker
-    m_videoTracker->setExperimentKind(m_experimentKind);
+    m_videoTracker->setTrackingEnabled(m_features.trackingEnabled);
 
     auto intanDataDir = QString::fromUtf8("%1/intan").arg(m_dataExportDir);
-    if (!makeDirectory(intanDataDir)) {
-        setRunPossible(true);
-        setStopPossible(false);
-        return;
-    }
-
-    auto mazeEventDataDir = QString::fromUtf8("%1/maze").arg(m_dataExportDir);
-    if (m_experimentKind == ExperimentKind::KindMaze) {
-        if (!makeDirectory(mazeEventDataDir)) {
+    if (m_features.ephysEnabled) {
+        if (!makeDirectory(intanDataDir)) {
             setRunPossible(true);
             setStopPossible(false);
             return;
         }
     }
 
+    auto mazeEventDataDir = QString::fromUtf8("%1/maze").arg(m_dataExportDir);
+    if (m_features.ioEnabled) {
+        if (m_features.ioEnabled) {
+            if (!makeDirectory(mazeEventDataDir)) {
+                setRunPossible(true);
+                setStopPossible(false);
+                return;
+            }
+        }
+    }
+
     auto videoDataDir = QString::fromUtf8("%1/video").arg(m_dataExportDir);
-    if (!makeDirectory(videoDataDir)) {
-        setRunPossible(true);
-        setStopPossible(false);
-        return;
+    if (m_features.videoEnabled || m_features.trackingEnabled) {
+        if (!makeDirectory(videoDataDir)) {
+            setRunPossible(true);
+            setStopPossible(false);
+            return;
+        }
     }
 
     // write manifest with misc information
@@ -637,15 +672,17 @@ void MainWindow::runActionTriggered()
 
     QJsonObject manifest;
     manifest.insert("maVersion", QApplication::applicationVersion());
-    manifest.insert("experimentKind", ExperimentKind::toString(m_experimentKind));
     manifest.insert("subjectId", m_currentSubject.id);
     manifest.insert("subjectGroup", m_currentSubject.group);
     manifest.insert("subjectComment", m_currentSubject.comment);
-    manifest.insert("frameTarball", m_saveTarCB->isChecked());
     manifest.insert("timestamp", curDateTime.toString(Qt::ISODate));
+    manifest.insert("features", m_features.toJson());
+    if (m_features.videoEnabled) {
+        manifest.insert("frameTarball", m_saveTarCB->isChecked());
 
-    if (m_camFlashMode->isChecked())
-        manifest.insert("cameraGPIOFlash", true);
+        if (m_camFlashMode->isChecked())
+            manifest.insert("cameraGPIOFlash", true);
+    }
 
     QFile manifestFile(QStringLiteral("%1/manifest.json").arg(m_dataExportDir));
     if (!manifestFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
@@ -673,20 +710,28 @@ void MainWindow::runActionTriggered()
     m_intanUI->setBaseFileName(intanBaseName);
 
     // open camera (might take a while, so we do this early)
-    setStatusText("Opening connection to camera...");
-    if (!m_videoTracker->openCamera())
-        return;
+    if (m_features.videoEnabled) {
+        setStatusText("Opening connection to camera...");
+        if (!m_videoTracker->openCamera())
+            return;
+    }
 
+    int barrierWaitCount = 0;
+    if (m_features.videoEnabled)
+        barrierWaitCount++;
+    if (m_features.ephysEnabled)
+        barrierWaitCount++;
 
     // barrier to synchronize all concurrent actions and thereby align timestamps as good as possible
-    Barrier barrier(2); // 2 threads: ephys and video
+    Barrier barrier(barrierWaitCount); // usually 2 threads: ephys and video
 
     // open Firmata connection via the selected serial interface.
     // after we opened the device, we can't change it anymore (or rather, were too lazy to implement this...)
     // so we disable the selection box.
-    setStatusText("Connecting serial I/O...");
-    auto serialDevice = ui->portsComboBox->currentData().toString();
-    if (m_experimentKind == ExperimentKind::KindMaze) {
+    if (m_features.ioEnabled) {
+        setStatusText("Connecting serial I/O...");
+        auto serialDevice = ui->portsComboBox->currentData().toString();
+
         if (serialDevice.isEmpty()) {
             auto reply = QMessageBox::question(this,
                                                "Really continue?",
@@ -725,21 +770,26 @@ void MainWindow::runActionTriggered()
     m_traceProxy->reset();
 
     // launch video
-    m_videoTracker->run(barrier);
-    if (m_failed)
-        return;
-    m_statusWidget->setVideoStatus(StatusWidget::Active);
+    if (m_features.videoEnabled) {
+        m_videoTracker->run(barrier);
+        if (m_failed)
+            return;
+        m_statusWidget->setVideoStatus(StatusWidget::Active);
+    }
 
     // disable UI elements
     m_mazeJSView->setEnabled(false);
     ui->cameraGroupBox->setEnabled(false);
 
     // launch intan recordings
-    qDebug() << "Starting Intan recording";
     setStatusText("Running.");
     m_running = true;
     m_statusWidget->setIntanStatus(StatusWidget::Active);
-    m_intanUI->recordInterfaceBoard(barrier);
+
+    if (m_features.ephysEnabled) {
+        qDebug() << "Starting Intan recording";
+        m_intanUI->recordInterfaceBoard(barrier);
+    }
 }
 
 void MainWindow::stopActionTriggered()
@@ -751,17 +801,22 @@ void MainWindow::stopActionTriggered()
     // stop Maze script
     m_msintf->stop();
 
-    if (m_experimentKind == ExperimentKind::KindMaze)
+    if (m_features.ioEnabled)
         m_statusWidget->setFirmataStatus(StatusWidget::Ready);
     else
         m_statusWidget->setFirmataStatus(StatusWidget::Disabled);
 
     // stop video tracker
-    m_videoTracker->stop();
+    if (m_features.videoEnabled) {
+        m_videoTracker->stop();
+        m_statusWidget->setVideoStatus(StatusWidget::Ready);
+    }
 
     // stop interface board
-    m_intanUI->stopInterfaceBoard();
-    m_statusWidget->setIntanStatus(StatusWidget::Ready);
+    if (m_features.ephysEnabled) {
+        m_intanUI->stopInterfaceBoard();
+        m_statusWidget->setIntanStatus(StatusWidget::Ready);
+    }
     
     // compress frame tarball, if selected
     if (m_saveTarCB->isChecked()) {
@@ -787,8 +842,6 @@ void MainWindow::stopActionTriggered()
         QObject::disconnect(conn);
     }
     
-    m_statusWidget->setVideoStatus(StatusWidget::Ready);
-
     // enable UI elements
     m_mazeJSView->setEnabled(true);
     ui->cameraGroupBox->setEnabled(true);
@@ -854,33 +907,81 @@ void MainWindow::changeTestSubject(const TestSubject &subject)
     updateDataExportDir();
 }
 
-void MainWindow::changeExperimentKind(ExperimentKind::Kind newKind)
+void MainWindow::changeExperimentFeatures(const ExperimentFeatures& features)
 {
-    // never do an unknown experiment, change to Maze for backwards compatibility
-    if (newKind == ExperimentKind::KindUnknown) {
-        newKind = ExperimentKind::KindMaze;
-        qDebug() << "Unknown experiment type detected, falling back to \"Maze\"";
+    if (features.trackingEnabled && !features.videoEnabled)
+        qWarning("Can not have tracking enabled while video is disabled!");
+
+    if (features.ioEnabled) {
+        m_mazeEventTableWin->show();
+        ui->cbIOFeature->setChecked(true);
+        ui->tabIo->setEnabled(true);
+
+        m_statusWidget->setFirmataStatus(StatusWidget::Status::Enabled);
+    } else {
+        m_mazeEventTableWin->hide();
+        ui->cbIOFeature->setChecked(false);
+        ui->tabIo->setEnabled(false);
+
+        m_statusWidget->setFirmataStatus(StatusWidget::Status::Disabled);
     }
 
-    m_experimentKind = newKind;
-    switch (newKind) {
-    case ExperimentKind::KindMaze:
-        m_mazeEventTableWin->show();
-        m_trackVideoWidgetWin->show();
+    if (features.videoEnabled) {
+        m_rawVideoWidgetWin->show();
+        ui->cbVideoFeature->setChecked(true);
+        ui->tabVideo->setEnabled(true);
+
+        m_statusWidget->setVideoStatus(StatusWidget::Status::Enabled);
+    } else {
+        m_rawVideoWidgetWin->hide();
+        ui->cbVideoFeature->setChecked(false);
+        ui->tabVideo->setEnabled(false);
+
+        m_statusWidget->setVideoStatus(StatusWidget::Status::Disabled);
+    }
+
+    if (features.trackingEnabled) {
         m_trackInfoWidgetWin->show();
+        m_trackVideoWidgetWin->show();
+        ui->cbTrackingFeature->setChecked(true);
 
-        break;
-
-    case ExperimentKind::KindRestingBox:
-        m_mazeEventTableWin->hide();
-        m_trackVideoWidgetWin->hide();
+        m_statusWidget->setTrackingStatus(StatusWidget::Status::Enabled);
+    } else {
         m_trackInfoWidgetWin->hide();
-        break;
-    default:
-        break;
+        m_trackVideoWidgetWin->hide();
+        ui->cbTrackingFeature->setChecked(false);
+
+        m_statusWidget->setTrackingStatus(StatusWidget::Status::Disabled);
+    }
+
+    if (features.ephysEnabled) {
+        m_intanTraceWin->show();
+        ui->cbEphysFeature->setChecked(true);
+        ui->tabIntan->setEnabled(true);
+        m_intanUI->setEnabled(true);
+
+        m_statusWidget->setIntanStatus(StatusWidget::Status::Enabled);
+    } else {
+        m_intanTraceWin->hide();
+        ui->cbEphysFeature->setChecked(false);
+        ui->tabIntan->setEnabled(false);
+        m_intanUI->setEnabled(false);
+
+        m_statusWidget->setIntanStatus(StatusWidget::Status::Disabled);
     }
 
     updateWindowTitle(nullptr);
+}
+
+void MainWindow::applyExperimentFeatureChanges()
+{
+    // sanitize
+    if (m_features.trackingEnabled && !m_features.videoEnabled) {
+        ui->cbVideoFeature->setChecked(true);
+        m_features.videoEnabled = true;
+    }
+
+    changeExperimentFeatures(m_features);
 }
 
 void MainWindow::changeExperimentId(const QString& text)
@@ -927,7 +1028,7 @@ void MainWindow::saveSettingsActionTriggered()
     settings.insert("creationDate", QDateTime::currentDateTime().date().toString());
 
     settings.insert("exportDir", m_dataExportBaseDir);
-    settings.insert("experimentKind", ExperimentKind::toString(m_experimentKind));
+    settings.insert("features", m_features.toJson());
     settings.insert("experimentId", m_experimentId);
 
     QJsonObject videoSettings;
@@ -967,10 +1068,10 @@ void MainWindow::saveSettingsActionTriggered()
 void MainWindow::updateWindowTitle(const QString& fileName)
 {
     if (fileName.isEmpty()) {
-        this->setWindowTitle(QStringLiteral("MazeAmaze [%1]").arg(ExperimentKind::toHumanString(m_experimentKind)));
+        this->setWindowTitle(QStringLiteral("MazeAmaze [%1]").arg(m_features.toHumanString()));
     } else {
         this->setWindowTitle(QStringLiteral("MazeAmaze [%1] - %2")
-                                            .arg(ExperimentKind::toHumanString(m_experimentKind))
+                                            .arg(m_features.toHumanString())
                                             .arg(fileName));
     }
 }
@@ -1013,8 +1114,18 @@ void MainWindow::loadSettingsActionTriggered()
 
     setDataExportBaseDir(rootObj.value("exportDir").toString());
     ui->expIdEdit->setText(rootObj.value("experimentId").toString());
-    changeExperimentKind(ExperimentKind::fromString(rootObj.value("experimentKind").toString()));
-    ui->expTypeComboBox->setCurrentIndex(m_experimentKind - 1);
+
+    m_features.fromJson(rootObj.value("features").toObject());
+    applyExperimentFeatureChanges();
+
+    // simple compatibility hack - at one point we will hopefully get rid of static "maze" and "resting box"
+    // profiles entirely
+    if (m_features.toString() == "maze")
+        ui->expTypeComboBox->setCurrentIndex(0);
+    else if (m_features.toString() == "resting-box")
+        ui->expTypeComboBox->setCurrentIndex(1);
+    else
+        ui->expTypeComboBox->setCurrentIndex(2);
 
     auto videoSettings = rootObj.value("video").toObject();
     m_eresWidthEdit->setValue(videoSettings.value("exportWidth").toInt(800));
@@ -1161,4 +1272,38 @@ void MainWindow::on_chanDisplayCheckBox_clicked(bool checked)
 void MainWindow::on_plotRefreshSpinBox_valueChanged(int arg1)
 {
     m_traceProxy->setRefreshTime(arg1);
+}
+
+void MainWindow::on_cbVideoFeature_toggled(bool checked)
+{
+    m_features.videoEnabled = checked;
+    applyExperimentFeatureChanges();
+}
+
+void MainWindow::on_cbTrackingFeature_toggled(bool checked)
+{
+    m_features.trackingEnabled = checked;
+    m_features.videoEnabled = true;
+
+    // there is no tracking without video
+    if (checked) {
+        ui->cbVideoFeature->setChecked(true);
+        ui->cbVideoFeature->setEnabled(false);
+    } else {
+        ui->cbVideoFeature->setEnabled(true);
+    }
+
+    applyExperimentFeatureChanges();
+}
+
+void MainWindow::on_cbEphysFeature_toggled(bool checked)
+{
+    m_features.ephysEnabled = checked;
+    applyExperimentFeatureChanges();
+}
+
+void MainWindow::on_cbIOFeature_toggled(bool checked)
+{
+    m_features.ioEnabled = checked;
+    applyExperimentFeatureChanges();
 }

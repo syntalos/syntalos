@@ -171,9 +171,9 @@ bool MazeVideo::gpioFlash() const
     return m_gpioFlash;
 }
 
-void MazeVideo::setExperimentKind(ExperimentKind::Kind kind)
+void MazeVideo::setTrackingEnabled(bool enabled)
 {
-    m_experimentKind = kind;
+    m_trackingEnabled = enabled;
 }
 
 void MazeVideo::stop()
@@ -263,7 +263,7 @@ void MazeVideo::run(Barrier barrier)
                             m_subjectId, m_exportResolution);
     m_tracker->moveToThread(vThread);
 
-    if (m_experimentKind == ExperimentKind::KindMaze) {
+    if (m_trackingEnabled) {
         connect(vThread, &QThread::started, [&]() {
             m_tracker->runTracking();
         });

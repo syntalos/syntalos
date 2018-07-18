@@ -40,22 +40,28 @@ StatusWidget::StatusWidget(QWidget *parent)
     lblFirmata->setText("Firmata I/O");
 
     auto lblVideo = new QLabel(this);
-    lblVideo->setText("Video / Tracking");
+    lblVideo->setText("Video");
+
+    auto lblTracking = new QLabel(this);
+    lblTracking->setText("Tracking");
 
     m_sysStatus = new QLabel(this);
     m_intanStatus = new QLabel(this);
     m_firmataStatus = new QLabel(this);
     m_videoStatus = new QLabel(this);
+    m_trackingStatus = new QLabel(this);
 
     setSystemStatus(Unknown);
-    setIntanStatus(Unknown);
-    setFirmataStatus(Unknown);
-    setVideoStatus(Unknown);
+    setIntanStatus(Enabled);
+    setFirmataStatus(Enabled);
+    setVideoStatus(Enabled);
+    setTrackingStatus(Enabled);
 
     m_layout->addRow(lblSystem, m_sysStatus);
     m_layout->addRow(lblIntan, m_intanStatus);
     m_layout->addRow(lblFirmata, m_firmataStatus);
     m_layout->addRow(lblVideo, m_videoStatus);
+    m_layout->addRow(lblTracking, m_trackingStatus);
 }
 
 void StatusWidget::labelSetStatus(QLabel *label, Status status)
@@ -63,15 +69,19 @@ void StatusWidget::labelSetStatus(QLabel *label, Status status)
     switch (status) {
     case Disabled:
         label->setText("disabled");
-        label->setStyleSheet("QLabel {background-color: sandybrown; color: black; }");
+        label->setStyleSheet("QLabel {background-color: lightblue; color: black; }");
+        break;
+    case Enabled:
+        label->setText("enabled");
+        label->setStyleSheet("QLabel {background-color: lightgreen; color: black; }");
         break;
     case Configured:
         label->setText("configured");
-        label->setStyleSheet("QLabel {background-color: ghostwhite; color: black; }");
+        label->setStyleSheet("QLabel {background-color: honeydew; color: black; }");
         break;
     case Ready:
         label->setText("ready");
-        label->setStyleSheet("QLabel {background-color: green; color: black; }");
+        label->setStyleSheet("QLabel {background-color: palegreen; color: black; }");
         break;
     case Active:
         label->setText("active");
@@ -110,4 +120,9 @@ void StatusWidget::setFirmataStatus(Status status)
 void StatusWidget::setVideoStatus(Status status)
 {
     labelSetStatus(m_videoStatus, status);
+}
+
+void StatusWidget::setTrackingStatus(Status status)
+{
+    labelSetStatus(m_trackingStatus, status);
 }

@@ -99,7 +99,7 @@ public:
     void setGPIOFlash(bool enabled);
     bool gpioFlash() const;
 
-    void setExperimentKind(ExperimentKind::Kind kind);
+    void setTrackingEnabled(bool enabled);
 
     bool makeFrameTarball();
 
@@ -142,7 +142,7 @@ private:
 
     QString m_uEyeConfigFile;
 
-    ExperimentKind::Kind m_experimentKind;
+    bool m_trackingEnabled;
 };
 
 #endif // MAZEVIDEO_H

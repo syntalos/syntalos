@@ -21,20 +21,23 @@
 #define UTILS_H
 
 #include <QString>
+#include <QJsonObject>
 
-namespace ExperimentKind {
-enum Kind {
-    KindUnknown,
-    KindMaze,
-    KindRestingBox,
+typedef struct
+{
+    bool videoEnabled;
+    bool trackingEnabled;
+    bool ephysEnabled;
+    bool ioEnabled;
 
-    /* private */
-    KindLast
-};
-QString toHumanString(Kind kind);
-QString toString(Kind kind);
-Kind fromString(const QString& str);
-}
+    QString toHumanString();
+    QString toString();
+    QJsonObject toJson();
+    void fromJson(const QJsonObject& json);
+
+    bool isAnyEnabled();
+    void enableAll();
+} ExperimentFeatures;
 
 time_t getMsecEpoch();
 

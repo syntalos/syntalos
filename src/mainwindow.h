@@ -85,7 +85,8 @@ private slots:
 
     void aboutActionTriggered();
 
-    void changeExperimentKind(ExperimentKind::Kind newKind);
+    void changeExperimentFeatures(const ExperimentFeatures& features);
+    void applyExperimentFeatureChanges();
 
     void on_portListWidget_itemActivated(QListWidgetItem *item);
     void on_chanListWidget_itemActivated(QListWidgetItem *item);
@@ -94,8 +95,11 @@ private slots:
     void on_yShiftDoubleSpinBox_valueChanged(double arg1);
     void on_prevPlotButton_toggled(bool checked);
     void on_chanDisplayCheckBox_clicked(bool checked);
-
     void on_plotRefreshSpinBox_valueChanged(int arg1);
+    void on_cbIOFeature_toggled(bool checked);
+    void on_cbEphysFeature_toggled(bool checked);
+    void on_cbTrackingFeature_toggled(bool checked);
+    void on_cbVideoFeature_toggled(bool checked);
 
 protected:
     void closeEvent(QCloseEvent *event);
@@ -113,7 +117,7 @@ private:
 
     ChannelDetails *selectedPlotChannelDetails();
 
-    ExperimentKind::Kind m_experimentKind;
+    ExperimentFeatures m_features;
 
     Ui::MainWindow *ui;
 
@@ -122,6 +126,7 @@ private:
     QLabel *m_exportDirInfoLabel;
 
     IntanUI *m_intanUI;
+    QMdiSubWindow *m_intanTraceWin;
 
     QString m_experimentId;
     QString m_currentDate;
@@ -147,6 +152,7 @@ private:
 
     MazeVideo *m_videoTracker;
     VideoViewWidget *m_rawVideoWidget;
+    QMdiSubWindow *m_rawVideoWidgetWin;
 
     VideoViewWidget *m_trackVideoWidget;
     VideoViewWidget *m_trackInfoWidget;

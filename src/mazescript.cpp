@@ -34,22 +34,22 @@
 const QString defaultSampleScript = QStringLiteral("\n//\n"
                                            "// Configure the pins we want to use\n"
                                            "//\n"
-                                           "mazeIO.newDigitalPin(0, 'armLeft',  'input');\n"
-                                           "mazeIO.newDigitalPin(2, 'armRight', 'input');\n"
+                                           "io.newDigitalPin(0, 'armLeft',  'input');\n"
+                                           "io.newDigitalPin(2, 'armRight', 'input');\n"
                                            "\n"
-                                           "mazeIO.newDigitalPin(6, 'dispLeft',  'output');\n"
-                                           "mazeIO.newDigitalPin(8, 'dispRight', 'output');\n"
+                                           "io.newDigitalPin(6, 'dispLeft',  'output');\n"
+                                           "io.newDigitalPin(8, 'dispRight', 'output');\n"
                                            "\n"
-                                           "mazeIO.newDigitalPin(2, 'pinSignal', 'output');\n"
+                                           "io.newDigitalPin(2, 'pinSignal', 'output');\n"
                                            "\n"
                                            "lastArm = \"unknown\"\n"
                                            "\n"
-                                           "mazeIO.setEventsHeader([\"State\"]);\n"
-                                           "mazeIO.setTimeout(function() {\n"
+                                           "io.setEventsHeader([\"State\"]);\n"
+                                           "io.setTimeout(function() {\n"
                                            "    // light LED on port 2 briefly after 3 seconds\n"
-                                           "    mazeIO.pinSetValue('pinSignal', true);\n"
-                                           "    mazeIO.sleep(500); // wait 500 msec\n"
-                                           "    mazeIO.pinSetValue('pinSignal', false);\n"
+                                           "    io.pinSetValue('pinSignal', true);\n"
+                                           "    io.sleep(500); // wait 500 msec\n"
+                                           "    io.pinSetValue('pinSignal', false);\n"
                                            "}, 3000);\n"
                                            "\n"
                                            "onDigitalInput = function inputReceived(pinName, value)\n"
@@ -61,15 +61,15 @@ const QString defaultSampleScript = QStringLiteral("\n//\n"
                                            "        return;\n"
                                            "    lastArm = pinName;\n"
                                            "\n"
-                                           "    mazeIO.saveEvent('success');\n"
+                                           "    io.saveEvent('success');\n"
                                            "\n"
                                            "    if (pinName == 'armLeft')\n"
-                                           "        mazeIO.pinSignalPulse('dispLeft');\n"
+                                           "        io.pinSignalPulse('dispLeft');\n"
                                            "    else if (pinName == 'armRight')\n"
-                                           "        mazeIO.pinSignalPulse('dispRight');\n"
+                                           "        io.pinSignalPulse('dispRight');\n"
                                            "}\n"
                                            "\n"
-                                           "mazeIO.valueChanged.connect(onDigitalInput);\n");
+                                           "io.valueChanged.connect(onDigitalInput);\n");
 
 MazeScript::MazeScript(QObject *parent)
     : QObject(parent)
@@ -173,7 +173,8 @@ void MazeScript::run()
     // set context
     auto context = m_jseng->pushContext();
     auto mazeIOVal = m_jseng->newQObject(m_mazeio);
-    context->activationObject().setProperty("mazeIO", mazeIOVal);
+    context->activationObject().setProperty("io", mazeIOVal);
+    context->activationObject().setProperty("mazeIO", mazeIOVal); // backwards compatibility
 
     // run script
     m_running = true;

@@ -33,6 +33,7 @@ public:
     enum Status {
         Unknown,
         Disabled,
+        Enabled,
         Configured,
         Ready,
         Active,
@@ -46,6 +47,7 @@ public:
     void setIntanStatus(Status status);
     void setFirmataStatus(Status status);
     void setVideoStatus(Status status);
+    void setTrackingStatus(Status status);
 
 signals:
 
@@ -60,6 +62,7 @@ private:
     QLabel *m_intanStatus;
     QLabel *m_firmataStatus;
     QLabel *m_videoStatus;
+    QLabel *m_trackingStatus;
 };
 
 #endif // STATUSWIDGET_H
