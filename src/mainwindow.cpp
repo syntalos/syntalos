@@ -72,6 +72,7 @@ MainWindow::MainWindow(QWidget *parent) :
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    ui->splitterMain->setSizes(QList<int>() << 210 << 100);
 
     // Create status bar
     m_statusBarLabel = new QLabel(tr(""));
