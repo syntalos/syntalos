@@ -104,6 +104,12 @@ private slots:
 protected:
     void closeEvent(QCloseEvent *event);
 
+private slots:
+    void on_cbExternalScript_toggled(bool checked);
+
+private slots:
+    void on_btnSelectProgram_clicked();
+
 private:
     void updateWindowTitle(const QString& fileName);
 

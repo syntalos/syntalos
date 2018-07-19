@@ -25,6 +25,7 @@
 #include <QFile>
 #include <QScriptEngineDebugger>
 #include <QMessageBox>
+#include <QProcess>
 
 #include "firmata/serialport.h"
 
@@ -72,7 +73,8 @@ const QString defaultSampleScript = QStringLiteral("\n//\n"
                                            "io.valueChanged.connect(onDigitalInput);\n");
 
 MazeScript::MazeScript(QObject *parent)
-    : QObject(parent)
+    : QObject(parent),
+      m_externalProcess(nullptr)
 {
     m_firmata = new SerialFirmata(this);
 
@@ -97,6 +99,10 @@ MazeScript::~MazeScript()
 
 void MazeScript::initFirmata(const QString &serialDevice)
 {
+    // FIXME: Eeek...
+    if (m_useExternalScript)
+        return;
+
     qDebug() << "Loading Firmata interface (" << serialDevice << ")";
     if (m_firmata->device().isEmpty()) {
         if (!m_firmata->setDevice(serialDevice)) {
@@ -129,6 +135,26 @@ void MazeScript::setEventFile(const QString &fname)
     m_eventFileName = fname;
 }
 
+void MazeScript::setExternalScript(QString path)
+{
+    m_externalScript = path;
+}
+
+QString MazeScript::externalScript() const
+{
+    return m_externalScript;
+}
+
+void MazeScript::setUseExternalScript(bool value)
+{
+    m_useExternalScript = value;
+}
+
+bool MazeScript::useExternalScript() const
+{
+    return m_useExternalScript;
+}
+
 void MazeScript::resetEngine()
 {
     if (m_jseng)
@@ -152,6 +178,23 @@ void MazeScript::run()
         qWarning() << "Can not start an already active MazeScript.";
         return;
     }
+
+    // FIXME: temporary hack
+    if (m_useExternalScript) {
+        if (m_externalProcess != nullptr)
+            delete m_externalProcess;
+        m_externalProcess = new QProcess(this);
+        m_externalProcess->start(m_externalScript);
+
+        if (!m_externalProcess->waitForStarted()) {
+            emit evalError(0, "Unable to launch external script!");
+            return;
+        }
+
+        m_running = true;
+        return;
+    }
+
 
     // prepare event log file
     if (!m_eventFileName.isEmpty()) {
@@ -222,6 +265,18 @@ void MazeScript::stop()
 {
     if (!m_running)
         return;
+
+    // temporary hack
+    if (m_useExternalScript) {
+        if (m_externalProcess == nullptr)
+            return;
+
+        m_running = false;
+        m_externalProcess->terminate();
+        if (!m_externalProcess->waitForFinished(4000))
+            m_externalProcess->kill();
+        return;
+    }
 
     m_jseng->abortEvaluation();
     m_eventFile->close();

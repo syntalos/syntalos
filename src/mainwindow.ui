@@ -379,7 +379,7 @@
         </size>
        </property>
        <property name="currentIndex">
-        <number>0</number>
+        <number>4</number>
        </property>
        <widget class="QWidget" name="tabGeneral">
         <property name="geometry">
@@ -631,8 +631,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>479</width>
-          <height>584</height>
+          <width>363</width>
+          <height>564</height>
          </rect>
         </property>
         <attribute name="label">
@@ -841,7 +841,7 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>479</width>
+          <width>199</width>
           <height>584</height>
          </rect>
         </property>
@@ -854,7 +854,7 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>479</width>
+          <width>199</width>
           <height>584</height>
          </rect>
         </property>
@@ -898,14 +898,29 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>479</width>
-          <height>584</height>
+          <width>264</width>
+          <height>564</height>
          </rect>
         </property>
         <attribute name="label">
          <string>I/O</string>
         </attribute>
         <layout class="QVBoxLayout" name="verticalLayout_7">
+         <property name="spacing">
+          <number>4</number>
+         </property>
+         <property name="leftMargin">
+          <number>4</number>
+         </property>
+         <property name="topMargin">
+          <number>4</number>
+         </property>
+         <property name="rightMargin">
+          <number>4</number>
+         </property>
+         <property name="bottomMargin">
+          <number>4</number>
+         </property>
          <item>
           <layout class="QHBoxLayout" name="horizontalLayout_2">
            <item>
@@ -914,10 +929,99 @@
               <string>Firmata Device</string>
              </property>
              <layout class="QVBoxLayout" name="verticalLayout_6">
+              <property name="spacing">
+               <number>2</number>
+              </property>
+              <property name="leftMargin">
+               <number>2</number>
+              </property>
+              <property name="topMargin">
+               <number>2</number>
+              </property>
+              <property name="rightMargin">
+               <number>2</number>
+              </property>
+              <property name="bottomMargin">
+               <number>2</number>
+              </property>
               <item>
-               <layout class="QVBoxLayout" name="portsLayout">
-                <item>
+               <layout class="QFormLayout" name="formLayout_5">
+                <item row="0" column="0">
+                 <widget class="QLabel" name="firmataDeviceLabel">
+                  <property name="text">
+                   <string>Firmata Device</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="0" column="1">
                  <widget class="QComboBox" name="portsComboBox"/>
+                </item>
+                <item row="1" column="0">
+                 <widget class="QLabel" name="launchExternalScriptLabel">
+                  <property name="text">
+                   <string>Launch external program</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="1" column="1">
+                 <widget class="QCheckBox" name="cbExternalScript"/>
+                </item>
+                <item row="3" column="0">
+                 <widget class="QLabel" name="externalProgramPathLabel">
+                  <property name="enabled">
+                   <bool>false</bool>
+                  </property>
+                  <property name="text">
+                   <string>External program path</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="3" column="1">
+                 <widget class="QWidget" name="externalProgramPathWidget" native="true">
+                  <property name="enabled">
+                   <bool>false</bool>
+                  </property>
+                  <property name="minimumSize">
+                   <size>
+                    <width>40</width>
+                    <height>0</height>
+                   </size>
+                  </property>
+                  <layout class="QHBoxLayout" name="horizontalLayout_9">
+                   <property name="spacing">
+                    <number>2</number>
+                   </property>
+                   <property name="leftMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="topMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="rightMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="bottomMargin">
+                    <number>0</number>
+                   </property>
+                   <item>
+                    <widget class="QLabel" name="lblExternalProgram">
+                     <property name="text">
+                      <string>None</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="btnSelectProgram">
+                     <property name="text">
+                      <string/>
+                     </property>
+                     <property name="icon">
+                      <iconset theme="folder-open"/>
+                     </property>
+                    </widget>
+                   </item>
+                  </layout>
+                 </widget>
                 </item>
                </layout>
               </item>
@@ -932,6 +1036,21 @@
             <string>Script</string>
            </property>
            <layout class="QVBoxLayout" name="verticalLayout_4">
+            <property name="spacing">
+             <number>2</number>
+            </property>
+            <property name="leftMargin">
+             <number>2</number>
+            </property>
+            <property name="topMargin">
+             <number>2</number>
+            </property>
+            <property name="rightMargin">
+             <number>2</number>
+            </property>
+            <property name="bottomMargin">
+             <number>2</number>
+            </property>
             <item>
              <layout class="QVBoxLayout" name="mazeJSLayout"/>
             </item>
@@ -954,15 +1073,6 @@
      <height>30</height>
     </rect>
    </property>
-   <widget class="QMenu" name="menuTool">
-    <property name="title">
-     <string>&amp;File</string>
-    </property>
-    <addaction name="actionLoadSettings"/>
-    <addaction name="actionSaveSettings"/>
-    <addaction name="separator"/>
-    <addaction name="actionQuit"/>
-   </widget>
    <widget class="QMenu" name="menuIntan">
     <property name="title">
      <string>I&amp;ntan</string>
@@ -974,6 +1084,15 @@
      <string>He&amp;lp</string>
     </property>
     <addaction name="actionAbout"/>
+   </widget>
+   <widget class="QMenu" name="menuTool">
+    <property name="title">
+     <string>&amp;File</string>
+    </property>
+    <addaction name="actionLoadSettings"/>
+    <addaction name="actionSaveSettings"/>
+    <addaction name="separator"/>
+    <addaction name="actionQuit"/>
    </widget>
    <addaction name="menuTool"/>
    <addaction name="menuIntan"/>
@@ -1161,8 +1280,8 @@
      <y>-1</y>
     </hint>
     <hint type="destinationlabel">
-     <x>1204</x>
-     <y>443</y>
+     <x>1441</x>
+     <y>517</y>
     </hint>
    </hints>
   </connection>

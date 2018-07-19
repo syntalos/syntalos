@@ -28,6 +28,7 @@ class QScriptEngine;
 class SerialFirmata;
 class MazeIO;
 class QFile;
+class QProcess;
 
 class MazeScript : public QObject
 {
@@ -42,6 +43,12 @@ public:
     QString script() const;
 
     void setEventFile(const QString& fname);
+
+    void setExternalScript(QString path);
+    QString externalScript() const;
+
+    void setUseExternalScript(bool value);
+    bool useExternalScript() const;
 
 public slots:
     void run();
@@ -72,6 +79,11 @@ private:
     QFile *m_eventFile;
     bool m_running;
     bool m_haveEvents;
+
+    bool m_useExternalScript;
+    QString m_externalScript;
+
+    QProcess *m_externalProcess;
 };
 
 #endif // MAZESCRIPT_H

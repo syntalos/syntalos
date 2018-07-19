@@ -72,6 +72,8 @@ MainWindow::MainWindow(QWidget *parent) :
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    ui->toolBox->setCurrentIndex(0);
+    ui->tabWidget->setCurrentIndex(0);
     ui->splitterMain->setSizes(QList<int>() << 210 << 100);
 
     // Create status bar
@@ -1032,6 +1034,10 @@ void MainWindow::saveSettingsActionTriggered()
     settings.insert("features", m_features.toJson());
     settings.insert("experimentId", m_experimentId);
 
+    if (ui->cbExternalScript->isChecked()) {
+        settings.insert("externalScript", m_msintf->externalScript());
+    }
+
     QJsonObject videoSettings;
     videoSettings.insert("exportWidth", m_eresWidthEdit->value());
     videoSettings.insert("exportHeight", m_eresHeightEdit->value());
@@ -1118,6 +1124,14 @@ void MainWindow::loadSettingsActionTriggered()
 
     m_features.fromJson(rootObj.value("features").toObject());
     applyExperimentFeatureChanges();
+
+    auto externalScriptPath = rootObj.value("externalScript").toString();
+    if (!externalScriptPath.isEmpty()) {
+        ui->cbExternalScript->setChecked(true);
+        m_msintf->setExternalScript(externalScriptPath);
+        m_msintf->setUseExternalScript(true);
+        ui->lblExternalProgram->setText(QFileInfo(externalScriptPath).baseName());
+    }
 
     // simple compatibility hack - at one point we will hopefully get rid of static "maze" and "resting box"
     // profiles entirely
@@ -1284,14 +1298,15 @@ void MainWindow::on_cbVideoFeature_toggled(bool checked)
 void MainWindow::on_cbTrackingFeature_toggled(bool checked)
 {
     m_features.trackingEnabled = checked;
-    m_features.videoEnabled = true;
 
     // there is no tracking without video
     if (checked) {
         ui->cbVideoFeature->setChecked(true);
         ui->cbVideoFeature->setEnabled(false);
+        m_features.videoEnabled = true;
     } else {
         ui->cbVideoFeature->setEnabled(true);
+        ui->cbVideoFeature->setChecked(m_features.videoEnabled);
     }
 
     applyExperimentFeatureChanges();
@@ -1307,4 +1322,26 @@ void MainWindow::on_cbIOFeature_toggled(bool checked)
 {
     m_features.ioEnabled = checked;
     applyExperimentFeatureChanges();
+}
+
+void MainWindow::on_btnSelectProgram_clicked()
+{
+    auto fileName = QFileDialog::getOpenFileName(this,
+                                                 tr("Select Program or Script"),
+                                                 QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
+                                                 "*");
+    if (fileName.isEmpty())
+        return;
+
+    ui->lblExternalProgram->setText(QFileInfo(fileName).baseName());
+    m_msintf->setExternalScript(fileName);
+}
+
+void MainWindow::on_cbExternalScript_toggled(bool checked)
+{
+    m_msintf->setUseExternalScript(checked);
+
+    ui->mazeJSGroupBox->setEnabled(!checked);
+    ui->externalProgramPathWidget->setEnabled(checked);
+    ui->externalProgramPathLabel->setEnabled(checked);
 }
