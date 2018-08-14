@@ -7,14 +7,20 @@ set(MAZEAMAZE_SRC
     utils.cpp
     mainwindow.h
     mainwindow.cpp
-    mazeio.h
-    mazeio.cpp
-    mazescript.h
-    mazescript.cpp
     statuswidget.h
     statuswidget.cpp
     testsubjectlistmodel.h
     testsubjectlistmodel.cpp
+)
+
+set(SCRIPT_SRC
+    pyscript/pyhelper.h
+    pyscript/maio.h
+    pyscript/maio.cpp
+    pyscript/pythread.h
+    pyscript/pythread.cpp
+    pyscript/mazescript.h
+    pyscript/mazescript.cpp
 )
 
 set(MAZEAMAZE_UI
@@ -135,6 +141,7 @@ add_executable(mazeamaze
     ${MAZEAMAZE_SRC}
     ${MAZEAMAZE_RES_SRC}
     ${MAZEAMAZE_UI_SRC}
+    ${SCRIPT_SRC}
     ${INTANREC_SRC}
     ${FIRMATA_SRC}
     ${VIDEO_SRC}
@@ -146,18 +153,22 @@ target_link_libraries(mazeamaze
     ${CMAKE_DL_LIBS}
     Qt5::Widgets
     Qt5::SerialPort
-    Qt5::Script
     Qt5::OpenGL
     KF5::DBusAddons
     KF5::Archive
     KF5::TextEditor
-    Qt5::ScriptTools
     Qt5::Multimedia
     Qt5::MultimediaWidgets
     Qt5::Charts
+    ${PYTHON_LIBRARIES}
     ${OpenCV_LIBS}
     ${OPENGL_LIBRARIES}
     ${UYEYE_LIB}
+)
+
+include_directories(
+    ${OpenCV_INCLUDE_DIRS}
+    ${PYTHON_INCLUDE_DIRS}
 )
 
 install(TARGETS mazeamaze DESTINATION ${CMAKE_INSTALL_BINDIR})

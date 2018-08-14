@@ -73,7 +73,7 @@ private slots:
     void openDataExportDirectory();
 
     void firmataError(const QString& message);
-    void scriptEvalError(int line, const QString& message);
+    void scriptEvalError(const QString& message);
 
     void onMazeEvent(const QStringList& data);
     void onEventHeadersSet(const QStringList& headers);
@@ -103,12 +103,6 @@ private slots:
 
 protected:
     void closeEvent(QCloseEvent *event);
-
-private slots:
-    void on_cbExternalScript_toggled(bool checked);
-
-private slots:
-    void on_btnSelectProgram_clicked();
 
 private:
     void updateWindowTitle(const QString& fileName);
@@ -152,7 +146,7 @@ private:
     QTableWidget *m_mazeEventTable;
     QMdiSubWindow *m_mazeEventTableWin;
 
-    KTextEditor::View *m_mazeJSView;
+    KTextEditor::View *m_mscriptView;
 
     StatusWidget *m_statusWidget;
 

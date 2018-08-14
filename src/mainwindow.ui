@@ -379,7 +379,7 @@
         </size>
        </property>
        <property name="currentIndex">
-        <number>4</number>
+        <number>0</number>
        </property>
        <widget class="QWidget" name="tabGeneral">
         <property name="geometry">
@@ -841,7 +841,7 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>199</width>
+          <width>243</width>
           <height>584</height>
          </rect>
         </property>
@@ -854,7 +854,7 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>199</width>
+          <width>243</width>
           <height>584</height>
          </rect>
         </property>
@@ -898,8 +898,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>264</width>
-          <height>564</height>
+          <width>243</width>
+          <height>584</height>
          </rect>
         </property>
         <attribute name="label">
@@ -956,73 +956,6 @@
                 <item row="0" column="1">
                  <widget class="QComboBox" name="portsComboBox"/>
                 </item>
-                <item row="1" column="0">
-                 <widget class="QLabel" name="launchExternalScriptLabel">
-                  <property name="text">
-                   <string>Launch external program</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="1" column="1">
-                 <widget class="QCheckBox" name="cbExternalScript"/>
-                </item>
-                <item row="3" column="0">
-                 <widget class="QLabel" name="externalProgramPathLabel">
-                  <property name="enabled">
-                   <bool>false</bool>
-                  </property>
-                  <property name="text">
-                   <string>External program path</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="3" column="1">
-                 <widget class="QWidget" name="externalProgramPathWidget" native="true">
-                  <property name="enabled">
-                   <bool>false</bool>
-                  </property>
-                  <property name="minimumSize">
-                   <size>
-                    <width>40</width>
-                    <height>0</height>
-                   </size>
-                  </property>
-                  <layout class="QHBoxLayout" name="horizontalLayout_9">
-                   <property name="spacing">
-                    <number>2</number>
-                   </property>
-                   <property name="leftMargin">
-                    <number>0</number>
-                   </property>
-                   <property name="topMargin">
-                    <number>0</number>
-                   </property>
-                   <property name="rightMargin">
-                    <number>0</number>
-                   </property>
-                   <property name="bottomMargin">
-                    <number>0</number>
-                   </property>
-                   <item>
-                    <widget class="QLabel" name="lblExternalProgram">
-                     <property name="text">
-                      <string>None</string>
-                     </property>
-                    </widget>
-                   </item>
-                   <item>
-                    <widget class="QPushButton" name="btnSelectProgram">
-                     <property name="text">
-                      <string/>
-                     </property>
-                     <property name="icon">
-                      <iconset theme="folder-open"/>
-                     </property>
-                    </widget>
-                   </item>
-                  </layout>
-                 </widget>
-                </item>
                </layout>
               </item>
              </layout>
@@ -1031,7 +964,7 @@
           </layout>
          </item>
          <item>
-          <widget class="QGroupBox" name="mazeJSGroupBox">
+          <widget class="QGroupBox" name="scriptGroupBox">
            <property name="title">
             <string>Script</string>
            </property>
@@ -1052,7 +985,7 @@
              <number>2</number>
             </property>
             <item>
-             <layout class="QVBoxLayout" name="mazeJSLayout"/>
+             <layout class="QVBoxLayout" name="scriptLayout"/>
             </item>
            </layout>
           </widget>

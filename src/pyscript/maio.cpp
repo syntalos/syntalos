@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2018 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -17,27 +17,33 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "mazeio.h"
+#include "pyhelper.h"
+#include "maio.h"
 
 #include <QMessageBox>
 #include <QDebug>
 #include <QEventLoop>
 #include <QTimer>
 #include <QTime>
-#include <QScriptEngine>
 #include <QCoreApplication>
 
 #include "firmata/serialport.h"
 
-MazeIO::MazeIO(SerialFirmata *firmata, QObject *parent)
+std::mutex MaIO::_mutex;
+MaIO::MaIO(QObject *parent)
     : QObject(parent),
-      m_firmata(firmata)
+      m_firmata(nullptr)
 {
-    connect(m_firmata, &SerialFirmata::digitalRead, this, &MazeIO::onDigitalRead);
-    connect(m_firmata, &SerialFirmata::digitalPinRead, this, &MazeIO::onDigitalPinRead);
 }
 
-void MazeIO::newDigitalPin(int pinID, const QString& pinName, bool output, bool pullUp)
+void MaIO::setFirmata(SerialFirmata *firmata)
+{
+    m_firmata = firmata;
+    connect(m_firmata, &SerialFirmata::digitalRead, this, &MaIO::onDigitalRead);
+    connect(m_firmata, &SerialFirmata::digitalPinRead, this, &MaIO::onDigitalPinRead);
+}
+
+void MaIO::newDigitalPin(int pinID, const QString& pinName, bool output, bool pullUp)
 {
     FmPin pin;
     pin.kind = PinKind::Digital;
@@ -66,7 +72,7 @@ void MazeIO::newDigitalPin(int pinID, const QString& pinName, bool output, bool 
     m_pinNameMap.insert(pin.id, pinName);
 }
 
-void MazeIO::newDigitalPin(int pinID, const QString& pinName, const QString& kind)
+void MaIO::newDigitalPin(int pinID, const QString& pinName, const QString& kind)
 {
     if (kind == "output")
         newDigitalPin(pinID, pinName, true, false);
@@ -78,25 +84,25 @@ void MazeIO::newDigitalPin(int pinID, const QString& pinName, const QString& kin
         qCritical() << "Invalid pin kind:" << kind;
 }
 
-void MazeIO::pinSetValue(const QString& pinName, bool value)
+void MaIO::pinSetValue(const QString& pinName, bool value)
 {
     auto pin = m_namePinMap.value(pinName);
     if (pin.kind == PinKind::Unknown) {
-        QMessageBox::critical(nullptr, "MazeIO Error",
+        QMessageBox::critical(nullptr, "MaIO Error",
                               QString("Unable to deliver message to pin '%1' (pin does not exist)").arg(pinName));
         return;
     }
     m_firmata->writeDigitalPin(pin.id, value);
 }
 
-void MazeIO::pinSignalPulse(const QString& pinName)
+void MaIO::pinSignalPulse(const QString& pinName)
 {
     pinSetValue(pinName, true);
     this->sleep(50);
     pinSetValue(pinName, false);
 }
 
-void MazeIO::onDigitalRead(uint8_t port, uint8_t value)
+void MaIO::onDigitalRead(uint8_t port, uint8_t value)
 {
     qDebug() << "Firmata digital port read:" << int(value);
     auto sender = QObject::sender();
@@ -118,7 +124,7 @@ void MazeIO::onDigitalRead(uint8_t port, uint8_t value)
     }
 }
 
-void MazeIO::onDigitalPinRead(uint8_t pin, bool value)
+void MaIO::onDigitalPinRead(uint8_t pin, bool value)
 {
     qDebug("Firmata digital pin read: %d=%d", pin, value);
     auto sender = QObject::sender();
@@ -134,24 +140,24 @@ void MazeIO::onDigitalPinRead(uint8_t pin, bool value)
     emit valueChanged(pinName, value);
 }
 
-void MazeIO::saveEvent(const QString &message)
+void MaIO::saveEvent(const QString &message)
 {
     QStringList msgs;
     msgs << message;
     emit eventSaved(msgs);
 }
 
-void MazeIO::saveEvent(const QStringList& messages)
+void MaIO::saveEvent(const QStringList& messages)
 {
     emit eventSaved(messages);
 }
 
-void MazeIO::setEventsHeader(const QStringList &headers)
+void MaIO::setEventsHeader(const QStringList &headers)
 {
     emit headersSet(headers);
 }
 
-void MazeIO::sleep(uint msecs)
+void MaIO::sleep(uint msecs)
 {
     QEventLoop loop;
     QTimer timer;
@@ -161,7 +167,7 @@ void MazeIO::sleep(uint msecs)
     loop.exec();
 }
 
-void MazeIO::wait(uint msecs)
+void MaIO::wait(uint msecs)
 {
     auto waitTime = QTime::currentTime().addMSecs(msecs);
     auto etime = waitTime.msec();
@@ -170,16 +176,92 @@ void MazeIO::wait(uint msecs)
         QCoreApplication::processEvents(QEventLoop::AllEvents, etime);
 }
 
-void MazeIO::setTimeout(QScriptValue fn, int msec)
-{
-  if (!fn.isFunction()) {
-      qWarning() << QString("QScript parameter '%1' is not a function.").arg(fn.toString());
-      return;
-  }
 
-  QTimer *timer = new QTimer;
-  qScriptConnect(timer, SIGNAL(timeout()), QScriptValue(), fn);
-  connect(timer, SIGNAL(timeout()), timer, SLOT(deleteLater()));
-  timer->setSingleShot(true);
-  timer->start(msec);
+/**
+ *
+ * Python interface section
+ *
+**/
+
+// error variable for Python interface
+static PyObject *MaIOError;
+
+static PyObject *maio_new_digital_pin(PyObject* self, PyObject* args)
+{
+    const char *pinName;
+    const char *kindStr;
+    int pinId;
+
+    Q_UNUSED(self);
+    if (!PyArg_ParseTuple(args, "iss", &pinId, &pinName, &kindStr))
+        return NULL;
+
+    auto maio = MaIO::instance();
+    maio->newDigitalPin(pinId, QString::fromUtf8(pinName), QString::fromUtf8(kindStr));
+
+    return Py_True;
+}
+
+static PyObject *maio_set_events_header(PyObject* self, PyObject* args)
+{
+    Q_UNUSED(self);
+    PyObject *obj;
+
+    if (!PyArg_ParseTuple(args, "O", &obj))
+        return NULL;
+
+    PyObject *iter = PyObject_GetIter(obj);
+    if (!iter) {
+        PyErr_SetString(MaIOError, "Expected an interable type (e.g. a list) as parameter.");
+        return NULL;
+    }
+
+    QStringList header;
+    while (true) {
+        PyObject *next = PyIter_Next(iter);
+        if (!next)
+            break;
+
+        if (!PyUnicode_Check(next)) {
+            PyErr_SetString(MaIOError, "Expected a list of strings as parameter.");
+            return NULL;
+        }
+
+        header << QString::fromUtf8(PyUnicode_AsUTF8(next));
+    }
+
+    auto maio = MaIO::instance();
+    maio->setEventsHeader(header);
+
+    return Py_True;
+}
+
+static struct PyMethodDef methods[] = {
+    { "new_digital_pin",   maio_new_digital_pin,   METH_VARARGS, "Register a new digital pin."},
+    { "set_events_header", maio_set_events_header, METH_VARARGS, "Set header of the recorded events table."},
+    { NULL, NULL, 0, NULL }
+};
+
+static struct PyModuleDef modDef = {
+    PyModuleDef_HEAD_INIT, "maio", NULL, -1, methods,
+    NULL, NULL, NULL, NULL
+};
+
+PyMODINIT_FUNC
+PyInit_maio(void)
+{
+    PyObject *m = PyModule_Create(&modDef);
+    if (m == NULL)
+        return NULL;
+
+    MaIOError = PyErr_NewException("maio.error", NULL, NULL);
+    Py_INCREF(MaIOError);
+    PyModule_AddObject(m, "error", MaIOError);
+
+    return m;
+}
+
+void pythonRegisterMaioModule()
+{
+    PyImport_AppendInittab("maio", &PyInit_maio);
 }

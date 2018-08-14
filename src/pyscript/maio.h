@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2018 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -17,13 +17,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef MAZEIO_H
-#define MAZEIO_H
+#ifndef MAIO_H
+#define MAIO_H
 
 #include <QObject>
 #include <QHash>
-#include <QScriptValue>
-#include <QScriptable>
+#include <mutex>
 
 class SerialFirmata;
 
@@ -41,15 +40,22 @@ struct FmPin
     uint8_t id;
 };
 
-class MazeIO : public QObject, protected QScriptable
+class MaIO : public QObject
 {
     Q_OBJECT
 public:
-    explicit MazeIO(SerialFirmata *firmata, QObject *parent = 0);
+    static MaIO *instance() {
+        std::lock_guard<std::mutex> lock(_mutex);
+        static MaIO *_instance = nullptr;
+        if (_instance == nullptr) {
+            _instance = new MaIO();
+        }
+        return _instance;
+    }
+
+    void setFirmata(SerialFirmata *firmata);
 
     void newDigitalPin(int pinID, const QString& pinName, bool output, bool pullUp);
-
-public slots:
     void newDigitalPin(int pinID, const QString& pinName, const QString& kind);
 
     void pinSetValue(const QString& pinName, bool value);
@@ -57,7 +63,6 @@ public slots:
 
     void sleep(uint msecs);
     void wait(uint msecs);
-    void setTimeout(QScriptValue fn, int msec);
 
     void saveEvent(const QString& message);
     void saveEvent(const QStringList& messages);
@@ -75,10 +80,16 @@ private slots:
     void onDigitalPinRead(uint8_t pin, bool value);
 
 private:
+    static std::mutex _mutex;
+    explicit MaIO(QObject *parent = 0);
+    Q_DISABLE_COPY(MaIO)
+
     SerialFirmata *m_firmata;
 
     QHash<QString, FmPin> m_namePinMap;
     QHash<int, QString> m_pinNameMap;
 };
 
-#endif // MAZEIO_H
+void pythonRegisterMaioModule();
+
+#endif // MAIO_H

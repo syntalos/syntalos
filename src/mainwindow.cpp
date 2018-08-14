@@ -32,7 +32,6 @@
 #include <QDebug>
 #include <QThread>
 #include <QSerialPortInfo>
-#include <QScriptEngine>
 #include <QTableWidget>
 #include <QMdiSubWindow>
 #include <QJsonDocument>
@@ -61,7 +60,7 @@
 #include "video/mazevideo.h"
 #include "video/videoviewwidget.h"
 
-#include "mazescript.h"
+#include "pyscript/mazescript.h"
 #include "statuswidget.h"
 
 #include "traceplot/traceplotproxy.h"
@@ -261,11 +260,11 @@ MainWindow::MainWindow(QWidget *parent) :
     // set up code editor
     auto editor = KTextEditor::Editor::instance();
     // create a new document
-    auto jsDoc = editor->createDocument(this);
-    jsDoc->setText(m_msintf->script());
-    m_mazeJSView = jsDoc->createView(this);
-    ui->mazeJSLayout->addWidget(m_mazeJSView);
-    jsDoc->setHighlightingMode("javascript");
+    auto pyDoc = editor->createDocument(this);
+    pyDoc->setText(m_msintf->script());
+    m_mscriptView = pyDoc->createView(this);
+    ui->scriptLayout->addWidget(m_mscriptView);
+    pyDoc->setHighlightingMode("python");
 
     // set up video and tracking
     m_videoTracker = new MazeVideo;
@@ -568,13 +567,10 @@ void MainWindow::videoError(const QString &message)
     setStatusText("Video error.");
 }
 
-void MainWindow::scriptEvalError(int line, const QString& message)
+void MainWindow::scriptEvalError(const QString& message)
 {
     m_failed = true;
-    QMessageBox::critical(this, "Maze Script Error",
-                          QString("Uncaught exception at line %1: %2")
-                                    .arg(line)
-                                    .arg(message));
+    QMessageBox::critical(this, "Maze Script Error", QString::fromUtf8("<html><b>The script failed with the following output:</b><br/>\n%1</html>").arg(message.toHtmlEscaped()));
     stopActionTriggered();
     setStatusText("Script error.");
 }
@@ -759,7 +755,7 @@ void MainWindow::runActionTriggered()
 
             // configure & launch maze script
             setStatusText("Evaluating maze script...");
-            m_msintf->setScript(m_mazeJSView->document()->text());
+            m_msintf->setScript(m_mscriptView->document()->text());
             m_msintf->run();
             if (m_failed)
                 return;
@@ -782,7 +778,7 @@ void MainWindow::runActionTriggered()
     }
 
     // disable UI elements
-    m_mazeJSView->setEnabled(false);
+    m_mscriptView->setEnabled(false);
     ui->cameraGroupBox->setEnabled(false);
 
     // launch intan recordings
@@ -847,7 +843,7 @@ void MainWindow::stopActionTriggered()
     }
     
     // enable UI elements
-    m_mazeJSView->setEnabled(true);
+    m_mscriptView->setEnabled(true);
     ui->cameraGroupBox->setEnabled(true);
     m_running = false;
 }
@@ -1035,10 +1031,6 @@ void MainWindow::saveSettingsActionTriggered()
     settings.insert("features", m_features.toJson());
     settings.insert("experimentId", m_experimentId);
 
-    if (ui->cbExternalScript->isChecked()) {
-        settings.insert("externalScript", m_msintf->externalScript());
-    }
-
     QJsonObject videoSettings;
     videoSettings.insert("exportWidth", m_eresWidthEdit->value());
     videoSettings.insert("exportHeight", m_eresHeightEdit->value());
@@ -1062,8 +1054,8 @@ void MainWindow::saveSettingsActionTriggered()
 
     tar.writeFile ("intan.isf", intanSettings);
 
-    // save Maze JavaScript / QScript
-    tar.writeFile ("maze-script.qs", QByteArray(m_mazeJSView->document()->text().toStdString().c_str()));
+    // save IO Python script
+    tar.writeFile ("mscript.py", QByteArray(m_mscriptView->document()->text().toStdString().c_str()));
 
     tar.close();
 
@@ -1126,14 +1118,6 @@ void MainWindow::loadSettingsActionTriggered()
     m_features.fromJson(rootObj.value("features").toObject());
     applyExperimentFeatureChanges();
 
-    auto externalScriptPath = rootObj.value("externalScript").toString();
-    if (!externalScriptPath.isEmpty()) {
-        ui->cbExternalScript->setChecked(true);
-        m_msintf->setExternalScript(externalScriptPath);
-        m_msintf->setUseExternalScript(true);
-        ui->lblExternalProgram->setText(QFileInfo(externalScriptPath).baseName());
-    }
-
     // simple compatibility hack - at one point we will hopefully get rid of static "maze" and "resting box"
     // profiles entirely
     if (m_features.toString() == "maze")
@@ -1173,10 +1157,12 @@ void MainWindow::loadSettingsActionTriggered()
     if (intanSettingsFile != nullptr)
         m_intanUI->loadSettings(intanSettingsFile->data());
 
-    // save Maze JavaScript / QScript
-    auto mazeScriptFile = rootDir->file("maze-script.qs");
-    if (mazeScriptFile != nullptr)
-        m_mazeJSView->document()->setText(mazeScriptFile->data());
+    // load Maze IO Python script
+    auto mazeScriptFile = rootDir->file("mscript.py");
+    if (mazeScriptFile == nullptr)
+        m_mscriptView->document()->setText("import maio as io\n\n# Empty\n");
+    else
+        m_mscriptView->document()->setText(mazeScriptFile->data());
 
     QFileInfo fi(fileName);
     this->updateWindowTitle(fi.fileName());
@@ -1323,26 +1309,4 @@ void MainWindow::on_cbIOFeature_toggled(bool checked)
 {
     m_features.ioEnabled = checked;
     applyExperimentFeatureChanges();
-}
-
-void MainWindow::on_btnSelectProgram_clicked()
-{
-    auto fileName = QFileDialog::getOpenFileName(this,
-                                                 tr("Select Program or Script"),
-                                                 QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
-                                                 "*");
-    if (fileName.isEmpty())
-        return;
-
-    ui->lblExternalProgram->setText(QFileInfo(fileName).baseName());
-    m_msintf->setExternalScript(fileName);
-}
-
-void MainWindow::on_cbExternalScript_toggled(bool checked)
-{
-    m_msintf->setUseExternalScript(checked);
-
-    ui->mazeJSGroupBox->setEnabled(!checked);
-    ui->externalProgramPathWidget->setEnabled(checked);
-    ui->externalProgramPathLabel->setEnabled(checked);
 }

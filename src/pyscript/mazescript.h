@@ -24,11 +24,9 @@
 #include <QTextStream>
 #include <QElapsedTimer>
 
-class QScriptEngine;
 class SerialFirmata;
-class MazeIO;
 class QFile;
-class QProcess;
+class PyThread;
 
 class MazeScript : public QObject
 {
@@ -44,18 +42,12 @@ public:
 
     void setEventFile(const QString& fname);
 
-    void setExternalScript(QString path);
-    QString externalScript() const;
-
-    void setUseExternalScript(bool value);
-    bool useExternalScript() const;
-
 public slots:
     void run();
     void stop();
 
 signals:
-    void evalError(int line, const QString& message);
+    void evalError(const QString& message);
     void firmataError(const QString& message);
     void mazeEvent(const QStringList& data);
     void headersSet(const QStringList& headers);
@@ -68,9 +60,8 @@ private slots:
 private:
     void resetEngine();
     
+    PyThread *m_pythread;
     SerialFirmata *m_firmata;
-    MazeIO *m_mazeio;
-    QScriptEngine *m_jseng;
 
     QString m_script;
 
@@ -79,11 +70,6 @@ private:
     QFile *m_eventFile;
     bool m_running;
     bool m_haveEvents;
-
-    bool m_useExternalScript;
-    QString m_externalScript;
-
-    QProcess *m_externalProcess;
 };
 
 #endif // MAZESCRIPT_H

@@ -32,13 +32,13 @@ find_package(Qt5Multimedia REQUIRED)
 find_package(Qt5MultimediaWidgets REQUIRED)
 find_package(Qt5Charts REQUIRED)
 
+find_package(PythonLibs 3.5 REQUIRED)
 find_package(KF5Archive REQUIRED)
 find_package(KF5TextEditor NO_MODULE REQUIRED)
 
 find_package(KF5DBusAddons REQUIRED)
 
 find_package(OpenCV REQUIRED)
-include_directories(${OpenCV_INCLUDE_DIRS})
 find_package(OpenGL REQUIRED)
 
 #
