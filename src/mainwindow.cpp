@@ -46,6 +46,7 @@
 #include <QSettings>
 #include <QListWidgetItem>
 #include <QScrollBar>
+#include <QHeaderView>
 
 #include <KTextEditor/Document>
 #include <KTextEditor/Editor>
