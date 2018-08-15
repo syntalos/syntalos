@@ -58,8 +58,6 @@ private slots:
     void eventReceived(const QStringList& messages);
 
 private:
-    void resetEngine();
-    
     PyThread *m_pythread;
     SerialFirmata *m_firmata;
 

@@ -22,6 +22,7 @@
 
 #include <QObject>
 #include <QHash>
+#include <QQueue>
 #include <mutex>
 
 class SerialFirmata;
@@ -54,9 +55,12 @@ public:
     }
 
     void setFirmata(SerialFirmata *firmata);
+    void reset();
 
     void newDigitalPin(int pinID, const QString& pinName, bool output, bool pullUp);
     void newDigitalPin(int pinID, const QString& pinName, const QString& kind);
+
+    bool fetchDigitalInput(QPair<QString, bool> *result);
 
     void pinSetValue(const QString& pinName, bool value);
     void pinSignalPulse(const QString& pinName);
@@ -70,8 +74,6 @@ public:
     void setEventsHeader(const QStringList& headers);
 
 signals:
-    void valueChanged(const QString& pinName, bool value);
-
     void eventSaved(const QStringList& messages);
     void headersSet(const QStringList& headers);
 
@@ -85,6 +87,8 @@ private:
     Q_DISABLE_COPY(MaIO)
 
     SerialFirmata *m_firmata;
+
+    QQueue<QPair<QString, bool>> m_changedValuesQueue;
 
     QHash<QString, FmPin> m_namePinMap;
     QHash<int, QString> m_pinNameMap;

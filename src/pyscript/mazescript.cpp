@@ -52,6 +52,7 @@ const QString defaultSampleScript = QStringLiteral("import maio as io\n"
                                                    "    io.pin_set_value('pinSignal', False)\n"
                                                    "\n\n"
                                                    "def digital_input_received(pinName, value):\n"
+                                                   "    global lastArm\n"
                                                    "    if not value:\n"
                                                    "        return\n"
                                                    "\n"
@@ -73,7 +74,7 @@ const QString defaultSampleScript = QStringLiteral("import maio as io\n"
                                                    "    timer.start()\n"
                                                    "\n"
                                                    "    while True:\n"
-                                                   "        r, pinName, value = io.receive_digital_input()\n"
+                                                   "        r, pinName, value = io.fetch_digital_input()\n"
                                                    "        if r:\n"
                                                    "            digital_input_received(pinName, value)\n"
                                                   "\n\nmain()\n");
@@ -83,12 +84,16 @@ MazeScript::MazeScript(QObject *parent)
       m_pythread(nullptr)
 {
     m_firmata = new SerialFirmata(this);
-    resetEngine();
+    m_pythread = new PyThread(this);
+
+    connect(m_pythread->maio(), &MaIO::eventSaved, this, &MazeScript::eventReceived, Qt::QueuedConnection);
+    connect(m_pythread->maio(), &MaIO::headersSet, this, &MazeScript::headersReceived, Qt::QueuedConnection);
+    connect(m_pythread, &PyThread::errorReceived, this, [=](const QString& message) {
+        emit evalError(message);
+    });
 
     m_script = defaultSampleScript;
-
     m_eventFile = new QFile;
-
     m_running = false;
 }
 
@@ -129,20 +134,6 @@ QString MazeScript::script() const
 void MazeScript::setEventFile(const QString &fname)
 {
     m_eventFileName = fname;
-}
-
-void MazeScript::resetEngine()
-{
-    if (m_pythread != nullptr) {
-        m_pythread->terminate();
-        delete m_pythread;
-    }
-    m_pythread = new PyThread(this);
-    connect(m_pythread->maio(), &MaIO::eventSaved, this, &MazeScript::eventReceived, Qt::QueuedConnection);
-    connect(m_pythread->maio(), &MaIO::headersSet, this, &MazeScript::headersReceived, Qt::QueuedConnection);
-    connect(m_pythread, &PyThread::errorReceived, this, [=](const QString& message) {
-        emit evalError(message);
-    });
 }
 
 void MazeScript::run()
@@ -218,9 +209,8 @@ void MazeScript::stop()
     if (!m_running)
         return;
 
-    m_pythread->quit();
+    m_pythread->terminate();
     m_eventFile->close();
-    resetEngine();
 
     m_running = false;
     emit finished();

@@ -244,16 +244,16 @@ MainWindow::MainWindow(QWidget *parent) :
     if (allPorts.count() <= 0)
         m_statusWidget->setFirmataStatus(StatusWidget::Missing);
 
-    m_msintf = new MazeScript;
-    connect(m_msintf, &MazeScript::firmataError, this, &MainWindow::firmataError);
-    connect(m_msintf, &MazeScript::evalError, this, &MainWindow::scriptEvalError);
-    connect(m_msintf, &MazeScript::headersSet, this, &MainWindow::onEventHeadersSet);
+    m_mscript = new MazeScript;
+    connect(m_mscript, &MazeScript::firmataError, this, &MainWindow::firmataError);
+    connect(m_mscript, &MazeScript::evalError, this, &MainWindow::scriptEvalError);
+    connect(m_mscript, &MazeScript::headersSet, this, &MainWindow::onEventHeadersSet);
 
     m_mazeEventTable = new QTableWidget(this);
     m_mazeEventTable->setWindowTitle("Maze Events");
     m_mazeEventTable->setWindowFlags(m_mazeEventTable->windowFlags() & ~Qt::WindowCloseButtonHint);
     m_mazeEventTable->horizontalHeader()->hide();
-    connect(m_msintf, &MazeScript::mazeEvent, this, &MainWindow::onMazeEvent);
+    connect(m_mscript, &MazeScript::mazeEvent, this, &MainWindow::onMazeEvent);
     m_mazeEventTableWin = ui->mdiArea->addSubWindow(m_mazeEventTable);
     m_mazeEventTableWin->setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowMinMaxButtonsHint);
 
@@ -261,7 +261,7 @@ MainWindow::MainWindow(QWidget *parent) :
     auto editor = KTextEditor::Editor::instance();
     // create a new document
     auto pyDoc = editor->createDocument(this);
-    pyDoc->setText(m_msintf->script());
+    pyDoc->setText(m_mscript->script());
     m_mscriptView = pyDoc->createView(this);
     ui->scriptLayout->addWidget(m_mscriptView);
     pyDoc->setHighlightingMode("python");
@@ -499,7 +499,7 @@ MainWindow::MainWindow(QWidget *parent) :
 MainWindow::~MainWindow()
 {
     delete ui;
-    delete m_msintf;
+    delete m_mscript;
     delete m_videoTracker;
 }
 
@@ -699,11 +699,11 @@ void MainWindow::runActionTriggered()
     QString intanBaseName;
     if (m_currentSubject.id.isEmpty()) {
         intanBaseName = QString::fromUtf8("%1/ephys").arg(intanDataDir);
-        m_msintf->setEventFile(QString("%1/events.csv").arg(mazeEventDataDir));
+        m_mscript->setEventFile(QString("%1/events.csv").arg(mazeEventDataDir));
         m_videoTracker->setSubjectId("frame");
     } else {
         intanBaseName = QString::fromUtf8("%1/%2_ephys").arg(intanDataDir).arg(m_currentSubject.id);
-        m_msintf->setEventFile(QString("%1/%2_events.csv").arg(mazeEventDataDir).arg(m_currentSubject.id));
+        m_mscript->setEventFile(QString("%1/%2_events.csv").arg(mazeEventDataDir).arg(m_currentSubject.id));
         m_videoTracker->setSubjectId(m_currentSubject.id);
     }
     m_videoTracker->setDataLocation(videoDataDir);
@@ -732,7 +732,7 @@ void MainWindow::runActionTriggered()
         setStatusText("Connecting serial I/O...");
         auto serialDevice = ui->portsComboBox->currentData().toString();
 
-        if (serialDevice.isEmpty()) {
+        if (!serialDevice.isEmpty()) {
             auto reply = QMessageBox::question(this,
                                                "Really continue?",
                                                "No Firmata device was found for programmable data I/O. Do you really want to continue without this functionality?",
@@ -744,7 +744,7 @@ void MainWindow::runActionTriggered()
             }
             m_statusWidget->setFirmataStatus(StatusWidget::Broken);
         } else {
-            m_msintf->initFirmata(serialDevice);
+            m_mscript->initFirmata(serialDevice);
             ui->portsComboBox->setEnabled(false);
             if (m_failed)
                 return;
@@ -755,8 +755,8 @@ void MainWindow::runActionTriggered()
 
             // configure & launch maze script
             setStatusText("Evaluating maze script...");
-            m_msintf->setScript(m_mscriptView->document()->text());
-            m_msintf->run();
+            m_mscript->setScript(m_mscriptView->document()->text());
+            m_mscript->run();
             if (m_failed)
                 return;
 
@@ -799,7 +799,7 @@ void MainWindow::stopActionTriggered()
     ui->actionIntanRun->setEnabled(true);
 
     // stop Maze script
-    m_msintf->stop();
+    m_mscript->stop();
 
     if (m_features.ioEnabled)
         m_statusWidget->setFirmataStatus(StatusWidget::Ready);
@@ -817,7 +817,7 @@ void MainWindow::stopActionTriggered()
         m_intanUI->stopInterfaceBoard();
         m_statusWidget->setIntanStatus(StatusWidget::Ready);
     }
-    
+
     // compress frame tarball, if selected
     if (m_saveTarCB->isChecked()) {
         QProgressDialog dialog(this);
@@ -841,7 +841,7 @@ void MainWindow::stopActionTriggered()
         dialog.close();
         QObject::disconnect(conn);
     }
-    
+
     // enable UI elements
     m_mscriptView->setEnabled(true);
     ui->cameraGroupBox->setEnabled(true);

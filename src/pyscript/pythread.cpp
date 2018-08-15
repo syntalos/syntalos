@@ -5,6 +5,7 @@
 #include <QCoreApplication>
 #include <QDebug>
 
+#include "firmata/serialport.h"
 #include "maio.h"
 
 PyThread::PyThread(QObject *parent)
@@ -18,6 +19,7 @@ PyThread::PyThread(QObject *parent)
 void PyThread::setFirmata(SerialFirmata *firmata)
 {
     MaIO::instance()->setFirmata(firmata);
+    firmata->moveToThread(this);
 }
 
 MaIO *PyThread::maio()
@@ -27,7 +29,6 @@ MaIO *PyThread::maio()
 
 void PyThread::runScript()
 {
-    MaIO::instance()->moveToThread(this);
     this->start();
 }
 
@@ -43,7 +44,11 @@ void PyThread::terminate()
     Py_AddPendingCall(&python_call_quit, NULL);
 
     this->quit();
-    while (this->isRunning()) { QCoreApplication::processEvents(); }
+    while (this->isRunning()) {
+        // busy wait
+    }
+
+    MaIO::instance()->reset();
 }
 
 void PyThread::setScriptContent(const QString &script)
@@ -59,21 +64,26 @@ void PyThread::run()
     pythonRegisterMaioModule();
     CPyInstance hInstance;
 
+    PyObject *mainModule = PyImport_AddModule("__main__");
+    if (mainModule == NULL) {
+        emit errorReceived("Can not execute Python code: No __main__module.");
+        return;
+    }
+    PyObject *mainDict = PyModule_GetDict(mainModule);
 
-    PyObject* pMain = PyImport_AddModule("__main__");
-    PyObject* globalDictionary = PyModule_GetDict(pMain);
-    PyObject* localDictionary = PyDict_New();
-
-    auto res = PyRun_String(qPrintable(m_script), Py_file_input, globalDictionary, localDictionary);
+    auto res = PyRun_String(qPrintable(m_script), Py_file_input, mainDict, mainDict);
 
     // quit without any error handling when we are terminating script execution
-    if (m_terminating)
+    if (m_terminating) {
+        Py_XDECREF(res);
         return;
+    }
 
     if (res == NULL) {
         if (PyErr_Occurred()) {
             PyObject *excType, *excValue, *excTraceback;
             PyErr_Fetch(&excType, &excValue, &excTraceback);
+            PyErr_NormalizeException(&excType, &excValue, &excTraceback);
 
             QString message;
             if (excType) {
@@ -111,5 +121,7 @@ void PyThread::run()
             Py_XDECREF(excType);
             Py_XDECREF(excValue);
         }
+    } else {
+        Py_XDECREF(res);
     }
 }

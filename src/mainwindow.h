@@ -138,7 +138,7 @@ private:
     QString m_dataExportDir;
     bool m_exportDirValid;
 
-    MazeScript *m_msintf;
+    MazeScript *m_mscript;
 
     bool m_failed;
     bool m_running;
