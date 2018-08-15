@@ -57,6 +57,13 @@ static QString const splashMessages[] =
     };
 static int const splashMessagesCount = sizeof(splashMessages) / sizeof(splashMessages[0]);
 
+
+static void splashUpdateMessage(QSplashScreen& splash, const QString& message)
+{
+    splash.showMessage(message, Qt::AlignBottom | Qt::AlignRight, QColor("#ffe199"));
+}
+
+
 int main(int argc, char *argv[])
 {
     // set random seed
@@ -65,18 +72,23 @@ int main(int argc, char *argv[])
     QApplication app(argc, argv);
     app.setApplicationName("MazeAmaze");
     app.setOrganizationDomain("uni-heidelberg.de");
-    app.setApplicationVersion("0.4");
+    app.setApplicationVersion("0.8");
 
     // ensure we only ever run one instance of the application
     KDBusService service(KDBusService::Unique);
 
     QPixmap pixmap(":/images/splash");
     QSplashScreen splash(pixmap);
+    QFont splashFont;
+    splashFont.setFamily("Noto");
+    splashFont.setBold(true);
+    splash.setFont(splashFont);
+
     splash.show();
     app.processEvents();
 
     auto message = splashMessages[qrand() % (splashMessagesCount - 1)];
-    splash.showMessage(message, Qt::AlignBottom | Qt::AlignRight);
+    splashUpdateMessage(splash, message);
     app.processEvents();
 
     QTimer *timer = new QTimer;
@@ -90,7 +102,7 @@ int main(int argc, char *argv[])
         if (!splash.isVisible())
             return;
         auto message = splashMessages[qrand() % (splashMessagesCount - 1)];
-        splash.showMessage(message, Qt::AlignBottom | Qt::AlignRight);
+        splashUpdateMessage(splash, message);
         app.processEvents();
     });
     timer->start(3000);

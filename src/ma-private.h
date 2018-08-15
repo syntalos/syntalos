@@ -55,7 +55,7 @@ const QString aboutDlgAsciiArt = QStringLiteral(
                          "                     U  U");
 
 const QString aboutDlgCopyInfo = QStringLiteral(
-        "(c) 2016-2017 Matthias Klumpp\n\n"
+        "(c) 2016-2018 Matthias Klumpp\n\n"
         "Based on code by Intan Technologies, (c) 2013\n"
         "Firmata implementation (c) 2016 Calle Laakkonen\n\n"
         "MazeAmaze is free software: you can redistribute it and/or modify\n"

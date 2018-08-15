@@ -14,7 +14,7 @@
    width="1094.04"
    height="595.32275"
    id="svg1901"
-   inkscape:version="0.92.1 r15371"
+   inkscape:version="0.92.3 (2405546, 2018-03-11)"
    sodipodi:docname="splash.svg"
    inkscape:export-filename="/home/matthias/Development/MazeAmaze/data/splash.png"
    inkscape:export-xdpi="51.022171"
@@ -41,12 +41,12 @@
      inkscape:pageopacity="0"
      inkscape:pageshadow="2"
      inkscape:window-width="1920"
-     inkscape:window-height="1021"
+     inkscape:window-height="1016"
      id="namedview8"
      showgrid="false"
      inkscape:zoom="0.7407056"
-     inkscape:cx="553.97601"
-     inkscape:cy="290.30649"
+     inkscape:cx="329.55099"
+     inkscape:cy="290.77706"
      inkscape:window-x="0"
      inkscape:window-y="0"
      inkscape:window-maximized="1"
@@ -54,20 +54,24 @@
      fit-margin-top="0"
      fit-margin-left="0"
      fit-margin-right="0"
-     fit-margin-bottom="0" />
+     fit-margin-bottom="0">
+    <inkscape:grid
+       type="xygrid"
+       id="grid1090" />
+  </sodipodi:namedview>
   <defs
      id="defs1903">
     <linearGradient
        inkscape:collect="always"
-       id="linearGradient1065">
+       id="linearGradient1096">
       <stop
-         style="stop-color:#0066ff;stop-opacity:1"
+         style="stop-color:#003366;stop-opacity:1;"
          offset="0"
-         id="stop1061" />
+         id="stop1092" />
       <stop
-         style="stop-color:#5fbcd3;stop-opacity:1"
+         style="stop-color:#1c9690;stop-opacity:1"
          offset="1"
-         id="stop1063" />
+         id="stop1094" />
     </linearGradient>
     <linearGradient
        inkscape:collect="always"
@@ -1090,19 +1094,32 @@
        y1="-2.6356273"
        x1="13.931174"
        gradientTransform="scale(1.0666667)" />
+    <filter
+       style="color-interpolation-filters:sRGB;"
+       inkscape:label="Invert"
+       id="filter1088">
+      <feColorMatrix
+         type="hueRotate"
+         values="180"
+         result="color1"
+         id="feColorMatrix1084" />
+      <feColorMatrix
+         values="-1 0 0 0 1 0 -1 0 0 1 0 0 -1 0 1 -0.21 -0.72 -0.07 2 0 "
+         result="color2"
+         id="feColorMatrix1086" />
+    </filter>
     <linearGradient
        inkscape:collect="always"
-       xlink:href="#linearGradient1065"
-       id="linearGradient1067"
-       x1="540.38959"
-       y1="1.4913481"
-       x2="540.09656"
-       y2="603.69781"
-       gradientUnits="userSpaceOnUse"
-       gradientTransform="translate(-1.0182824,-0.72286345)" />
+       xlink:href="#linearGradient1096"
+       id="linearGradient1098"
+       x1="596.20471"
+       y1="378.76443"
+       x2="580"
+       y2="595.32275"
+       gradientUnits="userSpaceOnUse" />
   </defs>
   <rect
-     style="opacity:1;fill:url(#linearGradient1067);fill-opacity:1;stroke:none;stroke-width:0.89999998;stroke-miterlimit:4;stroke-dasharray:none"
+     style="opacity:1;fill:url(#linearGradient1098);fill-opacity:1;stroke:none;stroke-width:0.89999998;stroke-miterlimit:4;stroke-dasharray:none"
      id="rect1047"
      width="1094.04"
      height="595.32275"
@@ -1110,9 +1127,9 @@
      y="0"
      rx="0" />
   <g
-     transform="matrix(1.000016,0,0,0.99214972,-299.22062,111.39919)"
+     transform="matrix(1.000016,0,0,0.99214972,-298.36577,112.3464)"
      id="layer1"
-     style="opacity:0.18300003">
+     style="opacity:0.36700056;filter:url(#filter1088)">
     <g
        transform="matrix(4.2226804,0,0,4.2226804,292.49861,-114.04493)"
        id="g3268"
@@ -1133,28 +1150,28 @@
   </g>
   <text
      xml:space="preserve"
-     style="font-style:normal;font-weight:normal;line-height:0%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#e3a857;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;filter:url(#filter4411);"
+     style="font-style:normal;font-weight:normal;line-height:0%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#ffcc00;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;filter:url(#filter4411)"
      x="387.13004"
      y="175.24445"
      id="text4171"
-     transform="matrix(1.0666667,0,0,1.0666667,-109.03483,0.07525655)"><tspan
+     transform="matrix(1.0666667,0,0,1.0666667,-33.631375,44.927243)"><tspan
        sodipodi:role="line"
        x="387.13004"
        y="175.24445"
        id="tspan4175"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:80px;line-height:1.25;font-family:'never ending maze';-inkscape-font-specification:'never ending maze';fill:#e3a857;fill-opacity:1;stroke:none;">Maze</tspan></text>
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:124.99999237px;line-height:1.25;font-family:Ambages;-inkscape-font-specification:Ambages;fill:#ffcc00;fill-opacity:1;stroke:none">Maze</tspan></text>
   <text
      xml:space="preserve"
-     style="font-style:normal;font-weight:normal;line-height:0%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#e3a857;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;filter:url(#filter4423);"
+     style="font-style:normal;font-weight:normal;line-height:0%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#ffcc00;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;filter:url(#filter4423)"
      x="612.69708"
      y="275.07129"
      id="text4179"
-     transform="matrix(1.0666667,0,0,1.0666667,-124.80595,7.803097)"><tspan
+     transform="matrix(1.0666667,0,0,1.0666667,-80.253837,60.455595)"><tspan
        sodipodi:role="line"
        id="tspan4181"
        x="612.69708"
        y="275.07129"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:70px;line-height:1.25;font-family:'never ending maze';-inkscape-font-specification:'never ending maze';fill:#e3a857;fill-opacity:1;">Amaze</tspan></text>
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:100px;line-height:1.25;font-family:Ambages;-inkscape-font-specification:Ambages;fill:#ffcc00;fill-opacity:1">Amaze</tspan></text>
   <g
      transform="matrix(0.383495,0,0,0.383495,47.345327,206.29149)"
      id="layer1-3">
