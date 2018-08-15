@@ -67,6 +67,9 @@
 #include "traceplot/traceview.h"
 
 
+#define CONFIG_FILE_FORMAT_VERSION "1"
+
+
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
@@ -1024,6 +1027,7 @@ void MainWindow::saveSettingsActionTriggered()
 
     // save basic settings
     QJsonObject settings;
+    settings.insert("formatVersion", CONFIG_FILE_FORMAT_VERSION);
     settings.insert("programVersion", QCoreApplication::applicationVersion());
     settings.insert("creationDate", QDateTime::currentDateTime().date().toString());
 
@@ -1111,6 +1115,19 @@ void MainWindow::loadSettingsActionTriggered()
 
     auto mainDoc = QJsonDocument::fromJson(globalSettingsFile->data());
     auto rootObj = mainDoc.object();
+
+    if (rootObj.value("formatVersion").toString() != CONFIG_FILE_FORMAT_VERSION) {
+        auto reply = QMessageBox::question(this,
+                                           "Incompatible configuration",
+                                           QStringLiteral("The settings file you want to load was created with a different, possibly older version of MazeAmaze and may not work correctly in this version.\n"
+                                                          "Should we attempt to load it anyway? (This may result in unexpected behavior)"),
+                                           QMessageBox::Yes | QMessageBox::No);
+        if (reply == QMessageBox::No) {
+            this->setEnabled(true);
+            setStatusText("Aborted configuration loading.");
+            return;
+        }
+    }
 
     setDataExportBaseDir(rootObj.value("exportDir").toString());
     ui->expIdEdit->setText(rootObj.value("experimentId").toString());
