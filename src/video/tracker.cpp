@@ -296,9 +296,9 @@ std::vector<cv::Point2f> findCornerBlobs(cv::Mat grayMat)
     cv::morphologyEx(binaryMat, binaryMat, cv::MORPH_CLOSE, cv::Mat::ones(8, 8, binaryMat.type()));
 
     // detect blobs
-    cv::SimpleBlobDetector detector;
+    cv::Ptr<cv::SimpleBlobDetector> detector = cv::SimpleBlobDetector::create();
     std::vector<cv::KeyPoint> keypoints;
-    detector.detect(binaryMat, keypoints);
+    detector->detect(binaryMat, keypoints);
 
     std::vector<cv::Point2f> mazeRect(4);
     // check if we have enough keypoints for a rectangle
