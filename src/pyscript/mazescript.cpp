@@ -127,7 +127,7 @@ void MazeScript::setEventFile(const QString &fname)
 
 void MazeScript::run()
 {
-    if (m_running) {
+    if (m_running || m_pythread->isRunning()) {
         qWarning() << "Can not start an already active MazeScript.";
         return;
     }

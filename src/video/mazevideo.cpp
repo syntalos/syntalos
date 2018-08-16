@@ -124,8 +124,10 @@ bool MazeVideo::openCamera()
 
     if (!m_camera->open(m_cameraId, m_resolution)) {
         emitErrorFinished(m_camera->lastError());
-        delete m_camera;
-        m_camera = nullptr;
+        if (m_camera != nullptr) {
+            delete m_camera;
+            m_camera = nullptr;
+        }
         return false;
     }
 

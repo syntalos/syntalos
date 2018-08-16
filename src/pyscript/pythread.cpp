@@ -38,7 +38,7 @@ void PyThread::initFirmata(const QString &serialDevice)
         }
     }
 
-    if (!m_firmata->waitForReady(4000) || m_firmata->statusText().contains("Error")) {
+    if (!m_firmata->waitForReady(10000) || m_firmata->statusText().contains("Error")) {
         emit firmataError(QString("Unable to open serial interface: %1").arg(m_firmata->statusText()));
         m_firmata->setDevice(QString());
         return;
@@ -62,6 +62,10 @@ static int python_call_quit(void *)
 
 void PyThread::quit()
 {
+    // do nothing if we are already terminating (e.g. due to a previous error)
+    if (m_terminating)
+        return;
+
     // tell that we are about to intentionally terminate the script
     m_terminating = true;
 
@@ -93,6 +97,8 @@ void PyThread::run()
 {
     m_terminating = false;
     m_initializing = true;
+    m_firmata->moveToThread(this);
+    MaIO::instance()->moveToThread(this);
     //! Py_SetProgramName("mazeamaze-script");
 
     // initialize Python in the thread
@@ -122,6 +128,7 @@ void PyThread::run()
         return;
     }
 
+    m_terminating = true;
     if (res == NULL) {
         if (PyErr_Occurred()) {
             PyObject *excType, *excValue, *excTraceback;
@@ -169,4 +176,6 @@ void PyThread::run()
     }
 
     Py_Finalize();
+
+    m_terminating = false;
 }
