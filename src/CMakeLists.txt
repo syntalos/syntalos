@@ -14,7 +14,6 @@ set(MAZEAMAZE_SRC
 )
 
 set(SCRIPT_SRC
-    pyscript/pyhelper.h
     pyscript/maio.h
     pyscript/maio.cpp
     pyscript/pythread.h

@@ -1,5 +1,5 @@
 
-#include "pyhelper.h"
+#include <Python.h>
 #include "pythread.h"
 
 #include <QCoreApplication>
@@ -11,25 +11,47 @@
 PyThread::PyThread(QObject *parent)
     : QThread(parent)
 {
+    m_firmata = new SerialFirmata(this);
+    m_firmata->moveToThread(this);
+
     // the MaIO interface an all Python stuff belongs to this thread and
     // must not ever be touched directly from the outside
     MaIO::instance()->moveToThread(this);
+
+    MaIO::instance()->setFirmata(m_firmata);
+
+    pythonRegisterMaioModule();
 }
 
-void PyThread::setFirmata(SerialFirmata *firmata)
-{
-    MaIO::instance()->setFirmata(firmata);
-    firmata->moveToThread(this);
-}
-
-MaIO *PyThread::maio()
+MaIO *PyThread::maio() const
 {
     return MaIO::instance();
 }
 
-void PyThread::runScript()
+void PyThread::initFirmata(const QString &serialDevice)
 {
-    this->start();
+    qDebug() << "Loading Firmata interface (" << serialDevice << ")";
+    if (m_firmata->device().isEmpty()) {
+        if (!m_firmata->setDevice(serialDevice)) {
+            emit firmataError(m_firmata->statusText());
+            return;
+        }
+    }
+
+    if (!m_firmata->waitForReady(4000) || m_firmata->statusText().contains("Error")) {
+        emit firmataError(QString("Unable to open serial interface: %1").arg(m_firmata->statusText()));
+        m_firmata->setDevice(QString());
+        return;
+    }
+}
+
+void PyThread::start(QThread::Priority priority)
+{
+    // ensure we have quit before we start running again
+    this->wait();
+
+    m_initializing = true;
+    QThread::start(priority);
 }
 
 static int python_call_quit(void *)
@@ -38,14 +60,25 @@ static int python_call_quit(void *)
     return -1;
 }
 
-void PyThread::terminate()
+void PyThread::quit()
 {
+    // tell that we are about to intentionally terminate the script
     m_terminating = true;
+
+    // When trying to abort the script immediately after launching it, we can run into crashes
+    // withing CPython (adding a pending call prior to initializing is a bad idea)
+    // Therefore we wait here until basic initialization of the interpreter is done.
+    while (m_initializing)
+        QThread::usleep(100);
+
     Py_AddPendingCall(&python_call_quit, NULL);
 
-    this->quit();
-    while (this->isRunning()) {
-        // busy wait
+    QThread::quit();
+
+    while (!this->wait(20000)) {
+        qWarning() << "PyThread quit wait time ran out, attempting to terminate thread now.";
+        Py_AddPendingCall(&python_call_quit, NULL);
+        this->terminate();
     }
 
     MaIO::instance()->reset();
@@ -59,23 +92,33 @@ void PyThread::setScriptContent(const QString &script)
 void PyThread::run()
 {
     m_terminating = false;
+    m_initializing = true;
     //! Py_SetProgramName("mazeamaze-script");
 
-    pythonRegisterMaioModule();
-    CPyInstance hInstance;
+    // initialize Python in the thread
+    Py_Initialize();
 
     PyObject *mainModule = PyImport_AddModule("__main__");
     if (mainModule == NULL) {
-        emit errorReceived("Can not execute Python code: No __main__module.");
+        emit scriptError("Can not execute Python code: No __main__module.");
+
+        Py_Finalize();
+        m_initializing = false;
         return;
     }
     PyObject *mainDict = PyModule_GetDict(mainModule);
 
+    // initialization phase completed
+    m_initializing = false;
+
+    // run script
     auto res = PyRun_String(qPrintable(m_script), Py_file_input, mainDict, mainDict);
 
     // quit without any error handling when we are terminating script execution
     if (m_terminating) {
         Py_XDECREF(res);
+
+        Py_Finalize();
         return;
     }
 
@@ -115,7 +158,7 @@ void PyThread::run()
                 message = QStringLiteral("An unknown Python error occured.");
 
             qDebug() << "Python error:" << message;
-            emit errorReceived(message);
+            emit scriptError(message);
 
             Py_XDECREF(excTraceback);
             Py_XDECREF(excType);
@@ -124,4 +167,6 @@ void PyThread::run()
     } else {
         Py_XDECREF(res);
     }
+
+    Py_Finalize();
 }

@@ -83,13 +83,16 @@ MazeScript::MazeScript(QObject *parent)
     : QObject(parent),
       m_pythread(nullptr)
 {
-    m_firmata = new SerialFirmata(this);
     m_pythread = new PyThread(this);
 
     connect(m_pythread->maio(), &MaIO::eventSaved, this, &MazeScript::eventReceived, Qt::QueuedConnection);
     connect(m_pythread->maio(), &MaIO::headersSet, this, &MazeScript::headersReceived, Qt::QueuedConnection);
-    connect(m_pythread, &PyThread::errorReceived, this, [=](const QString& message) {
+    connect(m_pythread, &PyThread::scriptError, this, [=](const QString& message) {
         emit evalError(message);
+    });
+    connect(m_pythread, &PyThread::firmataError, this, [=](const QString& message) {
+        emit firmataError(message);
+        emit finished();
     });
 
     m_script = defaultSampleScript;
@@ -104,21 +107,7 @@ MazeScript::~MazeScript()
 
 void MazeScript::initFirmata(const QString &serialDevice)
 {
-    qDebug() << "Loading Firmata interface (" << serialDevice << ")";
-    if (m_firmata->device().isEmpty()) {
-        if (!m_firmata->setDevice(serialDevice)) {
-            emit firmataError(m_firmata->statusText());
-            emit finished();
-            return;
-        }
-    }
-
-    if (!m_firmata->waitForReady(4000) || m_firmata->statusText().contains("Error")) {
-        emit firmataError(QString("Unable to open serial interface: %1").arg(m_firmata->statusText()));
-        m_firmata->setDevice(QString());
-        emit finished();
-        return;
-    }
+    m_pythread->initFirmata(serialDevice);
 }
 
 void MazeScript::setScript(const QString &script)
@@ -152,9 +141,6 @@ void MazeScript::run()
         }
     }
 
-    // ensure the Python interface can actually interface with the Firmata serial device
-    m_pythread->setFirmata(m_firmata);
-
     qDebug() << "Evaluating Maze Script";
     m_pythread->setScriptContent(m_script);
 
@@ -166,7 +152,7 @@ void MazeScript::run()
 
     // run script
     m_running = true;
-    m_pythread->runScript();
+    m_pythread->start();
 }
 
 void MazeScript::headersReceived(const QStringList& headers)
@@ -209,7 +195,7 @@ void MazeScript::stop()
     if (!m_running)
         return;
 
-    m_pythread->terminate();
+    m_pythread->quit();
     m_eventFile->close();
 
     m_running = false;

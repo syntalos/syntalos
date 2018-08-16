@@ -59,8 +59,6 @@ private slots:
 
 private:
     PyThread *m_pythread;
-    SerialFirmata *m_firmata;
-
     QString m_script;
 
     QElapsedTimer m_timer;

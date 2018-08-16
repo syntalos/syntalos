@@ -13,23 +13,27 @@ class PyThread : public QThread
 public:
     explicit PyThread(QObject *parent = nullptr);
 
-    void setFirmata(SerialFirmata *firmata);
-    MaIO *maio();
+    MaIO *maio() const;
 
-    void runScript();
-    void terminate();
-
+    void initFirmata(const QString& serialDevice);
     void setScriptContent(const QString& script);
 
+public slots:
+    void start(QThread::Priority priority = InheritPriority);
+    void quit();
 
 signals:
-    void errorReceived(const QString& message);
+    void scriptError(const QString& message);
+    void firmataError(const QString& message);
 
 private:
     void run() override;
 
+    SerialFirmata *m_firmata;
     QString m_script;
+
     bool m_terminating;
+    bool m_initializing;
 };
 
 #endif // PYTHREAD_H

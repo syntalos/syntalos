@@ -636,7 +636,7 @@ void MainWindow::runActionTriggered()
     }
 
     // determine and create the directory for ephys data
-    qDebug() << "Initializing";
+    qDebug() << "Initializing new recording run";
 
     // make the experiment type known to the tracker
     m_videoTracker->setTrackingEnabled(m_features.trackingEnabled);
@@ -735,7 +735,7 @@ void MainWindow::runActionTriggered()
         setStatusText("Connecting serial I/O...");
         auto serialDevice = ui->portsComboBox->currentData().toString();
 
-        if (!serialDevice.isEmpty()) {
+        if (serialDevice.isEmpty()) {
             auto reply = QMessageBox::question(this,
                                                "Really continue?",
                                                "No Firmata device was found for programmable data I/O. Do you really want to continue without this functionality?",
