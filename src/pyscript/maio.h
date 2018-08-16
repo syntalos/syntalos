@@ -23,6 +23,7 @@
 #include <QObject>
 #include <QHash>
 #include <QQueue>
+#include <QMutex>
 #include <mutex>
 
 class SerialFirmata;
@@ -88,6 +89,7 @@ private:
 
     SerialFirmata *m_firmata;
 
+    QMutex m_mutex;
     QQueue<QPair<QString, bool>> m_changedValuesQueue;
 
     QHash<QString, FmPin> m_namePinMap;

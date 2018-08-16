@@ -120,6 +120,8 @@ void SerialFirmata::writeBuffer(const uint8_t *buffer, int len)
     if(written != len) {
         qWarning() << d->device << "error while writing buffer" << d->port->error();
     }
+
+    d->port->flush();
 }
 
 void SerialFirmata::onReadyRead()

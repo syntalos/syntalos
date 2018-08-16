@@ -39,8 +39,8 @@ MaIO::MaIO(QObject *parent)
 void MaIO::setFirmata(SerialFirmata *firmata)
 {
     m_firmata = firmata;
-    connect(m_firmata, &SerialFirmata::digitalRead, this, &MaIO::onDigitalRead);
-    connect(m_firmata, &SerialFirmata::digitalPinRead, this, &MaIO::onDigitalPinRead);
+    connect(m_firmata, &SerialFirmata::digitalRead, this, &MaIO::onDigitalRead, Qt::DirectConnection);
+    connect(m_firmata, &SerialFirmata::digitalPinRead, this, &MaIO::onDigitalPinRead, Qt::DirectConnection);
 
     reset();
 }
@@ -93,14 +93,14 @@ void MaIO::newDigitalPin(int pinID, const QString& pinName, const QString& kind)
 
 bool MaIO::fetchDigitalInput(QPair<QString, bool> *result)
 {
-    if (m_changedValuesQueue.empty()) {
-        m_changedValuesQueue.append(qMakePair(QString::fromUtf8("armLeft"), true));
+    if (m_changedValuesQueue.empty())
         return false;
-    }
-
     if (result == nullptr)
         return false;
+
+    m_mutex.lock();
     *result = m_changedValuesQueue.dequeue();
+    m_mutex.unlock();
 
     return true;
 }
@@ -126,9 +126,6 @@ void MaIO::pinSignalPulse(const QString& pinName)
 void MaIO::onDigitalRead(uint8_t port, uint8_t value)
 {
     qDebug() << "Firmata digital port read:" << int(value);
-    auto sender = QObject::sender();
-    if (sender == nullptr)
-        return;
 
     // value of a digital port changed: 8 possible pin changes
     const int first = port * 8;
@@ -141,7 +138,9 @@ void MaIO::onDigitalRead(uint8_t port, uint8_t value)
                 pair.first = m_pinNameMap.value(p.id);
                 pair.second = value & (1 << (p.id - first));
 
+                m_mutex.lock();
                 m_changedValuesQueue.append(pair);
+                m_mutex.unlock();
             }
         }
     }
@@ -150,9 +149,6 @@ void MaIO::onDigitalRead(uint8_t port, uint8_t value)
 void MaIO::onDigitalPinRead(uint8_t pin, bool value)
 {
     qDebug("Firmata digital pin read: %d=%d", pin, value);
-    auto sender = QObject::sender();
-    if (sender == nullptr)
-        return;
 
     auto pinName = m_pinNameMap.value(pin);
     if (pinName.isEmpty()) {
