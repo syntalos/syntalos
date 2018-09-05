@@ -16,8 +16,8 @@ set(MAZEAMAZE_SRC
 set(SCRIPT_SRC
     pyscript/maio.h
     pyscript/maio.cpp
-    pyscript/pythread.h
-    pyscript/pythread.cpp
+    pyscript/pycontroller.h
+    pyscript/pycontroller.cpp
     pyscript/mazescript.h
     pyscript/mazescript.cpp
 )

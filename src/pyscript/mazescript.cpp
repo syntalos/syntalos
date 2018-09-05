@@ -26,7 +26,7 @@
 
 #include "firmata/serialport.h"
 
-#include "pythread.h"
+#include "pycontroller.h"
 #include "maio.h"
 
 
@@ -81,16 +81,16 @@ const QString defaultSampleScript = QStringLiteral("import maio as io\n"
 
 MazeScript::MazeScript(QObject *parent)
     : QObject(parent),
-      m_pythread(nullptr)
+      m_pyControl(nullptr)
 {
-    m_pythread = new PyThread(this);
+    m_pyControl = new PyController(this);
 
-    connect(m_pythread->maio(), &MaIO::eventSaved, this, &MazeScript::eventReceived, Qt::QueuedConnection);
-    connect(m_pythread->maio(), &MaIO::headersSet, this, &MazeScript::headersReceived, Qt::QueuedConnection);
-    connect(m_pythread, &PyThread::scriptError, this, [=](const QString& message) {
+    connect(m_pyControl->maio(), &MaIO::eventSaved, this, &MazeScript::eventReceived, Qt::QueuedConnection);
+    connect(m_pyControl->maio(), &MaIO::headersSet, this, &MazeScript::headersReceived, Qt::QueuedConnection);
+    connect(m_pyControl, &PyController::scriptError, this, [=](const QString& message) {
         emit evalError(message);
     });
-    connect(m_pythread, &PyThread::firmataError, this, [=](const QString& message) {
+    connect(m_pyControl, &PyController::firmataError, this, [=](const QString& message) {
         emit firmataError(message);
         emit finished();
     });
@@ -107,7 +107,7 @@ MazeScript::~MazeScript()
 
 void MazeScript::initFirmata(const QString &serialDevice)
 {
-    m_pythread->initFirmata(serialDevice);
+    m_pyControl->initFirmata(serialDevice);
 }
 
 void MazeScript::setScript(const QString &script)
@@ -127,7 +127,7 @@ void MazeScript::setEventFile(const QString &fname)
 
 void MazeScript::run()
 {
-    if (m_running || m_pythread->isRunning()) {
+    if (m_running || m_pyControl->isRunning()) {
         qWarning() << "Can not start an already active MazeScript.";
         return;
     }
@@ -142,7 +142,7 @@ void MazeScript::run()
     }
 
     qDebug() << "Evaluating Maze Script";
-    m_pythread->setScriptContent(m_script);
+    m_pyControl->setScriptContent(m_script);
 
     // we don't have any events yet
     m_haveEvents = false;
@@ -152,7 +152,7 @@ void MazeScript::run()
 
     // run script
     m_running = true;
-    m_pythread->start();
+    m_pyControl->startScript();
 }
 
 void MazeScript::headersReceived(const QStringList& headers)
@@ -195,7 +195,7 @@ void MazeScript::stop()
     if (!m_running)
         return;
 
-    m_pythread->quit();
+    m_pyControl->terminateScript();
     m_eventFile->close();
 
     m_running = false;

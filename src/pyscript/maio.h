@@ -56,6 +56,7 @@ public:
     }
 
     void setFirmata(SerialFirmata *firmata);
+    SerialFirmata *firmata() const;
     void reset();
 
     void newDigitalPin(int pinID, const QString& pinName, bool output, bool pullUp);

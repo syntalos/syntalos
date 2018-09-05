@@ -45,6 +45,11 @@ void MaIO::setFirmata(SerialFirmata *firmata)
     reset();
 }
 
+SerialFirmata *MaIO::firmata() const
+{
+    return m_firmata;
+}
+
 void MaIO::reset()
 {
     m_changedValuesQueue.clear();

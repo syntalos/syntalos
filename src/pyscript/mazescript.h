@@ -26,7 +26,7 @@
 
 class SerialFirmata;
 class QFile;
-class PyThread;
+class PyController;
 
 class MazeScript : public QObject
 {
@@ -58,7 +58,7 @@ private slots:
     void eventReceived(const QStringList& messages);
 
 private:
-    PyThread *m_pythread;
+    PyController *m_pyControl;
     QString m_script;
 
     QElapsedTimer m_timer;
