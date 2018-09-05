@@ -195,8 +195,11 @@ bool FirmataBackend::waitForReady(time_t timeoutMsec)
     auto waitTime = QTime::currentTime().addMSecs(timeoutMsec);
     auto etime = waitTime.msec();
     etime = etime / 4;
-    while (QTime::currentTime() < waitTime)
+    while (QTime::currentTime() < waitTime) {
         QCoreApplication::processEvents(QEventLoop::AllEvents, etime);
+        if (isReady())
+            break;
+    }
 
     return isReady();
 }
