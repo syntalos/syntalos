@@ -13,7 +13,6 @@ class PyController : public QObject
     Q_OBJECT
 public:
     explicit PyController(QObject *parent = nullptr);
-    ~PyController();
 
     MaIO *maio() const;
 

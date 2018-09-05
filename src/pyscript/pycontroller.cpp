@@ -112,7 +112,6 @@ public slots:
         // move singletons back to main thread
         MaIO::instance()->reset();
         MaIO::instance()->moveToThread(QCoreApplication::instance()->thread());
-        MaIO::instance()->firmata()->moveToThread(QCoreApplication::instance()->thread());
 
         m_state = PyState::STOPPED;
     }
@@ -162,18 +161,14 @@ PyController::PyController(QObject *parent)
       m_pyThread(nullptr),
       m_running(false)
 {
-    m_firmata = new SerialFirmata;
+    // The SerialFirmata instance need to reside in the program's main thread - it communicates
+    // with the Python thread via a queued connection.
+    m_firmata = new SerialFirmata(this);
 
     MaIO::instance()->setFirmata(m_firmata);
 
     pythonRegisterMaioModule();
 }
-
-PyController::~PyController()
-{
-    delete m_firmata;
-}
-
 
 MaIO *PyController::maio() const
 {
@@ -190,7 +185,7 @@ void PyController::initFirmata(const QString &serialDevice)
         }
     }
 
-    if (!m_firmata->waitForReady(10000) || m_firmata->statusText().contains("Error")) {
+    if (!m_firmata->waitForReady(20000) || m_firmata->statusText().contains("Error")) {
         emit firmataError(QString("Unable to open serial interface: %1").arg(m_firmata->statusText()));
         m_firmata->setDevice(QString());
         return;
@@ -227,9 +222,6 @@ void PyController::startScript()
 
     connect(m_worker, &PyWorker::firmataError, this, &PyController::firmataError);
     connect(m_worker, &PyWorker::scriptError, this, &PyController::scriptError);
-
-    // move all the things accessed by the worker to its thread
-    m_firmata->moveToThread(m_pyThread);
 
     // the MaIO interface an all Python stuff belongs to this thread and
     // must not ever be touched directly from the outside
