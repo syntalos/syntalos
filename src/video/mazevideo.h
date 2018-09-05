@@ -124,6 +124,7 @@ private:
     void emitErrorFinished(const QString &message);
 
     QString m_lastError;
+    bool m_cameraOpened;
 
     QSize m_resolution;
     int m_framerate;

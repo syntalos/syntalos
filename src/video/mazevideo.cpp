@@ -38,6 +38,7 @@
 
 MazeVideo::MazeVideo(QObject *parent)
     : QObject(parent),
+      m_cameraOpened(false),
       m_resolution(QSize(1280, 1024)),
       m_cameraId(-1),
       m_tracker(nullptr)
@@ -116,6 +117,13 @@ void MazeVideo::emitErrorFinished(const QString &message)
 
 bool MazeVideo::openCamera()
 {
+    if (m_cameraOpened) {
+        qCritical() << "Attempting to open an already opened camera!";
+
+        // we try to rescue this here by closing the camera first
+        closeCamera();
+    }
+
 #ifdef USE_UEYE_CAMERA
     m_camera = new UEyeCamera;
 #else
@@ -137,6 +145,7 @@ bool MazeVideo::openCamera()
     m_camera->setFramerate(m_framerate);
     m_camera->setGPIOFlash(m_gpioFlash);
 
+    m_cameraOpened = true;
     return true;
 }
 
@@ -150,6 +159,7 @@ bool MazeVideo::closeCamera()
     delete m_camera;
     m_camera = nullptr;
 
+    m_cameraOpened = false;
     return true;
 }
 
