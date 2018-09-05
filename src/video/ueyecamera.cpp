@@ -39,34 +39,40 @@ UEyeCamera::~UEyeCamera()
 
 QList<QPair<QString, QVariant> > UEyeCamera::getCameraList() const
 {
-    INT nNumCam;
     QList<QPair<QString, QVariant>> res;
 
-    if (is_GetNumberOfCameras(&nNumCam) != IS_SUCCESS)
-        return res;
+    qDebug() << "Looking for uEye cameras.";
 
-    if (nNumCam >= 1) {
-        // Create new list with suitable size
-        UEYE_CAMERA_LIST* pucl;
+    auto pCamList = new UEYE_CAMERA_LIST;
+    pCamList->dwCount = 0;
 
-        pucl = (UEYE_CAMERA_LIST*) new BYTE [sizeof (DWORD) + nNumCam * sizeof (UEYE_CAMERA_INFO)];
-        pucl->dwCount = nNumCam;
+    if (is_GetCameraList (pCamList) == IS_SUCCESS) {
+        DWORD dw = pCamList->dwCount;
+        delete pCamList;
+
+        // Reallocate the required camera list size
+        pCamList = (PUEYE_CAMERA_LIST)new char[sizeof(DWORD) + dw * sizeof(UEYE_CAMERA_INFO)];
+        pCamList->dwCount = dw;
 
         // Retrieve camera info
-        if (is_GetCameraList(pucl) == IS_SUCCESS) {
-            int iCamera;
-
-            for (iCamera = 0; iCamera < (int)pucl->dwCount; iCamera++) {
+        if (is_GetCameraList(pCamList) == IS_SUCCESS) {
+            qDebug() << "Found" << pCamList->dwCount << "uEye cameras.";
+            for (uint i = 0; i < (unsigned int) pCamList->dwCount; i++) {
                 //Test output of camera info on the screen
 
-                auto desc = QString("Camera: %1 (ID: %2)").arg(iCamera).arg(pucl->uci[iCamera].dwCameraID);
-                res.append(qMakePair(desc, iCamera));
+                auto desc = QString("Camera: %1 (ID: %2)").arg(i).arg(pCamList->uci[i].dwCameraID);
+                res.append(qMakePair(desc, i));
             }
 
+        } else {
+            qWarning() << "Unable to retrieve list of uEye camera details!";
         }
-        delete [] pucl;
+
+    } else {
+        qWarning() << "Unable to retrieve list of uEye cameras!";
     }
 
+    delete pCamList;
     return res;
 }
 
@@ -122,7 +128,8 @@ bool UEyeCamera::open(QVariant cameraV, const QSize& size)
 
     INT nAOISupported = 0;
 
-    auto res = is_InitCamera(&m_hCam, 0);
+    m_hCam = cameraId;
+    auto res = is_InitCamera(&m_hCam, nullptr);
     if (res != IS_SUCCESS) {
         setError("Unable to initialize camera", res);
         return false;
