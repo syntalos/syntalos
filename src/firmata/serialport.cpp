@@ -68,6 +68,7 @@ bool SerialFirmata::setDevice(const QString &device)
                     case QSerialPort::DeviceNotFoundError: msg = QStringLiteral("Device not found"); break;
                     case QSerialPort::PermissionError: msg = QStringLiteral("Permission denied"); break;
                     case QSerialPort::OpenError: msg = QStringLiteral("Device already opened"); break;
+                    case QSerialPort::ResourceError: msg = QStringLiteral("Unable to communicate with the device. Is it plugged in?"); break;
                     default: msg = QString("Error code %1").arg(e); break;
                     }
 
