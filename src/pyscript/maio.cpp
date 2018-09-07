@@ -53,6 +53,8 @@ SerialFirmata *MaIO::firmata() const
 void MaIO::reset()
 {
     m_changedValuesQueue.clear();
+    m_namePinMap.clear();
+    m_pinNameMap.clear();
 }
 
 void MaIO::newDigitalPin(int pinID, const QString& pinName, bool output, bool pullUp)

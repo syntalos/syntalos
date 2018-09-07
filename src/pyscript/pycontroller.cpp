@@ -57,6 +57,7 @@ public slots:
             Py_XDECREF(res);
 
             Py_Finalize();
+            m_state = PyState::STOPPED;
             return;
         }
 
@@ -133,6 +134,9 @@ public slots:
 
         // terminate script execution as soon as possible
         Py_AddPendingCall(&python_call_quit, NULL);
+
+        while (m_state != PyState::STOPPED)
+            QThread::usleep(100);
     }
 
 signals:
