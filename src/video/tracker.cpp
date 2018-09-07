@@ -285,20 +285,28 @@ void Tracker::waitOnBarrier()
 }
 
 static
-std::vector<cv::Point2f> findCornerBlobs(cv::Mat grayMat)
+std::vector<cv::Point2f> findCornerBlobs(const cv::Mat& grayMat)
 {
-    cv::Mat binaryMat(grayMat.size(), grayMat.type());
+    cv::Mat blurMap(grayMat.size(), grayMat.type());
 
-    // get a binary matrix using adaptive gaussian thresholding
-    cv::adaptiveThreshold(grayMat, binaryMat, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY_INV, 17, 3.4);
     // remove noise aggressively
-    cv::morphologyEx(binaryMat, binaryMat, cv::MORPH_CLOSE, cv::Mat::ones(10, 10, binaryMat.type()));
-    cv::morphologyEx(binaryMat, binaryMat, cv::MORPH_CLOSE, cv::Mat::ones(8, 8, binaryMat.type()));
+    cv::morphologyEx(grayMat, blurMap, cv::MORPH_CLOSE, cv::Mat::ones(32, 32, blurMap.type()));
+
+    // set blob detector parameters
+    cv::SimpleBlobDetector::Params params;
+    params.filterByArea = true;
+    params.filterByCircularity = false;
+    params.filterByColor = false;
+    params.filterByConvexity = false;
+    params.minArea = static_cast<float>(blurMap.size().width) / 4;
+    params.maxArea = static_cast<float>(blurMap.size().width) / 2;
+    params.minDistBetweenBlobs = static_cast<float>(blurMap.size().width) / 32;
+    params.minThreshold = 8;
 
     // detect blobs
-    cv::Ptr<cv::SimpleBlobDetector> detector = cv::SimpleBlobDetector::create();
+    cv::Ptr<cv::SimpleBlobDetector> detector = cv::SimpleBlobDetector::create(params);
     std::vector<cv::KeyPoint> keypoints;
-    detector->detect(binaryMat, keypoints);
+    detector->detect(blurMap, keypoints);
 
     std::vector<cv::Point2f> mazeRect(4);
     // check if we have enough keypoints for a rectangle
@@ -497,7 +505,7 @@ Tracker::LEDTriangle Tracker::trackPoints(time_t time, const cv::Mat &image)
     res.red = maxLoc;
 
     // green maximum
-    maxLoc = findMaxColorBrightness(image, grayMat, cv::Scalar(0, 200, 0), cv::Scalar(110, 255, 180));
+    maxLoc = findMaxColorBrightness(image, grayMat, cv::Scalar(0, 220, 0), cv::Scalar(110, 255, 180));
     if (maxLoc.x > 0)
         cv::circle(trackMat, maxLoc, 6, cv::Scalar(0, 255, 0), -1); // BGR colors
     res.green = maxLoc;
