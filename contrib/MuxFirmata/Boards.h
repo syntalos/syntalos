@@ -153,7 +153,7 @@ writePort(port, value, bitmask):  Write an 8 bit port.
 #define IS_PIN_I2C(p)           ((p) == 45 || (p) == 46)
 #define IS_PIN_SPI(p)           ((p) == SS || (p) == MOSI || (p) == MISO || (p) == SCK)
 #define PIN_TO_DIGITAL(p)       (p)
-#define PIN_TO_ANALOG(p)        ((p) - 14)
+#define PIN_TO_ANALOG(p)        (p)
 #define PIN_TO_PWM(p)           (p)
 #define PIN_TO_SERVO(p)         (p)
 

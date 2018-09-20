@@ -105,7 +105,8 @@ void outputPort(byte portNumber, byte portValue, byte forceSend)
 
 void setPinModeCallback(byte pin, int mode) {
   if (IS_PIN_DIGITAL(pin)) {
-    pinMode(PIN_TO_DIGITAL(pin), mode);
+    pinMode(pin, mode);
+    Firmata.setPinMode(pin, mode);
 
     byte port = pin / 8;
     byte mux = pin / 16;
@@ -120,6 +121,8 @@ void setPinModeCallback(byte pin, int mode) {
     } else {
       muxShield.setMode(mux, DIGITAL_OUT);
       muxMode[mux] = DIGITAL_OUT;
+
+      Firmata.setPinMode(pin, OUTPUT);
     }
   }
 }
@@ -215,6 +218,22 @@ void checkDigitalInputs(void)
   }
 }
 
+/*
+ * Sets the value of an individual pin. Useful if you want to set a pin value but
+ * are not tracking the digital port state.
+ * Can only be used on pins configured as OUTPUT.
+ * Cannot be used to enable pull-ups on Digital INPUT pins.
+ */
+void setPinValueCallback(byte pin, int value)
+{
+  if (pin < TOTAL_PINS && IS_PIN_DIGITAL(pin)) {
+    if (Firmata.getPinMode(pin) == OUTPUT) {
+      Firmata.setPinState(pin, value);
+      writeMXPin(pin, value);
+    }
+  }
+}
+
 void systemResetCallback()
 {
   isResetting = true;
@@ -255,6 +274,7 @@ void setup()
   Firmata.setFirmwareVersion(FIRMATA_FIRMWARE_MAJOR_VERSION, FIRMATA_FIRMWARE_MINOR_VERSION);
   Firmata.attach(DIGITAL_MESSAGE, digitalWriteCallback);
   Firmata.attach(SET_PIN_MODE, setPinModeCallback);
+  Firmata.attach(SET_DIGITAL_PIN_VALUE, setPinValueCallback);
   Firmata.attach(START_SYSEX, sysexCallback);
   Firmata.attach(SYSTEM_RESET, systemResetCallback);
   Firmata.begin(57600);
