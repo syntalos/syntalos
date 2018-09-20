@@ -207,17 +207,6 @@ void sysexCallback(byte command, byte argc, byte *argv)
   }
 }
 
-void reportDigitalCallback(byte port, int value)
-{
-  if (port < TOTAL_PORTS) {
-    reportPORT[port] = (byte)value;
-    // Send port value immediately. This is helpful when connected via
-    // ethernet, wi-fi or bluetooth so pin states can be known upon
-    // reconnecting.
-    if (value) outputPort(port, readMXPort(port, 0xFF), true);
-  }
-}
-
 void checkDigitalInputs(void)
 {
   for (byte i = 0; i < TOTAL_PORTS; i++) {
@@ -251,14 +240,12 @@ void systemResetCallback()
   }
 
   // make all multiplexers outputs by default
-  muxShield.setMode(0, DIGITAL_IN_PULLUP);
+  muxShield.setMode(0, DIGITAL_OUT);
   muxShield.setMode(1, DIGITAL_OUT);
   muxShield.setMode(2, DIGITAL_OUT);
-  muxMode[0] = DIGITAL_IN_PULLUP;
+  muxMode[0] = DIGITAL_OUT;
   muxMode[1] = DIGITAL_OUT;
   muxMode[2] = DIGITAL_OUT;
-  reportPORT[0] = true;
-  reportPORT[1] = true;
 
   isResetting = false;
 }
@@ -268,7 +255,6 @@ void setup()
   Firmata.setFirmwareVersion(FIRMATA_FIRMWARE_MAJOR_VERSION, FIRMATA_FIRMWARE_MINOR_VERSION);
   Firmata.attach(DIGITAL_MESSAGE, digitalWriteCallback);
   Firmata.attach(SET_PIN_MODE, setPinModeCallback);
-  Firmata.attach(REPORT_DIGITAL, reportDigitalCallback);
   Firmata.attach(START_SYSEX, sysexCallback);
   Firmata.attach(SYSTEM_RESET, systemResetCallback);
   Firmata.begin(57600);
@@ -282,8 +268,4 @@ void loop()
   while (Firmata.available()) {
     Firmata.processInput();
   }
-
-  //muxShield.setMode(0, muxMode[0]);
-  //muxShield.setMode(1, muxMode[1]);
-  //muxShield.setMode(2, muxMode[2]);
 }
