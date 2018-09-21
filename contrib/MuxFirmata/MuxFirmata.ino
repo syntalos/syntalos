@@ -104,8 +104,10 @@ void outputPort(byte portNumber, byte portValue, byte forceSend)
 }
 
 void setPinModeCallback(byte pin, int mode) {
+  if (pin >= TOTAL_PINS)
+    return;
+
   if (IS_PIN_DIGITAL(pin)) {
-    pinMode(pin, mode);
     Firmata.setPinMode(pin, mode);
 
     byte port = pin / 8;
@@ -254,17 +256,9 @@ void systemResetCallback()
       setPinModeCallback(i, PIN_MODE_ANALOG);
     } else if (IS_PIN_DIGITAL(i)) {
       // sets the output to 0, configures portConfigInputs
-      setPinModeCallback(i, OUTPUT);
+      setPinModeCallback(i, INPUT);
     }
   }
-
-  // make all multiplexers outputs by default
-  muxShield.setMode(0, DIGITAL_OUT);
-  muxShield.setMode(1, DIGITAL_OUT);
-  muxShield.setMode(2, DIGITAL_OUT);
-  muxMode[0] = DIGITAL_OUT;
-  muxMode[1] = DIGITAL_OUT;
-  muxMode[2] = DIGITAL_OUT;
 
   isResetting = false;
 }
@@ -277,9 +271,9 @@ void setup()
   Firmata.attach(SET_DIGITAL_PIN_VALUE, setPinValueCallback);
   Firmata.attach(START_SYSEX, sysexCallback);
   Firmata.attach(SYSTEM_RESET, systemResetCallback);
-  Firmata.begin(57600);
 
   systemResetCallback();
+  Firmata.begin(57600);
 }
 
 void loop()
