@@ -25,8 +25,6 @@ string( REPLACE "-rdynamic" "" CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS ${CMAKE_SHARE
 include(GNUInstallDirs)
 find_package(Qt5Widgets REQUIRED)
 find_package(Qt5SerialPort REQUIRED)
-find_package(Qt5Script REQUIRED)
-find_package(Qt5ScriptTools REQUIRED)
 find_package(Qt5OpenGL REQUIRED)
 find_package(Qt5Multimedia REQUIRED)
 find_package(Qt5MultimediaWidgets REQUIRED)

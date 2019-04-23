@@ -62,10 +62,14 @@ public:
     void newDigitalPin(int pinID, const QString& pinName, bool output, bool pullUp);
     void newDigitalPin(int pinID, const QString& pinName, const QString& kind);
 
+    void newAnalogPin(int pinID, const QString& pinName, bool output);
+    void newAnalogPin(int pinID, const QString& pinName, const QString& kind);
+
     bool fetchDigitalInput(QPair<QString, bool> *result);
 
     void pinSetValue(const QString& pinName, bool value);
     void pinSignalPulse(const QString& pinName);
+    void pinSetValueAnalog(const QString& pinName, uint value);
 
     void sleep(uint msecs);
     void wait(uint msecs);

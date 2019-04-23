@@ -98,6 +98,40 @@ void MaIO::newDigitalPin(int pinID, const QString& pinName, const QString& kind)
         qCritical() << "Invalid pin kind:" << kind;
 }
 
+void MaIO::newAnalogPin(int pinID, const QString &pinName, bool output)
+{
+    FmPin pin;
+    pin.kind = PinKind::Analog;
+    pin.id = pinID;
+    pin.output = output;
+
+    if (pin.output) {
+        // initialize output pin
+        m_firmata->setPinMode(pinID, IoMode::Analog);
+        m_firmata->writeAnalogPin(pinID, 0);
+        qDebug() << "Pin" << pinID << "set as analog output";
+    } else {
+        // connect input pin
+        m_firmata->setPinMode(pinID, IoMode::Input);
+        m_firmata->reportAnalogPin(pinID, true);
+
+        qDebug() << "Pin" << pinID << "set as analog input";
+    }
+
+    m_namePinMap.insert(pinName, pin);
+    m_pinNameMap.insert(pin.id, pinName);
+}
+
+void MaIO::newAnalogPin(int pinID, const QString &pinName, const QString &kind)
+{
+    if (kind == "output")
+        newAnalogPin(pinID, pinName, true);
+    else if (kind == "input")
+        newAnalogPin(pinID, pinName, false);
+    else
+        qCritical() << "Invalid pin kind:" << kind;
+}
+
 bool MaIO::fetchDigitalInput(QPair<QString, bool> *result)
 {
     if (m_changedValuesQueue.empty())
@@ -128,6 +162,19 @@ void MaIO::pinSignalPulse(const QString& pinName)
     pinSetValue(pinName, true);
     this->sleep(50);
     pinSetValue(pinName, false);
+}
+
+void MaIO::pinSetValueAnalog(const QString &pinName, uint value)
+{
+    auto pin = m_namePinMap.value(pinName);
+    if (pin.kind == PinKind::Unknown) {
+        QMessageBox::critical(nullptr, "MaIO Error",
+                              QString("Unable to deliver analog message to pin '%1' (pin does not exist)").arg(pinName));
+        return;
+    }
+    if (value > 65535)
+        value = 65535;
+    m_firmata->writeAnalogPin(pin.id, static_cast<uint16_t>(value));
 }
 
 void MaIO::onDigitalRead(uint8_t port, uint8_t value)
@@ -224,6 +271,23 @@ static PyObject *maio_new_digital_pin(PyObject* self, PyObject* args)
 
     auto maio = MaIO::instance();
     maio->newDigitalPin(pinId, QString::fromUtf8(pinName), QString::fromUtf8(kindStr));
+
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+static PyObject *maio_new_analog_pin(PyObject* self, PyObject* args)
+{
+    const char *pinName;
+    const char *kindStr;
+    int pinId;
+
+    Q_UNUSED(self);
+    if (!PyArg_ParseTuple(args, "iss", &pinId, &pinName, &kindStr))
+        return NULL;
+
+    auto maio = MaIO::instance();
+    maio->newAnalogPin(pinId, QString::fromUtf8(pinName), QString::fromUtf8(kindStr));
 
     Py_INCREF(Py_None);
     return Py_None;
@@ -352,14 +416,33 @@ static PyObject *maio_pin_signal_pulse(PyObject* self, PyObject* args)
     return Py_None;
 }
 
-static struct PyMethodDef methods[] = {
-    { "new_digital_pin",     maio_new_digital_pin,     METH_VARARGS, "Register a new digital pin."},
-    { "set_events_header",   maio_set_events_header,   METH_VARARGS, "Set header of the recorded events table."},
-    { "fetch_digital_input", maio_fetch_digital_input, METH_VARARGS, "Retreive digital input from the queue."},
-    { "save_event",          maio_save_event,          METH_VARARGS, "Save an event to the log."},
-    { "pin_set_value",       maio_pin_set_value,       METH_VARARGS, "Set a digital output pin to a boolean value."},
-    { "pin_signal_pulse",    maio_pin_signal_pulse,    METH_VARARGS, "Emit a digital siganl on the specific pin."},
+static PyObject *maio_pin_set_value_analog(PyObject* self, PyObject* args)
+{
+    const char *pinName;
+    int value;
 
+    Q_UNUSED(self);
+    if (!PyArg_ParseTuple(args, "si", &pinName, &value))
+        return NULL;
+
+    if (value < 0)
+        value = 0;
+
+    MaIO::instance()->pinSetValue(QString::fromUtf8(pinName), static_cast<uint>(value));
+
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+static struct PyMethodDef methods[] = {
+    { "new_digital_pin",           maio_new_digital_pin,     METH_VARARGS, "Register a new digital pin."},
+    { "maio_new_analog_pin",       maio_new_analog_pin,     METH_VARARGS, "Register a new analog pin."},
+    { "set_events_header",         maio_set_events_header,   METH_VARARGS, "Set header of the recorded events table."},
+    { "fetch_digital_input",       maio_fetch_digital_input, METH_VARARGS, "Retreive digital input from the queue."},
+    { "save_event",                maio_save_event,          METH_VARARGS, "Save an event to the log."},
+    { "pin_set_value",             maio_pin_set_value,       METH_VARARGS, "Set a digital output pin to a boolean value."},
+    { "pin_signal_pulse",          maio_pin_signal_pulse,    METH_VARARGS, "Emit a digital siganl on the specific pin."},
+    { "maio_pin_set_value_analog", maio_pin_set_value_analog, METH_VARARGS, "Set pin to analog value."},
 
     { NULL, NULL, 0, NULL }
 };

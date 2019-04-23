@@ -583,8 +583,8 @@ bool MainWindow::makeDirectory(const QString &dir)
     if (!QDir().mkpath(dir)) {
         QMessageBox::critical(this, "Error",
                               QString("Unable to create directory '%1'.").arg(dir));
-        return false;
         setStatusText("OS error.");
+        return false;
     }
 
     return true;
