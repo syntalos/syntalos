@@ -179,9 +179,9 @@ bool VideoViewWidget::showImage(const cv::Mat& image)
 {
     auto channels = image.channels();
     if (channels == 1)
-        cvtColor(image, m_origImage, CV_GRAY2BGR);
+        cvtColor(image, m_origImage, cv::COLOR_GRAY2BGR);
     else if (channels == 4)
-        cvtColor(image, m_origImage, CV_BGRA2BGR);
+        cvtColor(image, m_origImage, cv::COLOR_BGRA2BGR);
     else
         image.copyTo(m_origImage);
 
