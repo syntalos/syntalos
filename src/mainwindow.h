@@ -34,7 +34,6 @@ class View;
 }
 
 class QVBoxLayout;
-class IntanUI;
 class QLabel;
 class WavePlot;
 class MazeScript;
@@ -56,7 +55,7 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    explicit MainWindow(QWidget *parent = 0);
+    explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
     void setStatusText(const QString& msg);
@@ -124,9 +123,6 @@ private:
     QLabel *m_statusBarLabel;
     QLabel *m_exportDirLabel;
     QLabel *m_exportDirInfoLabel;
-
-    IntanUI *m_intanUI;
-    QMdiSubWindow *m_intanTraceWin;
 
     QString m_experimentId;
     QString m_currentDate;

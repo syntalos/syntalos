@@ -21,6 +21,10 @@
 #define ABSTRACTMODULE_H
 
 #include <QObject>
+#include <QList>
+#include <QByteArray>
+#include <QAction>
+#include <QPixmap>
 #include <chrono>
 
 /**
@@ -50,6 +54,21 @@ public:
     virtual ModuleState state() const;
 
     /**
+     * @brief Name of this module used internally as unique identifier
+     */
+    virtual QString name() const = 0;
+
+    /**
+     * @brief Name of this module displayed to the user
+     */
+    virtual QString displayName() const;
+
+    /**
+     * @brief Icon of this module
+     */
+    virtual QPixmap pixmap() const;
+
+    /**
      * @brief Initialize the module
      *
      * Initialize this module. This method is called once after construction.
@@ -64,7 +83,7 @@ public:
      * prior to every experiment run.
      * @return true if success
      */
-    virtual bool prepare() = 0;
+    virtual bool prepare(const QString& storageRootDir, const QString& subjectId) = 0;
 
     /**
      * @brief Execute tasks once per processing loop
@@ -101,9 +120,36 @@ public:
     virtual void showDisplayUi();
 
     /**
-     * @brief Show the configuration UI of thos module
+     * @brief Show the configuration UI of this module
      */
     virtual void showSettingsUi();
+
+    /**
+     * @brief Hide all display widgets of this module
+     */
+    virtual void hideDisplayUi();
+
+    /**
+     * @brief Hide the configuration UI of this module
+     */
+    virtual void hideSettingsUi();
+
+    /**
+     * @brief Get actions to add to the module's submenu
+     * @return
+     */
+    virtual QList<QAction*> actions();
+
+    /**
+     * @brief Serialize the settings of this module to a byte array.
+     */
+    virtual QByteArray serializeSettings();
+
+    /**
+     * @brief Load settings from previously stored data.
+     * @return true if successful.
+     */
+    virtual bool loadSettings(const QByteArray& data);
 
     /**
      * @brief Return last error
@@ -117,10 +163,12 @@ public slots:
 signals:
     void stateChanged(ModuleState state);
     void errorMessage(const QString& message);
+    void statusMessage(const QString& message);
 
 protected:
     void setState(ModuleState state);
     void setLastError(const QString& message);
+    void setStatusMessage(const QString& message);
 
     QString m_storageDir;
 

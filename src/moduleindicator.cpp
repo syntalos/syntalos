@@ -21,6 +21,7 @@
 #include "ui_moduleindicator.h"
 
 #include <QPixmap>
+#include <QMenu>
 
 #pragma GCC diagnostic ignored "-Wpadded"
 class ModuleIndicator::MIData : public QSharedData {
@@ -36,6 +37,7 @@ public:
     }
 
     AbstractModule *module;
+    QMenu *menu;
 };
 #pragma GCC diagnostic pop
 
@@ -45,12 +47,26 @@ ModuleIndicator::ModuleIndicator(AbstractModule *module, QWidget *parent) :
     d(new MIData)
 {
     ui->setupUi(this);
+    d->menu = new QMenu(this);
 
     d->module = module;
 
-    // defaults
     ui->showButton->setEnabled(false);
+    ui->configButton->setEnabled(false);
     receiveStateChange(ModuleState::PREPARING);
+
+    ui->moduleImage->setPixmap(d->module->pixmap());
+    ui->moduleNameLabel->setText(d->module->displayName());
+
+    if (d->module->actions().isEmpty()) {
+        ui->menuButton->setVisible(false);
+    } else {
+        ui->menuButton->setVisible(true);
+        foreach(auto action, d->module->actions())
+            d->menu->addAction(action);
+        ui->menuButton->setMenu(d->menu);
+        connect(ui->menuButton, &QToolButton::clicked, ui->menuButton, &QToolButton::showMenu);
+    }
 
     connect(d->module, &AbstractModule::stateChanged, this, &ModuleIndicator::receiveStateChange);
     connect(d->module, &AbstractModule::errorMessage, this, &ModuleIndicator::receiveErrorMessage);
@@ -71,6 +87,8 @@ void ModuleIndicator::receiveStateChange(ModuleState state)
     case ModuleState::READY:
         ui->statusImage->setPixmap(QPixmap(":/status/ready"));
         ui->statusLabel->setText("Ready.");
+        ui->showButton->setEnabled(true);
+        ui->configButton->setEnabled(true);
         break;
     case ModuleState::RUNNING:
         ui->statusImage->setPixmap(QPixmap(":/status/running"));
@@ -93,4 +111,14 @@ void ModuleIndicator::receiveStateChange(ModuleState state)
 void ModuleIndicator::receiveErrorMessage(const QString &message)
 {
     ui->infoLabel->setText(message);
+}
+
+void ModuleIndicator::on_configButton_clicked()
+{
+    d->module->showSettingsUi();
+}
+
+void ModuleIndicator::on_showButton_clicked()
+{
+    d->module->showDisplayUi();
 }

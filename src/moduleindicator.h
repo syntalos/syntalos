@@ -36,6 +36,10 @@ public:
     explicit ModuleIndicator(AbstractModule *module, QWidget *parent = nullptr);
     ~ModuleIndicator();
 
+private slots:
+    void on_showButton_clicked();
+    void on_configButton_clicked();
+
 private:
     class MIData;
     Ui::ModuleIndicator *ui;

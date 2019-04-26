@@ -61,14 +61,14 @@
 #include "rhd2000datablock.h"
 #include "okFrontPanelDLL.h"
 
-#include "../../mainwindow.h"
+#include "rhd2000module.h"
 
 // Main Window of RHD2000 USB interface application.
 
 // Constructor.
-IntanUI::IntanUI(MainWindow *parentWindow)
+IntanUI::IntanUI(Rhd2000Module *module, QWidget *parentWindow)
     : QWidget(parentWindow),
-      mainWindow(parentWindow)
+      maModule(module)
 {
     // Default amplifier bandwidth settings
     desiredLowerBandwidth = 0.1;
@@ -199,6 +199,11 @@ IntanUI::IntanUI(MainWindow *parentWindow)
     changeYScale(yScaleComboBox->currentIndex());
 }
 
+IntanUI::~IntanUI()
+{
+    delete liveDisplayWidget;
+}
+
 QWidget *IntanUI::displayWidget() const
 {
     return liveDisplayWidget;
@@ -207,7 +212,7 @@ QWidget *IntanUI::displayWidget() const
 // Scan SPI Ports A-D to identify all connected RHD2000 amplifier chips.
 void IntanUI::scanPorts()
 {
-    mainWindow->statusBar()->showMessage("Scanning ports...");
+    maModule->setStatusMessage("Scanning ports...");
 
     // Scan SPI Ports.
     findConnectedAmplifiers();
@@ -266,7 +271,7 @@ void IntanUI::scanPorts()
     changeTScale(tScaleComboBox->currentIndex());
     changeYScale(yScaleComboBox->currentIndex());
 
-    mainWindow->statusBar()->clearMessage();
+    maModule->setStatusMessage("");
 }
 
 // Create GUI layout.  We create the user interface (UI) directly with code, so it
@@ -858,7 +863,7 @@ void IntanUI::createLayout()
 
     setLayout(settingsLayout);
 
-    liveDisplayWidget = new QWidget(this);
+    liveDisplayWidget = new QWidget();
     liveDisplayWidget->setWindowTitle("Recordings");
     auto viewLayout = new QVBoxLayout;
     liveDisplayWidget->setLayout(viewLayout);
@@ -2845,7 +2850,7 @@ void IntanUI::loadSettings(const QByteArray &data)
         return;
     }
 
-    mainWindow->statusBar()->showMessage("Restoring settings from file...");
+    maModule->setStatusMessage("Restoring settings from file...");
 
     inStream >> tempQint16;
     versionMain = tempQint16;
@@ -3099,7 +3104,7 @@ void IntanUI::loadSettings(const QByteArray &data)
     }
 
     wavePlot->refreshScreen();
-    mainWindow->statusBar()->clearMessage();
+    maModule->setStatusMessage("");
     //! wavePlot->setFocus();
 }
 
@@ -3259,7 +3264,7 @@ void IntanUI::runImpedanceMeasurement()
     evalBoard->setLedDisplay(ledArray);
     evalBoard->setTtlOut(ttlOut);
 
-    mainWindow->statusBar()->showMessage("Measuring electrode impedances...");
+    maModule->setStatusMessage("Measuring electrode impedances...");
 
     // Create a progress bar to let user know how long this will take.
     QProgressDialog progress("Measuring Electrode Impedances", "Abort", 0, 98, this);
@@ -3356,7 +3361,7 @@ void IntanUI::runImpedanceMeasurement()
                 ttlOut[15] = 0;
                 evalBoard->setLedDisplay(ledArray);
                 evalBoard->setTtlOut(ttlOut);
-                mainWindow->statusBar()->clearMessage();
+                maModule->setStatusMessage("");
                 //! wavePlot->setFocus();
                 return;
             }
@@ -3517,7 +3522,7 @@ void IntanUI::runImpedanceMeasurement()
     evalBoard->enableExternalDigOut(Rhd2000EvalBoard::PortD, auxDigOutEnabled[3]);
 
     saveImpedancesButton->setEnabled(true);
-    mainWindow->statusBar()->clearMessage();
+    maModule->setStatusMessage("");
     showImpedanceCheckBox->setChecked(true);
     showImpedances(true);
     //! wavePlot->setFocus();
@@ -3638,29 +3643,29 @@ void IntanUI::plotPointsMode(bool enabled)
 void IntanUI::setStatusBarReady()
 {
     if (!synthMode) {
-        mainWindow->setStatusText("Ready.");
+        maModule->setStatusMessage("Ready.");
     } else {
-        mainWindow->setStatusText("No USB board connected.  Ready to run with synthesized data.");
+        maModule->setStatusMessage("No USB board connected.  Ready to run with synthesized data.");
     }
 }
 
 void IntanUI::setStatusBarRunning()
 {
     if (!synthMode) {
-        mainWindow->setStatusText("Running.");
+        maModule->setStatusMessage("Running.");
     } else {
-        mainWindow->setStatusText("Running with synthesized data.");
+        maModule->setStatusMessage("Running with synthesized data.");
     }
 }
 
 void IntanUI::setStatusBarRecording(double bytesPerMinute)
 {
     if (!synthMode) {
-        mainWindow->setStatusText("Saving data to file " + saveFileName + ".  (" +
+        maModule->setStatusMessage("Saving data to file " + saveFileName + ".  (" +
                                 QString::number(bytesPerMinute / (1024.0 * 1024.0), 'f', 1) +
                                 " MB/minute.  File size may be reduced by disabling unused inputs.)");
     } else {
-        mainWindow->setStatusText("Saving synthesized data to file " + saveFileName + ".  (" +
+        maModule->setStatusMessage("Saving synthesized data to file " + saveFileName + ".  (" +
                                 QString::number(bytesPerMinute / (1024.0 * 1024.0), 'f', 1) +
                                 " MB/minute.  File size may be reduced by disabling unused inputs.)");
     }
@@ -3669,10 +3674,10 @@ void IntanUI::setStatusBarRecording(double bytesPerMinute)
 void IntanUI::setStatusBarWaitForTrigger()
 {
     if (recordTriggerPolarity == 0) {
-        mainWindow->setStatusText("Waiting for logic high trigger on digital input " +
+        maModule->setStatusMessage("Waiting for logic high trigger on digital input " +
                                 QString::number(recordTriggerChannel) + "...");
     } else {
-        mainWindow->setStatusText("Waiting for logic low trigger on digital input " +
+        maModule->setStatusMessage("Waiting for logic low trigger on digital input " +
                                 QString::number(recordTriggerChannel) + "...");
     }
 }

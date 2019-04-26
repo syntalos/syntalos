@@ -24,21 +24,48 @@
 #include <chrono>
 #include "abstractmodule.h"
 
+class IntanUI;
+class TracePlotProxy;
+
 class Rhd2000Module : public AbstractModule
 {
     Q_OBJECT
 public:
     explicit Rhd2000Module(QObject *parent = nullptr);
+    ~Rhd2000Module();
+
+    QString name() const;
+    QString displayName() const;
+    QPixmap pixmap() const;
 
     bool initialize();
 
-    bool prepare();
+    bool prepare(const QString& storageRootDir, const QString& subjectId);
 
     bool runCycle();
 
     void stop();
 
     void finalize();
+
+    void showDisplayUi();
+    void hideDisplayUi();
+
+    void showSettingsUi();
+    void hideSettingsUi();
+
+    QList<QAction *> actions();
+
+    QByteArray serializeSettings();
+    bool loadSettings(const QByteArray& data);
+
+    void setPlotProxy(TracePlotProxy *proxy);
+
+    void setStatusMessage(const QString& message);
+
+private:
+    IntanUI *m_intanUi;
+    QList<QAction *> m_actions;
 };
 
 #endif // RHD2000MODULE_H

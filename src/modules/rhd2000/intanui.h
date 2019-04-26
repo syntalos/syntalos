@@ -56,17 +56,18 @@ class HelpDialogHighpassFilter;
 class HelpDialogNotchFilter;
 class HelpDialogFastSettle;
 class WaitForTriggerDialog;
-class MainWindow;
+class Rhd2000Module;
 
 using namespace std;
 
 class IntanUI : public QWidget
 {
     Q_OBJECT
-    friend class MainWindow;
+    friend class Rhd2000Module;
 
 public:
-    IntanUI(MainWindow *parentWindow);
+    IntanUI(Rhd2000Module *maModule, QWidget *parent = nullptr);
+    ~IntanUI();
 
     void setNumWaveformsComboBox(int index);
 
@@ -361,7 +362,7 @@ private:
     QLabel *dacGainLabel;
     QLabel *dacNoiseSuppressLabel;
 
-    MainWindow *mainWindow;
+    Rhd2000Module *maModule;
     QWidget *liveDisplayWidget;
 };
 

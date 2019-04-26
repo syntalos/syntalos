@@ -73,6 +73,8 @@
 
 #include "moduleindicator.h"
 
+#include "modules/rhd2000/rhd2000module.h"
+
 
 #define CONFIG_FILE_FORMAT_VERSION "1"
 
@@ -94,26 +96,6 @@ MainWindow::MainWindow(QWidget *parent) :
     // status widget
     m_statusWidget = new StatusWidget(this);
     ui->mdiArea->addSubWindow(m_statusWidget)->setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowMinMaxButtonsHint);
-
-    // set up Intan GUI and board
-    m_intanUI = new IntanUI(this);
-
-    auto intanLayout = new QVBoxLayout();
-    intanLayout->addWidget(m_intanUI);
-    ui->tabIntan->setLayout(intanLayout);
-
-    m_intanTraceWin = ui->mdiArea->addSubWindow(m_intanUI->displayWidget());
-    m_intanTraceWin->setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowMinMaxButtonsHint);
-
-    // add Intan menu actions
-    ui->menuIntan->addSeparator();
-    ui->menuIntan->addAction(m_intanUI->renameChannelAction);
-    ui->menuIntan->addAction(m_intanUI->toggleChannelEnableAction);
-    ui->menuIntan->addAction(m_intanUI->enableAllChannelsAction);
-    ui->menuIntan->addAction(m_intanUI->disableAllChannelsAction);
-    ui->menuIntan->addSeparator();
-    ui->menuIntan->addAction(m_intanUI->originalOrderAction);
-    ui->menuIntan->addAction(m_intanUI->alphaOrderAction);
 
     // setup general page
     auto openDirBtn = new QToolButton();
@@ -484,11 +466,15 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->traceView0->setRenderHint(QPainter::Antialiasing);
     auto twScrollBar = new QScrollBar(this);
     ui->traceView0->addScrollBarWidget(twScrollBar, Qt::AlignBottom);
+
+    //! FIXME: TracePlot module
+#if 0
     m_intanUI->getWavePlot()->setPlotProxy(m_traceProxy);
     connect(m_traceProxy, &TracePlotProxy::maxHorizontalPositionChanged, ui->plotScrollBar, &QScrollBar::setMaximum);
     connect(m_traceProxy, &TracePlotProxy::maxHorizontalPositionChanged, ui->plotScrollBar, &QScrollBar::setValue);
     connect(ui->plotScrollBar, &QScrollBar::valueChanged, m_traceProxy, &TracePlotProxy::moveTo);
     ui->plotRefreshSpinBox->setValue(m_traceProxy->refreshTime());
+#endif
 
     // there are 6 ports on the Intan eval port - we hardcode that at time
     for (uint port = 0; port < 6; port++) {
@@ -504,12 +490,6 @@ MainWindow::MainWindow(QWidget *parent) :
     // lastly, restore our geometry and widget state
     QSettings settings("DraguhnLab", "MazeAmaze");
     restoreGeometry(settings.value("main/geometry").toByteArray());
-
-
-    //auto test1 = new ModuleIndicator(ui->scrollArea);
-    //ui->scrollAreaLayout->addWidget(test1);
-    //auto test2 = new ModuleIndicator(ui->scrollArea);
-    //ui->scrollAreaLayout->addWidget(test2);
 }
 
 MainWindow::~MainWindow()
@@ -723,7 +703,7 @@ void MainWindow::runActionTriggered()
         m_videoTracker->setSubjectId(m_currentSubject.id);
     }
     m_videoTracker->setDataLocation(videoDataDir);
-    m_intanUI->setBaseFileName(intanBaseName);
+    //! FIXME m_intanUI->setBaseFileName(intanBaseName);
 
     // open camera (might take a while, so we do this early)
     if (m_features.videoEnabled) {
@@ -804,7 +784,7 @@ void MainWindow::runActionTriggered()
 
     if (m_features.ephysEnabled) {
         qDebug() << "Starting Intan recording";
-        m_intanUI->recordInterfaceBoard(barrier);
+        //! FIXME m_intanUI->recordInterfaceBoard(barrier);
     }
 }
 
@@ -830,7 +810,7 @@ void MainWindow::stopActionTriggered()
 
     // stop interface board
     if (m_features.ephysEnabled) {
-        m_intanUI->stopInterfaceBoard();
+        //! FIXME m_intanUI->stopInterfaceBoard();
         m_statusWidget->setIntanStatus(StatusWidget::Ready);
     }
 
@@ -877,7 +857,13 @@ void MainWindow::intanRunActionTriggered()
 
     // run Intan acquisition
     m_statusWidget->setIntanStatus(StatusWidget::Active);
-    m_intanUI->runInterfaceBoard();
+    //! FIXME m_intanUI->runInterfaceBoard();
+
+
+    auto test1 = new Rhd2000Module(this);
+    auto mi = new ModuleIndicator(test1, ui->scrollArea);
+    ui->scrollAreaLayout->addWidget(mi);
+    test1->initialize();
 }
 
 void MainWindow::setDataExportBaseDir(const QString& dir)
@@ -971,17 +957,17 @@ void MainWindow::changeExperimentFeatures(const ExperimentFeatures& features)
     }
 
     if (features.ephysEnabled) {
-        m_intanTraceWin->show();
+        //! FIXME m_intanTraceWin->show();
         ui->cbEphysFeature->setChecked(true);
         ui->tabIntan->setEnabled(true);
-        m_intanUI->setEnabled(true);
+        //! FIXME m_intanUI->setEnabled(true);
 
         m_statusWidget->setIntanStatus(StatusWidget::Status::Enabled);
     } else {
-        m_intanTraceWin->hide();
+        //! FIXME m_intanTraceWin->hide();
         ui->cbEphysFeature->setChecked(false);
         ui->tabIntan->setEnabled(false);
-        m_intanUI->setEnabled(false);
+        //! FIXME m_intanUI->setEnabled(false);
 
         m_statusWidget->setIntanStatus(StatusWidget::Status::Disabled);
     }
@@ -1067,7 +1053,7 @@ void MainWindow::saveSettingsActionTriggered()
     // save Intan settings data
     QByteArray intanSettings;
     QDataStream intanSettingsStream(&intanSettings,QIODevice::WriteOnly);
-    m_intanUI->exportSettings(intanSettingsStream);
+    //! FIXME m_intanUI->exportSettings(intanSettingsStream);
 
     tar.writeFile ("intan.isf", intanSettings);
 
@@ -1184,8 +1170,8 @@ void MainWindow::loadSettingsActionTriggered()
 
     // load Intan settings
     auto intanSettingsFile = rootDir->file("intan.isf");
-    if (intanSettingsFile != nullptr)
-        m_intanUI->loadSettings(intanSettingsFile->data());
+    //! FIXME if (intanSettingsFile != nullptr)
+    //! FIXME    m_intanUI->loadSettings(intanSettingsFile->data());
 
     // load Maze IO Python script
     auto mazeScriptFile = rootDir->file("mscript.py");
@@ -1215,6 +1201,9 @@ void MainWindow::setStatusText(const QString& msg)
 
 void MainWindow::on_portListWidget_itemActivated(QListWidgetItem *item)
 {
+    Q_UNUSED(item);
+    //! FIXME TracePlot module
+#if 0
     auto port = item->data(Qt::UserRole).toInt();
     auto waveplot = m_intanUI->getWavePlot();
 
@@ -1232,6 +1221,7 @@ void MainWindow::on_portListWidget_itemActivated(QListWidgetItem *item)
         item->setText(waveplot->getChannelName(port, chan));
         ui->chanListWidget->addItem(item);
     }
+#endif
 }
 
 void MainWindow::on_chanListWidget_itemActivated(QListWidgetItem *item)

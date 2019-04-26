@@ -5,9 +5,9 @@
         <file alias="appicon">mazeamaze.svg</file>
         <file alias="view">chart.svg</file>
         <file alias="settings">settings.svg</file>
-        <file alias="module-generic">module-generic.svg</file>
         <file alias="show-module">show-module-widgets.svg</file>
         <file alias="remove">remove.svg</file>
+        <file alias="menu">menu.svg</file>
     </qresource>
     <qresource prefix="/images">
         <file>mouse-top.png</file>
@@ -21,5 +21,6 @@
     </qresource>
     <qresource prefix="/module">
         <file alias="rhd2000">modules/intan-rhd2000.svg</file>
+        <file alias="generic">modules/generic.svg</file>
     </qresource>
 </RCC>
