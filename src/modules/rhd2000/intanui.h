@@ -1,8 +1,8 @@
 //  ------------------------------------------------------------------------
 //
 //  This file is part of the Intan Technologies RHD2000 Interface
-//  Version 1.5
-//  Copyright (C) 2013-2014 Intan Technologies
+//  Version 1.5.2
+//  Copyright (C) 2013-2017 Intan Technologies
 //
 //  ------------------------------------------------------------------------
 //
@@ -26,7 +26,6 @@
 #include <queue>
 #include "rhd2000datablock.h"
 #include "globalconstants.h"
-#include "qtincludes.h"
 
 #include "barrier.h"
 
@@ -41,6 +40,7 @@ class QSlider;
 class QLineEdit;
 class QLabel;
 class QFile;
+class QMenu;
 class WavePlot;
 class SignalProcessor;
 class Rhd2000EvalBoard;

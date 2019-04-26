@@ -1,8 +1,8 @@
 //  ------------------------------------------------------------------------
 //
 //  This file is part of the Intan Technologies RHD2000 Interface
-//  Version 1.4.2
-//  Copyright (C) 2013 Intan Technologies
+//  Version 1.5.2
+//  Copyright (C) 2013-2017 Intan Technologies
 //
 //  ------------------------------------------------------------------------
 //
@@ -24,7 +24,6 @@
 
 #include <QWidget>
 #include "signalgroup.h"
-#include "qtincludes.h"
 
 using namespace std;
 

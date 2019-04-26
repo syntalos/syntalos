@@ -1,8 +1,8 @@
 //  ------------------------------------------------------------------------
 //
 //  This file is part of the Intan Technologies RHD2000 Interface
-//  Version 1.5
-//  Copyright (C) 2013-2016 Intan Technologies
+//  Version 1.5.2
+//  Copyright (C) 2013-2017 Intan Technologies
 //
 //  ------------------------------------------------------------------------
 //
@@ -23,9 +23,9 @@
 #define TRIGGERRECORDDIALOG_H
 
 #include <QDialog>
-#include "qtincludes.h"
 
 class QDialogButtonBox;
+class QCheckBox;
 class QComboBox;
 class QSpinBox;
 

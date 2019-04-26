@@ -41,6 +41,11 @@
 #include <QFontDatabase>
 #include <QStandardPaths>
 #include <QDoubleSpinBox>
+#include <QMessageBox>
+#include <QProgressDialog>
+#include <QDir>
+#include <QFileInfo>
+#include <QFileDialog>
 #include <memory>
 #include <QSettings>
 #include <QListWidgetItem>

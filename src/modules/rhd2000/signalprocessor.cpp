@@ -1,8 +1,8 @@
 //  ------------------------------------------------------------------------
 //
 //  This file is part of the Intan Technologies RHD2000 Interface
-//  Version 1.3
-//  Copyright (C) 2013 Intan Technologies
+//  Version 1.5.2
+//  Copyright (C) 2013-2017 Intan Technologies
 //
 //  ------------------------------------------------------------------------
 //
@@ -25,8 +25,6 @@
 #include <queue>
 #include <qmath.h>
 #include <iostream>
-
-#include "qtincludes.h"
 
 #include "mainwindow.h"
 #include "signalprocessor.h"
@@ -1337,7 +1335,7 @@ int SignalProcessor::loadSyntheticData(int numBlocks, double sampleRate,
     bool spikePresent;
     int spikeNum;
 
-    // If the sample rate is 5 kS/s or higher, generate sythetic neural data;
+    // If the sample rate is 5 kS/s or higher, generate synthetic neural data;
     // otherwise, generate synthetic ECG data.
     if (sampleRate > 4999.9) {
         // Generate synthetic neural data.
@@ -1755,9 +1753,11 @@ void SignalProcessor::filterData(int numBlocks,
         // If the notch filter is disabled, simply copy the data without filtering.
         for (stream = 0; stream < numDataStreams; ++stream) {
             for (channel = 0; channel < 32; ++channel) {
-                for (t = 0; t < length; ++t) {
-                    amplifierPostFilter[stream][channel][t] =
-                            amplifierPreFilter.at(stream).at(channel).at(t);
+                if (channelVisible.at(stream).at(channel)) {
+                    for (t = 0; t < length; ++t) {
+                        amplifierPostFilter[stream][channel][t] =
+                                amplifierPreFilter.at(stream).at(channel).at(t);
+                    }
                 }
             }
         }

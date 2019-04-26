@@ -1,8 +1,8 @@
 //  ------------------------------------------------------------------------
 //
 //  This file is part of the Intan Technologies RHD2000 Interface
-//  Version 1.3
-//  Copyright (C) 2013 Intan Technologies
+//  Version 1.5.2
+//  Copyright (C) 2013-2017 Intan Technologies
 //
 //  ------------------------------------------------------------------------
 //
@@ -26,7 +26,6 @@
 #define SPIKEPLOT_Y_SIZE 346
 
 #include <QWidget>
-#include "qtincludes.h"
 
 using namespace std;
 

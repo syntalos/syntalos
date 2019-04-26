@@ -1,8 +1,8 @@
 //  ------------------------------------------------------------------------
 //
 //  This file is part of the Intan Technologies RHD2000 Interface
-//  Version 1.3
-//  Copyright (C) 2013 Intan Technologies
+//  Version 1.5.2
+//  Copyright (C) 2013-2017 Intan Technologies
 //
 //  ------------------------------------------------------------------------
 //
@@ -20,8 +20,9 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <QtGui>
-
-#include "qtincludes.h"
+#if QT_VERSION >= QT_VERSION_CHECK(5,0,0)
+#include <QtWidgets>
+#endif
 
 #include "globalconstants.h"
 #include "setsaveformatdialog.h"
@@ -68,7 +69,7 @@ SetSaveFormatDialog::SetSaveFormatDialog(SaveFormat initSaveFormat, bool initSav
     saveTemperatureCheckBox = new QCheckBox(tr("Save On-Chip Temperature Sensor Readings"));
     saveTemperatureCheckBox->setChecked(initSaveTemperature);
 
-    saveTtlOutCheckBox = new QCheckBox(tr("Save Digital Ouputs"));
+    saveTtlOutCheckBox = new QCheckBox(tr("Save Digital Outputs"));
     saveTtlOutCheckBox->setChecked(initSaveTtlOut);
 
     buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);

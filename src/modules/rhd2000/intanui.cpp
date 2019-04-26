@@ -1,8 +1,8 @@
 //  ------------------------------------------------------------------------
 //
 //  This file is part of the Intan Technologies RHD2000 Interface
-//  Version 1.5
-//  Copyright (C) 2013-2016 Intan Technologies
+//  Version 1.5.2
+//  Copyright (C) 2013-2017 Intan Technologies
 //
 //  ------------------------------------------------------------------------
 //
@@ -20,15 +20,18 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <QtGui>
+#if QT_VERSION >= QT_VERSION_CHECK(5,0,0)
+#include <QtWidgets>
+#endif
 #include <QWidget>
+#include <qglobal.h>
+
 #include <QFile>
 #include <QTime>
 #include <iostream>
 #include <fstream>
 #include <vector>
 #include <queue>
-
-#include "qtincludes.h"
 
 #include "modules/rhd2000/intanui.h"
 #include "globalconstants.h"
@@ -957,8 +960,8 @@ void IntanUI::about()
 {
     QMessageBox::about(this, tr("About Intan Technologies RHD2000 Interface"),
             tr("<h2>Intan Technologies RHD2000 Interface</h2>"
-               "<p>Version 1.5"
-               "<p>Copyright &copy; 2013-2016 Intan Technologies"
+               "<p>Version 1.5.2"
+               "<p>Copyright &copy; 2013-2017 Intan Technologies"
                "<p>This biopotential recording application controls the RHD2000 "
                "USB Interface Board from Intan Technologies.  The C++/Qt source code "
                "for this application is freely available from Intan Technologies. "
@@ -1346,6 +1349,7 @@ void IntanUI::setDacChannelLabel(int dacChannel, QString channel,
         dacButton8->setText(text);
         break;
     }
+    adjustSize();
 }
 
 // Change notch filter settings.
@@ -1652,7 +1656,7 @@ void IntanUI::openInterfaceBoard()
         if (errorCode == -1) {
             r = QMessageBox::question(this, tr("Cannot load Opal Kelly FrontPanel DLL"),
                                   tr("Opal Kelly USB drivers not installed.  "
-                                     "Click OK to run application with sythesized biopotential data for "
+                                     "Click OK to run application with synthesized biopotential data for "
                                      "demonstration purposes."
                                      "<p>To use the RHD2000 Interface, click Cancel, load the correct "
                                      "Opal Kelly drivers, then restart the application."
@@ -1661,7 +1665,7 @@ void IntanUI::openInterfaceBoard()
         } else {
             r = QMessageBox::question(this, tr("Intan RHD2000 USB Interface Board Not Found"),
                                   tr("Intan Technologies RHD2000 Interface not found on any USB port.  "
-                                     "Click OK to run application with sythesized biopotential data for "
+                                     "Click OK to run application with synthesized biopotential data for "
                                      "demonstration purposes."
                                      "<p>To use the RHD2000 Interface, click Cancel, connect the device "
                                      "to a USB port, then restart the application."
@@ -3420,8 +3424,7 @@ void IntanUI::runImpedanceMeasurement()
     const double bestAmplitude = 250.0;  // we favor voltage readings that are closest to 250 uV: not too large,
                                          // and not too small.
     const double dacVoltageAmplitude = 128 * (1.225 / 256);  // this assumes the DAC amplitude was set to 128
-    const double parasiticCapacitance = 14.0e-12;  // 14 pF: an estimate of on-chip parasitic capacitance,
-                                                   // including 10 pF of amplifier input capacitance.
+    const double parasiticCapacitance = 10.0e-12;  // 10 pF: an estimate of on-chip parasitic capacitance.
     double relativeFreq = actualImpedanceFreq / boardSampleRate;
 
     int bestAmplitudeIndex = 0;
@@ -3864,56 +3867,56 @@ void IntanUI::setSaveFormatDialog()
 void IntanUI::setDacThreshold1(int threshold)
 {
     int threshLevel = qRound((double) threshold / 0.195) + 32768;
-    if (evalBoard != nullptr)
+    if (evalBoard != nullptr && !synthMode)
         evalBoard->setDacThreshold(0, threshLevel, threshold >= 0);
 }
 
 void IntanUI::setDacThreshold2(int threshold)
 {
     int threshLevel = qRound((double) threshold / 0.195) + 32768;
-    if (evalBoard != nullptr)
+    if (evalBoard != nullptr && !synthMode)
         evalBoard->setDacThreshold(1, threshLevel, threshold >= 0);
 }
 
 void IntanUI::setDacThreshold3(int threshold)
 {
     int threshLevel = qRound((double) threshold / 0.195) + 32768;
-    if (evalBoard != nullptr)
+    if (evalBoard != nullptr && !synthMode)
         evalBoard->setDacThreshold(2, threshLevel, threshold >= 0);
 }
 
 void IntanUI::setDacThreshold4(int threshold)
 {
     int threshLevel = qRound((double) threshold / 0.195) + 32768;
-    if (evalBoard != nullptr)
+    if (evalBoard != nullptr && !synthMode)
         evalBoard->setDacThreshold(3, threshLevel, threshold >= 0);
 }
 
 void IntanUI::setDacThreshold5(int threshold)
 {
     int threshLevel = qRound((double) threshold / 0.195) + 32768;
-    if (evalBoard != nullptr)
+    if (evalBoard != nullptr && !synthMode)
         evalBoard->setDacThreshold(4, threshLevel, threshold >= 0);
 }
 
 void IntanUI::setDacThreshold6(int threshold)
 {
     int threshLevel = qRound((double) threshold / 0.195) + 32768;
-    if (evalBoard != nullptr)
+    if (evalBoard != nullptr && !synthMode)
         evalBoard->setDacThreshold(5, threshLevel, threshold >= 0);
 }
 
 void IntanUI::setDacThreshold7(int threshold)
 {
     int threshLevel = qRound((double) threshold / 0.195) + 32768;
-    if (evalBoard != nullptr)
+    if (evalBoard != nullptr && !synthMode)
         evalBoard->setDacThreshold(6, threshLevel, threshold >= 0);
 }
 
 void IntanUI::setDacThreshold8(int threshold)
 {
     int threshLevel = qRound((double) threshold / 0.195) + 32768;
-    if (evalBoard != nullptr)
+    if (evalBoard != nullptr && !synthMode)
         evalBoard->setDacThreshold(7, threshLevel, threshold >= 0);
 }
 
