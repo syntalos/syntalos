@@ -6,9 +6,18 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
 
 #
+# Options
+#
+option(MAINTAINER "Enable maintainer mode" OFF)
+
+
+#
 # Compiler flags
 #
-add_definitions("-Wall" "-W" "-Wextra" "-Werror")
+add_definitions("-Wall" "-Wextra")
+if (MAINTAINER)
+    add_definitions("-Werror")
+endif()
 
 add_definitions("-Wno-unused-but-set-variable")
 
@@ -19,9 +28,11 @@ endif()
 string( REPLACE "-rdynamic" "" CMAKE_SHARED_LIBRARY_LINK_C_FLAGS ${CMAKE_SHARED_LIBRARY_LINK_C_FLAGS})
 string( REPLACE "-rdynamic" "" CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS ${CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS})
 
+
 #
 # Dependencies
 #
+set(OpenGL_GL_PREFERENCE GLVND)
 include(GNUInstallDirs)
 find_package(Qt5Widgets REQUIRED)
 find_package(Qt5SerialPort REQUIRED)
@@ -39,10 +50,12 @@ find_package(KF5DBusAddons REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(OpenGL REQUIRED)
 
+
 #
 # Compile options
 #
 option(UEYE_CAMERA "Use uEye camera instead of generic driver")
+
 
 #
 # Config file
@@ -53,6 +66,7 @@ endif ()
 set(OKLIB_FULL_PATH "${CMAKE_INSTALL_FULL_LIBDIR}/mazeamaze/libokFrontPanel.so")
 configure_file(config.h.in ${CMAKE_BINARY_DIR}/config.h)
 include_directories(${CMAKE_BINARY_DIR})
+
 
 #
 # Subdirectories

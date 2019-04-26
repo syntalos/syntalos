@@ -54,8 +54,8 @@
 
 #include "ma-private.h"
 
-#include "intanrec/intanui.h"
-#include "intanrec/waveplot.h"
+#include "modules/rhd2000/intanui.h"
+#include "modules/rhd2000/waveplot.h"
 
 #include "video/mazevideo.h"
 #include "video/videoviewwidget.h"
@@ -65,6 +65,8 @@
 
 #include "traceplot/traceplotproxy.h"
 #include "traceplot/traceview.h"
+
+#include "moduleindicator.h"
 
 
 #define CONFIG_FILE_FORMAT_VERSION "1"
@@ -497,6 +499,12 @@ MainWindow::MainWindow(QWidget *parent) :
     // lastly, restore our geometry and widget state
     QSettings settings("DraguhnLab", "MazeAmaze");
     restoreGeometry(settings.value("main/geometry").toByteArray());
+
+
+    //auto test1 = new ModuleIndicator(ui->scrollArea);
+    //ui->scrollAreaLayout->addWidget(test1);
+    //auto test2 = new ModuleIndicator(ui->scrollArea);
+    //ui->scrollAreaLayout->addWidget(test2);
 }
 
 MainWindow::~MainWindow()

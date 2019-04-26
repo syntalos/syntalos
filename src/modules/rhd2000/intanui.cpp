@@ -30,7 +30,7 @@
 
 #include "qtincludes.h"
 
-#include "intanui.h"
+#include "modules/rhd2000/intanui.h"
 #include "globalconstants.h"
 #include "signalprocessor.h"
 #include "waveplot.h"
@@ -58,7 +58,7 @@
 #include "rhd2000datablock.h"
 #include "okFrontPanelDLL.h"
 
-#include "mainwindow.h"
+#include "../../mainwindow.h"
 
 // Main Window of RHD2000 USB interface application.
 
