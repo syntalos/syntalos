@@ -24,6 +24,7 @@
 
 #include <QWidget>
 #include <queue>
+#include <QTime>
 #include "rhd2000datablock.h"
 #include "globalconstants.h"
 
@@ -83,10 +84,14 @@ public:
 
     QWidget *displayWidget() const;
 
-    void runInterfaceBoard(Barrier barrier = true);
-    void recordInterfaceBoard(Barrier barrier);
+    void runInterfaceBoard();
+    void recordInterfaceBoard();
     void triggerRecordInterfaceBoard();
     void stopInterfaceBoard();
+
+    void interfaceBoardInitRun();
+    bool interfaceBoardRunCycle();
+    void interfaceBoardStopFinalize();
 
     void setBaseFileName(const QString& fname);
     void loadSettings(const QByteArray &data);
@@ -364,6 +369,40 @@ private:
 
     Rhd2000Module *maModule;
     QWidget *liveDisplayWidget;
+
+    // data used in a data acquisition run
+    struct {
+        bool runInitialized = false;
+
+        int triggerIndex;
+        QTime timer;
+
+        double fifoPercentageFull;
+        double fifoCapacity;
+        double samplePeriod;
+        double latency;
+
+        long long totalBytesWritten = 0;
+        unsigned int wordsInFifo;
+        unsigned int dataBlockSize;
+
+        int timestampOffset = 0;
+
+        queue<Rhd2000DataBlock> bufferQueue;
+        unsigned int preTriggerBufferQueueLength = 0;
+
+        double bytesPerMinute;
+        double totalRecordTimeSeconds = 0.0;
+        double recordTimeIncrementSeconds;
+
+        int fifoNearlyFull = 0; // static
+        int triggerEndCounter = 0; // static
+
+        int triggerEndThreshold;
+
+        int ledArray[8] = {1, 0, 0, 0, 0, 0, 0, 0};
+        int ledIndex = 0;
+    } crd;
 };
 
 #endif // IntanUI_H

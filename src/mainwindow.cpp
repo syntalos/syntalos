@@ -22,6 +22,7 @@
 #include "ui_mainwindow.h"
 
 #include <QApplication>
+#include <QPushButton>
 #include <QGroupBox>
 #include <QComboBox>
 #include <QToolButton>
@@ -68,8 +69,8 @@
 #include "pyscript/mazescript.h"
 #include "statuswidget.h"
 
-#include "traceplot/traceplotproxy.h"
-#include "traceplot/traceview.h"
+#include "modules/traceplot/traceplotproxy.h"
+#include "modules/traceplot/traceview.h"
 
 #include "moduleindicator.h"
 
@@ -864,6 +865,11 @@ void MainWindow::intanRunActionTriggered()
     auto mi = new ModuleIndicator(test1, ui->scrollArea);
     ui->scrollAreaLayout->addWidget(mi);
     test1->initialize();
+
+    test1->prepare("/tmp", "blah");
+    while (true)
+        test1->runCycle();
+    test1->stop();
 }
 
 void MainWindow::setDataExportBaseDir(const QString& dir)

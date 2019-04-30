@@ -90,7 +90,6 @@ add_executable(mazeamaze
     ${SCRIPT_SRC}
     ${FIRMATA_SRC}
     ${VIDEO_SRC}
-    ${PLOT_SRC}
     ${VIDEO_UEYE_SRC}
 )
 
@@ -111,6 +110,7 @@ target_link_libraries(mazeamaze
     ${UYEYE_LIB}
 
     mod_intan_rhd2000
+    mod_traceplot
 )
 
 include_directories(

@@ -35,7 +35,7 @@
 #include "signalsources.h"
 #include "signalprocessor.h"
 
-#include "traceplot/traceplotproxy.h"
+#include "modules/traceplot/traceplotproxy.h"
 
 // The WavePlot widget displays multiple waveform plots in the Main Window.
 // Five types of waveforms may be displayed: amplifier, auxiliary input, supply

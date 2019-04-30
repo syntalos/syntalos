@@ -74,17 +74,20 @@ bool Rhd2000Module::prepare(const QString &storageRootDir, const QString &subjec
 
     m_intanUi->setBaseFileName(intanBaseName);
 
+    m_intanUi->interfaceBoardInitRun();
+    setState(ModuleState::RUNNING);
+
     return true;
 }
 
 bool Rhd2000Module::runCycle()
 {
-    return true;
+    return m_intanUi->interfaceBoardRunCycle();
 }
 
 void Rhd2000Module::stop()
 {
-    return;
+    m_intanUi->interfaceBoardStopFinalize();
 }
 
 void Rhd2000Module::finalize()

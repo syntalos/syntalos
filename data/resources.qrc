@@ -22,5 +22,6 @@
     <qresource prefix="/module">
         <file alias="rhd2000">modules/intan-rhd2000.svg</file>
         <file alias="generic">modules/generic.svg</file>
+        <file alias="traceplot">modules/traceplot.svg</file>
     </qresource>
 </RCC>

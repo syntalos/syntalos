@@ -18,7 +18,7 @@
     <normaloff>:/icons/appicon</normaloff>:/icons/appicon</iconset>
   </property>
   <widget class="QWidget" name="centralWidget">
-   <layout class="QHBoxLayout" name="horizontalLayout_11">
+   <layout class="QVBoxLayout" name="verticalLayout_15">
     <property name="spacing">
      <number>2</number>
     </property>
@@ -35,28 +35,23 @@
      <number>2</number>
     </property>
     <item>
-     <widget class="QScrollArea" name="scrollArea">
+     <widget class="QTabWidget" name="tabWidget">
       <property name="minimumSize">
        <size>
-        <width>600</width>
-        <height>0</height>
+        <width>0</width>
+        <height>200</height>
        </size>
       </property>
-      <property name="widgetResizable">
-       <bool>true</bool>
+      <property name="currentIndex">
+       <number>0</number>
       </property>
-      <widget class="QWidget" name="scrollAreaWidgetContents">
-       <property name="geometry">
-        <rect>
-         <x>0</x>
-         <y>0</y>
-         <width>596</width>
-         <height>740</height>
-        </rect>
-       </property>
-       <layout class="QVBoxLayout" name="scrollAreaLayout">
+      <widget class="QWidget" name="tabGeneral">
+       <attribute name="title">
+        <string>General</string>
+       </attribute>
+       <layout class="QVBoxLayout" name="verticalLayout_16">
         <property name="spacing">
-         <number>4</number>
+         <number>2</number>
         </property>
         <property name="leftMargin">
          <number>2</number>
@@ -70,6 +65,511 @@
         <property name="bottomMargin">
          <number>2</number>
         </property>
+        <item>
+         <widget class="QGroupBox" name="groupBox">
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="title">
+           <string>Data Export</string>
+          </property>
+          <layout class="QVBoxLayout" name="verticalLayout_5">
+           <item>
+            <layout class="QVBoxLayout" name="dataExportLayout">
+             <item>
+              <layout class="QHBoxLayout" name="dataExportDirLayout">
+               <property name="spacing">
+                <number>4</number>
+               </property>
+              </layout>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="groupBox_2">
+          <property name="title">
+           <string>Experiment Details</string>
+          </property>
+          <layout class="QFormLayout" name="formLayout_4">
+           <property name="horizontalSpacing">
+            <number>4</number>
+           </property>
+           <property name="verticalSpacing">
+            <number>10</number>
+           </property>
+           <property name="leftMargin">
+            <number>4</number>
+           </property>
+           <property name="topMargin">
+            <number>4</number>
+           </property>
+           <property name="rightMargin">
+            <number>4</number>
+           </property>
+           <property name="bottomMargin">
+            <number>4</number>
+           </property>
+           <item row="0" column="0" colspan="2">
+            <layout class="QFormLayout" name="expDetailsLayout">
+             <item row="0" column="1">
+              <widget class="QWidget" name="widget_5" native="true">
+               <layout class="QVBoxLayout" name="verticalLayout_2">
+                <property name="spacing">
+                 <number>4</number>
+                </property>
+                <property name="leftMargin">
+                 <number>0</number>
+                </property>
+                <property name="rightMargin">
+                 <number>0</number>
+                </property>
+                <property name="bottomMargin">
+                 <number>0</number>
+                </property>
+                <item>
+                 <widget class="QComboBox" name="expTypeComboBox"/>
+                </item>
+                <item>
+                 <widget class="QWidget" name="panelFeatureCustomize" native="true">
+                  <property name="enabled">
+                   <bool>false</bool>
+                  </property>
+                  <layout class="QHBoxLayout" name="horizontalLayout_10">
+                   <property name="spacing">
+                    <number>8</number>
+                   </property>
+                   <property name="leftMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="rightMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="bottomMargin">
+                    <number>0</number>
+                   </property>
+                   <item>
+                    <widget class="QCheckBox" name="cbVideoFeature">
+                     <property name="text">
+                      <string>Video</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QCheckBox" name="cbTrackingFeature">
+                     <property name="text">
+                      <string>Tracking</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QCheckBox" name="cbEphysFeature">
+                     <property name="text">
+                      <string>Electrophysiology</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QCheckBox" name="cbIOFeature">
+                     <property name="text">
+                      <string>Programmable I/O</string>
+                     </property>
+                    </widget>
+                   </item>
+                  </layout>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
+             <item row="1" column="0">
+              <widget class="QLabel" name="subjectLabel">
+               <property name="text">
+                <string>Subject</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="1">
+              <widget class="QWidget" name="subjectWidget" native="true">
+               <property name="minimumSize">
+                <size>
+                 <width>200</width>
+                 <height>0</height>
+                </size>
+               </property>
+               <layout class="QHBoxLayout" name="horizontalLayout_6">
+                <property name="leftMargin">
+                 <number>0</number>
+                </property>
+                <property name="topMargin">
+                 <number>0</number>
+                </property>
+                <property name="rightMargin">
+                 <number>0</number>
+                </property>
+                <property name="bottomMargin">
+                 <number>0</number>
+                </property>
+                <item>
+                 <widget class="QComboBox" name="subjectSelectComboBox"/>
+                </item>
+                <item>
+                 <widget class="QLineEdit" name="subjectIdEdit">
+                  <property name="placeholderText">
+                   <string>Manually set a mouse ID, e.g. &quot;MM-18&quot;</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
+             <item row="2" column="0">
+              <widget class="QLabel" name="experimentIDLabel">
+               <property name="text">
+                <string>Experiment ID</string>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="1">
+              <widget class="QLineEdit" name="expIdEdit">
+               <property name="placeholderText">
+                <string>Experiment ID, e.g. &quot;trial1&quot;</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="0">
+              <widget class="QLabel" name="experimentTypeLabel">
+               <property name="text">
+                <string>Experiment Type</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QWidget" name="widget_6" native="true">
+          <layout class="QVBoxLayout" name="verticalLayout_17">
+           <property name="spacing">
+            <number>4</number>
+           </property>
+           <property name="leftMargin">
+            <number>0</number>
+           </property>
+           <property name="topMargin">
+            <number>0</number>
+           </property>
+           <property name="rightMargin">
+            <number>0</number>
+           </property>
+           <property name="bottomMargin">
+            <number>0</number>
+           </property>
+           <item>
+            <widget class="QWidget" name="widget_7" native="true">
+             <layout class="QHBoxLayout" name="horizontalLayout_9">
+              <property name="leftMargin">
+               <number>0</number>
+              </property>
+              <property name="topMargin">
+               <number>0</number>
+              </property>
+              <property name="rightMargin">
+               <number>0</number>
+              </property>
+              <property name="bottomMargin">
+               <number>0</number>
+              </property>
+              <item>
+               <widget class="QToolButton" name="toolButton">
+                <property name="text">
+                 <string>...</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="horizontalSpacer">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="QScrollArea" name="scrollArea">
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>40</height>
+              </size>
+             </property>
+             <property name="widgetResizable">
+              <bool>true</bool>
+             </property>
+             <widget class="QWidget" name="scrollAreaWidgetContents">
+              <property name="geometry">
+               <rect>
+                <x>0</x>
+                <y>0</y>
+                <width>1420</width>
+                <height>36</height>
+               </rect>
+              </property>
+              <layout class="QVBoxLayout" name="scrollAreaLayout">
+               <property name="spacing">
+                <number>4</number>
+               </property>
+               <property name="leftMargin">
+                <number>2</number>
+               </property>
+               <property name="topMargin">
+                <number>2</number>
+               </property>
+               <property name="rightMargin">
+                <number>2</number>
+               </property>
+               <property name="bottomMargin">
+                <number>2</number>
+               </property>
+              </layout>
+             </widget>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="tabTestSubjects">
+       <attribute name="title">
+        <string>Test Subjects</string>
+       </attribute>
+       <layout class="QHBoxLayout" name="horizontalLayout_11">
+        <property name="spacing">
+         <number>2</number>
+        </property>
+        <property name="leftMargin">
+         <number>2</number>
+        </property>
+        <property name="topMargin">
+         <number>2</number>
+        </property>
+        <property name="rightMargin">
+         <number>2</number>
+        </property>
+        <property name="bottomMargin">
+         <number>2</number>
+        </property>
+        <item>
+         <widget class="QGroupBox" name="gbSubjectDetails">
+          <property name="title">
+           <string>Details</string>
+          </property>
+          <layout class="QFormLayout" name="formLayout_3">
+           <item row="0" column="0" colspan="2">
+            <layout class="QFormLayout" name="layoutSubjectDetails">
+             <property name="sizeConstraint">
+              <enum>QLayout::SetDefaultConstraint</enum>
+             </property>
+             <item row="1" column="0">
+              <widget class="QLabel" name="iDLabel">
+               <property name="text">
+                <string>ID</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="1">
+              <widget class="QLineEdit" name="idLineEdit">
+               <property name="placeholderText">
+                <string>e.g. &quot;Chell&quot; or &quot;MM-18&quot;</string>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="0">
+              <widget class="QLabel" name="groupLabel">
+               <property name="text">
+                <string>Group</string>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="1">
+              <widget class="QLineEdit" name="groupLineEdit">
+               <property name="baseSize">
+                <size>
+                 <width>0</width>
+                 <height>0</height>
+                </size>
+               </property>
+               <property name="placeholderText">
+                <string>e.g. &quot;Aperture Science&quot; or &quot;Wildtype&quot;</string>
+               </property>
+              </widget>
+             </item>
+             <item row="3" column="0">
+              <widget class="QLabel" name="subjectActiveLabel">
+               <property name="text">
+                <string>Active</string>
+               </property>
+              </widget>
+             </item>
+             <item row="3" column="1">
+              <widget class="QCheckBox" name="subjectActiveCheckBox">
+               <property name="checked">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+             <item row="4" column="0">
+              <widget class="QLabel" name="adaptorHeightLabel">
+               <property name="text">
+                <string>Adaptor Height</string>
+               </property>
+              </widget>
+             </item>
+             <item row="4" column="1">
+              <widget class="QWidget" name="adaptorHeightWidget" native="true">
+               <property name="minimumSize">
+                <size>
+                 <width>0</width>
+                 <height>0</height>
+                </size>
+               </property>
+               <layout class="QHBoxLayout" name="horizontalLayout_7">
+                <property name="spacing">
+                 <number>4</number>
+                </property>
+                <property name="leftMargin">
+                 <number>0</number>
+                </property>
+                <property name="topMargin">
+                 <number>0</number>
+                </property>
+                <property name="rightMargin">
+                 <number>0</number>
+                </property>
+                <property name="bottomMargin">
+                 <number>0</number>
+                </property>
+                <item>
+                 <widget class="QSpinBox" name="adaptorHeightSpinBox">
+                  <property name="maximum">
+                   <number>999</number>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="label">
+                  <property name="text">
+                   <string>mm</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
+             <item row="5" column="0">
+              <widget class="QLabel" name="remarksLabel">
+               <property name="text">
+                <string>Remarks</string>
+               </property>
+              </widget>
+             </item>
+             <item row="5" column="1">
+              <widget class="QPlainTextEdit" name="remarksTextEdit">
+               <property name="placeholderText">
+                <string>Use markdown for formatting</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QWidget" name="widget" native="true">
+          <layout class="QVBoxLayout" name="verticalLayout_10">
+           <property name="leftMargin">
+            <number>0</number>
+           </property>
+           <property name="topMargin">
+            <number>0</number>
+           </property>
+           <property name="rightMargin">
+            <number>0</number>
+           </property>
+           <property name="bottomMargin">
+            <number>0</number>
+           </property>
+           <item>
+            <widget class="QToolButton" name="btnSubjectAdd">
+             <property name="text">
+              <string>...</string>
+             </property>
+             <property name="icon">
+              <iconset theme="list-add">
+               <normaloff>.</normaloff>.</iconset>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QToolButton" name="btnSubjectApplyEdit">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
+             <property name="text">
+              <string>E</string>
+             </property>
+             <property name="icon">
+              <iconset theme="edit-entry">
+               <normaloff>.</normaloff>.</iconset>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QToolButton" name="btnSubjectRemove">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
+             <property name="text">
+              <string>...</string>
+             </property>
+             <property name="icon">
+              <iconset theme="list-remove">
+               <normaloff>.</normaloff>.</iconset>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="gbSubjects">
+          <property name="title">
+           <string>Subject List</string>
+          </property>
+          <layout class="QVBoxLayout" name="verticalLayout_11">
+           <item>
+            <widget class="QListView" name="subjectListView"/>
+           </item>
+          </layout>
+         </widget>
+        </item>
        </layout>
       </widget>
      </widget>
@@ -82,21 +582,21 @@
       <property name="handleWidth">
        <number>2</number>
       </property>
-      <widget class="QTabWidget" name="tabWidget">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
+      <widget class="QTabWidget" name="tabWidgetMain">
        <property name="minimumSize">
         <size>
-         <width>80</width>
-         <height>0</height>
+         <width>0</width>
+         <height>10</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>16777215</width>
+         <height>100</height>
         </size>
        </property>
        <property name="currentIndex">
-        <number>0</number>
+        <number>1</number>
        </property>
        <widget class="QWidget" name="tabView">
         <attribute name="title">
@@ -158,254 +658,6 @@
            <property name="orientation">
             <enum>Qt::Vertical</enum>
            </property>
-           <widget class="QWidget" name="traceContainerWidget" native="true">
-            <property name="minimumSize">
-             <size>
-              <width>0</width>
-              <height>50</height>
-             </size>
-            </property>
-            <layout class="QVBoxLayout" name="verticalLayout_14">
-             <property name="spacing">
-              <number>0</number>
-             </property>
-             <property name="leftMargin">
-              <number>0</number>
-             </property>
-             <property name="topMargin">
-              <number>0</number>
-             </property>
-             <property name="rightMargin">
-              <number>0</number>
-             </property>
-             <property name="bottomMargin">
-              <number>0</number>
-             </property>
-             <item>
-              <widget class="TraceView" name="traceView0" native="true"/>
-             </item>
-             <item>
-              <widget class="QScrollBar" name="plotScrollBar">
-               <property name="maximum">
-                <number>0</number>
-               </property>
-               <property name="orientation">
-                <enum>Qt::Horizontal</enum>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </widget>
-           <widget class="QWidget" name="widget_3" native="true">
-            <layout class="QHBoxLayout" name="horizontalLayout_3">
-             <item>
-              <widget class="QGroupBox" name="groupBox_3">
-               <property name="sizePolicy">
-                <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
-                 <horstretch>0</horstretch>
-                 <verstretch>0</verstretch>
-                </sizepolicy>
-               </property>
-               <property name="title">
-                <string>Select Channel</string>
-               </property>
-               <layout class="QHBoxLayout" name="horizontalLayout_5">
-                <item>
-                 <widget class="QListWidget" name="portListWidget"/>
-                </item>
-                <item>
-                 <widget class="QListWidget" name="chanListWidget">
-                  <property name="enabled">
-                   <bool>false</bool>
-                  </property>
-                 </widget>
-                </item>
-               </layout>
-              </widget>
-             </item>
-             <item>
-              <widget class="QGroupBox" name="chanSettingsGroupBox">
-               <property name="enabled">
-                <bool>false</bool>
-               </property>
-               <property name="title">
-                <string>Channel Settings</string>
-               </property>
-               <layout class="QFormLayout" name="formLayout">
-                <item row="0" column="0">
-                 <widget class="QLabel" name="chanDisplayLabel">
-                  <property name="text">
-                   <string>Display</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="0" column="1">
-                 <widget class="QCheckBox" name="chanDisplayCheckBox"/>
-                </item>
-                <item row="2" column="0">
-                 <widget class="QLabel" name="multiplierLabel">
-                  <property name="text">
-                   <string>Multiplier</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="2" column="1">
-                 <widget class="QDoubleSpinBox" name="multiplierDoubleSpinBox">
-                  <property name="minimum">
-                   <double>-1000.000000000000000</double>
-                  </property>
-                  <property name="maximum">
-                   <double>1000.990000000000009</double>
-                  </property>
-                  <property name="value">
-                   <double>1.000000000000000</double>
-                  </property>
-                 </widget>
-                </item>
-                <item row="3" column="0">
-                 <widget class="QLabel" name="yShiftLabel">
-                  <property name="text">
-                   <string>Y Shift</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="3" column="1">
-                 <widget class="QDoubleSpinBox" name="yShiftDoubleSpinBox">
-                  <property name="minimum">
-                   <double>-9999.000000000000000</double>
-                  </property>
-                  <property name="maximum">
-                   <double>9999.989999999999782</double>
-                  </property>
-                 </widget>
-                </item>
-                <item row="1" column="0" colspan="2">
-                 <widget class="Line" name="line">
-                  <property name="orientation">
-                   <enum>Qt::Horizontal</enum>
-                  </property>
-                 </widget>
-                </item>
-                <item row="4" column="1">
-                 <widget class="QPushButton" name="plotApplyButton">
-                  <property name="enabled">
-                   <bool>false</bool>
-                  </property>
-                  <property name="text">
-                   <string>Apply</string>
-                  </property>
-                  <property name="icon">
-                   <iconset theme="dialog-ok-apply">
-                    <normaloff>.</normaloff>.</iconset>
-                  </property>
-                 </widget>
-                </item>
-               </layout>
-              </widget>
-             </item>
-             <item>
-              <spacer name="horizontalSpacer_2">
-               <property name="orientation">
-                <enum>Qt::Horizontal</enum>
-               </property>
-               <property name="sizeHint" stdset="0">
-                <size>
-                 <width>40</width>
-                 <height>20</height>
-                </size>
-               </property>
-              </spacer>
-             </item>
-             <item>
-              <widget class="QWidget" name="widget_2" native="true">
-               <layout class="QVBoxLayout" name="verticalLayout_13">
-                <property name="spacing">
-                 <number>0</number>
-                </property>
-                <property name="leftMargin">
-                 <number>0</number>
-                </property>
-                <property name="topMargin">
-                 <number>0</number>
-                </property>
-                <property name="rightMargin">
-                 <number>0</number>
-                </property>
-                <property name="bottomMargin">
-                 <number>0</number>
-                </property>
-                <item>
-                 <widget class="QPushButton" name="prevPlotButton">
-                  <property name="text">
-                   <string>Show previous plot</string>
-                  </property>
-                  <property name="checkable">
-                   <bool>true</bool>
-                  </property>
-                  <property name="checked">
-                   <bool>false</bool>
-                  </property>
-                  <property name="flat">
-                   <bool>true</bool>
-                  </property>
-                 </widget>
-                </item>
-                <item>
-                 <widget class="QWidget" name="widget_4" native="true">
-                  <layout class="QHBoxLayout" name="horizontalLayout_8">
-                   <property name="spacing">
-                    <number>6</number>
-                   </property>
-                   <property name="leftMargin">
-                    <number>0</number>
-                   </property>
-                   <property name="topMargin">
-                    <number>1</number>
-                   </property>
-                   <property name="rightMargin">
-                    <number>0</number>
-                   </property>
-                   <property name="bottomMargin">
-                    <number>0</number>
-                   </property>
-                   <item>
-                    <widget class="QLabel" name="label_2">
-                     <property name="text">
-                      <string>Max. refresh rate</string>
-                     </property>
-                    </widget>
-                   </item>
-                   <item>
-                    <widget class="QSpinBox" name="plotRefreshSpinBox">
-                     <property name="suffix">
-                      <string>ms</string>
-                     </property>
-                     <property name="maximum">
-                      <number>1000</number>
-                     </property>
-                    </widget>
-                   </item>
-                  </layout>
-                 </widget>
-                </item>
-                <item>
-                 <spacer name="verticalSpacer_3">
-                  <property name="orientation">
-                   <enum>Qt::Vertical</enum>
-                  </property>
-                  <property name="sizeHint" stdset="0">
-                   <size>
-                    <width>20</width>
-                    <height>40</height>
-                   </size>
-                  </property>
-                 </spacer>
-                </item>
-               </layout>
-              </widget>
-             </item>
-            </layout>
-           </widget>
           </widget>
          </item>
         </layout>
@@ -425,15 +677,15 @@
         </size>
        </property>
        <property name="currentIndex">
-        <number>0</number>
+        <number>1</number>
        </property>
-       <widget class="QWidget" name="tabGeneral">
+       <widget class="QWidget" name="tabOld1">
         <property name="geometry">
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>579</width>
-          <height>564</height>
+          <width>444</width>
+          <height>80</height>
          </rect>
         </property>
         <property name="minimumSize">
@@ -464,431 +716,29 @@
          <property name="bottomMargin">
           <number>4</number>
          </property>
-         <item>
-          <layout class="QVBoxLayout" name="verticalLayout">
-           <item>
-            <widget class="QGroupBox" name="groupBox">
-             <property name="minimumSize">
-              <size>
-               <width>0</width>
-               <height>0</height>
-              </size>
-             </property>
-             <property name="title">
-              <string>Data Export</string>
-             </property>
-             <layout class="QVBoxLayout" name="verticalLayout_5">
-              <item>
-               <layout class="QVBoxLayout" name="dataExportLayout">
-                <item>
-                 <layout class="QHBoxLayout" name="dataExportDirLayout">
-                  <property name="spacing">
-                   <number>4</number>
-                  </property>
-                 </layout>
-                </item>
-               </layout>
-              </item>
-             </layout>
-            </widget>
-           </item>
-           <item>
-            <widget class="QGroupBox" name="groupBox_2">
-             <property name="title">
-              <string>Experiment Details</string>
-             </property>
-             <layout class="QFormLayout" name="formLayout_4">
-              <property name="horizontalSpacing">
-               <number>4</number>
-              </property>
-              <property name="verticalSpacing">
-               <number>10</number>
-              </property>
-              <property name="leftMargin">
-               <number>4</number>
-              </property>
-              <property name="topMargin">
-               <number>4</number>
-              </property>
-              <property name="rightMargin">
-               <number>4</number>
-              </property>
-              <property name="bottomMargin">
-               <number>4</number>
-              </property>
-              <item row="0" column="0" colspan="2">
-               <layout class="QFormLayout" name="expDetailsLayout">
-                <item row="2" column="0">
-                 <widget class="QLabel" name="experimentIDLabel">
-                  <property name="text">
-                   <string>Experiment ID</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="1" column="0">
-                 <widget class="QLabel" name="subjectLabel">
-                  <property name="text">
-                   <string>Subject</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="2" column="1">
-                 <widget class="QLineEdit" name="expIdEdit">
-                  <property name="placeholderText">
-                   <string>Experiment ID, e.g. &quot;trial1&quot;</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="1" column="1">
-                 <widget class="QWidget" name="subjectWidget" native="true">
-                  <property name="minimumSize">
-                   <size>
-                    <width>200</width>
-                    <height>0</height>
-                   </size>
-                  </property>
-                  <layout class="QHBoxLayout" name="horizontalLayout_6">
-                   <property name="leftMargin">
-                    <number>0</number>
-                   </property>
-                   <property name="topMargin">
-                    <number>0</number>
-                   </property>
-                   <property name="rightMargin">
-                    <number>0</number>
-                   </property>
-                   <property name="bottomMargin">
-                    <number>0</number>
-                   </property>
-                   <item>
-                    <widget class="QComboBox" name="subjectSelectComboBox"/>
-                   </item>
-                   <item>
-                    <widget class="QLineEdit" name="subjectIdEdit">
-                     <property name="placeholderText">
-                      <string>Manually set a mouse ID, e.g. &quot;MM-18&quot;</string>
-                     </property>
-                    </widget>
-                   </item>
-                  </layout>
-                 </widget>
-                </item>
-                <item row="0" column="0">
-                 <widget class="QLabel" name="experimentTypeLabel">
-                  <property name="text">
-                   <string>Experiment Type</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="0" column="1">
-                 <widget class="QWidget" name="widget_5" native="true">
-                  <layout class="QVBoxLayout" name="verticalLayout_2">
-                   <property name="spacing">
-                    <number>4</number>
-                   </property>
-                   <property name="leftMargin">
-                    <number>0</number>
-                   </property>
-                   <property name="rightMargin">
-                    <number>0</number>
-                   </property>
-                   <property name="bottomMargin">
-                    <number>0</number>
-                   </property>
-                   <item>
-                    <widget class="QComboBox" name="expTypeComboBox"/>
-                   </item>
-                   <item>
-                    <widget class="QWidget" name="panelFeatureCustomize" native="true">
-                     <property name="enabled">
-                      <bool>false</bool>
-                     </property>
-                     <layout class="QHBoxLayout" name="horizontalLayout_10">
-                      <property name="spacing">
-                       <number>8</number>
-                      </property>
-                      <property name="leftMargin">
-                       <number>0</number>
-                      </property>
-                      <property name="rightMargin">
-                       <number>0</number>
-                      </property>
-                      <property name="bottomMargin">
-                       <number>0</number>
-                      </property>
-                      <item>
-                       <widget class="QCheckBox" name="cbVideoFeature">
-                        <property name="text">
-                         <string>Video</string>
-                        </property>
-                       </widget>
-                      </item>
-                      <item>
-                       <widget class="QCheckBox" name="cbTrackingFeature">
-                        <property name="text">
-                         <string>Tracking</string>
-                        </property>
-                       </widget>
-                      </item>
-                      <item>
-                       <widget class="QCheckBox" name="cbEphysFeature">
-                        <property name="text">
-                         <string>Electrophysiology</string>
-                        </property>
-                       </widget>
-                      </item>
-                      <item>
-                       <widget class="QCheckBox" name="cbIOFeature">
-                        <property name="text">
-                         <string>Programmable I/O</string>
-                        </property>
-                       </widget>
-                      </item>
-                     </layout>
-                    </widget>
-                   </item>
-                  </layout>
-                 </widget>
-                </item>
-               </layout>
-              </item>
-             </layout>
-            </widget>
-           </item>
-           <item>
-            <spacer name="verticalSpacer">
-             <property name="orientation">
-              <enum>Qt::Vertical</enum>
-             </property>
-             <property name="sizeHint" stdset="0">
-              <size>
-               <width>0</width>
-               <height>0</height>
-              </size>
-             </property>
-            </spacer>
-           </item>
-          </layout>
-         </item>
         </layout>
        </widget>
-       <widget class="QWidget" name="tabTestSubjects">
+       <widget class="QWidget" name="tabOld2">
         <property name="geometry">
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>363</width>
-          <height>564</height>
+          <width>444</width>
+          <height>80</height>
          </rect>
         </property>
         <attribute name="label">
          <string>Test Subjects</string>
         </attribute>
-        <layout class="QHBoxLayout" name="horizontalLayout_4">
-         <item>
-          <widget class="QGroupBox" name="gbSubjectDetails">
-           <property name="title">
-            <string>Details</string>
-           </property>
-           <layout class="QFormLayout" name="formLayout_3">
-            <item row="0" column="0" colspan="2">
-             <layout class="QFormLayout" name="layoutSubjectDetails">
-              <property name="sizeConstraint">
-               <enum>QLayout::SetDefaultConstraint</enum>
-              </property>
-              <item row="1" column="0">
-               <widget class="QLabel" name="iDLabel">
-                <property name="text">
-                 <string>ID</string>
-                </property>
-               </widget>
-              </item>
-              <item row="1" column="1">
-               <widget class="QLineEdit" name="idLineEdit">
-                <property name="placeholderText">
-                 <string>e.g. &quot;Chell&quot; or &quot;MM-18&quot;</string>
-                </property>
-               </widget>
-              </item>
-              <item row="2" column="0">
-               <widget class="QLabel" name="groupLabel">
-                <property name="text">
-                 <string>Group</string>
-                </property>
-               </widget>
-              </item>
-              <item row="2" column="1">
-               <widget class="QLineEdit" name="groupLineEdit">
-                <property name="baseSize">
-                 <size>
-                  <width>0</width>
-                  <height>0</height>
-                 </size>
-                </property>
-                <property name="placeholderText">
-                 <string>e.g. &quot;Aperture Science&quot; or &quot;Wildtype&quot;</string>
-                </property>
-               </widget>
-              </item>
-              <item row="3" column="0">
-               <widget class="QLabel" name="subjectActiveLabel">
-                <property name="text">
-                 <string>Active</string>
-                </property>
-               </widget>
-              </item>
-              <item row="3" column="1">
-               <widget class="QCheckBox" name="subjectActiveCheckBox">
-                <property name="checked">
-                 <bool>true</bool>
-                </property>
-               </widget>
-              </item>
-              <item row="4" column="0">
-               <widget class="QLabel" name="adaptorHeightLabel">
-                <property name="text">
-                 <string>Adaptor Height</string>
-                </property>
-               </widget>
-              </item>
-              <item row="4" column="1">
-               <widget class="QWidget" name="adaptorHeightWidget" native="true">
-                <property name="minimumSize">
-                 <size>
-                  <width>0</width>
-                  <height>0</height>
-                 </size>
-                </property>
-                <layout class="QHBoxLayout" name="horizontalLayout_7">
-                 <property name="spacing">
-                  <number>4</number>
-                 </property>
-                 <property name="leftMargin">
-                  <number>0</number>
-                 </property>
-                 <property name="topMargin">
-                  <number>0</number>
-                 </property>
-                 <property name="rightMargin">
-                  <number>0</number>
-                 </property>
-                 <property name="bottomMargin">
-                  <number>0</number>
-                 </property>
-                 <item>
-                  <widget class="QSpinBox" name="adaptorHeightSpinBox">
-                   <property name="maximum">
-                    <number>999</number>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QLabel" name="label">
-                   <property name="text">
-                    <string>mm</string>
-                   </property>
-                  </widget>
-                 </item>
-                </layout>
-               </widget>
-              </item>
-              <item row="5" column="0">
-               <widget class="QLabel" name="remarksLabel">
-                <property name="text">
-                 <string>Remarks</string>
-                </property>
-               </widget>
-              </item>
-              <item row="5" column="1">
-               <widget class="QPlainTextEdit" name="remarksTextEdit">
-                <property name="placeholderText">
-                 <string>Use markdown for formatting</string>
-                </property>
-               </widget>
-              </item>
-             </layout>
-            </item>
-           </layout>
-          </widget>
-         </item>
-         <item>
-          <widget class="QWidget" name="widget" native="true">
-           <layout class="QVBoxLayout" name="verticalLayout_10">
-            <property name="leftMargin">
-             <number>0</number>
-            </property>
-            <property name="topMargin">
-             <number>0</number>
-            </property>
-            <property name="rightMargin">
-             <number>0</number>
-            </property>
-            <property name="bottomMargin">
-             <number>0</number>
-            </property>
-            <item>
-             <widget class="QToolButton" name="btnSubjectAdd">
-              <property name="text">
-               <string>...</string>
-              </property>
-              <property name="icon">
-               <iconset theme="list-add">
-                <normaloff>.</normaloff>.</iconset>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QToolButton" name="btnSubjectApplyEdit">
-              <property name="enabled">
-               <bool>false</bool>
-              </property>
-              <property name="text">
-               <string>E</string>
-              </property>
-              <property name="icon">
-               <iconset theme="edit-entry">
-                <normaloff>.</normaloff>.</iconset>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QToolButton" name="btnSubjectRemove">
-              <property name="enabled">
-               <bool>false</bool>
-              </property>
-              <property name="text">
-               <string>...</string>
-              </property>
-              <property name="icon">
-               <iconset theme="list-remove">
-                <normaloff>.</normaloff>.</iconset>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </widget>
-         </item>
-         <item>
-          <widget class="QGroupBox" name="gbSubjects">
-           <property name="title">
-            <string>Subject List</string>
-           </property>
-           <layout class="QVBoxLayout" name="verticalLayout_11">
-            <item>
-             <widget class="QListView" name="subjectListView"/>
-            </item>
-           </layout>
-          </widget>
-         </item>
-        </layout>
+        <layout class="QHBoxLayout" name="horizontalLayout_4"/>
        </widget>
        <widget class="QWidget" name="tabIntan">
         <property name="geometry">
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>257</width>
-          <height>584</height>
+          <width>444</width>
+          <height>80</height>
          </rect>
         </property>
         <attribute name="label">
@@ -900,8 +750,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>257</width>
-          <height>584</height>
+          <width>444</width>
+          <height>80</height>
          </rect>
         </property>
         <attribute name="label">
@@ -944,8 +794,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>257</width>
-          <height>584</height>
+          <width>424</width>
+          <height>118</height>
          </rect>
         </property>
         <attribute name="label">
@@ -1204,14 +1054,6 @@
   </action>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
- <customwidgets>
-  <customwidget>
-   <class>TraceView</class>
-   <extends>QWidget</extends>
-   <header>traceplot/traceview.h</header>
-   <container>1</container>
-  </customwidget>
- </customwidgets>
  <resources>
   <include location="../data/resources.qrc"/>
  </resources>
@@ -1235,7 +1077,7 @@
   <connection>
    <sender>actionDisplayView</sender>
    <signal>toggled(bool)</signal>
-   <receiver>tabWidget</receiver>
+   <receiver>tabWidgetMain</receiver>
    <slot>setVisible(bool)</slot>
    <hints>
     <hint type="sourcelabel">
