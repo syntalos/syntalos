@@ -31,14 +31,19 @@ ModuleState AbstractModule::state() const
     return m_state;
 }
 
-QString AbstractModule::displayName() const
-{
-    return name();
-}
-
-QString AbstractModule::name() const
+QString AbstractModule::id()
 {
     return QStringLiteral("unknown");
+}
+
+QString AbstractModule::displayName() const
+{
+    return id();
+}
+
+QString AbstractModule::description() const
+{
+    return QStringLiteral("An unknown description.");
 }
 
 QPixmap AbstractModule::pixmap() const
@@ -102,6 +107,11 @@ bool AbstractModule::loadSettings(const QByteArray &data)
 QString AbstractModule::lastError() const
 {
     return m_lastError;
+}
+
+bool AbstractModule::singleton() const
+{
+    return false;
 }
 
 void AbstractModule::receiveFrame(const cv::Mat &frame, const std::chrono::milliseconds &timestamp)

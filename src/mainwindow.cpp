@@ -73,6 +73,8 @@
 #include "modules/traceplot/traceview.h"
 
 #include "moduleindicator.h"
+#include "modulemanager.h"
+#include "moduleselectdialog.h"
 
 #include "modules/rhd2000/rhd2000module.h"
 
@@ -461,36 +463,17 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(aboutQuitButton, &QPushButton::clicked, m_aboutDialog, &QDialog::accept);
     connect(ui->actionAbout, &QAction::triggered, this, &MainWindow::aboutActionTriggered);
 
-    // set the combined trace parameters and data proxy for the "Trace" tab
-    m_traceProxy = new TracePlotProxy(this);
-    ui->traceView0->setChart(m_traceProxy->plot());
-    ui->traceView0->setRenderHint(QPainter::Antialiasing);
-    auto twScrollBar = new QScrollBar(this);
-    ui->traceView0->addScrollBarWidget(twScrollBar, Qt::AlignBottom);
-
-    //! FIXME: TracePlot module
-#if 0
-    m_intanUI->getWavePlot()->setPlotProxy(m_traceProxy);
-    connect(m_traceProxy, &TracePlotProxy::maxHorizontalPositionChanged, ui->plotScrollBar, &QScrollBar::setMaximum);
-    connect(m_traceProxy, &TracePlotProxy::maxHorizontalPositionChanged, ui->plotScrollBar, &QScrollBar::setValue);
-    connect(ui->plotScrollBar, &QScrollBar::valueChanged, m_traceProxy, &TracePlotProxy::moveTo);
-    ui->plotRefreshSpinBox->setValue(m_traceProxy->refreshTime());
-#endif
-
-    // there are 6 ports on the Intan eval port - we hardcode that at time
-    for (uint port = 0; port < 6; port++) {
-        auto item = new QListWidgetItem;
-        item->setData(Qt::UserRole, port);
-        item->setText(QString("Port %1").arg(port));
-        ui->portListWidget->addItem(item);
-    }
-
     // ensure the default feature selection is properly visible, now that we initialized all UI
     applyExperimentFeatureChanges();
 
     // lastly, restore our geometry and widget state
     QSettings settings("DraguhnLab", "MazeAmaze");
     restoreGeometry(settings.value("main/geometry").toByteArray());
+
+    // create new module manager
+    m_modManager = new ModuleManager(this);
+    connect(m_modManager, &ModuleManager::moduleCreated, this, &MainWindow::moduleAdded);
+    connect(m_modManager, &ModuleManager::modulePreRemove, this, &MainWindow::modulePreRemove);
 }
 
 MainWindow::~MainWindow()
@@ -582,21 +565,6 @@ bool MainWindow::makeDirectory(const QString &dir)
     }
 
     return true;
-}
-
-ChannelDetails *MainWindow::selectedPlotChannelDetails()
-{
-    if (ui->portListWidget->selectedItems().isEmpty() || ui->chanListWidget->selectedItems().isEmpty()) {
-        qCritical() << "Can not determine selected trace: Port/Channel selection does not make sense";
-        return nullptr;
-    }
-
-    auto portId = ui->portListWidget->selectedItems()[0]->data(Qt::UserRole).toInt();
-    auto chanId = ui->chanListWidget->selectedItems()[0]->data(Qt::UserRole).toInt();
-
-    auto details = m_traceProxy->getDetails(portId, chanId);
-
-    return details;
 }
 
 void MainWindow::runActionTriggered()
@@ -859,17 +827,6 @@ void MainWindow::intanRunActionTriggered()
     // run Intan acquisition
     m_statusWidget->setIntanStatus(StatusWidget::Active);
     //! FIXME m_intanUI->runInterfaceBoard();
-
-
-    auto test1 = new Rhd2000Module(this);
-    auto mi = new ModuleIndicator(test1, ui->scrollArea);
-    ui->scrollAreaLayout->addWidget(mi);
-    test1->initialize();
-
-    test1->prepare("/tmp", "blah");
-    while (true)
-        test1->runCycle();
-    test1->stop();
 }
 
 void MainWindow::setDataExportBaseDir(const QString& dir)
@@ -1205,103 +1162,6 @@ void MainWindow::setStatusText(const QString& msg)
     QApplication::processEvents();
 }
 
-void MainWindow::on_portListWidget_itemActivated(QListWidgetItem *item)
-{
-    Q_UNUSED(item);
-    //! FIXME TracePlot module
-#if 0
-    auto port = item->data(Qt::UserRole).toInt();
-    auto waveplot = m_intanUI->getWavePlot();
-
-    ui->chanListWidget->clear();
-    if (!waveplot->isPortEnabled(port)) {
-        ui->chanListWidget->setEnabled(false);
-        ui->chanSettingsGroupBox->setEnabled(false);
-        return;
-    }
-    ui->chanListWidget->setEnabled(true);
-
-    for (int chan = 0; chan < waveplot->getChannelCount(port); chan++) {
-        auto item = new QListWidgetItem;
-        item->setData(Qt::UserRole, chan);
-        item->setText(waveplot->getChannelName(port, chan));
-        ui->chanListWidget->addItem(item);
-    }
-#endif
-}
-
-void MainWindow::on_chanListWidget_itemActivated(QListWidgetItem *item)
-{
-    Q_UNUSED(item);
-    auto details = selectedPlotChannelDetails();
-    ui->chanSettingsGroupBox->setEnabled(true);
-
-    if (details != nullptr) {
-        ui->chanDisplayCheckBox->setChecked(true);
-        ui->multiplierDoubleSpinBox->setValue(details->multiplier);
-        ui->yShiftDoubleSpinBox->setValue(details->yShift);
-    } else {
-        ui->chanDisplayCheckBox->setChecked(false);
-        ui->multiplierDoubleSpinBox->setValue(1);
-        ui->yShiftDoubleSpinBox->setValue(0);
-    }
-}
-
-void MainWindow::on_multiplierDoubleSpinBox_valueChanged(double arg1)
-{
-    auto details = selectedPlotChannelDetails();
-    if (details == nullptr)
-        return;
-
-    ui->plotApplyButton->setEnabled(true);
-
-    details->multiplier = arg1;
-}
-
-void MainWindow::on_plotApplyButton_clicked()
-{
-    ui->plotApplyButton->setEnabled(false);
-    m_traceProxy->applyDisplayModifiers();
-}
-
-void MainWindow::on_yShiftDoubleSpinBox_valueChanged(double arg1)
-{
-    auto details = selectedPlotChannelDetails();
-    if (details == nullptr)
-        return;
-
-    ui->plotApplyButton->setEnabled(true);
-
-    details->yShift = arg1;
-}
-
-void MainWindow::on_prevPlotButton_toggled(bool checked)
-{
-    Q_UNUSED(checked);
-    // TODO
-}
-
-void MainWindow::on_chanDisplayCheckBox_clicked(bool checked)
-{
-    if (ui->portListWidget->selectedItems().isEmpty() || ui->chanListWidget->selectedItems().isEmpty()) {
-        qCritical() << "Can not determine which graph to display: Port/Channel selection does not make sense";
-        return;
-    }
-
-    auto portId = ui->portListWidget->selectedItems()[0]->data(Qt::UserRole).toInt();
-    auto chanId = ui->chanListWidget->selectedItems()[0]->data(Qt::UserRole).toInt();
-
-    if (checked)
-        m_traceProxy->addChannel(portId, chanId);
-    else
-        m_traceProxy->removeChannel(portId, chanId);
-}
-
-void MainWindow::on_plotRefreshSpinBox_valueChanged(int arg1)
-{
-    m_traceProxy->setRefreshTime(arg1);
-}
-
 void MainWindow::on_cbVideoFeature_toggled(bool checked)
 {
     m_features.videoEnabled = checked;
@@ -1335,4 +1195,34 @@ void MainWindow::on_cbIOFeature_toggled(bool checked)
 {
     m_features.ioEnabled = checked;
     applyExperimentFeatureChanges();
+}
+
+void MainWindow::on_tbAddModule_clicked()
+{
+    ModuleSelectDialog modDialog(m_modManager->moduleInfo(), this);
+    if (modDialog.exec() == QDialog::Accepted) {
+        if (!modDialog.selectedEntryId().isEmpty())
+            m_modManager->createModule(modDialog.selectedEntryId());
+    }
+}
+
+void MainWindow::moduleAdded(AbstractModule *mod)
+{
+    auto mi = new ModuleIndicator(mod, m_modManager, ui->scrollArea);
+    ui->scrollAreaLayout->addWidget(mi);
+    m_modIndicators.append(mi);
+    mod->initialize();
+
+    mod->prepare("/tmp", "blah");
+    while (true)
+        mod->runCycle();
+    mod->stop();
+}
+
+void MainWindow::modulePreRemove(AbstractModule *mod)
+{
+    Q_FOREACH(auto mi, m_modIndicators) {
+        if (mi->module() == mod)
+            delete mi;
+    }
 }

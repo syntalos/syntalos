@@ -34,11 +34,15 @@ public:
     explicit TracePlotModule(QObject *parent = nullptr);
     ~TracePlotModule();
 
-    QString name() const;
+    static QString id();
     QString displayName() const;
+    QString description() const;
     QPixmap pixmap() const;
+    bool singleton() const;
 
     bool initialize();
+    bool prepare(const QString& storageRootDir, const QString& subjectId);
+    void stop();
 
     void showDisplayUi();
     void hideDisplayUi();

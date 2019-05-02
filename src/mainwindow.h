@@ -48,6 +48,9 @@ class QMdiSubWindow;
 class QListWidgetItem;
 class TracePlotProxy;
 class ChannelDetails;
+class ModuleManager;
+class AbstractModule;
+class ModuleIndicator;
 
 
 class MainWindow : public QMainWindow
@@ -87,18 +90,14 @@ private slots:
     void changeExperimentFeatures(const ExperimentFeatures& features);
     void applyExperimentFeatureChanges();
 
-    void on_portListWidget_itemActivated(QListWidgetItem *item);
-    void on_chanListWidget_itemActivated(QListWidgetItem *item);
-    void on_multiplierDoubleSpinBox_valueChanged(double arg1);
-    void on_plotApplyButton_clicked();
-    void on_yShiftDoubleSpinBox_valueChanged(double arg1);
-    void on_prevPlotButton_toggled(bool checked);
-    void on_chanDisplayCheckBox_clicked(bool checked);
-    void on_plotRefreshSpinBox_valueChanged(int arg1);
     void on_cbIOFeature_toggled(bool checked);
     void on_cbEphysFeature_toggled(bool checked);
     void on_cbTrackingFeature_toggled(bool checked);
     void on_cbVideoFeature_toggled(bool checked);
+    void on_tbAddModule_clicked();
+
+    void moduleAdded(AbstractModule *mod);
+    void modulePreRemove(AbstractModule *mod);
 
 protected:
     void closeEvent(QCloseEvent *event);
@@ -113,6 +112,9 @@ private:
     void updateDataExportDir();
 
     bool makeDirectory(const QString& dir);
+
+    ModuleManager *m_modManager;
+    QList<ModuleIndicator*> m_modIndicators;
 
     ChannelDetails *selectedPlotChannelDetails();
 

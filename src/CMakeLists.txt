@@ -17,6 +17,10 @@ set(MAZEAMAZE_SRC
     moduleindicator.cpp
     abstractmodule.h
     abstractmodule.cpp
+    modulemanager.h
+    modulemanager.cpp
+    moduleselectdialog.h
+    moduleselectdialog.cpp
 )
 
 set(SCRIPT_SRC
@@ -31,6 +35,7 @@ set(SCRIPT_SRC
 set(MAZEAMAZE_UI
     mainwindow.ui
     moduleindicator.ui
+    moduleselectdialog.ui
 )
 
 qt5_wrap_ui(MAZEAMAZE_UI_SRC ${MAZEAMAZE_UI})

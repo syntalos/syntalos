@@ -34,9 +34,11 @@ public:
     explicit Rhd2000Module(QObject *parent = nullptr);
     ~Rhd2000Module();
 
-    QString name() const;
+    static QString id();
     QString displayName() const;
+    QString description() const;
     QPixmap pixmap() const;
+    bool singleton() const;
 
     bool initialize();
 

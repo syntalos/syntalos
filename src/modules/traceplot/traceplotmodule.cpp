@@ -27,6 +27,13 @@ TracePlotModule::TracePlotModule(QObject *parent)
 {
     m_traceProxy = new TracePlotProxy;
     m_displayWindow = new TraceDisplay;
+
+    // set the combined trace parameters and data proxy for the "Trace" tab
+    m_traceProxy = new TracePlotProxy(this);
+    m_displayWindow->setPlotProxy(m_traceProxy);
+
+    //! FIXME
+   // m_intanUI->getWavePlot()->setPlotProxy(m_traceProxy);
 }
 
 TracePlotModule::~TracePlotModule()
@@ -35,7 +42,7 @@ TracePlotModule::~TracePlotModule()
     delete m_traceProxy;
 }
 
-QString TracePlotModule::name() const
+QString TracePlotModule::id()
 {
     return QStringLiteral("traceplot");
 }
@@ -45,15 +52,35 @@ QString TracePlotModule::displayName() const
     return QStringLiteral("TracePlot");
 }
 
+QString TracePlotModule::description() const
+{
+    return QStringLiteral("Allow real-time display and modification of user selected data traces recorded with a Intan RHD2000 module.");
+}
+
 QPixmap TracePlotModule::pixmap() const
 {
     return QPixmap(":/module/traceplot");
+}
+
+bool TracePlotModule::singleton() const
+{
+    return true;
 }
 
 bool TracePlotModule::initialize()
 {
     setState(ModuleState::READY);
     return true;
+}
+
+bool TracePlotModule::prepare(const QString &storageRootDir, const QString &subjectId)
+{
+
+}
+
+void TracePlotModule::stop()
+{
+
 }
 
 void TracePlotModule::showDisplayUi()

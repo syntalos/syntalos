@@ -23,6 +23,8 @@
 #include <QPixmap>
 #include <QMenu>
 
+#include "modulemanager.h"
+
 #pragma GCC diagnostic ignored "-Wpadded"
 class ModuleIndicator::MIData : public QSharedData {
 public:
@@ -37,11 +39,12 @@ public:
     }
 
     AbstractModule *module;
+    ModuleManager *manager;
     QMenu *menu;
 };
 #pragma GCC diagnostic pop
 
-ModuleIndicator::ModuleIndicator(AbstractModule *module, QWidget *parent) :
+ModuleIndicator::ModuleIndicator(AbstractModule *module, ModuleManager *manager, QWidget *parent) :
     QFrame(parent),
     ui(new Ui::ModuleIndicator),
     d(new MIData)
@@ -50,6 +53,7 @@ ModuleIndicator::ModuleIndicator(AbstractModule *module, QWidget *parent) :
     d->menu = new QMenu(this);
 
     d->module = module;
+    d->manager = manager;
 
     ui->showButton->setEnabled(false);
     ui->configButton->setEnabled(false);
@@ -58,16 +62,7 @@ ModuleIndicator::ModuleIndicator(AbstractModule *module, QWidget *parent) :
     ui->moduleImage->setPixmap(d->module->pixmap());
     ui->moduleNameLabel->setText(d->module->displayName());
 
-    if (d->module->actions().isEmpty()) {
-        ui->menuButton->setVisible(false);
-    } else {
-        ui->menuButton->setVisible(true);
-        foreach(auto action, d->module->actions())
-            d->menu->addAction(action);
-        ui->menuButton->setMenu(d->menu);
-        connect(ui->menuButton, &QToolButton::clicked, ui->menuButton, &QToolButton::showMenu);
-    }
-
+    connect(d->module, &AbstractModule::actionsUpdated, this, &ModuleIndicator::receiveActionsUpdated);
     connect(d->module, &AbstractModule::stateChanged, this, &ModuleIndicator::receiveStateChange);
     connect(d->module, &AbstractModule::errorMessage, this, &ModuleIndicator::receiveErrorMessage);
 }
@@ -75,6 +70,25 @@ ModuleIndicator::ModuleIndicator(AbstractModule *module, QWidget *parent) :
 ModuleIndicator::~ModuleIndicator()
 {
     delete ui;
+}
+
+AbstractModule *ModuleIndicator::module() const
+{
+    return d->module;
+}
+
+void ModuleIndicator::receiveActionsUpdated()
+{
+    if (d->module->actions().isEmpty()) {
+        ui->menuButton->setVisible(false);
+    } else {
+        d->menu->clear();
+        ui->menuButton->setVisible(true);
+        foreach(auto action, d->module->actions())
+            d->menu->addAction(action);
+        ui->menuButton->setMenu(d->menu);
+        connect(ui->menuButton, &QToolButton::clicked, ui->menuButton, &QToolButton::showMenu);
+    }
 }
 
 void ModuleIndicator::receiveStateChange(ModuleState state)
@@ -121,4 +135,14 @@ void ModuleIndicator::on_configButton_clicked()
 void ModuleIndicator::on_showButton_clicked()
 {
     d->module->showDisplayUi();
+}
+
+void ModuleIndicator::on_removeButton_clicked()
+{
+    if (d->manager != nullptr) {
+        d->manager->removeModule(d->module);
+        d->module = nullptr;
+       // this->hide();
+    }
+
 }

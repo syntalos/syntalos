@@ -288,9 +288,15 @@
                <number>0</number>
               </property>
               <item>
-               <widget class="QToolButton" name="toolButton">
+               <widget class="QToolButton" name="tbAddModule">
                 <property name="text">
-                 <string>...</string>
+                 <string>Add Module</string>
+                </property>
+                <property name="icon">
+                 <iconset theme="list-add"/>
+                </property>
+                <property name="toolButtonStyle">
+                 <enum>Qt::ToolButtonTextBesideIcon</enum>
                 </property>
                </widget>
               </item>
@@ -684,7 +690,7 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>444</width>
+          <width>113</width>
           <height>80</height>
          </rect>
         </property>
@@ -723,7 +729,7 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>444</width>
+          <width>113</width>
           <height>80</height>
          </rect>
         </property>
@@ -737,7 +743,7 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>444</width>
+          <width>113</width>
           <height>80</height>
          </rect>
         </property>
@@ -750,7 +756,7 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>444</width>
+          <width>113</width>
           <height>80</height>
          </rect>
         </property>
@@ -794,7 +800,7 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>424</width>
+          <width>200</width>
           <height>118</height>
          </rect>
         </property>

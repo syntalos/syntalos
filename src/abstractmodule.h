@@ -56,12 +56,17 @@ public:
     /**
      * @brief Name of this module used internally as unique identifier
      */
-    virtual QString name() const = 0;
+    static QString id();
 
     /**
      * @brief Name of this module displayed to the user
      */
     virtual QString displayName() const;
+
+    /**
+     * @brief Description of this module
+     */
+    virtual QString description() const;
 
     /**
      * @brief Icon of this module
@@ -157,10 +162,17 @@ public:
      */
     QString lastError() const;
 
+    /**
+     * @brief Returns true if only one instance of this module can exist.
+     * @return True if singleton.
+     */
+    virtual bool singleton() const;
+
 public slots:
     virtual void receiveFrame(const cv::Mat& frame, const std::chrono::milliseconds& timestamp);
 
 signals:
+    void actionsUpdated();
     void stateChanged(ModuleState state);
     void errorMessage(const QString& message);
     void statusMessage(const QString& message);

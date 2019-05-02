@@ -25,23 +25,16 @@
 Rhd2000Module::Rhd2000Module(QObject *parent)
     : AbstractModule(parent)
 {
-    // set up Intan GUI and board
-    m_intanUi = new IntanUI(this);
-
-    m_actions.append(m_intanUi->renameChannelAction);
-    m_actions.append(m_intanUi->toggleChannelEnableAction);
-    m_actions.append(m_intanUi->enableAllChannelsAction);
-    m_actions.append(m_intanUi->disableAllChannelsAction);
-    m_actions.append(m_intanUi->originalOrderAction);
-    m_actions.append(m_intanUi->alphaOrderAction);
+    m_intanUi = nullptr;
 }
 
 Rhd2000Module::~Rhd2000Module()
 {
-    delete m_intanUi;
+    if (m_intanUi != nullptr)
+        delete m_intanUi;
 }
 
-QString Rhd2000Module::name() const
+QString Rhd2000Module::id()
 {
     return QStringLiteral("intan_rhd2000");
 }
@@ -51,19 +44,44 @@ QString Rhd2000Module::displayName() const
     return QStringLiteral("Intan RHD2000 USB Eval");
 }
 
+QString Rhd2000Module::description() const
+{
+    return QStringLiteral("Central hardware component of the RHD2000 Evaluation System, allowing users to record biopotential signals "
+                          "from up to 256 low-noise amplifier channels using digital electrophysiology chips from Intan Technologies.");
+}
+
 QPixmap Rhd2000Module::pixmap() const
 {
     return QPixmap(":/module/rhd2000");
 }
 
+bool Rhd2000Module::singleton() const
+{
+    return true;
+}
+
 bool Rhd2000Module::initialize()
 {
+    setState(ModuleState::PREPARING);
+    // set up Intan GUI and board
+    m_intanUi = new IntanUI(this);
+
+    m_actions.append(m_intanUi->renameChannelAction);
+    m_actions.append(m_intanUi->toggleChannelEnableAction);
+    m_actions.append(m_intanUi->enableAllChannelsAction);
+    m_actions.append(m_intanUi->disableAllChannelsAction);
+    m_actions.append(m_intanUi->originalOrderAction);
+    m_actions.append(m_intanUi->alphaOrderAction);
+
+    emit actionsUpdated();
     setState(ModuleState::READY);
     return true;
 }
 
 bool Rhd2000Module::prepare(const QString &storageRootDir, const QString &subjectId)
 {
+    assert(m_intanUi);
+
     setState(ModuleState::PREPARING);
 
     QString intanBaseName;
@@ -82,36 +100,43 @@ bool Rhd2000Module::prepare(const QString &storageRootDir, const QString &subjec
 
 bool Rhd2000Module::runCycle()
 {
+    // we don't assert m_intanUi here for performance reasons
     return m_intanUi->interfaceBoardRunCycle();
 }
 
 void Rhd2000Module::stop()
 {
+    assert(m_intanUi);
     m_intanUi->interfaceBoardStopFinalize();
 }
 
 void Rhd2000Module::finalize()
 {
+    assert(m_intanUi);
     return;
 }
 
 void Rhd2000Module::showDisplayUi()
 {
+    assert(m_intanUi);
     m_intanUi->displayWidget()->show();
 }
 
 void Rhd2000Module::hideDisplayUi()
 {
+    assert(m_intanUi);
     m_intanUi->displayWidget()->hide();
 }
 
 void Rhd2000Module::showSettingsUi()
 {
+    assert(m_intanUi);
     m_intanUi->show();
 }
 
 void Rhd2000Module::hideSettingsUi()
 {
+    assert(m_intanUi);
     m_intanUi->hide();
 }
 
@@ -131,12 +156,14 @@ QByteArray Rhd2000Module::serializeSettings()
 
 bool Rhd2000Module::loadSettings(const QByteArray &data)
 {
+    assert(m_intanUi);
     m_intanUi->loadSettings(data);
     return true;
 }
 
 void Rhd2000Module::setPlotProxy(TracePlotProxy *proxy)
 {
+    assert(m_intanUi);
     m_intanUi->getWavePlot()->setPlotProxy(proxy);
 }
 

@@ -24,6 +24,8 @@
 #include <QSharedDataPointer>
 #include "abstractmodule.h"
 
+class ModuleManager;
+
 namespace Ui {
 class ModuleIndicator;
 }
@@ -33,10 +35,13 @@ class ModuleIndicator : public QFrame
     Q_OBJECT
 
 public:
-    explicit ModuleIndicator(AbstractModule *module, QWidget *parent = nullptr);
+    explicit ModuleIndicator(AbstractModule *module, ModuleManager *manager = nullptr, QWidget *parent = nullptr);
     ~ModuleIndicator();
 
+    AbstractModule *module() const;
+
 private slots:
+    void on_removeButton_clicked();
     void on_showButton_clicked();
     void on_configButton_clicked();
 
@@ -45,6 +50,7 @@ private:
     Ui::ModuleIndicator *ui;
     QSharedDataPointer<MIData> d;
 
+    void receiveActionsUpdated();
     void receiveStateChange(ModuleState state);
     void receiveErrorMessage(const QString& message);
 };
