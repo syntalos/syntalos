@@ -8,6 +8,8 @@
         <file alias="show-module">show-module-widgets.svg</file>
         <file alias="remove">remove.svg</file>
         <file alias="menu">menu.svg</file>
+        <file alias="generic-view">generic-view.svg</file>
+        <file alias="generic-config">generic-config.svg</file>
     </qresource>
     <qresource prefix="/images">
         <file>mouse-top.png</file>

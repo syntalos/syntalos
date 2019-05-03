@@ -10,7 +10,7 @@
    viewBox="0 0 64 64"
    version="1.1"
    id="svg6"
-   sodipodi:docname="plugins.svg"
+   sodipodi:docname="generic.svg"
    width="64"
    height="64"
    inkscape:version="0.92.4 (5da689c313, 2019-01-14)">
@@ -22,7 +22,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -40,12 +40,16 @@
      id="namedview8"
      showgrid="false"
      inkscape:zoom="10.727273"
-     inkscape:cx="11"
-     inkscape:cy="29.644068"
+     inkscape:cx="0.724579"
+     inkscape:cy="28.606991"
      inkscape:window-x="0"
      inkscape:window-y="0"
      inkscape:window-maximized="1"
-     inkscape:current-layer="svg6" />
+     inkscape:current-layer="svg6"
+     fit-margin-top="0"
+     fit-margin-left="0"
+     fit-margin-right="0"
+     fit-margin-bottom="0" />
   <defs
      id="defs3051">
     <style
@@ -55,11 +59,16 @@
         color:#232629;
       }
       </style>
+    <style
+       type="text/css"
+       id="current-color-scheme-3">
+   .ColorScheme-Text { color:#444444; } .ColorScheme-Highlight { color:#4285f4; }
+  </style>
   </defs>
   <path
-     style="color:#232629;fill:currentColor;fill-opacity:1;stroke:none;stroke-width:3.72669482"
-     d="M 9.6398307,4.049788 V 15.229873 H 2.1864403 V 59.950212 H 61.81356 V 15.229873 H 54.36017 V 7.7764829 H 39.45339 V 15.229873 H 24.54661 V 7.7764829 H 9.6398307"
+     id="path819"
+     d="m 25.785713,3 c -3.323814,0 -6.214285,2.6796788 -6.214285,6.003907 v 6.424665 H 6.9972105 C 4.7811963,15.428572 3,16.780916 3,18.99693 V 32 h 6.0039071 c 3.3238139,0 6.4246639,2.890472 6.4246639,6.214286 0,3.322571 -3.10085,6.214286 -6.4246639,6.214286 H 3 V 56.994699 C 3,59.211127 4.7811963,61 6.9972105,61 H 19.571428 v -4.005301 c 0,-3.322572 0.0725,-8.253413 6.214285,-8.423271 6.141786,-0.169857 6.214286,5.349271 6.214286,8.423271 V 61 H 45.00307 c 2.216428,0 3.568358,-1.788873 3.568358,-4.005301 V 44.428572 h 6.432756 C 58.326755,44.428572 61,41.536857 61,38.214286 61,34.890472 58.289469,32.510814 55.004184,32 H 48.571428 V 18.99693 c 0,-2.216014 -1.35193,-3.568358 -3.568358,-3.568358 H 31.999999 V 9.003907 C 31.999999,5.6796788 29.109527,3 25.785713,3 Z"
      class="ColorScheme-Text"
-     id="path4"
+     style="color:#444444;fill:currentColor;stroke-width:4.14285707"
      inkscape:connector-curvature="0" />
 </svg>
