@@ -34,13 +34,13 @@ public:
     explicit Rhd2000Module(QObject *parent = nullptr);
     ~Rhd2000Module();
 
-    static QString id();
+    QString id() const;
     QString displayName() const;
     QString description() const;
     QPixmap pixmap() const;
     bool singleton() const;
 
-    bool initialize();
+    bool initialize(ModuleManager *manager);
 
     bool prepare(const QString& storageRootDir, const QString& subjectId);
 

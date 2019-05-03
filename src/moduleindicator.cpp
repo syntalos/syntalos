@@ -26,17 +26,11 @@
 #include "modulemanager.h"
 
 #pragma GCC diagnostic ignored "-Wpadded"
-class ModuleIndicator::MIData : public QSharedData {
+class ModuleIndicator::MIData : public QSharedData
+{
 public:
-    MIData()
-    {
-
-    }
-
-    ~MIData()
-    {
-
-    }
+    MIData() { }
+    ~MIData() { }
 
     AbstractModule *module;
     ModuleManager *manager;
@@ -129,20 +123,23 @@ void ModuleIndicator::receiveErrorMessage(const QString &message)
 
 void ModuleIndicator::on_configButton_clicked()
 {
+    if (d->module == nullptr) return;
     d->module->showSettingsUi();
 }
 
 void ModuleIndicator::on_showButton_clicked()
 {
+    if (d->module == nullptr) return;
     d->module->showDisplayUi();
 }
 
 void ModuleIndicator::on_removeButton_clicked()
 {
     if (d->manager != nullptr) {
-        d->manager->removeModule(d->module);
-        d->module = nullptr;
-       // this->hide();
+        if (d->manager->removeModule(d->module)) {
+            ui->infoLabel->setText("Deleted.");
+            d->module = nullptr;
+            this->deleteLater();
+        }
     }
-
 }

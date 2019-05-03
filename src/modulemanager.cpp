@@ -20,13 +20,55 @@
 #include "modulemanager.h"
 
 #include <QMessageBox>
+#include <QDebug>
 
 #include "modules/rhd2000/rhd2000module.h"
 #include "modules/traceplot/traceplotmodule.h"
 
-ModuleManager::ModuleManager(QObject *parent)
-    : QObject(parent)
+class AbstractModuleCreator
 {
+public:
+    AbstractModuleCreator() { }
+    virtual ~AbstractModuleCreator();
+
+    virtual AbstractModule *createModule() = 0;
+};
+AbstractModuleCreator::~AbstractModuleCreator() {};
+
+template <typename T>
+class ModuleCreator : public AbstractModuleCreator
+{
+public:
+    ModuleCreator() { }
+    ~ModuleCreator() override { }
+
+    T *createModule() override
+    {
+        return new T;
+    }
+};
+
+#pragma GCC diagnostic ignored "-Wpadded"
+class ModuleManager::MMData : public QSharedData
+{
+public:
+    MMData() { }
+    ~MMData() { }
+
+    QWidget *parentWidget;
+    QList<QSharedPointer<ModuleInfo>> modInfo;
+    QList<AbstractModule*> modules;
+
+    QHash<QString, QSharedPointer<AbstractModuleCreator>> creators;
+};
+#pragma GCC diagnostic pop
+
+ModuleManager::ModuleManager(QObject *parent, QWidget *parentWidget)
+    : QObject(parent),
+      d(new MMData)
+{
+    d->parentWidget = parentWidget;
+
     registerModuleInfo<Rhd2000Module>();
     registerModuleInfo<TracePlotModule>();
 }
@@ -34,14 +76,14 @@ ModuleManager::ModuleManager(QObject *parent)
 AbstractModule *ModuleManager::createModule(const QString &id)
 {
     AbstractModule *mod = nullptr;
-    if (id == Rhd2000Module::id())
-        mod = new Rhd2000Module(this);
-    if (id == TracePlotModule::id())
-        mod = new TracePlotModule(this);
+    auto creator = d->creators.value(id);
+    if (creator == nullptr)
+        return nullptr;
+    mod = creator->createModule();
 
     // Ensure we don't register a module twice that should only exist once
     if (mod->singleton()) {
-        Q_FOREACH(auto emod, m_modules) {
+        Q_FOREACH(auto emod, d->modules) {
             if (emod->id() == id) {
                 delete mod;
                 return nullptr;
@@ -50,18 +92,20 @@ AbstractModule *ModuleManager::createModule(const QString &id)
     }
 
     // Update module info
-    Q_FOREACH(auto info, m_modInfo) {
-        if (info.id == id)
-            info.count++;
+    Q_FOREACH(auto info, d->modInfo) {
+        if (info->id == id) {
+            info->count++;
+            break;
+        }
     }
 
-    m_modules.append(mod);
+    d->modules.append(mod);
     emit moduleCreated(mod);
 
     // the module has been created and registered, we can
     // safely initialize it now.
-    if (!mod->initialize()) {
-        QMessageBox::critical(nullptr, QStringLiteral("Module initialization failed"),
+    if (!mod->initialize(this)) {
+        QMessageBox::critical(d->parentWidget, QStringLiteral("Module initialization failed"),
                               QStringLiteral("Failed to initialize module %1, it can not be added. Message: %2").arg(id).arg(mod->lastError()),
                               QMessageBox::Ok);
         removeModule(mod);
@@ -72,11 +116,25 @@ AbstractModule *ModuleManager::createModule(const QString &id)
 
 bool ModuleManager::removeModule(AbstractModule *mod)
 {
+    Q_FOREACH(auto emod, d->modules) {
+        if (!emod->canRemove(mod)) {
+            // oh no! Another module tries to prevent the removal of the current module.
+            // Let's notify about that, then stop removing the module.
+            QMessageBox::information(d->parentWidget, QStringLiteral("Can not remove module"),
+                                  QStringLiteral("The '%1' module can not be removed, because the '%2' module depends on it. Please remove '%2' first!").arg(mod->displayName()).arg(emod->displayName()),
+                                  QMessageBox::Ok);
+            return false;
+        }
+    }
+
     auto id = mod->id();
-    if (m_modules.removeOne(mod)) {
-        Q_FOREACH(auto info, m_modInfo) {
-            if (info.id == id)
-                info.count--;
+    if (d->modules.removeOne(mod)) {
+        // Update module info
+        Q_FOREACH(auto info, d->modInfo) {
+            if (info->id == id) {
+                info->count--;
+                break;
+            }
         }
 
         emit modulePreRemove(mod);
@@ -89,26 +147,28 @@ bool ModuleManager::removeModule(AbstractModule *mod)
 
 QList<AbstractModule *> ModuleManager::activeModules() const
 {
-    return m_modules;
+    return d->modules;
 }
 
-QList<ModuleInfo> ModuleManager::moduleInfo() const
+QList<QSharedPointer<ModuleInfo> > ModuleManager::moduleInfo() const
 {
-    return m_modInfo;
+    return d->modInfo;
 }
 
 template<typename T>
 void ModuleManager::registerModuleInfo()
 {
     auto tmp = new T;
-    ModuleInfo info;
-    info.id = T::id();
-    info.pixmap = tmp->pixmap();
-    info.displayName = tmp->displayName();
-    info.description = tmp->description();
-    info.singleton = tmp->singleton();
-    info.count = 0;
+    QSharedPointer<ModuleInfo> info(new ModuleInfo);
+    info->id = tmp->id();
+    info->pixmap = tmp->pixmap();
+    info->displayName = tmp->displayName();
+    info->description = tmp->description();
+    info->singleton = tmp->singleton();
+    info->count = 0;
     delete tmp;
 
-    m_modInfo.append(info);
+    QSharedPointer<ModuleCreator<T>> creator(new ModuleCreator<T>);
+    d->creators.insert(info->id, creator);
+    d->modInfo.append(info);
 }

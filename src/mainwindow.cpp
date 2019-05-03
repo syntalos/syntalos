@@ -471,9 +471,8 @@ MainWindow::MainWindow(QWidget *parent) :
     restoreGeometry(settings.value("main/geometry").toByteArray());
 
     // create new module manager
-    m_modManager = new ModuleManager(this);
+    m_modManager = new ModuleManager(this, this);
     connect(m_modManager, &ModuleManager::moduleCreated, this, &MainWindow::moduleAdded);
-    connect(m_modManager, &ModuleManager::modulePreRemove, this, &MainWindow::modulePreRemove);
 }
 
 MainWindow::~MainWindow()
@@ -1210,19 +1209,4 @@ void MainWindow::moduleAdded(AbstractModule *mod)
 {
     auto mi = new ModuleIndicator(mod, m_modManager, ui->scrollArea);
     ui->scrollAreaLayout->addWidget(mi);
-    m_modIndicators.append(mi);
-    mod->initialize();
-
-    mod->prepare("/tmp", "blah");
-    while (true)
-        mod->runCycle();
-    mod->stop();
-}
-
-void MainWindow::modulePreRemove(AbstractModule *mod)
-{
-    Q_FOREACH(auto mi, m_modIndicators) {
-        if (mi->module() == mod)
-            delete mi;
-    }
 }

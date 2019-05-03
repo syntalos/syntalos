@@ -31,7 +31,7 @@ ModuleState AbstractModule::state() const
     return m_state;
 }
 
-QString AbstractModule::id()
+QString AbstractModule::id() const
 {
     return QStringLiteral("unknown");
 }
@@ -114,11 +114,10 @@ bool AbstractModule::singleton() const
     return false;
 }
 
-void AbstractModule::receiveFrame(const cv::Mat &frame, const std::chrono::milliseconds &timestamp)
+bool AbstractModule::canRemove(AbstractModule *mod)
 {
-    Q_UNUSED(frame);
-    Q_UNUSED(timestamp);
-    return;
+    Q_UNUSED(mod);
+    return true;
 }
 
 void AbstractModule::setState(ModuleState state)

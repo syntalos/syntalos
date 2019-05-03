@@ -26,6 +26,7 @@
 
 class TracePlotProxy;
 class TraceDisplay;
+class Rhd2000Module;
 
 class TracePlotModule : public AbstractModule
 {
@@ -34,13 +35,14 @@ public:
     explicit TracePlotModule(QObject *parent = nullptr);
     ~TracePlotModule();
 
-    static QString id();
+    QString id() const;
     QString displayName() const;
     QString description() const;
     QPixmap pixmap() const;
     bool singleton() const;
+    bool canRemove(AbstractModule *mod) override;
 
-    bool initialize();
+    bool initialize(ModuleManager *manager);
     bool prepare(const QString& storageRootDir, const QString& subjectId);
     void stop();
 
@@ -50,6 +52,7 @@ public:
 private:
     TracePlotProxy *m_traceProxy;
     TraceDisplay *m_displayWindow;
+    Rhd2000Module *m_intanModule;
 };
 
 #endif // TRACEPLOTMODULE_H

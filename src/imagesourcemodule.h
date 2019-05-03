@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2019 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -17,38 +17,22 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef MODULESELECTDIALOG_H
-#define MODULESELECTDIALOG_H
+#ifndef IMAGESOURCEMODULE_H
+#define IMAGESOURCEMODULE_H
 
-#include <QDialog>
+#include <chrono>
+#include <opencv2/core.hpp>
 
-#include "modulemanager.h"
+#include "abstractmodule.h"
 
-class QStandardItemModel;
-
-namespace Ui {
-class ModuleSelectDialog;
-}
-
-class ModuleSelectDialog : public QDialog
+class ImageSourceModule : public AbstractModule
 {
     Q_OBJECT
-
 public:
-    explicit ModuleSelectDialog(QList<QSharedPointer<ModuleInfo> > infos, QWidget *parent = nullptr);
-    ~ModuleSelectDialog();
+    explicit ImageSourceModule(QObject *parent = nullptr);
 
-    void setModuleInfo(QList<QSharedPointer<ModuleInfo>> infos);
-    QString selectedEntryId() const;
-
-private slots:
-    void on_listView_activated(const QModelIndex &index);
-
-private:
-    Ui::ModuleSelectDialog *ui;
-
-    QStandardItemModel *m_model;
-    QString m_selectedEntryId;
+//public slots:
+//    virtual void receiveFrame(const cv::Mat& frame, const std::chrono::milliseconds& timestamp);
 };
 
-#endif // MODULESELECTDIALOG_H
+#endif // IMAGESOURCEMODULE_H

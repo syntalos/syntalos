@@ -25,7 +25,8 @@
 #include <QByteArray>
 #include <QAction>
 #include <QPixmap>
-#include <chrono>
+
+#include "modulemanager.h"
 
 /**
  * @brief The ModuleState enum
@@ -41,10 +42,6 @@ enum class ModuleState {
     ERROR
 };
 
-namespace cv {
-class Mat;
-}
-
 class AbstractModule : public QObject
 {
     Q_OBJECT
@@ -56,7 +53,7 @@ public:
     /**
      * @brief Name of this module used internally as unique identifier
      */
-    static QString id();
+    virtual QString id() const;
 
     /**
      * @brief Name of this module displayed to the user
@@ -79,7 +76,7 @@ public:
      * Initialize this module. This method is called once after construction.
      * @return true if success
      */
-    virtual bool initialize() = 0;
+    virtual bool initialize(ModuleManager *manager) = 0;
 
     /**
      * @brief Prepare for an experiment run
@@ -168,8 +165,13 @@ public:
      */
     virtual bool singleton() const;
 
-public slots:
-    virtual void receiveFrame(const cv::Mat& frame, const std::chrono::milliseconds& timestamp);
+    /**
+     * @brief Check if the selected module can be removed.
+     * This function is called by the module manager prior to removal of a module on
+     * each active module. If False is returned, the module is prevented from being removed.
+     * @return True if module can be removed, fals if removal should be prevented.
+     */
+    virtual bool canRemove(AbstractModule *mod);
 
 signals:
     void actionsUpdated();

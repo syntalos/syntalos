@@ -21,6 +21,8 @@ set(MAZEAMAZE_SRC
     modulemanager.cpp
     moduleselectdialog.h
     moduleselectdialog.cpp
+    imagesourcemodule.h
+    imagesourcemodule.cpp
 )
 
 set(SCRIPT_SRC

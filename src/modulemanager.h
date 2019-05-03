@@ -23,10 +23,13 @@
 #include <QObject>
 #include <QList>
 #include <QPixmap>
+#include <QSharedDataPointer>
 
-#include "abstractmodule.h"
+class AbstractModule;
+class AbstractModuleCreator;
 
-struct ModuleInfo {
+class ModuleInfo {
+public:
     QString id;
     QString displayName;
     QString description;
@@ -43,13 +46,12 @@ class ModuleManager : public QObject
 {
     Q_OBJECT
 public:
-    explicit ModuleManager(QObject *parent = nullptr);
+    explicit ModuleManager(QObject *parent = nullptr, QWidget *parentWidget = nullptr);
 
-    QList<ModuleInfo> moduleInfo() const;
+    QList<QSharedPointer<ModuleInfo>> moduleInfo() const;
 
     AbstractModule *createModule(const QString& id);
     bool removeModule(AbstractModule *mod);
-
 
     QList<AbstractModule*> activeModules() const;
 
@@ -60,9 +62,8 @@ signals:
 public slots:
 
 private:
-    QList<ModuleInfo> m_modInfo;
-    QList<AbstractModule*> m_modules;
-
+    class MMData;
+    QSharedPointer<MMData> d; // FIXME
     template<typename T> void registerModuleInfo();
 };
 

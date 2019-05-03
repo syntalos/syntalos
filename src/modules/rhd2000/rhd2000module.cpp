@@ -34,7 +34,7 @@ Rhd2000Module::~Rhd2000Module()
         delete m_intanUi;
 }
 
-QString Rhd2000Module::id()
+QString Rhd2000Module::id() const
 {
     return QStringLiteral("intan_rhd2000");
 }
@@ -60,8 +60,10 @@ bool Rhd2000Module::singleton() const
     return true;
 }
 
-bool Rhd2000Module::initialize()
+bool Rhd2000Module::initialize(ModuleManager *manager)
 {
+    Q_UNUSED(manager);
+
     setState(ModuleState::PREPARING);
     // set up Intan GUI and board
     m_intanUi = new IntanUI(this);

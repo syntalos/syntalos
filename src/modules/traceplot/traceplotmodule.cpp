@@ -19,11 +19,15 @@
 
 #include "traceplotmodule.h"
 
+#include <QMessageBox>
+
 #include "traceplotproxy.h"
 #include "tracedisplay.h"
+#include "modules/rhd2000/rhd2000module.h"
 
 TracePlotModule::TracePlotModule(QObject *parent)
-    : AbstractModule(parent)
+    : AbstractModule(parent),
+      m_intanModule(nullptr)
 {
     m_traceProxy = new TracePlotProxy;
     m_displayWindow = new TraceDisplay;
@@ -42,7 +46,7 @@ TracePlotModule::~TracePlotModule()
     delete m_traceProxy;
 }
 
-QString TracePlotModule::id()
+QString TracePlotModule::id() const
 {
     return QStringLiteral("traceplot");
 }
@@ -67,8 +71,24 @@ bool TracePlotModule::singleton() const
     return true;
 }
 
-bool TracePlotModule::initialize()
+bool TracePlotModule::canRemove(AbstractModule *mod)
 {
+    return mod != m_intanModule;
+}
+
+bool TracePlotModule::initialize(ModuleManager *manager)
+{
+    m_intanModule = nullptr;
+    Q_FOREACH(auto mod, manager->activeModules()) {
+        auto rhdmod = dynamic_cast<Rhd2000Module*>(mod);
+        if (rhdmod) {
+            m_intanModule = rhdmod;
+        }
+    }
+    if (m_intanModule == nullptr) {
+        setLastError("Unable to find an RHD2000 module to connect to Please add a module of this type first.");
+        return false;
+    }
     setState(ModuleState::READY);
     return true;
 }

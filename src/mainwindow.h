@@ -97,7 +97,6 @@ private slots:
     void on_tbAddModule_clicked();
 
     void moduleAdded(AbstractModule *mod);
-    void modulePreRemove(AbstractModule *mod);
 
 protected:
     void closeEvent(QCloseEvent *event);
@@ -114,7 +113,6 @@ private:
     bool makeDirectory(const QString& dir);
 
     ModuleManager *m_modManager;
-    QList<ModuleIndicator*> m_modIndicators;
 
     ChannelDetails *selectedPlotChannelDetails();
 
