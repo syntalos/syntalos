@@ -56,6 +56,8 @@ ModuleIndicator::ModuleIndicator(AbstractModule *module, ModuleManager *manager,
     ui->moduleImage->setPixmap(d->module->pixmap());
     ui->moduleNameLabel->setText(d->module->displayName());
 
+    ui->menuButton->setVisible(false);
+
     connect(d->module, &AbstractModule::actionsUpdated, this, &ModuleIndicator::receiveActionsUpdated);
     connect(d->module, &AbstractModule::stateChanged, this, &ModuleIndicator::receiveStateChange);
     connect(d->module, &AbstractModule::errorMessage, this, &ModuleIndicator::receiveErrorMessage);

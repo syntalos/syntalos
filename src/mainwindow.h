@@ -70,8 +70,6 @@ private slots:
     void runActionTriggered();
     void stopActionTriggered();
 
-    void intanRunActionTriggered();
-
     void openDataExportDirectory();
 
     void firmataError(const QString& message);
@@ -113,9 +111,6 @@ private:
     bool makeDirectory(const QString& dir);
 
     ModuleManager *m_modManager;
-
-    ChannelDetails *selectedPlotChannelDetails();
-
     ExperimentFeatures m_features;
 
     Ui::MainWindow *ui;
@@ -165,8 +160,6 @@ private:
     QCheckBox *m_camFlashMode;
 
     QDialog *m_aboutDialog;
-
-    TracePlotProxy *m_traceProxy;
 };
 
 #endif // MAINWINDOW_H

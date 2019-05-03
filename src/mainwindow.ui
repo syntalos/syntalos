@@ -293,7 +293,8 @@
                  <string>Add Module</string>
                 </property>
                 <property name="icon">
-                 <iconset theme="list-add"/>
+                 <iconset theme="list-add">
+                  <normaloff>.</normaloff>.</iconset>
                 </property>
                 <property name="toolButtonStyle">
                  <enum>Qt::ToolButtonTextBesideIcon</enum>
@@ -908,12 +909,6 @@
      <height>30</height>
     </rect>
    </property>
-   <widget class="QMenu" name="menuIntan">
-    <property name="title">
-     <string>I&amp;ntan</string>
-    </property>
-    <addaction name="actionIntanRun"/>
-   </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
      <string>He&amp;lp</string>
@@ -930,7 +925,6 @@
     <addaction name="actionQuit"/>
    </widget>
    <addaction name="menuTool"/>
-   <addaction name="menuIntan"/>
    <addaction name="menuHelp"/>
   </widget>
   <widget class="QToolBar" name="mainToolBar">

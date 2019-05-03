@@ -24,6 +24,7 @@
 #include <QMap>
 
 #include "traceplot.h"
+#include "modules/rhd2000/waveplot.h"
 
 namespace QtCharts {
 class QXYSeries;
@@ -90,7 +91,7 @@ class TracePlotProxy : public QObject
 {
     Q_OBJECT
 public:
-    explicit TracePlotProxy(QObject *parent = 0);
+    explicit TracePlotProxy(QObject *parent = nullptr);
 
     TracePlot *plot() const;
 
@@ -110,6 +111,9 @@ public:
     int refreshTime() const;
     void setRefreshTime(int v);
 
+    void setWavePlot(WavePlot *wp);
+    WavePlot *wavePlot() const;
+
 signals:
     void maxHorizontalPositionChanged(int maxPos);
 
@@ -128,6 +132,7 @@ private:
 
     int m_maxXVal;
     int m_refreshTime;
+    WavePlot *m_waveplot;
 };
 
 #endif // TRACEPLOTPROXY_H

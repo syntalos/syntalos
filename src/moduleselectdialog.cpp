@@ -88,6 +88,7 @@ ModuleSelectDialog::ModuleSelectDialog(QList<QSharedPointer<ModuleInfo>> infos, 
 {
     ui->setupUi(this);
     this->setWindowModality(Qt::ApplicationModal);
+    this->setWindowTitle(QStringLiteral("Select a module"));
 
     m_model = new QStandardItemModel(this);
     ui->listView->setModel(m_model);

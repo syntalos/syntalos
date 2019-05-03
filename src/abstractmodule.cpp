@@ -22,7 +22,8 @@
 
 AbstractModule::AbstractModule(QObject *parent) :
     QObject(parent),
-    m_state(ModuleState::PREPARING)
+    m_state(ModuleState::PREPARING),
+    m_initialized(false)
 {
 }
 
@@ -118,6 +119,16 @@ bool AbstractModule::canRemove(AbstractModule *mod)
 {
     Q_UNUSED(mod);
     return true;
+}
+
+void AbstractModule::setInitialized()
+{
+    m_initialized = true;
+}
+
+bool AbstractModule::initialized() const
+{
+    return m_initialized;
 }
 
 void AbstractModule::setState(ModuleState state)

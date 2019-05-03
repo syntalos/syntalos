@@ -27,23 +27,23 @@
 
 TracePlotModule::TracePlotModule(QObject *parent)
     : AbstractModule(parent),
+      m_traceProxy(nullptr),
+      m_displayWindow(nullptr),
       m_intanModule(nullptr)
 {
-    m_traceProxy = new TracePlotProxy;
-    m_displayWindow = new TraceDisplay;
-
-    // set the combined trace parameters and data proxy for the "Trace" tab
-    m_traceProxy = new TracePlotProxy(this);
-    m_displayWindow->setPlotProxy(m_traceProxy);
-
-    //! FIXME
-   // m_intanUI->getWavePlot()->setPlotProxy(m_traceProxy);
 }
 
 TracePlotModule::~TracePlotModule()
 {
-    delete m_displayWindow;
-    delete m_traceProxy;
+    // unregister with the Intan module
+    if (m_intanModule)
+        m_intanModule->setPlotProxy(nullptr);
+
+    // cleanup
+    if (m_displayWindow)
+        delete m_displayWindow;
+    if (m_traceProxy)
+        delete m_traceProxy;
 }
 
 QString TracePlotModule::id() const
@@ -78,6 +78,12 @@ bool TracePlotModule::canRemove(AbstractModule *mod)
 
 bool TracePlotModule::initialize(ModuleManager *manager)
 {
+    assert(!initialized());
+
+    // create trace parameters and data proxy for the trace display
+    m_traceProxy = new TracePlotProxy(this);
+    m_displayWindow = new TraceDisplay(m_traceProxy);
+
     m_intanModule = nullptr;
     Q_FOREACH(auto mod, manager->activeModules()) {
         auto rhdmod = dynamic_cast<Rhd2000Module*>(mod);
@@ -89,13 +95,22 @@ bool TracePlotModule::initialize(ModuleManager *manager)
         setLastError("Unable to find an RHD2000 module to connect to Please add a module of this type first.");
         return false;
     }
+
+    m_intanModule->setPlotProxy(m_traceProxy);
     setState(ModuleState::READY);
+    setInitialized();
     return true;
 }
 
 bool TracePlotModule::prepare(const QString &storageRootDir, const QString &subjectId)
 {
+    Q_UNUSED(storageRootDir);
+    Q_UNUSED(subjectId);
 
+    // reset trace plot data
+    m_traceProxy->reset();
+
+    return true;
 }
 
 void TracePlotModule::stop()

@@ -418,7 +418,6 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->actionStop->setEnabled(false);
 
     // connect actions
-    connect(ui->actionIntanRun, &QAction::triggered, this, &MainWindow::intanRunActionTriggered);
     connect(ui->actionRun, &QAction::triggered, this, &MainWindow::runActionTriggered);
     connect(ui->actionStop, &QAction::triggered, this, &MainWindow::stopActionTriggered);
     connect(ui->actionSaveSettings, &QAction::triggered, this, &MainWindow::saveSettingsActionTriggered);
@@ -730,9 +729,6 @@ void MainWindow::runActionTriggered()
         m_statusWidget->setFirmataStatus(StatusWidget::Disabled);
     }
 
-    // reset trace plot data
-    m_traceProxy->reset();
-
     // launch video
     if (m_features.videoEnabled) {
         m_videoTracker->run(barrier);
@@ -810,22 +806,6 @@ void MainWindow::stopActionTriggered()
     m_mscriptView->setEnabled(true);
     ui->cameraGroupBox->setEnabled(true);
     m_running = false;
-}
-
-/**
- * Intan test run, we will not record anything.
- */
-void MainWindow::intanRunActionTriggered()
-{
-    setRunPossible(false);
-    setStopPossible(true);
-
-    // reset the trace plot
-    m_traceProxy->reset();
-
-    // run Intan acquisition
-    m_statusWidget->setIntanStatus(StatusWidget::Active);
-    //! FIXME m_intanUI->runInterfaceBoard();
 }
 
 void MainWindow::setDataExportBaseDir(const QString& dir)
@@ -963,6 +943,8 @@ void MainWindow::closeEvent(QCloseEvent *event)
     settings.setValue("main/geometry", saveGeometry());
 
     event->accept();
+
+    QApplication::quit();
 }
 
 void MainWindow::saveSettingsActionTriggered()

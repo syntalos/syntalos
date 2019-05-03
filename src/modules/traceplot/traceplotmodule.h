@@ -35,7 +35,7 @@ public:
     explicit TracePlotModule(QObject *parent = nullptr);
     ~TracePlotModule();
 
-    QString id() const;
+    QString id() const override;
     QString displayName() const;
     QString description() const;
     QPixmap pixmap() const;

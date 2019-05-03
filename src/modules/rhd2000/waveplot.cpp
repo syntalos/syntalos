@@ -317,6 +317,8 @@ QSize WavePlot::sizeHint() const
 void WavePlot::setPlotProxy(TracePlotProxy *pp)
 {
     plotProxy = pp;
+    if (plotProxy != nullptr)
+        plotProxy->setWavePlot(this);
 }
 
 int WavePlot::getChannelCount(int port) const

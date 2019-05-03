@@ -1,13 +1,36 @@
+/*
+ * Copyright (C) 2016-2019 Matthias Klumpp <matthias@tenstral.net>
+ *
+ * Licensed under the GNU General Public License Version 3
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the license, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include "tracedisplay.h"
 #include "ui_tracedisplay.h"
 
+#include <QDebug>
+
 #include "traceplotproxy.h"
 
-TraceDisplay::TraceDisplay(QWidget *parent) :
+TraceDisplay::TraceDisplay(TracePlotProxy *proxy, QWidget *parent) :
     QWidget(parent),
     ui(new Ui::TraceDisplay)
 {
     ui->setupUi(this);
+    setWindowTitle(QStringLiteral("Traces"));
+    setWindowIcon(QIcon(":/icons/generic-view"));
 
     auto twScrollBar = new QScrollBar(this);
     ui->traceView0->addScrollBarWidget(twScrollBar, Qt::AlignBottom);
@@ -19,6 +42,8 @@ TraceDisplay::TraceDisplay(QWidget *parent) :
         item->setText(QString("Port %1").arg(port));
         ui->portListWidget->addItem(item);
     }
+
+    setPlotProxy(proxy);
 }
 
 TraceDisplay::~TraceDisplay()
@@ -28,6 +53,7 @@ TraceDisplay::~TraceDisplay()
 
 void TraceDisplay::setPlotProxy(TracePlotProxy *proxy)
 {
+    m_traceProxy = proxy;
     ui->traceView0->setChart(proxy->plot());
     ui->traceView0->setRenderHint(QPainter::Antialiasing);
 
@@ -37,7 +63,6 @@ void TraceDisplay::setPlotProxy(TracePlotProxy *proxy)
     ui->plotRefreshSpinBox->setValue(proxy->refreshTime());
 }
 
-#if 0
 ChannelDetails *TraceDisplay::selectedPlotChannelDetails()
 {
     if (ui->portListWidget->selectedItems().isEmpty() || ui->chanListWidget->selectedItems().isEmpty()) {
@@ -98,13 +123,14 @@ void TraceDisplay::on_yShiftDoubleSpinBox_valueChanged(double arg1)
     details->yShift = arg1;
 }
 
-void MainWindow::on_portListWidget_itemActivated(QListWidgetItem *item)
+void TraceDisplay::on_portListWidget_itemActivated(QListWidgetItem *item)
 {
     Q_UNUSED(item);
-    //! FIXME TracePlot module
-#if 0
     auto port = item->data(Qt::UserRole).toInt();
-    auto waveplot = m_intanUI->getWavePlot();
+    auto waveplot = m_traceProxy->wavePlot();
+    // don't continue if Intan waveplot isn't set for whatever reason
+    if (waveplot == nullptr)
+        return;
 
     ui->chanListWidget->clear();
     if (!waveplot->isPortEnabled(port)) {
@@ -120,16 +146,15 @@ void MainWindow::on_portListWidget_itemActivated(QListWidgetItem *item)
         item->setText(waveplot->getChannelName(port, chan));
         ui->chanListWidget->addItem(item);
     }
-#endif
 }
 
-void MainWindow::on_prevPlotButton_toggled(bool checked)
+void TraceDisplay::on_prevPlotButton_toggled(bool checked)
 {
     Q_UNUSED(checked);
     // TODO
 }
 
-void MainWindow::on_chanDisplayCheckBox_clicked(bool checked)
+void TraceDisplay::on_chanDisplayCheckBox_clicked(bool checked)
 {
     if (ui->portListWidget->selectedItems().isEmpty() || ui->chanListWidget->selectedItems().isEmpty()) {
         qCritical() << "Can not determine which graph to display: Port/Channel selection does not make sense";
@@ -145,8 +170,7 @@ void MainWindow::on_chanDisplayCheckBox_clicked(bool checked)
         m_traceProxy->removeChannel(portId, chanId);
 }
 
-void MainWindow::on_plotRefreshSpinBox_valueChanged(int arg1)
+void TraceDisplay::on_plotRefreshSpinBox_valueChanged(int arg1)
 {
     m_traceProxy->setRefreshTime(arg1);
 }
-#endif

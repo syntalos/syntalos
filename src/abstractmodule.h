@@ -173,6 +173,9 @@ public:
      */
     virtual bool canRemove(AbstractModule *mod);
 
+    void setInitialized();
+    bool initialized() const;
+
 signals:
     void actionsUpdated();
     void stateChanged(ModuleState state);
@@ -189,6 +192,7 @@ protected:
 private:
     ModuleState m_state;
     QString m_lastError;
+    bool m_initialized;
 };
 
 #endif // ABSTRACTMODULE_H

@@ -63,10 +63,18 @@ bool Rhd2000Module::singleton() const
 bool Rhd2000Module::initialize(ModuleManager *manager)
 {
     Q_UNUSED(manager);
+    assert(!initialized());
 
     setState(ModuleState::PREPARING);
     // set up Intan GUI and board
     m_intanUi = new IntanUI(this);
+    m_intanUi->setWindowIcon(QIcon(":/icons/generic-config"));
+    m_intanUi->displayWidget()->setWindowIcon(QIcon(":/icons/generic-view"));
+
+    auto runAction = new QAction(this);
+    runAction->setText("&Run without recording");
+    connect(runAction, &QAction::triggered, this, &Rhd2000Module::noRecordRunActionTriggered);
+    m_actions.append(runAction);
 
     m_actions.append(m_intanUi->renameChannelAction);
     m_actions.append(m_intanUi->toggleChannelEnableAction);
@@ -77,6 +85,7 @@ bool Rhd2000Module::initialize(ModuleManager *manager)
 
     emit actionsUpdated();
     setState(ModuleState::READY);
+    setInitialized();
     return true;
 }
 
@@ -172,4 +181,15 @@ void Rhd2000Module::setPlotProxy(TracePlotProxy *proxy)
 void Rhd2000Module::setStatusMessage(const QString &message)
 {
     AbstractModule::setStatusMessage(message);
+}
+
+void Rhd2000Module::noRecordRunActionTriggered()
+{
+    // FIXME
+    //setRunPossible(false);
+    //setStopPossible(true);
+
+    // run Intan acquisition
+    //m_statusWidget->setIntanStatus(StatusWidget::Active);
+    m_intanUi->runInterfaceBoard();
 }

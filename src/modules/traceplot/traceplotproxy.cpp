@@ -29,7 +29,8 @@
 TracePlotProxy::TracePlotProxy(QObject *parent)
     : QObject(parent),
       m_maxXVal(0),
-      m_refreshTime(400)
+      m_refreshTime(400),
+      m_waveplot(nullptr)
 {
     m_plot = new TracePlot();
 
@@ -176,4 +177,14 @@ int TracePlotProxy::refreshTime() const
 void TracePlotProxy::setRefreshTime(int v)
 {
     m_refreshTime = v;
+}
+
+void TracePlotProxy::setWavePlot(WavePlot *wp)
+{
+    m_waveplot = wp;
+}
+
+WavePlot *TracePlotProxy::wavePlot() const
+{
+    return m_waveplot;
 }
