@@ -31,7 +31,7 @@
 #ifdef USE_UEYE_CAMERA
 #include "ueyecamera.h"
 #endif
-#include "genericcamera.h"
+#include "modules/genericcamera/genericcamera.h"
 #include "utils.h"
 #include "tracker.h"
 
@@ -82,6 +82,7 @@ static bool qsizeBiggerThan(const QSize &s1, const QSize &s2)
 
 QList<QSize> MazeVideo::resolutionList(QVariant cameraId)
 {
+    // FIXME
 #ifdef USE_UEYE_CAMERA
     auto camera = new UEyeCamera();
 #else
@@ -139,11 +140,11 @@ bool MazeVideo::openCamera()
         return false;
     }
 
-    m_camera->setConfFile(m_uEyeConfigFile);
+    //m_camera->setConfFile(m_uEyeConfigFile);
     m_camera->setAutoGain(m_autoGain);
     m_camera->setExposureTime(m_exposureTime);
     m_camera->setFramerate(m_framerate);
-    m_camera->setGPIOFlash(m_gpioFlash);
+    //m_camera->setGPIOFlash(m_gpioFlash);
 
     m_cameraOpened = true;
     return true;

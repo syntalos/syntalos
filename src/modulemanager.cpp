@@ -24,6 +24,7 @@
 
 #include "modules/rhd2000/rhd2000module.h"
 #include "modules/traceplot/traceplotmodule.h"
+#include "modules/genericcamera/genericcameramodule.h"
 
 class AbstractModuleCreator
 {
@@ -71,6 +72,7 @@ ModuleManager::ModuleManager(QObject *parent, QWidget *parentWidget)
 
     registerModuleInfo<Rhd2000Module>();
     registerModuleInfo<TracePlotModule>();
+    registerModuleInfo<GenericCameraModule>();
 }
 
 AbstractModule *ModuleManager::createModule(const QString &id)

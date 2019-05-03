@@ -28,15 +28,13 @@
 #include <QMutex>
 #include <opencv2/core/core.hpp>
 
-#include "mazevideo.h"
-
 class QCameraViewfinder;
 
-class GenericCamera : public MACamera
+class GenericCamera : public QObject
 {
     Q_OBJECT
 public:
-    explicit GenericCamera(QObject *parent = 0);
+    explicit GenericCamera(QObject *parent = nullptr);
     ~GenericCamera();
     QString lastError() const;
 

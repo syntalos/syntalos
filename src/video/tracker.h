@@ -40,7 +40,7 @@ public:
         double turnAngle; // triangle turn angle
     };
 
-    explicit Tracker(Barrier barrier, MACamera *cam, int framerate, const QString &exportDir, const QString& frameBasePath,
+    explicit Tracker(Barrier barrier, GenericCamera *cam, int framerate, const QString &exportDir, const QString& frameBasePath,
                      const QString &subjectId, const QSize& exportRes);
 
     bool running() const;
@@ -69,7 +69,7 @@ private:
                            time_t *lastFrameTime, const time_t& timeSinceStart, const time_t &frameInterval);
 
     Barrier m_barrier;
-    MACamera *m_camera;
+    GenericCamera *m_camera;
     time_t m_startTime;
     int m_framerate;
 

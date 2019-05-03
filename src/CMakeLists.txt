@@ -23,6 +23,8 @@ set(MAZEAMAZE_SRC
     moduleselectdialog.cpp
     imagesourcemodule.h
     imagesourcemodule.cpp
+    videoviewwidget.h
+    videoviewwidget.cpp
 )
 
 set(SCRIPT_SRC
@@ -57,12 +59,6 @@ set(VIDEO_SRC
     video/mazevideo.cpp
     video/tracker.h
     video/tracker.cpp
-    video/simplevprobe.h
-    video/simplevprobe.cpp
-    video/genericcamera.h
-    video/genericcamera.cpp
-    video/videoviewwidget.h
-    video/videoviewwidget.cpp
 )
 
 set(PLOT_SRC
@@ -108,9 +104,9 @@ target_link_libraries(mazeamaze
     KF5::DBusAddons
     KF5::Archive
     KF5::TextEditor
+    Qt5::Charts
     Qt5::Multimedia
     Qt5::MultimediaWidgets
-    Qt5::Charts
     ${PYTHON_LIBRARIES}
     ${OpenCV_LIBS}
     ${OPENGL_LIBRARIES}
@@ -118,6 +114,7 @@ target_link_libraries(mazeamaze
 
     mod_intan_rhd2000
     mod_traceplot
+    mod_generic_camera
 )
 
 include_directories(

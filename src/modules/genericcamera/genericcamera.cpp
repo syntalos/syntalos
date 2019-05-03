@@ -32,7 +32,7 @@
 #include "simplevprobe.h"
 
 GenericCamera::GenericCamera(QObject *parent)
-    : MACamera(parent),
+    : QObject(parent),
       m_camera(nullptr)
 {
 }

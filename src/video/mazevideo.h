@@ -30,6 +30,7 @@
 #include "../utils.h"
 #include "../barrier.h"
 
+class GenericCamera;
 
 class MACamera : public QObject
 {
@@ -138,7 +139,7 @@ private:
     QString m_subjectId;
     QString m_exportDir;
 
-    MACamera *m_camera;
+    GenericCamera *m_camera;
     Tracker *m_tracker;
 
     QString m_uEyeConfigFile;

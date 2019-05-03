@@ -25,5 +25,9 @@
         <file alias="rhd2000">modules/intan-rhd2000.svg</file>
         <file alias="generic">modules/generic.svg</file>
         <file alias="traceplot">modules/traceplot.svg</file>
+        <file alias="flir-camera">modules/flir-camera.svg</file>
+        <file alias="generic-camera">modules/generic-camera.svg</file>
+        <file alias="miniscope">modules/miniscope.svg</file>
+        <file alias="ueye-camera">modules/ueye-camera.svg</file>
     </qresource>
 </RCC>

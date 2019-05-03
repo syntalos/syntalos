@@ -31,7 +31,9 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/features2d/features2d.hpp>
 
-Tracker::Tracker(Barrier barrier, MACamera *cam, int framerate, const QString& exportDir, const QString &frameBasePath,
+#include "modules/genericcamera/genericcamera.h"
+
+Tracker::Tracker(Barrier barrier, GenericCamera *cam, int framerate, const QString& exportDir, const QString &frameBasePath,
                  const QString& subjectId, const QSize &exportRes)
     : QObject(nullptr),
       m_barrier(barrier),

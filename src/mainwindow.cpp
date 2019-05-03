@@ -64,7 +64,6 @@
 #include "modules/rhd2000/waveplot.h"
 
 #include "video/mazevideo.h"
-#include "video/videoviewwidget.h"
 
 #include "pyscript/mazescript.h"
 #include "statuswidget.h"
@@ -261,7 +260,9 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->scriptLayout->addWidget(m_mscriptView);
     pyDoc->setHighlightingMode("python");
 
+    // FIXME
     // set up video and tracking
+#if 0
     m_videoTracker = new MazeVideo;
     connect(m_videoTracker, &MazeVideo::error, this, &MainWindow::videoError);
     m_rawVideoWidget = new VideoViewWidget(this);
@@ -289,6 +290,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(m_videoTracker, &MazeVideo::newInfoGraphic, [&](const cv::Mat& image) {
         m_trackInfoWidget->showImage(image);
     });
+#endif
 
     // video settings panel
     auto cameraBox = new QComboBox(this);
@@ -870,6 +872,8 @@ void MainWindow::changeExperimentFeatures(const ExperimentFeatures& features)
         m_statusWidget->setFirmataStatus(StatusWidget::Status::Disabled);
     }
 
+    // FIXME
+#if 0
     if (features.videoEnabled) {
         m_rawVideoWidgetWin->show();
         ui->cbVideoFeature->setChecked(true);
@@ -897,6 +901,7 @@ void MainWindow::changeExperimentFeatures(const ExperimentFeatures& features)
 
         m_statusWidget->setTrackingStatus(StatusWidget::Status::Disabled);
     }
+#endif
 
     if (features.ephysEnabled) {
         //! FIXME m_intanTraceWin->show();
