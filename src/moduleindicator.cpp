@@ -59,6 +59,7 @@ ModuleIndicator::ModuleIndicator(AbstractModule *module, ModuleManager *manager,
     connect(d->module, &AbstractModule::actionsUpdated, this, &ModuleIndicator::receiveActionsUpdated);
     connect(d->module, &AbstractModule::stateChanged, this, &ModuleIndicator::receiveStateChange);
     connect(d->module, &AbstractModule::errorMessage, this, &ModuleIndicator::receiveErrorMessage);
+    connect(d->manager, &ModuleManager::modulePreRemove, this, &ModuleIndicator::on_modulePreRemove);
 }
 
 ModuleIndicator::~ModuleIndicator()
@@ -127,6 +128,14 @@ void ModuleIndicator::on_configButton_clicked()
     d->module->showSettingsUi();
 }
 
+void ModuleIndicator::on_modulePreRemove(AbstractModule *mod)
+{
+    if (mod == d->module) {
+        d->module = nullptr;
+        this->deleteLater();
+    }
+}
+
 void ModuleIndicator::on_showButton_clicked()
 {
     if (d->module == nullptr) return;
@@ -136,10 +145,7 @@ void ModuleIndicator::on_showButton_clicked()
 void ModuleIndicator::on_removeButton_clicked()
 {
     if (d->manager != nullptr) {
-        if (d->manager->removeModule(d->module)) {
+        if (d->manager->removeModule(d->module))
             ui->infoLabel->setText("Deleted.");
-            d->module = nullptr;
-            this->deleteLater();
-        }
     }
 }
