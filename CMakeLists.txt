@@ -2,6 +2,11 @@ project(MazeAmaze)
 
 cmake_minimum_required(VERSION 3.2)
 
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_SOURCE_DIR}/contrib/cmake/")
+
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
 
@@ -34,12 +39,15 @@ string( REPLACE "-rdynamic" "" CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS ${CMAKE_SHARE
 #
 set(OpenGL_GL_PREFERENCE GLVND)
 include(GNUInstallDirs)
+find_package(Threads)
 find_package(Qt5Widgets REQUIRED)
 find_package(Qt5SerialPort REQUIRED)
 find_package(Qt5OpenGL REQUIRED)
 find_package(Qt5Multimedia REQUIRED)
 find_package(Qt5MultimediaWidgets REQUIRED)
 find_package(Qt5Charts REQUIRED)
+find_package(Boost 1.60 REQUIRED COMPONENTS container)
+find_package(FFmpeg 58.35 REQUIRED COMPONENTS avcodec avutil avformat swscale)
 
 find_package(PythonLibs 3.5 REQUIRED)
 find_package(KF5Archive REQUIRED)
