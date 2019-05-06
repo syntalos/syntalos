@@ -21,6 +21,7 @@
 
 #include <QOpenGLFunctions>
 #include <opencv2/opencv.hpp>
+#include <QIcon>
 #include <QDebug>
 
 VideoViewWidget::VideoViewWidget(QWidget *parent)
@@ -28,6 +29,7 @@ VideoViewWidget::VideoViewWidget(QWidget *parent)
 {
     m_bgColor = QColor::fromRgb(150, 150, 150);
     setWindowTitle("Video");
+    setWindowIcon(QIcon(":/icons/generic-view"));
 
     setMinimumSize(QSize(320, 256));
 }
@@ -36,9 +38,9 @@ void VideoViewWidget::initializeGL()
 {
     QOpenGLWidget::initializeGL();
 
-    float r = ((float)m_bgColor.darker().red()) / 255.0f;
-    float g = ((float)m_bgColor.darker().green()) / 255.0f;
-    float b = ((float)m_bgColor.darker().blue()) / 255.0f;
+    float r = static_cast<float>(m_bgColor.darker().red()) / 255.0f;
+    float g = static_cast<float>(m_bgColor.darker().green()) / 255.0f;
+    float b = static_cast<float>(m_bgColor.darker().blue()) / 255.0f;
     glClearColor(r, g, b, 1.0f);
 }
 
@@ -103,7 +105,7 @@ static GLuint matToTexture(cv::Mat &mat, GLenum minFilter, GLenum magFilter, GLe
 
 void VideoViewWidget::resizeGL(int width, int height)
 {
-    glViewport(0, 0, (GLint)width, (GLint)height);
+    glViewport(0, 0, static_cast<GLint>(width), static_cast<GLint>(height));
 
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();

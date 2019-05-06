@@ -24,13 +24,7 @@
 #include <QList>
 #include <QJsonArray>
 
-struct TestSubject {
-    QString id;
-    QString group;
-    bool active;
-    int adaptorHeight; // in mm
-    QString comment;
-};
+#include "utils.h"
 
 class TestSubjectListModel : public QAbstractListModel
 {

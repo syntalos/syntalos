@@ -22,6 +22,8 @@
 
 AbstractModule::AbstractModule(QObject *parent) :
     QObject(parent),
+    m_name(id()),
+    m_started(false),
     m_state(ModuleState::PREPARING),
     m_initialized(false)
 {
@@ -37,9 +39,14 @@ QString AbstractModule::id() const
     return QStringLiteral("unknown");
 }
 
-QString AbstractModule::displayName() const
+QString AbstractModule::name() const
 {
-    return id();
+    return m_name;
+}
+
+void AbstractModule::setName(const QString &name)
+{
+    m_name = name;
 }
 
 QString AbstractModule::description() const
@@ -52,13 +59,26 @@ QPixmap AbstractModule::pixmap() const
     return QPixmap(":/module/generic");
 }
 
+ModuleFeatures AbstractModule::features() const
+{
+    return ModuleFeature::DISPLAY |
+           ModuleFeature::SETTINGS |
+           ModuleFeature::ACTIONS;
+}
+
+void AbstractModule::start()
+{
+    m_started = true;
+}
+
 bool AbstractModule::runCycle()
 {
     return true;
 }
 
-bool AbstractModule::runThreads()
+bool AbstractModule::prepareThreads()
 {
+    m_started = false;
     return true;
 }
 
@@ -137,10 +157,11 @@ void AbstractModule::setState(ModuleState state)
     emit stateChanged(state);
 }
 
-void AbstractModule::setLastError(const QString &message)
+void AbstractModule::raiseError(const QString &message)
 {
     m_lastError = message;
-    emit errorMessage(message);
+    emit error(message);
+    setState(ModuleState::ERROR);
 }
 
 void AbstractModule::setStatusMessage(const QString &message)

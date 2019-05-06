@@ -22,6 +22,20 @@
 
 #include <QString>
 #include <QJsonObject>
+#include <chrono>
+
+/**
+ * @brief The TestSubject struct
+ * Data about a test subject.
+ */
+struct TestSubject {
+    QString id;
+    QString group;
+    bool active;
+    int adaptorHeight; // in mm
+    QString comment;
+};
+
 
 typedef struct
 {
@@ -40,5 +54,15 @@ typedef struct
 } ExperimentFeatures;
 
 time_t getMsecEpoch();
+
+namespace cv {
+class Mat;
+}
+
+/**
+ * Type of a pair of frame data with a timestamp, usually passed around between modules
+ * within MazeAmaze.
+ */
+using FrameData = std::pair<cv::Mat, std::chrono::milliseconds>;
 
 #endif // UTILS_H

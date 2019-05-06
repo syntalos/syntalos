@@ -22,6 +22,7 @@
 
 #include <QPixmap>
 #include <QMenu>
+#include <QDebug>
 
 #include "modulemanager.h"
 
@@ -54,13 +55,24 @@ ModuleIndicator::ModuleIndicator(AbstractModule *module, ModuleManager *manager,
     receiveStateChange(ModuleState::PREPARING);
 
     ui->moduleImage->setPixmap(d->module->pixmap());
-    ui->moduleNameLabel->setText(d->module->displayName());
+    ui->moduleNameLabel->setText(d->module->name());
 
+    ui->showButton->setVisible(false);
+    ui->configButton->setVisible(false);
     ui->menuButton->setVisible(false);
+
+    const auto features = d->module->features();
+    qDebug() << features;
+    if (features.testFlag(ModuleFeature::DISPLAY))
+        ui->showButton->setVisible(true);
+    if (features.testFlag(ModuleFeature::SETTINGS))
+        ui->configButton->setVisible(true);
+    if (features.testFlag(ModuleFeature::ACTIONS))
+        ui->menuButton->setVisible(true);
 
     connect(d->module, &AbstractModule::actionsUpdated, this, &ModuleIndicator::receiveActionsUpdated);
     connect(d->module, &AbstractModule::stateChanged, this, &ModuleIndicator::receiveStateChange);
-    connect(d->module, &AbstractModule::errorMessage, this, &ModuleIndicator::receiveErrorMessage);
+    connect(d->module, &AbstractModule::error, this, &ModuleIndicator::receiveErrorMessage);
     connect(d->manager, &ModuleManager::modulePreRemove, this, &ModuleIndicator::on_modulePreRemove);
 }
 

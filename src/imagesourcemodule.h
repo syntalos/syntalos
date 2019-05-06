@@ -24,6 +24,7 @@
 #include <opencv2/core.hpp>
 
 #include "abstractmodule.h"
+#include "utils.h"
 
 class ImageSourceModule : public AbstractModule
 {
@@ -31,8 +32,12 @@ class ImageSourceModule : public AbstractModule
 public:
     explicit ImageSourceModule(QObject *parent = nullptr);
 
-//public slots:
-//    virtual void receiveFrame(const cv::Mat& frame, const std::chrono::milliseconds& timestamp);
+    virtual bool prepare(const QString &storageRootDir, const TestSubject &testSubject, HRTimer *timer) override;
+    virtual double selectedFramerate() const = 0;
+
+signals:
+    void newFrame(const FrameData& frameData);
+
 };
 
 #endif // IMAGESOURCEMODULE_H

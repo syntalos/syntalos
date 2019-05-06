@@ -7,6 +7,8 @@ set(MAZEAMAZE_SRC
     barrier.h
     utils.h
     utils.cpp
+    hrclock.h
+    hrclock.cpp
     mainwindow.h
     mainwindow.cpp
     statuswidget.h
@@ -23,6 +25,8 @@ set(MAZEAMAZE_SRC
     moduleselectdialog.cpp
     imagesourcemodule.h
     imagesourcemodule.cpp
+    imagesinkmodule.h
+    imagesinkmodule.cpp
     videoviewwidget.h
     videoviewwidget.cpp
 )
@@ -97,6 +101,7 @@ add_executable(mazeamaze
 )
 
 target_link_libraries(mazeamaze
+    ${CMAKE_THREAD_LIBS_INIT}
     ${CMAKE_DL_LIBS}
     Qt5::Widgets
     Qt5::SerialPort
@@ -111,15 +116,18 @@ target_link_libraries(mazeamaze
     ${OpenCV_LIBS}
     ${OPENGL_LIBRARIES}
     ${UYEYE_LIB}
+    ${Boost_LIBRARIES}
 
     mod_intan_rhd2000
     mod_traceplot
+    mod_videorecorder
     mod_generic_camera
 )
 
 include_directories(
     ${OpenCV_INCLUDE_DIRS}
     ${PYTHON_INCLUDE_DIRS}
+    ${Boost_INCLUDE_DIR}
 )
 
 install(TARGETS mazeamaze DESTINATION ${CMAKE_INSTALL_BINDIR})

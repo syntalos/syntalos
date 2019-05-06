@@ -21,13 +21,27 @@
 
 #include <QMessageBox>
 
+#include "videoviewwidget.h"
+#include "genericcamera.h"
+#include "genericcamerasettingsdialog.h"
+
 GenericCameraModule::GenericCameraModule(QObject *parent)
-    : ImageSourceModule(parent)
+    : ImageSourceModule(parent),
+      m_videoView(nullptr),
+      m_camSettingsWindow(nullptr),
+      m_camera(nullptr),
+      m_thread(nullptr)
 {
+    m_name = QStringLiteral("Generic Camera");
 }
 
 GenericCameraModule::~GenericCameraModule()
 {
+    finishCaptureThread();
+    if (m_videoView != nullptr)
+        delete m_videoView;
+    if (m_camSettingsWindow != nullptr)
+        delete m_camSettingsWindow;
 }
 
 QString GenericCameraModule::id() const
@@ -35,14 +49,9 @@ QString GenericCameraModule::id() const
     return QStringLiteral("generic-camera");
 }
 
-QString GenericCameraModule::displayName() const
-{
-    return QStringLiteral("Generic Camera");
-}
-
 QString GenericCameraModule::description() const
 {
-    return QStringLiteral("Record a video with a regular, Linux-compatible camera.");
+    return QStringLiteral("Capture a video with a regular, Linux-compatible camera.");
 }
 
 QPixmap GenericCameraModule::pixmap() const
@@ -50,21 +59,35 @@ QPixmap GenericCameraModule::pixmap() const
     return QPixmap(":/module/generic-camera");
 }
 
+double GenericCameraModule::selectedFramerate() const
+{
+    assert(initialized());
+    return m_camera->framerate();
+}
+
 bool GenericCameraModule::initialize(ModuleManager *manager)
 {
     assert(!initialized());
+    Q_UNUSED(manager);
+
+    m_camera = new GenericCamera(this);
+    m_videoView = new VideoViewWidget;
+    m_camSettingsWindow = new GenericCameraSettingsDialog(m_camera);
+
 
     setState(ModuleState::READY);
     setInitialized();
     return true;
 }
 
-bool GenericCameraModule::prepare(const QString &storageRootDir, const QString &subjectId)
+bool GenericCameraModule::prepareThreads()
 {
-    Q_UNUSED(storageRootDir);
-    Q_UNUSED(subjectId);
+    startCaptureThread();
+}
 
-    return true;
+bool GenericCameraModule::runCycle()
+{
+    //
 }
 
 void GenericCameraModule::stop()
@@ -74,8 +97,52 @@ void GenericCameraModule::stop()
 
 void GenericCameraModule::showDisplayUi()
 {
+    assert(initialized());
+    m_videoView->show();
 }
 
 void GenericCameraModule::hideDisplayUi()
 {
+    assert(initialized());
+    m_videoView->hide();
+}
+
+void GenericCameraModule::showSettingsUi()
+{
+    assert(initialized());
+    m_camSettingsWindow->show();
+}
+
+void GenericCameraModule::hideSettingsUi()
+{
+    assert(initialized());
+    m_camSettingsWindow->show();
+}
+
+void GenericCameraModule::captureThread(void *gcamPtr)
+{
+    GenericCameraModule *self = static_cast<GenericCameraModule*> (gcamPtr);
+
+    while (self->m_running) {
+
+        // wait until we actually start
+        while (!self->m_started) { }
+    }
+}
+
+void GenericCameraModule::startCaptureThread()
+{
+    finishCaptureThread();
+    m_running = true;
+    m_thread = new std::thread(captureThread, this);
+}
+
+void GenericCameraModule::finishCaptureThread()
+{
+    if (m_thread != nullptr) {
+        m_running = false;
+        m_thread->join();
+        delete m_thread;
+        m_thread = nullptr;
+    }
 }

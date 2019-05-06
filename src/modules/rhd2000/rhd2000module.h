@@ -32,34 +32,33 @@ class Rhd2000Module : public AbstractModule
     Q_OBJECT
 public:
     explicit Rhd2000Module(QObject *parent = nullptr);
-    ~Rhd2000Module();
+    ~Rhd2000Module() override;
 
-    QString id() const;
-    QString displayName() const;
-    QString description() const;
-    QPixmap pixmap() const;
-    bool singleton() const;
+    QString id() const override;
+    QString description() const override;
+    QPixmap pixmap() const override;
+    bool singleton() const override;
 
-    bool initialize(ModuleManager *manager);
+    bool initialize(ModuleManager *manager) override;
 
-    bool prepare(const QString& storageRootDir, const QString& subjectId);
+    bool prepare(const QString& storageRootDir, const TestSubject& testSubject, HRTimer *timer) override;
 
-    bool runCycle();
+    bool runCycle() override;
 
-    void stop();
+    void stop() override;
 
-    void finalize();
+    void finalize() override;
 
-    void showDisplayUi();
-    void hideDisplayUi();
+    void showDisplayUi() override;
+    void hideDisplayUi() override;
 
-    void showSettingsUi();
-    void hideSettingsUi();
+    void showSettingsUi() override;
+    void hideSettingsUi() override;
 
-    QList<QAction *> actions();
+    QList<QAction *> actions() override;
 
-    QByteArray serializeSettings();
-    bool loadSettings(const QByteArray& data);
+    QByteArray serializeSettings() override;
+    bool loadSettings(const QByteArray& data) override;
 
     void setPlotProxy(TracePlotProxy *proxy);
 

@@ -31,6 +31,7 @@ TracePlotModule::TracePlotModule(QObject *parent)
       m_displayWindow(nullptr),
       m_intanModule(nullptr)
 {
+    m_name = QStringLiteral("TracePlot");
 }
 
 TracePlotModule::~TracePlotModule()
@@ -49,11 +50,6 @@ TracePlotModule::~TracePlotModule()
 QString TracePlotModule::id() const
 {
     return QStringLiteral("traceplot");
-}
-
-QString TracePlotModule::displayName() const
-{
-    return QStringLiteral("TracePlot");
 }
 
 QString TracePlotModule::description() const
@@ -92,7 +88,7 @@ bool TracePlotModule::initialize(ModuleManager *manager)
         }
     }
     if (m_intanModule == nullptr) {
-        setLastError("Unable to find an RHD2000 module to connect to Please add a module of this type first.");
+        raiseError("Unable to find an RHD2000 module to connect to Please add a module of this type first.");
         return false;
     }
 
@@ -102,10 +98,11 @@ bool TracePlotModule::initialize(ModuleManager *manager)
     return true;
 }
 
-bool TracePlotModule::prepare(const QString &storageRootDir, const QString &subjectId)
+bool TracePlotModule::prepare(const QString &storageRootDir, const TestSubject &testSubject, HRTimer *timer)
 {
     Q_UNUSED(storageRootDir);
-    Q_UNUSED(subjectId);
+    Q_UNUSED(testSubject);
+    Q_UNUSED(timer);
 
     // reset trace plot data
     m_traceProxy->reset();

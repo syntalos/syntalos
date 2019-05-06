@@ -21,10 +21,15 @@
 #define GENERICCAMERAMODULE_H
 
 #include <QObject>
-#include <chrono>
+#include <thread>
+#include <atomic>
 
 #include "imagesourcemodule.h"
 #include "abstractmodule.h"
+
+class VideoViewWidget;
+class GenericCamera;
+class GenericCameraSettingsDialog;
 
 class GenericCameraModule : public ImageSourceModule
 {
@@ -34,19 +39,33 @@ public:
     ~GenericCameraModule();
 
     QString id() const override;
-    QString displayName() const;
-    QString description() const;
-    QPixmap pixmap() const;
+    QString description() const override;
+    QPixmap pixmap() const override;
 
-    bool initialize(ModuleManager *manager);
-    bool prepare(const QString& storageRootDir, const QString& subjectId);
-    void stop();
+    double selectedFramerate() const override;
 
-    void showDisplayUi();
-    void hideDisplayUi();
+    bool initialize(ModuleManager *manager) override;
+
+    bool prepareThreads() override;
+    bool runCycle() override;
+
+    void stop() override;
+
+    void showDisplayUi() override;
+    void hideDisplayUi() override;
+    void showSettingsUi() override;
+    void hideSettingsUi() override;
 
 private:
+    VideoViewWidget *m_videoView;
+    GenericCameraSettingsDialog *m_camSettingsWindow;
+    GenericCamera *m_camera;
+    std::thread *m_thread;
+    std::atomic_bool m_running;
 
+    static void captureThread(void *gcamPtr);
+    void startCaptureThread();
+    void finishCaptureThread();
 };
 
 #endif // GENERICCAMERAMODULE_H

@@ -43,17 +43,12 @@ public:
     bool open(QVariant cameraId, const QSize& size);
     bool close();
     bool setFramerate(double fps);
+    double framerate() const;
 
     QPair<time_t, cv::Mat> getFrame();
     bool getFrame(time_t *time, cv::Mat& buffer);
 
     QList<QSize> getResolutionList(QVariant cameraId);
-
-    bool setAutoWhiteBalance(bool enabled) { Q_UNUSED(enabled); return true; };
-    bool setAutoGain(bool enabled) { Q_UNUSED(enabled); return true; };
-    bool setExposureTime(double val) { Q_UNUSED(val); return true; };
-
-public slots:
 
 private slots:
     void videoFrameReceived(const QVideoFrame &frame);

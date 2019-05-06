@@ -24,6 +24,7 @@
 
 #include "modules/rhd2000/rhd2000module.h"
 #include "modules/traceplot/traceplotmodule.h"
+#include "modules/videorecorder/videorecordmodule.h"
 #include "modules/genericcamera/genericcameramodule.h"
 
 class AbstractModuleCreator
@@ -72,6 +73,7 @@ ModuleManager::ModuleManager(QObject *parent, QWidget *parentWidget)
 
     registerModuleInfo<Rhd2000Module>();
     registerModuleInfo<TracePlotModule>();
+    registerModuleInfo<VideoRecorderModule>();
     registerModuleInfo<GenericCameraModule>();
 }
 
@@ -123,7 +125,7 @@ bool ModuleManager::removeModule(AbstractModule *mod)
             // oh no! Another module tries to prevent the removal of the current module.
             // Let's notify about that, then stop removing the module.
             QMessageBox::information(d->parentWidget, QStringLiteral("Can not remove module"),
-                                  QStringLiteral("The '%1' module can not be removed, because the '%2' module depends on it. Please remove '%2' first!").arg(mod->displayName()).arg(emod->displayName()),
+                                  QStringLiteral("The '%1' module can not be removed, because the '%2' module depends on it. Please remove '%2' first!").arg(mod->name()).arg(emod->name()),
                                   QMessageBox::Ok);
             return false;
         }
@@ -164,7 +166,7 @@ void ModuleManager::registerModuleInfo()
     QSharedPointer<ModuleInfo> info(new ModuleInfo);
     info->id = tmp->id();
     info->pixmap = tmp->pixmap();
-    info->displayName = tmp->displayName();
+    info->displayName = tmp->name();
     info->description = tmp->description();
     info->singleton = tmp->singleton();
     info->count = 0;

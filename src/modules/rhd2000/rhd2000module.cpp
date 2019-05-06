@@ -25,6 +25,7 @@
 Rhd2000Module::Rhd2000Module(QObject *parent)
     : AbstractModule(parent)
 {
+    m_name = QStringLiteral("Intan RHD2000 USB Eval");
     m_intanUi = nullptr;
 }
 
@@ -37,11 +38,6 @@ Rhd2000Module::~Rhd2000Module()
 QString Rhd2000Module::id() const
 {
     return QStringLiteral("intan_rhd2000");
-}
-
-QString Rhd2000Module::displayName() const
-{
-    return QStringLiteral("Intan RHD2000 USB Eval");
 }
 
 QString Rhd2000Module::description() const
@@ -89,17 +85,18 @@ bool Rhd2000Module::initialize(ModuleManager *manager)
     return true;
 }
 
-bool Rhd2000Module::prepare(const QString &storageRootDir, const QString &subjectId)
+bool Rhd2000Module::prepare(const QString &storageRootDir, const TestSubject &testSubject, HRTimer *timer)
 {
     assert(m_intanUi);
+    Q_UNUSED(timer);
 
     setState(ModuleState::PREPARING);
 
     QString intanBaseName;
-    if (subjectId.isEmpty())
+    if (testSubject.id.isEmpty())
         intanBaseName = QString::fromUtf8("%1/intan/ephys").arg(storageRootDir);
     else
-        intanBaseName = QString::fromUtf8("%1/intan/%2_ephys").arg(storageRootDir).arg(subjectId);
+        intanBaseName = QString::fromUtf8("%1/intan/%2_ephys").arg(storageRootDir).arg(testSubject.id);
 
     m_intanUi->setBaseFileName(intanBaseName);
 

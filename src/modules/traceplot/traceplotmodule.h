@@ -33,21 +33,20 @@ class TracePlotModule : public AbstractModule
     Q_OBJECT
 public:
     explicit TracePlotModule(QObject *parent = nullptr);
-    ~TracePlotModule();
+    ~TracePlotModule() override;
 
     QString id() const override;
-    QString displayName() const;
-    QString description() const;
-    QPixmap pixmap() const;
-    bool singleton() const;
+    QString description() const override;
+    QPixmap pixmap() const override;
+    bool singleton() const override;
     bool canRemove(AbstractModule *mod) override;
 
-    bool initialize(ModuleManager *manager);
-    bool prepare(const QString& storageRootDir, const QString& subjectId);
-    void stop();
+    bool initialize(ModuleManager *manager) override;
+    bool prepare(const QString& storageRootDir, const TestSubject& testSubject, HRTimer *timer) override;
+    void stop() override;
 
-    void showDisplayUi();
-    void hideDisplayUi();
+    void showDisplayUi() override;
+    void hideDisplayUi() override;
 
 private:
     TracePlotProxy *m_traceProxy;

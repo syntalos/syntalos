@@ -17,37 +17,29 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef SIMPLEVPROBE_HPP
-#define SIMPLEVPROBE_HPP
+#include "genericcamerasettingsdialog.h"
+#include "ui_genericcamerasettingsdialog.h"
 
-#include <QAbstractVideoSurface>
-#include <QList>
-
-class QCamera;
-class QCameraViewfinder;
-
-class SimpleVProbe : public QAbstractVideoSurface
+GenericCameraSettingsDialog::GenericCameraSettingsDialog(GenericCamera *camera, QWidget *parent) :
+    QDialog(parent),
+    ui(new Ui::GenericCameraSettingsDialog)
 {
-    Q_OBJECT
+    ui->setupUi(this);
+    m_camera = camera;
 
-private:
-    QCamera *source;
-public:
-    explicit SimpleVProbe(QObject *parent = nullptr);
+    m_camera->setFramerate(ui->fpsSpinBox->value());
 
-    QList<QVideoFrame::PixelFormat> supportedPixelFormats(QAbstractVideoBuffer::HandleType handleType) const override;
+    Q_FOREACH(auto cinfo, m_camera->getCameraList()) {
+        ui->cameraComboBox->addItem(cinfo.first, cinfo.second);
+    }
+}
 
-    // Called from QAbstractVideoSurface whenever a new frame is present
-    bool present(const QVideoFrame &frame) Q_DECL_OVERRIDE;
+GenericCameraSettingsDialog::~GenericCameraSettingsDialog()
+{
+    delete ui;
+}
 
-    bool setSource(QCamera *source);
-
-    bool isActive() const;
-
-signals:
-    void videoFrameProbed(const QVideoFrame &videoFrame);
-    void flush();
-
-};
-
-#endif // SIMPLEVPROBE_HPP
+void GenericCameraSettingsDialog::on_fpsSpinBox_valueChanged(int arg1)
+{
+    m_camera->setFramerate(arg1);
+}

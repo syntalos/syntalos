@@ -141,8 +141,8 @@ bool MazeVideo::openCamera()
     }
 
     //m_camera->setConfFile(m_uEyeConfigFile);
-    m_camera->setAutoGain(m_autoGain);
-    m_camera->setExposureTime(m_exposureTime);
+    //m_camera->setAutoGain(m_autoGain);
+    //m_camera->setExposureTime(m_exposureTime);
     m_camera->setFramerate(m_framerate);
     //m_camera->setGPIOFlash(m_gpioFlash);
 

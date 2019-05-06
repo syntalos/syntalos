@@ -17,37 +17,31 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef SIMPLEVPROBE_HPP
-#define SIMPLEVPROBE_HPP
+#ifndef GENERICCAMERASETTINGSDIALOG_H
+#define GENERICCAMERASETTINGSDIALOG_H
 
-#include <QAbstractVideoSurface>
-#include <QList>
+#include <QDialog>
+#include "genericcamera.h"
 
-class QCamera;
-class QCameraViewfinder;
+namespace Ui {
+class GenericCameraSettingsDialog;
+}
 
-class SimpleVProbe : public QAbstractVideoSurface
+class GenericCameraSettingsDialog : public QDialog
 {
     Q_OBJECT
 
-private:
-    QCamera *source;
 public:
-    explicit SimpleVProbe(QObject *parent = nullptr);
+    explicit GenericCameraSettingsDialog(GenericCamera *camera, QWidget *parent = nullptr);
+    ~GenericCameraSettingsDialog();
 
-    QList<QVideoFrame::PixelFormat> supportedPixelFormats(QAbstractVideoBuffer::HandleType handleType) const override;
+private slots:
+    void on_fpsSpinBox_valueChanged(int arg1);
 
-    // Called from QAbstractVideoSurface whenever a new frame is present
-    bool present(const QVideoFrame &frame) Q_DECL_OVERRIDE;
+private:
+    Ui::GenericCameraSettingsDialog *ui;
 
-    bool setSource(QCamera *source);
-
-    bool isActive() const;
-
-signals:
-    void videoFrameProbed(const QVideoFrame &videoFrame);
-    void flush();
-
+    GenericCamera *m_camera;
 };
 
-#endif // SIMPLEVPROBE_HPP
+#endif // GENERICCAMERASETTINGSDIALOG_H

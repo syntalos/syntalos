@@ -673,8 +673,8 @@
       <widget class="QToolBox" name="toolBox">
        <property name="minimumSize">
         <size>
-         <width>100</width>
-         <height>0</height>
+         <width>400</width>
+         <height>400</height>
         </size>
        </property>
        <property name="baseSize">
@@ -684,15 +684,15 @@
         </size>
        </property>
        <property name="currentIndex">
-        <number>1</number>
+        <number>3</number>
        </property>
        <widget class="QWidget" name="tabOld1">
         <property name="geometry">
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>113</width>
-          <height>80</height>
+          <width>400</width>
+          <height>240</height>
          </rect>
         </property>
         <property name="minimumSize">
@@ -730,8 +730,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>113</width>
-          <height>80</height>
+          <width>400</width>
+          <height>240</height>
          </rect>
         </property>
         <attribute name="label">
@@ -744,8 +744,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>113</width>
-          <height>80</height>
+          <width>400</width>
+          <height>240</height>
          </rect>
         </property>
         <attribute name="label">
@@ -757,8 +757,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>113</width>
-          <height>80</height>
+          <width>400</width>
+          <height>240</height>
          </rect>
         </property>
         <attribute name="label">
@@ -801,8 +801,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>200</width>
-          <height>118</height>
+          <width>400</width>
+          <height>240</height>
          </rect>
         </property>
         <attribute name="label">

@@ -137,6 +137,11 @@ bool GenericCamera::setFramerate(double fps)
     return true;
 }
 
+double GenericCamera::framerate() const
+{
+    return m_camera->viewfinderSettings().minimumFrameRate();
+}
+
 QPair<time_t, cv::Mat> GenericCamera::getFrame()
 {
     QPair<time_t, cv::Mat> frame;
@@ -177,7 +182,11 @@ bool GenericCamera::getFrame(time_t *time, cv::Mat& buffer)
     }
 
     rgb = tmpImg.convertToFormat(QImage::Format_RGB888);
-    tmpMat = cv::Mat(rgb.height(), rgb.width(), CV_8UC3, (void*) frame.bits(), rgb.bytesPerLine());
+    tmpMat = cv::Mat(rgb.height(),
+                     rgb.width(),
+                     CV_8UC3,
+                     static_cast<void*>(frame.bits()),
+                     static_cast<size_t>(rgb.bytesPerLine()));
     cv::cvtColor(tmpMat, buffer, CV_BGR2RGB);
 
     frame.unmap();

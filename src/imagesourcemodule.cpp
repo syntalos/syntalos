@@ -23,3 +23,11 @@ ImageSourceModule::ImageSourceModule(QObject *parent) :
     AbstractModule(parent)
 {
 }
+
+bool ImageSourceModule::prepare(const QString &storageRootDir, const TestSubject &testSubject, HRTimer *timer)
+{
+    Q_UNUSED(storageRootDir);
+    Q_UNUSED(testSubject);
+
+    return true;
+}

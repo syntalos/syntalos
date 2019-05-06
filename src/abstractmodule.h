@@ -26,7 +26,10 @@
 #include <QAction>
 #include <QPixmap>
 
+#include "utils.h"
+#include "hrclock.h"
 #include "modulemanager.h"
+
 
 /**
  * @brief The ModuleState enum
@@ -41,6 +44,19 @@ enum class ModuleState {
     RUNNING,
     ERROR
 };
+
+/**
+ * @brief The ModuleFeature flags
+ * List of basic features this module may or may not support.
+ */
+enum class ModuleFeature {
+    NONE = 0,
+    SETTINGS = 1 << 0,
+    DISPLAY  = 1 << 1,
+    ACTIONS  = 1 << 2
+};
+Q_DECLARE_FLAGS(ModuleFeatures, ModuleFeature)
+Q_DECLARE_OPERATORS_FOR_FLAGS(ModuleFeatures)
 
 class AbstractModule : public QObject
 {
@@ -58,7 +74,8 @@ public:
     /**
      * @brief Name of this module displayed to the user
      */
-    virtual QString displayName() const;
+    virtual QString name() const;
+    virtual void setName(const QString& name);
 
     /**
      * @brief Description of this module
@@ -69,6 +86,11 @@ public:
      * @brief Icon of this module
      */
     virtual QPixmap pixmap() const;
+
+    /**
+     * @brief Return a bitfield of features this module supports.
+     */
+    virtual ModuleFeatures features() const;
 
     /**
      * @brief Initialize the module
@@ -85,7 +107,20 @@ public:
      * prior to every experiment run.
      * @return true if success
      */
-    virtual bool prepare(const QString& storageRootDir, const QString& subjectId) = 0;
+    virtual bool prepare(const QString& storageRootDir, const TestSubject& testSubject, HRTimer *timer) = 0;
+
+    /**
+     * @brief Execute this module's threads.
+     * This method is run once when the experiment is started.
+     * @return true if successful.
+     */
+    virtual bool prepareThreads();
+
+    /**
+     * @brief Run when the experiment is started,
+     * switches the module into "Started" mode.
+     */
+    void start();
 
     /**
      * @brief Execute tasks once per processing loop
@@ -95,13 +130,6 @@ public:
      * @return true if no error
      */
     virtual bool runCycle();
-
-    /**
-     * @brief Execute this module's threads.
-     * This method is run once when the experiment is started.
-     * @return true if successful.
-     */
-    virtual bool runThreads();
 
     /**
      * @brief Stop running an experiment.
@@ -179,15 +207,17 @@ public:
 signals:
     void actionsUpdated();
     void stateChanged(ModuleState state);
-    void errorMessage(const QString& message);
+    void error(const QString& message);
     void statusMessage(const QString& message);
 
 protected:
     void setState(ModuleState state);
-    void setLastError(const QString& message);
     void setStatusMessage(const QString& message);
+    void raiseError(const QString& message);
 
+    QString m_name;
     QString m_storageDir;
+    std::atomic_bool m_started;
 
 private:
     ModuleState m_state;
