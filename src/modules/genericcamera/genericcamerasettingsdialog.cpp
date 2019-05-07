@@ -20,17 +20,18 @@
 #include "genericcamerasettingsdialog.h"
 #include "ui_genericcamerasettingsdialog.h"
 
-GenericCameraSettingsDialog::GenericCameraSettingsDialog(GenericCamera *camera, QWidget *parent) :
+GenericCameraSettingsDialog::GenericCameraSettingsDialog(Camera *camera, QWidget *parent) :
     QDialog(parent),
     ui(new Ui::GenericCameraSettingsDialog)
 {
     ui->setupUi(this);
     m_camera = camera;
 
-    m_camera->setFramerate(ui->fpsSpinBox->value());
+    //m_camera->setFramerate(ui->fpsSpinBox->value());
 
-    Q_FOREACH(auto cinfo, m_camera->getCameraList()) {
-        ui->cameraComboBox->addItem(cinfo.first, cinfo.second);
+    auto cameras = Camera::availableCameras();
+    Q_FOREACH(const auto cameraInfo, cameras) {
+        ui->cameraComboBox->addItem(cameraInfo.first, QVariant(cameraInfo.second));
     }
 }
 
@@ -39,7 +40,24 @@ GenericCameraSettingsDialog::~GenericCameraSettingsDialog()
     delete ui;
 }
 
+QVariant GenericCameraSettingsDialog::selectedCamera() const
+{
+    return ui->cameraComboBox->currentData();
+}
+
+QSize GenericCameraSettingsDialog::selectedSize() const
+{
+    QSize size;
+    return size;
+}
+
 void GenericCameraSettingsDialog::on_fpsSpinBox_valueChanged(int arg1)
 {
-    m_camera->setFramerate(arg1);
+    //
+}
+
+void GenericCameraSettingsDialog::on_cameraComboBox_currentIndexChanged(int index)
+{
+    Q_UNUSED(index);
+    m_camera->setCamId(ui->cameraComboBox->currentData().toInt());
 }

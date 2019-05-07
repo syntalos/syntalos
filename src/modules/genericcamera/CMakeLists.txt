@@ -2,10 +2,8 @@
 set(GENERIC_CAMERA_SRC
     genericcameramodule.h
     genericcameramodule.cpp
-    simplevprobe.h
-    simplevprobe.cpp
-    genericcamera.h
-    genericcamera.cpp
+    camera.h
+    camera.cpp
     genericcamerasettingsdialog.h
     genericcamerasettingsdialog.cpp
 )
@@ -24,8 +22,6 @@ add_library(mod_generic_camera STATIC
 target_link_libraries(mod_generic_camera
     ${CMAKE_THREAD_LIBS_INIT}
     Qt5::Widgets
-    Qt5::Multimedia
-    Qt5::MultimediaWidgets
     ${OpenCV_LIBS}
     ${Boost_LIBRARIES}
 )

@@ -19,20 +19,25 @@
 
 #include "genericcameramodule.h"
 
+#include <QMutexLocker>
 #include <QMessageBox>
+#include <opencv2/opencv.hpp>
 
+#include "camera.h"
 #include "videoviewwidget.h"
-#include "genericcamera.h"
 #include "genericcamerasettingsdialog.h"
 
 GenericCameraModule::GenericCameraModule(QObject *parent)
     : ImageSourceModule(parent),
+      m_camera(nullptr),
       m_videoView(nullptr),
       m_camSettingsWindow(nullptr),
-      m_camera(nullptr),
       m_thread(nullptr)
 {
     m_name = QStringLiteral("Generic Camera");
+    m_camera = new Camera;
+
+    m_frameRing = boost::circular_buffer<cv::Mat>(32);
 }
 
 GenericCameraModule::~GenericCameraModule()
@@ -62,7 +67,7 @@ QPixmap GenericCameraModule::pixmap() const
 double GenericCameraModule::selectedFramerate() const
 {
     assert(initialized());
-    return m_camera->framerate();
+    return 0;
 }
 
 bool GenericCameraModule::initialize(ModuleManager *manager)
@@ -70,29 +75,51 @@ bool GenericCameraModule::initialize(ModuleManager *manager)
     assert(!initialized());
     Q_UNUSED(manager);
 
-    m_camera = new GenericCamera(this);
     m_videoView = new VideoViewWidget;
     m_camSettingsWindow = new GenericCameraSettingsDialog(m_camera);
-
 
     setState(ModuleState::READY);
     setInitialized();
     return true;
 }
 
-bool GenericCameraModule::prepareThreads()
+bool GenericCameraModule::prepare(HRTimer *timer)
 {
-    startCaptureThread();
+    m_started = false;
+    m_timer = timer;
+
+    setState(ModuleState::PREPARING);
+    if (!startCaptureThread())
+        return false;
+    setState(ModuleState::READY);
+    return true;
+}
+
+void GenericCameraModule::start()
+{
+    m_started = true;
+    m_camera->setStartTime(m_timer->startTime());
 }
 
 bool GenericCameraModule::runCycle()
 {
-    //
+    QMutexLocker locker(&m_mutex);
+
+    if (m_frameRing.size() == 0)
+        return true;
+
+    if (!m_frameRing.empty()) {
+        auto frame = m_frameRing.front();
+        m_videoView->showImage(frame);
+        m_frameRing.pop_front();
+    }
+
+    return true;
 }
 
 void GenericCameraModule::stop()
 {
-
+    finishCaptureThread();
 }
 
 void GenericCameraModule::showDisplayUi()
@@ -116,7 +143,7 @@ void GenericCameraModule::showSettingsUi()
 void GenericCameraModule::hideSettingsUi()
 {
     assert(initialized());
-    m_camSettingsWindow->show();
+    m_camSettingsWindow->hide();
 }
 
 void GenericCameraModule::captureThread(void *gcamPtr)
@@ -124,17 +151,33 @@ void GenericCameraModule::captureThread(void *gcamPtr)
     GenericCameraModule *self = static_cast<GenericCameraModule*> (gcamPtr);
 
     while (self->m_running) {
-
         // wait until we actually start
         while (!self->m_started) { }
+
+        cv::Mat frame;
+        std::chrono::milliseconds time;
+        if (!self->m_camera->recordFrame(&frame, &time)) {
+            continue;
+        }
+
+        self->m_mutex.lock();
+        self->m_frameRing.push_back(frame);
+        self->m_mutex.unlock();
     }
 }
 
-void GenericCameraModule::startCaptureThread()
+bool GenericCameraModule::startCaptureThread()
 {
     finishCaptureThread();
+
+    if (!m_camera->connect()) {
+        raiseError(QStringLiteral("Unable to connect camera: %1").arg(m_camera->lastError()));
+        return false;
+    }
+
     m_running = true;
     m_thread = new std::thread(captureThread, this);
+    return true;
 }
 
 void GenericCameraModule::finishCaptureThread()
@@ -145,4 +188,5 @@ void GenericCameraModule::finishCaptureThread()
         delete m_thread;
         m_thread = nullptr;
     }
+    m_camera->disconnect();
 }

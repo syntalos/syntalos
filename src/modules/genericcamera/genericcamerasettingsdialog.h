@@ -21,7 +21,7 @@
 #define GENERICCAMERASETTINGSDIALOG_H
 
 #include <QDialog>
-#include "genericcamera.h"
+#include "camera.h"
 
 namespace Ui {
 class GenericCameraSettingsDialog;
@@ -32,16 +32,20 @@ class GenericCameraSettingsDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit GenericCameraSettingsDialog(GenericCamera *camera, QWidget *parent = nullptr);
+    explicit GenericCameraSettingsDialog(Camera *camera, QWidget *parent = nullptr);
     ~GenericCameraSettingsDialog();
 
+    QVariant selectedCamera() const;
+    QSize selectedSize() const;
+
 private slots:
+    void on_cameraComboBox_currentIndexChanged(int index);
     void on_fpsSpinBox_valueChanged(int arg1);
 
 private:
     Ui::GenericCameraSettingsDialog *ui;
 
-    GenericCamera *m_camera;
+    Camera *m_camera;
 };
 
 #endif // GENERICCAMERASETTINGSDIALOG_H

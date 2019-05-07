@@ -23,12 +23,15 @@
 #include <QObject>
 #include <thread>
 #include <atomic>
+#include <boost/circular_buffer.hpp>
+#include <QQueue>
+#include <QMutex>
 
 #include "imagesourcemodule.h"
 #include "abstractmodule.h"
 
+class Camera;
 class VideoViewWidget;
-class GenericCamera;
 class GenericCameraSettingsDialog;
 
 class GenericCameraModule : public ImageSourceModule
@@ -36,7 +39,7 @@ class GenericCameraModule : public ImageSourceModule
     Q_OBJECT
 public:
     explicit GenericCameraModule(QObject *parent = nullptr);
-    ~GenericCameraModule();
+    ~GenericCameraModule() override;
 
     QString id() const override;
     QString description() const override;
@@ -46,7 +49,8 @@ public:
 
     bool initialize(ModuleManager *manager) override;
 
-    bool prepareThreads() override;
+    bool prepare(HRTimer *timer) override;
+    void start() override;
     bool runCycle() override;
 
     void stop() override;
@@ -57,14 +61,18 @@ public:
     void hideSettingsUi() override;
 
 private:
+    Camera *m_camera;
     VideoViewWidget *m_videoView;
     GenericCameraSettingsDialog *m_camSettingsWindow;
-    GenericCamera *m_camera;
     std::thread *m_thread;
+    QMutex m_mutex;
     std::atomic_bool m_running;
+    std::atomic_bool m_started;
+    HRTimer *m_timer;
+    boost::circular_buffer<cv::Mat> m_frameRing;
 
     static void captureThread(void *gcamPtr);
-    void startCaptureThread();
+    bool startCaptureThread();
     void finishCaptureThread();
 };
 

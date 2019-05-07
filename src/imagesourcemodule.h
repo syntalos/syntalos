@@ -32,6 +32,7 @@ class ImageSourceModule : public AbstractModule
 public:
     explicit ImageSourceModule(QObject *parent = nullptr);
 
+    virtual bool prepare(HRTimer *timer);
     virtual bool prepare(const QString &storageRootDir, const TestSubject &testSubject, HRTimer *timer) override;
     virtual double selectedFramerate() const = 0;
 

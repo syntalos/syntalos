@@ -110,17 +110,10 @@ public:
     virtual bool prepare(const QString& storageRootDir, const TestSubject& testSubject, HRTimer *timer) = 0;
 
     /**
-     * @brief Execute this module's threads.
-     * This method is run once when the experiment is started.
-     * @return true if successful.
+     * @brief Run when the experiment is started and the HRTimer has an initial time set.
+     * Switches the module into "Started" mode.
      */
-    virtual bool prepareThreads();
-
-    /**
-     * @brief Run when the experiment is started,
-     * switches the module into "Started" mode.
-     */
-    void start();
+    virtual void start();
 
     /**
      * @brief Execute tasks once per processing loop
@@ -217,7 +210,6 @@ protected:
 
     QString m_name;
     QString m_storageDir;
-    std::atomic_bool m_started;
 
 private:
     ModuleState m_state;

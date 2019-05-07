@@ -62,7 +62,6 @@ ModuleIndicator::ModuleIndicator(AbstractModule *module, ModuleManager *manager,
     ui->menuButton->setVisible(false);
 
     const auto features = d->module->features();
-    qDebug() << features;
     if (features.testFlag(ModuleFeature::DISPLAY))
         ui->showButton->setVisible(true);
     if (features.testFlag(ModuleFeature::SETTINGS))

@@ -24,10 +24,16 @@ ImageSourceModule::ImageSourceModule(QObject *parent) :
 {
 }
 
+bool ImageSourceModule::prepare(HRTimer *timer)
+{
+    Q_UNUSED(timer);
+    return true;
+}
+
 bool ImageSourceModule::prepare(const QString &storageRootDir, const TestSubject &testSubject, HRTimer *timer)
 {
     Q_UNUSED(storageRootDir);
     Q_UNUSED(testSubject);
 
-    return true;
+    return prepare(timer);
 }

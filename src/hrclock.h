@@ -29,7 +29,7 @@ using steady_hr_clock =
                     >::type;
 
 
-inline std::chrono::milliseconds timeDiffToNowInMsec(const std::chrono::time_point<steady_hr_clock>& timePoint) noexcept
+inline std::chrono::milliseconds timeDiffToNowMsec(const std::chrono::time_point<steady_hr_clock>& timePoint) noexcept
 {
     return std::chrono::duration_cast<std::chrono::milliseconds>(steady_hr_clock::now() - timePoint);
 }
@@ -49,6 +49,16 @@ public:
     inline std::chrono::milliseconds timeSinceStartMsec()
     {
         return std::chrono::duration_cast<std::chrono::milliseconds>(steady_hr_clock::now() - m_startTime);
+    }
+
+    inline std::chrono::time_point<steady_hr_clock> currentTimerPoint()
+    {
+        return steady_hr_clock::now();
+    }
+
+    std::chrono::time_point<steady_hr_clock> startTime()
+    {
+        return m_startTime;
     }
 
 private:

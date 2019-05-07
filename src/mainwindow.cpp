@@ -63,10 +63,10 @@
 #include "modules/rhd2000/intanui.h"
 #include "modules/rhd2000/waveplot.h"
 
-#include "video/mazevideo.h"
-
 #include "pyscript/mazescript.h"
 #include "statuswidget.h"
+
+#include "hrclock.h"
 
 #include "modules/traceplot/traceplotproxy.h"
 #include "modules/traceplot/traceview.h"
@@ -290,7 +290,6 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(m_videoTracker, &MazeVideo::newInfoGraphic, [&](const cv::Mat& image) {
         m_trackInfoWidget->showImage(image);
     });
-#endif
 
     // video settings panel
     auto cameraBox = new QComboBox(this);
@@ -409,6 +408,8 @@ MainWindow::MainWindow(QWidget *parent) :
     ueyeConfFileWidget->setEnabled(false);
     m_camFlashMode->setChecked(false);
     m_camFlashMode->setEnabled(false);
+#endif
+
 #endif
 
     m_saveTarCB = new QCheckBox(this);
@@ -597,6 +598,30 @@ void MainWindow::runActionTriggered()
         deDir.removeRecursively();
     }
 
+    auto timer = new HRTimer;
+
+    Q_FOREACH(auto mod, m_modManager->activeModules()) {
+        mod->prepare(m_dataExportDir, m_currentSubject, timer);
+    }
+
+    timer->start();
+    Q_FOREACH(auto mod, m_modManager->activeModules()) {
+        mod->start();
+    }
+
+    while (true) {
+        Q_FOREACH(auto mod, m_modManager->activeModules()) {
+            mod->runCycle();
+        }
+        QApplication::processEvents();
+    }
+
+    delete timer;
+
+
+
+ #if 0
+
     // determine and create the directory for ephys data
     qDebug() << "Initializing new recording run";
 
@@ -752,10 +777,12 @@ void MainWindow::runActionTriggered()
         qDebug() << "Starting Intan recording";
         //! FIXME m_intanUI->recordInterfaceBoard(barrier);
     }
+#endif
 }
 
 void MainWindow::stopActionTriggered()
 {
+#if 0
     setRunPossible(m_exportDirValid);
     setStopPossible(false);
     ui->actionIntanRun->setEnabled(true);
@@ -808,6 +835,7 @@ void MainWindow::stopActionTriggered()
     m_mscriptView->setEnabled(true);
     ui->cameraGroupBox->setEnabled(true);
     m_running = false;
+#endif
 }
 
 void MainWindow::setDataExportBaseDir(const QString& dir)
@@ -989,7 +1017,7 @@ void MainWindow::saveSettingsActionTriggered()
     videoSettings.insert("fps", m_fpsEdit->value());
     videoSettings.insert("gainEnabled", m_gainCB->isChecked());
     videoSettings.insert("exposureTime", m_exposureEdit->value());
-    videoSettings.insert("uEyeConfig", confBaseDir.relativeFilePath(m_videoTracker->uEyeConfigFile()));
+    //! videoSettings.insert("uEyeConfig", confBaseDir.relativeFilePath(m_videoTracker->uEyeConfigFile()));
     videoSettings.insert("makeFrameTarball", m_saveTarCB->isChecked());
     videoSettings.insert("gpioFlash", m_camFlashMode->isChecked());
     settings.insert("video", videoSettings);
@@ -1104,7 +1132,7 @@ void MainWindow::loadSettingsActionTriggered()
     auto uEyeConfFile = videoSettings.value("uEyeConfig").toString();
     if (!uEyeConfFile.isEmpty()) {
         uEyeConfFile = confBaseDir.absoluteFilePath(uEyeConfFile);
-        m_videoTracker->setUEyeConfigFile(uEyeConfFile);
+        //! m_videoTracker->setUEyeConfigFile(uEyeConfFile);
         m_ueyeConfFileLbl->setText(uEyeConfFile);
     }
 

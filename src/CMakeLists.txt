@@ -59,10 +59,10 @@ set(FIRMATA_SRC
 )
 
 set(VIDEO_SRC
-    video/mazevideo.h
-    video/mazevideo.cpp
-    video/tracker.h
-    video/tracker.cpp
+    #video/mazevideo.h
+    #video/mazevideo.cpp
+    #video/tracker.h
+    #video/tracker.cpp
 )
 
 set(PLOT_SRC
@@ -110,8 +110,6 @@ target_link_libraries(mazeamaze
     KF5::Archive
     KF5::TextEditor
     Qt5::Charts
-    Qt5::Multimedia
-    Qt5::MultimediaWidgets
     ${PYTHON_LIBRARIES}
     ${OpenCV_LIBS}
     ${OPENGL_LIBRARIES}

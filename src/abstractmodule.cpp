@@ -19,11 +19,11 @@
 
 #include <opencv2/core.hpp>
 #include "abstractmodule.h"
+#include <QDebug>
 
 AbstractModule::AbstractModule(QObject *parent) :
     QObject(parent),
     m_name(id()),
-    m_started(false),
     m_state(ModuleState::PREPARING),
     m_initialized(false)
 {
@@ -68,17 +68,11 @@ ModuleFeatures AbstractModule::features() const
 
 void AbstractModule::start()
 {
-    m_started = true;
+    // Do nothing.
 }
 
 bool AbstractModule::runCycle()
 {
-    return true;
-}
-
-bool AbstractModule::prepareThreads()
-{
-    m_started = false;
     return true;
 }
 
@@ -162,6 +156,7 @@ void AbstractModule::raiseError(const QString &message)
     m_lastError = message;
     emit error(message);
     setState(ModuleState::ERROR);
+    qCritical() << message;
 }
 
 void AbstractModule::setStatusMessage(const QString &message)

@@ -19,6 +19,11 @@
 
 #include "hrclock.h"
 
+HRTimer::HRTimer()
+{
+
+}
+
 void HRTimer::start()
 {
     m_startTime = steady_hr_clock::now();
