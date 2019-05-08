@@ -40,6 +40,8 @@ public:
     cv::VideoCapture cam;
     int camId;
 
+    cv::Size frameSize;
+
     bool connected;
     bool failed;
 
@@ -58,6 +60,7 @@ Camera::Camera()
 {
     d->exposure = 1;
     d->gain = 0;
+    d->frameSize = cv::Size(640, 480);
 }
 
 Camera::~Camera()
@@ -79,6 +82,16 @@ void Camera::setCamId(int id)
 void Camera::setStartTime(std::chrono::time_point<steady_hr_clock> time)
 {
     d->startTime = time;
+}
+
+void Camera::setResolution(const cv::Size& size)
+{
+    d->frameSize = size;
+}
+
+cv::Size Camera::resolution() const
+{
+    return d->frameSize;
 }
 
 void Camera::setExposure(double value)
@@ -176,6 +189,9 @@ bool Camera::recordFrame(cv::Mat *frame, std::chrono::milliseconds *timestamp)
             fail("Too many dropped frames. Giving up.");
         return false;
     }
+
+    // adjust to selected resolution
+    cv::resize((*frame), (*frame), d->frameSize);
 
     return true;
 }

@@ -36,11 +36,12 @@ public:
     ~GenericCameraSettingsDialog();
 
     QVariant selectedCamera() const;
-    QSize selectedSize() const;
+    cv::Size selectedSize() const;
+    int selectedFps() const;
+    void setRunning(bool running);
 
 private slots:
     void on_cameraComboBox_currentIndexChanged(int index);
-    void on_fpsSpinBox_valueChanged(int arg1);
 
 private:
     Ui::GenericCameraSettingsDialog *ui;

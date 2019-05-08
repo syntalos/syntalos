@@ -75,6 +75,7 @@ bool TracePlotModule::canRemove(AbstractModule *mod)
 bool TracePlotModule::initialize(ModuleManager *manager)
 {
     assert(!initialized());
+    setState(ModuleState::INITIALIZING);
 
     // create trace parameters and data proxy for the trace display
     m_traceProxy = new TracePlotProxy(this);
@@ -103,10 +104,12 @@ bool TracePlotModule::prepare(const QString &storageRootDir, const TestSubject &
     Q_UNUSED(storageRootDir);
     Q_UNUSED(testSubject);
     Q_UNUSED(timer);
+    setState(ModuleState::PREPARING);
 
     // reset trace plot data
     m_traceProxy->reset();
 
+    setState(ModuleState::READY);
     return true;
 }
 

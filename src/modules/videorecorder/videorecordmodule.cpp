@@ -1,4 +1,4 @@
-/*
+/**
  * Copyright (C) 2016-2019 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
@@ -20,15 +20,22 @@
 #include "videorecordmodule.h"
 
 #include <QMessageBox>
+#include <QDebug>
+
+#include "videowriter.h"
+#include "recordersettingsdialog.h"
 
 VideoRecorderModule::VideoRecorderModule(QObject *parent)
-    : ImageSinkModule(parent)
+    : ImageSinkModule(parent),
+      m_settingsDialog(nullptr)
 {
     m_name = QStringLiteral("Video Recorder");
 }
 
 VideoRecorderModule::~VideoRecorderModule()
 {
+    if (m_settingsDialog != nullptr)
+        delete m_settingsDialog;
 }
 
 QString VideoRecorderModule::id() const
@@ -46,6 +53,13 @@ QPixmap VideoRecorderModule::pixmap() const
     return QPixmap(":/module/videorecorder");
 }
 
+void VideoRecorderModule::setName(const QString &name)
+{
+    ImageSinkModule::setName(name);
+    if (m_settingsDialog != nullptr)
+        m_settingsDialog->setWindowTitle(QStringLiteral("Settings for %1").arg(name));
+}
+
 ModuleFeatures VideoRecorderModule::features() const
 {
     return ModuleFeature::SETTINGS;
@@ -54,34 +68,121 @@ ModuleFeatures VideoRecorderModule::features() const
 bool VideoRecorderModule::initialize(ModuleManager *manager)
 {
     assert(!initialized());
+    setState(ModuleState::INITIALIZING);
+
+    m_settingsDialog = new RecorderSettingsDialog;
+    m_settingsDialog->setVideoName("video");
+
+    // find all modules suitable as frame sources
+    Q_FOREACH(auto mod, manager->activeModules()) {
+        auto imgSrcMod = qobject_cast<ImageSourceModule*>(mod);
+        if (imgSrcMod == nullptr)
+            continue;
+        m_frameSourceModules.append(imgSrcMod);
+    }
+    m_settingsDialog->setSelectedImageSourceMod(m_frameSourceModules.first()); // set first module as default
+
+    connect(manager, &ModuleManager::moduleCreated, this, &VideoRecorderModule::recvModuleCreated);
+    connect(manager, &ModuleManager::modulePreRemove, this, &VideoRecorderModule::recvModulePreRemove);
 
     setState(ModuleState::READY);
     setInitialized();
+    setName(name());
     return true;
 }
 
 bool VideoRecorderModule::prepare(const QString &storageRootDir, const TestSubject &testSubject, HRTimer *timer)
 {
-    Q_UNUSED(storageRootDir);
     Q_UNUSED(testSubject);
+    Q_UNUSED(timer);
+
+    m_vidStorageDir = QStringLiteral("%1/videos").arg(storageRootDir);
+
+    if (m_settingsDialog->videoName().isEmpty()) {
+        raiseError("Video recording name is not set. Please set it in the settings to continue.");
+        return false;
+    }
+
+    auto imgSrcMod = m_settingsDialog->selectedImageSourceMod();
+    if (imgSrcMod == nullptr) {
+        raiseError("No frame source is set for video recording. Please set it in the modules' settings to continue.");
+        return false;
+    }
+
+    connect(imgSrcMod, &ImageSourceModule::newFrame, this, &VideoRecorderModule::receiveFrame);
+    statusMessage(QStringLiteral("Recording from %1").arg(imgSrcMod->name()));
+
+    const auto frameSize = imgSrcMod->selectedResolution();
+
+    m_videoWriter.reset(new VideoWriter);
+    try {
+        m_videoWriter->initialize("/tmp/vtest", //QStringLiteral("%1/%2").arg(m_vidStorageDir).arg(m_settingsDialog->videoName()).toStdString(),
+                                  frameSize.width,
+                                  frameSize.height,
+                                  static_cast<int>(round(imgSrcMod->selectedFramerate())),
+                                  true,
+                                  m_settingsDialog->saveTimestamps());
+    } catch (const std::runtime_error& e) {
+        raiseError(QStringLiteral("Unable to initialize recording: %1").arg(e.what()));
+        return false;
+    }
 
     return true;
 }
 
 void VideoRecorderModule::stop()
 {
+    m_videoWriter->finalize();
 
+    auto imgSrcMod = m_settingsDialog->selectedImageSourceMod();
+    disconnect(imgSrcMod, &ImageSourceModule::newFrame, this, &VideoRecorderModule::receiveFrame);
+
+    statusMessage(QStringLiteral("Recording stopped."));
+    m_videoWriter.reset(nullptr);
 }
 
-void VideoRecorderModule::showDisplayUi()
+bool VideoRecorderModule::canRemove(AbstractModule *mod)
 {
+    return mod != m_settingsDialog->selectedImageSourceMod();
 }
 
-void VideoRecorderModule::hideDisplayUi()
+void VideoRecorderModule::showSettingsUi()
 {
+    assert(initialized());
+
+    m_settingsDialog->setImageSourceModules(m_frameSourceModules);
+    m_settingsDialog->show();
+}
+
+void VideoRecorderModule::hideSettingsUi()
+{
+    assert(initialized());
+    m_settingsDialog->hide();
+}
+
+void VideoRecorderModule::recvModuleCreated(AbstractModule *mod)
+{
+    auto imgSrcMod = qobject_cast<ImageSourceModule*>(mod);
+    if (imgSrcMod != nullptr)
+        m_frameSourceModules.append(imgSrcMod);
+}
+
+void VideoRecorderModule::recvModulePreRemove(AbstractModule *mod)
+{
+    auto imgSrcMod = qobject_cast<ImageSourceModule*>(mod);
+    if (imgSrcMod == nullptr)
+        return;
+    for (int i = 0; i < m_frameSourceModules.size(); i++) {
+        auto fsmod = m_frameSourceModules.at(i);
+        if (fsmod == imgSrcMod) {
+            m_frameSourceModules.removeAt(i);
+            break;
+        }
+    }
 }
 
 void VideoRecorderModule::receiveFrame(const FrameData &frameData)
 {
-
+    if (!m_videoWriter->pushFrame(frameData.first, frameData.second))
+        raiseError(QStringLiteral("Recording failed: %1").arg(QString::fromStdString(m_videoWriter->lastError())));
 }

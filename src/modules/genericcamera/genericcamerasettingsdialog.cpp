@@ -45,15 +45,19 @@ QVariant GenericCameraSettingsDialog::selectedCamera() const
     return ui->cameraComboBox->currentData();
 }
 
-QSize GenericCameraSettingsDialog::selectedSize() const
+cv::Size GenericCameraSettingsDialog::selectedSize() const
 {
-    QSize size;
-    return size;
+    return cv::Size(ui->spinBoxWidth->value(), ui->spinBoxHeight->value());
 }
 
-void GenericCameraSettingsDialog::on_fpsSpinBox_valueChanged(int arg1)
+int GenericCameraSettingsDialog::selectedFps() const
 {
-    //
+    return ui->fpsSpinBox->value();
+}
+
+void GenericCameraSettingsDialog::setRunning(bool running)
+{
+    ui->cameraGroupBox->setEnabled(!running);
 }
 
 void GenericCameraSettingsDialog::on_cameraComboBox_currentIndexChanged(int index)

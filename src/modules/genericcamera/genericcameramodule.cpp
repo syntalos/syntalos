@@ -64,10 +64,25 @@ QPixmap GenericCameraModule::pixmap() const
     return QPixmap(":/module/generic-camera");
 }
 
+void GenericCameraModule::setName(const QString &name)
+{
+    ImageSourceModule::setName(name);
+    if (initialized()) {
+        m_videoView->setWindowTitle(name);
+        m_camSettingsWindow->setWindowTitle(QStringLiteral("Settings for %1").arg(name));
+    }
+}
+
 double GenericCameraModule::selectedFramerate() const
 {
     assert(initialized());
-    return 0;
+    return static_cast<double>(m_camSettingsWindow->selectedFps());
+}
+
+cv::Size GenericCameraModule::selectedResolution() const
+{
+    assert(initialized());
+    return m_camSettingsWindow->selectedSize();
 }
 
 bool GenericCameraModule::initialize(ModuleManager *manager)
@@ -80,6 +95,10 @@ bool GenericCameraModule::initialize(ModuleManager *manager)
 
     setState(ModuleState::READY);
     setInitialized();
+
+    // set all window titles
+    setName(name());
+
     return true;
 }
 
@@ -99,6 +118,8 @@ void GenericCameraModule::start()
 {
     m_started = true;
     m_camera->setStartTime(m_timer->startTime());
+    statusMessage("Acquiring frames...");
+    setState(ModuleState::RUNNING);
 }
 
 bool GenericCameraModule::runCycle()
@@ -112,6 +133,12 @@ bool GenericCameraModule::runCycle()
         auto frame = m_frameRing.front();
         m_videoView->showImage(frame);
         m_frameRing.pop_front();
+
+        std::chrono::milliseconds time;
+        emit newFrame(std::make_pair(frame, time));
+
+        // show framerate directly in the window title, to make reduced framerate very visible
+        m_videoView->setWindowTitle(QStringLiteral("%1 (%2 fps)").arg(m_name).arg(m_currentFps));
     }
 
     return true;
@@ -150,7 +177,11 @@ void GenericCameraModule::captureThread(void *gcamPtr)
 {
     GenericCameraModule *self = static_cast<GenericCameraModule*> (gcamPtr);
 
+    self->m_currentFps = self->m_fps;
+
     while (self->m_running) {
+        const auto cycleStartTime = currentTimePoint();
+
         // wait until we actually start
         while (!self->m_started) { }
 
@@ -160,9 +191,22 @@ void GenericCameraModule::captureThread(void *gcamPtr)
             continue;
         }
 
+        // send frame away to connected image sinks, and hope they are
+        // handling this efficiently and don't block the
+        //self->emitNewFrame(std::make_pair(frame, time));
+
         self->m_mutex.lock();
         self->m_frameRing.push_back(frame);
         self->m_mutex.unlock();
+
+        // wait a bit if necessary, to keep the right framerate
+        const auto cycleTime = timeDiffToNowMsec(cycleStartTime);
+        const auto extraWaitTime = std::chrono::milliseconds((1000 / self->m_fps) - cycleTime.count());
+        if (extraWaitTime.count() > 0)
+            std::this_thread::sleep_for(extraWaitTime);
+
+        const auto totalTime = timeDiffToNowMsec(cycleStartTime);
+        self->m_currentFps = static_cast<int>(1 / (totalTime.count() / static_cast<double>(1000)));
     }
 }
 
@@ -170,18 +214,28 @@ bool GenericCameraModule::startCaptureThread()
 {
     finishCaptureThread();
 
+    statusMessage("Connecting camera...");
     if (!m_camera->connect()) {
         raiseError(QStringLiteral("Unable to connect camera: %1").arg(m_camera->lastError()));
         return false;
     }
+    m_camera->setResolution(m_camSettingsWindow->selectedSize());
+    statusMessage("Launching DAQ thread...");
 
+    m_camSettingsWindow->setRunning(true);
+    m_fps = m_camSettingsWindow->selectedFps();
     m_running = true;
     m_thread = new std::thread(captureThread, this);
+    statusMessage("Waiting.");
     return true;
 }
 
 void GenericCameraModule::finishCaptureThread()
 {
+    if (!initialized())
+        return;
+
+    statusMessage("Cleaning up...");
     if (m_thread != nullptr) {
         m_running = false;
         m_thread->join();
@@ -189,4 +243,11 @@ void GenericCameraModule::finishCaptureThread()
         m_thread = nullptr;
     }
     m_camera->disconnect();
+    m_camSettingsWindow->setRunning(false);
+    statusMessage("Camera disconnected.");
+}
+
+void GenericCameraModule::emitNewFrame(const FrameData &frameInfo)
+{
+    emit newFrame(frameInfo);
 }

@@ -22,6 +22,7 @@
 
 #include <QPixmap>
 #include <QMenu>
+#include <QMessageBox>
 #include <QDebug>
 
 #include "modulemanager.h"
@@ -56,6 +57,7 @@ ModuleIndicator::ModuleIndicator(AbstractModule *module, ModuleManager *manager,
 
     ui->moduleImage->setPixmap(d->module->pixmap());
     ui->moduleNameLabel->setText(d->module->name());
+    ui->infoLabel->setText("");
 
     ui->showButton->setVisible(false);
     ui->configButton->setVisible(false);
@@ -102,6 +104,10 @@ void ModuleIndicator::receiveActionsUpdated()
 void ModuleIndicator::receiveStateChange(ModuleState state)
 {
     switch (state) {
+    case ModuleState::INITIALIZING:
+        ui->statusImage->setPixmap(QPixmap(":/status/preparing"));
+        ui->statusLabel->setText("Initializing...");
+        break;
     case ModuleState::PREPARING:
         ui->statusImage->setPixmap(QPixmap(":/status/preparing"));
         ui->statusLabel->setText("Preparing...");
@@ -131,6 +137,17 @@ void ModuleIndicator::receiveStateChange(ModuleState state)
 }
 
 void ModuleIndicator::receiveErrorMessage(const QString &message)
+{
+    auto mod = qobject_cast<AbstractModule*>(sender());
+    auto errorTitle = QStringLiteral("Unknown module error");
+    if (mod != nullptr)
+        errorTitle = QStringLiteral("Error in: %1").arg(mod->name());
+
+    ui->infoLabel->setText(message);
+    QMessageBox::critical(this, errorTitle, message);
+}
+
+void ModuleIndicator::receiveMessage(const QString &message)
 {
     ui->infoLabel->setText(message);
 }

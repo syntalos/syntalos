@@ -671,12 +671,6 @@
        </widget>
       </widget>
       <widget class="QToolBox" name="toolBox">
-       <property name="minimumSize">
-        <size>
-         <width>400</width>
-         <height>400</height>
-        </size>
-       </property>
        <property name="baseSize">
         <size>
          <width>700</width>
@@ -684,15 +678,15 @@
         </size>
        </property>
        <property name="currentIndex">
-        <number>3</number>
+        <number>2</number>
        </property>
        <widget class="QWidget" name="tabOld1">
         <property name="geometry">
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>400</width>
-          <height>240</height>
+          <width>113</width>
+          <height>80</height>
          </rect>
         </property>
         <property name="minimumSize">
@@ -730,8 +724,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>400</width>
-          <height>240</height>
+          <width>113</width>
+          <height>80</height>
          </rect>
         </property>
         <attribute name="label">
@@ -739,13 +733,13 @@
         </attribute>
         <layout class="QHBoxLayout" name="horizontalLayout_4"/>
        </widget>
-       <widget class="QWidget" name="tabIntan">
+       <widget class="QWidget" name="tabOld3">
         <property name="geometry">
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>400</width>
-          <height>240</height>
+          <width>113</width>
+          <height>80</height>
          </rect>
         </property>
         <attribute name="label">
@@ -757,8 +751,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>400</width>
-          <height>240</height>
+          <width>113</width>
+          <height>80</height>
          </rect>
         </property>
         <attribute name="label">
@@ -801,8 +795,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>400</width>
-          <height>240</height>
+          <width>200</width>
+          <height>118</height>
          </rect>
         </property>
         <attribute name="label">

@@ -39,6 +39,7 @@
  */
 enum class ModuleState {
     UNKNOWN,
+    INITIALIZING,
     PREPARING,
     READY,
     RUNNING,

@@ -1,4 +1,4 @@
-/*
+/**
  * Copyright (C) 2016-2019 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
@@ -26,6 +26,10 @@
 #include "imagesinkmodule.h"
 #include "abstractmodule.h"
 
+class VideoWriter;
+class ImageSourceModule;
+class RecorderSettingsDialog;
+
 class VideoRecorderModule : public ImageSinkModule
 {
     Q_OBJECT
@@ -36,20 +40,30 @@ public:
     QString id() const override;
     QString description() const override;
     QPixmap pixmap() const override;
+    void setName(const QString& name) override;
     ModuleFeatures features() const override;
 
     bool initialize(ModuleManager *manager) override;
     bool prepare(const QString& storageRootDir, const TestSubject& testSubject, HRTimer *timer) override;
     void stop() override;
 
-    void showDisplayUi() override;
-    void hideDisplayUi() override;
+    bool canRemove(AbstractModule *mod) override;
+
+    void showSettingsUi() override;
+    void hideSettingsUi() override;
 
 public slots:
     void receiveFrame(const FrameData& frameData) override;
 
-private:
+private slots:
+    void recvModuleCreated(AbstractModule *mod);
+    void recvModulePreRemove(AbstractModule *mod);
 
+private:
+    QList<ImageSourceModule*> m_frameSourceModules;
+    QString m_vidStorageDir;
+    std::unique_ptr<VideoWriter> m_videoWriter;
+    RecorderSettingsDialog *m_settingsDialog;
 };
 
 #endif // VIDEORECORDMODULE_H

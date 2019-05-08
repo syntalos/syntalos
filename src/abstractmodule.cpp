@@ -24,7 +24,7 @@
 AbstractModule::AbstractModule(QObject *parent) :
     QObject(parent),
     m_name(id()),
-    m_state(ModuleState::PREPARING),
+    m_state(ModuleState::INITIALIZING),
     m_initialized(false)
 {
 }
@@ -68,7 +68,7 @@ ModuleFeatures AbstractModule::features() const
 
 void AbstractModule::start()
 {
-    // Do nothing.
+    setState(ModuleState::RUNNING);
 }
 
 bool AbstractModule::runCycle()

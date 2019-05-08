@@ -61,7 +61,7 @@ bool Rhd2000Module::initialize(ModuleManager *manager)
     Q_UNUSED(manager);
     assert(!initialized());
 
-    setState(ModuleState::PREPARING);
+    setState(ModuleState::INITIALIZING);
     // set up Intan GUI and board
     m_intanUi = new IntanUI(this);
     m_intanUi->setWindowIcon(QIcon(":/icons/generic-config"));

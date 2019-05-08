@@ -934,14 +934,12 @@ void MainWindow::changeExperimentFeatures(const ExperimentFeatures& features)
     if (features.ephysEnabled) {
         //! FIXME m_intanTraceWin->show();
         ui->cbEphysFeature->setChecked(true);
-        ui->tabIntan->setEnabled(true);
         //! FIXME m_intanUI->setEnabled(true);
 
         m_statusWidget->setIntanStatus(StatusWidget::Status::Enabled);
     } else {
         //! FIXME m_intanTraceWin->hide();
         ui->cbEphysFeature->setChecked(false);
-        ui->tabIntan->setEnabled(false);
         //! FIXME m_intanUI->setEnabled(false);
 
         m_statusWidget->setIntanStatus(StatusWidget::Status::Disabled);

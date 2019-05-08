@@ -54,6 +54,7 @@ private:
     void receiveActionsUpdated();
     void receiveStateChange(ModuleState state);
     void receiveErrorMessage(const QString& message);
+    void receiveMessage(const QString& message);
 };
 
 #endif // MODULEINDICATORWIDGET_H

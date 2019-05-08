@@ -44,8 +44,10 @@ public:
     QString id() const override;
     QString description() const override;
     QPixmap pixmap() const override;
+    void setName(const QString& name) override;
 
     double selectedFramerate() const override;
+    cv::Size selectedResolution() const override;
 
     bool initialize(ModuleManager *manager) override;
 
@@ -64,16 +66,20 @@ private:
     Camera *m_camera;
     VideoViewWidget *m_videoView;
     GenericCameraSettingsDialog *m_camSettingsWindow;
+    HRTimer *m_timer;
+
     std::thread *m_thread;
     QMutex m_mutex;
     std::atomic_bool m_running;
     std::atomic_bool m_started;
-    HRTimer *m_timer;
+    std::atomic_int m_currentFps;
+    int m_fps;
     boost::circular_buffer<cv::Mat> m_frameRing;
 
     static void captureThread(void *gcamPtr);
     bool startCaptureThread();
     void finishCaptureThread();
+    void emitNewFrame(const FrameData& frameInfo);
 };
 
 #endif // GENERICCAMERAMODULE_H

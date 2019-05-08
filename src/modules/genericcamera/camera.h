@@ -22,6 +22,7 @@
 
 #include <QObject>
 #include <QSharedDataPointer>
+#include <QSize>
 #include <opencv2/core.hpp>
 #include "hrclock.h"
 
@@ -34,6 +35,9 @@ public:
 
     void setCamId(int id);
     void setStartTime(std::chrono::time_point<steady_hr_clock> time);
+
+    void setResolution(const cv::Size &size);
+    cv::Size resolution() const;
 
     void setExposure(double value);
     double exposure() const;
