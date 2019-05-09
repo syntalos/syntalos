@@ -30,3 +30,5 @@ target_link_libraries(mod_traceplot
 include_directories(
     ${CMAKE_SOURCE_DIR}/src
 )
+
+set(MA_MODULE_LIBS ${MA_MODULE_LIBS} mod_traceplot PARENT_SCOPE)

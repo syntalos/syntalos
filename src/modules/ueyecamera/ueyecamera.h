@@ -25,25 +25,28 @@
 #include <QList>
 #include <QSize>
 #include <opencv2/core/core.hpp>
+#include "hrclock.h"
 
-#include "mazevideo.h"
 
-class UEyeCamera : public MACamera
+class UEyeCamera : public QObject
 {
     Q_OBJECT
 public:
-    explicit UEyeCamera(QObject *parent = 0);
+    explicit UEyeCamera(QObject *parent = nullptr);
     ~UEyeCamera();
     QString lastError() const;
 
-    QList<QPair<QString, QVariant>> getCameraList() const;
+    static QList<QPair<QString, QVariant>> availableCameras() ;
 
-    bool open(QVariant cameraV, const QSize& size);
+    int camId() const;
+    void setCamId(int id);
+
+    bool open(const cv::Size& size);
     bool close();
+
     bool setFramerate(double fps);
 
-    QPair<time_t, cv::Mat> getFrame();
-    bool getFrame(time_t *time, cv::Mat& buffer);
+    bool getFrame(cv::Mat *buffer, time_t *time);
 
     bool setAutoWhiteBalance(bool enabled);
     bool setAutoGain(bool enabled);
@@ -64,13 +67,14 @@ private:
     bool freeCamBuffer();
     bool reallocateCamBuffer();
 
+    int m_camId;
     QString m_lastError;
     uint32_t m_hCam;
     char *m_camBuf;
     int m_camBufId;
     time_t m_lastFrameTime;
 
-    QSize m_frameSize;
+    cv::Size m_frameSize;
     cv::Mat m_mat;
 
     QString m_confFile;

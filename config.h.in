@@ -9,6 +9,6 @@
 #define OK_LIB_NAME "@OKLIB_FULL_PATH@"
 
 /* features */
-#cmakedefine USE_UEYE_CAMERA
+#cmakedefine HAVE_UEYE_CAMERA
 
 #endif /* CONFIG_H */

@@ -30,3 +30,5 @@ include_directories(
     ${Boost_INCLUDE_DIR}
     ${CMAKE_SOURCE_DIR}/src
 )
+
+set(MA_MODULE_LIBS ${MA_MODULE_LIBS} mod_generic_camera PARENT_SCOPE)

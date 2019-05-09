@@ -21,12 +21,10 @@
 
 #include <QDebug>
 #include <ueye.h>
-#include <chrono>
-
-using namespace std::chrono;
 
 UEyeCamera::UEyeCamera(QObject *parent)
-    : MACamera(parent),
+    : QObject(parent),
+      m_camId(-1),
       m_hCam(0),
       m_camBuf(nullptr)
 {
@@ -35,45 +33,6 @@ UEyeCamera::UEyeCamera(QObject *parent)
 UEyeCamera::~UEyeCamera()
 {
     close();
-}
-
-QList<QPair<QString, QVariant> > UEyeCamera::getCameraList() const
-{
-    QList<QPair<QString, QVariant>> res;
-
-    qDebug() << "Looking for uEye cameras.";
-
-    auto pCamList = new UEYE_CAMERA_LIST;
-    pCamList->dwCount = 0;
-
-    if (is_GetCameraList (pCamList) == IS_SUCCESS) {
-        DWORD dw = pCamList->dwCount;
-        delete pCamList;
-
-        // Reallocate the required camera list size
-        pCamList = (PUEYE_CAMERA_LIST)new char[sizeof(DWORD) + dw * sizeof(UEYE_CAMERA_INFO)];
-        pCamList->dwCount = dw;
-
-        // Retrieve camera info
-        if (is_GetCameraList(pCamList) == IS_SUCCESS) {
-            qDebug() << "Found" << pCamList->dwCount << "uEye cameras.";
-            for (uint i = 0; i < (unsigned int) pCamList->dwCount; i++) {
-                //Test output of camera info on the screen
-
-                auto desc = QString("Camera: %1 (ID: %2)").arg(i).arg(pCamList->uci[i].dwCameraID);
-                res.append(qMakePair(desc, i));
-            }
-
-        } else {
-            qWarning() << "Unable to retrieve list of uEye camera details!";
-        }
-
-    } else {
-        qWarning() << "Unable to retrieve list of uEye cameras!";
-    }
-
-    delete pCamList;
-    return res;
 }
 
 bool UEyeCamera::checkInit()
@@ -113,22 +72,70 @@ QString UEyeCamera::lastError() const
     return m_lastError;
 }
 
-bool UEyeCamera::open(QVariant cameraV, const QSize& size)
+QList<QPair<QString, QVariant>> UEyeCamera::availableCameras()
 {
-    auto cameraId = cameraV.toInt();
-    if (cameraId < 0) {
+    QList<QPair<QString, QVariant>> res;
+
+    qDebug() << "Looking for uEye cameras.";
+
+    auto pCamList = new UEYE_CAMERA_LIST;
+    pCamList->dwCount = 0;
+
+    if (is_GetCameraList (pCamList) == IS_SUCCESS) {
+        DWORD dw = pCamList->dwCount;
+        delete pCamList;
+
+        // Reallocate the required camera list size
+        pCamList = (PUEYE_CAMERA_LIST)new char[sizeof(DWORD) + dw * sizeof(UEYE_CAMERA_INFO)];
+        pCamList->dwCount = dw;
+
+        // Retrieve camera info
+        if (is_GetCameraList(pCamList) == IS_SUCCESS) {
+            qDebug() << "Found" << pCamList->dwCount << "uEye cameras.";
+            for (uint i = 0; i < (unsigned int) pCamList->dwCount; i++) {
+                //Test output of camera info on the screen
+
+                auto desc = QString("Camera: %1 (ID: %2)").arg(i).arg(pCamList->uci[i].dwCameraID);
+                res.append(qMakePair(desc, i));
+            }
+
+        } else {
+            qWarning() << "Unable to retrieve list of uEye camera details!";
+        }
+
+    } else {
+        qWarning() << "Unable to retrieve list of uEye cameras!";
+    }
+
+    delete pCamList;
+    return res;
+}
+
+int UEyeCamera::camId() const
+{
+    return m_camId;
+}
+
+void UEyeCamera::setCamId(int id)
+{
+    m_camId = id;
+}
+
+bool UEyeCamera::open(const cv::Size &size)
+{
+    if (m_camId < 0) {
         setError("Not initialized.");
         return false;
     }
 
     m_lastFrameTime = -1;
-    m_mat = cv::Mat(size.height(), size.width(), CV_8UC3);
+    m_mat = cv::Mat(size.height, size.width, CV_8UC3);
     m_frameSize = size;
-    qDebug() << "Opening camera with resolution:" << size;
+    qDebug() << QStringLiteral("Opening camera with resolution: %1x%2").arg(size.width).arg(size.height);
 
     INT nAOISupported = 0;
 
-    m_hCam = cameraId;
+    m_hCam = m_camId;
     auto res = is_InitCamera(&m_hCam, nullptr);
     if (res != IS_SUCCESS) {
         setError("Unable to initialize camera", res);
@@ -147,7 +154,7 @@ bool UEyeCamera::open(QVariant cameraV, const QSize& size)
         return false;
     }
 
-    res = is_AllocImageMem(m_hCam, size.width(), size.height(), 24, &m_camBuf, &m_camBufId);
+    res = is_AllocImageMem(m_hCam, size.width, size.height, 24, &m_camBuf, &m_camBufId);
     if (res != IS_SUCCESS) {
         setError("Unable to allocate image memory", res);
         return false;
@@ -215,19 +222,7 @@ bool UEyeCamera::setFramerate(double fps)
     return true;
 }
 
-QPair<time_t, cv::Mat> UEyeCamera::getFrame()
-{
-    QPair<time_t, cv::Mat> frame;
-
-    auto ret = getFrame(&frame.first, m_mat);
-    if (!ret)
-        frame.first = -1;
-    frame.second = m_mat;
-
-    return frame;
-}
-
-bool UEyeCamera::getFrame(time_t *time, cv::Mat& buffer)
+bool UEyeCamera::getFrame(cv::Mat *buffer, time_t *time)
 {
     UEYEIMAGEINFO imgInfo;
 
@@ -248,7 +243,7 @@ bool UEyeCamera::getFrame(time_t *time, cv::Mat& buffer)
     }
 
     // width * height * depth (depth == 3)
-    memcpy(buffer.ptr(), m_camBuf, m_frameSize.width() * m_frameSize.height() * 3);
+    memcpy((*buffer).ptr(), m_camBuf, static_cast<size_t>(m_frameSize.width * m_frameSize.height * 3));
     return true;
 }
 

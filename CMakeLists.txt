@@ -60,15 +60,19 @@ find_package(OpenGL REQUIRED)
 #
 # Compile options
 #
-option(UEYE_CAMERA "Use uEye camera instead of generic driver")
+option(MOD_CAMERA_UEYE "Enable uEye camera module" ON)
 
+
+if(MOD_CAMERA_UEYE)
+    set(UYEYE_LIBS "ueye_api")
+endif()
 
 #
 # Config file
 #
-if (UEYE_CAMERA)
-    set(USE_UEYE_CAMERA ON)
-endif ()
+if(MOD_CAMERA_UEYE)
+    set(HAVE_UEYE_CAMERA ON)
+endif()
 set(OKLIB_FULL_PATH "${CMAKE_INSTALL_FULL_LIBDIR}/mazeamaze/libokFrontPanel.so")
 configure_file(config.h.in ${CMAKE_BINARY_DIR}/config.h)
 include_directories(${CMAKE_BINARY_DIR})

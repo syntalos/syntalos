@@ -36,7 +36,7 @@ public:
 
     virtual bool prepare(HRTimer *timer);
     virtual bool prepare(const QString &storageRootDir, const TestSubject &testSubject, HRTimer *timer) override;
-    virtual double selectedFramerate() const = 0;
+    virtual int selectedFramerate() const = 0;
     virtual cv::Size selectedResolution() const = 0;
 
     /**

@@ -116,10 +116,7 @@ target_link_libraries(mazeamaze
     ${Boost_LIBRARIES}
     ${UYEYE_LIBS}
 
-    mod_intan_rhd2000
-    mod_traceplot
-    mod_videorecorder
-    mod_generic_camera
+    ${MA_MODULE_LIBS}
 )
 
 include_directories(

@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef GENERICCAMERAMODULE_H
-#define GENERICCAMERAMODULE_H
+#ifndef UEYECAMERAMODULE_H
+#define UEYECAMERAMODULE_H
 
 #include <QObject>
 #include <thread>
@@ -30,16 +30,16 @@
 #include "imagesourcemodule.h"
 #include "abstractmodule.h"
 
-class Camera;
+class UEyeCamera;
 class VideoViewWidget;
-class GenericCameraSettingsDialog;
+class UEyeCameraSettingsDialog;
 
-class GenericCameraModule : public ImageSourceModule
+class UEyeCameraModule : public ImageSourceModule
 {
     Q_OBJECT
 public:
-    explicit GenericCameraModule(QObject *parent = nullptr);
-    ~GenericCameraModule() override;
+    explicit UEyeCameraModule(QObject *parent = nullptr);
+    ~UEyeCameraModule() override;
 
     QString id() const override;
     QString description() const override;
@@ -65,9 +65,9 @@ public:
     void hideSettingsUi() override;
 
 private:
-    Camera *m_camera;
+    UEyeCamera *m_camera;
     VideoViewWidget *m_videoView;
-    GenericCameraSettingsDialog *m_camSettingsWindow;
+    UEyeCameraSettingsDialog *m_camSettingsWindow;
     HRTimer *m_timer;
 
     QList<VideoWriter*> m_vwriters;
@@ -84,4 +84,4 @@ private:
     void finishCaptureThread();
 };
 
-#endif // GENERICCAMERAMODULE_H
+#endif // UEYECAMERAMODULE_H

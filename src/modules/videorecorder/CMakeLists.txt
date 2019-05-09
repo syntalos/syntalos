@@ -31,3 +31,5 @@ include_directories(
     ${FFMPEG_INCLUDE_DIRS}
     ${CMAKE_SOURCE_DIR}/src
 )
+
+set(MA_MODULE_LIBS ${MA_MODULE_LIBS} mod_videorecorder PARENT_SCOPE)

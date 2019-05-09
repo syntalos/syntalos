@@ -17,32 +17,32 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "genericcameramodule.h"
+#include "ueyecameramodule.h"
 
 #include <QMutexLocker>
 #include <QMessageBox>
 #include <opencv2/opencv.hpp>
 
-#include "camera.h"
+#include "ueyecamera.h"
 #include "videoviewwidget.h"
-#include "genericcamerasettingsdialog.h"
+#include "ueyecamerasettingsdialog.h"
 
 #include "modules/videorecorder/videowriter.h"
 
-GenericCameraModule::GenericCameraModule(QObject *parent)
+UEyeCameraModule::UEyeCameraModule(QObject *parent)
     : ImageSourceModule(parent),
       m_camera(nullptr),
       m_videoView(nullptr),
       m_camSettingsWindow(nullptr),
       m_thread(nullptr)
 {
-    m_name = QStringLiteral("Generic Camera");
-    m_camera = new Camera;
+    m_name = QStringLiteral("uEye Camera");
+    m_camera = new UEyeCamera;
 
     m_frameRing = boost::circular_buffer<FrameData>(32);
 }
 
-GenericCameraModule::~GenericCameraModule()
+UEyeCameraModule::~UEyeCameraModule()
 {
     finishCaptureThread();
     if (m_videoView != nullptr)
@@ -51,22 +51,22 @@ GenericCameraModule::~GenericCameraModule()
         delete m_camSettingsWindow;
 }
 
-QString GenericCameraModule::id() const
+QString UEyeCameraModule::id() const
 {
-    return QStringLiteral("generic-camera");
+    return QStringLiteral("ueye-camera");
 }
 
-QString GenericCameraModule::description() const
+QString UEyeCameraModule::description() const
 {
-    return QStringLiteral("Capture a video with a regular, Linux-compatible camera.");
+    return QStringLiteral("Capture video with an IDS camera that is compatible with the uEye API.");
 }
 
-QPixmap GenericCameraModule::pixmap() const
+QPixmap UEyeCameraModule::pixmap() const
 {
-    return QPixmap(":/module/generic-camera");
+    return QPixmap(":/module/ueye-camera");
 }
 
-void GenericCameraModule::setName(const QString &name)
+void UEyeCameraModule::setName(const QString &name)
 {
     ImageSourceModule::setName(name);
     if (initialized()) {
@@ -75,30 +75,30 @@ void GenericCameraModule::setName(const QString &name)
     }
 }
 
-void GenericCameraModule::attachVideoWriter(VideoWriter *vwriter)
+void UEyeCameraModule::attachVideoWriter(VideoWriter *vwriter)
 {
     m_vwriters.append(vwriter);
 }
 
-int GenericCameraModule::selectedFramerate() const
+int UEyeCameraModule::selectedFramerate() const
 {
     assert(initialized());
-    return m_camSettingsWindow->selectedFps();
+    return static_cast<double>(m_camSettingsWindow->selectedFps());
 }
 
-cv::Size GenericCameraModule::selectedResolution() const
+cv::Size UEyeCameraModule::selectedResolution() const
 {
     assert(initialized());
     return m_camSettingsWindow->selectedSize();
 }
 
-bool GenericCameraModule::initialize(ModuleManager *manager)
+bool UEyeCameraModule::initialize(ModuleManager *manager)
 {
     assert(!initialized());
     Q_UNUSED(manager);
 
     m_videoView = new VideoViewWidget;
-    m_camSettingsWindow = new GenericCameraSettingsDialog(m_camera);
+    m_camSettingsWindow = new UEyeCameraSettingsDialog(m_camera);
 
     setState(ModuleState::READY);
     setInitialized();
@@ -109,7 +109,7 @@ bool GenericCameraModule::initialize(ModuleManager *manager)
     return true;
 }
 
-bool GenericCameraModule::prepare(HRTimer *timer)
+bool UEyeCameraModule::prepare(HRTimer *timer)
 {
     m_started = false;
     m_timer = timer;
@@ -121,15 +121,14 @@ bool GenericCameraModule::prepare(HRTimer *timer)
     return true;
 }
 
-void GenericCameraModule::start()
+void UEyeCameraModule::start()
 {
     m_started = true;
-    m_camera->setStartTime(m_timer->startTime());
     statusMessage("Acquiring frames...");
     setState(ModuleState::RUNNING);
 }
 
-bool GenericCameraModule::runCycle()
+bool UEyeCameraModule::runCycle()
 {
     QMutexLocker locker(&m_mutex);
 
@@ -152,40 +151,42 @@ bool GenericCameraModule::runCycle()
     return true;
 }
 
-void GenericCameraModule::stop()
+void UEyeCameraModule::stop()
 {
     finishCaptureThread();
 }
 
-void GenericCameraModule::showDisplayUi()
+void UEyeCameraModule::showDisplayUi()
 {
     assert(initialized());
     m_videoView->show();
 }
 
-void GenericCameraModule::hideDisplayUi()
+void UEyeCameraModule::hideDisplayUi()
 {
     assert(initialized());
     m_videoView->hide();
 }
 
-void GenericCameraModule::showSettingsUi()
+void UEyeCameraModule::showSettingsUi()
 {
     assert(initialized());
     m_camSettingsWindow->show();
 }
 
-void GenericCameraModule::hideSettingsUi()
+void UEyeCameraModule::hideSettingsUi()
 {
     assert(initialized());
     m_camSettingsWindow->hide();
 }
 
-void GenericCameraModule::captureThread(void *gcamPtr)
+void UEyeCameraModule::captureThread(void *gcamPtr)
 {
-    GenericCameraModule *self = static_cast<GenericCameraModule*> (gcamPtr);
+    UEyeCameraModule *self = static_cast<UEyeCameraModule*> (gcamPtr);
 
     self->m_currentFps = self->m_fps;
+    auto firstFrame = true;
+    time_t startTime = 0;
 
     while (self->m_running) {
         const auto cycleStartTime = currentTimePoint();
@@ -194,17 +195,24 @@ void GenericCameraModule::captureThread(void *gcamPtr)
         while (!self->m_started) { }
 
         cv::Mat frame;
-        std::chrono::milliseconds time;
-        if (!self->m_camera->recordFrame(&frame, &time)) {
+        time_t time;
+        if (!self->m_camera->getFrame(&frame, &time)) {
             continue;
         }
 
+        // assume first frame is starting point
+        if (firstFrame) {
+            firstFrame = false;
+            startTime = time;
+        }
+        auto timestampMsec = std::chrono::milliseconds(time - startTime);
+
         // record this frame, if we have any video writers registered
         Q_FOREACH(auto vwriter, self->m_vwriters)
-            vwriter->pushFrame(frame, time);
+            vwriter->pushFrame(frame, timestampMsec);
 
         self->m_mutex.lock();
-        self->m_frameRing.push_back(std::pair<cv::Mat, std::chrono::milliseconds>(frame, time));
+        self->m_frameRing.push_back(std::pair<cv::Mat, std::chrono::milliseconds>(frame, timestampMsec));
         self->m_mutex.unlock();
 
         // wait a bit if necessary, to keep the right framerate
@@ -218,16 +226,15 @@ void GenericCameraModule::captureThread(void *gcamPtr)
     }
 }
 
-bool GenericCameraModule::startCaptureThread()
+bool UEyeCameraModule::startCaptureThread()
 {
     finishCaptureThread();
 
     statusMessage("Connecting camera...");
-    if (!m_camera->connect()) {
+    if (!m_camera->open(m_camSettingsWindow->selectedSize())) {
         raiseError(QStringLiteral("Unable to connect camera: %1").arg(m_camera->lastError()));
         return false;
     }
-    m_camera->setResolution(m_camSettingsWindow->selectedSize());
     statusMessage("Launching DAQ thread...");
 
     m_camSettingsWindow->setRunning(true);
@@ -238,7 +245,7 @@ bool GenericCameraModule::startCaptureThread()
     return true;
 }
 
-void GenericCameraModule::finishCaptureThread()
+void UEyeCameraModule::finishCaptureThread()
 {
     if (!initialized())
         return;

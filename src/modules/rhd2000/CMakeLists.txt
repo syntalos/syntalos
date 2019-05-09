@@ -72,3 +72,5 @@ target_link_libraries(mod_intan_rhd2000
 include_directories(
     ${CMAKE_SOURCE_DIR}/src
 )
+
+set(MA_MODULE_LIBS ${MA_MODULE_LIBS} mod_intan_rhd2000 PARENT_SCOPE)
