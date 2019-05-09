@@ -194,6 +194,7 @@ void VideoRecorderModule::recvModulePreRemove(AbstractModule *mod)
 
 void VideoRecorderModule::receiveFrame(const FrameData &frameData)
 {
-    if (!m_videoWriter->pushFrame(frameData.first, frameData.second))
-        raiseError(QStringLiteral("Recording failed: %1").arg(QString::fromStdString(m_videoWriter->lastError())));
+    // Video recorder modules are special in that we directly register them with the recorder module's
+    // DAQ thread, so their performance will not suffer from additional signal/slots and queueing overhead
+    Q_UNUSED(frameData);
 }

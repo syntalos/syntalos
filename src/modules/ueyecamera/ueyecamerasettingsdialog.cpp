@@ -46,7 +46,8 @@ QVariant UEyeCameraSettingsDialog::selectedCamera() const
 
 cv::Size UEyeCameraSettingsDialog::selectedSize() const
 {
-    return cv::Size(ui->spinBoxWidth->value(), ui->spinBoxHeight->value());
+    auto size = ui->resolutionComboBox->currentData().value<QSize>();
+    return cv::Size(size.width(), size.height());
 }
 
 int UEyeCameraSettingsDialog::selectedFps() const
@@ -63,6 +64,15 @@ void UEyeCameraSettingsDialog::on_cameraComboBox_currentIndexChanged(int index)
 {
     Q_UNUSED(index);
     m_camera->setCamId(ui->cameraComboBox->currentData().toInt());
+
+    // probe the new camera for its resolution list
+    auto camera = new UEyeCamera;
+    auto ret = camera->getResolutionList(m_camera->camId());
+    delete camera;
+
+    ui->resolutionComboBox->clear();
+    Q_FOREACH(auto res, ret)
+        ui->resolutionComboBox->addItem(QStringLiteral("%1x%2").arg(res.width()).arg(res.height()), res);
 }
 
 void UEyeCameraSettingsDialog::on_sbGain_valueChanged(int arg1)

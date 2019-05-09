@@ -367,6 +367,14 @@ bool UEyeCamera::setGPIOFlash(bool enabled)
     return true;
 }
 
+static bool qsizeBiggerThan(const QSize &s1, const QSize &s2)
+{
+    auto s1v = s1.width() + s1.height();
+    auto s2v = s2.width() + s2.height();
+
+    return s1v > s2v;
+}
+
 QList<QSize> UEyeCamera::getResolutionList(QVariant cameraId)
 {
     QList<QSize> res;
@@ -402,5 +410,7 @@ QList<QSize> UEyeCamera::getResolutionList(QVariant cameraId)
     }
 
     is_ExitCamera(hCam);
+
+    qSort(res.begin(), res.end(), qsizeBiggerThan);
     return res;
 }
