@@ -30,5 +30,6 @@
         <file alias="miniscope">modules/miniscope.svg</file>
         <file alias="ueye-camera">modules/ueye-camera.svg</file>
         <file alias="videorecorder">modules/videorecorder.svg</file>
+        <file alias="triled-tracker">modules/triled-tracker.svg</file>
     </qresource>
 </RCC>

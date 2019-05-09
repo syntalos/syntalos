@@ -48,10 +48,21 @@ RecorderSettingsDialog::~RecorderSettingsDialog()
 
 void RecorderSettingsDialog::setImageSourceModules(const QList<ImageSourceModule *> &mods)
 {
+    auto mod = m_selectedImgSrcMod;
+
     ui->frameSourceComboBox->clear();
     Q_FOREACH(auto mod, mods) {
         ui->frameSourceComboBox->addItem(mod->name(), QVariant(QMetaType::QObjectStar, &mod));
     }
+
+    // ensure the right module is still selected
+    for (int i = 0; i < ui->frameSourceComboBox->count(); i++) {
+        if (ui->frameSourceComboBox->itemData(i).value<ImageSourceModule*>() == mod) {
+            ui->frameSourceComboBox->setCurrentIndex(i);
+            break;
+        }
+    }
+    m_selectedImgSrcMod = mod;
 }
 
 ImageSourceModule *RecorderSettingsDialog::selectedImageSourceMod()

@@ -119,7 +119,7 @@ bool VideoRecorderModule::prepare(const QString &storageRootDir, const TestSubje
     m_videoWriter->setFileSliceInterval(m_settingsDialog->sliceInterval());
 
     try {
-        m_videoWriter->initialize("/tmp/vtest", //QStringLiteral("%1/%2").arg(m_vidStorageDir).arg(m_settingsDialog->videoName()).toStdString(),
+        m_videoWriter->initialize(QStringLiteral("%1/%2").arg(m_vidStorageDir).arg(m_settingsDialog->videoName()).toStdString(),
                                   frameSize.width,
                                   frameSize.height,
                                   static_cast<int>(round(imgSrcMod->selectedFramerate())),

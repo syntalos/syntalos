@@ -58,13 +58,6 @@ set(FIRMATA_SRC
     firmata/fmutils.h
 )
 
-set(VIDEO_SRC
-    #video/mazevideo.h
-    #video/mazevideo.cpp
-    #video/tracker.h
-    #video/tracker.cpp
-)
-
 set(PLOT_SRC
     traceplot/traceplot.h
     traceplot/traceplot.cpp
@@ -73,16 +66,6 @@ set(PLOT_SRC
     traceplot/traceplotproxy.h
     traceplot/traceplotproxy.cpp
 )
-
-set(UYEYE_LIB "")
-set(VIDEO_UEYE_SRC "")
-if (UEYE_CAMERA)
-    set(UYEYE_LIB "ueye_api")
-    set(VIDEO_UEYE_SRC
-        video/ueyecamera.h
-        video/ueyecamera.cpp
-    )
-endif ()
 
 set(MAZEAMAZE_RES
     ../data/resources.qrc
@@ -96,8 +79,6 @@ add_executable(mazeamaze
     ${MAZEAMAZE_UI_SRC}
     ${SCRIPT_SRC}
     ${FIRMATA_SRC}
-    ${VIDEO_SRC}
-    ${VIDEO_UEYE_SRC}
 )
 
 target_link_libraries(mazeamaze

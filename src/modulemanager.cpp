@@ -30,6 +30,7 @@
 #ifdef HAVE_UEYE_CAMERA
 #include "modules/ueyecamera/ueyecameramodule.h"
 #endif
+#include "modules/triled-tracker/triledtrackermodule.h"
 
 class AbstractModuleCreator
 {
@@ -82,6 +83,7 @@ ModuleManager::ModuleManager(QObject *parent, QWidget *parentWidget)
 #ifdef HAVE_UEYE_CAMERA
     registerModuleInfo<UEyeCameraModule>();
 #endif
+    registerModuleInfo<TriLedTrackerModule>();
 }
 
 AbstractModule *ModuleManager::createModule(const QString &id)
