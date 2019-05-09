@@ -107,24 +107,36 @@ void ModuleIndicator::receiveStateChange(ModuleState state)
     case ModuleState::INITIALIZING:
         ui->statusImage->setPixmap(QPixmap(":/status/preparing"));
         ui->statusLabel->setText("Initializing...");
+        ui->removeButton->setEnabled(false);
         break;
     case ModuleState::PREPARING:
         ui->statusImage->setPixmap(QPixmap(":/status/preparing"));
         ui->statusLabel->setText("Preparing...");
+        ui->removeButton->setEnabled(false);
+        break;
+    case ModuleState::WAITING:
+        ui->statusImage->setPixmap(QPixmap(":/status/ready"));
+        ui->statusLabel->setText("Waiting...");
+        ui->showButton->setEnabled(true);
+        ui->configButton->setEnabled(true);
+        ui->removeButton->setEnabled(false);
         break;
     case ModuleState::READY:
         ui->statusImage->setPixmap(QPixmap(":/status/ready"));
         ui->statusLabel->setText("Ready.");
         ui->showButton->setEnabled(true);
         ui->configButton->setEnabled(true);
+        ui->removeButton->setEnabled(true);
         break;
     case ModuleState::RUNNING:
         ui->statusImage->setPixmap(QPixmap(":/status/running"));
         ui->statusLabel->setText("Running...");
+        ui->removeButton->setEnabled(false);
         break;
     case ModuleState::ERROR:
         ui->statusImage->setPixmap(QPixmap(":/status/error"));
         ui->statusLabel->setText("Error!");
+        ui->removeButton->setEnabled(true);
         break;
     default:
         ui->statusImage->setPixmap(QPixmap(":/status/preparing"));
@@ -150,6 +162,9 @@ void ModuleIndicator::receiveErrorMessage(const QString &message)
 void ModuleIndicator::receiveMessage(const QString &message)
 {
     ui->infoLabel->setText(message);
+
+    // update status change immediately in UI
+    QApplication::processEvents();
 }
 
 void ModuleIndicator::on_configButton_clicked()

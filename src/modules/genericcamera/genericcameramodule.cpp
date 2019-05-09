@@ -27,6 +27,8 @@
 #include "videoviewwidget.h"
 #include "genericcamerasettingsdialog.h"
 
+#include "modules/videorecorder/videowriter.h"
+
 GenericCameraModule::GenericCameraModule(QObject *parent)
     : ImageSourceModule(parent),
       m_camera(nullptr),
@@ -37,7 +39,7 @@ GenericCameraModule::GenericCameraModule(QObject *parent)
     m_name = QStringLiteral("Generic Camera");
     m_camera = new Camera;
 
-    m_frameRing = boost::circular_buffer<cv::Mat>(32);
+    m_frameRing = boost::circular_buffer<FrameData>(32);
 }
 
 GenericCameraModule::~GenericCameraModule()
@@ -71,6 +73,11 @@ void GenericCameraModule::setName(const QString &name)
         m_videoView->setWindowTitle(name);
         m_camSettingsWindow->setWindowTitle(QStringLiteral("Settings for %1").arg(name));
     }
+}
+
+void GenericCameraModule::attachVideoWriter(VideoWriter *vwriter)
+{
+    m_vwriters.append(vwriter);
 }
 
 double GenericCameraModule::selectedFramerate() const
@@ -110,7 +117,7 @@ bool GenericCameraModule::prepare(HRTimer *timer)
     setState(ModuleState::PREPARING);
     if (!startCaptureThread())
         return false;
-    setState(ModuleState::READY);
+    setState(ModuleState::WAITING);
     return true;
 }
 
@@ -130,12 +137,13 @@ bool GenericCameraModule::runCycle()
         return true;
 
     if (!m_frameRing.empty()) {
-        auto frame = m_frameRing.front();
-        m_videoView->showImage(frame);
+        auto frameInfo = m_frameRing.front();
+        m_videoView->showImage(frameInfo.first);
         m_frameRing.pop_front();
 
-        std::chrono::milliseconds time;
-        emit newFrame(std::make_pair(frame, time));
+        // send frame away to connected image sinks, and hope they are
+        // handling this efficiently and don't block the loop
+        emit newFrame(frameInfo);
 
         // show framerate directly in the window title, to make reduced framerate very visible
         m_videoView->setWindowTitle(QStringLiteral("%1 (%2 fps)").arg(m_name).arg(m_currentFps));
@@ -191,12 +199,12 @@ void GenericCameraModule::captureThread(void *gcamPtr)
             continue;
         }
 
-        // send frame away to connected image sinks, and hope they are
-        // handling this efficiently and don't block the
-        //self->emitNewFrame(std::make_pair(frame, time));
+        // record this frame, if we have any video writers registered
+        Q_FOREACH(auto vwriter, self->m_vwriters)
+            vwriter->pushFrame(frame, time);
 
         self->m_mutex.lock();
-        self->m_frameRing.push_back(frame);
+        self->m_frameRing.push_back(std::pair<cv::Mat, std::chrono::milliseconds>(frame, time));
         self->m_mutex.unlock();
 
         // wait a bit if necessary, to keep the right framerate
@@ -235,6 +243,11 @@ void GenericCameraModule::finishCaptureThread()
     if (!initialized())
         return;
 
+    // ensure we unregister all video writers before starting another run,
+    // and after finishing the current one, as the modules they belong to
+    // may meanwhile have been removed
+    m_vwriters.clear();
+
     statusMessage("Cleaning up...");
     if (m_thread != nullptr) {
         m_running = false;
@@ -245,9 +258,4 @@ void GenericCameraModule::finishCaptureThread()
     m_camera->disconnect();
     m_camSettingsWindow->setRunning(false);
     statusMessage("Camera disconnected.");
-}
-
-void GenericCameraModule::emitNewFrame(const FrameData &frameInfo)
-{
-    emit newFrame(frameInfo);
 }

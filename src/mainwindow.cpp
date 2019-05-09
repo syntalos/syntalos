@@ -599,24 +599,47 @@ void MainWindow::runActionTriggered()
     }
 
     auto timer = new HRTimer;
-
     Q_FOREACH(auto mod, m_modManager->activeModules()) {
-        mod->prepare(m_dataExportDir, m_currentSubject, timer);
+        setStatusText(QStringLiteral("Preparing %1...").arg(mod->name()));
+        if (!mod->prepare(m_dataExportDir, m_currentSubject, timer)) {
+            m_failed = true;
+            setStatusText(QStringLiteral("Module %1 failed to prepare.").arg(mod->name()));
+            break;
+        }
     }
+    if (m_failed)
+        return;
+
+    setStatusText(QStringLiteral("Initializing launch..."));
 
     timer->start();
     Q_FOREACH(auto mod, m_modManager->activeModules()) {
         mod->start();
     }
+    setStatusText(QStringLiteral("Running..."));
 
     while (true) {
         Q_FOREACH(auto mod, m_modManager->activeModules()) {
-            mod->runCycle();
+            if (!mod->runCycle()){
+                setStatusText(QStringLiteral("Module %1 failed.").arg(mod->name()));
+                m_failed = true;
+                break;
+            }
         }
         QApplication::processEvents();
+        if (m_failed)
+            break;
+    }
+
+
+    Q_FOREACH(auto mod, m_modManager->activeModules()) {
+        setStatusText(QStringLiteral("Stopping %1...").arg(mod->name()));
+        mod->stop();
     }
 
     delete timer;
+
+    setStatusText(QStringLiteral("Ready."));
 
 
 

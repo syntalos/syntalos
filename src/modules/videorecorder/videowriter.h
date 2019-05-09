@@ -23,6 +23,7 @@
 #include <memory>
 #include <chrono>
 #include <opencv2/core.hpp>
+#include <QMetaType>
 
 /**
  * @brief The VideoContainer enum
@@ -35,6 +36,7 @@ enum class VideoContainer {
     Matroska,
     AVI
 };
+Q_DECLARE_METATYPE(VideoContainer);
 
 /**
  * @brief The VideoCodec enum
@@ -54,6 +56,7 @@ enum class VideoCodec {
     H265,
     MPEG4
 };
+Q_DECLARE_METATYPE(VideoCodec);
 
 /**
  * @brief The VideoWriter class

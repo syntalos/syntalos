@@ -17,6 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "config.h"
 #include "modulemanager.h"
 
 #include <QMessageBox>
@@ -26,6 +27,9 @@
 #include "modules/traceplot/traceplotmodule.h"
 #include "modules/videorecorder/videorecordmodule.h"
 #include "modules/genericcamera/genericcameramodule.h"
+#ifdef HAVE_UEYE_CAMERA
+#include "modules/ueyecamera/ueyecameramodule.h"
+#endif
 
 class AbstractModuleCreator
 {
@@ -75,6 +79,9 @@ ModuleManager::ModuleManager(QObject *parent, QWidget *parentWidget)
     registerModuleInfo<TracePlotModule>();
     registerModuleInfo<VideoRecorderModule>();
     registerModuleInfo<GenericCameraModule>();
+#ifdef HAVE_UEYE_CAMERA
+    registerModuleInfo<UEyeCameraModule>();
+#endif
 }
 
 AbstractModule *ModuleManager::createModule(const QString &id)

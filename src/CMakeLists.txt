@@ -113,8 +113,8 @@ target_link_libraries(mazeamaze
     ${PYTHON_LIBRARIES}
     ${OpenCV_LIBS}
     ${OPENGL_LIBRARIES}
-    ${UYEYE_LIB}
     ${Boost_LIBRARIES}
+    ${UYEYE_LIBS}
 
     mod_intan_rhd2000
     mod_traceplot

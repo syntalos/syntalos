@@ -109,7 +109,7 @@ bool TracePlotModule::prepare(const QString &storageRootDir, const TestSubject &
     // reset trace plot data
     m_traceProxy->reset();
 
-    setState(ModuleState::READY);
+    setState(ModuleState::WAITING);
     return true;
 }
 

@@ -1,4 +1,4 @@
-/*
+/**
  * Copyright (C) 2016-2019 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
@@ -26,6 +26,8 @@
 #include "abstractmodule.h"
 #include "utils.h"
 
+class VideoWriter;
+
 class ImageSourceModule : public AbstractModule
 {
     Q_OBJECT
@@ -36,6 +38,13 @@ public:
     virtual bool prepare(const QString &storageRootDir, const TestSubject &testSubject, HRTimer *timer) override;
     virtual double selectedFramerate() const = 0;
     virtual cv::Size selectedResolution() const = 0;
+
+    /**
+     * @brief Attach a VideoWriter class to this image source, for fast video capture.
+     * This is done for efficiency reasons, as the newFrame() signal may not be fast
+     * enough to record with higher framerates.
+     */
+    virtual void attachVideoWriter(VideoWriter *vwriter);
 
 signals:
     void newFrame(const FrameData& frameData);

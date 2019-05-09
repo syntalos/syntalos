@@ -95,6 +95,7 @@ bool VideoRecorderModule::prepare(const QString &storageRootDir, const TestSubje
 {
     Q_UNUSED(testSubject);
     Q_UNUSED(timer);
+    setState(ModuleState::PREPARING);
 
     m_vidStorageDir = QStringLiteral("%1/videos").arg(storageRootDir);
 
@@ -109,12 +110,14 @@ bool VideoRecorderModule::prepare(const QString &storageRootDir, const TestSubje
         return false;
     }
 
-    connect(imgSrcMod, &ImageSourceModule::newFrame, this, &VideoRecorderModule::receiveFrame);
-    statusMessage(QStringLiteral("Recording from %1").arg(imgSrcMod->name()));
-
     const auto frameSize = imgSrcMod->selectedResolution();
 
     m_videoWriter.reset(new VideoWriter);
+    m_videoWriter->setContainer(m_settingsDialog->videoContainer());
+    m_videoWriter->setCodec(m_settingsDialog->videoCodec());
+    m_videoWriter->setLossless(m_settingsDialog->isLossless());
+    m_videoWriter->setFileSliceInterval(m_settingsDialog->sliceInterval());
+
     try {
         m_videoWriter->initialize("/tmp/vtest", //QStringLiteral("%1/%2").arg(m_vidStorageDir).arg(m_settingsDialog->videoName()).toStdString(),
                                   frameSize.width,
@@ -127,6 +130,14 @@ bool VideoRecorderModule::prepare(const QString &storageRootDir, const TestSubje
         return false;
     }
 
+    // attach the video recorder directly to the recording device.
+    // this avoids making a function call or emitting a Qt signal,
+    // which is more efficient with higher framerates and ensures we
+    // always record data properly.
+    imgSrcMod->attachVideoWriter(m_videoWriter.get());
+
+    statusMessage(QStringLiteral("Recording from %1").arg(imgSrcMod->name()));
+    setState(ModuleState::WAITING);
     return true;
 }
 

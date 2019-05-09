@@ -41,6 +41,8 @@ public:
     void setRunning(bool running);
 
 private slots:
+    void on_sbGain_valueChanged(int arg1);
+    void on_sbExposure_valueChanged(int arg1);
     void on_cameraComboBox_currentIndexChanged(int index);
 
 private:

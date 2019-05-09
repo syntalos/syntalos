@@ -41,6 +41,7 @@ enum class ModuleState {
     UNKNOWN,
     INITIALIZING,
     PREPARING,
+    WAITING,
     READY,
     RUNNING,
     ERROR

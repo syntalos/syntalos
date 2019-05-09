@@ -24,6 +24,7 @@
 #include <QList>
 
 #include "imagesourcemodule.h"
+#include "videowriter.h"
 
 namespace Ui {
 class RecorderSettingsDialog;
@@ -45,12 +46,26 @@ public:
     void setVideoName(const QString& value);
     QString videoName() const;
 
+    void setSaveTimestamps(bool save);
     bool saveTimestamps() const;
+
+    void setVideoCodec(const VideoCodec& codec);
+    VideoCodec videoCodec() const;
+
+    void setVideoContainer(const VideoContainer &container);
+    VideoContainer videoContainer() const;
+
+    void setLossless(bool lossless);
+    bool isLossless() const;
+
+    void setSliceInterval(uint interval);
+    uint sliceInterval() const;
+
+private slots:
+    void on_codecComboBox_currentIndexChanged(int index);
 
 private slots:
     void on_nameLineEdit_textChanged(const QString &arg1);
-
-private slots:
     void on_frameSourceComboBox_currentIndexChanged(int index);
 
 private:

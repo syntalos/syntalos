@@ -25,9 +25,8 @@ GenericCameraSettingsDialog::GenericCameraSettingsDialog(Camera *camera, QWidget
     ui(new Ui::GenericCameraSettingsDialog)
 {
     ui->setupUi(this);
+    setWindowIcon(QIcon(":/icons/generic-config"));
     m_camera = camera;
-
-    //m_camera->setFramerate(ui->fpsSpinBox->value());
 
     auto cameras = Camera::availableCameras();
     Q_FOREACH(const auto cameraInfo, cameras) {
@@ -64,4 +63,14 @@ void GenericCameraSettingsDialog::on_cameraComboBox_currentIndexChanged(int inde
 {
     Q_UNUSED(index);
     m_camera->setCamId(ui->cameraComboBox->currentData().toInt());
+}
+
+void GenericCameraSettingsDialog::on_sbExposure_valueChanged(int arg1)
+{
+    m_camera->setExposure(arg1);
+}
+
+void GenericCameraSettingsDialog::on_sbGain_valueChanged(int arg1)
+{
+    m_camera->setGain(arg1);
 }

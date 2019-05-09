@@ -28,6 +28,17 @@ RecorderSettingsDialog::RecorderSettingsDialog(QWidget *parent) :
     m_selectedImgSrcMod(nullptr)
 {
     ui->setupUi(this);
+    setWindowIcon(QIcon(":/icons/generic-config"));
+
+    ui->containerComboBox->addItem("MKV", QVariant::fromValue(VideoContainer::Matroska));
+    ui->containerComboBox->addItem("AVI", QVariant::fromValue(VideoContainer::AVI));
+    ui->containerComboBox->setCurrentIndex(0);
+
+    ui->codecComboBox->addItem("FFV1", QVariant::fromValue(VideoCodec::FFV1));
+    ui->codecComboBox->addItem("AV1", QVariant::fromValue(VideoCodec::AV1));
+    ui->codecComboBox->addItem("H.265", QVariant::fromValue(VideoCodec::H265));
+    ui->codecComboBox->addItem("Raw", QVariant::fromValue(VideoCodec::Raw));
+    ui->codecComboBox->setCurrentIndex(0);
 }
 
 RecorderSettingsDialog::~RecorderSettingsDialog()
@@ -64,9 +75,64 @@ QString RecorderSettingsDialog::videoName() const
     return m_videoName;
 }
 
+void RecorderSettingsDialog::setSaveTimestamps(bool save)
+{
+    ui->timestampFileCheckBox->setChecked(save);
+}
+
 bool RecorderSettingsDialog::saveTimestamps() const
 {
     return ui->timestampFileCheckBox->isChecked();
+}
+
+void RecorderSettingsDialog::setVideoCodec(const VideoCodec& codec)
+{
+    for (int i = 0; i < ui->codecComboBox->count(); i++) {
+        if (ui->codecComboBox->itemData(i).value<VideoCodec>() == codec) {
+            ui->codecComboBox->setCurrentIndex(i);
+            break;
+        }
+    }
+}
+
+VideoCodec RecorderSettingsDialog::videoCodec() const
+{
+    return ui->codecComboBox->currentData().value<VideoCodec>();
+}
+
+void RecorderSettingsDialog::setVideoContainer(const VideoContainer& container)
+{
+    for (int i = 0; i < ui->containerComboBox->count(); i++) {
+        if (ui->containerComboBox->itemData(i).value<VideoContainer>() == container) {
+            ui->containerComboBox->setCurrentIndex(i);
+            break;
+        }
+    }
+}
+
+VideoContainer RecorderSettingsDialog::videoContainer() const
+{
+    return ui->containerComboBox->currentData().value<VideoContainer>();
+}
+
+void RecorderSettingsDialog::setLossless(bool lossless)
+{
+    ui->losslessCheckBox->setChecked(lossless);
+}
+
+bool RecorderSettingsDialog::isLossless() const
+{
+    return ui->losslessCheckBox->isChecked();
+}
+
+void RecorderSettingsDialog::setSliceInterval(uint interval)
+{
+    ui->sliceIntervalSpinBox->setValue(static_cast<int>(interval));
+}
+
+uint RecorderSettingsDialog::sliceInterval() const
+{
+    return static_cast<uint>(ui->sliceIntervalSpinBox->value());
 }
 
 void RecorderSettingsDialog::on_frameSourceComboBox_currentIndexChanged(int index)
@@ -78,4 +144,45 @@ void RecorderSettingsDialog::on_frameSourceComboBox_currentIndexChanged(int inde
 void RecorderSettingsDialog::on_nameLineEdit_textChanged(const QString &arg1)
 {
     m_videoName = arg1.simplified().replace(" ", "_");
+}
+
+void RecorderSettingsDialog::on_codecComboBox_currentIndexChanged(int index)
+{
+    Q_UNUSED(index);
+
+    // reset state of lossless infobox
+    ui->losslessCheckBox->setEnabled(true);
+    ui->losslessLabel->setEnabled(true);
+    ui->losslessCheckBox->setChecked(true);
+    ui->containerComboBox->setEnabled(true);
+
+    const auto codec = ui->codecComboBox->currentData().value<VideoCodec>();
+
+    if (codec == VideoCodec::FFV1) {
+        // FFV1 is always lossless
+        ui->losslessCheckBox->setEnabled(false);
+        ui->losslessLabel->setEnabled(false);
+        ui->losslessCheckBox->setChecked(true);
+
+    } else if (codec == VideoCodec::H265) {
+        // H.256 only works with MKV and MP4 containers, select MKV by default
+        ui->containerComboBox->setCurrentIndex(0);
+        ui->containerComboBox->setEnabled(false);
+
+    } else if (codec == VideoCodec::MPEG4) {
+        // MPEG-4 can't do lossless encoding
+        ui->losslessCheckBox->setEnabled(false);
+        ui->losslessLabel->setEnabled(false);
+        ui->losslessCheckBox->setChecked(false);
+
+    } else if (codec == VideoCodec::Raw) {
+        // Raw is always lossless
+        ui->losslessCheckBox->setEnabled(false);
+        ui->losslessLabel->setEnabled(false);
+        ui->losslessCheckBox->setChecked(true);
+
+        // Raw RGB only works with AVI containers
+        ui->containerComboBox->setCurrentIndex(1);
+        ui->containerComboBox->setEnabled(false);
+    }
 }

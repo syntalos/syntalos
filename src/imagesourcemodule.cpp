@@ -37,3 +37,8 @@ bool ImageSourceModule::prepare(const QString &storageRootDir, const TestSubject
 
     return prepare(timer);
 }
+
+void ImageSourceModule::attachVideoWriter(VideoWriter *vwriter)
+{
+    Q_UNUSED(vwriter);
+}

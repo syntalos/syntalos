@@ -46,6 +46,8 @@ public:
     QPixmap pixmap() const override;
     void setName(const QString& name) override;
 
+    void attachVideoWriter(VideoWriter *vwriter) override;
+
     double selectedFramerate() const override;
     cv::Size selectedResolution() const override;
 
@@ -68,18 +70,18 @@ private:
     GenericCameraSettingsDialog *m_camSettingsWindow;
     HRTimer *m_timer;
 
+    QList<VideoWriter*> m_vwriters;
     std::thread *m_thread;
     QMutex m_mutex;
     std::atomic_bool m_running;
     std::atomic_bool m_started;
     std::atomic_int m_currentFps;
     int m_fps;
-    boost::circular_buffer<cv::Mat> m_frameRing;
+    boost::circular_buffer<FrameData> m_frameRing;
 
     static void captureThread(void *gcamPtr);
     bool startCaptureThread();
     void finishCaptureThread();
-    void emitNewFrame(const FrameData& frameInfo);
 };
 
 #endif // GENERICCAMERAMODULE_H

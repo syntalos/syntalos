@@ -67,36 +67,6 @@
        <property name="toolTip">
         <string>Video codec (FFV1 is recommended for size and speed)</string>
        </property>
-       <item>
-        <property name="text">
-         <string>FFV1</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>AV1</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>VP9</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>H.265</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>MPEG-4</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>None</string>
-        </property>
-       </item>
       </widget>
      </item>
      <item row="3" column="0">
@@ -111,16 +81,6 @@
        <property name="toolTip">
         <string>Video container format, MKV is recommended</string>
        </property>
-       <item>
-        <property name="text">
-         <string>MKV</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>AVI</string>
-        </property>
-       </item>
       </widget>
      </item>
      <item row="4" column="0">
@@ -178,7 +138,7 @@
       <enum>Qt::Horizontal</enum>
      </property>
      <property name="standardButtons">
-      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+      <set>QDialogButtonBox::Ok</set>
      </property>
     </widget>
    </item>
