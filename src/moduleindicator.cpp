@@ -74,6 +74,7 @@ ModuleIndicator::ModuleIndicator(AbstractModule *module, ModuleManager *manager,
     connect(d->module, &AbstractModule::actionsUpdated, this, &ModuleIndicator::receiveActionsUpdated);
     connect(d->module, &AbstractModule::stateChanged, this, &ModuleIndicator::receiveStateChange);
     connect(d->module, &AbstractModule::error, this, &ModuleIndicator::receiveErrorMessage);
+    connect(d->module, &AbstractModule::statusMessage, this, &ModuleIndicator::receiveMessage);
     connect(d->manager, &ModuleManager::modulePreRemove, this, &ModuleIndicator::on_modulePreRemove);
 }
 

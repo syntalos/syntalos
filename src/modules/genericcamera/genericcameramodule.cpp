@@ -39,7 +39,7 @@ GenericCameraModule::GenericCameraModule(QObject *parent)
     m_name = QStringLiteral("Generic Camera");
     m_camera = new Camera;
 
-    m_frameRing = boost::circular_buffer<FrameData>(32);
+    m_frameRing = boost::circular_buffer<FrameData>(64);
 }
 
 GenericCameraModule::~GenericCameraModule()
@@ -133,21 +133,21 @@ bool GenericCameraModule::runCycle()
 {
     QMutexLocker locker(&m_mutex);
 
-    if (m_frameRing.size() == 0)
+    if (m_frameRing.empty())
         return true;
 
-    if (!m_frameRing.empty()) {
-        auto frameInfo = m_frameRing.front();
-        m_videoView->showImage(frameInfo.first);
-        m_frameRing.pop_front();
+    statusMessage(QStringLiteral("Buffer status: %1/%2").arg(m_frameRing.size()).arg(m_frameRing.capacity()));
 
-        // send frame away to connected image sinks, and hope they are
-        // handling this efficiently and don't block the loop
-        emit newFrame(frameInfo);
+    auto frameInfo = m_frameRing.front();
+    m_videoView->showImage(frameInfo.first);
+    m_frameRing.pop_front();
 
-        // show framerate directly in the window title, to make reduced framerate very visible
-        m_videoView->setWindowTitle(QStringLiteral("%1 (%2 fps)").arg(m_name).arg(m_currentFps));
-    }
+    // send frame away to connected image sinks, and hope they are
+    // handling this efficiently and don't block the loop
+    emit newFrame(frameInfo);
+
+    // show framerate directly in the window title, to make reduced framerate very visible
+    m_videoView->setWindowTitle(QStringLiteral("%1 (%2 fps)").arg(m_name).arg(m_currentFps));
 
     return true;
 }

@@ -28,6 +28,7 @@ using steady_hr_clock =
                      std::chrono::steady_clock
                     >::type;
 
+using milliseconds_t = std::chrono::milliseconds;
 
 inline std::chrono::milliseconds timeDiffToNowMsec(const std::chrono::time_point<steady_hr_clock>& timePoint) noexcept
 {

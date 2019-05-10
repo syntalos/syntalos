@@ -20,6 +20,7 @@
 #include "videorecordmodule.h"
 
 #include <QMessageBox>
+#include <QJsonDocument>
 #include <QDebug>
 
 #include "videowriter.h"
@@ -103,6 +104,8 @@ bool VideoRecorderModule::prepare(const QString &storageRootDir, const TestSubje
         raiseError("Video recording name is not set. Please set it in the settings to continue.");
         return false;
     }
+    if (!makeDirectory(m_vidStorageDir))
+        return false;
 
     auto imgSrcMod = m_settingsDialog->selectedImageSourceMod();
     if (imgSrcMod == nullptr) {
@@ -110,6 +113,7 @@ bool VideoRecorderModule::prepare(const QString &storageRootDir, const TestSubje
         return false;
     }
 
+    const auto useColor = true;
     const auto frameSize = imgSrcMod->selectedResolution();
 
     m_videoWriter.reset(new VideoWriter);
@@ -122,8 +126,8 @@ bool VideoRecorderModule::prepare(const QString &storageRootDir, const TestSubje
         m_videoWriter->initialize(QStringLiteral("%1/%2").arg(m_vidStorageDir).arg(m_settingsDialog->videoName()).toStdString(),
                                   frameSize.width,
                                   frameSize.height,
-                                  static_cast<int>(round(imgSrcMod->selectedFramerate())),
-                                  true,
+                                  imgSrcMod->selectedFramerate(),
+                                  useColor,
                                   m_settingsDialog->saveTimestamps());
     } catch (const std::runtime_error& e) {
         raiseError(QStringLiteral("Unable to initialize recording: %1").arg(e.what()));
@@ -135,6 +139,25 @@ bool VideoRecorderModule::prepare(const QString &storageRootDir, const TestSubje
     // which is more efficient with higher framerates and ensures we
     // always record data properly.
     imgSrcMod->attachVideoWriter(m_videoWriter.get());
+
+    // write info video info file with auxiliary information about the video we encoded
+    // (this is useful to gather intel about the video without opening the video file)
+    auto infoPath = QStringLiteral("%1/%2_videoinfo.json").arg(m_vidStorageDir).arg(m_settingsDialog->videoName());
+    QJsonObject vInfo;
+    vInfo.insert("name", m_settingsDialog->videoName());
+    vInfo.insert("frameWidth", frameSize.width);
+    vInfo.insert("frameHeight", frameSize.height);
+    vInfo.insert("framerate", imgSrcMod->selectedFramerate());
+    vInfo.insert("colored", useColor);
+
+    QFile vInfoFile(infoPath);
+    if (!vInfoFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        raiseError("Unable to open video info file for writing.");
+        return false;
+    }
+
+    QTextStream vInfoFileOut(&vInfoFile);
+    vInfoFileOut << QJsonDocument(vInfo).toJson();
 
     statusMessage(QStringLiteral("Recording from %1").arg(imgSrcMod->name()));
     setState(ModuleState::WAITING);

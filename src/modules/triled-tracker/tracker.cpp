@@ -1,5 +1,5 @@
-/*
- * Copyright (C) 2016-2017 Matthias Klumpp <matthias@tenstral.net>
+/**
+ * Copyright (C) 2016-2019 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -25,28 +25,24 @@
 #include <QFile>
 #include <QDir>
 #include <QtMath>
-#include <QThreadPool>
 #include <QTextStream>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/features2d/features2d.hpp>
 
-Tracker::Tracker(Barrier barrier, GenericCamera *cam, int framerate, const QString& exportDir, const QString &frameBasePath,
-                 const QString& subjectId, const QSize &exportRes)
+Tracker::Tracker(const QString& exportDir, const QString& subjectId)
     : QObject(nullptr),
-      m_barrier(barrier),
-      m_camera(cam),
-      m_framerate(framerate),
+      m_initialized(false),
       m_subjectId(subjectId),
-      m_exportDir(exportDir),
-      m_frameBasePath(frameBasePath),
-      m_exportResolution(exportRes)
+      m_exportDir(exportDir)
 {
+    m_posInfoFile = nullptr;
+
     // load mouse graphic from resource store
     QFile file(":/images/mouse-top.png");
     if(file.open(QIODevice::ReadOnly)) {
-        qint64 sz = file.size();
-        std::vector<uchar> buf(sz);
+        auto sz = file.size();
+        std::vector<uchar> buf(static_cast<size_t>(sz));
         file.read((char*) buf.data(), sz);
         m_mouseGraphicMat = cv::imdecode(buf, cv::IMREAD_COLOR);
     } else {
@@ -54,50 +50,45 @@ Tracker::Tracker(Barrier barrier, GenericCamera *cam, int framerate, const QStri
     }
 }
 
-bool Tracker::running() const
+Tracker::~Tracker()
 {
-    return m_running;
+    finalize();
 }
 
-void Tracker::storeFrameAndWait(const QPair<time_t, cv::Mat> &frame, const QString& frameBasePath,
-                                     time_t *lastFrameTime, const time_t& timeSinceStart, const time_t& frameInterval)
+QString Tracker::lastError() const
 {
-    // store downscaled frame on disk
-    cv::Mat emat;
-    cv::resize(frame.second,
-               emat,
-               cv::Size(m_exportResolution.width(), m_exportResolution.height()));
-    cv::imwrite(QString("%1%2.jpg").arg(frameBasePath).arg(timeSinceStart).toStdString(), emat);
-
-    // wait the remaining time before requesting the next frame
-    time_t remainingTime;
-    if ((*lastFrameTime) != frame.first)
-        remainingTime = frameInterval - (frame.first - (*lastFrameTime));
-    else
-        remainingTime = 0; // we fetched the same frame twice - directly jump to the next one
-    (*lastFrameTime) = frame.first;
-
-    if (remainingTime > 2) // > 2 instead of > 0 to really only sleep when there is *much* delay needed
-        QThread::usleep(remainingTime * 1000); // sleep remainingTime msecs
+    return m_lastError;
 }
 
-void Tracker::runTracking()
+void Tracker::setError(const QString &msg)
 {
-    Q_ASSERT(!m_exportDir.isEmpty());
-    Q_ASSERT(!m_subjectId.isEmpty());
-    Q_ASSERT(m_camera != nullptr);
+    m_lastError = msg;
+}
 
-    m_running = true;
+bool Tracker::initialize()
+{
+    if (m_initialized) {
+        setError("Tried to initialize tracker twice.");
+        return false;
+    }
+    if (m_exportDir.isEmpty()) {
+        setError("Unable to initilize tracker with empty export dir.");
+        return false;
+    }
+    if (m_subjectId.isEmpty()) {
+        setError("Unable to initilize tracker with empty subject ID.");
+        return false;
+    }
 
     // prepare position output CSV file
     auto posInfoPath = QStringLiteral("%1/%2_positions.csv").arg(m_exportDir).arg(m_subjectId);
-    QFile posInfoFile(posInfoPath);
-    if (!posInfoFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        emitError("Unable to open position CSV file for writing.");
-        return;
+    m_posInfoFile = new QFile(posInfoPath);
+    if (!m_posInfoFile->open(QIODevice::WriteOnly | QIODevice::Text)) {
+        setError("Unable to open position CSV file for writing.");
+        return false;
     }
 
-    QTextStream posInfoOut(&posInfoFile);
+    QTextStream posInfoOut(m_posInfoFile);
     posInfoOut << "Time (msec)" << ";"
                   "Red X" << ";" << "Red Y" << ";"
                   "Green X" << ";" << "Green Y" << ";"
@@ -109,70 +100,46 @@ void Tracker::runTracking()
     m_mazeRect = std::vector<cv::Point2f>();
     m_mazeFindTrialCount = 0;
 
-    auto frameInterval = 1000 / m_framerate; // framerate in FPS, interval msec delay
-    auto firstFrame = true;
-    time_t lastFrameTime = 0;
+    m_firstFrame = true;
+    m_initialized = true;
+    return true;
+}
 
-    // wait for barrier release, if there is any
-    waitOnBarrier();
+void Tracker::analyzeFrame(const cv::Mat& frame, const std::chrono::milliseconds time, cv::Mat *trackingFrame, cv::Mat *infoFrame)
+{
+    // do the tracking on the source frame
+    auto triangle = trackPoints(time, frame, infoFrame, trackingFrame);
 
-    while (m_running) {
-        auto frame = m_camera->getFrame();
-        if (frame.first < 0) {
-            // we have an invalid frame, ignore it
-            continue;
-        }
+    // the layout of the CSV file is:
+    //  time;Red X;Red Y; Green X; Green Y; Yellow X; Yellow Y
+    QTextStream posInfoOut(m_posInfoFile);
 
-        // assume first frame is starting point
-        if (firstFrame) {
-            firstFrame = false;
-            m_startTime = frame.first;
-            lastFrameTime = frame.first - (frameInterval / 1.5);
-        }
-        auto timeSinceStart = frame.first - m_startTime;
-        emit newFrame(timeSinceStart, frame.second);
+    // store time value
+    posInfoOut << time.count() << ";";
 
-        // do the tracking on the source frame
-        auto triangle = trackPoints(timeSinceStart, frame.second);
+    // red
+    posInfoOut << triangle.red.x << ";" << triangle.red.y << ";";
+    // green
+    posInfoOut << triangle.green.x << ";" << triangle.green.y << ";";
+    // blue
+    posInfoOut << triangle.blue.x << ";" << triangle.blue.y << ";";
+    // center
+    posInfoOut << triangle.center.x << ";" << triangle.center.y << ";";
 
-        // the layout of the CSV file is:
-        //  time;Red X;Red Y; Green X; Green Y; Yellow X; Yellow Y
+    // turn angle
+    posInfoOut << triangle.turnAngle << ";";
 
-        // store time value
-        posInfoOut << timeSinceStart << ";";
+    posInfoOut << "\n";
+}
 
-        // red
-        posInfoOut << triangle.red.x << ";" << triangle.red.y << ";";
-        // green
-        posInfoOut << triangle.green.x << ";" << triangle.green.y << ";";
-        // blue
-        posInfoOut << triangle.blue.x << ";" << triangle.blue.y << ";";
-        // center
-        posInfoOut << triangle.center.x << ";" << triangle.center.y << ";";
+bool Tracker::finalize()
+{
+    if (!m_initialized)
+        return true;
+    if (m_posInfoFile != nullptr)
+        delete m_posInfoFile;
 
-        // turn angle
-        posInfoOut << triangle.turnAngle << ";";
-
-        posInfoOut << "\n";
-
-        // enqueue frame to be stored on disk and wait the remaining time before requesting a new frame
-        storeFrameAndWait(frame, m_frameBasePath,
-                          &lastFrameTime, timeSinceStart, frameInterval);
-    }
-
-    m_startTime = 0;
-
-    // store details about our recording
-    // get a frame and store details
-    auto finalFrame = m_camera->getFrame();
-
-    auto infoPath = QStringLiteral("%1/%2_videoinfo.json").arg(m_exportDir).arg(m_subjectId);
-    QJsonObject vInfo;
-    vInfo.insert("frameWidth", finalFrame.second.cols);
-    vInfo.insert("frameHeight", finalFrame.second.rows);
-
-    vInfo.insert("exportWidth", m_exportResolution.width());
-    vInfo.insert("exportHeight", m_exportResolution.height());
+    auto infoPath = QStringLiteral("%1/maze.json").arg(m_exportDir);
 
     if (m_mazeRect.size() == 4) {
         QJsonObject mazeInfo;
@@ -188,100 +155,17 @@ void Tracker::runTracking()
         mazeInfo.insert("bottomRightX", m_mazeRect[3].x);
         mazeInfo.insert("bottomRightY", m_mazeRect[3].y);
 
-        vInfo.insert("mazePos", mazeInfo);
-    }
-
-    QFile vInfoFile(infoPath);
-    if (!vInfoFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        emitError("Unable to open video info file for writing.");
-        return;
-    }
-
-    QTextStream vInfoFileOut(&vInfoFile);
-    vInfoFileOut << QJsonDocument(vInfo).toJson();
-
-    emitFinishedSuccess();
-}
-
-void Tracker::runRecordingOnly()
-{
-    Q_ASSERT(!m_exportDir.isEmpty());
-    Q_ASSERT(!m_subjectId.isEmpty());
-    Q_ASSERT(m_camera != nullptr);
-
-    m_running = true;
-
-    auto frameInterval = 1000 / m_framerate; // framerate in FPS, interval msec delay
-    auto firstFrame = true;
-    time_t lastFrameTime = 0;
-
-    // wait for barrier release, if there is any
-    waitOnBarrier();
-
-    while (m_running) {
-        auto frame = m_camera->getFrame();
-        if (frame.first < 0) {
-            // we have an invalid frame, ignore it
-            continue;
+        QFile mazeInfoFile(infoPath);
+        if (!mazeInfoFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            setError("Unable to open maze info file for writing.");
+            return false;
         }
-        // assume first frame is starting point
-        if (firstFrame) {
-            m_startTime = frame.first;
-            firstFrame = false;
-            lastFrameTime = frame.first - (frameInterval / 1.5);
-        }
-        auto timeSinceStart = frame.first - m_startTime;
-        emit newFrame(timeSinceStart, frame.second);
 
-        // enqueue frame to be stored on disk and wait the remaining time before requesting a new frame
-        storeFrameAndWait(frame, m_frameBasePath,
-                          &lastFrameTime, timeSinceStart, frameInterval);
+        QTextStream vInfoFileOut(&mazeInfoFile);
+        vInfoFileOut << QJsonDocument(mazeInfo).toJson();
     }
 
-    m_startTime = 0;
-
-    // store details about our recording
-    // get a frame and store details
-    auto finalFrame = m_camera->getFrame();
-
-    auto infoPath = QStringLiteral("%1/%2_videoinfo.json").arg(m_exportDir).arg(m_subjectId);
-    QJsonObject vInfo;
-    vInfo.insert("frameWidth", finalFrame.second.cols);
-    vInfo.insert("frameHeight", finalFrame.second.rows);
-
-    vInfo.insert("exportWidth", m_exportResolution.width());
-    vInfo.insert("exportHeight", m_exportResolution.height());
-
-    QFile vInfoFile(infoPath);
-    if (!vInfoFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        emitError("Unable to open video info file for writing.");
-        return;
-    }
-
-    QTextStream vInfoFileOut(&vInfoFile);
-    vInfoFileOut << QJsonDocument(vInfo).toJson();
-
-    emitFinishedSuccess();
-}
-
-void Tracker::stop()
-{
-    m_running = false;
-}
-
-void Tracker::emitError(const QString &msg)
-{
-    emit finished(false, msg);
-}
-
-void Tracker::emitFinishedSuccess()
-{
-    emit finished(true, QString());
-}
-
-void Tracker::waitOnBarrier()
-{
-    m_barrier.wait();
+    return true;
 }
 
 static
@@ -485,7 +369,7 @@ cvRectFuzzyEqual(const std::vector<cv::Point2f>& a, const std::vector<cv::Point2
     return true;
 }
 
-Tracker::LEDTriangle Tracker::trackPoints(time_t time, const cv::Mat &image)
+Tracker::LEDTriangle Tracker::trackPoints(milliseconds_t time, const cv::Mat &image, cv::Mat *infoFrame, cv::Mat *trackingFrame)
 {
     cv::Point maxLoc;
     LEDTriangle res;
@@ -591,11 +475,8 @@ Tracker::LEDTriangle Tracker::trackPoints(time_t time, const cv::Mat &image)
                     cv::Scalar(100, 100, 255));
     }
 
-    // emit info graphic
-    emit newInfoGraphic(infoMat);
-
-    // show video frame
-    emit newTrackingFrame(time, trackMat);
+    (*infoFrame) = infoMat;
+    (*trackingFrame) = trackMat;
 
     return res;
 }

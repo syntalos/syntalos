@@ -17,6 +17,8 @@ public:
     explicit LedTrackerSettingsDialog(QWidget *parent = nullptr);
     ~LedTrackerSettingsDialog();
 
+    void setRunning(bool running);
+
     QString resultsName() const;
     void setResultsName(const QString& name);
 

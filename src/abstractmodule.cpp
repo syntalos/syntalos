@@ -19,6 +19,9 @@
 
 #include <opencv2/core.hpp>
 #include "abstractmodule.h"
+
+#include <QDir>
+#include <QMessageBox>
 #include <QDebug>
 
 AbstractModule::AbstractModule(QObject *parent) :
@@ -132,6 +135,16 @@ bool AbstractModule::singleton() const
 bool AbstractModule::canRemove(AbstractModule *mod)
 {
     Q_UNUSED(mod);
+    return true;
+}
+
+bool AbstractModule::makeDirectory(const QString &dir)
+{
+    if (!QDir().mkpath(dir)) {
+        raiseError(QStringLiteral("Unable to create directory '%1'.").arg(dir));
+        return false;
+    }
+
     return true;
 }
 

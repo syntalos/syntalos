@@ -39,7 +39,7 @@ UEyeCameraModule::UEyeCameraModule(QObject *parent)
     m_name = QStringLiteral("uEye Camera");
     m_camera = new UEyeCamera;
 
-    m_frameRing = boost::circular_buffer<FrameData>(32);
+    m_frameRing = boost::circular_buffer<FrameData>(64);
 }
 
 UEyeCameraModule::~UEyeCameraModule()

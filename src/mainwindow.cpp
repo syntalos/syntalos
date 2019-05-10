@@ -598,6 +598,12 @@ void MainWindow::runActionTriggered()
         deDir.removeRecursively();
     }
 
+    if (!makeDirectory(m_dataExportDir)) {
+        setRunPossible(true);
+        setStopPossible(false);
+        return;
+    }
+
     auto timer = new HRTimer;
     Q_FOREACH(auto mod, m_modManager->activeModules()) {
         setStatusText(QStringLiteral("Preparing %1...").arg(mod->name()));

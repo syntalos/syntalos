@@ -4,9 +4,8 @@ set(TRILED_TRACKER_SRC
     triledtrackermodule.cpp
     ledtrackersettingsdialog.h
     ledtrackersettingsdialog.cpp
-
-    #tracker.h
-    #tracker.cpp
+    tracker.h
+    tracker.cpp
 )
 
 set(TRILED_TRACKER_UI

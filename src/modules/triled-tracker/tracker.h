@@ -20,9 +20,8 @@
 #ifndef TRACKER_H
 #define TRACKER_H
 
-#include "mazevideo.h"
-#include "../barrier.h"
-
+#include <QFile>
+#include "imagesourcemodule.h"
 
 class Tracker : public QObject
 {
@@ -40,49 +39,32 @@ public:
         double turnAngle; // triangle turn angle
     };
 
-    explicit Tracker(Barrier barrier, GenericCamera *cam, int framerate, const QString &exportDir, const QString& frameBasePath,
-                     const QString &subjectId, const QSize& exportRes);
+    explicit Tracker(const QString &exportDir, const QString &subjectId);
+    ~Tracker();
 
-    bool running() const;
+    QString lastError() const;
 
-signals:
-    void finished(bool success, const QString& errorMessage);
-
-    void newFrame(time_t time, const cv::Mat image);
-    void newTrackingFrame(time_t time, const cv::Mat image);
-    void newInfoGraphic(const cv::Mat image);
-
-public slots:
-    void runTracking();
-    void runRecordingOnly();
-
-    void stop();
+    bool initialize();
+    void analyzeFrame(const cv::Mat& frame, const std::chrono::milliseconds time,
+                      cv::Mat *trackingFrame, cv::Mat *infoFrame);
+    bool finalize();
 
 private:
-    void emitError(const QString& msg);
-    void emitFinishedSuccess();
-    void waitOnBarrier();
+    void setError(const QString& msg);
 
-    LEDTriangle trackPoints(time_t time, const cv::Mat& image);
+    LEDTriangle trackPoints(milliseconds_t time, const cv::Mat& image, cv::Mat *infoFrame, cv::Mat *trackingFrame);
 
-    void storeFrameAndWait(const QPair<time_t, cv::Mat> &frame, const QString& frameBasePath,
-                           time_t *lastFrameTime, const time_t& timeSinceStart, const time_t &frameInterval);
-
-    Barrier m_barrier;
-    GenericCamera *m_camera;
-    time_t m_startTime;
-    int m_framerate;
+    bool m_initialized;
+    bool m_firstFrame;
+    QString m_lastError;
 
     QString m_subjectId;
     QString m_exportDir;
-    QString m_frameBasePath;
-    QSize m_exportResolution;
 
+    QFile *m_posInfoFile;
     std::vector<cv::Point2f> m_mazeRect;
     uint m_mazeFindTrialCount;
     cv::Mat m_mouseGraphicMat;
-
-    bool m_running;
 };
 
 #endif // TRACKER_H

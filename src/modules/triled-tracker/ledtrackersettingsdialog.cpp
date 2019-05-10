@@ -14,6 +14,12 @@ LedTrackerSettingsDialog::~LedTrackerSettingsDialog()
     delete ui;
 }
 
+void LedTrackerSettingsDialog::setRunning(bool running)
+{
+    ui->frameSourceComboBox->setEnabled(!running);
+    ui->nameLineEdit->setEnabled(!running);
+}
+
 QString LedTrackerSettingsDialog::resultsName() const
 {
     return m_resultsName;

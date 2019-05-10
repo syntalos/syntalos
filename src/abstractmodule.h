@@ -196,6 +196,8 @@ public:
      */
     virtual bool canRemove(AbstractModule *mod);
 
+    bool makeDirectory(const QString &dir);
+
     void setInitialized();
     bool initialized() const;
 

@@ -21,13 +21,16 @@
 #define TRILEDTRACKERMODULE_H
 
 #include <QObject>
-#include <chrono>
+#include <thread>
+#include <queue>
+#include <boost/circular_buffer.hpp>
 
 #include "imagesinkmodule.h"
 #include "abstractmodule.h"
 
 class ImageSourceModule;
 class LedTrackerSettingsDialog;
+class VideoViewWidget;
 
 class TriLedTrackerModule : public ImageSinkModule
 {
@@ -44,9 +47,14 @@ public:
 
     bool initialize(ModuleManager *manager) override;
     bool prepare(const QString& storageRootDir, const TestSubject& testSubject, HRTimer *timer) override;
+    void start() override;
+    bool runCycle() override;
     void stop() override;
 
     bool canRemove(AbstractModule *mod) override;
+
+    void showDisplayUi() override;
+    void hideDisplayUi() override;
 
     void showSettingsUi() override;
     void hideSettingsUi() override;
@@ -61,7 +69,25 @@ private slots:
 private:
     QList<ImageSourceModule*> m_frameSourceModules;
     QString m_dataStorageDir;
+    QString m_subjectId;
+
+    std::atomic_bool m_running;
+    std::atomic_bool m_started;
+    std::thread *m_thread;
+    std::mutex m_mutex;
+    std::mutex m_dispmutex;
+    std::queue<FrameData> m_frameQueue;
+
     LedTrackerSettingsDialog *m_settingsDialog;
+    VideoViewWidget *m_trackInfoDisplay;
+    VideoViewWidget *m_trackingDisplay;
+
+    boost::circular_buffer<cv::Mat> m_trackDispRing;
+    boost::circular_buffer<cv::Mat> m_trackInfoDispRing;
+
+    static void trackingThread(void *tmPtr);
+    bool startTrackingThread();
+    void finishTrackingThread();
 };
 
 #endif // TRILEDTRACKERMODULE_H
