@@ -31,6 +31,7 @@
 #include "modules/ueyecamera/ueyecameramodule.h"
 #endif
 #include "modules/triled-tracker/triledtrackermodule.h"
+#include "modules/firmata-io/firmataiomodule.h"
 
 class AbstractModuleCreator
 {
@@ -84,6 +85,7 @@ ModuleManager::ModuleManager(QObject *parent, QWidget *parentWidget)
     registerModuleInfo<UEyeCameraModule>();
 #endif
     registerModuleInfo<TriLedTrackerModule>();
+    registerModuleInfo<FirmataIOModule>();
 }
 
 AbstractModule *ModuleManager::createModule(const QString &id)

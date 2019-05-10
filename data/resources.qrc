@@ -31,5 +31,6 @@
         <file alias="ueye-camera">modules/ueye-camera.svg</file>
         <file alias="videorecorder">modules/videorecorder.svg</file>
         <file alias="triled-tracker">modules/triled-tracker.svg</file>
+        <file alias="firmata-io">modules/firmataio.svg</file>
     </qresource>
 </RCC>

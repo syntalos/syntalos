@@ -9,5 +9,6 @@ if(MOD_CAMERA_UEYE)
 endif()
 
 add_subdirectory(triled-tracker)
+add_subdirectory(firmata-io)
 
 set(MA_MODULE_LIBS ${MA_MODULE_LIBS} PARENT_SCOPE)
