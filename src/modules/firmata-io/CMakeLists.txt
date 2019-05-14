@@ -1,4 +1,14 @@
 
+set(FIRMATA_SRC
+    firmata/backend.cpp
+    firmata/backend.h
+    firmata/serialinfo.cpp
+    firmata/serialinfo.h
+    firmata/serialport.cpp
+    firmata/serialport.h
+    firmata/fmutils.h
+)
+
 set(FIRMATAIO_SRC
     firmataiomodule.h
     firmataiomodule.cpp
@@ -6,10 +16,12 @@ set(FIRMATAIO_SRC
 
 add_library(mod_firmataio STATIC
     ${FIRMATAIO_SRC}
+    ${FIRMATA_SRC}
 )
 
 target_link_libraries(mod_firmataio
     Qt5::Widgets
+    Qt5::SerialPort
 )
 
 include_directories(

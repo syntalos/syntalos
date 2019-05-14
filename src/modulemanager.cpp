@@ -32,6 +32,8 @@
 #endif
 #include "modules/triled-tracker/triledtrackermodule.h"
 #include "modules/firmata-io/firmataiomodule.h"
+#include "modules/pyscript/pyscriptmodule.h"
+#include "modules/runcmd/runcmdmodule.h"
 
 class AbstractModuleCreator
 {
@@ -86,6 +88,8 @@ ModuleManager::ModuleManager(QObject *parent, QWidget *parentWidget)
 #endif
     registerModuleInfo<TriLedTrackerModule>();
     registerModuleInfo<FirmataIOModule>();
+    registerModuleInfo<PyScriptModule>();
+    registerModuleInfo<RunCmdModule>();
 }
 
 AbstractModule *ModuleManager::createModule(const QString &id)

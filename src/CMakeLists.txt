@@ -31,15 +31,6 @@ set(MAZEAMAZE_SRC
     videoviewwidget.cpp
 )
 
-set(SCRIPT_SRC
-    pyscript/maio.h
-    pyscript/maio.cpp
-    pyscript/pycontroller.h
-    pyscript/pycontroller.cpp
-    pyscript/mazescript.h
-    pyscript/mazescript.cpp
-)
-
 set(MAZEAMAZE_UI
     mainwindow.ui
     moduleindicator.ui
@@ -47,25 +38,6 @@ set(MAZEAMAZE_UI
 )
 
 qt5_wrap_ui(MAZEAMAZE_UI_SRC ${MAZEAMAZE_UI})
-
-set(FIRMATA_SRC
-    firmata/backend.cpp
-    firmata/backend.h
-    firmata/serialinfo.cpp
-    firmata/serialinfo.h
-    firmata/serialport.cpp
-    firmata/serialport.h
-    firmata/fmutils.h
-)
-
-set(PLOT_SRC
-    traceplot/traceplot.h
-    traceplot/traceplot.cpp
-    traceplot/traceview.h
-    traceplot/traceview.cpp
-    traceplot/traceplotproxy.h
-    traceplot/traceplotproxy.cpp
-)
 
 set(MAZEAMAZE_RES
     ../data/resources.qrc
@@ -77,8 +49,6 @@ add_executable(mazeamaze
     ${MAZEAMAZE_SRC}
     ${MAZEAMAZE_RES_SRC}
     ${MAZEAMAZE_UI_SRC}
-    ${SCRIPT_SRC}
-    ${FIRMATA_SRC}
 )
 
 target_link_libraries(mazeamaze

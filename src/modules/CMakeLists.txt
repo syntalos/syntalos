@@ -10,5 +10,7 @@ endif()
 
 add_subdirectory(triled-tracker)
 add_subdirectory(firmata-io)
+add_subdirectory(pyscript)
+add_subdirectory(runcmd)
 
 set(MA_MODULE_LIBS ${MA_MODULE_LIBS} PARENT_SCOPE)

@@ -63,7 +63,6 @@
 #include "modules/rhd2000/intanui.h"
 #include "modules/rhd2000/waveplot.h"
 
-#include "pyscript/mazescript.h"
 #include "statuswidget.h"
 
 #include "hrclock.h"
@@ -230,6 +229,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
     ui->subjectSelectComboBox->setModel(m_subjectList);
 
+ #if 0
     // Arduino / Firmata I/O
     auto allPorts = QSerialPortInfo::availablePorts();
     foreach(auto port, allPorts) {
@@ -259,6 +259,7 @@ MainWindow::MainWindow(QWidget *parent) :
     m_mscriptView = pyDoc->createView(this);
     ui->scriptLayout->addWidget(m_mscriptView);
     pyDoc->setHighlightingMode("python");
+#endif
 
     // FIXME
     // set up video and tracking
@@ -480,8 +481,6 @@ MainWindow::MainWindow(QWidget *parent) :
 MainWindow::~MainWindow()
 {
     delete ui;
-    delete m_mscript;
-    delete m_videoTracker;
 }
 
 void MainWindow::onMazeEvent(const QStringList &data)
@@ -916,13 +915,13 @@ void MainWindow::changeExperimentFeatures(const ExperimentFeatures& features)
         qWarning("Can not have tracking enabled while video is disabled!");
 
     if (features.ioEnabled) {
-        m_mazeEventTableWin->show();
+        //m_mazeEventTableWin->show();
         ui->cbIOFeature->setChecked(true);
         ui->tabIo->setEnabled(true);
 
         m_statusWidget->setFirmataStatus(StatusWidget::Status::Enabled);
     } else {
-        m_mazeEventTableWin->hide();
+        //m_mazeEventTableWin->hide();
         ui->cbIOFeature->setChecked(false);
         ui->tabIo->setEnabled(false);
 

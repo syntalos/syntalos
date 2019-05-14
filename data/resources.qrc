@@ -32,5 +32,7 @@
         <file alias="videorecorder">modules/videorecorder.svg</file>
         <file alias="triled-tracker">modules/triled-tracker.svg</file>
         <file alias="firmata-io">modules/firmataio.svg</file>
+        <file alias="python">modules/python.svg</file>
+        <file alias="runcmd">modules/runcmd.svg</file>
     </qresource>
 </RCC>

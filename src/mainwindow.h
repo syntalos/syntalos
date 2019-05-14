@@ -35,19 +35,15 @@ class View;
 
 class QVBoxLayout;
 class QLabel;
-class WavePlot;
-class MazeScript;
 class QTableWidget;
 class StatusWidget;
 class MazeVideo;
-class VideoViewWidget;
 class QSpinBox;
 class QCheckBox;
 class QDoubleSpinBox;
 class QMdiSubWindow;
 class QListWidgetItem;
 class TracePlotProxy;
-class ChannelDetails;
 class ModuleManager;
 class AbstractModule;
 class ModuleIndicator;
@@ -129,8 +125,6 @@ private:
     QString m_dataExportDir;
     bool m_exportDirValid;
 
-    MazeScript *m_mscript;
-
     bool m_failed;
     bool m_running;
 
@@ -140,15 +134,6 @@ private:
     KTextEditor::View *m_mscriptView;
 
     StatusWidget *m_statusWidget;
-
-    MazeVideo *m_videoTracker;
-    VideoViewWidget *m_rawVideoWidget;
-    QMdiSubWindow *m_rawVideoWidgetWin;
-
-    VideoViewWidget *m_trackVideoWidget;
-    VideoViewWidget *m_trackInfoWidget;
-    QMdiSubWindow *m_trackVideoWidgetWin;
-    QMdiSubWindow *m_trackInfoWidgetWin;
 
     QSpinBox *m_fpsEdit;
     QDoubleSpinBox *m_exposureEdit;
