@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1448</width>
-    <height>843</height>
+    <width>770</width>
+    <height>761</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -23,13 +23,13 @@
      <number>2</number>
     </property>
     <property name="leftMargin">
-     <number>6</number>
+     <number>4</number>
     </property>
     <property name="topMargin">
-     <number>6</number>
+     <number>4</number>
     </property>
     <property name="rightMargin">
-     <number>6</number>
+     <number>4</number>
     </property>
     <property name="bottomMargin">
      <number>2</number>
@@ -134,55 +134,6 @@
                 </property>
                 <item>
                  <widget class="QComboBox" name="expTypeComboBox"/>
-                </item>
-                <item>
-                 <widget class="QWidget" name="panelFeatureCustomize" native="true">
-                  <property name="enabled">
-                   <bool>false</bool>
-                  </property>
-                  <layout class="QHBoxLayout" name="horizontalLayout_10">
-                   <property name="spacing">
-                    <number>8</number>
-                   </property>
-                   <property name="leftMargin">
-                    <number>0</number>
-                   </property>
-                   <property name="rightMargin">
-                    <number>0</number>
-                   </property>
-                   <property name="bottomMargin">
-                    <number>0</number>
-                   </property>
-                   <item>
-                    <widget class="QCheckBox" name="cbVideoFeature">
-                     <property name="text">
-                      <string>Video</string>
-                     </property>
-                    </widget>
-                   </item>
-                   <item>
-                    <widget class="QCheckBox" name="cbTrackingFeature">
-                     <property name="text">
-                      <string>Tracking</string>
-                     </property>
-                    </widget>
-                   </item>
-                   <item>
-                    <widget class="QCheckBox" name="cbEphysFeature">
-                     <property name="text">
-                      <string>Electrophysiology</string>
-                     </property>
-                    </widget>
-                   </item>
-                   <item>
-                    <widget class="QCheckBox" name="cbIOFeature">
-                     <property name="text">
-                      <string>Programmable I/O</string>
-                     </property>
-                    </widget>
-                   </item>
-                  </layout>
-                 </widget>
                 </item>
                </layout>
               </widget>
@@ -322,7 +273,7 @@
              <property name="minimumSize">
               <size>
                <width>0</width>
-               <height>40</height>
+               <height>68</height>
               </size>
              </property>
              <property name="widgetResizable">
@@ -333,8 +284,8 @@
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>1420</width>
-                <height>36</height>
+                <width>746</width>
+                <height>379</height>
                </rect>
               </property>
               <layout class="QVBoxLayout" name="scrollAreaLayout">
@@ -581,316 +532,6 @@
       </widget>
      </widget>
     </item>
-    <item>
-     <widget class="QSplitter" name="splitterMain">
-      <property name="orientation">
-       <enum>Qt::Horizontal</enum>
-      </property>
-      <property name="handleWidth">
-       <number>2</number>
-      </property>
-      <widget class="QTabWidget" name="tabWidgetMain">
-       <property name="minimumSize">
-        <size>
-         <width>0</width>
-         <height>10</height>
-        </size>
-       </property>
-       <property name="maximumSize">
-        <size>
-         <width>16777215</width>
-         <height>100</height>
-        </size>
-       </property>
-       <property name="currentIndex">
-        <number>0</number>
-       </property>
-       <widget class="QWidget" name="tabView">
-        <attribute name="title">
-         <string>View</string>
-        </attribute>
-        <layout class="QHBoxLayout" name="horizontalLayout">
-         <property name="spacing">
-          <number>2</number>
-         </property>
-         <property name="leftMargin">
-          <number>2</number>
-         </property>
-         <property name="topMargin">
-          <number>2</number>
-         </property>
-         <property name="rightMargin">
-          <number>2</number>
-         </property>
-         <property name="bottomMargin">
-          <number>2</number>
-         </property>
-         <item>
-          <widget class="QMdiArea" name="mdiArea">
-           <property name="verticalScrollBarPolicy">
-            <enum>Qt::ScrollBarAsNeeded</enum>
-           </property>
-           <property name="horizontalScrollBarPolicy">
-            <enum>Qt::ScrollBarAsNeeded</enum>
-           </property>
-           <property name="documentMode">
-            <bool>true</bool>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </widget>
-       <widget class="QWidget" name="tabTraces">
-        <attribute name="title">
-         <string>Traces</string>
-        </attribute>
-        <layout class="QVBoxLayout" name="verticalLayout_12">
-         <property name="spacing">
-          <number>0</number>
-         </property>
-         <property name="leftMargin">
-          <number>0</number>
-         </property>
-         <property name="topMargin">
-          <number>0</number>
-         </property>
-         <property name="rightMargin">
-          <number>0</number>
-         </property>
-         <property name="bottomMargin">
-          <number>0</number>
-         </property>
-        </layout>
-       </widget>
-      </widget>
-      <widget class="QToolBox" name="toolBox">
-       <property name="minimumSize">
-        <size>
-         <width>400</width>
-         <height>800</height>
-        </size>
-       </property>
-       <property name="baseSize">
-        <size>
-         <width>700</width>
-         <height>0</height>
-        </size>
-       </property>
-       <property name="currentIndex">
-        <number>4</number>
-       </property>
-       <widget class="QWidget" name="tabOld1">
-        <property name="geometry">
-         <rect>
-          <x>0</x>
-          <y>0</y>
-          <width>400</width>
-          <height>640</height>
-         </rect>
-        </property>
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>0</height>
-         </size>
-        </property>
-        <attribute name="label">
-         <string>General</string>
-        </attribute>
-        <layout class="QVBoxLayout" name="verticalLayout_3">
-         <property name="spacing">
-          <number>4</number>
-         </property>
-         <property name="sizeConstraint">
-          <enum>QLayout::SetMinimumSize</enum>
-         </property>
-         <property name="leftMargin">
-          <number>4</number>
-         </property>
-         <property name="topMargin">
-          <number>4</number>
-         </property>
-         <property name="rightMargin">
-          <number>4</number>
-         </property>
-         <property name="bottomMargin">
-          <number>4</number>
-         </property>
-        </layout>
-       </widget>
-       <widget class="QWidget" name="tabOld2">
-        <property name="geometry">
-         <rect>
-          <x>0</x>
-          <y>0</y>
-          <width>400</width>
-          <height>640</height>
-         </rect>
-        </property>
-        <attribute name="label">
-         <string>Test Subjects</string>
-        </attribute>
-        <layout class="QHBoxLayout" name="horizontalLayout_4"/>
-       </widget>
-       <widget class="QWidget" name="tabOld3">
-        <property name="geometry">
-         <rect>
-          <x>0</x>
-          <y>0</y>
-          <width>400</width>
-          <height>640</height>
-         </rect>
-        </property>
-        <attribute name="label">
-         <string>Intan</string>
-        </attribute>
-       </widget>
-       <widget class="QWidget" name="tabVideo">
-        <property name="geometry">
-         <rect>
-          <x>0</x>
-          <y>0</y>
-          <width>400</width>
-          <height>640</height>
-         </rect>
-        </property>
-        <attribute name="label">
-         <string>Video &amp;&amp; Tracking</string>
-        </attribute>
-        <layout class="QVBoxLayout" name="verticalLayout_9">
-         <item>
-          <layout class="QVBoxLayout" name="verticalLayout_8">
-           <item>
-            <widget class="QGroupBox" name="cameraGroupBox">
-             <property name="title">
-              <string>Camera</string>
-             </property>
-             <layout class="QFormLayout" name="formLayout_2">
-              <item row="0" column="0">
-               <layout class="QFormLayout" name="cameraLayout"/>
-              </item>
-             </layout>
-            </widget>
-           </item>
-          </layout>
-         </item>
-         <item>
-          <spacer name="verticalSpacer_2">
-           <property name="orientation">
-            <enum>Qt::Vertical</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>20</width>
-             <height>40</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-        </layout>
-       </widget>
-       <widget class="QWidget" name="tabIo">
-        <property name="geometry">
-         <rect>
-          <x>0</x>
-          <y>0</y>
-          <width>400</width>
-          <height>640</height>
-         </rect>
-        </property>
-        <attribute name="label">
-         <string>I/O</string>
-        </attribute>
-        <layout class="QVBoxLayout" name="verticalLayout_7">
-         <property name="spacing">
-          <number>4</number>
-         </property>
-         <property name="leftMargin">
-          <number>4</number>
-         </property>
-         <property name="topMargin">
-          <number>4</number>
-         </property>
-         <property name="rightMargin">
-          <number>4</number>
-         </property>
-         <property name="bottomMargin">
-          <number>4</number>
-         </property>
-         <item>
-          <layout class="QHBoxLayout" name="horizontalLayout_2">
-           <item>
-            <widget class="QGroupBox" name="portsGB">
-             <property name="title">
-              <string>Firmata Device</string>
-             </property>
-             <layout class="QVBoxLayout" name="verticalLayout_6">
-              <property name="spacing">
-               <number>2</number>
-              </property>
-              <property name="leftMargin">
-               <number>2</number>
-              </property>
-              <property name="topMargin">
-               <number>2</number>
-              </property>
-              <property name="rightMargin">
-               <number>2</number>
-              </property>
-              <property name="bottomMargin">
-               <number>2</number>
-              </property>
-              <item>
-               <layout class="QFormLayout" name="formLayout_5">
-                <item row="0" column="0">
-                 <widget class="QLabel" name="firmataDeviceLabel">
-                  <property name="text">
-                   <string>Firmata Device</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="0" column="1">
-                 <widget class="QComboBox" name="portsComboBox"/>
-                </item>
-               </layout>
-              </item>
-             </layout>
-            </widget>
-           </item>
-          </layout>
-         </item>
-         <item>
-          <widget class="QGroupBox" name="scriptGroupBox">
-           <property name="title">
-            <string>Script</string>
-           </property>
-           <layout class="QVBoxLayout" name="verticalLayout_4">
-            <property name="spacing">
-             <number>2</number>
-            </property>
-            <property name="leftMargin">
-             <number>2</number>
-            </property>
-            <property name="topMargin">
-             <number>2</number>
-            </property>
-            <property name="rightMargin">
-             <number>2</number>
-            </property>
-            <property name="bottomMargin">
-             <number>2</number>
-            </property>
-            <item>
-             <layout class="QVBoxLayout" name="scriptLayout"/>
-            </item>
-           </layout>
-          </widget>
-         </item>
-        </layout>
-       </widget>
-      </widget>
-     </widget>
-    </item>
    </layout>
   </widget>
   <widget class="QMenuBar" name="menuBar">
@@ -898,7 +539,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1448</width>
+     <width>770</width>
      <height>30</height>
     </rect>
    </property>
@@ -944,8 +585,6 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
-   <addaction name="actionDisplayView"/>
-   <addaction name="actionDisplaySettings"/>
   </widget>
   <action name="actionQuit">
    <property name="text">
@@ -1015,36 +654,6 @@
     <string>&amp;About</string>
    </property>
   </action>
-  <action name="actionDisplayView">
-   <property name="checkable">
-    <bool>true</bool>
-   </property>
-   <property name="checked">
-    <bool>true</bool>
-   </property>
-   <property name="icon">
-    <iconset resource="../data/resources.qrc">
-     <normaloff>:/icons/view</normaloff>:/icons/view</iconset>
-   </property>
-   <property name="text">
-    <string>Display View Panel</string>
-   </property>
-  </action>
-  <action name="actionDisplaySettings">
-   <property name="checkable">
-    <bool>true</bool>
-   </property>
-   <property name="checked">
-    <bool>true</bool>
-   </property>
-   <property name="icon">
-    <iconset resource="../data/resources.qrc">
-     <normaloff>:/icons/settings</normaloff>:/icons/settings</iconset>
-   </property>
-   <property name="text">
-    <string>Display Settings Panel</string>
-   </property>
-  </action>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
  <resources>
@@ -1064,38 +673,6 @@
     <hint type="destinationlabel">
      <x>404</x>
      <y>260</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>actionDisplayView</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>tabWidgetMain</receiver>
-   <slot>setVisible(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>-1</x>
-     <y>-1</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>481</x>
-     <y>443</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>actionDisplaySettings</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>toolBox</receiver>
-   <slot>setVisible(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>-1</x>
-     <y>-1</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>1441</x>
-     <y>517</y>
     </hint>
    </hints>
   </connection>

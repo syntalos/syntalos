@@ -1,4 +1,4 @@
-/*
+/**
  * Copyright (C) 2016-2019 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
@@ -20,16 +20,19 @@
 #include "firmataiomodule.h"
 
 #include <QMessageBox>
+#include "firmatasettingsdialog.h"
 
 FirmataIOModule::FirmataIOModule(QObject *parent)
-    : AbstractModule(parent)
+    : AbstractModule(parent),
+      m_settingsDialog(nullptr)
 {
     m_name = QStringLiteral("Firmata I/O");
 }
 
 FirmataIOModule::~FirmataIOModule()
 {
-
+    if (m_settingsDialog != nullptr)
+        delete m_settingsDialog;
 }
 
 QString FirmataIOModule::id() const
@@ -51,6 +54,8 @@ bool FirmataIOModule::initialize(ModuleManager *manager)
 {
     assert(!initialized());
     setState(ModuleState::INITIALIZING);
+
+    m_settingsDialog = new FirmataSettingsDialog;
 
     setState(ModuleState::READY);
     setInitialized();
@@ -74,12 +79,14 @@ void FirmataIOModule::stop()
 
 }
 
-void FirmataIOModule::showDisplayUi()
+void FirmataIOModule::showSettingsUi()
 {
-
+    assert(initialized());
+    m_settingsDialog->show();
 }
 
-void FirmataIOModule::hideDisplayUi()
+void FirmataIOModule::hideSettingsUi()
 {
-
+    assert(initialized());
+    m_settingsDialog->hide();
 }

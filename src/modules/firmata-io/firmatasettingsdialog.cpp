@@ -17,36 +17,22 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef FIRMATAIOMODULE_H
-#define FIRMATAIOMODULE_H
+#include "firmatasettingsdialog.h"
+#include "ui_firmatasettingsdialog.h"
 
-#include <QObject>
-#include <chrono>
-#include "abstractmodule.h"
-
-class FirmataSettingsDialog;
-
-class FirmataIOModule : public AbstractModule
+FirmataSettingsDialog::FirmataSettingsDialog(QWidget *parent) :
+    QDialog(parent),
+    ui(new Ui::FirmataSettingsDialog)
 {
-    Q_OBJECT
-public:
-    explicit FirmataIOModule(QObject *parent = nullptr);
-    ~FirmataIOModule() override;
+    ui->setupUi(this);
+}
 
-    QString id() const override;
-    QString description() const override;
-    QPixmap pixmap() const override;
+FirmataSettingsDialog::~FirmataSettingsDialog()
+{
+    delete ui;
+}
 
-    bool initialize(ModuleManager *manager) override;
-    bool prepare(const QString& storageRootDir, const TestSubject& testSubject, HRTimer *timer) override;
-    void stop() override;
-
-    void showSettingsUi() override;
-    void hideSettingsUi() override;
-
-private:
-    FirmataSettingsDialog *m_settingsDialog;
-
-};
-
-#endif // FIRMATAIOMODULE_H
+void FirmataSettingsDialog::setRunning(bool running)
+{
+    ui->portsComboBox->setEnabled(!running);
+}

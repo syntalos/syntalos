@@ -80,14 +80,6 @@ private slots:
     void loadSettingsActionTriggered();
 
     void aboutActionTriggered();
-
-    void changeExperimentFeatures(const ExperimentFeatures& features);
-    void applyExperimentFeatureChanges();
-
-    void on_cbIOFeature_toggled(bool checked);
-    void on_cbEphysFeature_toggled(bool checked);
-    void on_cbTrackingFeature_toggled(bool checked);
-    void on_cbVideoFeature_toggled(bool checked);
     void on_tbAddModule_clicked();
 
     void moduleAdded(AbstractModule *mod);

@@ -12,11 +12,20 @@ set(FIRMATA_SRC
 set(FIRMATAIO_SRC
     firmataiomodule.h
     firmataiomodule.cpp
+    firmatasettingsdialog.h
+    firmatasettingsdialog.cpp
 )
+
+set(FIRMATAIO_UI
+    firmatasettingsdialog.ui
+)
+
+qt5_wrap_ui(FIRMATAIO_UI_SRC ${FIRMATAIO_UI})
 
 add_library(mod_firmataio STATIC
     ${FIRMATAIO_SRC}
     ${FIRMATA_SRC}
+    ${FIRMATAIO_UI_SRC}
 )
 
 target_link_libraries(mod_firmataio
