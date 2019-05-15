@@ -65,4 +65,6 @@ class Mat;
  */
 using FrameData = std::pair<cv::Mat, std::chrono::milliseconds>;
 
+QString createRandomString(int len);
+
 #endif // UTILS_H

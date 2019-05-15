@@ -19,14 +19,17 @@
 
 #include "firmataiomodule.h"
 
+#include <QDebug>
 #include <QMessageBox>
 #include "firmatasettingsdialog.h"
+#include "firmata/serialport.h"
 
 FirmataIOModule::FirmataIOModule(QObject *parent)
     : AbstractModule(parent),
       m_settingsDialog(nullptr)
 {
     m_name = QStringLiteral("Firmata I/O");
+    m_firmata = new SerialFirmata(this);
 }
 
 FirmataIOModule::~FirmataIOModule()
@@ -50,8 +53,14 @@ QPixmap FirmataIOModule::pixmap() const
     return QPixmap(":/module/firmata-io");
 }
 
+ModuleFeatures FirmataIOModule::features() const
+{
+    return ModuleFeature::SETTINGS;
+}
+
 bool FirmataIOModule::initialize(ModuleManager *manager)
 {
+    Q_UNUSED(manager);
     assert(!initialized());
     setState(ModuleState::INITIALIZING);
 
@@ -69,6 +78,28 @@ bool FirmataIOModule::prepare(const QString &storageRootDir, const TestSubject &
     Q_UNUSED(timer);
     setState(ModuleState::PREPARING);
 
+    delete m_firmata;
+    m_firmata = new SerialFirmata(this);
+
+    auto serialDevice = m_settingsDialog->serialPort();
+    if (serialDevice.isEmpty()) {
+        raiseError("Unable to find a Firmata serial device to connect to. Can not continue.");
+        return false;
+    }
+
+    qDebug() << "Loading Firmata interface" << serialDevice;
+    if (m_firmata->device().isEmpty()) {
+        if (!m_firmata->setDevice(serialDevice)) {
+            raiseError(QStringLiteral("Firmata initialization error: %1").arg(m_firmata->statusText()));
+            return false;
+        }
+    }
+
+    if (!m_firmata->waitForReady(20000) || m_firmata->statusText().contains("Error")) {
+        raiseError(QStringLiteral("Unable to open serial interface: %1").arg(m_firmata->statusText()));
+        m_firmata->setDevice(QString());
+        return false;
+    }
 
     setState(ModuleState::WAITING);
     return true;

@@ -39,13 +39,16 @@ string( REPLACE "-rdynamic" "" CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS ${CMAKE_SHARE
 #
 set(OpenGL_GL_PREFERENCE GLVND)
 include(GNUInstallDirs)
+find_package(PkgConfig)
 find_package(Threads)
+find_package(Qt5Core)
 find_package(Qt5Widgets REQUIRED)
 find_package(Qt5SerialPort REQUIRED)
 find_package(Qt5OpenGL REQUIRED)
 find_package(Qt5Charts REQUIRED)
 find_package(Boost 1.60 REQUIRED COMPONENTS container)
 find_package(FFmpeg 58.35 REQUIRED COMPONENTS avcodec avutil avformat swscale)
+pkg_check_modules(CZMQ libczmq>=4.2 REQUIRED)
 
 find_package(PythonLibs 3.5 REQUIRED)
 find_package(KF5Archive REQUIRED)

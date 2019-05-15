@@ -88,3 +88,17 @@ time_t getMsecEpoch()
     auto ms = duration_cast<milliseconds>(high_resolution_clock::now().time_since_epoch());
     return ms.count();
 }
+
+QString createRandomString(int len)
+{
+    const auto possibleCahrs = QStringLiteral("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789");
+
+    QString str;
+    for (int i=0; i < len; i++) {
+        int index = qrand() % possibleCahrs.length();
+        QChar nextChar = possibleCahrs.at(index);
+        str.append(nextChar);
+    }
+
+    return str;
+}

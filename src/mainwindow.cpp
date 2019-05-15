@@ -389,9 +389,6 @@ MainWindow::MainWindow(QWidget *parent) :
 
 #endif
 
-    m_saveTarCB = new QCheckBox(this);
-    m_saveTarCB->setChecked(true);
-
     // configure actions
     ui->actionRun->setEnabled(false);
     ui->actionStop->setEnabled(false);
@@ -938,7 +935,7 @@ void MainWindow::saveSettingsActionTriggered()
     videoSettings.insert("gainEnabled", m_gainCB->isChecked());
     videoSettings.insert("exposureTime", m_exposureEdit->value());
     //! videoSettings.insert("uEyeConfig", confBaseDir.relativeFilePath(m_videoTracker->uEyeConfigFile()));
-    videoSettings.insert("makeFrameTarball", m_saveTarCB->isChecked());
+    //videoSettings.insert("makeFrameTarball", m_saveTarCB->isChecked());
     videoSettings.insert("gpioFlash", m_camFlashMode->isChecked());
     settings.insert("video", videoSettings);
 
@@ -1045,7 +1042,7 @@ void MainWindow::loadSettingsActionTriggered()
     m_fpsEdit->setValue(videoSettings.value("fps").toInt(20));
     m_gainCB->setChecked(videoSettings.value("gainEnabled").toBool());
     m_exposureEdit->setValue(videoSettings.value("exposureTime").toDouble(6));
-    m_saveTarCB->setChecked(videoSettings.value("makeFrameTarball").toBool(true));
+    //m_saveTarCB->setChecked(videoSettings.value("makeFrameTarball").toBool(true));
     m_camFlashMode->setChecked(videoSettings.value("gpioFlash").toBool(true));
 
     auto uEyeConfFile = videoSettings.value("uEyeConfig").toString();

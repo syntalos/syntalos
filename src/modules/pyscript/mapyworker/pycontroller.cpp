@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2019 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -17,30 +17,31 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef FIRMATASETTINGSDIALOG_H
-#define FIRMATASETTINGSDIALOG_H
+#include "pycontroller.h"
 
-#include <QDialog>
+#include <QCoreApplication>
+#include <QDebug>
 
-namespace Ui {
-class FirmataSettingsDialog;
+#include "zmqclient.h"
+
+PyController::PyController(QObject *parent)
+    : QObject(parent)
+{
+    m_conn = new ZmqClient(this);
 }
 
-class FirmataSettingsDialog : public QDialog
+void PyController::run()
 {
-    Q_OBJECT
+    qDebug() << "Started new Python session";
 
-public:
-    explicit FirmataSettingsDialog(QWidget *parent = nullptr);
-    ~FirmataSettingsDialog();
+    const auto args = QCoreApplication::arguments();
+    if (args.length() <= 1) {
+        qCritical() << "No socket passed as parameter.";
+        emit finished(4);
+        return;
+    }
+    const auto socketName = args[1];
 
-    void setRunning(bool running);
-
-    QString serialPort() const;
-    void setSerialPort(QString port);
-
-private:
-    Ui::FirmataSettingsDialog *ui;
-};
-
-#endif // FIRMATASETTINGSDIALOG_H
+    m_conn->connect(socketName);
+    qDebug() << m_conn->runRpc("timeSinceStartMsec");
+}

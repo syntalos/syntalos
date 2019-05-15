@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2019 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -17,30 +17,26 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef FIRMATASETTINGSDIALOG_H
-#define FIRMATASETTINGSDIALOG_H
+#ifndef PYCONTROLLER_H
+#define PYCONTROLLER_H
 
-#include <QDialog>
+#include <QObject>
 
-namespace Ui {
-class FirmataSettingsDialog;
-}
+class ZmqClient;
 
-class FirmataSettingsDialog : public QDialog
+class PyController : public QObject
 {
     Q_OBJECT
-
 public:
-    explicit FirmataSettingsDialog(QWidget *parent = nullptr);
-    ~FirmataSettingsDialog();
+    explicit PyController(QObject *parent = nullptr);
 
-    void setRunning(bool running);
+    void run();
 
-    QString serialPort() const;
-    void setSerialPort(QString port);
+signals:
+    void finished(int res);
 
 private:
-    Ui::FirmataSettingsDialog *ui;
+    ZmqClient *m_conn;
 };
 
-#endif // FIRMATASETTINGSDIALOG_H
+#endif // PYCONTROLLER_H

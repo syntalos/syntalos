@@ -24,6 +24,7 @@
 #include <chrono>
 #include "abstractmodule.h"
 
+class SerialFirmata;
 class FirmataSettingsDialog;
 
 class FirmataIOModule : public AbstractModule
@@ -36,6 +37,7 @@ public:
     QString id() const override;
     QString description() const override;
     QPixmap pixmap() const override;
+    ModuleFeatures features() const;
 
     bool initialize(ModuleManager *manager) override;
     bool prepare(const QString& storageRootDir, const TestSubject& testSubject, HRTimer *timer) override;
@@ -46,6 +48,7 @@ public:
 
 private:
     FirmataSettingsDialog *m_settingsDialog;
+    SerialFirmata *m_firmata;
 
 };
 

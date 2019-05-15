@@ -17,42 +17,38 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef PYSCRIPTMODULE_H
-#define PYSCRIPTMODULE_H
+#ifndef ZMQSERVER_H
+#define ZMQSERVER_H
 
+#include <memory>
 #include <QObject>
-#include <chrono>
-#include "abstractmodule.h"
+#include <QJsonValue>
+#include <QJsonArray>
 
-class ZmqServer;
-class QProcess;
-class QTextBrowser;
+#include "hrclock.h"
 
-class PyScriptModule : public AbstractModule
+class ZmqServer : public QObject
 {
     Q_OBJECT
 public:
-    explicit PyScriptModule(QObject *parent = nullptr);
-    ~PyScriptModule() override;
+    explicit ZmqServer(QObject *parent = nullptr);
+    ~ZmqServer();
 
-    QString id() const override;
-    QString description() const override;
-    QPixmap pixmap() const override;
+    bool start(HRTimer *timer = nullptr);
+    void stop();
 
-    bool initialize(ModuleManager *manager) override;
-    bool prepare(const QString& storageRootDir, const TestSubject& testSubject, HRTimer *timer) override;
-    bool runCycle() override;
-    void stop() override;
+    QString socketName() const;
 
-    void showDisplayUi() override;
-    void hideDisplayUi() override;
+signals:
 
 private:
-    ZmqServer *m_zserver;
-    QString m_workerBinary;
-    QProcess *m_process;
+    class ZSData;
+    std::unique_ptr<ZSData> d;
 
-    QTextBrowser *m_pyoutWindow;
+    QJsonValue handleRpcRequest(const QString& funcName, const QJsonArray& params);
+    static void rpcThread(void *srvPtr);
+    bool startRpcThread();
+    void finishRpcThread();
 };
 
-#endif // PYSCRIPTMODULE_H
+#endif // ZMQSERVER_H

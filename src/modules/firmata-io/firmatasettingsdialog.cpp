@@ -20,11 +20,19 @@
 #include "firmatasettingsdialog.h"
 #include "ui_firmatasettingsdialog.h"
 
+#include <QSerialPortInfo>
+
 FirmataSettingsDialog::FirmataSettingsDialog(QWidget *parent) :
     QDialog(parent),
     ui(new Ui::FirmataSettingsDialog)
 {
     ui->setupUi(this);
+
+    // Arduino / Firmata I/O
+    auto allPorts = QSerialPortInfo::availablePorts();
+    Q_FOREACH(auto port, allPorts) {
+        ui->portsComboBox->addItem(QString("%1 (%2)").arg(port.portName()).arg(port.description()), QVariant::fromValue(port.systemLocation()));
+    }
 }
 
 FirmataSettingsDialog::~FirmataSettingsDialog()
@@ -35,4 +43,20 @@ FirmataSettingsDialog::~FirmataSettingsDialog()
 void FirmataSettingsDialog::setRunning(bool running)
 {
     ui->portsComboBox->setEnabled(!running);
+}
+
+QString FirmataSettingsDialog::serialPort() const
+{
+    return ui->portsComboBox->currentData().toString();
+}
+
+void FirmataSettingsDialog::setSerialPort(QString port)
+{
+    // select the right port
+    for (int i = 0; i < ui->portsComboBox->count(); i++) {
+        if (ui->portsComboBox->itemData(i).toString() == port) {
+            ui->portsComboBox->setCurrentIndex(i);
+            break;
+        }
+    }
 }

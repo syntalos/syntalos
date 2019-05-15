@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2019 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -17,30 +17,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef FIRMATASETTINGSDIALOG_H
-#define FIRMATASETTINGSDIALOG_H
+#include <QCoreApplication>
 
-#include <QDialog>
+#include <QTimer>
+#include "pycontroller.h"
 
-namespace Ui {
-class FirmataSettingsDialog;
-}
-
-class FirmataSettingsDialog : public QDialog
+int main(int argc, char *argv[])
 {
-    Q_OBJECT
+    QCoreApplication a(argc, argv);
 
-public:
-    explicit FirmataSettingsDialog(QWidget *parent = nullptr);
-    ~FirmataSettingsDialog();
+    auto pyc = new PyController(&a);
 
-    void setRunning(bool running);
+    QObject::connect(pyc, &PyController::finished, &a, QCoreApplication::exit);
+    QTimer::singleShot(0, pyc, &PyController::run);
 
-    QString serialPort() const;
-    void setSerialPort(QString port);
-
-private:
-    Ui::FirmataSettingsDialog *ui;
-};
-
-#endif // FIRMATASETTINGSDIALOG_H
+    return a.exec();
+}

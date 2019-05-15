@@ -65,6 +65,7 @@ target_link_libraries(mazeamaze
     ${OpenCV_LIBS}
     ${OPENGL_LIBRARIES}
     ${Boost_LIBRARIES}
+    ${CZMQ_LIBRARIES}
     ${UYEYE_LIBS}
 
     ${MA_MODULE_LIBS}

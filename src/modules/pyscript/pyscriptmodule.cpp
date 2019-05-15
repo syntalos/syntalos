@@ -20,16 +20,41 @@
 #include "pyscriptmodule.h"
 
 #include <QMessageBox>
+#include <QCoreApplication>
+#include <QFileInfo>
+#include <QProcess>
+#include <QTextBrowser>
+#include <QDebug>
+
+#include "zmqserver.h"
 
 PyScriptModule::PyScriptModule(QObject *parent)
     : AbstractModule(parent)
 {
     m_name = QStringLiteral("Python Script");
+    m_pyoutWindow = nullptr;
+
+    m_workerBinary = QStringLiteral("%1/modules/pyscript/mapyworker/mapyworker").arg(QCoreApplication::applicationDirPath());
+    QFileInfo checkBin(m_workerBinary);
+    if (!checkBin.exists()) {
+        m_workerBinary = QStringLiteral("%1/../lib/mazeamaze/mapyworker").arg(QCoreApplication::applicationDirPath());
+        QFileInfo fi(m_workerBinary);
+        m_workerBinary = fi.canonicalFilePath();
+    }
+
+    m_zserver = nullptr;
+    m_process = new QProcess(this);
+    m_process->setProcessChannelMode(QProcess::MergedChannels);
 }
 
 PyScriptModule::~PyScriptModule()
 {
-
+    if (m_zserver == nullptr) {
+        delete m_zserver;
+        m_zserver = nullptr;
+    }
+    if (m_pyoutWindow != nullptr)
+        delete m_pyoutWindow;
 }
 
 QString PyScriptModule::id() const
@@ -49,8 +74,21 @@ QPixmap PyScriptModule::pixmap() const
 
 bool PyScriptModule::initialize(ModuleManager *manager)
 {
+    Q_UNUSED(manager)
     assert(!initialized());
     setState(ModuleState::INITIALIZING);
+
+    if (m_workerBinary.isEmpty()) {
+        raiseError("Unable to find Python worker binary. Is MazeAmaze installed correctly?");
+        return false;
+    }
+
+    m_pyoutWindow = new QTextBrowser;
+    m_pyoutWindow->setFontFamily(QStringLiteral("Monospace"));
+    m_pyoutWindow->setFontPointSize(10);
+    m_pyoutWindow->setWindowTitle(QStringLiteral("Console Output"));
+    m_pyoutWindow->setWindowIcon(QIcon(":/icons/generic-view"));
+    m_pyoutWindow->resize(540, 210);
 
     setState(ModuleState::READY);
     setInitialized();
@@ -64,22 +102,54 @@ bool PyScriptModule::prepare(const QString &storageRootDir, const TestSubject &t
     Q_UNUSED(timer);
     setState(ModuleState::PREPARING);
 
+    m_pyoutWindow->clear();
+
+    m_zserver = new ZmqServer;
+    m_zserver->start(timer);
+
+    QStringList args;
+    args.append(m_zserver->socketName());
+
+    m_process->start(m_workerBinary, args);
+    if (!m_process->waitForStarted(10)) {
+        raiseError("Unable to launch worker process for Python code.");
+        return false;
+    }
+    if (m_process->waitForFinished(100)) {
+        // the process terminated prematurely
+        raiseError("Unable to launch worker process for Python code.");
+        return false;
+    }
 
     setState(ModuleState::WAITING);
     return true;
 }
 
+bool PyScriptModule::runCycle()
+{
+    const auto data = m_process->readAllStandardOutput();
+    if (data.isEmpty())
+        return true;
+    m_pyoutWindow->setText(data);
+
+    return true;
+}
+
 void PyScriptModule::stop()
 {
-
+    if (m_zserver == nullptr) {
+        delete m_zserver;
+        m_zserver = nullptr;
+    }
+    m_process->kill();
 }
 
 void PyScriptModule::showDisplayUi()
 {
-
+    m_pyoutWindow->show();
 }
 
 void PyScriptModule::hideDisplayUi()
 {
-
+    m_pyoutWindow->hide();
 }

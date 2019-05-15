@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2019 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -17,30 +17,32 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef FIRMATASETTINGSDIALOG_H
-#define FIRMATASETTINGSDIALOG_H
+#ifndef ZMQCLIENT_H
+#define ZMQCLIENT_H
 
-#include <QDialog>
+#include <QObject>
+#include <QSharedDataPointer>
+#include <QVariant>
+#include <QJsonArray>
 
-namespace Ui {
-class FirmataSettingsDialog;
-}
-
-class FirmataSettingsDialog : public QDialog
+class ZmqClient : public QObject
 {
     Q_OBJECT
-
 public:
-    explicit FirmataSettingsDialog(QWidget *parent = nullptr);
-    ~FirmataSettingsDialog();
+    explicit ZmqClient(QObject *parent = nullptr);
+    ~ZmqClient();
 
-    void setRunning(bool running);
+    bool connect(const QString& ipcSocketPath);
 
-    QString serialPort() const;
-    void setSerialPort(QString port);
+    QVariant runRpc(const QString& funcName, const QJsonArray& values = QJsonArray());
+
+signals:
+
+public slots:
 
 private:
-    Ui::FirmataSettingsDialog *ui;
+    class ZCData;
+    QSharedDataPointer<ZCData> d;
 };
 
-#endif // FIRMATASETTINGSDIALOG_H
+#endif // ZMQCLIENT_H
