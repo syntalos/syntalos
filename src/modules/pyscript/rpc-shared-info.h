@@ -17,29 +17,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef PYCONTROLLER_H
-#define PYCONTROLLER_H
+#ifndef RPCSHAREDINFO_H
+#define RPCSHAREDINFO_H
 
 #include <QObject>
 
-class ZmqClient;
-
-class PyController : public QObject
+enum class MaPyFunction : uint
 {
-    Q_OBJECT
-public:
-    explicit PyController(QObject *parent = nullptr);
-
-    void run();
-
-signals:
-    void finished(int res);
-
-private:
-    ZmqClient *m_conn;
-
-    void exitError(const QString& msg);
-    void runScript(const QString& scriptContent);
+    X_UNKNOWN,
+    G_getPythonScript,
+    G_canStart,
+    G_timeSinceStartMsec
 };
 
-#endif // PYCONTROLLER_H
+#endif // RPCSHAREDINFO_H

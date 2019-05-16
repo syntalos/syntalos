@@ -57,10 +57,10 @@ bool ZmqClient::connect(const QString &ipcSocketPath)
     return ret == 0;
 }
 
-QVariant ZmqClient::runRpc(const QString &funcName, const QJsonArray &values)
+QVariant ZmqClient::runRpc(MaPyFunction funcId, const QJsonArray &values)
 {
     QJsonObject req;
-    req.insert(QStringLiteral("call"), funcName);
+    req.insert(QStringLiteral("callId"), static_cast<int>(funcId));
     req.insert(QStringLiteral("params"), values);
 
     QJsonDocument qdoc(req);

@@ -215,6 +215,9 @@ protected:
     QString m_name;
     QString m_storageDir;
 
+    QList<QWidget*> m_displayWindows;
+    QList<QWidget*> m_settingsWindows;
+
 private:
     ModuleState m_state;
     QString m_lastError;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2018 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -17,29 +17,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef PYCONTROLLER_H
-#define PYCONTROLLER_H
+#ifndef MAIO_H
+#define MAIO_H
 
-#include <QObject>
+void pythonRegisterMaioModule();
 
-class ZmqClient;
-
-class PyController : public QObject
-{
-    Q_OBJECT
-public:
-    explicit PyController(QObject *parent = nullptr);
-
-    void run();
-
-signals:
-    void finished(int res);
-
-private:
-    ZmqClient *m_conn;
-
-    void exitError(const QString& msg);
-    void runScript(const QString& scriptContent);
-};
-
-#endif // PYCONTROLLER_H
+#endif // MAIO_H

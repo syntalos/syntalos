@@ -86,22 +86,26 @@ void AbstractModule::finalize()
 
 void AbstractModule::showDisplayUi()
 {
-    // Do nothing.
+    Q_FOREACH(auto w, m_displayWindows)
+        w->show();
 }
 
 void AbstractModule::showSettingsUi()
 {
-    // Do nothing
+    Q_FOREACH(auto w, m_settingsWindows)
+        w->show();
 }
 
 void AbstractModule::hideDisplayUi()
 {
-    // Do nothing
+    Q_FOREACH(auto w, m_displayWindows)
+        w->hide();
 }
 
 void AbstractModule::hideSettingsUi()
 {
-    // Do nothing.
+    Q_FOREACH(auto w, m_settingsWindows)
+        w->hide();
 }
 
 QList<QAction *> AbstractModule::actions()

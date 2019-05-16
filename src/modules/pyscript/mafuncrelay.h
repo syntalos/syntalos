@@ -17,29 +17,26 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef PYCONTROLLER_H
-#define PYCONTROLLER_H
+#ifndef MAFUNCRELAY_H
+#define MAFUNCRELAY_H
 
 #include <QObject>
 
-class ZmqClient;
-
-class PyController : public QObject
+class MaFuncRelay : public QObject
 {
     Q_OBJECT
 public:
-    explicit PyController(QObject *parent = nullptr);
+    explicit MaFuncRelay(QObject *parent = nullptr);
 
-    void run();
+    void setPyScript(const QString& script);
+    QString pyScript() const;
 
-signals:
-    void finished(int res);
+    void setCanStartScript(bool startable);
+    bool canStartScript() const;
 
 private:
-    ZmqClient *m_conn;
-
-    void exitError(const QString& msg);
-    void runScript(const QString& scriptContent);
+    QString m_pyScript;
+    bool m_canStartScript;
 };
 
-#endif // PYCONTROLLER_H
+#endif // MAFUNCRELAY_H

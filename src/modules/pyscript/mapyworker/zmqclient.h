@@ -24,23 +24,34 @@
 #include <QSharedDataPointer>
 #include <QVariant>
 #include <QJsonArray>
+#include <mutex>
+
+#include "../rpc-shared-info.h"
 
 class ZmqClient : public QObject
 {
     Q_OBJECT
 public:
+    static ZmqClient *instance(QObject *parent = nullptr) {
+       // std::lock_guard<std::mutex> lock(_mutex);
+        static ZmqClient *_instance = nullptr;
+        if (_instance == nullptr) {
+            _instance = new ZmqClient(parent);
+        }
+        return _instance;
+    }
+
     explicit ZmqClient(QObject *parent = nullptr);
     ~ZmqClient();
 
     bool connect(const QString& ipcSocketPath);
 
-    QVariant runRpc(const QString& funcName, const QJsonArray& values = QJsonArray());
-
-signals:
-
-public slots:
+    QVariant runRpc(MaPyFunction funcId, const QJsonArray& values = QJsonArray());
 
 private:
+    static std::mutex _mutex;
+    Q_DISABLE_COPY(ZmqClient)
+
     class ZCData;
     QSharedDataPointer<ZCData> d;
 };

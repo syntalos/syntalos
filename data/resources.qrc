@@ -35,4 +35,7 @@
         <file alias="python">modules/python.svg</file>
         <file alias="runcmd">modules/runcmd.svg</file>
     </qresource>
+    <qresource prefix="/texts">
+        <file>pyscript-sample.py</file>
+    </qresource>
 </RCC>

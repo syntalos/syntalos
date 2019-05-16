@@ -53,9 +53,6 @@
 #include <QScrollBar>
 #include <QHeaderView>
 
-#include <KTextEditor/Document>
-#include <KTextEditor/Editor>
-#include <KTextEditor/View>
 #include <KTar>
 
 #include "ma-private.h"
@@ -227,14 +224,6 @@ MainWindow::MainWindow(QWidget *parent) :
     m_mazeEventTableWin = ui->mdiArea->addSubWindow(m_mazeEventTable);
     m_mazeEventTableWin->setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowMinMaxButtonsHint);
 
-    // set up code editor
-    auto editor = KTextEditor::Editor::instance();
-    // create a new document
-    auto pyDoc = editor->createDocument(this);
-    pyDoc->setText(m_mscript->script());
-    m_mscriptView = pyDoc->createView(this);
-    ui->scriptLayout->addWidget(m_mscriptView);
-    pyDoc->setHighlightingMode("python");
 #endif
 
     // FIXME
@@ -952,7 +941,7 @@ void MainWindow::saveSettingsActionTriggered()
     tar.writeFile ("intan.isf", intanSettings);
 
     // save IO Python script
-    tar.writeFile ("mscript.py", QByteArray(m_mscriptView->document()->text().toStdString().c_str()));
+    //tar.writeFile ("mscript.py", QByteArray(m_mscriptView->document()->text().toStdString().c_str()));
 
     tar.close();
 
@@ -1066,12 +1055,14 @@ void MainWindow::loadSettingsActionTriggered()
     //! FIXME if (intanSettingsFile != nullptr)
     //! FIXME    m_intanUI->loadSettings(intanSettingsFile->data());
 
+#if 0
     // load Maze IO Python script
     auto mazeScriptFile = rootDir->file("mscript.py");
     if (mazeScriptFile == nullptr)
         m_mscriptView->document()->setText("import maio as io\n\n# Empty\n");
     else
         m_mscriptView->document()->setText(mazeScriptFile->data());
+#endif
 
     QFileInfo fi(fileName);
     this->updateWindowTitle(fi.fileName());

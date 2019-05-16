@@ -29,9 +29,6 @@
 namespace Ui {
 class MainWindow;
 }
-namespace KTextEditor {
-class View;
-}
 
 class QVBoxLayout;
 class QLabel;
@@ -122,8 +119,6 @@ private:
 
     QTableWidget *m_mazeEventTable;
     QMdiSubWindow *m_mazeEventTableWin;
-
-    KTextEditor::View *m_mscriptView;
 
     StatusWidget *m_statusWidget;
 

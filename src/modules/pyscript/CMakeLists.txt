@@ -2,8 +2,6 @@
 add_subdirectory(mapyworker)
 
 set(SCRIPT_SRC
-    pyscript/maio.h
-    pyscript/maio.cpp
     pyscript/pycontroller.h
     pyscript/pycontroller.cpp
     pyscript/mazescript.h
@@ -15,6 +13,9 @@ set(PYSCRIPT_SRC
     pyscriptmodule.cpp
     zmqserver.h
     zmqserver.cpp
+    rpc-shared-info.h
+    mafuncrelay.h
+    mafuncrelay.cpp
 )
 
 add_library(mod_pyscript STATIC
@@ -23,6 +24,7 @@ add_library(mod_pyscript STATIC
 
 target_link_libraries(mod_pyscript
     Qt5::Widgets
+    KF5::TextEditor
     ${CZMQ_LIBRARIES}
 )
 

@@ -27,6 +27,11 @@
 class ZmqServer;
 class QProcess;
 class QTextBrowser;
+class MaFuncRelay;
+
+namespace KTextEditor {
+class View;
+}
 
 class PyScriptModule : public AbstractModule
 {
@@ -41,18 +46,20 @@ public:
 
     bool initialize(ModuleManager *manager) override;
     bool prepare(const QString& storageRootDir, const TestSubject& testSubject, HRTimer *timer) override;
+    void start() override;
     bool runCycle() override;
     void stop() override;
-
-    void showDisplayUi() override;
-    void hideDisplayUi() override;
 
 private:
     ZmqServer *m_zserver;
     QString m_workerBinary;
     QProcess *m_process;
+    MaFuncRelay *m_funcRelay;
+    bool m_running;
 
     QTextBrowser *m_pyoutWindow;
+    KTextEditor::View *m_scriptView;
+    QWidget *m_scriptWindow;
 };
 
 #endif // PYSCRIPTMODULE_H

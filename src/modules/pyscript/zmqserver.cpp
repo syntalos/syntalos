@@ -27,6 +27,7 @@
 
 #include "utils.h"
 #include "hrclock.h"
+#include "rpc-shared-info.h"
 
 #pragma GCC diagnostic ignored "-Wpadded"
 class ZmqServer::ZSData
@@ -42,17 +43,19 @@ public:
     zsock_t *server;
     QString socketPath;
     HRTimer *timer;
+    MaFuncRelay *funcRelay;
 
     std::thread *thread;
     std::atomic_bool running;
 };
 #pragma GCC diagnostic pop
 
-ZmqServer::ZmqServer(QObject *parent)
+ZmqServer::ZmqServer(MaFuncRelay *funcRelay, QObject *parent)
     : QObject(parent),
       d(new ZSData)
 {
     d->server = zsock_new(ZMQ_REP);
+    d->funcRelay = funcRelay;
 
     const auto socketDir = qEnvironmentVariable("XDG_RUNTIME_DIR", "/tmp/");
     d->socketPath = QStringLiteral("%1/mapy-%2.sock").arg(socketDir).arg(createRandomString(8));
@@ -82,15 +85,23 @@ QString ZmqServer::socketName() const
     return d->socketPath;
 }
 
-QJsonValue ZmqServer::handleRpcRequest(const QString &funcName, const QJsonArray &params)
+QJsonValue ZmqServer::handleRpcRequest(const MaPyFunction funcId, const QJsonArray &params)
 {
-    if (funcName == QStringLiteral("timeSinceStartMsec")) {
-        if (d->timer == nullptr)
-            return QJsonValue(static_cast<qint64>(0));
-        return QJsonValue(static_cast<qint64>(d->timer->timeSinceStartMsec().count()));
-    }
+    switch (funcId) {
+    case MaPyFunction::G_getPythonScript:
+        return QJsonValue(d->funcRelay->pyScript());
 
-    return QJsonValue();
+    case MaPyFunction::G_canStart:
+        return QJsonValue(d->funcRelay->canStartScript());
+
+    case MaPyFunction::G_timeSinceStartMsec:
+        if (d->timer == nullptr)
+            return QJsonValue(static_cast<long long>(0));
+        return QJsonValue(static_cast<long long>(d->timer->timeSinceStartMsec().count()));
+
+    default:
+        return QJsonValue(QJsonValue::Null);
+    }
 }
 
 void ZmqServer::rpcThread(void *srvPtr)
@@ -109,11 +120,11 @@ void ZmqServer::rpcThread(void *srvPtr)
             zstr_send(self->d->server, "{\"failed\": true}");
             continue;
         }
-        const auto funcName = req.object().value(QStringLiteral("call")).toString();
+        const auto funcId = static_cast<MaPyFunction>(req.object().value(QStringLiteral("callId")).toInt());
         const auto params = req.object().value(QStringLiteral("params")).toArray();
         zstr_free(&reqStr);
 
-        const auto res = self->handleRpcRequest(funcName, params);
+        const auto res = self->handleRpcRequest(funcId, params);
         QJsonObject resObj;
         resObj.insert(QStringLiteral("result"), res);
 

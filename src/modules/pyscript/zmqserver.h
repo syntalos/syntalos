@@ -26,12 +26,14 @@
 #include <QJsonArray>
 
 #include "hrclock.h"
+#include "rpc-shared-info.h"
+#include "mafuncrelay.h"
 
 class ZmqServer : public QObject
 {
     Q_OBJECT
 public:
-    explicit ZmqServer(QObject *parent = nullptr);
+    explicit ZmqServer(MaFuncRelay *funcRelay, QObject *parent = nullptr);
     ~ZmqServer();
 
     bool start(HRTimer *timer = nullptr);
@@ -45,7 +47,7 @@ private:
     class ZSData;
     std::unique_ptr<ZSData> d;
 
-    QJsonValue handleRpcRequest(const QString& funcName, const QJsonArray& params);
+    QJsonValue handleRpcRequest(const MaPyFunction funcId, const QJsonArray& params);
     static void rpcThread(void *srvPtr);
     bool startRpcThread();
     void finishRpcThread();
