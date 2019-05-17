@@ -38,6 +38,7 @@ PyScriptModule::PyScriptModule(QObject *parent)
     m_name = QStringLiteral("Python Script");
     m_pyoutWindow = nullptr;
     m_scriptWindow = nullptr;
+    m_funcRelay = nullptr;
 
     m_workerBinary = QStringLiteral("%1/modules/pyscript/mapyworker/mapyworker").arg(QCoreApplication::applicationDirPath());
     QFileInfo checkBin(m_workerBinary);
@@ -50,8 +51,6 @@ PyScriptModule::PyScriptModule(QObject *parent)
     m_zserver = nullptr;
     m_process = new QProcess(this);
     m_process->setProcessChannelMode(QProcess::MergedChannels);
-
-    m_funcRelay = new MaFuncRelay(this);
 }
 
 PyScriptModule::~PyScriptModule()
@@ -83,7 +82,6 @@ QPixmap PyScriptModule::pixmap() const
 
 bool PyScriptModule::initialize(ModuleManager *manager)
 {
-    Q_UNUSED(manager)
     assert(!initialized());
     setState(ModuleState::INITIALIZING);
 
@@ -91,6 +89,8 @@ bool PyScriptModule::initialize(ModuleManager *manager)
         raiseError("Unable to find Python worker binary. Is MazeAmaze installed correctly?");
         return false;
     }
+
+    m_modManager = manager;
 
     m_pyoutWindow = new QTextBrowser;
     m_pyoutWindow->setFontFamily(QStringLiteral("Monospace"));
@@ -131,15 +131,19 @@ bool PyScriptModule::initialize(ModuleManager *manager)
 
 bool PyScriptModule::prepare(const QString &storageRootDir, const TestSubject &testSubject, HRTimer *timer)
 {
-    Q_UNUSED(storageRootDir);
     Q_UNUSED(testSubject);
-    Q_UNUSED(timer);
     setState(ModuleState::PREPARING);
 
     m_pyoutWindow->clear();
 
-    delete m_funcRelay;
-    m_funcRelay = new MaFuncRelay(this);
+    auto eventTablesDir = QStringLiteral("%1/events").arg(storageRootDir);
+    if (!makeDirectory(eventTablesDir))
+        return false;
+
+
+    if (m_funcRelay != nullptr)
+        delete m_funcRelay;
+    m_funcRelay = new MaFuncRelay(m_modManager, timer, eventTablesDir, this);
     m_funcRelay->setPyScript(m_scriptView->document()->text());
 
     delete m_zserver;
@@ -193,7 +197,7 @@ bool PyScriptModule::runCycle()
     const auto data = m_process->readAllStandardOutput();
     if (data.isEmpty())
         return true;
-    m_pyoutWindow->setText(data);
+    m_pyoutWindow->append(data);
 
     return true;
 }
@@ -204,5 +208,10 @@ void PyScriptModule::stop()
         delete m_zserver;
         m_zserver = nullptr;
     }
-    m_process->kill();
+    m_process->terminate();
+    if (!m_process->waitForFinished(4000))
+        m_process->kill();
+    const auto data = m_process->readAllStandardOutput();
+    if (!data.isEmpty())
+        m_pyoutWindow->append(data);
 }

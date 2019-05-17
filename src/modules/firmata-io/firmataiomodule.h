@@ -22,10 +22,25 @@
 
 #include <QObject>
 #include <chrono>
+#include <QQueue>
 #include "abstractmodule.h"
 
 class SerialFirmata;
 class FirmataSettingsDialog;
+
+enum class PinKind
+{
+    Unknown,
+    Digital,
+    Analog
+};
+
+struct FmPin
+{
+    PinKind kind;
+    bool output;
+    uint8_t id;
+};
 
 class FirmataIOModule : public AbstractModule
 {
@@ -37,7 +52,7 @@ public:
     QString id() const override;
     QString description() const override;
     QPixmap pixmap() const override;
-    ModuleFeatures features() const;
+    ModuleFeatures features() const override;
 
     bool initialize(ModuleManager *manager) override;
     bool prepare(const QString& storageRootDir, const TestSubject& testSubject, HRTimer *timer) override;
@@ -46,10 +61,19 @@ public:
     void showSettingsUi() override;
     void hideSettingsUi() override;
 
+    void newDigitalPin(int pinID, const QString& pinName, bool output, bool pullUp);
+
+private slots:
+    void recvDigitalRead(uint8_t port, uint8_t value);
+    void recvDigitalPinRead(uint8_t pin, bool value);
+
 private:
     FirmataSettingsDialog *m_settingsDialog;
     SerialFirmata *m_firmata;
 
+    QQueue<QPair<QString, bool>> m_changedValuesQueue;
+    QHash<QString, FmPin> m_namePinMap;
+    QHash<int, QString> m_pinNameMap;
 };
 
 #endif // FIRMATAIOMODULE_H

@@ -17,26 +17,38 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef RPCSHAREDINFO_H
-#define RPCSHAREDINFO_H
+#ifndef EVENTTABLE_H
+#define EVENTTABLE_H
 
 #include <QObject>
 
-enum class MaPyFunction : uint
+class QTableWidget;
+class QFile;
+
+class EventTable : public QObject
 {
-    X_UNKNOWN,
+    Q_OBJECT
+public:
+    explicit EventTable(const QString &dirPath, const QString& name, QObject *parent = nullptr);
+    ~EventTable();
 
-    G_getPythonScript,
-    G_canStart,
-    G_timeSinceStartMsec,
+    bool open();
 
-    T_newEventTable,
-    T_setHeader,
-    T_addEvent,
+    void show();
+    void hide();
 
-    F_getFirmataModuleId,
-    F_newDigitalPin,
-    F_fetchDigitalInput
+    void setHeader(const QStringList &headers);
+    void addEvent(const QStringList &data);
+
+signals:
+
+public slots:
+
+private:
+    QTableWidget *m_tableWidget;
+    QFile *m_eventFile;
+    QString m_eventFileName;
+    bool m_haveEvents;
 };
 
-#endif // RPCSHAREDINFO_H
+#endif // EVENTTABLE_H

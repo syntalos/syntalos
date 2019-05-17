@@ -37,6 +37,8 @@ class PyScriptModule : public AbstractModule
 {
     Q_OBJECT
 public:
+    friend MaFuncRelay;
+
     explicit PyScriptModule(QObject *parent = nullptr);
     ~PyScriptModule() override;
 
@@ -55,6 +57,7 @@ private:
     QString m_workerBinary;
     QProcess *m_process;
     MaFuncRelay *m_funcRelay;
+    ModuleManager *m_modManager;
     bool m_running;
 
     QTextBrowser *m_pyoutWindow;

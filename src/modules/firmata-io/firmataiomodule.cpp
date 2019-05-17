@@ -78,8 +78,15 @@ bool FirmataIOModule::prepare(const QString &storageRootDir, const TestSubject &
     Q_UNUSED(timer);
     setState(ModuleState::PREPARING);
 
+    // cleanup
+    m_changedValuesQueue.clear();
+    m_namePinMap.clear();
+    m_pinNameMap.clear();
+
     delete m_firmata;
     m_firmata = new SerialFirmata(this);
+    connect(m_firmata, &SerialFirmata::digitalRead, this, &FirmataIOModule::recvDigitalRead);
+    connect(m_firmata, &SerialFirmata::digitalPinRead, this, &FirmataIOModule::recvDigitalPinRead);
 
     auto serialDevice = m_settingsDialog->serialPort();
     if (serialDevice.isEmpty()) {
@@ -120,4 +127,67 @@ void FirmataIOModule::hideSettingsUi()
 {
     assert(initialized());
     m_settingsDialog->hide();
+}
+
+void FirmataIOModule::newDigitalPin(int pinID, const QString &pinName, bool output, bool pullUp)
+{
+    FmPin pin;
+    pin.kind = PinKind::Digital;
+    pin.id = static_cast<uint8_t>(pinID);
+    pin.output = output;
+
+    if (pin.output) {
+        // initialize output pin
+        m_firmata->setPinMode(pin.id, IoMode::Output);
+        m_firmata->writeDigitalPin(pin.id, false);
+        qDebug() << "Pin" << pinID << "set as output";
+    } else {
+        // connect input pin
+        if (pullUp)
+            m_firmata->setPinMode(pin.id, IoMode::PullUp);
+        else
+            m_firmata->setPinMode(pin.id, IoMode::Input);
+
+        uint8_t port = pin.id >> 3;
+        m_firmata->reportDigitalPort(port, true);
+
+        qDebug() << "Pin" << pinID << "set as input";
+    }
+
+    m_namePinMap.insert(pinName, pin);
+    m_pinNameMap.insert(pin.id, pinName);
+}
+
+void FirmataIOModule::recvDigitalRead(uint8_t port, uint8_t value)
+{
+    qDebug() << "Firmata digital port read:" << int(value);
+
+    // value of a digital port changed: 8 possible pin changes
+    const int first = port * 8;
+    const int last = first + 7;
+
+    for (const FmPin p : m_namePinMap.values()) {
+        if ((!p.output) && (p.kind != PinKind::Unknown)) {
+            if ((p.id >= first) && (p.id <= last)) {
+                QPair<QString, bool> pair;
+                pair.first = m_pinNameMap.value(p.id);
+                pair.second = value & (1 << (p.id - first));
+
+                m_changedValuesQueue.append(pair);
+            }
+        }
+    }
+}
+
+void FirmataIOModule::recvDigitalPinRead(uint8_t pin, bool value)
+{
+    qDebug("Firmata digital pin read: %d=%d", pin, value);
+
+    auto pinName = m_pinNameMap.value(pin);
+    if (pinName.isEmpty()) {
+        qWarning() << "Received state change for unknown pin:" << pin;
+        return;
+    }
+
+    m_changedValuesQueue.append(qMakePair(pinName, value));
 }

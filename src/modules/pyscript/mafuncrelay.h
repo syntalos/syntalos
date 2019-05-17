@@ -21,12 +21,19 @@
 #define MAFUNCRELAY_H
 
 #include <QObject>
+#include "modulemanager.h"
+
+#include "hrclock.h"
+#include "eventtable.h"
+#include "modules/firmata-io/firmataiomodule.h"
 
 class MaFuncRelay : public QObject
 {
     Q_OBJECT
 public:
-    explicit MaFuncRelay(QObject *parent = nullptr);
+    explicit MaFuncRelay(ModuleManager *modManager, HRTimer *timer,
+                         const QString& eventTablesDir, QObject *parent = nullptr);
+    ~MaFuncRelay();
 
     void setPyScript(const QString& script);
     QString pyScript() const;
@@ -34,9 +41,23 @@ public:
     void setCanStartScript(bool startable);
     bool canStartScript() const;
 
+    int registerNewFirmataModule(const QString& name);
+    FirmataIOModule *firmataModule(int id);
+
+    int newEventTable(const QString& name);
+    bool eventTableSetHeader(int tableId, const QStringList& headers);
+    bool eventTableAddEvent(int tableId, const QStringList& event);
+
 private:
     QString m_pyScript;
     bool m_canStartScript;
+    HRTimer *m_timer;
+    QString m_eventTablesDir;
+
+    ModuleManager *m_modManager;
+    QList<FirmataIOModule*> m_firmataModRegistry;
+
+    QList<EventTable*> m_eventTables;
 };
 
 #endif // MAFUNCRELAY_H

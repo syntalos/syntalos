@@ -16,6 +16,8 @@ set(PYSCRIPT_SRC
     rpc-shared-info.h
     mafuncrelay.h
     mafuncrelay.cpp
+    eventtable.h
+    eventtable.cpp
 )
 
 add_library(mod_pyscript STATIC

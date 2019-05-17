@@ -19,9 +19,19 @@
 
 #include "mafuncrelay.h"
 
-MaFuncRelay::MaFuncRelay(QObject *parent) : QObject(parent)
+MaFuncRelay::MaFuncRelay(ModuleManager *modManager, HRTimer *timer, const QString &eventTablesDir, QObject *parent)
+    : QObject(parent)
 {
     m_canStartScript = false;
+    m_modManager = modManager;
+    m_timer = timer;
+    m_eventTablesDir = eventTablesDir;
+}
+
+MaFuncRelay::~MaFuncRelay()
+{
+    Q_FOREACH(auto tab, m_eventTables)
+        delete tab;
 }
 
 void MaFuncRelay::setPyScript(const QString &script)
@@ -42,4 +52,60 @@ void MaFuncRelay::setCanStartScript(bool startable)
 bool MaFuncRelay::canStartScript() const
 {
     return m_canStartScript;
+}
+
+int MaFuncRelay::registerNewFirmataModule(const QString &name)
+{
+    Q_FOREACH(auto mod, m_modManager->activeModules()) {
+        auto fmod = qobject_cast<FirmataIOModule*>(mod);
+        if (fmod == nullptr)
+            continue;
+        if (fmod->name() == name) {
+            m_firmataModRegistry.append(fmod);
+            return m_firmataModRegistry.size() - 1;
+        }
+    }
+
+    return -1;
+}
+
+FirmataIOModule *MaFuncRelay::firmataModule(int id)
+{
+    if (id > m_firmataModRegistry.size() - 1)
+        return nullptr;
+    return m_firmataModRegistry[id];
+}
+
+int MaFuncRelay::newEventTable(const QString &name)
+{
+    auto tab = new EventTable(m_eventTablesDir, name, this);
+    tab->open();
+    tab->show();
+    m_eventTables.append(tab);
+    return m_eventTables.size() - 1;
+}
+
+bool MaFuncRelay::eventTableSetHeader(int tableId, const QStringList &headers)
+{
+    if (tableId > m_eventTables.size() - 1)
+        return false;
+
+    auto tab = m_eventTables[tableId];
+    auto data = QStringList(headers);
+    data.prepend("Time");
+    tab->setHeader(data);
+    return true;
+}
+
+bool MaFuncRelay::eventTableAddEvent(int tableId, const QStringList &event)
+{
+    if (tableId > m_eventTables.size() - 1)
+        return false;
+
+    auto tab = m_eventTables[tableId];
+    auto data = QStringList(event);
+    data.prepend(QString::number(m_timer->timeSinceStartMsec().count()));
+
+    tab->addEvent(data);
+    return true;
 }

@@ -88,16 +88,61 @@ QString ZmqServer::socketName() const
 QJsonValue ZmqServer::handleRpcRequest(const MaPyFunction funcId, const QJsonArray &params)
 {
     switch (funcId) {
-    case MaPyFunction::G_getPythonScript:
+    case MaPyFunction::G_getPythonScript: {
         return QJsonValue(d->funcRelay->pyScript());
+    }
 
-    case MaPyFunction::G_canStart:
+    case MaPyFunction::G_canStart: {
         return QJsonValue(d->funcRelay->canStartScript());
+    }
 
-    case MaPyFunction::G_timeSinceStartMsec:
+    case MaPyFunction::G_timeSinceStartMsec: {
         if (d->timer == nullptr)
             return QJsonValue(static_cast<long long>(0));
         return QJsonValue(static_cast<long long>(d->timer->timeSinceStartMsec().count()));
+    }
+
+    case MaPyFunction::F_getFirmataModuleId: {
+        if (params.count() != 1)
+            return QJsonValue(-1);
+        return QJsonValue(d->funcRelay->registerNewFirmataModule(params[0].toString()));
+    }
+
+    case MaPyFunction::F_newDigitalPin: {
+        if (params.count() != 4)
+            return QJsonValue(false);
+        auto fmod = d->funcRelay->firmataModule(params[0].toInt());
+        if (fmod == nullptr)
+            return QJsonValue(false);
+        auto t = params[3].toInt();
+        fmod->newDigitalPin(params[1].toInt(), params[2].toString(), t != 0, t == 2);
+        return QJsonValue(true);
+    }
+
+    case MaPyFunction::T_newEventTable: {
+        if (params.count() != 1)
+            return QJsonValue(-1);
+        return QJsonValue(d->funcRelay->newEventTable(params[0].toString()));
+    }
+
+    case MaPyFunction::T_setHeader: {
+        if (params.count() != 2)
+            return QJsonValue(false);
+        QStringList slist;
+        Q_FOREACH(auto v, params[1].toArray())
+            slist.append(v.toString());
+        return QJsonValue(d->funcRelay->eventTableSetHeader(params[0].toInt(-1), slist));
+    }
+
+    case MaPyFunction::T_addEvent: {
+        if (params.count() != 2)
+            return QJsonValue(false);
+        QStringList slist;
+        Q_FOREACH(auto v, params[1].toArray())
+            slist.append(v.toString());
+        return QJsonValue(d->funcRelay->eventTableAddEvent(params[0].toInt(-1), slist));
+    }
+
 
     default:
         return QJsonValue(QJsonValue::Null);
