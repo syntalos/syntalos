@@ -131,14 +131,6 @@ MainWindow::MainWindow(QWidget *parent) :
         changeTestSubject(sub);
     });
 
-    // add experiment selector
-    m_features.enableAll();
-    updateWindowTitle(nullptr);
-
-    ui->expTypeComboBox->addItem("Maze");
-    ui->expTypeComboBox->addItem("Resting Box");
-    ui->expTypeComboBox->addItem("Custom");
-
     // set up test subjects page
     m_subjectList = new TestSubjectListModel(this);
     ui->subjectListView->setModel(m_subjectList);
@@ -201,6 +193,8 @@ MainWindow::MainWindow(QWidget *parent) :
     });
 
     ui->subjectSelectComboBox->setModel(m_subjectList);
+
+    ui->scrollAreaLayout->addStretch();
 
  #if 0
     // Arduino / Firmata I/O
@@ -531,8 +525,8 @@ void MainWindow::runActionTriggered()
     setStopPossible(true);
     m_failed = false;
 
-    if (!m_features.isAnyEnabled()) {
-        QMessageBox::warning(this, "Configuration error", "You have selected not a single recording feature to be active.\nPlease select at least one feature to give this recording a purpose.");
+    if (m_modManager->activeModules().isEmpty()) {
+        QMessageBox::warning(this, "Configuration error", "You did not add a single module to be run.\nPlease add a module to the experiment to continue.");
         setRunPossible(true);
         setStopPossible(false);
         return;
@@ -579,9 +573,11 @@ void MainWindow::runActionTriggered()
     Q_FOREACH(auto mod, m_modManager->activeModules()) {
         mod->start();
     }
+
+    m_running = true;
     setStatusText(QStringLiteral("Running..."));
 
-    while (true) {
+    while (m_running) {
         Q_FOREACH(auto mod, m_modManager->activeModules()) {
             if (!mod->runCycle()){
                 setStatusText(QStringLiteral("Module %1 failed.").arg(mod->name()));
@@ -603,8 +599,6 @@ void MainWindow::runActionTriggered()
     delete timer;
 
     setStatusText(QStringLiteral("Ready."));
-
-
 
  #if 0
 
@@ -768,60 +762,11 @@ void MainWindow::runActionTriggered()
 
 void MainWindow::stopActionTriggered()
 {
-#if 0
     setRunPossible(m_exportDirValid);
     setStopPossible(false);
     ui->actionIntanRun->setEnabled(true);
 
-    // stop Maze script
-    m_mscript->stop();
-
-    if (m_features.ioEnabled)
-        m_statusWidget->setFirmataStatus(StatusWidget::Ready);
-    else
-        m_statusWidget->setFirmataStatus(StatusWidget::Disabled);
-
-    // stop video tracker
-    if (m_features.videoEnabled) {
-        m_videoTracker->stop();
-        m_statusWidget->setVideoStatus(StatusWidget::Ready);
-    }
-
-    // stop interface board
-    if (m_features.ephysEnabled) {
-        //! FIXME m_intanUI->stopInterfaceBoard();
-        m_statusWidget->setIntanStatus(StatusWidget::Ready);
-    }
-
-    // compress frame tarball, if selected
-    if (m_saveTarCB->isChecked()) {
-        QProgressDialog dialog(this);
-
-        dialog.setCancelButton(nullptr);
-        dialog.setLabelText("Packing and compressing frames...");
-        dialog.setWindowModality(Qt::WindowModal);
-        dialog.show();
-
-        std::unique_ptr<QMetaObject::Connection> pconn {new QMetaObject::Connection};
-        QMetaObject::Connection &conn = *pconn;
-        conn = QObject::connect(m_videoTracker, &MazeVideo::progress, [&](int max, int value) {
-            dialog.setMaximum(max);
-            dialog.setValue(value);
-            QApplication::processEvents();
-        });
-
-        if (!m_videoTracker->makeFrameTarball())
-            QMessageBox::critical(this, "Error writing frame tarball", m_videoTracker->lastError());
-
-        dialog.close();
-        QObject::disconnect(conn);
-    }
-
-    // enable UI elements
-    m_mscriptView->setEnabled(true);
-    ui->cameraGroupBox->setEnabled(true);
     m_running = false;
-#endif
 }
 
 void MainWindow::setDataExportBaseDir(const QString& dir)
@@ -914,7 +859,6 @@ void MainWindow::saveSettingsActionTriggered()
     settings.insert("creationDate", QDateTime::currentDateTime().date().toString());
 
     settings.insert("exportDir", m_dataExportBaseDir);
-    settings.insert("features", m_features.toJson());
     settings.insert("experimentId", m_experimentId);
 
     QJsonObject videoSettings;
@@ -954,11 +898,9 @@ void MainWindow::saveSettingsActionTriggered()
 void MainWindow::updateWindowTitle(const QString& fileName)
 {
     if (fileName.isEmpty()) {
-        this->setWindowTitle(QStringLiteral("MazeAmaze [%1]").arg(m_features.toHumanString()));
+        this->setWindowTitle(QStringLiteral("MazeAmaze"));
     } else {
-        this->setWindowTitle(QStringLiteral("MazeAmaze [%1] - %2")
-                                            .arg(m_features.toHumanString())
-                                            .arg(fileName));
+        this->setWindowTitle(QStringLiteral("MazeAmaze - %2").arg(fileName));
     }
 }
 
@@ -1013,17 +955,6 @@ void MainWindow::loadSettingsActionTriggered()
 
     setDataExportBaseDir(rootObj.value("exportDir").toString());
     ui->expIdEdit->setText(rootObj.value("experimentId").toString());
-
-    m_features.fromJson(rootObj.value("features").toObject());
-
-    // simple compatibility hack - at one point we will hopefully get rid of static "maze" and "resting box"
-    // profiles entirely
-    if (m_features.toString() == "maze")
-        ui->expTypeComboBox->setCurrentIndex(0);
-    else if (m_features.toString() == "resting-box")
-        ui->expTypeComboBox->setCurrentIndex(1);
-    else
-        ui->expTypeComboBox->setCurrentIndex(2);
 
     auto videoSettings = rootObj.value("video").toObject();
     m_eresWidthEdit->setValue(videoSettings.value("exportWidth").toInt(800));
@@ -1095,5 +1026,7 @@ void MainWindow::on_tbAddModule_clicked()
 void MainWindow::moduleAdded(AbstractModule *mod)
 {
     auto mi = new ModuleIndicator(mod, m_modManager, ui->scrollArea);
-    ui->scrollAreaLayout->addWidget(mi);
+
+    // add widget after the stretcher
+    ui->scrollAreaLayout->insertWidget(ui->scrollAreaLayout->count() - 1, mi);
 }

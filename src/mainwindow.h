@@ -96,7 +96,6 @@ private:
     bool makeDirectory(const QString& dir);
 
     ModuleManager *m_modManager;
-    ExperimentFeatures m_features;
 
     Ui::MainWindow *ui;
 

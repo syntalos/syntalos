@@ -36,25 +36,6 @@ struct TestSubject {
     QString comment;
 };
 
-
-typedef struct
-{
-    bool videoEnabled;
-    bool trackingEnabled;
-    bool ephysEnabled;
-    bool ioEnabled;
-
-    QString toHumanString();
-    QString toString();
-    QJsonObject toJson();
-    void fromJson(const QJsonObject& json);
-
-    bool isAnyEnabled();
-    void enableAll();
-} ExperimentFeatures;
-
-time_t getMsecEpoch();
-
 namespace cv {
 class Mat;
 }
