@@ -49,6 +49,7 @@ QPixmap RunCmdModule::pixmap() const
 
 bool RunCmdModule::initialize(ModuleManager *manager)
 {
+    Q_UNUSED(manager);
     assert(!initialized());
     setState(ModuleState::INITIALIZING);
 
@@ -70,16 +71,6 @@ bool RunCmdModule::prepare(const QString &storageRootDir, const TestSubject &tes
 }
 
 void RunCmdModule::stop()
-{
-
-}
-
-void RunCmdModule::showDisplayUi()
-{
-
-}
-
-void RunCmdModule::hideDisplayUi()
 {
 
 }

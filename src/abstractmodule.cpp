@@ -50,6 +50,7 @@ QString AbstractModule::name() const
 void AbstractModule::setName(const QString &name)
 {
     m_name = name;
+    emit nameChanged(m_name);
 }
 
 QString AbstractModule::description() const

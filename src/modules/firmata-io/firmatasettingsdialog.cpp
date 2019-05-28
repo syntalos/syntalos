@@ -27,6 +27,7 @@ FirmataSettingsDialog::FirmataSettingsDialog(QWidget *parent) :
     ui(new Ui::FirmataSettingsDialog)
 {
     ui->setupUi(this);
+    setWindowIcon(QIcon(":/icons/generic-config"));
 
     // Arduino / Firmata I/O
     auto allPorts = QSerialPortInfo::availablePorts();

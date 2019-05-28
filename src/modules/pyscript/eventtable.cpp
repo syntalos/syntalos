@@ -74,7 +74,8 @@ void EventTable::setHeader(const QStringList &headers)
     // write headers
     if (!m_eventFile->isOpen())
         return;
-    m_eventFile->write(qPrintable(headers.join(";") + "\n"));
+    QTextStream tsout(m_eventFile);
+    tsout << headers.join(";") << "\n";
 }
 
 void EventTable::addEvent(const QStringList &data)
@@ -84,7 +85,8 @@ void EventTable::addEvent(const QStringList &data)
     // write to file if file is opened
     if (!m_eventFile->isOpen())
             return;
-    m_eventFile->write(qPrintable(data.join(";") + "\n"));
+    QTextStream tsout(m_eventFile);
+    tsout << data.join(";") << "\n";
 
     auto columnCount = m_tableWidget->columnCount();
     if (columnCount < data.count()) {

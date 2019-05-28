@@ -45,6 +45,7 @@ private slots:
     void on_showButton_clicked();
     void on_configButton_clicked();
     void on_modulePreRemove(AbstractModule *mod);
+    void on_editNameActionTriggered();
 
 private:
     class MIData;

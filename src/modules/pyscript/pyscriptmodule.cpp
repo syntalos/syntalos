@@ -207,7 +207,7 @@ bool PyScriptModule::runCycle()
 void PyScriptModule::stop()
 {
     m_process->terminate();
-    if (!m_process->waitForFinished(4000))
+    if (!m_process->waitForFinished(1000))
         m_process->kill();
     const auto data = m_process->readAllStandardOutput();
     if (!data.isEmpty())

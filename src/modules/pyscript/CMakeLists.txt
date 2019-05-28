@@ -1,13 +1,6 @@
 
 add_subdirectory(mapyworker)
 
-set(SCRIPT_SRC
-    pyscript/pycontroller.h
-    pyscript/pycontroller.cpp
-    pyscript/mazescript.h
-    pyscript/mazescript.cpp
-)
-
 set(PYSCRIPT_SRC
     pyscriptmodule.h
     pyscriptmodule.cpp

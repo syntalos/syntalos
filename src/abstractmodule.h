@@ -206,6 +206,7 @@ signals:
     void stateChanged(ModuleState state);
     void error(const QString& message);
     void statusMessage(const QString& message);
+    void nameChanged(const QString& name);
 
 protected:
     void setState(ModuleState state);

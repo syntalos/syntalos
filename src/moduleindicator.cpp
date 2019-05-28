@@ -24,6 +24,7 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QDebug>
+#include <QInputDialog>
 
 #include "modulemanager.h"
 
@@ -37,6 +38,7 @@ public:
     AbstractModule *module;
     ModuleManager *manager;
     QMenu *menu;
+    QAction *editNameAction;
 };
 #pragma GCC diagnostic pop
 
@@ -46,7 +48,14 @@ ModuleIndicator::ModuleIndicator(AbstractModule *module, ModuleManager *manager,
     d(new MIData)
 {
     ui->setupUi(this);
+
     d->menu = new QMenu(this);
+    d->editNameAction = new QAction(this);
+    d->editNameAction->setText(QStringLiteral("Edit Name"));
+    d->menu->addAction(d->editNameAction);
+    connect(d->editNameAction, &QAction::triggered, this, &ModuleIndicator::on_editNameActionTriggered);
+    ui->menuButton->setMenu(d->menu);
+    connect(ui->menuButton, &QToolButton::clicked, ui->menuButton, &QToolButton::showMenu);
 
     d->module = module;
     d->manager = manager;
@@ -61,21 +70,21 @@ ModuleIndicator::ModuleIndicator(AbstractModule *module, ModuleManager *manager,
 
     ui->showButton->setVisible(false);
     ui->configButton->setVisible(false);
-    ui->menuButton->setVisible(false);
 
     const auto features = d->module->features();
     if (features.testFlag(ModuleFeature::DISPLAY))
         ui->showButton->setVisible(true);
     if (features.testFlag(ModuleFeature::SETTINGS))
         ui->configButton->setVisible(true);
-    if (features.testFlag(ModuleFeature::ACTIONS))
-        ui->menuButton->setVisible(true);
 
     connect(d->module, &AbstractModule::actionsUpdated, this, &ModuleIndicator::receiveActionsUpdated);
     connect(d->module, &AbstractModule::stateChanged, this, &ModuleIndicator::receiveStateChange);
     connect(d->module, &AbstractModule::error, this, &ModuleIndicator::receiveErrorMessage);
     connect(d->module, &AbstractModule::statusMessage, this, &ModuleIndicator::receiveMessage);
     connect(d->manager, &ModuleManager::modulePreRemove, this, &ModuleIndicator::on_modulePreRemove);
+    connect(d->module, &AbstractModule::nameChanged, [=](const QString& name) {
+        ui->moduleNameLabel->setText(name);
+    });
 }
 
 ModuleIndicator::~ModuleIndicator()
@@ -90,16 +99,12 @@ AbstractModule *ModuleIndicator::module() const
 
 void ModuleIndicator::receiveActionsUpdated()
 {
-    if (d->module->actions().isEmpty()) {
-        ui->menuButton->setVisible(false);
-    } else {
-        d->menu->clear();
-        ui->menuButton->setVisible(true);
-        foreach(auto action, d->module->actions())
-            d->menu->addAction(action);
-        ui->menuButton->setMenu(d->menu);
-        connect(ui->menuButton, &QToolButton::clicked, ui->menuButton, &QToolButton::showMenu);
-    }
+    d->menu->clear();
+    d->menu->addAction(d->editNameAction);
+    d->menu->addSeparator();
+    ui->menuButton->setVisible(true);
+    foreach(auto action, d->module->actions())
+        d->menu->addAction(action);
 }
 
 void ModuleIndicator::receiveStateChange(ModuleState state)
@@ -180,6 +185,17 @@ void ModuleIndicator::on_modulePreRemove(AbstractModule *mod)
         d->module = nullptr;
         this->deleteLater();
     }
+}
+
+void ModuleIndicator::on_editNameActionTriggered()
+{
+    if (d->module == nullptr) return;
+    bool ok;
+    auto text = QInputDialog::getText(this, QStringLiteral("Edit module name"),
+                                      QStringLiteral("New name for '%1' module:").arg(d->module->id()), QLineEdit::Normal,
+                                      d->module->name(), &ok);
+    if (ok && !text.isEmpty())
+        d->module->setName(text);
 }
 
 void ModuleIndicator::on_showButton_clicked()

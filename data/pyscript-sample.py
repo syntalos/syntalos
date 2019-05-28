@@ -33,9 +33,6 @@ def digital_input_received(pin_name, value):
     if not value:
         return
 
-    print('PIN: ' + pin_name)
-    sys.stdout.flush()
-
     if pin_name == g_last_arm:
         return
     g_last_arm = pin_name

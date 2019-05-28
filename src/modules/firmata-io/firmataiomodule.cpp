@@ -66,6 +66,8 @@ bool FirmataIOModule::initialize(ModuleManager *manager)
     setState(ModuleState::INITIALIZING);
 
     m_settingsDialog = new FirmataSettingsDialog;
+    m_settingsWindows.append(m_settingsDialog);
+    m_settingsDialog->setWindowTitle(QStringLiteral("%1 - Settings").arg(name()));
 
     setState(ModuleState::READY);
     setInitialized();
@@ -116,18 +118,6 @@ bool FirmataIOModule::prepare(const QString &storageRootDir, const TestSubject &
 void FirmataIOModule::stop()
 {
     setState(ModuleState::READY);
-}
-
-void FirmataIOModule::showSettingsUi()
-{
-    assert(initialized());
-    m_settingsDialog->show();
-}
-
-void FirmataIOModule::hideSettingsUi()
-{
-    assert(initialized());
-    m_settingsDialog->hide();
 }
 
 bool FirmataIOModule::fetchDigitalInput(QPair<QString, bool> *result)

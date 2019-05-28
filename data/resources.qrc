@@ -3,13 +3,13 @@
         <file alias="run">run.svg</file>
         <file alias="stop">stop.svg</file>
         <file alias="appicon">mazeamaze.svg</file>
-        <file alias="view">chart.svg</file>
         <file alias="settings">settings.svg</file>
         <file alias="show-module">show-module-widgets.svg</file>
         <file alias="remove">remove.svg</file>
         <file alias="menu">menu.svg</file>
         <file alias="generic-view">generic-view.svg</file>
         <file alias="generic-config">generic-config.svg</file>
+        <file alias="show-all-windows">show-all-windows.svg</file>
     </qresource>
     <qresource prefix="/images">
         <file>mouse-top.png</file>

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>503</width>
-    <height>355</height>
+    <width>550</width>
+    <height>393</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -30,7 +30,14 @@
     <number>4</number>
    </property>
    <item>
-    <widget class="QListView" name="listView"/>
+    <widget class="QListView" name="listView">
+     <property name="editTriggers">
+      <set>QAbstractItemView::NoEditTriggers</set>
+     </property>
+     <property name="verticalScrollMode">
+      <enum>QAbstractItemView::ScrollPerPixel</enum>
+     </property>
+    </widget>
    </item>
    <item>
     <widget class="QDialogButtonBox" name="buttonBox">

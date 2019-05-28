@@ -778,6 +778,18 @@ void MainWindow::setDataExportBaseDir(const QString& dir)
     m_exportDirValid = QDir().exists(m_dataExportBaseDir);
     m_exportDirLabel->setText(m_dataExportBaseDir);
 
+    auto font = m_exportDirLabel->font();
+    font.setBold(false);
+    auto palette = m_exportDirLabel->palette();
+    palette.setColor(QPalette::WindowText, Qt::black);
+    if (m_dataExportBaseDir.startsWith(QStandardPaths::writableLocation(QStandardPaths::TempLocation)) ||
+        m_dataExportBaseDir.startsWith(QStandardPaths::writableLocation(QStandardPaths::CacheLocation))) {
+        font.setBold(true);
+        palette.setColor(QPalette::WindowText, Qt::red);
+    }
+    m_exportDirLabel->setPalette(palette);
+    m_exportDirLabel->setFont(font);
+
     // update the export directory
     updateDataExportDir();
 
@@ -794,6 +806,15 @@ void MainWindow::updateDataExportDir()
                                     .arg(m_currentSubject.id)
                                     .arg(m_currentDate)
                                     .arg(m_experimentId));
+
+    auto palette = m_exportDirInfoLabel->palette();
+    palette.setColor(QPalette::WindowText, Qt::black);
+    if (m_dataExportDir.startsWith(QStandardPaths::writableLocation(QStandardPaths::TempLocation)) ||
+        m_dataExportDir.startsWith(QStandardPaths::writableLocation(QStandardPaths::CacheLocation))) {
+        palette.setColor(QPalette::WindowText, Qt::red);
+    }
+    m_exportDirInfoLabel->setPalette(palette);
+
     m_exportDirInfoLabel->setText(QString("Recorded data will be stored in: %1").arg(m_dataExportDir));
 }
 
