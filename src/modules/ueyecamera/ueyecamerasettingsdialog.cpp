@@ -20,6 +20,10 @@
 #include "ueyecamerasettingsdialog.h"
 #include "ui_ueyecamerasettingsdialog.h"
 
+#include <QToolButton>
+#include <QFileDialog>
+#include <QCheckBox>
+
 UEyeCameraSettingsDialog::UEyeCameraSettingsDialog(UEyeCamera *camera, QWidget *parent) :
     QDialog(parent),
     ui(new Ui::UEyeCameraSettingsDialog)
@@ -32,6 +36,37 @@ UEyeCameraSettingsDialog::UEyeCameraSettingsDialog(UEyeCamera *camera, QWidget *
     Q_FOREACH(const auto cameraInfo, cameras) {
         ui->cameraComboBox->addItem(cameraInfo.first, QVariant(cameraInfo.second));
     }
+
+    // video settings panel
+    m_gainCB = new QCheckBox(this);
+    m_gainCB->setChecked(false);
+    ui->uEyeLayout->addRow(new QLabel("Automatic gain", this), m_gainCB);
+
+    auto ueyeConfFileWidget = new QWidget(this);
+    auto ueyeConfFileLayout = new QHBoxLayout;
+    ueyeConfFileWidget->setLayout(ueyeConfFileLayout);
+    ueyeConfFileLayout->setMargin(0);
+    ui->uEyeLayout->addRow(new QLabel("uEye Configuration File", this), ueyeConfFileWidget);
+
+    m_ueyeConfFileLbl = new QLabel(this);
+    ueyeConfFileLayout->addWidget(m_ueyeConfFileLbl);
+    auto ueyeConfFileBtn = new QToolButton(this);
+    ueyeConfFileLayout->addWidget(ueyeConfFileBtn);
+    ueyeConfFileBtn->setIcon(QIcon::fromTheme("folder-open"));
+    m_ueyeConfFileLbl->setText("No file selected.");
+
+    connect(ueyeConfFileBtn, &QToolButton::clicked, [=]() {
+        auto fileName = QFileDialog::getOpenFileName(this,
+                                                     tr("Select uEye Settings"), ".",
+                                                     tr("uEye Settings (*.ini)"));
+        if (fileName.isEmpty())
+            return;
+        m_ueyeConfFileLbl->setText(fileName);
+    });
+
+    m_camFlashMode = new QCheckBox(this);
+    m_camFlashMode->setChecked(true);
+    ui->uEyeLayout->addRow(new QLabel("Enable GPIO flash", this), m_camFlashMode);
 }
 
 UEyeCameraSettingsDialog::~UEyeCameraSettingsDialog()

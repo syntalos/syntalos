@@ -60,8 +60,6 @@
 #include "modules/rhd2000/intanui.h"
 #include "modules/rhd2000/waveplot.h"
 
-#include "statuswidget.h"
-
 #include "hrclock.h"
 
 #include "modules/traceplot/traceplotproxy.h"
@@ -88,9 +86,6 @@ MainWindow::MainWindow(QWidget *parent) :
     m_statusBarLabel = new QLabel(tr(""));
     statusBar()->addWidget(m_statusBarLabel, 1);
     statusBar()->setSizeGripEnabled(false);  // fixed window size
-
-    // status widget
-    m_statusWidget = new StatusWidget(this);
 
     // setup general page
     auto openDirBtn = new QToolButton();
@@ -193,184 +188,7 @@ MainWindow::MainWindow(QWidget *parent) :
     });
 
     ui->subjectSelectComboBox->setModel(m_subjectList);
-
     ui->scrollAreaLayout->addStretch();
-
- #if 0
-    // Arduino / Firmata I/O
-    auto allPorts = QSerialPortInfo::availablePorts();
-    foreach(auto port, allPorts) {
-        ui->portsComboBox->addItem(QString("%1 (%2)").arg(port.portName()).arg(port.description()), QVariant::fromValue(port.systemLocation()));
-    }
-    if (allPorts.count() <= 0)
-        m_statusWidget->setFirmataStatus(StatusWidget::Missing);
-
-    m_mscript = new MazeScript;
-    connect(m_mscript, &MazeScript::firmataError, this, &MainWindow::firmataError);
-    connect(m_mscript, &MazeScript::evalError, this, &MainWindow::scriptEvalError);
-    connect(m_mscript, &MazeScript::headersSet, this, &MainWindow::onEventHeadersSet);
-
-    m_mazeEventTable = new QTableWidget(this);
-    m_mazeEventTable->setWindowTitle("Maze Events");
-    m_mazeEventTable->setWindowFlags(m_mazeEventTable->windowFlags() & ~Qt::WindowCloseButtonHint);
-    m_mazeEventTable->horizontalHeader()->hide();
-    connect(m_mscript, &MazeScript::mazeEvent, this, &MainWindow::onMazeEvent);
-    m_mazeEventTableWin = ui->mdiArea->addSubWindow(m_mazeEventTable);
-    m_mazeEventTableWin->setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowMinMaxButtonsHint);
-
-#endif
-
-    // FIXME
-    // set up video and tracking
-#if 0
-    m_videoTracker = new MazeVideo;
-    connect(m_videoTracker, &MazeVideo::error, this, &MainWindow::videoError);
-    m_rawVideoWidget = new VideoViewWidget(this);
-    m_rawVideoWidgetWin = ui->mdiArea->addSubWindow(m_rawVideoWidget);
-    m_rawVideoWidgetWin->setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowMinMaxButtonsHint);
-    m_rawVideoWidget->setWindowTitle("Raw Video");
-    connect(m_videoTracker, &MazeVideo::newFrame, [&](time_t time, const cv::Mat& image) {
-        m_rawVideoWidget->setWindowTitle(QString("Raw Video (at %1sec)").arg(time / 1000));
-        m_rawVideoWidget->showImage(image);
-    });
-
-    m_trackVideoWidget = new VideoViewWidget(this);
-    m_trackVideoWidgetWin = ui->mdiArea->addSubWindow(m_trackVideoWidget);
-    m_trackVideoWidgetWin->setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowMinMaxButtonsHint);
-    m_trackVideoWidget->setWindowTitle("Tracking");
-    connect(m_videoTracker, &MazeVideo::newTrackingFrame, [&](time_t time, const cv::Mat& image) {
-        m_trackVideoWidget->setWindowTitle(QString("Tracking (at %1sec)").arg(time / 1000));
-        m_trackVideoWidget->showImage(image);
-    });
-
-    m_trackInfoWidget = new VideoViewWidget(this);
-    m_trackInfoWidgetWin = ui->mdiArea->addSubWindow(m_trackInfoWidget);
-    m_trackInfoWidgetWin->setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowMinMaxButtonsHint);
-    m_trackInfoWidget->setWindowTitle("Subject Tracking");
-    connect(m_videoTracker, &MazeVideo::newInfoGraphic, [&](const cv::Mat& image) {
-        m_trackInfoWidget->showImage(image);
-    });
-
-    // video settings panel
-    auto cameraBox = new QComboBox(this);
-    auto resolutionsBox = new QComboBox(this);
-    ui->cameraLayout->addRow(new QLabel("Camera", this), cameraBox);
-    ui->cameraLayout->addRow(new QLabel("Resolution", this), resolutionsBox);
-
-    connect(cameraBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), [=](int index) {
-        auto cameraId = cameraBox->itemData(index);
-        m_videoTracker->setCameraId(cameraId);
-
-        auto resList = m_videoTracker->resolutionList(cameraId);
-        foreach (auto size, resList)
-            resolutionsBox->addItem(QString("%1x%2").arg(size.width()).arg(size.height()), size);
-
-        // set the first element (usually the highest resolution) as our default resolution
-        m_videoTracker->setResolution(resList.front());
-
-        // FIXME: the camera can only work with its highest resolution at time, since binning does not work for some reason
-        resolutionsBox->setEnabled(false);
-    });
-
-    foreach (auto pair, m_videoTracker->getCameraList())
-        cameraBox->addItem(pair.first, pair.second);
-
-    m_fpsEdit = new QSpinBox(this);
-    m_fpsEdit->setMinimum(10);
-    m_fpsEdit->setMaximum(200);
-    m_fpsEdit->setValue(m_videoTracker->framerate());
-    connect(m_fpsEdit, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), [=](int value) {
-        m_videoTracker->setFramerate(value);
-    });
-    ui->cameraLayout->addRow(new QLabel("Framerate (FPS)", this), m_fpsEdit);
-
-    auto exportResWidget = new QWidget(this);
-    auto exportResLayout = new QHBoxLayout(this);
-    exportResWidget->setLayout(exportResLayout);
-    ui->cameraLayout->addRow(new QLabel("Resolution of exported images", this), exportResWidget);
-
-    m_eresWidthEdit = new QSpinBox(this);
-    m_eresHeightEdit = new QSpinBox(this);
-    m_eresWidthEdit->setMinimum(640);
-    m_eresHeightEdit->setMinimum(480);
-    m_eresWidthEdit->setMaximum(1920);
-    m_eresHeightEdit->setMaximum(1080);
-
-    auto imgExportSize = m_videoTracker->exportResolution();
-    m_eresWidthEdit->setValue(imgExportSize.width());
-    m_eresHeightEdit->setValue(imgExportSize.height());
-
-    exportResLayout->setMargin(0);
-    exportResLayout->addWidget(m_eresWidthEdit);
-    exportResLayout->addWidget(new QLabel("x", this));
-    exportResLayout->addWidget(m_eresHeightEdit);
-
-    connect(m_eresWidthEdit, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), [=](int value) {
-        m_videoTracker->setExportResolution(QSize(value, m_eresHeightEdit->value()));
-    });
-    connect(m_eresHeightEdit, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), [=](int value) {
-        m_videoTracker->setExportResolution(QSize(m_eresWidthEdit->value(), value));
-    });
-
-    m_gainCB = new QCheckBox(this);
-    m_gainCB->setChecked(false);
-    m_videoTracker->setAutoGain(false);
-    connect(m_gainCB, &QCheckBox::toggled, [=](bool value) {
-        m_videoTracker->setAutoGain(value);
-    });
-    ui->cameraLayout->addRow(new QLabel("Automatic gain", this), m_gainCB);
-
-    m_exposureEdit = new QDoubleSpinBox(this);
-    m_exposureEdit->setValue(6);
-    connect(m_exposureEdit, static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged), [=](double value) {
-        m_videoTracker->setExposureTime(value);
-    });
-    ui->cameraLayout->addRow(new QLabel("Exposure time (msec)", this), m_exposureEdit);
-
-    if (m_videoTracker->cameraId() < 0)
-        m_statusWidget->setVideoStatus(StatusWidget::Missing);
-    else
-        m_statusWidget->setVideoStatus(StatusWidget::Ready);
-
-    auto ueyeConfFileWidget = new QWidget(this);
-    auto ueyeConfFileLayout = new QHBoxLayout;
-    ueyeConfFileWidget->setLayout(ueyeConfFileLayout);
-    ueyeConfFileLayout->setMargin(0);
-    ui->cameraLayout->addRow(new QLabel("uEye Configuration File", this), ueyeConfFileWidget);
-
-    m_ueyeConfFileLbl = new QLabel(this);
-    ueyeConfFileLayout->addWidget(m_ueyeConfFileLbl);
-    auto ueyeConfFileBtn = new QToolButton(this);
-    ueyeConfFileLayout->addWidget(ueyeConfFileBtn);
-    ueyeConfFileBtn->setIcon(QIcon::fromTheme("folder-open"));
-    m_ueyeConfFileLbl->setText("No file selected.");
-
-    connect(ueyeConfFileBtn, &QToolButton::clicked, [=]() {
-        auto fileName = QFileDialog::getOpenFileName(this,
-                                                     tr("Select uEye Settings"), ".",
-                                                     tr("uEye Settings (*.ini)"));
-        if (fileName.isEmpty())
-            return;
-        m_ueyeConfFileLbl->setText(fileName);
-        m_videoTracker->setUEyeConfigFile(fileName);
-    });
-
-    m_camFlashMode = new QCheckBox(this);
-    m_camFlashMode->setChecked(true);
-    m_videoTracker->setGPIOFlash(true);
-    ui->cameraLayout->addRow(new QLabel("Enable GPIO flash", this), m_camFlashMode);
-    connect(m_camFlashMode, &QCheckBox::toggled, [=](bool value) {
-        m_videoTracker->setGPIOFlash(value);
-    });
-
-#ifndef USE_UEYE_CAMERA
-    // disable uEye specific stuff if we're building without it
-    ueyeConfFileWidget->setEnabled(false);
-    m_camFlashMode->setChecked(false);
-    m_camFlashMode->setEnabled(false);
-#endif
-
-#endif
 
     // configure actions
     ui->actionRun->setEnabled(false);
@@ -389,9 +207,6 @@ MainWindow::MainWindow(QWidget *parent) :
     // set date ID string
     auto time = QDateTime::currentDateTime();
     m_currentDate = time.date().toString("yyyy-MM-dd");
-
-    // assume intan is ready (with real or fake data)
-    m_statusWidget->setIntanStatus(StatusWidget::Ready);
 
     // configure about dialog
     m_aboutDialog = new QDialog(this);
@@ -435,76 +250,14 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-void MainWindow::onMazeEvent(const QStringList &data)
-{
-    auto columnCount = m_mazeEventTable->columnCount();
-    if (columnCount < data.count()) {
-        // create necessary amount of columns
-        if (columnCount == 0) {
-            m_mazeEventTable->setColumnCount(data.count());
-        } else {
-            for (auto i = columnCount; i < data.count(); i++)
-                m_mazeEventTable->insertColumn(i);
-        }
-    }
-
-    auto lastRowId = m_mazeEventTable->rowCount();
-    m_mazeEventTable->setRowCount(lastRowId + 1);
-
-    qDebug() << "Received event:" << data;
-    for (auto i = 0; i < data.count(); i++) {
-        auto item = new QTableWidgetItem(data.at(i));
-        item->setFlags(item->flags() ^ Qt::ItemIsEditable);
-        m_mazeEventTable->setItem(lastRowId, i, item);
-    }
-
-    // scroll to the last item
-    m_mazeEventTable->scrollToBottom();
-}
-
-void MainWindow::onEventHeadersSet(const QStringList &headers)
-{
-    m_mazeEventTable->horizontalHeader()->show();
-    m_mazeEventTable->setColumnCount(headers.count());
-    m_mazeEventTable->setHorizontalHeaderLabels(headers);
-}
-
 void MainWindow::setRunPossible(bool enabled)
 {
     ui->actionRun->setEnabled(enabled);
-    ui->actionIntanRun->setEnabled(enabled);
 }
 
 void MainWindow::setStopPossible(bool enabled)
 {
     ui->actionStop->setEnabled(enabled);
-}
-
-void MainWindow::firmataError(const QString &message)
-{
-    m_failed = true;
-    QMessageBox::critical(this, "Serial Interface Error", message);
-    stopActionTriggered();
-    //ui->portsComboBox->setEnabled(true);
-    m_statusWidget->setFirmataStatus(StatusWidget::Broken);
-    setStatusText("Firmata error.");
-}
-
-void MainWindow::videoError(const QString &message)
-{
-    m_failed = true;
-    QMessageBox::critical(this, "Video Error", message);
-    stopActionTriggered();
-    m_statusWidget->setVideoStatus(StatusWidget::Broken);
-    setStatusText("Video error.");
-}
-
-void MainWindow::scriptEvalError(const QString& message)
-{
-    m_failed = true;
-    QMessageBox::critical(this, "Maze Script Error", QString::fromUtf8("<html><b>The script failed with the following output:</b><br/>\n%1</html>").arg(message.toHtmlEscaped()));
-    stopActionTriggered();
-    setStatusText("Script error.");
 }
 
 bool MainWindow::makeDirectory(const QString &dir)
@@ -531,6 +284,9 @@ void MainWindow::runActionTriggered()
         setStopPossible(false);
         return;
     }
+
+    // determine and create the directory for ephys data
+    qDebug() << "Initializing new recording run";
 
     // safeguard against accidental data removals
     QDir deDir(m_dataExportDir);
@@ -590,6 +346,7 @@ void MainWindow::runActionTriggered()
             break;
     }
 
+    auto finishTimestamp = static_cast<long long>(timer->timeSinceStartMsec().count());
 
     Q_FOREACH(auto mod, m_modManager->activeModules()) {
         setStatusText(QStringLiteral("Stopping %1...").arg(mod->name()));
@@ -598,65 +355,31 @@ void MainWindow::runActionTriggered()
 
     delete timer;
 
-    setStatusText(QStringLiteral("Ready."));
-
- #if 0
-
-    // determine and create the directory for ephys data
-    qDebug() << "Initializing new recording run";
-
-    // make the experiment type known to the tracker
-    m_videoTracker->setTrackingEnabled(m_features.trackingEnabled);
-
-    auto intanDataDir = QString::fromUtf8("%1/intan").arg(m_dataExportDir);
-    if (m_features.ephysEnabled) {
-        if (!makeDirectory(intanDataDir)) {
-            setRunPossible(true);
-            setStopPossible(false);
-            return;
-        }
-    }
-
-    auto mazeEventDataDir = QString::fromUtf8("%1/maze").arg(m_dataExportDir);
-    if (m_features.ioEnabled) {
-        if (m_features.ioEnabled) {
-            if (!makeDirectory(mazeEventDataDir)) {
-                setRunPossible(true);
-                setStopPossible(false);
-                return;
-            }
-        }
-    }
-
-    auto videoDataDir = QString::fromUtf8("%1/video").arg(m_dataExportDir);
-    if (m_features.videoEnabled || m_features.trackingEnabled) {
-        if (!makeDirectory(videoDataDir)) {
-            setRunPossible(true);
-            setStopPossible(false);
-            return;
-        }
-    }
+    setStatusText(QStringLiteral("Writing manifest..."));
 
     // write manifest with misc information
     QDateTime curDateTime(QDateTime::currentDateTime());
 
     QJsonObject manifest;
-    manifest.insert("maVersion", QApplication::applicationVersion());
+    manifest.insert("appVersion", QApplication::applicationVersion());
     manifest.insert("subjectId", m_currentSubject.id);
     manifest.insert("subjectGroup", m_currentSubject.group);
     manifest.insert("subjectComment", m_currentSubject.comment);
-    manifest.insert("timestamp", curDateTime.toString(Qt::ISODate));
-    manifest.insert("features", m_features.toJson());
-    if (m_features.videoEnabled) {
-        manifest.insert("frameTarball", m_saveTarCB->isChecked());
+    manifest.insert("recordingLengthMsec", finishTimestamp);
+    manifest.insert("date", curDateTime.toString(Qt::ISODate));
+    manifest.insert("success", !m_failed);
 
-        if (m_camFlashMode->isChecked())
-            manifest.insert("cameraGPIOFlash", true);
+    QJsonArray jActiveModules;
+    Q_FOREACH(auto mod, m_modManager->activeModules()) {
+        QJsonObject info;
+        info.insert(mod->id(), mod->name());
+        jActiveModules.append(info);
     }
+    manifest.insert("activeModules", jActiveModules);
 
     QFile manifestFile(QStringLiteral("%1/manifest.json").arg(m_dataExportDir));
     if (!manifestFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        QMessageBox::critical(this, "Unable to start recording", "Unable to open manifest file for writing.");
+        QMessageBox::critical(this, "Unable to finish recording", "Unable to open manifest file for writing.");
         setRunPossible(true);
         setStopPossible(false);
         return;
@@ -665,106 +388,13 @@ void MainWindow::runActionTriggered()
     QTextStream manifestFileOut(&manifestFile);
     manifestFileOut << QJsonDocument(manifest).toJson();
 
-    // set base locations
-    QString intanBaseName;
-    if (m_currentSubject.id.isEmpty()) {
-        intanBaseName = QString::fromUtf8("%1/ephys").arg(intanDataDir);
-        m_mscript->setEventFile(QString("%1/events.csv").arg(mazeEventDataDir));
-        m_videoTracker->setSubjectId("frame");
-    } else {
-        intanBaseName = QString::fromUtf8("%1/%2_ephys").arg(intanDataDir).arg(m_currentSubject.id);
-        m_mscript->setEventFile(QString("%1/%2_events.csv").arg(mazeEventDataDir).arg(m_currentSubject.id));
-        m_videoTracker->setSubjectId(m_currentSubject.id);
-    }
-    m_videoTracker->setDataLocation(videoDataDir);
-    //! FIXME m_intanUI->setBaseFileName(intanBaseName);
-
-    // open camera (might take a while, so we do this early)
-    if (m_features.videoEnabled) {
-        setStatusText("Opening connection to camera...");
-        if (!m_videoTracker->openCamera())
-            return;
-    }
-
-    int barrierWaitCount = 0;
-    if (m_features.videoEnabled)
-        barrierWaitCount++;
-    if (m_features.ephysEnabled)
-        barrierWaitCount++;
-
-    // barrier to synchronize all concurrent actions and thereby align timestamps as good as possible
-    Barrier barrier(barrierWaitCount); // usually 2 threads: ephys and video
-
-    // open Firmata connection via the selected serial interface.
-    // after we opened the device, we can't change it anymore (or rather, were too lazy to implement this...)
-    // so we disable the selection box.
-    if (m_features.ioEnabled) {
-        setStatusText("Connecting serial I/O...");
-        auto serialDevice = ui->portsComboBox->currentData().toString();
-
-        if (serialDevice.isEmpty()) {
-            auto reply = QMessageBox::question(this,
-                                               "Really continue?",
-                                               "No Firmata device was found for programmable data I/O. Do you really want to continue without this functionality?",
-                                               QMessageBox::Yes | QMessageBox::No);
-            if (reply == QMessageBox::No) {
-                setRunPossible(true);
-                setStopPossible(false);
-                return;
-            }
-            m_statusWidget->setFirmataStatus(StatusWidget::Broken);
-        } else {
-            m_mscript->initFirmata(serialDevice);
-            ui->portsComboBox->setEnabled(false);
-            if (m_failed)
-                return;
-
-            // clear previous events
-            m_mazeEventTable->clear();
-            m_mazeEventTable->setRowCount(0);
-
-            // configure & launch maze script
-            setStatusText("Evaluating maze script...");
-            m_mscript->setScript(m_mscriptView->document()->text());
-            m_mscript->run();
-            if (m_failed)
-                return;
-
-            m_statusWidget->setFirmataStatus(StatusWidget::Active);
-        }
-    } else {
-        m_statusWidget->setFirmataStatus(StatusWidget::Disabled);
-    }
-
-    // launch video
-    if (m_features.videoEnabled) {
-        m_videoTracker->run(barrier);
-        if (m_failed)
-            return;
-        m_statusWidget->setVideoStatus(StatusWidget::Active);
-    }
-
-    // disable UI elements
-    m_mscriptView->setEnabled(false);
-    ui->cameraGroupBox->setEnabled(false);
-
-    // launch intan recordings
-    setStatusText("Running.");
-    m_running = true;
-    m_statusWidget->setIntanStatus(StatusWidget::Active);
-
-    if (m_features.ephysEnabled) {
-        qDebug() << "Starting Intan recording";
-        //! FIXME m_intanUI->recordInterfaceBoard(barrier);
-    }
-#endif
+    setStatusText(QStringLiteral("Ready."));
 }
 
 void MainWindow::stopActionTriggered()
 {
     setRunPossible(m_exportDirValid);
     setStopPossible(false);
-    ui->actionIntanRun->setEnabled(true);
 
     m_running = false;
 }
@@ -795,8 +425,6 @@ void MainWindow::setDataExportBaseDir(const QString& dir)
 
     // we can run as soon as we have a valid base directory
     setRunPossible(m_exportDirValid);
-    if (m_exportDirValid)
-        m_statusWidget->setSystemStatus(StatusWidget::Configured);
 }
 
 void MainWindow::updateDataExportDir()
@@ -882,16 +510,18 @@ void MainWindow::saveSettingsActionTriggered()
     settings.insert("exportDir", m_dataExportBaseDir);
     settings.insert("experimentId", m_experimentId);
 
+#if 0
     QJsonObject videoSettings;
     videoSettings.insert("exportWidth", m_eresWidthEdit->value());
     videoSettings.insert("exportHeight", m_eresHeightEdit->value());
     videoSettings.insert("fps", m_fpsEdit->value());
     videoSettings.insert("gainEnabled", m_gainCB->isChecked());
     videoSettings.insert("exposureTime", m_exposureEdit->value());
-    //! videoSettings.insert("uEyeConfig", confBaseDir.relativeFilePath(m_videoTracker->uEyeConfigFile()));
-    //videoSettings.insert("makeFrameTarball", m_saveTarCB->isChecked());
+    videoSettings.insert("uEyeConfig", confBaseDir.relativeFilePath(m_videoTracker->uEyeConfigFile()));
+    videoSettings.insert("makeFrameTarball", m_saveTarCB->isChecked());
     videoSettings.insert("gpioFlash", m_camFlashMode->isChecked());
     settings.insert("video", videoSettings);
+#endif
 
     tar.writeFile ("main.json", QJsonDocument(settings).toJson());
 
@@ -977,6 +607,7 @@ void MainWindow::loadSettingsActionTriggered()
     setDataExportBaseDir(rootObj.value("exportDir").toString());
     ui->expIdEdit->setText(rootObj.value("experimentId").toString());
 
+#if 0
     auto videoSettings = rootObj.value("video").toObject();
     m_eresWidthEdit->setValue(videoSettings.value("exportWidth").toInt(800));
     m_eresHeightEdit->setValue(videoSettings.value("exportHeight").toInt(600));
@@ -992,6 +623,7 @@ void MainWindow::loadSettingsActionTriggered()
         //! m_videoTracker->setUEyeConfigFile(uEyeConfFile);
         m_ueyeConfFileLbl->setText(uEyeConfFile);
     }
+#endif
 
     // load list of subjects
     auto subjectsFile = rootDir->file("subjects.json");
@@ -1002,12 +634,12 @@ void MainWindow::loadSettingsActionTriggered()
         m_subjectList->fromJson(subjDoc.array());
     }
 
+#if 0
     // load Intan settings
     auto intanSettingsFile = rootDir->file("intan.isf");
-    //! FIXME if (intanSettingsFile != nullptr)
-    //! FIXME    m_intanUI->loadSettings(intanSettingsFile->data());
+    if (intanSettingsFile != nullptr)
+        m_intanUI->loadSettings(intanSettingsFile->data());
 
-#if 0
     // load Maze IO Python script
     auto mazeScriptFile = rootDir->file("mscript.py");
     if (mazeScriptFile == nullptr)

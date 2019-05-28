@@ -39,6 +39,9 @@ public:
     ModuleManager *manager;
     QMenu *menu;
     QAction *editNameAction;
+
+    bool settingsVisible;
+    bool viewsVisible;
 };
 #pragma GCC diagnostic pop
 
@@ -48,6 +51,9 @@ ModuleIndicator::ModuleIndicator(AbstractModule *module, ModuleManager *manager,
     d(new MIData)
 {
     ui->setupUi(this);
+
+    d->settingsVisible = false;
+    d->viewsVisible = false;
 
     d->menu = new QMenu(this);
     d->editNameAction = new QAction(this);
@@ -103,7 +109,7 @@ void ModuleIndicator::receiveActionsUpdated()
     d->menu->addAction(d->editNameAction);
     d->menu->addSeparator();
     ui->menuButton->setVisible(true);
-    foreach(auto action, d->module->actions())
+    Q_FOREACH(auto action, d->module->actions())
         d->menu->addAction(action);
 }
 
@@ -176,7 +182,11 @@ void ModuleIndicator::receiveMessage(const QString &message)
 void ModuleIndicator::on_configButton_clicked()
 {
     if (d->module == nullptr) return;
-    d->module->showSettingsUi();
+    if (d->settingsVisible)
+        d->module->hideSettingsUi();
+    else
+        d->module->showSettingsUi();
+    d->settingsVisible = !d->settingsVisible;
 }
 
 void ModuleIndicator::on_modulePreRemove(AbstractModule *mod)
@@ -201,7 +211,11 @@ void ModuleIndicator::on_editNameActionTriggered()
 void ModuleIndicator::on_showButton_clicked()
 {
     if (d->module == nullptr) return;
-    d->module->showDisplayUi();
+    if (d->viewsVisible)
+        d->module->hideDisplayUi();
+    else
+        d->module->showDisplayUi();
+    d->viewsVisible = !d->viewsVisible;
 }
 
 void ModuleIndicator::on_removeButton_clicked()

@@ -93,7 +93,7 @@ bool FirmataIOModule::prepare(const QString &storageRootDir, const TestSubject &
 
     auto serialDevice = m_settingsDialog->serialPort();
     if (serialDevice.isEmpty()) {
-        raiseError("Unable to find a Firmata serial device to connect to. Can not continue.");
+        raiseError("Unable to find a Firmata serial device for programmable I/O to connect to. Can not continue.");
         return false;
     }
 

@@ -72,7 +72,7 @@ int main(int argc, char *argv[])
     QApplication app(argc, argv);
     app.setApplicationName("MazeAmaze");
     app.setOrganizationDomain("uni-heidelberg.de");
-    app.setApplicationVersion("0.8");
+    app.setApplicationVersion("1.0");
 
     // ensure we only ever run one instance of the application
     KDBusService service(KDBusService::Unique);

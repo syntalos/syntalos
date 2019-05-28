@@ -23,6 +23,9 @@
 #include <QDialog>
 #include "ueyecamera.h"
 
+class QCheckBox;
+class QLabel;
+
 namespace Ui {
 class UEyeCameraSettingsDialog;
 }
@@ -47,6 +50,9 @@ private slots:
 
 private:
     Ui::UEyeCameraSettingsDialog *ui;
+    QCheckBox *m_gainCB;
+    QLabel *m_ueyeConfFileLbl;
+    QCheckBox *m_camFlashMode;
 
     UEyeCamera *m_camera;
 };

@@ -87,14 +87,18 @@ void AbstractModule::finalize()
 
 void AbstractModule::showDisplayUi()
 {
-    Q_FOREACH(auto w, m_displayWindows)
+    Q_FOREACH(auto w, m_displayWindows) {
         w->show();
+        w->raise();
+    }
 }
 
 void AbstractModule::showSettingsUi()
 {
-    Q_FOREACH(auto w, m_settingsWindows)
+    Q_FOREACH(auto w, m_settingsWindows) {
         w->show();
+        w->raise();
+    }
 }
 
 void AbstractModule::hideDisplayUi()

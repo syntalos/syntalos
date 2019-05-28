@@ -24,27 +24,15 @@
 
 #include "utils.h"
 #include "testsubjectlistmodel.h"
-#include "barrier.h"
 
-namespace Ui {
-class MainWindow;
-}
-
-class QVBoxLayout;
 class QLabel;
-class QTableWidget;
-class StatusWidget;
-class MazeVideo;
-class QSpinBox;
-class QCheckBox;
-class QDoubleSpinBox;
-class QMdiSubWindow;
-class QListWidgetItem;
-class TracePlotProxy;
 class ModuleManager;
 class AbstractModule;
 class ModuleIndicator;
 
+namespace Ui {
+class MainWindow;
+}
 
 class MainWindow : public QMainWindow
 {
@@ -64,14 +52,6 @@ private slots:
     void stopActionTriggered();
 
     void openDataExportDirectory();
-
-    void firmataError(const QString& message);
-    void scriptEvalError(const QString& message);
-
-    void onMazeEvent(const QStringList& data);
-    void onEventHeadersSet(const QStringList& headers);
-
-    void videoError(const QString &message);
 
     void saveSettingsActionTriggered();
     void loadSettingsActionTriggered();
@@ -115,19 +95,6 @@ private:
 
     bool m_failed;
     bool m_running;
-
-    QTableWidget *m_mazeEventTable;
-    QMdiSubWindow *m_mazeEventTableWin;
-
-    StatusWidget *m_statusWidget;
-
-    QSpinBox *m_fpsEdit;
-    QDoubleSpinBox *m_exposureEdit;
-    QSpinBox *m_eresWidthEdit;
-    QSpinBox *m_eresHeightEdit;
-    QCheckBox *m_gainCB;
-    QLabel *m_ueyeConfFileLbl;
-    QCheckBox *m_camFlashMode;
 
     QDialog *m_aboutDialog;
 };

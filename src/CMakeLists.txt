@@ -11,8 +11,6 @@ set(MAZEAMAZE_SRC
     hrclock.cpp
     mainwindow.h
     mainwindow.cpp
-    statuswidget.h
-    statuswidget.cpp
     testsubjectlistmodel.h
     testsubjectlistmodel.cpp
     moduleindicator.h
