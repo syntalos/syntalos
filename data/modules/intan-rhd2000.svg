@@ -29,13 +29,13 @@
      inkscape:window-height="1021"
      id="namedview40"
      showgrid="false"
-     inkscape:zoom="10.429825"
-     inkscape:cx="11.240969"
-     inkscape:cy="30.93259"
+     inkscape:zoom="7.375"
+     inkscape:cx="36.997978"
+     inkscape:cy="15.875808"
      inkscape:window-x="0"
      inkscape:window-y="0"
      inkscape:window-maximized="1"
-     inkscape:current-layer="layer1" />
+     inkscape:current-layer="g854" />
   <defs
      id="defs5455">
     <linearGradient
@@ -207,8 +207,8 @@
       <path
          sodipodi:nodetypes="ccccccccccccc"
          id="path4"
-         d="m 392.9356,527.69709 3.93304,-17.22445 1.87029,23.82259 1.87064,-22.23444 1.87028,20.64629 1.87027,-17.46998 2.54142,11.50121 3.06978,-14.67752 1.05467,19.25053 2.68588,-20.83868 3.74054,23.82323 1.87034,-17.4703 5.08244,8.80398"
-         style="fill:none;fill-opacity:1;stroke:#56a2ff;stroke-width:1.72344911;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1"
+         d="m 392.16196,527.09537 3.93304,-17.22445 1.87029,23.82259 1.87064,-22.23444 2.64392,21.24801 1.87027,-17.46998 2.54142,11.50121 3.06978,-14.67752 1.05467,19.25053 2.68588,-20.83868 3.74054,23.82323 1.87034,-17.4703 5.53831,8.77359"
+         style="fill:none;fill-opacity:1;stroke:#4d4d4d;stroke-width:1.43448281;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
          inkscape:connector-curvature="0" />
     </g>
   </g>
