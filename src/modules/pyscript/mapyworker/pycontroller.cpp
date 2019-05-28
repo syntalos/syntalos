@@ -62,6 +62,7 @@ void PyController::exitError(const QString& msg)
     QCoreApplication::exit(6);
 }
 
+#pragma GCC diagnostic ignored "-Wold-style-cast"
 void PyController::runScript(const QString &scriptContent)
 {
     //! Py_SetProgramName("mazeamaze-script");
@@ -128,3 +129,4 @@ void PyController::runScript(const QString &scriptContent)
 
     Py_Finalize();
 }
+#pragma GCC diagnostic pop

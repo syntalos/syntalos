@@ -23,6 +23,7 @@
 #include <QObject>
 #include <chrono>
 #include <QQueue>
+#include <QMutex>
 #include "abstractmodule.h"
 
 class SerialFirmata;
@@ -61,7 +62,10 @@ public:
     void showSettingsUi() override;
     void hideSettingsUi() override;
 
+    bool fetchDigitalInput(QPair<QString, bool> *result);
     void newDigitalPin(int pinID, const QString& pinName, bool output, bool pullUp);
+    void pinSetValue(const QString& pinName, bool value);
+    void pinSignalPulse(const QString& pinName);
 
 private slots:
     void recvDigitalRead(uint8_t port, uint8_t value);
@@ -71,6 +75,7 @@ private:
     FirmataSettingsDialog *m_settingsDialog;
     SerialFirmata *m_firmata;
 
+    QMutex m_mutex;
     QQueue<QPair<QString, bool>> m_changedValuesQueue;
     QHash<QString, FmPin> m_namePinMap;
     QHash<int, QString> m_pinNameMap;

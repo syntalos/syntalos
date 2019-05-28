@@ -20,6 +20,7 @@
 #include "firmataiomodule.h"
 
 #include <QDebug>
+#include <QThread>
 #include <QMessageBox>
 #include "firmatasettingsdialog.h"
 #include "firmata/serialport.h"
@@ -114,7 +115,7 @@ bool FirmataIOModule::prepare(const QString &storageRootDir, const TestSubject &
 
 void FirmataIOModule::stop()
 {
-
+    setState(ModuleState::READY);
 }
 
 void FirmataIOModule::showSettingsUi()
@@ -127,6 +128,21 @@ void FirmataIOModule::hideSettingsUi()
 {
     assert(initialized());
     m_settingsDialog->hide();
+}
+
+bool FirmataIOModule::fetchDigitalInput(QPair<QString, bool> *result)
+{
+    if (result == nullptr)
+        return false;
+
+    if (m_changedValuesQueue.empty())
+        return false;
+
+    m_mutex.lock();
+    *result = m_changedValuesQueue.dequeue();
+    m_mutex.unlock();
+
+    return true;
 }
 
 void FirmataIOModule::newDigitalPin(int pinID, const QString &pinName, bool output, bool pullUp)
@@ -158,6 +174,23 @@ void FirmataIOModule::newDigitalPin(int pinID, const QString &pinName, bool outp
     m_pinNameMap.insert(pin.id, pinName);
 }
 
+void FirmataIOModule::pinSetValue(const QString &pinName, bool value)
+{
+    auto pin = m_namePinMap.value(pinName);
+    if (pin.kind == PinKind::Unknown) {
+        qCritical() << QStringLiteral("Unable to deliver message to pin '%1' (pin does not exist, it needs to be registered first)").arg(pinName);
+        return;
+    }
+    m_firmata->writeDigitalPin(pin.id, value);
+}
+
+void FirmataIOModule::pinSignalPulse(const QString &pinName)
+{
+    pinSetValue(pinName, true);
+    QThread::usleep(50 * 1000); // sleep 50msec
+    pinSetValue(pinName, false);
+}
+
 void FirmataIOModule::recvDigitalRead(uint8_t port, uint8_t value)
 {
     qDebug() << "Firmata digital port read:" << int(value);
@@ -173,7 +206,9 @@ void FirmataIOModule::recvDigitalRead(uint8_t port, uint8_t value)
                 pair.first = m_pinNameMap.value(p.id);
                 pair.second = value & (1 << (p.id - first));
 
+                m_mutex.lock();
                 m_changedValuesQueue.append(pair);
+                m_mutex.unlock();
             }
         }
     }
@@ -189,5 +224,7 @@ void FirmataIOModule::recvDigitalPinRead(uint8_t pin, bool value)
         return;
     }
 
+    m_mutex.lock();
     m_changedValuesQueue.append(qMakePair(pinName, value));
+    m_mutex.unlock();
 }

@@ -19,12 +19,13 @@
 
 #include "mafuncrelay.h"
 
-MaFuncRelay::MaFuncRelay(ModuleManager *modManager, HRTimer *timer, const QString &eventTablesDir, QObject *parent)
+#include <QDebug>
+
+MaFuncRelay::MaFuncRelay(ModuleManager *modManager, const QString &eventTablesDir, QObject *parent)
     : QObject(parent)
 {
     m_canStartScript = false;
     m_modManager = modManager;
-    m_timer = timer;
     m_eventTablesDir = eventTablesDir;
 }
 
@@ -97,14 +98,14 @@ bool MaFuncRelay::eventTableSetHeader(int tableId, const QStringList &headers)
     return true;
 }
 
-bool MaFuncRelay::eventTableAddEvent(int tableId, const QStringList &event)
+bool MaFuncRelay::eventTableAddEvent(long long timestamp, int tableId, const QStringList &event)
 {
     if (tableId > m_eventTables.size() - 1)
         return false;
 
     auto tab = m_eventTables[tableId];
     auto data = QStringList(event);
-    data.prepend(QString::number(m_timer->timeSinceStartMsec().count()));
+    data.prepend(QString::number(timestamp));
 
     tab->addEvent(data);
     return true;

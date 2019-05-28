@@ -31,8 +31,7 @@ class MaFuncRelay : public QObject
 {
     Q_OBJECT
 public:
-    explicit MaFuncRelay(ModuleManager *modManager, HRTimer *timer,
-                         const QString& eventTablesDir, QObject *parent = nullptr);
+    explicit MaFuncRelay(ModuleManager *modManager, const QString& eventTablesDir, QObject *parent = nullptr);
     ~MaFuncRelay();
 
     void setPyScript(const QString& script);
@@ -46,12 +45,11 @@ public:
 
     int newEventTable(const QString& name);
     bool eventTableSetHeader(int tableId, const QStringList& headers);
-    bool eventTableAddEvent(int tableId, const QStringList& event);
+    bool eventTableAddEvent(long long timestamp, int tableId, const QStringList& event);
 
 private:
     QString m_pyScript;
     bool m_canStartScript;
-    HRTimer *m_timer;
     QString m_eventTablesDir;
 
     ModuleManager *m_modManager;

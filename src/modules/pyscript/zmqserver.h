@@ -24,6 +24,7 @@
 #include <QObject>
 #include <QJsonValue>
 #include <QJsonArray>
+#include <QQueue>
 
 #include "hrclock.h"
 #include "rpc-shared-info.h"
@@ -38,6 +39,8 @@ public:
 
     bool start(HRTimer *timer = nullptr);
     void stop();
+
+    void processMainThreadRpc();
 
     QString socketName() const;
 

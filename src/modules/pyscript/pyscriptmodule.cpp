@@ -140,13 +140,13 @@ bool PyScriptModule::prepare(const QString &storageRootDir, const TestSubject &t
     if (!makeDirectory(eventTablesDir))
         return false;
 
-
     if (m_funcRelay != nullptr)
         delete m_funcRelay;
-    m_funcRelay = new MaFuncRelay(m_modManager, timer, eventTablesDir, this);
+    m_funcRelay = new MaFuncRelay(m_modManager, eventTablesDir, this);
     m_funcRelay->setPyScript(m_scriptView->document()->text());
 
-    delete m_zserver;
+    if (m_zserver != nullptr)
+        delete m_zserver;
     m_zserver = new ZmqServer(m_funcRelay);
     m_zserver->start(timer);
 
@@ -185,6 +185,8 @@ bool PyScriptModule::runCycle()
     if (!m_running)
         return true;
 
+    m_zserver->processMainThreadRpc();
+
     if (m_process->waitForFinished(0)) {
         if (m_process->exitCode() != 0) {
             raiseError(QStringLiteral("Python code terminated with an error (%1) - Please check the console output for details.").arg(m_process->exitCode()));
@@ -204,14 +206,19 @@ bool PyScriptModule::runCycle()
 
 void PyScriptModule::stop()
 {
-    if (m_zserver == nullptr) {
-        delete m_zserver;
-        m_zserver = nullptr;
-    }
     m_process->terminate();
     if (!m_process->waitForFinished(4000))
         m_process->kill();
     const auto data = m_process->readAllStandardOutput();
     if (!data.isEmpty())
         m_pyoutWindow->append(data);
+
+    if (m_zserver != nullptr) {
+        m_zserver->processMainThreadRpc();
+        m_zserver->stop();
+        delete m_zserver;
+        m_zserver = nullptr;
+    }
+
+    setState(ModuleState::READY);
 }

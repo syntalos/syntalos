@@ -20,163 +20,20 @@
 #include <Python.h>
 #include "maio.h"
 
+#include <QDebug>
 #include <QJsonArray>
 #include <QStringList>
 #include <boost/python.hpp>
 #include <boost/python/list.hpp>
 #include <boost/python/extract.hpp>
 #include <stdexcept>
+#include <iostream>
 
 #include "zmqclient.h"
 
 using namespace boost::python;
 
-// error variable for Python interface
-static PyObject *MaIOError;
-
-#if 0
-static PyObject *maio_new_digital_pin(PyObject* self, PyObject* args)
-{
-    const char *pinName;
-    const char *kindStr;
-    int pinId;
-
-    Q_UNUSED(self);
-    if (!PyArg_ParseTuple(args, "iss", &pinId, &pinName, &kindStr))
-        return NULL;
-
-    auto maio = MaIO::instance();
-    maio->newDigitalPin(pinId, QString::fromUtf8(pinName), QString::fromUtf8(kindStr));
-
-    Py_INCREF(Py_None);
-    return Py_None;
-}
-
-static PyObject *maio_set_events_header(PyObject* self, PyObject* args)
-{
-    Q_UNUSED(self);
-    PyObject *obj;
-
-    if (!PyArg_ParseTuple(args, "O", &obj))
-        return NULL;
-
-    PyObject *iter = PyObject_GetIter(obj);
-    if (!iter) {
-        PyErr_SetString(MaIOError, "Expected an interable type (e.g. a list) as parameter.");
-        return NULL;
-    }
-
-    QStringList header;
-    while (true) {
-        PyObject *next = PyIter_Next(iter);
-        if (!next)
-            break;
-
-        if (!PyUnicode_Check(next)) {
-            PyErr_SetString(MaIOError, "Expected a list of strings as parameter.");
-            return NULL;
-        }
-
-        header << QString::fromUtf8(PyUnicode_AsUTF8(next));
-    }
-
-    auto maio = MaIO::instance();
-    maio->setEventsHeader(header);
-
-    Py_INCREF(Py_None);
-    return Py_None;
-}
-
-static PyObject *maio_fetch_digital_input(PyObject* self, PyObject* args)
-{
-    Q_UNUSED(self);
-    Q_UNUSED(args);
-    PyObject *res;
-
-    QPair<QString, bool> pair;
-    if (MaIO::instance()->fetchDigitalInput(&pair)) {
-        res = Py_BuildValue("OsO", Py_True, qPrintable(pair.first), pair.second? Py_True : Py_False);
-    } else {
-        res = Py_BuildValue("OOO", Py_False, Py_None, Py_False);
-    }
-
-    return res;
-}
-
-static PyObject *maio_save_event(PyObject* self, PyObject* args)
-{
-    Q_UNUSED(self);
-    PyObject *obj;
-
-    if (!PyArg_ParseTuple(args, "O", &obj))
-        return NULL;
-
-    // if we got passed a string, take it directly
-    if (PyUnicode_Check(obj)) {
-        const char *bytes = PyUnicode_AsUTF8(obj);
-        MaIO::instance()->saveEvent(QString::fromUtf8(bytes));
-
-        Py_INCREF(Py_None);
-        return Py_None;
-    }
-
-    PyObject *iter = PyObject_GetIter(obj);
-    if (!iter) {
-        PyErr_SetString(MaIOError, "Expected an interable type (e.g. a list) as parameter.");
-        return NULL;
-    }
-
-    QStringList values;
-    while (true) {
-        PyObject *next = PyIter_Next(iter);
-        if (!next)
-            break;
-
-        if (!PyUnicode_Check(next)) {
-            PyErr_SetString(MaIOError, "Expected a list of strings as parameter.");
-            return NULL;
-        }
-
-        values << QString::fromUtf8(PyUnicode_AsUTF8(next));
-    }
-
-    MaIO::instance()->saveEvent(values);
-
-    Py_INCREF(Py_None);
-    return Py_None;
-}
-
-static PyObject *maio_pin_set_value(PyObject* self, PyObject* args)
-{
-    const char *pinName;
-    PyObject *state;
-
-    Q_UNUSED(self);
-    if (!PyArg_ParseTuple(args, "sO", &pinName, &state))
-        return NULL;
-
-    MaIO::instance()->pinSetValue(QString::fromUtf8(pinName), state == Py_True);
-
-    Py_INCREF(Py_None);
-    return Py_None;
-}
-
-static PyObject *maio_pin_signal_pulse(PyObject* self, PyObject* args)
-{
-    const char *pinName;
-
-    Q_UNUSED(self);
-    if (!PyArg_ParseTuple(args, "s", &pinName))
-        return NULL;
-
-    MaIO::instance()->pinSignalPulse(QString::fromUtf8(pinName));
-
-    Py_INCREF(Py_None);
-    return Py_None;
-}
-
-#endif
-
+#pragma GCC diagnostic ignored "-Wweak-vtables"
 struct MazeAmazePyError : std::runtime_error {
     explicit MazeAmazePyError(const char* what_arg);
     explicit MazeAmazePyError(const std::string& what_arg);
@@ -185,6 +42,7 @@ MazeAmazePyError::MazeAmazePyError(const char* what_arg)
     : std::runtime_error(what_arg) {};
 MazeAmazePyError::MazeAmazePyError(const std::string& what_arg)
     : std::runtime_error(what_arg) {};
+#pragma GCC diagnostic pop
 
 void translateException(const MazeAmazePyError& e) {
     PyErr_SetString(PyExc_RuntimeError, e.what());
@@ -264,11 +122,32 @@ struct FirmataInterface
     boost::python::tuple fetch_digital_input()
     {
         auto zc = ZmqClient::instance();
-        auto res = zc->runRpc(MaPyFunction::F_fetchDigitalInput).toJsonArray();
+        QJsonArray params;
+        params.append(_mod_id);
+        auto res = zc->runRpc(MaPyFunction::F_fetchDigitalInput, params).toJsonArray();
         if (res[0].toBool())
-            return boost::python::make_tuple(true, res[1].toString(), res[2].toInt());
+            return boost::python::make_tuple(true, res[1].toString().toStdString(), res[2].toBool());
         else
             return boost::python::make_tuple(false, "", 0);
+    }
+
+    void pin_set_value(const std::string& name, bool value)
+    {
+        auto zc = ZmqClient::instance();
+        QJsonArray params;
+        params.append(_mod_id);
+        params.append(QString::fromStdString(name));
+        params.append(value);
+        zc->runRpc(MaPyFunction::F_pinSetValue, params);
+    }
+
+    void pin_signal_pulse(const std::string& name)
+    {
+        auto zc = ZmqClient::instance();
+        QJsonArray params;
+        params.append(_mod_id);
+        params.append(QString::fromStdString(name));
+        zc->runRpc(MaPyFunction::F_pinSignalPulse, params);
     }
 
     int _mod_id;
@@ -311,44 +190,10 @@ BOOST_PYTHON_MODULE(maio)
     class_<FirmataInterface>("FirmataInterface")
         .def("new_digital_pin", &FirmataInterface::new_digital_pin, "Register a new digital pin.")
         .def("fetch_digital_input", &FirmataInterface::fetch_digital_input, "Retreive digital input from the queue.")
+        .def("pin_set_value", &FirmataInterface::pin_set_value, "Set a digital output pin to a boolean value.")
+        .def("pin_signal_pulse", &FirmataInterface::pin_set_value, "Emit a digital siganl on the specific pin.")
     ;
 };
-
-
-#if 0
-static struct PyMethodDef methods[] = {
-    { "time_since_start_msec", maio_time_since_start_msec,     METH_VARARGS, "Get time since experiment started in milliseconds." },
-
-    { "new_digital_pin",           maio_new_digital_pin,     METH_VARARGS, ""},
-    { "maio_new_analog_pin",       maio_new_analog_pin,     METH_VARARGS, "Register a new analog pin."},
-    { "set_events_header",         maio_set_events_header,   METH_VARARGS, "Set header of the recorded events table."},
-    { "fetch_digital_input",       maio_fetch_digital_input, METH_VARARGS, "Retreive digital input from the queue."},
-    { "save_event",                maio_save_event,          METH_VARARGS, "Save an event to the log."},
-    { "pin_set_value",             maio_pin_set_value,       METH_VARARGS, "Set a digital output pin to a boolean value."},
-    { "pin_signal_pulse",          maio_pin_signal_pulse,    METH_VARARGS, "Emit a digital siganl on the specific pin."},
-
-    { NULL, NULL, 0, NULL }
-};
-
-static struct PyModuleDef modDef = {
-    PyModuleDef_HEAD_INIT, "maio", NULL, -1, methods,
-    NULL, NULL, NULL, NULL
-};
-
-PyMODINIT_FUNC
-PyInit_maio(void)
-{
-    PyObject *m = PyModule_Create(&modDef);
-    if (m == NULL)
-        return NULL;
-
-    MaIOError = PyErr_NewException("maio.error", NULL, NULL);
-    Py_INCREF(MaIOError);
-    PyModule_AddObject(m, "error", MaIOError);
-
-    return m;
-}
-#endif
 
 void pythonRegisterMaioModule()
 {

@@ -36,7 +36,9 @@ enum class MaPyFunction : uint
 
     F_getFirmataModuleId,
     F_newDigitalPin,
-    F_fetchDigitalInput
+    F_fetchDigitalInput,
+    F_pinSetValue,
+    F_pinSignalPulse
 };
 
 #endif // RPCSHAREDINFO_H

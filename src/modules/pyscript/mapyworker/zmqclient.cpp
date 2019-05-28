@@ -68,8 +68,8 @@ QVariant ZmqClient::runRpc(MaPyFunction funcId, const QJsonArray &values)
 
     auto reply = zstr_recv(d->client);
     if (reply == nullptr) {
-        qCritical() << "Did not receive a reply from MazeAmaze in time, shutting down.";
-        QCoreApplication::exit(4);
+        qCritical() << "Did not receive a reply from MazeAmaze in time, shutting down. Function ID was:" << static_cast<uint>(funcId);
+        assert(false);
         zstr_free(&reply);
         return QVariant();
     }
@@ -78,13 +78,13 @@ QVariant ZmqClient::runRpc(MaPyFunction funcId, const QJsonArray &values)
     zstr_free(&reply);
     if (!adoc.isObject()) {
         qCritical() << "Received invalid reply from MazeAmaze, can not continue.";
-        QCoreApplication::exit(4);
+        assert(false);
         return QVariant();
     }
     const auto aobj = adoc.object();
     if (aobj.value("failed").toBool(false)) {
         qCritical() << "The request we sent failed. Can not continue.";
-        QCoreApplication::exit(4);
+        assert(false);
         return QVariant();
     }
 
