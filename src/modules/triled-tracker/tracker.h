@@ -45,14 +45,14 @@ public:
     QString lastError() const;
 
     bool initialize();
-    void analyzeFrame(const cv::Mat& frame, const std::chrono::milliseconds time,
+    void analyzeFrame(const cv::Mat& frame, const milliseconds_t time,
                       cv::Mat *trackingFrame, cv::Mat *infoFrame);
     bool finalize();
 
 private:
     void setError(const QString& msg);
 
-    LEDTriangle trackPoints(milliseconds_t time, const cv::Mat& image, cv::Mat *infoFrame, cv::Mat *trackingFrame);
+    LEDTriangle trackPoints(const cv::Mat& image, cv::Mat *infoFrame, cv::Mat *trackingFrame);
 
     bool m_initialized;
     bool m_firstFrame;

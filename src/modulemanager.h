@@ -58,8 +58,10 @@ public:
 signals:
     void moduleCreated(AbstractModule *mod);
     void modulePreRemove(AbstractModule *mod);
+    void moduleError(AbstractModule *mod, const QString& message);
 
-public slots:
+private slots:
+    void receiveModuleError(const QString& message);
 
 private:
     class MMData;

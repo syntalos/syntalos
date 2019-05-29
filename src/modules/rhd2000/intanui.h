@@ -85,10 +85,10 @@ public:
     QWidget *displayWidget() const;
 
     void runInterfaceBoard();
-    void recordInterfaceBoard();
     void triggerRecordInterfaceBoard();
     void stopInterfaceBoard();
 
+    void interfaceBoardPrepareRecording();
     void interfaceBoardInitRun();
     bool interfaceBoardRunCycle();
     void interfaceBoardStopFinalize();

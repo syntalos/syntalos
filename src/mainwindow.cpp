@@ -243,6 +243,7 @@ MainWindow::MainWindow(QWidget *parent) :
     // create new module manager
     m_modManager = new ModuleManager(this, this);
     connect(m_modManager, &ModuleManager::moduleCreated, this, &MainWindow::moduleAdded);
+    connect(m_modManager, &ModuleManager::moduleError, this, &MainWindow::receivedModuleError);
 }
 
 MainWindow::~MainWindow()
@@ -682,4 +683,14 @@ void MainWindow::moduleAdded(AbstractModule *mod)
 
     // add widget after the stretcher
     ui->scrollAreaLayout->insertWidget(ui->scrollAreaLayout->count() - 1, mi);
+}
+
+void MainWindow::receivedModuleError(AbstractModule *mod, const QString &message)
+{
+    Q_UNUSED(mod);
+    Q_UNUSED(message);
+    m_failed = true;
+    m_running = false;
+    setRunPossible(true);
+    setStopPossible(false);
 }

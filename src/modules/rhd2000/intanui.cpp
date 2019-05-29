@@ -2259,28 +2259,6 @@ int IntanUI::deviceId(Rhd2000DataBlock *dataBlock, int stream, int &register59Va
     }
 }
 
-// Start recording data from USB interface board to disk.
-void IntanUI::recordInterfaceBoard()
-{
-    // Create list of enabled channels that will be saved to disk.
-    signalProcessor->createSaveList(signalSources, false, 0);
-
-    startNewSaveFile(saveFormat);
-
-    // Write save file header information.
-    writeSaveFileHeader(*saveStream, *infoStream, saveFormat, signalProcessor->getNumTempSensors());
-
-    // Disable some GUI buttons while recording is in progress.
-    sampleRateComboBox->setEnabled(false);
-    // recordFileSpinBox->setEnabled(false);
-    setSaveFormatButton->setEnabled(false);
-
-    recording = true;
-    triggerSet = false;
-    triggered = false;
-    runInterfaceBoard();
-}
-
 // Wait for user-defined trigger to start recording data from USB interface board to disk.
 void IntanUI::triggerRecordInterfaceBoard()
 {
@@ -2399,6 +2377,7 @@ void IntanUI::writeSaveFileHeader(QDataStream &outStream, QDataStream &infoStrea
 // waveform data over USB port.
 void IntanUI::runInterfaceBoard()
 {
+    recording = false;
     interfaceBoardInitRun();
 
     while (running) {
@@ -2494,6 +2473,26 @@ void IntanUI::interfaceBoardInitRun()
     }
 
     crd.runInitialized = true;
+}
+
+void IntanUI::interfaceBoardPrepareRecording()
+{
+    // Create list of enabled channels that will be saved to disk.
+    signalProcessor->createSaveList(signalSources, false, 0);
+
+    startNewSaveFile(saveFormat);
+
+    // Write save file header information.
+    writeSaveFileHeader(*saveStream, *infoStream, saveFormat, signalProcessor->getNumTempSensors());
+
+    // Disable some GUI buttons while recording is in progress.
+    sampleRateComboBox->setEnabled(false);
+    // recordFileSpinBox->setEnabled(false);
+    setSaveFormatButton->setEnabled(false);
+
+    recording = true;
+    triggerSet = false;
+    triggered = false;
 }
 
 bool IntanUI::interfaceBoardRunCycle()
@@ -3244,7 +3243,7 @@ WavePlot *IntanUI::getWavePlot() const
 
 bool IntanUI::isRunning() const
 {
-    return running || recording;
+    return running;
 }
 
 // Enable or disable the display of electrode impedances.

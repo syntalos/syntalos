@@ -70,11 +70,11 @@ bool Rhd2000Module::initialize(ModuleManager *manager)
     m_settingsWindows.append(m_intanUi);
     m_displayWindows.append(m_intanUi->displayWidget());
 
-    auto runAction = new QAction(this);
-    runAction->setText("&Run without recording");
-    runAction->setCheckable(true);
-    connect(runAction, &QAction::triggered, this, &Rhd2000Module::noRecordRunActionTriggered);
-    m_actions.append(runAction);
+    m_runAction = new QAction(this);
+    m_runAction->setText("&Run without recording");
+    m_runAction->setCheckable(true);
+    connect(m_runAction, &QAction::triggered, this, &Rhd2000Module::noRecordRunActionTriggered);
+    m_actions.append(m_runAction);
 
     m_actions.append(m_intanUi->renameChannelAction);
     m_actions.append(m_intanUi->toggleChannelEnableAction);
@@ -93,19 +93,29 @@ bool Rhd2000Module::prepare(const QString &storageRootDir, const TestSubject &te
 {
     assert(m_intanUi);
     Q_UNUSED(timer);
-
     setState(ModuleState::PREPARING);
+
+    if (m_intanUi->isRunning()) {
+        raiseError(QStringLiteral("Can not launch experiment because Intan module is already running, likely in no-record mode.\nPlease stop the module first to continue."));
+        return false;
+    }
+
+    auto intanBaseDir = QStringLiteral("%1/intan").arg(storageRootDir);
+    if (!makeDirectory(intanBaseDir))
+        return false;
 
     QString intanBaseName;
     if (testSubject.id.isEmpty())
-        intanBaseName = QString::fromUtf8("%1/intan/ephys").arg(storageRootDir);
+        intanBaseName = QString::fromUtf8("%1/ephys").arg(intanBaseDir);
     else
-        intanBaseName = QString::fromUtf8("%1/intan/%2_ephys").arg(storageRootDir).arg(testSubject.id);
+        intanBaseName = QString::fromUtf8("%1/%2_ephys").arg(intanBaseDir).arg(testSubject.id);
 
     m_intanUi->setBaseFileName(intanBaseName);
 
+    m_intanUi->interfaceBoardPrepareRecording();
     m_intanUi->interfaceBoardInitRun();
-    setState(ModuleState::RUNNING);
+    m_runAction->setEnabled(false);
+    setState(ModuleState::WAITING);
 
     return true;
 }
@@ -120,6 +130,7 @@ void Rhd2000Module::stop()
 {
     assert(m_intanUi);
     m_intanUi->interfaceBoardStopFinalize();
+    m_runAction->setEnabled(true);
 }
 
 void Rhd2000Module::finalize()

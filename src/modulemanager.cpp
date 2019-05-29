@@ -130,7 +130,16 @@ AbstractModule *ModuleManager::createModule(const QString &id)
         removeModule(mod);
     }
 
+    connect(mod, &AbstractModule::error, this, &ModuleManager::receiveModuleError);
+
     return mod;
+}
+
+void ModuleManager::receiveModuleError(const QString& message)
+{
+    auto mod = qobject_cast<AbstractModule*>(sender());
+    if (mod != nullptr)
+        emit moduleError(mod, message);
 }
 
 bool ModuleManager::removeModule(AbstractModule *mod)

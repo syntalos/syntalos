@@ -60,6 +60,7 @@ private slots:
     void on_tbAddModule_clicked();
 
     void moduleAdded(AbstractModule *mod);
+    void receivedModuleError(AbstractModule *mod, const QString& message);
 
 protected:
     void closeEvent(QCloseEvent *event);

@@ -105,10 +105,10 @@ bool Tracker::initialize()
     return true;
 }
 
-void Tracker::analyzeFrame(const cv::Mat& frame, const std::chrono::milliseconds time, cv::Mat *trackingFrame, cv::Mat *infoFrame)
+void Tracker::analyzeFrame(const cv::Mat& frame, const milliseconds_t time, cv::Mat *trackingFrame, cv::Mat *infoFrame)
 {
     // do the tracking on the source frame
-    auto triangle = trackPoints(time, frame, infoFrame, trackingFrame);
+    auto triangle = trackPoints(frame, infoFrame, trackingFrame);
 
     // the layout of the CSV file is:
     //  time;Red X;Red Y; Green X; Green Y; Yellow X; Yellow Y
@@ -369,7 +369,7 @@ cvRectFuzzyEqual(const std::vector<cv::Point2f>& a, const std::vector<cv::Point2
     return true;
 }
 
-Tracker::LEDTriangle Tracker::trackPoints(milliseconds_t time, const cv::Mat &image, cv::Mat *infoFrame, cv::Mat *trackingFrame)
+Tracker::LEDTriangle Tracker::trackPoints(const cv::Mat &image, cv::Mat *infoFrame, cv::Mat *trackingFrame)
 {
     cv::Point maxLoc;
     LEDTriangle res;

@@ -61,6 +61,7 @@ public:
 private:
     IntanUI *m_intanUi;
     QList<QAction *> m_actions;
+    QAction *m_runAction;
 
     void noRecordRunActionTriggered();
 };

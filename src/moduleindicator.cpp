@@ -114,11 +114,13 @@ void ModuleIndicator::receiveStateChange(ModuleState state)
         ui->statusImage->setPixmap(QPixmap(":/status/preparing"));
         ui->statusLabel->setText("Initializing...");
         ui->removeButton->setEnabled(false);
+        d->editNameAction->setEnabled(false);
         break;
     case ModuleState::PREPARING:
         ui->statusImage->setPixmap(QPixmap(":/status/preparing"));
         ui->statusLabel->setText("Preparing...");
         ui->removeButton->setEnabled(false);
+        d->editNameAction->setEnabled(false);
         break;
     case ModuleState::WAITING:
         ui->statusImage->setPixmap(QPixmap(":/status/ready"));
@@ -126,6 +128,7 @@ void ModuleIndicator::receiveStateChange(ModuleState state)
         ui->showButton->setEnabled(true);
         ui->configButton->setEnabled(true);
         ui->removeButton->setEnabled(false);
+        d->editNameAction->setEnabled(true);
         break;
     case ModuleState::READY:
         ui->statusImage->setPixmap(QPixmap(":/status/ready"));
@@ -133,16 +136,19 @@ void ModuleIndicator::receiveStateChange(ModuleState state)
         ui->showButton->setEnabled(true);
         ui->configButton->setEnabled(true);
         ui->removeButton->setEnabled(true);
+        d->editNameAction->setEnabled(true);
         break;
     case ModuleState::RUNNING:
         ui->statusImage->setPixmap(QPixmap(":/status/running"));
         ui->statusLabel->setText("Running...");
         ui->removeButton->setEnabled(false);
+        d->editNameAction->setEnabled(false);
         break;
     case ModuleState::ERROR:
         ui->statusImage->setPixmap(QPixmap(":/status/error"));
         ui->statusLabel->setText("Error!");
         ui->removeButton->setEnabled(true);
+        d->editNameAction->setEnabled(true);
         break;
     default:
         ui->statusImage->setPixmap(QPixmap(":/status/preparing"));
