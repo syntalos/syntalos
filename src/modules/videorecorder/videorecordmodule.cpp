@@ -73,6 +73,7 @@ bool VideoRecorderModule::initialize(ModuleManager *manager)
 
     m_settingsDialog = new RecorderSettingsDialog;
     m_settingsDialog->setVideoName("video");
+    m_settingsWindows.append(m_settingsDialog);
 
     // find all modules suitable as frame sources
     Q_FOREACH(auto mod, manager->activeModules()) {
@@ -186,12 +187,6 @@ void VideoRecorderModule::showSettingsUi()
 
     m_settingsDialog->setImageSourceModules(m_frameSourceModules);
     m_settingsDialog->show();
-}
-
-void VideoRecorderModule::hideSettingsUi()
-{
-    assert(initialized());
-    m_settingsDialog->hide();
 }
 
 void VideoRecorderModule::recvModuleCreated(AbstractModule *mod)

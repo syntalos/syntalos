@@ -49,12 +49,6 @@ public:
 
     void finalize() override;
 
-    void showDisplayUi() override;
-    void hideDisplayUi() override;
-
-    void showSettingsUi() override;
-    void hideSettingsUi() override;
-
     QList<QAction *> actions() override;
 
     QByteArray serializeSettings() override;

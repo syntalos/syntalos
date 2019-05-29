@@ -90,6 +90,7 @@ bool TriLedTrackerModule::initialize(ModuleManager *manager)
 
     m_settingsDialog = new LedTrackerSettingsDialog;
     m_settingsDialog->setResultsName("tracking");
+    m_settingsWindows.append(m_settingsDialog);
 
     // find all modules suitable as frame sources
     Q_FOREACH(auto mod, manager->activeModules()) {
@@ -102,6 +103,8 @@ bool TriLedTrackerModule::initialize(ModuleManager *manager)
 
     m_trackInfoDisplay = new VideoViewWidget;
     m_trackingDisplay = new VideoViewWidget;
+    m_displayWindows.append(m_trackInfoDisplay);
+    m_displayWindows.append(m_trackingDisplay);
 
     setState(ModuleState::READY);
     setInitialized();
@@ -187,31 +190,11 @@ bool TriLedTrackerModule::canRemove(AbstractModule *mod)
     return mod != m_settingsDialog->selectedImageSourceMod();
 }
 
-void TriLedTrackerModule::showDisplayUi()
-{
-    assert(initialized());
-    m_trackInfoDisplay->show();
-    m_trackingDisplay->show();
-}
-
-void TriLedTrackerModule::hideDisplayUi()
-{
-    assert(initialized());
-    m_trackInfoDisplay->hide();
-    m_trackingDisplay->hide();
-}
-
 void TriLedTrackerModule::showSettingsUi()
 {
     assert(initialized());
     m_settingsDialog->setImageSourceModules(m_frameSourceModules);
     m_settingsDialog->show();
-}
-
-void TriLedTrackerModule::hideSettingsUi()
-{
-    assert(initialized());
-    m_settingsDialog->hide();
 }
 
 void TriLedTrackerModule::recvModuleCreated(AbstractModule *mod)

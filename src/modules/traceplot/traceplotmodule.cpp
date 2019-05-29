@@ -80,6 +80,7 @@ bool TracePlotModule::initialize(ModuleManager *manager)
     // create trace parameters and data proxy for the trace display
     m_traceProxy = new TracePlotProxy(this);
     m_displayWindow = new TraceDisplay(m_traceProxy);
+    m_displayWindows.append(m_displayWindow);
 
     m_intanModule = nullptr;
     Q_FOREACH(auto mod, manager->activeModules()) {
@@ -116,14 +117,4 @@ bool TracePlotModule::prepare(const QString &storageRootDir, const TestSubject &
 void TracePlotModule::stop()
 {
 
-}
-
-void TracePlotModule::showDisplayUi()
-{
-    m_displayWindow->show();
-}
-
-void TracePlotModule::hideDisplayUi()
-{
-    m_displayWindow->hide();
 }

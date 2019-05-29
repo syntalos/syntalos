@@ -143,11 +143,13 @@ public:
      * @brief Show the display widgets of this module
      */
     virtual void showDisplayUi();
+    virtual bool isDisplayUiVisible();
 
     /**
      * @brief Show the configuration UI of this module
      */
     virtual void showSettingsUi();
+    virtual bool isSettingsUiVisible();
 
     /**
      * @brief Hide all display widgets of this module

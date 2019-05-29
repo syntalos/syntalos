@@ -99,6 +99,8 @@ bool GenericCameraModule::initialize(ModuleManager *manager)
 
     m_videoView = new VideoViewWidget;
     m_camSettingsWindow = new GenericCameraSettingsDialog(m_camera);
+    m_displayWindows.append(m_videoView);
+    m_settingsWindows.append(m_camSettingsWindow);
 
     setState(ModuleState::READY);
     setInitialized();
@@ -155,30 +157,6 @@ bool GenericCameraModule::runCycle()
 void GenericCameraModule::stop()
 {
     finishCaptureThread();
-}
-
-void GenericCameraModule::showDisplayUi()
-{
-    assert(initialized());
-    m_videoView->show();
-}
-
-void GenericCameraModule::hideDisplayUi()
-{
-    assert(initialized());
-    m_videoView->hide();
-}
-
-void GenericCameraModule::showSettingsUi()
-{
-    assert(initialized());
-    m_camSettingsWindow->show();
-}
-
-void GenericCameraModule::hideSettingsUi()
-{
-    assert(initialized());
-    m_camSettingsWindow->hide();
 }
 
 void GenericCameraModule::captureThread(void *gcamPtr)

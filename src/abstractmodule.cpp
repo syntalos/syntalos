@@ -93,12 +93,30 @@ void AbstractModule::showDisplayUi()
     }
 }
 
+bool AbstractModule::isDisplayUiVisible()
+{
+    Q_FOREACH(auto w, m_displayWindows) {
+        if (w->isVisible())
+            return true;
+    }
+    return false;
+}
+
 void AbstractModule::showSettingsUi()
 {
     Q_FOREACH(auto w, m_settingsWindows) {
         w->show();
         w->raise();
     }
+}
+
+bool AbstractModule::isSettingsUiVisible()
+{
+    Q_FOREACH(auto w, m_settingsWindows) {
+        if (w->isVisible())
+            return true;
+    }
+    return false;
 }
 
 void AbstractModule::hideDisplayUi()

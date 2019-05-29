@@ -59,11 +59,6 @@ public:
 
     void stop() override;
 
-    void showDisplayUi() override;
-    void hideDisplayUi() override;
-    void showSettingsUi() override;
-    void hideSettingsUi() override;
-
 private:
     UEyeCamera *m_camera;
     VideoViewWidget *m_videoView;

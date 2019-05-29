@@ -45,9 +45,6 @@ public:
     bool prepare(const QString& storageRootDir, const TestSubject& testSubject, HRTimer *timer) override;
     void stop() override;
 
-    void showDisplayUi() override;
-    void hideDisplayUi() override;
-
 private:
     TracePlotProxy *m_traceProxy;
     TraceDisplay *m_displayWindow;

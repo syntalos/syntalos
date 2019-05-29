@@ -67,6 +67,9 @@ bool Rhd2000Module::initialize(ModuleManager *manager)
     m_intanUi->setWindowIcon(QIcon(":/icons/generic-config"));
     m_intanUi->displayWidget()->setWindowIcon(QIcon(":/icons/generic-view"));
 
+    m_settingsWindows.append(m_intanUi);
+    m_displayWindows.append(m_intanUi->displayWidget());
+
     auto runAction = new QAction(this);
     runAction->setText("&Run without recording");
     connect(runAction, &QAction::triggered, this, &Rhd2000Module::noRecordRunActionTriggered);
@@ -122,30 +125,6 @@ void Rhd2000Module::finalize()
 {
     assert(m_intanUi);
     return;
-}
-
-void Rhd2000Module::showDisplayUi()
-{
-    assert(m_intanUi);
-    m_intanUi->displayWidget()->show();
-}
-
-void Rhd2000Module::hideDisplayUi()
-{
-    assert(m_intanUi);
-    m_intanUi->displayWidget()->hide();
-}
-
-void Rhd2000Module::showSettingsUi()
-{
-    assert(m_intanUi);
-    m_intanUi->show();
-}
-
-void Rhd2000Module::hideSettingsUi()
-{
-    assert(m_intanUi);
-    m_intanUi->hide();
 }
 
 QList<QAction *> Rhd2000Module::actions()

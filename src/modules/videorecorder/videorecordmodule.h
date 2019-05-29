@@ -50,7 +50,6 @@ public:
     bool canRemove(AbstractModule *mod) override;
 
     void showSettingsUi() override;
-    void hideSettingsUi() override;
 
 public slots:
     void receiveFrame(const FrameData& frameData) override;

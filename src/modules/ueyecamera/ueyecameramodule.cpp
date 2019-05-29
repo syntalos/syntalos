@@ -99,6 +99,8 @@ bool UEyeCameraModule::initialize(ModuleManager *manager)
 
     m_videoView = new VideoViewWidget;
     m_camSettingsWindow = new UEyeCameraSettingsDialog(m_camera);
+    m_displayWindows.append(m_videoView);
+    m_settingsWindows.append(m_camSettingsWindow);
 
     setState(ModuleState::READY);
     setInitialized();
@@ -154,30 +156,6 @@ bool UEyeCameraModule::runCycle()
 void UEyeCameraModule::stop()
 {
     finishCaptureThread();
-}
-
-void UEyeCameraModule::showDisplayUi()
-{
-    assert(initialized());
-    m_videoView->show();
-}
-
-void UEyeCameraModule::hideDisplayUi()
-{
-    assert(initialized());
-    m_videoView->hide();
-}
-
-void UEyeCameraModule::showSettingsUi()
-{
-    assert(initialized());
-    m_camSettingsWindow->show();
-}
-
-void UEyeCameraModule::hideSettingsUi()
-{
-    assert(initialized());
-    m_camSettingsWindow->hide();
 }
 
 void UEyeCameraModule::captureThread(void *gcamPtr)
