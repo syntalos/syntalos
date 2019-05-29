@@ -3242,6 +3242,11 @@ WavePlot *IntanUI::getWavePlot() const
     return wavePlot;
 }
 
+bool IntanUI::isRunning() const
+{
+    return running || recording;
+}
+
 // Enable or disable the display of electrode impedances.
 void IntanUI::showImpedances(bool enabled)
 {

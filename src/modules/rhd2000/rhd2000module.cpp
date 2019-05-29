@@ -72,6 +72,7 @@ bool Rhd2000Module::initialize(ModuleManager *manager)
 
     auto runAction = new QAction(this);
     runAction->setText("&Run without recording");
+    runAction->setCheckable(true);
     connect(runAction, &QAction::triggered, this, &Rhd2000Module::noRecordRunActionTriggered);
     m_actions.append(runAction);
 
@@ -161,11 +162,8 @@ void Rhd2000Module::setStatusMessage(const QString &message)
 
 void Rhd2000Module::noRecordRunActionTriggered()
 {
-    // FIXME
-    //setRunPossible(false);
-    //setStopPossible(true);
-
-    // run Intan acquisition
-    //m_statusWidget->setIntanStatus(StatusWidget::Active);
-    m_intanUi->runInterfaceBoard();
+    if (!m_intanUi->isRunning())
+        m_intanUi->runInterfaceBoard();
+    else
+        m_intanUi->stopInterfaceBoard();
 }

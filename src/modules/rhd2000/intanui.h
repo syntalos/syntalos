@@ -99,6 +99,8 @@ public:
 
     WavePlot *getWavePlot() const;
 
+    bool isRunning() const;
+
 protected:
     void closeEvent(QCloseEvent *event);
 
