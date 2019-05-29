@@ -74,6 +74,8 @@ private:
     void setDataExportBaseDir(const QString& dir);
     void updateDataExportDir();
 
+    bool saveConfiguration(const QString& fileName);
+
     bool makeDirectory(const QString& dir);
 
     ModuleManager *m_modManager;

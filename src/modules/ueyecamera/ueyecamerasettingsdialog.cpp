@@ -62,11 +62,21 @@ UEyeCameraSettingsDialog::UEyeCameraSettingsDialog(UEyeCamera *camera, QWidget *
         if (fileName.isEmpty())
             return;
         m_ueyeConfFileLbl->setText(fileName);
+        m_ueyeConfFile = fileName;
+        m_camera->setConfFile(m_ueyeConfFile);
     });
 
     m_camFlashMode = new QCheckBox(this);
     m_camFlashMode->setChecked(true);
     ui->uEyeLayout->addRow(new QLabel("Enable GPIO flash", this), m_camFlashMode);
+
+    connect(m_gainCB, &QCheckBox::toggled, [=](bool state) {
+        m_camera->setAutoGain(state);
+    });
+
+    connect(m_camFlashMode, &QCheckBox::toggled, [=](bool state) {
+        m_camera->setGPIOFlash(state);
+    });
 }
 
 UEyeCameraSettingsDialog::~UEyeCameraSettingsDialog()
@@ -95,6 +105,43 @@ void UEyeCameraSettingsDialog::setRunning(bool running)
     ui->cameraGroupBox->setEnabled(!running);
 }
 
+bool UEyeCameraSettingsDialog::automaticGain()
+{
+    return m_gainCB->isChecked();
+}
+
+void UEyeCameraSettingsDialog::setAutomaticGain(bool automatic)
+{
+    m_gainCB->setChecked(automatic);
+}
+
+QString UEyeCameraSettingsDialog::uEyeConfigFile()
+{
+    return m_ueyeConfFile;
+}
+
+void UEyeCameraSettingsDialog::setUEyeConfigFile(const QString &value)
+{
+    m_ueyeConfFileLbl->setText(value);
+    m_ueyeConfFile = value;
+    m_camera->setConfFile(m_ueyeConfFile);
+}
+
+bool UEyeCameraSettingsDialog::gpioFlash()
+{
+    return m_camFlashMode->isChecked();
+}
+
+void UEyeCameraSettingsDialog::setGpioFlash(bool flash)
+{
+    m_camFlashMode->setChecked(flash);
+}
+
+double UEyeCameraSettingsDialog::exposure() const
+{
+    return ui->sbExposure->value();
+}
+
 void UEyeCameraSettingsDialog::on_cameraComboBox_currentIndexChanged(int index)
 {
     Q_UNUSED(index);
@@ -108,11 +155,6 @@ void UEyeCameraSettingsDialog::on_cameraComboBox_currentIndexChanged(int index)
     ui->resolutionComboBox->clear();
     Q_FOREACH(auto res, ret)
         ui->resolutionComboBox->addItem(QStringLiteral("%1x%2").arg(res.width()).arg(res.height()), res);
-}
-
-void UEyeCameraSettingsDialog::on_sbGain_valueChanged(int arg1)
-{
-    m_camera->setAutoGain(arg1);
 }
 
 void UEyeCameraSettingsDialog::on_sbExposure_valueChanged(double arg1)

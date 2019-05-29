@@ -59,28 +59,15 @@
         <item row="0" column="1">
          <widget class="QComboBox" name="cameraComboBox"/>
         </item>
-        <item row="3" column="0">
-         <widget class="QLabel" name="fpsLabel">
+        <item row="1" column="0">
+         <widget class="QLabel" name="resolutionLabel_2">
           <property name="text">
-           <string>FPS</string>
+           <string>Resolution</string>
           </property>
          </widget>
         </item>
-        <item row="3" column="1">
-         <widget class="QSpinBox" name="fpsSpinBox">
-          <property name="toolTip">
-           <string>Frames per second</string>
-          </property>
-          <property name="minimum">
-           <number>4</number>
-          </property>
-          <property name="maximum">
-           <number>30</number>
-          </property>
-          <property name="value">
-           <number>20</number>
-          </property>
-         </widget>
+        <item row="1" column="1">
+         <widget class="QComboBox" name="resolutionComboBox"/>
         </item>
         <item row="2" column="1">
          <widget class="QWidget" name="resolutionWidget" native="true">
@@ -103,15 +90,28 @@
           </layout>
          </widget>
         </item>
-        <item row="1" column="0">
-         <widget class="QLabel" name="resolutionLabel_2">
+        <item row="3" column="0">
+         <widget class="QLabel" name="fpsLabel">
           <property name="text">
-           <string>Resolution</string>
+           <string>FPS</string>
           </property>
          </widget>
         </item>
-        <item row="1" column="1">
-         <widget class="QComboBox" name="resolutionComboBox"/>
+        <item row="3" column="1">
+         <widget class="QSpinBox" name="fpsSpinBox">
+          <property name="toolTip">
+           <string>Frames per second</string>
+          </property>
+          <property name="minimum">
+           <number>4</number>
+          </property>
+          <property name="maximum">
+           <number>30</number>
+          </property>
+          <property name="value">
+           <number>20</number>
+          </property>
+         </widget>
         </item>
        </layout>
       </item>

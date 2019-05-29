@@ -51,8 +51,8 @@ public:
 
     QList<QAction *> actions() override;
 
-    QByteArray serializeSettings() override;
-    bool loadSettings(const QByteArray& data) override;
+    QByteArray serializeSettings(const QString &confBaseDir) override;
+    bool loadSettings(const QString &confBaseDir, const QByteArray& data) override;
 
     void setPlotProxy(TracePlotProxy *proxy);
 

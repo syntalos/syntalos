@@ -59,6 +59,8 @@ public:
 
     void stop() override;
 
+    QByteArray serializeSettings(const QString& confBaseDir) override;
+
 private:
     UEyeCamera *m_camera;
     VideoViewWidget *m_videoView;

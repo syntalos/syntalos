@@ -19,6 +19,7 @@
 
 #include "ueyecameramodule.h"
 
+#include <QDir>
 #include <QMutexLocker>
 #include <QMessageBox>
 #include <opencv2/opencv.hpp>
@@ -83,7 +84,7 @@ void UEyeCameraModule::attachVideoWriter(VideoWriter *vwriter)
 int UEyeCameraModule::selectedFramerate() const
 {
     assert(initialized());
-    return static_cast<double>(m_camSettingsWindow->selectedFps());
+    return m_camSettingsWindow->selectedFps();
 }
 
 cv::Size UEyeCameraModule::selectedResolution() const
@@ -158,6 +159,20 @@ void UEyeCameraModule::stop()
     finishCaptureThread();
 }
 
+QByteArray UEyeCameraModule::serializeSettings(const QString &confBaseDir)
+{
+    QDir cdir(confBaseDir);
+    QJsonObject videoSettings;
+    videoSettings.insert("width", m_camSettingsWindow->frameSize().width());
+    videoSettings.insert("height", m_camSettingsWindow->frameSize().height());
+    videoSettings.insert("autoGain", m_camSettingsWindow->automaticGain());
+    videoSettings.insert("exposureTime", m_camSettingsWindow->exposure());
+    videoSettings.insert("uEyeConfig", cdir.relativeFilePath(m_camSettingsWindow->uEyeConfigFile()));
+    videoSettings.insert("gpioFlash", m_camSettingsWindow->gpioFlash());
+
+    return jsonObjectToBytes(videoSettings);
+}
+
 void UEyeCameraModule::captureThread(void *gcamPtr)
 {
     UEyeCameraModule *self = static_cast<UEyeCameraModule*> (gcamPtr);
@@ -190,7 +205,7 @@ void UEyeCameraModule::captureThread(void *gcamPtr)
             vwriter->pushFrame(frame, timestampMsec);
 
         self->m_mutex.lock();
-        self->m_frameRing.push_back(std::pair<cv::Mat, std::chrono::milliseconds>(frame, timestampMsec));
+        self->m_frameRing.push_back(std::pair<cv::Mat, milliseconds_t>(frame, timestampMsec));
         self->m_mutex.unlock();
 
         // wait a bit if necessary, to keep the right framerate

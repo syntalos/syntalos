@@ -43,16 +43,27 @@ public:
     int selectedFps() const;
     void setRunning(bool running); 
 
+    bool automaticGain();
+    void setAutomaticGain(bool automatic);
+
+    QString uEyeConfigFile();
+    void setUEyeConfigFile(const QString& value);
+
+    bool gpioFlash();
+    void setGpioFlash(bool flash);
+
+    double exposure() const;
+
 private slots:
-    void on_sbGain_valueChanged(int arg1);
     void on_sbExposure_valueChanged(double arg1);
     void on_cameraComboBox_currentIndexChanged(int index);
 
 private:
     Ui::UEyeCameraSettingsDialog *ui;
     QCheckBox *m_gainCB;
-    QLabel *m_ueyeConfFileLbl;
     QCheckBox *m_camFlashMode;
+    QLabel *m_ueyeConfFileLbl;
+    QString m_ueyeConfFile;
 
     UEyeCamera *m_camera;
 };

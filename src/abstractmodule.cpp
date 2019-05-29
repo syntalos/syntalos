@@ -22,6 +22,7 @@
 
 #include <QDir>
 #include <QMessageBox>
+#include <QJsonDocument>
 #include <QDebug>
 
 AbstractModule::AbstractModule(QObject *parent) :
@@ -137,14 +138,16 @@ QList<QAction *> AbstractModule::actions()
     return res;
 }
 
-QByteArray AbstractModule::serializeSettings()
+QByteArray AbstractModule::serializeSettings(const QString &confBaseDir)
 {
+    Q_UNUSED(confBaseDir);
     QByteArray zero;
     return zero;
 }
 
-bool AbstractModule::loadSettings(const QByteArray &data)
+bool AbstractModule::loadSettings(const QString &confBaseDir, const QByteArray &data)
 {
+    Q_UNUSED(confBaseDir);
     Q_UNUSED(data);
     return true;
 }
@@ -197,6 +200,11 @@ void AbstractModule::raiseError(const QString &message)
     emit error(message);
     setState(ModuleState::ERROR);
     qCritical() << message;
+}
+
+QByteArray AbstractModule::jsonObjectToBytes(const QJsonObject &object)
+{
+    return QJsonDocument(object).toJson();
 }
 
 void AbstractModule::setStatusMessage(const QString &message)

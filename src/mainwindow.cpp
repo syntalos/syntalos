@@ -72,7 +72,7 @@
 #include "modules/rhd2000/rhd2000module.h"
 
 
-#define CONFIG_FILE_FORMAT_VERSION "1"
+#define CONFIG_FILE_FORMAT_VERSION "2"
 
 
 MainWindow::MainWindow(QWidget *parent) :
@@ -447,6 +447,56 @@ void MainWindow::updateDataExportDir()
     m_exportDirInfoLabel->setText(QString("Recorded data will be stored in: %1").arg(m_dataExportDir));
 }
 
+bool MainWindow::saveConfiguration(const QString &fileName)
+{
+    KTar tar(fileName);
+    if (!tar.open(QIODevice::WriteOnly)) {
+        qWarning() << "Unable to open new configuration file for writing.";
+        return false;
+    }
+    setStatusText("Saving configuration to file...");
+
+    QDir confBaseDir(QStringLiteral("%1/..").arg(fileName));
+
+    // save basic settings
+    QJsonObject settings;
+    settings.insert("formatVersion", CONFIG_FILE_FORMAT_VERSION);
+    settings.insert("appVersion", QCoreApplication::applicationVersion());
+    settings.insert("creationDate", QDateTime::currentDateTime().date().toString());
+
+    settings.insert("exportDir", m_dataExportBaseDir);
+    settings.insert("experimentId", m_experimentId);
+
+    // basic configuration
+    tar.writeFile ("main.json", QJsonDocument(settings).toJson());
+
+    // save list of subjects
+    tar.writeFile ("subjects.json", QJsonDocument(m_subjectList->toJson()).toJson());
+
+    // save module settings
+    auto modIndex = 0;
+    Q_FOREACH(auto mod, m_modManager->activeModules()) {
+        if (!tar.writeDir(QString::number(modIndex)))
+            return false;
+        auto modSettings = mod->serializeSettings(confBaseDir.absolutePath());
+        tar.writeFile(QStringLiteral("%1/%2.dat").arg(modIndex).arg(mod->id()), modSettings);
+
+        QJsonObject modInfo;
+        modInfo.insert("id", mod->id());
+        tar.writeFile(QStringLiteral("%1/info.json").arg(modIndex), QJsonDocument(modInfo).toJson());
+
+        modIndex++;
+    }
+
+    tar.close();
+
+    QFileInfo fi(fileName);
+    this->updateWindowTitle(fi.fileName());
+
+    setStatusText("Ready.");
+    return true;
+}
+
 void MainWindow::openDataExportDirectory()
 {
     auto dir = QFileDialog::getExistingDirectory(this,
@@ -485,66 +535,17 @@ void MainWindow::saveSettingsActionTriggered()
 {
     QString fileName;
     fileName = QFileDialog::getSaveFileName(this,
-                                            tr("Select Settings Filename"),
+                                            tr("Select Configuration Filename"),
                                             QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
-                                            tr("MazeAmaze Settings Files (*.mamc)"));
+                                            tr("MazeAmaze Configuration Files (*.mact)"));
 
     if (fileName.isEmpty())
         return;
 
-    KTar tar(fileName);
-    if (!tar.open(QIODevice::WriteOnly)) {
-        QMessageBox::critical(this, tr("Can not save settings"),
-                              tr("Unable to open new settings file for writing."));
-        return;
+    if (!saveConfiguration(fileName)) {
+        QMessageBox::critical(this, tr("Can not save configuration"),
+                              tr("Unable to write configuration file to disk."));
     }
-    setStatusText("Saving settings to file...");
-
-    QDir confBaseDir(QString("%1/..").arg(fileName));
-
-    // save basic settings
-    QJsonObject settings;
-    settings.insert("formatVersion", CONFIG_FILE_FORMAT_VERSION);
-    settings.insert("programVersion", QCoreApplication::applicationVersion());
-    settings.insert("creationDate", QDateTime::currentDateTime().date().toString());
-
-    settings.insert("exportDir", m_dataExportBaseDir);
-    settings.insert("experimentId", m_experimentId);
-
-#if 0
-    QJsonObject videoSettings;
-    videoSettings.insert("exportWidth", m_eresWidthEdit->value());
-    videoSettings.insert("exportHeight", m_eresHeightEdit->value());
-    videoSettings.insert("fps", m_fpsEdit->value());
-    videoSettings.insert("gainEnabled", m_gainCB->isChecked());
-    videoSettings.insert("exposureTime", m_exposureEdit->value());
-    videoSettings.insert("uEyeConfig", confBaseDir.relativeFilePath(m_videoTracker->uEyeConfigFile()));
-    videoSettings.insert("makeFrameTarball", m_saveTarCB->isChecked());
-    videoSettings.insert("gpioFlash", m_camFlashMode->isChecked());
-    settings.insert("video", videoSettings);
-#endif
-
-    tar.writeFile ("main.json", QJsonDocument(settings).toJson());
-
-    // save list of subjects
-    tar.writeFile ("subjects.json", QJsonDocument(m_subjectList->toJson()).toJson());
-
-    // save Intan settings data
-    QByteArray intanSettings;
-    QDataStream intanSettingsStream(&intanSettings,QIODevice::WriteOnly);
-    //! FIXME m_intanUI->exportSettings(intanSettingsStream);
-
-    tar.writeFile ("intan.isf", intanSettings);
-
-    // save IO Python script
-    //tar.writeFile ("mscript.py", QByteArray(m_mscriptView->document()->text().toStdString().c_str()));
-
-    tar.close();
-
-    QFileInfo fi(fileName);
-    this->updateWindowTitle(fi.fileName());
-
-    setStatusText("Ready.");
 }
 
 void MainWindow::updateWindowTitle(const QString& fileName)
@@ -561,7 +562,7 @@ void MainWindow::loadSettingsActionTriggered()
     auto fileName = QFileDialog::getOpenFileName(this,
                                                  tr("Select Settings Filename"),
                                                  QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
-                                                 tr("MazeAmaze Settings Files (*.mamc)"));
+                                                 tr("MazeAmaze Settings Files (*.mact)"));
     if (fileName.isEmpty())
         return;
 

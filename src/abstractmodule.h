@@ -170,13 +170,13 @@ public:
     /**
      * @brief Serialize the settings of this module to a byte array.
      */
-    virtual QByteArray serializeSettings();
+    virtual QByteArray serializeSettings(const QString& confBaseDir);
 
     /**
      * @brief Load settings from previously stored data.
      * @return true if successful.
      */
-    virtual bool loadSettings(const QByteArray& data);
+    virtual bool loadSettings(const QString& confBaseDir, const QByteArray& data);
 
     /**
      * @brief Return last error
@@ -214,6 +214,7 @@ protected:
     void setState(ModuleState state);
     void setStatusMessage(const QString& message);
     void raiseError(const QString& message);
+    QByteArray jsonObjectToBytes(const QJsonObject& object);
 
     QString m_name;
     QString m_storageDir;
