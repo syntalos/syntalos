@@ -1,4 +1,10 @@
 
+# we don't want to fix all warnings in this code to keep it as close
+# as possible to the pristine Intan code.
+if (MAINTAINER)
+    remove_definitions("-Werror")
+endif()
+
 set(INTAN_RHD2000_SRC
     rhd2000module.h
     rhd2000module.cpp
