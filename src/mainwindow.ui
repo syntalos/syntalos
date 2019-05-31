@@ -598,6 +598,9 @@
    </property>
   </action>
   <action name="actionLoadSettings">
+   <property name="icon">
+    <iconset theme="document-open"/>
+   </property>
    <property name="text">
     <string>&amp;Load Settings</string>
    </property>
@@ -606,6 +609,9 @@
    </property>
   </action>
   <action name="actionSaveSettings">
+   <property name="icon">
+    <iconset theme="document-save"/>
+   </property>
    <property name="text">
     <string>&amp;Save Settings</string>
    </property>
@@ -614,6 +620,9 @@
    </property>
   </action>
   <action name="actionAbout">
+   <property name="icon">
+    <iconset theme="help-about"/>
+   </property>
    <property name="text">
     <string>&amp;About</string>
    </property>
