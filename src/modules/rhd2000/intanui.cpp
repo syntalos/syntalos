@@ -2377,6 +2377,7 @@ void IntanUI::writeSaveFileHeader(QDataStream &outStream, QDataStream &infoStrea
 // waveform data over USB port.
 void IntanUI::runInterfaceBoard()
 {
+    assert(!running);
     recording = false;
     interfaceBoardInitRun();
 
@@ -2697,6 +2698,8 @@ void IntanUI::interfaceBoardStopFinalize()
         // Flush USB FIFO on XEM6010
         evalBoard->flush();
     }
+
+    running = false;
 
     // If external control of chip auxiliary output pins was enabled, make sure
     // all auxout pins are turned off when acquisition stops.
