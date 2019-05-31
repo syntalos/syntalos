@@ -52,6 +52,9 @@ public:
     bool runCycle() override;
     void stop() override;
 
+    QByteArray serializeSettings(const QString& confBaseDir) override;
+    bool loadSettings(const QString& confBaseDir, const QByteArray& data) override;
+
 private:
     ZmqServer *m_zserver;
     QString m_workerBinary;

@@ -79,6 +79,11 @@ void Camera::setCamId(int id)
     d->camId = id;
 }
 
+int Camera::camId() const
+{
+    return d->camId;
+}
+
 void Camera::setStartTime(std::chrono::time_point<steady_hr_clock> time)
 {
     d->startTime = time;

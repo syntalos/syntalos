@@ -84,13 +84,13 @@ void UEyeCameraModule::attachVideoWriter(VideoWriter *vwriter)
 int UEyeCameraModule::selectedFramerate() const
 {
     assert(initialized());
-    return m_camSettingsWindow->selectedFps();
+    return m_camSettingsWindow->framerate();
 }
 
 cv::Size UEyeCameraModule::selectedResolution() const
 {
     assert(initialized());
-    return m_camSettingsWindow->selectedSize();
+    return m_camSettingsWindow->resolution();
 }
 
 bool UEyeCameraModule::initialize(ModuleManager *manager)
@@ -163,14 +163,32 @@ QByteArray UEyeCameraModule::serializeSettings(const QString &confBaseDir)
 {
     QDir cdir(confBaseDir);
     QJsonObject videoSettings;
-    videoSettings.insert("width", m_camSettingsWindow->frameSize().width());
-    videoSettings.insert("height", m_camSettingsWindow->frameSize().height());
+    videoSettings.insert("camera", m_camera->camId());
+    videoSettings.insert("width", m_camSettingsWindow->resolution().width);
+    videoSettings.insert("height", m_camSettingsWindow->resolution().height);
+    videoSettings.insert("fps", m_camSettingsWindow->framerate());
     videoSettings.insert("autoGain", m_camSettingsWindow->automaticGain());
     videoSettings.insert("exposureTime", m_camSettingsWindow->exposure());
     videoSettings.insert("uEyeConfig", cdir.relativeFilePath(m_camSettingsWindow->uEyeConfigFile()));
     videoSettings.insert("gpioFlash", m_camSettingsWindow->gpioFlash());
 
     return jsonObjectToBytes(videoSettings);
+}
+
+bool UEyeCameraModule::loadSettings(const QString &confBaseDir, const QByteArray &data)
+{
+    Q_UNUSED(confBaseDir);
+    auto jsettings = jsonObjectFromBytes(data);
+
+    m_camera->setCamId(jsettings.value("camera").toInt());
+    m_camSettingsWindow->setResolution(cv::Size(jsettings.value("width").toInt(), jsettings.value("height").toInt()));
+    m_camSettingsWindow->setFramerate(jsettings.value("fps").toInt());
+    m_camSettingsWindow->setGpioFlash(jsettings.value("gpioFlash").toBool());
+    m_camSettingsWindow->setAutomaticGain(jsettings.value("autoGain").toBool());
+    m_camSettingsWindow->setExposure(jsettings.value("exposureTime").toDouble());
+    m_camSettingsWindow->setUEyeConfigFile(jsettings.value("uEyeConfig").toString());
+
+    return true;
 }
 
 void UEyeCameraModule::captureThread(void *gcamPtr)
@@ -224,14 +242,14 @@ bool UEyeCameraModule::startCaptureThread()
     finishCaptureThread();
 
     statusMessage("Connecting camera...");
-    if (!m_camera->open(m_camSettingsWindow->selectedSize())) {
+    if (!m_camera->open(m_camSettingsWindow->resolution())) {
         raiseError(QStringLiteral("Unable to connect camera: %1").arg(m_camera->lastError()));
         return false;
     }
     statusMessage("Launching DAQ thread...");
 
     m_camSettingsWindow->setRunning(true);
-    m_fps = m_camSettingsWindow->selectedFps();
+    m_fps = m_camSettingsWindow->framerate();
     m_running = true;
     m_thread = new std::thread(captureThread, this);
     statusMessage("Waiting.");

@@ -83,13 +83,13 @@ void GenericCameraModule::attachVideoWriter(VideoWriter *vwriter)
 int GenericCameraModule::selectedFramerate() const
 {
     assert(initialized());
-    return m_camSettingsWindow->selectedFps();
+    return m_camSettingsWindow->framerate();
 }
 
 cv::Size GenericCameraModule::selectedResolution() const
 {
     assert(initialized());
-    return m_camSettingsWindow->selectedSize();
+    return m_camSettingsWindow->resolution();
 }
 
 bool GenericCameraModule::initialize(ModuleManager *manager)
@@ -159,6 +159,35 @@ void GenericCameraModule::stop()
     finishCaptureThread();
 }
 
+QByteArray GenericCameraModule::serializeSettings(const QString &confBaseDir)
+{
+    Q_UNUSED(confBaseDir);
+    QJsonObject jsettings;
+    jsettings.insert("camera", m_camera->camId());
+    jsettings.insert("width", m_camSettingsWindow->resolution().width);
+    jsettings.insert("height", m_camSettingsWindow->resolution().height);
+    jsettings.insert("fps", m_camSettingsWindow->framerate());
+    jsettings.insert("gain", m_camera->gain());
+    jsettings.insert("exposure", m_camera->exposure());
+
+    return jsonObjectToBytes(jsettings);
+}
+
+bool GenericCameraModule::loadSettings(const QString &confBaseDir, const QByteArray &data)
+{
+    Q_UNUSED(confBaseDir);
+
+    auto jsettings = jsonObjectFromBytes(data);
+    m_camera->setCamId(jsettings.value("camera").toInt());
+    m_camera->setResolution(cv::Size(jsettings.value("width").toInt(), jsettings.value("height").toInt()));
+    m_camera->setExposure(jsettings.value("exposure").toDouble());
+    m_camera->setGain(jsettings.value("gain").toDouble());
+    m_camSettingsWindow->setFramerate(jsettings.value("fps").toInt());
+
+    m_camSettingsWindow->updateValues();
+    return true;
+}
+
 void GenericCameraModule::captureThread(void *gcamPtr)
 {
     GenericCameraModule *self = static_cast<GenericCameraModule*> (gcamPtr);
@@ -205,11 +234,11 @@ bool GenericCameraModule::startCaptureThread()
         raiseError(QStringLiteral("Unable to connect camera: %1").arg(m_camera->lastError()));
         return false;
     }
-    m_camera->setResolution(m_camSettingsWindow->selectedSize());
+    m_camera->setResolution(m_camSettingsWindow->resolution());
     statusMessage("Launching DAQ thread...");
 
     m_camSettingsWindow->setRunning(true);
-    m_fps = m_camSettingsWindow->selectedFps();
+    m_fps = m_camSettingsWindow->framerate();
     m_running = true;
     m_thread = new std::thread(captureThread, this);
     statusMessage("Waiting.");

@@ -66,7 +66,8 @@ class AbstractModule : public QObject
 public:
     explicit AbstractModule(QObject *parent = nullptr);
 
-    virtual ModuleState state() const;
+    ModuleState state() const;
+    void setState(ModuleState state);
 
     /**
      * @brief Name of this module used internally as unique identifier
@@ -211,10 +212,10 @@ signals:
     void nameChanged(const QString& name);
 
 protected:
-    void setState(ModuleState state);
     void setStatusMessage(const QString& message);
     void raiseError(const QString& message);
     QByteArray jsonObjectToBytes(const QJsonObject& object);
+    QJsonObject jsonObjectFromBytes(const QByteArray& data);
 
     QString m_name;
     QString m_storageDir;

@@ -75,6 +75,7 @@ private:
     void updateDataExportDir();
 
     bool saveConfiguration(const QString& fileName);
+    bool loadConfiguration(const QString& fileName);
 
     bool makeDirectory(const QString& dir);
 

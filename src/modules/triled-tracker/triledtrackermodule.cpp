@@ -197,6 +197,35 @@ void TriLedTrackerModule::showSettingsUi()
     m_settingsDialog->show();
 }
 
+QByteArray TriLedTrackerModule::serializeSettings(const QString &confBaseDir)
+{
+    Q_UNUSED(confBaseDir);
+    QJsonObject jsettings;
+    auto mod = m_settingsDialog->selectedImageSourceMod();
+    if (mod != nullptr)
+        jsettings.insert("imageSourceModule", mod->name());
+    jsettings.insert("resultsName", m_settingsDialog->resultsName());
+
+    return jsonObjectToBytes(jsettings);
+}
+
+bool TriLedTrackerModule::loadSettings(const QString &confBaseDir, const QByteArray &data)
+{
+    Q_UNUSED(confBaseDir);
+    auto jsettings = jsonObjectFromBytes(data);
+
+    auto modName = jsettings.value("imageSourceModule").toString();
+    Q_FOREACH(auto mod, m_frameSourceModules) {
+        if (mod->name() == modName) {
+            m_settingsDialog->setSelectedImageSourceMod(mod);
+            break;
+        }
+    }
+    m_settingsDialog->setResultsName(jsettings.value("resultsName").toString());
+
+    return true;
+}
+
 void TriLedTrackerModule::recvModuleCreated(AbstractModule *mod)
 {
     auto imgSrcMod = qobject_cast<ImageSourceModule*>(mod);

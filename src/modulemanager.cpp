@@ -142,19 +142,8 @@ void ModuleManager::receiveModuleError(const QString& message)
         emit moduleError(mod, message);
 }
 
-bool ModuleManager::removeModule(AbstractModule *mod)
+bool ModuleManager::removeModuleImmediately(AbstractModule *mod)
 {
-    Q_FOREACH(auto emod, d->modules) {
-        if (!emod->canRemove(mod)) {
-            // oh no! Another module tries to prevent the removal of the current module.
-            // Let's notify about that, then stop removing the module.
-            QMessageBox::information(d->parentWidget, QStringLiteral("Can not remove module"),
-                                  QStringLiteral("The '%1' module can not be removed, because the '%2' module depends on it. Please remove '%2' first!").arg(mod->name()).arg(emod->name()),
-                                  QMessageBox::Ok);
-            return false;
-        }
-    }
-
     auto id = mod->id();
     if (d->modules.removeOne(mod)) {
         // Update module info
@@ -173,9 +162,32 @@ bool ModuleManager::removeModule(AbstractModule *mod)
     return false;
 }
 
+bool ModuleManager::removeModule(AbstractModule *mod)
+{
+    Q_FOREACH(auto emod, d->modules) {
+        if (!emod->canRemove(mod)) {
+            // oh no! Another module tries to prevent the removal of the current module.
+            // Let's notify about that, then stop removing the module.
+            QMessageBox::information(d->parentWidget, QStringLiteral("Can not remove module"),
+                                  QStringLiteral("The '%1' module can not be removed, because the '%2' module depends on it. Please remove '%2' first!").arg(mod->name()).arg(emod->name()),
+                                  QMessageBox::Ok);
+            return false;
+        }
+    }
+
+    return removeModuleImmediately(mod);
+}
+
 QList<AbstractModule *> ModuleManager::activeModules() const
 {
     return d->modules;
+}
+
+void ModuleManager::removeAll()
+{
+    Q_FOREACH(auto mod, d->modules) {
+        removeModuleImmediately(mod);
+    }
 }
 
 QList<QSharedPointer<ModuleInfo> > ModuleManager::moduleInfo() const

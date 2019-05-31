@@ -34,6 +34,7 @@ public:
     ~Camera();
 
     void setCamId(int id);
+    int camId() const;
     void setStartTime(std::chrono::time_point<steady_hr_clock> time);
 
     void setResolution(const cv::Size &size);

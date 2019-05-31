@@ -55,6 +55,8 @@ public:
 
     QList<AbstractModule*> activeModules() const;
 
+    void removeAll();
+
 signals:
     void moduleCreated(AbstractModule *mod);
     void modulePreRemove(AbstractModule *mod);
@@ -66,6 +68,8 @@ private slots:
 private:
     class MMData;
     QSharedPointer<MMData> d; // FIXME
+
+    bool removeModuleImmediately(AbstractModule *mod);
     template<typename T> void registerModuleInfo();
 };
 

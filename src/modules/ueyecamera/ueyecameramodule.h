@@ -60,6 +60,7 @@ public:
     void stop() override;
 
     QByteArray serializeSettings(const QString& confBaseDir) override;
+    bool loadSettings(const QString& confBaseDir, const QByteArray& data) override;
 
 private:
     UEyeCamera *m_camera;

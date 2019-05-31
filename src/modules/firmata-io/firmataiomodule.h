@@ -59,6 +59,9 @@ public:
     bool prepare(const QString& storageRootDir, const TestSubject& testSubject, HRTimer *timer) override;
     void stop() override;
 
+    QByteArray serializeSettings(const QString& confBaseDir) override;
+    bool loadSettings(const QString& confBaseDir, const QByteArray& data) override;
+
     bool fetchDigitalInput(QPair<QString, bool> *result);
     void newDigitalPin(int pinID, const QString& pinName, bool output, bool pullUp);
     void pinSetValue(const QString& pinName, bool value);

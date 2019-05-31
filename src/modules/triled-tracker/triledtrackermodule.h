@@ -55,6 +55,9 @@ public:
 
     void showSettingsUi() override;
 
+    QByteArray serializeSettings(const QString& confBaseDir) override;
+    bool loadSettings(const QString& confBaseDir, const QByteArray& data) override;
+
 public slots:
     void receiveFrame(const FrameData& frameData) override;
 

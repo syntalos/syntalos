@@ -44,19 +44,39 @@ QVariant GenericCameraSettingsDialog::selectedCamera() const
     return ui->cameraComboBox->currentData();
 }
 
-cv::Size GenericCameraSettingsDialog::selectedSize() const
+cv::Size GenericCameraSettingsDialog::resolution() const
 {
     return cv::Size(ui->spinBoxWidth->value(), ui->spinBoxHeight->value());
 }
 
-int GenericCameraSettingsDialog::selectedFps() const
+int GenericCameraSettingsDialog::framerate() const
 {
     return ui->fpsSpinBox->value();
+}
+
+void GenericCameraSettingsDialog::setFramerate(int fps)
+{
+    ui->fpsSpinBox->setValue(fps);
 }
 
 void GenericCameraSettingsDialog::setRunning(bool running)
 {
     ui->cameraGroupBox->setEnabled(!running);
+}
+
+void GenericCameraSettingsDialog::updateValues()
+{
+    for (int i = 0; i < ui->cameraComboBox->count(); i++) {
+        if (ui->cameraComboBox->itemData(i).toInt() == m_camera->camId()) {
+            ui->cameraComboBox->setCurrentIndex(i);
+            break;
+        }
+    }
+
+    ui->spinBoxWidth->setValue(m_camera->resolution().width);
+    ui->spinBoxHeight->setValue(m_camera->resolution().height);
+    ui->sbExposure->setValue(m_camera->exposure());
+    ui->sbGain->setValue(m_camera->gain());
 }
 
 void GenericCameraSettingsDialog::on_cameraComboBox_currentIndexChanged(int index)
@@ -65,12 +85,22 @@ void GenericCameraSettingsDialog::on_cameraComboBox_currentIndexChanged(int inde
     m_camera->setCamId(ui->cameraComboBox->currentData().toInt());
 }
 
-void GenericCameraSettingsDialog::on_sbExposure_valueChanged(int arg1)
+void GenericCameraSettingsDialog::on_sbExposure_valueChanged(double arg1)
 {
     m_camera->setExposure(arg1);
 }
 
-void GenericCameraSettingsDialog::on_sbGain_valueChanged(int arg1)
+void GenericCameraSettingsDialog::on_sbGain_valueChanged(double arg1)
 {
     m_camera->setGain(arg1);
+}
+
+void GenericCameraSettingsDialog::on_dialExposure_valueChanged(int value)
+{
+    ui->sbExposure->setValue(value);
+}
+
+void GenericCameraSettingsDialog::on_dialGain_valueChanged(int value)
+{
+    ui->sbGain->setValue(value);
 }

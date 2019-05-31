@@ -222,3 +222,21 @@ void PyScriptModule::stop()
 
     setState(ModuleState::READY);
 }
+
+QByteArray PyScriptModule::serializeSettings(const QString &confBaseDir)
+{
+    Q_UNUSED(confBaseDir);
+    QJsonObject jsettings;
+    jsettings.insert("script", m_scriptView->document()->text());
+
+    return jsonObjectToBytes(jsettings);
+}
+
+bool PyScriptModule::loadSettings(const QString &confBaseDir, const QByteArray &data)
+{
+    Q_UNUSED(confBaseDir);
+    auto jsettings = jsonObjectFromBytes(data);
+    m_scriptView->document()->setText(jsettings.value("script").toString());
+
+    return true;
+}

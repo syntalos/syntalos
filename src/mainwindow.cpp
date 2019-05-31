@@ -352,6 +352,10 @@ void MainWindow::runActionTriggered()
     Q_FOREACH(auto mod, m_modManager->activeModules()) {
         setStatusText(QStringLiteral("Stopping %1...").arg(mod->name()));
         mod->stop();
+
+        // ensure modules display the correct state after we stopped a run
+        if (mod->state() == ModuleState::RUNNING)
+            mod->setState(ModuleState::READY);
     }
 
     delete timer;
@@ -483,6 +487,7 @@ bool MainWindow::saveConfiguration(const QString &fileName)
 
         QJsonObject modInfo;
         modInfo.insert("id", mod->id());
+        modInfo.insert("name", mod->name());
         tar.writeFile(QStringLiteral("%1/info.json").arg(modIndex), QJsonDocument(modInfo).toJson());
 
         modIndex++;
@@ -494,6 +499,119 @@ bool MainWindow::saveConfiguration(const QString &fileName)
     this->updateWindowTitle(fi.fileName());
 
     setStatusText("Ready.");
+    return true;
+}
+
+bool MainWindow::loadConfiguration(const QString &fileName)
+{
+    KTar tar(fileName);
+    if (!tar.open(QIODevice::ReadOnly)) {
+        qCritical() << "Unable to open settings file for reading.";
+        return false;
+    }
+
+    auto rootDir = tar.directory();
+
+    // load main settings
+    auto globalSettingsFile = rootDir->file("main.json");
+    if (globalSettingsFile == nullptr) {
+        QMessageBox::critical(this, tr("Can not load settings"),
+                              tr("The settings file is damaged or is no valid MazeAmaze configuration bundle."));
+        setStatusText("");
+        return false;
+    }
+
+    // disable all UI elements while we are loading stuff
+    this->setEnabled(false);
+
+    auto mainDoc = QJsonDocument::fromJson(globalSettingsFile->data());
+    auto rootObj = mainDoc.object();
+
+    if (rootObj.value("formatVersion").toString() != CONFIG_FILE_FORMAT_VERSION) {
+        auto reply = QMessageBox::question(this,
+                                           "Incompatible configuration",
+                                           QStringLiteral("The settings file you want to load was created with a different, possibly older version of MazeAmaze and may not work correctly in this version.\n"
+                                                          "Should we attempt to load it anyway? (This may result in unexpected behavior)"),
+                                           QMessageBox::Yes | QMessageBox::No);
+        if (reply == QMessageBox::No) {
+            this->setEnabled(true);
+            setStatusText("Aborted configuration loading.");
+            return true;
+        }
+    }
+
+    setDataExportBaseDir(rootObj.value("exportDir").toString());
+    ui->expIdEdit->setText(rootObj.value("experimentId").toString());
+
+    // load list of subjects
+    auto subjectsFile = rootDir->file("subjects.json");
+    if (subjectsFile != nullptr) {
+        // not having a list of subjects is totally fine
+
+        auto subjDoc = QJsonDocument::fromJson(subjectsFile->data());
+        m_subjectList->fromJson(subjDoc.array());
+    }
+
+    m_modManager->removeAll();
+    auto rootEntries = rootDir->entries();
+    rootEntries.sort();
+
+    QDir confBaseDir(QString("%1/..").arg(fileName));
+
+    // we load the modules in two passes, to ensure they can all register
+    // their interdependencies correctly.
+    QList<QPair<AbstractModule*, QByteArray>> modSettingsList;
+
+    // add modules
+    Q_FOREACH(auto ename, rootEntries) {
+        auto e = rootDir->entry(ename);
+        if (!e->isDirectory())
+            continue;
+        auto ifile = rootDir->file(QStringLiteral("%1/info.json").arg(ename));
+        if (ifile == nullptr)
+            return false;
+
+        auto jidoc = QJsonDocument::fromJson(ifile->data());
+        auto iobj = jidoc.object();
+        const auto modId = iobj.value("id").toString();
+        const auto modName = iobj.value("name").toString();
+
+        auto mod = m_modManager->createModule(modId);
+        if (mod == nullptr) {
+            QMessageBox::critical(this, QStringLiteral("Can not load settings"),
+                                  QStringLiteral("Unable to find module '%1' - please install the module first, then attempt to load this configuration again.").arg(modId));
+            return false;
+        }
+        auto sfile = rootDir->file(QStringLiteral("%1/%2.dat").arg(ename).arg(modId));
+        QByteArray sdata;
+        if (sfile == nullptr)
+            qWarning() << "Settings data for" << modId << "was not found.";
+        else
+            sdata = sfile->data();
+
+        if (!modName.isEmpty())
+            mod->setName(modName);
+
+        modSettingsList.append(qMakePair(mod, sdata));
+    }
+
+    // load module configurations
+    Q_FOREACH(auto pair, modSettingsList) {
+        auto mod = pair.first;
+        if (!mod->loadSettings(confBaseDir.absolutePath(), pair.second)) {
+            QMessageBox::critical(this, QStringLiteral("Can not load settings"),
+                                  QStringLiteral("Unable to load module settings for '%1'.").arg(mod->name()));
+            return false;
+        }
+    }
+
+    QFileInfo fi(fileName);
+    this->updateWindowTitle(fi.fileName());
+
+    // we are ready, enable all UI elements again
+    setStatusText("Ready.");
+    this->setEnabled(true);
+
     return true;
 }
 
@@ -566,96 +684,15 @@ void MainWindow::loadSettingsActionTriggered()
     if (fileName.isEmpty())
         return;
 
-    KTar tar(fileName);
-    if (!tar.open(QIODevice::ReadOnly)) {
-        QMessageBox::critical(this, tr("Can not load settings"),
-                              tr("Unable to open settings file for reading."));
-        return;
-    }
+
 
     setStatusText("Loading settings...");
-    auto rootDir = tar.directory();
 
-    // load main settings
-    auto globalSettingsFile = rootDir->file("main.json");
-    if (globalSettingsFile == nullptr) {
-        QMessageBox::critical(this, tr("Can not load settings"),
-                              tr("The settings file is damaged or is no valid MazeAmaze configuration bundle."));
-        setStatusText("");
-        return;
+    if (!loadConfiguration(fileName)) {
+        QMessageBox::critical(this, tr("Can not load configuration"),
+                              tr("Failed to load configuration."));
+        m_modManager->removeAll();
     }
-
-    // disable all UI elements while we are loading stuff
-    this->setEnabled(false);
-
-    QDir confBaseDir(QString("%1/..").arg(fileName));
-
-    auto mainDoc = QJsonDocument::fromJson(globalSettingsFile->data());
-    auto rootObj = mainDoc.object();
-
-    if (rootObj.value("formatVersion").toString() != CONFIG_FILE_FORMAT_VERSION) {
-        auto reply = QMessageBox::question(this,
-                                           "Incompatible configuration",
-                                           QStringLiteral("The settings file you want to load was created with a different, possibly older version of MazeAmaze and may not work correctly in this version.\n"
-                                                          "Should we attempt to load it anyway? (This may result in unexpected behavior)"),
-                                           QMessageBox::Yes | QMessageBox::No);
-        if (reply == QMessageBox::No) {
-            this->setEnabled(true);
-            setStatusText("Aborted configuration loading.");
-            return;
-        }
-    }
-
-    setDataExportBaseDir(rootObj.value("exportDir").toString());
-    ui->expIdEdit->setText(rootObj.value("experimentId").toString());
-
-#if 0
-    auto videoSettings = rootObj.value("video").toObject();
-    m_eresWidthEdit->setValue(videoSettings.value("exportWidth").toInt(800));
-    m_eresHeightEdit->setValue(videoSettings.value("exportHeight").toInt(600));
-    m_fpsEdit->setValue(videoSettings.value("fps").toInt(20));
-    m_gainCB->setChecked(videoSettings.value("gainEnabled").toBool());
-    m_exposureEdit->setValue(videoSettings.value("exposureTime").toDouble(6));
-    //m_saveTarCB->setChecked(videoSettings.value("makeFrameTarball").toBool(true));
-    m_camFlashMode->setChecked(videoSettings.value("gpioFlash").toBool(true));
-
-    auto uEyeConfFile = videoSettings.value("uEyeConfig").toString();
-    if (!uEyeConfFile.isEmpty()) {
-        uEyeConfFile = confBaseDir.absoluteFilePath(uEyeConfFile);
-        //! m_videoTracker->setUEyeConfigFile(uEyeConfFile);
-        m_ueyeConfFileLbl->setText(uEyeConfFile);
-    }
-#endif
-
-    // load list of subjects
-    auto subjectsFile = rootDir->file("subjects.json");
-    if (subjectsFile != nullptr) {
-        // not having a list of subjects is totally fine
-
-        auto subjDoc = QJsonDocument::fromJson(subjectsFile->data());
-        m_subjectList->fromJson(subjDoc.array());
-    }
-
-#if 0
-    // load Intan settings
-    auto intanSettingsFile = rootDir->file("intan.isf");
-    if (intanSettingsFile != nullptr)
-        m_intanUI->loadSettings(intanSettingsFile->data());
-
-    // load Maze IO Python script
-    auto mazeScriptFile = rootDir->file("mscript.py");
-    if (mazeScriptFile == nullptr)
-        m_mscriptView->document()->setText("import maio as io\n\n# Empty\n");
-    else
-        m_mscriptView->document()->setText(mazeScriptFile->data());
-#endif
-
-    QFileInfo fi(fileName);
-    this->updateWindowTitle(fi.fileName());
-
-    // we are ready, enable all UI elements again
-    setStatusText("Ready.");
-    this->setEnabled(true);
 }
 
 void MainWindow::aboutActionTriggered()

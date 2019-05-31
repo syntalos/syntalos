@@ -120,6 +120,24 @@ void FirmataIOModule::stop()
     setState(ModuleState::READY);
 }
 
+QByteArray FirmataIOModule::serializeSettings(const QString &confBaseDir)
+{
+    Q_UNUSED(confBaseDir);
+    QJsonObject jsettings;
+    jsettings.insert("serialPort", m_settingsDialog->serialPort());
+
+    return jsonObjectToBytes(jsettings);
+}
+
+bool FirmataIOModule::loadSettings(const QString &confBaseDir, const QByteArray &data)
+{
+    Q_UNUSED(confBaseDir);
+    auto jsettings = jsonObjectFromBytes(data);
+    m_settingsDialog->setSerialPort(jsettings.value("serialPort").toString());
+
+    return true;
+}
+
 bool FirmataIOModule::fetchDigitalInput(QPair<QString, bool> *result)
 {
     if (result == nullptr)

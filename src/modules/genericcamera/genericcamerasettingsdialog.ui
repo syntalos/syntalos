@@ -196,7 +196,7 @@
        <number>0</number>
       </property>
       <item>
-       <widget class="QDial" name="dial">
+       <widget class="QDial" name="dialExposure">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
           <horstretch>0</horstretch>
@@ -218,18 +218,18 @@
        </widget>
       </item>
       <item>
-       <widget class="QSpinBox" name="sbExposure">
+       <widget class="QDoubleSpinBox" name="sbExposure">
         <property name="toolTip">
          <string>Adjust camera exposure</string>
         </property>
         <property name="minimum">
-         <number>1</number>
+         <double>1.000000000000000</double>
         </property>
         <property name="maximum">
-         <number>100</number>
+         <double>100.000000000000000</double>
         </property>
         <property name="value">
-         <number>10</number>
+         <double>10.000000000000000</double>
         </property>
        </widget>
       </item>
@@ -271,7 +271,7 @@
        <number>0</number>
       </property>
       <item>
-       <widget class="QDial" name="dial_3">
+       <widget class="QDial" name="dialGain">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
           <horstretch>0</horstretch>
@@ -287,12 +287,12 @@
        </widget>
       </item>
       <item>
-       <widget class="QSpinBox" name="sbGain">
+       <widget class="QDoubleSpinBox" name="sbGain">
         <property name="toolTip">
          <string>Adjust gain</string>
         </property>
         <property name="maximum">
-         <number>100</number>
+         <double>100.000000000000000</double>
         </property>
        </widget>
       </item>
@@ -326,38 +326,6 @@
  </widget>
  <resources/>
  <connections>
-  <connection>
-   <sender>dial</sender>
-   <signal>valueChanged(int)</signal>
-   <receiver>sbExposure</receiver>
-   <slot>setValue(int)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>75</x>
-     <y>210</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>124</x>
-     <y>214</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>dial_3</sender>
-   <signal>valueChanged(int)</signal>
-   <receiver>sbGain</receiver>
-   <slot>setValue(int)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>69</x>
-     <y>300</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>124</x>
-     <y>302</y>
-    </hint>
-   </hints>
-  </connection>
   <connection>
    <sender>buttonBox</sender>
    <signal>accepted()</signal>

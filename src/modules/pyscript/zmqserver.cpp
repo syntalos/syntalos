@@ -117,6 +117,8 @@ ZmqServer::~ZmqServer()
 {
     stop();
     zsock_destroy(&d->server);
+    QFile socket(d->socketPath);
+    socket.remove();
 }
 
 bool ZmqServer::start(HRTimer *timer)

@@ -89,15 +89,31 @@ QVariant UEyeCameraSettingsDialog::selectedCamera() const
     return ui->cameraComboBox->currentData();
 }
 
-cv::Size UEyeCameraSettingsDialog::selectedSize() const
+cv::Size UEyeCameraSettingsDialog::resolution() const
 {
     auto size = ui->resolutionComboBox->currentData().value<QSize>();
     return cv::Size(size.width(), size.height());
 }
 
-int UEyeCameraSettingsDialog::selectedFps() const
+void UEyeCameraSettingsDialog::setResolution(cv::Size size)
+{
+    for (int i = 0; i < ui->resolutionComboBox->count(); i++) {
+        auto s = ui->resolutionComboBox->itemData(i).toSize();
+        if (s.width() == size.width && s.height() == size.height) {
+            ui->resolutionComboBox->setCurrentIndex(i);
+            break;
+        }
+    }
+}
+
+int UEyeCameraSettingsDialog::framerate() const
 {
     return ui->fpsSpinBox->value();
+}
+
+void UEyeCameraSettingsDialog::setFramerate(int fps)
+{
+    ui->fpsSpinBox->setValue(fps);
 }
 
 void UEyeCameraSettingsDialog::setRunning(bool running)
@@ -140,6 +156,11 @@ void UEyeCameraSettingsDialog::setGpioFlash(bool flash)
 double UEyeCameraSettingsDialog::exposure() const
 {
     return ui->sbExposure->value();
+}
+
+void UEyeCameraSettingsDialog::setExposure(double value)
+{
+    ui->sbExposure->setValue(value);
 }
 
 void UEyeCameraSettingsDialog::on_cameraComboBox_currentIndexChanged(int index)

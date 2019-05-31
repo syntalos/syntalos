@@ -189,6 +189,47 @@ void VideoRecorderModule::showSettingsUi()
     m_settingsDialog->show();
 }
 
+QByteArray VideoRecorderModule::serializeSettings(const QString &confBaseDir)
+{
+    Q_UNUSED(confBaseDir);
+    QJsonObject jset;
+    jset.insert("imageSourceModule", m_settingsDialog->selectedImageSourceMod()->name());
+    jset.insert("videoName", m_settingsDialog->videoName());
+    jset.insert("saveTimestamps", m_settingsDialog->saveTimestamps());
+
+    jset.insert("videoCodec", static_cast<int>(m_settingsDialog->videoCodec()));
+    jset.insert("videoContainer", static_cast<int>(m_settingsDialog->videoContainer()));
+    jset.insert("lossless", m_settingsDialog->isLossless());
+
+    jset.insert("sliceInterval", static_cast<int>(m_settingsDialog->sliceInterval()));
+
+    return jsonObjectToBytes(jset);
+}
+
+bool VideoRecorderModule::loadSettings(const QString &confBaseDir, const QByteArray &data)
+{
+    Q_UNUSED(confBaseDir);
+    auto jset = jsonObjectFromBytes(data);
+
+    auto modName = jset.value("imageSourceModule").toString();
+    Q_FOREACH(auto mod, m_frameSourceModules) {
+        if (mod->name() == modName) {
+            m_settingsDialog->setSelectedImageSourceMod(mod);
+            break;
+        }
+    }
+    m_settingsDialog->setVideoName(jset.value("videoName").toString());
+    m_settingsDialog->setSaveTimestamps(jset.value("saveTimestamps").toBool());
+
+    m_settingsDialog->setVideoCodec(static_cast<VideoCodec>(jset.value("videoCodec").toInt()));
+    m_settingsDialog->setVideoContainer(static_cast<VideoContainer>(jset.value("videoContainer").toInt()));
+    m_settingsDialog->setLossless(jset.value("lossless").toBool());
+
+    m_settingsDialog->setSliceInterval(static_cast<uint>(jset.value("sliceInterval").toInt()));
+
+    return true;
+}
+
 void VideoRecorderModule::recvModuleCreated(AbstractModule *mod)
 {
     auto imgSrcMod = qobject_cast<ImageSourceModule*>(mod);

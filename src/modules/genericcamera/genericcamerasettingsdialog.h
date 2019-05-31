@@ -36,13 +36,20 @@ public:
     ~GenericCameraSettingsDialog();
 
     QVariant selectedCamera() const;
-    cv::Size selectedSize() const;
-    int selectedFps() const;
+    cv::Size resolution() const;
+
+    int framerate() const;
+    void setFramerate(int fps);
+
     void setRunning(bool running);
 
+    void updateValues();
+
 private slots:
-    void on_sbGain_valueChanged(int arg1);
-    void on_sbExposure_valueChanged(int arg1);
+    void on_sbGain_valueChanged(double arg1);
+    void on_sbExposure_valueChanged(double arg1);
+    void on_dialExposure_valueChanged(int value);
+    void on_dialGain_valueChanged(int value);
     void on_cameraComboBox_currentIndexChanged(int index);
 
 private:

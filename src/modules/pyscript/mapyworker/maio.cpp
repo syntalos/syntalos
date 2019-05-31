@@ -33,7 +33,6 @@
 
 using namespace boost::python;
 
-#pragma GCC diagnostic ignored "-Wweak-vtables"
 struct MazeAmazePyError : std::runtime_error {
     explicit MazeAmazePyError(const char* what_arg);
     explicit MazeAmazePyError(const std::string& what_arg);
@@ -42,7 +41,6 @@ MazeAmazePyError::MazeAmazePyError(const char* what_arg)
     : std::runtime_error(what_arg) {};
 MazeAmazePyError::MazeAmazePyError(const std::string& what_arg)
     : std::runtime_error(what_arg) {};
-#pragma GCC diagnostic pop
 
 void translateException(const MazeAmazePyError& e) {
     PyErr_SetString(PyExc_RuntimeError, e.what());

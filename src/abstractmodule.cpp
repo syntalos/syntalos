@@ -207,6 +207,12 @@ QByteArray AbstractModule::jsonObjectToBytes(const QJsonObject &object)
     return QJsonDocument(object).toJson();
 }
 
+QJsonObject AbstractModule::jsonObjectFromBytes(const QByteArray &data)
+{
+    auto doc = QJsonDocument::fromJson(data);
+    return doc.object();
+}
+
 void AbstractModule::setStatusMessage(const QString &message)
 {
     emit statusMessage(message);

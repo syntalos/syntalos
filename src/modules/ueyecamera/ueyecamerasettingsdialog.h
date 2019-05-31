@@ -39,8 +39,13 @@ public:
     ~UEyeCameraSettingsDialog();
 
     QVariant selectedCamera() const;
-    cv::Size selectedSize() const;
-    int selectedFps() const;
+
+    cv::Size resolution() const;
+    void setResolution(cv::Size size);
+
+    int framerate() const;
+    void setFramerate(int fps);
+
     void setRunning(bool running); 
 
     bool automaticGain();
@@ -53,6 +58,7 @@ public:
     void setGpioFlash(bool flash);
 
     double exposure() const;
+    void setExposure(double value);
 
 private slots:
     void on_sbExposure_valueChanged(double arg1);
