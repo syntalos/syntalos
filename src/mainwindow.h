@@ -29,6 +29,7 @@ class QLabel;
 class ModuleManager;
 class AbstractModule;
 class ModuleIndicator;
+class QSvgWidget;
 
 namespace Ui {
 class MainWindow;
@@ -64,6 +65,8 @@ private slots:
 
 protected:
     void closeEvent(QCloseEvent *event);
+    void resizeEvent(QResizeEvent *event);
+    void showEvent(QShowEvent *event);
 
 private:
     void updateWindowTitle(const QString& fileName);
@@ -86,6 +89,7 @@ private:
     QLabel *m_statusBarLabel;
     QLabel *m_exportDirLabel;
     QLabel *m_exportDirInfoLabel;
+    QSvgWidget *m_runIndicatorWidget;
 
     QString m_experimentId;
     QString m_currentDate;

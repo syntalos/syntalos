@@ -52,6 +52,7 @@
 #include <QListWidgetItem>
 #include <QScrollBar>
 #include <QHeaderView>
+#include <QSvgWidget>
 
 #include <KTar>
 
@@ -244,6 +245,16 @@ MainWindow::MainWindow(QWidget *parent) :
     m_modManager = new ModuleManager(this, this);
     connect(m_modManager, &ModuleManager::moduleCreated, this, &MainWindow::moduleAdded);
     connect(m_modManager, &ModuleManager::moduleError, this, &MainWindow::receivedModuleError);
+
+    // create loading indicator for long loading/running tasks
+    m_runIndicatorWidget = new QSvgWidget(this);
+    m_runIndicatorWidget->load(QStringLiteral(":/animations/running.svg"));
+
+    const auto indicatorWidgetDim = ui->mainToolBar->height() + 8;
+    m_runIndicatorWidget->setMaximumSize(QSize(indicatorWidgetDim, indicatorWidgetDim));
+    m_runIndicatorWidget->setMinimumSize(QSize(indicatorWidgetDim, indicatorWidgetDim));
+    m_runIndicatorWidget->raise();
+    m_runIndicatorWidget->hide();
 }
 
 MainWindow::~MainWindow()
@@ -332,6 +343,7 @@ void MainWindow::runActionTriggered()
     }
 
     m_running = true;
+    m_runIndicatorWidget->show();
     setStatusText(QStringLiteral("Running..."));
 
     while (m_running) {
@@ -387,12 +399,14 @@ void MainWindow::runActionTriggered()
         QMessageBox::critical(this, "Unable to finish recording", "Unable to open manifest file for writing.");
         setRunPossible(true);
         setStopPossible(false);
+        m_runIndicatorWidget->hide();
         return;
     }
 
     QTextStream manifestFileOut(&manifestFile);
     manifestFileOut << QJsonDocument(manifest).toJson();
 
+    m_runIndicatorWidget->hide();
     setStatusText(QStringLiteral("Ready."));
 }
 
@@ -649,6 +663,18 @@ void MainWindow::closeEvent(QCloseEvent *event)
     QApplication::quit();
 }
 
+void MainWindow::resizeEvent(QResizeEvent *event)
+{
+    QMainWindow::resizeEvent(event);
+    m_runIndicatorWidget->move(ui->tabWidget->width() - m_runIndicatorWidget->width() - 4, ui->menuBar->height());
+}
+
+void MainWindow::showEvent(QShowEvent *event)
+{
+    QMainWindow::showEvent(event);
+    m_runIndicatorWidget->move(ui->tabWidget->width() - m_runIndicatorWidget->width() - 4, ui->menuBar->height());
+}
+
 void MainWindow::saveSettingsActionTriggered()
 {
     QString fileName;
@@ -660,10 +686,12 @@ void MainWindow::saveSettingsActionTriggered()
     if (fileName.isEmpty())
         return;
 
+    m_runIndicatorWidget->show();
     if (!saveConfiguration(fileName)) {
         QMessageBox::critical(this, tr("Can not save configuration"),
                               tr("Unable to write configuration file to disk."));
     }
+    m_runIndicatorWidget->hide();
 }
 
 void MainWindow::updateWindowTitle(const QString& fileName)
@@ -688,11 +716,13 @@ void MainWindow::loadSettingsActionTriggered()
 
     setStatusText("Loading settings...");
 
+    m_runIndicatorWidget->show();
     if (!loadConfiguration(fileName)) {
         QMessageBox::critical(this, tr("Can not load configuration"),
                               tr("Failed to load configuration."));
         m_modManager->removeAll();
     }
+    m_runIndicatorWidget->hide();
 }
 
 void MainWindow::aboutActionTriggered()

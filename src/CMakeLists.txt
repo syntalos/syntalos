@@ -55,6 +55,7 @@ target_link_libraries(mazeamaze
     Qt5::Widgets
     Qt5::SerialPort
     Qt5::OpenGL
+    Qt5::Svg
     KF5::DBusAddons
     KF5::Archive
     KF5::TextEditor

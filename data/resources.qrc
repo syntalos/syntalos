@@ -38,4 +38,7 @@
     <qresource prefix="/texts">
         <file>pyscript-sample.py</file>
     </qresource>
+    <qresource prefix="/animations">
+        <file alias="running.svg">animations/running.svg</file>
+    </qresource>
 </RCC>
