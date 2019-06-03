@@ -188,6 +188,33 @@ bool AbstractModule::initialized() const
     return m_initialized;
 }
 
+QJsonValue AbstractModule::serializeDisplayUiGeometry()
+{
+    QJsonObject obj;
+    Q_FOREACH(auto w, m_displayWindows) {
+        QJsonObject info;
+        info.insert("visible", w->isVisible());
+        info.insert("geometry", QString::fromUtf8(w->saveGeometry().toBase64()));
+        obj.insert(w->windowTitle(), info);
+    }
+
+    return obj;
+}
+
+void AbstractModule::restoreDisplayUiGeomatry(QJsonObject info)
+{
+    Q_FOREACH(auto w, m_displayWindows) {
+        auto winfo = info.value(w->windowTitle()).toObject();
+        if (winfo.isEmpty())
+            continue;
+        if (winfo.value("visible").toBool())
+            w->show();
+
+        auto b64Geometry = winfo.value("geometry").toString();
+        w->restoreGeometry(QByteArray::fromBase64(b64Geometry.toUtf8()));
+    }
+}
+
 void AbstractModule::setState(ModuleState state)
 {
     m_state = state;

@@ -502,6 +502,7 @@ bool MainWindow::saveConfiguration(const QString &fileName)
         QJsonObject modInfo;
         modInfo.insert("id", mod->id());
         modInfo.insert("name", mod->name());
+        modInfo.insert("uiDisplayGeometry", mod->serializeDisplayUiGeometry());
         tar.writeFile(QStringLiteral("%1/info.json").arg(modIndex), QJsonDocument(modInfo).toJson());
 
         modIndex++;
@@ -589,6 +590,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         auto iobj = jidoc.object();
         const auto modId = iobj.value("id").toString();
         const auto modName = iobj.value("name").toString();
+        const auto uiDisplayGeometry = iobj.value("uiDisplayGeometry").toObject();
 
         auto mod = m_modManager->createModule(modId);
         if (mod == nullptr) {
@@ -605,6 +607,9 @@ bool MainWindow::loadConfiguration(const QString &fileName)
 
         if (!modName.isEmpty())
             mod->setName(modName);
+
+        if (!uiDisplayGeometry.isEmpty())
+            mod->restoreDisplayUiGeomatry(uiDisplayGeometry);
 
         modSettingsList.append(qMakePair(mod, sdata));
     }

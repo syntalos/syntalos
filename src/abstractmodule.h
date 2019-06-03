@@ -204,6 +204,9 @@ public:
     void setInitialized();
     bool initialized() const;
 
+    QJsonValue serializeDisplayUiGeometry();
+    void restoreDisplayUiGeomatry(QJsonObject info);
+
 signals:
     void actionsUpdated();
     void stateChanged(ModuleState state);
