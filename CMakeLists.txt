@@ -75,6 +75,7 @@ if(MOD_CAMERA_UEYE)
     set(UEYE_LIBS "ueye_api")
 endif()
 
+
 #
 # Config file
 #
@@ -86,6 +87,7 @@ set(MA_ARCH_INSTALL_DIR "${CMAKE_INSTALL_FULL_LIBDIR}/mazeamaze")
 set(OKLIB_FULL_PATH "${MA_ARCH_INSTALL_DIR}/libokFrontPanel.so")
 configure_file(config.h.in ${CMAKE_BINARY_DIR}/config.h)
 include_directories(${CMAKE_BINARY_DIR})
+
 
 #
 # Subdirectories
