@@ -250,7 +250,7 @@ MainWindow::MainWindow(QWidget *parent) :
     m_runIndicatorWidget = new QSvgWidget(this);
     m_runIndicatorWidget->load(QStringLiteral(":/animations/running.svg"));
 
-    const auto indicatorWidgetDim = ui->mainToolBar->height() + 8;
+    const auto indicatorWidgetDim = ui->mainToolBar->height();
     m_runIndicatorWidget->setMaximumSize(QSize(indicatorWidgetDim, indicatorWidgetDim));
     m_runIndicatorWidget->setMinimumSize(QSize(indicatorWidgetDim, indicatorWidgetDim));
     m_runIndicatorWidget->raise();
