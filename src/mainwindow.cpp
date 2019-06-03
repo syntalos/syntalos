@@ -75,11 +75,44 @@
 
 #define CONFIG_FILE_FORMAT_VERSION "2"
 
+static bool switchIconTheme(const QString& themeName)
+{
+    if (themeName.isEmpty())
+        return false;
+    if (QIcon::themeName() == themeName)
+        return true;
+    auto found = false;
+    Q_FOREACH(auto path, QIcon::themeSearchPaths()) {
+        QFileInfo fi(QStringLiteral("%1/%2").arg(path).arg(themeName));
+        if (fi.isDir()) {
+            found = true;
+            break;
+        }
+    }
+
+    if (!found)
+        return false;
+    QIcon::setThemeName(themeName);
+    qDebug() << "Switched icon theme to" << themeName;
+
+    return true;
+}
+
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
+    // Load settings and set icon theme explicitly
+    // (otherwise the application may look ugly or incomplete on GNOME)
+    QSettings settings("DraguhnLab", "MazeAmaze");
+    auto themeName = settings.value("main/iconTheme").toString();
+
+    // try to enforce breeze first, then the user-defined theme name, then the system default
+    switchIconTheme(QStringLiteral("breeze"));
+    switchIconTheme(themeName);
+
+    // create main window UI
     ui->setupUi(this);
     ui->tabWidget->setCurrentIndex(0);
 
@@ -237,8 +270,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(aboutQuitButton, &QPushButton::clicked, m_aboutDialog, &QDialog::accept);
     connect(ui->actionAbout, &QAction::triggered, this, &MainWindow::aboutActionTriggered);
 
-    // lastly, restore our geometry and widget state
-    QSettings settings("DraguhnLab", "MazeAmaze");
+    // restore main window geometry
     restoreGeometry(settings.value("main/geometry").toByteArray());
 
     // create new module manager
