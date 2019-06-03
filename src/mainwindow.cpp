@@ -703,13 +703,13 @@ void MainWindow::closeEvent(QCloseEvent *event)
 void MainWindow::resizeEvent(QResizeEvent *event)
 {
     QMainWindow::resizeEvent(event);
-    m_runIndicatorWidget->move(ui->tabWidget->width() - m_runIndicatorWidget->width() - 4, ui->menuBar->height() + 1);
+    m_runIndicatorWidget->move(ui->tabWidget->width() - m_runIndicatorWidget->width() - 4, ui->menuBar->height() + 4);
 }
 
 void MainWindow::showEvent(QShowEvent *event)
 {
     QMainWindow::showEvent(event);
-    m_runIndicatorWidget->move(ui->tabWidget->width() - m_runIndicatorWidget->width() - 4, ui->menuBar->height() + 1);
+    m_runIndicatorWidget->move(ui->tabWidget->width() - m_runIndicatorWidget->width() - 4, ui->menuBar->height() + 4);
 }
 
 void MainWindow::saveSettingsActionTriggered()
