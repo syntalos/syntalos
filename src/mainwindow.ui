@@ -280,7 +280,7 @@
               </property>
               <layout class="QVBoxLayout" name="scrollAreaLayout">
                <property name="spacing">
-                <number>4</number>
+                <number>2</number>
                </property>
                <property name="leftMargin">
                 <number>2</number>
@@ -541,7 +541,7 @@
    </widget>
    <widget class="QMenu" name="menuTool">
     <property name="title">
-     <string>&amp;File</string>
+     <string>&amp;Tool</string>
     </property>
     <addaction name="actionLoadSettings"/>
     <addaction name="actionSaveSettings"/>
@@ -550,8 +550,10 @@
    </widget>
    <widget class="QMenu" name="menuTest_Subjects">
     <property name="title">
-     <string>&amp;Test Subjects</string>
+     <string>Test Sub&amp;jects</string>
     </property>
+    <addaction name="actionSubjectsLoad"/>
+    <addaction name="actionSubjectsSave"/>
    </widget>
    <addaction name="menuTool"/>
    <addaction name="menuTest_Subjects"/>
@@ -634,6 +636,22 @@
    </property>
    <property name="text">
     <string>&amp;About</string>
+   </property>
+  </action>
+  <action name="actionSubjectsLoad">
+   <property name="icon">
+    <iconset theme="view-list-details"/>
+   </property>
+   <property name="text">
+    <string>Load from file</string>
+   </property>
+  </action>
+  <action name="actionSubjectsSave">
+   <property name="icon">
+    <iconset theme="document-save-as"/>
+   </property>
+   <property name="text">
+    <string>Save to file</string>
    </property>
   </action>
  </widget>
