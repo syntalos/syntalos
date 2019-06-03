@@ -690,6 +690,8 @@ void MainWindow::saveSettingsActionTriggered()
 
     if (fileName.isEmpty())
         return;
+    if (!fileName.endsWith(".mact"))
+        fileName = QStringLiteral("%1.mact").arg(fileName);
 
     m_runIndicatorWidget->show();
     if (!saveConfiguration(fileName)) {
