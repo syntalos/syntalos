@@ -30,3 +30,5 @@ include_directories(
     ${PYTHON_INCLUDE_DIRS}
     ${Boost_INCLUDE_DIRS}
 )
+
+install(TARGETS mapyworker DESTINATION ${MA_ARCH_INSTALL_DIR})
