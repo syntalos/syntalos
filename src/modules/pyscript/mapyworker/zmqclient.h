@@ -33,7 +33,8 @@ class ZmqClient : public QObject
     Q_OBJECT
 public:
     static ZmqClient *instance(QObject *parent = nullptr) {
-       // std::lock_guard<std::mutex> lock(_mutex);
+        static std::mutex _mutex;
+        std::lock_guard<std::mutex> lock(_mutex);
         static ZmqClient *_instance = nullptr;
         if (_instance == nullptr) {
             _instance = new ZmqClient(parent);
@@ -49,7 +50,6 @@ public:
     QVariant runRpc(MaPyFunction funcId, const QJsonArray& values = QJsonArray());
 
 private:
-    static std::mutex _mutex;
     Q_DISABLE_COPY(ZmqClient)
 
     class ZCData;

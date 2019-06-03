@@ -23,6 +23,7 @@
 #include <QObject>
 #include <thread>
 #include <queue>
+#include <mutex>
 #include <boost/circular_buffer.hpp>
 
 #include "imagesinkmodule.h"
