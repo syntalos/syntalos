@@ -3,9 +3,9 @@
 # as possible to the pristine Intan code.
 if (MAINTAINER)
     remove_definitions("-Werror" "-Wzero-as-null-pointer-constant")
+    add_definitions("-Wno-unused-but-set-variable")
+    add_definitions("-Wno-suggest-override")
 endif()
-add_definitions("-Wno-unused-but-set-variable")
-add_definitions("-Wno-suggest-override")
 
 set(INTAN_RHD2000_SRC
     rhd2000module.h
