@@ -114,6 +114,8 @@ AbstractModule *ModuleManager::createModule(const QString &id)
     Q_FOREACH(auto info, d->modInfo) {
         if (info->id == id) {
             info->count++;
+            if (info->count > 1)
+                mod->setName(QStringLiteral("%1 - %2").arg(mod->name()).arg(info->count));
             break;
         }
     }
