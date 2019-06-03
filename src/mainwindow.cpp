@@ -250,7 +250,7 @@ MainWindow::MainWindow(QWidget *parent) :
     m_runIndicatorWidget = new QSvgWidget(this);
     m_runIndicatorWidget->load(QStringLiteral(":/animations/running.svg"));
 
-    const auto indicatorWidgetDim = ui->mainToolBar->height() - 1;
+    const auto indicatorWidgetDim = ui->mainToolBar->height() - 2;
     m_runIndicatorWidget->setMaximumSize(QSize(indicatorWidgetDim, indicatorWidgetDim));
     m_runIndicatorWidget->setMinimumSize(QSize(indicatorWidgetDim, indicatorWidgetDim));
     m_runIndicatorWidget->raise();
@@ -747,8 +747,10 @@ void MainWindow::on_tbAddModule_clicked()
 {
     ModuleSelectDialog modDialog(m_modManager->moduleInfo(), this);
     if (modDialog.exec() == QDialog::Accepted) {
+        m_runIndicatorWidget->show();
         if (!modDialog.selectedEntryId().isEmpty())
             m_modManager->createModule(modDialog.selectedEntryId());
+        m_runIndicatorWidget->hide();
     }
 }
 
@@ -768,4 +770,47 @@ void MainWindow::receivedModuleError(AbstractModule *mod, const QString &message
     m_running = false;
     setRunPossible(true);
     setStopPossible(false);
+}
+
+void MainWindow::on_actionSubjectsLoad_triggered()
+{
+    QString fileName;
+    fileName = QFileDialog::getOpenFileName(this,
+                                            tr("Open Animal List Filename"),
+                                            QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
+                                            tr("JSON Files (*.json)"));
+    if (fileName.isEmpty())
+        return;
+
+
+    QFile f(fileName);
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
+        return;
+
+    const auto bytes = f.readAll();
+    if (bytes != nullptr) {
+        auto subjDoc = QJsonDocument::fromJson(bytes);
+        m_subjectList->fromJson(subjDoc.array());
+    }
+}
+
+void MainWindow::on_actionSubjectsSave_triggered()
+{
+    QString fileName;
+    fileName = QFileDialog::getSaveFileName(this,
+                                            tr("Select Animal List Filename"),
+                                            QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
+                                            tr("JSON Files (*.json)"));
+
+    if (fileName.isEmpty())
+        return;
+    if (!fileName.endsWith(".json"))
+        fileName = QStringLiteral("%1.json").arg(fileName);
+
+    QFile f(fileName);
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Text))
+        return;
+
+    QTextStream out(&f);
+    out << QJsonDocument(m_subjectList->toJson()).toJson();
 }

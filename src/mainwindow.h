@@ -63,6 +63,9 @@ private slots:
     void moduleAdded(AbstractModule *mod);
     void receivedModuleError(AbstractModule *mod, const QString& message);
 
+    void on_actionSubjectsLoad_triggered();
+    void on_actionSubjectsSave_triggered();
+
 protected:
     void closeEvent(QCloseEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
