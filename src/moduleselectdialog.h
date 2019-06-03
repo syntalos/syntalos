@@ -43,6 +43,7 @@ public:
 
 private slots:
     void on_listView_activated(const QModelIndex &index);
+    void on_listView_clicked(const QModelIndex &index);
 
 private:
     Ui::ModuleSelectDialog *ui;

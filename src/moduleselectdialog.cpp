@@ -129,3 +129,8 @@ void ModuleSelectDialog::on_listView_activated(const QModelIndex &index)
 {
     m_selectedEntryId = m_model->itemFromIndex(index)->data().toString();
 }
+
+void ModuleSelectDialog::on_listView_clicked(const QModelIndex &index)
+{
+    m_selectedEntryId = m_model->itemFromIndex(index)->data().toString();
+}
