@@ -22,9 +22,13 @@ option(MAINTAINER "Enable maintainer mode" OFF)
 add_definitions("-Wall" "-Wextra")
 if (MAINTAINER)
     add_definitions("-Werror")
+    add_definitions("-Wzero-as-null-pointer-constant")
 endif()
-
-add_definitions("-Wno-unused-but-set-variable")
+add_definitions(
+    "-Wsuggest-override"
+    "-Wsuggest-final-methods"
+    "-Wsuggest-final-types"
+)
 
 # we can't link with -rdynamic, because otherwise dlopen'ing the proprietary Opal library fails
 if (";${CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS};" MATCHES ";-rdynamic;")

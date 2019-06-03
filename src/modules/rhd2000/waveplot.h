@@ -40,7 +40,7 @@ class WavePlot : public QWidget
 
 public:
     WavePlot(SignalProcessor *inSignalProcessor, SignalSources *inSignalSources,
-             IntanUI *inIntanUI, QWidget *parent = 0);
+             IntanUI *inIntanUI, QWidget *parent = nullptr);
 
     void initialize(int startingPort);
     void passFilteredData();
@@ -75,8 +75,8 @@ public:
     void setSampleRate(double newSampleRate);
     void setNumUsbBlocksToPlot(int numBlocks);
 
-    QSize minimumSizeHint() const;
-    QSize sizeHint() const;
+    QSize minimumSizeHint() const override;
+    QSize sizeHint() const override;
 
     bool isPortEnabled(int port) const;
     void setPlotProxy(TracePlotProxy *pp);
@@ -88,14 +88,14 @@ signals:
 public slots:
 
 protected:
-    void paintEvent(QPaintEvent *event);
-    void mousePressEvent(QMouseEvent *event);
-    void mouseMoveEvent(QMouseEvent *event);
-    void mouseReleaseEvent(QMouseEvent *event);
-    void wheelEvent(QWheelEvent *event);
-    void keyPressEvent(QKeyEvent *event);
-    void closeEvent(QCloseEvent *event);
-    void resizeEvent(QResizeEvent* event);
+    void paintEvent(QPaintEvent *event) override;
+    void mousePressEvent(QMouseEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
+    void wheelEvent(QWheelEvent *event) override;
+    void keyPressEvent(QKeyEvent *event) override;
+    void closeEvent(QCloseEvent *event) override;
+    void resizeEvent(QResizeEvent* event) override;
 
 private:
     void refreshPixmap();

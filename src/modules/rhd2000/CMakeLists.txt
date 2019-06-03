@@ -2,8 +2,10 @@
 # we don't want to fix all warnings in this code to keep it as close
 # as possible to the pristine Intan code.
 if (MAINTAINER)
-    remove_definitions("-Werror")
+    remove_definitions("-Werror" "-Wzero-as-null-pointer-constant")
 endif()
+add_definitions("-Wno-unused-but-set-variable")
+add_definitions("-Wno-suggest-override")
 
 set(INTAN_RHD2000_SRC
     rhd2000module.h

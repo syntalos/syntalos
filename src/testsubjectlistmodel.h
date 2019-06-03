@@ -32,8 +32,8 @@ class TestSubjectListModel : public QAbstractListModel
 
 public:
     explicit TestSubjectListModel(const QList<TestSubject>& subjects,
-                                  QObject *parent = 0);
-    explicit TestSubjectListModel(QObject *parent = 0);
+                                  QObject *parent = nullptr);
+    explicit TestSubjectListModel(QObject *parent = nullptr);
 
     // Basic functionality:
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
@@ -41,7 +41,7 @@ public:
     QVariant data(const QModelIndex &index,
                   int role = Qt::DisplayRole) const override;
 
-    bool removeRows(int position, int rows, const QModelIndex &parent);
+    bool removeRows(int position, int rows, const QModelIndex &parent) override;
     bool removeRow(int row, const QModelIndex &parent = QModelIndex());
 
     void insertSubject(int row, TestSubject subject);

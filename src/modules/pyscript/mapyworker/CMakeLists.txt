@@ -2,6 +2,9 @@
 
 find_package(Boost 1.60 REQUIRED COMPONENTS python3)
 
+# Boost.Python has a few of these in templates
+remove_definitions("-Wzero-as-null-pointer-constant")
+
 set(MAPYWORKER_SRC
     main.cpp
     zmqclient.h

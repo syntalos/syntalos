@@ -21,6 +21,7 @@
 #define VIDEORECORDMODULE_H
 
 #include <QObject>
+#include <memory>
 #include <chrono>
 
 #include "imagesinkmodule.h"

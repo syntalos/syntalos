@@ -41,7 +41,7 @@ class MainWindow : public QMainWindow
 
 public:
     explicit MainWindow(QWidget *parent = nullptr);
-    ~MainWindow();
+    ~MainWindow() override;
 
     void setStatusText(const QString& msg);
 
@@ -64,9 +64,9 @@ private slots:
     void receivedModuleError(AbstractModule *mod, const QString& message);
 
 protected:
-    void closeEvent(QCloseEvent *event);
-    void resizeEvent(QResizeEvent *event);
-    void showEvent(QShowEvent *event);
+    void closeEvent(QCloseEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
+    void showEvent(QShowEvent *event) override;
 
 private:
     void updateWindowTitle(const QString& fileName);

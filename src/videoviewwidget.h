@@ -28,7 +28,7 @@ class VideoViewWidget: public QOpenGLWidget
 {
     Q_OBJECT
 public:
-    explicit VideoViewWidget(QWidget *parent = 0);
+    explicit VideoViewWidget(QWidget *parent = nullptr);
 
 public slots:
     bool showImage(const cv::Mat& image);

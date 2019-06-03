@@ -35,7 +35,7 @@ class ChannelDetails : public QObject
 {
     Q_OBJECT
 public:
-    explicit ChannelDetails(QObject *parent = 0)
+    explicit ChannelDetails(QObject *parent = nullptr)
         : QObject(parent),
           enabled(true),
           multiplier(1),

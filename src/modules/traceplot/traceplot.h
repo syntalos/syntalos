@@ -30,11 +30,11 @@ QT_CHARTS_USE_NAMESPACE
 class TracePlot : public QChart
 {
 public:
-    explicit TracePlot(QGraphicsItem *parent = 0, Qt::WindowFlags wFlags = 0);
-    ~TracePlot();
+    explicit TracePlot(QGraphicsItem *parent = nullptr, Qt::WindowFlags wFlags = nullptr);
+    ~TracePlot() override;
 
 protected:
-    bool sceneEvent(QEvent *event);
+    bool sceneEvent(QEvent *event) override;
 
 private:
     bool gestureEvent(QGestureEvent *event);
