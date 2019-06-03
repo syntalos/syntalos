@@ -130,6 +130,7 @@ AbstractModule *ModuleManager::createModule(const QString &id)
                               QStringLiteral("Failed to initialize module %1, it can not be added. Message: %2").arg(id).arg(mod->lastError()),
                               QMessageBox::Ok);
         removeModule(mod);
+        return nullptr;
     }
 
     connect(mod, &AbstractModule::error, this, &ModuleManager::receiveModuleError);
