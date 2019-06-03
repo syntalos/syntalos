@@ -65,7 +65,7 @@ target_link_libraries(mazeamaze
     ${OPENGL_LIBRARIES}
     ${Boost_LIBRARIES}
     ${CZMQ_LIBRARIES}
-    ${UYEYE_LIBS}
+    ${UEYE_LIBS}
 
     ${MA_MODULE_LIBS}
 )

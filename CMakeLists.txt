@@ -72,7 +72,7 @@ option(MOD_CAMERA_UEYE "Enable uEye camera module" ON)
 
 
 if(MOD_CAMERA_UEYE)
-    set(UYEYE_LIBS "ueye_api")
+    set(UEYE_LIBS "ueye_api")
 endif()
 
 #
