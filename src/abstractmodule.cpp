@@ -191,11 +191,13 @@ bool AbstractModule::initialized() const
 QJsonValue AbstractModule::serializeDisplayUiGeometry()
 {
     QJsonObject obj;
-    Q_FOREACH(auto w, m_displayWindows) {
+    for (int i = 0; i < m_displayWindows.size(); i++) {
+        auto w = m_displayWindows.at(i);
+
         QJsonObject info;
         info.insert("visible", w->isVisible());
         info.insert("geometry", QString::fromUtf8(w->saveGeometry().toBase64()));
-        obj.insert(w->windowTitle(), info);
+        obj.insert(QString::number(i), info);
     }
 
     return obj;
@@ -203,8 +205,10 @@ QJsonValue AbstractModule::serializeDisplayUiGeometry()
 
 void AbstractModule::restoreDisplayUiGeomatry(QJsonObject info)
 {
-    Q_FOREACH(auto w, m_displayWindows) {
-        auto winfo = info.value(w->windowTitle()).toObject();
+    for (int i = 0; i < m_displayWindows.size(); i++) {
+        auto w = m_displayWindows.at(i);
+
+        auto winfo = info.value(QString::number(i)).toObject();
         if (winfo.isEmpty())
             continue;
         if (winfo.value("visible").toBool())
