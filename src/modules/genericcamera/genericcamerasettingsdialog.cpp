@@ -66,6 +66,12 @@ void GenericCameraSettingsDialog::setRunning(bool running)
 
 void GenericCameraSettingsDialog::updateValues()
 {
+    ui->cameraComboBox->clear();
+    auto cameras = Camera::availableCameras();
+    Q_FOREACH(const auto cameraInfo, cameras) {
+        ui->cameraComboBox->addItem(cameraInfo.first, QVariant(cameraInfo.second));
+    }
+
     for (int i = 0; i < ui->cameraComboBox->count(); i++) {
         if (ui->cameraComboBox->itemData(i).toInt() == m_camera->camId()) {
             ui->cameraComboBox->setCurrentIndex(i);

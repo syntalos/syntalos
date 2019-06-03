@@ -212,11 +212,12 @@ QList<QPair<QString, int> > Camera::availableCameras()
 
     // we just iterate over all IDs, dirty but effective
     int deviceId = 0;
+    int notfoundCount = 0;
     while (true) {
         const auto devicePath = QStringLiteral("/dev/video%1").arg(deviceId);
-        QFileInfo check_file(devicePath);
+        QFileInfo cf(devicePath);
 
-        if (check_file.exists()) {
+        if (cf.exists()) {
             const auto nameInfoPath = QStringLiteral("/sys/class/video4linux/video%1/name").arg(deviceId);
 
             QString deviceName;
@@ -234,7 +235,12 @@ QList<QPair<QString, int> > Camera::availableCameras()
             res.append(qMakePair(deviceName, deviceId));
             deviceId++;
         } else {
-            break;
+            // sometimes, a few indices may be missing, so add yet another hack to
+            // work around that (usually video0 disappears on some machines)
+            notfoundCount++;
+            deviceId++;
+            if (notfoundCount >= 4)
+                break;
         }
     }
 

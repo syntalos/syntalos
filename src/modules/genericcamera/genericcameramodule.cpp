@@ -19,6 +19,7 @@
 
 #include "genericcameramodule.h"
 
+#include <QDebug>
 #include <QMutexLocker>
 #include <QMessageBox>
 #include <opencv2/opencv.hpp>
@@ -117,6 +118,12 @@ bool GenericCameraModule::prepare(HRTimer *timer)
     m_timer = timer;
 
     setState(ModuleState::PREPARING);
+
+    if (m_camera->camId() < 0) {
+        raiseError("Unable to continue: No valid camera was selected!");
+        return false;
+    }
+
     if (!startCaptureThread())
         return false;
     setState(ModuleState::WAITING);
@@ -133,16 +140,25 @@ void GenericCameraModule::start()
 
 bool GenericCameraModule::runCycle()
 {
-    QMutexLocker locker(&m_mutex);
-
-    if (m_frameRing.empty())
+    m_mutex.lock();
+    if (m_frameRing.empty()) {
+        m_mutex.unlock();
         return true;
+    }
 
-    statusMessage(QStringLiteral("Buffer status: %1/%2").arg(m_frameRing.size()).arg(m_frameRing.capacity()));
+    auto statusText = QStringLiteral("<html>Buffer status: %1/%2").arg(m_frameRing.size()).arg(m_frameRing.capacity());
 
     auto frameInfo = m_frameRing.front();
     m_videoView->showImage(frameInfo.first);
     m_frameRing.pop_front();
+
+    // END OF SAFE ZONE
+    m_mutex.unlock();
+
+    // warn if there is a bigger framerate drop
+    if (m_currentFps < (m_fps - 2))
+        statusText = QStringLiteral("%1 - <font color=\"red\"><b>Framerate is too low!</b></font>").arg(statusText);
+    statusMessage(statusText);
 
     // send frame away to connected image sinks, and hope they are
     // handling this efficiently and don't block the loop
@@ -193,6 +209,7 @@ void GenericCameraModule::captureThread(void *gcamPtr)
     GenericCameraModule *self = static_cast<GenericCameraModule*> (gcamPtr);
 
     self->m_currentFps = self->m_fps;
+    auto frameRecordFailedCount = 0;
 
     while (self->m_running) {
         const auto cycleStartTime = currentTimePoint();
@@ -203,6 +220,11 @@ void GenericCameraModule::captureThread(void *gcamPtr)
         cv::Mat frame;
         std::chrono::milliseconds time;
         if (!self->m_camera->recordFrame(&frame, &time)) {
+            frameRecordFailedCount++;
+            if (frameRecordFailedCount > 32) {
+                self->m_running = false;
+                self->raiseError(QStringLiteral("Too many attempts to record frames from this camera have failed. Is the camera connected properly?"));
+            }
             continue;
         }
 
