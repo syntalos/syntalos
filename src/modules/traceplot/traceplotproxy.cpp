@@ -149,7 +149,7 @@ void TracePlotProxy::applyDisplayModifiers()
         if (details->dataOrig.size() == 0)
             details->dataOrig = details->data;
 
-        if (details->multiplier == 0)
+        if (details->multiplier <= 0)
             details->multiplier = 1;
 
         details->storeOrig = true;

@@ -56,7 +56,7 @@ public:
     void addNewYValue(double xval)
     {
         if ((multiplier > 1) || (yShift != 0)) {
-            if (multiplier == 0)
+            if (multiplier <= 0)
                 multiplier = 1;
 
             storeOrig = true;
@@ -83,7 +83,7 @@ public:
     QList<QPointF> dataOrig;
     QList<QPointF> dataPrev;
 
-    ssize_t xPos;
+    int xPos;
     bool storeOrig;
 };
 
