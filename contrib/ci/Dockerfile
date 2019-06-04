@@ -1,0 +1,37 @@
+#
+# Docker file for MazeAmaze tests
+#
+FROM ubuntu:eoan
+
+# prepare
+RUN apt-get update -qq
+
+# install build essentials
+RUN apt-get install -yq eatmydata gcc g++
+
+# install build dependencies
+RUN DEBIAN_FRONTEND=noninteractive eatmydata apt-get install -yq --no-install-recommends \
+    meson \
+    ninja-build \
+    cmake \
+    gettext \
+    qt5-default \
+    libqt5serialport5-dev \
+    libqt5opengl5-dev \
+    libqt5charts5-dev \
+    libqt5svg5-dev \
+    libboost-container-dev \
+    libboost-python-dev \
+    libopencv-dev \
+    libavcodec-dev \
+    libavutil-dev \
+    libavformat-dev \
+    libswscale-dev \
+    libczmq-dev \
+    uuid-dev \
+    libkf5archive-dev \
+    libkf5texteditor-dev
+
+# finish
+RUN mkdir /build
+WORKDIR /build
