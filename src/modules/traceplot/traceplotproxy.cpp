@@ -63,8 +63,10 @@ void TracePlotProxy::addChannel(int port, int chan)
     details->series = series;
 
     m_plot->createDefaultAxes();
-    m_plot->axisY(series)->setMax(250);
-    m_plot->axisY(series)->setMin(-250);
+
+    auto axisY = m_plot->axes(Qt::Vertical).back();
+    axisY->setMax(250);
+    axisY->setMin(-250);
 
     details->series->points().reserve(20000);
     m_channels.insert(makePortChanMapId(port, chan), details);
@@ -129,12 +131,14 @@ ChannelDetails *TracePlotProxy::getDetails(int port, int chan) const
 
 void TracePlotProxy::adjustView()
 {
-    m_plot->axisX()->setRange(m_maxXVal - 2000, m_maxXVal);
+    auto axisX = m_plot->axes(Qt::Horizontal).back();
+    axisX->setRange(m_maxXVal - 2000, m_maxXVal);
 }
 
 void TracePlotProxy::moveTo(int position)
 {
-    m_plot->axisX()->setRange(position, position + 2000);
+    auto axisX = m_plot->axes(Qt::Horizontal).back();
+    axisX->setRange(position, position + 2000);
 }
 
 void TracePlotProxy::applyDisplayModifiers()

@@ -29,6 +29,8 @@ TracePlot::TracePlot(QGraphicsItem *parent, Qt::WindowFlags wFlags)
     // They can only be grabbed here in the QGraphicsWidget (QChart).
     grabGesture(Qt::PanGesture);
     grabGesture(Qt::PinchGesture);
+
+    setMargins(QMargins(0, 0, 0, 0));
 }
 
 TracePlot::~TracePlot()

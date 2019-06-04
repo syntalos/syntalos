@@ -38,6 +38,7 @@ public:
     QString id() const override;
     QString description() const override;
     QPixmap pixmap() const override;
+    ModuleFeatures features() const override;
     bool singleton() const override;
     bool canRemove(AbstractModule *mod) override;
 

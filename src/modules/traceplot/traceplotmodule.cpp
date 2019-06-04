@@ -62,6 +62,11 @@ QPixmap TracePlotModule::pixmap() const
     return QPixmap(":/module/traceplot");
 }
 
+ModuleFeatures TracePlotModule::features() const
+{
+    return ModuleFeature::DISPLAY;
+}
+
 bool TracePlotModule::singleton() const
 {
     return true;
