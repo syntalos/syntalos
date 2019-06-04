@@ -146,7 +146,7 @@ bool GenericCameraModule::runCycle()
         return true;
     }
 
-    auto statusText = QStringLiteral("<html>Buffer status: %1/%2").arg(m_frameRing.size()).arg(m_frameRing.capacity());
+    auto statusText = QStringLiteral("<html>Display buffer: %1/%2").arg(m_frameRing.size()).arg(m_frameRing.capacity());
 
     auto frameInfo = m_frameRing.front();
     m_videoView->showImage(frameInfo.first);

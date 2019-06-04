@@ -133,10 +133,12 @@ void UEyeCameraModule::start()
 
 bool UEyeCameraModule::runCycle()
 {
-    QMutexLocker locker(&m_mutex);
+    m_mutex.lock();
 
-    if (m_frameRing.size() == 0)
+    if (m_frameRing.size() == 0) {
+        m_mutex.unlock();
         return true;
+    }
 
     if (!m_frameRing.empty()) {
         auto frameInfo = m_frameRing.front();
@@ -147,8 +149,20 @@ bool UEyeCameraModule::runCycle()
         // handling this efficiently and don't block the loop
         emit newFrame(frameInfo);
 
+        auto statusText = QStringLiteral("<html>Display buffer: %1/%2").arg(m_frameRing.size()).arg(m_frameRing.capacity());
+
+        // END OF SAFE ZONE
+        m_mutex.unlock();
+
+        // warn if there is a bigger framerate drop
+        if (m_currentFps < (m_fps - 2))
+            statusText = QStringLiteral("%1 - <font color=\"red\"><b>Framerate is too low!</b></font>").arg(statusText);
+        statusMessage(statusText);
+
         // show framerate directly in the window title, to make reduced framerate very visible
         m_videoView->setWindowTitle(QStringLiteral("%1 (%2 fps)").arg(m_name).arg(m_currentFps));
+    } else {
+        m_mutex.unlock();
     }
 
     return true;
@@ -198,6 +212,7 @@ void UEyeCameraModule::captureThread(void *gcamPtr)
     self->m_currentFps = self->m_fps;
     auto firstFrame = true;
     time_t startTime = 0;
+    auto frameRecordFailedCount = 0;
 
     while (self->m_running) {
         const auto cycleStartTime = currentTimePoint();
@@ -208,6 +223,11 @@ void UEyeCameraModule::captureThread(void *gcamPtr)
         cv::Mat frame;
         time_t time;
         if (!self->m_camera->getFrame(&frame, &time)) {
+            frameRecordFailedCount++;
+            if (frameRecordFailedCount > 32) {
+                self->m_running = false;
+                self->raiseError(QStringLiteral("Too many attempts to fetch frames from this camera have failed. Is the camera connected properly?"));
+            }
             continue;
         }
 
