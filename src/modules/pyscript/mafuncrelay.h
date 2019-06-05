@@ -56,6 +56,7 @@ private:
     QList<FirmataIOModule*> m_firmataModRegistry;
 
     QList<EventTable*> m_eventTables;
+    static QHash<QString, QRect> ms_eventTableGeometries;
 };
 
 #endif // MAFUNCRELAY_H

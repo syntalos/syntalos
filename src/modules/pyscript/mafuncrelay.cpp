@@ -21,6 +21,8 @@
 
 #include <QDebug>
 
+QHash<QString, QRect> MaFuncRelay::ms_eventTableGeometries = QHash<QString, QRect>();
+
 MaFuncRelay::MaFuncRelay(ModuleManager *modManager, const QString &eventTablesDir, QObject *parent)
     : QObject(parent)
 {
@@ -31,8 +33,16 @@ MaFuncRelay::MaFuncRelay(ModuleManager *modManager, const QString &eventTablesDi
 
 MaFuncRelay::~MaFuncRelay()
 {
-    Q_FOREACH(auto tab, m_eventTables)
+    // safeguard to not have a massive table in case some Python script goes
+    // crazy and many tables with different names were created in the past
+    if (ms_eventTableGeometries.count() > 20)
+       ms_eventTableGeometries.clear();
+
+    // delete tables and store their geometries in a static hash map
+    Q_FOREACH(auto tab, m_eventTables) {
+        ms_eventTableGeometries.insert(tab->name(), tab->geometry());
         delete tab;
+    }
 }
 
 void MaFuncRelay::setPyScript(const QString &script)
@@ -81,6 +91,12 @@ int MaFuncRelay::newEventTable(const QString &name)
 {
     auto tab = new EventTable(m_eventTablesDir, name, this);
     tab->open();
+
+    // restore previous geoemtry, if we have one recorded for this table
+    const auto geometry = ms_eventTableGeometries.value(tab->name());
+    if (!geometry.isEmpty())
+        tab->setGeometry(geometry);
+
     tab->show();
     m_eventTables.append(tab);
     return m_eventTables.size() - 1;

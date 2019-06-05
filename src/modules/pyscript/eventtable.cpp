@@ -28,6 +28,7 @@
 EventTable::EventTable(const QString& dirPath, const QString &name, QObject *parent)
     : QObject(parent)
 {
+    m_name = name;
     m_tableWidget = new QTableWidget;
     m_tableWidget->setWindowTitle(QStringLiteral("Events: %1").arg(name));
     m_tableWidget->setWindowIcon(QIcon(":/icons/generic-view"));
@@ -42,6 +43,11 @@ EventTable::~EventTable()
 {
     delete m_tableWidget;
     delete m_eventFile;
+}
+
+QString EventTable::name() const
+{
+    return m_name;
 }
 
 bool EventTable::open()
@@ -111,4 +117,14 @@ void EventTable::addEvent(const QStringList &data)
 
     // scroll to the last item
     m_tableWidget->scrollToBottom();
+}
+
+const QRect &EventTable::geometry() const
+{
+    return m_tableWidget->geometry();
+}
+
+void EventTable::setGeometry(const QRect &rect)
+{
+    m_tableWidget->setGeometry(rect);
 }

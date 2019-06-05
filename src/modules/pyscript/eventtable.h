@@ -32,6 +32,7 @@ public:
     explicit EventTable(const QString &dirPath, const QString& name, QObject *parent = nullptr);
     ~EventTable();
 
+    QString name() const;
     bool open();
 
     void show();
@@ -39,6 +40,9 @@ public:
 
     void setHeader(const QStringList &headers);
     void addEvent(const QStringList &data);
+
+    const QRect &geometry() const;
+    void setGeometry(const QRect& rect);
 
 signals:
 
@@ -48,6 +52,7 @@ private:
     QTableWidget *m_tableWidget;
     QFile *m_eventFile;
     QString m_eventFileName;
+    QString m_name;
     bool m_haveEvents;
 };
 
