@@ -117,7 +117,7 @@ void PyController::runScript(const QString &scriptContent)
             if (message.isEmpty())
                 message = QStringLiteral("An unknown Python error occured.");
 
-            exitError(QStringLiteral("Python error: %1").arg(message));
+            exitError(QStringLiteral("Python script failed:\n%1").arg(message));
 
             Py_XDECREF(excTraceback);
             Py_XDECREF(excType);

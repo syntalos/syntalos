@@ -187,7 +187,8 @@ bool PyScriptModule::runCycle()
 
     m_zserver->processMainThreadRpc();
 
-    if (m_process->waitForFinished(0)) {
+    if (m_process->state() == QProcess::NotRunning) {
+        qDebug() << "Python worker process has terminated.";
         if (m_process->exitCode() != 0) {
             raiseError(QStringLiteral("Python code terminated with an error (%1) - Please check the console output for details.").arg(m_process->exitCode()));
             return false;
@@ -206,9 +207,16 @@ bool PyScriptModule::runCycle()
 
 void PyScriptModule::stop()
 {
-    m_process->terminate();
-    if (!m_process->waitForFinished(1000))
-        m_process->kill();
+    // check if worker already terminated (due to being done or due to an error),
+    // if not, terminate it explicitly
+    if (m_process->state() != QProcess::NotRunning) {
+        m_process->terminate();
+        if (!m_process->waitForFinished(1000))
+            m_process->kill();
+        if (!m_process->waitForFinished(1200))
+            qCritical() << "Failed to terminate Python worker process!";
+    }
+
     const auto data = m_process->readAllStandardOutput();
     if (!data.isEmpty())
         m_pyoutWindow->append(data);
