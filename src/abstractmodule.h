@@ -207,6 +207,8 @@ public:
     QJsonValue serializeDisplayUiGeometry();
     void restoreDisplayUiGeomatry(QJsonObject info);
 
+    void setStatusMessage(const QString& message);
+
 signals:
     void actionsUpdated();
     void stateChanged(ModuleState state);
@@ -215,7 +217,6 @@ signals:
     void nameChanged(const QString& name);
 
 protected:
-    void setStatusMessage(const QString& message);
     void raiseError(const QString& message);
     QByteArray jsonObjectToBytes(const QJsonObject& object);
     QJsonObject jsonObjectFromBytes(const QByteArray& data);

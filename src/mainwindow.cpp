@@ -364,6 +364,7 @@ void MainWindow::runActionTriggered()
     bool prepareStepFailed = false;
     Q_FOREACH(auto mod, m_modManager->activeModules()) {
         setStatusText(QStringLiteral("Preparing %1...").arg(mod->name()));
+        mod->setStatusMessage(QString());
         if (!mod->prepare(m_dataExportDir, m_currentSubject, timer)) {
             m_failed = true;
             prepareStepFailed = true;
