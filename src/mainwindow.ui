@@ -23,13 +23,13 @@
      <number>2</number>
     </property>
     <property name="leftMargin">
-     <number>4</number>
+     <number>2</number>
     </property>
     <property name="topMargin">
-     <number>4</number>
+     <number>2</number>
     </property>
     <property name="rightMargin">
-     <number>4</number>
+     <number>2</number>
     </property>
     <property name="bottomMargin">
      <number>2</number>
@@ -77,6 +77,21 @@
            <string>Data Export</string>
           </property>
           <layout class="QVBoxLayout" name="verticalLayout_5">
+           <property name="spacing">
+            <number>4</number>
+           </property>
+           <property name="leftMargin">
+            <number>4</number>
+           </property>
+           <property name="topMargin">
+            <number>4</number>
+           </property>
+           <property name="rightMargin">
+            <number>4</number>
+           </property>
+           <property name="bottomMargin">
+            <number>4</number>
+           </property>
            <item>
             <layout class="QVBoxLayout" name="dataExportLayout">
              <item>
@@ -93,6 +108,12 @@
         </item>
         <item>
          <widget class="QGroupBox" name="groupBox_2">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
           <property name="title">
            <string>Experiment Details</string>
           </property>
@@ -101,7 +122,7 @@
             <number>4</number>
            </property>
            <property name="verticalSpacing">
-            <number>10</number>
+            <number>4</number>
            </property>
            <property name="leftMargin">
             <number>4</number>
@@ -113,7 +134,7 @@
             <number>4</number>
            </property>
            <property name="bottomMargin">
-            <number>4</number>
+            <number>3</number>
            </property>
            <item row="0" column="0" colspan="2">
             <layout class="QFormLayout" name="expDetailsLayout">
@@ -274,8 +295,8 @@
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>746</width>
-                <height>245</height>
+                <width>750</width>
+                <height>418</height>
                </rect>
               </property>
               <layout class="QVBoxLayout" name="scrollAreaLayout">
@@ -318,7 +339,7 @@
          <number>2</number>
         </property>
         <property name="rightMargin">
-         <number>2</number>
+         <number>1</number>
         </property>
         <property name="bottomMargin">
          <number>2</number>
@@ -329,6 +350,24 @@
            <string>Details</string>
           </property>
           <layout class="QFormLayout" name="formLayout_3">
+           <property name="horizontalSpacing">
+            <number>4</number>
+           </property>
+           <property name="verticalSpacing">
+            <number>4</number>
+           </property>
+           <property name="leftMargin">
+            <number>4</number>
+           </property>
+           <property name="topMargin">
+            <number>4</number>
+           </property>
+           <property name="rightMargin">
+            <number>4</number>
+           </property>
+           <property name="bottomMargin">
+            <number>4</number>
+           </property>
            <item row="0" column="0" colspan="2">
             <layout class="QFormLayout" name="layoutSubjectDetails">
              <property name="sizeConstraint">
@@ -512,6 +551,21 @@
            <string>Subject List</string>
           </property>
           <layout class="QVBoxLayout" name="verticalLayout_11">
+           <property name="spacing">
+            <number>4</number>
+           </property>
+           <property name="leftMargin">
+            <number>4</number>
+           </property>
+           <property name="topMargin">
+            <number>4</number>
+           </property>
+           <property name="rightMargin">
+            <number>4</number>
+           </property>
+           <property name="bottomMargin">
+            <number>4</number>
+           </property>
            <item>
             <widget class="QListView" name="subjectListView"/>
            </item>
@@ -575,7 +629,8 @@
   <widget class="QStatusBar" name="statusBar"/>
   <action name="actionQuit">
    <property name="icon">
-    <iconset theme="window-close"/>
+    <iconset theme="window-close">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>&amp;Quit</string>
@@ -610,7 +665,8 @@
   </action>
   <action name="actionLoadSettings">
    <property name="icon">
-    <iconset theme="document-open"/>
+    <iconset theme="document-open">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>&amp;Load Settings</string>
@@ -621,7 +677,8 @@
   </action>
   <action name="actionSaveSettings">
    <property name="icon">
-    <iconset theme="document-save"/>
+    <iconset theme="document-save">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>&amp;Save Settings</string>
@@ -632,7 +689,8 @@
   </action>
   <action name="actionAbout">
    <property name="icon">
-    <iconset theme="help-about"/>
+    <iconset theme="help-about">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>&amp;About</string>
@@ -640,10 +698,11 @@
   </action>
   <action name="actionSubjectsLoad">
    <property name="icon">
-    <iconset theme="view-list-details"/>
+    <iconset theme="view-list-details">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
-    <string>Load from file</string>
+    <string>&amp;Load from file</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+N</string>
@@ -651,10 +710,11 @@
   </action>
   <action name="actionSubjectsSave">
    <property name="icon">
-    <iconset theme="document-save-as"/>
+    <iconset theme="document-save-as">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
-    <string>Save to file</string>
+    <string>&amp;Save to file</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+M</string>
