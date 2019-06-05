@@ -32,7 +32,7 @@ FirmataSettingsDialog::FirmataSettingsDialog(QWidget *parent) :
     // Arduino / Firmata I/O
     auto allPorts = QSerialPortInfo::availablePorts();
     Q_FOREACH(auto port, allPorts) {
-        ui->portsComboBox->addItem(QString("%1 (%2)").arg(port.portName()).arg(port.description()), QVariant::fromValue(port.systemLocation()));
+        ui->portsComboBox->addItem(QString("%1 (%2)").arg(port.portName()).arg(port.description()), port.systemLocation());
     }
 }
 
