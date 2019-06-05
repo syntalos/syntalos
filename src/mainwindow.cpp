@@ -302,6 +302,11 @@ void MainWindow::setRunPossible(bool enabled)
 void MainWindow::setStopPossible(bool enabled)
 {
     ui->actionStop->setEnabled(enabled);
+    ui->tbAddModule->setEnabled(!enabled);
+    if (enabled)
+        m_runIndicatorWidget->show();
+    else
+        m_runIndicatorWidget->hide();
 }
 
 bool MainWindow::makeDirectory(const QString &dir)
@@ -356,39 +361,45 @@ void MainWindow::runActionTriggered()
     }
 
     auto timer = new HRTimer;
+    bool prepareStepFailed = false;
     Q_FOREACH(auto mod, m_modManager->activeModules()) {
         setStatusText(QStringLiteral("Preparing %1...").arg(mod->name()));
         if (!mod->prepare(m_dataExportDir, m_currentSubject, timer)) {
             m_failed = true;
+            prepareStepFailed = true;
             setStatusText(QStringLiteral("Module %1 failed to prepare.").arg(mod->name()));
             break;
         }
     }
-    if (m_failed)
-        return;
 
-    setStatusText(QStringLiteral("Initializing launch..."));
+    // Only actually launch if preparation didn't fail.
+    // we still call stop() on all modules afterwards though,
+    // as some might need a stop call to clean up resources ther were
+    // set up during preparations.
+    // Modules are expected to deal with multiple calls to stop().
+    if (!prepareStepFailed) {
+        setStatusText(QStringLiteral("Initializing launch..."));
 
-    timer->start();
-    Q_FOREACH(auto mod, m_modManager->activeModules()) {
-        mod->start();
-    }
-
-    m_running = true;
-    m_runIndicatorWidget->show();
-    setStatusText(QStringLiteral("Running..."));
-
-    while (m_running) {
+        timer->start();
         Q_FOREACH(auto mod, m_modManager->activeModules()) {
-            if (!mod->runCycle()){
-                setStatusText(QStringLiteral("Module %1 failed.").arg(mod->name()));
-                m_failed = true;
-                break;
-            }
+            mod->start();
         }
-        QApplication::processEvents();
-        if (m_failed)
-            break;
+
+        m_running = true;
+        setStatusText(QStringLiteral("Running..."));
+
+        while (m_running) {
+            Q_FOREACH(auto mod, m_modManager->activeModules()) {
+                if (!mod->runCycle()){
+                    setStatusText(QStringLiteral("Module %1 failed.").arg(mod->name()));
+                    m_failed = true;
+                    break;
+                }
+            }
+            QApplication::processEvents();
+            if (m_failed)
+                break;
+        }
     }
 
     auto finishTimestamp = static_cast<long long>(timer->timeSinceStartMsec().count());
@@ -404,41 +415,46 @@ void MainWindow::runActionTriggered()
 
     delete timer;
 
-    setStatusText(QStringLiteral("Writing manifest..."));
+    if (prepareStepFailed) {
+        // if we failed to prepare this run, don't save the manifest and also
+        // remove any data that we might have already created, as well as the
+        // export directory.
+        deDir.removeRecursively();
+    } else {
+        setStatusText(QStringLiteral("Writing manifest..."));
 
-    // write manifest with misc information
-    QDateTime curDateTime(QDateTime::currentDateTime());
+        // write manifest with misc information
+        QDateTime curDateTime(QDateTime::currentDateTime());
 
-    QJsonObject manifest;
-    manifest.insert("appVersion", QApplication::applicationVersion());
-    manifest.insert("subjectId", m_currentSubject.id);
-    manifest.insert("subjectGroup", m_currentSubject.group);
-    manifest.insert("subjectComment", m_currentSubject.comment);
-    manifest.insert("recordingLengthMsec", finishTimestamp);
-    manifest.insert("date", curDateTime.toString(Qt::ISODate));
-    manifest.insert("success", !m_failed);
+        QJsonObject manifest;
+        manifest.insert("appVersion", QApplication::applicationVersion());
+        manifest.insert("subjectId", m_currentSubject.id);
+        manifest.insert("subjectGroup", m_currentSubject.group);
+        manifest.insert("subjectComment", m_currentSubject.comment);
+        manifest.insert("recordingLengthMsec", finishTimestamp);
+        manifest.insert("date", curDateTime.toString(Qt::ISODate));
+        manifest.insert("success", !m_failed);
 
-    QJsonArray jActiveModules;
-    Q_FOREACH(auto mod, m_modManager->activeModules()) {
-        QJsonObject info;
-        info.insert(mod->id(), mod->name());
-        jActiveModules.append(info);
+        QJsonArray jActiveModules;
+        Q_FOREACH(auto mod, m_modManager->activeModules()) {
+            QJsonObject info;
+            info.insert(mod->id(), mod->name());
+            jActiveModules.append(info);
+        }
+        manifest.insert("activeModules", jActiveModules);
+
+        QFile manifestFile(QStringLiteral("%1/manifest.json").arg(m_dataExportDir));
+        if (!manifestFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            QMessageBox::critical(this, "Unable to finish recording", "Unable to open manifest file for writing.");
+            setRunPossible(true);
+            setStopPossible(false);
+            return;
+        }
+
+        QTextStream manifestFileOut(&manifestFile);
+        manifestFileOut << QJsonDocument(manifest).toJson();
     }
-    manifest.insert("activeModules", jActiveModules);
 
-    QFile manifestFile(QStringLiteral("%1/manifest.json").arg(m_dataExportDir));
-    if (!manifestFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        QMessageBox::critical(this, "Unable to finish recording", "Unable to open manifest file for writing.");
-        setRunPossible(true);
-        setStopPossible(false);
-        m_runIndicatorWidget->hide();
-        return;
-    }
-
-    QTextStream manifestFileOut(&manifestFile);
-    manifestFileOut << QJsonDocument(manifest).toJson();
-
-    m_runIndicatorWidget->hide();
     setStatusText(QStringLiteral("Ready."));
 }
 
