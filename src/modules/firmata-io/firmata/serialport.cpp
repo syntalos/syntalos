@@ -19,6 +19,7 @@
 
 #include <QScopedPointer>
 #include <QSerialPort>
+#include <QMetaEnum>
 #include <QDebug>
 
 struct SerialFirmata::Private {
@@ -77,7 +78,9 @@ bool SerialFirmata::setDevice(const QString &device)
 
             if(!d->port->open(QIODevice::ReadWrite)) {
                 qWarning() << "Error opening" << device << d->port->error();
-                setStatusText("Error opening " + device + " " + d->port->error());
+
+                auto metaEnum = QMetaEnum::fromType<QSerialPort::SerialPortError>();
+                setStatusText("Error opening " + device + " " + metaEnum.valueToKey(d->port->error()));
                 return false;
             } else {
                 connect(d->port.data(), &QSerialPort::readyRead, this, &SerialFirmata::onReadyRead);

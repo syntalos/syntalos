@@ -100,13 +100,19 @@ bool FirmataIOModule::prepare(const QString &storageRootDir, const TestSubject &
     qDebug() << "Loading Firmata interface" << serialDevice;
     if (m_firmata->device().isEmpty()) {
         if (!m_firmata->setDevice(serialDevice)) {
-            raiseError(QStringLiteral("Firmata initialization error: %1").arg(m_firmata->statusText()));
+            raiseError(QStringLiteral("Unable to open serial interface: %1").arg(m_firmata->statusText()));
             return false;
         }
     }
 
     if (!m_firmata->waitForReady(20000) || m_firmata->statusText().contains("Error")) {
-        raiseError(QStringLiteral("Unable to open serial interface: %1").arg(m_firmata->statusText()));
+        QString msg;
+        if (m_firmata->statusText().contains("Error"))
+            msg = m_firmata->statusText();
+        else
+            msg = QStringLiteral("Does the selected serial device use the Firmata protocol?");
+
+        raiseError(QStringLiteral("Unable to initialize Firmata: %1").arg(msg));
         m_firmata->setDevice(QString());
         return false;
     }
