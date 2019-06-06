@@ -117,9 +117,22 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->tabWidget->setCurrentIndex(0);
 
     // Create status bar
-    m_statusBarLabel = new QLabel(tr(""));
+    m_statusBarLabel = new QLabel(QString(), statusBar());
     statusBar()->addWidget(m_statusBarLabel, 1);
     statusBar()->setSizeGripEnabled(false);  // fixed window size
+
+    // Show a welcome status message (a poor replacement for the previous joke messages,
+    // but we want to be more serious now ^^)
+    QFile greetingsRc(QStringLiteral(":/texts/greetings.json"));
+    if(greetingsRc.open(QIODevice::ReadOnly)) {
+        const auto greetDoc = QJsonDocument::fromJson(greetingsRc.readAll());
+        const auto grObj = greetDoc.object();
+        if (!grObj.isEmpty()) {
+            const auto greetings = grObj.keys();
+            setStatusText(greetings[rand() % greetings.length()].trimmed());
+        }
+    }
+    greetingsRc.close();
 
     // setup general page
     auto openDirBtn = new QToolButton();
@@ -444,7 +457,9 @@ void MainWindow::runActionTriggered()
         }
         manifest.insert("activeModules", jActiveModules);
 
-        QFile manifestFile(QStringLiteral("%1/manifest.json").arg(m_dataExportDir));
+        const auto manifestFilename = QStringLiteral("%1/manifest.json").arg(m_dataExportDir);
+        qDebug() << "Saving manifest as:" << manifestFilename;
+        QFile manifestFile(manifestFilename);
         if (!manifestFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
             QMessageBox::critical(this, "Unable to finish recording", "Unable to open manifest file for writing.");
             setRunPossible(true);

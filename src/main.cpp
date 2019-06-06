@@ -25,49 +25,10 @@
 #include <QDebug>
 #include <KDBusService>
 
-static QString const splashMessages[] =
-    { "Loading MazeAmaze...",
-      "Finding Nemo...",
-      "Calculating age of the universe...",
-      "Obtaining a philosopher's stone...",
-      "Contemplating my own existence...",
-      "Connecting to SkyNet...",
-      "Researching how to wipe out humanity...",
-      "Counting mice...",
-      "Counting rats...",
-      "Petting mice...",
-      "Writing thesis...",
-      "Done.",
-      "Waiting for you...",
-      "Reading your emails...",
-      "Solving Riemann hypothesis...",
-      "Doing research...",
-      "Creating a universe...",
-      "Finishing conversation with mice...",
-      "Connecting to Intan device...",
-      "Annoying my supervisor...",
-      "Determining the meaning of life...",
-      "Treating mice with Chemical X...",
-      "Running away...",
-      "Getting bored...",
-      "Readying Infinite Improbability Drive...",
-      "Getting excited...",
-      "Counting stars...",
-      "Dealing with the devil...",
-    };
-static int const splashMessagesCount = sizeof(splashMessages) / sizeof(splashMessages[0]);
-
-
-static void splashUpdateMessage(QSplashScreen& splash, const QString& message)
-{
-    splash.showMessage(message, Qt::AlignBottom | Qt::AlignRight, QColor("#ffe199"));
-}
-
-
 int main(int argc, char *argv[])
 {
     // set random seed
-    qsrand(QTime::currentTime().msec());
+    srand(static_cast<uint>(time(nullptr)));
 
     QApplication app(argc, argv);
     app.setApplicationName("MazeAmaze");
@@ -77,39 +38,7 @@ int main(int argc, char *argv[])
     // ensure we only ever run one instance of the application
     KDBusService service(KDBusService::Unique);
 
-    QPixmap pixmap(":/images/splash");
-    QSplashScreen splash(pixmap);
-    QFont splashFont;
-    splashFont.setFamily("Noto");
-    splashFont.setBold(true);
-    splash.setFont(splashFont);
-
-    splash.show();
-    app.processEvents();
-
-    auto message = splashMessages[qrand() % (splashMessagesCount - 1)];
-    splashUpdateMessage(splash, message);
-    app.processEvents();
-
-    QTimer *timer = new QTimer;
-    timer->setSingleShot(true);
-
-    bool done = false;
-    QTimer::connect(timer, &QTimer::timeout, [&]() {
-        done = true;
-        timer->deleteLater();
-
-        if (!splash.isVisible())
-            return;
-        auto message = splashMessages[qrand() % (splashMessagesCount - 1)];
-        splashUpdateMessage(splash, message);
-        app.processEvents();
-    });
-    timer->start(3000);
-
     MainWindow w;
     w.show();
-    splash.finish(&w);
-
     return app.exec();
 }

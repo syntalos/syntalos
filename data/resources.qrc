@@ -13,7 +13,6 @@
     </qresource>
     <qresource prefix="/images">
         <file>mouse-top.png</file>
-        <file alias="splash">splash.png</file>
     </qresource>
     <qresource prefix="/status">
         <file alias="error">status/status-error.svg</file>
@@ -37,6 +36,7 @@
     </qresource>
     <qresource prefix="/texts">
         <file>pyscript-sample.py</file>
+        <file>greetings.json</file>
     </qresource>
     <qresource prefix="/animations">
         <file alias="running.svg">animations/running.svg</file>
