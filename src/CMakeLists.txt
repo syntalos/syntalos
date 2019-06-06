@@ -3,7 +3,8 @@ add_subdirectory(modules)
 
 set(MAZEAMAZE_SRC
     main.cpp
-    ma-private.h
+    aboutdialog.h
+    aboutdialog.cpp
     barrier.h
     utils.h
     utils.cpp
@@ -33,6 +34,7 @@ set(MAZEAMAZE_UI
     mainwindow.ui
     moduleindicator.ui
     moduleselectdialog.ui
+    aboutdialog.ui
 )
 
 qt5_wrap_ui(MAZEAMAZE_UI_SRC ${MAZEAMAZE_UI})

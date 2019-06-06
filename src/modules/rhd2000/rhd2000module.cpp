@@ -46,6 +46,11 @@ QString Rhd2000Module::description() const
                           "from up to 256 low-noise amplifier channels using digital electrophysiology chips from Intan Technologies.");
 }
 
+QString Rhd2000Module::license() const
+{
+    return QStringLiteral("Intan Technologies RHD2000 Interface, (c) 2013-2017 <a href=\"http://intantech.com/\">Intan Technologies</a> [LGPLv3+]");
+}
+
 QPixmap Rhd2000Module::pixmap() const
 {
     return QPixmap(":/module/rhd2000");

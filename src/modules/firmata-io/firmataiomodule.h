@@ -54,6 +54,7 @@ public:
     QString description() const override;
     QPixmap pixmap() const override;
     ModuleFeatures features() const override;
+    QString license() const override;
 
     bool initialize(ModuleManager *manager) override;
     bool prepare(const QString& storageRootDir, const TestSubject& testSubject, HRTimer *timer) override;

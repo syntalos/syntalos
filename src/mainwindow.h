@@ -106,8 +106,6 @@ private:
 
     bool m_failed;
     bool m_running;
-
-    QDialog *m_aboutDialog;
 };
 
 #endif // MAINWINDOW_H

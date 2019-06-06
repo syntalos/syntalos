@@ -59,6 +59,11 @@ ModuleFeatures FirmataIOModule::features() const
     return ModuleFeature::SETTINGS;
 }
 
+QString FirmataIOModule::license() const
+{
+    return QStringLiteral("Qt Firmata implementation (c) 2016 Calle Laakkonen [GPLv3+]");
+}
+
 bool FirmataIOModule::initialize(ModuleManager *manager)
 {
     Q_UNUSED(manager);

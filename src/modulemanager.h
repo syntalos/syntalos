@@ -33,6 +33,7 @@ public:
     QString id;
     QString displayName;
     QString description;
+    QString license;
     QPixmap pixmap;
     bool singleton;
     int count;

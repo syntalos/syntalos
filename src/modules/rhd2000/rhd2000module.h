@@ -36,6 +36,7 @@ public:
 
     QString id() const override;
     QString description() const override;
+    QString license() const override;
     QPixmap pixmap() const override;
     bool singleton() const override;
 

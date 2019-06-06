@@ -56,24 +56,15 @@
 
 #include <KTar>
 
-#include "ma-private.h"
-
-#include "modules/rhd2000/intanui.h"
-#include "modules/rhd2000/waveplot.h"
-
+#include "aboutdialog.h"
 #include "hrclock.h"
-
-#include "modules/traceplot/traceplotproxy.h"
-#include "modules/traceplot/traceview.h"
 
 #include "moduleindicator.h"
 #include "modulemanager.h"
 #include "moduleselectdialog.h"
 
-#include "modules/rhd2000/rhd2000module.h"
-
-
-#define CONFIG_FILE_FORMAT_VERSION "2"
+// config format API level
+static const QString CONFIG_FILE_FORMAT_VERSION = QStringLiteral("2");
 
 static bool switchIconTheme(const QString& themeName)
 {
@@ -118,8 +109,9 @@ MainWindow::MainWindow(QWidget *parent) :
 
     // Create status bar
     m_statusBarLabel = new QLabel(QString(), statusBar());
+    m_statusBarLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
     statusBar()->addWidget(m_statusBarLabel, 1);
-    statusBar()->setSizeGripEnabled(false);  // fixed window size
+    statusBar()->setSizeGripEnabled(true);
 
     // Show a welcome status message (a poor replacement for the previous joke messages,
     // but we want to be more serious now ^^)
@@ -255,32 +247,7 @@ MainWindow::MainWindow(QWidget *parent) :
     auto time = QDateTime::currentDateTime();
     m_currentDate = time.date().toString("yyyy-MM-dd");
 
-    // configure about dialog
-    m_aboutDialog = new QDialog(this);
-    auto aboutLayout = new QVBoxLayout;
-    m_aboutDialog->setLayout(aboutLayout);
-
-    auto imgLabel = new QLabel(this);
-    imgLabel->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
-
-    aboutLayout->addWidget(imgLabel);
-    imgLabel->setText(aboutDlgAsciiArt);
-
-    auto aboutLabel = new QLabel(this);
-    aboutLabel->setAlignment(Qt::AlignCenter);
-    aboutLabel->setText(aboutDlgCopyInfo);
-    aboutLayout->addWidget(aboutLabel);
-
-    auto versionLabel = new QLabel(this);
-    versionLabel->setAlignment(Qt::AlignCenter);
-    versionLabel->setText(versionInfoText.arg(QCoreApplication::applicationVersion()));
-    aboutLayout->addWidget(versionLabel);
-
-    auto aboutQuitButton = new QPushButton(this);
-    aboutQuitButton->setText("OK");
-    aboutLayout->addWidget(aboutQuitButton);
-
-    connect(aboutQuitButton, &QPushButton::clicked, m_aboutDialog, &QDialog::accept);
+    // connect about dialog trigger
     connect(ui->actionAbout, &QAction::triggered, this, &MainWindow::aboutActionTriggered);
 
     // restore main window geometry
@@ -798,7 +765,13 @@ void MainWindow::loadSettingsActionTriggered()
 
 void MainWindow::aboutActionTriggered()
 {
-    m_aboutDialog->exec();
+    AboutDialog about(this);
+
+    Q_FOREACH(auto info, m_modManager->moduleInfo()) {
+        about.addModuleLicense(info->displayName, info->license);
+    }
+
+    about.exec();
 }
 
 void MainWindow::setStatusText(const QString& msg)

@@ -71,6 +71,11 @@ ModuleFeatures AbstractModule::features() const
            ModuleFeature::ACTIONS;
 }
 
+QString AbstractModule::license() const
+{
+    return QString();
+}
+
 void AbstractModule::start()
 {
     setState(ModuleState::RUNNING);

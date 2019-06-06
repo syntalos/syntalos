@@ -96,6 +96,11 @@ public:
     virtual ModuleFeatures features() const;
 
     /**
+     * @brief Additional licensing conditions that apply to this module.
+     */
+    virtual QString license() const;
+
+    /**
      * @brief Initialize the module
      *
      * Initialize this module. This method is called once after construction.

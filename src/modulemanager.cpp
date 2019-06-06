@@ -207,6 +207,7 @@ void ModuleManager::registerModuleInfo()
     info->pixmap = tmp->pixmap();
     info->displayName = tmp->name();
     info->description = tmp->description();
+    info->license = tmp->license();
     info->singleton = tmp->singleton();
     info->count = 0;
     delete tmp;
