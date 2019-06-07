@@ -61,7 +61,7 @@ class Rhd2000Module;
 
 using namespace std;
 
-class IntanUI : public QWidget
+class IntanUI final : public QWidget
 {
     Q_OBJECT
     friend class Rhd2000Module;

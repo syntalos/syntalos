@@ -31,7 +31,7 @@ class QXYSeries;
 }
 class QTimer;
 
-class ChannelDetails : public QObject
+class ChannelDetails final : public QObject
 {
     Q_OBJECT
 public:
@@ -87,7 +87,7 @@ public:
     bool storeOrig;
 };
 
-class TracePlotProxy : public QObject
+class TracePlotProxy final : public QObject
 {
     Q_OBJECT
 public:

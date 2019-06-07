@@ -30,7 +30,7 @@ namespace Ui {
 class TraceDisplay;
 }
 
-class TraceDisplay : public QWidget
+class TraceDisplay final : public QWidget
 {
     Q_OBJECT
 
