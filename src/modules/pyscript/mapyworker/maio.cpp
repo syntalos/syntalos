@@ -79,8 +79,24 @@ struct EventTable
         zc->runRpc(MaPyFunction::T_setHeader, params);
     }
 
-    void add_event(boost::python::list values)
+    void add_event(boost::python::object valuesObj)
     {
+        if (valuesObj.is_none())
+            return;
+        boost::python::list values;
+
+        extract<boost::python::list> listExtract(valuesObj);
+        if (listExtract.check()) {
+            values = listExtract();
+        } else {
+            extract<std::string> strExtract(valuesObj);
+            if (strExtract.check()) {
+                values.append(strExtract());
+            } else {
+                throw MazeAmazePyError("Unable to add list entry: Parameter must either be a list of strings or a string.");
+            }
+        }
+
         auto zc = ZmqClient::instance();
         QJsonArray params;
         params.append(_inst_id);
@@ -167,11 +183,17 @@ static FirmataInterface get_firmata_interface(const std::string& name)
     return intf;
 }
 
+static void println(const std::string& text)
+{
+    std::cout << text << std::endl;
+}
+
 
 BOOST_PYTHON_MODULE(maio)
 {
     register_exception_translator<MazeAmazePyError>(&translateException);
 
+    def("println", println, "Print text to stdout.");
     def("time_since_start_msec", time_since_start_msec, "Get time since experiment started in milliseconds.");
     def("get_firmata_interface", get_firmata_interface, "Retrieve the Firmata interface with the given name.");
 
