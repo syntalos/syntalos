@@ -222,29 +222,34 @@ bool UEyeCamera::setFramerate(double fps)
     return true;
 }
 
-bool UEyeCamera::getFrame(void *buffer, time_t *time)
+cv::Mat UEyeCamera::getFrame(time_t *time)
 {
     UEYEIMAGEINFO imgInfo;
 
     is_WaitEvent(m_hCam, IS_SET_EVENT_FRAME, 1);
+
+    cv::Mat frame;
 
     auto res = is_GetImageInfo (m_hCam, m_camBufId, &imgInfo, sizeof(imgInfo));
     if (res == IS_SUCCESS) {
         (*time) = imgInfo.u64TimestampDevice / 10000; // 0.1µs resolution, but we want ms
         if ((*time) == m_lastFrameTime) {
             // we don't want to fetch the same frame twice
-            return false;
+            return frame;
         }
         m_lastFrameTime = (*time);
     } else {
         qCritical() << "Unable to get camera timestamp.";
         setError("Unable to get camera timestamp", res);
-        return false;
+        return frame;
     }
 
+    frame.rows = m_frameSize.width;
+    frame.cols = m_frameSize.height;
+
     // width * height * depth (depth == 3)
-    memcpy(buffer, m_camBuf, static_cast<size_t>(m_frameSize.width * m_frameSize.height * 3));
-    return true;
+    memcpy(frame.ptr(), m_camBuf, static_cast<size_t>(m_frameSize.width * m_frameSize.height * 3));
+    return frame;
 }
 
 bool UEyeCamera::setAutoWhiteBalance(bool enabled)

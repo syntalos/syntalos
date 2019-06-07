@@ -220,9 +220,9 @@ void UEyeCameraModule::captureThread(void *gcamPtr)
         // wait until we actually start
         while (!self->m_started) { }
 
-        cv::Mat frame;
         time_t time;
-        if (!self->m_camera->getFrame(frame.ptr(), &time)) {
+        auto frame = self->m_camera->getFrame(&time);
+        if (frame.empty()) {
             frameRecordFailedCount++;
             if (frameRecordFailedCount > 32) {
                 self->m_running = false;
