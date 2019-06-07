@@ -73,6 +73,7 @@ bool VideoRecorderModule::initialize(ModuleManager *manager)
 
     m_settingsDialog = new RecorderSettingsDialog;
     m_settingsDialog->setVideoName("video");
+    m_settingsDialog->setSaveTimestamps(true);
     m_settingsWindows.append(m_settingsDialog);
 
     // find all modules suitable as frame sources

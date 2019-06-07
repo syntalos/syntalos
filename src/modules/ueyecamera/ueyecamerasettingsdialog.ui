@@ -261,13 +261,13 @@
  <connections>
   <connection>
    <sender>buttonBox</sender>
-   <signal>accepted()</signal>
+   <signal>rejected()</signal>
    <receiver>UEyeCameraSettingsDialog</receiver>
-   <slot>accept()</slot>
+   <slot>close()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>232</x>
-     <y>347</y>
+     <x>236</x>
+     <y>309</y>
     </hint>
     <hint type="destinationlabel">
      <x>232</x>

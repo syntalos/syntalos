@@ -73,13 +73,13 @@
  <connections>
   <connection>
    <sender>buttonBox</sender>
-   <signal>accepted()</signal>
+   <signal>rejected()</signal>
    <receiver>LedTrackerSettingsDialog</receiver>
-   <slot>accept()</slot>
+   <slot>close()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>248</x>
-     <y>254</y>
+     <x>254</x>
+     <y>140</y>
     </hint>
     <hint type="destinationlabel">
      <x>157</x>
