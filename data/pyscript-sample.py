@@ -1,34 +1,34 @@
 import maio as io
 from maio import PinType
 
-import sys
 import time
 from threading import Timer
 
 #
 # Configure the pins we want to use
 #
-fmod = io.get_firmata_interface('Firmata I/O')
-fmod.new_digital_pin(0, 'armLeft',  PinType.INPUT)
-fmod.new_digital_pin(2, 'armRight', PinType.INPUT)
+fm = io.get_firmata_interface('Firmata I/O')
 
-fmod.new_digital_pin(6, 'dispLeft',  PinType.OUTPUT)
-fmod.new_digital_pin(8, 'dispRight', PinType.INPUT)
+fm.new_digital_pin(0, 'armLeft',   PinType.INPUT)
+fm.new_digital_pin(2, 'armRight',  PinType.INPUT)
 
-fmod.new_digital_pin(2, 'pinSignal', PinType.OUTPUT)
+fm.new_digital_pin(6, 'foodLeft',  PinType.OUTPUT)
+fm.new_digital_pin(8, 'foodRight', PinType.INPUT)
 
-mtable = io.EventTable('maze')
+fm.new_digital_pin(2, 'pinSignal', PinType.OUTPUT)
 
+
+# global variables
 g_last_arm = 'unknown'
 
 
 def signal_led_blink():
-    fmod.pin_set_value('pinSignal', True)
+    fm.pin_set_value('pinSignal', True)
     time.sleep(.5)  # wait 500 msec
-    fmod.pin_set_value('pinSignal', False)
+    fm.pin_set_value('pinSignal', False)
 
 
-def digital_input_received(pin_name, value):
+def digital_input_received(mtable, pin_name, value):
     global g_last_arm
     if not value:
         return
@@ -40,12 +40,13 @@ def digital_input_received(pin_name, value):
     mtable.add_event(['success'])
 
     if pin_name == 'armLeft':
-        io.pin_signal_pulse('dispLeft')
+        fm.pin_signal_pulse('foodLeft')
     elif (pin_name == 'armRight'):
-        io.pin_signal_pulse('dispRight')
+        fm.pin_signal_pulse('foodRight')
 
 
 def main():
+    mtable = io.EventTable('maze')
     mtable.set_header(['State'])
 
     # light LED on port 2 briefly after 3 seconds
@@ -53,9 +54,9 @@ def main():
     timer.start()
 
     while True:
-        r, pin_name, value = fmod.fetch_digital_input()
+        r, pin_name, value = fm.fetch_digital_input()
         if r:
-            digital_input_received(pin_name, value)
+            digital_input_received(mtable, pin_name, value)
 
 
 main()
