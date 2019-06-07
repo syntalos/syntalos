@@ -222,7 +222,7 @@ bool UEyeCamera::setFramerate(double fps)
     return true;
 }
 
-bool UEyeCamera::getFrame(cv::Mat *buffer, time_t *time)
+bool UEyeCamera::getFrame(void *buffer, time_t *time)
 {
     UEYEIMAGEINFO imgInfo;
 
@@ -243,7 +243,7 @@ bool UEyeCamera::getFrame(cv::Mat *buffer, time_t *time)
     }
 
     // width * height * depth (depth == 3)
-    memcpy((*buffer).ptr(), m_camBuf, static_cast<size_t>(m_frameSize.width * m_frameSize.height * 3));
+    memcpy(buffer, m_camBuf, static_cast<size_t>(m_frameSize.width * m_frameSize.height * 3));
     return true;
 }
 

@@ -222,7 +222,7 @@ void UEyeCameraModule::captureThread(void *gcamPtr)
 
         cv::Mat frame;
         time_t time;
-        if (!self->m_camera->getFrame(&frame, &time)) {
+        if (!self->m_camera->getFrame(frame.ptr(), &time)) {
             frameRecordFailedCount++;
             if (frameRecordFailedCount > 32) {
                 self->m_running = false;
@@ -288,10 +288,12 @@ void UEyeCameraModule::finishCaptureThread()
 
     statusMessage("Cleaning up...");
     if (m_thread != nullptr) {
+        m_started = true;
         m_running = false;
         m_thread->join();
         delete m_thread;
         m_thread = nullptr;
+        m_started = false;
     }
     m_camera->disconnect();
     m_camSettingsWindow->setRunning(false);

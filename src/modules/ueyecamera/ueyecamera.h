@@ -46,7 +46,7 @@ public:
 
     bool setFramerate(double fps);
 
-    bool getFrame(cv::Mat *buffer, time_t *time);
+    bool getFrame(void *buffer, time_t *time);
 
     bool setAutoWhiteBalance(bool enabled);
     bool setAutoGain(bool enabled);
