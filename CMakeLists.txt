@@ -26,7 +26,7 @@ if (MAINTAINER)
     add_definitions(
         "-Wsuggest-override"
         "-Wsuggest-final-methods"
-        "-Wsuggest-final-types"
+        # "-Wsuggest-final-types"
     )
 endif()
 
