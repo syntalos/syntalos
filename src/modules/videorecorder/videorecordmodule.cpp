@@ -168,7 +168,8 @@ bool VideoRecorderModule::prepare(const QString &storageRootDir, const TestSubje
 
 void VideoRecorderModule::stop()
 {
-    m_videoWriter->finalize();
+    if (m_videoWriter.get() != nullptr)
+        m_videoWriter->finalize();
 
     auto imgSrcMod = m_settingsDialog->selectedImageSourceMod();
     disconnect(imgSrcMod, &ImageSourceModule::newFrame, this, &VideoRecorderModule::receiveFrame);
