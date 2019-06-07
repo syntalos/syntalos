@@ -22,6 +22,7 @@ set -x
 
 OPENCV_VERSION=4.1.0
 WITH_PROTOBUF=OFF
+WITH_GDCM=OFF
 
 apt-get install -yq --no-install-recommends \
     git \
@@ -98,7 +99,7 @@ cmake -G Ninja \
     -DWITH_EIGEN=ON \
     -DWITH_FFMPEG=ON \
     -DWITH_GDAL=ON \
-    -DWITH_GDCM=ON \
+    -DWITH_GDCM=$WITH_GDCM \
     -DWITH_GSTREAMER=OFF \
     -DWITH_GTK=ON \
     -DWITH_IPP=OFF \
