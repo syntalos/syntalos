@@ -101,6 +101,8 @@ public:
 
     bool isRunning() const;
 
+    int currentFifoPercentageFull() const;
+
 protected:
     void closeEvent(QCloseEvent *event) override;
 

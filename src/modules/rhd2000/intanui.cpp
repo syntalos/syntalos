@@ -3249,6 +3249,11 @@ bool IntanUI::isRunning() const
     return running;
 }
 
+int IntanUI::currentFifoPercentageFull() const
+{
+    return crd.fifoPercentageFull;
+}
+
 // Enable or disable the display of electrode impedances.
 void IntanUI::showImpedances(bool enabled)
 {

@@ -25,7 +25,7 @@
 Rhd2000Module::Rhd2000Module(QObject *parent)
     : AbstractModule(parent)
 {
-    m_name = QStringLiteral("Intan RHD2000 USB Eval");
+    m_name = QStringLiteral("Intan RHD2000 USB Interface");
     m_intanUi = nullptr;
 }
 
@@ -128,7 +128,16 @@ bool Rhd2000Module::prepare(const QString &storageRootDir, const TestSubject &te
 bool Rhd2000Module::runCycle()
 {
     // we don't assert m_intanUi here for performance reasons
-    return m_intanUi->interfaceBoardRunCycle();
+    auto ret = m_intanUi->interfaceBoardRunCycle();
+
+    auto fifoPercentageFull = m_intanUi->currentFifoPercentageFull();
+    if (fifoPercentageFull > 75.0) {
+        setStatusMessage(QStringLiteral("<html>Buffer: <font color=\"red\"><b>") + QString::number(fifoPercentageFull, 'f', 0) + QStringLiteral("%</b> full</font>"));
+    } else {
+        setStatusMessage(QStringLiteral("Buffer: ") + QString::number(fifoPercentageFull, 'f', 0) + QStringLiteral("% full"));
+    }
+
+    return ret;
 }
 
 void Rhd2000Module::stop()
