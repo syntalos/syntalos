@@ -106,6 +106,9 @@ bool TriLedTrackerModule::initialize(ModuleManager *manager)
     m_displayWindows.append(m_trackInfoDisplay);
     m_displayWindows.append(m_trackingDisplay);
 
+    m_trackInfoDisplay->setWindowTitle(QStringLiteral("Animal Tracking Info"));
+    m_trackingDisplay->setWindowTitle(QStringLiteral("Tracking Display"));
+
     setState(ModuleState::READY);
     setInitialized();
     setName(name());
