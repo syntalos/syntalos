@@ -86,7 +86,7 @@ QList<QPair<QString, QVariant>> UEyeCamera::availableCameras()
         delete pCamList;
 
         // Reallocate the required camera list size
-        pCamList = (PUEYE_CAMERA_LIST)new char[sizeof(DWORD) + dw * sizeof(UEYE_CAMERA_INFO)];
+        pCamList = (PUEYE_CAMERA_LIST) new char[sizeof(DWORD) + dw * sizeof(UEYE_CAMERA_INFO)];
         pCamList->dwCount = dw;
 
         // Retrieve camera info
@@ -128,14 +128,18 @@ bool UEyeCamera::open(const cv::Size &size)
         return false;
     }
 
+    if ((size.height == 0) || (size.width == 0)) {
+        setError("Invalid dimensions set for recorded frames.");
+        return false;
+    }
+
     m_lastFrameTime = -1;
-    m_mat = cv::Mat(size.height, size.width, CV_8UC3);
     m_frameSize = size;
     qDebug() << QStringLiteral("Opening camera with resolution: %1x%2").arg(size.width).arg(size.height);
 
     INT nAOISupported = 0;
 
-    m_hCam = m_camId;
+    m_hCam = static_cast<uint32_t>(m_camId);
     auto res = is_InitCamera(&m_hCam, nullptr);
     if (res != IS_SUCCESS) {
         setError("Unable to initialize camera", res);
@@ -228,7 +232,7 @@ cv::Mat UEyeCamera::getFrame(time_t *time)
 
     is_WaitEvent(m_hCam, IS_SET_EVENT_FRAME, 1);
 
-    cv::Mat frame;
+    cv::Mat frame(m_frameSize.height, m_frameSize.width, CV_8UC3);
 
     auto res = is_GetImageInfo (m_hCam, m_camBufId, &imgInfo, sizeof(imgInfo));
     if (res == IS_SUCCESS) {
@@ -243,9 +247,6 @@ cv::Mat UEyeCamera::getFrame(time_t *time)
         setError("Unable to get camera timestamp", res);
         return frame;
     }
-
-    frame.rows = m_frameSize.width;
-    frame.cols = m_frameSize.height;
 
     // width * height * depth (depth == 3)
     memcpy(frame.ptr(), m_camBuf, static_cast<size_t>(m_frameSize.width * m_frameSize.height * 3));
