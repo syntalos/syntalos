@@ -33,7 +33,7 @@ Currently, the following modules are built-in:
 
 ## Developers
 
-[![Build Status](https://travis-ci.org/ximion/mazeamaze.svg?branch=master)](https://travis-ci.org/ximion/mazeamaze)
+[![Build Status](https://travis-ci.org/bothlab/mazeamaze.svg?branch=master)](https://travis-ci.org/bothlab/mazeamaze)
 
 ### Dependencies
 
