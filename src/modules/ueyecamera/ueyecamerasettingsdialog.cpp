@@ -89,6 +89,24 @@ QVariant UEyeCameraSettingsDialog::selectedCamera() const
     return ui->cameraComboBox->currentData();
 }
 
+void UEyeCameraSettingsDialog::setCameraId(int id)
+{
+    for (int i = 0; i < ui->cameraComboBox->count(); i++) {
+        auto ecId = ui->cameraComboBox->itemData(i).toInt();
+        if (ecId == id) {
+            ui->cameraComboBox->setCurrentIndex(i);
+            on_cameraComboBox_currentIndexChanged(i); // ensure the value gets applied
+            return;
+        }
+    }
+
+    // safeguard against invalid values
+    if ((id < 0) && (ui->cameraComboBox->count() > 0)) {
+        ui->cameraComboBox->setCurrentIndex(0);
+        on_cameraComboBox_currentIndexChanged(0);
+    }
+}
+
 cv::Size UEyeCameraSettingsDialog::resolution() const
 {
     auto size = ui->resolutionComboBox->currentData().value<QSize>();

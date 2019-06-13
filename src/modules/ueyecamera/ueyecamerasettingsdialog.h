@@ -39,6 +39,7 @@ public:
     ~UEyeCameraSettingsDialog();
 
     QVariant selectedCamera() const;
+    void setCameraId(int id);
 
     cv::Size resolution() const;
     void setResolution(cv::Size size);

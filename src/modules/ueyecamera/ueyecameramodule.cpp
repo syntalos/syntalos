@@ -194,7 +194,7 @@ bool UEyeCameraModule::loadSettings(const QString &confBaseDir, const QByteArray
     Q_UNUSED(confBaseDir);
     auto jsettings = jsonObjectFromBytes(data);
 
-    m_camera->setCamId(jsettings.value("camera").toInt());
+    m_camSettingsWindow->setCameraId(jsettings.value("camera").toInt());
     m_camSettingsWindow->setResolution(cv::Size(jsettings.value("width").toInt(), jsettings.value("height").toInt()));
     m_camSettingsWindow->setFramerate(jsettings.value("fps").toInt());
     m_camSettingsWindow->setGpioFlash(jsettings.value("gpioFlash").toBool());
