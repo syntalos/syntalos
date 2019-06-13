@@ -211,7 +211,7 @@ BOOST_PYTHON_MODULE(maio)
         .def("new_digital_pin", &FirmataInterface::new_digital_pin, "Register a new digital pin.")
         .def("fetch_digital_input", &FirmataInterface::fetch_digital_input, "Retreive digital input from the queue.")
         .def("pin_set_value", &FirmataInterface::pin_set_value, "Set a digital output pin to a boolean value.")
-        .def("pin_signal_pulse", &FirmataInterface::pin_set_value, "Emit a digital siganl on the specific pin.")
+        .def("pin_signal_pulse", &FirmataInterface::pin_signal_pulse, "Emit a digital signal on the specific pin.")
     ;
 };
 
