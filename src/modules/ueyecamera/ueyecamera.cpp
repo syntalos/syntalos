@@ -128,6 +128,7 @@ bool UEyeCamera::open(const cv::Size &size)
         return false;
     }
 
+    qDebug() << "Opening uEye camera" << m_camId << "with size" << QStringLiteral("%1x%2").arg(size.width).arg(size.height);
     if ((size.height == 0) || (size.width == 0)) {
         setError("Invalid dimensions set for recorded frames.");
         return false;
