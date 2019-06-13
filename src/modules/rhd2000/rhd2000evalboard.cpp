@@ -37,6 +37,7 @@ using namespace std;
 
 // Constructor.  Set sampling rate variable to 30.0 kS/s/channel (FPGA default).
 Rhd2000EvalBoard::Rhd2000EvalBoard()
+    : dev(nullptr)
 {
     int i;
     sampleRate = SampleRate30000Hz; // Rhythm FPGA boots up with 30.0 kS/s/channel sampling rate
@@ -47,6 +48,15 @@ Rhd2000EvalBoard::Rhd2000EvalBoard()
     }
 
     cableDelay.resize(4, -1);
+}
+
+Rhd2000EvalBoard::~Rhd2000EvalBoard()
+{
+    if (dev != nullptr) {
+        cout << "Unloading Rhythm RHD2000 Controller" << endl << endl;
+        delete dev;
+        okFrontPanelDLL_FreeLib();
+    }
 }
 
 // Find an Opal Kelly XEM6010-LX45 board attached to a USB port and open it.
@@ -93,6 +103,7 @@ int Rhd2000EvalBoard::open()
     // Attempt to open device.
     if (result != okCFrontPanel::NoError) {
         delete dev;
+        dev = nullptr;
         cerr << "Device could not be opened.  Is one connected?" << endl;
         cerr << "Error = " << result << "\n";
         return -2;
@@ -149,6 +160,7 @@ bool Rhd2000EvalBoard::uploadFpgaBitfile(string filename)
     if (dev->IsFrontPanelEnabled() == false) {
         cerr << "Opal Kelly FrontPanel support is not enabled in this FPGA configuration." << endl;
         delete dev;
+        dev = nullptr;
         return(false);
     }
 

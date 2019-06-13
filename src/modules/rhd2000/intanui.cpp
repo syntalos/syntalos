@@ -68,6 +68,7 @@
 // Constructor.
 IntanUI::IntanUI(Rhd2000Module *module, QWidget *parentWindow)
     : QWidget(parentWindow),
+      evalBoard(nullptr),
       maModule(module)
 {
     // Default amplifier bandwidth settings
@@ -202,6 +203,8 @@ IntanUI::IntanUI(Rhd2000Module *module, QWidget *parentWindow)
 IntanUI::~IntanUI()
 {
     delete liveDisplayWidget;
+    if (evalBoard != nullptr)
+        delete evalBoard;
 }
 
 QWidget *IntanUI::displayWidget() const
@@ -1690,6 +1693,7 @@ void IntanUI::openInterfaceBoard()
                                      QMessageBox::Ok);
             synthMode = true;
             delete evalBoard;
+            evalBoard = nullptr;
             evalBoard = 0;
             return;
         } else {
