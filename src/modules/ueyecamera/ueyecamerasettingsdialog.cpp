@@ -109,6 +109,8 @@ void UEyeCameraSettingsDialog::setCameraId(int id)
 
 cv::Size UEyeCameraSettingsDialog::resolution() const
 {
+    if (!ui->resolutionComboBox->currentData().isValid())
+        return cv::Size(0, 0);
     auto size = ui->resolutionComboBox->currentData().value<QSize>();
     return cv::Size(size.width(), size.height());
 }
