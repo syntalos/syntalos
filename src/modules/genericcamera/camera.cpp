@@ -142,7 +142,10 @@ bool Camera::connect()
         }
     }
 
-    d->cam.open(d->camId);
+    d->cam.open(d->camId, cv::CAP_V4L);
+    d->cam.set(cv::CAP_PROP_FRAME_WIDTH, d->frameSize.width);
+    d->cam.set(cv::CAP_PROP_FRAME_HEIGHT, d->frameSize.height);
+    d->cam.set(cv::CAP_PROP_AUTO_EXPOSURE, 0);
 
     // set default values
     setExposure(d->exposure);
