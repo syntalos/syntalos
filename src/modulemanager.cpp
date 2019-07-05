@@ -186,6 +186,65 @@ QList<AbstractModule *> ModuleManager::activeModules() const
     return d->modules;
 }
 
+QList<AbstractModule *> ModuleManager::createOrderedModuleList()
+{
+    // we need to do some ordering so modules which consume data from other modules get
+    // activated last.
+    // this implicit sorting isn't great, and we might - if MazeAmaze becomes more complex than
+    // it already is - replace this with declarative ordering a proper dependency resolution
+    // at some point.
+    // we don't use Qt sorting facilities here, because we want at least some of the original
+    // module order to be kept.
+    QList<AbstractModule*> orderedActiveModules;
+    QList<AbstractModule*> scriptModList;
+    int firstImgSinkModIdx = -1;
+
+    orderedActiveModules.reserve(d->modules.length());
+    Q_FOREACH(auto mod, d->modules) {
+        if (qobject_cast<ImageSourceModule*>(mod) != nullptr) {
+            if (firstImgSinkModIdx >= 0) {
+                // put in before the first sink
+                orderedActiveModules.insert(firstImgSinkModIdx, mod);
+                continue;
+            } else {
+                // just add the module
+                orderedActiveModules.append(mod);
+                continue;
+            }
+        } else if (qobject_cast<ImageSinkModule*>(mod) != nullptr) {
+            if (firstImgSinkModIdx < 0) {
+                // we have the first sink module
+                orderedActiveModules.append(mod);
+                firstImgSinkModIdx = orderedActiveModules.length() - 1;
+                continue;
+            } else {
+                // put in after the first sink
+                orderedActiveModules.insert(firstImgSinkModIdx + 1, mod);
+                continue;
+            }
+        } else if (qobject_cast<PyScriptModule*>(mod) != nullptr) {
+            // scripts are always initialized last, as they may arbitrarily connect
+            // to the other modules to control them.
+            // and we rather want that to happen when everything is prepared to run.
+            scriptModList.append(mod);
+            continue;
+        } else {
+            orderedActiveModules.append(mod);
+        }
+    }
+
+    Q_FOREACH(auto mod, scriptModList)
+        orderedActiveModules.append(mod);
+
+
+    auto debugText = QStringLiteral("Running modules in order: ");
+    Q_FOREACH(auto mod, orderedActiveModules)
+        debugText.append(mod->name() + QStringLiteral("; "));
+    qDebug().noquote() << debugText;
+
+    return orderedActiveModules;
+}
+
 void ModuleManager::removeAll()
 {
     Q_FOREACH(auto mod, d->modules) {

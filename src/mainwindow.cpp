@@ -340,9 +340,12 @@ void MainWindow::runActionTriggered()
         return;
     }
 
+    // fetch list of modules in their activation order
+    auto orderedActiveModules = m_modManager->createOrderedModuleList();
+
     auto timer = new HRTimer;
     bool prepareStepFailed = false;
-    Q_FOREACH(auto mod, m_modManager->activeModules()) {
+    Q_FOREACH(auto mod, orderedActiveModules) {
         setStatusText(QStringLiteral("Preparing %1...").arg(mod->name()));
         mod->setStatusMessage(QString());
         if (!mod->prepare(m_dataExportDir, m_currentSubject, timer)) {
@@ -362,15 +365,14 @@ void MainWindow::runActionTriggered()
         setStatusText(QStringLiteral("Initializing launch..."));
 
         timer->start();
-        Q_FOREACH(auto mod, m_modManager->activeModules()) {
+        Q_FOREACH(auto mod, orderedActiveModules)
             mod->start();
-        }
 
         m_running = true;
         setStatusText(QStringLiteral("Running..."));
 
         while (m_running) {
-            Q_FOREACH(auto mod, m_modManager->activeModules()) {
+            Q_FOREACH(auto mod, orderedActiveModules) {
                 if (!mod->runCycle()){
                     setStatusText(QStringLiteral("Module %1 failed.").arg(mod->name()));
                     m_failed = true;
@@ -385,12 +387,12 @@ void MainWindow::runActionTriggered()
 
     auto finishTimestamp = static_cast<long long>(timer->timeSinceStartMsec().count());
 
-    Q_FOREACH(auto mod, m_modManager->activeModules()) {
+    Q_FOREACH(auto mod, orderedActiveModules) {
         setStatusText(QStringLiteral("Stopping %1...").arg(mod->name()));
         mod->stop();
 
         // ensure modules display the correct state after we stopped a run
-        if (mod->state() == ModuleState::RUNNING)
+        if (mod->state() == ModuleState::RUNNING || mod->state() == ModuleState::WAITING)
             mod->setState(ModuleState::READY);
     }
 
@@ -417,7 +419,7 @@ void MainWindow::runActionTriggered()
         manifest.insert("success", !m_failed);
 
         QJsonArray jActiveModules;
-        Q_FOREACH(auto mod, m_modManager->activeModules()) {
+        Q_FOREACH(auto mod, orderedActiveModules) {
             QJsonObject info;
             info.insert(mod->id(), mod->name());
             jActiveModules.append(info);

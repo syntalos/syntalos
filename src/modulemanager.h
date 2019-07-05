@@ -56,6 +56,12 @@ public:
 
     QList<AbstractModule*> activeModules() const;
 
+    /**
+     * @brief Return a list of active modules that have been sorted in the order they
+     * should be initialized in.
+     */
+    QList<AbstractModule*> createOrderedModuleList();
+
     void removeAll();
 
 signals:
