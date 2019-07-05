@@ -47,7 +47,9 @@ void LedTrackerSettingsDialog::setImageSourceModules(const QList<ImageSourceModu
             break;
         }
     }
-    m_selectedImgSrcMod = mod;
+
+    if (m_selectedImgSrcMod == nullptr)
+        m_selectedImgSrcMod = mod;
 }
 
 ImageSourceModule *LedTrackerSettingsDialog::selectedImageSourceMod()

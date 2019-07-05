@@ -99,7 +99,10 @@ bool TriLedTrackerModule::initialize(ModuleManager *manager)
             continue;
         m_frameSourceModules.append(imgSrcMod);
     }
-    m_settingsDialog->setSelectedImageSourceMod(m_frameSourceModules.first()); // set first module as default
+    if (m_frameSourceModules.isEmpty())
+        m_settingsDialog->setSelectedImageSourceMod(nullptr);
+    else
+        m_settingsDialog->setSelectedImageSourceMod(m_frameSourceModules.first()); // set first module as default
 
     m_trackInfoDisplay = new VideoViewWidget;
     m_trackingDisplay = new VideoViewWidget;

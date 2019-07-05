@@ -62,7 +62,9 @@ void RecorderSettingsDialog::setImageSourceModules(const QList<ImageSourceModule
             break;
         }
     }
-    m_selectedImgSrcMod = mod;
+
+    if (m_selectedImgSrcMod == nullptr)
+        m_selectedImgSrcMod = mod;
 }
 
 ImageSourceModule *RecorderSettingsDialog::selectedImageSourceMod()

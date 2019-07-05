@@ -83,7 +83,10 @@ bool VideoRecorderModule::initialize(ModuleManager *manager)
             continue;
         m_frameSourceModules.append(imgSrcMod);
     }
-    m_settingsDialog->setSelectedImageSourceMod(m_frameSourceModules.first()); // set first module as default
+    if (m_frameSourceModules.isEmpty())
+        m_settingsDialog->setSelectedImageSourceMod(nullptr);
+    else
+        m_settingsDialog->setSelectedImageSourceMod(m_frameSourceModules.first()); // set first module as default
 
     connect(manager, &ModuleManager::moduleCreated, this, &VideoRecorderModule::recvModuleCreated);
     connect(manager, &ModuleManager::modulePreRemove, this, &VideoRecorderModule::recvModulePreRemove);
