@@ -288,8 +288,8 @@ void UEyeCameraModule::finishCaptureThread()
 
     statusMessage("Cleaning up...");
     if (m_thread != nullptr) {
-        m_started = true;
         m_running = false;
+        m_started = true;
         m_thread->join();
         delete m_thread;
         m_thread = nullptr;
