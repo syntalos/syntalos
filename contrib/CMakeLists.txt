@@ -1,5 +1,5 @@
  
-# INTAN FPGA code blob
+# Intan Rhythm FPGA code blob
 install(FILES main.bit DESTINATION "${CMAKE_INSTALL_DATADIR}/mazeamaze")
 
 set (ARCH_X86 FALSE)
@@ -23,3 +23,6 @@ else ()
         install(FILES "Opal Kelly library files/Linux 32-bit/libokFrontPanel.so" DESTINATION ${CMAKE_INSTALL_LIBDIR}/mazeamaze)
     endif ()
 endif ()
+
+# Install udev rules to make Opal Kelly USB device readable for normal users
+install(FILES "udev/90-mazeamaze.rules" DESTINATION ${CMAKE_INSTALL_LIBDIR}/udev/rules.d/)
