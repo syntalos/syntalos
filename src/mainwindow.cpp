@@ -53,6 +53,7 @@
 #include <QScrollBar>
 #include <QHeaderView>
 #include <QSvgWidget>
+#include <QStorageInfo>
 
 #include <KTar>
 
@@ -317,13 +318,41 @@ void MainWindow::runActionTriggered()
     // determine and create the directory for ephys data
     qDebug() << "Initializing new recording run";
 
+    // test for available disk space and readyness of device
+    QStorageInfo storageInfo(m_dataExportBaseDir);
+    if (storageInfo.isValid() && storageInfo.isReady()) {
+        auto mbAvailable = storageInfo.bytesAvailable() / 1000 / 1000;
+        qDebug().noquote() << mbAvailable << "MB available in data export location";
+        // TODO: Make the warning level configurable in global settings
+        if (mbAvailable < 8000) {
+            auto reply = QMessageBox::question(this,
+                                               QStringLiteral("Disk is almost full - Continue anyway?"),
+                                               QStringLiteral("The disk '%1' is located on has low amounts of space available (< 8 GB). "
+                                                              "If this run generates more data than we have space for, it will fail (possibly corrupting data). Continue anyway?")
+                                                              .arg(m_dataExportBaseDir),
+                                               QMessageBox::Yes | QMessageBox::No);
+            if (reply == QMessageBox::No) {
+                setRunPossible(true);
+                setStopPossible(false);
+                return;
+            }
+        }
+    } else {
+        QMessageBox::critical(this, QStringLiteral("Disk not ready"),
+                              QStringLiteral("The disk device at '%1' is either invalid (not mounted) or not ready for operation. Can not continue.").arg(m_dataExportBaseDir));
+        setRunPossible(true);
+        setStopPossible(false);
+        return;
+    }
+
     // safeguard against accidental data removals
     QDir deDir(m_dataExportDir);
     if (deDir.exists()) {
         auto reply = QMessageBox::question(this,
-                                           "Really continue?",
-                                           QString("The directory %1 already contains data (likely from a previous run). If you continue, the old data will be deleted. Continue and delete data?")
-                                               .arg(m_dataExportDir),
+                                           QStringLiteral("Existing data found - Continue anyway?"),
+                                           QStringLiteral("The directory '%1' already contains data (likely from a previous run). "
+                                                          "If you continue, the old data will be deleted. Continue and delete data?")
+                                                          .arg(m_dataExportDir),
                                            QMessageBox::Yes | QMessageBox::No);
         if (reply == QMessageBox::No) {
             setRunPossible(true);
