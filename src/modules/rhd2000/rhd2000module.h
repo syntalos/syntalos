@@ -44,6 +44,8 @@ public:
 
     bool prepare(const QString& storageRootDir, const TestSubject& testSubject, HRTimer *timer) override;
 
+    void start() override;
+
     bool runCycle() override;
 
     void stop() override;

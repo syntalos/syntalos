@@ -90,6 +90,7 @@ public:
 
     void interfaceBoardPrepareRecording();
     void interfaceBoardInitRun();
+    void interfaceBoardStartRun();
     bool interfaceBoardRunCycle();
     void interfaceBoardStopFinalize();
 

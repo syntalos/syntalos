@@ -2384,6 +2384,7 @@ void IntanUI::runInterfaceBoard()
     assert(!running);
     recording = false;
     interfaceBoardInitRun();
+    interfaceBoardStartRun();
 
     while (running) {
         if (!interfaceBoardRunCycle())
@@ -2410,9 +2411,6 @@ void IntanUI::interfaceBoardInitRun()
 
     // Average temperature sensor readings over a ~0.1 second interval.
     signalProcessor->tempHistoryReset(numUsbBlocksToRead * 3);
-
-    running = true;
-    //! wavePlot->setFocus();
 
     changeBandwidthButton->setEnabled(false);
     impedanceFreqSelectButton->setEnabled(false);
@@ -2462,6 +2460,14 @@ void IntanUI::interfaceBoardInitRun()
     crd.samplePeriod = 1.0 / boardSampleRate;
     crd.fifoCapacity = Rhd2000EvalBoard::fifoCapacityInWords();
 
+    crd.runInitialized = true;
+}
+
+void IntanUI::interfaceBoardStartRun()
+{
+    assert(!running);
+    assert(crd.runInitialized);
+
     if (recording) {
         setStatusBarRecording(crd.bytesPerMinute);
     } else if (triggerSet) {
@@ -2476,8 +2482,7 @@ void IntanUI::interfaceBoardInitRun()
     } else {
         crd.timer.start();
     }
-
-    crd.runInitialized = true;
+    running = true;
 }
 
 void IntanUI::interfaceBoardPrepareRecording()

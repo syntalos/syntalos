@@ -125,6 +125,12 @@ bool Rhd2000Module::prepare(const QString &storageRootDir, const TestSubject &te
     return true;
 }
 
+void Rhd2000Module::start()
+{
+    m_intanUi->interfaceBoardStartRun();
+    setState(ModuleState::RUNNING);
+}
+
 bool Rhd2000Module::runCycle()
 {
     // we don't assert m_intanUi here for performance reasons
