@@ -54,6 +54,7 @@
 #include <QHeaderView>
 #include <QSvgWidget>
 #include <QStorageInfo>
+#include <QFontMetricsF>
 
 #include <KTar>
 
@@ -128,21 +129,7 @@ MainWindow::MainWindow(QWidget *parent) :
     greetingsRc.close();
 
     // setup general page
-    auto openDirBtn = new QToolButton();
-    openDirBtn->setIcon(QIcon::fromTheme("folder-open"));
-
-    auto dirInfoLabel = new QLabel("Export &Directory:");
-    dirInfoLabel->setBuddy(openDirBtn);
-
-    m_exportDirLabel = new QLabel("???");
-    m_exportDirInfoLabel = new QLabel ("Recorded data will be stored in: The directory you select.");
-
-    ui->dataExportDirLayout->addWidget(dirInfoLabel);
-    ui->dataExportDirLayout->addWidget(m_exportDirLabel);
-    ui->dataExportDirLayout->addWidget(openDirBtn);
-    ui->dataExportLayout->addWidget(m_exportDirInfoLabel);
-
-    connect(openDirBtn, &QToolButton::clicked, this, &MainWindow::openDataExportDirectory);
+    connect(ui->tbOpenDir, &QToolButton::clicked, this, &MainWindow::openDataExportDirectory);
 
     connect(ui->subjectIdEdit, &QLineEdit::textChanged, [=](const QString& mouseId) {
         if (mouseId.isEmpty()) {
@@ -487,19 +474,21 @@ void MainWindow::setDataExportBaseDir(const QString& dir)
 
     m_dataExportBaseDir = dir;
     m_exportDirValid = QDir().exists(m_dataExportBaseDir);
-    m_exportDirLabel->setText(m_dataExportBaseDir);
 
-    auto font = m_exportDirLabel->font();
+    QFontMetricsF fm(ui->exportBaseDirLabel->font());
+    ui->exportBaseDirLabel->setText(fm.elidedText(m_dataExportBaseDir, Qt::ElideMiddle, ui->exportBaseDirLabel->width()));
+
+    auto font = ui->exportBaseDirLabel->font();
     font.setBold(false);
-    auto palette = m_exportDirLabel->palette();
+    auto palette = ui->exportBaseDirLabel->palette();
     palette.setColor(QPalette::WindowText, Qt::black);
     if (m_dataExportBaseDir.startsWith(QStandardPaths::writableLocation(QStandardPaths::TempLocation)) ||
         m_dataExportBaseDir.startsWith(QStandardPaths::writableLocation(QStandardPaths::CacheLocation))) {
         font.setBold(true);
         palette.setColor(QPalette::WindowText, Qt::red);
     }
-    m_exportDirLabel->setPalette(palette);
-    m_exportDirLabel->setFont(font);
+    ui->exportBaseDirLabel->setPalette(palette);
+    ui->exportBaseDirLabel->setFont(font);
 
     // update the export directory
     updateDataExportDir();
@@ -516,15 +505,17 @@ void MainWindow::updateDataExportDir()
                                     .arg(m_currentDate)
                                     .arg(m_experimentId));
 
-    auto palette = m_exportDirInfoLabel->palette();
+    auto palette = ui->exportDirLabel->palette();
     palette.setColor(QPalette::WindowText, Qt::black);
     if (m_dataExportDir.startsWith(QStandardPaths::writableLocation(QStandardPaths::TempLocation)) ||
         m_dataExportDir.startsWith(QStandardPaths::writableLocation(QStandardPaths::CacheLocation))) {
         palette.setColor(QPalette::WindowText, Qt::red);
     }
-    m_exportDirInfoLabel->setPalette(palette);
+    ui->exportDirLabel->setPalette(palette);
 
-    m_exportDirInfoLabel->setText(QString("Recorded data will be stored in: %1").arg(m_dataExportDir));
+    QFontMetricsF fm(ui->exportDirLabel->font());
+    const auto abbrevDataExportDir = fm.elidedText(m_dataExportDir, Qt::ElideMiddle, ui->exportDirLabel->width());
+    ui->exportDirLabel->setText(abbrevDataExportDir);
 }
 
 bool MainWindow::saveConfiguration(const QString &fileName)

@@ -90,8 +90,6 @@ private:
     Ui::MainWindow *ui;
 
     QLabel *m_statusBarLabel;
-    QLabel *m_exportDirLabel;
-    QLabel *m_exportDirInfoLabel;
     QSvgWidget *m_runIndicatorWidget;
 
     QString m_experimentId;
