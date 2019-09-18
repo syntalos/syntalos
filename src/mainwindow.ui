@@ -127,9 +127,12 @@
                   </widget>
                  </item>
                  <item>
-                  <widget class="QLabel" name="exportBaseDirLabel">
-                   <property name="text">
-                    <string>???</string>
+                  <widget class="ElidedLabel" name="exportBaseDirLabel">
+                   <property name="frameShape">
+                    <enum>QFrame::NoFrame</enum>
+                   </property>
+                   <property name="frameShadow">
+                    <enum>QFrame::Plain</enum>
                    </property>
                   </widget>
                  </item>
@@ -171,9 +174,12 @@
                   </widget>
                  </item>
                  <item>
-                  <widget class="QLabel" name="exportDirLabel">
-                   <property name="text">
-                    <string>The directory you select.</string>
+                  <widget class="ElidedLabel" name="exportDirLabel">
+                   <property name="frameShape">
+                    <enum>QFrame::NoFrame</enum>
+                   </property>
+                   <property name="frameShadow">
+                    <enum>QFrame::Plain</enum>
                    </property>
                   </widget>
                  </item>
@@ -210,7 +216,8 @@
                  <string/>
                 </property>
                 <property name="icon">
-                 <iconset theme="folder-open"/>
+                 <iconset theme="folder-open">
+                  <normaloff>.</normaloff>.</iconset>
                 </property>
                </widget>
               </item>
@@ -836,6 +843,14 @@
   </action>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
+ <customwidgets>
+  <customwidget>
+   <class>ElidedLabel</class>
+   <extends>QFrame</extends>
+   <header>elidedlabel.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
  <resources>
   <include location="../data/resources.qrc"/>
  </resources>

@@ -228,6 +228,8 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->actionLoadSettings, &QAction::triggered, this, &MainWindow::loadSettingsActionTriggered);
 
     // various
+    ui->exportDirLabel->setText(QStringLiteral("???"));
+    ui->exportBaseDirLabel->setText(QStringLiteral("The directory you select."));
     ui->tabWidget->setCurrentIndex(0);
     m_exportDirValid = false;
 
@@ -475,8 +477,7 @@ void MainWindow::setDataExportBaseDir(const QString& dir)
     m_dataExportBaseDir = dir;
     m_exportDirValid = QDir().exists(m_dataExportBaseDir);
 
-    QFontMetricsF fm(ui->exportBaseDirLabel->font());
-    ui->exportBaseDirLabel->setText(fm.elidedText(m_dataExportBaseDir, Qt::ElideMiddle, ui->exportBaseDirLabel->width()));
+    ui->exportBaseDirLabel->setText(m_dataExportBaseDir);
 
     auto font = ui->exportBaseDirLabel->font();
     font.setBold(false);
@@ -512,10 +513,7 @@ void MainWindow::updateDataExportDir()
         palette.setColor(QPalette::WindowText, Qt::red);
     }
     ui->exportDirLabel->setPalette(palette);
-
-    QFontMetricsF fm(ui->exportDirLabel->font());
-    const auto abbrevDataExportDir = fm.elidedText(m_dataExportDir, Qt::ElideMiddle, ui->exportDirLabel->width());
-    ui->exportDirLabel->setText(abbrevDataExportDir);
+    ui->exportDirLabel->setText(m_dataExportDir);
 }
 
 bool MainWindow::saveConfiguration(const QString &fileName)

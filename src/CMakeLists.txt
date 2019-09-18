@@ -28,6 +28,8 @@ set(MAZEAMAZE_SRC
     imagesinkmodule.cpp
     videoviewwidget.h
     videoviewwidget.cpp
+    elidedlabel.h
+    elidedlabel.cpp
 )
 
 set(MAZEAMAZE_UI
