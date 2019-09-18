@@ -805,8 +805,10 @@ void MainWindow::on_tbAddModule_clicked()
     ModuleSelectDialog modDialog(m_modManager->moduleInfo(), this);
     if (modDialog.exec() == QDialog::Accepted) {
         m_runIndicatorWidget->show();
-        if (!modDialog.selectedEntryId().isEmpty())
-            m_modManager->createModule(modDialog.selectedEntryId());
+        if (!modDialog.selectedEntryId().isEmpty()) {
+            auto mod = m_modManager->createModule(modDialog.selectedEntryId());
+            mod->showSettingsUi();
+        }
         m_runIndicatorWidget->hide();
     }
 }
