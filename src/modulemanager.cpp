@@ -30,6 +30,9 @@
 #ifdef HAVE_UEYE_CAMERA
 #include "modules/ueyecamera/ueyecameramodule.h"
 #endif
+#ifdef HAVE_MINISCOPE
+#include "modules/miniscope/miniscopemodule.h"
+#endif
 #include "modules/triled-tracker/triledtrackermodule.h"
 #include "modules/firmata-io/firmataiomodule.h"
 #include "modules/pyscript/pyscriptmodule.h"
@@ -85,6 +88,9 @@ ModuleManager::ModuleManager(QObject *parent, QWidget *parentWidget)
     registerModuleInfo<GenericCameraModule>();
 #ifdef HAVE_UEYE_CAMERA
     registerModuleInfo<UEyeCameraModule>();
+#endif
+#ifdef HAVE_MINISCOPE
+    registerModuleInfo<MiniscopeModule>();
 #endif
     registerModuleInfo<TriLedTrackerModule>();
     registerModuleInfo<FirmataIOModule>();

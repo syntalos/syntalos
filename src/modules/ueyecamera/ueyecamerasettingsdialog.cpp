@@ -185,7 +185,7 @@ void UEyeCameraSettingsDialog::setExposure(double value)
 
 void UEyeCameraSettingsDialog::on_cameraComboBox_currentIndexChanged(int index)
 {
-    Q_UNUSED(index);
+    Q_UNUSED(index)
     m_camera->setCamId(ui->cameraComboBox->currentData().toInt());
 
     // probe the new camera for its resolution list

@@ -10,5 +10,6 @@
 
 /* features */
 #cmakedefine HAVE_UEYE_CAMERA
+#cmakedefine HAVE_MINISCOPE
 
 #endif /* CONFIG_H */

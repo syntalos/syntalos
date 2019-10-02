@@ -14,6 +14,8 @@ set(CMAKE_AUTOMOC ON)
 # Options
 #
 option(MAINTAINER "Enable maintainer mode" OFF)
+option(MOD_CAMERA_UEYE "Enable uEye camera module" ON)
+option(MOD_MINISCOPE   "Enable Miniscope module" ON)
 
 
 #
@@ -68,9 +70,6 @@ find_package(OpenGL REQUIRED)
 #
 # Compile options
 #
-option(MOD_CAMERA_UEYE "Enable uEye camera module" ON)
-
-
 if(MOD_CAMERA_UEYE)
     set(UEYE_LIBS "ueye_api")
 endif()
@@ -81,6 +80,9 @@ endif()
 #
 if(MOD_CAMERA_UEYE)
     set(HAVE_UEYE_CAMERA ON)
+endif()
+if(MOD_MINISCOPE)
+    set(HAVE_MINISCOPE ON)
 endif()
 
 set(MA_ARCH_INSTALL_DIR "${CMAKE_INSTALL_FULL_LIBDIR}/mazeamaze")

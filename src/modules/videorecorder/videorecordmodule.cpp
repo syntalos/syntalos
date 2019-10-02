@@ -99,8 +99,8 @@ bool VideoRecorderModule::initialize(ModuleManager *manager)
 
 bool VideoRecorderModule::prepare(const QString &storageRootDir, const TestSubject &testSubject, HRTimer *timer)
 {
-    Q_UNUSED(testSubject);
-    Q_UNUSED(timer);
+    Q_UNUSED(testSubject)
+    Q_UNUSED(timer)
     setState(ModuleState::PREPARING);
 
     m_vidStorageDir = QStringLiteral("%1/videos").arg(storageRootDir);

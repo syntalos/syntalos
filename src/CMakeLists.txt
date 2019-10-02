@@ -70,13 +70,16 @@ target_link_libraries(mazeamaze
     ${Boost_LIBRARIES}
     ${CZMQ_LIBRARIES}
     ${UEYE_LIBS}
+    ${MA_EXTRA_LIBS}
 
     ${MA_MODULE_LIBS}
+    miniscope
 )
 
 include_directories(
     ${OpenCV_INCLUDE_DIRS}
     ${PYTHON_INCLUDE_DIRS}
+    ${CZMQ_INCLUDE_DIRS}
     ${Boost_INCLUDE_DIR}
 )
 
