@@ -150,7 +150,7 @@ bool MiniscopeModule::runCycle()
     }
 
     m_videoView->showImage(frame);
-    statusMessage(QStringLiteral("FPS: %1 Dropped: %2").arg(m_miniscope->currentFPS()).arg(m_miniscope->droppedFramesCount()));
+    statusMessage(QStringLiteral("FPS: %1 Dropped: %2").arg(m_miniscope->currentFps()).arg(m_miniscope->droppedFramesCount()));
 
     return true;
 }

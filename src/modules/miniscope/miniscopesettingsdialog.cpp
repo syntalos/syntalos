@@ -208,9 +208,9 @@ void MiniscopeSettingsDialog::on_bgSubstCheckBox_toggled(bool checked)
 {
     if (checked) {
         ui->bgDivCheckBox->setChecked(false);
-        m_mscope->setDisplayBgDiffMethod(MScope::BackgroundDiffMethod::SUBTRACTION);
+        m_mscope->setDisplayBgDiffMethod(MScope::BackgroundDiffMethod::Subtraction);
     } else {
-        m_mscope->setDisplayBgDiffMethod(MScope::BackgroundDiffMethod::NONE);
+        m_mscope->setDisplayBgDiffMethod(MScope::BackgroundDiffMethod::None);
     }
 }
 
@@ -218,9 +218,9 @@ void MiniscopeSettingsDialog::on_bgDivCheckBox_toggled(bool checked)
 {
     if (checked) {
         ui->bgSubstCheckBox->setChecked(false);
-        m_mscope->setDisplayBgDiffMethod(MScope::BackgroundDiffMethod::DIVISION);
+        m_mscope->setDisplayBgDiffMethod(MScope::BackgroundDiffMethod::Division);
     } else {
-        m_mscope->setDisplayBgDiffMethod(MScope::BackgroundDiffMethod::NONE);
+        m_mscope->setDisplayBgDiffMethod(MScope::BackgroundDiffMethod::None);
     }
 }
 
