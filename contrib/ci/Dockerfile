@@ -1,16 +1,17 @@
 #
 # Docker file for MazeAmaze tests
 #
-FROM ubuntu:eoan
+FROM debian:bullseye
 
 # prepare
 RUN apt-get update -qq
 
 # install build essentials
-RUN apt-get install -yq eatmydata gcc g++
+RUN apt-get install -yq eatmydata build-essential gcc g++
 
 # install build dependencies
 RUN DEBIAN_FRONTEND=noninteractive eatmydata apt-get install -yq --no-install-recommends \
+    git ca-certificates \
     meson \
     ninja-build \
     cmake \
@@ -32,6 +33,21 @@ RUN DEBIAN_FRONTEND=noninteractive eatmydata apt-get install -yq --no-install-re
     libkf5archive-dev \
     libkf5texteditor-dev
 
+# we need a recent OpenCV, so install it from experimental for now
+RUN echo "deb http://deb.debian.org/debian experimental main" > /etc/apt/sources.list.d/experimental.list
+RUN apt-get update -qq
+RUN eatmydata apt-get install -t experimental -yq libopencv-dev
+
+# build & install 3rd-party libraries
+RUN mkdir -p /build/extra
+WORKDIR /build/extra
+
+# PoMiDAQ for Miniscope support
+RUN git clone --depth 1 https://github.com/bothlab/pomidaq.git pomidaq
+RUN mkdir pomidaq/b
+RUN cd pomidaq/b/ && cmake --prefix=/usr -DPYTHON=OFF ..
+RUN cd pomidaq/b/ && make && make install
+
 # finish
-RUN mkdir /build
+RUN mkdir -p /build
 WORKDIR /build
