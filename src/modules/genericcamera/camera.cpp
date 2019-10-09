@@ -145,7 +145,13 @@ bool Camera::connect()
     d->cam.open(d->camId, cv::CAP_V4L);
     d->cam.set(cv::CAP_PROP_FRAME_WIDTH, d->frameSize.width);
     d->cam.set(cv::CAP_PROP_FRAME_HEIGHT, d->frameSize.height);
-    d->cam.set(cv::CAP_PROP_AUTO_EXPOSURE, 0);
+
+    // Apparently, setting this to 1 *disables* auto exposure for most cameras when V4L
+    // is used and gives us manual control. This is a bit insane, and maybe we need to expose
+    // this as a setting in case we find cameras that behave differently.
+    // The values for this setting, according to some docs, are:
+    // 0: Auto Mode 1: Manual Mode 2: Shutter Priority Mode 3: Aperture Priority Mode
+    d->cam.set(cv::CAP_PROP_AUTO_EXPOSURE, 1);
 
     // set default values
     setExposure(d->exposure);
