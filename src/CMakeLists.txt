@@ -30,6 +30,8 @@ set(MAZEAMAZE_SRC
     videoviewwidget.cpp
     elidedlabel.h
     elidedlabel.cpp
+    flowgraphview.h
+    flowgraphview.cpp
 )
 
 set(MAZEAMAZE_UI
