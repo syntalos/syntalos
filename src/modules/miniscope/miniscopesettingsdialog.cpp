@@ -234,3 +234,8 @@ void MiniscopeSettingsDialog::on_recNameLineEdit_textChanged(const QString &arg1
     setRecName(arg1);
     ui->recNameLineEdit->setText(recName());
 }
+
+void MiniscopeSettingsDialog::on_sbCamId_valueChanged(int arg1)
+{
+    m_mscope->setScopeCamId(arg1);
+}

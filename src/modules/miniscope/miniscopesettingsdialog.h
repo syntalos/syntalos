@@ -63,8 +63,8 @@ private slots:
     void on_bgDivCheckBox_toggled(bool checked);
     void on_bgSubstCheckBox_toggled(bool checked);
     void on_accAlphaSpinBox_valueChanged(double arg1);
-
     void on_recNameLineEdit_textChanged(const QString &arg1);
+    void on_sbCamId_valueChanged(int arg1);
 
 private:
     Ui::MiniscopeSettingsDialog *ui;
