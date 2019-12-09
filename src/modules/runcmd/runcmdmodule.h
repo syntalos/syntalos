@@ -24,16 +24,23 @@
 #include <chrono>
 #include "abstractmodule.h"
 
+class RunCmdModuleInfo : public ModuleInfo
+{
+    Q_OBJECT
+public:
+    QString id() const override;
+    QString name() const override;
+    QString description() const override;
+    QPixmap pixmap() const override;
+    AbstractModule *createModule(QObject *parent = nullptr) override;
+};
+
 class RunCmdModule : public AbstractModule
 {
     Q_OBJECT
 public:
     explicit RunCmdModule(QObject *parent = nullptr);
     ~RunCmdModule() override;
-
-    QString id() const override;
-    QString description() const override;
-    QPixmap pixmap() const override;
 
     bool initialize(ModuleManager *manager) override;
     bool prepare(const QString& storageRootDir, const TestSubject& testSubject, HRTimer *timer) override;

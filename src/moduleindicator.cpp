@@ -42,7 +42,7 @@ public:
 };
 #pragma GCC diagnostic pop
 
-ModuleIndicator::ModuleIndicator(AbstractModule *module, ModuleManager *manager, QWidget *parent) :
+ModuleIndicator::ModuleIndicator(ModuleInfo *modInfo, AbstractModule *module, ModuleManager *manager, QWidget *parent) :
     QFrame(parent),
     ui(new Ui::ModuleIndicator),
     d(new MIData)
@@ -64,7 +64,7 @@ ModuleIndicator::ModuleIndicator(AbstractModule *module, ModuleManager *manager,
     ui->configButton->setEnabled(false);
     receiveStateChange(ModuleState::PREPARING);
 
-    ui->moduleImage->setPixmap(d->module->pixmap());
+    ui->moduleImage->setPixmap(modInfo->pixmap());
     ui->moduleNameLabel->setText(d->module->name());
     ui->infoLabel->setText("");
 

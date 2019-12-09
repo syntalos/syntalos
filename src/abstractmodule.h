@@ -30,6 +30,7 @@
 #include "hrclock.h"
 #include "modulemanager.h"
 
+class AbstractModule;
 
 /**
  * @brief The ModuleState enum
@@ -60,15 +61,11 @@ enum class ModuleFeature {
 Q_DECLARE_FLAGS(ModuleFeatures, ModuleFeature)
 Q_DECLARE_OPERATORS_FOR_FLAGS(ModuleFeatures)
 
-class AbstractModule : public QObject
+class ModuleInfo : public QObject
 {
     Q_OBJECT
+    friend class ModuleManager;
 public:
-    explicit AbstractModule(QObject *parent = nullptr);
-
-    ModuleState state() const;
-    void setState(ModuleState state);
-
     /**
      * @brief Name of this module used internally as unique identifier
      */
@@ -78,7 +75,6 @@ public:
      * @brief Name of this module displayed to the user
      */
     virtual QString name() const;
-    virtual void setName(const QString& name);
 
     /**
      * @brief Description of this module
@@ -86,19 +82,62 @@ public:
     virtual QString description() const;
 
     /**
+     * @brief Additional licensing conditions that apply to this module.
+     */
+    virtual QString license() const;
+
+    /**
      * @brief Icon of this module
      */
     virtual QPixmap pixmap() const;
 
     /**
+     * @brief Returns true if only one instance of this module can exist.
+     * @return True if singleton.
+     */
+    virtual bool singleton() const;
+
+    /**
+     * @brief Instantiate the actual module.
+     * @return A new module of this type.
+     */
+    virtual AbstractModule *createModule(QObject *parent = nullptr) = 0;
+
+    int count() const;
+
+private:
+    int m_count;
+    void setCount(int count);
+};
+
+#define ModuleInfoInterface_iid "com.draguhnlab.MazeAmaze.ModuleInfoInterface"
+Q_DECLARE_INTERFACE(ModuleInfo, ModuleInfoInterface_iid)
+
+class AbstractModule : public QObject
+{
+    Q_OBJECT
+    friend class ModuleManager;
+public:
+    explicit AbstractModule(QObject *parent = nullptr);
+
+    ModuleState state() const;
+    void setState(ModuleState state);
+
+    /**
+     * @brief Name of this module used internally as unique identifier
+     */
+    QString id() const;
+
+    /**
+     * @brief Name of this module displayed to the user
+     */
+    virtual QString name() const;
+    virtual void setName(const QString& name);
+
+    /**
      * @brief Return a bitfield of features this module supports.
      */
     virtual ModuleFeatures features() const;
-
-    /**
-     * @brief Additional licensing conditions that apply to this module.
-     */
-    virtual QString license() const;
 
     /**
      * @brief Initialize the module
@@ -191,12 +230,6 @@ public:
     QString lastError() const;
 
     /**
-     * @brief Returns true if only one instance of this module can exist.
-     * @return True if singleton.
-     */
-    virtual bool singleton() const;
-
-    /**
      * @brief Check if the selected module can be removed.
      * This function is called by the module manager prior to removal of a module on
      * each active module. If False is returned, the module is prevented from being removed.
@@ -235,7 +268,10 @@ protected:
 private:
     ModuleState m_state;
     QString m_lastError;
+    QString m_id;
     bool m_initialized;
+
+    void setId(const QString &id);
 };
 
 #endif // ABSTRACTMODULE_H

@@ -30,6 +30,31 @@
 
 #include "modules/videorecorder/videowriter.h"
 
+QString GenericCameraModuleInfo::id() const
+{
+    return QStringLiteral("generic-camera");
+}
+
+QString GenericCameraModuleInfo::name() const
+{
+    return QStringLiteral("Generic Camera");
+}
+
+QString GenericCameraModuleInfo::description() const
+{
+    return QStringLiteral("Capture a video with a regular, Linux-compatible camera.");
+}
+
+QPixmap GenericCameraModuleInfo::pixmap() const
+{
+    return QPixmap(":/module/generic-camera");
+}
+
+AbstractModule *GenericCameraModuleInfo::createModule(QObject *parent)
+{
+    return new GenericCameraModule(parent);
+}
+
 GenericCameraModule::GenericCameraModule(QObject *parent)
     : ImageSourceModule(parent),
       m_camera(nullptr),
@@ -37,7 +62,6 @@ GenericCameraModule::GenericCameraModule(QObject *parent)
       m_camSettingsWindow(nullptr),
       m_thread(nullptr)
 {
-    m_name = QStringLiteral("Generic Camera");
     m_camera = new Camera;
 
     m_frameRing = boost::circular_buffer<FrameData>(64);
@@ -50,21 +74,6 @@ GenericCameraModule::~GenericCameraModule()
         delete m_videoView;
     if (m_camSettingsWindow != nullptr)
         delete m_camSettingsWindow;
-}
-
-QString GenericCameraModule::id() const
-{
-    return QStringLiteral("generic-camera");
-}
-
-QString GenericCameraModule::description() const
-{
-    return QStringLiteral("Capture a video with a regular, Linux-compatible camera.");
-}
-
-QPixmap GenericCameraModule::pixmap() const
-{
-    return QPixmap(":/module/generic-camera");
 }
 
 void GenericCameraModule::setName(const QString &name)
@@ -96,7 +105,7 @@ cv::Size GenericCameraModule::selectedResolution() const
 bool GenericCameraModule::initialize(ModuleManager *manager)
 {
     assert(!initialized());
-    Q_UNUSED(manager);
+    Q_UNUSED(manager)
 
     m_videoView = new VideoViewWidget;
     m_camSettingsWindow = new GenericCameraSettingsDialog(m_camera);

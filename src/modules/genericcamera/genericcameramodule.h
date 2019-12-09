@@ -34,6 +34,17 @@ class Camera;
 class VideoViewWidget;
 class GenericCameraSettingsDialog;
 
+class GenericCameraModuleInfo : public ModuleInfo
+{
+    Q_OBJECT
+public:
+    QString id() const override;
+    QString name() const override;
+    QString description() const override;
+    QPixmap pixmap() const override;
+    AbstractModule *createModule(QObject *parent = nullptr) override;
+};
+
 class GenericCameraModule : public ImageSourceModule
 {
     Q_OBJECT
@@ -41,9 +52,6 @@ public:
     explicit GenericCameraModule(QObject *parent = nullptr);
     ~GenericCameraModule() override;
 
-    QString id() const override;
-    QString description() const override;
-    QPixmap pixmap() const override;
     void setName(const QString& name) override;
 
     void attachVideoWriter(VideoWriter *vwriter) override;

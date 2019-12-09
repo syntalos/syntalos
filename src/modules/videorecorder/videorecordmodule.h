@@ -31,6 +31,17 @@ class VideoWriter;
 class ImageSourceModule;
 class RecorderSettingsDialog;
 
+class VideoRecorderModuleInfo : public ModuleInfo
+{
+    Q_OBJECT
+public:
+    QString id() const override;
+    QString name() const override;
+    QString description() const override;
+    QPixmap pixmap() const override;
+    AbstractModule *createModule(QObject *parent = nullptr) override;
+};
+
 class VideoRecorderModule : public ImageSinkModule
 {
     Q_OBJECT
@@ -38,9 +49,6 @@ public:
     explicit VideoRecorderModule(QObject *parent = nullptr);
     ~VideoRecorderModule() override;
 
-    QString id() const override;
-    QString description() const override;
-    QPixmap pixmap() const override;
     void setName(const QString& name) override;
     ModuleFeatures features() const override;
 
@@ -59,7 +67,7 @@ public slots:
     void receiveFrame(const FrameData& frameData) override;
 
 private slots:
-    void recvModuleCreated(AbstractModule *mod);
+    void recvModuleCreated(ModuleInfo *info, AbstractModule *mod);
     void recvModulePreRemove(AbstractModule *mod);
 
 private:

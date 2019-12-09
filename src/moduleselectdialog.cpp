@@ -29,6 +29,8 @@
 #include <QtMath>
 #include <QDebug>
 
+#include "abstractmodule.h"
+
 
 class HtmlDelegate : public QStyledItemDelegate
 {
@@ -82,7 +84,7 @@ void HtmlDelegate::paint(QPainter *painter, const QStyleOptionViewItem& option, 
     painter->restore();
 }
 
-ModuleSelectDialog::ModuleSelectDialog(QList<QSharedPointer<ModuleInfo>> infos, QWidget *parent) :
+ModuleSelectDialog::ModuleSelectDialog(QList<QSharedPointer<ModuleInfo> > infos, QWidget *parent) :
     QDialog(parent),
     ui(new Ui::ModuleSelectDialog)
 {
@@ -110,12 +112,12 @@ void ModuleSelectDialog::setModuleInfo(QList<QSharedPointer<ModuleInfo>> infos)
 {
     m_model->clear();
     Q_FOREACH(auto info, infos) {
-        auto item = new QStandardItem(QIcon(info->pixmap),
-                                      QStringLiteral("<b>%1</b><br/><span>%2</span>").arg(info->displayName).arg(info->description));
-        item->setData(info->id);
+        auto item = new QStandardItem(QIcon(info->pixmap()),
+                                      QStringLiteral("<b>%1</b><br/><span>%2</span>").arg(info->name()).arg(info->description()));
+        item->setData(info->id());
         m_model->appendRow(item);
 
-        if (info->singleton && info->count > 0)
+        if (info->singleton() && info->count() > 0)
             item->setEnabled(false);
     }
 }

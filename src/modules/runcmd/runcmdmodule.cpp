@@ -21,10 +21,34 @@
 
 #include <QMessageBox>
 
+QString RunCmdModuleInfo::id() const
+{
+    return QStringLiteral("runcmd");
+}
+
+QString RunCmdModuleInfo::name() const
+{
+    return QStringLiteral("Run Command");
+}
+
+QString RunCmdModuleInfo::description() const
+{
+    return QStringLiteral("Run external commands at various stages of the experiment.");
+}
+
+QPixmap RunCmdModuleInfo::pixmap() const
+{
+    return QPixmap(":/module/runcmd");
+}
+
+AbstractModule *RunCmdModuleInfo::createModule(QObject *parent)
+{
+    return new RunCmdModule(parent);
+}
+
 RunCmdModule::RunCmdModule(QObject *parent)
     : AbstractModule(parent)
 {
-    m_name = QStringLiteral("Run Command");
 }
 
 RunCmdModule::~RunCmdModule()
@@ -32,24 +56,9 @@ RunCmdModule::~RunCmdModule()
 
 }
 
-QString RunCmdModule::id() const
-{
-    return QStringLiteral("runcmd");
-}
-
-QString RunCmdModule::description() const
-{
-    return QStringLiteral("Run external commands at various stages of the experiment.");
-}
-
-QPixmap RunCmdModule::pixmap() const
-{
-    return QPixmap(":/module/runcmd");
-}
-
 bool RunCmdModule::initialize(ModuleManager *manager)
 {
-    Q_UNUSED(manager);
+    Q_UNUSED(manager)
     assert(!initialized());
     setState(ModuleState::INITIALIZING);
 
@@ -60,9 +69,9 @@ bool RunCmdModule::initialize(ModuleManager *manager)
 
 bool RunCmdModule::prepare(const QString &storageRootDir, const TestSubject &testSubject, HRTimer *timer)
 {
-    Q_UNUSED(storageRootDir);
-    Q_UNUSED(testSubject);
-    Q_UNUSED(timer);
+    Q_UNUSED(storageRootDir)
+    Q_UNUSED(testSubject)
+    Q_UNUSED(timer)
     setState(ModuleState::PREPARING);
 
 

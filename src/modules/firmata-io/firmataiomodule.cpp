@@ -25,11 +25,40 @@
 #include "firmatasettingsdialog.h"
 #include "firmata/serialport.h"
 
+QString FirmataIOModuleInfo::id() const
+{
+    return QStringLiteral("firmata-io");
+}
+
+QString FirmataIOModuleInfo::name() const
+{
+    return QStringLiteral("Firmata I/O");
+}
+
+QString FirmataIOModuleInfo::description() const
+{
+    return QStringLiteral("Control input/output of a devive (i.e. an Arduino) via the Firmata protocol.");
+}
+
+QString FirmataIOModuleInfo::license() const
+{
+    return QStringLiteral("Qt Firmata implementation (c) 2016 Calle Laakkonen [GPLv3+]");
+}
+
+QPixmap FirmataIOModuleInfo::pixmap() const
+{
+    return QPixmap(":/module/firmata-io");
+}
+
+AbstractModule *FirmataIOModuleInfo::createModule(QObject *parent)
+{
+    return new FirmataIOModule(parent);
+}
+
 FirmataIOModule::FirmataIOModule(QObject *parent)
     : AbstractModule(parent),
       m_settingsDialog(nullptr)
 {
-    m_name = QStringLiteral("Firmata I/O");
     m_firmata = new SerialFirmata(this);
 }
 
@@ -39,29 +68,9 @@ FirmataIOModule::~FirmataIOModule()
         delete m_settingsDialog;
 }
 
-QString FirmataIOModule::id() const
-{
-    return QStringLiteral("firmata-io");
-}
-
-QString FirmataIOModule::description() const
-{
-    return QStringLiteral("Control input/output of a devive (i.e. an Arduino) via the Firmata protocol.");
-}
-
-QPixmap FirmataIOModule::pixmap() const
-{
-    return QPixmap(":/module/firmata-io");
-}
-
 ModuleFeatures FirmataIOModule::features() const
 {
     return ModuleFeature::SETTINGS;
-}
-
-QString FirmataIOModule::license() const
-{
-    return QStringLiteral("Qt Firmata implementation (c) 2016 Calle Laakkonen [GPLv3+]");
 }
 
 bool FirmataIOModule::initialize(ModuleManager *manager)

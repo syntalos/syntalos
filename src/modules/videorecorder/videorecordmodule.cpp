@@ -26,32 +26,41 @@
 #include "videowriter.h"
 #include "recordersettingsdialog.h"
 
+QString VideoRecorderModuleInfo::id() const
+{
+    return QStringLiteral("videorecorder");
+}
+
+QString VideoRecorderModuleInfo::name() const
+{
+    return QStringLiteral("Video Recorder");
+}
+
+QString VideoRecorderModuleInfo::description() const
+{
+    return QStringLiteral("Store a video composed of frames from an image source module to disk.");
+}
+
+QPixmap VideoRecorderModuleInfo::pixmap() const
+{
+    return QPixmap(":/module/videorecorder");
+}
+
+AbstractModule *VideoRecorderModuleInfo::createModule(QObject *parent)
+{
+    return new VideoRecorderModule(parent);
+}
+
 VideoRecorderModule::VideoRecorderModule(QObject *parent)
     : ImageSinkModule(parent),
       m_settingsDialog(nullptr)
 {
-    m_name = QStringLiteral("Video Recorder");
 }
 
 VideoRecorderModule::~VideoRecorderModule()
 {
     if (m_settingsDialog != nullptr)
         delete m_settingsDialog;
-}
-
-QString VideoRecorderModule::id() const
-{
-    return QStringLiteral("videorecorder");
-}
-
-QString VideoRecorderModule::description() const
-{
-    return QStringLiteral("Store a video composed of frames from an image source module to disk.");
-}
-
-QPixmap VideoRecorderModule::pixmap() const
-{
-    return QPixmap(":/module/videorecorder");
 }
 
 void VideoRecorderModule::setName(const QString &name)
@@ -196,7 +205,7 @@ void VideoRecorderModule::showSettingsUi()
 
 QByteArray VideoRecorderModule::serializeSettings(const QString &confBaseDir)
 {
-    Q_UNUSED(confBaseDir);
+    Q_UNUSED(confBaseDir)
     QJsonObject jset;
     jset.insert("imageSourceModule", m_settingsDialog->selectedImageSourceMod()->name());
     jset.insert("videoName", m_settingsDialog->videoName());
@@ -213,7 +222,7 @@ QByteArray VideoRecorderModule::serializeSettings(const QString &confBaseDir)
 
 bool VideoRecorderModule::loadSettings(const QString &confBaseDir, const QByteArray &data)
 {
-    Q_UNUSED(confBaseDir);
+    Q_UNUSED(confBaseDir)
     auto jset = jsonObjectFromBytes(data);
 
     auto modName = jset.value("imageSourceModule").toString();
@@ -235,8 +244,9 @@ bool VideoRecorderModule::loadSettings(const QString &confBaseDir, const QByteAr
     return true;
 }
 
-void VideoRecorderModule::recvModuleCreated(AbstractModule *mod)
+void VideoRecorderModule::recvModuleCreated(ModuleInfo *info, AbstractModule *mod)
 {
+    Q_UNUSED(info)
     auto imgSrcMod = qobject_cast<ImageSourceModule*>(mod);
     if (imgSrcMod != nullptr)
         m_frameSourceModules.append(imgSrcMod);
@@ -260,5 +270,5 @@ void VideoRecorderModule::receiveFrame(const FrameData &frameData)
 {
     // Video recorder modules are special in that we directly register them with the recorder module's
     // DAQ thread, so their performance will not suffer from additional signal/slots and queueing overhead
-    Q_UNUSED(frameData);
+    Q_UNUSED(frameData)
 }

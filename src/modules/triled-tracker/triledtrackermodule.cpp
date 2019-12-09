@@ -27,6 +27,31 @@
 #include "videoviewwidget.h"
 #include "tracker.h"
 
+QString TriLedTrackerModuleInfo::id() const
+{
+    return QStringLiteral("triled-tracker");
+}
+
+QString TriLedTrackerModuleInfo::name() const
+{
+    return QStringLiteral("TriLED Tracker");
+}
+
+QString TriLedTrackerModuleInfo::description() const
+{
+    return QStringLiteral("Track subject behavior via three LEDs mounted on its head.");
+}
+
+QPixmap TriLedTrackerModuleInfo::pixmap() const
+{
+    return QPixmap(":/module/triled-tracker");
+}
+
+AbstractModule *TriLedTrackerModuleInfo::createModule(QObject *parent)
+{
+    return new TriLedTrackerModule(parent);
+}
+
 /**
  * @brief FRAME_QUEUE_MAX_COUNT
  * The maximum number of frames we want to hold in the queue
@@ -41,8 +66,6 @@ TriLedTrackerModule::TriLedTrackerModule(QObject *parent)
       m_trackInfoDisplay(nullptr),
       m_trackingDisplay(nullptr)
 {
-    m_name = QStringLiteral("TriLED Tracker");
-
     m_trackDispRing = boost::circular_buffer<cv::Mat>(16);
     m_trackInfoDispRing = boost::circular_buffer<cv::Mat>(16);
 }
@@ -56,21 +79,6 @@ TriLedTrackerModule::~TriLedTrackerModule()
         delete m_trackInfoDisplay;
     if (m_trackingDisplay != nullptr)
         delete m_trackingDisplay;
-}
-
-QString TriLedTrackerModule::id() const
-{
-    return QStringLiteral("triled-tracker");
-}
-
-QString TriLedTrackerModule::description() const
-{
-    return QStringLiteral("Track subject behavior via three LEDs mounted on its head.");
-}
-
-QPixmap TriLedTrackerModule::pixmap() const
-{
-    return QPixmap(":/module/triled-tracker");
 }
 
 void TriLedTrackerModule::setName(const QString &name)
@@ -120,7 +128,7 @@ bool TriLedTrackerModule::initialize(ModuleManager *manager)
 
 bool TriLedTrackerModule::prepare(const QString &storageRootDir, const TestSubject &testSubject, HRTimer *timer)
 {
-    Q_UNUSED(timer);
+    Q_UNUSED(timer)
     setState(ModuleState::PREPARING);
 
     m_dataStorageDir = QStringLiteral("%1/tracking").arg(storageRootDir);
@@ -217,7 +225,7 @@ QByteArray TriLedTrackerModule::serializeSettings(const QString &confBaseDir)
 
 bool TriLedTrackerModule::loadSettings(const QString &confBaseDir, const QByteArray &data)
 {
-    Q_UNUSED(confBaseDir);
+    Q_UNUSED(confBaseDir)
     auto jsettings = jsonObjectFromBytes(data);
 
     auto modName = jsettings.value("imageSourceModule").toString();

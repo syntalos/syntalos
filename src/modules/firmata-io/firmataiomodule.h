@@ -29,6 +29,18 @@
 class SerialFirmata;
 class FirmataSettingsDialog;
 
+class FirmataIOModuleInfo : public ModuleInfo
+{
+    Q_OBJECT
+public:
+    QString id() const override;
+    QString name() const override;
+    QString description() const override;
+    QString license() const override;
+    QPixmap pixmap() const override;
+    AbstractModule *createModule(QObject *parent = nullptr) override;
+};
+
 enum class PinKind
 {
     Unknown,
@@ -50,11 +62,7 @@ public:
     explicit FirmataIOModule(QObject *parent = nullptr);
     ~FirmataIOModule() override;
 
-    QString id() const override;
-    QString description() const override;
-    QPixmap pixmap() const override;
     ModuleFeatures features() const override;
-    QString license() const override;
 
     bool initialize(ModuleManager *manager) override;
     bool prepare(const QString& storageRootDir, const TestSubject& testSubject, HRTimer *timer) override;

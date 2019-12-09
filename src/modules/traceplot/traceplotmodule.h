@@ -28,6 +28,18 @@ class TracePlotProxy;
 class TraceDisplay;
 class Rhd2000Module;
 
+class TracePlotModuleInfo : public ModuleInfo
+{
+    Q_OBJECT
+public:
+    QString id() const override;
+    QString name() const override;
+    QString description() const override;
+    QPixmap pixmap() const override;
+    bool singleton() const override;
+    AbstractModule *createModule(QObject *parent = nullptr) override;
+};
+
 class TracePlotModule : public AbstractModule
 {
     Q_OBJECT
@@ -35,11 +47,7 @@ public:
     explicit TracePlotModule(QObject *parent = nullptr);
     ~TracePlotModule() override;
 
-    QString id() const override;
-    QString description() const override;
-    QPixmap pixmap() const override;
     ModuleFeatures features() const override;
-    bool singleton() const override;
     bool canRemove(AbstractModule *mod) override;
 
     bool initialize(ModuleManager *manager) override;

@@ -28,6 +28,7 @@
 class QLabel;
 class ModuleManager;
 class AbstractModule;
+class ModuleInfo;
 class ModuleIndicator;
 class QSvgWidget;
 
@@ -60,7 +61,7 @@ private slots:
     void aboutActionTriggered();
     void on_tbAddModule_clicked();
 
-    void moduleAdded(AbstractModule *mod);
+    void moduleAdded(ModuleInfo *info, AbstractModule *mod);
     void receivedModuleError(AbstractModule *mod, const QString& message);
 
     void on_actionSubjectsLoad_triggered();

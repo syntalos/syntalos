@@ -25,12 +25,53 @@
 #include <QJsonDocument>
 #include <QDebug>
 
+QString ModuleInfo::id() const
+{
+    return QStringLiteral("unknown");
+}
+
+QString ModuleInfo::name() const
+{
+    return QStringLiteral("Unknown Module");
+}
+
+QString ModuleInfo::description() const
+{
+    return QStringLiteral("An unknown description.");
+}
+
+QString ModuleInfo::license() const
+{
+    return QString();
+}
+
+QPixmap ModuleInfo::pixmap() const
+{
+    return QPixmap(":/module/generic");
+}
+
+bool ModuleInfo::singleton() const
+{
+    return false;
+}
+
+int ModuleInfo::count() const
+{
+    return m_count;
+}
+
+void ModuleInfo::setCount(int count)
+{
+    m_count = count;
+}
+
 AbstractModule::AbstractModule(QObject *parent) :
     QObject(parent),
-    m_name(id()),
     m_state(ModuleState::INITIALIZING),
     m_initialized(false)
 {
+    m_id = QStringLiteral("unknown");
+    m_name = QStringLiteral("Unknown Module");
 }
 
 ModuleState AbstractModule::state() const
@@ -40,7 +81,7 @@ ModuleState AbstractModule::state() const
 
 QString AbstractModule::id() const
 {
-    return QStringLiteral("unknown");
+    return m_id;
 }
 
 QString AbstractModule::name() const
@@ -54,26 +95,11 @@ void AbstractModule::setName(const QString &name)
     emit nameChanged(m_name);
 }
 
-QString AbstractModule::description() const
-{
-    return QStringLiteral("An unknown description.");
-}
-
-QPixmap AbstractModule::pixmap() const
-{
-    return QPixmap(":/module/generic");
-}
-
 ModuleFeatures AbstractModule::features() const
 {
     return ModuleFeature::DISPLAY |
            ModuleFeature::SETTINGS |
            ModuleFeature::ACTIONS;
-}
-
-QString AbstractModule::license() const
-{
-    return QString();
 }
 
 void AbstractModule::start()
@@ -145,15 +171,15 @@ QList<QAction *> AbstractModule::actions()
 
 QByteArray AbstractModule::serializeSettings(const QString &confBaseDir)
 {
-    Q_UNUSED(confBaseDir);
+    Q_UNUSED(confBaseDir)
     QByteArray zero;
     return zero;
 }
 
 bool AbstractModule::loadSettings(const QString &confBaseDir, const QByteArray &data)
 {
-    Q_UNUSED(confBaseDir);
-    Q_UNUSED(data);
+    Q_UNUSED(confBaseDir)
+    Q_UNUSED(data)
     return true;
 }
 
@@ -162,14 +188,9 @@ QString AbstractModule::lastError() const
     return m_lastError;
 }
 
-bool AbstractModule::singleton() const
-{
-    return false;
-}
-
 bool AbstractModule::canRemove(AbstractModule *mod)
 {
-    Q_UNUSED(mod);
+    Q_UNUSED(mod)
     return true;
 }
 
@@ -247,6 +268,11 @@ QJsonObject AbstractModule::jsonObjectFromBytes(const QByteArray &data)
 {
     auto doc = QJsonDocument::fromJson(data);
     return doc.object();
+}
+
+void AbstractModule::setId(const QString &id)
+{
+    m_id = id;
 }
 
 void AbstractModule::setStatusMessage(const QString &message)

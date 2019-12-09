@@ -29,13 +29,37 @@
 
 using namespace MScope;
 
+QString MiniscopeModuleInfo::id() const
+{
+    return QStringLiteral("miniscope");
+}
+
+QString MiniscopeModuleInfo::name() const
+{
+    return QStringLiteral("Miniscope");
+}
+
+QString MiniscopeModuleInfo::description() const
+{
+    return QStringLiteral("Record fluorescence images using a UCLA MiniScope.");
+}
+
+QPixmap MiniscopeModuleInfo::pixmap() const
+{
+    return QPixmap(":/module/miniscope");
+}
+
+AbstractModule *MiniscopeModuleInfo::createModule(QObject *parent)
+{
+    return new MiniscopeModule(parent);
+}
+
 MiniscopeModule::MiniscopeModule(QObject *parent)
     : AbstractModule(parent),
       m_miniscope(nullptr),
       m_settingsDialog(nullptr),
       m_videoView(nullptr)
 {
-    m_name = QStringLiteral("Miniscope");
 }
 
 MiniscopeModule::~MiniscopeModule()
@@ -46,21 +70,6 @@ MiniscopeModule::~MiniscopeModule()
         delete m_settingsDialog;
     if (m_videoView != nullptr)
         delete m_videoView;
-}
-
-QString MiniscopeModule::id() const
-{
-    return QStringLiteral("miniscope");
-}
-
-QString MiniscopeModule::description() const
-{
-    return QStringLiteral("Record fluorescence images using a UCLA MiniScope.");
-}
-
-QPixmap MiniscopeModule::pixmap() const
-{
-    return QPixmap(":/module/miniscope");
 }
 
 void MiniscopeModule::setName(const QString &name)

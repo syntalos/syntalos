@@ -32,10 +32,34 @@
 
 #include "zmqserver.h"
 
+QString PyScriptModuleInfo::id() const
+{
+    return QStringLiteral("pyscript");
+}
+
+QString PyScriptModuleInfo::name() const
+{
+    return QStringLiteral("Python Script");
+}
+
+QString PyScriptModuleInfo::description() const
+{
+    return QStringLiteral("Control certain aspects of MazeAmaze (most notably Firmata I/O) using a Python script.");
+}
+
+QPixmap PyScriptModuleInfo::pixmap() const
+{
+    return QPixmap(":/module/python");
+}
+
+AbstractModule *PyScriptModuleInfo::createModule(QObject *parent)
+{
+    return new PyScriptModule(parent);
+}
+
 PyScriptModule::PyScriptModule(QObject *parent)
     : AbstractModule(parent)
 {
-    m_name = QStringLiteral("Python Script");
     m_pyoutWindow = nullptr;
     m_scriptWindow = nullptr;
     m_funcRelay = nullptr;
@@ -63,21 +87,6 @@ PyScriptModule::~PyScriptModule()
         delete m_pyoutWindow;
     if (m_scriptWindow != nullptr)
         delete m_scriptWindow;
-}
-
-QString PyScriptModule::id() const
-{
-    return QStringLiteral("pyscript");
-}
-
-QString PyScriptModule::description() const
-{
-    return QStringLiteral("Control certain aspects of MazeAmaze (most notably Firmata I/O) using a Python script.");
-}
-
-QPixmap PyScriptModule::pixmap() const
-{
-    return QPixmap(":/module/python");
 }
 
 bool PyScriptModule::initialize(ModuleManager *manager)
@@ -233,7 +242,7 @@ void PyScriptModule::stop()
 
 QByteArray PyScriptModule::serializeSettings(const QString &confBaseDir)
 {
-    Q_UNUSED(confBaseDir);
+    Q_UNUSED(confBaseDir)
     QJsonObject jsettings;
     jsettings.insert("script", m_scriptView->document()->text());
 
@@ -242,7 +251,7 @@ QByteArray PyScriptModule::serializeSettings(const QString &confBaseDir)
 
 bool PyScriptModule::loadSettings(const QString &confBaseDir, const QByteArray &data)
 {
-    Q_UNUSED(confBaseDir);
+    Q_UNUSED(confBaseDir)
     auto jsettings = jsonObjectFromBytes(data);
     m_scriptView->document()->setText(jsettings.value("script").toString());
 

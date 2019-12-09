@@ -34,6 +34,17 @@ namespace MScope {
 class MiniScope;
 }
 
+class MiniscopeModuleInfo : public ModuleInfo
+{
+    Q_OBJECT
+public:
+    QString id() const override;
+    QString name() const override;
+    QString description() const override;
+    QPixmap pixmap() const override;
+    AbstractModule *createModule(QObject *parent = nullptr) override;
+};
+
 class MiniscopeModule : public AbstractModule
 {
     Q_OBJECT
@@ -41,9 +52,6 @@ public:
     explicit MiniscopeModule(QObject *parent = nullptr);
     ~MiniscopeModule() override;
 
-    QString id() const override;
-    QString description() const override;
-    QPixmap pixmap() const override;
     void setName(const QString& name) override;
 
     bool initialize(ModuleManager *manager) override;

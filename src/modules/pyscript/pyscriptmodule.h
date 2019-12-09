@@ -29,6 +29,17 @@ class QProcess;
 class QTextBrowser;
 class MaFuncRelay;
 
+class PyScriptModuleInfo : public ModuleInfo
+{
+    Q_OBJECT
+public:
+    QString id() const override;
+    QString name() const override;
+    QString description() const override;
+    QPixmap pixmap() const override;
+    AbstractModule *createModule(QObject *parent = nullptr) override;
+};
+
 namespace KTextEditor {
 class View;
 }
@@ -41,10 +52,6 @@ public:
 
     explicit PyScriptModule(QObject *parent = nullptr);
     ~PyScriptModule() override;
-
-    QString id() const override;
-    QString description() const override;
-    QPixmap pixmap() const override;
 
     bool initialize(ModuleManager *manager) override;
     bool prepare(const QString& storageRootDir, const TestSubject& testSubject, HRTimer *timer) override;

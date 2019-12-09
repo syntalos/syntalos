@@ -33,6 +33,17 @@ class ImageSourceModule;
 class LedTrackerSettingsDialog;
 class VideoViewWidget;
 
+class TriLedTrackerModuleInfo : public ModuleInfo
+{
+    Q_OBJECT
+public:
+    QString id() const override;
+    QString name() const override;
+    QString description() const override;
+    QPixmap pixmap() const override;
+    AbstractModule *createModule(QObject *parent = nullptr) override;
+};
+
 class TriLedTrackerModule : public ImageSinkModule
 {
     Q_OBJECT
@@ -40,9 +51,6 @@ public:
     explicit TriLedTrackerModule(QObject *parent = nullptr);
     ~TriLedTrackerModule() override;
 
-    QString id() const override;
-    QString description() const override;
-    QPixmap pixmap() const override;
     void setName(const QString& name) override;
     ModuleFeatures features() const override;
 

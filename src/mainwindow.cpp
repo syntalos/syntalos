@@ -65,6 +65,8 @@
 #include "modulemanager.h"
 #include "moduleselectdialog.h"
 
+#include "flowgraphview.h"
+
 // config format API level
 static const QString CONFIG_FILE_FORMAT_VERSION = QStringLiteral("2");
 
@@ -257,6 +259,25 @@ MainWindow::MainWindow(QWidget *parent) :
     m_runIndicatorWidget->setMinimumSize(QSize(indicatorWidgetDim, indicatorWidgetDim));
     m_runIndicatorWidget->raise();
     m_runIndicatorWidget->hide();
+
+
+    // testarea
+    auto fgview = new FlowGraphView();
+    auto tn = new FlowGraphNode("TestDuplex", FlowGraphItem::Duplex);
+    tn->addInputPort("InputData");
+    tn->addOutputPort("OutputDataPort1");
+    tn->addOutputPort("OutputDataPort2");
+
+    auto ts = new FlowGraphNode("TestSink", FlowGraphItem::Input);
+    ts->addInputPort("InputData");
+
+    fgview->addItem(tn);
+    fgview->addItem(ts);
+    fgview->show();
+
+    connect(fgview, &FlowGraphView::connected, [&]() {
+        fgview->connectItems();
+    });
 }
 
 MainWindow::~MainWindow()
@@ -787,9 +808,8 @@ void MainWindow::aboutActionTriggered()
 {
     AboutDialog about(this);
 
-    Q_FOREACH(auto info, m_modManager->moduleInfo()) {
-        about.addModuleLicense(info->displayName, info->license);
-    }
+    Q_FOREACH(auto info, m_modManager->moduleInfo())
+        about.addModuleLicense(info->name(), info->license());
 
     about.exec();
 }
@@ -813,9 +833,9 @@ void MainWindow::on_tbAddModule_clicked()
     }
 }
 
-void MainWindow::moduleAdded(AbstractModule *mod)
+void MainWindow::moduleAdded(ModuleInfo *info, AbstractModule *mod)
 {
-    auto mi = new ModuleIndicator(mod, m_modManager, ui->scrollArea);
+    auto mi = new ModuleIndicator(info, mod, m_modManager, ui->scrollArea);
 
     // add widget after the stretcher
     ui->scrollAreaLayout->insertWidget(ui->scrollAreaLayout->count() - 1, mi);
@@ -823,8 +843,8 @@ void MainWindow::moduleAdded(AbstractModule *mod)
 
 void MainWindow::receivedModuleError(AbstractModule *mod, const QString &message)
 {
-    Q_UNUSED(mod);
-    Q_UNUSED(message);
+    Q_UNUSED(mod)
+    Q_UNUSED(message)
     m_failed = true;
     m_running = false;
     setRunPossible(true);

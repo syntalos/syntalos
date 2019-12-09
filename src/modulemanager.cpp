@@ -38,29 +38,6 @@
 #include "modules/pyscript/pyscriptmodule.h"
 #include "modules/runcmd/runcmdmodule.h"
 
-class AbstractModuleCreator
-{
-public:
-    AbstractModuleCreator() { }
-    virtual ~AbstractModuleCreator();
-
-    virtual AbstractModule *createModule() = 0;
-};
-AbstractModuleCreator::~AbstractModuleCreator() {};
-
-template <typename T>
-class ModuleCreator : public AbstractModuleCreator
-{
-public:
-    ModuleCreator() { }
-    ~ModuleCreator() override { }
-
-    T *createModule() override
-    {
-        return new T;
-    }
-};
-
 #pragma GCC diagnostic ignored "-Wpadded"
 class ModuleManager::MMData : public QSharedData
 {
@@ -68,11 +45,10 @@ public:
     MMData() { }
     ~MMData() { }
 
-    QWidget *parentWidget;
-    QList<QSharedPointer<ModuleInfo>> modInfo;
-    QList<AbstractModule*> modules;
+    QHash<QString, QSharedPointer<ModuleInfo>> modInfos;
 
-    QHash<QString, QSharedPointer<AbstractModuleCreator>> creators;
+    QWidget *parentWidget;
+    QList<AbstractModule*> modules;
 };
 #pragma GCC diagnostic pop
 
@@ -82,52 +58,60 @@ ModuleManager::ModuleManager(QObject *parent, QWidget *parentWidget)
 {
     d->parentWidget = parentWidget;
 
-    registerModuleInfo<Rhd2000Module>();
-    registerModuleInfo<TracePlotModule>();
-    registerModuleInfo<VideoRecorderModule>();
-    registerModuleInfo<GenericCameraModule>();
+    registerModuleInfo<Rhd2000ModuleInfo>();
+    registerModuleInfo<TracePlotModuleInfo>();
+    registerModuleInfo<VideoRecorderModuleInfo>();
+    registerModuleInfo<GenericCameraModuleInfo>();
 #ifdef HAVE_UEYE_CAMERA
-    registerModuleInfo<UEyeCameraModule>();
+    registerModuleInfo<UEyeCameraModuleInfo>();
 #endif
 #ifdef HAVE_MINISCOPE
-    registerModuleInfo<MiniscopeModule>();
+    registerModuleInfo<MiniscopeModuleInfo>();
 #endif
-    registerModuleInfo<TriLedTrackerModule>();
-    registerModuleInfo<FirmataIOModule>();
-    registerModuleInfo<PyScriptModule>();
-    registerModuleInfo<RunCmdModule>();
+    registerModuleInfo<TriLedTrackerModuleInfo>();
+    registerModuleInfo<FirmataIOModuleInfo>();
+    registerModuleInfo<PyScriptModuleInfo>();
+    registerModuleInfo<RunCmdModuleInfo>();
+}
+
+ModuleManager::~ModuleManager()
+{
+    removeAll();
+}
+
+template<typename T>
+void ModuleManager::registerModuleInfo()
+{
+    QSharedPointer<ModuleInfo> info(new T);
+    info->setCount(0);
+    d->modInfos.insert(info->id(), info);
 }
 
 AbstractModule *ModuleManager::createModule(const QString &id)
 {
-    AbstractModule *mod = nullptr;
-    auto creator = d->creators.value(id);
-    if (creator == nullptr)
+    auto modInfo = d->modInfos.value(id);
+    if (modInfo == nullptr)
         return nullptr;
-    mod = creator->createModule();
 
     // Ensure we don't register a module twice that should only exist once
-    if (mod->singleton()) {
+    if (modInfo->singleton()) {
         Q_FOREACH(auto emod, d->modules) {
-            if (emod->id() == id) {
-                delete mod;
+            if (emod->id() == id)
                 return nullptr;
-            }
         }
     }
 
-    // Update module info
-    Q_FOREACH(auto info, d->modInfo) {
-        if (info->id == id) {
-            info->count++;
-            if (info->count > 1)
-                mod->setName(QStringLiteral("%1 - %2").arg(mod->name()).arg(info->count));
-            break;
-        }
-    }
+    auto mod = modInfo->createModule();
+    assert(mod);
+    mod->setId(modInfo->id());
+    modInfo->setCount(modInfo->count() + 1);
+    if (modInfo->count() > 1)
+        mod->setName(QStringLiteral("%1 - %2").arg(modInfo->name()).arg(modInfo->count()));
+    else
+        mod->setName(modInfo->name());
 
     d->modules.append(mod);
-    emit moduleCreated(mod);
+    emit moduleCreated(modInfo.get(), mod);
 
     // the module has been created and registered, we can
     // safely initialize it now.
@@ -156,12 +140,8 @@ bool ModuleManager::removeModuleImmediately(AbstractModule *mod)
     auto id = mod->id();
     if (d->modules.removeOne(mod)) {
         // Update module info
-        Q_FOREACH(auto info, d->modInfo) {
-            if (info->id == id) {
-                info->count--;
-                break;
-            }
-        }
+        auto modInfo = d->modInfos.value(id);
+        modInfo->setCount(modInfo->count() - 1);
 
         emit modulePreRemove(mod);
         delete mod;
@@ -260,24 +240,5 @@ void ModuleManager::removeAll()
 
 QList<QSharedPointer<ModuleInfo> > ModuleManager::moduleInfo() const
 {
-    return d->modInfo;
-}
-
-template<typename T>
-void ModuleManager::registerModuleInfo()
-{
-    auto tmp = new T;
-    QSharedPointer<ModuleInfo> info(new ModuleInfo);
-    info->id = tmp->id();
-    info->pixmap = tmp->pixmap();
-    info->displayName = tmp->name();
-    info->description = tmp->description();
-    info->license = tmp->license();
-    info->singleton = tmp->singleton();
-    info->count = 0;
-    delete tmp;
-
-    QSharedPointer<ModuleCreator<T>> creator(new ModuleCreator<T>);
-    d->creators.insert(info->id, creator);
-    d->modInfo.append(info);
+    return d->modInfos.values();
 }

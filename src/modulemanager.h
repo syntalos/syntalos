@@ -25,19 +25,9 @@
 #include <QPixmap>
 #include <QSharedDataPointer>
 
+class ModuleInfo;
 class AbstractModule;
 class AbstractModuleCreator;
-
-class ModuleInfo {
-public:
-    QString id;
-    QString displayName;
-    QString description;
-    QString license;
-    QPixmap pixmap;
-    bool singleton;
-    int count;
-};
 
 /**
  * @brief The ModuleManager class
@@ -48,6 +38,7 @@ class ModuleManager : public QObject
     Q_OBJECT
 public:
     explicit ModuleManager(QObject *parent = nullptr, QWidget *parentWidget = nullptr);
+    ~ModuleManager();
 
     QList<QSharedPointer<ModuleInfo>> moduleInfo() const;
 
@@ -65,7 +56,7 @@ public:
     void removeAll();
 
 signals:
-    void moduleCreated(AbstractModule *mod);
+    void moduleCreated(ModuleInfo *info, AbstractModule *mod);
     void modulePreRemove(AbstractModule *mod);
     void moduleError(AbstractModule *mod, const QString& message);
 

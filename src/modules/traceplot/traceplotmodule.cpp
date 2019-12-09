@@ -25,6 +25,36 @@
 #include "tracedisplay.h"
 #include "modules/rhd2000/rhd2000module.h"
 
+QString TracePlotModuleInfo::id() const
+{
+    return QStringLiteral("traceplot");
+}
+
+QString TracePlotModuleInfo::name() const
+{
+    return QStringLiteral("TracePlot");
+}
+
+QString TracePlotModuleInfo::description() const
+{
+    return QStringLiteral("Allow real-time display and modification of user selected data traces recorded with a Intan RHD2000 module.");
+}
+
+QPixmap TracePlotModuleInfo::pixmap() const
+{
+    return QPixmap(":/module/traceplot");
+}
+
+bool TracePlotModuleInfo::singleton() const
+{
+    return true;
+}
+
+AbstractModule *TracePlotModuleInfo::createModule(QObject *parent)
+{
+    return new TracePlotModule(parent);
+}
+
 TracePlotModule::TracePlotModule(QObject *parent)
     : AbstractModule(parent),
       m_traceProxy(nullptr),
@@ -47,29 +77,9 @@ TracePlotModule::~TracePlotModule()
         delete m_traceProxy;
 }
 
-QString TracePlotModule::id() const
-{
-    return QStringLiteral("traceplot");
-}
-
-QString TracePlotModule::description() const
-{
-    return QStringLiteral("Allow real-time display and modification of user selected data traces recorded with a Intan RHD2000 module.");
-}
-
-QPixmap TracePlotModule::pixmap() const
-{
-    return QPixmap(":/module/traceplot");
-}
-
 ModuleFeatures TracePlotModule::features() const
 {
     return ModuleFeature::DISPLAY;
-}
-
-bool TracePlotModule::singleton() const
-{
-    return true;
 }
 
 bool TracePlotModule::canRemove(AbstractModule *mod)
@@ -107,9 +117,9 @@ bool TracePlotModule::initialize(ModuleManager *manager)
 
 bool TracePlotModule::prepare(const QString &storageRootDir, const TestSubject &testSubject, HRTimer *timer)
 {
-    Q_UNUSED(storageRootDir);
-    Q_UNUSED(testSubject);
-    Q_UNUSED(timer);
+    Q_UNUSED(storageRootDir)
+    Q_UNUSED(testSubject)
+    Q_UNUSED(timer)
     setState(ModuleState::PREPARING);
 
     // reset trace plot data

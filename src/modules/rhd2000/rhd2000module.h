@@ -27,18 +27,25 @@
 class IntanUI;
 class TracePlotProxy;
 
+class Rhd2000ModuleInfo : public ModuleInfo
+{
+    Q_OBJECT
+public:
+    QString id() const override;
+    QString name() const override;
+    QString description() const override;
+    QString license() const override;
+    QPixmap pixmap() const override;
+    bool singleton() const override;
+    AbstractModule *createModule(QObject *parent = nullptr) override;
+};
+
 class Rhd2000Module : public AbstractModule
 {
     Q_OBJECT
 public:
     explicit Rhd2000Module(QObject *parent = nullptr);
     ~Rhd2000Module() override;
-
-    QString id() const override;
-    QString description() const override;
-    QString license() const override;
-    QPixmap pixmap() const override;
-    bool singleton() const override;
 
     bool initialize(ModuleManager *manager) override;
 

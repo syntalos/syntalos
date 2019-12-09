@@ -30,6 +30,31 @@
 
 #include "modules/videorecorder/videowriter.h"
 
+QString UEyeCameraModuleInfo::id() const
+{
+    return QStringLiteral("ueye-camera");
+}
+
+QString UEyeCameraModuleInfo::name() const
+{
+    return QStringLiteral("uEye Camera");
+}
+
+QString UEyeCameraModuleInfo::description() const
+{
+    return QStringLiteral("Capture video with an IDS camera that is compatible with the uEye API.");
+}
+
+QPixmap UEyeCameraModuleInfo::pixmap() const
+{
+    return QPixmap(":/module/ueye-camera");
+}
+
+AbstractModule *UEyeCameraModuleInfo::createModule(QObject *parent)
+{
+    return new UEyeCameraModule(parent);
+}
+
 UEyeCameraModule::UEyeCameraModule(QObject *parent)
     : ImageSourceModule(parent),
       m_camera(nullptr),
@@ -37,7 +62,6 @@ UEyeCameraModule::UEyeCameraModule(QObject *parent)
       m_camSettingsWindow(nullptr),
       m_thread(nullptr)
 {
-    m_name = QStringLiteral("uEye Camera");
     m_camera = new UEyeCamera;
 
     m_frameRing = boost::circular_buffer<FrameData>(64);
@@ -50,21 +74,6 @@ UEyeCameraModule::~UEyeCameraModule()
         delete m_videoView;
     if (m_camSettingsWindow != nullptr)
         delete m_camSettingsWindow;
-}
-
-QString UEyeCameraModule::id() const
-{
-    return QStringLiteral("ueye-camera");
-}
-
-QString UEyeCameraModule::description() const
-{
-    return QStringLiteral("Capture video with an IDS camera that is compatible with the uEye API.");
-}
-
-QPixmap UEyeCameraModule::pixmap() const
-{
-    return QPixmap(":/module/ueye-camera");
 }
 
 void UEyeCameraModule::setName(const QString &name)
@@ -96,7 +105,7 @@ cv::Size UEyeCameraModule::selectedResolution() const
 bool UEyeCameraModule::initialize(ModuleManager *manager)
 {
     assert(!initialized());
-    Q_UNUSED(manager);
+    Q_UNUSED(manager)
 
     m_videoView = new VideoViewWidget;
     m_camSettingsWindow = new UEyeCameraSettingsDialog(m_camera);
@@ -191,7 +200,7 @@ QByteArray UEyeCameraModule::serializeSettings(const QString &confBaseDir)
 
 bool UEyeCameraModule::loadSettings(const QString &confBaseDir, const QByteArray &data)
 {
-    Q_UNUSED(confBaseDir);
+    Q_UNUSED(confBaseDir)
     auto jsettings = jsonObjectFromBytes(data);
 
     m_camSettingsWindow->setCameraId(jsettings.value("camera").toInt());

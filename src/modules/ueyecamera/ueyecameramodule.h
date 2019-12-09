@@ -30,6 +30,17 @@
 #include "imagesourcemodule.h"
 #include "abstractmodule.h"
 
+class UEyeCameraModuleInfo : public ModuleInfo
+{
+    Q_OBJECT
+public:
+    QString id() const override;
+    QString name() const override;
+    QString description() const override;
+    QPixmap pixmap() const override;
+    AbstractModule *createModule(QObject *parent = nullptr) override;
+};
+
 class UEyeCamera;
 class VideoViewWidget;
 class UEyeCameraSettingsDialog;
@@ -41,9 +52,6 @@ public:
     explicit UEyeCameraModule(QObject *parent = nullptr);
     ~UEyeCameraModule() override;
 
-    QString id() const override;
-    QString description() const override;
-    QPixmap pixmap() const override;
     void setName(const QString& name) override;
 
     void attachVideoWriter(VideoWriter *vwriter) override;

@@ -22,6 +22,42 @@
 #include "intanui.h"
 #include "waveplot.h"
 
+QString Rhd2000ModuleInfo::id() const
+{
+    return QStringLiteral("intan_rhd2000");
+}
+
+QString Rhd2000ModuleInfo::name() const
+{
+    return QStringLiteral("Intan RHD2000 USB Interface");
+}
+
+QString Rhd2000ModuleInfo::description() const
+{
+    return QStringLiteral("Central hardware component of the RHD2000 Evaluation System, allowing users to record biopotential signals "
+                          "from up to 256 low-noise amplifier channels using digital electrophysiology chips from Intan Technologies.");
+}
+
+QString Rhd2000ModuleInfo::license() const
+{
+    return QStringLiteral("Intan Technologies RHD2000 Interface, (c) 2013-2017 <a href=\"http://intantech.com/\">Intan Technologies</a> [LGPLv3+]");
+}
+
+QPixmap Rhd2000ModuleInfo::pixmap() const
+{
+    return QPixmap(":/module/rhd2000");
+}
+
+bool Rhd2000ModuleInfo::singleton() const
+{
+    return true;
+}
+
+AbstractModule *Rhd2000ModuleInfo::createModule(QObject *parent)
+{
+    return new Rhd2000Module(parent);
+}
+
 Rhd2000Module::Rhd2000Module(QObject *parent)
     : AbstractModule(parent)
 {
@@ -35,35 +71,9 @@ Rhd2000Module::~Rhd2000Module()
         delete m_intanUi;
 }
 
-QString Rhd2000Module::id() const
-{
-    return QStringLiteral("intan_rhd2000");
-}
-
-QString Rhd2000Module::description() const
-{
-    return QStringLiteral("Central hardware component of the RHD2000 Evaluation System, allowing users to record biopotential signals "
-                          "from up to 256 low-noise amplifier channels using digital electrophysiology chips from Intan Technologies.");
-}
-
-QString Rhd2000Module::license() const
-{
-    return QStringLiteral("Intan Technologies RHD2000 Interface, (c) 2013-2017 <a href=\"http://intantech.com/\">Intan Technologies</a> [LGPLv3+]");
-}
-
-QPixmap Rhd2000Module::pixmap() const
-{
-    return QPixmap(":/module/rhd2000");
-}
-
-bool Rhd2000Module::singleton() const
-{
-    return true;
-}
-
 bool Rhd2000Module::initialize(ModuleManager *manager)
 {
-    Q_UNUSED(manager);
+    Q_UNUSED(manager)
     assert(!initialized());
 
     setState(ModuleState::INITIALIZING);
@@ -97,7 +107,7 @@ bool Rhd2000Module::initialize(ModuleManager *manager)
 bool Rhd2000Module::prepare(const QString &storageRootDir, const TestSubject &testSubject, HRTimer *timer)
 {
     assert(m_intanUi);
-    Q_UNUSED(timer);
+    Q_UNUSED(timer)
     setState(ModuleState::PREPARING);
 
     if (m_intanUi->isRunning()) {

@@ -35,7 +35,7 @@ class ModuleSelectDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit ModuleSelectDialog(QList<QSharedPointer<ModuleInfo> > infos, QWidget *parent = nullptr);
+    explicit ModuleSelectDialog(QList<QSharedPointer<ModuleInfo>> infos, QWidget *parent = nullptr);
     ~ModuleSelectDialog();
 
     void setModuleInfo(QList<QSharedPointer<ModuleInfo>> infos);
