@@ -153,12 +153,12 @@ public:
         const QString& name, Mode mode, uint type = 0);
 
     // Destructor.
-    ~FlowGraphNodePort();
+    ~FlowGraphNodePort() override;
 
     // Graphics item type.
     enum { Type = QGraphicsItem::UserType + 2 };
 
-    int type() const { return Type; }
+    int type() const override { return Type; }
 
     // Accessors.
     FlowGraphNode *portNode() const;
@@ -232,14 +232,14 @@ public:
     };
 
     // Rectangular editor extents.
-    QRectF editorRect() const;
+    QRectF editorRect() const override;
 
 protected:
 
     void paint(QPainter *painter,
-        const QStyleOptionGraphicsItem *option, QWidget *widget);
+        const QStyleOptionGraphicsItem *option, QWidget *widget) override;
 
-    QVariant itemChange(GraphicsItemChange change, const QVariant& value);
+    QVariant itemChange(GraphicsItemChange change, const QVariant& value) override;
 
     // Natural decimal sorting comparators.
     static bool lessThan(FlowGraphNodePort *port1, FlowGraphNodePort *port2);
@@ -280,11 +280,11 @@ public:
     FlowGraphNode(const QString& name, Mode mode, uint type = 0);
 
     // Destructor..
-    ~FlowGraphNode();
+    ~FlowGraphNode() override;
     // Graphics item type.
     enum { Type = QGraphicsItem::UserType + 1 };
 
-    int type() const { return Type; }
+    int type() const override { return Type; }
 
     // Accessors.
     void setNodeName(const QString& name);
@@ -303,10 +303,10 @@ public:
     QString nodeTitle() const;
 
     // Port-list methods.
-    FlowGraphNodePort *addPort(const QString& name, Mode mode, int type = 0);
+    FlowGraphNodePort *addPort(const QString& name, Mode mode, uint type = 0);
 
-    FlowGraphNodePort *addInputPort(const QString& name, int type = 0);
-    FlowGraphNodePort *addOutputPort(const QString& name, int type = 0);
+    FlowGraphNodePort *addInputPort(const QString& name, uint type = 0);
+    FlowGraphNodePort *addOutputPort(const QString& name, uint type = 0);
 
     void removePort(FlowGraphNodePort *port);
     void removePorts();
@@ -330,14 +330,14 @@ public:
     };
 
     // Rectangular editor extents.
-    QRectF editorRect() const;
+    QRectF editorRect() const override;
 
 protected:
 
     void paint(QPainter *painter,
-        const QStyleOptionGraphicsItem *option, QWidget *widget);
+        const QStyleOptionGraphicsItem *option, QWidget *widget) override;
 
-    QVariant itemChange(GraphicsItemChange change, const QVariant& value);
+    QVariant itemChange(GraphicsItemChange change, const QVariant& value) override;
 
 private:
 
@@ -367,12 +367,12 @@ public:
     FlowGraphEdge();
 
     // Destructor..
-    ~FlowGraphEdge();
+    ~FlowGraphEdge() override;
 
     // Graphics item type.
     enum { Type = QGraphicsItem::UserType + 3 };
 
-    int type() const { return Type; }
+    int type() const override { return Type; }
 
     // Accessors.
     void setPort1(FlowGraphNodePort *port);
@@ -397,9 +397,9 @@ public:
 protected:
 
     void paint(QPainter *painter,
-        const QStyleOptionGraphicsItem *option, QWidget *widget);
+        const QStyleOptionGraphicsItem *option, QWidget *widget) override;
 
-    QVariant itemChange(GraphicsItemChange change, const QVariant& value);
+    QVariant itemChange(GraphicsItemChange change, const QVariant& value) override;
 
 private:
 
@@ -534,15 +534,15 @@ protected:
         FlowGraphNodePort *port1, FlowGraphNodePort *port2, bool is_connect);
 
     // Mouse event handlers.
-    void mousePressEvent(QMouseEvent *event);
-    void mouseMoveEvent(QMouseEvent *event);
-    void mouseReleaseEvent(QMouseEvent *event);
-    void mouseDoubleClickEvent(QMouseEvent *event);
+    void mousePressEvent(QMouseEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
+    void mouseDoubleClickEvent(QMouseEvent *event) override;
 
-    void wheelEvent(QWheelEvent *event);
+    void wheelEvent(QWheelEvent *event) override;
 
     // Keyboard event handler.
-    void keyPressEvent(QKeyEvent *event);
+    void keyPressEvent(QKeyEvent *event) override;
 
     // Graph node key helper.
     QString nodeKey(FlowGraphNode *node) const;

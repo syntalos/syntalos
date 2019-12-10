@@ -281,9 +281,9 @@ void FlowGraphNodePort::removeConnects (void)
 {
     foreach (FlowGraphEdge *connect, m_connects) {
         if (connect->port1() != this)
-            connect->setPort1(0);
+            connect->setPort1(nullptr);
         if (connect->port2() != this)
-            connect->setPort2(0);
+            connect->setPort2(nullptr);
     }
 
     m_connects.clear();
@@ -297,7 +297,7 @@ FlowGraphEdge *FlowGraphNodePort::findConnect ( FlowGraphNodePort *port ) const
             return connect;
     }
 
-    return NULL;
+    return nullptr;
 }
 
 
@@ -537,7 +537,7 @@ QRectF FlowGraphNodePort::editorRect (void) const
 // Constructor.
 FlowGraphNode::FlowGraphNode (
     const QString& name, FlowGraphItem::Mode mode, uint type )
-    : FlowGraphItem(NULL),
+    : FlowGraphItem(nullptr),
         m_name(name), m_mode(mode), m_type(type)
 {
     QGraphicsPathItem::setZValue(0);
@@ -656,7 +656,7 @@ QString FlowGraphNode::nodeTitle (void) const
 
 // Port-list methods.
 FlowGraphNodePort *FlowGraphNode::addPort (
-    const QString& name, FlowGraphItem::Mode mode, int type )
+    const QString& name, FlowGraphItem::Mode mode, uint type )
 {
     FlowGraphNodePort *port = new FlowGraphNodePort(this, name, mode, type);
 
@@ -669,13 +669,13 @@ FlowGraphNodePort *FlowGraphNode::addPort (
 }
 
 
-FlowGraphNodePort *FlowGraphNode::addInputPort ( const QString& name, int type )
+FlowGraphNodePort *FlowGraphNode::addInputPort ( const QString& name, uint type )
 {
     return addPort(name, FlowGraphItem::Input, type);
 }
 
 
-FlowGraphNodePort *FlowGraphNode::addOutputPort ( const QString& name, int type )
+FlowGraphNodePort *FlowGraphNode::addOutputPort ( const QString& name, uint type )
 {
     return addPort(name, FlowGraphItem::Output, type);
 }
@@ -705,7 +705,7 @@ FlowGraphNodePort *FlowGraphNode::findPort (
     const QString& name, FlowGraphItem::Mode mode, uint type )
 {
     return static_cast<FlowGraphNodePort *> (
-        m_portkeys.value(FlowGraphNodePort::ItemKey(name, mode, type), NULL));
+        m_portkeys.value(FlowGraphNodePort::ItemKey(name, mode, type), nullptr));
 }
 
 
@@ -734,7 +734,7 @@ void FlowGraphNode::resetMarkedPorts (void)
 void FlowGraphNode::updatePath (void)
 {
     const QRectF& rect = m_text->boundingRect();
-    int width = rect.width() / 2 + 24;
+    int width = round(rect.width() / 2) + 24;
     int wi, wo;
     wi = wo = width;
     foreach (FlowGraphNodePort *port, m_ports) {
@@ -842,7 +842,7 @@ QRectF FlowGraphNode::editorRect (void) const
 
 // Constructor.
 FlowGraphEdge::FlowGraphEdge (void)
-    : FlowGraphItem(NULL), m_port1(NULL), m_port2(NULL)
+    : FlowGraphItem(nullptr), m_port1(nullptr), m_port2(nullptr)
 {
     QGraphicsPathItem::setZValue(-1);
 
@@ -1058,12 +1058,12 @@ static const char *ColorsGroup      = "/GraphColors";
 
 // Constructor.
 FlowGraphView::FlowGraphView ( QWidget *parent )
-    : QGraphicsView(parent), m_state(DragNone), m_item(NULL),
-        m_connect(NULL), m_rubberband(NULL),
+    : QGraphicsView(parent), m_state(DragNone), m_item(nullptr),
+        m_connect(nullptr), m_rubberband(nullptr),
         m_zoom(1.0), m_zoomrange(false),
-        m_settings(NULL),
-        m_selected_nodes(0), m_edit_item(NULL),
-        m_editor(NULL), m_edited(0)
+        m_settings(nullptr),
+        m_selected_nodes(0), m_edit_item(nullptr),
+        m_editor(nullptr), m_edited(0)
 {
     m_scene = new QGraphicsScene();
 
@@ -1153,7 +1153,7 @@ FlowGraphItem *FlowGraphView::currentItem (void) const
 {
     FlowGraphItem *item = m_item;
 
-    if (item == NULL) {
+    if (item == nullptr) {
         const QList<QGraphicsItem *>& list
             = m_scene->selectedItems();
         if (!list.isEmpty())
@@ -1352,7 +1352,7 @@ void FlowGraphView::connectPorts (
     FlowGraphNodePort *port1, FlowGraphNodePort *port2, bool is_connect )
 {
     const bool is_connected // already connected?
-        = (port1->findConnect(port2) != NULL);
+        = (port1->findConnect(port2) != nullptr);
     if (( is_connect &&  is_connected) ||
         (!is_connect && !is_connected))
         return;
@@ -1362,12 +1362,12 @@ void FlowGraphView::connectPorts (
                 port1->portNode()->nodeName(),
                 FlowGraphItem::Duplex,
                 port1->portNode()->nodeType());
-        if (node1 == NULL)
+        if (node1 == nullptr)
             node1 = findNode(
                 port1->portNode()->nodeName(),
                 FlowGraphItem::Output,
                 port1->portNode()->nodeType());
-        if (node1 == NULL)
+        if (node1 == nullptr)
             return;
 
         FlowGraphNode *node2
@@ -1375,12 +1375,12 @@ void FlowGraphView::connectPorts (
                 port2->portNode()->nodeName(),
                 FlowGraphItem::Duplex,
                 port2->portNode()->nodeType());
-        if (node2 == NULL)
+        if (node2 == nullptr)
             node2 = findNode(
                 port2->portNode()->nodeName(),
                 FlowGraphItem::Input,
                 port2->portNode()->nodeType());
-        if (node2 == NULL)
+        if (node2 == nullptr)
             return;
 
         if (is_connect)
@@ -1394,7 +1394,7 @@ void FlowGraphView::connectPorts (
 void FlowGraphView::mousePressEvent ( QMouseEvent *event )
 {
     m_state = DragNone;
-    m_item = NULL;
+    m_item = nullptr;
     m_pos = QGraphicsView::mapToScene(event->pos());
 
     FlowGraphItem *item = itemAt(m_pos);
@@ -1404,7 +1404,7 @@ void FlowGraphView::mousePressEvent ( QMouseEvent *event )
     if (event->button() == Qt::LeftButton)
         m_state = DragStart;
 
-    if (m_state == DragStart && m_item == NULL
+    if (m_state == DragStart && m_item == nullptr
         && (event->modifiers() & Qt::ControlModifier)
         && m_scene->selectedItems().isEmpty()) {
         QGraphicsView::setDragMode(QGraphicsView::ScrollHandDrag);
@@ -1437,7 +1437,7 @@ void FlowGraphView::mouseMoveEvent ( QMouseEvent *event )
                         m_connect->setPort1(port);
                         m_connect->setSelected(true);
                         m_scene->addItem(m_connect);
-                        m_item = NULL;
+                        m_item = nullptr;
                         ++m_selected_nodes;
                         ++nchanged;
                     }
@@ -1461,10 +1461,10 @@ void FlowGraphView::mouseMoveEvent ( QMouseEvent *event )
                     pos1.setY(4.0 * ::round(0.25 * pos1.y()));
                     m_pos1 = pos1;
                 }
-                else m_item = NULL;
+                else m_item = nullptr;
             }
             // Otherwise start lasso rubber-banding...
-            if (m_rubberband == NULL && m_item == NULL && m_connect == NULL) {
+            if (m_rubberband == nullptr && m_item == nullptr && m_connect == nullptr) {
                 QGraphicsView::setCursor(Qt::CrossCursor);
                 m_rubberband = new QRubberBand(QRubberBand::Rectangle, this);
             }
@@ -1581,10 +1581,11 @@ void FlowGraphView::mouseReleaseEvent ( QMouseEvent *event )
             m_item->setSelected(is_selected);
             if (m_item->type() != FlowGraphNode::Type && is_selected)
                 ++m_selected_nodes;
-            m_item = NULL; // Not needed anymore!
+            m_item = nullptr; // Not needed anymore!
             ++nchanged;
         }
-        // Fall thru...
+
+        /* fall through */
     case DragMove:
         // Close new connection line...
         if (m_connect) {
@@ -1598,12 +1599,12 @@ void FlowGraphView::mouseReleaseEvent ( QMouseEvent *event )
                 //	&& port1->portNode() != port2->portNode()
                     && port1->portMode() != port2->portMode()
                     && port1->portType() == port2->portType()
-                    && port1->findConnect(port2) == NULL) {
+                    && port1->findConnect(port2) == nullptr) {
                     port2->setSelected(true);
                 //#if 0 // Sure the sect will commit to this instead...
                     m_connect->setPort2(port2);
                     m_connect->updatePathTo(port2->portPos());
-                    m_connect = NULL;
+                    m_connect = nullptr;
                     ++m_selected_nodes;
                 //#else
                 //	m_selected_nodes = 0;
@@ -1616,13 +1617,11 @@ void FlowGraphView::mouseReleaseEvent ( QMouseEvent *event )
             }
             if (m_connect) {
                 delete m_connect;
-                m_connect = NULL;
+                m_connect = nullptr;
             }
         }
         // Maybe some node(s) were moved...
         if (m_item && m_item->type() == FlowGraphNode::Type) {
-            const QPointF& pos
-                = QGraphicsView::mapToScene(event->pos());
             QList<FlowGraphNode *> nodes;
             foreach (QGraphicsItem *item, m_scene->selectedItems()) {
                 if (item->type() == FlowGraphNode::Type) {
@@ -1635,7 +1634,7 @@ void FlowGraphView::mouseReleaseEvent ( QMouseEvent *event )
         // Close rubber-band lasso...
         if (m_rubberband) {
             delete m_rubberband;
-            m_rubberband = NULL;
+            m_rubberband = nullptr;
             m_selected.clear();
             // Zooming in range?...
             if (m_zoomrange) {
@@ -1654,7 +1653,7 @@ void FlowGraphView::mouseReleaseEvent ( QMouseEvent *event )
     }
 
     m_state = DragNone;
-    m_item = NULL;
+    m_item = nullptr;
 
     // Reset cursor...
     QGraphicsView::setCursor(Qt::ArrowCursor);
@@ -1700,18 +1699,18 @@ void FlowGraphView::keyPressEvent ( QKeyEvent *event )
         m_scene->clearSelection();
         if (m_rubberband) {
             delete m_rubberband;
-            m_rubberband = NULL;
+            m_rubberband = nullptr;
             m_selected.clear();
         }
         if (m_connect) {
             delete m_connect;
-            m_connect = NULL;
+            m_connect = nullptr;
         }
         if (m_state == DragScroll)
             QGraphicsView::setDragMode(QGraphicsView::NoDrag);
         m_state = DragNone;
-        m_item = NULL;
-        m_edit_item = NULL;
+        m_item = nullptr;
+        m_edit_item = nullptr;
         m_editor->setEnabled(false);
         m_editor->hide();
         m_edited = 0;
@@ -1981,7 +1980,7 @@ void FlowGraphView::zoomFitRange ( const QRectF& range_rect )
 // Graph node position methods.
 bool FlowGraphView::restoreNodePos ( FlowGraphNode *node )
 {
-    if (m_settings == NULL || node == NULL)
+    if (m_settings == nullptr || node == nullptr)
         return false;
 
     m_settings->beginGroup(NodePosGroup);
@@ -1999,7 +1998,7 @@ bool FlowGraphView::restoreNodePos ( FlowGraphNode *node )
 
 bool FlowGraphView::saveNodePos ( FlowGraphNode *node ) const
 {
-    if (m_settings == NULL || node == NULL)
+    if (m_settings == nullptr || node == nullptr)
         return false;
 
     m_settings->beginGroup(NodePosGroup);
@@ -2012,7 +2011,7 @@ bool FlowGraphView::saveNodePos ( FlowGraphNode *node ) const
 
 bool FlowGraphView::restoreState (void)
 {
-    if (m_settings == NULL)
+    if (m_settings == nullptr)
         return false;
 
     m_settings->beginGroup(ColorsGroup);
@@ -2047,7 +2046,7 @@ bool FlowGraphView::restoreState (void)
 
 bool FlowGraphView::saveState (void) const
 {
-    if (m_settings == NULL)
+    if (m_settings == nullptr)
         return false;
 
     m_settings->beginGroup(NodePosGroup);
@@ -2139,11 +2138,11 @@ void FlowGraphView::clearPortTypeColors (void)
 // Clear all selection.
 void FlowGraphView::clearSelection (void)
 {
-    m_item = NULL;
+    m_item = nullptr;
     m_selected_nodes = 0;
     m_scene->clearSelection();
 
-    m_edit_item = NULL;
+    m_edit_item = nullptr;
     m_editor->setEnabled(false);
     m_editor->hide();
     m_edited = 0;
@@ -2162,7 +2161,7 @@ void FlowGraphView::editingFinished (void)
 {
     if (m_edit_item && m_editor->isEnabled() && m_editor->isVisible()) {
         // Reset all renaming stuff...
-        m_edit_item = NULL;
+        m_edit_item = nullptr;
         m_editor->setEnabled(false);
         m_editor->hide();
         m_edited = 0;
