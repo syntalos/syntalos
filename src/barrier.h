@@ -8,7 +8,7 @@
 class BarrierData
 {
 public:
-    BarrierData(int count) : count(count), goal(count) {}
+    BarrierData(uint count) : count(count), goal(count) {}
 
     void wait()
     {
@@ -28,8 +28,8 @@ public:
 
 private:
     Q_DISABLE_COPY(BarrierData)
-    int count;
-    int goal;
+    uint count;
+    uint goal;
     QMutex mutex;
     QWaitCondition condition;
 };
@@ -37,7 +37,7 @@ private:
 class Barrier {
 public:
     // Create a barrier that will wait for count threads
-    Barrier(int count) : d(new BarrierData(count)) {}
+    Barrier(uint count) : d(new BarrierData(count)) {}
     void wait()
     {
         d->wait();

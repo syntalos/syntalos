@@ -1,8 +1,9 @@
 project(MazeAmaze)
 
 cmake_minimum_required(VERSION 3.2)
+enable_testing()
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_SOURCE_DIR}/contrib/cmake/")
@@ -47,7 +48,8 @@ set(OpenGL_GL_PREFERENCE GLVND)
 include(GNUInstallDirs)
 find_package(PkgConfig)
 find_package(Threads)
-find_package(Qt5Core)
+find_package(Qt5Core REQUIRED)
+find_package(Qt5Test REQUIRED)
 find_package(Qt5Widgets REQUIRED)
 find_package(Qt5SerialPort REQUIRED)
 find_package(Qt5OpenGL REQUIRED)
@@ -95,5 +97,6 @@ include_directories(${CMAKE_BINARY_DIR})
 # Subdirectories
 #
 add_subdirectory(src)
+add_subdirectory(tests)
 add_subdirectory(data)
 add_subdirectory(contrib)

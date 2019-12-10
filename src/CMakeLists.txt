@@ -1,4 +1,5 @@
 
+add_subdirectory(streams)
 add_subdirectory(modules)
 
 set(MAZEAMAZE_SRC
@@ -32,6 +33,7 @@ set(MAZEAMAZE_SRC
     elidedlabel.cpp
     flowgraphview.h
     flowgraphview.cpp
+    ${MAZEAMAZE_STREAMS_SRC}
 )
 
 set(MAZEAMAZE_UI
