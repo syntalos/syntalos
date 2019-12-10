@@ -33,11 +33,6 @@ RUN DEBIAN_FRONTEND=noninteractive eatmydata apt-get install -yq --no-install-re
     libkf5archive-dev \
     libkf5texteditor-dev
 
-# we need a recent OpenCV, so install it from experimental for now
-RUN echo "deb http://deb.debian.org/debian experimental main" > /etc/apt/sources.list.d/experimental.list
-RUN apt-get update -qq
-RUN eatmydata apt-get install -t experimental -yq libopencv-dev
-
 # build & install 3rd-party libraries
 RUN mkdir -p /build/extra
 WORKDIR /build/extra
