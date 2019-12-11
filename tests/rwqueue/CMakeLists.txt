@@ -3,6 +3,7 @@ add_executable(test-rwqueue-stab
     stabtest.cpp
     common/simplethread.h
     common/simplethread.cpp
+    ${CMAKE_SOURCE_DIR}/src/streams/stream.cpp
 )
 
 target_link_libraries(test-rwqueue-stab
@@ -15,6 +16,7 @@ add_executable(test-rwqueue
     minitest.h
     common/simplethread.h
     common/simplethread.cpp
+    ${CMAKE_SOURCE_DIR}/src/streams/stream.cpp
 )
 
 add_test(rwqueue test-rwqueue --disable-prompt)

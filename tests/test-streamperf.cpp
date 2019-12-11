@@ -17,6 +17,7 @@ typedef struct
     time_t timestamp;
     cv::Mat frame;
 } MyDataFrame;
+Q_DECLARE_METATYPE(MyDataFrame)
 
 cv::Mat process_data_instant(const MyDataFrame &data)
 {
@@ -73,7 +74,7 @@ MyDataFrame create_data_200Hz(size_t index)
     return data;
 }
 
-void producer_fast(const std::string& threadName, Barrier *barrier, MKLFQStream<MyDataFrame> *stream)
+void producer_fast(const std::string& threadName, Barrier *barrier, DataStream<MyDataFrame> *stream)
 {
     pthread_setname_np(pthread_self(), threadName.c_str());
 
@@ -85,7 +86,7 @@ void producer_fast(const std::string& threadName, Barrier *barrier, MKLFQStream<
     stream->terminate();
 }
 
-void consumer_fast(const std::string& threadName, Barrier *barrier, MKLFQStream<MyDataFrame> *stream)
+void consumer_fast(const std::string& threadName, Barrier *barrier, DataStream<MyDataFrame> *stream)
 {
     pthread_setname_np(pthread_self(), threadName.c_str());
     size_t lastId = 0;
@@ -108,7 +109,7 @@ void consumer_fast(const std::string& threadName, Barrier *barrier, MKLFQStream<
         std::cout << "Fast consumer received only " << lastId << " data elements out of " << N_OF_DATAFRAMES << std::endl;
 }
 
-void consumer_slow(const std::string& threadName, Barrier *barrier, MKLFQStream<MyDataFrame> *stream)
+void consumer_slow(const std::string& threadName, Barrier *barrier, DataStream<MyDataFrame> *stream)
 {
     pthread_setname_np(pthread_self(), threadName.c_str());
     size_t lastId = 0;
@@ -130,7 +131,7 @@ void consumer_slow(const std::string& threadName, Barrier *barrier, MKLFQStream<
         std::cout << "Slow consumer received only " << lastId << " data elements out of " << N_OF_DATAFRAMES << std::endl;
 }
 
-void consumer_instant(const std::string& threadName, Barrier *barrier, MKLFQStream<MyDataFrame> *stream)
+void consumer_instant(const std::string& threadName, Barrier *barrier, DataStream<MyDataFrame> *stream)
 {
     pthread_setname_np(pthread_self(), threadName.c_str());
 
@@ -144,7 +145,7 @@ void consumer_instant(const std::string& threadName, Barrier *barrier, MKLFQStre
     }
 }
 
-void transformer_fast(const std::string& threadName, Barrier *barrier, MKLFQStream<MyDataFrame> *recvStream, MKLFQStream<MyDataFrame> *prodStream)
+void transformer_fast(const std::string& threadName, Barrier *barrier, DataStream<MyDataFrame> *recvStream, DataStream<MyDataFrame> *prodStream)
 {
     pthread_setname_np(pthread_self(), threadName.c_str());
     size_t count = 1;
@@ -168,13 +169,13 @@ class TestStreamPerf : public QObject
 {
     Q_OBJECT
 private slots:
-    void run_6threads()
+    void run6threads()
     {
         Barrier barrier(6);
 
         std::vector<std::thread> threads;
-        std::shared_ptr<MKLFQStream<MyDataFrame>> prodStream(new MKLFQStream<MyDataFrame>());
-        std::shared_ptr<MKLFQStream<MyDataFrame>> transStream(new MKLFQStream<MyDataFrame>());
+        std::shared_ptr<DataStream<MyDataFrame>> prodStream(new DataStream<MyDataFrame>());
+        std::shared_ptr<DataStream<MyDataFrame>> transStream(new DataStream<MyDataFrame>());
 
         QBENCHMARK {
             threads.push_back(std::thread(producer_fast, "producer", &barrier, prodStream.get()));
@@ -190,14 +191,14 @@ private slots:
         }
     }
 
-    void run_overcapacity()
+    void runOvercapacity()
     {
         std::vector<std::thread> threads;
         const auto threadCount = std::thread::hardware_concurrency() * 2 + 2;
         Barrier barrier(threadCount);
 
-        std::shared_ptr<MKLFQStream<MyDataFrame>> prodStream(new MKLFQStream<MyDataFrame>());
-        std::shared_ptr<MKLFQStream<MyDataFrame>> transStream(new MKLFQStream<MyDataFrame>());
+        std::shared_ptr<DataStream<MyDataFrame>> prodStream(new DataStream<MyDataFrame>());
+        std::shared_ptr<DataStream<MyDataFrame>> transStream(new DataStream<MyDataFrame>());
 
         QBENCHMARK {
             threads.push_back(std::thread(producer_fast, "producer", &barrier, prodStream.get()));

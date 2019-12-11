@@ -28,25 +28,10 @@
 
 #include "utils.h"
 #include "hrclock.h"
+#include "streams/datatypes.h"
 #include "modulemanager.h"
 
 class AbstractModule;
-
-/**
- * @brief The ModuleState enum
- *
- * Describes the state a module can be in. The state is usually displayed
- * to the user via a module indicator widget.
- */
-enum class ModuleState {
-    UNKNOWN,
-    INITIALIZING,
-    PREPARING,
-    WAITING,
-    READY,
-    RUNNING,
-    ERROR
-};
 
 /**
  * @brief The ModuleFeature flags
@@ -237,6 +222,22 @@ public:
      */
     virtual bool canRemove(AbstractModule *mod);
 
+    /**
+     * @brief Subscribe to this modules' status message stream
+     *
+     * This method is used by the engine to read any messages emitted by this module quickly
+     * and in a threadsafe way.
+     */
+    std::shared_ptr<StreamSubscription<ModuleMessage> > getMessageSubscription();
+
+    /**
+     * @brief Subscribe this module to receive system events
+     *
+     * This method is used by the engine to allow this module to read events that are broadcasted
+     * system-wide to all modules.
+     */
+    void subscribeToSysEvents(std::shared_ptr<StreamSubscription<SystemStatusEvent> > subscription);
+
     bool makeDirectory(const QString &dir);
 
     void setInitialized();
@@ -265,10 +266,13 @@ protected:
     QList<QWidget*> m_displayWindows;
     QList<QWidget*> m_settingsWindows;
 
+    std::optional<std::shared_ptr<StreamSubscription<SystemStatusEvent> > > m_sysEventsSub;
+
 private:
     ModuleState m_state;
     QString m_lastError;
     QString m_id;
+    std::unique_ptr<DataStream<ModuleMessage>> m_msgStream;
     bool m_initialized;
 
     void setId(const QString &id);

@@ -68,6 +68,7 @@ void ModuleInfo::setCount(int count)
 AbstractModule::AbstractModule(QObject *parent) :
     QObject(parent),
     m_state(ModuleState::INITIALIZING),
+    m_msgStream(new DataStream<ModuleMessage>()),
     m_initialized(false)
 {
     m_id = QStringLiteral("unknown");
@@ -192,6 +193,16 @@ bool AbstractModule::canRemove(AbstractModule *mod)
 {
     Q_UNUSED(mod)
     return true;
+}
+
+std::shared_ptr<StreamSubscription<ModuleMessage>> AbstractModule::getMessageSubscription()
+{
+    return m_msgStream->subscribe(nullptr);
+}
+
+void AbstractModule::subscribeToSysEvents(std::shared_ptr<StreamSubscription<SystemStatusEvent> > subscription)
+{
+    m_sysEventsSub = subscription;
 }
 
 bool AbstractModule::makeDirectory(const QString &dir)
