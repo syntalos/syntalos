@@ -261,8 +261,8 @@ MainWindow::MainWindow(QWidget *parent) :
     m_runIndicatorWidget->hide();
 
 
-    // testarea
-    auto fgview = new FlowGraphView();
+    // test area
+    m_fgView = new FlowGraphView;
     auto tn = new FlowGraphNode("TestDuplex", FlowGraphItem::Duplex);
     tn->addInputPort("InputData");
     tn->addOutputPort("OutputDataPort1");
@@ -271,13 +271,9 @@ MainWindow::MainWindow(QWidget *parent) :
     auto ts = new FlowGraphNode("TestSink", FlowGraphItem::Input);
     ts->addInputPort("InputData");
 
-    fgview->addItem(tn);
-    fgview->addItem(ts);
-    fgview->show();
-
-    connect(fgview, &FlowGraphView::connected, [&]() {
-        fgview->connectItems();
-    });
+    m_fgView->addItem(tn);
+    m_fgView->addItem(ts);
+    m_fgView->show();
 }
 
 MainWindow::~MainWindow()
@@ -828,6 +824,13 @@ void MainWindow::on_tbAddModule_clicked()
         if (!modDialog.selectedEntryId().isEmpty()) {
             auto mod = m_modManager->createModule(modDialog.selectedEntryId());
             mod->showSettingsUi();
+
+            auto modNode = new FlowGraphNode(mod->name(), FlowGraphItem::Duplex);
+            Q_FOREACH(auto iport, mod->inPorts())
+                modNode->addInputPort(iport->acceptedTypeName());
+            Q_FOREACH(auto oport, mod->outPorts())
+                modNode->addOutputPort(oport->dataTypeName());
+            m_fgView->addItem(modNode);
         }
         m_runIndicatorWidget->hide();
     }

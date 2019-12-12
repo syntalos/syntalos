@@ -419,10 +419,10 @@ class FlowGraphView : public QGraphicsView
 public:
 
     // Constructor.
-    FlowGraphView(QWidget *parent = NULL);
+    FlowGraphView(QWidget *parent = nullptr);
 
     // Destructor.
-    ~FlowGraphView();
+    ~FlowGraphView() override;
 
     // Accessors.
     QGraphicsScene *scene() const;

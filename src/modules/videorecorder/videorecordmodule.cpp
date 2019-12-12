@@ -22,6 +22,7 @@
 #include <QMessageBox>
 #include <QJsonDocument>
 #include <QDebug>
+#include "streams/frametype.h"
 
 #include "videowriter.h"
 #include "recordersettingsdialog.h"
@@ -55,6 +56,7 @@ VideoRecorderModule::VideoRecorderModule(QObject *parent)
     : ImageSinkModule(parent),
       m_settingsDialog(nullptr)
 {
+    m_inPort = registerInputPort<Frame>("Video");
 }
 
 VideoRecorderModule::~VideoRecorderModule()

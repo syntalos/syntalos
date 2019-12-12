@@ -27,6 +27,7 @@
 #include <QQueue>
 #include <QMutex>
 
+#include "streams/frametype.h"
 #include "imagesourcemodule.h"
 #include "abstractmodule.h"
 
@@ -84,6 +85,7 @@ private:
     std::atomic_int m_currentFps;
     int m_fps;
     boost::circular_buffer<FrameData> m_frameRing;
+    std::shared_ptr<DataStream<Frame>> m_outStream;
 
     static void captureThread(void *gcamPtr);
     bool startCaptureThread();

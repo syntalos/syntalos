@@ -31,6 +31,7 @@ class AbstractModule;
 class ModuleInfo;
 class ModuleIndicator;
 class QSvgWidget;
+class FlowGraphView;
 
 namespace Ui {
 class MainWindow;
@@ -92,6 +93,8 @@ private:
 
     QLabel *m_statusBarLabel;
     QSvgWidget *m_runIndicatorWidget;
+
+    FlowGraphView *m_fgView;
 
     QString m_experimentId;
     QString m_currentDate;

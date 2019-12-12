@@ -75,6 +75,7 @@ private:
     QString m_vidStorageDir;
     std::unique_ptr<VideoWriter> m_videoWriter;
     RecorderSettingsDialog *m_settingsDialog;
+    std::shared_ptr<StreamInputPort> m_inPort;
 };
 
 #endif // VIDEORECORDMODULE_H

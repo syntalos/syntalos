@@ -1065,8 +1065,7 @@ FlowGraphView::FlowGraphView ( QWidget *parent )
         m_selected_nodes(0), m_edit_item(nullptr),
         m_editor(nullptr), m_edited(0)
 {
-    m_scene = new QGraphicsScene();
-
+    m_scene = new QGraphicsScene;
     QGraphicsView::setScene(m_scene);
 
     QGraphicsView::setRenderHint(QPainter::Antialiasing);

@@ -98,6 +98,55 @@ private:
 #define ModuleInfoInterface_iid "com.draguhnlab.MazeAmaze.ModuleInfoInterface"
 Q_DECLARE_INTERFACE(ModuleInfo, ModuleInfoInterface_iid)
 
+class StreamInputPort
+{
+public:
+    explicit StreamInputPort(const QString &title);
+
+    template<typename T>
+    void setAcceptedType()
+    {
+        m_acceptedTypeName = QMetaType::typeName(qMetaTypeId<T>());
+    }
+
+    QString acceptedTypeName() const;
+
+    bool acceptsSubscription(const QString &typeName);
+    bool hasSubscription() const;
+    void setSubscription(std::shared_ptr<VariantStreamSubscription> sub);
+    void resetSubscription();
+
+    template<typename T>
+    std::shared_ptr<StreamSubscription<T>> subscription()
+    {
+        return m_sub;
+    }
+
+private:
+    QString m_title;
+    QString m_acceptedTypeName;
+    std::optional<std::shared_ptr<VariantStreamSubscription>> m_sub;
+};
+
+class StreamOutputPort
+{
+public:
+    explicit StreamOutputPort(const QString &title, std::shared_ptr<VariantDataStream> stream);
+
+    bool canSubscribe(const QString &typeName);
+    QString dataTypeName() const;
+
+    template<typename T>
+    std::shared_ptr<DataStream<T>> stream()
+    {
+        return m_stream;
+    }
+
+private:
+    QString m_title;
+    std::shared_ptr<VariantDataStream> m_stream;
+};
+
 class AbstractModule : public QObject
 {
     Q_OBJECT
@@ -123,6 +172,41 @@ public:
      * @brief Return a bitfield of features this module supports.
      */
     virtual ModuleFeatures features() const;
+
+    /**
+     * @brief Register an output port for this module
+     *
+     * This function should be called in the module's constructor to publish the intent
+     * to produce an output stream of type T. Other modules may subscribe to this stream.
+     *
+     * @returns The data stream instance for this module to write to.
+     */
+    template<typename T>
+    std::shared_ptr<DataStream<T>> registerOutputPort(const QString &title)
+    {
+        std::shared_ptr<DataStream<T>> stream(new DataStream<T>());
+        std::shared_ptr<StreamOutputPort> outPort(new StreamOutputPort(title, stream));
+        m_outPorts.append(outPort);
+        return stream;
+    }
+
+    /**
+     * @brief Register an input port for this module
+     *
+     * This function should be called in the module's constructor to publish the intent
+     * to accept input stream subscriptions of type T. The user may subscribe this module
+     * to other modules which produce the data it accepts.
+     *
+     * @returns A StreamInputPort instance, which can be checked for subscriptions
+     */
+    template<typename T>
+    std::shared_ptr<StreamInputPort> registerInputPort(const QString &title)
+    {
+        std::shared_ptr<StreamInputPort> inPort(new StreamInputPort(title));
+        inPort->setAcceptedType<T>();
+        m_inPorts.append(inPort);
+        return inPort;
+    }
 
     /**
      * @brief Initialize the module
@@ -238,6 +322,9 @@ public:
      */
     void subscribeToSysEvents(std::shared_ptr<StreamSubscription<SystemStatusEvent> > subscription);
 
+    QList<std::shared_ptr<StreamInputPort>> inPorts() const;
+    QList<std::shared_ptr<StreamOutputPort>> outPorts() const;
+
     bool makeDirectory(const QString &dir);
 
     void setInitialized();
@@ -273,6 +360,8 @@ private:
     QString m_lastError;
     QString m_id;
     std::unique_ptr<DataStream<ModuleMessage>> m_msgStream;
+    QList<std::shared_ptr<StreamOutputPort>> m_outPorts;
+    QList<std::shared_ptr<StreamInputPort>> m_inPorts;
     bool m_initialized;
 
     void setId(const QString &id);

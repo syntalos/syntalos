@@ -65,6 +65,7 @@ GenericCameraModule::GenericCameraModule(QObject *parent)
     m_camera = new Camera;
 
     m_frameRing = boost::circular_buffer<FrameData>(64);
+    m_outStream = registerOutputPort<Frame>("Video");
 }
 
 GenericCameraModule::~GenericCameraModule()
