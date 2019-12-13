@@ -29,7 +29,7 @@
 
 #include "streams/frametype.h"
 #include "imagesourcemodule.h"
-#include "abstractmodule.h"
+#include "moduleapi.h"
 
 class Camera;
 class VideoViewWidget;

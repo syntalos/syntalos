@@ -29,7 +29,7 @@
 #include <QtMath>
 #include <QDebug>
 
-#include "abstractmodule.h"
+#include "moduleapi.h"
 
 
 class HtmlDelegate : public QStyledItemDelegate

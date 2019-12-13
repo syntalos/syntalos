@@ -31,6 +31,8 @@
 #include <QList>
 #include <QHash>
 
+#include "streams/datatypes.h"
+
 class FlowGraphView;
 class FlowGraphNode;
 class FlowGraphNodePort;
@@ -302,6 +304,11 @@ public:
     void setNodeTitle(const QString& title);
     QString nodeTitle() const;
 
+    void updateNodeState(ModuleState state);
+
+    void setNodeInfoText(const QString& info);
+    QString nodeInfoText() const;
+
     // Port-list methods.
     FlowGraphNodePort *addPort(const QString& name, Mode mode, uint type = 0);
 
@@ -345,11 +352,15 @@ private:
     QString m_name;
     Mode    m_mode;
     uint    m_type;
+    QColor m_shadowColor;
 
     QIcon   m_icon;
 
     QGraphicsPixmapItem *m_pixmap;
-    QGraphicsTextItem   *m_text;
+    QGraphicsPixmapItem *m_statusPix;
+    QGraphicsTextItem   *m_titleText;
+    QGraphicsTextItem   *m_statusText;
+    QGraphicsTextItem   *m_infoText;
 
     FlowGraphNodePort::ItemKeys m_portkeys;
     QList<FlowGraphNodePort *>  m_ports;
@@ -459,13 +470,6 @@ public:
     FlowGraphNode *findNode(
             const QString& name, FlowGraphItem::Mode mode, uint type = 0) const;
 
-    // Port (dis)connections notifiers.
-    void emitConnected(FlowGraphNodePort *port1, FlowGraphNodePort *port2);
-    void emitDisconnected(FlowGraphNodePort *port1, FlowGraphNodePort *port2);
-
-    // Rename notifiers.
-    void emitRenamed(FlowGraphItem *item, const QString& name);
-
     // Graph canvas state methods.
     bool restoreState();
     bool saveState() const;
@@ -478,6 +482,8 @@ public:
 
     // Clear all selection.
     void clearSelection();
+
+    QList<FlowGraphNode *> selectedNodes() const;
 
 signals:
 

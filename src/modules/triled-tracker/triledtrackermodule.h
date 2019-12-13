@@ -27,7 +27,7 @@
 #include <boost/circular_buffer.hpp>
 
 #include "imagesinkmodule.h"
-#include "abstractmodule.h"
+#include "moduleapi.h"
 
 class ImageSourceModule;
 class LedTrackerSettingsDialog;

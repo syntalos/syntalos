@@ -28,7 +28,7 @@
 #include <QMutex>
 
 #include "imagesourcemodule.h"
-#include "abstractmodule.h"
+#include "moduleapi.h"
 
 class UEyeCameraModuleInfo : public ModuleInfo
 {

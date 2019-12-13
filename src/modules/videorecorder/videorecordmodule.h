@@ -25,7 +25,7 @@
 #include <chrono>
 
 #include "imagesinkmodule.h"
-#include "abstractmodule.h"
+#include "moduleapi.h"
 
 class VideoWriter;
 class ImageSourceModule;

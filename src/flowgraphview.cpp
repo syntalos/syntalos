@@ -560,7 +560,10 @@ FlowGraphNode::FlowGraphNode (
     FlowGraphItem::setBackground(background_color);
 
     m_pixmap = new QGraphicsPixmapItem(this);
-    m_text = new QGraphicsTextItem(this);
+    m_statusPix = new QGraphicsPixmapItem(this);
+    m_titleText = new QGraphicsTextItem(this);
+    m_statusText = new QGraphicsTextItem(this);
+    m_infoText = new QGraphicsTextItem(this);
 
     QGraphicsPathItem::setFlag(QGraphicsItem::ItemIsMovable);
     QGraphicsPathItem::setFlag(QGraphicsItem::ItemIsSelectable);
@@ -569,14 +572,16 @@ FlowGraphNode::FlowGraphNode (
     setNodeTitle(m_name);
 
     const bool is_darkest = (base_value < 24);
-    QColor shadow_color = (is_darkest ? Qt::white : Qt::black);
-    shadow_color.setAlpha(180);
+    m_shadowColor = (is_darkest ? Qt::white : Qt::black);
+    m_shadowColor.setAlpha(180);
 
     QGraphicsDropShadowEffect *effect = new QGraphicsDropShadowEffect();
-    effect->setColor(shadow_color);
+    effect->setColor(m_shadowColor);
     effect->setBlurRadius(is_darkest ? 8 : 16);
     effect->setOffset(is_darkest ? 0 : 2);
     QGraphicsPathItem::setGraphicsEffect(effect);
+
+    updateNodeState(ModuleState::READY);
 }
 
 
@@ -626,7 +631,7 @@ uint FlowGraphNode::nodeType (void) const
 }
 
 
-void FlowGraphNode::setNodeIcon ( const QIcon& icon )
+void FlowGraphNode::setNodeIcon (const QIcon& icon )
 {
     m_icon = icon;
 
@@ -642,15 +647,66 @@ const QIcon& FlowGraphNode::nodeIcon (void) const
 
 void FlowGraphNode::setNodeTitle ( const QString& title )
 {
-    const QFont& font = m_text->font();
-    m_text->setFont(QFont(font.family(), font.pointSize(), QFont::Bold));
-    m_text->setPlainText(title.isEmpty() ? m_name : title);
+    const QFont& font = m_titleText->font();
+    m_titleText->setFont(QFont(font.family(), font.pointSize(), QFont::Bold));
+    m_titleText->setPlainText(title.isEmpty() ? m_name : title);
 }
 
 
 QString FlowGraphNode::nodeTitle (void) const
 {
-    return m_text->toPlainText();
+    return m_titleText->toPlainText();
+}
+
+void FlowGraphNode::updateNodeState(ModuleState state)
+{
+    const auto effect = static_cast<QGraphicsDropShadowEffect*>(this->graphicsEffect());
+    effect->setColor(m_shadowColor);
+
+    switch (state) {
+    case ModuleState::INITIALIZING:
+        m_statusPix->setPixmap(QIcon(QPixmap(":/status/preparing")).pixmap(24, 24));
+        m_statusText->setPlainText(QStringLiteral("Initializing..."));
+        break;
+    case ModuleState::PREPARING:
+        m_statusPix->setPixmap(QIcon(QPixmap(":/status/preparing")).pixmap(24, 24));
+        m_statusText->setPlainText(QStringLiteral("Preparing..."));
+        break;
+    case ModuleState::WAITING:
+        m_statusPix->setPixmap(QIcon(QPixmap(":/status/ready")).pixmap(24, 24));
+        m_statusText->setPlainText(QStringLiteral("Waiting..."));
+        break;
+    case ModuleState::READY:
+        m_statusPix->setPixmap(QIcon(QPixmap(":/status/ready")).pixmap(24, 24));
+        m_statusText->setPlainText(QStringLiteral("Ready."));
+        break;
+    case ModuleState::RUNNING:
+        m_statusPix->setPixmap(QIcon(QPixmap(":/status/running")).pixmap(24, 24));
+        m_statusText->setPlainText(QStringLiteral("Running..."));
+        break;
+    case ModuleState::ERROR:
+        m_statusPix->setPixmap(QIcon(QPixmap(":/status/error")).pixmap(24, 24));
+        m_statusText->setPlainText(QStringLiteral("Error!"));
+        effect->setColor(Qt::red);
+        break;
+    default:
+        m_statusPix->setPixmap(QIcon(QPixmap(":/status/preparing")).pixmap(24, 24));
+        m_statusText->setPlainText(QStringLiteral("Module is in an unknown state."));
+        effect->setColor(Qt::red);
+        break;
+    }
+
+    updatePath();
+}
+
+void FlowGraphNode::setNodeInfoText(const QString &info)
+{
+    m_infoText->setHtml(info);
+}
+
+QString FlowGraphNode::nodeInfoText() const
+{
+    return m_infoText->toPlainText();
 }
 
 
@@ -733,8 +789,10 @@ void FlowGraphNode::resetMarkedPorts (void)
 // Path/shape updater.
 void FlowGraphNode::updatePath (void)
 {
-    const QRectF& rect = m_text->boundingRect();
-    int width = round(rect.width() / 2) + 24;
+    const QRectF& titleRect = m_titleText->boundingRect();
+    const QRectF& statusRect = m_statusText->boundingRect();
+    const QRectF& infoRect = m_infoText->boundingRect();
+    int width = static_cast<int>((titleRect.width() / 2) + (24 * 2));
     int wi, wo;
     wi = wo = width;
     foreach (FlowGraphNodePort *port, m_ports) {
@@ -749,7 +807,7 @@ void FlowGraphNode::updatePath (void)
 
     std::sort(m_ports.begin(), m_ports.end(), FlowGraphNodePort::Compare());
 
-    int height = rect.height() + 2;
+    int height = titleRect.height() + statusRect.height() + infoRect.height() + 2;
     int type = 0;
     int yi, yo;
     yi = yo = height;
@@ -775,6 +833,7 @@ void FlowGraphNode::updatePath (void)
         }
     }
 
+    m_infoText->setTextWidth(width);
     QPainterPath path;
     path.addRoundedRect(-width / 2, 0, width, height + 6, 5, 5);
     QGraphicsPathItem::setPath(path);
@@ -788,7 +847,9 @@ void FlowGraphNode::paint ( QPainter *painter,
 
     if (QGraphicsPathItem::isSelected()) {
         const QColor& hilitetext_color = pal.highlightedText().color();
-        m_text->setDefaultTextColor(hilitetext_color);
+        m_titleText->setDefaultTextColor(hilitetext_color);
+        m_statusText->setDefaultTextColor(hilitetext_color);
+        m_infoText->setDefaultTextColor(hilitetext_color);
         painter->setPen(hilitetext_color);
         QColor hilite_color(pal.highlight().color());
         hilite_color.setAlpha(180);
@@ -800,9 +861,12 @@ void FlowGraphNode::paint ( QPainter *painter,
                 = FlowGraphItem::background();
         const bool is_dark
                 = (background.value() < 192);
-        m_text->setDefaultTextColor(is_dark
-                                    ? foreground.lighter()
-                                    : foreground.darker());
+        const auto defaultColor = is_dark
+                ? foreground.lighter()
+                : foreground.darker();
+        m_titleText->setDefaultTextColor(defaultColor);
+        m_statusText->setDefaultTextColor(defaultColor);
+        m_infoText->setDefaultTextColor(defaultColor);
         painter->setPen(foreground);
         painter->setBrush(background);
     }
@@ -811,9 +875,15 @@ void FlowGraphNode::paint ( QPainter *painter,
 
     const QRectF& node_rect = QGraphicsPathItem::boundingRect();
     m_pixmap->setPos(node_rect.x() + 4, node_rect.y() + 4);
+    m_statusPix->setPos(node_rect.x() + node_rect.width() - m_statusPix->pixmap().width() - 4, node_rect.y() + 4);
 
-    const QRectF& text_rect = m_text->boundingRect();
-    m_text->setPos(- text_rect.width() / 2, text_rect.y() + 2);
+    const QRectF& title_rect = m_titleText->boundingRect();
+    m_titleText->setPos(- title_rect.width() / 2, node_rect.y() + 2);
+
+    const QRectF& status_rect = m_statusText->boundingRect();
+    m_statusText->setPos(node_rect.x() + 4, title_rect.y() + title_rect.height());
+
+    m_infoText->setPos(node_rect.x() + 4, status_rect.y() + (status_rect.height() * 2) - 4);
 }
 
 
@@ -833,7 +903,7 @@ QVariant FlowGraphNode::itemChange (
 // Rectangular editor extents.
 QRectF FlowGraphNode::editorRect (void) const
 {
-    return m_text->sceneBoundingRect();
+    return m_titleText->sceneBoundingRect();
 }
 
 
@@ -1137,7 +1207,7 @@ void FlowGraphView::removeItem ( FlowGraphItem *item )
 
     if (item->type() == FlowGraphNode::Type) {
         FlowGraphNode *node = static_cast<FlowGraphNode *> (item);
-        if (node && saveNodePos(node)) {
+        if (node) {
             emit removed(node);
             node->removePorts();
             m_nodekeys.remove(FlowGraphNode::NodeKey(node));
@@ -1308,29 +1378,6 @@ FlowGraphNode *FlowGraphView::findNode (
 }
 
 
-
-// Port (dis)connections notifiers.
-void FlowGraphView::emitConnected (
-        FlowGraphNodePort *port1, FlowGraphNodePort *port2 )
-{
-    emit connected(port1, port2);
-}
-
-
-void FlowGraphView::emitDisconnected (
-        FlowGraphNodePort *port1, FlowGraphNodePort *port2 )
-{
-    emit disconnected(port1, port2);
-}
-
-
-// Rename notifiers.
-void FlowGraphView::emitRenamed ( FlowGraphItem *item, const QString& name )
-{
-    emit renamed(item, name);
-}
-
-
 // Item finder (internal).
 FlowGraphItem *FlowGraphView::itemAt ( const QPointF& pos ) const
 {
@@ -1383,9 +1430,9 @@ void FlowGraphView::connectPorts (
         return;
 
     if (is_connect)
-        emitConnected(port1, port2);
+        emit connected(port1, port2);
     else
-        emitDisconnected(port1, port2);
+        emit disconnected(port1, port2);
 }
 
 
@@ -2147,6 +2194,18 @@ void FlowGraphView::clearSelection (void)
     m_edited = 0;
 }
 
+QList<FlowGraphNode *> FlowGraphView::selectedNodes() const
+{
+    QList<FlowGraphNode*> nodes;
+    foreach (auto item, m_scene->selectedItems()) {
+        if (item->type() == FlowGraphNode::Type) {
+            auto node = static_cast<FlowGraphNode *> (item);
+            nodes.append(node);
+        }
+    }
+
+    return nodes;
+}
 
 // Rename item slots.
 void FlowGraphView::textChanged ( const QString& /* text */)
@@ -2159,6 +2218,7 @@ void FlowGraphView::textChanged ( const QString& /* text */)
 void FlowGraphView::editingFinished (void)
 {
     if (m_edit_item && m_editor->isEnabled() && m_editor->isVisible()) {
+        emit renamed(m_edit_item, m_editor->text());
         // Reset all renaming stuff...
         m_edit_item = nullptr;
         m_editor->setEnabled(false);

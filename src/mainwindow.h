@@ -31,7 +31,6 @@ class AbstractModule;
 class ModuleInfo;
 class ModuleIndicator;
 class QSvgWidget;
-class FlowGraphView;
 
 namespace Ui {
 class MainWindow;
@@ -60,10 +59,8 @@ private slots:
     void loadSettingsActionTriggered();
 
     void aboutActionTriggered();
-    void on_tbAddModule_clicked();
 
-    void moduleAdded(ModuleInfo *info, AbstractModule *mod);
-    void receivedModuleError(AbstractModule *mod, const QString& message);
+    void moduleErrorReceived(AbstractModule *mod, const QString& message);
 
     void on_actionSubjectsLoad_triggered();
     void on_actionSubjectsSave_triggered();
@@ -93,8 +90,6 @@ private:
 
     QLabel *m_statusBarLabel;
     QSvgWidget *m_runIndicatorWidget;
-
-    FlowGraphView *m_fgView;
 
     QString m_experimentId;
     QString m_currentDate;

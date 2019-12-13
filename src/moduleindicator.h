@@ -22,7 +22,7 @@
 
 #include <QFrame>
 #include <QSharedDataPointer>
-#include "abstractmodule.h"
+#include "moduleapi.h"
 
 class ModuleManager;
 

@@ -24,7 +24,7 @@
 #include <chrono>
 #include <QQueue>
 #include <QMutex>
-#include "abstractmodule.h"
+#include "moduleapi.h"
 
 class SerialFirmata;
 class FirmataSettingsDialog;

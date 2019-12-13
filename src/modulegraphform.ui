@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ModuleGraphForm</class>
+ <widget class="QWidget" name="ModuleGraphForm">
+  <property name="enabled">
+   <bool>true</bool>
+  </property>
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>800</width>
+    <height>600</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Module Graph</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <property name="spacing">
+    <number>0</number>
+   </property>
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
+   <item>
+    <widget class="QToolBar" name="toolBar">
+     <property name="windowTitle">
+      <string>toolBar</string>
+     </property>
+     <property name="toolButtonStyle">
+      <enum>Qt::ToolButtonTextBesideIcon</enum>
+     </property>
+     <addaction name="actionAddModule"/>
+     <addaction name="actionConnect"/>
+     <addaction name="actionSettings"/>
+     <addaction name="actionDisplay"/>
+     <addaction name="actionMenu"/>
+     <addaction name="actionRemove"/>
+    </widget>
+   </item>
+   <item>
+    <widget class="FlowGraphView" name="graphView"/>
+   </item>
+  </layout>
+  <action name="actionAddModule">
+   <property name="icon">
+    <iconset theme="list-add">
+     <normaloff>.</normaloff>.</iconset>
+   </property>
+   <property name="text">
+    <string>Add Module</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Shift+A</string>
+   </property>
+  </action>
+  <action name="actionSettings">
+   <property name="icon">
+    <iconset resource="../data/resources.qrc">
+     <normaloff>:/icons/settings</normaloff>:/icons/settings</iconset>
+   </property>
+   <property name="text">
+    <string>Settings</string>
+   </property>
+  </action>
+  <action name="actionDisplay">
+   <property name="icon">
+    <iconset resource="../data/resources.qrc">
+     <normaloff>:/icons/show-all-windows</normaloff>:/icons/show-all-windows</iconset>
+   </property>
+   <property name="text">
+    <string>Display</string>
+   </property>
+  </action>
+  <action name="actionMenu">
+   <property name="icon">
+    <iconset resource="../data/resources.qrc">
+     <normaloff>:/icons/menu</normaloff>:/icons/menu</iconset>
+   </property>
+   <property name="text">
+    <string>Menu</string>
+   </property>
+  </action>
+  <action name="actionRemove">
+   <property name="icon">
+    <iconset resource="../data/resources.qrc">
+     <normaloff>:/icons/remove</normaloff>:/icons/remove</iconset>
+   </property>
+   <property name="text">
+    <string>Remove</string>
+   </property>
+  </action>
+  <action name="actionConnect">
+   <property name="icon">
+    <iconset theme="link">
+     <normaloff>.</normaloff>.</iconset>
+   </property>
+   <property name="text">
+    <string>Connect</string>
+   </property>
+  </action>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>FlowGraphView</class>
+   <extends>QGraphicsView</extends>
+   <header>flowgraphview.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources>
+  <include location="../data/resources.qrc"/>
+ </resources>
+ <connections/>
+</ui>

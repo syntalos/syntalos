@@ -22,7 +22,7 @@
 
 #include <QObject>
 #include <chrono>
-#include "abstractmodule.h"
+#include "moduleapi.h"
 
 class TracePlotProxy;
 class TraceDisplay;

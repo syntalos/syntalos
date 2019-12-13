@@ -18,7 +18,7 @@
  */
 
 #include <opencv2/core.hpp>
-#include "abstractmodule.h"
+#include "moduleapi.h"
 
 #include <QDir>
 #include <QMessageBox>

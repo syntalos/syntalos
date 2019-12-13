@@ -16,8 +16,8 @@ set(MAZEAMAZE_SRC
     testsubjectlistmodel.cpp
     moduleindicator.h
     moduleindicator.cpp
-    abstractmodule.h
-    abstractmodule.cpp
+    moduleapi.h
+    moduleapi.cpp
     modulemanager.h
     modulemanager.cpp
     moduleselectdialog.h
@@ -32,6 +32,8 @@ set(MAZEAMAZE_SRC
     elidedlabel.cpp
     flowgraphview.h
     flowgraphview.cpp
+    modulegraphform.h
+    modulegraphform.cpp
 
     streams/datatypes.h
     streams/frametype.h
@@ -46,6 +48,7 @@ set(MAZEAMAZE_UI
     moduleindicator.ui
     moduleselectdialog.ui
     aboutdialog.ui
+    modulegraphform.ui
 )
 
 qt5_wrap_ui(MAZEAMAZE_UI_SRC ${MAZEAMAZE_UI})

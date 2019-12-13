@@ -65,8 +65,6 @@
 #include "modulemanager.h"
 #include "moduleselectdialog.h"
 
-#include "flowgraphview.h"
-
 // config format API level
 static const QString CONFIG_FILE_FORMAT_VERSION = QStringLiteral("2");
 
@@ -217,7 +215,6 @@ MainWindow::MainWindow(QWidget *parent) :
     });
 
     ui->subjectSelectComboBox->setModel(m_subjectList);
-    ui->scrollAreaLayout->addStretch();
 
     // configure actions
     ui->actionRun->setEnabled(false);
@@ -245,10 +242,9 @@ MainWindow::MainWindow(QWidget *parent) :
     // restore main window geometry
     restoreGeometry(settings.value("main/geometry").toByteArray());
 
-    // create new module manager
-    m_modManager = new ModuleManager(this, this);
-    connect(m_modManager, &ModuleManager::moduleCreated, this, &MainWindow::moduleAdded);
-    connect(m_modManager, &ModuleManager::moduleError, this, &MainWindow::receivedModuleError);
+    // get reference to module manager
+    m_modManager = ui->graphForm->moduleManager();
+    connect(m_modManager, &ModuleManager::moduleError, this, &MainWindow::moduleErrorReceived);
 
     // create loading indicator for long loading/running tasks
     m_runIndicatorWidget = new QSvgWidget(this);
@@ -259,21 +255,6 @@ MainWindow::MainWindow(QWidget *parent) :
     m_runIndicatorWidget->setMinimumSize(QSize(indicatorWidgetDim, indicatorWidgetDim));
     m_runIndicatorWidget->raise();
     m_runIndicatorWidget->hide();
-
-
-    // test area
-    m_fgView = new FlowGraphView;
-    auto tn = new FlowGraphNode("TestDuplex", FlowGraphItem::Duplex);
-    tn->addInputPort("InputData");
-    tn->addOutputPort("OutputDataPort1");
-    tn->addOutputPort("OutputDataPort2");
-
-    auto ts = new FlowGraphNode("TestSink", FlowGraphItem::Input);
-    ts->addInputPort("InputData");
-
-    m_fgView->addItem(tn);
-    m_fgView->addItem(ts);
-    m_fgView->show();
 }
 
 MainWindow::~MainWindow()
@@ -289,7 +270,7 @@ void MainWindow::setRunPossible(bool enabled)
 void MainWindow::setStopPossible(bool enabled)
 {
     ui->actionStop->setEnabled(enabled);
-    ui->tbAddModule->setEnabled(!enabled);
+    ui->graphForm->setModifyPossible(!enabled);
     if (enabled)
         m_runIndicatorWidget->show();
     else
@@ -816,36 +797,7 @@ void MainWindow::setStatusText(const QString& msg)
     QApplication::processEvents();
 }
 
-void MainWindow::on_tbAddModule_clicked()
-{
-    ModuleSelectDialog modDialog(m_modManager->moduleInfo(), this);
-    if (modDialog.exec() == QDialog::Accepted) {
-        m_runIndicatorWidget->show();
-        if (!modDialog.selectedEntryId().isEmpty()) {
-            auto mod = m_modManager->createModule(modDialog.selectedEntryId());
-            mod->showSettingsUi();
-        }
-        m_runIndicatorWidget->hide();
-    }
-}
-
-void MainWindow::moduleAdded(ModuleInfo *info, AbstractModule *mod)
-{
-    auto mi = new ModuleIndicator(info, mod, m_modManager, ui->scrollArea);
-
-    // add widget after the stretcher
-    ui->scrollAreaLayout->insertWidget(ui->scrollAreaLayout->count() - 1, mi);
-
-    auto modNode = new FlowGraphNode(mod->name(), FlowGraphItem::Duplex);
-    modNode->setNodeIcon(info->pixmap());
-    Q_FOREACH(auto iport, mod->inPorts())
-        modNode->addInputPort(iport->acceptedTypeName());
-    Q_FOREACH(auto oport, mod->outPorts())
-        modNode->addOutputPort(oport->dataTypeName());
-    m_fgView->addItem(modNode);
-}
-
-void MainWindow::receivedModuleError(AbstractModule *mod, const QString &message)
+void MainWindow::moduleErrorReceived(AbstractModule *mod, const QString &message)
 {
     Q_UNUSED(mod)
     Q_UNUSED(message)

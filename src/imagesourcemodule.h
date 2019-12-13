@@ -23,7 +23,7 @@
 #include <chrono>
 #include <opencv2/core.hpp>
 
-#include "abstractmodule.h"
+#include "moduleapi.h"
 #include "utils.h"
 
 class VideoWriter;
