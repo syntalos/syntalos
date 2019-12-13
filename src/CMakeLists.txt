@@ -14,8 +14,6 @@ set(MAZEAMAZE_SRC
     mainwindow.cpp
     testsubjectlistmodel.h
     testsubjectlistmodel.cpp
-    moduleindicator.h
-    moduleindicator.cpp
     moduleapi.h
     moduleapi.cpp
     modulemanager.h
@@ -45,7 +43,6 @@ set(MAZEAMAZE_SRC
 
 set(MAZEAMAZE_UI
     mainwindow.ui
-    moduleindicator.ui
     moduleselectdialog.ui
     aboutdialog.ui
     modulegraphform.ui

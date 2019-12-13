@@ -55,15 +55,12 @@
 #include <QSvgWidget>
 #include <QStorageInfo>
 #include <QFontMetricsF>
-
 #include <KTar>
 
 #include "aboutdialog.h"
-#include "hrclock.h"
-
-#include "moduleindicator.h"
+#include "moduleapi.h"
 #include "modulemanager.h"
-#include "moduleselectdialog.h"
+
 
 // config format API level
 static const QString CONFIG_FILE_FORMAT_VERSION = QStringLiteral("2");
