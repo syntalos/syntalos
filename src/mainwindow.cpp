@@ -824,13 +824,6 @@ void MainWindow::on_tbAddModule_clicked()
         if (!modDialog.selectedEntryId().isEmpty()) {
             auto mod = m_modManager->createModule(modDialog.selectedEntryId());
             mod->showSettingsUi();
-
-            auto modNode = new FlowGraphNode(mod->name(), FlowGraphItem::Duplex);
-            Q_FOREACH(auto iport, mod->inPorts())
-                modNode->addInputPort(iport->acceptedTypeName());
-            Q_FOREACH(auto oport, mod->outPorts())
-                modNode->addOutputPort(oport->dataTypeName());
-            m_fgView->addItem(modNode);
         }
         m_runIndicatorWidget->hide();
     }
@@ -842,6 +835,14 @@ void MainWindow::moduleAdded(ModuleInfo *info, AbstractModule *mod)
 
     // add widget after the stretcher
     ui->scrollAreaLayout->insertWidget(ui->scrollAreaLayout->count() - 1, mi);
+
+    auto modNode = new FlowGraphNode(mod->name(), FlowGraphItem::Duplex);
+    modNode->setNodeIcon(info->pixmap());
+    Q_FOREACH(auto iport, mod->inPorts())
+        modNode->addInputPort(iport->acceptedTypeName());
+    Q_FOREACH(auto oport, mod->outPorts())
+        modNode->addOutputPort(oport->dataTypeName());
+    m_fgView->addItem(modNode);
 }
 
 void MainWindow::receivedModuleError(AbstractModule *mod, const QString &message)

@@ -77,8 +77,8 @@ public:
 
     // Item modes.
     enum Mode { None = 0,
-        Input = 1, Output = 2,
-        Duplex = Input | Output };
+                Input = 1, Output = 2,
+                Duplex = Input | Output };
 
     // Item hash/map key.
     class ItemKey
@@ -93,18 +93,18 @@ public:
 
         // Key accessors.
         const QString& name() const
-            { return m_name; }
+        { return m_name; }
         Mode mode() const
-            { return m_mode; }
+        { return m_mode; }
         uint type() const
-            { return m_type; }
+        { return m_type; }
 
         // Hash/map key comparators.
         bool operator== (const ItemKey& key) const
         {
             return ItemKey::type() == key.type()
-                && ItemKey::mode() == key.mode()
-                && ItemKey::name() == key.name();
+                    && ItemKey::mode() == key.mode()
+                    && ItemKey::name() == key.name();
         }
 
     private:
@@ -150,7 +150,7 @@ public:
 
     // Constructor.
     FlowGraphNodePort(FlowGraphNode *node,
-        const QString& name, Mode mode, uint type = 0);
+                      const QString& name, Mode mode, uint type = 0);
 
     // Destructor.
     ~FlowGraphNodePort() override;
@@ -223,12 +223,12 @@ public:
     // Port sorting comparators.
     struct Compare {
         bool operator()(FlowGraphNodePort *port1, FlowGraphNodePort *port2) const
-            { return FlowGraphNodePort::lessThan(port1, port2); }
+        { return FlowGraphNodePort::lessThan(port1, port2); }
     };
 
     struct ComparePos {
         bool operator()(FlowGraphNodePort *port1, FlowGraphNodePort *port2) const
-            { return (port1->scenePos().y() < port2->scenePos().y()); }
+        { return (port1->scenePos().y() < port2->scenePos().y()); }
     };
 
     // Rectangular editor extents.
@@ -237,7 +237,7 @@ public:
 protected:
 
     void paint(QPainter *painter,
-        const QStyleOptionGraphicsItem *option, QWidget *widget) override;
+               const QStyleOptionGraphicsItem *option, QWidget *widget) override;
 
     QVariant itemChange(GraphicsItemChange change, const QVariant& value) override;
 
@@ -270,7 +270,7 @@ private:
 
 
 //----------------------------------------------------------------------------
-// FlowGraphNode -- Node graphics item.
+// FlowGraphNode -- Node graphics item for a module.
 
 class FlowGraphNode : public FlowGraphItem
 {
@@ -335,7 +335,7 @@ public:
 protected:
 
     void paint(QPainter *painter,
-        const QStyleOptionGraphicsItem *option, QWidget *widget) override;
+               const QStyleOptionGraphicsItem *option, QWidget *widget) override;
 
     QVariant itemChange(GraphicsItemChange change, const QVariant& value) override;
 
@@ -397,7 +397,7 @@ public:
 protected:
 
     void paint(QPainter *painter,
-        const QStyleOptionGraphicsItem *option, QWidget *widget) override;
+               const QStyleOptionGraphicsItem *option, QWidget *widget) override;
 
     QVariant itemChange(GraphicsItemChange change, const QVariant& value) override;
 
@@ -457,7 +457,7 @@ public:
 
     // Special node finder.
     FlowGraphNode *findNode(
-        const QString& name, FlowGraphItem::Mode mode, uint type = 0) const;
+            const QString& name, FlowGraphItem::Mode mode, uint type = 0) const;
 
     // Port (dis)connections notifiers.
     void emitConnected(FlowGraphNodePort *port1, FlowGraphNodePort *port2);
@@ -531,7 +531,7 @@ protected:
 
     // Port (dis)connection commands.
     void connectPorts(
-        FlowGraphNodePort *port1, FlowGraphNodePort *port2, bool is_connect);
+            FlowGraphNodePort *port1, FlowGraphNodePort *port2, bool is_connect);
 
     // Mouse event handlers.
     void mousePressEvent(QMouseEvent *event) override;
