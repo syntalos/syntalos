@@ -43,6 +43,7 @@ ModuleGraphForm::ModuleGraphForm(QWidget *parent) :
     ui->actionMenu->setEnabled(false);
     ui->actionRemove->setEnabled(false);
     ui->actionConnect->setEnabled(false);
+    ui->actionDisconnect->setEnabled(false);
     ui->actionDisplay->setEnabled(false);
     ui->actionSettings->setEnabled(false);
 
@@ -54,6 +55,8 @@ ModuleGraphForm::ModuleGraphForm(QWidget *parent) :
 
     connect(ui->graphView->scene(), &QGraphicsScene::selectionChanged, this, &ModuleGraphForm::on_selectionChanged);
     connect(ui->graphView, &FlowGraphView::renamed, this, &ModuleGraphForm::itemRenamed);
+    connect(ui->graphView, &FlowGraphView::connected, this, &ModuleGraphForm::on_portsConnected);
+    connect(ui->graphView, &FlowGraphView::disconnected, this, &ModuleGraphForm::on_portsDisconnected);
     connect(m_modManager, &ModuleManager::modulePreRemove, this, &ModuleGraphForm::on_modulePreRemove);
 
     // test area
@@ -196,10 +199,13 @@ void ModuleGraphForm::on_selectionChanged()
         return;
 
     const auto items = ui->graphView->scene()->selectedItems();
-    if (items.isEmpty())
+    if (items.count() < 2) {
         ui->actionConnect->setEnabled(false);
-    else
+        ui->actionDisconnect->setEnabled(false);
+    } else {
         ui->actionConnect->setEnabled(true);
+        ui->actionDisconnect->setEnabled(true);
+    }
 
     auto node = selectedSingleNode();
     m_menu->clear();
@@ -227,9 +233,26 @@ void ModuleGraphForm::on_selectionChanged()
     }
 }
 
+void ModuleGraphForm::on_portsConnected(FlowGraphNodePort *port1, FlowGraphNodePort *port2)
+{
+    Q_UNUSED(port1)
+    Q_UNUSED(port2)
+}
+
+void ModuleGraphForm::on_portsDisconnected(FlowGraphNodePort *port1, FlowGraphNodePort *port2)
+{
+    Q_UNUSED(port1)
+    Q_UNUSED(port2)
+}
+
 void ModuleGraphForm::on_actionConnect_triggered()
 {
     ui->graphView->connectItems();
+}
+
+void ModuleGraphForm::on_actionDisconnect_triggered()
+{
+    ui->graphView->disconnectItems();
 }
 
 void ModuleGraphForm::on_actionSettings_triggered()

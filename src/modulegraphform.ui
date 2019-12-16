@@ -42,6 +42,7 @@
      </property>
      <addaction name="actionAddModule"/>
      <addaction name="actionConnect"/>
+     <addaction name="actionDisconnect"/>
      <addaction name="actionSettings"/>
      <addaction name="actionDisplay"/>
      <addaction name="actionMenu"/>
@@ -107,6 +108,14 @@
    </property>
    <property name="text">
     <string>Connect</string>
+   </property>
+  </action>
+  <action name="actionDisconnect">
+   <property name="icon">
+    <iconset theme="remove-link"/>
+   </property>
+   <property name="text">
+    <string>Disconnect</string>
    </property>
   </action>
  </widget>

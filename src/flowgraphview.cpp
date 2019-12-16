@@ -1429,10 +1429,19 @@ void FlowGraphView::connectPorts (
     if (node2 == nullptr)
         return;
 
-    if (is_connect)
+    if (is_connect) {
+        auto edge = new FlowGraphEdge();
+        edge->setPort1(port1);
+        edge->setPort2(port2);
+        //edge->updatePortTypeColors();
+        edge->updatePath();
+        addItem(edge);
+        edge->setMarked(true);
+
         emit connected(port1, port2);
-    else
+    } else {
         emit disconnected(port1, port2);
+    }
 }
 
 
@@ -1835,6 +1844,7 @@ void FlowGraphView::disconnectItems (void)
         FlowGraphNodePort *port2 = connect->port2();
         if (port1 && port2)
             connectPorts(port1, port2, false);
+        delete connect;
     }
 }
 

@@ -48,10 +48,13 @@ public:
 private slots:
     void on_actionAddModule_triggered();
     void on_actionConnect_triggered();
+    void on_actionDisconnect_triggered();
     void on_actionSettings_triggered();
     void on_actionDisplay_triggered();
     void on_actionRemove_triggered();
     void on_selectionChanged();
+    void on_portsConnected(FlowGraphNodePort *port1, FlowGraphNodePort *port2);
+    void on_portsDisconnected(FlowGraphNodePort *port1, FlowGraphNodePort *port2);
     void on_modulePreRemove(AbstractModule *mod);
 
     void moduleAdded(ModuleInfo *info, AbstractModule *mod);
