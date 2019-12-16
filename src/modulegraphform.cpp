@@ -158,6 +158,9 @@ void ModuleGraphForm::receiveErrorMessage(const QString &message)
 
 void ModuleGraphForm::receiveMessage(const QString &message)
 {
+    if (m_shutdown)
+        return;
+
     const auto mod = qobject_cast<AbstractModule*>(sender());
     const auto node = m_modNodeMap.value(mod);
     if (node == nullptr)

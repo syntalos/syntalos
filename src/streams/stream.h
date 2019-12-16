@@ -35,17 +35,22 @@ class VariantStreamSubscription
 {
 public:
     virtual ~VariantStreamSubscription();
-    virtual QVariant nextVar() = 0;
     virtual QString dataTypeName() const = 0;
+    virtual QVariant nextVar() = 0;
+    virtual QHash<QString, QVariant> metadata() const = 0;
+    virtual bool active() const = 0;
 };
 
 class VariantDataStream
 {
 public:
     virtual ~VariantDataStream();
-    virtual std::shared_ptr<VariantStreamSubscription> subscribeVar() = 0;
-    virtual void terminate() = 0;
     virtual QString dataTypeName() const = 0;
+    virtual std::shared_ptr<VariantStreamSubscription> subscribeVar() = 0;
+    virtual void start() = 0;
+    virtual void stop() = 0;
+    virtual bool active() const = 0;
+    virtual QHash<QString, QVariant> metadata() = 0;
 };
 
 template<typename T>
@@ -56,16 +61,15 @@ class StreamSubscription : public VariantStreamSubscription
 {
     friend DataStream<T>;
 public:
-    StreamSubscription(const std::string& name)
-        : m_queue(BlockingReaderWriterQueue<std::optional<T>>(256))
+    StreamSubscription()
+        : m_queue(BlockingReaderWriterQueue<std::optional<T>>(256)),
+          m_active(true)
     {
-        m_name = name;
-        m_terminated = false;
     }
 
     std::optional<T> next()
     {
-        if (m_terminated && m_queue.peek() == nullptr)
+        if (!m_active && m_queue.peek() == nullptr)
             return std::nullopt;
         std::optional<T> data;
         m_queue.wait_dequeue(data);
@@ -74,7 +78,7 @@ public:
 
     QVariant nextVar() override
     {
-        if (m_terminated && m_queue.peek() == nullptr)
+        if (!m_active && m_queue.peek() == nullptr)
             return QVariant();
         std::optional<T> data;
         m_queue.wait_dequeue(data);
@@ -88,16 +92,25 @@ public:
         return QMetaType::typeName(qMetaTypeId<T>());
     }
 
-    auto name() const
+    QHash<QString, QVariant> metadata() const override
     {
-        return m_name;
+        return m_metadata;
+    }
+
+    bool active() const override
+    {
+        return m_active;
     }
 
 private:
     BlockingReaderWriterQueue<std::optional<T>> m_queue;
-    std::atomic_bool m_terminated;
+    std::atomic_bool m_active;
+    QHash<QString, QVariant> m_metadata;
 
-    std::string m_name;
+    void setMetadata(const QHash<QString, QVariant> &metadata)
+    {
+        m_metadata = metadata;
+    }
 
     void push(const T &data)
     {
@@ -106,7 +119,7 @@ private:
 
     void terminate()
     {
-        m_terminated = true;
+        m_active = false;
         m_queue.enqueue(std::nullopt);
     }
 };
@@ -117,7 +130,7 @@ class DataStream : public VariantDataStream
 {
 public:
     DataStream()
-        : m_allowSubscribe(true)
+        : m_active(false)
     {
         m_ownerId = std::this_thread::get_id();
     }
@@ -132,40 +145,65 @@ public:
         return QMetaType::typeName(qMetaTypeId<T>());
     }
 
-    std::shared_ptr<StreamSubscription<T>> subscribe(const std::string& name)
+    QHash<QString, QVariant> metadata() override
     {
-        //if (!m_allowSubscribe)
-        //    return nullptr;
+        return m_metadata;
+    }
+
+    std::shared_ptr<StreamSubscription<T>> subscribe()
+    {
+        // we don't permit subscriptions to an active stream
+        assert(!m_active);
+        if (m_active)
+            return nullptr;
         std::lock_guard<std::mutex> lock(m_mutex);
-        std::shared_ptr<StreamSubscription<T>> sub(new StreamSubscription<T> (name));
+        std::shared_ptr<StreamSubscription<T>> sub(new StreamSubscription<T>());
         m_subs.push_back(sub);
         return sub;
     }
 
     std::shared_ptr<VariantStreamSubscription> subscribeVar() override
     {
-        return subscribe(nullptr);
+        return subscribe();
+    }
+
+    void start() override
+    {
+        m_ownerId = std::this_thread::get_id();
+        for(auto& sub: m_subs)
+            sub->setMetadata(m_metadata);
+        m_active = true;
+    }
+
+    void stop() override
+    {
+        std::for_each(m_subs.begin(), m_subs.end(), [](std::shared_ptr<StreamSubscription<T>> sub){ sub->terminate(); });
+        m_active = false;
     }
 
     void push(const T &data)
     {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        m_allowSubscribe = false;
+        if (!m_active)
+            return;
         for(auto& sub: m_subs)
             sub->push(data);
     }
 
-    void terminate() override
+    void terminate()
     {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        std::for_each(m_subs.begin(), m_subs.end(), [](std::shared_ptr<StreamSubscription<T>> sub){ sub->terminate(); });
+        stop();
         m_subs.clear();
-        m_allowSubscribe = true;
+    }
+
+    bool active() const override
+    {
+        return m_active;
     }
 
 private:
     std::thread::id m_ownerId;
-    std::atomic_bool m_allowSubscribe;
+    std::atomic_bool m_active;
     std::mutex m_mutex;
     std::vector<std::shared_ptr<StreamSubscription<T>>> m_subs;
+    QHash<QString, QVariant> m_metadata;
 };

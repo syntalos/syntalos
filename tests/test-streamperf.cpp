@@ -91,7 +91,7 @@ void consumer_fast(const std::string& threadName, Barrier *barrier, DataStream<M
     pthread_setname_np(pthread_self(), threadName.c_str());
     size_t lastId = 0;
 
-    auto sub = stream->subscribe(threadName);
+    auto sub = stream->subscribe();
     barrier->wait();
     while (true) {
         auto data = sub->next();
@@ -114,7 +114,7 @@ void consumer_slow(const std::string& threadName, Barrier *barrier, DataStream<M
     pthread_setname_np(pthread_self(), threadName.c_str());
     size_t lastId = 0;
 
-    auto sub = stream->subscribe(threadName);
+    auto sub = stream->subscribe();
     barrier->wait();
     while (true) {
         auto data = sub->next();
@@ -135,7 +135,7 @@ void consumer_instant(const std::string& threadName, Barrier *barrier, DataStrea
 {
     pthread_setname_np(pthread_self(), threadName.c_str());
 
-    auto sub = stream->subscribe(threadName);
+    auto sub = stream->subscribe();
     barrier->wait();
     while (true) {
         auto data = sub->next();
@@ -150,7 +150,7 @@ void transformer_fast(const std::string& threadName, Barrier *barrier, DataStrea
     pthread_setname_np(pthread_self(), threadName.c_str());
     size_t count = 1;
 
-    auto sub = recvStream->subscribe(threadName);
+    auto sub = recvStream->subscribe();
     barrier->wait();
     while (true) {
         auto data = sub->next();

@@ -243,7 +243,7 @@ bool AbstractModule::canRemove(AbstractModule *mod)
 
 std::shared_ptr<StreamSubscription<ModuleMessage>> AbstractModule::getMessageSubscription()
 {
-    return m_msgStream->subscribe(nullptr);
+    return m_msgStream->subscribe();
 }
 
 void AbstractModule::subscribeToSysEvents(std::shared_ptr<StreamSubscription<SystemStatusEvent> > subscription)
