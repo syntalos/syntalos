@@ -105,9 +105,9 @@ void ModuleGraphForm::moduleAdded(ModuleInfo *info, AbstractModule *mod)
     auto node = new FlowGraphNode(mod->name(), FlowGraphItem::Duplex);
     node->setNodeIcon(info->pixmap());
     Q_FOREACH(auto iport, mod->inPorts())
-        node->addInputPort(iport->acceptedTypeName());
+        node->addInputPort(iport->id());
     Q_FOREACH(auto oport, mod->outPorts())
-        node->addOutputPort(oport->dataTypeName());
+        node->addOutputPort(oport->id());
     ui->graphView->addItem(node);
     m_nodeModMap.insert(node, mod);
     m_modNodeMap.insert(mod, node);

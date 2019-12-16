@@ -65,8 +65,9 @@ void ModuleInfo::setCount(int count)
     m_count = count;
 }
 
-StreamInputPort::StreamInputPort(const QString &title)
-    : m_title(title)
+StreamInputPort::StreamInputPort(const QString &id, const QString &title)
+    : m_id(id),
+      m_title(title)
 {
 }
 
@@ -95,8 +96,19 @@ void StreamInputPort::resetSubscription()
     m_sub.reset();
 }
 
-StreamOutputPort::StreamOutputPort(const QString &title, std::shared_ptr<VariantDataStream> stream)
-    : m_title(title),
+QString StreamInputPort::id() const
+{
+    return m_id;
+}
+
+QString StreamInputPort::title() const
+{
+    return m_title;
+}
+
+StreamOutputPort::StreamOutputPort(const QString &id, const QString &title, std::shared_ptr<VariantDataStream> stream)
+    : m_id(id),
+      m_title(title),
       m_stream(stream)
 {
 }
@@ -109,6 +121,16 @@ bool StreamOutputPort::canSubscribe(const QString &typeName)
 QString StreamOutputPort::dataTypeName() const
 {
     return m_stream->dataTypeName();
+}
+
+QString StreamOutputPort::id() const
+{
+    return m_id;
+}
+
+QString StreamOutputPort::title() const
+{
+    return m_title;
 }
 
 AbstractModule::AbstractModule(QObject *parent) :
@@ -253,12 +275,12 @@ void AbstractModule::subscribeToSysEvents(std::shared_ptr<StreamSubscription<Sys
 
 QList<std::shared_ptr<StreamInputPort> > AbstractModule::inPorts() const
 {
-    return m_inPorts;
+    return m_inPorts.values();
 }
 
 QList<std::shared_ptr<StreamOutputPort> > AbstractModule::outPorts() const
 {
-    return m_outPorts;
+    return m_outPorts.values();
 }
 
 bool AbstractModule::makeDirectory(const QString &dir)

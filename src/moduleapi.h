@@ -25,6 +25,7 @@
 #include <QByteArray>
 #include <QAction>
 #include <QPixmap>
+#include <QDebug>
 
 #include "utils.h"
 #include "hrclock.h"
@@ -101,7 +102,7 @@ Q_DECLARE_INTERFACE(ModuleInfo, ModuleInfoInterface_iid)
 class StreamInputPort
 {
 public:
-    explicit StreamInputPort(const QString &title);
+    explicit StreamInputPort(const QString &id, const QString &title);
 
     template<typename T>
     void setAcceptedType()
@@ -122,7 +123,11 @@ public:
         return m_sub;
     }
 
+    QString id() const;
+    QString title() const;
+
 private:
+    QString m_id;
     QString m_title;
     QString m_acceptedTypeName;
     std::optional<std::shared_ptr<VariantStreamSubscription>> m_sub;
@@ -131,7 +136,7 @@ private:
 class StreamOutputPort
 {
 public:
-    explicit StreamOutputPort(const QString &title, std::shared_ptr<VariantDataStream> stream);
+    explicit StreamOutputPort(const QString &id, const QString &title, std::shared_ptr<VariantDataStream> stream);
 
     bool canSubscribe(const QString &typeName);
     QString dataTypeName() const;
@@ -142,7 +147,11 @@ public:
         return m_stream;
     }
 
+    QString id() const;
+    QString title() const;
+
 private:
+    QString m_id;
     QString m_title;
     std::shared_ptr<VariantDataStream> m_stream;
 };
@@ -182,11 +191,14 @@ public:
      * @returns The data stream instance for this module to write to.
      */
     template<typename T>
-    std::shared_ptr<DataStream<T>> registerOutputPort(const QString &title)
+    std::shared_ptr<DataStream<T>> registerOutputPort(const QString &id, const QString &title = QString())
     {
+        if (m_outPorts.contains(id))
+            qWarning() << "Module" << name() << "already registered an output port with ID:" << id;
+
         std::shared_ptr<DataStream<T>> stream(new DataStream<T>());
-        std::shared_ptr<StreamOutputPort> outPort(new StreamOutputPort(title, stream));
-        m_outPorts.append(outPort);
+        std::shared_ptr<StreamOutputPort> outPort(new StreamOutputPort(id, title, stream));
+        m_outPorts.insert(id, outPort);
         return stream;
     }
 
@@ -200,11 +212,14 @@ public:
      * @returns A StreamInputPort instance, which can be checked for subscriptions
      */
     template<typename T>
-    std::shared_ptr<StreamInputPort> registerInputPort(const QString &title)
+    std::shared_ptr<StreamInputPort> registerInputPort(const QString &id, const QString &title = QString())
     {
-        std::shared_ptr<StreamInputPort> inPort(new StreamInputPort(title));
+        if (m_inPorts.contains(id))
+            qWarning() << "Module" << name() << "already registered an output port with ID:" << id;
+
+        std::shared_ptr<StreamInputPort> inPort(new StreamInputPort(id, title));
         inPort->setAcceptedType<T>();
-        m_inPorts.append(inPort);
+        m_inPorts.insert(id, inPort);
         return inPort;
     }
 
@@ -360,8 +375,8 @@ private:
     QString m_lastError;
     QString m_id;
     std::unique_ptr<DataStream<ModuleMessage>> m_msgStream;
-    QList<std::shared_ptr<StreamOutputPort>> m_outPorts;
-    QList<std::shared_ptr<StreamInputPort>> m_inPorts;
+    QMap<QString, std::shared_ptr<StreamOutputPort>> m_outPorts;
+    QMap<QString, std::shared_ptr<StreamInputPort>> m_inPorts;
     bool m_initialized;
 
     void setId(const QString &id);

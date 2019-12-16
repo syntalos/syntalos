@@ -45,7 +45,7 @@ public:
     MMData() { }
     ~MMData() { }
 
-    QHash<QString, QSharedPointer<ModuleInfo>> modInfos;
+    QMap<QString, QSharedPointer<ModuleInfo>> modInfos;
 
     QWidget *parentWidget;
     QList<AbstractModule*> modules;

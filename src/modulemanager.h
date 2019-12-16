@@ -64,8 +64,9 @@ private slots:
     void receiveModuleError(const QString& message);
 
 private:
+    Q_DISABLE_COPY(ModuleManager)
     class MMData;
-    QSharedPointer<MMData> d; // FIXME
+    QScopedPointer<MMData> d;
 
     bool removeModuleImmediately(AbstractModule *mod);
     template<typename T> void registerModuleInfo();
