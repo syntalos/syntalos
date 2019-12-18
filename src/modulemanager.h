@@ -37,7 +37,7 @@ class ModuleManager : public QObject
 {
     Q_OBJECT
 public:
-    explicit ModuleManager(QObject *parent = nullptr, QWidget *parentWidget = nullptr);
+    explicit ModuleManager(QWidget *parentWidget = nullptr);
     ~ModuleManager();
 
     QList<QSharedPointer<ModuleInfo>> moduleInfo() const;
@@ -55,6 +55,8 @@ public:
 
     void removeAll();
 
+    QWidget *parentWidget() const;
+
 signals:
     void moduleCreated(ModuleInfo *info, AbstractModule *mod);
     void modulePreRemove(AbstractModule *mod);
@@ -66,7 +68,7 @@ private slots:
 private:
     Q_DISABLE_COPY(ModuleManager)
     class MMData;
-    QScopedPointer<MMData> d;
+    QSharedDataPointer<MMData> d;
 
     bool removeModuleImmediately(AbstractModule *mod);
     template<typename T> void registerModuleInfo();

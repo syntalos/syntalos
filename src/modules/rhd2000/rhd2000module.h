@@ -49,7 +49,7 @@ public:
 
     bool initialize(ModuleManager *manager) override;
 
-    bool prepare(const QString& storageRootDir, const TestSubject& testSubject, HRTimer *timer) override;
+    bool prepare(const QString& storageRootDir, const TestSubject& testSubject) override;
 
     void start() override;
 

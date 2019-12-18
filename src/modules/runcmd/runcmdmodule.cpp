@@ -67,11 +67,10 @@ bool RunCmdModule::initialize(ModuleManager *manager)
     return true;
 }
 
-bool RunCmdModule::prepare(const QString &storageRootDir, const TestSubject &testSubject, HRTimer *timer)
+bool RunCmdModule::prepare(const QString &storageRootDir, const TestSubject &testSubject)
 {
     Q_UNUSED(storageRootDir)
     Q_UNUSED(testSubject)
-    Q_UNUSED(timer)
     setState(ModuleState::PREPARING);
 
 

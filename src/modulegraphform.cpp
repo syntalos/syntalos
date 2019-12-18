@@ -37,7 +37,7 @@ ModuleGraphForm::ModuleGraphForm(QWidget *parent) :
 {
     ui->setupUi(this);
 
-    m_modManager = new ModuleManager(this, parent);
+    m_modManager = new ModuleManager(parent? parent : this);
     connect(m_modManager, &ModuleManager::moduleCreated, this, &ModuleGraphForm::moduleAdded);
 
     ui->actionMenu->setEnabled(false);

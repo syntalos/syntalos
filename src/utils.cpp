@@ -19,10 +19,6 @@
 
 #include "utils.h"
 
-#include <chrono>
-
-using namespace std::chrono;
-
 QString createRandomString(int len)
 {
     const auto possibleCahrs = QStringLiteral("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789");

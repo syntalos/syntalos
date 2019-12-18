@@ -108,10 +108,9 @@ bool VideoRecorderModule::initialize(ModuleManager *manager)
     return true;
 }
 
-bool VideoRecorderModule::prepare(const QString &storageRootDir, const TestSubject &testSubject, HRTimer *timer)
+bool VideoRecorderModule::prepare(const QString &storageRootDir, const TestSubject &testSubject)
 {
     Q_UNUSED(testSubject)
-    Q_UNUSED(timer)
     setState(ModuleState::PREPARING);
 
     m_vidStorageDir = QStringLiteral("%1/videos").arg(storageRootDir);
@@ -268,9 +267,9 @@ void VideoRecorderModule::recvModulePreRemove(AbstractModule *mod)
     }
 }
 
-void VideoRecorderModule::receiveFrame(const FrameData &frameData)
+void VideoRecorderModule::receiveFrame(const Frame &frame)
 {
     // Video recorder modules are special in that we directly register them with the recorder module's
     // DAQ thread, so their performance will not suffer from additional signal/slots and queueing overhead
-    Q_UNUSED(frameData)
+    Q_UNUSED(frame)
 }

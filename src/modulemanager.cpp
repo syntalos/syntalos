@@ -52,8 +52,8 @@ public:
 };
 #pragma GCC diagnostic pop
 
-ModuleManager::ModuleManager(QObject *parent, QWidget *parentWidget)
-    : QObject(parent),
+ModuleManager::ModuleManager(QWidget *parentWidget)
+    : QObject(parentWidget),
       d(new MMData)
 {
     d->parentWidget = parentWidget;
@@ -236,6 +236,11 @@ void ModuleManager::removeAll()
     Q_FOREACH(auto mod, d->modules) {
         removeModuleImmediately(mod);
     }
+}
+
+QWidget *ModuleManager::parentWidget() const
+{
+    return d->parentWidget;
 }
 
 QList<QSharedPointer<ModuleInfo> > ModuleManager::moduleInfo() const

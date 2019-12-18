@@ -21,30 +21,6 @@
 #define UTILS_H
 
 #include <QString>
-#include <QJsonObject>
-#include <chrono>
-
-/**
- * @brief The TestSubject struct
- * Data about a test subject.
- */
-struct TestSubject {
-    QString id;
-    QString group;
-    bool active;
-    int adaptorHeight; // in mm
-    QString comment;
-};
-
-namespace cv {
-class Mat;
-}
-
-/**
- * Type of a pair of frame data with a timestamp, usually passed around between modules
- * within MazeAmaze.
- */
-using FrameData = std::pair<cv::Mat, std::chrono::milliseconds>;
 
 QString createRandomString(int len);
 

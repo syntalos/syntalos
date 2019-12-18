@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2020 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -53,13 +53,12 @@
 #include <QScrollBar>
 #include <QHeaderView>
 #include <QSvgWidget>
-#include <QStorageInfo>
 #include <QFontMetricsF>
 #include <KTar>
 
 #include "aboutdialog.h"
+#include "engine.h"
 #include "moduleapi.h"
-#include "modulemanager.h"
 
 
 // config format API level
@@ -167,7 +166,6 @@ MainWindow::MainWindow(QWidget *parent) :
         }
 
         sub.group = ui->groupLineEdit->text();
-        sub.adaptorHeight = ui->adaptorHeightSpinBox->value();
         sub.active = ui->subjectActiveCheckBox->isChecked();
         sub.comment = ui->remarksTextEdit->toPlainText();
         m_subjectList->addSubject(sub);
@@ -202,7 +200,6 @@ MainWindow::MainWindow(QWidget *parent) :
         sub.id = id;
 
         sub.group = ui->groupLineEdit->text();
-        sub.adaptorHeight = ui->adaptorHeightSpinBox->value();
         sub.active = ui->subjectActiveCheckBox->isChecked();
         sub.comment = ui->remarksTextEdit->toPlainText();
 
@@ -227,11 +224,6 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->exportDirLabel->setText(QStringLiteral("???"));
     ui->exportBaseDirLabel->setText(QStringLiteral("The directory you select."));
     ui->tabWidget->setCurrentIndex(0);
-    m_exportDirValid = false;
-
-    // set date ID string
-    auto time = QDateTime::currentDateTime();
-    m_currentDate = time.date().toString("yyyy-MM-dd");
 
     // connect about dialog trigger
     connect(ui->actionAbout, &QAction::triggered, this, &MainWindow::aboutActionTriggered);
@@ -239,9 +231,10 @@ MainWindow::MainWindow(QWidget *parent) :
     // restore main window geometry
     restoreGeometry(settings.value("main/geometry").toByteArray());
 
-    // get reference to module manager
-    m_modManager = ui->graphForm->moduleManager();
-    connect(m_modManager, &ModuleManager::moduleError, this, &MainWindow::moduleErrorReceived);
+    // new engine
+    m_engine = new Engine(ui->graphForm->moduleManager());
+    connect(m_engine, &Engine::runFailed, this, &MainWindow::moduleErrorReceived);
+    connect(m_engine, &Engine::statusMessage, this, &MainWindow::statusMessageChanged);
 
     // create loading indicator for long loading/running tasks
     m_runIndicatorWidget = new QSvgWidget(this);
@@ -274,194 +267,23 @@ void MainWindow::setStopPossible(bool enabled)
         m_runIndicatorWidget->hide();
 }
 
-bool MainWindow::makeDirectory(const QString &dir)
-{
-    if (!QDir().mkpath(dir)) {
-        QMessageBox::critical(this, "Error",
-                              QString("Unable to create directory '%1'.").arg(dir));
-        setStatusText("OS error.");
-        return false;
-    }
-
-    return true;
-}
-
 void MainWindow::runActionTriggered()
 {
     setRunPossible(false);
     setStopPossible(true);
-    m_failed = false;
 
-    if (m_modManager->activeModules().isEmpty()) {
-        QMessageBox::warning(this, "Configuration error", "You did not add a single module to be run.\nPlease add a module to the experiment to continue.");
-        setRunPossible(true);
-        setStopPossible(false);
-        return;
-    }
+    m_engine->run();
 
-    // determine and create the directory for ephys data
-    qDebug() << "Initializing new recording run";
-
-    // test for available disk space and readyness of device
-    QStorageInfo storageInfo(m_dataExportBaseDir);
-    if (storageInfo.isValid() && storageInfo.isReady()) {
-        auto mbAvailable = storageInfo.bytesAvailable() / 1000 / 1000;
-        qDebug().noquote() << mbAvailable << "MB available in data export location";
-        // TODO: Make the warning level configurable in global settings
-        if (mbAvailable < 8000) {
-            auto reply = QMessageBox::question(this,
-                                               QStringLiteral("Disk is almost full - Continue anyway?"),
-                                               QStringLiteral("The disk '%1' is located on has low amounts of space available (< 8 GB). "
-                                                              "If this run generates more data than we have space for, it will fail (possibly corrupting data). Continue anyway?")
-                                                              .arg(m_dataExportBaseDir),
-                                               QMessageBox::Yes | QMessageBox::No);
-            if (reply == QMessageBox::No) {
-                setRunPossible(true);
-                setStopPossible(false);
-                return;
-            }
-        }
-    } else {
-        QMessageBox::critical(this, QStringLiteral("Disk not ready"),
-                              QStringLiteral("The disk device at '%1' is either invalid (not mounted) or not ready for operation. Can not continue.").arg(m_dataExportBaseDir));
-        setRunPossible(true);
-        setStopPossible(false);
-        return;
-    }
-
-    // safeguard against accidental data removals
-    QDir deDir(m_dataExportDir);
-    if (deDir.exists()) {
-        auto reply = QMessageBox::question(this,
-                                           QStringLiteral("Existing data found - Continue anyway?"),
-                                           QStringLiteral("The directory '%1' already contains data (likely from a previous run). "
-                                                          "If you continue, the old data will be deleted. Continue and delete data?")
-                                                          .arg(m_dataExportDir),
-                                           QMessageBox::Yes | QMessageBox::No);
-        if (reply == QMessageBox::No) {
-            setRunPossible(true);
-            setStopPossible(false);
-            return;
-        }
-        setStatusText("Removing data from an old run...");
-        deDir.removeRecursively();
-    }
-
-    if (!makeDirectory(m_dataExportDir)) {
-        setRunPossible(true);
-        setStopPossible(false);
-        return;
-    }
-
-    // fetch list of modules in their activation order
-    auto orderedActiveModules = m_modManager->createOrderedModuleList();
-
-    auto timer = new HRTimer;
-    bool prepareStepFailed = false;
-    Q_FOREACH(auto mod, orderedActiveModules) {
-        setStatusText(QStringLiteral("Preparing %1...").arg(mod->name()));
-        mod->setStatusMessage(QString());
-        if (!mod->prepare(m_dataExportDir, m_currentSubject, timer)) {
-            m_failed = true;
-            prepareStepFailed = true;
-            setStatusText(QStringLiteral("Module %1 failed to prepare.").arg(mod->name()));
-            break;
-        }
-    }
-
-    // Only actually launch if preparation didn't fail.
-    // we still call stop() on all modules afterwards though,
-    // as some might need a stop call to clean up resources ther were
-    // set up during preparations.
-    // Modules are expected to deal with multiple calls to stop().
-    if (!prepareStepFailed) {
-        setStatusText(QStringLiteral("Initializing launch..."));
-
-        timer->start();
-        Q_FOREACH(auto mod, orderedActiveModules)
-            mod->start();
-
-        m_running = true;
-        setStatusText(QStringLiteral("Running..."));
-
-        while (m_running) {
-            Q_FOREACH(auto mod, orderedActiveModules) {
-                if (!mod->runCycle()){
-                    setStatusText(QStringLiteral("Module %1 failed.").arg(mod->name()));
-                    m_failed = true;
-                    break;
-                }
-            }
-            QApplication::processEvents();
-            if (m_failed)
-                break;
-        }
-    }
-
-    auto finishTimestamp = static_cast<long long>(timer->timeSinceStartMsec().count());
-
-    Q_FOREACH(auto mod, orderedActiveModules) {
-        setStatusText(QStringLiteral("Stopping %1...").arg(mod->name()));
-        mod->stop();
-
-        // ensure modules display the correct state after we stopped a run
-        if (mod->state() == ModuleState::RUNNING || mod->state() == ModuleState::WAITING)
-            mod->setState(ModuleState::READY);
-    }
-
-    delete timer;
-
-    if (prepareStepFailed) {
-        // if we failed to prepare this run, don't save the manifest and also
-        // remove any data that we might have already created, as well as the
-        // export directory.
-        deDir.removeRecursively();
-    } else {
-        setStatusText(QStringLiteral("Writing manifest..."));
-
-        // write manifest with misc information
-        QDateTime curDateTime(QDateTime::currentDateTime());
-
-        QJsonObject manifest;
-        manifest.insert("appVersion", QApplication::applicationVersion());
-        manifest.insert("subjectId", m_currentSubject.id);
-        manifest.insert("subjectGroup", m_currentSubject.group);
-        manifest.insert("subjectComment", m_currentSubject.comment);
-        manifest.insert("recordingLengthMsec", finishTimestamp);
-        manifest.insert("date", curDateTime.toString(Qt::ISODate));
-        manifest.insert("success", !m_failed);
-
-        QJsonArray jActiveModules;
-        Q_FOREACH(auto mod, orderedActiveModules) {
-            QJsonObject info;
-            info.insert(mod->id(), mod->name());
-            jActiveModules.append(info);
-        }
-        manifest.insert("activeModules", jActiveModules);
-
-        const auto manifestFilename = QStringLiteral("%1/manifest.json").arg(m_dataExportDir);
-        qDebug() << "Saving manifest as:" << manifestFilename;
-        QFile manifestFile(manifestFilename);
-        if (!manifestFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
-            QMessageBox::critical(this, "Unable to finish recording", "Unable to open manifest file for writing.");
-            setRunPossible(true);
-            setStopPossible(false);
-            return;
-        }
-
-        QTextStream manifestFileOut(&manifestFile);
-        manifestFileOut << QJsonDocument(manifest).toJson();
-    }
-
-    setStatusText(QStringLiteral("Ready."));
+    setRunPossible(true);
+    setStopPossible(false);
 }
 
 void MainWindow::stopActionTriggered()
 {
-    setRunPossible(m_exportDirValid);
+    setRunPossible(m_engine->exportDirIsValid());
     setStopPossible(false);
 
-    m_running = false;
+    m_engine->stop();
 }
 
 void MainWindow::setDataExportBaseDir(const QString& dir)
@@ -469,46 +291,8 @@ void MainWindow::setDataExportBaseDir(const QString& dir)
     if (dir.isEmpty())
         return;
 
-    m_dataExportBaseDir = dir;
-    m_exportDirValid = QDir().exists(m_dataExportBaseDir);
-
-    ui->exportBaseDirLabel->setText(m_dataExportBaseDir);
-
-    auto font = ui->exportBaseDirLabel->font();
-    font.setBold(false);
-    auto palette = ui->exportBaseDirLabel->palette();
-    palette.setColor(QPalette::WindowText, Qt::black);
-    if (m_dataExportBaseDir.startsWith(QStandardPaths::writableLocation(QStandardPaths::TempLocation)) ||
-        m_dataExportBaseDir.startsWith(QStandardPaths::writableLocation(QStandardPaths::CacheLocation))) {
-        font.setBold(true);
-        palette.setColor(QPalette::WindowText, Qt::red);
-    }
-    ui->exportBaseDirLabel->setPalette(palette);
-    ui->exportBaseDirLabel->setFont(font);
-
-    // update the export directory
-    updateDataExportDir();
-
-    // we can run as soon as we have a valid base directory
-    setRunPossible(m_exportDirValid);
-}
-
-void MainWindow::updateDataExportDir()
-{
-    m_dataExportDir = QDir::cleanPath(QString::fromUtf8("%1/%2/%3/%4")
-                                    .arg(m_dataExportBaseDir)
-                                    .arg(m_currentSubject.id)
-                                    .arg(m_currentDate)
-                                    .arg(m_experimentId));
-
-    auto palette = ui->exportDirLabel->palette();
-    palette.setColor(QPalette::WindowText, Qt::black);
-    if (m_dataExportDir.startsWith(QStandardPaths::writableLocation(QStandardPaths::TempLocation)) ||
-        m_dataExportDir.startsWith(QStandardPaths::writableLocation(QStandardPaths::CacheLocation))) {
-        palette.setColor(QPalette::WindowText, Qt::red);
-    }
-    ui->exportDirLabel->setPalette(palette);
-    ui->exportDirLabel->setText(m_dataExportDir);
+    m_engine->setExportBaseDir(dir);
+    updateExportDirDisplay();
 }
 
 bool MainWindow::saveConfiguration(const QString &fileName)
@@ -528,8 +312,8 @@ bool MainWindow::saveConfiguration(const QString &fileName)
     settings.insert("appVersion", QCoreApplication::applicationVersion());
     settings.insert("creationDate", QDateTime::currentDateTime().date().toString());
 
-    settings.insert("exportDir", m_dataExportBaseDir);
-    settings.insert("experimentId", m_experimentId);
+    settings.insert("exportBaseDir", m_engine->exportBaseDir());
+    settings.insert("experimentId", m_engine->experimentId());
 
     // basic configuration
     tar.writeFile ("main.json", QJsonDocument(settings).toJson());
@@ -539,7 +323,7 @@ bool MainWindow::saveConfiguration(const QString &fileName)
 
     // save module settings
     auto modIndex = 0;
-    Q_FOREACH(auto mod, m_modManager->activeModules()) {
+    Q_FOREACH(auto mod, m_engine->modManager()->activeModules()) {
         if (!tar.writeDir(QString::number(modIndex)))
             return false;
         auto modSettings = mod->serializeSettings(confBaseDir.absolutePath());
@@ -601,7 +385,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         }
     }
 
-    setDataExportBaseDir(rootObj.value("exportDir").toString());
+    setDataExportBaseDir(rootObj.value("exportBaseDir").toString());
     ui->expIdEdit->setText(rootObj.value("experimentId").toString());
 
     // load list of subjects
@@ -613,7 +397,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         m_subjectList->fromJson(subjDoc.array());
     }
 
-    m_modManager->removeAll();
+    m_engine->modManager()->removeAll();
     auto rootEntries = rootDir->entries();
     rootEntries.sort();
 
@@ -638,7 +422,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         const auto modName = iobj.value("name").toString();
         const auto uiDisplayGeometry = iobj.value("uiDisplayGeometry").toObject();
 
-        auto mod = m_modManager->createModule(modId);
+        auto mod = m_engine->modManager()->createModule(modId);
         if (mod == nullptr) {
             QMessageBox::critical(this, QStringLiteral("Can not load settings"),
                                   QStringLiteral("Unable to find module '%1' - please install the module first, then attempt to load this configuration again.").arg(modId));
@@ -691,19 +475,18 @@ void MainWindow::openDataExportDirectory()
 
 void MainWindow::changeTestSubject(const TestSubject &subject)
 {
-    m_currentSubject = subject;
-    updateDataExportDir();
+    m_engine->setTestSubject(subject);
 }
 
 void MainWindow::changeExperimentId(const QString& text)
 {
-    m_experimentId = text;
-    updateDataExportDir();
+    m_engine->setExperimentId(text);
+    updateExportDirDisplay();
 }
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    if (m_running)
+    if (m_engine->isRunning())
         stopActionTriggered();
 
     QSettings settings("DraguhnLab", "MazeAmaze");
@@ -756,6 +539,32 @@ void MainWindow::updateWindowTitle(const QString& fileName)
     }
 }
 
+void MainWindow::updateExportDirDisplay()
+{
+    ui->exportBaseDirLabel->setText(m_engine->exportBaseDir());
+
+    auto font = ui->exportBaseDirLabel->font();
+    font.setBold(false);
+    auto palette = ui->exportBaseDirLabel->palette();
+    palette.setColor(QPalette::WindowText, Qt::black);
+    if (m_engine->exportDirIsTempDir()) {
+        font.setBold(true);
+        palette.setColor(QPalette::WindowText, Qt::red);
+    }
+    ui->exportBaseDirLabel->setPalette(palette);
+    ui->exportBaseDirLabel->setFont(font);
+
+    // we can run as soon as we have a valid base directory
+    setRunPossible(m_engine->exportDirIsValid());
+
+    palette = ui->exportDirLabel->palette();
+    palette.setColor(QPalette::WindowText, Qt::black);
+    if (m_engine->exportDirIsTempDir())
+        palette.setColor(QPalette::WindowText, Qt::red);
+    ui->exportDirLabel->setPalette(palette);
+    ui->exportDirLabel->setText(m_engine->exportDir());
+}
+
 void MainWindow::loadSettingsActionTriggered()
 {
     auto fileName = QFileDialog::getOpenFileName(this,
@@ -773,7 +582,7 @@ void MainWindow::loadSettingsActionTriggered()
     if (!loadConfiguration(fileName)) {
         QMessageBox::critical(this, tr("Can not load configuration"),
                               tr("Failed to load configuration."));
-        m_modManager->removeAll();
+        m_engine->modManager()->removeAll();
     }
     m_runIndicatorWidget->hide();
 }
@@ -782,7 +591,7 @@ void MainWindow::aboutActionTriggered()
 {
     AboutDialog about(this);
 
-    Q_FOREACH(auto info, m_modManager->moduleInfo())
+    Q_FOREACH(auto info, m_engine->modManager()->moduleInfo())
         about.addModuleLicense(info->name(), info->license());
 
     about.exec();
@@ -798,10 +607,13 @@ void MainWindow::moduleErrorReceived(AbstractModule *mod, const QString &message
 {
     Q_UNUSED(mod)
     Q_UNUSED(message)
-    m_failed = true;
-    m_running = false;
     setRunPossible(true);
     setStopPossible(false);
+}
+
+void MainWindow::statusMessageChanged(const QString &message)
+{
+    setStatusText(message);
 }
 
 void MainWindow::on_actionSubjectsLoad_triggered()

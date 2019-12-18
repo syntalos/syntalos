@@ -72,7 +72,7 @@ TestSubject TestSubjectListModel::subject(int row) const
 
 bool TestSubjectListModel::removeRows(int position, int rows, const QModelIndex &parent)
 {
-    Q_UNUSED(parent);
+    Q_UNUSED(parent)
 
     beginRemoveRows(QModelIndex(), position, position+rows-1);
 
@@ -86,7 +86,7 @@ bool TestSubjectListModel::removeRows(int position, int rows, const QModelIndex 
 
 bool TestSubjectListModel::removeRow(int row, const QModelIndex &parent)
 {
-    Q_UNUSED(parent);
+    Q_UNUSED(parent)
 
     beginRemoveRows(QModelIndex(), row, row);
     m_subjects.removeAt(row);
@@ -111,7 +111,6 @@ QJsonArray TestSubjectListModel::toJson()
         jsub["id"] = sub.id;
         jsub["group"] = sub.group;
         jsub["active"] = sub.active;
-        jsub["adaptorHeight"] = sub.adaptorHeight;
         jsub["comment"] = sub.comment;
 
         json.append(jsub);
@@ -132,7 +131,6 @@ void TestSubjectListModel::fromJson(const QJsonArray &json)
         sub.id = jsub.value("id").toString();
         sub.group = jsub.value("group").toString();
         sub.active = jsub.value("active").toBool();
-        sub.adaptorHeight = jsub.value("adaptorHeight").toInt();
         sub.comment = jsub.value("comment").toString();
 
         m_subjects.append(sub);

@@ -62,7 +62,7 @@ public:
 
     bool initialize(ModuleManager *manager) override;
 
-    bool prepare(HRTimer *timer) override;
+    bool prepare() override;
     void start() override;
     bool runCycle() override;
 
@@ -75,7 +75,6 @@ private:
     Camera *m_camera;
     VideoViewWidget *m_videoView;
     GenericCameraSettingsDialog *m_camSettingsWindow;
-    HRTimer *m_timer;
 
     QList<VideoWriter*> m_vwriters;
     std::thread *m_thread;
@@ -84,7 +83,7 @@ private:
     std::atomic_bool m_started;
     std::atomic_int m_currentFps;
     int m_fps;
-    boost::circular_buffer<FrameData> m_frameRing;
+    boost::circular_buffer<Frame> m_frameRing;
     std::shared_ptr<DataStream<Frame>> m_outStream;
 
     static void captureThread(void *gcamPtr);

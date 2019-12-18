@@ -24,7 +24,7 @@
 #include <opencv2/core.hpp>
 
 #include "moduleapi.h"
-#include "utils.h"
+#include "streams/frametype.h"
 
 class VideoWriter;
 
@@ -34,8 +34,8 @@ class ImageSourceModule : public AbstractModule
 public:
     explicit ImageSourceModule(QObject *parent = nullptr);
 
-    virtual bool prepare(HRTimer *timer);
-    virtual bool prepare(const QString &storageRootDir, const TestSubject &testSubject, HRTimer *timer) override;
+    virtual bool prepare();
+    virtual bool prepare(const QString &storageRootDir, const TestSubject &testSubject) override;
     virtual int selectedFramerate() const = 0;
     virtual cv::Size selectedResolution() const = 0;
 
@@ -47,7 +47,7 @@ public:
     virtual void attachVideoWriter(VideoWriter *vwriter);
 
 signals:
-    void newFrame(const FrameData& frameData);
+    void newFrame(const Frame& frame);
 
 };
 

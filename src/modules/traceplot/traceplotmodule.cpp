@@ -115,11 +115,10 @@ bool TracePlotModule::initialize(ModuleManager *manager)
     return true;
 }
 
-bool TracePlotModule::prepare(const QString &storageRootDir, const TestSubject &testSubject, HRTimer *timer)
+bool TracePlotModule::prepare(const QString &storageRootDir, const TestSubject &testSubject)
 {
     Q_UNUSED(storageRootDir)
     Q_UNUSED(testSubject)
-    Q_UNUSED(timer)
     setState(ModuleState::PREPARING);
 
     // reset trace plot data

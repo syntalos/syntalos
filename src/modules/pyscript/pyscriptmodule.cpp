@@ -138,7 +138,7 @@ bool PyScriptModule::initialize(ModuleManager *manager)
     return true;
 }
 
-bool PyScriptModule::prepare(const QString &storageRootDir, const TestSubject &testSubject, HRTimer *timer)
+bool PyScriptModule::prepare(const QString &storageRootDir, const TestSubject &testSubject)
 {
     Q_UNUSED(testSubject);
     setState(ModuleState::PREPARING);
@@ -157,7 +157,7 @@ bool PyScriptModule::prepare(const QString &storageRootDir, const TestSubject &t
     if (m_zserver != nullptr)
         delete m_zserver;
     m_zserver = new ZmqServer(m_funcRelay);
-    m_zserver->start(timer);
+    m_zserver->start(m_timer.get());
 
     QStringList args;
     args.append(m_zserver->socketName());

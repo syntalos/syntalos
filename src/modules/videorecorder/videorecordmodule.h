@@ -53,7 +53,7 @@ public:
     ModuleFeatures features() const override;
 
     bool initialize(ModuleManager *manager) override;
-    bool prepare(const QString& storageRootDir, const TestSubject& testSubject, HRTimer *timer) override;
+    bool prepare(const QString& storageRootDir, const TestSubject& testSubject) override;
     void stop() override;
 
     bool canRemove(AbstractModule *mod) override;
@@ -64,7 +64,7 @@ public:
     bool loadSettings(const QString& confBaseDir, const QByteArray& data) override;
 
 public slots:
-    void receiveFrame(const FrameData& frameData) override;
+    void receiveFrame(const Frame& frame) override;
 
 private slots:
     void recvModuleCreated(ModuleInfo *info, AbstractModule *mod);

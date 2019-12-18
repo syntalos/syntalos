@@ -24,7 +24,7 @@
 #include <QList>
 #include <QJsonArray>
 
-#include "utils.h"
+#include "moduleapi.h"
 
 class TestSubjectListModel : public QAbstractListModel
 {

@@ -23,7 +23,7 @@
 #include <opencv2/core.hpp>
 
 #include "moduleapi.h"
-#include "utils.h"
+#include "streams/frametype.h"
 
 class ImageSinkModule : public AbstractModule
 {
@@ -32,7 +32,7 @@ public:
     explicit ImageSinkModule(QObject *parent = nullptr);
 
 public slots:
-    virtual void receiveFrame(const FrameData& frameData) = 0;
+    virtual void receiveFrame(const Frame& frame) = 0;
     void receiveFpsChange(int fps);
 
 protected:

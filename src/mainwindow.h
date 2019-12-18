@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2020 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -24,6 +24,7 @@
 
 #include "utils.h"
 #include "testsubjectlistmodel.h"
+#include "moduleapi.h"
 
 class QLabel;
 class ModuleManager;
@@ -31,6 +32,7 @@ class AbstractModule;
 class ModuleInfo;
 class ModuleIndicator;
 class QSvgWidget;
+class Engine;
 
 namespace Ui {
 class MainWindow;
@@ -62,6 +64,8 @@ private slots:
 
     void moduleErrorReceived(AbstractModule *mod, const QString& message);
 
+    void statusMessageChanged(const QString &message);
+
     void on_actionSubjectsLoad_triggered();
     void on_actionSubjectsSave_triggered();
 
@@ -72,37 +76,24 @@ protected:
 
 private:
     void updateWindowTitle(const QString& fileName);
+    void updateExportDirDisplay();
 
     void setRunPossible(bool enabled);
     void setStopPossible(bool enabled);
 
     void setDataExportBaseDir(const QString& dir);
-    void updateDataExportDir();
 
     bool saveConfiguration(const QString& fileName);
     bool loadConfiguration(const QString& fileName);
 
-    bool makeDirectory(const QString& dir);
-
-    ModuleManager *m_modManager;
-
     Ui::MainWindow *ui;
+
+    Engine *m_engine;
 
     QLabel *m_statusBarLabel;
     QSvgWidget *m_runIndicatorWidget;
 
-    QString m_experimentId;
-    QString m_currentDate;
-
     TestSubjectListModel *m_subjectList;
-    TestSubject m_currentSubject;
-
-    QString m_dataExportBaseDir;
-    QString m_dataExportDir;
-    bool m_exportDirValid;
-
-    bool m_failed;
-    bool m_running;
 };
 
 #endif // MAINWINDOW_H

@@ -28,9 +28,17 @@
  * a complete video.
  * Each frame is timestamped for accuracy.
  */
-typedef struct
+class Frame
 {
+public:
+    explicit Frame() {}
+    explicit Frame(const cv::Mat &m, const milliseconds_t &t)
+    {
+        time = t;
+        mat = m;
+    }
+
     milliseconds_t time;
     cv::Mat mat;
-} Frame;
+};
 Q_DECLARE_METATYPE(Frame)

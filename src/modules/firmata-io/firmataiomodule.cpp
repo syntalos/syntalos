@@ -88,11 +88,10 @@ bool FirmataIOModule::initialize(ModuleManager *manager)
     return true;
 }
 
-bool FirmataIOModule::prepare(const QString &storageRootDir, const TestSubject &testSubject, HRTimer *timer)
+bool FirmataIOModule::prepare(const QString &storageRootDir, const TestSubject &testSubject)
 {
-    Q_UNUSED(storageRootDir);
-    Q_UNUSED(testSubject);
-    Q_UNUSED(timer);
+    Q_UNUSED(storageRootDir)
+    Q_UNUSED(testSubject)
     setState(ModuleState::PREPARING);
 
     // cleanup

@@ -64,7 +64,7 @@ UEyeCameraModule::UEyeCameraModule(QObject *parent)
 {
     m_camera = new UEyeCamera;
 
-    m_frameRing = boost::circular_buffer<FrameData>(64);
+    m_frameRing = boost::circular_buffer<Frame>(64);
 }
 
 UEyeCameraModule::~UEyeCameraModule()
@@ -121,10 +121,9 @@ bool UEyeCameraModule::initialize(ModuleManager *manager)
     return true;
 }
 
-bool UEyeCameraModule::prepare(HRTimer *timer)
+bool UEyeCameraModule::prepare()
 {
     m_started = false;
-    m_timer = timer;
 
     setState(ModuleState::PREPARING);
     if (!startCaptureThread())
@@ -150,13 +149,13 @@ bool UEyeCameraModule::runCycle()
     }
 
     if (!m_frameRing.empty()) {
-        auto frameInfo = m_frameRing.front();
-        m_videoView->showImage(frameInfo.first);
+        auto frame = m_frameRing.front();
+        m_videoView->showImage(frame.mat);
         m_frameRing.pop_front();
 
         // send frame away to connected image sinks, and hope they are
         // handling this efficiently and don't block the loop
-        emit newFrame(frameInfo);
+        emit newFrame(frame);
 
         auto statusText = QStringLiteral("<html>Display buffer: %1/%2").arg(m_frameRing.size()).arg(m_frameRing.capacity());
 
@@ -252,7 +251,7 @@ void UEyeCameraModule::captureThread(void *gcamPtr)
             vwriter->pushFrame(frame, timestampMsec);
 
         self->m_mutex.lock();
-        self->m_frameRing.push_back(std::pair<cv::Mat, milliseconds_t>(frame, timestampMsec));
+        self->m_frameRing.push_back(Frame(frame, timestampMsec));
         self->m_mutex.unlock();
 
         // wait a bit if necessary, to keep the right framerate

@@ -24,21 +24,20 @@ ImageSourceModule::ImageSourceModule(QObject *parent) :
 {
 }
 
-bool ImageSourceModule::prepare(HRTimer *timer)
+bool ImageSourceModule::prepare()
 {
-    Q_UNUSED(timer);
     return true;
 }
 
-bool ImageSourceModule::prepare(const QString &storageRootDir, const TestSubject &testSubject, HRTimer *timer)
+bool ImageSourceModule::prepare(const QString &storageRootDir, const TestSubject &testSubject)
 {
-    Q_UNUSED(storageRootDir);
-    Q_UNUSED(testSubject);
+    Q_UNUSED(storageRootDir)
+    Q_UNUSED(testSubject)
 
-    return prepare(timer);
+    return prepare();
 }
 
 void ImageSourceModule::attachVideoWriter(VideoWriter *vwriter)
 {
-    Q_UNUSED(vwriter);
+    Q_UNUSED(vwriter)
 }

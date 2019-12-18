@@ -3,6 +3,8 @@ add_subdirectory(modules)
 
 set(MAZEAMAZE_SRC
     main.cpp
+    engine.h
+    engine.cpp
     aboutdialog.h
     aboutdialog.cpp
     barrier.h

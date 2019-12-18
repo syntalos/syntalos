@@ -104,10 +104,9 @@ bool Rhd2000Module::initialize(ModuleManager *manager)
     return true;
 }
 
-bool Rhd2000Module::prepare(const QString &storageRootDir, const TestSubject &testSubject, HRTimer *timer)
+bool Rhd2000Module::prepare(const QString &storageRootDir, const TestSubject &testSubject)
 {
     assert(m_intanUi);
-    Q_UNUSED(timer)
     setState(ModuleState::PREPARING);
 
     if (m_intanUi->isRunning()) {

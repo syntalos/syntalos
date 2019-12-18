@@ -107,7 +107,7 @@ bool MiniscopeModule::initialize(ModuleManager *manager)
     return true;
 }
 
-bool MiniscopeModule::prepare(const QString &storageRootDir, const TestSubject &testSubject, HRTimer *timer)
+bool MiniscopeModule::prepare(const QString &storageRootDir, const TestSubject &testSubject)
 {
     Q_UNUSED(testSubject)
     setState(ModuleState::PREPARING);
@@ -133,7 +133,6 @@ bool MiniscopeModule::prepare(const QString &storageRootDir, const TestSubject &
         return false;
     }
 
-    m_timer = timer;
     setState(ModuleState::WAITING);
     return true;
 }

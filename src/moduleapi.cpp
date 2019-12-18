@@ -368,3 +368,8 @@ void AbstractModule::setStatusMessage(const QString &message)
 {
     emit statusMessage(message);
 }
+
+void AbstractModule::setTimer(std::shared_ptr<HRTimer> timer)
+{
+    m_timer = timer;
+}

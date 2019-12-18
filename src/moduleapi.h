@@ -25,9 +25,9 @@
 #include <QByteArray>
 #include <QAction>
 #include <QPixmap>
+#include <QJsonObject>
 #include <QDebug>
 
-#include "utils.h"
 #include "hrclock.h"
 #include "streams/datatypes.h"
 #include "modulemanager.h"
@@ -98,6 +98,20 @@ private:
 
 #define ModuleInfoInterface_iid "com.draguhnlab.MazeAmaze.ModuleInfoInterface"
 Q_DECLARE_INTERFACE(ModuleInfo, ModuleInfoInterface_iid)
+
+/**
+ * @brief The TestSubject struct
+ * Data about a test subject.
+ */
+class TestSubject
+{
+public:
+    QString id;
+    QString group;
+    bool active;
+    QString comment;
+    QVariant data;
+};
 
 class StreamInputPort
 {
@@ -238,7 +252,7 @@ public:
      * prior to every experiment run.
      * @return true if success
      */
-    virtual bool prepare(const QString& storageRootDir, const TestSubject& testSubject, HRTimer *timer) = 0;
+    virtual bool prepare(const QString& storageRootDir, const TestSubject& testSubject) = 0;
 
     /**
      * @brief Run when the experiment is started and the HRTimer has an initial time set.
@@ -350,6 +364,8 @@ public:
 
     void setStatusMessage(const QString& message);
 
+    void setTimer(std::shared_ptr<HRTimer> timer);
+
 signals:
     void actionsUpdated();
     void stateChanged(ModuleState state);
@@ -364,6 +380,8 @@ protected:
 
     QString m_name;
     QString m_storageDir;
+
+    std::shared_ptr<HRTimer> m_timer;
 
     QList<QWidget*> m_displayWindows;
     QList<QWidget*> m_settingsWindows;

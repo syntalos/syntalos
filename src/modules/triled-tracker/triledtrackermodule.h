@@ -55,7 +55,7 @@ public:
     ModuleFeatures features() const override;
 
     bool initialize(ModuleManager *manager) override;
-    bool prepare(const QString& storageRootDir, const TestSubject& testSubject, HRTimer *timer) override;
+    bool prepare(const QString& storageRootDir, const TestSubject& testSubject) override;
     void start() override;
     bool runCycle() override;
     void stop() override;
@@ -68,7 +68,7 @@ public:
     bool loadSettings(const QString& confBaseDir, const QByteArray& data) override;
 
 public slots:
-    void receiveFrame(const FrameData& frameData) override;
+    void receiveFrame(const Frame& frame) override;
 
 private slots:
     void recvModuleCreated(AbstractModule *mod);
@@ -84,7 +84,7 @@ private:
     std::thread *m_thread;
     std::mutex m_mutex;
     std::mutex m_dispmutex;
-    std::queue<FrameData> m_frameQueue;
+    std::queue<Frame> m_frameQueue;
 
     LedTrackerSettingsDialog *m_settingsDialog;
     VideoViewWidget *m_trackInfoDisplay;

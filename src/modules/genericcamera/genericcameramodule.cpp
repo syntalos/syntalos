@@ -64,7 +64,7 @@ GenericCameraModule::GenericCameraModule(QObject *parent)
 {
     m_camera = new Camera;
 
-    m_frameRing = boost::circular_buffer<FrameData>(64);
+    m_frameRing = boost::circular_buffer<Frame>(64);
     m_outStream = registerOutputPort<Frame>("Video");
 }
 
@@ -122,11 +122,9 @@ bool GenericCameraModule::initialize(ModuleManager *manager)
     return true;
 }
 
-bool GenericCameraModule::prepare(HRTimer *timer)
+bool GenericCameraModule::prepare()
 {
     m_started = false;
-    m_timer = timer;
-
     setState(ModuleState::PREPARING);
 
     if (m_camera->camId() < 0) {
@@ -158,8 +156,8 @@ bool GenericCameraModule::runCycle()
 
     auto statusText = QStringLiteral("<html>Display buffer: %1/%2").arg(m_frameRing.size()).arg(m_frameRing.capacity());
 
-    auto frameInfo = m_frameRing.front();
-    m_videoView->showImage(frameInfo.first);
+    auto frame = m_frameRing.front();
+    m_videoView->showImage(frame.mat);
     m_frameRing.pop_front();
 
     // END OF SAFE ZONE
@@ -172,7 +170,7 @@ bool GenericCameraModule::runCycle()
 
     // send frame away to connected image sinks, and hope they are
     // handling this efficiently and don't block the loop
-    emit newFrame(frameInfo);
+    emit newFrame(frame);
 
     // show framerate directly in the window title, to make reduced framerate very visible
     m_videoView->setWindowTitle(QStringLiteral("%1 (%2 fps)").arg(m_name).arg(m_currentFps));
@@ -187,7 +185,7 @@ void GenericCameraModule::stop()
 
 QByteArray GenericCameraModule::serializeSettings(const QString &confBaseDir)
 {
-    Q_UNUSED(confBaseDir);
+    Q_UNUSED(confBaseDir)
     QJsonObject jsettings;
     jsettings.insert("camera", m_camera->camId());
     jsettings.insert("width", m_camSettingsWindow->resolution().width);
@@ -201,7 +199,7 @@ QByteArray GenericCameraModule::serializeSettings(const QString &confBaseDir)
 
 bool GenericCameraModule::loadSettings(const QString &confBaseDir, const QByteArray &data)
 {
-    Q_UNUSED(confBaseDir);
+    Q_UNUSED(confBaseDir)
 
     auto jsettings = jsonObjectFromBytes(data);
     m_camera->setCamId(jsettings.value("camera").toInt());
@@ -243,7 +241,7 @@ void GenericCameraModule::captureThread(void *gcamPtr)
             vwriter->pushFrame(frame, time);
 
         self->m_mutex.lock();
-        self->m_frameRing.push_back(std::pair<cv::Mat, std::chrono::milliseconds>(frame, time));
+        self->m_frameRing.push_back(Frame(frame, time));
         self->m_mutex.unlock();
 
         // wait a bit if necessary, to keep the right framerate

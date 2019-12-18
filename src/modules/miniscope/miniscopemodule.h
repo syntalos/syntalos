@@ -55,7 +55,7 @@ public:
     void setName(const QString& name) override;
 
     bool initialize(ModuleManager *manager) override;
-    bool prepare(const QString& storageRootDir, const TestSubject& testSubject, HRTimer *timer) override;
+    bool prepare(const QString& storageRootDir, const TestSubject& testSubject) override;
     void start() override;
     bool runCycle() override;
     void stop() override;
@@ -70,7 +70,6 @@ private:
     MScope::MiniScope *m_miniscope;
     MiniscopeSettingsDialog *m_settingsDialog;
     VideoViewWidget *m_videoView;
-    HRTimer *m_timer;
 };
 
 #endif // MINISCOPEMODULE_H

@@ -126,9 +126,8 @@ bool TriLedTrackerModule::initialize(ModuleManager *manager)
     return true;
 }
 
-bool TriLedTrackerModule::prepare(const QString &storageRootDir, const TestSubject &testSubject, HRTimer *timer)
+bool TriLedTrackerModule::prepare(const QString &storageRootDir, const TestSubject &testSubject)
 {
-    Q_UNUSED(timer)
     setState(ModuleState::PREPARING);
 
     m_dataStorageDir = QStringLiteral("%1/tracking").arg(storageRootDir);
@@ -261,10 +260,10 @@ void TriLedTrackerModule::recvModulePreRemove(AbstractModule *mod)
     }
 }
 
-void TriLedTrackerModule::receiveFrame(const FrameData &frameData)
+void TriLedTrackerModule::receiveFrame(const Frame &frame)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
-    m_frameQueue.push(frameData);
+    m_frameQueue.push(frame);
 }
 
 void TriLedTrackerModule::trackingThread(void *tmPtr)
@@ -291,13 +290,13 @@ void TriLedTrackerModule::trackingThread(void *tmPtr)
             break;
         }
 
-        auto frameInfo = self->m_frameQueue.front();
+        auto frame = self->m_frameQueue.front();
         self->m_frameQueue.pop();
         self->m_mutex.unlock();
 
         cv::Mat infoMat;
         cv::Mat trackMat;
-        tracker->analyzeFrame(frameInfo.first, frameInfo.second, &trackMat, &infoMat);
+        tracker->analyzeFrame(frame.mat, frame.time, &trackMat, &infoMat);
 
         self->m_dispmutex.lock();
         self->m_trackInfoDispRing.push_back(infoMat);
