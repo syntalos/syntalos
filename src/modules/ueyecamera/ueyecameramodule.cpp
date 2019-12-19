@@ -139,7 +139,7 @@ void UEyeCameraModule::start()
     setState(ModuleState::RUNNING);
 }
 
-bool UEyeCameraModule::runCycle()
+bool UEyeCameraModule::runEvent()
 {
     m_mutex.lock();
 

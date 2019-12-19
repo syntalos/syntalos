@@ -74,7 +74,7 @@ void VideoRecorderModule::setName(const QString &name)
 
 ModuleFeatures VideoRecorderModule::features() const
 {
-    return ModuleFeature::SETTINGS;
+    return ModuleFeature::SHOW_SETTINGS;
 }
 
 bool VideoRecorderModule::initialize(ModuleManager *manager)

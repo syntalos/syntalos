@@ -280,7 +280,7 @@ bool Engine::run()
 
         while (d->running) {
             Q_FOREACH(auto mod, orderedActiveModules) {
-                if (!mod->runCycle()){
+                if (!mod->runEvent()){
                     emit statusMessage(QStringLiteral("Module %1 failed.").arg(mod->name()));
                     d->failed = true;
                     break;

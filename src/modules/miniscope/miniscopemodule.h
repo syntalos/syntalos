@@ -57,7 +57,7 @@ public:
     bool initialize(ModuleManager *manager) override;
     bool prepare(const QString& storageRootDir, const TestSubject& testSubject) override;
     void start() override;
-    bool runCycle() override;
+    bool runEvent() override;
     void stop() override;
 
     void showSettingsUi() override;

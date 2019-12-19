@@ -186,7 +186,7 @@ void PyScriptModule::start()
     setState(ModuleState::RUNNING);
 }
 
-bool PyScriptModule::runCycle()
+bool PyScriptModule::runEvent()
 {
     // if the script exited without error, we just continue to run
     // everything else and don't execute useless operations anymore

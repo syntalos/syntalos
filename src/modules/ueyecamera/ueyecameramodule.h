@@ -63,7 +63,7 @@ public:
 
     bool prepare() override;
     void start() override;
-    bool runCycle() override;
+    bool runEvent() override;
 
     void stop() override;
 

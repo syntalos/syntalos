@@ -146,7 +146,7 @@ void GenericCameraModule::start()
     setState(ModuleState::RUNNING);
 }
 
-bool GenericCameraModule::runCycle()
+bool GenericCameraModule::runEvent()
 {
     m_mutex.lock();
     if (m_frameRing.empty()) {

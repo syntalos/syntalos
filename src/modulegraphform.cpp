@@ -222,9 +222,9 @@ void ModuleGraphForm::on_selectionChanged()
         ui->actionRemove->setEnabled(true);
 
         const auto features = mod->features();
-        if (features.testFlag(ModuleFeature::DISPLAY))
+        if (features.testFlag(ModuleFeature::SHOW_DISPLAY))
             ui->actionDisplay->setEnabled(true);
-        if (features.testFlag(ModuleFeature::SETTINGS))
+        if (features.testFlag(ModuleFeature::SHOW_SETTINGS))
             ui->actionSettings->setEnabled(true);
 
         Q_FOREACH(auto action, mod->actions())

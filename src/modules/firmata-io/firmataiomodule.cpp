@@ -70,12 +70,12 @@ FirmataIOModule::~FirmataIOModule()
 
 ModuleFeatures FirmataIOModule::features() const
 {
-    return ModuleFeature::SETTINGS;
+    return ModuleFeature::SHOW_SETTINGS;
 }
 
 bool FirmataIOModule::initialize(ModuleManager *manager)
 {
-    Q_UNUSED(manager);
+    Q_UNUSED(manager)
     assert(!initialized());
     setState(ModuleState::INITIALIZING);
 

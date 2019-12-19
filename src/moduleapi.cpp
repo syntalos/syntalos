@@ -166,9 +166,10 @@ void AbstractModule::setName(const QString &name)
 
 ModuleFeatures AbstractModule::features() const
 {
-    return ModuleFeature::DISPLAY |
-           ModuleFeature::SETTINGS |
-           ModuleFeature::ACTIONS;
+    return ModuleFeature::RUN_EVENTS |
+           ModuleFeature::SHOW_DISPLAY |
+           ModuleFeature::SHOW_SETTINGS |
+           ModuleFeature::SHOW_ACTIONS;
 }
 
 void AbstractModule::start()
@@ -176,9 +177,14 @@ void AbstractModule::start()
     setState(ModuleState::RUNNING);
 }
 
-bool AbstractModule::runCycle()
+bool AbstractModule::runEvent()
 {
     return true;
+}
+
+void AbstractModule::runThread()
+{
+    // Do nothing
 }
 
 void AbstractModule::finalize()

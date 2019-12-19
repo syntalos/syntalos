@@ -40,9 +40,11 @@ class AbstractModule;
  */
 enum class ModuleFeature {
     NONE = 0,
-    SETTINGS = 1 << 0,
-    DISPLAY  = 1 << 1,
-    ACTIONS  = 1 << 2
+    RUN_EVENTS    = 1 << 0,
+    RUN_THREADED  = 1 << 1,
+    SHOW_SETTINGS = 1 << 2,
+    SHOW_DISPLAY  = 1 << 3,
+    SHOW_ACTIONS  = 1 << 4
 };
 Q_DECLARE_FLAGS(ModuleFeatures, ModuleFeature)
 Q_DECLARE_OPERATORS_FOR_FLAGS(ModuleFeatures)
@@ -261,13 +263,28 @@ public:
     virtual void start();
 
     /**
-     * @brief Execute tasks once per processing loop
+     * @brief Execute actions in main thread event loop when idle
      *
-     * Run one iteration for this module. This function is called in a loop,
-     * so make sure it never blocks.
+     * This function is run in the main event loop of the application, once
+     * per iteration (when idle). This function must never block for a long time,
+     * to allow other modules to be executed as well.
+     * It can access UI elements of the application though, and gets all other
+     * benefits from running in the same thread as the UI.
      * @return true if no error
      */
-    virtual bool runCycle();
+    virtual bool runEvent();
+
+    /**
+     * @brief Run task in a thread
+     *
+     * If the module advertises itself has being threaded, this function is executed
+     * in a new thread after the module has left its PREPARE stage.
+     * The module should only start to handle input when an actual START command was issued,
+     * either via the start() method being called or via a start event being sent via the
+     * system status event stream.
+     * @return true if no error
+     */
+    virtual void runThread();
 
     /**
      * @brief Stop running an experiment.

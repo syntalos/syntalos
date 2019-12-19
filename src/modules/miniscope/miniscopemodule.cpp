@@ -145,7 +145,7 @@ void MiniscopeModule::start()
     setState(ModuleState::RUNNING);
 }
 
-bool MiniscopeModule::runCycle()
+bool MiniscopeModule::runEvent()
 {
     auto frame = m_miniscope->currentFrame();
     if (frame.empty()) {

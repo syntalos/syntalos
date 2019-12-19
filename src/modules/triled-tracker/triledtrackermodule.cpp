@@ -88,7 +88,7 @@ void TriLedTrackerModule::setName(const QString &name)
 
 ModuleFeatures TriLedTrackerModule::features() const
 {
-    return ModuleFeature::SETTINGS | ModuleFeature::DISPLAY;
+    return ModuleFeature::RUN_EVENTS | ModuleFeature::SHOW_SETTINGS | ModuleFeature::SHOW_DISPLAY;
 }
 
 bool TriLedTrackerModule::initialize(ModuleManager *manager)
@@ -170,7 +170,7 @@ void TriLedTrackerModule::start()
     setState(ModuleState::RUNNING);
 }
 
-bool TriLedTrackerModule::runCycle()
+bool TriLedTrackerModule::runEvent()
 {
     std::lock_guard<std::mutex> lock(m_dispmutex);
 

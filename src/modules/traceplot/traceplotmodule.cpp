@@ -79,7 +79,7 @@ TracePlotModule::~TracePlotModule()
 
 ModuleFeatures TracePlotModule::features() const
 {
-    return ModuleFeature::DISPLAY;
+    return ModuleFeature::SHOW_DISPLAY;
 }
 
 bool TracePlotModule::canRemove(AbstractModule *mod)
