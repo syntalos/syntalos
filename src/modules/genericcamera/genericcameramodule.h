@@ -67,7 +67,7 @@ public:
     bool prepare() override;
     void start() override;
     bool runEvent() override;
-    void runThread() override;
+    void runThread(OptionalWaitCondition *waitCondition) override;
 
     void stop() override;
 
@@ -81,8 +81,6 @@ private:
 
     QList<VideoWriter*> m_vwriters;
     QMutex m_mutex;
-    std::atomic_bool m_running;
-    std::atomic_bool m_started;
     std::atomic_int m_currentFps;
     int m_fps;
     boost::circular_buffer<Frame> m_frameRing;

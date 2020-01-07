@@ -7,7 +7,8 @@ set(MAZEAMAZE_SRC
     engine.cpp
     aboutdialog.h
     aboutdialog.cpp
-    barrier.h
+    optionalwaitcondition.h
+    optionalwaitcondition.cpp
     utils.h
     utils.cpp
     hrclock.h

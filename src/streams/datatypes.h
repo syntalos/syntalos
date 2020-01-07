@@ -40,6 +40,7 @@ enum class ModuleState {
     RUNNING,      /// Module is running
     ERROR         /// Module failed to run / is in an error state
 };
+Q_DECLARE_METATYPE(ModuleState)
 
 /**
  * @brief The ModuleMessageSeverity enum

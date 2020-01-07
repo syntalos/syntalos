@@ -6,7 +6,7 @@
 #include <opencv2/imgproc.hpp>
 #include <QtTest>
 
-#include "barrier.h"
+#include "testbarrier.h"
 #include "streams/stream.h"
 
 static const int N_OF_DATAFRAMES = 2000;

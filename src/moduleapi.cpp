@@ -135,6 +135,7 @@ QString StreamOutputPort::title() const
 
 AbstractModule::AbstractModule(QObject *parent) :
     QObject(parent),
+    m_running(false),
     m_state(ModuleState::INITIALIZING),
     m_msgStream(new DataStream<ModuleMessage>()),
     m_initialized(false)
@@ -174,6 +175,7 @@ ModuleFeatures AbstractModule::features() const
 
 void AbstractModule::start()
 {
+    m_running = true;
     setState(ModuleState::RUNNING);
 }
 
@@ -182,8 +184,9 @@ bool AbstractModule::runEvent()
     return true;
 }
 
-void AbstractModule::runThread()
+void AbstractModule::runThread(OptionalWaitCondition *startWaitCondition)
 {
+    Q_UNUSED(startWaitCondition)
     // Do nothing
 }
 

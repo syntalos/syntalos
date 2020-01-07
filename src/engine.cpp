@@ -184,11 +184,11 @@ void Engine::refreshExportDirPath()
 /**
  * @brief Main entry point for engine-managed module threads.
  */
-void execute_module_thread(const QString& threadName, AbstractModule *mod)
+void execute_module_thread(const QString& threadName, AbstractModule *mod, OptionalWaitCondition *waitCondition)
 {
     pthread_setname_np(pthread_self(), qPrintable(threadName.mid(0, 15)));
 
-    mod->runThread();
+    mod->runThread(waitCondition);
 }
 
 bool Engine::run()
@@ -277,6 +277,7 @@ bool Engine::run()
     // threads our modules run in, as module name/thread pairs
     std::vector<std::thread> threads;
     QHash<size_t, AbstractModule*> threadIdxModMap;
+    std::unique_ptr<OptionalWaitCondition> startWaitCondition(new OptionalWaitCondition());
 
     // Only actually launch if preparation didn't fail.
     // we still call stop() on all modules afterwards though,
@@ -295,8 +296,9 @@ bool Engine::run()
             // the thread name shouldn't be longer than 16 chars (inlcuding NULL)
             auto threadName = QStringLiteral("%1-%2").arg(mod->id().midRef(0, 12)).arg(i);
             threads.push_back(std::thread(execute_module_thread,
-                                       threadName,
-                                       mod));
+                                          threadName,
+                                          mod,
+                                          startWaitCondition.get()));
             threadIdxModMap[threads.size() - 1] = mod;
         }
 
@@ -324,10 +326,20 @@ bool Engine::run()
 
         emit statusMessage(QStringLiteral("Launch setup completed."));
 
-        // start timer and launch all modules, for real this time
+        // we officially start now, launch the timer
         d->timer->start();
-        Q_FOREACH(auto mod, orderedActiveModules)
+
+        // wake that thundering herd and hope all modules awoken by the
+        // start signal behave properly
+        startWaitCondition->wakeAll();
+
+        // tell all modules individuall now that we started
+        Q_FOREACH(auto mod, orderedActiveModules) {
             mod->start();
+
+            // work around bad modules which don't set this on their own
+            mod->m_running = true;
+        }
 
         d->running = true;
         emit statusMessage(QStringLiteral("Running..."));
@@ -353,12 +365,17 @@ bool Engine::run()
         emit statusMessage(QStringLiteral("Stopping %1...").arg(mod->name()));
         mod->stop();
 
+        // safeguard against bad modules which don't stop themselves from running their
+        // thread loops on their own
+        mod->m_running = false;
+
         // ensure modules display the correct state after we stopped a run
         if ((mod->state() != ModuleState::IDLE) && (mod->state() != ModuleState::ERROR))
             mod->setState(ModuleState::IDLE);
     }
 
     // join all module threads with the main thread again, waiting for them to terminate
+    startWaitCondition->wakeAll(); // wake up all threads again, just in case one is stuck waiting
     for (size_t i = 0; i < threads.size(); i++) {
         auto &thread = threads[i];
         auto mod = threadIdxModMap[i];

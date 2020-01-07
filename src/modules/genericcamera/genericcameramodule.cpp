@@ -131,7 +131,6 @@ bool GenericCameraModule::initialize(ModuleManager *manager)
 
 bool GenericCameraModule::prepare()
 {
-    m_started = false;
     setState(ModuleState::PREPARING);
 
     if (m_camera->camId() < 0) {
@@ -158,7 +157,6 @@ bool GenericCameraModule::prepare()
 
 void GenericCameraModule::start()
 {
-    m_started = true;
     m_camera->setStartTime(m_timer->startTime());
     statusMessage("Acquiring frames...");
     setState(ModuleState::RUNNING);
@@ -196,16 +194,16 @@ bool GenericCameraModule::runEvent()
     return true;
 }
 
-void GenericCameraModule::runThread()
+void GenericCameraModule::runThread(OptionalWaitCondition *waitCondition)
 {
     m_currentFps = m_fps;
     auto frameRecordFailedCount = 0;
 
+    // wait until we actually start
+    waitCondition->wait(this);
+
     while (m_running) {
         const auto cycleStartTime = currentTimePoint();
-
-        // wait until we actually start
-        while (!m_started) { }
 
         cv::Mat frame;
         std::chrono::milliseconds time;
@@ -246,7 +244,6 @@ void GenericCameraModule::stop()
 
     statusMessage("Cleaning up...");
     m_running = false;
-    m_started = false;
 
     m_camera->disconnect();
     m_camSettingsWindow->setRunning(false);

@@ -9,6 +9,7 @@ include_directories(
 add_executable(test-streamperf
     test-streamperf.cpp
     ${CMAKE_SOURCE_DIR}/src/streams/stream.cpp
+    testbarrier.h
 )
 target_link_libraries(test-streamperf
     ${CMAKE_THREAD_LIBS_INIT}

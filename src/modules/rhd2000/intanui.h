@@ -28,8 +28,6 @@
 #include "rhd2000datablock.h"
 #include "globalconstants.h"
 
-#include "barrier.h"
-
 class QAction;
 class QPushButton;
 class QButtonGroup;

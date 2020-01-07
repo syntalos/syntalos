@@ -30,6 +30,7 @@
 
 #include "hrclock.h"
 #include "streams/datatypes.h"
+#include "optionalwaitcondition.h"
 #include "modulemanager.h"
 
 class AbstractModule;
@@ -176,6 +177,7 @@ class AbstractModule : public QObject
 {
     Q_OBJECT
     friend class ModuleManager;
+    friend class Engine;
 public:
     explicit AbstractModule(QObject *parent = nullptr);
 
@@ -279,12 +281,13 @@ public:
      *
      * If the module advertises itself has being threaded, this function is executed
      * in a new thread after the module has left its PREPARE stage.
-     * The module should only start to handle input when an actual START command was issued,
-     * either via the start() method being called or via a start event being sent via the
-     * system status event stream.
+     * The module should only start to handle input when all modules are ready. This is the case
+     * when either the start() method was called, a start event was sent via the
+     * system status event stream or the wait condition unblocks (call waitCondition->wait(this)
+     * to wait for the start signal).
      * @return true if no error
      */
-    virtual void runThread();
+    virtual void runThread(OptionalWaitCondition *startWaitCondition);
 
     /**
      * @brief Stop running an experiment.
@@ -397,6 +400,8 @@ protected:
 
     QString m_name;
     QString m_storageDir;
+
+    std::atomic_bool m_running;
 
     std::shared_ptr<HRTimer> m_timer;
 
