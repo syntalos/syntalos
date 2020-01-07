@@ -406,7 +406,7 @@ protected:
     std::optional<std::shared_ptr<StreamSubscription<SystemStatusEvent> > > m_sysEventsSub;
 
 private:
-    ModuleState m_state;
+    std::atomic<ModuleState> m_state;
     QString m_lastError;
     QString m_id;
     std::unique_ptr<DataStream<ModuleMessage>> m_msgStream;

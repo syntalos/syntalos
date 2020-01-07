@@ -99,7 +99,7 @@ bool Rhd2000Module::initialize(ModuleManager *manager)
     m_actions.append(m_intanUi->alphaOrderAction);
 
     emit actionsUpdated();
-    setState(ModuleState::READY);
+    setState(ModuleState::IDLE);
     setInitialized();
     return true;
 }
@@ -129,7 +129,7 @@ bool Rhd2000Module::prepare(const QString &storageRootDir, const TestSubject &te
     m_intanUi->interfaceBoardPrepareRecording();
     m_intanUi->interfaceBoardInitRun();
     m_runAction->setEnabled(false);
-    setState(ModuleState::WAITING);
+    setState(ModuleState::READY);
 
     return true;
 }

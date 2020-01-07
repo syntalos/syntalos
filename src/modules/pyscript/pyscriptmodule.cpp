@@ -133,7 +133,7 @@ bool PyScriptModule::initialize(ModuleManager *manager)
     scriptLayout->addWidget(m_scriptView);
     pyDoc->setHighlightingMode("python");
 
-    setState(ModuleState::READY);
+    setState(ModuleState::IDLE);
     setInitialized();
     return true;
 }
@@ -176,7 +176,7 @@ bool PyScriptModule::prepare(const QString &storageRootDir, const TestSubject &t
     }
 
     m_running = true;
-    setState(ModuleState::WAITING);
+    setState(ModuleState::READY);
     return true;
 }
 

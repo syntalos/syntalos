@@ -102,7 +102,7 @@ bool VideoRecorderModule::initialize(ModuleManager *manager)
     connect(manager, &ModuleManager::moduleCreated, this, &VideoRecorderModule::recvModuleCreated);
     connect(manager, &ModuleManager::modulePreRemove, this, &VideoRecorderModule::recvModulePreRemove);
 
-    setState(ModuleState::READY);
+    setState(ModuleState::IDLE);
     setInitialized();
     setName(name());
     return true;
@@ -175,7 +175,7 @@ bool VideoRecorderModule::prepare(const QString &storageRootDir, const TestSubje
     vInfoFileOut << QJsonDocument(vInfo).toJson();
 
     statusMessage(QStringLiteral("Recording from %1").arg(imgSrcMod->name()));
-    setState(ModuleState::WAITING);
+    setState(ModuleState::READY);
     return true;
 }
 

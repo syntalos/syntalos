@@ -55,6 +55,8 @@ public:
 
     void setName(const QString& name) override;
 
+    ModuleFeatures features() const override;
+
     void attachVideoWriter(VideoWriter *vwriter) override;
 
     int selectedFramerate() const override;
@@ -65,6 +67,7 @@ public:
     bool prepare() override;
     void start() override;
     bool runEvent() override;
+    void runThread() override;
 
     void stop() override;
 
@@ -77,7 +80,6 @@ private:
     GenericCameraSettingsDialog *m_camSettingsWindow;
 
     QList<VideoWriter*> m_vwriters;
-    std::thread *m_thread;
     QMutex m_mutex;
     std::atomic_bool m_running;
     std::atomic_bool m_started;
@@ -86,9 +88,7 @@ private:
     boost::circular_buffer<Frame> m_frameRing;
     std::shared_ptr<DataStream<Frame>> m_outStream;
 
-    static void captureThread(void *gcamPtr);
     bool startCaptureThread();
-    void finishCaptureThread();
 };
 
 #endif // GENERICCAMERAMODULE_H

@@ -32,13 +32,13 @@ Q_DECLARE_SMART_POINTER_METATYPE(std::shared_ptr)
  * to the user via a module indicator widget.
  */
 enum class ModuleState {
-    UNKNOWN,
-    INITIALIZING,
-    PREPARING,
-    WAITING,
-    READY,
-    RUNNING,
-    ERROR
+    UNKNOWN,      /// Module is in an unknown state
+    INITIALIZING, /// Module is initializing after being added
+    IDLE,         /// Module is inactive and not started
+    PREPARING,    /// Module is preparing a run
+    READY,        /// Everything is prepared, we are ready to start
+    RUNNING,      /// Module is running
+    ERROR         /// Module failed to run / is in an error state
 };
 
 /**

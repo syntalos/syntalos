@@ -581,7 +581,7 @@ FlowGraphNode::FlowGraphNode (
     effect->setOffset(is_darkest ? 0 : 2);
     QGraphicsPathItem::setGraphicsEffect(effect);
 
-    updateNodeState(ModuleState::READY);
+    updateNodeState(ModuleState::IDLE);
 }
 
 
@@ -668,13 +668,13 @@ void FlowGraphNode::updateNodeState(ModuleState state)
         m_statusPix->setPixmap(QIcon(QPixmap(":/status/preparing")).pixmap(24, 24));
         m_statusText->setPlainText(QStringLiteral("Initializing..."));
         break;
+    case ModuleState::IDLE:
+        m_statusPix->setPixmap(QIcon(QPixmap(":/status/idle")).pixmap(24, 24));
+        m_statusText->setPlainText(QStringLiteral("Idle."));
+        break;
     case ModuleState::PREPARING:
         m_statusPix->setPixmap(QIcon(QPixmap(":/status/preparing")).pixmap(24, 24));
         m_statusText->setPlainText(QStringLiteral("Preparing..."));
-        break;
-    case ModuleState::WAITING:
-        m_statusPix->setPixmap(QIcon(QPixmap(":/status/ready")).pixmap(24, 24));
-        m_statusText->setPlainText(QStringLiteral("Waiting..."));
         break;
     case ModuleState::READY:
         m_statusPix->setPixmap(QIcon(QPixmap(":/status/ready")).pixmap(24, 24));

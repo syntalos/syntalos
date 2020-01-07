@@ -28,6 +28,7 @@
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QStandardPaths>
+#include <QThread>
 
 #include "modulemanager.h"
 #include "hrclock.h"
@@ -180,6 +181,16 @@ void Engine::refreshExportDirPath()
                                     .arg(d->experimentId));
 }
 
+/**
+ * @brief Main entry point for engine-managed module threads.
+ */
+void execute_module_thread(const QString& threadName, AbstractModule *mod)
+{
+    pthread_setname_np(pthread_self(), qPrintable(threadName.mid(0, 15)));
+
+    mod->runThread();
+}
+
 bool Engine::run()
 {
     if (d->running)
@@ -263,6 +274,10 @@ bool Engine::run()
         }
     }
 
+    // threads our modules run in, as module name/thread pairs
+    std::vector<std::thread> threads;
+    QHash<size_t, AbstractModule*> threadIdxModMap;
+
     // Only actually launch if preparation didn't fail.
     // we still call stop() on all modules afterwards though,
     // as some might need a stop call to clean up resources ther were
@@ -271,6 +286,45 @@ bool Engine::run()
     if (!prepareStepFailed) {
         emit statusMessage(QStringLiteral("Initializing launch..."));
 
+        // launch threads for threaded modules
+        for (int i = 0; i < orderedActiveModules.size(); i++) {
+            auto mod = orderedActiveModules[i];
+            if (!mod->features().testFlag(ModuleFeature::RUN_THREADED))
+                continue;
+
+            // the thread name shouldn't be longer than 16 chars (inlcuding NULL)
+            auto threadName = QStringLiteral("%1-%2").arg(mod->id().midRef(0, 12)).arg(i);
+            threads.push_back(std::thread(execute_module_thread,
+                                       threadName,
+                                       mod));
+            threadIdxModMap[threads.size() - 1] = mod;
+        }
+
+        // collect all modules which do idle event execution
+        QList<AbstractModule*> idleEventModules;
+        Q_FOREACH(auto mod, orderedActiveModules) {
+            if (!mod->features().testFlag(ModuleFeature::RUN_EVENTS))
+                continue;
+            idleEventModules.append(mod);
+        }
+
+        // ensure all modules are in the READY state
+        // (modules may take a bit of time to prepare their threads)
+        // FIXME: Maybe add a timeout on this, in case a module doesn't
+        // behave and never ever leaves its preparation phase?
+        Q_FOREACH(auto mod, orderedActiveModules) {
+            if (mod->state() == ModuleState::READY)
+                continue;
+            emit statusMessage(QStringLiteral("Waiting for %1 to become ready...").arg(mod->name()));
+            while (mod->state() != ModuleState::READY) {
+                QThread::msleep(50);
+                QCoreApplication::processEvents();
+            }
+        }
+
+        emit statusMessage(QStringLiteral("Launch setup completed."));
+
+        // start timer and launch all modules, for real this time
         d->timer->start();
         Q_FOREACH(auto mod, orderedActiveModules)
             mod->start();
@@ -279,7 +333,7 @@ bool Engine::run()
         emit statusMessage(QStringLiteral("Running..."));
 
         while (d->running) {
-            Q_FOREACH(auto mod, orderedActiveModules) {
+            Q_FOREACH(auto mod, idleEventModules) {
                 if (!mod->runEvent()){
                     emit statusMessage(QStringLiteral("Module %1 failed.").arg(mod->name()));
                     d->failed = true;
@@ -294,19 +348,29 @@ bool Engine::run()
 
     auto finishTimestamp = static_cast<long long>(d->timer->timeSinceStartMsec().count());
 
+    // send stop command to all modules
     Q_FOREACH(auto mod, orderedActiveModules) {
         emit statusMessage(QStringLiteral("Stopping %1...").arg(mod->name()));
         mod->stop();
 
         // ensure modules display the correct state after we stopped a run
-        if (mod->state() == ModuleState::RUNNING || mod->state() == ModuleState::WAITING)
-            mod->setState(ModuleState::READY);
+        if ((mod->state() != ModuleState::IDLE) && (mod->state() != ModuleState::ERROR))
+            mod->setState(ModuleState::IDLE);
+    }
+
+    // join all module threads with the main thread again, waiting for them to terminate
+    for (size_t i = 0; i < threads.size(); i++) {
+        auto &thread = threads[i];
+        auto mod = threadIdxModMap[i];
+        emit statusMessage(QStringLiteral("Waiting for %1...").arg(mod->name()));
+        thread.join();
     }
 
     if (prepareStepFailed) {
         // if we failed to prepare this run, don't save the manifest and also
         // remove any data that we might have already created, as well as the
         // export directory.
+        emit statusMessage(QStringLiteral("Removing broken data..."));
         deDir.removeRecursively();
     } else {
         emit statusMessage(QStringLiteral("Writing manifest..."));

@@ -45,8 +45,8 @@
      fit-margin-bottom="0"
      scale-x="1"
      inkscape:zoom="14.75"
-     inkscape:cx="-5.7252968"
-     inkscape:cy="2.5589088"
+     inkscape:cx="-14.322034"
+     inkscape:cy="1.9999854"
      inkscape:window-x="0"
      inkscape:window-y="0"
      inkscape:window-maximized="1"
@@ -65,7 +65,7 @@
       </style>
   </defs>
   <path
-     style="color:#27ae60;fill:#9b59b6;fill-opacity:1;stroke:none;stroke-width:1.66666663"
+     style="color:#27ae60;fill:#3daee9;fill-opacity:1;stroke:none;stroke-width:1.66666663"
      class="ColorScheme-PositiveText"
      d="M 10,5 A 5,5 0 0 1 5,10 5,5 0 0 1 0,5 5,5 0 0 1 5,0 5,5 0 0 1 10,5 Z"
      id="path6"

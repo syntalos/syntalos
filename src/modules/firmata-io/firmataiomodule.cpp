@@ -83,7 +83,7 @@ bool FirmataIOModule::initialize(ModuleManager *manager)
     m_settingsWindows.append(m_settingsDialog);
     m_settingsDialog->setWindowTitle(QStringLiteral("%1 - Settings").arg(name()));
 
-    setState(ModuleState::READY);
+    setState(ModuleState::IDLE);
     setInitialized();
     return true;
 }
@@ -130,13 +130,13 @@ bool FirmataIOModule::prepare(const QString &storageRootDir, const TestSubject &
         return false;
     }
 
-    setState(ModuleState::WAITING);
+    setState(ModuleState::READY);
     return true;
 }
 
 void FirmataIOModule::stop()
 {
-    setState(ModuleState::READY);
+    setState(ModuleState::IDLE);
 }
 
 QByteArray FirmataIOModule::serializeSettings(const QString &confBaseDir)

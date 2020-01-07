@@ -59,8 +59,7 @@ GenericCameraModule::GenericCameraModule(QObject *parent)
     : ImageSourceModule(parent),
       m_camera(nullptr),
       m_videoView(nullptr),
-      m_camSettingsWindow(nullptr),
-      m_thread(nullptr)
+      m_camSettingsWindow(nullptr)
 {
     m_camera = new Camera;
 
@@ -70,7 +69,7 @@ GenericCameraModule::GenericCameraModule(QObject *parent)
 
 GenericCameraModule::~GenericCameraModule()
 {
-    finishCaptureThread();
+    stop();
     if (m_videoView != nullptr)
         delete m_videoView;
     if (m_camSettingsWindow != nullptr)
@@ -84,6 +83,14 @@ void GenericCameraModule::setName(const QString &name)
         m_videoView->setWindowTitle(name);
         m_camSettingsWindow->setWindowTitle(QStringLiteral("Settings for %1").arg(name));
     }
+}
+
+ModuleFeatures GenericCameraModule::features() const
+{
+    return ModuleFeature::RUN_EVENTS |
+           ModuleFeature::RUN_THREADED |
+           ModuleFeature::SHOW_DISPLAY |
+           ModuleFeature::SHOW_SETTINGS;
 }
 
 void GenericCameraModule::attachVideoWriter(VideoWriter *vwriter)
@@ -113,7 +120,7 @@ bool GenericCameraModule::initialize(ModuleManager *manager)
     m_displayWindows.append(m_videoView);
     m_settingsWindows.append(m_camSettingsWindow);
 
-    setState(ModuleState::READY);
+    setState(ModuleState::IDLE);
     setInitialized();
 
     // set all window titles
@@ -132,9 +139,20 @@ bool GenericCameraModule::prepare()
         return false;
     }
 
-    if (!startCaptureThread())
+    statusMessage("Connecting camera...");
+    if (!m_camera->connect()) {
+        raiseError(QStringLiteral("Unable to connect camera: %1").arg(m_camera->lastError()));
         return false;
-    setState(ModuleState::WAITING);
+    }
+    m_camera->setResolution(m_camSettingsWindow->resolution());
+    statusMessage("Launching DAQ thread...");
+
+    m_camSettingsWindow->setRunning(true);
+    m_fps = m_camSettingsWindow->framerate();
+    m_running = true;
+    statusMessage("Waiting.");
+
+    setState(ModuleState::READY);
     return true;
 }
 
@@ -178,9 +196,61 @@ bool GenericCameraModule::runEvent()
     return true;
 }
 
+void GenericCameraModule::runThread()
+{
+    m_currentFps = m_fps;
+    auto frameRecordFailedCount = 0;
+
+    while (m_running) {
+        const auto cycleStartTime = currentTimePoint();
+
+        // wait until we actually start
+        while (!m_started) { }
+
+        cv::Mat frame;
+        std::chrono::milliseconds time;
+        if (!m_camera->recordFrame(&frame, &time)) {
+            frameRecordFailedCount++;
+            if (frameRecordFailedCount > 32) {
+                m_running = false;
+                raiseError(QStringLiteral("Too many attempts to record frames from this camera have failed. Is the camera connected properly?"));
+            }
+            continue;
+        }
+
+        // record this frame, if we have any video writers registered
+        Q_FOREACH(auto vwriter, m_vwriters)
+            vwriter->pushFrame(frame, time);
+
+        m_mutex.lock();
+        m_frameRing.push_back(Frame(frame, time));
+        m_mutex.unlock();
+
+        // wait a bit if necessary, to keep the right framerate
+        const auto cycleTime = timeDiffToNowMsec(cycleStartTime);
+        const auto extraWaitTime = std::chrono::milliseconds((1000 / m_fps) - cycleTime.count());
+        if (extraWaitTime.count() > 0)
+            std::this_thread::sleep_for(extraWaitTime);
+
+        const auto totalTime = timeDiffToNowMsec(cycleStartTime);
+        m_currentFps = static_cast<int>(1 / (totalTime.count() / static_cast<double>(1000)));
+    }
+}
+
 void GenericCameraModule::stop()
 {
-    finishCaptureThread();
+    // ensure we unregister all video writers before starting another run,
+    // and after finishing the current one, as the modules they belong to
+    // may meanwhile have been removed
+    m_vwriters.clear();
+
+    statusMessage("Cleaning up...");
+    m_running = false;
+    m_started = false;
+
+    m_camera->disconnect();
+    m_camSettingsWindow->setRunning(false);
+    statusMessage("Camera disconnected.");
 }
 
 QByteArray GenericCameraModule::serializeSettings(const QString &confBaseDir)
@@ -210,91 +280,4 @@ bool GenericCameraModule::loadSettings(const QString &confBaseDir, const QByteAr
 
     m_camSettingsWindow->updateValues();
     return true;
-}
-
-void GenericCameraModule::captureThread(void *gcamPtr)
-{
-    GenericCameraModule *self = static_cast<GenericCameraModule*> (gcamPtr);
-
-    self->m_currentFps = self->m_fps;
-    auto frameRecordFailedCount = 0;
-
-    while (self->m_running) {
-        const auto cycleStartTime = currentTimePoint();
-
-        // wait until we actually start
-        while (!self->m_started) { }
-
-        cv::Mat frame;
-        std::chrono::milliseconds time;
-        if (!self->m_camera->recordFrame(&frame, &time)) {
-            frameRecordFailedCount++;
-            if (frameRecordFailedCount > 32) {
-                self->m_running = false;
-                self->raiseError(QStringLiteral("Too many attempts to record frames from this camera have failed. Is the camera connected properly?"));
-            }
-            continue;
-        }
-
-        // record this frame, if we have any video writers registered
-        Q_FOREACH(auto vwriter, self->m_vwriters)
-            vwriter->pushFrame(frame, time);
-
-        self->m_mutex.lock();
-        self->m_frameRing.push_back(Frame(frame, time));
-        self->m_mutex.unlock();
-
-        // wait a bit if necessary, to keep the right framerate
-        const auto cycleTime = timeDiffToNowMsec(cycleStartTime);
-        const auto extraWaitTime = std::chrono::milliseconds((1000 / self->m_fps) - cycleTime.count());
-        if (extraWaitTime.count() > 0)
-            std::this_thread::sleep_for(extraWaitTime);
-
-        const auto totalTime = timeDiffToNowMsec(cycleStartTime);
-        self->m_currentFps = static_cast<int>(1 / (totalTime.count() / static_cast<double>(1000)));
-    }
-}
-
-bool GenericCameraModule::startCaptureThread()
-{
-    finishCaptureThread();
-
-    statusMessage("Connecting camera...");
-    if (!m_camera->connect()) {
-        raiseError(QStringLiteral("Unable to connect camera: %1").arg(m_camera->lastError()));
-        return false;
-    }
-    m_camera->setResolution(m_camSettingsWindow->resolution());
-    statusMessage("Launching DAQ thread...");
-
-    m_camSettingsWindow->setRunning(true);
-    m_fps = m_camSettingsWindow->framerate();
-    m_running = true;
-    m_thread = new std::thread(captureThread, this);
-    statusMessage("Waiting.");
-    return true;
-}
-
-void GenericCameraModule::finishCaptureThread()
-{
-    if (!initialized())
-        return;
-
-    // ensure we unregister all video writers before starting another run,
-    // and after finishing the current one, as the modules they belong to
-    // may meanwhile have been removed
-    m_vwriters.clear();
-
-    statusMessage("Cleaning up...");
-    if (m_thread != nullptr) {
-        m_running = false;
-        m_started = true;
-        m_thread->join();
-        delete m_thread;
-        m_thread = nullptr;
-        m_started = false;
-    }
-    m_camera->disconnect();
-    m_camSettingsWindow->setRunning(false);
-    statusMessage("Camera disconnected.");
 }

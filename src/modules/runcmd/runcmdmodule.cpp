@@ -62,7 +62,7 @@ bool RunCmdModule::initialize(ModuleManager *manager)
     assert(!initialized());
     setState(ModuleState::INITIALIZING);
 
-    setState(ModuleState::READY);
+    setState(ModuleState::IDLE);
     setInitialized();
     return true;
 }
@@ -74,7 +74,7 @@ bool RunCmdModule::prepare(const QString &storageRootDir, const TestSubject &tes
     setState(ModuleState::PREPARING);
 
 
-    setState(ModuleState::WAITING);
+    setState(ModuleState::READY);
     return true;
 }
 

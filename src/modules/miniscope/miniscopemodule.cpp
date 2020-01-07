@@ -101,7 +101,7 @@ bool MiniscopeModule::initialize(ModuleManager *manager)
 
     m_miniscope->setScopeCamId(0);
 
-    setState(ModuleState::READY);
+    setState(ModuleState::IDLE);
     setInitialized();
     setName(name());
     return true;
@@ -133,7 +133,7 @@ bool MiniscopeModule::prepare(const QString &storageRootDir, const TestSubject &
         return false;
     }
 
-    setState(ModuleState::WAITING);
+    setState(ModuleState::READY);
     return true;
 }
 

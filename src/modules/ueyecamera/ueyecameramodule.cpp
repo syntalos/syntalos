@@ -112,7 +112,7 @@ bool UEyeCameraModule::initialize(ModuleManager *manager)
     m_displayWindows.append(m_videoView);
     m_settingsWindows.append(m_camSettingsWindow);
 
-    setState(ModuleState::READY);
+    setState(ModuleState::IDLE);
     setInitialized();
 
     // set all window titles
@@ -128,7 +128,7 @@ bool UEyeCameraModule::prepare()
     setState(ModuleState::PREPARING);
     if (!startCaptureThread())
         return false;
-    setState(ModuleState::WAITING);
+    setState(ModuleState::READY);
     return true;
 }
 

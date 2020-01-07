@@ -110,7 +110,7 @@ bool TracePlotModule::initialize(ModuleManager *manager)
     }
 
     m_intanModule->setPlotProxy(m_traceProxy);
-    setState(ModuleState::READY);
+    setState(ModuleState::IDLE);
     setInitialized();
     return true;
 }
@@ -124,7 +124,7 @@ bool TracePlotModule::prepare(const QString &storageRootDir, const TestSubject &
     // reset trace plot data
     m_traceProxy->reset();
 
-    setState(ModuleState::WAITING);
+    setState(ModuleState::READY);
     return true;
 }
 

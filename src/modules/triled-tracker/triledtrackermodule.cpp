@@ -120,7 +120,7 @@ bool TriLedTrackerModule::initialize(ModuleManager *manager)
     m_trackInfoDisplay->setWindowTitle(QStringLiteral("Animal Tracking Info"));
     m_trackingDisplay->setWindowTitle(QStringLiteral("Tracking Display"));
 
-    setState(ModuleState::READY);
+    setState(ModuleState::IDLE);
     setInitialized();
     setName(name());
     return true;
@@ -160,7 +160,7 @@ bool TriLedTrackerModule::prepare(const QString &storageRootDir, const TestSubje
     startTrackingThread();
 
     statusMessage(QStringLiteral("Tracking via %1").arg(imgSrcMod->name()));
-    setState(ModuleState::WAITING);
+    setState(ModuleState::READY);
     return true;
 }
 
