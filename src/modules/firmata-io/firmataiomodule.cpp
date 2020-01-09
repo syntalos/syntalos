@@ -60,6 +60,8 @@ FirmataIOModule::FirmataIOModule(QObject *parent)
       m_settingsDialog(nullptr)
 {
     m_firmata = new SerialFirmata(this);
+    addSettingsWindow(new FirmataSettingsDialog);
+    m_settingsDialog->setWindowTitle(QStringLiteral("%1 - Settings").arg(name()));
 }
 
 FirmataIOModule::~FirmataIOModule()
@@ -71,21 +73,6 @@ FirmataIOModule::~FirmataIOModule()
 ModuleFeatures FirmataIOModule::features() const
 {
     return ModuleFeature::SHOW_SETTINGS;
-}
-
-bool FirmataIOModule::initialize(ModuleManager *manager)
-{
-    Q_UNUSED(manager)
-    assert(!initialized());
-    setState(ModuleState::INITIALIZING);
-
-    m_settingsDialog = new FirmataSettingsDialog;
-    m_settingsWindows.append(m_settingsDialog);
-    m_settingsDialog->setWindowTitle(QStringLiteral("%1 - Settings").arg(name()));
-
-    setState(ModuleState::IDLE);
-    setInitialized();
-    return true;
 }
 
 bool FirmataIOModule::prepare(const QString &storageRootDir, const TestSubject &testSubject)

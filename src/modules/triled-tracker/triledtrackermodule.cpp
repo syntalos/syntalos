@@ -68,17 +68,23 @@ TriLedTrackerModule::TriLedTrackerModule(QObject *parent)
 {
     m_trackDispRing = boost::circular_buffer<cv::Mat>(16);
     m_trackInfoDispRing = boost::circular_buffer<cv::Mat>(16);
+
+    m_settingsDialog = new LedTrackerSettingsDialog;
+    m_settingsDialog->setResultsName("tracking");
+    addSettingsWindow(m_settingsDialog);
+
+    m_trackInfoDisplay = new VideoViewWidget;
+    m_trackingDisplay = new VideoViewWidget;
+    addDisplayWindow(m_trackInfoDisplay);
+    addDisplayWindow(m_trackingDisplay);
+
+    m_trackInfoDisplay->setWindowTitle(QStringLiteral("Animal Tracking Info"));
+    m_trackingDisplay->setWindowTitle(QStringLiteral("Tracking Display"));
 }
 
 TriLedTrackerModule::~TriLedTrackerModule()
 {
     finishTrackingThread();
-    if (m_settingsDialog != nullptr)
-        delete m_settingsDialog;
-    if (m_trackInfoDisplay != nullptr)
-        delete m_trackInfoDisplay;
-    if (m_trackingDisplay != nullptr)
-        delete m_trackingDisplay;
 }
 
 void TriLedTrackerModule::setName(const QString &name)
@@ -96,10 +102,6 @@ bool TriLedTrackerModule::initialize(ModuleManager *manager)
     assert(!initialized());
     setState(ModuleState::INITIALIZING);
 
-    m_settingsDialog = new LedTrackerSettingsDialog;
-    m_settingsDialog->setResultsName("tracking");
-    m_settingsWindows.append(m_settingsDialog);
-
     // find all modules suitable as frame sources
     Q_FOREACH(auto mod, manager->activeModules()) {
         auto imgSrcMod = qobject_cast<ImageSourceModule*>(mod);
@@ -112,15 +114,6 @@ bool TriLedTrackerModule::initialize(ModuleManager *manager)
     else
         m_settingsDialog->setSelectedImageSourceMod(m_frameSourceModules.first()); // set first module as default
 
-    m_trackInfoDisplay = new VideoViewWidget;
-    m_trackingDisplay = new VideoViewWidget;
-    m_displayWindows.append(m_trackInfoDisplay);
-    m_displayWindows.append(m_trackingDisplay);
-
-    m_trackInfoDisplay->setWindowTitle(QStringLiteral("Animal Tracking Info"));
-    m_trackingDisplay->setWindowTitle(QStringLiteral("Tracking Display"));
-
-    setState(ModuleState::IDLE);
     setInitialized();
     setName(name());
     return true;
@@ -205,7 +198,6 @@ bool TriLedTrackerModule::canRemove(AbstractModule *mod)
 
 void TriLedTrackerModule::showSettingsUi()
 {
-    assert(initialized());
     m_settingsDialog->setImageSourceModules(m_frameSourceModules);
     m_settingsDialog->show();
 }

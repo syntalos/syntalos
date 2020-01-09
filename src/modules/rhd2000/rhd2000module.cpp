@@ -63,27 +63,14 @@ Rhd2000Module::Rhd2000Module(QObject *parent)
 {
     m_name = QStringLiteral("Intan RHD2000 USB Interface");
     m_intanUi = nullptr;
-}
 
-Rhd2000Module::~Rhd2000Module()
-{
-    if (m_intanUi != nullptr)
-        delete m_intanUi;
-}
-
-bool Rhd2000Module::initialize(ModuleManager *manager)
-{
-    Q_UNUSED(manager)
-    assert(!initialized());
-
-    setState(ModuleState::INITIALIZING);
     // set up Intan GUI and board
     m_intanUi = new IntanUI(this);
     m_intanUi->setWindowIcon(QIcon(":/icons/generic-config"));
     m_intanUi->displayWidget()->setWindowIcon(QIcon(":/icons/generic-view"));
 
-    m_settingsWindows.append(m_intanUi);
-    m_displayWindows.append(m_intanUi->displayWidget());
+    addSettingsWindow(m_intanUi);
+    addDisplayWindow(m_intanUi->displayWidget(), false);
 
     m_runAction = new QAction(this);
     m_runAction->setText("&Run without recording");
@@ -97,11 +84,6 @@ bool Rhd2000Module::initialize(ModuleManager *manager)
     m_actions.append(m_intanUi->disableAllChannelsAction);
     m_actions.append(m_intanUi->originalOrderAction);
     m_actions.append(m_intanUi->alphaOrderAction);
-
-    emit actionsUpdated();
-    setState(ModuleState::IDLE);
-    setInitialized();
-    return true;
 }
 
 bool Rhd2000Module::prepare(const QString &storageRootDir, const TestSubject &testSubject)

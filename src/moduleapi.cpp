@@ -144,6 +144,19 @@ AbstractModule::AbstractModule(QObject *parent) :
     m_name = QStringLiteral("Unknown Module");
 }
 
+AbstractModule::~AbstractModule()
+{
+    // delete windows if we own them
+    for (auto wp : m_displayWindows) {
+        if (wp.second)
+            delete wp.first;
+    }
+    for (auto wp : m_settingsWindows) {
+        if (wp.second)
+            delete wp.first;
+    }
+}
+
 ModuleState AbstractModule::state() const
 {
     return m_state;
@@ -173,6 +186,14 @@ ModuleFeatures AbstractModule::features() const
            ModuleFeature::SHOW_ACTIONS;
 }
 
+bool AbstractModule::initialize(ModuleManager *manager)
+{
+    Q_UNUSED(manager)
+    assert(!initialized());
+    setInitialized();
+    return true;
+}
+
 void AbstractModule::start()
 {
     m_running = true;
@@ -197,16 +218,16 @@ void AbstractModule::finalize()
 
 void AbstractModule::showDisplayUi()
 {
-    Q_FOREACH(auto w, m_displayWindows) {
-        w->show();
-        w->raise();
+    for (auto const wp : m_displayWindows) {
+        wp.first->show();
+        wp.first->raise();
     }
 }
 
 bool AbstractModule::isDisplayUiVisible()
 {
-    Q_FOREACH(auto w, m_displayWindows) {
-        if (w->isVisible())
+    for (auto const wp : m_displayWindows) {
+        if (wp.first->isVisible())
             return true;
     }
     return false;
@@ -214,16 +235,16 @@ bool AbstractModule::isDisplayUiVisible()
 
 void AbstractModule::showSettingsUi()
 {
-    Q_FOREACH(auto w, m_settingsWindows) {
-        w->show();
-        w->raise();
+    for (auto const wp : m_settingsWindows) {
+        wp.first->show();
+        wp.first->raise();
     }
 }
 
 bool AbstractModule::isSettingsUiVisible()
 {
-    Q_FOREACH(auto w, m_settingsWindows) {
-        if (w->isVisible())
+    for (auto const wp : m_settingsWindows) {
+        if (wp.first->isVisible())
             return true;
     }
     return false;
@@ -231,14 +252,14 @@ bool AbstractModule::isSettingsUiVisible()
 
 void AbstractModule::hideDisplayUi()
 {
-    Q_FOREACH(auto w, m_displayWindows)
-        w->hide();
+    for (auto const wp : m_displayWindows)
+        wp.first->hide();
 }
 
 void AbstractModule::hideSettingsUi()
 {
-    Q_FOREACH(auto w, m_settingsWindows)
-        w->hide();
+    for (auto const wp : m_settingsWindows)
+        wp.first->hide();
 }
 
 QList<QAction *> AbstractModule::actions()
@@ -302,9 +323,21 @@ bool AbstractModule::makeDirectory(const QString &dir)
     return true;
 }
 
+void AbstractModule::addDisplayWindow(QWidget *window, bool owned)
+{
+
+    m_displayWindows.append(qMakePair(window, owned));
+}
+
+void AbstractModule::addSettingsWindow(QWidget *window, bool owned)
+{
+    m_settingsWindows.append(qMakePair(window, owned));
+}
+
 void AbstractModule::setInitialized()
 {
     m_initialized = true;
+    setState(ModuleState::IDLE);
 }
 
 bool AbstractModule::initialized() const
@@ -316,30 +349,30 @@ QJsonValue AbstractModule::serializeDisplayUiGeometry()
 {
     QJsonObject obj;
     for (int i = 0; i < m_displayWindows.size(); i++) {
-        auto w = m_displayWindows.at(i);
+        const auto wp = m_displayWindows.at(i);
 
         QJsonObject info;
-        info.insert("visible", w->isVisible());
-        info.insert("geometry", QString::fromUtf8(w->saveGeometry().toBase64()));
+        info.insert("visible", wp.first->isVisible());
+        info.insert("geometry", QString::fromUtf8(wp.first->saveGeometry().toBase64()));
         obj.insert(QString::number(i), info);
     }
 
     return obj;
 }
 
-void AbstractModule::restoreDisplayUiGeomatry(QJsonObject info)
+void AbstractModule::restoreDisplayUiGeometry(QJsonObject info)
 {
     for (int i = 0; i < m_displayWindows.size(); i++) {
-        auto w = m_displayWindows.at(i);
+        const auto wp = m_displayWindows.at(i);
 
         auto winfo = info.value(QString::number(i)).toObject();
         if (winfo.isEmpty())
             continue;
         if (winfo.value("visible").toBool())
-            w->show();
+            wp.first->show();
 
         auto b64Geometry = winfo.value("geometry").toString();
-        w->restoreGeometry(QByteArray::fromBase64(b64Geometry.toUtf8()));
+        wp.first->restoreGeometry(QByteArray::fromBase64(b64Geometry.toUtf8()));
     }
 }
 

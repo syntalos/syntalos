@@ -47,7 +47,6 @@ class VideoRecorderModule : public ImageSinkModule
     Q_OBJECT
 public:
     explicit VideoRecorderModule(QObject *parent = nullptr);
-    ~VideoRecorderModule() override;
 
     void setName(const QString& name) override;
     ModuleFeatures features() const override;

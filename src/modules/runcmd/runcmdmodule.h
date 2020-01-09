@@ -42,7 +42,6 @@ public:
     explicit RunCmdModule(QObject *parent = nullptr);
     ~RunCmdModule() override;
 
-    bool initialize(ModuleManager *manager) override;
     bool prepare(const QString& storageRootDir, const TestSubject& testSubject) override;
     void stop() override;
 

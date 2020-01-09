@@ -56,17 +56,6 @@ RunCmdModule::~RunCmdModule()
 
 }
 
-bool RunCmdModule::initialize(ModuleManager *manager)
-{
-    Q_UNUSED(manager)
-    assert(!initialized());
-    setState(ModuleState::INITIALIZING);
-
-    setState(ModuleState::IDLE);
-    setInitialized();
-    return true;
-}
-
 bool RunCmdModule::prepare(const QString &storageRootDir, const TestSubject &testSubject)
 {
     Q_UNUSED(storageRootDir)

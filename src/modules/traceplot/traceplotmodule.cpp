@@ -62,6 +62,11 @@ TracePlotModule::TracePlotModule(QObject *parent)
       m_intanModule(nullptr)
 {
     m_name = QStringLiteral("TracePlot");
+
+    // create trace parameters and data proxy for the trace display
+    m_traceProxy = new TracePlotProxy(this);
+    m_displayWindow = new TraceDisplay(m_traceProxy);
+    addDisplayWindow(m_displayWindow);
 }
 
 TracePlotModule::~TracePlotModule()
@@ -71,8 +76,6 @@ TracePlotModule::~TracePlotModule()
         m_intanModule->setPlotProxy(nullptr);
 
     // cleanup
-    if (m_displayWindow)
-        delete m_displayWindow;
     if (m_traceProxy)
         delete m_traceProxy;
 }
@@ -92,11 +95,6 @@ bool TracePlotModule::initialize(ModuleManager *manager)
     assert(!initialized());
     setState(ModuleState::INITIALIZING);
 
-    // create trace parameters and data proxy for the trace display
-    m_traceProxy = new TracePlotProxy(this);
-    m_displayWindow = new TraceDisplay(m_traceProxy);
-    m_displayWindows.append(m_displayWindow);
-
     m_intanModule = nullptr;
     Q_FOREACH(auto mod, manager->activeModules()) {
         auto rhdmod = dynamic_cast<Rhd2000Module*>(mod);
@@ -110,7 +108,6 @@ bool TracePlotModule::initialize(ModuleManager *manager)
     }
 
     m_intanModule->setPlotProxy(m_traceProxy);
-    setState(ModuleState::IDLE);
     setInitialized();
     return true;
 }

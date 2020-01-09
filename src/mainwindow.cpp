@@ -439,7 +439,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
             mod->setName(modName);
 
         if (!uiDisplayGeometry.isEmpty())
-            mod->restoreDisplayUiGeomatry(uiDisplayGeometry);
+            mod->restoreDisplayUiGeometry(uiDisplayGeometry);
 
         modSettingsList.append(qMakePair(mod, sdata));
     }

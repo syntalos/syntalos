@@ -59,8 +59,6 @@ public:
     int selectedFramerate() const override;
     cv::Size selectedResolution() const override;
 
-    bool initialize(ModuleManager *manager) override;
-
     bool prepare() override;
     void start() override;
     bool runEvent() override;

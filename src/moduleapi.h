@@ -180,6 +180,7 @@ class AbstractModule : public QObject
     friend class Engine;
 public:
     explicit AbstractModule(QObject *parent = nullptr);
+    ~AbstractModule();
 
     ModuleState state() const;
     void setState(ModuleState state);
@@ -244,10 +245,12 @@ public:
     /**
      * @brief Initialize the module
      *
-     * Initialize this module. This method is called once after construction.
+     * Initialize this module. This method is called once after construction,
+     * and can be used to initialize parts of the module that may fail and may need
+     * to emit an error message (unlike in the constructor, which always succeeds)
      * @return true if success
      */
-    virtual bool initialize(ModuleManager *manager) = 0;
+    virtual bool initialize(ModuleManager *manager);
 
     /**
      * @brief Prepare for an experiment run
@@ -374,15 +377,8 @@ public:
     QList<std::shared_ptr<StreamInputPort>> inPorts() const;
     QList<std::shared_ptr<StreamOutputPort>> outPorts() const;
 
-    bool makeDirectory(const QString &dir);
-
-    void setInitialized();
-    bool initialized() const;
-
     QJsonValue serializeDisplayUiGeometry();
-    void restoreDisplayUiGeomatry(QJsonObject info);
-
-    void setStatusMessage(const QString& message);
+    void restoreDisplayUiGeometry(QJsonObject info);
 
     void setTimer(std::shared_ptr<HRTimer> timer);
 
@@ -398,16 +394,40 @@ protected:
     QByteArray jsonObjectToBytes(const QJsonObject& object);
     QJsonObject jsonObjectFromBytes(const QByteArray& data);
 
+    void setStatusMessage(const QString& message);
+    bool makeDirectory(const QString &dir);
+
+    /**
+     * @brief Register a display window for this module.
+     * @param window
+     * @param owned
+     *
+     * Add a new display window to this module.
+     * The window instance will be deleted on destruction, if
+     * #own was set to true.
+     */
+    void addDisplayWindow(QWidget *window, bool owned = true);
+
+    /**
+     * @brief Register a settings window for this module.
+     * @param window
+     * @param owned
+     *
+     * Add a new settings window to this module.
+     * The window instance will be deleted on destruction, if
+     * #own was set to true.
+     */
+    void addSettingsWindow(QWidget *window, bool owned = true);
+
+    void setInitialized();
+    bool initialized() const;
+
     QString m_name;
     QString m_storageDir;
 
     std::atomic_bool m_running;
 
     std::shared_ptr<HRTimer> m_timer;
-
-    QList<QWidget*> m_displayWindows;
-    QList<QWidget*> m_settingsWindows;
-
     std::optional<std::shared_ptr<StreamSubscription<SystemStatusEvent> > > m_sysEventsSub;
 
 private:
@@ -417,6 +437,10 @@ private:
     std::unique_ptr<DataStream<ModuleMessage>> m_msgStream;
     QMap<QString, std::shared_ptr<StreamOutputPort>> m_outPorts;
     QMap<QString, std::shared_ptr<StreamInputPort>> m_inPorts;
+
+    QList<QPair<QWidget*, bool>> m_displayWindows;
+    QList<QPair<QWidget*, bool>> m_settingsWindows;
+
     bool m_initialized;
 
     void setId(const QString &id);

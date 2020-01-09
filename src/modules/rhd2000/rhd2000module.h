@@ -45,9 +45,6 @@ class Rhd2000Module : public AbstractModule
     Q_OBJECT
 public:
     explicit Rhd2000Module(QObject *parent = nullptr);
-    ~Rhd2000Module() override;
-
-    bool initialize(ModuleManager *manager) override;
 
     bool prepare(const QString& storageRootDir, const TestSubject& testSubject) override;
 

@@ -65,24 +65,26 @@ UEyeCameraModule::UEyeCameraModule(QObject *parent)
     m_camera = new UEyeCamera;
 
     m_frameRing = boost::circular_buffer<Frame>(64);
+
+    m_videoView = new VideoViewWidget;
+    m_camSettingsWindow = new UEyeCameraSettingsDialog(m_camera);
+    addDisplayWindow(m_videoView);
+    addSettingsWindow(m_camSettingsWindow);
+
+    // set all window titles
+    setName(name());
 }
 
 UEyeCameraModule::~UEyeCameraModule()
 {
     finishCaptureThread();
-    if (m_videoView != nullptr)
-        delete m_videoView;
-    if (m_camSettingsWindow != nullptr)
-        delete m_camSettingsWindow;
 }
 
 void UEyeCameraModule::setName(const QString &name)
 {
     ImageSourceModule::setName(name);
-    if (initialized()) {
-        m_videoView->setWindowTitle(name);
-        m_camSettingsWindow->setWindowTitle(QStringLiteral("Settings for %1").arg(name));
-    }
+    m_videoView->setWindowTitle(name);
+    m_camSettingsWindow->setWindowTitle(QStringLiteral("Settings for %1").arg(name));
 }
 
 void UEyeCameraModule::attachVideoWriter(VideoWriter *vwriter)
@@ -92,33 +94,12 @@ void UEyeCameraModule::attachVideoWriter(VideoWriter *vwriter)
 
 int UEyeCameraModule::selectedFramerate() const
 {
-    assert(initialized());
     return m_camSettingsWindow->framerate();
 }
 
 cv::Size UEyeCameraModule::selectedResolution() const
 {
-    assert(initialized());
     return m_camSettingsWindow->resolution();
-}
-
-bool UEyeCameraModule::initialize(ModuleManager *manager)
-{
-    assert(!initialized());
-    Q_UNUSED(manager)
-
-    m_videoView = new VideoViewWidget;
-    m_camSettingsWindow = new UEyeCameraSettingsDialog(m_camera);
-    m_displayWindows.append(m_videoView);
-    m_settingsWindows.append(m_camSettingsWindow);
-
-    setState(ModuleState::IDLE);
-    setInitialized();
-
-    // set all window titles
-    setName(name());
-
-    return true;
 }
 
 bool UEyeCameraModule::prepare()

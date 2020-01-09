@@ -57,12 +57,11 @@ VideoRecorderModule::VideoRecorderModule(QObject *parent)
       m_settingsDialog(nullptr)
 {
     m_inPort = registerInputPort<Frame>("Video");
-}
 
-VideoRecorderModule::~VideoRecorderModule()
-{
-    if (m_settingsDialog != nullptr)
-        delete m_settingsDialog;
+    m_settingsDialog = new RecorderSettingsDialog;
+    m_settingsDialog->setVideoName("video");
+    m_settingsDialog->setSaveTimestamps(true);
+    addSettingsWindow(m_settingsDialog);
 }
 
 void VideoRecorderModule::setName(const QString &name)
@@ -81,11 +80,6 @@ bool VideoRecorderModule::initialize(ModuleManager *manager)
 {
     assert(!initialized());
     setState(ModuleState::INITIALIZING);
-
-    m_settingsDialog = new RecorderSettingsDialog;
-    m_settingsDialog->setVideoName("video");
-    m_settingsDialog->setSaveTimestamps(true);
-    m_settingsWindows.append(m_settingsDialog);
 
     // find all modules suitable as frame sources
     Q_FOREACH(auto mod, manager->activeModules()) {

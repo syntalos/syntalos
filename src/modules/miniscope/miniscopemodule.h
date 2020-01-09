@@ -54,7 +54,6 @@ public:
 
     void setName(const QString& name) override;
 
-    bool initialize(ModuleManager *manager) override;
     bool prepare(const QString& storageRootDir, const TestSubject& testSubject) override;
     void start() override;
     bool runEvent() override;

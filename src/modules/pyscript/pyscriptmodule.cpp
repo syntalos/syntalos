@@ -75,31 +75,6 @@ PyScriptModule::PyScriptModule(QObject *parent)
     m_zserver = nullptr;
     m_process = new QProcess(this);
     m_process->setProcessChannelMode(QProcess::MergedChannels);
-}
-
-PyScriptModule::~PyScriptModule()
-{
-    if (m_zserver == nullptr) {
-        delete m_zserver;
-        m_zserver = nullptr;
-    }
-    if (m_pyoutWindow != nullptr)
-        delete m_pyoutWindow;
-    if (m_scriptWindow != nullptr)
-        delete m_scriptWindow;
-}
-
-bool PyScriptModule::initialize(ModuleManager *manager)
-{
-    assert(!initialized());
-    setState(ModuleState::INITIALIZING);
-
-    if (m_workerBinary.isEmpty()) {
-        raiseError("Unable to find Python worker binary. Is MazeAmaze installed correctly?");
-        return false;
-    }
-
-    m_modManager = manager;
 
     m_pyoutWindow = new QTextBrowser;
     m_pyoutWindow->setFontFamily(QStringLiteral("Monospace"));
@@ -107,7 +82,7 @@ bool PyScriptModule::initialize(ModuleManager *manager)
     m_pyoutWindow->setWindowTitle(QStringLiteral("Python Console Output"));
     m_pyoutWindow->setWindowIcon(QIcon(":/icons/generic-view"));
     m_pyoutWindow->resize(540, 210);
-    m_displayWindows.append(m_pyoutWindow);
+    addDisplayWindow(m_pyoutWindow);
 
     // set up code editor
     auto editor = KTextEditor::Editor::instance();
@@ -127,13 +102,33 @@ bool PyScriptModule::initialize(ModuleManager *manager)
     m_scriptWindow->setLayout(scriptLayout);
     scriptLayout->setMargin(2);
     m_scriptWindow->resize(680, 780);
-    m_settingsWindows.append(m_scriptWindow);
+    addSettingsWindow(m_scriptWindow);
 
     m_scriptView = pyDoc->createView(m_scriptWindow);
     scriptLayout->addWidget(m_scriptView);
     pyDoc->setHighlightingMode("python");
+}
 
-    setState(ModuleState::IDLE);
+PyScriptModule::~PyScriptModule()
+{
+    if (m_zserver == nullptr) {
+        delete m_zserver;
+        m_zserver = nullptr;
+    }
+}
+
+bool PyScriptModule::initialize(ModuleManager *manager)
+{
+    assert(!initialized());
+    setState(ModuleState::INITIALIZING);
+
+    if (m_workerBinary.isEmpty()) {
+        raiseError("Unable to find Python worker binary. Is MazeAmaze installed correctly?");
+        return false;
+    }
+
+    m_modManager = manager;
+
     setInitialized();
     return true;
 }

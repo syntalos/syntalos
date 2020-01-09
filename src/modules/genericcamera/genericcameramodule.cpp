@@ -65,24 +65,26 @@ GenericCameraModule::GenericCameraModule(QObject *parent)
 
     m_frameRing = boost::circular_buffer<Frame>(64);
     m_outStream = registerOutputPort<Frame>("Video");
+
+    m_videoView = new VideoViewWidget;
+    m_camSettingsWindow = new GenericCameraSettingsDialog(m_camera);
+    addDisplayWindow(m_videoView);
+    addSettingsWindow(m_camSettingsWindow);
+
+    // set initial window titles
+    setName(name());
 }
 
 GenericCameraModule::~GenericCameraModule()
 {
     stop();
-    if (m_videoView != nullptr)
-        delete m_videoView;
-    if (m_camSettingsWindow != nullptr)
-        delete m_camSettingsWindow;
 }
 
 void GenericCameraModule::setName(const QString &name)
 {
     ImageSourceModule::setName(name);
-    if (initialized()) {
-        m_videoView->setWindowTitle(name);
-        m_camSettingsWindow->setWindowTitle(QStringLiteral("Settings for %1").arg(name));
-    }
+    m_videoView->setWindowTitle(name);
+    m_camSettingsWindow->setWindowTitle(QStringLiteral("Settings for %1").arg(name));
 }
 
 ModuleFeatures GenericCameraModule::features() const
@@ -100,33 +102,12 @@ void GenericCameraModule::attachVideoWriter(VideoWriter *vwriter)
 
 int GenericCameraModule::selectedFramerate() const
 {
-    assert(initialized());
     return m_camSettingsWindow->framerate();
 }
 
 cv::Size GenericCameraModule::selectedResolution() const
 {
-    assert(initialized());
     return m_camSettingsWindow->resolution();
-}
-
-bool GenericCameraModule::initialize(ModuleManager *manager)
-{
-    assert(!initialized());
-    Q_UNUSED(manager)
-
-    m_videoView = new VideoViewWidget;
-    m_camSettingsWindow = new GenericCameraSettingsDialog(m_camera);
-    m_displayWindows.append(m_videoView);
-    m_settingsWindows.append(m_camSettingsWindow);
-
-    setState(ModuleState::IDLE);
-    setInitialized();
-
-    // set all window titles
-    setName(name());
-
-    return true;
 }
 
 bool GenericCameraModule::prepare()

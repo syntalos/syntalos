@@ -60,16 +60,26 @@ MiniscopeModule::MiniscopeModule(QObject *parent)
       m_settingsDialog(nullptr),
       m_videoView(nullptr)
 {
+    m_timer = nullptr;
+    m_miniscope = new MiniScope;
+    m_settingsDialog = new MiniscopeSettingsDialog(m_miniscope);
+    addSettingsWindow(m_settingsDialog);
+
+    m_videoView = new VideoViewWidget;
+    m_videoView->setWindowTitle(QStringLiteral("Miniscope View"));
+    addSettingsWindow(m_videoView);
+
+    if (m_name == QStringLiteral("Miniscope"))
+        m_settingsDialog->setRecName(QStringLiteral("scope"));
+
+    m_miniscope->setScopeCamId(0);
+
+    setName(name());
 }
 
 MiniscopeModule::~MiniscopeModule()
 {
-    if (m_miniscope != nullptr)
-        delete m_miniscope;
-    if (m_settingsDialog != nullptr)
-        delete m_settingsDialog;
-    if (m_videoView != nullptr)
-        delete m_videoView;
+    delete m_miniscope;
 }
 
 void MiniscopeModule::setName(const QString &name)
@@ -79,32 +89,6 @@ void MiniscopeModule::setName(const QString &name)
         m_settingsDialog->setWindowTitle(QStringLiteral("Settings for %1").arg(name));
         m_videoView->setWindowTitle(QStringLiteral("%1 - View").arg(name));
     }
-}
-
-bool MiniscopeModule::initialize(ModuleManager *manager)
-{
-    Q_UNUSED(manager)
-    assert(!initialized());
-    setState(ModuleState::INITIALIZING);
-
-    m_timer = nullptr;
-    m_miniscope = new MiniScope;
-    m_settingsDialog = new MiniscopeSettingsDialog(m_miniscope);
-    m_settingsWindows.append(m_settingsDialog);
-
-    m_videoView = new VideoViewWidget;
-    m_videoView->setWindowTitle(QStringLiteral("Miniscope View"));
-    m_displayWindows.append(m_videoView);
-
-    if (m_name == QStringLiteral("Miniscope"))
-        m_settingsDialog->setRecName(QStringLiteral("scope"));
-
-    m_miniscope->setScopeCamId(0);
-
-    setState(ModuleState::IDLE);
-    setInitialized();
-    setName(name());
-    return true;
 }
 
 bool MiniscopeModule::prepare(const QString &storageRootDir, const TestSubject &testSubject)
