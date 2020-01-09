@@ -60,7 +60,7 @@ enum class ModuleMessageSeverity
 /**
  * @brief Status message of a module
  *
- * This structure contains information about a module state chnge or
+ * This structure contains information about a module state change or
  * a message sent to the engine by a module.
  * The engine may react to messages (e.g. by terminating the experiment)
  * or simply display a message to the user or log it to a file.
@@ -72,24 +72,6 @@ typedef struct
     QString text;
 } ModuleMessage;
 Q_DECLARE_METATYPE(ModuleMessage)
-
-
-/**
- * @brief The SystemStatusEvent enum
- *
- * Used to notify modules of global changes to the system/experiment
- * status. A module can choose to reac to the global events, or ignore them.
- */
-enum class SystemStatusEvent
-{
-    UNKNOWN,
-    READY,
-    PREPARING,
-    RUNNING,
-    ERROR
-};
-Q_DECLARE_METATYPE(SystemStatusEvent)
-
 
 /**
  * @brief The ControlCommandKind enum

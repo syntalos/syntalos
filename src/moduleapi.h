@@ -358,22 +358,6 @@ public:
      */
     virtual bool canRemove(AbstractModule *mod);
 
-    /**
-     * @brief Subscribe to this modules' status message stream
-     *
-     * This method is used by the engine to read any messages emitted by this module quickly
-     * and in a threadsafe way.
-     */
-    std::shared_ptr<StreamSubscription<ModuleMessage> > getMessageSubscription();
-
-    /**
-     * @brief Subscribe this module to receive system events
-     *
-     * This method is used by the engine to allow this module to read events that are broadcasted
-     * system-wide to all modules.
-     */
-    void subscribeToSysEvents(std::shared_ptr<StreamSubscription<SystemStatusEvent> > subscription);
-
     QList<std::shared_ptr<StreamInputPort>> inPorts() const;
     QList<std::shared_ptr<StreamOutputPort>> outPorts() const;
 
@@ -428,13 +412,11 @@ protected:
     std::atomic_bool m_running;
 
     std::shared_ptr<HRTimer> m_timer;
-    std::optional<std::shared_ptr<StreamSubscription<SystemStatusEvent> > > m_sysEventsSub;
 
 private:
     std::atomic<ModuleState> m_state;
     QString m_lastError;
     QString m_id;
-    std::unique_ptr<DataStream<ModuleMessage>> m_msgStream;
     QMap<QString, std::shared_ptr<StreamOutputPort>> m_outPorts;
     QMap<QString, std::shared_ptr<StreamInputPort>> m_inPorts;
 

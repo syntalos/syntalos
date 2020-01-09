@@ -137,7 +137,6 @@ AbstractModule::AbstractModule(QObject *parent) :
     QObject(parent),
     m_running(false),
     m_state(ModuleState::INITIALIZING),
-    m_msgStream(new DataStream<ModuleMessage>()),
     m_initialized(false)
 {
     m_id = QStringLiteral("unknown");
@@ -291,16 +290,6 @@ bool AbstractModule::canRemove(AbstractModule *mod)
 {
     Q_UNUSED(mod)
     return true;
-}
-
-std::shared_ptr<StreamSubscription<ModuleMessage>> AbstractModule::getMessageSubscription()
-{
-    return m_msgStream->subscribe();
-}
-
-void AbstractModule::subscribeToSysEvents(std::shared_ptr<StreamSubscription<SystemStatusEvent> > subscription)
-{
-    m_sysEventsSub = subscription;
 }
 
 QList<std::shared_ptr<StreamInputPort> > AbstractModule::inPorts() const
