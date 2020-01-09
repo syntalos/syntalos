@@ -118,10 +118,16 @@ private:
         m_queue.enqueue(std::optional<T>(data));
     }
 
-    void terminate()
+    void stop()
     {
         m_active = false;
         m_queue.enqueue(std::nullopt);
+    }
+
+    void reset()
+    {
+        m_active = true;
+        while (m_queue.pop()) {}  // ensure the queue is empty
     }
 };
 
@@ -176,14 +182,17 @@ public:
     void start() override
     {
         m_ownerId = std::this_thread::get_id();
-        for(auto& sub: m_subs)
+        for (auto const& sub: m_subs) {
+            sub->reset();
             sub->setMetadata(m_metadata);
+        }
         m_active = true;
     }
 
     void stop() override
     {
-        std::for_each(m_subs.begin(), m_subs.end(), [](std::shared_ptr<StreamSubscription<T>> sub){ sub->terminate(); });
+        for (auto const& sub: m_subs)
+            sub->stop();
         m_active = false;
     }
 
