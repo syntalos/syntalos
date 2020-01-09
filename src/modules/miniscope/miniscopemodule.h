@@ -24,7 +24,6 @@
 #include <memory>
 #include <chrono>
 
-#include "imagesinkmodule.h"
 #include "moduleapi.h"
 
 class VideoViewWidget;

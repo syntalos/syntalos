@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <optional>
 #include <QVariant>
+#include <QDebug>
 
 #include "readerwriterqueue.h"
 #include "datatypes.h"
@@ -148,6 +149,11 @@ public:
     QHash<QString, QVariant> metadata() override
     {
         return m_metadata;
+    }
+
+    void setMetadataVal(const QString &key, const QVariant &value)
+    {
+        m_metadata[key] = value;
     }
 
     std::shared_ptr<StreamSubscription<T>> subscribe()

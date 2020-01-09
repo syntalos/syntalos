@@ -71,7 +71,7 @@ public:
     std::string lastError;
     std::thread *thread;
     std::mutex mutex;
-    std::queue<std::pair<cv::Mat, std::chrono::milliseconds>> frameQueue;
+    std::queue<Frame> frameQueue;
 
     std::string fnameBase;
     uint fileSliceIntervalMin;
@@ -567,7 +567,7 @@ void VideoWriter::stopEncodeThread()
     d->thread = nullptr;
 }
 
-bool VideoWriter::pushFrame(const cv::Mat &frame, const std::chrono::milliseconds &time)
+bool VideoWriter::pushFrame(const Frame &frame)
 {
     std::lock_guard<std::mutex> lock(d->mutex);
     if (!d->acceptFrames)
@@ -577,8 +577,13 @@ bool VideoWriter::pushFrame(const cv::Mat &frame, const std::chrono::millisecond
         return false;
     }
 
-    d->frameQueue.push(std::make_pair(frame, time));
+    d->frameQueue.push(frame);
     return true;
+}
+
+bool VideoWriter::pushFrame(const cv::Mat& frame, const std::chrono::milliseconds& time)
+{
+    return pushFrame(Frame(frame, time));
 }
 
 VideoCodec VideoWriter::codec() const
@@ -654,15 +659,15 @@ void VideoWriter::encodeThread(void *vwPtr)
     }
 }
 
-bool VideoWriter::getNextFrameFromQueue(cv::Mat *frame, std::chrono::milliseconds *timestamp)
+bool VideoWriter::getNextFrameFromQueue(cv::Mat *data, std::chrono::milliseconds *timestamp)
 {
     std::lock_guard<std::mutex> lock(d->mutex);
     if (d->frameQueue.empty())
         return false;
 
-    auto pair = d->frameQueue.front();
-    *frame = pair.first;
-    *timestamp = pair.second;
+    auto frame = d->frameQueue.front();
+    *data = frame.mat;
+    *timestamp = frame.time;
     d->frameQueue.pop();
     return true;
 }

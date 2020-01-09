@@ -116,7 +116,17 @@ public:
     QVariant data;
 };
 
-class StreamInputPort
+class AbstractStreamPort
+{
+public:
+    virtual QString id() const = 0;
+    virtual QString title() const = 0;
+
+    virtual bool isOutput() const { return false; };
+    virtual bool isInput() const { return false; };
+};
+
+class StreamInputPort : public AbstractStreamPort
 {
 public:
     explicit StreamInputPort(const QString &id, const QString &title);
@@ -137,11 +147,22 @@ public:
     template<typename T>
     std::shared_ptr<StreamSubscription<T>> subscription()
     {
-        return m_sub;
+        auto sub = std::dynamic_pointer_cast<StreamSubscription<T>>(m_sub.value());
+        if (sub == nullptr) {
+            if (hasSubscription()) {
+                qCritical().noquote() << "Conversion of variant subscription to dedicated type" << typeid(T).name() << "failed."
+                                      << "Modules are connected in a way they shouldn't be, will probably crash now.";
+                assert(0);
+            } else {
+                qWarning().noquote() << "Tried to obtain" << typeid(T).name() << "subscription from a port that was not subscribed to anything.";
+            }
+        }
+        return sub;
     }
 
-    QString id() const;
-    QString title() const;
+    QString id() const override;
+    QString title() const override;
+    bool isInput() const override;
 
 private:
     QString m_id;
@@ -150,7 +171,7 @@ private:
     std::optional<std::shared_ptr<VariantStreamSubscription>> m_sub;
 };
 
-class StreamOutputPort
+class StreamOutputPort : public AbstractStreamPort
 {
 public:
     explicit StreamOutputPort(const QString &id, const QString &title, std::shared_ptr<VariantDataStream> stream);
@@ -164,8 +185,13 @@ public:
         return m_stream;
     }
 
-    QString id() const;
-    QString title() const;
+    std::shared_ptr<VariantStreamSubscription> subscribe();
+
+    void stopStream();
+
+    QString id() const override;
+    QString title() const override;
+    bool isOutput() const override;
 
 private:
     QString m_id;
@@ -297,7 +323,7 @@ public:
      * Stop execution of an experiment. This method is called after
      * prepare() was run.
      */
-    virtual void stop() = 0;
+    virtual void stop();
 
     /**
      * @brief Finalize this module.

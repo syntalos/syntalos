@@ -33,7 +33,7 @@
 #ifdef HAVE_MINISCOPE
 #include "modules/miniscope/miniscopemodule.h"
 #endif
-#include "modules/triled-tracker/triledtrackermodule.h"
+//#include "modules/triled-tracker/triledtrackermodule.h"
 #include "modules/firmata-io/firmataiomodule.h"
 #include "modules/pyscript/pyscriptmodule.h"
 #include "modules/runcmd/runcmdmodule.h"
@@ -68,7 +68,7 @@ ModuleManager::ModuleManager(QWidget *parentWidget)
 #ifdef HAVE_MINISCOPE
     registerModuleInfo<MiniscopeModuleInfo>();
 #endif
-    registerModuleInfo<TriLedTrackerModuleInfo>();
+    //registerModuleInfo<TriLedTrackerModuleInfo>();
     registerModuleInfo<FirmataIOModuleInfo>();
     registerModuleInfo<PyScriptModuleInfo>();
     registerModuleInfo<RunCmdModuleInfo>();
@@ -197,7 +197,9 @@ QList<AbstractModule *> ModuleManager::createOrderedModuleList()
                 orderedActiveModules.append(mod);
                 continue;
             }
-        } else if (qobject_cast<ImageSinkModule*>(mod) != nullptr) {
+        }
+#if 0
+        else if (qobject_cast<ImageSinkModule*>(mod) != nullptr) {
             if (firstImgSinkModIdx < 0) {
                 // we have the first sink module
                 orderedActiveModules.append(mod);
@@ -208,7 +210,9 @@ QList<AbstractModule *> ModuleManager::createOrderedModuleList()
                 orderedActiveModules.insert(firstImgSinkModIdx + 1, mod);
                 continue;
             }
-        } else if (qobject_cast<PyScriptModule*>(mod) != nullptr) {
+        }
+#endif
+        else if (qobject_cast<PyScriptModule*>(mod) != nullptr) {
             // scripts are always initialized last, as they may arbitrarily connect
             // to the other modules to control them.
             // and we rather want that to happen when everything is prepared to run.

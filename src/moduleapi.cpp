@@ -106,6 +106,11 @@ QString StreamInputPort::title() const
     return m_title;
 }
 
+bool StreamInputPort::isInput() const
+{
+    return true;
+}
+
 StreamOutputPort::StreamOutputPort(const QString &id, const QString &title, std::shared_ptr<VariantDataStream> stream)
     : m_id(id),
       m_title(title),
@@ -123,6 +128,17 @@ QString StreamOutputPort::dataTypeName() const
     return m_stream->dataTypeName();
 }
 
+std::shared_ptr<VariantStreamSubscription> StreamOutputPort::subscribe()
+{
+    return m_stream->subscribeVar();
+}
+
+void StreamOutputPort::stopStream()
+{
+    if (m_stream->active())
+        m_stream->stop();
+}
+
 QString StreamOutputPort::id() const
 {
     return m_id;
@@ -131,6 +147,11 @@ QString StreamOutputPort::id() const
 QString StreamOutputPort::title() const
 {
     return m_title;
+}
+
+bool StreamOutputPort::isOutput() const
+{
+    return true;
 }
 
 AbstractModule::AbstractModule(QObject *parent) :
@@ -208,6 +229,11 @@ void AbstractModule::runThread(OptionalWaitCondition *startWaitCondition)
 {
     Q_UNUSED(startWaitCondition)
     // Do nothing
+}
+
+void AbstractModule::stop()
+{
+    m_running = false;
 }
 
 void AbstractModule::finalize()

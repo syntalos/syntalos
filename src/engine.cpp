@@ -73,6 +73,9 @@ Engine::Engine(ModuleManager *modManager, QObject *parent)
         d->running = false;
         emit runFailed(mod, message);
     });
+
+    // allow sending states via Qt queued connections
+    qRegisterMetaType<ModuleState>();
 }
 
 Engine::~Engine()
@@ -184,7 +187,7 @@ void Engine::refreshExportDirPath()
 /**
  * @brief Main entry point for engine-managed module threads.
  */
-void execute_module_thread(const QString& threadName, AbstractModule *mod, OptionalWaitCondition *waitCondition)
+static void executeModuleThread(const QString& threadName, AbstractModule *mod, OptionalWaitCondition *waitCondition)
 {
     pthread_setname_np(pthread_self(), qPrintable(threadName.mid(0, 15)));
 
@@ -266,6 +269,7 @@ bool Engine::run()
         emit statusMessage(QStringLiteral("Preparing %1...").arg(mod->name()));
         mod->setStatusMessage(QString());
         mod->setTimer(d->timer);
+        mod->setState(ModuleState::PREPARING);
         if (!mod->prepare(d->exportDir, d->testSubject)) {
             prepareStepFailed = true;
             d->failed = true;
@@ -295,7 +299,7 @@ bool Engine::run()
 
             // the thread name shouldn't be longer than 16 chars (inlcuding NULL)
             auto threadName = QStringLiteral("%1-%2").arg(mod->id().midRef(0, 12)).arg(i);
-            threads.push_back(std::thread(execute_module_thread,
+            threads.push_back(std::thread(executeModuleThread,
                                           threadName,
                                           mod,
                                           startWaitCondition.get()));
@@ -368,6 +372,11 @@ bool Engine::run()
         // safeguard against bad modules which don't stop themselves from running their
         // thread loops on their own
         mod->m_running = false;
+
+        // ensure modules really have terminated all their outgoing streams,
+        // because if they didn't do that, connected modules may not be able to exit
+        for (auto const port : mod->outPorts())
+            port->stopStream();
 
         // ensure modules display the correct state after we stopped a run
         if ((mod->state() != ModuleState::IDLE) && (mod->state() != ModuleState::ERROR))

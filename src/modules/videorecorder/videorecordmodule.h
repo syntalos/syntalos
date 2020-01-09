@@ -24,7 +24,6 @@
 #include <memory>
 #include <chrono>
 
-#include "imagesinkmodule.h"
 #include "moduleapi.h"
 
 class VideoWriter;
@@ -42,7 +41,7 @@ public:
     AbstractModule *createModule(QObject *parent = nullptr) override;
 };
 
-class VideoRecorderModule : public ImageSinkModule
+class VideoRecorderModule : public AbstractModule
 {
     Q_OBJECT
 public:
@@ -51,26 +50,18 @@ public:
     void setName(const QString& name) override;
     ModuleFeatures features() const override;
 
-    bool initialize(ModuleManager *manager) override;
     bool prepare(const QString& storageRootDir, const TestSubject& testSubject) override;
+    void runThread(OptionalWaitCondition *startWaitCondition) override;
+    void start() override;
     void stop() override;
-
-    bool canRemove(AbstractModule *mod) override;
 
     void showSettingsUi() override;
 
     QByteArray serializeSettings(const QString& confBaseDir) override;
     bool loadSettings(const QString& confBaseDir, const QByteArray& data) override;
 
-public slots:
-    void receiveFrame(const Frame& frame) override;
-
-private slots:
-    void recvModuleCreated(ModuleInfo *info, AbstractModule *mod);
-    void recvModulePreRemove(AbstractModule *mod);
-
 private:
-    QList<ImageSourceModule*> m_frameSourceModules;
+    std::atomic_bool m_recording;
     QString m_vidStorageDir;
     std::unique_ptr<VideoWriter> m_videoWriter;
     RecorderSettingsDialog *m_settingsDialog;

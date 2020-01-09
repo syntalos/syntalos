@@ -22,8 +22,8 @@
 
 #include <memory>
 #include <chrono>
-#include <opencv2/core.hpp>
 #include <QMetaType>
+#include "streams/frametype.h"
 
 /**
  * @brief The VideoContainer enum
@@ -76,6 +76,7 @@ public:
     void finalize();
     bool initialized() const;
 
+    bool pushFrame(const Frame& frame);
     bool pushFrame(const cv::Mat& frame, const std::chrono::milliseconds& time);
 
     VideoCodec codec() const;
@@ -103,7 +104,7 @@ private:
     void initializeInternal();
     void finalizeInternal(bool writeTrailer, bool stopRecThread = true);
     static void encodeThread(void* vwPtr);
-    bool getNextFrameFromQueue(cv::Mat *frame, std::chrono::milliseconds *timestamp);
+    bool getNextFrameFromQueue(cv::Mat *data, std::chrono::milliseconds *timestamp);
     bool prepareFrame(const cv::Mat &image);
     bool encodeFrame(const cv::Mat& frame, const std::chrono::milliseconds& timestamp);
     void startEncodeThread();

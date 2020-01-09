@@ -40,9 +40,6 @@ public:
 
     void setImageSourceModules(const QList<ImageSourceModule*>& mods);
 
-    ImageSourceModule *selectedImageSourceMod();
-    void setSelectedImageSourceMod(ImageSourceModule *mod);
-
     void setVideoName(const QString& value);
     QString videoName() const;
 
@@ -63,15 +60,11 @@ public:
 
 private slots:
     void on_codecComboBox_currentIndexChanged(int index);
-
-private slots:
     void on_nameLineEdit_textChanged(const QString &arg1);
-    void on_frameSourceComboBox_currentIndexChanged(int index);
 
 private:
     Ui::RecorderSettingsDialog *ui;
 
-    ImageSourceModule *m_selectedImgSrcMod;
     QString m_videoName;
 };
 

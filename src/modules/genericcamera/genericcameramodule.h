@@ -28,7 +28,6 @@
 #include <QMutex>
 
 #include "streams/frametype.h"
-#include "imagesourcemodule.h"
 #include "moduleapi.h"
 
 class Camera;
@@ -46,7 +45,7 @@ public:
     AbstractModule *createModule(QObject *parent = nullptr) override;
 };
 
-class GenericCameraModule : public ImageSourceModule
+class GenericCameraModule : public AbstractModule
 {
     Q_OBJECT
 public:
@@ -57,12 +56,7 @@ public:
 
     ModuleFeatures features() const override;
 
-    void attachVideoWriter(VideoWriter *vwriter) override;
-
-    int selectedFramerate() const override;
-    cv::Size selectedResolution() const override;
-
-    bool prepare() override;
+    bool prepare(const QString &storageRootDir, const TestSubject &testSubject) override;
     void start() override;
     bool runEvent() override;
     void runThread(OptionalWaitCondition *waitCondition) override;
@@ -77,7 +71,6 @@ private:
     VideoViewWidget *m_videoView;
     GenericCameraSettingsDialog *m_camSettingsWindow;
 
-    QList<VideoWriter*> m_vwriters;
     QMutex m_mutex;
     std::atomic_int m_currentFps;
     int m_fps;

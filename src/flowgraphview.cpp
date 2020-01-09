@@ -46,6 +46,8 @@
 
 #include <math.h>
 
+#include "moduleapi.h"
+
 
 //----------------------------------------------------------------------------
 // FlowGraphItem -- Base graphics item.
@@ -128,11 +130,10 @@ QRectF FlowGraphItem::editorRect (void) const
 //----------------------------------------------------------------------------
 // FlowGraphNodePort -- Port graphics item.
 
-// Constructor.
-FlowGraphNodePort::FlowGraphNodePort ( FlowGraphNode *node,
-                                       const QString& name, FlowGraphItem::Mode mode, uint type )
+// Constructors.
+FlowGraphNodePort::FlowGraphNodePort (FlowGraphNode *node)
     : FlowGraphItem(node), m_node(node),
-      m_name(name), m_mode(mode), m_type(type), m_index(0),
+      m_name(QString()), m_mode(FlowGraphItem::Mode::None), m_type(0), m_index(0),
       m_selectx(0), m_hilitex(0)
 {
     QGraphicsPathItem::setZValue(+1);
@@ -149,10 +150,24 @@ FlowGraphNodePort::FlowGraphNodePort ( FlowGraphNode *node,
     QGraphicsPathItem::setAcceptHoverEvents(true);
 
     QGraphicsPathItem::setToolTip(m_name);
-
     setPortTitle(m_name);
 }
 
+FlowGraphNodePort::FlowGraphNodePort(FlowGraphNode *node,
+                                       std::shared_ptr<AbstractStreamPort> port)
+    : FlowGraphNodePort(node)
+{
+    if (port->isOutput())
+            m_mode = FlowGraphNode::Mode::Output;
+    else if (port->isInput())
+            m_mode = FlowGraphNode::Mode::Input;
+    m_name = port->title();
+    if (m_name.isEmpty())
+        m_name = port->id();
+    QGraphicsPathItem::setToolTip(m_name);
+    setPortTitle(m_name);
+    m_streamPort = port;
+}
 
 // Destructor.
 FlowGraphNodePort::~FlowGraphNodePort (void)
@@ -249,6 +264,10 @@ int FlowGraphNodePort::portIndex (void) const
     return m_index;
 }
 
+std::shared_ptr<AbstractStreamPort> FlowGraphNodePort::streamPort()
+{
+    return m_streamPort;
+}
 
 QPointF FlowGraphNodePort::portPos (void) const
 {
@@ -711,10 +730,9 @@ QString FlowGraphNode::nodeInfoText() const
 
 
 // Port-list methods.
-FlowGraphNodePort *FlowGraphNode::addPort (
-        const QString& name, FlowGraphItem::Mode mode, uint type )
+FlowGraphNodePort *FlowGraphNode::addPort(std::shared_ptr<AbstractStreamPort> streamPort)
 {
-    FlowGraphNodePort *port = new FlowGraphNodePort(this, name, mode, type);
+    FlowGraphNodePort *port = new FlowGraphNodePort(this, streamPort);
 
     m_ports.append(port);
     m_portkeys.insert(FlowGraphNodePort::PortKey(port), port);
@@ -722,18 +740,6 @@ FlowGraphNodePort *FlowGraphNode::addPort (
     updatePath();
 
     return port;
-}
-
-
-FlowGraphNodePort *FlowGraphNode::addInputPort ( const QString& name, uint type )
-{
-    return addPort(name, FlowGraphItem::Input, type);
-}
-
-
-FlowGraphNodePort *FlowGraphNode::addOutputPort ( const QString& name, uint type )
-{
-    return addPort(name, FlowGraphItem::Output, type);
 }
 
 

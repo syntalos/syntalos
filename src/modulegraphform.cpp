@@ -58,18 +58,6 @@ ModuleGraphForm::ModuleGraphForm(QWidget *parent) :
     connect(ui->graphView, &FlowGraphView::connected, this, &ModuleGraphForm::on_portsConnected);
     connect(ui->graphView, &FlowGraphView::disconnected, this, &ModuleGraphForm::on_portsDisconnected);
     connect(m_modManager, &ModuleManager::modulePreRemove, this, &ModuleGraphForm::on_modulePreRemove);
-
-    // test area
-    auto tn = new FlowGraphNode("TestDuplex", FlowGraphItem::Duplex);
-    tn->addInputPort("InputData");
-    tn->addOutputPort("OutputDataPort1");
-    tn->addOutputPort("OutputDataPort2");
-
-    auto ts = new FlowGraphNode("TestSink", FlowGraphItem::Input);
-    ts->addInputPort("InputData");
-
-    graphView()->addItem(tn);
-    graphView()->addItem(ts);
 }
 
 ModuleGraphForm::~ModuleGraphForm()
@@ -105,9 +93,9 @@ void ModuleGraphForm::moduleAdded(ModuleInfo *info, AbstractModule *mod)
     auto node = new FlowGraphNode(mod->name(), FlowGraphItem::Duplex);
     node->setNodeIcon(info->pixmap());
     Q_FOREACH(auto iport, mod->inPorts())
-        node->addInputPort(iport->id());
+        node->addPort(std::dynamic_pointer_cast<AbstractStreamPort>(iport));
     Q_FOREACH(auto oport, mod->outPorts())
-        node->addOutputPort(oport->id());
+        node->addPort(std::dynamic_pointer_cast<AbstractStreamPort>(oport));
     ui->graphView->addItem(node);
     m_nodeModMap.insert(node, mod);
     m_modNodeMap.insert(mod, node);
@@ -235,8 +223,31 @@ void ModuleGraphForm::on_selectionChanged()
 
 void ModuleGraphForm::on_portsConnected(FlowGraphNodePort *port1, FlowGraphNodePort *port2)
 {
-    Q_UNUSED(port1)
-    Q_UNUSED(port2)
+    StreamInputPort *inPort = nullptr;
+    StreamOutputPort *outPort = nullptr;
+    if (port1->isInput())
+        inPort = dynamic_cast<StreamInputPort*>(port1->streamPort().get());
+    if (port2->isInput())
+        inPort = dynamic_cast<StreamInputPort*>(port2->streamPort().get());
+    if (port1->isOutput())
+        outPort = dynamic_cast<StreamOutputPort*>(port1->streamPort().get());
+    if (port2->isOutput())
+        outPort = dynamic_cast<StreamOutputPort*>(port1->streamPort().get());
+
+    if ((inPort == nullptr || outPort == nullptr)) {
+        // something went wrong or we connected two ports of the same type
+
+        // FIXME: Prevent connection of items
+        return;
+    }
+
+    if (!inPort->acceptsSubscription(outPort->dataTypeName())) {
+        qWarning().noquote() << "Tried to connect incompatible ports.";
+        return;
+    }
+
+    inPort->setSubscription(outPort->subscribe());
+    qDebug().noquote() << "Connected ports:" << outPort->id() << "->" << inPort->id();
 }
 
 void ModuleGraphForm::on_portsDisconnected(FlowGraphNodePort *port1, FlowGraphNodePort *port2)

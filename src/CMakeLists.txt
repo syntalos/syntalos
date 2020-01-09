@@ -25,8 +25,6 @@ set(MAZEAMAZE_SRC
     moduleselectdialog.cpp
     imagesourcemodule.h
     imagesourcemodule.cpp
-    imagesinkmodule.h
-    imagesinkmodule.cpp
     videoviewwidget.h
     videoviewwidget.cpp
     elidedlabel.h

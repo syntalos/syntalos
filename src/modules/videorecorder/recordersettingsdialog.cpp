@@ -24,8 +24,7 @@
 
 RecorderSettingsDialog::RecorderSettingsDialog(QWidget *parent) :
     QDialog(parent),
-    ui(new Ui::RecorderSettingsDialog),
-    m_selectedImgSrcMod(nullptr)
+    ui(new Ui::RecorderSettingsDialog)
 {
     ui->setupUi(this);
     setWindowIcon(QIcon(":/icons/generic-config"));
@@ -44,37 +43,6 @@ RecorderSettingsDialog::RecorderSettingsDialog(QWidget *parent) :
 RecorderSettingsDialog::~RecorderSettingsDialog()
 {
     delete ui;
-}
-
-void RecorderSettingsDialog::setImageSourceModules(const QList<ImageSourceModule *> &mods)
-{
-    auto mod = m_selectedImgSrcMod;
-
-    ui->frameSourceComboBox->clear();
-    Q_FOREACH(auto mod, mods) {
-        ui->frameSourceComboBox->addItem(mod->name(), QVariant(QMetaType::QObjectStar, &mod));
-    }
-
-    // ensure the right module is still selected
-    for (int i = 0; i < ui->frameSourceComboBox->count(); i++) {
-        if (ui->frameSourceComboBox->itemData(i).value<ImageSourceModule*>() == mod) {
-            ui->frameSourceComboBox->setCurrentIndex(i);
-            break;
-        }
-    }
-
-    if (m_selectedImgSrcMod == nullptr)
-        m_selectedImgSrcMod = mod;
-}
-
-ImageSourceModule *RecorderSettingsDialog::selectedImageSourceMod()
-{
-    return m_selectedImgSrcMod;
-}
-
-void RecorderSettingsDialog::setSelectedImageSourceMod(ImageSourceModule *mod)
-{
-    m_selectedImgSrcMod = mod;
 }
 
 void RecorderSettingsDialog::setVideoName(const QString &value)
@@ -146,12 +114,6 @@ void RecorderSettingsDialog::setSliceInterval(uint interval)
 uint RecorderSettingsDialog::sliceInterval() const
 {
     return static_cast<uint>(ui->sliceIntervalSpinBox->value());
-}
-
-void RecorderSettingsDialog::on_frameSourceComboBox_currentIndexChanged(int index)
-{
-    Q_UNUSED(index);
-    m_selectedImgSrcMod = ui->frameSourceComboBox->currentData().value<ImageSourceModule*>();
 }
 
 void RecorderSettingsDialog::on_nameLineEdit_textChanged(const QString &arg1)

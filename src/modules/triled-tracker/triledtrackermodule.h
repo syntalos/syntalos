@@ -26,7 +26,6 @@
 #include <mutex>
 #include <boost/circular_buffer.hpp>
 
-#include "imagesinkmodule.h"
 #include "moduleapi.h"
 
 class ImageSourceModule;
@@ -44,7 +43,7 @@ public:
     AbstractModule *createModule(QObject *parent = nullptr) override;
 };
 
-class TriLedTrackerModule : public ImageSinkModule
+class TriLedTrackerModule : public AbstractModule
 {
     Q_OBJECT
 public:

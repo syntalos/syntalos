@@ -51,6 +51,8 @@ class QMouseEvent;
 class QWheelEvent;
 class QKeyEvent;
 
+class AbstractStreamPort;
+
 
 //----------------------------------------------------------------------------
 // FlowGraphItem -- Base graphics item.
@@ -150,9 +152,10 @@ class FlowGraphNodePort : public FlowGraphItem
 {
 public:
 
-    // Constructor.
+    // Constructors.
+    FlowGraphNodePort(FlowGraphNode *node);
     FlowGraphNodePort(FlowGraphNode *node,
-                      const QString& name, Mode mode, uint type = 0);
+                      std::shared_ptr<AbstractStreamPort> port);
 
     // Destructor.
     ~FlowGraphNodePort() override;
@@ -182,6 +185,8 @@ public:
 
     void setPortIndex(int index);
     int portIndex() const;
+
+    std::shared_ptr<AbstractStreamPort> streamPort();
 
     QPointF portPos() const;
 
@@ -266,6 +271,8 @@ private:
     int m_selectx;
     int m_hilitex;
 
+    std::shared_ptr<AbstractStreamPort> m_streamPort;
+
     static SortType  g_sort_type;
     static SortOrder g_sort_order;
 };
@@ -310,10 +317,7 @@ public:
     QString nodeInfoText() const;
 
     // Port-list methods.
-    FlowGraphNodePort *addPort(const QString& name, Mode mode, uint type = 0);
-
-    FlowGraphNodePort *addInputPort(const QString& name, uint type = 0);
-    FlowGraphNodePort *addOutputPort(const QString& name, uint type = 0);
+    FlowGraphNodePort *addPort(std::shared_ptr<AbstractStreamPort> port);
 
     void removePort(FlowGraphNodePort *port);
     void removePorts();

@@ -53,59 +53,33 @@ AbstractModule *VideoRecorderModuleInfo::createModule(QObject *parent)
 }
 
 VideoRecorderModule::VideoRecorderModule(QObject *parent)
-    : ImageSinkModule(parent),
+    : AbstractModule(parent),
       m_settingsDialog(nullptr)
 {
-    m_inPort = registerInputPort<Frame>("Video");
+    m_inPort = registerInputPort<Frame>(QStringLiteral("video"), QStringLiteral("Video"));
 
     m_settingsDialog = new RecorderSettingsDialog;
     m_settingsDialog->setVideoName("video");
     m_settingsDialog->setSaveTimestamps(true);
     addSettingsWindow(m_settingsDialog);
+    setName(name());
 }
 
 void VideoRecorderModule::setName(const QString &name)
 {
-    ImageSinkModule::setName(name);
-    if (m_settingsDialog != nullptr)
-        m_settingsDialog->setWindowTitle(QStringLiteral("Settings for %1").arg(name));
+    AbstractModule::setName(name);
+    m_settingsDialog->setWindowTitle(QStringLiteral("Settings for %1").arg(name));
 }
 
 ModuleFeatures VideoRecorderModule::features() const
 {
-    return ModuleFeature::SHOW_SETTINGS;
-}
-
-bool VideoRecorderModule::initialize(ModuleManager *manager)
-{
-    assert(!initialized());
-    setState(ModuleState::INITIALIZING);
-
-    // find all modules suitable as frame sources
-    Q_FOREACH(auto mod, manager->activeModules()) {
-        auto imgSrcMod = qobject_cast<ImageSourceModule*>(mod);
-        if (imgSrcMod == nullptr)
-            continue;
-        m_frameSourceModules.append(imgSrcMod);
-    }
-    if (m_frameSourceModules.isEmpty())
-        m_settingsDialog->setSelectedImageSourceMod(nullptr);
-    else
-        m_settingsDialog->setSelectedImageSourceMod(m_frameSourceModules.first()); // set first module as default
-
-    connect(manager, &ModuleManager::moduleCreated, this, &VideoRecorderModule::recvModuleCreated);
-    connect(manager, &ModuleManager::modulePreRemove, this, &VideoRecorderModule::recvModulePreRemove);
-
-    setState(ModuleState::IDLE);
-    setInitialized();
-    setName(name());
-    return true;
+    return ModuleFeature::RUN_THREADED |
+           ModuleFeature::SHOW_SETTINGS;
 }
 
 bool VideoRecorderModule::prepare(const QString &storageRootDir, const TestSubject &testSubject)
 {
     Q_UNUSED(testSubject)
-    setState(ModuleState::PREPARING);
 
     m_vidStorageDir = QStringLiteral("%1/videos").arg(storageRootDir);
 
@@ -116,61 +90,86 @@ bool VideoRecorderModule::prepare(const QString &storageRootDir, const TestSubje
     if (!makeDirectory(m_vidStorageDir))
         return false;
 
-    auto imgSrcMod = m_settingsDialog->selectedImageSourceMod();
-    if (imgSrcMod == nullptr) {
-        raiseError("No frame source is set for video recording. Please set it in the modules' settings to continue.");
-        return false;
-    }
-
-    const auto useColor = true;
-    const auto frameSize = imgSrcMod->selectedResolution();
-
     m_videoWriter.reset(new VideoWriter);
     m_videoWriter->setContainer(m_settingsDialog->videoContainer());
     m_videoWriter->setCodec(m_settingsDialog->videoCodec());
     m_videoWriter->setLossless(m_settingsDialog->isLossless());
     m_videoWriter->setFileSliceInterval(m_settingsDialog->sliceInterval());
 
+    return true;
+}
+
+void VideoRecorderModule::runThread(OptionalWaitCondition *startWaitCondition)
+{
+
+    if (!m_inPort->hasSubscription()) {
+        // just exit if we aren't subscribed to any data source
+        setState(ModuleState::READY);
+        return;
+    }
+    auto sub = m_inPort->subscription<Frame>();
+    const auto mdata = sub->metadata();
+    const auto frameSize = mdata["size"].toSize();
+    const auto framerate = mdata["framerate"].toInt();
+    const auto useColor = mdata.value("hasColor", true).toBool();
+
     try {
         m_videoWriter->initialize(QStringLiteral("%1/%2").arg(m_vidStorageDir).arg(m_settingsDialog->videoName()).toStdString(),
-                                  frameSize.width,
-                                  frameSize.height,
-                                  imgSrcMod->selectedFramerate(),
+                                  frameSize.width(),
+                                  frameSize.height(),
+                                  framerate,
                                   useColor,
                                   m_settingsDialog->saveTimestamps());
     } catch (const std::runtime_error& e) {
         raiseError(QStringLiteral("Unable to initialize recording: %1").arg(e.what()));
-        return false;
+        return;
     }
-
-    // attach the video recorder directly to the recording device.
-    // this avoids making a function call or emitting a Qt signal,
-    // which is more efficient with higher framerates and ensures we
-    // always record data properly.
-    imgSrcMod->attachVideoWriter(m_videoWriter.get());
 
     // write info video info file with auxiliary information about the video we encoded
     // (this is useful to gather intel about the video without opening the video file)
     auto infoPath = QStringLiteral("%1/%2_videoinfo.json").arg(m_vidStorageDir).arg(m_settingsDialog->videoName());
     QJsonObject vInfo;
     vInfo.insert("name", m_settingsDialog->videoName());
-    vInfo.insert("frameWidth", frameSize.width);
-    vInfo.insert("frameHeight", frameSize.height);
-    vInfo.insert("framerate", imgSrcMod->selectedFramerate());
+    vInfo.insert("frameWidth", frameSize.width());
+    vInfo.insert("frameHeight", frameSize.height());
+    vInfo.insert("framerate", framerate);
     vInfo.insert("colored", useColor);
 
     QFile vInfoFile(infoPath);
     if (!vInfoFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
         raiseError("Unable to open video info file for writing.");
-        return false;
+        return;
     }
 
     QTextStream vInfoFileOut(&vInfoFile);
     vInfoFileOut << QJsonDocument(vInfo).toJson();
 
-    statusMessage(QStringLiteral("Recording from %1").arg(imgSrcMod->name()));
-    setState(ModuleState::READY);
-    return true;
+    // wait until data acquisition has started
+    startWaitCondition->wait(this);
+
+    m_recording = true;
+    statusMessage(QStringLiteral("Recording video..."));
+    while (true) {
+        auto data = sub->next();
+        if (!data.has_value())
+            break; // subscription has been terminated
+
+        // write video data
+        if (!m_videoWriter->pushFrame(data.value())) {
+            raiseError(QString::fromStdString(m_videoWriter->lastError()));
+            break;
+        }
+    }
+    m_recording = false;
+}
+
+void VideoRecorderModule::start()
+{
+    AbstractModule::start();
+
+    // we may be actually idle in case we e.g. aren't connected to any source
+    if (!m_recording && (state() != ModuleState::ERROR))
+        setState(ModuleState::IDLE);
 }
 
 void VideoRecorderModule::stop()
@@ -178,23 +177,12 @@ void VideoRecorderModule::stop()
     if (m_videoWriter.get() != nullptr)
         m_videoWriter->finalize();
 
-    auto imgSrcMod = m_settingsDialog->selectedImageSourceMod();
-    disconnect(imgSrcMod, &ImageSourceModule::newFrame, this, &VideoRecorderModule::receiveFrame);
-
     statusMessage(QStringLiteral("Recording stopped."));
     m_videoWriter.reset(nullptr);
 }
 
-bool VideoRecorderModule::canRemove(AbstractModule *mod)
-{
-    return mod != m_settingsDialog->selectedImageSourceMod();
-}
-
 void VideoRecorderModule::showSettingsUi()
 {
-    assert(initialized());
-
-    m_settingsDialog->setImageSourceModules(m_frameSourceModules);
     m_settingsDialog->show();
 }
 
@@ -202,7 +190,6 @@ QByteArray VideoRecorderModule::serializeSettings(const QString &confBaseDir)
 {
     Q_UNUSED(confBaseDir)
     QJsonObject jset;
-    jset.insert("imageSourceModule", m_settingsDialog->selectedImageSourceMod()->name());
     jset.insert("videoName", m_settingsDialog->videoName());
     jset.insert("saveTimestamps", m_settingsDialog->saveTimestamps());
 
@@ -220,13 +207,6 @@ bool VideoRecorderModule::loadSettings(const QString &confBaseDir, const QByteAr
     Q_UNUSED(confBaseDir)
     auto jset = jsonObjectFromBytes(data);
 
-    auto modName = jset.value("imageSourceModule").toString();
-    Q_FOREACH(auto mod, m_frameSourceModules) {
-        if (mod->name() == modName) {
-            m_settingsDialog->setSelectedImageSourceMod(mod);
-            break;
-        }
-    }
     m_settingsDialog->setVideoName(jset.value("videoName").toString());
     m_settingsDialog->setSaveTimestamps(jset.value("saveTimestamps").toBool());
 
@@ -237,33 +217,4 @@ bool VideoRecorderModule::loadSettings(const QString &confBaseDir, const QByteAr
     m_settingsDialog->setSliceInterval(static_cast<uint>(jset.value("sliceInterval").toInt()));
 
     return true;
-}
-
-void VideoRecorderModule::recvModuleCreated(ModuleInfo *info, AbstractModule *mod)
-{
-    Q_UNUSED(info)
-    auto imgSrcMod = qobject_cast<ImageSourceModule*>(mod);
-    if (imgSrcMod != nullptr)
-        m_frameSourceModules.append(imgSrcMod);
-}
-
-void VideoRecorderModule::recvModulePreRemove(AbstractModule *mod)
-{
-    auto imgSrcMod = qobject_cast<ImageSourceModule*>(mod);
-    if (imgSrcMod == nullptr)
-        return;
-    for (int i = 0; i < m_frameSourceModules.size(); i++) {
-        auto fsmod = m_frameSourceModules.at(i);
-        if (fsmod == imgSrcMod) {
-            m_frameSourceModules.removeAt(i);
-            break;
-        }
-    }
-}
-
-void VideoRecorderModule::receiveFrame(const Frame &frame)
-{
-    // Video recorder modules are special in that we directly register them with the recorder module's
-    // DAQ thread, so their performance will not suffer from additional signal/slots and queueing overhead
-    Q_UNUSED(frame)
 }

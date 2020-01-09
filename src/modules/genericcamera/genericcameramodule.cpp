@@ -28,8 +28,6 @@
 #include "videoviewwidget.h"
 #include "genericcamerasettingsdialog.h"
 
-#include "modules/videorecorder/videowriter.h"
-
 QString GenericCameraModuleInfo::id() const
 {
     return QStringLiteral("generic-camera");
@@ -56,7 +54,7 @@ AbstractModule *GenericCameraModuleInfo::createModule(QObject *parent)
 }
 
 GenericCameraModule::GenericCameraModule(QObject *parent)
-    : ImageSourceModule(parent),
+    : AbstractModule(parent),
       m_camera(nullptr),
       m_videoView(nullptr),
       m_camSettingsWindow(nullptr)
@@ -64,7 +62,7 @@ GenericCameraModule::GenericCameraModule(QObject *parent)
     m_camera = new Camera;
 
     m_frameRing = boost::circular_buffer<Frame>(64);
-    m_outStream = registerOutputPort<Frame>("Video");
+    m_outStream = registerOutputPort<Frame>(QStringLiteral("video"), QStringLiteral("Video"));
 
     m_videoView = new VideoViewWidget;
     m_camSettingsWindow = new GenericCameraSettingsDialog(m_camera);
@@ -82,7 +80,7 @@ GenericCameraModule::~GenericCameraModule()
 
 void GenericCameraModule::setName(const QString &name)
 {
-    ImageSourceModule::setName(name);
+    AbstractModule::setName(name);
     m_videoView->setWindowTitle(name);
     m_camSettingsWindow->setWindowTitle(QStringLiteral("Settings for %1").arg(name));
 }
@@ -95,25 +93,10 @@ ModuleFeatures GenericCameraModule::features() const
            ModuleFeature::SHOW_SETTINGS;
 }
 
-void GenericCameraModule::attachVideoWriter(VideoWriter *vwriter)
+bool GenericCameraModule::prepare(const QString &storageRootDir, const TestSubject &testSubject)
 {
-    m_vwriters.append(vwriter);
-}
-
-int GenericCameraModule::selectedFramerate() const
-{
-    return m_camSettingsWindow->framerate();
-}
-
-cv::Size GenericCameraModule::selectedResolution() const
-{
-    return m_camSettingsWindow->resolution();
-}
-
-bool GenericCameraModule::prepare()
-{
-    setState(ModuleState::PREPARING);
-
+    Q_UNUSED(storageRootDir)
+    Q_UNUSED(testSubject)
     if (m_camera->camId() < 0) {
         raiseError("Unable to continue: No valid camera was selected!");
         return false;
@@ -125,14 +108,20 @@ bool GenericCameraModule::prepare()
         return false;
     }
     m_camera->setResolution(m_camSettingsWindow->resolution());
-    statusMessage("Launching DAQ thread...");
 
     m_camSettingsWindow->setRunning(true);
     m_fps = m_camSettingsWindow->framerate();
-    m_running = true;
+
+    // set the required stream metadata for video capture
+    m_outStream->setMetadataVal("size", QSize(m_camera->resolution().width,
+                                              m_camera->resolution().height));
+    m_outStream->setMetadataVal("framerate", m_fps);
+
+    // start the stream
+    m_outStream->start();
+
     statusMessage("Waiting.");
 
-    setState(ModuleState::READY);
     return true;
 }
 
@@ -140,7 +129,8 @@ void GenericCameraModule::start()
 {
     m_camera->setStartTime(m_timer->startTime());
     statusMessage("Acquiring frames...");
-    setState(ModuleState::RUNNING);
+
+    AbstractModule::start();
 }
 
 bool GenericCameraModule::runEvent()
@@ -165,10 +155,6 @@ bool GenericCameraModule::runEvent()
         statusText = QStringLiteral("%1 - <font color=\"red\"><b>Framerate is too low!</b></font>").arg(statusText);
     statusMessage(statusText);
 
-    // send frame away to connected image sinks, and hope they are
-    // handling this efficiently and don't block the loop
-    emit newFrame(frame);
-
     // show framerate directly in the window title, to make reduced framerate very visible
     m_videoView->setWindowTitle(QStringLiteral("%1 (%2 fps)").arg(m_name).arg(m_currentFps));
 
@@ -180,15 +166,15 @@ void GenericCameraModule::runThread(OptionalWaitCondition *waitCondition)
     m_currentFps = m_fps;
     auto frameRecordFailedCount = 0;
 
-    // wait until we actually start
+    // wait until we actually start acquiring data
     waitCondition->wait(this);
 
     while (m_running) {
         const auto cycleStartTime = currentTimePoint();
 
-        cv::Mat frame;
+        cv::Mat mat;
         std::chrono::milliseconds time;
-        if (!m_camera->recordFrame(&frame, &time)) {
+        if (!m_camera->recordFrame(&mat, &time)) {
             frameRecordFailedCount++;
             if (frameRecordFailedCount > 32) {
                 m_running = false;
@@ -196,13 +182,15 @@ void GenericCameraModule::runThread(OptionalWaitCondition *waitCondition)
             }
             continue;
         }
+        // construct frame container
+        Frame frame(mat, time);
 
-        // record this frame, if we have any video writers registered
-        Q_FOREACH(auto vwriter, m_vwriters)
-            vwriter->pushFrame(frame, time);
+        // emit this frame on our output port
+        m_outStream->push(frame);
 
+        // send frame for display
         m_mutex.lock();
-        m_frameRing.push_back(Frame(frame, time));
+        m_frameRing.push_back(frame);
         m_mutex.unlock();
 
         // wait a bit if necessary, to keep the right framerate
@@ -218,17 +206,13 @@ void GenericCameraModule::runThread(OptionalWaitCondition *waitCondition)
 
 void GenericCameraModule::stop()
 {
-    // ensure we unregister all video writers before starting another run,
-    // and after finishing the current one, as the modules they belong to
-    // may meanwhile have been removed
-    m_vwriters.clear();
-
     statusMessage("Cleaning up...");
-    m_running = false;
 
     m_camera->disconnect();
     m_camSettingsWindow->setRunning(false);
     statusMessage("Camera disconnected.");
+
+    AbstractModule::stop();
 }
 
 QByteArray GenericCameraModule::serializeSettings(const QString &confBaseDir)
