@@ -64,6 +64,7 @@ public slots:
 private:
     bool makeDirectory(const QString &dir);
     void refreshExportDirPath();
+    void emitStatusMessage(const QString &message);
 
     class EData;
     Q_DISABLE_COPY(Engine)

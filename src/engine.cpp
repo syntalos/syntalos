@@ -165,7 +165,7 @@ bool Engine::makeDirectory(const QString &dir)
         QMessageBox::critical(d->parentWidget,
                               QStringLiteral("Error"),
                               QStringLiteral("Unable to create directory '%1'.").arg(dir));
-        emit statusMessage("OS error.");
+        emitStatusMessage("OS error.");
         return false;
     }
 
@@ -181,7 +181,13 @@ void Engine::refreshExportDirPath()
                                     .arg(d->exportBaseDir)
                                     .arg(d->testSubject.id)
                                     .arg(currentDate)
-                                    .arg(d->experimentId));
+                                   .arg(d->experimentId));
+}
+
+void Engine::emitStatusMessage(const QString &message)
+{
+    qDebug().noquote() << "EngineStatus:" << message;
+    emit statusMessage(message);
 }
 
 /**
@@ -253,7 +259,7 @@ bool Engine::run()
         if (reply == QMessageBox::No)
             return false;
 
-        emit statusMessage(QStringLiteral("Removing data from an old run..."));
+        emitStatusMessage(QStringLiteral("Removing data from an old run..."));
         deDir.removeRecursively();
     }
 
@@ -266,14 +272,14 @@ bool Engine::run()
     bool prepareStepFailed = false;
     d->failed = false; // assume success until a module actually fails
     Q_FOREACH(auto mod, orderedActiveModules) {
-        emit statusMessage(QStringLiteral("Preparing %1...").arg(mod->name()));
+        emitStatusMessage(QStringLiteral("Preparing %1...").arg(mod->name()));
         mod->setStatusMessage(QString());
         mod->setTimer(d->timer);
         mod->setState(ModuleState::PREPARING);
         if (!mod->prepare(d->exportDir, d->testSubject)) {
             prepareStepFailed = true;
             d->failed = true;
-            emit statusMessage(QStringLiteral("Module %1 failed to prepare.").arg(mod->name()));
+            emitStatusMessage(QStringLiteral("Module %1 failed to prepare.").arg(mod->name()));
             break;
         }
         mod->setState(ModuleState::IDLE);
@@ -290,7 +296,7 @@ bool Engine::run()
     // set up during preparations.
     // Modules are expected to deal with multiple calls to stop().
     if (!prepareStepFailed) {
-        emit statusMessage(QStringLiteral("Initializing launch..."));
+        emitStatusMessage(QStringLiteral("Initializing launch..."));
 
         // launch threads for threaded modules
         for (int i = 0; i < orderedActiveModules.size(); i++) {
@@ -298,7 +304,7 @@ bool Engine::run()
             if (!mod->features().testFlag(ModuleFeature::RUN_THREADED))
                 continue;
 
-            // we are preparing again!
+            // we are preparing again, this time for threading!
             // this is important, as we will only start when the module
             // signalled that it is ready now.
             mod->setState(ModuleState::PREPARING);
@@ -327,38 +333,54 @@ bool Engine::run()
         Q_FOREACH(auto mod, orderedActiveModules) {
             if (mod->state() == ModuleState::READY)
                 continue;
-            emit statusMessage(QStringLiteral("Waiting for %1 to become ready...").arg(mod->name()));
+            emitStatusMessage(QStringLiteral("Waiting for %1 to become ready...").arg(mod->name()));
             while (mod->state() != ModuleState::READY) {
-                QThread::msleep(50);
+                QThread::msleep(500);
                 QCoreApplication::processEvents();
             }
         }
 
-        emit statusMessage(QStringLiteral("Launch setup completed."));
+        emitStatusMessage(QStringLiteral("Launch setup completed."));
 
         // we officially start now, launch the timer
         d->timer->start();
 
-        // wake that thundering herd and hope all modules awoken by the
+        // first, launch all threaded modules
+        for (auto& mod : orderedActiveModules) {
+            if (!mod->features().testFlag(ModuleFeature::RUN_THREADED))
+                continue;
+
+            mod->start();
+
+            // ensure modules are in their "running" state now
+            mod->m_running = true;
+            mod->setState(ModuleState::RUNNING);
+        }
+
+        // wake that thundering herd and hope all threaded modules awoken by the
         // start signal behave properly
         startWaitCondition->wakeAll();
 
-        // tell all modules individuall now that we started
-        Q_FOREACH(auto mod, orderedActiveModules) {
+        // tell all non-threaded modules individuall now that we started
+        for (auto& mod : orderedActiveModules) {
+            // ignore threaded
+            if (mod->features().testFlag(ModuleFeature::RUN_THREADED))
+                continue;
+
             mod->start();
 
-            // work around bad modules which don't set this on their own
+            // work around bad modules which don't set this on their own in start()
             mod->m_running = true;
             mod->setState(ModuleState::RUNNING);
         }
 
         d->running = true;
-        emit statusMessage(QStringLiteral("Running..."));
+        emitStatusMessage(QStringLiteral("Running..."));
 
         while (d->running) {
             Q_FOREACH(auto mod, idleEventModules) {
                 if (!mod->runEvent()){
-                    emit statusMessage(QStringLiteral("Module %1 failed.").arg(mod->name()));
+                    emitStatusMessage(QStringLiteral("Module %1 failed.").arg(mod->name()));
                     d->failed = true;
                     break;
                 }
@@ -373,7 +395,7 @@ bool Engine::run()
 
     // send stop command to all modules
     Q_FOREACH(auto mod, orderedActiveModules) {
-        emit statusMessage(QStringLiteral("Stopping %1...").arg(mod->name()));
+        emitStatusMessage(QStringLiteral("Stopping %1...").arg(mod->name()));
         mod->stop();
 
         // safeguard against bad modules which don't stop themselves from running their
@@ -395,7 +417,7 @@ bool Engine::run()
     for (size_t i = 0; i < threads.size(); i++) {
         auto &thread = threads[i];
         auto mod = threadIdxModMap[i];
-        emit statusMessage(QStringLiteral("Waiting for %1...").arg(mod->name()));
+        emitStatusMessage(QStringLiteral("Waiting for %1...").arg(mod->name()));
         thread.join();
     }
 
@@ -403,10 +425,10 @@ bool Engine::run()
         // if we failed to prepare this run, don't save the manifest and also
         // remove any data that we might have already created, as well as the
         // export directory.
-        emit statusMessage(QStringLiteral("Removing broken data..."));
+        emitStatusMessage(QStringLiteral("Removing broken data..."));
         deDir.removeRecursively();
     } else {
-        emit statusMessage(QStringLiteral("Writing manifest..."));
+        emitStatusMessage(QStringLiteral("Writing manifest..."));
 
         // write manifest with misc information
         QDateTime curDateTime(QDateTime::currentDateTime());
@@ -443,7 +465,7 @@ bool Engine::run()
         manifestFileOut << QJsonDocument(manifest).toJson();
     }
 
-    emit statusMessage(QStringLiteral("Ready."));
+    emitStatusMessage(QStringLiteral("Ready."));
     return true;
 }
 

@@ -28,6 +28,7 @@ class OptionalWaitCondition::OWCData
 public:
     OWCData() {}
 
+    std::atomic_bool ready;
     uint count;
     QMutex mutex;
     QWaitCondition condition;
@@ -38,10 +39,14 @@ private:
 
 OptionalWaitCondition::OptionalWaitCondition()
     : d(new OptionalWaitCondition::OWCData())
-{}
+{
+    d->ready = false;
+}
 
 void OptionalWaitCondition::wait()
 {
+    if (d->ready)
+        return;
     d->mutex.lock();
     d->count++;
     d->condition.wait(&d->mutex);
@@ -62,9 +67,11 @@ uint OptionalWaitCondition::waitingCount() const
 void OptionalWaitCondition::wakeAll()
 {
     d->condition.wakeAll();
+    d->ready = true;
 }
 
 void OptionalWaitCondition::reset()
 {
+    d->ready = false;
     d->count = 0;
 }
