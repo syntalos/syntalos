@@ -115,6 +115,7 @@ AbstractModule *ModuleManager::createModule(const QString &id)
 
     // the module has been created and registered, we can
     // safely initialize it now.
+    mod->setState(ModuleState::INITIALIZING);
     if (!mod->initialize(this)) {
         QMessageBox::critical(d->parentWidget, QStringLiteral("Module initialization failed"),
                               QStringLiteral("Failed to initialize module %1, it can not be added. Message: %2").arg(id).arg(mod->lastError()),

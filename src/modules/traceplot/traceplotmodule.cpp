@@ -93,7 +93,6 @@ bool TracePlotModule::canRemove(AbstractModule *mod)
 bool TracePlotModule::initialize(ModuleManager *manager)
 {
     assert(!initialized());
-    setState(ModuleState::INITIALIZING);
 
     m_intanModule = nullptr;
     Q_FOREACH(auto mod, manager->activeModules()) {
@@ -116,12 +115,10 @@ bool TracePlotModule::prepare(const QString &storageRootDir, const TestSubject &
 {
     Q_UNUSED(storageRootDir)
     Q_UNUSED(testSubject)
-    setState(ModuleState::PREPARING);
 
     // reset trace plot data
     m_traceProxy->reset();
 
-    setState(ModuleState::READY);
     return true;
 }
 

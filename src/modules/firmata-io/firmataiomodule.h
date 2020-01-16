@@ -65,7 +65,6 @@ public:
     ModuleFeatures features() const override;
 
     bool prepare(const QString& storageRootDir, const TestSubject& testSubject) override;
-    void stop() override;
 
     QByteArray serializeSettings(const QString& confBaseDir) override;
     bool loadSettings(const QString& confBaseDir, const QByteArray& data) override;

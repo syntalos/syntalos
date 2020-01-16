@@ -60,10 +60,7 @@ bool RunCmdModule::prepare(const QString &storageRootDir, const TestSubject &tes
 {
     Q_UNUSED(storageRootDir)
     Q_UNUSED(testSubject)
-    setState(ModuleState::PREPARING);
 
-
-    setState(ModuleState::READY);
     return true;
 }
 

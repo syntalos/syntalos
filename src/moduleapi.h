@@ -209,7 +209,23 @@ public:
     ~AbstractModule();
 
     ModuleState state() const;
-    void setState(ModuleState state);
+
+    /**
+     * @brief Allow a running module to mark itself as idle.
+     *
+     * This may be useful in case the module us missing an essential stream
+     * connection and essentially does nothing in a run.
+     */
+    void setStateIdle();
+
+    /**
+     * @brief Allow a preparing module to mark itself as ready
+     *
+     * When a module is done preparing itself, e.g. by setting up its thread,
+     * it can switch to its ready state on its own and thereby allow the engine
+     * to start it. Usually doing this explicitly is not necessary.
+     */
+    void setStateReady();
 
     /**
      * @brief Name of this module used internally as unique identifier
@@ -440,6 +456,8 @@ protected:
     std::shared_ptr<HRTimer> m_timer;
 
 private:
+    void setState(ModuleState state);
+
     std::atomic<ModuleState> m_state;
     QString m_lastError;
     QString m_id;

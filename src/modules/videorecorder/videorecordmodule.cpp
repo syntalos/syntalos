@@ -104,7 +104,7 @@ void VideoRecorderModule::runThread(OptionalWaitCondition *startWaitCondition)
 
     if (!m_inPort->hasSubscription()) {
         // just exit if we aren't subscribed to any data source
-        setState(ModuleState::READY);
+        setStateReady();
         return;
     }
     auto sub = m_inPort->subscription<Frame>();
@@ -169,7 +169,7 @@ void VideoRecorderModule::start()
 
     // we may be actually idle in case we e.g. aren't connected to any source
     if (!m_recording && (state() != ModuleState::ERROR))
-        setState(ModuleState::IDLE);
+        setStateIdle();
 }
 
 void VideoRecorderModule::stop()

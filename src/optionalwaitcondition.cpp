@@ -50,7 +50,7 @@ void OptionalWaitCondition::wait()
 
 void OptionalWaitCondition::wait(AbstractModule *mod)
 {
-    mod->setState(ModuleState::READY);
+    mod->setStateReady();
     wait();
 }
 

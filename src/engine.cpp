@@ -276,6 +276,7 @@ bool Engine::run()
             emit statusMessage(QStringLiteral("Module %1 failed to prepare.").arg(mod->name()));
             break;
         }
+        mod->setState(ModuleState::IDLE);
     }
 
     // threads our modules run in, as module name/thread pairs
@@ -296,6 +297,11 @@ bool Engine::run()
             auto mod = orderedActiveModules[i];
             if (!mod->features().testFlag(ModuleFeature::RUN_THREADED))
                 continue;
+
+            // we are preparing again!
+            // this is important, as we will only start when the module
+            // signalled that it is ready now.
+            mod->setState(ModuleState::PREPARING);
 
             // the thread name shouldn't be longer than 16 chars (inlcuding NULL)
             auto threadName = QStringLiteral("%1-%2").arg(mod->id().midRef(0, 12)).arg(i);
@@ -343,6 +349,7 @@ bool Engine::run()
 
             // work around bad modules which don't set this on their own
             mod->m_running = true;
+            mod->setState(ModuleState::RUNNING);
         }
 
         d->running = true;

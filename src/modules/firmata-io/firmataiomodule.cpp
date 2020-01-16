@@ -79,7 +79,6 @@ bool FirmataIOModule::prepare(const QString &storageRootDir, const TestSubject &
 {
     Q_UNUSED(storageRootDir)
     Q_UNUSED(testSubject)
-    setState(ModuleState::PREPARING);
 
     // cleanup
     m_changedValuesQueue.clear();
@@ -117,13 +116,7 @@ bool FirmataIOModule::prepare(const QString &storageRootDir, const TestSubject &
         return false;
     }
 
-    setState(ModuleState::READY);
     return true;
-}
-
-void FirmataIOModule::stop()
-{
-    setState(ModuleState::IDLE);
 }
 
 QByteArray FirmataIOModule::serializeSettings(const QString &confBaseDir)

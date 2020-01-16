@@ -120,7 +120,6 @@ PyScriptModule::~PyScriptModule()
 bool PyScriptModule::initialize(ModuleManager *manager)
 {
     assert(!initialized());
-    setState(ModuleState::INITIALIZING);
 
     if (m_workerBinary.isEmpty()) {
         raiseError("Unable to find Python worker binary. Is MazeAmaze installed correctly?");
@@ -136,7 +135,6 @@ bool PyScriptModule::initialize(ModuleManager *manager)
 bool PyScriptModule::prepare(const QString &storageRootDir, const TestSubject &testSubject)
 {
     Q_UNUSED(testSubject);
-    setState(ModuleState::PREPARING);
 
     m_pyoutWindow->clear();
 
@@ -171,14 +169,12 @@ bool PyScriptModule::prepare(const QString &storageRootDir, const TestSubject &t
     }
 
     m_running = true;
-    setState(ModuleState::READY);
     return true;
 }
 
 void PyScriptModule::start()
 {
     m_funcRelay->setCanStartScript(true);
-    setState(ModuleState::RUNNING);
 }
 
 bool PyScriptModule::runEvent()
@@ -231,8 +227,6 @@ void PyScriptModule::stop()
         delete m_zserver;
         m_zserver = nullptr;
     }
-
-    setState(ModuleState::READY);
 }
 
 QByteArray PyScriptModule::serializeSettings(const QString &confBaseDir)

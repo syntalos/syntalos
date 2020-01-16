@@ -89,7 +89,6 @@ Rhd2000Module::Rhd2000Module(QObject *parent)
 bool Rhd2000Module::prepare(const QString &storageRootDir, const TestSubject &testSubject)
 {
     assert(m_intanUi);
-    setState(ModuleState::PREPARING);
 
     if (m_intanUi->isRunning()) {
         raiseError(QStringLiteral("Can not launch experiment because Intan module is already running, likely in no-record mode.\nPlease stop the module first to continue."));
@@ -111,7 +110,6 @@ bool Rhd2000Module::prepare(const QString &storageRootDir, const TestSubject &te
     m_intanUi->interfaceBoardPrepareRecording();
     m_intanUi->interfaceBoardInitRun();
     m_runAction->setEnabled(false);
-    setState(ModuleState::READY);
 
     return true;
 }
@@ -119,7 +117,6 @@ bool Rhd2000Module::prepare(const QString &storageRootDir, const TestSubject &te
 void Rhd2000Module::start()
 {
     m_intanUi->interfaceBoardStartRun();
-    setState(ModuleState::RUNNING);
 }
 
 bool Rhd2000Module::runEvent()

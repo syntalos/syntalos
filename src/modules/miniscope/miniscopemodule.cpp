@@ -94,7 +94,6 @@ void MiniscopeModule::setName(const QString &name)
 bool MiniscopeModule::prepare(const QString &storageRootDir, const TestSubject &testSubject)
 {
     Q_UNUSED(testSubject)
-    setState(ModuleState::PREPARING);
 
     m_recStorageDir = QStringLiteral("%1/miniscope").arg(storageRootDir);
     if (!makeDirectory(m_recStorageDir))
@@ -117,7 +116,6 @@ bool MiniscopeModule::prepare(const QString &storageRootDir, const TestSubject &
         return false;
     }
 
-    setState(ModuleState::READY);
     return true;
 }
 
@@ -126,7 +124,6 @@ void MiniscopeModule::start()
     m_miniscope->setCaptureStartTimepoint(m_timer->startTime());
     if (!m_miniscope->startRecording())
         raiseError(QString::fromStdString(m_miniscope->lastError()));
-    setState(ModuleState::RUNNING);
 }
 
 bool MiniscopeModule::runEvent()

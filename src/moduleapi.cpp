@@ -182,6 +182,18 @@ ModuleState AbstractModule::state() const
     return m_state;
 }
 
+void AbstractModule::setStateIdle()
+{
+    if (m_state == ModuleState::RUNNING)
+        setState(ModuleState::IDLE);
+}
+
+void AbstractModule::setStateReady()
+{
+    if (m_state == ModuleState::PREPARING)
+        setState(ModuleState::READY);
+}
+
 QString AbstractModule::id() const
 {
     return m_id;
@@ -351,6 +363,8 @@ void AbstractModule::addSettingsWindow(QWidget *window, bool owned)
 
 void AbstractModule::setInitialized()
 {
+    if (m_initialized)
+        return;
     m_initialized = true;
     setState(ModuleState::IDLE);
 }

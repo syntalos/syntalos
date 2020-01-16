@@ -105,11 +105,9 @@ cv::Size UEyeCameraModule::selectedResolution() const
 bool UEyeCameraModule::prepare()
 {
     m_started = false;
-
-    setState(ModuleState::PREPARING);
     if (!startCaptureThread())
         return false;
-    setState(ModuleState::READY);
+
     return true;
 }
 
@@ -117,7 +115,6 @@ void UEyeCameraModule::start()
 {
     m_started = true;
     statusMessage("Acquiring frames...");
-    setState(ModuleState::RUNNING);
 }
 
 bool UEyeCameraModule::runEvent()
