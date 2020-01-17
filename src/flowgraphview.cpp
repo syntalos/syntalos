@@ -260,9 +260,14 @@ QPointF FlowGraphNodePort::portPos(void) const
     return pos;
 }
 
-void FlowGraphNodePort::appendConnect(FlowGraphEdge *connect)
+bool FlowGraphNodePort::appendConnect(FlowGraphEdge *connect)
 {
+    // only permit one connection per input
+    if (isInput() && m_connects.size() > 0)
+        return false;
+
     m_connects.append(connect);
+    return true;
 }
 
 void FlowGraphNodePort::removeConnect(FlowGraphEdge *connect)
@@ -273,10 +278,21 @@ void FlowGraphNodePort::removeConnect(FlowGraphEdge *connect)
 void FlowGraphNodePort::removeConnects(void)
 {
     foreach (FlowGraphEdge *connect, m_connects) {
-        if (connect->port1() != this)
+
+        // let views know that we disconnected something
+        foreach (auto view, scene()->views()) {
+            auto fgView = qobject_cast<FlowGraphView*>(view);
+            if (fgView == nullptr)
+                continue;
+            emit fgView->disconnected(connect->port1(), connect->port2());
+        }
+
+        if (connect->port1() == this)
             connect->setPort1(nullptr);
-        if (connect->port2() != this)
+        if (connect->port2() == this)
             connect->setPort2(nullptr);
+
+        delete connect;
     }
 
     m_connects.clear();
@@ -875,18 +891,21 @@ FlowGraphEdge::~FlowGraphEdge(void)
         m_port2->removeConnect(this);
 }
 
-void FlowGraphEdge::setPort1(FlowGraphNodePort *port)
+bool FlowGraphEdge::setPort1(FlowGraphNodePort *port)
 {
     if (m_port1)
         m_port1->removeConnect(this);
 
     m_port1 = port;
 
-    if (m_port1)
-        m_port1->appendConnect(this);
+    if (m_port1) {
+        if (!m_port1->appendConnect(this))
+            return false;
+    }
 
     if (m_port1 && m_port1->isSelected())
         setSelectedEx(m_port1, true);
+    return true;
 }
 
 FlowGraphNodePort *FlowGraphEdge::port1(void) const
@@ -894,18 +913,21 @@ FlowGraphNodePort *FlowGraphEdge::port1(void) const
     return m_port1;
 }
 
-void FlowGraphEdge::setPort2(FlowGraphNodePort *port)
+bool FlowGraphEdge::setPort2(FlowGraphNodePort *port)
 {
     if (m_port2)
         m_port2->removeConnect(this);
 
     m_port2 = port;
 
-    if (m_port2)
-        m_port2->appendConnect(this);
+    if (m_port2) {
+        if (!m_port2->appendConnect(this))
+            return false;
+    }
 
     if (m_port2 && m_port2->isSelected())
         setSelectedEx(m_port2, true);
+    return true;
 }
 
 FlowGraphNodePort *FlowGraphEdge::port2(void) const
@@ -1121,7 +1143,7 @@ void FlowGraphView::removeItem(FlowGraphItem *item)
 
     if (item->type() == FlowGraphNode::Type) {
         FlowGraphNode *node = static_cast<FlowGraphNode *>(item);
-        if (node) {
+        if (node != nullptr) {
             emit removed(node);
             node->removePorts();
             m_nodekeys.remove(FlowGraphNode::NodeKey(node));
@@ -1284,15 +1306,15 @@ FlowGraphItem *FlowGraphView::itemAt(const QPointF &pos) const
 /**
  * @brief Port (dis)connection command
  */
-void FlowGraphView::connectPorts(FlowGraphNodePort *port1, FlowGraphNodePort *port2, bool is_connect)
+void FlowGraphView::connectPorts(FlowGraphNodePort *port1, FlowGraphNodePort *port2)
 {
-    const bool is_connected // already connected?
+    const bool isConnected // already connected?
         = (port1->findConnect(port2) != nullptr);
-    if ((is_connect && is_connected) || (!is_connect && !is_connected))
+    if (isConnected)
         return;
 
     FlowGraphNode *node1 = findNode(port1->portNode()->nodeName(),
-                                    FlowGraphItem::Input,
+                                    FlowGraphItem::Duplex,
                                     port1->portNode()->nodeType());
     if (node1 == nullptr)
         node1 = findNode(port1->portNode()->nodeName(),
@@ -1302,7 +1324,7 @@ void FlowGraphView::connectPorts(FlowGraphNodePort *port1, FlowGraphNodePort *po
         return;
 
     FlowGraphNode *node2 = findNode(port2->portNode()->nodeName(),
-                                    FlowGraphItem::Output,
+                                    FlowGraphItem::Duplex,
                                     port2->portNode()->nodeType());
     if (node2 == nullptr)
         node2 = findNode(port2->portNode()->nodeName(),
@@ -1311,19 +1333,22 @@ void FlowGraphView::connectPorts(FlowGraphNodePort *port1, FlowGraphNodePort *po
     if (node2 == nullptr)
         return;
 
-    if (is_connect) {
-        auto edge = new FlowGraphEdge();
-        edge->setPort1(port1);
-        edge->setPort2(port2);
-        // edge->updatePortTypeColors();
-        edge->updatePath();
-        addItem(edge);
-        edge->setMarked(true);
-
-        emit connected(port1, port2);
-    } else {
-        emit disconnected(port1, port2);
+    auto edge = new FlowGraphEdge();
+    if (!edge->setPort1(port1)) {
+        delete edge;
+        return;
     }
+    if (!edge->setPort2(port2)) {
+        delete edge;
+        return;
+    }
+
+    // edge->updatePortTypeColors();
+    edge->updatePath();
+    addItem(edge);
+    edge->setMarked(true);
+
+    emit connected(port1, port2);
 }
 
 void FlowGraphView::mousePressEvent(QMouseEvent *event)
@@ -1366,12 +1391,16 @@ void FlowGraphView::mouseMoveEvent(QMouseEvent *event)
                         m_selected_nodes = 0;
                         m_scene->clearSelection();
                         m_connect = new FlowGraphEdge();
-                        m_connect->setPort1(port);
-                        m_connect->setSelected(true);
-                        m_scene->addItem(m_connect);
-                        m_item = nullptr;
-                        ++m_selected_nodes;
-                        ++nchanged;
+                        if (!m_connect->setPort1(port)) {
+                            delete m_connect;
+                            m_connect = nullptr;
+                        } else {
+                            m_connect->setSelected(true);
+                            m_scene->addItem(m_connect);
+                            m_item = nullptr;
+                            ++m_selected_nodes;
+                            ++nchanged;
+                        }
                     }
                 } else
                     // Start moving nodes around...
@@ -1514,23 +1543,21 @@ void FlowGraphView::mouseReleaseEvent(QMouseEvent *event)
                 FlowGraphNodePort *port2 = static_cast<FlowGraphNodePort *>(item);
                 if (port1
                     && port2
-                    //	&& port1->portNode() != port2->portNode()
+                    && port1->portNode() != port2->portNode()
                     && port1->portMode() != port2->portMode()
                     && port1->portType() == port2->portType()
                     && port1->findConnect(port2) == nullptr) {
                     port2->setSelected(true);
-                    //#if 0 // Sure the sect will commit to this instead...
-                    m_connect->setPort2(port2);
-                    m_connect->updatePathTo(port2->portPos());
-                    m_connect = nullptr;
-                    ++m_selected_nodes;
-                    //#else
-                    //	m_selected_nodes = 0;
-                    //	m_scene->clearSelection();
-                    //  #endif
-                    // Submit command; notify eventual observers...
-                    connectPorts(port1, port2, true);
-                    ++nchanged;
+
+                    if (m_connect->setPort2(port2)) {
+                        m_connect->updatePathTo(port2->portPos());
+                        m_connect = nullptr;
+                        ++m_selected_nodes;
+                        ++nchanged;
+
+                        // Announce the new connection
+                        emit connected(port1, port2);
+                    }
                 }
             }
             if (m_connect) {
@@ -1671,7 +1698,7 @@ void FlowGraphView::connectItems(void)
         FlowGraphNodePort *port1 = iter1.next();
         FlowGraphNodePort *port2 = iter2.next();
         if (port1 && port2 && port1->portType() == port2->portType())
-            connectPorts(port1, port2, true);
+            connectPorts(port1, port2);
     }
 }
 
@@ -1694,11 +1721,10 @@ void FlowGraphView::disconnectItems(void)
     //	m_scene->clearSelection();
 
     foreach (FlowGraphEdge *connect, connects) {
-        // Submit command; notify eventual observers...
+        // Disconnect; notify eventual observers...
         FlowGraphNodePort *port1 = connect->port1();
         FlowGraphNodePort *port2 = connect->port2();
-        if (port1 && port2)
-            connectPorts(port1, port2, false);
+        emit disconnected(port1, port2);
         delete connect;
     }
 }

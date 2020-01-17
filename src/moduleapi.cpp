@@ -184,7 +184,8 @@ ModuleState AbstractModule::state() const
 
 void AbstractModule::setStateIdle()
 {
-    if (m_state == ModuleState::RUNNING)
+    if ((m_state == ModuleState::RUNNING) ||
+        (m_state == ModuleState::INITIALIZING))
         setState(ModuleState::IDLE);
 }
 

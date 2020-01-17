@@ -247,13 +247,31 @@ void ModuleGraphForm::on_portsConnected(FlowGraphNodePort *port1, FlowGraphNodeP
     }
 
     inPort->setSubscription(outPort->subscribe());
-    qDebug().noquote() << "Connected ports:" << outPort->id() << "->" << inPort->id();
+    qDebug().noquote() << "Connected ports:"
+                       << QString("%1[>%2]").arg(outPort->title()).arg(outPort->dataTypeName())
+                       << "->"
+                       << QString("%1[<%2]").arg(inPort->title()).arg(inPort->acceptedTypeName());
 }
 
 void ModuleGraphForm::on_portsDisconnected(FlowGraphNodePort *port1, FlowGraphNodePort *port2)
 {
-    Q_UNUSED(port1)
-    Q_UNUSED(port2)
+    StreamInputPort *inPort = nullptr;
+    StreamOutputPort *outPort = nullptr;
+    if (port1->isInput())
+        inPort = dynamic_cast<StreamInputPort*>(port1->streamPort().get());
+    if (port2->isInput())
+        inPort = dynamic_cast<StreamInputPort*>(port2->streamPort().get());
+    if (port1->isOutput())
+        outPort = dynamic_cast<StreamOutputPort*>(port1->streamPort().get());
+    if (port2->isOutput())
+        outPort = dynamic_cast<StreamOutputPort*>(port1->streamPort().get());
+
+    if (inPort == nullptr || outPort == nullptr) {
+        qCritical() << "Disconnected nonexisting ports. This should not be possible.";
+        return;
+    }
+
+    // TODO: Unsubscribe properly
 }
 
 void ModuleGraphForm::on_actionConnect_triggered()

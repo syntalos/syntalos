@@ -177,7 +177,7 @@ public:
 
     QPointF portPos() const;
 
-    void appendConnect(FlowGraphEdge *connect);
+    bool appendConnect(FlowGraphEdge *connect);
     void removeConnect(FlowGraphEdge *connect);
     void removeConnects();
 
@@ -350,10 +350,10 @@ public:
     enum { Type = QGraphicsItem::UserType + 3 };
     int type() const override { return Type; }
 
-    void setPort1(FlowGraphNodePort *port);
+    bool setPort1(FlowGraphNodePort *port);
     FlowGraphNodePort *port1() const;
 
-    void setPort2(FlowGraphNodePort *port);
+    bool setPort2(FlowGraphNodePort *port);
     FlowGraphNodePort *port2() const;
 
     void updatePathTo(const QPointF &pos);
@@ -459,7 +459,7 @@ protected slots:
 protected:
     FlowGraphItem *itemAt(const QPointF &pos) const;
 
-    void connectPorts(FlowGraphNodePort *port1, FlowGraphNodePort *port2, bool is_connect);
+    void connectPorts(FlowGraphNodePort *port1, FlowGraphNodePort *port2);
 
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
