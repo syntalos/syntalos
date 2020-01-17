@@ -191,6 +191,71 @@ void Engine::emitStatusMessage(const QString &message)
 }
 
 /**
+ * @brief Return a list of active modules that have been sorted in the order they
+ * should be initialized in.
+ */
+QList<AbstractModule *> Engine::createModuleExecOrderList()
+{
+    // we need to do some ordering so modules which consume data from other modules get
+    // activated last.
+    // this implicit sorting isn't great, and we might - if MazeAmaze becomes more complex than
+    // it already is - replace this with declarative ordering a proper dependency resolution
+    // at some point.
+    // we don't use Qt sorting facilities here, because we want at least some of the original
+    // module order to be kept.
+    QList<AbstractModule*> orderedActiveModules;
+    QList<AbstractModule*> scriptModList;
+    //int firstImgSinkModIdx = -1;
+
+    orderedActiveModules.reserve(d->modManager->activeModules().length());
+    for (auto &mod : d->modManager->activeModules()) {
+#if 0
+        if (qobject_cast<ImageSourceModule*>(mod) != nullptr) {
+            if (firstImgSinkModIdx >= 0) {
+                // put in before the first sink
+                orderedActiveModules.insert(firstImgSinkModIdx, mod);
+                continue;
+            } else {
+                // just add the module
+                orderedActiveModules.append(mod);
+                continue;
+            }
+        } else if (qobject_cast<ImageSinkModule*>(mod) != nullptr) {
+            if (firstImgSinkModIdx < 0) {
+                // we have the first sink module
+                orderedActiveModules.append(mod);
+                firstImgSinkModIdx = orderedActiveModules.length() - 1;
+                continue;
+            } else {
+                // put in after the first sink
+                orderedActiveModules.insert(firstImgSinkModIdx + 1, mod);
+                continue;
+            }
+        } else if (qobject_cast<PyScriptModule*>(mod) != nullptr) {
+            // scripts are always initialized last, as they may arbitrarily connect
+            // to the other modules to control them.
+            // and we rather want that to happen when everything is prepared to run.
+            scriptModList.append(mod);
+            continue;
+        } else {
+            orderedActiveModules.append(mod);
+        }
+#endif
+        orderedActiveModules.append(mod);
+    }
+
+    for (auto mod : scriptModList)
+        orderedActiveModules.append(mod);
+
+    auto debugText = QStringLiteral("Running modules in order: ");
+    for (auto &mod : orderedActiveModules)
+        debugText.append(mod->name() + QStringLiteral("; "));
+    qDebug().noquote() << debugText;
+
+    return orderedActiveModules;
+}
+
+/**
  * @brief Main entry point for engine-managed module threads.
  */
 static void executeModuleThread(const QString& threadName, AbstractModule *mod, OptionalWaitCondition *waitCondition)
@@ -267,7 +332,7 @@ bool Engine::run()
         return false;
 
     // fetch list of modules in their activation order
-    auto orderedActiveModules = d->modManager->createOrderedModuleList();
+    auto orderedActiveModules = createModuleExecOrderList();
 
     bool prepareStepFailed = false;
     d->failed = false; // assume success until a module actually fails

@@ -65,6 +65,7 @@ private:
     bool makeDirectory(const QString &dir);
     void refreshExportDirPath();
     void emitStatusMessage(const QString &message);
+    QList<AbstractModule*> createModuleExecOrderList();
 
     class EData;
     Q_DISABLE_COPY(Engine)
