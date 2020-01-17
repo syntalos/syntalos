@@ -95,7 +95,7 @@ bool TracePlotModule::initialize(ModuleManager *manager)
     assert(!initialized());
 
     m_intanModule = nullptr;
-    Q_FOREACH(auto mod, manager->activeModules()) {
+    for (auto &mod : manager->activeModules()) {
         auto rhdmod = dynamic_cast<Rhd2000Module*>(mod);
         if (rhdmod) {
             m_intanModule = rhdmod;
@@ -111,11 +111,8 @@ bool TracePlotModule::initialize(ModuleManager *manager)
     return true;
 }
 
-bool TracePlotModule::prepare(const QString &storageRootDir, const TestSubject &testSubject)
+bool TracePlotModule::prepare(const QString &, const TestSubject &)
 {
-    Q_UNUSED(storageRootDir)
-    Q_UNUSED(testSubject)
-
     // reset trace plot data
     m_traceProxy->reset();
 

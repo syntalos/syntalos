@@ -75,11 +75,8 @@ ModuleFeatures FirmataIOModule::features() const
     return ModuleFeature::SHOW_SETTINGS;
 }
 
-bool FirmataIOModule::prepare(const QString &storageRootDir, const TestSubject &testSubject)
+bool FirmataIOModule::prepare(const QString &, const TestSubject &)
 {
-    Q_UNUSED(storageRootDir)
-    Q_UNUSED(testSubject)
-
     // cleanup
     m_changedValuesQueue.clear();
     m_namePinMap.clear();

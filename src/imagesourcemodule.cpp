@@ -29,11 +29,8 @@ bool ImageSourceModule::prepare()
     return true;
 }
 
-bool ImageSourceModule::prepare(const QString &storageRootDir, const TestSubject &testSubject)
+bool ImageSourceModule::prepare(const QString&, const TestSubject&)
 {
-    Q_UNUSED(storageRootDir)
-    Q_UNUSED(testSubject)
-
     return prepare();
 }
 

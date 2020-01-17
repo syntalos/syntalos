@@ -36,7 +36,7 @@ void LedTrackerSettingsDialog::setImageSourceModules(const QList<ImageSourceModu
     auto mod = m_selectedImgSrcMod;
 
     ui->frameSourceComboBox->clear();
-    Q_FOREACH(auto mod, mods) {
+    for (auto &mod : mods) {
         ui->frameSourceComboBox->addItem(mod->name(), QVariant(QMetaType::QObjectStar, &mod));
     }
 
@@ -67,8 +67,7 @@ void LedTrackerSettingsDialog::on_nameLineEdit_textChanged(const QString &arg1)
     m_resultsName = arg1.simplified().replace(" ", "_");
 }
 
-void LedTrackerSettingsDialog::on_frameSourceComboBox_currentIndexChanged(int index)
+void LedTrackerSettingsDialog::on_frameSourceComboBox_currentIndexChanged(int)
 {
-    Q_UNUSED(index);
     m_selectedImgSrcMod = ui->frameSourceComboBox->currentData().value<ImageSourceModule*>();
 }

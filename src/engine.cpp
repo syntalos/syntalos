@@ -271,7 +271,7 @@ bool Engine::run()
 
     bool prepareStepFailed = false;
     d->failed = false; // assume success until a module actually fails
-    Q_FOREACH(auto mod, orderedActiveModules) {
+    for (auto &mod : orderedActiveModules) {
         emitStatusMessage(QStringLiteral("Preparing %1...").arg(mod->name()));
         mod->setStatusMessage(QString());
         mod->setTimer(d->timer);
@@ -320,7 +320,7 @@ bool Engine::run()
 
         // collect all modules which do idle event execution
         QList<AbstractModule*> idleEventModules;
-        Q_FOREACH(auto mod, orderedActiveModules) {
+        for (auto &mod : orderedActiveModules) {
             if (!mod->features().testFlag(ModuleFeature::RUN_EVENTS))
                 continue;
             idleEventModules.append(mod);
@@ -330,7 +330,7 @@ bool Engine::run()
         // (modules may take a bit of time to prepare their threads)
         // FIXME: Maybe add a timeout on this, in case a module doesn't
         // behave and never ever leaves its preparation phase?
-        Q_FOREACH(auto mod, orderedActiveModules) {
+        for (auto &mod : orderedActiveModules) {
             if (mod->state() == ModuleState::READY)
                 continue;
             emitStatusMessage(QStringLiteral("Waiting for %1 to become ready...").arg(mod->name()));
@@ -378,7 +378,7 @@ bool Engine::run()
         emitStatusMessage(QStringLiteral("Running..."));
 
         while (d->running) {
-            Q_FOREACH(auto mod, idleEventModules) {
+            for (auto &mod : idleEventModules) {
                 if (!mod->runEvent()){
                     emitStatusMessage(QStringLiteral("Module %1 failed.").arg(mod->name()));
                     d->failed = true;
@@ -394,7 +394,7 @@ bool Engine::run()
     auto finishTimestamp = static_cast<long long>(d->timer->timeSinceStartMsec().count());
 
     // send stop command to all modules
-    Q_FOREACH(auto mod, orderedActiveModules) {
+    for (auto &mod : orderedActiveModules) {
         emitStatusMessage(QStringLiteral("Stopping %1...").arg(mod->name()));
         mod->stop();
 
@@ -443,7 +443,7 @@ bool Engine::run()
         manifest.insert("success", !d->failed);
 
         QJsonArray jActiveModules;
-        Q_FOREACH(auto mod, orderedActiveModules) {
+        for (auto &mod : orderedActiveModules) {
             QJsonObject info;
             info.insert(mod->id(), mod->name());
             jActiveModules.append(info);

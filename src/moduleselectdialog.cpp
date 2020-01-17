@@ -111,7 +111,7 @@ ModuleSelectDialog::~ModuleSelectDialog()
 void ModuleSelectDialog::setModuleInfo(QList<QSharedPointer<ModuleInfo>> infos)
 {
     m_model->clear();
-    Q_FOREACH(auto info, infos) {
+    for (auto &info : infos) {
         auto item = new QStandardItem(QIcon(info->pixmap()),
                                       QStringLiteral("<b>%1</b><br/><span>%2</span>").arg(info->name()).arg(info->description()));
         item->setData(info->id());

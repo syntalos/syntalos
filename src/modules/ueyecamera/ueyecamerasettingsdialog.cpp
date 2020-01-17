@@ -33,7 +33,7 @@ UEyeCameraSettingsDialog::UEyeCameraSettingsDialog(UEyeCamera *camera, QWidget *
     m_camera = camera;
 
     auto cameras = UEyeCamera::availableCameras();
-    Q_FOREACH(const auto cameraInfo, cameras) {
+    for (const auto &cameraInfo : cameras) {
         ui->cameraComboBox->addItem(cameraInfo.first, QVariant(cameraInfo.second));
     }
 
@@ -183,9 +183,8 @@ void UEyeCameraSettingsDialog::setExposure(double value)
     ui->sbExposure->setValue(value);
 }
 
-void UEyeCameraSettingsDialog::on_cameraComboBox_currentIndexChanged(int index)
+void UEyeCameraSettingsDialog::on_cameraComboBox_currentIndexChanged(int)
 {
-    Q_UNUSED(index)
     m_camera->setCamId(ui->cameraComboBox->currentData().toInt());
 
     // probe the new camera for its resolution list
@@ -194,7 +193,7 @@ void UEyeCameraSettingsDialog::on_cameraComboBox_currentIndexChanged(int index)
     delete camera;
 
     ui->resolutionComboBox->clear();
-    Q_FOREACH(auto res, ret)
+    for (auto &res : ret)
         ui->resolutionComboBox->addItem(QStringLiteral("%1x%2").arg(res.width()).arg(res.height()), res);
 }
 

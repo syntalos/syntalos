@@ -78,9 +78,8 @@ ChannelDetails *TraceDisplay::selectedPlotChannelDetails()
     return details;
 }
 
-void TraceDisplay::on_chanListWidget_itemActivated(QListWidgetItem *item)
+void TraceDisplay::on_chanListWidget_itemActivated(QListWidgetItem *)
 {
-    Q_UNUSED(item);
     auto details = selectedPlotChannelDetails();
     ui->chanSettingsGroupBox->setEnabled(true);
 
@@ -125,7 +124,6 @@ void TraceDisplay::on_yShiftDoubleSpinBox_valueChanged(double arg1)
 
 void TraceDisplay::on_portListWidget_itemActivated(QListWidgetItem *item)
 {
-    Q_UNUSED(item);
     auto port = item->data(Qt::UserRole).toInt();
     auto waveplot = m_traceProxy->wavePlot();
     // don't continue if Intan waveplot isn't set for whatever reason

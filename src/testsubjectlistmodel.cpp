@@ -70,10 +70,8 @@ TestSubject TestSubjectListModel::subject(int row) const
     return m_subjects.at(row);
 }
 
-bool TestSubjectListModel::removeRows(int position, int rows, const QModelIndex &parent)
+bool TestSubjectListModel::removeRows(int position, int rows, const QModelIndex&)
 {
-    Q_UNUSED(parent)
-
     beginRemoveRows(QModelIndex(), position, position+rows-1);
 
     for (int row = 0; row < rows; ++row) {
@@ -84,10 +82,8 @@ bool TestSubjectListModel::removeRows(int position, int rows, const QModelIndex 
     return true;
 }
 
-bool TestSubjectListModel::removeRow(int row, const QModelIndex &parent)
+bool TestSubjectListModel::removeRow(int row, const QModelIndex&)
 {
-    Q_UNUSED(parent)
-
     beginRemoveRows(QModelIndex(), row, row);
     m_subjects.removeAt(row);
     endRemoveRows();
@@ -105,7 +101,7 @@ QJsonArray TestSubjectListModel::toJson()
 {
     QJsonArray json;
 
-    foreach(auto sub, m_subjects) {
+    for (auto &sub : m_subjects) {
         QJsonObject jsub;
 
         jsub["id"] = sub.id;
@@ -124,7 +120,7 @@ void TestSubjectListModel::fromJson(const QJsonArray &json)
     clear();
 
     beginInsertRows(QModelIndex(), 0, 0);
-    foreach(auto jval, json) {
+    for (auto jval : json) {
         auto jsub = jval.toObject();
         TestSubject sub;
 

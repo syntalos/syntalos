@@ -77,10 +77,8 @@ ModuleFeatures VideoRecorderModule::features() const
            ModuleFeature::SHOW_SETTINGS;
 }
 
-bool VideoRecorderModule::prepare(const QString &storageRootDir, const TestSubject &testSubject)
+bool VideoRecorderModule::prepare(const QString &storageRootDir, const TestSubject&)
 {
-    Q_UNUSED(testSubject)
-
     m_vidStorageDir = QStringLiteral("%1/videos").arg(storageRootDir);
 
     if (m_settingsDialog->videoName().isEmpty()) {
@@ -186,9 +184,8 @@ void VideoRecorderModule::showSettingsUi()
     m_settingsDialog->show();
 }
 
-QByteArray VideoRecorderModule::serializeSettings(const QString &confBaseDir)
+QByteArray VideoRecorderModule::serializeSettings(const QString&)
 {
-    Q_UNUSED(confBaseDir)
     QJsonObject jset;
     jset.insert("videoName", m_settingsDialog->videoName());
     jset.insert("saveTimestamps", m_settingsDialog->saveTimestamps());
@@ -202,9 +199,8 @@ QByteArray VideoRecorderModule::serializeSettings(const QString &confBaseDir)
     return jsonObjectToBytes(jset);
 }
 
-bool VideoRecorderModule::loadSettings(const QString &confBaseDir, const QByteArray &data)
+bool VideoRecorderModule::loadSettings(const QString&, const QByteArray &data)
 {
-    Q_UNUSED(confBaseDir)
     auto jset = jsonObjectFromBytes(data);
 
     m_settingsDialog->setVideoName(jset.value("videoName").toString());

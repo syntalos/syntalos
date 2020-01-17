@@ -161,7 +161,7 @@ void ZmqServer::processMainThreadRpc()
             d->mtRequest->setResult(false);
         } else {
             QStringList slist;
-            Q_FOREACH(auto v, d->mtRequest->params[1].toArray())
+            for (const auto v : d->mtRequest->params[1].toArray())
                 slist.append(v.toString());
             d->mtRequest->setResult(QJsonValue(d->funcRelay->eventTableSetHeader(d->mtRequest->params[0].toInt(-1), slist)));
         }
@@ -173,7 +173,7 @@ void ZmqServer::processMainThreadRpc()
             d->mtRequest->setResult(false);
         } else {
             QStringList slist;
-            Q_FOREACH(auto v, d->mtRequest->params[1].toArray())
+            for (const auto v : d->mtRequest->params[1].toArray())
                 slist.append(v.toString());
             d->mtRequest->setResult(QJsonValue(d->funcRelay->eventTableAddEvent(d->mtRequest->timestamp, d->mtRequest->params[0].toInt(-1), slist)));
         }

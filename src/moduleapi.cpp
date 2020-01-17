@@ -218,9 +218,8 @@ ModuleFeatures AbstractModule::features() const
            ModuleFeature::SHOW_ACTIONS;
 }
 
-bool AbstractModule::initialize(ModuleManager *manager)
+bool AbstractModule::initialize(ModuleManager *)
 {
-    Q_UNUSED(manager)
     assert(!initialized());
     setInitialized();
     return true;
@@ -237,9 +236,8 @@ bool AbstractModule::runEvent()
     return true;
 }
 
-void AbstractModule::runThread(OptionalWaitCondition *startWaitCondition)
+void AbstractModule::runThread(OptionalWaitCondition *)
 {
-    Q_UNUSED(startWaitCondition)
     // Do nothing
 }
 
@@ -305,17 +303,14 @@ QList<QAction *> AbstractModule::actions()
     return res;
 }
 
-QByteArray AbstractModule::serializeSettings(const QString &confBaseDir)
+QByteArray AbstractModule::serializeSettings(const QString &)
 {
-    Q_UNUSED(confBaseDir)
     QByteArray zero;
     return zero;
 }
 
-bool AbstractModule::loadSettings(const QString &confBaseDir, const QByteArray &data)
+bool AbstractModule::loadSettings(const QString &, const QByteArray &)
 {
-    Q_UNUSED(confBaseDir)
-    Q_UNUSED(data)
     return true;
 }
 
@@ -324,9 +319,8 @@ QString AbstractModule::lastError() const
     return m_lastError;
 }
 
-bool AbstractModule::canRemove(AbstractModule *mod)
+bool AbstractModule::canRemove(AbstractModule *)
 {
-    Q_UNUSED(mod)
     return true;
 }
 

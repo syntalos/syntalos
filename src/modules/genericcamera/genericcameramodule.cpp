@@ -93,10 +93,8 @@ ModuleFeatures GenericCameraModule::features() const
            ModuleFeature::SHOW_SETTINGS;
 }
 
-bool GenericCameraModule::prepare(const QString &storageRootDir, const TestSubject &testSubject)
+bool GenericCameraModule::prepare(const QString &, const TestSubject &)
 {
-    Q_UNUSED(storageRootDir)
-    Q_UNUSED(testSubject)
     if (m_camera->camId() < 0) {
         raiseError("Unable to continue: No valid camera was selected!");
         return false;
@@ -215,9 +213,8 @@ void GenericCameraModule::stop()
     AbstractModule::stop();
 }
 
-QByteArray GenericCameraModule::serializeSettings(const QString &confBaseDir)
+QByteArray GenericCameraModule::serializeSettings(const QString &)
 {
-    Q_UNUSED(confBaseDir)
     QJsonObject jsettings;
     jsettings.insert("camera", m_camera->camId());
     jsettings.insert("width", m_camSettingsWindow->resolution().width);
@@ -229,10 +226,8 @@ QByteArray GenericCameraModule::serializeSettings(const QString &confBaseDir)
     return jsonObjectToBytes(jsettings);
 }
 
-bool GenericCameraModule::loadSettings(const QString &confBaseDir, const QByteArray &data)
+bool GenericCameraModule::loadSettings(const QString &, const QByteArray &data)
 {
-    Q_UNUSED(confBaseDir)
-
     auto jsettings = jsonObjectFromBytes(data);
     m_camera->setCamId(jsettings.value("camera").toInt());
     m_camera->setResolution(cv::Size(jsettings.value("width").toInt(), jsettings.value("height").toInt()));

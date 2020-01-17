@@ -90,11 +90,11 @@ void ModuleGraphForm::setModifyPossible(bool allowModify)
 
 void ModuleGraphForm::moduleAdded(ModuleInfo *info, AbstractModule *mod)
 {
-    auto node = new FlowGraphNode(mod->name(), FlowGraphItem::Duplex);
+    auto node = new FlowGraphNode(mod->name());
     node->setNodeIcon(info->pixmap());
-    Q_FOREACH(auto iport, mod->inPorts())
+    for (auto &iport : mod->inPorts())
         node->addPort(std::dynamic_pointer_cast<AbstractStreamPort>(iport));
-    Q_FOREACH(auto oport, mod->outPorts())
+    for (auto &oport : mod->outPorts())
         node->addPort(std::dynamic_pointer_cast<AbstractStreamPort>(oport));
     ui->graphView->addItem(node);
     m_nodeModMap.insert(node, mod);
@@ -215,7 +215,7 @@ void ModuleGraphForm::on_selectionChanged()
         if (features.testFlag(ModuleFeature::SHOW_SETTINGS))
             ui->actionSettings->setEnabled(true);
 
-        Q_FOREACH(auto action, mod->actions())
+        for (auto &action : mod->actions())
             m_menu->addAction(action);
         ui->actionMenu->setEnabled(!m_menu->isEmpty());
     }

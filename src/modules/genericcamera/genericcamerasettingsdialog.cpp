@@ -29,7 +29,7 @@ GenericCameraSettingsDialog::GenericCameraSettingsDialog(Camera *camera, QWidget
     m_camera = camera;
 
     auto cameras = Camera::availableCameras();
-    Q_FOREACH(const auto cameraInfo, cameras) {
+    for (const auto &cameraInfo : cameras) {
         ui->cameraComboBox->addItem(cameraInfo.first, QVariant(cameraInfo.second));
     }
 }
@@ -68,7 +68,7 @@ void GenericCameraSettingsDialog::updateValues()
 {
     ui->cameraComboBox->clear();
     auto cameras = Camera::availableCameras();
-    Q_FOREACH(const auto cameraInfo, cameras) {
+    for (const auto &cameraInfo : cameras) {
         ui->cameraComboBox->addItem(cameraInfo.first, QVariant(cameraInfo.second));
     }
 
@@ -85,9 +85,8 @@ void GenericCameraSettingsDialog::updateValues()
     ui->sbGain->setValue(m_camera->gain());
 }
 
-void GenericCameraSettingsDialog::on_cameraComboBox_currentIndexChanged(int index)
+void GenericCameraSettingsDialog::on_cameraComboBox_currentIndexChanged(int)
 {
-    Q_UNUSED(index);
     m_camera->setCamId(ui->cameraComboBox->currentData().toInt());
 }
 

@@ -95,7 +95,7 @@ AbstractModule *ModuleManager::createModule(const QString &id)
 
     // Ensure we don't register a module twice that should only exist once
     if (modInfo->singleton()) {
-        Q_FOREACH(auto emod, d->modules) {
+        for (auto &emod : d->modules) {
             if (emod->id() == id)
                 return nullptr;
         }
@@ -154,7 +154,7 @@ bool ModuleManager::removeModuleImmediately(AbstractModule *mod)
 
 bool ModuleManager::removeModule(AbstractModule *mod)
 {
-    Q_FOREACH(auto emod, d->modules) {
+    for (auto &emod : d->modules) {
         if (!emod->canRemove(mod)) {
             // oh no! Another module tries to prevent the removal of the current module.
             // Let's notify about that, then stop removing the module.
@@ -187,7 +187,7 @@ QList<AbstractModule *> ModuleManager::createOrderedModuleList()
     int firstImgSinkModIdx = -1;
 
     orderedActiveModules.reserve(d->modules.length());
-    Q_FOREACH(auto mod, d->modules) {
+    for (auto &mod : d->modules) {
         if (qobject_cast<ImageSourceModule*>(mod) != nullptr) {
             if (firstImgSinkModIdx >= 0) {
                 // put in before the first sink
@@ -224,12 +224,12 @@ QList<AbstractModule *> ModuleManager::createOrderedModuleList()
         }
     }
 
-    Q_FOREACH(auto mod, scriptModList)
+    for (auto mod : scriptModList)
         orderedActiveModules.append(mod);
 
 
     auto debugText = QStringLiteral("Running modules in order: ");
-    Q_FOREACH(auto mod, orderedActiveModules)
+    for (auto &mod : orderedActiveModules)
         debugText.append(mod->name() + QStringLiteral("; "));
     qDebug().noquote() << debugText;
 
@@ -238,9 +238,8 @@ QList<AbstractModule *> ModuleManager::createOrderedModuleList()
 
 void ModuleManager::removeAll()
 {
-    Q_FOREACH(auto mod, d->modules) {
+    foreach (auto mod, d->modules)
         removeModuleImmediately(mod);
-    }
 }
 
 QWidget *ModuleManager::parentWidget() const

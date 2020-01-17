@@ -91,10 +91,8 @@ void MiniscopeModule::setName(const QString &name)
     }
 }
 
-bool MiniscopeModule::prepare(const QString &storageRootDir, const TestSubject &testSubject)
+bool MiniscopeModule::prepare(const QString &storageRootDir, const TestSubject &)
 {
-    Q_UNUSED(testSubject)
-
     m_recStorageDir = QStringLiteral("%1/miniscope").arg(storageRootDir);
     if (!makeDirectory(m_recStorageDir))
         return false;
@@ -158,18 +156,15 @@ void MiniscopeModule::showSettingsUi()
     m_settingsDialog->show();
 }
 
-QByteArray MiniscopeModule::serializeSettings(const QString &confBaseDir)
+QByteArray MiniscopeModule::serializeSettings(const QString &)
 {
-    Q_UNUSED(confBaseDir)
     QJsonObject jset;
 
     return jsonObjectToBytes(jset);
 }
 
-bool MiniscopeModule::loadSettings(const QString &confBaseDir, const QByteArray &data)
+bool MiniscopeModule::loadSettings(const QString &, const QByteArray &data)
 {
-    Q_UNUSED(confBaseDir)
     auto jset = jsonObjectFromBytes(data);
-
     return true;
 }

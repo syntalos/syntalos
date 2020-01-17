@@ -39,7 +39,7 @@ MaFuncRelay::~MaFuncRelay()
        ms_eventTableGeometries.clear();
 
     // delete tables and store their geometries in a static hash map
-    Q_FOREACH(auto tab, m_eventTables) {
+    for (auto &tab : m_eventTables) {
         ms_eventTableGeometries.insert(tab->name(), tab->geometry());
         delete tab;
     }
@@ -67,7 +67,7 @@ bool MaFuncRelay::canStartScript() const
 
 int MaFuncRelay::registerNewFirmataModule(const QString &name)
 {
-    Q_FOREACH(auto mod, m_modManager->activeModules()) {
+    for (auto &mod : m_modManager->activeModules()) {
         auto fmod = qobject_cast<FirmataIOModule*>(mod);
         if (fmod == nullptr)
             continue;

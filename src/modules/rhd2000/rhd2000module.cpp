@@ -152,9 +152,8 @@ QList<QAction *> Rhd2000Module::actions()
     return m_actions;
 }
 
-QByteArray Rhd2000Module::serializeSettings(const QString &confBaseDir)
+QByteArray Rhd2000Module::serializeSettings(const QString &)
 {
-    Q_UNUSED(confBaseDir);
     QByteArray intanSettings;
     QDataStream intanSettingsStream(&intanSettings, QIODevice::WriteOnly);
     m_intanUi->exportSettings(intanSettingsStream);
@@ -162,9 +161,8 @@ QByteArray Rhd2000Module::serializeSettings(const QString &confBaseDir)
     return intanSettings;
 }
 
-bool Rhd2000Module::loadSettings(const QString &confBaseDir, const QByteArray &data)
+bool Rhd2000Module::loadSettings(const QString &, const QByteArray &data)
 {
-    Q_UNUSED(confBaseDir);
     assert(m_intanUi);
     m_intanUi->loadSettings(data);
     return true;

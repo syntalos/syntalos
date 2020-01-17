@@ -26,10 +26,10 @@
 
 #include <QStyleOptionGraphicsItem>
 
-#include <QTransform>
 #include <QRubberBand>
-#include <QUndoStack>
 #include <QSettings>
+#include <QTransform>
+#include <QUndoStack>
 
 #include <QPainter>
 #include <QPalette>
@@ -37,10 +37,10 @@
 #include <QGraphicsProxyWidget>
 #include <QLineEdit>
 
+#include <QDebug>
+#include <QKeyEvent>
 #include <QMouseEvent>
 #include <QWheelEvent>
-#include <QKeyEvent>
-#include <QDebug>
 
 #include <algorithm>
 
@@ -48,93 +48,89 @@
 
 #include "moduleapi.h"
 
-
 //----------------------------------------------------------------------------
-// FlowGraphItem -- Base graphics item.
+// FlowGraphItem
 
-// Constructor.
-FlowGraphItem::FlowGraphItem ( QGraphicsItem *parent )
-    : QGraphicsPathItem(parent), m_marked(false), m_hilite(false)
+FlowGraphItem::FlowGraphItem(QGraphicsItem *parent)
+    : QGraphicsPathItem(parent),
+      m_marked(false),
+      m_hilite(false)
 {
     const QPalette pal;
     m_foreground = pal.buttonText().color();
     m_background = pal.button().color();
 }
 
-
-// Basic color accessors.
-void FlowGraphItem::setForeground ( const QColor& color )
+void FlowGraphItem::setForeground(const QColor &color)
 {
     m_foreground = color;
 }
 
-const QColor& FlowGraphItem::foreground (void) const
+const QColor &FlowGraphItem::foreground(void) const
 {
     return m_foreground;
 }
 
-
-void FlowGraphItem::setBackground ( const QColor& color )
+void FlowGraphItem::setBackground(const QColor &color)
 {
     m_background = color;
 }
 
-const QColor& FlowGraphItem::background (void) const
+const QColor &FlowGraphItem::background(void) const
 {
     return m_background;
 }
 
-
-// Marking methods.
-void FlowGraphItem::setMarked ( bool marked )
+void FlowGraphItem::setMarked(bool marked)
 {
     m_marked = marked;
 }
 
-
-bool FlowGraphItem::isMarked (void) const
+bool FlowGraphItem::isMarked(void) const
 {
     return m_marked;
 }
 
-
-// Highlighting methods.
-void FlowGraphItem::setHighlight ( bool hilite )
+void FlowGraphItem::setHighlight(bool hilite)
 {
     m_hilite = hilite;
 
     QGraphicsPathItem::update();
 }
 
-
-bool FlowGraphItem::isHighlight (void) const
+bool FlowGraphItem::isHighlight(void) const
 {
     return m_hilite;
 }
 
-
-// Item-type hash (static)
-uint FlowGraphItem::itemType ( const QByteArray& type_name )
+/**
+ * @brief Item-type hash (static)
+ */
+uint FlowGraphItem::itemType(const QByteArray &type_name)
 {
     return qHash(type_name);
 }
 
-
-// Rectangular editor extents (virtual)
-QRectF FlowGraphItem::editorRect (void) const
+/**
+ * @brief Rectangular editor extents (virtual)
+ */
+QRectF FlowGraphItem::editorRect(void) const
 {
     return QRectF();
 }
 
-
 //----------------------------------------------------------------------------
-// FlowGraphNodePort -- Port graphics item.
+// FlowGraphNodePort
 
-// Constructors.
-FlowGraphNodePort::FlowGraphNodePort (FlowGraphNode *node)
-    : FlowGraphItem(node), m_node(node),
-      m_name(QString()), m_mode(FlowGraphItem::Mode::None), m_type(0), m_index(0),
-      m_selectx(0), m_hilitex(0)
+FlowGraphNodePort::FlowGraphNodePort(FlowGraphNode *node)
+    : FlowGraphItem(node),
+      m_node(node),
+      m_name(QString()),
+      m_mode(FlowGraphItem::Mode::None),
+      m_type(0),
+      m_index(0),
+      m_selectx(0),
+      m_hilitex(0)
 {
     QGraphicsPathItem::setZValue(+1);
 
@@ -153,14 +149,13 @@ FlowGraphNodePort::FlowGraphNodePort (FlowGraphNode *node)
     setPortTitle(m_name);
 }
 
-FlowGraphNodePort::FlowGraphNodePort(FlowGraphNode *node,
-                                       std::shared_ptr<AbstractStreamPort> port)
+FlowGraphNodePort::FlowGraphNodePort(FlowGraphNode *node, std::shared_ptr<AbstractStreamPort> port)
     : FlowGraphNodePort(node)
 {
     if (port->isOutput())
-            m_mode = FlowGraphNode::Mode::Output;
+        m_mode = FlowGraphNode::Mode::Output;
     else if (port->isInput())
-            m_mode = FlowGraphNode::Mode::Input;
+        m_mode = FlowGraphNode::Mode::Input;
     m_name = port->title();
     if (m_name.isEmpty())
         m_name = port->id();
@@ -169,97 +164,81 @@ FlowGraphNodePort::FlowGraphNodePort(FlowGraphNode *node,
     m_streamPort = port;
 }
 
-// Destructor.
-FlowGraphNodePort::~FlowGraphNodePort (void)
+FlowGraphNodePort::~FlowGraphNodePort(void)
 {
     removeConnects();
 }
 
-
-// Accessors.
-FlowGraphNode *FlowGraphNodePort::portNode (void) const
+FlowGraphNode *FlowGraphNodePort::portNode(void) const
 {
     return m_node;
 }
 
-
-void FlowGraphNodePort::setPortName ( const QString& name )
+void FlowGraphNodePort::setPortName(const QString &name)
 {
     m_name = name;
 
     QGraphicsPathItem::setToolTip(m_name);
 }
 
-
-const QString& FlowGraphNodePort::portName (void) const
+const QString &FlowGraphNodePort::portName(void) const
 {
     return m_name;
 }
 
-
-void FlowGraphNodePort::setPortMode ( FlowGraphItem::Mode mode )
+void FlowGraphNodePort::setPortMode(FlowGraphItem::Mode mode)
 {
     m_mode = mode;
 }
 
-
-FlowGraphItem::Mode FlowGraphNodePort::portMode (void) const
+FlowGraphItem::Mode FlowGraphNodePort::portMode(void) const
 {
     return m_mode;
 }
 
-
-bool FlowGraphNodePort::isInput (void) const
+bool FlowGraphNodePort::isInput(void) const
 {
     return (m_mode & Input);
 }
 
-
-bool FlowGraphNodePort::isOutput (void) const
+bool FlowGraphNodePort::isOutput(void) const
 {
     return (m_mode & Output);
 }
 
-
-void FlowGraphNodePort::setPortType ( uint type )
+void FlowGraphNodePort::setPortType(uint type)
 {
     m_type = type;
 }
 
-
-uint FlowGraphNodePort::portType (void) const
+uint FlowGraphNodePort::portType(void) const
 {
     return m_type;
 }
 
-
-void FlowGraphNodePort::setPortTitle ( const QString& title )
+void FlowGraphNodePort::setPortTitle(const QString &title)
 {
     m_title = (title.isEmpty() ? m_name : title);
 
     m_text->setPlainText(m_title);
 
     QPainterPath path;
-    const QRectF& rect
-            = m_text->boundingRect().adjusted(0, +2, 0, -2);
+    const QRectF &rect = m_text->boundingRect().adjusted(0, +2, 0, -2);
     path.addRoundedRect(rect, 5, 5);
     QGraphicsPathItem::setPath(path);
 }
 
-
-const QString& FlowGraphNodePort::portTitle (void) const
+const QString &FlowGraphNodePort::portTitle(void) const
 {
     return m_title;
 }
 
-
-void FlowGraphNodePort::setPortIndex ( int index )
+void FlowGraphNodePort::setPortIndex(int index)
 {
     m_index = index;
 }
 
-
-int FlowGraphNodePort::portIndex (void) const
+int FlowGraphNodePort::portIndex(void) const
 {
     return m_index;
 }
@@ -269,12 +248,11 @@ std::shared_ptr<AbstractStreamPort> FlowGraphNodePort::streamPort()
     return m_streamPort;
 }
 
-QPointF FlowGraphNodePort::portPos (void) const
+QPointF FlowGraphNodePort::portPos(void) const
 {
     QPointF pos = QGraphicsPathItem::scenePos();
 
-    const QRectF& rect
-            = QGraphicsPathItem::boundingRect();
+    const QRectF &rect = QGraphicsPathItem::boundingRect();
     if (m_mode == Output)
         pos.setX(pos.x() + rect.width());
     pos.setY(pos.y() + rect.height() / 2);
@@ -282,21 +260,17 @@ QPointF FlowGraphNodePort::portPos (void) const
     return pos;
 }
 
-
-// Connection-list methods.
-void FlowGraphNodePort::appendConnect ( FlowGraphEdge *connect )
+void FlowGraphNodePort::appendConnect(FlowGraphEdge *connect)
 {
     m_connects.append(connect);
 }
 
-
-void FlowGraphNodePort::removeConnect ( FlowGraphEdge *connect )
+void FlowGraphNodePort::removeConnect(FlowGraphEdge *connect)
 {
     m_connects.removeAll(connect);
 }
 
-
-void FlowGraphNodePort::removeConnects (void)
+void FlowGraphNodePort::removeConnects(void)
 {
     foreach (FlowGraphEdge *connect, m_connects) {
         if (connect->port1() != this)
@@ -308,8 +282,7 @@ void FlowGraphNodePort::removeConnects (void)
     m_connects.clear();
 }
 
-
-FlowGraphEdge *FlowGraphNodePort::findConnect ( FlowGraphNodePort *port ) const
+FlowGraphEdge *FlowGraphNodePort::findConnect(FlowGraphNodePort *port) const
 {
     foreach (FlowGraphEdge *connect, m_connects) {
         if (connect->port1() == port || connect->port2() == port)
@@ -319,26 +292,21 @@ FlowGraphEdge *FlowGraphNodePort::findConnect ( FlowGraphNodePort *port ) const
     return nullptr;
 }
 
-
-void FlowGraphNodePort::paint ( QPainter *painter,
-                                const QStyleOptionGraphicsItem *option, QWidget */*widget*/ )
+void FlowGraphNodePort::paint(QPainter *painter,
+                              const QStyleOptionGraphicsItem *option,
+                              QWidget *)
 {
-    const QPalette& pal = option->palette;
+    const QPalette &pal = option->palette;
 
     if (QGraphicsPathItem::isSelected()) {
         m_text->setDefaultTextColor(pal.highlightedText().color());
         painter->setPen(pal.highlightedText().color());
         painter->setBrush(pal.highlight().color());
     } else {
-        const QColor& foreground
-                = FlowGraphItem::foreground();
-        const QColor& background
-                = FlowGraphItem::background();
-        const bool is_dark
-                = (background.value() < 128);
-        m_text->setDefaultTextColor(is_dark
-                                    ? foreground.lighter()
-                                    : foreground.darker());
+        const QColor &foreground = FlowGraphItem::foreground();
+        const QColor &background = FlowGraphItem::background();
+        const bool is_dark = (background.value() < 128);
+        m_text->setDefaultTextColor(is_dark ? foreground.lighter() : foreground.darker());
         if (FlowGraphItem::isHighlight() || QGraphicsPathItem::isUnderMouse()) {
             painter->setPen(foreground.lighter());
             painter->setBrush(background.lighter());
@@ -351,29 +319,26 @@ void FlowGraphNodePort::paint ( QPainter *painter,
     painter->drawPath(QGraphicsPathItem::path());
 }
 
-
-QVariant FlowGraphNodePort::itemChange (
-        GraphicsItemChange change, const QVariant& value )
+QVariant FlowGraphNodePort::itemChange(GraphicsItemChange change, const QVariant &value)
 {
     if (change == QGraphicsItem::ItemScenePositionHasChanged) {
         foreach (FlowGraphEdge *connect, m_connects) {
             connect->updatePath();
         }
+    } else if (change == QGraphicsItem::ItemSelectedHasChanged && m_selectx < 1) {
+        const bool is_selected = value.toBool();
+        setHighlightEx(is_selected);
+        foreach (FlowGraphEdge *connect, m_connects)
+            connect->setSelectedEx(this, is_selected);
     }
-    else
-        if (change == QGraphicsItem::ItemSelectedHasChanged && m_selectx < 1) {
-            const bool is_selected = value.toBool();
-            setHighlightEx(is_selected);
-            foreach (FlowGraphEdge *connect, m_connects)
-                connect->setSelectedEx(this, is_selected);
-        }
 
     return value;
 }
 
-
-// Selection propagation method...
-void FlowGraphNodePort::setSelectedEx ( bool is_selected )
+/**
+ * @brief Selection propagation
+ */
+void FlowGraphNodePort::setSelectedEx(bool is_selected)
 {
     if (!is_selected) {
         foreach (FlowGraphEdge *connect, m_connects) {
@@ -394,9 +359,10 @@ void FlowGraphNodePort::setSelectedEx ( bool is_selected )
     --m_selectx;
 }
 
-
-// Highlighting propagation method...
-void FlowGraphNodePort::setHighlightEx ( bool is_highlight )
+/**
+ * @brief Highlighting propagation
+ */
+void FlowGraphNodePort::setHighlightEx(bool is_highlight)
 {
     if (m_hilitex > 0)
         return;
@@ -411,17 +377,16 @@ void FlowGraphNodePort::setHighlightEx ( bool is_highlight )
     --m_hilitex;
 }
 
-
-// Special port-type color business.
-void FlowGraphNodePort::updatePortTypeColors ( FlowGraphView *canvas )
+/**
+ * @brief Special port-type color business
+ */
+void FlowGraphNodePort::updatePortTypeColors(FlowGraphView *canvas)
 {
     if (canvas) {
-        const QColor& color = canvas->portTypeColor(m_type);
+        const QColor &color = canvas->portTypeColor(m_type);
         if (color.isValid()) {
             const bool is_dark = (color.value() < 128);
-            FlowGraphItem::setForeground(is_dark
-                                         ? color.lighter(180)
-                                         : color.darker());
+            FlowGraphItem::setForeground(is_dark ? color.lighter(180) : color.darker());
             FlowGraphItem::setBackground(color);
             if (m_mode & Output) {
                 foreach (FlowGraphEdge *connect, m_connects) {
@@ -433,41 +398,38 @@ void FlowGraphNodePort::updatePortTypeColors ( FlowGraphView *canvas )
     }
 }
 
-
-
 // Port sorting type.
-FlowGraphNodePort::SortType  FlowGraphNodePort::g_sort_type  = FlowGraphNodePort::PortName;
+FlowGraphNodePort::SortType FlowGraphNodePort::g_sort_type = FlowGraphNodePort::PortName;
 
-void FlowGraphNodePort::setSortType ( SortType sort_type )
+void FlowGraphNodePort::setSortType(SortType sort_type)
 {
     g_sort_type = sort_type;
 }
 
-FlowGraphNodePort::SortType FlowGraphNodePort::sortType (void)
+FlowGraphNodePort::SortType FlowGraphNodePort::sortType(void)
 {
     return g_sort_type;
 }
 
-
 // Port sorting order.
 FlowGraphNodePort::SortOrder FlowGraphNodePort::g_sort_order = FlowGraphNodePort::Ascending;
 
-void FlowGraphNodePort::setSortOrder( SortOrder sort_order )
+void FlowGraphNodePort::setSortOrder(SortOrder sort_order)
 {
     g_sort_order = sort_order;
 }
 
-FlowGraphNodePort::SortOrder FlowGraphNodePort::sortOrder (void)
+FlowGraphNodePort::SortOrder FlowGraphNodePort::sortOrder(void)
 {
     return g_sort_order;
 }
 
-
-// Natural decimal sorting comparator (static)
-bool FlowGraphNodePort::lessThan ( FlowGraphNodePort *port1, FlowGraphNodePort *port2 )
+/**
+ * @brief Natural decimal sorting comparator (static)
+ */
+bool FlowGraphNodePort::lessThan(FlowGraphNodePort *port1, FlowGraphNodePort *port2)
 {
-    const int port_type_diff
-            = int(port1->portType()) - int(port2->portType());
+    const int port_type_diff = int(port1->portType()) - int(port2->portType());
     if (port_type_diff)
         return (port_type_diff > 0);
 
@@ -478,8 +440,7 @@ bool FlowGraphNodePort::lessThan ( FlowGraphNodePort *port1, FlowGraphNodePort *
     }
 
     if (g_sort_type == PortIndex) {
-        const int port_index_diff
-                = port1->portIndex() - port2->portIndex();
+        const int port_index_diff = port1->portIndex() - port2->portIndex();
         if (port_index_diff)
             return (port_index_diff < 0);
     }
@@ -493,7 +454,7 @@ bool FlowGraphNodePort::lessThan ( FlowGraphNodePort *port1, FlowGraphNodePort *
     }
 }
 
-bool FlowGraphNodePort::lessThan ( const QString& s1, const QString& s2 )
+bool FlowGraphNodePort::lessThan(const QString &s1, const QString &s2)
 {
     const int n1 = s1.length();
     const int n2 = s2.length();
@@ -501,7 +462,6 @@ bool FlowGraphNodePort::lessThan ( const QString& s1, const QString& s2 )
     int i1, i2;
 
     for (i1 = i2 = 0; i1 < n1 && i2 < n2; ++i1, ++i2) {
-
         // Skip (white)spaces...
         while (s1.at(i1).isSpace())
             ++i1;
@@ -542,22 +502,21 @@ bool FlowGraphNodePort::lessThan ( const QString& s1, const QString& s2 )
     return false;
 }
 
-
-// Rectangular editor extents.
-QRectF FlowGraphNodePort::editorRect (void) const
+/**
+ * @brief Rectangular editor extents.
+ */
+QRectF FlowGraphNodePort::editorRect(void) const
 {
     return QGraphicsPathItem::sceneBoundingRect();
 }
 
-
 //----------------------------------------------------------------------------
-// FlowGraphNode -- Node graphics item.
+// FlowGraphNode
 
-// Constructor.
-FlowGraphNode::FlowGraphNode (
-        const QString& name, FlowGraphItem::Mode mode, uint type )
+FlowGraphNode::FlowGraphNode(const QString &name, uint type)
     : FlowGraphItem(nullptr),
-      m_name(name), m_mode(mode), m_type(type)
+      m_name(name),
+      m_type(type)
 {
     QGraphicsPathItem::setZValue(0);
 
@@ -565,16 +524,12 @@ FlowGraphNode::FlowGraphNode (
     const int base_value = pal.base().color().value();
     const bool is_dark = (base_value < 128);
 
-    const QColor& text_color = pal.text().color();
-    QColor foreground_color(is_dark
-                            ? text_color.darker()
-                            : text_color);
+    const QColor &text_color = pal.text().color();
+    QColor foreground_color(is_dark ? text_color.darker() : text_color);
     FlowGraphItem::setForeground(foreground_color);
 
-    const QColor& window_color = pal.window().color();
-    QColor background_color(is_dark
-                            ? window_color.lighter()
-                            : window_color);
+    const QColor &window_color = pal.window().color();
+    QColor background_color(is_dark ? window_color.lighter() : window_color);
     background_color.setAlpha(160);
     FlowGraphItem::setBackground(background_color);
 
@@ -603,83 +558,60 @@ FlowGraphNode::FlowGraphNode (
     updateNodeState(ModuleState::IDLE);
 }
 
-
-// Destructor.
-FlowGraphNode::~FlowGraphNode (void)
+FlowGraphNode::~FlowGraphNode(void)
 {
     removePorts();
 }
 
-
-// accessors.
-void FlowGraphNode::setNodeName ( const QString& name )
+void FlowGraphNode::setNodeName(const QString &name)
 {
     m_name = name;
 
     QGraphicsPathItem::setToolTip(m_name);
 }
 
-
-const QString& FlowGraphNode::nodeName (void) const
+const QString &FlowGraphNode::nodeName(void) const
 {
     return m_name;
 }
 
-
-void FlowGraphNode::setNodeMode ( FlowGraphItem::Mode mode )
-{
-    m_mode = mode;
-}
-
-
-FlowGraphItem::Mode FlowGraphNode::nodeMode (void) const
-{
-    return m_mode;
-}
-
-
-void FlowGraphNode::setNodeType ( uint type )
+void FlowGraphNode::setNodeType(uint type)
 {
     m_type = type;
 }
 
-
-uint FlowGraphNode::nodeType (void) const
+uint FlowGraphNode::nodeType(void) const
 {
     return m_type;
 }
 
-
-void FlowGraphNode::setNodeIcon (const QIcon& icon )
+void FlowGraphNode::setNodeIcon(const QIcon &icon)
 {
     m_icon = icon;
 
     m_pixmap->setPixmap(m_icon.pixmap(24, 24));
 }
 
-
-const QIcon& FlowGraphNode::nodeIcon (void) const
+const QIcon &FlowGraphNode::nodeIcon(void) const
 {
     return m_icon;
 }
 
-
-void FlowGraphNode::setNodeTitle ( const QString& title )
+void FlowGraphNode::setNodeTitle(const QString &title)
 {
-    const QFont& font = m_titleText->font();
+    const QFont &font = m_titleText->font();
     m_titleText->setFont(QFont(font.family(), font.pointSize(), QFont::Bold));
     m_titleText->setPlainText(title.isEmpty() ? m_name : title);
 }
 
-
-QString FlowGraphNode::nodeTitle (void) const
+QString FlowGraphNode::nodeTitle(void) const
 {
     return m_titleText->toPlainText();
 }
 
 void FlowGraphNode::updateNodeState(ModuleState state)
 {
-    const auto effect = static_cast<QGraphicsDropShadowEffect*>(this->graphicsEffect());
+    const auto effect = static_cast<QGraphicsDropShadowEffect *>(this->graphicsEffect());
     effect->setColor(m_shadowColor);
 
     switch (state) {
@@ -728,8 +660,6 @@ QString FlowGraphNode::nodeInfoText() const
     return m_infoText->toPlainText();
 }
 
-
-// Port-list methods.
 FlowGraphNodePort *FlowGraphNode::addPort(std::shared_ptr<AbstractStreamPort> streamPort)
 {
     FlowGraphNodePort *port = new FlowGraphNodePort(this, streamPort);
@@ -742,8 +672,7 @@ FlowGraphNodePort *FlowGraphNode::addPort(std::shared_ptr<AbstractStreamPort> st
     return port;
 }
 
-
-void FlowGraphNode::removePort ( FlowGraphNodePort *port )
+void FlowGraphNode::removePort(FlowGraphNodePort *port)
 {
     m_portkeys.remove(FlowGraphNodePort::PortKey(port));
     m_ports.removeAll(port);
@@ -751,8 +680,7 @@ void FlowGraphNode::removePort ( FlowGraphNodePort *port )
     updatePath();
 }
 
-
-void FlowGraphNode::removePorts (void)
+void FlowGraphNode::removePorts(void)
 {
     foreach (FlowGraphNodePort *port, m_ports)
         port->removeConnects();
@@ -761,18 +689,19 @@ void FlowGraphNode::removePorts (void)
     m_portkeys.clear();
 }
 
-
-// Port finder (by name, mode and type)
-FlowGraphNodePort *FlowGraphNode::findPort (
-        const QString& name, FlowGraphItem::Mode mode, uint type )
+/**
+ * @brief Port finder (by name, mode and type)
+ */
+FlowGraphNodePort *FlowGraphNode::findPort(const QString &name, FlowGraphItem::Mode mode, uint type)
 {
-    return static_cast<FlowGraphNodePort *> (
-                m_portkeys.value(FlowGraphNodePort::ItemKey(name, mode, type), nullptr));
+    return static_cast<FlowGraphNodePort *>(
+        m_portkeys.value(FlowGraphNodePort::ItemKey(name, mode, type), nullptr));
 }
 
-
-// Reset port markings, destroy if unmarked.
-void FlowGraphNode::resetMarkedPorts (void)
+/**
+ * @brief Reset port markings, destroy if unmarked.
+ */
+void FlowGraphNode::resetMarkedPorts(void)
 {
     QList<FlowGraphNodePort *> ports;
 
@@ -791,22 +720,25 @@ void FlowGraphNode::resetMarkedPorts (void)
     }
 }
 
-
-// Path/shape updater.
-void FlowGraphNode::updatePath (void)
+/**
+ * @brief Update path/shape
+ */
+void FlowGraphNode::updatePath(void)
 {
-    const QRectF& titleRect = m_titleText->boundingRect();
-    const QRectF& statusRect = m_statusText->boundingRect();
-    const QRectF& infoRect = m_infoText->boundingRect();
+    const QRectF &titleRect = m_titleText->boundingRect();
+    const QRectF &statusRect = m_statusText->boundingRect();
+    const QRectF &infoRect = m_infoText->boundingRect();
     int width = static_cast<int>((titleRect.width() / 2) + (24 * 2));
     int wi, wo;
     wi = wo = width;
     foreach (FlowGraphNodePort *port, m_ports) {
         const int w = port->boundingRect().width();
         if (port->isOutput()) {
-            if (wo < w) wo = w;
+            if (wo < w)
+                wo = w;
         } else {
-            if (wi < w) wi = w;
+            if (wi < w)
+                wi = w;
         }
     }
     width = wi + wo;
@@ -818,7 +750,7 @@ void FlowGraphNode::updatePath (void)
     int yi, yo;
     yi = yo = height;
     foreach (FlowGraphNodePort *port, m_ports) {
-        const QRectF& port_rect = port->boundingRect();
+        const QRectF &port_rect = port->boundingRect();
         const int w = port_rect.width();
         const int h = port_rect.height() + 1;
         if (type - port->portType()) {
@@ -845,14 +777,14 @@ void FlowGraphNode::updatePath (void)
     QGraphicsPathItem::setPath(path);
 }
 
-
-void FlowGraphNode::paint ( QPainter *painter,
-                            const QStyleOptionGraphicsItem *option, QWidget */*widget*/ )
+void FlowGraphNode::paint(QPainter *painter,
+                          const QStyleOptionGraphicsItem *option,
+                          QWidget *)
 {
-    const QPalette& pal = option->palette;
+    const QPalette &pal = option->palette;
 
     if (QGraphicsPathItem::isSelected()) {
-        const QColor& hilitetext_color = pal.highlightedText().color();
+        const QColor &hilitetext_color = pal.highlightedText().color();
         m_titleText->setDefaultTextColor(hilitetext_color);
         m_statusText->setDefaultTextColor(hilitetext_color);
         m_infoText->setDefaultTextColor(hilitetext_color);
@@ -861,15 +793,10 @@ void FlowGraphNode::paint ( QPainter *painter,
         hilite_color.setAlpha(180);
         painter->setBrush(hilite_color);
     } else {
-        const QColor& foreground
-                = FlowGraphItem::foreground();
-        const QColor& background
-                = FlowGraphItem::background();
-        const bool is_dark
-                = (background.value() < 192);
-        const auto defaultColor = is_dark
-                ? foreground.lighter()
-                : foreground.darker();
+        const QColor &foreground = FlowGraphItem::foreground();
+        const QColor &background = FlowGraphItem::background();
+        const bool is_dark = (background.value() < 192);
+        const auto defaultColor = is_dark ? foreground.lighter() : foreground.darker();
         m_titleText->setDefaultTextColor(defaultColor);
         m_statusText->setDefaultTextColor(defaultColor);
         m_infoText->setDefaultTextColor(defaultColor);
@@ -879,22 +806,21 @@ void FlowGraphNode::paint ( QPainter *painter,
 
     painter->drawPath(QGraphicsPathItem::path());
 
-    const QRectF& node_rect = QGraphicsPathItem::boundingRect();
+    const QRectF &node_rect = QGraphicsPathItem::boundingRect();
     m_pixmap->setPos(node_rect.x() + 4, node_rect.y() + 4);
-    m_statusPix->setPos(node_rect.x() + node_rect.width() - m_statusPix->pixmap().width() - 4, node_rect.y() + 4);
+    m_statusPix->setPos(node_rect.x() + node_rect.width() - m_statusPix->pixmap().width() - 4,
+                        node_rect.y() + 4);
 
-    const QRectF& title_rect = m_titleText->boundingRect();
-    m_titleText->setPos(- title_rect.width() / 2, node_rect.y() + 2);
+    const QRectF &title_rect = m_titleText->boundingRect();
+    m_titleText->setPos(-title_rect.width() / 2, node_rect.y() + 2);
 
-    const QRectF& status_rect = m_statusText->boundingRect();
+    const QRectF &status_rect = m_statusText->boundingRect();
     m_statusText->setPos(node_rect.x() + 4, title_rect.y() + title_rect.height());
 
     m_infoText->setPos(node_rect.x() + 4, status_rect.y() + (status_rect.height() * 2) - 4);
 }
 
-
-QVariant FlowGraphNode::itemChange (
-        GraphicsItemChange change, const QVariant& value )
+QVariant FlowGraphNode::itemChange(GraphicsItemChange change, const QVariant &value)
 {
     if (change == QGraphicsItem::ItemSelectedHasChanged) {
         const bool is_selected = value.toBool();
@@ -905,20 +831,21 @@ QVariant FlowGraphNode::itemChange (
     return value;
 }
 
-
-// Rectangular editor extents.
-QRectF FlowGraphNode::editorRect (void) const
+/**
+ * @brief Rectangular editor extents
+ */
+QRectF FlowGraphNode::editorRect(void) const
 {
     return m_titleText->sceneBoundingRect();
 }
 
-
 //----------------------------------------------------------------------------
-// FlowGraphEdge -- Connection-line graphics item.
+// FlowGraphEdge
 
-// Constructor.
-FlowGraphEdge::FlowGraphEdge (void)
-    : FlowGraphItem(nullptr), m_port1(nullptr), m_port2(nullptr)
+FlowGraphEdge::FlowGraphEdge(void)
+    : FlowGraphItem(nullptr),
+      m_port1(nullptr),
+      m_port2(nullptr)
 {
     QGraphicsPathItem::setZValue(-1);
 
@@ -940,9 +867,7 @@ FlowGraphEdge::FlowGraphEdge (void)
     QGraphicsPathItem::setAcceptHoverEvents(true);
 }
 
-
-// Destructor.
-FlowGraphEdge::~FlowGraphEdge (void)
+FlowGraphEdge::~FlowGraphEdge(void)
 {
     if (m_port1)
         m_port1->removeConnect(this);
@@ -950,9 +875,7 @@ FlowGraphEdge::~FlowGraphEdge (void)
         m_port2->removeConnect(this);
 }
 
-
-// Accessors.
-void FlowGraphEdge::setPort1 ( FlowGraphNodePort *port )
+void FlowGraphEdge::setPort1(FlowGraphNodePort *port)
 {
     if (m_port1)
         m_port1->removeConnect(this);
@@ -966,14 +889,12 @@ void FlowGraphEdge::setPort1 ( FlowGraphNodePort *port )
         setSelectedEx(m_port1, true);
 }
 
-
-FlowGraphNodePort *FlowGraphEdge::port1 (void) const
+FlowGraphNodePort *FlowGraphEdge::port1(void) const
 {
     return m_port1;
 }
 
-
-void FlowGraphEdge::setPort2 ( FlowGraphNodePort *port )
+void FlowGraphEdge::setPort2(FlowGraphNodePort *port)
 {
     if (m_port2)
         m_port2->removeConnect(this);
@@ -987,15 +908,12 @@ void FlowGraphEdge::setPort2 ( FlowGraphNodePort *port )
         setSelectedEx(m_port2, true);
 }
 
-
-FlowGraphNodePort *FlowGraphEdge::port2 (void) const
+FlowGraphNodePort *FlowGraphEdge::port2(void) const
 {
     return m_port2;
 }
 
-
-// Path/shaper updaters.
-void FlowGraphEdge::updatePathTo ( const QPointF& pos )
+void FlowGraphEdge::updatePathTo(const QPointF &pos)
 {
     const bool is_out0 = m_port1->isOutput();
     const QPointF pos0 = m_port1->portPos();
@@ -1003,7 +921,7 @@ void FlowGraphEdge::updatePathTo ( const QPointF& pos )
     const QPointF pos4 = (is_out0 ? pos : pos0);
 
     FlowGraphNode *node1 = m_port1->portNode();
-    const QRectF& rect1 = node1->boundingRect();
+    const QRectF &rect1 = node1->boundingRect();
     const qreal dx = pos4.x() - pos1.x();
     const qreal dy = pos0.y() - node1->scenePos().y() - 0.5 * rect1.height();
     const qreal y_max = rect1.height() + rect1.width();
@@ -1023,38 +941,34 @@ void FlowGraphEdge::updatePathTo ( const QPointF& pos )
     const qreal arrow_size = 12.0;
     QVector<QPointF> arrow;
     arrow.append(arrow_pos0);
-    arrow.append(arrow_pos0 - QPointF(
-                     ::sin(arrow_angle + M_PI / 2.3) * arrow_size,
-                     ::cos(arrow_angle + M_PI / 2.3) * arrow_size));
-    arrow.append(arrow_pos0 - QPointF(
-                     ::sin(arrow_angle + M_PI - M_PI / 2.3) * arrow_size,
-                     ::cos(arrow_angle + M_PI - M_PI / 2.3) * arrow_size));
+    arrow.append(arrow_pos0
+                 - QPointF(::sin(arrow_angle + M_PI / 2.3) * arrow_size,
+                           ::cos(arrow_angle + M_PI / 2.3) * arrow_size));
+    arrow.append(arrow_pos0
+                 - QPointF(::sin(arrow_angle + M_PI - M_PI / 2.3) * arrow_size,
+                           ::cos(arrow_angle + M_PI - M_PI / 2.3) * arrow_size));
     arrow.append(arrow_pos0);
     path.addPolygon(QPolygonF(arrow));
 
     QGraphicsPathItem::setPath(path);
 }
 
-
-void FlowGraphEdge::updatePath (void)
+void FlowGraphEdge::updatePath(void)
 {
     updatePathTo(m_port2->portPos());
 }
 
-
-void FlowGraphEdge::paint ( QPainter *painter,
-                            const QStyleOptionGraphicsItem *option, QWidget */*widget*/ )
+void FlowGraphEdge::paint(QPainter *painter,
+                          const QStyleOptionGraphicsItem *option,
+                          QWidget *)
 {
     if (QGraphicsPathItem::isSelected()) {
-        const QPalette& pal
-                = option->palette;
-        const QColor& color
-                = pal.highlight().color();
+        const QPalette &pal = option->palette;
+        const QColor &color = pal.highlight().color();
         painter->setPen(QPen(color, 2));
         painter->setBrush(color);
     } else {
-        const QColor& color
-                = FlowGraphItem::foreground();
+        const QColor &color = FlowGraphItem::foreground();
         if (FlowGraphItem::isHighlight() || QGraphicsPathItem::isUnderMouse())
             painter->setPen(color.lighter());
         else
@@ -1065,9 +979,7 @@ void FlowGraphEdge::paint ( QPainter *painter,
     painter->drawPath(QGraphicsPathItem::path());
 }
 
-
-QVariant FlowGraphEdge::itemChange (
-        GraphicsItemChange change, const QVariant& value )
+QVariant FlowGraphEdge::itemChange(GraphicsItemChange change, const QVariant &value)
 {
     if (change == QGraphicsItem::ItemSelectedHasChanged) {
         const bool is_selected = value.toBool();
@@ -1081,22 +993,24 @@ QVariant FlowGraphEdge::itemChange (
     return value;
 }
 
-
-// Selection propagation method...
-void FlowGraphEdge::setSelectedEx ( FlowGraphNodePort *port, bool is_selected )
+/**
+ * @brief Selection propagation
+ */
+void FlowGraphEdge::setSelectedEx(FlowGraphNodePort *port, bool is_selected)
 {
     setHighlightEx(port, is_selected);
 
     if (QGraphicsPathItem::isSelected() != is_selected) {
-        if (!is_selected || (m_port1 && m_port2
-                             && m_port1->isSelected() && m_port2->isSelected())) {
+        if (!is_selected || (m_port1 && m_port2 && m_port1->isSelected() && m_port2->isSelected())) {
             QGraphicsPathItem::setSelected(is_selected);
         }
     }
 }
 
-// Highlighting propagation method...
-void FlowGraphEdge::setHighlightEx ( FlowGraphNodePort *port, bool is_highlight )
+/**
+ * @brief Highlighting propagation
+ */
+void FlowGraphEdge::setHighlightEx(FlowGraphNodePort *port, bool is_highlight)
 {
     FlowGraphItem::setHighlight(is_highlight);
 
@@ -1106,40 +1020,43 @@ void FlowGraphEdge::setHighlightEx ( FlowGraphNodePort *port, bool is_highlight 
         m_port2->setHighlight(is_highlight);
 }
 
-
-// Special port-type color business.
-void FlowGraphEdge::updatePortTypeColors (void)
+/**
+ * @brief Special port-type color business
+ */
+void FlowGraphEdge::updatePortTypeColors(void)
 {
     if (m_port1) {
-        const QColor& color
-                = m_port1->background().lighter();
+        const QColor &color = m_port1->background().lighter();
         FlowGraphItem::setForeground(color);
         FlowGraphItem::setBackground(color);
     }
 }
 
-
 //----------------------------------------------------------------------------
-// FlowGraphView -- Canvas graphics scene/view.
+// FlowGraphView
 
 // Local constants.
-static const char *CanvasGroup   = "/GraphCanvas";
+static const char *CanvasGroup = "/GraphCanvas";
 static const char *CanvasRectKey = "/CanvasRect";
 static const char *CanvasZoomKey = "/CanvasZoom";
 
-static const char *NodePosGroup  = "/GraphNodePos";
+static const char *NodePosGroup = "/GraphNodePos";
 
-static const char *ColorsGroup      = "/GraphColors";
+static const char *ColorsGroup = "/GraphColors";
 
-
-// Constructor.
-FlowGraphView::FlowGraphView ( QWidget *parent )
-    : QGraphicsView(parent), m_state(DragNone), m_item(nullptr),
-      m_connect(nullptr), m_rubberband(nullptr),
-      m_zoom(1.0), m_zoomrange(false),
+FlowGraphView::FlowGraphView(QWidget *parent)
+    : QGraphicsView(parent),
+      m_state(DragNone),
+      m_item(nullptr),
+      m_connect(nullptr),
+      m_rubberband(nullptr),
+      m_zoom(1.0),
+      m_zoomrange(false),
       m_settings(nullptr),
-      m_selected_nodes(0), m_edit_item(nullptr),
-      m_editor(nullptr), m_edited(0)
+      m_selected_nodes(0),
+      m_edit_item(nullptr),
+      m_editor(nullptr),
+      m_edited(0)
 {
     m_scene = new QGraphicsScene;
     QGraphicsView::setScene(m_scene);
@@ -1154,49 +1071,41 @@ FlowGraphView::FlowGraphView ( QWidget *parent )
     m_editor->setFrame(false);
 
     QObject::connect(m_editor,
-                     SIGNAL(textChanged(const QString&)),
-                     SLOT(textChanged(const QString&)));
-    QObject::connect(m_editor,
-                     SIGNAL(editingFinished()),
-                     SLOT(editingFinished()));
+                     SIGNAL(textChanged(const QString &)),
+                     SLOT(textChanged(const QString &)));
+    QObject::connect(m_editor, SIGNAL(editingFinished()), SLOT(editingFinished()));
 
     m_editor->setEnabled(false);
     m_editor->hide();
 }
 
-
-// Destructor.
-FlowGraphView::~FlowGraphView (void)
+FlowGraphView::~FlowGraphView(void)
 {
     delete m_editor;
     delete m_scene;
 }
 
-
-// Accessors.
-QGraphicsScene *FlowGraphView::scene (void) const
+QGraphicsScene *FlowGraphView::scene(void) const
 {
     return m_scene;
 }
 
-void FlowGraphView::setSettings ( QSettings *settings )
+void FlowGraphView::setSettings(QSettings *settings)
 {
     m_settings = settings;
 }
 
-QSettings *FlowGraphView::settings (void) const
+QSettings *FlowGraphView::settings(void) const
 {
     return m_settings;
 }
 
-
-// Canvas methods.
-void FlowGraphView::addItem ( FlowGraphItem *item )
+void FlowGraphView::addItem(FlowGraphItem *item)
 {
     m_scene->addItem(item);
 
     if (item->type() == FlowGraphNode::Type) {
-        FlowGraphNode *node = static_cast<FlowGraphNode *> (item);
+        FlowGraphNode *node = static_cast<FlowGraphNode *>(item);
         if (node) {
             m_nodes.append(node);
             m_nodekeys.insert(FlowGraphNode::NodeKey(node), node);
@@ -1206,13 +1115,12 @@ void FlowGraphView::addItem ( FlowGraphItem *item )
     }
 }
 
-
-void FlowGraphView::removeItem ( FlowGraphItem *item )
+void FlowGraphView::removeItem(FlowGraphItem *item)
 {
     clearSelection();
 
     if (item->type() == FlowGraphNode::Type) {
-        FlowGraphNode *node = static_cast<FlowGraphNode *> (item);
+        FlowGraphNode *node = static_cast<FlowGraphNode *>(item);
         if (node) {
             emit removed(node);
             node->removePorts();
@@ -1222,51 +1130,34 @@ void FlowGraphView::removeItem ( FlowGraphItem *item )
     }
 }
 
-
-// Current item accessor.
-FlowGraphItem *FlowGraphView::currentItem (void) const
+FlowGraphItem *FlowGraphView::currentItem(void) const
 {
     FlowGraphItem *item = m_item;
 
     if (item == nullptr) {
-        const QList<QGraphicsItem *>& list
-                = m_scene->selectedItems();
+        const QList<QGraphicsItem *> &list = m_scene->selectedItems();
         if (!list.isEmpty())
-            item = static_cast<FlowGraphItem *> (list.first());
+            item = static_cast<FlowGraphItem *>(list.first());
     }
 
     return item;
 }
 
-
-// Connection predicates.
-bool FlowGraphView::canConnect (void) const
+bool FlowGraphView::canConnect(void) const
 {
     int nins = 0;
     int nouts = 0;
 
     foreach (QGraphicsItem *item, m_scene->selectedItems()) {
-        if (item->type() == FlowGraphNode::Type) {
-            FlowGraphNode *node = static_cast<FlowGraphNode *> (item);
-            if (node) {
-                if (node->nodeMode() & FlowGraphItem::Input)
+        if (item->type() == FlowGraphNodePort::Type) {
+            FlowGraphNodePort *port = static_cast<FlowGraphNodePort *>(item);
+            if (port) {
+                if (port->isInput())
                     ++nins;
-                else
-                    //	if (node->nodeMode() & FlowGraphItem::Output)
+                else if (port->isOutput())
                     ++nouts;
             }
         }
-        else
-            if (item->type() == FlowGraphNodePort::Type) {
-                FlowGraphNodePort *port = static_cast<FlowGraphNodePort *> (item);
-                if (port) {
-                    if (port->isInput())
-                        ++nins;
-                    else
-                        //	if (port->isOutput())
-                        ++nouts;
-                }
-            }
         if (nins > 0 && nouts > 0)
             return true;
     }
@@ -1274,8 +1165,7 @@ bool FlowGraphView::canConnect (void) const
     return false;
 }
 
-
-bool FlowGraphView::canDisconnect (void) const
+bool FlowGraphView::canDisconnect(void) const
 {
     foreach (QGraphicsItem *item, m_scene->selectedItems()) {
         if (item->type() == FlowGraphEdge::Type)
@@ -1285,26 +1175,20 @@ bool FlowGraphView::canDisconnect (void) const
     return false;
 }
 
-
-// Edit predicates.
-bool FlowGraphView::canRenameItem (void) const
+bool FlowGraphView::canRenameItem(void) const
 {
     FlowGraphItem *item = currentItem();
 
-    return (item && (
-                item->type() == FlowGraphNode::Type ||
-                item->type() == FlowGraphNodePort::Type));
+    return (item
+            && (item->type() == FlowGraphNode::Type || item->type() == FlowGraphNodePort::Type));
 }
 
-
-// Zooming methods.
-void FlowGraphView::setZoom ( qreal zoom )
+void FlowGraphView::setZoom(qreal zoom)
 {
     if (zoom < 0.1)
         zoom = 0.1;
-    else
-        if (zoom > 2.0)
-            zoom = 2.0;
+    else if (zoom > 2.0)
+        zoom = 2.0;
 
     const qreal scale = zoom / m_zoom;
     QGraphicsView::scale(scale, scale);
@@ -1319,27 +1203,25 @@ void FlowGraphView::setZoom ( qreal zoom )
     emit changed();
 }
 
-
-qreal FlowGraphView::zoom (void) const
+qreal FlowGraphView::zoom(void) const
 {
     return m_zoom;
 }
 
-
-void FlowGraphView::setZoomRange ( bool zoomrange )
+void FlowGraphView::setZoomRange(bool zoomrange)
 {
     m_zoomrange = zoomrange;
 }
 
-
-bool FlowGraphView::isZoomRange (void) const
+bool FlowGraphView::isZoomRange(void) const
 {
     return m_zoomrange;
 }
 
-
-// Clean-up all un-marked nodes...
-void FlowGraphView::resetNodes ( uint node_type )
+/**
+ * @brief Clean-up all un-marked nodes
+ */
+void FlowGraphView::resetNodes(uint node_type)
 {
     QList<FlowGraphNode *> nodes;
 
@@ -1358,8 +1240,7 @@ void FlowGraphView::resetNodes ( uint node_type )
     qDeleteAll(nodes);
 }
 
-
-void FlowGraphView::clearNodes ( uint node_type )
+void FlowGraphView::clearNodes(uint node_type)
 {
     QList<FlowGraphNode *> nodes;
 
@@ -1374,64 +1255,59 @@ void FlowGraphView::clearNodes ( uint node_type )
     qDeleteAll(nodes);
 }
 
-
-// Special node finder.
-FlowGraphNode *FlowGraphView::findNode (
-        const QString& name, FlowGraphItem::Mode mode, uint type ) const
+/**
+ * @brief Special node finder
+ */
+FlowGraphNode *FlowGraphView::findNode(const QString &name,
+                                       FlowGraphItem::Mode mode,
+                                       uint type) const
 {
-    return static_cast<FlowGraphNode *> (
-                m_nodekeys.value(FlowGraphNode::ItemKey(name, mode, type), nullptr));
+    return static_cast<FlowGraphNode *>(
+        m_nodekeys.value(FlowGraphNode::ItemKey(name, mode, type), nullptr));
 }
 
-
-// Item finder (internal).
-FlowGraphItem *FlowGraphView::itemAt ( const QPointF& pos ) const
+/**
+ * @brief Item finder (internal)
+ */
+FlowGraphItem *FlowGraphView::itemAt(const QPointF &pos) const
 {
-    const QList<QGraphicsItem *>& items
-            = m_scene->items(QRectF(pos - QPointF(2, 2), QSizeF(5, 5)));
+    const QList<QGraphicsItem *> &items = m_scene->items(QRectF(pos - QPointF(2, 2), QSizeF(5, 5)));
 
     foreach (QGraphicsItem *item, items) {
         if (item->type() >= QGraphicsItem::UserType)
-            return static_cast<FlowGraphItem *> (item);
+            return static_cast<FlowGraphItem *>(item);
     }
 
     return nullptr;
 }
 
-
-// Port (dis)connection command.
-void FlowGraphView::connectPorts (
-        FlowGraphNodePort *port1, FlowGraphNodePort *port2, bool is_connect )
+/**
+ * @brief Port (dis)connection command
+ */
+void FlowGraphView::connectPorts(FlowGraphNodePort *port1, FlowGraphNodePort *port2, bool is_connect)
 {
     const bool is_connected // already connected?
-            = (port1->findConnect(port2) != nullptr);
-    if (( is_connect &&  is_connected) ||
-            (!is_connect && !is_connected))
+        = (port1->findConnect(port2) != nullptr);
+    if ((is_connect && is_connected) || (!is_connect && !is_connected))
         return;
 
-    FlowGraphNode *node1
-            = findNode(
-                port1->portNode()->nodeName(),
-                FlowGraphItem::Duplex,
-                port1->portNode()->nodeType());
+    FlowGraphNode *node1 = findNode(port1->portNode()->nodeName(),
+                                    FlowGraphItem::Input,
+                                    port1->portNode()->nodeType());
     if (node1 == nullptr)
-        node1 = findNode(
-                    port1->portNode()->nodeName(),
-                    FlowGraphItem::Output,
-                    port1->portNode()->nodeType());
+        node1 = findNode(port1->portNode()->nodeName(),
+                         FlowGraphItem::Output,
+                         port1->portNode()->nodeType());
     if (node1 == nullptr)
         return;
 
-    FlowGraphNode *node2
-            = findNode(
-                port2->portNode()->nodeName(),
-                FlowGraphItem::Duplex,
-                port2->portNode()->nodeType());
+    FlowGraphNode *node2 = findNode(port2->portNode()->nodeName(),
+                                    FlowGraphItem::Output,
+                                    port2->portNode()->nodeType());
     if (node2 == nullptr)
-        node2 = findNode(
-                    port2->portNode()->nodeName(),
-                    FlowGraphItem::Input,
-                    port2->portNode()->nodeType());
+        node2 = findNode(port2->portNode()->nodeName(),
+                         FlowGraphItem::Input,
+                         port2->portNode()->nodeType());
     if (node2 == nullptr)
         return;
 
@@ -1439,7 +1315,7 @@ void FlowGraphView::connectPorts (
         auto edge = new FlowGraphEdge();
         edge->setPort1(port1);
         edge->setPort2(port2);
-        //edge->updatePortTypeColors();
+        // edge->updatePortTypeColors();
         edge->updatePath();
         addItem(edge);
         edge->setMarked(true);
@@ -1450,9 +1326,7 @@ void FlowGraphView::connectPorts (
     }
 }
 
-
-// Mouse event handlers.
-void FlowGraphView::mousePressEvent ( QMouseEvent *event )
+void FlowGraphView::mousePressEvent(QMouseEvent *event)
 {
     m_state = DragNone;
     m_item = nullptr;
@@ -1460,27 +1334,24 @@ void FlowGraphView::mousePressEvent ( QMouseEvent *event )
 
     FlowGraphItem *item = itemAt(m_pos);
     if (item && item->type() >= QGraphicsItem::UserType)
-        m_item = static_cast<FlowGraphItem *> (item);
+        m_item = static_cast<FlowGraphItem *>(item);
 
     if (event->button() == Qt::LeftButton)
         m_state = DragStart;
 
-    if (m_state == DragStart && m_item == nullptr
-            && (event->modifiers() & Qt::ControlModifier)
-            && m_scene->selectedItems().isEmpty()) {
+    if (m_state == DragStart && m_item == nullptr && (event->modifiers() & Qt::ControlModifier)
+        && m_scene->selectedItems().isEmpty()) {
         QGraphicsView::setDragMode(QGraphicsView::ScrollHandDrag);
         QGraphicsView::mousePressEvent(event);
         m_state = DragScroll;
     }
 }
 
-
-void FlowGraphView::mouseMoveEvent ( QMouseEvent *event )
+void FlowGraphView::mouseMoveEvent(QMouseEvent *event)
 {
     int nchanged = 0;
 
-    const QPointF& pos
-            = QGraphicsView::mapToScene(event->pos());
+    const QPointF &pos = QGraphicsView::mapToScene(event->pos());
 
     switch (m_state) {
     case DragStart:
@@ -1489,7 +1360,7 @@ void FlowGraphView::mouseMoveEvent ( QMouseEvent *event )
             if (m_item) {
                 // Start new connection line...
                 if (m_item->type() == FlowGraphNodePort::Type) {
-                    FlowGraphNodePort *port = static_cast<FlowGraphNodePort *> (m_item);
+                    FlowGraphNodePort *port = static_cast<FlowGraphNodePort *>(m_item);
                     if (port) {
                         QGraphicsView::setCursor(Qt::DragLinkCursor);
                         m_selected_nodes = 0;
@@ -1502,27 +1373,25 @@ void FlowGraphView::mouseMoveEvent ( QMouseEvent *event )
                         ++m_selected_nodes;
                         ++nchanged;
                     }
-                }
-                else
+                } else
                     // Start moving nodes around...
                     if (m_item->type() == FlowGraphNode::Type) {
-                        QGraphicsView::setCursor(Qt::SizeAllCursor);
-                        if (!m_item->isSelected()) {
-                            if ((event->modifiers()
-                                 & (Qt::ShiftModifier | Qt::ControlModifier)) == 0) {
-                                m_selected_nodes = 0;
-                                m_scene->clearSelection();
-                            }
-                            m_item->setSelected(true);
-                            ++nchanged;
+                    QGraphicsView::setCursor(Qt::SizeAllCursor);
+                    if (!m_item->isSelected()) {
+                        if ((event->modifiers() & (Qt::ShiftModifier | Qt::ControlModifier)) == 0) {
+                            m_selected_nodes = 0;
+                            m_scene->clearSelection();
                         }
-                        // Original node position (for move command)...
-                        QPointF pos1 = m_pos;
-                        pos1.setX(4.0 * ::round(0.25 * pos1.x()));
-                        pos1.setY(4.0 * ::round(0.25 * pos1.y()));
-                        m_pos1 = pos1;
+                        m_item->setSelected(true);
+                        ++nchanged;
                     }
-                    else m_item = nullptr;
+                    // Original node position (for move command)...
+                    QPointF pos1 = m_pos;
+                    pos1.setX(4.0 * ::round(0.25 * pos1.x()));
+                    pos1.setY(4.0 * ::round(0.25 * pos1.y()));
+                    m_pos1 = pos1;
+                } else
+                    m_item = nullptr;
             }
             // Otherwise start lasso rubber-banding...
             if (m_rubberband == nullptr && m_item == nullptr && m_connect == nullptr) {
@@ -1538,14 +1407,11 @@ void FlowGraphView::mouseMoveEvent ( QMouseEvent *event )
             m_connect->updatePathTo(pos);
         // Move rubber-band lasso...
         if (m_rubberband) {
-            const QRect rect(
-                        QGraphicsView::mapFromScene(m_pos),
-                        QGraphicsView::mapFromScene(pos));
+            const QRect rect(QGraphicsView::mapFromScene(m_pos), QGraphicsView::mapFromScene(pos));
             m_rubberband->setGeometry(rect.normalized());
             m_rubberband->show();
             if (!m_zoomrange) {
-                if (event->modifiers()
-                        & (Qt::ControlModifier | Qt::ShiftModifier)) {
+                if (event->modifiers() & (Qt::ControlModifier | Qt::ShiftModifier)) {
                     foreach (QGraphicsItem *item, m_selected) {
                         item->setSelected(!item->isSelected());
                         ++nchanged;
@@ -1557,25 +1423,21 @@ void FlowGraphView::mouseMoveEvent ( QMouseEvent *event )
                     ++nchanged;
                 }
                 const QRectF range_rect(m_pos, pos);
-                foreach (QGraphicsItem *item,
-                         m_scene->items(range_rect.normalized())) {
+                foreach (QGraphicsItem *item, m_scene->items(range_rect.normalized())) {
                     if (item->type() >= QGraphicsItem::UserType) {
                         if (item->type() != FlowGraphNode::Type)
                             ++m_selected_nodes;
-                        else
-                            if (m_selected_nodes > 0)
-                                continue;
+                        else if (m_selected_nodes > 0)
+                            continue;
                         const bool is_selected = item->isSelected();
                         if (event->modifiers() & Qt::ControlModifier) {
                             m_selected.append(item);
                             item->setSelected(!is_selected);
+                        } else if (!is_selected) {
+                            if (event->modifiers() & Qt::ShiftModifier)
+                                m_selected.append(item);
+                            item->setSelected(true);
                         }
-                        else
-                            if (!is_selected) {
-                                if (event->modifiers() & Qt::ShiftModifier)
-                                    m_selected.append(item);
-                                item->setSelected(true);
-                            }
                         ++nchanged;
                     }
                 }
@@ -1589,27 +1451,24 @@ void FlowGraphView::mouseMoveEvent ( QMouseEvent *event )
             const QPointF delta = (pos2 - m_pos);
             foreach (QGraphicsItem *item, m_scene->selectedItems()) {
                 if (item->type() == FlowGraphNode::Type) {
-                    FlowGraphNode *node = static_cast<FlowGraphNode *> (item);
+                    FlowGraphNode *node = static_cast<FlowGraphNode *>(item);
                     if (node)
                         node->setPos(node->pos() + delta);
                 }
             }
             m_pos = pos2;
-        }
-        else
-            if (m_connect) {
-                // Hovering ports high-lighting...
-                QGraphicsItem *item = itemAt(pos);
-                if (item && item->type() == FlowGraphNodePort::Type) {
-                    FlowGraphNodePort *port1 = m_connect->port1();
-                    FlowGraphNodePort *port2 = static_cast<FlowGraphNodePort *> (item);
-                    if (port1 && port2 &&
-                            port1->portType() == port2->portType() &&
-                            port1->portMode() != port2->portMode()) {
-                        port2->update();
-                    }
+        } else if (m_connect) {
+            // Hovering ports high-lighting...
+            QGraphicsItem *item = itemAt(pos);
+            if (item && item->type() == FlowGraphNodePort::Type) {
+                FlowGraphNodePort *port1 = m_connect->port1();
+                FlowGraphNodePort *port2 = static_cast<FlowGraphNodePort *>(item);
+                if (port1 && port2 && port1->portType() == port2->portType()
+                    && port1->portMode() != port2->portMode()) {
+                    port2->update();
                 }
             }
+        }
         break;
     case DragScroll:
     default:
@@ -1621,16 +1480,14 @@ void FlowGraphView::mouseMoveEvent ( QMouseEvent *event )
         emit changed();
 }
 
-
-void FlowGraphView::mouseReleaseEvent ( QMouseEvent *event )
+void FlowGraphView::mouseReleaseEvent(QMouseEvent *event)
 {
     int nchanged = 0;
 
     switch (m_state) {
     case DragStart:
         // Make individual item (de)selections...
-        if ((event->modifiers()
-             & (Qt::ShiftModifier | Qt::ControlModifier)) == 0) {
+        if ((event->modifiers() & (Qt::ShiftModifier | Qt::ControlModifier)) == 0) {
             m_selected_nodes = 0;
             m_scene->clearSelection();
             ++nchanged;
@@ -1650,17 +1507,17 @@ void FlowGraphView::mouseReleaseEvent ( QMouseEvent *event )
     case DragMove:
         // Close new connection line...
         if (m_connect) {
-            const QPointF& pos
-                    = QGraphicsView::mapToScene(event->pos());
+            const QPointF &pos = QGraphicsView::mapToScene(event->pos());
             FlowGraphItem *item = itemAt(pos);
             if (item && item->type() == FlowGraphNodePort::Type) {
                 FlowGraphNodePort *port1 = m_connect->port1();
-                FlowGraphNodePort *port2 = static_cast<FlowGraphNodePort *> (item);
-                if (port1 && port2
-                        //	&& port1->portNode() != port2->portNode()
-                        && port1->portMode() != port2->portMode()
-                        && port1->portType() == port2->portType()
-                        && port1->findConnect(port2) == nullptr) {
+                FlowGraphNodePort *port2 = static_cast<FlowGraphNodePort *>(item);
+                if (port1
+                    && port2
+                    //	&& port1->portNode() != port2->portNode()
+                    && port1->portMode() != port2->portMode()
+                    && port1->portType() == port2->portType()
+                    && port1->findConnect(port2) == nullptr) {
                     port2->setSelected(true);
                     //#if 0 // Sure the sect will commit to this instead...
                     m_connect->setPort2(port2);
@@ -1686,7 +1543,7 @@ void FlowGraphView::mouseReleaseEvent ( QMouseEvent *event )
             QList<FlowGraphNode *> nodes;
             foreach (QGraphicsItem *item, m_scene->selectedItems()) {
                 if (item->type() == FlowGraphNode::Type) {
-                    FlowGraphNode *node = static_cast<FlowGraphNode *> (item);
+                    FlowGraphNode *node = static_cast<FlowGraphNode *>(item);
                     if (node)
                         nodes.append(node);
                 }
@@ -1699,8 +1556,7 @@ void FlowGraphView::mouseReleaseEvent ( QMouseEvent *event )
             m_selected.clear();
             // Zooming in range?...
             if (m_zoomrange) {
-                const QRectF range_rect(m_pos,
-                                        QGraphicsView::mapToScene(event->pos()));
+                const QRectF range_rect(m_pos, QGraphicsView::mapToScene(event->pos()));
                 zoomFitRange(range_rect);
                 nchanged = 0;
             }
@@ -1723,10 +1579,9 @@ void FlowGraphView::mouseReleaseEvent ( QMouseEvent *event )
         emit changed();
 }
 
-
-void FlowGraphView::mouseDoubleClickEvent ( QMouseEvent *event )
+void FlowGraphView::mouseDoubleClickEvent(QMouseEvent *event)
 {
-    m_pos  = QGraphicsView::mapToScene(event->pos());
+    m_pos = QGraphicsView::mapToScene(event->pos());
     m_item = itemAt(m_pos);
 
     if (m_item && canRenameItem()) {
@@ -1736,24 +1591,16 @@ void FlowGraphView::mouseDoubleClickEvent ( QMouseEvent *event )
     }
 }
 
-
-void FlowGraphView::wheelEvent ( QWheelEvent *event )
+void FlowGraphView::wheelEvent(QWheelEvent *event)
 {
     if (event->modifiers() & Qt::ControlModifier) {
-        const int delta
-        #if QT_VERSION < QT_VERSION_CHECK(5, 0, 0)
-                = event->delta();
-#else
-                = event->angleDelta().y();
-#endif
+        const int delta = event->angleDelta().y();
         setZoom(zoom() + qreal(delta) / 1200.0);
-    }
-    else QGraphicsView::wheelEvent(event);
+    } else
+        QGraphicsView::wheelEvent(event);
 }
 
-
-// Keyboard event handler.
-void FlowGraphView::keyPressEvent ( QKeyEvent *event )
+void FlowGraphView::keyPressEvent(QKeyEvent *event)
 {
     if (event->key() == Qt::Key_Escape) {
         m_selected_nodes = 0;
@@ -1781,16 +1628,17 @@ void FlowGraphView::keyPressEvent ( QKeyEvent *event )
     }
 }
 
-
-// Connect selected items.
-void FlowGraphView::connectItems (void)
+/**
+ * @brief Connect selected items
+ */
+void FlowGraphView::connectItems(void)
 {
     QList<FlowGraphNodePort *> outs;
     QList<FlowGraphNodePort *> ins;
 
     foreach (QGraphicsItem *item, m_scene->selectedItems()) {
         if (item->type() == FlowGraphNodePort::Type) {
-            FlowGraphNodePort *port = static_cast<FlowGraphNodePort *> (item);
+            FlowGraphNodePort *port = static_cast<FlowGraphNodePort *>(item);
             if (port) {
                 if (port->isOutput())
                     outs.append(port);
@@ -1807,7 +1655,7 @@ void FlowGraphView::connectItems (void)
     //	m_scene->clearSelection();
 
     std::sort(outs.begin(), outs.end(), FlowGraphNodePort::ComparePos());
-    std::sort(ins.begin(),  ins.end(),  FlowGraphNodePort::ComparePos());
+    std::sort(ins.begin(), ins.end(), FlowGraphNodePort::ComparePos());
 
     QListIterator<FlowGraphNodePort *> iter1(outs);
     QListIterator<FlowGraphNodePort *> iter2(ins);
@@ -1827,15 +1675,16 @@ void FlowGraphView::connectItems (void)
     }
 }
 
-
-// Disconnect selected items.
-void FlowGraphView::disconnectItems (void)
+/**
+ * @brief Disconnect selected items
+ */
+void FlowGraphView::disconnectItems(void)
 {
     QList<FlowGraphEdge *> connects;
 
     foreach (QGraphicsItem *item, m_scene->selectedItems()) {
         if (item->type() == FlowGraphEdge::Type) {
-            FlowGraphEdge *connect = static_cast<FlowGraphEdge *> (item);
+            FlowGraphEdge *connect = static_cast<FlowGraphEdge *>(item);
             if (connect)
                 connects.append(connect);
         }
@@ -1854,9 +1703,7 @@ void FlowGraphView::disconnectItems (void)
     }
 }
 
-
-// Select actions.
-void FlowGraphView::selectAll (void)
+void FlowGraphView::selectAll(void)
 {
     foreach (QGraphicsItem *item, m_scene->items()) {
         if (item->type() == FlowGraphNode::Type)
@@ -1868,8 +1715,7 @@ void FlowGraphView::selectAll (void)
     emit changed();
 }
 
-
-void FlowGraphView::selectNone (void)
+void FlowGraphView::selectNone(void)
 {
     m_selected_nodes = 0;
     m_scene->clearSelection();
@@ -1877,8 +1723,7 @@ void FlowGraphView::selectNone (void)
     emit changed();
 }
 
-
-void FlowGraphView::selectInvert (void)
+void FlowGraphView::selectInvert(void)
 {
     foreach (QGraphicsItem *item, m_scene->items()) {
         if (item->type() == FlowGraphNode::Type)
@@ -1890,24 +1735,18 @@ void FlowGraphView::selectInvert (void)
     emit changed();
 }
 
-
-// Edit actions.
-void FlowGraphView::renameItem (void)
+void FlowGraphView::renameItem(void)
 {
     FlowGraphItem *item = currentItem();
 
     if (item && item->type() == FlowGraphNode::Type) {
-        FlowGraphNode *node = static_cast<FlowGraphNode *> (item);
+        FlowGraphNode *node = static_cast<FlowGraphNode *>(item);
         if (node) {
             QPalette pal;
-            const QColor& foreground
-                    = node->foreground();
+            const QColor &foreground = node->foreground();
             QColor background = node->background();
-            const bool is_dark
-                    = (background.value() < 192);
-            pal.setColor(QPalette::Text, is_dark
-                         ? foreground.lighter()
-                         : foreground.darker());
+            const bool is_dark = (background.value() < 192);
+            pal.setColor(QPalette::Text, is_dark ? foreground.lighter() : foreground.darker());
             background.setAlpha(255);
             pal.setColor(QPalette::Base, background);
             m_editor->setPalette(pal);
@@ -1917,31 +1756,24 @@ void FlowGraphView::renameItem (void)
             m_editor->setPlaceholderText(node->nodeName());
             m_editor->setText(node->nodeTitle());
         }
-    }
-    else
-        if (item && item->type() == FlowGraphNodePort::Type) {
-            FlowGraphNodePort *port = static_cast<FlowGraphNodePort *> (item);
-            if (port) {
-                QPalette pal;
-                const QColor& foreground
-                        = port->foreground();
-                const QColor& background
-                        = port->background();
-                const bool is_dark
-                        = (background.value() < 128);
-                pal.setColor(QPalette::Text, is_dark
-                             ? foreground.lighter()
-                             : foreground.darker());
-                pal.setColor(QPalette::Base, background.lighter());
-                m_editor->setPalette(pal);
-                QFont font = m_editor->font();
-                font.setBold(false);
-                m_editor->setFont(font);
-                m_editor->setPlaceholderText(port->portName());
-                m_editor->setText(port->portTitle());
-            }
+    } else if (item && item->type() == FlowGraphNodePort::Type) {
+        FlowGraphNodePort *port = static_cast<FlowGraphNodePort *>(item);
+        if (port) {
+            QPalette pal;
+            const QColor &foreground = port->foreground();
+            const QColor &background = port->background();
+            const bool is_dark = (background.value() < 128);
+            pal.setColor(QPalette::Text, is_dark ? foreground.lighter() : foreground.darker());
+            pal.setColor(QPalette::Base, background.lighter());
+            m_editor->setPalette(pal);
+            QFont font = m_editor->font();
+            font.setBold(false);
+            m_editor->setFont(font);
+            m_editor->setPlaceholderText(port->portName());
+            m_editor->setText(port->portTitle());
         }
-        else return;
+    } else
+        return;
 
     m_editor->show();
     m_editor->setEnabled(true);
@@ -1954,100 +1786,85 @@ void FlowGraphView::renameItem (void)
     updateEditorGeometry();
 }
 
-
-// Renaming editor position and size updater.
-void FlowGraphView::updateEditorGeometry (void)
+/**
+ * @brief Renaming editor position and size updater
+ */
+void FlowGraphView::updateEditorGeometry(void)
 {
     if (m_edit_item && m_editor->isEnabled() && m_editor->isVisible()) {
-        const QRectF& rect
-                = m_edit_item->editorRect().adjusted(+2.0, +2.0, -2.0, -2.0);
-        const QPoint& pos1
-                = QGraphicsView::mapFromScene(rect.topLeft());
-        const QPoint& pos2
-                = QGraphicsView::mapFromScene(rect.bottomRight());
-        m_editor->setGeometry(
-                    pos1.x(),  pos1.y(),
-                    pos2.x() - pos1.x(),
-                    pos2.y() - pos1.y());
+        const QRectF &rect = m_edit_item->editorRect().adjusted(+2.0, +2.0, -2.0, -2.0);
+        const QPoint &pos1 = QGraphicsView::mapFromScene(rect.topLeft());
+        const QPoint &pos2 = QGraphicsView::mapFromScene(rect.bottomRight());
+        m_editor->setGeometry(pos1.x(), pos1.y(), pos2.x() - pos1.x(), pos2.y() - pos1.y());
     }
 }
 
-
-// Discrete zooming actions.
-void FlowGraphView::zoomIn (void)
+void FlowGraphView::zoomIn(void)
 {
     setZoom(zoom() + 0.1);
 }
 
-
-void FlowGraphView::zoomOut (void)
+void FlowGraphView::zoomOut(void)
 {
     setZoom(zoom() - 0.1);
 }
 
-
-void FlowGraphView::zoomFit (void)
+void FlowGraphView::zoomFit(void)
 {
     zoomFitRange(m_scene->itemsBoundingRect());
 }
 
-
-void FlowGraphView::zoomReset (void)
+void FlowGraphView::zoomReset(void)
 {
     setZoom(1.0);
 }
 
-
-// Update all nodes.
-void FlowGraphView::updateNodes (void)
+/**
+ * @brief Update all nodes
+ */
+void FlowGraphView::updateNodes(void)
 {
     foreach (QGraphicsItem *item, m_scene->items()) {
         if (item->type() == FlowGraphNode::Type) {
-            FlowGraphNode *node = static_cast<FlowGraphNode *> (item);
+            FlowGraphNode *node = static_cast<FlowGraphNode *>(item);
             if (node)
                 node->updatePath();
         }
     }
 }
 
-
-// Zoom in rectangle range.
-void FlowGraphView::zoomFitRange ( const QRectF& range_rect )
+/**
+ * @brief Zoom in rectangle range
+ */
+void FlowGraphView::zoomFitRange(const QRectF &range_rect)
 {
-    QGraphicsView::fitInView(
-                range_rect, Qt::KeepAspectRatio);
+    QGraphicsView::fitInView(range_rect, Qt::KeepAspectRatio);
 
-    const QTransform& transform
-            = QGraphicsView::transform();
+    const QTransform &transform = QGraphicsView::transform();
     if (transform.isScaling()) {
         qreal zoom = transform.m11();
         if (zoom < 0.1) {
             const qreal scale = 0.1 / zoom;
             QGraphicsView::scale(scale, scale);
             zoom = 0.1;
+        } else if (zoom > 2.0) {
+            const qreal scale = 2.0 / zoom;
+            QGraphicsView::scale(scale, scale);
+            zoom = 2.0;
         }
-        else
-            if (zoom > 2.0) {
-                const qreal scale = 2.0 / zoom;
-                QGraphicsView::scale(scale, scale);
-                zoom = 2.0;
-            }
         m_zoom = zoom;
     }
 
     emit changed();
 }
 
-
-// Graph node position methods.
-bool FlowGraphView::restoreNodePos ( FlowGraphNode *node )
+bool FlowGraphView::restoreNodePos(FlowGraphNode *node)
 {
     if (m_settings == nullptr || node == nullptr)
         return false;
 
     m_settings->beginGroup(NodePosGroup);
-    const QPointF& node_pos
-            = m_settings->value('/' + nodeKey(node)).toPointF();
+    const QPointF &node_pos = m_settings->value('/' + nodeKey(node)).toPointF();
     m_settings->endGroup();
 
     if (node_pos.isNull())
@@ -2057,8 +1874,7 @@ bool FlowGraphView::restoreNodePos ( FlowGraphNode *node )
     return true;
 }
 
-
-bool FlowGraphView::saveNodePos ( FlowGraphNode *node ) const
+bool FlowGraphView::saveNodePos(FlowGraphNode *node) const
 {
     if (m_settings == nullptr || node == nullptr)
         return false;
@@ -2070,8 +1886,7 @@ bool FlowGraphView::saveNodePos ( FlowGraphNode *node ) const
     return true;
 }
 
-
-bool FlowGraphView::restoreState (void)
+bool FlowGraphView::restoreState(void)
 {
     if (m_settings == nullptr)
         return false;
@@ -2080,20 +1895,21 @@ bool FlowGraphView::restoreState (void)
     const QRegExp rx("^0x");
     QStringListIterator key(m_settings->childKeys());
     while (key.hasNext()) {
-        const QString& sKey = key.next();
-        const QColor& color = QString(m_settings->value(sKey).toString());
+        const QString &sKey = key.next();
+        const QColor &color = QString(m_settings->value(sKey).toString());
         if (color.isValid()) {
             QString sx(sKey);
             bool ok = false;
             const uint port_type = sx.remove(rx).toUInt(&ok, 16);
-            if (ok) m_port_colors.insert(port_type, color);
+            if (ok)
+                m_port_colors.insert(port_type, color);
         }
     }
     m_settings->endGroup();
 
     m_settings->beginGroup(CanvasGroup);
     m_settings->setValue(CanvasRectKey, QGraphicsView::sceneRect());
-    const QRectF& rect = m_settings->value(CanvasRectKey).toRectF();
+    const QRectF &rect = m_settings->value(CanvasRectKey).toRectF();
     const qreal zoom = m_settings->value(CanvasZoomKey, 1.0).toReal();
     m_settings->endGroup();
 
@@ -2105,8 +1921,7 @@ bool FlowGraphView::restoreState (void)
     return true;
 }
 
-
-bool FlowGraphView::saveState (void) const
+bool FlowGraphView::saveState(void) const
 {
     if (m_settings == nullptr)
         return false;
@@ -2115,7 +1930,7 @@ bool FlowGraphView::saveState (void) const
     const QList<QGraphicsItem *> items(m_scene->items());
     foreach (QGraphicsItem *item, items) {
         if (item->type() == FlowGraphNode::Type) {
-            FlowGraphNode *node = static_cast<FlowGraphNode *> (item);
+            FlowGraphNode *node = static_cast<FlowGraphNode *>(item);
             if (node)
                 m_settings->setValue('/' + nodeKey(node), node->pos());
         }
@@ -2129,12 +1944,13 @@ bool FlowGraphView::saveState (void) const
 
     m_settings->beginGroup(ColorsGroup);
     QStringListIterator key(m_settings->childKeys());
-    while (key.hasNext()) m_settings->remove(key.next());
+    while (key.hasNext())
+        m_settings->remove(key.next());
     QHash<uint, QColor>::ConstIterator iter = m_port_colors.constBegin();
-    const QHash<uint, QColor>::ConstIterator& iter_end = m_port_colors.constEnd();
-    for ( ; iter != iter_end; ++iter) {
+    const QHash<uint, QColor>::ConstIterator &iter_end = m_port_colors.constEnd();
+    for (; iter != iter_end; ++iter) {
         const uint port_type = iter.key();
-        const QColor& color = iter.value();
+        const QColor &color = iter.value();
         m_settings->setValue("0x" + QString::number(port_type, 16), color.name());
     }
     m_settings->endGroup();
@@ -2142,46 +1958,29 @@ bool FlowGraphView::saveState (void) const
     return true;
 }
 
-
-// Graph node key mangler.
-QString FlowGraphView::nodeKey ( FlowGraphNode *node ) const
+/**
+ * @brief Graph node key mangler
+ */
+QString FlowGraphView::nodeKey(FlowGraphNode *node) const
 {
-    QString node_key = node->nodeName();
-
-    switch (node->nodeMode()) {
-    case FlowGraphItem::Input:
-        node_key += ":Input";
-        break;
-    case FlowGraphItem::Output:
-        node_key += ":Output";
-        break;
-    default:
-        break;
-    }
-
-    return node_key;
+    return node->nodeName();
 }
 
-
-// Graph port colors management.
-void FlowGraphView::setPortTypeColor (
-        uint port_type, const QColor& port_color )
+void FlowGraphView::setPortTypeColor(uint port_type, const QColor &port_color)
 {
     m_port_colors.insert(port_type, port_color);
 }
 
-
-const QColor& FlowGraphView::portTypeColor ( uint port_type )
+const QColor &FlowGraphView::portTypeColor(uint port_type)
 {
     return m_port_colors[port_type];
 }
 
-
-void FlowGraphView::updatePortTypeColors ( uint port_type )
+void FlowGraphView::updatePortTypeColors(uint port_type)
 {
     foreach (QGraphicsItem *item, m_scene->items()) {
         if (item->type() == FlowGraphNodePort::Type) {
-            FlowGraphNodePort *port = static_cast<FlowGraphNodePort *> (item);
+            FlowGraphNodePort *port = static_cast<FlowGraphNodePort *>(item);
             if (port && (0 >= port_type || port->portType() == port_type)) {
                 port->updatePortTypeColors(this);
                 port->update();
@@ -2190,15 +1989,15 @@ void FlowGraphView::updatePortTypeColors ( uint port_type )
     }
 }
 
-
-void FlowGraphView::clearPortTypeColors (void)
+void FlowGraphView::clearPortTypeColors(void)
 {
     m_port_colors.clear();
 }
 
-
-// Clear all selection.
-void FlowGraphView::clearSelection (void)
+/**
+ * @brief Clear all selection
+ */
+void FlowGraphView::clearSelection(void)
 {
     m_item = nullptr;
     m_selected_nodes = 0;
@@ -2212,10 +2011,10 @@ void FlowGraphView::clearSelection (void)
 
 QList<FlowGraphNode *> FlowGraphView::selectedNodes() const
 {
-    QList<FlowGraphNode*> nodes;
+    QList<FlowGraphNode *> nodes;
     foreach (auto item, m_scene->selectedItems()) {
         if (item->type() == FlowGraphNode::Type) {
-            auto node = static_cast<FlowGraphNode *> (item);
+            auto node = static_cast<FlowGraphNode *>(item);
             nodes.append(node);
         }
     }
@@ -2223,15 +2022,13 @@ QList<FlowGraphNode *> FlowGraphView::selectedNodes() const
     return nodes;
 }
 
-// Rename item slots.
-void FlowGraphView::textChanged ( const QString& /* text */)
+void FlowGraphView::textChanged(const QString & /* text */)
 {
     if (m_edit_item && m_editor->isEnabled() && m_editor->isVisible())
         ++m_edited;
 }
 
-
-void FlowGraphView::editingFinished (void)
+void FlowGraphView::editingFinished(void)
 {
     if (m_edit_item && m_editor->isEnabled() && m_editor->isVisible()) {
         emit renamed(m_edit_item, m_editor->text());

@@ -132,10 +132,8 @@ bool PyScriptModule::initialize(ModuleManager *manager)
     return true;
 }
 
-bool PyScriptModule::prepare(const QString &storageRootDir, const TestSubject &testSubject)
+bool PyScriptModule::prepare(const QString &storageRootDir, const TestSubject &)
 {
-    Q_UNUSED(testSubject);
-
     m_pyoutWindow->clear();
 
     auto eventTablesDir = QStringLiteral("%1/events").arg(storageRootDir);
@@ -229,18 +227,16 @@ void PyScriptModule::stop()
     }
 }
 
-QByteArray PyScriptModule::serializeSettings(const QString &confBaseDir)
+QByteArray PyScriptModule::serializeSettings(const QString &)
 {
-    Q_UNUSED(confBaseDir)
     QJsonObject jsettings;
     jsettings.insert("script", m_scriptView->document()->text());
 
     return jsonObjectToBytes(jsettings);
 }
 
-bool PyScriptModule::loadSettings(const QString &confBaseDir, const QByteArray &data)
+bool PyScriptModule::loadSettings(const QString &, const QByteArray &data)
 {
-    Q_UNUSED(confBaseDir)
     auto jsettings = jsonObjectFromBytes(data);
     m_scriptView->document()->setText(jsettings.value("script").toString());
 

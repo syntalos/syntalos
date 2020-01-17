@@ -103,9 +103,7 @@ void TracePlotProxy::updatePlot(bool nowait)
 
 void TracePlotProxy::repaintPlot()
 {
-    ChannelDetails *details;
-
-    foreach (details, m_channels.values()) {
+    for (ChannelDetails *details : m_channels.values()) {
         if (!details->enabled)
             continue;
 
@@ -143,9 +141,7 @@ void TracePlotProxy::moveTo(int position)
 
 void TracePlotProxy::applyDisplayModifiers()
 {
-    ChannelDetails *details;
-
-    foreach (details, m_channels.values()) {
+    for (ChannelDetails *details : m_channels.values()) {
         if (details->dataOrig.size() == 0)
             details->dataOrig = details->data;
 
@@ -164,9 +160,7 @@ void TracePlotProxy::applyDisplayModifiers()
 
 void TracePlotProxy::reset()
 {
-    ChannelDetails *details;
-
-    foreach (details, m_channels.values()) {
+    for (ChannelDetails *details : m_channels.values()) {
         details->reset();
     }
 

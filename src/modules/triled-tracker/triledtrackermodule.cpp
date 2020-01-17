@@ -103,7 +103,7 @@ bool TriLedTrackerModule::initialize(ModuleManager *manager)
     setState(ModuleState::INITIALIZING);
 
     // find all modules suitable as frame sources
-    Q_FOREACH(auto mod, manager->activeModules()) {
+    for (auto &mod : manager->activeModules()) {
         auto imgSrcMod = qobject_cast<ImageSourceModule*>(mod);
         if (imgSrcMod == nullptr)
             continue;
@@ -202,9 +202,8 @@ void TriLedTrackerModule::showSettingsUi()
     m_settingsDialog->show();
 }
 
-QByteArray TriLedTrackerModule::serializeSettings(const QString &confBaseDir)
+QByteArray TriLedTrackerModule::serializeSettings(const QString&)
 {
-    Q_UNUSED(confBaseDir);
     QJsonObject jsettings;
     auto mod = m_settingsDialog->selectedImageSourceMod();
     if (mod != nullptr)
@@ -214,13 +213,12 @@ QByteArray TriLedTrackerModule::serializeSettings(const QString &confBaseDir)
     return jsonObjectToBytes(jsettings);
 }
 
-bool TriLedTrackerModule::loadSettings(const QString &confBaseDir, const QByteArray &data)
+bool TriLedTrackerModule::loadSettings(const QString&, const QByteArray &data)
 {
-    Q_UNUSED(confBaseDir)
     auto jsettings = jsonObjectFromBytes(data);
 
     auto modName = jsettings.value("imageSourceModule").toString();
-    Q_FOREACH(auto mod, m_frameSourceModules) {
+    for (auto &mod : m_frameSourceModules) {
         if (mod->name() == modName) {
             m_settingsDialog->setSelectedImageSourceMod(mod);
             break;

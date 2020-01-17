@@ -121,10 +121,8 @@ void RecorderSettingsDialog::on_nameLineEdit_textChanged(const QString &arg1)
     m_videoName = arg1.simplified().replace(" ", "_");
 }
 
-void RecorderSettingsDialog::on_codecComboBox_currentIndexChanged(int index)
+void RecorderSettingsDialog::on_codecComboBox_currentIndexChanged(int)
 {
-    Q_UNUSED(index);
-
     // reset state of lossless infobox
     ui->losslessCheckBox->setEnabled(true);
     ui->losslessLabel->setEnabled(true);

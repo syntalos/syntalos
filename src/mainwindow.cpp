@@ -71,7 +71,7 @@ static bool switchIconTheme(const QString& themeName)
     if (QIcon::themeName() == themeName)
         return true;
     auto found = false;
-    Q_FOREACH(auto path, QIcon::themeSearchPaths()) {
+    for (auto &path : QIcon::themeSearchPaths()) {
         QFileInfo fi(QStringLiteral("%1/%2").arg(path).arg(themeName));
         if (fi.isDir()) {
             found = true;
@@ -323,7 +323,7 @@ bool MainWindow::saveConfiguration(const QString &fileName)
 
     // save module settings
     auto modIndex = 0;
-    Q_FOREACH(auto mod, m_engine->modManager()->activeModules()) {
+    for (auto &mod : m_engine->modManager()->activeModules()) {
         if (!tar.writeDir(QString::number(modIndex)))
             return false;
         auto modSettings = mod->serializeSettings(confBaseDir.absolutePath());
@@ -408,7 +408,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
     QList<QPair<AbstractModule*, QByteArray>> modSettingsList;
 
     // add modules
-    Q_FOREACH(auto ename, rootEntries) {
+    for (auto &ename : rootEntries) {
         auto e = rootDir->entry(ename);
         if (!e->isDirectory())
             continue;
@@ -445,7 +445,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
     }
 
     // load module configurations
-    Q_FOREACH(auto pair, modSettingsList) {
+    for (auto &pair : modSettingsList) {
         auto mod = pair.first;
         if (!mod->loadSettings(confBaseDir.absolutePath(), pair.second)) {
             QMessageBox::critical(this, QStringLiteral("Can not load settings"),
@@ -591,7 +591,7 @@ void MainWindow::aboutActionTriggered()
 {
     AboutDialog about(this);
 
-    Q_FOREACH(auto info, m_engine->modManager()->moduleInfo())
+    for (auto &info : m_engine->modManager()->moduleInfo())
         about.addModuleLicense(info->name(), info->license());
 
     about.exec();
@@ -603,10 +603,8 @@ void MainWindow::setStatusText(const QString& msg)
     QApplication::processEvents();
 }
 
-void MainWindow::moduleErrorReceived(AbstractModule *mod, const QString &message)
+void MainWindow::moduleErrorReceived(AbstractModule *, const QString&)
 {
-    Q_UNUSED(mod)
-    Q_UNUSED(message)
     setRunPossible(true);
     setStopPossible(false);
 }

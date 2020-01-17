@@ -175,9 +175,8 @@ QByteArray UEyeCameraModule::serializeSettings(const QString &confBaseDir)
     return jsonObjectToBytes(videoSettings);
 }
 
-bool UEyeCameraModule::loadSettings(const QString &confBaseDir, const QByteArray &data)
+bool UEyeCameraModule::loadSettings(const QString&, const QByteArray &data)
 {
-    Q_UNUSED(confBaseDir)
     auto jsettings = jsonObjectFromBytes(data);
 
     m_camSettingsWindow->setCameraId(jsettings.value("camera").toInt());
@@ -225,7 +224,7 @@ void UEyeCameraModule::captureThread(void *gcamPtr)
         auto timestampMsec = std::chrono::milliseconds(time - startTime);
 
         // record this frame, if we have any video writers registered
-        Q_FOREACH(auto vwriter, self->m_vwriters)
+        for (auto &vwriter : self->m_vwriters)
             vwriter->pushFrame(frame, timestampMsec);
 
         self->m_mutex.lock();

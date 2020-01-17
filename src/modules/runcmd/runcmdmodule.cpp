@@ -56,11 +56,8 @@ RunCmdModule::~RunCmdModule()
 
 }
 
-bool RunCmdModule::prepare(const QString &storageRootDir, const TestSubject &testSubject)
+bool RunCmdModule::prepare(const QString &, const TestSubject &)
 {
-    Q_UNUSED(storageRootDir)
-    Q_UNUSED(testSubject)
-
     return true;
 }
 
