@@ -39,6 +39,7 @@ public:
     virtual QString dataTypeName() const = 0;
     virtual QVariant nextVar() = 0;
     virtual QHash<QString, QVariant> metadata() const = 0;
+    virtual bool unsubscribe() = 0;
     virtual bool active() const = 0;
 };
 
@@ -62,10 +63,16 @@ class StreamSubscription : public VariantStreamSubscription
 {
     friend DataStream<T>;
 public:
-    StreamSubscription()
-        : m_queue(BlockingReaderWriterQueue<std::optional<T>>(256)),
+    StreamSubscription(DataStream<T> *stream)
+        : m_stream(stream),
+          m_queue(BlockingReaderWriterQueue<std::optional<T>>(256)),
           m_active(true)
     {
+    }
+    ~StreamSubscription()
+    {
+        m_active = false;
+        unsubscribe();
     }
 
     std::optional<T> next()
@@ -98,12 +105,26 @@ public:
         return m_metadata;
     }
 
+    bool unsubscribe() override
+    {
+        // check if we are already unsubscribed
+        if (m_stream == nullptr)
+            return true;
+
+        if (m_stream->unsubscribe(this)) {
+            m_stream = nullptr;
+            return true;
+        }
+        return false;
+    }
+
     bool active() const override
     {
         return m_active;
     }
 
 private:
+    DataStream<T> *m_stream;
     BlockingReaderWriterQueue<std::optional<T>> m_queue;
     std::atomic_bool m_active;
     QHash<QString, QVariant> m_metadata;
@@ -169,7 +190,7 @@ public:
         if (m_active)
             return nullptr;
         std::lock_guard<std::mutex> lock(m_mutex);
-        std::shared_ptr<StreamSubscription<T>> sub(new StreamSubscription<T>());
+        std::shared_ptr<StreamSubscription<T>> sub(new StreamSubscription<T>(this));
         m_subs.push_back(sub);
         return sub;
     }
@@ -177,6 +198,23 @@ public:
     std::shared_ptr<VariantStreamSubscription> subscribeVar() override
     {
         return subscribe();
+    }
+
+    bool unsubscribe(StreamSubscription<T> *sub)
+    {
+        // we don't permit unsubscribing from an active stream
+        assert(!m_active);
+        if (m_active)
+            return false;
+        std::lock_guard<std::mutex> lock(m_mutex);
+        for (uint i = 0; i < m_subs.size(); i++) {
+            if (m_subs.at(i).get() == sub) {
+                m_subs.erase(m_subs.begin() + i);
+                return true;
+            }
+        }
+
+        return false;
     }
 
     void start() override
@@ -207,6 +245,8 @@ public:
     void terminate()
     {
         stop();
+        for (auto const& sub: m_subs)
+            sub->unsubscribe();
         m_subs.clear();
     }
 

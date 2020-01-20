@@ -27,7 +27,7 @@
 
 class ModuleInfo;
 class AbstractModule;
-class AbstractModuleCreator;
+class Engine;
 
 /**
  * @brief The ModuleManager class
@@ -37,7 +37,7 @@ class ModuleManager : public QObject
 {
     Q_OBJECT
 public:
-    explicit ModuleManager(QWidget *parentWidget = nullptr);
+    explicit ModuleManager(Engine *engine);
     ~ModuleManager();
 
     QList<QSharedPointer<ModuleInfo>> moduleInfo() const;
@@ -49,15 +49,9 @@ public:
 
     void removeAll();
 
-    QWidget *parentWidget() const;
-
 signals:
     void moduleCreated(ModuleInfo *info, AbstractModule *mod);
     void modulePreRemove(AbstractModule *mod);
-    void moduleError(AbstractModule *mod, const QString& message);
-
-private slots:
-    void receiveModuleError(const QString& message);
 
 private:
     Q_DISABLE_COPY(ModuleManager)

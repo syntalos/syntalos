@@ -51,6 +51,7 @@ class QMouseEvent;
 class QWheelEvent;
 class QKeyEvent;
 
+class AbstractModule;
 class AbstractStreamPort;
 
 /**
@@ -270,7 +271,7 @@ private:
 class FlowGraphNode : public FlowGraphItem
 {
 public:
-    FlowGraphNode(const QString &name, uint type = 0);
+    FlowGraphNode(AbstractModule *module, uint type = 0);
     ~FlowGraphNode() override;
 
     enum { Type = QGraphicsItem::UserType + 1 };
@@ -278,7 +279,7 @@ public:
     int type() const override { return Type; }
 
     void setNodeName(const QString &name);
-    const QString &nodeName() const;
+    const QString nodeName() const;
 
     void setNodeType(uint type);
     uint nodeType() const;
@@ -288,6 +289,8 @@ public:
 
     void setNodeTitle(const QString &title);
     QString nodeTitle() const;
+
+    AbstractModule *module() const;
 
     void updateNodeState(ModuleState state);
 
@@ -320,7 +323,7 @@ protected:
     QVariant itemChange(GraphicsItemChange change, const QVariant &value) override;
 
 private:
-    QString m_name;
+    AbstractModule *m_module;
     uint m_type;
     QColor m_shadowColor;
 

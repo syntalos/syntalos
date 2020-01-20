@@ -23,6 +23,8 @@
 #include <QMessageBox>
 #include <QDebug>
 
+#include "engine.h"
+
 #include "modules/rhd2000/rhd2000module.h"
 #include "modules/traceplot/traceplotmodule.h"
 #include "modules/videorecorder/videorecordmodule.h"
@@ -47,16 +49,16 @@ public:
 
     QMap<QString, QSharedPointer<ModuleInfo>> modInfos;
 
-    QWidget *parentWidget;
+    Engine *engine;
     QList<AbstractModule*> modules;
 };
 #pragma GCC diagnostic pop
 
-ModuleManager::ModuleManager(QWidget *parentWidget)
-    : QObject(parentWidget),
+ModuleManager::ModuleManager(Engine *engine)
+    : QObject(engine),
       d(new MMData)
 {
-    d->parentWidget = parentWidget;
+    d->engine = engine;
 
     registerModuleInfo<Rhd2000ModuleInfo>();
     registerModuleInfo<TracePlotModuleInfo>();
@@ -116,24 +118,12 @@ AbstractModule *ModuleManager::createModule(const QString &id)
     // the module has been created and registered, we can
     // safely initialize it now.
     mod->setState(ModuleState::INITIALIZING);
-    if (!mod->initialize(this)) {
-        QMessageBox::critical(d->parentWidget, QStringLiteral("Module initialization failed"),
-                              QStringLiteral("Failed to initialize module %1, it can not be added. Message: %2").arg(id).arg(mod->lastError()),
-                              QMessageBox::Ok);
-        removeModule(mod);
+    if (!d->engine->initializeModule(mod)) {
+        removeModuleImmediately(mod);
         return nullptr;
     }
 
-    connect(mod, &AbstractModule::error, this, &ModuleManager::receiveModuleError);
-
     return mod;
-}
-
-void ModuleManager::receiveModuleError(const QString& message)
-{
-    auto mod = qobject_cast<AbstractModule*>(sender());
-    if (mod != nullptr)
-        emit moduleError(mod, message);
 }
 
 bool ModuleManager::removeModuleImmediately(AbstractModule *mod)
@@ -154,17 +144,6 @@ bool ModuleManager::removeModuleImmediately(AbstractModule *mod)
 
 bool ModuleManager::removeModule(AbstractModule *mod)
 {
-    for (auto &emod : d->modules) {
-        if (!emod->canRemove(mod)) {
-            // oh no! Another module tries to prevent the removal of the current module.
-            // Let's notify about that, then stop removing the module.
-            QMessageBox::information(d->parentWidget, QStringLiteral("Can not remove module"),
-                                  QStringLiteral("The '%1' module can not be removed, because the '%2' module depends on it. Please remove '%2' first!").arg(mod->name()).arg(emod->name()),
-                                  QMessageBox::Ok);
-            return false;
-        }
-    }
-
     return removeModuleImmediately(mod);
 }
 
@@ -177,11 +156,6 @@ void ModuleManager::removeAll()
 {
     foreach (auto mod, d->modules)
         removeModuleImmediately(mod);
-}
-
-QWidget *ModuleManager::parentWidget() const
-{
-    return d->parentWidget;
 }
 
 QList<QSharedPointer<ModuleInfo> > ModuleManager::moduleInfo() const

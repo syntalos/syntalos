@@ -57,22 +57,15 @@ public:
 };
 #pragma GCC diagnostic pop
 
-Engine::Engine(ModuleManager *modManager, QObject *parent)
-    : QObject(parent),
+Engine::Engine(QWidget *parentWidget)
+    : QObject(parentWidget),
       d(new EData)
 {
     d->exportDirIsValid = false;
     d->running = false;
-    d->modManager = modManager;
-    d->parentWidget = d->modManager->parentWidget();
+    d->modManager = new ModuleManager(this);
+    d->parentWidget = parentWidget;
     d->timer.reset(new HRTimer);
-
-    // react to error events emitted by a module
-    connect(d->modManager, &ModuleManager::moduleError, [&](AbstractModule *mod, const QString &message) {
-        d->failed = true;
-        d->running = false;
-        emit runFailed(mod, message);
-    });
 
     // allow sending states via Qt queued connections
     qRegisterMetaType<ModuleState>();
@@ -417,9 +410,11 @@ bool Engine::run()
 
             mod->start();
 
-            // ensure modules are in their "running" state now
+            // ensure modules are in their "running" state now, or
+            // have themselves declared "idle" (meaning they won't be used at all)
             mod->m_running = true;
-            mod->setState(ModuleState::RUNNING);
+            if (mod->state() != ModuleState::IDLE)
+                mod->setState(ModuleState::RUNNING);
         }
 
         // wake that thundering herd and hope all threaded modules awoken by the
@@ -537,4 +532,34 @@ bool Engine::run()
 void Engine::stop()
 {
     d->running = false;
+}
+
+bool Engine::initializeModule(AbstractModule *mod)
+{
+    mod->setState(ModuleState::INITIALIZING);
+    if (!mod->initialize()) {
+        QMessageBox::critical(d->parentWidget, QStringLiteral("Module initialization failed"),
+                              QStringLiteral("Failed to initialize module %1, it can not be added. Message: %2").arg(mod->id()).arg(mod->lastError()),
+                              QMessageBox::Ok);
+        return false;
+    }
+
+    // now listen to errors emitted by this module
+    connect(mod, &AbstractModule::error, this, &Engine::receiveModuleError);
+
+    mod->setState(ModuleState::IDLE);
+    return true;
+}
+
+void Engine::receiveModuleError(const QString& message)
+{
+    auto mod = qobject_cast<AbstractModule*>(sender());
+    if (mod != nullptr)
+        emit moduleError(mod, message);
+
+    d->failed = true;
+    if (d->running) {
+        d->running = false;
+        emit runFailed(mod, message);
+    }
 }

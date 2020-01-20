@@ -53,7 +53,7 @@ public:
     explicit PyScriptModule(QObject *parent = nullptr);
     ~PyScriptModule() override;
 
-    bool initialize(ModuleManager *manager) override;
+    bool initialize() override;
     bool prepare(const QString& storageRootDir, const TestSubject& testSubject) override;
     void start() override;
     bool runEvent() override;

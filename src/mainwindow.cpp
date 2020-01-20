@@ -232,9 +232,10 @@ MainWindow::MainWindow(QWidget *parent) :
     restoreGeometry(settings.value("main/geometry").toByteArray());
 
     // new engine
-    m_engine = new Engine(ui->graphForm->moduleManager());
+    m_engine = new Engine(this);
     connect(m_engine, &Engine::runFailed, this, &MainWindow::moduleErrorReceived);
     connect(m_engine, &Engine::statusMessage, this, &MainWindow::statusMessageChanged);
+    ui->graphForm->setModuleManager(m_engine->modManager());
 
     // create loading indicator for long loading/running tasks
     m_runIndicatorWidget = new QSvgWidget(this);

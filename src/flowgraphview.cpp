@@ -529,9 +529,9 @@ QRectF FlowGraphNodePort::editorRect(void) const
 //----------------------------------------------------------------------------
 // FlowGraphNode
 
-FlowGraphNode::FlowGraphNode(const QString &name, uint type)
+FlowGraphNode::FlowGraphNode(AbstractModule *module, uint type)
     : FlowGraphItem(nullptr),
-      m_name(name),
+      m_module(module),
       m_type(type)
 {
     QGraphicsPathItem::setZValue(0);
@@ -558,8 +558,8 @@ FlowGraphNode::FlowGraphNode(const QString &name, uint type)
     QGraphicsPathItem::setFlag(QGraphicsItem::ItemIsMovable);
     QGraphicsPathItem::setFlag(QGraphicsItem::ItemIsSelectable);
 
-    QGraphicsPathItem::setToolTip(m_name);
-    setNodeTitle(m_name);
+    QGraphicsPathItem::setToolTip(m_module->name());
+    setNodeTitle(m_module->name());
 
     const bool is_darkest = (base_value < 24);
     m_shadowColor = (is_darkest ? Qt::white : Qt::black);
@@ -571,7 +571,7 @@ FlowGraphNode::FlowGraphNode(const QString &name, uint type)
     effect->setOffset(is_darkest ? 0 : 2);
     QGraphicsPathItem::setGraphicsEffect(effect);
 
-    updateNodeState(ModuleState::IDLE);
+    updateNodeState(module->state());
 }
 
 FlowGraphNode::~FlowGraphNode(void)
@@ -581,14 +581,13 @@ FlowGraphNode::~FlowGraphNode(void)
 
 void FlowGraphNode::setNodeName(const QString &name)
 {
-    m_name = name;
-
-    QGraphicsPathItem::setToolTip(m_name);
+    m_module->setName(name);
+    QGraphicsPathItem::setToolTip(m_module->name());
 }
 
-const QString &FlowGraphNode::nodeName(void) const
+const QString FlowGraphNode::nodeName(void) const
 {
-    return m_name;
+    return m_module->name();
 }
 
 void FlowGraphNode::setNodeType(uint type)
@@ -617,12 +616,17 @@ void FlowGraphNode::setNodeTitle(const QString &title)
 {
     const QFont &font = m_titleText->font();
     m_titleText->setFont(QFont(font.family(), font.pointSize(), QFont::Bold));
-    m_titleText->setPlainText(title.isEmpty() ? m_name : title);
+    m_titleText->setPlainText(title.isEmpty() ? m_module->name() : title);
 }
 
 QString FlowGraphNode::nodeTitle(void) const
 {
     return m_titleText->toPlainText();
+}
+
+AbstractModule *FlowGraphNode::module() const
+{
+    return m_module;
 }
 
 void FlowGraphNode::updateNodeState(ModuleState state)

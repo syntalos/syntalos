@@ -117,7 +117,7 @@ PyScriptModule::~PyScriptModule()
     }
 }
 
-bool PyScriptModule::initialize(ModuleManager *manager)
+bool PyScriptModule::initialize()
 {
     assert(!initialized());
 
@@ -125,8 +125,6 @@ bool PyScriptModule::initialize(ModuleManager *manager)
         raiseError("Unable to find Python worker binary. Is MazeAmaze installed correctly?");
         return false;
     }
-
-    m_modManager = manager;
 
     setInitialized();
     return true;

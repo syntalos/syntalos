@@ -30,15 +30,13 @@
 #include "moduleapi.h"
 #include "modulemanager.h"
 
-ModuleGraphForm::ModuleGraphForm(QWidget *parent) :
-    QWidget(parent),
-    ui(new Ui::ModuleGraphForm),
-    m_shutdown(false)
+ModuleGraphForm::ModuleGraphForm(QWidget *parent)
+    : QWidget(parent),
+      ui(new Ui::ModuleGraphForm),
+      m_modManager(nullptr),
+      m_shutdown(false)
 {
     ui->setupUi(this);
-
-    m_modManager = new ModuleManager(parent? parent : this);
-    connect(m_modManager, &ModuleManager::moduleCreated, this, &ModuleGraphForm::moduleAdded);
 
     ui->actionMenu->setEnabled(false);
     ui->actionRemove->setEnabled(false);
@@ -57,7 +55,6 @@ ModuleGraphForm::ModuleGraphForm(QWidget *parent) :
     connect(ui->graphView, &FlowGraphView::renamed, this, &ModuleGraphForm::itemRenamed);
     connect(ui->graphView, &FlowGraphView::connected, this, &ModuleGraphForm::on_portsConnected);
     connect(ui->graphView, &FlowGraphView::disconnected, this, &ModuleGraphForm::on_portsDisconnected);
-    connect(m_modManager, &ModuleManager::modulePreRemove, this, &ModuleGraphForm::on_modulePreRemove);
 }
 
 ModuleGraphForm::~ModuleGraphForm()
@@ -76,6 +73,13 @@ ModuleManager *ModuleGraphForm::moduleManager() const
     return m_modManager;
 }
 
+void ModuleGraphForm::setModuleManager(ModuleManager *modManager)
+{
+    m_modManager = modManager;
+    connect(m_modManager, &ModuleManager::moduleCreated, this, &ModuleGraphForm::moduleAdded);
+    connect(m_modManager, &ModuleManager::modulePreRemove, this, &ModuleGraphForm::on_modulePreRemove);
+}
+
 bool ModuleGraphForm::modifyPossible() const
 {
     return m_modifyPossible;
@@ -90,14 +94,17 @@ void ModuleGraphForm::setModifyPossible(bool allowModify)
 
 void ModuleGraphForm::moduleAdded(ModuleInfo *info, AbstractModule *mod)
 {
-    auto node = new FlowGraphNode(mod->name());
+    connect(mod, &AbstractModule::stateChanged, this, &ModuleGraphForm::receiveStateChange);
+    connect(mod, &AbstractModule::error, this, &ModuleGraphForm::receiveErrorMessage);
+    connect(mod, &AbstractModule::statusMessage, this, &ModuleGraphForm::receiveMessage);
+
+    auto node = new FlowGraphNode(mod);
     node->setNodeIcon(info->pixmap());
     for (auto &iport : mod->inPorts())
         node->addPort(std::dynamic_pointer_cast<AbstractStreamPort>(iport));
     for (auto &oport : mod->outPorts())
         node->addPort(std::dynamic_pointer_cast<AbstractStreamPort>(oport));
     ui->graphView->addItem(node);
-    m_nodeModMap.insert(node, mod);
     m_modNodeMap.insert(mod, node);
 
     connect(mod, &AbstractModule::nameChanged, [=](const QString& name) {
@@ -112,11 +119,6 @@ void ModuleGraphForm::on_actionAddModule_triggered()
         //m_runIndicatorWidget->show();
         if (!modDialog.selectedEntryId().isEmpty()) {
             auto mod = m_modManager->createModule(modDialog.selectedEntryId());
-
-            connect(mod, &AbstractModule::stateChanged, this, &ModuleGraphForm::receiveStateChange);
-            connect(mod, &AbstractModule::error, this, &ModuleGraphForm::receiveErrorMessage);
-            connect(mod, &AbstractModule::statusMessage, this, &ModuleGraphForm::receiveMessage);
-
             mod->showSettingsUi();
         }
         //m_runIndicatorWidget->hide();
@@ -164,12 +166,11 @@ void ModuleGraphForm::itemRenamed(FlowGraphItem *item, const QString &name)
     if (item->type() != FlowGraphNode::Type)
         return;
     auto node = static_cast<FlowGraphNode*>(item);
-    auto mod = m_nodeModMap.value(node);
-    if (mod == nullptr) {
+    if (node == nullptr || node->module() == nullptr) {
         qCritical() << "Orphaned node" << node->nodeName() << ", can not change name";
         return;
     }
-    mod->setName(name);
+    node->module()->setName(name);
     node->setNodeTitle(name);
 }
 
@@ -203,7 +204,7 @@ void ModuleGraphForm::on_selectionChanged()
         ui->actionDisplay->setEnabled(false);
         ui->actionSettings->setEnabled(false);
     } else {
-        auto mod = m_nodeModMap.value(node);
+        auto mod = node->module();
         if (mod == nullptr)
             return;
 
@@ -271,7 +272,9 @@ void ModuleGraphForm::on_portsDisconnected(FlowGraphNodePort *port1, FlowGraphNo
         return;
     }
 
-    // TODO: Unsubscribe properly
+    // unsubscribing the input port will automatically remove the subscription from the output port
+    // as well.
+    inPort->resetSubscription();
 }
 
 void ModuleGraphForm::on_actionConnect_triggered()
@@ -289,7 +292,7 @@ void ModuleGraphForm::on_actionSettings_triggered()
     const auto node = selectedSingleNode();
     if (node == nullptr)
         return;
-    auto mod = m_nodeModMap.value(node);
+    auto mod = node->module();
     if (mod == nullptr)
         return;
     mod->showSettingsUi();
@@ -300,7 +303,7 @@ void ModuleGraphForm::on_actionDisplay_triggered()
     const auto node = selectedSingleNode();
     if (node == nullptr)
         return;
-    auto mod = m_nodeModMap.value(node);
+    auto mod = node->module();
     if (mod == nullptr)
         return;
     mod->showDisplayUi();
@@ -311,7 +314,7 @@ void ModuleGraphForm::on_actionRemove_triggered()
     const auto node = selectedSingleNode();
     if (node == nullptr)
         return;
-    auto mod = m_nodeModMap.value(node);
+    auto mod = node->module();
     if (mod == nullptr)
         return;
     m_modManager->removeModule(mod);
@@ -328,7 +331,6 @@ void ModuleGraphForm::on_modulePreRemove(AbstractModule *mod)
     }
 
     m_modNodeMap.remove(mod);
-    m_nodeModMap.remove(node);
     ui->graphView->removeItem(node);
     delete node;
 }

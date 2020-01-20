@@ -25,14 +25,14 @@
 #include <QSharedDataPointer>
 
 #include "moduleapi.h"
-
-class ModuleManager;
+#include "modulemanager.h"
 
 class Engine : public QObject
 {
     Q_OBJECT
+    friend class ModuleManager;
 public:
-    explicit Engine(ModuleManager *modManager, QObject *parent = nullptr);
+    explicit Engine(QWidget *parentWidget = nullptr);
     ~Engine();
 
     ModuleManager *modManager() const;
@@ -52,14 +52,20 @@ public:
     bool isRunning() const;
     bool hasFailed() const;
 
+public slots:
     bool run();
     void stop();
 
 signals:
     void statusMessage(const QString &message);
     void runFailed(AbstractModule *mod, const QString &message);
+    void moduleError(AbstractModule *mod, const QString& message);
 
-public slots:
+private slots:
+    void receiveModuleError(const QString& message);
+
+protected:
+    bool initializeModule(AbstractModule *mod);
 
 private:
     bool makeDirectory(const QString &dir);

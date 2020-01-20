@@ -93,6 +93,8 @@ void StreamInputPort::setSubscription(std::shared_ptr<VariantStreamSubscription>
 
 void StreamInputPort::resetSubscription()
 {
+    if (m_sub.has_value())
+        m_sub.value()->unsubscribe();
     m_sub.reset();
 }
 
@@ -219,7 +221,7 @@ ModuleFeatures AbstractModule::features() const
            ModuleFeature::SHOW_ACTIONS;
 }
 
-bool AbstractModule::initialize(ModuleManager *)
+bool AbstractModule::initialize()
 {
     assert(!initialized());
     setInitialized();
@@ -318,11 +320,6 @@ bool AbstractModule::loadSettings(const QString &, const QByteArray &)
 QString AbstractModule::lastError() const
 {
     return m_lastError;
-}
-
-bool AbstractModule::canRemove(AbstractModule *)
-{
-    return true;
 }
 
 QList<std::shared_ptr<StreamInputPort> > AbstractModule::inPorts() const

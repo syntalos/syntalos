@@ -142,12 +142,14 @@ void VideoRecorderModule::runThread(OptionalWaitCondition *startWaitCondition)
     QTextStream vInfoFileOut(&vInfoFile);
     vInfoFileOut << QJsonDocument(vInfo).toJson();
 
+    // signal that we are actually recording this session
+    m_recording = true;
+
     // wait until data acquisition has started
     startWaitCondition->wait(this);
 
-    m_recording = true;
     statusMessage(QStringLiteral("Recording video..."));
-    while (true) {
+    forever {
         auto data = sub->next();
         if (!data.has_value())
             break; // subscription has been terminated

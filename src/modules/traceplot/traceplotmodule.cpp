@@ -85,22 +85,11 @@ ModuleFeatures TracePlotModule::features() const
     return ModuleFeature::SHOW_DISPLAY;
 }
 
-bool TracePlotModule::canRemove(AbstractModule *mod)
-{
-    return mod != m_intanModule;
-}
-
-bool TracePlotModule::initialize(ModuleManager *manager)
+bool TracePlotModule::initialize()
 {
     assert(!initialized());
 
     m_intanModule = nullptr;
-    for (auto &mod : manager->activeModules()) {
-        auto rhdmod = dynamic_cast<Rhd2000Module*>(mod);
-        if (rhdmod) {
-            m_intanModule = rhdmod;
-        }
-    }
     if (m_intanModule == nullptr) {
         raiseError("Unable to find an RHD2000 module to connect to Please add a module of this type first.");
         return false;

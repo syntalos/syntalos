@@ -41,6 +41,7 @@ public:
 
     FlowGraphView *graphView() const;
     ModuleManager *moduleManager() const;
+    void setModuleManager(ModuleManager *modManager);
 
     bool modifyPossible() const;
     void setModifyPossible(bool allowModify);
@@ -69,7 +70,6 @@ private:
     ModuleManager *m_modManager;
     bool m_modifyPossible;
     bool m_shutdown;
-    QHash<FlowGraphNode*, AbstractModule*> m_nodeModMap;
     QHash<AbstractModule*, FlowGraphNode*> m_modNodeMap;
     QMenu *m_menu;
 
