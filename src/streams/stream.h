@@ -245,8 +245,11 @@ public:
     void terminate()
     {
         stop();
+
+        // "unsubscribe" use forcefully from any active subscription,
+        // as this stream is terminated.
         for (auto const& sub: m_subs)
-            sub->unsubscribe();
+            sub->m_stream = nullptr;
         m_subs.clear();
     }
 
