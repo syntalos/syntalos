@@ -1,0 +1,8 @@
+#include <QtCore>
+
+class OOPWorker
+{
+    PROP(bool ready=false READONLY)
+    SIGNAL(frameProcessed(uint id, long timestamp, const QString &shmKey))
+    SLOT(bool processFrame(int style, uint id, long timestamp, const QString &shmKey));
+};
