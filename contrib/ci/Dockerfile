@@ -3,6 +3,9 @@
 #
 FROM debian:bullseye
 
+# add experimental, we need it for remoteobjects for now
+RUN echo "deb http://deb.debian.org/debian experimental main" > /etc/apt/sources.list.d/experimental.list
+
 # prepare
 RUN apt-get update -qq
 
@@ -21,6 +24,7 @@ RUN DEBIAN_FRONTEND=noninteractive eatmydata apt-get install -yq --no-install-re
     libqt5opengl5-dev \
     libqt5charts5-dev \
     libqt5svg5-dev \
+    libqt5remoteobjects5-dev \
     libboost-container-dev \
     libboost-python-dev \
     libopencv-dev \
