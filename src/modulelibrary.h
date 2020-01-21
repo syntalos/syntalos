@@ -17,49 +17,33 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef MODULEMANAGER_H
-#define MODULEMANAGER_H
+#pragma once
 
 #include <QObject>
 #include <QList>
 #include <QPixmap>
-#include <QSharedDataPointer>
+#include <QScopedPointer>
 
 class ModuleInfo;
-class AbstractModule;
-class Engine;
 
 /**
- * @brief The ModuleManager class
+ * @brief The ModuleLibrary class
  * Manage the lifecycle of MazeAmaze modules.
  */
-class ModuleManager : public QObject
+class ModuleLibrary : public QObject
 {
     Q_OBJECT
 public:
-    explicit ModuleManager(Engine *engine);
-    ~ModuleManager();
+    explicit ModuleLibrary(QObject *parent = nullptr);
+    ~ModuleLibrary();
 
     QList<QSharedPointer<ModuleInfo>> moduleInfo() const;
-
-    AbstractModule *createModule(const QString& id);
-    bool removeModule(AbstractModule *mod);
-
-    QList<AbstractModule*> activeModules() const;
-
-    void removeAll();
-
-signals:
-    void moduleCreated(ModuleInfo *info, AbstractModule *mod);
-    void modulePreRemove(AbstractModule *mod);
+    QSharedPointer<ModuleInfo> moduleInfo(const QString &id);
 
 private:
-    Q_DISABLE_COPY(ModuleManager)
-    class MMData;
-    QSharedDataPointer<MMData> d;
+    Q_DISABLE_COPY(ModuleLibrary)
+    class Private;
+    QScopedPointer<Private> d;
 
-    bool removeModuleImmediately(AbstractModule *mod);
     template<typename T> void registerModuleInfo();
 };
-
-#endif // MODULEMANAGER_H

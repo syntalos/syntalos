@@ -22,10 +22,9 @@
 
 #include <memory>
 #include <QObject>
-#include <QSharedDataPointer>
 
 #include "moduleapi.h"
-#include "modulemanager.h"
+#include "modulelibrary.h"
 
 class Engine : public QObject
 {
@@ -35,7 +34,7 @@ public:
     explicit Engine(QWidget *parentWidget = nullptr);
     ~Engine();
 
-    ModuleManager *modManager() const;
+    ModuleLibrary *library() const;
 
     QString exportBaseDir() const;
     void setExportBaseDir(const QString &dataDir);
@@ -52,11 +51,20 @@ public:
     bool isRunning() const;
     bool hasFailed() const;
 
+    AbstractModule *createModule(const QString &id);
+    bool removeModule(AbstractModule *mod);
+    void removeAllModules();
+
+    QList<AbstractModule*> activeModules() const;
+
 public slots:
     bool run();
     void stop();
 
 signals:
+    void moduleCreated(ModuleInfo *info, AbstractModule *mod);
+    void modulePreRemove(AbstractModule *mod);
+
     void statusMessage(const QString &message);
     void runFailed(AbstractModule *mod, const QString &message);
     void moduleError(AbstractModule *mod, const QString& message);
@@ -64,18 +72,15 @@ signals:
 private slots:
     void receiveModuleError(const QString& message);
 
-protected:
-    bool initializeModule(AbstractModule *mod);
-
 private:
+    class Private;
+    Q_DISABLE_COPY(Engine)
+    QScopedPointer<Private> d;
+
     bool makeDirectory(const QString &dir);
     void refreshExportDirPath();
     void emitStatusMessage(const QString &message);
-    QList<AbstractModule*> createModuleExecOrderList();
-
-    class EData;
-    Q_DISABLE_COPY(Engine)
-    QSharedDataPointer<EData> d;
+    QList<AbstractModule*> createModuleExecOrderList();    
 };
 
 #endif // ENGINE_H

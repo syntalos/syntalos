@@ -25,6 +25,25 @@
 #include <QJsonDocument>
 #include <QDebug>
 
+class ModuleInfo::Private
+{
+public:
+    Private() { }
+    ~Private() { }
+
+    int count;
+};
+
+ModuleInfo::ModuleInfo(QObject *parent)
+    : QObject(parent),
+      d(new ModuleInfo::Private)
+{
+    d->count = 0;
+}
+
+ModuleInfo::~ModuleInfo()
+{}
+
 QString ModuleInfo::id() const
 {
     return QStringLiteral("unknown");
@@ -57,19 +76,33 @@ bool ModuleInfo::singleton() const
 
 int ModuleInfo::count() const
 {
-    return m_count;
+    return d->count;
 }
 
 void ModuleInfo::setCount(int count)
 {
-    m_count = count;
+    d->count = count;
 }
 
-StreamInputPort::StreamInputPort(const QString &id, const QString &title)
-    : m_id(id),
-      m_title(title)
+class StreamInputPort::Private
 {
+public:
+    Private() { }
+    ~Private() { }
+
+    QString id;
+    QString title;
+};
+
+StreamInputPort::StreamInputPort(const QString &id, const QString &title)
+    : d(new StreamInputPort::Private)
+{
+    d->id = id;
+    d->title = title;
 }
+
+StreamInputPort::~StreamInputPort()
+{}
 
 QString StreamInputPort::acceptedTypeName() const
 {
@@ -100,12 +133,12 @@ void StreamInputPort::resetSubscription()
 
 QString StreamInputPort::id() const
 {
-    return m_id;
+    return d->id;
 }
 
 QString StreamInputPort::title() const
 {
-    return m_title;
+    return d->title;
 }
 
 bool StreamInputPort::isInput() const
@@ -113,42 +146,62 @@ bool StreamInputPort::isInput() const
     return true;
 }
 
-StreamOutputPort::StreamOutputPort(const QString &id, const QString &title, std::shared_ptr<VariantDataStream> stream)
-    : m_id(id),
-      m_title(title),
-      m_stream(stream)
+class StreamOutputPort::Private
 {
+public:
+    Private() { }
+    ~Private() { }
+
+    QString id;
+    QString title;
+    std::shared_ptr<VariantDataStream> stream;
+};
+
+StreamOutputPort::StreamOutputPort(const QString &id, const QString &title, std::shared_ptr<VariantDataStream> stream)
+    : d(new StreamOutputPort::Private)
+{
+    d->id = id;
+    d->title = title;
+    d->stream = stream;
 }
+
+StreamOutputPort::~StreamOutputPort()
+{}
 
 bool StreamOutputPort::canSubscribe(const QString &typeName)
 {
-    return typeName == m_stream->dataTypeName();
+    return typeName == d->stream->dataTypeName();
 }
 
 QString StreamOutputPort::dataTypeName() const
 {
-    return m_stream->dataTypeName();
+    return d->stream->dataTypeName();
+}
+
+std::shared_ptr<VariantDataStream> StreamOutputPort::streamVar()
+{
+    return d->stream;
 }
 
 std::shared_ptr<VariantStreamSubscription> StreamOutputPort::subscribe()
 {
-    return m_stream->subscribeVar();
+    return d->stream->subscribeVar();
 }
 
 void StreamOutputPort::stopStream()
 {
-    if (m_stream->active())
-        m_stream->stop();
+    if (d->stream->active())
+        d->stream->stop();
 }
 
 QString StreamOutputPort::id() const
 {
-    return m_id;
+    return d->id;
 }
 
 QString StreamOutputPort::title() const
 {
-    return m_title;
+    return d->title;
 }
 
 bool StreamOutputPort::isOutput() const
@@ -156,24 +209,43 @@ bool StreamOutputPort::isOutput() const
     return true;
 }
 
+class AbstractModule::Private
+{
+public:
+    Private()
+        : state(ModuleState::INITIALIZING),
+          initialized(false)
+    {}
+    ~Private() {}
+
+    std::atomic<ModuleState> state;
+    QString lastError;
+    QString id;
+    QString name;
+
+    QList<QPair<QWidget*, bool>> displayWindows;
+    QList<QPair<QWidget*, bool>> settingsWindows;
+
+    bool initialized;
+};
+
 AbstractModule::AbstractModule(QObject *parent) :
     QObject(parent),
     m_running(false),
-    m_state(ModuleState::INITIALIZING),
-    m_initialized(false)
+    d(new AbstractModule::Private)
 {
-    m_id = QStringLiteral("unknown");
-    m_name = QStringLiteral("Unknown Module");
+    d->id = QStringLiteral("unknown");
+    d->name = QStringLiteral("Unknown Module");
 }
 
 AbstractModule::~AbstractModule()
 {
     // delete windows if we own them
-    for (auto wp : m_displayWindows) {
+    for (auto wp : d->displayWindows) {
         if (wp.second)
             delete wp.first;
     }
-    for (auto wp : m_settingsWindows) {
+    for (auto wp : d->settingsWindows) {
         if (wp.second)
             delete wp.first;
     }
@@ -181,36 +253,36 @@ AbstractModule::~AbstractModule()
 
 ModuleState AbstractModule::state() const
 {
-    return m_state;
+    return d->state;
 }
 
 void AbstractModule::setStateIdle()
 {
-    if ((m_state == ModuleState::RUNNING) ||
-        (m_state == ModuleState::INITIALIZING))
+    if ((d->state == ModuleState::RUNNING) ||
+        (d->state == ModuleState::INITIALIZING))
         setState(ModuleState::IDLE);
 }
 
 void AbstractModule::setStateReady()
 {
-    if (m_state == ModuleState::PREPARING)
+    if (d->state == ModuleState::PREPARING)
         setState(ModuleState::READY);
 }
 
 QString AbstractModule::id() const
 {
-    return m_id;
+    return d->id;
 }
 
 QString AbstractModule::name() const
 {
-    return m_name;
+    return d->name;
 }
 
 void AbstractModule::setName(const QString &name)
 {
-    m_name = name;
-    emit nameChanged(m_name);
+    d->name = name;
+    emit nameChanged(d->name);
 }
 
 ModuleFeatures AbstractModule::features() const
@@ -256,7 +328,7 @@ void AbstractModule::finalize()
 
 void AbstractModule::showDisplayUi()
 {
-    for (auto const wp : m_displayWindows) {
+    for (auto const wp : d->displayWindows) {
         wp.first->show();
         wp.first->raise();
     }
@@ -264,7 +336,7 @@ void AbstractModule::showDisplayUi()
 
 bool AbstractModule::isDisplayUiVisible()
 {
-    for (auto const wp : m_displayWindows) {
+    for (auto const wp : d->displayWindows) {
         if (wp.first->isVisible())
             return true;
     }
@@ -273,7 +345,7 @@ bool AbstractModule::isDisplayUiVisible()
 
 void AbstractModule::showSettingsUi()
 {
-    for (auto const wp : m_settingsWindows) {
+    for (auto const wp : d->settingsWindows) {
         wp.first->show();
         wp.first->raise();
     }
@@ -281,7 +353,7 @@ void AbstractModule::showSettingsUi()
 
 bool AbstractModule::isSettingsUiVisible()
 {
-    for (auto const wp : m_settingsWindows) {
+    for (auto const wp : d->settingsWindows) {
         if (wp.first->isVisible())
             return true;
     }
@@ -290,13 +362,13 @@ bool AbstractModule::isSettingsUiVisible()
 
 void AbstractModule::hideDisplayUi()
 {
-    for (auto const wp : m_displayWindows)
+    for (auto const wp : d->displayWindows)
         wp.first->hide();
 }
 
 void AbstractModule::hideSettingsUi()
 {
-    for (auto const wp : m_settingsWindows)
+    for (auto const wp : d->settingsWindows)
         wp.first->hide();
 }
 
@@ -319,7 +391,7 @@ bool AbstractModule::loadSettings(const QString &, const QByteArray &)
 
 QString AbstractModule::lastError() const
 {
-    return m_lastError;
+    return d->lastError;
 }
 
 QList<std::shared_ptr<StreamInputPort> > AbstractModule::inPorts() const
@@ -345,32 +417,32 @@ bool AbstractModule::makeDirectory(const QString &dir)
 void AbstractModule::addDisplayWindow(QWidget *window, bool owned)
 {
 
-    m_displayWindows.append(qMakePair(window, owned));
+    d->displayWindows.append(qMakePair(window, owned));
 }
 
 void AbstractModule::addSettingsWindow(QWidget *window, bool owned)
 {
-    m_settingsWindows.append(qMakePair(window, owned));
+    d->settingsWindows.append(qMakePair(window, owned));
 }
 
 void AbstractModule::setInitialized()
 {
-    if (m_initialized)
+    if (d->initialized)
         return;
-    m_initialized = true;
+    d->initialized = true;
     setState(ModuleState::IDLE);
 }
 
 bool AbstractModule::initialized() const
 {
-    return m_initialized;
+    return d->initialized;
 }
 
 QJsonValue AbstractModule::serializeDisplayUiGeometry()
 {
     QJsonObject obj;
-    for (int i = 0; i < m_displayWindows.size(); i++) {
-        const auto wp = m_displayWindows.at(i);
+    for (int i = 0; i < d->displayWindows.size(); i++) {
+        const auto wp = d->displayWindows.at(i);
 
         QJsonObject info;
         info.insert("visible", wp.first->isVisible());
@@ -383,8 +455,8 @@ QJsonValue AbstractModule::serializeDisplayUiGeometry()
 
 void AbstractModule::restoreDisplayUiGeometry(QJsonObject info)
 {
-    for (int i = 0; i < m_displayWindows.size(); i++) {
-        const auto wp = m_displayWindows.at(i);
+    for (int i = 0; i < d->displayWindows.size(); i++) {
+        const auto wp = d->displayWindows.at(i);
 
         auto winfo = info.value(QString::number(i)).toObject();
         if (winfo.isEmpty())
@@ -399,13 +471,13 @@ void AbstractModule::restoreDisplayUiGeometry(QJsonObject info)
 
 void AbstractModule::setState(ModuleState state)
 {
-    m_state = state;
+    d->state = state;
     emit stateChanged(state);
 }
 
 void AbstractModule::raiseError(const QString &message)
 {
-    m_lastError = message;
+    d->lastError = message;
     emit error(message);
     setState(ModuleState::ERROR);
     qCritical() << message;
@@ -424,7 +496,7 @@ QJsonObject AbstractModule::jsonObjectFromBytes(const QByteArray &data)
 
 void AbstractModule::setId(const QString &id)
 {
-    m_id = id;
+    d->id = id;
 }
 
 void AbstractModule::setStatusMessage(const QString &message)

@@ -140,7 +140,7 @@ bool PyScriptModule::prepare(const QString &storageRootDir, const TestSubject &)
 
     if (m_funcRelay != nullptr)
         delete m_funcRelay;
-    m_funcRelay = new MaFuncRelay(m_modManager, eventTablesDir, this);
+    m_funcRelay = new MaFuncRelay(eventTablesDir, this);
     m_funcRelay->setPyScript(m_scriptView->document()->text());
 
     if (m_zserver != nullptr)

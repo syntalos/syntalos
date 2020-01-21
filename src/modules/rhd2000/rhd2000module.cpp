@@ -61,7 +61,7 @@ AbstractModule *Rhd2000ModuleInfo::createModule(QObject *parent)
 Rhd2000Module::Rhd2000Module(QObject *parent)
     : AbstractModule(parent)
 {
-    m_name = QStringLiteral("Intan RHD2000 USB Interface");
+    setName(QStringLiteral("Intan RHD2000 USB Interface"));
     m_intanUi = nullptr;
 
     // set up Intan GUI and board

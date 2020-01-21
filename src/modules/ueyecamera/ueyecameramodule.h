@@ -23,12 +23,12 @@
 #include <QObject>
 #include <thread>
 #include <atomic>
-#include <boost/circular_buffer.hpp>
 #include <QQueue>
 #include <QMutex>
+#include <boost/circular_buffer.hpp>
 
-#include "imagesourcemodule.h"
 #include "moduleapi.h"
+#include "streams/frametype.h"
 
 class UEyeCameraModuleInfo : public ModuleInfo
 {
@@ -45,7 +45,7 @@ class UEyeCamera;
 class VideoViewWidget;
 class UEyeCameraSettingsDialog;
 
-class UEyeCameraModule : public ImageSourceModule
+class UEyeCameraModule : public AbstractModule
 {
     Q_OBJECT
 public:
@@ -54,12 +54,7 @@ public:
 
     void setName(const QString& name) override;
 
-    void attachVideoWriter(VideoWriter *vwriter) override;
-
-    int selectedFramerate() const override;
-    cv::Size selectedResolution() const override;
-
-    bool prepare() override;
+    bool prepare(const QString& storageRootDir, const TestSubject& testSubject) override;
     void start() override;
     bool runEvent() override;
 
@@ -73,7 +68,6 @@ private:
     VideoViewWidget *m_videoView;
     UEyeCameraSettingsDialog *m_camSettingsWindow;
 
-    QList<VideoWriter*> m_vwriters;
     std::thread *m_thread;
     QMutex m_mutex;
     std::atomic_bool m_running;

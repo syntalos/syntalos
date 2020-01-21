@@ -61,7 +61,7 @@ TracePlotModule::TracePlotModule(QObject *parent)
       m_displayWindow(nullptr),
       m_intanModule(nullptr)
 {
-    m_name = QStringLiteral("TracePlot");
+    setName(QStringLiteral("TracePlot"));
 
     // create trace parameters and data proxy for the trace display
     m_traceProxy = new TracePlotProxy(this);

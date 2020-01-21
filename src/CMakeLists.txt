@@ -19,12 +19,10 @@ set(MAZEAMAZE_SRC
     testsubjectlistmodel.cpp
     moduleapi.h
     moduleapi.cpp
-    modulemanager.h
-    modulemanager.cpp
+    modulelibrary.h
+    modulelibrary.cpp
     moduleselectdialog.h
     moduleselectdialog.cpp
-    imagesourcemodule.h
-    imagesourcemodule.cpp
     videoviewwidget.h
     videoviewwidget.cpp
     elidedlabel.h

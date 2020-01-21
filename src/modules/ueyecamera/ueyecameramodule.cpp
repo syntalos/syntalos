@@ -28,8 +28,6 @@
 #include "videoviewwidget.h"
 #include "ueyecamerasettingsdialog.h"
 
-#include "modules/videorecorder/videowriter.h"
-
 QString UEyeCameraModuleInfo::id() const
 {
     return QStringLiteral("ueye-camera");
@@ -56,7 +54,7 @@ AbstractModule *UEyeCameraModuleInfo::createModule(QObject *parent)
 }
 
 UEyeCameraModule::UEyeCameraModule(QObject *parent)
-    : ImageSourceModule(parent),
+    : AbstractModule(parent),
       m_camera(nullptr),
       m_videoView(nullptr),
       m_camSettingsWindow(nullptr),
@@ -82,27 +80,12 @@ UEyeCameraModule::~UEyeCameraModule()
 
 void UEyeCameraModule::setName(const QString &name)
 {
-    ImageSourceModule::setName(name);
+    AbstractModule::setName(name);
     m_videoView->setWindowTitle(name);
     m_camSettingsWindow->setWindowTitle(QStringLiteral("Settings for %1").arg(name));
 }
 
-void UEyeCameraModule::attachVideoWriter(VideoWriter *vwriter)
-{
-    m_vwriters.append(vwriter);
-}
-
-int UEyeCameraModule::selectedFramerate() const
-{
-    return m_camSettingsWindow->framerate();
-}
-
-cv::Size UEyeCameraModule::selectedResolution() const
-{
-    return m_camSettingsWindow->resolution();
-}
-
-bool UEyeCameraModule::prepare()
+bool UEyeCameraModule::prepare(const QString &, const TestSubject &)
 {
     m_started = false;
     if (!startCaptureThread())
@@ -131,10 +114,6 @@ bool UEyeCameraModule::runEvent()
         m_videoView->showImage(frame.mat);
         m_frameRing.pop_front();
 
-        // send frame away to connected image sinks, and hope they are
-        // handling this efficiently and don't block the loop
-        emit newFrame(frame);
-
         auto statusText = QStringLiteral("<html>Display buffer: %1/%2").arg(m_frameRing.size()).arg(m_frameRing.capacity());
 
         // END OF SAFE ZONE
@@ -146,7 +125,7 @@ bool UEyeCameraModule::runEvent()
         statusMessage(statusText);
 
         // show framerate directly in the window title, to make reduced framerate very visible
-        m_videoView->setWindowTitle(QStringLiteral("%1 (%2 fps)").arg(m_name).arg(m_currentFps));
+        m_videoView->setWindowTitle(QStringLiteral("%1 (%2 fps)").arg(name()).arg(m_currentFps));
     } else {
         m_mutex.unlock();
     }
@@ -223,10 +202,6 @@ void UEyeCameraModule::captureThread(void *gcamPtr)
         }
         auto timestampMsec = std::chrono::milliseconds(time - startTime);
 
-        // record this frame, if we have any video writers registered
-        for (auto &vwriter : self->m_vwriters)
-            vwriter->pushFrame(frame, timestampMsec);
-
         self->m_mutex.lock();
         self->m_frameRing.push_back(Frame(frame, timestampMsec));
         self->m_mutex.unlock();
@@ -265,11 +240,6 @@ void UEyeCameraModule::finishCaptureThread()
 {
     if (!initialized())
         return;
-
-    // ensure we unregister all video writers before starting another run,
-    // and after finishing the current one, as the modules they belong to
-    // may meanwhile have been removed
-    m_vwriters.clear();
 
     statusMessage("Cleaning up...");
     if (m_thread != nullptr) {

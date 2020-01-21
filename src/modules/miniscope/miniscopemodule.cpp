@@ -69,7 +69,7 @@ MiniscopeModule::MiniscopeModule(QObject *parent)
     m_videoView->setWindowTitle(QStringLiteral("Miniscope View"));
     addSettingsWindow(m_videoView);
 
-    if (m_name == QStringLiteral("Miniscope"))
+    if (name() == QStringLiteral("Miniscope"))
         m_settingsDialog->setRecName(QStringLiteral("scope"));
 
     m_miniscope->setScopeCamId(0);

@@ -23,7 +23,7 @@
 #include <QWidget>
 #include "flowgraphview.h"
 
-class ModuleManager;
+class Engine;
 class ModuleInfo;
 class AbstractModule;
 
@@ -40,8 +40,7 @@ public:
     ~ModuleGraphForm();
 
     FlowGraphView *graphView() const;
-    ModuleManager *moduleManager() const;
-    void setModuleManager(ModuleManager *modManager);
+    Engine *engine() const;
 
     bool modifyPossible() const;
     void setModifyPossible(bool allowModify);
@@ -67,7 +66,7 @@ private slots:
 private:
     Ui::ModuleGraphForm *ui;
 
-    ModuleManager *m_modManager;
+    Engine *m_engine;
     bool m_modifyPossible;
     bool m_shutdown;
     QHash<AbstractModule*, FlowGraphNode*> m_modNodeMap;

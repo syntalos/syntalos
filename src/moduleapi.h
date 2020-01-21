@@ -33,7 +33,6 @@
 #include "optionalwaitcondition.h"
 
 class AbstractModule;
-class ModuleManager;
 
 /**
  * @brief The ModuleFeature flags
@@ -53,8 +52,11 @@ Q_DECLARE_OPERATORS_FOR_FLAGS(ModuleFeatures)
 class ModuleInfo : public QObject
 {
     Q_OBJECT
-    friend class ModuleManager;
+    friend class Engine;
 public:
+    explicit ModuleInfo(QObject *parent = nullptr);
+    ~ModuleInfo();
+
     /**
      * @brief Name of this module used internally as unique identifier
      */
@@ -95,7 +97,10 @@ public:
     int count() const;
 
 private:
-    int m_count;
+    Q_DISABLE_COPY(ModuleInfo)
+    class Private;
+    QScopedPointer<Private> d;
+
     void setCount(int count);
 };
 
@@ -130,6 +135,7 @@ class StreamInputPort : public AbstractStreamPort
 {
 public:
     explicit StreamInputPort(const QString &id, const QString &title);
+    ~StreamInputPort();
 
     template<typename T>
     void setAcceptedType()
@@ -165,8 +171,9 @@ public:
     bool isInput() const override;
 
 private:
-    QString m_id;
-    QString m_title;
+    Q_DISABLE_COPY(StreamInputPort)
+    class Private;
+    QScopedPointer<Private> d;
     QString m_acceptedTypeName;
     std::optional<std::shared_ptr<VariantStreamSubscription>> m_sub;
 };
@@ -175,15 +182,14 @@ class StreamOutputPort : public AbstractStreamPort
 {
 public:
     explicit StreamOutputPort(const QString &id, const QString &title, std::shared_ptr<VariantDataStream> stream);
+    ~StreamOutputPort();
 
     bool canSubscribe(const QString &typeName);
     QString dataTypeName() const;
 
     template<typename T>
-    std::shared_ptr<DataStream<T>> stream()
-    {
-        return m_stream;
-    }
+    std::shared_ptr<DataStream<T>> stream() { return streamVar(); }
+    std::shared_ptr<VariantDataStream> streamVar();
 
     std::shared_ptr<VariantStreamSubscription> subscribe();
 
@@ -194,16 +200,15 @@ public:
     bool isOutput() const override;
 
 private:
-    QString m_id;
-    QString m_title;
-    std::shared_ptr<VariantDataStream> m_stream;
+    Q_DISABLE_COPY(StreamOutputPort)
+    class Private;
+    QScopedPointer<Private> d;
 };
 
 class AbstractModule : public QObject
 {
     Q_OBJECT
     friend class Engine;
-    friend class ModuleManager;
 public:
     explicit AbstractModule(QObject *parent = nullptr);
     ~AbstractModule();
@@ -440,7 +445,6 @@ protected:
     void setInitialized();
     bool initialized() const;
 
-    QString m_name;
     QString m_storageDir;
 
     std::atomic_bool m_running;
@@ -448,19 +452,14 @@ protected:
     std::shared_ptr<HRTimer> m_timer;
 
 private:
-    void setState(ModuleState state);
+    Q_DISABLE_COPY(AbstractModule)
+    class Private;
+    QScopedPointer<Private> d;
 
-    std::atomic<ModuleState> m_state;
-    QString m_lastError;
-    QString m_id;
     QMap<QString, std::shared_ptr<StreamOutputPort>> m_outPorts;
     QMap<QString, std::shared_ptr<StreamInputPort>> m_inPorts;
 
-    QList<QPair<QWidget*, bool>> m_displayWindows;
-    QList<QPair<QWidget*, bool>> m_settingsWindows;
-
-    bool m_initialized;
-
+    void setState(ModuleState state);
     void setId(const QString &id);
 };
 

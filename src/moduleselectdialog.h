@@ -22,7 +22,7 @@
 
 #include <QDialog>
 
-#include "modulemanager.h"
+#include "modulelibrary.h"
 
 class QStandardItemModel;
 

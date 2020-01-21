@@ -21,7 +21,7 @@
 #define GENERIC_CAMERA_H
 
 #include <QObject>
-#include <QSharedDataPointer>
+#include <QScopedPointer>
 #include <QSize>
 #include <opencv2/core.hpp>
 #include "hrclock.h"
@@ -56,7 +56,7 @@ public:
     static QList<QPair<QString, int>> availableCameras();
 
 private:
-    QSharedDataPointer<CameraData> d;
+    QScopedPointer<CameraData> d;
 
     void fail(const QString &msg);
 };

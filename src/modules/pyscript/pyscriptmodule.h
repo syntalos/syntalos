@@ -67,7 +67,6 @@ private:
     QString m_workerBinary;
     QProcess *m_process;
     MaFuncRelay *m_funcRelay;
-    ModuleManager *m_modManager;
     bool m_running;
 
     QTextBrowser *m_pyoutWindow;

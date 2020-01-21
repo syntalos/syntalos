@@ -28,15 +28,19 @@
 
 #include "moduleselectdialog.h"
 #include "moduleapi.h"
-#include "modulemanager.h"
+#include "engine.h"
 
 ModuleGraphForm::ModuleGraphForm(QWidget *parent)
     : QWidget(parent),
       ui(new Ui::ModuleGraphForm),
-      m_modManager(nullptr),
+      m_engine(new Engine(this)),
       m_shutdown(false)
 {
     ui->setupUi(this);
+
+    // connect up engine events
+    connect(m_engine, &Engine::moduleCreated, this, &ModuleGraphForm::moduleAdded);
+    connect(m_engine, &Engine::modulePreRemove, this, &ModuleGraphForm::on_modulePreRemove);
 
     ui->actionMenu->setEnabled(false);
     ui->actionRemove->setEnabled(false);
@@ -68,16 +72,9 @@ FlowGraphView *ModuleGraphForm::graphView() const
     return ui->graphView;
 }
 
-ModuleManager *ModuleGraphForm::moduleManager() const
+Engine *ModuleGraphForm::engine() const
 {
-    return m_modManager;
-}
-
-void ModuleGraphForm::setModuleManager(ModuleManager *modManager)
-{
-    m_modManager = modManager;
-    connect(m_modManager, &ModuleManager::moduleCreated, this, &ModuleGraphForm::moduleAdded);
-    connect(m_modManager, &ModuleManager::modulePreRemove, this, &ModuleGraphForm::on_modulePreRemove);
+    return m_engine;
 }
 
 bool ModuleGraphForm::modifyPossible() const
@@ -114,11 +111,11 @@ void ModuleGraphForm::moduleAdded(ModuleInfo *info, AbstractModule *mod)
 
 void ModuleGraphForm::on_actionAddModule_triggered()
 {
-    ModuleSelectDialog modDialog(m_modManager->moduleInfo(), this);
+    ModuleSelectDialog modDialog(m_engine->library()->moduleInfo(), this);
     if (modDialog.exec() == QDialog::Accepted) {
         //m_runIndicatorWidget->show();
         if (!modDialog.selectedEntryId().isEmpty()) {
-            auto mod = m_modManager->createModule(modDialog.selectedEntryId());
+            auto mod = m_engine->createModule(modDialog.selectedEntryId());
             mod->showSettingsUi();
         }
         //m_runIndicatorWidget->hide();
@@ -317,7 +314,7 @@ void ModuleGraphForm::on_actionRemove_triggered()
     auto mod = node->module();
     if (mod == nullptr)
         return;
-    m_modManager->removeModule(mod);
+    m_engine->removeModule(mod);
 }
 
 void ModuleGraphForm::on_modulePreRemove(AbstractModule *mod)

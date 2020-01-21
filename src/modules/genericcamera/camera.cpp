@@ -25,7 +25,7 @@
 #include <QDebug>
 
 #pragma GCC diagnostic ignored "-Wpadded"
-class CameraData : public QSharedData
+class CameraData
 {
 public:
     CameraData()

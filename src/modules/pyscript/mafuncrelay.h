@@ -21,7 +21,6 @@
 #define MAFUNCRELAY_H
 
 #include <QObject>
-#include "modulemanager.h"
 
 #include "hrclock.h"
 #include "eventtable.h"
@@ -31,7 +30,7 @@ class MaFuncRelay : public QObject
 {
     Q_OBJECT
 public:
-    explicit MaFuncRelay(ModuleManager *modManager, const QString& eventTablesDir, QObject *parent = nullptr);
+    explicit MaFuncRelay(const QString& eventTablesDir, QObject *parent = nullptr);
     ~MaFuncRelay();
 
     void setPyScript(const QString& script);
@@ -52,7 +51,6 @@ private:
     bool m_canStartScript;
     QString m_eventTablesDir;
 
-    ModuleManager *m_modManager;
     QList<FirmataIOModule*> m_firmataModRegistry;
 
     QList<EventTable*> m_eventTables;

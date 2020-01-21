@@ -23,7 +23,6 @@
 #include <QDialog>
 #include <QList>
 
-#include "imagesourcemodule.h"
 #include "videowriter.h"
 
 namespace Ui {
@@ -37,8 +36,6 @@ class RecorderSettingsDialog : public QDialog
 public:
     explicit RecorderSettingsDialog(QWidget *parent = nullptr);
     ~RecorderSettingsDialog();
-
-    void setImageSourceModules(const QList<ImageSourceModule*>& mods);
 
     void setVideoName(const QString& value);
     QString videoName() const;

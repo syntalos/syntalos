@@ -20,7 +20,6 @@
 #include "engine.h"
 
 #include <QDebug>
-#include <QSharedData>
 #include <QMessageBox>
 #include <QStorageInfo>
 #include <QCoreApplication>
@@ -30,18 +29,19 @@
 #include <QStandardPaths>
 #include <QThread>
 
-#include "modulemanager.h"
+#include "modulelibrary.h"
 #include "hrclock.h"
 
 #pragma GCC diagnostic ignored "-Wpadded"
-class Engine::EData : public QSharedData
+class Engine::Private
 {
 public:
-    EData() { }
-    ~EData() { }
+    Private() { }
+    ~Private() { }
 
     QWidget *parentWidget;
-    ModuleManager *modManager;
+    QList<AbstractModule*> activeModules;
+    ModuleLibrary *modLibrary;
     std::shared_ptr<HRTimer> timer;
 
     TestSubject testSubject;
@@ -59,11 +59,11 @@ public:
 
 Engine::Engine(QWidget *parentWidget)
     : QObject(parentWidget),
-      d(new EData)
+      d(new Engine::Private)
 {
     d->exportDirIsValid = false;
     d->running = false;
-    d->modManager = new ModuleManager(this);
+    d->modLibrary = new ModuleLibrary(this);
     d->parentWidget = parentWidget;
     d->timer.reset(new HRTimer);
 
@@ -72,13 +72,11 @@ Engine::Engine(QWidget *parentWidget)
 }
 
 Engine::~Engine()
-{
+{}
 
-}
-
-ModuleManager *Engine::modManager() const
+ModuleLibrary *Engine::library() const
 {
-    return d->modManager;
+    return d->modLibrary;
 }
 
 QString Engine::exportBaseDir() const
@@ -152,6 +150,77 @@ bool Engine::hasFailed() const
     return d->failed;
 }
 
+AbstractModule *Engine::createModule(const QString &id)
+{
+    auto modInfo = d->modLibrary->moduleInfo(id);
+    if (modInfo == nullptr)
+        return nullptr;
+
+    // Ensure we don't register a module twice that should only exist once
+    if (modInfo->singleton()) {
+        for (auto &emod : d->activeModules) {
+            if (emod->id() == id)
+                return nullptr;
+        }
+    }
+
+    auto mod = modInfo->createModule();
+    assert(mod);
+    mod->setId(modInfo->id());
+    modInfo->setCount(modInfo->count() + 1);
+    if (modInfo->count() > 1)
+        mod->setName(QStringLiteral("%1 - %2").arg(modInfo->name()).arg(modInfo->count()));
+    else
+        mod->setName(modInfo->name());
+
+    d->activeModules.append(mod);
+    emit moduleCreated(modInfo.get(), mod);
+
+    // the module has been created and registered, we can
+    // safely initialize it now.
+    mod->setState(ModuleState::INITIALIZING);
+    if (!mod->initialize()) {
+        QMessageBox::critical(d->parentWidget, QStringLiteral("Module initialization failed"),
+                              QStringLiteral("Failed to initialize module %1, it can not be added. Message: %2").arg(mod->id()).arg(mod->lastError()),
+                              QMessageBox::Ok);
+        removeModule(mod);
+        return nullptr;
+    }
+
+    // now listen to errors emitted by this module
+    connect(mod, &AbstractModule::error, this, &Engine::receiveModuleError);
+
+    mod->setState(ModuleState::IDLE);
+    return mod;
+}
+
+bool Engine::removeModule(AbstractModule *mod)
+{
+    auto id = mod->id();
+    if (d->activeModules.removeOne(mod)) {
+        // Update module info
+        auto modInfo = d->modLibrary->moduleInfo(id);
+        modInfo->setCount(modInfo->count() - 1);
+
+        emit modulePreRemove(mod);
+        delete mod;
+        return true;
+    }
+
+    return false;
+}
+
+void Engine::removeAllModules()
+{
+    foreach (auto mod, d->activeModules)
+        removeModule(mod);
+}
+
+QList<AbstractModule *> Engine::activeModules() const
+{
+    return d->activeModules;
+}
+
 bool Engine::makeDirectory(const QString &dir)
 {
     if (!QDir().mkpath(dir)) {
@@ -200,8 +269,8 @@ QList<AbstractModule *> Engine::createModuleExecOrderList()
     QList<AbstractModule*> scriptModList;
     //int firstImgSinkModIdx = -1;
 
-    orderedActiveModules.reserve(d->modManager->activeModules().length());
-    for (auto &mod : d->modManager->activeModules()) {
+    orderedActiveModules.reserve(d->activeModules.length());
+    for (auto &mod : d->activeModules) {
 #if 0
         if (qobject_cast<ImageSourceModule*>(mod) != nullptr) {
             if (firstImgSinkModIdx >= 0) {
@@ -265,7 +334,7 @@ bool Engine::run()
 
     d->failed = true; // if we exit before this is reset, initialization has failed
 
-    if (d->modManager->activeModules().isEmpty()) {
+    if (d->activeModules.isEmpty()) {
         QMessageBox::warning(d->parentWidget,
                              QStringLiteral("Configuration error"),
                              QStringLiteral("You did not add a single module to be run.\nPlease add a module to the experiment to continue."));
@@ -532,23 +601,6 @@ bool Engine::run()
 void Engine::stop()
 {
     d->running = false;
-}
-
-bool Engine::initializeModule(AbstractModule *mod)
-{
-    mod->setState(ModuleState::INITIALIZING);
-    if (!mod->initialize()) {
-        QMessageBox::critical(d->parentWidget, QStringLiteral("Module initialization failed"),
-                              QStringLiteral("Failed to initialize module %1, it can not be added. Message: %2").arg(mod->id()).arg(mod->lastError()),
-                              QMessageBox::Ok);
-        return false;
-    }
-
-    // now listen to errors emitted by this module
-    connect(mod, &AbstractModule::error, this, &Engine::receiveModuleError);
-
-    mod->setState(ModuleState::IDLE);
-    return true;
 }
 
 void Engine::receiveModuleError(const QString& message)

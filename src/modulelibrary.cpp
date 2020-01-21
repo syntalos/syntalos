@@ -18,7 +18,7 @@
  */
 
 #include "config.h"
-#include "modulemanager.h"
+#include "modulelibrary.h"
 
 #include <QMessageBox>
 #include <QDebug>
@@ -41,25 +41,20 @@
 #include "modules/runcmd/runcmdmodule.h"
 
 #pragma GCC diagnostic ignored "-Wpadded"
-class ModuleManager::MMData : public QSharedData
+class ModuleLibrary::Private
 {
 public:
-    MMData() { }
-    ~MMData() { }
+    Private() { }
+    ~Private() { }
 
     QMap<QString, QSharedPointer<ModuleInfo>> modInfos;
-
-    Engine *engine;
-    QList<AbstractModule*> modules;
 };
 #pragma GCC diagnostic pop
 
-ModuleManager::ModuleManager(Engine *engine)
-    : QObject(engine),
-      d(new MMData)
+ModuleLibrary::ModuleLibrary(QObject *parent)
+    : QObject(parent),
+      d(new ModuleLibrary::Private)
 {
-    d->engine = engine;
-
     registerModuleInfo<Rhd2000ModuleInfo>();
     registerModuleInfo<TracePlotModuleInfo>();
     registerModuleInfo<VideoRecorderModuleInfo>();
@@ -76,89 +71,23 @@ ModuleManager::ModuleManager(Engine *engine)
     registerModuleInfo<RunCmdModuleInfo>();
 }
 
-ModuleManager::~ModuleManager()
+ModuleLibrary::~ModuleLibrary()
 {
-    removeAll();
 }
 
 template<typename T>
-void ModuleManager::registerModuleInfo()
+void ModuleLibrary::registerModuleInfo()
 {
     QSharedPointer<ModuleInfo> info(new T);
-    info->setCount(0);
     d->modInfos.insert(info->id(), info);
 }
 
-AbstractModule *ModuleManager::createModule(const QString &id)
-{
-    auto modInfo = d->modInfos.value(id);
-    if (modInfo == nullptr)
-        return nullptr;
-
-    // Ensure we don't register a module twice that should only exist once
-    if (modInfo->singleton()) {
-        for (auto &emod : d->modules) {
-            if (emod->id() == id)
-                return nullptr;
-        }
-    }
-
-    auto mod = modInfo->createModule();
-    assert(mod);
-    mod->setId(modInfo->id());
-    modInfo->setCount(modInfo->count() + 1);
-    if (modInfo->count() > 1)
-        mod->setName(QStringLiteral("%1 - %2").arg(modInfo->name()).arg(modInfo->count()));
-    else
-        mod->setName(modInfo->name());
-
-    d->modules.append(mod);
-    emit moduleCreated(modInfo.get(), mod);
-
-    // the module has been created and registered, we can
-    // safely initialize it now.
-    mod->setState(ModuleState::INITIALIZING);
-    if (!d->engine->initializeModule(mod)) {
-        removeModuleImmediately(mod);
-        return nullptr;
-    }
-
-    return mod;
-}
-
-bool ModuleManager::removeModuleImmediately(AbstractModule *mod)
-{
-    auto id = mod->id();
-    if (d->modules.removeOne(mod)) {
-        // Update module info
-        auto modInfo = d->modInfos.value(id);
-        modInfo->setCount(modInfo->count() - 1);
-
-        emit modulePreRemove(mod);
-        delete mod;
-        return true;
-    }
-
-    return false;
-}
-
-bool ModuleManager::removeModule(AbstractModule *mod)
-{
-    return removeModuleImmediately(mod);
-}
-
-QList<AbstractModule *> ModuleManager::activeModules() const
-{
-    return d->modules;
-}
-
-void ModuleManager::removeAll()
-{
-    foreach (auto mod, d->modules)
-        removeModuleImmediately(mod);
-}
-
-QList<QSharedPointer<ModuleInfo> > ModuleManager::moduleInfo() const
+QList<QSharedPointer<ModuleInfo> > ModuleLibrary::moduleInfo() const
 {
     return d->modInfos.values();
+}
+
+QSharedPointer<ModuleInfo> ModuleLibrary::moduleInfo(const QString &id)
+{
+    return d->modInfos.value(id);
 }

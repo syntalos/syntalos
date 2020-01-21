@@ -23,11 +23,10 @@
 
 QHash<QString, QRect> MaFuncRelay::ms_eventTableGeometries = QHash<QString, QRect>();
 
-MaFuncRelay::MaFuncRelay(ModuleManager *modManager, const QString &eventTablesDir, QObject *parent)
+MaFuncRelay::MaFuncRelay(const QString &eventTablesDir, QObject *parent)
     : QObject(parent)
 {
     m_canStartScript = false;
-    m_modManager = modManager;
     m_eventTablesDir = eventTablesDir;
 }
 
@@ -65,8 +64,9 @@ bool MaFuncRelay::canStartScript() const
     return m_canStartScript;
 }
 
-int MaFuncRelay::registerNewFirmataModule(const QString &name)
+int MaFuncRelay::registerNewFirmataModule(const QString &)
 {
+#if 0
     for (auto &mod : m_modManager->activeModules()) {
         auto fmod = qobject_cast<FirmataIOModule*>(mod);
         if (fmod == nullptr)
@@ -76,6 +76,7 @@ int MaFuncRelay::registerNewFirmataModule(const QString &name)
             return m_firmataModRegistry.size() - 1;
         }
     }
+#endif
 
     return -1;
 }

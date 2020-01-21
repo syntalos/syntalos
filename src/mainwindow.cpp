@@ -231,11 +231,10 @@ MainWindow::MainWindow(QWidget *parent) :
     // restore main window geometry
     restoreGeometry(settings.value("main/geometry").toByteArray());
 
-    // new engine
-    m_engine = new Engine(this);
+    // get a reference to the current engine
+    m_engine = ui->graphForm->engine();
     connect(m_engine, &Engine::runFailed, this, &MainWindow::moduleErrorReceived);
     connect(m_engine, &Engine::statusMessage, this, &MainWindow::statusMessageChanged);
-    ui->graphForm->setModuleManager(m_engine->modManager());
 
     // create loading indicator for long loading/running tasks
     m_runIndicatorWidget = new QSvgWidget(this);
@@ -324,7 +323,7 @@ bool MainWindow::saveConfiguration(const QString &fileName)
 
     // save module settings
     auto modIndex = 0;
-    for (auto &mod : m_engine->modManager()->activeModules()) {
+    for (auto &mod : m_engine->activeModules()) {
         if (!tar.writeDir(QString::number(modIndex)))
             return false;
         auto modSettings = mod->serializeSettings(confBaseDir.absolutePath());
@@ -398,7 +397,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         m_subjectList->fromJson(subjDoc.array());
     }
 
-    m_engine->modManager()->removeAll();
+    m_engine->removeAllModules();
     auto rootEntries = rootDir->entries();
     rootEntries.sort();
 
@@ -423,7 +422,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         const auto modName = iobj.value("name").toString();
         const auto uiDisplayGeometry = iobj.value("uiDisplayGeometry").toObject();
 
-        auto mod = m_engine->modManager()->createModule(modId);
+        auto mod = m_engine->createModule(modId);
         if (mod == nullptr) {
             QMessageBox::critical(this, QStringLiteral("Can not load settings"),
                                   QStringLiteral("Unable to find module '%1' - please install the module first, then attempt to load this configuration again.").arg(modId));
@@ -583,7 +582,7 @@ void MainWindow::loadSettingsActionTriggered()
     if (!loadConfiguration(fileName)) {
         QMessageBox::critical(this, tr("Can not load configuration"),
                               tr("Failed to load configuration."));
-        m_engine->modManager()->removeAll();
+        m_engine->removeAllModules();
     }
     m_runIndicatorWidget->hide();
 }
@@ -592,7 +591,7 @@ void MainWindow::aboutActionTriggered()
 {
     AboutDialog about(this);
 
-    for (auto &info : m_engine->modManager()->moduleInfo())
+    for (auto &info : m_engine->library()->moduleInfo())
         about.addModuleLicense(info->name(), info->license());
 
     about.exec();

@@ -154,7 +154,7 @@ bool GenericCameraModule::runEvent()
     statusMessage(statusText);
 
     // show framerate directly in the window title, to make reduced framerate very visible
-    m_videoView->setWindowTitle(QStringLiteral("%1 (%2 fps)").arg(m_name).arg(m_currentFps));
+    m_videoView->setWindowTitle(QStringLiteral("%1 (%2 fps)").arg(name()).arg(m_currentFps));
 
     return true;
 }
