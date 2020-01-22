@@ -1,8 +1,40 @@
+
+// This is the IPC QRO interface used by MazeAmaze to
+// communicate with workers.
+// It is locale to the current machine, as some of the bigger
+// data chunks gets transferred via shared memory instead of
+// being sent directly via the QRO interface.
+
 #include <QtCore>
+#include "ipctypes.h"
+
+// Information about an input port
+POD InputPortInfo(int id,
+                  QString title,
+                  QString dataTypeName,
+                  bool connected,
+                  QString shmKeyRecv)
+// Information about an output port
+POD OutputPortInfo(int id,
+                   QString title,
+                   QString dataTypeName,
+                   bool connected,
+                   QString shmKeySend)
 
 class OOPWorker
 {
-    PROP(bool ready=false READONLY)
-    SIGNAL(frameProcessed(uint id, long timestamp, const QString &shmKey))
-    SLOT(bool processFrame(int style, uint id, long timestamp, const QString &shmKey));
+    PROP(bool ready=false READONLY);
+    SIGNAL(error(const QString &message));
+    SIGNAL(statusMessage(const QString &text));
+
+    SLOT(void setInputPortInfo(QList<InputPortInfo> ports));
+    SLOT(void setOutputPortInfo(QList<OutputPortInfo> ports));
+
+    SLOT(bool initializeFromData(const QString &script, const QString &env));
+    SLOT(bool initializeFromFile(const QString &fname, const QString &env));
+
+    SLOT(void shutdown());
+
+    SIGNAL(outputGenerated(int outPortId));
+    SLOT(bool submitInput(int inPortId));
 };

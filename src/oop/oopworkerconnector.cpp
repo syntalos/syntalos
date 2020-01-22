@@ -25,6 +25,7 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
+#include "utils.h"
 #include "cvmatshm.h"
 
 OOPWorkerConnector::OOPWorkerConnector(QSharedPointer<OOPWorkerReplica> ptr)
@@ -34,29 +35,40 @@ OOPWorkerConnector::OOPWorkerConnector(QSharedPointer<OOPWorkerReplica> ptr)
       m_shmSend(new SharedMemory),
       m_shmRecv(new SharedMemory)
 {
-    //connect(ptr.data(), &OOPWorkerReplica::frameProcessed, this, &OOPWorkerConnector::receiveProcessedFrame);
-    //m_proc->setProcessChannelMode(QProcess::ForwardedChannels);
+    m_proc->setProcessChannelMode(QProcess::ForwardedChannels);
 }
 
 OOPWorkerConnector::~OOPWorkerConnector()
 {
-    if (m_proc->state() == QProcess::Running) {
-        m_proc->terminate();
-        m_proc->waitForFinished(10000);
-        m_proc->kill();
-    }
+    terminate();
+}
+
+void OOPWorkerConnector::terminate()
+{
+    if (m_proc->state() != QProcess::Running)
+        return;
+
+    // ask the worker to shut down
+    m_reptr->shutdown();
+
+    // give our worker 10sec to react
+    m_proc->waitForFinished(10000);
+    m_proc->terminate();
+
+    // give the process 5sec to terminate
+    m_proc->waitForFinished(5000);
+
+    // finally kill the unresponsive worker
+    m_proc->kill();
 }
 
 bool OOPWorkerConnector::connectAndRun()
 {
-    const auto address = QStringLiteral("local:%1").arg(QUuid::createUuid().toString(QUuid::Id128));
+    const auto address = QStringLiteral("local:maw-%1").arg(createRandomString(16));
     m_reptr->node()->connectToNode(QUrl(address));
 
-    char threadName[40];
-    pthread_getname_np(pthread_self(), &threadName[0], sizeof(threadName));
-
-    const auto workerExe = QStringLiteral("%1/worker/qroworker").arg(QCoreApplication::applicationDirPath());
-    m_proc->start(workerExe, QStringList() << address << QString::fromUtf8(threadName));
+    const auto workerExe = QStringLiteral("%1/pyworker/pyworker").arg(QCoreApplication::applicationDirPath());
+    m_proc->start(workerExe, QStringList() << address);
     if (!m_proc->waitForStarted())
         return false;
     return m_reptr->waitForSource(10000);

@@ -31,4 +31,15 @@ class OOPModule : public AbstractModule
 public:
     explicit OOPModule(QObject *parent = nullptr);
     ~OOPModule();
+
+    ModuleFeatures features() const override;
+
+    bool prepare(const QString &storageRootDir, const TestSubject &testSubject) override;
+
+    void runThread(OptionalWaitCondition *startWaitCondition) override;
+
+private:
+    class Private;
+    Q_DISABLE_COPY(OOPModule)
+    QScopedPointer<Private> d;
 };

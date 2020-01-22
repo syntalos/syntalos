@@ -1,5 +1,8 @@
+# CMakeLists for MazeAmaze main
 
 add_subdirectory(modules)
+add_subdirectory(oop)
+add_subdirectory(pyworker)
 
 set(MAZEAMAZE_SRC
     main.cpp
@@ -38,15 +41,6 @@ set(MAZEAMAZE_SRC
     streams/stream.cpp
     streams/atomicops.h
     streams/readerwriterqueue.h
-
-    oop/oopmodule.h
-    oop/oopmodule.cpp
-    oop/oopworkerconnector.h
-    oop/oopworkerconnector.cpp
-    oop/sharedmemory.h
-    oop/sharedmemory.cpp
-    oop/cvmatshm.h
-    oop/cvmatshm.cpp
 )
 
 set(MAZEAMAZE_UI
@@ -63,19 +57,17 @@ set(MAZEAMAZE_RES
 )
 
 qt5_add_resources(MAZEAMAZE_RES_SRC ${MAZEAMAZE_RES})
-qt5_generate_repc(REP_WORKER_R_SRC oop/interface.rep REPLICA)
 
 add_executable(mazeamaze
     ${MAZEAMAZE_SRC}
     ${MAZEAMAZE_RES_SRC}
-    ${REP_WORKER_R_SRC}
     ${MAZEAMAZE_UI_SRC}
 )
 
 target_link_libraries(mazeamaze
     ${CMAKE_THREAD_LIBS_INIT}
     ${CMAKE_DL_LIBS}
-    ${LIB_RT}
+    ${RT_LIB}
     Qt5::Widgets
     Qt5::SerialPort
     Qt5::OpenGL
@@ -94,6 +86,7 @@ target_link_libraries(mazeamaze
     ${MA_EXTRA_LIBS}
 
     ${MA_MODULE_LIBS}
+    ${MA_OOP_LIB} # this has to come *after* modules to ensure link order
     miniscope
 )
 

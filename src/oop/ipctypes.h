@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2020 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2020 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -18,29 +18,6 @@
  */
 
 #pragma once
-
 #include <QObject>
-#include <QSharedPointer>
-#include <QProcess>
 #include <memory>
-
-#include "rep_interface_replica.h"
-#include "sharedmemory.h"
-
-class OOPWorkerConnector : public QObject
-{
-    Q_OBJECT
-public:
-    OOPWorkerConnector(QSharedPointer<OOPWorkerReplica> ptr);
-    ~OOPWorkerConnector() override;
-
-    void terminate();
-
-    bool connectAndRun();
-
-private:
-    QSharedPointer<OOPWorkerReplica> m_reptr;
-    QProcess *m_proc;
-    std::unique_ptr<SharedMemory> m_shmSend;
-    std::unique_ptr<SharedMemory> m_shmRecv;
-};
+#include <QMetaType>

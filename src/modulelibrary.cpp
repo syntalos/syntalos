@@ -25,6 +25,8 @@
 
 #include "engine.h"
 
+#include "modules/devel.pyooptest/pyooptestmodule.h"
+
 #include "modules/rhd2000/rhd2000module.h"
 #include "modules/traceplot/traceplotmodule.h"
 #include "modules/videorecorder/videorecordmodule.h"
@@ -55,6 +57,7 @@ ModuleLibrary::ModuleLibrary(QObject *parent)
     : QObject(parent),
       d(new ModuleLibrary::Private)
 {
+    registerModuleInfo<PyOOPTestModuleInfo>();
     registerModuleInfo<Rhd2000ModuleInfo>();
     registerModuleInfo<TracePlotModuleInfo>();
     registerModuleInfo<VideoRecorderModuleInfo>();

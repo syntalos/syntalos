@@ -19,12 +19,74 @@
 
 #include "oopmodule.h"
 
-OOPModule::OOPModule(QObject *parent)
-    : AbstractModule(parent)
-{
+#include <QEventLoop>
+#include <QRemoteObjectNode>
 
+#include "oopworkerconnector.h"
+
+#pragma GCC diagnostic ignored "-Wpadded"
+class OOPModule::Private
+{
+public:
+    Private() { }
+    ~Private() { }
+
+
+};
+#pragma GCC diagnostic pop
+
+OOPModule::OOPModule(QObject *parent)
+    : AbstractModule(parent),
+      d(new OOPModule::Private)
+{
 }
 
 OOPModule::~OOPModule()
 {
+}
+
+ModuleFeatures OOPModule::features() const
+{
+    return ModuleFeature::RUN_THREADED |
+           ModuleFeature::SHOW_DISPLAY |
+            ModuleFeature::SHOW_SETTINGS;
+}
+
+bool OOPModule::prepare(const QString &storageRootDir, const TestSubject &testSubject)
+{
+    Q_UNUSED(storageRootDir)
+    Q_UNUSED(testSubject)
+
+    return true;
+}
+
+void OOPModule::runThread(OptionalWaitCondition *startWaitCondition)
+{
+    QEventLoop loop;
+
+    // We have to do all the setup stuff on thread creation, as moving QObject
+    // instances between different threads is not ideal and the QRO connection
+    // occasionally doesn't get established properly if we shift work between threads
+
+    QRemoteObjectNode repNode;
+    QSharedPointer<OOPWorkerReplica> replica(repNode.acquire<OOPWorkerReplica>());
+    OOPWorkerConnector wc(replica);
+
+    // connect some of the important signals of our replica
+    connect(replica.data(), &OOPWorkerReplica::error, this, [&](const QString &message) {
+        raiseError(message);
+    });
+    connect(replica.data(), &OOPWorkerReplica::statusMessage, this, [&](const QString &text) {
+        setStatusMessage(text);
+    });
+
+    if (!wc.connectAndRun()) {
+        raiseError("Unable to start worker process!");
+        return;
+    }
+
+    startWaitCondition->wait(this);
+    while (m_running) {}
+
+    wc.terminate();
 }

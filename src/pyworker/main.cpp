@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2020 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2020 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -17,30 +17,24 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#pragma once
+#include <QCoreApplication>
+#include "worker.h"
 
-#include <QObject>
-#include <QSharedPointer>
-#include <QProcess>
-#include <memory>
-
-#include "rep_interface_replica.h"
-#include "sharedmemory.h"
-
-class OOPWorkerConnector : public QObject
+int main(int argc, char *argv[])
 {
-    Q_OBJECT
-public:
-    OOPWorkerConnector(QSharedPointer<OOPWorkerReplica> ptr);
-    ~OOPWorkerConnector() override;
+    QCoreApplication a(argc, argv);
 
-    void terminate();
+    auto worker = new OOPWorker(&a);
 
-    bool connectAndRun();
+    if (a.arguments().length() != 2) {
+        qCritical() << "Invalid amount of arguments!";
+        return 2;
+    }
 
-private:
-    QSharedPointer<OOPWorkerReplica> m_reptr;
-    QProcess *m_proc;
-    std::unique_ptr<SharedMemory> m_shmSend;
-    std::unique_ptr<SharedMemory> m_shmRecv;
-};
+    QRemoteObjectHost srcNode(QUrl(a.arguments()[1]));
+    srcNode.enableRemoting(worker);
+
+    QTimer::singleShot(0, worker, &OOPWorker::run);
+
+    return a.exec();
+}

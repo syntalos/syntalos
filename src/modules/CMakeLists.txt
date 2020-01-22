@@ -16,6 +16,7 @@ endif()
 add_subdirectory(firmata-io)
 add_subdirectory(pyscript)
 add_subdirectory(runcmd)
+add_subdirectory(devel.pyooptest)
 
 set(MA_MODULE_LIBS ${MA_MODULE_LIBS} PARENT_SCOPE)
 set(MA_EXTRA_LIBS ${MA_EXTRA_LIBS} PARENT_SCOPE)

@@ -34,6 +34,7 @@
         <file alias="firmata-io">modules/firmataio.svg</file>
         <file alias="python">modules/python.svg</file>
         <file alias="runcmd">modules/runcmd.svg</file>
+        <file alias="devel">modules/devmodule.svg</file>
     </qresource>
     <qresource prefix="/texts">
         <file>pyscript-sample.py</file>
