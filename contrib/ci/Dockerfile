@@ -25,6 +25,7 @@ RUN DEBIAN_FRONTEND=noninteractive eatmydata apt-get install -yq --no-install-re
     libqt5charts5-dev \
     libqt5svg5-dev \
     libqt5remoteobjects5-dev \
+    libqt5remoteobjects5-bin \
     libboost-container-dev \
     libboost-python-dev \
     libopencv-dev \
