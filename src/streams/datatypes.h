@@ -97,3 +97,48 @@ typedef struct
     QString command;
 } ControlCommand;
 Q_DECLARE_METATYPE(ControlCommand)
+
+/**
+ * @brief A new row  for a table
+ *
+ * Generic type emitted for adding a table row.
+ */
+using TableRow = QList<QString>;
+Q_DECLARE_METATYPE(TableRow)
+
+/**
+ * @brief The FirmataCommandKind enum
+ *
+ * Set which type of change should be made on a Firmata interface.
+ */
+enum class FirmataCommandKind {
+    UNKNOWN,
+    IO_MODE,
+    WRITE_ANALOG,
+    WRITE_DIGITAL,
+    SYSEX
+};
+
+/**
+ * @brief Commands to control Firmata output.
+ */
+typedef struct
+{
+    FirmataCommandKind command;
+    int mode;
+    uint8_t pin;
+    bool digitalValue;
+    uint16_t analogValue;
+} FirmataControl;
+Q_DECLARE_METATYPE(FirmataControl)
+
+/**
+ * @brief Output data returned from a Firmata device.
+ */
+typedef struct
+{
+    uint8_t pin;
+    bool digitalValue;
+    uint16_t analogValue;
+} FirmataData;
+Q_DECLARE_METATYPE(FirmataData)

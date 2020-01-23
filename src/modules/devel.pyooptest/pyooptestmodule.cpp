@@ -19,6 +19,7 @@
 
 #include "pyooptestmodule.h"
 #include "oopmodule.h"
+#include "streams/frametype.h"
 
 #include <QMessageBox>
 
@@ -39,6 +40,13 @@ public:
                          "    time.sleep(1)\n"
                          "    return i > 0\n"
                          "");
+
+        registerInputPort<FirmataData>("firmata-in", "Pin Data");
+        registerOutputPort<FirmataControl>("firmata-out", "Pin Control");
+        registerOutputPort<TableRow>("table-out", "Table Rows");
+
+        registerInputPort<Frame>("video-in", "Frames");
+        registerOutputPort<Frame>("video-out", "Processed Frames");
     }
 
     ~PyOOPTestModule() override

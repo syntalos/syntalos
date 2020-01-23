@@ -10,6 +10,7 @@ add_library(mod_devel_pyooptest STATIC
 
 target_link_libraries(mod_devel_pyooptest
     Qt5::Widgets
+    ${OpenCV_LIBS}
 )
 
 include_directories(
