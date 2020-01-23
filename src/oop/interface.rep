@@ -6,18 +6,19 @@
 // being sent directly via the QRO interface.
 
 #include <QtCore>
-#include "ipctypes.h"
 
 // Information about an input port
 POD InputPortInfo(int id,
                   QString title,
                   QString dataTypeName,
+                  QVariantHash metadata,
                   bool connected,
                   QString shmKeyRecv)
 // Information about an output port
 POD OutputPortInfo(int id,
                    QString title,
                    QString dataTypeName,
+                   QVariantHash metadata,
                    bool connected,
                    QString shmKeySend)
 
@@ -29,12 +30,14 @@ class OOPWorker
 
     SLOT(void setInputPortInfo(QList<InputPortInfo> ports));
     SLOT(void setOutputPortInfo(QList<OutputPortInfo> ports));
+    SIGNAL(updateOutPortMetadata(int outPortId, QVariantHash metadata));
 
     SLOT(bool initializeFromData(const QString &script, const QString &env));
     SLOT(bool initializeFromFile(const QString &fname, const QString &env));
 
+    SLOT(void start(long startTimestampMsec));
     SLOT(void shutdown());
 
-    SIGNAL(outputGenerated(int outPortId));
-    SLOT(bool submitInput(int inPortId));
+    SIGNAL(sendOutput(int outPortId, QVariantHash data));
+    SLOT(bool receiveInput(int inPortId, QVariantHash data));
 };

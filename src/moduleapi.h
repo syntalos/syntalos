@@ -166,6 +166,8 @@ public:
         return sub;
     }
 
+    std::shared_ptr<VariantStreamSubscription> subscriptionVar();
+
     QString id() const override;
     QString title() const override;
     bool isInput() const override;

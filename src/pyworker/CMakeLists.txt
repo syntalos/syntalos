@@ -11,6 +11,10 @@ set(MAPYWORKER_SRC
     main.cpp
     worker.h
     worker.cpp
+    maio.h
+    maio.cpp
+    ../hrclock.h
+    ../hrclock.cpp
 )
 
 add_executable(pyworker

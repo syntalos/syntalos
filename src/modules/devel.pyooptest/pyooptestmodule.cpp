@@ -28,7 +28,17 @@ public:
     explicit PyOOPTestModule(QObject *parent = nullptr)
         : OOPModule(parent)
     {
-
+        loadPythonScript("import maio as io\n"
+                         "import time\n"
+                         "\n"
+                         "i = 6\n"
+                         "def loop():\n"
+                         "    global i\n"
+                         "    print('Time since start: {}'.format(io.time_since_start_msec()))\n"
+                         "    i = i - 1\n"
+                         "    time.sleep(1)\n"
+                         "    return i > 0\n"
+                         "");
     }
 
     ~PyOOPTestModule() override

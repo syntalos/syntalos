@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2019 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2020 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -27,6 +27,7 @@ using steady_hr_clock =
                      std::chrono::high_resolution_clock,
                      std::chrono::steady_clock
                     >::type;
+using steady_hr_timepoint = std::chrono::time_point<steady_hr_clock>;
 
 using milliseconds_t = std::chrono::milliseconds;
 
@@ -35,7 +36,7 @@ inline std::chrono::milliseconds timeDiffToNowMsec(const std::chrono::time_point
     return std::chrono::duration_cast<std::chrono::milliseconds>(steady_hr_clock::now() - timePoint);
 }
 
-inline std::chrono::time_point<steady_hr_clock> currentTimePoint() noexcept
+inline steady_hr_timepoint currentTimePoint() noexcept
 {
     return steady_hr_clock::now();
 }
@@ -46,24 +47,25 @@ public:
     explicit HRTimer();
 
     void start();
+    void startAt(steady_hr_timepoint startTimePoint);
 
     inline std::chrono::milliseconds timeSinceStartMsec()
     {
         return std::chrono::duration_cast<std::chrono::milliseconds>(steady_hr_clock::now() - m_startTime);
     }
 
-    inline std::chrono::time_point<steady_hr_clock> currentTimerPoint()
+    inline steady_hr_timepoint currentTimerPoint()
     {
         return steady_hr_clock::now();
     }
 
-    std::chrono::time_point<steady_hr_clock> startTime()
+    steady_hr_timepoint startTime()
     {
         return m_startTime;
     }
 
 private:
-    std::chrono::time_point<steady_hr_clock> m_startTime;
+    steady_hr_timepoint m_startTime;
 };
 
 #endif // HRCLOCK_H

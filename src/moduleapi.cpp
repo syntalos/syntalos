@@ -131,6 +131,15 @@ void StreamInputPort::resetSubscription()
     m_sub.reset();
 }
 
+std::shared_ptr<VariantStreamSubscription> StreamInputPort::subscriptionVar()
+{
+    auto sub = m_sub.value();
+    if (sub == nullptr) {
+            qCritical().noquote() << "Tried to obtain variant subscription from a port that was not subscribed to anything.";
+    }
+    return sub;
+}
+
 QString StreamInputPort::id() const
 {
     return d->id;

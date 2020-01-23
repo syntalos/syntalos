@@ -27,6 +27,8 @@
 #include "sharedmemory.h"
 #include "ipctypes.h"
 
+class PyBridge;
+
 class OOPWorker : public OOPWorkerSource
 {
     Q_OBJECT
@@ -43,20 +45,26 @@ public slots:
     void setInputPortInfo(QList<InputPortInfo> ports) override;
     void setOutputPortInfo(QList<OutputPortInfo> ports) override;
 
+    void start(long startTimestampMsec) override;
     void shutdown() override;
 
-    void run();
+    void runScript();
 
-    bool submitInput(int inPortId) override;
+    bool receiveInput(int inPortId, QVariantHash data = QVariantHash()) override;
 
 protected:
     void raiseError(const QString &message);
 
 private:
+    QString m_script;
     bool m_running;
-    QList<std::shared_ptr<SharedMemory>> m_shmSend;
-    QList<std::shared_ptr<SharedMemory>> m_shmRecv;
+    std::vector<std::unique_ptr<SharedMemory>> m_shmSend;
+    std::vector<std::unique_ptr<SharedMemory>> m_shmRecv;
 
     QList<InputPortInfo> m_inPortInfo;
     QList<OutputPortInfo> m_outPortInfo;
+
+    PyBridge *m_pyb;
+
+    void emitPyError();
 };

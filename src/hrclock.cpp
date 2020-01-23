@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2019 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2020 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -27,4 +27,9 @@ HRTimer::HRTimer()
 void HRTimer::start()
 {
     m_startTime = steady_hr_clock::now();
+}
+
+void HRTimer::startAt(steady_hr_timepoint startTimePoint)
+{
+    m_startTime = startTimePoint;
 }

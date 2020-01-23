@@ -31,7 +31,8 @@ public:
     Private() { }
     ~Private() { }
 
-
+    QString pyScript;
+    QString pyEnv;
 };
 #pragma GCC diagnostic pop
 
@@ -85,8 +86,34 @@ void OOPModule::runThread(OptionalWaitCondition *startWaitCondition)
         return;
     }
 
-    startWaitCondition->wait(this);
-    while (m_running) {}
+    wc.setInputPorts(inPorts());
+    wc.setOutputPorts(outPorts());
 
-    wc.terminate();
+    wc.initWithPythonScript(d->pyScript, d->pyEnv);
+
+    startWaitCondition->wait(this);
+    wc.start(m_timer->startTime());
+
+    while (m_running) {
+        loop.processEvents();
+    }
+
+    wc.terminate(&loop);
+}
+
+void OOPModule::loadPythonScript(const QString &script, const QString &env)
+{
+    d->pyScript = script;
+    d->pyEnv = env;
+}
+
+void OOPModule::loadPythonFile(const QString &fname, const QString &env)
+{
+    QFile f(fname);
+    if (!f.open(QFile::ReadOnly | QFile::Text)) {
+        raiseError(QStringLiteral("Unable to open Python script file: %1").arg(fname));
+        return;
+    }
+    QTextStream in(&f);
+    loadPythonScript(in.readAll(), env);
 }

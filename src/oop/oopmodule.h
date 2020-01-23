@@ -38,6 +38,10 @@ public:
 
     void runThread(OptionalWaitCondition *startWaitCondition) override;
 
+protected:
+    void loadPythonScript(const QString &script, const QString &env = QString());
+    void loadPythonFile(const QString &fname, const QString &env = QString());
+
 private:
     class Private;
     Q_DISABLE_COPY(OOPModule)

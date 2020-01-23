@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2020 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2018 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -20,33 +20,33 @@
 #pragma once
 
 #include <QObject>
+#include <mutex>
+#include <memory>
+#include "../hrclock.h"
 
-class SharedMemory
+class PyBridge : public QObject
 {
+    Q_OBJECT
 public:
-    SharedMemory();
-    ~SharedMemory();
+    static PyBridge *instance(QObject *parent = nullptr) {
+        static std::mutex _mutex;
+        std::lock_guard<std::mutex> lock(_mutex);
+        static PyBridge *_instance = nullptr;
+        if (_instance == nullptr) {
+            _instance = new PyBridge(parent);
+        }
+        return _instance;
+    }
 
-    void createShmKey();
-    void setShmKey(const QString& key);
-    QString shmKey() const;
+    explicit PyBridge(QObject *parent = nullptr);
+    ~PyBridge();
 
-    QString lastError() const;
-
-    size_t size() const;
-    void *data();
-
-    bool create(size_t size);
-    bool attach(bool writable = false);
-
-    bool isAttached() const;
+    HRTimer *timer() const;
 
 private:
-    void setErrorFromErrno(const QString& hint);
-    QString m_shmKey;
-    QString m_lastError;
+    Q_DISABLE_COPY(PyBridge)
 
-    bool m_attached;
-    void *m_data;
-    size_t m_dataLen;
+    HRTimer *m_timer;
 };
+
+void pythonRegisterMaioModule();

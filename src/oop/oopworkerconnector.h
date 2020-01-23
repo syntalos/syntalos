@@ -24,8 +24,10 @@
 #include <QProcess>
 #include <memory>
 
+#include "moduleapi.h"
 #include "rep_interface_replica.h"
-#include "sharedmemory.h"
+
+class SharedMemory;
 
 class OOPWorkerConnector : public QObject
 {
@@ -34,13 +36,22 @@ public:
     OOPWorkerConnector(QSharedPointer<OOPWorkerReplica> ptr);
     ~OOPWorkerConnector() override;
 
-    void terminate();
+    void terminate(QEventLoop *loop = nullptr);
 
     bool connectAndRun();
+
+    void setInputPorts(QList<std::shared_ptr<StreamInputPort>> inPorts);
+    void setOutputPorts(QList<std::shared_ptr<StreamOutputPort>> outPorts);
+
+    void initWithPythonScript(const QString &script, const QString &env = QString());
+
+    void start(steady_hr_timepoint timePoint);
 
 private:
     QSharedPointer<OOPWorkerReplica> m_reptr;
     QProcess *m_proc;
-    std::unique_ptr<SharedMemory> m_shmSend;
-    std::unique_ptr<SharedMemory> m_shmRecv;
+
+    std::vector<std::unique_ptr<SharedMemory>> m_shmSend;
+    std::vector<std::unique_ptr<SharedMemory>> m_shmRecv;
+    QList<std::shared_ptr<StreamOutputPort>> m_outPorts;
 };

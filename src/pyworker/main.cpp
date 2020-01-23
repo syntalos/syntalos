@@ -34,7 +34,5 @@ int main(int argc, char *argv[])
     QRemoteObjectHost srcNode(QUrl(a.arguments()[1]));
     srcNode.enableRemoting(worker);
 
-    QTimer::singleShot(0, worker, &OOPWorker::run);
-
     return a.exec();
 }

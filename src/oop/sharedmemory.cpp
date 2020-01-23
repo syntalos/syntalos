@@ -56,6 +56,23 @@ SharedMemory::~SharedMemory()
     }
 }
 
+static QString getCurrentThreadName()
+{
+    char threadName[16];
+    pthread_getname_np(pthread_self(), threadName, sizeof(threadName));
+    return QString::fromUtf8(threadName);
+}
+
+void SharedMemory::createShmKey()
+{
+    const auto threadName = getCurrentThreadName();
+    const auto idstr = QUuid::createUuid().toString(QUuid::Id128);
+    if (threadName.isEmpty())
+        setShmKey(idstr);
+    else
+        setShmKey(QStringLiteral("%1_%2").arg(threadName).arg(idstr));
+}
+
 void SharedMemory::setShmKey(const QString &key)
 {
     m_shmKey = key;
@@ -83,13 +100,6 @@ void *SharedMemory::data()
     return m_data;
 }
 
-static QString getCurrentThreadName()
-{
-    char threadName[16];
-    pthread_getname_np(pthread_self(), threadName, sizeof(threadName));
-    return QString::fromUtf8(threadName);
-}
-
 bool SharedMemory::create(size_t size)
 {
     int res;
@@ -100,14 +110,8 @@ bool SharedMemory::create(size_t size)
         return false;
     }
 
-    if (m_shmKey.isEmpty()) {
-        const auto threadName = getCurrentThreadName();
-        const auto idstr = QUuid::createUuid().toString(QUuid::Id128);
-        if (threadName.isEmpty())
-            setShmKey(idstr);
-        else
-            setShmKey(QStringLiteral("%1_%2").arg(threadName).arg(idstr));
-    }
+    if (m_shmKey.isEmpty())
+        createShmKey();
 
     fd = shm_open(qPrintable(m_shmKey), O_RDWR | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
     if (fd == -1) {

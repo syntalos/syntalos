@@ -31,9 +31,7 @@
 OOPWorkerConnector::OOPWorkerConnector(QSharedPointer<OOPWorkerReplica> ptr)
     : QObject(nullptr),
       m_reptr(ptr),
-      m_proc(new QProcess(this)),
-      m_shmSend(new SharedMemory),
-      m_shmRecv(new SharedMemory)
+      m_proc(new QProcess(this))
 {
     m_proc->setProcessChannelMode(QProcess::ForwardedChannels);
 }
@@ -43,13 +41,17 @@ OOPWorkerConnector::~OOPWorkerConnector()
     terminate();
 }
 
-void OOPWorkerConnector::terminate()
+void OOPWorkerConnector::terminate(QEventLoop *loop)
 {
     if (m_proc->state() != QProcess::Running)
         return;
 
     // ask the worker to shut down
     m_reptr->shutdown();
+    if (loop)
+        loop->processEvents();
+    else
+        QCoreApplication::processEvents();
 
     // give our worker 10sec to react
     m_proc->waitForFinished(10000);
@@ -72,4 +74,76 @@ bool OOPWorkerConnector::connectAndRun()
     if (!m_proc->waitForStarted())
         return false;
     return m_reptr->waitForSource(10000);
+}
+
+void OOPWorkerConnector::setInputPorts(QList<std::shared_ptr<StreamInputPort> > inPorts)
+{
+    m_shmSend.clear();
+
+    QList<InputPortInfo> iPortInfo;
+    for (int i = 0; i < inPorts.size(); i++) {
+        const auto &iport = inPorts[i];
+        std::unique_ptr<SharedMemory> shm(new SharedMemory);
+        auto shmPtr = shm.get();
+        m_shmSend.push_back(std::move(shm));
+
+        InputPortInfo pi;
+        pi.setId(i);
+        pi.setTitle(iport->title());
+
+        pi.setConnected(false);
+        if (iport->hasSubscription()) {
+            pi.setConnected(true);
+            pi.setMetadata(iport->subscriptionVar()->metadata());
+        }
+        pi.setDataTypeName(iport->acceptedTypeName());
+
+        shmPtr->createShmKey();
+        pi.setShmKeyRecv(shmPtr->shmKey());
+
+        iPortInfo.append(pi);
+    }
+
+    m_reptr->setInputPortInfo(iPortInfo);
+}
+
+void OOPWorkerConnector::setOutputPorts(QList<std::shared_ptr<StreamOutputPort> > outPorts)
+{
+    m_shmSend.clear();
+    m_outPorts.clear();
+
+    QList<OutputPortInfo> oPortInfo;
+    for (int i = 0; i < outPorts.size(); i++) {
+        const auto &oport = outPorts[i];
+        std::unique_ptr<SharedMemory> shm(new SharedMemory);
+        auto shmPtr = shm.get();
+        m_shmRecv.push_back(std::move(shm));
+        m_outPorts.append(oport);
+
+        OutputPortInfo pi;
+        pi.setId(i);
+        pi.setTitle(oport->title());
+
+        pi.setConnected(true); // TODO: Make this dependent on whether something is actually subscribed to the port
+        pi.setMetadata(oport->streamVar()->metadata());
+        pi.setDataTypeName(oport->streamVar()->dataTypeName());
+
+        shmPtr->createShmKey();
+        pi.setShmKeySend(shmPtr->shmKey());
+
+        oPortInfo.append(pi);
+    }
+
+    m_reptr->setOutputPortInfo(oPortInfo);
+}
+
+void OOPWorkerConnector::initWithPythonScript(const QString &script, const QString &env)
+{
+    m_reptr->initializeFromData(script, env).waitForFinished(10000);
+}
+
+void OOPWorkerConnector::start(steady_hr_timepoint timePoint)
+{
+    auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(timePoint.time_since_epoch()).count();
+    m_reptr->start(timestamp);
 }
