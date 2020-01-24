@@ -38,6 +38,8 @@ public:
 
     bool ready() const override;
 
+    std::optional<InputPortInfo> inputPortInfoByIdString(const QString &idstr);
+
 public slots:
     bool initializeFromData(const QString & script, const QString & env) override;
     bool initializeFromFile(const QString & fname, const QString & env) override;
@@ -50,6 +52,7 @@ public slots:
 
     void runScript();
 
+    std::optional<bool> waitForInput();
     bool receiveInput(int inPortId, QVariantHash data = QVariantHash()) override;
 
 protected:

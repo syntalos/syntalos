@@ -29,9 +29,12 @@
 #include <stdexcept>
 #include <iostream>
 
-PyBridge::PyBridge(QObject *parent)
-    : QObject(parent),
-      m_timer(new HRTimer)
+#include "worker.h"
+
+PyBridge::PyBridge(OOPWorker *worker)
+    : QObject(worker),
+      m_timer(new HRTimer),
+      m_worker(worker)
 {
 
 }
@@ -46,7 +49,12 @@ HRTimer *PyBridge::timer() const
     return m_timer;
 }
 
-using namespace boost::python;
+OOPWorker *PyBridge::worker()
+{
+    return m_worker;
+}
+
+using namespace boost;
 
 struct MazeAmazePyError : std::runtime_error {
     explicit MazeAmazePyError(const char* what_arg);
@@ -61,6 +69,12 @@ void translateException(const MazeAmazePyError& e) {
     PyErr_SetString(PyExc_RuntimeError, e.what());
 };
 
+enum InputWaitResult {
+    IWR_NONE  = 0,
+    IWR_NEWDATA = 1,
+    IWR_CANCELLED = 2
+};
+
 static long long time_since_start_msec()
 {
     auto pb = PyBridge::instance();
@@ -72,13 +86,79 @@ static void println(const std::string& text)
     std::cout << text << std::endl;
 }
 
+static InputWaitResult await_new_input()
+{
+    auto pb = PyBridge::instance();
+    auto res = pb->worker()->waitForInput();
+    if (res.has_value())
+        return res.value()? IWR_NEWDATA : IWR_NONE;
+    else
+        return IWR_CANCELLED;
+}
 
+struct FrameData
+{
+    time_t time_msec;
+    PyObject *mat;
+};
+
+struct InputPort
+{
+    InputPort(std::string name, int id)
+        : _name(name),
+          _inst_id(id)
+    {
+    }
+
+    python::object next()
+    {
+        FrameData data;
+        data.time_msec = 5;
+
+        return python::object(data);
+    }
+
+    std::string _name;
+    int _inst_id;
+};
+
+static python::object get_input_port(const std::string& id)
+{
+    auto pb = PyBridge::instance();
+    auto res = pb->worker()->inputPortInfoByIdString(QString::fromStdString(id));
+    if (!res.has_value())
+        return python::object();
+
+    InputPort pyPort(res->idstr().toStdString(), res->id());
+    return python::object(pyPort);
+}
+
+
+using namespace boost::python;
 BOOST_PYTHON_MODULE(maio)
 {
-    register_exception_translator<MazeAmazePyError>(&translateException);
+    python::register_exception_translator<MazeAmazePyError>(&translateException);
+
+    class_<FrameData>("FrameData", init<>())
+                .def_readonly("time_msec", &FrameData::time_msec)
+                .def_readonly("mat", &FrameData::mat)
+            ;
+
+    class_<InputPort>("InputPort", init<std::string, int>())
+                .def("next", &InputPort::next)
+                .def_readonly("name", &InputPort::_name)
+            ;
+
+    enum_<InputWaitResult>("InputWaitResult")
+                .value("NONE", IWR_NONE)
+                .value("NEWDATA", IWR_NEWDATA)
+                .value("CANCELLED", IWR_CANCELLED);
 
     def("println", println, "Print text to stdout.");
     def("time_since_start_msec", time_since_start_msec, "Get time since experiment started in milliseconds.");
+    def("await_new_input", await_new_input, "Wait for any new input to arrive via our input ports.");
+
+    def("get_input_port", get_input_port, "Get reference to input port with the give ID.");
 };
 
 void pythonRegisterMaioModule()

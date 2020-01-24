@@ -24,6 +24,9 @@
 
 #include <iostream>
 
+#include "../oop/cvmatshm.h"
+#include <opencv2/highgui/highgui.hpp>
+
 OOPWorker::OOPWorker(QObject *parent)
     : OOPWorkerSource(parent)
 {
@@ -39,6 +42,18 @@ OOPWorker::~OOPWorker()
 bool OOPWorker::ready() const
 {
     return true;
+}
+
+std::optional<InputPortInfo> OOPWorker::inputPortInfoByIdString(const QString &idstr)
+{
+    std::optional<InputPortInfo> res;
+    for (const auto &port : m_inPortInfo) {
+        if (port.idstr() == idstr) {
+            res = port;
+            break;
+        }
+    }
+    return res;
 }
 
 bool OOPWorker::initializeFromData(const QString &script, const QString &env)
@@ -224,11 +239,21 @@ void OOPWorker::runScript()
 }
 #pragma GCC diagnostic pop
 
+std::optional<bool> OOPWorker::waitForInput()
+{
+    std::optional<bool> res;
+
+    // TODO: Wait for events properly here.
+    QCoreApplication::processEvents(QEventLoop::WaitForMoreEvents);
+
+    return res;
+}
+
 bool OOPWorker::receiveInput(int inPortId, QVariantHash data)
 {
-    Q_UNUSED(inPortId)
-    Q_UNUSED(data)
-    // TODO
+    qDebug() << "Received input on" << inPortId << "data:" << data;
+
+    auto mat = shm_to_cvmat(m_shmRecv[inPortId]);
 
     return true;
 }

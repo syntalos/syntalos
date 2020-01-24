@@ -25,6 +25,7 @@
 
 #include "engine.h"
 
+#include "modules/devel.datasource/datasourcemodule.h"
 #include "modules/devel.pyooptest/pyooptestmodule.h"
 
 #include "modules/rhd2000/rhd2000module.h"
@@ -57,6 +58,7 @@ ModuleLibrary::ModuleLibrary(QObject *parent)
     : QObject(parent),
       d(new ModuleLibrary::Private)
 {
+    registerModuleInfo<DevelDataSourceModuleInfo>();
     registerModuleInfo<PyOOPTestModuleInfo>();
     registerModuleInfo<Rhd2000ModuleInfo>();
     registerModuleInfo<TracePlotModuleInfo>();

@@ -107,9 +107,18 @@ void VideoRecorderModule::runThread(OptionalWaitCondition *startWaitCondition)
     }
     auto sub = m_inPort->subscription<Frame>();
     const auto mdata = sub->metadata();
-    const auto frameSize = mdata["size"].toSize();
-    const auto framerate = mdata["framerate"].toInt();
+    const auto frameSize = mdata.value("size", QSize()).toSize();
+    const auto framerate = mdata.value("framerate", 0).toInt();
     const auto useColor = mdata.value("hasColor", true).toBool();
+
+    if (!frameSize.isValid()) {
+        raiseError(QStringLiteral("Frame source did not provide image dimensions!"));
+        return;
+    }
+    if (framerate == 0) {
+        raiseError(QStringLiteral("Frame source did not provide a framerate!"));
+        return;
+    }
 
     try {
         m_videoWriter->initialize(QStringLiteral("%1/%2").arg(m_vidStorageDir).arg(m_settingsDialog->videoName()).toStdString(),

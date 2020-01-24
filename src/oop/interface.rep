@@ -9,14 +9,14 @@
 
 // Information about an input port
 POD InputPortInfo(int id,
-                  QString title,
+                  QString idstr,
                   QString dataTypeName,
                   QVariantHash metadata,
                   bool connected,
                   QString shmKeyRecv)
 // Information about an output port
 POD OutputPortInfo(int id,
-                   QString title,
+                   QString idstr,
                    QString dataTypeName,
                    QVariantHash metadata,
                    bool connected,

@@ -36,8 +36,9 @@ class VariantStreamSubscription
 {
 public:
     virtual ~VariantStreamSubscription();
+    virtual int dataTypeId() const = 0;
     virtual QString dataTypeName() const = 0;
-    virtual QVariant nextVar() = 0;
+    virtual QVariant nextVar(bool wait = true) = 0;
     virtual QHash<QString, QVariant> metadata() const = 0;
     virtual bool unsubscribe() = 0;
     virtual bool active() const = 0;
@@ -75,24 +76,31 @@ public:
         unsubscribe();
     }
 
-    std::optional<T> next()
+    std::optional<T> next(bool wait = true)
     {
         if (!m_active && m_queue.peek() == nullptr)
             return std::nullopt;
         std::optional<T> data;
-        m_queue.wait_dequeue(data);
+        if (wait) {
+            m_queue.wait_dequeue(data);
+        } else {
+            if (!m_queue.try_dequeue(data))
+                return std::nullopt;
+        }
         return data;
     }
 
-    QVariant nextVar() override
+    QVariant nextVar(bool wait = true) override
     {
-        if (!m_active && m_queue.peek() == nullptr)
+        auto res = next(wait);
+        if (!res.has_value())
             return QVariant();
-        std::optional<T> data;
-        m_queue.wait_dequeue(data);
-        if (!data.has_value())
-            return QVariant();
-        return QVariant::fromValue(data.value());
+        return QVariant::fromValue(res.value());
+    }
+
+    int dataTypeId() const override
+    {
+        return qMetaTypeId<T>();
     }
 
     QString dataTypeName() const override

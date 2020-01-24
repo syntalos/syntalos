@@ -22,9 +22,7 @@
 #include <thread>
 #include <QUuid>
 
-#include <opencv2/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
-
+#include "streams/frametype.h"
 #include "utils.h"
 #include "cvmatshm.h"
 
@@ -79,6 +77,7 @@ bool OOPWorkerConnector::connectAndRun()
 void OOPWorkerConnector::setInputPorts(QList<std::shared_ptr<StreamInputPort> > inPorts)
 {
     m_shmSend.clear();
+    m_subs.clear();
 
     QList<InputPortInfo> iPortInfo;
     for (int i = 0; i < inPorts.size(); i++) {
@@ -89,12 +88,14 @@ void OOPWorkerConnector::setInputPorts(QList<std::shared_ptr<StreamInputPort> > 
 
         InputPortInfo pi;
         pi.setId(i);
-        pi.setTitle(iport->title());
+        pi.setIdstr(iport->id());
 
         pi.setConnected(false);
         if (iport->hasSubscription()) {
             pi.setConnected(true);
             pi.setMetadata(iport->subscriptionVar()->metadata());
+
+            m_subs.push_back(std::make_pair(i, iport->subscriptionVar()));
         }
         pi.setDataTypeName(iport->acceptedTypeName());
 
@@ -109,7 +110,7 @@ void OOPWorkerConnector::setInputPorts(QList<std::shared_ptr<StreamInputPort> > 
 
 void OOPWorkerConnector::setOutputPorts(QList<std::shared_ptr<StreamOutputPort> > outPorts)
 {
-    m_shmSend.clear();
+    m_shmRecv.clear();
     m_outPorts.clear();
 
     QList<OutputPortInfo> oPortInfo;
@@ -122,7 +123,7 @@ void OOPWorkerConnector::setOutputPorts(QList<std::shared_ptr<StreamOutputPort> 
 
         OutputPortInfo pi;
         pi.setId(i);
-        pi.setTitle(oport->title());
+        pi.setIdstr(oport->id());
 
         pi.setConnected(true); // TODO: Make this dependent on whether something is actually subscribed to the port
         pi.setMetadata(oport->streamVar()->metadata());
@@ -146,4 +147,30 @@ void OOPWorkerConnector::start(steady_hr_timepoint timePoint)
 {
     auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(timePoint.time_since_epoch()).count();
     m_reptr->start(timestamp);
+}
+
+void OOPWorkerConnector::forwardInputData()
+{
+    for(auto &sip : m_subs) {
+        // retrieve next variant, don't wait
+        auto res = sip.second->nextVar(false);
+        if (res.isValid())
+            sendInputData(sip.second->dataTypeId(), sip.first, res);
+    }
+}
+
+void OOPWorkerConnector::sendInputData(int typeId, int portId, const QVariant &data)
+{
+    QVariantHash props;
+
+    if (typeId == qMetaTypeId<Frame>()) {
+        auto frame = data.value<Frame>();
+        cvmat_to_shm(m_shmSend[portId], frame.mat);
+
+        props.insert(QString(), QVariant::fromValue(frame.time.count()));
+
+    }
+
+    if (!m_reptr->receiveInput(portId, props).waitForFinished())
+        qWarning() << "Worker failed to react to new input data submission!";
 }

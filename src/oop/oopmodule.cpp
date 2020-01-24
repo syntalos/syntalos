@@ -95,6 +95,7 @@ void OOPModule::runThread(OptionalWaitCondition *startWaitCondition)
     wc.start(m_timer->startTime());
 
     while (m_running) {
+        wc.forwardInputData();
         loop.processEvents();
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2018 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2020 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -20,37 +20,15 @@
 #pragma once
 
 #include <QObject>
-#include <mutex>
-#include <memory>
-#include "../hrclock.h"
+#include "moduleapi.h"
 
-class OOPWorker;
-class PyBridge : public QObject
+class DevelDataSourceModuleInfo : public ModuleInfo
 {
     Q_OBJECT
 public:
-    static PyBridge *instance(OOPWorker *worker = nullptr) {
-        static std::mutex _mutex;
-        std::lock_guard<std::mutex> lock(_mutex);
-        static PyBridge *_instance = nullptr;
-        if (_instance == nullptr) {
-            assert(worker != nullptr);
-            _instance = new PyBridge(worker);
-        }
-        return _instance;
-    }
-
-    explicit PyBridge(OOPWorker *worker = nullptr);
-    ~PyBridge();
-
-    HRTimer *timer() const;
-    OOPWorker *worker();
-
-private:
-    Q_DISABLE_COPY(PyBridge)
-
-    HRTimer *m_timer;
-    OOPWorker *m_worker;
+    QString id() const override;
+    QString name() const override;
+    QString description() const override;
+    QPixmap pixmap() const override;
+    AbstractModule *createModule(QObject *parent = nullptr) override;
 };
-
-void pythonRegisterMaioModule();
