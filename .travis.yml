@@ -2,7 +2,7 @@
 
 language: c
 sudo: required
-dist: trusty
+dist: bionic
 
 services:
   - docker
@@ -11,10 +11,10 @@ compiler:
   - gcc
 
 before_script:
-  - docker build -t mazeamaze -f contrib/ci/Dockerfile .
+  - docker build -t mazeamaze -f tests/ci/Dockerfile .
   - if [ "$CC" = "clang" ]; then export CVENDOR="clang" CXX="clang" CC="clang"; fi
   - if [ "$CC" = "gcc" ]; then export CVENDOR="gcc" CXX="g++" CC="gcc"; fi
 
 script:
   - docker run -t -e COMPILER_VENDOR=$CVENDOR -e CC=$CC -e CXX=$CXX -v `pwd`:/build mazeamaze
-    ./contrib/ci/build_and_test.sh
+    ./tests/ci/build_and_test.sh
