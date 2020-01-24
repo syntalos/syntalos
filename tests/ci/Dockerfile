@@ -36,7 +36,8 @@ RUN DEBIAN_FRONTEND=noninteractive eatmydata apt-get install -yq --no-install-re
     libczmq-dev \
     uuid-dev \
     libkf5archive-dev \
-    libkf5texteditor-dev
+    libkf5texteditor-dev \
+    python3-numpy
 
 # build & install 3rd-party libraries
 RUN mkdir -p /build/extra
