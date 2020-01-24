@@ -19,6 +19,7 @@ RUN DEBIAN_FRONTEND=noninteractive eatmydata apt-get install -yq --no-install-re
     ninja-build \
     cmake \
     gettext \
+    libegl-dev \
     qt5-default \
     libqt5serialport5-dev \
     libqt5opengl5-dev \
