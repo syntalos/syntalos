@@ -24,7 +24,7 @@
 
 #include "streams/frametype.h"
 #include "utils.h"
-#include "cvmatshm.h"
+#include "ipcmarshal.h"
 
 OOPWorkerConnector::OOPWorkerConnector(QSharedPointer<OOPWorkerReplica> ptr)
     : QObject(nullptr),
@@ -161,16 +161,19 @@ void OOPWorkerConnector::forwardInputData()
 
 void OOPWorkerConnector::sendInputData(int typeId, int portId, const QVariant &data)
 {
-    QVariantHash props;
+    QVariantList params;
 
-    if (typeId == qMetaTypeId<Frame>()) {
-        auto frame = data.value<Frame>();
-        cvmat_to_shm(m_shmSend[portId], frame.mat);
-
-        props.insert(QString(), QVariant::fromValue(frame.time.count()));
-
+    auto ret = marshalDataElement(typeId, data,
+                                  params, m_shmSend[portId]);
+    if (!ret) {
+        const auto dataTypeName = QMetaType::typeName(typeId);
+        if (!m_shmSend[portId]->lastError().isEmpty())
+            emit m_reptr->error(QStringLiteral("Unable to write %1 element into shared memory: %2").arg(dataTypeName).arg(m_shmSend[portId]->lastError()));
+        else
+            emit m_reptr->error(QStringLiteral("Marshalling of %1 element for subprocess submission failed. This is a bug.").arg(dataTypeName));
+        return;
     }
 
-    if (!m_reptr->receiveInput(portId, props).waitForFinished())
+    if (!m_reptr->receiveInput(portId, params).waitForFinished())
         qWarning() << "Worker failed to react to new input data submission!";
 }

@@ -30,7 +30,7 @@ public:
         : OOPModule(parent)
     {
         loadPythonScript("import maio as io\n"
-                         "import time\n"
+                         "import cv2 as cv\n"
                          "\n"
                          "i = 6\n"
                          "iport = io.get_input_port('nonexistent')\n"
@@ -38,13 +38,17 @@ public:
                          "iport = io.get_input_port('video-in')\n"
                          "print('IPort: ' + str(iport))\n"
                          "def loop():\n"
-                         "    global i\n"
-                         "    print('Time since start: {}'.format(io.time_since_start_msec()))\n"
-                         "    i = i - 1\n"
-                         "    x = iport.next()\n"
-                         "    print(x.time_msec)\n"
-                         "    time.sleep(1)\n"
-                         "    return i > 0\n"
+                         "    r = io.await_new_input()\n"
+                         "    if r == io.InputWaitResult.CANCELLED:\n"
+                         "        print('Quitting PyOOPTestModule Loop!', r)\n"
+                         "        return False\n"
+                         "    while True:\n"
+                         "        frame = iport.next()\n"
+                         "        if frame is None:\n"
+                         "            break\n"
+                         "        cv.imshow('Frame Display', frame)\n"
+                         "        cv.waitKey(1)\n"
+                         "    return True\n"
                          "");
 
         registerInputPort<FirmataData>("firmata-in", "Pin Data");

@@ -17,11 +17,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#define QT_NO_KEYWORDS
 #pragma once
 
 #include <QObject>
 #include <mutex>
 #include <memory>
+#include <boost/python.hpp>
+
 #include "../hrclock.h"
 
 class OOPWorker;
@@ -45,6 +48,8 @@ public:
 
     HRTimer *timer() const;
     OOPWorker *worker();
+
+    QList<QQueue<boost::python::object> > incomingData;
 
 private:
     Q_DISABLE_COPY(PyBridge)

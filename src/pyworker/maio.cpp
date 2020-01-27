@@ -30,6 +30,7 @@
 #include <iostream>
 
 #include "worker.h"
+#include "cvmatndsliceconvert.h"
 
 PyBridge::PyBridge(OOPWorker *worker)
     : QObject(worker),
@@ -112,10 +113,11 @@ struct InputPort
 
     python::object next()
     {
-        FrameData data;
-        data.time_msec = 5;
+        auto pb = PyBridge::instance();
+        if (pb->incomingData[_inst_id].isEmpty())
+            return python::object();
 
-        return python::object(data);
+        return pb->incomingData[_inst_id].dequeue();
     }
 
     std::string _name;
@@ -137,6 +139,7 @@ static python::object get_input_port(const std::string& id)
 using namespace boost::python;
 BOOST_PYTHON_MODULE(maio)
 {
+    initNDArray();
     python::register_exception_translator<MazeAmazePyError>(&translateException);
 
     class_<FrameData>("FrameData", init<>())

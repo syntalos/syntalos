@@ -50,7 +50,7 @@ ModuleFeatures OOPModule::features() const
 {
     return ModuleFeature::RUN_THREADED |
            ModuleFeature::SHOW_DISPLAY |
-            ModuleFeature::SHOW_SETTINGS;
+           ModuleFeature::SHOW_SETTINGS;
 }
 
 bool OOPModule::prepare(const QString &storageRootDir, const TestSubject &testSubject)
@@ -95,8 +95,11 @@ void OOPModule::runThread(OptionalWaitCondition *startWaitCondition)
     wc.start(m_timer->startTime());
 
     while (m_running) {
-        wc.forwardInputData();
+        // first thing to do: Look for possible (error) signals from our worker
         loop.processEvents();
+
+        // forward incoming data to the worker
+        wc.forwardInputData();
     }
 
     wc.terminate(&loop);

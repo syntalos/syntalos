@@ -37,6 +37,7 @@ target_link_libraries(pyworker
 )
 
 include_directories(
+    ..
     ../oop/
     ${PYTHON_INCLUDE_DIRS}
     ${Boost_INCLUDE_DIRS}

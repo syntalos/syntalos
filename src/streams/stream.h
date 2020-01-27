@@ -105,7 +105,7 @@ public:
 
     QString dataTypeName() const override
     {
-        return QMetaType::typeName(qMetaTypeId<T>());
+        return QMetaType::typeName(dataTypeId());
     }
 
     QHash<QString, QVariant> metadata() const override

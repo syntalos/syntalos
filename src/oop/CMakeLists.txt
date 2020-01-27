@@ -5,9 +5,8 @@ qt5_generate_repc(REP_WORKER_R_SRC interface.rep REPLICA)
 set(OOP_SHARED_SRC
     sharedmemory.h
     sharedmemory.cpp
-    cvmatshm.h
-    cvmatshm.cpp
-    ipctypes.h
+    ipcmarshal.h
+    ipcmarshal.cpp
 )
 
 set(MA_OOP_SRC

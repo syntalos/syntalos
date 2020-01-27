@@ -25,7 +25,7 @@
 
 #include "rep_interface_source.h"
 #include "sharedmemory.h"
-#include "ipctypes.h"
+#include "ipcmarshal.h"
 
 class PyBridge;
 
@@ -40,7 +40,7 @@ public:
 
     std::optional<InputPortInfo> inputPortInfoByIdString(const QString &idstr);
 
-public slots:
+public Q_SLOTS:
     bool initializeFromData(const QString & script, const QString & env) override;
     bool initializeFromFile(const QString & fname, const QString & env) override;
 
@@ -53,7 +53,7 @@ public slots:
     void runScript();
 
     std::optional<bool> waitForInput();
-    bool receiveInput(int inPortId, QVariantHash data = QVariantHash()) override;
+    bool receiveInput(int inPortId, QVariantList data = QVariantList()) override;
 
 protected:
     void raiseError(const QString &message);
@@ -68,6 +68,7 @@ private:
     QList<OutputPortInfo> m_outPortInfo;
 
     PyBridge *m_pyb;
+    bool m_newDataReceived;
 
     void emitPyError();
 };

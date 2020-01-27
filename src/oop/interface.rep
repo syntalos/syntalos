@@ -38,6 +38,6 @@ class OOPWorker
     SLOT(void start(long startTimestampMsec));
     SLOT(void shutdown());
 
-    SIGNAL(sendOutput(int outPortId, QVariantHash data));
-    SLOT(bool receiveInput(int inPortId, QVariantHash data));
+    SIGNAL(sendOutput(int outPortId, QVariantList params));
+    SLOT(bool receiveInput(int inPortId, QVariantList params));
 };

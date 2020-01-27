@@ -17,15 +17,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <Python.h>
+#define QT_NO_KEYWORDS
+#include <iostream>
 #include "worker.h"
 
 #include "maio.h"
-
-#include <iostream>
-
-#include "../oop/cvmatshm.h"
-#include <opencv2/highgui/highgui.hpp>
+#include "cvmatndsliceconvert.h"
 
 OOPWorker::OOPWorker(QObject *parent)
     : OOPWorkerSource(parent)
@@ -80,6 +77,7 @@ void OOPWorker::setInputPortInfo(QList<InputPortInfo> ports)
 {
     m_inPortInfo = ports;
     m_shmRecv.clear();
+    m_pyb->incomingData.clear();
 
     // set up our incoming shared memory links
     for (int i = 0; i < m_inPortInfo.size(); i++)
@@ -93,6 +91,7 @@ void OOPWorker::setInputPortInfo(QList<InputPortInfo> ports)
         auto port = m_inPortInfo[i];
 
         m_shmRecv[port.id()]->setShmKey(port.shmKeyRecv());
+        m_pyb->incomingData.append(QQueue<boost::python::object>());
     }
 }
 
@@ -135,7 +134,6 @@ void OOPWorker::shutdown()
 
 void OOPWorker::emitPyError()
 {
-
         PyObject *excType, *excValue, *excTraceback;
         PyErr_Fetch(&excType, &excValue, &excTraceback);
         PyErr_NormalizeException(&excType, &excValue, &excTraceback);
@@ -241,19 +239,37 @@ void OOPWorker::runScript()
 
 std::optional<bool> OOPWorker::waitForInput()
 {
-    std::optional<bool> res;
+    std::optional<bool> res = false;
 
-    // TODO: Wait for events properly here.
-    QCoreApplication::processEvents(QEventLoop::WaitForMoreEvents);
+    while (true) {
+        for (const auto &q : m_pyb->incomingData) {
+            if (!q.isEmpty()) {
+                res = true;
+                break;
+            }
+        }
+        if (res.value())
+            break;
+
+        if (!m_running) {
+            res.reset();
+            break;
+        }
+
+        QCoreApplication::processEvents(QEventLoop::WaitForMoreEvents);
+    }
 
     return res;
 }
 
-bool OOPWorker::receiveInput(int inPortId, QVariantHash data)
+bool OOPWorker::receiveInput(int inPortId, QVariantList data)
 {
-    qDebug() << "Received input on" << inPortId << "data:" << data;
+    Q_UNUSED(data)
 
-    auto mat = shm_to_cvmat(m_shmRecv[inPortId]);
+    auto floatingMat = cvMatFromShm(m_shmRecv[inPortId], false);
+    auto pyo = cvMatToNDArray(floatingMat);
+    m_pyb->incomingData[inPortId].append(boost::python::object(boost::python::handle<>(pyo)));
+    m_newDataReceived = true;
 
     return true;
 }
@@ -262,5 +278,5 @@ void OOPWorker::raiseError(const QString &message)
 {
     m_running = false;
     std::cerr << message.toStdString() << std::endl;
-    emit error(message);
+    Q_EMIT error(message);
 }

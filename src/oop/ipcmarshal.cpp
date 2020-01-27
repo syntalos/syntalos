@@ -17,25 +17,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "cvmatshm.h"
+#include "ipcmarshal.h"
 
-#include <iostream>
-#include <chrono>
-#include <thread>
-#include <algorithm>
-#include <numeric>
-#include <math.h>
-#include <opencv2/core.hpp>
-
-#include <QUuid>
-
-static void error(const QString& msg)
-{
-    perror(qPrintable(msg));
-    exit(EXIT_FAILURE);
-}
-
-void cvmat_to_shm(std::unique_ptr<SharedMemory> &shm, const cv::Mat &frame)
+/**
+ * @brief Write OpenCV Matrix to shared memory region.
+ */
+static bool cvMatToShm(std::unique_ptr<SharedMemory> &shm, const cv::Mat &frame)
 {
     int mat_type = frame.type();
     int mat_channels = frame.channels();
@@ -48,13 +35,13 @@ void cvmat_to_shm(std::unique_ptr<SharedMemory> &shm, const cv::Mat &frame)
     if (shm->size() == 0) {
         // this is a fresh shared-memory object, so create it
         if (!shm->create(memsize))
-            error(shm->lastError());
+            return false;
     } else {
         if (shm->size() != memsize) {
             // the memory segment doesn't have the right size, let's create a new one!
             shm.reset(new SharedMemory);
             if (!shm->create(memsize))
-                error(shm->lastError());
+                return false;
         }
     }
 
@@ -77,12 +64,17 @@ void cvmat_to_shm(std::unique_ptr<SharedMemory> &shm, const cv::Mat &frame)
             std::memcpy(shm_data + pos, frame.ptr<char>(r), rowsz);
         }
     }
+
+    return true;
 }
 
-cv::Mat shm_to_cvmat(std::unique_ptr<SharedMemory> &shm)
+/**
+ * @brief Retrieve OpenCV Matrix from shared memory segment.
+ */
+cv::Mat cvMatFromShm(std::unique_ptr<SharedMemory> &shm, bool copy)
 {
     if (!shm->isAttached() && !shm->attach())
-        error(shm->lastError());
+        return cv::Mat();
 
     auto shm_data = static_cast<const char*>(shm->data());
     size_t pos = 0;
@@ -93,8 +85,27 @@ cv::Mat shm_to_cvmat(std::unique_ptr<SharedMemory> &shm)
     pos += sizeof(header);
 
     // read data
-    cv::Mat mat(header[2], header[3], header[0]);
-    std::memcpy(mat.data, shm_data + pos, shm->size() - pos);
+    if (copy) {
+        cv::Mat mat(header[2], header[3], header[0]);
+        std::memcpy(mat.data, shm_data + pos, shm->size() - pos);
+        return mat;
+    } else {
+        cv::Mat mat(header[2], header[3], header[0], (uchar*) (shm_data + pos));
+        return mat;
+    }
+}
 
-    return mat;
+bool marshalDataElement(int typeId, const QVariant &data,
+                        QVariantList &params, std::unique_ptr<SharedMemory> &shm)
+{
+    if (typeId == qMetaTypeId<Frame>()) {
+        auto frame = data.value<Frame>();
+        if (!cvMatToShm(shm, frame.mat))
+            return false;
+
+        params.append(QVariant::fromValue(frame.time.count()));
+        return true;
+    }
+
+    return false;
 }
