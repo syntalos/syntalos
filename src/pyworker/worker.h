@@ -53,7 +53,7 @@ public Q_SLOTS:
     void runScript();
 
     std::optional<bool> waitForInput();
-    bool receiveInput(int inPortId, QVariantList data = QVariantList()) override;
+    bool receiveInput(int inPortId, QVariantList params = QVariantList()) override;
 
 protected:
     void raiseError(const QString &message);
@@ -68,7 +68,6 @@ private:
     QList<OutputPortInfo> m_outPortInfo;
 
     PyBridge *m_pyb;
-    bool m_newDataReceived;
 
     void emitPyError();
 };

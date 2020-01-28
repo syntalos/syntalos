@@ -36,6 +36,7 @@ set(MAZEAMAZE_SRC
     modulegraphform.cpp
 
     streams/datatypes.h
+    streams/datatypes.cpp
     streams/frametype.h
     streams/stream.h
     streams/stream.cpp

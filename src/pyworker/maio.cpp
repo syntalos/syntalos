@@ -30,6 +30,7 @@
 #include <iostream>
 
 #include "worker.h"
+#include "pyipcmarshal.h"
 #include "cvmatndsliceconvert.h"
 
 PyBridge::PyBridge(OOPWorker *worker)
@@ -97,12 +98,6 @@ static InputWaitResult await_new_input()
         return IWR_CANCELLED;
 }
 
-struct FrameData
-{
-    time_t time_msec;
-    PyObject *mat;
-};
-
 struct InputPort
 {
     InputPort(std::string name, int id)
@@ -142,11 +137,6 @@ BOOST_PYTHON_MODULE(maio)
     initNDArray();
     python::register_exception_translator<MazeAmazePyError>(&translateException);
 
-    class_<FrameData>("FrameData", init<>())
-                .def_readonly("time_msec", &FrameData::time_msec)
-                .def_readonly("mat", &FrameData::mat)
-            ;
-
     class_<InputPort>("InputPort", init<std::string, int>())
                 .def("next", &InputPort::next)
                 .def_readonly("name", &InputPort::_name)
@@ -156,6 +146,16 @@ BOOST_PYTHON_MODULE(maio)
                 .value("NONE", IWR_NONE)
                 .value("NEWDATA", IWR_NEWDATA)
                 .value("CANCELLED", IWR_CANCELLED);
+
+    class_<FrameData>("FrameData", init<>())
+                .def_readonly("time_msec", &FrameData::time_msec)
+                .def_readonly("mat", &FrameData::mat)
+            ;
+
+    class_<ControlCommandPy>("ControlCommand", init<>())
+                .def_readonly("kind", &ControlCommandPy::kind)
+                .def_readonly("command", &ControlCommandPy::command)
+            ;
 
     def("println", println, "Print text to stdout.");
     def("time_since_start_msec", time_since_start_msec, "Get time since experiment started in milliseconds.");

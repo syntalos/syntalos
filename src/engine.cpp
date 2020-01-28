@@ -67,8 +67,10 @@ Engine::Engine(QWidget *parentWidget)
     d->parentWidget = parentWidget;
     d->timer.reset(new HRTimer);
 
-    // allow sending states via Qt queued connections
-    qRegisterMetaType<ModuleState>();
+    // allow sending states via Qt queued connections,
+    // and also register all other transmittable data types
+    // with the meta object system
+    registerStreamMetaTypes();
 }
 
 Engine::~Engine()

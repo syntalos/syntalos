@@ -107,5 +107,18 @@ bool marshalDataElement(int typeId, const QVariant &data,
         return true;
     }
 
+    if (typeId == qMetaTypeId<ControlCommand>()) {
+        auto command = data.value<ControlCommand>();
+        params.append(QVariant::fromValue(command.kind));
+        params.append(QVariant::fromValue(command.command));
+        return true;
+    }
+
+    if (typeId == qMetaTypeId<TableRow>()) {
+        auto row = data.value<TableRow>();
+        params.append(QVariant::fromValue(row));
+        return true;
+    }
+
     return false;
 }

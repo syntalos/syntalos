@@ -11,6 +11,7 @@
 POD InputPortInfo(int id,
                   QString idstr,
                   QString dataTypeName,
+                  int workerDataTypeId,
                   QVariantHash metadata,
                   bool connected,
                   QString shmKeyRecv)
@@ -18,6 +19,7 @@ POD InputPortInfo(int id,
 POD OutputPortInfo(int id,
                    QString idstr,
                    QString dataTypeName,
+                   int masterDataTypeId,
                    QVariantHash metadata,
                    bool connected,
                    QString shmKeySend)

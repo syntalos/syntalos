@@ -41,6 +41,9 @@ OOPWorkerConnector::~OOPWorkerConnector()
 
 void OOPWorkerConnector::terminate(QEventLoop *loop)
 {
+    if (loop)
+        loop->processEvents();
+
     if (m_proc->state() != QProcess::Running)
         return;
 
@@ -64,6 +67,7 @@ void OOPWorkerConnector::terminate(QEventLoop *loop)
 
 bool OOPWorkerConnector::connectAndRun()
 {
+    m_failed = false;
     const auto address = QStringLiteral("local:maw-%1").arg(createRandomString(16));
     m_reptr->node()->connectToNode(QUrl(address));
 
@@ -71,7 +75,13 @@ bool OOPWorkerConnector::connectAndRun()
     m_proc->start(workerExe, QStringList() << address);
     if (!m_proc->waitForStarted())
         return false;
-    return m_reptr->waitForSource(10000);
+
+    if (!m_reptr->waitForSource(10000)) {
+        m_failed = true;
+        return false;
+    }
+
+    return true;
 }
 
 void OOPWorkerConnector::setInputPorts(QList<std::shared_ptr<StreamInputPort> > inPorts)
@@ -149,17 +159,25 @@ void OOPWorkerConnector::start(steady_hr_timepoint timePoint)
     m_reptr->start(timestamp);
 }
 
-void OOPWorkerConnector::forwardInputData()
+void OOPWorkerConnector::forwardInputData(QEventLoop *loop)
 {
     for(auto &sip : m_subs) {
+        if (m_failed)
+            break;
+
         // retrieve next variant, don't wait
         auto res = sip.second->nextVar(false);
         if (res.isValid())
-            sendInputData(sip.second->dataTypeId(), sip.first, res);
+            sendInputData(sip.second->dataTypeId(), sip.first, res, loop);
     }
 }
 
-void OOPWorkerConnector::sendInputData(int typeId, int portId, const QVariant &data)
+bool OOPWorkerConnector::failed() const
+{
+    return m_failed;
+}
+
+void OOPWorkerConnector::sendInputData(int typeId, int portId, const QVariant &data, QEventLoop *loop)
 {
     QVariantList params;
 
@@ -174,6 +192,17 @@ void OOPWorkerConnector::sendInputData(int typeId, int portId, const QVariant &d
         return;
     }
 
-    if (!m_reptr->receiveInput(portId, params).waitForFinished())
-        qWarning() << "Worker failed to react to new input data submission!";
+    if (!m_reptr->receiveInput(portId, params).waitForFinished(100)) {
+        // ensure we handle potential error events before emitting our own
+        if (loop != nullptr)
+            loop->processEvents();
+
+        // if we are in a failed state, we already emitted and error - don't send a second one
+        if (m_failed)
+            return;
+
+        // if we weren't failed already, the worker died unexpectedly
+        m_failed = true;
+        emit m_reptr->error(QStringLiteral("Worker failed to react to new input data submission! It probably died."));
+    }
 }

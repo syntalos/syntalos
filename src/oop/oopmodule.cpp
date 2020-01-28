@@ -76,6 +76,7 @@ void OOPModule::runThread(OptionalWaitCondition *startWaitCondition)
     // connect some of the important signals of our replica
     connect(replica.data(), &OOPWorkerReplica::error, this, [&](const QString &message) {
         raiseError(message);
+        m_running = false;
     });
     connect(replica.data(), &OOPWorkerReplica::statusMessage, this, [&](const QString &text) {
         setStatusMessage(text);
@@ -99,7 +100,10 @@ void OOPModule::runThread(OptionalWaitCondition *startWaitCondition)
         loop.processEvents();
 
         // forward incoming data to the worker
-        wc.forwardInputData();
+        wc.forwardInputData(&loop);
+
+        if (wc.failed())
+            m_running = false;
     }
 
     wc.terminate(&loop);

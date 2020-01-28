@@ -19,10 +19,12 @@
 
 #define QT_NO_KEYWORDS
 #include <iostream>
+#include <QMetaType>
 #include "worker.h"
 
 #include "maio.h"
-#include "cvmatndsliceconvert.h"
+#include "pyipcmarshal.h"
+#include "streams/datatypes.h"
 
 OOPWorker::OOPWorker(QObject *parent)
     : OOPWorkerSource(parent)
@@ -30,6 +32,8 @@ OOPWorker::OOPWorker(QObject *parent)
     m_pyb = PyBridge::instance(this);
     pythonRegisterMaioModule();
     qDebug() << "PyWorker created!";
+
+    registerStreamMetaTypes();
 }
 
 OOPWorker::~OOPWorker()
@@ -89,6 +93,8 @@ void OOPWorker::setInputPortInfo(QList<InputPortInfo> ports)
             return;
         }
         auto port = m_inPortInfo[i];
+        port.setWorkerDataTypeId(QMetaType::type(qPrintable(port.dataTypeName())));
+        m_inPortInfo[i] = port;
 
         m_shmRecv[port.id()]->setShmKey(port.shmKeyRecv());
         m_pyb->incomingData.append(QQueue<boost::python::object>());
@@ -262,14 +268,11 @@ std::optional<bool> OOPWorker::waitForInput()
     return res;
 }
 
-bool OOPWorker::receiveInput(int inPortId, QVariantList data)
+bool OOPWorker::receiveInput(int inPortId, QVariantList params)
 {
-    Q_UNUSED(data)
-
-    auto floatingMat = cvMatFromShm(m_shmRecv[inPortId], false);
-    auto pyo = cvMatToNDArray(floatingMat);
-    m_pyb->incomingData[inPortId].append(boost::python::object(boost::python::handle<>(pyo)));
-    m_newDataReceived = true;
+    const auto typeId = m_inPortInfo[inPortId].workerDataTypeId();
+    auto pyObj = unmarshalDataToPyObject(typeId, params, m_shmRecv[inPortId]);
+    m_pyb->incomingData[inPortId].append(pyObj);
 
     return true;
 }

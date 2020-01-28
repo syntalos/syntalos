@@ -16,8 +16,12 @@ set(MAPYWORKER_SRC
     maio.cpp
     ../hrclock.h
     ../hrclock.cpp
+    ../streams/datatypes.h
+    ../streams/datatypes.cpp
     cvmatndsliceconvert.h
     cvmatndsliceconvert.cpp
+    pyipcmarshal.h
+    pyipcmarshal.cpp
 )
 
 add_executable(pyworker

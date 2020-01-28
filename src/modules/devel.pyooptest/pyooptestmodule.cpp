@@ -46,7 +46,7 @@ public:
                          "        frame = iport.next()\n"
                          "        if frame is None:\n"
                          "            break\n"
-                         "        cv.imshow('Frame Display', frame)\n"
+                         "        cv.imshow('Frame Display', frame.mat)\n"
                          "        cv.waitKey(1)\n"
                          "    return True\n"
                          "");

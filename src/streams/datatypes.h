@@ -85,6 +85,7 @@ enum class ControlCommandKind {
     STEP,
     CUSTOM
 };
+Q_DECLARE_METATYPE(ControlCommandKind)
 
 /**
  * @brief A control command to a module.
@@ -118,6 +119,7 @@ enum class FirmataCommandKind {
     WRITE_DIGITAL,
     SYSEX
 };
+Q_DECLARE_METATYPE(FirmataCommandKind)
 
 /**
  * @brief Commands to control Firmata output.
@@ -142,3 +144,5 @@ typedef struct
     uint16_t analogValue;
 } FirmataData;
 Q_DECLARE_METATYPE(FirmataData)
+
+void registerStreamMetaTypes();

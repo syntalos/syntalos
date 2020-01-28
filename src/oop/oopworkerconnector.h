@@ -47,16 +47,19 @@ public:
 
     void start(steady_hr_timepoint timePoint);
 
-    void forwardInputData();
+    void forwardInputData(QEventLoop *loop = nullptr);
+
+    bool failed() const;
 
 private:
     QSharedPointer<OOPWorkerReplica> m_reptr;
     QProcess *m_proc;
+    bool m_failed;
 
     std::vector<std::unique_ptr<SharedMemory>> m_shmSend;
     std::vector<std::unique_ptr<SharedMemory>> m_shmRecv;
     std::vector<std::pair<int, std::shared_ptr<VariantStreamSubscription>>> m_subs;
     QList<std::shared_ptr<StreamOutputPort>> m_outPorts;
 
-    void sendInputData(int typeId, int portId, const QVariant &data);
+    void sendInputData(int typeId, int portId, const QVariant &data, QEventLoop *loop = nullptr);
 };
