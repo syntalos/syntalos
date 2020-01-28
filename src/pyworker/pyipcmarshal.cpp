@@ -39,22 +39,23 @@ python::object unmarshalDataToPyObject(int typeId, const QVariantList &params, s
         pyFrame.time_msec = params[0].toLongLong();
 
         return python::object(pyFrame);
-
-        //return python::make_tuple(boost::python::object(boost::python::handle<>(matPyO)),
-        //                          params[0].toLongLong());
     }
 
     if (typeId == qMetaTypeId<ControlCommand>()) {
-        //auto command = data.value<ControlCommand>();
-        //params.append(QVariant::fromValue(command.kind));
-        //params.append(QVariant::fromValue(command.command));
-        return python::object();
+        ControlCommandPy ctl;
+        ctl.kind = static_cast<CtlCommandKind>(params[0].toInt());
+        ctl.command = params[0].toString().toStdString();
+        return python::object(ctl);
     }
 
     if (typeId == qMetaTypeId<TableRow>()) {
-        //auto row = data.value<TableRow>();
-        //params.append(QVariant::fromValue(row));
-        return python::object();
+        auto rows = params[0].toList();
+        python::list pyRow;
+        for (const QVariant &colVar : rows) {
+            const auto col = colVar.toString();
+            pyRow.append(col.toStdString());
+        }
+        return std::move(pyRow);
     }
 
     return python::object();

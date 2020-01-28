@@ -148,13 +148,20 @@ BOOST_PYTHON_MODULE(maio)
                 .value("CANCELLED", IWR_CANCELLED);
 
     class_<FrameData>("FrameData", init<>())
-                .def_readonly("time_msec", &FrameData::time_msec)
-                .def_readonly("mat", &FrameData::mat)
+                .def_readwrite("time_msec", &FrameData::time_msec)
+                .def_readwrite("mat", &FrameData::mat)
             ;
 
+    enum_<CtlCommandKind>("ControlCommandKind")
+                .value("UNKNOWN", CTL_UNKNOWN)
+                .value("START", CTL_START)
+                .value("STOP", CTL_STOP)
+                .value("STEP", CTL_STEP)
+                .value("CUSTOM", CTL_CUSTOM);
+
     class_<ControlCommandPy>("ControlCommand", init<>())
-                .def_readonly("kind", &ControlCommandPy::kind)
-                .def_readonly("command", &ControlCommandPy::command)
+                .def_readwrite("kind", &ControlCommandPy::kind)
+                .def_readwrite("command", &ControlCommandPy::command)
             ;
 
     def("println", println, "Print text to stdout.");
