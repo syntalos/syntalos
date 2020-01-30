@@ -60,3 +60,23 @@ python::object unmarshalDataToPyObject(int typeId, const QVariantList &params, s
 
     return python::object();
 }
+
+/**
+ * @brief Prepare data from a Python object for transmission.
+ */
+bool marshalPyDataElement(int typeId, boost::python::object pyObj,
+                          QVariantList &params, std::unique_ptr<SharedMemory> &shm)
+{
+    if (typeId == qMetaTypeId<Frame>()) {
+        python::object pyMat = python::extract<python::object>(pyObj.attr("mat"));
+        auto mat = cvMatFromNdArray(pyMat.ptr());
+        if (!cvMatToShm(shm, mat))
+            return false;
+
+        const long time_msec = python::extract<long>(pyObj.attr("time_msec"));
+        params.append(QVariant::fromValue(time_msec));
+        return true;
+    }
+
+    return false;
+}

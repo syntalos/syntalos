@@ -25,6 +25,8 @@
 
 class PyOOPTestModule : public OOPModule
 {
+private:
+    std::shared_ptr<DataStream<Frame>> m_vOut;
 public:
     explicit PyOOPTestModule(QObject *parent = nullptr)
         : OOPModule(parent)
@@ -32,11 +34,14 @@ public:
         loadPythonScript("import maio as io\n"
                          "import cv2 as cv\n"
                          "\n"
-                         "i = 6\n"
                          "iport = io.get_input_port('nonexistent')\n"
                          "print('IPort (nonexistent): ' + str(iport))\n"
                          "iport = io.get_input_port('video-in')\n"
+                         "oport = io.get_output_port('video-out')\n"
                          "print('IPort: ' + str(iport))\n"
+                         "print('OPort: ' + str(oport))\n"
+                         "oport.set_metadata_value_int('framerate', 200)\n"
+                         "oport.set_metadata_value_dim('size', [800, 600])\n"
                          "def loop():\n"
                          "    r = io.await_new_input()\n"
                          "    if r == io.InputWaitResult.CANCELLED:\n"
@@ -46,8 +51,11 @@ public:
                          "        frame = iport.next()\n"
                          "        if frame is None:\n"
                          "            break\n"
-                         "        cv.imshow('Frame Display', frame.mat)\n"
+                         "        blur = cv.blur(frame.mat, (5,5))\n"
+                         "        cv.imshow('Frame Display', blur)\n"
                          "        cv.waitKey(1)\n"
+                         "        frame.mat = blur\n"
+                         "        oport.submit(frame)\n"
                          "    return True\n"
                          "");
 
@@ -56,12 +64,21 @@ public:
         registerOutputPort<TableRow>("table-out", "Table Rows");
 
         registerInputPort<Frame>("video-in", "Frames");
-        registerOutputPort<Frame>("video-out", "Processed Frames");
+        m_vOut = registerOutputPort<Frame>("video-out", "Processed Frames");
     }
 
     ~PyOOPTestModule() override
     {
 
+    }
+
+    bool prepare(const QString &, const TestSubject &) override
+    {
+        m_vOut->setMetadataVal("size", QSize(800, 600));
+        m_vOut->setMetadataVal("framerate", 200);
+        m_vOut->start();
+
+        return true;
     }
 
     void stop() override

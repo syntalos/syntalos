@@ -47,3 +47,4 @@ struct ControlCommandPy
 };
 
 python::object unmarshalDataToPyObject(int typeId, const QVariantList &params, std::unique_ptr<SharedMemory> &shm);
+bool marshalPyDataElement(int typeId, python::object pyObj, QVariantList &params, std::unique_ptr<SharedMemory> &shm);

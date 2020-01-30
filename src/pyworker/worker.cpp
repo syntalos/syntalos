@@ -57,6 +57,18 @@ std::optional<InputPortInfo> OOPWorker::inputPortInfoByIdString(const QString &i
     return res;
 }
 
+std::optional<OutputPortInfo> OOPWorker::outputPortInfoByIdString(const QString &idstr)
+{
+    std::optional<OutputPortInfo> res;
+    for (const auto &port : m_outPortInfo) {
+        if (port.idstr() == idstr) {
+            res = port;
+            break;
+        }
+    }
+    return res;
+}
+
 bool OOPWorker::initializeFromData(const QString &script, const QString &env)
 {
     if (!env.isEmpty())
@@ -115,6 +127,8 @@ void OOPWorker::setOutputPortInfo(QList<OutputPortInfo> ports)
             return;
         }
         auto port = m_outPortInfo[i];
+        port.setWorkerDataTypeId(QMetaType::type(qPrintable(port.dataTypeName())));
+        m_outPortInfo[i] = port;
 
         m_shmSend[port.id()]->setShmKey(port.shmKeySend());
     }
@@ -275,6 +289,29 @@ bool OOPWorker::receiveInput(int inPortId, QVariantList params)
     m_pyb->incomingData[inPortId].append(pyObj);
 
     return true;
+}
+
+bool OOPWorker::submitOutput(int outPortId, python::object pyObj)
+{
+    // don't send anything if nothing is connected to this port
+    if (!m_outPortInfo[outPortId].connected())
+        return true;
+
+    const auto typeId = m_outPortInfo[outPortId].workerDataTypeId();
+    QVariantList params;
+    const auto ret = marshalPyDataElement(typeId, pyObj, params, m_shmSend[outPortId]);
+    if (ret)
+        Q_EMIT sendOutput(outPortId, params);
+    return ret;
+}
+
+void OOPWorker::setOutPortMetadataValue(int outPortId, const QString &key, const QVariant &value)
+{
+    auto portInfo = m_outPortInfo[outPortId];
+    auto mdata = portInfo.metadata();
+    mdata.insert(key, value);
+    portInfo.setMetadata(mdata);
+    Q_EMIT updateOutPortMetadata(outPortId, mdata);
 }
 
 void OOPWorker::raiseError(const QString &message)

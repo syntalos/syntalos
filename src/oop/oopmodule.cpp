@@ -92,6 +92,17 @@ void OOPModule::runThread(OptionalWaitCondition *startWaitCondition)
 
     wc.initWithPythonScript(d->pyScript, d->pyEnv);
 
+    // check if we already received messages from the worker,
+    // such as errors or output port metadata updates
+    loop.processEvents();
+
+    // set all outgoing streams as active (which propagates metadata)
+    for (auto &port : outPorts())
+        port->streamVar()->start();
+
+    if (wc.failed())
+        return;
+
     startWaitCondition->wait(this);
     wc.start(m_timer->startTime());
 

@@ -19,10 +19,12 @@
 
 #include "ipcmarshal.h"
 
+#include <chrono>
+
 /**
  * @brief Write OpenCV Matrix to shared memory region.
  */
-static bool cvMatToShm(std::unique_ptr<SharedMemory> &shm, const cv::Mat &frame)
+bool cvMatToShm(std::unique_ptr<SharedMemory> &shm, const cv::Mat &frame)
 {
     int mat_type = frame.type();
     int mat_channels = frame.channels();
@@ -45,6 +47,7 @@ static bool cvMatToShm(std::unique_ptr<SharedMemory> &shm, const cv::Mat &frame)
         }
     }
 
+    shm->lock();
     auto shm_data = static_cast<char*>(shm->data());
 
     // write header
@@ -65,6 +68,7 @@ static bool cvMatToShm(std::unique_ptr<SharedMemory> &shm, const cv::Mat &frame)
         }
     }
 
+    shm->unlock();
     return true;
 }
 
@@ -76,6 +80,7 @@ cv::Mat cvMatFromShm(std::unique_ptr<SharedMemory> &shm, bool copy)
     if (!shm->isAttached() && !shm->attach())
         return cv::Mat();
 
+    shm->lock();
     auto shm_data = static_cast<const char*>(shm->data());
     size_t pos = 0;
 
@@ -88,9 +93,11 @@ cv::Mat cvMatFromShm(std::unique_ptr<SharedMemory> &shm, bool copy)
     if (copy) {
         cv::Mat mat(header[2], header[3], header[0]);
         std::memcpy(mat.data, shm_data + pos, shm->size() - pos);
+        shm->unlock();
         return mat;
     } else {
         cv::Mat mat(header[2], header[3], header[0], (uchar*) (shm_data + pos));
+        shm->unlock();
         return mat;
     }
 }

@@ -22,6 +22,7 @@
 #include <QObject>
 #include <QQueue>
 #include <QTimer>
+#include <boost/python.hpp>
 
 #include "rep_interface_source.h"
 #include "sharedmemory.h"
@@ -39,6 +40,10 @@ public:
     bool ready() const override;
 
     std::optional<InputPortInfo> inputPortInfoByIdString(const QString &idstr);
+    std::optional<OutputPortInfo> outputPortInfoByIdString(const QString &idstr);
+
+    bool submitOutput(int outPortId, boost::python::object pyObj);
+    void setOutPortMetadataValue(int outPortId, const QString &key, const QVariant &value);
 
 public Q_SLOTS:
     bool initializeFromData(const QString & script, const QString & env) override;

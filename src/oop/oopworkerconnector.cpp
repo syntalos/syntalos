@@ -32,6 +32,9 @@ OOPWorkerConnector::OOPWorkerConnector(QSharedPointer<OOPWorkerReplica> ptr)
       m_proc(new QProcess(this))
 {
     m_proc->setProcessChannelMode(QProcess::ForwardedChannels);
+
+    connect(m_reptr.data(), &OOPWorkerReplica::sendOutput, this, &OOPWorkerConnector::receiveOutput);
+    connect(m_reptr.data(), &OOPWorkerReplica::updateOutPortMetadata, this, &OOPWorkerConnector::receiveOutputPortMetadataUpdate);
 }
 
 OOPWorkerConnector::~OOPWorkerConnector()
@@ -175,6 +178,49 @@ void OOPWorkerConnector::forwardInputData(QEventLoop *loop)
 bool OOPWorkerConnector::failed() const
 {
     return m_failed;
+}
+
+static bool unmarshalDataAndOutput(int typeId, const QVariantList &params, std::unique_ptr<SharedMemory> &shm, StreamOutputPort *port)
+{
+    if (typeId == qMetaTypeId<Frame>()) {
+        milliseconds_t msec(params[0].toLongLong());
+        Frame frame(cvMatFromShm(shm), msec);
+
+        port->stream<Frame>()->push(frame);
+        return true;
+    }
+
+    if (typeId == qMetaTypeId<ControlCommand>()) {
+        ControlCommand ctl;
+        ctl.kind = static_cast<ControlCommandKind>(params[0].toInt());
+        ctl.command = params[0].toString();
+
+        port->stream<ControlCommand>()->push(ctl);
+        return true;
+    }
+
+    if (typeId == qMetaTypeId<TableRow>()) {
+        auto rows = params[0].toStringList();
+        port->stream<TableRow>()->push(rows);
+        return true;
+    }
+
+    return false;
+}
+
+void OOPWorkerConnector::receiveOutput(int outPortId, QVariantList params)
+{
+    auto outPort = m_outPorts[outPortId];
+    const auto typeId = outPort->dataTypeId();
+
+    if (!unmarshalDataAndOutput(typeId, params, m_shmRecv[outPortId], outPort.get()))
+            qWarning().noquote() << "Could not interpret data received from worker on port" << outPort->id();
+}
+
+void OOPWorkerConnector::receiveOutputPortMetadataUpdate(int outPortId, QVariantHash metadata)
+{
+    auto outPort = m_outPorts[outPortId];
+    outPort->streamVar()->setMetadata(metadata);
 }
 
 void OOPWorkerConnector::sendInputData(int typeId, int portId, const QVariant &data, QEventLoop *loop)

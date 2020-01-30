@@ -187,14 +187,16 @@ public:
     ~StreamOutputPort();
 
     bool canSubscribe(const QString &typeName);
+    int dataTypeId() const;
     QString dataTypeName() const;
 
     template<typename T>
-    std::shared_ptr<DataStream<T>> stream() { return streamVar(); }
+    std::shared_ptr<DataStream<T>> stream() { return std::dynamic_pointer_cast<DataStream<T>>(streamVar()); }
     std::shared_ptr<VariantDataStream> streamVar();
 
     std::shared_ptr<VariantStreamSubscription> subscribe();
 
+    void startStream();
     void stopStream();
 
     QString id() const override;

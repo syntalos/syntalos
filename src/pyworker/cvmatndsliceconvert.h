@@ -24,6 +24,8 @@
 #include <opencv2/core/core.hpp>
 
 PyObject *initNDArray();
+
 PyObject* cvMatToNDArray(const cv::Mat& m);
+cv::Mat cvMatFromNdArray(PyObject *o);
 
 #endif // CVMATNDSLICECONVERT_H

@@ -20,6 +20,7 @@
 #pragma once
 
 #include <QObject>
+#include <semaphore.h>
 
 class SharedMemory
 {
@@ -37,7 +38,10 @@ public:
     void *data();
 
     bool create(size_t size);
-    bool attach(bool writable = false);
+    bool attach();
+
+    void lock();
+    void unlock();
 
     bool isAttached() const;
 
@@ -49,4 +53,7 @@ private:
     bool m_attached;
     void *m_data;
     size_t m_dataLen;
+    void *m_shmPtr;
+    size_t m_shmLen;
+    sem_t *m_mutex;
 };

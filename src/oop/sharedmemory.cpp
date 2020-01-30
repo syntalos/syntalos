@@ -25,13 +25,16 @@
 #include <string.h>
 #include <cstring>
 #include <unistd.h>
+#include <semaphore.h>
 #include <QUuid>
 #include <QDebug>
 
 SharedMemory::SharedMemory()
     : m_attached(false),
       m_data(nullptr),
-      m_dataLen(0)
+      m_dataLen(0),
+      m_shmPtr(nullptr),
+      m_shmLen(0)
 {
 }
 
@@ -39,18 +42,29 @@ SharedMemory::~SharedMemory()
 {
     int res;
 
-    if (m_data != nullptr) {
+    if (m_shmPtr != nullptr) {
         int fd;
 
-        res = munmap(m_data, m_dataLen);
+        qDebug() << "Unlinking shared memory:" << m_shmKey;
+
+        res = sem_destroy(m_mutex);
         if (res == -1) {
             m_lastError = QString::fromStdString(std::strerror(errno));
+            qWarning().noquote() << "Semaphore destruction in shared memory failed:" << m_lastError;
+            // TODO: Catch error?
+        }
+
+        res = munmap(m_shmPtr, m_shmLen);
+        if (res == -1) {
+            m_lastError = QString::fromStdString(std::strerror(errno));
+            qWarning().noquote() << "Shared memory unmap (size:" << m_shmLen << ") failed:" << m_lastError;
             // TODO: Catch error?
         }
 
         fd = shm_unlink(qPrintable(m_shmKey));
         if (fd == -1) {
             m_lastError = QString::fromStdString(std::strerror(errno));
+            qWarning().noquote() << "Shared memory unlink failed:" << m_lastError;
             // TODO: Catch error?
         }
     }
@@ -125,23 +139,32 @@ bool SharedMemory::create(size_t size)
         return false;
     }
 
-    m_data = mmap(nullptr, size, PROT_WRITE, MAP_SHARED, fd, 0);
-    if (m_data == MAP_FAILED) {
+    m_shmLen = size + sizeof(sem_t);
+    m_shmPtr = mmap(nullptr, m_shmLen, PROT_WRITE, MAP_SHARED, fd, 0);
+    if (m_shmPtr == MAP_FAILED) {
         setErrorFromErrno("create/mmap");
         return false;
     }
-    m_dataLen = size;
+
+    m_mutex = static_cast<sem_t*>(m_shmPtr);
+    m_data = static_cast<int*>(m_shmPtr) + sizeof(sem_t);
+    if (sem_init(m_mutex, 1, 1) < 0) {
+        setErrorFromErrno("semaphore initialization");
+        return false;
+    }
 
     if (close(fd) != 0) {
         setErrorFromErrno("create/close");
         return false;
     }
 
+    qDebug() << "Created shared memory:" << m_shmKey;
+    m_dataLen = size;
     m_attached = true;
     return true;
 }
 
-bool SharedMemory::attach(bool writable)
+bool SharedMemory::attach()
 {
     if (m_data != nullptr) {
         m_lastError = QStringLiteral("Shared memory segment was already attached.");
@@ -149,7 +172,7 @@ bool SharedMemory::attach(bool writable)
     }
 
     const char *shmKey = qPrintable(m_shmKey);
-    int fd = shm_open(shmKey, writable? O_RDWR : O_RDONLY, S_IRUSR | S_IWUSR);
+    int fd = shm_open(shmKey, O_RDWR, S_IRUSR | S_IWUSR);
     if (fd == -1) {
         setErrorFromErrno("attach/shm_open");
         return false;
@@ -158,20 +181,40 @@ bool SharedMemory::attach(bool writable)
     struct stat sbuf;
     auto res = fstat(fd, &sbuf);
     if (res == 0) {
-        m_dataLen = sbuf.st_size < 0? 0 : static_cast<size_t>(sbuf.st_size);
+        m_shmLen = sbuf.st_size < 0? 0 : static_cast<size_t>(sbuf.st_size);
     } else {
         setErrorFromErrno(QString("attach/stat#%1").arg(res));
         return false;
     }
 
-    m_data = mmap(nullptr, m_dataLen, writable? PROT_WRITE : PROT_READ, MAP_SHARED, fd, 0);
-    if (m_data == MAP_FAILED) {
+    // we always needs to map this writable, as we may need to lock the semaphore that is in writable memory
+    // NOTE: If we want to restrict access to the shared memory region more, we could use named system semaphores
+    // instead in future.
+    m_shmPtr = mmap(nullptr, m_shmLen, PROT_WRITE, MAP_SHARED, fd, 0);
+    if (m_shmPtr == MAP_FAILED) {
         setErrorFromErrno("attach/mmap");
         return false;
     }
 
+    // fetch pointer to semaphore
+    m_mutex = static_cast<sem_t*>(m_shmPtr);
+
+    m_dataLen = m_shmLen - sizeof(sem_t);
+    m_data = static_cast<int*>(m_shmPtr) + sizeof(sem_t);
+
+    qDebug() << "Attached shared memory:" << m_shmKey;
     m_attached = true;
     return true;
+}
+
+void SharedMemory::lock()
+{
+    while (sem_wait(m_mutex) != 0) {}
+}
+
+void SharedMemory::unlock()
+{
+    sem_post(m_mutex);
 }
 
 bool SharedMemory::isAttached() const

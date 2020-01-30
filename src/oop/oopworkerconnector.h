@@ -51,6 +51,10 @@ public:
 
     bool failed() const;
 
+private slots:
+    void receiveOutput(int outPortId, QVariantList params);
+    void receiveOutputPortMetadataUpdate(int outPortId, QVariantHash metadata);
+
 private:
     QSharedPointer<OOPWorkerReplica> m_reptr;
     QProcess *m_proc;

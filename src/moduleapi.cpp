@@ -182,6 +182,11 @@ bool StreamOutputPort::canSubscribe(const QString &typeName)
     return typeName == d->stream->dataTypeName();
 }
 
+int StreamOutputPort::dataTypeId() const
+{
+    return d->stream->dataTypeId();
+}
+
 QString StreamOutputPort::dataTypeName() const
 {
     return d->stream->dataTypeName();
@@ -201,6 +206,12 @@ void StreamOutputPort::stopStream()
 {
     if (d->stream->active())
         d->stream->stop();
+}
+
+
+void StreamOutputPort::startStream()
+{
+    d->stream->start();
 }
 
 QString StreamOutputPort::id() const

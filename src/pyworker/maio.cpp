@@ -77,7 +77,7 @@ enum InputWaitResult {
     IWR_CANCELLED = 2
 };
 
-static long long time_since_start_msec()
+static long time_since_start_msec()
 {
     auto pb = PyBridge::instance();
     return pb->timer()->timeSinceStartMsec().count();
@@ -119,6 +119,54 @@ struct InputPort
     int _inst_id;
 };
 
+struct OutputPort
+{
+    OutputPort(std::string name, int id)
+        : _name(name),
+          _inst_id(id)
+    {
+    }
+
+    void submit(python::object pyObj)
+    {
+        auto pb = PyBridge::instance();
+        if (!pb->worker()->submitOutput(_inst_id, pyObj))
+            throw MazeAmazePyError("Could not submit data on output port.");
+    }
+
+    void set_metadata_value_str(const std::string &key, const std::string &value)
+    {
+        auto pb = PyBridge::instance();
+        pb->worker()->setOutPortMetadataValue(_inst_id,
+                                              QString::fromStdString(key),
+                                              QVariant::fromValue(QString::fromStdString(value)));
+    }
+
+    void set_metadata_value_int(const std::string &key, int value)
+    {
+        auto pb = PyBridge::instance();
+        pb->worker()->setOutPortMetadataValue(_inst_id,
+                                              QString::fromStdString(key),
+                                              QVariant::fromValue(value));
+    }
+
+    void set_metadata_value_dim(const std::string &key, const python::list &value)
+    {
+        auto pb = PyBridge::instance();
+        if (python::len(value) < 2)
+            throw MazeAmazePyError("Dimension list needs at least two entries");
+        const int width = python::extract<int>(value[0]);
+        const int height = python::extract<int>(value[1]);
+        QSize size(width, height);
+        pb->worker()->setOutPortMetadataValue(_inst_id,
+                                              QString::fromStdString(key),
+                                              QVariant::fromValue(size));
+    }
+
+    std::string _name;
+    int _inst_id;
+};
+
 static python::object get_input_port(const std::string& id)
 {
     auto pb = PyBridge::instance();
@@ -127,6 +175,17 @@ static python::object get_input_port(const std::string& id)
         return python::object();
 
     InputPort pyPort(res->idstr().toStdString(), res->id());
+    return python::object(pyPort);
+}
+
+static python::object get_output_port(const std::string& id)
+{
+    auto pb = PyBridge::instance();
+    auto res = pb->worker()->outputPortInfoByIdString(QString::fromStdString(id));
+    if (!res.has_value())
+        return python::object();
+
+    OutputPort pyPort(res->idstr().toStdString(), res->id());
     return python::object(pyPort);
 }
 
@@ -140,6 +199,14 @@ BOOST_PYTHON_MODULE(maio)
     class_<InputPort>("InputPort", init<std::string, int>())
                 .def("next", &InputPort::next)
                 .def_readonly("name", &InputPort::_name)
+            ;
+
+    class_<OutputPort>("OutputPort", init<std::string, int>())
+                .def("submit", &OutputPort::submit)
+                .def_readonly("name", &OutputPort::_name)
+                .def("set_metadata_value_str", &OutputPort::set_metadata_value_str)
+                .def("set_metadata_value_int", &OutputPort::set_metadata_value_int)
+                .def("set_metadata_value_dim", &OutputPort::set_metadata_value_dim)
             ;
 
     enum_<InputWaitResult>("InputWaitResult")
@@ -169,6 +236,7 @@ BOOST_PYTHON_MODULE(maio)
     def("await_new_input", await_new_input, "Wait for any new input to arrive via our input ports.");
 
     def("get_input_port", get_input_port, "Get reference to input port with the give ID.");
+    def("get_output_port", get_output_port, "Get reference to output port with the give ID.");
 };
 
 void pythonRegisterMaioModule()

@@ -49,11 +49,13 @@ class VariantDataStream
 public:
     virtual ~VariantDataStream();
     virtual QString dataTypeName() const = 0;
+    virtual int dataTypeId() const = 0;
     virtual std::shared_ptr<VariantStreamSubscription> subscribeVar() = 0;
     virtual void start() = 0;
     virtual void stop() = 0;
     virtual bool active() const = 0;
     virtual QHash<QString, QVariant> metadata() = 0;
+    virtual void setMetadata(QHash<QString, QVariant> metadata) = 0;
 };
 
 template<typename T>
@@ -176,14 +178,24 @@ public:
         terminate();
     }
 
+    int dataTypeId() const override
+    {
+        return qMetaTypeId<T>();
+    }
+
     QString dataTypeName() const override
     {
-        return QMetaType::typeName(qMetaTypeId<T>());
+        return QMetaType::typeName(dataTypeId());
     }
 
     QHash<QString, QVariant> metadata() override
     {
         return m_metadata;
+    }
+
+    void setMetadata(QHash<QString, QVariant> metadata) override
+    {
+        m_metadata = metadata;
     }
 
     void setMetadataVal(const QString &key, const QVariant &value)
