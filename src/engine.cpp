@@ -398,7 +398,7 @@ bool Engine::run()
     // fetch list of modules in their activation order
     auto orderedActiveModules = createModuleExecOrderList();
 
-    bool prepareStepFailed = false;
+    bool initSuccessful = true;
     d->failed = false; // assume success until a module actually fails
     for (auto &mod : orderedActiveModules) {
         emitStatusMessage(QStringLiteral("Preparing %1...").arg(mod->name()));
@@ -406,7 +406,7 @@ bool Engine::run()
         mod->setTimer(d->timer);
         mod->setState(ModuleState::PREPARING);
         if (!mod->prepare(d->exportDir, d->testSubject)) {
-            prepareStepFailed = true;
+            initSuccessful = false;
             d->failed = true;
             emitStatusMessage(QStringLiteral("Module %1 failed to prepare.").arg(mod->name()));
             break;
@@ -418,13 +418,14 @@ bool Engine::run()
     std::vector<std::thread> threads;
     QHash<size_t, AbstractModule*> threadIdxModMap;
     std::unique_ptr<OptionalWaitCondition> startWaitCondition(new OptionalWaitCondition());
+    QList<AbstractModule*> idleEventModules;
 
     // Only actually launch if preparation didn't fail.
     // we still call stop() on all modules afterwards though,
     // as some might need a stop call to clean up resources ther were
     // set up during preparations.
     // Modules are expected to deal with multiple calls to stop().
-    if (!prepareStepFailed) {
+    if (initSuccessful) {
         emitStatusMessage(QStringLiteral("Initializing launch..."));
 
         // launch threads for threaded modules
@@ -448,7 +449,6 @@ bool Engine::run()
         }
 
         // collect all modules which do idle event execution
-        QList<AbstractModule*> idleEventModules;
         for (auto &mod : orderedActiveModules) {
             if (!mod->features().testFlag(ModuleFeature::RUN_EVENTS))
                 continue;
@@ -466,9 +466,18 @@ bool Engine::run()
             while (mod->state() != ModuleState::READY) {
                 QThread::msleep(500);
                 QCoreApplication::processEvents();
+                if (mod->state() == ModuleState::ERROR) {
+                    emitStatusMessage(QStringLiteral("Module %1 failed to initialize.").arg(mod->name()));
+                    initSuccessful = false;
+                    break;
+                }
             }
         }
+    }
 
+    // Meanwhile, threaded modules may have failed, so let's check again if we are still
+    // good on initialization
+    if (initSuccessful) {
         emitStatusMessage(QStringLiteral("Launch setup completed."));
 
         // we officially start now, launch the timer
@@ -552,7 +561,7 @@ bool Engine::run()
         thread.join();
     }
 
-    if (prepareStepFailed) {
+    if (!initSuccessful) {
         // if we failed to prepare this run, don't save the manifest and also
         // remove any data that we might have already created, as well as the
         // export directory.
