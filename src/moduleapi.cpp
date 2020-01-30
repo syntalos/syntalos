@@ -104,7 +104,12 @@ StreamInputPort::StreamInputPort(const QString &id, const QString &title)
 StreamInputPort::~StreamInputPort()
 {}
 
-QString StreamInputPort::acceptedTypeName() const
+int StreamInputPort::dataTypeId() const
+{
+    return m_acceptedTypeId;
+}
+
+QString StreamInputPort::dataTypeName() const
 {
     return m_acceptedTypeName;
 }
@@ -150,9 +155,9 @@ QString StreamInputPort::title() const
     return d->title;
 }
 
-bool StreamInputPort::isInput() const
+PortDirection StreamInputPort::direction() const
 {
-    return true;
+    return PortDirection::INPUT;
 }
 
 class StreamOutputPort::Private
@@ -224,9 +229,9 @@ QString StreamOutputPort::title() const
     return d->title;
 }
 
-bool StreamOutputPort::isOutput() const
+PortDirection StreamOutputPort::direction() const
 {
-    return true;
+    return PortDirection::OUTPUT;
 }
 
 class AbstractModule::Private

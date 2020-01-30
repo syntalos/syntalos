@@ -152,9 +152,9 @@ FlowGraphNodePort::FlowGraphNodePort(FlowGraphNode *node)
 FlowGraphNodePort::FlowGraphNodePort(FlowGraphNode *node, std::shared_ptr<AbstractStreamPort> port)
     : FlowGraphNodePort(node)
 {
-    if (port->isOutput())
+    if (port->direction() == PortDirection::OUTPUT)
         m_mode = FlowGraphNode::Mode::Output;
-    else if (port->isInput())
+    else if (port->direction() == PortDirection::INPUT)
         m_mode = FlowGraphNode::Mode::Input;
     m_name = port->title();
     if (m_name.isEmpty())
@@ -1347,6 +1347,12 @@ void FlowGraphView::connectPorts(FlowGraphNodePort *port1, FlowGraphNodePort *po
         return;
     }
 
+    if (port1->streamPort()->dataTypeId() != port2->streamPort()->dataTypeId()) {
+        // we have two incompatible ports, don't permit a connection
+        delete edge;
+        return;
+    }
+
     // edge->updatePortTypeColors();
     edge->updatePath();
     addItem(edge);
@@ -1554,13 +1560,16 @@ void FlowGraphView::mouseReleaseEvent(QMouseEvent *event)
                     port2->setSelected(true);
 
                     if (m_connect->setPort2(port2)) {
-                        m_connect->updatePathTo(port2->portPos());
-                        m_connect = nullptr;
-                        ++m_selected_nodes;
-                        ++nchanged;
+                        // check if the ports have compatible data types
+                        if (port1->streamPort()->dataTypeId() == port2->streamPort()->dataTypeId()) {
+                            m_connect->updatePathTo(port2->portPos());
+                            m_connect = nullptr;
+                            ++m_selected_nodes;
+                            ++nchanged;
 
-                        // Announce the new connection
-                        emit connected(port1, port2);
+                            // Announce the new connection
+                            emit connected(port1, port2);
+                        }
                     }
                 }
             }

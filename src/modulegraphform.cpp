@@ -234,13 +234,15 @@ void ModuleGraphForm::on_portsConnected(FlowGraphNodePort *port1, FlowGraphNodeP
 
     if ((inPort == nullptr || outPort == nullptr)) {
         // something went wrong or we connected two ports of the same type
+        qWarning().noquote() << "Attempt to connect possibly incompatible ports failed.";
 
-        // FIXME: Prevent connection of items
+        ui->graphView->disconnectItems();
         return;
     }
 
     if (!inPort->acceptsSubscription(outPort->dataTypeName())) {
         qWarning().noquote() << "Tried to connect incompatible ports.";
+        ui->graphView->disconnectItems();
         return;
     }
 
@@ -248,7 +250,7 @@ void ModuleGraphForm::on_portsConnected(FlowGraphNodePort *port1, FlowGraphNodeP
     qDebug().noquote() << "Connected ports:"
                        << QString("%1[>%2]").arg(outPort->title()).arg(outPort->dataTypeName())
                        << "->"
-                       << QString("%1[<%2]").arg(inPort->title()).arg(inPort->acceptedTypeName());
+                       << QString("%1[<%2]").arg(inPort->title()).arg(inPort->dataTypeName());
 }
 
 void ModuleGraphForm::on_portsDisconnected(FlowGraphNodePort *port1, FlowGraphNodePort *port2)

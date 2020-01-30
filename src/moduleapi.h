@@ -121,14 +121,25 @@ public:
     QVariant data;
 };
 
+/**
+ * @brief Enum specifying directionality of a port (in or out)
+ */
+enum class PortDirection {
+    NONE,
+    INPUT,
+    OUTPUT
+};
+
 class AbstractStreamPort
 {
 public:
     virtual QString id() const = 0;
     virtual QString title() const = 0;
 
-    virtual bool isOutput() const { return false; };
-    virtual bool isInput() const { return false; };
+    virtual PortDirection direction() const { return PortDirection::NONE; };
+
+    virtual int dataTypeId() const = 0;
+    virtual QString dataTypeName() const = 0;
 };
 
 class StreamInputPort : public AbstractStreamPort
@@ -140,10 +151,12 @@ public:
     template<typename T>
     void setAcceptedType()
     {
-        m_acceptedTypeName = QMetaType::typeName(qMetaTypeId<T>());
+        m_acceptedTypeId = qMetaTypeId<T>();
+        m_acceptedTypeName = QMetaType::typeName(m_acceptedTypeId);
     }
 
-    QString acceptedTypeName() const;
+    int dataTypeId() const override;
+    QString dataTypeName() const override;
 
     bool acceptsSubscription(const QString &typeName);
     bool hasSubscription() const;
@@ -170,12 +183,13 @@ public:
 
     QString id() const override;
     QString title() const override;
-    bool isInput() const override;
+    PortDirection direction() const override;
 
 private:
     Q_DISABLE_COPY(StreamInputPort)
     class Private;
     QScopedPointer<Private> d;
+    int m_acceptedTypeId;
     QString m_acceptedTypeName;
     std::optional<std::shared_ptr<VariantStreamSubscription>> m_sub;
 };
@@ -187,8 +201,8 @@ public:
     ~StreamOutputPort();
 
     bool canSubscribe(const QString &typeName);
-    int dataTypeId() const;
-    QString dataTypeName() const;
+    int dataTypeId() const override;
+    QString dataTypeName() const override;
 
     template<typename T>
     std::shared_ptr<DataStream<T>> stream() { return std::dynamic_pointer_cast<DataStream<T>>(streamVar()); }
@@ -201,7 +215,7 @@ public:
 
     QString id() const override;
     QString title() const override;
-    bool isOutput() const override;
+    PortDirection direction() const override;
 
 private:
     Q_DISABLE_COPY(StreamOutputPort)

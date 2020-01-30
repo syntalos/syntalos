@@ -110,7 +110,7 @@ void OOPWorkerConnector::setInputPorts(QList<std::shared_ptr<StreamInputPort> > 
 
             m_subs.push_back(std::make_pair(i, iport->subscriptionVar()));
         }
-        pi.setDataTypeName(iport->acceptedTypeName());
+        pi.setDataTypeName(iport->dataTypeName());
 
         shmPtr->createShmKey();
         pi.setShmKeyRecv(shmPtr->shmKey());
