@@ -321,6 +321,10 @@ bool MainWindow::saveConfiguration(const QString &fileName)
     // save list of subjects
     tar.writeFile ("subjects.json", QJsonDocument(m_subjectList->toJson()).toJson());
 
+    // save graph settings
+    ui->graphForm->graphView()->saveState();
+    tar.writeFile ("graph.json", QJsonDocument(ui->graphForm->graphView()->settings()).toJson());
+
     // save module settings
     auto modIndex = 0;
     for (auto &mod : m_engine->activeModules()) {
@@ -395,6 +399,18 @@ bool MainWindow::loadConfiguration(const QString &fileName)
 
         auto subjDoc = QJsonDocument::fromJson(subjectsFile->data());
         m_subjectList->fromJson(subjDoc.array());
+    }
+
+    // load graph settings
+    auto graphDataFile = rootDir->file("graph.json");
+    if (graphDataFile != nullptr) {
+        QJsonObject graphSettings;
+        auto graphDoc = QJsonDocument::fromJson(graphDataFile->data());
+        graphSettings = graphDoc.object();
+
+        // the graph view will apply stored settings to new nodes automatically
+        // from here on.
+        ui->graphForm->graphView()->setSettings(graphSettings);
     }
 
     m_engine->removeAllModules();

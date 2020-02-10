@@ -30,6 +30,7 @@
 
 #include <QHash>
 #include <QList>
+#include <QJsonObject>
 
 #include "streams/datatypes.h"
 
@@ -391,9 +392,6 @@ public:
 
     QGraphicsScene *scene() const;
 
-    void setSettings(QSettings *settings);
-    QSettings *settings() const;
-
     void addItem(FlowGraphItem *item);
     void removeItem(FlowGraphItem *item);
 
@@ -415,8 +413,11 @@ public:
 
     FlowGraphNode *findNode(const QString &name, FlowGraphItem::Mode mode, uint type = 0) const;
 
+    bool saveState();
     bool restoreState();
-    bool saveState() const;
+
+    QJsonObject settings() const;
+    void setSettings(const QJsonObject &settings);
 
     void setPortTypeColor(uint port_type, const QColor &color);
     const QColor &portTypeColor(uint port_type);
@@ -478,7 +479,7 @@ protected:
     void zoomFitRange(const QRectF &range_rect);
 
     bool restoreNodePos(FlowGraphNode *node);
-    bool saveNodePos(FlowGraphNode *node) const;
+    bool saveNodePos(FlowGraphNode *node);
 
     void updateEditorGeometry();
 
@@ -497,8 +498,6 @@ private:
     FlowGraphNode::ItemKeys m_nodekeys;
     QList<FlowGraphNode *> m_nodes;
 
-    QSettings *m_settings;
-
     QList<QGraphicsItem *> m_selected;
     int m_selected_nodes;
 
@@ -509,6 +508,8 @@ private:
     int m_edited;
 
     QPointF m_pos1;
+
+    QJsonObject m_settings;
 };
 
 #endif // FLOWGRAPHVIEW_H

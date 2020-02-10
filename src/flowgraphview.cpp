@@ -27,7 +27,6 @@
 #include <QStyleOptionGraphicsItem>
 
 #include <QRubberBand>
-#include <QSettings>
 #include <QTransform>
 #include <QUndoStack>
 
@@ -42,8 +41,9 @@
 #include <QMouseEvent>
 #include <QWheelEvent>
 
-#include <algorithm>
+#include <QJsonArray>
 
+#include <algorithm>
 #include <math.h>
 
 #include "moduleapi.h"
@@ -1061,15 +1061,6 @@ void FlowGraphEdge::updatePortTypeColors(void)
 //----------------------------------------------------------------------------
 // FlowGraphView
 
-// Local constants.
-static const char *CanvasGroup = "/GraphCanvas";
-static const char *CanvasRectKey = "/CanvasRect";
-static const char *CanvasZoomKey = "/CanvasZoom";
-
-static const char *NodePosGroup = "/GraphNodePos";
-
-static const char *ColorsGroup = "/GraphColors";
-
 FlowGraphView::FlowGraphView(QWidget *parent)
     : QGraphicsView(parent),
       m_state(DragNone),
@@ -1078,7 +1069,6 @@ FlowGraphView::FlowGraphView(QWidget *parent)
       m_rubberband(nullptr),
       m_zoom(1.0),
       m_zoomrange(false),
-      m_settings(nullptr),
       m_selected_nodes(0),
       m_edit_item(nullptr),
       m_editor(nullptr),
@@ -1116,16 +1106,6 @@ QGraphicsScene *FlowGraphView::scene(void) const
     return m_scene;
 }
 
-void FlowGraphView::setSettings(QSettings *settings)
-{
-    m_settings = settings;
-}
-
-QSettings *FlowGraphView::settings(void) const
-{
-    return m_settings;
-}
-
 void FlowGraphView::addItem(FlowGraphItem *item)
 {
     m_scene->addItem(item);
@@ -1135,8 +1115,8 @@ void FlowGraphView::addItem(FlowGraphItem *item)
         if (node) {
             m_nodes.append(node);
             m_nodekeys.insert(FlowGraphNode::NodeKey(node), node);
-            if (!restoreNodePos(node))
-                emit added(node);
+            restoreNodePos(node);
+            emit added(node);
         }
     }
 }
@@ -1289,7 +1269,7 @@ FlowGraphNode *FlowGraphView::findNode(const QString &name,
                                        uint type) const
 {
     return static_cast<FlowGraphNode *>(
-        m_nodekeys.value(FlowGraphNode::ItemKey(name, mode, type), nullptr));
+                m_nodekeys.value(FlowGraphNode::ItemKey(name, mode, type), nullptr));
 }
 
 /**
@@ -1897,14 +1877,55 @@ void FlowGraphView::zoomFitRange(const QRectF &range_rect)
     emit changed();
 }
 
+static QJsonArray qrectfToJson(const QRectF &rect)
+{
+    QJsonArray rRect = {rect.x(), rect.y(), rect.width(), rect.height()};
+    return rRect;
+}
+
+static QRectF qrectfFromJson(const QJsonValue &val)
+{
+    const auto arr = val.toArray();
+    if (arr.size() != 4)
+        return QRectF();
+    QRectF rect(arr[0].toDouble(),
+                arr[1].toDouble(),
+                arr[2].toDouble(),
+                arr[3].toDouble());
+    return rect;
+}
+
+static QJsonArray qpointfToJson(const QPointF &point)
+{
+    QJsonArray jPoint = {point.x(), point.y()};
+    return jPoint;
+}
+
+static QPointF qpointfFromJson(const QJsonValue &val)
+{
+    const auto arr = val.toArray();
+    if (arr.size() != 2)
+        return QPointF();
+    QPointF point(arr[0].toDouble(),
+                  arr[1].toDouble());
+    return point;
+}
+
+static const char *CanvasGroup = "Canvas";
+static const char *CanvasRectKey = "Rect";
+static const char *CanvasZoomKey = "Zoom";
+
+static const char *NodePosGroup = "NodePositions";
+
+static const char *ColorsGroup = "Colors";
+
 bool FlowGraphView::restoreNodePos(FlowGraphNode *node)
 {
-    if (m_settings == nullptr || node == nullptr)
+    if (node == nullptr)
         return false;
 
-    m_settings->beginGroup(NodePosGroup);
-    const QPointF &node_pos = m_settings->value('/' + nodeKey(node)).toPointF();
-    m_settings->endGroup();
+    const auto joNodePos = m_settings.value(NodePosGroup).toObject();
+    const QPointF &node_pos = qpointfFromJson(joNodePos.value(nodeKey(node)));
 
     if (node_pos.isNull())
         return false;
@@ -1913,86 +1934,82 @@ bool FlowGraphView::restoreNodePos(FlowGraphNode *node)
     return true;
 }
 
-bool FlowGraphView::saveNodePos(FlowGraphNode *node) const
+bool FlowGraphView::saveNodePos(FlowGraphNode *node)
 {
-    if (m_settings == nullptr || node == nullptr)
+    if (node == nullptr)
         return false;
 
-    m_settings->beginGroup(NodePosGroup);
-    m_settings->setValue('/' + nodeKey(node), node->pos());
-    m_settings->endGroup();
+    auto joNodePos = m_settings.value(NodePosGroup).toObject();
+    joNodePos.insert(nodeKey(node), qpointfToJson(node->pos()));
+    m_settings.insert(NodePosGroup, joNodePos);
 
     return true;
 }
 
-bool FlowGraphView::restoreState(void)
+QJsonObject FlowGraphView::settings() const
 {
-    if (m_settings == nullptr)
-        return false;
+    return m_settings;
+}
 
-    m_settings->beginGroup(ColorsGroup);
+void FlowGraphView::setSettings(const QJsonObject &settings)
+{
+    m_settings = settings;
+}
+
+bool FlowGraphView::saveState()
+{
+    QJsonObject joNodePos;
+    const QList<QGraphicsItem *> items(m_scene->items());
+    foreach (QGraphicsItem *item, items) {
+        if (item->type() == FlowGraphNode::Type) {
+            FlowGraphNode *node = static_cast<FlowGraphNode *>(item);
+            if (node)
+                joNodePos.insert(nodeKey(node), qpointfToJson(node->pos()));
+        }
+    }
+    m_settings.insert(NodePosGroup, joNodePos);
+
+    QJsonObject joCanvas;
+    joCanvas.insert(CanvasZoomKey, zoom());
+    joCanvas.insert(CanvasRectKey, qrectfToJson(QGraphicsView::sceneRect()));
+    m_settings.insert(CanvasGroup, joCanvas);
+
+    QJsonObject joColors;
+    QHash<uint, QColor>::ConstIterator iter = m_port_colors.constBegin();
+    const QHash<uint, QColor>::ConstIterator &iter_end = m_port_colors.constEnd();
+    for (; iter != iter_end; ++iter) {
+        const uint port_type = iter.key();
+        const QColor &color = iter.value();
+        joColors.insert("0x" + QString::number(port_type, 16), color.name());
+    }
+    m_settings.insert(ColorsGroup, joColors);
+
+    return true;
+}
+
+bool FlowGraphView::restoreState()
+{
+    auto joColors = m_settings.value(ColorsGroup).toObject();
     const QRegExp rx("^0x");
-    QStringListIterator key(m_settings->childKeys());
-    while (key.hasNext()) {
-        const QString &sKey = key.next();
-        const QColor &color = QString(m_settings->value(sKey).toString());
+    for (const QString &key : joColors.keys()) {
+        const QColor &color = QString(joColors.value(key).toString());
         if (color.isValid()) {
-            QString sx(sKey);
+            QString sx(key);
             bool ok = false;
             const uint port_type = sx.remove(rx).toUInt(&ok, 16);
             if (ok)
                 m_port_colors.insert(port_type, color);
         }
     }
-    m_settings->endGroup();
 
-    m_settings->beginGroup(CanvasGroup);
-    m_settings->setValue(CanvasRectKey, QGraphicsView::sceneRect());
-    const QRectF &rect = m_settings->value(CanvasRectKey).toRectF();
-    const qreal zoom = m_settings->value(CanvasZoomKey, 1.0).toReal();
-    m_settings->endGroup();
+    auto joCanvas = m_settings.value(CanvasGroup).toObject();
+    const QRectF &rect = qrectfFromJson(joCanvas.value(CanvasRectKey));
+    const qreal zoom = joCanvas.value(CanvasZoomKey).toDouble(1.0);
 
     if (rect.isValid())
         QGraphicsView::setSceneRect(rect);
 
     setZoom(zoom);
-
-    return true;
-}
-
-bool FlowGraphView::saveState(void) const
-{
-    if (m_settings == nullptr)
-        return false;
-
-    m_settings->beginGroup(NodePosGroup);
-    const QList<QGraphicsItem *> items(m_scene->items());
-    foreach (QGraphicsItem *item, items) {
-        if (item->type() == FlowGraphNode::Type) {
-            FlowGraphNode *node = static_cast<FlowGraphNode *>(item);
-            if (node)
-                m_settings->setValue('/' + nodeKey(node), node->pos());
-        }
-    }
-    m_settings->endGroup();
-
-    m_settings->beginGroup(CanvasGroup);
-    m_settings->setValue(CanvasZoomKey, zoom());
-    m_settings->setValue(CanvasRectKey, QGraphicsView::sceneRect());
-    m_settings->endGroup();
-
-    m_settings->beginGroup(ColorsGroup);
-    QStringListIterator key(m_settings->childKeys());
-    while (key.hasNext())
-        m_settings->remove(key.next());
-    QHash<uint, QColor>::ConstIterator iter = m_port_colors.constBegin();
-    const QHash<uint, QColor>::ConstIterator &iter_end = m_port_colors.constEnd();
-    for (; iter != iter_end; ++iter) {
-        const uint port_type = iter.key();
-        const QColor &color = iter.value();
-        m_settings->setValue("0x" + QString::number(port_type, 16), color.name());
-    }
-    m_settings->endGroup();
 
     return true;
 }
