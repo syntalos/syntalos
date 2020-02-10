@@ -29,6 +29,7 @@
 #include <QStandardPaths>
 #include <QThread>
 
+#include "oop/oopmodule.h"
 #include "modulelibrary.h"
 #include "hrclock.h"
 
@@ -52,8 +53,8 @@ public:
 
     QString experimentId;
 
-    bool running;
-    bool failed;
+    std::atomic_bool running;
+    std::atomic_bool failed;
 };
 #pragma GCC diagnostic pop
 
@@ -329,6 +330,43 @@ static void executeModuleThread(const QString& threadName, AbstractModule *mod, 
     mod->runThread(waitCondition);
 }
 
+/**
+ * @brief Main entry point for threads used to manage out-of-process worker modules.
+ */
+static void executeOOPModuleThread(const QString& threadName, QList<OOPModule*> mods, OptionalWaitCondition *waitCondition, std::atomic_bool &running)
+{
+    pthread_setname_np(pthread_self(), qPrintable(threadName.mid(0, 15)));
+
+    QEventLoop loop;
+
+    // prepare all OOP modules in their new thread
+    for (auto &mod : mods) {
+        if (!mod->oopPrepare(&loop)) {
+            qDebug().noquote() << "Failed to prepare OOP module" << mod->name() << ":" << mod->lastError();
+            return;
+        }
+        // ensure we are ready - the engine has reset ourselves to "PREPARING"
+        // to make this possible before launching this thread
+        mod->setStateReady();
+    }
+
+    // wait for us to start
+    waitCondition->wait();
+
+    for (auto &mod : mods)
+        mod->oopStart(&loop);
+
+    while (running) {
+        loop.processEvents();
+
+        for (auto &mod : mods)
+            mod->oopRunEvent(&loop);
+    }
+
+    for (auto &mod : mods)
+        mod->oopFinalize(&loop);
+}
+
 bool Engine::run()
 {
     if (d->running)
@@ -419,6 +457,8 @@ bool Engine::run()
     QHash<size_t, AbstractModule*> threadIdxModMap;
     std::unique_ptr<OptionalWaitCondition> startWaitCondition(new OptionalWaitCondition());
     QList<AbstractModule*> idleEventModules;
+    QList<OOPModule*> oopModules;
+    std::vector<std::thread> oopThreads;
 
     // Only actually launch if preparation didn't fail.
     // we still call stop() on all modules afterwards though,
@@ -428,9 +468,16 @@ bool Engine::run()
     if (initSuccessful) {
         emitStatusMessage(QStringLiteral("Initializing launch..."));
 
-        // launch threads for threaded modules
+        // launch threads for threaded modules, but filter out out-of-process
+        // modules - they get special treatment
         for (int i = 0; i < orderedActiveModules.size(); i++) {
             auto mod = orderedActiveModules[i];
+            auto oopMod = qobject_cast<OOPModule*>(mod);
+            if (oopMod != nullptr) {
+                oopModules.append(oopMod);
+                continue;
+            }
+
             if (!mod->features().testFlag(ModuleFeature::RUN_THREADED))
                 continue;
 
@@ -454,6 +501,18 @@ bool Engine::run()
                 continue;
             idleEventModules.append(mod);
         }
+
+        // prepare out-of-process modules
+        // NOTE: We currently throw them all into one thread, which may not
+        // be the most performant thing to do if there are a lot of OOP modules.
+        // But let's address that case when we actually run into performance issues
+        for (auto &mod : oopModules)
+            mod->setState(ModuleState::PREPARING);
+        oopThreads.push_back(std::thread(executeOOPModuleThread,
+                                         "oop_comm_1",
+                                         std::ref(oopModules),
+                                         startWaitCondition.get(),
+                                         std::ref(d->running)));
 
         // ensure all modules are in the READY state
         // (modules may take a bit of time to prepare their threads)
@@ -482,6 +541,7 @@ bool Engine::run()
 
         // we officially start now, launch the timer
         d->timer->start();
+        d->running = true;
 
         // first, launch all threaded modules
         for (auto& mod : orderedActiveModules) {
@@ -514,7 +574,6 @@ bool Engine::run()
             mod->setState(ModuleState::RUNNING);
         }
 
-        d->running = true;
         emitStatusMessage(QStringLiteral("Running..."));
 
         while (d->running) {
@@ -559,6 +618,12 @@ bool Engine::run()
         auto mod = threadIdxModMap[i];
         emitStatusMessage(QStringLiteral("Waiting for %1...").arg(mod->name()));
         thread.join();
+    }
+
+    // join all out-of-process module communication threads
+    for (auto &oopThread : oopThreads) {
+        emitStatusMessage(QStringLiteral("Waiting for external processes and their relays..."));
+        oopThread.join();
     }
 
     if (!initSuccessful) {

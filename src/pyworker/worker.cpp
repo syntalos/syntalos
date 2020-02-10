@@ -31,7 +31,7 @@ OOPWorker::OOPWorker(QObject *parent)
 {
     m_pyb = PyBridge::instance(this);
     pythonRegisterMaioModule();
-    qDebug() << "PyWorker created!";
+    qDebug() << "PyWorker: Created!";
 
     registerStreamMetaTypes();
 }
@@ -144,7 +144,7 @@ void OOPWorker::start(long startTimestampMsec)
 
 void OOPWorker::shutdown()
 {
-    qDebug() << "PyWorker Shutdown";
+    qDebug() << "PyWorker: Shutdown requested";
     m_running = false;
     QCoreApplication::processEvents();
 

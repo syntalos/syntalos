@@ -24,15 +24,34 @@
 
 #include "oopworkerconnector.h"
 
+class OOPModuleRunData
+{
+public:
+    OOPModuleRunData()
+    {
+        repNode.reset(new QRemoteObjectNode);
+    }
+    ~OOPModuleRunData()
+    {}
+
+    std::unique_ptr<QRemoteObjectNode> repNode;
+    QSharedPointer<OOPWorkerReplica> replica;
+    QSharedPointer<OOPWorkerConnector> wc;
+};
+
 #pragma GCC diagnostic ignored "-Wpadded"
 class OOPModule::Private
 {
 public:
-    Private() { }
-    ~Private() { }
+    Private()
+        : runData(new OOPModuleRunData)
+    {}
+    ~Private() {}
 
     QString pyScript;
     QString pyEnv;
+
+    QSharedPointer<OOPModuleRunData> runData;
 };
 #pragma GCC diagnostic pop
 
@@ -48,8 +67,7 @@ OOPModule::~OOPModule()
 
 ModuleFeatures OOPModule::features() const
 {
-    return ModuleFeature::RUN_THREADED |
-           ModuleFeature::SHOW_DISPLAY |
+    return ModuleFeature::SHOW_DISPLAY |
            ModuleFeature::SHOW_SETTINGS;
 }
 
@@ -61,63 +79,73 @@ bool OOPModule::prepare(const QString &storageRootDir, const TestSubject &testSu
     return true;
 }
 
-void OOPModule::runThread(OptionalWaitCondition *startWaitCondition)
+bool OOPModule::oopPrepare(QEventLoop *loop)
 {
-    QEventLoop loop;
-
     // We have to do all the setup stuff on thread creation, as moving QObject
     // instances between different threads is not ideal and the QRO connection
     // occasionally doesn't get established properly if we shift work between threads
+    d->runData.reset(new OOPModuleRunData);
 
-    QRemoteObjectNode repNode;
-    QSharedPointer<OOPWorkerReplica> replica(repNode.acquire<OOPWorkerReplica>());
-    OOPWorkerConnector wc(replica);
+    d->runData->replica.reset(d->runData->repNode->acquire<OOPWorkerReplica>());
+    d->runData->wc.reset(new OOPWorkerConnector(d->runData->replica));
+
+    auto wc = d->runData->wc;
 
     // connect some of the important signals of our replica
-    connect(replica.data(), &OOPWorkerReplica::error, this, [&](const QString &message) {
+    connect(d->runData->replica.data(), &OOPWorkerReplica::error, this, [&](const QString &message) {
         raiseError(message);
         m_running = false;
     });
-    connect(replica.data(), &OOPWorkerReplica::statusMessage, this, [&](const QString &text) {
+    connect(d->runData->replica.data(), &OOPWorkerReplica::statusMessage, this, [&](const QString &text) {
         setStatusMessage(text);
     });
 
-    if (!wc.connectAndRun()) {
+    if (!wc->connectAndRun()) {
         raiseError("Unable to start worker process!");
-        return;
+        return false;
     }
 
-    wc.setInputPorts(inPorts());
-    wc.setOutputPorts(outPorts());
+    wc->setInputPorts(inPorts());
+    wc->setOutputPorts(outPorts());
 
-    wc.initWithPythonScript(d->pyScript, d->pyEnv);
+    wc->initWithPythonScript(d->pyScript, d->pyEnv);
 
     // check if we already received messages from the worker,
     // such as errors or output port metadata updates
-    loop.processEvents();
+    loop->processEvents();
 
     // set all outgoing streams as active (which propagates metadata)
     for (auto &port : outPorts())
         port->streamVar()->start();
 
-    if (wc.failed())
-        return;
+    if (wc->failed())
+        return false;
 
-    startWaitCondition->wait(this);
-    wc.start(m_timer->startTime());
+    setStateReady();
+    return true;
+}
 
-    while (m_running) {
-        // first thing to do: Look for possible (error) signals from our worker
-        loop.processEvents();
+void OOPModule::oopStart(QEventLoop *)
+{
+    d->runData->wc->start(m_timer->startTime());
+}
 
-        // forward incoming data to the worker
-        wc.forwardInputData(&loop);
+void OOPModule::oopRunEvent(QEventLoop *loop)
+{
+    // first thing to do: Look for possible (error) signals from our worker
+    loop->processEvents();
 
-        if (wc.failed())
-            m_running = false;
-    }
+    // forward incoming data to the worker
+    d->runData->wc->forwardInputData(loop);
 
-    wc.terminate(&loop);
+    if (d->runData->wc->failed())
+        m_running = false;
+}
+
+void OOPModule::oopFinalize(QEventLoop *loop)
+{
+    d->runData->wc->terminate(loop);
+    d->runData.reset();
 }
 
 void OOPModule::loadPythonScript(const QString &script, const QString &env)

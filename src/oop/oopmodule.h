@@ -20,6 +20,7 @@
 #pragma once
 
 #include <QObject>
+#include <QEventLoop>
 
 #include "moduleapi.h"
 
@@ -28,6 +29,7 @@
  */
 class OOPModule : public AbstractModule
 {
+    Q_OBJECT
 public:
     explicit OOPModule(QObject *parent = nullptr);
     ~OOPModule();
@@ -36,7 +38,10 @@ public:
 
     bool prepare(const QString &storageRootDir, const TestSubject &testSubject) override;
 
-    void runThread(OptionalWaitCondition *startWaitCondition) override;
+    bool oopPrepare(QEventLoop *loop);
+    void oopStart(QEventLoop *);
+    void oopRunEvent(QEventLoop *loop);
+    void oopFinalize(QEventLoop *loop);
 
 protected:
     void loadPythonScript(const QString &script, const QString &env = QString());
