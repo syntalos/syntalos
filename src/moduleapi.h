@@ -140,12 +140,15 @@ public:
 
     virtual int dataTypeId() const = 0;
     virtual QString dataTypeName() const = 0;
+
+    virtual AbstractModule *owner() const = 0;
 };
 
+class StreamOutputPort;
 class StreamInputPort : public AbstractStreamPort
 {
 public:
-    explicit StreamInputPort(const QString &id, const QString &title);
+    explicit StreamInputPort(AbstractModule *owner, const QString &id, const QString &title);
     ~StreamInputPort();
 
     template<typename T>
@@ -160,8 +163,9 @@ public:
 
     bool acceptsSubscription(const QString &typeName);
     bool hasSubscription() const;
-    void setSubscription(std::shared_ptr<VariantStreamSubscription> sub);
+    void setSubscription(StreamOutputPort *src, std::shared_ptr<VariantStreamSubscription> sub);
     void resetSubscription();
+    StreamOutputPort *outPort() const;
 
     template<typename T>
     std::shared_ptr<StreamSubscription<T>> subscription()
@@ -184,6 +188,7 @@ public:
     QString id() const override;
     QString title() const override;
     PortDirection direction() const override;
+    AbstractModule *owner() const override;
 
 private:
     Q_DISABLE_COPY(StreamInputPort)
@@ -197,7 +202,7 @@ private:
 class StreamOutputPort : public AbstractStreamPort
 {
 public:
-    explicit StreamOutputPort(const QString &id, const QString &title, std::shared_ptr<VariantDataStream> stream);
+    explicit StreamOutputPort(AbstractModule *owner, const QString &id, const QString &title, std::shared_ptr<VariantDataStream> stream);
     ~StreamOutputPort();
 
     bool canSubscribe(const QString &typeName);
@@ -216,6 +221,7 @@ public:
     QString id() const override;
     QString title() const override;
     PortDirection direction() const override;
+    AbstractModule *owner() const override;
 
 private:
     Q_DISABLE_COPY(StreamOutputPort)
@@ -281,7 +287,7 @@ public:
             qWarning() << "Module" << name() << "already registered an output port with ID:" << id;
 
         std::shared_ptr<DataStream<T>> stream(new DataStream<T>());
-        std::shared_ptr<StreamOutputPort> outPort(new StreamOutputPort(id, title, stream));
+        std::shared_ptr<StreamOutputPort> outPort(new StreamOutputPort(this, id, title, stream));
         m_outPorts.insert(id, outPort);
         return stream;
     }
@@ -301,7 +307,7 @@ public:
         if (m_inPorts.contains(id))
             qWarning() << "Module" << name() << "already registered an output port with ID:" << id;
 
-        std::shared_ptr<StreamInputPort> inPort(new StreamInputPort(id, title));
+        std::shared_ptr<StreamInputPort> inPort(new StreamInputPort(this, id, title));
         inPort->setAcceptedType<T>();
         m_inPorts.insert(id, inPort);
         return inPort;
@@ -418,6 +424,9 @@ public:
     QList<std::shared_ptr<StreamInputPort>> inPorts() const;
     QList<std::shared_ptr<StreamOutputPort>> outPorts() const;
 
+    std::shared_ptr<StreamInputPort> inPortById(const QString &id) const;
+    std::shared_ptr<StreamOutputPort> outPortById(const QString &id) const;
+
     QJsonValue serializeDisplayUiGeometry();
     void restoreDisplayUiGeometry(QJsonObject info);
 
@@ -429,6 +438,7 @@ signals:
     void error(const QString& message);
     void statusMessage(const QString& message);
     void nameChanged(const QString& name);
+    void portsConnected(const StreamInputPort *inPort, const StreamOutputPort *outPort);
 
 protected:
     void raiseError(const QString& message);

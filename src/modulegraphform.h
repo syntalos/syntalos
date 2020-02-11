@@ -26,6 +26,8 @@
 class Engine;
 class ModuleInfo;
 class AbstractModule;
+class StreamInputPort;
+class StreamOutputPort;
 
 namespace Ui {
 class ModuleGraphForm;
@@ -53,9 +55,10 @@ private slots:
     void on_actionDisplay_triggered();
     void on_actionRemove_triggered();
     void on_selectionChanged();
-    void on_portsConnected(FlowGraphNodePort *port1, FlowGraphNodePort *port2);
-    void on_portsDisconnected(FlowGraphNodePort *port1, FlowGraphNodePort *port2);
+    void on_graphPortsConnected(FlowGraphNodePort *port1, FlowGraphNodePort *port2);
+    void on_graphPortsDisconnected(FlowGraphNodePort *port1, FlowGraphNodePort *port2);
     void on_modulePreRemove(AbstractModule *mod);
+    void on_portsConnected(const StreamInputPort *inPort, const StreamOutputPort *outPort);
 
     void moduleAdded(ModuleInfo *info, AbstractModule *mod);
     void receiveStateChange(ModuleState state);

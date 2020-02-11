@@ -224,6 +224,18 @@ QList<AbstractModule *> Engine::activeModules() const
     return d->activeModules;
 }
 
+AbstractModule *Engine::moduleByName(const QString &name) const
+{
+    // FIXME: In case we grow projects with huge module counts, we
+    // will actually want a QHash index of modules here, so speed up
+    // this function (which may otherwise slow down project loading times)
+    for (const auto &mod : d->activeModules) {
+        if (mod->name() == name)
+            return mod;
+    }
+    return nullptr;
+}
+
 bool Engine::makeDirectory(const QString &dir)
 {
     if (!QDir().mkpath(dir)) {

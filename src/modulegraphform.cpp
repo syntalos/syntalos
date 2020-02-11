@@ -57,8 +57,8 @@ ModuleGraphForm::ModuleGraphForm(QWidget *parent)
 
     connect(ui->graphView->scene(), &QGraphicsScene::selectionChanged, this, &ModuleGraphForm::on_selectionChanged);
     connect(ui->graphView, &FlowGraphView::renamed, this, &ModuleGraphForm::itemRenamed);
-    connect(ui->graphView, &FlowGraphView::connected, this, &ModuleGraphForm::on_portsConnected);
-    connect(ui->graphView, &FlowGraphView::disconnected, this, &ModuleGraphForm::on_portsDisconnected);
+    connect(ui->graphView, &FlowGraphView::connected, this, &ModuleGraphForm::on_graphPortsConnected);
+    connect(ui->graphView, &FlowGraphView::disconnected, this, &ModuleGraphForm::on_graphPortsDisconnected);
 }
 
 ModuleGraphForm::~ModuleGraphForm()
@@ -94,6 +94,7 @@ void ModuleGraphForm::moduleAdded(ModuleInfo *info, AbstractModule *mod)
     connect(mod, &AbstractModule::stateChanged, this, &ModuleGraphForm::receiveStateChange);
     connect(mod, &AbstractModule::error, this, &ModuleGraphForm::receiveErrorMessage);
     connect(mod, &AbstractModule::statusMessage, this, &ModuleGraphForm::receiveMessage);
+    connect(mod, &AbstractModule::portsConnected, this, &ModuleGraphForm::on_portsConnected);
 
     auto node = new FlowGraphNode(mod);
     node->setNodeIcon(info->pixmap());
@@ -219,7 +220,7 @@ void ModuleGraphForm::on_selectionChanged()
     }
 }
 
-void ModuleGraphForm::on_portsConnected(FlowGraphNodePort *port1, FlowGraphNodePort *port2)
+void ModuleGraphForm::on_graphPortsConnected(FlowGraphNodePort *port1, FlowGraphNodePort *port2)
 {
     StreamInputPort *inPort = nullptr;
     StreamOutputPort *outPort = nullptr;
@@ -246,14 +247,20 @@ void ModuleGraphForm::on_portsConnected(FlowGraphNodePort *port1, FlowGraphNodeP
         return;
     }
 
-    inPort->setSubscription(outPort->subscribe());
+    // check if we already are connected - if so, don't connect twice
+    if (inPort->hasSubscription()) {
+        if (inPort->outPort() == outPort)
+            return;
+    }
+
+    inPort->setSubscription(outPort, outPort->subscribe());
     qDebug().noquote() << "Connected ports:"
                        << QString("%1[>%2]").arg(outPort->title()).arg(outPort->dataTypeName())
                        << "->"
                        << QString("%1[<%2]").arg(inPort->title()).arg(inPort->dataTypeName());
 }
 
-void ModuleGraphForm::on_portsDisconnected(FlowGraphNodePort *port1, FlowGraphNodePort *port2)
+void ModuleGraphForm::on_graphPortsDisconnected(FlowGraphNodePort *port1, FlowGraphNodePort *port2)
 {
     StreamInputPort *inPort = nullptr;
     StreamOutputPort *outPort = nullptr;
@@ -332,4 +339,22 @@ void ModuleGraphForm::on_modulePreRemove(AbstractModule *mod)
     m_modNodeMap.remove(mod);
     ui->graphView->removeItem(node);
     delete node;
+}
+
+void ModuleGraphForm::on_portsConnected(const StreamInputPort *inPort, const StreamOutputPort *outPort)
+{
+    auto inNode = m_modNodeMap.value(inPort->owner());
+    auto outNode = m_modNodeMap.value(outPort->owner());
+
+    if ((inNode == nullptr) || (outNode == nullptr)) {
+        qCritical() << "Ports of modules were connected, but we could not find one or both of their graph nodes.";
+        return;
+    }
+
+    auto graphInPort = inNode->findPort(inPort->id(), FlowGraphNodePort::Input, 0);
+    auto graphOutPort = outNode->findPort(outPort->id(), FlowGraphNodePort::Output, 0);
+    ui->graphView->selectNone();
+    graphOutPort->setSelected(true);
+    graphInPort->setSelected(true);
+    ui->graphView->connectItems();
 }

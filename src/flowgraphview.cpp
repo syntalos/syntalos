@@ -125,9 +125,10 @@ QRectF FlowGraphItem::editorRect(void) const
 FlowGraphNodePort::FlowGraphNodePort(FlowGraphNode *node)
     : FlowGraphItem(node),
       m_node(node),
-      m_name(QString()),
+      m_id(QString()),
       m_mode(FlowGraphItem::Mode::None),
       m_type(0),
+      m_title(QString()),
       m_index(0),
       m_selectx(0),
       m_hilitex(0)
@@ -145,8 +146,8 @@ FlowGraphNodePort::FlowGraphNodePort(FlowGraphNode *node)
 
     QGraphicsPathItem::setAcceptHoverEvents(true);
 
-    QGraphicsPathItem::setToolTip(m_name);
-    setPortTitle(m_name);
+    QGraphicsPathItem::setToolTip(m_id);
+    setPortTitle(m_title);
 }
 
 FlowGraphNodePort::FlowGraphNodePort(FlowGraphNode *node, std::shared_ptr<AbstractStreamPort> port)
@@ -156,12 +157,14 @@ FlowGraphNodePort::FlowGraphNodePort(FlowGraphNode *node, std::shared_ptr<Abstra
         m_mode = FlowGraphNode::Mode::Output;
     else if (port->direction() == PortDirection::INPUT)
         m_mode = FlowGraphNode::Mode::Input;
-    m_name = port->title();
-    if (m_name.isEmpty())
-        m_name = port->id();
-    QGraphicsPathItem::setToolTip(m_name);
-    setPortTitle(m_name);
+    m_id = port->id();
+    m_title = port->title();
+    if (m_title.isEmpty())
+        m_title = port->id();
+    setPortTitle(m_title);
     m_streamPort = port;
+
+    QGraphicsPathItem::setToolTip(m_id);
 }
 
 FlowGraphNodePort::~FlowGraphNodePort(void)
@@ -174,16 +177,9 @@ FlowGraphNode *FlowGraphNodePort::portNode(void) const
     return m_node;
 }
 
-void FlowGraphNodePort::setPortName(const QString &name)
+const QString &FlowGraphNodePort::portId(void) const
 {
-    m_name = name;
-
-    QGraphicsPathItem::setToolTip(m_name);
-}
-
-const QString &FlowGraphNodePort::portName(void) const
-{
-    return m_name;
+    return m_id;
 }
 
 void FlowGraphNodePort::setPortMode(FlowGraphItem::Mode mode)
@@ -218,7 +214,7 @@ uint FlowGraphNodePort::portType(void) const
 
 void FlowGraphNodePort::setPortTitle(const QString &title)
 {
-    m_title = (title.isEmpty() ? m_name : title);
+    m_title = (title.isEmpty() ? m_id : title);
 
     m_text->setPlainText(m_title);
 
@@ -466,7 +462,7 @@ bool FlowGraphNodePort::lessThan(FlowGraphNodePort *port1, FlowGraphNodePort *po
         return FlowGraphNodePort::lessThan(port1->portTitle(), port2->portTitle());
     case PortName:
     default:
-        return FlowGraphNodePort::lessThan(port1->portName(), port2->portName());
+        return FlowGraphNodePort::lessThan(port1->portId(), port2->portId());
     }
 }
 
@@ -1788,7 +1784,7 @@ void FlowGraphView::renameItem(void)
             QFont font = m_editor->font();
             font.setBold(false);
             m_editor->setFont(font);
-            m_editor->setPlaceholderText(port->portName());
+            m_editor->setPlaceholderText(port->portId());
             m_editor->setText(port->portTitle());
         }
     } else

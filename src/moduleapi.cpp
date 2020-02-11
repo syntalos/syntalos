@@ -92,13 +92,17 @@ public:
 
     QString id;
     QString title;
+    AbstractModule *owner;
+    StreamOutputPort *outPort;
 };
 
-StreamInputPort::StreamInputPort(const QString &id, const QString &title)
+StreamInputPort::StreamInputPort(AbstractModule *owner, const QString &id, const QString &title)
     : d(new StreamInputPort::Private)
 {
     d->id = id;
     d->title = title;
+    d->owner = owner;
+    d->outPort = nullptr;
 }
 
 StreamInputPort::~StreamInputPort()
@@ -124,9 +128,14 @@ bool StreamInputPort::hasSubscription() const
     return m_sub.has_value();
 }
 
-void StreamInputPort::setSubscription(std::shared_ptr<VariantStreamSubscription> sub)
+void StreamInputPort::setSubscription(StreamOutputPort *src, std::shared_ptr<VariantStreamSubscription> sub)
 {
+    d->outPort = src;
     m_sub = sub;
+
+    // signal interested parties as the input module that new
+    // ports were connected
+    emit d->owner->portsConnected(this, src);
 }
 
 void StreamInputPort::resetSubscription()
@@ -134,6 +143,14 @@ void StreamInputPort::resetSubscription()
     if (m_sub.has_value())
         m_sub.value()->unsubscribe();
     m_sub.reset();
+    d->outPort = nullptr;
+}
+
+StreamOutputPort *StreamInputPort::outPort() const
+{
+    if (hasSubscription())
+        return d->outPort;
+    return nullptr;
 }
 
 std::shared_ptr<VariantStreamSubscription> StreamInputPort::subscriptionVar()
@@ -160,6 +177,11 @@ PortDirection StreamInputPort::direction() const
     return PortDirection::INPUT;
 }
 
+AbstractModule *StreamInputPort::owner() const
+{
+    return d->owner;
+}
+
 class StreamOutputPort::Private
 {
 public:
@@ -169,13 +191,15 @@ public:
     QString id;
     QString title;
     std::shared_ptr<VariantDataStream> stream;
+    AbstractModule *owner;
 };
 
-StreamOutputPort::StreamOutputPort(const QString &id, const QString &title, std::shared_ptr<VariantDataStream> stream)
+StreamOutputPort::StreamOutputPort(AbstractModule *owner, const QString &id, const QString &title, std::shared_ptr<VariantDataStream> stream)
     : d(new StreamOutputPort::Private)
 {
     d->id = id;
     d->title = title;
+    d->owner = owner;
     d->stream = stream;
 }
 
@@ -232,6 +256,11 @@ QString StreamOutputPort::title() const
 PortDirection StreamOutputPort::direction() const
 {
     return PortDirection::OUTPUT;
+}
+
+AbstractModule *StreamOutputPort::owner() const
+{
+    return d->owner;
 }
 
 class AbstractModule::Private
@@ -427,6 +456,16 @@ QList<std::shared_ptr<StreamInputPort> > AbstractModule::inPorts() const
 QList<std::shared_ptr<StreamOutputPort> > AbstractModule::outPorts() const
 {
     return m_outPorts.values();
+}
+
+std::shared_ptr<StreamInputPort> AbstractModule::inPortById(const QString &id) const
+{
+    return m_inPorts.value(id);
+}
+
+std::shared_ptr<StreamOutputPort> AbstractModule::outPortById(const QString &id) const
+{
+    return m_outPorts.value(id);
 }
 
 bool AbstractModule::makeDirectory(const QString &dir)

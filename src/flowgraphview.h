@@ -157,8 +157,7 @@ public:
 
     FlowGraphNode *portNode() const;
 
-    void setPortName(const QString &name);
-    const QString &portName() const;
+    const QString &portId() const;
 
     void setPortMode(Mode mode);
     Mode portMode() const;
@@ -196,7 +195,7 @@ public:
     public:
         // Constructors.
         PortKey(FlowGraphNodePort *port)
-            : ItemKey(port->portName(), port->portMode(), port->portType())
+            : ItemKey(port->portId(), port->portMode(), port->portType())
         {}
     };
 
@@ -244,7 +243,7 @@ private:
     // instance variables.
     FlowGraphNode *m_node;
 
-    QString m_name;
+    QString m_id;
     Mode m_mode;
     uint m_type;
 

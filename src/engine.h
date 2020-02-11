@@ -56,6 +56,7 @@ public:
     void removeAllModules();
 
     QList<AbstractModule*> activeModules() const;
+    AbstractModule *moduleByName(const QString &name) const;
 
 public slots:
     bool run();

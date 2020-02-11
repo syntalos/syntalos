@@ -337,6 +337,18 @@ bool MainWindow::saveConfiguration(const QString &fileName)
         modInfo.insert("id", mod->id());
         modInfo.insert("name", mod->name());
         modInfo.insert("uiDisplayGeometry", mod->serializeDisplayUiGeometry());
+
+        // save info about port subscriptions in
+        // the form inPortId -> sourceModuleName
+        QJsonObject modSubs;
+        for (const auto &iport : mod->inPorts()) {
+            if (!iport->hasSubscription())
+                continue;
+            QJsonArray srcVal = {iport->outPort()->owner()->name(), iport->outPort()->id()};
+            modSubs.insert(iport->id(), srcVal);
+        }
+
+        modInfo.insert("subscriptions", modSubs);
         tar.writeFile(QStringLiteral("%1/info.json").arg(modIndex), QJsonDocument(modInfo).toJson());
 
         modIndex++;
@@ -424,6 +436,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
     QList<QPair<AbstractModule*, QByteArray>> modSettingsList;
 
     // add modules
+    QList<QPair<AbstractModule*, QJsonObject>> jSubInfo;
     for (auto &ename : rootEntries) {
         auto e = rootDir->entry(ename);
         if (!e->isDirectory())
@@ -437,6 +450,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         const auto modId = iobj.value("id").toString();
         const auto modName = iobj.value("name").toString();
         const auto uiDisplayGeometry = iobj.value("uiDisplayGeometry").toObject();
+        const auto jSubs = iobj.value("subscriptions").toObject();
 
         auto mod = m_engine->createModule(modId);
         if (mod == nullptr) {
@@ -457,16 +471,51 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         if (!uiDisplayGeometry.isEmpty())
             mod->restoreDisplayUiGeometry(uiDisplayGeometry);
 
+        // store subscription info to connect modules later
+        jSubInfo.append(qMakePair(mod, jSubs));
+
+        // store module-owned configuration for later
         modSettingsList.append(qMakePair(mod, sdata));
     }
 
-    // load module configurations
+    // load module-owned configurations
     for (auto &pair : modSettingsList) {
         auto mod = pair.first;
         if (!mod->loadSettings(confBaseDir.absolutePath(), pair.second)) {
             QMessageBox::critical(this, QStringLiteral("Can not load settings"),
                                   QStringLiteral("Unable to load module settings for '%1'.").arg(mod->name()));
             return false;
+        }
+    }
+
+    // create module connections
+    for (auto &pair : jSubInfo) {
+        auto mod = pair.first;
+        const auto jSubs = pair.second;
+        for (const QString &iPortId : jSubs.keys()) {
+            const auto modPortPair = jSubs.value(iPortId).toArray();
+            if (modPortPair.size() != 2) {
+                qWarning().noquote() << "Malformed project data: Invalid project port pair in" << mod->name() << "settings.";
+                continue;
+            }
+            const auto srcModName = modPortPair[0].toString();
+            const auto srcModOutPortId = modPortPair[1].toString();
+            const auto srcMod = m_engine->moduleByName(srcModName);
+            if (srcMod == nullptr) {
+                qWarning().noquote() << "Error when loading project: Source module" << srcModName << "plugged into" << iPortId << "of" << mod->name() << "was not found. Skipped connection.";
+                continue;
+            }
+            auto inPort = mod->inPortById(iPortId);
+            if (inPort.get() == nullptr) {
+                qWarning().noquote() << "Error when loading project: Module" << mod->name() << "has no input port with ID" << iPortId;
+                continue;
+            }
+            auto outPort = srcMod->outPortById(srcModOutPortId);
+            if (outPort.get() == nullptr) {
+                qWarning().noquote() << "Error when loading project: Module" << srcMod->name() << "has no output port with ID" << srcModOutPortId;
+                continue;
+            }
+            inPort->setSubscription(outPort.get(), outPort->subscribe());
         }
     }
 
