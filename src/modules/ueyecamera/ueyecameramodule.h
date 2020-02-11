@@ -56,7 +56,7 @@ public:
 
     bool prepare(const QString& storageRootDir, const TestSubject& testSubject) override;
     void start() override;
-    bool runEvent() override;
+    bool runUIEvent() override;
 
     void stop() override;
 

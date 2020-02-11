@@ -41,10 +41,11 @@ class AbstractModule;
 enum class ModuleFeature {
     NONE = 0,
     RUN_EVENTS    = 1 << 0,
-    RUN_THREADED  = 1 << 1,
-    SHOW_SETTINGS = 1 << 2,
-    SHOW_DISPLAY  = 1 << 3,
-    SHOW_ACTIONS  = 1 << 4
+    RUN_UIEVENTS  = 1 << 1,
+    RUN_THREADED  = 1 << 2,
+    SHOW_SETTINGS = 1 << 3,
+    SHOW_DISPLAY  = 1 << 4,
+    SHOW_ACTIONS  = 1 << 5
 };
 Q_DECLARE_FLAGS(ModuleFeatures, ModuleFeature)
 Q_DECLARE_OPERATORS_FOR_FLAGS(ModuleFeatures)
@@ -352,7 +353,20 @@ public:
     virtual void runThread(OptionalWaitCondition *startWaitCondition);
 
     /**
-     * @brief Execute actions in main thread event loop when idle
+     * @brief Execute actions in thread event loop when idle
+     *
+     * This function is run in the main event loop of the application, once
+     * per iteration (when idle). This function must never block for a long time,
+     * to allow other modules to be executed as well.
+     * This function may be called from any thread and may even be moved between threads depending
+     * on system load, so do not assume you will always be in your own thread or never move between
+     * threads during execution.
+     * @return true if no error
+     */
+    virtual bool runEvent();
+
+    /**
+     * @brief Execute actions in main UI thread event loop when idle
      *
      * This function is run in the main event loop of the application, once
      * per iteration (when idle). This function must never block for a long time,
@@ -361,7 +375,7 @@ public:
      * benefits from running in the same thread as the UI.
      * @return true if no error
      */
-    virtual bool runEvent();
+    virtual bool runUIEvent();
 
     /**
      * @brief Stop running an experiment.

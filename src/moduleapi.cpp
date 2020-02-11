@@ -341,7 +341,7 @@ void AbstractModule::setName(const QString &name)
 
 ModuleFeatures AbstractModule::features() const
 {
-    return ModuleFeature::RUN_EVENTS |
+    return ModuleFeature::RUN_UIEVENTS |
            ModuleFeature::SHOW_DISPLAY |
            ModuleFeature::SHOW_SETTINGS |
            ModuleFeature::SHOW_ACTIONS;
@@ -368,6 +368,11 @@ bool AbstractModule::runEvent()
 void AbstractModule::runThread(OptionalWaitCondition *)
 {
     // Do nothing
+}
+
+bool AbstractModule::runUIEvent()
+{
+    return true;
 }
 
 void AbstractModule::stop()

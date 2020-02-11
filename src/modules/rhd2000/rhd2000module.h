@@ -50,7 +50,7 @@ public:
 
     void start() override;
 
-    bool runEvent() override;
+    bool runUIEvent() override;
 
     void stop() override;
 

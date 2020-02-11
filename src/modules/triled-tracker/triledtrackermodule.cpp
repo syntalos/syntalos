@@ -94,7 +94,7 @@ void TriLedTrackerModule::setName(const QString &name)
 
 ModuleFeatures TriLedTrackerModule::features() const
 {
-    return ModuleFeature::RUN_EVENTS | ModuleFeature::SHOW_SETTINGS | ModuleFeature::SHOW_DISPLAY;
+    return ModuleFeature::RUN_UIEVENTS | ModuleFeature::SHOW_SETTINGS | ModuleFeature::SHOW_DISPLAY;
 }
 
 bool TriLedTrackerModule::initialize(ModuleManager *manager)

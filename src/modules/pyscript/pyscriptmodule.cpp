@@ -173,7 +173,7 @@ void PyScriptModule::start()
     m_funcRelay->setCanStartScript(true);
 }
 
-bool PyScriptModule::runEvent()
+bool PyScriptModule::runUIEvent()
 {
     // if the script exited without error, we just continue to run
     // everything else and don't execute useless operations anymore

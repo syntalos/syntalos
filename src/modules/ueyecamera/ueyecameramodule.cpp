@@ -100,7 +100,7 @@ void UEyeCameraModule::start()
     statusMessage("Acquiring frames...");
 }
 
-bool UEyeCameraModule::runEvent()
+bool UEyeCameraModule::runUIEvent()
 {
     m_mutex.lock();
 

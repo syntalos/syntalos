@@ -87,7 +87,7 @@ void GenericCameraModule::setName(const QString &name)
 
 ModuleFeatures GenericCameraModule::features() const
 {
-    return ModuleFeature::RUN_EVENTS |
+    return ModuleFeature::RUN_UIEVENTS |
            ModuleFeature::RUN_THREADED |
            ModuleFeature::SHOW_DISPLAY |
            ModuleFeature::SHOW_SETTINGS;
@@ -131,7 +131,7 @@ void GenericCameraModule::start()
     AbstractModule::start();
 }
 
-bool GenericCameraModule::runEvent()
+bool GenericCameraModule::runUIEvent()
 {
     m_mutex.lock();
     if (m_frameRing.empty()) {

@@ -124,7 +124,7 @@ void MiniscopeModule::start()
         raiseError(QString::fromStdString(m_miniscope->lastError()));
 }
 
-bool MiniscopeModule::runEvent()
+bool MiniscopeModule::runUIEvent()
 {
     auto frame = m_miniscope->currentFrame();
     if (frame.empty()) {

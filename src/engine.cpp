@@ -345,7 +345,8 @@ static void executeModuleThread(const QString& threadName, AbstractModule *mod, 
 /**
  * @brief Main entry point for threads used to manage out-of-process worker modules.
  */
-static void executeOOPModuleThread(const QString& threadName, QList<OOPModule*> mods, OptionalWaitCondition *waitCondition, std::atomic_bool &running)
+static void executeOOPModuleThread(const QString& threadName, QList<OOPModule*> mods,
+                                   OptionalWaitCondition *waitCondition, std::atomic_bool &running)
 {
     pthread_setname_np(pthread_self(), qPrintable(threadName.mid(0, 15)));
 
@@ -377,6 +378,28 @@ static void executeOOPModuleThread(const QString& threadName, QList<OOPModule*> 
 
     for (auto &mod : mods)
         mod->oopFinalize(&loop);
+}
+
+/**
+ * @brief Main entry point for engine-managed module threads.
+ */
+static void executeIdleEventModuleThread(const QString& threadName, QList<AbstractModule*> mods,
+                                         OptionalWaitCondition *waitCondition, std::atomic_bool &running, std::atomic_bool &failed)
+{
+    pthread_setname_np(pthread_self(), qPrintable(threadName.mid(0, 15)));
+
+    // wait for us to start
+    waitCondition->wait();
+
+    while (running) {
+        for (auto &mod : mods) {
+            if (!mod->runEvent()){
+                qDebug() << QStringLiteral("Module %1 failed in event loop.").arg(mod->name());
+                failed = true;
+                return;
+            }
+        }
+    }
 }
 
 bool Engine::run()
@@ -465,10 +488,14 @@ bool Engine::run()
     }
 
     // threads our modules run in, as module name/thread pairs
-    std::vector<std::thread> threads;
+    std::vector<std::thread> dThreads;
     QHash<size_t, AbstractModule*> threadIdxModMap;
     std::unique_ptr<OptionalWaitCondition> startWaitCondition(new OptionalWaitCondition());
+
     QList<AbstractModule*> idleEventModules;
+    QList<AbstractModule*> idleUiEventModules;
+    std::vector<std::thread> evThreads;
+
     QList<OOPModule*> oopModules;
     std::vector<std::thread> oopThreads;
 
@@ -500,31 +527,46 @@ bool Engine::run()
 
             // the thread name shouldn't be longer than 16 chars (inlcuding NULL)
             auto threadName = QStringLiteral("%1-%2").arg(mod->id().midRef(0, 12)).arg(i);
-            threads.push_back(std::thread(executeModuleThread,
-                                          threadName,
-                                          mod,
-                                          startWaitCondition.get()));
-            threadIdxModMap[threads.size() - 1] = mod;
+            dThreads.push_back(std::thread(executeModuleThread,
+                                           threadName,
+                                           mod,
+                                           startWaitCondition.get()));
+            threadIdxModMap[dThreads.size() - 1] = mod;
         }
 
         // collect all modules which do idle event execution
         for (auto &mod : orderedActiveModules) {
-            if (!mod->features().testFlag(ModuleFeature::RUN_EVENTS))
-                continue;
-            idleEventModules.append(mod);
+            if (mod->features().testFlag(ModuleFeature::RUN_UIEVENTS))
+                idleUiEventModules.append(mod);
+            if (mod->features().testFlag(ModuleFeature::RUN_EVENTS))
+                idleEventModules.append(mod);
         }
 
         // prepare out-of-process modules
         // NOTE: We currently throw them all into one thread, which may not
         // be the most performant thing to do if there are a lot of OOP modules.
         // But let's address that case when we actually run into performance issues
-        for (auto &mod : oopModules)
-            mod->setState(ModuleState::PREPARING);
-        oopThreads.push_back(std::thread(executeOOPModuleThread,
-                                         "oop_comm_1",
-                                         std::ref(oopModules),
-                                         startWaitCondition.get(),
-                                         std::ref(d->running)));
+        if (!oopModules.isEmpty()) {
+            for (auto &mod : oopModules)
+                mod->setState(ModuleState::PREPARING);
+            oopThreads.push_back(std::thread(executeOOPModuleThread,
+                                             "oop_comm_1",
+                                             oopModules,
+                                             startWaitCondition.get(),
+                                             std::ref(d->running)));
+        }
+
+        // create new thread for idle-event processing modules, if needed
+        // TODO: on systems with low CPU count we could also move the execution of those
+        // to the main thread
+        if (!idleEventModules.isEmpty()) {
+            evThreads.push_back(std::thread(executeIdleEventModuleThread,
+                                            "evmod_loop_1",
+                                            idleEventModules,
+                                            startWaitCondition.get(),
+                                            std::ref(d->running),
+                                            std::ref(d->failed)));
+        }
 
         // ensure all modules are in the READY state
         // (modules may take a bit of time to prepare their threads)
@@ -589,8 +631,8 @@ bool Engine::run()
         emitStatusMessage(QStringLiteral("Running..."));
 
         while (d->running) {
-            for (auto &mod : idleEventModules) {
-                if (!mod->runEvent()){
+            for (auto &mod : idleUiEventModules) {
+                if (!mod->runUIEvent()){
                     emitStatusMessage(QStringLiteral("Module %1 failed.").arg(mod->name()));
                     d->failed = true;
                     break;
@@ -623,10 +665,10 @@ bool Engine::run()
             mod->setState(ModuleState::IDLE);
     }
 
-    // join all module threads with the main thread again, waiting for them to terminate
+    // join all dedicated module threads with the main thread again, waiting for them to terminate
     startWaitCondition->wakeAll(); // wake up all threads again, just in case one is stuck waiting
-    for (size_t i = 0; i < threads.size(); i++) {
-        auto &thread = threads[i];
+    for (size_t i = 0; i < dThreads.size(); i++) {
+        auto &thread = dThreads[i];
         auto mod = threadIdxModMap[i];
         emitStatusMessage(QStringLiteral("Waiting for %1...").arg(mod->name()));
         thread.join();
@@ -636,6 +678,12 @@ bool Engine::run()
     for (auto &oopThread : oopThreads) {
         emitStatusMessage(QStringLiteral("Waiting for external processes and their relays..."));
         oopThread.join();
+    }
+
+    // join all threads running evented modules
+    for (auto &evThread : evThreads) {
+        emitStatusMessage(QStringLiteral("Waiting for event executor..."));
+        evThread.join();
     }
 
     if (!initSuccessful) {

@@ -119,7 +119,7 @@ void Rhd2000Module::start()
     m_intanUi->interfaceBoardStartRun();
 }
 
-bool Rhd2000Module::runEvent()
+bool Rhd2000Module::runUIEvent()
 {
     // we don't assert m_intanUi here for performance reasons
     auto ret = m_intanUi->interfaceBoardRunCycle();
