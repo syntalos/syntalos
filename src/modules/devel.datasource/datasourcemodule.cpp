@@ -46,6 +46,7 @@ public:
 
     bool prepare(const QString &, const TestSubject &) override
     {
+        m_frameOut->setMetadataVal("src_mod_name", name());
         m_frameOut->setMetadataVal("framerate", 200);
         m_frameOut->setMetadataVal("size", QSize(800, 600));
         m_frameOut->start();

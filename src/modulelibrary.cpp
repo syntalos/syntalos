@@ -30,6 +30,7 @@
 
 #include "modules/rhd2000/rhd2000module.h"
 #include "modules/traceplot/traceplotmodule.h"
+#include "modules/canvas/canvasmodule.h"
 #include "modules/videorecorder/videorecordmodule.h"
 #include "modules/genericcamera/genericcameramodule.h"
 #ifdef HAVE_UEYE_CAMERA
@@ -62,6 +63,7 @@ ModuleLibrary::ModuleLibrary(QObject *parent)
     registerModuleInfo<PyOOPTestModuleInfo>();
     registerModuleInfo<Rhd2000ModuleInfo>();
     registerModuleInfo<TracePlotModuleInfo>();
+    registerModuleInfo<CanvasModuleInfo>();
     registerModuleInfo<VideoRecorderModuleInfo>();
     registerModuleInfo<GenericCameraModuleInfo>();
 #ifdef HAVE_UEYE_CAMERA

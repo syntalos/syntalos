@@ -484,7 +484,9 @@ bool Engine::run()
             emitStatusMessage(QStringLiteral("Module %1 failed to prepare.").arg(mod->name()));
             break;
         }
-        mod->setState(ModuleState::IDLE);
+        // if the module hasn't set itself to ready yet, assume it is idle
+        if (mod->state() != ModuleState::READY)
+            mod->setState(ModuleState::IDLE);
     }
 
     // threads our modules run in, as module name/thread pairs
@@ -574,6 +576,10 @@ bool Engine::run()
         // behave and never ever leaves its preparation phase?
         for (auto &mod : orderedActiveModules) {
             if (mod->state() == ModuleState::READY)
+                continue;
+            // IDLE is also a valid state at this point, the module may not
+            // have had additional setup to do
+            if (mod->state() == ModuleState::IDLE)
                 continue;
             emitStatusMessage(QStringLiteral("Waiting for %1 to become ready...").arg(mod->name()));
             while (mod->state() != ModuleState::READY) {

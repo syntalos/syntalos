@@ -24,11 +24,13 @@
 #include <mutex>
 #include <algorithm>
 #include <optional>
+#include <cmath>
 #include <QVariant>
 #include <QDebug>
 
 #include "readerwriterqueue.h"
 #include "datatypes.h"
+#include "hrclock.h"
 
 using namespace moodycamel;
 
@@ -38,7 +40,8 @@ public:
     virtual ~VariantStreamSubscription();
     virtual int dataTypeId() const = 0;
     virtual QString dataTypeName() const = 0;
-    virtual QVariant nextVar(bool wait = true) = 0;
+    virtual QVariant nextVar() = 0;
+    virtual QVariant peekNextVar() = 0;
     virtual QHash<QString, QVariant> metadata() const = 0;
     virtual bool unsubscribe() = 0;
     virtual bool active() const = 0;
@@ -69,8 +72,10 @@ public:
     StreamSubscription(DataStream<T> *stream)
         : m_stream(stream),
           m_queue(BlockingReaderWriterQueue<std::optional<T>>(256)),
-          m_active(true)
+          m_active(true),
+          m_throttle(0)
     {
+        m_lastItemTime = currentTimePoint();
     }
     ~StreamSubscription()
     {
@@ -78,23 +83,53 @@ public:
         unsubscribe();
     }
 
-    std::optional<T> next(bool wait = true)
+    /**
+     * @brief Obtain next element from stream, block in case there is no new element
+     * @return The obtained value, or std::nullopt in case the stream ended.
+     */
+    std::optional<T> next()
     {
         if (!m_active && m_queue.peek() == nullptr)
             return std::nullopt;
         std::optional<T> data;
-        if (wait) {
-            m_queue.wait_dequeue(data);
-        } else {
-            if (!m_queue.try_dequeue(data))
-                return std::nullopt;
-        }
+        m_queue.wait_dequeue(data);
         return data;
     }
 
-    QVariant nextVar(bool wait = true) override
+    /**
+     * @brief Obtain the next stream element if there is any, otherwise return std::nullopt
+     * This function behaves the same as next(), but does return immediately without blocking.
+     * To see if the stream as ended, check the active() property on this subscription.
+     */
+    std::optional<T> peekNext()
     {
-        auto res = next(wait);
+        if (!m_active && m_queue.peek() == nullptr)
+            return std::nullopt;
+        std::optional<T> data;
+
+        if (!m_queue.try_dequeue(data))
+            return std::nullopt;
+
+        return data;
+    }
+
+    /**
+     * @brief Like next(), but returns its result as a QVariant.
+     */
+    QVariant nextVar() override
+    {
+        auto res = next();
+        if (!res.has_value())
+            return QVariant();
+        return QVariant::fromValue(res.value());
+    }
+
+    /**
+     * @brief Like peekNext(), but returns its result as a QVariant.
+     */
+    QVariant peekNextVar() override
+    {
+        auto res = peekNext();
         if (!res.has_value())
             return QVariant();
         return QVariant::fromValue(res.value());
@@ -133,11 +168,39 @@ public:
         return m_active;
     }
 
+    uint throttle()
+    {
+        return m_throttle;
+    }
+
+    /**
+     * @brief Set a throttle on the output frequency of this subscription
+     * By setting a positive integer value, the output of this
+     * subscription is effectively limited to the given integer value per second.
+     * This will result in some values being thrown away.
+     * By setting a throttle value of 0, all output is passed through and no limits apply.
+     * Internally, the throttle value represents the minimum time in milliseconds between elements.
+     * This also means you can not throttle a connection over 1000 items/sec.
+     */
+    void setThrottleItemsPerSec(uint itemsPerSec)
+    {
+        if (itemsPerSec == 0)
+            m_throttle = 0;
+        else
+            m_throttle = std::lround(1000.0 / itemsPerSec);
+    }
+
 private:
     DataStream<T> *m_stream;
     BlockingReaderWriterQueue<std::optional<T>> m_queue;
     std::atomic_bool m_active;
+    std::atomic_uint m_throttle;
+
+    // NOTE: These two variables are intentionally *not* threadsafe and are
+    // only ever manipulated by the stream (in case of the time) or only
+    // touched once when a stream is started (in case of the metadata).
     QHash<QString, QVariant> m_metadata;
+    steady_hr_timepoint m_lastItemTime;
 
     void setMetadata(const QHash<QString, QVariant> &metadata)
     {
@@ -146,6 +209,13 @@ private:
 
     void push(const T &data)
     {
+        if (m_throttle != 0) {
+            const auto timeNow = currentTimePoint();
+            const auto durMsec = timeDiffMsec(timeNow, m_lastItemTime);
+            if (durMsec.count() < m_throttle)
+                return;
+            m_lastItemTime = timeNow;
+        }
         m_queue.enqueue(std::optional<T>(data));
     }
 
@@ -158,6 +228,8 @@ private:
     void reset()
     {
         m_active = true;
+        m_throttle = 0;
+        m_lastItemTime = currentTimePoint();
         while (m_queue.pop()) {}  // ensure the queue is empty
     }
 };

@@ -169,7 +169,7 @@ void OOPWorkerConnector::forwardInputData(QEventLoop *loop)
             break;
 
         // retrieve next variant, don't wait
-        auto res = sip.second->nextVar(false);
+        auto res = sip.second->peekNextVar();
         if (res.isValid())
             sendInputData(sip.second->dataTypeId(), sip.first, res, loop);
     }
