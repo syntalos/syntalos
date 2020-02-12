@@ -165,7 +165,6 @@ public:
     bool isInput() const;
     bool isOutput() const;
 
-    void setPortType(uint type);
     uint portType() const;
 
     void setPortTitle(const QString &title);
@@ -245,7 +244,6 @@ private:
 
     QString m_id;
     Mode m_mode;
-    uint m_type;
 
     QString m_title;
     int m_index;

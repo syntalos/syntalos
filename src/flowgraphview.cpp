@@ -127,7 +127,6 @@ FlowGraphNodePort::FlowGraphNodePort(FlowGraphNode *node)
       m_node(node),
       m_id(QString()),
       m_mode(FlowGraphItem::Mode::None),
-      m_type(0),
       m_title(QString()),
       m_index(0),
       m_selectx(0),
@@ -202,14 +201,11 @@ bool FlowGraphNodePort::isOutput(void) const
     return (m_mode & Output);
 }
 
-void FlowGraphNodePort::setPortType(uint type)
-{
-    m_type = type;
-}
-
 uint FlowGraphNodePort::portType(void) const
 {
-    return m_type;
+    if (m_streamPort.get() == nullptr)
+        return 0;
+    return m_streamPort->dataTypeId();
 }
 
 void FlowGraphNodePort::setPortTitle(const QString &title)
@@ -431,7 +427,7 @@ void FlowGraphNodePort::setHighlightEx(bool is_highlight)
 void FlowGraphNodePort::updatePortTypeColors(FlowGraphView *canvas)
 {
     if (canvas) {
-        const QColor &color = canvas->portTypeColor(m_type);
+        const QColor &color = canvas->portTypeColor(portType());
         if (color.isValid()) {
             const bool is_dark = (color.value() < 128);
             FlowGraphItem::setForeground(is_dark ? color.lighter(180) : color.darker());
@@ -477,9 +473,9 @@ FlowGraphNodePort::SortOrder FlowGraphNodePort::sortOrder(void)
  */
 bool FlowGraphNodePort::lessThan(FlowGraphNodePort *port1, FlowGraphNodePort *port2)
 {
-    const int port_type_diff = int(port1->portType()) - int(port2->portType());
-    if (port_type_diff)
-        return (port_type_diff > 0);
+    const auto portIdComp = port1->streamPort()->id().compare(port2->streamPort()->id());
+    if (portIdComp != 0)
+        return (portIdComp > 0);
 
     if (g_sort_order == Descending) {
         FlowGraphNodePort *port = port1;
@@ -798,18 +794,12 @@ void FlowGraphNode::updatePath(void)
     std::sort(m_ports.begin(), m_ports.end(), FlowGraphNodePort::Compare());
 
     int height = titleRect.height() + statusRect.height() + infoRect.height() + 2;
-    int type = 0;
     int yi, yo;
     yi = yo = height;
     foreach (FlowGraphNodePort *port, m_ports) {
         const QRectF &port_rect = port->boundingRect();
         const int w = port_rect.width();
         const int h = port_rect.height() + 1;
-        if (type - port->portType()) {
-            type = port->portType();
-            height += 2;
-            yi = yo = height;
-        }
         if (port->isOutput()) {
             port->setPos(+width / 2 + 6 - w, yo);
             yo += h;
@@ -1084,7 +1074,7 @@ void FlowGraphEdge::setHighlightEx(FlowGraphNodePort *port, bool is_highlight)
 void FlowGraphEdge::updatePortTypeColors(void)
 {
     if (m_port1) {
-        const QColor &color = m_port1->background().lighter();
+        const QColor &color = m_port1->foreground().lighter();
         FlowGraphItem::setForeground(color);
         FlowGraphItem::setBackground(color);
     }
@@ -1150,6 +1140,8 @@ void FlowGraphView::addItem(FlowGraphItem *item)
             restoreNodePos(node);
             emit added(node);
         }
+
+        updatePortTypeColors();
     }
 }
 
@@ -1365,9 +1357,9 @@ void FlowGraphView::connectPorts(FlowGraphNodePort *port1, FlowGraphNodePort *po
         return;
     }
 
-    // edge->updatePortTypeColors();
     edge->updatePath();
     addItem(edge);
+    edge->updatePortTypeColors();
     edge->setMarked(true);
 
     emit connected(port1, port2);
@@ -1419,6 +1411,7 @@ void FlowGraphView::mouseMoveEvent(QMouseEvent *event)
                         } else {
                             m_connect->setSelected(true);
                             m_scene->addItem(m_connect);
+                            m_connect->updatePortTypeColors();
                             m_item = nullptr;
                             ++m_selected_nodes;
                             ++nchanged;

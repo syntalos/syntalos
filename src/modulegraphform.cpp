@@ -29,6 +29,7 @@
 #include "moduleselectdialog.h"
 #include "moduleapi.h"
 #include "engine.h"
+#include "streams/frametype.h"
 
 ModuleGraphForm::ModuleGraphForm(QWidget *parent)
     : QWidget(parent),
@@ -59,6 +60,13 @@ ModuleGraphForm::ModuleGraphForm(QWidget *parent)
     connect(ui->graphView, &FlowGraphView::renamed, this, &ModuleGraphForm::itemRenamed);
     connect(ui->graphView, &FlowGraphView::connected, this, &ModuleGraphForm::on_graphPortsConnected);
     connect(ui->graphView, &FlowGraphView::disconnected, this, &ModuleGraphForm::on_graphPortsDisconnected);
+
+    // set colors for our different data types
+    ui->graphView->setPortTypeColor(qMetaTypeId<ControlCommand>(), QColor::fromRgb(0xEFF0F1));
+    ui->graphView->setPortTypeColor(qMetaTypeId<Frame>(), QColor::fromRgb(0xECC386));
+    ui->graphView->setPortTypeColor(qMetaTypeId<FirmataControl>(), QColor::fromRgb(0xc7abff));
+    ui->graphView->setPortTypeColor(qMetaTypeId<FirmataData>(), QColor::fromRgb(0xD38DEF));
+    ui->graphView->setPortTypeColor(qMetaTypeId<TableRow>(), QColor::fromRgb(0x8FD6FE));
 }
 
 ModuleGraphForm::~ModuleGraphForm()
@@ -351,8 +359,8 @@ void ModuleGraphForm::on_portsConnected(const StreamInputPort *inPort, const Str
         return;
     }
 
-    auto graphInPort = inNode->findPort(inPort->id(), FlowGraphNodePort::Input, 0);
-    auto graphOutPort = outNode->findPort(outPort->id(), FlowGraphNodePort::Output, 0);
+    auto graphInPort = inNode->findPort(inPort->id(), FlowGraphNodePort::Input, inPort->dataTypeId());
+    auto graphOutPort = outNode->findPort(outPort->id(), FlowGraphNodePort::Output, outPort->dataTypeId());
     ui->graphView->selectNone();
     graphOutPort->setSelected(true);
     graphInPort->setSelected(true);
