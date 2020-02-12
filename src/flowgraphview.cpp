@@ -219,8 +219,44 @@ void FlowGraphNodePort::setPortTitle(const QString &title)
     m_text->setPlainText(m_title);
 
     QPainterPath path;
-    const QRectF &rect = m_text->boundingRect().adjusted(0, +2, 0, -2);
-    path.addRoundedRect(rect, 5, 5);
+    const qreal radius = 6;
+
+    if (isInput()) {
+        const QRectF &rect = m_text->boundingRect().adjusted(-4, +2, 0, -2);
+        const auto x = rect.x();
+        const auto y = rect.y();
+        const auto w = rect.width();
+        const auto h = rect.height();
+        const auto rxx2 = w * radius / 100;
+        const auto ryy2 = h * radius / 100;
+
+        path.arcMoveTo(x, y, rxx2, ryy2, 180);
+        path.arcTo(x, y, rxx2, ryy2, 180, -90);
+        path.arcTo(x+w-rxx2, y, rxx2, ryy2, 90, -90);
+        path.arcTo(x+w-rxx2, y+h-ryy2, rxx2, ryy2, 0, -90);
+        path.arcTo(x, y+h-ryy2, rxx2, ryy2, 270, -90);
+        path.lineTo(rect.x() + 4, rect.y() + (rect.height() / 2));
+        path.closeSubpath();
+    } else if (isOutput()) {
+        const QRectF &rect = m_text->boundingRect().adjusted(0, +2, 0, -2);
+        const auto x = rect.x();
+        const auto y = rect.y();
+        const auto w = rect.width();
+        const auto h = rect.height();
+        const auto rxx2 = w * radius / 100;
+        const auto ryy2 = h * radius / 100;
+
+        path.arcMoveTo(x, y, rxx2, ryy2, 180);
+        path.arcTo(x, y, rxx2, ryy2, 180, -90);
+        path.arcTo(x+w-rxx2, y, rxx2, ryy2, 90, -90);
+        path.lineTo(QPointF(rect.x() + rect.width() + 4, rect.y() + (rect.height() / 2)));
+        path.arcTo(x+w-rxx2, y+h-ryy2, rxx2, ryy2, 0, -90);
+        path.arcTo(x, y+h-ryy2, rxx2, ryy2, 270, -90);
+        path.closeSubpath();
+    } else {
+        const QRectF &rect = m_text->boundingRect().adjusted(0, +2, 0, -2);
+        path.addRoundedRect(rect, radius, radius);
+    }
     QGraphicsPathItem::setPath(path);
 }
 
