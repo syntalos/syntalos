@@ -15,6 +15,8 @@ endif()
 
 #add_subdirectory(triled-tracker)
 add_subdirectory(firmata-io)
+add_subdirectory(table)
+
 add_subdirectory(pyscript)
 add_subdirectory(runcmd)
 add_subdirectory(devel.datasource)

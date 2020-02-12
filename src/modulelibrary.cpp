@@ -28,9 +28,13 @@
 #include "modules/devel.datasource/datasourcemodule.h"
 #include "modules/devel.pyooptest/pyooptestmodule.h"
 
+#include "modules/canvas/canvasmodule.h"
+#include "modules/table/tablemodule.h"
+
+#include "modules/firmata-io/firmataiomodule.h"
+
 #include "modules/rhd2000/rhd2000module.h"
 #include "modules/traceplot/traceplotmodule.h"
-#include "modules/canvas/canvasmodule.h"
 #include "modules/videorecorder/videorecordmodule.h"
 #include "modules/genericcamera/genericcameramodule.h"
 #ifdef HAVE_UEYE_CAMERA
@@ -40,7 +44,6 @@
 #include "modules/miniscope/miniscopemodule.h"
 #endif
 //#include "modules/triled-tracker/triledtrackermodule.h"
-#include "modules/firmata-io/firmataiomodule.h"
 #include "modules/pyscript/pyscriptmodule.h"
 #include "modules/runcmd/runcmdmodule.h"
 
@@ -61,9 +64,15 @@ ModuleLibrary::ModuleLibrary(QObject *parent)
 {
     registerModuleInfo<DevelDataSourceModuleInfo>();
     registerModuleInfo<PyOOPTestModuleInfo>();
+
+    registerModuleInfo<CanvasModuleInfo>();
+    registerModuleInfo<TableModuleInfo>();
+
+    registerModuleInfo<FirmataIOModuleInfo>();
+
     registerModuleInfo<Rhd2000ModuleInfo>();
     registerModuleInfo<TracePlotModuleInfo>();
-    registerModuleInfo<CanvasModuleInfo>();
+
     registerModuleInfo<VideoRecorderModuleInfo>();
     registerModuleInfo<GenericCameraModuleInfo>();
 #ifdef HAVE_UEYE_CAMERA
@@ -73,7 +82,6 @@ ModuleLibrary::ModuleLibrary(QObject *parent)
     registerModuleInfo<MiniscopeModuleInfo>();
 #endif
     //registerModuleInfo<TriLedTrackerModuleInfo>();
-    registerModuleInfo<FirmataIOModuleInfo>();
     registerModuleInfo<PyScriptModuleInfo>();
     registerModuleInfo<RunCmdModuleInfo>();
 }

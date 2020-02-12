@@ -36,6 +36,7 @@
         <file alias="runcmd">modules/runcmd.svg</file>
         <file alias="devel">modules/devmodule.svg</file>
         <file alias="canvas">modules/canvas.svg</file>
+        <file alias="table">modules/table.svg</file>
     </qresource>
     <qresource prefix="/texts">
         <file>pyscript-sample.py</file>

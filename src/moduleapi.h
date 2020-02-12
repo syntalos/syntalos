@@ -487,8 +487,6 @@ protected:
     void setInitialized();
     bool initialized() const;
 
-    QString m_storageDir;
-
     std::atomic_bool m_running;
 
     std::shared_ptr<HRTimer> m_timer;

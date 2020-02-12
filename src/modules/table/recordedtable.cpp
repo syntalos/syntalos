@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2020 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -17,7 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "eventtable.h"
+#include "recordedtable.h"
 
 #include <QDebug>
 #include <QFile>
@@ -25,48 +25,54 @@
 #include <QHeaderView>
 #include <QMessageBox>
 
-EventTable::EventTable(const QString& dirPath, const QString &name, QObject *parent)
-    : QObject(parent)
+RecordedTable::RecordedTable(QObject *parent)
+    : QObject(parent),
+      m_name(QString())
 {
-    m_name = name;
     m_tableWidget = new QTableWidget;
-    m_tableWidget->setWindowTitle(QStringLiteral("Events: %1").arg(name));
+    m_tableWidget->setWindowTitle(QStringLiteral("Events"));
     m_tableWidget->setWindowIcon(QIcon(":/icons/generic-view"));
     m_tableWidget->horizontalHeader()->hide();
 
-    m_eventFileName = QStringLiteral("%1/%2.csv").arg(dirPath).arg(QString(name).replace(' ', '_'));
     m_eventFile = new QFile;
     m_haveEvents = false;
 }
 
-EventTable::~EventTable()
+RecordedTable::~RecordedTable()
 {
     delete m_tableWidget;
     delete m_eventFile;
 }
 
-QString EventTable::name() const
+QString RecordedTable::name() const
 {
     return m_name;
 }
 
-bool EventTable::open()
+void RecordedTable::setName(const QString &name)
 {
+    m_name = name;
+    m_tableWidget->setWindowTitle(m_name);
+}
+
+bool RecordedTable::open(const QString& fileName)
+{
+    m_eventFileName = fileName;
     m_eventFile->setFileName(m_eventFileName);
     return m_eventFile->open(QFile::WriteOnly | QFile::Truncate);
 }
 
-void EventTable::show()
+void RecordedTable::show()
 {
     m_tableWidget->show();
 }
 
-void EventTable::hide()
+void RecordedTable::hide()
 {
     m_tableWidget->hide();
 }
 
-void EventTable::setHeader(const QStringList &headers)
+void RecordedTable::setHeader(const QStringList &headers)
 {
     if (m_haveEvents) {
         QMessageBox::warning(nullptr, "Script Error", "Can not change headers after already receiving events.");
@@ -84,7 +90,7 @@ void EventTable::setHeader(const QStringList &headers)
     tsout << headers.join(";") << "\n";
 }
 
-void EventTable::addEvent(const QStringList &data)
+void RecordedTable::addRows(const QStringList &data)
 {
     m_haveEvents = true;
 
@@ -119,12 +125,17 @@ void EventTable::addEvent(const QStringList &data)
     m_tableWidget->scrollToBottom();
 }
 
-const QRect &EventTable::geometry() const
+const QRect &RecordedTable::geometry() const
 {
     return m_tableWidget->geometry();
 }
 
-void EventTable::setGeometry(const QRect &rect)
+void RecordedTable::setGeometry(const QRect &rect)
 {
     m_tableWidget->setGeometry(rect);
+}
+
+QWidget *RecordedTable::widget() const
+{
+    return m_tableWidget;
 }

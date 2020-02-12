@@ -46,14 +46,10 @@ public:
         m_ctlIn = registerInputPort<ControlCommand>(QStringLiteral("control"), QStringLiteral("Control"));
 
         m_imgView = new ImageViewWidget;
+        addDisplayWindow(m_imgView);
         m_evTimer = new QTimer(this);
         m_evTimer->setInterval(0);
         connect(m_evTimer, &QTimer::timeout, this, &CanvasModule::updateImage);
-    }
-
-    ~CanvasModule() override
-    {
-        delete m_imgView;
     }
 
     ModuleFeatures features() const override
@@ -61,20 +57,10 @@ public:
         return ModuleFeature::SHOW_DISPLAY;
     }
 
-    void showDisplayUi() override
-    {
-        m_imgView->show();
-    }
-
-    void hideDisplayUi() override
-    {
-        m_imgView->hide();
-    }
-
     bool prepare(const QString &, const TestSubject &) override
     {
         m_frameSub.reset();
-        m_ctlIn.reset();
+        m_ctlSub.reset();
         if (m_framesIn->hasSubscription())
             m_frameSub = m_framesIn->subscription<Frame>();
         if (m_ctlIn->hasSubscription())
