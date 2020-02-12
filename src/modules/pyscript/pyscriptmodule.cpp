@@ -62,7 +62,6 @@ PyScriptModule::PyScriptModule(QObject *parent)
 {
     m_pyoutWindow = nullptr;
     m_scriptWindow = nullptr;
-    m_funcRelay = nullptr;
 
     m_workerBinary = QStringLiteral("%1/modules/pyscript/mapyworker/mapyworker").arg(QCoreApplication::applicationDirPath());
     QFileInfo checkBin(m_workerBinary);
@@ -72,7 +71,6 @@ PyScriptModule::PyScriptModule(QObject *parent)
         m_workerBinary = fi.canonicalFilePath();
     }
 
-    m_zserver = nullptr;
     m_process = new QProcess(this);
     m_process->setProcessChannelMode(QProcess::MergedChannels);
 
@@ -111,10 +109,6 @@ PyScriptModule::PyScriptModule(QObject *parent)
 
 PyScriptModule::~PyScriptModule()
 {
-    if (m_zserver == nullptr) {
-        delete m_zserver;
-        m_zserver = nullptr;
-    }
 }
 
 bool PyScriptModule::initialize()
@@ -138,18 +132,7 @@ bool PyScriptModule::prepare(const QString &storageRootDir, const TestSubject &)
     if (!makeDirectory(eventTablesDir))
         return false;
 
-    if (m_funcRelay != nullptr)
-        delete m_funcRelay;
-    m_funcRelay = new MaFuncRelay(eventTablesDir, this);
-    m_funcRelay->setPyScript(m_scriptView->document()->text());
-
-    if (m_zserver != nullptr)
-        delete m_zserver;
-    m_zserver = new ZmqServer(m_funcRelay);
-    m_zserver->start(m_timer.get());
-
     QStringList args;
-    args.append(m_zserver->socketName());
 
     m_process->start(m_workerBinary, args, QProcess::Unbuffered | QProcess::ReadWrite);
     if (!m_process->waitForStarted(10)) {
@@ -170,7 +153,6 @@ bool PyScriptModule::prepare(const QString &storageRootDir, const TestSubject &)
 
 void PyScriptModule::start()
 {
-    m_funcRelay->setCanStartScript(true);
 }
 
 bool PyScriptModule::runUIEvent()
@@ -180,8 +162,6 @@ bool PyScriptModule::runUIEvent()
     // in a cycle.
     if (!m_running)
         return true;
-
-    m_zserver->processMainThreadRpc();
 
     if (m_process->state() == QProcess::NotRunning) {
         qDebug() << "Python worker process has terminated.";
@@ -216,13 +196,6 @@ void PyScriptModule::stop()
     const auto data = m_process->readAllStandardOutput();
     if (!data.isEmpty())
         m_pyoutWindow->append(data);
-
-    if (m_zserver != nullptr) {
-        m_zserver->processMainThreadRpc();
-        m_zserver->stop();
-        delete m_zserver;
-        m_zserver = nullptr;
-    }
 }
 
 QByteArray PyScriptModule::serializeSettings(const QString &)

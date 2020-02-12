@@ -63,10 +63,8 @@ public:
     bool loadSettings(const QString& confBaseDir, const QByteArray& data) override;
 
 private:
-    ZmqServer *m_zserver;
     QString m_workerBinary;
     QProcess *m_process;
-    MaFuncRelay *m_funcRelay;
     bool m_running;
 
     QTextBrowser *m_pyoutWindow;

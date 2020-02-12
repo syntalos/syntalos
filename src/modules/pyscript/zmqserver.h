@@ -28,7 +28,6 @@
 
 #include "hrclock.h"
 #include "rpc-shared-info.h"
-#include "mafuncrelay.h"
 
 class ZmqServer : public QObject
 {
