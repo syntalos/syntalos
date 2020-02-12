@@ -73,6 +73,8 @@ public:
 
     bool prepare(const QString &, const TestSubject &) override
     {
+        m_frameSub.reset();
+        m_ctlIn.reset();
         if (m_framesIn->hasSubscription())
             m_frameSub = m_framesIn->subscription<Frame>();
         if (m_ctlIn->hasSubscription())

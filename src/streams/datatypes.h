@@ -114,10 +114,13 @@ Q_DECLARE_METATYPE(TableRow)
  */
 enum class FirmataCommandKind {
     UNKNOWN,
+    NEW_DIG_PIN,
+    NEW_ANA_PIN,
     IO_MODE,
     WRITE_ANALOG,
     WRITE_DIGITAL,
-    SYSEX
+    WRITE_DIGITAL_PULSE,
+    SYSEX /// not implemented
 };
 Q_DECLARE_METATYPE(FirmataCommandKind)
 
@@ -127,8 +130,10 @@ Q_DECLARE_METATYPE(FirmataCommandKind)
 typedef struct
 {
     FirmataCommandKind command;
-    int mode;
-    uint8_t pin;
+    uint8_t pinId;
+    QString pinName;
+    bool output;
+    bool pullUp;
     bool digitalValue;
     uint16_t analogValue;
 } FirmataControl;
@@ -139,7 +144,8 @@ Q_DECLARE_METATYPE(FirmataControl)
  */
 typedef struct
 {
-    uint8_t pin;
+    uint8_t pinId;
+    QString pinName;
     bool digitalValue;
     uint16_t analogValue;
 } FirmataData;
