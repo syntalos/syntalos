@@ -657,7 +657,7 @@ bool Engine::run()
         emitStatusMessage(QStringLiteral("Stopping %1...").arg(mod->name()));
         mod->stop();
 
-        // safeguard against bad modules which don't stop themselves from running their
+        // safeguard against bad modules which don't stop running their
         // thread loops on their own
         mod->m_running = false;
 

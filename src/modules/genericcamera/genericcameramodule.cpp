@@ -31,6 +31,7 @@ private:
     Camera *m_camera;
     GenericCameraSettingsDialog *m_camSettingsWindow;
 
+    std::atomic_bool m_stopped;
     int m_fps;
     std::shared_ptr<DataStream<Frame>> m_outStream;
 
@@ -38,7 +39,8 @@ public:
     explicit GenericCameraModule(QObject *parent = nullptr)
         : AbstractModule(parent),
           m_camera(new Camera),
-          m_camSettingsWindow(nullptr)
+          m_camSettingsWindow(nullptr),
+          m_stopped(true)
     {
         m_outStream = registerOutputPort<Frame>(QStringLiteral("video"), QStringLiteral("Video"));
 
@@ -84,7 +86,7 @@ public:
         m_outStream->setMetadataVal("framerate", m_fps);
 
         // start the stream
-        m_outStream->start();
+        m_outStream->start(name());
 
         statusMessage("Waiting.");
 
@@ -104,6 +106,7 @@ public:
         auto fpsLow = false;
         auto currentFps = m_fps;
         auto frameRecordFailedCount = 0;
+        m_stopped = false;
 
         // wait until we actually start acquiring data
         waitCondition->wait(this);
@@ -145,17 +148,20 @@ public:
                 statusMessage("Acquiring frames...");
             }
         }
+
+        m_stopped = true;
     }
 
     void stop() override
     {
         statusMessage("Cleaning up...");
+        AbstractModule::stop();
+
+        while (!m_stopped) {}
 
         m_camera->disconnect();
         m_camSettingsWindow->setRunning(false);
         statusMessage("Camera disconnected.");
-
-        AbstractModule::stop();
     }
 
     QByteArray serializeSettings(const QString &) override
