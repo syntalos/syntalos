@@ -69,6 +69,35 @@ QPixmap ModuleInfo::pixmap() const
     return QPixmap(":/module/generic");
 }
 
+QColor ModuleInfo::color() const
+{
+    auto img = pixmap().toImage().convertToFormat(QImage::Format_ARGB32);
+    if (img.isNull())
+        return Qt::lightGray;
+
+    int redBucket = 0;
+    int greenBucket = 0;
+    int blueBucket = 0;
+
+    auto pixCount = img.width() * img.height();
+    auto bits = img.constBits();
+
+    for (int y = 0, h = img.height(); y < h; y++) {
+        for (int x = 0, w = img.width(); x < w; x++) {
+            QRgb color = ((uint *)bits)[x + y * w];
+            if (qAlpha(color) < 100)
+                continue;
+            redBucket += qRed(color);
+            greenBucket += qGreen(color);
+            blueBucket += qBlue(color);
+        }
+    }
+
+    return QColor::fromRgb(redBucket / pixCount,
+                           greenBucket / pixCount,
+                           blueBucket / pixCount);
+}
+
 bool ModuleInfo::singleton() const
 {
     return false;

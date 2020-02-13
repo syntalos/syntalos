@@ -290,6 +290,8 @@ public:
 
     AbstractModule *module() const;
 
+    void setShadowColor(const QColor &color);
+
     void updateNodeState(ModuleState state);
 
     void setNodeInfoText(const QString &info);

@@ -657,6 +657,13 @@ AbstractModule *FlowGraphNode::module() const
     return m_module;
 }
 
+void FlowGraphNode::setShadowColor(const QColor &color)
+{
+    m_shadowColor = color;
+    const auto effect = static_cast<QGraphicsDropShadowEffect *>(this->graphicsEffect());
+    effect->setColor(m_shadowColor);
+}
+
 void FlowGraphNode::updateNodeState(ModuleState state)
 {
     const auto effect = static_cast<QGraphicsDropShadowEffect *>(this->graphicsEffect());

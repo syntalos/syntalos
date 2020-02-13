@@ -84,6 +84,11 @@ public:
     virtual QPixmap pixmap() const;
 
     /**
+     * @brief The dominant color for this module.
+     */
+    virtual QColor color() const;
+
+    /**
      * @brief Returns true if only one instance of this module can exist.
      * @return True if singleton.
      */
