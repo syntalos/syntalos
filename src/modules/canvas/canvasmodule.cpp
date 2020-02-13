@@ -37,6 +37,11 @@ private:
     CanvasWindow *m_cvView;
     QTimer *m_evTimer;
 
+    QString m_fpsStr;
+    long m_lastFrameTime;
+    long m_lastFpsUpdate;
+    int m_currentFps;
+
 public:
     explicit CanvasModule(QObject *parent = nullptr)
         : AbstractModule(parent)
@@ -70,12 +75,15 @@ public:
 
     void start() override
     {
+        m_lastFrameTime = m_timer->timeSinceStartMsec().count();
+        m_lastFpsUpdate = m_lastFrameTime - 1000;
         if (m_frameSub.get() != nullptr) {
             m_evTimer->start();
             m_frameSub->setThrottleItemsPerSec(60); // never try to display more than 60fps
             auto imgWinTitle = m_frameSub->metadata().value("srcModName").toString();
             if (imgWinTitle.isEmpty())
                 imgWinTitle = "Canvas";
+            m_fpsStr = m_frameSub->metadata().value("framerate").toString();
             m_cvView->setWindowTitle(imgWinTitle);
         }
     }
@@ -88,10 +96,29 @@ public:
     void updateImage()
     {
         auto maybeFrame = m_frameSub->peekNext();
-        if (maybeFrame.has_value()) {
-            const auto frame = maybeFrame.value();
-            m_cvView->showImage(frame.mat);
-            m_cvView->setStatusText(QTime::fromMSecsSinceStartOfDay(frame.time.count()).toString("hh:mm:ss.zzz"));
+        if (!maybeFrame.has_value())
+            return;
+
+        const auto frame = maybeFrame.value();
+        m_cvView->showImage(frame.mat);
+        const auto frameTime = frame.time.count();
+
+        if (m_fpsStr.isEmpty()) {
+            m_cvView->setStatusText(QTime::fromMSecsSinceStartOfDay(frameTime).toString("hh:mm:ss.zzz"));
+        } else {
+            if ((frameTime - m_lastFpsUpdate) > 500) {
+                // we don't update the FPS display with every tick, as the framerate fluctuates
+                // (especially when throttling the subscription) and we want to display a more steady
+                // info to the user
+                m_currentFps = 1000 / (frameTime - m_lastFrameTime);
+                m_lastFpsUpdate = frameTime;
+            }
+            m_lastFrameTime = frameTime;
+
+            m_cvView->setStatusText(QStringLiteral("%1 / %2fps (req. %3fps)")
+                                    .arg(QTime::fromMSecsSinceStartOfDay(frameTime).toString("hh:mm:ss.zzz"))
+                                    .arg(m_currentFps)
+                                    .arg(m_fpsStr));
         }
     }
 
