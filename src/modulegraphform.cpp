@@ -231,12 +231,12 @@ void ModuleGraphForm::on_selectionChanged()
 
 void ModuleGraphForm::on_graphPortsConnected(FlowGraphNodePort *port1, FlowGraphNodePort *port2)
 {
-    StreamInputPort *inPort = nullptr;
+    VarStreamInputPort *inPort = nullptr;
     StreamOutputPort *outPort = nullptr;
     if (port1->isInput())
-        inPort = dynamic_cast<StreamInputPort*>(port1->streamPort().get());
+        inPort = dynamic_cast<VarStreamInputPort*>(port1->streamPort().get());
     if (port2->isInput())
-        inPort = dynamic_cast<StreamInputPort*>(port2->streamPort().get());
+        inPort = dynamic_cast<VarStreamInputPort*>(port2->streamPort().get());
     if (port1->isOutput())
         outPort = dynamic_cast<StreamOutputPort*>(port1->streamPort().get());
     if (port2->isOutput())
@@ -271,12 +271,12 @@ void ModuleGraphForm::on_graphPortsConnected(FlowGraphNodePort *port1, FlowGraph
 
 void ModuleGraphForm::on_graphPortsDisconnected(FlowGraphNodePort *port1, FlowGraphNodePort *port2)
 {
-    StreamInputPort *inPort = nullptr;
+    VarStreamInputPort *inPort = nullptr;
     StreamOutputPort *outPort = nullptr;
     if (port1->isInput())
-        inPort = dynamic_cast<StreamInputPort*>(port1->streamPort().get());
+        inPort = dynamic_cast<VarStreamInputPort*>(port1->streamPort().get());
     if (port2->isInput())
-        inPort = dynamic_cast<StreamInputPort*>(port2->streamPort().get());
+        inPort = dynamic_cast<VarStreamInputPort*>(port2->streamPort().get());
     if (port1->isOutput())
         outPort = dynamic_cast<StreamOutputPort*>(port1->streamPort().get());
     if (port2->isOutput())
@@ -350,7 +350,7 @@ void ModuleGraphForm::on_modulePreRemove(AbstractModule *mod)
     delete node;
 }
 
-void ModuleGraphForm::on_portsConnected(const StreamInputPort *inPort, const StreamOutputPort *outPort)
+void ModuleGraphForm::on_portsConnected(const VarStreamInputPort *inPort, const StreamOutputPort *outPort)
 {
     auto inNode = m_modNodeMap.value(inPort->owner());
     auto outNode = m_modNodeMap.value(outPort->owner());

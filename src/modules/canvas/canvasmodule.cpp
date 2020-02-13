@@ -28,8 +28,8 @@
 class CanvasModule : public AbstractModule
 {
 private:
-    std::shared_ptr<StreamInputPort> m_framesIn;
-    std::shared_ptr<StreamInputPort> m_ctlIn;
+    std::shared_ptr<StreamInputPort<Frame>> m_framesIn;
+    std::shared_ptr<StreamInputPort<ControlCommand>> m_ctlIn;
 
     std::shared_ptr<StreamSubscription<Frame>> m_frameSub;
     std::shared_ptr<StreamSubscription<ControlCommand>> m_ctlSub;
@@ -66,9 +66,9 @@ public:
         m_frameSub.reset();
         m_ctlSub.reset();
         if (m_framesIn->hasSubscription())
-            m_frameSub = m_framesIn->subscription<Frame>();
+            m_frameSub = m_framesIn->subscription();
         if (m_ctlIn->hasSubscription())
-            m_ctlSub = m_ctlIn->subscription<ControlCommand>();
+            m_ctlSub = m_ctlIn->subscription();
 
         return true;
     }

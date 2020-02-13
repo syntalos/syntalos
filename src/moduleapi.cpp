@@ -113,7 +113,7 @@ void ModuleInfo::setCount(int count)
     d->count = count;
 }
 
-class StreamInputPort::Private
+class VarStreamInputPort::Private
 {
 public:
     Private() { }
@@ -125,8 +125,8 @@ public:
     StreamOutputPort *outPort;
 };
 
-StreamInputPort::StreamInputPort(AbstractModule *owner, const QString &id, const QString &title)
-    : d(new StreamInputPort::Private)
+VarStreamInputPort::VarStreamInputPort(AbstractModule *owner, const QString &id, const QString &title)
+    : d(new VarStreamInputPort::Private)
 {
     d->id = id;
     d->title = title;
@@ -134,30 +134,15 @@ StreamInputPort::StreamInputPort(AbstractModule *owner, const QString &id, const
     d->outPort = nullptr;
 }
 
-StreamInputPort::~StreamInputPort()
+VarStreamInputPort::~VarStreamInputPort()
 {}
 
-int StreamInputPort::dataTypeId() const
-{
-    return m_acceptedTypeId;
-}
-
-QString StreamInputPort::dataTypeName() const
-{
-    return m_acceptedTypeName;
-}
-
-bool StreamInputPort::acceptsSubscription(const QString &typeName)
-{
-    return m_acceptedTypeName == typeName;
-}
-
-bool StreamInputPort::hasSubscription() const
+bool VarStreamInputPort::hasSubscription() const
 {
     return m_sub.has_value();
 }
 
-void StreamInputPort::setSubscription(StreamOutputPort *src, std::shared_ptr<VariantStreamSubscription> sub)
+void VarStreamInputPort::setSubscription(StreamOutputPort *src, std::shared_ptr<VariantStreamSubscription> sub)
 {
     d->outPort = src;
     m_sub = sub;
@@ -167,7 +152,7 @@ void StreamInputPort::setSubscription(StreamOutputPort *src, std::shared_ptr<Var
     emit d->owner->portsConnected(this, src);
 }
 
-void StreamInputPort::resetSubscription()
+void VarStreamInputPort::resetSubscription()
 {
     if (m_sub.has_value())
         m_sub.value()->unsubscribe();
@@ -175,14 +160,14 @@ void StreamInputPort::resetSubscription()
     d->outPort = nullptr;
 }
 
-StreamOutputPort *StreamInputPort::outPort() const
+StreamOutputPort *VarStreamInputPort::outPort() const
 {
     if (hasSubscription())
         return d->outPort;
     return nullptr;
 }
 
-std::shared_ptr<VariantStreamSubscription> StreamInputPort::subscriptionVar()
+std::shared_ptr<VariantStreamSubscription> VarStreamInputPort::subscriptionVar()
 {
     auto sub = m_sub.value();
     if (sub == nullptr) {
@@ -191,22 +176,22 @@ std::shared_ptr<VariantStreamSubscription> StreamInputPort::subscriptionVar()
     return sub;
 }
 
-QString StreamInputPort::id() const
+QString VarStreamInputPort::id() const
 {
     return d->id;
 }
 
-QString StreamInputPort::title() const
+QString VarStreamInputPort::title() const
 {
     return d->title;
 }
 
-PortDirection StreamInputPort::direction() const
+PortDirection VarStreamInputPort::direction() const
 {
     return PortDirection::INPUT;
 }
 
-AbstractModule *StreamInputPort::owner() const
+AbstractModule *VarStreamInputPort::owner() const
 {
     return d->owner;
 }
@@ -482,7 +467,7 @@ QString AbstractModule::lastError() const
     return d->lastError;
 }
 
-QList<std::shared_ptr<StreamInputPort> > AbstractModule::inPorts() const
+QList<std::shared_ptr<VarStreamInputPort> > AbstractModule::inPorts() const
 {
     return m_inPorts.values();
 }
@@ -492,7 +477,7 @@ QList<std::shared_ptr<StreamOutputPort> > AbstractModule::outPorts() const
     return m_outPorts.values();
 }
 
-std::shared_ptr<StreamInputPort> AbstractModule::inPortById(const QString &id) const
+std::shared_ptr<VarStreamInputPort> AbstractModule::inPortById(const QString &id) const
 {
     return m_inPorts.value(id);
 }

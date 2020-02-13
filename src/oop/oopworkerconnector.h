@@ -40,7 +40,7 @@ public:
 
     bool connectAndRun();
 
-    void setInputPorts(QList<std::shared_ptr<StreamInputPort>> inPorts);
+    void setInputPorts(QList<std::shared_ptr<VarStreamInputPort>> inPorts);
     void setOutputPorts(QList<std::shared_ptr<StreamOutputPort>> outPorts);
 
     void initWithPythonScript(const QString &script, const QString &env = QString());

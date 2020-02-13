@@ -28,7 +28,7 @@
 class TableModule : public AbstractModule
 {
 private:
-    std::shared_ptr<StreamInputPort> m_rowsIn;
+    std::shared_ptr<StreamInputPort<TableRow>> m_rowsIn;
 
     std::shared_ptr<StreamSubscription<TableRow>> m_rowSub;
 
@@ -75,7 +75,7 @@ public:
     {
         m_rowSub.reset();
         if (m_rowsIn->hasSubscription())
-            m_rowSub = m_rowsIn->subscription<TableRow>();
+            m_rowSub = m_rowsIn->subscription();
         m_storageRootDir = storageRootDir;
 
         return true;

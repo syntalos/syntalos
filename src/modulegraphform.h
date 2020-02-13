@@ -26,7 +26,7 @@
 class Engine;
 class ModuleInfo;
 class AbstractModule;
-class StreamInputPort;
+class VarStreamInputPort;
 class StreamOutputPort;
 
 namespace Ui {
@@ -58,7 +58,7 @@ private slots:
     void on_graphPortsConnected(FlowGraphNodePort *port1, FlowGraphNodePort *port2);
     void on_graphPortsDisconnected(FlowGraphNodePort *port1, FlowGraphNodePort *port2);
     void on_modulePreRemove(AbstractModule *mod);
-    void on_portsConnected(const StreamInputPort *inPort, const StreamOutputPort *outPort);
+    void on_portsConnected(const VarStreamInputPort *inPort, const StreamOutputPort *outPort);
 
     void moduleAdded(ModuleInfo *info, AbstractModule *mod);
     void receiveStateChange(ModuleState state);

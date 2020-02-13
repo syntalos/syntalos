@@ -25,6 +25,7 @@
 #include <chrono>
 
 #include "moduleapi.h"
+#include "streams/frametype.h"
 
 class VideoWriter;
 class ImageSourceModule;
@@ -65,7 +66,7 @@ private:
     QString m_vidStorageDir;
     std::unique_ptr<VideoWriter> m_videoWriter;
     RecorderSettingsDialog *m_settingsDialog;
-    std::shared_ptr<StreamInputPort> m_inPort;
+    std::shared_ptr<StreamInputPort<Frame>> m_inPort;
 };
 
 #endif // VIDEORECORDMODULE_H

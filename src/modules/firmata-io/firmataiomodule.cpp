@@ -51,7 +51,7 @@ private:
     QHash<int, QString> m_pinNameMap;
 
     QTimer *m_evTimer;
-    std::shared_ptr<StreamInputPort> m_inFmCtl;
+    std::shared_ptr<StreamInputPort<FirmataControl>> m_inFmCtl;
     std::shared_ptr<DataStream<FirmataData>> m_fmStream;
     std::shared_ptr<StreamSubscription<FirmataControl>> m_fmCtlSub;
 
@@ -123,7 +123,7 @@ public:
         m_fmStream->start();
         m_fmCtlSub.reset();
         if (m_inFmCtl->hasSubscription())
-            m_fmCtlSub = m_inFmCtl->subscription<FirmataControl>();
+            m_fmCtlSub = m_inFmCtl->subscription();
 
         return true;
     }

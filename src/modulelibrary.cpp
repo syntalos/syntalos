@@ -33,10 +33,11 @@
 
 #include "modules/firmata-io/firmataiomodule.h"
 
+#include "modules/genericcamera/genericcameramodule.h"
+
 #include "modules/rhd2000/rhd2000module.h"
 #include "modules/traceplot/traceplotmodule.h"
 #include "modules/videorecorder/videorecordmodule.h"
-#include "modules/genericcamera/genericcameramodule.h"
 #ifdef HAVE_UEYE_CAMERA
 #include "modules/ueyecamera/ueyecameramodule.h"
 #endif
@@ -70,11 +71,12 @@ ModuleLibrary::ModuleLibrary(QObject *parent)
 
     registerModuleInfo<FirmataIOModuleInfo>();
 
+    registerModuleInfo<GenericCameraModuleInfo>();
+
     registerModuleInfo<Rhd2000ModuleInfo>();
     registerModuleInfo<TracePlotModuleInfo>();
 
     registerModuleInfo<VideoRecorderModuleInfo>();
-    registerModuleInfo<GenericCameraModuleInfo>();
 #ifdef HAVE_UEYE_CAMERA
     registerModuleInfo<UEyeCameraModuleInfo>();
 #endif

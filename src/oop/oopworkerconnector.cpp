@@ -87,7 +87,7 @@ bool OOPWorkerConnector::connectAndRun()
     return true;
 }
 
-void OOPWorkerConnector::setInputPorts(QList<std::shared_ptr<StreamInputPort> > inPorts)
+void OOPWorkerConnector::setInputPorts(QList<std::shared_ptr<VarStreamInputPort> > inPorts)
 {
     m_shmSend.clear();
     m_subs.clear();

@@ -105,7 +105,7 @@ void VideoRecorderModule::runThread(OptionalWaitCondition *startWaitCondition)
         setStateReady();
         return;
     }
-    auto sub = m_inPort->subscription<Frame>();
+    auto sub = m_inPort->subscription();
     const auto mdata = sub->metadata();
     const auto frameSize = mdata.value("size", QSize()).toSize();
     const auto framerate = mdata.value("framerate", 0).toInt();
