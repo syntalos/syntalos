@@ -21,17 +21,22 @@
 #include "streams/frametype.h"
 
 #include <opencv2/imgproc.hpp>
+#include "utils.h"
 
 class DataSourceModule : public AbstractModule
 {
 private:
     std::shared_ptr<DataStream<Frame>> m_frameOut;
+    std::shared_ptr<DataStream<TableRow>> m_rowsOut;
+
+    time_t m_prevRowTime;
 
 public:
     explicit DataSourceModule(QObject *parent = nullptr)
         : AbstractModule(parent)
     {
-        m_frameOut = registerOutputPort<Frame>("frames-out", "Frames");
+        m_frameOut = registerOutputPort<Frame>(QStringLiteral("frames-out"), QStringLiteral("Frames"));
+        m_rowsOut = registerOutputPort<TableRow>(QStringLiteral("rows-out"), QStringLiteral("Table Rows"));
     }
 
     ~DataSourceModule() override
@@ -46,10 +51,17 @@ public:
 
     bool prepare(const QString &, const TestSubject &) override
     {
-        m_frameOut->setMetadataVal("src_mod_name", name());
         m_frameOut->setMetadataVal("framerate", 200);
         m_frameOut->setMetadataVal("size", QSize(800, 600));
-        m_frameOut->start();
+        m_frameOut->start(name());
+
+        m_rowsOut->setMetadataVal("dataName", QStringLiteral("tables/testvalues.csv"));
+        m_rowsOut->setMetadataVal("tableHeader", QStringList()
+                                  << QStringLiteral("Time")
+                                  << QStringLiteral("Tag")
+                                  << QStringLiteral("Value"));
+        m_rowsOut->start(name());
+        m_prevRowTime = 0;
 
         return true;
     }
@@ -60,14 +72,18 @@ public:
 
         size_t dataIndex = 0;
         while (m_running) {
-            m_frameOut->push(create_frames_200Hz(dataIndex));
+            m_frameOut->push(createFrames_200Hz(dataIndex));
+
+            auto row = createTablerow();
+            if (row.has_value())
+                m_rowsOut->push(row.value());
 
             dataIndex++;
         }
     }
 
 private:
-    Frame create_frames_200Hz(size_t index)
+    Frame createFrames_200Hz(size_t index)
     {
         Frame frame;
 
@@ -83,6 +99,22 @@ private:
 
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
         return frame;
+    }
+
+    std::optional<TableRow> createTablerow()
+    {
+        const auto msec = m_timer->timeSinceStartMsec().count();
+        if ((msec - m_prevRowTime) < 4000)
+            return std::nullopt;
+        m_prevRowTime = msec;
+
+        TableRow row;
+        row.reserve(3);
+        row.append(QString::number(msec));
+        row.append((msec % 2)? QStringLiteral("beta") : QStringLiteral("alpha"));
+        row.append(createRandomString(14));
+
+        return row;
     }
 };
 

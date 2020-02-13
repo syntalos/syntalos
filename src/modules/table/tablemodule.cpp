@@ -21,6 +21,7 @@
 
 #include <QTimer>
 #include <QTime>
+#include <QDir>
 
 #include "recordedtable.h"
 
@@ -83,20 +84,24 @@ public:
     void start() override
     {
         if (m_rowSub.get() != nullptr) {
-            auto dataName = m_rowSub->metadata().value("data_name").toString();
+            auto dataName = m_rowSub->metadata().value("dataName").toString();
             if (!dataName.contains('/')) {
-                const auto srcModName = m_rowSub->metadata().value("src_mod_name").toString();
+                const auto srcModName = m_rowSub->metadata().value("srcModName").toString();
                 if (!srcModName.isEmpty())
                     dataName = QStringLiteral("tables/%1.csv").arg(QString(srcModName).replace(' ', '_'));
                 else
                     dataName = QStringLiteral("tables/unknown.csv");
             }
-            if (!m_recTable->open(QStringLiteral("%1/%2").arg(m_storageRootDir).arg(dataName))) {
-                raiseError(QStringLiteral("Unable to open file %1").arg(dataName));
+            auto const fname = QStringLiteral("%1/%2").arg(m_storageRootDir).arg(dataName);
+            QFileInfo fi(fname);
+            if (!makeDirectory(fi.absolutePath()))
+                return;
+            if (!m_recTable->open(fname)) {
+                raiseError(QStringLiteral("Unable to open file %1").arg(fname));
                 return;
             }
 
-            const auto header = m_rowSub->metadata().value("table_header").toStringList();
+            const auto header = m_rowSub->metadata().value("tableHeader").toStringList();
             m_recTable->setHeader(header);
 
             m_evTimer->start();

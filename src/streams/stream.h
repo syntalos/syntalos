@@ -34,6 +34,8 @@
 
 using namespace moodycamel;
 
+class AbstractModule;
+
 class VariantStreamSubscription
 {
 public:
@@ -54,7 +56,7 @@ public:
     virtual QString dataTypeName() const = 0;
     virtual int dataTypeId() const = 0;
     virtual std::shared_ptr<VariantStreamSubscription> subscribeVar() = 0;
-    virtual void start() = 0;
+    virtual void start(const QString &modName = QString()) = 0;
     virtual void stop() = 0;
     virtual bool active() const = 0;
     virtual QHash<QString, QVariant> metadata() = 0;
@@ -309,8 +311,11 @@ public:
         return false;
     }
 
-    void start() override
+    void start(const QString &modName = QString()) override
     {
+        if (!modName.isEmpty())
+            setMetadataVal("srcModName", modName);
+
         m_ownerId = std::this_thread::get_id();
         for (auto const& sub: m_subs) {
             sub->reset();

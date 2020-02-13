@@ -30,7 +30,7 @@ RecordedTable::RecordedTable(QObject *parent)
       m_name(QString())
 {
     m_tableWidget = new QTableWidget;
-    m_tableWidget->setWindowTitle(QStringLiteral("Events"));
+    m_tableWidget->setWindowTitle(QStringLiteral("Table"));
     m_tableWidget->setWindowIcon(QIcon(":/icons/generic-view"));
     m_tableWidget->horizontalHeader()->hide();
 
@@ -114,7 +114,6 @@ void RecordedTable::addRows(const QStringList &data)
     auto lastRowId = m_tableWidget->rowCount();
     m_tableWidget->setRowCount(lastRowId + 1);
 
-    qDebug() << "Received event:" << data;
     for (auto i = 0; i < data.count(); i++) {
         auto item = new QTableWidgetItem(data.at(i));
         item->setFlags(item->flags() ^ Qt::ItemIsEditable);
