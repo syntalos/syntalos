@@ -37,10 +37,11 @@ private:
     CanvasWindow *m_cvView;
     QTimer *m_evTimer;
 
-    QString m_fpsStr;
+    int m_fps;
     long m_lastFrameTime;
     long m_lastFpsUpdate;
     int m_currentFps;
+    QString m_throttleRemark;
 
 public:
     explicit CanvasModule(QObject *parent = nullptr)
@@ -77,15 +78,23 @@ public:
     {
         m_lastFrameTime = m_timer->timeSinceStartMsec().count();
         m_lastFpsUpdate = m_lastFrameTime - 1000;
-        if (m_frameSub.get() != nullptr) {
-            m_evTimer->start();
-            m_frameSub->setThrottleItemsPerSec(60); // never try to display more than 60fps
-            auto imgWinTitle = m_frameSub->metadata().value("srcModName").toString();
-            if (imgWinTitle.isEmpty())
-                imgWinTitle = "Canvas";
-            m_fpsStr = m_frameSub->metadata().value("framerate").toString();
-            m_cvView->setWindowTitle(imgWinTitle);
-        }
+        if (m_frameSub.get() == nullptr)
+            return;
+
+        // check framerate and throttle it, showing a remark in the latter
+        // case so the user is aware that they're not seeing every single frame
+        m_fps = m_frameSub->metadata().value("framerate", 0).toInt();
+        m_throttleRemark = (m_fps > 60)? QStringLiteral("rate lowered for display, original:") : QStringLiteral("req.");
+        m_frameSub->setThrottleItemsPerSec(60); // never try to display more than 60fps
+
+        auto imgWinTitle = m_frameSub->metadata().value("srcModName").toString();
+        if (imgWinTitle.isEmpty())
+            imgWinTitle = "Canvas";
+
+        m_cvView->setWindowTitle(imgWinTitle);
+
+        m_evTimer->start();
+
     }
 
     void stop() override
@@ -103,27 +112,29 @@ public:
         m_cvView->showImage(frame.mat);
         const auto frameTime = frame.time.count();
 
-        if (m_fpsStr.isEmpty()) {
+        if (m_fps == 0) {
             m_cvView->setStatusText(QTime::fromMSecsSinceStartOfDay(frameTime).toString("hh:mm:ss.zzz"));
         } else {
             if ((frameTime - m_lastFpsUpdate) > 500) {
                 // we don't update the FPS display with every tick, as the framerate fluctuates
                 // (especially when throttling the subscription) and we want to display a more steady
                 // info to the user
-                m_currentFps = 1000 / (frameTime - m_lastFrameTime);
+                const auto fdiff = frameTime - m_lastFrameTime;
+                if (fdiff != 0)
+                    m_currentFps = 1000 / fdiff;
+                else
+                    m_currentFps = m_fps;
                 m_lastFpsUpdate = frameTime;
             }
             m_lastFrameTime = frameTime;
 
-            m_cvView->setStatusText(QStringLiteral("%1 / %2fps (req. %3fps)")
+            m_cvView->setStatusText(QStringLiteral("%1 / %2fps (%3 %4fps)")
                                     .arg(QTime::fromMSecsSinceStartOfDay(frameTime).toString("hh:mm:ss.zzz"))
                                     .arg(m_currentFps)
-                                    .arg(m_fpsStr));
+                                    .arg(m_throttleRemark)
+                                    .arg(m_fps));
         }
     }
-
-private:
-
 };
 
 QString CanvasModuleInfo::id() const
