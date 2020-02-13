@@ -4,6 +4,8 @@ set(CANVASMOD_SRC
     canvasmodule.cpp
     imageviewwidget.h
     imageviewwidget.cpp
+    canvaswindow.h
+    canvaswindow.cpp
 )
 
 add_library(mod_canvas STATIC

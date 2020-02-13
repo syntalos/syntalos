@@ -22,7 +22,7 @@
 #include <QTimer>
 #include <QTime>
 
-#include "imageviewwidget.h"
+#include "canvaswindow.h"
 #include "streams/frametype.h"
 
 class CanvasModule : public AbstractModule
@@ -34,8 +34,7 @@ private:
     std::shared_ptr<StreamSubscription<Frame>> m_frameSub;
     std::shared_ptr<StreamSubscription<ControlCommand>> m_ctlSub;
 
-    ImageViewWidget *m_imgView;
-    QString m_imgWinTitle;
+    CanvasWindow *m_cvView;
     QTimer *m_evTimer;
 
 public:
@@ -45,8 +44,8 @@ public:
         m_framesIn = registerInputPort<Frame>(QStringLiteral("frames-in"), QStringLiteral("Frames"));
         m_ctlIn = registerInputPort<ControlCommand>(QStringLiteral("control"), QStringLiteral("Control"));
 
-        m_imgView = new ImageViewWidget;
-        addDisplayWindow(m_imgView);
+        m_cvView = new CanvasWindow;
+        addDisplayWindow(m_cvView);
         m_evTimer = new QTimer(this);
         m_evTimer->setInterval(0);
         connect(m_evTimer, &QTimer::timeout, this, &CanvasModule::updateImage);
@@ -74,9 +73,10 @@ public:
         if (m_frameSub.get() != nullptr) {
             m_evTimer->start();
             m_frameSub->setThrottleItemsPerSec(60); // never try to display more than 60fps
-            m_imgWinTitle = m_frameSub->metadata().value("src_mod_name").toString();
-            if (m_imgWinTitle.isEmpty())
-                m_imgWinTitle = "Canvas";
+            auto imgWinTitle = m_frameSub->metadata().value("srcModName").toString();
+            if (imgWinTitle.isEmpty())
+                imgWinTitle = "Canvas";
+            m_cvView->setWindowTitle(imgWinTitle);
         }
     }
 
@@ -90,8 +90,8 @@ public:
         auto maybeFrame = m_frameSub->peekNext();
         if (maybeFrame.has_value()) {
             const auto frame = maybeFrame.value();
-            m_imgView->showImage(frame.mat);
-            m_imgView->setWindowTitle(QStringLiteral("%1 / %2").arg(m_imgWinTitle).arg(QTime::fromMSecsSinceStartOfDay(frame.time.count()).toString("hh:mm:ss")));
+            m_cvView->showImage(frame.mat);
+            m_cvView->setStatusText(QTime::fromMSecsSinceStartOfDay(frame.time.count()).toString("hh:mm:ss.zzz"));
         }
     }
 
