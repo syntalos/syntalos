@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2019 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2020 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -30,10 +30,6 @@
 #include "streams/frametype.h"
 #include "moduleapi.h"
 
-class Camera;
-class VideoViewWidget;
-class GenericCameraSettingsDialog;
-
 class GenericCameraModuleInfo : public ModuleInfo
 {
     Q_OBJECT
@@ -42,42 +38,8 @@ public:
     QString name() const override;
     QString description() const override;
     QPixmap pixmap() const override;
+    QColor color() const override;
     AbstractModule *createModule(QObject *parent = nullptr) override;
-};
-
-class GenericCameraModule : public AbstractModule
-{
-    Q_OBJECT
-public:
-    explicit GenericCameraModule(QObject *parent = nullptr);
-    ~GenericCameraModule() override;
-
-    void setName(const QString& name) override;
-
-    ModuleFeatures features() const override;
-
-    bool prepare(const QString &storageRootDir, const TestSubject &testSubject) override;
-    void start() override;
-    bool runUIEvent() override;
-    void runThread(OptionalWaitCondition *waitCondition) override;
-
-    void stop() override;
-
-    QByteArray serializeSettings(const QString& confBaseDir) override;
-    bool loadSettings(const QString& confBaseDir, const QByteArray& data) override;
-
-private:
-    Camera *m_camera;
-    VideoViewWidget *m_videoView;
-    GenericCameraSettingsDialog *m_camSettingsWindow;
-
-    QMutex m_mutex;
-    std::atomic_int m_currentFps;
-    int m_fps;
-    boost::circular_buffer<Frame> m_frameRing;
-    std::shared_ptr<DataStream<Frame>> m_outStream;
-
-    bool startCaptureThread();
 };
 
 #endif // GENERICCAMERAMODULE_H
