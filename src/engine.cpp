@@ -391,6 +391,19 @@ static void executeIdleEventModuleThread(const QString& threadName, QList<Abstra
     // wait for us to start
     waitCondition->wait();
 
+    // check if any module signals that it will actually not be doing anything
+    // (if so, we don't need to call it and can maybe even terminate this thread)
+    QMutableListIterator<AbstractModule*> i(mods);
+    while (i.hasNext()) {
+        if (i.next()->state() == ModuleState::IDLE)
+            i.remove();
+    }
+
+    if (mods.isEmpty()) {
+        qDebug() << "All evented modules are idle, shutting down their thread.";
+        return;
+    }
+
     while (running) {
         for (auto &mod : mods) {
             if (!mod->runEvent()){
@@ -603,9 +616,10 @@ bool Engine::run()
         d->timer->start();
         d->running = true;
 
-        // first, launch all threaded modules
+        // first, launch all threaded and evented modules
         for (auto& mod : orderedActiveModules) {
-            if (!mod->features().testFlag(ModuleFeature::RUN_THREADED))
+            if ((!mod->features().testFlag(ModuleFeature::RUN_THREADED)) &&
+                (!mod->features().testFlag(ModuleFeature::RUN_EVENTS)))
                 continue;
 
             mod->start();
@@ -623,8 +637,9 @@ bool Engine::run()
 
         // tell all non-threaded modules individuall now that we started
         for (auto& mod : orderedActiveModules) {
-            // ignore threaded
-            if (mod->features().testFlag(ModuleFeature::RUN_THREADED))
+            // ignore threaded & evented
+            if ((mod->features().testFlag(ModuleFeature::RUN_THREADED)) ||
+                (mod->features().testFlag(ModuleFeature::RUN_EVENTS)))
                 continue;
 
             mod->start();

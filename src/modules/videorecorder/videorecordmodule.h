@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016-2019 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2020 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -17,19 +17,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef VIDEORECORDMODULE_H
-#define VIDEORECORDMODULE_H
+#pragma once
 
 #include <QObject>
-#include <memory>
-#include <chrono>
 
 #include "moduleapi.h"
-#include "streams/frametype.h"
-
-class VideoWriter;
-class ImageSourceModule;
-class RecorderSettingsDialog;
 
 class VideoRecorderModuleInfo : public ModuleInfo
 {
@@ -41,32 +33,3 @@ public:
     QPixmap pixmap() const override;
     AbstractModule *createModule(QObject *parent = nullptr) override;
 };
-
-class VideoRecorderModule : public AbstractModule
-{
-    Q_OBJECT
-public:
-    explicit VideoRecorderModule(QObject *parent = nullptr);
-
-    void setName(const QString& name) override;
-    ModuleFeatures features() const override;
-
-    bool prepare(const QString& storageRootDir, const TestSubject& testSubject) override;
-    void runThread(OptionalWaitCondition *startWaitCondition) override;
-    void start() override;
-    void stop() override;
-
-    void showSettingsUi() override;
-
-    QByteArray serializeSettings(const QString& confBaseDir) override;
-    bool loadSettings(const QString& confBaseDir, const QByteArray& data) override;
-
-private:
-    std::atomic_bool m_recording;
-    QString m_vidStorageDir;
-    std::unique_ptr<VideoWriter> m_videoWriter;
-    RecorderSettingsDialog *m_settingsDialog;
-    std::shared_ptr<StreamInputPort<Frame>> m_inPort;
-};
-
-#endif // VIDEORECORDMODULE_H

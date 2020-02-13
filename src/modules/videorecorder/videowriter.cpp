@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2020 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -28,6 +28,7 @@
 #include <fstream>
 #include <boost/format.hpp>
 #include <boost/algorithm/string/predicate.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 extern "C" {
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
@@ -38,12 +39,74 @@ extern "C" {
 #include <libswscale/swscale.h>
 }
 
+VideoCodec stringToVideoCodec(const std::string &str)
+{
+    if (str == "Raw")
+        return VideoCodec::Raw;
+    if (str == "None")
+        return VideoCodec::Raw;
+    if (str == "FFV1")
+        return VideoCodec::FFV1;
+    if (str == "AV1")
+        return VideoCodec::AV1;
+    if (str == "VP9")
+        return VideoCodec::VP9;
+    if (str == "H.265")
+        return VideoCodec::H265;
+    if (str == "MPEG-4")
+        return VideoCodec::MPEG4;
+
+    return VideoCodec::Unknown;
+}
+
+std::string videoCodecToString(VideoCodec codec)
+{
+    switch (codec) {
+    case VideoCodec::Raw:
+        return "None";
+    case VideoCodec::FFV1:
+        return "FFV1";
+    case VideoCodec::AV1:
+        return "AV1";
+    case VideoCodec::VP9:
+        return "VP9";
+    case VideoCodec::H265:
+        return "H.265";
+    case VideoCodec::MPEG4:
+        return "MPEG-4";
+    default:
+        return "Unknown";
+    }
+}
+
+std::string videoContainerToString(VideoContainer container)
+{
+    switch (container) {
+    case VideoContainer::Matroska:
+        return "Matroska";
+    case VideoContainer::AVI:
+        return "AVI";
+    default:
+        return "Unknown";
+    }
+}
+
+VideoContainer stringToVideoContainer(const std::string &str)
+{
+    if (str == "Matroska")
+        return VideoContainer::Matroska;
+    if (str == "AVI")
+        return VideoContainer::AVI;
+
+    return VideoContainer::Unknown;
+}
+
 /**
  * @brief FRAME_QUEUE_MAX_COUNT
  * The maximum number of frames we want to hold in the queue in memory
  * before dropping frames.
  */
-static const uint FRAME_QUEUE_MAX_COUNT = 512;
+static const uint FRAME_QUEUE_MAX_COUNT = 1024;
 
 #pragma GCC diagnostic ignored "-Wpadded"
 class VideoWriter::VideoWriterData
@@ -56,6 +119,7 @@ public:
         codec = VideoCodec::VP9;
         container = VideoContainer::Matroska;
         fileSliceIntervalMin = 0;  // never slice our recording by default
+        captureStartTimestamp = std::chrono::milliseconds(0); //by default we assume the first frame was recorded at timepoint 0
 
         frame = nullptr;
         inputFrame = nullptr;
@@ -88,6 +152,7 @@ public:
 
     bool saveTimestamps;
     std::ofstream timestampFile;
+    std::chrono::milliseconds captureStartTimestamp;
 
     AVFrame *frame;
     AVFrame *inputFrame;
@@ -175,6 +240,10 @@ void VideoWriter::initializeInternal()
         if (!boost::algorithm::ends_with(fname, ".avi"))
             fname = fname + ".avi";
         break;
+    default:
+        if (!boost::algorithm::ends_with(fname, ".mkv"))
+            fname = fname + ".mkv";
+        break;
     }
 
     // open output format context
@@ -210,6 +279,9 @@ void VideoWriter::initializeInternal()
         break;
     case VideoCodec::H265:
         codecId = AV_CODEC_ID_H265;
+        break;
+    default:
+        codecId = AV_CODEC_ID_FFV1;
         break;
     }
 
@@ -270,6 +342,7 @@ void VideoWriter::initializeInternal()
             std::cerr << "The MPEG-4 codec has no lossless preset, switching to lossy compression." << std::endl;
             d->lossless = false;
             break;
+        default: break;
         }
     }
 
@@ -282,6 +355,15 @@ void VideoWriter::initializeInternal()
         av_dict_set_int(&codecopts, "slicecrc", 1, 0); // Add CRC information to each slice
         // NOTE: For archival use, GOP-size should be 1, but that also increases the file size quite a bit.
         // Keeping a good balance between recording space/performance/integrity is difficult sometimes.
+    }
+
+    // Adjust pixel color formats for selected video codecs
+    switch (d->codec) {
+    case VideoCodec::FFV1:
+        if (d->inputPixFormat == AV_PIX_FMT_GRAY8)
+            d->cctx->pix_fmt = AV_PIX_FMT_GRAY8;
+        break;
+    default: break;
     }
 
     // open video encoder
@@ -425,8 +507,24 @@ bool VideoWriter::initialized() const
     return d->initialized;
 }
 
-bool VideoWriter::prepareFrame(const cv::Mat &image)
+std::chrono::milliseconds VideoWriter::captureStartTimestamp() const
 {
+    return d->captureStartTimestamp;
+}
+
+void VideoWriter::setCaptureStartTimestamp(const std::chrono::milliseconds &startTimestamp)
+{
+    d->captureStartTimestamp = startTimestamp;
+}
+
+bool VideoWriter::prepareFrame(const cv::Mat &inImage)
+{
+    auto image = inImage;
+
+    // convert to gray in case the frame has colors attached
+    if ((d->inputPixFormat == AV_PIX_FMT_GRAY8) && (image.channels() != 1))
+        cv::cvtColor(inImage, image, cv::COLOR_BGR2GRAY);
+
     const auto channels = image.channels();
 
     auto step = image.step[0];
@@ -521,8 +619,8 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::milliseco
         d->timestampFile << d->framePts << "; " << tsMsec << "\n";
 
     if (d->fileSliceIntervalMin != 0) {
-        const auto tsMin = static_cast<double>(tsMsec) / 1000.0 / 60.0;
-        if (tsMin > (d->fileSliceIntervalMin * d->currentSliceNo)) {
+        const auto tsMin = static_cast<double>(tsMsec - d->captureStartTimestamp.count()) / 1000.0 / 60.0;
+        if (tsMin >= (d->fileSliceIntervalMin * d->currentSliceNo)) {
             try {
                 // we need to start a new file now since the maximum time for this file has elapsed,
                 // so finalize this one without suspending the thread we are currently in
@@ -579,11 +677,6 @@ bool VideoWriter::pushFrame(const Frame &frame)
 
     d->frameQueue.push(frame);
     return true;
-}
-
-bool VideoWriter::pushFrame(const cv::Mat& frame, const std::chrono::milliseconds& time)
-{
-    return pushFrame(Frame(frame, time));
 }
 
 VideoCodec VideoWriter::codec() const
@@ -659,13 +752,13 @@ void VideoWriter::encodeThread(void *vwPtr)
     }
 }
 
-bool VideoWriter::getNextFrameFromQueue(cv::Mat *data, std::chrono::milliseconds *timestamp)
+bool VideoWriter::getNextFrameFromQueue(cv::Mat *data, milliseconds_t *timestamp)
 {
     std::lock_guard<std::mutex> lock(d->mutex);
     if (d->frameQueue.empty())
         return false;
 
-    auto frame = d->frameQueue.front();
+    const auto frame = d->frameQueue.front();
     *data = frame.mat;
     *timestamp = frame.time;
     d->frameQueue.pop();

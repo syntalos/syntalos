@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2017 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2020 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -31,4 +31,11 @@ QString createRandomString(int len)
     }
 
     return str;
+}
+
+QString simplifyStringForFilename(const QString &s)
+{
+    return s.simplified()
+            .replace(" ", "")
+            .replace(":", "");
 }

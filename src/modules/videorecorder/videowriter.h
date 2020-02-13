@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2020 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -22,7 +22,9 @@
 
 #include <memory>
 #include <chrono>
+#include <opencv2/core.hpp>
 #include <QMetaType>
+
 #include "streams/frametype.h"
 
 /**
@@ -33,10 +35,14 @@
  * that we also support.
  */
 enum class VideoContainer {
+    Unknown,
     Matroska,
     AVI
 };
 Q_DECLARE_METATYPE(VideoContainer);
+
+std::string videoContainerToString(VideoContainer container);
+VideoContainer stringToVideoContainer(const std::string& str);
 
 /**
  * @brief The VideoCodec enum
@@ -49,6 +55,7 @@ Q_DECLARE_METATYPE(VideoContainer);
  * which only supports the AVI container.
  */
 enum class VideoCodec {
+    Unknown,
     Raw,
     FFV1,
     AV1,
@@ -57,6 +64,9 @@ enum class VideoCodec {
     MPEG4
 };
 Q_DECLARE_METATYPE(VideoCodec);
+
+std::string videoCodecToString(VideoCodec codec);
+VideoCodec stringToVideoCodec(const std::string& str);
 
 /**
  * @brief The VideoWriter class
@@ -76,8 +86,10 @@ public:
     void finalize();
     bool initialized() const;
 
-    bool pushFrame(const Frame& frame);
-    bool pushFrame(const cv::Mat& frame, const std::chrono::milliseconds& time);
+    std::chrono::milliseconds captureStartTimestamp() const;
+    void setCaptureStartTimestamp(const std::chrono::milliseconds& startTimestamp);
+
+    bool pushFrame(const Frame &frame);
 
     VideoCodec codec() const;
     void setCodec(VideoCodec codec);
@@ -104,8 +116,8 @@ private:
     void initializeInternal();
     void finalizeInternal(bool writeTrailer, bool stopRecThread = true);
     static void encodeThread(void* vwPtr);
-    bool getNextFrameFromQueue(cv::Mat *data, std::chrono::milliseconds *timestamp);
-    bool prepareFrame(const cv::Mat &image);
+    bool getNextFrameFromQueue(cv::Mat *data, milliseconds_t *timestamp);
+    bool prepareFrame(const cv::Mat &inImage);
     bool encodeFrame(const cv::Mat& frame, const std::chrono::milliseconds& timestamp);
     void startEncodeThread();
     void stopEncodeThread();

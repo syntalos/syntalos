@@ -37,8 +37,11 @@ public:
     explicit RecorderSettingsDialog(QWidget *parent = nullptr);
     ~RecorderSettingsDialog();
 
-    void setVideoName(const QString& value);
+    bool videoNameFromSource() const;
+    void setVideoNameFromSource(bool fromSource);
+
     QString videoName() const;
+    void setVideoName(const QString& value);
 
     void setSaveTimestamps(bool save);
     bool saveTimestamps() const;
@@ -58,6 +61,7 @@ public:
 private slots:
     void on_codecComboBox_currentIndexChanged(int index);
     void on_nameLineEdit_textChanged(const QString &arg1);
+    void on_nameFromSrcCheckBox_toggled(bool checked);
 
 private:
     Ui::RecorderSettingsDialog *ui;

@@ -22,6 +22,8 @@
 
 #include <QVariant>
 
+#include "utils.h"
+
 RecorderSettingsDialog::RecorderSettingsDialog(QWidget *parent) :
     QDialog(parent),
     ui(new Ui::RecorderSettingsDialog)
@@ -38,6 +40,9 @@ RecorderSettingsDialog::RecorderSettingsDialog(QWidget *parent) :
     ui->codecComboBox->addItem("H.265", QVariant::fromValue(VideoCodec::H265));
     ui->codecComboBox->addItem("Raw", QVariant::fromValue(VideoCodec::Raw));
     ui->codecComboBox->setCurrentIndex(0);
+
+    // take name from source module by default
+    ui->nameFromSrcCheckBox->setChecked(true);
 }
 
 RecorderSettingsDialog::~RecorderSettingsDialog()
@@ -45,9 +50,19 @@ RecorderSettingsDialog::~RecorderSettingsDialog()
     delete ui;
 }
 
+bool RecorderSettingsDialog::videoNameFromSource() const
+{
+    return ui->nameFromSrcCheckBox->isChecked();
+}
+
+void RecorderSettingsDialog::setVideoNameFromSource(bool fromSource)
+{
+    ui->nameFromSrcCheckBox->setChecked(fromSource);
+}
+
 void RecorderSettingsDialog::setVideoName(const QString &value)
 {
-    m_videoName = value.simplified().replace(" ", "_");
+    m_videoName = simplifyStringForFilename(value);
     ui->nameLineEdit->setText(m_videoName);
 }
 
@@ -118,7 +133,7 @@ uint RecorderSettingsDialog::sliceInterval() const
 
 void RecorderSettingsDialog::on_nameLineEdit_textChanged(const QString &arg1)
 {
-    m_videoName = arg1.simplified().replace(" ", "_");
+    m_videoName = simplifyStringForFilename(arg1);
 }
 
 void RecorderSettingsDialog::on_codecComboBox_currentIndexChanged(int)
@@ -158,4 +173,9 @@ void RecorderSettingsDialog::on_codecComboBox_currentIndexChanged(int)
         ui->containerComboBox->setCurrentIndex(1);
         ui->containerComboBox->setEnabled(false);
     }
+}
+
+void RecorderSettingsDialog::on_nameFromSrcCheckBox_toggled(bool checked)
+{
+    ui->nameLineEdit->setEnabled(!checked);
 }
