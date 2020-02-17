@@ -58,8 +58,15 @@ void RecordedTable::setName(const QString &name)
 bool RecordedTable::open(const QString& fileName)
 {
     m_eventFileName = fileName;
+    close();
     m_eventFile->setFileName(m_eventFileName);
     return m_eventFile->open(QFile::WriteOnly | QFile::Truncate);
+}
+
+void RecordedTable::close()
+{
+    if (m_eventFile->isOpen())
+        m_eventFile->close();
 }
 
 void RecordedTable::show()
@@ -72,10 +79,18 @@ void RecordedTable::hide()
     m_tableWidget->hide();
 }
 
+void RecordedTable::reset()
+{
+    m_tableWidget->setRowCount(0);
+    m_haveEvents = false;
+}
+
 void RecordedTable::setHeader(const QStringList &headers)
 {
     if (m_haveEvents) {
-        QMessageBox::warning(nullptr, "Script Error", "Can not change headers after already receiving events.");
+        QMessageBox::warning(m_tableWidget,
+                             QStringLiteral("Warning"),
+                             QStringLiteral("Can not change table headers after already receiving events."));
         return;
     }
 

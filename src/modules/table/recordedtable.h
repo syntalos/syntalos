@@ -35,10 +35,12 @@ public:
     void setName(const QString &name);
 
     bool open(const QString &fileName);
+    void close();
 
     void show();
     void hide();
 
+    void reset();
     void setHeader(const QStringList &headers);
     void addRows(const QStringList &data);
 

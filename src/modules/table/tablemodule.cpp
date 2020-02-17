@@ -101,6 +101,9 @@ public:
                 return;
             }
 
+            // remove any old data from the table display
+            m_recTable->reset();
+
             const auto header = m_rowSub->metadata().value("tableHeader").toStringList();
             m_recTable->setHeader(header);
 
@@ -111,6 +114,7 @@ public:
     void stop() override
     {
         m_evTimer->stop();
+        m_recTable->close();
     }
 
     void addRow()
