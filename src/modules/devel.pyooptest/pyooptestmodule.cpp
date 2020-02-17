@@ -52,8 +52,6 @@ public:
                          "        if frame is None:\n"
                          "            break\n"
                          "        blur = cv.blur(frame.mat, (5,5))\n"
-                         "        cv.imshow('Frame Display', blur)\n"
-                         "        cv.waitKey(1)\n"
                          "        frame.mat = blur\n"
                          "        oport.submit(frame)\n"
                          "    return True\n"
