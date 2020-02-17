@@ -43,9 +43,19 @@ public:
     void oopRunEvent(QEventLoop *loop);
     void oopFinalize(QEventLoop *loop);
 
+signals:
+    void processStdoutReceived(const QString &text);
+
 protected:
     void loadPythonScript(const QString &script, const QString &env = QString());
     void loadPythonFile(const QString &fname, const QString &env = QString());
+
+    QString workerBinary() const;
+    void setWorkerBinary(const QString &binPath);
+    void setWorkerBinaryPyWorker();
+
+    bool captureStdout() const;
+    void setCaptureStdout(bool capture);
 
 private:
     class Private;

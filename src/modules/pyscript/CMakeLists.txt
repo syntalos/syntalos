@@ -1,10 +1,7 @@
 
-add_subdirectory(mapyworker)
-
 set(PYSCRIPT_SRC
     pyscriptmodule.h
     pyscriptmodule.cpp
-    rpc-shared-info.h
 )
 
 add_library(mod_pyscript STATIC

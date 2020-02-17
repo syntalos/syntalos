@@ -82,7 +82,6 @@ target_link_libraries(mazeamaze
     ${OpenCV_LIBS}
     ${OPENGL_LIBRARIES}
     ${Boost_LIBRARIES}
-    ${CZMQ_LIBRARIES}
     ${UEYE_LIBS}
     ${MA_EXTRA_LIBS}
 
@@ -94,7 +93,6 @@ target_link_libraries(mazeamaze
 include_directories(
     ${OpenCV_INCLUDE_DIRS}
     ${PYTHON_INCLUDE_DIRS}
-    ${CZMQ_INCLUDE_DIRS}
     ${Boost_INCLUDE_DIR}
 )
 

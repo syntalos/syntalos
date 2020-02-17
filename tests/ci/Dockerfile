@@ -34,7 +34,6 @@ RUN DEBIAN_FRONTEND=noninteractive eatmydata apt-get install -yq --no-install-re
     libavutil-dev \
     libavformat-dev \
     libswscale-dev \
-    libczmq-dev \
     uuid-dev \
     libkf5archive-dev \
     libkf5texteditor-dev \

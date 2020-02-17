@@ -255,9 +255,9 @@ void Engine::refreshExportDirPath()
     auto currentDate = time.date().toString("yyyy-MM-dd");
 
     d->exportDir = QDir::cleanPath(QStringLiteral("%1/%2/%3/%4")
-                                    .arg(d->exportBaseDir)
-                                    .arg(d->testSubject.id)
-                                    .arg(currentDate)
+                                   .arg(d->exportBaseDir)
+                                   .arg(d->testSubject.id)
+                                   .arg(currentDate)
                                    .arg(d->experimentId));
 }
 

@@ -480,6 +480,7 @@ signals:
 
 protected:
     void raiseError(const QString& message);
+
     QByteArray jsonObjectToBytes(const QJsonObject& object);
     QJsonObject jsonObjectFromBytes(const QByteArray& data);
 

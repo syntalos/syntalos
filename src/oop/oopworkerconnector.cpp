@@ -26,20 +26,27 @@
 #include "utils.h"
 #include "ipcmarshal.h"
 
-OOPWorkerConnector::OOPWorkerConnector(QSharedPointer<OOPWorkerReplica> ptr)
+OOPWorkerConnector::OOPWorkerConnector(QSharedPointer<OOPWorkerReplica> ptr, const QString &workerBin)
     : QObject(nullptr),
       m_reptr(ptr),
-      m_proc(new QProcess(this))
+      m_proc(new QProcess(this)),
+      m_workerBinary(workerBin)
 {
-    m_proc->setProcessChannelMode(QProcess::ForwardedChannels);
-
     connect(m_reptr.data(), &OOPWorkerReplica::sendOutput, this, &OOPWorkerConnector::receiveOutput);
     connect(m_reptr.data(), &OOPWorkerReplica::updateOutPortMetadata, this, &OOPWorkerConnector::receiveOutputPortMetadataUpdate);
+
+    // merge stdout of worker with ours by default
+    setCaptureStdout(false);
 }
 
 OOPWorkerConnector::~OOPWorkerConnector()
 {
     terminate();
+}
+
+void OOPWorkerConnector::setWorkerBinary(const QString &binPath)
+{
+    m_workerBinary = binPath;
 }
 
 void OOPWorkerConnector::terminate(QEventLoop *loop)
@@ -74,10 +81,17 @@ bool OOPWorkerConnector::connectAndRun()
     const auto address = QStringLiteral("local:maw-%1").arg(createRandomString(16));
     m_reptr->node()->connectToNode(QUrl(address));
 
-    const auto workerExe = QStringLiteral("%1/pyworker/pyworker").arg(QCoreApplication::applicationDirPath());
-    m_proc->start(workerExe, QStringList() << address);
-    if (!m_proc->waitForStarted())
+    if (m_workerBinary.isEmpty()) {
+        qWarning().noquote() << "OOP module has not set a worker binary";
+        m_failed = true;
         return false;
+    }
+
+    m_proc->start(m_workerBinary, QStringList() << address);
+    if (!m_proc->waitForStarted()) {
+        m_failed = true;
+        return false;
+    }
 
     if (!m_reptr->waitForSource(10000)) {
         m_failed = true;
@@ -178,6 +192,28 @@ void OOPWorkerConnector::forwardInputData(QEventLoop *loop)
 bool OOPWorkerConnector::failed() const
 {
     return m_failed;
+}
+
+bool OOPWorkerConnector::captureStdout() const
+{
+    return m_captureStdout;
+}
+
+void OOPWorkerConnector::setCaptureStdout(bool capture)
+{
+    m_captureStdout = capture;
+    if (m_captureStdout)
+        m_proc->setProcessChannelMode(QProcess::MergedChannels);
+    else
+        m_proc->setProcessChannelMode(QProcess::ForwardedChannels);
+}
+
+QString OOPWorkerConnector::readProcessStdout()
+{
+    if (!m_captureStdout)
+        return QString();
+
+    return m_proc->readAllStandardOutput();
 }
 
 static bool unmarshalDataAndOutput(int typeId, const QVariantList &params, std::unique_ptr<SharedMemory> &shm, StreamOutputPort *port)

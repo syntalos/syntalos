@@ -44,12 +44,15 @@ class OOPModule::Private
 {
 public:
     Private()
-        : runData(new OOPModuleRunData)
+        : captureStdout(false),
+          runData(new OOPModuleRunData)
     {}
     ~Private() {}
 
     QString pyScript;
     QString pyEnv;
+    QString workerBinary;
+    bool captureStdout;
 
     QSharedPointer<OOPModuleRunData> runData;
 };
@@ -59,6 +62,8 @@ OOPModule::OOPModule(QObject *parent)
     : AbstractModule(parent),
       d(new OOPModule::Private)
 {
+    // default to using the Python worker binary
+    setWorkerBinaryPyWorker();
 }
 
 OOPModule::~OOPModule()
@@ -87,7 +92,7 @@ bool OOPModule::oopPrepare(QEventLoop *loop)
     d->runData.reset(new OOPModuleRunData);
 
     d->runData->replica.reset(d->runData->repNode->acquire<OOPWorkerReplica>());
-    d->runData->wc.reset(new OOPWorkerConnector(d->runData->replica));
+    d->runData->wc.reset(new OOPWorkerConnector(d->runData->replica, d->workerBinary));
 
     auto wc = d->runData->wc;
 
@@ -100,6 +105,7 @@ bool OOPModule::oopPrepare(QEventLoop *loop)
         setStatusMessage(text);
     });
 
+    wc->setCaptureStdout(d->captureStdout);
     if (!wc->connectAndRun()) {
         raiseError("Unable to start worker process!");
         return false;
@@ -138,6 +144,12 @@ void OOPModule::oopRunEvent(QEventLoop *loop)
     // forward incoming data to the worker
     d->runData->wc->forwardInputData(loop);
 
+    if (d->captureStdout) {
+        const auto data = d->runData->wc->readProcessStdout();
+        if (!data.isEmpty())
+            emit processStdoutReceived(data);
+    }
+
     if (d->runData->wc->failed())
         m_running = false;
 }
@@ -145,6 +157,12 @@ void OOPModule::oopRunEvent(QEventLoop *loop)
 void OOPModule::oopFinalize(QEventLoop *loop)
 {
     d->runData->wc->terminate(loop);
+    if (d->captureStdout) {
+        const auto data = d->runData->wc->readProcessStdout();
+        if (!data.isEmpty())
+            emit processStdoutReceived(data);
+    }
+
     d->runData.reset();
 }
 
@@ -163,4 +181,35 @@ void OOPModule::loadPythonFile(const QString &fname, const QString &env)
     }
     QTextStream in(&f);
     loadPythonScript(in.readAll(), env);
+}
+
+QString OOPModule::workerBinary() const
+{
+    return d->workerBinary;
+}
+
+void OOPModule::setWorkerBinary(const QString &binPath)
+{
+    d->workerBinary = binPath;
+}
+
+void OOPModule::setWorkerBinaryPyWorker()
+{
+    d->workerBinary = QStringLiteral("%1/pyworker/pyworker").arg(QCoreApplication::applicationDirPath());
+    QFileInfo checkBin(d->workerBinary);
+    if (!checkBin.exists()) {
+        d->workerBinary = QStringLiteral("%1/../lib/mazeamaze/pyworker").arg(QCoreApplication::applicationDirPath());
+        QFileInfo fi(d->workerBinary);
+        d->workerBinary = fi.canonicalFilePath();
+    }
+}
+
+bool OOPModule::captureStdout() const
+{
+    return d->captureStdout;
+}
+
+void OOPModule::setCaptureStdout(bool capture)
+{
+    d->captureStdout = capture;
 }

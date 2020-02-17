@@ -30,7 +30,103 @@
 #include <KTextEditor/Editor>
 #include <KTextEditor/View>
 
-#include "zmqserver.h"
+#include "oop/oopmodule.h"
+
+class PyScriptModule : public OOPModule
+{
+    Q_OBJECT
+public:
+
+    explicit PyScriptModule(QObject *parent = nullptr)
+        : OOPModule(parent)
+    {
+        m_pyoutWindow = nullptr;
+        m_scriptWindow = nullptr;
+
+        // we use the generic Python OOP wrker process for this
+        setWorkerBinaryPyWorker();
+
+        m_pyoutWindow = new QTextBrowser;
+        m_pyoutWindow->setFontFamily(QStringLiteral("Monospace"));
+        m_pyoutWindow->setFontPointSize(10);
+        m_pyoutWindow->setWindowTitle(QStringLiteral("Python Console Output"));
+        m_pyoutWindow->setWindowIcon(QIcon(":/icons/generic-view"));
+        m_pyoutWindow->resize(540, 210);
+        addDisplayWindow(m_pyoutWindow);
+
+        // set up code editor
+        auto editor = KTextEditor::Editor::instance();
+        // create a new document
+        auto pyDoc = editor->createDocument(this);
+
+        QFile samplePyRc(QStringLiteral(":/texts/pyscript-sample.py"));
+        if(samplePyRc.open(QIODevice::ReadOnly)) {
+            pyDoc->setText(samplePyRc.readAll());
+        }
+        samplePyRc.close();
+
+        m_scriptWindow = new QWidget;
+        m_scriptWindow->setWindowIcon(QIcon(":/icons/generic-config"));
+        m_scriptWindow->setWindowTitle(QStringLiteral("Python Code"));
+        auto scriptLayout = new QHBoxLayout(m_scriptWindow);
+        m_scriptWindow->setLayout(scriptLayout);
+        scriptLayout->setMargin(2);
+        m_scriptWindow->resize(680, 780);
+        addSettingsWindow(m_scriptWindow);
+
+        m_scriptView = pyDoc->createView(m_scriptWindow);
+        scriptLayout->addWidget(m_scriptView);
+        pyDoc->setHighlightingMode("python");
+
+        setCaptureStdout(true);
+        connect(this, &OOPModule::processStdoutReceived, this, [&](const QString& data) {
+            m_pyoutWindow->append(data);
+        });
+    }
+
+    ~PyScriptModule() override
+    {}
+
+    bool initialize() override
+    {
+        if (workerBinary().isEmpty()) {
+            raiseError("Unable to find Python worker binary. Is MazeAmaze installed correctly?");
+            return false;
+        }
+
+        setInitialized();
+        return true;
+    }
+
+    bool prepare(const QString &storageRootDir, const TestSubject &testSubject) override
+    {
+        m_pyoutWindow->clear();
+        loadPythonScript(m_scriptView->document()->text());
+
+        return OOPModule::prepare(storageRootDir, testSubject);
+    }
+
+    QByteArray serializeSettings(const QString &) override
+    {
+        QJsonObject jsettings;
+        jsettings.insert("script", m_scriptView->document()->text());
+
+        return jsonObjectToBytes(jsettings);
+    }
+
+    bool loadSettings(const QString &, const QByteArray &data) override
+    {
+        auto jsettings = jsonObjectFromBytes(data);
+        m_scriptView->document()->setText(jsettings.value("script").toString());
+
+        return true;
+    }
+
+private:
+    QTextBrowser *m_pyoutWindow;
+    KTextEditor::View *m_scriptView;
+    QWidget *m_scriptWindow;
+};
 
 QString PyScriptModuleInfo::id() const
 {
@@ -52,164 +148,14 @@ QPixmap PyScriptModuleInfo::pixmap() const
     return QPixmap(":/module/python");
 }
 
+QColor PyScriptModuleInfo::color() const
+{
+    return qRgba(252, 220, 149, 255);
+}
+
 AbstractModule *PyScriptModuleInfo::createModule(QObject *parent)
 {
     return new PyScriptModule(parent);
 }
 
-PyScriptModule::PyScriptModule(QObject *parent)
-    : AbstractModule(parent)
-{
-    m_pyoutWindow = nullptr;
-    m_scriptWindow = nullptr;
-
-    m_workerBinary = QStringLiteral("%1/modules/pyscript/mapyworker/mapyworker").arg(QCoreApplication::applicationDirPath());
-    QFileInfo checkBin(m_workerBinary);
-    if (!checkBin.exists()) {
-        m_workerBinary = QStringLiteral("%1/../lib/mazeamaze/mapyworker").arg(QCoreApplication::applicationDirPath());
-        QFileInfo fi(m_workerBinary);
-        m_workerBinary = fi.canonicalFilePath();
-    }
-
-    m_process = new QProcess(this);
-    m_process->setProcessChannelMode(QProcess::MergedChannels);
-
-    m_pyoutWindow = new QTextBrowser;
-    m_pyoutWindow->setFontFamily(QStringLiteral("Monospace"));
-    m_pyoutWindow->setFontPointSize(10);
-    m_pyoutWindow->setWindowTitle(QStringLiteral("Python Console Output"));
-    m_pyoutWindow->setWindowIcon(QIcon(":/icons/generic-view"));
-    m_pyoutWindow->resize(540, 210);
-    addDisplayWindow(m_pyoutWindow);
-
-    // set up code editor
-    auto editor = KTextEditor::Editor::instance();
-    // create a new document
-    auto pyDoc = editor->createDocument(this);
-
-    QFile samplePyRc(QStringLiteral(":/texts/pyscript-sample.py"));
-    if(samplePyRc.open(QIODevice::ReadOnly)) {
-        pyDoc->setText(samplePyRc.readAll());
-    }
-    samplePyRc.close();
-
-    m_scriptWindow = new QWidget;
-    m_scriptWindow->setWindowIcon(QIcon(":/icons/generic-config"));
-    m_scriptWindow->setWindowTitle(QStringLiteral("Python Code"));
-    auto scriptLayout = new QHBoxLayout(m_scriptWindow);
-    m_scriptWindow->setLayout(scriptLayout);
-    scriptLayout->setMargin(2);
-    m_scriptWindow->resize(680, 780);
-    addSettingsWindow(m_scriptWindow);
-
-    m_scriptView = pyDoc->createView(m_scriptWindow);
-    scriptLayout->addWidget(m_scriptView);
-    pyDoc->setHighlightingMode("python");
-}
-
-PyScriptModule::~PyScriptModule()
-{
-}
-
-bool PyScriptModule::initialize()
-{
-    assert(!initialized());
-
-    if (m_workerBinary.isEmpty()) {
-        raiseError("Unable to find Python worker binary. Is MazeAmaze installed correctly?");
-        return false;
-    }
-
-    setInitialized();
-    return true;
-}
-
-bool PyScriptModule::prepare(const QString &storageRootDir, const TestSubject &)
-{
-    m_pyoutWindow->clear();
-
-    auto eventTablesDir = QStringLiteral("%1/events").arg(storageRootDir);
-    if (!makeDirectory(eventTablesDir))
-        return false;
-
-    QStringList args;
-
-    m_process->start(m_workerBinary, args, QProcess::Unbuffered | QProcess::ReadWrite);
-    if (!m_process->waitForStarted(10)) {
-        raiseError("Unable to launch worker process for Python code.");
-        m_pyoutWindow->setText(m_process->readAllStandardOutput());
-        return false;
-    }
-    if (m_process->waitForFinished(100)) {
-        // the process terminated prematurely
-        raiseError("Unable to launch worker process for Python code.");
-        m_pyoutWindow->setText(m_process->readAllStandardOutput());
-        return false;
-    }
-
-    m_running = true;
-    return true;
-}
-
-void PyScriptModule::start()
-{
-}
-
-bool PyScriptModule::runUIEvent()
-{
-    // if the script exited without error, we just continue to run
-    // everything else and don't execute useless operations anymore
-    // in a cycle.
-    if (!m_running)
-        return true;
-
-    if (m_process->state() == QProcess::NotRunning) {
-        qDebug() << "Python worker process has terminated.";
-        if (m_process->exitCode() != 0) {
-            raiseError(QStringLiteral("Python code terminated with an error (%1) - Please check the console output for details.").arg(m_process->exitCode()));
-            return false;
-        }
-        m_running = false;
-        return true;
-    }
-
-    const auto data = m_process->readAllStandardOutput();
-    if (data.isEmpty())
-        return true;
-    m_pyoutWindow->append(data);
-
-    return true;
-}
-
-void PyScriptModule::stop()
-{
-    // check if worker already terminated (due to being done or due to an error),
-    // if not, terminate it explicitly
-    if (m_process->state() != QProcess::NotRunning) {
-        m_process->terminate();
-        if (!m_process->waitForFinished(1000))
-            m_process->kill();
-        if (!m_process->waitForFinished(1200))
-            qCritical() << "Failed to terminate Python worker process!";
-    }
-
-    const auto data = m_process->readAllStandardOutput();
-    if (!data.isEmpty())
-        m_pyoutWindow->append(data);
-}
-
-QByteArray PyScriptModule::serializeSettings(const QString &)
-{
-    QJsonObject jsettings;
-    jsettings.insert("script", m_scriptView->document()->text());
-
-    return jsonObjectToBytes(jsettings);
-}
-
-bool PyScriptModule::loadSettings(const QString &, const QByteArray &data)
-{
-    auto jsettings = jsonObjectFromBytes(data);
-    m_scriptView->document()->setText(jsettings.value("script").toString());
-
-    return true;
-}
+#include "pyscriptmodule.moc"

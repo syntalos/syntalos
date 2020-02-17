@@ -33,8 +33,10 @@ class OOPWorkerConnector : public QObject
 {
     Q_OBJECT
 public:
-    OOPWorkerConnector(QSharedPointer<OOPWorkerReplica> ptr);
-    ~OOPWorkerConnector() override;
+    OOPWorkerConnector(QSharedPointer<OOPWorkerReplica> ptr, const QString &workerBin);
+    ~OOPWorkerConnector();
+
+    void setWorkerBinary(const QString &binPath);
 
     void terminate(QEventLoop *loop = nullptr);
 
@@ -51,6 +53,11 @@ public:
 
     bool failed() const;
 
+    bool captureStdout() const;
+    void setCaptureStdout(bool capture);
+
+    QString readProcessStdout();
+
 private slots:
     void receiveOutput(int outPortId, QVariantList params);
     void receiveOutputPortMetadataUpdate(int outPortId, QVariantHash metadata);
@@ -58,6 +65,8 @@ private slots:
 private:
     QSharedPointer<OOPWorkerReplica> m_reptr;
     QProcess *m_proc;
+    QString m_workerBinary;
+    bool m_captureStdout;
     bool m_failed;
 
     std::vector<std::unique_ptr<SharedMemory>> m_shmSend;

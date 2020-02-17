@@ -59,7 +59,6 @@ find_package(Qt5Svg REQUIRED)
 find_package(Qt5RemoteObjects)
 find_package(Boost 1.60 REQUIRED COMPONENTS container)
 find_package(FFmpeg 58.35 REQUIRED COMPONENTS avcodec avutil avformat swscale)
-pkg_check_modules(CZMQ libczmq>=4.2 REQUIRED)
 
 find_package(PythonLibs 3.5 REQUIRED)
 find_package(KF5Archive REQUIRED)

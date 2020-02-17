@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2019 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2020 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -17,17 +17,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef PYSCRIPTMODULE_H
-#define PYSCRIPTMODULE_H
+#pragma once
 
 #include <QObject>
 #include <chrono>
 #include "moduleapi.h"
-
-class ZmqServer;
-class QProcess;
-class QTextBrowser;
-class MaFuncRelay;
 
 class PyScriptModuleInfo : public ModuleInfo
 {
@@ -37,39 +31,6 @@ public:
     QString name() const override;
     QString description() const override;
     QPixmap pixmap() const override;
+    QColor color() const override;
     AbstractModule *createModule(QObject *parent = nullptr) override;
 };
-
-namespace KTextEditor {
-class View;
-}
-
-class PyScriptModule : public AbstractModule
-{
-    Q_OBJECT
-public:
-    friend MaFuncRelay;
-
-    explicit PyScriptModule(QObject *parent = nullptr);
-    ~PyScriptModule() override;
-
-    bool initialize() override;
-    bool prepare(const QString& storageRootDir, const TestSubject& testSubject) override;
-    void start() override;
-    bool runUIEvent() override;
-    void stop() override;
-
-    QByteArray serializeSettings(const QString& confBaseDir) override;
-    bool loadSettings(const QString& confBaseDir, const QByteArray& data) override;
-
-private:
-    QString m_workerBinary;
-    QProcess *m_process;
-    bool m_running;
-
-    QTextBrowser *m_pyoutWindow;
-    KTextEditor::View *m_scriptView;
-    QWidget *m_scriptWindow;
-};
-
-#endif // PYSCRIPTMODULE_H
