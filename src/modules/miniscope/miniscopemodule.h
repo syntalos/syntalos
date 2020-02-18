@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016-2019 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2020 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -42,32 +42,6 @@ public:
     QString description() const override;
     QPixmap pixmap() const override;
     AbstractModule *createModule(QObject *parent = nullptr) override;
-};
-
-class MiniscopeModule : public AbstractModule
-{
-    Q_OBJECT
-public:
-    explicit MiniscopeModule(QObject *parent = nullptr);
-    ~MiniscopeModule() override;
-
-    void setName(const QString& name) override;
-
-    bool prepare(const QString& storageRootDir, const TestSubject& testSubject) override;
-    void start() override;
-    bool runUIEvent() override;
-    void stop() override;
-
-    void showSettingsUi() override;
-
-    QByteArray serializeSettings(const QString& confBaseDir) override;
-    bool loadSettings(const QString& confBaseDir, const QByteArray& data) override;
-
-private:
-    QString m_recStorageDir;
-    MScope::MiniScope *m_miniscope;
-    MiniscopeSettingsDialog *m_settingsDialog;
-    VideoViewWidget *m_videoView;
 };
 
 #endif // MINISCOPEMODULE_H

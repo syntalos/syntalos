@@ -19,15 +19,150 @@
 
 #include "miniscopemodule.h"
 
-#include <QMessageBox>
-#include <QJsonDocument>
+#include <QTimer>
 #include <QDebug>
 #include <miniscope.h>
 
-#include "videoviewwidget.h"
+#include "streams/frametype.h"
 #include "miniscopesettingsdialog.h"
 
 using namespace MScope;
+
+class MiniscopeModule : public AbstractModule
+{
+    Q_OBJECT
+
+private:
+    std::shared_ptr<DataStream<Frame>> m_rawOut;
+    std::shared_ptr<DataStream<Frame>> m_dispOut;
+
+    QTimer *m_evTimer;
+    QString m_recStorageDir;
+    MScope::MiniScope *m_miniscope;
+    MiniscopeSettingsDialog *m_settingsDialog;
+
+public:
+    explicit MiniscopeModule(QObject *parent = nullptr)
+        : AbstractModule(parent),
+          m_miniscope(nullptr),
+          m_settingsDialog(nullptr)
+    {
+        m_rawOut = registerOutputPort<Frame>(QStringLiteral("frames-raw-out"), QStringLiteral("Raw Frames"));
+        m_dispOut = registerOutputPort<Frame>(QStringLiteral("frames-disp-out"), QStringLiteral("Display Frames"));
+
+        m_miniscope = new MiniScope;
+        m_settingsDialog = new MiniscopeSettingsDialog(m_miniscope);
+        addSettingsWindow(m_settingsDialog);
+
+        if (name() == QStringLiteral("Miniscope"))
+            m_settingsDialog->setRecName(QStringLiteral("msSlice"));
+
+        m_miniscope->setScopeCamId(0);
+        setName(name());
+
+        m_miniscope->setOnFrame(&on_newRawFrame, this);
+        m_miniscope->setOnDisplayFrame(&on_newDisplayFrame, this);
+
+        m_evTimer = new QTimer(this);
+        m_evTimer->setInterval(0);
+        connect(m_evTimer, &QTimer::timeout, this, &MiniscopeModule::checkMSStatus);
+    }
+
+    ~MiniscopeModule()
+    {
+        delete m_miniscope;
+    }
+
+    ModuleFeatures features() const override
+    {
+        return ModuleFeature::SHOW_SETTINGS;
+    }
+
+    void setName(const QString &name) override
+    {
+        AbstractModule::setName(name);
+        m_settingsDialog->setWindowTitle(QStringLiteral("Settings for %1").arg(name));
+    }
+
+    bool prepare(const QString &storageRootDir, const TestSubject &) override
+    {
+        m_recStorageDir = QStringLiteral("%1/miniscope").arg(storageRootDir);
+        if (!makeDirectory(m_recStorageDir))
+            return false;
+        if (m_settingsDialog->recName().isEmpty()) {
+            raiseError("Miniscope recording name is empty. Please specify it in the settings to continue.");
+            return false;
+        }
+
+        m_miniscope->setVideoFilename(QStringLiteral("%1/%2").arg(m_recStorageDir).arg(m_settingsDialog->recName()).toStdString());
+
+        if (!m_miniscope->connect()) {
+            raiseError(QString::fromStdString(m_miniscope->lastError()));
+            return false;
+        }
+
+        m_rawOut->setMetadataVal("framerate", m_miniscope->fps());
+        m_dispOut->setMetadataVal("framerate", m_miniscope->fps());
+
+        // start the streams
+        m_rawOut->start(name());
+        m_dispOut->start(name());
+
+        // we already start capturing video here, and only launch the recording when later
+        if (!m_miniscope->run()) {
+            raiseError(QString::fromStdString(m_miniscope->lastError()));
+            return false;
+        }
+
+        return true;
+    }
+
+    void start() override
+    {
+        m_miniscope->setCaptureStartTimepoint(m_timer->startTime());
+        if (!m_miniscope->startRecording())
+            raiseError(QString::fromStdString(m_miniscope->lastError()));
+        m_evTimer->start();
+    }
+
+    static void on_newRawFrame(const cv::Mat &mat, const milliseconds_t &time, void *udata)
+    {
+        auto self = static_cast<MiniscopeModule*>(udata);
+        self->m_rawOut->push(Frame(mat, time));
+    }
+
+    static void on_newDisplayFrame(const cv::Mat &mat, const milliseconds_t &time, void *udata)
+    {
+        auto self = static_cast<MiniscopeModule*>(udata);
+        self->m_dispOut->push(Frame(mat, time));
+    }
+
+    void checkMSStatus()
+    {
+        statusMessage(QStringLiteral("FPS: %1 Dropped: %2").arg(m_miniscope->currentFps()).arg(m_miniscope->droppedFramesCount()));
+    }
+
+    void stop() override
+    {
+        m_evTimer->stop();
+        m_miniscope->stopRecording();
+        m_miniscope->stop();
+        m_miniscope->disconnect();
+    }
+
+    QByteArray serializeSettings(const QString &) override
+    {
+        QJsonObject jset;
+
+        return jsonObjectToBytes(jset);
+    }
+
+    bool loadSettings(const QString &, const QByteArray &data) override
+    {
+        auto jset = jsonObjectFromBytes(data);
+        return true;
+    }
+};
 
 QString MiniscopeModuleInfo::id() const
 {
@@ -54,117 +189,4 @@ AbstractModule *MiniscopeModuleInfo::createModule(QObject *parent)
     return new MiniscopeModule(parent);
 }
 
-MiniscopeModule::MiniscopeModule(QObject *parent)
-    : AbstractModule(parent),
-      m_miniscope(nullptr),
-      m_settingsDialog(nullptr),
-      m_videoView(nullptr)
-{
-    m_timer = nullptr;
-    m_miniscope = new MiniScope;
-    m_settingsDialog = new MiniscopeSettingsDialog(m_miniscope);
-    addSettingsWindow(m_settingsDialog);
-
-    m_videoView = new VideoViewWidget;
-    m_videoView->setWindowTitle(QStringLiteral("Miniscope View"));
-    addSettingsWindow(m_videoView);
-
-    if (name() == QStringLiteral("Miniscope"))
-        m_settingsDialog->setRecName(QStringLiteral("scope"));
-
-    m_miniscope->setScopeCamId(0);
-
-    setName(name());
-}
-
-MiniscopeModule::~MiniscopeModule()
-{
-    delete m_miniscope;
-}
-
-void MiniscopeModule::setName(const QString &name)
-{
-    AbstractModule::setName(name);
-    if (m_settingsDialog != nullptr) {
-        m_settingsDialog->setWindowTitle(QStringLiteral("Settings for %1").arg(name));
-        m_videoView->setWindowTitle(QStringLiteral("%1 - View").arg(name));
-    }
-}
-
-bool MiniscopeModule::prepare(const QString &storageRootDir, const TestSubject &)
-{
-    m_recStorageDir = QStringLiteral("%1/miniscope").arg(storageRootDir);
-    if (!makeDirectory(m_recStorageDir))
-        return false;
-    if (m_settingsDialog->recName().isEmpty()) {
-        raiseError("Miniscope recording name is empty. Please specify it in the settings to continue.");
-        return false;
-    }
-
-    m_miniscope->setVideoFilename(QStringLiteral("%1/%2").arg(m_recStorageDir).arg(m_settingsDialog->recName()).toStdString());
-
-    if (!m_miniscope->connect()) {
-        raiseError(QString::fromStdString(m_miniscope->lastError()));
-        return false;
-    }
-
-    // we already start capturing video here, and only launch the recording when later
-    if (!m_miniscope->run()) {
-        raiseError(QString::fromStdString(m_miniscope->lastError()));
-        return false;
-    }
-
-    return true;
-}
-
-void MiniscopeModule::start()
-{
-    m_miniscope->setCaptureStartTimepoint(m_timer->startTime());
-    if (!m_miniscope->startRecording())
-        raiseError(QString::fromStdString(m_miniscope->lastError()));
-}
-
-bool MiniscopeModule::runUIEvent()
-{
-    auto frame = m_miniscope->currentFrame();
-    if (frame.empty()) {
-        // something may be wrong
-        if (!m_miniscope->recording()) {
-            raiseError(QString::fromStdString(m_miniscope->lastError()));
-            return false;
-        }
-        return true;
-    }
-
-    m_videoView->showImage(frame);
-    statusMessage(QStringLiteral("FPS: %1 Dropped: %2").arg(m_miniscope->currentFps()).arg(m_miniscope->droppedFramesCount()));
-
-    return true;
-}
-
-void MiniscopeModule::stop()
-{
-    m_timer = nullptr;
-    m_miniscope->stopRecording();
-    m_miniscope->stop();
-    m_miniscope->disconnect();
-}
-
-void MiniscopeModule::showSettingsUi()
-{
-    assert(initialized());
-    m_settingsDialog->show();
-}
-
-QByteArray MiniscopeModule::serializeSettings(const QString &)
-{
-    QJsonObject jset;
-
-    return jsonObjectToBytes(jset);
-}
-
-bool MiniscopeModule::loadSettings(const QString &, const QByteArray &data)
-{
-    auto jset = jsonObjectFromBytes(data);
-    return true;
-}
+#include "miniscopemodule.moc"

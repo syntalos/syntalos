@@ -78,8 +78,8 @@ QColor ModuleInfo::color() const
     int redBucket = 0;
     int greenBucket = 0;
     int blueBucket = 0;
+    int totalColorCount = 0;
 
-    auto pixCount = img.width() * img.height();
     auto bits = img.constBits();
 
     for (int y = 0, h = img.height(); y < h; y++) {
@@ -87,15 +87,17 @@ QColor ModuleInfo::color() const
             QRgb color = ((uint *)bits)[x + y * w];
             if (qAlpha(color) < 100)
                 continue;
+
             redBucket += qRed(color);
             greenBucket += qGreen(color);
             blueBucket += qBlue(color);
+            totalColorCount++;
         }
     }
 
-    return QColor::fromRgb(redBucket / pixCount,
-                           greenBucket / pixCount,
-                           blueBucket / pixCount);
+    return QColor::fromRgb(redBucket / totalColorCount,
+                           greenBucket / totalColorCount,
+                           blueBucket / totalColorCount);
 }
 
 bool ModuleInfo::singleton() const
