@@ -113,7 +113,13 @@ void RecordedTable::addRows(const QStringList &data)
     if (!m_eventFile->isOpen())
             return;
     QTextStream tsout(m_eventFile);
-    tsout << data.join(";") << "\n";
+
+    // since our tables are semicolon-separated, we replace the "regular" semicolon
+    // with a unicode fullwith semicolon (U+FF1B). That way, users of the table module
+    // can use pretty much any character they want and a machine-readable CSV table will be generated.
+    auto csvRows = data;
+    tsout << csvRows.replaceInStrings(QStringLiteral(";"), QStringLiteral("；"))
+                    .join(";") << "\n";
 
     auto columnCount = m_tableWidget->columnCount();
     if (columnCount < data.count()) {
