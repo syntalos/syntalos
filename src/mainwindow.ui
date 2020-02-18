@@ -642,6 +642,12 @@
    <property name="allowedAreas">
     <set>Qt::TopToolBarArea</set>
    </property>
+   <property name="iconSize">
+    <size>
+     <width>24</width>
+     <height>24</height>
+    </size>
+   </property>
    <attribute name="toolBarArea">
     <enum>TopToolBarArea</enum>
    </attribute>
