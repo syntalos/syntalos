@@ -59,6 +59,7 @@ private slots:
     void on_graphPortsDisconnected(FlowGraphNodePort *port1, FlowGraphNodePort *port2);
     void on_modulePreRemove(AbstractModule *mod);
     void on_portsConnected(const VarStreamInputPort *inPort, const StreamOutputPort *outPort);
+    void on_modulePortConfigChanged();
 
     void moduleAdded(ModuleInfo *info, AbstractModule *mod);
     void receiveStateChange(ModuleState state);

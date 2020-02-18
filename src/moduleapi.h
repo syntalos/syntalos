@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef ABSTRACTMODULE_H
-#define ABSTRACTMODULE_H
+#ifndef MODULEAPI_H
+#define MODULEAPI_H
 
 #include <QObject>
 #include <QList>
@@ -315,6 +315,7 @@ public:
         std::shared_ptr<DataStream<T>> stream(new DataStream<T>());
         std::shared_ptr<StreamOutputPort> outPort(new StreamOutputPort(this, id, title, stream));
         m_outPorts.insert(id, outPort);
+        Q_EMIT portConfigurationUpdated();
         return stream;
     }
 
@@ -335,6 +336,51 @@ public:
 
         std::shared_ptr<StreamInputPort<T>> inPort(new StreamInputPort<T>(this, id, title));
         m_inPorts.insert(id, inPort);
+        Q_EMIT portConfigurationUpdated();
+        return inPort;
+    }
+
+    /**
+     * @brief Register an output port for this module using a type ID
+     *
+     * This function permits registering an output port for a particular type when only knowing
+     * its type ID. This is usefuly when dynamically allocating ports.
+     *
+     * @returns A variant data stream instance for this module to write to.
+     */
+    std::shared_ptr<VariantDataStream> registerOutputPortByTypeId(int typeId, const QString &id, const QString &title = QString())
+    {
+        if (m_outPorts.contains(id))
+            qWarning() << "Module" << name() << "already registered an output port with ID:" << id;
+
+        auto varStream = newStreamForType(typeId);
+        if (varStream == nullptr)
+            return nullptr;
+
+        std::shared_ptr<VariantDataStream> stream(varStream);
+        std::shared_ptr<StreamOutputPort> outPort(new StreamOutputPort(this, id, title, stream));
+        m_outPorts.insert(id, outPort);
+        Q_EMIT portConfigurationUpdated();
+        return stream;
+    }
+
+    /**
+     * @brief Register an input port for this module using a type ID
+     *
+     * @returns A VarStreamInputPort instance, which can be checked for subscriptions
+     */
+    std::shared_ptr<VarStreamInputPort> registerInputPortByTypeId(int typeId, const QString &id, const QString &title = QString())
+    {
+        if (m_inPorts.contains(id))
+            qWarning() << "Module" << name() << "already registered an output port with ID:" << id;
+
+        auto varInPort = newInputPortForType(typeId, this, id, title);
+        if (varInPort == nullptr)
+            return nullptr;
+
+        std::shared_ptr<VarStreamInputPort> inPort(varInPort);
+        m_inPorts.insert(id, inPort);
+        Q_EMIT portConfigurationUpdated();
         return inPort;
     }
 
@@ -459,6 +505,12 @@ public:
      */
     QString lastError() const;
 
+    void clearInPorts();
+    void clearOutPorts();
+
+    void removeInPortById(const QString &id);
+    void removeOutPortById(const QString &id);
+
     QList<std::shared_ptr<VarStreamInputPort>> inPorts() const;
     QList<std::shared_ptr<StreamOutputPort>> outPorts() const;
 
@@ -477,6 +529,7 @@ signals:
     void statusMessage(const QString& message);
     void nameChanged(const QString& name);
     void portsConnected(const VarStreamInputPort *inPort, const StreamOutputPort *outPort);
+    void portConfigurationUpdated();
 
 protected:
     void raiseError(const QString& message);
@@ -528,4 +581,4 @@ private:
     void setId(const QString &id);
 };
 
-#endif // ABSTRACTMODULE_H
+#endif // MODULEAPI_H

@@ -39,6 +39,7 @@ target_link_libraries(pyworker
     ${Boost_LIBRARIES}
     ${OpenCV_LIBS}
 )
+set_target_properties(pyworker PROPERTIES COMPILE_FLAGS "-DNO_TID_PORTCONSTRUCTORS")
 
 include_directories(
     ..

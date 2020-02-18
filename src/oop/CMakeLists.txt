@@ -37,6 +37,7 @@ target_link_libraries(lslice_oopshared
     Qt5::RemoteObjects
     ${OpenCV_LIBS}
 )
+set_target_properties(lslice_oopshared PROPERTIES COMPILE_FLAGS "-DNO_TID_PORTCONSTRUCTORS")
 
 set(MA_OOPSHARED_LIB lslice_oopshared PARENT_SCOPE)
 

@@ -20,13 +20,76 @@
 #include "datatypes.h"
 #include "frametype.h"
 
+#ifndef NO_TID_PORTCONSTRUCTORS
+#include "moduleapi.h"
+#endif
+
+#define CHECK_RETURN_INPUT_PORT( T ) \
+    if (typeId == qMetaTypeId<T>()) \
+        return new StreamInputPort<T>(mod, id, title);
+
+#define CHECK_RETURN_STREAM( T ) \
+    if (typeId == qMetaTypeId<T>()) \
+        return new DataStream<T>();
+
+static QHash<QString, int> g_streamTypeIdMap;
+
+template<typename T>
+static void registerStreamType()
+{
+    qRegisterMetaType<T>();
+    auto id = qMetaTypeId<T>();
+    g_streamTypeIdMap[QMetaType::typeName(id)] = id;
+}
+
 void registerStreamMetaTypes()
 {
-    qRegisterMetaType<ModuleState>();
-    qRegisterMetaType<ModuleMessage>();
-    qRegisterMetaType<ControlCommand>();
-    qRegisterMetaType<TableRow>();
-    qRegisterMetaType<FirmataControl>();
-    qRegisterMetaType<FirmataData>();
-    qRegisterMetaType<Frame>();
+    // only register the types if we have not created the global registry yet
+    if (!g_streamTypeIdMap.isEmpty())
+        return;
+
+    registerStreamType<ModuleState>();
+    registerStreamType<ModuleMessage>();
+    registerStreamType<ControlCommand>();
+    registerStreamType<TableRow>();
+    registerStreamType<FirmataControl>();
+    registerStreamType<FirmataData>();
+    registerStreamType<Frame>();
 }
+
+QHash<QString, int> streamTypeIdMap()
+{
+    return g_streamTypeIdMap;
+}
+
+#ifndef NO_TID_PORTCONSTRUCTORS
+
+VarStreamInputPort *newInputPortForType(int typeId, AbstractModule *mod, const QString &id, const QString &title = QString())
+{
+    CHECK_RETURN_INPUT_PORT(ModuleState)
+    CHECK_RETURN_INPUT_PORT(ModuleMessage)
+    CHECK_RETURN_INPUT_PORT(ControlCommand)
+    CHECK_RETURN_INPUT_PORT(TableRow)
+    CHECK_RETURN_INPUT_PORT(FirmataControl)
+    CHECK_RETURN_INPUT_PORT(FirmataData)
+    CHECK_RETURN_INPUT_PORT(Frame)
+
+    qCritical() << "Unable to create input port for unknown type ID" << typeId;
+    return nullptr;
+}
+
+VariantDataStream *newStreamForType(int typeId)
+{
+    CHECK_RETURN_STREAM(ModuleState)
+    CHECK_RETURN_STREAM(ModuleMessage)
+    CHECK_RETURN_STREAM(ControlCommand)
+    CHECK_RETURN_STREAM(TableRow)
+    CHECK_RETURN_STREAM(FirmataControl)
+    CHECK_RETURN_STREAM(FirmataData)
+    CHECK_RETURN_STREAM(Frame)
+
+    qCritical() << "Unable to create data stream for unknown type ID" << typeId;
+    return nullptr;
+}
+
+#endif

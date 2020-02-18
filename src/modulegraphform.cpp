@@ -117,6 +117,10 @@ void ModuleGraphForm::moduleAdded(ModuleInfo *info, AbstractModule *mod)
     connect(mod, &AbstractModule::nameChanged, [=](const QString& name) {
         node->setNodeTitle(name);
     });
+
+    // we intentionally only connect this now, all previous emissions were not interesting as we just updated
+    // the visual port representation to its actual state
+    connect(mod, &AbstractModule::portConfigurationUpdated, this, &ModuleGraphForm::on_modulePortConfigChanged);
 }
 
 void ModuleGraphForm::on_actionAddModule_triggered()
@@ -366,4 +370,27 @@ void ModuleGraphForm::on_portsConnected(const VarStreamInputPort *inPort, const 
     graphOutPort->setSelected(true);
     graphInPort->setSelected(true);
     ui->graphView->connectItems();
+}
+
+void ModuleGraphForm::on_modulePortConfigChanged()
+{
+    auto mod = qobject_cast<AbstractModule*>(sender());
+    if (mod == nullptr) {
+        qCritical().noquote() << "Port configuration of an unknown module has changed.";
+        return;
+    }
+    auto node = m_modNodeMap.value(mod);
+
+    // Re-read all port information in the rare event that the module decides to update ports
+    // after it was created.
+    // This usually happens only on user-configured modules and is pretty rare (so this function
+    // is currently really inefficient)
+
+    node->removePorts();
+    for (auto &iport : mod->inPorts())
+        node->addPort(std::dynamic_pointer_cast<AbstractStreamPort>(iport));
+    for (auto &oport : mod->outPorts())
+        node->addPort(std::dynamic_pointer_cast<AbstractStreamPort>(oport));
+
+    ui->graphView->updatePortTypeColors();
 }

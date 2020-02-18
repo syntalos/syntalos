@@ -730,18 +730,22 @@ FlowGraphNodePort *FlowGraphNode::addPort(std::shared_ptr<AbstractStreamPort> st
 void FlowGraphNode::removePort(FlowGraphNodePort *port)
 {
     m_portkeys.remove(FlowGraphNodePort::PortKey(port));
-    m_ports.removeAll(port);
+    if (m_ports.removeAll(port) > 0)
+        delete port;
 
     updatePath();
 }
 
 void FlowGraphNode::removePorts(void)
 {
-    foreach (FlowGraphNodePort *port, m_ports)
+    foreach (FlowGraphNodePort *port, m_ports) {
         port->removeConnects();
+        delete port;
+    }
 
     m_ports.clear();
     m_portkeys.clear();
+    updatePath();
 }
 
 /**

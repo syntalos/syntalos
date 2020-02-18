@@ -2,10 +2,19 @@
 set(PYSCRIPT_SRC
     pyscriptmodule.h
     pyscriptmodule.cpp
+    porteditordialog.h
+    porteditordialog.cpp
 )
+
+set(PYSCRIPT_UI
+    porteditordialog.ui
+)
+
+qt5_wrap_ui(PYSCRIPT_UI_SRC ${PYSCRIPT_UI})
 
 add_library(mod_pyscript STATIC
     ${PYSCRIPT_SRC}
+    ${PYSCRIPT_UI_SRC}
 )
 
 target_link_libraries(mod_pyscript

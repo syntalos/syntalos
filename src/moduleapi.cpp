@@ -467,6 +467,30 @@ QString AbstractModule::lastError() const
     return d->lastError;
 }
 
+void AbstractModule::clearInPorts()
+{
+    m_inPorts.clear();
+    emit portConfigurationUpdated();
+}
+
+void AbstractModule::clearOutPorts()
+{
+    m_outPorts.clear();
+    emit portConfigurationUpdated();
+}
+
+void AbstractModule::removeInPortById(const QString &id)
+{
+    m_inPorts.remove(id);
+    emit portConfigurationUpdated();
+}
+
+void AbstractModule::removeOutPortById(const QString &id)
+{
+    m_outPorts.remove(id);
+    emit portConfigurationUpdated();
+}
+
 QList<std::shared_ptr<VarStreamInputPort> > AbstractModule::inPorts() const
 {
     return m_inPorts.values();

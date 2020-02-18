@@ -151,4 +151,33 @@ typedef struct
 } FirmataData;
 Q_DECLARE_METATYPE(FirmataData)
 
+/**
+ * @brief Helper function to register all meta types for stream data
+ *
+ * This function registers all types with the meta object system and also
+ * creates a global map of all available stream types.
+ */
 void registerStreamMetaTypes();
+
+/**
+ * @brief Get a mapping of type names to their IDs.
+ */
+QHash<QString, int> streamTypeIdMap();
+
+#ifndef NO_TID_PORTCONSTRUCTORS
+
+class VariantDataStream;
+class VarStreamInputPort;
+class AbstractModule;
+
+/**
+ * @brief Create a new DataStream for the type identified by the given ID.
+ */
+VariantDataStream *newStreamForType(int typeId);
+
+/**
+ * @brief Create a new Input Port for the type identified by the given ID.
+ */
+VarStreamInputPort *newInputPortForType(int typeId, AbstractModule *mod, const QString &id, const QString &title);
+
+#endif

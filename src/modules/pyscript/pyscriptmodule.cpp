@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2019 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2020 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -26,11 +26,15 @@
 #include <QTextBrowser>
 #include <QDebug>
 #include <QHBoxLayout>
+#include <QMenuBar>
+#include <QJsonArray>
+#include <QMetaType>
 #include <KTextEditor/Document>
 #include <KTextEditor/Editor>
 #include <KTextEditor/View>
 
 #include "oop/oopmodule.h"
+#include "porteditordialog.h"
 
 class PyScriptModule : public OOPModule
 {
@@ -71,7 +75,15 @@ public:
         auto scriptLayout = new QHBoxLayout(m_scriptWindow);
         m_scriptWindow->setLayout(scriptLayout);
         scriptLayout->setMargin(2);
+
+        auto menuBar = new QMenuBar();
+        auto portsMenu = new QMenu("Ports");
+        menuBar->addMenu(portsMenu);
+        auto portEditAction = portsMenu->addAction("Edit");
+        m_scriptWindow->layout()->setMenuBar(menuBar);
         m_scriptWindow->resize(680, 780);
+
+        m_portsDialog = new PortEditorDialog(this, m_scriptWindow);
         addSettingsWindow(m_scriptWindow);
 
         m_scriptView = pyDoc->createView(m_scriptWindow);
@@ -81,6 +93,10 @@ public:
         setCaptureStdout(true);
         connect(this, &OOPModule::processStdoutReceived, this, [&](const QString& data) {
             m_pyoutWindow->append(data);
+        });
+
+        connect(portEditAction, &QAction::triggered, this, [&](bool) {
+            m_portsDialog->exec();
         });
     }
 
@@ -111,6 +127,27 @@ public:
         QJsonObject jsettings;
         jsettings.insert("script", m_scriptView->document()->text());
 
+        QJsonArray jsonInPorts;
+        for (const auto port : inPorts()) {
+            QJsonObject po;
+            po.insert("id", port->id());
+            po.insert("title", port->title());
+            po.insert("dataType", port->dataTypeName());
+            jsonInPorts.append(po);
+        }
+
+        QJsonArray jsonOutPorts;
+        for (const auto port : outPorts()) {
+            QJsonObject po;
+            po.insert("id", port->id());
+            po.insert("title", port->title());
+            po.insert("dataType", port->dataTypeName());
+            jsonOutPorts.append(po);
+        }
+
+        jsettings.insert("inPorts", jsonInPorts);
+        jsettings.insert("outPorts", jsonOutPorts);
+
         return jsonObjectToBytes(jsettings);
     }
 
@@ -119,12 +156,31 @@ public:
         auto jsettings = jsonObjectFromBytes(data);
         m_scriptView->document()->setText(jsettings.value("script").toString());
 
+        const auto jsonInPorts = jsettings.value("inPorts").toArray();
+        const auto jsonOutPorts = jsettings.value("outPorts").toArray();
+
+        for (const auto pv : jsonInPorts) {
+            const auto po = pv.toObject();
+            registerInputPortByTypeId(QMetaType::type(qPrintable(po.value("dataType").toString())),
+                                      po.value("id").toString(),
+                                      po.value("title").toString());
+        }
+
+        for (const auto pv : jsonOutPorts) {
+            const auto po = pv.toObject();
+            registerOutputPortByTypeId(QMetaType::type(qPrintable(po.value("dataType").toString())),
+                                       po.value("id").toString(),
+                                       po.value("title").toString());
+        }
+
         return true;
     }
 
 private:
     QTextBrowser *m_pyoutWindow;
     KTextEditor::View *m_scriptView;
+    PortEditorDialog *m_portsDialog;
+
     QWidget *m_scriptWindow;
 };
 
