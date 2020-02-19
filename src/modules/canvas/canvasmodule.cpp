@@ -84,8 +84,8 @@ public:
         // check framerate and throttle it, showing a remark in the latter
         // case so the user is aware that they're not seeing every single frame
         m_fps = m_frameSub->metadata().value("framerate", 0).toInt();
-        m_throttleRemark = (m_fps > 60)? QStringLiteral("rate lowered for display, original:") : QStringLiteral("req.");
-        m_frameSub->setThrottleItemsPerSec(60); // never try to display more than 60fps
+        m_throttleRemark = (m_fps > 50)? QStringLiteral("rate lowered for display, original:") : QStringLiteral("req.");
+        m_frameSub->setThrottleItemsPerSec(50); // never try to display more than 50fps
 
         auto imgWinTitle = m_frameSub->metadata().value("srcModName").toString();
         if (imgWinTitle.isEmpty())
