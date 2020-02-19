@@ -1,10 +1,7 @@
 #
-# Docker file for MazeAmaze tests
+# Docker file for Syntalos tests
 #
 FROM debian:bullseye
-
-# add experimental, we need it for remoteobjects for now
-RUN echo "deb http://deb.debian.org/debian experimental main" > /etc/apt/sources.list.d/experimental.list
 
 # prepare
 RUN apt-get update -qq

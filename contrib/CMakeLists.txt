@@ -1,6 +1,6 @@
  
 # Intan Rhythm FPGA code blob
-install(FILES main.bit DESTINATION "${CMAKE_INSTALL_DATADIR}/mazeamaze")
+install(FILES main.bit DESTINATION "${CMAKE_INSTALL_DATADIR}/syntalos")
 
 set (ARCH_X86 FALSE)
 if (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)")
@@ -17,12 +17,12 @@ if (NOT ${ARCH_X86_64} AND NOT ${ARCH_X86})
 endif()
 
 if (${ARCH_X86_64})
-    install(FILES "Opal Kelly library files/Linux 64-bit/libokFrontPanel.so" DESTINATION ${CMAKE_INSTALL_LIBDIR}/mazeamaze)
+    install(FILES "Opal Kelly library files/Linux 64-bit/libokFrontPanel.so" DESTINATION ${CMAKE_INSTALL_LIBDIR}/syntalos)
 else ()
     if (${ARCH_X86})
-        install(FILES "Opal Kelly library files/Linux 32-bit/libokFrontPanel.so" DESTINATION ${CMAKE_INSTALL_LIBDIR}/mazeamaze)
+        install(FILES "Opal Kelly library files/Linux 32-bit/libokFrontPanel.so" DESTINATION ${CMAKE_INSTALL_LIBDIR}/syntalos)
     endif ()
 endif ()
 
 # Install udev rules to make Opal Kelly USB device readable for normal users
-install(FILES "udev/90-mazeamaze.rules" DESTINATION ${CMAKE_INSTALL_LIBDIR}/udev/rules.d/)
+install(FILES "udev/90-syntalos.rules" DESTINATION ${CMAKE_INSTALL_LIBDIR}/udev/rules.d/)

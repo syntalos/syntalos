@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2019 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2020 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -25,11 +25,11 @@
 const QString aboutDlgCopyInfo = QStringLiteral(
         "<html>"
         "(c) 2016-2019 Matthias Klumpp"
-        "<p>MazeAmaze is free software: you can redistribute it and/or modify "
+        "<p>Syntalos is free software: you can redistribute it and/or modify "
         "it under the terms of the GNU General Public License as published by "
         "the Free Software Foundation, either version 3 of the License, or "
         "(at your option) any later version.</p>"
-        "<p>MazeAmaze is distributed in the hope that it will be useful, "
+        "<p>Syntalos is distributed in the hope that it will be useful, "
         "but WITHOUT ANY WARRANTY; without even the implied warranty of "
         "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the "
         "GNU General Public License for more details.</p>"
@@ -43,7 +43,7 @@ AboutDialog::AboutDialog(QWidget *parent) :
 {
     ui->setupUi(this);
 
-    setWindowTitle(QStringLiteral("About MazeAmaze"));
+    setWindowTitle(QStringLiteral("About Syntalos"));
     ui->versionLabel->setText(QStringLiteral("v%1").arg(QCoreApplication::applicationVersion()));
     ui->asciiArtLabel->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
 

@@ -1,5 +1,5 @@
 
-// This is the IPC QRO interface used by MazeAmaze to
+// This is the IPC QRO interface used by Syntalos to
 // communicate with workers.
 // It is locale to the current machine, as some of the bigger
 // data chunks gets transferred via shared memory instead of

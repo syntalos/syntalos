@@ -1,10 +1,10 @@
-# CMakeLists for MazeAmaze main
+# CMakeLists for Syntalos main
 
 add_subdirectory(modules)
 add_subdirectory(oop)
 add_subdirectory(pyworker)
 
-set(MAZEAMAZE_SRC
+set(SYNTALOS_SRC
     main.cpp
     engine.h
     engine.cpp
@@ -44,28 +44,28 @@ set(MAZEAMAZE_SRC
     streams/readerwriterqueue.h
 )
 
-set(MAZEAMAZE_UI
+set(SYNTALOS_UI
     mainwindow.ui
     moduleselectdialog.ui
     aboutdialog.ui
     modulegraphform.ui
 )
 
-qt5_wrap_ui(MAZEAMAZE_UI_SRC ${MAZEAMAZE_UI})
+qt5_wrap_ui(SYNTALOS_UI_SRC ${SYNTALOS_UI})
 
-set(MAZEAMAZE_RES
+set(SYNTALOS_RES
     ../data/resources.qrc
 )
 
-qt5_add_resources(MAZEAMAZE_RES_SRC ${MAZEAMAZE_RES})
+qt5_add_resources(SYNTALOS_RES_SRC ${SYNTALOS_RES})
 
-add_executable(mazeamaze
-    ${MAZEAMAZE_SRC}
-    ${MAZEAMAZE_RES_SRC}
-    ${MAZEAMAZE_UI_SRC}
+add_executable(syntalos
+    ${SYNTALOS_SRC}
+    ${SYNTALOS_RES_SRC}
+    ${SYNTALOS_UI_SRC}
 )
 
-target_link_libraries(mazeamaze
+target_link_libraries(syntalos
     ${CMAKE_THREAD_LIBS_INIT}
     ${CMAKE_DL_LIBS}
     ${RT_LIB}
@@ -96,4 +96,4 @@ include_directories(
     ${Boost_INCLUDE_DIR}
 )
 
-install(TARGETS mazeamaze DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(TARGETS syntalos DESTINATION ${CMAKE_INSTALL_BINDIR})

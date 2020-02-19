@@ -6,13 +6,13 @@ echo "C++ compiler: $CXX"
 set -x
 
 #
-# This script is supposed to run inside the MazeAmaze Docker container
+# This script is supposed to run inside the Syntalos Docker container
 # on the CI system.
 #
 
 $CC --version
 
-# configure MazeAmaze build with all flags enabled
+# configure Syntalos build with all flags enabled
 mkdir build && cd build
 cmake -G Ninja \
       -DMAINTAINER=ON \

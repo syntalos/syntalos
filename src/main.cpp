@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2016 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2012-2020 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
     srand(static_cast<uint>(time(nullptr)));
 
     QApplication app(argc, argv);
-    app.setApplicationName("MazeAmaze");
+    app.setApplicationName("Syntalos");
     app.setOrganizationDomain("uni-heidelberg.de");
     app.setApplicationVersion("1.0");
 

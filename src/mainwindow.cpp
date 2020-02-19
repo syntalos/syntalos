@@ -94,7 +94,7 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     // Load settings and set icon theme explicitly
     // (otherwise the application may look ugly or incomplete on GNOME)
-    QSettings settings("DraguhnLab", "MazeAmaze");
+    QSettings settings("DraguhnLab", "Syntalos");
     auto themeName = settings.value("main/iconTheme").toString();
 
     // try to enforce breeze first, then the user-defined theme name, then the system default
@@ -377,7 +377,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
     auto globalSettingsFile = rootDir->file("main.json");
     if (globalSettingsFile == nullptr) {
         QMessageBox::critical(this, tr("Can not load settings"),
-                              tr("The settings file is damaged or is no valid MazeAmaze configuration bundle."));
+                              tr("The settings file is damaged or is no valid Syntalos configuration bundle."));
         setStatusText("");
         return false;
     }
@@ -391,7 +391,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
     if (rootObj.value("formatVersion").toString() != CONFIG_FILE_FORMAT_VERSION) {
         auto reply = QMessageBox::question(this,
                                            "Incompatible configuration",
-                                           QStringLiteral("The settings file you want to load was created with a different, possibly older version of MazeAmaze and may not work correctly in this version.\n"
+                                           QStringLiteral("The settings file you want to load was created with a different, possibly older version of Syntalos and may not work correctly in this version.\n"
                                                           "Should we attempt to load it anyway? (This may result in unexpected behavior)"),
                                            QMessageBox::Yes | QMessageBox::No);
         if (reply == QMessageBox::No) {
@@ -554,7 +554,7 @@ void MainWindow::closeEvent(QCloseEvent *event)
     if (m_engine->isRunning())
         stopActionTriggered();
 
-    QSettings settings("DraguhnLab", "MazeAmaze");
+    QSettings settings("DraguhnLab", "Syntalos");
     settings.setValue("main/geometry", saveGeometry());
 
     event->accept();
@@ -580,7 +580,7 @@ void MainWindow::saveSettingsActionTriggered()
     fileName = QFileDialog::getSaveFileName(this,
                                             tr("Select Configuration Filename"),
                                             QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
-                                            tr("MazeAmaze Configuration Files (*.mact)"));
+                                            tr("Syntalos Configuration Files (*.mact)"));
 
     if (fileName.isEmpty())
         return;
@@ -598,9 +598,9 @@ void MainWindow::saveSettingsActionTriggered()
 void MainWindow::updateWindowTitle(const QString& fileName)
 {
     if (fileName.isEmpty()) {
-        this->setWindowTitle(QStringLiteral("MazeAmaze"));
+        this->setWindowTitle(QStringLiteral("Syntalos"));
     } else {
-        this->setWindowTitle(QStringLiteral("MazeAmaze - %2").arg(fileName));
+        this->setWindowTitle(QStringLiteral("Syntalos - %2").arg(fileName));
     }
 }
 
@@ -635,7 +635,7 @@ void MainWindow::loadSettingsActionTriggered()
     auto fileName = QFileDialog::getOpenFileName(this,
                                                  tr("Select Settings Filename"),
                                                  QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
-                                                 tr("MazeAmaze Settings Files (*.mact)"));
+                                                 tr("Syntalos Settings Files (*.mact)"));
     if (fileName.isEmpty())
         return;
 

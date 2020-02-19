@@ -72,7 +72,7 @@ public:
 
         size_t dataIndex = 0;
         while (m_running) {
-            m_frameOut->push(createFrames_200Hz(dataIndex));
+            m_frameOut->push(createFrames_about200Hz(dataIndex));
 
             auto row = createTablerow();
             if (row.has_value())
@@ -83,7 +83,7 @@ public:
     }
 
 private:
-    Frame createFrames_200Hz(size_t index)
+    Frame createFrames_about200Hz(size_t index)
     {
         Frame frame;
 
@@ -97,7 +97,7 @@ private:
                     cv::Scalar(255,255,255));
         frame.time = m_timer->timeSinceStartMsec();
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        std::this_thread::sleep_for(std::chrono::milliseconds(4));
         return frame;
     }
 
