@@ -101,12 +101,12 @@ public:
             return false;
         }
 
-        m_rawOut->setMetadataVal("framerate", m_miniscope->fps());
-        m_dispOut->setMetadataVal("framerate", m_miniscope->fps());
+        m_rawOut->setMetadataValue("framerate", m_miniscope->fps());
+        m_dispOut->setMetadataValue("framerate", m_miniscope->fps());
 
         // start the streams
-        m_rawOut->start(name());
-        m_dispOut->start(name());
+        m_rawOut->start();
+        m_dispOut->start();
 
         // we already start capturing video here, and only launch the recording when later
         if (!m_miniscope->run()) {

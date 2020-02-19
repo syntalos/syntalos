@@ -81,12 +81,12 @@ public:
         m_fps = m_camSettingsWindow->framerate();
 
         // set the required stream metadata for video capture
-        m_outStream->setMetadataVal("size", QSize(m_camera->resolution().width,
-                                                  m_camera->resolution().height));
-        m_outStream->setMetadataVal("framerate", m_fps);
+        m_outStream->setMetadataValue("size", QSize(m_camera->resolution().width,
+                                                    m_camera->resolution().height));
+        m_outStream->setMetadataValue("framerate", m_fps);
 
         // start the stream
-        m_outStream->start(name());
+        m_outStream->start();
 
         statusMessage("Waiting.");
 

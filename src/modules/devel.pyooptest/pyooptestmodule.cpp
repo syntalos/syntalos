@@ -72,8 +72,8 @@ public:
 
     bool prepare(const QString &, const TestSubject &) override
     {
-        m_vOut->setMetadataVal("size", QSize(800, 600));
-        m_vOut->setMetadataVal("framerate", 200);
+        m_vOut->setMetadataValue("size", QSize(800, 600));
+        m_vOut->setMetadataValue("framerate", 200);
         m_vOut->start();
 
         return true;

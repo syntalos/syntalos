@@ -56,11 +56,13 @@ public:
     virtual QString dataTypeName() const = 0;
     virtual int dataTypeId() const = 0;
     virtual std::shared_ptr<VariantStreamSubscription> subscribeVar() = 0;
-    virtual void start(const QString &modName = QString()) = 0;
+    virtual void start() = 0;
     virtual void stop() = 0;
     virtual bool active() const = 0;
     virtual QHash<QString, QVariant> metadata() = 0;
-    virtual void setMetadata(QHash<QString, QVariant> metadata) = 0;
+    virtual void setMetadata(const QHash<QString, QVariant> &metadata) = 0;
+    virtual void setMetadataValue(const QString &key, const QVariant &value) = 0;
+    virtual void setCommonMetadata(const QString &srcModType, const QString &srcModName) = 0;
 };
 
 template<typename T>
@@ -267,14 +269,25 @@ public:
         return m_metadata;
     }
 
-    void setMetadata(QHash<QString, QVariant> metadata) override
+    void setMetadata(const QHash<QString, QVariant> &metadata) override
     {
         m_metadata = metadata;
     }
 
-    void setMetadataVal(const QString &key, const QVariant &value)
+    void setMetadataValue(const QString &key, const QVariant &value) override
     {
         m_metadata[key] = value;
+    }
+
+    void removeMetadata(const QString &key)
+    {
+        m_metadata.remove(key);
+    }
+
+    void setCommonMetadata(const QString &srcModType, const QString &srcModName) override
+    {
+        setMetadataValue("srcModType", srcModType);
+        setMetadataValue("srcModName", srcModName);
     }
 
     std::shared_ptr<StreamSubscription<T>> subscribe()
@@ -311,11 +324,8 @@ public:
         return false;
     }
 
-    void start(const QString &modName = QString()) override
+    void start() override
     {
-        if (!modName.isEmpty())
-            setMetadataVal("srcModName", modName);
-
         m_ownerId = std::this_thread::get_id();
         for (auto const& sub: m_subs) {
             sub->reset();

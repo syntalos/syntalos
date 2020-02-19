@@ -314,7 +314,9 @@ public:
 
         std::shared_ptr<DataStream<T>> stream(new DataStream<T>());
         std::shared_ptr<StreamOutputPort> outPort(new StreamOutputPort(this, id, title, stream));
+        stream->setCommonMetadata(this->id(), name());
         m_outPorts.insert(id, outPort);
+
         Q_EMIT portConfigurationUpdated();
         return stream;
     }
@@ -336,6 +338,7 @@ public:
 
         std::shared_ptr<StreamInputPort<T>> inPort(new StreamInputPort<T>(this, id, title));
         m_inPorts.insert(id, inPort);
+
         Q_EMIT portConfigurationUpdated();
         return inPort;
     }
@@ -359,6 +362,7 @@ public:
 
         std::shared_ptr<VariantDataStream> stream(varStream);
         std::shared_ptr<StreamOutputPort> outPort(new StreamOutputPort(this, id, title, stream));
+        stream->setCommonMetadata(this->id(), name());
         m_outPorts.insert(id, outPort);
         Q_EMIT portConfigurationUpdated();
         return stream;

@@ -51,16 +51,16 @@ public:
 
     bool prepare(const QString &, const TestSubject &) override
     {
-        m_frameOut->setMetadataVal("framerate", 200);
-        m_frameOut->setMetadataVal("size", QSize(800, 600));
-        m_frameOut->start(name());
+        m_frameOut->setMetadataValue("framerate", 200);
+        m_frameOut->setMetadataValue("size", QSize(800, 600));
+        m_frameOut->start();
 
-        m_rowsOut->setMetadataVal("dataName", QStringLiteral("tables/testvalues.csv"));
-        m_rowsOut->setMetadataVal("tableHeader", QStringList()
-                                  << QStringLiteral("Time")
-                                  << QStringLiteral("Tag")
-                                  << QStringLiteral("Value"));
-        m_rowsOut->start(name());
+        m_rowsOut->setMetadataValue("dataName", QStringLiteral("tables/testvalues.csv"));
+        m_rowsOut->setMetadataValue("tableHeader", QStringList()
+                                    << QStringLiteral("Time")
+                                    << QStringLiteral("Tag")
+                                    << QStringLiteral("Value"));
+        m_rowsOut->start();
         m_prevRowTime = 0;
 
         return true;
