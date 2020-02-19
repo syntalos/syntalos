@@ -186,12 +186,12 @@ public:
      * Internally, the throttle value represents the minimum time in milliseconds between elements.
      * This also means you can not throttle a connection over 1000 items/sec.
      */
-    void setThrottleItemsPerSec(uint itemsPerSec)
+    void setThrottleItemsPerSec(uint itemsPerSec, bool allowMore = true)
     {
         if (itemsPerSec == 0)
             m_throttle = 0;
         else
-            m_throttle = std::lround(1000.0 / itemsPerSec);
+            m_throttle = allowMore? std::floor(1000.0 / itemsPerSec) : std::ceil(1000.0 / itemsPerSec);
     }
 
 private:
