@@ -38,32 +38,20 @@ public:
     explicit MiniscopeSettingsDialog(MScope::MiniScope *mscope, QWidget *parent = nullptr);
     ~MiniscopeSettingsDialog();
 
-    void setRecName(const QString& value);
-    QString recName() const;
-
-    void setLossless(bool lossless);
-    bool isLossless() const;
-
-    void setSliceInterval(uint interval);
-    uint sliceInterval() const;
+    void updateValues();
 
 private slots:
     void on_sbExposure_valueChanged(int arg1);
     void on_sbExcitation_valueChanged(double arg1);
     void on_dialExcitation_valueChanged(int value);
     void on_sbGain_valueChanged(int arg1);
-    void on_losslessCheckBox_toggled(bool checked);
-    void on_containerComboBox_currentIndexChanged(const QString &arg1);
-    void on_codecComboBox_currentIndexChanged(const QString &arg1);
     void on_cbExtRecTrigger_toggled(bool checked);
     void on_sbDisplayMax_valueChanged(int arg1);
     void on_sbDisplayMin_valueChanged(int arg1);
     void on_fpsSpinBox_valueChanged(int arg1);
-    void on_sliceIntervalSpinBox_valueChanged(int arg1);
     void on_bgDivCheckBox_toggled(bool checked);
     void on_bgSubstCheckBox_toggled(bool checked);
     void on_accAlphaSpinBox_valueChanged(double arg1);
-    void on_recNameLineEdit_textChanged(const QString &arg1);
     void on_sbCamId_valueChanged(int arg1);
 
 private:

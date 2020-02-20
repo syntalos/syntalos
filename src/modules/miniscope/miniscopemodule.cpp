@@ -37,7 +37,6 @@ private:
     std::shared_ptr<DataStream<Frame>> m_dispOut;
 
     QTimer *m_evTimer;
-    QString m_recStorageDir;
     MScope::MiniScope *m_miniscope;
     MiniscopeSettingsDialog *m_settingsDialog;
 
@@ -54,9 +53,6 @@ public:
         m_settingsDialog = new MiniscopeSettingsDialog(m_miniscope);
         addSettingsWindow(m_settingsDialog);
 
-        if (name() == QStringLiteral("Miniscope"))
-            m_settingsDialog->setRecName(QStringLiteral("msSlice"));
-
         m_miniscope->setScopeCamId(0);
         setName(name());
 
@@ -64,7 +60,7 @@ public:
         m_miniscope->setOnDisplayFrame(&on_newDisplayFrame, this);
 
         m_evTimer = new QTimer(this);
-        m_evTimer->setInterval(0);
+        m_evTimer->setInterval(200);
         connect(m_evTimer, &QTimer::timeout, this, &MiniscopeModule::checkMSStatus);
     }
 
@@ -84,31 +80,26 @@ public:
         m_settingsDialog->setWindowTitle(QStringLiteral("Settings for %1").arg(name));
     }
 
-    bool prepare(const QString &storageRootDir, const TestSubject &) override
+    bool prepare(const QString &, const TestSubject &) override
     {
-        m_recStorageDir = QStringLiteral("%1/miniscope").arg(storageRootDir);
-        if (!makeDirectory(m_recStorageDir))
-            return false;
-        if (m_settingsDialog->recName().isEmpty()) {
-            raiseError("Miniscope recording name is empty. Please specify it in the settings to continue.");
-            return false;
-        }
-
-        m_miniscope->setVideoFilename(QStringLiteral("%1/%2").arg(m_recStorageDir).arg(m_settingsDialog->recName()).toStdString());
-
         if (!m_miniscope->connect()) {
             raiseError(QString::fromStdString(m_miniscope->lastError()));
             return false;
         }
 
         m_rawOut->setMetadataValue("framerate", m_miniscope->fps());
+        m_rawOut->setMetadataValue("suggestedDataName", QStringLiteral("%1/msSlice").arg(name().toLower()));
+        m_rawOut->setMetadataValue("hasColor", false);
+
         m_dispOut->setMetadataValue("framerate", m_miniscope->fps());
+        m_dispOut->setMetadataValue("suggestedDataName", QStringLiteral("%1/msDisplaySlice").arg(name().toLower()));
+        m_dispOut->setMetadataValue("hasColor", false);
 
         // start the streams
         m_rawOut->start();
         m_dispOut->start();
 
-        // we already start capturing video here, and only launch the recording when later
+        // we already start capturing video here, and only start emitting frames later
         if (!m_miniscope->run()) {
             raiseError(QString::fromStdString(m_miniscope->lastError()));
             return false;
@@ -120,21 +111,23 @@ public:
     void start() override
     {
         m_miniscope->setCaptureStartTimepoint(m_timer->startTime());
-        if (!m_miniscope->startRecording())
-            raiseError(QString::fromStdString(m_miniscope->lastError()));
         m_evTimer->start();
+
+        AbstractModule::start();
     }
 
     static void on_newRawFrame(const cv::Mat &mat, const milliseconds_t &time, void *udata)
     {
         auto self = static_cast<MiniscopeModule*>(udata);
-        self->m_rawOut->push(Frame(mat, time));
+        if (self->m_running)
+            self->m_rawOut->push(Frame(mat, time));
     }
 
     static void on_newDisplayFrame(const cv::Mat &mat, const milliseconds_t &time, void *udata)
     {
         auto self = static_cast<MiniscopeModule*>(udata);
-        self->m_dispOut->push(Frame(mat, time));
+        if (self->m_running)
+            self->m_dispOut->push(Frame(mat, time));
     }
 
     void checkMSStatus()
@@ -154,12 +147,20 @@ public:
     {
         QJsonObject jset;
 
+        jset.insert("scopeCamId", m_miniscope->scopeCamId());
+        jset.insert("fps", static_cast<int>(m_miniscope->fps()));
+
         return jsonObjectToBytes(jset);
     }
 
     bool loadSettings(const QString &, const QByteArray &data) override
     {
         auto jset = jsonObjectFromBytes(data);
+
+        m_miniscope->setScopeCamId(jset.value("scopeCamId").toInt(0));
+        m_miniscope->setFps(jset.value("fps").toInt(20));
+        m_settingsDialog->updateValues();
+
         return true;
     }
 };
@@ -176,7 +177,7 @@ QString MiniscopeModuleInfo::name() const
 
 QString MiniscopeModuleInfo::description() const
 {
-    return QStringLiteral("Record fluorescence images using a UCLA MiniScope.");
+    return QStringLiteral("Record fluorescence images from the brain of behaving animals using a UCLA MiniScope.");
 }
 
 QPixmap MiniscopeModuleInfo::pixmap() const

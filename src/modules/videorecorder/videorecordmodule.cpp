@@ -22,6 +22,7 @@
 #include <QMessageBox>
 #include <QJsonDocument>
 #include <QDebug>
+#include <QFileInfo>
 #include "streams/frametype.h"
 
 #include "videowriter.h"
@@ -35,6 +36,7 @@ private:
     bool m_recording;
     bool m_initDone;
     QString m_vidStorageDir;
+    QString m_vidSavePathBase;
     std::unique_ptr<VideoWriter> m_videoWriter;
 
     RecorderSettingsDialog *m_settingsDialog;
@@ -104,6 +106,9 @@ public:
         m_inSub = m_inPort->subscription();
         m_recording = true;
 
+        // don't permit configuration changes while we are running
+        m_settingsDialog->setEnabled(false);
+
         return true;
     }
 
@@ -120,10 +125,14 @@ public:
 
         const auto mdata = m_inSub->metadata();
         if (m_settingsDialog->videoNameFromSource()) {
-            m_settingsDialog->setVideoName(mdata.value("videoName").toString());
+            m_settingsDialog->setVideoName(mdata.value("suggestedDataName").toString());
             if (m_settingsDialog->videoName().isEmpty())
                 m_settingsDialog->setVideoName(mdata.value("srcModName", name()).toString());
         }
+
+        QFileInfo fi(QStringLiteral("%1/%2").arg(m_vidStorageDir).arg(m_settingsDialog->videoName()));
+        m_vidSavePathBase = fi.absoluteFilePath();
+        makeDirectory(fi.absolutePath());
     }
 
     bool runEvent() override
@@ -134,11 +143,22 @@ public:
             return true;
         }
 
+        const auto maybeFrame = m_inSub->peekNext();
+        if (!maybeFrame.has_value())
+            return true;
+        const auto frame = maybeFrame.value();
+
         if (!m_initDone) {
             const auto mdata = m_inSub->metadata();
-            const auto frameSize = mdata.value("size", QSize()).toSize();
+            auto frameSize = mdata.value("size", QSize()).toSize();
             const auto framerate = mdata.value("framerate", 0).toInt();
             const auto useColor = mdata.value("hasColor", true).toBool();
+
+            if (!frameSize.isValid()) {
+                // we didn't get the dimensions from metadata - let's see if the current frame can
+                // be used to get dimensions.
+                frameSize = QSize(frame.mat.cols, frame.mat.rows);
+            }
 
             if (!frameSize.isValid()) {
                 raiseError(QStringLiteral("Frame source did not provide image dimensions!"));
@@ -150,7 +170,7 @@ public:
             }
 
             try {
-                m_videoWriter->initialize(QStringLiteral("%1/%2").arg(m_vidStorageDir).arg(m_settingsDialog->videoName()).toStdString(),
+                m_videoWriter->initialize(m_vidSavePathBase.toStdString(),
                                           frameSize.width(),
                                           frameSize.height(),
                                           framerate,
@@ -185,12 +205,8 @@ public:
             statusMessage(QStringLiteral("Recording video..."));
         }
 
-        const auto maybeFrame = m_inSub->peekNext();
-        if (!maybeFrame.has_value())
-            return true;
-
         // write video data
-        if (!m_videoWriter->pushFrame(maybeFrame.value())) {
+        if (!m_videoWriter->pushFrame(frame)) {
             raiseError(QString::fromStdString(m_videoWriter->lastError()));
             return false;
         }
@@ -205,6 +221,9 @@ public:
 
         statusMessage(QStringLiteral("Recording stopped."));
         m_videoWriter.reset(nullptr);
+
+        // permit settings canges again
+        m_settingsDialog->setEnabled(true);
     }
 
     QByteArray serializeSettings(const QString&) override

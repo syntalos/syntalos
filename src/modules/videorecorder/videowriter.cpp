@@ -671,7 +671,7 @@ bool VideoWriter::pushFrame(const Frame &frame)
     if (!d->acceptFrames)
         return false;
     if (d->frameQueue.size() > FRAME_QUEUE_MAX_COUNT) {
-        d->lastError = "Frame encoding buffer was full and new frame could not be added. Maybe encoding or storage is too slow.";
+        d->lastError = "Frame encoding buffer was full and new frame could not be added. Maybe either encoding calculations or storage are too slow.";
         return false;
     }
 

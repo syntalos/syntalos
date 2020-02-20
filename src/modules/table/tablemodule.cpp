@@ -84,7 +84,7 @@ public:
     void start() override
     {
         if (m_rowSub.get() != nullptr) {
-            auto dataName = m_rowSub->metadata().value("dataName").toString();
+            auto dataName = m_rowSub->metadata().value("suggestedDataName").toString();
             if (!dataName.contains('/')) {
                 const auto srcModName = m_rowSub->metadata().value("srcModName").toString();
                 if (!srcModName.isEmpty())
