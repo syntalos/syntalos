@@ -110,8 +110,19 @@ ModuleSelectDialog::~ModuleSelectDialog()
 
 void ModuleSelectDialog::setModuleInfo(QList<QSharedPointer<ModuleInfo>> infos)
 {
+    struct {
+        bool operator()(const QSharedPointer<ModuleInfo> &mi1, const QSharedPointer<ModuleInfo> &mi2) const
+        {
+            return mi1->name() < mi2->name();
+        }
+    } moduleInfoLess;
+
     m_model->clear();
-    for (auto &info : infos) {
+
+    QList<QSharedPointer<ModuleInfo>> sortedInfos = infos;
+    std::sort(sortedInfos.begin(), sortedInfos.end(), moduleInfoLess);
+
+    for (auto &info : sortedInfos) {
         auto item = new QStandardItem(QIcon(info->pixmap()),
                                       QStringLiteral("<b>%1</b><br/><span>%2</span>").arg(info->name()).arg(info->description()));
         item->setData(info->id());
