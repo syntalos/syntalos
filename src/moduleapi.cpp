@@ -88,9 +88,17 @@ QColor ModuleInfo::color() const
             if (qAlpha(color) < 100)
                 continue;
 
-            redBucket += qRed(color);
-            greenBucket += qGreen(color);
-            blueBucket += qBlue(color);
+            const auto red = qRed(color);
+            const auto green = qGreen(color);
+            const auto blue = qBlue(color);
+
+            // try to ignore colors too close to white or black
+            if ((abs(red - green) < 38) && (abs(green - blue) < 38))
+                continue;
+
+            redBucket += red;
+            greenBucket += green;
+            blueBucket += blue;
             totalColorCount++;
         }
     }

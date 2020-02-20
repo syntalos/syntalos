@@ -26,8 +26,6 @@ set(SYNTALOS_SRC
     modulelibrary.cpp
     moduleselectdialog.h
     moduleselectdialog.cpp
-    videoviewwidget.h
-    videoviewwidget.cpp
     elidedlabel.h
     elidedlabel.cpp
     flowgraphview.h

@@ -139,6 +139,7 @@ void UEyeCameraSettingsDialog::setFramerate(int fps)
 void UEyeCameraSettingsDialog::setRunning(bool running)
 {
     ui->cameraGroupBox->setEnabled(!running);
+    ui->uEyeGroupBox->setEnabled(!running);
 }
 
 bool UEyeCameraSettingsDialog::automaticGain()

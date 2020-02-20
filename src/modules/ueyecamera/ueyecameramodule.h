@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2019 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2020 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -17,18 +17,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef UEYECAMERAMODULE_H
-#define UEYECAMERAMODULE_H
-
-#include <QObject>
-#include <thread>
-#include <atomic>
-#include <QQueue>
-#include <QMutex>
-#include <boost/circular_buffer.hpp>
+#pragma once
 
 #include "moduleapi.h"
-#include "streams/frametype.h"
 
 class UEyeCameraModuleInfo : public ModuleInfo
 {
@@ -40,45 +31,3 @@ public:
     QPixmap pixmap() const override;
     AbstractModule *createModule(QObject *parent = nullptr) override;
 };
-
-class UEyeCamera;
-class VideoViewWidget;
-class UEyeCameraSettingsDialog;
-
-class UEyeCameraModule : public AbstractModule
-{
-    Q_OBJECT
-public:
-    explicit UEyeCameraModule(QObject *parent = nullptr);
-    ~UEyeCameraModule() override;
-
-    void setName(const QString& name) override;
-
-    bool prepare(const QString& storageRootDir, const TestSubject& testSubject) override;
-    void start() override;
-    bool runUIEvent() override;
-
-    void stop() override;
-
-    QByteArray serializeSettings(const QString& confBaseDir) override;
-    bool loadSettings(const QString& confBaseDir, const QByteArray& data) override;
-
-private:
-    UEyeCamera *m_camera;
-    VideoViewWidget *m_videoView;
-    UEyeCameraSettingsDialog *m_camSettingsWindow;
-
-    std::thread *m_thread;
-    QMutex m_mutex;
-    std::atomic_bool m_running;
-    std::atomic_bool m_started;
-    std::atomic_int m_currentFps;
-    int m_fps;
-    boost::circular_buffer<Frame> m_frameRing;
-
-    static void captureThread(void *gcamPtr);
-    bool startCaptureThread();
-    void finishCaptureThread();
-};
-
-#endif // UEYECAMERAMODULE_H

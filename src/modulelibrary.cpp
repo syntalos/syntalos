@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2020 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -31,21 +31,23 @@
 #include "modules/canvas/canvasmodule.h"
 #include "modules/table/tablemodule.h"
 
-#include "modules/firmata-io/firmataiomodule.h"
-
 #include "modules/videorecorder/videorecordmodule.h"
 #include "modules/genericcamera/genericcameramodule.h"
-
-#include "modules/rhd2000/rhd2000module.h"
-#include "modules/traceplot/traceplotmodule.h"
 #ifdef HAVE_UEYE_CAMERA
 #include "modules/ueyecamera/ueyecameramodule.h"
 #endif
 #ifdef HAVE_MINISCOPE
 #include "modules/miniscope/miniscopemodule.h"
 #endif
-//#include "modules/triled-tracker/triledtrackermodule.h"
+
+#include "modules/firmata-io/firmataiomodule.h"
 #include "modules/pyscript/pyscriptmodule.h"
+
+//#include "modules/triled-tracker/triledtrackermodule.h"
+
+#include "modules/rhd2000/rhd2000module.h"
+#include "modules/traceplot/traceplotmodule.h"
+
 #include "modules/runcmd/runcmdmodule.h"
 
 #pragma GCC diagnostic ignored "-Wpadded"
@@ -69,25 +71,22 @@ ModuleLibrary::ModuleLibrary(QObject *parent)
     registerModuleInfo<CanvasModuleInfo>();
     registerModuleInfo<TableModuleInfo>();
 
-    registerModuleInfo<FirmataIOModuleInfo>();
-
     registerModuleInfo<VideoRecorderModuleInfo>();
     registerModuleInfo<GenericCameraModuleInfo>();
-
-
-
-
-
-    registerModuleInfo<Rhd2000ModuleInfo>();
-    registerModuleInfo<TracePlotModuleInfo>();
 #ifdef HAVE_UEYE_CAMERA
     registerModuleInfo<UEyeCameraModuleInfo>();
 #endif
 #ifdef HAVE_MINISCOPE
     registerModuleInfo<MiniscopeModuleInfo>();
 #endif
-    //registerModuleInfo<TriLedTrackerModuleInfo>();
+
+    registerModuleInfo<FirmataIOModuleInfo>();
     registerModuleInfo<PyScriptModuleInfo>();
+
+    //registerModuleInfo<TriLedTrackerModuleInfo>();
+
+    registerModuleInfo<Rhd2000ModuleInfo>();
+    registerModuleInfo<TracePlotModuleInfo>();
     registerModuleInfo<RunCmdModuleInfo>();
 }
 
