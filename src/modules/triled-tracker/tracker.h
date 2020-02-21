@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2017 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2020 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -21,7 +21,9 @@
 #define TRACKER_H
 
 #include <QFile>
-#include "imagesourcemodule.h"
+#include <opencv2/imgproc.hpp>
+
+#include "streams/frametype.h"
 
 class Tracker : public QObject
 {
@@ -39,7 +41,7 @@ public:
         double turnAngle; // triangle turn angle
     };
 
-    explicit Tracker(const QString &exportDir, const QString &subjectId);
+    explicit Tracker(std::shared_ptr<DataStream<TableRow> > dataStream, const QString &subjectId);
     ~Tracker();
 
     QString lastError() const;
@@ -47,7 +49,7 @@ public:
     bool initialize();
     void analyzeFrame(const cv::Mat& frame, const milliseconds_t time,
                       cv::Mat *trackingFrame, cv::Mat *infoFrame);
-    bool finalize();
+    QVariantHash finalize();
 
 private:
     void setError(const QString& msg);
@@ -59,9 +61,8 @@ private:
     QString m_lastError;
 
     QString m_subjectId;
-    QString m_exportDir;
+    std::shared_ptr<DataStream<TableRow>> m_dataStream;
 
-    QFile *m_posInfoFile;
     std::vector<cv::Point2f> m_mazeRect;
     uint m_mazeFindTrialCount;
     cv::Mat m_mouseGraphicMat;

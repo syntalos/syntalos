@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016-2019 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2020 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -19,13 +19,116 @@
 
 #include "triledtrackermodule.h"
 
-#include <QMessageBox>
 #include <QDebug>
 
-#include "imagesourcemodule.h"
-#include "ledtrackersettingsdialog.h"
-#include "videoviewwidget.h"
+#include "streams/frametype.h"
 #include "tracker.h"
+
+class TriLedTrackerModule : public AbstractModule
+{
+    Q_OBJECT
+private:
+    std::shared_ptr<StreamInputPort<Frame>> m_inPort;
+    std::shared_ptr<DataStream<Frame>> m_trackStream;
+    std::shared_ptr<DataStream<Frame>> m_animalStream;
+    std::shared_ptr<DataStream<TableRow>> m_dataStream;
+
+    QString m_subjectId;
+
+    QVariantHash m_mazeInfo;
+
+public:
+    explicit TriLedTrackerModule(QObject *parent = nullptr)
+        : AbstractModule(parent)
+    {
+        m_inPort = registerInputPort<Frame>(QStringLiteral("frames-in"), QStringLiteral("Frames"));
+        m_trackStream = registerOutputPort<Frame>(QStringLiteral("track-video"), QStringLiteral("Tracking Visualization"));
+        m_animalStream = registerOutputPort<Frame>(QStringLiteral("animal-video"), QStringLiteral("Animal Visualization"));
+        m_dataStream = registerOutputPort<TableRow>(QStringLiteral("track-data"), QStringLiteral("Tracking Data"));
+    }
+
+    ModuleFeatures features() const override
+    {
+        return ModuleFeature::RUN_THREADED;
+    }
+
+    bool prepare(const TestSubject &testSubject) override
+    {
+        m_mazeInfo.clear();
+
+        m_subjectId = testSubject.id;
+        if (m_subjectId.isEmpty())
+            m_subjectId = QStringLiteral("SIU"); // subject ID unknown
+
+        m_dataStream->setSuggestedDataName(QStringLiteral("tracking/triLedTrack%1-%2").arg(index()).arg(m_subjectId));
+        m_trackStream->setSuggestedDataName(QStringLiteral("tracking/trackVideo%1").arg(index()));
+        m_animalStream->setSuggestedDataName(QStringLiteral("tracking/subjInfoVideo%1").arg(index()));
+
+        return true;
+    }
+
+    void runThread(OptionalWaitCondition *startWaitCondition) override
+    {
+        // don't even try to do anything in case we are not subscribed to a
+        // frame source
+        if (!m_inPort->hasSubscription()) {
+            setStateIdle();
+            return;
+        }
+        auto frameSub = m_inPort->subscription();
+        frameSub->setThrottleItemsPerSec(30); // we never want more than 30fps for tracking
+
+        const auto outFramerate = frameSub->metadata().value(QStringLiteral("framerate"), 30);
+        m_trackStream->setMetadataValue(QStringLiteral("framerate"), outFramerate);
+        m_animalStream->setMetadataValue(QStringLiteral("framerate"), outFramerate);
+        m_trackStream->start();
+        m_animalStream->start();
+
+        // create new tracker and have it initialize the data output stream
+        auto tracker = new Tracker(m_dataStream, m_subjectId);
+        if (!tracker->initialize()) {
+            raiseError(tracker->lastError());
+            delete tracker;
+            return;
+        }
+
+        // wait until we actually start
+        startWaitCondition->wait(this);
+
+        while (m_running) {
+            const auto mFrame = frameSub->next();
+            // no value means the subscription has been terminated
+            if (!mFrame.has_value())
+                break;
+            const auto frame = mFrame.value();
+
+            cv::Mat infoMat;
+            cv::Mat trackMat;
+            tracker->analyzeFrame(frame.mat, frame.time, &trackMat, &infoMat);
+
+            m_trackStream->push(Frame(trackMat, frame.time));
+            m_animalStream->push(Frame(infoMat, frame.time));
+        }
+
+        m_mazeInfo = tracker->finalize();
+        delete tracker;
+    }
+
+    void stop() override
+    {
+        statusMessage(QStringLiteral("Tracker stopped."));
+        AbstractModule::stop();
+    }
+
+    QVariantHash experimentMetadata() override
+    {
+        if (m_mazeInfo.isEmpty())
+            return QVariantHash();
+        QVariantHash map;
+        map.insert(QStringLiteral("MazeDimensions"), m_mazeInfo);
+        return map;
+    }
+};
 
 QString TriLedTrackerModuleInfo::id() const
 {
@@ -39,7 +142,7 @@ QString TriLedTrackerModuleInfo::name() const
 
 QString TriLedTrackerModuleInfo::description() const
 {
-    return QStringLiteral("Track subject behavior via three LEDs mounted on its head.");
+    return QStringLiteral("Track subject behavior via a three-LED triangle mounted on its head.");
 }
 
 QPixmap TriLedTrackerModuleInfo::pixmap() const
@@ -52,274 +155,4 @@ AbstractModule *TriLedTrackerModuleInfo::createModule(QObject *parent)
     return new TriLedTrackerModule(parent);
 }
 
-/**
- * @brief FRAME_QUEUE_MAX_COUNT
- * The maximum number of frames we want to hold in the queue
- * before dropping data.
- */
-static const uint FRAME_QUEUE_MAX_COUNT = 512;
-
-TriLedTrackerModule::TriLedTrackerModule(QObject *parent)
-    : ImageSinkModule(parent),
-      m_thread(nullptr),
-      m_settingsDialog(nullptr),
-      m_trackInfoDisplay(nullptr),
-      m_trackingDisplay(nullptr)
-{
-    m_trackDispRing = boost::circular_buffer<cv::Mat>(16);
-    m_trackInfoDispRing = boost::circular_buffer<cv::Mat>(16);
-
-    m_settingsDialog = new LedTrackerSettingsDialog;
-    m_settingsDialog->setResultsName("tracking");
-    addSettingsWindow(m_settingsDialog);
-
-    m_trackInfoDisplay = new VideoViewWidget;
-    m_trackingDisplay = new VideoViewWidget;
-    addDisplayWindow(m_trackInfoDisplay);
-    addDisplayWindow(m_trackingDisplay);
-
-    m_trackInfoDisplay->setWindowTitle(QStringLiteral("Animal Tracking Info"));
-    m_trackingDisplay->setWindowTitle(QStringLiteral("Tracking Display"));
-}
-
-TriLedTrackerModule::~TriLedTrackerModule()
-{
-    finishTrackingThread();
-}
-
-void TriLedTrackerModule::setName(const QString &name)
-{
-    ImageSinkModule::setName(name);
-}
-
-ModuleFeatures TriLedTrackerModule::features() const
-{
-    return ModuleFeature::RUN_UIEVENTS | ModuleFeature::SHOW_SETTINGS | ModuleFeature::SHOW_DISPLAY;
-}
-
-bool TriLedTrackerModule::initialize(ModuleManager *manager)
-{
-    assert(!initialized());
-    setState(ModuleState::INITIALIZING);
-
-    // find all modules suitable as frame sources
-    for (auto &mod : manager->activeModules()) {
-        auto imgSrcMod = qobject_cast<ImageSourceModule*>(mod);
-        if (imgSrcMod == nullptr)
-            continue;
-        m_frameSourceModules.append(imgSrcMod);
-    }
-    if (m_frameSourceModules.isEmpty())
-        m_settingsDialog->setSelectedImageSourceMod(nullptr);
-    else
-        m_settingsDialog->setSelectedImageSourceMod(m_frameSourceModules.first()); // set first module as default
-
-    setInitialized();
-    setName(name());
-    return true;
-}
-
-bool TriLedTrackerModule::prepare(const QString &storageRootDir, const TestSubject &testSubject)
-{
-    setState(ModuleState::PREPARING);
-
-    m_dataStorageDir = QStringLiteral("%1/tracking").arg(storageRootDir);
-    m_subjectId = testSubject.id;
-
-    if (!makeDirectory(m_dataStorageDir))
-        return false;
-
-    const auto resultsName = m_settingsDialog->resultsName();
-    if (m_subjectId.isEmpty())
-        m_subjectId = resultsName;
-
-    if (resultsName.isEmpty()) {
-        raiseError("Tracking result name is not set. Please set it in the module settings to continue.");
-        return false;
-    }
-
-    auto imgSrcMod = m_settingsDialog->selectedImageSourceMod();
-    if (imgSrcMod == nullptr) {
-        raiseError("No frame source is set for subject tracking. Please set it in the module settings to continue.");
-        return false;
-    }
-    connect(imgSrcMod, &ImageSourceModule::newFrame, this, &TriLedTrackerModule::receiveFrame);
-
-    m_trackingDisplay->setWindowTitle(QStringLiteral("Tracking: %1").arg(resultsName));
-    m_trackInfoDisplay->setWindowTitle(QStringLiteral("Tracking Info: %1").arg(resultsName));
-
-    m_settingsDialog->setRunning(true);
-    m_started = false;
-    startTrackingThread();
-
-    statusMessage(QStringLiteral("Tracking via %1").arg(imgSrcMod->name()));
-    setState(ModuleState::READY);
-    return true;
-}
-
-void TriLedTrackerModule::start()
-{
-    m_started = true;
-    setState(ModuleState::RUNNING);
-}
-
-bool TriLedTrackerModule::runEvent()
-{
-    std::lock_guard<std::mutex> lock(m_dispmutex);
-
-    if (!m_trackDispRing.empty()) {
-        m_trackingDisplay->showImage(m_trackDispRing.front());
-        m_trackDispRing.pop_front();
-    }
-    if (!m_trackInfoDispRing.empty()) {
-        m_trackInfoDisplay->showImage(m_trackInfoDispRing.front());
-        m_trackInfoDispRing.pop_front();
-    }
-
-    return true;
-}
-
-void TriLedTrackerModule::stop()
-{
-    finishTrackingThread();
-
-    m_settingsDialog->setRunning(false);
-
-    auto imgSrcMod = m_settingsDialog->selectedImageSourceMod();
-    disconnect(imgSrcMod, &ImageSourceModule::newFrame, this, &TriLedTrackerModule::receiveFrame);
-
-    statusMessage(QStringLiteral("Tracker stopped."));
-}
-
-bool TriLedTrackerModule::canRemove(AbstractModule *mod)
-{
-    return mod != m_settingsDialog->selectedImageSourceMod();
-}
-
-void TriLedTrackerModule::showSettingsUi()
-{
-    m_settingsDialog->setImageSourceModules(m_frameSourceModules);
-    m_settingsDialog->show();
-}
-
-QByteArray TriLedTrackerModule::serializeSettings(const QString&)
-{
-    QJsonObject jsettings;
-    auto mod = m_settingsDialog->selectedImageSourceMod();
-    if (mod != nullptr)
-        jsettings.insert("imageSourceModule", mod->name());
-    jsettings.insert("resultsName", m_settingsDialog->resultsName());
-
-    return jsonObjectToBytes(jsettings);
-}
-
-bool TriLedTrackerModule::loadSettings(const QString&, const QByteArray &data)
-{
-    auto jsettings = jsonObjectFromBytes(data);
-
-    auto modName = jsettings.value("imageSourceModule").toString();
-    for (auto &mod : m_frameSourceModules) {
-        if (mod->name() == modName) {
-            m_settingsDialog->setSelectedImageSourceMod(mod);
-            break;
-        }
-    }
-    m_settingsDialog->setResultsName(jsettings.value("resultsName").toString());
-
-    return true;
-}
-
-void TriLedTrackerModule::recvModuleCreated(AbstractModule *mod)
-{
-    auto imgSrcMod = qobject_cast<ImageSourceModule*>(mod);
-    if (imgSrcMod != nullptr)
-        m_frameSourceModules.append(imgSrcMod);
-}
-
-void TriLedTrackerModule::recvModulePreRemove(AbstractModule *mod)
-{
-    auto imgSrcMod = qobject_cast<ImageSourceModule*>(mod);
-    if (imgSrcMod == nullptr)
-        return;
-    for (int i = 0; i < m_frameSourceModules.size(); i++) {
-        auto fsmod = m_frameSourceModules.at(i);
-        if (fsmod == imgSrcMod) {
-            m_frameSourceModules.removeAt(i);
-            break;
-        }
-    }
-}
-
-void TriLedTrackerModule::receiveFrame(const Frame &frame)
-{
-    std::lock_guard<std::mutex> lock(m_mutex);
-    m_frameQueue.push(frame);
-}
-
-void TriLedTrackerModule::trackingThread(void *tmPtr)
-{
-    auto self = static_cast<TriLedTrackerModule*> (tmPtr);
-
-    auto tracker = new Tracker(self->m_dataStorageDir, self->m_subjectId);
-    if (!tracker->initialize()) {
-        self->raiseError(tracker->lastError());
-        delete tracker;
-        return;
-    }
-
-    while (self->m_running) {
-        while (!self->m_started) { }
-
-        self->m_mutex.lock();
-        if (self->m_frameQueue.empty()) {
-            self->m_mutex.unlock();
-            continue;
-        }
-        if (self->m_frameQueue.size() > FRAME_QUEUE_MAX_COUNT) {
-            self->raiseError("Tracking frame queue was full: Could not analyze frames fast enough.");
-            break;
-        }
-
-        auto frame = self->m_frameQueue.front();
-        self->m_frameQueue.pop();
-        self->m_mutex.unlock();
-
-        cv::Mat infoMat;
-        cv::Mat trackMat;
-        tracker->analyzeFrame(frame.mat, frame.time, &trackMat, &infoMat);
-
-        self->m_dispmutex.lock();
-        self->m_trackInfoDispRing.push_back(infoMat);
-        self->m_trackDispRing.push_back(trackMat);
-        self->m_dispmutex.unlock();
-    }
-
-    delete tracker;
-}
-
-bool TriLedTrackerModule::startTrackingThread()
-{
-    finishTrackingThread();
-
-    statusMessage("Launching thread...");
-    m_running = true;
-    m_thread = new std::thread(trackingThread, this);
-    statusMessage("Waiting.");
-    return true;
-}
-
-void TriLedTrackerModule::finishTrackingThread()
-{
-    if (!initialized())
-        return;
-
-    statusMessage("Cleaning up...");
-    if (m_thread != nullptr) {
-        m_running = false;
-        m_started = true;
-        m_thread->join();
-        delete m_thread;
-        m_thread = nullptr;
-        m_started = false;
-    }
-}
+#include "triledtrackermodule.moc"

@@ -62,7 +62,7 @@ public:
     virtual QHash<QString, QVariant> metadata() = 0;
     virtual void setMetadata(const QHash<QString, QVariant> &metadata) = 0;
     virtual void setMetadataValue(const QString &key, const QVariant &value) = 0;
-    virtual void setCommonMetadata(const QString &srcModType, const QString &srcModName) = 0;
+    virtual void setCommonMetadata(const QString &srcModType, const QString &srcModName, const QString &portTitle) = 0;
 };
 
 template<typename T>
@@ -279,15 +279,22 @@ public:
         m_metadata[key] = value;
     }
 
+    void setSuggestedDataName(const QString &value)
+    {
+        m_metadata[QStringLiteral("suggestedDataName")] = value;
+    }
+
     void removeMetadata(const QString &key)
     {
         m_metadata.remove(key);
     }
 
-    void setCommonMetadata(const QString &srcModType, const QString &srcModName) override
+    void setCommonMetadata(const QString &srcModType, const QString &srcModName, const QString &portTitle) override
     {
         setMetadataValue("srcModType", srcModType);
         setMetadataValue("srcModName", srcModName);
+        if (!portTitle.isEmpty())
+            setMetadataValue("srcModPortTitle", portTitle);
     }
 
     std::shared_ptr<StreamSubscription<T>> subscribe()

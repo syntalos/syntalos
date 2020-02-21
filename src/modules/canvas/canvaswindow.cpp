@@ -30,7 +30,7 @@ CanvasWindow::CanvasWindow(QWidget *parent)
 {
     setWindowTitle("Canvas");
     setMinimumSize(QSize(320, 256));
-    setWindowIcon(QIcon(":/icons/generic-view"));
+    setWindowIcon(QIcon(":/module/canvas"));
 
     m_imgView = new ImageViewWidget(this);
     m_statusLabel = new QLabel(this);

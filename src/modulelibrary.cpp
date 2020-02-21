@@ -40,10 +40,10 @@
 #include "modules/miniscope/miniscopemodule.h"
 #endif
 
+#include "modules/triled-tracker/triledtrackermodule.h"
+
 #include "modules/firmata-io/firmataiomodule.h"
 #include "modules/pyscript/pyscriptmodule.h"
-
-//#include "modules/triled-tracker/triledtrackermodule.h"
 
 #include "modules/rhd2000/rhd2000module.h"
 #include "modules/traceplot/traceplotmodule.h"
@@ -80,10 +80,10 @@ ModuleLibrary::ModuleLibrary(QObject *parent)
     registerModuleInfo<MiniscopeModuleInfo>();
 #endif
 
+    registerModuleInfo<TriLedTrackerModuleInfo>();
+
     registerModuleInfo<FirmataIOModuleInfo>();
     registerModuleInfo<PyScriptModuleInfo>();
-
-    //registerModuleInfo<TriLedTrackerModuleInfo>();
 
     registerModuleInfo<Rhd2000ModuleInfo>();
     registerModuleInfo<TracePlotModuleInfo>();

@@ -90,11 +90,12 @@ public:
         auto imgWinTitle = m_frameSub->metadata().value("srcModName").toString();
         if (imgWinTitle.isEmpty())
             imgWinTitle = "Canvas";
-
+        const auto portTitle = m_frameSub->metadata().value("srcModPortTitle").toString();
+        if (!portTitle.isEmpty())
+            imgWinTitle = QStringLiteral("%1 - %2").arg(imgWinTitle).arg(portTitle);
         m_cvView->setWindowTitle(imgWinTitle);
 
         m_evTimer->start();
-
     }
 
     void stop() override

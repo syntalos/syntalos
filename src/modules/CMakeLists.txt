@@ -13,7 +13,7 @@ if(MOD_MINISCOPE)
     add_subdirectory(miniscope)
 endif()
 
-#add_subdirectory(triled-tracker)
+add_subdirectory(triled-tracker)
 add_subdirectory(firmata-io)
 add_subdirectory(table)
 

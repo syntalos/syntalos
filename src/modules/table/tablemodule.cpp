@@ -81,7 +81,12 @@ public:
     void start() override
     {
         if (m_rowSub.get() != nullptr) {
-            auto const fname = getDataStoragePath(QStringLiteral("tables/%1.csv").arg(name()), m_rowSub->metadata());
+            const auto mdata = m_rowSub->metadata();
+
+            auto fname = getDataStoragePath(QStringLiteral("tables/%1").arg(name()), mdata);
+            if (fname.isEmpty())
+                return;
+            fname = QStringLiteral("%1.csv").arg(fname);
             if (!m_recTable->open(fname)) {
                 raiseError(QStringLiteral("Unable to open file %1").arg(fname));
                 return;
@@ -90,8 +95,16 @@ public:
             // remove any old data from the table display
             m_recTable->reset();
 
-            const auto header = m_rowSub->metadata().value("tableHeader").toStringList();
+            const auto header = mdata.value("tableHeader").toStringList();
             m_recTable->setHeader(header);
+
+            auto imgWinTitle = mdata.value("srcModName").toString();
+            if (imgWinTitle.isEmpty())
+                imgWinTitle = "Canvas";
+            const auto portTitle = mdata.value("srcModPortTitle").toString();
+            if (!portTitle.isEmpty())
+                imgWinTitle = QStringLiteral("%1 - %2").arg(imgWinTitle).arg(portTitle);
+            m_recTable->widget()->setWindowTitle(imgWinTitle);
 
             m_evTimer->start();
         }

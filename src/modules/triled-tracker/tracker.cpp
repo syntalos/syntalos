@@ -30,14 +30,12 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/features2d/features2d.hpp>
 
-Tracker::Tracker(const QString& exportDir, const QString& subjectId)
+Tracker::Tracker(std::shared_ptr<DataStream<TableRow>> dataStream, const QString &subjectId)
     : QObject(nullptr),
       m_initialized(false),
       m_subjectId(subjectId),
-      m_exportDir(exportDir)
+      m_dataStream(dataStream)
 {
-    m_posInfoFile = nullptr;
-
     // load mouse graphic from resource store
     QFile file(":/images/mouse-top.png");
     if(file.open(QIODevice::ReadOnly)) {
@@ -71,30 +69,16 @@ bool Tracker::initialize()
         setError("Tried to initialize tracker twice.");
         return false;
     }
-    if (m_exportDir.isEmpty()) {
-        setError("Unable to initilize tracker with empty export dir.");
-        return false;
-    }
-    if (m_subjectId.isEmpty()) {
-        setError("Unable to initilize tracker with empty subject ID.");
-        return false;
-    }
 
-    // prepare position output CSV file
-    auto posInfoPath = QStringLiteral("%1/%2_positions.csv").arg(m_exportDir).arg(m_subjectId);
-    m_posInfoFile = new QFile(posInfoPath);
-    if (!m_posInfoFile->open(QIODevice::WriteOnly | QIODevice::Text)) {
-        setError("Unable to open position CSV file for writing.");
-        return false;
-    }
-
-    QTextStream posInfoOut(m_posInfoFile);
-    posInfoOut << "Time (msec)" << ";"
-                  "Red X" << ";" << "Red Y" << ";"
-                  "Green X" << ";" << "Green Y" << ";"
-                  "Blue X" << ";" << "Blue Y" << ";"
-                  "Center X" << ";" << "Center Y" << ";"
-                  "Turn Angle (deg)" << "\n";
+    // set position header and start the output data stream
+    m_dataStream->setMetadataValue("tableHeader", QStringList()
+                                   << QStringLiteral("Time")
+                                   << QStringLiteral("Red X") << QStringLiteral("Red Y")
+                                   << QStringLiteral("Green X") << QStringLiteral("Green Y")
+                                   << QStringLiteral("Blue X") << QStringLiteral("Blue Y")
+                                   << QStringLiteral("Center X") << QStringLiteral("Center Y")
+                                   << QStringLiteral("Turn Angle (deg)"));
+    m_dataStream->start();
 
     // clear maze position data
     m_mazeRect = std::vector<cv::Point2f>();
@@ -110,39 +94,42 @@ void Tracker::analyzeFrame(const cv::Mat& frame, const milliseconds_t time, cv::
     // do the tracking on the source frame
     auto triangle = trackPoints(frame, infoFrame, trackingFrame);
 
-    // the layout of the CSV file is:
-    //  time;Red X;Red Y; Green X; Green Y; Yellow X; Yellow Y
-    QTextStream posInfoOut(m_posInfoFile);
+    TableRow posInfo;
+    posInfo.reserve(10);
 
     // store time value
-    posInfoOut << time.count() << ";";
+    posInfo.append(QString::number(time.count()));
 
     // red
-    posInfoOut << triangle.red.x << ";" << triangle.red.y << ";";
+    posInfo.append(QString::number(triangle.red.x));
+    posInfo.append(QString::number(triangle.red.y));
+
     // green
-    posInfoOut << triangle.green.x << ";" << triangle.green.y << ";";
+    posInfo.append(QString::number(triangle.green.x));
+    posInfo.append(QString::number(triangle.green.y));
+
     // blue
-    posInfoOut << triangle.blue.x << ";" << triangle.blue.y << ";";
+    posInfo.append(QString::number(triangle.blue.x));
+    posInfo.append(QString::number(triangle.blue.y));
+
     // center
-    posInfoOut << triangle.center.x << ";" << triangle.center.y << ";";
+    posInfo.append(QString::number(triangle.center.x));
+    posInfo.append(QString::number(triangle.center.y));
 
     // turn angle
-    posInfoOut << triangle.turnAngle << ";";
+    posInfo.append(QString::number(triangle.turnAngle));
 
-    posInfoOut << "\n";
+    m_dataStream->push(posInfo);
 }
 
-bool Tracker::finalize()
+QVariantHash Tracker::finalize()
 {
     if (!m_initialized)
-        return true;
-    if (m_posInfoFile != nullptr)
-        delete m_posInfoFile;
+        return QVariantHash();
 
-    auto infoPath = QStringLiteral("%1/maze.json").arg(m_exportDir);
-
+    QVariantHash mazeInfo;
+    mazeInfo.insert("dummy", "aaablah");
     if (m_mazeRect.size() == 4) {
-        QJsonObject mazeInfo;
         mazeInfo.insert("topLeftX", m_mazeRect[0].x);
         mazeInfo.insert("topLeftY", m_mazeRect[0].y);
 
@@ -154,18 +141,9 @@ bool Tracker::finalize()
 
         mazeInfo.insert("bottomRightX", m_mazeRect[3].x);
         mazeInfo.insert("bottomRightY", m_mazeRect[3].y);
-
-        QFile mazeInfoFile(infoPath);
-        if (!mazeInfoFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
-            setError("Unable to open maze info file for writing.");
-            return false;
-        }
-
-        QTextStream vInfoFileOut(&mazeInfoFile);
-        vInfoFileOut << QJsonDocument(mazeInfo).toJson();
     }
 
-    return true;
+    return mazeInfo;
 }
 
 static

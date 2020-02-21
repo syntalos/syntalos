@@ -31,7 +31,7 @@ RecordedTable::RecordedTable(QObject *parent)
 {
     m_tableWidget = new QTableWidget;
     m_tableWidget->setWindowTitle(QStringLiteral("Table"));
-    m_tableWidget->setWindowIcon(QIcon(":/icons/generic-view"));
+    m_tableWidget->setWindowIcon(QIcon(":/module/table"));
     m_tableWidget->horizontalHeader()->hide();
 
     m_eventFile = new QFile;
@@ -102,7 +102,9 @@ void RecordedTable::setHeader(const QStringList &headers)
     if (!m_eventFile->isOpen())
         return;
     QTextStream tsout(m_eventFile);
-    tsout << headers.join(";") << "\n";
+    auto csvHdr = headers;
+    tsout << csvHdr.replaceInStrings(QStringLiteral(";"), QStringLiteral("；"))
+                    .join(";") << "\n";
 }
 
 void RecordedTable::addRows(const QStringList &data)
