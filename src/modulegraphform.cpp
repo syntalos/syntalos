@@ -67,6 +67,7 @@ ModuleGraphForm::ModuleGraphForm(QWidget *parent)
     ui->graphView->setPortTypeColor(qMetaTypeId<FirmataControl>(), QColor::fromRgb(0xc7abff));
     ui->graphView->setPortTypeColor(qMetaTypeId<FirmataData>(), QColor::fromRgb(0xD38DEF));
     ui->graphView->setPortTypeColor(qMetaTypeId<TableRow>(), QColor::fromRgb(0x8FD6FE));
+    ui->graphView->setPortTypeColor(qMetaTypeId<SignalData>(), QColor::fromRgb(0x2ECC71));
 }
 
 ModuleGraphForm::~ModuleGraphForm()

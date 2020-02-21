@@ -43,37 +43,6 @@ enum class ModuleState {
 Q_DECLARE_METATYPE(ModuleState)
 
 /**
- * @brief The ModuleMessageSeverity enum
- *
- * Sets the severity of a message displayed to the user and added to the
- * experiment log. These messages are emitted by modules and usually received
- * by the MazeAmaze engine.
- */
-enum class ModuleMessageSeverity
-{
-    UNKNOWN,
-    INFO,
-    WARNING,
-    ERROR
-};
-
-/**
- * @brief Status message of a module
- *
- * This structure contains information about a module state change or
- * a message sent to the engine by a module.
- * The engine may react to messages (e.g. by terminating the experiment)
- * or simply display a message to the user or log it to a file.
- */
-typedef struct
-{
-    ModuleMessageSeverity severity;
-    ModuleState state;
-    QString text;
-} ModuleMessage;
-Q_DECLARE_METATYPE(ModuleMessage)
-
-/**
  * @brief The ControlCommandKind enum
  *
  * Basic operations to control a module from another module.
@@ -152,6 +121,42 @@ typedef struct
 Q_DECLARE_METATYPE(FirmataData)
 
 /**
+ * @brief Type of a signal from a signal source.
+ *
+ * This is usually set in the metadata of a data stream.
+ */
+enum class SignalDataType {
+    Amplifier,
+    AuxInput,
+    SupplyVoltage,
+    BoardAdc,
+    BoardDigIn,
+    BoardDigOut
+};
+Q_DECLARE_METATYPE(SignalDataType)
+
+/**
+  * @brief A single data point in a stream of data from a signal source.
+  */
+typedef struct
+{
+    double val;
+    time_t time;
+    double index;
+} SignalDataPoint;
+Q_DECLARE_METATYPE(SignalDataPoint)
+
+/**
+ * @brief A single frame of a video stream
+ *
+ * Describes a single frame in a stream of frames that make up
+ * a complete video.
+ * Each frame is timestamped for accuracy.
+ */
+using SignalData = std::vector<SignalDataPoint>;
+Q_DECLARE_METATYPE(SignalData)
+
+/**
  * @brief Helper function to register all meta types for stream data
  *
  * This function registers all types with the meta object system and also
@@ -162,7 +167,7 @@ void registerStreamMetaTypes();
 /**
  * @brief Get a mapping of type names to their IDs.
  */
-QHash<QString, int> streamTypeIdMap();
+QMap<QString, int> streamTypeIdMap();
 
 #ifndef NO_TID_PORTCONSTRUCTORS
 

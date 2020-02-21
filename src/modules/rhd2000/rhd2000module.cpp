@@ -84,6 +84,15 @@ Rhd2000Module::Rhd2000Module(QObject *parent)
     m_actions.append(m_intanUi->disableAllChannelsAction);
     m_actions.append(m_intanUi->originalOrderAction);
     m_actions.append(m_intanUi->alphaOrderAction);
+
+    // We hardcode the 6 ports (and the amount of ports) that the Intan Evalualtion board has here.
+    // Not very elegant, but the original software does that too
+    registerOutputPort<SignalData>(QStringLiteral("port-0"), QStringLiteral("Port A"));
+    registerOutputPort<SignalData>(QStringLiteral("port-1"), QStringLiteral("Port B"));
+    registerOutputPort<SignalData>(QStringLiteral("port-2"), QStringLiteral("Port C"));
+    registerOutputPort<SignalData>(QStringLiteral("port-3"), QStringLiteral("Port D"));
+    registerOutputPort<SignalData>(QStringLiteral("port-4"), QStringLiteral("ADC"));
+    registerOutputPort<SignalData>(QStringLiteral("port-5"), QStringLiteral("Dig In"));
 }
 
 bool Rhd2000Module::prepare(const TestSubject &testSubject)

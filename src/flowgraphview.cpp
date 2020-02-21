@@ -473,9 +473,9 @@ FlowGraphNodePort::SortOrder FlowGraphNodePort::sortOrder(void)
  */
 bool FlowGraphNodePort::lessThan(FlowGraphNodePort *port1, FlowGraphNodePort *port2)
 {
-    const auto portIdComp = port1->streamPort()->id().compare(port2->streamPort()->id());
+    const auto portIdComp = port1->streamPort()->id().compare(port2->streamPort()->id(), Qt::CaseInsensitive);
     if (portIdComp != 0)
-        return (portIdComp > 0);
+        return (portIdComp < 0);
 
     if (g_sort_order == Descending) {
         FlowGraphNodePort *port = port1;
