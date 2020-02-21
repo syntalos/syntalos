@@ -86,7 +86,7 @@ Rhd2000Module::Rhd2000Module(QObject *parent)
     m_actions.append(m_intanUi->alphaOrderAction);
 }
 
-bool Rhd2000Module::prepare(const QString &storageRootDir, const TestSubject &testSubject)
+bool Rhd2000Module::prepare(const TestSubject &testSubject)
 {
     assert(m_intanUi);
 
@@ -95,17 +95,16 @@ bool Rhd2000Module::prepare(const QString &storageRootDir, const TestSubject &te
         return false;
     }
 
-    auto intanBaseDir = QStringLiteral("%1/intan").arg(storageRootDir);
-    if (!makeDirectory(intanBaseDir))
-        return false;
-
-    QString intanBaseName;
+    QString intanBasePart;
     if (testSubject.id.isEmpty())
-        intanBaseName = QString::fromUtf8("%1/ephys").arg(intanBaseDir);
+        intanBasePart = QStringLiteral("intan/ephys");
     else
-        intanBaseName = QString::fromUtf8("%1/%2_ephys").arg(intanBaseDir).arg(testSubject.id);
+        intanBasePart = QStringLiteral("intan/%2_ephys").arg(testSubject.id);
 
-    m_intanUi->setBaseFileName(intanBaseName);
+    auto intanBaseFilename = getDataStoragePath(intanBasePart);
+    if (intanBaseFilename.isEmpty())
+        return false;
+    m_intanUi->setBaseFileName(intanBaseFilename);
 
     m_intanUi->interfaceBoardPrepareRecording();
     m_intanUi->interfaceBoardInitRun();

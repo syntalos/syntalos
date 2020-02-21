@@ -70,7 +70,7 @@ public:
 
     }
 
-    bool prepare(const QString &, const TestSubject &) override
+    bool prepare(const TestSubject &) override
     {
         m_vOut->setMetadataValue("size", QSize(800, 600));
         m_vOut->setMetadataValue("framerate", 200);

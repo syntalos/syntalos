@@ -487,11 +487,14 @@ bool Engine::run()
     bool initSuccessful = true;
     d->failed = false; // assume success until a module actually fails
     for (auto &mod : orderedActiveModules) {
+        // Prepare module. At this point it should have a timer,
+        // the location where data is saved and be in the PREPARING state.
         emitStatusMessage(QStringLiteral("Preparing %1...").arg(mod->name()));
         mod->setStatusMessage(QString());
         mod->setTimer(d->timer);
         mod->setState(ModuleState::PREPARING);
-        if (!mod->prepare(d->exportDir, d->testSubject)) {
+        mod->setDataStorageRootDir(d->exportDir);
+        if (!mod->prepare(d->testSubject)) {
             initSuccessful = false;
             d->failed = true;
             emitStatusMessage(QStringLiteral("Module %1 failed to prepare.").arg(mod->name()));
@@ -684,6 +687,10 @@ bool Engine::run()
         // ensure modules display the correct state after we stopped a run
         if ((mod->state() != ModuleState::IDLE) && (mod->state() != ModuleState::ERROR))
             mod->setState(ModuleState::IDLE);
+
+        // all module data must be written by this point, so we "steal" its storage root path,
+        // so the module is less tempted to write data into old experiment locations.
+        mod->setDataStorageRootDir(QString());
     }
 
     // join all dedicated module threads with the main thread again, waiting for them to terminate

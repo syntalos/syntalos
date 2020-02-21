@@ -36,8 +36,6 @@ private:
     QString m_imgWinTitle;
     QTimer *m_evTimer;
 
-    QString m_storageRootDir;
-
 public:
     explicit TableModule(QObject *parent = nullptr)
         : AbstractModule(parent)
@@ -71,12 +69,11 @@ public:
         m_recTable->hide();
     }
 
-    bool prepare(const QString &storageRootDir, const TestSubject &) override
+    bool prepare(const TestSubject &) override
     {
         m_rowSub.reset();
         if (m_rowsIn->hasSubscription())
             m_rowSub = m_rowsIn->subscription();
-        m_storageRootDir = storageRootDir;
 
         return true;
     }
@@ -84,18 +81,7 @@ public:
     void start() override
     {
         if (m_rowSub.get() != nullptr) {
-            auto dataName = m_rowSub->metadata().value("suggestedDataName").toString();
-            if (!dataName.contains('/')) {
-                const auto srcModName = m_rowSub->metadata().value("srcModName").toString();
-                if (!srcModName.isEmpty())
-                    dataName = QStringLiteral("tables/%1.csv").arg(QString(srcModName).replace(' ', '_'));
-                else
-                    dataName = QStringLiteral("tables/unknown.csv");
-            }
-            auto const fname = QStringLiteral("%1/%2").arg(m_storageRootDir).arg(dataName);
-            QFileInfo fi(fname);
-            if (!makeDirectory(fi.absolutePath()))
-                return;
+            auto const fname = getDataStoragePath(QStringLiteral("tables/%1.csv").arg(name()), m_rowSub->metadata());
             if (!m_recTable->open(fname)) {
                 raiseError(QStringLiteral("Unable to open file %1").arg(fname));
                 return;
@@ -126,9 +112,6 @@ public:
         const auto row = maybeRow.value();
         m_recTable->addRows(row);
     }
-
-private:
-
 };
 
 QString TableModuleInfo::id() const

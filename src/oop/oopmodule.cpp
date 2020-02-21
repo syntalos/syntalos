@@ -76,9 +76,8 @@ ModuleFeatures OOPModule::features() const
            ModuleFeature::SHOW_SETTINGS;
 }
 
-bool OOPModule::prepare(const QString &storageRootDir, const TestSubject &testSubject)
+bool OOPModule::prepare(const TestSubject &testSubject)
 {
-    Q_UNUSED(storageRootDir)
     Q_UNUSED(testSubject)
 
     return true;

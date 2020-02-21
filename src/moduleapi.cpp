@@ -24,6 +24,9 @@
 #include <QMessageBox>
 #include <QJsonDocument>
 #include <QDebug>
+#include <QStandardPaths>
+
+#include "utils.h"
 
 class ModuleInfo::Private
 {
@@ -304,6 +307,8 @@ public:
     QList<QPair<QWidget*, bool>> displayWindows;
     QList<QPair<QWidget*, bool>> settingsWindows;
 
+    QString dataStorageRootDir;
+
     bool initialized;
 };
 
@@ -534,6 +539,64 @@ bool AbstractModule::makeDirectory(const QString &dir)
     return true;
 }
 
+QString AbstractModule::getDataStoragePath(const QString &preferredName, const QVariantHash &subMetadata)
+{
+    // store in storage location, but if it isn't set (only happens when we are not running or
+    // preparing to run) save data in a temporary location.
+    // NOTE: This may be changed in future to raise a critical error and return an empty string.
+    auto rootDir = d->dataStorageRootDir;
+    if (rootDir.isEmpty())
+        rootDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+    auto dataName = preferredName;
+
+    // if we have subscription metadata, try to use that data to determine the final
+    // file path. Otherwise use the set preferred name.
+    if (!subMetadata.isEmpty()) {
+        dataName = simplifyStringForFilename(subMetadata.value("suggestedDataName").toString());
+        if (dataName.isEmpty())
+            dataName = subMetadata.value("srcModName", name()).toString();
+        else if (!dataName.contains('/')) {
+            const auto srcModName = subMetadata.value("srcModName").toString();
+            if (!srcModName.isEmpty())
+                dataName = QStringLiteral("%1/%2").arg(simplifyStringForFilename(srcModName)).arg(dataName);
+        }
+    }
+
+    // sanitize the given name. In case the name is empty, use the module
+    // name as storage location.
+    dataName = simplifyStringForFilename(dataName);
+    if (dataName.isEmpty())
+        dataName = simplifyStringForFilename(name()).replace(QStringLiteral("/"), QStringLiteral("-"));
+
+    // all module data has to be in a subdirectory, so we
+    // ensure that here.
+    if (!dataName.contains('/'))
+        dataName = QStringLiteral("%1/%2").arg(id(), dataName);
+
+    // create directory if it does not yet exist
+    QFileInfo fi(QStringLiteral("%1/%2").arg(rootDir).arg(dataName));
+
+    // return an empty string if storage directory could not be created
+    if (!makeDirectory(fi.absolutePath()))
+        return QString();
+
+    return fi.absoluteFilePath();
+}
+
+QString AbstractModule::getPathSegmentInDataStorage(const QString &path)
+{
+    if (!path.startsWith(d->dataStorageRootDir))
+        return QString();
+
+    QDir dir(d->dataStorageRootDir);
+    return dir.relativeFilePath(path);
+}
+
+QString AbstractModule::dataStorageRoot() const
+{
+    return d->dataStorageRootDir;
+}
+
 void AbstractModule::addDisplayWindow(QWidget *window, bool owned)
 {
 
@@ -617,6 +680,11 @@ QJsonObject AbstractModule::jsonObjectFromBytes(const QByteArray &data)
 void AbstractModule::setId(const QString &id)
 {
     d->id = id;
+}
+
+void AbstractModule::setDataStorageRootDir(const QString &storageRoot)
+{
+    d->dataStorageRootDir = storageRoot;
 }
 
 void AbstractModule::setStatusMessage(const QString &message)

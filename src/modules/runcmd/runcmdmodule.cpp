@@ -56,7 +56,7 @@ RunCmdModule::~RunCmdModule()
 
 }
 
-bool RunCmdModule::prepare(const QString &, const TestSubject &)
+bool RunCmdModule::prepare(const TestSubject &)
 {
     return true;
 }

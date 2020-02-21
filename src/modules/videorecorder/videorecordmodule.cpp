@@ -35,7 +35,6 @@ class VideoRecorderModule : public AbstractModule
 private:
     bool m_recording;
     bool m_initDone;
-    QString m_vidStorageDir;
     QString m_vidSavePathBase;
     std::unique_ptr<VideoWriter> m_videoWriter;
 
@@ -74,17 +73,12 @@ public:
                ModuleFeature::SHOW_SETTINGS;
     }
 
-    bool prepare(const QString &storageRootDir, const TestSubject&) override
+    bool prepare(const TestSubject&) override
     {
-        m_vidStorageDir = QStringLiteral("%1/videos").arg(storageRootDir);
-
         if (!m_settingsDialog->videoNameFromSource() && m_settingsDialog->videoName().isEmpty()) {
             raiseError("Video recording name is not set. Please set it in the settings to continue.");
             return false;
         }
-
-        if (!makeDirectory(m_vidStorageDir))
-            return false;
 
         m_videoWriter.reset(new VideoWriter);
         m_videoWriter->setContainer(m_settingsDialog->videoContainer());
@@ -123,16 +117,10 @@ public:
         if (m_inSub.get() == nullptr)
             return;
 
-        const auto mdata = m_inSub->metadata();
-        if (m_settingsDialog->videoNameFromSource()) {
-            m_settingsDialog->setVideoName(mdata.value("suggestedDataName").toString());
-            if (m_settingsDialog->videoName().isEmpty())
-                m_settingsDialog->setVideoName(mdata.value("srcModName", name()).toString());
-        }
-
-        QFileInfo fi(QStringLiteral("%1/%2").arg(m_vidStorageDir).arg(m_settingsDialog->videoName()));
-        m_vidSavePathBase = fi.absoluteFilePath();
-        makeDirectory(fi.absolutePath());
+        if (m_settingsDialog->videoNameFromSource())
+            m_vidSavePathBase = getDataStoragePath(QStringLiteral("videos/unknown"), m_inSub->metadata());
+        else
+            m_vidSavePathBase = getDataStoragePath(m_settingsDialog->videoName());
     }
 
     bool runEvent() override
@@ -183,7 +171,7 @@ public:
 
             // write info video info file with auxiliary information about the video we encoded
             // (this is useful to gather intel about the video without opening the video file)
-            auto infoPath = QStringLiteral("%1/%2_videoinfo.json").arg(m_vidStorageDir).arg(m_settingsDialog->videoName());
+            auto infoPath = QStringLiteral("%1_videoinfo.json").arg(m_vidSavePathBase);
             QJsonObject vInfo;
             vInfo.insert("name", m_settingsDialog->videoName());
             vInfo.insert("frameWidth", frameSize.width());

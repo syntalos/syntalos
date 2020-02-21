@@ -36,7 +36,7 @@ public:
 
     ModuleFeatures features() const override;
 
-    bool prepare(const QString &storageRootDir, const TestSubject &testSubject) override;
+    bool prepare(const TestSubject &testSubject) override;
 
     bool oopPrepare(QEventLoop *loop);
     void oopStart(QEventLoop *);

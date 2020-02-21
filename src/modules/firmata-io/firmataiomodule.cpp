@@ -82,7 +82,7 @@ public:
         return ModuleFeature::SHOW_SETTINGS;
     }
 
-    bool prepare(const QString &, const TestSubject &) override
+    bool prepare(const TestSubject &) override
     {
         // cleanup
         m_namePinMap.clear();

@@ -63,7 +63,7 @@ public:
                ModuleFeature::SHOW_SETTINGS;
     }
 
-    bool prepare(const QString &, const TestSubject &) override
+    bool prepare(const TestSubject &) override
     {
         if (m_camera->camId() < 0) {
             raiseError("Unable to continue: No valid camera was selected!");

@@ -100,7 +100,7 @@ bool TracePlotModule::initialize()
     return true;
 }
 
-bool TracePlotModule::prepare(const QString &, const TestSubject &)
+bool TracePlotModule::prepare(const TestSubject &)
 {
     // reset trace plot data
     m_traceProxy->reset();

@@ -49,7 +49,7 @@ public:
         return ModuleFeature::RUN_THREADED;
     }
 
-    bool prepare(const QString &, const TestSubject &) override
+    bool prepare(const TestSubject &) override
     {
         m_frameOut->setMetadataValue("framerate", 200);
         m_frameOut->setMetadataValue("size", QSize(800, 600));

@@ -114,12 +114,12 @@ public:
         return true;
     }
 
-    bool prepare(const QString &storageRootDir, const TestSubject &testSubject) override
+    bool prepare(const TestSubject &testSubject) override
     {
         m_pyoutWindow->clear();
         loadPythonScript(m_scriptView->document()->text());
 
-        return OOPModule::prepare(storageRootDir, testSubject);
+        return OOPModule::prepare(testSubject);
     }
 
     QByteArray serializeSettings(const QString &) override

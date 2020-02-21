@@ -62,7 +62,7 @@ public:
         return ModuleFeature::SHOW_DISPLAY;
     }
 
-    bool prepare(const QString &, const TestSubject &) override
+    bool prepare(const TestSubject &) override
     {
         m_frameSub.reset();
         m_ctlSub.reset();

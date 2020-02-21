@@ -405,7 +405,7 @@ public:
      * prior to every experiment run.
      * @return true if success
      */
-    virtual bool prepare(const QString& storageRootDir, const TestSubject& testSubject) = 0;
+    virtual bool prepare(const TestSubject& testSubject) = 0;
 
     /**
      * @brief Run when the experiment is started and the HRTimer has an initial time set.
@@ -545,6 +545,33 @@ protected:
     bool makeDirectory(const QString &dir);
 
     /**
+     * @brief Get data storage path for this module
+     * @param preferredName The preferred name for the file.
+     * @param subMetadata Metadata from a stream subscription, in case using the desired name of a module upstream is requested.
+     *
+     * If a directory does not exist, it will be created. If creation fails, the module will emit an error and will
+     * subsequently be terminated by the Syntalos engine. In that case, this function will return an empty string.
+     *
+     * @return A full directory path to the storage location.
+     */
+    QString getDataStoragePath(const QString &preferredName, const QVariantHash &subMetadata = QVariantHash());
+
+    /**
+     * @brief Turn the given path into a path relative to the data storage location.
+     *
+     * If the path is not inside the data storage location, an empty string is returned.
+     */
+    QString getPathSegmentInDataStorage(const QString &path);
+
+    /**
+     * @brief Get the current data storage root directory.
+     *
+     * In most cases, this function should not be used and using getDataStoragePath() will be
+     * a much better choice.
+     */
+    QString dataStorageRoot() const;
+
+    /**
      * @brief Register a display window for this module.
      * @param window
      * @param owned
@@ -583,6 +610,7 @@ private:
 
     void setState(ModuleState state);
     void setId(const QString &id);
+    void setDataStorageRootDir(const QString &storageRoot);
 };
 
 #endif // MODULEAPI_H

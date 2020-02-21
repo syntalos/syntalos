@@ -71,7 +71,7 @@ public:
                ModuleFeature::SHOW_SETTINGS;
     }
 
-    bool prepare(const QString &, const TestSubject &) override
+    bool prepare(const TestSubject &) override
     {
         m_fps = m_camSettingsWindow->framerate();
         m_currentFps = m_fps;
@@ -95,6 +95,7 @@ public:
     void start() override
     {
         statusMessage("Acquiring frames...");
+        m_evTimer->start();
     }
 
     void runThread(OptionalWaitCondition *startWaitCondition) override
@@ -151,6 +152,7 @@ public:
 
     void stop() override
     {
+        m_evTimer->stop();
         m_camera->disconnect();
         m_camSettingsWindow->setRunning(false);
         statusMessage("Camera disconnected.");

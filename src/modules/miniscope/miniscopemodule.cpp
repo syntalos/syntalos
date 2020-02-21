@@ -80,7 +80,7 @@ public:
         m_settingsDialog->setWindowTitle(QStringLiteral("Settings for %1").arg(name));
     }
 
-    bool prepare(const QString &, const TestSubject &) override
+    bool prepare(const TestSubject &) override
     {
         if (!m_miniscope->connect()) {
             raiseError(QString::fromStdString(m_miniscope->lastError()));
