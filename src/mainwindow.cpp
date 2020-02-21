@@ -452,7 +452,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         const auto uiDisplayGeometry = iobj.value("uiDisplayGeometry").toObject();
         const auto jSubs = iobj.value("subscriptions").toObject();
 
-        auto mod = m_engine->createModule(modId);
+        auto mod = m_engine->createModule(modId, modName);
         if (mod == nullptr) {
             QMessageBox::critical(this, QStringLiteral("Can not load settings"),
                                   QStringLiteral("Unable to find module '%1' - please install the module first, then attempt to load this configuration again.").arg(modId));
@@ -465,9 +465,6 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         else
             sdata = sfile->data();
 
-        if (!modName.isEmpty())
-            mod->setName(modName);
-
         if (!uiDisplayGeometry.isEmpty())
             mod->restoreDisplayUiGeometry(uiDisplayGeometry);
 
@@ -476,16 +473,6 @@ bool MainWindow::loadConfiguration(const QString &fileName)
 
         // store module-owned configuration for later
         modSettingsList.append(qMakePair(mod, sdata));
-    }
-
-    // load module-owned configurations
-    for (auto &pair : modSettingsList) {
-        auto mod = pair.first;
-        if (!mod->loadSettings(confBaseDir.absolutePath(), pair.second)) {
-            QMessageBox::critical(this, QStringLiteral("Can not load settings"),
-                                  QStringLiteral("Unable to load module settings for '%1'.").arg(mod->name()));
-            return false;
-        }
     }
 
     // create module connections
@@ -516,6 +503,16 @@ bool MainWindow::loadConfiguration(const QString &fileName)
                 continue;
             }
             inPort->setSubscription(outPort.get(), outPort->subscribe());
+        }
+    }
+
+    // load module-owned configurations
+    for (auto &pair : modSettingsList) {
+        auto mod = pair.first;
+        if (!mod->loadSettings(confBaseDir.absolutePath(), pair.second)) {
+            QMessageBox::critical(this, QStringLiteral("Can not load settings"),
+                                  QStringLiteral("Unable to load module settings for '%1'.").arg(mod->name()));
+            return false;
         }
     }
 

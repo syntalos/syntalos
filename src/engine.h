@@ -51,7 +51,7 @@ public:
     bool isRunning() const;
     bool hasFailed() const;
 
-    AbstractModule *createModule(const QString &id);
+    AbstractModule *createModule(const QString &id, const QString &name = QString());
     bool removeModule(AbstractModule *mod);
     void removeAllModules();
 

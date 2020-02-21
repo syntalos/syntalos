@@ -154,7 +154,7 @@ bool Engine::hasFailed() const
     return d->failed;
 }
 
-AbstractModule *Engine::createModule(const QString &id)
+AbstractModule *Engine::createModule(const QString &id, const QString &name)
 {
     auto modInfo = d->modLibrary->moduleInfo(id);
     if (modInfo == nullptr)
@@ -171,11 +171,16 @@ AbstractModule *Engine::createModule(const QString &id)
     auto mod = modInfo->createModule();
     assert(mod);
     mod->setId(modInfo->id());
-    modInfo->setCount(modInfo->count() + 1);
-    if (modInfo->count() > 1)
-        mod->setName(QStringLiteral("%1 - %2").arg(modInfo->name()).arg(modInfo->count()));
-    else
-        mod->setName(modInfo->name());
+    mod->setIndex(modInfo->count() + 1);
+    modInfo->setCount(mod->index());
+    if (name.isEmpty()) {
+        if (modInfo->count() > 1)
+            mod->setName(QStringLiteral("%1 %2").arg(modInfo->name()).arg(modInfo->count()));
+        else
+            mod->setName(modInfo->name());
+    } else {
+        mod->setName(name);
+    }
 
     d->activeModules.append(mod);
     emit moduleCreated(modInfo.get(), mod);
