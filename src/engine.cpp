@@ -32,6 +32,7 @@
 #include "oop/oopmodule.h"
 #include "modulelibrary.h"
 #include "hrclock.h"
+#include "utils.h"
 
 #pragma GCC diagnostic ignored "-Wpadded"
 class Engine::Private
@@ -721,27 +722,52 @@ bool Engine::run()
         emitStatusMessage(QStringLiteral("Removing broken data..."));
         deDir.removeRecursively();
     } else {
-        emitStatusMessage(QStringLiteral("Writing manifest..."));
+        emitStatusMessage(QStringLiteral("Writing manifest & metadata..."));
 
-        // write manifest with misc information
+        // store metadata from all modules, in case they want us to store data for them
+        for (auto &mod : orderedActiveModules) {
+            auto mdata = mod->experimentMetadata();
+            if (mdata.isEmpty())
+                continue;
+            mdata.insert(QStringLiteral("_modName"), mod->name());
+            mdata.insert(QStringLiteral("_modType"), mod->id());
+
+            const auto modMetaFilename = QStringLiteral("%1/%2.meta.json").arg(d->exportDir).arg(simplifyStringForFilename(mod->name()));
+            qDebug() << "Saving module metadata:" << modMetaFilename;
+
+            QFile modMetaFile(modMetaFilename);
+            if (!modMetaFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+                QMessageBox::critical(d->parentWidget,
+                                      QStringLiteral("Unable to finish recording"),
+                                      QStringLiteral("Unable to open module metadata of %1 file for writing.").arg(mod->name()));
+                d->failed = true;
+                return false;
+            }
+
+            QTextStream modMetaFileOut(&modMetaFile);
+            modMetaFileOut << QJsonDocument::fromVariant(mdata).toJson();
+        }
+
+        // write manifest with misc metadata about the experiment run
         QDateTime curDateTime(QDateTime::currentDateTime());
 
         QJsonObject manifest;
-        manifest.insert("appVersion", QCoreApplication::applicationVersion());
-        manifest.insert("subjectId", d->testSubject.id);
-        manifest.insert("subjectGroup", d->testSubject.group);
-        manifest.insert("subjectComment", d->testSubject.comment);
-        manifest.insert("recordingLengthMsec", finishTimestamp);
-        manifest.insert("date", curDateTime.toString(Qt::ISODate));
-        manifest.insert("success", !d->failed);
+        manifest.insert("AppVersion", QCoreApplication::applicationVersion());
+        manifest.insert("SubjectId", d->testSubject.id);
+        manifest.insert("SubjectGroup", d->testSubject.group);
+        manifest.insert("SubjectComment", d->testSubject.comment);
+        manifest.insert("RecordingLengthMsec", finishTimestamp);
+        manifest.insert("Date", curDateTime.toString(Qt::ISODate));
+        manifest.insert("Success", !d->failed);
 
         QJsonArray jActiveModules;
         for (auto &mod : orderedActiveModules) {
             QJsonObject info;
-            info.insert(mod->id(), mod->name());
+            info.insert(QStringLiteral("id"), mod->id());
+            info.insert(QStringLiteral("name"), mod->name());
             jActiveModules.append(info);
         }
-        manifest.insert("activeModules", jActiveModules);
+        manifest.insert("ActiveModules", jActiveModules);
 
         const auto manifestFilename = QStringLiteral("%1/manifest.json").arg(d->exportDir);
         qDebug() << "Saving manifest as:" << manifestFilename;

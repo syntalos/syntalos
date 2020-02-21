@@ -288,6 +288,14 @@ public:
     QString id() const;
 
     /**
+     * @brief Index of this module.
+     *
+     * The index is usually the count of modules of the same kind.
+     * E.g. the first "camera" module may have an index of 1, the second of 2, etc.
+     */
+    int index() const;
+
+    /**
      * @brief Name of this module displayed to the user
      */
     virtual QString name() const;
@@ -314,7 +322,7 @@ public:
 
         std::shared_ptr<DataStream<T>> stream(new DataStream<T>());
         std::shared_ptr<StreamOutputPort> outPort(new StreamOutputPort(this, id, title, stream));
-        stream->setCommonMetadata(this->id(), name());
+        stream->setCommonMetadata(this->id(), name(), title);
         m_outPorts.insert(id, outPort);
 
         Q_EMIT portConfigurationUpdated();
@@ -362,7 +370,7 @@ public:
 
         std::shared_ptr<VariantDataStream> stream(varStream);
         std::shared_ptr<StreamOutputPort> outPort(new StreamOutputPort(this, id, title, stream));
-        stream->setCommonMetadata(this->id(), name());
+        stream->setCommonMetadata(this->id(), name(), title);
         m_outPorts.insert(id, outPort);
         Q_EMIT portConfigurationUpdated();
         return stream;
@@ -457,6 +465,16 @@ public:
      * prepare() was run.
      */
     virtual void stop();
+
+    /**
+     * @brief Retrieve module metadata specific for this experiment.
+     *
+     * The module may have generated some additional metadata that should be stored with the
+     * other experiment data.
+     * This function is called after a module has been stopped after a successful experiment run,
+     * and the metadata for this module is stored together with the other experiment data.
+     */
+    virtual QVariantHash experimentMetadata();
 
     /**
      * @brief Finalize this module.
@@ -610,6 +628,7 @@ private:
 
     void setState(ModuleState state);
     void setId(const QString &id);
+    void setIndex(int index);
     void setDataStorageRootDir(const QString &storageRoot);
 };
 

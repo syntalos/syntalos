@@ -295,14 +295,16 @@ class AbstractModule::Private
 public:
     Private()
         : state(ModuleState::INITIALIZING),
+          modIndex(0),
           initialized(false)
     {}
     ~Private() {}
 
     std::atomic<ModuleState> state;
-    QString lastError;
     QString id;
     QString name;
+    QString lastError;
+    int modIndex;
 
     QList<QPair<QWidget*, bool>> displayWindows;
     QList<QPair<QWidget*, bool>> settingsWindows;
@@ -357,6 +359,11 @@ QString AbstractModule::id() const
     return d->id;
 }
 
+int AbstractModule::index() const
+{
+    return d->modIndex;
+}
+
 QString AbstractModule::name() const
 {
     return d->name;
@@ -366,7 +373,9 @@ void AbstractModule::setName(const QString &name)
 {
     d->name = name;
     for (auto &oport : outPorts()) {
-        oport->streamVar()->setCommonMetadata(d->id, d->name);
+        oport->streamVar()->setCommonMetadata(d->id,
+                                              d->name,
+                                              oport->title());
     }
     emit nameChanged(d->name);
 }
@@ -410,6 +419,11 @@ bool AbstractModule::runUIEvent()
 void AbstractModule::stop()
 {
     m_running = false;
+}
+
+QVariantHash AbstractModule::experimentMetadata()
+{
+    return QVariantHash();
 }
 
 void AbstractModule::finalize()
@@ -680,6 +694,11 @@ QJsonObject AbstractModule::jsonObjectFromBytes(const QByteArray &data)
 void AbstractModule::setId(const QString &id)
 {
     d->id = id;
+}
+
+void AbstractModule::setIndex(int index)
+{
+    d->modIndex = index;
 }
 
 void AbstractModule::setDataStorageRootDir(const QString &storageRoot)
