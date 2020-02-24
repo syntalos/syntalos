@@ -20,7 +20,8 @@
 #include "rhd2000module.h"
 
 #include "intanui.h"
-#include "waveplot.h"
+#include "signalsources.h"
+#include "signalgroup.h"
 
 QString Rhd2000ModuleInfo::id() const
 {
@@ -34,8 +35,8 @@ QString Rhd2000ModuleInfo::name() const
 
 QString Rhd2000ModuleInfo::description() const
 {
-    return QStringLiteral("Central hardware component of the RHD2000 Evaluation System, allowing users to record biopotential signals "
-                          "from up to 256 low-noise amplifier channels using digital electrophysiology chips from Intan Technologies.");
+    return QStringLiteral("Allows to record biopotential signals via the Intan Technologies RHD2000 Evaluation System"
+                          "from up to 256 low-noise amplifier channels using digital electrophysiology chips.");
 }
 
 QString Rhd2000ModuleInfo::license() const
@@ -61,11 +62,8 @@ AbstractModule *Rhd2000ModuleInfo::createModule(QObject *parent)
 Rhd2000Module::Rhd2000Module(QObject *parent)
     : AbstractModule(parent)
 {
-    setName(QStringLiteral("Intan RHD2000 USB Interface"));
-    m_intanUi = nullptr;
-
     // set up Intan GUI and board
-    m_intanUi = new IntanUI(this);
+    m_intanUi = new IntanUi(this);
     m_intanUi->setWindowIcon(QIcon(":/icons/generic-config"));
     m_intanUi->displayWidget()->setWindowIcon(QIcon(":/icons/generic-view"));
 
@@ -85,14 +83,8 @@ Rhd2000Module::Rhd2000Module(QObject *parent)
     m_actions.append(m_intanUi->originalOrderAction);
     m_actions.append(m_intanUi->alphaOrderAction);
 
-    // We hardcode the 6 ports (and the amount of ports) that the Intan Evalualtion board has here.
-    // Not very elegant, but the original software does that too
-    registerOutputPort<SignalData>(QStringLiteral("port-0"), QStringLiteral("Port A"));
-    registerOutputPort<SignalData>(QStringLiteral("port-1"), QStringLiteral("Port B"));
-    registerOutputPort<SignalData>(QStringLiteral("port-2"), QStringLiteral("Port C"));
-    registerOutputPort<SignalData>(QStringLiteral("port-3"), QStringLiteral("Port D"));
-    registerOutputPort<SignalData>(QStringLiteral("port-4"), QStringLiteral("ADC"));
-    registerOutputPort<SignalData>(QStringLiteral("port-5"), QStringLiteral("Dig In"));
+    connect(m_intanUi, &IntanUi::portsScanned, this, &Rhd2000Module::on_portsScanned);
+    on_portsScanned(m_intanUi->getSignalSources());
 }
 
 bool Rhd2000Module::prepare(const TestSubject &testSubject)
@@ -119,6 +111,9 @@ bool Rhd2000Module::prepare(const TestSubject &testSubject)
     m_intanUi->interfaceBoardInitRun();
     m_runAction->setEnabled(false);
 
+    for (auto &port : outPorts())
+        port->startStream();
+
     return true;
 }
 
@@ -144,15 +139,8 @@ bool Rhd2000Module::runUIEvent()
 
 void Rhd2000Module::stop()
 {
-    assert(m_intanUi);
     m_intanUi->interfaceBoardStopFinalize();
     m_runAction->setEnabled(true);
-}
-
-void Rhd2000Module::finalize()
-{
-    assert(m_intanUi);
-    return;
 }
 
 QList<QAction *> Rhd2000Module::actions()
@@ -171,20 +159,103 @@ QByteArray Rhd2000Module::serializeSettings(const QString &)
 
 bool Rhd2000Module::loadSettings(const QString &, const QByteArray &data)
 {
-    assert(m_intanUi);
     m_intanUi->loadSettings(data);
     return true;
 }
 
-void Rhd2000Module::setPlotProxy(TracePlotProxy *proxy)
+void Rhd2000Module::emitStatusInfo(const QString &text)
 {
-    assert(m_intanUi);
-    m_intanUi->getWavePlot()->setPlotProxy(proxy);
+    setStatusMessage(text);
 }
 
-void Rhd2000Module::setStatusMessage(const QString &message)
+void Rhd2000Module::pushAmplifierData()
 {
-    AbstractModule::setStatusMessage(message);
+    for (auto &pair : m_streamSigBlocks)
+        pair.first->push(*pair.second.get());
+}
+
+void Rhd2000Module::on_portsScanned(SignalSources *sources)
+{
+    // reset all our ports, we are adding new ones
+    clearOutPorts();
+    clearInPorts();
+
+    // map all exported amplifier channels by their stream ID and chip-channel,
+    // so we can quickly access them when fetching data from the board
+    // there are at maximum 32 chip channels per stream
+    m_streamSigBlocks.clear();
+    fsdiByStreamCC.clear();
+    fsdiByStreamCC.resize(sources->signalPort.size());
+    for (int i = 0; i < sources->signalPort.size(); i++) {
+        fsdiByStreamCC[i].resize(32);
+        for (size_t j = 0; j < fsdiByStreamCC[i].size(); j++)
+            fsdiByStreamCC[i][j] = FloatStreamDataInfo(false);
+    }
+
+    // We hardcode the 6 ports (and the amount of ports) that the Intan Evalualtion board has here.
+    // Not very elegant, but the original software does that too
+    for (int portId = 0; portId < sources->signalPort.size(); portId++) {
+        const auto sg = sources->signalPort[portId];
+
+        // ignore disabled channels
+        if (!sg.enabled)
+            continue;
+
+        if (sg.prefix == QStringLiteral("DOUT")) {
+            // we ignore the board output channel, as it would have to be reflected as
+            // Syntalos input port here, not as an outpt port.
+            // This has to be implemented later.
+            continue;
+        }
+
+        bool isDigital = (sg.prefix == QStringLiteral("DIN")) || (sg.prefix == QStringLiteral("DOUT"));
+
+        // for amplifier-board channels, we only consider the amplifier signal channels,
+        // and ignore the aux channels for now
+        int chanCount;
+        if (sg.name.startsWith(QStringLiteral("Port")))
+            chanCount = sg.numAmplifierChannels();
+        else
+            chanCount = sg.numChannels();
+
+        auto numBlocks = std::ceil((chanCount - 10) / 16.0);
+
+        // Syntalos arranges high-speed data streams to output in blocks of 16 streams per block
+        for (int b = 0; b < numBlocks; b++) {
+            const auto syPortId = QStringLiteral("port-%1.%2_%3").arg(portId).arg(b).arg(sg.prefix);
+            const auto firstChanId = b * 16;
+            const auto lastChanId = (b == (numBlocks - 1))? chanCount - 1 : ((b + 1) * 16) - 1;
+
+            const auto portName = QStringLiteral("%1 [%2..%3]").arg(sg.name).arg(firstChanId).arg(lastChanId);
+
+            if (isDigital)
+                registerOutputPort<IntSignalBlock>(syPortId, portName);
+            else {
+                auto fpStream = registerOutputPort<FloatSignalBlock>(syPortId, portName);
+
+                std::shared_ptr<FloatSignalBlock> signalBlock(new FloatSignalBlock(SAMPLES_PER_DATA_BLOCK));
+                m_streamSigBlocks.push_back(std::make_pair(fpStream, signalBlock));
+
+                // we have an amplifier Syntalos output stream,
+                // mark all possibly exported channels
+                int sbChan = 0;
+                for (int chan = firstChanId; chan <= lastChanId; chan++) {
+                    if (sbChan >= 16)
+                        sbChan = 0;
+                    const auto boardStreamId = sources->signalPort[portId].channelByIndex(chan)->boardStream;
+                    const auto chipChan = sources->signalPort[portId].channelByIndex(chan)->chipChannel;
+
+                    fsdiByStreamCC[boardStreamId][chipChan].active = true;
+                    fsdiByStreamCC[boardStreamId][chipChan].stream = fpStream;
+                    fsdiByStreamCC[boardStreamId][chipChan].signalBlock = signalBlock;
+                    fsdiByStreamCC[boardStreamId][chipChan].chan = chan;
+                    fsdiByStreamCC[boardStreamId][chipChan].sbChan = sbChan;
+
+                    sbChan++;
+                }
+            }
+        }
+    }
 }
 
 void Rhd2000Module::noRecordRunActionTriggered()

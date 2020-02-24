@@ -135,26 +135,53 @@ enum class SignalDataType {
 };
 Q_DECLARE_METATYPE(SignalDataType)
 
-/**
-  * @brief A single data point in a stream of data from a signal source.
-  */
-typedef struct
-{
-    double val;
-    time_t time;
-    double index;
-} SignalDataPoint;
-Q_DECLARE_METATYPE(SignalDataPoint)
+#define SIGNAL_BLOCK_CHAN_COUNT 16
 
 /**
- * @brief A single frame of a video stream
- *
- * Describes a single frame in a stream of frames that make up
- * a complete video.
- * Each frame is timestamped for accuracy.
- */
-using SignalData = std::vector<SignalDataPoint>;
-Q_DECLARE_METATYPE(SignalData)
+  * @brief A block of integer signal data from a data source
+  *
+  * This signal data block contains data for up to 16 channels. It contains
+  * data as integers and is usually used for digital inputs.
+  */
+class IntSignalBlock
+{
+public:
+    explicit IntSignalBlock(uint sampleCount = 60)
+    {
+        timeStamp.resize(sampleCount);
+        for (uint i = 0; i < SIGNAL_BLOCK_CHAN_COUNT; i++)
+            data[i].resize(sampleCount);
+    }
+
+    size_t size() { return timeStamp.size(); }
+
+    std::vector<uint> timeStamp;
+    std::vector<int> data[SIGNAL_BLOCK_CHAN_COUNT];
+};
+Q_DECLARE_METATYPE(IntSignalBlock)
+
+/**
+  * @brief A block of floating-point signal data from an analog data source
+  *
+  * This signal data block contains data for up to 16 channels. It usually contains
+  * possibly preprocessed / prefiltered analog data.
+  */
+class FloatSignalBlock
+{
+public:
+    explicit FloatSignalBlock(uint sampleCount = 60)
+    {
+        timeStamp.resize(sampleCount);
+        for (uint i = 0; i < SIGNAL_BLOCK_CHAN_COUNT; i++)
+            data[i].resize(sampleCount);
+    }
+
+    size_t size() { return timeStamp.size(); }
+
+    std::vector<uint> timeStamp;
+    std::vector<double> data[SIGNAL_BLOCK_CHAN_COUNT];
+};
+Q_DECLARE_METATYPE(FloatSignalBlock)
 
 /**
  * @brief Helper function to register all meta types for stream data

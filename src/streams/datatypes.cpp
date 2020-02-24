@@ -57,8 +57,8 @@ void registerStreamMetaTypes()
     registerStreamType<FirmataData>();
     registerStreamType<Frame>();
     registerStreamType<SignalDataType, false>();
-    registerStreamType<SignalDataPoint, false>();
-    registerStreamType<SignalData>();
+    registerStreamType<IntSignalBlock>();
+    registerStreamType<FloatSignalBlock>();
 }
 
 QMap<QString, int> streamTypeIdMap()
@@ -75,7 +75,8 @@ VarStreamInputPort *newInputPortForType(int typeId, AbstractModule *mod, const Q
     CHECK_RETURN_INPUT_PORT(FirmataControl)
     CHECK_RETURN_INPUT_PORT(FirmataData)
     CHECK_RETURN_INPUT_PORT(Frame)
-    CHECK_RETURN_INPUT_PORT(SignalData)
+    CHECK_RETURN_INPUT_PORT(IntSignalBlock)
+    CHECK_RETURN_INPUT_PORT(FloatSignalBlock)
 
     qCritical() << "Unable to create input port for unknown type ID" << typeId;
     return nullptr;
@@ -88,7 +89,8 @@ VariantDataStream *newStreamForType(int typeId)
     CHECK_RETURN_STREAM(FirmataControl)
     CHECK_RETURN_STREAM(FirmataData)
     CHECK_RETURN_STREAM(Frame)
-    CHECK_RETURN_STREAM(SignalData)
+    CHECK_RETURN_STREAM(IntSignalBlock)
+    CHECK_RETURN_STREAM(FloatSignalBlock)
 
     qCritical() << "Unable to create data stream for unknown type ID" << typeId;
     return nullptr;

@@ -26,6 +26,7 @@
 #include "engine.h"
 
 #include "modules/devel.datasource/datasourcemodule.h"
+#include "modules/devel.datasink/datasinkmodule.h"
 #include "modules/devel.pyooptest/pyooptestmodule.h"
 
 #include "modules/canvas/canvasmodule.h"
@@ -46,7 +47,7 @@
 #include "modules/pyscript/pyscriptmodule.h"
 
 #include "modules/rhd2000/rhd2000module.h"
-#include "modules/traceplot/traceplotmodule.h"
+//#include "modules/traceplot/traceplotmodule.h"
 
 #include "modules/runcmd/runcmdmodule.h"
 
@@ -66,6 +67,7 @@ ModuleLibrary::ModuleLibrary(QObject *parent)
       d(new ModuleLibrary::Private)
 {
     registerModuleInfo<DevelDataSourceModuleInfo>();
+    registerModuleInfo<DevelDataSinkModuleInfo>();
     registerModuleInfo<PyOOPTestModuleInfo>();
 
     registerModuleInfo<CanvasModuleInfo>();
@@ -86,7 +88,7 @@ ModuleLibrary::ModuleLibrary(QObject *parent)
     registerModuleInfo<PyScriptModuleInfo>();
 
     registerModuleInfo<Rhd2000ModuleInfo>();
-    registerModuleInfo<TracePlotModuleInfo>();
+    //registerModuleInfo<TracePlotModuleInfo>();
     registerModuleInfo<RunCmdModuleInfo>();
 }
 

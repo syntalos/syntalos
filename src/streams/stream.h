@@ -125,7 +125,7 @@ public:
         auto res = next();
         if (!res.has_value())
             return QVariant();
-        return QVariant::fromValue(res.value());
+        return QVariant::fromValue(std::move(res.value()));
     }
 
     /**

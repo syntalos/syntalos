@@ -35,6 +35,8 @@
 #include "signalchannel.h"
 #include "rhd2000datablock.h"
 
+#include "rhd2000module.h"
+
 using namespace std;
 
 // This class stores and processes short segments of waveform data
@@ -549,7 +551,7 @@ int SignalProcessor::loadAmplifierData(queue<Rhd2000DataBlock> &dataQueue,
                                        int numBlocks, bool lookForTrigger, int triggerChannel,
                                        int triggerPolarity, int &triggerTimeIndex, bool addToBuffer, queue<Rhd2000DataBlock> &bufferQueue,
                                        bool saveToDisk, QDataStream &out, SaveFormat format, bool saveTemp,
-                                       bool saveTtlOut, int timestampOffset)
+                                       bool saveTtlOut, int timestampOffset, Rhd2000Module *syMod)
 {
     int block, t, channel, stream, i, j;
     int indexAmp = 0;
@@ -1321,7 +1323,7 @@ int SignalProcessor::saveBufferedData(queue<Rhd2000DataBlock> &bufferQueue, QDat
 // Returns number of bytes written to binary datastream out if saveToDisk == true.
 int SignalProcessor::loadSyntheticData(int numBlocks, double sampleRate,
                                        bool saveToDisk, QDataStream &out,
-                                       SaveFormat format, bool saveTemp, bool saveTtlOut)
+                                       SaveFormat format, bool saveTemp, bool saveTtlOut, Rhd2000Module *syMod)
 {
     int block, t, tAux, channel, stream, i, j;
     int indexAux = 0;
@@ -1364,9 +1366,18 @@ int SignalProcessor::loadSyntheticData(int numBlocks, double sampleRate,
                                              synthSpikeDuration.at(stream).at(channel).at(spikeNum));
                             }
                         }
+
+                        if (syMod != nullptr) {
+                            const auto sbChan = syMod->fsdiByStreamCC[stream][channel].sbChan;
+                            syMod->fsdiByStreamCC[stream][channel].signalBlock->data[sbChan][t] =
+                                    amplifierPreFilter[stream][channel][SAMPLES_PER_DATA_BLOCK * block + t];
+                        }
                     }
                 }
             }
+
+            if (syMod != nullptr)
+                syMod->pushAmplifierData();
         }
     } else {
         // Generate synthetic ECG data.

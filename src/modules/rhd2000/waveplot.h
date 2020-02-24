@@ -30,9 +30,7 @@ using namespace std;
 class Rhd2000DataBlock;
 class SignalProcessor;
 class SignalSources;
-class IntanUI;
-
-class TracePlotProxy;
+class IntanUi;
 
 class WavePlot : public QWidget
 {
@@ -40,7 +38,7 @@ class WavePlot : public QWidget
 
 public:
     WavePlot(SignalProcessor *inSignalProcessor, SignalSources *inSignalSources,
-             IntanUI *inIntanUI, QWidget *parent = nullptr);
+             IntanUi *inIntanUi, QWidget *parent = nullptr);
 
     void initialize(int startingPort);
     void passFilteredData();
@@ -79,7 +77,6 @@ public:
     QSize sizeHint() const override;
 
     bool isPortEnabled(int port) const;
-    void setPlotProxy(TracePlotProxy *pp);
     int getChannelCount(int port) const;
     
 signals:
@@ -122,8 +119,7 @@ private:
 
     SignalProcessor *signalProcessor;
     SignalSources *signalSources;
-    IntanUI *intanUI;
-    TracePlotProxy *plotProxy;
+    IntanUi *intanUi;
 
     QPixmap pixmap;
 

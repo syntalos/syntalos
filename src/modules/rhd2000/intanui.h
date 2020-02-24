@@ -59,14 +59,14 @@ class Rhd2000Module;
 
 using namespace std;
 
-class IntanUI final : public QWidget
+class IntanUi final : public QWidget
 {
     Q_OBJECT
     friend class Rhd2000Module;
 
 public:
-    IntanUI(Rhd2000Module *maModule, QWidget *parent = nullptr);
-    ~IntanUI();
+    IntanUi(Rhd2000Module *module, QWidget *parent = nullptr);
+    ~IntanUi();
 
     void setNumWaveformsComboBox(int index);
 
@@ -96,14 +96,17 @@ public:
     void loadSettings(const QByteArray &data);
     void exportSettings(QDataStream &outStream);
 
-    WavePlot *getWavePlot() const;
-
     bool isRunning() const;
 
     int currentFifoPercentageFull() const;
 
+    SignalSources *getSignalSources() const;
+
 protected:
     void closeEvent(QCloseEvent *event) override;
+
+Q_SIGNALS:
+    void portsScanned(SignalSources *sources);
 
 private slots:
     void about();
@@ -370,7 +373,7 @@ private:
     QLabel *dacGainLabel;
     QLabel *dacNoiseSuppressLabel;
 
-    Rhd2000Module *maModule;
+    Rhd2000Module *syModule;
     QWidget *liveDisplayWidget;
 
     // data used in a data acquisition run

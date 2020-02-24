@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2019 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2020 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -17,15 +17,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef RHD2000MODULE_H
-#define RHD2000MODULE_H
+#pragma once
 
-#include <QObject>
-#include <chrono>
 #include "moduleapi.h"
 
-class IntanUI;
-class TracePlotProxy;
+class IntanUi;
+class SignalSources;
 
 class Rhd2000ModuleInfo : public ModuleInfo
 {
@@ -40,13 +37,28 @@ public:
     AbstractModule *createModule(QObject *parent = nullptr) override;
 };
 
+class FloatStreamDataInfo
+{
+public:
+    explicit FloatStreamDataInfo(bool enabled = true)
+    {
+        this->active = enabled;
+    }
+
+    std::shared_ptr<DataStream<FloatSignalBlock>> stream;
+    std::shared_ptr<FloatSignalBlock> signalBlock;
+    int chan;
+    int sbChan;
+    bool active;
+};
+
 class Rhd2000Module : public AbstractModule
 {
     Q_OBJECT
 public:
     explicit Rhd2000Module(QObject *parent = nullptr);
 
-    bool prepare(const TestSubject& testSubject) override;
+    bool prepare(const TestSubject &testSubject) override;
 
     void start() override;
 
@@ -54,23 +66,30 @@ public:
 
     void stop() override;
 
-    void finalize() override;
-
     QList<QAction *> actions() override;
 
-    QByteArray serializeSettings(const QString &confBaseDir) override;
-    bool loadSettings(const QString &confBaseDir, const QByteArray& data) override;
+    QByteArray serializeSettings(const QString &) override;
+    bool loadSettings(const QString &, const QByteArray &data) override;
 
-    void setPlotProxy(TracePlotProxy *proxy);
+    // Accessorts for the Intan code
+    void emitStatusInfo(const QString &text);
 
-    void setStatusMessage(const QString& message);
+    void pushAmplifierData();
+
+    std::vector<std::vector<FloatStreamDataInfo>> fsdiByStreamCC;
+
+
+
+
+private slots:
+    void on_portsScanned(SignalSources *sources);
 
 private:
-    IntanUI *m_intanUi;
+    IntanUi *m_intanUi;
     QList<QAction *> m_actions;
     QAction *m_runAction;
 
+    std::vector<std::pair<std::shared_ptr<DataStream<FloatSignalBlock>>, std::shared_ptr<FloatSignalBlock>>> m_streamSigBlocks;
+
     void noRecordRunActionTriggered();
 };
-
-#endif // RHD2000MODULE_H

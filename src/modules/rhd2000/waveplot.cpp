@@ -35,8 +35,6 @@
 #include "signalsources.h"
 #include "signalprocessor.h"
 
-#include "modules/traceplot/traceplotproxy.h"
-
 // The WavePlot widget displays multiple waveform plots in the Main Window.
 // Five types of waveforms may be displayed: amplifier, auxiliary input, supply
 // voltage, ADC input, and digital input waveforms.  Users may navigate through
@@ -45,9 +43,8 @@
 
 // Constructor.
 WavePlot::WavePlot(SignalProcessor *inSignalProcessor, SignalSources *inSignalSources,
-                   IntanUI *inIntanUI, QWidget *parent)
-    : QWidget(parent),
-      plotProxy(nullptr)
+                   IntanUi *inintanUi, QWidget *parent)
+    : QWidget(parent)
 {
     setBackgroundRole(QPalette::Window);
     setAutoFillBackground(true);
@@ -56,7 +53,7 @@ WavePlot::WavePlot(SignalProcessor *inSignalProcessor, SignalSources *inSignalSo
 
     signalProcessor = inSignalProcessor;
     signalSources = inSignalSources;
-    intanUI = inIntanUI;
+    intanUi = inintanUi;
 
     dragging = false;
     dragToIndex = -1;
@@ -212,7 +209,7 @@ int WavePlot::setNumFrames(int index, int port)
 
     dragToIndex = -1;
     refreshScreen();
-    intanUI->setNumWaveformsComboBox(index);
+    intanUi->setNumWaveformsComboBox(index);
 
     return indexLargestFrameAllowed;
 }
@@ -255,20 +252,20 @@ void WavePlot::setYScale(int newYScale)
 // Expand voltage axis on amplifier plots.
 void WavePlot::expandYScale()
 {
-    int index = intanUI->yScaleComboBox->currentIndex();
+    int index = intanUi->yScaleComboBox->currentIndex();
     if (index > 0) {
-        intanUI->yScaleComboBox->setCurrentIndex(index - 1);
-        setYScale(intanUI->yScaleList[index - 1]);
+        intanUi->yScaleComboBox->setCurrentIndex(index - 1);
+        setYScale(intanUi->yScaleList[index - 1]);
     }
 }
 
 // Contract voltage axis on amplifier plots.
 void WavePlot::contractYScale()
 {
-    int index = intanUI->yScaleComboBox->currentIndex();
-    if (index < intanUI->yScaleComboBox->count() - 1) {
-        intanUI->yScaleComboBox->setCurrentIndex(index + 1);
-        setYScale(intanUI->yScaleList[index + 1]);
+    int index = intanUi->yScaleComboBox->currentIndex();
+    if (index < intanUi->yScaleComboBox->count() - 1) {
+        intanUi->yScaleComboBox->setCurrentIndex(index + 1);
+        setYScale(intanUi->yScaleList[index + 1]);
     }
 }
 
@@ -281,20 +278,20 @@ void WavePlot::setTScale(int newTScale)
 // Expand time scale on all plots.
 void WavePlot::expandTScale()
 {
-    int index = intanUI->tScaleComboBox->currentIndex();
-    if (index < intanUI->tScaleComboBox->count() - 1) {
-        intanUI->tScaleComboBox->setCurrentIndex(index + 1);
-        setTScale(intanUI->tScaleList[index + 1]);
+    int index = intanUi->tScaleComboBox->currentIndex();
+    if (index < intanUi->tScaleComboBox->count() - 1) {
+        intanUi->tScaleComboBox->setCurrentIndex(index + 1);
+        setTScale(intanUi->tScaleList[index + 1]);
     }
 }
 
 // Contract time scale on all plots.
 void WavePlot::contractTScale()
 {
-    int index = intanUI->tScaleComboBox->currentIndex();
+    int index = intanUi->tScaleComboBox->currentIndex();
     if (index > 0) {
-        intanUI->tScaleComboBox->setCurrentIndex(index - 1);
-        setTScale(intanUI->tScaleList[index - 1]);
+        intanUi->tScaleComboBox->setCurrentIndex(index - 1);
+        setTScale(intanUi->tScaleList[index - 1]);
     }
 }
 
@@ -312,13 +309,6 @@ QSize WavePlot::minimumSizeHint() const
 QSize WavePlot::sizeHint() const
 {
     return QSize(860, 690);
-}
-
-void WavePlot::setPlotProxy(TracePlotProxy *pp)
-{
-    plotProxy = pp;
-    if (plotProxy != nullptr)
-        plotProxy->setWavePlot(this);
 }
 
 int WavePlot::getChannelCount(int port) const
@@ -628,12 +618,12 @@ void WavePlot::highlightFrame(int frameIndex, bool eraseOldFrame)
 
     // Update list of visible channels.
     for (int i = 0; i < 8; ++i) {
-        intanUI->channelVisible[i].fill(false);
+        intanUi->channelVisible[i].fill(false);
     }
     for (int i = topLeftFrame[selectedPort];
          i < topLeftFrame[selectedPort] + frameList[numFramesIndex[selectedPort]].size();
          ++i) {
-        intanUI->channelVisible[selectedChannel(i)->boardStream][selectedChannel(i)->chipChannel] = true;
+        intanUi->channelVisible[selectedChannel(i)->boardStream][selectedChannel(i)->chipChannel] = true;
     }
 }
 
@@ -774,7 +764,7 @@ void WavePlot::drawAxisText(QPainter &painter, int frameNumber)
                           textBoxWidth, textBoxHeight, Qt::AlignLeft | Qt::AlignBottom,
                           "SUPPLY");
     } else if (type == BoardAdcSignal) {
-        if (intanUI->getEvalBoardMode() == 1) {
+        if (intanUi->getEvalBoardMode() == 1) {
             painter.drawText(frame.left() + 3, frame.top() - textBoxHeight - 1,
                               textBoxWidth, textBoxHeight, Qt::AlignLeft | Qt::AlignBottom,
                               QSTRING_PLUSMINUS_SYMBOL + "5.0V");
@@ -873,34 +863,6 @@ void WavePlot::drawWaveforms()
     // Assume all frames are the same size.
     yAxisLength = (frameList[numFramesIndex[selectedPort]][0].height() - 2) / 2.0;
     tAxisLength = frameList[numFramesIndex[selectedPort]][0].width() - 1;
-
-    if (plotProxy != nullptr) {
-        auto dispChanSize = plotProxy->channels().size();
-        for (int k = 0; k < dispChanSize; k++) {
-            auto chan = plotProxy->channels()[k];
-            auto portId = chan->portChan.first;
-            auto chanId = chan->portChan.second;
-
-            stream = signalSources->signalPort[portId].channelByIndex(chanId)->boardStream;
-            channel = signalSources->signalPort[portId].channelByIndex(chanId)->chipChannel;
-            type = signalSources->signalPort[portId].channelByIndex(chanId)->signalType;
-
-            if (type == AmplifierSignal) {
-                for (i = 0; i < length; ++i) {
-                    chan->addNewYValue(signalProcessor->amplifierPostFilter.at(stream).at(channel).at(i));
-                }
-            } else if (type == BoardDigInSignal) {
-                for (i = 0; i < length; ++i) {
-                    chan->addNewYValue(signalProcessor->boardDigIn.at(channel).at(i));
-                }
-            }
-        }
-
-        if (dispChanSize > 0) {
-            plotProxy->updatePlot();
-            plotProxy->adjustView();
-        }
-    }
 
     for (j = 0; j < frameList[numFramesIndex[selectedPort]].size(); ++j) {
         stream = selectedChannel(j + topLeftFrame[selectedPort])->boardStream;
@@ -1146,7 +1108,7 @@ int WavePlot::setPort(int port)
 {
     selectedPort = port;
     refreshScreen();
-    intanUI->setNumWaveformsComboBox(numFramesIndex[port]);
+    intanUi->setNumWaveformsComboBox(numFramesIndex[port]);
 
     return numFramesIndex[selectedPort];
 }
@@ -1214,7 +1176,7 @@ void WavePlot::setSelectedChannelEnable(bool enabled)
 // Toggle enable status of selected channel.
 void WavePlot::toggleSelectedChannelEnable()
 {
-    if (!(intanUI->isRecording())) {
+    if (!(intanUi->isRecording())) {
         setSelectedChannelEnable(!isSelectedChannelEnabled());
     }
 }

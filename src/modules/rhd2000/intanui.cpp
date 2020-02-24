@@ -66,10 +66,10 @@
 // Main Window of RHD2000 USB interface application.
 
 // Constructor.
-IntanUI::IntanUI(Rhd2000Module *module, QWidget *parentWindow)
+IntanUi::IntanUi(Rhd2000Module *module, QWidget *parentWindow)
     : QWidget(parentWindow),
       evalBoard(nullptr),
-      maModule(module)
+      syModule(module)
 {
     // Default amplifier bandwidth settings
     desiredLowerBandwidth = 0.1;
@@ -200,22 +200,22 @@ IntanUI::IntanUI(Rhd2000Module *module, QWidget *parentWindow)
     changeYScale(yScaleComboBox->currentIndex());
 }
 
-IntanUI::~IntanUI()
+IntanUi::~IntanUi()
 {
     delete liveDisplayWidget;
     if (evalBoard != nullptr)
         delete evalBoard;
 }
 
-QWidget *IntanUI::displayWidget() const
+QWidget *IntanUi::displayWidget() const
 {
     return liveDisplayWidget;
 }
 
 // Scan SPI Ports A-D to identify all connected RHD2000 amplifier chips.
-void IntanUI::scanPorts()
+void IntanUi::scanPorts()
 {
-    maModule->setStatusMessage("Scanning ports...");
+    syModule->emitStatusInfo("Scanning ports...");
 
     // Scan SPI Ports.
     findConnectedAmplifiers();
@@ -274,13 +274,14 @@ void IntanUI::scanPorts()
     changeTScale(tScaleComboBox->currentIndex());
     changeYScale(yScaleComboBox->currentIndex());
 
-    maModule->setStatusMessage("");
+    emit portsScanned(signalSources);
+    syModule->emitStatusInfo("");
 }
 
 // Create GUI layout.  We create the user interface (UI) directly with code, so it
 // is not necessary to use Qt Designer or any other special software to modify the
 // UI.
-void IntanUI::createLayout()
+void IntanUi::createLayout()
 {
     int i;
 
@@ -890,7 +891,7 @@ void IntanUI::createLayout()
 }
 
 // Create QActions linking menu items to functions.
-void IntanUI::createActions()
+void IntanUi::createActions()
 {
     originalOrderAction =
             new QAction(tr("Restore Original Channel Order"), this);
@@ -942,7 +943,7 @@ void IntanUI::createActions()
 }
 
 // Create pull-down menus.
-void IntanUI::createMenus()
+void IntanUi::createMenus()
 {
 #if 0
     fileMenu = menuBar()->addMenu(tr("&File"));
@@ -964,7 +965,7 @@ void IntanUI::createMenus()
 }
 
 // Display "About" message box.
-void IntanUI::about()
+void IntanUi::about()
 {
     QMessageBox::about(this, tr("About Intan Technologies RHD2000 Interface"),
             tr("<h2>Intan Technologies RHD2000 Interface</h2>"
@@ -987,7 +988,7 @@ void IntanUI::about()
 }
 
 // Display keyboard shortcut window.
-void IntanUI::keyboardShortcutsHelp()
+void IntanUi::keyboardShortcutsHelp()
 {
     if (!keyboardShortcutDialog) {
         keyboardShortcutDialog = new KeyboardShortcutDialog(this);
@@ -999,7 +1000,7 @@ void IntanUI::keyboardShortcutsHelp()
 }
 
 // Display on-chip filters help menu.
-void IntanUI::chipFiltersHelp()
+void IntanUi::chipFiltersHelp()
 {
     if (!helpDialogChipFilters) {
         helpDialogChipFilters = new HelpDialogChipFilters(this);
@@ -1011,7 +1012,7 @@ void IntanUI::chipFiltersHelp()
 }
 
 // Display comparators help menu.
-void IntanUI::comparatorsHelp()
+void IntanUi::comparatorsHelp()
 {
     if (!helpDialogComparators) {
         helpDialogComparators = new HelpDialogComparators(this);
@@ -1023,7 +1024,7 @@ void IntanUI::comparatorsHelp()
 }
 
 // Display DACs help menu.
-void IntanUI::dacsHelp()
+void IntanUi::dacsHelp()
 {
     if (!helpDialogDacs) {
         helpDialogDacs = new HelpDialogDacs(this);
@@ -1035,7 +1036,7 @@ void IntanUI::dacsHelp()
 }
 
 // Display software/DAC high-pass filter help menu.
-void IntanUI::highpassFilterHelp()
+void IntanUi::highpassFilterHelp()
 {
     if (!helpDialogHighpassFilter) {
         helpDialogHighpassFilter = new HelpDialogHighpassFilter(this);
@@ -1047,7 +1048,7 @@ void IntanUI::highpassFilterHelp()
 }
 
 // Display software notch filter help menu.
-void IntanUI::notchFilterHelp()
+void IntanUi::notchFilterHelp()
 {
     if (!helpDialogNotchFilter) {
         helpDialogNotchFilter = new HelpDialogNotchFilter(this);
@@ -1059,7 +1060,7 @@ void IntanUI::notchFilterHelp()
 }
 
 // Display fast settle help menu.
-void IntanUI::fastSettleHelp()
+void IntanUi::fastSettleHelp()
 {
     if (!helpDialogFastSettle) {
         helpDialogFastSettle = new HelpDialogFastSettle(this);
@@ -1070,7 +1071,7 @@ void IntanUI::fastSettleHelp()
     //! wavePlot->setFocus();
 }
 
-void IntanUI::closeEvent(QCloseEvent *event)
+void IntanUi::closeEvent(QCloseEvent *event)
 {
     // Perform any clean-up here before application closes.
     if (running) {
@@ -1080,7 +1081,7 @@ void IntanUI::closeEvent(QCloseEvent *event)
 }
 
 // Change the number of waveform frames displayed on the screen.
-void IntanUI::changeNumFrames(int index)
+void IntanUi::changeNumFrames(int index)
 {
     wavePlot->setNumFrames(numFramesComboBox->currentIndex());
     numFramesComboBox->setCurrentIndex(index);
@@ -1088,21 +1089,21 @@ void IntanUI::changeNumFrames(int index)
 }
 
 // Change voltage scale of waveform plots.
-void IntanUI::changeYScale(int index)
+void IntanUi::changeYScale(int index)
 {
     wavePlot->setYScale(yScaleList[index]);
     //! wavePlot->setFocus();
 }
 
 // Change time scale of waveform plots.
-void IntanUI::changeTScale(int index)
+void IntanUi::changeTScale(int index)
 {
     wavePlot->setTScale(tScaleList[index]);
     //! wavePlot->setFocus();
 }
 
 // Launch amplifier bandwidth selection dialog and set new bandwidth.
-void IntanUI::changeBandwidth()
+void IntanUi::changeBandwidth()
 {
     BandwidthDialog bandwidthDialog(desiredLowerBandwidth, desiredUpperBandwidth,
                                     desiredDspCutoffFreq, dspEnabled, boardSampleRate, this);
@@ -1117,7 +1118,7 @@ void IntanUI::changeBandwidth()
 }
 
 // Launch electrode impedance measurement frequency selection dialog.
-void IntanUI::changeImpedanceFrequency()
+void IntanUi::changeImpedanceFrequency()
 {
     ImpedanceFreqDialog impedanceFreqDialog(desiredImpedanceFreq, actualLowerBandwidth, actualUpperBandwidth,
                                             actualDspCutoffFreq, dspEnabled, boardSampleRate, this);
@@ -1132,7 +1133,7 @@ void IntanUI::changeImpedanceFrequency()
 // requested test frequency lies within acceptable ranges based on the
 // amplifier bandwidth and the sampling rate.  See impedancefreqdialog.cpp
 // for more information.
-void IntanUI::updateImpedanceFrequency()
+void IntanUi::updateImpedanceFrequency()
 {
     int impedancePeriod;
     double lowerBandwidthLimit, upperBandwidthLimit;
@@ -1175,7 +1176,7 @@ void IntanUI::updateImpedanceFrequency()
 }
 
 // Rename selected channel.
-void IntanUI::renameChannel()
+void IntanUi::renameChannel()
 {
     QString newChannelName;
 
@@ -1189,59 +1190,59 @@ void IntanUI::renameChannel()
     //! wavePlot->setFocus();
 }
 
-void IntanUI::sortChannelsByName()
+void IntanUi::sortChannelsByName()
 {
     wavePlot->sortChannelsByName();
     wavePlot->refreshScreen();
     //! wavePlot->setFocus();
 }
 
-void IntanUI::sortChannelsByNumber()
+void IntanUi::sortChannelsByNumber()
 {
     wavePlot->sortChannelsByNumber();
     wavePlot->refreshScreen();
     //! wavePlot->setFocus();
 }
 
-void IntanUI::restoreOriginalChannelOrder()
+void IntanUi::restoreOriginalChannelOrder()
 {
     wavePlot->sortChannelsByNumber();
     wavePlot->refreshScreen();
     //! wavePlot->setFocus();
 }
 
-void IntanUI::alphabetizeChannels()
+void IntanUi::alphabetizeChannels()
 {
     wavePlot->sortChannelsByName();
     wavePlot->refreshScreen();
     //! wavePlot->setFocus();
 }
 
-void IntanUI::toggleChannelEnable()
+void IntanUi::toggleChannelEnable()
 {
     wavePlot->toggleSelectedChannelEnable();
     //! wavePlot->setFocus();
 }
 
-void IntanUI::enableAllChannels()
+void IntanUi::enableAllChannels()
 {
     wavePlot->enableAllChannels();
     //! wavePlot->setFocus();
 }
 
-void IntanUI::disableAllChannels()
+void IntanUi::disableAllChannels()
 {
     wavePlot->disableAllChannels();
     //! wavePlot->setFocus();
 }
 
-void IntanUI::changePort(int port)
+void IntanUi::changePort(int port)
 {
     wavePlot->setPort(port);
     //! wavePlot->setFocus();
 }
 
-void IntanUI::changeDacGain(int index)
+void IntanUi::changeDacGain(int index)
 {
     if (!synthMode)
         evalBoard->setDacGain(index);
@@ -1249,12 +1250,12 @@ void IntanUI::changeDacGain(int index)
     //! wavePlot->setFocus();
 }
 
-void IntanUI::setDacGainLabel(int gain)
+void IntanUi::setDacGainLabel(int gain)
 {
     dacGainLabel->setText(QString::number(515 * pow(2.0, gain)) + " V/V");
 }
 
-void IntanUI::changeDacNoiseSuppress(int index)
+void IntanUi::changeDacNoiseSuppress(int index)
 {
     if (!synthMode)
         evalBoard->setAudioNoiseSuppress(index);
@@ -1262,7 +1263,7 @@ void IntanUI::changeDacNoiseSuppress(int index)
     //! wavePlot->setFocus();
 }
 
-void IntanUI::setDacNoiseSuppressLabel(int noiseSuppress)
+void IntanUi::setDacNoiseSuppressLabel(int noiseSuppress)
 {
     dacNoiseSuppressLabel->setText("+/-" +
                                    QString::number(3.12 * noiseSuppress, 'f', 0) +
@@ -1270,7 +1271,7 @@ void IntanUI::setDacNoiseSuppressLabel(int noiseSuppress)
 }
 
 // Enable or disable DAC on USB interface board.
-void IntanUI::dacEnable(bool enable)
+void IntanUi::dacEnable(bool enable)
 {
     int dacChannel = dacButtonGroup->checkedId();
 
@@ -1287,7 +1288,7 @@ void IntanUI::dacEnable(bool enable)
 }
 
 // Route selected amplifier channel to selected DAC.
-void IntanUI::dacSetChannel()
+void IntanUi::dacSetChannel()
 {
     int dacChannel = dacButtonGroup->checkedId();
     SignalChannel *selectedChannel = wavePlot->selectedChannel();
@@ -1309,14 +1310,14 @@ void IntanUI::dacSetChannel()
     //! wavePlot->setFocus();
 }
 
-void IntanUI::dacSelected(int dacChannel)
+void IntanUi::dacSelected(int dacChannel)
 {
     dacEnableCheckBox->setChecked(dacEnabled[dacChannel]);
     //! wavePlot->setFocus();
 }
 
 // Label DAC selection button in GUI with selected amplifier channel.
-void IntanUI::setDacChannelLabel(int dacChannel, QString channel,
+void IntanUi::setDacChannelLabel(int dacChannel, QString channel,
                                     QString name)
 {
     QString text;
@@ -1361,7 +1362,7 @@ void IntanUI::setDacChannelLabel(int dacChannel, QString channel,
 }
 
 // Change notch filter settings.
-void IntanUI::changeNotchFilter(int notchFilterIndex)
+void IntanUi::changeNotchFilter(int notchFilterIndex)
 {
     switch (notchFilterIndex) {
     case 0:
@@ -1382,7 +1383,7 @@ void IntanUI::changeNotchFilter(int notchFilterIndex)
 }
 
 // Enable/disable software/FPGA high-pass filter.
-void IntanUI::enableHighpassFilter(bool enable)
+void IntanUi::enableHighpassFilter(bool enable)
 {
     highpassFilterEnabled = enable;
     signalProcessor->setHighpassFilterEnabled(enable);
@@ -1393,13 +1394,13 @@ void IntanUI::enableHighpassFilter(bool enable)
 }
 
 // Update software/FPGA high-pass filter when LineEdit changes.
-void IntanUI::highpassFilterLineEditChanged()
+void IntanUi::highpassFilterLineEditChanged()
 {
     setHighpassFilterCutoff(highpassFilterLineEdit->text().toDouble());
 }
 
 // Update software/FPGA high-pass filter cutoff frequency.
-void IntanUI::setHighpassFilterCutoff(double cutoff)
+void IntanUi::setHighpassFilterCutoff(double cutoff)
 {
     highpassFilterFrequency = cutoff;
     signalProcessor->setHighpassFilter(cutoff , boardSampleRate);
@@ -1411,7 +1412,7 @@ void IntanUI::setHighpassFilterCutoff(double cutoff)
 // Change RHD2000 interface board amplifier sample rate.
 // This function also updates the Aux1, Aux2, and Aux3 SPI command
 // sequences that are used to set RAM registers on the RHD2000 chips.
-void IntanUI::changeSampleRate(int sampleRateIndex)
+void IntanUi::changeSampleRate(int sampleRateIndex)
 {
     Rhd2000EvalBoard::AmplifierSampleRate sampleRate =
             Rhd2000EvalBoard::SampleRate1000Hz;
@@ -1650,14 +1651,14 @@ void IntanUI::changeSampleRate(int sampleRateIndex)
 }
 
 // Attempt to open a USB interface board connected to a USB port.
-void IntanUI::openInterfaceBoard()
+void IntanUi::openInterfaceBoard()
 {
     evalBoard = new Rhd2000EvalBoard;
 
     // Open Opal Kelly XEM6010 board.
     int errorCode = evalBoard->open();
 
-    // cerr << "In IntanUI::openInterfaceBoard.  errorCode = " << errorCode << "\n";
+    // cerr << "In IntanUi::openInterfaceBoard.  errorCode = " << errorCode << "\n";
 
     if (errorCode < 1) {
         QMessageBox::StandardButton r;
@@ -1807,7 +1808,7 @@ void IntanUI::openInterfaceBoard()
 // of amplifier channels on each port.  This process is repeated at all
 // possible MISO delays in the FPGA, and the cable length on each port
 // is inferred from this.
-void IntanUI::findConnectedAmplifiers()
+void IntanUi::findConnectedAmplifiers()
 {
     int delay, stream, id, i, channel, port, auxName, vddName;
     int register59Value;
@@ -2235,7 +2236,7 @@ void IntanUI::findConnectedAmplifiers()
 // has a value of 0 on RHD2132 and RHD2216 chips, but in RHD2164 chips it is used
 // to align the DDR MISO A/B data from the SPI bus.  (Register 59 has a value of 53
 // on MISO A and a value of 58 on MISO B.)
-int IntanUI::deviceId(Rhd2000DataBlock *dataBlock, int stream, int &register59Value)
+int IntanUi::deviceId(Rhd2000DataBlock *dataBlock, int stream, int &register59Value)
 {
     bool intanChipPresent;
 
@@ -2264,7 +2265,7 @@ int IntanUI::deviceId(Rhd2000DataBlock *dataBlock, int stream, int &register59Va
 }
 
 // Wait for user-defined trigger to start recording data from USB interface board to disk.
-void IntanUI::triggerRecordInterfaceBoard()
+void IntanUi::triggerRecordInterfaceBoard()
 {
     TriggerRecordDialog triggerRecordDialog(recordTriggerChannel, recordTriggerPolarity,
                                             recordTriggerBuffer, postTriggerTime,
@@ -2296,7 +2297,7 @@ void IntanUI::triggerRecordInterfaceBoard()
 
 // Write header to data save file, containing information on
 // recording settings, amplifier parameters, and signal sources.
-void IntanUI::writeSaveFileHeader(QDataStream &outStream, QDataStream &infoStream,
+void IntanUi::writeSaveFileHeader(QDataStream &outStream, QDataStream &infoStream,
                                      SaveFormat format, int numTempSensors)
 {
     for (int i = 0; i < 16; ++i) {
@@ -2379,7 +2380,7 @@ void IntanUI::writeSaveFileHeader(QDataStream &outStream, QDataStream &infoStrea
 
 // Start SPI communication to all connected RHD2000 amplifiers and stream
 // waveform data over USB port.
-void IntanUI::runInterfaceBoard()
+void IntanUi::runInterfaceBoard()
 {
     assert(!running);
     recording = false;
@@ -2394,7 +2395,7 @@ void IntanUI::runInterfaceBoard()
     interfaceBoardStopFinalize();
 }
 
-void IntanUI::interfaceBoardInitRun()
+void IntanUi::interfaceBoardInitRun()
 {
     assert(!crd.runInitialized);
 
@@ -2463,7 +2464,7 @@ void IntanUI::interfaceBoardInitRun()
     crd.runInitialized = true;
 }
 
-void IntanUI::interfaceBoardStartRun()
+void IntanUi::interfaceBoardStartRun()
 {
     assert(!running);
     assert(crd.runInitialized);
@@ -2485,7 +2486,7 @@ void IntanUI::interfaceBoardStartRun()
     running = true;
 }
 
-void IntanUI::interfaceBoardPrepareRecording()
+void IntanUi::interfaceBoardPrepareRecording()
 {
     // Create list of enabled channels that will be saved to disk.
     signalProcessor->createSaveList(signalSources, false, 0);
@@ -2505,7 +2506,7 @@ void IntanUI::interfaceBoardPrepareRecording()
     triggered = false;
 }
 
-bool IntanUI::interfaceBoardRunCycle()
+bool IntanUi::interfaceBoardRunCycle()
 {
     auto ret = true;
     assert(crd.runInitialized);
@@ -2533,7 +2534,7 @@ bool IntanUI::interfaceBoardRunCycle()
             crd.totalBytesWritten +=
                     signalProcessor->loadSyntheticData(numUsbBlocksToRead,
                                                        boardSampleRate, recording,
-                                                       *saveStream, saveFormat, saveTemp, saveTtlOut);
+                                                       *saveStream, saveFormat, saveTemp, saveTtlOut, syModule);
         } else {
             // Check the number of words stored in the Opal Kelly USB interface FIFO.
             crd.wordsInFifo = evalBoard->numWordsInFifo();
@@ -2565,7 +2566,7 @@ bool IntanUI::interfaceBoardRunCycle()
                                                        (triggered ? (1 - recordTriggerPolarity) : recordTriggerPolarity),
                                                        crd.triggerIndex, triggerSet, crd.bufferQueue,
                                                        recording, *saveStream, saveFormat, saveTemp,
-                                                       saveTtlOut, crd.timestampOffset);
+                                                       saveTtlOut, crd.timestampOffset, syModule);
 
             while (crd.bufferQueue.size() > crd.preTriggerBufferQueueLength) {
                 crd.bufferQueue.pop();
@@ -2695,7 +2696,7 @@ bool IntanUI::interfaceBoardRunCycle()
     return ret;
 }
 
-void IntanUI::interfaceBoardStopFinalize()
+void IntanUi::interfaceBoardStopFinalize()
 {
     assert(crd.runInitialized);
 
@@ -2769,25 +2770,25 @@ void IntanUI::interfaceBoardStopFinalize()
 }
 
 // Stop SPI data acquisition.
-void IntanUI::stopInterfaceBoard()
+void IntanUi::stopInterfaceBoard()
 {
     running = false;
     //! wavePlot->setFocus();
 }
 
 // Open Intan Technologies website in the default browser.
-void IntanUI::openIntanWebsite()
+void IntanUi::openIntanWebsite()
 {
     QDesktopServices::openUrl(QUrl("http://www.intantech.com", QUrl::TolerantMode));
 }
 
-void IntanUI::setNumWaveformsComboBox(int index)
+void IntanUi::setNumWaveformsComboBox(int index)
 {
     numFramesComboBox->setCurrentIndex(index);
 }
 
 // Open Spike Scope dialog and initialize it.
-void IntanUI::spikeScope()
+void IntanUi::spikeScope()
 {
     if (!spikeScopeDialog) {
         spikeScopeDialog = new SpikeScopeDialog(signalProcessor, signalSources,
@@ -2804,7 +2805,7 @@ void IntanUI::spikeScope()
 }
 
 // Change selected channel on Spike Scope when user selects a new channel.
-void IntanUI::newSelectedChannel(SignalChannel* newChannel)
+void IntanUi::newSelectedChannel(SignalChannel* newChannel)
 {
     if (spikeScopeDialog) {
         spikeScopeDialog->setNewChannel(newChannel);
@@ -2825,7 +2826,7 @@ void IntanUI::newSelectedChannel(SignalChannel* newChannel)
 }
 
 // Enable or disable RHD2000 amplifier fast settle function.
-void IntanUI::enableFastSettle(int enabled)
+void IntanUi::enableFastSettle(int enabled)
 {
     fastSettleEnabled = !(enabled == Qt::Unchecked);
 
@@ -2843,7 +2844,7 @@ void IntanUI::enableFastSettle(int enabled)
 }
 
 // Enable or disable external fast settling function.
-void IntanUI::enableExternalFastSettle(bool enabled)
+void IntanUi::enableExternalFastSettle(bool enabled)
 {
     if (!synthMode) {
         evalBoard->enableExternalFastSettle(enabled);
@@ -2853,7 +2854,7 @@ void IntanUI::enableExternalFastSettle(bool enabled)
 }
 
 // Select TTL input channel for external fast settle control.
-void IntanUI::setExternalFastSettleChannel(int channel)
+void IntanUi::setExternalFastSettleChannel(int channel)
 {
     if (!synthMode) {
         evalBoard->setExternalFastSettleChannel(channel);
@@ -2862,7 +2863,7 @@ void IntanUI::setExternalFastSettleChannel(int channel)
 }
 
 // Load application settings from *.isf (Intan Settings File) file.
-void IntanUI::loadSettings(const QByteArray &data)
+void IntanUi::loadSettings(const QByteArray &data)
 {
     if (data.isEmpty()) {
         return;
@@ -2887,7 +2888,7 @@ void IntanUI::loadSettings(const QByteArray &data)
         return;
     }
 
-    maModule->setStatusMessage("Restoring settings from file...");
+    syModule->emitStatusInfo("Restoring settings from file...");
 
     inStream >> tempQint16;
     versionMain = tempQint16;
@@ -3141,12 +3142,12 @@ void IntanUI::loadSettings(const QByteArray &data)
     }
 
     wavePlot->refreshScreen();
-    maModule->setStatusMessage("");
+    syModule->emitStatusInfo("");
     //! wavePlot->setFocus();
 }
 
 // Save application settings to *.isf (Intan Settings File) file.
-void IntanUI::exportSettings(QDataStream &outStream)
+void IntanUi::exportSettings(QDataStream &outStream)
 {
     // Save settings to stream
     outStream.setVersion(QDataStream::Qt_4_8);
@@ -3248,30 +3249,30 @@ void IntanUI::exportSettings(QDataStream &outStream)
     outStream << (qint16) saveTriggerChannel;
 }
 
-WavePlot *IntanUI::getWavePlot() const
-{
-    return wavePlot;
-}
-
-bool IntanUI::isRunning() const
+bool IntanUi::isRunning() const
 {
     return running;
 }
 
-int IntanUI::currentFifoPercentageFull() const
+int IntanUi::currentFifoPercentageFull() const
 {
     return crd.fifoPercentageFull;
 }
 
+SignalSources *IntanUi::getSignalSources() const
+{
+    return signalSources;
+}
+
 // Enable or disable the display of electrode impedances.
-void IntanUI::showImpedances(bool enabled)
+void IntanUi::showImpedances(bool enabled)
 {
     wavePlot->setImpedanceLabels(enabled);
     //! wavePlot->setFocus();
 }
 
 // Execute an electrode impedance measurement procedure.
-void IntanUI::runImpedanceMeasurement()
+void IntanUi::runImpedanceMeasurement()
 {
     // We can't really measure impedances in demo mode, so just return.
     if (synthMode) {
@@ -3312,7 +3313,7 @@ void IntanUI::runImpedanceMeasurement()
     evalBoard->setLedDisplay(crd.ledArray);
     evalBoard->setTtlOut(ttlOut);
 
-    maModule->setStatusMessage("Measuring electrode impedances...");
+    syModule->emitStatusInfo("Measuring electrode impedances...");
 
     // Create a progress bar to let user know how long this will take.
     QProgressDialog progress("Measuring Electrode Impedances", "Abort", 0, 98, this);
@@ -3409,7 +3410,7 @@ void IntanUI::runImpedanceMeasurement()
                 ttlOut[15] = 0;
                 evalBoard->setLedDisplay(ledArray);
                 evalBoard->setTtlOut(ttlOut);
-                maModule->setStatusMessage("");
+                syModule->emitStatusInfo("");
                 //! wavePlot->setFocus();
                 return;
             }
@@ -3570,7 +3571,7 @@ void IntanUI::runImpedanceMeasurement()
     evalBoard->enableExternalDigOut(Rhd2000EvalBoard::PortD, auxDigOutEnabled[3]);
 
     saveImpedancesButton->setEnabled(true);
-    maModule->setStatusMessage("");
+    syModule->emitStatusInfo("");
     showImpedanceCheckBox->setChecked(true);
     showImpedances(true);
     //! wavePlot->setFocus();
@@ -3580,7 +3581,7 @@ void IntanUI::runImpedanceMeasurement()
 // with a parasitic capacitance (i.e., due to the amplifier input capacitance and other
 // capacitances associated with the chip bondpads), this function factors out the effect of the
 // parasitic capacitance to return the acutal electrode impedance.
-void IntanUI::factorOutParallelCapacitance(double &impedanceMagnitude, double &impedancePhase,
+void IntanUi::factorOutParallelCapacitance(double &impedanceMagnitude, double &impedancePhase,
                                               double frequency, double parasiticCapacitance)
 {
     // First, convert from polar coordinates to rectangular coordinates.
@@ -3604,7 +3605,7 @@ void IntanUI::factorOutParallelCapacitance(double &impedanceMagnitude, double &i
 // 2-pole lowpass filter.  This function attempts to somewhat correct for this, but a better
 // solution is to always run impedance measurements at 20 kS/s, where they seem to be most
 // accurate.
-void IntanUI::empiricalResistanceCorrection(double &impedanceMagnitude, double &impedancePhase,
+void IntanUi::empiricalResistanceCorrection(double &impedanceMagnitude, double &impedancePhase,
                                                double boardSampleRate)
 {
     // First, convert from polar coordinates to rectangular coordinates.
@@ -3620,7 +3621,7 @@ void IntanUI::empiricalResistanceCorrection(double &impedanceMagnitude, double &
 }
 
 // Save measured electrode impedances in CSV (Comma Separated Values) text file.
-void IntanUI::saveImpedances()
+void IntanUi::saveImpedances()
 {
     double equivalentR, equivalentC;
 
@@ -3682,63 +3683,63 @@ void IntanUI::saveImpedances()
     //! wavePlot->setFocus();
 }
 
-void IntanUI::plotPointsMode(bool enabled)
+void IntanUi::plotPointsMode(bool enabled)
 {
     wavePlot->setPointPlotMode(enabled);
     //! wavePlot->setFocus();
 }
 
-void IntanUI::setStatusBarReady()
+void IntanUi::setStatusBarReady()
 {
     if (!synthMode) {
-        maModule->setStatusMessage("Ready.");
+        syModule->emitStatusInfo("Ready.");
     } else {
-        maModule->setStatusMessage("No USB board connected.  Ready to run with synthesized data.");
+        syModule->emitStatusInfo("No USB board connected.  Ready to run with synthesized data.");
     }
 }
 
-void IntanUI::setStatusBarRunning()
+void IntanUi::setStatusBarRunning()
 {
     if (!synthMode) {
-        maModule->setStatusMessage("Running.");
+        syModule->emitStatusInfo("Running.");
     } else {
-        maModule->setStatusMessage("Running with synthesized data.");
+        syModule->emitStatusInfo("Running with synthesized data.");
     }
 }
 
-void IntanUI::setStatusBarRecording(double bytesPerMinute)
+void IntanUi::setStatusBarRecording(double bytesPerMinute)
 {
     if (!synthMode) {
-        maModule->setStatusMessage("Saving data to file " + saveFileName + ".  (" +
+        syModule->emitStatusInfo("Saving data to file " + saveFileName + ".  (" +
                                 QString::number(bytesPerMinute / (1024.0 * 1024.0), 'f', 1) +
                                 " MB/minute.  File size may be reduced by disabling unused inputs.)");
     } else {
-        maModule->setStatusMessage("Saving synthesized data to file " + saveFileName + ".  (" +
+        syModule->emitStatusInfo("Saving synthesized data to file " + saveFileName + ".  (" +
                                 QString::number(bytesPerMinute / (1024.0 * 1024.0), 'f', 1) +
                                 " MB/minute.  File size may be reduced by disabling unused inputs.)");
     }
 }
 
-void IntanUI::setStatusBarWaitForTrigger()
+void IntanUi::setStatusBarWaitForTrigger()
 {
     if (recordTriggerPolarity == 0) {
-        maModule->setStatusMessage("Waiting for logic high trigger on digital input " +
+        syModule->emitStatusInfo("Waiting for logic high trigger on digital input " +
                                 QString::number(recordTriggerChannel) + "...");
     } else {
-        maModule->setStatusMessage("Waiting for logic low trigger on digital input " +
+        syModule->emitStatusInfo("Waiting for logic low trigger on digital input " +
                                 QString::number(recordTriggerChannel) + "...");
     }
 }
 
 // Set the format of the saved data file.
-void IntanUI::setSaveFormat(SaveFormat format)
+void IntanUi::setSaveFormat(SaveFormat format)
 {
     saveFormat = format;
 }
 
 // Create and open a new save file for data (saveFile), and create a new
 // data stream (saveStream) for writing to the file.
-void IntanUI::startNewSaveFile(SaveFormat format)
+void IntanUi::startNewSaveFile(SaveFormat format)
 {
     QFileInfo fileInfo(saveBaseFileName);
     QDateTime dateTime = QDateTime::currentDateTime();
@@ -3875,7 +3876,7 @@ void IntanUI::startNewSaveFile(SaveFormat format)
     }
 }
 
-void IntanUI::closeSaveFile(SaveFormat format) {
+void IntanUi::closeSaveFile(SaveFormat format) {
     switch (format) {
     case SaveFormatIntan:
         saveFile->close();
@@ -3902,7 +3903,7 @@ void IntanUI::closeSaveFile(SaveFormat format) {
 }
 
 // Launch save file format selection dialog.
-void IntanUI::setSaveFormatDialog()
+void IntanUi::setSaveFormatDialog()
 {
     SetSaveFormatDialog saveFormatDialog(saveFormat, saveTemp, saveTtlOut, newSaveFilePeriodMinutes, this);
 
@@ -3917,69 +3918,69 @@ void IntanUI::setSaveFormatDialog()
     //! wavePlot->setFocus();
 }
 
-void IntanUI::setDacThreshold1(int threshold)
+void IntanUi::setDacThreshold1(int threshold)
 {
     int threshLevel = qRound((double) threshold / 0.195) + 32768;
     if (evalBoard != nullptr && !synthMode)
         evalBoard->setDacThreshold(0, threshLevel, threshold >= 0);
 }
 
-void IntanUI::setDacThreshold2(int threshold)
+void IntanUi::setDacThreshold2(int threshold)
 {
     int threshLevel = qRound((double) threshold / 0.195) + 32768;
     if (evalBoard != nullptr && !synthMode)
         evalBoard->setDacThreshold(1, threshLevel, threshold >= 0);
 }
 
-void IntanUI::setDacThreshold3(int threshold)
+void IntanUi::setDacThreshold3(int threshold)
 {
     int threshLevel = qRound((double) threshold / 0.195) + 32768;
     if (evalBoard != nullptr && !synthMode)
         evalBoard->setDacThreshold(2, threshLevel, threshold >= 0);
 }
 
-void IntanUI::setDacThreshold4(int threshold)
+void IntanUi::setDacThreshold4(int threshold)
 {
     int threshLevel = qRound((double) threshold / 0.195) + 32768;
     if (evalBoard != nullptr && !synthMode)
         evalBoard->setDacThreshold(3, threshLevel, threshold >= 0);
 }
 
-void IntanUI::setDacThreshold5(int threshold)
+void IntanUi::setDacThreshold5(int threshold)
 {
     int threshLevel = qRound((double) threshold / 0.195) + 32768;
     if (evalBoard != nullptr && !synthMode)
         evalBoard->setDacThreshold(4, threshLevel, threshold >= 0);
 }
 
-void IntanUI::setDacThreshold6(int threshold)
+void IntanUi::setDacThreshold6(int threshold)
 {
     int threshLevel = qRound((double) threshold / 0.195) + 32768;
     if (evalBoard != nullptr && !synthMode)
         evalBoard->setDacThreshold(5, threshLevel, threshold >= 0);
 }
 
-void IntanUI::setDacThreshold7(int threshold)
+void IntanUi::setDacThreshold7(int threshold)
 {
     int threshLevel = qRound((double) threshold / 0.195) + 32768;
     if (evalBoard != nullptr && !synthMode)
         evalBoard->setDacThreshold(6, threshLevel, threshold >= 0);
 }
 
-void IntanUI::setDacThreshold8(int threshold)
+void IntanUi::setDacThreshold8(int threshold)
 {
     int threshLevel = qRound((double) threshold / 0.195) + 32768;
     if (evalBoard != nullptr && !synthMode)
         evalBoard->setDacThreshold(7, threshLevel, threshold >= 0);
 }
 
-int IntanUI::getEvalBoardMode()
+int IntanUi::getEvalBoardMode()
 {
     return evalBoardMode;
 }
 
 // Launch auxiliary digital output control configuration dialog.
-void IntanUI::configDigOutControl()
+void IntanUi::configDigOutControl()
 {
     AuxDigOutConfigDialog auxDigOutConfigDialog(auxDigOutEnabled, auxDigOutChannel, this);
     if (auxDigOutConfigDialog.exec()) {
@@ -3992,7 +3993,7 @@ void IntanUI::configDigOutControl()
     //! wavePlot->setFocus();
 }
 
-void IntanUI::updateAuxDigOut()
+void IntanUi::updateAuxDigOut()
 {
     if (!synthMode) {
         evalBoard->enableExternalDigOut(Rhd2000EvalBoard::PortA, auxDigOutEnabled[0]);
@@ -4007,7 +4008,7 @@ void IntanUI::updateAuxDigOut()
 }
 
 // Launch manual cable delay configuration dialog.
-void IntanUI::manualCableDelayControl()
+void IntanUi::manualCableDelayControl()
 {
     vector<int> currentDelays;
     currentDelays.resize(4, 0);
@@ -4050,12 +4051,12 @@ void IntanUI::manualCableDelayControl()
     //! wavePlot->setFocus();
 }
 
-bool IntanUI::isRecording()
+bool IntanUi::isRecording()
 {
     return recording;
 }
 
-void IntanUI::setBaseFileName(const QString& fname)
+void IntanUi::setBaseFileName(const QString& fname)
 {
     if (fname.isEmpty())
         return;
