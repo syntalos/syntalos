@@ -22,7 +22,7 @@
 #include <QObject>
 #include "moduleapi.h"
 
-class DevelDataSinkModuleInfo : public ModuleInfo
+class DevelDataSSTModuleInfo : public ModuleInfo
 {
     Q_OBJECT
 public:

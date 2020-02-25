@@ -17,25 +17,25 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "datasinkmodule.h"
+#include "datasstmodule.h"
 #include "streams/frametype.h"
 
 #include <opencv2/imgproc.hpp>
 #include "utils.h"
 
-class DataSinkModule : public AbstractModule
+class DataSSTModule : public AbstractModule
 {
 private:
     std::shared_ptr<StreamInputPort<FloatSignalBlock>> m_fpSignalIn;
 
 public:
-    explicit DataSinkModule(QObject *parent = nullptr)
+    explicit DataSSTModule(QObject *parent = nullptr)
         : AbstractModule(parent)
     {
         m_fpSignalIn = registerInputPort<FloatSignalBlock>(QStringLiteral("fpsig-in"), QStringLiteral("FSignal In"));
     }
 
-    ~DataSinkModule() override
+    ~DataSSTModule() override
     {
 
     }
@@ -79,27 +79,27 @@ private:
 
 };
 
-QString DevelDataSinkModuleInfo::id() const
+QString DevelDataSSTModuleInfo::id() const
 {
-    return QStringLiteral("devel.datasink");
+    return QStringLiteral("devel.datasst");
 }
 
-QString DevelDataSinkModuleInfo::name() const
+QString DevelDataSSTModuleInfo::name() const
 {
-    return QStringLiteral("Devel: DataSink");
+    return QStringLiteral("Devel: DataSST");
 }
 
-QString DevelDataSinkModuleInfo::description() const
+QString DevelDataSSTModuleInfo::description() const
 {
-    return QStringLiteral("Developer module accepting various inputs for debug logging.");
+    return QStringLiteral("Developer module representing a source, sing and transformer for debug logging.");
 }
 
-QPixmap DevelDataSinkModuleInfo::pixmap() const
+QPixmap DevelDataSSTModuleInfo::pixmap() const
 {
     return QPixmap(":/module/devel");
 }
 
-AbstractModule *DevelDataSinkModuleInfo::createModule(QObject *parent)
+AbstractModule *DevelDataSSTModuleInfo::createModule(QObject *parent)
 {
-    return new DataSinkModule(parent);
+    return new DataSSTModule(parent);
 }
