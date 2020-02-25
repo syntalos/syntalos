@@ -2691,7 +2691,7 @@ bool IntanUi::interfaceBoardRunCycle()
             evalBoard->setLedDisplay(crd.ledArray);
         }
     }
-    qApp->processEvents();  // Stay responsive to GUI events during this loop
+    //qApp->processEvents();  // Stay responsive to GUI events during this loop
 
     return ret;
 }
@@ -3262,6 +3262,11 @@ int IntanUi::currentFifoPercentageFull() const
 SignalSources *IntanUi::getSignalSources() const
 {
     return signalSources;
+}
+
+double IntanUi::getSampleRate() const
+{
+    return boardSampleRate;
 }
 
 // Enable or disable the display of electrode impedances.

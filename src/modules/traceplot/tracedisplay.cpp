@@ -21,29 +21,133 @@
 #include "ui_tracedisplay.h"
 
 #include <QDebug>
+#include <QTimer>
+#include <QLineSeries>
 
-#include "traceplotproxy.h"
+#include "traceplot.h"
 
-TraceDisplay::TraceDisplay(TracePlotProxy *proxy, QWidget *parent) :
-    QWidget(parent),
-    ui(new Ui::TraceDisplay)
+
+class PlotChannelData final : public QObject
+{
+    Q_OBJECT
+public:
+    explicit PlotChannelData(QObject *parent = nullptr)
+        : QObject(parent),
+          multiplier(1),
+          xPos(0),
+          storeOrig(false),
+          m_enabled(false)
+    {
+        data.reserve(60000);
+    }
+
+    void reset()
+    {
+        xPos = 0;
+        dataPrev = data;
+        data.clear();
+        dataOrig.clear();
+    }
+
+    void addNewYValue(double xval)
+    {
+        if ((multiplier > 1) || (yShift != 0)) {
+            if (multiplier <= 0)
+                multiplier = 1;
+
+            storeOrig = true;
+            data.append(QPointF(xPos, xval * multiplier + yShift));
+        } else {
+            data.append(QPointF(xPos, xval));
+        }
+
+        if (storeOrig)
+            dataOrig.append(QPointF(xPos, xval));
+
+        xPos += 1;
+    }
+
+    void registerChannel(TracePlot *plot)
+    {
+        if (this->m_enabled)
+            return;
+
+        QLineSeries *series = new QLineSeries();
+        series->setUseOpenGL(true);
+        plot->addSeries(series);
+        this->series = series;
+
+        plot->createDefaultAxes();
+
+        auto axisY = plot->axes(Qt::Vertical).back();
+        axisY->setMax(250);
+        axisY->setMin(-250);
+        axisY->setTitleText(QStringLiteral("µV"));
+        auto font = axisY->titleFont();
+        font.setPointSize(8);
+        axisY->setTitleFont(font);
+
+        this->series->points().reserve(60000);
+        this->m_enabled = true;
+    }
+
+    void unregisterChannel(TracePlot *plot)
+    {
+        if (!this->m_enabled)
+            return;
+
+        plot->removeSeries(this->series);
+        this->m_enabled = false;
+    }
+
+    bool enabled()
+    {
+        return m_enabled;
+    }
+
+    QtCharts::QXYSeries *series;
+    int chanId;
+    int chanDataIndex;
+
+    double multiplier;
+    double yShift;
+
+    QList<QPointF> data;
+    QList<QPointF> dataOrig;
+    QList<QPointF> dataPrev;
+
+    int xPos;
+    bool storeOrig;
+
+private:
+    bool m_enabled;
+};
+
+TraceDisplay::TraceDisplay(QWidget *parent)
+    : QWidget(parent),
+      ui(new Ui::TraceDisplay),
+      m_plot(new TracePlot),
+      m_maxXVal(0),
+      m_timer(new QTimer(this))
 {
     ui->setupUi(this);
     setWindowTitle(QStringLiteral("Traces"));
-    setWindowIcon(QIcon(":/icons/generic-view"));
+    setWindowIcon(QIcon(":/module/traceplot"));
+
+    m_timer->setSingleShot(true);
+    m_timer->setInterval(400);
+    connect(m_timer, &QTimer::timeout, this, &TraceDisplay::repaintPlot);
 
     auto twScrollBar = new QScrollBar(this);
     ui->traceView0->addScrollBarWidget(twScrollBar, Qt::AlignBottom);
 
-    // there are 6 ports on the Intan eval port - we hardcode that at time
-    for (uint port = 0; port < 6; port++) {
-        auto item = new QListWidgetItem;
-        item->setData(Qt::UserRole, port);
-        item->setText(QString("Port %1").arg(port));
-        ui->portListWidget->addItem(item);
-    }
+    ui->traceView0->setChart(m_plot);
+    ui->traceView0->setRenderHint(QPainter::Antialiasing);
 
-    setPlotProxy(proxy);
+    connect(ui->plotScrollBar, &QScrollBar::valueChanged, this, &TraceDisplay::plotMoveTo);
+    ui->plotRefreshSpinBox->setValue(m_timer->interval());
+
+    m_plot->setAnimationOptions(QChart::SeriesAnimations);
 }
 
 TraceDisplay::~TraceDisplay()
@@ -51,104 +155,233 @@ TraceDisplay::~TraceDisplay()
     delete ui;
 }
 
-void TraceDisplay::setPlotProxy(TracePlotProxy *proxy)
+void TraceDisplay::addPort(std::shared_ptr<StreamInputPort<FloatSignalBlock>> port)
 {
-    m_traceProxy = proxy;
-    ui->traceView0->setChart(proxy->plot());
-    ui->traceView0->setRenderHint(QPainter::Antialiasing);
-
-    connect(proxy, &TracePlotProxy::maxHorizontalPositionChanged, ui->plotScrollBar, &QScrollBar::setMaximum);
-    connect(proxy, &TracePlotProxy::maxHorizontalPositionChanged, ui->plotScrollBar, &QScrollBar::setValue);
-    connect(ui->plotScrollBar, &QScrollBar::valueChanged, proxy, &TracePlotProxy::moveTo);
-    ui->plotRefreshSpinBox->setValue(proxy->refreshTime());
+    auto item = new QListWidgetItem(ui->portListWidget);
+    m_portsChannels.append(qMakePair(port, QList<PlotChannelData*>()));
+    item->setData(Qt::UserRole, m_portsChannels.size() - 1);
+    item->setText(port->title());
 }
 
-ChannelDetails *TraceDisplay::selectedPlotChannelDetails()
+void TraceDisplay::updatePortChannels()
 {
-    if (ui->portListWidget->selectedItems().isEmpty() || ui->chanListWidget->selectedItems().isEmpty()) {
-        qCritical() << "Can not determine selected trace: Port/Channel selection does not make sense";
-        return nullptr;
+    for (auto &pcPair : m_portsChannels) {
+        auto port = pcPair.first;
+        if (!port->hasSubscription())
+            continue;
+        const auto mdata = port->subscriptionVar()->metadata();
+        const auto firstChanNo = mdata.value(QStringLiteral("firstChannelNo")).toInt();
+        const auto lastChanNo = mdata.value(QStringLiteral("lastChannelNo")).toInt();
+
+        // sanity check
+        if (firstChanNo == lastChanNo) {
+            qWarning().noquote().nospace() << "Ignored traceplot port " << port->id() << ": Channel count limits are invalid.";
+            return;
+        }
+
+        int dataIdx = 0;
+        QList<PlotChannelData*> channels;
+        for (int chan = firstChanNo; chan <= lastChanNo; chan++) {
+            if (dataIdx >= SIGNAL_BLOCK_CHAN_COUNT) {
+                qWarning().noquote().nospace() << "Traceplot port " << port->id() << " indicates more than " << SIGNAL_BLOCK_CHAN_COUNT << " channels, which is not permitted.";
+                break;
+            }
+
+            auto pcd = new PlotChannelData(this);
+            pcd->chanId = chan;
+            pcd->chanDataIndex = dataIdx;
+            channels.append(pcd);
+
+            dataIdx++;
+        }
+
+        // delete the old elements
+        for (int i = 0; i < pcPair.second.size(); i++)
+          delete pcPair.second.takeAt(0);
+        pcPair.second = channels;
     }
 
-    auto portId = ui->portListWidget->selectedItems()[0]->data(Qt::UserRole).toInt();
-    auto chanId = ui->chanListWidget->selectedItems()[0]->data(Qt::UserRole).toInt();
-
-    auto details = m_traceProxy->getDetails(portId, chanId);
-
-    return details;
+    // propagate active subscriptions
+    resetPlotConfig();
 }
 
-void TraceDisplay::on_chanListWidget_itemActivated(QListWidgetItem *)
+void TraceDisplay::updatePlotData(bool adjustView)
 {
-    auto details = selectedPlotChannelDetails();
-    ui->chanSettingsGroupBox->setEnabled(true);
+    bool updated = false;
+    for (const auto pair : m_activeFSubChans) {
+        const auto sub = pair.first;
 
-    if (details != nullptr) {
-        ui->chanDisplayCheckBox->setChecked(true);
-        ui->multiplierDoubleSpinBox->setValue(details->multiplier);
-        ui->yShiftDoubleSpinBox->setValue(details->yShift);
-    } else {
-        ui->chanDisplayCheckBox->setChecked(false);
-        ui->multiplierDoubleSpinBox->setValue(1);
-        ui->yShiftDoubleSpinBox->setValue(0);
+        auto maybeSigBlock = sub->peekNext();
+        if (!maybeSigBlock.has_value())
+            continue;
+
+        const auto sigBlock = maybeSigBlock.value();
+
+        for (const auto pcd : pair.second) {
+            if (!pcd->enabled())
+                continue;
+
+            for (size_t i = 0; i < sigBlock.data[pcd->chanDataIndex].size(); i++)
+                pcd->addNewYValue(sigBlock.data[pcd->chanDataIndex][i]);
+
+            updated = true;
+        }
+    }
+
+    if (!updated)
+        return;
+
+    if (!m_timer->isActive())
+        m_timer->start();
+
+    if (adjustView)
+        plotAdjustView();
+}
+
+void TraceDisplay::plotAdjustView()
+{
+    if (m_maxXVal < 2000)
+        return;
+    auto axisX = m_plot->axes(Qt::Horizontal).back();
+    axisX->setRange(m_maxXVal - 2000, m_maxXVal);
+}
+
+void TraceDisplay::plotMoveTo(int position)
+{
+    auto axisX = m_plot->axes(Qt::Horizontal).back();
+    axisX->setRange(position, position + 2000);
+}
+
+void TraceDisplay::resetPlotConfig()
+{
+    m_activeFSubChans.clear();
+
+    for (const auto pair : m_portsChannels) {
+        auto port = pair.first;
+        for (const auto pcd : pair.second)
+            pcd->reset();
+
+        if (port->hasSubscription()) {
+            auto fPortSub = std::dynamic_pointer_cast<StreamSubscription<FloatSignalBlock>>(port->subscriptionVar());
+            m_activeFSubChans.append(qMakePair(fPortSub, pair.second));
+        }
+    }
+
+    m_maxXVal = 0;
+}
+
+void TraceDisplay::repaintPlot()
+{
+    for (const auto pair : m_portsChannels) {
+        for (const auto pcd : pair.second) {
+            if (!pcd->enabled())
+                continue;
+
+            // replace is *much* faster than append(QPointF)
+            // see https://bugreports.qt.io/browse/QTBUG-55714
+            pcd->series->replace(pcd->data);
+
+            // set & broadcast our maximum horizontal position
+            if (pcd->xPos > m_maxXVal) {
+                m_maxXVal = pcd->xPos;
+                ui->plotScrollBar->setMaximum(m_maxXVal);
+                ui->plotScrollBar->setValue(m_maxXVal);
+            }
+        }
     }
 }
 
 void TraceDisplay::on_multiplierDoubleSpinBox_valueChanged(double arg1)
 {
-    auto details = selectedPlotChannelDetails();
-    if (details == nullptr)
+    auto pcd = selectedPlotChannelData();
+    if (pcd == nullptr)
         return;
 
     ui->plotApplyButton->setEnabled(true);
 
-    details->multiplier = arg1;
+    pcd->multiplier = arg1;
 }
 
 void TraceDisplay::on_plotApplyButton_clicked()
 {
     ui->plotApplyButton->setEnabled(false);
-    m_traceProxy->applyDisplayModifiers();
+
+    for (const auto pair : m_portsChannels) {
+        for (const auto pcd : pair.second) {
+            if (!pcd->enabled())
+                continue;
+            if (pcd->dataOrig.size() == 0)
+                pcd->dataOrig = pcd->data;
+
+            if (pcd->multiplier <= 0)
+                pcd->multiplier = 1;
+
+            pcd->storeOrig = true;
+
+            for (auto i = 0; i < pcd->dataOrig.size(); i++) {
+                pcd->data[i].setY(pcd->dataOrig[i].y() * pcd->multiplier + pcd->yShift);
+            }
+        }
+    }
+
+    repaintPlot();
 }
 
 void TraceDisplay::on_yShiftDoubleSpinBox_valueChanged(double arg1)
 {
-    auto details = selectedPlotChannelDetails();
-    if (details == nullptr)
+    auto pcd = selectedPlotChannelData();
+    if (pcd == nullptr)
         return;
 
     ui->plotApplyButton->setEnabled(true);
 
-    details->yShift = arg1;
+    pcd->yShift = arg1;
 }
 
-void TraceDisplay::on_portListWidget_itemActivated(QListWidgetItem *item)
+void TraceDisplay::on_portListWidget_currentItemChanged(QListWidgetItem *item, QListWidgetItem *)
 {
-    auto port = item->data(Qt::UserRole).toInt();
-    auto waveplot = m_traceProxy->wavePlot();
-    // don't continue if Intan waveplot isn't set for whatever reason
-    if (waveplot == nullptr)
+    auto portIndex = item->data(Qt::UserRole).toInt();
+    if ((portIndex < 0) || (portIndex > m_portsChannels.size() - 1))
         return;
+    auto streamChan = m_portsChannels[portIndex];
+    const auto channels = streamChan.second;
 
     ui->chanListWidget->clear();
-    if (!waveplot->isPortEnabled(port)) {
+    if (channels.empty()) {
         ui->chanListWidget->setEnabled(false);
         ui->chanSettingsGroupBox->setEnabled(false);
         return;
     }
     ui->chanListWidget->setEnabled(true);
 
-    for (int chan = 0; chan < waveplot->getChannelCount(port); chan++) {
-        auto item = new QListWidgetItem;
-        item->setData(Qt::UserRole, chan);
-        item->setText(waveplot->getChannelName(port, chan));
-        ui->chanListWidget->addItem(item);
+    for (const auto &pcd : channels) {
+        auto item = new QListWidgetItem(ui->chanListWidget);
+        item->setData(Qt::UserRole, pcd->chanDataIndex);
+        item->setText(QStringLiteral("Channel %1").arg(pcd->chanId));
+    }
+}
+
+void TraceDisplay::on_chanListWidget_currentItemChanged(QListWidgetItem *, QListWidgetItem *)
+{
+    auto pcd = selectedPlotChannelData();
+    if (pcd != nullptr) {
+        ui->chanSettingsGroupBox->setEnabled(true);
+
+        ui->chanDisplayCheckBox->setChecked(pcd->enabled());
+        ui->multiplierDoubleSpinBox->setValue(pcd->multiplier);
+        ui->yShiftDoubleSpinBox->setValue(pcd->yShift);
+    } else {
+        ui->chanSettingsGroupBox->setEnabled(false);
+
+        ui->chanDisplayCheckBox->setChecked(false);
+        ui->multiplierDoubleSpinBox->setValue(1);
+        ui->yShiftDoubleSpinBox->setValue(0);
     }
 }
 
 void TraceDisplay::on_prevPlotButton_toggled(bool checked)
 {
-    Q_UNUSED(checked);
+    Q_UNUSED(checked)
     // TODO
 }
 
@@ -159,16 +392,46 @@ void TraceDisplay::on_chanDisplayCheckBox_clicked(bool checked)
         return;
     }
 
-    auto portId = ui->portListWidget->selectedItems()[0]->data(Qt::UserRole).toInt();
-    auto chanId = ui->chanListWidget->selectedItems()[0]->data(Qt::UserRole).toInt();
+    auto portIndex = ui->portListWidget->selectedItems()[0]->data(Qt::UserRole).toInt();
+    if ((portIndex < 0) || (portIndex > m_portsChannels.size() - 1))
+        return;
+    auto pcPair = m_portsChannels[portIndex];
 
+    auto chanDataIdx = ui->chanListWidget->selectedItems()[0]->data(Qt::UserRole).toInt();
+
+    const bool hasChanged = checked != pcPair.second[chanDataIdx]->enabled();
     if (checked)
-        m_traceProxy->addChannel(portId, chanId);
+        pcPair.second[chanDataIdx]->registerChannel(m_plot);
     else
-        m_traceProxy->removeChannel(portId, chanId);
+        pcPair.second[chanDataIdx]->unregisterChannel(m_plot);
+
+    // we changed what is displayed, so we reset the view and DAQ rules
+    if (hasChanged)
+        resetPlotConfig();
 }
 
 void TraceDisplay::on_plotRefreshSpinBox_valueChanged(int arg1)
 {
-    m_traceProxy->setRefreshTime(arg1);
+    m_timer->setInterval(arg1);
 }
+
+PlotChannelData *TraceDisplay::selectedPlotChannelData()
+{
+    if (!ui->portListWidget->currentItem() || !ui->chanListWidget->currentItem()) {
+        qCritical() << "Can not determine selected trace: Port/Channel selection does not make sense";
+        return nullptr;
+    }
+
+    auto portId = ui->portListWidget->currentItem()->data(Qt::UserRole).toInt();
+    auto chanIntIdx = ui->chanListWidget->currentItem()->data(Qt::UserRole).toInt();
+
+    if (portId < 0 || portId >= m_portsChannels.count())
+        return nullptr;
+    const auto channels = m_portsChannels[portId].second;
+    if (chanIntIdx < 0 || chanIntIdx >= channels.count())
+        return nullptr;
+
+    return channels[chanIntIdx];
+}
+
+#include "tracedisplay.moc"

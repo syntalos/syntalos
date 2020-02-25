@@ -587,6 +587,8 @@ int SignalProcessor::loadAmplifierData(queue<Rhd2000DataBlock> &dataQueue,
                     // Amplifier waveform units = microvolts
                     amplifierPreFilter[stream][channel][indexAmp] = 0.195 *
                             (dataQueue.front().amplifierData[stream][channel][t] - 32768);
+
+                    setSyModAmplifierData(syMod, stream, channel, t, amplifierPreFilter[stream][channel][indexAmp]);
                 }
             }
             ++indexAmp;
@@ -1367,17 +1369,11 @@ int SignalProcessor::loadSyntheticData(int numBlocks, double sampleRate,
                             }
                         }
 
-                        if (syMod != nullptr) {
-                            const auto sbChan = syMod->fsdiByStreamCC[stream][channel].sbChan;
-                            syMod->fsdiByStreamCC[stream][channel].signalBlock->data[sbChan][t] =
-                                    amplifierPreFilter[stream][channel][SAMPLES_PER_DATA_BLOCK * block + t];
-                        }
+                        // prepare data for export via Syntalos stream
+                        setSyModAmplifierData(syMod, stream, channel, t, amplifierPreFilter[stream][channel][SAMPLES_PER_DATA_BLOCK * block + t]);
                     }
                 }
             }
-
-            if (syMod != nullptr)
-                syMod->pushAmplifierData();
         }
     } else {
         // Generate synthetic ECG data.
@@ -1396,6 +1392,8 @@ int SignalProcessor::loadSyntheticData(int numBlocks, double sampleRate,
             } else {
                 ecgValue = 0.0;
             }
+
+            int blockT = 0;
             for (stream = 0; stream < numDataStreams; ++stream) {
                 for (channel = 0; channel < 32; ++channel) {
                     // Multiply basic ECG waveform by channel-specific amplitude, and
@@ -1403,11 +1401,21 @@ int SignalProcessor::loadSyntheticData(int numBlocks, double sampleRate,
                     amplifierPreFilter[stream][channel][t] =
                             synthEcgAmplitude[stream][channel] * ecgValue +
                             2.4 * random->randomGaussian();
+
+                    // prepare data for export via Syntalos stream
+                    setSyModAmplifierData(syMod, stream, channel, blockT, amplifierPreFilter[stream][channel][t]);
+                    blockT++;
+                    if (blockT >= SAMPLES_PER_DATA_BLOCK)
+                        blockT = 0;
                 }
             }
             tPulse += tStepMsec;
         }
     }
+
+    // publish data in Syntalos stream (if needed)
+    if (syMod != nullptr)
+        syMod->pushAmplifierData();
 
     // Repeat ECG waveform with regular period.
     if (tPulse > 840.0) tPulse = 0.0;

@@ -31,11 +31,14 @@ TracePlot::TracePlot(QGraphicsItem *parent, Qt::WindowFlags wFlags)
     grabGesture(Qt::PinchGesture);
 
     setMargins(QMargins(0, 0, 0, 0));
+
+    legend()->hide();
+    createDefaultAxes();
+    setAnimationOptions(QChart::SeriesAnimations);
 }
 
 TracePlot::~TracePlot()
 {
-
 }
 
 bool TracePlot::sceneEvent(QEvent *event)

@@ -19,6 +19,8 @@
 
 #include "rhd2000module.h"
 
+#include <QTimer>
+
 #include "intanui.h"
 #include "signalsources.h"
 #include "signalgroup.h"
@@ -60,10 +62,11 @@ AbstractModule *Rhd2000ModuleInfo::createModule(QObject *parent)
 }
 
 Rhd2000Module::Rhd2000Module(QObject *parent)
-    : AbstractModule(parent)
+    : AbstractModule(parent),
+      m_intanUi(new IntanUi(this)),
+      m_evTimer(new QTimer(this))
 {
     // set up Intan GUI and board
-    m_intanUi = new IntanUi(this);
     m_intanUi->setWindowIcon(QIcon(":/icons/generic-config"));
     m_intanUi->displayWidget()->setWindowIcon(QIcon(":/icons/generic-view"));
 
@@ -85,12 +88,14 @@ Rhd2000Module::Rhd2000Module(QObject *parent)
 
     connect(m_intanUi, &IntanUi::portsScanned, this, &Rhd2000Module::on_portsScanned);
     on_portsScanned(m_intanUi->getSignalSources());
+
+    // set up DAQ timer - unfortunately, we need to acquire all data in the UI thread
+    m_evTimer->setInterval(0);
+    connect(m_evTimer, &QTimer::timeout, this, &Rhd2000Module::runBoardDAQ);
 }
 
 bool Rhd2000Module::prepare(const TestSubject &testSubject)
 {
-    assert(m_intanUi);
-
     if (m_intanUi->isRunning()) {
         raiseError(QStringLiteral("Can not launch experiment because Intan module is already running, likely in no-record mode.\nPlease stop the module first to continue."));
         return false;
@@ -111,6 +116,9 @@ bool Rhd2000Module::prepare(const TestSubject &testSubject)
     m_intanUi->interfaceBoardInitRun();
     m_runAction->setEnabled(false);
 
+    for (auto &pair : m_streamSigBlocks)
+        pair.first->setMetadataValue(QStringLiteral("samplingRate"), m_intanUi->getSampleRate());
+
     for (auto &port : outPorts())
         port->startStream();
 
@@ -120,12 +128,16 @@ bool Rhd2000Module::prepare(const TestSubject &testSubject)
 void Rhd2000Module::start()
 {
     m_intanUi->interfaceBoardStartRun();
+    m_evTimer->start();
 }
 
-bool Rhd2000Module::runUIEvent()
+void Rhd2000Module::runBoardDAQ()
 {
-    // we don't assert m_intanUi here for performance reasons
-    auto ret = m_intanUi->interfaceBoardRunCycle();
+    if (!m_intanUi->interfaceBoardRunCycle()) {
+        raiseError(QStringLiteral("Intan data acquisition failed."));
+        m_evTimer->stop();
+        return;
+    }
 
     auto fifoPercentageFull = m_intanUi->currentFifoPercentageFull();
     if (fifoPercentageFull > 75.0) {
@@ -133,14 +145,13 @@ bool Rhd2000Module::runUIEvent()
     } else {
         setStatusMessage(QStringLiteral("Buffer: ") + QString::number(fifoPercentageFull, 'f', 0) + QStringLiteral("% full"));
     }
-
-    return ret;
 }
 
 void Rhd2000Module::stop()
 {
     m_intanUi->interfaceBoardStopFinalize();
     m_runAction->setEnabled(true);
+    m_evTimer->stop();
 }
 
 QList<QAction *> Rhd2000Module::actions()
@@ -232,6 +243,9 @@ void Rhd2000Module::on_portsScanned(SignalSources *sources)
                 registerOutputPort<IntSignalBlock>(syPortId, portName);
             else {
                 auto fpStream = registerOutputPort<FloatSignalBlock>(syPortId, portName);
+
+                fpStream->setMetadataValue(QStringLiteral("firstChannelNo"), firstChanId);
+                fpStream->setMetadataValue(QStringLiteral("lastChannelNo"), lastChanId);
 
                 std::shared_ptr<FloatSignalBlock> signalBlock(new FloatSignalBlock(SAMPLES_PER_DATA_BLOCK));
                 m_streamSigBlocks.push_back(std::make_pair(fpStream, signalBlock));

@@ -1,7 +1,7 @@
 
 # Developer modules
 add_subdirectory(devel.datasource)
-add_subdirectory(devel.datasink)
+add_subdirectory(devel.datasst)
 add_subdirectory(devel.pyooptest)
 
 # Display / Aux modules
@@ -25,7 +25,7 @@ add_subdirectory(pyscript)
 
 # Electrophysiology
 add_subdirectory(rhd2000)
-#add_subdirectory(traceplot)
+add_subdirectory(traceplot)
 
 # Misc
 add_subdirectory(runcmd)

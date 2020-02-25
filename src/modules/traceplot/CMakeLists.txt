@@ -4,8 +4,6 @@ set(TRACEPLOT_SRC
     traceplot.cpp
     traceview.h
     traceview.cpp
-    traceplotproxy.h
-    traceplotproxy.cpp
     traceplotmodule.h
     traceplotmodule.cpp
     tracedisplay.h

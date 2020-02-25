@@ -101,6 +101,7 @@ public:
     int currentFifoPercentageFull() const;
 
     SignalSources *getSignalSources() const;
+    double getSampleRate() const;
 
 protected:
     void closeEvent(QCloseEvent *event) override;

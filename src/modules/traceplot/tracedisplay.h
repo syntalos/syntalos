@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2019 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2020 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -17,17 +17,22 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef TRACEDISPLAY_H
-#define TRACEDISPLAY_H
+#pragma once
 
 #include <QWidget>
+#include "moduleapi.h"
 
-class TracePlotProxy;
 class QListWidgetItem;
-class ChannelDetails;
+class QTimer;
+class TracePlot;
+class PlotChannelData;
 
 namespace Ui {
 class TraceDisplay;
+}
+
+namespace QtCharts {
+class QXYSeries;
 }
 
 class TraceDisplay final : public QWidget
@@ -35,12 +40,24 @@ class TraceDisplay final : public QWidget
     Q_OBJECT
 
 public:
-    explicit TraceDisplay(TracePlotProxy *proxy, QWidget *parent = nullptr);
+    explicit TraceDisplay(QWidget *parent = nullptr);
     ~TraceDisplay();
 
+    void addPort(std::shared_ptr<StreamInputPort<FloatSignalBlock> > port);
+    void updatePortChannels();
+
+    void updatePlotData(bool adjustView = true);
+
+    void plotAdjustView();
+    void plotMoveTo(int position);
+
+    void resetPlotConfig();
+
 private slots:
-    void on_portListWidget_itemActivated(QListWidgetItem *item);
-    void on_chanListWidget_itemActivated(QListWidgetItem *item);
+    void repaintPlot();
+
+    void on_portListWidget_currentItemChanged(QListWidgetItem *item, QListWidgetItem *);
+    void on_chanListWidget_currentItemChanged(QListWidgetItem *, QListWidgetItem *);
     void on_multiplierDoubleSpinBox_valueChanged(double arg1);
     void on_plotApplyButton_clicked();
     void on_yShiftDoubleSpinBox_valueChanged(double arg1);
@@ -51,10 +68,14 @@ private slots:
 
 private:
     Ui::TraceDisplay *ui;
-    TracePlotProxy *m_traceProxy;
+    TracePlot *m_plot;
+    int m_maxXVal;
+    QTimer *m_timer;
+    QList<QPair<std::shared_ptr<VarStreamInputPort>, QList<PlotChannelData*>>> m_portsChannels;
 
-    void setPlotProxy(TracePlotProxy *proxy);
-    ChannelDetails *selectedPlotChannelDetails();
+    QList<QPair<std::shared_ptr<StreamSubscription<FloatSignalBlock>>, QList<PlotChannelData*>>> m_activeFSubChans;
+    QList<QPair<std::shared_ptr<StreamSubscription<IntSignalBlock>>, QList<PlotChannelData*>>> m_activeISubChans;
+
+    void addChannel(int streamIndex, int chanIndex);
+    PlotChannelData *selectedPlotChannelData();
 };
-
-#endif // TRACEDISPLAY_H

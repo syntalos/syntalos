@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2019 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2020 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -17,16 +17,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef TRACEPLOTMODULE_H
-#define TRACEPLOTMODULE_H
+#pragma once
 
-#include <QObject>
-#include <chrono>
 #include "moduleapi.h"
-
-class TracePlotProxy;
-class TraceDisplay;
-class Rhd2000Module;
 
 class TracePlotModuleInfo : public ModuleInfo
 {
@@ -39,24 +32,3 @@ public:
     bool singleton() const override;
     AbstractModule *createModule(QObject *parent = nullptr) override;
 };
-
-class TracePlotModule : public AbstractModule
-{
-    Q_OBJECT
-public:
-    explicit TracePlotModule(QObject *parent = nullptr);
-    ~TracePlotModule() override;
-
-    ModuleFeatures features() const override;
-
-    bool initialize() override;
-    bool prepare(const TestSubject& testSubject) override;
-    void stop() override;
-
-private:
-    TracePlotProxy *m_traceProxy;
-    TraceDisplay *m_displayWindow;
-    Rhd2000Module *m_intanModule;
-};
-
-#endif // TRACEPLOTMODULE_H

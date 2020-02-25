@@ -61,9 +61,6 @@ public:
     bool prepare(const TestSubject &testSubject) override;
 
     void start() override;
-
-    bool runUIEvent() override;
-
     void stop() override;
 
     QList<QAction *> actions() override;
@@ -78,18 +75,25 @@ public:
 
     std::vector<std::vector<FloatStreamDataInfo>> fsdiByStreamCC;
 
-
-
-
 private slots:
     void on_portsScanned(SignalSources *sources);
+    void runBoardDAQ();
 
 private:
     IntanUi *m_intanUi;
     QList<QAction *> m_actions;
     QAction *m_runAction;
+    QTimer *m_evTimer;
 
     std::vector<std::pair<std::shared_ptr<DataStream<FloatSignalBlock>>, std::shared_ptr<FloatSignalBlock>>> m_streamSigBlocks;
 
     void noRecordRunActionTriggered();
 };
+
+inline void setSyModAmplifierData(Rhd2000Module *mod, int stream, int channel, int t, double val)
+{
+    if (mod != nullptr) {
+        auto fsdi = mod->fsdiByStreamCC[stream][channel];
+        fsdi.signalBlock->data[fsdi.sbChan][t] = val;
+    }
+}

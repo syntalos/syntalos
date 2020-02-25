@@ -160,6 +160,8 @@ void VarStreamInputPort::setSubscription(StreamOutputPort *src, std::shared_ptr<
     d->outPort = src;
     m_sub = sub;
 
+    d->owner->inputPortConnected(this);
+
     // signal interested parties as the input module that new
     // ports were connected
     emit d->owner->portsConnected(this, src);
@@ -493,6 +495,9 @@ bool AbstractModule::loadSettings(const QString &, const QByteArray &)
 {
     return true;
 }
+
+void AbstractModule::inputPortConnected(VarStreamInputPort *)
+{}
 
 QString AbstractModule::lastError() const
 {

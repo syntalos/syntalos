@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2019 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2020 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -19,11 +19,82 @@
 
 #include "traceplotmodule.h"
 
-#include <QMessageBox>
+#include <QTimer>
 
-#include "traceplotproxy.h"
 #include "tracedisplay.h"
-#include "modules/rhd2000/rhd2000module.h"
+
+class TracePlotModule : public AbstractModule
+{
+    Q_OBJECT
+private:
+    TraceDisplay *m_traceDisplay;
+    QTimer *m_evTimer;
+
+    std::shared_ptr<StreamInputPort<FloatSignalBlock>> m_fpSig1In;
+    std::shared_ptr<StreamInputPort<FloatSignalBlock>> m_fpSig2In;
+    std::shared_ptr<StreamInputPort<FloatSignalBlock>> m_fpSig3In;
+
+public:
+    explicit TracePlotModule(QObject *parent = nullptr)
+        : AbstractModule(parent),
+          m_traceDisplay(nullptr)
+    {
+        setName(QStringLiteral("TracePlot"));
+
+        // create trace display and fetch plot controller reference
+        m_traceDisplay = new TraceDisplay();
+        addDisplayWindow(m_traceDisplay);
+
+        m_fpSig1In = registerInputPort<FloatSignalBlock>(QStringLiteral("fpsig1-in"), QStringLiteral("Analog In 1"));
+        m_fpSig2In = registerInputPort<FloatSignalBlock>(QStringLiteral("fpsig2-in"), QStringLiteral("Analog In 2"));
+        m_fpSig3In = registerInputPort<FloatSignalBlock>(QStringLiteral("fpsig3-in"), QStringLiteral("Analog In 3"));
+        m_traceDisplay->addPort(m_fpSig1In);
+        m_traceDisplay->addPort(m_fpSig2In);
+        m_traceDisplay->addPort(m_fpSig3In);
+
+        m_evTimer = new QTimer(this);
+        m_evTimer->setInterval(0);
+        connect(m_evTimer, &QTimer::timeout, this, &TracePlotModule::checkNewData);
+    }
+
+
+    ModuleFeatures features() const override
+    {
+        return ModuleFeature::SHOW_DISPLAY;
+    }
+
+    void inputPortConnected(VarStreamInputPort *) override
+    {
+        // update our list of channel details, as stream subscriptions have changed
+        m_traceDisplay->updatePortChannels();
+    }
+
+    bool prepare(const TestSubject&) override
+    {
+        // reset trace plot data and ensure active subscriptions
+        // are recognized
+        m_traceDisplay->resetPlotConfig();
+
+        return true;
+    }
+
+    void start() override
+    {
+        m_evTimer->start();
+        AbstractModule::start();
+    }
+
+    void stop() override
+    {
+        m_evTimer->stop();
+        AbstractModule::stop();
+    }
+
+    void checkNewData()
+    {
+        m_traceDisplay->updatePlotData();
+    }
+};
 
 QString TracePlotModuleInfo::id() const
 {
@@ -55,60 +126,4 @@ AbstractModule *TracePlotModuleInfo::createModule(QObject *parent)
     return new TracePlotModule(parent);
 }
 
-TracePlotModule::TracePlotModule(QObject *parent)
-    : AbstractModule(parent),
-      m_traceProxy(nullptr),
-      m_displayWindow(nullptr),
-      m_intanModule(nullptr)
-{
-    setName(QStringLiteral("TracePlot"));
-
-    // create trace parameters and data proxy for the trace display
-    m_traceProxy = new TracePlotProxy(this);
-    m_displayWindow = new TraceDisplay(m_traceProxy);
-    addDisplayWindow(m_displayWindow);
-}
-
-TracePlotModule::~TracePlotModule()
-{
-    // unregister with the Intan module
-    if (m_intanModule)
-        m_intanModule->setPlotProxy(nullptr);
-
-    // cleanup
-    if (m_traceProxy)
-        delete m_traceProxy;
-}
-
-ModuleFeatures TracePlotModule::features() const
-{
-    return ModuleFeature::SHOW_DISPLAY;
-}
-
-bool TracePlotModule::initialize()
-{
-    assert(!initialized());
-
-    m_intanModule = nullptr;
-    if (m_intanModule == nullptr) {
-        raiseError("Unable to find an RHD2000 module to connect to Please add a module of this type first.");
-        return false;
-    }
-
-    m_intanModule->setPlotProxy(m_traceProxy);
-    setInitialized();
-    return true;
-}
-
-bool TracePlotModule::prepare(const TestSubject &)
-{
-    // reset trace plot data
-    m_traceProxy->reset();
-
-    return true;
-}
-
-void TracePlotModule::stop()
-{
-
-}
+#include "traceplotmodule.moc"

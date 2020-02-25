@@ -305,6 +305,7 @@ public:
             return nullptr;
         std::lock_guard<std::mutex> lock(m_mutex);
         std::shared_ptr<StreamSubscription<T>> sub(new StreamSubscription<T>(this));
+        sub->setMetadata(m_metadata);
         m_subs.push_back(sub);
         return sub;
     }
