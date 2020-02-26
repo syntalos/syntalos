@@ -559,12 +559,9 @@ bool Engine::run()
         }
 
         // collect all modules which do idle event execution
-        for (auto &mod : orderedActiveModules) {
-            if (mod->features().testFlag(ModuleFeature::RUN_UIEVENTS))
-                idleUiEventModules.append(mod);
+        for (auto &mod : orderedActiveModules)
             if (mod->features().testFlag(ModuleFeature::RUN_EVENTS))
                 idleEventModules.append(mod);
-        }
 
         // prepare out-of-process modules
         // NOTE: We currently throw them all into one thread, which may not
@@ -660,14 +657,10 @@ bool Engine::run()
 
         emitStatusMessage(QStringLiteral("Running..."));
 
+        // run the main loop and process UI events
+        // modules may have injected themselves into the UI event loop
+        // as well via QTimer callbacks, in case they need to modify UI elements.
         while (d->running) {
-            for (auto &mod : idleUiEventModules) {
-                if (!mod->runUIEvent()){
-                    emitStatusMessage(QStringLiteral("Module %1 failed.").arg(mod->name()));
-                    d->failed = true;
-                    break;
-                }
-            }
             QCoreApplication::processEvents();
             if (d->failed)
                 break;
