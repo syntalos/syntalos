@@ -303,8 +303,6 @@ void Rhd2000Module::on_portsScanned(SignalSources *sources)
                         const auto boardStreamId = sources->signalPort[portId].channelByIndex(chan)->boardStream;
                         const auto chipChan = sources->signalPort[portId].channelByIndex(chan)->chipChannel;
 
-                        qDebug() << portName << boardStreamId << chipChan << "::" << chan;
-
                         ampSdiByStreamCC[boardStreamId][chipChan].active = sg.enabled;
                         ampSdiByStreamCC[boardStreamId][chipChan].stream = fpStream;
                         ampSdiByStreamCC[boardStreamId][chipChan].signalBlock = signalBlock;
