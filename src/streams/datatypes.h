@@ -148,14 +148,14 @@ class IntSignalBlock
 public:
     explicit IntSignalBlock(uint sampleCount = 60)
     {
-        timeStamp.resize(sampleCount);
+        timestamps.resize(sampleCount);
         for (uint i = 0; i < SIGNAL_BLOCK_CHAN_COUNT; i++)
             data[i].resize(sampleCount);
     }
 
-    size_t size() { return timeStamp.size(); }
+    size_t size() { return timestamps.size(); }
 
-    std::vector<uint> timeStamp;
+    std::vector<uint> timestamps;
     std::vector<int> data[SIGNAL_BLOCK_CHAN_COUNT];
 };
 Q_DECLARE_METATYPE(IntSignalBlock)
@@ -171,14 +171,14 @@ class FloatSignalBlock
 public:
     explicit FloatSignalBlock(uint sampleCount = 60)
     {
-        timeStamp.resize(sampleCount);
+        timestamps.resize(sampleCount);
         for (uint i = 0; i < SIGNAL_BLOCK_CHAN_COUNT; i++)
             data[i].resize(sampleCount);
     }
 
-    size_t size() { return timeStamp.size(); }
+    size_t size() { return timestamps.size(); }
 
-    std::vector<uint> timeStamp;
+    std::vector<uint> timestamps;
     std::vector<double> data[SIGNAL_BLOCK_CHAN_COUNT];
 };
 Q_DECLARE_METATYPE(FloatSignalBlock)

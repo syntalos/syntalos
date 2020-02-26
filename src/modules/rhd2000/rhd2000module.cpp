@@ -116,8 +116,28 @@ bool Rhd2000Module::prepare(const TestSubject &testSubject)
     m_intanUi->interfaceBoardInitRun();
     m_runAction->setEnabled(false);
 
-    for (auto &pair : m_streamSigBlocks)
+    // set sampling rate metadata and nullify every data block
+    for (auto &pair : m_ampStreamBlocks) {
         pair.first->setMetadataValue(QStringLiteral("samplingRate"), m_intanUi->getSampleRate());
+
+        std::fill(pair.second->timestamps.begin(), pair.second->timestamps.end(), 0);
+        for (auto &v : pair.second->data)
+            std::fill(v.begin(), v.end(), 0);
+    }
+    for (auto &pair : boardADCStreamBlocks) {
+        pair.first->setMetadataValue(QStringLiteral("samplingRate"), m_intanUi->getSampleRate());
+
+        std::fill(pair.second->timestamps.begin(), pair.second->timestamps.end(), 0);
+        for (auto &v : pair.second->data)
+            std::fill(v.begin(), v.end(), 0);
+    }
+    for (auto &pair : boardDINStreamBlocks) {
+        pair.first->setMetadataValue(QStringLiteral("samplingRate"), m_intanUi->getSampleRate());
+
+        std::fill(pair.second->timestamps.begin(), pair.second->timestamps.end(), 0);
+        for (auto &v : pair.second->data)
+            std::fill(v.begin(), v.end(), 0);
+    }
 
     for (auto &port : outPorts())
         port->startStream();
@@ -179,9 +199,18 @@ void Rhd2000Module::emitStatusInfo(const QString &text)
     setStatusMessage(text);
 }
 
-void Rhd2000Module::pushAmplifierData()
+void Rhd2000Module::pushSignalData()
 {
-    for (auto &pair : m_streamSigBlocks)
+    // amplifier signals
+    for (auto &pair : m_ampStreamBlocks)
+        pair.first->push(*pair.second.get());
+
+    // board ADC inputs
+    for (auto &pair : boardADCStreamBlocks)
+        pair.first->push(*pair.second.get());
+
+    // board digital inputs
+    for (auto &pair : boardDINStreamBlocks)
         pair.first->push(*pair.second.get());
 }
 
@@ -194,42 +223,49 @@ void Rhd2000Module::on_portsScanned(SignalSources *sources)
     // map all exported amplifier channels by their stream ID and chip-channel,
     // so we can quickly access them when fetching data from the board
     // there are at maximum 32 chip channels per stream
-    m_streamSigBlocks.clear();
-    fsdiByStreamCC.clear();
-    fsdiByStreamCC.resize(sources->signalPort.size());
+    m_ampStreamBlocks.clear();
+    ampSdiByStreamCC.clear();
+    ampSdiByStreamCC.resize(sources->signalPort.size());
     for (int i = 0; i < sources->signalPort.size(); i++) {
-        fsdiByStreamCC[i].resize(32);
-        for (size_t j = 0; j < fsdiByStreamCC[i].size(); j++)
-            fsdiByStreamCC[i][j] = FloatStreamDataInfo(false);
+        ampSdiByStreamCC[i].resize(32); // max. 32 chip channels
+        for (size_t j = 0; j < ampSdiByStreamCC[i].size(); j++)
+            ampSdiByStreamCC[i][j] = StreamDataInfo<FloatSignalBlock>(false);
     }
+
+    // clear blocks reserved for board inputs/outputs
+    boardADCStreamBlocks.clear();
+    boardDINStreamBlocks.clear();
 
     // We hardcode the 6 ports (and the amount of ports) that the Intan Evalualtion board has here.
     // Not very elegant, but the original software does that too
     for (int portId = 0; portId < sources->signalPort.size(); portId++) {
         const auto sg = sources->signalPort[portId];
 
-        // ignore disabled channels
-        if (!sg.enabled)
-            continue;
+        // check whether we have to create a Syntalos input port for this
+        bool isInput = sg.prefix == QStringLiteral("DOUT");
 
-        if (sg.prefix == QStringLiteral("DOUT")) {
+        // check whether this channel is digital
+        bool isDigital = (sg.prefix == QStringLiteral("DIN")) || (sg.prefix == QStringLiteral("DOUT"));
+
+        // check whether this channel is getting signal from a headstage amplifier
+        bool isAmplifier = sg.name.startsWith(QStringLiteral("Port"));
+
+        if (isInput) {
             // we ignore the board output channel, as it would have to be reflected as
-            // Syntalos input port here, not as an outpt port.
+            // Syntalos input port here, not as an output port.
             // This has to be implemented later.
             continue;
         }
 
-        bool isDigital = (sg.prefix == QStringLiteral("DIN")) || (sg.prefix == QStringLiteral("DOUT"));
-
         // for amplifier-board channels, we only consider the amplifier signal channels,
-        // and ignore the aux channels for now
+        // and ignore the aux channels on the chip (which are used for accelerometer data etc.) for now
         int chanCount;
-        if (sg.name.startsWith(QStringLiteral("Port")))
+        if (isAmplifier)
             chanCount = sg.numAmplifierChannels();
         else
             chanCount = sg.numChannels();
 
-        auto numBlocks = std::ceil((chanCount - 10) / 16.0);
+        auto numBlocks = std::ceil(chanCount / 16.0);
 
         // Syntalos arranges high-speed data streams to output in blocks of 16 streams per block
         for (int b = 0; b < numBlocks; b++) {
@@ -239,36 +275,53 @@ void Rhd2000Module::on_portsScanned(SignalSources *sources)
 
             const auto portName = QStringLiteral("%1 [%2..%3]").arg(sg.name).arg(firstChanId).arg(lastChanId);
 
-            if (isDigital)
-                registerOutputPort<IntSignalBlock>(syPortId, portName);
-            else {
-                auto fpStream = registerOutputPort<FloatSignalBlock>(syPortId, portName);
+            if (isDigital) {
+                // we have the digital board input here (as the board output isn't currently supported)
+                auto intStream = registerOutputPort<IntSignalBlock>(syPortId, portName);
+                intStream->setMetadataValue(QStringLiteral("firstChannelNo"), firstChanId);
+                intStream->setMetadataValue(QStringLiteral("lastChannelNo"), lastChanId);
 
+                std::shared_ptr<IntSignalBlock> intSigBlock(new IntSignalBlock(SAMPLES_PER_DATA_BLOCK));
+                boardDINStreamBlocks.push_back(std::make_pair(intStream, intSigBlock));
+            } else {
+                auto fpStream = registerOutputPort<FloatSignalBlock>(syPortId, portName);
                 fpStream->setMetadataValue(QStringLiteral("firstChannelNo"), firstChanId);
                 fpStream->setMetadataValue(QStringLiteral("lastChannelNo"), lastChanId);
 
                 std::shared_ptr<FloatSignalBlock> signalBlock(new FloatSignalBlock(SAMPLES_PER_DATA_BLOCK));
-                m_streamSigBlocks.push_back(std::make_pair(fpStream, signalBlock));
 
-                // we have an amplifier Syntalos output stream,
-                // mark all possibly exported channels
-                int sbChan = 0;
-                for (int chan = firstChanId; chan <= lastChanId; chan++) {
-                    if (sbChan >= 16)
-                        sbChan = 0;
-                    const auto boardStreamId = sources->signalPort[portId].channelByIndex(chan)->boardStream;
-                    const auto chipChan = sources->signalPort[portId].channelByIndex(chan)->chipChannel;
+                if (isAmplifier) {
+                    // we have an amplifier stream from a headstage
+                    m_ampStreamBlocks.push_back(std::make_pair(fpStream, signalBlock));
 
-                    fsdiByStreamCC[boardStreamId][chipChan].active = true;
-                    fsdiByStreamCC[boardStreamId][chipChan].stream = fpStream;
-                    fsdiByStreamCC[boardStreamId][chipChan].signalBlock = signalBlock;
-                    fsdiByStreamCC[boardStreamId][chipChan].chan = chan;
-                    fsdiByStreamCC[boardStreamId][chipChan].sbChan = sbChan;
+                    // we have an amplifier Syntalos output stream,
+                    // mark all possibly exported channels
+                    int sbChan = 0;
+                    for (int chan = firstChanId; chan <= lastChanId; chan++) {
+                        if (sbChan >= 16)
+                            sbChan = 0;
+                        const auto boardStreamId = sources->signalPort[portId].channelByIndex(chan)->boardStream;
+                        const auto chipChan = sources->signalPort[portId].channelByIndex(chan)->chipChannel;
 
-                    sbChan++;
+                        qDebug() << portName << boardStreamId << chipChan << "::" << chan;
+
+                        ampSdiByStreamCC[boardStreamId][chipChan].active = sg.enabled;
+                        ampSdiByStreamCC[boardStreamId][chipChan].stream = fpStream;
+                        ampSdiByStreamCC[boardStreamId][chipChan].signalBlock = signalBlock;
+                        ampSdiByStreamCC[boardStreamId][chipChan].chan = chan;
+                        ampSdiByStreamCC[boardStreamId][chipChan].sbChan = sbChan;
+
+                        sbChan++;
+                    }
+                } else {
+                    // we have a non-digital auxiliary stream (usually from the board itself)
+                    // this one doesn't need mapping, yay!
+                    boardADCStreamBlocks.push_back(std::make_pair(fpStream, signalBlock));
                 }
+
             }
-        }
+
+        } // end of blocks (ports) loop
     }
 }
 

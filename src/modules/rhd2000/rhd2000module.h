@@ -37,16 +37,18 @@ public:
     AbstractModule *createModule(QObject *parent = nullptr) override;
 };
 
-class FloatStreamDataInfo
+template<typename T>
+class StreamDataInfo
 {
 public:
-    explicit FloatStreamDataInfo(bool enabled = true)
-    {
-        this->active = enabled;
-    }
+    explicit StreamDataInfo(bool enabled = true)
+        : chan(-1),
+          sbChan(-1),
+          active(enabled)
+    { }
 
-    std::shared_ptr<DataStream<FloatSignalBlock>> stream;
-    std::shared_ptr<FloatSignalBlock> signalBlock;
+    std::shared_ptr<DataStream<T>> stream;
+    std::shared_ptr<T> signalBlock;
     int chan;
     int sbChan;
     bool active;
@@ -71,9 +73,12 @@ public:
     // Accessorts for the Intan code
     void emitStatusInfo(const QString &text);
 
-    void pushAmplifierData();
+    void pushSignalData();
 
-    std::vector<std::vector<FloatStreamDataInfo>> fsdiByStreamCC;
+    std::vector<std::vector<StreamDataInfo<FloatSignalBlock>>> ampSdiByStreamCC;
+
+    std::vector<std::pair<std::shared_ptr<DataStream<FloatSignalBlock>>, std::shared_ptr<FloatSignalBlock>>> boardADCStreamBlocks;
+    std::vector<std::pair<std::shared_ptr<DataStream<IntSignalBlock>>, std::shared_ptr<IntSignalBlock>>> boardDINStreamBlocks;
 
 private slots:
     void on_portsScanned(SignalSources *sources);
@@ -85,7 +90,8 @@ private:
     QAction *m_runAction;
     QTimer *m_evTimer;
 
-    std::vector<std::pair<std::shared_ptr<DataStream<FloatSignalBlock>>, std::shared_ptr<FloatSignalBlock>>> m_streamSigBlocks;
+    std::vector<std::pair<std::shared_ptr<DataStream<FloatSignalBlock>>, std::shared_ptr<FloatSignalBlock>>> m_ampStreamBlocks;
+
 
     void noRecordRunActionTriggered();
 };
@@ -93,7 +99,49 @@ private:
 inline void setSyModAmplifierData(Rhd2000Module *mod, int stream, int channel, int t, double val)
 {
     if (mod != nullptr) {
-        auto fsdi = mod->fsdiByStreamCC[stream][channel];
+        auto fsdi = mod->ampSdiByStreamCC[stream][channel];
+        if (!fsdi.active)
+            return;
         fsdi.signalBlock->data[fsdi.sbChan][t] = val;
+    }
+}
+
+inline void setSyModSigBlockTimestamps(Rhd2000Module *mod, const std::vector<uint> &timestamps)
+{
+    if (mod != nullptr) {
+        // amplifier channels
+        for (auto &fsdiByCC : mod->ampSdiByStreamCC) {
+            for (auto &fsdi : fsdiByCC) {
+                if (!fsdi.active)
+                    continue;
+                fsdi.signalBlock->timestamps = timestamps;
+            }
+        }
+
+        // board ADC channels
+        for (auto &pair : mod->boardADCStreamBlocks) {
+            pair.second->timestamps = timestamps;
+        }
+
+        // board DIN channels
+        for (auto &pair : mod->boardDINStreamBlocks) {
+            pair.second->timestamps = timestamps;
+        }
+    }
+}
+
+inline void setSyModBoardADCData(Rhd2000Module *mod, int channel, int t, double val)
+{
+    if (mod != nullptr) {
+        int stream = std::floor(channel / 16.0);
+        mod->boardADCStreamBlocks[stream].second->data[channel][t] = val;
+    }
+}
+
+inline void setSyModBoardDINData(Rhd2000Module *mod, int channel, int t, double val)
+{
+    if (mod != nullptr) {
+        int stream = std::floor(channel / 16.0);
+        mod->boardDINStreamBlocks[stream].second->data[channel][t] = val;
     }
 }

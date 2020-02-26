@@ -577,8 +577,11 @@ int SignalProcessor::loadAmplifierData(queue<Rhd2000DataBlock> &dataQueue,
         triggerTimeIndex = -1;
     }
 
-    for (block = 0; block < numBlocks; ++block) {
+    // register timestamps for this block for emission in syntalos streams
+    // (in case no subscription exists, this does nothing)
+    setSyModSigBlockTimestamps(syMod, dataQueue.front().timeStamp);
 
+    for (block = 0; block < numBlocks; ++block) {
         // Load and scale RHD2000 amplifier waveforms
         // (sampled at amplifier sampling rate)
         for (t = 0; t < SAMPLES_PER_DATA_BLOCK; ++t) {
@@ -588,6 +591,7 @@ int SignalProcessor::loadAmplifierData(queue<Rhd2000DataBlock> &dataQueue,
                     amplifierPreFilter[stream][channel][indexAmp] = 0.195 *
                             (dataQueue.front().amplifierData[stream][channel][t] - 32768);
 
+                    // prep data for Syntalos streams
                     setSyModAmplifierData(syMod, stream, channel, t, amplifierPreFilter[stream][channel][indexAmp]);
                 }
             }
@@ -633,6 +637,9 @@ int SignalProcessor::loadAmplifierData(queue<Rhd2000DataBlock> &dataQueue,
                 // ADC waveform units = volts
                 boardAdc[channel][indexAdc] =
                         0.000050354 * dataQueue.front().boardAdcData[channel][t];
+
+                // prep data for Syntalos streams
+                setSyModBoardADCData(syMod, channel, t, boardAdc[channel][indexAdc]);
             }
             if (lookForTrigger && !triggerFound && triggerChannel >= 16) {
                 if (triggerPolarity) {
@@ -659,7 +666,10 @@ int SignalProcessor::loadAmplifierData(queue<Rhd2000DataBlock> &dataQueue,
                         (dataQueue.front().ttlIn[t] & (1 << channel)) != 0;
                 boardDigOut[channel][indexDig] =
                         (dataQueue.front().ttlOut[t] & (1 << channel)) != 0;
-                }
+
+                // prep data for Syntalos streams
+                setSyModBoardDINData(syMod, channel, t, boardDigIn[channel][indexDig]);
+            }
             if (lookForTrigger && !triggerFound && triggerChannel < 16) {
                 if (triggerPolarity) {
                     // Trigger on logic low
@@ -677,6 +687,11 @@ int SignalProcessor::loadAmplifierData(queue<Rhd2000DataBlock> &dataQueue,
             }
             ++indexDig;
         }
+
+        // we are done with preparing data for syntalos streams, so we can send
+        // it to its destination(s) now
+        if (syMod != nullptr)
+            syMod->pushSignalData();
 
         // Optionally send binary data to binary output stream
         if (saveToDisk) {
@@ -1413,10 +1428,6 @@ int SignalProcessor::loadSyntheticData(int numBlocks, double sampleRate,
         }
     }
 
-    // publish data in Syntalos stream (if needed)
-    if (syMod != nullptr)
-        syMod->pushAmplifierData();
-
     // Repeat ECG waveform with regular period.
     if (tPulse > 840.0) tPulse = 0.0;
 
@@ -1446,6 +1457,9 @@ int SignalProcessor::loadSyntheticData(int numBlocks, double sampleRate,
         for (t = 0; t < SAMPLES_PER_DATA_BLOCK; ++t) {
             for (channel = 0; channel < 8; ++channel) {
                 boardAdc[channel][indexAdc] = 0.0;
+
+                // Syntalos stream export
+                setSyModBoardADCData(syMod, channel, t, boardAdc[channel][indexAdc]);
             }
             ++indexAdc;
         }
@@ -1455,10 +1469,17 @@ int SignalProcessor::loadSyntheticData(int numBlocks, double sampleRate,
             for (channel = 0; channel < 16; ++channel) {
                 boardDigIn[channel][indexDig] = 0;
                 boardDigOut[channel][indexDig] = 0;
+
+                // Syntalos stream export
+                setSyModBoardDINData(syMod, channel, t, boardDigIn[channel][indexDig]);
             }
             ++indexDig;
         }
     }
+
+    // publish data in Syntalos stream (if needed)
+    if (syMod != nullptr)
+        syMod->pushSignalData();
 
     // Optionally send binary data to binary output stream
     if (saveToDisk) {
