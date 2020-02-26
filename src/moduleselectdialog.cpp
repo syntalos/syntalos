@@ -52,7 +52,7 @@ protected:
             height = iconSize.height();
 
         // set a fixed height for now
-        height = 100;
+        height = 80;
         return QSize(qCeil(doc.size().width()), height);
     }
 };
