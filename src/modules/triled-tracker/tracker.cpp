@@ -128,7 +128,6 @@ QVariantHash Tracker::finalize()
         return QVariantHash();
 
     QVariantHash mazeInfo;
-    mazeInfo.insert("dummy", "aaablah");
     if (m_mazeRect.size() == 4) {
         mazeInfo.insert("topLeftX", m_mazeRect[0].x);
         mazeInfo.insert("topLeftY", m_mazeRect[0].y);

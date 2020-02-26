@@ -55,7 +55,7 @@ public:
         m_frameOut->setMetadataValue("size", QSize(800, 600));
         m_frameOut->start();
 
-        m_rowsOut->setMetadataValue("suggestedDataName", QStringLiteral("tables/testvalues.csv"));
+        m_rowsOut->setMetadataValue("suggestedDataName", QStringLiteral("tables/testvalues"));
         m_rowsOut->setMetadataValue("tableHeader", QStringList()
                                     << QStringLiteral("Time")
                                     << QStringLiteral("Tag")
