@@ -84,7 +84,7 @@
             <number>4</number>
            </property>
            <property name="topMargin">
-            <number>4</number>
+            <number>2</number>
            </property>
            <property name="rightMargin">
             <number>4</number>
@@ -95,6 +95,21 @@
            <item>
             <widget class="QWidget" name="widget_2" native="true">
              <layout class="QVBoxLayout" name="verticalLayout">
+              <property name="spacing">
+               <number>4</number>
+              </property>
+              <property name="leftMargin">
+               <number>2</number>
+              </property>
+              <property name="topMargin">
+               <number>2</number>
+              </property>
+              <property name="rightMargin">
+               <number>2</number>
+              </property>
+              <property name="bottomMargin">
+               <number>2</number>
+              </property>
               <item>
                <widget class="QWidget" name="dataExportDirInfoWidget" native="true">
                 <layout class="QHBoxLayout" name="dataExportLayout">
@@ -202,13 +217,13 @@
                <number>0</number>
               </property>
               <property name="topMargin">
-               <number>0</number>
+               <number>2</number>
               </property>
               <property name="rightMargin">
                <number>2</number>
               </property>
               <property name="bottomMargin">
-               <number>0</number>
+               <number>2</number>
               </property>
               <item>
                <widget class="QToolButton" name="tbOpenDir">
@@ -249,16 +264,34 @@
             <number>4</number>
            </property>
            <property name="topMargin">
-            <number>4</number>
+            <number>2</number>
            </property>
            <property name="rightMargin">
             <number>4</number>
            </property>
            <property name="bottomMargin">
-            <number>3</number>
+            <number>4</number>
            </property>
            <item row="0" column="0" colspan="2">
             <layout class="QFormLayout" name="expDetailsLayout">
+             <property name="horizontalSpacing">
+              <number>4</number>
+             </property>
+             <property name="verticalSpacing">
+              <number>4</number>
+             </property>
+             <property name="leftMargin">
+              <number>2</number>
+             </property>
+             <property name="topMargin">
+              <number>0</number>
+             </property>
+             <property name="rightMargin">
+              <number>2</number>
+             </property>
+             <property name="bottomMargin">
+              <number>2</number>
+             </property>
              <item row="0" column="1">
               <widget class="QWidget" name="widget_5" native="true">
                <layout class="QVBoxLayout" name="verticalLayout_2">
@@ -364,7 +397,7 @@
          <number>2</number>
         </property>
         <property name="rightMargin">
-         <number>1</number>
+         <number>2</number>
         </property>
         <property name="bottomMargin">
          <number>2</number>
@@ -397,6 +430,24 @@
             <layout class="QFormLayout" name="layoutSubjectDetails">
              <property name="sizeConstraint">
               <enum>QLayout::SetDefaultConstraint</enum>
+             </property>
+             <property name="horizontalSpacing">
+              <number>4</number>
+             </property>
+             <property name="verticalSpacing">
+              <number>4</number>
+             </property>
+             <property name="leftMargin">
+              <number>2</number>
+             </property>
+             <property name="topMargin">
+              <number>2</number>
+             </property>
+             <property name="rightMargin">
+              <number>2</number>
+             </property>
+             <property name="bottomMargin">
+              <number>2</number>
              </property>
              <item row="1" column="0">
               <widget class="QLabel" name="iDLabel">
@@ -516,17 +567,20 @@
         <item>
          <widget class="QWidget" name="widget" native="true">
           <layout class="QVBoxLayout" name="verticalLayout_10">
+           <property name="spacing">
+            <number>2</number>
+           </property>
            <property name="leftMargin">
-            <number>0</number>
+            <number>2</number>
            </property>
            <property name="topMargin">
-            <number>0</number>
+            <number>2</number>
            </property>
            <property name="rightMargin">
-            <number>0</number>
+            <number>2</number>
            </property>
            <property name="bottomMargin">
-            <number>0</number>
+            <number>2</number>
            </property>
            <item>
             <widget class="QToolButton" name="btnSubjectAdd">
@@ -580,13 +634,13 @@
             <number>4</number>
            </property>
            <property name="leftMargin">
-            <number>4</number>
+            <number>6</number>
            </property>
            <property name="topMargin">
-            <number>4</number>
+            <number>6</number>
            </property>
            <property name="rightMargin">
-            <number>4</number>
+            <number>6</number>
            </property>
            <property name="bottomMargin">
             <number>4</number>
@@ -639,6 +693,9 @@
    <addaction name="menuHelp"/>
   </widget>
   <widget class="QToolBar" name="mainToolBar">
+   <property name="movable">
+    <bool>true</bool>
+   </property>
    <property name="allowedAreas">
     <set>Qt::TopToolBarArea</set>
    </property>
@@ -647,6 +704,9 @@
      <width>24</width>
      <height>24</height>
     </size>
+   </property>
+   <property name="floatable">
+    <bool>false</bool>
    </property>
    <attribute name="toolBarArea">
     <enum>TopToolBarArea</enum>
