@@ -359,14 +359,23 @@ static void executeOOPModuleThread(const QString& threadName, QList<OOPModule*> 
     QEventLoop loop;
 
     // prepare all OOP modules in their new thread
-    for (auto &mod : mods) {
-        if (!mod->oopPrepare(&loop)) {
-            qDebug().noquote() << "Failed to prepare OOP module" << mod->name() << ":" << mod->lastError();
-            return;
+    {
+        QList<OOPModule*> readyMods;
+        for (auto &mod : mods) {
+            if (!mod->oopPrepare(&loop)) {
+                // deininitialize modules we already have prepared
+                for (auto &reMod : readyMods)
+                    reMod->oopFinalize(&loop);
+
+                qDebug().noquote() << "Failed to prepare OOP module" << mod->name() << ":" << mod->lastError();
+                return;
+            }
+            // ensure we are ready - the engine has reset ourselves to "PREPARING"
+            // to make this possible before launching this thread
+            mod->setStateReady();
+
+            readyMods.append(mod);
         }
-        // ensure we are ready - the engine has reset ourselves to "PREPARING"
-        // to make this possible before launching this thread
-        mod->setStateReady();
     }
 
     // wait for us to start
@@ -396,6 +405,10 @@ static void executeIdleEventModuleThread(const QString& threadName, QList<Abstra
 
     // wait for us to start
     waitCondition->wait();
+
+    // immediately return on early failures by other modules
+    if (failed)
+        return;
 
     // check if any module signals that it will actually not be doing anything
     // (if so, we don't need to call it and can maybe even terminate this thread)
@@ -668,6 +681,21 @@ bool Engine::run()
     }
 
     auto finishTimestamp = static_cast<long long>(d->timer->timeSinceStartMsec().count());
+
+    // Wake all threads again if we have failed, because some module may have
+    // failed so early that other modules may not even have made it through their
+    // startup phase, and in this case are stuck waiting.
+    // We wake threads again later shortly before joining them (just in case),
+    // so you may thing this early wakeup call isn't necessary.
+    // Some modules though may actually wait for the thread to go down first
+    // (by setting m_running to false) and wait on that event in their stop() function.
+    // And this won't ever happen in case the thread is still idling on the start wait condition.
+    // So we set every module that has its own thread to "not running" and then ring the wakeup bell
+    if (d->failed) {
+        for (auto &mod : threadIdxModMap.values())
+            mod->m_running = false;
+        startWaitCondition->wakeAll();
+    }
 
     // send stop command to all modules
     for (auto &mod : orderedActiveModules) {
