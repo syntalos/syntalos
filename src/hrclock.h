@@ -54,7 +54,7 @@ public:
     void start();
     void startAt(steady_hr_timepoint startTimePoint);
 
-    inline std::chrono::milliseconds timeSinceStartMsec()
+    inline milliseconds_t timeSinceStartMsec()
     {
         return std::chrono::duration_cast<std::chrono::milliseconds>(steady_hr_clock::now() - m_startTime);
     }
@@ -72,5 +72,23 @@ public:
 private:
     steady_hr_timepoint m_startTime;
 };
+
+/**
+ * Compute a timestamp for "when this function acquired a value".
+ * This is assumed to be the mean between function start and end time,
+ * rounded up.
+ * For example, if the function F acquires a timestamp'ed value,
+ * this macro should return the equivalent timestamp on our timer T.
+ * This should balance out context switches if they are not too bad,
+ * and produce a reasonably accurate result in milliseconds.
+ * It is superior to measuring our timestamp for alignment after the other
+ * timestamping function was run.
+ */
+#define TIMER_FUNC_TIMESTAMP(T, F) ({ \
+    auto stime = T->timeSinceStartMsec(); \
+    F; \
+    milliseconds_t(static_cast<time_t>(std::ceil((stime.count() + T->timeSinceStartMsec().count()) / 2.0))); \
+    })
+#define MTIMER_FUNC_TIMESTAMP(F) ({TIMER_TIMESTAMP_FUNC(m_timer, F)})
 
 #endif // HRCLOCK_H

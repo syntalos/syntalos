@@ -85,7 +85,6 @@ target_link_libraries(syntalos
 
     ${MA_MODULE_LIBS}
     ${MA_OOP_LIB} # this has to come *after* modules to ensure link order
-    miniscope
 )
 
 include_directories(
