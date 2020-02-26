@@ -138,7 +138,7 @@ inline void setSyModBoardADCData(Rhd2000Module *mod, int channel, int t, double 
     }
 }
 
-inline void setSyModBoardDINData(Rhd2000Module *mod, int channel, int t, double val)
+inline void setSyModBoardDINData(Rhd2000Module *mod, int channel, int t, int val)
 {
     if (mod != nullptr) {
         int stream = std::floor(channel / 16.0);

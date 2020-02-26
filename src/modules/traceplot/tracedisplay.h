@@ -43,7 +43,8 @@ public:
     explicit TraceDisplay(QWidget *parent = nullptr);
     ~TraceDisplay();
 
-    void addPort(std::shared_ptr<StreamInputPort<FloatSignalBlock> > port);
+    void addIntPort(std::shared_ptr<StreamInputPort<IntSignalBlock> > port);
+    void addFloatPort(std::shared_ptr<StreamInputPort<FloatSignalBlock> > port);
     void updatePortChannels();
 
     void updatePlotData(bool adjustView = true);

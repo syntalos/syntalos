@@ -37,7 +37,7 @@ QString Rhd2000ModuleInfo::name() const
 
 QString Rhd2000ModuleInfo::description() const
 {
-    return QStringLiteral("Allows to record biopotential signals via the Intan Technologies RHD2000 Evaluation System"
+    return QStringLiteral("Record biopotential signals via the Intan Technologies RHD2000 Evaluation System "
                           "from up to 256 low-noise amplifier channels using digital electrophysiology chips.");
 }
 

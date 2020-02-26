@@ -155,7 +155,15 @@ TraceDisplay::~TraceDisplay()
     delete ui;
 }
 
-void TraceDisplay::addPort(std::shared_ptr<StreamInputPort<FloatSignalBlock>> port)
+void TraceDisplay::addIntPort(std::shared_ptr<StreamInputPort<IntSignalBlock> > port)
+{
+    auto item = new QListWidgetItem(ui->portListWidget);
+    m_portsChannels.append(qMakePair(port, QList<PlotChannelData*>()));
+    item->setData(Qt::UserRole, m_portsChannels.size() - 1);
+    item->setText(port->title());
+}
+
+void TraceDisplay::addFloatPort(std::shared_ptr<StreamInputPort<FloatSignalBlock>> port)
 {
     auto item = new QListWidgetItem(ui->portListWidget);
     m_portsChannels.append(qMakePair(port, QList<PlotChannelData*>()));
@@ -205,10 +213,12 @@ void TraceDisplay::updatePortChannels()
     resetPlotConfig();
 }
 
-void TraceDisplay::updatePlotData(bool adjustView)
+template<typename T>
+static inline bool updateDataForActiveChannels(QList<QPair<std::shared_ptr<StreamSubscription<T>>, QList<PlotChannelData*>>> &activeSubChans)
 {
     bool updated = false;
-    for (const auto pair : m_activeFSubChans) {
+
+    for (const auto pair : activeSubChans) {
         const auto sub = pair.first;
 
         auto maybeSigBlock = sub->peekNext();
@@ -227,6 +237,19 @@ void TraceDisplay::updatePlotData(bool adjustView)
             updated = true;
         }
     }
+
+    return updated;
+}
+
+void TraceDisplay::updatePlotData(bool adjustView)
+{
+    bool updated = false;
+
+    // floating-point channels
+    updated = updateDataForActiveChannels<FloatSignalBlock>(m_activeFSubChans);
+
+    // integer channels
+    updated = updateDataForActiveChannels<IntSignalBlock>(m_activeISubChans) || updated;
 
     if (!updated)
         return;
@@ -255,6 +278,7 @@ void TraceDisplay::plotMoveTo(int position)
 void TraceDisplay::resetPlotConfig()
 {
     m_activeFSubChans.clear();
+    m_activeISubChans.clear();
 
     for (const auto pair : m_portsChannels) {
         auto port = pair.first;
@@ -263,7 +287,16 @@ void TraceDisplay::resetPlotConfig()
 
         if (port->hasSubscription()) {
             auto fPortSub = std::dynamic_pointer_cast<StreamSubscription<FloatSignalBlock>>(port->subscriptionVar());
-            m_activeFSubChans.append(qMakePair(fPortSub, pair.second));
+            if (fPortSub.get() != nullptr) {
+                m_activeFSubChans.append(qMakePair(fPortSub, pair.second));
+                continue;
+            }
+
+            auto iPortSub = std::dynamic_pointer_cast<StreamSubscription<IntSignalBlock>>(port->subscriptionVar());
+            if (iPortSub.get() != nullptr) {
+                m_activeISubChans.append(qMakePair(iPortSub, pair.second));
+                continue;
+            }
         }
     }
 

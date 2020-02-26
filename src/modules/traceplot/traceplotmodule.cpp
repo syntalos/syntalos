@@ -34,6 +34,8 @@ private:
     std::shared_ptr<StreamInputPort<FloatSignalBlock>> m_fpSig2In;
     std::shared_ptr<StreamInputPort<FloatSignalBlock>> m_fpSig3In;
 
+    std::shared_ptr<StreamInputPort<IntSignalBlock>> m_intSig1In;
+
 public:
     explicit TracePlotModule(QObject *parent = nullptr)
         : AbstractModule(parent),
@@ -45,12 +47,14 @@ public:
         m_traceDisplay = new TraceDisplay();
         addDisplayWindow(m_traceDisplay);
 
-        m_fpSig1In = registerInputPort<FloatSignalBlock>(QStringLiteral("fpsig1-in"), QStringLiteral("Analog In 1"));
-        m_fpSig2In = registerInputPort<FloatSignalBlock>(QStringLiteral("fpsig2-in"), QStringLiteral("Analog In 2"));
-        m_fpSig3In = registerInputPort<FloatSignalBlock>(QStringLiteral("fpsig3-in"), QStringLiteral("Analog In 3"));
-        m_traceDisplay->addPort(m_fpSig1In);
-        m_traceDisplay->addPort(m_fpSig2In);
-        m_traceDisplay->addPort(m_fpSig3In);
+        m_fpSig1In = registerInputPort<FloatSignalBlock>(QStringLiteral("fpsig1-in"), QStringLiteral("Float In 1"));
+        m_fpSig2In = registerInputPort<FloatSignalBlock>(QStringLiteral("fpsig2-in"), QStringLiteral("Float In 2"));
+        m_fpSig3In = registerInputPort<FloatSignalBlock>(QStringLiteral("fpsig3-in"), QStringLiteral("Float In 3"));
+        m_intSig1In = registerInputPort<IntSignalBlock>(QStringLiteral("intsig1-in"), QStringLiteral("Integer In 3"));
+        m_traceDisplay->addFloatPort(m_fpSig1In);
+        m_traceDisplay->addFloatPort(m_fpSig2In);
+        m_traceDisplay->addFloatPort(m_fpSig3In);
+        m_traceDisplay->addIntPort(m_intSig1In);
 
         m_evTimer = new QTimer(this);
         m_evTimer->setInterval(0);
@@ -108,7 +112,7 @@ QString TracePlotModuleInfo::name() const
 
 QString TracePlotModuleInfo::description() const
 {
-    return QStringLiteral("Allow real-time display and modification of user selected data traces recorded with a Intan RHD2000 module.");
+    return QStringLiteral("Display signal data (usually from an electrophysiology data source) and plot it instantly.");
 }
 
 QPixmap TracePlotModuleInfo::pixmap() const
