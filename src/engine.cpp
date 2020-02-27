@@ -269,7 +269,7 @@ void Engine::refreshExportDirPath()
 
 void Engine::emitStatusMessage(const QString &message)
 {
-    qDebug().noquote() << "EngineStatus:" << message;
+    qDebug().noquote() << "Engine:" << message;
     emit statusMessage(message);
 }
 
@@ -503,12 +503,16 @@ bool Engine::run()
     // fetch list of modules in their activation order
     auto orderedActiveModules = createModuleExecOrderList();
 
+    auto lastPhaseTimepoint = currentTimePoint();
+
     bool initSuccessful = true;
     d->failed = false; // assume success until a module actually fails
     for (auto &mod : orderedActiveModules) {
         // Prepare module. At this point it should have a timer,
         // the location where data is saved and be in the PREPARING state.
         emitStatusMessage(QStringLiteral("Preparing %1...").arg(mod->name()));
+        lastPhaseTimepoint = currentTimePoint();
+
         mod->setStatusMessage(QString());
         mod->setTimer(d->timer);
         mod->setState(ModuleState::PREPARING);
@@ -522,6 +526,8 @@ bool Engine::run()
         // if the module hasn't set itself to ready yet, assume it is idle
         if (mod->state() != ModuleState::READY)
             mod->setState(ModuleState::IDLE);
+
+        qDebug().noquote().nospace() << "Engine: " << "Module " << mod->name() << " prepared in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
     }
 
     // threads our modules run in, as module name/thread pairs
@@ -543,6 +549,8 @@ bool Engine::run()
     // Modules are expected to deal with multiple calls to stop().
     if (initSuccessful) {
         emitStatusMessage(QStringLiteral("Initializing launch..."));
+
+        lastPhaseTimepoint = currentTimePoint();
 
         // launch threads for threaded modules, but filter out out-of-process
         // modules - they get special treatment
@@ -602,6 +610,9 @@ bool Engine::run()
                                             std::ref(d->failed)));
         }
 
+        qDebug().noquote().nospace() << "Engine: " << "Module and engine threads created in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
+        lastPhaseTimepoint = currentTimePoint();
+
         // ensure all modules are in the READY state
         // (modules may take a bit of time to prepare their threads)
         // FIXME: Maybe add a timeout on this, in case a module doesn't
@@ -624,6 +635,8 @@ bool Engine::run()
                 }
             }
         }
+
+        qDebug().noquote().nospace() << "Engine: " << "Waited for modules to become ready for " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
     }
 
     // Meanwhile, threaded modules may have failed, so let's check again if we are still
@@ -652,7 +665,12 @@ bool Engine::run()
 
         // wake that thundering herd and hope all threaded modules awoken by the
         // start signal behave properly
+        // (Threads *must* only be unlocked after we've sent start() to the modules, as they
+        // may prepare stuff in start() that the threads need, like timestamp syncs)
         startWaitCondition->wakeAll();
+
+        qDebug().noquote().nospace() << "Engine: " << "Threaded/evented module startup completed, took " << d->timer->timeSinceStartMsec().count() << "msec";
+        lastPhaseTimepoint = d->timer->currentTimerPoint();
 
         // tell all non-threaded modules individuall now that we started
         for (auto& mod : orderedActiveModules) {
@@ -667,6 +685,8 @@ bool Engine::run()
             mod->m_running = true;
             mod->setState(ModuleState::RUNNING);
         }
+
+        qDebug().noquote().nospace() << "Engine: " << "Startup phase completed, all modules are running. Took additional " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
 
         emitStatusMessage(QStringLiteral("Running..."));
 
@@ -700,6 +720,8 @@ bool Engine::run()
     // send stop command to all modules
     for (auto &mod : orderedActiveModules) {
         emitStatusMessage(QStringLiteral("Stopping %1...").arg(mod->name()));
+        lastPhaseTimepoint = d->timer->currentTimerPoint();
+
         mod->stop();
 
         // safeguard against bad modules which don't stop running their
@@ -718,7 +740,11 @@ bool Engine::run()
         // all module data must be written by this point, so we "steal" its storage root path,
         // so the module is less tempted to write data into old experiment locations.
         mod->setDataStorageRootDir(QString());
+
+        qDebug().noquote().nospace() << "Engine: " << "Module " << mod->name() << " stopped in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
     }
+
+    lastPhaseTimepoint = d->timer->currentTimerPoint();
 
     // join all dedicated module threads with the main thread again, waiting for them to terminate
     startWaitCondition->wakeAll(); // wake up all threads again, just in case one is stuck waiting
@@ -740,6 +766,9 @@ bool Engine::run()
         emitStatusMessage(QStringLiteral("Waiting for event executor..."));
         evThread.join();
     }
+
+    qDebug().noquote().nospace() << "Engine: " << "All engine threads joined in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
+    lastPhaseTimepoint = d->timer->currentTimerPoint();
 
     if (!initSuccessful) {
         // if we failed to prepare this run, don't save the manifest and also
@@ -808,6 +837,8 @@ bool Engine::run()
 
         QTextStream manifestFileOut(&manifestFile);
         manifestFileOut << QJsonDocument(manifest).toJson();
+
+        qDebug().noquote().nospace() << "Engine: " << "Manifest and additional data saved in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
     }
 
     emitStatusMessage(QStringLiteral("Ready."));
