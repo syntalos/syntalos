@@ -1,62 +1,42 @@
 import maio as io
-from maio import PinType
+from io import InputWaitResult
 
-import time
-from threading import Timer
+# Get your port references by their ID here.
+# Examples:
+iport = io.get_input_port('video-in')
+oport = io.get_output_port('video-out')
 
-#
-# Configure the pins we want to use
-#
-fm = io.get_firmata_interface('Firmata I/O')
-
-fm.new_digital_pin(0, 'armLeft',   PinType.INPUT)
-fm.new_digital_pin(2, 'armRight',  PinType.INPUT)
-
-fm.new_digital_pin(6, 'foodLeft',  PinType.OUTPUT)
-fm.new_digital_pin(8, 'foodRight', PinType.INPUT)
-
-fm.new_digital_pin(2, 'pinSignal', PinType.OUTPUT)
+# Set appropriate metadata on output ports
+oport.set_metadata_value_int('framerate', 200)
+oport.set_metadata_value_dim('size', [800, 600])
 
 
-# global variables
-g_last_arm = 'unknown'
+def loop():
+    '''
+    This is executed by Syntalos continuously until you return False.
+    Use this function to retrieve input and send it for processing.
+    '''
 
+    # wait for new input to arrive
+    wait_result = io.await_new_input()
+    if wait_result == InputWaitResult.CANCELLED:
+        # the run has been cancelled - finalize data, then terminate
+        # the loop will not be called again, even if True is returned
+        print('Quitting PyOOPTestModule Loop!', r)
+        return False
 
-def signal_led_blink():
-    fm.pin_set_value('pinSignal', True)
-    time.sleep(.5)  # wait 500 msec
-    fm.pin_set_value('pinSignal', False)
-
-
-def digital_input_received(mtable, pin_name, value):
-    global g_last_arm
-    if not value:
-        return
-
-    if pin_name == g_last_arm:
-        return
-    g_last_arm = pin_name
-
-    mtable.add_event(['success'])
-
-    if pin_name == 'armLeft':
-        fm.pin_signal_pulse('foodLeft')
-    elif (pin_name == 'armRight'):
-        fm.pin_signal_pulse('foodRight')
-
-
-def main():
-    mtable = io.EventTable('maze')
-    mtable.set_header(['State'])
-
-    # light LED on port 2 briefly after 3 seconds
-    timer = Timer(3, signal_led_blink)
-    timer.start()
-
+    # retrieve data from our ports until we run out of data to process
     while True:
-        r, pin_name, value = fm.fetch_digital_input()
-        if r:
-            digital_input_received(mtable, pin_name, value)
+        frame = iport.next()
+        if frame is None:
+            # no more data, exit
+            break
 
+        # do something with the data here!
 
-main()
+        # submit data to an output port
+        oport.submit(frame)
+
+    # return True, so the loop function is called again when
+    # new data is available
+    return True
