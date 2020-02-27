@@ -59,6 +59,11 @@ public:
         return std::chrono::duration_cast<std::chrono::milliseconds>(steady_hr_clock::now() - m_startTime);
     }
 
+    inline std::chrono::nanoseconds timeSinceStartNsec()
+    {
+        return std::chrono::duration_cast<std::chrono::nanoseconds>(steady_hr_clock::now() - m_startTime);
+    }
+
     inline steady_hr_timepoint currentTimerPoint()
     {
         return steady_hr_clock::now();
@@ -76,7 +81,7 @@ private:
 /**
  * Compute a timestamp for "when this function acquired a value".
  * This is assumed to be the mean between function start and end time,
- * rounded up.
+ * rounded to milliseconds.
  * For example, if the function F acquires a timestamp'ed value,
  * this macro should return the equivalent timestamp on our timer T.
  * This should balance out context switches if they are not too bad,
@@ -85,10 +90,22 @@ private:
  * timestamping function was run.
  */
 #define TIMER_FUNC_TIMESTAMP(T, F) ({ \
-    auto stime = T->timeSinceStartMsec(); \
+    auto __stime = T->timeSinceStartNsec(); \
     F; \
-    milliseconds_t(static_cast<time_t>(std::ceil((stime.count() + T->timeSinceStartMsec().count()) / 2.0))); \
+    std::chrono::round<milliseconds_t>((__stime + T->timeSinceStartNsec()) / 2.0); \
     })
 #define MTIMER_FUNC_TIMESTAMP(F) ({TIMER_TIMESTAMP_FUNC(m_timer, F)})
+
+/**
+ * Compute a timestamp for "when this function acquired a value".
+ * This function is equivalent to TIMER_FUNC_TIMESTAMP(), but takes
+ * a starting timepoint instead of a timer as first parameter, and
+ * also captures the function result in FR.
+ */
+#define FUNC_EXEC_TIMESTAMP_RET(INIT_TIME, FR, F) ({ \
+    auto __stime = std::chrono::duration_cast<std::chrono::nanoseconds>(steady_hr_clock::now() - (INIT_TIME)); \
+    FR = F; \
+    std::chrono::round<milliseconds_t>((__stime + std::chrono::duration_cast<std::chrono::nanoseconds>(steady_hr_clock::now() - (INIT_TIME))) / 2.0); \
+    })
 
 #endif // HRCLOCK_H

@@ -32,11 +32,14 @@ public:
         : camId(0),
           connected(false),
           failed(false),
+          firstFrame(true),
           droppedFramesCount(0)
     {
+        driverTimerOffset = milliseconds_t(0);
     }
 
     std::chrono::time_point<steady_hr_clock> startTime;
+    milliseconds_t driverTimerOffset;
     cv::VideoCapture cam;
     int camId;
 
@@ -44,6 +47,7 @@ public:
 
     bool connected;
     bool failed;
+    bool firstFrame;
 
     double exposure;
     double gain;
@@ -159,7 +163,10 @@ bool Camera::connect()
 
     d->failed = false;
     d->connected = true;
+    d->firstFrame = true;
 
+    // temporary dummy timepoint, until the actual reference starting
+    // time is set from an external source
     d->startTime = currentTimePoint();
 
     qDebug() << "Initialized camera" << d->camId;
@@ -174,17 +181,35 @@ void Camera::disconnect()
     d->connected = false;
 }
 
-bool Camera::recordFrame(cv::Mat *frame, std::chrono::milliseconds *timestamp)
+bool Camera::recordFrame(Frame &frame)
 {
-    auto status = d->cam.grab();
-    (*timestamp) = timeDiffToNowMsec(d->startTime);
+    bool status = false;
+    if (d->firstFrame) {
+        d->firstFrame = false;
+        const auto initTime = FUNC_EXEC_TIMESTAMP_RET(d->startTime, status, d->cam.grab());
+
+        // if we have the first frame, use it to synchronize time
+        const auto driverFrameTimestamp = milliseconds_t(static_cast<time_t> (d->cam.get(cv::CAP_PROP_POS_MSEC)));
+
+        if (driverFrameTimestamp.count() <= 0) {
+            qDebug().noquote() << "Generic Camera" << d->camId << "measured 0 as driver timestamp on initial frame, assuming 0 offset.";
+            d->driverTimerOffset = milliseconds_t(0);
+        } else {
+            d->driverTimerOffset = driverFrameTimestamp - initTime;
+        }
+
+        frame.time = initTime;
+    } else {
+        status = d->cam.grab();
+        frame.time = timeDiffToNowMsec(d->startTime);
+    }
     if (!status) {
         fail("Failed to grab frame.");
         return false;
     }
 
     try {
-        status = d->cam.retrieve(*frame);
+        status = d->cam.retrieve(frame.mat);
     } catch (const cv::Exception& e) {
         status = false;
         std::cerr << "Caught OpenCV exception:" << e.what() << std::endl;
@@ -205,7 +230,7 @@ bool Camera::recordFrame(cv::Mat *frame, std::chrono::milliseconds *timestamp)
     }
 
     // adjust to selected resolution
-    cv::resize((*frame), (*frame), d->frameSize);
+    cv::resize(frame.mat, frame.mat, d->frameSize);
 
     return true;
 }

@@ -114,9 +114,8 @@ public:
         while (m_running) {
             const auto cycleStartTime = currentTimePoint();
 
-            cv::Mat mat;
-            std::chrono::milliseconds time;
-            if (!m_camera->recordFrame(&mat, &time)) {
+            Frame frame;
+            if (!m_camera->recordFrame(frame)) {
                 frameRecordFailedCount++;
                 if (frameRecordFailedCount > 32) {
                     m_running = false;
@@ -124,8 +123,6 @@ public:
                 }
                 continue;
             }
-            // construct frame container
-            Frame frame(mat, time);
 
             // emit this frame on our output port
             m_outStream->push(frame);

@@ -24,7 +24,9 @@
 #include <QScopedPointer>
 #include <QSize>
 #include <opencv2/core.hpp>
+
 #include "hrclock.h"
+#include "streams/frametype.h"
 
 class CameraData;
 class Camera
@@ -49,7 +51,7 @@ public:
     bool connect();
     void disconnect();
 
-    bool recordFrame(cv::Mat *frame, std::chrono::milliseconds *timestamp);
+    bool recordFrame(Frame &frame);
 
     QString lastError() const;
 
