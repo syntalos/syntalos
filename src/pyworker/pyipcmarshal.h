@@ -23,28 +23,16 @@
 #include <QVariant>
 #include <boost/python.hpp>
 
+#include "streams/datatypes.h"
+
 class SharedMemory;
 using namespace boost;
 
-struct FrameData
+struct PyFrame
 {
     time_t time_msec;
     python::object mat;
 };
 
-enum CtlCommandKind {
-    CTL_UNKNOWN  = 0,
-    CTL_START = 1,
-    CTL_STOP = 2,
-    CTL_STEP = 3,
-    CTL_CUSTOM = 4
-};
-
-struct ControlCommandPy
-{
-    CtlCommandKind kind;
-    std::string command;
-};
-
 python::object unmarshalDataToPyObject(int typeId, const QVariantList &params, std::unique_ptr<SharedMemory> &shm);
-bool marshalPyDataElement(int typeId, python::object pyObj, QVariantList &params, std::unique_ptr<SharedMemory> &shm);
+bool marshalPyDataElement(int typeId, const boost::python::api::object &pyObj, QVariantList &params, std::unique_ptr<SharedMemory> &shm);

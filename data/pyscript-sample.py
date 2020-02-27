@@ -1,5 +1,5 @@
 import maio as io
-from io import InputWaitResult
+from maio import InputWaitResult
 
 # Get your port references by their ID here.
 # Examples:
@@ -22,7 +22,7 @@ def loop():
     if wait_result == InputWaitResult.CANCELLED:
         # the run has been cancelled - finalize data, then terminate
         # the loop will not be called again, even if True is returned
-        print('Quitting PyOOPTestModule Loop!', r)
+        print('Quitting PyOOPTestModule Loop!', wait_result)
         return False
 
     # retrieve data from our ports until we run out of data to process

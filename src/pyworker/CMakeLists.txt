@@ -14,6 +14,8 @@ set(MAPYWORKER_SRC
     worker.cpp
     maio.h
     maio.cpp
+    qstringtopy.h
+    qstringtopy.cpp
     ../hrclock.h
     ../hrclock.cpp
     ../streams/datatypes.h

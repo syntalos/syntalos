@@ -30,8 +30,9 @@
 #include <iostream>
 
 #include "worker.h"
-#include "pyipcmarshal.h"
+#include "qstringtopy.h"
 #include "cvmatndsliceconvert.h"
+#include "pyipcmarshal.h"
 
 PyBridge::PyBridge(OOPWorker *worker)
     : QObject(worker),
@@ -56,7 +57,7 @@ OOPWorker *PyBridge::worker()
     return m_worker;
 }
 
-using namespace boost;
+namespace bpy = boost::python;
 
 struct MazeAmazePyError : std::runtime_error {
     explicit MazeAmazePyError(const char* what_arg);
@@ -190,11 +191,14 @@ static python::object get_output_port(const std::string& id)
 }
 
 
-using namespace boost::python;
+
+using namespace bpy;
 BOOST_PYTHON_MODULE(maio)
 {
     initNDArray();
-    python::register_exception_translator<MazeAmazePyError>(&translateException);
+    initQStringPyConvert();
+
+    bpy::register_exception_translator<MazeAmazePyError>(&translateException);
 
     class_<InputPort>("InputPort", init<std::string, int>())
                 .def("next", &InputPort::next)
@@ -212,24 +216,72 @@ BOOST_PYTHON_MODULE(maio)
     enum_<InputWaitResult>("InputWaitResult")
                 .value("NONE", IWR_NONE)
                 .value("NEWDATA", IWR_NEWDATA)
-                .value("CANCELLED", IWR_CANCELLED);
-
-    class_<FrameData>("FrameData", init<>())
-                .def_readwrite("time_msec", &FrameData::time_msec)
-                .def_readwrite("mat", &FrameData::mat)
+                .value("CANCELLED", IWR_CANCELLED)
             ;
 
-    enum_<CtlCommandKind>("ControlCommandKind")
-                .value("UNKNOWN", CTL_UNKNOWN)
-                .value("START", CTL_START)
-                .value("STOP", CTL_STOP)
-                .value("STEP", CTL_STEP)
-                .value("CUSTOM", CTL_CUSTOM);
+    /**
+     ** Frames
+     **/
 
-    class_<ControlCommandPy>("ControlCommand", init<>())
-                .def_readwrite("kind", &ControlCommandPy::kind)
-                .def_readwrite("command", &ControlCommandPy::command)
+    class_<PyFrame>("Frame", init<>())
+                .def_readwrite("time_msec", &PyFrame::time_msec)
+                .def_readwrite("mat", &PyFrame::mat)
             ;
+
+    /**
+     ** Control Command
+     **/
+
+    enum_<ControlCommandKind>("ControlCommandKind")
+            .value("UNKNOWN", ControlCommandKind::UNKNOWN)
+            .value("START", ControlCommandKind::START)
+            .value("STOP", ControlCommandKind::STOP)
+            .value("STEP", ControlCommandKind::STEP)
+            .value("CUSTOM", ControlCommandKind::CUSTOM)
+            ;
+
+    class_<ControlCommand>("ControlCommand", init<>())
+                .def_readwrite("kind", &ControlCommand::kind)
+                .def_readwrite("command", &ControlCommand::command)
+            ;
+
+    /**
+     ** Firmata
+     **/
+
+    enum_<FirmataCommandKind>("FirmataCommandKind")
+            .value("UNKNOWN", FirmataCommandKind::UNKNOWN)
+            .value("NEW_DIG_PIN", FirmataCommandKind::NEW_DIG_PIN)
+            .value("NEW_ANA_PIN", FirmataCommandKind::NEW_ANA_PIN)
+            .value("IO_MODE", FirmataCommandKind::IO_MODE)
+            .value("WRITE_ANALOG", FirmataCommandKind::WRITE_ANALOG)
+            .value("WRITE_DIGITAL", FirmataCommandKind::WRITE_DIGITAL)
+            .value("WRITE_DIGITAL_PULSE", FirmataCommandKind::WRITE_DIGITAL_PULSE)
+            .value("SYSEX", FirmataCommandKind::SYSEX)
+            ;
+
+    class_<FirmataControl>("FirmataControl", init<>())
+                .def_readwrite("command", &FirmataControl::command)
+                .def_readwrite("pin_id", &FirmataControl::pinId)
+                .add_property("pin_name", make_getter(&FirmataControl::pinName, return_value_policy<return_by_value>()),
+                                          make_setter(&FirmataControl::pinName, return_value_policy<return_by_value>()))
+                .def_readwrite("output", &FirmataControl::output)
+                .def_readwrite("pull_up", &FirmataControl::pullUp)
+                .def_readwrite("value", &FirmataControl::value)
+            ;
+
+    class_<FirmataData>("FirmataData", init<>())
+                .def_readwrite("pin_id", &FirmataData::pinId)
+                .add_property("pin_name", make_getter(&FirmataData::pinName, return_value_policy<return_by_value>()),
+                                          make_setter(&FirmataData::pinName, return_value_policy<return_by_value>()))
+                .def_readwrite("value", &FirmataData::value)
+                .def_readwrite("timestamp", &FirmataData::timestamp)
+            ;
+
+
+    /**
+     ** Additional Functions
+     **/
 
     def("println", println, "Print text to stdout.");
     def("time_since_start_msec", time_since_start_msec, "Get time since experiment started in milliseconds.");

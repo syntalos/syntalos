@@ -20,10 +20,28 @@
 #pragma once
 #include <memory>
 #include <QMetaType>
+#include <QDataStream>
+
 #include "stream.h"
 #include "hrclock.h"
 
 Q_DECLARE_SMART_POINTER_METATYPE(std::shared_ptr)
+
+/**
+ * Helpers to (de)serialize enum classes into streams, in case
+ * we are compiling with older versions of Qt.
+ */
+#if (QT_VERSION < QT_VERSION_CHECK(5, 14, 0))
+template <typename T>
+typename std::enable_if<std::is_enum<T>::value, QDataStream &>::type&
+operator<<(QDataStream &s, const T &t)
+{ return s << static_cast<typename std::underlying_type<T>::type>(t); }
+
+template <typename T>
+typename std::enable_if<std::is_enum<T>::value, QDataStream &>::type&
+operator>>(QDataStream &s, T &t)
+{ return s >> reinterpret_cast<typename std::underlying_type<T>::type &>(t); }
+#endif
 
 /**
  * @brief The ModuleState enum
@@ -61,11 +79,23 @@ Q_DECLARE_METATYPE(ControlCommandKind)
  *
  * Generic data type to stream commands to other modules.
  */
-typedef struct
+struct ControlCommand
 {
     ControlCommandKind kind;
     QString command;
-} ControlCommand;
+
+    friend QDataStream &operator<<(QDataStream &out, const ControlCommand &obj)
+    {
+        out << obj.kind << obj.command;
+        return out;
+    }
+
+    friend QDataStream &operator>>(QDataStream &in, ControlCommand &obj)
+    {
+       in >> obj.kind >> obj.command;
+       return in;
+    }
+};
 Q_DECLARE_METATYPE(ControlCommand)
 
 /**
@@ -96,28 +126,67 @@ Q_DECLARE_METATYPE(FirmataCommandKind)
 /**
  * @brief Commands to control Firmata output.
  */
-typedef struct
+struct FirmataControl
 {
     FirmataCommandKind command;
     uint8_t pinId;
     QString pinName;
     bool output;
     bool pullUp;
-    bool digitalValue;
-    uint16_t analogValue;
-} FirmataControl;
+    uint16_t value;
+
+    friend QDataStream &operator<<(QDataStream &out, const FirmataControl &obj)
+    {
+        out << obj.command
+            << obj.pinId
+            << obj.pinName
+            << obj.output
+            << obj.pullUp
+            << obj.value;
+        return out;
+    }
+
+    friend QDataStream &operator>>(QDataStream &in, FirmataControl &obj)
+    {
+       in >> obj.command
+          >> obj.pinId
+          >> obj.pinName
+          >> obj.output
+          >> obj.pullUp
+          >> obj.value;
+       return in;
+    }
+};
 Q_DECLARE_METATYPE(FirmataControl)
 
 /**
  * @brief Output data returned from a Firmata device.
  */
-typedef struct
+struct FirmataData
 {
     uint8_t pinId;
     QString pinName;
-    bool digitalValue;
-    uint16_t analogValue;
-} FirmataData;
+    uint16_t value;
+    quint64 timestamp;
+
+    friend QDataStream &operator<<(QDataStream &out, const FirmataData &obj)
+    {
+        out << obj.pinId
+            << obj.pinName
+            << obj.value
+            << obj.timestamp;
+        return out;
+    }
+
+    friend QDataStream &operator>>(QDataStream &in, FirmataData &obj)
+    {
+       in >> obj.pinId
+          >> obj.pinName
+          >> obj.value
+          >> obj.timestamp;
+       return in;
+    }
+};
 Q_DECLARE_METATYPE(FirmataData)
 
 /**
@@ -157,6 +226,20 @@ public:
 
     std::vector<uint> timestamps;
     std::vector<int> data[SIGNAL_BLOCK_CHAN_COUNT];
+
+    friend QDataStream &operator<<(QDataStream &out, const IntSignalBlock &obj)
+    {
+        // TODO: Not yet implemented
+        Q_UNUSED(obj)
+        return out;
+    }
+
+    friend QDataStream &operator>>(QDataStream &in, IntSignalBlock &obj)
+    {
+       // TODO: Not yet implemented
+       Q_UNUSED(obj)
+       return in;
+    }
 };
 Q_DECLARE_METATYPE(IntSignalBlock)
 
@@ -180,6 +263,20 @@ public:
 
     std::vector<uint> timestamps;
     std::vector<double> data[SIGNAL_BLOCK_CHAN_COUNT];
+
+    friend QDataStream &operator<<(QDataStream &out, const FloatSignalBlock &obj)
+    {
+        // TODO: Not yet implemented
+        Q_UNUSED(obj)
+        return out;
+    }
+
+    friend QDataStream &operator>>(QDataStream &in, FloatSignalBlock &obj)
+    {
+       // TODO: Not yet implemented
+       Q_UNUSED(obj)
+       return in;
+    }
 };
 Q_DECLARE_METATYPE(FloatSignalBlock)
 

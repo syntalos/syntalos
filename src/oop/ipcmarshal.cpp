@@ -121,11 +121,9 @@ bool marshalDataElement(int typeId, const QVariant &data,
         return true;
     }
 
-    if (typeId == qMetaTypeId<TableRow>()) {
-        auto row = data.value<TableRow>();
-        params.append(QVariant::fromValue(row));
-        return true;
-    }
+    // for any other type, we just have it serialize itself
+    // and append it as first parameter
+    params.append(data);
 
-    return false;
+    return true;
 }

@@ -148,10 +148,10 @@ public:
         switch (ctl.command) {
         case FirmataCommandKind::NEW_DIG_PIN:
             newDigitalPin(ctl.pinId, ctl.pinName, ctl.output, ctl.pullUp);
-            pinSetValue(ctl.pinName, ctl.digitalValue);
+            pinSetValue(ctl.pinName, ctl.value);
             break;
         case FirmataCommandKind::WRITE_DIGITAL:
-            pinSetValue(ctl.pinName, ctl.digitalValue);
+            pinSetValue(ctl.pinName, ctl.value);
             break;
         case FirmataCommandKind::WRITE_DIGITAL_PULSE:
             pinSignalPulse(ctl.pinName);
@@ -239,7 +239,7 @@ private slots:
                     FirmataData fdata;
                     fdata.pinId = p.id;
                     fdata.pinName = m_pinNameMap.value(p.id);
-                    fdata.digitalValue = value & (1 << (p.id - first));
+                    fdata.value = (value & (1 << (p.id - first)))? 1 : 0;
 
                     m_fmStream->push(fdata);
                 }
@@ -252,9 +252,10 @@ private slots:
         qDebug("Firmata digital pin read: %d=%d", pin, value);
 
         FirmataData fdata;
+        fdata.timestamp = m_timer->timeSinceStartMsec().count();
         fdata.pinId = pin;
         fdata.pinName = m_pinNameMap.value(pin);
-        fdata.digitalValue = value;
+        fdata.value = value;
         if (fdata.pinName.isEmpty()) {
             qWarning() << "Received state change for unknown pin:" << pin;
             return;

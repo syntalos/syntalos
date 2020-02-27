@@ -28,6 +28,7 @@ class DataSourceModule : public AbstractModule
 private:
     std::shared_ptr<DataStream<Frame>> m_frameOut;
     std::shared_ptr<DataStream<TableRow>> m_rowsOut;
+    std::shared_ptr<DataStream<FirmataControl>> m_fctlOut;
 
     time_t m_prevRowTime;
 
@@ -37,6 +38,7 @@ public:
     {
         m_frameOut = registerOutputPort<Frame>(QStringLiteral("frames-out"), QStringLiteral("Frames"));
         m_rowsOut = registerOutputPort<TableRow>(QStringLiteral("rows-out"), QStringLiteral("Table Rows"));
+        m_fctlOut = registerOutputPort<FirmataControl>(QStringLiteral("fctl-out"), QStringLiteral("Firmata Control"));
     }
 
     ~DataSourceModule() override
@@ -63,6 +65,8 @@ public:
         m_rowsOut->start();
         m_prevRowTime = 0;
 
+        m_fctlOut->start();
+
         return true;
     }
 
@@ -77,6 +81,17 @@ public:
             auto row = createTablerow();
             if (row.has_value())
                 m_rowsOut->push(row.value());
+
+            const auto msec = m_timer->timeSinceStartMsec().count();
+            if ((msec % 3) == 0) {
+                FirmataControl fctl;
+
+                fctl.command = FirmataCommandKind::WRITE_DIGITAL;
+                fctl.pinId = 2;
+                fctl.pinName = QStringLiteral("custom-pin-name");
+                fctl.value = (msec % 2 == 0)? 1 : 0;
+                m_fctlOut->push(fctl);
+            }
 
             dataIndex++;
         }

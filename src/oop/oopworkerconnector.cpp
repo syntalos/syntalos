@@ -216,6 +216,18 @@ QString OOPWorkerConnector::readProcessStdout()
     return m_proc->readAllStandardOutput();
 }
 
+template<typename T>
+static bool unmarshalAndOutputSimple(const int &typeId, const QVariantList &params, StreamOutputPort *port)
+{
+    if (typeId == qMetaTypeId<T>()) {
+        if (params.length() < 1)
+            return true;
+        port->stream<T>()->push(qvariant_cast<T>(params[0]));
+        return true;
+    }
+    return false;
+}
+
 static bool unmarshalDataAndOutput(int typeId, const QVariantList &params, std::unique_ptr<SharedMemory> &shm, StreamOutputPort *port)
 {
     if (typeId == qMetaTypeId<Frame>()) {
@@ -226,20 +238,16 @@ static bool unmarshalDataAndOutput(int typeId, const QVariantList &params, std::
         return true;
     }
 
-    if (typeId == qMetaTypeId<ControlCommand>()) {
-        ControlCommand ctl;
-        ctl.kind = static_cast<ControlCommandKind>(params[0].toInt());
-        ctl.command = params[0].toString();
-
-        port->stream<ControlCommand>()->push(ctl);
+    if (unmarshalAndOutputSimple<ControlCommand>(typeId, params, port))
         return true;
-    }
 
-    if (typeId == qMetaTypeId<TableRow>()) {
-        auto rows = params[0].toStringList();
-        port->stream<TableRow>()->push(rows);
+    if (unmarshalAndOutputSimple<FirmataControl>(typeId, params, port))
         return true;
-    }
+    if (unmarshalAndOutputSimple<FirmataData>(typeId, params, port))
+        return true;
+
+    if (unmarshalAndOutputSimple<TableRow>(typeId, params, port))
+        return true;
 
     return false;
 }
@@ -267,6 +275,7 @@ void OOPWorkerConnector::sendInputData(int typeId, int portId, const QVariant &d
                                   params, m_shmSend[portId]);
     if (!ret) {
         const auto dataTypeName = QMetaType::typeName(typeId);
+        m_failed = true;
         if (!m_shmSend[portId]->lastError().isEmpty())
             emit m_reptr->error(QStringLiteral("Unable to write %1 element into shared memory: %2").arg(dataTypeName).arg(m_shmSend[portId]->lastError()));
         else

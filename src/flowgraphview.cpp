@@ -631,7 +631,6 @@ uint FlowGraphNode::nodeType(void) const
 void FlowGraphNode::setNodeIcon(const QIcon &icon)
 {
     m_icon = icon;
-
     m_pixmap->setPixmap(m_icon.pixmap(24, 24));
 }
 

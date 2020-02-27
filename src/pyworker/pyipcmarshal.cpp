@@ -30,23 +30,44 @@ using namespace boost;
  */
 python::object unmarshalDataToPyObject(int typeId, const QVariantList &params, std::unique_ptr<SharedMemory> &shm)
 {
+    /**
+     ** Frame
+     **/
+
     if (typeId == qMetaTypeId<Frame>()) {
         auto floatingMat = cvMatFromShm(shm, false);
         auto matPyO = cvMatToNDArray(floatingMat);
 
-        FrameData pyFrame;
+        PyFrame pyFrame;
         pyFrame.mat = boost::python::object(boost::python::handle<>(matPyO));
         pyFrame.time_msec = params[0].toLongLong();
 
         return python::object(pyFrame);
     }
 
-    if (typeId == qMetaTypeId<ControlCommand>()) {
-        ControlCommandPy ctl;
-        ctl.kind = static_cast<CtlCommandKind>(params[0].toInt());
-        ctl.command = params[0].toString().toStdString();
-        return python::object(ctl);
-    }
+    if (params.length() == 0)
+        return python::object();
+
+    /**
+     ** Control Command
+     **/
+
+    if (typeId == qMetaTypeId<ControlCommand>())
+        return python::object(qvariant_cast<ControlCommand>(params[0]));
+
+    /**
+     ** Firmata
+     **/
+
+    if (typeId == qMetaTypeId<FirmataControl>())
+        return python::object(qvariant_cast<FirmataControl>(params[0]));
+
+    if (typeId == qMetaTypeId<FirmataData>())
+        return python::object(qvariant_cast<FirmataData>(params[0]));
+
+    /**
+     ** Table Rows
+     **/
 
     if (typeId == qMetaTypeId<TableRow>()) {
         auto rows = params[0].toList();
@@ -61,12 +82,27 @@ python::object unmarshalDataToPyObject(int typeId, const QVariantList &params, s
     return python::object();
 }
 
+template<typename T>
+static bool marshalAndAddSimple(const int &typeId, const boost::python::object &pyObj, QVariantList &params)
+{
+    if (typeId == qMetaTypeId<T>()) {
+        const T etype = python::extract<T>(pyObj);
+        params.append(QVariant::fromValue(etype));
+        return true;
+    }
+    return false;
+}
+
 /**
  * @brief Prepare data from a Python object for transmission.
  */
-bool marshalPyDataElement(int typeId, boost::python::object pyObj,
+bool marshalPyDataElement(int typeId, const boost::python::object &pyObj,
                           QVariantList &params, std::unique_ptr<SharedMemory> &shm)
 {
+    /**
+     ** Frame
+     **/
+
     if (typeId == qMetaTypeId<Frame>()) {
         python::object pyMat = python::extract<python::object>(pyObj.attr("mat"));
         auto mat = cvMatFromNdArray(pyMat.ptr());
@@ -75,6 +111,40 @@ bool marshalPyDataElement(int typeId, boost::python::object pyObj,
 
         const long time_msec = python::extract<long>(pyObj.attr("time_msec"));
         params.append(QVariant::fromValue(time_msec));
+        return true;
+    }
+
+    /**
+     ** Control Command
+     **/
+
+    if (marshalAndAddSimple<ControlCommand>(typeId, pyObj, params))
+        return true;
+
+    /**
+     ** Firmata
+     **/
+
+    if (marshalAndAddSimple<FirmataControl>(typeId, pyObj, params))
+        return true;
+    if (marshalAndAddSimple<FirmataData>(typeId, pyObj, params))
+        return true;
+
+    /**
+     ** Table Rows
+     **/
+
+    if (typeId == qMetaTypeId<TableRow>()) {
+        const python::list pyList = python::extract<python::list>(pyObj);
+        const auto pyListLen = python::len(pyList);
+        if (pyListLen < 0)
+            return true;
+        TableRow row;
+        row.reserve(pyListLen);
+        for (ssize_t i = 0; i < pyListLen; i++) {
+            row.append(QString::fromStdString(boost::python::extract<std::string>(pyList[i])));
+        }
+        params.append(QVariant::fromValue(row));
         return true;
     }
 

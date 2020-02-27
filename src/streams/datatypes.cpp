@@ -34,10 +34,12 @@
 
 static QMap<QString, int> g_streamTypeIdMap;
 
-template<typename T, bool isPrimary = true>
+template<typename T, bool streamOperators = true, bool isPrimary = true>
 static void registerStreamType()
 {
     qRegisterMetaType<T>();
+    if constexpr(streamOperators)
+        qRegisterMetaTypeStreamOperators<T>();
     if constexpr(isPrimary) {
         auto id = qMetaTypeId<T>();
         g_streamTypeIdMap[QMetaType::typeName(id)] = id;
@@ -50,13 +52,13 @@ void registerStreamMetaTypes()
     if (!g_streamTypeIdMap.isEmpty())
         return;
 
-    registerStreamType<ModuleState, false>();
+    registerStreamType<ModuleState, false, false>();
     registerStreamType<ControlCommand>();
     registerStreamType<TableRow>();
     registerStreamType<FirmataControl>();
     registerStreamType<FirmataData>();
-    registerStreamType<Frame>();
-    registerStreamType<SignalDataType, false>();
+    registerStreamType<Frame, false>();
+    registerStreamType<SignalDataType, false, false>();
     registerStreamType<IntSignalBlock>();
     registerStreamType<FloatSignalBlock>();
 }
