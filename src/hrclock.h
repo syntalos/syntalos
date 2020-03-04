@@ -102,9 +102,9 @@ private:
  * a starting timepoint instead of a timer as first parameter, and
  * also captures the function result in FR.
  */
-#define FUNC_EXEC_TIMESTAMP_RET(INIT_TIME, FR, F) ({ \
+#define FUNC_EXEC_TIMESTAMP(INIT_TIME, F) ({ \
     auto __stime = std::chrono::duration_cast<std::chrono::nanoseconds>(steady_hr_clock::now() - (INIT_TIME)); \
-    FR = F; \
+    F; \
     std::chrono::round<milliseconds_t>((__stime + std::chrono::duration_cast<std::chrono::nanoseconds>(steady_hr_clock::now() - (INIT_TIME))) / 2.0); \
     })
 

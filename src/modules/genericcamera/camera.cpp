@@ -186,7 +186,7 @@ bool Camera::recordFrame(Frame &frame)
     bool status = false;
     if (d->firstFrame) {
         d->firstFrame = false;
-        const auto initTime = FUNC_EXEC_TIMESTAMP_RET(d->startTime, status, d->cam.grab());
+        const auto initTime = FUNC_EXEC_TIMESTAMP(d->startTime, status = d->cam.grab());
 
         // if we have the first frame, use it to synchronize time
         const auto driverFrameTimestamp = milliseconds_t(static_cast<time_t> (d->cam.get(cv::CAP_PROP_POS_MSEC)));
