@@ -22,6 +22,8 @@
 #include <QObject>
 #include "moduleapi.h"
 
+using namespace Syntalos;
+
 class PyOOPTestModuleInfo : public ModuleInfo
 {
     Q_OBJECT

@@ -25,8 +25,7 @@
 #include <QList>
 #include <QSize>
 #include <opencv2/core/core.hpp>
-#include "hrclock.h"
-
+#include "syclock.h"
 
 class UEyeCamera : public QObject
 {

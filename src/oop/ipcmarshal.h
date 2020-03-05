@@ -26,7 +26,9 @@
 #include "streams/datatypes.h"
 #include "streams/frametype.h"
 
+namespace Syntalos {
 class StreamOutputPort;
+}
 
 cv::Mat cvMatFromShm(std::unique_ptr<SharedMemory> &shm, bool copy = true);
 bool cvMatToShm(std::unique_ptr<SharedMemory> &shm, const cv::Mat &frame);

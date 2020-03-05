@@ -3,7 +3,9 @@
 #include <QtTest>
 #include <QDebug>
 
-#include "hrclock.h"
+#include "syclock.h"
+
+using namespace Syntalos;
 
 int slow_work_with_result(int para)
 {
@@ -17,7 +19,7 @@ class TestTimer : public QObject
 private slots:
     void runFuncTimer()
     {
-        std::unique_ptr<HRTimer> timer(new HRTimer());
+        std::unique_ptr<SyncTimer> timer(new SyncTimer());
 
         timer->start();
 

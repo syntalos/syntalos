@@ -95,7 +95,7 @@ public:
 
     void start() override
     {
-        m_camera->setStartTime(m_timer->startTime());
+        m_camera->setStartTime(m_syTimer->startTime());
         statusMessage("Acquiring frames...");
 
         AbstractModule::start();

@@ -82,7 +82,7 @@ public:
             if (row.has_value())
                 m_rowsOut->push(row.value());
 
-            const auto msec = m_timer->timeSinceStartMsec().count();
+            const auto msec = m_syTimer->timeSinceStartMsec().count();
             if ((msec % 3) == 0) {
                 FirmataControl fctl;
 
@@ -110,7 +110,7 @@ private:
                     cv::FONT_HERSHEY_COMPLEX,
                     1.5,
                     cv::Scalar(255,255,255));
-        frame.time = m_timer->timeSinceStartMsec();
+        frame.time = m_syTimer->timeSinceStartMsec();
 
         std::this_thread::sleep_for(std::chrono::milliseconds(4));
         return frame;
@@ -118,7 +118,7 @@ private:
 
     std::optional<TableRow> createTablerow()
     {
-        const auto msec = m_timer->timeSinceStartMsec().count();
+        const auto msec = m_syTimer->timeSinceStartMsec().count();
         if ((msec - m_prevRowTime) < 4000)
             return std::nullopt;
         m_prevRowTime = msec;

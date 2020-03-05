@@ -36,7 +36,7 @@
 
 PyBridge::PyBridge(OOPWorker *worker)
     : QObject(worker),
-      m_timer(new HRTimer),
+      m_syTimer(new SyncTimer),
       m_worker(worker)
 {
 
@@ -44,12 +44,12 @@ PyBridge::PyBridge(OOPWorker *worker)
 
 PyBridge::~PyBridge()
 {
-    delete m_timer;
+    delete m_syTimer;
 }
 
-HRTimer *PyBridge::timer() const
+SyncTimer *PyBridge::timer() const
 {
-    return m_timer;
+    return m_syTimer;
 }
 
 OOPWorker *PyBridge::worker()

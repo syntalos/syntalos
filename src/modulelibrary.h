@@ -24,7 +24,10 @@
 #include <QPixmap>
 #include <QScopedPointer>
 
+namespace Syntalos {
 class ModuleInfo;
+}
+using namespace Syntalos;
 
 /**
  * @brief The ModuleLibrary class

@@ -25,7 +25,9 @@
 #include <memory>
 #include <boost/python.hpp>
 
-#include "../hrclock.h"
+#include "../syclock.h"
+
+using namespace Syntalos;
 
 class OOPWorker;
 class PyBridge : public QObject
@@ -46,7 +48,7 @@ public:
     explicit PyBridge(OOPWorker *worker = nullptr);
     ~PyBridge();
 
-    HRTimer *timer() const;
+    SyncTimer *timer() const;
     OOPWorker *worker();
 
     QList<QQueue<boost::python::object> > incomingData;
@@ -54,7 +56,7 @@ public:
 private:
     Q_DISABLE_COPY(PyBridge)
 
-    HRTimer *m_timer;
+    SyncTimer *m_syTimer;
     OOPWorker *m_worker;
 };
 

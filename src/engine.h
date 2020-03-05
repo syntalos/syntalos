@@ -17,14 +17,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef ENGINE_H
-#define ENGINE_H
+#pragma once
 
 #include <memory>
 #include <QObject>
 
 #include "moduleapi.h"
 #include "modulelibrary.h"
+
+namespace Syntalos {
 
 class Engine : public QObject
 {
@@ -84,4 +85,4 @@ private:
     QList<AbstractModule*> createModuleExecOrderList();    
 };
 
-#endif // ENGINE_H
+} // end of namespace

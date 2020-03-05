@@ -17,19 +17,37 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "hrclock.h"
+#include "syclock.h"
 
-HRTimer::HRTimer()
+#include <time.h>
+
+using namespace Syntalos;
+
+#ifdef SYNTALOS_USE_RAW_MONOTONIC_TIME
+#define STEADY_CLOCK_ID CLOCK_MONOTONIC_RAW
+#else
+#define STEADY_CLOCK_ID CLOCK_MONOTONIC
+#endif
+
+symaster_clock::time_point symaster_clock::now() noexcept
 {
+    ::timespec tp;
+    // -EINVAL, -EFAULT
 
+    ::clock_gettime(STEADY_CLOCK_ID, &tp);
+    return time_point(duration(std::chrono::seconds(tp.tv_sec)
+             + std::chrono::nanoseconds(tp.tv_nsec)));
 }
 
-void HRTimer::start()
+SyncTimer::SyncTimer()
+{}
+
+void SyncTimer::start() noexcept
 {
-    m_startTime = steady_hr_clock::now();
+    m_startTime = symaster_clock::now();
 }
 
-void HRTimer::startAt(steady_hr_timepoint startTimePoint)
+void SyncTimer::startAt(const Syntalos::symaster_timepoint &startTimePoint) noexcept
 {
     m_startTime = startTimePoint;
 }

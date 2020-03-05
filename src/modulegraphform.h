@@ -23,15 +23,19 @@
 #include <QWidget>
 #include "flowgraphview.h"
 
+namespace Syntalos {
 class Engine;
 class ModuleInfo;
 class AbstractModule;
 class VarStreamInputPort;
 class StreamOutputPort;
+}
 
 namespace Ui {
 class ModuleGraphForm;
 }
+
+using namespace Syntalos;
 
 class ModuleGraphForm : public QWidget
 {

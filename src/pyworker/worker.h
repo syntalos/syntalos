@@ -28,6 +28,7 @@
 #include "sharedmemory.h"
 #include "ipcmarshal.h"
 
+using namespace Syntalos;
 class PyBridge;
 
 class OOPWorker : public OOPWorkerSource

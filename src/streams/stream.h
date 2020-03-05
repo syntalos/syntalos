@@ -30,11 +30,14 @@
 
 #include "readerwriterqueue.h"
 #include "datatypes.h"
-#include "hrclock.h"
+#include "syclock.h"
+
+namespace Syntalos {
+class AbstractModule;
+}
 
 using namespace moodycamel;
-
-class AbstractModule;
+using namespace Syntalos;
 
 class VariantStreamSubscription
 {
@@ -204,7 +207,7 @@ private:
     // only ever manipulated by the stream (in case of the time) or only
     // touched once when a stream is started (in case of the metadata).
     QHash<QString, QVariant> m_metadata;
-    steady_hr_timepoint m_lastItemTime;
+    symaster_timepoint m_lastItemTime;
 
     void setMetadata(const QHash<QString, QVariant> &metadata)
     {

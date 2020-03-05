@@ -17,11 +17,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef OPTIONALWAITCONDITION_H
-#define OPTIONALWAITCONDITION_H
+#pragma once
 
 #include <QSharedPointer>
 
+namespace Syntalos {
 class AbstractModule;
 
 /**
@@ -49,4 +49,4 @@ private:
     void reset();
 };
 
-#endif // OPTIONALWAITCONDITION_H
+} // end of namespace

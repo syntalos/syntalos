@@ -252,7 +252,7 @@ private slots:
         qDebug("Firmata digital pin read: %d=%d", pin, value);
 
         FirmataData fdata;
-        fdata.timestamp = m_timer->timeSinceStartMsec().count();
+        fdata.timestamp = m_syTimer->timeSinceStartMsec().count();
         fdata.pinId = pin;
         fdata.pinName = m_pinNameMap.value(pin);
         fdata.value = value;

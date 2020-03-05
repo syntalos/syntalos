@@ -25,7 +25,7 @@
 #include <QSize>
 #include <opencv2/core.hpp>
 
-#include "hrclock.h"
+#include "syclock.h"
 #include "streams/frametype.h"
 
 class CameraData;
@@ -37,7 +37,7 @@ public:
 
     void setCamId(int id);
     int camId() const;
-    void setStartTime(std::chrono::time_point<steady_hr_clock> time);
+    void setStartTime(const symaster_timepoint &time);
 
     void setResolution(const cv::Size &size);
     cv::Size resolution() const;

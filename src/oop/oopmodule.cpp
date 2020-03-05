@@ -132,7 +132,7 @@ bool OOPModule::oopPrepare(QEventLoop *loop)
 
 void OOPModule::oopStart(QEventLoop *)
 {
-    d->runData->wc->start(m_timer->startTime());
+    d->runData->wc->start(m_syTimer->startTime());
 }
 
 void OOPModule::oopRunEvent(QEventLoop *loop)

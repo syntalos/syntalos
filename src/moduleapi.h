@@ -28,9 +28,11 @@
 #include <QJsonObject>
 #include <QDebug>
 
-#include "hrclock.h"
+#include "syclock.h"
 #include "streams/datatypes.h"
 #include "optionalwaitcondition.h"
+
+namespace Syntalos {
 
 class AbstractModule;
 
@@ -109,8 +111,8 @@ private:
     void setCount(int count);
 };
 
-#define ModuleInfoInterface_iid "com.draguhnlab.MazeAmaze.ModuleInfoInterface"
-Q_DECLARE_INTERFACE(ModuleInfo, ModuleInfoInterface_iid)
+//#define ModuleInfoInterface_iid "com.draguhnlab.MazeAmaze.ModuleInfoInterface"
+//Q_DECLARE_INTERFACE(Syntalos::ModuleInfo, ModuleInfoInterface_iid)
 
 /**
  * @brief The TestSubject struct
@@ -536,7 +538,7 @@ public:
     QJsonValue serializeDisplayUiGeometry();
     void restoreDisplayUiGeometry(QJsonObject info);
 
-    void setTimer(std::shared_ptr<HRTimer> timer);
+    void setTimer(std::shared_ptr<SyncTimer> timer);
 
 signals:
     void actionsUpdated();
@@ -610,7 +612,7 @@ protected:
 
     std::atomic_bool m_running;
 
-    std::shared_ptr<HRTimer> m_timer;
+    std::shared_ptr<SyncTimer> m_syTimer;
 
 private:
     Q_DISABLE_COPY(AbstractModule)
@@ -626,4 +628,5 @@ private:
     void setDataStorageRootDir(const QString &storageRoot);
 };
 
+} // end of namespace
 #endif // MODULEAPI_H

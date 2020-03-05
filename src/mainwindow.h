@@ -28,11 +28,13 @@
 
 class QLabel;
 class ModuleManager;
-class AbstractModule;
-class ModuleInfo;
 class ModuleIndicator;
 class QSvgWidget;
+namespace Syntalos {
 class Engine;
+class ModuleInfo;
+class AbstractModule;
+}
 
 namespace Ui {
 class MainWindow;

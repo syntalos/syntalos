@@ -23,6 +23,8 @@
 #include <chrono>
 #include "moduleapi.h"
 
+using namespace Syntalos;
+
 class PyScriptModuleInfo : public ModuleInfo
 {
     Q_OBJECT

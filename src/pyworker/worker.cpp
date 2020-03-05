@@ -136,7 +136,7 @@ void OOPWorker::setOutputPortInfo(QList<OutputPortInfo> ports)
 
 void OOPWorker::start(long startTimestampMsec)
 {
-    auto timePoint = steady_hr_timepoint(std::chrono::duration<long, std::milli>(startTimestampMsec));
+    auto timePoint = symaster_timepoint(std::chrono::duration<long, std::milli>(startTimestampMsec));
     m_pyb->timer()->startAt(timePoint);
 
     m_running = true;

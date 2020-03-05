@@ -27,6 +27,8 @@
 #include "moduleapi.h"
 #include "rep_interface_replica.h"
 
+using namespace Syntalos;
+
 class SharedMemory;
 
 class OOPWorkerConnector : public QObject
@@ -47,7 +49,7 @@ public:
 
     void initWithPythonScript(const QString &script, const QString &env = QString());
 
-    void start(steady_hr_timepoint timePoint);
+    void start(const symaster_timepoint &timePoint);
 
     void forwardInputData(QEventLoop *loop = nullptr);
 

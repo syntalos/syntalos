@@ -28,6 +28,8 @@
 
 #include "utils.h"
 
+using namespace Syntalos;
+
 class ModuleInfo::Private
 {
 public:
@@ -710,7 +712,7 @@ void AbstractModule::setStatusMessage(const QString &message)
     emit statusMessage(message);
 }
 
-void AbstractModule::setTimer(std::shared_ptr<HRTimer> timer)
+void AbstractModule::setTimer(std::shared_ptr<SyncTimer> timer)
 {
-    m_timer = timer;
+    m_syTimer = timer;
 }

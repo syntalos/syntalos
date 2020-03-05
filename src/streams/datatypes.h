@@ -18,12 +18,13 @@
  */
 
 #pragma once
+
 #include <memory>
 #include <QMetaType>
 #include <QDataStream>
 
 #include "stream.h"
-#include "hrclock.h"
+#include "syclock.h"
 
 Q_DECLARE_SMART_POINTER_METATYPE(std::shared_ptr)
 
@@ -296,6 +297,7 @@ QMap<QString, int> streamTypeIdMap();
 #ifndef NO_TID_PORTCONSTRUCTORS
 
 class VariantDataStream;
+namespace Syntalos {
 class VarStreamInputPort;
 class AbstractModule;
 
@@ -309,4 +311,5 @@ VariantDataStream *newStreamForType(int typeId);
  */
 VarStreamInputPort *newInputPortForType(int typeId, AbstractModule *mod, const QString &id, const QString &title);
 
+} // end of namespace
 #endif

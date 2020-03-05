@@ -76,7 +76,7 @@ public:
 
     void start() override
     {
-        m_lastFrameTime = m_timer->timeSinceStartMsec().count();
+        m_lastFrameTime = m_syTimer->timeSinceStartMsec().count();
         m_lastFpsUpdate = m_lastFrameTime - 1000;
         if (m_frameSub.get() == nullptr)
             return;

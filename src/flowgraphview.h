@@ -52,8 +52,12 @@ class QMouseEvent;
 class QWheelEvent;
 class QKeyEvent;
 
+namespace Syntalos {
 class AbstractModule;
 class AbstractStreamPort;
+}
+
+using namespace Syntalos;
 
 /**
  * @brief The FlowGraphItem class

@@ -31,8 +31,10 @@
 
 #include "oop/oopmodule.h"
 #include "modulelibrary.h"
-#include "hrclock.h"
+#include "syclock.h"
 #include "utils.h"
+
+using namespace Syntalos;
 
 #pragma GCC diagnostic ignored "-Wpadded"
 class Engine::Private
@@ -44,7 +46,7 @@ public:
     QWidget *parentWidget;
     QList<AbstractModule*> activeModules;
     ModuleLibrary *modLibrary;
-    std::shared_ptr<HRTimer> timer;
+    std::shared_ptr<SyncTimer> timer;
 
     TestSubject testSubject;
     QString exportBaseDir;
@@ -67,7 +69,7 @@ Engine::Engine(QWidget *parentWidget)
     d->running = false;
     d->modLibrary = new ModuleLibrary(this);
     d->parentWidget = parentWidget;
-    d->timer.reset(new HRTimer);
+    d->timer.reset(new SyncTimer);
 
     // allow sending states via Qt queued connections,
     // and also register all other transmittable data types

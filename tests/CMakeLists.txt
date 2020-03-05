@@ -11,8 +11,9 @@ include_directories(
 #
 add_executable(test-streamperf
     test-streamperf.cpp
-    ${CMAKE_SOURCE_DIR}/src/streams/stream.cpp
     testbarrier.h
+    ${CMAKE_SOURCE_DIR}/src/streams/stream.cpp
+    ${CMAKE_SOURCE_DIR}/src/syclock.cpp
 )
 target_link_libraries(test-streamperf
     ${CMAKE_THREAD_LIBS_INIT}
@@ -26,7 +27,7 @@ add_test(streamperf test-streamperf)
 #
 add_executable(test-timer
     test-timer.cpp
-    ${CMAKE_SOURCE_DIR}/src/hrclock.cpp
+    ${CMAKE_SOURCE_DIR}/src/syclock.cpp
 )
 target_link_libraries(test-timer
     ${CMAKE_THREAD_LIBS_INIT}

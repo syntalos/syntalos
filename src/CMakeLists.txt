@@ -14,8 +14,8 @@ set(SYNTALOS_SRC
     optionalwaitcondition.cpp
     utils.h
     utils.cpp
-    hrclock.h
-    hrclock.cpp
+    syclock.h
+    syclock.cpp
     mainwindow.h
     mainwindow.cpp
     testsubjectlistmodel.h

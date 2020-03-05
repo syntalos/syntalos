@@ -70,7 +70,7 @@ QMap<QString, int> streamTypeIdMap()
 
 #ifndef NO_TID_PORTCONSTRUCTORS
 
-VarStreamInputPort *newInputPortForType(int typeId, AbstractModule *mod, const QString &id, const QString &title = QString())
+VarStreamInputPort *Syntalos::newInputPortForType(int typeId, AbstractModule *mod, const QString &id, const QString &title = QString())
 {
     CHECK_RETURN_INPUT_PORT(ControlCommand)
     CHECK_RETURN_INPUT_PORT(TableRow)
@@ -84,7 +84,7 @@ VarStreamInputPort *newInputPortForType(int typeId, AbstractModule *mod, const Q
     return nullptr;
 }
 
-VariantDataStream *newStreamForType(int typeId)
+VariantDataStream *Syntalos::newStreamForType(int typeId)
 {
     CHECK_RETURN_STREAM(ControlCommand)
     CHECK_RETURN_STREAM(TableRow)

@@ -22,6 +22,8 @@
 #include <QObject>
 #include "moduleapi.h"
 
+using namespace Syntalos;
+
 class DevelDataSourceModuleInfo : public ModuleInfo
 {
     Q_OBJECT

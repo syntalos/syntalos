@@ -38,7 +38,7 @@ public:
         driverTimerOffset = milliseconds_t(0);
     }
 
-    std::chrono::time_point<steady_hr_clock> startTime;
+    std::chrono::time_point<symaster_clock> startTime;
     milliseconds_t driverTimerOffset;
     cv::VideoCapture cam;
     int camId;
@@ -88,7 +88,7 @@ int Camera::camId() const
     return d->camId;
 }
 
-void Camera::setStartTime(std::chrono::time_point<steady_hr_clock> time)
+void Camera::setStartTime(const symaster_timepoint &time)
 {
     d->startTime = time;
 }

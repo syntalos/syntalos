@@ -23,6 +23,8 @@
 #include "optionalwaitcondition.h"
 #include "moduleapi.h"
 
+using namespace Syntalos;
+
 class OptionalWaitCondition::OWCData
 {
 public:

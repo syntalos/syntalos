@@ -16,8 +16,8 @@ set(MAPYWORKER_SRC
     maio.cpp
     qstringtopy.h
     qstringtopy.cpp
-    ../hrclock.h
-    ../hrclock.cpp
+    ../syclock.h
+    ../syclock.cpp
     ../streams/datatypes.h
     ../streams/datatypes.cpp
     cvmatndsliceconvert.h

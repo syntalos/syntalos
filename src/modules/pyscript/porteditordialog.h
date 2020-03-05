@@ -25,7 +25,10 @@ namespace Ui {
 class PortEditorDialog;
 }
 
+namespace Syntalos {
 class AbstractModule;
+}
+using namespace Syntalos;
 
 class PortEditorDialog : public QDialog
 {

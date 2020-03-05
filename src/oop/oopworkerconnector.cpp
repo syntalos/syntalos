@@ -26,6 +26,8 @@
 #include "utils.h"
 #include "ipcmarshal.h"
 
+using namespace Syntalos;
+
 OOPWorkerConnector::OOPWorkerConnector(QSharedPointer<OOPWorkerReplica> ptr, const QString &workerBin)
     : QObject(nullptr),
       m_reptr(ptr),
@@ -170,7 +172,7 @@ void OOPWorkerConnector::initWithPythonScript(const QString &script, const QStri
     m_reptr->initializeFromData(script, env).waitForFinished(10000);
 }
 
-void OOPWorkerConnector::start(steady_hr_timepoint timePoint)
+void OOPWorkerConnector::start(const symaster_timepoint &timePoint)
 {
     auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(timePoint.time_since_epoch()).count();
     m_reptr->start(timestamp);
