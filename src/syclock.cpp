@@ -20,6 +20,7 @@
 #include "syclock.h"
 
 #include <time.h>
+#include <QDebug>
 
 using namespace Syntalos;
 
@@ -40,14 +41,24 @@ symaster_clock::time_point symaster_clock::now() noexcept
 }
 
 SyncTimer::SyncTimer()
+    : m_started(false)
 {}
 
 void SyncTimer::start() noexcept
 {
+    // we should probably crash here, but let's show a warning for now
+    if (m_started)
+        qCritical().noquote() << "The master sync timer was restarted after it was already running! This must never happen.";
+
     m_startTime = symaster_clock::now();
+    m_started = true;
 }
 
 void SyncTimer::startAt(const Syntalos::symaster_timepoint &startTimePoint) noexcept
 {
+    if (m_started)
+        qCritical().noquote() << "The master sync timer was restarted after it was already running! This must never happen.";
+
     m_startTime = startTimePoint;
+    m_started = true;
 }

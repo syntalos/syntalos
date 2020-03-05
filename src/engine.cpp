@@ -672,7 +672,7 @@ bool Engine::run()
         startWaitCondition->wakeAll();
 
         qDebug().noquote().nospace() << "Engine: " << "Threaded/evented module startup completed, took " << d->timer->timeSinceStartMsec().count() << "msec";
-        lastPhaseTimepoint = d->timer->currentTimerPoint();
+        lastPhaseTimepoint = d->timer->currentTimePoint();
 
         // tell all non-threaded modules individuall now that we started
         for (auto& mod : orderedActiveModules) {
@@ -722,7 +722,7 @@ bool Engine::run()
     // send stop command to all modules
     for (auto &mod : orderedActiveModules) {
         emitStatusMessage(QStringLiteral("Stopping %1...").arg(mod->name()));
-        lastPhaseTimepoint = d->timer->currentTimerPoint();
+        lastPhaseTimepoint = d->timer->currentTimePoint();
 
         mod->stop();
 
@@ -746,7 +746,7 @@ bool Engine::run()
         qDebug().noquote().nospace() << "Engine: " << "Module " << mod->name() << " stopped in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
     }
 
-    lastPhaseTimepoint = d->timer->currentTimerPoint();
+    lastPhaseTimepoint = d->timer->currentTimePoint();
 
     // join all dedicated module threads with the main thread again, waiting for them to terminate
     startWaitCondition->wakeAll(); // wake up all threads again, just in case one is stuck waiting
@@ -770,7 +770,7 @@ bool Engine::run()
     }
 
     qDebug().noquote().nospace() << "Engine: " << "All engine threads joined in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
-    lastPhaseTimepoint = d->timer->currentTimerPoint();
+    lastPhaseTimepoint = d->timer->currentTimePoint();
 
     if (!initSuccessful) {
         // if we failed to prepare this run, don't save the manifest and also

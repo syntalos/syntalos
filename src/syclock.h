@@ -55,14 +55,14 @@ using symaster_timepoint = std::chrono::time_point<symaster_clock>;
 /// Shorthand for milliseconds
 using milliseconds_t = std::chrono::milliseconds;
 
-inline std::chrono::milliseconds timeDiffMsec(const symaster_timepoint &timePoint1, const symaster_timepoint &timePoint2) noexcept
+inline milliseconds_t timeDiffMsec(const symaster_timepoint &timePoint1, const symaster_timepoint &timePoint2) noexcept
 {
     return std::chrono::duration_cast<milliseconds_t>(timePoint1 - timePoint2);
 }
 
-inline std::chrono::milliseconds timeDiffToNowMsec(const std::chrono::time_point<symaster_clock>& timePoint) noexcept
+inline milliseconds_t timeDiffToNowMsec(const std::chrono::time_point<symaster_clock>& timePoint) noexcept
 {
-    return std::chrono::duration_cast<std::chrono::milliseconds>(symaster_clock::now() - timePoint);
+    return std::chrono::duration_cast<milliseconds_t>(symaster_clock::now() - timePoint);
 }
 
 inline symaster_timepoint currentTimePoint() noexcept
@@ -80,7 +80,7 @@ public:
 
     inline milliseconds_t timeSinceStartMsec() noexcept
     {
-        return std::chrono::duration_cast<std::chrono::milliseconds>(symaster_clock::now() - m_startTime);
+        return std::chrono::duration_cast<milliseconds_t>(symaster_clock::now() - m_startTime);
     }
 
     inline std::chrono::nanoseconds timeSinceStartNsec() noexcept
@@ -88,7 +88,7 @@ public:
         return std::chrono::duration_cast<std::chrono::nanoseconds>(symaster_clock::now() - m_startTime);
     }
 
-    inline symaster_timepoint currentTimerPoint() noexcept
+    inline symaster_timepoint currentTimePoint() noexcept
     {
         return symaster_clock::now();
     }
@@ -100,6 +100,7 @@ public:
 
 private:
     symaster_timepoint m_startTime;
+    bool m_started;
 };
 
 /**
