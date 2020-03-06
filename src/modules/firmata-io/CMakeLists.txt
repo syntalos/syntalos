@@ -29,7 +29,7 @@ add_library(mod_firmataio STATIC
 )
 
 target_link_libraries(mod_firmataio
-    Qt5::Widgets
+    ${SY_BASE_LIBS}
     Qt5::SerialPort
 )
 

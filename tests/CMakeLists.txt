@@ -16,7 +16,7 @@ add_executable(test-streamperf
     ${CMAKE_SOURCE_DIR}/src/syclock.cpp
 )
 target_link_libraries(test-streamperf
-    ${CMAKE_THREAD_LIBS_INIT}
+    ${SY_BASE_LIBS}
     Qt5::Test
     ${OpenCV_LIBS}
 )
@@ -30,7 +30,7 @@ add_executable(test-timer
     ${CMAKE_SOURCE_DIR}/src/syclock.cpp
 )
 target_link_libraries(test-timer
-    ${CMAKE_THREAD_LIBS_INIT}
+    ${SY_BASE_LIBS}
     Qt5::Test
 )
 add_test(timer test-timer)

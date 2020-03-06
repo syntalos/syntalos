@@ -74,7 +74,7 @@ add_library(mod_intan_rhd2000 STATIC
 
 target_link_libraries(mod_intan_rhd2000
     ${CMAKE_DL_LIBS}
-    Qt5::Widgets
+    ${SY_BASE_LIBS}
 )
 
 include_directories(

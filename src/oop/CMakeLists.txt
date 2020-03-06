@@ -33,7 +33,7 @@ include_directories(
 target_link_libraries(lslice_oopshared
     ${CMAKE_THREAD_LIBS_INIT}
     ${RT_LIB}
-    Qt5::Core
+    ${SY_BASE_LIBS}
     Qt5::RemoteObjects
     ${OpenCV_LIBS}
 )
@@ -45,7 +45,7 @@ target_link_libraries(lslice_oop
     lslice_oopshared
     ${CMAKE_THREAD_LIBS_INIT}
     ${RT_LIB}
-    Qt5::Core
+    ${SY_BASE_LIBS}
     Qt5::Widgets
     Qt5::RemoteObjects
     ${OpenCV_LIBS}

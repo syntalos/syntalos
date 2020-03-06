@@ -20,15 +20,12 @@ add_library(mod_ueye_camera STATIC
 )
 
 target_link_libraries(mod_ueye_camera
-    ${CMAKE_THREAD_LIBS_INIT}
-    Qt5::Widgets
+    ${SY_BASE_LIBS}
     ${OpenCV_LIBS}
-    ${Boost_LIBRARIES}
     ${UEYE_LIBS}
 )
 
 include_directories(
-    ${Boost_INCLUDE_DIR}
     ${CMAKE_SOURCE_DIR}/src
     "/usr/include/" # uEye
 )

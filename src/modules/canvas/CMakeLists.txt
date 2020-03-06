@@ -13,7 +13,7 @@ add_library(mod_canvas STATIC
 )
 
 target_link_libraries(mod_canvas
-    Qt5::Widgets
+    ${SY_BASE_LIBS}
     ${OpenCV_LIBS}
 )
 

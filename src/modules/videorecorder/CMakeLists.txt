@@ -20,14 +20,12 @@ add_library(mod_videorecorder STATIC
 )
 
 target_link_libraries(mod_videorecorder
-    Qt5::Widgets
+    ${SY_BASE_LIBS}
     ${OpenCV_LIBS}
-    ${Boost_LIBRARIES}
     ${FFMPEG_LIBRARIES}
 )
 
 include_directories(
-    ${Boost_INCLUDE_DIR}
     ${FFMPEG_INCLUDE_DIRS}
     ${CMAKE_SOURCE_DIR}/src
 )

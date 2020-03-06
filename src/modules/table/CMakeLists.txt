@@ -11,7 +11,7 @@ add_library(mod_table STATIC
 )
 
 target_link_libraries(mod_table
-    Qt5::Widgets
+    ${SY_BASE_LIBS}
 )
 
 include_directories(

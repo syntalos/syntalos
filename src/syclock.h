@@ -21,8 +21,19 @@
 
 #include <chrono>
 #include <atomic>
+#include <memory>
+
+#include "eigenaux.h"
 
 namespace Syntalos {
+
+/**
+ * @brief The amount of time a secondary clock is allowed to deviate from the master.
+ *
+ * Since Syntalos uses millisecond time resolution, permitting half a millisecond
+ * deviation for secondary clocks from the master clock is sensible.
+ */
+static constexpr auto SECONDARY_CLOCK_TOLERANCE = std::chrono::microseconds(500);
 
 /**
  * @brief Syntalos Master Clock Type
@@ -132,5 +143,29 @@ private:
     F; \
     std::chrono::round<milliseconds_t>((__stime + std::chrono::duration_cast<std::chrono::nanoseconds>(symaster_clock::now() - (INIT_TIME))) / 2.0); \
     })
+
+
+/**
+ * @brief Synchronizer for a monotonic counter, given a frequency
+ *
+ * This synchronizer helps synchronizing the counting of a monotonic counter
+ * (e.g. adding an increasing index number to signals/frames/etc. from a starting point)
+ * to the master clock if we know a sampling frequency for the counter.
+ *
+ * The adjusted counter is guaranteed to never move backwards, but gaps and identical timestamps
+ * (depending on the settings) may occur.
+ */
+class FreqCounterSynchronizer
+{
+    explicit FreqCounterSynchronizer(std::shared_ptr<SyncTimer> masterTimer, int frequencyHz);
+
+private:
+    std::shared_ptr<SyncTimer> m_syTimer;
+    int m_freq;
+};
+
+class SecondaryClockSynchronizer {
+
+};
 
 } // end of namespace

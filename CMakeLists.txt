@@ -57,7 +57,7 @@ find_package(Qt5OpenGL REQUIRED)
 find_package(Qt5Charts REQUIRED)
 find_package(Qt5Svg REQUIRED)
 find_package(Qt5RemoteObjects)
-find_package(Boost 1.60 REQUIRED COMPONENTS container)
+find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(FFmpeg 58.35 REQUIRED COMPONENTS avcodec avutil avformat swscale)
 
 find_package(PythonLibs 3.5 REQUIRED)
@@ -68,6 +68,15 @@ find_package(KF5DBusAddons REQUIRED)
 
 find_package(OpenCV REQUIRED)
 find_package(OpenGL REQUIRED)
+
+# essential dependencies definitely required by
+# anything using the Syntalos API
+# NOTE: QtWidgets is required since modules expose QAction items
+set(SY_BASE_LIBS ${CMAKE_THREAD_LIBS_INIT}
+                 Qt5::Core
+                 Qt5::Widgets
+                 Eigen3::Eigen
+)
 
 
 #

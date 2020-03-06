@@ -7,7 +7,7 @@ add_executable(test-rwqueue-stab
 )
 
 target_link_libraries(test-rwqueue-stab
-    ${CMAKE_THREAD_LIBS_INIT}
+    ${SY_BASE_LIBS}
     Qt5::Test
 )
 
@@ -22,7 +22,7 @@ add_executable(test-rwqueue
 add_test(rwqueue test-rwqueue --disable-prompt)
 
 target_link_libraries(test-rwqueue
-    ${CMAKE_THREAD_LIBS_INIT}
+    ${SY_BASE_LIBS}
     Qt5::Test
 )
 

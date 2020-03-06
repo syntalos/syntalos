@@ -62,3 +62,9 @@ void SyncTimer::startAt(const Syntalos::symaster_timepoint &startTimePoint) noex
     m_startTime = startTimePoint;
     m_started = true;
 }
+
+FreqCounterSynchronizer::FreqCounterSynchronizer(std::shared_ptr<SyncTimer> masterTimer, int frequencyHz)
+    : m_syTimer(masterTimer),
+      m_freq(frequencyHz)
+{
+}

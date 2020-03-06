@@ -1,8 +1,8 @@
 # CMakeLists for Syntalos main
 
-add_subdirectory(modules)
 add_subdirectory(oop)
 add_subdirectory(pyworker)
+add_subdirectory(modules)
 
 set(SYNTALOS_SRC
     main.cpp
@@ -14,6 +14,7 @@ set(SYNTALOS_SRC
     optionalwaitcondition.cpp
     utils.h
     utils.cpp
+    eigenaux.h
     syclock.h
     syclock.cpp
     mainwindow.h
@@ -76,10 +77,9 @@ target_link_libraries(syntalos
     KF5::TextEditor
     Qt5::Charts
     Qt5::RemoteObjects
-    ${PYTHON_LIBRARIES}
+    Eigen3::Eigen
     ${OpenCV_LIBS}
     ${OPENGL_LIBRARIES}
-    ${Boost_LIBRARIES}
     ${UEYE_LIBS}
     ${MA_EXTRA_LIBS}
 
@@ -89,8 +89,6 @@ target_link_libraries(syntalos
 
 include_directories(
     ${OpenCV_INCLUDE_DIRS}
-    ${PYTHON_INCLUDE_DIRS}
-    ${Boost_INCLUDE_DIR}
 )
 
 install(TARGETS syntalos DESTINATION ${CMAKE_INSTALL_BINDIR})

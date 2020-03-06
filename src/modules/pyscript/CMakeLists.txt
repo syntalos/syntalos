@@ -18,7 +18,7 @@ add_library(mod_pyscript STATIC
 )
 
 target_link_libraries(mod_pyscript
-    Qt5::Widgets
+    ${SY_BASE_LIBS}
     KF5::TextEditor
 )
 

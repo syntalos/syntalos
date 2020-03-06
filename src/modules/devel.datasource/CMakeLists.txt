@@ -9,7 +9,7 @@ add_library(mod_devel_datasource STATIC
 )
 
 target_link_libraries(mod_devel_datasource
-    Qt5::Widgets
+    ${SY_BASE_LIBS}
     ${OpenCV_LIBS}
 )
 

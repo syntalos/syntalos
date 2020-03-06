@@ -20,7 +20,7 @@ add_library(mod_miniscope STATIC
 )
 
 target_link_libraries(mod_miniscope
-    Qt5::Widgets
+    ${SY_BASE_LIBS}
     ${OpenCV_LIBS}
     ${LIBMINISCOPE_LIBRARIES}
 )

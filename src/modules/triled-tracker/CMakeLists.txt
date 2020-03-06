@@ -11,13 +11,11 @@ add_library(mod_triled_tracker STATIC
 )
 
 target_link_libraries(mod_triled_tracker
-    Qt5::Widgets
+    ${SY_BASE_LIBS}
     ${OpenCV_LIBS}
-    ${Boost_LIBRARIES}
 )
 
 include_directories(
-    ${Boost_INCLUDE_DIR}
     ${CMAKE_SOURCE_DIR}/src
 )
 

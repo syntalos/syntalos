@@ -9,7 +9,7 @@ add_library(mod_runcmd STATIC
 )
 
 target_link_libraries(mod_runcmd
-    Qt5::Widgets
+    ${SY_BASE_LIBS}
 )
 
 include_directories(

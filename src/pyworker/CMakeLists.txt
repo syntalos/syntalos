@@ -35,7 +35,7 @@ target_link_libraries(pyworker
     ${CMAKE_THREAD_LIBS_INIT}
     ${RT_LIB}
     ${MA_OOPSHARED_LIB}
-    Qt5::Core
+    ${SY_BASE_LIBS}
     Qt5::RemoteObjects
     ${PYTHON_LIBRARIES}
     ${Boost_LIBRARIES}

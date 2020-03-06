@@ -22,7 +22,7 @@ add_library(mod_traceplot STATIC
 )
 
 target_link_libraries(mod_traceplot
-    Qt5::Widgets
+    ${SY_BASE_LIBS}
     Qt5::Charts
 )
 
