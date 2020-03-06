@@ -18,6 +18,7 @@ RUN DEBIAN_FRONTEND=noninteractive eatmydata apt-get install -yq --no-install-re
     gettext \
     libegl-dev \
     qt5-default \
+    libeigen3-dev \
     libqt5serialport5-dev \
     libqt5opengl5-dev \
     libqt5charts5-dev \
