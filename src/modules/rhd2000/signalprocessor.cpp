@@ -551,7 +551,7 @@ int SignalProcessor::loadAmplifierData(queue<Rhd2000DataBlock> &dataQueue,
                                        int numBlocks, bool lookForTrigger, int triggerChannel,
                                        int triggerPolarity, int &triggerTimeIndex, bool addToBuffer, queue<Rhd2000DataBlock> &bufferQueue,
                                        bool saveToDisk, QDataStream &out, SaveFormat format, bool saveTemp,
-                                       bool saveTtlOut, int timestampOffset, Rhd2000Module *syMod)
+                                       bool saveTtlOut, int timestampOffset, const double &latencyMs, const milliseconds_t &dataRecvTimestamp, Rhd2000Module *syMod)
 {
     int block, t, channel, stream, i, j;
     int indexAmp = 0;
@@ -579,7 +579,10 @@ int SignalProcessor::loadAmplifierData(queue<Rhd2000DataBlock> &dataQueue,
 
     // register timestamps for this block for emission in syntalos streams
     // (in case no subscription exists, this does nothing)
-    setSyModSigBlockTimestamps(syMod, dataQueue.front().timeStamp);
+    VectorXu blockTimestamps = Eigen::Map<VectorXu, Eigen::Unaligned>(dataQueue.front().timeStamp.data(),
+                                                                      dataQueue.front().timeStamp.size());
+    syModAdjustTimestampsToClock(syMod, latencyMs, dataRecvTimestamp, blockTimestamps);
+    setSyModSigBlockTimestamps(syMod, blockTimestamps);
 
     for (block = 0; block < numBlocks; ++block) {
         // Load and scale RHD2000 amplifier waveforms
@@ -1340,7 +1343,8 @@ int SignalProcessor::saveBufferedData(queue<Rhd2000DataBlock> &bufferQueue, QDat
 // Returns number of bytes written to binary datastream out if saveToDisk == true.
 int SignalProcessor::loadSyntheticData(int numBlocks, double sampleRate,
                                        bool saveToDisk, QDataStream &out,
-                                       SaveFormat format, bool saveTemp, bool saveTtlOut, Rhd2000Module *syMod)
+                                       SaveFormat format, bool saveTemp, bool saveTtlOut,
+                                       std::shared_ptr<SyncTimer> syncTimer, Rhd2000Module *syMod)
 {
     int block, t, tAux, channel, stream, i, j;
     int indexAux = 0;
@@ -1476,6 +1480,14 @@ int SignalProcessor::loadSyntheticData(int numBlocks, double sampleRate,
             ++indexDig;
         }
     }
+
+    // set (fake) timestamps
+    VectorXu syTimestamps(SAMPLES_PER_DATA_BLOCK);
+    for (t = 0; t < SAMPLES_PER_DATA_BLOCK; ++t)
+        syTimestamps[t] = synthTimeStamp + t;
+
+    syModAdjustTimestampsToClock(syMod, 0, syncTimer->timeSinceStartMsec(), syTimestamps);
+    setSyModSigBlockTimestamps(syMod, syTimestamps);
 
     // publish data in Syntalos stream (if needed)
     if (syMod != nullptr)

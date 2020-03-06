@@ -2384,7 +2384,7 @@ void IntanUi::runInterfaceBoard()
 {
     assert(!running);
     recording = false;
-    interfaceBoardInitRun();
+    interfaceBoardInitRun(std::make_shared<SyncTimer>());
     interfaceBoardStartRun();
 
     while (running) {
@@ -2395,12 +2395,13 @@ void IntanUi::runInterfaceBoard()
     interfaceBoardStopFinalize();
 }
 
-void IntanUi::interfaceBoardInitRun()
+void IntanUi::interfaceBoardInitRun(std::shared_ptr<SyncTimer> syncTimer)
 {
     assert(!crd.runInitialized);
 
     // reset cycle run data
     crd.timer = QTime();
+    crd.syncTimer = syncTimer;
 
     crd.triggerEndThreshold = qCeil(postTriggerTime * boardSampleRate / (numUsbBlocksToRead * SAMPLES_PER_DATA_BLOCK)) - 1;
 
@@ -2509,9 +2510,8 @@ void IntanUi::interfaceBoardPrepareRecording()
 bool IntanUi::interfaceBoardRunCycle()
 {
     auto ret = true;
-    assert(crd.runInitialized);
-
     bool newDataReady;
+    milliseconds_t dataRecvTimestamp;
 
     // If we are running in demo mode, use a timer to periodically generate more synthetic
     // data.  If not, wait for a certain amount of data to be ready from the USB interface board.
@@ -2519,7 +2519,8 @@ bool IntanUi::interfaceBoardRunCycle()
         newDataReady = (crd.timer.elapsed() >=
                         ((int) (1000.0 * 60.0 * (double) numUsbBlocksToRead / boardSampleRate)));
     } else {
-        newDataReady = evalBoard->readDataBlocks(numUsbBlocksToRead, dataQueue);    // takes about 17 ms at 30 kS/s with 256 amplifiers
+        dataRecvTimestamp = TIMER_FUNC_TIMESTAMP(crd.syncTimer,
+                                                 newDataReady = evalBoard->readDataBlocks(numUsbBlocksToRead, dataQueue)); // takes about 17 ms at 30 kS/s with 256 amplifiers
     }
 
     // If new data is ready, then read it.
@@ -2534,7 +2535,8 @@ bool IntanUi::interfaceBoardRunCycle()
             crd.totalBytesWritten +=
                     signalProcessor->loadSyntheticData(numUsbBlocksToRead,
                                                        boardSampleRate, recording,
-                                                       *saveStream, saveFormat, saveTemp, saveTtlOut, syModule);
+                                                       *saveStream, saveFormat, saveTemp, saveTtlOut,
+                                                       crd.syncTimer, syModule);
         } else {
             // Check the number of words stored in the Opal Kelly USB interface FIFO.
             crd.wordsInFifo = evalBoard->numWordsInFifo();
@@ -2566,7 +2568,8 @@ bool IntanUi::interfaceBoardRunCycle()
                                                        (triggered ? (1 - recordTriggerPolarity) : recordTriggerPolarity),
                                                        crd.triggerIndex, triggerSet, crd.bufferQueue,
                                                        recording, *saveStream, saveFormat, saveTemp,
-                                                       saveTtlOut, crd.timestampOffset, syModule);
+                                                       saveTtlOut, crd.timestampOffset,
+                                                       crd.latency, dataRecvTimestamp, syModule);
 
             while (crd.bufferQueue.size() > crd.preTriggerBufferQueueLength) {
                 crd.bufferQueue.pop();

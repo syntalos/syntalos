@@ -26,6 +26,8 @@
 #include "stream.h"
 #include "syclock.h"
 
+using namespace Syntalos;
+
 Q_DECLARE_SMART_POINTER_METATYPE(std::shared_ptr)
 
 /**
@@ -225,7 +227,7 @@ public:
 
     size_t size() { return timestamps.size(); }
 
-    std::vector<uint> timestamps;
+    VectorXu timestamps;
     std::vector<int> data[SIGNAL_BLOCK_CHAN_COUNT];
 
     friend QDataStream &operator<<(QDataStream &out, const IntSignalBlock &obj)
@@ -262,7 +264,7 @@ public:
 
     size_t size() { return timestamps.size(); }
 
-    std::vector<uint> timestamps;
+    VectorXu timestamps;
     std::vector<double> data[SIGNAL_BLOCK_CHAN_COUNT];
 
     friend QDataStream &operator<<(QDataStream &out, const FloatSignalBlock &obj)

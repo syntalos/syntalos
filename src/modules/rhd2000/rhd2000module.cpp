@@ -113,34 +113,38 @@ bool Rhd2000Module::prepare(const TestSubject &testSubject)
     m_intanUi->setBaseFileName(intanBaseFilename);
 
     m_intanUi->interfaceBoardPrepareRecording();
-    m_intanUi->interfaceBoardInitRun();
+    m_intanUi->interfaceBoardInitRun(m_syTimer);
     m_runAction->setEnabled(false);
 
     // set sampling rate metadata and nullify every data block
     for (auto &pair : m_ampStreamBlocks) {
         pair.first->setMetadataValue(QStringLiteral("samplingRate"), m_intanUi->getSampleRate());
 
-        std::fill(pair.second->timestamps.begin(), pair.second->timestamps.end(), 0);
+        pair.second->timestamps.fill(0);
         for (auto &v : pair.second->data)
             std::fill(v.begin(), v.end(), 0);
     }
     for (auto &pair : boardADCStreamBlocks) {
         pair.first->setMetadataValue(QStringLiteral("samplingRate"), m_intanUi->getSampleRate());
 
-        std::fill(pair.second->timestamps.begin(), pair.second->timestamps.end(), 0);
+        pair.second->timestamps.fill(0);
         for (auto &v : pair.second->data)
             std::fill(v.begin(), v.end(), 0);
     }
     for (auto &pair : boardDINStreamBlocks) {
         pair.first->setMetadataValue(QStringLiteral("samplingRate"), m_intanUi->getSampleRate());
 
-        std::fill(pair.second->timestamps.begin(), pair.second->timestamps.end(), 0);
+        pair.second->timestamps.fill(0);
         for (auto &v : pair.second->data)
             std::fill(v.begin(), v.end(), 0);
     }
 
     for (auto &port : outPorts())
         port->startStream();
+
+    // set up slave-clock synchronizer
+    FreqCounterSynchronizer cs(m_syTimer, m_intanUi->getSampleRate());
+    clockSync = std::move(cs);
 
     return true;
 }

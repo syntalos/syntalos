@@ -34,9 +34,10 @@ namespace Syntalos {
  * deviation for secondary clocks from the master clock is sensible.
  */
 static constexpr auto SECONDARY_CLOCK_TOLERANCE = std::chrono::microseconds(500);
+static constexpr auto SECONDARY_CLOCK_TOLERANCE_C = SECONDARY_CLOCK_TOLERANCE.count();
 
 /**
- * @brief Syntalos Master Clock Type
+ * @brief Syntalos Master Clock
  *
  * The master clock that is used as reference for all other connected
  * and device-specific clocks.
@@ -157,11 +158,21 @@ private:
  */
 class FreqCounterSynchronizer
 {
-    explicit FreqCounterSynchronizer(std::shared_ptr<SyncTimer> masterTimer, int frequencyHz);
+public:
+    explicit FreqCounterSynchronizer();
+    explicit FreqCounterSynchronizer(std::shared_ptr<SyncTimer> masterTimer, double frequencyHz);
+
+    bool isValid() const;
+
+    void adjustTimestamps(const milliseconds_t &recvTimestamp, const double &devLatencyMs, VectorXu &idxTimestamps);
+    void adjustTimestamps(const milliseconds_t &recvTimestamp, const std::chrono::microseconds &deviceLatency, VectorXu &idxTimestamps);
 
 private:
+    bool m_valid;
     std::shared_ptr<SyncTimer> m_syTimer;
-    int m_freq;
+    double m_freq;
+    double m_timePerIndex;
+    milliseconds_t m_lastBaseTime;
 };
 
 class SecondaryClockSynchronizer {

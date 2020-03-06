@@ -21,8 +21,10 @@
 
 #include <time.h>
 #include <QDebug>
+#include <iostream>
 
 using namespace Syntalos;
+using namespace Eigen;
 
 #ifdef SYNTALOS_USE_RAW_MONOTONIC_TIME
 #define STEADY_CLOCK_ID CLOCK_MONOTONIC_RAW
@@ -63,8 +65,58 @@ void SyncTimer::startAt(const Syntalos::symaster_timepoint &startTimePoint) noex
     m_started = true;
 }
 
-FreqCounterSynchronizer::FreqCounterSynchronizer(std::shared_ptr<SyncTimer> masterTimer, int frequencyHz)
-    : m_syTimer(masterTimer),
-      m_freq(frequencyHz)
+FreqCounterSynchronizer::FreqCounterSynchronizer()
+    : m_valid(false)
+{}
+
+FreqCounterSynchronizer::FreqCounterSynchronizer(std::shared_ptr<SyncTimer> masterTimer, double frequencyHz)
+    : m_valid(true),
+      m_syTimer(masterTimer),
+      m_freq(frequencyHz),
+      m_lastBaseTime(0)
+{}
+
+bool FreqCounterSynchronizer::isValid() const
 {
+    return m_valid;
+}
+
+void FreqCounterSynchronizer::adjustTimestamps(const milliseconds_t &recvTimestamp, const double &devLatencyMs, VectorXu &idxTimestamps)
+{
+    // we want the device latency in microseconds
+    auto deviceLatency = std::chrono::microseconds(static_cast<int>(devLatencyMs * 1000));
+    adjustTimestamps(recvTimestamp, deviceLatency, idxTimestamps);
+}
+
+void FreqCounterSynchronizer::adjustTimestamps(const milliseconds_t &recvTimestamp, const std::chrono::microseconds &deviceLatency, VectorXu &idxTimestamps)
+{
+    // timestamp when (as good as we can tell...) the data was actually acquired, in milliseconds
+    const auto assumedAcqTS = std::chrono::duration_cast<milliseconds_t>(recvTimestamp - deviceLatency);
+    if (m_lastBaseTime.count() == 0)
+        m_lastBaseTime = assumedAcqTS;
+
+    // guess the actual timestamps in relation to the received timestamp in milliseconds for the given index vector
+    VectorXd times = (idxTimestamps.cast<double>() / m_freq) * 1000.0;
+    times += m_lastBaseTime.count() * VectorXd::Ones(times.rows());
+
+    // calculate current offset
+    const auto lastTimestamp = std::chrono::microseconds(static_cast<int64_t>(std::round(times[times.rows() - 1] * 1000.0)));
+    const auto timeOffsetUsec = (std::chrono::duration_cast<std::chrono::microseconds>(lastTimestamp - assumedAcqTS)).count();
+
+
+    if (std::abs(timeOffsetUsec) < SECONDARY_CLOCK_TOLERANCE_C)
+        return;
+
+    qDebug().nospace() << "Timer offset of " << timeOffsetUsec / 1000 << "ms";
+
+#if 0
+    qDebug().nospace() << "Freq: " << m_freq << "Hz "
+                       << "Timer offset of " << timeOffsetUsec / 1000 << "ms "
+                       << "LastECTS: " << lastTimestamp.count() << "µs "
+                       << "RecvTS: " << recvTimestamp.count() << "ms "
+                       << "AssumedAcqTS: " << assumedAcqTS.count() << "ms ";
+
+    //qDebug() << "TIMES:" << times[0] << times[times.rows() - 1];
+    //qDebug() << "IDX:  " << idxTimestamps[0] << idxTimestamps[idxTimestamps.rows() - 1];
+#endif
 }

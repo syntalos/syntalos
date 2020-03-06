@@ -80,6 +80,8 @@ public:
     std::vector<std::pair<std::shared_ptr<DataStream<FloatSignalBlock>>, std::shared_ptr<FloatSignalBlock>>> boardADCStreamBlocks;
     std::vector<std::pair<std::shared_ptr<DataStream<IntSignalBlock>>, std::shared_ptr<IntSignalBlock>>> boardDINStreamBlocks;
 
+    FreqCounterSynchronizer clockSync;
+
 private slots:
     void on_portsScanned(SignalSources *sources);
     void runBoardDAQ();
@@ -106,7 +108,16 @@ inline void setSyModAmplifierData(Rhd2000Module *mod, int stream, int channel, i
     }
 }
 
-inline void setSyModSigBlockTimestamps(Rhd2000Module *mod, const std::vector<uint> &timestamps)
+inline void syModAdjustTimestampsToClock(Rhd2000Module *mod,
+                                         const double &devLatencyMs, const milliseconds_t &dataRecvTimestamp, VectorXu &timestamps)
+{
+    if (mod == nullptr)
+        return;
+
+    mod->clockSync.adjustTimestamps(dataRecvTimestamp, devLatencyMs, timestamps);
+}
+
+inline void setSyModSigBlockTimestamps(Rhd2000Module *mod, const VectorXu &timestamps)
 {
     if (mod != nullptr) {
         // amplifier channels

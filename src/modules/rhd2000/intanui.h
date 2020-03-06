@@ -25,8 +25,11 @@
 #include <QWidget>
 #include <queue>
 #include <QTime>
+#include <memory>
 #include "rhd2000datablock.h"
 #include "globalconstants.h"
+#include "syclock.h"
+
 
 class QAction;
 class QPushButton;
@@ -58,6 +61,7 @@ class WaitForTriggerDialog;
 class Rhd2000Module;
 
 using namespace std;
+using namespace Syntalos;
 
 class IntanUi final : public QWidget
 {
@@ -87,7 +91,7 @@ public:
     void stopInterfaceBoard();
 
     void interfaceBoardPrepareRecording();
-    void interfaceBoardInitRun();
+    void interfaceBoardInitRun(std::shared_ptr<SyncTimer> syncTimer);
     void interfaceBoardStartRun();
     bool interfaceBoardRunCycle();
     void interfaceBoardStopFinalize();
@@ -383,6 +387,7 @@ private:
 
         int triggerIndex;
         QTime timer;
+        std::shared_ptr<SyncTimer> syncTimer;
 
         double fifoPercentageFull;
         double fifoCapacity;

@@ -505,10 +505,15 @@ bool Engine::run()
     // fetch list of modules in their activation order
     auto orderedActiveModules = createModuleExecOrderList();
 
-    auto lastPhaseTimepoint = currentTimePoint();
+    // create a new master timer for synchronization
+    d->timer.reset(new SyncTimer);
 
+    auto lastPhaseTimepoint = currentTimePoint();
+    // assume success until a module actually fails
     bool initSuccessful = true;
-    d->failed = false; // assume success until a module actually fails
+    d->failed = false;
+
+    // prepare modules
     for (auto &mod : orderedActiveModules) {
         // Prepare module. At this point it should have a timer,
         // the location where data is saved and be in the PREPARING state.

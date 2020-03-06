@@ -47,9 +47,11 @@ public:
                           bool lookForTrigger, int triggerChannel, int triggerPolarity,
                           int &triggerIndex, bool addToBuffer,
                           queue<Rhd2000DataBlock> &bufferQueue, bool saveToDisk, QDataStream &out,
-                          SaveFormat format, bool saveTemp, bool saveTtlOut, int timestampOffset, Rhd2000Module *syMod = nullptr);
+                          SaveFormat format, bool saveTemp, bool saveTtlOut, int timestampOffset,
+                          const double &latencyMs = 0, const milliseconds_t &dataRecvTimestamp = milliseconds_t(0), Rhd2000Module *syMod = nullptr);
     int loadSyntheticData(int numBlocks, double sampleRate, bool saveToDisk,
-                          QDataStream &out, SaveFormat format, bool saveTemp, bool saveTtlOut, Rhd2000Module *syMod = nullptr);
+                          QDataStream &out, SaveFormat format, bool saveTemp, bool saveTtlOut,
+                          std::shared_ptr<SyncTimer> syncTimer, Rhd2000Module *syMod = nullptr);
     int saveBufferedData(queue<Rhd2000DataBlock> &bufferQueue, QDataStream &out, SaveFormat format,
                          bool saveTemp, bool saveTtlOut, int timestampOffset);
     void createSaveList(SignalSources *signalSources, bool addTriggerChannel, int triggerChannel);
