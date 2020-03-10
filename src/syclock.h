@@ -22,6 +22,7 @@
 #include <chrono>
 #include <atomic>
 #include <memory>
+#include <QString>
 
 #include "eigenaux.h"
 
@@ -30,14 +31,20 @@ namespace Syntalos {
 /**
  * @brief The amount of time a secondary clock is allowed to deviate from the master.
  *
- * Since Syntalos uses millisecond time resolution, permitting half a millisecond
- * deviation for secondary clocks from the master clock is sensible.
+ * Since Syntalos uses millisecond time resolution, permitting (slightly more than)
+ * half a millisecond deviation for secondary clocks from the master clock is sensible.
+ *
+ * IMPORTANT: Modules may override this value for their synchronizers to one that fits their
+ * device better. This is just a default for modules which do not change the default setting.
  */
-static constexpr auto SECONDARY_CLOCK_TOLERANCE = std::chrono::microseconds(900);
-static constexpr auto SECONDARY_CLOCK_TOLERANCE_US = SECONDARY_CLOCK_TOLERANCE.count();
+static constexpr auto SECONDARY_CLOCK_TOLERANCE = std::chrono::microseconds(600);
 
 /**
  * @brief Interval at which we check for external clock synchronization
+ *
+ * IMPORTANT: This is just a default value for modules which do not explicitly define a check
+ * interval. Individual modules may choose a different value that fits the device they are
+ * communicating with best.
  */
 static constexpr auto DEFAULT_CLOCKSYNC_CHECK_INTERVAL = std::chrono::seconds(4);
 
@@ -164,25 +171,27 @@ private:
 class FreqCounterSynchronizer
 {
 public:
-    explicit FreqCounterSynchronizer();
-    explicit FreqCounterSynchronizer(std::shared_ptr<SyncTimer> masterTimer, double frequencyHz);
+    explicit FreqCounterSynchronizer(std::shared_ptr<SyncTimer> masterTimer, const QString &modName, double frequencyHz);
 
     milliseconds_t timeBase() const;
     int indexOffset() const;
 
     void setCheckInterval(const std::chrono::seconds &intervalSec);
+    void setTolerance(const std::chrono::microseconds &tolerance);
 
     void adjustTimestamps(const milliseconds_t &recvTimestamp, const double &devLatencyMs, VectorXl &idxTimestamps);
     void adjustTimestamps(const milliseconds_t &recvTimestamp, const std::chrono::microseconds &deviceLatency, VectorXl &idxTimestamps);
 
 private:
-    bool m_valid;
+    QString m_modName;
     bool m_isFirstInterval;
     std::shared_ptr<SyncTimer> m_syTimer;
+
+    uint m_toleranceUsec;
     std::chrono::seconds m_checkInterval;
     milliseconds_t m_lastUpdateTime;
+
     double m_freq;
-    double m_timePerIndex;
     milliseconds_t m_baseTime;
     int m_indexOffset;
 };

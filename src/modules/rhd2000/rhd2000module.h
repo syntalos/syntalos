@@ -80,7 +80,7 @@ public:
     std::vector<std::pair<std::shared_ptr<DataStream<FloatSignalBlock>>, std::shared_ptr<FloatSignalBlock>>> boardADCStreamBlocks;
     std::vector<std::pair<std::shared_ptr<DataStream<IntSignalBlock>>, std::shared_ptr<IntSignalBlock>>> boardDINStreamBlocks;
 
-    FreqCounterSynchronizer clockSync;
+    std::unique_ptr<FreqCounterSynchronizer> clockSync;
 
 private slots:
     void on_portsScanned(SignalSources *sources);
@@ -114,7 +114,7 @@ inline void syModAdjustTimestampsToClock(Rhd2000Module *mod,
     if (mod == nullptr)
         return;
 
-    mod->clockSync.adjustTimestamps(dataRecvTimestamp, devLatencyMs, timestamps);
+    mod->clockSync->adjustTimestamps(dataRecvTimestamp, devLatencyMs, timestamps);
 }
 
 inline void setSyModSigBlockTimestamps(Rhd2000Module *mod, const VectorXl &timestamps)

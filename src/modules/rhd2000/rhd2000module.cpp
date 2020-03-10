@@ -143,8 +143,11 @@ bool Rhd2000Module::prepare(const TestSubject &testSubject)
         port->startStream();
 
     // set up slave-clock synchronizer
-    FreqCounterSynchronizer cs(m_syTimer, m_intanUi->getSampleRate());
-    clockSync = std::move(cs);
+    clockSync = newCounterSynchronizer(m_intanUi->getSampleRate());
+
+    // permit 1ms tolerance - this was a realistic tolerance to achieve in tests,
+    // while lower values resulted in constant adjustment attempts
+    clockSync->setTolerance(std::chrono::microseconds(1000));
 
     return true;
 }

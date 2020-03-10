@@ -65,23 +65,17 @@ void SyncTimer::startAt(const Syntalos::symaster_timepoint &startTimePoint) noex
     m_started = true;
 }
 
-FreqCounterSynchronizer::FreqCounterSynchronizer()
-    : m_valid(false),
-      m_checkInterval(DEFAULT_CLOCKSYNC_CHECK_INTERVAL)
-{}
-
-FreqCounterSynchronizer::FreqCounterSynchronizer(std::shared_ptr<SyncTimer> masterTimer, double frequencyHz)
-    : m_valid(true),
+FreqCounterSynchronizer::FreqCounterSynchronizer(std::shared_ptr<SyncTimer> masterTimer, const QString &modName, double frequencyHz)
+    : m_modName(modName),
       m_isFirstInterval(true),
       m_syTimer(masterTimer),
+      m_toleranceUsec(SECONDARY_CLOCK_TOLERANCE.count()),
       m_checkInterval(DEFAULT_CLOCKSYNC_CHECK_INTERVAL),
       m_lastUpdateTime(milliseconds_t(DEFAULT_CLOCKSYNC_CHECK_INTERVAL * -1)),
       m_freq(frequencyHz),
       m_baseTime(0),
       m_indexOffset(0)
-{
-    m_checkInterval = std::chrono::seconds(1);
-}
+{}
 
 milliseconds_t FreqCounterSynchronizer::timeBase() const
 {
@@ -95,7 +89,20 @@ int FreqCounterSynchronizer::indexOffset() const
 
 void FreqCounterSynchronizer::setCheckInterval(const std::chrono::seconds &intervalSec)
 {
+    if (!m_isFirstInterval) {
+        qWarning().noquote() << "Rejected check-interval change on active FreqCounter Synchronizer for" << m_modName;
+        return;
+    }
     m_checkInterval = intervalSec;
+}
+
+void FreqCounterSynchronizer::setTolerance(const std::chrono::microseconds &tolerance)
+{
+    if (!m_isFirstInterval) {
+        qWarning().noquote() << "Rejected tolerance change on active FreqCounter Synchronizer for" << m_modName;
+        return;
+    }
+    m_toleranceUsec = tolerance.count();
 }
 
 void FreqCounterSynchronizer::adjustTimestamps(const milliseconds_t &recvTimestamp, const double &devLatencyMs, VectorXl &idxTimestamps)
@@ -132,7 +139,7 @@ void FreqCounterSynchronizer::adjustTimestamps(const milliseconds_t &recvTimesta
     const auto lastTimestamp = std::chrono::microseconds(static_cast<int64_t>(std::round(times[times.rows() - 1] * 1000.0)));
     const auto timeOffsetUsec = (std::chrono::duration_cast<std::chrono::microseconds>(assumedAcqTS - lastTimestamp)).count();
 
-    if (std::abs(timeOffsetUsec) < SECONDARY_CLOCK_TOLERANCE_US) {
+    if (std::abs(timeOffsetUsec) < m_toleranceUsec) {
         // everything is within tolerance range, no adjustments needed
         m_isFirstInterval = false;
         return;

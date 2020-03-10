@@ -607,6 +607,20 @@ protected:
      */
     void addSettingsWindow(QWidget *window, bool owned = true);
 
+    /**
+     * @brief Get new frequency/counter synchronizer
+     *
+     * This function can be called after the PREPARE phase of a module to retrieve a synchronizer
+     * for devices which have a continuous counter and a sampling frequency.
+     * A synchronizer can be used to semi-automatically synchronize a device timestamp or device clock
+     * with the master time.
+     * You will need to supply a fixed sampling rate in Hz for the given device, so the synchronizer can
+     * determine a timestamp for a sample index.
+     *
+     * Returns: A new unique counter synchronizer, or NULL if we could not create one because no master timer existed.
+     */
+    std::unique_ptr<FreqCounterSynchronizer> newCounterSynchronizer(double frequencyHz);
+
     void setInitialized();
     bool initialized() const;
 
