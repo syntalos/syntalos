@@ -21,6 +21,7 @@ target_link_libraries(test-streamperf
     ${OpenCV_LIBS}
 )
 add_test(streamperf test-streamperf)
+set_tests_properties(streamperf PROPERTIES RUN_SERIAL TRUE)
 
 #
 # Basic Timer/HRClock Test
@@ -34,3 +35,4 @@ target_link_libraries(test-timer
     Qt5::Test
 )
 add_test(timer test-timer)
+set_tests_properties(timer PROPERTIES RUN_SERIAL TRUE)
