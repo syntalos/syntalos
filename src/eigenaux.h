@@ -24,5 +24,6 @@
 namespace Syntalos {
 
 typedef Eigen::Matrix< uint , Eigen::Dynamic , 1> VectorXu;
+typedef Eigen::Matrix< long , Eigen::Dynamic , 1> VectorXl;
 
 } // end of namespace

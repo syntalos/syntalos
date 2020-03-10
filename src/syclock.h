@@ -33,8 +33,13 @@ namespace Syntalos {
  * Since Syntalos uses millisecond time resolution, permitting half a millisecond
  * deviation for secondary clocks from the master clock is sensible.
  */
-static constexpr auto SECONDARY_CLOCK_TOLERANCE = std::chrono::microseconds(500);
-static constexpr auto SECONDARY_CLOCK_TOLERANCE_C = SECONDARY_CLOCK_TOLERANCE.count();
+static constexpr auto SECONDARY_CLOCK_TOLERANCE = std::chrono::microseconds(900);
+static constexpr auto SECONDARY_CLOCK_TOLERANCE_US = SECONDARY_CLOCK_TOLERANCE.count();
+
+/**
+ * @brief Interval at which we check for external clock synchronization
+ */
+static constexpr auto DEFAULT_CLOCKSYNC_CHECK_INTERVAL = std::chrono::seconds(4);
 
 /**
  * @brief Syntalos Master Clock
@@ -162,17 +167,24 @@ public:
     explicit FreqCounterSynchronizer();
     explicit FreqCounterSynchronizer(std::shared_ptr<SyncTimer> masterTimer, double frequencyHz);
 
-    bool isValid() const;
+    milliseconds_t timeBase() const;
+    int indexOffset() const;
 
-    void adjustTimestamps(const milliseconds_t &recvTimestamp, const double &devLatencyMs, VectorXu &idxTimestamps);
-    void adjustTimestamps(const milliseconds_t &recvTimestamp, const std::chrono::microseconds &deviceLatency, VectorXu &idxTimestamps);
+    void setCheckInterval(const std::chrono::seconds &intervalSec);
+
+    void adjustTimestamps(const milliseconds_t &recvTimestamp, const double &devLatencyMs, VectorXl &idxTimestamps);
+    void adjustTimestamps(const milliseconds_t &recvTimestamp, const std::chrono::microseconds &deviceLatency, VectorXl &idxTimestamps);
 
 private:
     bool m_valid;
+    bool m_isFirstInterval;
     std::shared_ptr<SyncTimer> m_syTimer;
+    std::chrono::seconds m_checkInterval;
+    milliseconds_t m_lastUpdateTime;
     double m_freq;
     double m_timePerIndex;
-    milliseconds_t m_lastBaseTime;
+    milliseconds_t m_baseTime;
+    int m_indexOffset;
 };
 
 class SecondaryClockSynchronizer {

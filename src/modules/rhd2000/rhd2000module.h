@@ -109,7 +109,7 @@ inline void setSyModAmplifierData(Rhd2000Module *mod, int stream, int channel, i
 }
 
 inline void syModAdjustTimestampsToClock(Rhd2000Module *mod,
-                                         const double &devLatencyMs, const milliseconds_t &dataRecvTimestamp, VectorXu &timestamps)
+                                         const double &devLatencyMs, const milliseconds_t &dataRecvTimestamp, VectorXl &timestamps)
 {
     if (mod == nullptr)
         return;
@@ -117,7 +117,7 @@ inline void syModAdjustTimestampsToClock(Rhd2000Module *mod,
     mod->clockSync.adjustTimestamps(dataRecvTimestamp, devLatencyMs, timestamps);
 }
 
-inline void setSyModSigBlockTimestamps(Rhd2000Module *mod, const VectorXu &timestamps)
+inline void setSyModSigBlockTimestamps(Rhd2000Module *mod, const VectorXl &timestamps)
 {
     if (mod != nullptr) {
         // amplifier channels
