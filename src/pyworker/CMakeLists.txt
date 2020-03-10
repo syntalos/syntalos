@@ -1,6 +1,10 @@
 # PyWorker helper process
 
-find_package(Boost 1.60 REQUIRED COMPONENTS python3)
+find_package(Boost 1.60 COMPONENTS python3)
+if (NOT ${Boost_PYTHON3_FOUND})
+    find_package(Boost 1.60 REQUIRED COMPONENTS python)
+endif()
+
 find_package(NumPy REQUIRED)
 
 # Boost.Python has a few of these in templates
