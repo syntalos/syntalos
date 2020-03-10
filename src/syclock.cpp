@@ -145,14 +145,11 @@ void FreqCounterSynchronizer::adjustTimestamps(const milliseconds_t &recvTimesta
         return;
     }
 
-    qDebug().nospace() << "Freq: " << m_freq << "Hz "
+    qDebug().nospace() << "Freq: " << m_freq / 1000 << "kHz "
                        << "Timer offset of " << timeOffsetUsec / 1000 << "ms "
                        << "LastECTS: " << lastTimestamp.count() << "µs "
                        << "RecvTS: " << recvTimestamp.count() << "ms "
                        << "AssumedAcqTS: " << assumedAcqTS.count() << "ms ";
-
-    qDebug() << "TIMES:" << times[0] << times[times.rows() - 1];
-    qDebug() << "IDX:  " << idxTimestamps[0] << idxTimestamps[idxTimestamps.rows() - 1];
 
     // offset the device time index by a much smaller amount of what is needed to sync up the clocks
     // if this doesn't bring us back within tolerance, we'll adjust the index offset again
@@ -170,9 +167,10 @@ void FreqCounterSynchronizer::adjustTimestamps(const milliseconds_t &recvTimesta
         qWarning() << "External device is too fast!";
 
         if (m_isFirstInterval) {
-            change = change * 1.5;
+            // we change the initial index to match the master clock exactly
+            change = std::round((timeOffsetUsec / 1000.0 / 1000.0) * m_freq);
             m_indexOffset += change;
-            qWarning().nospace() << "Index offset changed by " << change << " to " << m_indexOffset << " (in raw idx: " << (timeOffsetUsec / 1000.0 / 1000.0) * m_freq << ")";
+            qWarning().nospace() << "Index offset changed by " << change << " to " << m_indexOffset;
         } else {
             qWarning().nospace() << "Would change index offset by " << change << " to " << m_indexOffset << " (in raw idx: " << (timeOffsetUsec / 1000.0 / 1000.0) * m_freq << "), but change not possible";
         }

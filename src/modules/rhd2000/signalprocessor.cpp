@@ -648,13 +648,13 @@ int SignalProcessor::loadAmplifierData(queue<Rhd2000DataBlock> &dataQueue,
                 if (triggerPolarity) {
                     // Trigger on logic low
                     if (boardAdc[triggerChannel - 16][indexAdc] < AnalogTriggerThreshold) {
-                        triggerTimeIndex = dataQueue.front().timeStamp[t];
+                        triggerTimeIndex = blockTimestamps[t];
                         triggerFound = true;
                     }
                 } else {
                     // Trigger on logic high
                     if (boardAdc[triggerChannel - 16][indexAdc] >= AnalogTriggerThreshold) {
-                        triggerTimeIndex = dataQueue.front().timeStamp[t];
+                        triggerTimeIndex = blockTimestamps[t];
                         triggerFound = true;
                     }
                 }
@@ -677,13 +677,13 @@ int SignalProcessor::loadAmplifierData(queue<Rhd2000DataBlock> &dataQueue,
                 if (triggerPolarity) {
                     // Trigger on logic low
                     if (boardDigIn[triggerChannel][indexDig] == 0) {
-                        triggerTimeIndex = dataQueue.front().timeStamp[t];
+                        triggerTimeIndex = blockTimestamps[t];
                         triggerFound = true;
                     }
                 } else {
                     // Trigger on logic high
                     if (boardDigIn[triggerChannel][indexDig] == 1) {
-                        triggerTimeIndex = dataQueue.front().timeStamp[t];
+                        triggerTimeIndex = blockTimestamps[t];
                         triggerFound = true;
                     }
                 }
@@ -703,7 +703,7 @@ int SignalProcessor::loadAmplifierData(queue<Rhd2000DataBlock> &dataQueue,
                 // Save timestamp data
                 bufferIndex = 0;
                 for (t = 0; t < SAMPLES_PER_DATA_BLOCK; ++t) {
-                    tempQint32 = ((qint32) dataQueue.front().timeStamp[t]) - ((qint32) timestampOffset);
+                    tempQint32 = ((qint32) blockTimestamps[t]) - ((qint32) timestampOffset);
                     dataStreamBuffer[bufferIndex++] = tempQint32 & 0x000000ff;          // Save qint 32 in little-endian format
                     dataStreamBuffer[bufferIndex++] = (tempQint32 & 0x0000ff00) >> 8;
                     dataStreamBuffer[bufferIndex++] = (tempQint32 & 0x00ff0000) >> 16;
@@ -794,7 +794,7 @@ int SignalProcessor::loadAmplifierData(queue<Rhd2000DataBlock> &dataQueue,
                 // Save timestamp data
                 bufferIndex = 0;
                 for (t = 0; t < SAMPLES_PER_DATA_BLOCK; ++t) {
-                    tempQint32 = ((qint32) dataQueue.front().timeStamp[t]) - ((qint32) timestampOffset);
+                    tempQint32 = ((qint32) blockTimestamps[t]) - ((qint32) timestampOffset);
                     dataStreamBuffer[bufferIndex++] = tempQint32 & 0x000000ff;          // Save qint 32 in little-endian format
                     dataStreamBuffer[bufferIndex++] = (tempQint32 & 0x0000ff00) >> 8;
                     dataStreamBuffer[bufferIndex++] = (tempQint32 & 0x00ff0000) >> 16;
@@ -891,7 +891,7 @@ int SignalProcessor::loadAmplifierData(queue<Rhd2000DataBlock> &dataQueue,
                 // Save timestamp data
                 bufferIndex = 0;
                 for (t = 0; t < SAMPLES_PER_DATA_BLOCK; ++t) {
-                    tempQint32 = ((qint32) dataQueue.front().timeStamp[t]) - ((qint32) timestampOffset);
+                    tempQint32 = ((qint32) blockTimestamps[t]) - ((qint32) timestampOffset);
                     dataStreamBuffer[bufferIndex++] = tempQint32 & 0x000000ff;          // Save qint 32 in little-endian format
                     dataStreamBuffer[bufferIndex++] = (tempQint32 & 0x0000ff00) >> 8;
                     dataStreamBuffer[bufferIndex++] = (tempQint32 & 0x00ff0000) >> 16;
@@ -1481,10 +1481,10 @@ int SignalProcessor::loadSyntheticData(int numBlocks, double sampleRate,
         }
     }
 
-    // set (fake) timestamps
+    // set (fake) timestamps vector
     VectorXl syTimestamps(SAMPLES_PER_DATA_BLOCK);
     for (t = 0; t < SAMPLES_PER_DATA_BLOCK; ++t)
-        syTimestamps[t] = synthTimeStamp + t;
+        syTimestamps[t] = synthTimeStamp++;
 
     syModAdjustTimestampsToClock(syMod, 0, syncTimer->timeSinceStartMsec(), syTimestamps);
     setSyModSigBlockTimestamps(syMod, syTimestamps);
@@ -1500,7 +1500,7 @@ int SignalProcessor::loadSyntheticData(int numBlocks, double sampleRate,
             for (block = 0; block < numBlocks; ++block) {
                 // Save timestamp data
                 for (t = 0; t < SAMPLES_PER_DATA_BLOCK; ++t) {
-                    out << (qint32) (synthTimeStamp++);
+                    out << (qint32) (syTimestamps[t]);
                     numWordsWritten += 2;
                 }
                 // Save amplifier data
@@ -1565,7 +1565,7 @@ int SignalProcessor::loadSyntheticData(int numBlocks, double sampleRate,
             for (block = 0; block < numBlocks; ++block) {
                 // Save timestamp data
                 for (t = 0; t < SAMPLES_PER_DATA_BLOCK; ++t) {
-                    *(timestampStream) << (qint32) (synthTimeStamp++);
+                    *(timestampStream) << (qint32) (syTimestamps[t]);
                     numWordsWritten += 2;
                 }
 
@@ -1614,7 +1614,7 @@ int SignalProcessor::loadSyntheticData(int numBlocks, double sampleRate,
             for (block = 0; block < numBlocks; ++block) {
                 // Save timestamp data
                 for (t = 0; t < SAMPLES_PER_DATA_BLOCK; ++t) {
-                    *(timestampStream) << (qint32) (synthTimeStamp++);
+                    *(timestampStream) << (qint32) (syTimestamps[t]);
                     numWordsWritten += 2;
                 }
 
