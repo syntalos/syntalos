@@ -17,10 +17,14 @@ set(SYNTALOS_SRC
     eigenaux.h
     syclock.h
     syclock.cpp
+    timesync.h
+    timesync.cpp
     mainwindow.h
     mainwindow.cpp
     testsubjectlistmodel.h
     testsubjectlistmodel.cpp
+    timingsdialog.h
+    timingsdialog.cpp
     moduleapi.h
     moduleapi.cpp
     modulelibrary.h
@@ -48,6 +52,7 @@ set(SYNTALOS_UI
     moduleselectdialog.ui
     aboutdialog.ui
     modulegraphform.ui
+    timingsdialog.ui
 )
 
 qt5_wrap_ui(SYNTALOS_UI_SRC ${SYNTALOS_UI})

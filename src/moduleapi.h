@@ -29,6 +29,7 @@
 #include <QDebug>
 
 #include "syclock.h"
+#include "timesync.h"
 #include "streams/datatypes.h"
 #include "optionalwaitcondition.h"
 
@@ -111,8 +112,12 @@ private:
     void setCount(int count);
 };
 
-//#define ModuleInfoInterface_iid "com.draguhnlab.MazeAmaze.ModuleInfoInterface"
-//Q_DECLARE_INTERFACE(Syntalos::ModuleInfo, ModuleInfoInterface_iid)
+} // end Syntalos of namespace
+
+#define ModuleInfoInterface_iid "com.draguhnlab.MazeAmaze.ModuleInfoInterface"
+Q_DECLARE_INTERFACE(Syntalos::ModuleInfo, ModuleInfoInterface_iid)
+
+namespace Syntalos {
 
 /**
  * @brief The TestSubject struct
@@ -548,6 +553,9 @@ signals:
     void nameChanged(const QString& name);
     void portsConnected(const VarStreamInputPort *inPort, const StreamOutputPort *outPort);
     void portConfigurationUpdated();
+    void synchronizerDetailsChanged(const QString &id, const std::chrono::microseconds tolerance,
+                                    const std::chrono::microseconds checkInterval);
+    void synchronizerOffsetChanged(const QString &id, const std::chrono::microseconds currentOffset);
 
 protected:
     void raiseError(const QString& message);

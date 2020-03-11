@@ -68,7 +68,9 @@ signals:
     void modulePreRemove(AbstractModule *mod);
 
     void statusMessage(const QString &message);
+    void runStarted();
     void runFailed(AbstractModule *mod, const QString &message);
+    void runStopped();
     void moduleError(AbstractModule *mod, const QString& message);
 
 private slots:

@@ -6,6 +6,7 @@
 #include "syclock.h"
 
 using namespace Syntalos;
+using namespace Eigen;
 
 int slow_work_with_result(int para)
 {

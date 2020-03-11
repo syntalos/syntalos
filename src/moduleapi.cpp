@@ -629,7 +629,7 @@ std::unique_ptr<FreqCounterSynchronizer> AbstractModule::newCounterSynchronizer(
         return nullptr;
     assert(frequencyHz > 0);
 
-    std::unique_ptr<FreqCounterSynchronizer> synchronizer(new FreqCounterSynchronizer(m_syTimer, name(), frequencyHz));
+    std::unique_ptr<FreqCounterSynchronizer> synchronizer(new FreqCounterSynchronizer(m_syTimer, this, frequencyHz));
     return synchronizer;
 }
 

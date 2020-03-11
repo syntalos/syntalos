@@ -672,24 +672,35 @@
     </property>
     <addaction name="actionAbout"/>
    </widget>
-   <widget class="QMenu" name="menuTool">
+   <widget class="QMenu" name="menuFile">
     <property name="title">
-     <string>&amp;Tool</string>
+     <string>&amp;File</string>
     </property>
+    <widget class="QMenu" name="menuTest_Subjects">
+     <property name="title">
+      <string>Test Subjects</string>
+     </property>
+     <property name="icon">
+      <iconset theme="view-list-details"/>
+     </property>
+     <addaction name="actionSubjectsLoad"/>
+     <addaction name="actionSubjectsSave"/>
+    </widget>
     <addaction name="actionLoadSettings"/>
     <addaction name="actionSaveSettings"/>
     <addaction name="separator"/>
+    <addaction name="separator"/>
+    <addaction name="menuTest_Subjects"/>
     <addaction name="actionQuit"/>
    </widget>
-   <widget class="QMenu" name="menuTest_Subjects">
+   <widget class="QMenu" name="menuDiagnostics">
     <property name="title">
-     <string>Test Sub&amp;jects</string>
+     <string>Diagnostics</string>
     </property>
-    <addaction name="actionSubjectsLoad"/>
-    <addaction name="actionSubjectsSave"/>
+    <addaction name="actionTimings"/>
    </widget>
-   <addaction name="menuTool"/>
-   <addaction name="menuTest_Subjects"/>
+   <addaction name="menuFile"/>
+   <addaction name="menuDiagnostics"/>
    <addaction name="menuHelp"/>
   </widget>
   <widget class="QToolBar" name="mainToolBar">
@@ -809,6 +820,15 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+M</string>
+   </property>
+  </action>
+  <action name="actionTimings">
+   <property name="icon">
+    <iconset theme="clock">
+     <normaloff>.</normaloff>.</iconset>
+   </property>
+   <property name="text">
+    <string>Timings</string>
    </property>
   </action>
  </widget>

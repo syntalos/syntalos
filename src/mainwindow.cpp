@@ -59,6 +59,7 @@
 #include "aboutdialog.h"
 #include "engine.h"
 #include "moduleapi.h"
+#include "timingsdialog.h"
 
 
 // config format API level
@@ -210,6 +211,9 @@ MainWindow::MainWindow(QWidget *parent) :
 
     ui->subjectSelectComboBox->setModel(m_subjectList);
 
+    // diagnostics panels
+    m_timingsDialog = new TimingsDialog(this);
+
     // configure actions
     ui->actionRun->setEnabled(false);
     ui->actionStop->setEnabled(false);
@@ -235,6 +239,7 @@ MainWindow::MainWindow(QWidget *parent) :
     m_engine = ui->graphForm->engine();
     connect(m_engine, &Engine::runFailed, this, &MainWindow::moduleErrorReceived);
     connect(m_engine, &Engine::statusMessage, this, &MainWindow::statusMessageChanged);
+    connect(m_engine, &Engine::moduleCreated, this, &MainWindow::onModuleCreated);
 
     // create loading indicator for long loading/running tasks
     m_runIndicatorWidget = new QSvgWidget(this);
@@ -659,6 +664,12 @@ void MainWindow::aboutActionTriggered()
     about.exec();
 }
 
+void MainWindow::onModuleCreated(ModuleInfo *, AbstractModule *mod)
+{
+    connect(mod, &AbstractModule::synchronizerDetailsChanged, m_timingsDialog, &TimingsDialog::onSynchronizerDetailsChanged);
+    connect(mod, &AbstractModule::synchronizerOffsetChanged, m_timingsDialog, &TimingsDialog::onSynchronizerOffsetChanged);
+}
+
 void MainWindow::setStatusText(const QString& msg)
 {
     m_statusBarLabel->setText(msg);
@@ -717,4 +728,9 @@ void MainWindow::on_actionSubjectsSave_triggered()
 
     QTextStream out(&f);
     out << QJsonDocument(m_subjectList->toJson()).toJson();
+}
+
+void MainWindow::on_actionTimings_triggered()
+{
+    m_timingsDialog->show();
 }

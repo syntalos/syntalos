@@ -22,7 +22,6 @@
 #include <chrono>
 #include <atomic>
 #include <memory>
-#include <QString>
 
 #include "eigenaux.h"
 
@@ -156,48 +155,5 @@ private:
     F; \
     std::chrono::round<milliseconds_t>((__stime + std::chrono::duration_cast<std::chrono::nanoseconds>(symaster_clock::now() - (INIT_TIME))) / 2.0); \
     })
-
-
-/**
- * @brief Synchronizer for a monotonic counter, given a frequency
- *
- * This synchronizer helps synchronizing the counting of a monotonic counter
- * (e.g. adding an increasing index number to signals/frames/etc. from a starting point)
- * to the master clock if we know a sampling frequency for the counter.
- *
- * The adjusted counter is guaranteed to never move backwards, but gaps and identical timestamps
- * (depending on the settings) may occur.
- */
-class FreqCounterSynchronizer
-{
-public:
-    explicit FreqCounterSynchronizer(std::shared_ptr<SyncTimer> masterTimer, const QString &modName, double frequencyHz);
-
-    milliseconds_t timeBase() const;
-    int indexOffset() const;
-
-    void setCheckInterval(const std::chrono::seconds &intervalSec);
-    void setTolerance(const std::chrono::microseconds &tolerance);
-
-    void adjustTimestamps(const milliseconds_t &recvTimestamp, const double &devLatencyMs, VectorXl &idxTimestamps);
-    void adjustTimestamps(const milliseconds_t &recvTimestamp, const std::chrono::microseconds &deviceLatency, VectorXl &idxTimestamps);
-
-private:
-    QString m_modName;
-    bool m_isFirstInterval;
-    std::shared_ptr<SyncTimer> m_syTimer;
-
-    uint m_toleranceUsec;
-    std::chrono::seconds m_checkInterval;
-    milliseconds_t m_lastUpdateTime;
-
-    double m_freq;
-    milliseconds_t m_baseTime;
-    int m_indexOffset;
-};
-
-class SecondaryClockSynchronizer {
-
-};
 
 } // end of namespace

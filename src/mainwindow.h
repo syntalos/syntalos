@@ -34,6 +34,7 @@ namespace Syntalos {
 class Engine;
 class ModuleInfo;
 class AbstractModule;
+class TimingsDialog;
 }
 
 namespace Ui {
@@ -64,12 +65,14 @@ private slots:
 
     void aboutActionTriggered();
 
+    void onModuleCreated(ModuleInfo *info, AbstractModule *mod);
     void moduleErrorReceived(AbstractModule *mod, const QString& message);
 
     void statusMessageChanged(const QString &message);
 
     void on_actionSubjectsLoad_triggered();
     void on_actionSubjectsSave_triggered();
+    void on_actionTimings_triggered();
 
 protected:
     void closeEvent(QCloseEvent *event) override;
@@ -96,6 +99,8 @@ private:
     QSvgWidget *m_runIndicatorWidget;
 
     TestSubjectListModel *m_subjectList;
+
+    TimingsDialog *m_timingsDialog;
 };
 
 #endif // MAINWINDOW_H
