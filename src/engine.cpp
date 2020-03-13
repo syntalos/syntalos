@@ -75,6 +75,11 @@ Engine::Engine(QWidget *parentWidget)
     // and also register all other transmittable data types
     // with the meta object system
     registerStreamMetaTypes();
+
+    // for time synchronizers - this metatype can not be registered in the
+    // synchronizers, as they may run in arbitrary threads and some may even
+    // try to register simultaneously
+    qRegisterMetaType<TimeSyncStrategies>();
 }
 
 Engine::~Engine()
@@ -247,9 +252,10 @@ AbstractModule *Engine::moduleByName(const QString &name) const
 bool Engine::makeDirectory(const QString &dir)
 {
     if (!QDir().mkpath(dir)) {
+        const auto message = QStringLiteral("Unable to create directory '%1'.").arg(dir);
         QMessageBox::critical(d->parentWidget,
                               QStringLiteral("Error"),
-                              QStringLiteral("Unable to create directory '%1'.").arg(dir));
+                              message);
         emitStatusMessage("OS error.");
         return false;
     }
@@ -502,6 +508,9 @@ bool Engine::run()
     if (!makeDirectory(d->exportDir))
         return false;
 
+    // tell listeners that we are preparing a run
+    emit preRunStart();
+
     // fetch list of modules in their activation order
     auto orderedActiveModules = createModuleExecOrderList();
 
@@ -695,6 +704,9 @@ bool Engine::run()
 
         qDebug().noquote().nospace() << "Engine: " << "Startup phase completed, all modules are running. Took additional " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
 
+        // tell listeners that we are running now
+        emit runStarted();
+
         emitStatusMessage(QStringLiteral("Running..."));
 
         // run the main loop and process UI events
@@ -847,6 +859,9 @@ bool Engine::run()
 
         qDebug().noquote().nospace() << "Engine: " << "Manifest and additional data saved in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
     }
+
+    // tell listeners that we are stopped now
+    emit runStopped();
 
     emitStatusMessage(QStringLiteral("Ready."));
     return true;

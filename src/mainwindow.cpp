@@ -240,6 +240,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(m_engine, &Engine::runFailed, this, &MainWindow::moduleErrorReceived);
     connect(m_engine, &Engine::statusMessage, this, &MainWindow::statusMessageChanged);
     connect(m_engine, &Engine::moduleCreated, this, &MainWindow::onModuleCreated);
+    connect(m_engine, &Engine::preRunStart, this, &MainWindow::onEnginePreRunStart);
 
     // create loading indicator for long loading/running tasks
     m_runIndicatorWidget = new QSvgWidget(this);
@@ -666,8 +667,8 @@ void MainWindow::aboutActionTriggered()
 
 void MainWindow::onModuleCreated(ModuleInfo *, AbstractModule *mod)
 {
-    connect(mod, &AbstractModule::synchronizerDetailsChanged, m_timingsDialog, &TimingsDialog::onSynchronizerDetailsChanged);
-    connect(mod, &AbstractModule::synchronizerOffsetChanged, m_timingsDialog, &TimingsDialog::onSynchronizerOffsetChanged);
+    connect(mod, &AbstractModule::synchronizerDetailsChanged, m_timingsDialog, &TimingsDialog::onSynchronizerDetailsChanged, Qt::QueuedConnection);
+    connect(mod, &AbstractModule::synchronizerOffsetChanged, m_timingsDialog, &TimingsDialog::onSynchronizerOffsetChanged, Qt::QueuedConnection);
 }
 
 void MainWindow::setStatusText(const QString& msg)
@@ -680,6 +681,11 @@ void MainWindow::moduleErrorReceived(AbstractModule *, const QString&)
 {
     setRunPossible(true);
     setStopPossible(false);
+}
+
+void MainWindow::onEnginePreRunStart()
+{
+    m_timingsDialog->clear();
 }
 
 void MainWindow::statusMessageChanged(const QString &message)

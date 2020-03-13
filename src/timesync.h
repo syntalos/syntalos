@@ -21,6 +21,8 @@
 
 #include <memory>
 #include <QString>
+#include <QMetaType>
+#include <QDataStream>
 
 #include "syclock.h"
 #include "eigenaux.h"
@@ -28,6 +30,37 @@
 namespace Syntalos {
 
 class AbstractModule;
+
+/**
+ * @brief The time synchronization strategy
+ */
+enum class TimeSyncStrategy {
+    INVALID = 0,
+    SHIFT_TIMESTAMPS_FWD = 1 << 0, /// Move timestamps forward to match the master clock
+    SHIFT_TIMESTAMPS_BWD = 1 << 1, /// Move timestamps backward to match the master clock
+    ADJUST_CLOCK         = 1 << 2, /// Do not change timestamps by adjust the secondary clocks to match the master clock
+    WRITE_TSYNCFILE      = 1 << 3  /// Do not directly adjust timestamps, but write a time-sync file to correct for errors in postprocessing
+};
+Q_DECLARE_FLAGS(TimeSyncStrategies, TimeSyncStrategy)
+Q_DECLARE_OPERATORS_FOR_FLAGS(TimeSyncStrategies)
+
+const QString timeSyncStrategyToHString(const TimeSyncStrategy &strategy);
+const QString timeSyncStrategiesToHString(const TimeSyncStrategies &strategies);
+
+} // end of namespace
+
+Q_DECLARE_METATYPE(Syntalos::TimeSyncStrategies);
+
+namespace Syntalos {
+
+class TimeSyncFileWriter
+{
+public:
+    explicit TimeSyncFileWriter();
+
+private:
+    QDataStream m_stream;
+};
 
 /**
  * @brief Synchronizer for a monotonic counter, given a frequency
@@ -47,8 +80,10 @@ public:
     milliseconds_t timeBase() const;
     int indexOffset() const;
 
+    void setStrategies(const TimeSyncStrategies &strategies);
     void setCheckInterval(const std::chrono::seconds &intervalSec);
     void setTolerance(const std::chrono::microseconds &tolerance);
+    void setTimeSyncFilename(const QString &fname);
 
     void adjustTimestamps(const milliseconds_t &recvTimestamp, const double &devLatencyMs, VectorXl &idxTimestamps);
     void adjustTimestamps(const milliseconds_t &recvTimestamp, const std::chrono::microseconds &deviceLatency, VectorXl &idxTimestamps);
@@ -56,6 +91,7 @@ public:
 private:
     AbstractModule *m_mod;
     QString m_id;
+    TimeSyncStrategies m_strategies;
     bool m_isFirstInterval;
     std::shared_ptr<SyncTimer> m_syTimer;
 

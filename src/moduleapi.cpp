@@ -623,7 +623,7 @@ void AbstractModule::addSettingsWindow(QWidget *window, bool owned)
     d->settingsWindows.append(qMakePair(window, owned));
 }
 
-std::unique_ptr<FreqCounterSynchronizer> AbstractModule::newCounterSynchronizer(double frequencyHz)
+std::unique_ptr<FreqCounterSynchronizer> AbstractModule::initCounterSynchronizer(double frequencyHz)
 {
     if ((d->state != ModuleState::PREPARING) && (d->state != ModuleState::READY) && (d->state != ModuleState::RUNNING))
         return nullptr;

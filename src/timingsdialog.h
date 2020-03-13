@@ -37,12 +37,14 @@ class TimingDisplayWidget : public QWidget
 public:
     explicit TimingDisplayWidget(const QString &title, QWidget *parent = nullptr);
 
+    void setStrategies(const TimeSyncStrategies &strategies);
     void setCheckInterval(const std::chrono::microseconds &interval);
     void setTolerance(const std::chrono::microseconds &tolerance);
     void setCurrentOffset(const std::chrono::microseconds &offset);
 
 private:
     QLabel *m_lblTitle;
+    QLabel *m_lblStrategies;
     QLabel *m_lblInterval;
     QLabel *m_lblTolerance;
     QLabel *m_lblOffset;
@@ -57,7 +59,8 @@ public:
     explicit TimingsDialog(QWidget *parent = nullptr);
     ~TimingsDialog();
 
-    void onSynchronizerDetailsChanged(const QString &id, const std::chrono::microseconds tolerance,
+    void onSynchronizerDetailsChanged(const QString &id, const TimeSyncStrategies &strategies,
+                                      const std::chrono::microseconds tolerance,
                                       const std::chrono::microseconds checkInterval);
     void onSynchronizerOffsetChanged(const QString &id, const std::chrono::microseconds currentOffset);
 

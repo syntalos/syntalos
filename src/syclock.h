@@ -22,8 +22,12 @@
 #include <chrono>
 #include <atomic>
 #include <memory>
+#include <QMetaType>
 
 #include "eigenaux.h"
+
+Q_DECLARE_METATYPE(std::chrono::milliseconds);
+Q_DECLARE_METATYPE(std::chrono::microseconds);
 
 namespace Syntalos {
 
@@ -77,6 +81,9 @@ using symaster_timepoint = std::chrono::time_point<symaster_clock>;
 
 /// Shorthand for milliseconds
 using milliseconds_t = std::chrono::milliseconds;
+
+/// Shorthand for microseconds
+using microseconds_t = std::chrono::microseconds;
 
 inline milliseconds_t timeDiffMsec(const symaster_timepoint &timePoint1, const symaster_timepoint &timePoint2) noexcept
 {

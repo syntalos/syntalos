@@ -32,6 +32,7 @@ TimingDisplayWidget::TimingDisplayWidget(const QString &title, QWidget *parent)
     m_lblTitle->setFont(font);
     m_lblTitle->setText(title);
 
+    m_lblStrategies = new QLabel(this);
     m_lblTolerance = new QLabel(this);
     m_lblInterval = new QLabel(this);
     m_lblOffset = new QLabel(this);
@@ -51,10 +52,18 @@ TimingDisplayWidget::TimingDisplayWidget(const QString &title, QWidget *parent)
     layout->addWidget(new QLabel(QStringLiteral("Offset"), this), 3, 0);
     layout->addWidget(m_lblOffset, 3, 1);
 
-    layout->addWidget(m_lblInfo, 4, 0, 1, 2);
+    layout->addWidget(new QLabel(QStringLiteral("Strategies"), this), 4, 0);
+    layout->addWidget(m_lblStrategies, 4, 1);
+
+    layout->addWidget(m_lblInfo, 5, 0, 1, 2);
 
     setLayout(layout);
     setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Minimum);
+}
+
+void TimingDisplayWidget::setStrategies(const TimeSyncStrategies &strategies)
+{
+    m_lblStrategies->setText(timeSyncStrategiesToHString(strategies));
 }
 
 void TimingDisplayWidget::setCheckInterval(const std::chrono::microseconds &interval)
@@ -86,7 +95,7 @@ TimingsDialog::~TimingsDialog()
     delete ui;
 }
 
-void TimingsDialog::onSynchronizerDetailsChanged(const QString &id, const std::chrono::microseconds tolerance, const std::chrono::microseconds checkInterval)
+void TimingsDialog::onSynchronizerDetailsChanged(const QString &id, const TimeSyncStrategies &strategies, const std::chrono::microseconds tolerance, const std::chrono::microseconds checkInterval)
 {
     Q_UNUSED(id)
     auto mod = ::qobject_cast<AbstractModule*>(sender());
@@ -101,6 +110,7 @@ void TimingsDialog::onSynchronizerDetailsChanged(const QString &id, const std::c
             ui->layoutRightPanel->insertWidget(ui->layoutRightPanel->count()-1, tdisp);
         m_tdispMap[mod] = tdisp;
     }
+    tdisp->setStrategies(strategies);
     tdisp->setCheckInterval(checkInterval);
     tdisp->setTolerance(tolerance);
 }

@@ -43,7 +43,12 @@ symaster_clock::time_point symaster_clock::now() noexcept
 
 SyncTimer::SyncTimer()
     : m_started(false)
-{}
+{
+    // Synchronizers and other timer-dependent classes may need to send these types
+    // in queued connections, so we ensure metatypes are registered for them
+    qRegisterMetaType<std::chrono::milliseconds>();
+    qRegisterMetaType<std::chrono::microseconds>();
+}
 
 void SyncTimer::start() noexcept
 {

@@ -27,9 +27,52 @@
 using namespace Syntalos;
 using namespace Eigen;
 
+const QString Syntalos::timeSyncStrategyToHString(const TimeSyncStrategy &strategy)
+{
+    switch (strategy) {
+    case TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD:
+        return QStringLiteral("shift timestamps (forward)");
+    case TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD:
+        return QStringLiteral("shift timestamps (backward)");
+    case TimeSyncStrategy::ADJUST_CLOCK:
+        return QStringLiteral("align secondary clock");
+    case TimeSyncStrategy::WRITE_TSYNCFILE:
+        return QStringLiteral("write time-sync file");
+    default:
+        return QStringLiteral("invalid");
+    }
+}
+
+const QString Syntalos::timeSyncStrategiesToHString(const TimeSyncStrategies &strategies)
+{
+    QStringList sl;
+
+    if (strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD) && strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD)) {
+        sl.append(QStringLiteral("shift timestamps"));
+    } else {
+        if (strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD))
+            sl.append(timeSyncStrategyToHString(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD));
+        if (strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD))
+            sl.append(timeSyncStrategyToHString(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD));
+    }
+    if (strategies.testFlag(TimeSyncStrategy::ADJUST_CLOCK))
+        sl.append(timeSyncStrategyToHString(TimeSyncStrategy::ADJUST_CLOCK));
+    if (strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
+        sl.append(timeSyncStrategyToHString(TimeSyncStrategy::WRITE_TSYNCFILE));
+
+    return sl.join(" and ");
+}
+
+TimeSyncFileWriter::TimeSyncFileWriter()
+{
+    m_stream.setVersion(QDataStream::Qt_5_12);
+    m_stream.setByteOrder(QDataStream::LittleEndian);
+}
+
 FreqCounterSynchronizer::FreqCounterSynchronizer(std::shared_ptr<SyncTimer> masterTimer, AbstractModule *mod, double frequencyHz, const QString &id)
     : m_mod(mod),
       m_id(id),
+      m_strategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD | TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD),
       m_isFirstInterval(true),
       m_syTimer(masterTimer),
       m_toleranceUsec(SECONDARY_CLOCK_TOLERANCE.count()),
@@ -41,6 +84,9 @@ FreqCounterSynchronizer::FreqCounterSynchronizer(std::shared_ptr<SyncTimer> mast
 {
     if (m_id.isEmpty())
         m_id = createRandomString(4);
+
+    // make our existence known to the system
+    emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec), m_checkInterval);
 }
 
 milliseconds_t FreqCounterSynchronizer::timeBase() const
@@ -53,6 +99,16 @@ int FreqCounterSynchronizer::indexOffset() const
     return m_indexOffset;
 }
 
+void FreqCounterSynchronizer::setStrategies(const TimeSyncStrategies &strategies)
+{
+    if (!m_isFirstInterval) {
+        qWarning().noquote() << "Rejected strategy change on active FreqCounter Synchronizer for" << m_mod->name();
+        return;
+    }
+    m_strategies = strategies;
+    emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec), m_checkInterval);
+}
+
 void FreqCounterSynchronizer::setCheckInterval(const std::chrono::seconds &intervalSec)
 {
     if (!m_isFirstInterval) {
@@ -60,7 +116,7 @@ void FreqCounterSynchronizer::setCheckInterval(const std::chrono::seconds &inter
         return;
     }
     m_checkInterval = intervalSec;
-    emit m_mod->synchronizerDetailsChanged(m_id, std::chrono::microseconds(m_toleranceUsec), m_checkInterval);
+    emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec), m_checkInterval);
 }
 
 void FreqCounterSynchronizer::setTolerance(const std::chrono::microseconds &tolerance)
@@ -70,7 +126,7 @@ void FreqCounterSynchronizer::setTolerance(const std::chrono::microseconds &tole
         return;
     }
     m_toleranceUsec = tolerance.count();
-    emit m_mod->synchronizerDetailsChanged(m_id, std::chrono::microseconds(m_toleranceUsec), m_checkInterval);
+    emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec), m_checkInterval);
 }
 
 void FreqCounterSynchronizer::adjustTimestamps(const milliseconds_t &recvTimestamp, const double &devLatencyMs, VectorXl &idxTimestamps)
@@ -128,29 +184,32 @@ void FreqCounterSynchronizer::adjustTimestamps(const milliseconds_t &recvTimesta
     // the next time this function is run
     // how slowly the external timestamps ares adjusted depends on the DAQ frequency - the slower it runs,
     // the faster we adjust it.
-    int change = std::floor(((timeOffsetUsec / 1000.0 / 1000.0) * m_freq) / (m_freq / 20000 + 1));
+    int changeInt = std::floor(((timeOffsetUsec / 1000.0 / 1000.0) * m_freq) / (m_freq / 20000 + 1));
+    VectorXl change;
 
     if (timeOffsetUsec > 0) {
         // the external device is running too slow
 
-        m_indexOffset += change;
-        qWarning().nospace() << "Index offset changed by " << change << " to " << m_indexOffset << " (in raw idx: " << (timeOffsetUsec / 1000.0 / 1000.0) * m_freq << ")";
+        change = VectorXl::LinSpaced(idxTimestamps.rows(), 0, changeInt);
+        qWarning().nospace() << "Index offset changed by " << changeInt << " to " << m_indexOffset << " (in raw idx: " << (timeOffsetUsec / 1000.0 / 1000.0) * m_freq << ")";
     } else {
         qWarning() << "External device is too fast!";
 
         if (m_isFirstInterval) {
             // we change the initial index to match the master clock exactly
-            change = std::round((timeOffsetUsec / 1000.0 / 1000.0) * m_freq);
-            m_indexOffset += change;
-            qWarning().nospace() << "Index offset changed by " << change << " to " << m_indexOffset;
+            changeInt = std::round((timeOffsetUsec / 1000.0 / 1000.0) * m_freq);
+            change = VectorXl::LinSpaced(idxTimestamps.rows(), 0, changeInt);
+            m_indexOffset += change[change.rows() - 1];
+
+            qWarning().nospace() << "Index offset changed by " << changeInt << " to " << m_indexOffset;
         } else {
-            qWarning().nospace() << "Would change index offset by " << change << " to " << m_indexOffset << " (in raw idx: " << (timeOffsetUsec / 1000.0 / 1000.0) * m_freq << "), but change not possible";
+            qWarning().nospace() << "Would change index offset by " << changeInt << " to " << m_indexOffset << " (in raw idx: " << (timeOffsetUsec / 1000.0 / 1000.0) * m_freq << "), but change not possible";
         }
     }
 
     // adjust time indices again based on the current change
-    if (change != 0)
-        idxTimestamps += VectorXl::LinSpaced(idxTimestamps.rows(), 0, change);
+    if (changeInt != 0)
+        idxTimestamps += change;
 
     m_isFirstInterval = false;
     qDebug().noquote() << "";

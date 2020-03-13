@@ -67,6 +67,7 @@ private slots:
 
     void onModuleCreated(ModuleInfo *info, AbstractModule *mod);
     void moduleErrorReceived(AbstractModule *mod, const QString& message);
+    void onEnginePreRunStart();
 
     void statusMessageChanged(const QString &message);
 

@@ -553,7 +553,8 @@ signals:
     void nameChanged(const QString& name);
     void portsConnected(const VarStreamInputPort *inPort, const StreamOutputPort *outPort);
     void portConfigurationUpdated();
-    void synchronizerDetailsChanged(const QString &id, const std::chrono::microseconds tolerance,
+    void synchronizerDetailsChanged(const QString &id, const TimeSyncStrategies &strategies,
+                                    const std::chrono::microseconds tolerance,
                                     const std::chrono::microseconds checkInterval);
     void synchronizerOffsetChanged(const QString &id, const std::chrono::microseconds currentOffset);
 
@@ -627,7 +628,7 @@ protected:
      *
      * Returns: A new unique counter synchronizer, or NULL if we could not create one because no master timer existed.
      */
-    std::unique_ptr<FreqCounterSynchronizer> newCounterSynchronizer(double frequencyHz);
+    std::unique_ptr<FreqCounterSynchronizer> initCounterSynchronizer(double frequencyHz);
 
     void setInitialized();
     bool initialized() const;
