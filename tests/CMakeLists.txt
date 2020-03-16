@@ -12,11 +12,10 @@ include_directories(
 add_executable(test-streamperf
     test-streamperf.cpp
     testbarrier.h
-    ${CMAKE_SOURCE_DIR}/src/streams/stream.cpp
-    ${CMAKE_SOURCE_DIR}/src/syclock.cpp
 )
 target_link_libraries(test-streamperf
     ${SY_BASE_LIBS}
+    syntalos_shared
     Qt5::Test
     ${OpenCV_LIBS}
 )
@@ -28,10 +27,10 @@ set_tests_properties(streamperf PROPERTIES RUN_SERIAL TRUE)
 #
 add_executable(test-timer
     test-timer.cpp
-    ${CMAKE_SOURCE_DIR}/src/syclock.cpp
 )
 target_link_libraries(test-timer
     ${SY_BASE_LIBS}
+    syntalos_shared
     Qt5::Test
 )
 add_test(timer test-timer)

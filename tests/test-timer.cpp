@@ -4,6 +4,8 @@
 #include <QDebug>
 
 #include "syclock.h"
+#include "timesync.h"
+#include "utils.h"
 
 using namespace Syntalos;
 using namespace Eigen;
@@ -29,6 +31,41 @@ private slots:
         QVERIFY((res.count() < 251) && (res.count() > 249));
 
         QVERIFY(timer->timeSinceStartMsec().count() >= 512);
+    }
+
+    void runTSyncFile()
+    {
+        auto tsFilename = QStringLiteral("/tmp/tstest-%1").arg(createRandomString(8));
+
+        // write a timesync file
+        auto tswriter = new TimeSyncFileWriter;
+        auto ret = tswriter->open(tsFilename, QStringLiteral("UnittestDummyModule"), microseconds_t(4 * 1000 * 1000), microseconds_t(1500));
+        QVERIFY2(ret, qPrintable(tswriter->lastError()));
+
+        for (int i = 0; i < 100; ++i)
+            tswriter->writeTimeOffset(microseconds_t(i * 1000), microseconds_t(i * 50));
+        delete tswriter;
+
+        // read the timesync file
+        auto tsreader = new TimeSyncFileReader;
+        ret = tsreader->open(tsFilename + QStringLiteral(".tsync"));
+        QVERIFY2(ret, qPrintable(tsreader->lastError()));
+
+        QCOMPARE(tsreader->checkInterval().count(), 4 * 1000 * 1000);
+        QCOMPARE(tsreader->tolerance().count(), 1500);
+        QCOMPARE(tsreader->moduleName(), QStringLiteral("UnittestDummyModule"));
+
+        QCOMPARE(tsreader->offsets().count(), 100);
+        for (int i = 0; i < tsreader->offsets().count(); ++i) {
+            const auto pair = tsreader->offsets()[i];
+            QCOMPARE(pair.first, microseconds_t(i * 1000));
+            QCOMPARE(pair.second, microseconds_t(i * 50));
+        }
+        delete tsreader;
+
+        // delete temporary file
+        QFile file (tsFilename);
+        file.remove();
     }
 };
 

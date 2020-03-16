@@ -27,6 +27,8 @@
 #include "syclock.h"
 #include "eigenaux.h"
 
+class QFile;
+
 namespace Syntalos {
 
 class AbstractModule;
@@ -53,13 +55,65 @@ Q_DECLARE_METATYPE(Syntalos::TimeSyncStrategies);
 
 namespace Syntalos {
 
+/**
+ * @brief Write a timestamp synchronization file
+ *
+ * Helper class to write a timestamp synchronization file to adjust
+ * timestamps in a recording post-hoc. This is commonly used if the
+ * format data is stored in does not support timestamp adjustments, or
+ * as additional set of datapoints to ensure timestamps are really
+ * synchronized.
+ */
 class TimeSyncFileWriter
 {
 public:
     explicit TimeSyncFileWriter();
+    ~TimeSyncFileWriter();
+
+    QString lastError() const;
+
+    bool open(const QString &fname, const QString &modName, const microseconds_t &checkInterval, const microseconds_t &tolerance);
+    void flush();
+
+    void writeTimeOffset(const microseconds_t &deviceTime, const microseconds_t &offset);
 
 private:
+    QFile *m_file;
     QDataStream m_stream;
+    qint64 m_index;
+    QString m_lastError;
+};
+
+/**
+ * @brief Read a time-sync (.tsync) file
+ *
+ * Simple helper class to read the contents of a .tsync file,
+ * for adjustments of the source timestamps or simply conversion
+ * into a non-binary format.
+ */
+class TimeSyncFileReader
+{
+public:
+    explicit TimeSyncFileReader();
+
+    bool open(const QString &fname);
+    QString lastError() const;
+
+    QString moduleName() const;
+    time_t creationTime() const;
+    microseconds_t checkInterval() const;
+    microseconds_t tolerance() const;
+
+    QList<QPair<microseconds_t, microseconds_t>> offsets() const;
+
+
+private:
+    QString m_lastError;
+    QString m_moduleName;
+    qint64 m_creationTime;
+    microseconds_t m_checkInterval;
+    microseconds_t m_tolerance;
+    QList<QPair<microseconds_t, microseconds_t>> m_offsets;
 };
 
 /**
@@ -76,6 +130,7 @@ class FreqCounterSynchronizer
 {
 public:
     explicit FreqCounterSynchronizer(std::shared_ptr<SyncTimer> masterTimer, AbstractModule *mod, double frequencyHz, const QString &id = nullptr);
+    ~FreqCounterSynchronizer();
 
     milliseconds_t timeBase() const;
     int indexOffset() const;
@@ -102,6 +157,8 @@ private:
     double m_freq;
     milliseconds_t m_baseTime;
     int m_indexOffset;
+
+    TimeSyncFileWriter *m_tswriter;
 };
 
 class SecondaryClockSynchronizer {

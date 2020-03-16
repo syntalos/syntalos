@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2020 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2020 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -17,31 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "config.h"
-#include <QApplication>
-#include <QSplashScreen>
-#include <QTimer>
-#include <QTime>
-#include <QDebug>
-#include <KDBusService>
+#pragma once
 
-#include "mainwindow.h"
+#include <QString>
 
-
-int main(int argc, char *argv[])
-{
-    // set random seed
-    srand(static_cast<uint>(time(nullptr)));
-
-    QApplication app(argc, argv);
-    app.setApplicationName("Syntalos");
-    app.setOrganizationDomain("uni-heidelberg.de");
-    app.setApplicationVersion(PROJECT_VERSION);
-
-    // ensure we only ever run one instance of the application
-    KDBusService service(KDBusService::Unique);
-
-    MainWindow w;
-    w.show();
-    return app.exec();
-}
+int displayTSyncMetadata(const QString &fname);

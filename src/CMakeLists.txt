@@ -4,12 +4,7 @@ add_subdirectory(oop)
 add_subdirectory(pyworker)
 add_subdirectory(modules)
 
-set(SYNTALOS_SRC
-    main.cpp
-    engine.h
-    engine.cpp
-    aboutdialog.h
-    aboutdialog.cpp
+set(SYNTALOS_SHARED_SRC
     optionalwaitcondition.h
     optionalwaitcondition.cpp
     utils.h
@@ -19,14 +14,31 @@ set(SYNTALOS_SRC
     syclock.cpp
     timesync.h
     timesync.cpp
+    moduleapi.h
+    moduleapi.cpp
+
+    streams/datatypes.h
+    streams/datatypes.cpp
+    streams/frametype.h
+    streams/stream.h
+    streams/stream.cpp
+    streams/atomicops.h
+    streams/readerwriterqueue.h
+)
+set(SYNTALOS_SHARED_SRC ${SYNTALOS_SHARED_SRC} PARENT_SCOPE)
+
+set(SYNTALOS_SRC
+    main.cpp
+    engine.h
+    engine.cpp
+    aboutdialog.h
+    aboutdialog.cpp
     mainwindow.h
     mainwindow.cpp
     testsubjectlistmodel.h
     testsubjectlistmodel.cpp
     timingsdialog.h
     timingsdialog.cpp
-    moduleapi.h
-    moduleapi.cpp
     modulelibrary.h
     modulelibrary.cpp
     moduleselectdialog.h
@@ -37,14 +49,6 @@ set(SYNTALOS_SRC
     flowgraphview.cpp
     modulegraphform.h
     modulegraphform.cpp
-
-    streams/datatypes.h
-    streams/datatypes.cpp
-    streams/frametype.h
-    streams/stream.h
-    streams/stream.cpp
-    streams/atomicops.h
-    streams/readerwriterqueue.h
 )
 
 set(SYNTALOS_UI
@@ -63,6 +67,16 @@ set(SYNTALOS_RES
 
 qt5_add_resources(SYNTALOS_RES_SRC ${SYNTALOS_RES})
 
+add_library(syntalos_shared STATIC
+    ${SYNTALOS_SHARED_SRC}
+)
+
+target_link_libraries(syntalos_shared
+    ${SY_BASE_LIBS}
+    ${OpenCV_LIBS}
+    ${OPENGL_LIBRARIES}
+)
+
 add_executable(syntalos
     ${SYNTALOS_SRC}
     ${SYNTALOS_RES_SRC}
@@ -70,6 +84,7 @@ add_executable(syntalos
 )
 
 target_link_libraries(syntalos
+    syntalos_shared
     ${CMAKE_THREAD_LIBS_INIT}
     ${CMAKE_DL_LIBS}
     ${RT_LIB}

@@ -20,12 +20,17 @@
 #include "timesync.h"
 
 #include <QDebug>
+#include <QDateTime>
+#include <QFile>
 #include "moduleapi.h"
 
 #include "utils.h"
 
 using namespace Syntalos;
 using namespace Eigen;
+
+#define TSYNC_FILE_MAGIC 0xC6BBDFBC
+#define TSYNC_FILE_FORMAT_VERSION  1
 
 const QString Syntalos::timeSyncStrategyToHString(const TimeSyncStrategy &strategy)
 {
@@ -64,9 +69,157 @@ const QString Syntalos::timeSyncStrategiesToHString(const TimeSyncStrategies &st
 }
 
 TimeSyncFileWriter::TimeSyncFileWriter()
+    : m_file(nullptr),
+      m_index(0)
 {
+    m_file = new QFile();
     m_stream.setVersion(QDataStream::Qt_5_12);
     m_stream.setByteOrder(QDataStream::LittleEndian);
+}
+
+TimeSyncFileWriter::~TimeSyncFileWriter()
+{
+    flush();
+    if (m_file->isOpen())
+        m_file->close();
+    delete m_file;
+}
+
+QString TimeSyncFileWriter::lastError() const
+{
+    return m_lastError;
+}
+
+bool TimeSyncFileWriter::open(const QString &fname, const QString &modName, const microseconds_t &checkInterval, const microseconds_t &tolerance)
+{
+    if (m_file->isOpen())
+        m_file->close();
+
+    auto tsyncFname = fname;
+    if (!tsyncFname.endsWith(QStringLiteral(".tsync")))
+        tsyncFname = tsyncFname + QStringLiteral(".tsync");
+    m_file->setFileName(tsyncFname);
+    if (!m_file->open(QIODevice::WriteOnly)) {
+        m_lastError = m_file->errorString();
+        return false;
+    }
+
+    m_index = 0;
+    m_stream.setDevice(m_file);
+
+    // write file header
+    QDateTime currentTime(QDateTime::currentDateTime());
+
+    m_stream << (quint32) TSYNC_FILE_MAGIC;
+    m_stream << (quint32) TSYNC_FILE_FORMAT_VERSION;
+    m_stream << (qint64) currentTime.toTime_t();
+    m_stream << (quint32) checkInterval.count();
+    m_stream << (quint32) tolerance.count();
+    m_stream << modName;
+
+    m_file->flush();
+    return true;
+}
+
+void TimeSyncFileWriter::flush()
+{
+    if (m_file->isOpen())
+        m_file->flush();
+}
+
+void TimeSyncFileWriter::writeTimeOffset(const microseconds_t &deviceTime, const microseconds_t &offset)
+{
+    m_stream << (quint64) m_index++;
+    m_stream << (qint64) deviceTime.count();
+    m_stream << (qint64) offset.count();
+
+    // TODO: get rid of this
+    m_file->flush();
+}
+
+TimeSyncFileReader::TimeSyncFileReader()
+    : m_lastError(QString())
+{}
+
+bool TimeSyncFileReader::open(const QString &fname)
+{
+    QFile file(fname);
+    if (!file.open(QIODevice::ReadOnly)) {
+        m_lastError = file.errorString();
+        return false;
+    }
+    QDataStream in(&file);
+    in.setVersion(QDataStream::Qt_5_12);
+    in.setByteOrder(QDataStream::LittleEndian);
+
+    // read the header
+    quint32 magic;
+    quint32 formatVersion;
+    quint32 checkIntervalUsec;
+    quint32 toleranceUsec;
+
+    in >> magic >> formatVersion;
+    if ((magic != TSYNC_FILE_MAGIC) || (formatVersion != TSYNC_FILE_FORMAT_VERSION)) {
+        m_lastError = QStringLiteral("Unable to read data: This file is not a valid timesync metadata file.");
+        return false;
+    }
+
+    in >> m_creationTime
+       >> checkIntervalUsec
+       >> toleranceUsec
+       >> m_moduleName;
+    m_checkInterval = microseconds_t(checkIntervalUsec);
+    m_tolerance = microseconds_t(toleranceUsec);
+
+    // read the offset data
+    m_offsets.clear();
+    quint64 expectedIndex = 0;
+    while (!in.atEnd()) {
+        quint64 index;
+        qint64 deviceTimeUsec;
+        qint64 offsetUsec;
+
+        in >> index
+           >> deviceTimeUsec
+           >> offsetUsec;
+        if (index != expectedIndex)
+            qWarning().noquote() << "The timesync file has gaps: Expected index" << expectedIndex << "but got" << index;
+
+        m_offsets.append(qMakePair(microseconds_t(deviceTimeUsec), microseconds_t(offsetUsec)));
+        expectedIndex++;
+    }
+
+    return true;
+}
+
+QString TimeSyncFileReader::lastError() const
+{
+    return m_lastError;
+}
+
+QString TimeSyncFileReader::moduleName() const
+{
+    return m_moduleName;
+}
+
+time_t TimeSyncFileReader::creationTime() const
+{
+    return m_creationTime;
+}
+
+microseconds_t TimeSyncFileReader::checkInterval() const
+{
+    return m_checkInterval;
+}
+
+microseconds_t TimeSyncFileReader::tolerance() const
+{
+    return m_tolerance;
+}
+
+QList<QPair<microseconds_t, microseconds_t> > TimeSyncFileReader::offsets() const
+{
+    return m_offsets;
 }
 
 FreqCounterSynchronizer::FreqCounterSynchronizer(std::shared_ptr<SyncTimer> masterTimer, AbstractModule *mod, double frequencyHz, const QString &id)
@@ -80,13 +233,22 @@ FreqCounterSynchronizer::FreqCounterSynchronizer(std::shared_ptr<SyncTimer> mast
       m_lastUpdateTime(milliseconds_t(DEFAULT_CLOCKSYNC_CHECK_INTERVAL * -1)),
       m_freq(frequencyHz),
       m_baseTime(0),
-      m_indexOffset(0)
+      m_indexOffset(0),
+      m_tswriter(new TimeSyncFileWriter)
 {
     if (m_id.isEmpty())
         m_id = createRandomString(4);
 
+    if (!m_tswriter->open("/tmp/testts", "mysimplemod!!", m_checkInterval, SECONDARY_CLOCK_TOLERANCE))
+        qCritical() << "!!!!" << m_tswriter->lastError();
+
     // make our existence known to the system
     emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec), m_checkInterval);
+}
+
+FreqCounterSynchronizer::~FreqCounterSynchronizer()
+{
+    delete m_tswriter;
 }
 
 milliseconds_t FreqCounterSynchronizer::timeBase() const
@@ -206,6 +368,8 @@ void FreqCounterSynchronizer::adjustTimestamps(const milliseconds_t &recvTimesta
             qWarning().nospace() << "Would change index offset by " << changeInt << " to " << m_indexOffset << " (in raw idx: " << (timeOffsetUsec / 1000.0 / 1000.0) * m_freq << "), but change not possible";
         }
     }
+
+    m_tswriter->writeTimeOffset(lastTimestamp, timeOffset);
 
     // adjust time indices again based on the current change
     if (changeInt != 0)

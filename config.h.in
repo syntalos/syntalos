@@ -1,6 +1,9 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+/* project */
+#define PROJECT_VERSION "@CMAKE_PROJECT_VERSION@"
+
 /* paths */
 #define PREFIXDIR "@CMAKE_INSTALL_PREFIX@"
 #define DATADIR "@CMAKE_INSTALL_FULL_DATADIR@"
