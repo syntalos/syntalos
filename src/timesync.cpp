@@ -90,7 +90,7 @@ QString TimeSyncFileWriter::lastError() const
     return m_lastError;
 }
 
-bool TimeSyncFileWriter::open(const QString &fname, const QString &modName, const microseconds_t &checkInterval, const microseconds_t &tolerance)
+void TimeSyncFileWriter::setFileName(const QString &fname)
 {
     if (m_file->isOpen())
         m_file->close();
@@ -99,6 +99,13 @@ bool TimeSyncFileWriter::open(const QString &fname, const QString &modName, cons
     if (!tsyncFname.endsWith(QStringLiteral(".tsync")))
         tsyncFname = tsyncFname + QStringLiteral(".tsync");
     m_file->setFileName(tsyncFname);
+}
+
+bool TimeSyncFileWriter::open(const microseconds_t &checkInterval, const microseconds_t &tolerance, const QString &modName)
+{
+    if (m_file->isOpen())
+        m_file->close();
+
     if (!m_file->open(QIODevice::WriteOnly)) {
         m_lastError = m_file->errorString();
         return false;
@@ -127,14 +134,19 @@ void TimeSyncFileWriter::flush()
         m_file->flush();
 }
 
+void TimeSyncFileWriter::close()
+{
+    if (m_file->isOpen()) {
+        m_file->flush();
+        m_file->close();
+    }
+}
+
 void TimeSyncFileWriter::writeTimeOffset(const microseconds_t &deviceTime, const microseconds_t &offset)
 {
-    m_stream << (quint64) m_index++;
+    m_stream << (quint32) m_index++;
     m_stream << (qint64) deviceTime.count();
-    m_stream << (qint64) offset.count();
-
-    // TODO: get rid of this
-    m_file->flush();
+    m_stream << (quint32) offset.count();
 }
 
 TimeSyncFileReader::TimeSyncFileReader()
@@ -175,9 +187,9 @@ bool TimeSyncFileReader::open(const QString &fname)
     m_offsets.clear();
     quint64 expectedIndex = 0;
     while (!in.atEnd()) {
-        quint64 index;
+        quint32 index;
         qint64 deviceTimeUsec;
-        qint64 offsetUsec;
+        quint32 offsetUsec;
 
         in >> index
            >> deviceTimeUsec
@@ -239,16 +251,8 @@ FreqCounterSynchronizer::FreqCounterSynchronizer(std::shared_ptr<SyncTimer> mast
     if (m_id.isEmpty())
         m_id = createRandomString(4);
 
-    if (!m_tswriter->open("/tmp/testts", "mysimplemod!!", m_checkInterval, SECONDARY_CLOCK_TOLERANCE))
-        qCritical() << "!!!!" << m_tswriter->lastError();
-
     // make our existence known to the system
     emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec), m_checkInterval);
-}
-
-FreqCounterSynchronizer::~FreqCounterSynchronizer()
-{
-    delete m_tswriter;
 }
 
 milliseconds_t FreqCounterSynchronizer::timeBase() const
@@ -259,6 +263,12 @@ milliseconds_t FreqCounterSynchronizer::timeBase() const
 int FreqCounterSynchronizer::indexOffset() const
 {
     return m_indexOffset;
+}
+
+void FreqCounterSynchronizer::setTimeSyncBasename(const QString &fname)
+{
+    m_tswriter->setFileName(fname);
+    m_strategies = m_strategies.setFlag(TimeSyncStrategy::WRITE_TSYNCFILE, !fname.isEmpty());
 }
 
 void FreqCounterSynchronizer::setStrategies(const TimeSyncStrategies &strategies)
@@ -291,14 +301,21 @@ void FreqCounterSynchronizer::setTolerance(const std::chrono::microseconds &tole
     emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec), m_checkInterval);
 }
 
-void FreqCounterSynchronizer::adjustTimestamps(const milliseconds_t &recvTimestamp, const double &devLatencyMs, VectorXl &idxTimestamps)
+bool FreqCounterSynchronizer::start()
 {
-    // we want the device latency in microseconds
-    auto deviceLatency = std::chrono::microseconds(static_cast<int>(devLatencyMs * 1000));
-    adjustTimestamps(recvTimestamp, deviceLatency, idxTimestamps);
+    if (!m_tswriter->open(m_checkInterval, microseconds_t(m_toleranceUsec), m_mod->name())) {
+        qCritical().noquote().nospace() << "Unable to open timesync file for " << m_mod->name() << "[" << m_id << "]: " << m_tswriter->lastError();
+        return false;
+    }
+    return true;
 }
 
-void FreqCounterSynchronizer::adjustTimestamps(const milliseconds_t &recvTimestamp, const std::chrono::microseconds &deviceLatency, VectorXl &idxTimestamps)
+void FreqCounterSynchronizer::stop()
+{
+    m_tswriter->close();
+}
+
+void FreqCounterSynchronizer::processTimestamps(const milliseconds_t &recvTimestamp, const std::chrono::microseconds &deviceLatency, VectorXl &idxTimestamps)
 {
     // adjust timestamp based on our current offset
     if (m_indexOffset != 0)
@@ -326,11 +343,21 @@ void FreqCounterSynchronizer::adjustTimestamps(const milliseconds_t &recvTimesta
     const auto timeOffset = (std::chrono::duration_cast<std::chrono::microseconds>(assumedAcqTS - lastTimestamp));
     const auto timeOffsetUsec = timeOffset.count();
 
-    // TODO: Emit current offset here, occasionally
-    emit m_mod->synchronizerOffsetChanged(m_id, timeOffset);
-
     if (std::abs(timeOffsetUsec) < m_toleranceUsec) {
         // everything is within tolerance range, no adjustments needed
+        m_isFirstInterval = false;
+        return;
+    }
+
+    if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
+        writeTsyncFileBlock(idxTimestamps, timeOffset);
+
+    // TODO: Emit current offset here only occasionally
+    emit m_mod->synchronizerOffsetChanged(m_id, timeOffset);
+
+    if (!m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD) &&
+        !m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD)) {
+        // no timeshifting is permitted, there is nothing left to do for us
         m_isFirstInterval = false;
         return;
     }
@@ -346,35 +373,56 @@ void FreqCounterSynchronizer::adjustTimestamps(const milliseconds_t &recvTimesta
     // the next time this function is run
     // how slowly the external timestamps ares adjusted depends on the DAQ frequency - the slower it runs,
     // the faster we adjust it.
-    int changeInt = std::floor(((timeOffsetUsec / 1000.0 / 1000.0) * m_freq) / (m_freq / 20000 + 1));
-    VectorXl change;
+    const int changeInt = std::floor(((timeOffsetUsec / 1000.0 / 1000.0) * m_freq) / (m_freq / 20000 + 1));
 
     if (timeOffsetUsec > 0) {
         // the external device is running too slow
 
-        change = VectorXl::LinSpaced(idxTimestamps.rows(), 0, changeInt);
-        qWarning().nospace() << "Index offset changed by " << changeInt << " to " << m_indexOffset << " (in raw idx: " << (timeOffsetUsec / 1000.0 / 1000.0) * m_freq << ")";
+        if (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD)) {
+            const auto change = VectorXl::LinSpaced(idxTimestamps.rows(), 0, changeInt);
+            m_indexOffset += change[change.rows() - 1];
+            idxTimestamps += change;
+
+            qWarning().nospace() << "Index offset changed by " << changeInt << " to " << m_indexOffset << " (in raw idx: " << (timeOffsetUsec / 1000.0 / 1000.0) * m_freq << ")";
+        }
     } else {
         qWarning() << "External device is too fast!";
 
-        if (m_isFirstInterval) {
+        if (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD)) {
             // we change the initial index to match the master clock exactly
-            changeInt = std::round((timeOffsetUsec / 1000.0 / 1000.0) * m_freq);
-            change = VectorXl::LinSpaced(idxTimestamps.rows(), 0, changeInt);
+            const auto change = VectorXl::LinSpaced(idxTimestamps.rows(), 0, changeInt);
             m_indexOffset += change[change.rows() - 1];
+            idxTimestamps += change;
 
             qWarning().nospace() << "Index offset changed by " << changeInt << " to " << m_indexOffset;
-        } else {
-            qWarning().nospace() << "Would change index offset by " << changeInt << " to " << m_indexOffset << " (in raw idx: " << (timeOffsetUsec / 1000.0 / 1000.0) * m_freq << "), but change not possible";
         }
     }
 
-    m_tswriter->writeTimeOffset(lastTimestamp, timeOffset);
-
-    // adjust time indices again based on the current change
-    if (changeInt != 0)
-        idxTimestamps += change;
-
     m_isFirstInterval = false;
     qDebug().noquote() << "";
+}
+
+void FreqCounterSynchronizer::processTimestamps(const milliseconds_t &recvTimestamp, const double &devLatencyMs, VectorXl &idxTimestamps)
+{
+    // we want the device latency in microseconds
+    auto deviceLatency = std::chrono::microseconds(static_cast<long>(devLatencyMs * 1000));
+    processTimestamps(recvTimestamp, deviceLatency, idxTimestamps);
+}
+
+inline
+void FreqCounterSynchronizer::writeTsyncFileBlock(const VectorXl &timeIndices, const microseconds_t &lastOffset)
+{
+    // if we only have a very short vector, we don't also add the offset information to the first
+    // datapoint
+    if (timeIndices.size() <= 4) {
+        m_tswriter->writeTimeOffset(microseconds_t(static_cast<qint64>((static_cast<double>(timeIndices[timeIndices.rows() - 1]) / m_freq) * 1000.0 * 100.0)),
+                                    lastOffset);
+        return;
+    }
+
+    const auto firstIdxTime = microseconds_t(static_cast<qint64>((static_cast<double>(timeIndices[0]) / m_freq) * 1000.0 * 100.0));
+    m_tswriter->writeTimeOffset(firstIdxTime,
+                                lastOffset - firstIdxTime);
+    m_tswriter->writeTimeOffset(microseconds_t(static_cast<qint64>((static_cast<double>(timeIndices[timeIndices.rows() - 1]) / m_freq) * 1000.0 * 100.0)),
+                                lastOffset);
 }

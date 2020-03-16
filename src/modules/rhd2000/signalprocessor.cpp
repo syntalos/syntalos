@@ -581,7 +581,7 @@ int SignalProcessor::loadAmplifierData(queue<Rhd2000DataBlock> &dataQueue,
     // (in case no subscription exists, this does nothing)
     VectorXl blockTimestamps = Eigen::Map<VectorXu, Eigen::Unaligned>(dataQueue.front().timeStamp.data(),
                                                                       dataQueue.front().timeStamp.size()).cast<long>();
-    syModAdjustTimestampsToClock(syMod, latencyMs, dataRecvTimestamp, blockTimestamps);
+    syModSyncTimestamps(syMod, latencyMs, dataRecvTimestamp, blockTimestamps);
     setSyModSigBlockTimestamps(syMod, blockTimestamps);
 
     for (block = 0; block < numBlocks; ++block) {
@@ -1486,7 +1486,7 @@ int SignalProcessor::loadSyntheticData(int numBlocks, double sampleRate,
     for (t = 0; t < SAMPLES_PER_DATA_BLOCK; ++t)
         syTimestamps[t] = synthTimeStamp++;
 
-    syModAdjustTimestampsToClock(syMod, 0, syncTimer->timeSinceStartMsec(), syTimestamps);
+    syModSyncTimestamps(syMod, 0, syncTimer->timeSinceStartMsec(), syTimestamps);
     setSyModSigBlockTimestamps(syMod, syTimestamps);
 
     // publish data in Syntalos stream (if needed)

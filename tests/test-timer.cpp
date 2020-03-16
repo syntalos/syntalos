@@ -39,7 +39,8 @@ private slots:
 
         // write a timesync file
         auto tswriter = new TimeSyncFileWriter;
-        auto ret = tswriter->open(tsFilename, QStringLiteral("UnittestDummyModule"), microseconds_t(4 * 1000 * 1000), microseconds_t(1500));
+        tswriter->setFileName(tsFilename);
+        auto ret = tswriter->open(microseconds_t(4 * 1000 * 1000), microseconds_t(1500), QStringLiteral("UnittestDummyModule"));
         QVERIFY2(ret, qPrintable(tswriter->lastError()));
 
         for (int i = 0; i < 100; ++i)

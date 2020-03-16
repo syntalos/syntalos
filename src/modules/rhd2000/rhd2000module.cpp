@@ -144,10 +144,17 @@ bool Rhd2000Module::prepare(const TestSubject &testSubject)
 
     // set up slave-clock synchronizer
     clockSync = initCounterSynchronizer(m_intanUi->getSampleRate());
+    clockSync->setStrategies(TimeSyncStrategy::WRITE_TSYNCFILE);
+    clockSync->setTimeSyncBasename(intanBaseFilename);
 
     // permit 1.5ms tolerance - this was a very realistic tolerance to achieve in tests,
     // while lower values resulted in constant adjustment attempts
     clockSync->setTolerance(std::chrono::microseconds(1500));
+
+    if (!clockSync->start()) {
+        raiseError(QStringLiteral("Unable to set up timestamp synchronizer!"));
+        return false;
+    }
 
     return true;
 }
@@ -179,6 +186,7 @@ void Rhd2000Module::stop()
     m_intanUi->interfaceBoardStopFinalize();
     m_runAction->setEnabled(true);
     m_evTimer->stop();
+    clockSync->stop();
 }
 
 QList<QAction *> Rhd2000Module::actions()

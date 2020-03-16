@@ -37,7 +37,7 @@ class AbstractModule;
  * @brief The time synchronization strategy
  */
 enum class TimeSyncStrategy {
-    INVALID = 0,
+    NONE = 0,
     SHIFT_TIMESTAMPS_FWD = 1 << 0, /// Move timestamps forward to match the master clock
     SHIFT_TIMESTAMPS_BWD = 1 << 1, /// Move timestamps backward to match the master clock
     ADJUST_CLOCK         = 1 << 2, /// Do not change timestamps by adjust the secondary clocks to match the master clock
@@ -72,15 +72,17 @@ public:
 
     QString lastError() const;
 
-    bool open(const QString &fname, const QString &modName, const microseconds_t &checkInterval, const microseconds_t &tolerance);
+    void setFileName(const QString &fname);
+    bool open(const microseconds_t &checkInterval, const microseconds_t &tolerance, const QString &modName);
     void flush();
+    void close();
 
     void writeTimeOffset(const microseconds_t &deviceTime, const microseconds_t &offset);
 
 private:
     QFile *m_file;
     QDataStream m_stream;
-    qint64 m_index;
+    int m_index;
     QString m_lastError;
 };
 
@@ -130,7 +132,6 @@ class FreqCounterSynchronizer
 {
 public:
     explicit FreqCounterSynchronizer(std::shared_ptr<SyncTimer> masterTimer, AbstractModule *mod, double frequencyHz, const QString &id = nullptr);
-    ~FreqCounterSynchronizer();
 
     milliseconds_t timeBase() const;
     int indexOffset() const;
@@ -138,12 +139,16 @@ public:
     void setStrategies(const TimeSyncStrategies &strategies);
     void setCheckInterval(const std::chrono::seconds &intervalSec);
     void setTolerance(const std::chrono::microseconds &tolerance);
-    void setTimeSyncFilename(const QString &fname);
+    void setTimeSyncBasename(const QString &fname);
 
-    void adjustTimestamps(const milliseconds_t &recvTimestamp, const double &devLatencyMs, VectorXl &idxTimestamps);
-    void adjustTimestamps(const milliseconds_t &recvTimestamp, const std::chrono::microseconds &deviceLatency, VectorXl &idxTimestamps);
+    bool start();
+    void stop();
+    void processTimestamps(const milliseconds_t &recvTimestamp, const std::chrono::microseconds &deviceLatency, VectorXl &idxTimestamps);
+    void processTimestamps(const milliseconds_t &recvTimestamp, const double &devLatencyMs, VectorXl &idxTimestamps);
 
 private:
+    void writeTsyncFileBlock(const VectorXl &timeIndices, const microseconds_t &lastOffset);
+
     AbstractModule *m_mod;
     QString m_id;
     TimeSyncStrategies m_strategies;
@@ -158,7 +163,7 @@ private:
     milliseconds_t m_baseTime;
     int m_indexOffset;
 
-    TimeSyncFileWriter *m_tswriter;
+    std::unique_ptr<TimeSyncFileWriter> m_tswriter;
 };
 
 class SecondaryClockSynchronizer {
