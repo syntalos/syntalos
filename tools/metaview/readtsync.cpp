@@ -36,14 +36,21 @@ int displayTSyncMetadata(const QString &fname)
     std::cout << "File: " << "TimeSync" << "\n"
               << "Module: " << tsr->moduleName().toStdString() << "\n"
               << "CreationTimestampUnix: " << tsr->creationTime() << "\n"
-              << "TimeResolution: " << "microseconds" << "\n"
-              << "CheckInterval: " << tsr->checkInterval().count() << "\n"
-              << "Tolerance: " << tsr->tolerance().count() << "\n"
+              << "CheckInterval: " << tsr->checkInterval().count() << " µs\n"
+              << "Tolerance: " << tsr->tolerance().count() << " µs\n"
+              << "TimeUnits: " << timeSyncFileTimeUnitToString(tsr->timeUnits().first).toStdString() << "; "
+                               << timeSyncFileTimeUnitToString(tsr->timeUnits().second).toStdString() << "\n"
               << std::endl;
 
-    std::cout << "DeviceTime;Offset\n";
-    for (const auto &pair : tsr->offsets()) {
-        std::cout << pair.first.count() << ";" << pair.second.count() << "\n";
+    auto timeNames = tsr->timeNames();
+    if (timeNames.first.isEmpty())
+        timeNames.first = QStringLiteral("time-a");
+    if (timeNames.second.isEmpty())
+        timeNames.second = QStringLiteral("time-b");
+
+    std::cout << timeNames.first.toStdString() << ";" << timeNames.second.toStdString() << "\n";
+    for (const auto &pair : tsr->times()) {
+        std::cout << pair.first << ";" << pair.second << "\n";
     }
 
     return 0;

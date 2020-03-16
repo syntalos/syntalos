@@ -56,6 +56,19 @@ Q_DECLARE_METATYPE(Syntalos::TimeSyncStrategies);
 namespace Syntalos {
 
 /**
+ * @brief Unit types for time representation in a TSync file
+ */
+enum class TimeSyncFileTimeUnit
+{
+    INDEX,
+    MICROSECONDS,
+    MILLISECONDS,
+    SECONDS
+};
+
+QString timeSyncFileTimeUnitToString(const TimeSyncFileTimeUnit &tsftunit);
+
+/**
  * @brief Write a timestamp synchronization file
  *
  * Helper class to write a timestamp synchronization file to adjust
@@ -72,18 +85,23 @@ public:
 
     QString lastError() const;
 
+    void setTimeNames(QPair<QString, QString> pair);
+    void setTimeUnits(QPair<TimeSyncFileTimeUnit, TimeSyncFileTimeUnit> pair);
     void setFileName(const QString &fname);
     bool open(const microseconds_t &checkInterval, const microseconds_t &tolerance, const QString &modName);
     void flush();
     void close();
 
-    void writeTimeOffset(const microseconds_t &deviceTime, const microseconds_t &offset);
+    void writeTimes(const microseconds_t &deviceTime, const microseconds_t &masterTime);
+    void writeTimes(const long long &timeIndex, const long long &masterTime);
 
 private:
     QFile *m_file;
     QDataStream m_stream;
     int m_index;
     QString m_lastError;
+    QPair<QString, QString> m_timeNames;
+    QPair<TimeSyncFileTimeUnit, TimeSyncFileTimeUnit> m_timeUnits;
 };
 
 /**
@@ -105,9 +123,10 @@ public:
     time_t creationTime() const;
     microseconds_t checkInterval() const;
     microseconds_t tolerance() const;
+    QPair<QString, QString> timeNames() const;
+    QPair<TimeSyncFileTimeUnit, TimeSyncFileTimeUnit> timeUnits() const;
 
-    QList<QPair<microseconds_t, microseconds_t>> offsets() const;
-
+    QList<QPair<long long, long long>> times() const;
 
 private:
     QString m_lastError;
@@ -115,7 +134,9 @@ private:
     qint64 m_creationTime;
     microseconds_t m_checkInterval;
     microseconds_t m_tolerance;
-    QList<QPair<microseconds_t, microseconds_t>> m_offsets;
+    QList<QPair<long long, long long>> m_times;
+    QPair<QString, QString> m_timeNames;
+    QPair<TimeSyncFileTimeUnit, TimeSyncFileTimeUnit> m_timeUnits;
 };
 
 /**

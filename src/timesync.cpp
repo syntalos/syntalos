@@ -68,11 +68,30 @@ const QString Syntalos::timeSyncStrategiesToHString(const TimeSyncStrategies &st
     return sl.join(" and ");
 }
 
+QString Syntalos::timeSyncFileTimeUnitToString(const TimeSyncFileTimeUnit &tsftunit)
+{
+    switch (tsftunit) {
+    case TimeSyncFileTimeUnit::INDEX:
+        return QStringLiteral("index");
+    case TimeSyncFileTimeUnit::MICROSECONDS:
+        return QStringLiteral("µs");
+    case TimeSyncFileTimeUnit::MILLISECONDS:
+        return QStringLiteral("ms");
+    case TimeSyncFileTimeUnit::SECONDS:
+        return QStringLiteral("sec");
+    default:
+        return QStringLiteral("?");
+    }
+}
+
 TimeSyncFileWriter::TimeSyncFileWriter()
-    : m_file(nullptr),
+    : m_file(new QFile()),
       m_index(0)
 {
-    m_file = new QFile();
+    m_timeNames = qMakePair(QStringLiteral("device-time"),
+                            QStringLiteral("master-time"));
+    m_timeUnits = qMakePair(TimeSyncFileTimeUnit::MICROSECONDS,
+                            TimeSyncFileTimeUnit::MICROSECONDS);
     m_stream.setVersion(QDataStream::Qt_5_12);
     m_stream.setByteOrder(QDataStream::LittleEndian);
 }
@@ -88,6 +107,16 @@ TimeSyncFileWriter::~TimeSyncFileWriter()
 QString TimeSyncFileWriter::lastError() const
 {
     return m_lastError;
+}
+
+void TimeSyncFileWriter::setTimeNames(QPair<QString, QString> pair)
+{
+    m_timeNames = pair;
+}
+
+void TimeSyncFileWriter::setTimeUnits(QPair<TimeSyncFileTimeUnit, TimeSyncFileTimeUnit> pair)
+{
+    m_timeUnits = pair;
 }
 
 void TimeSyncFileWriter::setFileName(const QString &fname)
@@ -123,6 +152,10 @@ bool TimeSyncFileWriter::open(const microseconds_t &checkInterval, const microse
     m_stream << (quint32) checkInterval.count();
     m_stream << (quint32) tolerance.count();
     m_stream << modName;
+    m_stream << m_timeNames.first;
+    m_stream << m_timeNames.second;
+    m_stream << (quint16) m_timeUnits.first;
+    m_stream << (quint16) m_timeUnits.second;
 
     m_file->flush();
     return true;
@@ -142,11 +175,18 @@ void TimeSyncFileWriter::close()
     }
 }
 
-void TimeSyncFileWriter::writeTimeOffset(const microseconds_t &deviceTime, const microseconds_t &offset)
+void TimeSyncFileWriter::writeTimes(const microseconds_t &deviceTime, const microseconds_t &masterTime)
 {
     m_stream << (quint32) m_index++;
     m_stream << (qint64) deviceTime.count();
-    m_stream << (quint32) offset.count();
+    m_stream << (qint64) masterTime.count();
+}
+
+void TimeSyncFileWriter::writeTimes(const long long &timeIndex, const long long &masterTime)
+{
+    m_stream << (quint32) m_index++;
+    m_stream << (qint64) timeIndex;
+    m_stream << (qint64) masterTime;
 }
 
 TimeSyncFileReader::TimeSyncFileReader()
@@ -169,6 +209,8 @@ bool TimeSyncFileReader::open(const QString &fname)
     quint32 formatVersion;
     quint32 checkIntervalUsec;
     quint32 toleranceUsec;
+    quint16 timeUnitDev;
+    quint16 timeUnitMaster;
 
     in >> magic >> formatVersion;
     if ((magic != TSYNC_FILE_MAGIC) || (formatVersion != TSYNC_FILE_FORMAT_VERSION)) {
@@ -179,25 +221,31 @@ bool TimeSyncFileReader::open(const QString &fname)
     in >> m_creationTime
        >> checkIntervalUsec
        >> toleranceUsec
-       >> m_moduleName;
+       >> m_moduleName
+       >> m_timeNames.first
+       >> m_timeNames.second
+       >> timeUnitDev
+       >> timeUnitMaster;
     m_checkInterval = microseconds_t(checkIntervalUsec);
     m_tolerance = microseconds_t(toleranceUsec);
+    m_timeUnits.first = static_cast<TimeSyncFileTimeUnit>(timeUnitDev);
+    m_timeUnits.second = static_cast<TimeSyncFileTimeUnit>(timeUnitMaster);
 
-    // read the offset data
-    m_offsets.clear();
+    // read the time data
+    m_times.clear();
     quint64 expectedIndex = 0;
     while (!in.atEnd()) {
         quint32 index;
-        qint64 deviceTimeUsec;
-        quint32 offsetUsec;
+        qint64 deviceTime;
+        qint64 masterTime;
 
         in >> index
-           >> deviceTimeUsec
-           >> offsetUsec;
+           >> deviceTime
+           >> masterTime;
         if (index != expectedIndex)
             qWarning().noquote() << "The timesync file has gaps: Expected index" << expectedIndex << "but got" << index;
 
-        m_offsets.append(qMakePair(microseconds_t(deviceTimeUsec), microseconds_t(offsetUsec)));
+        m_times.append(qMakePair(deviceTime, masterTime));
         expectedIndex++;
     }
 
@@ -229,9 +277,19 @@ microseconds_t TimeSyncFileReader::tolerance() const
     return m_tolerance;
 }
 
-QList<QPair<microseconds_t, microseconds_t> > TimeSyncFileReader::offsets() const
+QPair<QString, QString> TimeSyncFileReader::timeNames() const
 {
-    return m_offsets;
+    return m_timeNames;
+}
+
+QPair<TimeSyncFileTimeUnit, TimeSyncFileTimeUnit> TimeSyncFileReader::timeUnits() const
+{
+    return m_timeUnits;
+}
+
+QList<QPair<long long, long long> > TimeSyncFileReader::times() const
+{
+    return m_times;
 }
 
 FreqCounterSynchronizer::FreqCounterSynchronizer(std::shared_ptr<SyncTimer> masterTimer, AbstractModule *mod, double frequencyHz, const QString &id)
@@ -414,15 +472,13 @@ void FreqCounterSynchronizer::writeTsyncFileBlock(const VectorXl &timeIndices, c
 {
     // if we only have a very short vector, we don't also add the offset information to the first
     // datapoint
+    const auto lastIdxTimeUsec = microseconds_t(static_cast<qint64>((static_cast<double>(timeIndices[timeIndices.rows() - 1]) / m_freq) * 1000.0 * 1000.0));
     if (timeIndices.size() <= 4) {
-        m_tswriter->writeTimeOffset(microseconds_t(static_cast<qint64>((static_cast<double>(timeIndices[timeIndices.rows() - 1]) / m_freq) * 1000.0 * 100.0)),
-                                    lastOffset);
+        m_tswriter->writeTimes(lastIdxTimeUsec, lastIdxTimeUsec + lastOffset);
         return;
     }
 
-    const auto firstIdxTime = microseconds_t(static_cast<qint64>((static_cast<double>(timeIndices[0]) / m_freq) * 1000.0 * 100.0));
-    m_tswriter->writeTimeOffset(firstIdxTime,
-                                lastOffset - firstIdxTime);
-    m_tswriter->writeTimeOffset(microseconds_t(static_cast<qint64>((static_cast<double>(timeIndices[timeIndices.rows() - 1]) / m_freq) * 1000.0 * 100.0)),
-                                lastOffset);
+    const auto firstIdxTimeUsec = microseconds_t(static_cast<qint64>((static_cast<double>(timeIndices[0]) / m_freq) * 1000.0 * 1000.0));
+    m_tswriter->writeTimes(firstIdxTimeUsec, firstIdxTimeUsec + (lastOffset - (lastIdxTimeUsec - firstIdxTimeUsec)));
+    m_tswriter->writeTimes(lastIdxTimeUsec, lastIdxTimeUsec + lastOffset);
 }
