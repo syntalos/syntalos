@@ -149,7 +149,7 @@ bool Rhd2000Module::prepare(const TestSubject &testSubject)
 
     // permit 2ms tolerance - this was a very realistic tolerance to achieve in tests,
     // while lower values resulted in constant adjustment attempts
-    clockSync->setTolerance(std::chrono::microseconds(2));
+    clockSync->setTolerance(std::chrono::microseconds(2000));
 
     // check accuracy every two seconds
     clockSync->setCheckInterval(std::chrono::seconds(2));
