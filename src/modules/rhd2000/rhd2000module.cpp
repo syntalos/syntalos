@@ -151,6 +151,13 @@ bool Rhd2000Module::prepare(const TestSubject &testSubject)
     // while lower values resulted in constant adjustment attempts
     clockSync->setTolerance(std::chrono::microseconds(1500));
 
+    // check accuracy every two seconds
+    clockSync->setCheckInterval(std::chrono::seconds(2));
+
+    // we permit 180 data points (3 acquired blocks) to calibrate what our initial starting time
+    // for the Intan device actually was
+    clockSync->setMinimumBaseTSCalibrationPoints(180);
+
     if (!clockSync->start()) {
         raiseError(QStringLiteral("Unable to set up timestamp synchronizer!"));
         return false;

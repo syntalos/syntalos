@@ -157,6 +157,7 @@ public:
     milliseconds_t timeBase() const;
     int indexOffset() const;
 
+    void setMinimumBaseTSCalibrationPoints(int count);
     void setStrategies(const TimeSyncStrategies &strategies);
     void setCheckInterval(const std::chrono::seconds &intervalSec);
     void setTolerance(const std::chrono::microseconds &tolerance);
@@ -173,15 +174,19 @@ private:
     AbstractModule *m_mod;
     QString m_id;
     TimeSyncStrategies m_strategies;
-    bool m_isFirstInterval;
+    milliseconds_t m_lastOffsetEmission;
     std::shared_ptr<SyncTimer> m_syTimer;
+    bool m_lastOffsetWithinTolerance;
 
     uint m_toleranceUsec;
     std::chrono::seconds m_checkInterval;
     milliseconds_t m_lastUpdateTime;
 
+    int m_minimumBaseTSCalibrationPoints;
+    int m_baseTSCalibrationCount;
+    double m_baseTimeMsec;
+
     double m_freq;
-    milliseconds_t m_baseTime;
     int m_indexOffset;
 
     std::unique_ptr<TimeSyncFileWriter> m_tswriter;
