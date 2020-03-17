@@ -415,18 +415,12 @@ void FreqCounterSynchronizer::processTimestamps(const milliseconds_t &recvTimest
     if (m_baseTSCalibrationCount < m_minimumBaseTSCalibrationPoints) {
         // we are in the timebase calibration phase, so update our timebase
 
-        // we make the bold assumption here that the assumedQcq timestamp is when the last timepoint was acquired
+        // we make the bold assumption here that the assumedAcq timestamp is when the last timepoint was acquired
         m_baseTSCalibrationCount += idxTimestamps.rows();
 
         // guess the time when the first data point was acquired based on the current timestamp,
         // adjust our timebase based on that
         m_baseTimeMsec += (assumedAcqTS.count() - (m_baseTSCalibrationCount / m_freq * 1000.0)) / (m_minimumBaseTSCalibrationPoints / idxTimestamps.rows());
-
-        qDebug().noquote() << "DAQTime:" << assumedAcqTS.count()
-                 << "\nCalculated start time:" << (assumedAcqTS.count() - (m_baseTSCalibrationCount / m_freq * 1000.0))
-                 << "\nUsed timepoints:" << m_baseTSCalibrationCount
-                 << "\nCurrent timebase guess:" << m_baseTimeMsec
-                 << "\n";
 
         if (m_baseTSCalibrationCount >= m_minimumBaseTSCalibrationPoints) {
             // always write down the starting time, if we are using a timesync-file
@@ -475,12 +469,6 @@ void FreqCounterSynchronizer::processTimestamps(const milliseconds_t &recvTimest
         return;
     }
 
-    qDebug().nospace() << "Freq: " << m_freq / 1000 << "kHz "
-                       << "Timer offset of " << timeOffsetUsec / 1000 << "ms "
-                       << "LastECTS: " << lastTimestamp.count() << "µs "
-                       << "RecvTS: " << recvTimestamp.count() << "ms "
-                       << "AssumedAcqTS: " << assumedAcqTS.count() << "ms ";
-
     if (timeOffsetUsec > 0) {
         // the external devive is running too slow
 
@@ -510,9 +498,6 @@ void FreqCounterSynchronizer::processTimestamps(const milliseconds_t &recvTimest
     const auto change = VectorXl::LinSpaced(idxTimestamps.rows(), 0, changeInt);
     m_indexOffset += change[change.rows() - 1];
     idxTimestamps += change;
-
-    qWarning().nospace() << "Index offset changed by " << changeInt << " to " << m_indexOffset << " (in raw idx: " << (timeOffsetUsec / 1000.0 / 1000.0) * m_freq << ")";
-    qDebug().noquote() << "";
 }
 
 void FreqCounterSynchronizer::processTimestamps(const milliseconds_t &recvTimestamp, const double &devLatencyMs, VectorXl &idxTimestamps)

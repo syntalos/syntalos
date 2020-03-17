@@ -147,16 +147,17 @@ bool Rhd2000Module::prepare(const TestSubject &testSubject)
     clockSync->setStrategies(TimeSyncStrategy::WRITE_TSYNCFILE);
     clockSync->setTimeSyncBasename(intanBaseFilename);
 
-    // permit 1.5ms tolerance - this was a very realistic tolerance to achieve in tests,
+    // permit 2ms tolerance - this was a very realistic tolerance to achieve in tests,
     // while lower values resulted in constant adjustment attempts
-    clockSync->setTolerance(std::chrono::microseconds(1500));
+    clockSync->setTolerance(std::chrono::microseconds(2));
 
     // check accuracy every two seconds
     clockSync->setCheckInterval(std::chrono::seconds(2));
 
-    // we permit 180 data points (3 acquired blocks) to calibrate what our initial starting time
-    // for the Intan device actually was
-    clockSync->setMinimumBaseTSCalibrationPoints(180);
+    // we only permit calibration with the very first data block - this seems to be sufficient and
+    // yielded the best results (due to device and USB buffering, the later data blocks are more
+    // susceptible to error)
+    clockSync->setMinimumBaseTSCalibrationPoints(Rhd2000DataBlock::getSamplesPerDataBlock());
 
     if (!clockSync->start()) {
         raiseError(QStringLiteral("Unable to set up timestamp synchronizer!"));
