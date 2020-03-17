@@ -415,17 +415,12 @@ void FreqCounterSynchronizer::processTimestamps(const milliseconds_t &recvTimest
     if (m_baseTSCalibrationCount < m_minimumBaseTSCalibrationPoints) {
         // we are in the timebase calibration phase, so update our timebase
 
-        // we make the bold assumption here that the assumedAcq timestamp is when the last timepoint was acquired
+        // we make the bold assumption here that the assumedQcq timestamp is when the last timepoint was acquired
         m_baseTSCalibrationCount += idxTimestamps.rows();
 
-        if (m_baseTimeMsec == 0) {
-            // guess the time when the first data point was acquired based on the current timestamp,
-            m_baseTimeMsec = assumedAcqTS.count() - ((m_baseTSCalibrationCount / m_freq) * 1000.0);
-        } else {
-            // adjust the assumed start time based on an error offset
-            const auto startTimeOffsetError = (assumedAcqTS.count() - ((m_baseTSCalibrationCount / m_freq) * 1000.0)) - m_baseTimeMsec;
-            m_baseTimeMsec -= startTimeOffsetError / (m_minimumBaseTSCalibrationPoints / idxTimestamps.rows());
-        }
+        // guess the time when the first data point was acquired based on the current timestamp,
+        // adjust our timebase based on that
+        m_baseTimeMsec += (assumedAcqTS.count() - (m_baseTSCalibrationCount / m_freq * 1000.0)) / (m_minimumBaseTSCalibrationPoints / idxTimestamps.rows());
 
         qDebug().noquote() << "DAQTime:" << assumedAcqTS.count()
                  << "\nCalculated start time:" << (assumedAcqTS.count() - (m_baseTSCalibrationCount / m_freq * 1000.0))
