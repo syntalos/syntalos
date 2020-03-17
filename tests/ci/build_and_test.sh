@@ -23,4 +23,5 @@ cmake -G Ninja \
 # (the number of Ninja jobs needs to be limited, so Travis doesn't kill us)
 ninja -j8
 DESTDIR=/tmp/install_root/ ninja install
-ninja -j1 test
+xvfb-run -a -s "-screen 0 1024x768x24 +extension GLX" \
+	ninja test

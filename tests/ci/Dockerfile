@@ -7,11 +7,12 @@ FROM ubuntu:focal
 RUN apt-get update -qq
 
 # install build essentials
-RUN apt-get install -yq eatmydata build-essential gcc g++
+RUN apt-get install -yq eatmydata build-essential gdb gcc g++
 
 # install build dependencies
 RUN DEBIAN_FRONTEND=noninteractive eatmydata apt-get install -yq --no-install-recommends \
     git ca-certificates \
+    xvfb xauth \
     meson \
     ninja-build \
     cmake \
