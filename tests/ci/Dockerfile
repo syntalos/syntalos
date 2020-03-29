@@ -7,7 +7,8 @@ FROM ubuntu:focal
 RUN apt-get update -qq
 
 # install build essentials
-RUN apt-get install -yq eatmydata build-essential gdb gcc g++
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -yq \
+    eatmydata build-essential gdb gcc g++
 
 # install build dependencies
 RUN DEBIAN_FRONTEND=noninteractive eatmydata apt-get install -yq --no-install-recommends \
