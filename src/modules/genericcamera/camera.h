@@ -26,6 +26,7 @@
 #include <opencv2/core.hpp>
 
 #include "syclock.h"
+#include "timesync.h"
 #include "streams/frametype.h"
 
 class CameraData;
@@ -51,7 +52,7 @@ public:
     bool connect();
     void disconnect();
 
-    bool recordFrame(Frame &frame);
+    bool recordFrame(Frame &frame, SecondaryClockSynchronizer *clockSync);
 
     QString lastError() const;
 

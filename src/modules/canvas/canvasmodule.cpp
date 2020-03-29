@@ -116,7 +116,7 @@ public:
         if (m_fps == 0) {
             m_cvView->setStatusText(QTime::fromMSecsSinceStartOfDay(frameTime).toString("hh:mm:ss.zzz"));
         } else {
-            if ((frameTime - m_lastFpsUpdate) > 500) {
+            if ((frameTime - m_lastFpsUpdate) > 100) {
                 // we don't update the FPS display with every tick, as the framerate fluctuates
                 // (especially when throttling the subscription) and we want to display a more steady
                 // info to the user

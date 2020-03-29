@@ -34,6 +34,26 @@ namespace Syntalos {
 class AbstractModule;
 
 /**
+ * @brief The amount of time a secondary clock is allowed to deviate from the master.
+ *
+ * Since Syntalos uses millisecond time resolution, permitting (slightly more than)
+ * half a millisecond deviation for secondary clocks from the master clock is sensible.
+ *
+ * IMPORTANT: Modules may override this value for their synchronizers to one that fits their
+ * device better. This is just a default for modules which do not change the default setting.
+ */
+static constexpr auto SECONDARY_CLOCK_TOLERANCE = microseconds_t(1000);
+
+/**
+ * @brief Interval at which we check for external clock synchronization
+ *
+ * IMPORTANT: This is just a default value for modules which do not explicitly define a check
+ * interval. Individual modules may choose a different value that fits the device they are
+ * communicating with best.
+ */
+static constexpr auto DEFAULT_CLOCKSYNC_CHECK_INTERVAL = milliseconds_t(4000);
+
+/**
  * @brief The time synchronization strategy
  */
 enum class TimeSyncStrategy {
@@ -146,8 +166,8 @@ private:
  * (e.g. adding an increasing index number to signals/frames/etc. from a starting point)
  * to the master clock if we know a sampling frequency for the counter.
  *
- * The adjusted counter is guaranteed to never move backwards, but gaps and identical timestamps
- * (depending on the settings) may occur.
+ * Depending on the permitted strategies, the counter may never move forward or backward,
+ * but gaps may always occur unless the sole active sync strategy is to write a TSync file.
  */
 class FreqCounterSynchronizer
 {
@@ -159,7 +179,7 @@ public:
 
     void setMinimumBaseTSCalibrationPoints(int count);
     void setStrategies(const TimeSyncStrategies &strategies);
-    void setCheckInterval(const std::chrono::seconds &intervalSec);
+    void setCheckInterval(const milliseconds_t &interval);
     void setTolerance(const std::chrono::microseconds &tolerance);
     void setTimeSyncBasename(const QString &fname);
 
@@ -179,7 +199,7 @@ private:
     bool m_lastOffsetWithinTolerance;
 
     uint m_toleranceUsec;
-    std::chrono::seconds m_checkInterval;
+    milliseconds_t m_checkInterval;
     milliseconds_t m_lastUpdateTime;
 
     int m_minimumBaseTSCalibrationPoints;
@@ -192,8 +212,49 @@ private:
     std::unique_ptr<TimeSyncFileWriter> m_tswriter;
 };
 
+/**
+ * @brief Synchronizer for an external steady monotonic clock
+ *
+ * This synchronizer helps synchronizing a timestamp from an external
+ * source with Syntalos' master clock.
+ */
 class SecondaryClockSynchronizer {
+public:
+    explicit SecondaryClockSynchronizer(std::shared_ptr<SyncTimer> masterTimer, AbstractModule *mod, double frequencyHz, const QString &id = nullptr);
 
+    milliseconds_t clockCorrectionOffset() const;
+
+    void setStrategies(const TimeSyncStrategies &strategies);
+    void setCheckInterval(const milliseconds_t &interval);
+    void setTolerance(const std::chrono::microseconds &tolerance);
+    void setTimeSyncBasename(const QString &fname);
+
+    bool start();
+    void stop();
+    void processTimestamp(milliseconds_t &masterTimestamp, const milliseconds_t &secondaryAcqTimestamp);
+
+private:
+    AbstractModule *m_mod;
+    QString m_id;
+    TimeSyncStrategies m_strategies;
+    milliseconds_t m_lastOffsetEmission;
+    std::shared_ptr<SyncTimer> m_syTimer;
+    bool m_lastOffsetWithinTolerance;
+
+    uint m_toleranceUsec;
+    milliseconds_t m_checkInterval;
+    milliseconds_t m_lastUpdateTime;
+
+    bool m_firstTimestamp;
+    double m_freqHz;
+    microseconds_t m_acqInterval;
+    milliseconds_t m_timeDiffToMaster;
+    microseconds_t m_lastSecondaryAcqTimestamp;
+
+    milliseconds_t m_clockCorrectionOffset;
+    microseconds_t m_lastMasterTS;
+
+    std::unique_ptr<TimeSyncFileWriter> m_tswriter;
 };
 
 } // end of namespace

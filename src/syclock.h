@@ -32,26 +32,6 @@ Q_DECLARE_METATYPE(std::chrono::microseconds);
 namespace Syntalos {
 
 /**
- * @brief The amount of time a secondary clock is allowed to deviate from the master.
- *
- * Since Syntalos uses millisecond time resolution, permitting (slightly more than)
- * half a millisecond deviation for secondary clocks from the master clock is sensible.
- *
- * IMPORTANT: Modules may override this value for their synchronizers to one that fits their
- * device better. This is just a default for modules which do not change the default setting.
- */
-static constexpr auto SECONDARY_CLOCK_TOLERANCE = std::chrono::microseconds(600);
-
-/**
- * @brief Interval at which we check for external clock synchronization
- *
- * IMPORTANT: This is just a default value for modules which do not explicitly define a check
- * interval. Individual modules may choose a different value that fits the device they are
- * communicating with best.
- */
-static constexpr auto DEFAULT_CLOCKSYNC_CHECK_INTERVAL = std::chrono::seconds(4);
-
-/**
  * @brief Syntalos Master Clock
  *
  * The master clock that is used as reference for all other connected

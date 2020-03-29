@@ -619,7 +619,7 @@ protected:
     /**
      * @brief Get new frequency/counter synchronizer
      *
-     * This function can be called after the PREPARE phase of a module to retrieve a synchronizer
+     * This function can be called in the PREPARING phase of a module to retrieve a synchronizer
      * for devices which have a continuous counter and a sampling frequency.
      * A synchronizer can be used to semi-automatically synchronize a device timestamp or device clock
      * with the master time.
@@ -629,6 +629,19 @@ protected:
      * Returns: A new unique counter synchronizer, or NULL if we could not create one because no master timer existed.
      */
     std::unique_ptr<FreqCounterSynchronizer> initCounterSynchronizer(double frequencyHz);
+
+    /**
+     * @brief Get new secondary clock synchronizer
+     *
+     * This function can be called in the PREPARING phase of a module to retrieve a synchronizer
+     * for devices which have an external clock to be synchronized and a known sampling frequency.
+     * A synchronizer can be used to semi-automatically synchronize a device clock with the master timer.
+     * You will need to supply a fixed sampling rate in Hz for the given device, so the synchronizer can
+     * determine an expected timestamp to compare with the actually retrieved time.
+     *
+     * Returns: A new unique clock synchronizer, or NULL if we could not create one because no master timer existed.
+     */
+    std::unique_ptr<SecondaryClockSynchronizer> initClockSynchronizer(double frequencyHz);
 
     void setInitialized();
     bool initialized() const;

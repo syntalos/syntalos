@@ -32,14 +32,10 @@ public:
         : camId(0),
           connected(false),
           failed(false),
-          firstFrame(true),
           droppedFramesCount(0)
-    {
-        driverTimerOffset = milliseconds_t(0);
-    }
+    {}
 
     std::chrono::time_point<symaster_clock> startTime;
-    milliseconds_t driverTimerOffset;
     cv::VideoCapture cam;
     int camId;
 
@@ -47,7 +43,6 @@ public:
 
     bool connected;
     bool failed;
-    bool firstFrame;
 
     double exposure;
     double gain;
@@ -163,7 +158,6 @@ bool Camera::connect()
 
     d->failed = false;
     d->connected = true;
-    d->firstFrame = true;
 
     // temporary dummy timepoint, until the actual reference starting
     // time is set from an external source
@@ -181,28 +175,20 @@ void Camera::disconnect()
     d->connected = false;
 }
 
-bool Camera::recordFrame(Frame &frame)
+bool Camera::recordFrame(Frame &frame, SecondaryClockSynchronizer *clockSync)
 {
     bool status = false;
-    if (d->firstFrame) {
-        d->firstFrame = false;
-        const auto initTime = FUNC_EXEC_TIMESTAMP(d->startTime, status = d->cam.grab());
+    auto frameRecvTime = FUNC_EXEC_TIMESTAMP(d->startTime, status = d->cam.grab());
 
-        // if we have the first frame, use it to synchronize time
-        const auto driverFrameTimestamp = milliseconds_t(static_cast<time_t> (d->cam.get(cv::CAP_PROP_POS_MSEC)));
+    // timestamp in "driver tim", which usually seems to be a UNIX timestamp, but
+    // we can't be sure of that
+    const auto driverFrameTimestamp = milliseconds_t(static_cast<time_t> (d->cam.get(cv::CAP_PROP_POS_MSEC)));
 
-        if (driverFrameTimestamp.count() <= 0) {
-            qDebug().noquote() << "Generic Camera" << d->camId << "measured 0 as driver timestamp on initial frame, assuming 0 offset.";
-            d->driverTimerOffset = milliseconds_t(0);
-        } else {
-            d->driverTimerOffset = driverFrameTimestamp - initTime;
-        }
+    // adjust the received time if necessary, gather clock sync information
+    clockSync->processTimestamp(frameRecvTime, driverFrameTimestamp);
 
-        frame.time = initTime;
-    } else {
-        status = d->cam.grab();
-        frame.time = timeDiffToNowMsec(d->startTime);
-    }
+    // set the adjusted timestamp as frame time
+    frame.time = frameRecvTime;
     if (!status) {
         fail("Failed to grab frame.");
         return false;

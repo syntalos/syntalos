@@ -36,9 +36,9 @@ const QString Syntalos::timeSyncStrategyToHString(const TimeSyncStrategy &strate
 {
     switch (strategy) {
     case TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD:
-        return QStringLiteral("shift timestamps (forward)");
+        return QStringLiteral("shift timestamps (fwd)");
     case TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD:
-        return QStringLiteral("shift timestamps (backward)");
+        return QStringLiteral("shift timestamps (bwd)");
     case TimeSyncStrategy::ADJUST_CLOCK:
         return QStringLiteral("align secondary clock");
     case TimeSyncStrategy::WRITE_TSYNCFILE:
@@ -83,6 +83,10 @@ QString Syntalos::timeSyncFileTimeUnitToString(const TimeSyncFileTimeUnit &tsftu
         return QStringLiteral("?");
     }
 }
+
+// ------------------
+// TimeSyncFileWriter
+// ------------------
 
 TimeSyncFileWriter::TimeSyncFileWriter()
     : m_file(new QFile()),
@@ -292,6 +296,10 @@ QList<QPair<long long, long long> > TimeSyncFileReader::times() const
     return m_times;
 }
 
+// -----------------------
+// FreqCounterSynchronizer
+// -----------------------
+
 FreqCounterSynchronizer::FreqCounterSynchronizer(std::shared_ptr<SyncTimer> masterTimer, AbstractModule *mod, double frequencyHz, const QString &id)
     : m_mod(mod),
       m_id(id),
@@ -351,13 +359,13 @@ void FreqCounterSynchronizer::setStrategies(const TimeSyncStrategies &strategies
     emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec), m_checkInterval);
 }
 
-void FreqCounterSynchronizer::setCheckInterval(const std::chrono::seconds &intervalSec)
+void FreqCounterSynchronizer::setCheckInterval(const milliseconds_t &interval)
 {
     if (m_baseTSCalibrationCount != 0) {
         qWarning().noquote() << "Rejected check-interval change on active FreqCounter Synchronizer for" << m_mod->name();
         return;
     }
-    m_checkInterval = intervalSec;
+    m_checkInterval = interval;
     emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec), m_checkInterval);
 }
 
@@ -377,9 +385,11 @@ bool FreqCounterSynchronizer::start()
         qWarning().noquote() << "Restarting a FreqCounter Synchronizer that has already been used is not permitted. This is an issue in " << m_mod->name();
         return false;
     }
-    if (!m_tswriter->open(m_checkInterval, microseconds_t(m_toleranceUsec), m_mod->name())) {
-        qCritical().noquote().nospace() << "Unable to open timesync file for " << m_mod->name() << "[" << m_id << "]: " << m_tswriter->lastError();
-        return false;
+    if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE)) {
+        if (!m_tswriter->open(m_checkInterval, microseconds_t(m_toleranceUsec), m_mod->name())) {
+            qCritical().noquote().nospace() << "Unable to open timesync file for " << m_mod->name() << "[" << m_id << "]: " << m_tswriter->lastError();
+            return false;
+        }
     }
     m_baseTimeMsec = 0;
     m_baseTSCalibrationCount = 0;
@@ -521,4 +531,155 @@ void FreqCounterSynchronizer::writeTsyncFileBlock(const VectorXl &timeIndices, c
     const auto firstIdxTimeUsec = microseconds_t(static_cast<qint64>((static_cast<double>(timeIndices[0]) / m_freq) * 1000.0 * 1000.0));
     m_tswriter->writeTimes(firstIdxTimeUsec, firstIdxTimeUsec + (lastOffset - (lastIdxTimeUsec - firstIdxTimeUsec)));
     m_tswriter->writeTimes(lastIdxTimeUsec, lastIdxTimeUsec + lastOffset);
+}
+
+// --------------------------
+// SecondaryClockSynchronizer
+// --------------------------
+
+SecondaryClockSynchronizer::SecondaryClockSynchronizer(std::shared_ptr<SyncTimer> masterTimer, AbstractModule *mod,
+                                                       double frequencyHz, const QString &id)
+    : m_mod(mod),
+      m_id(id),
+      m_strategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD | TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD),
+      m_lastOffsetEmission(0),
+      m_syTimer(masterTimer),
+      m_toleranceUsec(SECONDARY_CLOCK_TOLERANCE.count()),
+      m_checkInterval(DEFAULT_CLOCKSYNC_CHECK_INTERVAL),
+      m_lastUpdateTime(milliseconds_t(DEFAULT_CLOCKSYNC_CHECK_INTERVAL * -1)),
+      m_firstTimestamp(true),
+      m_lastSecondaryAcqTimestamp(0),
+      m_lastMasterTS(0),
+      m_tswriter(new TimeSyncFileWriter)
+{
+    m_acqInterval = std::chrono::microseconds(static_cast<long>((1000.0 / frequencyHz) * 1000));
+
+    if (m_id.isEmpty())
+        m_id = createRandomString(4);
+
+    // make our existence known to the system
+    emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec), m_checkInterval);
+}
+
+milliseconds_t SecondaryClockSynchronizer::clockCorrectionOffset() const
+{
+    return m_clockCorrectionOffset;
+}
+
+void SecondaryClockSynchronizer::setTimeSyncBasename(const QString &fname)
+{
+    m_tswriter->setFileName(fname);
+    m_strategies = m_strategies.setFlag(TimeSyncStrategy::WRITE_TSYNCFILE, !fname.isEmpty());
+}
+
+void SecondaryClockSynchronizer::setStrategies(const TimeSyncStrategies &strategies)
+{
+    if (!m_firstTimestamp) {
+        qWarning().noquote() << "Rejected strategy change on active Clock Synchronizer for" << m_mod->name();
+        return;
+    }
+    m_strategies = strategies;
+    emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec), m_checkInterval);
+}
+
+void SecondaryClockSynchronizer::setCheckInterval(const milliseconds_t &interval)
+{
+    if (!m_firstTimestamp) {
+        qWarning().noquote() << "Rejected check-interval change on active Clock Synchronizer for" << m_mod->name();
+        return;
+    }
+    m_checkInterval = interval;
+    emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec), m_checkInterval);
+}
+
+void SecondaryClockSynchronizer::setTolerance(const std::chrono::microseconds &tolerance)
+{
+    if (!m_firstTimestamp) {
+        qWarning().noquote() << "Rejected tolerance change on active Clock Synchronizer for" << m_mod->name();
+        return;
+    }
+    m_toleranceUsec = tolerance.count();
+    emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec), m_checkInterval);
+}
+
+bool SecondaryClockSynchronizer::start()
+{
+    if (!m_firstTimestamp) {
+        qWarning().noquote() << "Restarting a Clock Synchronizer that has already been used is not permitted. This is an issue in " << m_mod->name();
+        return false;
+    }
+    if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE)) {
+        if (!m_tswriter->open(m_checkInterval, microseconds_t(m_toleranceUsec), m_mod->name())) {
+            qCritical().noquote().nospace() << "Unable to open timesync file for " << m_mod->name() << "[" << m_id << "]: " << m_tswriter->lastError();
+            return false;
+        }
+    }
+    m_lastOffsetWithinTolerance = false;
+    m_firstTimestamp = true;
+    m_lastMasterTS = milliseconds_t(0);
+    m_clockCorrectionOffset = milliseconds_t(0);
+
+    return true;
+}
+
+void SecondaryClockSynchronizer::stop()
+{
+    m_tswriter->close();
+}
+
+void SecondaryClockSynchronizer::processTimestamp(milliseconds_t &masterTimestamp, const milliseconds_t &secondaryAcqTimestamp)
+{
+    if (m_firstTimestamp) {
+        m_firstTimestamp = false;
+        m_timeDiffToMaster = masterTimestamp - secondaryAcqTimestamp;
+        m_lastSecondaryAcqTimestamp = secondaryAcqTimestamp - m_acqInterval;
+    }
+
+    // adjust time difference slowly, weighting the existing time higher than the newly added time difference
+    m_timeDiffToMaster = milliseconds_t(static_cast<long>(((m_timeDiffToMaster.count() * m_freqHz * 3.0) + (masterTimestamp.count() - secondaryAcqTimestamp.count())) / (m_freqHz * 3.0 + 1)));
+
+    // calculate expected timestamps, if the external device is running with the selected frequency
+    // FIXME: Do we allow dynamic-frequency DAQ devices as well later?
+    auto expectedSecondaryAcqTS = std::chrono::duration_cast<milliseconds_t>(m_lastSecondaryAcqTimestamp + m_acqInterval);
+    m_lastSecondaryAcqTimestamp = secondaryAcqTimestamp;
+    const auto expectedMasterTS = expectedSecondaryAcqTS + m_timeDiffToMaster;
+
+
+    if (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD)) {
+        if (expectedMasterTS < m_lastMasterTS)
+            masterTimestamp = expectedMasterTS;
+    }
+    if (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD)) {
+        if (expectedMasterTS > m_lastMasterTS)
+            masterTimestamp = expectedMasterTS;
+    }
+
+    const auto currentTimestamp = m_syTimer->timeSinceStartMsec();
+    // do nothing if we aren't supposed to adjust the clock offset yet
+    if ((currentTimestamp - m_lastUpdateTime) < m_checkInterval)
+        return;
+    m_lastUpdateTime = currentTimestamp;
+
+    m_clockCorrectionOffset = (m_clockCorrectionOffset + std::chrono::duration_cast<milliseconds_t>(expectedSecondaryAcqTS - secondaryAcqTimestamp)) / 2;
+
+    if (std::abs(m_clockCorrectionOffset.count() * 1000) < m_toleranceUsec) {
+        // everything is within tolerance range, no adjustments needed
+        // share the good news with the controller! (only once, for now)
+        if (!m_lastOffsetWithinTolerance)
+            emit m_mod->synchronizerOffsetChanged(m_id, m_clockCorrectionOffset);
+        m_clockCorrectionOffset = milliseconds_t(0);
+        m_lastOffsetWithinTolerance = true;
+        return;
+    }
+
+    // Emit offset change information to the main controller every 2sec or slower
+    // in case we run at slower speeds
+    if ((m_lastOffsetEmission.count() + 2000) < expectedMasterTS.count()) {
+        emit m_mod->synchronizerOffsetChanged(m_id, m_clockCorrectionOffset);
+        m_lastOffsetEmission = currentTimestamp;
+    }
+
+    if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE)) {
+        m_tswriter->writeTimes(secondaryAcqTimestamp, masterTimestamp);
+    }
 }
