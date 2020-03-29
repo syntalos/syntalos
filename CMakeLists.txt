@@ -17,7 +17,7 @@ set(CMAKE_AUTOMOC ON)
 # Options
 #
 option(MAINTAINER "Enable maintainer mode" OFF)
-option(MOD_CAMERA_UEYE "Enable uEye camera module" ON)
+option(MOD_CAMERA_UEYE "Enable uEye camera module" OFF)
 option(MOD_MINISCOPE   "Enable Miniscope module" ON)
 
 
