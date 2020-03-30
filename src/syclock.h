@@ -125,7 +125,7 @@ private:
  * timestamping function was run.
  */
 #define TIMER_FUNC_TIMESTAMP(T, F) ({ \
-    auto __stime = T->timeSinceStartNsec(); \
+    const auto __stime = T->timeSinceStartNsec(); \
     F; \
     std::chrono::round<milliseconds_t>((__stime + T->timeSinceStartNsec()) / 2.0); \
     })
@@ -134,11 +134,10 @@ private:
 /**
  * Compute a timestamp for "when this function acquired a value".
  * This function is equivalent to TIMER_FUNC_TIMESTAMP(), but takes
- * a starting timepoint instead of a timer as first parameter, and
- * also captures the function result in FR.
+ * a starting timepoint instead of a timer as first parameter.
  */
 #define FUNC_EXEC_TIMESTAMP(INIT_TIME, F) ({ \
-    auto __stime = std::chrono::duration_cast<std::chrono::nanoseconds>(symaster_clock::now() - (INIT_TIME)); \
+    const auto __stime = std::chrono::duration_cast<std::chrono::nanoseconds>(symaster_clock::now() - (INIT_TIME)); \
     F; \
     std::chrono::round<milliseconds_t>((__stime + std::chrono::duration_cast<std::chrono::nanoseconds>(symaster_clock::now() - (INIT_TIME))) / 2.0); \
     })

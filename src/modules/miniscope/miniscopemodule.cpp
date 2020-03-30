@@ -110,8 +110,8 @@ public:
 
     void start() override
     {
-        // FIXME: We are setting the wrong time offset here! The libminiscope code needs a complete overhaul of its timing functions
-        m_miniscope->setCaptureTimeOffset(-1 * std::chrono::duration_cast<std::chrono::nanoseconds>(m_syTimer->startTime().time_since_epoch()));
+        const auto stdSteadyClockStartTimepoint = std::chrono::steady_clock::now() - m_syTimer->timeSinceStartNsec();
+        m_miniscope->setCaptureStartTime(stdSteadyClockStartTimepoint);
         m_evTimer->start();
 
         AbstractModule::start();

@@ -120,11 +120,6 @@ public:
         AbstractModule::start();
     }
 
-    void stop() override
-    {
-        m_clockSync->stop();
-    }
-
     void runThread(OptionalWaitCondition *waitCondition) override
     {
         auto fpsLow = false;
@@ -182,6 +177,7 @@ public:
 
         m_camera->disconnect();
         m_camSettingsWindow->setRunning(false);
+        m_clockSync->stop();
         statusMessage("Camera disconnected.");
     }
 
