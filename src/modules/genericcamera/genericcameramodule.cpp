@@ -148,7 +148,7 @@ public:
 
             // wait a bit if necessary, to keep the right framerate
             const auto cycleTime = timeDiffToNowMsec(cycleStartTime);
-            const auto extraWaitTime = std::chrono::milliseconds((1000 / m_fps) - cycleTime.count() + m_clockSync->clockCorrectionOffset().count());
+            const auto extraWaitTime = std::chrono::milliseconds((1000 / m_fps) - cycleTime.count() + (m_clockSync->clockCorrectionOffset().count() / 2));
             if (extraWaitTime.count() > 0)
                 std::this_thread::sleep_for(extraWaitTime);
 

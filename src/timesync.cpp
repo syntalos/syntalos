@@ -636,13 +636,13 @@ void SecondaryClockSynchronizer::processTimestamp(milliseconds_t &masterTimestam
     }
 
     // adjust time difference slowly, weighting the existing time higher than the newly added time difference
-    m_timeDiffToMaster = milliseconds_t(static_cast<long>(((m_timeDiffToMaster.count() * m_freqHz * 3.0) + (masterTimestamp.count() - secondaryAcqTimestamp.count())) / (m_freqHz * 3.0 + 1)));
+    m_timeDiffToMaster = milliseconds_t(static_cast<long>(((m_timeDiffToMaster.count() * m_freqHz * 2.0) + (masterTimestamp.count() - secondaryAcqTimestamp.count())) / (m_freqHz * 2.0 + 1)));
 
-    // calculate expected timestamps, if the external device is running with the selected frequency
+    // calculate expected timestamps, if the external device was running with the selected frequency
     // FIXME: Do we allow dynamic-frequency DAQ devices as well later?
     auto expectedSecondaryAcqTS = std::chrono::duration_cast<milliseconds_t>(m_lastSecondaryAcqTimestamp + m_acqInterval);
-    m_lastSecondaryAcqTimestamp = secondaryAcqTimestamp;
     const auto expectedMasterTS = expectedSecondaryAcqTS + m_timeDiffToMaster;
+    m_lastSecondaryAcqTimestamp = secondaryAcqTimestamp;
 
 
     if (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD)) {
@@ -660,7 +660,7 @@ void SecondaryClockSynchronizer::processTimestamp(milliseconds_t &masterTimestam
         return;
     m_lastUpdateTime = currentTimestamp;
 
-    m_clockCorrectionOffset = (m_clockCorrectionOffset + std::chrono::duration_cast<milliseconds_t>(expectedSecondaryAcqTS - secondaryAcqTimestamp)) / 2;
+    m_clockCorrectionOffset = std::chrono::duration_cast<milliseconds_t>((expectedSecondaryAcqTS - secondaryAcqTimestamp) / 2.5);
 
     if (std::abs(m_clockCorrectionOffset.count() * 1000) < m_toleranceUsec) {
         // everything is within tolerance range, no adjustments needed

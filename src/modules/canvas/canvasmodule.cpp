@@ -39,8 +39,8 @@ private:
 
     int m_fps;
     long m_lastFrameTime;
-    long m_lastFpsUpdate;
     int m_currentFps;
+    double m_avgFrameTimeDiffMsec;
     QString m_throttleRemark;
 
 public:
@@ -77,7 +77,6 @@ public:
     void start() override
     {
         m_lastFrameTime = m_syTimer->timeSinceStartMsec().count();
-        m_lastFpsUpdate = m_lastFrameTime - 1000;
         if (m_frameSub.get() == nullptr)
             return;
 
@@ -86,6 +85,9 @@ public:
         m_fps = m_frameSub->metadata().value("framerate", 0).toInt();
         m_throttleRemark = (m_fps > 50)? QStringLiteral("rate lowered for display, original:") : QStringLiteral("req.");
         m_frameSub->setThrottleItemsPerSec(50); // never try to display more than 50fps
+
+        // assume perfect frame diff for now
+        m_avgFrameTimeDiffMsec = 1000.0 / m_fps;
 
         auto imgWinTitle = m_frameSub->metadata().value("srcModName").toString();
         if (imgWinTitle.isEmpty())
@@ -116,18 +118,15 @@ public:
         if (m_fps == 0) {
             m_cvView->setStatusText(QTime::fromMSecsSinceStartOfDay(frameTime).toString("hh:mm:ss.zzz"));
         } else {
-            if ((frameTime - m_lastFpsUpdate) > 100) {
-                // we don't update the FPS display with every tick, as the framerate fluctuates
-                // (especially when throttling the subscription) and we want to display a more steady
-                // info to the user
-                const auto fdiff = frameTime - m_lastFrameTime;
-                if (fdiff != 0)
-                    m_currentFps = 1000 / fdiff;
-                else
-                    m_currentFps = m_fps;
-                m_lastFpsUpdate = frameTime;
-            }
+            // we use a moving average of the inter-frame-time over two seconds, as the framerate occasionally fluctuates
+            // (especially when throttling the subscription) and we want to display a more steady (but accurate)
+            // info to the user instead, without twitching around too much
+            m_avgFrameTimeDiffMsec = ((m_avgFrameTimeDiffMsec * (m_fps * 2)) + (frameTime - m_lastFrameTime)) / ((m_fps * 2) + 1);
             m_lastFrameTime = frameTime;
+            if (m_avgFrameTimeDiffMsec > 0)
+                m_currentFps = std::round(1000.0 / m_avgFrameTimeDiffMsec);
+            else
+                m_currentFps = m_fps;
 
             m_cvView->setStatusText(QStringLiteral("%1 / %2fps (%3 %4fps)")
                                     .arg(QTime::fromMSecsSinceStartOfDay(frameTime).toString("hh:mm:ss.zzz"))
