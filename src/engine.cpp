@@ -283,60 +283,64 @@ void Engine::emitStatusMessage(const QString &message)
 
 /**
  * @brief Return a list of active modules that have been sorted in the order they
- * should be initialized in.
+ * should be prepared, run and stopped in.
  */
 QList<AbstractModule *> Engine::createModuleExecOrderList()
 {
-    // we need to do some ordering so modules which consume data from other modules get
-    // activated last.
-    // this implicit sorting isn't great, and we might - if MazeAmaze becomes more complex than
-    // it already is - replace this with declarative ordering a proper dependency resolution
-    // at some point.
-    // we don't use Qt sorting facilities here, because we want at least some of the original
-    // module order to be kept.
+    // While modules could in theory be initialized in arbitrary order,
+    // it is more efficient and more predicatble if we initialize data-generating
+    // modules and modules which do not receive input first, and the initialize
+    // the ones which rely on data created by those modules.
+    // Proper dependency resolution would be needed for a perfect solution,
+    // but we only need one that's "good enough" here for now. So this algorithm
+    // will not produce a perfect result, especially if there are cycles in the
+    // module graph.
     QList<AbstractModule*> orderedActiveModules;
-    QList<AbstractModule*> scriptModList;
-    //int firstImgSinkModIdx = -1;
+    QSet<AbstractModule*> assignedMods;
 
-    orderedActiveModules.reserve(d->activeModules.length());
+    const auto modCount = d->activeModules.length();
+    assignedMods.reserve(modCount);
+    orderedActiveModules.reserve(modCount);
     for (auto &mod : d->activeModules) {
-#if 0
-        if (qobject_cast<ImageSourceModule*>(mod) != nullptr) {
-            if (firstImgSinkModIdx >= 0) {
-                // put in before the first sink
-                orderedActiveModules.insert(firstImgSinkModIdx, mod);
-                continue;
-            } else {
-                // just add the module
-                orderedActiveModules.append(mod);
-                continue;
-            }
-        } else if (qobject_cast<ImageSinkModule*>(mod) != nullptr) {
-            if (firstImgSinkModIdx < 0) {
-                // we have the first sink module
-                orderedActiveModules.append(mod);
-                firstImgSinkModIdx = orderedActiveModules.length() - 1;
-                continue;
-            } else {
-                // put in after the first sink
-                orderedActiveModules.insert(firstImgSinkModIdx + 1, mod);
-                continue;
-            }
-        } else if (qobject_cast<PyScriptModule*>(mod) != nullptr) {
-            // scripts are always initialized last, as they may arbitrarily connect
-            // to the other modules to control them.
-            // and we rather want that to happen when everything is prepared to run.
-            scriptModList.append(mod);
+        if (assignedMods.contains(mod))
             continue;
-        } else {
-            orderedActiveModules.append(mod);
+
+        // modules with no input ports go first
+        if (mod->inPorts().isEmpty()) {
+            orderedActiveModules.prepend(mod);
+            assignedMods.insert(mod);
+            continue;
         }
-#endif
-        orderedActiveModules.append(mod);
+
+        auto anySubscribed = false;
+        for (auto iport : mod->inPorts()) {
+            if (iport->hasSubscription()) {
+                anySubscribed = true;
+                const auto upstreamMod = iport->outPort()->owner();
+                if (!assignedMods.contains(upstreamMod)) {
+                    orderedActiveModules.append(upstreamMod);
+                    assignedMods.insert(upstreamMod);
+                }
+            }
+        }
+
+        // just stop if all modules have been assigned
+        if (assignedMods.size() == modCount)
+            break;
+
+        if (assignedMods.contains(mod))
+            continue;
+
+        if (!anySubscribed)
+            orderedActiveModules.prepend(mod);
+        else
+            orderedActiveModules.append(mod);
+        assignedMods.insert(mod);
     }
 
-    for (auto mod : scriptModList)
-        orderedActiveModules.append(mod);
+    if (orderedActiveModules.length() != modCount)
+        qCritical().noquote() << "Invalid count of ordered modules:" << orderedActiveModules.length() << "!=" << modCount;
+    assert(orderedActiveModules.length() == modCount);
 
     auto debugText = QStringLiteral("Running modules in order: ");
     for (auto &mod : orderedActiveModules)
