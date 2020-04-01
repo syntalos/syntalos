@@ -301,7 +301,7 @@ QList<AbstractModule *> Engine::createModuleExecOrderList()
     const auto modCount = d->activeModules.length();
     assignedMods.reserve(modCount);
     orderedActiveModules.reserve(modCount);
-    for (auto &mod : d->activeModules) {
+    for (const auto &mod : d->activeModules) {
         if (assignedMods.contains(mod))
             continue;
 
@@ -313,7 +313,7 @@ QList<AbstractModule *> Engine::createModuleExecOrderList()
         }
 
         auto anySubscribed = false;
-        for (auto iport : mod->inPorts()) {
+        for (const auto &iport : mod->inPorts()) {
             if (iport->hasSubscription()) {
                 anySubscribed = true;
                 const auto upstreamMod = iport->outPort()->owner();
@@ -438,7 +438,7 @@ static void executeIdleEventModuleThread(const QString& threadName, QList<Abstra
     while (running) {
         for (auto &mod : mods) {
             if (!mod->runEvent()){
-                qDebug() << QStringLiteral("Module %1 failed in event loop.").arg(mod->name());
+                qDebug() << QStringLiteral("Module '%1' failed in event loop.").arg(mod->name());
                 failed = true;
                 return;
             }
@@ -540,14 +540,14 @@ bool Engine::run()
         if (!mod->prepare(d->testSubject)) {
             initSuccessful = false;
             d->failed = true;
-            emitStatusMessage(QStringLiteral("Module %1 failed to prepare.").arg(mod->name()));
+            emitStatusMessage(QStringLiteral("Module '%1' failed to prepare.").arg(mod->name()));
             break;
         }
         // if the module hasn't set itself to ready yet, assume it is idle
         if (mod->state() != ModuleState::READY)
             mod->setState(ModuleState::IDLE);
 
-        qDebug().noquote().nospace() << "Engine: " << "Module " << mod->name() << " prepared in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
+        qDebug().noquote().nospace() << "Engine: " << "Module '" << mod->name() << "' prepared in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
     }
 
     // threads our modules run in, as module name/thread pairs
@@ -649,7 +649,7 @@ bool Engine::run()
                 QThread::msleep(500);
                 QCoreApplication::processEvents();
                 if (mod->state() == ModuleState::ERROR) {
-                    emitStatusMessage(QStringLiteral("Module %1 failed to initialize.").arg(mod->name()));
+                    emitStatusMessage(QStringLiteral("Module '%1' failed to initialize.").arg(mod->name()));
                     initSuccessful = false;
                     break;
                 }
@@ -745,6 +745,33 @@ bool Engine::run()
         emitStatusMessage(QStringLiteral("Stopping %1...").arg(mod->name()));
         lastPhaseTimepoint = d->timer->currentTimePoint();
 
+        // wait a little bit for modules to process remaining data from their
+        // stream subscriptions - we don't wait too long here, simply because
+        // the upstream module may still be generating data (and in that case
+        // we would never be able to stop, especially if there are cycles in
+        // the module graph
+        for (const auto &iport : mod->inPorts()) {
+            if (!iport->hasSubscription())
+                continue;
+
+            // give the module 1.2sec to clear pending elements for this subscription
+            const auto startPortWaitTS = d->timer->timeSinceStartMsec();
+            size_t remainingElements = 0;
+            do {
+                remainingElements = iport->subscriptionVar()->approxPendingCount();
+                if (remainingElements == 0)
+                    break;
+                qApp->processEvents();
+            } while ((d->timer->timeSinceStartMsec() - startPortWaitTS).count() <= 1200);
+
+            if (remainingElements != 0)
+                qDebug().noquote().nospace() << "Engine: "
+                                             << "Module '" << mod->name() << "' "
+                                             << "subscription `" << iport->id() << "` "
+                                             << "possibly lost " << remainingElements << " element(s)";
+        }
+
+        // send the stop command
         mod->stop();
 
         // safeguard against bad modules which don't stop running their
@@ -764,7 +791,7 @@ bool Engine::run()
         // so the module is less tempted to write data into old experiment locations.
         mod->setDataStorageRootDir(QString());
 
-        qDebug().noquote().nospace() << "Engine: " << "Module " << mod->name() << " stopped in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
+        qDebug().noquote().nospace() << "Engine: " << "Module '" << mod->name() << "' stopped in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
     }
 
     lastPhaseTimepoint = d->timer->currentTimePoint();

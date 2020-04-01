@@ -50,6 +50,7 @@ public:
     virtual QHash<QString, QVariant> metadata() const = 0;
     virtual bool unsubscribe() = 0;
     virtual bool active() const = 0;
+    virtual size_t approxPendingCount() const = 0;
 };
 
 class VariantDataStream
@@ -84,6 +85,7 @@ public:
     {
         m_lastItemTime = currentTimePoint();
     }
+
     ~StreamSubscription()
     {
         m_active = false;
@@ -173,6 +175,11 @@ public:
     bool active() const override
     {
         return m_active;
+    }
+
+    size_t approxPendingCount() const override
+    {
+        return m_queue.size_approx();
     }
 
     uint throttle()
