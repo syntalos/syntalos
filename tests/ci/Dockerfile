@@ -43,6 +43,12 @@ RUN DEBIAN_FRONTEND=noninteractive eatmydata apt-get install -yq --no-install-re
 RUN mkdir -p /build/extra
 WORKDIR /build/extra
 
+# TOML++ to read and write TOML files
+RUN git clone --depth 1 https://github.com/marzer/tomlplusplus.git toml++
+RUN mkdir toml++/b
+RUN cd toml++/b/ && meson -DBUILD_TESTS=disabled ..
+RUN cd toml++/b/ && ninja && ninja install
+
 # PoMiDAQ for Miniscope support
 RUN git clone --depth 1 https://github.com/bothlab/pomidaq.git pomidaq
 RUN mkdir pomidaq/b

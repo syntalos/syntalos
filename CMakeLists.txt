@@ -61,6 +61,7 @@ find_package(Qt5Svg REQUIRED)
 find_package(Qt5RemoteObjects)
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(FFmpeg 58.35 REQUIRED COMPONENTS avcodec avutil avformat swscale)
+pkg_check_modules(TOML toml++>=1.0 REQUIRED)
 
 find_package(PythonLibs 3.5 REQUIRED)
 find_package(KF5Archive REQUIRED)

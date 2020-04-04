@@ -35,3 +35,17 @@ target_link_libraries(test-timer
 )
 add_test(timer test-timer)
 set_tests_properties(timer PROPERTIES RUN_SERIAL TRUE)
+
+#
+# Experiment Directory Layout Test
+#
+add_executable(test-edlstorage
+    ${CMAKE_SOURCE_DIR}/src/edlstorage.cpp
+    test-edlstorage.cpp
+)
+target_link_libraries(test-edlstorage
+    ${SY_BASE_LIBS}
+    syntalos_shared
+    Qt5::Test
+)
+add_test(edlstorage test-edlstorage)

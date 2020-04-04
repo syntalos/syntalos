@@ -14,6 +14,8 @@ set(SYNTALOS_SHARED_SRC
     syclock.cpp
     timesync.h
     timesync.cpp
+    edlstorage.h
+    edlstorage.cpp
     moduleapi.h
     moduleapi.cpp
 
@@ -108,6 +110,7 @@ target_link_libraries(syntalos
 )
 
 include_directories(
+    ${TOML_INCLUDE_DIRS}
     ${OpenCV_INCLUDE_DIRS}
 )
 
