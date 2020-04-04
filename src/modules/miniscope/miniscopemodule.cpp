@@ -60,11 +60,16 @@ public:
 
         m_miniscope->setOnFrame(&on_newRawFrame, this);
         m_miniscope->setOnDisplayFrame(&on_newDisplayFrame, this);
-        m_miniscope->setOnFrameTimestamp(&on_newFrameTimestamp, this);
 
         m_evTimer = new QTimer(this);
         m_evTimer->setInterval(200);
         connect(m_evTimer, &QTimer::timeout, this, &MiniscopeModule::checkMSStatus);
+
+        // print output for better debugging
+        m_miniscope->setPrintMessagesToStdout(false);
+        m_miniscope->setOnMessage([&](const std::string &msg, void*) {
+            qDebug().noquote() << name() + QStringLiteral(":") << QString::fromStdString(msg);
+        });
     }
 
     ~MiniscopeModule()
@@ -141,7 +146,7 @@ public:
         AbstractModule::start();
     }
 
-    static void on_newFrameTimestamp(milliseconds_t &masterRecvTimestamp, const milliseconds_t &deviceTimestamp, void *udata)
+    static void on_newRawFrame(const cv::Mat &mat, milliseconds_t &frameTime, const milliseconds_t &masterRecvTime, const milliseconds_t &deviceTime, void *udata)
     {
         const auto self = static_cast<MiniscopeModule*>(udata);
         if (!self->m_acceptFrames) {
@@ -149,15 +154,15 @@ public:
             if (!self->m_acceptFrames)
                 return;
         }
-        self->m_clockSync->processTimestamp(masterRecvTimestamp, deviceTimestamp);
-    }
+        // use synchronizer to synchronize time
+        frameTime = masterRecvTime;
+        self->m_clockSync->processTimestamp(frameTime, deviceTime);
 
-    static void on_newRawFrame(const cv::Mat &mat, const milliseconds_t &time, void *udata)
-    {
-        const auto self = static_cast<MiniscopeModule*>(udata);
-        if (!self->m_acceptFrames)
+        // we don't want to forward dropped frames
+        if (mat.empty())
             return;
-        self->m_rawOut->push(Frame(mat, time));
+
+        self->m_rawOut->push(Frame(mat, frameTime));
     }
 
     static void on_newDisplayFrame(const cv::Mat &mat, const milliseconds_t &time, void *udata)
@@ -170,6 +175,13 @@ public:
 
     void checkMSStatus()
     {
+        if (!m_miniscope->running()) {
+            if (!m_miniscope->lastError().empty()) {
+                raiseError(QString::fromStdString(m_miniscope->lastError()));
+                m_evTimer->stop();
+                return;
+            }
+        }
         statusMessage(QStringLiteral("FPS: %1 Dropped: %2").arg(m_miniscope->currentFps()).arg(m_miniscope->droppedFramesCount()));
     }
 
