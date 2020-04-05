@@ -14,6 +14,8 @@ set(SYNTALOS_SHARED_SRC
     syclock.cpp
     timesync.h
     timesync.cpp
+    tomlutils.h
+    tomlutils.cpp
     edlstorage.h
     edlstorage.cpp
     moduleapi.h

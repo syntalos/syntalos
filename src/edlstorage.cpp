@@ -28,6 +28,8 @@
 #include <QDir>
 #include <toml++/toml.h>
 
+#include "tomlutils.h"
+
 static const QString EDL_FORMAT_VERSION = QStringLiteral("1");
 
 class EDLObject::Private
@@ -57,7 +59,10 @@ EDLObject::EDLObject(EDLObjectKind kind, QObject *parent)
     d->objectKind = kind;
     d->formatVersion = EDL_FORMAT_VERSION;
 
-    d->timeCreated = QDateTime::currentDateTime();
+    // set default creation time, with second-resolution (milliseconds are stripped)
+    auto cdt = QDateTime::currentDateTime();
+    cdt.setTime(QTime(cdt.time().hour(), cdt.time().minute(), cdt.time().second()));
+    d->timeCreated = cdt;
 }
 
 EDLObject::~EDLObject()
@@ -170,23 +175,6 @@ void EDLObject::setLastError(const QString &message)
     d->lastError = message;
 }
 
-static toml::date_time qDateTimeToTomlDateTime(const QDateTime &qdt)
-{
-    toml::date_time tomlDt;
-    tomlDt.date.year = qdt.date().year();
-    tomlDt.date.month = qdt.date().month();
-    tomlDt.date.day = qdt.date().day();
-    tomlDt.time.hour = qdt.time().hour();
-    tomlDt.time.minute = qdt.time().minute();
-    tomlDt.time.second = qdt.time().second();
-
-    toml::time_offset offset;
-    offset.minutes = qdt.offsetFromUtc() / 60;
-    tomlDt.time_offset = offset;
-
-    return tomlDt;
-}
-
 static toml::table createManifestFileSection(EDLDataFile &df)
 {
     toml::table dataTab;
@@ -283,115 +271,13 @@ bool EDLObject::saveManifest(std::optional<EDLDataFile> dataFile, std::optional<
     return true;
 }
 
-static void qvariantHashToTomlTable(EDLObject *owner, toml::table &tab, const QVariantHash &var);
-
-static void qvariantListToTomlArray(EDLObject *owner, toml::array &arr, const QVariantList &varList)
-{
-    for (const auto &var : varList) {
-        if (var.canConvert<QVariantHash>()) {
-            toml::table subTab;
-            qvariantHashToTomlTable(owner, subTab, var.toHash());
-            arr.push_back(std::move(subTab));
-            continue;
-        }
-
-        if (var.canConvert<QVariantList>()) {
-            toml::array arr;
-            qvariantListToTomlArray(owner, arr, var.toList());
-            arr.push_back(std::move(arr));
-            continue;
-        }
-
-        if (var.type() == QVariant::Bool) {
-            arr.push_back(var.toBool());
-            continue;
-        }
-
-        if (var.canConvert<int>()) {
-            arr.push_back(var.toInt());
-            continue;
-        }
-
-        if (var.canConvert<float>()) {
-            arr.push_back(var.toFloat());
-            continue;
-        }
-
-        if (var.canConvert<double>()) {
-            arr.push_back(var.toDouble());
-            continue;
-        }
-
-        if (var.canConvert<QString>()) {
-            arr.push_back(var.toString().toStdString());
-            continue;
-        }
-
-        qWarning().noquote() << QStringLiteral("Unable to store type `%1` in attributes (array) of '%2'").arg(var.typeName()).arg(owner->name());
-        arr.push_back("<?>");
-    }
-}
-
-static void qvariantHashToTomlTable(EDLObject *owner, toml::table &tab, const QVariantHash &var)
-{
-    QHashIterator<QString, QVariant> i(var);
-    while (i.hasNext()) {
-        i.next();
-        auto var = i.value();
-        const auto key = i.key().toStdString();
-
-        if (var.canConvert<QVariantHash>()) {
-            toml::table subTab;
-            qvariantHashToTomlTable(owner, subTab, var.toHash());
-            tab.insert(key, std::move(subTab));
-            continue;
-        }
-
-        if (var.canConvert<QVariantList>()) {
-            toml::array arr;
-            qvariantListToTomlArray(owner, arr, var.toList());
-            tab.insert(key, std::move(arr));
-            continue;
-        }
-
-        if (var.type() == QVariant::Bool) {
-            tab.insert(key, var.toBool());
-            continue;
-        }
-
-        if (var.canConvert<int>()) {
-            tab.insert(key, var.toInt());
-            continue;
-        }
-
-        if (var.canConvert<float>()) {
-            tab.insert(key, var.toFloat());
-            continue;
-        }
-
-        if (var.canConvert<double>()) {
-            tab.insert(key, var.toDouble());
-            continue;
-        }
-
-        if (var.canConvert<QString>()) {
-            tab.insert(key, var.toString().toStdString());
-            continue;
-        }
-
-        qWarning().noquote() << QStringLiteral("Unable to store type `%1` in attributes (table) of '%2'").arg(var.typeName()).arg(owner->name());
-        tab.insert(key, "<?>");
-    }
-}
-
 bool EDLObject::saveAttributes()
 {
     // do nothing if we have no user-defined attributes to save
     if (d->attrs.isEmpty())
         return true;
 
-    toml::table document;
-    qvariantHashToTomlTable(this, document, d->attrs);
+    auto document = qVariantHashToTomlTable(d->attrs);
 
     QDir dir;
     if (!dir.mkpath(path())) {
