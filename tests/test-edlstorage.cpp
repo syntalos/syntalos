@@ -14,7 +14,7 @@ private slots:
     void runTomlSerialize()
     {
         const auto expectedToml = QStringLiteral("boolean = true\n"
-                                                 "date = 1977-04-23T13:37:12+01:00\n"
+                                                 "date = 1977-04-23T13:37:12Z\n"
                                                  "list = [ \"spam\", 8, \"eggs\", true, 12.4, \"spam\", false ]\n"
                                                  "string = \"Hello World - öäß-!?\"\n"
                                                  "\n"
@@ -22,11 +22,11 @@ private slots:
                                                  "float = 1.248\n"
                                                  "key = \"stringvalue\"\n");
 
-        auto date = QDate(1977, 4, 23);
-        auto time = QTime(13, 37, 12);
+        auto dateTime = QDateTime(QDate(1977, 4, 23), QTime(13, 37, 12));
+        dateTime.setTimeZone(QTimeZone::utc());
 
         QVariantHash table;
-        table.insert("date", QDateTime(date, time));
+        table.insert("date", dateTime);
         table.insert("boolean", true);
         table.insert("string", "Hello World - öäß-!?");
 
