@@ -86,6 +86,9 @@ public:
     QDateTime timeCreated() const;
     void setTimeCreated(const QDateTime &time);
 
+    QUuid collectionId() const;
+    virtual void setCollectionId(const QUuid &uuid);
+
     void addAuthor(const EDLAuthor author);
     QList<EDLAuthor> authors() const;
 
@@ -106,7 +109,9 @@ protected:
     void setObjectKind(const EDLObjectKind &kind);
     void setLastError(const QString &message);
 
-    bool saveManifest(std::optional<EDLDataFile> dataFile = std::nullopt, std::optional<EDLDataFile> auxDataFile = std::nullopt);
+    bool saveManifest(const QString &generator = QString(),
+                      std::optional<EDLDataFile> dataFile = std::nullopt,
+                      std::optional<EDLDataFile> auxDataFile = std::nullopt);
     bool saveAttributes();
 
 private:
@@ -146,6 +151,7 @@ public:
 
     void setName(const QString &name) override;
     void setRootPath(const QString &root) override;
+    void setCollectionId(const QUuid &uuid) override;
 
     QList<EDLObject*> children() const;
     void addChild(EDLObject *edlObj);
@@ -170,6 +176,11 @@ class EDLCollection : public EDLGroup
 public:
     explicit EDLCollection(const QString &name, QObject *parent = nullptr);
     ~EDLCollection();
+
+    QString generatorId() const;
+    void setGeneratorId(const QString &idString);
+
+    bool save() override;
 
 private:
     class Private;

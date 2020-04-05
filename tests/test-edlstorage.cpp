@@ -16,6 +16,8 @@ private slots:
         collection->addAuthor(EDLAuthor("Max Mustermann", "x@y.de"));
         collection->addAuthor(EDLAuthor("Karl Klammer", "aaaa@bbbb.com"));
 
+        collection->setGeneratorId(QCoreApplication::applicationName());
+
         auto dset = collection->newDataset("mydata");
         dset->addDataFilePart("/usr/local/share/blah.test");
 

@@ -26,6 +26,7 @@
 #include <QFileInfo>
 #include <QMimeDatabase>
 #include <QDir>
+#include <QUuid>
 #include <toml++/toml.h>
 
 #include "tomlutils.h"
@@ -40,6 +41,7 @@ public:
 
     EDLObjectKind objectKind;
     QString formatVersion;
+    QUuid collectionId;
     QList<EDLAuthor> authors;
 
     QString name;
@@ -105,6 +107,16 @@ QDateTime EDLObject::timeCreated() const
 void EDLObject::setTimeCreated(const QDateTime &time)
 {
     d->timeCreated = time;
+}
+
+QUuid EDLObject::collectionId() const
+{
+    return d->collectionId;
+}
+
+void EDLObject::setCollectionId(const QUuid &uuid)
+{
+    d->collectionId = uuid;
 }
 
 void EDLObject::addAuthor(const EDLAuthor author)
@@ -219,13 +231,18 @@ static toml::table createManifestFileSection(EDLDataFile &df)
     return dataTab;
 }
 
-bool EDLObject::saveManifest(std::optional<EDLDataFile> dataFile, std::optional<EDLDataFile> auxDataFile)
+bool EDLObject::saveManifest(const QString &generator, std::optional<EDLDataFile> dataFile, std::optional<EDLDataFile> auxDataFile)
 {
     toml::table document;
 
     document.insert("format_version", d->formatVersion.toStdString());
     document.insert("type", objectKindString().toStdString());
     document.insert("time_created", qDateTimeToTomlDateTime(d->timeCreated));
+
+    if (!d->collectionId.isNull())
+        document.insert("collection_id", d->collectionId.toString(QUuid::WithoutBraces).toStdString());
+    if (!generator.isEmpty())
+        document.insert("generator", generator.toStdString());
 
     if (!d->authors.isEmpty()) {
         toml::array authorsArr;
@@ -323,7 +340,7 @@ bool EDLDataset::save()
         setLastError(QStringLiteral("Unable to save dataset: No root directory is set."));
         return false;
     }
-    if (!saveManifest(d->dataFile, d->auxFile))
+    if (!saveManifest(QString(), d->dataFile, d->auxFile))
         return false;
     return saveAttributes();
 }
@@ -370,6 +387,14 @@ void EDLGroup::setRootPath(const QString &root)
         node->setRootPath(path());
 }
 
+void EDLGroup::setCollectionId(const QUuid &uuid)
+{
+    EDLObject::setCollectionId(uuid);
+    // propagate collection UUID through the DAG
+    for (auto &node : d->children)
+        node->setCollectionId(uuid);
+}
+
 QList<EDLObject *> EDLGroup::children() const
 {
     return d->children;
@@ -379,6 +404,7 @@ void EDLGroup::addChild(EDLObject *edlObj)
 {
     edlObj->setParent(this);
     edlObj->setRootPath(path());
+    edlObj->setCollectionId(collectionId());
     d->children.append(edlObj);
 }
 
@@ -430,6 +456,7 @@ public:
     Private() {}
     ~Private() {}
 
+    QString generatorId;
 };
 
 EDLCollection::EDLCollection(const QString &name, QObject *parent)
@@ -438,7 +465,32 @@ EDLCollection::EDLCollection(const QString &name, QObject *parent)
     setObjectKind(EDLObjectKind::COLLECTION);
     setParent(parent);
     setName(name);
+
+    // a collection must have a unique ID to identify all nodes that belong to it
+    // by default, we set a version 4 (random) UUID
+    setCollectionId(QUuid::createUuid());
 }
 
 EDLCollection::~EDLCollection()
 {}
+
+QString EDLCollection::generatorId() const
+{
+    return d->generatorId;
+}
+
+void EDLCollection::setGeneratorId(const QString &idString)
+{
+    d->generatorId = idString;
+}
+
+bool EDLCollection::save()
+{
+    if (rootPath().isEmpty()) {
+        setLastError(QStringLiteral("Unable to save collection: No root directory is set."));
+        return false;
+    }
+    if (!saveManifest(d->generatorId))
+        return false;
+    return saveAttributes();
+}
