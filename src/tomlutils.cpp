@@ -21,7 +21,7 @@
 
 #include <QDebug>
 
-toml::time qTimeToTomlTime(const QTime &qtime)
+toml::time qTimeToToml(const QTime &qtime)
 {
     toml::time ttime;
 
@@ -32,7 +32,7 @@ toml::time qTimeToTomlTime(const QTime &qtime)
     return ttime;
 }
 
-toml::date qDateToTomlDate(const QDate &qdate)
+toml::date qDateToToml(const QDate &qdate)
 {
     toml::date tdate;
 
@@ -42,11 +42,11 @@ toml::date qDateToTomlDate(const QDate &qdate)
     return tdate;
 }
 
-toml::date_time qDateTimeToTomlDateTime(const QDateTime &qdt)
+toml::date_time qDateTimeToToml(const QDateTime &qdt)
 {
     toml::date_time tomlDt;
-    tomlDt.date = qDateToTomlDate(qdt.date());
-    tomlDt.time = qTimeToTomlTime(qdt.time());
+    tomlDt.date = qDateToToml(qdt.date());
+    tomlDt.time = qTimeToToml(qdt.time());
 
     toml::time_offset offset;
     offset.minutes = qdt.offsetFromUtc() / 60;
@@ -59,49 +59,51 @@ toml::date_time qDateTimeToTomlDateTime(const QDateTime &qdt)
 // way to do this with the current version of TOML++ that needs to know types
 // immediately for template instanciation and can't infer anything at runtime
 // This macro needs a GCC-compliant compiler (GCC and Clang will work)
-#define CONVERT_SIMPLE_QTYPE_TO_TOMLTYPE(func, var) ({     \
-    bool success = true;                                   \
-    if ((var).type() == QVariant::Bool) {                  \
-        func((var).toBool());                              \
-    }                                                      \
-                                                           \
-    else if ((var).canConvert<int>()) {                    \
-        func((var).toInt());                               \
-    }                                                      \
-                                                           \
-    else if ((var).canConvert<int64_t>()) {                \
-        func((var).value<int64_t>());                      \
-    }                                                      \
-                                                           \
-    else if ((var).canConvert<float>()) {                  \
-        func((var).toFloat());                             \
-    }                                                      \
-                                                           \
-    else if ((var).canConvert<double>()) {                 \
-        func((var).toDouble());                            \
-    }                                                      \
-                                                           \
-    else if ((var).canConvert<QString>()) {                \
-        func((var).toString().toStdString());              \
-    }                                                      \
-                                                           \
-    else if ((var).canConvert<QTime>()) {                  \
-        func(qTimeToTomlTime((var).toTime()));             \
-    }                                                      \
-                                                           \
-    else if ((var).canConvert<QDate>()) {                  \
-        func(qDateToTomlDate((var).toDate()));             \
-    }                                                      \
-                                                           \
-    else if ((var).canConvert<QDateTime>()) {              \
-        func(qDateTimeToTomlDateTime((var).toDateTime())); \
-    }                                                      \
-                                                           \
-    else {                                                 \
-        /* unable to convert this value */                 \
-        success = false;                                   \
-    }                                                      \
-    success;                                               \
+#define CONVERT_SIMPLE_QTYPE_TO_TOMLTYPE(func, var) ({ \
+    bool success = true;                               \
+    if ((var).type() == QVariant::Bool) {              \
+        func((var).toBool());                          \
+    }                                                  \
+                                                       \
+    else if ((var).type() == QVariant::String) {       \
+        func((var).toString().toStdString());          \
+    }                                                  \
+                                                       \
+    else if ((var).type() == QVariant::Int) {          \
+        func((var).toInt());                           \
+    }                                                  \
+                                                       \
+    else if ((var).canConvert<double>()) {             \
+        func((var).toDouble());                        \
+    }                                                  \
+                                                       \
+    else if ((var).canConvert<int64_t>()) {            \
+        func((var).value<int64_t>());                  \
+    }                                                  \
+                                                       \
+    else if ((var).type() == QVariant::Time) {         \
+        func(qTimeToToml((var).toTime()));             \
+    }                                                  \
+                                                       \
+    else if ((var).type() == QVariant::Date) {         \
+        func(qDateToToml((var).toDate()));             \
+    }                                                  \
+                                                       \
+    else if ((var).canConvert<QDateTime>()) {          \
+        func(qDateTimeToToml((var).toDateTime()));     \
+    }                                                  \
+                                                       \
+    /* check Qt knows how to convert the unknown */    \
+    /* value  to a string representation. */           \
+    else if ((var).canConvert<QString>()) {            \
+        func((var).toString().toStdString());          \
+    }                                                  \
+                                                       \
+    else {                                             \
+        /* unable to convert this value */             \
+        success = false;                               \
+    }                                                  \
+    success;                                           \
 })
 
 toml::array qVariantListToTomlArray(const QVariantList &varList)
@@ -159,4 +161,11 @@ toml::table qVariantHashToTomlTable(const QVariantHash &varHash)
     }
 
     return tab;
+}
+
+QString serializeTomlTable(const toml::table &tab)
+{
+    std::stringstream data;
+    data << tab << "\n";
+    return QString::fromStdString(data.str());
 }

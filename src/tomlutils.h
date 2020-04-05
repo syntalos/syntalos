@@ -23,9 +23,11 @@
 #include <QDateTime>
 #include <QVariant>
 
-toml::time qTimeToTomlTime(const QTime &qtime);
-toml::date qDateToTomlDate(const QDate &qdate);
-toml::date_time qDateTimeToTomlDateTime(const QDateTime &qdt);
+toml::time qTimeToToml(const QTime &qtime);
+toml::date qDateToToml(const QDate &qdate);
+toml::date_time qDateTimeToToml(const QDateTime &qdt);
 
 toml::array qVariantListToTomlArray(const QVariantList &varList);
 toml::table qVariantHashToTomlTable(const QVariantHash &varHash);
+
+QString serializeTomlTable(const toml::table &tab);

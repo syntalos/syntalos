@@ -42,13 +42,15 @@ public:
     EDLObjectKind objectKind;
     QString formatVersion;
     QUuid collectionId;
+    QDateTime timeCreated;
+    QString generatorId;
     QList<EDLAuthor> authors;
 
     QString name;
     QString rootPath;
 
-    QDateTime timeCreated;
-
+    std::optional<EDLDataFile> dataFile;
+    std::optional<EDLDataFile> auxDataFile;
     QHash<QString, QVariant> attrs;
 
     QString lastError;
@@ -151,12 +153,12 @@ void EDLObject::setRootPath(const QString &root)
     d->rootPath = root;
 }
 
-QHash<QString, QVariant> EDLObject::attrs() const
+QHash<QString, QVariant> EDLObject::attributes() const
 {
     return d->attrs;
 }
 
-void EDLObject::setAttrs(const QHash<QString, QVariant> &attributes)
+void EDLObject::setAttributes(const QHash<QString, QVariant> &attributes)
 {
     d->attrs = attributes;
 }
@@ -185,6 +187,12 @@ void EDLObject::setObjectKind(const EDLObjectKind &kind)
 void EDLObject::setLastError(const QString &message)
 {
     d->lastError = message;
+}
+
+void EDLObject::setDataObjects(std::optional<EDLDataFile> dataFile, std::optional<EDLDataFile> auxDataFile)
+{
+    d->dataFile = dataFile;
+    d->auxDataFile = auxDataFile;
 }
 
 static toml::table createManifestFileSection(EDLDataFile &df)
@@ -231,18 +239,18 @@ static toml::table createManifestFileSection(EDLDataFile &df)
     return dataTab;
 }
 
-bool EDLObject::saveManifest(const QString &generator, std::optional<EDLDataFile> dataFile, std::optional<EDLDataFile> auxDataFile)
+QString EDLObject::serializeManifest()
 {
     toml::table document;
 
     document.insert("format_version", d->formatVersion.toStdString());
     document.insert("type", objectKindString().toStdString());
-    document.insert("time_created", qDateTimeToTomlDateTime(d->timeCreated));
+    document.insert("time_created", qDateTimeToToml(d->timeCreated));
 
     if (!d->collectionId.isNull())
         document.insert("collection_id", d->collectionId.toString(QUuid::WithoutBraces).toStdString());
-    if (!generator.isEmpty())
-        document.insert("generator", generator.toStdString());
+    if (!d->generatorId.isEmpty())
+        document.insert("generator", d->generatorId.toStdString());
 
     if (!d->authors.isEmpty()) {
         toml::array authorsArr;
@@ -260,16 +268,40 @@ bool EDLObject::saveManifest(const QString &generator, std::optional<EDLDataFile
         document.insert("authors", std::move(authorsArr));
     }
 
-    if (dataFile.has_value() && !dataFile->parts.isEmpty()) {
-        auto dataTab = createManifestFileSection(dataFile.value());
+    if (d->dataFile.has_value() && !d->dataFile->parts.isEmpty()) {
+        auto dataTab = createManifestFileSection(d->dataFile.value());
         document.insert("data", std::move(dataTab));
     }
 
-    if (auxDataFile.has_value() && !auxDataFile->parts.isEmpty()) {
-        auto dataTab = createManifestFileSection(auxDataFile.value());
+    if (d->auxDataFile.has_value() && !d->auxDataFile->parts.isEmpty()) {
+        auto dataTab = createManifestFileSection(d->auxDataFile.value());
         document.insert("data", std::move(dataTab));
     }
 
+    // serialize manifest data to TOML
+    std::stringstream strData;
+    strData << document << "\n";
+
+    return QString::fromStdString(strData.str());
+}
+
+QString EDLObject::serializeAttributes()
+{
+    // no user-defined attributes means the document is empty
+    if (d->attrs.isEmpty())
+        return QString();
+
+    auto document = qVariantHashToTomlTable(d->attrs);
+
+    // serialize user attributes to TOML
+    std::stringstream strData;
+    strData << document << "\n";
+
+    return QString::fromStdString(strData.str());
+}
+
+bool EDLObject::saveManifest()
+{
     QDir dir;
     if (!dir.mkpath(path())) {
         d->lastError = QStringLiteral("Unable to create EDL directory: '%1'").arg(path());
@@ -277,14 +309,16 @@ bool EDLObject::saveManifest(const QString &generator, std::optional<EDLDataFile
     }
 
     // write the manifest file
-    std::ofstream mf(QStringLiteral("%1/manifest.toml").arg(path()).toStdString());
-    if (!mf.is_open()) {
-        d->lastError = QStringLiteral("Unable to open manifest file for writing (in '%1')").arg(path());
+    QFile file(QStringLiteral("%1/manifest.toml").arg(path()));
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        d->lastError = QStringLiteral("Unable to open manifest file for writing (in '%1'): %2").arg(path()).arg(file.errorString());
         return false;
     }
-    mf << document << "\n";
-    mf.close();
 
+    QTextStream out(&file);
+    out << serializeManifest();
+
+    file.close();
     return true;
 }
 
@@ -294,8 +328,6 @@ bool EDLObject::saveAttributes()
     if (d->attrs.isEmpty())
         return true;
 
-    auto document = qVariantHashToTomlTable(d->attrs);
-
     QDir dir;
     if (!dir.mkpath(path())) {
         d->lastError = QStringLiteral("Unable to create EDL directory: '%1'").arg(path());
@@ -303,15 +335,27 @@ bool EDLObject::saveAttributes()
     }
 
     // write the attributes file
-    std::ofstream mf(QStringLiteral("%1/attributes.toml").arg(path()).toStdString());
-    if (!mf.is_open()) {
-        d->lastError = QStringLiteral("Unable to open attributes file for writing (in '%1')").arg(path());
+    QFile file(QStringLiteral("%1/attributes.toml").arg(path()));
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        d->lastError = QStringLiteral("Unable to open attributes file for writing (in '%1'): %2").arg(path()).arg(file.errorString());
         return false;
     }
-    mf << document << "\n";
-    mf.close();
 
+    QTextStream out(&file);
+    out << serializeAttributes();
+
+    file.close();
     return true;
+}
+
+QString EDLObject::generatorId() const
+{
+    return d->generatorId;
+}
+
+void EDLObject::setGeneratorId(const QString &idString)
+{
+    d->generatorId = idString;
 }
 
 class EDLDataset::Private
@@ -336,11 +380,12 @@ EDLDataset::~EDLDataset()
 
 bool EDLDataset::save()
 {
+    setDataObjects(d->dataFile, d->auxFile);
     if (rootPath().isEmpty()) {
         setLastError(QStringLiteral("Unable to save dataset: No root directory is set."));
         return false;
     }
-    if (!saveManifest(QString(), d->dataFile, d->auxFile))
+    if (!saveManifest())
         return false;
     return saveAttributes();
 }
@@ -456,7 +501,6 @@ public:
     Private() {}
     ~Private() {}
 
-    QString generatorId;
 };
 
 EDLCollection::EDLCollection(const QString &name, QObject *parent)
@@ -476,21 +520,10 @@ EDLCollection::~EDLCollection()
 
 QString EDLCollection::generatorId() const
 {
-    return d->generatorId;
+    return EDLGroup::generatorId();
 }
 
 void EDLCollection::setGeneratorId(const QString &idString)
 {
-    d->generatorId = idString;
-}
-
-bool EDLCollection::save()
-{
-    if (rootPath().isEmpty()) {
-        setLastError(QStringLiteral("Unable to save collection: No root directory is set."));
-        return false;
-    }
-    if (!saveManifest(d->generatorId))
-        return false;
-    return saveAttributes();
+    EDLGroup::setGeneratorId(idString);
 }

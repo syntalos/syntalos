@@ -22,6 +22,7 @@
 #include <QObject>
 #include <QHash>
 #include <QDateTime>
+#include <QFileInfo>
 
 enum class EDLObjectKind
 {
@@ -50,7 +51,7 @@ public:
     {}
     explicit EDLDataPart(const QString &fname)
         : index(-1),
-          fname(fname)
+          fname(QFileInfo(fname).fileName())
     {}
     int index;
     QString fname;
@@ -98,21 +99,28 @@ public:
     QString rootPath() const;
     virtual void setRootPath(const QString &root);
 
-    QHash<QString, QVariant> attrs() const;
-    void setAttrs(const QHash<QString, QVariant> &attributes);
+    QHash<QString, QVariant> attributes() const;
+    void setAttributes(const QHash<QString, QVariant> &attributes);
 
     virtual bool save();
 
     QString lastError() const;
 
+    QString serializeManifest();
+    QString serializeAttributes();
+
 protected:
     void setObjectKind(const EDLObjectKind &kind);
     void setLastError(const QString &message);
 
-    bool saveManifest(const QString &generator = QString(),
-                      std::optional<EDLDataFile> dataFile = std::nullopt,
-                      std::optional<EDLDataFile> auxDataFile = std::nullopt);
+    void setDataObjects(std::optional<EDLDataFile> dataFile,
+                        std::optional<EDLDataFile> auxDataFile = std::nullopt);
+
+    bool saveManifest();
     bool saveAttributes();
+
+    QString generatorId() const;
+    void setGeneratorId(const QString &idString);
 
 private:
     class Private;
@@ -179,8 +187,6 @@ public:
 
     QString generatorId() const;
     void setGeneratorId(const QString &idString);
-
-    bool save() override;
 
 private:
     class Private;

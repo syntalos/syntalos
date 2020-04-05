@@ -1,4 +1,4 @@
- 
+
 remove_definitions("-Wextra")
 add_subdirectory(rwqueue)
 
@@ -40,7 +40,6 @@ set_tests_properties(timer PROPERTIES RUN_SERIAL TRUE)
 # Experiment Directory Layout Test
 #
 add_executable(test-edlstorage
-    ${CMAKE_SOURCE_DIR}/src/edlstorage.cpp
     test-edlstorage.cpp
 )
 target_link_libraries(test-edlstorage
