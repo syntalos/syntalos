@@ -521,9 +521,12 @@ bool VideoWriter::prepareFrame(const cv::Mat &inImage)
 {
     auto image = inImage;
 
-    // convert to gray in case the frame has colors attached
+    // convert to gray in case the frame has colors attached,
+    // and convert to BGR in case the frame - possibly - has an alpha channel
     if ((d->inputPixFormat == AV_PIX_FMT_GRAY8) && (image.channels() != 1))
         cv::cvtColor(inImage, image, cv::COLOR_BGR2GRAY);
+    else if ((d->inputPixFormat == AV_PIX_FMT_BGR24) && (image.channels() == 4))
+        cv::cvtColor(inImage, image, cv::COLOR_BGRA2BGR);
 
     const auto channels = image.channels();
 
@@ -536,10 +539,14 @@ bool VideoWriter::prepareFrame(const cv::Mat &inImage)
     // sanity checks
     if ((static_cast<int>(height) > d->height) || (static_cast<int>(width) > d->width))
         throw std::runtime_error(boost::str(boost::format("Received bigger frame than we expected (%1%x%2% instead %3%x%4%)") % width % height % d->width % d->height));
-    if ((d->inputPixFormat == AV_PIX_FMT_BGR24) && (channels != 3))
+    if ((d->inputPixFormat == AV_PIX_FMT_BGR24) && (channels != 3)) {
+        d->lastError = boost::str(boost::format("Expected BGR colored image, but received image has %1% channels") % channels);
         return false;
-    else if ((d->inputPixFormat == AV_PIX_FMT_GRAY8) && (channels != 1))
+    }
+    else if ((d->inputPixFormat == AV_PIX_FMT_GRAY8) && (channels != 1)) {
+        d->lastError = boost::str(boost::format("Expected grayscale image, but received image has %1% channels") % channels);
         return false;
+    }
 
     // FFmpeg contains SIMD optimizations which can sometimes read data past
     // the supplied input buffer. To ensure that doesn't happen, we pad the
@@ -567,9 +574,10 @@ bool VideoWriter::prepareFrame(const cv::Mat &inImage)
         if (sws_scale(d->swsctx, d->inputFrame->data,
                                d->inputFrame->linesize, 0,
                                d->height,
-                               d->frame->data, d->frame->linesize) < 0)
-                    return false;
-
+                               d->frame->data, d->frame->linesize) < 0) {
+            d->lastError = "Unable to scale image in pixel format comnversion.";
+            return false;
+        }
 
     } else {
         av_image_fill_arrays(d->frame->data, d->frame->linesize, static_cast<const uint8_t*>(data), d->inputPixFormat, width, height, 1);
@@ -585,7 +593,7 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::milliseco
     int ret;
 
     if (!prepareFrame(frame)) {
-        std::cerr << "Unable to prepare frame. N: " << d->frames_n + 1 << std::endl;
+        std::cerr << "Unable to prepare frame. N: " << d->frames_n + 1 << "(" << d->lastError << ")" << std::endl;
         return false;
     }
 
