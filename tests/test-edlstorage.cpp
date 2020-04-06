@@ -28,6 +28,7 @@ private slots:
         QVariantHash table;
         table.insert("date", dateTime);
         table.insert("boolean", true);
+        table.insert("void", QVariant());
         table.insert("string", "Hello World - öäß-!?");
 
         QVariantHash subTable;
@@ -57,7 +58,7 @@ private slots:
 
         collection->setGeneratorId(QCoreApplication::applicationName());
 
-        auto dset = collection->newDataset("mydata");
+        auto dset = collection->datasetByName("mydata", true);
         dset->addDataFilePart("/usr/local/share/blah.test");
 
         QVariantHash attrs;
@@ -71,10 +72,10 @@ private slots:
         attrs.insert("hello", subMap);
         dset->setAttributes(attrs);
 
-        auto vidGroup = collection->newGroup("videos");
-        auto dsCam = vidGroup->newDataset("Top Camera");
+        auto vidGroup = collection->groupByName("videos", true);
+        auto dsCam = vidGroup->datasetByName("Top Camera", true);
         dsCam->addDataFilePart("camera-video.mkv");
-        vidGroup->newGroup("cats");
+        vidGroup->groupByName("cats", true);
 
         QTemporaryDir dir;
         QVERIFY(dir.isValid());

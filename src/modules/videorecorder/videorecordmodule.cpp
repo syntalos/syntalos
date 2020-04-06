@@ -35,7 +35,7 @@ class VideoRecorderModule : public AbstractModule
 private:
     bool m_recording;
     bool m_initDone;
-    QString m_vidSavePathBase;
+    std::shared_ptr<EDLDataset> m_vidDataset;
     std::unique_ptr<VideoWriter> m_videoWriter;
 
     RecorderSettingsDialog *m_settingsDialog;
@@ -118,9 +118,9 @@ public:
             return;
 
         if (m_settingsDialog->videoNameFromSource())
-            m_vidSavePathBase = getDataStoragePath(QStringLiteral("videos/unknown"), m_inSub->metadata());
+            m_vidDataset = getOrCreateDefaultDataset(name(), m_inSub->metadata());
         else
-            m_vidSavePathBase = getDataStoragePath(m_settingsDialog->videoName());
+            m_vidDataset = getOrCreateDefaultDataset(m_settingsDialog->videoName());
     }
 
     bool runEvent() override
@@ -157,8 +157,13 @@ public:
                 return false;
             }
 
+            const auto dataBasename = dataBasenameFromSubMetadata(m_inSub->metadata(), "video");
+            const auto vidSavePathBase = m_vidDataset->pathForDataBasename(dataBasename);
+            m_vidDataset->setDataScanPattern(QStringLiteral("%1*").arg(dataBasename));
+            m_vidDataset->setAuxDataScanPattern(QStringLiteral("%1*.csv").arg(dataBasename));
+
             try {
-                m_videoWriter->initialize(m_vidSavePathBase.toStdString(),
+                m_videoWriter->initialize(vidSavePathBase.toStdString(),
                                           frameSize.width(),
                                           frameSize.height(),
                                           framerate,
@@ -171,22 +176,14 @@ public:
 
             // write info video info file with auxiliary information about the video we encoded
             // (this is useful to gather intel about the video without opening the video file)
-            auto infoPath = QStringLiteral("%1_videoinfo.json").arg(m_vidSavePathBase);
-            QJsonObject vInfo;
-            vInfo.insert("name", m_settingsDialog->videoName());
-            vInfo.insert("frameWidth", frameSize.width());
-            vInfo.insert("frameHeight", frameSize.height());
+            QVariantHash vInfo;
+            vInfo.insert("frame_width", frameSize.width());
+            vInfo.insert("frame_height", frameSize.height());
             vInfo.insert("framerate", framerate);
             vInfo.insert("colored", useColor);
-
-            QFile vInfoFile(infoPath);
-            if (!vInfoFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
-                raiseError("Unable to open video info file for writing.");
-                return false;
-            }
-
-            QTextStream vInfoFileOut(&vInfoFile);
-            vInfoFileOut << QJsonDocument(vInfo).toJson();
+            QVariantHash attrs;
+            attrs.insert(QStringLiteral("video"), vInfo);
+            m_vidDataset->setAttributes(attrs);
 
             // signal that we are actually recording this session
             m_initDone = true;
@@ -266,6 +263,11 @@ QString VideoRecorderModuleInfo::description() const
 QPixmap VideoRecorderModuleInfo::pixmap() const
 {
     return QPixmap(":/module/videorecorder");
+}
+
+QString VideoRecorderModuleInfo::storageGroupName() const
+{
+    return QStringLiteral("videos");
 }
 
 AbstractModule *VideoRecorderModuleInfo::createModule(QObject *parent)

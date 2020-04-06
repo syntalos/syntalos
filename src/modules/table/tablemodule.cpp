@@ -83,10 +83,14 @@ public:
         if (m_rowSub.get() != nullptr) {
             const auto mdata = m_rowSub->metadata();
 
-            auto fname = getDataStoragePath(QStringLiteral("tables/%1").arg(name()), mdata);
-            if (fname.isEmpty())
-                return;
+            auto dstore = getOrCreateDefaultDataset(name(), mdata);
+
+            // get our file basename
+            auto fname = dataBasenameFromSubMetadata(mdata, QStringLiteral("table"));
             fname = QStringLiteral("%1.csv").arg(fname);
+
+            // this turns it into an absolute path we can open for data storage
+            fname = dstore->setDataFile(fname);
             if (!m_recTable->open(fname)) {
                 raiseError(QStringLiteral("Unable to open file %1").arg(fname));
                 return;

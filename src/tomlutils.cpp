@@ -65,6 +65,10 @@ toml::date_time qDateTimeToToml(const QDateTime &qdt)
         func((var).toBool());                          \
     }                                                  \
                                                        \
+    else if ((var).isNull()) {                         \
+        /* leave out the value */                      \
+    }                                                  \
+                                                       \
     else if ((var).type() == QVariant::String) {       \
         func((var).toString().toStdString());          \
     }                                                  \

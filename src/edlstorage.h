@@ -19,10 +19,12 @@
 
 #pragma once
 
+#include <memory>
 #include <QObject>
 #include <QHash>
 #include <QDateTime>
 #include <QFileInfo>
+#include <QUuid>
 
 enum class EDLObjectKind
 {
@@ -68,21 +70,25 @@ public:
     QList<EDLDataPart> parts;
 };
 
+class EDLGroup;
+class EDLDataset;
+
 /**
  * @brief Base class for all EDL entities
  */
-class EDLObject : public QObject
+class EDLObject
 {
-    Q_OBJECT
+    friend class EDLGroup;
 public:
-    explicit EDLObject(EDLObjectKind kind, QObject *parent = nullptr);
+    explicit EDLObject(EDLObjectKind kind, EDLObject *parent = nullptr);
     ~EDLObject();
 
     EDLObjectKind objectKind() const;
     QString objectKindString() const;
+    EDLObject *parent() const;
 
     QString name() const;
-    virtual void setName(const QString &name);
+    virtual bool setName(const QString &name);
 
     QDateTime timeCreated() const;
     void setTimeCreated(const QDateTime &time);
@@ -97,7 +103,6 @@ public:
     void setPath(const QString &path);
 
     QString rootPath() const;
-    virtual void setRootPath(const QString &root);
 
     QHash<QString, QVariant> attributes() const;
     void setAttributes(const QHash<QString, QVariant> &attributes);
@@ -111,7 +116,10 @@ public:
 
 protected:
     void setObjectKind(const EDLObjectKind &kind);
+    void setParent(EDLObject *parent);
     void setLastError(const QString &message);
+
+    virtual void setRootPath(const QString &root);
 
     void setDataObjects(std::optional<EDLDataFile> dataFile,
                         std::optional<EDLDataFile> auxDataFile = std::nullopt);
@@ -125,26 +133,60 @@ protected:
 private:
     class Private;
     Q_DISABLE_COPY(EDLObject)
-    QScopedPointer<Private> d;
+    std::unique_ptr<Private> d;
 };
 
 /**
- * @brief A dataset
+ * @brief An EDL dataset
+ *
+ * A set of data files which belongs together
+ * (usually data of the same modality from the same source)
  */
 class EDLDataset : public EDLObject
 {
-    Q_OBJECT
 public:
-    explicit EDLDataset(EDLObject *parent = nullptr);
+    explicit EDLDataset(EDLGroup *parent = nullptr);
     ~EDLDataset();
 
     bool save() override;
-    void addDataFilePart(const QString &fname, int index = -1);
+
+    QString setDataFile(const QString &fname);
+    QString addDataFilePart(const QString &fname, int index = -1);
+
+    QString setAuxDataFile(const QString &fname);
+    QString addAuxDataFilePart(const QString &fname, int index = -1);
+
+    /**
+     * @brief Set a pattern to find data files
+     * @param wildcard Wildcard to find generated data
+     *
+     * Set a pattern to find generated data when the dataset object
+     * is saved, if the data was generated externally and could not
+     * be registered properly with addDataPartFilename().
+     */
+    void setDataScanPattern(const QString &wildcard);
+    void setAuxDataScanPattern(const QString &wildcard);
+
+    /**
+     * @brief Get absolute path for data with a given basename
+     * Retrieve an absolute path for the given basename in this dataset.
+     * The data is *not* registered with the dataset, to add it properly,
+     * you need to register a scan pattern.
+     * The use of this pattern is discouraged, try to add new data explicitly
+     * rather then implicitly.
+     *
+     * This function ensures the path to the selected data exists, but the data
+     * file itself may not be present on disk.
+     * An empty string may be returned in case no path could be created.
+     */
+    QString pathForDataBasename(const QString &baseName);
 
 private:
     class Private;
     Q_DISABLE_COPY(EDLDataset)
-    QScopedPointer<Private> d;
+    std::unique_ptr<Private> d;
+
+    QStringList findFilesByPattern(const QString &wildcard);
 };
 
 /**
@@ -152,27 +194,26 @@ private:
  */
 class EDLGroup : public EDLObject
 {
-    Q_OBJECT
 public:
-    explicit EDLGroup(EDLObject *parent = nullptr);
+    explicit EDLGroup(EDLGroup *parent = nullptr);
     ~EDLGroup();
 
-    void setName(const QString &name) override;
+    bool setName(const QString &name) override;
     void setRootPath(const QString &root) override;
     void setCollectionId(const QUuid &uuid) override;
 
-    QList<EDLObject*> children() const;
-    void addChild(EDLObject *edlObj);
+    QList<std::shared_ptr<EDLObject>> children() const;
+    void addChild(std::shared_ptr<EDLObject> edlObj);
 
-    EDLGroup *newGroup(const QString &name);
-    EDLDataset *newDataset(const QString &name);
+    std::shared_ptr<EDLGroup> groupByName(const QString &name, bool create = false);
+    std::shared_ptr<EDLDataset> datasetByName(const QString &name, bool create = false);
 
     bool save() override;
 
 private:
     class Private;
     Q_DISABLE_COPY(EDLGroup)
-    QScopedPointer<Private> d;
+    std::unique_ptr<Private> d;
 };
 
 /**
@@ -180,9 +221,8 @@ private:
  */
 class EDLCollection : public EDLGroup
 {
-    Q_OBJECT
 public:
-    explicit EDLCollection(const QString &name, QObject *parent = nullptr);
+    explicit EDLCollection(const QString &name);
     ~EDLCollection();
 
     QString generatorId() const;
@@ -191,5 +231,5 @@ public:
 private:
     class Private;
     Q_DISABLE_COPY(EDLCollection)
-    QScopedPointer<Private> d;
+    std::unique_ptr<Private> d;
 };

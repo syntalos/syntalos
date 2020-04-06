@@ -94,20 +94,21 @@ Rhd2000Module::Rhd2000Module(QObject *parent)
     connect(m_evTimer, &QTimer::timeout, this, &Rhd2000Module::runBoardDAQ);
 }
 
-bool Rhd2000Module::prepare(const TestSubject &testSubject)
+bool Rhd2000Module::prepare(const TestSubject &)
 {
     if (m_intanUi->isRunning()) {
         raiseError(QStringLiteral("Can not launch experiment because Intan module is already running, likely in no-record mode.\nPlease stop the module first to continue."));
         return false;
     }
 
-    QString intanBasePart;
-    if (testSubject.id.isEmpty())
-        intanBasePart = QStringLiteral("intan/ephys");
-    else
-        intanBasePart = QStringLiteral("intan/%2_ephys").arg(testSubject.id);
+    // the Intan module is a singleton, so we can "grab" this very generic name here
+    auto dstore = getOrCreateDefaultDataset(QStringLiteral("intan-signals"));
 
-    auto intanBaseFilename = getDataStoragePath(intanBasePart);
+    // we use the ugly scanning method -for now
+    dstore->setDataScanPattern(QStringLiteral("*.rhd"));
+
+    const auto intanBasePart = QStringLiteral("%1_data").arg(dstore->collectionId().toString(QUuid::WithoutBraces).left(4));
+    const auto intanBaseFilename = dstore->pathForDataBasename(intanBasePart);
     if (intanBaseFilename.isEmpty())
         return false;
     m_intanUi->setBaseFileName(intanBaseFilename);

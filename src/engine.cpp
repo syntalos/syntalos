@@ -33,6 +33,7 @@
 #include "modulelibrary.h"
 #include "syclock.h"
 #include "utils.h"
+#include "edlstorage.h"
 
 using namespace Syntalos;
 
@@ -512,6 +513,11 @@ bool Engine::run()
     if (!makeDirectory(d->exportDir))
         return false;
 
+    // create new experiment directory layout (EDL) collection to store
+    // all data modules generate in
+    std::shared_ptr<EDLCollection> storageCollection(new EDLCollection("test"));
+    storageCollection->setPath(d->exportDir);
+
     // tell listeners that we are preparing a run
     emit preRunStart();
 
@@ -533,10 +539,24 @@ bool Engine::run()
         emitStatusMessage(QStringLiteral("Preparing %1...").arg(mod->name()));
         lastPhaseTimepoint = currentTimePoint();
 
+        const auto modInfo = d->modLibrary->moduleInfo(mod->id());
+
         mod->setStatusMessage(QString());
         mod->setTimer(d->timer);
         mod->setState(ModuleState::PREPARING);
-        mod->setDataStorageRootDir(d->exportDir);
+
+        if ((modInfo != nullptr) && (!modInfo->storageGroupName().isEmpty())) {
+            auto storageGroup = storageCollection->groupByName(modInfo->storageGroupName(), true);
+            if (storageGroup.get() == nullptr) {
+                qCritical() << "Unable to create data storage group with name" << modInfo->storageGroupName();
+                mod->setStorageGroup(storageCollection);
+            } else {
+                mod->setStorageGroup(storageGroup);
+            }
+        } else {
+            mod->setStorageGroup(storageCollection);
+        }
+
         if (!mod->prepare(d->testSubject)) {
             initSuccessful = false;
             d->failed = true;
@@ -787,9 +807,10 @@ bool Engine::run()
         if ((mod->state() != ModuleState::IDLE) && (mod->state() != ModuleState::ERROR))
             mod->setState(ModuleState::IDLE);
 
-        // all module data must be written by this point, so we "steal" its storage root path,
-        // so the module is less tempted to write data into old experiment locations.
-        mod->setDataStorageRootDir(QString());
+        // all module data must be written by this point, so we "steal" its storage group,
+        // so the module will trigger an error message if is still tries to access the final
+        // data.
+        mod->setStorageGroup(nullptr);
 
         qDebug().noquote().nospace() << "Engine: " << "Module '" << mod->name() << "' stopped in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
     }
@@ -827,7 +848,7 @@ bool Engine::run()
         emitStatusMessage(QStringLiteral("Removing broken data..."));
         deDir.removeRecursively();
     } else {
-        emitStatusMessage(QStringLiteral("Writing manifest & metadata..."));
+        emitStatusMessage(QStringLiteral("Writing experiment metadata..."));
 
         // store metadata from all modules, in case they want us to store data for them
         for (auto &mod : orderedActiveModules) {
@@ -853,40 +874,39 @@ bool Engine::run()
             modMetaFileOut << QJsonDocument::fromVariant(mdata).toJson();
         }
 
-        // write manifest with misc metadata about the experiment run
-        QDateTime curDateTime(QDateTime::currentDateTime());
+        // write collection metadata with information about this experiment
+        storageCollection->setTimeCreated(QDateTime::currentDateTime());
 
-        QJsonObject manifest;
-        manifest.insert("AppVersion", QCoreApplication::applicationVersion());
-        manifest.insert("SubjectId", d->testSubject.id);
-        manifest.insert("SubjectGroup", d->testSubject.group);
-        manifest.insert("SubjectComment", d->testSubject.comment);
-        manifest.insert("RecordingLengthMsec", finishTimestamp);
-        manifest.insert("Date", curDateTime.toString(Qt::ISODate));
-        manifest.insert("Success", !d->failed);
+        storageCollection->setGeneratorId(QStringLiteral("%1 %2")
+                                          .arg(QCoreApplication::applicationName())
+                                          .arg(QCoreApplication::applicationVersion()));
 
-        QJsonArray jActiveModules;
+        QVariantHash extraData;
+        extraData.insert("subject_id", d->testSubject.id.isEmpty()? QVariant() : d->testSubject.id);
+        extraData.insert("subject_group", d->testSubject.group.isEmpty()? QVariant() : d->testSubject.group);
+        extraData.insert("subject_comment", d->testSubject.comment.isEmpty()? QVariant() : d->testSubject.comment);
+        extraData.insert("recording_length_msec", finishTimestamp);
+        extraData.insert("success", !d->failed);
+
+        QVariantList attrModList;
         for (auto &mod : orderedActiveModules) {
-            QJsonObject info;
+            QVariantHash info;
             info.insert(QStringLiteral("id"), mod->id());
             info.insert(QStringLiteral("name"), mod->name());
-            jActiveModules.append(info);
+            attrModList.append(info);
         }
-        manifest.insert("ActiveModules", jActiveModules);
+        extraData.insert("modules", attrModList);
+        storageCollection->setAttributes(extraData);
 
-        const auto manifestFilename = QStringLiteral("%1/manifest.json").arg(d->exportDir);
-        qDebug() << "Saving manifest as:" << manifestFilename;
-        QFile manifestFile(manifestFilename);
-        if (!manifestFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        qDebug() << "Saving experiment metadata in:" << storageCollection->path();
+
+        if (!storageCollection->save()) {
             QMessageBox::critical(d->parentWidget,
                                   QStringLiteral("Unable to finish recording"),
-                                  QStringLiteral("Unable to open manifest file for writing."));
+                                  QStringLiteral("Unable to save experiment metadata: %1").arg(storageCollection->lastError()));
             d->failed = true;
             return false;
         }
-
-        QTextStream manifestFileOut(&manifestFile);
-        manifestFileOut << QJsonDocument(manifest).toJson();
 
         qDebug().noquote().nospace() << "Engine: " << "Manifest and additional data saved in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
     }

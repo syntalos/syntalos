@@ -32,6 +32,7 @@
 #include "timesync.h"
 #include "streams/datatypes.h"
 #include "optionalwaitcondition.h"
+#include "edlstorage.h"
 
 namespace Syntalos {
 
@@ -89,6 +90,14 @@ public:
      * @brief The dominant color for this module.
      */
     virtual QColor color() const;
+
+    /**
+     * @brief Name of a storage group for modules of this type
+     *
+     * If this is left empty, modules will write into the main data
+     * storage group instead of a dedicated one.
+     */
+    virtual QString storageGroupName() const;
 
     /**
      * @brief Returns true if only one instance of this module can exist.
@@ -568,31 +577,54 @@ protected:
     bool makeDirectory(const QString &dir);
 
     /**
-     * @brief Get data storage path for this module
-     * @param preferredName The preferred name for the file.
-     * @param subMetadata Metadata from a stream subscription, in case using the desired name of a module upstream is requested.
+     * @brief Get name of a dataset from subscription metadata
      *
-     * If a directory does not exist, it will be created. If creation fails, the module will emit an error and will
-     * subsequently be terminated by the Syntalos engine. In that case, this function will return an empty string.
+     * Some modules make a suggestion to their subscribers as for how they may want the
+     * stored data to be named. This function extracts a suitable dataset name from
+     * subscription metadata.
      *
-     * @return A full directory path to the storage location.
+     * This function always returns a valid name, if no suggestion
+     * is given from the subscriber, the module's name is used.
      */
-    QString getDataStoragePath(const QString &preferredName, const QVariantHash &subMetadata = QVariantHash());
+    QString datasetNameFromSubMetadata(const QVariantHash &subMetadata);
 
     /**
-     * @brief Turn the given path into a path relative to the data storage location.
+     * @brief Get file basename for data from subscription metadata
      *
-     * If the path is not inside the data storage location, an empty string is returned.
+     * Some modules make a suggestion to their subscribers as for how they may want the
+     * stored data to be named. This function extracts a suitable file name from
+     * the metadata, which can be used in a dataset.
+     *
+     * This function returns the "default" string if no suggestion was made.
      */
-    QString getPathSegmentInDataStorage(const QString &path);
+    QString dataBasenameFromSubMetadata(const QVariantHash &subMetadata, const QString &defaultName = QStringLiteral("data"));
 
     /**
-     * @brief Get the current data storage root directory.
+     * @brief Create or retrieve default dataset for data storage in default storage group
+     * @param preferredName The preferred name for the dataset.
+     * @param subMetadata Metadata from a stream subscription, in case using the desired name from a module upstream is wanted.
      *
-     * In most cases, this function should not be used and using getDataStoragePath() will be
-     * a much better choice.
+     * Retrieve the default dataset with the given name for this module. The module can use it to get file paths to write data to.
+     * In case a module needs to create more then one dataset, creating a new group is advised first.
+     * Use the createStorageGroup() and getOrCreateDatasetInGroup() methods for that.
+     *
+     * This method will return NULL in case the module was not yet assigned a data storage group. Use it only in and after the PREPARE
+     * phase to get a valid dataset!
      */
-    QString dataStorageRoot() const;
+    std::shared_ptr<EDLDataset> getOrCreateDefaultDataset(const QString &preferredName = QString(), const QVariantHash &subMetadata = QVariantHash());
+    std::shared_ptr<EDLDataset> getOrCreateDatasetInGroup(std::shared_ptr<EDLGroup> group, const QString &preferredName = QString(), const QVariantHash &subMetadata = QVariantHash());
+
+    /**
+     * @brief Create new data storage group with the given name
+     * @param groupName
+     *
+     * Creates a new data storage group name, or retrieves a reference to the group in case one with this name already exists.
+     * The group is placed as child of the module's default storage group.
+     *
+     * This method will return NULL in case the module was not yet assigned a data storage group. Use it only in and after the PREPARE
+     * phase to get a valid dataset!
+     */
+    std::shared_ptr<EDLGroup> createStorageGroup(const QString &groupName);
 
     /**
      * @brief Register a display window for this module.
@@ -661,7 +693,7 @@ private:
     void setState(ModuleState state);
     void setId(const QString &id);
     void setIndex(int index);
-    void setDataStorageRootDir(const QString &storageRoot);
+    void setStorageGroup(std::shared_ptr<EDLGroup> edlGroup);
 };
 
 } // end of namespace

@@ -31,5 +31,6 @@ public:
     QString name() const override;
     QString description() const override;
     QPixmap pixmap() const override;
+    QString storageGroupName() const override;
     AbstractModule *createModule(QObject *parent = nullptr) override;
 };

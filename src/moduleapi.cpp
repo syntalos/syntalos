@@ -113,6 +113,11 @@ QColor ModuleInfo::color() const
                            blueBucket / totalColorCount);
 }
 
+QString ModuleInfo::storageGroupName() const
+{
+    return QString();
+}
+
 bool ModuleInfo::singleton() const
 {
     return false;
@@ -313,7 +318,8 @@ public:
     QList<QPair<QWidget*, bool>> displayWindows;
     QList<QPair<QWidget*, bool>> settingsWindows;
 
-    QString dataStorageRootDir;
+    std::shared_ptr<EDLGroup> rootDataGroup;
+    std::shared_ptr<EDLDataset> defaultDataset;
 
     bool initialized;
 };
@@ -554,62 +560,99 @@ bool AbstractModule::makeDirectory(const QString &dir)
     return true;
 }
 
-QString AbstractModule::getDataStoragePath(const QString &preferredName, const QVariantHash &subMetadata)
+static QStringList qStringSplitLimit(const QString &str, const QChar &sep, int maxSplit, Qt::CaseSensitivity cs = Qt::CaseSensitive)
 {
-    // store in storage location, but if it isn't set (only happens when we are not running or
-    // preparing to run) save data in a temporary location.
-    // NOTE: This may be changed in future to raise a critical error and return an empty string.
-    auto rootDir = d->dataStorageRootDir;
-    if (rootDir.isEmpty())
-        rootDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
-    auto dataName = preferredName;
+    QStringList list;
+    int start = 0;
+    int end;
+    while ((end = str.indexOf(sep, start, cs)) != -1) {
+        if (start != end)
+            list.append(str.mid(start, end - start));
+        start = end + 1;
+        if (maxSplit > 0) {
+            if (list.length() > maxSplit)
+                break;
+        }
+    }
+    if (start != str.size())
+        list.append(str.mid(start));
+    return list;
+}
 
-    // if we have subscription metadata, try to use that data to determine the final
-    // file path. Otherwise use the set preferred name.
-    if (!subMetadata.isEmpty()) {
-        dataName = simplifyStringForFilename(subMetadata.value("suggestedDataName").toString());
-        if (dataName.isEmpty())
-            dataName = subMetadata.value("srcModName", name()).toString();
-        else if (!dataName.contains('/')) {
-            const auto srcModName = subMetadata.value("srcModName").toString();
-            if (!srcModName.isEmpty())
-                dataName = QStringLiteral("%1/%2").arg(simplifyStringForFilename(srcModName)).arg(dataName);
+QString AbstractModule::datasetNameFromSubMetadata(const QVariantHash &subMetadata)
+{
+    auto dataName = subMetadata.value("suggestedDataName").toString();
+    if (dataName.isEmpty())
+        dataName = subMetadata.value("srcModName", name()).toString();
+    else {
+        if (dataName.contains('/')) {
+            const auto parts = qStringSplitLimit(dataName, '/', 1);
+            dataName = parts[0];
+        } else {
+            dataName = subMetadata.value("srcModName").toString();
         }
     }
 
-    // sanitize the given name. In case the name is empty, use the module
-    // name as storage location.
-    dataName = simplifyStringForFilename(dataName);
     if (dataName.isEmpty())
-        dataName = simplifyStringForFilename(name()).replace(QStringLiteral("/"), QStringLiteral("-"));
+        dataName = name();
 
-    // all module data has to be in a subdirectory, so we
-    // ensure that here.
-    if (!dataName.contains('/'))
-        dataName = QStringLiteral("%1/%2").arg(id(), dataName);
-
-    // create directory if it does not yet exist
-    QFileInfo fi(QStringLiteral("%1/%2").arg(rootDir).arg(dataName));
-
-    // return an empty string if storage directory could not be created
-    if (!makeDirectory(fi.absolutePath()))
-        return QString();
-
-    return fi.absoluteFilePath();
+    return dataName;
 }
 
-QString AbstractModule::getPathSegmentInDataStorage(const QString &path)
+QString AbstractModule::dataBasenameFromSubMetadata(const QVariantHash &subMetadata, const QString &defaultName)
 {
-    if (!path.startsWith(d->dataStorageRootDir))
-        return QString();
+    auto dataName = subMetadata.value("suggestedDataName").toString();
+    if (dataName.contains('/')) {
+        const auto parts = qStringSplitLimit(dataName, '/', 1);
+        dataName = parts[1];
+    } else {
+        dataName = defaultName;
+    }
 
-    QDir dir(d->dataStorageRootDir);
-    return dir.relativeFilePath(path);
+    if (dataName.isEmpty())
+        dataName = defaultName;
+
+    return dataName;
 }
 
-QString AbstractModule::dataStorageRoot() const
+std::shared_ptr<EDLDataset> AbstractModule::getOrCreateDefaultDataset(const QString &preferredName, const QVariantHash &subMetadata)
 {
-    return d->dataStorageRootDir;
+    if (d->defaultDataset.get() != nullptr)
+        return d->defaultDataset;
+    if (d->rootDataGroup.get() == nullptr) {
+        qCritical().noquote() << "Module" << name() << "tried to obtain its default dataset, but no root storage group has been set yet.";
+        return nullptr;
+    }
+
+    d->defaultDataset = getOrCreateDatasetInGroup(d->rootDataGroup, preferredName, subMetadata);
+    return d->defaultDataset;
+}
+
+std::shared_ptr<EDLDataset> AbstractModule::getOrCreateDatasetInGroup(std::shared_ptr<EDLGroup> group, const QString &preferredName, const QVariantHash &subMetadata)
+{
+    auto dataName = preferredName;
+
+    // if we have subscription metadata, try to use that data to determine the
+    // data set name
+    if (!subMetadata.isEmpty()) {
+        dataName = datasetNameFromSubMetadata(subMetadata);
+    }
+
+    // just set our module name if we still have no data set name
+    if (dataName.isEmpty())
+        dataName = name();
+
+    return group->datasetByName(dataName, true);
+}
+
+std::shared_ptr<EDLGroup> AbstractModule::createStorageGroup(const QString &groupName)
+{
+    if (d->rootDataGroup.get() == nullptr) {
+        qCritical().noquote() << "Module" << name() << "tried to create a new storage group, but no root storage group has been set yet.";
+        return nullptr;
+    }
+
+    return d->rootDataGroup->groupByName(groupName, true);
 }
 
 void AbstractModule::addDisplayWindow(QWidget *window, bool owned)
@@ -722,9 +765,10 @@ void AbstractModule::setIndex(int index)
     d->modIndex = index;
 }
 
-void AbstractModule::setDataStorageRootDir(const QString &storageRoot)
+void AbstractModule::setStorageGroup(std::shared_ptr<EDLGroup> edlGroup)
 {
-    d->dataStorageRootDir = storageRoot;
+    d->defaultDataset.reset();
+    d->rootDataGroup = edlGroup;
 }
 
 void AbstractModule::setStatusMessage(const QString &message)
