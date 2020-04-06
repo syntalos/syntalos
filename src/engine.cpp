@@ -850,30 +850,6 @@ bool Engine::run()
     } else {
         emitStatusMessage(QStringLiteral("Writing experiment metadata..."));
 
-        // store metadata from all modules, in case they want us to store data for them
-        for (auto &mod : orderedActiveModules) {
-            auto mdata = mod->experimentMetadata();
-            if (mdata.isEmpty())
-                continue;
-            mdata.insert(QStringLiteral("_modName"), mod->name());
-            mdata.insert(QStringLiteral("_modType"), mod->id());
-
-            const auto modMetaFilename = QStringLiteral("%1/%2.meta.json").arg(d->exportDir).arg(simplifyStringForFilename(mod->name()));
-            qDebug() << "Saving module metadata:" << modMetaFilename;
-
-            QFile modMetaFile(modMetaFilename);
-            if (!modMetaFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
-                QMessageBox::critical(d->parentWidget,
-                                      QStringLiteral("Unable to finish recording"),
-                                      QStringLiteral("Unable to open module metadata of %1 file for writing.").arg(mod->name()));
-                d->failed = true;
-                return false;
-            }
-
-            QTextStream modMetaFileOut(&modMetaFile);
-            modMetaFileOut << QJsonDocument::fromVariant(mdata).toJson();
-        }
-
         // write collection metadata with information about this experiment
         storageCollection->setTimeCreated(QDateTime::currentDateTime());
 

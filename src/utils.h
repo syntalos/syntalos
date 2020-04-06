@@ -28,8 +28,8 @@
 QString createRandomString(int len);
 
 /**
- * @brief Simplify a string for use in file names.
+ * @brief Simplify a string for use in file basenames.
  */
-QString simplifyStringForFilename(const QString &s);
+QString simplifyStringForFilebasename(const QString &s);
 
 #endif // UTILS_H

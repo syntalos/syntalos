@@ -22,6 +22,7 @@
 #include <iostream>
 #include <fstream>
 #include <chrono>
+#include <mutex>
 #include <QDebug>
 #include <QFileInfo>
 #include <QMimeDatabase>
@@ -66,6 +67,8 @@ public:
     QHash<QString, QVariant> attrs;
 
     QString lastError;
+
+    std::mutex mutex;
 };
 
 EDLObject::EDLObject(EDLObjectKind kind, EDLObject *parent)
@@ -110,6 +113,7 @@ QString EDLObject::name() const
 
 bool EDLObject::setName(const QString &name)
 {
+    const std::lock_guard<std::mutex> lock(d->mutex);
     const auto oldDirPath = path();
     const auto oldName = d->name;
     // we put some restrictions on how people can name objects,
@@ -163,6 +167,7 @@ QList<EDLAuthor> EDLObject::authors() const
 
 void EDLObject::setPath(const QString &path)
 {
+    const std::lock_guard<std::mutex> lock(d->mutex);
     QDir dir(path);
     d->name = dir.dirName();
     d->rootPath = QDir::cleanPath(QStringLiteral("%1/..").arg(path));
@@ -187,12 +192,20 @@ void EDLObject::setRootPath(const QString &root)
 
 QHash<QString, QVariant> EDLObject::attributes() const
 {
+    const std::lock_guard<std::mutex> lock(d->mutex);
     return d->attrs;
 }
 
 void EDLObject::setAttributes(const QHash<QString, QVariant> &attributes)
 {
+    const std::lock_guard<std::mutex> lock(d->mutex);
     d->attrs = attributes;
+}
+
+void EDLObject::insertAttribute(const QString &key, const QVariantHash &value)
+{
+    const std::lock_guard<std::mutex> lock(d->mutex);
+    d->attrs.insert(key, value);
 }
 
 bool EDLObject::save()
@@ -278,6 +291,7 @@ static toml::table createManifestFileSection(EDLDataFile &df)
 
 QString EDLObject::serializeManifest()
 {
+    const std::lock_guard<std::mutex> lock(d->mutex);
     toml::table document;
 
     if (d->timeCreated.isNull()) {
@@ -331,6 +345,7 @@ QString EDLObject::serializeManifest()
 
 QString EDLObject::serializeAttributes()
 {
+    const std::lock_guard<std::mutex> lock(d->mutex);
     // no user-defined attributes means the document is empty
     if (d->attrs.isEmpty())
         return QString();
@@ -561,6 +576,7 @@ public:
     ~Private() {}
 
     QList<std::shared_ptr<EDLObject>> children;
+    std::mutex mutex;
 };
 
 EDLGroup::EDLGroup(EDLGroup *parent)
@@ -574,6 +590,7 @@ EDLGroup::~EDLGroup()
 
 bool EDLGroup::setName(const QString &name)
 {
+    const std::lock_guard<std::mutex> lock(d->mutex);
     if (!EDLObject::setName(name))
         return false;
     // propagate path change through the hierarchy
@@ -584,6 +601,7 @@ bool EDLGroup::setName(const QString &name)
 
 void EDLGroup::setRootPath(const QString &root)
 {
+    const std::lock_guard<std::mutex> lock(d->mutex);
     EDLObject::setRootPath(root);
     // propagate path change through the hierarchy
     for (auto &node : d->children)
@@ -592,6 +610,7 @@ void EDLGroup::setRootPath(const QString &root)
 
 void EDLGroup::setCollectionId(const QUuid &uuid)
 {
+    const std::lock_guard<std::mutex> lock(d->mutex);
     EDLObject::setCollectionId(uuid);
     // propagate collection UUID through the DAG
     for (auto &node : d->children)
@@ -600,11 +619,13 @@ void EDLGroup::setCollectionId(const QUuid &uuid)
 
 QList<std::shared_ptr<EDLObject>> EDLGroup::children() const
 {
+    const std::lock_guard<std::mutex> lock(d->mutex);
     return d->children;
 }
 
 void EDLGroup::addChild(std::shared_ptr<EDLObject> edlObj)
 {
+    const std::lock_guard<std::mutex> lock(d->mutex);
     edlObj->setParent(this);
     edlObj->setRootPath(path());
     edlObj->setCollectionId(collectionId());
@@ -613,6 +634,7 @@ void EDLGroup::addChild(std::shared_ptr<EDLObject> edlObj)
 
 std::shared_ptr<EDLGroup> EDLGroup::groupByName(const QString &name, bool create)
 {
+    const std::lock_guard<std::mutex> lock(d->mutex);
     for (auto &node : d->children) {
         if (node->name() == name)
             return std::dynamic_pointer_cast<EDLGroup>(node);
@@ -622,12 +644,15 @@ std::shared_ptr<EDLGroup> EDLGroup::groupByName(const QString &name, bool create
 
     std::shared_ptr<EDLGroup> eg(new EDLGroup);
     eg->setName(name);
+
+    d->mutex.unlock();
     addChild(eg);
     return eg;
 }
 
 std::shared_ptr<EDLDataset> EDLGroup::datasetByName(const QString &name, bool create)
 {
+    const std::lock_guard<std::mutex> lock(d->mutex);
     for (auto &node : d->children) {
         if (node->name() == name)
             return std::dynamic_pointer_cast<EDLDataset>(node);
@@ -637,6 +662,8 @@ std::shared_ptr<EDLDataset> EDLGroup::datasetByName(const QString &name, bool cr
 
     std::shared_ptr<EDLDataset> ds(new EDLDataset);
     ds->setName(name);
+
+    d->mutex.unlock();
     addChild(ds);
     return ds;
 }

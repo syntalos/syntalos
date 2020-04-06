@@ -62,7 +62,7 @@ void RecorderSettingsDialog::setVideoNameFromSource(bool fromSource)
 
 void RecorderSettingsDialog::setVideoName(const QString &value)
 {
-    m_videoName = simplifyStringForFilename(value);
+    m_videoName = simplifyStringForFilebasename(value);
     ui->nameLineEdit->setText(m_videoName);
 }
 
@@ -133,7 +133,7 @@ uint RecorderSettingsDialog::sliceInterval() const
 
 void RecorderSettingsDialog::on_nameLineEdit_textChanged(const QString &arg1)
 {
-    m_videoName = simplifyStringForFilename(arg1);
+    m_videoName = simplifyStringForFilebasename(arg1);
 }
 
 void RecorderSettingsDialog::on_codecComboBox_currentIndexChanged(int)

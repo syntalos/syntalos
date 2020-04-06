@@ -106,6 +106,7 @@ bool Rhd2000Module::prepare(const TestSubject &)
 
     // we use the ugly scanning method -for now
     dstore->setDataScanPattern(QStringLiteral("*.rhd"));
+    dstore->setAuxDataScanPattern(QStringLiteral("*.tsync"));
 
     const auto intanBasePart = QStringLiteral("%1_data").arg(dstore->collectionId().toString(QUuid::WithoutBraces).left(4));
     const auto intanBaseFilename = dstore->pathForDataBasename(intanBasePart);

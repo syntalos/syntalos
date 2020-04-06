@@ -129,17 +129,17 @@ QVariantHash Tracker::finalize()
 
     QVariantHash mazeInfo;
     if (m_mazeRect.size() == 4) {
-        mazeInfo.insert("topLeftX", m_mazeRect[0].x);
-        mazeInfo.insert("topLeftY", m_mazeRect[0].y);
+        mazeInfo.insert("top_left_x", m_mazeRect[0].x);
+        mazeInfo.insert("top_left_y", m_mazeRect[0].y);
 
-        mazeInfo.insert("topRightX", m_mazeRect[1].x);
-        mazeInfo.insert("topRightY", m_mazeRect[1].y);
+        mazeInfo.insert("top_right_x", m_mazeRect[1].x);
+        mazeInfo.insert("top_right_y", m_mazeRect[1].y);
 
-        mazeInfo.insert("bottomLeftX", m_mazeRect[2].x);
-        mazeInfo.insert("bottomLeftY", m_mazeRect[2].y);
+        mazeInfo.insert("bottom_left_x", m_mazeRect[2].x);
+        mazeInfo.insert("bottom_left_y", m_mazeRect[2].y);
 
-        mazeInfo.insert("bottomRightX", m_mazeRect[3].x);
-        mazeInfo.insert("bottomRightY", m_mazeRect[3].y);
+        mazeInfo.insert("bottom_right_x", m_mazeRect[3].x);
+        mazeInfo.insert("bottom_right_y", m_mazeRect[3].y);
     }
 
     return mazeInfo;

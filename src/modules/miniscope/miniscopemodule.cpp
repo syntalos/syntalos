@@ -96,12 +96,12 @@ public:
         }
 
         m_rawOut->setMetadataValue("framerate", m_miniscope->fps());
-        m_rawOut->setMetadataValue("suggestedDataName", QStringLiteral("%1/msSlice").arg(name().toLower()));
         m_rawOut->setMetadataValue("hasColor", false);
+        m_rawOut->setSuggestedDataName(QStringLiteral("%1/msSlice").arg(datasetNameSuggestion()));
 
         m_dispOut->setMetadataValue("framerate", m_miniscope->fps());
-        m_dispOut->setMetadataValue("suggestedDataName", QStringLiteral("%1/msDisplaySlice").arg(name().toLower()));
         m_dispOut->setMetadataValue("hasColor", false);
+        m_dispOut->setSuggestedDataName(QStringLiteral("%1_display/msDisplaySlice").arg(datasetNameSuggestion()));
 
         // start the streams
         m_rawOut->start();

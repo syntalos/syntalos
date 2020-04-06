@@ -33,9 +33,11 @@ QString createRandomString(int len)
     return str;
 }
 
-QString simplifyStringForFilename(const QString &s)
+QString simplifyStringForFilebasename(const QString &s)
 {
     return s.simplified()
+            .replace("/", "-")
+            .replace("\\", "-")
             .replace(" ", "")
             .replace(":", "");
 }

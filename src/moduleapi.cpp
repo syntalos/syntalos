@@ -425,11 +425,6 @@ void AbstractModule::stop()
     m_running = false;
 }
 
-QVariantHash AbstractModule::experimentMetadata()
-{
-    return QVariantHash();
-}
-
 void AbstractModule::finalize()
 {
     // Do nothing.
@@ -560,6 +555,24 @@ bool AbstractModule::makeDirectory(const QString &dir)
     return true;
 }
 
+QString AbstractModule::datasetNameSuggestion(bool lowercase) const
+{
+    auto rawName = name();
+    if (lowercase)
+        rawName = rawName.toLower();
+    const auto datasetName = rawName.simplified()
+                                    .replace("/", "-")
+                                    .replace("\\", "-")
+                                    .replace(" ", "_")
+                                    .replace(":", "");
+
+    // we should never get here, the dataset name should never consist only
+    // of unsuitable characters - but just in ase it does, we safeguard against that
+    if (datasetName.isEmpty())
+        return createRandomString(8);
+    return datasetName;
+}
+
 static QStringList qStringSplitLimit(const QString &str, const QChar &sep, int maxSplit, Qt::CaseSensitivity cs = Qt::CaseSensitive)
 {
     QStringList list;
@@ -583,7 +596,7 @@ QString AbstractModule::datasetNameFromSubMetadata(const QVariantHash &subMetada
 {
     auto dataName = subMetadata.value("suggestedDataName").toString();
     if (dataName.isEmpty())
-        dataName = subMetadata.value("srcModName", name()).toString();
+        dataName = subMetadata.value("srcModName", datasetNameSuggestion()).toString();
     else {
         if (dataName.contains('/')) {
             const auto parts = qStringSplitLimit(dataName, '/', 1);
@@ -594,7 +607,7 @@ QString AbstractModule::datasetNameFromSubMetadata(const QVariantHash &subMetada
     }
 
     if (dataName.isEmpty())
-        dataName = name();
+        dataName = datasetNameSuggestion();
 
     return dataName;
 }
@@ -640,7 +653,7 @@ std::shared_ptr<EDLDataset> AbstractModule::getOrCreateDatasetInGroup(std::share
 
     // just set our module name if we still have no data set name
     if (dataName.isEmpty())
-        dataName = name();
+        dataName = datasetNameSuggestion();
 
     return group->datasetByName(dataName, true);
 }

@@ -35,8 +35,6 @@ private:
 
     QString m_subjectId;
 
-    QVariantHash m_mazeInfo;
-
 public:
     explicit TriLedTrackerModule(QObject *parent = nullptr)
         : AbstractModule(parent)
@@ -54,15 +52,13 @@ public:
 
     bool prepare(const TestSubject &testSubject) override
     {
-        m_mazeInfo.clear();
-
         m_subjectId = testSubject.id;
         if (m_subjectId.isEmpty())
             m_subjectId = QStringLiteral("SIU"); // subject ID unknown
 
-        m_dataStream->setSuggestedDataName(QStringLiteral("tracking/triLedTrack%1-%2").arg(index()).arg(m_subjectId));
-        m_trackStream->setSuggestedDataName(QStringLiteral("tracking/trackVideo%1").arg(index()));
-        m_animalStream->setSuggestedDataName(QStringLiteral("tracking/subjInfoVideo%1").arg(index()));
+        m_dataStream->setSuggestedDataName(QStringLiteral("%1/triLedTrack").arg(datasetNameSuggestion()));
+        m_trackStream->setSuggestedDataName(QStringLiteral("%1_trackvideo/trackVideo").arg(datasetNameSuggestion()));
+        m_animalStream->setSuggestedDataName(QStringLiteral("%1_subjvid/subjInfoVideo").arg(datasetNameSuggestion()));
 
         return true;
     }
@@ -110,7 +106,13 @@ public:
             m_animalStream->push(Frame(infoMat, frame.time));
         }
 
-        m_mazeInfo = tracker->finalize();
+        // store maze dimension metadata - since or metadata storage suggestion to possible
+        // table-saving modules is to store data in a set named after our module, we will
+        // possibly not create our default dataset here but instead fetch an already existing one.
+        // in that event, we "hijack" the dataset and add a few more attributes to it.
+        auto dset = getOrCreateDefaultDataset();
+        dset->insertAttribute("maze_dimensions", tracker->finalize());
+
         delete tracker;
     }
 
@@ -118,15 +120,6 @@ public:
     {
         statusMessage(QStringLiteral("Tracker stopped."));
         AbstractModule::stop();
-    }
-
-    QVariantHash experimentMetadata() override
-    {
-        if (m_mazeInfo.isEmpty())
-            return QVariantHash();
-        QVariantHash map;
-        map.insert(QStringLiteral("MazeDimensions"), m_mazeInfo);
-        return map;
     }
 };
 

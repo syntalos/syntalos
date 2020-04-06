@@ -181,9 +181,7 @@ public:
             vInfo.insert("frame_height", frameSize.height());
             vInfo.insert("framerate", framerate);
             vInfo.insert("colored", useColor);
-            QVariantHash attrs;
-            attrs.insert(QStringLiteral("video"), vInfo);
-            m_vidDataset->setAttributes(attrs);
+            m_vidDataset->insertAttribute(QStringLiteral("video"), vInfo);
 
             // signal that we are actually recording this session
             m_initDone = true;
