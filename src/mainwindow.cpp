@@ -617,12 +617,12 @@ void MainWindow::saveSettingsActionTriggered()
     fileName = QFileDialog::getSaveFileName(this,
                                             tr("Select Configuration Filename"),
                                             QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
-                                            tr("Syntalos Configuration Files (*.sybt)"));
+                                            tr("Syntalos Configuration Files (*.syct)"));
 
     if (fileName.isEmpty())
         return;
-    if (!fileName.endsWith(".sybt"))
-        fileName = QStringLiteral("%1.sybt").arg(fileName);
+    if (!fileName.endsWith(".syct"))
+        fileName = QStringLiteral("%1.syct").arg(fileName);
 
     m_runIndicatorWidget->show();
     if (!saveConfiguration(fileName)) {
@@ -673,7 +673,7 @@ void MainWindow::loadSettingsActionTriggered()
     auto fileName = QFileDialog::getOpenFileName(this,
                                                  tr("Select Settings Filename"),
                                                  QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
-                                                 tr("Syntalos Settings Files (*.sybt)"));
+                                                 tr("Syntalos Settings Files (*.syct)"));
     if (fileName.isEmpty())
         return;
 

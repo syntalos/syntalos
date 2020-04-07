@@ -131,8 +131,7 @@ void ModuleGraphForm::on_actionAddModule_triggered()
     if (modDialog.exec() == QDialog::Accepted) {
         //m_runIndicatorWidget->show();
         if (!modDialog.selectedEntryId().isEmpty()) {
-            auto mod = m_engine->createModule(modDialog.selectedEntryId());
-            mod->showSettingsUi();
+            m_engine->createModule(modDialog.selectedEntryId());
         }
         //m_runIndicatorWidget->hide();
     }
