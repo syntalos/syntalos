@@ -40,14 +40,26 @@ public:
     int camId() const;
     void setStartTime(const symaster_timepoint &time);
 
-    void setResolution(const cv::Size &size);
     cv::Size resolution() const;
+    void setResolution(const cv::Size &size);
 
-    void setExposure(double value);
     double exposure() const;
+    void setExposure(double value);
 
-    void setGain(double value);
+    double brightness() const;
+    void setBrightness(double value);
+
+    double contrast() const;
+    void setContrast(double value);
+
+    double saturation() const;
+    void setSaturation(double value);
+
+    double hue() const;
+    void setHue(double value);
+
     double gain() const;
+    void setGain(double value);
 
     bool connect();
     void disconnect();

@@ -188,8 +188,12 @@ public:
         jsettings.insert("width", m_camSettingsWindow->resolution().width);
         jsettings.insert("height", m_camSettingsWindow->resolution().height);
         jsettings.insert("fps", m_camSettingsWindow->framerate());
-        jsettings.insert("gain", m_camera->gain());
         jsettings.insert("exposure", m_camera->exposure());
+        jsettings.insert("brightness", m_camera->brightness());
+        jsettings.insert("contrast", m_camera->contrast());
+        jsettings.insert("saturation", m_camera->saturation());
+        jsettings.insert("hue", m_camera->hue());
+        jsettings.insert("gain", m_camera->gain());
 
         return jsonObjectToBytes(jsettings);
     }
@@ -200,6 +204,10 @@ public:
         m_camera->setCamId(jsettings.value("camera").toInt());
         m_camera->setResolution(cv::Size(jsettings.value("width").toInt(), jsettings.value("height").toInt()));
         m_camera->setExposure(jsettings.value("exposure").toDouble());
+        m_camera->setBrightness(jsettings.value("brightness").toDouble());
+        m_camera->setContrast(jsettings.value("contrast").toDouble());
+        m_camera->setSaturation(jsettings.value("saturation").toDouble());
+        m_camera->setHue(jsettings.value("hue").toDouble());
         m_camera->setGain(jsettings.value("gain").toDouble());
         m_camSettingsWindow->setFramerate(jsettings.value("fps").toInt());
 

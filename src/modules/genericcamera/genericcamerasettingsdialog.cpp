@@ -32,6 +32,8 @@ GenericCameraSettingsDialog::GenericCameraSettingsDialog(Camera *camera, QWidget
     for (const auto &cameraInfo : cameras) {
         ui->cameraComboBox->addItem(cameraInfo.first, QVariant(cameraInfo.second));
     }
+
+    updateValues();
 }
 
 GenericCameraSettingsDialog::~GenericCameraSettingsDialog()
@@ -82,6 +84,10 @@ void GenericCameraSettingsDialog::updateValues()
     ui->spinBoxWidth->setValue(m_camera->resolution().width);
     ui->spinBoxHeight->setValue(m_camera->resolution().height);
     ui->sbExposure->setValue(m_camera->exposure());
+    ui->sbBrightness->setValue(m_camera->brightness());
+    ui->sbContrast->setValue(m_camera->contrast());
+    ui->sbSaturation->setValue(m_camera->saturation());
+    ui->sbHue->setValue(m_camera->hue());
     ui->sbGain->setValue(m_camera->gain());
 }
 
@@ -93,19 +99,65 @@ void GenericCameraSettingsDialog::on_cameraComboBox_currentIndexChanged(int)
 void GenericCameraSettingsDialog::on_sbExposure_valueChanged(double arg1)
 {
     m_camera->setExposure(arg1);
+    ui->sliderExposure->setValue(arg1);
+}
+
+void GenericCameraSettingsDialog::on_sliderExposure_valueChanged(int value)
+{
+    ui->sbExposure->setValue(value);
+}
+
+void GenericCameraSettingsDialog::on_sbBrightness_valueChanged(double arg1)
+{
+    m_camera->setBrightness(arg1);
+    ui->sliderBrightness->setValue(arg1);
+}
+
+void GenericCameraSettingsDialog::on_sliderBrightness_valueChanged(int value)
+{
+    ui->sbBrightness->setValue(value);
+}
+
+void GenericCameraSettingsDialog::on_sbContrast_valueChanged(double arg1)
+{
+    m_camera->setContrast(arg1);
+    ui->sliderContrast->setValue(arg1);
+}
+
+void GenericCameraSettingsDialog::on_sliderContrast_valueChanged(int value)
+{
+    ui->sbContrast->setValue(value);
+}
+
+void GenericCameraSettingsDialog::on_sbSaturation_valueChanged(double arg1)
+{
+    m_camera->setSaturation(arg1);
+    ui->sliderSaturation->setValue(arg1);
+}
+
+void GenericCameraSettingsDialog::on_sliderSaturation_valueChanged(int value)
+{
+    ui->sbSaturation->setValue(value);
+}
+
+void GenericCameraSettingsDialog::on_sbHue_valueChanged(double arg1)
+{
+    m_camera->setHue(arg1);
+    ui->sliderHue->setValue(arg1);
+}
+
+void GenericCameraSettingsDialog::on_sliderHue_valueChanged(int value)
+{
+    ui->sbHue->setValue(value);
 }
 
 void GenericCameraSettingsDialog::on_sbGain_valueChanged(double arg1)
 {
     m_camera->setGain(arg1);
+    ui->sliderGain->setValue(arg1);
 }
 
-void GenericCameraSettingsDialog::on_dialExposure_valueChanged(int value)
-{
-    ui->sbExposure->setValue(value);
-}
-
-void GenericCameraSettingsDialog::on_dialGain_valueChanged(int value)
+void GenericCameraSettingsDialog::on_sliderGain_valueChanged(int value)
 {
     ui->sbGain->setValue(value);
 }

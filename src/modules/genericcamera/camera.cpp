@@ -32,7 +32,7 @@ public:
         : camId(0),
           connected(false),
           failed(false),
-          droppedFramesCount(0)
+          droppedFrameCount(0)
     {}
 
     std::chrono::time_point<symaster_clock> startTime;
@@ -45,21 +45,45 @@ public:
     bool failed;
 
     double exposure;
+    double exposureScaleFactor;
+
+    double brightness;
+    double brightnessScaleFactor;
+
+    double contrast;
+    double contrastScaleFactor;
+
+    double saturation;
+    double hue;
+
     double gain;
 
-    uint droppedFramesCount;
-
+    uint droppedFrameCount;
     QString lastError;
 };
 #pragma GCC diagnostic pop
 
-
 Camera::Camera()
     : d(new CameraData())
 {
-    d->exposure = 1;
+    // NOTE: We scale the values from 100 to the actual device value that V4L
+    // apparently accepts. Hopefully this isn't device-specific, and ideally
+    // this isn't even backend-specific.
+    // We have to test this (otherwise we need a way to autodetect max values,
+    // or have the user enter manual values which would suck)
+    // OpenCV VideoCapture API really isn't ideal sometimes...
+    d->exposureScaleFactor = 100;
+    d->brightnessScaleFactor = 0.64;
+    d->contrastScaleFactor = 0.5;
+
+    // set some default values
+    d->frameSize = cv::Size(960, 720);
+    d->exposure = 10;
+    d->brightness = 0;
+    d->contrast = 0;
+    d->saturation = 55;
+    d->hue = 0;
     d->gain = 0;
-    d->frameSize = cv::Size(640, 480);
 }
 
 Camera::~Camera()
@@ -98,6 +122,11 @@ cv::Size Camera::resolution() const
     return d->frameSize;
 }
 
+double Camera::exposure() const
+{
+    return d->exposure;
+}
+
 void Camera::setExposure(double value)
 {
     if (floor(value) == 0)
@@ -105,28 +134,84 @@ void Camera::setExposure(double value)
     if (value > 100)
         value = 100;
 
-    // NOTE: With V4L as backend, 255 seems to be the max value here
-
     d->exposure = value;
-    d->cam.set(cv::CAP_PROP_BRIGHTNESS, value * 2.55);
+    d->cam.set(cv::CAP_PROP_EXPOSURE, value * d->exposureScaleFactor);
 }
 
-double Camera::exposure() const
+double Camera::brightness() const
 {
-    return d->exposure;
+    return d->brightness;
 }
 
-void Camera::setGain(double value)
+void Camera::setBrightness(double value)
 {
-    // NOTE: With V4L as backend, 100 seems to be the max value here
+    if (value > 100)
+        value = 100;
+    if (value < -100)
+        value = -100;
 
-    d->gain = value;
-    d->cam.set(cv::CAP_PROP_GAIN, value);
+    d->brightness = value;
+    d->cam.set(cv::CAP_PROP_BRIGHTNESS, value * d->brightnessScaleFactor);
+}
+
+double Camera::contrast() const
+{
+    return d->contrast;
+}
+
+void Camera::setContrast(double value)
+{
+    if (floor(value) == 0)
+        value = 1;
+    if (value > 100)
+        value = 100;
+
+    d->contrast = value;
+    d->cam.set(cv::CAP_PROP_CONTRAST, value * d->contrastScaleFactor);
+}
+
+double Camera::saturation() const
+{
+    return d->saturation;
+}
+
+void Camera::setSaturation(double value)
+{
+    if (value > 100)
+        value = 100;
+
+    d->saturation = value;
+    d->cam.set(cv::CAP_PROP_SATURATION, value);
+}
+
+double Camera::hue() const
+{
+    return d->hue;
+}
+
+void Camera::setHue(double value)
+{
+    if (value > 100)
+        value = 100;
+    if (value < -100)
+        value = -100;
+
+    d->hue = value;
+    d->cam.set(cv::CAP_PROP_HUE, value);
 }
 
 double Camera::gain() const
 {
     return d->gain;
+}
+
+void Camera::setGain(double value)
+{
+    if (value > 100)
+        value = 100;
+
+    d->gain = value;
+    d->cam.set(cv::CAP_PROP_GAIN, value);
 }
 
 bool Camera::connect()
@@ -141,7 +226,18 @@ bool Camera::connect()
         }
     }
 
-    d->cam.open(d->camId, cv::CAP_V4L);
+    auto apiPreference = cv::CAP_ANY;
+#ifdef Q_OS_LINUX
+    apiPreference = cv::CAP_V4L2;
+#elif defined(Q_OS_WINDOWS)
+    apiPreference = cv::CAP_DSHOW;
+#endif
+    auto ret = d->cam.open(d->camId, apiPreference);
+    if (!ret) {
+        // we failed opening the camera - try again using OpenCV's backend autodetection
+        qDebug() << "Unable to use preferred camera backend for" << d->camId << "falling back to autodetection.";
+        ret = d->cam.open(d->camId);
+    }
     d->cam.set(cv::CAP_PROP_FRAME_WIDTH, d->frameSize.width);
     d->cam.set(cv::CAP_PROP_FRAME_HEIGHT, d->frameSize.height);
 
@@ -154,7 +250,10 @@ bool Camera::connect()
 
     // set default values
     setExposure(d->exposure);
-    setGain(d->gain);
+    setBrightness(d->brightness);
+    setContrast(d->contrast);
+    setSaturation(d->saturation);
+    setHue(d->hue);
 
     d->failed = false;
     d->connected = true;
@@ -202,15 +301,8 @@ bool Camera::recordFrame(Frame &frame, SecondaryClockSynchronizer *clockSync)
     }
 
     if (!status) {
-        d->droppedFramesCount++;
-        if (d->droppedFramesCount > 10) {
-            qWarning() << "Too many dropped frames on camera" << d->camId << " - Reconnecting Camera...";
-            d->cam.release();
-            d->cam.open(d->camId);
-            qInfo() << "Camera reconnected.";
-        }
-
-        if (d->droppedFramesCount > 80)
+        d->droppedFrameCount++;
+        if (d->droppedFrameCount > 80)
             fail("Too many dropped frames. Giving up.");
         return false;
     }
