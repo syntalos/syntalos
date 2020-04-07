@@ -30,7 +30,6 @@
 
 #include <QHash>
 #include <QList>
-#include <QJsonObject>
 
 #include "streams/datatypes.h"
 
@@ -419,8 +418,8 @@ public:
     bool saveState();
     bool restoreState();
 
-    QJsonObject settings() const;
-    void setSettings(const QJsonObject &settings);
+    QVariantHash settings() const;
+    void setSettings(const QVariantHash &settings);
 
     void setPortTypeColor(uint port_type, const QColor &color);
     const QColor &portTypeColor(uint port_type);
@@ -512,7 +511,7 @@ private:
 
     QPointF m_pos1;
 
-    QJsonObject m_settings;
+    QVariantHash m_settings;
 };
 
 #endif // FLOWGRAPHVIEW_H

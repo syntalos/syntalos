@@ -40,7 +40,7 @@
     </qresource>
     <qresource prefix="/texts">
         <file>pyscript-sample.py</file>
-        <file>greetings.json</file>
+        <file>greetings.toml</file>
     </qresource>
     <qresource prefix="/animations">
         <file alias="running.svg">animations/running.svg</file>

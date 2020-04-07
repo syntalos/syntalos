@@ -41,8 +41,6 @@
 #include <QMouseEvent>
 #include <QWheelEvent>
 
-#include <QJsonArray>
-
 #include <algorithm>
 #include <math.h>
 
@@ -1912,15 +1910,15 @@ void FlowGraphView::zoomFitRange(const QRectF &range_rect)
     emit changed();
 }
 
-static QJsonArray qrectfToJson(const QRectF &rect)
+static QVariantList qrectfToVarList(const QRectF &rect)
 {
-    QJsonArray rRect = {rect.x(), rect.y(), rect.width(), rect.height()};
+    QVariantList rRect = {rect.x(), rect.y(), rect.width(), rect.height()};
     return rRect;
 }
 
-static QRectF qrectfFromJson(const QJsonValue &val)
+static QRectF qrectfFromVarList(const QVariant &val)
 {
-    const auto arr = val.toArray();
+    const auto arr = val.toList();
     if (arr.size() != 4)
         return QRectF();
     QRectF rect(arr[0].toDouble(),
@@ -1930,15 +1928,15 @@ static QRectF qrectfFromJson(const QJsonValue &val)
     return rect;
 }
 
-static QJsonArray qpointfToJson(const QPointF &point)
+static QVariantList qpointfToVarList(const QPointF &point)
 {
-    QJsonArray jPoint = {point.x(), point.y()};
-    return jPoint;
+    QVariantList pl = {point.x(), point.y()};
+    return pl;
 }
 
-static QPointF qpointfFromJson(const QJsonValue &val)
+static QPointF qpointfFromVarList(const QVariant &val)
 {
-    const auto arr = val.toArray();
+    const auto arr = val.toList();
     if (arr.size() != 2)
         return QPointF();
     QPointF point(arr[0].toDouble(),
@@ -1959,8 +1957,8 @@ bool FlowGraphView::restoreNodePos(FlowGraphNode *node)
     if (node == nullptr)
         return false;
 
-    const auto joNodePos = m_settings.value(NodePosGroup).toObject();
-    const QPointF &node_pos = qpointfFromJson(joNodePos.value(nodeKey(node)));
+    const auto vNodePos = m_settings.value(NodePosGroup).toHash();
+    const QPointF &node_pos = qpointfFromVarList(vNodePos.value(nodeKey(node)));
 
     if (node_pos.isNull())
         return false;
@@ -1974,60 +1972,60 @@ bool FlowGraphView::saveNodePos(FlowGraphNode *node)
     if (node == nullptr)
         return false;
 
-    auto joNodePos = m_settings.value(NodePosGroup).toObject();
-    joNodePos.insert(nodeKey(node), qpointfToJson(node->pos()));
-    m_settings.insert(NodePosGroup, joNodePos);
+    auto vNodePos = m_settings.value(NodePosGroup).toHash();
+    vNodePos.insert(nodeKey(node), qpointfToVarList(node->pos()));
+    m_settings.insert(NodePosGroup, vNodePos);
 
     return true;
 }
 
-QJsonObject FlowGraphView::settings() const
+QVariantHash FlowGraphView::settings() const
 {
     return m_settings;
 }
 
-void FlowGraphView::setSettings(const QJsonObject &settings)
+void FlowGraphView::setSettings(const QVariantHash &settings)
 {
     m_settings = settings;
 }
 
 bool FlowGraphView::saveState()
 {
-    QJsonObject joNodePos;
+    QVariantHash vNodePos;
     const QList<QGraphicsItem *> items(m_scene->items());
     foreach (QGraphicsItem *item, items) {
         if (item->type() == FlowGraphNode::Type) {
             FlowGraphNode *node = static_cast<FlowGraphNode *>(item);
             if (node)
-                joNodePos.insert(nodeKey(node), qpointfToJson(node->pos()));
+                vNodePos.insert(nodeKey(node), qpointfToVarList(node->pos()));
         }
     }
-    m_settings.insert(NodePosGroup, joNodePos);
+    m_settings.insert(NodePosGroup, vNodePos);
 
-    QJsonObject joCanvas;
-    joCanvas.insert(CanvasZoomKey, zoom());
-    joCanvas.insert(CanvasRectKey, qrectfToJson(QGraphicsView::sceneRect()));
-    m_settings.insert(CanvasGroup, joCanvas);
+    QVariantHash varCanvas;
+    varCanvas.insert(CanvasZoomKey, zoom());
+    varCanvas.insert(CanvasRectKey, qrectfToVarList(QGraphicsView::sceneRect()));
+    m_settings.insert(CanvasGroup, varCanvas);
 
-    QJsonObject joColors;
+    QVariantHash varColors;
     QHash<uint, QColor>::ConstIterator iter = m_port_colors.constBegin();
     const QHash<uint, QColor>::ConstIterator &iter_end = m_port_colors.constEnd();
     for (; iter != iter_end; ++iter) {
         const uint port_type = iter.key();
         const QColor &color = iter.value();
-        joColors.insert("0x" + QString::number(port_type, 16), color.name());
+        varColors.insert("0x" + QString::number(port_type, 16), color.name());
     }
-    m_settings.insert(ColorsGroup, joColors);
+    m_settings.insert(ColorsGroup, varColors);
 
     return true;
 }
 
 bool FlowGraphView::restoreState()
 {
-    auto joColors = m_settings.value(ColorsGroup).toObject();
+    auto varColors = m_settings.value(ColorsGroup).toHash();
     const QRegExp rx("^0x");
-    for (const QString &key : joColors.keys()) {
-        const QColor &color = QString(joColors.value(key).toString());
+    for (const QString &key : varColors.keys()) {
+        const QColor &color = QString(varColors.value(key).toString());
         if (color.isValid()) {
             QString sx(key);
             bool ok = false;
@@ -2037,9 +2035,9 @@ bool FlowGraphView::restoreState()
         }
     }
 
-    auto joCanvas = m_settings.value(CanvasGroup).toObject();
-    const QRectF &rect = qrectfFromJson(joCanvas.value(CanvasRectKey));
-    const qreal zoom = joCanvas.value(CanvasZoomKey).toDouble(1.0);
+    auto varCanvas = m_settings.value(CanvasGroup).toHash();
+    const QRectF &rect = qrectfFromVarList(varCanvas.value(CanvasRectKey));
+    const qreal zoom = varCanvas.value(CanvasZoomKey, 1.0).toDouble();
 
     if (rect.isValid())
         QGraphicsView::setSceneRect(rect);

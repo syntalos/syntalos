@@ -20,7 +20,6 @@
 #include "videorecordmodule.h"
 
 #include <QMessageBox>
-#include <QJsonDocument>
 #include <QDebug>
 #include <QFileInfo>
 #include "streams/frametype.h"

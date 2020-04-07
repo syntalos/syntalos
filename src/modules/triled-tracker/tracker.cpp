@@ -20,8 +20,6 @@
 #include "tracker.h"
 
 #include <QDebug>
-#include <QJsonDocument>
-#include <QJsonObject>
 #include <QFile>
 #include <QDir>
 #include <QtMath>

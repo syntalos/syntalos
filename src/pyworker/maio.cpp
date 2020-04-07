@@ -21,7 +21,6 @@
 #include "maio.h"
 
 #include <QDebug>
-#include <QJsonArray>
 #include <QStringList>
 #include <boost/python.hpp>
 #include <boost/python/list.hpp>

@@ -24,8 +24,6 @@
 #include <QStorageInfo>
 #include <QCoreApplication>
 #include <QDateTime>
-#include <QJsonDocument>
-#include <QJsonArray>
 #include <QStandardPaths>
 #include <QThread>
 

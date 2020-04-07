@@ -31,12 +31,10 @@
 #include <QErrorMessage>
 #include <QRadioButton>
 #include <QDebug>
-#include <QThread>
+#include <QTimer>
 #include <QSerialPortInfo>
 #include <QTableWidget>
 #include <QMdiSubWindow>
-#include <QJsonDocument>
-#include <QJsonObject>
 #include <QSpinBox>
 #include <QCloseEvent>
 #include <QFontDatabase>
@@ -113,14 +111,22 @@ MainWindow::MainWindow(QWidget *parent) :
     statusBar()->setSizeGripEnabled(true);
 
     // Show a welcome status message (a poor replacement for the previous joke messages,
-    // but we want to be more serious now ^^)
-    QFile greetingsRc(QStringLiteral(":/texts/greetings.json"));
-    if(greetingsRc.open(QIODevice::ReadOnly)) {
-        const auto greetDoc = QJsonDocument::fromJson(greetingsRc.readAll());
-        const auto grObj = greetDoc.object();
-        if (!grObj.isEmpty()) {
-            const auto greetings = grObj.keys();
-            setStatusText(greetings[rand() % greetings.length()].trimmed());
+    // but we want to be more serious now (not too much though, just a tiny bit) ^^)
+    QFile greetingsRc(QStringLiteral(":/texts/greetings.toml"));
+    if (greetingsRc.open(QIODevice::ReadOnly)) {
+        QString parseError;
+        const auto greetingsVar = parseTomlData(greetingsRc.readAll(), parseError);
+        if (parseError.isEmpty()) {
+            const auto greetings = greetingsVar.value("greetings", QVariantList()).toList();
+            if (!greetings.isEmpty()) {
+                const auto myGreeting = greetings[rand() % greetings.length()].toHash();
+                setStatusText(myGreeting.value("msg", "Hello World!").toString().trimmed());
+                m_statusBarLabel->setToolTip(myGreeting.value("source", "Unknown").toString().trimmed());
+                // reset tooltip after 10 seconds
+                QTimer::singleShot(10 * 1000, [=]() {
+                    m_statusBarLabel->setToolTip(QString());
+                });
+            }
         }
     }
     greetingsRc.close();
@@ -329,7 +335,7 @@ bool MainWindow::saveConfiguration(const QString &fileName)
 
     // save graph settings
     ui->graphForm->graphView()->saveState();
-    tar.writeFile ("graph.json", QJsonDocument(ui->graphForm->graphView()->settings()).toJson());
+    tar.writeFile ("graph.toml", qVariantHashToTomlData(ui->graphForm->graphView()->settings()));
 
     // save module settings
     auto modIndex = 0;
@@ -439,15 +445,16 @@ bool MainWindow::loadConfiguration(const QString &fileName)
     }
 
     // load graph settings
-    auto graphDataFile = rootDir->file("graph.json");
+    auto graphDataFile = rootDir->file("graph.toml");
     if (graphDataFile != nullptr) {
-        QJsonObject graphSettings;
-        auto graphDoc = QJsonDocument::fromJson(graphDataFile->data());
-        graphSettings = graphDoc.object();
-
-        // the graph view will apply stored settings to new nodes automatically
-        // from here on.
-        ui->graphForm->graphView()->setSettings(graphSettings);
+        const auto graphConfig = parseTomlData(graphDataFile->data(), parseError);
+        if (parseError.isEmpty()) {
+            qWarning() << "Unable to load parse graph configuration:" << parseError;
+        } else {
+            // the graph view will apply stored settings to new nodes automatically
+            // from here on.
+            ui->graphForm->graphView()->setSettings(graphConfig);
+        }
     }
 
     m_engine->removeAllModules();
@@ -758,7 +765,7 @@ void MainWindow::on_actionSubjectsSave_triggered()
     if (fileName.isEmpty())
         return;
     if (!fileName.endsWith(".toml"))
-        fileName = QStringLiteral("%1.json").arg(fileName);
+        fileName = QStringLiteral("%1.toml").arg(fileName);
 
     QFile f(fileName);
     if (!f.open(QIODevice::WriteOnly | QIODevice::Text))

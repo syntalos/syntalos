@@ -27,7 +27,6 @@
 #include <QDebug>
 #include <QHBoxLayout>
 #include <QMenuBar>
-#include <QJsonArray>
 #include <QMetaType>
 #include <KTextEditor/Document>
 #include <KTextEditor/Editor>
@@ -126,26 +125,26 @@ public:
     {
         extraData = m_scriptView->document()->text().toUtf8();
 
-        QVariantList jsonInPorts;
+        QVariantList varInPorts;
         for (const auto port : inPorts()) {
             QVariantHash po;
             po.insert("id", port->id());
             po.insert("title", port->title());
             po.insert("data_type", port->dataTypeName());
-            jsonInPorts.append(po);
+            varInPorts.append(po);
         }
 
-        QVariantList jsonOutPorts;
+        QVariantList varOutPorts;
         for (const auto port : outPorts()) {
             QVariantHash po;
             po.insert("id", port->id());
             po.insert("title", port->title());
             po.insert("data_type", port->dataTypeName());
-            jsonOutPorts.append(po);
+            varOutPorts.append(po);
         }
 
-        settings.insert("ports_in", jsonInPorts);
-        settings.insert("ports_out", jsonOutPorts);
+        settings.insert("ports_in", varInPorts);
+        settings.insert("ports_out", varOutPorts);
     }
 
     bool loadSettings(const QString&, const QVariantHash &settings, const QByteArray &extraData) override

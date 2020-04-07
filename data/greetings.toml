@@ -1,0 +1,79 @@
+greetings = [
+  { msg = "Never memorize something that you can look up.",
+    source = "Albert Einstein" },
+
+  { msg = "The saddest aspect of life right now is that science gathers knowledge faster than society gathers wisdom.",
+    source = "Isaac Asimov" },
+
+  { msg = "If we knew what it was we were doing, it would not be called research, would it?",
+    source = "Albert Einstein" },
+
+  { msg = "Somewhere, something incredible is waiting to be known.",
+    source = "Carl Sagan" },
+
+  { msg = "I am MazeAmaze, right? That's my real name. Controlling amazing mazes for amazing mice.",
+    source = "Syntalos" },
+
+  { msg = "I'm sure the universe is full of intelligent life. It's just been too intelligent to come here.",
+    source = "Arthur C. Clarke" },
+
+  { msg = "In the beginning there was nothing, which exploded.",
+    source = "Terry Pratchett, Lords and Ladies" },
+
+  { msg = "If I have seen further it is by standing on the shoulders of Giants.",
+    source = "Isaac Newton" },
+
+  { msg = "I don't believe in astrology; I'm a Sagittarian and we're skeptical.",
+    source = "Arthur C. Clarke" },
+
+  { msg = "Electricity is really just organized lightning.",
+    source = "George Carlin" },
+
+  { msg = "My theory of evolution is that Darwin was adopted.",
+    source = "Steven Wright" },
+
+  { msg = "We don't devote enough scientific research to finding a cure for jerks.",
+    source = "Bill Watterson" },
+
+  { msg = "Maybe this world is another planet's hell.",
+    source = "Aldous Huxley" },
+
+  { msg = "Science does not know its debt to imagination.",
+    source = "Ralph Waldo Emerson" },
+
+  { msg = "In all science, error precedes the truth, and it is better it should go first than last.",
+    source = "Horace Walpole" },
+
+  { msg = "There is no complete theory of anything.",
+    source = "Robert Anton Wilson" },
+
+  { msg = "Everything is theoretically impossible, until it is done.",
+    source = "Robert A. Heinlein" },
+
+  { msg = "If a cluttered desk is a sign of a cluttered mind, of what, then, is an empty desk a sign?",
+    source = "Albert Einstein" },
+
+  { msg = "Science is not only a disciple of reason but also one of romance and passion.",
+    source = "Stephen Hawking" },
+
+  { msg = "Biologically speaking, if something bites you, it is more likely to be female.",
+    source = "Desmond Morris" },
+
+  { msg = "Being a scientist is like doing a jigsaw puzzle in a snowstorm at night, with some pieces missing, and with no idea what the finished picture looks like.",
+    source = "Anonymous" },
+
+  { msg = "God not only plays dice, he throws them in the corner where you can't see them.",
+    source = "Stephen Hawking" },
+
+  { msg = "Intelligence is an accident of evolution, and not necessarily an advantage.",
+    source = "Isaac Asimov" },
+
+  { msg = "Basic research is what I am doing when I don't know what I am doing.",
+    source = "Wernher von Braun" },
+
+  { msg = "We cannot solve problems with the same thinking we used to create them.",
+    source = "Albert Einstein" },
+
+  { msg = "Science knows no country, because knowledge belongs to humanity, and is the torch which illuminates the world.",
+    source = "Louis Pasteur" },
+]
