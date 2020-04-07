@@ -410,11 +410,6 @@ void AbstractModule::start()
     setState(ModuleState::RUNNING);
 }
 
-bool AbstractModule::runEvent()
-{
-    return true;
-}
-
 void AbstractModule::runThread(OptionalWaitCondition *)
 {
     // Do nothing
@@ -543,6 +538,11 @@ std::shared_ptr<VarStreamInputPort> AbstractModule::inPortById(const QString &id
 std::shared_ptr<StreamOutputPort> AbstractModule::outPortById(const QString &id) const
 {
     return m_outPorts.value(id);
+}
+
+QList<QPair<intervalEventFunc_t, int> > AbstractModule::intervalEventCallbacks() const
+{
+    return m_intervalEventCBList;
 }
 
 bool AbstractModule::makeDirectory(const QString &dir)
@@ -782,6 +782,11 @@ void AbstractModule::setStorageGroup(std::shared_ptr<EDLGroup> edlGroup)
 {
     d->defaultDataset.reset();
     d->rootDataGroup = edlGroup;
+}
+
+void AbstractModule::resetEventCallbacks()
+{
+    m_intervalEventCBList.clear();
 }
 
 void AbstractModule::setStatusMessage(const QString &message)

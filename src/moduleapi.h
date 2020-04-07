@@ -270,6 +270,15 @@ private:
     QScopedPointer<Private> d;
 };
 
+/// Event function type for timed callbacks
+using intervalEventFunc_t = void(AbstractModule::*)(int &);
+
+/**
+ * @brief Abstract base class for all modules
+ *
+ * This class describes the interface for every Syntalos module and contains
+ * helper functions and other API to make writing modules simple.
+ */
 class AbstractModule : public QObject
 {
     Q_OBJECT
@@ -450,21 +459,6 @@ public:
     virtual void runThread(OptionalWaitCondition *startWaitCondition);
 
     /**
-     * @brief Execute actions in thread event loop when idle
-     *
-     * This function is run together with other modules in one thread, and is called upon periodically.
-     * Therefore, function must never block for a long time, to allow other modules to be executed as well.
-     * Keep in mind that this function may be called from any thread and may even be moved between threads
-     * depending on system load, so do not assume you will always be in your own thread or never move between
-     * threads during execution.
-     *
-     * This is ideal to perform more light-weight tasks that do not need to run in their own thread, to increase
-     * utilization of system resources and reduce theading overhead caused by smaller modules.
-     * @return true if no error
-     */
-    virtual bool runEvent();
-
-    /**
      * @brief Stop running an experiment.
      * Stop execution of an experiment. This method is called after
      * prepare() was run.
@@ -538,6 +532,8 @@ public:
 
     std::shared_ptr<VarStreamInputPort> inPortById(const QString &id) const;
     std::shared_ptr<StreamOutputPort> outPortById(const QString &id) const;
+
+    QList<QPair<intervalEventFunc_t, int>> intervalEventCallbacks() const;
 
     QJsonValue serializeDisplayUiGeometry();
     void restoreDisplayUiGeometry(QJsonObject info);
@@ -651,6 +647,35 @@ protected:
     void addSettingsWindow(QWidget *window, bool owned = true);
 
     /**
+     * @brief Request a member function of this module to be called at an interval
+     *
+     * Set a pointer to a member function of this module as first paremter, to be called
+     * at a interval set as second parameter in milliseconds.
+     * If the interval selected is 0, the function will be called as soon as possible.
+     *
+     * The first parameter of the callback is a reference to the execution interval, which
+     * the callee may adjust to be run less or more frequent. Adjusting the frequency does
+     * not come at zero cost, so please avoid very frequent adjustments.
+     *
+     * Since these functions are scheduled together with other possible events in an event
+     * loop, do not expect the member function to be called in exactly the requested intervals.
+     * The interval will also not be adjusted to "catch up" for lost time.
+     *
+     * Please ensure that the callback function never blocks for an extended period of time
+     * to give other modules as chance to run as well. Also, you can expect this function to
+     * be run in a different thread compared to where the module's prepare() function was run.
+     * The function may even move between threads, so do not make any assumptions about threading.
+     */
+    template<typename T>
+    void registerTimedEvent(void(T::*fn)(int &), const milliseconds_t &interval)
+    {
+        static_assert(std::is_base_of<AbstractModule, T>::value,
+                "Callback needs to point to a member function of a class derived from AbstractModule");
+        const auto amFn = static_cast<intervalEventFunc_t>(fn);
+        m_intervalEventCBList.append(qMakePair(amFn, interval.count()));
+    }
+
+    /**
      * @brief Get new frequency/counter synchronizer
      *
      * This function can be called in the PREPARING phase of a module to retrieve a synchronizer
@@ -692,10 +717,13 @@ private:
     QMap<QString, std::shared_ptr<StreamOutputPort>> m_outPorts;
     QMap<QString, std::shared_ptr<VarStreamInputPort>> m_inPorts;
 
+    QList<QPair<intervalEventFunc_t, int>> m_intervalEventCBList;
+
     void setState(ModuleState state);
     void setId(const QString &id);
     void setIndex(int index);
     void setStorageGroup(std::shared_ptr<EDLGroup> edlGroup);
+    void resetEventCallbacks();
 };
 
 } // end of namespace

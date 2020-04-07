@@ -30,10 +30,11 @@
 #include <QThread>
 
 #include "oop/oopmodule.h"
+#include "edlstorage.h"
 #include "modulelibrary.h"
+#include "moduleeventthread.h"
 #include "syclock.h"
 #include "utils.h"
-#include "edlstorage.h"
 
 using namespace Syntalos;
 
@@ -408,45 +409,6 @@ static void executeOOPModuleThread(const QString& threadName, QList<OOPModule*> 
         mod->oopFinalize(&loop);
 }
 
-/**
- * @brief Main entry point for engine-managed module threads.
- */
-static void executeIdleEventModuleThread(const QString& threadName, QList<AbstractModule*> mods,
-                                         OptionalWaitCondition *waitCondition, std::atomic_bool &running, std::atomic_bool &failed)
-{
-    pthread_setname_np(pthread_self(), qPrintable(threadName.mid(0, 15)));
-
-    // wait for us to start
-    waitCondition->wait();
-
-    // immediately return on early failures by other modules
-    if (failed)
-        return;
-
-    // check if any module signals that it will actually not be doing anything
-    // (if so, we don't need to call it and can maybe even terminate this thread)
-    QMutableListIterator<AbstractModule*> i(mods);
-    while (i.hasNext()) {
-        if (i.next()->state() == ModuleState::IDLE)
-            i.remove();
-    }
-
-    if (mods.isEmpty()) {
-        qDebug() << "All evented modules are idle, shutting down their thread.";
-        return;
-    }
-
-    while (running) {
-        for (auto &mod : mods) {
-            if (!mod->runEvent()){
-                qDebug() << QStringLiteral("Module '%1' failed in event loop.").arg(mod->name());
-                failed = true;
-                return;
-            }
-        }
-    }
-}
-
 bool Engine::run()
 {
     if (d->running)
@@ -577,7 +539,7 @@ bool Engine::run()
 
     QList<AbstractModule*> idleEventModules;
     QList<AbstractModule*> idleUiEventModules;
-    std::vector<std::thread> evThreads;
+    std::vector<std::shared_ptr<ModuleEventThread>> evThreads;
 
     QList<OOPModule*> oopModules;
     std::vector<std::thread> oopThreads;
@@ -642,12 +604,9 @@ bool Engine::run()
         // TODO: on systems with low CPU count we could also move the execution of those
         // to the main thread
         if (!idleEventModules.isEmpty()) {
-            evThreads.push_back(std::thread(executeIdleEventModuleThread,
-                                            "evmod_loop_1",
-                                            idleEventModules,
-                                            startWaitCondition.get(),
-                                            std::ref(d->running),
-                                            std::ref(d->failed)));
+            std::shared_ptr<ModuleEventThread> evThread(new ModuleEventThread);
+            evThread->run(idleEventModules, startWaitCondition.get());
+            evThreads.push_back(evThread);
         }
 
         qDebug().noquote().nospace() << "Engine: " << "Module and engine threads created in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
@@ -760,6 +719,13 @@ bool Engine::run()
         startWaitCondition->wakeAll();
     }
 
+    // join all threads running evented modules, therefore stop
+    // processing any new events
+    for (const auto &evThread : evThreads) {
+        emitStatusMessage(QStringLiteral("Waiting for event thread `%1`...").arg(evThread->threadName()));
+        evThread->stop();
+    }
+
     // send stop command to all modules
     for (auto &mod : orderedActiveModules) {
         emitStatusMessage(QStringLiteral("Stopping %1...").arg(mod->name()));
@@ -832,13 +798,7 @@ bool Engine::run()
         oopThread.join();
     }
 
-    // join all threads running evented modules
-    for (auto &evThread : evThreads) {
-        emitStatusMessage(QStringLiteral("Waiting for event executor..."));
-        evThread.join();
-    }
-
-    qDebug().noquote().nospace() << "Engine: " << "All engine threads joined in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
+    qDebug().noquote().nospace() << "Engine: " << "All (non-event) engine threads joined in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
     lastPhaseTimepoint = d->timer->currentTimePoint();
 
     if (!initSuccessful) {

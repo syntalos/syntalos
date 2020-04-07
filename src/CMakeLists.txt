@@ -5,61 +5,63 @@ add_subdirectory(pyworker)
 add_subdirectory(modules)
 
 set(SYNTALOS_SHARED_SRC
+    edlstorage.h
+    edlstorage.cpp
+    eigenaux.h
+    moduleapi.h
+    moduleapi.cpp
     optionalwaitcondition.h
     optionalwaitcondition.cpp
-    utils.h
-    utils.cpp
-    eigenaux.h
     syclock.h
     syclock.cpp
     timesync.h
     timesync.cpp
     tomlutils.h
     tomlutils.cpp
-    edlstorage.h
-    edlstorage.cpp
-    moduleapi.h
-    moduleapi.cpp
+    utils.h
+    utils.cpp
 
+    streams/atomicops.h
     streams/datatypes.h
     streams/datatypes.cpp
     streams/frametype.h
+    streams/readerwriterqueue.h
     streams/stream.h
     streams/stream.cpp
-    streams/atomicops.h
-    streams/readerwriterqueue.h
 )
 set(SYNTALOS_SHARED_SRC ${SYNTALOS_SHARED_SRC} PARENT_SCOPE)
 
 set(SYNTALOS_SRC
-    main.cpp
-    engine.h
-    engine.cpp
     aboutdialog.h
     aboutdialog.cpp
+    elidedlabel.h
+    elidedlabel.cpp
+    engine.h
+    engine.cpp
+    flowgraphview.h
+    flowgraphview.cpp
+    main.cpp
     mainwindow.h
     mainwindow.cpp
-    testsubjectlistmodel.h
-    testsubjectlistmodel.cpp
-    timingsdialog.h
-    timingsdialog.cpp
+    moduleeventthread.h
+    moduleeventthread.cpp
+    modulegraphform.h
+    modulegraphform.cpp
     modulelibrary.h
     modulelibrary.cpp
     moduleselectdialog.h
     moduleselectdialog.cpp
-    elidedlabel.h
-    elidedlabel.cpp
-    flowgraphview.h
-    flowgraphview.cpp
-    modulegraphform.h
-    modulegraphform.cpp
+    testsubjectlistmodel.h
+    testsubjectlistmodel.cpp
+    timingsdialog.h
+    timingsdialog.cpp
 )
 
 set(SYNTALOS_UI
-    mainwindow.ui
-    moduleselectdialog.ui
     aboutdialog.ui
+    mainwindow.ui
     modulegraphform.ui
+    moduleselectdialog.ui
     timingsdialog.ui
 )
 
@@ -102,8 +104,9 @@ target_link_libraries(syntalos
     Qt5::Charts
     Qt5::RemoteObjects
     Eigen3::Eigen
-    ${OpenCV_LIBS}
+    ${GLIB_LIBRARIES}
     ${OPENGL_LIBRARIES}
+    ${OpenCV_LIBS}
     ${UEYE_LIBS}
     ${MA_EXTRA_LIBS}
 
@@ -112,6 +115,7 @@ target_link_libraries(syntalos
 )
 
 include_directories(
+    ${GLIB_INCLUDE_DIRS}
     ${TOML_INCLUDE_DIRS}
     ${OpenCV_INCLUDE_DIRS}
 )

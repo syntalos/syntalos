@@ -103,6 +103,9 @@ public:
         // don't permit configuration changes while we are running
         m_settingsDialog->setEnabled(false);
 
+        // register a new timer event of 0msec, so we are run as much as possible
+        registerTimedEvent(&VideoRecorderModule::processFrames, milliseconds_t(0));
+
         return true;
     }
 
@@ -123,17 +126,17 @@ public:
             m_vidDataset = getOrCreateDefaultDataset(m_settingsDialog->videoName());
     }
 
-    bool runEvent() override
+    void processFrames(int&)
     {
         if (!m_recording) {
             // just exit if we aren't subscribed to any data source
             setStateReady();
-            return true;
+            return;
         }
 
         const auto maybeFrame = m_inSub->peekNext();
         if (!maybeFrame.has_value())
-            return true;
+            return;
         const auto frame = maybeFrame.value();
 
         if (!m_initDone) {
@@ -150,11 +153,11 @@ public:
 
             if (!frameSize.isValid()) {
                 raiseError(QStringLiteral("Frame source did not provide image dimensions!"));
-                return false;
+                return;
             }
             if (framerate == 0) {
                 raiseError(QStringLiteral("Frame source did not provide a framerate!"));
-                return false;
+                return;
             }
 
             const auto dataBasename = dataBasenameFromSubMetadata(m_inSub->metadata(), "video");
@@ -171,7 +174,7 @@ public:
                                           m_settingsDialog->saveTimestamps());
             } catch (const std::runtime_error& e) {
                 raiseError(QStringLiteral("Unable to initialize recording: %1").arg(e.what()));
-                return false;
+                return;
             }
 
             // write info video info file with auxiliary information about the video we encoded
@@ -191,10 +194,8 @@ public:
         // write video data
         if (!m_videoWriter->pushFrame(frame)) {
             raiseError(QString::fromStdString(m_videoWriter->lastError()));
-            return false;
+            return;
         }
-
-        return true;
     }
 
     void stop() override
