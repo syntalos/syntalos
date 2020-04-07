@@ -158,33 +158,36 @@ public:
         statusMessage("Camera disconnected.");
     }
 
-    QByteArray serializeSettings(const QString &confBaseDir) override
+    void serializeSettings(const QString &confBaseDir, QVariantHash &settings, QByteArray &) override
     {
         QDir cdir(confBaseDir);
-        QJsonObject videoSettings;
-        videoSettings.insert("camera", m_camera->camId());
-        videoSettings.insert("width", m_camSettingsWindow->resolution().width);
-        videoSettings.insert("height", m_camSettingsWindow->resolution().height);
-        videoSettings.insert("fps", m_camSettingsWindow->framerate());
-        videoSettings.insert("autoGain", m_camSettingsWindow->automaticGain());
-        videoSettings.insert("exposureTime", m_camSettingsWindow->exposure());
-        videoSettings.insert("uEyeConfig", cdir.relativeFilePath(m_camSettingsWindow->uEyeConfigFile()));
-        videoSettings.insert("gpioFlash", m_camSettingsWindow->gpioFlash());
 
-        return jsonObjectToBytes(videoSettings);
+        settings.insert("camera", m_camera->camId());
+        settings.insert("width", m_camSettingsWindow->resolution().width);
+        settings.insert("height", m_camSettingsWindow->resolution().height);
+        settings.insert("fps", m_camSettingsWindow->framerate());
+        settings.insert("auto_gain", m_camSettingsWindow->automaticGain());
+        settings.insert("exposure_time", m_camSettingsWindow->exposure());
+        settings.insert("gpio_flash", m_camSettingsWindow->gpioFlash());
+
+        if (!m_camSettingsWindow->uEyeConfigFile().isEmpty())
+            settings.insert("ueye_config", cdir.relativeFilePath(m_camSettingsWindow->uEyeConfigFile()));
     }
 
-    bool loadSettings(const QString&, const QByteArray &data) override
+    bool loadSettings(const QString &confBaseDir, const QVariantHash &settings, const QByteArray &) override
     {
-        auto jsettings = jsonObjectFromBytes(data);
+        QDir cdir(confBaseDir);
 
-        m_camSettingsWindow->setCameraId(jsettings.value("camera").toInt());
-        m_camSettingsWindow->setResolution(cv::Size(jsettings.value("width").toInt(), jsettings.value("height").toInt()));
-        m_camSettingsWindow->setFramerate(jsettings.value("fps").toInt());
-        m_camSettingsWindow->setGpioFlash(jsettings.value("gpioFlash").toBool());
-        m_camSettingsWindow->setAutomaticGain(jsettings.value("autoGain").toBool());
-        m_camSettingsWindow->setExposure(jsettings.value("exposureTime").toDouble());
-        m_camSettingsWindow->setUEyeConfigFile(jsettings.value("uEyeConfig").toString());
+        m_camSettingsWindow->setCameraId(settings.value("camera").toInt());
+        m_camSettingsWindow->setResolution(cv::Size(settings.value("width").toInt(), settings.value("height").toInt()));
+        m_camSettingsWindow->setFramerate(settings.value("fps").toInt());
+        m_camSettingsWindow->setGpioFlash(settings.value("gpio_flash").toBool());
+        m_camSettingsWindow->setAutomaticGain(settings.value("auto_gain").toBool());
+        m_camSettingsWindow->setExposure(settings.value("exposure_time").toDouble());
+
+        const auto configFname = settings.value("ueye_config").toString();
+        if (!configFname.isEmpty())
+            m_camSettingsWindow->setUEyeConfigFile(cdir.absoluteFilePath(configFname));
 
         return true;
     }
