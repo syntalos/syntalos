@@ -31,3 +31,7 @@ toml::array qVariantListToTomlArray(const QVariantList &varList);
 toml::table qVariantHashToTomlTable(const QVariantHash &varHash);
 
 QString serializeTomlTable(const toml::table &tab);
+
+QVariantHash parseTomlData(const QByteArray &data, QString &errorMessage);
+QVariantHash parseTomlData(const QString &data, QString &errorMessage);
+QVariantHash parseTomlFile(const QString &fname, QString &errorMessage);

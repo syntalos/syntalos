@@ -541,7 +541,7 @@ QString EDLDataset::pathForDataBasename(const QString &baseName)
     if (bname.isEmpty())
         bname = QStringLiteral("data");
     QDir dir(path());
-    if (!dir.mkpath(path())) {
+    if (path().isEmpty() || !dir.mkpath(path())) {
         setLastError(QStringLiteral("Unable to create EDL directory: '%1'").arg(path()));
         return QString();
     }

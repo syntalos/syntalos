@@ -10,18 +10,19 @@
 class TestEDL : public QObject
 {
     Q_OBJECT
+private:
+    const QString expectedToml = QStringLiteral("boolean = true\n"
+                                                "date = 1977-04-23T13:37:12Z\n"
+                                                "list = [ \"spam\", 8, \"eggs\", true, 12.4, \"spam\", false ]\n"
+                                                "string = \"Hello World - öäß-!?\"\n"
+                                                "\n"
+                                                "[child]\n"
+                                                "float = 1.248\n"
+                                                "key = \"stringvalue\"\n");
+
 private slots:
     void runTomlSerialize()
     {
-        const auto expectedToml = QStringLiteral("boolean = true\n"
-                                                 "date = 1977-04-23T13:37:12Z\n"
-                                                 "list = [ \"spam\", 8, \"eggs\", true, 12.4, \"spam\", false ]\n"
-                                                 "string = \"Hello World - öäß-!?\"\n"
-                                                 "\n"
-                                                 "[child]\n"
-                                                 "float = 1.248\n"
-                                                 "key = \"stringvalue\"\n");
-
         auto dateTime = QDateTime(QDate(1977, 4, 23), QTime(13, 37, 12));
         dateTime.setTimeZone(QTimeZone::utc());
 
@@ -48,6 +49,34 @@ private slots:
 
         auto toml = qVariantHashToTomlTable(table);
         QCOMPARE(serializeTomlTable(toml), expectedToml);
+    }
+
+    void runTomlDeserialize()
+    {
+        auto dateTime = QDateTime(QDate(1977, 4, 23), QTime(13, 37, 12));
+        dateTime.setTimeZone(QTimeZone::utc());
+
+        QString errorMessage;
+        const auto tab = parseTomlData(expectedToml, errorMessage);
+        QVERIFY2(errorMessage.isEmpty(), qPrintable(errorMessage));
+
+        QCOMPARE(tab["date"], dateTime);
+        QCOMPARE(tab["boolean"], true);
+        QCOMPARE(tab["void"], QVariant());
+        QCOMPARE(tab["string"], "Hello World - öäß-!?");
+
+        QCOMPARE(tab["child"].toHash()["key"], "stringvalue");
+        QCOMPARE(tab["child"].toHash()["float"], 1.248);
+
+        QVariantList list;
+        list.append("spam");
+        list.append(8);
+        list.append("eggs");
+        list.append(true);
+        list.append(12.4);
+        list.append("spam");
+        list.append(false);
+        QCOMPARE(tab["list"], list);
     }
 
     void runEDLWrite()

@@ -20,6 +20,8 @@
 #include "tomlutils.h"
 
 #include <QDebug>
+#include <fstream>
+#include <iostream>
 
 toml::time qTimeToToml(const QTime &qtime)
 {
@@ -172,4 +174,113 @@ QString serializeTomlTable(const toml::table &tab)
     std::stringstream data;
     data << tab << "\n";
     return QString::fromStdString(data.str());
+}
+
+static QTime tomlTimeToQ(const toml::time &ttime)
+{
+    return QTime(ttime.hour, ttime.minute, ttime.second, ttime.nanosecond / 1000);
+}
+
+static QDate tomlDateToQ(const toml::date &tdate)
+{
+    return QDate(tdate.year, tdate.month, tdate.day);
+}
+
+static QDateTime tomlDateTimeToQ(const toml::date_time &tdt)
+{
+    QDateTime qdt(tomlDateToQ(tdt.date), tomlTimeToQ(tdt.time));
+    qdt.setOffsetFromUtc(tdt.time_offset->minutes * 60);
+    return qdt;
+}
+
+template<typename T>
+QVariant tomlValueToVariant(const T &value)
+{
+    QVariant res;
+    value.visit([&](auto&& n) {
+        if constexpr (toml::is_string<decltype(n)>)
+            res = QVariant::fromValue(QString::fromStdString(n.as_string()->get()));
+        else if constexpr (toml::is_integer<decltype(n)>)
+            res = QVariant::fromValue(value.as_integer()->get());
+        else if constexpr (toml::is_floating_point<decltype(n)>)
+            res = QVariant::fromValue(n.as_floating_point()->get());
+        else if constexpr (toml::is_boolean<decltype(n)>)
+            res = QVariant::fromValue(n.as_boolean()->get());
+
+        else if constexpr (toml::is_date<decltype(n)>)
+            res = QVariant::fromValue(tomlDateToQ(n.as_date()->get()));
+        else if constexpr (toml::is_time<decltype(n)>)
+            res = QVariant::fromValue(tomlTimeToQ(n.as_time()->get()));
+        else if constexpr (toml::is_date_time<decltype(n)>)
+            res = QVariant::fromValue(tomlDateTimeToQ(n.as_date_time()->get()));
+
+        else if constexpr (toml::is_array<decltype(n)>) {
+            if (auto arr = n.as_array()) {
+                QVariantList vList;
+                for (auto& e : *arr)
+                    vList.append(tomlValueToVariant(e));
+                res = vList;
+            }
+        }
+
+        else if constexpr (toml::is_table<decltype(n)>) {
+            if (auto tab = n.as_table()) {
+                QVariantHash vHash;
+                for (auto&& [tk, tv] : *tab)
+                    vHash.insert(QString::fromStdString(tk), tomlValueToVariant(tv));
+                res = vHash;
+            }
+        }
+    });
+
+    return res;
+}
+
+static QVariantHash tomlToVariantHash(const toml::table &tab)
+{
+    QVariantHash res;
+    for (auto&& [k, v] : tab) {
+        res.insert(QString::fromStdString(k), tomlValueToVariant(v));
+    }
+
+    return res;
+}
+
+QVariantHash parseTomlData(const QByteArray &data, QString &errorMessage)
+{
+    toml::table table;
+    errorMessage = QString();
+
+    try {
+        table = toml::parse(data.toStdString());
+    } catch (const toml::parse_error& e) {
+        std::stringstream error;
+        error << e;
+        errorMessage = QString::fromStdString(error.str());
+        return QVariantHash();
+    }
+
+    return tomlToVariantHash(table);
+}
+
+QVariantHash parseTomlData(const QString &data, QString &errorMessage)
+{
+    return parseTomlData(data.toUtf8(), errorMessage);
+}
+
+QVariantHash parseTomlFile(const QString &fname, QString &errorMessage)
+{
+    toml::table table;
+    errorMessage = QString();
+
+    try {
+        table = toml::parse_file(fname.toStdString());
+    } catch (const toml::parse_error& e) {
+        std::stringstream error;
+        error << e;
+        errorMessage = QString::fromStdString(error.str());
+        return QVariantHash();
+    }
+
+    return tomlToVariantHash(table);
 }
