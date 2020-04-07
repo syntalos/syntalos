@@ -162,19 +162,14 @@ public:
         }
     }
 
-    QByteArray serializeSettings(const QString &) override
+    void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
     {
-        QJsonObject jsettings;
-        jsettings.insert("serialPort", m_settingsDialog->serialPort());
-
-        return jsonObjectToBytes(jsettings);
+        settings.insert("serial_port", m_settingsDialog->serialPort());
     }
 
-    bool loadSettings(const QString &, const QByteArray &data) override
+    bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
     {
-        auto jsettings = jsonObjectFromBytes(data);
-        m_settingsDialog->setSerialPort(jsettings.value("serialPort").toString());
-
+        m_settingsDialog->setSerialPort(settings.value("serial_port").toString());
         return true;
     }
 

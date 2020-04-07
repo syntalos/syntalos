@@ -178,8 +178,8 @@ void TraceDisplay::updatePortChannels()
         if (!port->hasSubscription())
             continue;
         const auto mdata = port->subscriptionVar()->metadata();
-        const auto firstChanNo = mdata.value(QStringLiteral("firstChannelNo")).toInt();
-        const auto lastChanNo = mdata.value(QStringLiteral("lastChannelNo")).toInt();
+        const auto firstChanNo = mdata.value(QStringLiteral("channel_index_first")).toInt();
+        const auto lastChanNo = mdata.value(QStringLiteral("channel_index_last")).toInt();
 
         // sanity check
         if (firstChanNo == lastChanNo) {

@@ -60,10 +60,10 @@
 #include "engine.h"
 #include "moduleapi.h"
 #include "timingsdialog.h"
-
+#include "tomlutils.h"
 
 // config format API level
-static const QString CONFIG_FILE_FORMAT_VERSION = QStringLiteral("2");
+static const QString CONFIG_FILE_FORMAT_VERSION = QStringLiteral("1");
 
 static bool switchIconTheme(const QString& themeName)
 {
@@ -313,16 +313,16 @@ bool MainWindow::saveConfiguration(const QString &fileName)
     QDir confBaseDir(QStringLiteral("%1/..").arg(fileName));
 
     // save basic settings
-    QJsonObject settings;
-    settings.insert("formatVersion", CONFIG_FILE_FORMAT_VERSION);
-    settings.insert("appVersion", QCoreApplication::applicationVersion());
-    settings.insert("creationDate", QDateTime::currentDateTime().date().toString());
+    QVariantHash settings;
+    settings.insert("version_format", CONFIG_FILE_FORMAT_VERSION);
+    settings.insert("version_app", QCoreApplication::applicationVersion());
+    settings.insert("time_created", QDateTime::currentDateTime());
 
-    settings.insert("exportBaseDir", m_engine->exportBaseDir());
-    settings.insert("experimentId", m_engine->experimentId());
+    settings.insert("export_base_dir", m_engine->exportBaseDir());
+    settings.insert("experiment_id", m_engine->experimentId());
 
     // basic configuration
-    tar.writeFile ("main.json", QJsonDocument(settings).toJson());
+    tar.writeFile ("main.toml", qVariantHashToTomlData(settings));
 
     // save list of subjects
     tar.writeFile ("subjects.json", QJsonDocument(m_subjectList->toJson()).toJson());
@@ -336,26 +336,35 @@ bool MainWindow::saveConfiguration(const QString &fileName)
     for (auto &mod : m_engine->activeModules()) {
         if (!tar.writeDir(QString::number(modIndex)))
             return false;
-        auto modSettings = mod->serializeSettings(confBaseDir.absolutePath());
-        tar.writeFile(QStringLiteral("%1/%2.dat").arg(modIndex).arg(mod->id()), modSettings);
 
-        QJsonObject modInfo;
+        QVariantHash modSettings;
+        QByteArray modExtraData;
+
+        mod->serializeSettings(confBaseDir.absolutePath(), modSettings, modExtraData);
+        if (!modSettings.isEmpty())
+            tar.writeFile(QStringLiteral("%1/%2.toml").arg(modIndex).arg(mod->id()),
+                          qVariantHashToTomlData(modSettings));
+        if (!modExtraData.isEmpty())
+            tar.writeFile(QStringLiteral("%1/%2.dat").arg(modIndex).arg(mod->id()),
+                          modExtraData);
+
+        QVariantHash modInfo;
         modInfo.insert("id", mod->id());
         modInfo.insert("name", mod->name());
-        modInfo.insert("uiDisplayGeometry", mod->serializeDisplayUiGeometry());
+        modInfo.insert("ui_display_geometry", mod->serializeDisplayUiGeometry());
 
         // save info about port subscriptions in
         // the form inPortId -> sourceModuleName
-        QJsonObject modSubs;
+        QVariantHash modSubs;
         for (const auto &iport : mod->inPorts()) {
             if (!iport->hasSubscription())
                 continue;
-            QJsonArray srcVal = {iport->outPort()->owner()->name(), iport->outPort()->id()};
+            QVariantList srcVal = {iport->outPort()->owner()->name(), iport->outPort()->id()};
             modSubs.insert(iport->id(), srcVal);
         }
 
         modInfo.insert("subscriptions", modSubs);
-        tar.writeFile(QStringLiteral("%1/info.json").arg(modIndex), QJsonDocument(modInfo).toJson());
+        tar.writeFile(QStringLiteral("%1/info.toml").arg(modIndex), qVariantHashToTomlData(modInfo));
 
         modIndex++;
     }
@@ -380,10 +389,11 @@ bool MainWindow::loadConfiguration(const QString &fileName)
     auto rootDir = tar.directory();
 
     // load main settings
-    auto globalSettingsFile = rootDir->file("main.json");
+    auto globalSettingsFile = rootDir->file("main.toml");
     if (globalSettingsFile == nullptr) {
-        QMessageBox::critical(this, tr("Can not load settings"),
-                              tr("The settings file is damaged or is no valid Syntalos configuration bundle."));
+        QMessageBox::critical(this,
+                              QStringLiteral("Can not load settings"),
+                              QStringLiteral("The settings file is damaged or is no valid Syntalos configuration bundle."));
         setStatusText("");
         return false;
     }
@@ -391,10 +401,16 @@ bool MainWindow::loadConfiguration(const QString &fileName)
     // disable all UI elements while we are loading stuff
     this->setEnabled(false);
 
-    auto mainDoc = QJsonDocument::fromJson(globalSettingsFile->data());
-    auto rootObj = mainDoc.object();
+    QString parseError;
+    const auto rootObj = parseTomlData(globalSettingsFile->data(), parseError);
+    if (!parseError.isEmpty()) {
+        QMessageBox::critical(this, QStringLiteral("Can not load settings"),
+                              QStringLiteral("The settings file is damaged or is no valid Syntalos configuration file. %1").arg(parseError));
+        setStatusText("");
+        return false;
+    }
 
-    if (rootObj.value("formatVersion").toString() != CONFIG_FILE_FORMAT_VERSION) {
+    if (rootObj.value("version_format").toString() != CONFIG_FILE_FORMAT_VERSION) {
         auto reply = QMessageBox::question(this,
                                            "Incompatible configuration",
                                            QStringLiteral("The settings file you want to load was created with a different, possibly older version of Syntalos and may not work correctly in this version.\n"
@@ -407,8 +423,8 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         }
     }
 
-    setDataExportBaseDir(rootObj.value("exportBaseDir").toString());
-    ui->expIdEdit->setText(rootObj.value("experimentId").toString());
+    setDataExportBaseDir(rootObj.value("export_base_dir").toString());
+    ui->expIdEdit->setText(rootObj.value("experiment_id").toString());
 
     // load list of subjects
     auto subjectsFile = rootDir->file("subjects.json");
@@ -439,24 +455,26 @@ bool MainWindow::loadConfiguration(const QString &fileName)
 
     // we load the modules in two passes, to ensure they can all register
     // their interdependencies correctly.
-    QList<QPair<AbstractModule*, QByteArray>> modSettingsList;
+    QList<QPair<AbstractModule*, QPair<QVariantHash, QByteArray>>> modSettingsList;
 
     // add modules
-    QList<QPair<AbstractModule*, QJsonObject>> jSubInfo;
+    QList<QPair<AbstractModule*, QVariantHash>> jSubInfo;
     for (auto &ename : rootEntries) {
         auto e = rootDir->entry(ename);
         if (!e->isDirectory())
             continue;
-        auto ifile = rootDir->file(QStringLiteral("%1/info.json").arg(ename));
+        auto ifile = rootDir->file(QStringLiteral("%1/info.toml").arg(ename));
         if (ifile == nullptr)
             return false;
 
-        auto jidoc = QJsonDocument::fromJson(ifile->data());
-        auto iobj = jidoc.object();
+        auto iobj = parseTomlData(ifile->data(), parseError);
+        if (!parseError.isEmpty())
+            qWarning().noquote().nospace() << "Issue while loading module info: " << parseError;
+
         const auto modId = iobj.value("id").toString();
         const auto modName = iobj.value("name").toString();
-        const auto uiDisplayGeometry = iobj.value("uiDisplayGeometry").toObject();
-        const auto jSubs = iobj.value("subscriptions").toObject();
+        const auto uiDisplayGeometry = iobj.value("ui_display_geometry").toHash();
+        const auto jSubs = iobj.value("subscriptions").toHash();
 
         auto mod = m_engine->createModule(modId, modName);
         if (mod == nullptr) {
@@ -464,12 +482,17 @@ bool MainWindow::loadConfiguration(const QString &fileName)
                                   QStringLiteral("Unable to find module '%1' - please install the module first, then attempt to load this configuration again.").arg(modId));
             return false;
         }
-        auto sfile = rootDir->file(QStringLiteral("%1/%2.dat").arg(ename).arg(modId));
-        QByteArray sdata;
-        if (sfile == nullptr)
-            qWarning() << "Settings data for" << modId << "was not found.";
-        else
-            sdata = sfile->data();
+        auto sfile = rootDir->file(QStringLiteral("%1/%2.toml").arg(ename).arg(modId));
+        QVariantHash modSettings;
+        if (sfile != nullptr) {
+            modSettings = parseTomlData(sfile->data(), parseError);
+            if (!parseError.isEmpty())
+                qWarning().noquote().nospace() << "Issue while loading module configuration for " << mod->name() << ": " << parseError;
+        }
+        sfile = rootDir->file(QStringLiteral("%1/%2.dat").arg(ename).arg(modId));
+        QByteArray modSettingsEx;
+        if (sfile != nullptr)
+            modSettingsEx = sfile->data();
 
         if (!uiDisplayGeometry.isEmpty())
             mod->restoreDisplayUiGeometry(uiDisplayGeometry);
@@ -478,7 +501,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         jSubInfo.append(qMakePair(mod, jSubs));
 
         // store module-owned configuration for later
-        modSettingsList.append(qMakePair(mod, sdata));
+        modSettingsList.append(qMakePair(mod, qMakePair(modSettings, modSettingsEx)));
     }
 
     // create module connections
@@ -486,7 +509,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         auto mod = pair.first;
         const auto jSubs = pair.second;
         for (const QString &iPortId : jSubs.keys()) {
-            const auto modPortPair = jSubs.value(iPortId).toArray();
+            const auto modPortPair = jSubs.value(iPortId).toList();
             if (modPortPair.size() != 2) {
                 qWarning().noquote() << "Malformed project data: Invalid project port pair in" << mod->name() << "settings.";
                 continue;
@@ -514,8 +537,9 @@ bool MainWindow::loadConfiguration(const QString &fileName)
 
     // load module-owned configurations
     for (auto &pair : modSettingsList) {
-        auto mod = pair.first;
-        if (!mod->loadSettings(confBaseDir.absolutePath(), pair.second)) {
+        const auto mod = pair.first;
+        const auto settings = pair.second;
+        if (!mod->loadSettings(confBaseDir.absolutePath(), settings.first, settings.second)) {
             QMessageBox::critical(this, QStringLiteral("Can not load settings"),
                                   QStringLiteral("Unable to load module settings for '%1'.").arg(mod->name()));
             return false;
@@ -583,12 +607,12 @@ void MainWindow::saveSettingsActionTriggered()
     fileName = QFileDialog::getSaveFileName(this,
                                             tr("Select Configuration Filename"),
                                             QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
-                                            tr("Syntalos Configuration Files (*.mact)"));
+                                            tr("Syntalos Configuration Files (*.sybt)"));
 
     if (fileName.isEmpty())
         return;
-    if (!fileName.endsWith(".mact"))
-        fileName = QStringLiteral("%1.mact").arg(fileName);
+    if (!fileName.endsWith(".sybt"))
+        fileName = QStringLiteral("%1.sybt").arg(fileName);
 
     m_runIndicatorWidget->show();
     if (!saveConfiguration(fileName)) {
@@ -638,11 +662,9 @@ void MainWindow::loadSettingsActionTriggered()
     auto fileName = QFileDialog::getOpenFileName(this,
                                                  tr("Select Settings Filename"),
                                                  QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
-                                                 tr("Syntalos Settings Files (*.mact)"));
+                                                 tr("Syntalos Settings Files (*.sybt)"));
     if (fileName.isEmpty())
         return;
-
-
 
     setStatusText("Loading settings...");
 

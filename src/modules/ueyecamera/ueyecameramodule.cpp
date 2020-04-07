@@ -77,7 +77,7 @@ public:
         m_currentFps = m_fps;
 
         m_outStream->setMetadataValue("framerate", m_fps);
-        m_outStream->setMetadataValue("hasColor", true);
+        m_outStream->setMetadataValue("has_color", true);
         m_outStream->start();
 
         statusMessage("Connecting camera...");

@@ -71,7 +71,7 @@ bool Tracker::initialize()
     }
 
     // set position header and start the output data stream
-    m_dataStream->setMetadataValue("tableHeader", QStringList()
+    m_dataStream->setMetadataValue("table_header", QStringList()
                                    << QStringLiteral("Time")
                                    << QStringLiteral("Red X") << QStringLiteral("Red Y")
                                    << QStringLiteral("Green X") << QStringLiteral("Green Y")

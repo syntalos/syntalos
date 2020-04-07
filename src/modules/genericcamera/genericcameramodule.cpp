@@ -181,35 +181,31 @@ public:
         statusMessage("Camera disconnected.");
     }
 
-    QByteArray serializeSettings(const QString &) override
+    void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
     {
-        QJsonObject jsettings;
-        jsettings.insert("camera", m_camera->camId());
-        jsettings.insert("width", m_camSettingsWindow->resolution().width);
-        jsettings.insert("height", m_camSettingsWindow->resolution().height);
-        jsettings.insert("fps", m_camSettingsWindow->framerate());
-        jsettings.insert("exposure", m_camera->exposure());
-        jsettings.insert("brightness", m_camera->brightness());
-        jsettings.insert("contrast", m_camera->contrast());
-        jsettings.insert("saturation", m_camera->saturation());
-        jsettings.insert("hue", m_camera->hue());
-        jsettings.insert("gain", m_camera->gain());
-
-        return jsonObjectToBytes(jsettings);
+        settings.insert("camera", m_camera->camId());
+        settings.insert("width", m_camSettingsWindow->resolution().width);
+        settings.insert("height", m_camSettingsWindow->resolution().height);
+        settings.insert("fps", m_camSettingsWindow->framerate());
+        settings.insert("exposure", m_camera->exposure());
+        settings.insert("brightness", m_camera->brightness());
+        settings.insert("contrast", m_camera->contrast());
+        settings.insert("saturation", m_camera->saturation());
+        settings.insert("hue", m_camera->hue());
+        settings.insert("gain", m_camera->gain());
     }
 
-    bool loadSettings(const QString &, const QByteArray &data) override
+    bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
     {
-        auto jsettings = jsonObjectFromBytes(data);
-        m_camera->setCamId(jsettings.value("camera").toInt());
-        m_camera->setResolution(cv::Size(jsettings.value("width").toInt(), jsettings.value("height").toInt()));
-        m_camera->setExposure(jsettings.value("exposure").toDouble());
-        m_camera->setBrightness(jsettings.value("brightness").toDouble());
-        m_camera->setContrast(jsettings.value("contrast").toDouble());
-        m_camera->setSaturation(jsettings.value("saturation").toDouble());
-        m_camera->setHue(jsettings.value("hue").toDouble());
-        m_camera->setGain(jsettings.value("gain").toDouble());
-        m_camSettingsWindow->setFramerate(jsettings.value("fps").toInt());
+        m_camera->setCamId(settings.value("camera").toInt());
+        m_camera->setResolution(cv::Size(settings.value("width").toInt(), settings.value("height").toInt()));
+        m_camera->setExposure(settings.value("exposure").toDouble());
+        m_camera->setBrightness(settings.value("brightness").toDouble());
+        m_camera->setContrast(settings.value("contrast").toDouble());
+        m_camera->setSaturation(settings.value("saturation").toDouble());
+        m_camera->setHue(settings.value("hue").toDouble());
+        m_camera->setGain(settings.value("gain").toDouble());
+        m_camSettingsWindow->setFramerate(settings.value("fps").toInt());
 
         m_camSettingsWindow->updateValues();
         return true;

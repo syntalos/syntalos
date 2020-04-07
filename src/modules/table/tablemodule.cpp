@@ -99,13 +99,13 @@ public:
             // remove any old data from the table display
             m_recTable->reset();
 
-            const auto header = mdata.value("tableHeader").toStringList();
+            const auto header = mdata.value("table_header").toStringList();
             m_recTable->setHeader(header);
 
-            auto imgWinTitle = mdata.value("srcModName").toString();
+            auto imgWinTitle = m_rowSub->metadataValue(CommonMetadataKey::SrcModName).toString();
             if (imgWinTitle.isEmpty())
                 imgWinTitle = "Canvas";
-            const auto portTitle = mdata.value("srcModPortTitle").toString();
+            const auto portTitle = m_rowSub->metadataValue(CommonMetadataKey::SrcModPortTitle).toString();
             if (!portTitle.isEmpty())
                 imgWinTitle = QStringLiteral("%1 - %2").arg(imgWinTitle).arg(portTitle);
             m_recTable->widget()->setWindowTitle(imgWinTitle);

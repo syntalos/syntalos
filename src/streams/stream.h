@@ -39,6 +39,27 @@ class AbstractModule;
 using namespace moodycamel;
 using namespace Syntalos;
 
+enum class CommonMetadataKey {
+    SrcModType,
+    SrcModName,
+    SrcModPortTitle,
+    DataNameProposal
+};
+
+inline uint qHash(CommonMetadataKey key, uint seed)
+{
+    return ::qHash(static_cast<uint>(key), seed);
+}
+
+typedef QHash<CommonMetadataKey, QString> CommonMetadataKeyMap;
+Q_GLOBAL_STATIC_WITH_ARGS(CommonMetadataKeyMap, _commonMetadataKeyMap, ( {
+    { CommonMetadataKey::SrcModType, QLatin1String("src_mod_type") },
+    { CommonMetadataKey::SrcModName, QLatin1String("src_mod_name") },
+    { CommonMetadataKey::SrcModPortTitle, QLatin1String("src_mod_port_title") },
+    { CommonMetadataKey::DataNameProposal, QLatin1String("data_name_proposal") },
+    }
+));
+
 class VariantStreamSubscription
 {
 public:
@@ -47,10 +68,15 @@ public:
     virtual QString dataTypeName() const = 0;
     virtual QVariant nextVar() = 0;
     virtual QVariant peekNextVar() = 0;
-    virtual QHash<QString, QVariant> metadata() const = 0;
     virtual bool unsubscribe() = 0;
     virtual bool active() const = 0;
     virtual size_t approxPendingCount() const = 0;
+
+    virtual QHash<QString, QVariant> metadata() const = 0;
+    virtual QVariant metadataValue(const QString &key,
+                                   const QVariant &defaultValue = QVariant()) const = 0;
+    virtual QVariant metadataValue(CommonMetadataKey key,
+                                   const QVariant &defaultValue = QVariant()) const = 0;
 };
 
 class VariantDataStream
@@ -66,7 +92,9 @@ public:
     virtual QHash<QString, QVariant> metadata() = 0;
     virtual void setMetadata(const QHash<QString, QVariant> &metadata) = 0;
     virtual void setMetadataValue(const QString &key, const QVariant &value) = 0;
-    virtual void setCommonMetadata(const QString &srcModType, const QString &srcModName, const QString &portTitle) = 0;
+    virtual void setCommonMetadata(const QString &srcModType,
+                                   const QString &srcModName,
+                                   const QString &portTitle) = 0;
 };
 
 template<typename T>
@@ -157,6 +185,16 @@ public:
     QHash<QString, QVariant> metadata() const override
     {
         return m_metadata;
+    }
+
+    QVariant metadataValue(const QString &key, const QVariant &defaultValue = QVariant()) const override
+    {
+        return m_metadata.value(key, defaultValue);
+    }
+
+    QVariant metadataValue(CommonMetadataKey key, const QVariant &defaultValue = QVariant()) const override
+    {
+        return m_metadata.value(_commonMetadataKeyMap->value(key), defaultValue);
     }
 
     bool unsubscribe() override
@@ -291,7 +329,7 @@ public:
 
     void setSuggestedDataName(const QString &value)
     {
-        m_metadata[QStringLiteral("suggestedDataName")] = value;
+        m_metadata[_commonMetadataKeyMap->value(CommonMetadataKey::DataNameProposal)] = value;
     }
 
     void removeMetadata(const QString &key)
@@ -301,10 +339,10 @@ public:
 
     void setCommonMetadata(const QString &srcModType, const QString &srcModName, const QString &portTitle) override
     {
-        setMetadataValue("srcModType", srcModType);
-        setMetadataValue("srcModName", srcModName);
+        setMetadataValue(_commonMetadataKeyMap->value(CommonMetadataKey::SrcModType), srcModType);
+        setMetadataValue(_commonMetadataKeyMap->value(CommonMetadataKey::SrcModName), srcModName);
         if (!portTitle.isEmpty())
-            setMetadataValue("srcModPortTitle", portTitle);
+            setMetadataValue(_commonMetadataKeyMap->value(CommonMetadataKey::SrcModPortTitle), portTitle);
     }
 
     std::shared_ptr<StreamSubscription<T>> subscribe()

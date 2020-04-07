@@ -89,10 +89,10 @@ public:
         // assume perfect frame diff for now
         m_avgFrameTimeDiffMsec = 1000.0 / m_fps;
 
-        auto imgWinTitle = m_frameSub->metadata().value("srcModName").toString();
+        auto imgWinTitle = m_frameSub->metadataValue(CommonMetadataKey::SrcModName).toString();
         if (imgWinTitle.isEmpty())
             imgWinTitle = "Canvas";
-        const auto portTitle = m_frameSub->metadata().value("srcModPortTitle").toString();
+        const auto portTitle = m_frameSub->metadataValue(CommonMetadataKey::SrcModPortTitle).toString();
         if (!portTitle.isEmpty())
             imgWinTitle = QStringLiteral("%1 - %2").arg(imgWinTitle).arg(portTitle);
         m_cvView->setWindowTitle(imgWinTitle);

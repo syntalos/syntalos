@@ -74,7 +74,7 @@ public:
         auto frameSub = m_inPort->subscription();
         frameSub->setThrottleItemsPerSec(30); // we never want more than 30fps for tracking
 
-        const auto outFramerate = frameSub->metadata().value(QStringLiteral("framerate"), 30);
+        const auto outFramerate = frameSub->metadataValue(QStringLiteral("framerate"), 30);
         m_trackStream->setMetadataValue(QStringLiteral("framerate"), outFramerate);
         m_animalStream->setMetadataValue(QStringLiteral("framerate"), outFramerate);
         m_trackStream->start();

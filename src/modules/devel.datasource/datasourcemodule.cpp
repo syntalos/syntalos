@@ -58,7 +58,7 @@ public:
         m_frameOut->start();
 
         m_rowsOut->setSuggestedDataName(QStringLiteral("table-%1/testvalues").arg(datasetNameSuggestion()));
-        m_rowsOut->setMetadataValue("tableHeader", QStringList()
+        m_rowsOut->setMetadataValue("table_header", QStringList()
                                     << QStringLiteral("Time")
                                     << QStringLiteral("Tag")
                                     << QStringLiteral("Value"));

@@ -67,8 +67,8 @@ public:
 
     QList<QAction *> actions() override;
 
-    QByteArray serializeSettings(const QString &) override;
-    bool loadSettings(const QString &, const QByteArray &data) override;
+    void serializeSettings(const QString &, QVariantHash &, QByteArray &data) override;
+    bool loadSettings(const QString &, const QVariantHash &, const QByteArray &data) override;
 
     // Accessorts for the Intan code
     void emitStatusInfo(const QString &text);

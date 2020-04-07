@@ -25,7 +25,6 @@
 #include <QByteArray>
 #include <QAction>
 #include <QPixmap>
-#include <QJsonObject>
 #include <QDebug>
 
 #include "syclock.h"
@@ -500,15 +499,21 @@ public:
     virtual QList<QAction*> actions();
 
     /**
-     * @brief Serialize the settings of this module to a byte array.
+     * @brief Serialize the settings of this module
+     *
+     * Modules can add their settings keys and values to the Variant hashtable,
+     * and also can store arbitrary data as a byte array if they so choose.
      */
-    virtual QByteArray serializeSettings(const QString& confBaseDir);
+    virtual void serializeSettings(const QString &confBaseDir, QVariantHash &settings, QByteArray &extraData);
 
     /**
      * @brief Load settings from previously stored data.
+     *
+     * See serializeSettings() for details. This method should act in reverse and restore
+     * settings from previously saved data.
      * @return true if successful.
      */
-    virtual bool loadSettings(const QString& confBaseDir, const QByteArray& data);
+    virtual bool loadSettings(const QString& confBaseDir, const QVariantHash &settings, const QByteArray& extraData);
 
     /**
      * @brief Called when one of this module's input ports is subscribed to a stream.
@@ -535,8 +540,8 @@ public:
 
     QList<QPair<intervalEventFunc_t, int>> intervalEventCallbacks() const;
 
-    QJsonValue serializeDisplayUiGeometry();
-    void restoreDisplayUiGeometry(QJsonObject info);
+    QVariant serializeDisplayUiGeometry();
+    void restoreDisplayUiGeometry(const QVariant &var);
 
     void setTimer(std::shared_ptr<SyncTimer> timer);
 
@@ -555,9 +560,6 @@ signals:
 
 protected:
     void raiseError(const QString& message);
-
-    QByteArray jsonObjectToBytes(const QJsonObject& object);
-    QJsonObject jsonObjectFromBytes(const QByteArray& data);
 
     void setStatusMessage(const QString& message);
     bool makeDirectory(const QString &dir);

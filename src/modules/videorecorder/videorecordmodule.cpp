@@ -143,7 +143,7 @@ public:
             const auto mdata = m_inSub->metadata();
             auto frameSize = mdata.value("size", QSize()).toSize();
             const auto framerate = mdata.value("framerate", 0).toInt();
-            const auto useColor = mdata.value("hasColor", true).toBool();
+            const auto useColor = mdata.value("has_color", true).toBool();
 
             if (!frameSize.isValid()) {
                 // we didn't get the dimensions from metadata - let's see if the current frame can
@@ -210,35 +210,30 @@ public:
         m_settingsDialog->setEnabled(true);
     }
 
-    QByteArray serializeSettings(const QString&) override
+    void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
     {
-        QJsonObject jset;
-        jset.insert("videoNameFromSource", m_settingsDialog->videoNameFromSource());
-        jset.insert("videoName", m_settingsDialog->videoName());
-        jset.insert("saveTimestamps", m_settingsDialog->saveTimestamps());
+        settings.insert("video_name_from_source", m_settingsDialog->videoNameFromSource());
+        settings.insert("video_name", m_settingsDialog->videoName());
+        settings.insert("save_timestamps", m_settingsDialog->saveTimestamps());
 
-        jset.insert("videoCodec", static_cast<int>(m_settingsDialog->videoCodec()));
-        jset.insert("videoContainer", static_cast<int>(m_settingsDialog->videoContainer()));
-        jset.insert("lossless", m_settingsDialog->isLossless());
+        settings.insert("video_codec", static_cast<int>(m_settingsDialog->videoCodec()));
+        settings.insert("video_container", static_cast<int>(m_settingsDialog->videoContainer()));
+        settings.insert("lossless", m_settingsDialog->isLossless());
 
-        jset.insert("sliceInterval", static_cast<int>(m_settingsDialog->sliceInterval()));
-
-        return jsonObjectToBytes(jset);
+        settings.insert("slice_interval", static_cast<int>(m_settingsDialog->sliceInterval()));
     }
 
-    bool loadSettings(const QString&, const QByteArray &data) override
+    bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
     {
-        auto jset = jsonObjectFromBytes(data);
+        m_settingsDialog->setVideoNameFromSource(settings.value("video_name_from_source").toBool());
+        m_settingsDialog->setVideoName(settings.value("video_name").toString());
+        m_settingsDialog->setSaveTimestamps(settings.value("save_timestamps").toBool());
 
-        m_settingsDialog->setVideoNameFromSource(jset.value("videoNameFromSource").toBool());
-        m_settingsDialog->setVideoName(jset.value("videoName").toString());
-        m_settingsDialog->setSaveTimestamps(jset.value("saveTimestamps").toBool());
+        m_settingsDialog->setVideoCodec(static_cast<VideoCodec>(settings.value("video_codec").toInt()));
+        m_settingsDialog->setVideoContainer(static_cast<VideoContainer>(settings.value("video_container").toInt()));
+        m_settingsDialog->setLossless(settings.value("lossless").toBool());
 
-        m_settingsDialog->setVideoCodec(static_cast<VideoCodec>(jset.value("videoCodec").toInt()));
-        m_settingsDialog->setVideoContainer(static_cast<VideoContainer>(jset.value("videoContainer").toInt()));
-        m_settingsDialog->setLossless(jset.value("lossless").toBool());
-
-        m_settingsDialog->setSliceInterval(static_cast<uint>(jset.value("sliceInterval").toInt()));
+        m_settingsDialog->setSliceInterval(static_cast<uint>(settings.value("slice_interval").toInt()));
 
         return true;
     }

@@ -120,21 +120,21 @@ bool Rhd2000Module::prepare(const TestSubject &)
 
     // set sampling rate metadata and nullify every data block
     for (auto &pair : m_ampStreamBlocks) {
-        pair.first->setMetadataValue(QStringLiteral("samplingRate"), m_intanUi->getSampleRate());
+        pair.first->setMetadataValue(QStringLiteral("samplingrate"), m_intanUi->getSampleRate());
 
         pair.second->timestamps.fill(0);
         for (auto &v : pair.second->data)
             std::fill(v.begin(), v.end(), 0);
     }
     for (auto &pair : boardADCStreamBlocks) {
-        pair.first->setMetadataValue(QStringLiteral("samplingRate"), m_intanUi->getSampleRate());
+        pair.first->setMetadataValue(QStringLiteral("samplingrate"), m_intanUi->getSampleRate());
 
         pair.second->timestamps.fill(0);
         for (auto &v : pair.second->data)
             std::fill(v.begin(), v.end(), 0);
     }
     for (auto &pair : boardDINStreamBlocks) {
-        pair.first->setMetadataValue(QStringLiteral("samplingRate"), m_intanUi->getSampleRate());
+        pair.first->setMetadataValue(QStringLiteral("samplingrate"), m_intanUi->getSampleRate());
 
         pair.second->timestamps.fill(0);
         for (auto &v : pair.second->data)
@@ -204,16 +204,16 @@ QList<QAction *> Rhd2000Module::actions()
     return m_actions;
 }
 
-QByteArray Rhd2000Module::serializeSettings(const QString &)
+void Rhd2000Module::serializeSettings(const QString &, QVariantHash &, QByteArray &data)
 {
     QByteArray intanSettings;
     QDataStream intanSettingsStream(&intanSettings, QIODevice::WriteOnly);
     m_intanUi->exportSettings(intanSettingsStream);
 
-    return intanSettings;
+    data = intanSettings;
 }
 
-bool Rhd2000Module::loadSettings(const QString &, const QByteArray &data)
+bool Rhd2000Module::loadSettings(const QString &, const QVariantHash &, const QByteArray &data)
 {
     m_intanUi->loadSettings(data);
     return true;
@@ -303,15 +303,15 @@ void Rhd2000Module::on_portsScanned(SignalSources *sources)
             if (isDigital) {
                 // we have the digital board input here (as the board output isn't currently supported)
                 auto intStream = registerOutputPort<IntSignalBlock>(syPortId, portName);
-                intStream->setMetadataValue(QStringLiteral("firstChannelNo"), firstChanId);
-                intStream->setMetadataValue(QStringLiteral("lastChannelNo"), lastChanId);
+                intStream->setMetadataValue(QStringLiteral("channel_index_first"), firstChanId);
+                intStream->setMetadataValue(QStringLiteral("channel_index_last"), lastChanId);
 
                 std::shared_ptr<IntSignalBlock> intSigBlock(new IntSignalBlock(SAMPLES_PER_DATA_BLOCK));
                 boardDINStreamBlocks.push_back(std::make_pair(intStream, intSigBlock));
             } else {
                 auto fpStream = registerOutputPort<FloatSignalBlock>(syPortId, portName);
-                fpStream->setMetadataValue(QStringLiteral("firstChannelNo"), firstChanId);
-                fpStream->setMetadataValue(QStringLiteral("lastChannelNo"), lastChanId);
+                fpStream->setMetadataValue(QStringLiteral("channel_index_first"), firstChanId);
+                fpStream->setMetadataValue(QStringLiteral("channel_index_last"), lastChanId);
 
                 std::shared_ptr<FloatSignalBlock> signalBlock(new FloatSignalBlock(SAMPLES_PER_DATA_BLOCK));
 

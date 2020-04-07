@@ -20,10 +20,9 @@
 #include <opencv2/core.hpp>
 #include "moduleapi.h"
 
+#include <QDebug>
 #include <QDir>
 #include <QMessageBox>
-#include <QJsonDocument>
-#include <QDebug>
 #include <QStandardPaths>
 
 #include "utils.h"
@@ -477,19 +476,20 @@ QList<QAction *> AbstractModule::actions()
     return res;
 }
 
-QByteArray AbstractModule::serializeSettings(const QString &)
+void AbstractModule::serializeSettings(const QString &, QVariantHash &, QByteArray &)
 {
-    QByteArray zero;
-    return zero;
+    /* do nothing */
 }
 
-bool AbstractModule::loadSettings(const QString &, const QByteArray &)
+bool AbstractModule::loadSettings(const QString &, const QVariantHash &, const QByteArray &)
 {
     return true;
 }
 
 void AbstractModule::inputPortConnected(VarStreamInputPort *)
-{}
+{
+    /* do nothing */
+}
 
 QString AbstractModule::lastError() const
 {
@@ -594,15 +594,18 @@ static QStringList qStringSplitLimit(const QString &str, const QChar &sep, int m
 
 QString AbstractModule::datasetNameFromSubMetadata(const QVariantHash &subMetadata)
 {
-    auto dataName = subMetadata.value("suggestedDataName").toString();
+    const auto srcModNameKey = _commonMetadataKeyMap->value(CommonMetadataKey::SrcModName);
+    const auto dataNameProposalKey = _commonMetadataKeyMap->value(CommonMetadataKey::DataNameProposal);
+
+    auto dataName = subMetadata.value(dataNameProposalKey).toString();
     if (dataName.isEmpty())
-        dataName = subMetadata.value("srcModName", datasetNameSuggestion()).toString();
+        dataName = subMetadata.value(srcModNameKey, datasetNameSuggestion()).toString();
     else {
         if (dataName.contains('/')) {
             const auto parts = qStringSplitLimit(dataName, '/', 1);
             dataName = parts[0];
         } else {
-            dataName = subMetadata.value("srcModName").toString();
+            dataName = subMetadata.value(srcModNameKey).toString();
         }
     }
 
@@ -614,7 +617,7 @@ QString AbstractModule::datasetNameFromSubMetadata(const QVariantHash &subMetada
 
 QString AbstractModule::dataBasenameFromSubMetadata(const QVariantHash &subMetadata, const QString &defaultName)
 {
-    auto dataName = subMetadata.value("suggestedDataName").toString();
+    auto dataName = subMetadata.value(_commonMetadataKeyMap->value(CommonMetadataKey::DataNameProposal)).toString();
     if (dataName.contains('/')) {
         const auto parts = qStringSplitLimit(dataName, '/', 1);
         dataName = parts[1];
@@ -712,13 +715,13 @@ bool AbstractModule::initialized() const
     return d->initialized;
 }
 
-QJsonValue AbstractModule::serializeDisplayUiGeometry()
+QVariant AbstractModule::serializeDisplayUiGeometry()
 {
-    QJsonObject obj;
+    QVariantHash obj;
     for (int i = 0; i < d->displayWindows.size(); i++) {
         const auto wp = d->displayWindows.at(i);
 
-        QJsonObject info;
+        QVariantHash info;
         info.insert("visible", wp.first->isVisible());
         info.insert("geometry", QString::fromUtf8(wp.first->saveGeometry().toBase64()));
         obj.insert(QString::number(i), info);
@@ -727,12 +730,15 @@ QJsonValue AbstractModule::serializeDisplayUiGeometry()
     return obj;
 }
 
-void AbstractModule::restoreDisplayUiGeometry(QJsonObject info)
+void AbstractModule::restoreDisplayUiGeometry(const QVariant &var)
 {
+    const auto info = var.toHash();
+    if (info.isEmpty())
+        return;
     for (int i = 0; i < d->displayWindows.size(); i++) {
         const auto wp = d->displayWindows.at(i);
 
-        auto winfo = info.value(QString::number(i)).toObject();
+        auto winfo = info.value(QString::number(i)).toHash();
         if (winfo.isEmpty())
             continue;
         if (winfo.value("visible").toBool())
@@ -755,17 +761,6 @@ void AbstractModule::raiseError(const QString &message)
     emit error(message);
     setState(ModuleState::ERROR);
     qCritical() << message;
-}
-
-QByteArray AbstractModule::jsonObjectToBytes(const QJsonObject &object)
-{
-    return QJsonDocument(object).toJson();
-}
-
-QJsonObject AbstractModule::jsonObjectFromBytes(const QByteArray &data)
-{
-    auto doc = QJsonDocument::fromJson(data);
-    return doc.object();
 }
 
 void AbstractModule::setId(const QString &id)

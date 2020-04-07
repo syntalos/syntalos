@@ -122,53 +122,49 @@ public:
         return OOPModule::prepare(testSubject);
     }
 
-    QByteArray serializeSettings(const QString &) override
+    void serializeSettings(const QString&, QVariantHash &settings, QByteArray &extraData) override
     {
-        QJsonObject jsettings;
-        jsettings.insert("script", m_scriptView->document()->text());
+        extraData = m_scriptView->document()->text().toUtf8();
 
-        QJsonArray jsonInPorts;
+        QVariantList jsonInPorts;
         for (const auto port : inPorts()) {
-            QJsonObject po;
+            QVariantHash po;
             po.insert("id", port->id());
             po.insert("title", port->title());
-            po.insert("dataType", port->dataTypeName());
+            po.insert("data_type", port->dataTypeName());
             jsonInPorts.append(po);
         }
 
-        QJsonArray jsonOutPorts;
+        QVariantList jsonOutPorts;
         for (const auto port : outPorts()) {
-            QJsonObject po;
+            QVariantHash po;
             po.insert("id", port->id());
             po.insert("title", port->title());
-            po.insert("dataType", port->dataTypeName());
+            po.insert("data_type", port->dataTypeName());
             jsonOutPorts.append(po);
         }
 
-        jsettings.insert("inPorts", jsonInPorts);
-        jsettings.insert("outPorts", jsonOutPorts);
-
-        return jsonObjectToBytes(jsettings);
+        settings.insert("ports_in", jsonInPorts);
+        settings.insert("ports_out", jsonOutPorts);
     }
 
-    bool loadSettings(const QString &, const QByteArray &data) override
+    bool loadSettings(const QString&, const QVariantHash &settings, const QByteArray &extraData) override
     {
-        auto jsettings = jsonObjectFromBytes(data);
-        m_scriptView->document()->setText(jsettings.value("script").toString());
+        m_scriptView->document()->setText(QString::fromUtf8(extraData));
 
-        const auto jsonInPorts = jsettings.value("inPorts").toArray();
-        const auto jsonOutPorts = jsettings.value("outPorts").toArray();
+        const auto varInPorts = settings.value("ports_in").toList();
+        const auto varOutPorts = settings.value("ports_out").toList();
 
-        for (const auto pv : jsonInPorts) {
-            const auto po = pv.toObject();
-            registerInputPortByTypeId(QMetaType::type(qPrintable(po.value("dataType").toString())),
+        for (const auto pv : varInPorts) {
+            const auto po = pv.toHash();
+            registerInputPortByTypeId(QMetaType::type(qPrintable(po.value("data_type").toString())),
                                       po.value("id").toString(),
                                       po.value("title").toString());
         }
 
-        for (const auto pv : jsonOutPorts) {
-            const auto po = pv.toObject();
-            registerOutputPortByTypeId(QMetaType::type(qPrintable(po.value("dataType").toString())),
+        for (const auto pv : varOutPorts) {
+            const auto po = pv.toHash();
+            registerOutputPortByTypeId(QMetaType::type(qPrintable(po.value("data_type").toString())),
                                        po.value("id").toString(),
                                        po.value("title").toString());
         }

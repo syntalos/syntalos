@@ -96,11 +96,11 @@ public:
         }
 
         m_rawOut->setMetadataValue("framerate", m_miniscope->fps());
-        m_rawOut->setMetadataValue("hasColor", false);
+        m_rawOut->setMetadataValue("has_color", false);
         m_rawOut->setSuggestedDataName(QStringLiteral("%1/msSlice").arg(datasetNameSuggestion()));
 
         m_dispOut->setMetadataValue("framerate", m_miniscope->fps());
-        m_dispOut->setMetadataValue("hasColor", false);
+        m_dispOut->setMetadataValue("has_color", false);
         m_dispOut->setSuggestedDataName(QStringLiteral("%1_display/msDisplaySlice").arg(datasetNameSuggestion()));
 
         // start the streams
@@ -193,24 +193,17 @@ public:
         m_clockSync->stop();
     }
 
-    QByteArray serializeSettings(const QString &) override
+    void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
     {
-        QJsonObject jset;
-
-        jset.insert("scopeCamId", m_miniscope->scopeCamId());
-        jset.insert("fps", static_cast<int>(m_miniscope->fps()));
-
-        return jsonObjectToBytes(jset);
+        settings.insert("scope_cam_id", m_miniscope->scopeCamId());
+        settings.insert("fps", static_cast<int>(m_miniscope->fps()));
     }
 
-    bool loadSettings(const QString &, const QByteArray &data) override
+    bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
     {
-        auto jset = jsonObjectFromBytes(data);
-
-        m_miniscope->setScopeCamId(jset.value("scopeCamId").toInt(0));
-        m_miniscope->setFps(jset.value("fps").toInt(20));
+        m_miniscope->setScopeCamId(settings.value("scope_cam_id", 0).toInt());
+        m_miniscope->setFps(settings.value("fps", 20).toInt());
         m_settingsDialog->updateValues();
-
         return true;
     }
 };

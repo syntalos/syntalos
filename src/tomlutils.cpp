@@ -176,6 +176,12 @@ QString serializeTomlTable(const toml::table &tab)
     return QString::fromStdString(data.str());
 }
 
+QByteArray qVariantHashToTomlData(const QVariantHash &varHash)
+{
+    const auto tab = qVariantHashToTomlTable(varHash);
+    return serializeTomlTable(tab).toUtf8();
+}
+
 static QTime tomlTimeToQ(const toml::time &ttime)
 {
     return QTime(ttime.hour, ttime.minute, ttime.second, ttime.nanosecond / 1000);
