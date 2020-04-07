@@ -325,7 +325,7 @@ bool MainWindow::saveConfiguration(const QString &fileName)
     tar.writeFile ("main.toml", qVariantHashToTomlData(settings));
 
     // save list of subjects
-    tar.writeFile ("subjects.json", QJsonDocument(m_subjectList->toJson()).toJson());
+    tar.writeFile ("subjects.toml", qVariantHashToTomlData(m_subjectList->toVariantHash()));
 
     // save graph settings
     ui->graphForm->graphView()->saveState();
@@ -427,12 +427,15 @@ bool MainWindow::loadConfiguration(const QString &fileName)
     ui->expIdEdit->setText(rootObj.value("experiment_id").toString());
 
     // load list of subjects
-    auto subjectsFile = rootDir->file("subjects.json");
+    auto subjectsFile = rootDir->file("subjects.toml");
     if (subjectsFile != nullptr) {
         // not having a list of subjects is totally fine
 
-        auto subjDoc = QJsonDocument::fromJson(subjectsFile->data());
-        m_subjectList->fromJson(subjDoc.array());
+        const auto subjData = parseTomlData(subjectsFile->data(), parseError);
+        if (parseError.isEmpty())
+            m_subjectList->fromVariantHash(subjData);
+        else
+            qWarning() << "Unable to load subject file:" << parseError;
     }
 
     // load graph settings
@@ -616,8 +619,9 @@ void MainWindow::saveSettingsActionTriggered()
 
     m_runIndicatorWidget->show();
     if (!saveConfiguration(fileName)) {
-        QMessageBox::critical(this, tr("Can not save configuration"),
-                              tr("Unable to write configuration file to disk."));
+        QMessageBox::critical(this,
+                              QStringLiteral("Can not save configuration"),
+                              QStringLiteral("Unable to write configuration file to disk."));
     }
     m_runIndicatorWidget->hide();
 }
@@ -719,9 +723,9 @@ void MainWindow::on_actionSubjectsLoad_triggered()
 {
     QString fileName;
     fileName = QFileDialog::getOpenFileName(this,
-                                            tr("Open Animal List Filename"),
+                                            QStringLiteral("Open Animal List"),
                                             QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
-                                            tr("JSON Files (*.json)"));
+                                            QStringLiteral("TOML Markup Files (*.toml)\nAll Files (*)"));
     if (fileName.isEmpty())
         return;
 
@@ -732,8 +736,14 @@ void MainWindow::on_actionSubjectsLoad_triggered()
 
     const auto bytes = f.readAll();
     if (bytes != nullptr) {
-        auto subjDoc = QJsonDocument::fromJson(bytes);
-        m_subjectList->fromJson(subjDoc.array());
+        QString parseError;
+        const auto var = parseTomlData(bytes, parseError);
+        if (parseError.isEmpty())
+            m_subjectList->fromVariantHash(var);
+        else
+            QMessageBox::critical(this,
+                                  QStringLiteral("Unable to parse subjects list"),
+                                  QStringLiteral("Unable to load subjects list: %1").arg(parseError));
     }
 }
 
@@ -741,13 +751,13 @@ void MainWindow::on_actionSubjectsSave_triggered()
 {
     QString fileName;
     fileName = QFileDialog::getSaveFileName(this,
-                                            tr("Select Animal List Filename"),
+                                            tr("Save Animal List"),
                                             QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
-                                            tr("JSON Files (*.json)"));
+                                            tr("TOML Markup Files (*.toml)"));
 
     if (fileName.isEmpty())
         return;
-    if (!fileName.endsWith(".json"))
+    if (!fileName.endsWith(".toml"))
         fileName = QStringLiteral("%1.json").arg(fileName);
 
     QFile f(fileName);
@@ -755,7 +765,7 @@ void MainWindow::on_actionSubjectsSave_triggered()
         return;
 
     QTextStream out(&f);
-    out << QJsonDocument(m_subjectList->toJson()).toJson();
+    out << qVariantHashToTomlData(m_subjectList->toVariantHash());
 }
 
 void MainWindow::on_actionTimings_triggered()

@@ -19,8 +19,6 @@
 
 #include "testsubjectlistmodel.h"
 
-#include <QJsonObject>
-
 TestSubjectListModel::TestSubjectListModel(const QList<TestSubject> &subjects,
                                            QObject *parent)
     : QAbstractListModel(parent)
@@ -65,7 +63,7 @@ void TestSubjectListModel::addSubject(const TestSubject subject)
 
 TestSubject TestSubjectListModel::subject(int row) const
 {
-    if (row >= m_subjects.count())
+    if ((row >= m_subjects.count()) || (row < 0))
         return TestSubject();
     return m_subjects.at(row);
 }
@@ -97,37 +95,50 @@ void TestSubjectListModel::insertSubject(int row, TestSubject subject)
     endInsertRows();
 }
 
-QJsonArray TestSubjectListModel::toJson()
+QVariantHash TestSubjectListModel::toVariantHash()
 {
-    QJsonArray json;
+    QVariantList list;
 
     for (auto &sub : m_subjects) {
-        QJsonObject jsub;
+        QVariantHash vsub;
 
-        jsub["id"] = sub.id;
-        jsub["group"] = sub.group;
-        jsub["active"] = sub.active;
-        jsub["comment"] = sub.comment;
+        vsub["id"] = sub.id;
+        vsub["group"] = sub.group;
+        vsub["active"] = sub.active;
+        vsub["comment"] = sub.comment;
 
-        json.append(jsub);
+        list.append(vsub);
     }
 
-    return json;
+    QVariantHash var;
+    if (!list.isEmpty())
+        var.insert("subject", list);
+    return var;
 }
 
-void TestSubjectListModel::fromJson(const QJsonArray &json)
+void TestSubjectListModel::fromVariantHash(const QVariantHash &var)
 {
     clear();
 
+    QVariantList vList;
+    for (const auto &v : var.values()) {
+        if (v.type() == QVariant::List)
+            vList = v.toList();
+    }
+    if (vList.isEmpty())
+        return;
+
     beginInsertRows(QModelIndex(), 0, 0);
-    for (auto jval : json) {
-        auto jsub = jval.toObject();
+    for (const auto &v : vList) {
+        const auto vsub = v.toHash();
+        if (vsub.isEmpty())
+            continue;
         TestSubject sub;
 
-        sub.id = jsub.value("id").toString();
-        sub.group = jsub.value("group").toString();
-        sub.active = jsub.value("active").toBool();
-        sub.comment = jsub.value("comment").toString();
+        sub.id = vsub.value("id").toString();
+        sub.group = vsub.value("group").toString();
+        sub.active = vsub.value("active").toBool();
+        sub.comment = vsub.value("comment").toString();
 
         m_subjects.append(sub);
     }

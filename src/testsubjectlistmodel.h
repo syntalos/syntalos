@@ -22,7 +22,6 @@
 
 #include <QAbstractListModel>
 #include <QList>
-#include <QJsonArray>
 
 #include "moduleapi.h"
 
@@ -48,8 +47,8 @@ public:
     void addSubject(const TestSubject subject);
     TestSubject subject(int row) const;
 
-    QJsonArray toJson();
-    void fromJson(const QJsonArray& json);
+    QVariantHash toVariantHash();
+    void fromVariantHash(const QVariantHash& var);
 
     void clear();
 
