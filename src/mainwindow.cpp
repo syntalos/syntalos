@@ -51,6 +51,7 @@
 #include <QScrollBar>
 #include <QHeaderView>
 #include <QSvgWidget>
+#include <QSvgRenderer>
 #include <QFontMetricsF>
 #include <KTar>
 
@@ -247,16 +248,17 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(m_engine, &Engine::statusMessage, this, &MainWindow::statusMessageChanged);
     connect(m_engine, &Engine::moduleCreated, this, &MainWindow::onModuleCreated);
     connect(m_engine, &Engine::preRunStart, this, &MainWindow::onEnginePreRunStart);
+    connect(m_engine, &Engine::runStopped, this, &MainWindow::hideBusyIndicator);
+    connect(ui->graphForm, &ModuleGraphForm::busyStart, this, &MainWindow::showBusyIndicatorProcessing);
+    connect(ui->graphForm, &ModuleGraphForm::busyEnd, this, &MainWindow::hideBusyIndicator);
 
     // create loading indicator for long loading/running tasks
-    m_runIndicatorWidget = new QSvgWidget(this);
-    m_runIndicatorWidget->load(QStringLiteral(":/animations/running.svg"));
-
+    m_busyIndicator = new QSvgWidget(this);
     const auto indicatorWidgetDim = ui->mainToolBar->height() - 2;
-    m_runIndicatorWidget->setMaximumSize(QSize(indicatorWidgetDim, indicatorWidgetDim));
-    m_runIndicatorWidget->setMinimumSize(QSize(indicatorWidgetDim, indicatorWidgetDim));
-    m_runIndicatorWidget->raise();
-    m_runIndicatorWidget->hide();
+    m_busyIndicator->setMaximumSize(QSize(indicatorWidgetDim, indicatorWidgetDim));
+    m_busyIndicator->setMinimumSize(QSize(indicatorWidgetDim, indicatorWidgetDim));
+    m_busyIndicator->raise();
+    m_busyIndicator->hide();
 }
 
 MainWindow::~MainWindow()
@@ -274,9 +276,9 @@ void MainWindow::setStopPossible(bool enabled)
     ui->actionStop->setEnabled(enabled);
     ui->graphForm->setModifyPossible(!enabled);
     if (enabled)
-        m_runIndicatorWidget->show();
+        showBusyIndicatorRunning();
     else
-        m_runIndicatorWidget->hide();
+        hideBusyIndicator();
 }
 
 void MainWindow::runActionTriggered()
@@ -602,13 +604,13 @@ void MainWindow::closeEvent(QCloseEvent *event)
 void MainWindow::resizeEvent(QResizeEvent *event)
 {
     QMainWindow::resizeEvent(event);
-    m_runIndicatorWidget->move(ui->tabWidget->width() - m_runIndicatorWidget->width() - 4, ui->menuBar->height() + 4);
+    m_busyIndicator->move(ui->tabWidget->width() - m_busyIndicator->width() - 4, ui->menuBar->height() + 4);
 }
 
 void MainWindow::showEvent(QShowEvent *event)
 {
     QMainWindow::showEvent(event);
-    m_runIndicatorWidget->move(ui->tabWidget->width() - m_runIndicatorWidget->width() - 4, ui->menuBar->height() + 4);
+    m_busyIndicator->move(ui->tabWidget->width() - m_busyIndicator->width() - 4, ui->menuBar->height() + 4);
 }
 
 void MainWindow::saveSettingsActionTriggered()
@@ -624,13 +626,13 @@ void MainWindow::saveSettingsActionTriggered()
     if (!fileName.endsWith(".syct"))
         fileName = QStringLiteral("%1.syct").arg(fileName);
 
-    m_runIndicatorWidget->show();
+    showBusyIndicatorProcessing();
     if (!saveConfiguration(fileName)) {
         QMessageBox::critical(this,
                               QStringLiteral("Can not save configuration"),
                               QStringLiteral("Unable to write configuration file to disk."));
     }
-    m_runIndicatorWidget->hide();
+    hideBusyIndicator();
 }
 
 void MainWindow::updateWindowTitle(const QString& fileName)
@@ -679,13 +681,14 @@ void MainWindow::loadSettingsActionTriggered()
 
     setStatusText("Loading settings...");
 
-    m_runIndicatorWidget->show();
+    showBusyIndicatorProcessing();
     if (!loadConfiguration(fileName)) {
-        QMessageBox::critical(this, tr("Can not load configuration"),
-                              tr("Failed to load configuration."));
+        QMessageBox::critical(this,
+                              QStringLiteral("Can not load configuration"),
+                              QStringLiteral("Failed to load configuration."));
         m_engine->removeAllModules();
     }
-    m_runIndicatorWidget->hide();
+    hideBusyIndicator();
 }
 
 void MainWindow::aboutActionTriggered()
@@ -718,6 +721,7 @@ void MainWindow::moduleErrorReceived(AbstractModule *, const QString&)
 
 void MainWindow::onEnginePreRunStart()
 {
+    showBusyIndicatorRunning();
     m_timingsDialog->clear();
 }
 
@@ -778,4 +782,25 @@ void MainWindow::on_actionSubjectsSave_triggered()
 void MainWindow::on_actionTimings_triggered()
 {
     m_timingsDialog->show();
+}
+
+void MainWindow::showBusyIndicatorProcessing()
+{
+    m_busyIndicator->load(QStringLiteral(":/animations/busy.svg"));
+    m_busyIndicator->show();
+    QApplication::processEvents();
+}
+
+void MainWindow::showBusyIndicatorRunning()
+{
+    m_busyIndicator->load(QStringLiteral(":/animations/running.svg"));
+    m_busyIndicator->show();
+    QApplication::processEvents();
+}
+
+void MainWindow::hideBusyIndicator()
+{
+    m_busyIndicator->load(QByteArray());
+    m_busyIndicator->hide();
+    QApplication::processEvents();
 }

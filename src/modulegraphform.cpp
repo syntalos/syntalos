@@ -129,11 +129,11 @@ void ModuleGraphForm::on_actionAddModule_triggered()
 {
     ModuleSelectDialog modDialog(m_engine->library()->moduleInfo(), this);
     if (modDialog.exec() == QDialog::Accepted) {
-        //m_runIndicatorWidget->show();
+        emit busyStart();
         if (!modDialog.selectedEntryId().isEmpty()) {
             m_engine->createModule(modDialog.selectedEntryId());
         }
-        //m_runIndicatorWidget->hide();
+        emit busyEnd();
     }
 }
 

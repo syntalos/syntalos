@@ -75,6 +75,10 @@ private slots:
     void on_actionSubjectsSave_triggered();
     void on_actionTimings_triggered();
 
+    void showBusyIndicatorProcessing();
+    void showBusyIndicatorRunning();
+    void hideBusyIndicator();
+
 protected:
     void closeEvent(QCloseEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
@@ -97,7 +101,7 @@ private:
     Engine *m_engine;
 
     QLabel *m_statusBarLabel;
-    QSvgWidget *m_runIndicatorWidget;
+    QSvgWidget *m_busyIndicator;
 
     TestSubjectListModel *m_subjectList;
 

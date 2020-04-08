@@ -44,5 +44,7 @@
     </qresource>
     <qresource prefix="/animations">
         <file alias="running.svg">animations/running.svg</file>
+        <file alias="busy.svg">animations/busy.svg</file>
+        <file alias="waiting.svg">animations/waiting.svg</file>
     </qresource>
 </RCC>
