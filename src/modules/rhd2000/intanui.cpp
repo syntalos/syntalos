@@ -1663,23 +1663,17 @@ void IntanUi::openInterfaceBoard()
     if (errorCode < 1) {
         QMessageBox::StandardButton r;
         if (errorCode == -1) {
-            r = QMessageBox::question(this, tr("Cannot load Opal Kelly FrontPanel DLL"),
+            r = QMessageBox::warning(this, tr("Cannot load Opal Kelly FrontPanel DLL"),
                                   tr("Opal Kelly USB drivers not installed.  "
                                      "Click OK to run application with synthesized biopotential data for "
-                                     "demonstration purposes."
-                                     "<p>To use the RHD2000 Interface, click Cancel, load the correct "
-                                     "Opal Kelly drivers, then restart the application."
-                                     "<p>Visit http://www.intantech.com for more information."),
-                                  QMessageBox::Ok | QMessageBox::Cancel);
+                                     "demonstration purposes."),
+                                  QMessageBox::Ok);
         } else {
-            r = QMessageBox::question(this, tr("Intan RHD2000 USB Interface Board Not Found"),
+            r = QMessageBox::warning(this, tr("Intan RHD2000 USB Interface Board Not Found"),
                                   tr("Intan Technologies RHD2000 Interface not found on any USB port.  "
                                      "Click OK to run application with synthesized biopotential data for "
-                                     "demonstration purposes."
-                                     "<p>To use the RHD2000 Interface, click Cancel, connect the device "
-                                     "to a USB port, then restart the application."
-                                     "<p>Visit http://www.intantech.com for more information."),
-                                  QMessageBox::Ok | QMessageBox::Cancel);
+                                     "demonstration purposes."),
+                                  QMessageBox::Ok);
         }
         if (r == QMessageBox::Ok) {
             QMessageBox::information(this, tr("Synthesized Data Mode"),
@@ -1703,9 +1697,9 @@ void IntanUi::openInterfaceBoard()
     }
 
     // find FPGA bitfile
-    auto bitfilename_tmp = QStringLiteral("/usr/local/share/mazeamaze/main.bit");
+    auto bitfilename_tmp = QStringLiteral("/usr/local/share/syntalos/main.bit");
     if (!QFileInfo(bitfilename_tmp).isFile()) {
-        bitfilename_tmp = QStringLiteral("/usr/share/mazaamaze/main.bit");
+        bitfilename_tmp = QStringLiteral("/usr/share/syntalos/main.bit");
         if (!QFileInfo(bitfilename_tmp).isFile())
             bitfilename_tmp = QString(QCoreApplication::applicationDirPath() + "/main.bit");
     }
