@@ -310,6 +310,7 @@ void FlowGraphNodePort::removeConnects(void)
             auto fgView = qobject_cast<FlowGraphView*>(view);
             if (fgView == nullptr)
                 continue;
+
             emit fgView->disconnected(connect->port1(), connect->port2());
         }
 
@@ -322,6 +323,11 @@ void FlowGraphNodePort::removeConnects(void)
     }
 
     m_connects.clear();
+}
+
+QList<FlowGraphEdge *> FlowGraphNodePort::connects() const
+{
+    return m_connects;
 }
 
 FlowGraphEdge *FlowGraphNodePort::findConnect(FlowGraphNodePort *port) const
@@ -722,6 +728,11 @@ FlowGraphNodePort *FlowGraphNode::addPort(std::shared_ptr<AbstractStreamPort> st
     updatePath();
 
     return port;
+}
+
+QList<FlowGraphNodePort *> FlowGraphNode::ports() const
+{
+    return m_ports;
 }
 
 void FlowGraphNode::removePort(FlowGraphNodePort *port)
@@ -1320,7 +1331,7 @@ FlowGraphItem *FlowGraphView::itemAt(const QPointF &pos) const
 }
 
 /**
- * @brief Port (dis)connection command
+ * @brief Port connection command
  */
 void FlowGraphView::connectPorts(FlowGraphNodePort *port1, FlowGraphNodePort *port2)
 {
@@ -1682,6 +1693,22 @@ void FlowGraphView::keyPressEvent(QKeyEvent *event)
 }
 
 /**
+ * @brief Connect two ports explicitly
+ */
+void FlowGraphView::connectItems(FlowGraphNodePort *port1, FlowGraphNodePort *port2)
+{
+    if (port1 == nullptr)
+        return;
+    if (port2 == nullptr)
+        return;
+    if (port1->isOutput() == port2->isOutput())
+        return;
+    if (port1->portType() != port2->portType())
+        return;
+    connectPorts(port1, port2);
+}
+
+/**
  * @brief Connect selected items
  */
 void FlowGraphView::connectItems(void)
@@ -1720,12 +1747,24 @@ void FlowGraphView::connectItems(void)
             iter1.toFront();
         if (!iter2.hasNext())
             iter2.toFront();
-        // Submit command; notify eventual observers...
+        // Connect ports; notify eventual observers...
         FlowGraphNodePort *port1 = iter1.next();
         FlowGraphNodePort *port2 = iter2.next();
         if (port1 && port2 && port1->portType() == port2->portType())
             connectPorts(port1, port2);
     }
+}
+
+void FlowGraphView::disconnectItems(FlowGraphNodePort *port1, FlowGraphNodePort *port2)
+{
+    auto connect = port1->findConnect(port2);
+    if (connect == nullptr)
+        connect = port2->findConnect(port1);
+    if (connect == nullptr)
+        return;
+
+    emit disconnected(port1, port2);
+    delete connect;
 }
 
 /**
@@ -1750,6 +1789,7 @@ void FlowGraphView::disconnectItems(void)
         // Disconnect; notify eventual observers...
         FlowGraphNodePort *port1 = connect->port1();
         FlowGraphNodePort *port2 = connect->port2();
+
         emit disconnected(port1, port2);
         delete connect;
     }

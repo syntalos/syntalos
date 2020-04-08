@@ -445,15 +445,15 @@ bool MainWindow::loadConfiguration(const QString &fileName)
     }
 
     // load graph settings
-    auto graphDataFile = rootDir->file("graph.toml");
-    if (graphDataFile != nullptr) {
-        const auto graphConfig = parseTomlData(graphDataFile->data(), parseError);
+    auto graphFile = rootDir->file("graph.toml");
+    if (graphFile != nullptr) {
+        const auto graphConfig = parseTomlData(graphFile->data(), parseError);
         if (parseError.isEmpty()) {
-            qWarning() << "Unable to load parse graph configuration:" << parseError;
-        } else {
             // the graph view will apply stored settings to new nodes automatically
             // from here on.
             ui->graphForm->graphView()->setSettings(graphConfig);
+        } else {
+            qWarning() << "Unable to parse graph configuration:" << parseError;
         }
     }
 

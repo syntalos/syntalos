@@ -183,6 +183,7 @@ public:
     bool appendConnect(FlowGraphEdge *connect);
     void removeConnect(FlowGraphEdge *connect);
     void removeConnects();
+    QList<FlowGraphEdge *> connects() const;
 
     FlowGraphEdge *findConnect(FlowGraphNodePort *port) const;
 
@@ -301,6 +302,7 @@ public:
     QString nodeInfoText() const;
 
     FlowGraphNodePort *addPort(std::shared_ptr<AbstractStreamPort> port);
+    QList<FlowGraphNodePort *> ports() const;
     void removePort(FlowGraphNodePort *port);
     void removePorts();
     FlowGraphNodePort *findPort(const QString &name, Mode mode, uint type = 0);
@@ -442,7 +444,10 @@ signals:
     void renamed(FlowGraphItem *item, const QString &name);
 
 public slots:
+    void connectItems(FlowGraphNodePort *port1, FlowGraphNodePort *port2);
     void connectItems();
+
+    void disconnectItems(FlowGraphNodePort *port1, FlowGraphNodePort *port2);
     void disconnectItems();
 
     void selectAll();

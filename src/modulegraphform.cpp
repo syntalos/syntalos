@@ -251,13 +251,13 @@ void ModuleGraphForm::on_graphPortsConnected(FlowGraphNodePort *port1, FlowGraph
         // something went wrong or we connected two ports of the same type
         qWarning().noquote() << "Attempt to connect possibly incompatible ports failed.";
 
-        ui->graphView->disconnectItems();
+        ui->graphView->disconnectItems(port1, port2);
         return;
     }
 
     if (!inPort->acceptsSubscription(outPort->dataTypeName())) {
         qWarning().noquote() << "Tried to connect incompatible ports.";
-        ui->graphView->disconnectItems();
+        ui->graphView->disconnectItems(port1, port2);
         return;
     }
 
@@ -294,7 +294,13 @@ void ModuleGraphForm::on_graphPortsDisconnected(FlowGraphNodePort *port1, FlowGr
 
     // unsubscribing the input port will automatically remove the subscription from the output port
     // as well.
+    const auto subscriptionExisted = inPort->hasSubscription();
     inPort->resetSubscription();
+    if (subscriptionExisted)
+        qDebug().noquote() << "Disconnected ports:"
+                           << QString("%1[>%2]").arg(outPort->title()).arg(outPort->dataTypeName())
+                           << "->"
+                           << QString("%1[<%2]").arg(inPort->title()).arg(inPort->dataTypeName());
 }
 
 void ModuleGraphForm::on_actionConnect_triggered()
@@ -345,6 +351,11 @@ void ModuleGraphForm::on_modulePreRemove(AbstractModule *mod)
     if (m_shutdown)
         return;
     auto node = m_modNodeMap.value(mod);
+
+    // module removals invalidate our connection memory
+    m_connMemory.clear();
+
+    // sanity check
     if (node == nullptr) {
         qCritical() << "Module " << mod->name() << "without node representation is being removed.";
         return;
@@ -357,20 +368,17 @@ void ModuleGraphForm::on_modulePreRemove(AbstractModule *mod)
 
 void ModuleGraphForm::on_portsConnected(const VarStreamInputPort *inPort, const StreamOutputPort *outPort)
 {
-    auto inNode = m_modNodeMap.value(inPort->owner());
-    auto outNode = m_modNodeMap.value(outPort->owner());
+    const auto inNode = m_modNodeMap.value(inPort->owner());
+    const auto outNode = m_modNodeMap.value(outPort->owner());
 
     if ((inNode == nullptr) || (outNode == nullptr)) {
         qCritical() << "Ports of modules were connected, but we could not find one or both of their graph nodes.";
         return;
     }
 
-    auto graphInPort = inNode->findPort(inPort->id(), FlowGraphNodePort::Input, inPort->dataTypeId());
-    auto graphOutPort = outNode->findPort(outPort->id(), FlowGraphNodePort::Output, outPort->dataTypeId());
-    ui->graphView->selectNone();
-    graphOutPort->setSelected(true);
-    graphInPort->setSelected(true);
-    ui->graphView->connectItems();
+    const auto graphInPort = inNode->findPort(inPort->id(), FlowGraphNodePort::Input, inPort->dataTypeId());
+    const auto graphOutPort = outNode->findPort(outPort->id(), FlowGraphNodePort::Output, outPort->dataTypeId());
+    ui->graphView->connectItems(graphOutPort, graphInPort);
 }
 
 void ModuleGraphForm::on_modulePortConfigChanged()
@@ -387,11 +395,41 @@ void ModuleGraphForm::on_modulePortConfigChanged()
     // This usually happens only on user-configured modules and is pretty rare (so this function
     // is currently really inefficient)
 
+    // save maping of the old connections, so we can - possibly - restore them later
+    for (const auto &port : node->ports()) {
+        for (const auto &conn : port->connects()) {
+            auto otherPort = conn->port1();
+            if (otherPort == port)
+                otherPort = conn->port2();
+
+            m_connMemory[mod->name()+port->streamPort()->id()] = qMakePair(otherPort->portNode(), otherPort->streamPort()->id());
+        }
+    }
+
+    // refresh ports to align view with what the module currently has
     node->removePorts();
     for (auto &iport : mod->inPorts())
         node->addPort(std::dynamic_pointer_cast<AbstractStreamPort>(iport));
     for (auto &oport : mod->outPorts())
         node->addPort(std::dynamic_pointer_cast<AbstractStreamPort>(oport));
+
+    // restore connections for ports which have the same ID
+    for (const auto &port : node->ports()) {
+        const auto pairing = m_connMemory.value(mod->name()+port->streamPort()->id());
+        if (pairing.first == nullptr)
+            continue;
+        const auto otherNode = pairing.first;
+        FlowGraphNodePort *otherPort = nullptr;
+        for (const auto &op : otherNode->ports()) {
+            if (op->streamPort()->id() == pairing.second) {
+                otherPort = op;
+                break;
+            }
+        }
+        if (otherPort == nullptr)
+            continue;
+        ui->graphView->connectItems(port, otherPort);
+    }
 
     ui->graphView->updatePortTypeColors();
 }

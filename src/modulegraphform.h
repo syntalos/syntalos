@@ -80,6 +80,8 @@ private:
     QHash<AbstractModule*, FlowGraphNode*> m_modNodeMap;
     QMenu *m_menu;
 
+    QHash<QString, QPair<FlowGraphNode*, QString>> m_connMemory;
+
     FlowGraphNode *selectedSingleNode() const;
 };
 
