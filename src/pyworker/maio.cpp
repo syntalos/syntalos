@@ -274,6 +274,7 @@ BOOST_PYTHON_MODULE(maio)
                 .add_property("pin_name", make_getter(&FirmataData::pinName, return_value_policy<return_by_value>()),
                                           make_setter(&FirmataData::pinName, return_value_policy<return_by_value>()))
                 .def_readwrite("value", &FirmataData::value)
+                .def_readwrite("analog", &FirmataData::analog)
                 .def_readwrite("timestamp", &FirmataData::timestamp)
             ;
 

@@ -170,6 +170,7 @@ struct FirmataData
     uint8_t pinId;
     QString pinName;
     uint16_t value;
+    bool analog;
     quint64 timestamp;
 
     friend QDataStream &operator<<(QDataStream &out, const FirmataData &obj)
@@ -177,6 +178,7 @@ struct FirmataData
         out << obj.pinId
             << obj.pinName
             << obj.value
+            << obj.analog
             << obj.timestamp;
         return out;
     }
@@ -186,6 +188,7 @@ struct FirmataData
        in >> obj.pinId
           >> obj.pinName
           >> obj.value
+          >> obj.analog
           >> obj.timestamp;
        return in;
     }

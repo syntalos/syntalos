@@ -19,6 +19,7 @@
 
 #include "firmatauserctlmod.h"
 
+#include <QTimer>
 #include "firmatactldialog.h"
 
 class FirmataUserCtlModule : public AbstractModule
@@ -27,6 +28,8 @@ private:
     std::shared_ptr<StreamInputPort<FirmataData>> m_fmInPort;
     std::shared_ptr<DataStream<FirmataControl>> m_fmCtlStream;
     FirmataCtlDialog *m_ctlDialog;
+    QTimer *m_evTimer;
+    std::shared_ptr<StreamSubscription<FirmataData>> m_fmInSub;
 
 public:
     explicit FirmataUserCtlModule(QObject *parent = nullptr)
@@ -36,6 +39,10 @@ public:
         m_fmCtlStream = registerOutputPort<FirmataControl>(QStringLiteral("firmata-out"), QStringLiteral("Firmata Control"));
         m_ctlDialog = new FirmataCtlDialog(m_fmCtlStream);
         addDisplayWindow(m_ctlDialog);
+
+        m_evTimer = new QTimer(this);
+        m_evTimer->setInterval(50); // we only fetch new values every 50msec
+        connect(m_evTimer, &QTimer::timeout, this, &FirmataUserCtlModule::readFirmataEvents);
     }
 
     ~FirmataUserCtlModule() override
@@ -48,6 +55,45 @@ public:
 
     bool prepare(const TestSubject &) override
     {
+        m_fmCtlStream->start();
+        return true;
+    }
+
+    void start() override
+    {
+        QTimer::singleShot(1500, [&] {
+            m_ctlDialog->initializeAllPins();
+        });
+
+        // we only need to read data if we have an input subscription
+        if (m_fmInPort->hasSubscription()) {
+            m_fmInSub = m_fmInPort->subscription();
+            m_evTimer->start();
+        }
+    }
+
+    void stop() override
+    {
+        m_evTimer->stop();
+        m_fmCtlStream->stop();
+    }
+
+    void readFirmataEvents()
+    {
+        const auto maybeData = m_fmInSub->peekNext();
+        if (!maybeData.has_value())
+            return;
+        m_ctlDialog->pinValueChanged(maybeData.value());
+    }
+
+    void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
+    {
+        settings = m_ctlDialog->serializeSettings();
+    }
+
+    bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
+    {
+        m_ctlDialog->restoreFromSettings(settings);
         return true;
     }
 
@@ -62,12 +108,12 @@ QString FirmataUserCtlModuleInfo::id() const
 
 QString FirmataUserCtlModuleInfo::name() const
 {
-    return QStringLiteral("Firmata Manual I/O");
+    return QStringLiteral("Firmata User Control");
 }
 
 QString FirmataUserCtlModuleInfo::description() const
 {
-    return QStringLiteral("Have the user control and view Firmata input/output manually.");
+    return QStringLiteral("A simple control panel to manually change Firmata output and view raw input data.");
 }
 
 QPixmap FirmataUserCtlModuleInfo::pixmap() const

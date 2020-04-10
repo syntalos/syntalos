@@ -25,17 +25,27 @@
 
 class QSpinBox;
 class QPushButton;
+class QLabel;
 
 class FirmataOutputWidget : public QWidget
 {
     Q_OBJECT
 
 public:
-    explicit FirmataOutputWidget(std::shared_ptr<DataStream<FirmataControl> > fmCtlStream, bool analog, QWidget *parent = nullptr);
+    explicit FirmataOutputWidget(std::shared_ptr<DataStream<FirmataControl> > fmCtlStream,
+                                 bool analog, QWidget *parent = nullptr);
 
     bool isAnalog() const;
 
+    int pinId() const;
     void setPinId(int pinId);
+    void submitNewPinCommand();
+
+    int value() const;
+    void setValue(int value);
+
+private slots:
+    void onPinIdChange(int value);
 
 private:
     bool m_isAnalog;
@@ -46,6 +56,36 @@ private:
     QSpinBox *m_sbValue;
     QPushButton *m_btnPulse;
     QPushButton *m_btnSend;
+    std::shared_ptr<DataStream<FirmataControl> > m_fmCtlStream;
+};
+
+class FirmataInputWidget : public QWidget
+{
+    Q_OBJECT
+
+public:
+    explicit FirmataInputWidget(std::shared_ptr<DataStream<FirmataControl> > fmCtlStream,
+                                bool analog, QWidget *parent = nullptr);
+
+    bool isAnalog() const;
+
+    int pinId() const;
+    void setPinId(int pinId);
+    void submitNewPinCommand();
+
+    void setValue(int value);
+
+private slots:
+    void onPinIdChange(int value);
+
+private:
+    bool m_isAnalog;
+
+    QPushButton *m_btnRemove;
+    QLabel *m_lblType;
+    QSpinBox *m_sbPinId;
+
+    QLabel *m_lblValue;
     std::shared_ptr<DataStream<FirmataControl> > m_fmCtlStream;
 };
 
@@ -60,6 +100,12 @@ class FirmataCtlDialog : public QDialog
 public:
     explicit FirmataCtlDialog(std::shared_ptr<DataStream<FirmataControl>> fmCtlStream, QWidget *parent = nullptr);
     ~FirmataCtlDialog();
+
+    void initializeAllPins();
+    void pinValueChanged(const FirmataData &data);
+
+    QVariantHash serializeSettings();
+    void restoreFromSettings(const QVariantHash &settings);
 
 private slots:
     void on_btnAddOutputControl_clicked();

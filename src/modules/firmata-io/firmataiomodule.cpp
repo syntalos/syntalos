@@ -148,13 +148,22 @@ public:
         switch (ctl.command) {
         case FirmataCommandKind::NEW_DIG_PIN:
             newDigitalPin(ctl.pinId, ctl.pinName, ctl.output, ctl.pullUp);
-            pinSetValue(ctl.pinName, ctl.value);
+            if (ctl.pinName.isEmpty())
+                pinSetValue(ctl.pinId, ctl.value);
+            else
+                pinSetValue(ctl.pinName, ctl.value);
             break;
         case FirmataCommandKind::WRITE_DIGITAL:
-            pinSetValue(ctl.pinName, ctl.value);
+            if (ctl.pinName.isEmpty())
+                pinSetValue(ctl.pinId, ctl.value);
+            else
+                pinSetValue(ctl.pinName, ctl.value);
             break;
         case FirmataCommandKind::WRITE_DIGITAL_PULSE:
-            pinSignalPulse(ctl.pinName);
+            if (ctl.pinName.isEmpty())
+                pinSignalPulse(ctl.pinId);
+            else
+                pinSignalPulse(ctl.pinName);
             break;
         default:
             qWarning() << "Received not-implemented Firmata instruction of type" << QString::number(static_cast<int>(ctl.command));
@@ -173,18 +182,18 @@ public:
         return true;
     }
 
-    void newDigitalPin(int pinID, const QString &pinName, bool output, bool pullUp)
+    void newDigitalPin(int pinId, const QString &pinName, bool output, bool pullUp)
     {
         FmPin pin;
         pin.kind = PinKind::Digital;
-        pin.id = static_cast<uint8_t>(pinID);
+        pin.id = static_cast<uint8_t>(pinId);
         pin.output = output;
 
         if (pin.output) {
             // initialize output pin
             m_firmata->setPinMode(pin.id, IoMode::Output);
             m_firmata->writeDigitalPin(pin.id, false);
-            qDebug() << "Pin" << pinID << "set as output";
+            qDebug() << "Firmata: Pin" << pinId << "set as output";
         } else {
             // connect input pin
             if (pullUp)
@@ -195,11 +204,20 @@ public:
             uint8_t port = pin.id >> 3;
             m_firmata->reportDigitalPort(port, true);
 
-            qDebug() << "Pin" << pinID << "set as input";
+            qDebug() << "Firmata: Pin" << pinId << "set as input";
         }
 
-        m_namePinMap.insert(pinName, pin);
-        m_pinNameMap.insert(pin.id, pinName);
+        auto pname = pinName;
+        if (pname.isEmpty())
+            pname = QStringLiteral("pin-%1").arg(pinId);
+
+        m_namePinMap.insert(pname, pin);
+        m_pinNameMap.insert(pin.id, pname);
+    }
+
+    void pinSetValue(int pinId, bool value)
+    {
+        m_firmata->writeDigitalPin(pinId, value);
     }
 
     void pinSetValue(const QString &pinName, bool value)
@@ -209,7 +227,14 @@ public:
             qCritical() << QStringLiteral("Unable to deliver message to pin '%1' (pin does not exist, it needs to be registered first)").arg(pinName);
             return;
         }
-        m_firmata->writeDigitalPin(pin.id, value);
+        pinSetValue(pin.id, value);
+    }
+
+    void pinSignalPulse(int pinId)
+    {
+        pinSetValue(pinId, true);
+        QThread::usleep(50 * 1000); // sleep 50msec
+        pinSetValue(pinId, false);
     }
 
     void pinSignalPulse(const QString &pinName)
@@ -222,16 +247,18 @@ public:
 private slots:
     void recvDigitalRead(uint8_t port, uint8_t value)
     {
-        qDebug() << "Firmata digital port read:" << int(value);
-
         // value of a digital port changed: 8 possible pin changes
         const int first = port * 8;
         const int last = first + 7;
+        const auto timestamp = m_syTimer->timeSinceStartMsec().count();
 
+        qDebug("Firmata: Digital port read: %d (%d - %d)", value, first, last);
         for (const FmPin p : m_namePinMap.values()) {
             if ((!p.output) && (p.kind != PinKind::Unknown)) {
                 if ((p.id >= first) && (p.id <= last)) {
                     FirmataData fdata;
+                    fdata.timestamp = timestamp;
+                    fdata.analog = false;
                     fdata.pinId = p.id;
                     fdata.pinName = m_pinNameMap.value(p.id);
                     fdata.value = (value & (1 << (p.id - first)))? 1 : 0;
@@ -244,10 +271,9 @@ private slots:
 
     void recvDigitalPinRead(uint8_t pin, bool value)
     {
-        qDebug("Firmata digital pin read: %d=%d", pin, value);
-
         FirmataData fdata;
         fdata.timestamp = m_syTimer->timeSinceStartMsec().count();
+        fdata.analog = false;
         fdata.pinId = pin;
         fdata.pinName = m_pinNameMap.value(pin);
         fdata.value = value;
@@ -256,6 +282,7 @@ private slots:
             return;
         }
 
+        qDebug("Firmata: digital pin read: %d=%d", pin, value);
         m_fmStream->push(fdata);
     }
 };
