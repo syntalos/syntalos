@@ -44,6 +44,7 @@
 #include "modules/triled-tracker/triledtrackermodule.h"
 
 #include "modules/firmata-io/firmataiomodule.h"
+#include "modules/firmata-userctl/firmatauserctlmod.h"
 #include "modules/pyscript/pyscriptmodule.h"
 
 #include "modules/rhd2000/rhd2000module.h"
@@ -85,6 +86,7 @@ ModuleLibrary::ModuleLibrary(QObject *parent)
     registerModuleInfo<TriLedTrackerModuleInfo>();
 
     registerModuleInfo<FirmataIOModuleInfo>();
+    registerModuleInfo<FirmataUserCtlModuleInfo>();
     registerModuleInfo<PyScriptModuleInfo>();
 
     registerModuleInfo<Rhd2000ModuleInfo>();
