@@ -21,6 +21,7 @@ add_subdirectory(triled-tracker)
 
 # Python & Customization
 add_subdirectory(firmata-io)
+add_subdirectory(firmata-userctl)
 add_subdirectory(pyscript)
 
 # Electrophysiology
