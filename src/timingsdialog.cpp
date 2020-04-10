@@ -105,9 +105,9 @@ void TimingsDialog::onSynchronizerDetailsChanged(const QString &id, const TimeSy
     if (tdisp == nullptr) {
         tdisp = new TimingDisplayWidget(mod->name(), this);
         if ((m_tdispMap.count() % 2) == 0)
-            ui->layoutLeftPanel->insertWidget(ui->layoutLeftPanel->count()-1, tdisp);
+            ui->layoutLeftPanel->insertWidget(ui->layoutLeftPanel->count() - 1, tdisp);
         else
-            ui->layoutRightPanel->insertWidget(ui->layoutRightPanel->count()-1, tdisp);
+            ui->layoutRightPanel->insertWidget(ui->layoutRightPanel->count() - 1, tdisp);
         m_tdispMap[mod] = tdisp;
     }
     tdisp->setStrategies(strategies);
