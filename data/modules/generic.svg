@@ -36,12 +36,12 @@
      guidetolerance="10"
      inkscape:pageopacity="0"
      inkscape:pageshadow="2"
-     inkscape:window-width="1920"
-     inkscape:window-height="1021"
+     inkscape:window-width="2560"
+     inkscape:window-height="1373"
      id="namedview8"
      showgrid="false"
      inkscape:zoom="5.3636365"
-     inkscape:cx="-17.767724"
+     inkscape:cx="-67.640604"
      inkscape:cy="-5.569955"
      inkscape:window-x="0"
      inkscape:window-y="0"
@@ -1959,7 +1959,7 @@
      inkscape:label="Capa 1">
     <g
        id="g1785"
-       transform="translate(37.195342,-4.8647595)">
+       transform="matrix(0.99371711,0,0,0.99371711,39.712089,-1.5235309)">
       <path
          inkscape:connector-curvature="0"
          style="fill:#2980b9;fill-rule:evenodd"
