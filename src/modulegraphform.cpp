@@ -97,6 +97,9 @@ void ModuleGraphForm::setModifyPossible(bool allowModify)
     m_modifyPossible = allowModify;
 
     ui->actionAddModule->setEnabled(m_modifyPossible);
+    ui->actionRemove->setEnabled(m_modifyPossible);
+    ui->actionConnect->setEnabled(m_modifyPossible);
+    ui->actionDisconnect->setEnabled(m_modifyPossible);
 }
 
 void ModuleGraphForm::moduleAdded(ModuleInfo *info, AbstractModule *mod)
@@ -204,8 +207,8 @@ void ModuleGraphForm::on_selectionChanged()
         ui->actionConnect->setEnabled(false);
         ui->actionDisconnect->setEnabled(false);
     } else {
-        ui->actionConnect->setEnabled(true);
-        ui->actionDisconnect->setEnabled(true);
+        ui->actionConnect->setEnabled(m_modifyPossible);
+        ui->actionDisconnect->setEnabled(m_modifyPossible);
     }
 
     auto node = selectedSingleNode();
@@ -220,7 +223,7 @@ void ModuleGraphForm::on_selectionChanged()
         if (mod == nullptr)
             return;
 
-        ui->actionRemove->setEnabled(true);
+        ui->actionRemove->setEnabled(m_modifyPossible);
 
         const auto features = mod->features();
         if (features.testFlag(ModuleFeature::SHOW_DISPLAY))
