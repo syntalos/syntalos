@@ -69,6 +69,8 @@ private slots:
     void onModuleCreated(ModuleInfo *info, AbstractModule *mod);
     void moduleErrorReceived(AbstractModule *mod, const QString& message);
     void onEnginePreRunStart();
+    void onEngineStopped();
+    void onElapsedTimeUpdate();
 
     void statusMessageChanged(const QString &message);
 
@@ -99,6 +101,7 @@ private:
 
     Ui::MainWindow *ui;
 
+    QTimer *m_rtElapsedTimer;
     Engine *m_engine;
 
     QLabel *m_statusBarLabel;

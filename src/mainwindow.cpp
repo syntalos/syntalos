@@ -138,6 +138,8 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->runWarningIconLabel->setPixmap(QIcon::fromTheme(QStringLiteral("emblem-warning")).pixmap(16, 16));
     ui->runWarnWidget->setVisible(false);
 
+    ui->gbRunInfo->setEnabled(false);
+
     connect(ui->tbOpenDir, &QToolButton::clicked, this, &MainWindow::openDataExportDirectory);
     connect(ui->subjectIdEdit, &QLineEdit::textChanged, [=](const QString& mouseId) {
         if (mouseId.isEmpty()) {
@@ -248,7 +250,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(m_engine, &Engine::statusMessage, this, &MainWindow::statusMessageChanged);
     connect(m_engine, &Engine::moduleCreated, this, &MainWindow::onModuleCreated);
     connect(m_engine, &Engine::preRunStart, this, &MainWindow::onEnginePreRunStart);
-    connect(m_engine, &Engine::runStopped, this, &MainWindow::hideBusyIndicator);
+    connect(m_engine, &Engine::runStopped, this, &MainWindow::onEngineStopped);
     connect(ui->graphForm, &ModuleGraphForm::busyStart, this, &MainWindow::showBusyIndicatorProcessing);
     connect(ui->graphForm, &ModuleGraphForm::busyEnd, this, &MainWindow::hideBusyIndicator);
 
@@ -259,6 +261,11 @@ MainWindow::MainWindow(QWidget *parent) :
     m_busyIndicator->setMinimumSize(QSize(indicatorWidgetDim, indicatorWidgetDim));
     m_busyIndicator->raise();
     m_busyIndicator->hide();
+
+    // timer to update verious time display during a run
+    m_rtElapsedTimer = new QTimer(this);
+    m_rtElapsedTimer->setInterval(1000);
+    connect(m_rtElapsedTimer, &QTimer::timeout, this, &MainWindow::onElapsedTimeUpdate);
 }
 
 MainWindow::~MainWindow()
@@ -276,8 +283,10 @@ void MainWindow::setStopPossible(bool enabled)
 {
     ui->actionStop->setEnabled(enabled);
     ui->graphForm->setModifyPossible(!enabled);
+    ui->gbRunInfo->setEnabled(enabled);
+    ui->gbRunSettings->setEnabled(!enabled);
     if (enabled)
-        showBusyIndicatorRunning();
+        showBusyIndicatorProcessing();
     else
         hideBusyIndicator();
 }
@@ -290,8 +299,8 @@ void MainWindow::runActionTriggered()
 
     m_engine->run();
 
-    setRunPossible(m_engine->exportDirIsValid());
     setStopPossible(false);
+    setRunPossible(m_engine->exportDirIsValid());
 }
 
 void MainWindow::temporaryRunActionTriggered()
@@ -305,12 +314,11 @@ void MainWindow::temporaryRunActionTriggered()
 
     m_engine->runEphemeral();
 
-    setRunPossible(m_engine->exportDirIsValid());
     setStopPossible(false);
-
     ui->actionRunTemp->setEnabled(true);
     ui->runWarnWidget->setVisible(false);
     updateExportDirDisplay();
+    setRunPossible(m_engine->exportDirIsValid());
 }
 
 void MainWindow::stopActionTriggered()
@@ -731,6 +739,11 @@ void MainWindow::onModuleCreated(ModuleInfo *, AbstractModule *mod)
     connect(mod, &AbstractModule::synchronizerOffsetChanged, m_timingsDialog, &TimingsDialog::onSynchronizerOffsetChanged, Qt::QueuedConnection);
 }
 
+void MainWindow::onElapsedTimeUpdate()
+{
+    ui->elapsedTimeLabel->setText(QTime::fromMSecsSinceStartOfDay(m_engine->currentRunElapsedTime().count()).toString("hh:mm:ss"));
+}
+
 void MainWindow::setStatusText(const QString& msg)
 {
     m_statusBarLabel->setText(msg);
@@ -745,8 +758,15 @@ void MainWindow::moduleErrorReceived(AbstractModule *, const QString&)
 
 void MainWindow::onEnginePreRunStart()
 {
+    m_rtElapsedTimer->start();
     showBusyIndicatorRunning();
     m_timingsDialog->clear();
+}
+
+void MainWindow::onEngineStopped()
+{
+    m_rtElapsedTimer->stop();
+    hideBusyIndicator();
 }
 
 void MainWindow::statusMessageChanged(const QString &message)

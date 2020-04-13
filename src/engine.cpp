@@ -162,6 +162,13 @@ bool Engine::hasFailed() const
     return d->failed;
 }
 
+milliseconds_t Engine::currentRunElapsedTime() const
+{
+    if (!d->running)
+        return milliseconds_t(0);
+    return d->timer->timeSinceStartMsec();
+}
+
 AbstractModule *Engine::createModule(const QString &id, const QString &name)
 {
     auto modInfo = d->modLibrary->moduleInfo(id);

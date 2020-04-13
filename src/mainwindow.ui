@@ -102,7 +102,7 @@
                <number>0</number>
               </property>
               <item>
-               <widget class="QGroupBox" name="groupBox_2">
+               <widget class="QGroupBox" name="gbRunSettings">
                 <property name="title">
                  <string>Experiment Settings</string>
                 </property>
@@ -320,7 +320,7 @@
                <number>0</number>
               </property>
               <item>
-               <widget class="QGroupBox" name="groupBox_3">
+               <widget class="QGroupBox" name="gbRunInfo">
                 <property name="title">
                  <string>Current Run</string>
                 </property>
@@ -360,7 +360,7 @@
                    <item row="0" column="0">
                     <widget class="QLabel" name="dataLocationLabel">
                      <property name="text">
-                      <string>Data Location:</string>
+                      <string>Data Storage:</string>
                      </property>
                     </widget>
                    </item>
@@ -382,12 +382,12 @@
                    <item row="1" column="0">
                     <widget class="QLabel" name="runDurationLabel">
                      <property name="text">
-                      <string>Run Duration</string>
+                      <string>Elapsed Time:</string>
                      </property>
                     </widget>
                    </item>
                    <item row="1" column="1">
-                    <widget class="QLabel" name="label_2">
+                    <widget class="QLabel" name="elapsedTimeLabel">
                      <property name="font">
                       <font>
                        <pointsize>12</pointsize>
@@ -935,6 +935,9 @@
    </property>
    <property name="text">
     <string>Run Temporary</string>
+   </property>
+   <property name="toolTip">
+    <string>Start ephemeral run (no data will be saved)</string>
    </property>
   </action>
  </widget>

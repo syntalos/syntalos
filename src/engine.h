@@ -51,6 +51,7 @@ public:
     QString exportDir() const;
     bool isRunning() const;
     bool hasFailed() const;
+    milliseconds_t currentRunElapsedTime() const;
 
     AbstractModule *createModule(const QString &id, const QString &name = QString());
     bool removeModule(AbstractModule *mod);
