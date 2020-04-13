@@ -232,8 +232,8 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->actionLoadSettings, &QAction::triggered, this, &MainWindow::loadSettingsActionTriggered);
 
     // various
+    ui->exportBaseDirLabel->setText(QStringLiteral("[No directory selected]"));
     ui->exportDirLabel->setText(QStringLiteral("???"));
-    ui->exportBaseDirLabel->setText(QStringLiteral("The directory you select."));
     ui->tabWidget->setCurrentIndex(0);
 
     // connect about dialog trigger

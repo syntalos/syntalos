@@ -32,7 +32,7 @@ void ElidedLabel::paintEvent(QPaintEvent *event)
 
     bool didElide = false;
     int lineSpacing = fontMetrics.lineSpacing();
-    int y = 0;
+    int y = qRound((height() / 2.0) - (fontMetrics.height() / 2.0));
 
     QTextLayout textLayout(content, painter.font());
     textLayout.beginLayout();
