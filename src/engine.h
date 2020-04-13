@@ -60,7 +60,19 @@ public:
     AbstractModule *moduleByName(const QString &name) const;
 
 public slots:
+    /**
+     * @brief Run the current board, save all data
+     */
     bool run();
+
+    /**
+     * @brief Run the current board, do not keep any experiment data
+     */
+    bool runEphemeral();
+
+    /**
+     * @brief Stop a running experiment
+     */
     void stop();
 
 signals:
@@ -82,10 +94,11 @@ private:
     Q_DISABLE_COPY(Engine)
     QScopedPointer<Private> d;
 
+    bool runInternal(const QString &exportDirPath);
     bool makeDirectory(const QString &dir);
     void refreshExportDirPath();
     void emitStatusMessage(const QString &message);
-    QList<AbstractModule*> createModuleExecOrderList();    
+    QList<AbstractModule*> createModuleExecOrderList();
 };
 
 } // end of namespace

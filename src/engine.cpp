@@ -26,6 +26,7 @@
 #include <QDateTime>
 #include <QStandardPaths>
 #include <QThread>
+#include <QTemporaryDir>
 
 #include "oop/oopmodule.h"
 #include "edlstorage.h"
@@ -417,19 +418,19 @@ bool Engine::run()
     if (d->activeModules.isEmpty()) {
         QMessageBox::warning(d->parentWidget,
                              QStringLiteral("Configuration error"),
-                             QStringLiteral("You did not add a single module to be run.\nPlease add a module to the experiment to continue."));
+                             QStringLiteral("You did not add a single module to be run.\nPlease add a module to the board to continue."));
         return false;
     }
 
-    if (d->exportBaseDir.isEmpty() || d->exportDir.isEmpty()) {
+    if (!exportDirIsValid() || d->exportBaseDir.isEmpty() || d->exportDir.isEmpty()) {
         QMessageBox::critical(d->parentWidget,
                              QStringLiteral("Configuration error"),
                              QStringLiteral("Data export directory was not properly set. Can not continue."));
         return false;
     }
 
-    // determine and create the directory for ephys data
-    qDebug() << "Initializing new recording run";
+    // persistent data recording can be initialized!
+    qDebug("Initializing new persistent recording run");
 
     // test for available disk space and readyness of device
     QStorageInfo storageInfo(d->exportBaseDir);
@@ -470,16 +471,81 @@ bool Engine::run()
         deDir.removeRecursively();
     }
 
-    if (!makeDirectory(d->exportDir))
+    // perform the actual run, now that all error checking is done
+    return runInternal(d->exportDir);
+}
+
+bool Engine::runEphemeral()
+{
+    if (d->running)
         return false;
 
-    // create new experiment directory layout (EDL) collection to store
-    // all data modules generate in
-    std::shared_ptr<EDLCollection> storageCollection(new EDLCollection("test"));
-    storageCollection->setPath(d->exportDir);
+    d->failed = true; // if we exit before this is reset, initialization has failed
+    if (d->activeModules.isEmpty()) {
+        QMessageBox::warning(d->parentWidget,
+                             QStringLiteral("Configuration error"),
+                             QStringLiteral("You did not add a single module to be run.\nPlease add a module to the board to continue."));
+        return false;
+    }
+
+    QTemporaryDir tempDir(QStringLiteral("%1/syntalos-tmprun-XXXXXX").arg(QDir::tempPath()));
+    if (!tempDir.isValid()) {
+        QMessageBox::warning(d->parentWidget,
+                             QStringLiteral("Unable to run"),
+                             QStringLiteral("Unable to perform ephemeral run: Temporary data storage could not be created. %s").arg(tempDir.errorString()));
+        return false;
+    }
+
+    qDebug("Initializing new ephemeral recording run");
+
+    auto tempExportDir = tempDir.filePath("edl");
+
+    // perform the actual run, in a temporary directory
+    auto ret = runInternal(tempExportDir);
+
+    qDebug("Removing temporary storage directory");
+    if (!tempDir.remove())
+        qDebug("Unable to remove temporary directory: %s", qPrintable(tempDir.errorString()));
+
+    if (ret)
+        qDebug("Ephemeral run completed (result: success)");
+    else
+        qDebug("Ephemeral run completed (result: failure)");
+    return ret;
+}
+
+/**
+ * @brief Actually run an experiment module board
+ * @return true on succees
+ *
+ * This function runs an experiment with the given path,
+ * doing *no* error checking on the data export path anymore.
+ * It may never be called from anything but internal engine functions.
+ */
+bool Engine::runInternal(const QString &exportDirPath)
+{
+    QDir edlDir(exportDirPath);
+    if (edlDir.exists()) {
+        QMessageBox::critical(d->parentWidget,
+                             QStringLiteral("Internal Error"),
+                             QStringLiteral("Directory '%1' was expected to be nonexistent, but the directory exists. "
+                                            "Stopped run to prevent potential data loss. This condition should never happen.").arg(exportDirPath));
+        return false;
+    }
+
+    if (!makeDirectory(exportDirPath))
+        return false;
 
     // tell listeners that we are preparing a run
     emit preRunStart();
+
+    // create new experiment directory layout (EDL) collection to store
+    // all data modules generate in
+    std::shared_ptr<EDLCollection> storageCollection(new EDLCollection(QStringLiteral("%1_%2_%3")
+                                                                       .arg(d->testSubject.id)
+                                                                       .arg(d->experimentId)
+                                                                       .arg(QDateTime::currentDateTime().toString("yy-MM-dd+hh.mm"))));
+    storageCollection->setPath(exportDirPath);
 
     // fetch list of modules in their activation order
     auto orderedActiveModules = createModuleExecOrderList();
@@ -804,7 +870,7 @@ bool Engine::run()
         // remove any data that we might have already created, as well as the
         // export directory.
         emitStatusMessage(QStringLiteral("Removing broken data..."));
-        deDir.removeRecursively();
+        edlDir.removeRecursively();
     } else {
         emitStatusMessage(QStringLiteral("Writing experiment metadata..."));
 

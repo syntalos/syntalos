@@ -133,8 +133,12 @@ MainWindow::MainWindow(QWidget *parent) :
     greetingsRc.close();
 
     // setup general page
-    connect(ui->tbOpenDir, &QToolButton::clicked, this, &MainWindow::openDataExportDirectory);
+    ui->exportBaseDirLabel->setText(QStringLiteral("[No directory selected]"));
+    ui->exportDirLabel->setText(QStringLiteral("???"));
+    ui->runWarningIconLabel->setPixmap(QIcon::fromTheme(QStringLiteral("emblem-warning")).pixmap(16, 16));
+    ui->runWarnWidget->setVisible(false);
 
+    connect(ui->tbOpenDir, &QToolButton::clicked, this, &MainWindow::openDataExportDirectory);
     connect(ui->subjectIdEdit, &QLineEdit::textChanged, [=](const QString& mouseId) {
         if (mouseId.isEmpty()) {
             ui->subjectSelectComboBox->setEnabled(true);
@@ -227,14 +231,10 @@ MainWindow::MainWindow(QWidget *parent) :
 
     // connect actions
     connect(ui->actionRun, &QAction::triggered, this, &MainWindow::runActionTriggered);
+    connect(ui->actionRunTemp, &QAction::triggered, this, &MainWindow::temporaryRunActionTriggered);
     connect(ui->actionStop, &QAction::triggered, this, &MainWindow::stopActionTriggered);
     connect(ui->actionSaveSettings, &QAction::triggered, this, &MainWindow::saveSettingsActionTriggered);
     connect(ui->actionLoadSettings, &QAction::triggered, this, &MainWindow::loadSettingsActionTriggered);
-
-    // various
-    ui->exportBaseDirLabel->setText(QStringLiteral("[No directory selected]"));
-    ui->exportDirLabel->setText(QStringLiteral("???"));
-    ui->tabWidget->setCurrentIndex(0);
 
     // connect about dialog trigger
     connect(ui->actionAbout, &QAction::triggered, this, &MainWindow::aboutActionTriggered);
@@ -269,6 +269,7 @@ MainWindow::~MainWindow()
 void MainWindow::setRunPossible(bool enabled)
 {
     ui->actionRun->setEnabled(enabled);
+    ui->actionRunTemp->setEnabled(enabled);
 }
 
 void MainWindow::setStopPossible(bool enabled)
@@ -285,11 +286,31 @@ void MainWindow::runActionTriggered()
 {
     setRunPossible(false);
     setStopPossible(true);
+    ui->runWarnWidget->setVisible(false);
 
     m_engine->run();
 
-    setRunPossible(true);
+    setRunPossible(m_engine->exportDirIsValid());
     setStopPossible(false);
+}
+
+void MainWindow::temporaryRunActionTriggered()
+{
+    setRunPossible(false);
+    setStopPossible(true);
+
+    ui->exportDirLabel->setText(QStringLiteral("???"));
+    ui->runWarningLabel->setText(QStringLiteral("No data of this run will be saved permanently!"));
+    ui->runWarnWidget->setVisible(true);
+
+    m_engine->runEphemeral();
+
+    setRunPossible(m_engine->exportDirIsValid());
+    setStopPossible(false);
+
+    ui->actionRunTemp->setEnabled(true);
+    ui->runWarnWidget->setVisible(false);
+    updateExportDirDisplay();
 }
 
 void MainWindow::stopActionTriggered()
@@ -298,15 +319,6 @@ void MainWindow::stopActionTriggered()
     setStopPossible(false);
 
     m_engine->stop();
-}
-
-void MainWindow::setDataExportBaseDir(const QString& dir)
-{
-    if (dir.isEmpty())
-        return;
-
-    m_engine->setExportBaseDir(dir);
-    updateExportDirDisplay();
 }
 
 bool MainWindow::saveConfiguration(const QString &fileName)
@@ -379,9 +391,7 @@ bool MainWindow::saveConfiguration(const QString &fileName)
 
     tar.close();
 
-    QFileInfo fi(fileName);
-    this->updateWindowTitle(fi.fileName());
-
+    this->updateWindowTitle(fileName);
     setStatusText("Ready.");
     return true;
 }
@@ -568,6 +578,15 @@ bool MainWindow::loadConfiguration(const QString &fileName)
     return true;
 }
 
+void MainWindow::setDataExportBaseDir(const QString& dir)
+{
+    if (dir.isEmpty())
+        return;
+
+    m_engine->setExportBaseDir(dir);
+    updateExportDirDisplay();
+}
+
 void MainWindow::openDataExportDirectory()
 {
     auto dir = QFileDialog::getExistingDirectory(this,
@@ -580,6 +599,7 @@ void MainWindow::openDataExportDirectory()
 void MainWindow::changeTestSubject(const TestSubject &subject)
 {
     m_engine->setTestSubject(subject);
+    updateExportDirDisplay();
 }
 
 void MainWindow::changeExperimentId(const QString& text)
@@ -635,17 +655,42 @@ void MainWindow::saveSettingsActionTriggered()
     hideBusyIndicator();
 }
 
+void MainWindow::loadSettingsActionTriggered()
+{
+    auto fileName = QFileDialog::getOpenFileName(this,
+                                                 tr("Select Settings Filename"),
+                                                 QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
+                                                 tr("Syntalos Settings Files (*.syct)"));
+    if (fileName.isEmpty())
+        return;
+
+    setStatusText("Loading settings...");
+
+    showBusyIndicatorProcessing();
+    if (!loadConfiguration(fileName)) {
+        QMessageBox::critical(this,
+                              QStringLiteral("Can not load configuration"),
+                              QStringLiteral("Failed to load configuration."));
+        m_engine->removeAllModules();
+    }
+    hideBusyIndicator();
+}
+
 void MainWindow::updateWindowTitle(const QString& fileName)
 {
     if (fileName.isEmpty()) {
         this->setWindowTitle(QStringLiteral("Syntalos"));
     } else {
-        this->setWindowTitle(QStringLiteral("Syntalos - %2").arg(fileName));
+        QFileInfo fi(fileName);
+        this->setWindowTitle(QStringLiteral("Syntalos - %2").arg(fi.baseName()));
     }
 }
 
 void MainWindow::updateExportDirDisplay()
 {
+    if (!m_engine->exportDirIsValid())
+        return;
+
     ui->exportBaseDirLabel->setText(m_engine->exportBaseDir());
 
     auto font = ui->exportBaseDirLabel->font();
@@ -668,27 +713,6 @@ void MainWindow::updateExportDirDisplay()
         palette.setColor(QPalette::WindowText, Qt::red);
     ui->exportDirLabel->setPalette(palette);
     ui->exportDirLabel->setText(m_engine->exportDir());
-}
-
-void MainWindow::loadSettingsActionTriggered()
-{
-    auto fileName = QFileDialog::getOpenFileName(this,
-                                                 tr("Select Settings Filename"),
-                                                 QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
-                                                 tr("Syntalos Settings Files (*.syct)"));
-    if (fileName.isEmpty())
-        return;
-
-    setStatusText("Loading settings...");
-
-    showBusyIndicatorProcessing();
-    if (!loadConfiguration(fileName)) {
-        QMessageBox::critical(this,
-                              QStringLiteral("Can not load configuration"),
-                              QStringLiteral("Failed to load configuration."));
-        m_engine->removeAllModules();
-    }
-    hideBusyIndicator();
 }
 
 void MainWindow::aboutActionTriggered()

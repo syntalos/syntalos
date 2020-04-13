@@ -56,6 +56,7 @@ public:
 
 private slots:
     void runActionTriggered();
+    void temporaryRunActionTriggered();
     void stopActionTriggered();
 
     void openDataExportDirectory();
