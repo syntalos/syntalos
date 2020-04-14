@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2020 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2020 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -17,13 +17,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef GENERICCAMERAMODULE_H
-#define GENERICCAMERAMODULE_H
+#pragma once
 
 #include <QObject>
 #include "moduleapi.h"
 
-class GenericCameraModuleInfo : public ModuleInfo
+class FLIRCameraModuleInfo : public ModuleInfo
 {
     Q_OBJECT
 public:
@@ -31,8 +30,5 @@ public:
     QString name() const override;
     QString description() const override;
     QPixmap pixmap() const override;
-    QColor color() const override;
     AbstractModule *createModule(QObject *parent = nullptr) override;
 };
-
-#endif // GENERICCAMERAMODULE_H

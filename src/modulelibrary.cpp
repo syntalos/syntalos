@@ -34,6 +34,9 @@
 
 #include "modules/videorecorder/videorecordmodule.h"
 #include "modules/genericcamera/genericcameramodule.h"
+#ifdef HAVE_FLIR_CAMERA
+#include "modules/flircamera/flircameramod.h"
+#endif
 #ifdef HAVE_UEYE_CAMERA
 #include "modules/ueyecamera/ueyecameramodule.h"
 #endif
@@ -76,6 +79,9 @@ ModuleLibrary::ModuleLibrary(QObject *parent)
 
     registerModuleInfo<VideoRecorderModuleInfo>();
     registerModuleInfo<GenericCameraModuleInfo>();
+#ifdef HAVE_FLIR_CAMERA
+    registerModuleInfo<FLIRCameraModuleInfo>();
+#endif
 #ifdef HAVE_UEYE_CAMERA
     registerModuleInfo<UEyeCameraModuleInfo>();
 #endif

@@ -12,6 +12,8 @@
 #define OK_LIB_NAME "@OKLIB_FULL_PATH@"
 
 /* features */
+#cmakedefine HAVE_TIS_CAMERA
+#cmakedefine HAVE_FLIR_CAMERA
 #cmakedefine HAVE_UEYE_CAMERA
 #cmakedefine HAVE_MINISCOPE
 

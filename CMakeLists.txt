@@ -18,6 +18,7 @@ set(CMAKE_AUTOMOC ON)
 #
 option(MAINTAINER "Enable maintainer mode" OFF)
 option(MOD_CAMERA_UEYE "Enable uEye camera module" OFF)
+option(MOD_CAMERA_FLIR "Enable FLIR camera module using the Spinnaker API" OFF)
 option(MOD_MINISCOPE   "Enable Miniscope module" ON)
 
 
@@ -82,18 +83,15 @@ set(SY_BASE_LIBS ${CMAKE_THREAD_LIBS_INIT}
                  Eigen3::Eigen
 )
 
-
-#
-# Compile options
-#
-if(MOD_CAMERA_UEYE)
-    set(UEYE_LIBS "ueye_api")
-endif()
-
-
 #
 # Config file
 #
+if(MOD_CAMERA_TIS)
+    set(HAVE_TIS_CAMERA ON)
+endif()
+if(MOD_CAMERA_FLIR)
+    set(HAVE_FLIR_CAMERA ON)
+endif()
 if(MOD_CAMERA_UEYE)
     set(HAVE_UEYE_CAMERA ON)
 endif()

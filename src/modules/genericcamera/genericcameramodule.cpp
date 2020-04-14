@@ -20,6 +20,7 @@
 #include "genericcameramodule.h"
 
 #include <QDebug>
+#include "streams/frametype.h"
 
 #include "camera.h"
 #include "genericcamerasettingsdialog.h"
@@ -51,6 +52,11 @@ public:
 
         // set initial window titles
         setName(name());
+    }
+
+    ~GenericCameraModule()
+    {
+        delete m_camera;
     }
 
     void setName(const QString &name) override
@@ -229,7 +235,7 @@ QString GenericCameraModuleInfo::description() const
 
 QPixmap GenericCameraModuleInfo::pixmap() const
 {
-    return QPixmap(":/module/generic-camera");
+    return QPixmap(":/module/camera-generic");
 }
 
 QColor GenericCameraModuleInfo::color() const

@@ -1,4 +1,6 @@
 
+set(UEYE_LIBS "ueye_api")
+
 set(UEYE_CAMERA_SRC
     ueyecameramodule.h
     ueyecameramodule.cpp
@@ -30,4 +32,5 @@ include_directories(
     "/usr/include/" # uEye
 )
 
+set(MA_EXTRA_LIBS ${MA_EXTRA_LIBS} ${UEYE_LIBS} PARENT_SCOPE)
 set(MA_MODULE_LIBS ${MA_MODULE_LIBS} mod_ueye_camera PARENT_SCOPE)

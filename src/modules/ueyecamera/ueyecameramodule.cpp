@@ -210,7 +210,7 @@ QString UEyeCameraModuleInfo::description() const
 
 QPixmap UEyeCameraModuleInfo::pixmap() const
 {
-    return QPixmap(":/module/ueye-camera");
+    return QPixmap(":/module/camera-ueye");
 }
 
 AbstractModule *UEyeCameraModuleInfo::createModule(QObject *parent)
