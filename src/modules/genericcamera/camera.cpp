@@ -279,7 +279,7 @@ bool Camera::recordFrame(Frame &frame, SecondaryClockSynchronizer *clockSync)
     bool status = false;
     auto frameRecvTime = FUNC_EXEC_TIMESTAMP(d->startTime, status = d->cam.grab());
 
-    // timestamp in "driver tim", which usually seems to be a UNIX timestamp, but
+    // timestamp in "driver time", which usually seems to be a UNIX timestamp, but
     // we can't be sure of that
     const auto driverFrameTimestamp = milliseconds_t(static_cast<time_t> (d->cam.get(cv::CAP_PROP_POS_MSEC)));
 

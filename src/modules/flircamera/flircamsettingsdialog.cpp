@@ -80,14 +80,10 @@ void FLIRCamSettingsDialog::on_cameraComboBox_currentIndexChanged(int)
     m_camera->setup(ui->cameraComboBox->currentData().toString());
 }
 
-void FLIRCamSettingsDialog::on_sbExposure_valueChanged(double arg1)
+void FLIRCamSettingsDialog::on_sbExposure_valueChanged(int arg1)
 {
     ui->sliderExposure->setValue(arg1);
-}
-
-void FLIRCamSettingsDialog::on_sliderExposure_valueChanged(int value)
-{
-    ui->sbExposure->setValue(value);
+    m_camera->setExposureTime(microseconds_t(arg1));
 }
 
 void FLIRCamSettingsDialog::on_sbBrightness_valueChanged(double arg1)
@@ -120,19 +116,10 @@ void FLIRCamSettingsDialog::on_sliderSaturation_valueChanged(int value)
     ui->sbSaturation->setValue(value);
 }
 
-void FLIRCamSettingsDialog::on_sbHue_valueChanged(double arg1)
-{
-    ui->sliderHue->setValue(arg1);
-}
-
-void FLIRCamSettingsDialog::on_sliderHue_valueChanged(int value)
-{
-    ui->sbHue->setValue(value);
-}
-
 void FLIRCamSettingsDialog::on_sbGain_valueChanged(double arg1)
 {
     ui->sliderGain->setValue(arg1);
+    m_camera->setGain(arg1);
 }
 
 void FLIRCamSettingsDialog::on_sliderGain_valueChanged(int value)

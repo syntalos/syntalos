@@ -47,8 +47,7 @@ public:
 private slots:
     void on_cameraComboBox_currentIndexChanged(int index);
 
-    void on_sbExposure_valueChanged(double arg1);
-    void on_sliderExposure_valueChanged(int value);
+    void on_sbExposure_valueChanged(int arg1);
 
     void on_sbBrightness_valueChanged(double arg1);
     void on_sliderBrightness_valueChanged(int value);
@@ -58,9 +57,6 @@ private slots:
 
     void on_sbSaturation_valueChanged(double arg1);
     void on_sliderSaturation_valueChanged(int value);
-
-    void on_sbHue_valueChanged(double arg1);
-    void on_sliderHue_valueChanged(int value);
 
     void on_sbGain_valueChanged(double arg1);
     void on_sliderGain_valueChanged(int value);

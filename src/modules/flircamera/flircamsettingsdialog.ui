@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>490</width>
-    <height>410</height>
+    <width>481</width>
+    <height>388</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -78,7 +78,7 @@
            <number>1000</number>
           </property>
           <property name="value">
-           <number>20</number>
+           <number>100</number>
           </property>
          </widget>
         </item>
@@ -119,7 +119,7 @@
               <number>4000</number>
              </property>
              <property name="value">
-              <number>540</number>
+              <number>720</number>
              </property>
             </widget>
            </item>
@@ -218,7 +218,10 @@
            <item>
             <widget class="QSlider" name="sliderExposure">
              <property name="maximum">
-              <number>100</number>
+              <number>99999</number>
+             </property>
+             <property name="value">
+              <number>1000</number>
              </property>
              <property name="orientation">
               <enum>Qt::Horizontal</enum>
@@ -226,27 +229,24 @@
             </widget>
            </item>
            <item>
-            <widget class="QDoubleSpinBox" name="sbExposure">
+            <widget class="QSpinBox" name="sbExposure">
              <property name="toolTip">
               <string>Adjust camera exposure</string>
              </property>
              <property name="buttonSymbols">
               <enum>QAbstractSpinBox::PlusMinus</enum>
              </property>
-             <property name="decimals">
-              <number>3</number>
+             <property name="suffix">
+              <string>µs</string>
              </property>
              <property name="minimum">
-              <double>1.000000000000000</double>
+              <number>10</number>
              </property>
              <property name="maximum">
-              <double>100.000000000000000</double>
-             </property>
-             <property name="singleStep">
-              <double>0.500000000000000</double>
+              <number>99999</number>
              </property>
              <property name="value">
-              <double>10.000000000000000</double>
+              <number>1000</number>
              </property>
             </widget>
            </item>
@@ -392,13 +392,6 @@
           </layout>
          </widget>
         </item>
-        <item row="5" column="0">
-         <widget class="QLabel" name="hueLabel">
-          <property name="text">
-           <string>Hue</string>
-          </property>
-         </widget>
-        </item>
         <item row="5" column="1">
          <widget class="QWidget" name="hueWidget" native="true">
           <property name="minimumSize">
@@ -423,41 +416,6 @@
            <property name="bottomMargin">
             <number>0</number>
            </property>
-           <item>
-            <widget class="QSlider" name="sliderHue">
-             <property name="minimum">
-              <number>-100</number>
-             </property>
-             <property name="maximum">
-              <number>100</number>
-             </property>
-             <property name="orientation">
-              <enum>Qt::Horizontal</enum>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QDoubleSpinBox" name="sbHue">
-             <property name="toolTip">
-              <string>Adjust camera exposure</string>
-             </property>
-             <property name="decimals">
-              <number>3</number>
-             </property>
-             <property name="minimum">
-              <double>-100.000000000000000</double>
-             </property>
-             <property name="maximum">
-              <double>100.000000000000000</double>
-             </property>
-             <property name="singleStep">
-              <double>0.500000000000000</double>
-             </property>
-             <property name="value">
-              <double>10.000000000000000</double>
-             </property>
-            </widget>
-           </item>
           </layout>
          </widget>
         </item>
@@ -495,7 +453,7 @@
            <item>
             <widget class="QSlider" name="sliderGain">
              <property name="maximum">
-              <number>100</number>
+              <number>50</number>
              </property>
              <property name="orientation">
               <enum>Qt::Horizontal</enum>
@@ -511,7 +469,7 @@
               <number>3</number>
              </property>
              <property name="maximum">
-              <double>100.000000000000000</double>
+              <double>50.000000000000000</double>
              </property>
             </widget>
            </item>
@@ -588,5 +546,38 @@
   </layout>
  </widget>
  <resources/>
- <connections/>
+ <connections>
+  <connection>
+   <sender>sliderExposure</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>sbExposure</receiver>
+   <slot>setValue(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>226</x>
+     <y>197</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>420</x>
+     <y>199</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>sbExposure</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>sliderExposure</receiver>
+   <slot>setValue(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>453</x>
+     <y>212</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>297</x>
+     <y>200</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>

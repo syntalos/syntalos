@@ -85,7 +85,7 @@ public:
             return false;
         }
 
-        if (!m_camera->isValid() && !m_camera->setup(camSerial)) {
+        if (!m_camera->setup(camSerial)) {
             raiseError(QStringLiteral("Unable to setup FLIR camera (serial: %1), can not continue").arg(camSerial));
             return false;
         }
@@ -116,13 +116,33 @@ public:
             return;
         }
 
+        const auto actualFramerate = m_camera->actualFramerate();
+
+        // set up clock synchronizer
+        auto clockSync = initClockSynchronizer(actualFramerate);
+        clockSync->setStrategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD);
+
+        // permit tolerance of about a frame
+        clockSync->setTolerance(microseconds_t(static_cast<long>((1000.0 / actualFramerate) * 1000.0)));
+        clockSync->setCheckInterval(milliseconds_t(qRound((1000.0 / actualFramerate) + 4)));
+
+        // start the synchronizer
+        if (!clockSync->start()) {
+            raiseError(QStringLiteral("Unable to set up clock synchronizer!"));
+            m_camera->endAcquisition();
+            return;
+        }
+
         // wait until we actually start acquiring data
         waitCondition->wait(this);
 
-        statusMessage(QStringLiteral("Recording (max %1 FPS)").arg(qRound(m_camera->actualFramerate()), 4));
+        // set up remaining pieces now that we are running, then start retrieving frames
+        statusMessage(QStringLiteral("Recording (max %1 FPS)").arg(qRound(actualFramerate), 4));
+        const auto clockSyncPtr = clockSync.get();
+        m_camera->setStartTime(m_syTimer->startTime());
         while (m_running) {
             Frame frame;
-            if (!m_camera->acquireFrame(frame)) {
+            if (!m_camera->acquireFrame(frame, clockSyncPtr)) {
                 m_running = false;
                 raiseError(QStringLiteral("Unable to acquire frame: %1").arg(m_camera->lastError()));
                 continue;
@@ -132,7 +152,9 @@ public:
             m_outStream->push(frame);
         }
 
+        // finalize acquisition and clock synchronizer
         m_camera->endAcquisition();
+        clockSync->stop();
     }
 
     void stop() override

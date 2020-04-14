@@ -32,12 +32,18 @@ public:
     {}
 
     QString lastError;
+    std::chrono::time_point<symaster_clock> startTime;
     spn::SystemPtr system;
     spn::CameraPtr cam;
 
     cv::Size resolution;
     int framerate;
     double actualFramerate;
+
+    long exposureTimeUs;
+    double gainDb;
+
+    time_t timestampIncrementValue;
 };
 #pragma GCC diagnostic pop
 
@@ -47,6 +53,7 @@ FLIRCamera::FLIRCamera(const Spinnaker::SystemPtr system)
     d->system = system;
     d->framerate = 30;
     d->resolution = cv::Size(540, 540);
+    d->exposureTimeUs = 500;
 }
 
 FLIRCamera::~FLIRCamera()
@@ -74,6 +81,11 @@ bool FLIRCamera::isValid() const
     return d->cam.IsValid();
 }
 
+bool FLIRCamera::isRunning() const
+{
+    return isValid() && d->cam->IsInitialized();
+}
+
 QString FLIRCamera::serial() const
 {
     if (!isValid())
@@ -87,6 +99,11 @@ QString FLIRCamera::serial() const
     }
 
     return QString();
+}
+
+void FLIRCamera::setStartTime(const symaster_timepoint &time)
+{
+    d->startTime = time;
 }
 
 QString FLIRCamera::lastError() const
@@ -138,8 +155,29 @@ static bool disableGEVHeartbeat(spn_ga::INodeMap& nodeMap, spn_ga::INodeMap& nod
 }
 #endif
 
-bool FLIRCamera::applyCamParameters(Spinnaker::GenApi::INodeMap &nodeMap)
+bool FLIRCamera::applyCamParameters(spn_ga::INodeMap &nodeMap)
 {
+    // get timestamp increment value
+    d->timestampIncrementValue = 1;
+    spn_ga::CIntegerPtr ptrTSIncrement = nodeMap.GetNode("TimestampIncrement");
+    if (IsAvailable(ptrTSIncrement)) {
+        // apparently the device clocks tick in nanoseconds, we need the increment
+        // factor to get the actual time later
+        d->timestampIncrementValue = ptrTSIncrement->GetValue();
+    }
+
+    // activate chunk mode
+    spn_ga::CBooleanPtr ptrChunkModeActive = nodeMap.GetNode("ChunkModeActive");
+    if (!IsAvailable(ptrChunkModeActive) || !IsWritable(ptrChunkModeActive)) {
+        d->lastError = QStringLiteral("Unable to activate chunk mode. Can not continue.");
+        return false;
+    }
+    ptrChunkModeActive->SetValue(true);
+
+    // enable timestamp chunks
+    d->cam->ChunkSelector.SetValue(spn::ChunkSelector_Timestamp);
+    d->cam->ChunkEnable.SetValue(true);
+
     // set image width
     spn_ga::CIntegerPtr ptrWidth = nodeMap.GetNode("Width");
     if (IsAvailable(ptrWidth) && IsWritable(ptrWidth)) {
@@ -162,7 +200,15 @@ bool FLIRCamera::applyCamParameters(Spinnaker::GenApi::INodeMap &nodeMap)
         return false;
     }
 
-    // set framerate
+    // exposure settings
+    d->cam->ExposureAuto.SetValue(spn::ExposureAuto_Off);
+    d->cam->ExposureTime.SetValue(d->exposureTimeUs);
+
+    // gain settings
+    d->cam->GainAuto.SetValue(spn::GainAuto_Off);
+    d->cam->Gain.SetValue(d->gainDb);
+
+    // set framerate (has to be last, as it ultimately depends on the other settings)
     spn_ga::CBooleanPtr ptrAcqFPSEnable = nodeMap.GetNode("AcquisitionFrameRateEnable");
     if (IsAvailable(ptrAcqFPSEnable) && IsWritable(ptrAcqFPSEnable)) {
         ptrAcqFPSEnable->SetValue(true);
@@ -182,7 +228,7 @@ bool FLIRCamera::applyCamParameters(Spinnaker::GenApi::INodeMap &nodeMap)
 
     // retrieve actual framerate
     d->actualFramerate = d->framerate;
-    spn_ga::CFloatPtr ptrResFramerate = nodeMap.GetNode("ResultingFrameRate");
+    spn_ga::CFloatPtr ptrResFramerate = nodeMap.GetNode("AcquisitionResultingFrameRate");
     if (IsAvailable(ptrResFramerate))
         d->actualFramerate = ptrResFramerate->GetValue();
 
@@ -233,8 +279,6 @@ bool FLIRCamera::initAcquisition()
         d->cam->BeginAcquisition();
     } catch (Spinnaker::Exception& e) {
         d->lastError = QString::fromStdString(e.what());
-        if (d->cam->IsInitialized())
-            d->cam->DeInit();
         return false;
     }
 
@@ -250,16 +294,16 @@ void FLIRCamera::endAcquisition()
         d->cam->DeInit();
 }
 
-bool FLIRCamera::acquireFrame(Frame &frame)
+bool FLIRCamera::acquireFrame(Frame &frame, SecondaryClockSynchronizer *clockSync)
 {
     try {
         // retrieve next received image and ensure image completion
-        auto image = d->cam->GetNextImage(1000);
-
+        spn::ImagePtr image;
+        auto frameRecvTime = FUNC_EXEC_TIMESTAMP(d->startTime, image = d->cam->GetNextImage(1000));
         if (image->IsIncomplete()) {
-            qDebug("FLIR Camera %s: Frame dropped, image status was %d", qPrintable(serial()), image->GetImageStatus());
+            d->lastError = QStringLiteral("FLIR Camera %1: Frame dropped, image status was %1").arg(serial()).arg(image->GetImageStatus());
             image->Release();
-            return true; // FIXME: We don't fail here, but maybe should...
+            return false;
         }
 
         const auto rows = image->GetHeight();
@@ -283,6 +327,16 @@ bool FLIRCamera::acquireFrame(Frame &frame)
         // create deep copy to our final frame
         tmpMat.copyTo(frame.mat);
 
+        const auto chunkData = image->GetChunkData();
+        // get the device timestamp. The device itself runs at nanosecond accuracy using the increment value as stepsize.
+        // so we need to multiply with the increment value to get actual nanoseconds, and then reduce the value to milliseconds
+        const size_t timestampMs = qRound((chunkData.GetTimestamp() * d->timestampIncrementValue) / 1000.0 / 1000.0);
+
+        // adjust the received time if necessary, gather clock sync information
+        // for some reason the timestamp occasionally is stuck at zero
+        clockSync->processTimestamp(frameRecvTime, milliseconds_t(timestampMs));
+        frame.time = frameRecvTime;
+
         // release image
         image->Release();
     }
@@ -301,6 +355,22 @@ void FLIRCamera::setResolution(const cv::Size &size)
 void FLIRCamera::setFramerate(int fps)
 {
     d->framerate = fps;
+}
+
+void FLIRCamera::setExposureTime(microseconds_t time)
+{
+    d->exposureTimeUs= time.count();
+    if (!isRunning())
+        return;
+    d->cam->ExposureTime.SetValue(time.count());
+}
+
+void FLIRCamera::setGain(double gainDb)
+{
+    d->gainDb = gainDb;
+    if (!isRunning())
+        return;
+    d->cam->Gain.SetValue(gainDb);
 }
 
 double FLIRCamera::actualFramerate() const

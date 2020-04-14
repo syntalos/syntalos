@@ -46,17 +46,23 @@ public:
      */
     bool setup(const QString &serial);
     bool isValid() const;
+    bool isRunning() const;
     QString serial() const;
+    void setStartTime(const symaster_timepoint &time);
 
     QString lastError() const;
 
     bool initAcquisition();
     void endAcquisition();
 
-    bool acquireFrame(Frame &frame);
+    bool acquireFrame(Frame &frame, SecondaryClockSynchronizer *clockSync);
 
     void setResolution(const cv::Size &size);
     void setFramerate(int fps);
+
+    void setExposureTime(microseconds_t time);
+    void setGain(double gainDb);
+
 
     double actualFramerate() const;
 

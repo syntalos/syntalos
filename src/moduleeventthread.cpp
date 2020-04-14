@@ -89,7 +89,6 @@ QString ModuleEventThread::threadName() const
 void ModuleEventThread::setFailed(bool failed)
 {
     d->failed = failed;
-    shutdownThread();
 }
 
 static gboolean timerEventDispatch(gpointer udata)
