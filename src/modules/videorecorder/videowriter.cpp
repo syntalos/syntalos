@@ -23,7 +23,6 @@
 #include <iostream>
 #include <atomic>
 #include <thread>
-#include <mutex>
 #include <queue>
 #include <fstream>
 #include <boost/format.hpp>
@@ -113,7 +112,6 @@ class VideoWriter::VideoWriterData
 {
 public:
     VideoWriterData()
-        : thread(nullptr)
     {
         initialized = false;
         codec = VideoCodec::VP9;
@@ -133,9 +131,6 @@ public:
     }
 
     std::string lastError;
-    std::thread *thread;
-    std::mutex mutex;
-    std::queue<Frame> frameQueue;
 
     std::string fnameBase;
     uint fileSliceIntervalMin;
@@ -144,7 +139,6 @@ public:
     VideoContainer container;
 
     bool initialized;
-    std::atomic_bool acceptFrames;
     int width;
     int height;
     AVRational fps;
@@ -421,16 +415,8 @@ void VideoWriter::initializeInternal()
     d->initialized = true;
 }
 
-void VideoWriter::finalizeInternal(bool writeTrailer, bool stopRecThread)
+void VideoWriter::finalizeInternal(bool writeTrailer)
 {
-    // stop encoding frames and write the last bits to disk.
-    // wait for the encoding thread to join.
-    // if no thread was running, do nothing
-    // (unless of course we are in the recording thread and just want to start
-    // a new file, in this case `stopRecThread` will be set to false)
-    if (stopRecThread)
-        stopEncodeThread();
-
     if (d->initialized) {
         if (d->vstrm != nullptr)
             avcodec_send_frame(d->cctx, nullptr);
@@ -492,14 +478,11 @@ void VideoWriter::initialize(std::string fname, int width, int height, int fps, 
 
     // initialize encoder
     initializeInternal();
-
-    // start encoding data
-    startEncodeThread();
 }
 
 void VideoWriter::finalize()
 {
-    finalizeInternal(true, true);
+    finalizeInternal(true);
 }
 
 bool VideoWriter::initialized() const
@@ -631,8 +614,8 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::milliseco
         if (tsMin >= (d->fileSliceIntervalMin * d->currentSliceNo)) {
             try {
                 // we need to start a new file now since the maximum time for this file has elapsed,
-                // so finalize this one without suspending the thread we are currently in
-                finalizeInternal(true, false);
+                // so finalize this one
+                finalizeInternal(true);
 
                 // increment current slice number and attempt to reinitialize recording.
                 d->currentSliceNo += 1;
@@ -640,50 +623,11 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::milliseco
             } catch (const std::exception& e) {
                 // propagate error and stop encoding thread, as we can not really recover from this
                 d->lastError = e.what();
-                d->acceptFrames = false;
+                return false;
             }
         }
     }
 
-    return true;
-}
-
-void VideoWriter::startEncodeThread()
-{
-    assert(d->initialized);
-
-    // clear last error message
-    d->lastError.clear();
-    stopEncodeThread();
-    while (!d->frameQueue.empty())
-        d->frameQueue.pop();
-    d->acceptFrames = true;
-    d->thread = new std::thread(encodeThread, this);
-}
-
-void VideoWriter::stopEncodeThread()
-{
-    if (d->thread == nullptr)
-        return;
-    assert(d->initialized);
-
-    d->acceptFrames = false;
-    d->thread->join();
-    delete d->thread;
-    d->thread = nullptr;
-}
-
-bool VideoWriter::pushFrame(const Frame &frame)
-{
-    std::lock_guard<std::mutex> lock(d->mutex);
-    if (!d->acceptFrames)
-        return false;
-    if (d->frameQueue.size() > FRAME_QUEUE_MAX_COUNT) {
-        d->lastError = "Frame encoding buffer was full and new frame could not be added. Maybe either encoding calculations or storage are too slow.";
-        return false;
-    }
-
-    d->frameQueue.push(frame);
     return true;
 }
 
@@ -745,30 +689,4 @@ std::string VideoWriter::lastError() const
 void VideoWriter::setContainer(VideoContainer container)
 {
     d->container = container;
-}
-
-void VideoWriter::encodeThread(void *vwPtr)
-{
-    VideoWriter *self = static_cast<VideoWriter*> (vwPtr);
-
-    while (self->d->acceptFrames) {
-        cv::Mat frame;
-        std::chrono::milliseconds timestamp;
-        while (self->getNextFrameFromQueue(&frame, &timestamp)) {
-            self->encodeFrame(frame, timestamp);
-        }
-    }
-}
-
-bool VideoWriter::getNextFrameFromQueue(cv::Mat *data, milliseconds_t *timestamp)
-{
-    std::lock_guard<std::mutex> lock(d->mutex);
-    if (d->frameQueue.empty())
-        return false;
-
-    const auto frame = d->frameQueue.front();
-    *data = frame.mat;
-    *timestamp = frame.time;
-    d->frameQueue.pop();
-    return true;
 }

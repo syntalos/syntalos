@@ -89,7 +89,7 @@ public:
     std::chrono::milliseconds captureStartTimestamp() const;
     void setCaptureStartTimestamp(const std::chrono::milliseconds& startTimestamp);
 
-    bool pushFrame(const Frame &frame);
+    bool encodeFrame(const cv::Mat& frame, const std::chrono::milliseconds& timestamp);
 
     VideoCodec codec() const;
     void setCodec(VideoCodec codec);
@@ -114,13 +114,8 @@ private:
     std::unique_ptr<VideoWriterData> d;
 
     void initializeInternal();
-    void finalizeInternal(bool writeTrailer, bool stopRecThread = true);
-    static void encodeThread(void* vwPtr);
-    bool getNextFrameFromQueue(cv::Mat *data, milliseconds_t *timestamp);
+    void finalizeInternal(bool writeTrailer);
     bool prepareFrame(const cv::Mat &inImage);
-    bool encodeFrame(const cv::Mat& frame, const std::chrono::milliseconds& timestamp);
-    void startEncodeThread();
-    void stopEncodeThread();
 };
 
 #endif // VIDEOWRITER_H

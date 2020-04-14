@@ -68,7 +68,7 @@ public:
 
     ModuleFeatures features() const override
     {
-        return ModuleFeature::RUN_EVENTS |
+        return ModuleFeature::RUN_THREADED |
                ModuleFeature::SHOW_SETTINGS;
     }
 
@@ -102,9 +102,6 @@ public:
         // don't permit configuration changes while we are running
         m_settingsDialog->setEnabled(false);
 
-        // register a new timer event of 0msec, so we are run as much as possible
-        registerTimedEvent(&VideoRecorderModule::processFrames, milliseconds_t(0));
-
         return true;
     }
 
@@ -125,7 +122,7 @@ public:
             m_vidDataset = getOrCreateDefaultDataset(m_settingsDialog->videoName());
     }
 
-    void processFrames(int&)
+    void runThread(OptionalWaitCondition *startWaitCondition) override
     {
         if (!m_recording) {
             // just exit if we aren't subscribed to any data source
@@ -133,67 +130,78 @@ public:
             return;
         }
 
-        const auto maybeFrame = m_inSub->peekNext();
-        if (!maybeFrame.has_value())
-            return;
-        const auto frame = maybeFrame.value();
+        // wait for the current run to actually launch
+        startWaitCondition->wait(this);
 
-        if (!m_initDone) {
-            const auto mdata = m_inSub->metadata();
-            auto frameSize = mdata.value("size", QSize()).toSize();
-            const auto framerate = mdata.value("framerate", 0).toInt();
-            const auto useColor = mdata.value("has_color", frame.mat.channels() > 1).toBool();
+        while (m_running) {
+            const auto maybeFrame = m_inSub->next();
+            // getting a nullopt means we can quit this thread, as the experiment has stopped or
+            // the data source has completed delivering data and will not send any more
+            if (!maybeFrame.has_value())
+                break;
+            const auto frame = maybeFrame.value();
 
-            if (!frameSize.isValid()) {
-                // we didn't get the dimensions from metadata - let's see if the current frame can
-                // be used to get dimensions.
-                frameSize = QSize(frame.mat.cols, frame.mat.rows);
+            if (!m_initDone) {
+                const auto mdata = m_inSub->metadata();
+                auto frameSize = mdata.value("size", QSize()).toSize();
+                const auto framerate = mdata.value("framerate", 0).toInt();
+                const auto useColor = mdata.value("has_color", frame.mat.channels() > 1).toBool();
+
+                if (!frameSize.isValid()) {
+                    // we didn't get the dimensions from metadata - let's see if the current frame can
+                    // be used to get dimensions.
+                    frameSize = QSize(frame.mat.cols, frame.mat.rows);
+                }
+
+                if (!frameSize.isValid()) {
+                    raiseError(QStringLiteral("Frame source did not provide image dimensions!"));
+                    return;
+                }
+                if (framerate == 0) {
+                    raiseError(QStringLiteral("Frame source did not provide a framerate!"));
+                    return;
+                }
+
+                const auto dataBasename = dataBasenameFromSubMetadata(m_inSub->metadata(), "video");
+                const auto vidSavePathBase = m_vidDataset->pathForDataBasename(dataBasename);
+                m_vidDataset->setDataScanPattern(QStringLiteral("%1*").arg(dataBasename));
+                m_vidDataset->setAuxDataScanPattern(QStringLiteral("%1*.csv").arg(dataBasename));
+
+                try {
+                    m_videoWriter->initialize(vidSavePathBase.toStdString(),
+                                              frameSize.width(),
+                                              frameSize.height(),
+                                              framerate,
+                                              useColor,
+                                              m_settingsDialog->saveTimestamps());
+                } catch (const std::runtime_error& e) {
+                    raiseError(QStringLiteral("Unable to initialize recording: %1").arg(e.what()));
+                    return;
+                }
+
+                // write info video info file with auxiliary information about the video we encoded
+                // (this is useful to gather intel about the video without opening the video file)
+                QVariantHash vInfo;
+                vInfo.insert("frame_width", frameSize.width());
+                vInfo.insert("frame_height", frameSize.height());
+                vInfo.insert("framerate", framerate);
+                vInfo.insert("colored", useColor);
+                m_vidDataset->insertAttribute(QStringLiteral("video"), vInfo);
+
+                // signal that we are actually recording this session
+                m_initDone = true;
+                statusMessage(QStringLiteral("Recording video..."));
             }
 
-            if (!frameSize.isValid()) {
-                raiseError(QStringLiteral("Frame source did not provide image dimensions!"));
-                return;
+            // encode current frame
+            if (!m_videoWriter->encodeFrame(frame.mat, frame.time)) {
+                if (m_videoWriter->lastError().empty())
+                    raiseError(QStringLiteral("Unable to encode frame"));
+                else
+                    raiseError(QString::fromStdString(m_videoWriter->lastError()));
+                m_running = false;
+                break;
             }
-            if (framerate == 0) {
-                raiseError(QStringLiteral("Frame source did not provide a framerate!"));
-                return;
-            }
-
-            const auto dataBasename = dataBasenameFromSubMetadata(m_inSub->metadata(), "video");
-            const auto vidSavePathBase = m_vidDataset->pathForDataBasename(dataBasename);
-            m_vidDataset->setDataScanPattern(QStringLiteral("%1*").arg(dataBasename));
-            m_vidDataset->setAuxDataScanPattern(QStringLiteral("%1*.csv").arg(dataBasename));
-
-            try {
-                m_videoWriter->initialize(vidSavePathBase.toStdString(),
-                                          frameSize.width(),
-                                          frameSize.height(),
-                                          framerate,
-                                          useColor,
-                                          m_settingsDialog->saveTimestamps());
-            } catch (const std::runtime_error& e) {
-                raiseError(QStringLiteral("Unable to initialize recording: %1").arg(e.what()));
-                return;
-            }
-
-            // write info video info file with auxiliary information about the video we encoded
-            // (this is useful to gather intel about the video without opening the video file)
-            QVariantHash vInfo;
-            vInfo.insert("frame_width", frameSize.width());
-            vInfo.insert("frame_height", frameSize.height());
-            vInfo.insert("framerate", framerate);
-            vInfo.insert("colored", useColor);
-            m_vidDataset->insertAttribute(QStringLiteral("video"), vInfo);
-
-            // signal that we are actually recording this session
-            m_initDone = true;
-            statusMessage(QStringLiteral("Recording video..."));
-        }
-
-        // write video data
-        if (!m_videoWriter->pushFrame(frame)) {
-            raiseError(QString::fromStdString(m_videoWriter->lastError()));
-            return;
         }
     }
 
