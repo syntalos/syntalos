@@ -33,7 +33,7 @@ private:
     GenericCameraSettingsDialog *m_camSettingsWindow;
 
     std::atomic_bool m_stopped;
-    int m_fps;
+    double m_fps;
     std::shared_ptr<DataStream<Frame>> m_outStream;
 
     std::unique_ptr<SecondaryClockSynchronizer> m_clockSync;
@@ -154,7 +154,7 @@ public:
 
             // wait a bit if necessary, to keep the right framerate
             const auto cycleTime = timeDiffToNowMsec(cycleStartTime);
-            const auto extraWaitTime = std::chrono::milliseconds((1000 / m_fps) - cycleTime.count() + (m_clockSync->clockCorrectionOffset().count() / 2));
+            const auto extraWaitTime = std::chrono::milliseconds(qRound(1000 / m_fps) - cycleTime.count() + (m_clockSync->clockCorrectionOffset().count() / 2));
             if (extraWaitTime.count() > 0)
                 std::this_thread::sleep_for(extraWaitTime);
 

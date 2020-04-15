@@ -37,10 +37,10 @@ private:
     CanvasWindow *m_cvView;
     QTimer *m_evTimer;
 
-    int m_realFps;
-    int m_displayFps;
+    double m_realFps;
+    double m_displayFps;
     long m_lastFrameTime;
-    int m_currentFps;
+    double m_currentFps;
     double m_avgFrameTimeDiffMsec;
     QString m_throttleRemark;
 
@@ -83,7 +83,7 @@ public:
 
         // check framerate and throttle it, showing a remark in the latter
         // case so the user is aware that they're not seeing every single frame
-        m_realFps = m_frameSub->metadata().value("framerate", 0).toInt();
+        m_realFps = m_frameSub->metadata().value("framerate", 0).toDouble();
         m_throttleRemark = (m_realFps > 50)? QStringLiteral("rate lowered for display, original:") : QStringLiteral("req.");
         m_displayFps = m_realFps;
         if (m_displayFps > 50)

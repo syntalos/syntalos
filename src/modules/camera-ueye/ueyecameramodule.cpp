@@ -36,7 +36,7 @@ private:
     std::shared_ptr<DataStream<Frame>> m_outStream;
 
     UEyeCameraSettingsDialog *m_camSettingsWindow;
-    int m_fps;
+    double m_fps;
     std::atomic_int m_currentFps;
 
 public:

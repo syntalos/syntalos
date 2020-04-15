@@ -144,7 +144,7 @@ public:
             if (!m_initDone) {
                 const auto mdata = m_inSub->metadata();
                 auto frameSize = mdata.value("size", QSize()).toSize();
-                const auto framerate = mdata.value("framerate", 0).toInt();
+                const auto framerate = mdata.value("framerate", 0).toDouble();
                 const auto useColor = mdata.value("has_color", frame.mat.channels() > 1).toBool();
 
                 if (!frameSize.isValid()) {

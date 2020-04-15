@@ -71,10 +71,12 @@ public:
             setStateIdle();
             return;
         }
-        auto frameSub = m_inPort->subscription();
-        frameSub->setThrottleItemsPerSec(30); // we never want more than 30fps for tracking
 
-        const auto outFramerate = frameSub->metadataValue(QStringLiteral("framerate"), 30);
+        const double MAX_FPS = 30; // we never want more than 30fps for tracking
+        auto frameSub = m_inPort->subscription();
+        frameSub->setThrottleItemsPerSec(MAX_FPS);
+
+        const auto outFramerate = frameSub->metadataValue(QStringLiteral("framerate"), MAX_FPS);
         m_trackStream->setMetadataValue(QStringLiteral("framerate"), outFramerate);
         m_animalStream->setMetadataValue(QStringLiteral("framerate"), outFramerate);
         m_trackStream->start();

@@ -306,6 +306,8 @@ QDataStream& operator>>(QDataStream &inStream, SignalGroup &a)
     inStream >> tempQint16;
     nAmps = (int) tempQint16;
 
+    Q_UNUSED(nAmps)
+
     // Delete all existing SignalChannel objects in this SignalGroup
     a.channel.clear();
 

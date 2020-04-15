@@ -95,11 +95,11 @@ public:
             return false;
         }
 
-        m_rawOut->setMetadataValue("framerate", m_miniscope->fps());
+        m_rawOut->setMetadataValue("framerate", (double) m_miniscope->fps());
         m_rawOut->setMetadataValue("has_color", false);
         m_rawOut->setSuggestedDataName(QStringLiteral("%1/msSlice").arg(datasetNameSuggestion()));
 
-        m_dispOut->setMetadataValue("framerate", m_miniscope->fps());
+        m_dispOut->setMetadataValue("framerate", (double) m_miniscope->fps());
         m_dispOut->setMetadataValue("has_color", false);
         m_dispOut->setSuggestedDataName(QStringLiteral("%1_display/msDisplaySlice").arg(datasetNameSuggestion()));
 

@@ -53,7 +53,7 @@ public:
 
     bool prepare(const TestSubject &) override
     {
-        m_frameOut->setMetadataValue("framerate", 200);
+        m_frameOut->setMetadataValue("framerate", (double) 200);
         m_frameOut->setMetadataValue("size", QSize(800, 600));
         m_frameOut->start();
 

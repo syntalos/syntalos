@@ -91,7 +91,7 @@ public:
         }
 
         const auto resolution = m_camSettingsWindow->resolution();
-        const auto framerate = m_camSettingsWindow->framerate();
+        const double framerate = m_camSettingsWindow->framerate();
         m_camera->setResolution(resolution);
         m_camera->setFramerate(framerate);
 
