@@ -792,9 +792,17 @@
     <property name="title">
      <string>Diagnostics</string>
     </property>
+    <addaction name="actionSystemInfo"/>
     <addaction name="actionTimings"/>
    </widget>
+   <widget class="QMenu" name="menuTool">
+    <property name="title">
+     <string>Tool</string>
+    </property>
+    <addaction name="actionGlobalConfig"/>
+   </widget>
    <addaction name="menuFile"/>
+   <addaction name="menuTool"/>
    <addaction name="menuDiagnostics"/>
    <addaction name="menuHelp"/>
   </widget>
@@ -938,6 +946,22 @@
    </property>
    <property name="toolTip">
     <string>Start ephemeral run (no data will be saved)</string>
+   </property>
+  </action>
+  <action name="actionGlobalConfig">
+   <property name="icon">
+    <iconset theme="settings-configure"/>
+   </property>
+   <property name="text">
+    <string>Global Settings</string>
+   </property>
+  </action>
+  <action name="actionSystemInfo">
+   <property name="icon">
+    <iconset theme="cpu"/>
+   </property>
+   <property name="text">
+    <string>System</string>
    </property>
   </action>
  </widget>
