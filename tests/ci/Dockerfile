@@ -47,7 +47,8 @@ RUN DEBIAN_FRONTEND=noninteractive eatmydata apt-get install -yq --no-install-re
     gobject-introspection \
     libgirepository1.0-dev \
     libusb-1.0-0-dev \
-    libzip-dev
+    libzip-dev \
+    libudev-dev
 
 # build & install 3rd-party libraries
 RUN mkdir -p /build/extra
