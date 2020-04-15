@@ -84,6 +84,11 @@ set(SY_BASE_LIBS ${CMAKE_THREAD_LIBS_INIT}
                  Eigen3::Eigen
 )
 
+# ensure our Qt version is sufficient
+if (Qt5Core_VERSION VERSION_LESS 5.12)
+    message(FATAL_ERROR "We need at least Qt 5.12 to build." ${Qt5_DIR} ${QT_QMAKE_EXECUTABLE})
+endif()
+
 #
 # Config file
 #
