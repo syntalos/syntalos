@@ -24,7 +24,7 @@
 
 const QString aboutDlgCopyInfo = QStringLiteral(
         "<html>"
-        "(c) 2016-2019 Matthias Klumpp"
+        "(c) 2016-2020 Matthias Klumpp"
         "<p>Syntalos is free software: you can redistribute it and/or modify "
         "it under the terms of the GNU General Public License as published by "
         "the Free Software Foundation, either version 3 of the License, or "
@@ -33,8 +33,7 @@ const QString aboutDlgCopyInfo = QStringLiteral(
         "but WITHOUT ANY WARRANTY; without even the implied warranty of "
         "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the "
         "GNU General Public License for more details.</p>"
-        "<p>Icons based on <a href=\"https://github.com/PapirusDevelopmentTeam/papirus-icon-theme\">Papirus Icons</a> [GPLv3+],<br/>"
-        "as well as Breeze Icons by the <a href=\"https://kde.org/\">KDE Community</a> [LGPLv3+]</p>"
+        "<p>Icons are based on the Breeze Iconset by the <a href=\"https://kde.org/\">KDE Community</a> [LGPLv3+]</p>"
         "<h3>Modules:</h3>");
 
 AboutDialog::AboutDialog(QWidget *parent) :
