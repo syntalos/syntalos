@@ -275,7 +275,7 @@ MainWindow::~MainWindow()
 
 void MainWindow::setRunPossible(bool enabled)
 {
-    ui->actionRun->setEnabled(enabled);
+    ui->actionRun->setEnabled(enabled && m_engine->exportDirIsValid());
     ui->actionRunTemp->setEnabled(enabled);
 }
 
@@ -300,7 +300,7 @@ void MainWindow::runActionTriggered()
     m_engine->run();
 
     setStopPossible(false);
-    setRunPossible(m_engine->exportDirIsValid());
+    setRunPossible(true);
 }
 
 void MainWindow::temporaryRunActionTriggered()
@@ -318,15 +318,15 @@ void MainWindow::temporaryRunActionTriggered()
     ui->actionRunTemp->setEnabled(true);
     ui->runWarnWidget->setVisible(false);
     updateExportDirDisplay();
-    setRunPossible(m_engine->exportDirIsValid());
+    setRunPossible(true);
 }
 
 void MainWindow::stopActionTriggered()
 {
-    setRunPossible(m_engine->exportDirIsValid());
     setStopPossible(false);
-
+    QApplication::processEvents();
     m_engine->stop();
+    setRunPossible(true);
 }
 
 bool MainWindow::saveConfiguration(const QString &fileName)
@@ -713,7 +713,8 @@ void MainWindow::updateExportDirDisplay()
     ui->exportBaseDirLabel->setFont(font);
 
     // we can run as soon as we have a valid base directory
-    setRunPossible(m_engine->exportDirIsValid());
+    if (!m_engine->isRunning())
+        setRunPossible(true);
 
     palette = ui->exportDirLabel->palette();
     palette.setColor(QPalette::WindowText, Qt::black);
@@ -752,7 +753,6 @@ void MainWindow::setStatusText(const QString& msg)
 
 void MainWindow::moduleErrorReceived(AbstractModule *, const QString&)
 {
-    setRunPossible(true);
     setStopPossible(false);
 }
 
@@ -767,6 +767,8 @@ void MainWindow::onEngineStopped()
 {
     m_rtElapsedTimer->stop();
     hideBusyIndicator();
+    setRunPossible(true);
+    setStopPossible(false);
 }
 
 void MainWindow::statusMessageChanged(const QString &message)
