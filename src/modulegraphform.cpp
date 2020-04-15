@@ -35,6 +35,7 @@ ModuleGraphForm::ModuleGraphForm(QWidget *parent)
     : QWidget(parent),
       ui(new Ui::ModuleGraphForm),
       m_engine(new Engine(this)),
+      m_modifyPossible(true),
       m_shutdown(false)
 {
     ui->setupUi(this);
