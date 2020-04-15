@@ -37,7 +37,8 @@ private:
     CanvasWindow *m_cvView;
     QTimer *m_evTimer;
 
-    int m_fps;
+    int m_realFps;
+    int m_displayFps;
     long m_lastFrameTime;
     int m_currentFps;
     double m_avgFrameTimeDiffMsec;
@@ -82,12 +83,15 @@ public:
 
         // check framerate and throttle it, showing a remark in the latter
         // case so the user is aware that they're not seeing every single frame
-        m_fps = m_frameSub->metadata().value("framerate", 0).toInt();
-        m_throttleRemark = (m_fps > 50)? QStringLiteral("rate lowered for display, original:") : QStringLiteral("req.");
+        m_realFps = m_frameSub->metadata().value("framerate", 0).toInt();
+        m_throttleRemark = (m_realFps > 50)? QStringLiteral("rate lowered for display, original:") : QStringLiteral("req.");
+        m_displayFps = m_realFps;
+        if (m_displayFps > 50)
+            m_displayFps = 50;
         m_frameSub->setThrottleItemsPerSec(50); // never try to display more than 50fps
 
         // assume perfect frame diff for now
-        m_avgFrameTimeDiffMsec = 1000.0 / m_fps;
+        m_avgFrameTimeDiffMsec = 1000.0 / m_displayFps;
 
         auto imgWinTitle = m_frameSub->metadataValue(CommonMetadataKey::SrcModName).toString();
         if (imgWinTitle.isEmpty())
@@ -115,24 +119,24 @@ public:
         m_cvView->showImage(frame.mat);
         const auto frameTime = frame.time.count();
 
-        if (m_fps == 0) {
+        if (m_realFps == 0) {
             m_cvView->setStatusText(QTime::fromMSecsSinceStartOfDay(frameTime).toString("hh:mm:ss.zzz"));
         } else {
             // we use a moving average of the inter-frame-time over two seconds, as the framerate occasionally fluctuates
             // (especially when throttling the subscription) and we want to display a more steady (but accurate)
             // info to the user instead, without twitching around too much
-            m_avgFrameTimeDiffMsec = ((m_avgFrameTimeDiffMsec * (m_fps * 2)) + (frameTime - m_lastFrameTime)) / ((m_fps * 2) + 1);
+            m_avgFrameTimeDiffMsec = ((m_avgFrameTimeDiffMsec * (m_displayFps * 2)) + (frameTime - m_lastFrameTime)) / ((m_displayFps * 2) + 1);
             m_lastFrameTime = frameTime;
             if (m_avgFrameTimeDiffMsec > 0)
                 m_currentFps = std::round(1000.0 / m_avgFrameTimeDiffMsec);
             else
-                m_currentFps = m_fps;
+                m_currentFps = m_displayFps;
 
             m_cvView->setStatusText(QStringLiteral("%1 / %2fps (%3 %4fps)")
                                     .arg(QTime::fromMSecsSinceStartOfDay(frameTime).toString("hh:mm:ss.zzz"))
                                     .arg(m_currentFps)
                                     .arg(m_throttleRemark)
-                                    .arg(m_fps));
+                                    .arg(m_realFps));
         }
     }
 };

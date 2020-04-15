@@ -64,7 +64,8 @@ CanvasWindow::CanvasWindow(QWidget *parent)
 
 void CanvasWindow::showImage(const cv::Mat &image)
 {
-    m_imgView->showImage(image);
+    if (isVisible())
+        m_imgView->showImage(image);
 }
 
 void CanvasWindow::setStatusText(const QString &text)
