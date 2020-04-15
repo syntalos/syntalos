@@ -73,6 +73,7 @@ find_package(KF5DBusAddons REQUIRED)
 
 find_package(OpenCV REQUIRED)
 find_package(OpenGL REQUIRED)
+pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0 gstreamer-app-1.0 gstreamer-video-1.0)
 
 # essential dependencies definitely required by
 # anything using the Syntalos API

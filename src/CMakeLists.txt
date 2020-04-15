@@ -107,7 +107,7 @@ target_link_libraries(syntalos
     ${GLIB_LIBRARIES}
     ${OPENGL_LIBRARIES}
     ${OpenCV_LIBS}
-    ${UEYE_LIBS}
+    ${GSTREAMER_LIBRARIES}
     ${MA_EXTRA_LIBS}
 
     ${MA_MODULE_LIBS}
@@ -118,6 +118,7 @@ include_directories(
     ${GLIB_INCLUDE_DIRS}
     ${TOML_INCLUDE_DIRS}
     ${OpenCV_INCLUDE_DIRS}
+    ${GSTREAMER_INCLUDE_DIRS}
 )
 
 install(TARGETS syntalos DESTINATION ${CMAKE_INSTALL_BINDIR})

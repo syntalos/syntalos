@@ -38,7 +38,9 @@ RUN DEBIAN_FRONTEND=noninteractive eatmydata apt-get install -yq --no-install-re
     uuid-dev \
     libkf5archive-dev \
     libkf5texteditor-dev \
-    python3-numpy
+    python3-numpy \
+    libgstreamer1.0-dev \
+    libgstreamer-plugins-base1.0-dev
 
 # build & install 3rd-party libraries
 RUN mkdir -p /build/extra

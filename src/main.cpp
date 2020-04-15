@@ -19,20 +19,20 @@
 
 #include "config.h"
 #include <QApplication>
-#include <QSplashScreen>
-#include <QTimer>
-#include <QTime>
-#include <QDebug>
 #include <KDBusService>
+#include <gst/gst.h>
 
 #include "mainwindow.h"
-
 
 int main(int argc, char *argv[])
 {
     // set random seed
     srand(static_cast<uint>(time(nullptr)));
 
+    // initialize GStreamer so modules can use it if they need to
+    gst_init(&argc,&argv);
+
+    // set up GUI application and application details
     QApplication app(argc, argv);
     app.setApplicationName("Syntalos");
     app.setOrganizationDomain("uni-heidelberg.de");
@@ -41,6 +41,7 @@ int main(int argc, char *argv[])
     // ensure we only ever run one instance of the application
     KDBusService service(KDBusService::Unique);
 
+    // create main view and run the application
     MainWindow w;
     w.show();
     return app.exec();
