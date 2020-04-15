@@ -20,24 +20,44 @@
 #include "tiscameramodule.h"
 
 #include <QDebug>
+#include <gst/app/gstappsink.h>
 #include "streams/frametype.h"
+
+#include "cdeviceselectiondlg.h"
+#include "cpropertiesdialog.h"
+#include "tcamcamera.h"
 
 class TISCameraModule : public AbstractModule
 {
     Q_OBJECT
 private:
-
+    CPropertiesDialog *m_propDialog;
     std::shared_ptr<DataStream<Frame>> m_outStream;
+
+    gsttcam::TcamCamera *m_camera;
+    QString m_camSerial;
+    double m_fps;
+    cv::Size m_resolution;
 
 public:
     explicit TISCameraModule(QObject *parent = nullptr)
-        : AbstractModule(parent)
+        : AbstractModule(parent),
+          m_propDialog(nullptr),
+          m_camera(nullptr)
     {
         m_outStream = registerOutputPort<Frame>(QStringLiteral("video"), QStringLiteral("Video"));
+
+        createNewPropertiesDialog();
     }
 
     ~TISCameraModule()
     {
+        if (m_propDialog != nullptr)
+            delete m_propDialog;
+        if (m_camera != nullptr) {
+            m_camera->stop();
+            delete m_camera;
+        }
     }
 
     ModuleFeatures features() const override
@@ -46,23 +66,185 @@ public:
                ModuleFeature::SHOW_SETTINGS;
     }
 
+    void createNewPropertiesDialog()
+    {
+        if (m_propDialog != nullptr) {
+            m_propDialog->hide();
+            m_propDialog->deleteLater();
+        }
+        m_propDialog = new CPropertiesDialog;
+        connect(m_propDialog, &CPropertiesDialog::deviceSelectClicked, this, &TISCameraModule::onDeviceSelectClicked);
+        m_propDialog->setWindowTitle(QStringLiteral("%1 - Settings").arg(name()));
+    }
+
+    void showSettingsUi() override
+    {
+        m_propDialog->setWindowTitle(QStringLiteral("%1 - Settings").arg(name()));
+        m_propDialog->show();
+        m_propDialog->raise();
+    }
+
+    bool isSettingsUiVisible() override
+    {
+        return m_propDialog->isVisible();
+    }
+
+    void hideSettingsUi() override
+    {
+        m_propDialog->hide();
+    }
+
+    void onDeviceSelectClicked()
+    {
+        if (m_running)
+            return;
+        m_propDialog->hide();
+        CDeviceSelectionDlg devSelDlg(m_propDialog);
+        if (devSelDlg.exec() != QDialog::Accepted) {
+            m_propDialog->show();
+            return;
+        }
+
+        const auto serial = devSelDlg.getSerialNumber();
+        const auto width = devSelDlg.getWidth();
+        const auto height = devSelDlg.getHeight();
+        const auto fps1 = devSelDlg.getFPSNominator();
+        const auto fps2 = devSelDlg.getFPSDeNominator();
+
+        m_camSerial = QString::fromStdString(serial);
+        m_fps = (double) fps1 / (double) fps2;
+        m_resolution = cv::Size(width, height);
+
+        if (m_camera != nullptr) {
+            m_camera->stop();
+            delete m_camera;
+        }
+
+        // Instantiate the TcamCamera object with the serial number
+        // of the selected device
+        m_camera = new gsttcam::TcamCamera(serial);
+
+        // Set video format, resolution and frame rate. We display color.
+        m_camera->set_capture_format("BGRx",
+                                     gsttcam::FrameSize{width,height},
+                                     gsttcam::FrameRate{fps1,fps2});
+
+        // delete our old properties dialog, we don't need it anymore
+        // replace it with a new one for the newly selected camera/settings combo
+        createNewPropertiesDialog();
+
+        // Pass the tcambin element to the properties dialog
+        // so in knows, which device do handle
+        const auto camProp = TCAM_PROP(m_camera->getTcamBin());
+        m_propDialog->SetCamera(camProp);
+        m_propDialog->show();
+    }
+
     bool prepare(const TestSubject &) override
     {
+        if (m_camera == nullptr) {
+            raiseError("Unable to continue: No valid camera was selected!");
+            return false;
+        }
+
+        // set the required stream metadata for video capture
+        m_outStream->setMetadataValue("size", QSize(m_resolution.width, m_resolution.height));
+        m_outStream->setMetadataValue("framerate", m_fps);
+
+        // start the stream
+        m_outStream->start();
+
+        statusMessage("Waiting.");
         return true;
     }
 
     void runThread(OptionalWaitCondition *waitCondition) override
     {
+        // set up clock synchronizer
+        const auto clockSync = initClockSynchronizer(m_fps);
+        clockSync->setStrategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD);
+
+        // permit tolerance of about a third of a frame
+        clockSync->setTolerance(microseconds_t(static_cast<long>((1000.0 / m_fps) * 250)));
+
+        // check accuracy roughly every 500msec
+        clockSync->setCheckInterval(milliseconds_t(500));
+
+        // start the synchronizer
+        if (!clockSync->start()) {
+            raiseError(QStringLiteral("Unable to set up clock synchronizer!"));
+            return;
+        }
+
         // wait until we actually start acquiring data
         waitCondition->wait(this);
 
-        while (m_running) {
-
+        if (!m_camera->start()) {
+            raiseError(QStringLiteral("Failed to start image acquisition pipeline."));
+            return;
         }
+
+        statusMessage("Running...");
+        const auto appsink = GST_APP_SINK(m_camera->getCaptureSink());
+        while (m_running) {
+            g_autoptr(GstSample) sample = nullptr;
+            auto frameRecvTime = MTIMER_FUNC_TIMESTAMP(sample = gst_app_sink_pull_sample(appsink));
+            if (sample == nullptr) {
+                // check if the inout stream has ended
+                if (gst_app_sink_is_eos(appsink))
+                    break;
+                continue;
+            }
+
+            const auto buffer = gst_sample_get_buffer(sample);
+            GstMapInfo info;
+
+            gst_buffer_map(buffer, &info, GST_MAP_READ);
+            if (info.data != nullptr) {
+                GstCaps *caps = gst_sample_get_caps(sample);
+                const auto gStr = gst_caps_get_structure (caps, 0);
+
+                // sanity check
+                if( g_strcmp0 (gst_structure_get_string(gStr, "format"), "BGRx") != 0) {
+                    qDebug() << "Received buffer with unsupported format: " << gst_structure_get_string(gStr, "format");
+                    gst_buffer_unmap (buffer, &info);
+                    continue;
+                }
+
+                // create our frame and push it to subscribers
+                Frame frame;
+                frame.mat.create(m_resolution, CV_8UC(4));
+                memcpy(frame.mat.data, info.data, m_resolution.width * m_resolution.height * 4);
+
+                // only do time adjustment if we have a valid timestamp
+                const auto pts = buffer->pts;
+                if (pts != GST_CLOCK_TIME_NONE)
+                    clockSync->processTimestamp(frameRecvTime, std::chrono::duration_cast<milliseconds_t>(nanoseconds_t(pts)));
+                frame.time = frameRecvTime;
+
+                m_outStream->push(frame);
+            }
+
+            // unmap our buffer - all other resources are cleaned up automatically
+            gst_buffer_unmap (buffer, &info);
+        }
+
+        statusMessage("Stopped.");
+        m_camera->stop();
     }
 
     void stop() override
     {
+        // we may have been called after a failure because no camera was selected...
+        // if that's the case, there is already nothing for us left to do
+        if (m_camera == nullptr)
+            return;
+
+        // we may still be blocking on the GStreamer buffer pull, so
+        // we need to stop the pipeline here as well to make sure
+        // we don't deadlock
+        m_running = false;
+        m_camera->stop();
     }
 };
 

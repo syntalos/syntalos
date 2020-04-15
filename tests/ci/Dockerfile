@@ -42,6 +42,13 @@ RUN DEBIAN_FRONTEND=noninteractive eatmydata apt-get install -yq --no-install-re
     libgstreamer1.0-dev \
     libgstreamer-plugins-base1.0-dev
 
+# install additional dependencies
+RUN DEBIAN_FRONTEND=noninteractive eatmydata apt-get install -yq --no-install-recommends \
+    gobject-introspection \
+    libgirepository1.0-dev \
+    libusb-1.0-0-dev \
+    libzip-dev
+
 # build & install 3rd-party libraries
 RUN mkdir -p /build/extra
 WORKDIR /build/extra

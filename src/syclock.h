@@ -28,6 +28,7 @@
 
 Q_DECLARE_METATYPE(std::chrono::milliseconds);
 Q_DECLARE_METATYPE(std::chrono::microseconds);
+Q_DECLARE_METATYPE(std::chrono::nanoseconds);
 
 namespace Syntalos {
 
@@ -64,6 +65,9 @@ using milliseconds_t = std::chrono::milliseconds;
 
 /// Shorthand for microseconds
 using microseconds_t = std::chrono::microseconds;
+
+/// Shorthand for nanoseconds
+using nanoseconds_t = std::chrono::nanoseconds;
 
 inline milliseconds_t timeDiffMsec(const symaster_timepoint &timePoint1, const symaster_timepoint &timePoint2) noexcept
 {
@@ -129,7 +133,7 @@ private:
     F; \
     std::chrono::round<milliseconds_t>((__stime + T->timeSinceStartNsec()) / 2.0); \
     })
-#define MTIMER_FUNC_TIMESTAMP(F) ({TIMER_TIMESTAMP_FUNC(m_syTimer, F)})
+#define MTIMER_FUNC_TIMESTAMP(F) (TIMER_FUNC_TIMESTAMP(m_syTimer, F))
 
 /**
  * Compute a timestamp for "when this function acquired a value".
