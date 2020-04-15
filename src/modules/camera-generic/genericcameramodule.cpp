@@ -221,7 +221,7 @@ public:
 
 QString GenericCameraModuleInfo::id() const
 {
-    return QStringLiteral("generic-camera");
+    return QStringLiteral("camera-generic");
 }
 
 QString GenericCameraModuleInfo::name() const

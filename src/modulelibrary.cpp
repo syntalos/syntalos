@@ -33,12 +33,12 @@
 #include "modules/table/tablemodule.h"
 
 #include "modules/videorecorder/videorecordmodule.h"
-#include "modules/genericcamera/genericcameramodule.h"
+#include "modules/camera-generic/genericcameramodule.h"
 #ifdef HAVE_FLIR_CAMERA
-#include "modules/flircamera/flircameramod.h"
+#include "modules/camera-flir/flircameramod.h"
 #endif
 #ifdef HAVE_UEYE_CAMERA
-#include "modules/ueyecamera/ueyecameramodule.h"
+#include "modules/camera-ueye/ueyecameramodule.h"
 #endif
 #ifdef HAVE_MINISCOPE
 #include "modules/miniscope/miniscopemodule.h"

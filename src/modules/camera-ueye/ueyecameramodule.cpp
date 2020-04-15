@@ -195,7 +195,7 @@ public:
 
 QString UEyeCameraModuleInfo::id() const
 {
-    return QStringLiteral("ueye-camera");
+    return QStringLiteral("camera-ueye");
 }
 
 QString UEyeCameraModuleInfo::name() const

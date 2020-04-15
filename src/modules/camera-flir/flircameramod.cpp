@@ -191,7 +191,7 @@ public:
 
 QString FLIRCameraModuleInfo::id() const
 {
-    return QStringLiteral("flir-camera");
+    return QStringLiteral("camera-flir");
 }
 
 QString FLIRCameraModuleInfo::name() const

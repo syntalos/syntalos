@@ -113,7 +113,7 @@ void ModuleSelectDialog::setModuleInfo(QList<QSharedPointer<ModuleInfo>> infos)
     struct {
         bool operator()(const QSharedPointer<ModuleInfo> &mi1, const QSharedPointer<ModuleInfo> &mi2) const
         {
-            return mi1->name() < mi2->name();
+            return mi1->id() < mi2->id();
         }
     } moduleInfoLess;
 
