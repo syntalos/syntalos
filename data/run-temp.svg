@@ -14,7 +14,7 @@
    sodipodi:docname="run-temp.svg"
    width="24"
    height="24"
-   inkscape:version="1.0beta2 (2b71d25d45, 2019-12-03)">
+   inkscape:version="1.0rc1 (09960d6f05, 2020-04-09)">
   <metadata
      id="metadata10">
     <rdf:RDF>
@@ -23,7 +23,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -58,6 +58,17 @@
   </sodipodi:namedview>
   <defs
      id="defs3051">
+    <linearGradient
+       inkscape:collect="always"
+       id="linearGradient861">
+      <stop
+         style="stop-color:#42a603"
+         id="stop857" />
+      <stop
+         offset="1"
+         style="stop-color:#fdbc4b;stop-opacity:1"
+         id="stop859" />
+    </linearGradient>
     <style
        type="text/css"
        id="current-color-scheme">
@@ -192,14 +203,14 @@
        xlink:href="#linearGradient4298"
        inkscape:collect="always" />
     <linearGradient
-       y2="-16.92522"
-       x2="1.96261"
-       y1="-0.090195999"
-       x1="0.074749999"
+       y2="-15.015227"
+       x2="9.2029886"
+       y1="2.3218315"
+       x1="-8.1340704"
        gradientTransform="matrix(0.92287855,0,0,0.92287855,0.4693688,-1.0679895)"
        gradientUnits="userSpaceOnUse"
        id="linearGradient1023"
-       xlink:href="#linearGradient4298"
+       xlink:href="#linearGradient861"
        inkscape:collect="always" />
     <style
        type="text/css"
