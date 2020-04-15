@@ -34,6 +34,9 @@
 
 #include "modules/videorecorder/videorecordmodule.h"
 #include "modules/camera-generic/genericcameramodule.h"
+#ifdef HAVE_TIS_CAMERA
+#include "modules/camera-tis/tiscameramodule.h"
+#endif
 #ifdef HAVE_FLIR_CAMERA
 #include "modules/camera-flir/flircameramod.h"
 #endif
@@ -79,6 +82,9 @@ ModuleLibrary::ModuleLibrary(QObject *parent)
 
     registerModuleInfo<VideoRecorderModuleInfo>();
     registerModuleInfo<GenericCameraModuleInfo>();
+#ifdef HAVE_TIS_CAMERA
+    registerModuleInfo<TISCameraModuleInfo>();
+#endif
 #ifdef HAVE_FLIR_CAMERA
     registerModuleInfo<FLIRCameraModuleInfo>();
 #endif

@@ -19,6 +19,7 @@ set(CMAKE_AUTOMOC ON)
 option(MAINTAINER "Enable maintainer mode" OFF)
 option(MOD_CAMERA_UEYE "Enable uEye camera module" OFF)
 option(MOD_CAMERA_FLIR "Enable FLIR camera module using the Spinnaker API" OFF)
+option(MOD_CAMERA_TIS  "Enable camera module for The Imaging Source cameras" ON)
 option(MOD_MINISCOPE   "Enable Miniscope module" ON)
 
 

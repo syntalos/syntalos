@@ -55,8 +55,14 @@ RUN cd toml++/b/ && ninja && ninja install
 # PoMiDAQ for Miniscope support
 RUN git clone --depth 1 https://github.com/bothlab/pomidaq.git pomidaq
 RUN mkdir pomidaq/b
-RUN cd pomidaq/b/ && cmake --prefix=/usr -DPYTHON=OFF ..
-RUN cd pomidaq/b/ && make && make install
+RUN cd pomidaq/b/ && cmake -GNinja --prefix=/usr -DPYTHON=OFF ..
+RUN cd pomidaq/b/ && ninja && ninja install
+
+# Support for "The Imaging Source" cameras
+RUN git clone --depth 1 https://github.com/TheImagingSource/tiscamera.git tiscamera
+RUN mkdir tiscamera/b
+RUN cd tiscamera/b/ && cmake -GNinja ..
+RUN cd tiscamera/b/ && ninja && ninja install
 
 # finish
 RUN mkdir -p /build
