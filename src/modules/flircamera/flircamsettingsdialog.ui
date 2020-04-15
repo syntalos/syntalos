@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>481</width>
-    <height>388</height>
+    <width>474</width>
+    <height>361</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -32,7 +32,7 @@
    <item>
     <widget class="QGroupBox" name="cameraGroupBox">
      <property name="title">
-      <string>Camera</string>
+      <string>Recording</string>
      </property>
      <layout class="QHBoxLayout" name="horizontalLayout">
       <item>
@@ -119,7 +119,7 @@
               <number>4000</number>
              </property>
              <property name="value">
-              <number>720</number>
+              <number>420</number>
              </property>
             </widget>
            </item>
@@ -142,7 +142,7 @@
               <number>4000</number>
              </property>
              <property name="value">
-              <number>540</number>
+              <number>420</number>
              </property>
             </widget>
            </item>
@@ -216,6 +216,19 @@
             <number>0</number>
            </property>
            <item>
+            <widget class="QCheckBox" name="checkBox">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
             <widget class="QSlider" name="sliderExposure">
              <property name="maximum">
               <number>99999</number>
@@ -254,16 +267,9 @@
          </widget>
         </item>
         <item row="2" column="0">
-         <widget class="QLabel" name="brightnessLabel">
+         <widget class="QLabel" name="gammaLabel">
           <property name="text">
-           <string>Brightness</string>
-          </property>
-         </widget>
-        </item>
-        <item row="3" column="0">
-         <widget class="QLabel" name="contrastLabel">
-          <property name="text">
-           <string>Contrast</string>
+           <string>Gamma</string>
           </property>
          </widget>
         </item>
@@ -291,38 +297,6 @@
            <property name="bottomMargin">
             <number>0</number>
            </property>
-           <item>
-            <widget class="QSlider" name="sliderContrast">
-             <property name="maximum">
-              <number>100</number>
-             </property>
-             <property name="orientation">
-              <enum>Qt::Horizontal</enum>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QDoubleSpinBox" name="sbContrast">
-             <property name="toolTip">
-              <string>Adjust camera exposure</string>
-             </property>
-             <property name="decimals">
-              <number>3</number>
-             </property>
-             <property name="minimum">
-              <double>1.000000000000000</double>
-             </property>
-             <property name="maximum">
-              <double>100.000000000000000</double>
-             </property>
-             <property name="singleStep">
-              <double>0.500000000000000</double>
-             </property>
-             <property name="value">
-              <double>10.000000000000000</double>
-             </property>
-            </widget>
-           </item>
           </layout>
          </widget>
         </item>
@@ -357,6 +331,16 @@
            <property name="bottomMargin">
             <number>0</number>
            </property>
+           <item>
+            <widget class="QCheckBox" name="cbSaturation">
+             <property name="text">
+              <string/>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
            <item>
             <widget class="QSlider" name="sliderSaturation">
              <property name="maximum">
@@ -451,6 +435,19 @@
             <number>0</number>
            </property>
            <item>
+            <widget class="QCheckBox" name="checkBox_4">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
             <widget class="QSlider" name="sliderGain">
              <property name="maximum">
               <number>50</number>
@@ -501,12 +498,25 @@
             <number>0</number>
            </property>
            <item>
-            <widget class="QSlider" name="sliderBrightness">
+            <widget class="QCheckBox" name="cbGamma">
+             <property name="text">
+              <string/>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QSlider" name="sliderGamma">
              <property name="minimum">
-              <number>-100</number>
+              <number>0</number>
              </property>
              <property name="maximum">
-              <number>100</number>
+              <number>4</number>
+             </property>
+             <property name="value">
+              <number>1</number>
              </property>
              <property name="orientation">
               <enum>Qt::Horizontal</enum>
@@ -514,7 +524,7 @@
             </widget>
            </item>
            <item>
-            <widget class="QDoubleSpinBox" name="sbBrightness">
+            <widget class="QDoubleSpinBox" name="sbGamma">
              <property name="toolTip">
               <string>Adjust camera exposure</string>
              </property>
@@ -522,16 +532,16 @@
               <number>3</number>
              </property>
              <property name="minimum">
-              <double>-100.000000000000000</double>
+              <double>0.000000000000000</double>
              </property>
              <property name="maximum">
-              <double>100.000000000000000</double>
+              <double>4.000000000000000</double>
              </property>
              <property name="singleStep">
-              <double>0.500000000000000</double>
+              <double>0.250000000000000</double>
              </property>
              <property name="value">
-              <double>10.000000000000000</double>
+              <double>0.800000000000000</double>
              </property>
             </widget>
            </item>
@@ -576,6 +586,70 @@
     <hint type="destinationlabel">
      <x>297</x>
      <y>200</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>cbGamma</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>sliderGamma</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>93</x>
+     <y>238</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>143</x>
+     <y>238</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>cbGamma</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>sbGamma</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>91</x>
+     <y>233</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>450</x>
+     <y>241</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>cbSaturation</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>sliderSaturation</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>95</x>
+     <y>279</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>184</x>
+     <y>280</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>cbSaturation</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>sbSaturation</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>102</x>
+     <y>274</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>425</x>
+     <y>285</y>
     </hint>
    </hints>
   </connection>

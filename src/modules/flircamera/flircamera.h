@@ -57,11 +57,18 @@ public:
 
     bool acquireFrame(Frame &frame, SecondaryClockSynchronizer *clockSync);
 
+    cv::Size resolution() const;
     void setResolution(const cv::Size &size);
     void setFramerate(int fps);
 
+    microseconds_t exposureTime() const;
     void setExposureTime(microseconds_t time);
+
+    double gain() const;
     void setGain(double gainDb);
+
+    double gamma() const;
+    void setGamma(double gamma);
 
 
     double actualFramerate() const;

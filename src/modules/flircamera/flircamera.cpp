@@ -42,6 +42,7 @@ public:
 
     long exposureTimeUs;
     double gainDb;
+    double gamma;
 
     time_t timestampIncrementValue;
 };
@@ -57,7 +58,11 @@ FLIRCamera::FLIRCamera(const Spinnaker::SystemPtr system)
 }
 
 FLIRCamera::~FLIRCamera()
-{}
+{
+    if (d->cam->IsInitialized())
+        d->cam->DeInit();
+    d->cam = nullptr;
+}
 
 Spinnaker::SystemPtr FLIRCamera::system() const
 {
@@ -208,6 +213,9 @@ bool FLIRCamera::applyCamParameters(spn_ga::INodeMap &nodeMap)
     d->cam->GainAuto.SetValue(spn::GainAuto_Off);
     d->cam->Gain.SetValue(d->gainDb);
 
+    // refresh gamma settings
+    setGamma(d->gamma);
+
     // set framerate (has to be last, as it ultimately depends on the other settings)
     spn_ga::CBooleanPtr ptrAcqFPSEnable = nodeMap.GetNode("AcquisitionFrameRateEnable");
     if (IsAvailable(ptrAcqFPSEnable) && IsWritable(ptrAcqFPSEnable)) {
@@ -287,11 +295,15 @@ bool FLIRCamera::initAcquisition()
 
 void FLIRCamera::endAcquisition()
 {
-    // end acquisition
-    d->cam->EndAcquisition();
-    // deinitialize camera
-    if (d->cam->IsInitialized())
-        d->cam->DeInit();
+    try {
+        // end acquisition
+        d->cam->EndAcquisition();
+        // deinitialize camera
+        if (d->cam->IsInitialized())
+            d->cam->DeInit();
+    } catch (Spinnaker::Exception& e) {
+        qWarning().noquote().nospace() << "FLIR Camera: Issue while trying to end data acquisition. " << e.what();
+    }
 }
 
 bool FLIRCamera::acquireFrame(Frame &frame, SecondaryClockSynchronizer *clockSync)
@@ -347,6 +359,11 @@ bool FLIRCamera::acquireFrame(Frame &frame, SecondaryClockSynchronizer *clockSyn
     return true;
 }
 
+cv::Size FLIRCamera::resolution() const
+{
+    return d->resolution;
+}
+
 void FLIRCamera::setResolution(const cv::Size &size)
 {
     d->resolution = size;
@@ -357,12 +374,24 @@ void FLIRCamera::setFramerate(int fps)
     d->framerate = fps;
 }
 
+microseconds_t FLIRCamera::exposureTime() const
+{
+    return microseconds_t(d->exposureTimeUs);
+}
+
 void FLIRCamera::setExposureTime(microseconds_t time)
 {
     d->exposureTimeUs= time.count();
     if (!isRunning())
         return;
-    d->cam->ExposureTime.SetValue(time.count());
+    try {
+        d->cam->ExposureTime.SetValue(time.count());
+    } catch (Spinnaker::Exception&) {};
+}
+
+double FLIRCamera::gain() const
+{
+    return d->gainDb;
 }
 
 void FLIRCamera::setGain(double gainDb)
@@ -370,7 +399,31 @@ void FLIRCamera::setGain(double gainDb)
     d->gainDb = gainDb;
     if (!isRunning())
         return;
-    d->cam->Gain.SetValue(gainDb);
+    try {
+        d->cam->Gain.SetValue(gainDb);
+    } catch (Spinnaker::Exception&) {};
+}
+
+double FLIRCamera::gamma() const
+{
+    return d->gamma;
+}
+
+void FLIRCamera::setGamma(double gamma)
+{
+    d->gamma = gamma;
+    if (!isRunning())
+        return;
+    try {
+        if (gamma < 0) {
+            d->cam->GammaEnable.SetValue(false);
+        } else {
+            d->cam->GammaEnable.SetValue(true);
+            d->cam->Gamma.SetValue(gamma);
+        }
+    } catch (Spinnaker::Exception& e) {
+        qDebug() << "Unable to set gamma value" << e.what();
+    };
 }
 
 double FLIRCamera::actualFramerate() const

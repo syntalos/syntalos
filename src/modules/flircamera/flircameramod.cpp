@@ -160,6 +160,31 @@ public:
     void stop() override
     {
         m_camSettingsWindow->setRunning(false);
+        statusMessage(QString());
+    }
+
+    void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
+    {
+        settings.insert("camera", m_camera->serial());
+        settings.insert("width", m_camSettingsWindow->resolution().width);
+        settings.insert("height", m_camSettingsWindow->resolution().height);
+        settings.insert("fps", m_camSettingsWindow->framerate());
+        settings.insert("exposure_us", QVariant::fromValue(m_camera->exposureTime().count()));
+        settings.insert("gamma", m_camera->gamma());
+        settings.insert("gain", m_camera->gain());
+    }
+
+    bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
+    {
+        m_camera->setResolution(cv::Size(settings.value("width").toInt(), settings.value("height").toInt()));
+        m_camera->setExposureTime(microseconds_t(settings.value("exposure_us").toLongLong()));
+        m_camera->setGamma(settings.value("gamma").toInt());
+        m_camera->setGain(settings.value("gain").toInt());
+        m_camSettingsWindow->setFramerate(settings.value("fps").toInt());
+
+        m_camera->setup(settings.value("camera").toString());
+        m_camSettingsWindow->updateValues();
+        return true;
     }
 
 };

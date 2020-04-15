@@ -49,11 +49,9 @@ private slots:
 
     void on_sbExposure_valueChanged(int arg1);
 
-    void on_sbBrightness_valueChanged(double arg1);
-    void on_sliderBrightness_valueChanged(int value);
-
-    void on_sbContrast_valueChanged(double arg1);
-    void on_sliderContrast_valueChanged(int value);
+    void on_cbGamma_toggled(bool checked);
+    void on_sbGamma_valueChanged(double arg1);
+    void on_sliderGamma_valueChanged(int value);
 
     void on_sbSaturation_valueChanged(double arg1);
     void on_sliderSaturation_valueChanged(int value);

@@ -25,8 +25,11 @@ FLIRCamSettingsDialog::FLIRCamSettingsDialog(FLIRCamera *camera, QWidget *parent
     ui(new Ui::FLIRCamSettingsDialog)
 {
     ui->setupUi(this);
-    setWindowIcon(QIcon(":/icons/generic-config"));
     m_camera = camera;
+    setWindowIcon(QIcon(":/icons/generic-config"));
+
+    ui->cbGamma->setChecked(false);
+    ui->cbSaturation->setChecked(false);
 }
 
 FLIRCamSettingsDialog::~FLIRCamSettingsDialog()
@@ -73,6 +76,16 @@ void FLIRCamSettingsDialog::updateValues()
             break;
         }
     }
+
+    ui->spinBoxWidth->setValue(m_camera->resolution().width);
+    ui->spinBoxHeight->setValue(m_camera->resolution().height);
+    ui->sbExposure->setValue(m_camera->exposureTime().count());
+    ui->sbGain->setValue(m_camera->gain());
+
+    if (m_camera->gamma() > 0)
+        ui->sbGamma->setValue(m_camera->gamma());
+    else
+        ui->cbGamma->setChecked(false);
 }
 
 void FLIRCamSettingsDialog::on_cameraComboBox_currentIndexChanged(int)
@@ -86,24 +99,23 @@ void FLIRCamSettingsDialog::on_sbExposure_valueChanged(int arg1)
     m_camera->setExposureTime(microseconds_t(arg1));
 }
 
-void FLIRCamSettingsDialog::on_sbBrightness_valueChanged(double arg1)
+void FLIRCamSettingsDialog::on_cbGamma_toggled(bool checked)
 {
-    ui->sliderBrightness->setValue(arg1);
+    if (checked)
+        m_camera->setGamma(ui->sbGamma->value());
+    else
+        m_camera->setGamma(-1);
 }
 
-void FLIRCamSettingsDialog::on_sliderBrightness_valueChanged(int value)
+void FLIRCamSettingsDialog::on_sbGamma_valueChanged(double arg1)
 {
-    ui->sbBrightness->setValue(value);
+    ui->sliderGamma->setValue(qRound(arg1));
+    m_camera->setGamma(arg1);
 }
 
-void FLIRCamSettingsDialog::on_sbContrast_valueChanged(double arg1)
+void FLIRCamSettingsDialog::on_sliderGamma_valueChanged(int value)
 {
-    ui->sliderContrast->setValue(arg1);
-}
-
-void FLIRCamSettingsDialog::on_sliderContrast_valueChanged(int value)
-{
-    ui->sbContrast->setValue(value);
+    ui->sbGamma->setValue(value);
 }
 
 void FLIRCamSettingsDialog::on_sbSaturation_valueChanged(double arg1)
