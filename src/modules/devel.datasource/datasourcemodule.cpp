@@ -48,7 +48,7 @@ public:
 
     ModuleFeatures features() const override
     {
-        return ModuleFeature::RUN_THREADED;
+        return ModuleFeature::DEVEL | ModuleFeature::RUN_THREADED;
     }
 
     bool prepare(const TestSubject &) override

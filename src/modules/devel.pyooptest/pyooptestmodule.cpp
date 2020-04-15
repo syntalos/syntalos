@@ -70,6 +70,11 @@ public:
 
     }
 
+    ModuleFeatures features() const override
+    {
+        return OOPModule::features() | ModuleFeature::DEVEL;
+    }
+
     bool prepare(const TestSubject &) override
     {
         m_vOut->setMetadataValue("size", QSize(800, 600));
