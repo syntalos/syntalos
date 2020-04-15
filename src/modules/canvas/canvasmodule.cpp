@@ -125,7 +125,7 @@ public:
             // we use a moving average of the inter-frame-time over two seconds, as the framerate occasionally fluctuates
             // (especially when throttling the subscription) and we want to display a more steady (but accurate)
             // info to the user instead, without twitching around too much
-            m_avgFrameTimeDiffMsec = ((m_avgFrameTimeDiffMsec * (m_displayFps * 2)) + (frameTime - m_lastFrameTime)) / ((m_displayFps * 2) + 1);
+            m_avgFrameTimeDiffMsec = ((m_avgFrameTimeDiffMsec * (m_realFps * 2)) + (frameTime - m_lastFrameTime)) / ((m_realFps * 2) + 1);
             m_lastFrameTime = frameTime;
             if (m_avgFrameTimeDiffMsec > 0)
                 m_currentFps = std::round(1000.0 / m_avgFrameTimeDiffMsec);
