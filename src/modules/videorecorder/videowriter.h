@@ -60,7 +60,8 @@ enum class VideoCodec {
     FFV1,
     AV1,
     VP9,
-    H265,
+    H264,
+    HEVC,
     MPEG4
 };
 Q_DECLARE_METATYPE(VideoCodec);

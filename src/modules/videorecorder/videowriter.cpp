@@ -50,8 +50,10 @@ VideoCodec stringToVideoCodec(const std::string &str)
         return VideoCodec::AV1;
     if (str == "VP9")
         return VideoCodec::VP9;
-    if (str == "H.265")
-        return VideoCodec::H265;
+    if (str == "HEVC")
+        return VideoCodec::HEVC;
+    if (str == "H.264")
+        return VideoCodec::H264;
     if (str == "MPEG-4")
         return VideoCodec::MPEG4;
 
@@ -69,8 +71,10 @@ std::string videoCodecToString(VideoCodec codec)
         return "AV1";
     case VideoCodec::VP9:
         return "VP9";
-    case VideoCodec::H265:
-        return "H.265";
+    case VideoCodec::H264:
+        return "H.264";
+    case VideoCodec::HEVC:
+        return "HEVC";
     case VideoCodec::MPEG4:
         return "MPEG-4";
     default:
@@ -271,8 +275,11 @@ void VideoWriter::initializeInternal()
     case VideoCodec::MPEG4:
         codecId = AV_CODEC_ID_MPEG4;
         break;
-    case VideoCodec::H265:
-        codecId = AV_CODEC_ID_H265;
+    case VideoCodec::H264:
+        codecId = AV_CODEC_ID_H264;
+        break;
+    case VideoCodec::HEVC:
+        codecId = AV_CODEC_ID_HEVC;
         break;
     default:
         codecId = AV_CODEC_ID_FFV1;
@@ -327,7 +334,8 @@ void VideoWriter::initializeInternal()
         case VideoCodec::VP9:
             av_dict_set_int(&codecopts, "lossless", 1, 0);
             break;
-        case VideoCodec::H265:
+        case VideoCodec::H264:
+        case VideoCodec::HEVC:
             av_dict_set_int(&codecopts, "crf", 0, 0);
             av_dict_set(&codecopts, "preset", "veryfast", 0);
             break;
@@ -592,8 +600,15 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::milliseco
     pkt.size = 0;
     av_init_packet(&pkt);
     ret = avcodec_receive_packet(d->cctx, &pkt);
-    if (ret != 0)
-        return false;
+    if (ret != 0) {
+        // some encoders need to be fed a few frames before they produce a useful result
+        // ignore errors in that case for a little bit.
+        if ((ret == AVERROR(EAGAIN)) &&
+            ((d->codec == VideoCodec::H264) || (d->codec == VideoCodec::HEVC)))
+            return true;
+        else
+            return false;
+    }
 
     // rescale packet timestamp
     pkt.duration = 1;

@@ -37,7 +37,9 @@ RecorderSettingsDialog::RecorderSettingsDialog(QWidget *parent) :
 
     ui->codecComboBox->addItem("FFV1", QVariant::fromValue(VideoCodec::FFV1));
     ui->codecComboBox->addItem("AV1", QVariant::fromValue(VideoCodec::AV1));
-    ui->codecComboBox->addItem("H.265", QVariant::fromValue(VideoCodec::H265));
+    ui->codecComboBox->addItem("VP9", QVariant::fromValue(VideoCodec::VP9));
+    ui->codecComboBox->addItem("H.264", QVariant::fromValue(VideoCodec::H264));
+    ui->codecComboBox->addItem("HEVC", QVariant::fromValue(VideoCodec::HEVC));
     ui->codecComboBox->addItem("Raw", QVariant::fromValue(VideoCodec::Raw));
     ui->codecComboBox->setCurrentIndex(0);
 
@@ -152,8 +154,13 @@ void RecorderSettingsDialog::on_codecComboBox_currentIndexChanged(int)
         ui->losslessLabel->setEnabled(false);
         ui->losslessCheckBox->setChecked(true);
 
-    } else if (codec == VideoCodec::H265) {
-        // H.256 only works with MKV and MP4 containers, select MKV by default
+    } else if ((codec == VideoCodec::H264) || (codec == VideoCodec::HEVC)) {
+        // H.264 and HEVC only work with MKV and MP4 containers, select MKV by default
+        ui->containerComboBox->setCurrentIndex(0);
+        ui->containerComboBox->setEnabled(false);
+
+    } else if (codec == VideoCodec::VP9) {
+        // VP9 only seems to work well in MKV containers, so select those
         ui->containerComboBox->setCurrentIndex(0);
         ui->containerComboBox->setEnabled(false);
 
