@@ -24,6 +24,7 @@
 
 #include "moduleapi.h"
 #include "modulelibrary.h"
+#include "sysinfo.h"
 
 namespace Syntalos {
 
@@ -36,6 +37,7 @@ public:
     ~Engine();
 
     ModuleLibrary *library() const;
+    SysInfo *sysInfo() const;
 
     QString exportBaseDir() const;
     void setExportBaseDir(const QString &dataDir);

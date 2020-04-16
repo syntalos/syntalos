@@ -33,6 +33,7 @@
 #include "modulelibrary.h"
 #include "moduleeventthread.h"
 #include "syclock.h"
+#include "sysinfo.h"
 #include "utils.h"
 
 using namespace Syntalos;
@@ -44,6 +45,7 @@ public:
     Private() { }
     ~Private() { }
 
+    SysInfo *sysInfo;
     QWidget *parentWidget;
     QList<AbstractModule*> activeModules;
     ModuleLibrary *modLibrary;
@@ -66,6 +68,7 @@ Engine::Engine(QWidget *parentWidget)
     : QObject(parentWidget),
       d(new Engine::Private)
 {
+    d->sysInfo = new SysInfo(this);
     d->exportDirIsValid = false;
     d->running = false;
     d->modLibrary = new ModuleLibrary(this);
@@ -89,6 +92,11 @@ Engine::~Engine()
 ModuleLibrary *Engine::library() const
 {
     return d->modLibrary;
+}
+
+SysInfo *Engine::sysInfo() const
+{
+    return d->sysInfo;
 }
 
 QString Engine::exportBaseDir() const

@@ -51,6 +51,10 @@ set(SYNTALOS_SRC
     modulelibrary.cpp
     moduleselectdialog.h
     moduleselectdialog.cpp
+    sysinfo.h
+    sysinfo.cpp
+    sysinfodialog.h
+    sysinfodialog.cpp
     testsubjectlistmodel.h
     testsubjectlistmodel.cpp
     timingsdialog.h
@@ -62,6 +66,7 @@ set(SYNTALOS_UI
     mainwindow.ui
     modulegraphform.ui
     moduleselectdialog.ui
+    sysinfodialog.ui
     timingsdialog.ui
 )
 
@@ -107,6 +112,7 @@ target_link_libraries(syntalos
     ${GLIB_LIBRARIES}
     ${OPENGL_LIBRARIES}
     ${OpenCV_LIBS}
+    ${FFMPEG_LIBRARIES}
     ${GSTREAMER_LIBRARIES}
     ${MA_EXTRA_LIBS}
 

@@ -1,0 +1,82 @@
+/*
+ * Copyright (C) 2019-2020 Matthias Klumpp <matthias@tenstral.net>
+ *
+ * Licensed under the GNU Lesser General Public License Version 3
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the license, or
+ * (at your option) any later version.
+ *
+ * This software is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this software.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "sysinfodialog.h"
+#include "ui_sysinfodialog.h"
+
+#include <QIcon>
+
+SysInfoDialog::SysInfoDialog(SysInfo *sysInfo, QWidget *parent) :
+    QDialog(parent),
+    ui(new Ui::SysInfoDialog)
+{
+    ui->setupUi(this);
+    ui->iconOS->setPixmap(QIcon::fromTheme("preferences-system-linux").pixmap(24, 24));
+    ui->iconCPU->setPixmap(QIcon::fromTheme("cpu").pixmap(24, 24));
+    ui->iconSoftware->setPixmap(QPixmap(":/module/generic").scaled(24, 24));
+
+    m_okTextPal = ui->valOSName->palette();
+    m_hintTextPal = ui->valOSName->palette();
+    m_warnTextPal = ui->valOSName->palette();
+
+    // for errors / things which are issues
+    m_warnTextPal.setColor(QPalette::WindowText, qRgb(218, 68, 83));
+
+    // for things which may be issues, depending on the setup
+    m_hintTextPal.setColor(QPalette::WindowText, qRgb(244, 119, 80));
+
+    ui->valOSName->setText(sysInfo->prettyProductName());
+    ui->valKernel->setText(sysInfo->kernelInfo());
+    ui->valInitSystem->setText(sysInfo->initName());
+    setLabelTextStyle(sysInfo->checkInitSystem(), ui->valInitSystem);
+    ui->valUsbFsMemory->setText(QStringLiteral("%1 MB").arg(sysInfo->usbFsMemoryMb()));
+    setLabelTextStyle(sysInfo->checkUsbFsMemory(), ui->valUsbFsMemory);
+
+    ui->valHWArch->setText(sysInfo->currentArchitecture());
+    ui->valClocksourceCurrent->setText(sysInfo->currentClocksource());
+    ui->valClocksourceAvailable->setText(sysInfo->availableClocksources());
+    setLabelTextStyle(sysInfo->checkClocksource(), ui->valClocksourceCurrent);
+    ui->valOpenGL->setText(sysInfo->glVersion());
+
+    ui->valQt->setText(sysInfo->qtVersion());
+    ui->valOpenCV->setText(sysInfo->openCVVersionString());
+    ui->valEigen->setText(sysInfo->eigenVersionString());
+    ui->valFFmpeg->setText(sysInfo->ffmpegVersionString());
+}
+
+SysInfoDialog::~SysInfoDialog()
+{
+    delete ui;
+}
+
+void SysInfoDialog::setLabelTextStyle(SysInfoCheckResult checkResult, QLabel *label)
+{
+    if (checkResult == SysInfoCheckResult::OK) {
+        label->setPalette(m_okTextPal);
+        return;
+    }
+    if (checkResult == SysInfoCheckResult::SUSPICIOUS) {
+        label->setPalette(m_hintTextPal);
+        return;
+    }
+    if (checkResult == SysInfoCheckResult::ISSUE) {
+        label->setPalette(m_warnTextPal);
+        return;
+    }
+}

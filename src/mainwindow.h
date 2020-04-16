@@ -74,13 +74,14 @@ private slots:
 
     void statusMessageChanged(const QString &message);
 
-    void on_actionSubjectsLoad_triggered();
-    void on_actionSubjectsSave_triggered();
-    void on_actionTimings_triggered();
-
     void showBusyIndicatorProcessing();
     void showBusyIndicatorRunning();
     void hideBusyIndicator();
+
+    void on_actionSubjectsLoad_triggered();
+    void on_actionSubjectsSave_triggered();
+    void on_actionTimings_triggered();
+    void on_actionSystemInfo_triggered();
 
 protected:
     void closeEvent(QCloseEvent *event) override;

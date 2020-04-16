@@ -58,6 +58,7 @@
 #include "aboutdialog.h"
 #include "engine.h"
 #include "moduleapi.h"
+#include "sysinfodialog.h"
 #include "timingsdialog.h"
 #include "tomlutils.h"
 
@@ -776,6 +777,27 @@ void MainWindow::statusMessageChanged(const QString &message)
     setStatusText(message);
 }
 
+void MainWindow::showBusyIndicatorProcessing()
+{
+    m_busyIndicator->load(QStringLiteral(":/animations/busy.svg"));
+    m_busyIndicator->show();
+    QApplication::processEvents();
+}
+
+void MainWindow::showBusyIndicatorRunning()
+{
+    m_busyIndicator->load(QStringLiteral(":/animations/running.svg"));
+    m_busyIndicator->show();
+    QApplication::processEvents();
+}
+
+void MainWindow::hideBusyIndicator()
+{
+    m_busyIndicator->load(QByteArray());
+    m_busyIndicator->hide();
+    QApplication::processEvents();
+}
+
 void MainWindow::on_actionSubjectsLoad_triggered()
 {
     QString fileName;
@@ -830,23 +852,8 @@ void MainWindow::on_actionTimings_triggered()
     m_timingsDialog->show();
 }
 
-void MainWindow::showBusyIndicatorProcessing()
+void MainWindow::on_actionSystemInfo_triggered()
 {
-    m_busyIndicator->load(QStringLiteral(":/animations/busy.svg"));
-    m_busyIndicator->show();
-    QApplication::processEvents();
-}
-
-void MainWindow::showBusyIndicatorRunning()
-{
-    m_busyIndicator->load(QStringLiteral(":/animations/running.svg"));
-    m_busyIndicator->show();
-    QApplication::processEvents();
-}
-
-void MainWindow::hideBusyIndicator()
-{
-    m_busyIndicator->load(QByteArray());
-    m_busyIndicator->hide();
-    QApplication::processEvents();
+    SysInfoDialog sysInfoDlg(m_engine->sysInfo(), this);
+    sysInfoDlg.exec();
 }
