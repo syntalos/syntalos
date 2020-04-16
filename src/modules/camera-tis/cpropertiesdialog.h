@@ -83,7 +83,7 @@ class CPropertyCtrl_int : public CPropertyControl
 
     public:
         CPropertyCtrl_int( const char*  name,TcamProp *pTcamProp, PropVal pv, QVBoxLayout *pLayout);
-        void set_value(GValue *value);
+        void set_value(GValue *value) override;
 
     private:
         QLabel *Label;
@@ -109,7 +109,7 @@ class CPropertyCtrl_double : public CPropertyControl
 
     public:
         CPropertyCtrl_double( const char*  name,TcamProp *pTcamProp, PropVal pv, QVBoxLayout *pLayout);
-        void set_value(GValue *value);
+        void set_value(GValue *value) override;
 
     private:
         QLabel *Label;
@@ -136,7 +136,7 @@ class CPropertyCtrl_boolean : public CPropertyControl
 
     public:
         CPropertyCtrl_boolean( const char*  name,TcamProp *pTcamProp, PropVal pv, QVBoxLayout *pLayout);
-        void set_value(GValue *value);
+        void set_value(GValue *value) override;
 
     private:
         QCheckBox *Check;
@@ -153,7 +153,7 @@ class CPropertyCtrl_button : public CPropertyControl
 
     public:
         CPropertyCtrl_button( const char*  name,TcamProp *pTcamProp, PropVal pv, QVBoxLayout *pLayout);
-        void set_value(GValue *value);
+        void set_value(GValue *value) override;
 
     private:
         QPushButton *Push;
@@ -171,7 +171,7 @@ class CPropertyCtrl_enum : public CPropertyControl
 
     public:
         CPropertyCtrl_enum( const char*  name,TcamProp *pTcamProp, PropVal pv, QVBoxLayout *pLayout);
-        void set_value(GValue *value);
+        void set_value(GValue *value) override;
 
     private:
         QLabel *Label;

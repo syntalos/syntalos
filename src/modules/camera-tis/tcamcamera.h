@@ -118,7 +118,7 @@ public:
     std::string value;
     std::string default_value;
 
-    virtual std::string to_string();
+    virtual std::string to_string() override;
     virtual bool get(TcamCamera &cam, std::string &value) override;
     virtual bool set(TcamCamera &cam, std::string value) override;
 };
