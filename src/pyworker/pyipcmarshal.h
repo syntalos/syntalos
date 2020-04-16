@@ -30,6 +30,7 @@ using namespace boost;
 
 struct PyFrame
 {
+    size_t index;
     time_t time_msec;
     python::object mat;
 };

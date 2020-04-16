@@ -189,7 +189,21 @@ static python::object get_output_port(const std::string& id)
     return python::object(pyPort);
 }
 
+static FirmataControl new_firmata_control_with_id(FirmataCommandKind kind, int pinId)
+{
+    FirmataControl ctl;
+    ctl.command = kind;
+    ctl.pinId = pinId;
+    return ctl;
+}
 
+static FirmataControl new_firmata_control_with_name(FirmataCommandKind kind, const std::string &name)
+{
+    FirmataControl ctl;
+    ctl.command = kind;
+    ctl.pinName = QString::fromStdString(name);
+    return ctl;
+}
 
 using namespace bpy;
 BOOST_PYTHON_MODULE(maio)
@@ -290,6 +304,10 @@ BOOST_PYTHON_MODULE(maio)
 
     def("get_input_port", get_input_port, "Get reference to input port with the give ID.");
     def("get_output_port", get_output_port, "Get reference to output port with the give ID.");
+
+    // Firmata helpers
+    def("new_firmata_control_with_id", new_firmata_control_with_id, "Create new Firmata control command with a given pin ID.");
+    def("new_firmata_control_with_name", new_firmata_control_with_name, "Create new Firmata control command with a given pin name (the name needs to be registered previously).");
 };
 
 void pythonRegisterMaioModule()

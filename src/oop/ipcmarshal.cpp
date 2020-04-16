@@ -110,6 +110,7 @@ bool marshalDataElement(int typeId, const QVariant &data,
         if (!cvMatToShm(shm, frame.mat))
             return false;
 
+        params.append(QVariant::fromValue(frame.index));
         params.append(QVariant::fromValue(frame.time.count()));
         return true;
     }

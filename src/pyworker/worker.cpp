@@ -31,7 +31,6 @@ OOPWorker::OOPWorker(QObject *parent)
 {
     m_pyb = PyBridge::instance(this);
     pythonRegisterMaioModule();
-    qDebug() << "PyWorker: Created!";
 
     registerStreamMetaTypes();
 }
@@ -144,12 +143,12 @@ void OOPWorker::start(long startTimestampMsec)
 
 void OOPWorker::shutdown()
 {
-    qDebug() << "PyWorker: Shutdown requested";
     m_running = false;
     QCoreApplication::processEvents();
 
     // give other events a bit of time (10ms) to react to the fact that we are no longer running
     QTimer::singleShot(10, this, &QCoreApplication::quit);
+    qDebug() << "Shutting down script as soon as possible.";
 }
 
 void OOPWorker::emitPyError()

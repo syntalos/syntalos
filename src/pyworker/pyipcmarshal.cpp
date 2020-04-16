@@ -39,8 +39,9 @@ python::object unmarshalDataToPyObject(int typeId, const QVariantList &params, s
         auto matPyO = cvMatToNDArray(floatingMat);
 
         PyFrame pyFrame;
+        pyFrame.index = params[0].toUInt();
         pyFrame.mat = boost::python::object(boost::python::handle<>(matPyO));
-        pyFrame.time_msec = params[0].toLongLong();
+        pyFrame.time_msec = params[1].toLongLong();
 
         return python::object(pyFrame);
     }
