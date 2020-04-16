@@ -109,6 +109,7 @@ public:
         : m_stream(stream),
           m_queue(BlockingReaderWriterQueue<std::optional<T>>(256)),
           m_active(true),
+          m_suspended(false),
           m_throttle(0)
     {
         m_lastItemTime = currentTimePoint();
@@ -215,12 +216,37 @@ public:
         return m_active;
     }
 
+    /**
+     * @brief Stop receiving data, but do not unsubscribe from the stream
+     */
+    void suspend()
+    {
+        // suspend receiving new data
+        m_suspended = true;
+
+        // drop currently pending data
+        while (m_queue.pop()) {}
+    }
+
+    /**
+     * @brief Resume data transmission, reverses suspend()
+     */
+    void resume()
+    {
+        m_suspended = false;
+    }
+
     size_t approxPendingCount() const override
     {
         return m_queue.size_approx();
     }
 
-    uint throttle()
+    bool hasPending() const
+    {
+        return m_queue.size_approx() > 0;
+    }
+
+    uint throttleValue()
     {
         return m_throttle;
     }
@@ -246,6 +272,7 @@ private:
     DataStream<T> *m_stream;
     BlockingReaderWriterQueue<std::optional<T>> m_queue;
     std::atomic_bool m_active;
+    std::atomic_bool m_suspended;
     std::atomic_uint m_throttle;
 
     // NOTE: These two variables are intentionally *not* threadsafe and are
@@ -261,6 +288,11 @@ private:
 
     void push(const T &data)
     {
+        // don't accept any new data if we are suspended
+        if (m_suspended)
+            return;
+
+        // check if we can throttle the enqueueing speed of data
         if (m_throttle != 0) {
             const auto timeNow = currentTimePoint();
             const auto durUsec = timeDiffUsec(timeNow, m_lastItemTime);
@@ -268,6 +300,8 @@ private:
                 return;
             m_lastItemTime = timeNow;
         }
+
+        // actually send the data to the subscriber
         m_queue.enqueue(std::optional<T>(data));
     }
 
@@ -279,6 +313,7 @@ private:
 
     void reset()
     {
+        m_suspended = false;
         m_active = true;
         m_throttle = 0;
         m_lastItemTime = currentTimePoint();

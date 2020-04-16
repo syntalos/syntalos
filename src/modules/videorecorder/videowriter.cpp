@@ -465,7 +465,7 @@ void VideoWriter::finalizeInternal(bool writeTrailer)
     d->initialized = false;
 }
 
-void VideoWriter::initialize(std::string fname, int width, int height, int fps, bool hasColor, bool saveTimestamps)
+void VideoWriter::initialize(const std::string &fname, int width, int height, int fps, bool hasColor, bool saveTimestamps)
 {
     if (d->initialized)
         throw std::runtime_error("Tried to initialize an already initialized video writer.");
@@ -496,6 +496,35 @@ void VideoWriter::finalize()
 bool VideoWriter::initialized() const
 {
     return d->initialized;
+}
+
+bool VideoWriter::startNewSection(const std::string &fname)
+{
+    if (!d->initialized) {
+        d->lastError = "Can not start a new slide if we are not initialized.";
+        return false;
+    }
+
+    try {
+        // finalize the current file
+        finalizeInternal(true);
+
+        // set new filrname for this section
+        if (fname.substr(fname.find_last_of(".") + 1).length() == 3)
+            d->fnameBase = fname.substr(0, fname.length() - 4); // remove 3-char suffix from filename
+        else
+            d->fnameBase = fname;
+
+        // set slice number to one, since we are starting fresh
+        d->currentSliceNo = 1;
+        initializeInternal();
+    } catch (const std::exception& e) {
+        // propagate error and stop, we can not really recover from this
+        d->lastError = e.what();
+        return false;
+    }
+
+    return true;
 }
 
 std::chrono::milliseconds VideoWriter::captureStartTimestamp() const

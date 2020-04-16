@@ -27,6 +27,13 @@
 #include "videowriter.h"
 #include "recordersettingsdialog.h"
 
+enum class RecordingState
+{
+    RUNNING,
+    PAUSED,
+    STOPPED
+};
+
 class VideoRecorderModule : public AbstractModule
 {
     Q_OBJECT
@@ -34,6 +41,7 @@ class VideoRecorderModule : public AbstractModule
 private:
     bool m_recording;
     bool m_initDone;
+    bool m_startStopped;
     std::shared_ptr<EDLDataset> m_vidDataset;
     std::unique_ptr<VideoWriter> m_videoWriter;
 
@@ -44,6 +52,7 @@ private:
 
     std::shared_ptr<StreamInputPort<ControlCommand>> m_ctlPort;
     std::shared_ptr<StreamSubscription<ControlCommand>> m_ctlSub;
+    bool m_checkCommands;
 public:
     explicit VideoRecorderModule(QObject *parent = nullptr)
         : AbstractModule(parent),
@@ -87,14 +96,18 @@ public:
 
         m_recording = false;
         m_initDone = false;
+        m_startStopped = m_settingsDialog->startStopped();
         m_inSub.reset();
         m_ctlSub.reset();
         if (!m_inPort->hasSubscription())
             return true;
 
         // get controller subscription, if we have any
-        if (m_ctlPort->hasSubscription())
+        m_checkCommands = false;
+        if (m_ctlPort->hasSubscription()) {
             m_ctlSub = m_ctlPort->subscription();
+            m_checkCommands = true;
+        }
 
         m_inSub = m_inPort->subscription();
         m_recording = true;
@@ -130,16 +143,106 @@ public:
             return;
         }
 
+        // base path to save our video to
+        QString vidSavePathBase;
+
+        // section suffix, in case a controller wants to slice the video manually
+        QString currentSecSuffix;
+        int secCount = 0;
+
+        // state of the recording - we are supposed to be running, unless explicitly
+        // requested to be stopped
+        auto state = m_startStopped? RecordingState::STOPPED : RecordingState::RUNNING;
+
         // wait for the current run to actually launch
         startWaitCondition->wait(this);
 
+        // immediately suspend our input subscription in case we are starting in STOPPED mode
+        if (state != RecordingState::RUNNING) {
+            m_inSub->suspend();
+            statusMessage(QStringLiteral("Waiting for start command."));
+        }
+
         while (m_running) {
+            if (state != RecordingState::RUNNING) {
+                // sanity check
+                if (!m_checkCommands) {
+                    state = RecordingState::RUNNING;
+                }
+
+                // wait for the next command
+                const auto ctlCmd = m_ctlSub->next();
+                if (!ctlCmd.has_value())
+                    break; // we can quit here, a nullopt means we should terminate
+
+                if (ctlCmd->kind == ControlCommandKind::START) {
+                    if (state == RecordingState::PAUSED) {
+                        // hurray, we can just resume normal operation!
+                        state = RecordingState::RUNNING;
+                        m_inSub->resume();
+                        continue;
+                    } else if (state == RecordingState::STOPPED) {
+                        // we were stopped before, so we will now have to create a new
+                        // section to store the new data in
+                        secCount++;
+                        currentSecSuffix = QStringLiteral("_sec%1").arg(secCount);
+
+                        // we can only start a new section if we were already initialized
+                        // if we weren't for some reason, the section initialization will simply
+                        // be deferred to that point
+                        if (m_initDone) {
+                            // start our new section
+                            if (!m_videoWriter->startNewSection(QStringLiteral("%1%2").arg(vidSavePathBase).arg(currentSecSuffix).toStdString())) {
+                                raiseError(QStringLiteral("Unable to initialize recording of a new section: %1").arg(QString::fromStdString(m_videoWriter->lastError())));
+                                return;
+                            }
+                        }
+
+                        // resume normal operation
+                        state = RecordingState::RUNNING;
+                        m_inSub->resume();
+                        statusMessage(QStringLiteral("Recording video %1...").arg(secCount));
+                        continue;
+                    }
+                }
+
+                // we are not running, so don't execute the frame encoding code
+                // until we received a START command again
+                continue;
+            }
+
             const auto maybeFrame = m_inSub->next();
             // getting a nullopt means we can quit this thread, as the experiment has stopped or
             // the data source has completed delivering data and will not send any more
             if (!maybeFrame.has_value())
                 break;
             const auto frame = maybeFrame.value();
+
+            if (m_checkCommands && m_ctlSub->hasPending()) {
+                // process control commands - we only do this when we also have got a frame,
+                // but we're not doing anything without a frame anyway, so this is fine
+                const auto ctlCmd = m_ctlSub->peekNext();
+
+                // we have to check for nullopt, because we may end up here because the
+                // stream has ended (in which case we will terminate this thread very soon)
+                if (ctlCmd.has_value()) {
+                    if (ctlCmd->kind == ControlCommandKind::PAUSE) {
+                        // switch to our paused state
+                        state = RecordingState::PAUSED;
+                        // stop receiving new data
+                        m_inSub->suspend();
+                        statusMessage(QStringLiteral("Recording paused."));
+                        continue;
+                    } else if (ctlCmd->kind == ControlCommandKind::STOP) {
+                        // switch to our stopped state
+                        state = RecordingState::STOPPED;
+                        // stop receiving new data
+                        m_inSub->suspend();
+                        statusMessage(QStringLiteral("Recording stopped."));
+                        continue;
+                    }
+                }
+            }
 
             if (!m_initDone) {
                 const auto mdata = m_inSub->metadata();
@@ -163,12 +266,16 @@ public:
                 }
 
                 const auto dataBasename = dataBasenameFromSubMetadata(m_inSub->metadata(), "video");
-                const auto vidSavePathBase = m_vidDataset->pathForDataBasename(dataBasename);
+                vidSavePathBase = m_vidDataset->pathForDataBasename(dataBasename);
                 m_vidDataset->setDataScanPattern(QStringLiteral("%1*").arg(dataBasename));
                 m_vidDataset->setAuxDataScanPattern(QStringLiteral("%1*.csv").arg(dataBasename));
 
+                auto vidSecFnameBase = vidSavePathBase;
+                if (!currentSecSuffix.isEmpty())
+                    vidSecFnameBase = QStringLiteral("%1%2").arg(vidSecFnameBase).arg(currentSecSuffix);
+
                 try {
-                    m_videoWriter->initialize(vidSavePathBase.toStdString(),
+                    m_videoWriter->initialize(vidSecFnameBase.toStdString(),
                                               frameSize.width(),
                                               frameSize.height(),
                                               framerate,
@@ -190,7 +297,10 @@ public:
 
                 // signal that we are actually recording this session
                 m_initDone = true;
-                statusMessage(QStringLiteral("Recording video..."));
+                if (secCount == 0)
+                    statusMessage(QStringLiteral("Recording video..."));
+                else
+                    statusMessage(QStringLiteral("Recording video %1...").arg(secCount));
             }
 
             // encode current frame
@@ -222,6 +332,7 @@ public:
         settings.insert("video_name_from_source", m_settingsDialog->videoNameFromSource());
         settings.insert("video_name", m_settingsDialog->videoName());
         settings.insert("save_timestamps", m_settingsDialog->saveTimestamps());
+        settings.insert("start_stopped", m_settingsDialog->startStopped());
 
         settings.insert("video_codec", static_cast<int>(m_settingsDialog->videoCodec()));
         settings.insert("video_container", static_cast<int>(m_settingsDialog->videoContainer()));
@@ -232,9 +343,10 @@ public:
 
     bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
     {
-        m_settingsDialog->setVideoNameFromSource(settings.value("video_name_from_source").toBool());
+        m_settingsDialog->setVideoNameFromSource(settings.value("video_name_from_source", true).toBool());
         m_settingsDialog->setVideoName(settings.value("video_name").toString());
-        m_settingsDialog->setSaveTimestamps(settings.value("save_timestamps").toBool());
+        m_settingsDialog->setSaveTimestamps(settings.value("save_timestamps", true).toBool());
+        m_settingsDialog->setStartStopped(settings.value("start_stopped", false).toBool());
 
         m_settingsDialog->setVideoCodec(static_cast<VideoCodec>(settings.value("video_codec").toInt()));
         m_settingsDialog->setVideoContainer(static_cast<VideoContainer>(settings.value("video_container").toInt()));

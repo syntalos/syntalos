@@ -58,6 +58,9 @@ public:
     void setSliceInterval(uint interval);
     uint sliceInterval() const;
 
+    bool startStopped() const;
+    void setStartStopped(bool startStopped);
+
 private slots:
     void on_codecComboBox_currentIndexChanged(int index);
     void on_nameLineEdit_textChanged(const QString &arg1);

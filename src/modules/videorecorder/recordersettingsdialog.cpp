@@ -133,6 +133,16 @@ uint RecorderSettingsDialog::sliceInterval() const
     return static_cast<uint>(ui->sliceIntervalSpinBox->value());
 }
 
+bool RecorderSettingsDialog::startStopped() const
+{
+    return ui->startStoppedCheckBox->isChecked();
+}
+
+void RecorderSettingsDialog::setStartStopped(bool startStopped)
+{
+    ui->startStoppedCheckBox->setChecked(startStopped);
+}
+
 void RecorderSettingsDialog::on_nameLineEdit_textChanged(const QString &arg1)
 {
     m_videoName = simplifyStringForFilebasename(arg1);

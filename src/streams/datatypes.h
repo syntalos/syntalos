@@ -71,6 +71,7 @@ Q_DECLARE_METATYPE(ModuleState)
 enum class ControlCommandKind {
     UNKNOWN,
     START,
+    PAUSE,
     STOP,
     STEP,
     CUSTOM

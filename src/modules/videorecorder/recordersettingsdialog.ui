@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>342</width>
-    <height>215</height>
+    <width>386</width>
+    <height>278</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -127,10 +127,48 @@
      <item row="0" column="1">
       <widget class="QCheckBox" name="nameFromSrcCheckBox"/>
      </item>
+     <item row="7" column="0">
+      <widget class="QLabel" name="startStoppedLabel">
+       <property name="text">
+        <string>Start Stopped</string>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="1">
+      <widget class="QCheckBox" name="startStoppedCheckBox">
+       <property name="toolTip">
+        <string>Start in stopped, non-recording state and wait for a control signal</string>
+       </property>
+      </widget>
+     </item>
     </layout>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
    </item>
   </layout>
  </widget>
  <resources/>
- <connections/>
+ <connections>
+  <connection>
+   <sender>buttonBox</sender>
+   <signal>accepted()</signal>
+   <receiver>RecorderSettingsDialog</receiver>
+   <slot>accept()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>339</x>
+     <y>260</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>321</x>
+     <y>179</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>
