@@ -84,11 +84,11 @@ public:
         // check framerate and throttle it, showing a remark in the latter
         // case so the user is aware that they're not seeing every single frame
         m_realFps = m_frameSub->metadata().value("framerate", 0).toDouble();
-        m_throttleRemark = (m_realFps > 50)? QStringLiteral("rate lowered for display, original:") : QStringLiteral("req.");
+        m_throttleRemark = (m_realFps > 60)? QStringLiteral("rate lowered for display, original:") : QStringLiteral("req.");
         m_displayFps = m_realFps;
-        if (m_displayFps > 50)
-            m_displayFps = 50;
-        m_frameSub->setThrottleItemsPerSec(50); // never try to display more than 50fps
+        if (m_displayFps > 60)
+            m_displayFps = 60;
+        m_frameSub->setThrottleItemsPerSec(60); // never try to display more than 60fps
 
         // assume perfect frame diff for now
         m_avgFrameTimeDiffMsec = 1000.0 / m_displayFps;

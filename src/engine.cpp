@@ -861,12 +861,14 @@ bool Engine::runInternal(const QString &exportDirPath)
         auto &thread = dThreads[i];
         auto mod = threadIdxModMap[i];
         emitStatusMessage(QStringLiteral("Waiting for %1...").arg(mod->name()));
+        qApp->processEvents();
         thread.join();
     }
 
     // join all out-of-process module communication threads
     for (auto &oopThread : oopThreads) {
         emitStatusMessage(QStringLiteral("Waiting for external processes and their relays..."));
+        qApp->processEvents();
         oopThread.join();
     }
 

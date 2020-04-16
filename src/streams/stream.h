@@ -231,15 +231,15 @@ public:
      * subscription is effectively limited to the given integer value per second.
      * This will result in some values being thrown away.
      * By setting a throttle value of 0, all output is passed through and no limits apply.
-     * Internally, the throttle value represents the minimum time in milliseconds between elements.
-     * This also means you can not throttle a connection over 1000 items/sec.
+     * Internally, the throttle value represents the minimum time in microseconds between elements.
+     * This also effectively means you can not throttle a connection over 1000000 items/sec.
      */
     void setThrottleItemsPerSec(uint itemsPerSec, bool allowMore = true)
     {
         if (itemsPerSec == 0)
             m_throttle = 0;
         else
-            m_throttle = allowMore? std::floor(1000.0 / itemsPerSec) : std::ceil(1000.0 / itemsPerSec);
+            m_throttle = allowMore? std::floor((1000.0 / itemsPerSec) * 1000) : std::ceil((1000.0 / itemsPerSec) * 1000);
     }
 
 private:
@@ -263,8 +263,8 @@ private:
     {
         if (m_throttle != 0) {
             const auto timeNow = currentTimePoint();
-            const auto durMsec = timeDiffMsec(timeNow, m_lastItemTime);
-            if (durMsec.count() < m_throttle)
+            const auto durUsec = timeDiffUsec(timeNow, m_lastItemTime);
+            if (durUsec.count() < m_throttle)
                 return;
             m_lastItemTime = timeNow;
         }

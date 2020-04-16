@@ -324,9 +324,9 @@ void MainWindow::temporaryRunActionTriggered()
 void MainWindow::stopActionTriggered()
 {
     setStopPossible(false);
+    showBusyIndicatorProcessing();
     QApplication::processEvents();
     m_engine->stop();
-    setRunPossible(true);
 }
 
 bool MainWindow::saveConfiguration(const QString &fileName)

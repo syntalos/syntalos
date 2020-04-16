@@ -74,6 +74,11 @@ inline milliseconds_t timeDiffMsec(const symaster_timepoint &timePoint1, const s
     return std::chrono::duration_cast<milliseconds_t>(timePoint1 - timePoint2);
 }
 
+inline microseconds_t timeDiffUsec(const symaster_timepoint &timePoint1, const symaster_timepoint &timePoint2) noexcept
+{
+    return std::chrono::duration_cast<microseconds_t>(timePoint1 - timePoint2);
+}
+
 inline milliseconds_t timeDiffToNowMsec(const std::chrono::time_point<symaster_clock>& timePoint) noexcept
 {
     return std::chrono::duration_cast<milliseconds_t>(symaster_clock::now() - timePoint);
