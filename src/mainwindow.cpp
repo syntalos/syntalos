@@ -425,9 +425,6 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         return false;
     }
 
-    // disable all UI elements while we are loading stuff
-    this->setEnabled(false);
-
     QString parseError;
     const auto rootObj = parseTomlData(globalSettingsFile->data(), parseError);
     if (!parseError.isEmpty()) {
@@ -496,7 +493,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
             continue;
         auto ifile = rootDir->file(QStringLiteral("%1/info.toml").arg(ename));
         if (ifile == nullptr)
-            return false;
+            continue;
 
         auto iobj = parseTomlData(ifile->data(), parseError);
         if (!parseError.isEmpty())
@@ -511,6 +508,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         if (mod == nullptr) {
             QMessageBox::critical(this, QStringLiteral("Can not load settings"),
                                   QStringLiteral("Unable to find module '%1' - please install the module first, then attempt to load this configuration again.").arg(modId));
+            setStatusText("Failed to load settings.");
             return false;
         }
         auto sfile = rootDir->file(QStringLiteral("%1/%2.toml").arg(ename).arg(modId));
@@ -533,6 +531,18 @@ bool MainWindow::loadConfiguration(const QString &fileName)
 
         // store module-owned configuration for later
         modSettingsList.append(qMakePair(mod, qMakePair(modSettings, modSettingsEx)));
+    }
+
+    // load module-owned configurations
+    for (auto &pair : modSettingsList) {
+        const auto mod = pair.first;
+        const auto settings = pair.second;
+        if (!mod->loadSettings(confBaseDir.absolutePath(), settings.first, settings.second)) {
+            QMessageBox::critical(this, QStringLiteral("Can not load settings"),
+                                  QStringLiteral("Unable to load module settings for '%1'.").arg(mod->name()));
+            setStatusText("Failed to load settings.");
+            return false;
+        }
     }
 
     // create module connections
@@ -566,24 +576,11 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         }
     }
 
-    // load module-owned configurations
-    for (auto &pair : modSettingsList) {
-        const auto mod = pair.first;
-        const auto settings = pair.second;
-        if (!mod->loadSettings(confBaseDir.absolutePath(), settings.first, settings.second)) {
-            QMessageBox::critical(this, QStringLiteral("Can not load settings"),
-                                  QStringLiteral("Unable to load module settings for '%1'.").arg(mod->name()));
-            return false;
-        }
-    }
-
     QFileInfo fi(fileName);
     this->updateWindowTitle(fi.fileName());
 
-    // we are ready, enable all UI elements again
+    // we are ready now
     setStatusText("Ready.");
-    this->setEnabled(true);
-
     return true;
 }
 
@@ -675,6 +672,9 @@ void MainWindow::loadSettingsActionTriggered()
 
     setStatusText("Loading settings...");
 
+    // disable all UI elements while we are loading stuff
+    this->setEnabled(false);
+
     showBusyIndicatorProcessing();
     if (!loadConfiguration(fileName)) {
         QMessageBox::critical(this,
@@ -683,6 +683,9 @@ void MainWindow::loadSettingsActionTriggered()
         m_engine->removeAllModules();
     }
     hideBusyIndicator();
+
+    // we are ready, enable all UI elements again
+    this->setEnabled(true);
 }
 
 void MainWindow::updateWindowTitle(const QString& fileName)

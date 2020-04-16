@@ -210,6 +210,10 @@ void CDeviceSelectionDlg::OnOK()
     DeviceDesc *DevDesc =  GetSelectedItemData<DeviceDesc*>(cboCameras);
     CVideoFormat *pVideoFormat = GetSelectedItemData<CVideoFormat*>(cboVideoFormats);
     CFrameRate *pFrameRate =  GetSelectedItemData<CFrameRate*>(cboFrameRates);
+    if (DevDesc == nullptr) {
+        this->done(Accepted);
+        return;
+    }
 
     _SelectedDevice.SerialNumber = DevDesc->SerialNumber;
     _SelectedDevice.Name = DevDesc->Name;

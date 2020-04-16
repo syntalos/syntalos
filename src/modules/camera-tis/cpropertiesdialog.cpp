@@ -158,11 +158,12 @@ void CPropertiesDialog::setCamera(TcamProp *_ptcambin )
     TcamProp *ptcambin = _ptcambin;
     deleteControls();
 
-    if( ptcambin != NULL )
-    {
-        m_cameraSet = true;
-
+    if( ptcambin != NULL ) {
         GSList* prop_names = tcam_prop_get_tcam_property_names(ptcambin);
+        if (prop_names == nullptr)
+            return;
+
+        m_cameraSet = true;
 
         GSList* p = prop_names;
         do
