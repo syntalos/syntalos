@@ -41,3 +41,22 @@ QString simplifyStringForFilebasename(const QString &s)
             .replace(" ", "")
             .replace(":", "");
 }
+
+QStringList qStringSplitLimit(const QString &str, const QChar &sep, int maxSplit, Qt::CaseSensitivity cs)
+{
+    QStringList list;
+    int start = 0;
+    int end;
+    while ((end = str.indexOf(sep, start, cs)) != -1) {
+        if (start != end)
+            list.append(str.mid(start, end - start));
+        start = end + 1;
+        if (maxSplit > 0) {
+            if (list.length() > maxSplit)
+                break;
+        }
+    }
+    if (start != str.size())
+        list.append(str.mid(start));
+    return list;
+}

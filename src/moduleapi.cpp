@@ -573,25 +573,6 @@ QString AbstractModule::datasetNameSuggestion(bool lowercase) const
     return datasetName;
 }
 
-static QStringList qStringSplitLimit(const QString &str, const QChar &sep, int maxSplit, Qt::CaseSensitivity cs = Qt::CaseSensitive)
-{
-    QStringList list;
-    int start = 0;
-    int end;
-    while ((end = str.indexOf(sep, start, cs)) != -1) {
-        if (start != end)
-            list.append(str.mid(start, end - start));
-        start = end + 1;
-        if (maxSplit > 0) {
-            if (list.length() > maxSplit)
-                break;
-        }
-    }
-    if (start != str.size())
-        list.append(str.mid(start));
-    return list;
-}
-
 QString AbstractModule::datasetNameFromSubMetadata(const QVariantHash &subMetadata)
 {
     const auto srcModNameKey = _commonMetadataKeyMap->value(CommonMetadataKey::SrcModName);

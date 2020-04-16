@@ -54,6 +54,16 @@ public:
     QString availableClocksources() const;
     SysInfoCheckResult checkClocksource();
 
+    bool tscIsConstant() const;
+    SysInfoCheckResult checkTSCConstant();
+
+    QString supportedAVXInstructions() const;
+    SysInfoCheckResult checkAVXInstructions();
+
+    QString cpu0ModelName() const;
+    int cpuCount() const;
+    int cpuPhysicalCoreCount() const;
+
     QString qtVersion() const;
     QString openCVVersionString() const;
     QString eigenVersionString() const;
@@ -65,6 +75,7 @@ private:
     QScopedPointer<Private> d;
 
     QString readSysFsValue(const QString &path);
+    void readCPUInfo();
 };
 
 } // end of namespace

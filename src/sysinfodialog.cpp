@@ -41,6 +41,7 @@ SysInfoDialog::SysInfoDialog(SysInfo *sysInfo, QWidget *parent) :
     // for things which may be issues, depending on the setup
     m_hintTextPal.setColor(QPalette::WindowText, qRgb(244, 119, 80));
 
+    // OS Information
     ui->valOSName->setText(sysInfo->prettyProductName());
     ui->valKernel->setText(sysInfo->kernelInfo());
     ui->valInitSystem->setText(sysInfo->initName());
@@ -48,12 +49,23 @@ SysInfoDialog::SysInfoDialog(SysInfo *sysInfo, QWidget *parent) :
     ui->valUsbFsMemory->setText(QStringLiteral("%1 MB").arg(sysInfo->usbFsMemoryMb()));
     setLabelTextStyle(sysInfo->checkUsbFsMemory(), ui->valUsbFsMemory);
 
+    // Hardware Information
     ui->valHWArch->setText(sysInfo->currentArchitecture());
+    ui->valCPU0ModelName->setText(sysInfo->cpu0ModelName());
+    ui->valLogicalCores->setText(QString::number(sysInfo->cpuCount()));
+    ui->valPhysicalCores->setText(QString::number(sysInfo->cpuPhysicalCoreCount()));
+
     ui->valClocksourceCurrent->setText(sysInfo->currentClocksource());
-    ui->valClocksourceAvailable->setText(sysInfo->availableClocksources());
     setLabelTextStyle(sysInfo->checkClocksource(), ui->valClocksourceCurrent);
+    ui->valClocksourceAvailable->setText(sysInfo->availableClocksources());
+    ui->valConstantTSC->setText(sysInfo->tscIsConstant()? QStringLiteral("yes") : QStringLiteral("no"));
+    setLabelTextStyle(sysInfo->checkTSCConstant(), ui->valConstantTSC);
+
+    ui->valAVX->setText(sysInfo->supportedAVXInstructions());
+    setLabelTextStyle(sysInfo->checkAVXInstructions(), ui->valAVX);
     ui->valOpenGL->setText(sysInfo->glVersion());
 
+    // Software Information
     ui->valQt->setText(sysInfo->qtVersion());
     ui->valOpenCV->setText(sysInfo->openCVVersionString());
     ui->valEigen->setText(sysInfo->eigenVersionString());

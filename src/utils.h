@@ -21,6 +21,7 @@
 #define UTILS_H
 
 #include <QString>
+#include <QStringList>
 
 /**
  * @brief Create a random alphanumeric string with the given length.
@@ -31,5 +32,13 @@ QString createRandomString(int len);
  * @brief Simplify a string for use in file basenames.
  */
 QString simplifyStringForFilebasename(const QString &s);
+
+/**
+ * @brief Split a string, limiting the amount of splits made
+ */
+QStringList qStringSplitLimit(const QString &str,
+                              const QChar &sep,
+                              int maxSplit,
+                              Qt::CaseSensitivity cs = Qt::CaseSensitive);
 
 #endif // UTILS_H
