@@ -219,7 +219,9 @@ class CPropertiesDialog : public QDialog
 public:
     CPropertiesDialog(QWidget *parent = nullptr);
     ~CPropertiesDialog();
-    void SetCamera(TcamProp *_ptcambin);
+
+    void setCamera(TcamProp *_ptcambin);
+    void setRunning(bool running);
 
 protected:
     void showEvent(QShowEvent *) override;
@@ -235,6 +237,7 @@ private:
     QTabWidget *_QTabs;
     std::vector <CPage> _Pages;
     QPushButton *m_btnUpdate;
+    QPushButton *m_btnDevSelect;
     bool m_cameraSet;
 
     //CGrabber *_pGrabber;

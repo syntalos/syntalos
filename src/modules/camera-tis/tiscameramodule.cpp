@@ -36,8 +36,11 @@ private:
 
     gsttcam::TcamCamera *m_camera;
     QString m_camSerial;
-    double m_fps;
     cv::Size m_resolution;
+
+    double m_fps;
+    int m_fpsNumerator;
+    int m_fpsDenominator;
 
 public:
     explicit TISCameraModule(QObject *parent = nullptr)
@@ -94,6 +97,55 @@ public:
         m_propDialog->hide();
     }
 
+    bool resetCamera()
+    {
+        if (m_camSerial.isEmpty())
+            return false;
+        if ((m_fpsNumerator <= 0) || (m_fpsDenominator <= 0) || (m_resolution.empty()))
+            return false;
+
+        if (m_camera != nullptr) {
+            m_camera->stop();
+            delete m_camera;
+        }
+
+        // Instantiate the TcamCamera object with the serial number
+        // of the selected device
+        m_camera = new gsttcam::TcamCamera(m_camSerial.toStdString());
+
+        // Set video format, resolution and frame rate. We display color.
+        m_camera->set_capture_format("BGRx",
+                                     gsttcam::FrameSize{m_resolution.width, m_resolution.height},
+                                     gsttcam::FrameRate{m_fpsNumerator, m_fpsDenominator});
+        return true;
+    }
+
+    void selectCamera(const QString &serial, int width, int height, int fps1, int fps2)
+    {
+        if (serial.isEmpty())
+            return;
+        if ((fps1 <= 0) || (fps2 <= 0) || (width <= 0) || (height <= 0))
+            return;
+
+        m_camSerial = serial;
+        m_fpsNumerator = fps1;
+        m_fpsDenominator = fps2;
+        m_fps = (double) m_fpsNumerator / (double) m_fpsDenominator;
+        m_resolution = cv::Size(width, height);
+
+        // create a new camera, deleting the old one
+        resetCamera();
+
+        // delete our old properties dialog, we don't need it anymore
+        // replace it with a new one for the newly selected camera/settings combo
+        createNewPropertiesDialog();
+
+        // Pass the tcambin element to the properties dialog
+        // so in knows, which device do handle
+        const auto camProp = TCAM_PROP(m_camera->getTcamBin());
+        m_propDialog->setCamera(camProp);
+    }
+
     void onDeviceSelectClicked()
     {
         if (m_running)
@@ -105,38 +157,11 @@ public:
             return;
         }
 
-        const auto serial = devSelDlg.getSerialNumber();
-        const auto width = devSelDlg.getWidth();
-        const auto height = devSelDlg.getHeight();
-        const auto fps1 = devSelDlg.getFPSNominator();
-        const auto fps2 = devSelDlg.getFPSDeNominator();
-
-        m_camSerial = QString::fromStdString(serial);
-        m_fps = (double) fps1 / (double) fps2;
-        m_resolution = cv::Size(width, height);
-
-        if (m_camera != nullptr) {
-            m_camera->stop();
-            delete m_camera;
-        }
-
-        // Instantiate the TcamCamera object with the serial number
-        // of the selected device
-        m_camera = new gsttcam::TcamCamera(serial);
-
-        // Set video format, resolution and frame rate. We display color.
-        m_camera->set_capture_format("BGRx",
-                                     gsttcam::FrameSize{width,height},
-                                     gsttcam::FrameRate{fps1,fps2});
-
-        // delete our old properties dialog, we don't need it anymore
-        // replace it with a new one for the newly selected camera/settings combo
-        createNewPropertiesDialog();
-
-        // Pass the tcambin element to the properties dialog
-        // so in knows, which device do handle
-        const auto camProp = TCAM_PROP(m_camera->getTcamBin());
-        m_propDialog->SetCamera(camProp);
+        selectCamera(QString::fromStdString(devSelDlg.getSerialNumber()),
+                     devSelDlg.getWidth(),
+                     devSelDlg.getHeight(),
+                     devSelDlg.getFPSNominator(),
+                     devSelDlg.getFPSDeNominator());
         m_propDialog->show();
     }
 
@@ -144,6 +169,18 @@ public:
     {
         if (m_camera == nullptr) {
             raiseError("Unable to continue: No valid camera was selected!");
+            return false;
+        }
+
+        // don't permit selecting a different device from this point on
+        m_propDialog->setRunning(true);
+
+        // there are stream issues if we do not recreate the GStreamer pipeline
+        // every single time
+        // FIXME: Find out why restarting the pipeline after it has run once does
+        // not work, so we don't have to recreate it every time.
+        if (!resetCamera()) {
+            raiseError("Unable to initialize camera video streaming pipeline. Is the right camera selected, and is it plugged in?");
             return false;
         }
 
@@ -160,6 +197,8 @@ public:
 
     void runThread(OptionalWaitCondition *waitCondition) override
     {
+        bool m_firstTimestamp = true;
+
         // set up clock synchronizer
         const auto clockSync = initClockSynchronizer(m_fps);
         clockSync->setStrategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD);
@@ -184,15 +223,20 @@ public:
             return;
         }
 
-        statusMessage("Running...");
+        statusMessage("");
         const auto appsink = GST_APP_SINK(m_camera->getCaptureSink());
         while (m_running) {
             g_autoptr(GstSample) sample = nullptr;
             auto frameRecvTime = MTIMER_FUNC_TIMESTAMP(sample = gst_app_sink_pull_sample(appsink));
             if (sample == nullptr) {
                 // check if the inout stream has ended
-                if (gst_app_sink_is_eos(appsink))
+                if (gst_app_sink_is_eos(appsink)) {
+                    if (m_running)
+                        qWarning("TISCamera: Video stream has ended prematurely!");
                     break;
+                }
+                if (m_running)
+                    qWarning("TISCamera: Received invalid sample.");
                 continue;
             }
 
@@ -205,7 +249,7 @@ public:
                 const auto gStr = gst_caps_get_structure (caps, 0);
 
                 // sanity check
-                if( g_strcmp0 (gst_structure_get_string(gStr, "format"), "BGRx") != 0) {
+                if (g_strcmp0 (gst_structure_get_string(gStr, "format"), "BGRx") != 0) {
                     qDebug() << "Received buffer with unsupported format: " << gst_structure_get_string(gStr, "format");
                     gst_buffer_unmap (buffer, &info);
                     continue;
@@ -218,9 +262,14 @@ public:
 
                 // only do time adjustment if we have a valid timestamp
                 const auto pts = buffer->pts;
-                if (pts != GST_CLOCK_TIME_NONE)
+                if (pts != GST_CLOCK_TIME_NONE) {
+                    // mark as us not being able to do any time adjustments if no valid timestamps are received
+                    if (m_firstTimestamp)
+                        clockSync->setStrategies(TimeSyncStrategy::NONE);
                     clockSync->processTimestamp(frameRecvTime, std::chrono::duration_cast<milliseconds_t>(nanoseconds_t(pts)));
+                }
                 frame.time = frameRecvTime;
+                m_firstTimestamp = false;
 
                 m_outStream->push(frame);
             }
@@ -245,6 +294,28 @@ public:
         // we don't deadlock
         m_running = false;
         m_camera->stop();
+
+        // we are not running anymore, so new device selections are possible again
+        m_propDialog->setRunning(false);
+    }
+
+    void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
+    {
+        settings.insert("camera", m_camSerial);
+        settings.insert("width", m_resolution.width);
+        settings.insert("height", m_resolution.height);
+        settings.insert("fps_numerator", m_fpsNumerator);
+        settings.insert("fps_denominator", m_fpsDenominator);
+    }
+
+    bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
+    {
+        selectCamera(settings.value("camera").toString(),
+                     settings.value("width").toInt(),
+                     settings.value("height").toInt(),
+                     settings.value("fps_numerator").toInt(),
+                     settings.value("fps_denominator").toInt());
+        return true;
     }
 };
 

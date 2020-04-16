@@ -27,7 +27,7 @@ CPropertiesDialog::CPropertiesDialog(QWidget *parent)
     setWindowIcon(QPixmap(":/module/camera-tis"));
 
     _QTabs = new QTabWidget(this);
-    const auto btnDevSelect = new QPushButton("Select Device");
+    m_btnDevSelect = new QPushButton("Select Device");
     m_btnUpdate = new QPushButton("Update");
     const auto btnOk = new QPushButton("OK");
 
@@ -39,12 +39,12 @@ CPropertiesDialog::CPropertiesDialog(QWidget *parent)
     QHBoxLayout *Buttonslayout = new QHBoxLayout;
     Buttonslayout->setMargin(2);
 
-    Buttonslayout->addWidget(btnDevSelect);
+    Buttonslayout->addWidget(m_btnDevSelect);
     Buttonslayout->addWidget(m_btnUpdate);
     Buttonslayout->addWidget(btnOk);
     layout->addLayout(Buttonslayout);
 
-    connect(btnDevSelect, &QPushButton::clicked, this, [&]() {
+    connect(m_btnDevSelect, &QPushButton::clicked, this, [&]() {
         emit deviceSelectClicked();
     });
     connect(m_btnUpdate, &QPushButton::clicked, this, &CPropertiesDialog::updateProperties);
@@ -59,10 +59,8 @@ CPropertiesDialog::CPropertiesDialog(QWidget *parent)
 
 CPropertiesDialog::~CPropertiesDialog()
 {
-  g_print("Dialog Destructor called\n");
-  deleteControls();
+    deleteControls();
 }
-
 
 void CPropertiesDialog::CreatePageCategories()
 {
@@ -154,7 +152,7 @@ void CPropertiesDialog::deleteControls()
   _PropertySliders.clear();
 }
 
-void CPropertiesDialog::SetCamera(TcamProp *_ptcambin )
+void CPropertiesDialog::setCamera(TcamProp *_ptcambin )
 {
     //setWindowTitle( _pCamera->_name);
     TcamProp *ptcambin = _ptcambin;
@@ -231,6 +229,11 @@ void CPropertiesDialog::SetCamera(TcamProp *_ptcambin )
     }
 
     m_btnUpdate->setEnabled(m_cameraSet);
+}
+
+void CPropertiesDialog::setRunning(bool running)
+{
+    m_btnDevSelect->setEnabled(!running);
 }
 
 void CPropertiesDialog::showEvent(QShowEvent *event)
@@ -811,8 +814,7 @@ void CPropertyCtrl_enum::setEnumProperty(const char *Property, const char* value
     {
         g_value_init(&val,G_TYPE_STRING);
         g_value_set_string(&val, value);
-        if( !tcam_prop_set_tcam_property(_pTcamProp ,(char*)Property , &val) )
-        {
+        if( !tcam_prop_set_tcam_property(_pTcamProp ,(char*)Property , &val) ) {
             printf("Failed to set %s\n", Property);
         }
     }

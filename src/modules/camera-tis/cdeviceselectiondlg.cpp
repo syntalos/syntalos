@@ -207,8 +207,6 @@ void CDeviceSelectionDlg::OnUpdateButton()
 
 void CDeviceSelectionDlg::OnOK()
 {
-    printf("OnOK\n");
-
     DeviceDesc *DevDesc =  GetSelectedItemData<DeviceDesc*>(cboCameras);
     CVideoFormat *pVideoFormat = GetSelectedItemData<CVideoFormat*>(cboVideoFormats);
     CFrameRate *pFrameRate =  GetSelectedItemData<CFrameRate*>(cboFrameRates);

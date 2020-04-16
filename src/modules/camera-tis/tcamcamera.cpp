@@ -276,7 +276,7 @@ TcamCamera::TcamCamera(std::string serial)
 
 TcamCamera::~TcamCamera()
 {
-    g_print("pipeline refcount at cleanup: %d\n", GST_OBJECT_REFCOUNT_VALUE(pipeline_));
+    g_print("TISCamera: pipeline refcount at cleanup: %d\n", GST_OBJECT_REFCOUNT_VALUE(pipeline_));
     gst_object_unref(pipeline_);
 }
 
