@@ -168,6 +168,9 @@ public:
                                        po.value("title").toString());
         }
 
+        // update port listing in UI
+        m_portsDialog->updatePortLists();
+
         return true;
     }
 

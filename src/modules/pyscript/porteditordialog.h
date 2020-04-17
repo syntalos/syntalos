@@ -38,6 +38,8 @@ public:
     explicit PortEditorDialog(AbstractModule *mod, QWidget *parent = nullptr);
     ~PortEditorDialog();
 
+    void updatePortLists();
+
 private slots:
     void on_tbAddInputPort_clicked();
     void on_tbAddOutputPort_clicked();
@@ -49,6 +51,4 @@ private slots:
 private:
     Ui::PortEditorDialog *ui;
     AbstractModule *m_mod;
-
-    void updatePortLists();
 };
