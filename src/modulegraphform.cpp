@@ -240,6 +240,13 @@ void ModuleGraphForm::on_selectionChanged()
 
 void ModuleGraphForm::on_graphPortsConnected(FlowGraphNodePort *port1, FlowGraphNodePort *port2)
 {
+    // sanity check
+    if (!m_modifyPossible) {
+        qCritical() << "Tried to connect ports while board modifications were prohibited.";
+        ui->graphView->disconnectItems(port1, port2);
+        return;
+    }
+
     VarStreamInputPort *inPort = nullptr;
     StreamOutputPort *outPort = nullptr;
     if (port1->isInput())
@@ -280,6 +287,12 @@ void ModuleGraphForm::on_graphPortsConnected(FlowGraphNodePort *port1, FlowGraph
 
 void ModuleGraphForm::on_graphPortsDisconnected(FlowGraphNodePort *port1, FlowGraphNodePort *port2)
 {
+    // sanity check
+    if (!m_modifyPossible) {
+        qCritical() << "Disconnected ports in graph UI although board modifications were prohibited. This is a bug.";
+        return;
+    }
+
     VarStreamInputPort *inPort = nullptr;
     StreamOutputPort *outPort = nullptr;
     if (port1->isInput())
