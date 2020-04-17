@@ -167,7 +167,10 @@ public:
             if (state != RecordingState::RUNNING) {
                 // sanity check
                 if (!m_checkCommands) {
+                    // we just jump out of our stopped state in case we are not
+                    // subscribed to a controlling module
                     state = RecordingState::RUNNING;
+                    continue;
                 }
 
                 // wait for the next command
