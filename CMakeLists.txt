@@ -26,15 +26,12 @@ option(MOD_MINISCOPE   "Enable Miniscope module" ON)
 #
 # Compiler flags
 #
-add_definitions("-Wall" "-Wextra")
+add_definitions("-Wall")
 add_definitions("-Werror=suggest-override")
 if (MAINTAINER)
-    add_definitions("-Werror")
-    add_definitions("-Wzero-as-null-pointer-constant")
-    add_definitions(
-        "-Wsuggest-override"
-        "-Wsuggest-final-methods"
-        # "-Wsuggest-final-types"
+    add_definitions("-Werror" "-Wextra")
+    add_definitions("-Wzero-as-null-pointer-constant"
+                    "-Wsuggest-final-methods"
     )
 endif()
 

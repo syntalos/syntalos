@@ -3,8 +3,8 @@
 # as possible to the pristine Intan code.
 if (MAINTAINER)
     remove_definitions("-Werror" "-Wzero-as-null-pointer-constant")
+    add_definitions("-Werror=suggest-override")
     add_definitions("-Wno-unused-but-set-variable")
-    add_definitions("-Wno-suggest-override")
 endif()
 
 set(INTAN_RHD2000_SRC

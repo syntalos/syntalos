@@ -50,20 +50,20 @@ public:
     void setDigitalEdgePolarity(bool risingEdge);
     void setNewChannel(SignalChannel* newChannel);
 
-    QSize minimumSizeHint() const;
-    QSize sizeHint() const;
+    QSize minimumSizeHint() const override;
+    QSize sizeHint() const override;
 
 signals:
-    
+
 public slots:
 
 protected:
-    void paintEvent(QPaintEvent *event);
-    void closeEvent(QCloseEvent *event);
-    void mousePressEvent(QMouseEvent *event);
-    void wheelEvent(QWheelEvent *event);
-    void keyPressEvent(QKeyEvent *event);
-    void resizeEvent(QResizeEvent* event);
+    void paintEvent(QPaintEvent *event) override;
+    void closeEvent(QCloseEvent *event) override;
+    void mousePressEvent(QMouseEvent *event) override;
+    void wheelEvent(QWheelEvent *event) override;
+    void keyPressEvent(QKeyEvent *event) override;
+    void resizeEvent(QResizeEvent* event) override;
 
 private:
     void drawAxisLines();
@@ -101,7 +101,7 @@ private:
     QPixmap pixmap;
 
     QVector<QVector<QColor> > scopeColors;
-    
+
 };
 
 #endif // SPIKEPLOT_H
