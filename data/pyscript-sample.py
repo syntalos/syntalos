@@ -7,8 +7,8 @@ iport = io.get_input_port('video-in')
 oport = io.get_output_port('video-out')
 
 # Set appropriate metadata on output ports
-oport.set_metadata_value_int('framerate', 200)
-oport.set_metadata_value_dim('size', [800, 600])
+oport.set_metadata_value('framerate', 200)
+oport.set_metadata_value_size('size', [800, 600])
 
 
 def loop():

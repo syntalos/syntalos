@@ -148,7 +148,7 @@ void OOPWorker::shutdown()
 
     // give other events a bit of time (10ms) to react to the fact that we are no longer running
     QTimer::singleShot(10, this, &QCoreApplication::quit);
-    qDebug() << "Shutting down script as soon as possible.";
+    qDebug() << "Shutting down script soon.";
 }
 
 void OOPWorker::emitPyError()

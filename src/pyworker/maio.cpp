@@ -134,27 +134,56 @@ struct OutputPort
             throw MazeAmazePyError("Could not submit data on output port.");
     }
 
-    void set_metadata_value_str(const std::string &key, const std::string &value)
+    void set_metadata_value(const std::string &key, const python::object &obj)
     {
         auto pb = PyBridge::instance();
-        pb->worker()->setOutPortMetadataValue(_inst_id,
-                                              QString::fromStdString(key),
-                                              QVariant::fromValue(QString::fromStdString(value)));
+        if (PyLong_CheckExact(obj.ptr())) {
+            // we have an integer type
+            const long value = python::extract<long>(obj);
+            pb->worker()->setOutPortMetadataValue(_inst_id,
+                                                  QString::fromStdString(key),
+                                                  QVariant::fromValue(value));
+        } else if (PyUnicode_CheckExact(obj.ptr())) {
+            // we have a (unicode) string type
+            const auto value = python::extract<std::string>(obj);
+            pb->worker()->setOutPortMetadataValue(_inst_id,
+                                                  QString::fromStdString(key),
+                                                  QVariant::fromValue(QString::fromStdString(value)));
+        } else if (PyList_Check(obj.ptr())) {
+            const python::list pyList = python::extract<python::list>(obj);
+            const auto pyListLen = python::len(pyList);
+            if (pyListLen <= 0)
+                return;
+            QVariantList varList;
+            varList.reserve(pyListLen);
+            for (ssize_t i = 0; i < pyListLen; i++) {
+                const auto loP = pyList[i];
+                const python::object lo = python::extract<python::object>(loP);
+                if (PyLong_CheckExact(lo.ptr())) {
+                    const long value = python::extract<long>(lo.ptr());
+                    varList.append(QVariant::fromValue(value));
+                } else if (PyUnicode_CheckExact(lo.ptr())) {
+                    const auto value = python::extract<std::string>(lo);
+                    varList.append(QString::fromStdString(value));
+                } else {
+                    throw MazeAmazePyError(std::string("Invalid type found in list metadata entry: ") +
+                                           std::string(boost::python::extract<std::string>(lo.attr("__class__").attr("__name__"))));
+                }
+            }
+            pb->worker()->setOutPortMetadataValue(_inst_id,
+                                                  QString::fromStdString(key),
+                                                  varList);
+        } else {
+            throw MazeAmazePyError(std::string("Can not set a metadata value for this type: ") +
+                                   std::string(boost::python::extract<std::string>(obj.attr("__class__").attr("__name__"))));
+        }
     }
 
-    void set_metadata_value_int(const std::string &key, int value)
+    void set_metadata_value_size(const std::string &key, const python::list &value)
     {
         auto pb = PyBridge::instance();
-        pb->worker()->setOutPortMetadataValue(_inst_id,
-                                              QString::fromStdString(key),
-                                              QVariant::fromValue(value));
-    }
-
-    void set_metadata_value_dim(const std::string &key, const python::list &value)
-    {
-        auto pb = PyBridge::instance();
-        if (python::len(value) < 2)
-            throw MazeAmazePyError("Dimension list needs at least two entries");
+        if (python::len(value) != 2)
+            throw MazeAmazePyError("Dimension list needs exactly two entries");
         const int width = python::extract<int>(value[0]);
         const int height = python::extract<int>(value[1]);
         QSize size(width, height);
@@ -221,9 +250,8 @@ BOOST_PYTHON_MODULE(maio)
     class_<OutputPort>("OutputPort", init<std::string, int>())
                 .def("submit", &OutputPort::submit)
                 .def_readonly("name", &OutputPort::_name)
-                .def("set_metadata_value_str", &OutputPort::set_metadata_value_str)
-                .def("set_metadata_value_int", &OutputPort::set_metadata_value_int)
-                .def("set_metadata_value_dim", &OutputPort::set_metadata_value_dim)
+                .def("set_metadata_value", &OutputPort::set_metadata_value, "Set (immutable) metadata value for this port.")
+                .def("set_metadata_value_size", &OutputPort::set_metadata_value_size, "Set (immutable) metadata value for a 2D size type for this port.")
             ;
 
     enum_<InputWaitResult>("InputWaitResult")

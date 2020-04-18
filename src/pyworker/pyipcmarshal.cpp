@@ -143,7 +143,15 @@ bool marshalPyDataElement(int typeId, const boost::python::object &pyObj,
         TableRow row;
         row.reserve(pyListLen);
         for (ssize_t i = 0; i < pyListLen; i++) {
-            row.append(QString::fromStdString(boost::python::extract<std::string>(pyList[i])));
+            const auto loP = pyList[i];
+            const python::object lo = python::extract<python::object>(loP);
+            if (PyLong_CheckExact(lo.ptr())) {
+                const long value = python::extract<long>(lo.ptr());
+                row.append(QString::number(value));
+            } else {
+                const auto value = python::extract<std::string>(lo);
+                row.append(QString::fromStdString(value));
+            }
         }
         params.append(QVariant::fromValue(row));
         return true;
