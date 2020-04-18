@@ -53,6 +53,7 @@ public:
 
     void forwardInputData(QEventLoop *loop = nullptr);
 
+    bool workerReady() const;
     bool failed() const;
 
     bool captureStdout() const;
@@ -61,6 +62,7 @@ public:
     QString readProcessStdout();
 
 private slots:
+    void receiveReadyChange(bool ready);
     void receiveOutput(int outPortId, QVariantList params);
     void receiveOutputPortMetadataUpdate(int outPortId, QVariantHash metadata);
 
@@ -69,6 +71,7 @@ private:
     QProcess *m_proc;
     QString m_workerBinary;
     bool m_captureStdout;
+    bool m_workerReady;
     bool m_failed;
 
     std::vector<std::unique_ptr<SharedMemory>> m_shmSend;

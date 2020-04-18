@@ -117,7 +117,18 @@ bool OOPModule::oopPrepare(QEventLoop *loop)
 
     // check if we already received messages from the worker,
     // such as errors or output port metadata updates
-    loop->processEvents();
+    // we need to wait for some time until the worker is ready
+    statusMessage("Waiting for worker to become ready...");
+    const auto waitStartTime = currentTimePoint();
+    while (!wc->workerReady()) {
+        loop->processEvents();
+        if (timeDiffMsec(currentTimePoint(), waitStartTime).count() > 20000) {
+            // waiting 20sec is long enough, presumably the worker died and we can not
+            // continue here
+            raiseError("The worker did not signal readyness - maybe it crashed or is frozen?");
+            return false;
+        }
+    }
 
     // set all outgoing streams as active (which propagates metadata)
     for (auto &port : outPorts())
@@ -126,12 +137,14 @@ bool OOPModule::oopPrepare(QEventLoop *loop)
     if (wc->failed())
         return false;
 
+    statusMessage("Worker is ready.");
     setStateReady();
     return true;
 }
 
 void OOPModule::oopStart(QEventLoop *)
 {
+    statusMessage("");
     d->runData->wc->start(m_syTimer->startTime());
 }
 
@@ -155,6 +168,7 @@ void OOPModule::oopRunEvent(QEventLoop *loop)
 
 void OOPModule::oopFinalize(QEventLoop *loop)
 {
+    statusMessage("Waiting for worker to terminate...");
     d->runData->wc->terminate(loop);
     if (d->captureStdout) {
         const auto data = d->runData->wc->readProcessStdout();
@@ -163,6 +177,7 @@ void OOPModule::oopFinalize(QEventLoop *loop)
     }
 
     d->runData.reset();
+    statusMessage("");
 }
 
 void OOPModule::loadPythonScript(const QString &script, const QString &env)

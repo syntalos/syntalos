@@ -32,8 +32,10 @@ OOPWorkerConnector::OOPWorkerConnector(QSharedPointer<OOPWorkerReplica> ptr, con
     : QObject(nullptr),
       m_reptr(ptr),
       m_proc(new QProcess(this)),
-      m_workerBinary(workerBin)
+      m_workerBinary(workerBin),
+      m_workerReady(false)
 {
+    connect(m_reptr.data(), &OOPWorkerReplica::readyChanged, this, &OOPWorkerConnector::receiveReadyChange);
     connect(m_reptr.data(), &OOPWorkerReplica::sendOutput, this, &OOPWorkerConnector::receiveOutput);
     connect(m_reptr.data(), &OOPWorkerReplica::updateOutPortMetadata, this, &OOPWorkerConnector::receiveOutputPortMetadataUpdate);
 
@@ -80,6 +82,7 @@ void OOPWorkerConnector::terminate(QEventLoop *loop)
 bool OOPWorkerConnector::connectAndRun()
 {
     m_failed = false;
+    m_workerReady = false;
     const auto address = QStringLiteral("local:maw-%1").arg(createRandomString(16));
     m_reptr->node()->connectToNode(QUrl(address));
 
@@ -191,6 +194,11 @@ void OOPWorkerConnector::forwardInputData(QEventLoop *loop)
     }
 }
 
+bool OOPWorkerConnector::workerReady() const
+{
+    return m_workerReady;
+}
+
 bool OOPWorkerConnector::failed() const
 {
     return m_failed;
@@ -216,6 +224,11 @@ QString OOPWorkerConnector::readProcessStdout()
         return QString();
 
     return m_proc->readAllStandardOutput();
+}
+
+void OOPWorkerConnector::receiveReadyChange(bool ready)
+{
+    m_workerReady = ready;
 }
 
 template<typename T>

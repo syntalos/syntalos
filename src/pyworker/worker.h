@@ -39,6 +39,7 @@ public:
     ~OOPWorker() override;
 
     bool ready() const override;
+    void setReady(bool ready);
 
     std::optional<InputPortInfo> inputPortInfoByIdString(const QString &idstr);
     std::optional<OutputPortInfo> outputPortInfoByIdString(const QString &idstr);
@@ -66,6 +67,7 @@ protected:
 
 private:
     QString m_script;
+    bool m_ready;
     bool m_running;
     std::vector<std::unique_ptr<SharedMemory>> m_shmSend;
     std::vector<std::unique_ptr<SharedMemory>> m_shmRecv;

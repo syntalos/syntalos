@@ -27,7 +27,9 @@
 #include "streams/datatypes.h"
 
 OOPWorker::OOPWorker(QObject *parent)
-    : OOPWorkerSource(parent)
+    : OOPWorkerSource(parent),
+      m_ready(false),
+      m_running(false)
 {
     m_pyb = PyBridge::instance(this);
     pythonRegisterMaioModule();
@@ -41,7 +43,13 @@ OOPWorker::~OOPWorker()
 
 bool OOPWorker::ready() const
 {
-    return true;
+    return m_ready;
+}
+
+void OOPWorker::setReady(bool ready)
+{
+    m_ready = ready;
+    Q_EMIT readyChanged(m_ready);
 }
 
 std::optional<InputPortInfo> OOPWorker::inputPortInfoByIdString(const QString &idstr)
@@ -220,6 +228,9 @@ void OOPWorker::runScript()
         if (pFunc && PyCallable_Check(pFunc)) {
             bool callEventLoop = true;
 
+            // signal that we are ready now
+            setReady(true);
+
             // while we are not running, ait for the start signal
             while (!m_running) { QCoreApplication::processEvents(); }
 
@@ -252,6 +263,11 @@ void OOPWorker::runScript()
     }
 
     Py_Finalize();
+
+
+    // we aren't ready anymore,
+    // and also stopped running the loop
+    setReady(false);
     m_running = false;
 }
 #pragma GCC diagnostic pop
