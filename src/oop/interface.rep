@@ -37,7 +37,7 @@ class OOPWorker
     SLOT(bool initializeFromData(const QString &script, const QString &env));
     SLOT(bool initializeFromFile(const QString &fname, const QString &env));
 
-    SLOT(void start(long startTimestampMsec));
+    SLOT(void start(long startTimestampUsec));
     SLOT(void shutdown());
 
     SIGNAL(sendOutput(int outPortId, QVariantList params));

@@ -141,9 +141,9 @@ void OOPWorker::setOutputPortInfo(QList<OutputPortInfo> ports)
     }
 }
 
-void OOPWorker::start(long startTimestampMsec)
+void OOPWorker::start(long startTimestampUsec)
 {
-    auto timePoint = symaster_timepoint(std::chrono::duration<long, std::milli>(startTimestampMsec));
+    const auto timePoint = symaster_timepoint(microseconds_t(startTimestampUsec));
     m_pyb->timer()->startAt(timePoint);
 
     m_running = true;

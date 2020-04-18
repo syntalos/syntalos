@@ -177,8 +177,8 @@ void OOPWorkerConnector::initWithPythonScript(const QString &script, const QStri
 
 void OOPWorkerConnector::start(const symaster_timepoint &timePoint)
 {
-    auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(timePoint.time_since_epoch()).count();
-    m_reptr->start(timestamp);
+    auto timestampUs = std::chrono::duration_cast<std::chrono::microseconds>(timePoint.time_since_epoch()).count();
+    m_reptr->start(timestampUs);
 }
 
 void OOPWorkerConnector::forwardInputData(QEventLoop *loop)

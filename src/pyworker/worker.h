@@ -54,7 +54,7 @@ public Q_SLOTS:
     void setInputPortInfo(QList<InputPortInfo> ports) override;
     void setOutputPortInfo(QList<OutputPortInfo> ports) override;
 
-    void start(long startTimestampMsec) override;
+    void start(long startTimestampUsec) override;
     void shutdown() override;
 
     void runScript();
