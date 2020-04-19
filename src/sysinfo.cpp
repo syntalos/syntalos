@@ -93,9 +93,24 @@ SysInfo::SysInfo(QObject *parent)
 SysInfo::~SysInfo()
 {}
 
-QString SysInfo::prettyProductName() const
+QString SysInfo::machineHostName() const
+{
+    return QSysInfo::machineHostName();
+}
+
+QString SysInfo::prettyOSName() const
 {
     return QSysInfo::prettyProductName();
+}
+
+QString SysInfo::osType() const
+{
+    return QSysInfo::productType();
+}
+
+QString SysInfo::osVersion() const
+{
+    return QSysInfo::productVersion();
 }
 
 QString SysInfo::currentArchitecture() const

@@ -42,7 +42,7 @@ SysInfoDialog::SysInfoDialog(SysInfo *sysInfo, QWidget *parent) :
     m_hintTextPal.setColor(QPalette::WindowText, qRgb(244, 119, 80));
 
     // OS Information
-    ui->valOSName->setText(sysInfo->prettyProductName());
+    ui->valOSName->setText(sysInfo->prettyOSName());
     ui->valKernel->setText(sysInfo->kernelInfo());
     ui->valInitSystem->setText(sysInfo->initName());
     setLabelTextStyle(sysInfo->checkInitSystem(), ui->valInitSystem);

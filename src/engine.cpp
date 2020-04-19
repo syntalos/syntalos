@@ -61,6 +61,7 @@ public:
 
     std::atomic_bool running;
     std::atomic_bool failed;
+    QString runFailedReason;
 };
 #pragma GCC diagnostic pop
 
@@ -552,6 +553,9 @@ bool Engine::runInternal(const QString &exportDirPath)
     if (!makeDirectory(exportDirPath))
         return false;
 
+    // reset failure reason, in case one was set from a previous run
+    d->runFailedReason = QString();
+
     // tell listeners that we are preparing a run
     emit preRunStart();
 
@@ -602,6 +606,7 @@ bool Engine::runInternal(const QString &exportDirPath)
         if (!mod->prepare(d->testSubject)) {
             initSuccessful = false;
             d->failed = true;
+            d->runFailedReason = QStringLiteral("Prepare step failed for: %1(%2)").arg(mod->id()).arg(mod->name());
             emitStatusMessage(QStringLiteral("Module '%1' failed to prepare.").arg(mod->name()));
             break;
         }
@@ -905,6 +910,12 @@ bool Engine::runInternal(const QString &exportDirPath)
         extraData.insert("subject_comment", d->testSubject.comment.isEmpty()? QVariant() : d->testSubject.comment);
         extraData.insert("recording_length_msec", finishTimestamp);
         extraData.insert("success", !d->failed);
+        if (d->failed && !d->runFailedReason.isEmpty()) {
+            extraData.insert("failure_reason", d->runFailedReason);
+        }
+        extraData.insert("machine_node", QStringLiteral("%1 [%2 %3]").arg(d->sysInfo->machineHostName())
+                                                                     .arg(d->sysInfo->osType())
+                                                                     .arg(d->sysInfo->osVersion()));
 
         QVariantList attrModList;
         for (auto &mod : orderedActiveModules) {
@@ -923,7 +934,6 @@ bool Engine::runInternal(const QString &exportDirPath)
                                   QStringLiteral("Unable to finish recording"),
                                   QStringLiteral("Unable to save experiment metadata: %1").arg(storageCollection->lastError()));
             d->failed = true;
-            return false;
         }
 
         qDebug().noquote().nospace() << "Engine: " << "Manifest and additional data saved in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
@@ -944,8 +954,12 @@ void Engine::stop()
 void Engine::receiveModuleError(const QString& message)
 {
     auto mod = qobject_cast<AbstractModule*>(sender());
-    if (mod != nullptr)
+    if (mod != nullptr) {
         emit moduleError(mod, message);
+        d->runFailedReason = QStringLiteral("%1(%2): %3").arg(mod->id()).arg(mod->name()).arg(message);
+    } else {
+        d->runFailedReason = QStringLiteral("?(?): %1").arg(message);
+    }
 
     d->failed = true;
     if (d->running) {

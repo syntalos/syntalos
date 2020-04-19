@@ -37,7 +37,10 @@ public:
     explicit SysInfo(QObject *parent = nullptr);
     ~SysInfo();
 
-    QString prettyProductName() const;
+    QString machineHostName() const;
+    QString prettyOSName() const;
+    QString osType() const;
+    QString osVersion() const;
     QString kernelInfo() const;
 
     QString initName() const;
