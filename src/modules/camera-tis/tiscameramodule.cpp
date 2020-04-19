@@ -152,10 +152,8 @@ public:
             return;
         m_propDialog->hide();
         CDeviceSelectionDlg devSelDlg(m_propDialog);
-        if (devSelDlg.exec() != QDialog::Accepted) {
-            m_propDialog->show();
+        if (devSelDlg.exec() != QDialog::Accepted)
             return;
-        }
 
         selectCamera(QString::fromStdString(devSelDlg.getSerialNumber()),
                      devSelDlg.getWidth(),

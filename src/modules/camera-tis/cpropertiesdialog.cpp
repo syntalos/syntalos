@@ -239,9 +239,9 @@ void CPropertiesDialog::setRunning(bool running)
 
 void CPropertiesDialog::showEvent(QShowEvent *event)
 {
+    QDialog::showEvent(event);
     if (!m_cameraSet)
         emit deviceSelectClicked();
-    QDialog::showEvent(event);
 }
 
 void CPropertiesDialog::updateProperties()
