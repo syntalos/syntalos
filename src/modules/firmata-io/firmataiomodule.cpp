@@ -147,7 +147,7 @@ public:
         const auto ctl = maybeCtl.value();
         switch (ctl.command) {
         case FirmataCommandKind::NEW_DIG_PIN:
-            newDigitalPin(ctl.pinId, ctl.pinName, ctl.output, ctl.pullUp);
+            newDigitalPin(ctl.pinId, ctl.pinName, ctl.isOutput, ctl.isPullUp);
             if (ctl.pinName.isEmpty())
                 pinSetValue(ctl.pinId, ctl.value);
             else
@@ -250,15 +250,15 @@ private slots:
         // value of a digital port changed: 8 possible pin changes
         const int first = port * 8;
         const int last = first + 7;
-        const auto timestamp = m_syTimer->timeSinceStartMsec().count();
+        const auto timestamp = m_syTimer->timeSinceStartMsec();
 
         qDebug("Firmata: Digital port read: %d (%d - %d)", value, first, last);
         for (const FmPin p : m_namePinMap.values()) {
             if ((!p.output) && (p.kind != PinKind::Unknown)) {
                 if ((p.id >= first) && (p.id <= last)) {
                     FirmataData fdata;
-                    fdata.timestamp = timestamp;
-                    fdata.analog = false;
+                    fdata.time = timestamp;
+                    fdata.isDigital = true;
                     fdata.pinId = p.id;
                     fdata.pinName = m_pinNameMap.value(p.id);
                     fdata.value = (value & (1 << (p.id - first)))? 1 : 0;
@@ -272,8 +272,8 @@ private slots:
     void recvDigitalPinRead(uint8_t pin, bool value)
     {
         FirmataData fdata;
-        fdata.timestamp = m_syTimer->timeSinceStartMsec().count();
-        fdata.analog = false;
+        fdata.time = m_syTimer->timeSinceStartMsec();
+        fdata.isDigital = true;
         fdata.pinId = pin;
         fdata.pinName = m_pinNameMap.value(pin);
         fdata.value = value;

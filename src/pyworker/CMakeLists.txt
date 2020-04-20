@@ -18,6 +18,8 @@ set(MAPYWORKER_SRC
     worker.cpp
     syio.h
     syio.cpp
+    timetopy.h
+    timetopy.cpp
     qstringtopy.h
     qstringtopy.cpp
     ../syclock.h

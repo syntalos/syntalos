@@ -29,6 +29,7 @@
 #include <iostream>
 
 #include "worker.h"
+#include "timetopy.h"
 #include "qstringtopy.h"
 #include "cvmatndsliceconvert.h"
 #include "pyipcmarshal.h"
@@ -238,6 +239,7 @@ using namespace bpy;
 BOOST_PYTHON_MODULE(syio)
 {
     initNDArray();
+    initChronoTimePyConvert();
     initQStringPyConvert();
 
     bpy::register_exception_translator<MazeAmazePyError>(&translateException);
@@ -307,8 +309,8 @@ BOOST_PYTHON_MODULE(syio)
                 .def_readwrite("pin_id", &FirmataControl::pinId)
                 .add_property("pin_name", make_getter(&FirmataControl::pinName, return_value_policy<return_by_value>()),
                                           make_setter(&FirmataControl::pinName, return_value_policy<return_by_value>()))
-                .def_readwrite("output", &FirmataControl::output)
-                .def_readwrite("pull_up", &FirmataControl::pullUp)
+                .def_readwrite("is_output", &FirmataControl::isOutput)
+                .def_readwrite("is_pullup", &FirmataControl::isPullUp)
                 .def_readwrite("value", &FirmataControl::value)
             ;
 
@@ -317,8 +319,9 @@ BOOST_PYTHON_MODULE(syio)
                 .add_property("pin_name", make_getter(&FirmataData::pinName, return_value_policy<return_by_value>()),
                                           make_setter(&FirmataData::pinName, return_value_policy<return_by_value>()))
                 .def_readwrite("value", &FirmataData::value)
-                .def_readwrite("analog", &FirmataData::analog)
-                .def_readwrite("timestamp", &FirmataData::timestamp)
+                .def_readwrite("is_digital", &FirmataData::isDigital)
+                .add_property("time", make_getter(&FirmataData::time, return_value_policy<return_by_value>()),
+                                      make_setter(&FirmataData::time, return_value_policy<return_by_value>()))
             ;
 
 

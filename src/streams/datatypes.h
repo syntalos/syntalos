@@ -135,8 +135,8 @@ struct FirmataControl
     FirmataCommandKind command;
     uint8_t pinId;
     QString pinName;
-    bool output;
-    bool pullUp;
+    bool isOutput;
+    bool isPullUp;
     uint16_t value;
 
     friend QDataStream &operator<<(QDataStream &out, const FirmataControl &obj)
@@ -144,20 +144,20 @@ struct FirmataControl
         out << obj.command
             << obj.pinId
             << obj.pinName
-            << obj.output
-            << obj.pullUp
+            << obj.isOutput
+            << obj.isPullUp
             << obj.value;
         return out;
     }
 
     friend QDataStream &operator>>(QDataStream &in, FirmataControl &obj)
     {
-       in >> obj.command
-          >> obj.pinId
-          >> obj.pinName
-          >> obj.output
-          >> obj.pullUp
-          >> obj.value;
+        in >> obj.command
+           >> obj.pinId
+           >> obj.pinName
+           >> obj.isOutput
+           >> obj.isPullUp
+           >> obj.value;
        return in;
     }
 };
@@ -171,27 +171,29 @@ struct FirmataData
     uint8_t pinId;
     QString pinName;
     uint16_t value;
-    bool analog;
-    quint64 timestamp;
+    bool isDigital;
+    milliseconds_t time;
 
     friend QDataStream &operator<<(QDataStream &out, const FirmataData &obj)
     {
         out << obj.pinId
             << obj.pinName
             << obj.value
-            << obj.analog
-            << obj.timestamp;
+            << obj.isDigital
+            << static_cast<quint32>(obj.time.count());
         return out;
     }
 
     friend QDataStream &operator>>(QDataStream &in, FirmataData &obj)
     {
-       in >> obj.pinId
-          >> obj.pinName
-          >> obj.value
-          >> obj.analog
-          >> obj.timestamp;
-       return in;
+        quint32 timeMs;
+        in >> obj.pinId
+           >> obj.pinName
+           >> obj.value
+           >> obj.isDigital
+           >> timeMs;
+        obj.time = milliseconds_t(timeMs);
+        return in;
     }
 };
 Q_DECLARE_METATYPE(FirmataData)

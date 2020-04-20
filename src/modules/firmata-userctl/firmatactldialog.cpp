@@ -139,7 +139,7 @@ void FirmataOutputWidget::submitNewPinCommand()
     // New output pin
     FirmataControl newPinCtl;
     newPinCtl.pinId = m_sbPinId->value();
-    newPinCtl.output = true;
+    newPinCtl.isOutput = true;
     newPinCtl.command = m_isAnalog? FirmataCommandKind::NEW_ANA_PIN : FirmataCommandKind::NEW_DIG_PIN;
     m_fmCtlStream->push(newPinCtl);
 
@@ -240,7 +240,7 @@ void FirmataInputWidget::submitNewPinCommand()
     // New input pin
     FirmataControl newPinCtl;
     newPinCtl.pinId = m_sbPinId->value();
-    newPinCtl.output = false;
+    newPinCtl.isOutput = false;
     newPinCtl.command = m_isAnalog? FirmataCommandKind::NEW_ANA_PIN : FirmataCommandKind::NEW_DIG_PIN;
     m_fmCtlStream->push(newPinCtl);
 }
