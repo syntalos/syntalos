@@ -396,8 +396,9 @@ static void executeOOPModuleThread(const QString& threadName, QList<OOPModule*> 
                 // deininitialize modules we already have prepared
                 for (auto &reMod : readyMods)
                     reMod->oopFinalize(&loop);
+                mod->oopFinalize(&loop);
 
-                qDebug().noquote() << "Failed to prepare OOP module" << mod->name() << ":" << mod->lastError();
+                qDebug().noquote().noquote().nospace() << "Failed to prepare OOP module " << mod->name() << ": " << mod->lastError();
                 return;
             }
             // ensure we are ready - the engine has reset ourselves to "PREPARING"

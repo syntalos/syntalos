@@ -54,6 +54,7 @@ public:
     QString workerBinary;
     bool captureStdout;
 
+    bool failed;
     QSharedPointer<OOPModuleRunData> runData;
 };
 #pragma GCC diagnostic pop
@@ -94,9 +95,11 @@ bool OOPModule::oopPrepare(QEventLoop *loop)
     d->runData->wc.reset(new OOPWorkerConnector(d->runData->replica, d->workerBinary));
 
     auto wc = d->runData->wc;
+    d->failed = false;
 
     // connect some of the important signals of our replica
     connect(d->runData->replica.data(), &OOPWorkerReplica::error, this, [&](const QString &message) {
+        d->failed = true;
         raiseError(message);
         m_running = false;
     });
@@ -128,6 +131,10 @@ bool OOPModule::oopPrepare(QEventLoop *loop)
             raiseError("The worker did not signal readyness - maybe it crashed or is frozen?");
             return false;
         }
+
+        // if we are in a failed state, we have already emitted an error message
+        if (wc->failed() || d->failed)
+            return false;
     }
 
     // set all outgoing streams as active (which propagates metadata)
