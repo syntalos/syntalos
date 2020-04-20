@@ -1,10 +1,10 @@
-import maio as io
-from maio import InputWaitResult
+import syio as sy
+from syio import InputWaitResult
 
 # Get references to your ports by their ID here.
 # Examples:
-iport = io.get_input_port('video-in')
-oport = io.get_output_port('video-out')
+iport = sy.get_input_port('video-in')
+oport = sy.get_output_port('video-out')
 
 
 def prepare():
@@ -23,11 +23,11 @@ def loop():
     This function is executed by Syntalos continuously until it returns False.
     Use this function to retrieve input and process it, or run any other
     repeatable action. Keep in mind that you will not receive any new input
-    unless `io.await_new_input()` is called.
+    unless `sy.await_new_input()` is called.
     '''
 
     # wait for new input to arrive
-    wait_result = io.await_new_input()
+    wait_result = sy.await_new_input()
     if wait_result == InputWaitResult.CANCELLED:
         # the run has been cancelled, so this function will not be called again
         return False

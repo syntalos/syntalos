@@ -18,7 +18,7 @@
  */
 
 #include <Python.h>
-#include "maio.h"
+#include "syio.h"
 
 #include <QDebug>
 #include <QStringList>
@@ -235,7 +235,7 @@ static FirmataControl new_firmata_control_with_name(FirmataCommandKind kind, con
 }
 
 using namespace bpy;
-BOOST_PYTHON_MODULE(maio)
+BOOST_PYTHON_MODULE(syio)
 {
     initNDArray();
     initQStringPyConvert();
@@ -338,7 +338,7 @@ BOOST_PYTHON_MODULE(maio)
     def("new_firmata_control_with_name", new_firmata_control_with_name, "Create new Firmata control command with a given pin name (the name needs to be registered previously).");
 };
 
-void pythonRegisterMaioModule()
+void pythonRegisterSyioModule()
 {
-    PyImport_AppendInittab("maio", &PyInit_maio);
+    PyImport_AppendInittab("syio", &PyInit_syio);
 }

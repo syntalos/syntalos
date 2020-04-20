@@ -60,4 +60,4 @@ private:
     OOPWorker *m_worker;
 };
 
-void pythonRegisterMaioModule();
+void pythonRegisterSyioModule();

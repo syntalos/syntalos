@@ -22,7 +22,7 @@
 #include <QMetaType>
 #include "worker.h"
 
-#include "maio.h"
+#include "syio.h"
 #include "pyipcmarshal.h"
 #include "streams/datatypes.h"
 
@@ -32,7 +32,7 @@ OOPWorker::OOPWorker(QObject *parent)
       m_running(false)
 {
     m_pyb = PyBridge::instance(this);
-    pythonRegisterMaioModule();
+    pythonRegisterSyioModule();
 
     registerStreamMetaTypes();
 }
