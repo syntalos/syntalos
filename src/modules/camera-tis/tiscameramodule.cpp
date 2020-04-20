@@ -230,7 +230,7 @@ public:
                 // check if the inout stream has ended
                 if (gst_app_sink_is_eos(appsink)) {
                     if (m_running)
-                        qWarning("TISCamera: Video stream has ended prematurely!");
+                        raiseError(QStringLiteral("Video stream has ended prematurely!"));
                     break;
                 }
                 if (m_running)
