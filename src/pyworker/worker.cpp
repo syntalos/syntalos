@@ -156,7 +156,7 @@ void OOPWorker::shutdown()
 
     // give other events a bit of time (10ms) to react to the fact that we are no longer running
     QTimer::singleShot(10, this, &QCoreApplication::quit);
-    qDebug() << "Shutting down script soon.";
+    qDebug() << "Shutting down Python worker.";
 }
 
 void OOPWorker::emitPyError()
@@ -169,26 +169,52 @@ void OOPWorker::emitPyError()
         if (excType) {
             PyObject* str = PyObject_Str(excType);
             if (str != nullptr) {
-                const char *bytes = PyUnicode_AsUTF8(str);
-                message = QString::fromUtf8(bytes);
+                message = QString::fromUtf8(PyUnicode_AsUTF8(str));
                 Py_XDECREF(str);
             }
         }
+
         if (excValue) {
             PyObject* str = PyObject_Str(excValue);
             if (str != nullptr) {
-                const char *bytes = PyUnicode_AsUTF8(str);
-                message = QString::fromUtf8("%1\n%2").arg(message).arg(QString::fromUtf8(bytes));
+                message = QString::fromUtf8("%1\n%2").arg(message)
+                                                     .arg(QString::fromUtf8(PyUnicode_AsUTF8(str)));
                 Py_XDECREF(str);
             }
         }
+
         if (excTraceback) {
-            PyObject* str = PyObject_Str(excTraceback);
-            if (str != nullptr) {
-                const char *bytes = PyUnicode_AsUTF8(str);
-                message = QString::fromUtf8("%1\n%2").arg(message).arg(QString::fromUtf8(bytes));
-                Py_XDECREF(str);
-            }
+            // let's try to generate a useful traceback
+                auto pyTbModName = PyUnicode_FromString("traceback");
+                auto pyTbMod = PyImport_Import(pyTbModName);
+                Py_DECREF(pyTbModName);
+
+                if (pyTbModName == nullptr) {
+                    // we can't create a good backtrace, just print the thing as string as a fallback
+                    auto str = PyObject_Str(excTraceback);
+                    if (str != nullptr) {
+                        message = QString::fromUtf8("%1\n%2").arg(message)
+                                                             .arg(QString::fromUtf8(PyUnicode_AsUTF8(str)));
+                        Py_XDECREF(str);
+                    }
+                } else {
+                    const auto pyFnFormatE = PyObject_GetAttrString(pyTbMod, "format_exception");
+                    if (pyFnFormatE && PyCallable_Check(pyFnFormatE)) {
+                        auto pyTbVal = PyObject_CallFunctionObjArgs(pyFnFormatE,
+                                                                    excType,
+                                                                    excValue,
+                                                                    excTraceback,
+                                                                    nullptr);
+                        auto str = PyObject_Str(pyTbVal);
+                        if (str != nullptr) {
+                            message = QString::fromUtf8("%1\n%2").arg(message)
+                                                                 .arg(QString::fromUtf8(PyUnicode_AsUTF8(str)));
+                            Py_XDECREF(str);
+                        }
+                    } else {
+                        message = QString::fromUtf8("%1\n<<Unable to format traceback.>>").arg(message);
+                    }
+                }
         }
 
         if (message.isEmpty())
@@ -220,16 +246,33 @@ void OOPWorker::runScript()
 
     // run script
     auto res = PyRun_String(qPrintable(m_script), Py_file_input, mainDict, mainDict);
-
     if (res != nullptr) {
         auto pyMain = PyImport_ImportModule("__main__");
-        auto pFunc = PyObject_GetAttrString(pyMain, "loop");
 
-        if (pFunc && PyCallable_Check(pFunc)) {
+        // run prepare function if it exists for initial setup
+        if (PyObject_HasAttrString(pyMain, "prepare")) {
+            auto pFnPrep = PyObject_GetAttrString(pyMain, "prepare");
+            if (pFnPrep && PyCallable_Check(pFnPrep)) {
+                const auto pyRes = PyObject_CallObject(pFnPrep, nullptr);
+                if (pyRes == nullptr) {
+                    if (PyErr_Occurred()) {
+                        emitPyError();
+                        goto finalize;
+                    }
+                } else {
+                    Py_XDECREF(pyRes);
+                }
+            }
+        }
+
+        // signal that we are ready now
+        setReady(true);
+
+        // run loop function if it exists and we have started
+        // the loop function must exists, it is a hard error if it doesn't
+        auto pFnLoop = PyObject_GetAttrString(pyMain, "loop");
+        if (pFnLoop && PyCallable_Check(pFnLoop)) {
             bool callEventLoop = true;
-
-            // signal that we are ready now
-            setReady(true);
 
             // while we are not running, ait for the start signal
             while (!m_running) { QCoreApplication::processEvents(); }
@@ -237,7 +280,7 @@ void OOPWorker::runScript()
             do {
                 QCoreApplication::processEvents();
 
-                auto loopRes = PyObject_CallObject(pFunc, nullptr);
+                auto loopRes = PyObject_CallObject(pFnLoop, nullptr);
                 if (loopRes == nullptr) {
                     if (PyErr_Occurred())
                         emitPyError();
@@ -252,9 +295,27 @@ void OOPWorker::runScript()
             } while (callEventLoop && m_running);
         } else {
             raiseError("Could not find loop() function entrypoint in Python script.");
+            goto finalize;
+        }
+
+        // we have stopped, so call the stop function if one exists
+        if (PyObject_HasAttrString(pyMain, "stop")) {
+            auto pFnStop = PyObject_GetAttrString(pyMain, "stop");
+            if (pFnStop && PyCallable_Check(pFnStop)) {
+                const auto pyRes = PyObject_CallObject(pFnStop, nullptr);
+                if (pyRes == nullptr) {
+                    if (PyErr_Occurred()) {
+                        emitPyError();
+                        goto finalize;
+                    }
+                } else {
+                    Py_XDECREF(pyRes);
+                }
+            }
         }
     }
 
+finalize:
     if (res == nullptr) {
         if (PyErr_Occurred())
             emitPyError();
@@ -263,7 +324,6 @@ void OOPWorker::runScript()
     }
 
     Py_Finalize();
-
 
     // we aren't ready anymore,
     // and also stopped running the loop
