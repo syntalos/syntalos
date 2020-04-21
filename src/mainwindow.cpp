@@ -236,8 +236,9 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->actionRun, &QAction::triggered, this, &MainWindow::runActionTriggered);
     connect(ui->actionRunTemp, &QAction::triggered, this, &MainWindow::temporaryRunActionTriggered);
     connect(ui->actionStop, &QAction::triggered, this, &MainWindow::stopActionTriggered);
-    connect(ui->actionSaveSettings, &QAction::triggered, this, &MainWindow::saveSettingsActionTriggered);
-    connect(ui->actionLoadSettings, &QAction::triggered, this, &MainWindow::loadSettingsActionTriggered);
+    connect(ui->actionProjectSaveAs, &QAction::triggered, this, &MainWindow::projectSaveAsActionTriggered);
+    connect(ui->actionProjectSave, &QAction::triggered, this, &MainWindow::projectSaveActionTriggered);
+    connect(ui->actionProjectOpen, &QAction::triggered, this, &MainWindow::projectOpenActionTriggered);
 
     // connect about dialog trigger
     connect(ui->actionAbout, &QAction::triggered, this, &MainWindow::aboutActionTriggered);
@@ -267,6 +268,9 @@ MainWindow::MainWindow(QWidget *parent) :
     m_rtElapsedTimer = new QTimer(this);
     m_rtElapsedTimer->setInterval(1000);
     connect(m_rtElapsedTimer, &QTimer::timeout, this, &MainWindow::onElapsedTimeUpdate);
+
+    // reset project filename
+    setCurrentProjectFile(QString());
 }
 
 MainWindow::~MainWindow()
@@ -332,6 +336,7 @@ void MainWindow::stopActionTriggered()
 
 bool MainWindow::saveConfiguration(const QString &fileName)
 {
+    qDebug() << "Saving board as" << fileName;
     KTar tar(fileName);
     if (!tar.open(QIODevice::WriteOnly)) {
         qWarning() << "Unable to open new configuration file for writing.";
@@ -339,6 +344,7 @@ bool MainWindow::saveConfiguration(const QString &fileName)
     }
     setStatusText("Saving configuration to file...");
 
+    setCurrentProjectFile(QString());
     QDir confBaseDir(QStringLiteral("%1/..").arg(fileName));
 
     // save basic settings
@@ -400,8 +406,8 @@ bool MainWindow::saveConfiguration(const QString &fileName)
 
     tar.close();
 
-    this->updateWindowTitle(fileName);
-    setStatusText("Ready.");
+    setCurrentProjectFile(fileName);
+    setStatusText(QStringLiteral("Board saved at %1.").arg(QTime::currentTime().toString(Qt::TextDate)));
     return true;
 }
 
@@ -413,6 +419,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         return false;
     }
 
+    setCurrentProjectFile(QString());
     auto rootDir = tar.directory();
 
     // load main settings
@@ -576,11 +583,9 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         }
     }
 
-    QFileInfo fi(fileName);
-    this->updateWindowTitle(fi.fileName());
-
     // we are ready now
-    setStatusText("Ready.");
+    setCurrentProjectFile(fileName);
+    setStatusText("Board successfully loaded from file.");
     return true;
 }
 
@@ -639,7 +644,7 @@ void MainWindow::showEvent(QShowEvent *event)
     m_busyIndicator->move(ui->tabWidget->width() - m_busyIndicator->width() - 4, ui->menuBar->height() + 4);
 }
 
-void MainWindow::saveSettingsActionTriggered()
+void MainWindow::projectSaveAsActionTriggered()
 {
     QString fileName;
     fileName = QFileDialog::getSaveFileName(this,
@@ -661,12 +666,34 @@ void MainWindow::saveSettingsActionTriggered()
     hideBusyIndicator();
 }
 
-void MainWindow::loadSettingsActionTriggered()
+void MainWindow::projectSaveActionTriggered()
+{
+    if (m_currentProjectFname.isEmpty()) {
+        // we have no project opened, so we just trigger a dialog instead for the user to pick a filename
+        projectSaveAsActionTriggered();
+        return;
+    }
+
+    // NOTE: We *intentionally* make a deep copy of m_currentProjectFname here,
+    // to separate it from the currently in-use m_currentProjectFname that may be
+    // changed to an empty string in the saveConfiguration() function (affecting
+    // its reference which causes unwanted sideeffects without a full copy)
+
+    showBusyIndicatorProcessing();
+    if (!saveConfiguration(QString(m_currentProjectFname))) {
+        QMessageBox::critical(this,
+                              QStringLiteral("Can not save configuration"),
+                              QStringLiteral("Unable to write configuration file to disk."));
+    }
+    hideBusyIndicator();
+}
+
+void MainWindow::projectOpenActionTriggered()
 {
     auto fileName = QFileDialog::getOpenFileName(this,
-                                                 tr("Select Settings Filename"),
+                                                 tr("Select Project Filename"),
                                                  QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
-                                                 tr("Syntalos Settings Files (*.syct)"));
+                                                 tr("Syntalos Project Files (*.syct)"));
     if (fileName.isEmpty())
         return;
 
@@ -688,13 +715,18 @@ void MainWindow::loadSettingsActionTriggered()
     this->setEnabled(true);
 }
 
-void MainWindow::updateWindowTitle(const QString& fileName)
+void MainWindow::setCurrentProjectFile(const QString &fileName)
 {
     if (fileName.isEmpty()) {
         this->setWindowTitle(QStringLiteral("Syntalos"));
+        if (!m_currentProjectFname.isEmpty())
+            qDebug().noquote() << "Current board settings file reset.";
+        m_currentProjectFname = fileName;
     } else {
+        m_currentProjectFname = fileName;
         QFileInfo fi(fileName);
         this->setWindowTitle(QStringLiteral("Syntalos - %2").arg(fi.baseName()));
+        qDebug().noquote() << "Current board settings file:" << m_currentProjectFname;
     }
 }
 

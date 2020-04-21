@@ -781,8 +781,9 @@
      <addaction name="actionSubjectsLoad"/>
      <addaction name="actionSubjectsSave"/>
     </widget>
-    <addaction name="actionLoadSettings"/>
-    <addaction name="actionSaveSettings"/>
+    <addaction name="actionProjectOpen"/>
+    <addaction name="actionProjectSave"/>
+    <addaction name="actionProjectSaveAs"/>
     <addaction name="separator"/>
     <addaction name="separator"/>
     <addaction name="menuTest_Subjects"/>
@@ -811,7 +812,7 @@
     <bool>true</bool>
    </property>
    <property name="allowedAreas">
-    <set>Qt::TopToolBarArea</set>
+    <set>Qt::AllToolBarAreas</set>
    </property>
    <property name="iconSize">
     <size>
@@ -820,7 +821,7 @@
     </size>
    </property>
    <property name="floatable">
-    <bool>false</bool>
+    <bool>true</bool>
    </property>
    <attribute name="toolBarArea">
     <enum>TopToolBarArea</enum>
@@ -834,6 +835,45 @@
    <addaction name="actionRunTemp"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
+  <widget class="QToolBar" name="projectToolBar">
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <property name="iconSize">
+    <size>
+     <width>26</width>
+     <height>26</height>
+    </size>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actionProjectOpen"/>
+   <addaction name="actionProjectSave"/>
+  </widget>
+  <widget class="QToolBar" name="toolbarVSpacing">
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <property name="movable">
+    <bool>false</bool>
+   </property>
+   <property name="allowedAreas">
+    <set>Qt::NoToolBarArea</set>
+   </property>
+   <property name="floatable">
+    <bool>false</bool>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+  </widget>
   <action name="actionQuit">
    <property name="icon">
     <iconset theme="window-close">
@@ -870,28 +910,49 @@
     <string>Space</string>
    </property>
   </action>
-  <action name="actionLoadSettings">
+  <action name="actionProjectOpen">
    <property name="icon">
     <iconset theme="document-open">
      <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
-    <string>&amp;Load Settings</string>
+    <string>&amp;Open Project</string>
+   </property>
+   <property name="toolTip">
+    <string>Open Project</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+O</string>
    </property>
   </action>
-  <action name="actionSaveSettings">
+  <action name="actionProjectSave">
    <property name="icon">
-    <iconset theme="document-save">
+    <iconset theme="document-save-all">
      <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
-    <string>&amp;Save Settings</string>
+    <string>&amp;Save Project</string>
+   </property>
+   <property name="toolTip">
+    <string>Save Project</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+S</string>
+   </property>
+  </action>
+  <action name="actionProjectSaveAs">
+   <property name="icon">
+    <iconset theme="document-save-as">
+     <normaloff>.</normaloff>.</iconset>
+   </property>
+   <property name="text">
+    <string>Save Project As...</string>
+   </property>
+   <property name="toolTip">
+    <string>Save project under new name</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Shift+S</string>
    </property>
   </action>
   <action name="actionAbout">
@@ -950,7 +1011,8 @@
   </action>
   <action name="actionGlobalConfig">
    <property name="icon">
-    <iconset theme="settings-configure"/>
+    <iconset theme="settings-configure">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>Global Settings</string>
@@ -958,7 +1020,8 @@
   </action>
   <action name="actionSystemInfo">
    <property name="icon">
-    <iconset theme="cpu"/>
+    <iconset theme="cpu">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>System</string>

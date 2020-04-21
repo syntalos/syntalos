@@ -61,8 +61,9 @@ private slots:
 
     void openDataExportDirectory();
 
-    void saveSettingsActionTriggered();
-    void loadSettingsActionTriggered();
+    void projectSaveAsActionTriggered();
+    void projectSaveActionTriggered();
+    void projectOpenActionTriggered();
 
     void aboutActionTriggered();
 
@@ -89,7 +90,7 @@ protected:
     void showEvent(QShowEvent *event) override;
 
 private:
-    void updateWindowTitle(const QString& fileName);
+    void setCurrentProjectFile(const QString& fileName);
     void updateExportDirDisplay();
 
     void setRunPossible(bool enabled);
@@ -104,6 +105,7 @@ private:
 
     QTimer *m_rtElapsedTimer;
     Engine *m_engine;
+    QString m_currentProjectFname;
 
     QLabel *m_statusBarLabel;
     QSvgWidget *m_busyIndicator;
