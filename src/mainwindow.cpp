@@ -290,6 +290,14 @@ void MainWindow::setStopPossible(bool enabled)
     ui->graphForm->setModifyPossible(!enabled);
     ui->gbRunInfo->setEnabled(enabled);
     ui->gbRunSettings->setEnabled(!enabled);
+
+    // do not permit save/load while we are running
+    ui->actionProjectOpen->setEnabled(!enabled);
+    ui->actionProjectSave->setEnabled(!enabled);
+    ui->actionProjectSaveAs->setEnabled(!enabled);
+    ui->actionSubjectsLoad->setEnabled(!enabled);
+    ui->actionSubjectsSave->setEnabled(!enabled);
+
     if (enabled)
         showBusyIndicatorProcessing();
     else
