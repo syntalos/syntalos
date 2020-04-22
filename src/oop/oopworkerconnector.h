@@ -53,7 +53,6 @@ public:
 
     void forwardInputData(QEventLoop *loop = nullptr);
 
-    bool workerReady() const;
     bool failed() const;
 
     bool captureStdout() const;

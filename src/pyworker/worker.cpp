@@ -28,7 +28,7 @@
 
 OOPWorker::OOPWorker(QObject *parent)
     : OOPWorkerSource(parent),
-      m_ready(false),
+      m_stage(OOPWorker::IDLE),
       m_running(false)
 {
     m_pyb = PyBridge::instance(this);
@@ -41,15 +41,9 @@ OOPWorker::~OOPWorker()
 {
 }
 
-bool OOPWorker::ready() const
+OOPWorker::Stage OOPWorker::stage() const
 {
-    return m_ready;
-}
-
-void OOPWorker::setReady(bool ready)
-{
-    m_ready = ready;
-    Q_EMIT readyChanged(m_ready);
+    return m_stage;
 }
 
 std::optional<InputPortInfo> OOPWorker::inputPortInfoByIdString(const QString &idstr)
@@ -245,6 +239,7 @@ void OOPWorker::runScript()
     PyObject *mainDict = PyModule_GetDict(mainModule);
 
     // run script
+    setStage(OOPWorker::PREPARING);
     auto res = PyRun_String(qPrintable(m_script), Py_file_input, mainDict, mainDict);
     if (res != nullptr) {
         auto pyMain = PyImport_ImportModule("__main__");
@@ -263,20 +258,54 @@ void OOPWorker::runScript()
                     Py_XDECREF(pyRes);
                 }
             }
+            Py_XDECREF(pFnPrep);
         }
 
-        // signal that we are ready now
-        setReady(true);
+        // signal that we are ready now, preparations are done
+        setStage(OOPWorker::READY);
 
-        // run loop function if it exists and we have started
-        // the loop function must exists, it is a hard error if it doesn't
+        // find the start function if it exists
+        PyObject *pFnStart = nullptr;
+        if (PyObject_HasAttrString(pyMain, "start")) {
+            pFnStart = PyObject_GetAttrString(pyMain, "start");
+            if (!pFnStart || !PyCallable_Check(pFnStart)) {
+                Py_XDECREF(pFnStart);
+                pFnStart = nullptr;
+            }
+        }
+
+        // find the loop function - this function *must* exists,
+        // and unlike the other functions isn't optional, so GetAttrString
+        // is allowed to throw an error here
         auto pFnLoop = PyObject_GetAttrString(pyMain, "loop");
-        if (pFnLoop && PyCallable_Check(pFnLoop)) {
+        if (!pFnLoop || !PyCallable_Check(pFnLoop)) {
+            raiseError("Could not find loop() function entrypoint in Python script.");
+            Py_XDECREF(pFnLoop);
+            goto finalize;
+        }
+
+        // while we are not running, wait for the start signal
+        while (!m_running) { QCoreApplication::processEvents(); }
+        setStage(OOPWorker::RUNNING);
+
+        // run the start function first, if we have it
+        if (pFnStart != nullptr) {
+            const auto pyRes = PyObject_CallObject(pFnStart, nullptr);
+            if (pyRes == nullptr) {
+                if (PyErr_Occurred()) {
+                    emitPyError();
+                    goto finalize;
+                }
+            } else {
+                Py_XDECREF(pyRes);
+            }
+            Py_XDECREF(pFnStart);
+        }
+
+        if (pFnLoop != nullptr) {
             bool callEventLoop = true;
 
-            // while we are not running, ait for the start signal
-            while (!m_running) { QCoreApplication::processEvents(); }
-
+            // we are running! - loop() until we are stopped
             do {
                 QCoreApplication::processEvents();
 
@@ -293,9 +322,8 @@ void OOPWorker::runScript()
                     Py_XDECREF(loopRes);
                 }
             } while (callEventLoop && m_running);
-        } else {
-            raiseError("Could not find loop() function entrypoint in Python script.");
-            goto finalize;
+
+            Py_XDECREF(pFnLoop);
         }
 
         // we have stopped, so call the stop function if one exists
@@ -327,7 +355,7 @@ finalize:
 
     // we aren't ready anymore,
     // and also stopped running the loop
-    setReady(false);
+    setStage(OOPWorker::IDLE);
     m_running = false;
 }
 #pragma GCC diagnostic pop
@@ -389,9 +417,16 @@ void OOPWorker::setOutPortMetadataValue(int outPortId, const QString &key, const
     Q_EMIT updateOutPortMetadata(outPortId, mdata);
 }
 
+void OOPWorker::setStage(OOPWorker::Stage stage)
+{
+    m_stage = stage;
+    Q_EMIT stageChanged(m_stage);
+}
+
 void OOPWorker::raiseError(const QString &message)
 {
     m_running = false;
     std::cerr << message.toStdString() << std::endl;
     Q_EMIT error(message);
+    setStage(OOPWorker::ERROR);
 }

@@ -26,7 +26,13 @@ POD OutputPortInfo(int id,
 
 class OOPWorker
 {
-    PROP(bool ready=false READONLY);
+    ENUM Stage { IDLE,
+                 ERROR,
+                 PREPARING,
+                 READY,
+                 RUNNING }
+
+    PROP(Stage stage=IDLE READONLY);
     SIGNAL(error(const QString &message));
     SIGNAL(statusMessage(const QString &text));
 

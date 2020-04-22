@@ -38,8 +38,7 @@ public:
     OOPWorker(QObject *parent = nullptr);
     ~OOPWorker() override;
 
-    bool ready() const override;
-    void setReady(bool ready);
+    Stage stage() const override;
 
     std::optional<InputPortInfo> inputPortInfoByIdString(const QString &idstr);
     std::optional<OutputPortInfo> outputPortInfoByIdString(const QString &idstr);
@@ -64,11 +63,12 @@ public Q_SLOTS:
 
 protected:
     void raiseError(const QString &message);
+    void setStage(Stage stage);
 
 private:
-    QString m_script;
-    bool m_ready;
+    Stage m_stage;
     bool m_running;
+    QString m_script;
     std::vector<std::unique_ptr<SharedMemory>> m_shmSend;
     std::vector<std::unique_ptr<SharedMemory>> m_shmRecv;
 

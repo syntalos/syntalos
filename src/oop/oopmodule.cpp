@@ -53,6 +53,7 @@ public:
     QString pyEnv;
     QString workerBinary;
     bool captureStdout;
+    OOPWorkerReplica::Stage workerStage;
 
     bool failed;
     QSharedPointer<OOPModuleRunData> runData;
@@ -98,6 +99,10 @@ bool OOPModule::oopPrepare(QEventLoop *loop)
     d->failed = false;
 
     // connect some of the important signals of our replica
+    connect(d->runData->replica.data(), &OOPWorkerReplica::stageChanged, this, [&](const OOPWorkerReplica::Stage &newStage) {
+        d->workerStage = newStage;
+    });
+
     connect(d->runData->replica.data(), &OOPWorkerReplica::error, this, [&](const QString &message) {
         d->failed = true;
         raiseError(message);
@@ -123,7 +128,7 @@ bool OOPModule::oopPrepare(QEventLoop *loop)
     // we need to wait for some time until the worker is ready
     statusMessage("Waiting for worker to become ready...");
     const auto waitStartTime = currentTimePoint();
-    while (!wc->workerReady()) {
+    while (d->workerStage != OOPWorkerReplica::READY) {
         loop->processEvents();
         if (timeDiffMsec(currentTimePoint(), waitStartTime).count() > 20000) {
             // waiting 20sec is long enough, presumably the worker died and we can not

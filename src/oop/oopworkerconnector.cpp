@@ -32,10 +32,8 @@ OOPWorkerConnector::OOPWorkerConnector(QSharedPointer<OOPWorkerReplica> ptr, con
     : QObject(nullptr),
       m_reptr(ptr),
       m_proc(new QProcess(this)),
-      m_workerBinary(workerBin),
-      m_workerReady(false)
+      m_workerBinary(workerBin)
 {
-    connect(m_reptr.data(), &OOPWorkerReplica::readyChanged, this, &OOPWorkerConnector::receiveReadyChange);
     connect(m_reptr.data(), &OOPWorkerReplica::sendOutput, this, &OOPWorkerConnector::receiveOutput);
     connect(m_reptr.data(), &OOPWorkerReplica::updateOutPortMetadata, this, &OOPWorkerConnector::receiveOutputPortMetadataUpdate);
 
@@ -192,11 +190,6 @@ void OOPWorkerConnector::forwardInputData(QEventLoop *loop)
         if (res.isValid())
             sendInputData(sip.second->dataTypeId(), sip.first, res, loop);
     }
-}
-
-bool OOPWorkerConnector::workerReady() const
-{
-    return m_workerReady;
 }
 
 bool OOPWorkerConnector::failed() const
