@@ -89,6 +89,12 @@ static void println(const std::string& text)
     std::cout << text << std::endl;
 }
 
+static void raise_error(const std::string& message)
+{
+    auto pb = PyBridge::instance();
+    pb->worker()->raiseError(QString::fromStdString(message));
+}
+
 static InputWaitResult await_new_input()
 {
     auto pb = PyBridge::instance();
@@ -330,6 +336,7 @@ BOOST_PYTHON_MODULE(syio)
      **/
 
     def("println", println, "Print text to stdout.");
+    def("raise_error", raise_error, "Emit an error message string, immediately terminating the current action and (if applicable) the experiment.");
     def("time_since_start_msec", time_since_start_msec, "Get time since experiment started in milliseconds.");
     def("await_new_input", await_new_input, "Wait for any new input to arrive via our input ports.");
 

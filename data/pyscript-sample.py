@@ -1,6 +1,12 @@
 import syio as sy
 from syio import InputWaitResult
 
+
+# FIXME: Immediately emit an error message and exit.
+# This script is a dummy sample script, and needs to be adjusted
+# for your experiment to do anything actually useful.
+sy.raise_error('You are running the Python example script - please edit it to work for your experiment!')
+
 # Get references to your ports by their ID here.
 # Examples:
 iport = sy.get_input_port('video-in')

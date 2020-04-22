@@ -214,7 +214,7 @@ void OOPWorker::emitPyError()
         if (message.isEmpty())
             message = QStringLiteral("An unknown Python error occured.");
 
-        raiseError(QStringLiteral("Python script failed:\n%1").arg(message));
+        raiseError(QStringLiteral("Python:\n%1").arg(message));
 
         Py_XDECREF(excTraceback);
         Py_XDECREF(excType);
@@ -241,7 +241,14 @@ void OOPWorker::runScript()
     // run script
     setStage(OOPWorker::PREPARING);
     auto res = PyRun_String(qPrintable(m_script), Py_file_input, mainDict, mainDict);
+
+    // check if we already failed
+    if (m_stage == OOPWorker::ERROR)
+        goto finalize;
+
     if (res != nullptr) {
+        // everything is good, we can run some Python functions
+        // explicitly now
         auto pyMain = PyImport_ImportModule("__main__");
 
         // run prepare function if it exists for initial setup
@@ -260,6 +267,10 @@ void OOPWorker::runScript()
             }
             Py_XDECREF(pFnPrep);
         }
+
+        // check if have failed, and quit in that case
+        if (m_stage == OOPWorker::ERROR)
+            goto finalize;
 
         // signal that we are ready now, preparations are done
         setStage(OOPWorker::READY);
@@ -302,6 +313,12 @@ void OOPWorker::runScript()
             Py_XDECREF(pFnStart);
         }
 
+        // maybe start() failed? Immediately exit in that case
+        if (m_stage == OOPWorker::ERROR) {
+            Py_XDECREF(pFnLoop);
+            goto finalize;
+        }
+
         if (pFnLoop != nullptr) {
             bool callEventLoop = true;
 
@@ -340,6 +357,7 @@ void OOPWorker::runScript()
                     Py_XDECREF(pyRes);
                 }
             }
+            Py_XDECREF(pFnStop);
         }
     }
 
@@ -426,7 +444,7 @@ void OOPWorker::setStage(OOPWorker::Stage stage)
 void OOPWorker::raiseError(const QString &message)
 {
     m_running = false;
-    std::cerr << message.toStdString() << std::endl;
+    std::cerr << "ERROR: " << message.toStdString() << std::endl;
     Q_EMIT error(message);
     setStage(OOPWorker::ERROR);
 }

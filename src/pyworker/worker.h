@@ -46,6 +46,8 @@ public:
     bool submitOutput(int outPortId, boost::python::object pyObj);
     void setOutPortMetadataValue(int outPortId, const QString &key, const QVariant &value);
 
+    void raiseError(const QString &message);
+
 public Q_SLOTS:
     bool initializeFromData(const QString & script, const QString & env) override;
     bool initializeFromFile(const QString & fname, const QString & env) override;
@@ -62,7 +64,6 @@ public Q_SLOTS:
     bool receiveInput(int inPortId, QVariantList params = QVariantList()) override;
 
 protected:
-    void raiseError(const QString &message);
     void setStage(Stage stage);
 
 private:
