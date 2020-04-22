@@ -173,6 +173,7 @@ class FreqCounterSynchronizer
 {
 public:
     explicit FreqCounterSynchronizer(std::shared_ptr<SyncTimer> masterTimer, AbstractModule *mod, double frequencyHz, const QString &id = nullptr);
+    ~FreqCounterSynchronizer();
 
     milliseconds_t timeBase() const;
     int indexOffset() const;
@@ -221,6 +222,7 @@ private:
 class SecondaryClockSynchronizer {
 public:
     explicit SecondaryClockSynchronizer(std::shared_ptr<SyncTimer> masterTimer, AbstractModule *mod, double frequencyHz, const QString &id = nullptr);
+    ~SecondaryClockSynchronizer();
 
     milliseconds_t clockCorrectionOffset() const;
 
@@ -256,5 +258,15 @@ private:
 
     std::unique_ptr<TimeSyncFileWriter> m_tswriter;
 };
+
+template<typename T>
+void safeStopSynchronizer(const T &synchronizerSmartPtr)
+{
+    static_assert(std::is_base_of<SecondaryClockSynchronizer, typename T::element_type>::value ||
+                  std::is_base_of<FreqCounterSynchronizer, typename T::element_type>::value,
+                  "This function requires a smart pointer to a clock synchronizer.");
+    if (synchronizerSmartPtr.get() != nullptr)
+        synchronizerSmartPtr->stop();
+}
 
 } // end of namespace

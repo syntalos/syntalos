@@ -183,8 +183,7 @@ public:
 
         m_camera->disconnect();
         m_camSettingsWindow->setRunning(false);
-        if (m_clockSync.get() != nullptr)
-            m_clockSync->stop();
+        safeStopSynchronizer(m_clockSync);
         statusMessage("Camera disconnected.");
     }
 

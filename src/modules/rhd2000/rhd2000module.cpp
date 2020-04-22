@@ -196,7 +196,7 @@ void Rhd2000Module::stop()
     m_intanUi->interfaceBoardStopFinalize();
     m_runAction->setEnabled(true);
     m_evTimer->stop();
-    clockSync->stop();
+    safeStopSynchronizer(clockSync);
 }
 
 QList<QAction *> Rhd2000Module::actions()

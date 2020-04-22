@@ -190,7 +190,7 @@ public:
         m_evTimer->stop();
         m_miniscope->stop();
         m_miniscope->disconnect();
-        m_clockSync->stop();
+        safeStopSynchronizer(m_clockSync);
     }
 
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override

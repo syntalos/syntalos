@@ -323,6 +323,11 @@ FreqCounterSynchronizer::FreqCounterSynchronizer(std::shared_ptr<SyncTimer> mast
     emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec), m_checkInterval);
 }
 
+FreqCounterSynchronizer::~FreqCounterSynchronizer()
+{
+    stop();
+}
+
 milliseconds_t FreqCounterSynchronizer::timeBase() const
 {
     return milliseconds_t(static_cast<int>(std::round(m_baseTimeMsec)));
@@ -559,6 +564,11 @@ SecondaryClockSynchronizer::SecondaryClockSynchronizer(std::shared_ptr<SyncTimer
 
     // make our existence known to the system
     emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec), m_checkInterval);
+}
+
+SecondaryClockSynchronizer::~SecondaryClockSynchronizer()
+{
+    stop();
 }
 
 milliseconds_t SecondaryClockSynchronizer::clockCorrectionOffset() const
