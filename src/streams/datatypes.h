@@ -233,7 +233,7 @@ public:
 
     size_t size() { return timestamps.size(); }
 
-    VectorXl timestamps;
+    VectorXu timestamps;
     std::vector<int> data[SIGNAL_BLOCK_CHAN_COUNT];
 
     friend QDataStream &operator<<(QDataStream &out, const IntSignalBlock &obj)
@@ -270,7 +270,7 @@ public:
 
     size_t size() { return timestamps.size(); }
 
-    VectorXl timestamps;
+    VectorXu timestamps;
     std::vector<double> data[SIGNAL_BLOCK_CHAN_COUNT];
 
     friend QDataStream &operator<<(QDataStream &out, const FloatSignalBlock &obj)

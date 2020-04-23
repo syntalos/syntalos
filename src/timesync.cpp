@@ -407,11 +407,11 @@ void FreqCounterSynchronizer::stop()
     m_tswriter->close();
 }
 
-void FreqCounterSynchronizer::processTimestamps(const milliseconds_t &recvTimestamp, const std::chrono::microseconds &deviceLatency, VectorXl &idxTimestamps)
+void FreqCounterSynchronizer::processTimestamps(const milliseconds_t &recvTimestamp, const std::chrono::microseconds &deviceLatency, VectorXu &idxTimestamps)
 {
     // adjust timestamp based on our current offset
     if (m_indexOffset != 0)
-        idxTimestamps += VectorXl::LinSpaced(idxTimestamps.rows(), 0, m_indexOffset);
+        idxTimestamps += VectorXu::LinSpaced(idxTimestamps.rows(), 0, m_indexOffset);
 
     // check if we are calibrating our timebase and - if not - see if we have to check for
     // timing offsets already
@@ -510,12 +510,12 @@ void FreqCounterSynchronizer::processTimestamps(const milliseconds_t &recvTimest
     const int changeInt = std::floor(((timeOffsetUsec / 1000.0 / 1000.0) * m_freq) / (m_freq / 20000 + 1));
 
     // adjust timestamps with an appropriate offset step
-    const auto change = VectorXl::LinSpaced(idxTimestamps.rows(), 0, changeInt);
+    const auto change = VectorXu::LinSpaced(idxTimestamps.rows(), 0, changeInt);
     m_indexOffset += change[change.rows() - 1];
     idxTimestamps += change;
 }
 
-void FreqCounterSynchronizer::processTimestamps(const milliseconds_t &recvTimestamp, const double &devLatencyMs, VectorXl &idxTimestamps)
+void FreqCounterSynchronizer::processTimestamps(const milliseconds_t &recvTimestamp, const double &devLatencyMs, VectorXu &idxTimestamps)
 {
     // we want the device latency in microseconds
     auto deviceLatency = std::chrono::microseconds(static_cast<long>(devLatencyMs * 1000));
@@ -523,7 +523,7 @@ void FreqCounterSynchronizer::processTimestamps(const milliseconds_t &recvTimest
 }
 
 inline
-void FreqCounterSynchronizer::writeTsyncFileBlock(const VectorXl &timeIndices, const microseconds_t &lastOffset)
+void FreqCounterSynchronizer::writeTsyncFileBlock(const VectorXu &timeIndices, const microseconds_t &lastOffset)
 {
     // if we only have a very short vector, we don't also add the offset information to the first
     // datapoint

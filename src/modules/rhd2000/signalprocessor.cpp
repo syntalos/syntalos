@@ -577,14 +577,14 @@ int SignalProcessor::loadAmplifierData(queue<Rhd2000DataBlock> &dataQueue,
         triggerTimeIndex = -1;
     }
 
-    // register timestamps for this block for emission in syntalos streams
-    // (in case no subscription exists, this does nothing)
-    VectorXl blockTimestamps = Eigen::Map<VectorXu, Eigen::Unaligned>(dataQueue.front().timeStamp.data(),
-                                                                      dataQueue.front().timeStamp.size()).cast<long>();
-    syModSyncTimestamps(syMod, latencyMs, dataRecvTimestamp, blockTimestamps);
-    setSyModSigBlockTimestamps(syMod, blockTimestamps);
-
     for (block = 0; block < numBlocks; ++block) {
+        // register timestamps for this block for emission in syntalos streams
+        // (in case no subscription exists, this does nothing)
+        VectorXu blockTimestamps = Eigen::Map<VectorXu, Eigen::Unaligned>(dataQueue.front().timeStamp.data(),
+                                                                          dataQueue.front().timeStamp.size());
+        syModSyncTimestamps(syMod, latencyMs, dataRecvTimestamp, blockTimestamps);
+        setSyModSigBlockTimestamps(syMod, blockTimestamps);
+
         // Load and scale RHD2000 amplifier waveforms
         // (sampled at amplifier sampling rate)
         for (t = 0; t < SAMPLES_PER_DATA_BLOCK; ++t) {
@@ -1482,8 +1482,9 @@ int SignalProcessor::loadSyntheticData(int numBlocks, double sampleRate,
     }
 
     // set (fake) timestamps vector
-    VectorXl syTimestamps(SAMPLES_PER_DATA_BLOCK);
-    for (t = 0; t < SAMPLES_PER_DATA_BLOCK; ++t)
+    const auto numTimestamps = SAMPLES_PER_DATA_BLOCK * numBlocks;
+    VectorXu syTimestamps(numTimestamps);
+    for (t = 0; t < numTimestamps; ++t)
         syTimestamps[t] = synthTimeStamp++;
 
     syModSyncTimestamps(syMod, 0, syncTimer->timeSinceStartMsec(), syTimestamps);
@@ -1500,7 +1501,7 @@ int SignalProcessor::loadSyntheticData(int numBlocks, double sampleRate,
             for (block = 0; block < numBlocks; ++block) {
                 // Save timestamp data
                 for (t = 0; t < SAMPLES_PER_DATA_BLOCK; ++t) {
-                    out << (qint32) (syTimestamps[t]);
+                    out << (qint32) (syTimestamps[t + (block * SAMPLES_PER_DATA_BLOCK)]);
                     numWordsWritten += 2;
                 }
                 // Save amplifier data
@@ -1565,7 +1566,7 @@ int SignalProcessor::loadSyntheticData(int numBlocks, double sampleRate,
             for (block = 0; block < numBlocks; ++block) {
                 // Save timestamp data
                 for (t = 0; t < SAMPLES_PER_DATA_BLOCK; ++t) {
-                    *(timestampStream) << (qint32) (syTimestamps[t]);
+                    *(timestampStream) << (qint32) (syTimestamps[t + (block * SAMPLES_PER_DATA_BLOCK)]);
                     numWordsWritten += 2;
                 }
 
@@ -1614,7 +1615,7 @@ int SignalProcessor::loadSyntheticData(int numBlocks, double sampleRate,
             for (block = 0; block < numBlocks; ++block) {
                 // Save timestamp data
                 for (t = 0; t < SAMPLES_PER_DATA_BLOCK; ++t) {
-                    *(timestampStream) << (qint32) (syTimestamps[t]);
+                    *(timestampStream) << (qint32) (syTimestamps[t + (block * SAMPLES_PER_DATA_BLOCK)]);
                     numWordsWritten += 2;
                 }
 

@@ -186,11 +186,11 @@ public:
 
     bool start();
     void stop();
-    void processTimestamps(const milliseconds_t &recvTimestamp, const std::chrono::microseconds &deviceLatency, VectorXl &idxTimestamps);
-    void processTimestamps(const milliseconds_t &recvTimestamp, const double &devLatencyMs, VectorXl &idxTimestamps);
+    void processTimestamps(const milliseconds_t &recvTimestamp, const std::chrono::microseconds &deviceLatency, VectorXu &idxTimestamps);
+    void processTimestamps(const milliseconds_t &recvTimestamp, const double &devLatencyMs, VectorXu &idxTimestamps);
 
 private:
-    void writeTsyncFileBlock(const VectorXl &timeIndices, const microseconds_t &lastOffset);
+    void writeTsyncFileBlock(const VectorXu &timeIndices, const microseconds_t &lastOffset);
 
     AbstractModule *m_mod;
     QString m_id;
