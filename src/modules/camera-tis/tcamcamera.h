@@ -51,6 +51,13 @@ struct FrameSize
 class VideoFormatCaps
 {
 public:
+    explicit VideoFormatCaps()
+        : size({0, 0}),
+          size_min({0, 0}),
+          size_max({0, 0}),
+          framerate_min({0, 0}),
+          framerate_max({0, 0})
+    {}
     FrameSize size;
     FrameSize size_min;
     FrameSize size_max;

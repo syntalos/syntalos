@@ -327,7 +327,7 @@ TcamCamera::initialize_format_list()
 
     for(size_t i = 0; i < gst_caps_get_size(caps); ++i)
     {
-        VideoFormatCaps fmt = {};
+        VideoFormatCaps fmt;
         GstStructure* s = gst_caps_get_structure(caps, i);
         if (s)
         {
@@ -593,7 +593,7 @@ TcamCamera::set_new_frame_callback(std::function<GstFlowReturn(GstAppSink *appsi
 {
     callback_ = callback;
     callback_data_ = data;
-    GstAppSinkCallbacks callbacks = {nullptr, nullptr, new_frame_callback, {nullptr}};
+    GstAppSinkCallbacks callbacks = {nullptr, nullptr, new_frame_callback};
     gst_app_sink_set_callbacks(GST_APP_SINK(capturesink_), &callbacks, this, nullptr);
 }
 

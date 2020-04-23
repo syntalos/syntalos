@@ -73,6 +73,7 @@ public:
     {
         if (m_propDialog != nullptr) {
             m_propDialog->hide();
+            m_propDialog->setCamera(nullptr);
             m_propDialog->deleteLater();
         }
         m_propDialog = new CPropertiesDialog;
@@ -134,7 +135,10 @@ public:
         m_resolution = cv::Size(width, height);
 
         // create a new camera, deleting the old one
-        resetCamera();
+        if (!resetCamera()) {
+            qWarning() << "TISCamera. Unable to reset camera.";
+            return;
+        }
 
         // delete our old properties dialog, we don't need it anymore
         // replace it with a new one for the newly selected camera/settings combo
