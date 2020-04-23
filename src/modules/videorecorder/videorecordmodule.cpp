@@ -22,6 +22,7 @@
 #include <QMessageBox>
 #include <QDebug>
 #include <QFileInfo>
+#include <QCoreApplication>
 #include "streams/frametype.h"
 
 #include "videowriter.h"
@@ -41,6 +42,7 @@ class VideoRecorderModule : public AbstractModule
 private:
     bool m_recording;
     bool m_initDone;
+    bool m_recordingFinished;
     bool m_startStopped;
     std::shared_ptr<EDLDataset> m_vidDataset;
     std::unique_ptr<VideoWriter> m_videoWriter;
@@ -96,6 +98,7 @@ public:
 
         m_recording = false;
         m_initDone = false;
+        m_recordingFinished = true;
         m_startStopped = m_settingsDialog->startStopped();
         m_inSub.reset();
         m_ctlSub.reset();
@@ -111,6 +114,7 @@ public:
 
         m_inSub = m_inPort->subscription();
         m_recording = true;
+        m_recordingFinished = false;
 
         // don't permit configuration changes while we are running
         m_settingsDialog->setEnabled(false);
@@ -140,8 +144,10 @@ public:
         if (!m_recording) {
             // just exit if we aren't subscribed to any data source
             setStateReady();
+            m_recordingFinished = true;
             return;
         }
+        m_recordingFinished = false;
 
         // base path to save our video to
         QString vidSavePathBase;
@@ -316,12 +322,24 @@ public:
                 break;
             }
         }
+
+        m_recordingFinished = true;
     }
 
     void stop() override
     {
-        if (m_initDone && m_recording && m_videoWriter.get() != nullptr)
+        // this will terminate the thread
+        m_running = false;
+
+        if (m_initDone && m_recording && m_videoWriter.get() != nullptr) {
+            // wait until the thread has shut down and we are no longer encoding frames,
+            // the finalize the video. Otherwise we might crash the encoder, as it isn't
+            // threadsafe (for a tiny performance gain)
+            while (!m_recordingFinished) { QCoreApplication::processEvents(); }
+
+            // now shut down the recorder
             m_videoWriter->finalize();
+        }
 
         statusMessage(QStringLiteral("Recording stopped."));
         m_videoWriter.reset(nullptr);
