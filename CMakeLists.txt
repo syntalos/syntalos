@@ -17,11 +17,13 @@ set(CMAKE_AUTOMOC ON)
 # Options
 #
 option(MAINTAINER "Enable maintainer mode" OFF)
+option(OPTIMIZATION_AVX2 "Enable AVX2 instructions when building in release mode" ON)
+option(OPTIMIZATION_NATIVE "Optimize for native CPU when in release mode" OFF)
+
 option(MOD_CAMERA_UEYE "Enable uEye camera module" OFF)
 option(MOD_CAMERA_FLIR "Enable FLIR camera module using the Spinnaker API" OFF)
 option(MOD_CAMERA_TIS  "Enable camera module for The Imaging Source cameras" ON)
 option(MOD_MINISCOPE   "Enable Miniscope module" ON)
-
 
 #
 # Compiler flags
@@ -42,6 +44,33 @@ endif()
 string(REPLACE "-rdynamic" "" CMAKE_SHARED_LIBRARY_LINK_C_FLAGS ${CMAKE_SHARED_LIBRARY_LINK_C_FLAGS})
 string(REPLACE "-rdynamic" "" CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS ${CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS})
 
+if(OPTIMIZATION_AVX2 AND NOT OPTIMIZATION_NATIVE)
+  set(o_avxflags "-mavx -mavx2 -fopt-info")
+
+  set(CMAKE_C_FLAGS_RELEASE        "${CMAKE_C_FLAGS_RELEASE} ${o_avxflags}")
+  set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${o_avxflags}")
+  set(CMAKE_C_FLAGS_MINSIZEREL     "${CMAKE_C_FLAGS_MINSIZEREL} ${o_avxflags}")
+
+  set(CMAKE_CXX_FLAGS_RELEASE        "${CMAKE_CXX_FLAGS_RELEASE} ${o_avxflags}")
+  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} ${o_avxflags}")
+  set(CMAKE_CXX_FLAGS_MINSIZEREL     "${CMAKE_CXX_FLAGS_MINSIZEREL} ${o_avxflags}")
+
+  message(STATUS "Using AVX/AVX2 instructions")
+endif()
+
+if(OPTIMIZATION_NATIVE)
+  set(o_nativeflags "-march=native")
+
+  set(CMAKE_C_FLAGS_RELEASE        "${CMAKE_C_FLAGS_RELEASE} ${o_nativeflags}")
+  set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${o_nativeflags}")
+  set(CMAKE_C_FLAGS_MINSIZEREL     "${CMAKE_C_FLAGS_MINSIZEREL} ${o_nativeflags}")
+
+  set(CMAKE_CXX_FLAGS_RELEASE        "${CMAKE_CXX_FLAGS_RELEASE} ${o_nativeflags}")
+  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} ${o_nativeflags}")
+  set(CMAKE_CXX_FLAGS_MINSIZEREL     "${CMAKE_CXX_FLAGS_MINSIZEREL} ${o_nativeflags}")
+
+  message(STATUS "Optimizing build for native CPU architecture")
+endif()
 
 #
 # Dependencies
