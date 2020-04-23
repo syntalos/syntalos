@@ -186,8 +186,10 @@ public:
 
     bool start();
     void stop();
-    void processTimestamps(const milliseconds_t &recvTimestamp, const std::chrono::microseconds &deviceLatency, VectorXu &idxTimestamps);
-    void processTimestamps(const milliseconds_t &recvTimestamp, const double &devLatencyMs, VectorXu &idxTimestamps);
+    void processTimestamps(const milliseconds_t &recvTimestamp, const std::chrono::microseconds &deviceLatency,
+                           int blockIndex, int blockCount, VectorXu &idxTimestamps);
+    void processTimestamps(const milliseconds_t &recvTimestamp, const double &devLatencyMs,
+                           int blockIndex, int blockCount, VectorXu &idxTimestamps);
 
 private:
     void writeTsyncFileBlock(const VectorXu &timeIndices, const microseconds_t &lastOffset);

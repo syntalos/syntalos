@@ -407,8 +407,11 @@ void FreqCounterSynchronizer::stop()
     m_tswriter->close();
 }
 
-void FreqCounterSynchronizer::processTimestamps(const milliseconds_t &recvTimestamp, const std::chrono::microseconds &deviceLatency, VectorXu &idxTimestamps)
+void FreqCounterSynchronizer::processTimestamps(const milliseconds_t &recvTimestamp, const std::chrono::microseconds &deviceLatency,
+                                                int blockIndex, int blockCount, VectorXu &idxTimestamps)
 {
+    Q_UNUSED(blockCount)
+
     // adjust timestamp based on our current offset
     if (m_indexOffset != 0)
         idxTimestamps += VectorXu::LinSpaced(idxTimestamps.rows(), 0, m_indexOffset);
@@ -424,8 +427,10 @@ void FreqCounterSynchronizer::processTimestamps(const milliseconds_t &recvTimest
 
     m_lastUpdateTime = currentTimestamp;
 
-    // timestamp when (as far and well as we can tell...) the data was actually acquired, in milliseconds
-    const auto assumedAcqTS = std::chrono::duration_cast<milliseconds_t>(recvTimestamp - deviceLatency);
+    // timestamp when (as far and well as we can guess...) the data was actually acquired, in milliseconds
+    const auto assumedAcqTS = std::chrono::duration_cast<milliseconds_t>(recvTimestamp
+                                                                         - milliseconds_t(qRound(((idxTimestamps.rows() / m_freq) * 1000.0) * (blockIndex + 1)))
+                                                                         - deviceLatency);
 
     if (m_baseTSCalibrationCount < m_minimumBaseTSCalibrationPoints) {
         // we are in the timebase calibration phase, so update our timebase
@@ -515,11 +520,11 @@ void FreqCounterSynchronizer::processTimestamps(const milliseconds_t &recvTimest
     idxTimestamps += change;
 }
 
-void FreqCounterSynchronizer::processTimestamps(const milliseconds_t &recvTimestamp, const double &devLatencyMs, VectorXu &idxTimestamps)
+void FreqCounterSynchronizer::processTimestamps(const milliseconds_t &recvTimestamp, const double &devLatencyMs, int blockIndex, int blockCount, VectorXu &idxTimestamps)
 {
     // we want the device latency in microseconds
     auto deviceLatency = std::chrono::microseconds(static_cast<long>(devLatencyMs * 1000));
-    processTimestamps(recvTimestamp, deviceLatency, idxTimestamps);
+    processTimestamps(recvTimestamp, deviceLatency, blockIndex, blockCount, idxTimestamps);
 }
 
 inline

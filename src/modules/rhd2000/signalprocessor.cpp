@@ -582,7 +582,7 @@ int SignalProcessor::loadAmplifierData(queue<Rhd2000DataBlock> &dataQueue,
         // (in case no subscription exists, this does nothing)
         VectorXu blockTimestamps = Eigen::Map<VectorXu, Eigen::Unaligned>(dataQueue.front().timeStamp.data(),
                                                                           dataQueue.front().timeStamp.size());
-        syModSyncTimestamps(syMod, latencyMs, dataRecvTimestamp, blockTimestamps);
+        syModSyncTimestamps(syMod, latencyMs, dataRecvTimestamp, block, numBlocks, blockTimestamps);
         setSyModSigBlockTimestamps(syMod, blockTimestamps);
 
         // Load and scale RHD2000 amplifier waveforms
@@ -1481,27 +1481,26 @@ int SignalProcessor::loadSyntheticData(int numBlocks, double sampleRate,
         }
     }
 
-    // set (fake) timestamps vector
-    const auto numTimestamps = SAMPLES_PER_DATA_BLOCK * numBlocks;
-    VectorXu syTimestamps(numTimestamps);
-    for (t = 0; t < numTimestamps; ++t)
-        syTimestamps[t] = synthTimeStamp++;
-
-    syModSyncTimestamps(syMod, 0, syncTimer->timeSinceStartMsec(), syTimestamps);
-    setSyModSigBlockTimestamps(syMod, syTimestamps);
-
-    // publish data in Syntalos stream (if needed)
-    if (syMod != nullptr)
-        syMod->pushSignalData();
-
     // Optionally send binary data to binary output stream
     if (saveToDisk) {
         switch (format) {
         case SaveFormatIntan:
             for (block = 0; block < numBlocks; ++block) {
+                // set (fake) timestamps vector
+                VectorXu syTimestamps(SAMPLES_PER_DATA_BLOCK);
+                for (t = 0; t < SAMPLES_PER_DATA_BLOCK; ++t)
+                    syTimestamps[t] = synthTimeStamp++;
+
+                syModSyncTimestamps(syMod, 0, syncTimer->timeSinceStartMsec(), block, numBlocks, syTimestamps);
+                setSyModSigBlockTimestamps(syMod, syTimestamps);
+
+                // publish data in Syntalos stream (if needed)
+                if (syMod != nullptr)
+                    syMod->pushSignalData();
+
                 // Save timestamp data
                 for (t = 0; t < SAMPLES_PER_DATA_BLOCK; ++t) {
-                    out << (qint32) (syTimestamps[t + (block * SAMPLES_PER_DATA_BLOCK)]);
+                    out << (qint32) (syTimestamps[t]);
                     numWordsWritten += 2;
                 }
                 // Save amplifier data
@@ -1564,9 +1563,21 @@ int SignalProcessor::loadSyntheticData(int numBlocks, double sampleRate,
 
         case SaveFormatFilePerSignalType:
             for (block = 0; block < numBlocks; ++block) {
+                // set (fake) timestamps vector
+                VectorXu syTimestamps(SAMPLES_PER_DATA_BLOCK);
+                for (t = 0; t < SAMPLES_PER_DATA_BLOCK; ++t)
+                    syTimestamps[t] = synthTimeStamp++;
+
+                syModSyncTimestamps(syMod, 0, syncTimer->timeSinceStartMsec(), block, numBlocks, syTimestamps);
+                setSyModSigBlockTimestamps(syMod, syTimestamps);
+
+                // publish data in Syntalos stream (if needed)
+                if (syMod != nullptr)
+                    syMod->pushSignalData();
+
                 // Save timestamp data
                 for (t = 0; t < SAMPLES_PER_DATA_BLOCK; ++t) {
-                    *(timestampStream) << (qint32) (syTimestamps[t + (block * SAMPLES_PER_DATA_BLOCK)]);
+                    *(timestampStream) << (qint32) (syTimestamps[t]);
                     numWordsWritten += 2;
                 }
 
@@ -1613,9 +1624,21 @@ int SignalProcessor::loadSyntheticData(int numBlocks, double sampleRate,
 
         case SaveFormatFilePerChannel:
             for (block = 0; block < numBlocks; ++block) {
+                // set (fake) timestamps vector
+                VectorXu syTimestamps(SAMPLES_PER_DATA_BLOCK);
+                for (t = 0; t < SAMPLES_PER_DATA_BLOCK; ++t)
+                    syTimestamps[t] = synthTimeStamp++;
+
+                syModSyncTimestamps(syMod, 0, syncTimer->timeSinceStartMsec(), block, numBlocks, syTimestamps);
+                setSyModSigBlockTimestamps(syMod, syTimestamps);
+
+                // publish data in Syntalos stream (if needed)
+                if (syMod != nullptr)
+                    syMod->pushSignalData();
+
                 // Save timestamp data
                 for (t = 0; t < SAMPLES_PER_DATA_BLOCK; ++t) {
-                    *(timestampStream) << (qint32) (syTimestamps[t + (block * SAMPLES_PER_DATA_BLOCK)]);
+                    *(timestampStream) << (qint32) (syTimestamps[t]);
                     numWordsWritten += 2;
                 }
 
