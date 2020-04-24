@@ -65,6 +65,7 @@ private slots:
     void projectSaveActionTriggered();
     void projectOpenActionTriggered();
 
+    void globalConfigActionTriggered();
     void aboutActionTriggered();
 
     void onModuleCreated(ModuleInfo *info, AbstractModule *mod);

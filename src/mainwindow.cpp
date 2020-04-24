@@ -56,6 +56,7 @@
 #include <KTar>
 
 #include "aboutdialog.h"
+#include "globalconfigdialog.h"
 #include "engine.h"
 #include "moduleapi.h"
 #include "sysinfodialog.h"
@@ -240,8 +241,9 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->actionProjectSave, &QAction::triggered, this, &MainWindow::projectSaveActionTriggered);
     connect(ui->actionProjectOpen, &QAction::triggered, this, &MainWindow::projectOpenActionTriggered);
 
-    // connect about dialog trigger
+    // connect config and about dialog actions
     connect(ui->actionAbout, &QAction::triggered, this, &MainWindow::aboutActionTriggered);
+    connect(ui->actionGlobalConfig, &QAction::triggered, this, &MainWindow::globalConfigActionTriggered);
 
     // restore main window geometry
     restoreGeometry(settings.value("main/geometry").toByteArray());
@@ -721,6 +723,12 @@ void MainWindow::projectOpenActionTriggered()
 
     // we are ready, enable all UI elements again
     this->setEnabled(true);
+}
+
+void MainWindow::globalConfigActionTriggered()
+{
+    GlobalConfigDialog gcDlg;
+    gcDlg.exec();
 }
 
 void MainWindow::setCurrentProjectFile(const QString &fileName)

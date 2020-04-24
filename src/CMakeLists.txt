@@ -40,6 +40,8 @@ set(SYNTALOS_SRC
     engine.cpp
     flowgraphview.h
     flowgraphview.cpp
+    globalconfigdialog.h
+    globalconfigdialog.cpp
     main.cpp
     mainwindow.h
     mainwindow.cpp
@@ -63,6 +65,7 @@ set(SYNTALOS_SRC
 
 set(SYNTALOS_UI
     aboutdialog.ui
+    globalconfigdialog.ui
     mainwindow.ui
     modulegraphform.ui
     moduleselectdialog.ui
