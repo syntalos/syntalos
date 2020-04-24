@@ -28,12 +28,18 @@
 class SharedMemory;
 using namespace boost;
 
-struct PyFrame
+class PyFrame
 {
+public:
+    explicit PyFrame()
+        : index(0),
+          time_msec(0)
+    {}
+
     size_t index;
     time_t time_msec;
     python::object mat;
 };
 
-python::object unmarshalDataToPyObject(int typeId, const QVariantList &params, std::unique_ptr<SharedMemory> &shm);
-bool marshalPyDataElement(int typeId, const boost::python::api::object &pyObj, QVariantList &params, std::unique_ptr<SharedMemory> &shm);
+python::object unmarshalDataToPyObject(int typeId, const QVariant &argData, std::unique_ptr<SharedMemory> &shm);
+bool marshalPyDataElement(int typeId, const boost::python::api::object &pyObj, QVariant &argData, std::unique_ptr<SharedMemory> &shm);

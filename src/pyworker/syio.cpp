@@ -273,8 +273,9 @@ BOOST_PYTHON_MODULE(syio)
      **/
 
     class_<PyFrame>("Frame", init<>())
-                .def_readwrite("time_msec", &PyFrame::time_msec)
-                .def_readwrite("mat", &PyFrame::mat)
+            .def_readwrite("index", &PyFrame::index)
+            .def_readwrite("time_msec", &PyFrame::time_msec)
+            .def_readwrite("mat", &PyFrame::mat)
             ;
 
     /**

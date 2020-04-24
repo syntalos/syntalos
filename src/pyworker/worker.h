@@ -52,8 +52,8 @@ public Q_SLOTS:
     bool initializeFromData(const QString & script, const QString & env) override;
     bool initializeFromFile(const QString & fname, const QString & env) override;
 
-    void setInputPortInfo(QList<InputPortInfo> ports) override;
-    void setOutputPortInfo(QList<OutputPortInfo> ports) override;
+    void setInputPortInfo(const QList<InputPortInfo> &ports) override;
+    void setOutputPortInfo(const QList<OutputPortInfo> &ports) override;
 
     void start(long startTimestampUsec) override;
     void shutdown() override;
@@ -61,7 +61,7 @@ public Q_SLOTS:
     void runScript();
 
     std::optional<bool> waitForInput();
-    bool receiveInput(int inPortId, QVariantList params = QVariantList()) override;
+    bool receiveInput(int inPortId, const QVariant &argData = QVariant()) override;
 
 protected:
     void setStage(Stage stage);

@@ -28,7 +28,7 @@ using namespace boost;
 /**
  * @brief Create a Python object from received data.
  */
-python::object unmarshalDataToPyObject(int typeId, const QVariantList &params, std::unique_ptr<SharedMemory> &shm)
+python::object unmarshalDataToPyObject(int typeId, const QVariant &argData, std::unique_ptr<SharedMemory> &shm)
 {
     /**
      ** Frame
@@ -39,14 +39,18 @@ python::object unmarshalDataToPyObject(int typeId, const QVariantList &params, s
         auto matPyO = cvMatToNDArray(floatingMat);
 
         PyFrame pyFrame;
-        pyFrame.index = params[0].toUInt();
         pyFrame.mat = boost::python::object(boost::python::handle<>(matPyO));
-        pyFrame.time_msec = params[1].toLongLong();
+
+        const auto plist = argData.toList();
+        if (plist.length() == 2) {
+            pyFrame.index = plist[0].toUInt();
+            pyFrame.time_msec = plist[1].toLongLong();
+        }
 
         return python::object(pyFrame);
     }
 
-    if (params.length() == 0)
+    if (!argData.isValid())
         return python::object();
 
     /**
@@ -54,24 +58,24 @@ python::object unmarshalDataToPyObject(int typeId, const QVariantList &params, s
      **/
 
     if (typeId == qMetaTypeId<ControlCommand>())
-        return python::object(qvariant_cast<ControlCommand>(params[0]));
+        return python::object(qvariant_cast<ControlCommand>(argData));
 
     /**
      ** Firmata
      **/
 
     if (typeId == qMetaTypeId<FirmataControl>())
-        return python::object(qvariant_cast<FirmataControl>(params[0]));
+        return python::object(qvariant_cast<FirmataControl>(argData));
 
     if (typeId == qMetaTypeId<FirmataData>())
-        return python::object(qvariant_cast<FirmataData>(params[0]));
+        return python::object(qvariant_cast<FirmataData>(argData));
 
     /**
      ** Table Rows
      **/
 
     if (typeId == qMetaTypeId<TableRow>()) {
-        auto rows = params[0].toList();
+        auto rows = argData.toList();
         python::list pyRow;
         for (const QVariant &colVar : rows) {
             const auto col = colVar.toString();
@@ -84,11 +88,11 @@ python::object unmarshalDataToPyObject(int typeId, const QVariantList &params, s
 }
 
 template<typename T>
-static bool marshalAndAddSimple(const int &typeId, const boost::python::object &pyObj, QVariantList &params)
+static bool marshalAndAddSimple(const int &typeId, const boost::python::object &pyObj, QVariant &argData)
 {
     if (typeId == qMetaTypeId<T>()) {
         const T etype = python::extract<T>(pyObj);
-        params.append(QVariant::fromValue(etype));
+        argData = QVariant::fromValue(etype);
         return true;
     }
     return false;
@@ -98,7 +102,7 @@ static bool marshalAndAddSimple(const int &typeId, const boost::python::object &
  * @brief Prepare data from a Python object for transmission.
  */
 bool marshalPyDataElement(int typeId, const boost::python::object &pyObj,
-                          QVariantList &params, std::unique_ptr<SharedMemory> &shm)
+                          QVariant &argData, std::unique_ptr<SharedMemory> &shm)
 {
     /**
      ** Frame
@@ -110,8 +114,14 @@ bool marshalPyDataElement(int typeId, const boost::python::object &pyObj,
         if (!cvMatToShm(shm, mat))
             return false;
 
+        const uint index = python::extract<uint>(pyObj.attr("index"));
         const long time_msec = python::extract<long>(pyObj.attr("time_msec"));
-        params.append(QVariant::fromValue(time_msec));
+
+        QVariantList plist;
+        plist.reserve(2);
+        plist.append(index);
+        plist.append(QVariant::fromValue(time_msec));
+        argData = QVariant::fromValue(plist);
         return true;
     }
 
@@ -119,16 +129,16 @@ bool marshalPyDataElement(int typeId, const boost::python::object &pyObj,
      ** Control Command
      **/
 
-    if (marshalAndAddSimple<ControlCommand>(typeId, pyObj, params))
+    if (marshalAndAddSimple<ControlCommand>(typeId, pyObj, argData))
         return true;
 
     /**
      ** Firmata
      **/
 
-    if (marshalAndAddSimple<FirmataControl>(typeId, pyObj, params))
+    if (marshalAndAddSimple<FirmataControl>(typeId, pyObj, argData))
         return true;
-    if (marshalAndAddSimple<FirmataData>(typeId, pyObj, params))
+    if (marshalAndAddSimple<FirmataData>(typeId, pyObj, argData))
         return true;
 
     /**
@@ -153,7 +163,7 @@ bool marshalPyDataElement(int typeId, const boost::python::object &pyObj,
                 row.append(QString::fromStdString(value));
             }
         }
-        params.append(QVariant::fromValue(row));
+        argData = QVariant::fromValue(row);
         return true;
     }
 

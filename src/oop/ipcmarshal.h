@@ -34,7 +34,7 @@ cv::Mat cvMatFromShm(std::unique_ptr<SharedMemory> &shm, bool copy = true);
 bool cvMatToShm(std::unique_ptr<SharedMemory> &shm, const cv::Mat &frame);
 
 bool marshalDataElement(int typeId, const QVariant &data,
-                        QVariantList &params, std::unique_ptr<SharedMemory> &shm);
+                        QVariant &outData, std::unique_ptr<SharedMemory> &shm);
 
 // NOTE: unmarshalDataAndOutput is in oopworkerconnector, as it needs access to the output ports,
 // which this common IPC marshalling file can't have at the moment.

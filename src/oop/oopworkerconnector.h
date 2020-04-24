@@ -62,8 +62,8 @@ public:
 
 private slots:
     void receiveReadyChange(bool ready);
-    void receiveOutput(int outPortId, QVariantList params);
-    void receiveOutputPortMetadataUpdate(int outPortId, QVariantHash metadata);
+    void receiveOutput(int outPortId, QVariant argData);
+    void receiveOutputPortMetadataUpdate(int outPortId, const QVariantHash &metadata);
 
 private:
     QSharedPointer<OOPWorkerReplica> m_reptr;

@@ -90,7 +90,7 @@ bool OOPWorker::initializeFromFile(const QString &fname, const QString &env)
     return true;
 }
 
-void OOPWorker::setInputPortInfo(QList<InputPortInfo> ports)
+void OOPWorker::setInputPortInfo(const QList<InputPortInfo> &ports)
 {
     m_inPortInfo = ports;
     m_shmRecv.clear();
@@ -114,7 +114,7 @@ void OOPWorker::setInputPortInfo(QList<InputPortInfo> ports)
     }
 }
 
-void OOPWorker::setOutputPortInfo(QList<OutputPortInfo> ports)
+void OOPWorker::setOutputPortInfo(const QList<OutputPortInfo> &ports)
 {
     m_outPortInfo = ports;
 
@@ -403,10 +403,10 @@ std::optional<bool> OOPWorker::waitForInput()
     return res;
 }
 
-bool OOPWorker::receiveInput(int inPortId, QVariantList params)
+bool OOPWorker::receiveInput(int inPortId, const QVariant &argData)
 {
     const auto typeId = m_inPortInfo[inPortId].workerDataTypeId();
-    auto pyObj = unmarshalDataToPyObject(typeId, params, m_shmRecv[inPortId]);
+    auto pyObj = unmarshalDataToPyObject(typeId, argData, m_shmRecv[inPortId]);
     m_pyb->incomingData[inPortId].append(pyObj);
 
     return true;
@@ -419,10 +419,10 @@ bool OOPWorker::submitOutput(int outPortId, python::object pyObj)
         return true;
 
     const auto typeId = m_outPortInfo[outPortId].workerDataTypeId();
-    QVariantList params;
-    const auto ret = marshalPyDataElement(typeId, pyObj, params, m_shmSend[outPortId]);
+    QVariant argData;
+    const auto ret = marshalPyDataElement(typeId, pyObj, argData, m_shmSend[outPortId]);
     if (ret)
-        Q_EMIT sendOutput(outPortId, params);
+        Q_EMIT sendOutput(outPortId, argData);
     return ret;
 }
 

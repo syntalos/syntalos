@@ -225,51 +225,54 @@ void OOPWorkerConnector::receiveReadyChange(bool ready)
 }
 
 template<typename T>
-static bool unmarshalAndOutputSimple(const int &typeId, const QVariantList &params, StreamOutputPort *port)
+static bool unmarshalAndOutputSimple(const int &typeId, const QVariant &argData, StreamOutputPort *port)
 {
     if (typeId == qMetaTypeId<T>()) {
-        if (params.length() < 1)
-            return true;
-        port->stream<T>()->push(qvariant_cast<T>(params[0]));
+        port->stream<T>()->push(qvariant_cast<T>(argData));
         return true;
     }
     return false;
 }
 
-static bool unmarshalDataAndOutput(int typeId, const QVariantList &params, std::unique_ptr<SharedMemory> &shm, StreamOutputPort *port)
+static bool unmarshalDataAndOutput(int typeId, const QVariant &argData, std::unique_ptr<SharedMemory> &shm, StreamOutputPort *port)
 {
     if (typeId == qMetaTypeId<Frame>()) {
-        milliseconds_t msec(params[0].toLongLong());
-        Frame frame(cvMatFromShm(shm), msec);
+        const auto plist = argData.toList();
+        if (plist.length() != 2) {
+            qCritical() << "Unable to deserialize frame argument data: Invalid number of elements";
+            return false;
+        }
+        milliseconds_t msec(plist[1].toLongLong());
+        Frame frame(plist[0].toUInt(), cvMatFromShm(shm), msec);
 
         port->stream<Frame>()->push(frame);
         return true;
     }
 
-    if (unmarshalAndOutputSimple<ControlCommand>(typeId, params, port))
+    if (unmarshalAndOutputSimple<ControlCommand>(typeId, argData, port))
         return true;
 
-    if (unmarshalAndOutputSimple<FirmataControl>(typeId, params, port))
+    if (unmarshalAndOutputSimple<FirmataControl>(typeId, argData, port))
         return true;
-    if (unmarshalAndOutputSimple<FirmataData>(typeId, params, port))
+    if (unmarshalAndOutputSimple<FirmataData>(typeId, argData, port))
         return true;
 
-    if (unmarshalAndOutputSimple<TableRow>(typeId, params, port))
+    if (unmarshalAndOutputSimple<TableRow>(typeId, argData, port))
         return true;
 
     return false;
 }
 
-void OOPWorkerConnector::receiveOutput(int outPortId, QVariantList params)
+void OOPWorkerConnector::receiveOutput(int outPortId, QVariant argData)
 {
     auto outPort = m_outPorts[outPortId];
     const auto typeId = outPort->dataTypeId();
 
-    if (!unmarshalDataAndOutput(typeId, params, m_shmRecv[outPortId], outPort.get()))
+    if (!unmarshalDataAndOutput(typeId, argData, m_shmRecv[outPortId], outPort.get()))
             qWarning().noquote() << "Could not interpret data received from worker on port" << outPort->id();
 }
 
-void OOPWorkerConnector::receiveOutputPortMetadataUpdate(int outPortId, QVariantHash metadata)
+void OOPWorkerConnector::receiveOutputPortMetadataUpdate(int outPortId, const QVariantHash &metadata)
 {
     auto outPort = m_outPorts[outPortId];
     outPort->streamVar()->setMetadata(metadata);
@@ -277,10 +280,10 @@ void OOPWorkerConnector::receiveOutputPortMetadataUpdate(int outPortId, QVariant
 
 void OOPWorkerConnector::sendInputData(int typeId, int portId, const QVariant &data, QEventLoop *loop)
 {
-    QVariantList params;
+    QVariant outData;
 
     auto ret = marshalDataElement(typeId, data,
-                                  params, m_shmSend[portId]);
+                                  outData, m_shmSend[portId]);
     if (!ret) {
         const auto dataTypeName = QMetaType::typeName(typeId);
         m_failed = true;
@@ -291,7 +294,7 @@ void OOPWorkerConnector::sendInputData(int typeId, int portId, const QVariant &d
         return;
     }
 
-    if (!m_reptr->receiveInput(portId, params).waitForFinished(100)) {
+    if (!m_reptr->receiveInput(portId, outData).waitForFinished(100)) {
         // ensure we handle potential error events before emitting our own
         if (loop != nullptr)
             loop->processEvents();

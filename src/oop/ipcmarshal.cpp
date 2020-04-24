@@ -103,28 +103,34 @@ cv::Mat cvMatFromShm(std::unique_ptr<SharedMemory> &shm, bool copy)
 }
 
 bool marshalDataElement(int typeId, const QVariant &data,
-                        QVariantList &params, std::unique_ptr<SharedMemory> &shm)
+                        QVariant &outData, std::unique_ptr<SharedMemory> &shm)
 {
     if (typeId == qMetaTypeId<Frame>()) {
         auto frame = data.value<Frame>();
         if (!cvMatToShm(shm, frame.mat))
             return false;
 
-        params.append(QVariant::fromValue(frame.index));
-        params.append(QVariant::fromValue(frame.time.count()));
+        QVariantList plist;
+        plist.reserve(2);
+        plist.append(QVariant::fromValue(frame.index));
+        plist.append(QVariant::fromValue(frame.time.count()));
+        outData = plist;
         return true;
     }
 
     if (typeId == qMetaTypeId<ControlCommand>()) {
         auto command = data.value<ControlCommand>();
-        params.append(QVariant::fromValue(command.kind));
-        params.append(QVariant::fromValue(command.command));
+        QVariantList plist;
+        plist.reserve(2);
+        plist.append(QVariant::fromValue(command.kind));
+        plist.append(QVariant::fromValue(command.command));
+        outData = plist;
         return true;
     }
 
     // for any other type, we just have it serialize itself
     // and append it as first parameter
-    params.append(data);
+    outData = QVariant::fromValue(data);
 
     return true;
 }
