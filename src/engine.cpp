@@ -955,16 +955,17 @@ void Engine::stop()
 void Engine::receiveModuleError(const QString& message)
 {
     auto mod = qobject_cast<AbstractModule*>(sender());
-    if (mod != nullptr) {
-        emit moduleError(mod, message);
+    if (mod != nullptr)
         d->runFailedReason = QStringLiteral("%1(%2): %3").arg(mod->id()).arg(mod->name()).arg(message);
-    } else {
+    else
         d->runFailedReason = QStringLiteral("?(?): %1").arg(message);
-    }
 
+    const bool wasRunning = d->running;
     d->failed = true;
-    if (d->running) {
-        d->running = false;
+    d->running = false;
+    if (mod != nullptr)
+        emit moduleError(mod, message);
+
+    if (wasRunning)
         emit runFailed(mod, message);
-    }
 }
