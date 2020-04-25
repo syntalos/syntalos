@@ -472,6 +472,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
     if (subjectsFile != nullptr) {
         // not having a list of subjects is totally fine
 
+        setStatusText("Loading subject information...");
         const auto subjData = parseTomlData(subjectsFile->data(), parseError);
         if (parseError.isEmpty())
             m_subjectList->fromVariantHash(subjData);
@@ -482,6 +483,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
     // load graph settings
     auto graphFile = rootDir->file("graph.toml");
     if (graphFile != nullptr) {
+        setStatusText("Caching graph settings...");
         const auto graphConfig = parseTomlData(graphFile->data(), parseError);
         if (parseError.isEmpty()) {
             // the graph view will apply stored settings to new nodes automatically
@@ -492,6 +494,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         }
     }
 
+    setStatusText("Destroying old modules...");
     m_engine->removeAllModules();
     auto rootEntries = rootDir->entries();
     rootEntries.sort();
@@ -521,6 +524,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         const auto uiDisplayGeometry = iobj.value("ui_display_geometry").toHash();
         const auto jSubs = iobj.value("subscriptions").toHash();
 
+        setStatusText(QStringLiteral("Instantiating module: %1(%2)").arg(modId).arg(modName));
         auto mod = m_engine->createModule(modId, modName);
         if (mod == nullptr) {
             QMessageBox::critical(this, QStringLiteral("Can not load settings"),
@@ -554,6 +558,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
     for (auto &pair : modSettingsList) {
         const auto mod = pair.first;
         const auto settings = pair.second;
+        setStatusText(QStringLiteral("Loading settings for module: %1(%2)").arg(mod->id()).arg(mod->name()));
         if (!mod->loadSettings(confBaseDir.absolutePath(), settings.first, settings.second)) {
             QMessageBox::critical(this, QStringLiteral("Can not load settings"),
                                   QStringLiteral("Unable to load module settings for '%1'.").arg(mod->name()));
@@ -563,6 +568,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
     }
 
     // create module connections
+    setStatusText("Restoring streams and subscriptions...");
     for (auto &pair : jSubInfo) {
         auto mod = pair.first;
         const auto jSubs = pair.second;
@@ -709,9 +715,12 @@ void MainWindow::projectOpenActionTriggered()
 
     setStatusText("Loading settings...");
 
-    // disable all UI elements while we are loading stuff
-    this->setEnabled(false);
-
+    // prevent any start/stop/modify action while loading the board
+    ui->centralWidget->setEnabled(false);
+    ui->menuBar->setEnabled(false);
+    ui->mainToolBar->setEnabled(false);
+    ui->projectToolBar->setEnabled(false);
+;
     showBusyIndicatorProcessing();
     if (!loadConfiguration(fileName)) {
         QMessageBox::critical(this,
@@ -721,8 +730,11 @@ void MainWindow::projectOpenActionTriggered()
     }
     hideBusyIndicator();
 
-    // we are ready, enable all UI elements again
-    this->setEnabled(true);
+    // we should be permitted to run and modify things
+    ui->centralWidget->setEnabled(true);
+    ui->menuBar->setEnabled(true);
+    ui->mainToolBar->setEnabled(true);
+    ui->projectToolBar->setEnabled(true);
 }
 
 void MainWindow::globalConfigActionTriggered()
