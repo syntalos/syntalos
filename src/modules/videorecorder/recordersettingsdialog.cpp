@@ -35,11 +35,16 @@ RecorderSettingsDialog::RecorderSettingsDialog(QWidget *parent) :
     ui->containerComboBox->addItem("AVI", QVariant::fromValue(VideoContainer::AVI));
     ui->containerComboBox->setCurrentIndex(0);
 
+    // We currently only permit a limited set of codecs - less choices are better here.
+    // AV1 isn't ready yet for live encoding, and HEVC is slow on most computers as well
+    // Currently FFV1 is the best option for lossless encoding, and VP9 is the best choice
+    // for lossy encoding
+
     ui->codecComboBox->addItem("FFV1", QVariant::fromValue(VideoCodec::FFV1));
-    ui->codecComboBox->addItem("AV1", QVariant::fromValue(VideoCodec::AV1));
+    //ui->codecComboBox->addItem("AV1", QVariant::fromValue(VideoCodec::AV1));
     ui->codecComboBox->addItem("VP9", QVariant::fromValue(VideoCodec::VP9));
     ui->codecComboBox->addItem("H.264", QVariant::fromValue(VideoCodec::H264));
-    ui->codecComboBox->addItem("HEVC", QVariant::fromValue(VideoCodec::HEVC));
+    //ui->codecComboBox->addItem("HEVC", QVariant::fromValue(VideoCodec::HEVC));
     ui->codecComboBox->addItem("Raw", QVariant::fromValue(VideoCodec::Raw));
     ui->codecComboBox->setCurrentIndex(0);
 

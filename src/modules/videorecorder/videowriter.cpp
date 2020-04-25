@@ -348,8 +348,26 @@ void VideoWriter::initializeInternal()
         }
     }
 
-    if (d->codec == VideoCodec::VP9)
+    if (d->codec == VideoCodec::VP9) {
+        // See https://developers.google.com/media/vp9/live-encoding
+        // for more information on the settings.
+
+        av_dict_set(&codecopts, "quality", "realtime", 0);
         av_dict_set(&codecopts, "deadline", "realtime", 0);
+        av_dict_set_int(&codecopts, "speed", 6, 0);
+        av_dict_set_int(&codecopts, "tile-columns", 4, 0);
+        av_dict_set_int(&codecopts, "frame-parallel", 1, 0);
+        av_dict_set_int(&codecopts, "static-thresh", 0, 0);
+        av_dict_set_int(&codecopts, "max-intra-rate", 300, 0);
+        av_dict_set_int(&codecopts, "lag-in-frames", 0, 0);
+        av_dict_set_int(&codecopts, "row-mt", 1, 0);
+        av_dict_set_int(&codecopts, "error-resilient", 1, 0);
+
+        if (!d->lossless) {
+            av_dict_set_int(&codecopts, "crf", 31, 0);
+            av_dict_set_int(&codecopts, "b", 0, 0);
+        }
+    }
 
     if (d->codec == VideoCodec::FFV1) {
         d->lossless = true; // this codec is always lossless
@@ -633,7 +651,7 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::milliseco
         // some encoders need to be fed a few frames before they produce a useful result
         // ignore errors in that case for a little bit.
         if ((ret == AVERROR(EAGAIN)) &&
-            ((d->codec == VideoCodec::H264) || (d->codec == VideoCodec::HEVC)))
+            ((d->codec == VideoCodec::VP9) || (d->codec == VideoCodec::H264) || (d->codec == VideoCodec::HEVC)))
             return true;
         else
             return false;
