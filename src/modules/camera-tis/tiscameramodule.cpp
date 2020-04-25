@@ -71,7 +71,9 @@ public:
 
     void createNewPropertiesDialog()
     {
+        QRect oldGeometry;
         if (m_propDialog != nullptr) {
+            oldGeometry = m_propDialog->geometry();
             m_propDialog->hide();
             m_propDialog->setCamera(nullptr);
             m_propDialog->deleteLater();
@@ -79,6 +81,8 @@ public:
         m_propDialog = new CPropertiesDialog;
         connect(m_propDialog, &CPropertiesDialog::deviceSelectClicked, this, &TISCameraModule::onDeviceSelectClicked);
         m_propDialog->setWindowTitle(QStringLiteral("%1 - Settings").arg(name()));
+        if (!oldGeometry.isEmpty())
+            m_propDialog->setGeometry(oldGeometry);
     }
 
     void showSettingsUi() override
@@ -174,9 +178,6 @@ public:
             return false;
         }
 
-        // don't permit selecting a different device from this point on
-        m_propDialog->setRunning(true);
-
         // there are stream issues if we do not recreate the GStreamer pipeline
         // every single time
         // FIXME: Find out why restarting the pipeline after it has run once does
@@ -185,6 +186,15 @@ public:
             raiseError("Unable to initialize camera video streaming pipeline. Is the right camera selected, and is it plugged in?");
             return false;
         }
+
+        // we have just reset the camera, so we'll also have to recreate the
+        // settings view - again
+        createNewPropertiesDialog();
+        const auto camProp = TCAM_PROP(m_camera->getTcamBin());
+        m_propDialog->setCamera(camProp);
+
+        // don't permit selecting a different device from this point on
+        m_propDialog->setRunning(true);
 
         // set the required stream metadata for video capture
         m_outStream->setMetadataValue("size", QSize(m_resolution.width, m_resolution.height));
