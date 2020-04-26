@@ -338,7 +338,7 @@ void MainWindow::temporaryRunActionTriggered()
 
 void MainWindow::stopActionTriggered()
 {
-    setStopPossible(false);
+    ui->actionStop->setEnabled(false);
     showBusyIndicatorProcessing();
     QApplication::processEvents();
     m_engine->stop();
