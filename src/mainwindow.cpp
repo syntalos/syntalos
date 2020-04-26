@@ -489,6 +489,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
             // the graph view will apply stored settings to new nodes automatically
             // from here on.
             ui->graphForm->graphView()->setSettings(graphConfig);
+            ui->graphForm->graphView()->restoreState();
         } else {
             qWarning() << "Unable to parse graph configuration:" << parseError;
         }
