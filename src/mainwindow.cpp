@@ -480,6 +480,11 @@ bool MainWindow::loadConfiguration(const QString &fileName)
             qWarning() << "Unable to load subject file:" << parseError;
     }
 
+    setStatusText("Destroying old modules...");
+    m_engine->removeAllModules();
+    auto rootEntries = rootDir->entries();
+    rootEntries.sort();
+
     // load graph settings
     auto graphFile = rootDir->file("graph.toml");
     if (graphFile != nullptr) {
@@ -494,13 +499,6 @@ bool MainWindow::loadConfiguration(const QString &fileName)
             qWarning() << "Unable to parse graph configuration:" << parseError;
         }
     }
-
-    setStatusText("Destroying old modules...");
-    m_engine->removeAllModules();
-    auto rootEntries = rootDir->entries();
-    rootEntries.sort();
-
-    QDir confBaseDir(QString("%1/..").arg(fileName));
 
     // we load the modules in two passes, to ensure they can all register
     // their interdependencies correctly.
@@ -554,6 +552,8 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         // store module-owned configuration for later
         modSettingsList.append(qMakePair(mod, qMakePair(modSettings, modSettingsEx)));
     }
+
+    QDir confBaseDir(QString("%1/..").arg(fileName));
 
     // load module-owned configurations
     for (auto &pair : modSettingsList) {
