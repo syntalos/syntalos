@@ -37,12 +37,17 @@ private:
     CanvasWindow *m_cvView;
     QTimer *m_evTimer;
 
-    double m_realFps;
-    double m_displayFps;
-    long m_lastFrameTime;
+    double m_expectedFps;
     double m_currentFps;
+    long m_lastFrameTime;
     double m_avgFrameTimeDiffMsec;
-    QString m_throttleRemark;
+
+    double m_currentDisplayFps;
+    symaster_timepoint m_lastDisplayTime;
+
+    uint m_lastPendingCount;
+    uint m_maxPendingFrames;
+    uint m_throttleCount;
 
 public:
     explicit CanvasModule(QObject *parent = nullptr)
@@ -72,6 +77,11 @@ public:
         if (m_ctlIn->hasSubscription())
             m_ctlSub = m_ctlIn->subscription();
 
+        // set some default values, these will be overridden immediately
+        // with real values once we are displaying an image
+        m_lastDisplayTime = currentTimePoint();
+        m_currentDisplayFps = 60.0;
+
         return true;
     }
 
@@ -83,15 +93,21 @@ public:
 
         // check framerate and throttle it, showing a remark in the latter
         // case so the user is aware that they're not seeing every single frame
-        m_realFps = m_frameSub->metadata().value("framerate", 0).toDouble();
-        m_throttleRemark = (m_realFps > 60)? QStringLiteral("rate lowered for display, original:") : QStringLiteral("req.");
-        m_displayFps = m_realFps;
-        if (m_displayFps > 60)
-            m_displayFps = 60;
-        m_frameSub->setThrottleItemsPerSec(60); // never try to display more than 60fps
+        m_expectedFps = m_frameSub->metadata().value("framerate", 0).toDouble();
+
+        // never try to display more than 120fps by default
+        // the module will lower this on its own if too much data is queued
+        m_throttleCount = 120;
+        m_frameSub->setThrottleItemsPerSec(m_throttleCount);
+
+        // permit a maximum of about 320msec of pending frames in queue
+        m_maxPendingFrames = qRound(m_expectedFps / 3.125);
+        if (m_maxPendingFrames < 5)
+            m_maxPendingFrames = 5;
+        m_lastPendingCount = 0;
 
         // assume perfect frame diff for now
-        m_avgFrameTimeDiffMsec = 1000.0 / m_displayFps;
+        m_avgFrameTimeDiffMsec = 1000.0 / m_expectedFps;
 
         auto imgWinTitle = m_frameSub->metadataValue(CommonMetadataKey::SrcModName).toString();
         if (imgWinTitle.isEmpty())
@@ -112,32 +128,57 @@ public:
     void updateImage()
     {
         auto maybeFrame = m_frameSub->peekNext();
+        const auto skippedFrames = m_frameSub->retrieveApproxSkippedElements();
         if (!maybeFrame.has_value())
             return;
+        const auto framesPendingCount = m_frameSub->approxPendingCount();
+        if (framesPendingCount > m_maxPendingFrames) {
+            // we have too many frames pending in the queue, we may have to throttle
+            // the subscription more
 
+            if (framesPendingCount >= m_lastPendingCount) {
+                m_throttleCount--;
+                if (m_throttleCount <= 4) {
+                    // throttle to less then 4fps? This looks suspicious, terminate.
+                    m_frameSub->suspend();
+                    raiseError(QStringLiteral("Dropped below 4fps in display frequency, but we are still not able to display frames fast enough. "
+                                              "Either the displayed frames are excessively large, something is wrong with the display hardware, "
+                                              "or there is a bug in the display code."));
+                    return;
+                }
+                m_frameSub->setThrottleItemsPerSec(m_throttleCount);
+            }
+        }
+        m_lastPendingCount = framesPendingCount;
+
+        // get all timing info and show the image
         const auto frame = maybeFrame.value();
         m_cvView->showImage(frame.mat);
         const auto frameTime = frame.time.count();
+        const auto frameDisplayTime = currentTimePoint();
 
-        if (m_realFps == 0) {
+        if (m_expectedFps == 0) {
             m_cvView->setStatusText(QTime::fromMSecsSinceStartOfDay(frameTime).toString("hh:mm:ss.zzz"));
         } else {
             // we use a moving average of the inter-frame-time over two seconds, as the framerate occasionally fluctuates
             // (especially when throttling the subscription) and we want to display a more steady (but accurate)
             // info to the user instead, without twitching around too much
-            m_avgFrameTimeDiffMsec = ((m_avgFrameTimeDiffMsec * (m_realFps * 2)) + (frameTime - m_lastFrameTime)) / ((m_realFps * 2) + 1);
+            m_avgFrameTimeDiffMsec = ((m_avgFrameTimeDiffMsec * m_expectedFps) + ((frameTime - m_lastFrameTime) / (skippedFrames + 1))) / (m_expectedFps + 1);
             m_lastFrameTime = frameTime;
             if (m_avgFrameTimeDiffMsec > 0)
-                m_currentFps = std::round(1000.0 / m_avgFrameTimeDiffMsec);
+                m_currentFps = 1000.0 / m_avgFrameTimeDiffMsec;
             else
-                m_currentFps = m_displayFps;
+                m_currentFps = m_expectedFps;
 
-            m_cvView->setStatusText(QStringLiteral("%1 / %2fps (%3 %4fps)")
+            m_currentDisplayFps = ((m_currentDisplayFps * 20) + (1000.0 / timeDiffMsec(frameDisplayTime, m_lastDisplayTime).count())) / (20 + 1);
+            m_cvView->setStatusText(QStringLiteral("%1 | %2fps (of %4fps) | Display: %5fps")
                                     .arg(QTime::fromMSecsSinceStartOfDay(frameTime).toString("hh:mm:ss.zzz"))
-                                    .arg(m_currentFps)
-                                    .arg(m_throttleRemark)
-                                    .arg(m_realFps));
+                                    .arg(m_currentFps, 0, 'f', 1)
+                                    .arg(m_expectedFps, 0, 'f', 1)
+                                    .arg(m_currentDisplayFps, 0, 'f', 1));
         }
+
+        m_lastDisplayTime = frameDisplayTime;
     }
 };
 

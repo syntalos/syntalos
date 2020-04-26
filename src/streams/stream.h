@@ -110,7 +110,8 @@ public:
           m_queue(BlockingReaderWriterQueue<std::optional<T>>(256)),
           m_active(true),
           m_suspended(false),
-          m_throttle(0)
+          m_throttle(0),
+          m_skippedElements(0)
     {
         m_lastItemTime = currentTimePoint();
     }
@@ -246,9 +247,16 @@ public:
         return m_queue.size_approx() > 0;
     }
 
-    uint throttleValue()
+    uint throttleValue() const
     {
         return m_throttle;
+    }
+
+    uint retrieveApproxSkippedElements()
+    {
+        const uint si = m_skippedElements;
+        m_skippedElements = 0;
+        return si;
     }
 
     /**
@@ -266,6 +274,7 @@ public:
             m_throttle = 0;
         else
             m_throttle = allowMore? std::floor((1000.0 / itemsPerSec) * 1000) : std::ceil((1000.0 / itemsPerSec) * 1000);
+        m_skippedElements = 0;
     }
 
 private:
@@ -274,6 +283,7 @@ private:
     std::atomic_bool m_active;
     std::atomic_bool m_suspended;
     std::atomic_uint m_throttle;
+    std::atomic_uint m_skippedElements;
 
     // NOTE: These two variables are intentionally *not* threadsafe and are
     // only ever manipulated by the stream (in case of the time) or only
@@ -296,8 +306,10 @@ private:
         if (m_throttle != 0) {
             const auto timeNow = currentTimePoint();
             const auto durUsec = timeDiffUsec(timeNow, m_lastItemTime);
-            if (durUsec.count() < m_throttle)
+            if (durUsec.count() < m_throttle) {
+                m_skippedElements++;
                 return;
+            }
             m_lastItemTime = timeNow;
         }
 
