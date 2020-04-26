@@ -45,7 +45,7 @@ string(REPLACE "-rdynamic" "" CMAKE_SHARED_LIBRARY_LINK_C_FLAGS ${CMAKE_SHARED_L
 string(REPLACE "-rdynamic" "" CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS ${CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS})
 
 if(OPTIMIZATION_AVX2 AND NOT OPTIMIZATION_NATIVE)
-  set(o_avxflags "-mavx -mavx2 -fopt-info")
+  set(o_avxflags "-mavx -mavx2")
 
   set(CMAKE_C_FLAGS_RELEASE        "${CMAKE_C_FLAGS_RELEASE} ${o_avxflags}")
   set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${o_avxflags}")
