@@ -35,7 +35,7 @@ OOPWorkerConnector::OOPWorkerConnector(QSharedPointer<OOPWorkerReplica> ptr, con
       m_workerBinary(workerBin)
 {
     connect(m_reptr.data(), &OOPWorkerReplica::sendOutput, this, &OOPWorkerConnector::receiveOutput);
-    connect(m_reptr.data(), &OOPWorkerReplica::updateOutPortMetadata, this, &OOPWorkerConnector::receiveOutputPortMetadataUpdate);
+    connect(m_reptr.data(), &OOPWorkerReplica::outPortMetadataUpdated, this, &OOPWorkerConnector::receiveOutputPortMetadataUpdate);
 
     // merge stdout of worker with ours by default
     setCaptureStdout(false);

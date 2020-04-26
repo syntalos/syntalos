@@ -272,6 +272,11 @@ void OOPWorker::runScript()
         if (m_stage == OOPWorker::ERROR)
             goto finalize;
 
+        // the script may have changed output port metadata, so we send all of that back to
+        // the master process
+        for (int portId = 0; portId < m_outPortInfo.size(); ++portId)
+            Q_EMIT outPortMetadataUpdated(portId, m_outPortInfo[portId].metadata());
+
         // signal that we are ready now, preparations are done
         setStage(OOPWorker::READY);
 
@@ -432,7 +437,7 @@ void OOPWorker::setOutPortMetadataValue(int outPortId, const QString &key, const
     auto mdata = portInfo.metadata();
     mdata.insert(key, value);
     portInfo.setMetadata(mdata);
-    Q_EMIT updateOutPortMetadata(outPortId, mdata);
+    m_outPortInfo[outPortId] = std::move(portInfo);
 }
 
 void OOPWorker::setStage(OOPWorker::Stage stage)

@@ -38,7 +38,7 @@ class OOPWorker
 
     SLOT(void setInputPortInfo(const QList<InputPortInfo> &ports));
     SLOT(void setOutputPortInfo(const QList<OutputPortInfo> &ports));
-    SIGNAL(updateOutPortMetadata(int outPortId, const QVariantHash &metadata));
+    SIGNAL(outPortMetadataUpdated(int outPortId, const QVariantHash &metadata));
 
     SLOT(bool initializeFromData(const QString &script, const QString &env));
     SLOT(bool initializeFromFile(const QString &fname, const QString &env));
