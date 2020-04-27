@@ -53,7 +53,7 @@ public:
 
     bool prepare(const TestSubject &) override
     {
-        m_frameOut->setMetadataValue("framerate", (double) 250);
+        m_frameOut->setMetadataValue("framerate", (double) 320);
         m_frameOut->setMetadataValue("size", QSize(800, 600));
         m_frameOut->start();
 
@@ -76,7 +76,7 @@ public:
 
         size_t dataIndex = 0;
         while (m_running) {
-            m_frameOut->push(createFrames_about250Hz(dataIndex));
+            m_frameOut->push(createFrames_about320Hz(dataIndex));
 
             auto row = createTablerow();
             if (row.has_value())
@@ -98,7 +98,7 @@ public:
     }
 
 private:
-    Frame createFrames_about250Hz(size_t index)
+    Frame createFrames_about320Hz(size_t index)
     {
         const auto startTime = currentTimePoint();
         Frame frame;
@@ -113,7 +113,7 @@ private:
                     cv::Scalar(255,255,255));
         frame.time = m_syTimer->timeSinceStartMsec();
 
-        std::this_thread::sleep_for(std::chrono::microseconds(4000) - timeDiffUsec(currentTimePoint(), startTime));
+        std::this_thread::sleep_for(std::chrono::microseconds(3125) - timeDiffUsec(currentTimePoint(), startTime));
         return frame;
     }
 

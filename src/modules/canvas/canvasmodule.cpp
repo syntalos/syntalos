@@ -47,6 +47,8 @@ private:
 
     uint m_lastPendingCount;
     uint m_maxPendingFrames;
+    uint m_maxThrottleAdjustWaitN;
+    uint m_throttleAdjustFramesWaited;
     uint m_throttleCount;
 
 public:
@@ -105,6 +107,12 @@ public:
         if (m_maxPendingFrames < 5)
             m_maxPendingFrames = 5;
         m_lastPendingCount = 0;
+        m_throttleAdjustFramesWaited = m_maxPendingFrames;
+
+        // wait some amount of frames for throttle changes to take effect
+        m_maxThrottleAdjustWaitN = qRound(m_expectedFps / 40.0);
+        if (m_maxThrottleAdjustWaitN < 5)
+            m_maxThrottleAdjustWaitN = 5;
 
         // assume perfect frame diff for now
         m_avgFrameTimeDiffMsec = 1000.0 / m_expectedFps;
@@ -128,34 +136,39 @@ public:
     void updateImage()
     {
         auto maybeFrame = m_frameSub->peekNext();
-        const auto skippedFrames = m_frameSub->retrieveApproxSkippedElements();
         if (!maybeFrame.has_value())
             return;
+        const auto skippedFrames = m_frameSub->retrieveApproxSkippedElements();
         const auto framesPendingCount = m_frameSub->approxPendingCount();
         if (framesPendingCount > m_maxPendingFrames) {
             // we have too many frames pending in the queue, we may have to throttle
             // the subscription more
 
-            if (framesPendingCount >= m_lastPendingCount) {
-                m_throttleCount--;
-                if (m_throttleCount <= 4) {
-                    // throttle to less then 4fps? This looks suspicious, terminate.
-                    m_frameSub->suspend();
-                    raiseError(QStringLiteral("Dropped below 4fps in display frequency, but we are still not able to display frames fast enough. "
-                                              "Either the displayed frames are excessively large, something is wrong with the display hardware, "
-                                              "or there is a bug in the display code."));
-                    return;
+            if (m_throttleAdjustFramesWaited >= m_maxThrottleAdjustWaitN) {
+                if (framesPendingCount >= m_lastPendingCount) {
+                    m_throttleCount--;
+                    if (m_throttleCount <= 4) {
+                        // throttle to less then 4fps? This looks suspicious, terminate.
+                        m_frameSub->suspend();
+                        raiseError(QStringLiteral("Dropped below 4fps in display frequency, but we are still not able to display frames fast enough. "
+                                                  "Either the displayed frames are excessively large, something is wrong with the display hardware, "
+                                                  "or there is a bug in the display code."));
+                        return;
+                    }
+                    m_frameSub->setThrottleItemsPerSec(m_throttleCount);
                 }
-                m_frameSub->setThrottleItemsPerSec(m_throttleCount);
+
+                m_lastPendingCount = framesPendingCount;
+                m_throttleAdjustFramesWaited = 0;
             }
+
+            m_throttleAdjustFramesWaited++;
         }
-        m_lastPendingCount = framesPendingCount;
 
         // get all timing info and show the image
         const auto frame = maybeFrame.value();
         m_cvView->showImage(frame.mat);
         const auto frameTime = frame.time.count();
-        const auto frameDisplayTime = currentTimePoint();
 
         if (m_expectedFps == 0) {
             m_cvView->setStatusText(QTime::fromMSecsSinceStartOfDay(frameTime).toString("hh:mm:ss.zzz"));
@@ -163,22 +176,23 @@ public:
             // we use a moving average of the inter-frame-time over two seconds, as the framerate occasionally fluctuates
             // (especially when throttling the subscription) and we want to display a more steady (but accurate)
             // info to the user instead, without twitching around too much
-            m_avgFrameTimeDiffMsec = ((m_avgFrameTimeDiffMsec * m_expectedFps) + ((frameTime - m_lastFrameTime) / (skippedFrames + 1))) / (m_expectedFps + 1);
+            m_avgFrameTimeDiffMsec = ((m_avgFrameTimeDiffMsec * m_expectedFps) + (frameTime - m_lastFrameTime)) / ((m_expectedFps + 1) + (skippedFrames + 1));
             m_lastFrameTime = frameTime;
             if (m_avgFrameTimeDiffMsec > 0)
-                m_currentFps = 1000.0 / m_avgFrameTimeDiffMsec;
+                m_currentFps = (1000.0 / m_avgFrameTimeDiffMsec);
             else
                 m_currentFps = m_expectedFps;
 
+            const auto frameDisplayTime = currentTimePoint();
             m_currentDisplayFps = ((m_currentDisplayFps * 20) + (1000.0 / timeDiffMsec(frameDisplayTime, m_lastDisplayTime).count())) / (20 + 1);
-            m_cvView->setStatusText(QStringLiteral("%1 | %2fps (of %4fps) | Display: %5fps")
+            m_lastDisplayTime = frameDisplayTime;
+
+            m_cvView->setStatusText(QStringLiteral("%1 | Stream: %2fps (of %4fps) | Display: %5fps")
                                     .arg(QTime::fromMSecsSinceStartOfDay(frameTime).toString("hh:mm:ss.zzz"))
                                     .arg(m_currentFps, 0, 'f', 1)
                                     .arg(m_expectedFps, 0, 'f', 1)
                                     .arg(m_currentDisplayFps, 0, 'f', 1));
         }
-
-        m_lastDisplayTime = frameDisplayTime;
     }
 };
 
