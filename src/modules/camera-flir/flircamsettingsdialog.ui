@@ -113,7 +113,7 @@
               <string>px</string>
              </property>
              <property name="minimum">
-              <number>200</number>
+              <number>20</number>
              </property>
              <property name="maximum">
               <number>4000</number>
@@ -136,7 +136,7 @@
               <string>px</string>
              </property>
              <property name="minimum">
-              <number>200</number>
+              <number>20</number>
              </property>
              <property name="maximum">
               <number>4000</number>
