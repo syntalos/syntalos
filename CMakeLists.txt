@@ -17,6 +17,7 @@ set(CMAKE_AUTOMOC ON)
 # Options
 #
 option(MAINTAINER "Enable maintainer mode" OFF)
+option(TRACING "Compile with -pg flag for function tracing & profiling" OFF)
 option(OPTIMIZATION_AVX2 "Enable AVX2 instructions when building in release mode" ON)
 option(OPTIMIZATION_NATIVE "Optimize for native CPU when in release mode" OFF)
 
@@ -35,6 +36,10 @@ if (MAINTAINER)
     add_definitions("-Wzero-as-null-pointer-constant"
                     "-Wsuggest-final-methods"
     )
+endif()
+
+if (TRACING)
+    add_definitions("-pg")
 endif()
 
 # we can't link with -rdynamic, because otherwise dlopen'ing the proprietary Opal library fails
