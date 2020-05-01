@@ -519,7 +519,7 @@ bool VideoWriter::initialized() const
 bool VideoWriter::startNewSection(const std::string &fname)
 {
     if (!d->initialized) {
-        d->lastError = "Can not start a new slide if we are not initialized.";
+        d->lastError = "Can not start a new slice if we are not initialized.";
         return false;
     }
 

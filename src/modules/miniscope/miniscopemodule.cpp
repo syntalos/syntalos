@@ -39,7 +39,7 @@ private:
     QTimer *m_evTimer;
     std::unique_ptr<SecondaryClockSynchronizer> m_clockSync;
     bool m_acceptFrames;
-    MScope::MiniScope *m_miniscope;
+    MScope::Miniscope *m_miniscope;
     MiniscopeSettingsDialog *m_settingsDialog;
 
 public:
@@ -51,7 +51,7 @@ public:
         m_rawOut = registerOutputPort<Frame>(QStringLiteral("frames-raw-out"), QStringLiteral("Raw Frames"));
         m_dispOut = registerOutputPort<Frame>(QStringLiteral("frames-disp-out"), QStringLiteral("Display Frames"));
 
-        m_miniscope = new MiniScope;
+        m_miniscope = new Miniscope(this);
         m_settingsDialog = new MiniscopeSettingsDialog(m_miniscope);
         addSettingsWindow(m_settingsDialog);
 
@@ -67,9 +67,7 @@ public:
 
         // print output for better debugging
         m_miniscope->setPrintMessagesToStdout(false);
-        m_miniscope->setOnMessage([&](const std::string &msg, void*) {
-            qDebug().noquote() << name() + QStringLiteral(":") << QString::fromStdString(msg);
-        });
+        connect(m_miniscope, &Miniscope::statusMessage, this, &MiniscopeModule::recvMiniscopeMessage);
     }
 
     ~MiniscopeModule()
@@ -88,13 +86,33 @@ public:
         m_settingsDialog->setWindowTitle(QStringLiteral("Settings for %1").arg(name));
     }
 
+    void recvMiniscopeMessage(const QString &msg)
+    {
+        qDebug().noquote().nospace() << name() + QStringLiteral(": ") << msg;
+    }
+
     bool prepare(const TestSubject &) override
     {
-        if (!m_miniscope->connect()) {
-            raiseError(QString::fromStdString(m_miniscope->lastError()));
+        if (!m_miniscope->deviceConnect()) {
+            raiseError(m_miniscope->lastError());
             return false;
         }
 
+        // do not accept any frames yet
+        m_acceptFrames = false;
+
+        // we already start capturing video here, and only start emitting frames later
+        if (!m_miniscope->run()) {
+            raiseError(m_miniscope->lastError());
+            return false;
+        }
+
+        // re-apply previously adjusted control settings and disable
+        // controls we don't want changed
+        m_settingsDialog->setRunning(true);
+
+        // we need to set the framerate-related stuff after the miniscope has been started, so
+        // we will get the right, final FPS value
         m_rawOut->setMetadataValue("framerate", (double) m_miniscope->fps());
         m_rawOut->setMetadataValue("has_color", false);
         m_rawOut->setSuggestedDataName(QStringLiteral("%1/msSlice").arg(datasetNameSuggestion()));
@@ -120,15 +138,6 @@ public:
         // start the synchronizer
         if (!m_clockSync->start()) {
             raiseError(QStringLiteral("Unable to set up clock synchronizer!"));
-            return false;
-        }
-
-        // do not accept any frames yet
-        m_acceptFrames = false;
-
-        // we already start capturing video here, and only start emitting frames later
-        if (!m_miniscope->run()) {
-            raiseError(QString::fromStdString(m_miniscope->lastError()));
             return false;
         }
 
@@ -176,8 +185,8 @@ public:
     void checkMSStatus()
     {
         if (!m_miniscope->running()) {
-            if (!m_miniscope->lastError().empty()) {
-                raiseError(QString::fromStdString(m_miniscope->lastError()));
+            if (!m_miniscope->lastError().isEmpty()) {
+                raiseError(m_miniscope->lastError());
                 m_evTimer->stop();
                 return;
             }
@@ -189,20 +198,21 @@ public:
     {
         m_evTimer->stop();
         m_miniscope->stop();
-        m_miniscope->disconnect();
+        m_settingsDialog->setRunning(false);
+        m_miniscope->deviceDisconnect();
         safeStopSynchronizer(m_clockSync);
     }
 
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
     {
         settings.insert("scope_cam_id", m_miniscope->scopeCamId());
-        settings.insert("fps", static_cast<int>(m_miniscope->fps()));
+        settings.insert("device_type", m_miniscope->deviceType());
     }
 
     bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
     {
         m_miniscope->setScopeCamId(settings.value("scope_cam_id", 0).toInt());
-        m_miniscope->setFps(settings.value("fps", 20).toInt());
+        m_settingsDialog->setDeviceType(settings.value("device_type").toString());
         m_settingsDialog->updateValues();
         return true;
     }
@@ -220,7 +230,7 @@ QString MiniscopeModuleInfo::name() const
 
 QString MiniscopeModuleInfo::description() const
 {
-    return QStringLiteral("Record fluorescence images from the brain of behaving animals using a UCLA MiniScope.");
+    return QStringLiteral("Record fluorescence images from the brain of behaving animals using a UCLA Miniscope.");
 }
 
 QPixmap MiniscopeModuleInfo::pixmap() const

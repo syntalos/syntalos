@@ -17,21 +17,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef MINISCOPEMODULE_H
-#define MINISCOPEMODULE_H
-
-#include <QObject>
-#include <memory>
-#include <chrono>
+#pragma once
 
 #include "moduleapi.h"
-
-class VideoViewWidget;
-class MiniscopeSettingsDialog;
-class HRTimer;
-namespace MScope {
-class MiniScope;
-}
 
 class MiniscopeModuleInfo : public ModuleInfo
 {
@@ -43,5 +31,3 @@ public:
     QPixmap pixmap() const override;
     AbstractModule *createModule(QObject *parent = nullptr) override;
 };
-
-#endif // MINISCOPEMODULE_H

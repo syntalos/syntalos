@@ -17,15 +17,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef MINISCOPESETTINGSDIALOG_H
-#define MINISCOPESETTINGSDIALOG_H
+#pragma once
 
 #include <QDialog>
 #include <QList>
 
 namespace MScope {
-class MiniScope;
+class Miniscope;
 }
+class MSControlWidget;
+class QVBoxLayout;
 namespace Ui {
 class MiniscopeSettingsDialog;
 }
@@ -35,29 +36,29 @@ class MiniscopeSettingsDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit MiniscopeSettingsDialog(MScope::MiniScope *mscope, QWidget *parent = nullptr);
+    explicit MiniscopeSettingsDialog(MScope::Miniscope *mscope, QWidget *parent = nullptr);
     ~MiniscopeSettingsDialog();
 
     void updateValues();
+    void setRunning(bool running);
+
+    void setDeviceType(const QString &devType);
 
 private slots:
-    void on_sbExposure_valueChanged(int arg1);
-    void on_sbExcitation_valueChanged(double arg1);
-    void on_dialExcitation_valueChanged(int value);
-    void on_sbGain_valueChanged(int arg1);
+    void on_scopeTypeComboBox_currentIndexChanged(const QString &arg1);
+    void on_sbCamId_valueChanged(int arg1);
     void on_cbExtRecTrigger_toggled(bool checked);
     void on_sbDisplayMax_valueChanged(int arg1);
     void on_sbDisplayMin_valueChanged(int arg1);
-    void on_fpsSpinBox_valueChanged(int arg1);
     void on_bgDivCheckBox_toggled(bool checked);
     void on_bgSubstCheckBox_toggled(bool checked);
     void on_accAlphaSpinBox_valueChanged(double arg1);
-    void on_sbCamId_valueChanged(int arg1);
 
 private:
     Ui::MiniscopeSettingsDialog *ui;
     QString m_recName;
-    MScope::MiniScope *m_mscope;
-};
+    MScope::Miniscope *m_mscope;
 
-#endif // MINISCOPESETTINGSDIALOG_H
+    QList<MSControlWidget*> m_controls;
+    QVBoxLayout *m_controlsLayout;
+};

@@ -22,9 +22,12 @@
 
 #include <QDebug>
 #include <QVariant>
+#include <QMessageBox>
 #include <miniscope.h>
 
-MiniscopeSettingsDialog::MiniscopeSettingsDialog(MScope::MiniScope *mscope, QWidget *parent) :
+#include "mscontrolwidget.h"
+
+MiniscopeSettingsDialog::MiniscopeSettingsDialog(MScope::Miniscope *mscope, QWidget *parent) :
     QDialog(parent),
     ui(new Ui::MiniscopeSettingsDialog),
     m_mscope(mscope)
@@ -32,8 +35,18 @@ MiniscopeSettingsDialog::MiniscopeSettingsDialog(MScope::MiniScope *mscope, QWid
     ui->setupUi(this);
     setWindowIcon(QIcon(":/icons/generic-config"));
 
+    // Set up layout for Miniscope controls
+    m_controlsLayout = new QVBoxLayout(this);
+    m_controlsLayout->setMargin(2);
+    m_controlsLayout->setSpacing(4);
+    ui->gbDeviceCtls->setLayout(m_controlsLayout);
+    m_controlsLayout->addStretch();
+
     // don't display log by default
     ui->logTextList->setVisible(false);
+
+    // register available Miniscope types
+    ui->scopeTypeComboBox->addItems(m_mscope->availableMiniscopeTypes());
 
     // display default values
     updateValues();
@@ -47,36 +60,57 @@ MiniscopeSettingsDialog::~MiniscopeSettingsDialog()
 void MiniscopeSettingsDialog::updateValues()
 {
     ui->sbCamId->setValue(m_mscope->scopeCamId());
-    ui->fpsSpinBox->setValue(m_mscope->fps());
-    ui->sbExposure->setValue(static_cast<int>(m_mscope->exposure()));
-    ui->sbExcitation->setValue(m_mscope->excitation());
-    ui->sbGain->setValue(static_cast<int>(m_mscope->gain()));
     ui->accAlphaSpinBox->setValue(m_mscope->bgAccumulateAlpha());
+
+    for (const auto &w : m_controls)
+        w->setValue(m_mscope->controlValue(w->controlId()));
 }
 
-void MiniscopeSettingsDialog::on_sbExposure_valueChanged(int arg1)
+void MiniscopeSettingsDialog::setRunning(bool running)
 {
-    m_mscope->setExposure(arg1);
+    for (const auto &w : m_controls) {
+        if (running)
+            m_mscope->setControlValue(w->controlId(), w->value());
+        if (w->controlId() == "frameRate")
+            w->setEnabled(!running);
+    }
 }
 
-void MiniscopeSettingsDialog::on_sbExcitation_valueChanged(double arg1)
+void MiniscopeSettingsDialog::setDeviceType(const QString &devType)
 {
-    arg1 = round(arg1 * 100) / 100;
-    m_mscope->setExcitation(arg1);
-
-    double intpart;
-    if (std::modf(arg1, &intpart) == 0.0)
-        ui->dialExcitation->setValue(static_cast<int>(arg1));
+    if (devType.isEmpty())
+        return;
+    ui->scopeTypeComboBox->setCurrentText(devType);
 }
 
-void MiniscopeSettingsDialog::on_dialExcitation_valueChanged(int value)
+void MiniscopeSettingsDialog::on_scopeTypeComboBox_currentIndexChanged(const QString &arg1)
 {
-    ui->sbExcitation->setValue(value);
+    // clear previous controls
+    for (const auto &control : m_controls)
+        delete control;
+    m_controls.clear();
+
+    // load new controls
+    if (!m_mscope->loadDeviceConfig(arg1)) {
+        QMessageBox::critical(this,
+                              "Error",
+                              QString("Unable to load device configuration: %1")
+                              .arg(m_mscope->lastError()));
+        return;
+    }
+
+    // display widgets for new controls
+    for (const auto &ctl : m_mscope->controls()) {
+        const auto w = new MSControlWidget(ctl, ui->gbDeviceCtls);
+        m_controlsLayout->insertWidget(0, w);
+        connect(w, &MSControlWidget::valueChanged, m_mscope, &MScope::Miniscope::setControlValue);
+        m_controls.append(w);
+    }
 }
 
-void MiniscopeSettingsDialog::on_sbGain_valueChanged(int arg1)
+void MiniscopeSettingsDialog::on_sbCamId_valueChanged(int arg1)
 {
-    m_mscope->setGain(arg1);
+    m_mscope->setScopeCamId(arg1);
 }
 
 void MiniscopeSettingsDialog::on_cbExtRecTrigger_toggled(bool checked)
@@ -92,11 +126,6 @@ void MiniscopeSettingsDialog::on_sbDisplayMin_valueChanged(int arg1)
 void MiniscopeSettingsDialog::on_sbDisplayMax_valueChanged(int arg1)
 {
     m_mscope->setMaxFluorDisplay(arg1);
-}
-
-void MiniscopeSettingsDialog::on_fpsSpinBox_valueChanged(int arg1)
-{
-    m_mscope->setFps(static_cast<uint>(arg1));
 }
 
 void MiniscopeSettingsDialog::on_bgSubstCheckBox_toggled(bool checked)
@@ -122,9 +151,4 @@ void MiniscopeSettingsDialog::on_bgDivCheckBox_toggled(bool checked)
 void MiniscopeSettingsDialog::on_accAlphaSpinBox_valueChanged(double arg1)
 {
     m_mscope->setBgAccumulateAlpha(arg1);
-}
-
-void MiniscopeSettingsDialog::on_sbCamId_valueChanged(int arg1)
-{
-    m_mscope->setScopeCamId(arg1);
 }

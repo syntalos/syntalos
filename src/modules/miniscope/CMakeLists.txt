@@ -1,9 +1,11 @@
 
-pkg_check_modules(LIBMINISCOPE miniscope>=0.1 REQUIRED)
+pkg_check_modules(LIBMINISCOPE miniscope>=0.4 REQUIRED)
 
 set(MINISCOPE_SRC
     miniscopemodule.h
     miniscopemodule.cpp
+    mscontrolwidget.h
+    mscontrolwidget.cpp
     miniscopesettingsdialog.h
     miniscopesettingsdialog.cpp
 )
@@ -26,7 +28,6 @@ target_link_libraries(mod_miniscope
 )
 
 include_directories(
-    ${Boost_INCLUDE_DIR}
     ${LIBMINISCOPE_INCLUDE_DIRS}
     ${CMAKE_SOURCE_DIR}/src
 )
