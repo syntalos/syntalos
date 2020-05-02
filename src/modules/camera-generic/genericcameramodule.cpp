@@ -87,6 +87,7 @@ public:
 
         m_camSettingsWindow->setRunning(true);
         m_fps = m_camSettingsWindow->framerate();
+        m_camera->setFramerate(m_fps);
 
         // set the required stream metadata for video capture
         m_outStream->setMetadataValue("size", QSize(m_camera->resolution().width,

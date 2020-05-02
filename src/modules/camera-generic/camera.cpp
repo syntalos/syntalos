@@ -39,6 +39,7 @@ public:
     cv::VideoCapture cam;
     int camId;
 
+    int fps;
     cv::Size frameSize;
 
     bool connected;
@@ -78,6 +79,7 @@ Camera::Camera()
 
     // set some default values
     d->frameSize = cv::Size(960, 720);
+    d->fps = 30;
     d->exposure = 10;
     d->brightness = 0;
     d->contrast = 0;
@@ -115,6 +117,20 @@ void Camera::setStartTime(const symaster_timepoint &time)
 void Camera::setResolution(const cv::Size& size)
 {
     d->frameSize = size;
+}
+
+int Camera::framerate() const
+{
+    const int capFps = d->cam.get(cv::CAP_PROP_FPS);
+    if (capFps <= 0)
+        return d->fps;
+    return capFps;
+}
+
+void Camera::setFramerate(int fps)
+{
+    d->fps = fps;
+    d->cam.set(cv::CAP_PROP_FPS, d->fps);
 }
 
 cv::Size Camera::resolution() const
@@ -240,6 +256,7 @@ bool Camera::connect()
     }
     d->cam.set(cv::CAP_PROP_FRAME_WIDTH, d->frameSize.width);
     d->cam.set(cv::CAP_PROP_FRAME_HEIGHT, d->frameSize.height);
+    d->cam.set(cv::CAP_PROP_FPS, d->fps);
 
     // Apparently, setting this to 1 *disables* auto exposure for most cameras when V4L
     // is used and gives us manual control. This is a bit insane, and maybe we need to expose

@@ -43,6 +43,9 @@ public:
     cv::Size resolution() const;
     void setResolution(const cv::Size &size);
 
+    int framerate() const;
+    void setFramerate(int fps);
+
     double exposure() const;
     void setExposure(double value);
 
