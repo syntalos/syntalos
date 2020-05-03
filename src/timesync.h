@@ -84,6 +84,7 @@ namespace Syntalos {
 enum class TimeSyncFileTimeUnit
 {
     INDEX,
+    NANOSECONDS,
     MICROSECONDS,
     MILLISECONDS,
     SECONDS

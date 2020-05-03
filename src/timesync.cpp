@@ -160,9 +160,9 @@ bool TimeSyncFileWriter::open(const microseconds_t &checkInterval, const microse
     m_stream << (qint64) currentTime.toTime_t();
     m_stream << (quint32) checkInterval.count();
     m_stream << (quint32) tolerance.count();
-    m_stream << modName;
-    m_stream << m_timeNames.first;
-    m_stream << m_timeNames.second;
+    m_stream << modName.toUtf8();
+    m_stream << m_timeNames.first.toUtf8();
+    m_stream << m_timeNames.second.toUtf8();
     m_stream << (quint16) m_timeUnits.first;
     m_stream << (quint16) m_timeUnits.second;
 
@@ -227,14 +227,21 @@ bool TimeSyncFileReader::open(const QString &fname)
         return false;
     }
 
+    QByteArray modNameUtf8;
+    QByteArray timeNames1Utf8;
+    QByteArray timeNames2Utf8;
     in >> m_creationTime
        >> checkIntervalUsec
        >> toleranceUsec
-       >> m_moduleName
-       >> m_timeNames.first
-       >> m_timeNames.second
+       >> modNameUtf8
+       >> timeNames1Utf8
+       >> timeNames2Utf8
        >> timeUnitDev
        >> timeUnitMaster;
+
+    m_moduleName = QString::fromUtf8(modNameUtf8);
+    m_timeNames.first = QString::fromUtf8(timeNames1Utf8);
+    m_timeNames.second = QString::fromUtf8(timeNames2Utf8);
     m_checkInterval = microseconds_t(checkIntervalUsec);
     m_tolerance = microseconds_t(toleranceUsec);
     m_timeUnits.first = static_cast<TimeSyncFileTimeUnit>(timeUnitDev);
