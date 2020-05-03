@@ -19,15 +19,26 @@
 
 #pragma once
 
-#include "moduleapi.h"
+#include <QDialog>
 
-class RunCmdModuleInfo : public ModuleInfo
+namespace Ui {
+class RunCmdSettingsDlg;
+}
+
+class RunCmdSettingsDlg : public QDialog
 {
     Q_OBJECT
+
 public:
-    QString id() const override;
-    QString name() const override;
-    QString description() const override;
-    QPixmap pixmap() const override;
-    AbstractModule *createModule(QObject *parent = nullptr) override;
+    explicit RunCmdSettingsDlg(QWidget *parent = nullptr);
+    ~RunCmdSettingsDlg();
+
+    QString executable() const;
+    void setExecutable(const QString &exe);
+
+    QString parametersStr() const;
+    void setParametersStr(const QString parameters);
+
+private:
+    Ui::RunCmdSettingsDlg *ui;
 };

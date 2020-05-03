@@ -17,17 +17,40 @@
  * along with this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#pragma once
+#include "runcmdsettingsdlg.h"
+#include "ui_runcmdsettingsdlg.h"
 
-#include "moduleapi.h"
+#include <QIcon>
 
-class RunCmdModuleInfo : public ModuleInfo
+RunCmdSettingsDlg::RunCmdSettingsDlg(QWidget *parent) :
+    QDialog(parent),
+    ui(new Ui::RunCmdSettingsDlg)
 {
-    Q_OBJECT
-public:
-    QString id() const override;
-    QString name() const override;
-    QString description() const override;
-    QPixmap pixmap() const override;
-    AbstractModule *createModule(QObject *parent = nullptr) override;
-};
+    ui->setupUi(this);
+    setWindowIcon(QIcon(":/icons/generic-config"));
+}
+
+RunCmdSettingsDlg::~RunCmdSettingsDlg()
+{
+    delete ui;
+}
+
+QString RunCmdSettingsDlg::executable() const
+{
+    return ui->exeLineEdit->text();
+}
+
+void RunCmdSettingsDlg::setExecutable(const QString &exe)
+{
+    ui->exeLineEdit->setText(exe);
+}
+
+QString RunCmdSettingsDlg::parametersStr() const
+{
+    return ui->parametersLineEdit->text();
+}
+
+void RunCmdSettingsDlg::setParametersStr(const QString parameters)
+{
+    ui->parametersLineEdit->setText(parameters);
+}

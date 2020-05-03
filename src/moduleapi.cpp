@@ -107,6 +107,11 @@ QColor ModuleInfo::color() const
         }
     }
 
+    // return a gray/black-ish color in case everything was black
+    // or has no usable colors
+    if (totalColorCount == 0)
+        return QColor::fromRgb(77, 77, 77);
+
     return QColor::fromRgb(redBucket / totalColorCount,
                            greenBucket / totalColorCount,
                            blueBucket / totalColorCount);
