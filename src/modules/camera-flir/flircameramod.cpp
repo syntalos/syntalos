@@ -122,10 +122,6 @@ public:
         auto clockSync = initClockSynchronizer(actualFramerate);
         clockSync->setStrategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD);
 
-        // permit tolerance of about a frame
-        clockSync->setTolerance(microseconds_t(static_cast<long>((1000.0 / actualFramerate) * 1000.0)));
-        clockSync->setCheckInterval(milliseconds_t(qRound((1000.0 / actualFramerate) + 1)));
-
         // start the synchronizer
         if (!clockSync->start()) {
             raiseError(QStringLiteral("Unable to set up clock synchronizer!"));

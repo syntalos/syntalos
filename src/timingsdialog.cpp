@@ -68,7 +68,10 @@ void TimingDisplayWidget::setStrategies(const TimeSyncStrategies &strategies)
 
 void TimingDisplayWidget::setCheckInterval(const std::chrono::microseconds &interval)
 {
-    m_lblInterval->setText(QStringLiteral("%1 ms").arg(interval.count() / 1000.0));
+    if (interval.count() <= 0)
+        m_lblInterval->setText(QStringLiteral("continuous"));
+    else
+        m_lblInterval->setText(QStringLiteral("%1 ms").arg(interval.count() / 1000.0));
 }
 
 void TimingDisplayWidget::setTolerance(const std::chrono::microseconds &tolerance)

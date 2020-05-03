@@ -673,13 +673,14 @@ std::unique_ptr<FreqCounterSynchronizer> AbstractModule::initCounterSynchronizer
     return synchronizer;
 }
 
-std::unique_ptr<SecondaryClockSynchronizer> AbstractModule::initClockSynchronizer(double frequencyHz)
+std::unique_ptr<SecondaryClockSynchronizer> AbstractModule::initClockSynchronizer(double expectedFrequencyHz)
 {
     if ((d->state != ModuleState::PREPARING) && (d->state != ModuleState::READY) && (d->state != ModuleState::RUNNING))
         return nullptr;
-    assert(frequencyHz > 0);
 
-    std::unique_ptr<SecondaryClockSynchronizer> synchronizer(new SecondaryClockSynchronizer(m_syTimer, this, frequencyHz));
+    std::unique_ptr<SecondaryClockSynchronizer> synchronizer(new SecondaryClockSynchronizer(m_syTimer, this));
+    if (expectedFrequencyHz > 0)
+        synchronizer->setExpectedClockFrequencyHz(expectedFrequencyHz);
     return synchronizer;
 }
 

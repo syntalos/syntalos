@@ -22,9 +22,12 @@
 #include <QDebug>
 #include <QDateTime>
 #include <QFile>
+#include <iostream>
 #include "moduleapi.h"
 
 #include "utils.h"
+
+Q_LOGGING_CATEGORY(logTimeSync, "time.synchronizer")
 
 using namespace Syntalos;
 using namespace Eigen;
@@ -547,28 +550,23 @@ void FreqCounterSynchronizer::writeTsyncFileBlock(const VectorXu &timeIndices, c
 // SecondaryClockSynchronizer
 // --------------------------
 
-SecondaryClockSynchronizer::SecondaryClockSynchronizer(std::shared_ptr<SyncTimer> masterTimer, AbstractModule *mod,
-                                                       double frequencyHz, const QString &id)
+SecondaryClockSynchronizer::SecondaryClockSynchronizer(std::shared_ptr<SyncTimer> masterTimer, AbstractModule *mod, const QString &id)
     : m_mod(mod),
       m_id(id),
       m_strategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD | TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD),
       m_lastOffsetEmission(0),
       m_syTimer(masterTimer),
       m_toleranceUsec(SECONDARY_CLOCK_TOLERANCE.count()),
-      m_checkInterval(DEFAULT_CLOCKSYNC_CHECK_INTERVAL),
-      m_lastUpdateTime(milliseconds_t(DEFAULT_CLOCKSYNC_CHECK_INTERVAL * -1)),
-      m_firstTimestamp(true),
-      m_lastSecondaryAcqTimestamp(0),
-      m_lastMasterTS(0),
+      m_calibrationMaxN(500),
+      m_calibrationIdx(0),
+      m_haveExpectedOffset(false),
       m_tswriter(new TimeSyncFileWriter)
 {
-    m_acqInterval = std::chrono::microseconds(static_cast<long>((1000.0 / frequencyHz) * 1000));
-
     if (m_id.isEmpty())
         m_id = createRandomString(4);
 
     // make our existence known to the system
-    emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec), m_checkInterval);
+    emitSyncDetailsChanged();
 }
 
 SecondaryClockSynchronizer::~SecondaryClockSynchronizer()
@@ -581,6 +579,31 @@ milliseconds_t SecondaryClockSynchronizer::clockCorrectionOffset() const
     return m_clockCorrectionOffset;
 }
 
+void SecondaryClockSynchronizer::setCalibrationPointsCount(int timepointCount)
+{
+    if (m_haveExpectedOffset) {
+        qCWarning(logTimeSync).noquote() << "Rejected calibration point count change on active Clock Synchronizer for" << m_mod->name();
+        return;
+    }
+    if (timepointCount > 10)
+        m_calibrationMaxN = timepointCount;
+}
+
+void SecondaryClockSynchronizer::setExpectedClockFrequencyHz(double frequency)
+{
+    if (m_haveExpectedOffset) {
+        qCWarning(logTimeSync).noquote() << "Rejected frequency change on active Clock Synchronizer for" << m_mod->name();
+        return;
+    }
+
+    // we take about 24sec of data for our average offsets
+    m_calibrationMaxN = qRound(frequency * 24);
+
+    // set tolerance of half the time one frame takes to be acquired
+    m_toleranceUsec = qRound(((1000.0 / frequency) / 2) * 1000.0);
+    emitSyncDetailsChanged();
+}
+
 void SecondaryClockSynchronizer::setTimeSyncBasename(const QString &fname)
 {
     m_tswriter->setFileName(fname);
@@ -589,50 +612,41 @@ void SecondaryClockSynchronizer::setTimeSyncBasename(const QString &fname)
 
 void SecondaryClockSynchronizer::setStrategies(const TimeSyncStrategies &strategies)
 {
-    if (!m_firstTimestamp) {
-        qWarning().noquote() << "Rejected strategy change on active Clock Synchronizer for" << m_mod->name();
+    if (m_haveExpectedOffset) {
+        qCWarning(logTimeSync).noquote() << "Rejected strategy change on active Clock Synchronizer for" << m_mod->name();
         return;
     }
     m_strategies = strategies;
-    emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec), m_checkInterval);
-}
-
-void SecondaryClockSynchronizer::setCheckInterval(const milliseconds_t &interval)
-{
-    if (!m_firstTimestamp) {
-        qWarning().noquote() << "Rejected check-interval change on active Clock Synchronizer for" << m_mod->name();
-        return;
-    }
-    m_checkInterval = interval;
-    emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec), m_checkInterval);
+    emitSyncDetailsChanged();
 }
 
 void SecondaryClockSynchronizer::setTolerance(const std::chrono::microseconds &tolerance)
 {
-    if (!m_firstTimestamp) {
-        qWarning().noquote() << "Rejected tolerance change on active Clock Synchronizer for" << m_mod->name();
+    if (m_haveExpectedOffset) {
+        qCWarning(logTimeSync).noquote() << "Rejected tolerance change on active Clock Synchronizer for" << m_mod->name();
         return;
     }
     m_toleranceUsec = tolerance.count();
-    emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec), m_checkInterval);
+    emitSyncDetailsChanged();
 }
 
 bool SecondaryClockSynchronizer::start()
 {
-    if (!m_firstTimestamp) {
-        qWarning().noquote() << "Restarting a Clock Synchronizer that has already been used is not permitted. This is an issue in " << m_mod->name();
+    if (m_haveExpectedOffset) {
+        qCWarning(logTimeSync).noquote() << "Restarting a Clock Synchronizer that has already been used is not permitted. This is an issue in " << m_mod->name();
         return false;
     }
     if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE)) {
-        if (!m_tswriter->open(m_checkInterval, microseconds_t(m_toleranceUsec), m_mod->name())) {
+        if (!m_tswriter->open(milliseconds_t(0), microseconds_t(m_toleranceUsec), m_mod->name())) {
             qCritical().noquote().nospace() << "Unable to open timesync file for " << m_mod->name() << "[" << m_id << "]: " << m_tswriter->lastError();
             return false;
         }
     }
     m_lastOffsetWithinTolerance = false;
-    m_firstTimestamp = true;
-    m_lastMasterTS = milliseconds_t(0);
     m_clockCorrectionOffset = milliseconds_t(0);
+    m_haveExpectedOffset = false;
+    m_calibrationIdx = 0;
+    m_clockOffsetsMsec = VectorXl::Zero(m_calibrationMaxN);
 
     return true;
 }
@@ -644,57 +658,112 @@ void SecondaryClockSynchronizer::stop()
 
 void SecondaryClockSynchronizer::processTimestamp(milliseconds_t &masterTimestamp, const milliseconds_t &secondaryAcqTimestamp)
 {
-    if (m_firstTimestamp) {
-        m_firstTimestamp = false;
-        m_timeDiffToMaster = masterTimestamp - secondaryAcqTimestamp;
-        m_lastSecondaryAcqTimestamp = secondaryAcqTimestamp - m_acqInterval;
+    const auto curOffsetMsec = (secondaryAcqTimestamp - masterTimestamp).count();
+
+    // add new datapoint to our "memory" vector
+    m_clockOffsetsMsec[m_calibrationIdx++] = curOffsetMsec;
+
+    if (m_calibrationIdx >= m_calibrationMaxN) {
+        if (!m_haveExpectedOffset) {
+            m_expectedSD = sqrt(vectorVariance(m_clockOffsetsMsec));
+            m_expectedOffset = milliseconds_t(qRound(vectorMedianInplace(m_clockOffsetsMsec)));
+
+            qCDebug(logTimeSync).noquote().nospace() << m_id << ": "
+                    << "Determined expected offset: " << m_expectedOffset.count() << "msec "
+                    << "SD: " << m_expectedSD;
+            m_haveExpectedOffset = true;
+        }
+        m_calibrationIdx = 0;
     }
 
-    // adjust time difference slowly, weighting the existing time higher than the newly added time difference
-    m_timeDiffToMaster = milliseconds_t(static_cast<long>(((m_timeDiffToMaster.count() * m_freqHz * 2.0) + (masterTimestamp.count() - secondaryAcqTimestamp.count())) / (m_freqHz * 2.0 + 1)));
-
-    // calculate expected timestamps, if the external device was running with the selected frequency
-    // FIXME: Do we allow dynamic-frequency DAQ devices as well later?
-    auto expectedSecondaryAcqTS = std::chrono::duration_cast<milliseconds_t>(m_lastSecondaryAcqTimestamp + m_acqInterval);
-    const auto expectedMasterTS = expectedSecondaryAcqTS + m_timeDiffToMaster;
-    m_lastSecondaryAcqTimestamp = secondaryAcqTimestamp;
-
-
-    if (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD)) {
-        if (expectedMasterTS < m_lastMasterTS)
-            masterTimestamp = expectedMasterTS;
-    }
-    if (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD)) {
-        if (expectedMasterTS > m_lastMasterTS)
-            masterTimestamp = expectedMasterTS;
-    }
-
-    const auto currentTimestamp = m_syTimer->timeSinceStartMsec();
-    // do nothing if we aren't supposed to adjust the clock offset yet
-    if ((currentTimestamp - m_lastUpdateTime) < m_checkInterval)
+    // we do nothing until we have enought measurements to estimate the "natural" timer offset
+    // of the secondary clock and master clock
+    if (!m_haveExpectedOffset)
         return;
-    m_lastUpdateTime = currentTimestamp;
 
-    m_clockCorrectionOffset = std::chrono::duration_cast<milliseconds_t>((expectedSecondaryAcqTS - secondaryAcqTimestamp) / 2.5);
+    const auto avgOffsetMsec = m_clockOffsetsMsec.mean();
+    const auto avgOffsetDeviationMsec = m_expectedOffset.count() - avgOffsetMsec;
+    const auto curOffsetDeviationMsec = m_expectedOffset.count() - curOffsetMsec;
+    const auto offsetsSD = sqrt(vectorVariance(m_clockOffsetsMsec, avgOffsetMsec));
 
-    if (std::abs(m_clockCorrectionOffset.count() * 1000) < m_toleranceUsec) {
-        // everything is within tolerance range, no adjustments needed
-        // share the good news with the controller! (only once, for now)
-        if (!m_lastOffsetWithinTolerance)
-            emit m_mod->synchronizerOffsetChanged(m_id, m_clockCorrectionOffset);
-        m_clockCorrectionOffset = milliseconds_t(0);
+    // do nothing if we have not enough deviation
+    if (abs(avgOffsetDeviationMsec * 1000) < m_toleranceUsec) {
+        // we are within tolerance range!
+
+        if (abs(curOffsetDeviationMsec) > ceil(offsetsSD)) {
+            // the local offset deviation is bigger than the current moving standard deviation,
+            // but we are within tolerance. This means the data point is likely a fluke,
+            // potentially due to a context switch or system load spike. We correct those
+            // unconditionally
+            masterTimestamp = masterTimestamp + milliseconds_t(curOffsetDeviationMsec / 2);
+
+            /*
+            qCDebug(logTimeSync).noquote().nospace() << m_id << ": "
+                    << "Time adjusted for fluke offset by " << curOffsetDeviationMsec << "/2 msec "
+                    << "SD: " << offsetsSD;
+            */
+        }
+
+        // share the good news with the controller! (immediately on change, or every 30sec otherwise)
+        if ((!m_lastOffsetWithinTolerance) || (masterTimestamp.count() > (m_lastOffsetEmission.count() + 30000))) {
+            if (m_mod != nullptr)
+                emit m_mod->synchronizerOffsetChanged(m_id, milliseconds_t(avgOffsetDeviationMsec));
+            m_lastOffsetEmission = masterTimestamp;
+        }
         m_lastOffsetWithinTolerance = true;
         return;
     }
+    m_lastOffsetWithinTolerance = false;
 
-    // Emit offset change information to the main controller every 2sec or slower
-    // in case we run at slower speeds
-    if ((m_lastOffsetEmission.count() + 2000) < expectedMasterTS.count()) {
-        emit m_mod->synchronizerOffsetChanged(m_id, m_clockCorrectionOffset);
-        m_lastOffsetEmission = currentTimestamp;
-    }
-
+    // write offset info to tsync file before we make any adjustments to the master timestamp
     if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE)) {
         m_tswriter->writeTimes(secondaryAcqTimestamp, masterTimestamp);
     }
+
+    // Emit offset information to the main controller about every 10sec or slower
+    // in case we run at slower speeds
+    if (masterTimestamp.count() > (m_lastOffsetEmission.count() + 10000)) {
+        if (m_mod != nullptr)
+            emit m_mod->synchronizerOffsetChanged(m_id, milliseconds_t(avgOffsetDeviationMsec));
+        m_lastOffsetEmission = masterTimestamp;
+    }
+
+    // do nothing if the average offset deviation is smaller/equal to our generally expected standard deviation,
+    if (abs(avgOffsetDeviationMsec) <= m_expectedSD) {
+        if (abs(curOffsetDeviationMsec) > ceil(offsetsSD)) {
+            // the local offset deviation is bigger than the current moving standard deviation,
+            // but the average offset isn't bigger than the previously measured standard deviation.
+            // This means the data point is likely a fluke, potentially due to a context switch or
+            // system load spike. We correct those unconditionally
+            masterTimestamp = masterTimestamp + milliseconds_t(curOffsetDeviationMsec / 2);
+
+            /*
+            qCDebug(logTimeSync).noquote().nospace() << m_id << ": "
+                    << "Average offset below expected SD. Time adjusted for fluke offset by " << curOffsetDeviationMsec << "/2 msec "
+                    << "Active SD: " << offsetsSD;
+            */
+        }
+        return;
+    }
+
+    // we are above the expected SD and not within tolerance range - make immediate adjustments to the timestamp
+    // if we are permitted to do so
+
+    if (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD)) {
+        if (avgOffsetDeviationMsec < 0)
+            masterTimestamp = masterTimestamp + milliseconds_t(avgOffsetDeviationMsec / 2);
+    }
+    if (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD)) {
+        if (avgOffsetDeviationMsec > 0)
+            masterTimestamp = masterTimestamp + milliseconds_t(avgOffsetDeviationMsec / 2);
+    }
+
+    // try to adjust a potential external clock slowly
+    m_clockCorrectionOffset = milliseconds_t(qRound(((m_clockCorrectionOffset.count() * (m_calibrationMaxN / 2.0)) + avgOffsetDeviationMsec) / ((m_calibrationMaxN / 2.0) + 1.0)) * -1);
+}
+
+void SecondaryClockSynchronizer::emitSyncDetailsChanged()
+{
+    if (m_mod != nullptr)
+        emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec), milliseconds_t(0));
 }

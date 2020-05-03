@@ -71,6 +71,87 @@ private slots:
         QFile file (tsFilename);
         file.remove();
     }
+
+    void runClockSynchronizer()
+    {
+        std::shared_ptr<SyncTimer> timer(new SyncTimer());
+        std::unique_ptr<SecondaryClockSynchronizer> sync(new SecondaryClockSynchronizer(timer, nullptr));
+
+        const auto toleranceValue = microseconds_t(2000);
+        const auto calibrationCount = 20;
+        sync->setStrategies(TimeSyncStrategy::ADJUST_CLOCK |
+                            TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD |
+                            TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD);
+        sync->setCalibrationPointsCount(calibrationCount);
+        sync->setTolerance(toleranceValue);
+
+        timer->start();
+        sync->start();
+
+        // set the initial, regular timestamps. Our fake external clock has a
+        // default offset of 10ms +/- 1ms
+        for (auto i = 0; i < calibrationCount; ++i) {
+            const auto origMasterTS = timer->timeSinceStartMsec();
+            auto masterTS = origMasterTS;
+            auto secondaryTS = masterTS + milliseconds_t(10) + ((i % 2)? milliseconds_t(1) : milliseconds_t(0));
+            sync->processTimestamp(masterTS, secondaryTS);
+
+            // sanity checks
+            QCOMPARE(sync->clockCorrectionOffset().count(), 0);
+            QCOMPARE(masterTS.count(), origMasterTS.count());
+
+            // delay
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+
+        // run for a short time with zero divergence
+        for (auto i = 0; i < (calibrationCount * 2 + 5); ++i) {
+            const auto origMasterTS = timer->timeSinceStartMsec();
+            auto masterTS = origMasterTS;
+            auto secondaryTS = masterTS + milliseconds_t(10);
+            sync->processTimestamp(masterTS, secondaryTS);
+
+            // sanity checks
+            QCOMPARE(sync->clockCorrectionOffset().count(), 0);
+            QCOMPARE(masterTS.count(), origMasterTS.count());
+
+            // delay
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+
+        // run with clock divergence, the secondary clock is "faulty" and
+        // runs faster than the master clock after a while
+        auto lastMasterTS = timer->timeSinceStartMsec();
+        int currentDivergenceMsec = 0;
+        for (auto i = 0; i < 1000; ++i) {
+            const auto origMasterTS = timer->timeSinceStartMsec();
+            auto masterTS = origMasterTS;
+            auto secondaryTS = masterTS + milliseconds_t(10) + milliseconds_t(currentDivergenceMsec);
+            sync->processTimestamp(masterTS, secondaryTS);
+
+            // sanity checks
+            if (currentDivergenceMsec < (toleranceValue.count() / 1000)) {
+                QCOMPARE(sync->clockCorrectionOffset().count(), 0);
+                QCOMPARE(masterTS.count(), origMasterTS.count());
+            } else {
+                // clock correction must never "shoot over" the actual divergence
+                QVERIFY(sync->clockCorrectionOffset().count() < (currentDivergenceMsec - 1));
+
+                // timestamps must never go backwards
+                QVERIFY(masterTS.count() >= lastMasterTS.count());
+            }
+
+            // delay
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+            lastMasterTS = masterTS;
+            if (i % 10 == 0) {
+                currentDivergenceMsec++;
+                qDebug().noquote() << "Cycle:" << (i + 1) << "Secondary clock divergence is now" << currentDivergenceMsec << "msec";
+            }
+        }
+
+    }
 };
 
 QTEST_MAIN(TestTimer)

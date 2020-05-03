@@ -22,6 +22,8 @@
 #include <time.h>
 #include <QDebug>
 
+Q_LOGGING_CATEGORY(TimeClock, "time.clock")
+
 using namespace Syntalos;
 using namespace Eigen;
 
@@ -54,7 +56,7 @@ void SyncTimer::start() noexcept
 {
     // we should probably crash here, but let's show a warning for now
     if (m_started)
-        qCritical().noquote() << "The master sync timer was restarted after it was already running! This must never happen.";
+        qCCritical(TimeClock).noquote() << "The master sync timer was restarted after it was already running! This must never happen.";
 
     m_startTime = symaster_clock::now();
     m_started = true;
@@ -63,7 +65,7 @@ void SyncTimer::start() noexcept
 void SyncTimer::startAt(const Syntalos::symaster_timepoint &startTimePoint) noexcept
 {
     if (m_started)
-        qCritical().noquote() << "The master sync timer was restarted after it was already running! This must never happen.";
+        qCCritical(TimeClock).noquote() << "The master sync timer was restarted after it was already running! This must never happen.";
 
     m_startTime = startTimePoint;
     m_started = true;

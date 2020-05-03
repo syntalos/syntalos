@@ -99,14 +99,7 @@ public:
 
         // set up clock synchronizer
         m_clockSync = initClockSynchronizer(m_fps);
-        m_clockSync->setStrategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD | TimeSyncStrategy::ADJUST_CLOCK);
-
-        // permit tolerance of about a third of a frame - since we can easily adjust the DAQ speed,
-        // we want to know early about whether we should do that
-        m_clockSync->setTolerance(microseconds_t(static_cast<long>((1000.0 / m_fps) * 250)));
-
-        // check accuracy every 500msec
-        m_clockSync->setCheckInterval(milliseconds_t(500));
+        m_clockSync->setStrategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD | TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD);
 
         // start the synchronizer
         if (!m_clockSync->start()) {
@@ -152,12 +145,6 @@ public:
 
             // emit this frame on our output port
             m_outStream->push(frame);
-
-            // wait a bit if necessary, to keep the right framerate
-            const auto cycleTime = timeDiffToNowMsec(cycleStartTime);
-            const auto extraWaitTime = std::chrono::milliseconds(qRound(1000 / m_fps) - cycleTime.count() + (m_clockSync->clockCorrectionOffset().count() / 2));
-            if (extraWaitTime.count() > 0)
-                std::this_thread::sleep_for(extraWaitTime);
 
             const auto totalTime = timeDiffToNowMsec(cycleStartTime);
             currentFps = static_cast<int>(1 / (totalTime.count() / static_cast<double>(1000)));

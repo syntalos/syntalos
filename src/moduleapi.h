@@ -698,12 +698,17 @@ protected:
      * This function can be called in the PREPARING phase of a module to retrieve a synchronizer
      * for devices which have an external clock to be synchronized and a known sampling frequency.
      * A synchronizer can be used to semi-automatically synchronize a device clock with the master timer.
-     * You will need to supply a fixed sampling rate in Hz for the given device, so the synchronizer can
-     * determine an expected timestamp to compare with the actually retrieved time.
+     * The frequency of the secondary clock set here determines how many datapoints the synchronizer will store
+     * to calculate the divergence of the secondary clock time from master time. If set to zero, a fixed amount
+     * of timepoints will be used instead.
+     *
+     * Since this synchronizer will only look at the difference between master and secondary clock time per measurement,
+     * the secondary clock may change its speed (as is the case with many cameras that don't run at an exactly constant
+     * framerate but sometimes produce frames faster or slower than before)
      *
      * Returns: A new unique clock synchronizer, or NULL if we could not create one because no master timer existed.
      */
-    std::unique_ptr<SecondaryClockSynchronizer> initClockSynchronizer(double frequencyHz);
+    std::unique_ptr<SecondaryClockSynchronizer> initClockSynchronizer(double expectedFrequencyHz = 0);
 
     void setInitialized();
     bool initialized() const;

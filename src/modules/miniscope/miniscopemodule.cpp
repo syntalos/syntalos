@@ -129,12 +129,6 @@ public:
         m_clockSync = initClockSynchronizer(m_miniscope->fps());
         m_clockSync->setStrategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD);
 
-        // permit tolerance of about half a frame
-        m_clockSync->setTolerance(microseconds_t(static_cast<long>((1000.0 / m_miniscope->fps()) * 500)));
-
-        // check accuracy every 500msec
-        m_clockSync->setCheckInterval(milliseconds_t(500));
-
         // start the synchronizer
         if (!m_clockSync->start()) {
             raiseError(QStringLiteral("Unable to set up clock synchronizer!"));

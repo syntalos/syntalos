@@ -20,6 +20,7 @@
 #pragma once
 
 #include <memory>
+#include <QLoggingCategory>
 #include <QString>
 #include <QMetaType>
 #include <QDataStream>
@@ -28,6 +29,8 @@
 #include "eigenaux.h"
 
 class QFile;
+
+Q_DECLARE_LOGGING_CATEGORY(logTimeSync)
 
 namespace Syntalos {
 
@@ -223,13 +226,15 @@ private:
  */
 class SecondaryClockSynchronizer {
 public:
-    explicit SecondaryClockSynchronizer(std::shared_ptr<SyncTimer> masterTimer, AbstractModule *mod, double frequencyHz, const QString &id = nullptr);
+    explicit SecondaryClockSynchronizer(std::shared_ptr<SyncTimer> masterTimer, AbstractModule *mod, const QString &id = nullptr);
     ~SecondaryClockSynchronizer();
 
     milliseconds_t clockCorrectionOffset() const;
 
+    void setCalibrationPointsCount(int timepointCount);
+    void setExpectedClockFrequencyHz(double frequency);
+
     void setStrategies(const TimeSyncStrategies &strategies);
-    void setCheckInterval(const milliseconds_t &interval);
     void setTolerance(const std::chrono::microseconds &tolerance);
     void setTimeSyncBasename(const QString &fname);
 
@@ -238,25 +243,25 @@ public:
     void processTimestamp(milliseconds_t &masterTimestamp, const milliseconds_t &secondaryAcqTimestamp);
 
 private:
+    void emitSyncDetailsChanged();
     AbstractModule *m_mod;
     QString m_id;
     TimeSyncStrategies m_strategies;
     milliseconds_t m_lastOffsetEmission;
     std::shared_ptr<SyncTimer> m_syTimer;
-    bool m_lastOffsetWithinTolerance;
 
     uint m_toleranceUsec;
-    milliseconds_t m_checkInterval;
-    milliseconds_t m_lastUpdateTime;
+    bool m_lastOffsetWithinTolerance;
 
-    bool m_firstTimestamp;
-    double m_freqHz;
-    microseconds_t m_acqInterval;
-    milliseconds_t m_timeDiffToMaster;
-    microseconds_t m_lastSecondaryAcqTimestamp;
+    uint m_calibrationMaxN;
+    uint m_calibrationIdx;
+    VectorXl m_clockOffsetsMsec;
+
+    bool m_haveExpectedOffset;
+    milliseconds_t m_expectedOffset;
+    double m_expectedSD;
 
     milliseconds_t m_clockCorrectionOffset;
-    microseconds_t m_lastMasterTS;
 
     std::unique_ptr<TimeSyncFileWriter> m_tswriter;
 };

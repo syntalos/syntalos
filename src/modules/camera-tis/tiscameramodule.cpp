@@ -215,12 +215,6 @@ public:
         const auto clockSync = initClockSynchronizer(m_fps);
         clockSync->setStrategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD);
 
-        // permit tolerance of about a third of a frame
-        clockSync->setTolerance(microseconds_t(static_cast<long>((1000.0 / m_fps) * 250)));
-
-        // check accuracy roughly every 500msec
-        clockSync->setCheckInterval(milliseconds_t(500));
-
         // start the synchronizer
         if (!clockSync->start()) {
             raiseError(QStringLiteral("Unable to set up clock synchronizer!"));

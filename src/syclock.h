@@ -23,6 +23,7 @@
 #include <atomic>
 #include <memory>
 #include <QMetaType>
+#include <QLoggingCategory>
 
 #include "eigenaux.h"
 
