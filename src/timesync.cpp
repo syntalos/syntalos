@@ -598,10 +598,13 @@ void SecondaryClockSynchronizer::setExpectedClockFrequencyHz(double frequency)
         return;
     }
 
-    // we take about 24sec of data for our average offsets
-    m_calibrationMaxN = qRound(frequency * 24);
+    // the amount of datapoints needed is on a curve, approaching 5 sec (or minmal required time)
+    // if we get a lot of points in a short time, we don't need to wait that long to calculate the
+    // average offset, but with a low frequency of new points we need a bit more data to calculate
+    // the averages and their SD reliably
+    m_calibrationMaxN = frequency * (5 + (30 / ((0.02 * frequency) + 1.4)));
 
-    // set tolerance of half the time one frame takes to be acquired
+    // set tolerance of half the time one sample takes to be acquired
     m_toleranceUsec = qRound(((1000.0 / frequency) / 2) * 1000.0);
     emitSyncDetailsChanged();
 }
@@ -648,6 +651,7 @@ bool SecondaryClockSynchronizer::start()
     m_clockCorrectionOffset = milliseconds_t(0);
     m_haveExpectedOffset = false;
     m_calibrationIdx = 0;
+    m_expectedOffsetCalCount = 0;
     m_clockOffsetsMsec = VectorXl::Zero(m_calibrationMaxN);
 
     return true;
@@ -664,28 +668,33 @@ void SecondaryClockSynchronizer::processTimestamp(milliseconds_t &masterTimestam
 
     // add new datapoint to our "memory" vector
     m_clockOffsetsMsec[m_calibrationIdx++] = curOffsetMsec;
-
-    if (m_calibrationIdx >= m_calibrationMaxN) {
-        if (!m_haveExpectedOffset) {
-            m_expectedSD = sqrt(vectorVariance(m_clockOffsetsMsec));
-            m_expectedOffset = milliseconds_t(qRound(vectorMedianInplace(m_clockOffsetsMsec)));
-
-            qCDebug(logTimeSync).noquote().nospace() << m_id << ": "
-                    << "Determined expected offset: " << m_expectedOffset.count() << "msec "
-                    << "SD: " << m_expectedSD;
-            m_haveExpectedOffset = true;
-        }
+    if (m_calibrationIdx >= m_calibrationMaxN)
         m_calibrationIdx = 0;
-    }
 
     // we do nothing until we have enought measurements to estimate the "natural" timer offset
     // of the secondary clock and master clock
-    if (!m_haveExpectedOffset)
-        return;
+    if (!m_haveExpectedOffset) {
+        m_expectedOffsetCalCount++;
+
+        // we want a bit more values than needed for perpetual calibration, because the first
+        // few values in the vector stem from the initialization phase of Syntalos and may have
+        // a higher variance than actually expected during normal operation (as in the startup
+        // phase, the system load is high and lots of external devices are starting up)
+        if (m_expectedOffsetCalCount < (m_calibrationMaxN + (m_calibrationMaxN / 2)))
+            return;
+
+        m_expectedSD = sqrt(vectorVariance(m_clockOffsetsMsec));
+        m_expectedOffset = milliseconds_t(qRound(vectorMedianInplace(m_clockOffsetsMsec)));
+
+        qCDebug(logTimeSync).noquote().nospace() << m_id << ": "
+                << "Determined expected offset: " << m_expectedOffset.count() << "msec "
+                << "SD: " << m_expectedSD;
+        m_haveExpectedOffset = true;
+    }
 
     const auto avgOffsetMsec = m_clockOffsetsMsec.mean();
-    const auto avgOffsetDeviationMsec = m_expectedOffset.count() - avgOffsetMsec;
-    const auto curOffsetDeviationMsec = m_expectedOffset.count() - curOffsetMsec;
+    const auto avgOffsetDeviationMsec = avgOffsetMsec - m_expectedOffset.count();
+    const auto curOffsetDeviationMsec = curOffsetMsec - m_expectedOffset.count();
     const auto offsetsSD = sqrt(vectorVariance(m_clockOffsetsMsec, avgOffsetMsec));
 
     // do nothing if we have not enough deviation
@@ -761,11 +770,18 @@ void SecondaryClockSynchronizer::processTimestamp(milliseconds_t &masterTimestam
     }
 
     // try to adjust a potential external clock slowly
-    m_clockCorrectionOffset = milliseconds_t(qRound(((m_clockCorrectionOffset.count() * (m_calibrationMaxN / 2.0)) + avgOffsetDeviationMsec) / ((m_calibrationMaxN / 2.0) + 1.0)) * -1);
+    m_clockCorrectionOffset = milliseconds_t(qRound(((m_clockCorrectionOffset.count() * 10) + avgOffsetDeviationMsec) / (10 + 1.0)));
+
+    /*
+    qCDebug(logTimeSync).noquote().nospace() << m_id << ": "
+            << "Clocks out of sync. Offset deviation " << curOffsetDeviationMsec << " msec "
+            << "Active SD: " << offsetsSD << " "
+            << "Clock correction offset: " << m_clockCorrectionOffset.count() << " msec";
+    */
 }
 
 void SecondaryClockSynchronizer::emitSyncDetailsChanged()
 {
     if (m_mod != nullptr)
-        emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec), milliseconds_t(0));
+        emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, microseconds_t(m_toleranceUsec), milliseconds_t(0));
 }

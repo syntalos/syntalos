@@ -229,9 +229,22 @@ public:
     explicit SecondaryClockSynchronizer(std::shared_ptr<SyncTimer> masterTimer, AbstractModule *mod, const QString &id = nullptr);
     ~SecondaryClockSynchronizer();
 
+    /**
+     * @brief An adjustment offset to pring the secondary clock back to speed.
+     *
+     * negative values indicate the secondary clock running too slow, positive values mean it is
+     * running too fast compared to the master clock.
+     */
     milliseconds_t clockCorrectionOffset() const;
 
+    /**
+     * @brief Set the amount of points needed to determine the average offset explicitly.
+     */
     void setCalibrationPointsCount(int timepointCount);
+
+    /**
+     * @brief Automatically determine tolerance and needed calibration point count based on expected DAQ frequency.
+     */
     void setExpectedClockFrequencyHz(double frequency);
 
     void setStrategies(const TimeSyncStrategies &strategies);
@@ -258,6 +271,7 @@ private:
     VectorXl m_clockOffsetsMsec;
 
     bool m_haveExpectedOffset;
+    uint m_expectedOffsetCalCount;
     milliseconds_t m_expectedOffset;
     double m_expectedSD;
 
