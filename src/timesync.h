@@ -30,9 +30,9 @@
 
 class QFile;
 
-Q_DECLARE_LOGGING_CATEGORY(logTimeSync)
-
 namespace Syntalos {
+
+Q_DECLARE_LOGGING_CATEGORY(logTimeSync)
 
 class AbstractModule;
 

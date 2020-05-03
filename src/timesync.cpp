@@ -27,7 +27,9 @@
 
 #include "utils.h"
 
-Q_LOGGING_CATEGORY(logTimeSync, "time.synchronizer")
+namespace Syntalos {
+    Q_LOGGING_CATEGORY(logTimeSync, "time.synchronizer")
+}
 
 using namespace Syntalos;
 using namespace Eigen;

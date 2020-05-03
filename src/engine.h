@@ -21,12 +21,15 @@
 
 #include <memory>
 #include <QObject>
+#include <QLoggingCategory>
 
 #include "moduleapi.h"
 #include "modulelibrary.h"
 #include "sysinfo.h"
 
 namespace Syntalos {
+
+Q_DECLARE_LOGGING_CATEGORY(logEngine)
 
 class Engine : public QObject
 {

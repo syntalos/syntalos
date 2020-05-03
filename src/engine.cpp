@@ -36,6 +36,10 @@
 #include "sysinfo.h"
 #include "utils.h"
 
+namespace Syntalos {
+    Q_LOGGING_CATEGORY(logEngine, "engine")
+}
+
 using namespace Syntalos;
 
 #pragma GCC diagnostic ignored "-Wpadded"
@@ -295,7 +299,7 @@ void Engine::refreshExportDirPath()
 
 void Engine::emitStatusMessage(const QString &message)
 {
-    qDebug().noquote() << "Engine:" << message;
+    qCDebug(logEngine).noquote() << message;
     emit statusMessage(message);
 }
 
@@ -357,13 +361,13 @@ QList<AbstractModule *> Engine::createModuleExecOrderList()
     }
 
     if (orderedActiveModules.length() != modCount)
-        qCritical().noquote() << "Invalid count of ordered modules:" << orderedActiveModules.length() << "!=" << modCount;
+        qCCritical(logEngine).noquote() << "Invalid count of ordered modules:" << orderedActiveModules.length() << "!=" << modCount;
     assert(orderedActiveModules.length() == modCount);
 
     auto debugText = QStringLiteral("Running modules in order: ");
     for (auto &mod : orderedActiveModules)
         debugText.append(mod->name() + QStringLiteral("; "));
-    qDebug().noquote() << debugText;
+    qCDebug(logEngine).noquote() << debugText;
 
     return orderedActiveModules;
 }
@@ -398,7 +402,7 @@ static void executeOOPModuleThread(const QString& threadName, QList<OOPModule*> 
                     reMod->oopFinalize(&loop);
                 mod->oopFinalize(&loop);
 
-                qDebug().noquote().noquote().nospace() << "Failed to prepare OOP module " << mod->name() << ": " << mod->lastError();
+                qCDebug(logEngine).noquote().noquote().nospace() << "Failed to prepare OOP module " << mod->name() << ": " << mod->lastError();
                 return;
             }
             // ensure we are ready - the engine has reset ourselves to "PREPARING"
@@ -448,13 +452,13 @@ bool Engine::run()
     }
 
     // persistent data recording can be initialized!
-    qDebug("Initializing new persistent recording run");
+    qCDebug(logEngine, "Initializing new persistent recording run");
 
     // test for available disk space and readyness of device
     QStorageInfo storageInfo(d->exportBaseDir);
     if (storageInfo.isValid() && storageInfo.isReady()) {
         auto mbAvailable = storageInfo.bytesAvailable() / 1000 / 1000;
-        qDebug().noquote() << mbAvailable << "MB available in data export location";
+        qCDebug(logEngine).noquote() << mbAvailable << "MB available in data export location";
         // TODO: Make the warning level configurable in global settings
         if (mbAvailable < 8000) {
             auto reply = QMessageBox::question(d->parentWidget,
@@ -514,21 +518,21 @@ bool Engine::runEphemeral()
         return false;
     }
 
-    qDebug("Initializing new ephemeral recording run");
+    qCDebug(logEngine, "Initializing new ephemeral recording run");
 
     auto tempExportDir = tempDir.filePath("edl");
 
     // perform the actual run, in a temporary directory
     auto ret = runInternal(tempExportDir);
 
-    qDebug("Removing temporary storage directory");
+    qCDebug(logEngine, "Removing temporary storage directory");
     if (!tempDir.remove())
-        qDebug("Unable to remove temporary directory: %s", qPrintable(tempDir.errorString()));
+        qCDebug(logEngine, "Unable to remove temporary directory: %s", qPrintable(tempDir.errorString()));
 
     if (ret)
-        qDebug("Ephemeral run completed (result: success)");
+        qCDebug(logEngine, "Ephemeral run completed (result: success)");
     else
-        qDebug("Ephemeral run completed (result: failure)");
+        qCDebug(logEngine, "Ephemeral run completed (result: failure)");
     return ret;
 }
 
@@ -595,7 +599,7 @@ bool Engine::runInternal(const QString &exportDirPath)
         if ((modInfo != nullptr) && (!modInfo->storageGroupName().isEmpty())) {
             auto storageGroup = storageCollection->groupByName(modInfo->storageGroupName(), true);
             if (storageGroup.get() == nullptr) {
-                qCritical() << "Unable to create data storage group with name" << modInfo->storageGroupName();
+                qCCritical(logEngine) << "Unable to create data storage group with name" << modInfo->storageGroupName();
                 mod->setStorageGroup(storageCollection);
             } else {
                 mod->setStorageGroup(storageGroup);
@@ -615,7 +619,7 @@ bool Engine::runInternal(const QString &exportDirPath)
         if (mod->state() != ModuleState::READY)
             mod->setState(ModuleState::IDLE);
 
-        qDebug().noquote().nospace() << "Engine: " << "Module '" << mod->name() << "' prepared in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
+        qCDebug(logEngine).noquote().nospace() << "Module '" << mod->name() << "' prepared in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
     }
 
     // threads our modules run in, as module name/thread pairs
@@ -695,7 +699,7 @@ bool Engine::runInternal(const QString &exportDirPath)
             evThreads.push_back(evThread);
         }
 
-        qDebug().noquote().nospace() << "Engine: " << "Module and engine threads created in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
+        qCDebug(logEngine).noquote().nospace() << "Module and engine threads created in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
         lastPhaseTimepoint = currentTimePoint();
 
         // ensure all modules are in the READY state
@@ -721,7 +725,7 @@ bool Engine::runInternal(const QString &exportDirPath)
             }
         }
 
-        qDebug().noquote().nospace() << "Engine: " << "Waited for modules to become ready for " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
+        qCDebug(logEngine).noquote().nospace() << "Waited for modules to become ready for " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
     }
 
     // Meanwhile, threaded modules may have failed, so let's check again if we are still
@@ -754,7 +758,7 @@ bool Engine::runInternal(const QString &exportDirPath)
         // may prepare stuff in start() that the threads need, like timestamp syncs)
         startWaitCondition->wakeAll();
 
-        qDebug().noquote().nospace() << "Engine: " << "Threaded/evented module startup completed, took " << d->timer->timeSinceStartMsec().count() << "msec";
+        qCDebug(logEngine).noquote().nospace() << "Threaded/evented module startup completed, took " << d->timer->timeSinceStartMsec().count() << "msec";
         lastPhaseTimepoint = d->timer->currentTimePoint();
 
         // tell all non-threaded modules individuall now that we started
@@ -771,7 +775,7 @@ bool Engine::runInternal(const QString &exportDirPath)
             mod->setState(ModuleState::RUNNING);
         }
 
-        qDebug().noquote().nospace() << "Engine: " << "Startup phase completed, all modules are running. Took additional " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
+        qCDebug(logEngine).noquote().nospace() << "Startup phase completed, all modules are running. Took additional " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
 
         // tell listeners that we are running now
         emit runStarted();
@@ -837,8 +841,7 @@ bool Engine::runInternal(const QString &exportDirPath)
             } while ((d->timer->timeSinceStartMsec() - startPortWaitTS).count() <= 1200);
 
             if (remainingElements != 0)
-                qDebug().noquote().nospace() << "Engine: "
-                                             << "Module '" << mod->name() << "' "
+                qCDebug(logEngine).noquote().nospace() << "Module '" << mod->name() << "' "
                                              << "subscription `" << iport->id() << "` "
                                              << "possibly lost " << remainingElements << " element(s)";
         }
@@ -864,7 +867,7 @@ bool Engine::runInternal(const QString &exportDirPath)
         // data.
         mod->setStorageGroup(nullptr);
 
-        qDebug().noquote().nospace() << "Engine: " << "Module '" << mod->name() << "' stopped in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
+        qCDebug(logEngine).noquote().nospace() << "Module '" << mod->name() << "' stopped in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
     }
 
     lastPhaseTimepoint = d->timer->currentTimePoint();
@@ -886,7 +889,7 @@ bool Engine::runInternal(const QString &exportDirPath)
         oopThread.join();
     }
 
-    qDebug().noquote().nospace() << "Engine: " << "All (non-event) engine threads joined in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
+    qCDebug(logEngine).noquote().nospace() << "All (non-event) engine threads joined in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
     lastPhaseTimepoint = d->timer->currentTimePoint();
 
     if (!initSuccessful) {
@@ -928,7 +931,7 @@ bool Engine::runInternal(const QString &exportDirPath)
         extraData.insert("modules", attrModList);
         storageCollection->setAttributes(extraData);
 
-        qDebug() << "Saving experiment metadata in:" << storageCollection->path();
+        qCDebug(logEngine) << "Saving experiment metadata in:" << storageCollection->path();
 
         if (!storageCollection->save()) {
             QMessageBox::critical(d->parentWidget,
@@ -937,7 +940,7 @@ bool Engine::runInternal(const QString &exportDirPath)
             d->failed = true;
         }
 
-        qDebug().noquote().nospace() << "Engine: " << "Manifest and additional data saved in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
+        qCDebug(logEngine).noquote().nospace() << "Manifest and additional data saved in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
     }
 
     // tell listeners that we are stopped now
