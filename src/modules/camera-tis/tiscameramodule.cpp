@@ -270,9 +270,10 @@ public:
                 const auto pts = buffer->pts;
                 if (pts != GST_CLOCK_TIME_NONE) {
                     // mark as us not being able to do any time adjustments if no valid timestamps are received
+                    clockSync->processTimestamp(frameRecvTime, std::chrono::duration_cast<milliseconds_t>(nanoseconds_t(pts)));
+                } else {
                     if (m_firstTimestamp)
                         clockSync->setStrategies(TimeSyncStrategy::NONE);
-                    clockSync->processTimestamp(frameRecvTime, std::chrono::duration_cast<milliseconds_t>(nanoseconds_t(pts)));
                 }
                 frame.time = frameRecvTime;
                 m_firstTimestamp = false;
