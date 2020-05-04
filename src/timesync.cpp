@@ -729,6 +729,7 @@ void SecondaryClockSynchronizer::processTimestamp(milliseconds_t &masterTimestam
             m_lastOffsetEmission = masterTimestamp;
         }
         m_lastOffsetWithinTolerance = true;
+        m_clockCorrectionOffset = milliseconds_t(0);
         return;
     }
     m_lastOffsetWithinTolerance = false;
@@ -745,6 +746,9 @@ void SecondaryClockSynchronizer::processTimestamp(milliseconds_t &masterTimestam
             emit m_mod->synchronizerOffsetChanged(m_id, milliseconds_t(avgOffsetDeviationMsec));
         m_lastOffsetEmission = masterTimestamp;
     }
+
+    // try to adjust a potential external clock slowly
+    m_clockCorrectionOffset = milliseconds_t(qRound(((m_clockCorrectionOffset.count() * 10) + avgOffsetDeviationMsec) / (10 + 1.0)));
 
     // do nothing if the average offset deviation is smaller/equal to our generally expected standard deviation,
     if (abs(avgOffsetDeviationMsec) <= m_expectedSD) {
@@ -775,9 +779,6 @@ void SecondaryClockSynchronizer::processTimestamp(milliseconds_t &masterTimestam
         if (avgOffsetDeviationMsec > 0)
             masterTimestamp = masterTimestamp + milliseconds_t(avgOffsetDeviationMsec / 2);
     }
-
-    // try to adjust a potential external clock slowly
-    m_clockCorrectionOffset = milliseconds_t(qRound(((m_clockCorrectionOffset.count() * 10) + avgOffsetDeviationMsec) / (10 + 1.0)));
 
     /*
     qCDebug(logTimeSync).noquote().nospace() << m_id << ": "

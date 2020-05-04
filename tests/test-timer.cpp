@@ -90,6 +90,7 @@ private slots:
 
         // set the initial, regular timestamps. Our fake external clock has a
         // default offset of 10ms +/- 1ms
+        qDebug() << "Calibrating synchronizer";
         for (auto i = 0; i < calibrationCount; ++i) {
             const auto origMasterTS = timer->timeSinceStartMsec();
             auto masterTS = origMasterTS;
@@ -105,6 +106,7 @@ private slots:
         }
 
         // run for a short time with zero divergence
+        qDebug() << "Testing precise secondary clock";
         for (auto i = 0; i < (calibrationCount * 2 + 5); ++i) {
             const auto origMasterTS = timer->timeSinceStartMsec();
             auto masterTS = origMasterTS;
@@ -120,22 +122,31 @@ private slots:
         }
 
         // run with clock divergence, the secondary clock is "faulty" and
-        // runs faster than the master clock after a while
+        // runs *faster* than the master clock after a while
+        qDebug() << "Testing faster secondary clock";
         auto lastMasterTS = timer->timeSinceStartMsec();
         int currentDivergenceMsec = 0;
         for (auto i = 0; i < 1000; ++i) {
+            bool flukeDivergence = i % 50 == 0;
             const auto origMasterTS = timer->timeSinceStartMsec();
             auto masterTS = origMasterTS;
-            auto secondaryTS = masterTS + milliseconds_t(10) + milliseconds_t(currentDivergenceMsec);
+            auto secondaryTS = masterTS + milliseconds_t(10) + milliseconds_t(currentDivergenceMsec) + milliseconds_t(flukeDivergence? 10 : 0);
             sync->processTimestamp(masterTS, secondaryTS);
+            qDebug() << "STS:" << secondaryTS.count() << "MTS:" << masterTS.count();
 
             // sanity checks
             if (currentDivergenceMsec < (toleranceValue.count() / 1000)) {
                 QCOMPARE(sync->clockCorrectionOffset().count(), 0);
-                QCOMPARE(masterTS.count(), origMasterTS.count());
+                if (flukeDivergence)
+                    QCOMPARE(masterTS.count(), origMasterTS.count() + 5);
+                else
+                    QCOMPARE(masterTS.count(), origMasterTS.count());
             } else {
                 // clock correction must never "shoot over" the actual divergence
                 QVERIFY(sync->clockCorrectionOffset().count() < (currentDivergenceMsec - 1));
+
+                // clock correction offset must be positive
+                QVERIFY(sync->clockCorrectionOffset().count() >= 0);
 
                 // timestamps must never go backwards
                 QVERIFY(masterTS.count() >= lastMasterTS.count());
@@ -147,7 +158,72 @@ private slots:
             lastMasterTS = masterTS;
             if (i % 10 == 0) {
                 currentDivergenceMsec++;
-                qDebug().noquote() << "Cycle:" << (i + 1) << "Secondary clock divergence is now" << currentDivergenceMsec << "msec";
+                qDebug().noquote() << "DF Cycle:" << (i + 1) << "Secondary clock divergence is now" << currentDivergenceMsec << "msec";
+            }
+        }
+
+        // run for a short time with zero divergence again, which should set
+        // the clock correction offset back to zero
+        qDebug() << "Testing good secondary clock (again)";
+        auto lastClockCorrectionOffset = sync->clockCorrectionOffset().count();
+        for (auto i = 0; i < (calibrationCount * 2 + 5); ++i) {
+            const auto origMasterTS = timer->timeSinceStartMsec();
+            auto masterTS = origMasterTS;
+            auto secondaryTS = masterTS + milliseconds_t(10);
+            sync->processTimestamp(masterTS, secondaryTS);
+
+            // sanity checks
+            if (i > calibrationCount) {
+                // by this point, timestamp adjustments shouldn't happen anymore
+                QCOMPARE(masterTS.count(), origMasterTS.count());
+
+                // clock correction offset should be at zero, since everything is in sync again
+                QCOMPARE(sync->clockCorrectionOffset().count(), 0);
+            } else {
+                // we are still resetting back to normal
+                QVERIFY(sync->clockCorrectionOffset().count() <= lastClockCorrectionOffset);
+                QVERIFY(masterTS.count() >= origMasterTS.count());
+            }
+
+            lastClockCorrectionOffset = sync->clockCorrectionOffset().count();
+
+            // delay
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+
+        // run with clock divergence, the secondary clock is "faulty" and
+        // runs *slower* than the master clock after a while
+        qDebug() << "Testing slower secondary clock";
+        lastMasterTS = timer->timeSinceStartMsec();
+        currentDivergenceMsec = 0;
+        for (auto i = 0; i < 1000; ++i) {
+            const auto origMasterTS = timer->timeSinceStartMsec();
+            auto masterTS = origMasterTS;
+            auto secondaryTS = masterTS + milliseconds_t(10) + milliseconds_t(currentDivergenceMsec);
+            sync->processTimestamp(masterTS, secondaryTS);
+
+            // sanity checks
+            if (abs(currentDivergenceMsec) < (toleranceValue.count() / 1000)) {
+                QCOMPARE(sync->clockCorrectionOffset().count(), 0);
+                QCOMPARE(masterTS.count(), origMasterTS.count());
+            } else {
+                // clock correction must never "shoot over" the actual divergence
+                QVERIFY(abs(sync->clockCorrectionOffset().count()) < abs(currentDivergenceMsec - 1));
+
+                // clock correction offset must be negative
+                QVERIFY(sync->clockCorrectionOffset().count() <= 0);
+
+                // timestamps must never go backwards
+                QVERIFY(masterTS.count() >= lastMasterTS.count());
+            }
+
+            // delay
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+            lastMasterTS = masterTS;
+            if (i % 10 == 0) {
+                currentDivergenceMsec--;
+                qDebug().noquote() << "DS Cycle:" << (i + 1) << "Secondary clock divergence is now" << currentDivergenceMsec << "msec";
             }
         }
 
