@@ -660,6 +660,7 @@ bool SecondaryClockSynchronizer::start()
     m_calibrationIdx = 0;
     m_expectedOffsetCalCount = 0;
     m_clockOffsetsMsec = VectorXl::Zero(m_calibrationMaxN);
+    m_lastMasterTS = m_syTimer->timeSinceStartMsec();
 
     return true;
 }
@@ -713,11 +714,16 @@ void SecondaryClockSynchronizer::processTimestamp(milliseconds_t &masterTimestam
             // but we are within tolerance. This means the data point is likely a fluke,
             // potentially due to a context switch or system load spike. We correct those
             // unconditionally
-            masterTimestamp = masterTimestamp + milliseconds_t(curOffsetDeviationMsec / 2);
+            masterTimestamp = secondaryAcqTimestamp - m_expectedOffset;
+
+            // ensure time doesn't run backwards - this may happen if the secondary clock
+            // gives us the exact same timestamp twice in a row
+            if (masterTimestamp < m_lastMasterTS)
+                masterTimestamp = m_lastMasterTS + milliseconds_t(1);
 
             /*
             qCDebug(logTimeSync).noquote().nospace() << m_id << ": "
-                    << "Time adjusted for fluke offset by " << curOffsetDeviationMsec << "/2 msec "
+                    << "Time adjusted for fluke offset by " << m_expectedOffset.count()*-1 << " msec "
                     << "SD: " << offsetsSD;
             */
         }
@@ -730,6 +736,7 @@ void SecondaryClockSynchronizer::processTimestamp(milliseconds_t &masterTimestam
         }
         m_lastOffsetWithinTolerance = true;
         m_clockCorrectionOffset = milliseconds_t(0);
+        m_lastMasterTS = masterTimestamp;
         return;
     }
     m_lastOffsetWithinTolerance = false;
@@ -757,14 +764,20 @@ void SecondaryClockSynchronizer::processTimestamp(milliseconds_t &masterTimestam
             // but the average offset isn't bigger than the previously measured standard deviation.
             // This means the data point is likely a fluke, potentially due to a context switch or
             // system load spike. We correct those unconditionally
-            masterTimestamp = masterTimestamp + milliseconds_t(curOffsetDeviationMsec / 2);
+            masterTimestamp = secondaryAcqTimestamp - m_expectedOffset;
+
+            // ensure time doesn't run backwards - this may happen if the secondary clock
+            // gives us the exact same timestamp twice in a row
+            if (masterTimestamp < m_lastMasterTS)
+                masterTimestamp = m_lastMasterTS + milliseconds_t(1);
 
             /*
             qCDebug(logTimeSync).noquote().nospace() << m_id << ": "
-                    << "Average offset below expected SD. Time adjusted for fluke offset by " << curOffsetDeviationMsec << "/2 msec "
+                    << "Average offset below expected SD. Time adjusted for fluke offset by " << m_expectedOffset.count()*-1 << " msec "
                     << "Active SD: " << offsetsSD;
             */
         }
+        m_lastMasterTS = masterTimestamp;
         return;
     }
 
@@ -779,6 +792,8 @@ void SecondaryClockSynchronizer::processTimestamp(milliseconds_t &masterTimestam
         if (avgOffsetDeviationMsec > 0)
             masterTimestamp = masterTimestamp + milliseconds_t(avgOffsetDeviationMsec / 2);
     }
+
+    m_lastMasterTS = masterTimestamp;
 
     /*
     qCDebug(logTimeSync).noquote().nospace() << m_id << ": "

@@ -79,6 +79,7 @@ private slots:
 
         const auto toleranceValue = microseconds_t(2000);
         const auto calibrationCount = 20;
+        const auto secondClockDefaultOffset = milliseconds_t(-10);
         sync->setStrategies(TimeSyncStrategy::ADJUST_CLOCK |
                             TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD |
                             TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD);
@@ -89,12 +90,12 @@ private slots:
         sync->start();
 
         // set the initial, regular timestamps. Our fake external clock has a
-        // default offset of 10ms +/- 1ms
+        // default offset of -10ms +/- 1ms
         qDebug() << "Calibrating synchronizer";
         for (auto i = 0; i < calibrationCount; ++i) {
             const auto origMasterTS = timer->timeSinceStartMsec();
             auto masterTS = origMasterTS;
-            auto secondaryTS = masterTS + milliseconds_t(10) + ((i % 2)? milliseconds_t(1) : milliseconds_t(0));
+            auto secondaryTS = masterTS + secondClockDefaultOffset + ((i % 2)? milliseconds_t(1) : milliseconds_t(0));
             sync->processTimestamp(masterTS, secondaryTS);
 
             // sanity checks
@@ -110,7 +111,7 @@ private slots:
         for (auto i = 0; i < (calibrationCount * 2 + 5); ++i) {
             const auto origMasterTS = timer->timeSinceStartMsec();
             auto masterTS = origMasterTS;
-            auto secondaryTS = masterTS + milliseconds_t(10);
+            auto secondaryTS = masterTS + secondClockDefaultOffset;
             sync->processTimestamp(masterTS, secondaryTS);
 
             // sanity checks
@@ -130,17 +131,16 @@ private slots:
             bool flukeDivergence = i % 50 == 0;
             const auto origMasterTS = timer->timeSinceStartMsec();
             auto masterTS = origMasterTS;
-            auto secondaryTS = masterTS + milliseconds_t(10) + milliseconds_t(currentDivergenceMsec) + milliseconds_t(flukeDivergence? 10 : 0);
+            auto secondaryTS = masterTS + secondClockDefaultOffset + milliseconds_t(currentDivergenceMsec) + milliseconds_t(flukeDivergence? 20 : 0);
             sync->processTimestamp(masterTS, secondaryTS);
-            qDebug() << "STS:" << secondaryTS.count() << "MTS:" << masterTS.count();
 
             // sanity checks
             if (currentDivergenceMsec < (toleranceValue.count() / 1000)) {
                 QCOMPARE(sync->clockCorrectionOffset().count(), 0);
                 if (flukeDivergence)
-                    QCOMPARE(masterTS.count(), origMasterTS.count() + 5);
+                    QCOMPARE(masterTS.count(), (secondaryTS - secondClockDefaultOffset).count());
                 else
-                    QCOMPARE(masterTS.count(), origMasterTS.count());
+                    QCOMPARE(masterTS.count(), (secondaryTS - secondClockDefaultOffset).count());
             } else {
                 // clock correction must never "shoot over" the actual divergence
                 QVERIFY(sync->clockCorrectionOffset().count() < (currentDivergenceMsec - 1));
@@ -169,7 +169,7 @@ private slots:
         for (auto i = 0; i < (calibrationCount * 2 + 5); ++i) {
             const auto origMasterTS = timer->timeSinceStartMsec();
             auto masterTS = origMasterTS;
-            auto secondaryTS = masterTS + milliseconds_t(10);
+            auto secondaryTS = masterTS + secondClockDefaultOffset;
             sync->processTimestamp(masterTS, secondaryTS);
 
             // sanity checks
@@ -199,7 +199,7 @@ private slots:
         for (auto i = 0; i < 1000; ++i) {
             const auto origMasterTS = timer->timeSinceStartMsec();
             auto masterTS = origMasterTS;
-            auto secondaryTS = masterTS + milliseconds_t(10) + milliseconds_t(currentDivergenceMsec);
+            auto secondaryTS = masterTS + secondClockDefaultOffset + milliseconds_t(currentDivergenceMsec);
             sync->processTimestamp(masterTS, secondaryTS);
 
             // sanity checks

@@ -277,6 +277,7 @@ private:
     double m_expectedSD;
 
     milliseconds_t m_clockCorrectionOffset;
+    milliseconds_t m_lastMasterTS;
 
     std::unique_ptr<TimeSyncFileWriter> m_tswriter;
 };
