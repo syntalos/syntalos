@@ -221,6 +221,15 @@ public:
             return;
         }
 
+        // We don't want to hold more than one buffer in the appsink, as otherwise getting the master timestamp
+        // on gst_app_sink_pull_sample() will be even less accurate than it already is (and we would have to correct
+        // timestamps for pending buffer content, which is difficult to do right, and complicated).
+        // If the appsink max buffer count is low, elements upstream in the pipeline will be blocked until we removed
+        // one and free a buffer slot, which means camera DAQ will be delayed to the speed at which we can convert
+        // data into Syntalos stream elements, which is exactly what we want.
+        const auto appsink = GST_APP_SINK(m_camera->getCaptureSink());
+        gst_app_sink_set_max_buffers (appsink, 1);
+
         // wait until we actually start acquiring data
         waitCondition->wait(this);
 
@@ -230,7 +239,6 @@ public:
         }
 
         statusMessage("");
-        const auto appsink = GST_APP_SINK(m_camera->getCaptureSink());
         while (m_running) {
             g_autoptr(GstSample) sample = nullptr;
             auto frameRecvTime = MTIMER_FUNC_TIMESTAMP(sample = gst_app_sink_pull_sample(appsink));
