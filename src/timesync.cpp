@@ -754,9 +754,6 @@ void SecondaryClockSynchronizer::processTimestamp(milliseconds_t &masterTimestam
         m_lastOffsetEmission = masterTimestamp;
     }
 
-    // try to adjust a potential external clock slowly
-    m_clockCorrectionOffset = milliseconds_t(qRound(((m_clockCorrectionOffset.count() * 10) + avgOffsetDeviationMsec) / (10 + 1.0)));
-
     // do nothing if the average offset deviation is smaller/equal to our generally expected standard deviation,
     if (abs(avgOffsetDeviationMsec) <= m_expectedSD) {
         if (abs(curOffsetDeviationMsec) > ceil(offsetsSD)) {
@@ -780,6 +777,9 @@ void SecondaryClockSynchronizer::processTimestamp(milliseconds_t &masterTimestam
         m_lastMasterTS = masterTimestamp;
         return;
     }
+
+    // try to adjust a potential external clock slowly
+    m_clockCorrectionOffset = milliseconds_t(qRound(((m_clockCorrectionOffset.count() * 10) + avgOffsetDeviationMsec) / (10 + 1.0)));
 
     // we are above the expected SD and not within tolerance range - make immediate adjustments to the timestamp
     // if we are permitted to do so
