@@ -35,7 +35,10 @@
 
 namespace Syntalos {
 
+#if !defined(DOXYGEN_SHOULD_SKIP_THIS)
 class AbstractModule;
+class StreamOutputPort;
+#endif // DOXYGEN_SHOULD_SKIP_THIS
 
 /**
  * @brief The ModuleFeature flags
@@ -165,7 +168,6 @@ public:
     virtual AbstractModule *owner() const = 0;
 };
 
-class StreamOutputPort;
 class VarStreamInputPort : public AbstractStreamPort
 {
 public:

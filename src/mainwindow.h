@@ -26,6 +26,7 @@
 #include "testsubjectlistmodel.h"
 #include "moduleapi.h"
 
+#if !defined(DOXYGEN_SHOULD_SKIP_THIS)
 class QLabel;
 class ModuleManager;
 class ModuleIndicator;
@@ -36,6 +37,7 @@ class ModuleInfo;
 class AbstractModule;
 class TimingsDialog;
 }
+#endif // DOXYGEN_SHOULD_SKIP_THIS
 
 namespace Ui {
 class MainWindow;

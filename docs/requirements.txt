@@ -1,0 +1,5 @@
+sphinx>=3.0
+pygments>=2.6
+breathe==4.16
+exhale
+jupyter_sphinx_theme

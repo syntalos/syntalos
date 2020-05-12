@@ -51,10 +51,12 @@ class QMouseEvent;
 class QWheelEvent;
 class QKeyEvent;
 
+#if !defined(DOXYGEN_SHOULD_SKIP_THIS)
 namespace Syntalos {
 class AbstractModule;
 class AbstractStreamPort;
 }
+#endif // DOXYGEN_SHOULD_SKIP_THIS
 
 using namespace Syntalos;
 

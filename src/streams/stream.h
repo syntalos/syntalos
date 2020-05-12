@@ -32,10 +32,6 @@
 #include "datatypes.h"
 #include "syclock.h"
 
-namespace Syntalos {
-class AbstractModule;
-}
-
 using namespace moodycamel;
 using namespace Syntalos;
 

@@ -303,6 +303,7 @@ void registerStreamMetaTypes();
 QMap<QString, int> streamTypeIdMap();
 
 #ifndef NO_TID_PORTCONSTRUCTORS
+#if !defined(DOXYGEN_SHOULD_SKIP_THIS)
 
 class VariantDataStream;
 namespace Syntalos {
@@ -320,4 +321,5 @@ VariantDataStream *newStreamForType(int typeId);
 VarStreamInputPort *newInputPortForType(int typeId, AbstractModule *mod, const QString &id, const QString &title);
 
 } // end of namespace
+#endif // DOXYGEN_SHOULD_SKIP_THIS
 #endif

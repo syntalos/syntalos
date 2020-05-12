@@ -23,6 +23,7 @@
 #include <QWidget>
 #include "flowgraphview.h"
 
+#if !defined(DOXYGEN_SHOULD_SKIP_THIS)
 namespace Syntalos {
 class Engine;
 class ModuleInfo;
@@ -30,6 +31,7 @@ class AbstractModule;
 class VarStreamInputPort;
 class StreamOutputPort;
 }
+#endif // DOXYGEN_SHOULD_SKIP_THIS
 
 namespace Ui {
 class ModuleGraphForm;

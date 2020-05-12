@@ -34,7 +34,9 @@ namespace Syntalos {
 
 Q_DECLARE_LOGGING_CATEGORY(logTimeSync)
 
+#if !defined(DOXYGEN_SHOULD_SKIP_THIS)
 class AbstractModule;
+#endif // DOXYGEN_SHOULD_SKIP_THIS
 
 /**
  * @brief The amount of time a secondary clock is allowed to deviate from the master.

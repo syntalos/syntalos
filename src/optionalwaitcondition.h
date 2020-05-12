@@ -22,7 +22,10 @@
 #include <QSharedPointer>
 
 namespace Syntalos {
+
+#if !defined(DOXYGEN_SHOULD_SKIP_THIS)
 class AbstractModule;
+#endif // DOXYGEN_SHOULD_SKIP_THIS
 
 /**
  * @brief The OptionalWaitCondition class

@@ -21,13 +21,15 @@
 
 #include <QDialog>
 
+#if !defined(DOXYGEN_SHOULD_SKIP_THIS)
 namespace Ui {
 class PortEditorDialog;
 }
-
 namespace Syntalos {
 class AbstractModule;
 }
+#endif // DOXYGEN_SHOULD_SKIP_THIS
+
 using namespace Syntalos;
 
 class PortEditorDialog : public QDialog
