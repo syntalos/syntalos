@@ -419,11 +419,9 @@ void FreqCounterSynchronizer::stop()
     m_tswriter->close();
 }
 
-void FreqCounterSynchronizer::processTimestamps(const milliseconds_t &recvTimestamp, const std::chrono::microseconds &deviceLatency,
+void FreqCounterSynchronizer::processTimestamps(const milliseconds_t &blocksRecvTimestamp, const std::chrono::microseconds &deviceLatency,
                                                 int blockIndex, int blockCount, VectorXu &idxTimestamps)
 {
-    Q_UNUSED(blockCount)
-
     // adjust timestamp based on our current offset
     if (m_indexOffset != 0)
         idxTimestamps += VectorXu::LinSpaced(idxTimestamps.rows(), 0, m_indexOffset);
@@ -439,9 +437,13 @@ void FreqCounterSynchronizer::processTimestamps(const milliseconds_t &recvTimest
 
     m_lastUpdateTime = currentTimestamp;
 
+    // time one datapoint takes to acquire, if the frequency is accurate, in milliseconds
+    const double timePerPointMs = (idxTimestamps.rows() / m_freq) * 1000.0;
+
     // timestamp when (as far and well as we can guess...) the data was actually acquired, in milliseconds
-    const auto assumedAcqTS = std::chrono::duration_cast<milliseconds_t>(recvTimestamp
-                                                                         - milliseconds_t(qRound(((idxTimestamps.rows() / m_freq) * 1000.0) * (blockIndex + 1)))
+    const auto assumedAcqTS = std::chrono::duration_cast<milliseconds_t>(blocksRecvTimestamp
+                                                                         - milliseconds_t(qRound(timePerPointMs * (blockCount * idxTimestamps.rows())))
+                                                                         + milliseconds_t(qRound(timePerPointMs * (blockIndex * idxTimestamps.rows())))
                                                                          - deviceLatency);
 
     if (m_baseTSCalibrationCount < m_minimumBaseTSCalibrationPoints) {
@@ -488,7 +490,7 @@ void FreqCounterSynchronizer::processTimestamps(const milliseconds_t &recvTimest
 
     // Emit offset change information to the main controller every 2sec or slower
     // in case we run at slower speeds
-    if ((m_lastOffsetEmission.count() + 2000) < recvTimestamp.count()) {
+    if ((m_lastOffsetEmission.count() + 2000) < blocksRecvTimestamp.count()) {
         emit m_mod->synchronizerOffsetChanged(m_id, timeOffset);
         m_lastOffsetEmission = currentTimestamp;
     }

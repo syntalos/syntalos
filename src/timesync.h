@@ -192,7 +192,7 @@ public:
 
     bool start();
     void stop();
-    void processTimestamps(const milliseconds_t &recvTimestamp, const std::chrono::microseconds &deviceLatency,
+    void processTimestamps(const milliseconds_t &blocksRecvTimestamp, const std::chrono::microseconds &deviceLatency,
                            int blockIndex, int blockCount, VectorXu &idxTimestamps);
     void processTimestamps(const milliseconds_t &recvTimestamp, const double &devLatencyMs,
                            int blockIndex, int blockCount, VectorXu &idxTimestamps);
@@ -227,7 +227,8 @@ private:
  * This synchronizer helps synchronizing a timestamp from an external
  * source with Syntalos' master clock.
  */
-class SecondaryClockSynchronizer {
+class SecondaryClockSynchronizer
+{
 public:
     explicit SecondaryClockSynchronizer(std::shared_ptr<SyncTimer> masterTimer, AbstractModule *mod, const QString &id = nullptr);
     ~SecondaryClockSynchronizer();
