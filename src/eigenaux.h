@@ -41,7 +41,7 @@ double vectorMedianInplace(Eigen::Matrix<T, Eigen::Dynamic, 1> &vec)
     // would break for vectors with a stride != 1
     std::sort(vec.data(), vec.data() + vec.size());
     if (size % 2 == 0)
-        return ((long) vec[size / 2 - 1] + (long) vec[size / 2]) / 2.0;
+        return ((long long) vec[size / 2 - 1] + (long long) vec[size / 2]) / 2.0;
     else
         return vec[size / 2];
 }

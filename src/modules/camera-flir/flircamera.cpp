@@ -343,12 +343,12 @@ bool FLIRCamera::acquireFrame(Frame &frame, SecondaryClockSynchronizer *clockSyn
         // get the device timestamp. FIXME: The Spinnaker API doesn't explicitly mention the timestamp unit, but it appears
         // to be nanoseconds (at least for non-GigE cameras, those may return ticks (?))
         // This should be tested with more cameras, to ensure we get an accurate time.
-        const size_t timestampMs = qRound(chunkData.GetTimestamp() / 1000.0 / 1000.0);
+        const size_t timestampUs = std::lround(chunkData.GetTimestamp() / 1000.0);
 
         // adjust the received time if necessary, gather clock sync information
         // for some reason the timestamp occasionally is stuck at zero
-        clockSync->processTimestamp(frameRecvTime, milliseconds_t(timestampMs));
-        frame.time = frameRecvTime;
+        clockSync->processTimestamp(frameRecvTime, microseconds_t(timestampUs));
+        frame.time = usecToMsec(frameRecvTime);
 
         // release image
         image->Release();

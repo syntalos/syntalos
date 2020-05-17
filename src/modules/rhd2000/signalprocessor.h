@@ -48,7 +48,7 @@ public:
                           int &triggerIndex, bool addToBuffer,
                           queue<Rhd2000DataBlock> &bufferQueue, bool saveToDisk, QDataStream &out,
                           SaveFormat format, bool saveTemp, bool saveTtlOut, int timestampOffset,
-                          const double &latencyMs = 0, const milliseconds_t &dataRecvTimestamp = milliseconds_t(0), Rhd2000Module *syMod = nullptr);
+                          const double &latencyMs = 0, const microseconds_t &dataRecvTimestamp = microseconds_t(0), Rhd2000Module *syMod = nullptr);
     int loadSyntheticData(int numBlocks, double sampleRate, bool saveToDisk,
                           QDataStream &out, SaveFormat format, bool saveTemp, bool saveTtlOut,
                           std::shared_ptr<SyncTimer> syncTimer, Rhd2000Module *syMod = nullptr);

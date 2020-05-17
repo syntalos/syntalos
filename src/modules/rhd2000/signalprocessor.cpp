@@ -551,7 +551,7 @@ int SignalProcessor::loadAmplifierData(queue<Rhd2000DataBlock> &dataQueue,
                                        int numBlocks, bool lookForTrigger, int triggerChannel,
                                        int triggerPolarity, int &triggerTimeIndex, bool addToBuffer, queue<Rhd2000DataBlock> &bufferQueue,
                                        bool saveToDisk, QDataStream &out, SaveFormat format, bool saveTemp,
-                                       bool saveTtlOut, int timestampOffset, const double &latencyMs, const milliseconds_t &dataRecvTimestamp, Rhd2000Module *syMod)
+                                       bool saveTtlOut, int timestampOffset, const double &latencyMs, const microseconds_t &dataRecvTimestamp, Rhd2000Module *syMod)
 {
     int block, t, channel, stream, i, j;
     int indexAmp = 0;

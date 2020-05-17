@@ -2505,7 +2505,7 @@ bool IntanUi::interfaceBoardRunCycle()
 {
     auto ret = true;
     bool newDataReady;
-    milliseconds_t dataRecvTimestamp;
+    microseconds_t dataRecvTimestamp;
 
     // If we are running in demo mode, use a timer to periodically generate more synthetic
     // data.  If not, wait for a certain amount of data to be ready from the USB interface board.

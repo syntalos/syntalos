@@ -70,6 +70,16 @@ using microseconds_t = std::chrono::microseconds;
 /// Shorthand for nanoseconds
 using nanoseconds_t = std::chrono::nanoseconds;
 
+/**
+ * @brief Convert microseconds to milliseconds
+ *
+ * Shorthand for suration-case for easier code readability.
+ */
+inline milliseconds_t usecToMsec(const microseconds_t &usec)
+{
+    return std::chrono::duration_cast<milliseconds_t>(usec);
+}
+
 inline milliseconds_t timeDiffMsec(const symaster_timepoint &timePoint1, const symaster_timepoint &timePoint2) noexcept
 {
     return std::chrono::duration_cast<milliseconds_t>(timePoint1 - timePoint2);
@@ -103,9 +113,14 @@ public:
         return std::chrono::duration_cast<milliseconds_t>(symaster_clock::now() - m_startTime);
     }
 
-    inline std::chrono::nanoseconds timeSinceStartNsec() noexcept
+    inline microseconds_t timeSinceStartUsec() noexcept
     {
-        return std::chrono::duration_cast<std::chrono::nanoseconds>(symaster_clock::now() - m_startTime);
+        return std::chrono::duration_cast<microseconds_t>(symaster_clock::now() - m_startTime);
+    }
+
+    inline nanoseconds_t timeSinceStartNsec() noexcept
+    {
+        return std::chrono::duration_cast<nanoseconds_t>(symaster_clock::now() - m_startTime);
     }
 
     inline symaster_timepoint currentTimePoint() noexcept
@@ -133,11 +148,13 @@ private:
  * and produce a reasonably accurate result in milliseconds.
  * It is superior to measuring our timestamp for alignment after the other
  * timestamping function was run.
+ *
+ * The resulting timestamp is in µs
  */
 #define TIMER_FUNC_TIMESTAMP(T, F) ({ \
     const auto __stime = T->timeSinceStartNsec(); \
     F; \
-    std::chrono::round<milliseconds_t>((__stime + T->timeSinceStartNsec()) / 2.0); \
+    std::chrono::round<microseconds_t>((__stime + T->timeSinceStartNsec()) / 2.0); \
     })
 #define MTIMER_FUNC_TIMESTAMP(F) (TIMER_FUNC_TIMESTAMP(m_syTimer, F))
 
@@ -145,11 +162,13 @@ private:
  * Compute a timestamp for "when this function acquired a value".
  * This function is equivalent to TIMER_FUNC_TIMESTAMP(), but takes
  * a starting timepoint instead of a timer as first parameter.
+ *
+ * The resulting timestamp is in µs
  */
 #define FUNC_EXEC_TIMESTAMP(INIT_TIME, F) ({ \
     const auto __stime = std::chrono::duration_cast<std::chrono::nanoseconds>(symaster_clock::now() - (INIT_TIME)); \
     F; \
-    std::chrono::round<milliseconds_t>((__stime + std::chrono::duration_cast<std::chrono::nanoseconds>(symaster_clock::now() - (INIT_TIME))) / 2.0); \
+    std::chrono::round<microseconds_t>((__stime + std::chrono::duration_cast<std::chrono::nanoseconds>(symaster_clock::now() - (INIT_TIME))) / 2.0); \
     })
 
 } // end of namespace

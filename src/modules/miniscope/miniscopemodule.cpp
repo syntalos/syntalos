@@ -158,8 +158,9 @@ public:
                 return;
         }
         // use synchronizer to synchronize time
-        frameTime = masterRecvTime;
-        self->m_clockSync->processTimestamp(frameTime, deviceTime);
+        auto updatedFrameTime = std::chrono::duration_cast<microseconds_t>(masterRecvTime);
+        self->m_clockSync->processTimestamp(updatedFrameTime, deviceTime);
+        frameTime = usecToMsec(updatedFrameTime);
 
         // we don't want to forward dropped frames
         if (mat.empty())

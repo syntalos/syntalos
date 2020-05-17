@@ -28,7 +28,7 @@ private slots:
 
         auto res = TIMER_FUNC_TIMESTAMP(timer, slow_work_with_result(2));
         std::this_thread::sleep_for(std::chrono::milliseconds(12));
-        QVERIFY((res.count() < 251) && (res.count() > 249));
+        QVERIFY((res.count() < (251 * 1000)) && (res.count() > (249 * 1000)));
 
         QVERIFY(timer->timeSinceStartMsec().count() >= 512);
     }
@@ -72,158 +72,257 @@ private slots:
         file.remove();
     }
 
-    void runClockSynchronizer()
+    /**
+     * Calculates the expected synchronizer result timestamp in case everything is nominal.
+     */
+    static long calcExpectedSyncTS(SecondaryClockSynchronizer *sync, const microseconds_t &secondaryAcqTS, const microseconds_t &masterTimestamp)
     {
-        std::shared_ptr<SyncTimer> timer(new SyncTimer());
-        std::unique_ptr<SecondaryClockSynchronizer> sync(new SecondaryClockSynchronizer(timer, nullptr));
+        return qRound(((secondaryAcqTS.count() - sync->expectedOffsetToMaster().count()) + masterTimestamp.count()) / 2.0);
+    }
 
-        const auto toleranceValue = microseconds_t(2000);
+    void runExClockSynchronizer()
+    {
+        std::shared_ptr<SyncTimer> syTimer(new SyncTimer());
+        std::unique_ptr<SecondaryClockSynchronizer> sync(new SecondaryClockSynchronizer(syTimer, nullptr));
+
+        const auto toleranceValue = microseconds_t(1000);
         const auto calibrationCount = 20;
-        const auto secondClockDefaultOffset = milliseconds_t(-10);
         sync->setStrategies(TimeSyncStrategy::ADJUST_CLOCK |
                             TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD |
                             TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD);
         sync->setCalibrationPointsCount(calibrationCount);
         sync->setTolerance(toleranceValue);
 
-        timer->start();
+        syTimer->start();
         sync->start();
 
-        // set the initial, regular timestamps. Our fake external clock has a
-        // default offset of -10ms +/- 1ms
-        qDebug() << "Calibrating synchronizer";
-        for (auto i = 0; i < calibrationCount; ++i) {
-            const auto origMasterTS = timer->timeSinceStartMsec();
-            auto masterTS = origMasterTS;
-            auto secondaryTS = masterTS + secondClockDefaultOffset + ((i % 2)? milliseconds_t(1) : milliseconds_t(0));
-            sync->processTimestamp(masterTS, secondaryTS);
+        // secondary clock can start at any random value, so
+        // we define an offset here for testing
+        const auto secondaryClockOffset = microseconds_t(11111);
+        auto curSecondaryTS = secondaryClockOffset;
 
-            // sanity checks
+        // master clock starts at 0, but we pretend it was already running for half a second
+        auto curMasterTS = microseconds_t(500);
+
+        // set the initial, regular timestamps.
+        // Fake external clock has a default offset of -10ms +/- 1ms
+        qDebug() << "\n## Calibrating synchronizer";
+        for (auto i = 0; !sync->isCalibrated(); ++i) {
+            auto syncMasterTS = curMasterTS;
+            sync->processTimestamp(syncMasterTS, curSecondaryTS);
+
+            // we must not set a correction offset
             QCOMPARE(sync->clockCorrectionOffset().count(), 0);
-            QCOMPARE(masterTS.count(), origMasterTS.count());
 
-            // delay
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            // we must not alter the master timestamp (yet)
+            QCOMPARE(syncMasterTS.count(), curMasterTS.count());
+
+            // advance
+            curMasterTS = curMasterTS + milliseconds_t(1) + ((i % 2)? microseconds_t(500) : microseconds_t(-500));
+            curSecondaryTS = curSecondaryTS + milliseconds_t(1);
+
+            // set some limit on the amount of datapoints used for calibration, so we don't run
+            // forever if code is buggy or acting unreasonable
+            QVERIFY(i < (calibrationCount * 4));
         }
 
         // run for a short time with zero divergence
-        qDebug() << "Testing precise secondary clock";
+        qDebug() << "\n## Testing precise secondary clock";
         for (auto i = 0; i < (calibrationCount * 2 + 5); ++i) {
-            const auto origMasterTS = timer->timeSinceStartMsec();
-            auto masterTS = origMasterTS;
-            auto secondaryTS = masterTS + secondClockDefaultOffset;
-            sync->processTimestamp(masterTS, secondaryTS);
+            // advance
+            curMasterTS = curMasterTS + milliseconds_t(1);
+            curSecondaryTS = curSecondaryTS + milliseconds_t(1);
 
-            // sanity checks
+            // adjust
+            auto syncMasterTS = curMasterTS;
+            sync->processTimestamp(syncMasterTS, curSecondaryTS);
+
+            // sanity checks, we must not make changes yet
             QCOMPARE(sync->clockCorrectionOffset().count(), 0);
-            QCOMPARE(masterTS.count(), origMasterTS.count());
-
-            // delay
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            QCOMPARE(syncMasterTS.count(), calcExpectedSyncTS(sync.get(), curSecondaryTS, curMasterTS));
         }
 
         // run with clock divergence, the secondary clock is "faulty" and
         // runs *faster* than the master clock after a while
-        qDebug() << "Testing faster secondary clock";
-        auto lastMasterTS = timer->timeSinceStartMsec();
-        int currentDivergenceMsec = 0;
-        for (auto i = 0; i < 1000; ++i) {
-            bool flukeDivergence = i % 50 == 0;
-            const auto origMasterTS = timer->timeSinceStartMsec();
-            auto masterTS = origMasterTS;
-            auto secondaryTS = masterTS + secondClockDefaultOffset + milliseconds_t(currentDivergenceMsec) + milliseconds_t(flukeDivergence? 20 : 0);
-            sync->processTimestamp(masterTS, secondaryTS);
+        qDebug() << "\n## Testing faster secondary clock";
+        QCOMPARE(sync->clockCorrectionOffset().count(), 0);
+        int currentDivergenceUsec = 0;
+        int adjustmentIterN = 0;
+        auto lastMasterTS = curMasterTS;
+        for (auto i = 1; i < 3200; ++i) {
+            // advance
+            curMasterTS = curMasterTS + milliseconds_t(1);
+            curSecondaryTS = curSecondaryTS + milliseconds_t(1);
 
-            // sanity checks
-            if (currentDivergenceMsec < (toleranceValue.count() / 1000)) {
-                QCOMPARE(sync->clockCorrectionOffset().count(), 0);
-                if (flukeDivergence)
-                    QCOMPARE(masterTS.count(), (secondaryTS - secondClockDefaultOffset).count());
-                else
-                    QCOMPARE(masterTS.count(), (secondaryTS - secondClockDefaultOffset).count());
-            } else {
-                // clock correction must never "shoot over" the actual divergence
-                QVERIFY(sync->clockCorrectionOffset().count() < (currentDivergenceMsec - 1));
+            auto syncMasterTS = curMasterTS;
+            sync->processTimestamp(syncMasterTS, curSecondaryTS);
 
-                // clock correction offset must be positive
-                QVERIFY(sync->clockCorrectionOffset().count() >= 0);
+            // timestamps must never go backwards
+            QVERIFY2(syncMasterTS.count() >= lastMasterTS.count(), qPrintable(QString::number(syncMasterTS.count())
+                                                                             + " >= " + QString::number(lastMasterTS.count())));
+            lastMasterTS = syncMasterTS;
 
-                // timestamps must never go backwards
-                QVERIFY(masterTS.count() >= lastMasterTS.count());
+            if (adjustmentIterN > 0) {
+                adjustmentIterN--;
+                continue;
             }
 
-            // delay
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            if (currentDivergenceUsec < (toleranceValue.count() + 251)) {
+                QCOMPARE(sync->clockCorrectionOffset().count(), 0);
+                QCOMPARE(syncMasterTS.count(), calcExpectedSyncTS(sync.get(), curSecondaryTS, curMasterTS));
+            } else {
+                // clock correction must never "shoot over" the actual divergence
+                QVERIFY2(sync->clockCorrectionOffset().count() < currentDivergenceUsec, qPrintable(QString::number(sync->clockCorrectionOffset().count())
+                                                                                                   + " < " + QString::number(currentDivergenceUsec)));
 
-            lastMasterTS = masterTS;
-            if (i % 10 == 0) {
-                currentDivergenceMsec++;
-                qDebug().noquote() << "DF Cycle:" << (i + 1) << "Secondary clock divergence is now" << currentDivergenceMsec << "msec";
+                // clock correction offset must be positive and "reasonably" large
+                QVERIFY(sync->clockCorrectionOffset().count() >= (currentDivergenceUsec / 21.0));
+
+                // since the master clock is considered accurate, but the secondary clock is "too fast",
+                // we expect timestamps to be shifted backwards a bit in order to match them up again
+                QVERIFY(syncMasterTS.count() != curMasterTS.count());
+                QVERIFY2(syncMasterTS.count() < curMasterTS.count(), qPrintable(QString::number(syncMasterTS.count())
+                                                                                + " < " + QString::number(curMasterTS.count())));
+            }
+
+            // adjust divergence
+            if (i % 30 == 0) {
+                currentDivergenceUsec += 100;
+                curSecondaryTS = curSecondaryTS + microseconds_t(100);
+                qDebug().noquote() << "DF Cycle:" << (i + 1) << "Secondary clock divergence is now" << currentDivergenceUsec << "µs";
+
+                // give the synchronizer some iterations to adjust
+                adjustmentIterN = floor(calibrationCount / 2.0);
             }
         }
 
         // run for a short time with zero divergence again, which should set
         // the clock correction offset back to zero
-        qDebug() << "Testing good secondary clock (again)";
+        qDebug() << "\n## Testing good secondary clock (again)";
+        curSecondaryTS = curSecondaryTS - microseconds_t(currentDivergenceUsec);
         auto lastClockCorrectionOffset = sync->clockCorrectionOffset().count();
         for (auto i = 0; i < (calibrationCount * 2 + 5); ++i) {
-            const auto origMasterTS = timer->timeSinceStartMsec();
-            auto masterTS = origMasterTS;
-            auto secondaryTS = masterTS + secondClockDefaultOffset;
-            sync->processTimestamp(masterTS, secondaryTS);
+            // advance
+            curMasterTS = curMasterTS + milliseconds_t(1);
+            curSecondaryTS = curSecondaryTS + milliseconds_t(1);
+
+            auto syncMasterTS = curMasterTS;
+            sync->processTimestamp(syncMasterTS, curSecondaryTS);
+
+            // timestamps must never go backwards
+            QVERIFY2(syncMasterTS.count() >= lastMasterTS.count(), qPrintable(QString::number(syncMasterTS.count())
+                                                                             + " >= " + QString::number(lastMasterTS.count())));
+            lastMasterTS = syncMasterTS;
 
             // sanity checks
             if (i > calibrationCount) {
-                // by this point, timestamp adjustments shouldn't happen anymore
-                QCOMPARE(masterTS.count(), origMasterTS.count());
-
-                // clock correction offset should be at zero, since everything is in sync again
+                // correction offset should be gone
                 QCOMPARE(sync->clockCorrectionOffset().count(), 0);
+
+                // master timestamp should pass through unaltered
+                QCOMPARE(syncMasterTS.count(), calcExpectedSyncTS(sync.get(), curSecondaryTS, curMasterTS));
             } else {
-                // we are still resetting back to normal
-                QVERIFY(sync->clockCorrectionOffset().count() <= lastClockCorrectionOffset);
-                QVERIFY(masterTS.count() >= origMasterTS.count());
+                // we are still resetting back to normal, test if that's happening
+                if (i > 1)
+                    QVERIFY(sync->clockCorrectionOffset().count() <= lastClockCorrectionOffset);
+                QVERIFY2(syncMasterTS.count() <= curMasterTS.count(), qPrintable(QString::number(syncMasterTS.count())
+                                                                                + " < " + QString::number(curMasterTS.count())));
             }
 
             lastClockCorrectionOffset = sync->clockCorrectionOffset().count();
-
-            // delay
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
+
+        qDebug() << "\n## Testing fluke divergences";
+        currentDivergenceUsec = 0;
+        for (auto i = 1; i < 1200; ++i) {
+            // advance
+            curMasterTS = curMasterTS + milliseconds_t(1);
+            curSecondaryTS = curSecondaryTS + milliseconds_t(1);
+
+            auto syncMasterTS = curMasterTS;
+
+            // the master time may fluctuate depending on system load - we are simulating that here
+            bool expectFlukeDivergence = false;
+            if (i % 10 == 0) {
+                qDebug() << "Adding master fluke divergence of 500µs";
+                syncMasterTS = syncMasterTS + microseconds_t(500);
+                expectFlukeDivergence = true;
+            }
+
+            sync->processTimestamp(syncMasterTS, curSecondaryTS);
+
+            // timestamps must never go backwards
+            QVERIFY2(syncMasterTS.count() >= lastMasterTS.count(), qPrintable(QString::number(syncMasterTS.count())
+                                                                             + " >= " + QString::number(lastMasterTS.count())));
+            lastMasterTS = syncMasterTS;
+
+            if (expectFlukeDivergence) {
+                // we have a fluke divergence - the algorithm should have adjusted for that!
+                const auto secondaryTSOffAdj = (curSecondaryTS - sync->expectedOffsetToMaster()).count();
+                QVERIFY2(syncMasterTS.count() < (curMasterTS.count() + 250), qPrintable(QString::number(syncMasterTS.count())
+                                                                              + " < " + QString::number(curMasterTS.count() + 250)));
+                QVERIFY2(syncMasterTS.count() > secondaryTSOffAdj, qPrintable(QString::number(syncMasterTS.count())
+                                                                              + " > " + QString::number(secondaryTSOffAdj)));
+
+            } else {
+                // we have no fluke divergence
+                QCOMPARE(sync->clockCorrectionOffset().count(), 0);
+                QCOMPARE(syncMasterTS.count(), calcExpectedSyncTS(sync.get(), curSecondaryTS, curMasterTS));
+            }
+        }
+
 
         // run with clock divergence, the secondary clock is "faulty" and
         // runs *slower* than the master clock after a while
-        qDebug() << "Testing slower secondary clock";
-        lastMasterTS = timer->timeSinceStartMsec();
-        currentDivergenceMsec = 0;
-        for (auto i = 0; i < 1000; ++i) {
-            const auto origMasterTS = timer->timeSinceStartMsec();
-            auto masterTS = origMasterTS;
-            auto secondaryTS = masterTS + secondClockDefaultOffset + milliseconds_t(currentDivergenceMsec);
-            sync->processTimestamp(masterTS, secondaryTS);
+        qDebug() << "\n## Testing slower secondary clock";
+        QCOMPARE(sync->clockCorrectionOffset().count(), 0);
+        currentDivergenceUsec = 0;
+        adjustmentIterN = 0;
+        lastMasterTS = curMasterTS;
+        for (auto i = 1; i < 3200; ++i) {
+            // advance
+            curMasterTS = curMasterTS + milliseconds_t(1);
+            curSecondaryTS = curSecondaryTS + milliseconds_t(1);
 
-            // sanity checks
-            if (abs(currentDivergenceMsec) < (toleranceValue.count() / 1000)) {
-                QCOMPARE(sync->clockCorrectionOffset().count(), 0);
-                QCOMPARE(masterTS.count(), origMasterTS.count());
-            } else {
-                // clock correction must never "shoot over" the actual divergence
-                QVERIFY(abs(sync->clockCorrectionOffset().count()) < abs(currentDivergenceMsec - 1));
+            auto syncMasterTS = curMasterTS;
+            sync->processTimestamp(syncMasterTS, curSecondaryTS);
 
-                // clock correction offset must be negative
-                QVERIFY(sync->clockCorrectionOffset().count() <= 0);
+            // timestamps must never go backwards
+            QVERIFY2(syncMasterTS.count() >= lastMasterTS.count(), qPrintable(QString::number(syncMasterTS.count())
+                                                                             + " >= " + QString::number(lastMasterTS.count())));
+            lastMasterTS = syncMasterTS;
 
-                // timestamps must never go backwards
-                QVERIFY(masterTS.count() >= lastMasterTS.count());
+            if (adjustmentIterN > 0) {
+                adjustmentIterN--;
+                continue;
             }
 
-            // delay
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            if (abs(currentDivergenceUsec) < (toleranceValue.count() - 251)) {
+                QCOMPARE(sync->clockCorrectionOffset().count(), 0);
+                QCOMPARE(syncMasterTS.count(), calcExpectedSyncTS(sync.get(), curSecondaryTS, curMasterTS));
+            } else {
+                // clock correction must never "shoot way under" the actual divergence
+                QVERIFY2(sync->clockCorrectionOffset().count() > currentDivergenceUsec - 250, qPrintable(QString::number(sync->clockCorrectionOffset().count())
+                                                                                                   + " > " + QString::number(currentDivergenceUsec - 250)));
 
-            lastMasterTS = masterTS;
-            if (i % 10 == 0) {
-                currentDivergenceMsec--;
-                qDebug().noquote() << "DS Cycle:" << (i + 1) << "Secondary clock divergence is now" << currentDivergenceMsec << "msec";
+                // clock correction offset must be positive and "reasonably" small
+                QVERIFY(sync->clockCorrectionOffset().count() <= (currentDivergenceUsec / 21.0));
+
+                // since the master clock is considered accurate, but the secondary clock is "too slow",
+                // we expect timestamps to be shifted forward a bit in order to match them up again
+                QVERIFY(syncMasterTS.count() != curMasterTS.count());
+                QVERIFY2(syncMasterTS.count() > curMasterTS.count(), qPrintable(QString::number(syncMasterTS.count())
+                                                                                + " < " + QString::number(curMasterTS.count())));
+            }
+
+            // adjust divergence
+            if (i % 30 == 0) {
+                currentDivergenceUsec -= 100;
+                curSecondaryTS = curSecondaryTS - microseconds_t(100);
+                qDebug().noquote() << "DF Cycle:" << (i + 1) << "Secondary clock divergence is now" << currentDivergenceUsec << "µs";
+
+                // give the synchronizer some iterations to adjust
+                adjustmentIterN = floor(calibrationCount / 2.0);
             }
         }
 

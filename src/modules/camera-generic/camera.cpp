@@ -298,13 +298,13 @@ bool Camera::recordFrame(Frame &frame, SecondaryClockSynchronizer *clockSync)
 
     // timestamp in "driver time", which usually seems to be a UNIX timestamp, but
     // we can't be sure of that
-    const auto driverFrameTimestamp = milliseconds_t(static_cast<time_t> (d->cam.get(cv::CAP_PROP_POS_MSEC)));
+    const auto driverFrameTimestamp = microseconds_t(static_cast<time_t> (d->cam.get(cv::CAP_PROP_POS_MSEC) * 1000.0));
 
     // adjust the received time if necessary, gather clock sync information
     clockSync->processTimestamp(frameRecvTime, driverFrameTimestamp);
 
     // set the adjusted timestamp as frame time
-    frame.time = frameRecvTime;
+    frame.time = usecToMsec(frameRecvTime);
     if (!status) {
         fail("Failed to grab frame.");
         return false;

@@ -192,9 +192,9 @@ public:
 
     bool start();
     void stop();
-    void processTimestamps(const milliseconds_t &blocksRecvTimestamp, const std::chrono::microseconds &deviceLatency,
+    void processTimestamps(const microseconds_t &blocksRecvTimestamp, const std::chrono::microseconds &deviceLatency,
                            int blockIndex, int blockCount, VectorXu &idxTimestamps);
-    void processTimestamps(const milliseconds_t &recvTimestamp, const double &devLatencyMs,
+    void processTimestamps(const microseconds_t &recvTimestamp, const double &devLatencyMs,
                            int blockIndex, int blockCount, VectorXu &idxTimestamps);
 
 private:
@@ -239,7 +239,7 @@ public:
      * negative values indicate the secondary clock running too slow, positive values mean it is
      * running too fast compared to the master clock.
      */
-    milliseconds_t clockCorrectionOffset() const;
+    microseconds_t clockCorrectionOffset() const;
 
     /**
      * @brief Set the amount of points needed to determine the average offset explicitly.
@@ -252,19 +252,22 @@ public:
     void setExpectedClockFrequencyHz(double frequency);
 
     void setStrategies(const TimeSyncStrategies &strategies);
-    void setTolerance(const std::chrono::microseconds &tolerance);
+    void setTolerance(const microseconds_t &tolerance);
     void setTimeSyncBasename(const QString &fname);
+
+    bool isCalibrated() const;
+    microseconds_t expectedOffsetToMaster() const;
 
     bool start();
     void stop();
-    void processTimestamp(milliseconds_t &masterTimestamp, const milliseconds_t &secondaryAcqTimestamp);
+    void processTimestamp(microseconds_t &masterTimestamp, const microseconds_t &secondaryAcqTimestamp);
 
 private:
     void emitSyncDetailsChanged();
     AbstractModule *m_mod;
     QString m_id;
     TimeSyncStrategies m_strategies;
-    milliseconds_t m_lastOffsetEmission;
+    microseconds_t m_lastOffsetEmission;
     std::shared_ptr<SyncTimer> m_syTimer;
 
     uint m_toleranceUsec;
@@ -272,15 +275,15 @@ private:
 
     uint m_calibrationMaxN;
     uint m_calibrationIdx;
-    VectorXl m_clockOffsetsMsec;
+    VectorXl m_clockOffsetsUsec;
 
     bool m_haveExpectedOffset;
     uint m_expectedOffsetCalCount;
-    milliseconds_t m_expectedOffset;
+    microseconds_t m_expectedOffset;
     double m_expectedSD;
 
-    milliseconds_t m_clockCorrectionOffset;
-    milliseconds_t m_lastMasterTS;
+    microseconds_t m_clockCorrectionOffset;
+    microseconds_t m_lastMasterTS;
 
     std::unique_ptr<TimeSyncFileWriter> m_tswriter;
 };
