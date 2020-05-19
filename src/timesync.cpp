@@ -501,9 +501,9 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
 
         // check if we would still be within tolerance if we did reset the index offset completely, and if that's the case
         // reset it as the external clock for some reason may be accurate again
-        if ((m_indexOffset != 0) && (abs(avgOffsetDeviationUsec + m_timeCorrectionOffset.count()) < m_toleranceUsec)) {
-            m_indexOffset = 0;
-            m_timeCorrectionOffset = microseconds_t(0);
+        if ((m_indexOffset != 0) && (abs(avgOffsetDeviationUsec + m_timeCorrectionOffset.count()) < (m_toleranceUsec / 2))) {
+            m_indexOffset = floor(m_indexOffset / 2.0);
+            m_timeCorrectionOffset = microseconds_t(static_cast<long>(floor(m_timeCorrectionOffset.count() / 2.0)));
         }
 
         m_lastOffsetWithinTolerance = true;
