@@ -66,6 +66,10 @@ public:
     std::atomic_bool running;
     std::atomic_bool failed;
     QString runFailedReason;
+
+    bool saveInternal;
+    std::shared_ptr<EDLGroup> edlInternalData;
+    QHash<QString, std::shared_ptr<TimeSyncFileWriter>> internalTSyncWriters;
 };
 #pragma GCC diagnostic pop
 
@@ -73,6 +77,7 @@ Engine::Engine(QWidget *parentWidget)
     : QObject(parentWidget),
       d(new Engine::Private)
 {
+    d->saveInternal = false;
     d->sysInfo = new SysInfo(this);
     d->exportDirIsValid = false;
     d->running = false;
@@ -228,6 +233,10 @@ AbstractModule *Engine::createModule(const QString &id, const QString &name)
     // now listen to errors emitted by this module
     connect(mod, &AbstractModule::error, this, &Engine::receiveModuleError);
 
+    // connect synchronizer details callbacks
+    connect(mod, &AbstractModule::synchronizerDetailsChanged, this, &Engine::onSynchronizerDetailsChanged, Qt::QueuedConnection);
+    connect(mod, &AbstractModule::synchronizerOffsetChanged, this, &Engine::onSynchronizerOffsetChanged, Qt::QueuedConnection);
+
     mod->setState(ModuleState::IDLE);
     return mod;
 }
@@ -269,6 +278,16 @@ AbstractModule *Engine::moduleByName(const QString &name) const
             return mod;
     }
     return nullptr;
+}
+
+bool Engine::saveInternalDiagnostics() const
+{
+    return d->saveInternal;
+}
+
+void Engine::setSaveInternalDiagnostics(bool save)
+{
+    d->saveInternal = save;
 }
 
 bool Engine::makeDirectory(const QString &dir)
@@ -571,6 +590,15 @@ bool Engine::runInternal(const QString &exportDirPath)
                                                                        .arg(d->experimentId)
                                                                        .arg(QDateTime::currentDateTime().toString("yy-MM-dd+hh.mm"))));
     storageCollection->setPath(exportDirPath);
+
+    // if we should save internal diagnostic data, create a group for it!
+    if (d->saveInternal) {
+        d->edlInternalData = std::make_shared<EDLGroup>();
+        d->edlInternalData->setName("syntalos_internal");
+        storageCollection->addChild(d->edlInternalData);
+        qCDebug(logEngine).noquote().nospace() << "Writing some internal data to datasets for debugging and analysis";
+    }
+    d->internalTSyncWriters.clear();
 
     // fetch list of modules in their activation order
     auto orderedActiveModules = createModuleExecOrderList();
@@ -892,6 +920,12 @@ bool Engine::runInternal(const QString &exportDirPath)
     qCDebug(logEngine).noquote().nospace() << "All (non-event) engine threads joined in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
     lastPhaseTimepoint = d->timer->currentTimePoint();
 
+    if (d->saveInternal) {
+        emitStatusMessage(QStringLiteral("Finalizing internal dataset..."));
+        for (auto &tsw : d->internalTSyncWriters.values())
+            tsw->close();
+    }
+
     if (!initSuccessful) {
         // if we failed to prepare this run, don't save the manifest and also
         // remove any data that we might have already created, as well as the
@@ -971,4 +1005,39 @@ void Engine::receiveModuleError(const QString& message)
 
     if (wasRunning)
         emit runFailed(mod, message);
+}
+
+void Engine::onSynchronizerDetailsChanged(const QString &id, const TimeSyncStrategies &, const microseconds_t &)
+{
+    if (!d->saveInternal)
+        return;
+    if (d->internalTSyncWriters.value(id).get() != nullptr)
+        return;
+    QString modId;
+    auto mod = qobject_cast<AbstractModule*>(sender());
+    if (mod != nullptr)
+        modId = mod->id();
+
+    std::shared_ptr<EDLDataset> ds(new EDLDataset);
+    ds->setName(QStringLiteral("%1-%2").arg(modId).arg(id));
+    d->edlInternalData->addChild(ds);
+
+    std::shared_ptr<TimeSyncFileWriter> tsw(new TimeSyncFileWriter);
+    tsw->setFileName(ds->setDataFile("offsets.tsync"));
+    tsw->setTimeUnits(qMakePair(TimeSyncFileTimeUnit::MICROSECONDS, TimeSyncFileTimeUnit::MICROSECONDS));
+    tsw->setTimeNames(qMakePair(QStringLiteral("approx-master-time"), QStringLiteral("sync-offset")));
+    tsw->open(microseconds_t(0), QStringLiteral("SyntalosInternal::%1").arg(modId).arg(mod->name()));
+    d->internalTSyncWriters[id] = tsw;
+}
+
+void Engine::onSynchronizerOffsetChanged(const QString &id, const microseconds_t &currentOffset)
+{
+    if (!d->saveInternal)
+        return;
+
+    auto tsw = d->internalTSyncWriters.value(id);
+    if (tsw.get() == nullptr)
+        return;
+
+    tsw->writeTimes(d->timer->timeSinceStartMsec(), currentOffset);
 }

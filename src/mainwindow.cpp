@@ -46,7 +46,6 @@
 #include <QFileInfo>
 #include <QFileDialog>
 #include <memory>
-#include <QSettings>
 #include <QListWidgetItem>
 #include <QScrollBar>
 #include <QHeaderView>
@@ -96,8 +95,8 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     // Load settings and set icon theme explicitly
     // (otherwise the application may look ugly or incomplete on GNOME)
-    QSettings settings("DraguhnLab", "Syntalos");
-    auto themeName = settings.value("main/iconTheme").toString();
+    m_settings = new QSettings("DraguhnLab", "Syntalos", this);
+    auto themeName = m_settings->value("main/iconTheme").toString();
 
     // try to enforce breeze first, then the user-defined theme name, then the system default
     switchIconTheme(QStringLiteral("breeze"));
@@ -246,7 +245,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->actionGlobalConfig, &QAction::triggered, this, &MainWindow::globalConfigActionTriggered);
 
     // restore main window geometry
-    restoreGeometry(settings.value("main/geometry").toByteArray());
+    restoreGeometry(m_settings->value("main/geometry").toByteArray());
 
     // get a reference to the current engine
     m_engine = ui->graphForm->engine();
@@ -312,6 +311,7 @@ void MainWindow::runActionTriggered()
     setStopPossible(true);
     ui->runWarnWidget->setVisible(false);
 
+    m_engine->setSaveInternalDiagnostics(m_settings->value("devel/saveDiagnostics", false).toBool());
     m_engine->run();
 
     setStopPossible(false);
@@ -641,8 +641,7 @@ void MainWindow::closeEvent(QCloseEvent *event)
     if (m_engine->isRunning())
         stopActionTriggered();
 
-    QSettings settings("DraguhnLab", "Syntalos");
-    settings.setValue("main/geometry", saveGeometry());
+    m_settings->setValue("main/geometry", saveGeometry());
 
     event->accept();
 

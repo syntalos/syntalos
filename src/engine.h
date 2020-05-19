@@ -65,6 +65,9 @@ public:
     QList<AbstractModule*> activeModules() const;
     AbstractModule *moduleByName(const QString &name) const;
 
+    bool saveInternalDiagnostics() const;
+    void setSaveInternalDiagnostics(bool save);
+
 public slots:
     /**
      * @brief Run the current board, save all data
@@ -94,6 +97,10 @@ signals:
 
 private slots:
     void receiveModuleError(const QString& message);
+
+    void onSynchronizerDetailsChanged(const QString &id, const TimeSyncStrategies &strategies,
+                                      const microseconds_t &tolerance);
+    void onSynchronizerOffsetChanged(const QString &id, const microseconds_t &currentOffset);
 
 private:
     class Private;

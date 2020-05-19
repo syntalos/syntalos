@@ -69,6 +69,24 @@
        </property>
       </widget>
      </widget>
+     <widget class="QWidget" name="tabDevel">
+      <attribute name="title">
+       <string>Developer</string>
+      </attribute>
+      <widget class="QCheckBox" name="cbSaveDiagnostic">
+       <property name="geometry">
+        <rect>
+         <x>30</x>
+         <y>40</y>
+         <width>351</width>
+         <height>23</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Save additional diagnostic data with experiment</string>
+       </property>
+      </widget>
+     </widget>
     </widget>
    </item>
    <item>

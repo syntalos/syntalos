@@ -27,9 +27,21 @@ GlobalConfigDialog::GlobalConfigDialog(QWidget *parent) :
     ui->setupUi(this);
     setWindowTitle(QStringLiteral("Syntalos Settings"));
     setWindowModality(Qt::WindowModal);
+
+    m_settings = new QSettings("DraguhnLab", "Syntalos", this);
 }
 
 GlobalConfigDialog::~GlobalConfigDialog()
 {
     delete ui;
+}
+
+bool GlobalConfigDialog::saveExperimentDiagnostics() const
+{
+    return ui->cbSaveDiagnostic->isChecked();
+}
+
+void GlobalConfigDialog::on_cbSaveDiagnostic_toggled(bool checked)
+{
+    m_settings->setValue("devel/saveDiagnostics", checked);
 }

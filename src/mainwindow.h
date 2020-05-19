@@ -31,6 +31,7 @@ class QLabel;
 class ModuleManager;
 class ModuleIndicator;
 class QSvgWidget;
+class QSettings;
 namespace Syntalos {
 class Engine;
 class ModuleInfo;
@@ -106,6 +107,7 @@ private:
 
     Ui::MainWindow *ui;
 
+    QSettings *m_settings;
     QTimer *m_rtElapsedTimer;
     Engine *m_engine;
     QString m_currentProjectFname;

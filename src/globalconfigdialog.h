@@ -20,6 +20,7 @@
 #pragma once
 
 #include <QDialog>
+#include <QSettings>
 
 namespace Ui {
 class GlobalConfigDialog;
@@ -33,6 +34,12 @@ public:
     explicit GlobalConfigDialog(QWidget *parent = nullptr);
     ~GlobalConfigDialog();
 
+    bool saveExperimentDiagnostics() const;
+
+private slots:
+    void on_cbSaveDiagnostic_toggled(bool checked);
+
 private:
     Ui::GlobalConfigDialog *ui;
+    QSettings *m_settings;
 };
