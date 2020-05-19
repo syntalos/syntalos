@@ -149,8 +149,9 @@ bool Rhd2000Module::prepare(const TestSubject &)
     clockSync->setStrategies(TimeSyncStrategy::WRITE_TSYNCFILE);
     clockSync->setTimeSyncBasename(intanBaseFilename);
 
-    // permit 1ms tolerance
-    clockSync->setTolerance(std::chrono::microseconds(1000));
+    // permit 2ms tolerance - this was a very realistic tolerance to achieve in tests,
+    // while lower values resulted in constant adjustment attempts
+    clockSync->setTolerance(std::chrono::microseconds(2000));
 
     // we only permit calibration with the very first data block - this seems to be sufficient and
     // yielded the best results (due to device and USB buffering, the later data blocks are more
