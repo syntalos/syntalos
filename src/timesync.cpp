@@ -327,7 +327,7 @@ FreqCounterSynchronizer::FreqCounterSynchronizer(std::shared_ptr<SyncTimer> mast
 
     // make our existence known to the system
     if (m_mod != nullptr)
-        emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec), microseconds_t(0));
+        emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec));
 }
 
 FreqCounterSynchronizer::~FreqCounterSynchronizer()
@@ -366,7 +366,7 @@ void FreqCounterSynchronizer::setStrategies(const TimeSyncStrategies &strategies
     }
     m_strategies = strategies;
     if (m_mod != nullptr)
-        emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec), microseconds_t(0));
+        emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec));
 }
 
 void FreqCounterSynchronizer::setTolerance(const std::chrono::microseconds &tolerance)
@@ -377,7 +377,7 @@ void FreqCounterSynchronizer::setTolerance(const std::chrono::microseconds &tole
     }
     m_toleranceUsec = tolerance.count();
     if (m_mod != nullptr)
-        emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec), microseconds_t(0));
+        emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec));
 }
 
 bool FreqCounterSynchronizer::start()
@@ -581,22 +581,6 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &recvTimest
     // we want the device latency in microseconds
     auto deviceLatency = std::chrono::microseconds(static_cast<long>(devLatencyMs * 1000));
     processTimestamps(recvTimestamp, deviceLatency, blockIndex, blockCount, idxTimestamps);
-}
-
-inline
-void FreqCounterSynchronizer::writeTsyncFileBlock(const VectorXu &timeIndices, const microseconds_t &lastOffset)
-{
-    // if we only have a very short vector, we don't also add the offset information to the first
-    // datapoint
-    const auto lastIdxTimeUsec = microseconds_t(static_cast<qint64>((static_cast<double>(timeIndices[timeIndices.rows() - 1]) / m_freq) * 1000.0 * 1000.0));
-    if (timeIndices.size() <= 4) {
-        m_tswriter->writeTimes(lastIdxTimeUsec, lastIdxTimeUsec + lastOffset);
-        return;
-    }
-
-    const auto firstIdxTimeUsec = microseconds_t(static_cast<qint64>((static_cast<double>(timeIndices[0]) / m_freq) * 1000.0 * 1000.0));
-    m_tswriter->writeTimes(firstIdxTimeUsec, firstIdxTimeUsec + (lastOffset - (lastIdxTimeUsec - firstIdxTimeUsec)));
-    m_tswriter->writeTimes(lastIdxTimeUsec, lastIdxTimeUsec + lastOffset);
 }
 
 // --------------------------
@@ -862,5 +846,5 @@ void SecondaryClockSynchronizer::processTimestamp(microseconds_t &masterTimestam
 void SecondaryClockSynchronizer::emitSyncDetailsChanged()
 {
     if (m_mod != nullptr)
-        emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, microseconds_t(m_toleranceUsec), milliseconds_t(0));
+        emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, microseconds_t(m_toleranceUsec));
 }

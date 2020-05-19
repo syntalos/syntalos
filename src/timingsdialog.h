@@ -45,7 +45,6 @@ public:
 private:
     QLabel *m_lblTitle;
     QLabel *m_lblStrategies;
-    QLabel *m_lblInterval;
     QLabel *m_lblTolerance;
     QLabel *m_lblOffset;
     QLabel *m_lblInfo;
@@ -60,9 +59,8 @@ public:
     ~TimingsDialog();
 
     void onSynchronizerDetailsChanged(const QString &id, const TimeSyncStrategies &strategies,
-                                      const std::chrono::microseconds tolerance,
-                                      const std::chrono::microseconds checkInterval);
-    void onSynchronizerOffsetChanged(const QString &id, const std::chrono::microseconds currentOffset);
+                                      const microseconds_t &tolerance);
+    void onSynchronizerOffsetChanged(const QString &id, const microseconds_t &currentOffset);
 
     void clear();
 

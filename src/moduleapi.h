@@ -557,9 +557,8 @@ signals:
     void portsConnected(const VarStreamInputPort *inPort, const StreamOutputPort *outPort);
     void portConfigurationUpdated();
     void synchronizerDetailsChanged(const QString &id, const TimeSyncStrategies &strategies,
-                                    const std::chrono::microseconds tolerance,
-                                    const std::chrono::microseconds checkInterval);
-    void synchronizerOffsetChanged(const QString &id, const std::chrono::microseconds currentOffset);
+                                    const microseconds_t &tolerance);
+    void synchronizerOffsetChanged(const QString &id, const microseconds_t &currentOffset);
 
 protected:
     void raiseError(const QString& message);

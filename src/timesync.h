@@ -195,8 +195,6 @@ public:
                            int blockIndex, int blockCount, VectorXu &idxTimestamps);
 
 private:
-    void writeTsyncFileBlock(const VectorXu &timeIndices, const microseconds_t &lastOffset);
-
     AbstractModule *m_mod;
     QString m_id;
     TimeSyncStrategies m_strategies;
