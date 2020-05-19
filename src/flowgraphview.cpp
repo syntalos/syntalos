@@ -2055,7 +2055,9 @@ bool FlowGraphView::saveState()
         const QColor &color = iter.value();
         varColors.insert("0x" + QString::number(port_type, 16), color.name());
     }
-    m_settings.insert(ColorsGroup, varColors);
+
+    // FIXME: We don't save colors for now
+    //m_settings.insert(ColorsGroup, varColors);
 
     return true;
 }
