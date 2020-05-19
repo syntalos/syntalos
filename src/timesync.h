@@ -222,6 +222,7 @@ private:
     double m_freq;
     double m_timePerPointUs;
     int m_indexOffset;
+    bool m_applyIndexOffset;
 
     std::unique_ptr<TimeSyncFileWriter> m_tswriter;
 };

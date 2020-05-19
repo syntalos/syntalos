@@ -402,6 +402,7 @@ bool FreqCounterSynchronizer::start()
     m_lastTimeIndex = 0;
     m_indexOffset = 0;
     m_offsetChangeWaitBlocks = 0;
+    m_applyIndexOffset = false;
 
     return true;
 }
@@ -420,7 +421,7 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     assert(blockIndex < blockCount);
 
     // adjust timestamp based on our current offset
-    if (m_indexOffset != 0)
+    if (m_applyIndexOffset && (m_indexOffset != 0))
         idxTimestamps -= VectorXu::Ones(idxTimestamps.rows()) * m_indexOffset;
 
     // timestamp when (as far and well as we can guess...) the current block was actually acquired, in microseconds
@@ -433,9 +434,14 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     // value of the last entry of the current block
     const auto secondaryLastIdx = idxTimestamps[idxTimestamps.rows() - 1];
 
-    // timestamp, in microseconds, when according to the device frequency the last datapoint of this block was acquired
-    // since we assume a zero-indxed time series, we need to add one to the secondary index
-    const auto secondaryLastTS = microseconds_t(std::lround((secondaryLastIdx + 1) * m_timePerPointUs));
+    // Timestamp, in microseconds, when according to the device frequency the last datapoint of this block was acquired
+    // since we assume a zero-indexed time series, we need to add one to the secondary index
+    // If the index offset has already been applied, take the value as-is, otherwise apply our current offset even if
+    // modifications to the data are not permitted (we need the corrected last timestamp here, even if we don't apply
+    // it to the output data and are just writing a tsync file)
+    const auto secondaryLastTS = m_applyIndexOffset?
+                                    microseconds_t(std::lround((secondaryLastIdx + 1) * m_timePerPointUs)) :
+                                    microseconds_t(std::lround((secondaryLastIdx + 1 - m_indexOffset) * m_timePerPointUs));
 
     // calculate time offset
     const long long curOffsetUsec = (secondaryLastTS - masterAssumedAcqTS).count();
@@ -540,30 +546,27 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     // (there is a chance we can only move timestamps forward in time)
     const auto newIndexOffset = static_cast<long>(floor(((newTimeCorrOffset.count() / 1000.0 / 1000.0) * m_freq) / 2.0));
 
-    bool updateIndex = false;
-    if (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD)) {
-        if (newTimeCorrOffset.count() > 0)
-            updateIndex = true;
-    }
-    if (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD)) {
-        if (newTimeCorrOffset.count() < 0)
-            updateIndex = true;
-    }
-
     // apply the new offset, if we have one
-    if (updateIndex) {
-        m_timeCorrectionOffset = newTimeCorrOffset;
+    m_timeCorrectionOffset = newTimeCorrOffset;
+    const bool initialOffset = m_indexOffset == 0;
+    m_indexOffset = (m_indexOffset + newIndexOffset) / 2;
 
-        if (m_indexOffset == 0) {
-            m_indexOffset = (m_indexOffset + newIndexOffset) / 2;
+    if (m_indexOffset != 0) {
+        m_offsetChangeWaitBlocks = floor(m_calibrationMaxBlockN / 4.0);
+
+        m_applyIndexOffset = false;
+        if (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD)) {
+            if (m_indexOffset < 0)
+                m_applyIndexOffset = true;
+        }
+        if (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD)) {
+            if (m_indexOffset > 0)
+                m_applyIndexOffset = true;
+        }
+
+        // already apply offset as gradient to the current vector, if we are permitted to make that change
+        if (initialOffset && m_applyIndexOffset)
             idxTimestamps -= VectorXu::LinSpaced(idxTimestamps.rows(), 0, m_indexOffset);
-        } else {
-            m_indexOffset = (m_indexOffset + newIndexOffset) / 2;
-        }
-
-        if (m_indexOffset != 0) {
-            m_offsetChangeWaitBlocks = floor(m_calibrationMaxBlockN / 4.0);
-        }
     }
 
     // we're out of sync, record that fact to the tsync file if we are writing one
@@ -807,10 +810,6 @@ void SecondaryClockSynchronizer::processTimestamp(microseconds_t &masterTimestam
     }
     m_lastOffsetWithinTolerance = false;
 
-    // write offset info to tsync file before we make any adjustments to the master timestamp
-    if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
-        m_tswriter->writeTimes(secondaryAcqTimestamp, masterTimestamp);
-
     // Emit offset information to the main controller about every 10sec or slower
     // in case we run at slower speeds
     if (masterTimestamp.count() > (m_lastOffsetEmission.count() + (10 * 1000 * 1000))) {
@@ -820,7 +819,15 @@ void SecondaryClockSynchronizer::processTimestamp(microseconds_t &masterTimestam
     }
 
     // try to adjust a potential external clock slowly (and also adjust our timestamps slowly)
-    m_clockCorrectionOffset = microseconds_t(std::lround(((m_clockCorrectionOffset.count() * 15) + avgOffsetDeviationUsec) / (15 + 1.0)));
+    const auto newClockCorrectionOffset = microseconds_t(std::lround(((m_clockCorrectionOffset.count() * 15) + avgOffsetDeviationUsec) / (15 + 1.0)));
+
+    // write offset info to tsync file before we make any adjustments to the master timestamp
+    if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE)) {
+        if (newClockCorrectionOffset != m_clockCorrectionOffset)
+            m_tswriter->writeTimes(secondaryAcqTimestamp, masterTimestamp);
+    }
+
+    m_clockCorrectionOffset = newClockCorrectionOffset;
 
     // the clock is out of sync, let's make adjustments!
 
