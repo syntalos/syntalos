@@ -153,13 +153,10 @@ bool Rhd2000Module::prepare(const TestSubject &)
     // while lower values resulted in constant adjustment attempts
     clockSync->setTolerance(std::chrono::microseconds(2000));
 
-    // check accuracy every two seconds
-    clockSync->setCheckInterval(std::chrono::seconds(2));
-
     // we only permit calibration with the very first data block - this seems to be sufficient and
     // yielded the best results (due to device and USB buffering, the later data blocks are more
     // susceptible to error)
-    clockSync->setMinimumBaseTSCalibrationPoints(Rhd2000DataBlock::getSamplesPerDataBlock());
+    clockSync->setCalibrationBlocksCount((m_intanUi->getSampleRate() / Rhd2000DataBlock::getSamplesPerDataBlock()) * 10);
 
     if (!clockSync->start()) {
         raiseError(QStringLiteral("Unable to set up timestamp synchronizer!"));

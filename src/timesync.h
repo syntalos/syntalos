@@ -114,12 +114,12 @@ public:
     void setTimeNames(QPair<QString, QString> pair);
     void setTimeUnits(QPair<TimeSyncFileTimeUnit, TimeSyncFileTimeUnit> pair);
     void setFileName(const QString &fname);
-    bool open(const microseconds_t &checkInterval, const microseconds_t &tolerance, const QString &modName);
+    bool open(const microseconds_t &tolerance, const QString &modName);
     void flush();
     void close();
 
     void writeTimes(const microseconds_t &deviceTime, const microseconds_t &masterTime);
-    void writeTimes(const long long &timeIndex, const long long &masterTime);
+    void writeTimes(const long long &timeIndex, const microseconds_t &masterTime);
 
 private:
     QFile *m_file;
@@ -147,7 +147,6 @@ public:
 
     QString moduleName() const;
     time_t creationTime() const;
-    microseconds_t checkInterval() const;
     microseconds_t tolerance() const;
     QPair<QString, QString> timeNames() const;
     QPair<TimeSyncFileTimeUnit, TimeSyncFileTimeUnit> timeUnits() const;
@@ -158,7 +157,6 @@ private:
     QString m_lastError;
     QString m_moduleName;
     qint64 m_creationTime;
-    microseconds_t m_checkInterval;
     microseconds_t m_tolerance;
     QList<QPair<long long, long long>> m_times;
     QPair<QString, QString> m_timeNames;
@@ -181,18 +179,17 @@ public:
     explicit FreqCounterSynchronizer(std::shared_ptr<SyncTimer> masterTimer, AbstractModule *mod, double frequencyHz, const QString &id = nullptr);
     ~FreqCounterSynchronizer();
 
-    milliseconds_t timeBase() const;
-    int indexOffset() const;
-
-    void setMinimumBaseTSCalibrationPoints(int count);
+    void setCalibrationBlocksCount(int count);
     void setStrategies(const TimeSyncStrategies &strategies);
-    void setCheckInterval(const milliseconds_t &interval);
     void setTolerance(const std::chrono::microseconds &tolerance);
     void setTimeSyncBasename(const QString &fname);
 
+    bool isCalibrated() const;
+    int indexOffset() const;
+
     bool start();
     void stop();
-    void processTimestamps(const microseconds_t &blocksRecvTimestamp, const std::chrono::microseconds &deviceLatency,
+    void processTimestamps(const microseconds_t &blocksRecvTimestamp, const microseconds_t &deviceLatency,
                            int blockIndex, int blockCount, VectorXu &idxTimestamps);
     void processTimestamps(const microseconds_t &recvTimestamp, const double &devLatencyMs,
                            int blockIndex, int blockCount, VectorXu &idxTimestamps);
@@ -203,19 +200,27 @@ private:
     AbstractModule *m_mod;
     QString m_id;
     TimeSyncStrategies m_strategies;
-    milliseconds_t m_lastOffsetEmission;
+    microseconds_t m_lastOffsetEmission;
     std::shared_ptr<SyncTimer> m_syTimer;
-    bool m_lastOffsetWithinTolerance;
 
     uint m_toleranceUsec;
-    milliseconds_t m_checkInterval;
-    milliseconds_t m_lastUpdateTime;
+    bool m_lastOffsetWithinTolerance;
 
-    int m_minimumBaseTSCalibrationPoints;
-    int m_baseTSCalibrationCount;
-    double m_baseTimeMsec;
+    uint m_calibrationMaxBlockN;
+    uint m_calibrationIdx;
+    VectorXl m_tsOffsetsUsec;
+
+    bool m_haveExpectedOffset;
+    uint m_expectedOffsetCalCount;
+    microseconds_t m_expectedOffset;
+    double m_expectedSD;
+
+    uint m_offsetChangeWaitBlocks;
+    microseconds_t m_timeCorrectionOffset;
+    uint m_lastTimeIndex;
 
     double m_freq;
+    double m_timePerPointUs;
     int m_indexOffset;
 
     std::unique_ptr<TimeSyncFileWriter> m_tswriter;

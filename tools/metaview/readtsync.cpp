@@ -36,7 +36,6 @@ int displayTSyncMetadata(const QString &fname)
     std::cout << "File: " << "TimeSync" << "\n"
               << "Module: " << tsr->moduleName().toStdString() << "\n"
               << "CreationTimestampUnix: " << tsr->creationTime() << "\n"
-              << "CheckInterval: " << tsr->checkInterval().count() << " µs\n"
               << "Tolerance: " << tsr->tolerance().count() << " µs\n"
               << "TimeUnits: " << timeSyncFileTimeUnitToString(tsr->timeUnits().first).toStdString() << "; "
                                << timeSyncFileTimeUnitToString(tsr->timeUnits().second).toStdString() << "\n"

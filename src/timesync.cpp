@@ -139,7 +139,7 @@ void TimeSyncFileWriter::setFileName(const QString &fname)
     m_file->setFileName(tsyncFname);
 }
 
-bool TimeSyncFileWriter::open(const microseconds_t &checkInterval, const microseconds_t &tolerance, const QString &modName)
+bool TimeSyncFileWriter::open(const microseconds_t &tolerance, const QString &modName)
 {
     if (m_file->isOpen())
         m_file->close();
@@ -158,9 +158,9 @@ bool TimeSyncFileWriter::open(const microseconds_t &checkInterval, const microse
     m_stream << (quint32) TSYNC_FILE_MAGIC;
     m_stream << (quint32) TSYNC_FILE_FORMAT_VERSION;
     m_stream << (qint64) currentTime.toTime_t();
-    m_stream << (quint32) checkInterval.count();
     m_stream << (quint32) tolerance.count();
     m_stream << modName.toUtf8();
+    m_stream << QString().toUtf8(); // custom JSON values, reserved for future use
     m_stream << m_timeNames.first.toUtf8();
     m_stream << m_timeNames.second.toUtf8();
     m_stream << (quint16) m_timeUnits.first;
@@ -191,11 +191,11 @@ void TimeSyncFileWriter::writeTimes(const microseconds_t &deviceTime, const micr
     m_stream << (qint64) masterTime.count();
 }
 
-void TimeSyncFileWriter::writeTimes(const long long &timeIndex, const long long &masterTime)
+void TimeSyncFileWriter::writeTimes(const long long &timeIndex, const microseconds_t &masterTime)
 {
     m_stream << (quint32) m_index++;
     m_stream << (qint64) timeIndex;
-    m_stream << (qint64) masterTime;
+    m_stream << (qint64) masterTime.count();
 }
 
 TimeSyncFileReader::TimeSyncFileReader()
@@ -216,7 +216,6 @@ bool TimeSyncFileReader::open(const QString &fname)
     // read the header
     quint32 magic;
     quint32 formatVersion;
-    quint32 checkIntervalUsec;
     quint32 toleranceUsec;
     quint16 timeUnitDev;
     quint16 timeUnitMaster;
@@ -228,12 +227,13 @@ bool TimeSyncFileReader::open(const QString &fname)
     }
 
     QByteArray modNameUtf8;
+    QByteArray extraJsonUtf8;
     QByteArray timeNames1Utf8;
     QByteArray timeNames2Utf8;
     in >> m_creationTime
-       >> checkIntervalUsec
        >> toleranceUsec
        >> modNameUtf8
+       >> extraJsonUtf8
        >> timeNames1Utf8
        >> timeNames2Utf8
        >> timeUnitDev
@@ -242,7 +242,6 @@ bool TimeSyncFileReader::open(const QString &fname)
     m_moduleName = QString::fromUtf8(modNameUtf8);
     m_timeNames.first = QString::fromUtf8(timeNames1Utf8);
     m_timeNames.second = QString::fromUtf8(timeNames2Utf8);
-    m_checkInterval = microseconds_t(checkIntervalUsec);
     m_tolerance = microseconds_t(toleranceUsec);
     m_timeUnits.first = static_cast<TimeSyncFileTimeUnit>(timeUnitDev);
     m_timeUnits.second = static_cast<TimeSyncFileTimeUnit>(timeUnitMaster);
@@ -283,11 +282,6 @@ time_t TimeSyncFileReader::creationTime() const
     return m_creationTime;
 }
 
-microseconds_t TimeSyncFileReader::checkInterval() const
-{
-    return m_checkInterval;
-}
-
 microseconds_t TimeSyncFileReader::tolerance() const
 {
     return m_tolerance;
@@ -319,20 +313,21 @@ FreqCounterSynchronizer::FreqCounterSynchronizer(std::shared_ptr<SyncTimer> mast
       m_lastOffsetEmission(0),
       m_syTimer(masterTimer),
       m_toleranceUsec(SECONDARY_CLOCK_TOLERANCE.count()),
-      m_checkInterval(DEFAULT_CLOCKSYNC_CHECK_INTERVAL),
-      m_lastUpdateTime(milliseconds_t(DEFAULT_CLOCKSYNC_CHECK_INTERVAL * -1)),
-      m_minimumBaseTSCalibrationPoints(180), // 180 datapoints for base time calibration by default
-      m_baseTSCalibrationCount(0),
-      m_baseTimeMsec(0),
+      m_calibrationMaxBlockN(500),
+      m_calibrationIdx(0),
+      m_haveExpectedOffset(false),
       m_freq(frequencyHz),
-      m_indexOffset(0),
       m_tswriter(new TimeSyncFileWriter)
 {
     if (m_id.isEmpty())
         m_id = createRandomString(4);
 
+    // time one datapoint takes to acquire, if the frequency is accurate, in microseconds
+    m_timePerPointUs = (1.0 / m_freq) * 1000.0 * 1000.0;
+
     // make our existence known to the system
-    emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec), m_checkInterval);
+    if (m_mod != nullptr)
+        emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec), microseconds_t(0));
 }
 
 FreqCounterSynchronizer::~FreqCounterSynchronizer()
@@ -340,24 +335,16 @@ FreqCounterSynchronizer::~FreqCounterSynchronizer()
     stop();
 }
 
-milliseconds_t FreqCounterSynchronizer::timeBase() const
-{
-    return milliseconds_t(static_cast<int>(std::round(m_baseTimeMsec)));
-}
-
 int FreqCounterSynchronizer::indexOffset() const
 {
     return m_indexOffset;
 }
 
-void FreqCounterSynchronizer::setMinimumBaseTSCalibrationPoints(int count)
+void FreqCounterSynchronizer::setCalibrationBlocksCount(int count)
 {
-    // impose some limits on the amount of timepoints we use for calibration
     if (count <= 0)
         count = 3;
-    if (count > 1500)
-        count = 1500;
-    m_minimumBaseTSCalibrationPoints = count;
+    m_calibrationMaxBlockN = count;
 }
 
 void FreqCounterSynchronizer::setTimeSyncBasename(const QString &fname)
@@ -366,51 +353,56 @@ void FreqCounterSynchronizer::setTimeSyncBasename(const QString &fname)
     m_strategies = m_strategies.setFlag(TimeSyncStrategy::WRITE_TSYNCFILE, !fname.isEmpty());
 }
 
+bool FreqCounterSynchronizer::isCalibrated() const
+{
+    return m_haveExpectedOffset;
+}
+
 void FreqCounterSynchronizer::setStrategies(const TimeSyncStrategies &strategies)
 {
-    if (m_baseTSCalibrationCount != 0) {
+    if (m_haveExpectedOffset) {
         qWarning().noquote() << "Rejected strategy change on active FreqCounter Synchronizer for" << m_mod->name();
         return;
     }
     m_strategies = strategies;
-    emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec), m_checkInterval);
-}
-
-void FreqCounterSynchronizer::setCheckInterval(const milliseconds_t &interval)
-{
-    if (m_baseTSCalibrationCount != 0) {
-        qWarning().noquote() << "Rejected check-interval change on active FreqCounter Synchronizer for" << m_mod->name();
-        return;
-    }
-    m_checkInterval = interval;
-    emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec), m_checkInterval);
+    if (m_mod != nullptr)
+        emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec), microseconds_t(0));
 }
 
 void FreqCounterSynchronizer::setTolerance(const std::chrono::microseconds &tolerance)
 {
-    if (m_baseTSCalibrationCount != 0) {
+    if (m_haveExpectedOffset) {
         qWarning().noquote() << "Rejected tolerance change on active FreqCounter Synchronizer for" << m_mod->name();
         return;
     }
     m_toleranceUsec = tolerance.count();
-    emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec), m_checkInterval);
+    if (m_mod != nullptr)
+        emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec), microseconds_t(0));
 }
 
 bool FreqCounterSynchronizer::start()
 {
-    if (m_baseTSCalibrationCount != 0) {
+    if (m_haveExpectedOffset) {
         qWarning().noquote() << "Restarting a FreqCounter Synchronizer that has already been used is not permitted. This is an issue in " << m_mod->name();
         return false;
     }
     if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE)) {
-        if (!m_tswriter->open(m_checkInterval, microseconds_t(m_toleranceUsec), m_mod->name())) {
+        if (!m_tswriter->open(microseconds_t(m_toleranceUsec), m_mod->name())) {
             qCritical().noquote().nospace() << "Unable to open timesync file for " << m_mod->name() << "[" << m_id << "]: " << m_tswriter->lastError();
             return false;
         }
     }
-    m_baseTimeMsec = 0;
-    m_baseTSCalibrationCount = 0;
+
     m_lastOffsetWithinTolerance = false;
+    m_timeCorrectionOffset = microseconds_t(0);
+    m_haveExpectedOffset = false;
+    m_calibrationIdx = 0;
+    m_expectedOffsetCalCount = 0;
+    m_tsOffsetsUsec = VectorXl::Zero(m_calibrationMaxBlockN);
+    m_lastTimeIndex = 0;
+    m_indexOffset = 0;
+    m_offsetChangeWaitBlocks = 0;
+
     return true;
 }
 
@@ -419,119 +411,166 @@ void FreqCounterSynchronizer::stop()
     m_tswriter->close();
 }
 
-void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecvTimestamp, const std::chrono::microseconds &deviceLatency,
+void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecvTimestamp, const microseconds_t &deviceLatency,
                                                 int blockIndex, int blockCount, VectorXu &idxTimestamps)
 {
+    // basic input value sanity checks
+    assert(blockCount >= 1);
+    assert(blockIndex >= 0);
+    assert(blockIndex < blockCount);
+
     // adjust timestamp based on our current offset
     if (m_indexOffset != 0)
-        idxTimestamps += VectorXu::LinSpaced(idxTimestamps.rows(), 0, m_indexOffset);
+        idxTimestamps -= VectorXu::Ones(idxTimestamps.rows()) * m_indexOffset;
 
-    // check if we are calibrating our timebase and - if not - see if we have to check for
-    // timing offsets already
-    const auto currentTimestamp = m_syTimer->timeSinceStartMsec();
-    if (m_baseTSCalibrationCount >= m_minimumBaseTSCalibrationPoints) {
-        // do nothing if we aren't checking the timestamp for validity yet
-        if ((currentTimestamp - m_lastUpdateTime) < m_checkInterval)
+    // timestamp when (as far and well as we can guess...) the current block was actually acquired, in microseconds
+    // and based on the master clock timestamp generated upon data receival
+    const microseconds_t masterAssumedAcqTS = blocksRecvTimestamp
+                                                - microseconds_t(std::lround(m_timePerPointUs * ((blockCount - 1) * idxTimestamps.rows())))
+                                                + microseconds_t(std::lround(m_timePerPointUs * (blockIndex * idxTimestamps.rows())))
+                                                - deviceLatency;
+
+    // value of the last entry of the current block
+    const auto secondaryLastIdx = idxTimestamps[idxTimestamps.rows() - 1];
+
+    // timestamp, in microseconds, when according to the device frequency the last datapoint of this block was acquired
+    // since we assume a zero-indxed time series, we need to add one to the secondary index
+    const auto secondaryLastTS = microseconds_t(std::lround((secondaryLastIdx + 1) * m_timePerPointUs));
+
+    // calculate time offset
+    const long long curOffsetUsec = (secondaryLastTS - masterAssumedAcqTS).count();
+
+    // calculate offsets without the new datapoint included
+    const auto avgOffsetUsec = m_tsOffsetsUsec.mean();
+    const auto avgOffsetDeviationUsec = avgOffsetUsec - m_expectedOffset.count();
+
+    // add new datapoint to our "memory" vector
+    m_tsOffsetsUsec[m_calibrationIdx++] = curOffsetUsec;
+    if (m_calibrationIdx >= m_calibrationMaxBlockN)
+        m_calibrationIdx = 0;
+
+    // we do nothing more until we have enought measurements to estimate the "natural" timer offset
+    // of the secondary clock and master clock
+    if (!m_haveExpectedOffset) {
+        m_expectedOffsetCalCount++;
+
+        // we want a bit more values than needed for perpetual calibration, because the first
+        // few values in the vector stem from the initialization phase of Syntalos and may have
+        // a higher variance than actually expected during normal operation (as in the startup
+        // phase, the system load is high and lots of external devices are starting up)
+        if (m_expectedOffsetCalCount < (m_calibrationMaxBlockN + (m_calibrationMaxBlockN / 2)))
             return;
-    }
 
-    m_lastUpdateTime = currentTimestamp;
+        m_expectedSD = sqrt(vectorVariance(m_tsOffsetsUsec));
+        m_expectedOffset = microseconds_t(std::lround(vectorMedianInplace(m_tsOffsetsUsec)));
 
-    // time one datapoint takes to acquire, if the frequency is accurate, in milliseconds
-    const double timePerPointMs = (idxTimestamps.rows() / m_freq) * 1000.0;
+        qCDebug(logTimeSync).noquote().nospace() << QTime::currentTime().toString() << "[" << m_id << "] "
+                << "Determined expected time offset: " << m_expectedOffset.count() << "µs "
+                << "SD: " << m_expectedSD;
+        m_haveExpectedOffset = true;
 
-    // timestamp when (as far and well as we can guess...) the data was actually acquired, in milliseconds
-    const auto assumedAcqTS = std::chrono::duration_cast<milliseconds_t>(blocksRecvTimestamp
-                                                                         - milliseconds_t(qRound(timePerPointMs * (blockCount * idxTimestamps.rows())))
-                                                                         + milliseconds_t(qRound(timePerPointMs * (blockIndex * idxTimestamps.rows())))
-                                                                         - deviceLatency);
+        // if we are writing a timesync-file, write the initial two timestamps when we
+        // calibrated the system to the file (as additional verification point)
+        if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
+            m_tswriter->writeTimes(secondaryLastTS, masterAssumedAcqTS);
 
-    if (m_baseTSCalibrationCount < m_minimumBaseTSCalibrationPoints) {
-        // we are in the timebase calibration phase, so update our timebase
-
-        // we make the bold assumption here that the assumedAcq timestamp is when the last timepoint was acquired
-        m_baseTSCalibrationCount += idxTimestamps.rows();
-
-        // guess the time when the first data point was acquired based on the current timestamp,
-        // adjust our timebase based on that
-        m_baseTimeMsec += (assumedAcqTS.count() - (m_baseTSCalibrationCount / m_freq * 1000.0)) / (m_minimumBaseTSCalibrationPoints / idxTimestamps.rows());
-
-        if (m_baseTSCalibrationCount >= m_minimumBaseTSCalibrationPoints) {
-            // always write down the starting time, if we are using a timesync-file
-            if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
-                 m_tswriter->writeTimes(static_cast<int>(std::round(m_baseTimeMsec * 1000)), 0);
-        }
-
-        // until calibration is done, we can't do any offset calculations
+        m_lastTimeIndex = secondaryLastIdx;
         return;
     }
 
-    // guess the actual timestamps in relation to the received timestamp in milliseconds for the given index vector
-    VectorXd times = (idxTimestamps.cast<double>() / m_freq) * 1000.0;
-    times += m_baseTimeMsec * VectorXd::Ones(times.rows());
+    // do nothing if we have not enough average deviation from the norm
+    if (abs(avgOffsetDeviationUsec) < m_toleranceUsec) {
+        // we are within tolerance range!
+        // share the good news with the controller! (immediately on change, or every 30sec otherwise)
+        if ((blockIndex == 0) &&
+                ((!m_lastOffsetWithinTolerance)
+                 || (blocksRecvTimestamp.count() > (m_lastOffsetEmission.count() + (30 * 1000 * 1000))))) {
+            if (m_mod != nullptr)
+                emit m_mod->synchronizerOffsetChanged(m_id, microseconds_t(avgOffsetDeviationUsec));
+            m_lastOffsetEmission = blocksRecvTimestamp;
+        }
 
-    // calculate current offset
-    const auto lastTimestamp = std::chrono::microseconds(static_cast<int64_t>(std::round(times[times.rows() - 1] * 1000.0)));
-    const auto timeOffset = (std::chrono::duration_cast<std::chrono::microseconds>(assumedAcqTS - lastTimestamp));
-    const auto timeOffsetUsec = timeOffset.count();
+        // check if we would still be within tolerance if we did reset the index offset completely, and if that's the case
+        // reset it as the external clock for some reason may be accurate again
+        if ((m_indexOffset != 0) && (abs(avgOffsetDeviationUsec + m_timeCorrectionOffset.count()) < m_toleranceUsec)) {
+            m_indexOffset = 0;
+            m_timeCorrectionOffset = microseconds_t(0);
+        }
 
-    if (std::abs(timeOffsetUsec) < m_toleranceUsec) {
-        // everything is within tolerance range, no adjustments needed
-        // share the good news with the controller! (only once, for now)
-        if (!m_lastOffsetWithinTolerance)
-            emit m_mod->synchronizerOffsetChanged(m_id, timeOffset);
         m_lastOffsetWithinTolerance = true;
+        m_lastTimeIndex = secondaryLastIdx;
         return;
     }
     m_lastOffsetWithinTolerance = false;
 
-    if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
-        writeTsyncFileBlock(idxTimestamps, timeOffset);
-
-    // Emit offset change information to the main controller every 2sec or slower
-    // in case we run at slower speeds
-    if ((m_lastOffsetEmission.count() + 2000) < (blocksRecvTimestamp.count() / 1000)) {
-        emit m_mod->synchronizerOffsetChanged(m_id, timeOffset);
-        m_lastOffsetEmission = currentTimestamp;
-    }
-
-    const bool shiftFwdAllowed = m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD);
-    const bool shiftBwdAllowed = m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD);
-
-    if (!shiftFwdAllowed && !shiftBwdAllowed) {
-        // no timeshifting is permitted, there is nothing left to do for us
+    const auto offsetsSD = sqrt(vectorVariance(m_tsOffsetsUsec, avgOffsetUsec));
+    if (abs(avgOffsetUsec - curOffsetUsec) > (offsetsSD * 1.5)) {
+        // the current offset diff to the moving average offset is not within reasonable
+        // standard deviation range. This means the data point we just added is likely
+        // a fluke, potentially due to a context switch or system load spike.
+        // We just ignore those events completely and don't make time adjustments based on them.
+        if (m_offsetChangeWaitBlocks > 0)
+            m_offsetChangeWaitBlocks--;
+        m_lastTimeIndex = secondaryLastIdx;
         return;
     }
 
-    if (timeOffsetUsec > 0) {
-        // the external devive is running too slow
+    // don't do even more adjustments until we have lived with the current one for
+    // half a calibration phase.
+    // otherwise the system will rapidly shift the index around, usually never reaching
+    // a stable equilibrium
+    if (m_offsetChangeWaitBlocks > 0) {
+        m_offsetChangeWaitBlocks--;
+        m_lastTimeIndex = secondaryLastIdx;
+        return;
+    }
 
-        if (!shiftFwdAllowed) {
-            // we can not shift indices forward, but we would need to do that in order to adjust the timestamp
-            // there is nothing we can do here anymore
-            return;
+    // Emit offset information to the main controller about every 10sec or slower
+    // in case we run at slower speeds
+    if ((blockIndex == 0) && (masterAssumedAcqTS.count() > (m_lastOffsetEmission.count() + (10 * 1000 * 1000)))) {
+        if (m_mod != nullptr)
+            emit m_mod->synchronizerOffsetChanged(m_id, microseconds_t(avgOffsetDeviationUsec));
+        m_lastOffsetEmission = blocksRecvTimestamp;
+    }
+
+    // calculate time-based correction offset
+    const auto newTimeCorrOffset = microseconds_t(std::lround((m_timeCorrectionOffset.count() + avgOffsetDeviationUsec) / 2));
+
+    // translate the clock update offset to indices, but take the conservative approach of rounding down
+    // (there is a chance we can only move timestamps forward in time)
+    const auto newIndexOffset = static_cast<long>(floor(((newTimeCorrOffset.count() / 1000.0 / 1000.0) * m_freq) / 2.0));
+
+    bool updateIndex = false;
+    if (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD)) {
+        if (newTimeCorrOffset.count() > 0)
+            updateIndex = true;
+    }
+    if (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD)) {
+        if (newTimeCorrOffset.count() < 0)
+            updateIndex = true;
+    }
+
+    // apply the new offset, if we have one
+    if (updateIndex) {
+        m_timeCorrectionOffset = newTimeCorrOffset;
+
+        if (m_indexOffset == 0) {
+            m_indexOffset = (m_indexOffset + newIndexOffset) / 2;
+            idxTimestamps -= VectorXu::LinSpaced(idxTimestamps.rows(), 0, m_indexOffset);
+        } else {
+            m_indexOffset = (m_indexOffset + newIndexOffset) / 2;
         }
-    } else {
-        // the external device is running too fast
 
-        if (!shiftBwdAllowed) {
-            // we can not shift backwards, but we would need to do that in order to adjust the timestamp
-            // there is nothing we can do here anymore
-            return;
+        if (m_indexOffset != 0) {
+            m_offsetChangeWaitBlocks = floor(m_calibrationMaxBlockN / 4.0);
         }
     }
 
-    // offset the device time index by a much smaller amount of what is needed to sync up the clocks
-    // if this doesn't bring us back within tolerance, we'll adjust the index offset again
-    // the next time this function is run
-    // how slowly the external timestamps ares adjusted depends on the DAQ frequency - the slower it runs,
-    // the faster we adjust it.
-    const int changeInt = std::floor(((timeOffsetUsec / 1000.0 / 1000.0) * m_freq) / (m_freq / 20000 + 1));
+    // we're out of sync, record that fact to the tsync file if we are writing one
+    if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
+        m_tswriter->writeTimes(secondaryLastTS, masterAssumedAcqTS);
 
-    // adjust timestamps with an appropriate offset step
-    const auto change = VectorXu::LinSpaced(idxTimestamps.rows(), 0, changeInt);
-    m_indexOffset += change[change.rows() - 1];
-    idxTimestamps += change;
+    m_lastTimeIndex = secondaryLastIdx;
 }
 
 void FreqCounterSynchronizer::processTimestamps(const microseconds_t &recvTimestamp, const double &devLatencyMs, int blockIndex, int blockCount, VectorXu &idxTimestamps)
@@ -661,7 +700,7 @@ bool SecondaryClockSynchronizer::start()
         return false;
     }
     if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE)) {
-        if (!m_tswriter->open(milliseconds_t(0), microseconds_t(m_toleranceUsec), m_mod->name())) {
+        if (!m_tswriter->open(microseconds_t(m_toleranceUsec), m_mod->name())) {
             qCritical().noquote().nospace() << "Unable to open timesync file for " << m_mod->name() << "[" << m_id << "]: " << m_tswriter->lastError();
             return false;
         }
@@ -740,7 +779,7 @@ void SecondaryClockSynchronizer::processTimestamp(microseconds_t &masterTimestam
                 << " SD: " << offsetsSD;
         */
     } else {
-        // everything is normal, and we assume here that all vakues are within tolerance recalculate
+        // everything is normal, and we assume here that all values are within tolerance. Recalculate
         // the master timestamp based on that assumption as average between expected master timestamp
         // based on expected offset and the actual, measured master timestamp.
         masterTimestamp = microseconds_t(std::lround(((secondaryAcqTimestamp.count() - m_expectedOffset.count()) + masterTimestamp.count()) / 2.0));
@@ -807,7 +846,7 @@ void SecondaryClockSynchronizer::processTimestamp(microseconds_t &masterTimestam
     if (masterTimestamp < m_lastMasterTS) {
         qCWarning(logTimeSync).noquote().nospace() << "[" << m_id << "] "
                 << "Timestamp moved backwards when calculating adjusted new time: "
-                << masterTimestamp.count() << " !< " << m_lastMasterTS.count() << "(mitigated by reusing previous time)";
+                << masterTimestamp.count() << " !< " << m_lastMasterTS.count() << " (mitigated by reusing previous time)";
         masterTimestamp = m_lastMasterTS;
     }
     m_lastMasterTS = masterTimestamp;
