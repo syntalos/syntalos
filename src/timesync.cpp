@@ -420,6 +420,9 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     assert(blockIndex >= 0);
     assert(blockIndex < blockCount);
 
+    // get last index value of vector before we made any adjustments to it
+    const auto secondaryLastIdxUnadjusted = idxTimestamps[idxTimestamps.rows() - 1];
+
     // adjust timestamp based on our current offset
     if (m_applyIndexOffset && (m_indexOffset != 0))
         idxTimestamps -= VectorXu::Ones(idxTimestamps.rows()) * m_indexOffset;
@@ -441,7 +444,7 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     // it to the output data and are just writing a tsync file)
     const auto secondaryLastTS = m_applyIndexOffset?
                                     microseconds_t(std::lround((secondaryLastIdx + 1) * m_timePerPointUs)) :
-                                    microseconds_t(std::lround((secondaryLastIdx + 1 - m_indexOffset) * m_timePerPointUs));
+                                    microseconds_t(std::lround((secondaryLastIdxUnadjusted + 1 - m_indexOffset) * m_timePerPointUs));
 
     // calculate time offset
     const long long curOffsetUsec = (secondaryLastTS - masterAssumedAcqTS).count();
@@ -540,27 +543,23 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     }
 
     // calculate time-based correction offset
-    const auto newTimeCorrOffset = microseconds_t(std::lround((m_timeCorrectionOffset.count() + avgOffsetDeviationUsec) / 2));
+    m_timeCorrectionOffset = microseconds_t(std::lround((m_timeCorrectionOffset.count() + avgOffsetDeviationUsec) / 2));
 
-    // translate the clock update offset to indices, but take the conservative approach of rounding down
-    // (there is a chance we can only move timestamps forward in time)
-    const auto newIndexOffset = static_cast<long>(floor(((newTimeCorrOffset.count() / 1000.0 / 1000.0) * m_freq) / 2.0));
-
-    // apply the new offset, if we have one
-    m_timeCorrectionOffset = newTimeCorrOffset;
+    // translate the clock update offset to indices. We round up here as we are already below threshold,
+    // and overshooting slightly appears to be the better solution than being too conservative
     const bool initialOffset = m_indexOffset == 0;
-    m_indexOffset = (m_indexOffset + newIndexOffset) / 2;
+    m_indexOffset = static_cast<int>(ceil(((m_timeCorrectionOffset.count() / 1000.0 / 1000.0) * m_freq) / 2.0));
 
     if (m_indexOffset != 0) {
-        m_offsetChangeWaitBlocks = floor(m_calibrationMaxBlockN / 4.0);
+        m_offsetChangeWaitBlocks = floor(m_calibrationMaxBlockN / 16.0);
 
         m_applyIndexOffset = false;
         if (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD)) {
-            if (m_indexOffset < 0)
+            if (m_indexOffset > 0)
                 m_applyIndexOffset = true;
         }
         if (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD)) {
-            if (m_indexOffset > 0)
+            if (m_indexOffset < 0)
                 m_applyIndexOffset = true;
         }
 
@@ -570,8 +569,11 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     }
 
     // we're out of sync, record that fact to the tsync file if we are writing one
+    // NOTE: we have to use the unadjusted time value for the device clock - sicne we didn't need that until now,
+    // we calculate it here from the unadjusted last index value of the current block.
     if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
-        m_tswriter->writeTimes(secondaryLastTS, masterAssumedAcqTS);
+        m_tswriter->writeTimes(microseconds_t(std::lround((secondaryLastIdxUnadjusted + 1) * m_timePerPointUs)),
+                               masterAssumedAcqTS);
 
     m_lastTimeIndex = secondaryLastIdx;
 }
