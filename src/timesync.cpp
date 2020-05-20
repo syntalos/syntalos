@@ -499,11 +499,14 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
             m_lastOffsetEmission = blocksRecvTimestamp;
         }
 
-        // check if we would still be within tolerance if we did reset the index offset completely, and if that's the case
+        // check if we would still be within half-tolerance if we did reset the index offset completely, and if that's the case
         // reset it as the external clock for some reason may be accurate again
         if ((m_indexOffset != 0) && (abs(avgOffsetDeviationUsec + m_timeCorrectionOffset.count()) < (m_toleranceUsec / 2))) {
-            m_indexOffset = floor(m_indexOffset / 2.0);
-            m_timeCorrectionOffset = microseconds_t(static_cast<long>(floor(m_timeCorrectionOffset.count() / 2.0)));
+            m_indexOffset = m_indexOffset / 2.0;
+            if (m_indexOffset == 0)
+                m_timeCorrectionOffset = microseconds_t(0);
+            else
+                m_timeCorrectionOffset = microseconds_t(static_cast<long>(floor(m_timeCorrectionOffset.count() / 2.0)));
         }
 
         m_lastOffsetWithinTolerance = true;
@@ -513,11 +516,11 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     m_lastOffsetWithinTolerance = false;
 
     const auto offsetsSD = sqrt(vectorVariance(m_tsOffsetsUsec, avgOffsetUsec));
-    if (abs(avgOffsetUsec - curOffsetUsec) > (offsetsSD * 1.5)) {
-        // the current offset diff to the moving average offset is not within reasonable
-        // standard deviation range. This means the data point we just added is likely
-        // a fluke, potentially due to a context switch or system load spike.
-        // We just ignore those events completely and don't make time adjustments based on them.
+    if (abs(avgOffsetUsec - curOffsetUsec) > offsetsSD) {
+        // the current offset diff to the moving average offset is not within standard deviation range.
+        // This means the data point we just added is likely a fluke, potentially due to a context switch
+        // or system load spike. We just ignore those events completely and don't make time adjustments
+        // to index offsets based on them.
         if (m_offsetChangeWaitBlocks > 0)
             m_offsetChangeWaitBlocks--;
         m_lastTimeIndex = secondaryLastIdx;
@@ -551,7 +554,7 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     m_indexOffset = static_cast<int>(ceil(((m_timeCorrectionOffset.count() / 1000.0 / 1000.0) * m_freq) / 2.0));
 
     if (m_indexOffset != 0) {
-        m_offsetChangeWaitBlocks = floor(m_calibrationMaxBlockN / 16.0);
+        m_offsetChangeWaitBlocks = ceil(m_calibrationMaxBlockN / 16.0);
 
         m_applyIndexOffset = false;
         if (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD)) {
@@ -753,11 +756,10 @@ void SecondaryClockSynchronizer::processTimestamp(microseconds_t &masterTimestam
         return;
     }
 
-    if (abs(avgOffsetUsec - curOffsetUsec) > (offsetsSD * 1.5)) {
-        // the current offset diff to the moving average offset is not within reasonable
-        // standard deviation range. This means the data point we just added is likely
-        // a fluke, potentially due to a context switch or system load spike.
-        // We correct those unconditionally.
+    if (abs(avgOffsetUsec - curOffsetUsec) > offsetsSD) {
+        // the current offset diff to the moving average offset is not within standard deviation range.
+        // This means the data point we just added is likely a fluke, potentially due to a context switch
+        // or system load spike. We correct those unconditionally.
         masterTimestamp = microseconds_t(std::lround(((secondaryAcqTimestamp.count() - m_expectedOffset.count())
                                                  + (secondaryAcqTimestamp.count() - avgOffsetUsec)) / 2.0));
 

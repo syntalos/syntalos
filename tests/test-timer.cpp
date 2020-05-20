@@ -48,6 +48,7 @@ public:
     }
 
     long lastIndex() const { return m_lastIndexBlock[m_lastIndexBlock.rows() - 1]; }
+    uint blockSize() const { return m_lastIndexBlock.rows(); };
 };
 
 static int slow_work_with_result(int para)
@@ -379,7 +380,7 @@ private slots:
         std::unique_ptr<FreqCounterSynchronizer> sync(new FreqCounterSynchronizer(syTimer, nullptr, idxDev->freqHz()));
 
         const auto toleranceValue = microseconds_t(1000);
-        const auto calibrationCount = (idxDev->freqHz() / 10) / 2; // half a second of data
+        const int calibrationCount = (idxDev->freqHz() / idxDev->blockSize()) / 2; // half a second of data
         sync->setStrategies(TimeSyncStrategy::ADJUST_CLOCK |
                             TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD |
                             TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD);
@@ -388,6 +389,7 @@ private slots:
 
         syTimer->start();
         sync->start();
+        QVERIFY(calibrationCount > 200);
 
         // master clock starts at 0, but we pretend it was already running for half a second
         auto curMasterTS = microseconds_t(500 * 1000);
@@ -546,14 +548,14 @@ private slots:
 
             auto currentBlock = idxDev->generateBlock();
             sync->processTimestamps(syncMasterTS, 0, 0, 2, currentBlock);
-            if (i > (calibrationCount * 4)) {
+            if (i > calibrationCount) {
                 QCOMPARE(sync->indexOffset(), 0);
                 QCOMPARE(last(currentBlock), idxDev->lastIndex());
             }
 
             currentBlock = idxDev->generateBlock();
             sync->processTimestamps(syncMasterTS, 0, 1, 2, currentBlock);
-            if (i > (calibrationCount * 4)) {
+            if (i > calibrationCount) {
                 QCOMPARE(sync->indexOffset(), 0);
                 QCOMPARE(last(currentBlock), idxDev->lastIndex());
             } else {
