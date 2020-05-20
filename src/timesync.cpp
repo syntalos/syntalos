@@ -404,12 +404,16 @@ bool FreqCounterSynchronizer::start()
     m_offsetChangeWaitBlocks = 0;
     m_applyIndexOffset = false;
 
+    std::ofstream tpF("/var/tmp/syntalos-testpoint-freqcounter.txt");
+    m_tpDebug = std::move(tpF);
+
     return true;
 }
 
 void FreqCounterSynchronizer::stop()
 {
     m_tswriter->close();
+    m_tpDebug.close();
 }
 
 void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecvTimestamp, const microseconds_t &deviceLatency,
@@ -482,6 +486,10 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
         // calibrated the system to the file (as additional verification point)
         if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
             m_tswriter->writeTimes(secondaryLastTS, masterAssumedAcqTS);
+
+        // send (possibly initial) offset info to the controller)
+        if (m_mod != nullptr)
+            emit m_mod->synchronizerOffsetChanged(m_id, microseconds_t(avgOffsetDeviationUsec));
 
         m_lastTimeIndex = secondaryLastIdx;
         return;
@@ -577,6 +585,9 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
         m_tswriter->writeTimes(microseconds_t(std::lround((secondaryLastIdxUnadjusted + 1) * m_timePerPointUs)),
                                masterAssumedAcqTS);
+
+    // FIXME: temp debug testpoint
+    m_tpDebug << avgOffsetUsec << ";" << m_indexOffset << "\n";
 
     m_lastTimeIndex = secondaryLastIdx;
 }

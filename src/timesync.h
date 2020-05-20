@@ -24,6 +24,7 @@
 #include <QString>
 #include <QMetaType>
 #include <QDataStream>
+#include <fstream>
 
 #include "syclock.h"
 #include "eigenaux.h"
@@ -195,6 +196,8 @@ public:
                            int blockIndex, int blockCount, VectorXu &idxTimestamps);
 
 private:
+    Q_DISABLE_COPY(FreqCounterSynchronizer)
+
     AbstractModule *m_mod;
     QString m_id;
     TimeSyncStrategies m_strategies;
@@ -223,6 +226,7 @@ private:
     bool m_applyIndexOffset;
 
     std::unique_ptr<TimeSyncFileWriter> m_tswriter;
+    std::ofstream m_tpDebug;
 };
 
 /**
@@ -267,7 +271,10 @@ public:
     void processTimestamp(microseconds_t &masterTimestamp, const microseconds_t &secondaryAcqTimestamp);
 
 private:
+    Q_DISABLE_COPY(SecondaryClockSynchronizer)
+
     void emitSyncDetailsChanged();
+
     AbstractModule *m_mod;
     QString m_id;
     TimeSyncStrategies m_strategies;
