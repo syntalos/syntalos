@@ -559,7 +559,7 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     // translate the clock update offset to indices. We round up here as we are already below threshold,
     // and overshooting slightly appears to be the better solution than being too conservative
     const bool initialOffset = m_indexOffset == 0;
-    m_indexOffset = static_cast<int>(ceil(((m_timeCorrectionOffset.count() / 1000.0 / 1000.0) * m_freq) / 2.0));
+    m_indexOffset = static_cast<int>((m_timeCorrectionOffset.count() / 1000.0 / 1000.0) * m_freq);
 
     if (m_indexOffset != 0) {
         m_offsetChangeWaitBlocks = ceil(m_calibrationMaxBlockN / 16.0);
@@ -587,7 +587,7 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
                                masterAssumedAcqTS);
 
     // FIXME: temp debug testpoint
-    m_tpDebug << avgOffsetUsec << ";" << m_indexOffset << "\n";
+    m_tpDebug << avgOffsetUsec << ";" << m_timeCorrectionOffset.count() << ";" << m_indexOffset << "\n";
 
     m_lastTimeIndex = secondaryLastIdx;
 }
