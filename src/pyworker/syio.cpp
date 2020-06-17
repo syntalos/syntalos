@@ -84,6 +84,12 @@ static long time_since_start_msec()
     return pb->timer()->timeSinceStartMsec().count();
 }
 
+static long time_since_start_usec()
+{
+    auto pb = PyBridge::instance();
+    return pb->timer()->timeSinceStartUsec().count();
+}
+
 static void println(const std::string& text)
 {
     std::cout << text << std::endl;
@@ -93,6 +99,20 @@ static void raise_error(const std::string& message)
 {
     auto pb = PyBridge::instance();
     pb->worker()->raiseError(QString::fromStdString(message));
+}
+
+static void wait(unsigned int msec)
+{
+    auto timer = QTime::currentTime().addMSecs(msec);
+    while (QTime::currentTime() < timer)
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+}
+
+static void wait_sec(unsigned int sec)
+{
+    auto timer = QTime::currentTime().addMSecs(sec * 1000);
+    while (QTime::currentTime() < timer)
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 500);
 }
 
 static InputWaitResult await_new_input()
@@ -339,6 +359,9 @@ BOOST_PYTHON_MODULE(syio)
     def("println", println, "Print text to stdout.");
     def("raise_error", raise_error, "Emit an error message string, immediately terminating the current action and (if applicable) the experiment.");
     def("time_since_start_msec", time_since_start_msec, "Get time since experiment started in milliseconds.");
+    def("time_since_start_usec", time_since_start_usec, "Get time since experiment started in microseconds.");
+    def("wait", wait, "Wait (roughly) for the given amount of milliseconds without blocking communication with the master process.");
+    def("wait_sec", wait_sec, "Wait (roughly) for the given amount of seconds without blocking communication with the master process.");
     def("await_new_input", await_new_input, "Wait for any new input to arrive via our input ports.");
 
     def("get_input_port", get_input_port, "Get reference to input port with the give ID.");

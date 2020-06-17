@@ -1039,5 +1039,5 @@ void Engine::onSynchronizerOffsetChanged(const QString &id, const microseconds_t
     if (tsw.get() == nullptr)
         return;
 
-    tsw->writeTimes(d->timer->timeSinceStartMsec(), currentOffset);
+    tsw->writeTimes(d->timer->timeSinceStartUsec(), currentOffset);
 }
