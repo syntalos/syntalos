@@ -34,6 +34,7 @@
 #include "moduleeventthread.h"
 #include "syclock.h"
 #include "sysinfo.h"
+#include "rtkit.h"
 #include "utils.h"
 
 namespace Syntalos {

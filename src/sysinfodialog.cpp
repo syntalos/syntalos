@@ -49,6 +49,13 @@ SysInfoDialog::SysInfoDialog(SysInfo *sysInfo, QWidget *parent) :
     ui->valUsbFsMemory->setText(QStringLiteral("%1 MB").arg(sysInfo->usbFsMemoryMb()));
     setLabelTextStyle(sysInfo->checkUsbFsMemory(), ui->valUsbFsMemory);
 
+    ui->valMaxRealtimePriority->setText(QString::number(sysInfo->rtkitMaxRealtimePriority()));
+    setLabelTextStyle(sysInfo->checkRtkitMaxRealtimePriority(), ui->valMaxRealtimePriority);
+    ui->valMinNiceLevel->setText(QString::number(sysInfo->rtkitMinNiceLevel()));
+    setLabelTextStyle(sysInfo->checkRtkitMinNiceLevel(), ui->valMinNiceLevel);
+    ui->valMaxRTTimeUsec->setText(QStringLiteral("%1 µs").arg(sysInfo->rtkitMaxRTTimeUsec()));
+    setLabelTextStyle(sysInfo->checkRtkitMaxRTTimeUsec(), ui->valMaxRTTimeUsec);
+
     // Hardware Information
     ui->valHWArch->setText(sysInfo->currentArchitecture());
     ui->valCPU0ModelName->setText(sysInfo->cpu0ModelName());

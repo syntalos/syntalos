@@ -34,6 +34,7 @@ extern "C" {
 #include <libavutil/avutil.h>
 }
 
+#include "rtkit.h"
 #include "utils.h"
 
 using namespace Syntalos;
@@ -56,6 +57,10 @@ public:
     int cpuCount;
     int cpuPhysicalCoreCount;
 
+    int rtkitMaxRealtimePriority;
+    int rtkitMinNiceLevel;
+    long long rtkitMaxRTTimeUsec;
+
     QString glVersion;
     QString glExtensions;
 };
@@ -77,6 +82,12 @@ SysInfo::SysInfo(QObject *parent)
     d->availableClocksources = readSysFsValue("/sys/devices/system/clocksource/clocksource0/available_clocksource").replace("\n", "");
     d->initName = readSysFsValue("/proc/1/comm").replace("\n", "");
     d->usbFsMemoryMb = readSysFsValue("/sys/module/usbcore/parameters/usbfs_memory_mb").replace("\n", "").toInt();
+
+    // get realtime scheduling limits set by RealtimeKit (the user may tweak those)
+    RtKit rtkit;
+    d->rtkitMaxRealtimePriority = rtkit.queryMaxRealtimePriority();
+    d->rtkitMinNiceLevel = rtkit.queryMinNiceLevel();
+    d->rtkitMaxRTTimeUsec = rtkit.queryRTTimeUSecMax();
 
     // try to determine OpenGL version
     QOffscreenSurface surf;
@@ -149,6 +160,42 @@ SysInfoCheckResult SysInfo::checkUsbFsMemory()
     // ideally around 1000Mb even.
     if (d->usbFsMemoryMb < 640)
         return SysInfoCheckResult::SUSPICIOUS;
+    return SysInfoCheckResult::OK;
+}
+
+int SysInfo::rtkitMaxRealtimePriority() const
+{
+    return d->rtkitMaxRealtimePriority;
+}
+
+SysInfoCheckResult SysInfo::checkRtkitMaxRealtimePriority()
+{
+    if (d->rtkitMaxRealtimePriority < 20)
+        return SysInfoCheckResult::ISSUE;
+    return SysInfoCheckResult::OK;
+}
+
+int SysInfo::rtkitMinNiceLevel() const
+{
+    return d->rtkitMinNiceLevel;
+}
+
+SysInfoCheckResult SysInfo::checkRtkitMinNiceLevel()
+{
+    if (d->rtkitMinNiceLevel > -14)
+        return SysInfoCheckResult::ISSUE;
+    return SysInfoCheckResult::OK;
+}
+
+long long SysInfo::rtkitMaxRTTimeUsec() const
+{
+    return d->rtkitMaxRTTimeUsec;
+}
+
+SysInfoCheckResult SysInfo::checkRtkitMaxRTTimeUsec()
+{
+    if (d->rtkitMaxRTTimeUsec < 200000)
+        return SysInfoCheckResult::ISSUE;
     return SysInfoCheckResult::OK;
 }
 

@@ -49,6 +49,15 @@ public:
     int usbFsMemoryMb() const;
     SysInfoCheckResult checkUsbFsMemory();
 
+    int rtkitMaxRealtimePriority() const;
+    SysInfoCheckResult checkRtkitMaxRealtimePriority();
+
+    int rtkitMinNiceLevel() const;
+    SysInfoCheckResult checkRtkitMinNiceLevel();
+
+    long long rtkitMaxRTTimeUsec() const;
+    SysInfoCheckResult checkRtkitMaxRTTimeUsec();
+
     QString glVersion() const;
     QString glExtensions() const;
 

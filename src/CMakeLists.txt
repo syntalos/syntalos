@@ -53,6 +53,8 @@ set(SYNTALOS_SRC
     modulelibrary.cpp
     moduleselectdialog.h
     moduleselectdialog.cpp
+    rtkit.h
+    rtkit.cpp
     sysinfo.h
     sysinfo.cpp
     sysinfodialog.h
@@ -106,6 +108,7 @@ target_link_libraries(syntalos
     Qt5::SerialPort
     Qt5::OpenGL
     Qt5::Svg
+    Qt5::DBus
     KF5::DBusAddons
     KF5::Archive
     KF5::TextEditor
