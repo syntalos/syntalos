@@ -46,13 +46,12 @@ class StreamOutputPort;
  */
 enum class ModuleFeature {
     NONE = 0,
-    DEVEL         = 1 << 0,  /// Mark module as "for (Syntalos) development or debugging only"
-    RUN_EVENTS    = 1 << 1,  /// Module will use the internal event loop
-    RUN_THREADED  = 1 << 2,  /// Module needs to run in a dedicated thread
-    REALTIME      = 1 << 3,  /// Enable realtime scheduling for the module's thread
-    SHOW_SETTINGS = 1 << 4,  /// Module can display a settings window
-    SHOW_DISPLAY  = 1 << 5,  /// Module has one or more display window(s) to show
-    SHOW_ACTIONS  = 1 << 6   /// Module supports context menu actions
+    RUN_EVENTS    = 1 << 0,  /// Module will use the internal event loop
+    RUN_THREADED  = 1 << 1,  /// Module needs to run in a dedicated thread
+    REALTIME      = 1 << 2,  /// Enable realtime scheduling for the module's thread
+    SHOW_SETTINGS = 1 << 3,  /// Module can display a settings window
+    SHOW_DISPLAY  = 1 << 4,  /// Module has one or more display window(s) to show
+    SHOW_ACTIONS  = 1 << 5   /// Module supports context menu actions
 };
 Q_DECLARE_FLAGS(ModuleFeatures, ModuleFeature)
 Q_DECLARE_OPERATORS_FOR_FLAGS(ModuleFeatures)
@@ -108,6 +107,12 @@ public:
      * @return True if singleton.
      */
     virtual bool singleton() const;
+
+    /**
+     * @brief Returns true if this module is a developer module (usually intended for debugging Syntalos itself).
+     * @return True if developer module.
+     */
+    virtual bool devel() const;
 
     /**
      * @brief Instantiate the actual module.

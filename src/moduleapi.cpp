@@ -127,6 +127,11 @@ bool ModuleInfo::singleton() const
     return false;
 }
 
+bool ModuleInfo::devel() const
+{
+    return false;
+}
+
 int ModuleInfo::count() const
 {
     return d->count;

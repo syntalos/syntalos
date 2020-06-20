@@ -29,6 +29,7 @@
 #include <QtMath>
 #include <QDebug>
 
+#include "globalconfig.h"
 #include "moduleapi.h"
 
 
@@ -110,6 +111,9 @@ ModuleSelectDialog::~ModuleSelectDialog()
 
 void ModuleSelectDialog::setModuleInfo(QList<QSharedPointer<ModuleInfo>> infos)
 {
+    Syntalos::GlobalConfig gconf;
+    const auto showDevModules = gconf.showDevelModules();
+
     struct {
         bool operator()(const QSharedPointer<ModuleInfo> &mi1, const QSharedPointer<ModuleInfo> &mi2) const
         {
@@ -123,6 +127,10 @@ void ModuleSelectDialog::setModuleInfo(QList<QSharedPointer<ModuleInfo>> infos)
     std::sort(sortedInfos.begin(), sortedInfos.end(), moduleInfoLess);
 
     for (auto &info : sortedInfos) {
+        // hide developer modules, unless the user explicitly chose to show them
+        if (info->devel() && !showDevModules)
+            continue;
+
         auto item = new QStandardItem(QIcon(info->pixmap()),
                                       QStringLiteral("<b>%1</b><br/><span>%2</span>").arg(info->name()).arg(info->description()));
         item->setData(info->id());

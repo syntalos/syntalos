@@ -42,7 +42,7 @@ public:
 
     ModuleFeatures features() const override
     {
-        return ModuleFeature::DEVEL | ModuleFeature::RUN_THREADED;
+        return ModuleFeature::RUN_THREADED;
     }
 
     bool prepare(const TestSubject &) override
@@ -97,6 +97,11 @@ QString DevelDataSSTModuleInfo::description() const
 QPixmap DevelDataSSTModuleInfo::pixmap() const
 {
     return QPixmap(":/module/devel");
+}
+
+bool DevelDataSSTModuleInfo::devel() const
+{
+    return true;
 }
 
 AbstractModule *DevelDataSSTModuleInfo::createModule(QObject *parent)

@@ -72,7 +72,7 @@ public:
 
     ModuleFeatures features() const override
     {
-        return OOPModule::features() | ModuleFeature::DEVEL;
+        return OOPModule::features();
     }
 
     bool prepare(const TestSubject &) override
@@ -108,6 +108,11 @@ QString PyOOPTestModuleInfo::description() const
 QPixmap PyOOPTestModuleInfo::pixmap() const
 {
     return QPixmap(":/module/devel");
+}
+
+bool PyOOPTestModuleInfo::devel() const
+{
+    return true;
 }
 
 AbstractModule *PyOOPTestModuleInfo::createModule(QObject *parent)
