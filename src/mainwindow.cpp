@@ -129,6 +129,8 @@ MainWindow::MainWindow(QWidget *parent) :
                     m_statusBarLabel->setToolTip(QString());
                 });
             }
+        } else {
+            setStatusText(QStringLiteral("I couldn't load a greeting message :-( - %1").arg(parseError));
         }
     }
     greetingsRc.close();
