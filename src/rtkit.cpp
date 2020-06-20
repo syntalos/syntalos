@@ -27,6 +27,8 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/syscall.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 
 #include <QDebug>
 #include <QDBusInterface>
@@ -141,4 +143,44 @@ long long RtKit::getIntProperty(const QString &propName, bool *ok)
         (*ok) = false;
 
     return LLONG_MAX;
+}
+
+bool setCurrentThreadNiceness(int nice)
+{
+    RtKit rtkit;
+    const auto minNice = rtkit.queryMinNiceLevel();
+    if (minNice < 0) {
+        if (nice < minNice) {
+            qCDebug(logRtKit).noquote().nospace() << "Unable to set thread niceness to " << nice << ", clamped to min value " << minNice;
+            nice = minNice;
+        }
+    }
+
+    return rtkit.makeHighPriority(0, nice);
+}
+
+bool setCurrentThreadRealtime(int priority)
+{
+    struct rlimit rlim = {};
+
+    RtKit rtkit;
+    const auto maxRTTimeUsec = rtkit.queryRTTimeUSecMax();
+    if (maxRTTimeUsec < (100 * 1000)) {
+        qCWarning(logRtKit).noquote() << "Unable to set realtime priority: Permitted RLIMIT_RTTIME is too low (<100µs)";
+        return false;
+    }
+
+    rlim.rlim_cur = rlim.rlim_max = maxRTTimeUsec;
+    if (setrlimit(RLIMIT_RTTIME, &rlim) < 0) {
+        qCWarning(logRtKit).noquote() << "Failed to set RLIMIT_RTTIME:" << strerror(errno);
+        return false;
+    }
+
+    const auto maxRTPrio = rtkit.queryMaxRealtimePriority();
+    if (priority > maxRTPrio) {
+        qCDebug(logRtKit).noquote().nospace() << "Unable to set thread realtime priority to " << priority << ", clamped to max value " << maxRTPrio;
+        priority = maxRTPrio;
+    }
+
+    return rtkit.makeRealtime(0, priority);
 }

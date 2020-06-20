@@ -39,10 +39,7 @@ class FlowGraphNodePort;
 class FlowGraphEdge;
 
 class QStyleOptionGraphicsItem;
-
 class QRubberBand;
-class QUndoCommand;
-class QSettings;
 
 class QGraphicsProxyWidget;
 class QLineEdit;

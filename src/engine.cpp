@@ -32,8 +32,9 @@
 #include "edlstorage.h"
 #include "modulelibrary.h"
 #include "moduleeventthread.h"
-#include "syclock.h"
+#include "globalconfig.h"
 #include "sysinfo.h"
+#include "syclock.h"
 #include "rtkit.h"
 #include "utils.h"
 
@@ -43,6 +44,20 @@ namespace Syntalos {
 
 using namespace Syntalos;
 
+class ThreadDetails
+{
+public:
+    explicit ThreadDetails()
+        : name(createRandomString(8)),
+          niceness(0),
+          allowedRTPriority(0)
+    {}
+
+    QString name;
+    int niceness;
+    int allowedRTPriority;
+};
+
 #pragma GCC diagnostic ignored "-Wpadded"
 class Engine::Private
 {
@@ -51,6 +66,7 @@ public:
     ~Private() { }
 
     SysInfo *sysInfo;
+    GlobalConfig *gconf;
     QWidget *parentWidget;
     QList<AbstractModule*> activeModules;
     ModuleLibrary *modLibrary;
@@ -79,6 +95,7 @@ Engine::Engine(QWidget *parentWidget)
       d(new Engine::Private)
 {
     d->saveInternal = false;
+    d->gconf = new GlobalConfig(this);
     d->sysInfo = new SysInfo(this);
     d->exportDirIsValid = false;
     d->running = false;
@@ -395,9 +412,16 @@ QList<AbstractModule *> Engine::createModuleExecOrderList()
 /**
  * @brief Main entry point for engine-managed module threads.
  */
-static void executeModuleThread(const QString& threadName, AbstractModule *mod, OptionalWaitCondition *waitCondition)
+static void executeModuleThread(const ThreadDetails td, AbstractModule *mod, OptionalWaitCondition *waitCondition)
 {
-    pthread_setname_np(pthread_self(), qPrintable(threadName.mid(0, 15)));
+    pthread_setname_np(pthread_self(), qPrintable(td.name.mid(0, 15)));
+
+    // set higher niceness for this thread
+    if (td.niceness != 0)
+        setCurrentThreadNiceness(td.niceness);
+
+    if (mod->features().testFlag(ModuleFeature::REALTIME))
+        setCurrentThreadRealtime(td.allowedRTPriority);
 
     mod->runThread(waitCondition);
 }
@@ -405,10 +429,14 @@ static void executeModuleThread(const QString& threadName, AbstractModule *mod, 
 /**
  * @brief Main entry point for threads used to manage out-of-process worker modules.
  */
-static void executeOOPModuleThread(const QString& threadName, QList<OOPModule*> mods,
+static void executeOOPModuleThread(const ThreadDetails td, QList<OOPModule*> mods,
                                    OptionalWaitCondition *waitCondition, std::atomic_bool &running)
 {
-    pthread_setname_np(pthread_self(), qPrintable(threadName.mid(0, 15)));
+    pthread_setname_np(pthread_self(), qPrintable(td.name.mid(0, 15)));
+
+    // set higher niceness for this thread
+    if (td.niceness != 0)
+        setCurrentThreadNiceness(td.niceness);
 
     QEventLoop loop;
 
@@ -422,9 +450,16 @@ static void executeOOPModuleThread(const QString& threadName, QList<OOPModule*> 
                     reMod->oopFinalize(&loop);
                 mod->oopFinalize(&loop);
 
-                qCDebug(logEngine).noquote().noquote().nospace() << "Failed to prepare OOP module " << mod->name() << ": " << mod->lastError();
+                qCDebug(logEngine).noquote().nospace() << "Failed to prepare OOP module " << mod->name() << ": " << mod->lastError();
                 return;
             }
+
+            // FIXME: if only one of the modules requests realtime prority, the whole thread goes RT at the moment.
+            // we do actually want to split out such modules to their of thread (currently, this situation never happens,
+            // because OOP modules aren't realtime).
+            if (mod->features().testFlag(ModuleFeature::REALTIME))
+                setCurrentThreadRealtime(td.allowedRTPriority);
+
             // ensure we are ready - the engine has reset ourselves to "PREPARING"
             // to make this possible before launching this thread
             mod->setStateReady();
@@ -584,6 +619,13 @@ bool Engine::runInternal(const QString &exportDirPath)
     // tell listeners that we are preparing a run
     emit preRunStart();
 
+    // cache default thread RT and niceness values
+    const auto defaultThreadNice = d->gconf->defaultThreadNice();
+    const auto defaultRTPriority = d->gconf->defaultRTThreadPriority();
+
+    // set main thread niceness for the current run
+    setCurrentThreadNiceness(defaultThreadNice);
+
     // create new experiment directory layout (EDL) collection to store
     // all data modules generate in
     std::shared_ptr<EDLCollection> storageCollection(new EDLCollection(QStringLiteral("%1_%2_%3")
@@ -691,10 +733,14 @@ bool Engine::runInternal(const QString &exportDirPath)
             // signalled that it is ready now.
             mod->setState(ModuleState::PREPARING);
 
+            ThreadDetails td;
+            td.niceness = defaultThreadNice;
+            td.allowedRTPriority = defaultRTPriority;
+
             // the thread name shouldn't be longer than 16 chars (inlcuding NULL)
-            auto threadName = QStringLiteral("%1-%2").arg(mod->id().midRef(0, 12)).arg(i);
+            td.name = QStringLiteral("%1-%2").arg(mod->id().midRef(0, 12)).arg(i);
             dThreads.push_back(std::thread(executeModuleThread,
-                                           threadName,
+                                           td,
                                            mod,
                                            startWaitCondition.get()));
             threadIdxModMap[dThreads.size() - 1] = mod;
@@ -712,8 +758,13 @@ bool Engine::runInternal(const QString &exportDirPath)
         if (!oopModules.isEmpty()) {
             for (auto &mod : oopModules)
                 mod->setState(ModuleState::PREPARING);
+
+            ThreadDetails td;
+            td.niceness = defaultThreadNice;
+            td.allowedRTPriority = defaultRTPriority;
+            td.name = QStringLiteral("oop_comm_1");
             oopThreads.push_back(std::thread(executeOOPModuleThread,
-                                             "oop_comm_1",
+                                             td,
                                              oopModules,
                                              startWaitCondition.get(),
                                              std::ref(d->running)));
@@ -977,6 +1028,9 @@ bool Engine::runInternal(const QString &exportDirPath)
 
         qCDebug(logEngine).noquote().nospace() << "Manifest and additional data saved in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
     }
+
+    // reset main thread niceness, we are not important anymore of no experiment is running
+    setCurrentThreadNiceness(0);
 
     // tell listeners that we are stopped now
     emit runStopped();

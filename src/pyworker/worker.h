@@ -49,6 +49,9 @@ public:
     void raiseError(const QString &message);
 
 public Q_SLOTS:
+    bool setNiceness(int nice) override;
+    void setMaxRealtimePriority(int priority) override;
+
     bool initializeFromData(const QString & script, const QString & env) override;
     bool initializeFromFile(const QString & fname, const QString & env) override;
 
@@ -75,6 +78,8 @@ private:
 
     QList<InputPortInfo> m_inPortInfo;
     QList<OutputPortInfo> m_outPortInfo;
+
+    int m_maxRTPriority;
 
     PyBridge *m_pyb;
 

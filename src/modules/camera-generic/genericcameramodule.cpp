@@ -68,6 +68,7 @@ public:
     ModuleFeatures features() const override
     {
         return ModuleFeature::RUN_THREADED |
+               ModuleFeature::REALTIME |
                ModuleFeature::SHOW_SETTINGS;
     }
 

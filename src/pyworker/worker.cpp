@@ -22,6 +22,7 @@
 #include <QMetaType>
 #include "worker.h"
 
+#include "rtkit.h"
 #include "syio.h"
 #include "pyipcmarshal.h"
 #include "streams/datatypes.h"
@@ -29,7 +30,8 @@
 OOPWorker::OOPWorker(QObject *parent)
     : OOPWorkerSource(parent),
       m_stage(OOPWorker::IDLE),
-      m_running(false)
+      m_running(false),
+      m_maxRTPriority(0)
 {
     m_pyb = PyBridge::instance(this);
     pythonRegisterSyioModule();
@@ -452,4 +454,16 @@ void OOPWorker::raiseError(const QString &message)
     std::cerr << "ERROR: " << message.toStdString() << std::endl;
     Q_EMIT error(message);
     setStage(OOPWorker::ERROR);
+}
+
+bool OOPWorker::setNiceness(int nice)
+{
+    return setCurrentThreadNiceness(nice);
+}
+
+void OOPWorker::setMaxRealtimePriority(int priority)
+{
+    // we just store this value here in case the script wants to go into
+    // realtime mode later for some reason
+    m_maxRTPriority = priority;
 }

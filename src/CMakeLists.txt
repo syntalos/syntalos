@@ -40,6 +40,8 @@ set(SYNTALOS_SRC
     engine.cpp
     flowgraphview.h
     flowgraphview.cpp
+    globalconfig.h
+    globalconfig.cpp
     globalconfigdialog.h
     globalconfigdialog.cpp
     main.cpp

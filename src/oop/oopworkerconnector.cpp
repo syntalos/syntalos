@@ -25,6 +25,7 @@
 #include "streams/frametype.h"
 #include "utils.h"
 #include "ipcmarshal.h"
+#include "globalconfig.h"
 
 using namespace Syntalos;
 
@@ -100,6 +101,10 @@ bool OOPWorkerConnector::connectAndRun()
         m_failed = true;
         return false;
     }
+
+    // make external worker change its niceness
+    GlobalConfig gconf;
+    m_reptr->setNiceness(gconf.defaultThreadNice()).waitForFinished();
 
     return true;
 }

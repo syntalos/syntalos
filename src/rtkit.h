@@ -48,3 +48,6 @@ private:
 
     long long getIntProperty(const QString &propName, bool *ok = nullptr);
 };
+
+bool setCurrentThreadNiceness(int nice);
+bool setCurrentThreadRealtime(int priority);

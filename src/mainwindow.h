@@ -37,6 +37,7 @@ class Engine;
 class ModuleInfo;
 class AbstractModule;
 class TimingsDialog;
+class GlobalConfig;
 }
 #endif // DOXYGEN_SHOULD_SKIP_THIS
 
@@ -107,7 +108,7 @@ private:
 
     Ui::MainWindow *ui;
 
-    QSettings *m_settings;
+    Syntalos::GlobalConfig *m_gconf;
     QTimer *m_rtElapsedTimer;
     Engine *m_engine;
     QString m_currentProjectFname;

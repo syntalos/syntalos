@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2020 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -19,32 +19,39 @@
 
 #pragma once
 
-#include <QDialog>
-#include <QSettings>
+#include <QObject>
 
-#include "globalconfig.h"
+class QSettings;
 
-namespace Ui {
-class GlobalConfigDialog;
-}
+namespace Syntalos {
 
-class GlobalConfigDialog : public QDialog
+class GlobalConfig : public QObject
 {
     Q_OBJECT
 
 public:
-    explicit GlobalConfigDialog(QWidget *parent = nullptr);
-    ~GlobalConfigDialog();
+    explicit GlobalConfig(QObject *parent = nullptr);
 
-private slots:
-    void on_defaultNicenessSpinBox_valueChanged(int arg1);
-    void on_defaultRTPrioSpinBox_valueChanged(int arg1);
+    QString iconThemeName() const;
+    void setIconThemeName(const QString &iconTheme);
 
-    void on_cbDisplayDevModules_toggled(bool checked);
-    void on_cbSaveDiagnostic_toggled(bool checked);
+    QByteArray mainWinGeometry() const;
+    void setMainWinGeometry(const QByteArray &geometry);
+
+    int defaultThreadNice() const;
+    void setDefaultThreadNice(int nice);
+
+    int defaultRTThreadPriority() const;
+    void setDefaultRTThreadPriority(int priority);
+
+    bool showDevelModules() const;
+    void setShowDevelModules(bool enabled);
+
+    bool saveExperimentDiagnostics() const;
+    void setSaveExperimentDiagnostics(bool enabled);
 
 private:
-    Ui::GlobalConfigDialog *ui;
-    Syntalos::GlobalConfig *m_gc;
-    bool m_acceptChanges;
+    QSettings *m_s;
 };
+
+}

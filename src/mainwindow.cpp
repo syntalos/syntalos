@@ -55,6 +55,7 @@
 #include <KTar>
 
 #include "aboutdialog.h"
+#include "globalconfig.h"
 #include "globalconfigdialog.h"
 #include "engine.h"
 #include "moduleapi.h"
@@ -95,12 +96,11 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     // Load settings and set icon theme explicitly
     // (otherwise the application may look ugly or incomplete on GNOME)
-    m_settings = new QSettings("DraguhnLab", "Syntalos", this);
-    auto themeName = m_settings->value("main/iconTheme").toString();
+    m_gconf = new GlobalConfig(this);
 
     // try to enforce breeze first, then the user-defined theme name, then the system default
     switchIconTheme(QStringLiteral("breeze"));
-    switchIconTheme(themeName);
+    switchIconTheme(m_gconf->iconThemeName());
 
     // create main window UI
     ui->setupUi(this);
@@ -247,7 +247,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->actionGlobalConfig, &QAction::triggered, this, &MainWindow::globalConfigActionTriggered);
 
     // restore main window geometry
-    restoreGeometry(m_settings->value("main/geometry").toByteArray());
+    restoreGeometry(m_gconf->mainWinGeometry());
 
     // get a reference to the current engine
     m_engine = ui->graphForm->engine();
@@ -313,7 +313,7 @@ void MainWindow::runActionTriggered()
     setStopPossible(true);
     ui->runWarnWidget->setVisible(false);
 
-    m_engine->setSaveInternalDiagnostics(m_settings->value("devel/saveDiagnostics", false).toBool());
+    m_engine->setSaveInternalDiagnostics(m_gconf->saveExperimentDiagnostics());
     m_engine->run();
 
     setStopPossible(false);
@@ -643,10 +643,10 @@ void MainWindow::closeEvent(QCloseEvent *event)
     if (m_engine->isRunning())
         stopActionTriggered();
 
-    m_settings->setValue("main/geometry", saveGeometry());
+    // save main window geometry to global config
+    m_gconf->setMainWinGeometry(saveGeometry());
 
     event->accept();
-
     QApplication::quit();
 }
 

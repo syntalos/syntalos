@@ -36,6 +36,9 @@ class OOPWorker
     SIGNAL(error(const QString &message));
     SIGNAL(statusMessage(const QString &text));
 
+    SLOT(bool setNiceness(int nice));
+    SLOT(void setMaxRealtimePriority(int priority));
+
     SLOT(void setInputPortInfo(const QList<InputPortInfo> &ports));
     SLOT(void setOutputPortInfo(const QList<OutputPortInfo> &ports));
     SIGNAL(outPortMetadataUpdated(int outPortId, const QVariantHash &metadata));

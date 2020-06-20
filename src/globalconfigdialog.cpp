@@ -20,15 +20,41 @@
 #include "globalconfigdialog.h"
 #include "ui_globalconfigdialog.h"
 
+#include "rtkit.h"
+
+using namespace Syntalos;
+
 GlobalConfigDialog::GlobalConfigDialog(QWidget *parent) :
     QDialog(parent),
-    ui(new Ui::GlobalConfigDialog)
+    ui(new Ui::GlobalConfigDialog),
+    m_acceptChanges(false)
 {
     ui->setupUi(this);
     setWindowTitle(QStringLiteral("Syntalos Settings"));
     setWindowModality(Qt::WindowModal);
 
-    m_settings = new QSettings("DraguhnLab", "Syntalos", this);
+    m_gc = new GlobalConfig(this);
+
+    RtKit rtkit;
+
+    // ensure we always show the first page when opening
+    ui->tabWidget->setCurrentIndex(0);
+
+    // advanced section
+    ui->defaultNicenessSpinBox->setMaximum(20);
+    ui->defaultNicenessSpinBox->setMinimum(rtkit.queryMinNiceLevel());
+    ui->defaultNicenessSpinBox->setValue(m_gc->defaultThreadNice());
+
+    ui->defaultRTPrioSpinBox->setMaximum(rtkit.queryMaxRealtimePriority());
+    ui->defaultRTPrioSpinBox->setMinimum(1);
+    ui->defaultRTPrioSpinBox->setValue(m_gc->defaultRTThreadPriority());
+
+    // devel section
+    ui->cbDisplayDevModules->setChecked(m_gc->showDevelModules());
+    ui->cbSaveDiagnostic->setChecked(m_gc->saveExperimentDiagnostics());
+
+    // we can accept user changes now!
+    m_acceptChanges = true;
 }
 
 GlobalConfigDialog::~GlobalConfigDialog()
@@ -36,12 +62,22 @@ GlobalConfigDialog::~GlobalConfigDialog()
     delete ui;
 }
 
-bool GlobalConfigDialog::saveExperimentDiagnostics() const
+void GlobalConfigDialog::on_defaultNicenessSpinBox_valueChanged(int arg1)
 {
-    return ui->cbSaveDiagnostic->isChecked();
+    if (m_acceptChanges) m_gc->setDefaultThreadNice(arg1);
+}
+
+void GlobalConfigDialog::on_defaultRTPrioSpinBox_valueChanged(int arg1)
+{
+    if (m_acceptChanges) m_gc->setDefaultRTThreadPriority(arg1);
+}
+
+void GlobalConfigDialog::on_cbDisplayDevModules_toggled(bool checked)
+{
+    if (m_acceptChanges) m_gc->setShowDevelModules(checked);
 }
 
 void GlobalConfigDialog::on_cbSaveDiagnostic_toggled(bool checked)
 {
-    m_settings->setValue("devel/saveDiagnostics", checked);
+    if (m_acceptChanges) m_gc->setSaveExperimentDiagnostics(checked);
 }

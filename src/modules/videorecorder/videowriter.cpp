@@ -555,6 +555,7 @@ void VideoWriter::setCaptureStartTimestamp(const std::chrono::milliseconds &star
     d->captureStartTimestamp = startTimestamp;
 }
 
+inline
 bool VideoWriter::prepareFrame(const cv::Mat &inImage)
 {
     auto image = inImage;

@@ -22,6 +22,8 @@ set(MAPYWORKER_SRC
     timetopy.cpp
     qstringtopy.h
     qstringtopy.cpp
+    ../rtkit.h
+    ../rtkit.cpp
     ../syclock.h
     ../syclock.cpp
     ../streams/datatypes.h
@@ -43,6 +45,7 @@ target_link_libraries(pyworker
     ${MA_OOPSHARED_LIB}
     ${SY_BASE_LIBS}
     Qt5::RemoteObjects
+    Qt5::DBus
     ${PYTHON_LIBRARIES}
     ${Boost_LIBRARIES}
     ${OpenCV_LIBS}
