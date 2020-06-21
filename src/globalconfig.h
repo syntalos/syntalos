@@ -44,6 +44,9 @@ public:
     int defaultRTThreadPriority() const;
     void setDefaultRTThreadPriority(int priority);
 
+    bool explicitCoreAffinities() const;
+    void setExplicitCoreAffinities(bool enabled);
+
     bool showDevelModules() const;
     void setShowDevelModules(bool enabled);
 

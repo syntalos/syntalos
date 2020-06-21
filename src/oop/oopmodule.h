@@ -38,7 +38,7 @@ public:
 
     bool prepare(const TestSubject &testSubject) override;
 
-    bool oopPrepare(QEventLoop *loop);
+    bool oopPrepare(QEventLoop *loop, const QVector<uint> &cpuAffinity);
     void oopStart(QEventLoop *);
     void oopRunEvent(QEventLoop *loop);
     void oopFinalize(QEventLoop *loop);

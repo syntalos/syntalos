@@ -82,7 +82,6 @@ int GlobalConfig::defaultRTThreadPriority() const
     else if (prio > maxPrio)
         prio = maxPrio;
 
-    qDebug() << "MaxRTPrio: " << maxPrio << "prio:" << prio;
     return prio;
 }
 
@@ -93,6 +92,16 @@ void GlobalConfig::setDefaultRTThreadPriority(int priority)
     else if (priority < 1)
         priority = 1;
     m_s->setValue("engine/default_rt_thread_priority", priority);
+}
+
+bool GlobalConfig::explicitCoreAffinities() const
+{
+    return m_s->value("engine/explicit_core_affinities", true).toBool();
+}
+
+void GlobalConfig::setExplicitCoreAffinities(bool enabled)
+{
+    m_s->setValue("engine/explicit_core_affinities", enabled);
 }
 
 bool GlobalConfig::showDevelModules() const

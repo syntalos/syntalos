@@ -51,6 +51,7 @@ public:
 public Q_SLOTS:
     bool setNiceness(int nice) override;
     void setMaxRealtimePriority(int priority) override;
+    void setCPUAffinity(QVector<uint> cores) override;
 
     bool initializeFromData(const QString & script, const QString & env) override;
     bool initializeFromFile(const QString & fname, const QString & env) override;

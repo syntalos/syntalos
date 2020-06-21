@@ -69,6 +69,7 @@ public:
     {
         return ModuleFeature::RUN_THREADED |
                ModuleFeature::REALTIME |
+               ModuleFeature::CORE_AFFINITY |
                ModuleFeature::SHOW_SETTINGS;
     }
 

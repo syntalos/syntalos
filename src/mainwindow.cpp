@@ -293,6 +293,7 @@ void MainWindow::setStopPossible(bool enabled)
     ui->graphForm->setModifyPossible(!enabled);
     ui->gbRunInfo->setEnabled(enabled);
     ui->gbRunSettings->setEnabled(!enabled);
+    ui->actionGlobalConfig->setEnabled(!enabled);
 
     // do not permit save/load while we are running
     ui->actionProjectOpen->setEnabled(!enabled);

@@ -38,6 +38,7 @@ class OOPWorker
 
     SLOT(bool setNiceness(int nice));
     SLOT(void setMaxRealtimePriority(int priority));
+    SLOT(void setCPUAffinity(QVector<uint> cores));
 
     SLOT(void setInputPortInfo(const QList<InputPortInfo> &ports));
     SLOT(void setOutputPortInfo(const QList<OutputPortInfo> &ports));

@@ -85,7 +85,7 @@ bool OOPModule::prepare(const TestSubject &testSubject)
     return true;
 }
 
-bool OOPModule::oopPrepare(QEventLoop *loop)
+bool OOPModule::oopPrepare(QEventLoop *loop, const QVector<uint> &cpuAffinity)
 {
     // We have to do all the setup stuff on thread creation, as moving QObject
     // instances between different threads is not ideal and the QRO connection
@@ -113,7 +113,7 @@ bool OOPModule::oopPrepare(QEventLoop *loop)
     });
 
     wc->setCaptureStdout(d->captureStdout);
-    if (!wc->connectAndRun()) {
+    if (!wc->connectAndRun(cpuAffinity)) {
         raiseError("Unable to start worker process!");
         return false;
     }

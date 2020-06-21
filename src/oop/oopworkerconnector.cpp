@@ -33,7 +33,8 @@ OOPWorkerConnector::OOPWorkerConnector(QSharedPointer<OOPWorkerReplica> ptr, con
     : QObject(nullptr),
       m_reptr(ptr),
       m_proc(new QProcess(this)),
-      m_workerBinary(workerBin)
+      m_workerBinary(workerBin),
+      m_portsInitialized(false)
 {
     connect(m_reptr.data(), &OOPWorkerReplica::sendOutput, this, &OOPWorkerConnector::receiveOutput);
     connect(m_reptr.data(), &OOPWorkerReplica::outPortMetadataUpdated, this, &OOPWorkerConnector::receiveOutputPortMetadataUpdate);
@@ -78,7 +79,7 @@ void OOPWorkerConnector::terminate(QEventLoop *loop)
     m_proc->kill();
 }
 
-bool OOPWorkerConnector::connectAndRun()
+bool OOPWorkerConnector::connectAndRun(const QVector<uint> &cpuAffinity)
 {
     m_failed = false;
     m_workerReady = false;
@@ -105,6 +106,7 @@ bool OOPWorkerConnector::connectAndRun()
     // make external worker change its niceness
     GlobalConfig gconf;
     m_reptr->setNiceness(gconf.defaultThreadNice()).waitForFinished();
+    m_reptr->setCPUAffinity(cpuAffinity);
 
     return true;
 }
@@ -171,6 +173,7 @@ void OOPWorkerConnector::setOutputPorts(QList<std::shared_ptr<StreamOutputPort> 
     }
 
     m_reptr->setOutputPortInfo(oPortInfo);
+    m_portsInitialized = true;
 }
 
 void OOPWorkerConnector::initWithPythonScript(const QString &script, const QString &env)
@@ -270,6 +273,8 @@ static bool unmarshalDataAndOutput(int typeId, const QVariant &argData, std::uni
 
 void OOPWorkerConnector::receiveOutput(int outPortId, QVariant argData)
 {
+    if (!m_portsInitialized)
+        return;
     auto outPort = m_outPorts[outPortId];
     const auto typeId = outPort->dataTypeId();
 
@@ -279,6 +284,8 @@ void OOPWorkerConnector::receiveOutput(int outPortId, QVariant argData)
 
 void OOPWorkerConnector::receiveOutputPortMetadataUpdate(int outPortId, const QVariantHash &metadata)
 {
+    if (!m_portsInitialized)
+        return;
     auto outPort = m_outPorts[outPortId];
     outPort->streamVar()->setMetadata(metadata);
 }
@@ -299,7 +306,7 @@ void OOPWorkerConnector::sendInputData(int typeId, int portId, const QVariant &d
         return;
     }
 
-    if (!m_reptr->receiveInput(portId, outData).waitForFinished(100)) {
+    if (!m_reptr->receiveInput(portId, outData).waitForFinished(1000)) {
         // ensure we handle potential error events before emitting our own
         if (loop != nullptr)
             loop->processEvents();

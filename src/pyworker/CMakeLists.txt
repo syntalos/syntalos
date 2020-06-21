@@ -24,6 +24,8 @@ set(MAPYWORKER_SRC
     qstringtopy.cpp
     ../rtkit.h
     ../rtkit.cpp
+    ../cpuaffinity.h
+    ../cpuaffinity.cpp
     ../syclock.h
     ../syclock.cpp
     ../streams/datatypes.h

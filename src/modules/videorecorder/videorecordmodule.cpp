@@ -79,7 +79,12 @@ public:
 
     ModuleFeatures features() const override
     {
+        // We use CORE_AFFINITY here mainly to avoid other modules being scheduled on the same core, since
+        // video encoding is a very CPU-heavy task which may starve other stuff running on the same CPU.
+        // Usually, CORE_AFFINITY is used to prevent the scheduler moving a thread to a new CPU once it blocks
+        // (but it's unlikely that we will block)
         return ModuleFeature::RUN_THREADED |
+               ModuleFeature::CORE_AFFINITY |
                ModuleFeature::SHOW_SETTINGS;
     }
 

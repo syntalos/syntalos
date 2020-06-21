@@ -26,6 +26,7 @@
 #include <QDateTime>
 #include <QStandardPaths>
 #include <QThread>
+#include <QVector>
 #include <QTemporaryDir>
 
 #include "oop/oopmodule.h"
@@ -36,6 +37,7 @@
 #include "sysinfo.h"
 #include "syclock.h"
 #include "rtkit.h"
+#include "cpuaffinity.h"
 #include "utils.h"
 
 namespace Syntalos {
@@ -56,6 +58,7 @@ public:
     QString name;
     int niceness;
     int allowedRTPriority;
+    std::vector<uint> cpuAffinity;
 };
 
 #pragma GCC diagnostic ignored "-Wpadded"
@@ -420,6 +423,10 @@ static void executeModuleThread(const ThreadDetails td, AbstractModule *mod, Opt
     if (td.niceness != 0)
         setCurrentThreadNiceness(td.niceness);
 
+    // set CPU affinity
+    if (!td.cpuAffinity.empty())
+        thread_set_affinity_from_vec(pthread_self(), td.cpuAffinity);
+
     if (mod->features().testFlag(ModuleFeature::REALTIME))
         setCurrentThreadRealtime(td.allowedRTPriority);
 
@@ -438,13 +445,17 @@ static void executeOOPModuleThread(const ThreadDetails td, QList<OOPModule*> mod
     if (td.niceness != 0)
         setCurrentThreadNiceness(td.niceness);
 
+    // set CPU affinity
+    if (!td.cpuAffinity.empty())
+        thread_set_affinity_from_vec(pthread_self(), td.cpuAffinity);
+
     QEventLoop loop;
 
     // prepare all OOP modules in their new thread
     {
         QList<OOPModule*> readyMods;
         for (auto &mod : mods) {
-            if (!mod->oopPrepare(&loop)) {
+            if (!mod->oopPrepare(&loop, QVector<uint>::fromStdVector(td.cpuAffinity))) {
                 // deininitialize modules we already have prepared
                 for (auto &reMod : readyMods)
                     reMod->oopFinalize(&loop);
@@ -623,8 +634,21 @@ bool Engine::runInternal(const QString &exportDirPath)
     const auto defaultThreadNice = d->gconf->defaultThreadNice();
     const auto defaultRTPriority = d->gconf->defaultRTThreadPriority();
 
+    // cache number of online CPUs
+    const auto cpuCoreCount = get_online_cores_count();
+
     // set main thread niceness for the current run
     setCurrentThreadNiceness(defaultThreadNice);
+
+    // set CPU core affinities base setting
+    const auto explicitCoreAffinities = d->gconf->explicitCoreAffinities();
+    if (explicitCoreAffinities) {
+        qCDebug(logEngine).noquote().nospace() << "Explicit CPU core affinity is enabled.";
+        // tie main thread to first CPU
+        thread_set_affinity(pthread_self(), 0);
+    } else {
+        qCDebug(logEngine).noquote().nospace() << "Explicit CPU core affinity is disabled.";
+    }
 
     // create new experiment directory layout (EDL) collection to store
     // all data modules generate in
@@ -694,8 +718,8 @@ bool Engine::runInternal(const QString &exportDirPath)
     }
 
     // threads our modules run in, as module name/thread pairs
+    QList<AbstractModule*> threadedModules;
     std::vector<std::thread> dThreads;
-    QHash<size_t, AbstractModule*> threadIdxModMap;
     std::unique_ptr<OptionalWaitCondition> startWaitCondition(new OptionalWaitCondition());
 
     QList<AbstractModule*> idleEventModules;
@@ -715,18 +739,90 @@ bool Engine::runInternal(const QString &exportDirPath)
 
         lastPhaseTimepoint = currentTimePoint();
 
-        // launch threads for threaded modules, but filter out out-of-process
-        // modules - they get special treatment
-        for (int i = 0; i < orderedActiveModules.size(); i++) {
-            auto mod = orderedActiveModules[i];
+        // filter out threaded modules, those get special treatment
+        for (auto &mod : orderedActiveModules) {
             auto oopMod = qobject_cast<OOPModule*>(mod);
             if (oopMod != nullptr) {
                 oopModules.append(oopMod);
                 continue;
             }
 
-            if (!mod->features().testFlag(ModuleFeature::RUN_THREADED))
-                continue;
+            if (mod->features().testFlag(ModuleFeature::RUN_THREADED))
+                threadedModules.append(mod);
+        }
+
+        const auto threadedModulesTotalN = threadedModules.size() + oopModules.size();
+        QHash<AbstractModule*, std::vector<uint>> modCPUMap;
+
+        if (explicitCoreAffinities) {
+            if (threadedModulesTotalN <= (cpuCoreCount - 1)) {
+                // we have enough cores and can tie each thread to a dedicated core, to (ideally) prevent
+                // the scheduler from moving them around between CPUs too much once they go idle
+                auto availableCores = cpuCoreCount - 1; // all cores minus the one our main thread is running on
+
+                for (auto &mod : threadedModules) {
+                    if (availableCores > 0) {
+                        modCPUMap[mod] = std::vector<uint>{(uint)availableCores};
+                        availableCores--;
+                    }
+                }
+                for (auto &mod : oopModules) {
+                    if (availableCores > 0) {
+                        modCPUMap[mod] = std::vector<uint>{(uint)availableCores};
+                        availableCores--;
+                    }
+                }
+            } else {
+                // we don't have enough cores - in this case, prefer modules which requested to be run on a dedicated core
+                // OOP modules will get their own core if at all possible in a sensible way
+                auto availableCores = cpuCoreCount - 1;
+                for (auto &mod : threadedModules) {
+                    if (!mod->features().testFlag(ModuleFeature::CORE_AFFINITY))
+                        continue;
+                    if (availableCores > 0) {
+                        modCPUMap[mod] = std::vector<uint>{(uint)availableCores};
+                        availableCores--;
+                    }
+                }
+
+                bool oopDedicatedThreads = false;
+                if (availableCores > 0) {
+                    // give OOP modules their own core if at least two remain
+                    if ((availableCores - oopModules.size()) >= 2) {
+                        for (auto &mod : oopModules) {
+                            if (availableCores > 0) {
+                                modCPUMap[mod] = std::vector<uint>{(uint)availableCores};
+                                availableCores--;
+                            }
+                        }
+                        oopDedicatedThreads = true;
+                    }
+                }
+
+                // give the remaining cores to other modules
+                std::vector<uint> remainingCores;
+                for (uint i = availableCores; i > 0; i--)
+                    remainingCores.push_back(i);
+                for (auto &mod : threadedModules) {
+                    if (modCPUMap.contains(mod))
+                        continue;
+                    modCPUMap[mod] = remainingCores;
+                }
+                // treat OOP modules the same if we are low on threads
+                if (!oopDedicatedThreads) {
+                    for (auto &mod : oopModules) {
+                        if (modCPUMap.contains(mod))
+                            continue;
+                        modCPUMap[mod] = remainingCores;
+                    }
+                }
+            }
+        }
+
+        // launch threads for threaded modules, except for out out-of-process
+        // modules - they get special treatment
+        for (int i = 0; i < threadedModules.size(); i++) {
+            auto mod = threadedModules[i];
 
             // we are preparing again, this time for threading!
             // this is important, as we will only start when the module
@@ -737,14 +833,23 @@ bool Engine::runInternal(const QString &exportDirPath)
             td.niceness = defaultThreadNice;
             td.allowedRTPriority = defaultRTPriority;
 
+            if (modCPUMap.contains(mod)) {
+                td.cpuAffinity = modCPUMap[mod];
+                std::ostringstream oss;
+                std::copy(td.cpuAffinity.begin(), td.cpuAffinity.end() - 1, std::ostream_iterator<uint>(oss, ","));
+                oss << td.cpuAffinity.back();
+
+                qCDebug(logEngine).noquote().nospace() << "Module '" << mod->name() << "' thread will prefer CPU core(s) " << QString::fromStdString(oss.str());
+            }
+
             // the thread name shouldn't be longer than 16 chars (inlcuding NULL)
             td.name = QStringLiteral("%1-%2").arg(mod->id().midRef(0, 12)).arg(i);
             dThreads.push_back(std::thread(executeModuleThread,
                                            td,
                                            mod,
                                            startWaitCondition.get()));
-            threadIdxModMap[dThreads.size() - 1] = mod;
         }
+        assert(dThreads.size() == (size_t)threadedModules.size());
 
         // collect all modules which do idle event execution
         for (auto &mod : orderedActiveModules)
@@ -763,6 +868,16 @@ bool Engine::runInternal(const QString &exportDirPath)
             td.niceness = defaultThreadNice;
             td.allowedRTPriority = defaultRTPriority;
             td.name = QStringLiteral("oop_comm_1");
+
+            if (modCPUMap.contains(oopModules[0])) {
+                td.cpuAffinity = modCPUMap[oopModules[0]];
+                std::ostringstream oss;
+                std::copy(td.cpuAffinity.begin(), td.cpuAffinity.end() - 1, std::ostream_iterator<uint>(oss, ","));
+                oss << td.cpuAffinity.back();
+
+                qCDebug(logEngine).noquote().nospace() << "OOP thread '" << td.name << "' will prefer CPU core(s) " << QString::fromStdString(oss.str());
+            }
+
             oopThreads.push_back(std::thread(executeOOPModuleThread,
                                              td,
                                              oopModules,
@@ -866,7 +981,7 @@ bool Engine::runInternal(const QString &exportDirPath)
         // modules may have injected themselves into the UI event loop
         // as well via QTimer callbacks, in case they need to modify UI elements.
         while (d->running) {
-            QCoreApplication::processEvents();
+            QCoreApplication::processEvents(QEventLoop::WaitForMoreEvents);
             if (d->failed)
                 break;
         }
@@ -884,7 +999,7 @@ bool Engine::runInternal(const QString &exportDirPath)
     // And this won't ever happen in case the thread is still idling on the start wait condition.
     // So we set every module that has its own thread to "not running" and then ring the wakeup bell
     if (d->failed) {
-        for (auto &mod : threadIdxModMap.values())
+        for (auto &mod : threadedModules)
             mod->m_running = false;
         startWaitCondition->wakeAll();
     }
@@ -956,7 +1071,7 @@ bool Engine::runInternal(const QString &exportDirPath)
     startWaitCondition->wakeAll(); // wake up all threads again, just in case one is stuck waiting
     for (size_t i = 0; i < dThreads.size(); i++) {
         auto &thread = dThreads[i];
-        auto mod = threadIdxModMap[i];
+        auto mod = threadedModules[i];
         emitStatusMessage(QStringLiteral("Waiting for %1...").arg(mod->name()));
         qApp->processEvents();
         thread.join();
@@ -1031,6 +1146,9 @@ bool Engine::runInternal(const QString &exportDirPath)
 
     // reset main thread niceness, we are not important anymore of no experiment is running
     setCurrentThreadNiceness(0);
+
+    // clear main thread CPU affinity
+    thread_clear_affinity(pthread_self());
 
     // tell listeners that we are stopped now
     emit runStopped();

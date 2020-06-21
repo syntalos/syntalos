@@ -49,6 +49,8 @@ GlobalConfigDialog::GlobalConfigDialog(QWidget *parent) :
     ui->defaultRTPrioSpinBox->setMinimum(1);
     ui->defaultRTPrioSpinBox->setValue(m_gc->defaultRTThreadPriority());
 
+    ui->explicitCoreAffinitiesCheckBox->setChecked(m_gc->explicitCoreAffinities());
+
     // devel section
     ui->cbDisplayDevModules->setChecked(m_gc->showDevelModules());
     ui->cbSaveDiagnostic->setChecked(m_gc->saveExperimentDiagnostics());
@@ -70,6 +72,11 @@ void GlobalConfigDialog::on_defaultNicenessSpinBox_valueChanged(int arg1)
 void GlobalConfigDialog::on_defaultRTPrioSpinBox_valueChanged(int arg1)
 {
     if (m_acceptChanges) m_gc->setDefaultRTThreadPriority(arg1);
+}
+
+void GlobalConfigDialog::on_explicitCoreAffinitiesCheckBox_toggled(bool checked)
+{
+    if (m_acceptChanges) m_gc->setExplicitCoreAffinities(checked);
 }
 
 void GlobalConfigDialog::on_cbDisplayDevModules_toggled(bool checked)

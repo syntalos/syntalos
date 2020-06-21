@@ -49,9 +49,10 @@ enum class ModuleFeature {
     RUN_EVENTS    = 1 << 0,  /// Module will use the internal event loop
     RUN_THREADED  = 1 << 1,  /// Module needs to run in a dedicated thread
     REALTIME      = 1 << 2,  /// Enable realtime scheduling for the module's thread
-    SHOW_SETTINGS = 1 << 3,  /// Module can display a settings window
-    SHOW_DISPLAY  = 1 << 4,  /// Module has one or more display window(s) to show
-    SHOW_ACTIONS  = 1 << 5   /// Module supports context menu actions
+    CORE_AFFINITY = 1 << 3,  /// Pin the module's thread to a separate CPU core, if possible
+    SHOW_SETTINGS = 1 << 4,  /// Module can display a settings window
+    SHOW_DISPLAY  = 1 << 5,  /// Module has one or more display window(s) to show
+    SHOW_ACTIONS  = 1 << 6   /// Module supports context menu actions
 };
 Q_DECLARE_FLAGS(ModuleFeatures, ModuleFeature)
 Q_DECLARE_OPERATORS_FOR_FLAGS(ModuleFeatures)

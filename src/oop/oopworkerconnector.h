@@ -42,7 +42,7 @@ public:
 
     void terminate(QEventLoop *loop = nullptr);
 
-    bool connectAndRun();
+    bool connectAndRun(const QVector<uint> &cpuAffinity);
 
     void setInputPorts(QList<std::shared_ptr<VarStreamInputPort>> inPorts);
     void setOutputPorts(QList<std::shared_ptr<StreamOutputPort>> outPorts);
@@ -77,6 +77,7 @@ private:
     std::vector<std::unique_ptr<SharedMemory>> m_shmRecv;
     std::vector<std::pair<int, std::shared_ptr<VariantStreamSubscription>>> m_subs;
     QList<std::shared_ptr<StreamOutputPort>> m_outPorts;
+    bool m_portsInitialized;
 
     void sendInputData(int typeId, int portId, const QVariant &data, QEventLoop *loop = nullptr);
 };

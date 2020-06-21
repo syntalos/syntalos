@@ -34,6 +34,8 @@ set(SYNTALOS_SHARED_SRC ${SYNTALOS_SHARED_SRC} PARENT_SCOPE)
 set(SYNTALOS_SRC
     aboutdialog.h
     aboutdialog.cpp
+    cpuaffinity.h
+    cpuaffinity.cpp
     elidedlabel.h
     elidedlabel.cpp
     engine.h

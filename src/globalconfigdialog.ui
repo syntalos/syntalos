@@ -38,7 +38,7 @@
       <enum>QTabWidget::West</enum>
      </property>
      <property name="currentIndex">
-      <number>2</number>
+      <number>0</number>
      </property>
      <property name="iconSize">
       <size>
@@ -51,7 +51,8 @@
      </property>
      <widget class="QWidget" name="tabGeneral">
       <attribute name="icon">
-       <iconset theme="settings-configure"/>
+       <iconset theme="settings-configure">
+        <normaloff>.</normaloff>.</iconset>
       </attribute>
       <attribute name="title">
        <string>General</string>
@@ -145,7 +146,8 @@
      </widget>
      <widget class="QWidget" name="tabAdvanced">
       <attribute name="icon">
-       <iconset theme="remmina-system-run-symbolic"/>
+       <iconset theme="remmina-system-run-symbolic">
+        <normaloff>.</normaloff>.</iconset>
       </attribute>
       <attribute name="title">
        <string>Advanced</string>
@@ -214,6 +216,16 @@
                  </property>
                 </widget>
                </item>
+               <item row="2" column="0">
+                <widget class="QLabel" name="explicitlySetCPUCoreAffinitiesLabel">
+                 <property name="text">
+                  <string>Explicitly set CPU core affinities</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="2" column="1">
+                <widget class="QCheckBox" name="explicitCoreAffinitiesCheckBox"/>
+               </item>
               </layout>
              </item>
             </layout>
@@ -252,7 +264,8 @@
      </widget>
      <widget class="QWidget" name="tabDevel">
       <attribute name="icon">
-       <iconset theme="code-context"/>
+       <iconset theme="code-context">
+        <normaloff>.</normaloff>.</iconset>
       </attribute>
       <attribute name="title">
        <string>Developer</string>

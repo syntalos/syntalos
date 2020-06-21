@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2020 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -19,33 +19,13 @@
 
 #pragma once
 
-#include <QDialog>
-#include <QSettings>
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#include <pthread.h>
+#include <vector>
 
-#include "globalconfig.h"
-
-namespace Ui {
-class GlobalConfigDialog;
-}
-
-class GlobalConfigDialog : public QDialog
-{
-    Q_OBJECT
-
-public:
-    explicit GlobalConfigDialog(QWidget *parent = nullptr);
-    ~GlobalConfigDialog();
-
-private slots:
-    void on_defaultNicenessSpinBox_valueChanged(int arg1);
-    void on_defaultRTPrioSpinBox_valueChanged(int arg1);
-    void on_explicitCoreAffinitiesCheckBox_toggled(bool checked);
-
-    void on_cbDisplayDevModules_toggled(bool checked);
-    void on_cbSaveDiagnostic_toggled(bool checked);
-
-private:
-    Ui::GlobalConfigDialog *ui;
-    Syntalos::GlobalConfig *m_gc;
-    bool m_acceptChanges;
-};
+int get_online_cores_count();
+int thread_set_affinity(pthread_t thread, unsigned core);
+int thread_set_affinity_from_vec(pthread_t thread, const std::vector<unsigned> &cores);
+int thread_clear_affinity(pthread_t thread);

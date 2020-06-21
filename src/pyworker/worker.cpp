@@ -23,6 +23,7 @@
 #include "worker.h"
 
 #include "rtkit.h"
+#include "cpuaffinity.h"
 #include "syio.h"
 #include "pyipcmarshal.h"
 #include "streams/datatypes.h"
@@ -466,4 +467,11 @@ void OOPWorker::setMaxRealtimePriority(int priority)
     // we just store this value here in case the script wants to go into
     // realtime mode later for some reason
     m_maxRTPriority = priority;
+}
+
+void OOPWorker::setCPUAffinity(QVector<uint> cores)
+{
+    if (cores.empty())
+        return;
+    thread_set_affinity_from_vec(pthread_self(), cores.toStdVector());
 }
