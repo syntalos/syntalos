@@ -43,6 +43,7 @@ public:
     void setRunning(bool running);
 
     void setDeviceType(const QString &devType);
+    void setCurrentPixRangeValues(int min, int max);
 
 private slots:
     void on_scopeTypeComboBox_currentIndexChanged(const QString &arg1);

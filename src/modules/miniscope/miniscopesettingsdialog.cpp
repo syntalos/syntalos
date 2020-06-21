@@ -83,6 +83,12 @@ void MiniscopeSettingsDialog::setDeviceType(const QString &devType)
     ui->scopeTypeComboBox->setCurrentText(devType);
 }
 
+void MiniscopeSettingsDialog::setCurrentPixRangeValues(int min, int max)
+{
+    ui->labelScopeMin->setText(QString::number(min).rightJustified(3, '0'));
+    ui->labelScopeMax->setText(QString::number(max).rightJustified(3, '0'));
+}
+
 void MiniscopeSettingsDialog::on_scopeTypeComboBox_currentIndexChanged(const QString &arg1)
 {
     // clear previous controls

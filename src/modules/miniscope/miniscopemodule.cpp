@@ -187,6 +187,7 @@ public:
             }
         }
         statusMessage(QStringLiteral("FPS: %1 Dropped: %2").arg(m_miniscope->currentFps()).arg(m_miniscope->droppedFramesCount()));
+        m_settingsDialog->setCurrentPixRangeValues(m_miniscope->minFluor(), m_miniscope->maxFluor());
     }
 
     void stop() override
