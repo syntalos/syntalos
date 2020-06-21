@@ -91,7 +91,7 @@ QString DevelDataSSTModuleInfo::name() const
 
 QString DevelDataSSTModuleInfo::description() const
 {
-    return QStringLiteral("Developer module representing a source, sing and transformer for debug logging.");
+    return QStringLiteral("Developer module representing a source, sink and transformer for debug logging.");
 }
 
 QPixmap DevelDataSSTModuleInfo::pixmap() const
