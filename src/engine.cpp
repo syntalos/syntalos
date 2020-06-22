@@ -345,7 +345,7 @@ void Engine::emitStatusMessage(const QString &message)
 
 /**
  * @brief Return a list of active modules that have been sorted in the order they
- * should be prepared, run and stopped in.
+ * should be prepared, run and overall be handled in (but not stopped in!).
  */
 QList<AbstractModule *> Engine::createModuleExecOrderList()
 {
@@ -410,6 +410,65 @@ QList<AbstractModule *> Engine::createModuleExecOrderList()
     qCDebug(logEngine).noquote() << debugText;
 
     return orderedActiveModules;
+}
+
+/**
+ * @brief Create new module stop order from their exec order.
+ */
+QList<AbstractModule *> Engine::createModuleStopOrderFromExecOrder(const QList<AbstractModule *> &modExecList)
+{
+    QList<AbstractModule*> stopOrderMods;
+    QSet<AbstractModule*> assignedMods;
+    stopOrderMods.reserve(modExecList.length());
+
+    for (auto &mod : modExecList) {
+        if (assignedMods.contains(mod))
+            continue;
+
+        // FIXME: This is very ugly special-casing of a single module type, but we want to give users
+        // a chance to still send Firmata commands when the system is terminating.
+        // Possibly replace this with module-defined declarative StartupOrder/TerminateOrder later?
+        if (mod->id() == QStringLiteral("firmata-io")) {
+            for (const auto &iport : mod->inPorts()) {
+                if (iport->hasSubscription()) {
+                    const auto upstreamMod = iport->outPort()->owner();
+                    if (upstreamMod->id() == QStringLiteral("pyscript")) {
+                        if (!assignedMods.contains(upstreamMod)) {
+                            stopOrderMods.append(upstreamMod);
+                            assignedMods.insert(upstreamMod);
+
+                            stopOrderMods.append(mod);
+                            assignedMods.insert(mod);
+                        } else {
+                            // inefficiently search for the module we should stop after
+                            for (ssize_t i = 0; i < stopOrderMods.length(); i++) {
+                                if (upstreamMod == stopOrderMods[i]) {
+                                    stopOrderMods.insert(i + 1, mod);
+                                    assignedMods.insert(mod);
+                                    break;
+                                }
+                            }
+                        }
+
+                        break;
+                    }
+                }
+            }
+        }
+
+        // we need to check the set again here, as modules may have been
+        // added while we were in this loop
+        if (!assignedMods.contains(mod)) {
+            stopOrderMods.append(mod);
+            assignedMods.insert(mod);
+        }
+    }
+
+    if (stopOrderMods.length() != modExecList.length())
+        qCCritical(logEngine).noquote() << "Invalid count of stop-ordered modules:" << stopOrderMods.length() << "!=" << modExecList.length();
+    assert(stopOrderMods.length() == modExecList.length());
+
+    return stopOrderMods;
 }
 
 /**
@@ -1012,7 +1071,7 @@ bool Engine::runInternal(const QString &exportDirPath)
     }
 
     // send stop command to all modules
-    for (auto &mod : orderedActiveModules) {
+    for (auto &mod : createModuleStopOrderFromExecOrder(orderedActiveModules)) {
         emitStatusMessage(QStringLiteral("Stopping %1...").arg(mod->name()));
         lastPhaseTimepoint = d->timer->currentTimePoint();
 
@@ -1043,6 +1102,7 @@ bool Engine::runInternal(const QString &exportDirPath)
 
         // send the stop command
         mod->stop();
+        QCoreApplication::processEvents();
 
         // safeguard against bad modules which don't stop running their
         // thread loops on their own

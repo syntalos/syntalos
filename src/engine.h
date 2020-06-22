@@ -112,6 +112,7 @@ private:
     void refreshExportDirPath();
     void emitStatusMessage(const QString &message);
     QList<AbstractModule*> createModuleExecOrderList();
+    QList<AbstractModule*> createModuleStopOrderFromExecOrder(const QList<AbstractModule*> &modExecList);
 };
 
 } // end of namespace
