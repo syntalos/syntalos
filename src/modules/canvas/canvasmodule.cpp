@@ -184,10 +184,13 @@ public:
                 m_currentFps = m_expectedFps;
 
             const auto frameDisplayTime = currentTimePoint();
-            m_currentDisplayFps = ((m_currentDisplayFps * 20) + (1000.0 / timeDiffMsec(frameDisplayTime, m_lastDisplayTime).count())) / (20 + 1);
+            if (std::isinf(m_currentDisplayFps))
+                m_currentDisplayFps = 1000.0 / timeDiffMsec(frameDisplayTime, m_lastDisplayTime).count();
+            else
+                m_currentDisplayFps = ((m_currentDisplayFps * 20) + (1000.0 / timeDiffMsec(frameDisplayTime, m_lastDisplayTime).count())) / (20 + 1);
             m_lastDisplayTime = frameDisplayTime;
 
-            m_cvView->setStatusText(QStringLiteral("%1 | Stream: %2fps (of %4fps) | Display: %5fps")
+            m_cvView->setStatusText(QStringLiteral("%1 | Stream: %2fps (of %3fps) | Display: %4fps")
                                     .arg(QTime::fromMSecsSinceStartOfDay(frameTime).toString("hh:mm:ss.zzz"))
                                     .arg(m_currentFps, 0, 'f', 1)
                                     .arg(m_expectedFps, 0, 'f', 1)
