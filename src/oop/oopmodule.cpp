@@ -130,16 +130,17 @@ bool OOPModule::oopPrepare(QEventLoop *loop, const QVector<uint> &cpuAffinity)
     const auto waitStartTime = currentTimePoint();
     while (d->workerStage != OOPWorkerReplica::READY) {
         loop->processEvents();
+
+        // if we are in a failed state, we have already emitted an error message
+        if (wc->failed() || d->failed)
+            return false;
+
         if (timeDiffMsec(currentTimePoint(), waitStartTime).count() > 20000) {
             // waiting 20sec is long enough, presumably the worker died and we can not
             // continue here
             raiseError("The worker did not signal readyness - maybe it crashed or is frozen?");
             return false;
         }
-
-        // if we are in a failed state, we have already emitted an error message
-        if (wc->failed() || d->failed)
-            return false;
     }
 
     // set all outgoing streams as active (which propagates metadata)

@@ -453,8 +453,8 @@ void OOPWorker::raiseError(const QString &message)
 {
     m_running = false;
     std::cerr << "ERROR: " << message.toStdString() << std::endl;
-    Q_EMIT error(message);
     setStage(OOPWorker::ERROR);
+    Q_EMIT error(message);
 }
 
 bool OOPWorker::setNiceness(int nice)
