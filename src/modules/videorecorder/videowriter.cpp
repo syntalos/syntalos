@@ -382,6 +382,8 @@ void VideoWriter::initializeInternal()
     case VideoCodec::FFV1:
         if (d->inputPixFormat == AV_PIX_FMT_GRAY8)
             d->cctx->pix_fmt = AV_PIX_FMT_GRAY8;
+        if (d->inputPixFormat == AV_PIX_FMT_GRAY16LE)
+            d->cctx->pix_fmt = AV_PIX_FMT_GRAY8;
         break;
     default: break;
     }
@@ -483,7 +485,7 @@ void VideoWriter::finalizeInternal(bool writeTrailer)
     d->initialized = false;
 }
 
-void VideoWriter::initialize(const std::string &fname, int width, int height, int fps, bool hasColor, bool saveTimestamps)
+void VideoWriter::initialize(const std::string &fname, int width, int height, int fps, int cvDepth, bool hasColor, bool saveTimestamps)
 {
     if (d->initialized)
         throw std::runtime_error("Tried to initialize an already initialized video writer.");
@@ -500,7 +502,14 @@ void VideoWriter::initialize(const std::string &fname, int width, int height, in
         d->fnameBase = fname;
 
     // select FFMpeg pixel format of OpenCV matrixes
-    d->inputPixFormat = hasColor? AV_PIX_FMT_BGR24 : AV_PIX_FMT_GRAY8;
+    if (hasColor) {
+        d->inputPixFormat = AV_PIX_FMT_BGR24;
+    } else {
+        if (cvDepth == CV_16U)
+            d->inputPixFormat = AV_PIX_FMT_GRAY16LE;
+        else
+            d->inputPixFormat = AV_PIX_FMT_GRAY8;
+    }
 
     // initialize encoder
     initializeInternal();
@@ -605,7 +614,9 @@ bool VideoWriter::prepareFrame(const cv::Mat &inImage)
         step = aligned_step;
     }
 
-    if (d->cctx->pix_fmt != d->inputPixFormat) {
+    // FIXME: This crashes in libavcodec in avcodec_send_frame if we aren't using sws_scale first, even though
+    // that extra step shouldn't be necessary. Investigate why.
+    //if (d->cctx->pix_fmt != d->inputPixFormat) {
         // let input_picture point to the raw data buffer of 'image'
         av_image_fill_arrays(d->inputFrame->data, d->inputFrame->linesize, static_cast<const uint8_t*>(data), d->inputPixFormat, width, height, 1);
         d->inputFrame->linesize[0] = static_cast<int>(step);
@@ -614,14 +625,14 @@ bool VideoWriter::prepareFrame(const cv::Mat &inImage)
                                d->inputFrame->linesize, 0,
                                d->height,
                                d->frame->data, d->frame->linesize) < 0) {
-            d->lastError = "Unable to scale image in pixel format comnversion.";
+            d->lastError = "Unable to scale image in pixel format conversion.";
             return false;
         }
 
-    } else {
-        av_image_fill_arrays(d->frame->data, d->frame->linesize, static_cast<const uint8_t*>(data), d->inputPixFormat, width, height, 1);
-        d->frame->linesize[0] = static_cast<int>(step);
-    }
+    //} else {
+    //    av_image_fill_arrays(d->frame->data, d->frame->linesize, static_cast<const uint8_t*>(data), d->inputPixFormat, width, height, 1);
+    //    d->frame->linesize[0] = static_cast<int>(step);
+    //}
 
     d->frame->pts = d->framePts++;
     return true;

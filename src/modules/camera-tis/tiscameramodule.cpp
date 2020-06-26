@@ -217,6 +217,8 @@ public:
         m_outStream->setMetadataValue("size", QSize(m_resolution.width, m_resolution.height));
         m_outStream->setMetadataValue("framerate", m_fps);
         m_outStream->setMetadataValue("has_color", !m_imgFormat.startsWith("GRAY"));
+        if (m_imgFormat.startsWith("GRAY16"))
+            m_outStream->setMetadataValue("depth", CV_16U);
 
         // start the stream
         m_outStream->start();

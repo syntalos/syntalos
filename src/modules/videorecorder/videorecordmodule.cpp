@@ -262,6 +262,7 @@ public:
                 const auto mdata = m_inSub->metadata();
                 auto frameSize = mdata.value("size", QSize()).toSize();
                 const auto framerate = mdata.value("framerate", 0).toDouble();
+                const auto depth = mdata.value("depth", CV_8U).toInt();
                 const auto useColor = mdata.value("has_color", frame.mat.channels() > 1).toBool();
 
                 if (!frameSize.isValid()) {
@@ -293,6 +294,7 @@ public:
                                               frameSize.width(),
                                               frameSize.height(),
                                               framerate,
+                                              depth,
                                               useColor,
                                               m_settingsDialog->saveTimestamps());
                 } catch (const std::runtime_error& e) {
