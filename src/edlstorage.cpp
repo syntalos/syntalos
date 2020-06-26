@@ -28,7 +28,6 @@
 #include <QMimeDatabase>
 #include <QDir>
 #include <QUuid>
-#include <QCollator>
 #include <toml++/toml.h>
 
 #include "utils.h"
@@ -561,11 +560,7 @@ QStringList EDLDataset::findFilesByPattern(const QString &wildcard)
     }
 
     // do natural sorting of the found files
-    if (!files.isEmpty()) {
-        QCollator collator(QLocale("C"));
-        std::sort(files.begin(), files.end(), collator);
-    }
-
+    stringListNaturalSort(files);
     return files;
 }
 

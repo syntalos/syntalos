@@ -19,6 +19,9 @@
 
 #include "utils.h"
 
+#include <QDebug>
+#include <QCollator>
+
 QString createRandomString(int len)
 {
     const auto possibleCahrs = QStringLiteral("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789");
@@ -58,5 +61,29 @@ QStringList qStringSplitLimit(const QString &str, const QChar &sep, int maxSplit
     }
     if (start != str.size())
         list.append(str.mid(start));
+    return list;
+}
+
+QStringList stringListNaturalSort(QStringList &list)
+{
+    if (list.isEmpty())
+        return list;
+
+    // prefer en_DK unless that isn't available.
+    // we previously defaulted to "C", but doing that
+    // will produce the wrong sorting order
+    QCollator collator(QLocale("en_DK.UTF-8"));
+    if (collator.locale().language() == QLocale::C) {
+        collator = QCollator();
+        if (collator.locale().language() == QLocale::C) {
+            collator = QCollator(QLocale("en"));
+            if (collator.locale().language() == QLocale::C)
+                qWarning() << "Unable to find a non-C locale for collator.";
+        }
+    }
+    collator.setNumericMode(true);
+
+    std::sort(list.begin(), list.end(), collator);
+
     return list;
 }

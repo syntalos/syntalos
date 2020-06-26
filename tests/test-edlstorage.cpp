@@ -119,6 +119,19 @@ private slots:
 
         QVERIFY2(collection->save(), qPrintable(collection->lastError()));
     }
+
+    void runUtilsSortTest()
+    {
+        QStringList files;
+        files << "test_1.mkv" << "test_2.mkv" << "test_9.mkv" << "test_10.mkv" << "test_11.mkv" << "test_8.mkv";
+        stringListNaturalSort(files);
+        QCOMPARE(files[0], "test_1.mkv");
+        QCOMPARE(files[1], "test_2.mkv");
+        QCOMPARE(files[2], "test_8.mkv");
+        QCOMPARE(files[3], "test_9.mkv");
+        QCOMPARE(files[4], "test_10.mkv");
+        QCOMPARE(files[5], "test_11.mkv");
+    }
 };
 
 QTEST_MAIN(TestEDL)

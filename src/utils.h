@@ -41,4 +41,9 @@ QStringList qStringSplitLimit(const QString &str,
                               int maxSplit,
                               Qt::CaseSensitivity cs = Qt::CaseSensitive);
 
+/**
+ * @brief Naturally sort the give string list (sorting "10" after "9")
+**/
+QStringList stringListNaturalSort(QStringList &list);
+
 #endif // UTILS_H
