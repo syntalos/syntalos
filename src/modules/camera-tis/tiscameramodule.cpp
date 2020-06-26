@@ -21,11 +21,16 @@
 
 #include <QDebug>
 #include <gst/app/gstappsink.h>
+#include <gst/video/video-format.h>
 #include "streams/frametype.h"
 
 #include "cdeviceselectiondlg.h"
 #include "cpropertiesdialog.h"
 #include "tcamcamera.h"
+
+namespace Syntalos {
+    Q_LOGGING_CATEGORY(logTISCam, "mod.tiscam")
+}
 
 class TISCameraModule : public AbstractModule
 {
@@ -36,6 +41,7 @@ private:
 
     gsttcam::TcamCamera *m_camera;
     QString m_camSerial;
+    QString m_imgFormat;
     cv::Size m_resolution;
 
     double m_fps;
@@ -120,13 +126,13 @@ public:
         m_camera = new gsttcam::TcamCamera(m_camSerial.toStdString());
 
         // Set video format, resolution and frame rate. We display color.
-        m_camera->set_capture_format("BGRx",
+        m_camera->set_capture_format(m_imgFormat.toStdString(),
                                      gsttcam::FrameSize{m_resolution.width, m_resolution.height},
                                      gsttcam::FrameRate{m_fpsNumerator, m_fpsDenominator});
         return true;
     }
 
-    void selectCamera(const QString &serial, int width, int height, int fps1, int fps2)
+    void selectCamera(const QString &serial, const QString &format, int width, int height, int fps1, int fps2)
     {
         if (serial.isEmpty())
             return;
@@ -134,10 +140,19 @@ public:
             return;
 
         m_camSerial = serial;
+        m_imgFormat = format;
         m_fpsNumerator = fps1;
         m_fpsDenominator = fps2;
         m_fps = (double) m_fpsNumerator / (double) m_fpsDenominator;
         m_resolution = cv::Size(width, height);
+
+        // sanity check on image formats
+        if ((m_imgFormat != QStringLiteral("BGRx")) &&
+            (m_imgFormat != QStringLiteral("GRAY8")) &&
+            (m_imgFormat != QStringLiteral("GRAY16_LE"))) {
+            m_imgFormat = QStringLiteral("BGRx");
+            qCWarning(logTISCam).noquote().nospace() << "Unknown/untested image format '" << format << "' selected, falling back to BGRx";
+        }
 
         // create a new camera, deleting the old one
         if (!resetCamera()) {
@@ -165,6 +180,7 @@ public:
             return;
 
         selectCamera(QString::fromStdString(devSelDlg.getSerialNumber()),
+                     QString::fromStdString(devSelDlg.getFormat()),
                      devSelDlg.getWidth(),
                      devSelDlg.getHeight(),
                      devSelDlg.getFPSNominator(),
@@ -200,6 +216,7 @@ public:
         // set the required stream metadata for video capture
         m_outStream->setMetadataValue("size", QSize(m_resolution.width, m_resolution.height));
         m_outStream->setMetadataValue("framerate", m_fps);
+        m_outStream->setMetadataValue("has_color", !m_imgFormat.startsWith("GRAY"));
 
         // start the stream
         m_outStream->start();
@@ -261,19 +278,25 @@ public:
             gst_buffer_map(buffer, &info, GST_MAP_READ);
             if (info.data != nullptr) {
                 GstCaps *caps = gst_sample_get_caps(sample);
-                const auto gStr = gst_caps_get_structure (caps, 0);
-
-                // sanity check
-                if (g_strcmp0 (gst_structure_get_string(gStr, "format"), "BGRx") != 0) {
-                    qDebug() << "Received buffer with unsupported format: " << gst_structure_get_string(gStr, "format");
-                    gst_buffer_unmap (buffer, &info);
-                    continue;
-                }
+                const auto gS = gst_caps_get_structure (caps, 0);
+                const gchar *format_str = gst_structure_get_string(gS, "format");
 
                 // create our frame and push it to subscribers
                 Frame frame;
-                frame.mat.create(m_resolution, CV_8UC(4));
-                memcpy(frame.mat.data, info.data, m_resolution.width * m_resolution.height * 4);
+                if (g_strcmp0(format_str, "BGRx") == 0) {
+                    frame.mat.create(m_resolution, CV_8UC(4));
+                    memcpy(frame.mat.data, info.data, m_resolution.width * m_resolution.height * 4);
+                } else if (g_strcmp0(format_str, "GRAY8") == 0) {
+                    frame.mat.create(m_resolution, CV_8UC(1));
+                    memcpy(frame.mat.data, info.data, m_resolution.width * m_resolution.height);
+                } else if (g_strcmp0(format_str, "GRAY16_LE") == 0) {
+                    frame.mat.create(m_resolution, CV_16UC(1));
+                    memcpy(frame.mat.data, info.data, m_resolution.width * m_resolution.height);
+                } else {
+                    qCDebug(logTISCam).noquote() << "Received buffer with unsupported format:" << format_str;
+                    gst_buffer_unmap (buffer, &info);
+                    continue;
+                }
 
                 // only do time adjustment if we have a valid timestamp
                 const auto pts = buffer->pts;
@@ -318,6 +341,7 @@ public:
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
     {
         settings.insert("camera", m_camSerial);
+        settings.insert("format", m_imgFormat);
         settings.insert("width", m_resolution.width);
         settings.insert("height", m_resolution.height);
         settings.insert("fps_numerator", m_fpsNumerator);
@@ -327,6 +351,7 @@ public:
     bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
     {
         selectCamera(settings.value("camera").toString(),
+                     settings.value("format").toString(),
                      settings.value("width").toInt(),
                      settings.value("height").toInt(),
                      settings.value("fps_numerator").toInt(),

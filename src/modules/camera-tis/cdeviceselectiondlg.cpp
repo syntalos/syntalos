@@ -217,7 +217,7 @@ void CDeviceSelectionDlg::OnOK()
 
     _SelectedDevice.SerialNumber = DevDesc->SerialNumber;
     _SelectedDevice.Name = DevDesc->Name;
-    _SelectedDevice.Format =  "";
+    _SelectedDevice.Format =  pVideoFormat->Format();
     _SelectedDevice.Width = pVideoFormat->Width();
     _SelectedDevice.Height = pVideoFormat->Height();
     _SelectedDevice.fpsNominator = pFrameRate->_numerator;

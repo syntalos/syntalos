@@ -113,8 +113,9 @@ class CVideoFormat
 
 
         ~CVideoFormat();
-        int Width(){return _width;};
-        int Height(){return _height;};
+        int Width(){ return _width; };
+        int Height(){ return _height; };
+        std::string Format() { return std::string(_format); };
         bool isValid(){return _isValid;};
 
         void debugprint();
@@ -157,12 +158,13 @@ class CDeviceSelectionDlg : public QDialog
         CDeviceSelectionDlg(QWidget* parent = nullptr);
         ~CDeviceSelectionDlg();
 
-        char* getCapString(){return _CapsString;};
-        std::string getSerialNumber() {return _SelectedDevice.SerialNumber;};
-        int getWidth() {return _SelectedDevice.Width;};
-        int getHeight() {return _SelectedDevice.Height;};
-        int getFPSNominator() {return _SelectedDevice.fpsNominator;};
-        int getFPSDeNominator() {return _SelectedDevice.fpsDeNominator;};
+        char* getCapString(){ return _CapsString; };
+        std::string getSerialNumber() { return _SelectedDevice.SerialNumber; };
+        int getWidth() { return _SelectedDevice.Width; };
+        int getHeight() { return _SelectedDevice.Height; };
+        int getFPSNominator() { return _SelectedDevice.fpsNominator; };
+        int getFPSDeNominator() { return _SelectedDevice.fpsDeNominator; };
+        std::string getFormat() { return _SelectedDevice.Format; };
 
     private slots:
         void OnCancel();
