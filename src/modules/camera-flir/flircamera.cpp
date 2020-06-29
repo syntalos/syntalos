@@ -51,6 +51,7 @@ public:
 FLIRCamera::FLIRCamera(const Spinnaker::SystemPtr system)
     : d(new FLIRCamera::Private())
 {
+    d->cam = nullptr;
     d->system = system;
     d->framerate = 30;
     d->resolution = cv::Size(540, 540);
@@ -59,9 +60,11 @@ FLIRCamera::FLIRCamera(const Spinnaker::SystemPtr system)
 
 FLIRCamera::~FLIRCamera()
 {
-    if (d->cam->IsInitialized())
-        d->cam->DeInit();
-    d->cam = nullptr;
+    if (d->cam.IsValid()) {
+        if (d->cam->IsInitialized())
+            d->cam->DeInit();
+        d->cam = nullptr;
+    }
 }
 
 Spinnaker::SystemPtr FLIRCamera::system() const
