@@ -28,7 +28,11 @@ class FLIRCameraMod : public AbstractModule
 {
     Q_OBJECT
 private:
+    inline static std::mutex s_spnSystemMutex;
+    inline static std::atomic_uint s_spnSystemRefCount;
+    inline static spn::SystemPtr s_spnSystem;
     spn::SystemPtr m_spnSystem;
+
     FLIRCamera *m_camera;
     FLIRCamSettingsDialog *m_camSettingsWindow;
 
@@ -38,7 +42,19 @@ public:
     explicit FLIRCameraMod(QObject *parent = nullptr)
         : AbstractModule(parent)
     {
-        m_spnSystem = spn::System::GetInstance();
+        {
+            const std::lock_guard<std::mutex> lock(s_spnSystemMutex);
+
+            if (!s_spnSystem.IsValid()) {
+                const std::lock_guard<std::mutex> lock(s_spnSystemMutex);
+                s_spnSystem = spn::System::GetInstance();
+                s_spnSystemRefCount = 0;
+            }
+
+            m_spnSystem = s_spnSystem;
+            s_spnSystemRefCount++;
+        }
+
         m_camera = new FLIRCamera(m_spnSystem),
 
         m_outStream = registerOutputPort<Frame>(QStringLiteral("video"), QStringLiteral("Video"));
@@ -61,8 +77,12 @@ public:
 
     ~FLIRCameraMod()
     {
+        const std::lock_guard<std::mutex> lock(s_spnSystemMutex);
+
         delete m_camera;
-        m_spnSystem->ReleaseInstance();
+        s_spnSystemRefCount--;
+        if (s_spnSystemRefCount == 0)
+            m_spnSystem->ReleaseInstance();
     }
 
     void setName(const QString &name) override
