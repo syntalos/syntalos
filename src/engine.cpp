@@ -514,7 +514,14 @@ static void executeOOPModuleThread(const ThreadDetails td, QList<OOPModule*> mod
     {
         QList<OOPModule*> readyMods;
         for (auto &mod : mods) {
-            if (!mod->oopPrepare(&loop, QVector<uint>(td.cpuAffinity.begin(), td.cpuAffinity.end()))) {
+
+#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
+            const auto qvCpuAffinity = QVector<uint>(td.cpuAffinity.begin(), td.cpuAffinity.end());
+#else
+            const auto qvCpuAffinity = QVector<uint>::fromStdVector(td.cpuAffinity);
+#endif
+
+            if (!mod->oopPrepare(&loop, qvCpuAffinity)) {
                 // deininitialize modules we already have prepared
                 for (auto &reMod : readyMods)
                     reMod->oopFinalize(&loop);
