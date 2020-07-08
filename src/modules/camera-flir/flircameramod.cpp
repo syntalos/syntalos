@@ -46,7 +46,6 @@ public:
             const std::lock_guard<std::mutex> lock(s_spnSystemMutex);
 
             if (!s_spnSystem.IsValid()) {
-                const std::lock_guard<std::mutex> lock(s_spnSystemMutex);
                 s_spnSystem = spn::System::GetInstance();
                 s_spnSystemRefCount = 0;
             }
@@ -81,8 +80,10 @@ public:
 
         delete m_camera;
         s_spnSystemRefCount--;
-        if (s_spnSystemRefCount == 0)
-            m_spnSystem->ReleaseInstance();
+        if (s_spnSystemRefCount == 0) {
+            s_spnSystem->ReleaseInstance();
+            s_spnSystem = nullptr;
+        }
     }
 
     void setName(const QString &name) override
