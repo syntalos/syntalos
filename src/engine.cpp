@@ -514,7 +514,7 @@ static void executeOOPModuleThread(const ThreadDetails td, QList<OOPModule*> mod
     {
         QList<OOPModule*> readyMods;
         for (auto &mod : mods) {
-            if (!mod->oopPrepare(&loop, QVector<uint>::fromStdVector(td.cpuAffinity))) {
+            if (!mod->oopPrepare(&loop, QVector<uint>(td.cpuAffinity.begin(), td.cpuAffinity.end()))) {
                 // deininitialize modules we already have prepared
                 for (auto &reMod : readyMods)
                     reMod->oopFinalize(&loop);

@@ -54,11 +54,11 @@ CanvasWindow::CanvasWindow(QWidget *parent)
     setContentsMargins(0, 0, 0, 0);
 
     auto pal = palette();
-    pal.setColor(QPalette::Background, QColor::fromRgb(150, 150, 150).darker());
+    pal.setColor(QPalette::Window, QColor::fromRgb(150, 150, 150).darker());
     setPalette(pal);
 
     pal = m_statusLabel->palette();
-    pal.setColor(QPalette::Foreground, Qt::white);
+    pal.setColor(QPalette::WindowText, Qt::white);
     m_statusLabel->setPalette(pal);
 }
 

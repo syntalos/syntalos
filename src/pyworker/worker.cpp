@@ -473,5 +473,5 @@ void OOPWorker::setCPUAffinity(QVector<uint> cores)
 {
     if (cores.empty())
         return;
-    thread_set_affinity_from_vec(pthread_self(), cores.toStdVector());
+    thread_set_affinity_from_vec(pthread_self(), std::vector<uint>(cores.begin(), cores.end()));
 }
