@@ -19,6 +19,10 @@
 
 #include <Python.h>
 #include <QCoreApplication>
+
+#include <sys/prctl.h>
+#include <signal.h>
+
 #include "worker.h"
 
 int main(int argc, char *argv[])
@@ -34,6 +38,9 @@ int main(int argc, char *argv[])
 
     QRemoteObjectHost srcNode(QUrl(a.arguments()[1]));
     srcNode.enableRemoting(worker);
+
+    // ensure that this process dies with its parent
+    prctl(PR_SET_PDEATHSIG, SIGKILL);
 
     return a.exec();
 }
