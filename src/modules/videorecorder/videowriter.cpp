@@ -25,8 +25,7 @@
 #include <thread>
 #include <queue>
 #include <fstream>
-#include <boost/format.hpp>
-#include <boost/algorithm/string/predicate.hpp>
+#include <QFileInfo>
 #include <opencv2/imgproc/imgproc.hpp>
 extern "C" {
 #include <libavformat/avformat.h>
@@ -104,13 +103,6 @@ VideoContainer stringToVideoContainer(const std::string &str)
     return VideoContainer::Unknown;
 }
 
-/**
- * @brief FRAME_QUEUE_MAX_COUNT
- * The maximum number of frames we want to hold in the queue in memory
- * before dropping frames.
- */
-static const uint FRAME_QUEUE_MAX_COUNT = 1024;
-
 #pragma GCC diagnostic ignored "-Wpadded"
 class VideoWriter::VideoWriterData
 {
@@ -123,7 +115,7 @@ public:
         fileSliceIntervalMin = 0;  // never slice our recording by default
         captureStartTimestamp = std::chrono::milliseconds(0); //by default we assume the first frame was recorded at timepoint 0
 
-        frame = nullptr;
+        encFrame = nullptr;
         inputFrame = nullptr;
         alignedInput = nullptr;
 
@@ -133,6 +125,12 @@ public:
         swsctx = nullptr;
         lossless = false;
         threadCount = 0;
+        encPixFormat = AV_PIX_FMT_YUV420P;
+
+        useVAAPI = false;
+        hwDevCtx = nullptr;
+        hwFrameCtx = nullptr;
+        hwFrame = nullptr;
     }
 
     std::string lastError;
@@ -154,7 +152,7 @@ public:
     std::ofstream timestampFile;
     std::chrono::milliseconds captureStartTimestamp;
 
-    AVFrame *frame;
+    AVFrame *encFrame;
     AVFrame *inputFrame;
     int64_t framePts;
     uchar *alignedInput;
@@ -164,8 +162,15 @@ public:
     AVCodecContext *cctx;
     SwsContext *swsctx;
     AVPixelFormat inputPixFormat;
+    AVPixelFormat encPixFormat;
 
-    size_t frames_n;
+    size_t framesN;
+
+    bool useVAAPI;
+    AVBufferRef *hwDevCtx;
+    AVBufferRef *hwFrameCtx;
+    AVFrame *hwFrame;
+    QString hwDevice;
 };
 #pragma GCC diagnostic pop
 
@@ -173,6 +178,9 @@ VideoWriter::VideoWriter()
     : d(new VideoWriterData())
 {
     d->initialized = false;
+
+    // DRI node for HW acceleration, currently hardcoded
+    d->hwDevice = QStringLiteral("/dev/dri/renderD128");
 }
 
 VideoWriter::~VideoWriter()
@@ -210,6 +218,40 @@ static AVFrame *vw_alloc_frame(int pix_fmt, int width, int height, bool allocate
     return aframe;
 }
 
+void VideoWriter::initializeHWAccell()
+{
+    int ret = av_hwdevice_ctx_create(&d->hwDevCtx,
+                                     av_hwdevice_find_type_by_name("vaapi"),
+                                     qPrintable(d->hwDevice), NULL, 0);
+
+    if (ret != 0)
+        throw std::runtime_error(QStringLiteral("Failed to create hw encoding device for %1: %2").arg(d->hwDevice).arg(ret).toStdString());
+
+    d->hwFrameCtx = av_hwframe_ctx_alloc(d->hwDevCtx);
+    if (!d->hwFrameCtx) {
+        av_buffer_unref(&d->hwDevCtx);
+        throw std::runtime_error("Failed to initialize hw frame context");
+    }
+
+    auto cst = av_hwdevice_get_hwframe_constraints(d->hwDevCtx, NULL);
+    if (!cst) {
+        av_buffer_unref(&d->hwDevCtx);
+        throw std::runtime_error("Failed to get hwframe constraints");
+    }
+
+    auto ctx = (AVHWFramesContext*) d->hwFrameCtx->data;
+    ctx->width = d->width;
+    ctx->height = d->height;
+    ctx->format = cst->valid_hw_formats[0];
+    ctx->sw_format = AV_PIX_FMT_NV12;
+
+    if ((ret = av_hwframe_ctx_init(d->hwFrameCtx))) {
+        av_buffer_unref(&d->hwDevCtx);
+        av_buffer_unref(&d->hwFrameCtx);
+        throw std::runtime_error(QStringLiteral("Failed to initialize hwframe context: %1").arg(ret).toStdString());
+    }
+}
+
 void VideoWriter::initializeInternal()
 {
     // sanity check. 'Raw' is the only "codec" that we allow to only actually work with one
@@ -221,11 +263,11 @@ void VideoWriter::initializeInternal()
     }
 
     // if file slicing is used, give our new file the appropriate name
-    std::string fname;
+    QString fname;
     if (d->fileSliceIntervalMin > 0)
-        fname = boost::str(boost::format("%1%_%2%") % d->fnameBase % d->currentSliceNo);
+        fname = QStringLiteral("%1_%2").arg(QString::fromStdString(d->fnameBase)).arg(d->currentSliceNo);
     else
-        fname = d->fnameBase;
+        fname = QString::fromStdString(d->fnameBase);
 
     // prepare timestamp filename
     auto timestampFname = fname + "_timestamps.csv";
@@ -233,15 +275,15 @@ void VideoWriter::initializeInternal()
     // set container format
     switch (d->container) {
     case VideoContainer::Matroska:
-        if (!boost::algorithm::ends_with(fname, ".mkv"))
+        if (!fname.endsWith(".mkv"))
             fname = fname + ".mkv";
         break;
     case VideoContainer::AVI:
-        if (!boost::algorithm::ends_with(fname, ".avi"))
+        if (!fname.endsWith(".avi"))
             fname = fname + ".avi";
         break;
     default:
-        if (!boost::algorithm::ends_with(fname, ".mkv"))
+        if (!fname.endsWith(".mkv"))
             fname = fname + ".mkv";
         break;
     }
@@ -249,15 +291,15 @@ void VideoWriter::initializeInternal()
     // open output format context
     int ret;
     d->octx = nullptr;
-    ret = avformat_alloc_output_context2(&d->octx, nullptr, nullptr, fname.c_str());
+    ret = avformat_alloc_output_context2(&d->octx, nullptr, nullptr, qPrintable(fname));
     if (ret < 0)
-        throw std::runtime_error(boost::str(boost::format("Failed to allocate output context: %1%") % ret));
+        throw std::runtime_error(QStringLiteral("Failed to allocate output context: %1").arg(ret).toStdString());
 
     // open output IO context
-    ret = avio_open2(&d->octx->pb, fname.c_str(), AVIO_FLAG_WRITE, nullptr, nullptr);
+    ret = avio_open2(&d->octx->pb, qPrintable(fname), AVIO_FLAG_WRITE, nullptr, nullptr);
     if (ret < 0) {
         finalizeInternal(false);
-        throw std::runtime_error(boost::str(boost::format("Failed to open output I/O context: %1%") % ret));
+        throw std::runtime_error(QStringLiteral("Failed to open output I/O context: %1").arg(ret).toStdString());
     }
 
     auto codecId = AV_CODEC_ID_AV1;
@@ -288,8 +330,28 @@ void VideoWriter::initializeInternal()
         break;
     }
 
+    // sanity check to only try VAAPI codecs if we have whitelisted them
+    if (d->useVAAPI) {
+        if (!canUseVAAPI())
+            d->useVAAPI = false;
+    }
+
     // initialize codec and context
-    auto vcodec = avcodec_find_encoder(codecId);
+    AVCodec *vcodec;
+    if (d->useVAAPI) {
+        // we should try to use hardware acceleration
+        if (d->codec == VideoCodec::VP9)
+            vcodec = avcodec_find_encoder_by_name("vp9_vaapi");
+        else if (d->codec == VideoCodec::H264)
+            vcodec = avcodec_find_encoder_by_name("h264_vaapi");
+        else if (d->codec == VideoCodec::HEVC)
+            vcodec = avcodec_find_encoder_by_name("hevc_vaapi");
+        else
+            throw std::runtime_error("Unable to find hardware-accelerated version of the selected codec.");
+    } else {
+        // no hardware acceleration, proceed as usual
+        vcodec = avcodec_find_encoder(codecId);
+    }
     d->cctx = avcodec_alloc_context3(vcodec);
 
     // create new video stream
@@ -299,10 +361,11 @@ void VideoWriter::initializeInternal()
     avcodec_parameters_to_context(d->cctx, d->vstrm->codecpar);
 
     // set codec parameters
+    d->encPixFormat = AV_PIX_FMT_YUV420P;
     d->cctx->codec_id = codecId;
     d->cctx->codec_type = AVMEDIA_TYPE_VIDEO;
     if (vcodec->pix_fmts != nullptr)
-        d->cctx->pix_fmt = vcodec->pix_fmts[0];
+        d->encPixFormat = vcodec->pix_fmts[0];
     d->cctx->time_base = av_inv_q(d->fps);
     d->cctx->width = d->width;
     d->cctx->height = d->height;
@@ -313,9 +376,9 @@ void VideoWriter::initializeInternal()
         d->cctx->thread_count = d->threadCount;
 
     if (d->codec == VideoCodec::Raw)
-        d->cctx->pix_fmt = d->inputPixFormat == AV_PIX_FMT_GRAY8 ||
-                           d->inputPixFormat == AV_PIX_FMT_GRAY16LE ||
-                           d->inputPixFormat == AV_PIX_FMT_GRAY16BE ? d->inputPixFormat : AV_PIX_FMT_YUV420P;
+        d->encPixFormat = d->inputPixFormat == AV_PIX_FMT_GRAY8 ||
+                                d->inputPixFormat == AV_PIX_FMT_GRAY16LE ||
+                                d->inputPixFormat == AV_PIX_FMT_GRAY16BE ? d->inputPixFormat : AV_PIX_FMT_YUV420P;
 
     // enable experimental mode to encode AV1
     if (d->codec == VideoCodec::AV1)
@@ -323,6 +386,16 @@ void VideoWriter::initializeInternal()
 
     if (d->octx->oformat->flags & AVFMT_GLOBALHEADER)
         d->cctx->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+
+    // setup hardware acceleration, if requested
+    if (d->useVAAPI) {
+        initializeHWAccell();
+        d->cctx->hw_frames_ctx = av_buffer_ref(d->hwFrameCtx);
+
+        // the global header seems to cause troubles with pretty much all HW-accelerated codecs.
+        // disable it for now.
+        d->cctx->flags &= ~(AV_CODEC_FLAG_GLOBAL_HEADER);
+    }
 
     AVDictionary *codecopts = nullptr;
     if (d->lossless) {
@@ -341,8 +414,10 @@ void VideoWriter::initializeInternal()
             break;
         case VideoCodec::H264:
         case VideoCodec::HEVC:
+            d->cctx->gop_size = 60;
             av_dict_set_int(&codecopts, "crf", 0, 0);
             av_dict_set(&codecopts, "preset", "veryfast", 0);
+            av_dict_set_int(&codecopts, "lossless", 1, 0);
             break;
         case VideoCodec::MPEG4:
             // NOTE: MPEG-4 has no lossless option
@@ -396,11 +471,22 @@ void VideoWriter::initializeInternal()
     switch (d->codec) {
     case VideoCodec::FFV1:
         if (d->inputPixFormat == AV_PIX_FMT_GRAY8)
-            d->cctx->pix_fmt = AV_PIX_FMT_GRAY8;
+            d->encPixFormat = AV_PIX_FMT_GRAY8;
         if (d->inputPixFormat == AV_PIX_FMT_GRAY16LE)
-            d->cctx->pix_fmt = AV_PIX_FMT_GRAY8;
+            d->encPixFormat = AV_PIX_FMT_GRAY8;
         break;
     default: break;
+    }
+
+    // set pixel format to encoder pixel format, unless we are in
+    // VAAPI mode, in which case VAAPI is the "format" we need
+    if (d->hwDevCtx == nullptr) {
+        d->cctx->pix_fmt = d->encPixFormat;
+    } else {
+        // the codec format has to be VAAPI
+        d->cctx->pix_fmt = AV_PIX_FMT_VAAPI;
+        // only yuv420p seems to reliably work with HW acceleration
+        d->encPixFormat = AV_PIX_FMT_YUV420P;
     }
 
     // open video encoder
@@ -408,7 +494,7 @@ void VideoWriter::initializeInternal()
     if (ret < 0) {
         finalizeInternal(false);
         av_dict_free(&codecopts);
-        throw std::runtime_error(boost::str(boost::format("Failed to open video encoder: %1%") % ret));
+        throw std::runtime_error(QStringLiteral("Failed to open video encoder: %1").arg(ret).toStdString());
     }
 
     // stream codec parameters must be set after opening the encoder
@@ -422,7 +508,7 @@ void VideoWriter::initializeInternal()
                                      d->inputPixFormat,
                                      d->width,
                                      d->height,
-                                     d->cctx->pix_fmt,
+                                     d->encPixFormat,
                                      SWS_BICUBIC,
                                      nullptr,
                                      nullptr,
@@ -434,23 +520,39 @@ void VideoWriter::initializeInternal()
     }
 
     // allocate frame buffer for encoding
-    d->frame = vw_alloc_frame(d->cctx->pix_fmt, d->width, d->height, true);
+    d->encFrame = vw_alloc_frame(d->encPixFormat, d->width, d->height, true);
 
     // allocate input buffer for color conversion
-    d->inputFrame = vw_alloc_frame(d->cctx->pix_fmt, d->width, d->height, false);
+    d->inputFrame = vw_alloc_frame(d->inputPixFormat, d->width, d->height, false);
+
+    if (d->hwDevCtx != nullptr) {
+        // setup frame for hardware acceleration
+
+        d->hwFrame = av_frame_alloc();
+        auto frctx = (AVHWFramesContext*) d->hwFrameCtx->data;
+        d->hwFrame->format = frctx->format;
+        d->hwFrame->hw_frames_ctx = av_buffer_ref(d->hwFrameCtx);
+        d->hwFrame->width = d->width;
+        d->hwFrame->height = d->height;
+
+        if (av_hwframe_get_buffer(d->hwFrameCtx, d->hwFrame, 0)) {
+            finalizeInternal(false);
+            throw std::runtime_error("Failed to retrieve HW frame buffer.");
+        }
+    }
 
     // write format header, after this we are ready to encode frames
     ret = avformat_write_header(d->octx, nullptr);
     if (ret < 0) {
         finalizeInternal(false);
-        throw std::runtime_error(boost::str(boost::format("Failed to write format header: %1%") % ret));
+        throw std::runtime_error(QStringLiteral("Failed to write format header: %1").arg(ret).toStdString());
     }
     d->framePts = 0;
 
     if (d->saveTimestamps) {
         d->timestampFile.close(); // ensure file is closed
         d->timestampFile.clear();
-        d->timestampFile.open(timestampFname);
+        d->timestampFile.open(timestampFname.toStdString());
         d->timestampFile << "frame; timestamp" << "\n";
         d->timestampFile.flush();
     }
@@ -474,14 +576,23 @@ void VideoWriter::finalizeInternal(bool writeTrailer)
         d->timestampFile.close();
 
     // free all FFmpeg resources
-    if (d->frame != nullptr) {
-        av_frame_free(&d->frame);
-        d->frame = nullptr;
+    if (d->encFrame != nullptr) {
+        av_frame_free(&d->encFrame);
+        d->encFrame = nullptr;
     }
     if (d->inputFrame != nullptr) {
         av_frame_free(&d->inputFrame);
         d->inputFrame = nullptr;
     }
+    if (d->hwFrame != nullptr) {
+        av_frame_free(&d->hwFrame);
+        d->hwFrame = nullptr;
+    }
+
+    if (d->hwDevCtx != nullptr)
+        av_buffer_unref(&d->hwDevCtx);
+    if (d->hwFrameCtx != nullptr)
+        av_buffer_unref(&d->hwDevCtx);
 
     if (d->cctx != nullptr) {
         avcodec_free_context(&d->cctx);
@@ -508,7 +619,7 @@ void VideoWriter::initialize(const std::string &fname, int width, int height, in
     d->width = width;
     d->height = height;
     d->fps = {fps, 1};
-    d->frames_n = 0;
+    d->framesN = 0;
     d->saveTimestamps = saveTimestamps;
     d->currentSliceNo = 1;
     if (fname.substr(fname.find_last_of(".") + 1).length() == 3)
@@ -606,13 +717,16 @@ bool VideoWriter::prepareFrame(const cv::Mat &inImage)
 
     // sanity checks
     if ((static_cast<int>(height) > d->height) || (static_cast<int>(width) > d->width))
-        throw std::runtime_error(boost::str(boost::format("Received bigger frame than we expected (%1%x%2% instead %3%x%4%)") % width % height % d->width % d->height));
+        throw std::runtime_error(QStringLiteral("Received bigger frame than we expected (%1x%2 instead %3x%4)")
+                                 .arg(width).arg(height)
+                                 .arg(d->width).arg(d->height)
+                                 .toStdString());
     if ((d->inputPixFormat == AV_PIX_FMT_BGR24) && (channels != 3)) {
-        d->lastError = boost::str(boost::format("Expected BGR colored image, but received image has %1% channels") % channels);
+        d->lastError = QStringLiteral("Expected BGR colored image, but received image has %1 channels").arg(channels).toStdString();
         return false;
     }
     else if ((d->inputPixFormat == AV_PIX_FMT_GRAY8) && (channels != 1)) {
-        d->lastError = boost::str(boost::format("Expected grayscale image, but received image has %1% channels") % channels);
+        d->lastError = QStringLiteral("Expected grayscale image, but received image has %1 channels").arg(channels).toStdString();
         return false;
     }
 
@@ -634,9 +748,7 @@ bool VideoWriter::prepareFrame(const cv::Mat &inImage)
         step = aligned_step;
     }
 
-    // FIXME: This crashes in libavcodec in avcodec_send_frame if we aren't using sws_scale first, even though
-    // that extra step shouldn't be necessary. Investigate why.
-    //if (d->cctx->pix_fmt != d->inputPixFormat) {
+    if (d->encPixFormat != d->inputPixFormat) {
         // let input_picture point to the raw data buffer of 'image'
         av_image_fill_arrays(d->inputFrame->data, d->inputFrame->linesize, static_cast<const uint8_t*>(data), d->inputPixFormat, width, height, 1);
         d->inputFrame->linesize[0] = static_cast<int>(step);
@@ -644,33 +756,27 @@ bool VideoWriter::prepareFrame(const cv::Mat &inImage)
         if (sws_scale(d->swsctx, d->inputFrame->data,
                                d->inputFrame->linesize, 0,
                                d->height,
-                               d->frame->data, d->frame->linesize) < 0) {
+                               d->encFrame->data, d->encFrame->linesize) < 0) {
             d->lastError = "Unable to scale image in pixel format conversion.";
             return false;
         }
 
-    //} else {
-    //    av_image_fill_arrays(d->frame->data, d->frame->linesize, static_cast<const uint8_t*>(data), d->inputPixFormat, width, height, 1);
-    //    d->frame->linesize[0] = static_cast<int>(step);
-    //}
+    } else {
+        av_image_fill_arrays(d->encFrame->data, d->encFrame->linesize, static_cast<const uint8_t*>(data), d->inputPixFormat, width, height, 1);
+        d->encFrame->linesize[0] = static_cast<int>(step);
+    }
 
-    d->frame->pts = d->framePts++;
+    d->encFrame->pts = d->framePts++;
     return true;
 }
 
 bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::milliseconds &timestamp)
 {
     int ret;
+    bool success = false;
 
     if (!prepareFrame(frame)) {
-        std::cerr << "Unable to prepare frame. N: " << d->frames_n + 1 << "(" << d->lastError << ")" << std::endl;
-        return false;
-    }
-
-    // encode video frame
-    ret = avcodec_send_frame(d->cctx, d->frame);
-    if (ret < 0) {
-        std::cerr << "Unable to send frame to encoder. N:" << d->frames_n + 1 << std::endl;
+        std::cerr << "Unable to prepare frame. N: " << d->framesN + 1 << "(" << d->lastError << ")" << std::endl;
         return false;
     }
 
@@ -678,15 +784,45 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::milliseco
     pkt.data = nullptr;
     pkt.size = 0;
     av_init_packet(&pkt);
+
+    AVBufferRef *savedBuf0 = nullptr;
+    auto outputFrame = d->encFrame;
+
+    const auto tsMsec = timestamp.count();
+
+    if (d->hwDevCtx == nullptr) {
+        // force FFmpeg to create a copy of the frame, if the codec needs it
+        savedBuf0 = d->encFrame->buf[0];
+        d->encFrame->buf[0] = nullptr;
+    } else {
+        // we are GPU accelerated! Copy frame to the GPU.
+        if (av_hwframe_transfer_data(d->hwFrame, d->encFrame, 0)) {
+            d->lastError = QStringLiteral("Failed to upload data to the GPU").toStdString();
+            std::cerr << d->lastError << std::endl;
+            goto out;
+        }
+        d->hwFrame->pts = d->encFrame->pts;
+        outputFrame = d->hwFrame;
+    }
+
+    // encode video frame
+    ret = avcodec_send_frame(d->cctx, outputFrame);
+    if (ret < 0) {
+        std::cerr << "Unable to send frame to encoder. N:" << d->framesN + 1 << std::endl;
+        goto out;
+    }
+
     ret = avcodec_receive_packet(d->cctx, &pkt);
     if (ret != 0) {
         // some encoders need to be fed a few frames before they produce a useful result
         // ignore errors in that case for a little bit.
         if ((ret == AVERROR(EAGAIN)) &&
-            ((d->codec == VideoCodec::VP9) || (d->codec == VideoCodec::H264) || (d->codec == VideoCodec::HEVC)))
-            return true;
-        else
-            return false;
+            ((d->codec == VideoCodec::VP9) || (d->codec == VideoCodec::H264) || (d->codec == VideoCodec::HEVC))) {
+            success = true;
+            goto out;
+        } else {
+            goto out;
+        }
     }
 
     // rescale packet timestamp
@@ -695,11 +831,10 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::milliseco
 
     // write packet
     av_write_frame(d->octx, &pkt);
-    d->frames_n++;
+    d->framesN++;
     av_packet_unref(&pkt);
 
     // store timestamp (if necessary)
-    const auto tsMsec = timestamp.count();
     if (d->saveTimestamps)
         d->timestampFile << d->framePts << "; " << tsMsec << "\n";
 
@@ -717,12 +852,18 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::milliseco
             } catch (const std::exception& e) {
                 // propagate error and stop encoding thread, as we can not really recover from this
                 d->lastError = e.what();
-                return false;
+                goto out;
             }
         }
     }
 
-    return true;
+    success = true;
+out:
+    // restore frame buffer, so that it can be properly freed in the end
+    if (savedBuf0)
+        d->encFrame->buf[0] = savedBuf0;
+
+    return success;
 }
 
 VideoCodec VideoWriter::codec() const
@@ -773,6 +914,37 @@ int VideoWriter::threadCount() const
 void VideoWriter::setThreadCount(int n)
 {
     d->threadCount = n;
+}
+
+bool VideoWriter::canUseVAAPI(VideoCodec codec)
+{
+    if (codec == VideoCodec::VP9)
+        return true;
+    if (codec == VideoCodec::H264)
+        return true;
+    if (codec == VideoCodec::HEVC)
+        return true;
+    return false;
+}
+
+bool VideoWriter::canUseVAAPI() const
+{
+    QFileInfo fi(d->hwDevice);
+    if (!fi.exists())
+        return false;
+    return VideoWriter::canUseVAAPI(d->codec);
+}
+
+bool VideoWriter::useVAAPI() const
+{
+    return d->useVAAPI;
+}
+
+void VideoWriter::setUseVAAPI(bool enabled)
+{
+    d->useVAAPI = false;
+    if (canUseVAAPI())
+        d->useVAAPI = enabled;
 }
 
 uint VideoWriter::fileSliceInterval() const

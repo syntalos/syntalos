@@ -109,6 +109,11 @@ public:
     int threadCount() const;
     void setThreadCount(int n);
 
+    static bool canUseVAAPI(VideoCodec codec);
+    bool canUseVAAPI() const;
+    bool useVAAPI() const;
+    void setUseVAAPI(bool enabled);
+
     uint fileSliceInterval() const;
     void setFileSliceInterval(uint minutes);
 
@@ -118,6 +123,7 @@ private:
     class VideoWriterData;
     std::unique_ptr<VideoWriterData> d;
 
+    void initializeHWAccell();
     void initializeInternal();
     void finalizeInternal(bool writeTrailer);
     bool prepareFrame(const cv::Mat &inImage);
