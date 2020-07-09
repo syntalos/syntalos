@@ -373,8 +373,13 @@ void VideoWriter::initializeInternal()
         d->lossless = true; // this codec is always lossless
         d->cctx->level = 3; // Ensure we use FFV1 v3
         av_dict_set_int(&codecopts, "slicecrc", 1, 0); // Add CRC information to each slice
+        av_dict_set_int(&codecopts, "slices", 24, 0);  // Use 24 slices
+        av_dict_set_int(&codecopts, "coder", 1, 0);    // Range coder
+        av_dict_set_int(&codecopts, "context", 1, 0);  // "large" context
+
         // NOTE: For archival use, GOP-size should be 1, but that also increases the file size quite a bit.
         // Keeping a good balance between recording space/performance/integrity is difficult sometimes.
+        //av_dict_set_int(&codecopts, "g", 1, 0);
     }
 
     // Adjust pixel color formats for selected video codecs
