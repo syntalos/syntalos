@@ -35,6 +35,7 @@ private:
 
     FLIRCamera *m_camera;
     FLIRCamSettingsDialog *m_camSettingsWindow;
+    std::atomic_bool m_acqRunning;
 
     std::shared_ptr<DataStream<Frame>> m_outStream;
 
@@ -107,10 +108,8 @@ public:
             return false;
         }
 
-        if (!m_camera->setup(camSerial)) {
-            raiseError(QStringLiteral("Unable to setup FLIR camera (serial: %1), can not continue").arg(camSerial));
-            return false;
-        }
+        // ensure the right serial is set at this point
+        m_camera->setSerial(camSerial);
 
         const auto resolution = m_camSettingsWindow->resolution();
         const double framerate = m_camSettingsWindow->framerate();
@@ -127,17 +126,21 @@ public:
         // start the stream
         m_outStream->start();
 
+        // no frame acquisition is currently running
+        m_acqRunning = false;
+
+        // initialize camera
+        if (!m_camera->initAcquisition()) {
+            raiseError(m_camera->lastError());
+            return false;
+        }
+
         statusMessage("Waiting.");
         return true;
     }
 
     void runThread(OptionalWaitCondition *waitCondition) override
     {
-        if (!m_camera->initAcquisition()) {
-            raiseError(m_camera->lastError());
-            return;
-        }
-
         const auto actualFramerate = m_camera->actualFramerate();
 
         // set up clock synchronizer
@@ -147,12 +150,14 @@ public:
         // start the synchronizer
         if (!clockSync->start()) {
             raiseError(QStringLiteral("Unable to set up clock synchronizer!"));
-            m_camera->endAcquisition();
             return;
         }
 
         // wait until we actually start acquiring data
         waitCondition->wait(this);
+
+        // we are obtaining frames now!
+        m_acqRunning = true;
 
         // set up remaining pieces now that we are running, then start retrieving frames
         statusMessage(QStringLiteral("Recording (max %1 FPS)").arg(qRound(actualFramerate), 4));
@@ -170,13 +175,18 @@ public:
             m_outStream->push(frame);
         }
 
-        // finalize acquisition and clock synchronizer
-        m_camera->endAcquisition();
+        // finalize clock synchronizer
         clockSync->stop();
+
+        // we aren't getting new frames anymore
+        m_acqRunning = false;
     }
 
     void stop() override
     {
+        m_running = false;
+        while (m_acqRunning) { std::this_thread::sleep_for(std::chrono::milliseconds(100)); };
+        m_camera->endAcquisition();
         m_camSettingsWindow->setRunning(false);
         statusMessage(QString());
     }
@@ -200,7 +210,7 @@ public:
         m_camera->setGain(settings.value("gain").toInt());
         m_camSettingsWindow->setFramerate(settings.value("fps").toInt());
 
-        m_camera->setup(settings.value("camera").toString());
+        m_camera->setSerial(settings.value("camera").toString());
         m_camSettingsWindow->updateValues();
         return true;
     }

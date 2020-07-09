@@ -31,6 +31,8 @@
 namespace spn = Spinnaker;
 namespace spn_ga = Spinnaker::GenApi;
 
+Q_DECLARE_LOGGING_CATEGORY(logModFlirCam)
+
 class FLIRCamera
 {
 public:
@@ -40,14 +42,14 @@ public:
     spn::SystemPtr system() const;
 
     /**
-     * @brief Acquire camera pointer for the given serial
-     * No other method may be called on this object before setup() did
-     * not complete successfully.
+     * @brief Set camera serial number.
+     * This must be set before initAcquisition() can be called.
      */
-    bool setup(const QString &serial);
-    bool isValid() const;
-    bool isRunning() const;
+    void setSerial(const QString &serial);
     QString serial() const;
+
+    bool isRunning() const;
+
     void setStartTime(const symaster_timepoint &time);
 
     QString lastError() const;
@@ -81,5 +83,7 @@ private:
     Q_DISABLE_COPY(FLIRCamera)
     QScopedPointer<Private> d;
 
+    bool isActive() const;
+    void resetActiveCam();
     bool applyCamParameters(spn_ga::INodeMap& nodeMap);
 };

@@ -90,7 +90,7 @@ void FLIRCamSettingsDialog::updateValues()
 
 void FLIRCamSettingsDialog::on_cameraComboBox_currentIndexChanged(int)
 {
-    m_camera->setup(ui->cameraComboBox->currentData().toString());
+    m_camera->setSerial(ui->cameraComboBox->currentData().toString());
 }
 
 void FLIRCamSettingsDialog::on_sbExposure_valueChanged(int arg1)

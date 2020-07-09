@@ -24,6 +24,8 @@
 
 namespace spn_gic = Spinnaker::GenICam;
 
+Q_LOGGING_CATEGORY(logModFlirCam, "mod.cam-flir")
+
 #pragma GCC diagnostic ignored "-Wpadded"
 class FLIRCamera::Private
 {
@@ -34,7 +36,9 @@ public:
     QString lastError;
     std::chrono::time_point<symaster_clock> startTime;
     spn::SystemPtr system;
-    spn::CameraPtr cam;
+    spn::CameraPtr activeCam;
+    std::thread::id spnSysThreadId;
+    QString camSerial;
 
     cv::Size resolution;
     int framerate;
@@ -51,19 +55,22 @@ public:
 FLIRCamera::FLIRCamera(const Spinnaker::SystemPtr system)
     : d(new FLIRCamera::Private())
 {
-    d->cam = nullptr;
+    d->camSerial = QString();
+    d->activeCam = nullptr;
     d->system = system;
     d->framerate = 30;
     d->resolution = cv::Size(540, 540);
     d->exposureTimeUs = 500;
+
+    // we just assume the current thread is where the Spinnaker SystemPtr is initialized in
+    d->spnSysThreadId = std::this_thread::get_id();
 }
 
 FLIRCamera::~FLIRCamera()
 {
-    if (d->cam.IsValid()) {
-        if (d->cam->IsInitialized())
-            d->cam->DeInit();
-        d->cam = nullptr;
+    if (isActive()) {
+        qCWarning(logModFlirCam).noquote() << "Deleting camera class while camera was still loaded and active. Acquisition should have been stopped before.";
+        resetActiveCam();
     }
 }
 
@@ -72,34 +79,17 @@ Spinnaker::SystemPtr FLIRCamera::system() const
     return d->system;
 }
 
-bool FLIRCamera::setup(const QString &serial)
+void FLIRCamera::setSerial(const QString &serial)
 {
-    auto camList = d->system->GetCameras();
-    d->cam = camList.GetBySerial(serial.toStdString());
-    camList.Clear();
-
-    auto ret = d->cam.IsValid();
-    if (!ret)
-        d->lastError = QStringLiteral("Unable to find camera for serial %1").arg(serial);
-    return ret;
-}
-
-bool FLIRCamera::isValid() const
-{
-    return d->cam.IsValid();
-}
-
-bool FLIRCamera::isRunning() const
-{
-    return isValid() && d->cam->IsInitialized();
+    d->camSerial = serial;
 }
 
 QString FLIRCamera::serial() const
 {
-    if (!isValid())
-        return QString();
+    if (!isActive())
+        return d->camSerial;
 
-    spn_ga::INodeMap& nodeMapTLDevice = d->cam->GetTLDeviceNodeMap();
+    spn_ga::INodeMap& nodeMapTLDevice = d->activeCam->GetTLDeviceNodeMap();
     spn_ga::CStringPtr ptrDeviceID = nodeMapTLDevice.GetNode("DeviceID");
     if (IsAvailable(ptrDeviceID) && IsReadable(ptrDeviceID)) {
         const auto deviceId = ptrDeviceID->ToString();
@@ -107,6 +97,28 @@ QString FLIRCamera::serial() const
     }
 
     return QString();
+}
+
+bool FLIRCamera::isActive() const
+{
+    return d->activeCam.IsValid();
+}
+
+void FLIRCamera::resetActiveCam()
+{
+    if (d->activeCam.IsValid()) {
+        if (d->spnSysThreadId != std::this_thread::get_id())
+            qCCritical(logModFlirCam).noquote() << "Camera instance deleted in different thread than the Spinnaker System was initialized in. This may cause issues.";
+
+        if (d->activeCam->IsInitialized())
+            d->activeCam->DeInit();
+    }
+    d->activeCam = nullptr;
+}
+
+bool FLIRCamera::isRunning() const
+{
+    return isActive() && d->activeCam->IsInitialized();
 }
 
 void FLIRCamera::setStartTime(const symaster_timepoint &time)
@@ -183,8 +195,8 @@ bool FLIRCamera::applyCamParameters(spn_ga::INodeMap &nodeMap)
     ptrChunkModeActive->SetValue(true);
 
     // enable timestamp chunks
-    d->cam->ChunkSelector.SetValue(spn::ChunkSelector_Timestamp);
-    d->cam->ChunkEnable.SetValue(true);
+    d->activeCam->ChunkSelector.SetValue(spn::ChunkSelector_Timestamp);
+    d->activeCam->ChunkEnable.SetValue(true);
 
     // set image width
     spn_ga::CIntegerPtr ptrWidth = nodeMap.GetNode("Width");
@@ -209,12 +221,12 @@ bool FLIRCamera::applyCamParameters(spn_ga::INodeMap &nodeMap)
     }
 
     // exposure settings
-    d->cam->ExposureAuto.SetValue(spn::ExposureAuto_Off);
-    d->cam->ExposureTime.SetValue(d->exposureTimeUs);
+    d->activeCam->ExposureAuto.SetValue(spn::ExposureAuto_Off);
+    d->activeCam->ExposureTime.SetValue(d->exposureTimeUs);
 
     // gain settings
-    d->cam->GainAuto.SetValue(spn::GainAuto_Off);
-    d->cam->Gain.SetValue(d->gainDb);
+    d->activeCam->GainAuto.SetValue(spn::GainAuto_Off);
+    d->activeCam->Gain.SetValue(d->gainDb);
 
     // refresh gamma settings
     setGamma(d->gamma);
@@ -248,38 +260,51 @@ bool FLIRCamera::applyCamParameters(spn_ga::INodeMap &nodeMap)
 
 bool FLIRCamera::initAcquisition()
 {
-    if (!isValid()) {
+    if (d->camSerial.isEmpty()) {
         d->lastError = QStringLiteral("No valid FLIR camera set to acquire data from!");
+        return false;
+    }
+
+    if (d->spnSysThreadId != std::this_thread::get_id())
+        qCCritical(logModFlirCam).noquote() << "Camera instance creation in different thread than the Spinnaker System was initialized in. This may cause issues.";
+
+    auto camList = d->system->GetCameras();
+    d->activeCam = camList.GetBySerial(d->camSerial.toStdString());
+    camList.Clear();
+
+    if (!d->activeCam.IsValid()) {
+        d->lastError = QStringLiteral("Unable to set up FLIR Camera: Couldn't find device with serial %1").arg(d->camSerial);
         return false;
     }
 
     try {
         // initialize camera
-        d->cam->Init();
+        if (!d->activeCam->IsInitialized())
+            d->activeCam->Init();
 
 #ifdef QT_DEBUG
-        disableGEVHeartbeat(d->cam->GetNodeMap(), d->cam->GetTLDeviceNodeMap());
+        disableGEVHeartbeat(d->activeCam->GetNodeMap(), d->activeCam->GetTLDeviceNodeMap());
 #endif
 
         // apply parameters - the function will set lastError already if it returns false,
         // so we can just exist in that case.
-        if (!applyCamParameters(d->cam->GetNodeMap())) {
-            d->cam->DeInit();
+        if (!applyCamParameters(d->activeCam->GetNodeMap())) {
+            resetActiveCam();
             return false;
         }
 
         // set acquisition mode to continuous
-        spn_ga::CEnumerationPtr ptrAcquisitionMode = d->cam->GetNodeMap().GetNode("AcquisitionMode");
+        spn_ga::CEnumerationPtr ptrAcquisitionMode = d->activeCam->GetNodeMap().GetNode("AcquisitionMode");
         if (!IsAvailable(ptrAcquisitionMode) || !IsWritable(ptrAcquisitionMode)) {
             d->lastError = QStringLiteral("Unable to set acquisition mode to continuous (node retrieval; camera %1)").arg(serial());
-            d->cam->DeInit();
+            resetActiveCam();
             return false;
         }
 
         spn_ga::CEnumEntryPtr ptrAcquisitionModeContinuous = ptrAcquisitionMode->GetEntryByName("Continuous");
         if (!IsAvailable(ptrAcquisitionModeContinuous) || !IsReadable(ptrAcquisitionModeContinuous)) {
             d->lastError = QStringLiteral("Unable to set acquisition mode to continuous (entry 'continuous' retrieval camera %1)").arg(serial());
-            d->cam->DeInit();
+            resetActiveCam();
             return false;
         }
 
@@ -287,9 +312,10 @@ bool FLIRCamera::initAcquisition()
         ptrAcquisitionMode->SetIntValue(acquisitionModeContinuous);
 
         // begin acquiring images
-        d->cam->BeginAcquisition();
+        d->activeCam->BeginAcquisition();
     } catch (Spinnaker::Exception& e) {
         d->lastError = QString::fromStdString(e.what());
+        resetActiveCam();
         return false;
     }
 
@@ -298,12 +324,14 @@ bool FLIRCamera::initAcquisition()
 
 void FLIRCamera::endAcquisition()
 {
+    if (!isActive())
+        return;
+
     try {
         // end acquisition
-        d->cam->EndAcquisition();
+        d->activeCam->EndAcquisition();
         // deinitialize camera
-        if (d->cam->IsInitialized())
-            d->cam->DeInit();
+        resetActiveCam();
     } catch (Spinnaker::Exception& e) {
         qWarning().noquote().nospace() << "FLIR Camera: Issue while trying to end data acquisition. " << e.what();
     }
@@ -314,7 +342,7 @@ bool FLIRCamera::acquireFrame(Frame &frame, SecondaryClockSynchronizer *clockSyn
     try {
         // retrieve next received image and ensure image completion
         spn::ImagePtr image;
-        auto frameRecvTime = FUNC_EXEC_TIMESTAMP(d->startTime, image = d->cam->GetNextImage(1000));
+        auto frameRecvTime = FUNC_EXEC_TIMESTAMP(d->startTime, image = d->activeCam->GetNextImage(1000));
         if (image->IsIncomplete()) {
             d->lastError = QStringLiteral("FLIR Camera %1: Frame dropped, image status was %1").arg(serial()).arg(image->GetImageStatus());
             image->Release();
@@ -389,7 +417,7 @@ void FLIRCamera::setExposureTime(microseconds_t time)
     if (!isRunning())
         return;
     try {
-        d->cam->ExposureTime.SetValue(time.count());
+        d->activeCam->ExposureTime.SetValue(time.count());
     } catch (Spinnaker::Exception&) {};
 }
 
@@ -404,7 +432,7 @@ void FLIRCamera::setGain(double gainDb)
     if (!isRunning())
         return;
     try {
-        d->cam->Gain.SetValue(gainDb);
+        d->activeCam->Gain.SetValue(gainDb);
     } catch (Spinnaker::Exception&) {};
 }
 
@@ -420,10 +448,10 @@ void FLIRCamera::setGamma(double gamma)
         return;
     try {
         if (gamma < 0) {
-            d->cam->GammaEnable.SetValue(false);
+            d->activeCam->GammaEnable.SetValue(false);
         } else {
-            d->cam->GammaEnable.SetValue(true);
-            d->cam->Gamma.SetValue(gamma);
+            d->activeCam->GammaEnable.SetValue(true);
+            d->activeCam->Gamma.SetValue(gamma);
         }
     } catch (Spinnaker::Exception& e) {
         qDebug() << "Unable to set gamma value" << e.what();
@@ -438,8 +466,8 @@ double FLIRCamera::actualFramerate() const
 void FLIRCamera::printLibraryVersion(const Spinnaker::SystemPtr system)
 {
     const auto spinnakerLibraryVersion = system->GetLibraryVersion();
-    qDebug().noquote().nospace() << "Using Spinnaker library version: " << spinnakerLibraryVersion.major << "." << spinnakerLibraryVersion.minor
-             << "." << spinnakerLibraryVersion.type << "." << spinnakerLibraryVersion.build;
+    qCDebug(logModFlirCam).noquote().nospace() << "Using Spinnaker library version: " << spinnakerLibraryVersion.major << "." << spinnakerLibraryVersion.minor
+                                               << "." << spinnakerLibraryVersion.type << "." << spinnakerLibraryVersion.build;
 }
 
 QList<QPair<QString, QString> > FLIRCamera::availableCameras(const Spinnaker::SystemPtr system)
