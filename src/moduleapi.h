@@ -718,6 +718,17 @@ protected:
      */
     std::unique_ptr<SecondaryClockSynchronizer> initClockSynchronizer(double expectedFrequencyHz = 0);
 
+    /**
+     * @brief Potential amount of CPUs not used by other syntalos tasks.
+     *
+     * This is a rough guess and may not at all reflect reality. Modules may be interested
+     * in this information regardless, to scale the amount of external threads they themselves may
+     * create without control of Syntalos (in this event, it may be beneficial to give the user some
+     * control over this behavior, as it is impossible to know how heavy the workload of other modules
+     * on other threads actually is).
+     */
+    uint potentialNoaffinityCPUCount() const;
+
     void setInitialized();
     bool initialized() const;
 
@@ -740,6 +751,7 @@ private:
     void setIndex(int index);
     void setStorageGroup(std::shared_ptr<EDLGroup> edlGroup);
     void resetEventCallbacks();
+    void setPotentialNoaffinityCPUCount(uint coreN);
 };
 
 } // end of namespace

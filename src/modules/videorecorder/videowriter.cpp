@@ -132,6 +132,7 @@ public:
         cctx = nullptr;
         swsctx = nullptr;
         lossless = false;
+        threadCount = 0;
     }
 
     std::string lastError;
@@ -147,6 +148,7 @@ public:
     int height;
     AVRational fps;
     bool lossless;
+    int threadCount;
 
     bool saveTimestamps;
     std::ofstream timestampFile;
@@ -307,6 +309,9 @@ void VideoWriter::initializeInternal()
     d->cctx->framerate = d->fps;
     d->cctx->workaround_bugs = FF_BUG_AUTODETECT;
 
+    if (d->threadCount > 0)
+        d->cctx->thread_count = d->threadCount;
+
     if (d->codec == VideoCodec::Raw)
         d->cctx->pix_fmt = d->inputPixFormat == AV_PIX_FMT_GRAY8 ||
                            d->inputPixFormat == AV_PIX_FMT_GRAY16LE ||
@@ -352,10 +357,15 @@ void VideoWriter::initializeInternal()
         // See https://developers.google.com/media/vp9/live-encoding
         // for more information on the settings.
 
+        d->cctx->gop_size = 90;
+        d->cctx->qmin = 4;
+        d->cctx->qmax = 48;
+        d->cctx->bit_rate = 7800 * 1000;
+
         av_dict_set(&codecopts, "quality", "realtime", 0);
         av_dict_set(&codecopts, "deadline", "realtime", 0);
         av_dict_set_int(&codecopts, "speed", 6, 0);
-        av_dict_set_int(&codecopts, "tile-columns", 4, 0);
+        av_dict_set_int(&codecopts, "tile-columns", 3, 0);
         av_dict_set_int(&codecopts, "frame-parallel", 1, 0);
         av_dict_set_int(&codecopts, "static-thresh", 0, 0);
         av_dict_set_int(&codecopts, "max-intra-rate", 300, 0);
@@ -365,7 +375,7 @@ void VideoWriter::initializeInternal()
 
         if (!d->lossless) {
             av_dict_set_int(&codecopts, "crf", 31, 0);
-            av_dict_set_int(&codecopts, "b", 0, 0);
+            d->cctx->bit_rate = 0;
         }
     }
 
@@ -748,6 +758,16 @@ bool VideoWriter::lossless() const
 void VideoWriter::setLossless(bool enabled)
 {
     d->lossless = enabled;
+}
+
+int VideoWriter::threadCount() const
+{
+    return d->threadCount;
+}
+
+void VideoWriter::setThreadCount(int n)
+{
+    d->threadCount = n;
 }
 
 uint VideoWriter::fileSliceInterval() const

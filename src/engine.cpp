@@ -744,6 +744,31 @@ bool Engine::runInternal(const QString &exportDirPath)
     bool initSuccessful = true;
     d->failed = false;
 
+    // prepare information about threaded modules
+    QList<AbstractModule*> threadedModules;
+    QList<OOPModule*> oopModules;
+
+    // filter out threaded modules, those get special treatment
+    for (auto &mod : orderedActiveModules) {
+        auto oopMod = qobject_cast<OOPModule*>(mod);
+        if (oopMod != nullptr) {
+            oopModules.append(oopMod);
+            continue;
+        }
+
+        if (mod->features().testFlag(ModuleFeature::RUN_THREADED))
+            threadedModules.append(mod);
+    }
+    const auto threadedModulesTotalN = threadedModules.size() + oopModules.size();
+
+    // give modules a hint as to how many CPU cores they themselves may use additionally
+    uint potentialNoaffinityCPUCount = 0;
+    if (threadedModulesTotalN <= (cpuCoreCount - 1))
+        potentialNoaffinityCPUCount = cpuCoreCount - threadedModulesTotalN - 1;
+    qCDebug(logEngine).noquote() << "Predicted amount of CPU cores with no (explicitly known) occupation:" << potentialNoaffinityCPUCount;
+    for (auto &mod : orderedActiveModules)
+        mod->setPotentialNoaffinityCPUCount(potentialNoaffinityCPUCount);
+
     // prepare modules
     for (auto &mod : orderedActiveModules) {
         // Prepare module. At this point it should have a timer,
@@ -784,7 +809,6 @@ bool Engine::runInternal(const QString &exportDirPath)
     }
 
     // threads our modules run in, as module name/thread pairs
-    QList<AbstractModule*> threadedModules;
     std::vector<std::thread> dThreads;
     std::unique_ptr<OptionalWaitCondition> startWaitCondition(new OptionalWaitCondition());
 
@@ -792,7 +816,6 @@ bool Engine::runInternal(const QString &exportDirPath)
     QList<AbstractModule*> idleUiEventModules;
     std::vector<std::shared_ptr<ModuleEventThread>> evThreads;
 
-    QList<OOPModule*> oopModules;
     std::vector<std::thread> oopThreads;
 
     // Only actually launch if preparation didn't fail.
@@ -805,21 +828,7 @@ bool Engine::runInternal(const QString &exportDirPath)
 
         lastPhaseTimepoint = currentTimePoint();
 
-        // filter out threaded modules, those get special treatment
-        for (auto &mod : orderedActiveModules) {
-            auto oopMod = qobject_cast<OOPModule*>(mod);
-            if (oopMod != nullptr) {
-                oopModules.append(oopMod);
-                continue;
-            }
-
-            if (mod->features().testFlag(ModuleFeature::RUN_THREADED))
-                threadedModules.append(mod);
-        }
-
-        const auto threadedModulesTotalN = threadedModules.size() + oopModules.size();
         QHash<AbstractModule*, std::vector<uint>> modCPUMap;
-
         if (explicitCoreAffinities) {
             if (threadedModulesTotalN <= (cpuCoreCount - 1)) {
                 // we have enough cores and can tie each thread to a dedicated core, to (ideally) prevent

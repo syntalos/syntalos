@@ -100,6 +100,7 @@ public:
         m_videoWriter->setCodec(m_settingsDialog->videoCodec());
         m_videoWriter->setLossless(m_settingsDialog->isLossless());
         m_videoWriter->setFileSliceInterval(m_settingsDialog->sliceInterval());
+        m_videoWriter->setThreadCount((potentialNoaffinityCPUCount() >= 2)? potentialNoaffinityCPUCount() : 2);
 
         m_recording = false;
         m_initDone = false;

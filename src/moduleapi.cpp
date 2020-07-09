@@ -323,6 +323,7 @@ public:
     QString name;
     QString lastError;
     int modIndex;
+    uint potentialNoaffinityCPUCount;
 
     QList<QPair<QWidget*, bool>> displayWindows;
     QList<QPair<QWidget*, bool>> settingsWindows;
@@ -694,6 +695,11 @@ std::unique_ptr<SecondaryClockSynchronizer> AbstractModule::initClockSynchronize
     return synchronizer;
 }
 
+uint AbstractModule::potentialNoaffinityCPUCount() const
+{
+    return d->potentialNoaffinityCPUCount;
+}
+
 void AbstractModule::setInitialized()
 {
     if (d->initialized)
@@ -774,6 +780,11 @@ void AbstractModule::setStorageGroup(std::shared_ptr<EDLGroup> edlGroup)
 void AbstractModule::resetEventCallbacks()
 {
     m_intervalEventCBList.clear();
+}
+
+void AbstractModule::setPotentialNoaffinityCPUCount(uint coreN)
+{
+    d->potentialNoaffinityCPUCount = coreN;
 }
 
 void AbstractModule::setStatusMessage(const QString &message)

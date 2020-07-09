@@ -106,6 +106,9 @@ public:
     bool lossless() const;
     void setLossless(bool enabled);
 
+    int threadCount() const;
+    void setThreadCount(int n);
+
     uint fileSliceInterval() const;
     void setFileSliceInterval(uint minutes);
 
