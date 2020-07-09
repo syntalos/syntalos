@@ -584,12 +584,17 @@ bool VideoWriter::prepareFrame(const cv::Mat &inImage)
 {
     auto image = inImage;
 
-    // convert to gray in case the frame has colors attached,
-    // and convert to BGR in case the frame - possibly - has an alpha channel
-    if ((d->inputPixFormat == AV_PIX_FMT_GRAY8) && (image.channels() != 1))
-        cv::cvtColor(inImage, image, cv::COLOR_BGR2GRAY);
-    else if ((d->inputPixFormat == AV_PIX_FMT_BGR24) && (image.channels() == 4))
-        cv::cvtColor(inImage, image, cv::COLOR_BGRA2BGR);
+    // convert color formats around to match what was actually selected as
+    // input pixel format
+    if (d->inputPixFormat == AV_PIX_FMT_GRAY8) {
+        if (image.channels() != 1)
+            cv::cvtColor(inImage, image, cv::COLOR_BGR2GRAY);
+    } else if (d->inputPixFormat == AV_PIX_FMT_BGR24) {
+        if (image.channels() == 4)
+            cv::cvtColor(inImage, image, cv::COLOR_BGRA2BGR);
+        else if (image.channels() == 1)
+            cv::cvtColor(inImage, image, cv::COLOR_GRAY2BGR);
+    }
 
     const auto channels = image.channels();
 
