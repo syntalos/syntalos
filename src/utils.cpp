@@ -21,15 +21,16 @@
 
 #include <QDebug>
 #include <QCollator>
+#include <QRandomGenerator>
 
 QString createRandomString(int len)
 {
-    const auto possibleCahrs = QStringLiteral("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789");
+    const auto possibleChars = QStringLiteral("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789");
 
     QString str;
     for (int i=0; i < len; i++) {
-        int index = qrand() % possibleCahrs.length();
-        QChar nextChar = possibleCahrs.at(index);
+        int index = QRandomGenerator::global()->generate() % possibleChars.length();
+        QChar nextChar = possibleChars.at(index);
         str.append(nextChar);
     }
 

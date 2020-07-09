@@ -238,7 +238,7 @@ private:
 class SecondaryClockSynchronizer
 {
 public:
-    explicit SecondaryClockSynchronizer(std::shared_ptr<SyncTimer> masterTimer, AbstractModule *mod, const QString &id = nullptr);
+    explicit SecondaryClockSynchronizer(std::shared_ptr<SyncTimer> masterTimer, AbstractModule *mod, const QString &id = QString());
     ~SecondaryClockSynchronizer();
 
     /**
