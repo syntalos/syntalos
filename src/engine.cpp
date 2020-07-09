@@ -974,7 +974,7 @@ bool Engine::runInternal(const QString &exportDirPath)
             // have had additional setup to do
             if (mod->state() == ModuleState::IDLE)
                 continue;
-            emitStatusMessage(QStringLiteral("Waiting for %1 to become ready...").arg(mod->name()));
+            emitStatusMessage(QStringLiteral("Waiting for %1 to get ready...").arg(mod->name()));
             while (mod->state() != ModuleState::READY) {
                 QThread::msleep(500);
                 QCoreApplication::processEvents();
@@ -986,7 +986,7 @@ bool Engine::runInternal(const QString &exportDirPath)
             }
         }
 
-        qCDebug(logEngine).noquote().nospace() << "Waited for modules to become ready for " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
+        qCDebug(logEngine).noquote().nospace() << "Waited for modules to get ready for " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
     }
 
     // Meanwhile, threaded modules may have failed, so let's check again if we are still

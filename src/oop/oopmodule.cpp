@@ -126,7 +126,7 @@ bool OOPModule::oopPrepare(QEventLoop *loop, const QVector<uint> &cpuAffinity)
     // check if we already received messages from the worker,
     // such as errors or output port metadata updates
     // we need to wait for some time until the worker is ready
-    statusMessage("Waiting for worker to become ready...");
+    statusMessage("Waiting for worker to get ready...");
     const auto waitStartTime = currentTimePoint();
     while (d->workerStage != OOPWorkerReplica::READY) {
         loop->processEvents();
