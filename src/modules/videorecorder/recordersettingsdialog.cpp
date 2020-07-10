@@ -21,6 +21,7 @@
 #include "ui_recordersettingsdialog.h"
 
 #include <QVariant>
+#include <QMessageBox>
 
 #include "utils.h"
 
@@ -30,6 +31,9 @@ RecorderSettingsDialog::RecorderSettingsDialog(QWidget *parent) :
 {
     ui->setupUi(this);
     setWindowIcon(QIcon(":/icons/generic-config"));
+
+    // no slicing warning by default
+    ui->sliceWarnButton->setVisible(false);
 
     ui->containerComboBox->addItem("MKV", QVariant::fromValue(VideoContainer::Matroska));
     ui->containerComboBox->addItem("AVI", QVariant::fromValue(VideoContainer::AVI));
@@ -43,8 +47,8 @@ RecorderSettingsDialog::RecorderSettingsDialog(QWidget *parent) :
     ui->codecComboBox->addItem("FFV1", QVariant::fromValue(VideoCodec::FFV1));
     //ui->codecComboBox->addItem("AV1", QVariant::fromValue(VideoCodec::AV1));
     ui->codecComboBox->addItem("VP9", QVariant::fromValue(VideoCodec::VP9));
+    ui->codecComboBox->addItem("HEVC", QVariant::fromValue(VideoCodec::HEVC));
     ui->codecComboBox->addItem("H.264", QVariant::fromValue(VideoCodec::H264));
-    //ui->codecComboBox->addItem("HEVC", QVariant::fromValue(VideoCodec::HEVC));
     ui->codecComboBox->addItem("Raw", QVariant::fromValue(VideoCodec::Raw));
     ui->codecComboBox->setCurrentIndex(0);
 
@@ -128,6 +132,16 @@ bool RecorderSettingsDialog::isLossless() const
     return ui->losslessCheckBox->isChecked();
 }
 
+bool RecorderSettingsDialog::slicingEnabled() const
+{
+    return ui->slicingCheckBox->isChecked();
+}
+
+void RecorderSettingsDialog::setSlicingEnabled(bool enabled)
+{
+    ui->slicingCheckBox->setChecked(enabled);
+}
+
 void RecorderSettingsDialog::setSliceInterval(uint interval)
 {
     ui->sliceIntervalSpinBox->setValue(static_cast<int>(interval));
@@ -195,9 +209,37 @@ void RecorderSettingsDialog::on_codecComboBox_currentIndexChanged(int)
         ui->containerComboBox->setCurrentIndex(1);
         ui->containerComboBox->setEnabled(false);
     }
+
+    // update slicing issue hint
+    ui->sliceWarnButton->setVisible(false);
+    if (ui->slicingCheckBox->isChecked()) {
+        if (VideoWriter::codecNeedsInitFrames(codec))
+            ui->sliceWarnButton->setVisible(true);
+    }
 }
 
 void RecorderSettingsDialog::on_nameFromSrcCheckBox_toggled(bool checked)
 {
     ui->nameLineEdit->setEnabled(!checked);
+}
+
+void RecorderSettingsDialog::on_sliceWarnButton_clicked()
+{
+    QMessageBox::information(this,
+                             QStringLiteral("Codec slicing warning"),
+                             QStringLiteral("Some codecs (such as the currently selected one) require a bunch of input frames to initialize before they can produce an output frame. "
+                                            "Since by slicing the data we need to re-initialize the video encoding for each new file, some frames may be lost when a new slice is started.\n"
+                                            "This is usually only a very small quantity, but depending on the video's purpose and framerate, it may be noticeable and could be an issue.\n"
+                                            "Please verify if this is an issue for you, and if it is, consider creating bigger slices, not using slicing or choosing a different codec."));
+}
+
+void RecorderSettingsDialog::on_slicingCheckBox_toggled(bool checked)
+{
+    ui->sliceWarnButton->setVisible(false);
+    if (checked) {
+        if (VideoWriter::codecNeedsInitFrames(videoCodec()))
+            ui->sliceWarnButton->setVisible(true);
+    }
+    ui->sliceIntervalSpinBox->setEnabled(checked);
+    ui->sliceWarnButton->setEnabled(checked);
 }

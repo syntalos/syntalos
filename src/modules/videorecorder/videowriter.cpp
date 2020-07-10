@@ -816,8 +816,7 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::milliseco
     if (ret != 0) {
         // some encoders need to be fed a few frames before they produce a useful result
         // ignore errors in that case for a little bit.
-        if ((ret == AVERROR(EAGAIN)) &&
-            ((d->codec == VideoCodec::VP9) || (d->codec == VideoCodec::H264) || (d->codec == VideoCodec::HEVC))) {
+        if ((ret == AVERROR(EAGAIN)) && codecNeedsInitFrames(d->codec)) {
             success = true;
             goto out;
         } else {
@@ -874,6 +873,16 @@ VideoCodec VideoWriter::codec() const
 void VideoWriter::setCodec(VideoCodec codec)
 {
     d->codec = codec;
+}
+
+inline
+bool VideoWriter::codecNeedsInitFrames(VideoCodec codec)
+{
+    if ((codec == VideoCodec::VP9) ||
+        (codec == VideoCodec::H264) ||
+        (codec == VideoCodec::HEVC))
+        return true;
+    return false;
 }
 
 VideoContainer VideoWriter::container() const

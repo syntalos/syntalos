@@ -99,8 +99,10 @@ public:
         m_videoWriter->setContainer(m_settingsDialog->videoContainer());
         m_videoWriter->setCodec(m_settingsDialog->videoCodec());
         m_videoWriter->setLossless(m_settingsDialog->isLossless());
-        m_videoWriter->setFileSliceInterval(m_settingsDialog->sliceInterval());
         m_videoWriter->setThreadCount((potentialNoaffinityCPUCount() >= 2)? potentialNoaffinityCPUCount() : 2);
+        m_videoWriter->setFileSliceInterval(0); // no slicing allowed, unless changed later
+        if (m_settingsDialog->slicingEnabled())
+            m_videoWriter->setFileSliceInterval(m_settingsDialog->sliceInterval());
 
         m_recording = false;
         m_initDone = false;
@@ -367,7 +369,8 @@ public:
         settings.insert("video_container", static_cast<int>(m_settingsDialog->videoContainer()));
         settings.insert("lossless", m_settingsDialog->isLossless());
 
-        settings.insert("slice_interval", static_cast<int>(m_settingsDialog->sliceInterval()));
+        settings.insert("slices_enabled", static_cast<int>(m_settingsDialog->slicingEnabled()));
+        settings.insert("slices_interval", static_cast<int>(m_settingsDialog->sliceInterval()));
     }
 
     bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
@@ -381,7 +384,8 @@ public:
         m_settingsDialog->setVideoContainer(static_cast<VideoContainer>(settings.value("video_container").toInt()));
         m_settingsDialog->setLossless(settings.value("lossless").toBool());
 
-        m_settingsDialog->setSliceInterval(static_cast<uint>(settings.value("slice_interval").toInt()));
+        m_settingsDialog->setSlicingEnabled(settings.value("slices_enabled").toBool());
+        m_settingsDialog->setSliceInterval(static_cast<uint>(settings.value("slices_interval").toInt()));
 
         return true;
     }

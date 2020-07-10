@@ -81,25 +81,9 @@
       </widget>
      </item>
      <item row="5" column="0">
-      <widget class="QLabel" name="sliceIntervalLabel">
+      <widget class="QLabel" name="slicingLabel">
        <property name="text">
-        <string>Slice Interval</string>
-       </property>
-      </widget>
-     </item>
-     <item row="5" column="1">
-      <widget class="QSpinBox" name="sliceIntervalSpinBox">
-       <property name="toolTip">
-        <string>The interval in which a new video file should be started. Set to 0 to never create new files.</string>
-       </property>
-       <property name="suffix">
-        <string>min</string>
-       </property>
-       <property name="maximum">
-        <number>120</number>
-       </property>
-       <property name="value">
-        <number>10</number>
+        <string>Slicing</string>
        </property>
       </widget>
      </item>
@@ -139,6 +123,75 @@
        <property name="toolTip">
         <string>Start in stopped, non-recording state and wait for a control signal</string>
        </property>
+      </widget>
+     </item>
+     <item row="5" column="1">
+      <widget class="QWidget" name="widget" native="true">
+       <layout class="QHBoxLayout" name="horizontalLayout">
+        <property name="spacing">
+         <number>2</number>
+        </property>
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <widget class="QCheckBox" name="slicingCheckBox">
+          <property name="statusTip">
+           <string>Enable video file slicing</string>
+          </property>
+          <property name="text">
+           <string/>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QSpinBox" name="sliceIntervalSpinBox">
+          <property name="toolTip">
+           <string>The interval in which a new video file should be started. Set to 0 to never create new files.</string>
+          </property>
+          <property name="statusTip">
+           <string>Amount of time each video file slice should be recorded to</string>
+          </property>
+          <property name="suffix">
+           <string>min</string>
+          </property>
+          <property name="prefix">
+           <string>Interval: </string>
+          </property>
+          <property name="maximum">
+           <number>120</number>
+          </property>
+          <property name="value">
+           <number>10</number>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="sliceWarnButton">
+          <property name="text">
+           <string/>
+          </property>
+          <property name="icon">
+           <iconset theme="emblem-warning"/>
+          </property>
+          <property name="flat">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+       </layout>
       </widget>
      </item>
     </layout>

@@ -95,6 +95,7 @@ public:
 
     VideoCodec codec() const;
     void setCodec(VideoCodec codec);
+    static bool codecNeedsInitFrames(VideoCodec codec);
 
     VideoContainer container() const;
     void setContainer(VideoContainer container);

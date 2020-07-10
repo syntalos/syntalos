@@ -55,6 +55,9 @@ public:
     void setLossless(bool lossless);
     bool isLossless() const;
 
+    bool slicingEnabled() const;
+    void setSlicingEnabled(bool enabled);
+
     void setSliceInterval(uint interval);
     uint sliceInterval() const;
 
@@ -65,6 +68,9 @@ private slots:
     void on_codecComboBox_currentIndexChanged(int index);
     void on_nameLineEdit_textChanged(const QString &arg1);
     void on_nameFromSrcCheckBox_toggled(bool checked);
+
+    void on_slicingCheckBox_toggled(bool checked);
+    void on_sliceWarnButton_clicked();
 
 private:
     Ui::RecorderSettingsDialog *ui;
