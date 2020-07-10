@@ -32,9 +32,6 @@ RecorderSettingsDialog::RecorderSettingsDialog(QWidget *parent) :
     ui->setupUi(this);
     setWindowIcon(QIcon(":/icons/generic-config"));
 
-    // no slicing warning by default
-    ui->sliceWarnButton->setVisible(false);
-
     ui->containerComboBox->addItem("MKV", QVariant::fromValue(VideoContainer::Matroska));
     ui->containerComboBox->addItem("AVI", QVariant::fromValue(VideoContainer::AVI));
     ui->containerComboBox->setCurrentIndex(0);
@@ -54,6 +51,14 @@ RecorderSettingsDialog::RecorderSettingsDialog(QWidget *parent) :
 
     // take name from source module by default
     ui->nameFromSrcCheckBox->setChecked(true);
+
+    // VAAPi is disabled by default
+    ui->vaapiCheckBox->setEnabled(false);
+    ui->vaapiCheckBox->setChecked(false);
+    ui->vaapiLabel->setEnabled(false);
+
+    // no slicing warning by default
+    ui->sliceWarnButton->setVisible(false);
 }
 
 RecorderSettingsDialog::~RecorderSettingsDialog()
@@ -130,6 +135,16 @@ void RecorderSettingsDialog::setLossless(bool lossless)
 bool RecorderSettingsDialog::isLossless() const
 {
     return ui->losslessCheckBox->isChecked();
+}
+
+bool RecorderSettingsDialog::vaapiEnabled() const
+{
+    return ui->vaapiCheckBox->isChecked();
+}
+
+void RecorderSettingsDialog::setVAAPIEnabled(bool enabled)
+{
+    ui->vaapiCheckBox->setChecked(enabled);
 }
 
 bool RecorderSettingsDialog::slicingEnabled() const
@@ -210,6 +225,13 @@ void RecorderSettingsDialog::on_codecComboBox_currentIndexChanged(int)
         ui->containerComboBox->setEnabled(false);
     }
 
+    // change VAAPI possibility
+    const auto canUseVAAPI = VideoWriter::canUseVAAPI(codec);
+    ui->vaapiCheckBox->setEnabled(canUseVAAPI);
+    ui->vaapiLabel->setEnabled(canUseVAAPI);
+    if (!canUseVAAPI)
+        ui->vaapiCheckBox->setChecked(false);
+
     // update slicing issue hint
     ui->sliceWarnButton->setVisible(false);
     if (ui->slicingCheckBox->isChecked()) {
@@ -221,6 +243,14 @@ void RecorderSettingsDialog::on_codecComboBox_currentIndexChanged(int)
 void RecorderSettingsDialog::on_nameFromSrcCheckBox_toggled(bool checked)
 {
     ui->nameLineEdit->setEnabled(!checked);
+}
+
+void RecorderSettingsDialog::on_vaapiCheckBox_toggled(bool checked)
+{
+    if (checked)
+        ui->vaapiCheckBox->setText(QStringLiteral("(experimental)"));
+    else
+        ui->vaapiCheckBox->setText(QStringLiteral(" "));
 }
 
 void RecorderSettingsDialog::on_sliceWarnButton_clicked()
