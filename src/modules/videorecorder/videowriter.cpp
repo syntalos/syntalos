@@ -875,7 +875,6 @@ void VideoWriter::setCodec(VideoCodec codec)
     d->codec = codec;
 }
 
-inline
 bool VideoWriter::codecNeedsInitFrames(VideoCodec codec)
 {
     if ((codec == VideoCodec::VP9) ||
