@@ -186,7 +186,6 @@ void RecorderSettingsDialog::on_codecComboBox_currentIndexChanged(int)
 {
     // reset state of lossless infobox
     ui->losslessCheckBox->setEnabled(true);
-    ui->losslessLabel->setEnabled(true);
     ui->losslessCheckBox->setChecked(true);
     ui->containerComboBox->setEnabled(true);
 
@@ -195,7 +194,6 @@ void RecorderSettingsDialog::on_codecComboBox_currentIndexChanged(int)
     if (codec == VideoCodec::FFV1) {
         // FFV1 is always lossless
         ui->losslessCheckBox->setEnabled(false);
-        ui->losslessLabel->setEnabled(false);
         ui->losslessCheckBox->setChecked(true);
 
     } else if ((codec == VideoCodec::H264) || (codec == VideoCodec::HEVC)) {
@@ -211,13 +209,11 @@ void RecorderSettingsDialog::on_codecComboBox_currentIndexChanged(int)
     } else if (codec == VideoCodec::MPEG4) {
         // MPEG-4 can't do lossless encoding
         ui->losslessCheckBox->setEnabled(false);
-        ui->losslessLabel->setEnabled(false);
         ui->losslessCheckBox->setChecked(false);
 
     } else if (codec == VideoCodec::Raw) {
         // Raw is always lossless
         ui->losslessCheckBox->setEnabled(false);
-        ui->losslessLabel->setEnabled(false);
         ui->losslessCheckBox->setChecked(true);
 
         // Raw RGB only works with AVI containers

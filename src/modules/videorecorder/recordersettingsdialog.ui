@@ -7,26 +7,41 @@
     <x>0</x>
     <y>0</y>
     <width>408</width>
-    <height>299</height>
+    <height>304</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Dialog</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
+   <property name="spacing">
+    <number>4</number>
+   </property>
+   <property name="leftMargin">
+    <number>4</number>
+   </property>
+   <property name="topMargin">
+    <number>4</number>
+   </property>
+   <property name="rightMargin">
+    <number>4</number>
+   </property>
+   <property name="bottomMargin">
+    <number>4</number>
+   </property>
    <item>
     <layout class="QFormLayout" name="formLayout_2">
      <property name="horizontalSpacing">
-      <number>4</number>
+      <number>6</number>
      </property>
      <property name="verticalSpacing">
-      <number>2</number>
+      <number>6</number>
      </property>
      <property name="rightMargin">
-      <number>2</number>
+      <number>0</number>
      </property>
      <property name="bottomMargin">
-      <number>2</number>
+      <number>0</number>
      </property>
      <item row="1" column="0">
       <widget class="QLabel" name="nameLabel">
@@ -129,7 +144,7 @@
       <widget class="QWidget" name="widget" native="true">
        <layout class="QHBoxLayout" name="horizontalLayout">
         <property name="spacing">
-         <number>2</number>
+         <number>4</number>
         </property>
         <property name="leftMargin">
          <number>0</number>
@@ -147,9 +162,6 @@
          <widget class="QCheckBox" name="slicingCheckBox">
           <property name="statusTip">
            <string>Enable video file slicing</string>
-          </property>
-          <property name="text">
-           <string/>
           </property>
           <property name="checked">
            <bool>true</bool>
@@ -184,12 +196,26 @@
            <string/>
           </property>
           <property name="icon">
-           <iconset theme="emblem-warning"/>
+           <iconset theme="emblem-warning">
+            <normaloff>.</normaloff>.</iconset>
           </property>
           <property name="flat">
            <bool>true</bool>
           </property>
          </widget>
+        </item>
+        <item>
+         <spacer name="horizontalSpacer">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
         </item>
        </layout>
       </widget>
@@ -197,7 +223,7 @@
      <item row="5" column="0">
       <widget class="QLabel" name="vaapiLabel">
        <property name="text">
-        <string>VAAPI Acceleration</string>
+        <string>VA-API Acceleration</string>
        </property>
       </widget>
      </item>
@@ -212,38 +238,14 @@
         <string>Enable hardware acceleration via VAAPI for some codecs</string>
        </property>
        <property name="text">
-        <string> </string>
+        <string/>
        </property>
       </widget>
      </item>
     </layout>
    </item>
-   <item>
-    <widget class="QDialogButtonBox" name="buttonBox">
-     <property name="standardButtons">
-      <set>QDialogButtonBox::Ok</set>
-     </property>
-    </widget>
-   </item>
   </layout>
  </widget>
  <resources/>
- <connections>
-  <connection>
-   <sender>buttonBox</sender>
-   <signal>accepted()</signal>
-   <receiver>RecorderSettingsDialog</receiver>
-   <slot>accept()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>339</x>
-     <y>260</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>321</x>
-     <y>179</y>
-    </hint>
-   </hints>
-  </connection>
- </connections>
+ <connections/>
 </ui>

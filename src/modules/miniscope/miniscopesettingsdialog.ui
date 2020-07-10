@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>520</width>
-    <height>388</height>
+    <width>504</width>
+    <height>378</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -59,10 +59,10 @@
             <item>
              <layout class="QFormLayout" name="formLayout">
               <property name="horizontalSpacing">
-               <number>4</number>
+               <number>6</number>
               </property>
               <property name="verticalSpacing">
-               <number>2</number>
+               <number>4</number>
               </property>
               <item row="1" column="0">
                <widget class="QLabel" name="lblCamId">
@@ -182,10 +182,10 @@
             <item>
              <layout class="QFormLayout" name="formLayout_3">
               <property name="horizontalSpacing">
-               <number>4</number>
+               <number>6</number>
               </property>
               <property name="verticalSpacing">
-               <number>2</number>
+               <number>4</number>
               </property>
               <item row="0" column="0">
                <widget class="QLabel" name="scopeMinMaxLabel">
