@@ -51,7 +51,7 @@ public:
         m_rawOut = registerOutputPort<Frame>(QStringLiteral("frames-raw-out"), QStringLiteral("Raw Frames"));
         m_dispOut = registerOutputPort<Frame>(QStringLiteral("frames-disp-out"), QStringLiteral("Display Frames"));
 
-        m_miniscope = new Miniscope(this);
+        m_miniscope = new Miniscope();
         m_settingsDialog = new MiniscopeSettingsDialog(m_miniscope);
         addSettingsWindow(m_settingsDialog);
 
@@ -66,8 +66,9 @@ public:
         connect(m_evTimer, &QTimer::timeout, this, &MiniscopeModule::checkMSStatus);
 
         // print output for better debugging
-        m_miniscope->setPrintMessagesToStdout(false);
-        connect(m_miniscope, &Miniscope::statusMessage, this, &MiniscopeModule::recvMiniscopeMessage);
+        m_miniscope->setOnStatusMessage([&](const QString &msg, void*) {
+            setStatusMessage(msg);
+        });
     }
 
     ~MiniscopeModule()
@@ -86,14 +87,9 @@ public:
         m_settingsDialog->setWindowTitle(QStringLiteral("Settings for %1").arg(name));
     }
 
-    void recvMiniscopeMessage(const QString &msg)
-    {
-        qDebug().noquote().nospace() << name() + QStringLiteral(": ") << msg;
-    }
-
     bool prepare(const TestSubject &) override
     {
-        if (!m_miniscope->deviceConnect()) {
+        if (!m_miniscope->connect()) {
             raiseError(m_miniscope->lastError());
             return false;
         }
@@ -195,7 +191,7 @@ public:
         m_evTimer->stop();
         m_miniscope->stop();
         m_settingsDialog->setRunning(false);
-        m_miniscope->deviceDisconnect();
+        m_miniscope->disconnect();
         safeStopSynchronizer(m_clockSync);
     }
 

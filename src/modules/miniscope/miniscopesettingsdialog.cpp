@@ -42,9 +42,6 @@ MiniscopeSettingsDialog::MiniscopeSettingsDialog(MScope::Miniscope *mscope, QWid
     ui->gbDeviceCtls->setLayout(m_controlsLayout);
     m_controlsLayout->addStretch();
 
-    // don't display log by default
-    ui->logTextList->setVisible(false);
-
     // register available Miniscope types
     ui->scopeTypeComboBox->addItems(m_mscope->availableMiniscopeTypes());
 
@@ -59,6 +56,7 @@ MiniscopeSettingsDialog::~MiniscopeSettingsDialog()
 
 void MiniscopeSettingsDialog::updateValues()
 {
+    ui->alwaysReinitCheckBox->setChecked(m_mscope->alwaysReinitializeDevice());
     ui->sbCamId->setValue(m_mscope->scopeCamId());
     ui->accAlphaSpinBox->setValue(m_mscope->bgAccumulateAlpha());
 
@@ -109,7 +107,9 @@ void MiniscopeSettingsDialog::on_scopeTypeComboBox_currentIndexChanged(const QSt
     for (const auto &ctl : m_mscope->controls()) {
         const auto w = new MSControlWidget(ctl, ui->gbDeviceCtls);
         m_controlsLayout->insertWidget(0, w);
-        connect(w, &MSControlWidget::valueChanged, m_mscope, &MScope::Miniscope::setControlValue);
+        connect(w, &MSControlWidget::valueChanged, [&](const QString &id, double value) {
+            m_mscope->setControlValue(id, value);
+        });
         m_controls.append(w);
     }
 }
@@ -157,4 +157,9 @@ void MiniscopeSettingsDialog::on_bgDivCheckBox_toggled(bool checked)
 void MiniscopeSettingsDialog::on_accAlphaSpinBox_valueChanged(double arg1)
 {
     m_mscope->setBgAccumulateAlpha(arg1);
+}
+
+void MiniscopeSettingsDialog::on_alwaysReinitCheckBox_toggled(bool checked)
+{
+    m_mscope->setAlwaysReinitializeDevice(checked);
 }

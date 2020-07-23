@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>504</width>
+    <width>523</width>
     <height>378</height>
    </rect>
   </property>
@@ -83,6 +83,16 @@
               </item>
               <item row="0" column="1">
                <widget class="QComboBox" name="scopeTypeComboBox"/>
+              </item>
+              <item row="2" column="0">
+               <widget class="QLabel" name="alwaysReinitLabel">
+                <property name="text">
+                 <string>Always reinitialize</string>
+                </property>
+               </widget>
+              </item>
+              <item row="2" column="1">
+               <widget class="QCheckBox" name="alwaysReinitCheckBox"/>
               </item>
              </layout>
             </item>
@@ -372,28 +382,6 @@
              </layout>
             </item>
            </layout>
-          </widget>
-         </item>
-         <item>
-          <widget class="QPlainTextEdit" name="logTextList">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="minimumSize">
-            <size>
-             <width>0</width>
-             <height>48</height>
-            </size>
-           </property>
-           <property name="readOnly">
-            <bool>true</bool>
-           </property>
-           <property name="backgroundVisible">
-            <bool>false</bool>
-           </property>
           </widget>
          </item>
          <item>
