@@ -12,6 +12,8 @@ set(SYNTALOS_SHARED_SRC
     moduleapi.cpp
     optionalwaitcondition.h
     optionalwaitcondition.cpp
+    rangeslider.h
+    rangeslider.cpp
     syclock.h
     syclock.cpp
     timesync.h
