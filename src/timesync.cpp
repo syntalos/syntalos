@@ -22,7 +22,6 @@
 #include <QDebug>
 #include <QDateTime>
 #include <QFile>
-#include <iostream>
 #include "moduleapi.h"
 
 #include "utils.h"
@@ -404,16 +403,12 @@ bool FreqCounterSynchronizer::start()
     m_offsetChangeWaitBlocks = 0;
     m_applyIndexOffset = false;
 
-    std::ofstream tpF("/var/tmp/syntalos-testpoint-freqcounter.txt");
-    m_tpDebug = std::move(tpF);
-
     return true;
 }
 
 void FreqCounterSynchronizer::stop()
 {
     m_tswriter->close();
-    m_tpDebug.close();
 }
 
 void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecvTimestamp, const microseconds_t &deviceLatency,
@@ -585,9 +580,6 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
         m_tswriter->writeTimes(microseconds_t(std::lround((secondaryLastIdxUnadjusted + 1) * m_timePerPointUs)),
                                masterAssumedAcqTS);
-
-    // FIXME: temp debug testpoint
-    m_tpDebug << avgOffsetUsec << ";" << m_timeCorrectionOffset.count() << ";" << m_indexOffset << "\n";
 
     m_lastTimeIndex = secondaryLastIdx;
 }
