@@ -1,6 +1,4 @@
 /*
- * Library:   CTK
- *
  * Copyright (c) Kitware Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +16,6 @@
 
 #pragma once
 
-// Qt includes
 #include <QSlider>
 
 class QStylePainter;
@@ -102,7 +99,7 @@ public:
     /// "%1" is replaced by the current value of the slider.
     /// Empty string (by default) means no tooltip.
     QString handleToolTip()const;
-    void setHandleToolTip(const QString& toolTip);
+    void setHandleToolTip(const QString &toolTip);
 
     /// Returns true if the minimum value handle is down, false if it is up.
     /// \sa isMaximumSliderDown()

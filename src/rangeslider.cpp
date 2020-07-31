@@ -1,6 +1,4 @@
 /*
- * Library:   CTK
- *
  * Copyright (c) Kitware Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,8 +14,6 @@
  * limitations under the License.
  */
 
-#include "rangeslider.h"
-
 #include <QDebug>
 #include <QMouseEvent>
 #include <QKeyEvent>
@@ -27,9 +23,11 @@
 #include <QStyle>
 #include <QToolTip>
 
+#include "rangeslider.h"
+
 class RangeSliderPrivate
 {
-    Q_DECLARE_PUBLIC(RangeSlider);
+    Q_DECLARE_PUBLIC(RangeSlider)
 protected:
     RangeSlider* const q_ptr;
 public:
@@ -40,7 +38,7 @@ public:
         MinimumHandle = 0x1,
         MaximumHandle = 0x2
     };
-    Q_DECLARE_FLAGS(Handles, Handle);
+    Q_DECLARE_FLAGS(Handles, Handle)
 
     RangeSliderPrivate(RangeSlider& object);
     void init();
@@ -80,7 +78,7 @@ public:
     int m_SubclassPosition;
 
     /// Original width between the 2 bounds before any moves
-    float m_SubclassWidth;
+    int m_SubclassWidth;
 
     RangeSliderPrivate::Handles m_SelectedHandles;
 
@@ -91,7 +89,7 @@ public:
     QString m_HandleToolTip;
 
 private:
-    Q_DISABLE_COPY(RangeSliderPrivate);
+    Q_DISABLE_COPY(RangeSliderPrivate)
 };
 
 // --------------------------------------------------------------------------
@@ -106,8 +104,8 @@ RangeSliderPrivate::RangeSliderPrivate(RangeSlider& object)
     this->m_MaximumSliderSelected = QStyle::SC_None;
     this->m_SubclassClickOffset = 0;
     this->m_SubclassPosition = 0;
-    this->m_SubclassWidth = 0.0;
-    this->m_SelectedHandles = nullptr;
+    this->m_SubclassWidth = 0;
+    this->m_SelectedHandles = RangeSliderPrivate::NoHandle;
     this->m_SymmetricMoves = false;
 }
 
@@ -130,7 +128,7 @@ RangeSliderPrivate::Handle RangeSliderPrivate::handleAtPos(const QPoint& pos, QR
     QStyleOptionSlider option;
     q->initStyleOption( &option );
 
-    // The functinos hitTestComplexControl only know about 1 handle. As we have
+    // The functions hitTestComplexControl only know about 1 handle. As we have
     // 2, we change the position of the handle and test if the pos correspond to
     // any of the 2 positions.
 
@@ -621,16 +619,12 @@ void RangeSlider::paintEvent( QPaintEvent* )
     //
     if (this->isMinimumSliderDown())
     {
-        painter.setClipRect(ur);
         d->drawMaximumSlider( &painter );
-        painter.setClipRect(lr);
         d->drawMinimumSlider( &painter );
     }
     else
     {
-        painter.setClipRect(lr);
         d->drawMinimumSlider( &painter );
-        painter.setClipRect(ur);
         d->drawMaximumSlider( &painter );
     }
 }
@@ -692,7 +686,7 @@ void RangeSlider::mousePressEvent(QMouseEvent* mouseEvent)
         // warning lost of precision it might be fatal
         d->m_SubclassPosition = (d->m_MinimumPosition + d->m_MaximumPosition) / 2.;
         d->m_SubclassClickOffset = mepos - d->pixelPosFromRangeValue(d->m_SubclassPosition);
-        d->m_SubclassWidth = (d->m_MaximumPosition - d->m_MinimumPosition) / 2.;
+        d->m_SubclassWidth = (d->m_MaximumPosition - d->m_MinimumPosition) / 2;
         qMax(d->m_SubclassPosition - d->m_MinimumPosition, d->m_MaximumPosition - d->m_SubclassPosition);
         this->setSliderDown(true);
         if (!this->isMinimumSliderDown() || !this->isMaximumSliderDown())
@@ -755,8 +749,8 @@ void RangeSlider::mouseMoveEvent(QMouseEvent* mouseEvent)
     // Both handles are down (the user clicked in between the handles)
     else if (this->isMinimumSliderDown() && this->isMaximumSliderDown())
     {
-        this->setPositions(newPosition - static_cast<int>(d->m_SubclassWidth),
-                           newPosition + static_cast<int>(d->m_SubclassWidth + .5));
+        this->setPositions(newPosition - d->m_SubclassWidth,
+                           newPosition + d->m_SubclassWidth );
     }
     mouseEvent->accept();
 }
@@ -769,7 +763,7 @@ void RangeSlider::mouseReleaseEvent(QMouseEvent* mouseEvent)
     this->QSlider::mouseReleaseEvent(mouseEvent);
 
     setSliderDown(false);
-    d->m_SelectedHandles = nullptr;
+    d->m_SelectedHandles = RangeSliderPrivate::NoHandle;
 
     this->update();
 }
