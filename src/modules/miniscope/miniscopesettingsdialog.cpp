@@ -27,23 +27,33 @@
 
 #include "mscontrolwidget.h"
 
+using namespace MScope;
+
 MiniscopeSettingsDialog::MiniscopeSettingsDialog(MScope::Miniscope *mscope, QWidget *parent) :
     QDialog(parent),
     ui(new Ui::MiniscopeSettingsDialog),
+    m_initDone(false),
     m_mscope(mscope)
 {
     ui->setupUi(this);
     setWindowIcon(QIcon(":/icons/generic-config"));
 
     // Set up layout for Miniscope controls
-    m_controlsLayout = new QVBoxLayout(this);
+    m_controlsLayout = new QVBoxLayout(ui->gbDeviceCtls);
     m_controlsLayout->setMargin(2);
     m_controlsLayout->setSpacing(4);
     ui->gbDeviceCtls->setLayout(m_controlsLayout);
     m_controlsLayout->addStretch();
 
     // register available Miniscope types
-    ui->scopeTypeComboBox->addItems(m_mscope->availableMiniscopeTypes());
+    ui->deviceTypeCB->addItems(m_mscope->availableMiniscopeTypes());
+
+    // register available view modes
+    ui->viewModeCB->addItem(QStringLiteral("Raw Data"), QVariant::fromValue(DisplayMode::RawFrames));
+    ui->viewModeCB->addItem(QStringLiteral("F - F₀"), QVariant::fromValue(DisplayMode::BackgroundDiff));
+
+    // all settings options are loaded now
+    m_initDone = true;
 
     // display default values
     updateValues();
@@ -58,6 +68,7 @@ void MiniscopeSettingsDialog::updateValues()
 {
     ui->sbCamId->setValue(m_mscope->scopeCamId());
     ui->accAlphaSpinBox->setValue(m_mscope->bgAccumulateAlpha());
+    setDeviceType(m_mscope->deviceType());
 
     for (const auto &w : m_controls)
         w->setValue(m_mscope->controlValue(w->controlId()));
@@ -75,9 +86,16 @@ void MiniscopeSettingsDialog::setRunning(bool running)
 
 void MiniscopeSettingsDialog::setDeviceType(const QString &devType)
 {
-    if (devType.isEmpty())
-        return;
-    ui->scopeTypeComboBox->setCurrentText(devType);
+    auto selectedDevice = devType.toLower();
+    if (selectedDevice.isEmpty())
+        selectedDevice = QStringLiteral("Miniscope_V4").toLower();
+
+    for (int i = 0; i < ui->deviceTypeCB->count(); ++i) {
+        if (ui->deviceTypeCB->itemText(i).toLower() == selectedDevice) {
+            ui->deviceTypeCB->setCurrentIndex(i);
+            break;
+        }
+    }
 }
 
 void MiniscopeSettingsDialog::setCurrentPixRangeValues(int min, int max)
@@ -86,8 +104,11 @@ void MiniscopeSettingsDialog::setCurrentPixRangeValues(int min, int max)
     ui->labelScopeMax->setText(QString::number(max).rightJustified(3, '0'));
 }
 
-void MiniscopeSettingsDialog::on_scopeTypeComboBox_currentIndexChanged(const QString &arg1)
+void MiniscopeSettingsDialog::on_deviceTypeCB_currentIndexChanged(const QString &arg1)
 {
+    if (!m_initDone)
+        return;
+
     // clear previous controls
     for (const auto &control : m_controls)
         delete control;
@@ -133,32 +154,19 @@ void MiniscopeSettingsDialog::on_sbDisplayMax_valueChanged(int arg1)
     m_mscope->setMaxFluorDisplay(arg1);
 }
 
-void MiniscopeSettingsDialog::on_bgSubstCheckBox_toggled(bool checked)
+void MiniscopeSettingsDialog::on_viewModeCB_currentIndexChanged(int)
 {
-    if (checked) {
-        ui->bgDivCheckBox->setChecked(false);
-        m_mscope->setDisplayBgDiffMethod(MScope::BackgroundDiffMethod::Subtraction);
-    } else {
-        m_mscope->setDisplayBgDiffMethod(MScope::BackgroundDiffMethod::None);
-    }
-}
+    if (!m_initDone)
+        return;
+    const auto mode = ui->viewModeCB->currentData().value<DisplayMode>();
 
-void MiniscopeSettingsDialog::on_bgDivCheckBox_toggled(bool checked)
-{
-    if (checked) {
-        ui->bgSubstCheckBox->setChecked(false);
-        m_mscope->setDisplayBgDiffMethod(MScope::BackgroundDiffMethod::Division);
-    } else {
-        m_mscope->setDisplayBgDiffMethod(MScope::BackgroundDiffMethod::None);
-    }
+    ui->accAlphaSpinBox->setEnabled(mode == DisplayMode::BackgroundDiff);
+    ui->accumulateAlphaLabel->setEnabled(mode == DisplayMode::BackgroundDiff);
+
+    m_mscope->setDisplayMode(mode);
 }
 
 void MiniscopeSettingsDialog::on_accAlphaSpinBox_valueChanged(double arg1)
 {
     m_mscope->setBgAccumulateAlpha(arg1);
-}
-
-void MiniscopeSettingsDialog::on_alwaysReinitCheckBox_toggled(bool checked)
-{
-    m_mscope->setAlwaysReinitializeDevice(checked);
 }

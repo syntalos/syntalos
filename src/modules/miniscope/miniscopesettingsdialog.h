@@ -46,17 +46,18 @@ public:
     void setCurrentPixRangeValues(int min, int max);
 
 private slots:
-    void on_scopeTypeComboBox_currentIndexChanged(const QString &arg1);
+    void on_deviceTypeCB_currentIndexChanged(const QString &arg1);
     void on_sbCamId_valueChanged(int arg1);
     void on_cbExtRecTrigger_toggled(bool checked);
     void on_sbDisplayMax_valueChanged(int arg1);
     void on_sbDisplayMin_valueChanged(int arg1);
-    void on_bgDivCheckBox_toggled(bool checked);
-    void on_bgSubstCheckBox_toggled(bool checked);
+
+    void on_viewModeCB_currentIndexChanged(int index);
     void on_accAlphaSpinBox_valueChanged(double arg1);
 
 private:
     Ui::MiniscopeSettingsDialog *ui;
+    bool m_initDone;
     QString m_recName;
     MScope::Miniscope *m_mscope;
 
