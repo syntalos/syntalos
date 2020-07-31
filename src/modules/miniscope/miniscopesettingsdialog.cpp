@@ -56,7 +56,6 @@ MiniscopeSettingsDialog::~MiniscopeSettingsDialog()
 
 void MiniscopeSettingsDialog::updateValues()
 {
-    ui->alwaysReinitCheckBox->setChecked(m_mscope->alwaysReinitializeDevice());
     ui->sbCamId->setValue(m_mscope->scopeCamId());
     ui->accAlphaSpinBox->setValue(m_mscope->bgAccumulateAlpha());
 
