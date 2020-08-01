@@ -65,7 +65,7 @@ void FLIRCamSettingsDialog::setRunning(bool running)
 void FLIRCamSettingsDialog::updateValues()
 {
     ui->cameraComboBox->clear();
-    auto cameras = m_camera->availableCameras(m_camera->system());
+    auto cameras = m_camera->availableCameras();
     for (const auto &cameraInfo : cameras) {
         ui->cameraComboBox->addItem(cameraInfo.first, QVariant(cameraInfo.second));
     }

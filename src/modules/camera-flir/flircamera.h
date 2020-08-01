@@ -36,10 +36,8 @@ Q_DECLARE_LOGGING_CATEGORY(logModFlirCam)
 class FLIRCamera
 {
 public:
-    FLIRCamera(const spn::SystemPtr system);
+    FLIRCamera();
     ~FLIRCamera();
-
-    spn::SystemPtr system() const;
 
     /**
      * @brief Set camera serial number.
@@ -55,9 +53,8 @@ public:
     QString lastError() const;
 
     bool initAcquisition();
-    void endAcquisition();
-
     bool acquireFrame(Frame &frame, SecondaryClockSynchronizer *clockSync);
+    void endAcquisition();
 
     cv::Size resolution() const;
     void setResolution(const cv::Size &size);
@@ -72,18 +69,16 @@ public:
     double gamma() const;
     void setGamma(double gamma);
 
-
     double actualFramerate() const;
 
-    static void printLibraryVersion(const spn::SystemPtr system);
-    static QList<QPair<QString, QString> > availableCameras(const spn::SystemPtr system);
+    static void printLibraryVersion();
+    static QList<QPair<QString, QString> > availableCameras();
 
 private:
     class Private;
     Q_DISABLE_COPY(FLIRCamera)
     QScopedPointer<Private> d;
 
-    bool isActive() const;
-    void resetActiveCam();
-    bool applyCamParameters(spn_ga::INodeMap& nodeMap);
+    void terminateRun();
+    bool applyInitialCamParameters(spn_ga::INodeMap& nodeMap);
 };

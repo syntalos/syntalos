@@ -28,10 +28,7 @@ class FLIRCameraMod : public AbstractModule
 {
     Q_OBJECT
 private:
-    inline static std::mutex s_spnSystemMutex;
-    inline static std::atomic_uint s_spnSystemRefCount;
-    inline static spn::SystemPtr s_spnSystem;
-    spn::SystemPtr m_spnSystem;
+    static bool s_libVersionPrinted;
 
     FLIRCamera *m_camera;
     FLIRCamSettingsDialog *m_camSettingsWindow;
@@ -43,19 +40,7 @@ public:
     explicit FLIRCameraMod(QObject *parent = nullptr)
         : AbstractModule(parent)
     {
-        {
-            const std::lock_guard<std::mutex> lock(s_spnSystemMutex);
-
-            if (!s_spnSystem.IsValid()) {
-                s_spnSystem = spn::System::GetInstance();
-                s_spnSystemRefCount = 0;
-            }
-
-            m_spnSystem = s_spnSystem;
-            s_spnSystemRefCount++;
-        }
-
-        m_camera = new FLIRCamera(m_spnSystem),
+        m_camera = new FLIRCamera(),
 
         m_outStream = registerOutputPort<Frame>(QStringLiteral("video"), QStringLiteral("Video"));
 
@@ -65,8 +50,11 @@ public:
         // set initial window titles
         setName(name());
 
-        // print some debug info
-        m_camera->printLibraryVersion(m_spnSystem);
+        // print some debug info, but only once if there are multiple camera modules
+        if (!s_libVersionPrinted) {
+            m_camera->printLibraryVersion();
+            s_libVersionPrinted = true;
+        }
     }
 
     bool initialize() override
@@ -77,14 +65,7 @@ public:
 
     ~FLIRCameraMod()
     {
-        const std::lock_guard<std::mutex> lock(s_spnSystemMutex);
-
         delete m_camera;
-        s_spnSystemRefCount--;
-        if (s_spnSystemRefCount == 0) {
-            s_spnSystem->ReleaseInstance();
-            s_spnSystem = nullptr;
-        }
     }
 
     void setName(const QString &name) override
@@ -119,9 +100,9 @@ public:
         m_camSettingsWindow->setRunning(true);
 
         // set the required stream metadata for video capture
+        m_outStream->setMetadataValue("framerate", framerate);
         m_outStream->setMetadataValue("size", QSize(resolution.width,
                                                     resolution.height));
-        m_outStream->setMetadataValue("framerate", framerate);
 
         // start the stream
         m_outStream->start();
@@ -129,18 +110,17 @@ public:
         // no frame acquisition is currently running
         m_acqRunning = false;
 
-        // initialize camera
-        if (!m_camera->initAcquisition()) {
-            raiseError(m_camera->lastError());
-            return false;
-        }
-
         statusMessage("Waiting.");
         return true;
     }
 
     void runThread(OptionalWaitCondition *waitCondition) override
     {
+        // initialize camera
+        if (!m_camera->initAcquisition()) {
+            raiseError(m_camera->lastError());
+            return;
+        }
         const auto actualFramerate = m_camera->actualFramerate();
 
         // set up clock synchronizer
@@ -178,6 +158,9 @@ public:
         // finalize clock synchronizer
         clockSync->stop();
 
+        // stop camera
+        m_camera->endAcquisition();
+
         // we aren't getting new frames anymore
         m_acqRunning = false;
     }
@@ -186,7 +169,6 @@ public:
     {
         m_running = false;
         while (m_acqRunning) { std::this_thread::sleep_for(std::chrono::milliseconds(100)); };
-        m_camera->endAcquisition();
         m_camSettingsWindow->setRunning(false);
         statusMessage(QString());
     }
@@ -216,6 +198,8 @@ public:
     }
 
 };
+
+bool FLIRCameraMod::s_libVersionPrinted = false;
 
 QString FLIRCameraModuleInfo::id() const
 {
