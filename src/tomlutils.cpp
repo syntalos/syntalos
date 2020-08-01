@@ -52,7 +52,7 @@ toml::date_time qDateTimeToToml(const QDateTime &qdt)
 
     toml::time_offset offset;
     offset.minutes = qdt.offsetFromUtc() / 60;
-    tomlDt.time_offset = offset;
+    tomlDt.offset = offset;
 
     return tomlDt;
 }
@@ -195,7 +195,7 @@ static QDate tomlDateToQ(const toml::date &tdate)
 static QDateTime tomlDateTimeToQ(const toml::date_time &tdt)
 {
     QDateTime qdt(tomlDateToQ(tdt.date), tomlTimeToQ(tdt.time));
-    qdt.setOffsetFromUtc(tdt.time_offset->minutes * 60);
+    qdt.setOffsetFromUtc(tdt.offset->minutes * 60);
     return qdt;
 }
 
