@@ -95,6 +95,7 @@ protected:
     void showEvent(QShowEvent *event) override;
 
 private:
+    void shutdown();
     void setCurrentProjectFile(const QString& fileName);
     void updateExportDirDisplay();
 

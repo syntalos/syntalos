@@ -83,6 +83,7 @@ public:
 
     QString experimentId;
 
+    std::atomic_bool active;
     std::atomic_bool running;
     std::atomic_bool failed;
     QString runFailedReason;
@@ -101,6 +102,7 @@ Engine::Engine(QWidget *parentWidget)
     d->gconf = new GlobalConfig(this);
     d->sysInfo = new SysInfo(this);
     d->exportDirIsValid = false;
+    d->active = false;
     d->running = false;
     d->modLibrary = new ModuleLibrary(this);
     d->parentWidget = parentWidget;
@@ -280,6 +282,22 @@ bool Engine::removeModule(AbstractModule *mod)
 
 void Engine::removeAllModules()
 {
+    if (d->running)
+        stop();
+    if (d->active) {
+        qCInfo(logEngine).noquote() << "Requested to remove all modules, but engine is still active. Waiting for it to shut down.";
+        for (int i = 0; i < 400; ++i) {
+            if (!d->active)
+                break;
+            QCoreApplication::processEvents(QEventLoop::WaitForMoreEvents);
+            QThread::msleep(50);
+        };
+        if (d->active) {
+            qCCritical(logEngine()).noquote() << "Requested to remove all modules on an active engine that did not manage to shut down in time. This must not happen.";
+            assert(0);
+        }
+    }
+
     foreach (auto mod, d->activeModules)
         removeModule(mod);
 }
@@ -689,6 +707,9 @@ bool Engine::runInternal(const QString &exportDirPath)
 
     if (!makeDirectory(exportDirPath))
         return false;
+
+    // the engine is actively doing stuff with modules now
+    d->active = true;
 
     // reset failure reason, in case one was set from a previous run
     d->runFailedReason = QString();
@@ -1225,6 +1246,9 @@ bool Engine::runInternal(const QString &exportDirPath)
 
     // clear main thread CPU affinity
     thread_clear_affinity(pthread_self());
+
+    // we have stopped doing things with modules
+    d->active = false;
 
     // tell listeners that we are stopped now
     emit runStopped();

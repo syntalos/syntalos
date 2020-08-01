@@ -639,24 +639,32 @@ void MainWindow::changeExperimentId(const QString& text)
     updateExportDirDisplay();
 }
 
-void MainWindow::closeEvent(QCloseEvent *event)
+void MainWindow::shutdown()
 {
-    if (m_engine->isRunning())
-        stopActionTriggered();
-
-    setStatusText("Shutting down...");
-
-    // save main window geometry to global config
-    m_gconf->setMainWinGeometry(saveGeometry());
-
     // The Spinnaker module crashes in an assertion in proprietary code if the application shuts down when
     // Spinnakers "System" singleton is also destroyed.
     // This does not happen on regular module destruction, for some reason. That and the fact that it  looks
     // nicer UI wise to remove modules early, is why modules are destroyed a bit earlier and explicitly here.
     m_engine->removeAllModules();
 
-    event->accept();
     QApplication::quit();
+}
+
+void MainWindow::closeEvent(QCloseEvent *event)
+{
+    setStatusText("Shutting down...");
+    QApplication::processEvents();
+
+    if (m_engine->isRunning()) {
+        connect(m_engine, &Engine::runStopped, this, &MainWindow::shutdown);
+        stopActionTriggered();
+        event->accept();
+    } else {
+        shutdown();
+    }
+
+    // save main window geometry to global config
+    m_gconf->setMainWinGeometry(saveGeometry());
 }
 
 void MainWindow::resizeEvent(QResizeEvent *event)
