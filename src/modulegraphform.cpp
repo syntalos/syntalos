@@ -106,7 +106,7 @@ void ModuleGraphForm::setModifyPossible(bool allowModify)
 void ModuleGraphForm::moduleAdded(ModuleInfo *info, AbstractModule *mod)
 {
     connect(mod, &AbstractModule::stateChanged, this, &ModuleGraphForm::receiveStateChange);
-    connect(mod, &AbstractModule::error, this, &ModuleGraphForm::receiveErrorMessage);
+    connect(mod, &AbstractModule::error, this, &ModuleGraphForm::receiveErrorMessage, Qt::QueuedConnection);
     connect(mod, &AbstractModule::statusMessage, this, &ModuleGraphForm::receiveMessage);
     connect(mod, &AbstractModule::portsConnected, this, &ModuleGraphForm::on_portsConnected);
 

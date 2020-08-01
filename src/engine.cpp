@@ -293,7 +293,7 @@ void Engine::removeAllModules()
             QThread::msleep(50);
         };
         if (d->active) {
-            qCCritical(logEngine()).noquote() << "Requested to remove all modules on an active engine that did not manage to shut down in time. This must not happen.";
+            qFatal("Requested to remove all modules on an active engine that did not manage to shut down in time. This must not happen.");
             assert(0);
         }
     }
