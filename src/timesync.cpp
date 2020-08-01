@@ -641,6 +641,11 @@ void SecondaryClockSynchronizer::setExpectedClockFrequencyHz(double frequency)
         return;
     }
 
+    if (frequency == 0) {
+        qCWarning(logTimeSync).noquote() << "Rejected bogus frequency change to 0 for" << m_mod->name();
+        return;
+    }
+
     // the amount of datapoints needed is on a curve, approaching 5 sec (or minmal required time)
     // if we get a lot of points in a short time, we don't need to wait that long to calculate the
     // average offset, but with a low frequency of new points we need a bit more data to calculate
@@ -696,10 +701,15 @@ bool SecondaryClockSynchronizer::start()
     }
     if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE)) {
         if (!m_tswriter->open(microseconds_t(m_toleranceUsec), m_mod->name())) {
-            qCritical().noquote().nospace() << "Unable to open timesync file for " << m_mod->name() << "[" << m_id << "]: " << m_tswriter->lastError();
+            qCCritical(logTimeSync).noquote().nospace() << "Unable to open timesync file for " << m_mod->name() << "[" << m_id << "]: " << m_tswriter->lastError();
             return false;
         }
     }
+
+    if (m_calibrationMaxN <= 4)
+        qCCritical(logTimeSync).noquote().nospace() << "Clock synchronizer for " << m_mod->name() << "[" << m_id << "] uses a tiny calibration array (length <= 4)";
+    assert(m_calibrationMaxN > 0);
+
     m_lastOffsetWithinTolerance = false;
     m_clockCorrectionOffset = microseconds_t(0);
     m_haveExpectedOffset = false;
