@@ -350,7 +350,8 @@ private:
         // ping the eventfd, in case anyone is listening for messages
         if (m_notify) {
             const uint64_t buffer = 1;
-            write(m_eventfd, &buffer, sizeof(buffer));
+            if (write(m_eventfd, &buffer, sizeof(buffer)) == -1)
+                qWarning().noquote() << "Unable to write to eventfd in" << dataTypeName() << "data subscription.";
         }
     }
 

@@ -180,7 +180,7 @@ gboolean efd_signal_source_dispatch(GSource* source, GSourceFunc callback, gpoin
         uint64_t buffer;
         // just read the buffer count for now to empty it
         // (maybe we can do something useful with the element count later?)
-        read(efd_source->event_fd, &buffer, sizeof(buffer));
+        (void) read(efd_source->event_fd, &buffer, sizeof(buffer));
         result_continue = callback(user_data);
     }
     g_source_set_ready_time(source, -1);
