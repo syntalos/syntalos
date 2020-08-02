@@ -171,4 +171,16 @@ private:
     std::chrono::round<microseconds_t>((__stime + std::chrono::duration_cast<std::chrono::nanoseconds>(symaster_clock::now() - (INIT_TIME))) / 2.0); \
     })
 
+/**
+ * Compute a timestamp for "when this function completed".
+ * This macro does not return the average between starting and end-time of the
+ * function invocation, but rather just the time when it was completed.
+ *
+ * The resulting timestamp is in µs
+ */
+#define FUNC_DONE_TIMESTAMP(INIT_TIME, F) ({ \
+    F; \
+    std::chrono::duration_cast<microseconds_t>(symaster_clock::now() - (INIT_TIME)); \
+    })
+
 } // end of namespace
