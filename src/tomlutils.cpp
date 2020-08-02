@@ -172,7 +172,7 @@ toml::table qVariantHashToTomlTable(const QVariantHash &varHash)
 QString serializeTomlTable(const toml::table &tab)
 {
     std::stringstream data;
-    data << tab << "\n";
+    data << tab;
     return QString::fromStdString(data.str());
 }
 

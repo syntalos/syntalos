@@ -13,12 +13,12 @@ class TestEDL : public QObject
 private:
     const QString expectedToml = QStringLiteral("boolean = true\n"
                                                 "date = 1977-04-23T13:37:12Z\n"
-                                                "list = [ \"spam\", 8, \"eggs\", true, 12.4, \"spam\", false ]\n"
-                                                "string = \"Hello World - öäß-!?\"\n"
+                                                "list = [ 'spam', 8, 'eggs', true, 12.4, 'spam', false ]\n"
+                                                "string = 'Hello World - öäß-!?'\n"
                                                 "\n"
                                                 "[child]\n"
                                                 "float = 1.248\n"
-                                                "key = \"stringvalue\"\n");
+                                                "key = 'stringvalue'\n");
 
 private slots:
     void runTomlSerialize()
