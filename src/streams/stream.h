@@ -68,6 +68,7 @@ public:
     virtual QVariant peekNextVar() = 0;
     virtual bool unsubscribe() = 0;
     virtual bool active() const = 0;
+    virtual bool hasPending() const = 0;
     virtual size_t approxPendingCount() const = 0;
     virtual int enableNotify() = 0;
 
@@ -270,7 +271,7 @@ public:
         return m_queue.size_approx();
     }
 
-    bool hasPending() const
+    bool hasPending() const override
     {
         return m_queue.size_approx() > 0;
     }

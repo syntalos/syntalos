@@ -20,6 +20,7 @@ add_library(mod_videorecorder STATIC
 )
 
 target_link_libraries(mod_videorecorder
+    syntalos_shared
     ${SY_BASE_LIBS}
     ${OpenCV_LIBS}
     ${FFMPEG_LIBRARIES}

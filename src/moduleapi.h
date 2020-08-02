@@ -32,6 +32,7 @@
 #include "streams/datatypes.h"
 #include "optionalwaitcondition.h"
 #include "edlstorage.h"
+#include "subscriptionwatcher.h"
 
 namespace Syntalos {
 

@@ -14,6 +14,8 @@ set(SYNTALOS_SHARED_SRC
     optionalwaitcondition.cpp
     rangeslider.h
     rangeslider.cpp
+    subscriptionwatcher.h
+    subscriptionwatcher.cpp
     syclock.h
     syclock.cpp
     timesync.h
