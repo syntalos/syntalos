@@ -372,6 +372,11 @@ void FLIRCamera::endAcquisition()
         return;
     }
 
+    // There appears to be a weird race-condition in the Spinnaker SDK code which causes it to terminate the
+    // application with SIGKILL if we run EndAcquisition() too quickly after the last frame was acquired.
+    // If we just wait a few milliseconds after the last frame was obtained, this issue goes away.
+    std::this_thread::sleep_for(milliseconds_t(240));
+
     try {
         // end acquisition
         qCDebug(logModFlirCam).noquote() << "Camera end acquisition";
