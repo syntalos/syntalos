@@ -439,9 +439,10 @@ bool FLIRCamera::acquireFrame(Frame &frame, SecondaryClockSynchronizer *clockSyn
 
         const auto rows = image->GetHeight();
         const auto cols = image->GetWidth();
-        const auto data = image->GetData();
         const auto stride = image->GetStride();
         const auto pixFmt = image->GetPixelFormat();
+        auto data = image->GetData();
+
         cv::Mat tmpMat;
         if (pixFmt == spn::PixelFormatEnums::PixelFormat_Mono8)
             tmpMat = cv::Mat(rows, cols, CV_8UC1, static_cast<unsigned char*>(data), stride);
@@ -451,7 +452,10 @@ bool FLIRCamera::acquireFrame(Frame &frame, SecondaryClockSynchronizer *clockSyn
             tmpMat = cv::Mat(rows, cols, CV_16UC3, static_cast<unsigned char*>(data), stride);
         else {
             // Convert image to BGR8 transparently if we can not handle its original format natively
-            const auto convertedImage = image->Convert(spn::PixelFormat_BGR8, spn::HQ_LINEAR);
+            auto convertedImage = image->Convert(spn::PixelFormat_BGR8, spn::HQ_LINEAR);
+            image->Release();
+            image = convertedImage;
+            data = image->GetData();
             tmpMat = cv::Mat(rows, cols, CV_8UC3, static_cast<unsigned char*>(data), stride);
         }
 
@@ -471,8 +475,7 @@ bool FLIRCamera::acquireFrame(Frame &frame, SecondaryClockSynchronizer *clockSyn
 
         // release image
         image->Release();
-    }
-    catch (Spinnaker::Exception& e) {
+    } catch (Spinnaker::Exception& e) {
         d->lastError = QStringLiteral("Unable to acquire image: %1").arg(e.what());
         return false;
     }
