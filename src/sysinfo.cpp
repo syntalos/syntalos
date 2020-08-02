@@ -39,6 +39,7 @@ extern "C" {
 
 using namespace Syntalos;
 
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpadded"
 class SysInfo::Private
 {

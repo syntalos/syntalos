@@ -39,6 +39,7 @@ public:
     QSharedPointer<OOPWorkerConnector> wc;
 };
 
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpadded"
 class OOPModule::Private
 {

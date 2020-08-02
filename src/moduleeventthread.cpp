@@ -187,6 +187,7 @@ gboolean efd_signal_source_dispatch(GSource* source, GSourceFunc callback, gpoin
     return result_continue;
 }
 
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 static GSourceFuncs efd_source_funcs = {
   .prepare = efd_signal_source_prepare,

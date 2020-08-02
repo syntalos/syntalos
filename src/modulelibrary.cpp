@@ -58,6 +58,7 @@
 
 #include "modules/runcmd/runcmdmodule.h"
 
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpadded"
 class ModuleLibrary::Private
 {

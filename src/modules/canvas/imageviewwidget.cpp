@@ -23,7 +23,7 @@
 #include <QCoreApplication>
 #include <QDebug>
 
-
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpadded"
 class ImageViewWidget::Private
 {

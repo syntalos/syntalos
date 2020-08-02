@@ -61,6 +61,7 @@ public:
     std::vector<uint> cpuAffinity;
 };
 
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpadded"
 class Engine::Private
 {

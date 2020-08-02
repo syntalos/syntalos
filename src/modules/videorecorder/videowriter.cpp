@@ -103,6 +103,7 @@ VideoContainer stringToVideoContainer(const std::string &str)
     return VideoContainer::Unknown;
 }
 
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpadded"
 class VideoWriter::VideoWriterData
 {

@@ -224,6 +224,7 @@ void OOPWorker::emitPyError()
         Py_XDECREF(excValue);
 }
 
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wold-style-cast"
 void OOPWorker::runScript()
 {
