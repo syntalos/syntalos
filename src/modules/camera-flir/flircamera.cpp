@@ -430,7 +430,7 @@ bool FLIRCamera::acquireFrame(Frame &frame, SecondaryClockSynchronizer *clockSyn
     try {
         // retrieve next received image and ensure image completion
         spn::ImagePtr image;
-        auto frameRecvTime = FUNC_EXEC_TIMESTAMP(d->startTime, image = d->activeCam->GetNextImage(1000));
+        auto frameRecvTime = FUNC_DONE_TIMESTAMP(d->startTime, image = d->activeCam->GetNextImage(10000));
         if (image->IsIncomplete()) {
             d->lastError = QStringLiteral("FLIR Camera %1: Frame dropped, image status was %1").arg(serial()).arg(image->GetImageStatus());
             image->Release();

@@ -295,7 +295,7 @@ void Camera::disconnect()
 bool Camera::recordFrame(Frame &frame, SecondaryClockSynchronizer *clockSync)
 {
     bool status = false;
-    auto frameRecvTime = FUNC_EXEC_TIMESTAMP(d->startTime, status = d->cam.grab());
+    auto frameRecvTime = FUNC_DONE_TIMESTAMP(d->startTime, status = d->cam.grab());
 
     // timestamp in "driver time", which usually seems to be a UNIX timestamp, but
     // we can't be sure of that
