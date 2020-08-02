@@ -400,6 +400,8 @@ void VideoWriter::initializeInternal()
 
     AVDictionary *codecopts = nullptr;
     if (d->lossless) {
+        // settings for lossless option
+
         switch (d->codec) {
         case VideoCodec::Raw:
             // uncompressed frames are always lossless
@@ -415,9 +417,8 @@ void VideoWriter::initializeInternal()
             break;
         case VideoCodec::H264:
         case VideoCodec::HEVC:
-            d->cctx->gop_size = 60;
+            d->cctx->gop_size = 32;
             av_dict_set_int(&codecopts, "crf", 0, 0);
-            av_dict_set(&codecopts, "preset", "veryfast", 0);
             av_dict_set_int(&codecopts, "lossless", 1, 0);
             break;
         case VideoCodec::MPEG4:
@@ -426,6 +427,13 @@ void VideoWriter::initializeInternal()
             d->lossless = false;
             break;
         default: break;
+        }
+    } else {
+        // not lossless
+
+        if (d->codec == VideoCodec::HEVC) {
+            d->cctx->gop_size = 16;
+            av_dict_set_int(&codecopts, "crf", 28, 0);
         }
     }
 
