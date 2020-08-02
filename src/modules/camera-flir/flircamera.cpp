@@ -39,6 +39,7 @@ inline uint qHash(FLIRCamValueChange key, uint seed)
     return ::qHash(static_cast<uint>(key), seed);
 }
 
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpadded"
 class FLIRCamera::Private
 {
@@ -169,7 +170,7 @@ static bool disableGEVHeartbeat(spn_ga::INodeMap& nodeMap, spn_ga::INodeMap& nod
         qDebug() << "Unable to read FLIR camera device type.";
         return false;
     } else {
-        if (ptrDeviceType->GetIntValue() == spn::DeviceType_GEV) {
+        if (ptrDeviceType->GetIntValue() == spn::DeviceTypeEnum::DeviceType_GigEVision) {
             qDebug() << "FLIR Camera:" << "Attempting to disable GigE camera heartbeat before continuing";
             spn_ga::CBooleanPtr ptrDeviceHeartbeat = nodeMap.GetNode("GevGVCPHeartbeatDisable");
             if (!IsAvailable(ptrDeviceHeartbeat) || !IsWritable(ptrDeviceHeartbeat)) {
