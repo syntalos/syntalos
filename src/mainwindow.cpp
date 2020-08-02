@@ -655,7 +655,7 @@ void MainWindow::closeEvent(QCloseEvent *event)
     setStatusText("Shutting down...");
     QApplication::processEvents();
 
-    if (m_engine->isRunning()) {
+    if (m_engine->isActive()) {
         connect(m_engine, &Engine::runStopped, this, &MainWindow::shutdown);
         stopActionTriggered();
         event->accept();

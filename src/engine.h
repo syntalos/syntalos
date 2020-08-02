@@ -55,6 +55,7 @@ public:
 
     QString exportDir() const;
     bool isRunning() const;
+    bool isActive() const;
     bool hasFailed() const;
     milliseconds_t currentRunElapsedTime() const;
 

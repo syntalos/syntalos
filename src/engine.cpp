@@ -199,6 +199,11 @@ bool Engine::isRunning() const
     return d->running;
 }
 
+bool Engine::isActive() const
+{
+    return d->active;
+}
+
 bool Engine::hasFailed() const
 {
     return d->failed;
@@ -287,7 +292,7 @@ void Engine::removeAllModules()
         stop();
     if (d->active) {
         qCInfo(logEngine).noquote() << "Requested to remove all modules, but engine is still active. Waiting for it to shut down.";
-        for (int i = 0; i < 400; ++i) {
+        for (int i = 0; i < 800; ++i) {
             if (!d->active)
                 break;
             QCoreApplication::processEvents(QEventLoop::WaitForMoreEvents);
