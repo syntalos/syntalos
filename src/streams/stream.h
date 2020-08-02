@@ -27,6 +27,8 @@
 #include <cmath>
 #include <QVariant>
 #include <QDebug>
+#include <sys/eventfd.h>
+#include <unistd.h>
 
 #include "readerwriterqueue.h"
 #include "datatypes.h"
@@ -67,6 +69,7 @@ public:
     virtual bool unsubscribe() = 0;
     virtual bool active() const = 0;
     virtual size_t approxPendingCount() const = 0;
+    virtual int enableNotify() = 0;
 
     virtual QHash<QString, QVariant> metadata() const = 0;
     virtual QVariant metadataValue(const QString &key,
@@ -104,18 +107,26 @@ public:
     StreamSubscription(DataStream<T> *stream)
         : m_stream(stream),
           m_queue(BlockingReaderWriterQueue<std::optional<T>>(256)),
+          m_eventfd(-1),
+          m_notify(false),
           m_active(true),
           m_suspended(false),
           m_throttle(0),
           m_skippedElements(0)
     {
         m_lastItemTime = currentTimePoint();
+        m_eventfd = eventfd(0, EFD_NONBLOCK);
+        if (m_eventfd < 0) {
+            qFatal("Unable to obtain eventfd for new stream subscription: %s", std::strerror(errno));
+            assert(0);
+        }
     }
 
     ~StreamSubscription()
     {
         m_active = false;
         unsubscribe();
+        close(m_eventfd);
     }
 
     /**
@@ -214,6 +225,27 @@ public:
     }
 
     /**
+     * @brief Enable notifiucations on this stream subscription
+     * @return An eventfd file descriptor that is written to when new data is received.
+     */
+    int enableNotify() override
+    {
+        m_notify = true;
+        return m_eventfd;
+    }
+
+    /**
+     * @brief Disable notifications via eventFD
+     *
+     * Do not disable notifications unless you know for sure that nothing is
+     * listening on this subscription anymore.
+     */
+    void disableNotify()
+    {
+        m_notify = false;
+    }
+
+    /**
      * @brief Stop receiving data, but do not unsubscribe from the stream
      */
     void suspend()
@@ -276,6 +308,8 @@ public:
 private:
     DataStream<T> *m_stream;
     BlockingReaderWriterQueue<std::optional<T>> m_queue;
+    int m_eventfd;
+    std::atomic_bool m_notify;
     std::atomic_bool m_active;
     std::atomic_bool m_suspended;
     std::atomic_uint m_throttle;
@@ -311,6 +345,12 @@ private:
 
         // actually send the data to the subscriber
         m_queue.enqueue(std::optional<T>(data));
+
+        // ping the eventfd, in case anyone is listening for messages
+        if (m_notify) {
+            const uint64_t buffer = 1;
+            write(m_eventfd, &buffer, sizeof(buffer));
+        }
     }
 
     void stop()

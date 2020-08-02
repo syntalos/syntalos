@@ -38,6 +38,17 @@ public:
     GMainContext *context;
 };
 
+class RecvDataEventPayload
+{
+public:
+    AbstractModule *module;
+    recvDataEventFunc_t fn;
+
+    ModuleEventThread *self;
+    GSource *source;
+};
+
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpadded"
 class ModuleEventThread::Private
 {
@@ -128,6 +139,73 @@ static gboolean timerEventDispatch(gpointer udata)
     return FALSE;
 }
 
+static gboolean recvDataEventDispatch(gpointer udata)
+{
+    const auto pl = static_cast<RecvDataEventPayload*>(udata);
+    std::invoke(pl->fn, pl->module);
+
+    if (pl->module->state() == ModuleState::ERROR) {
+        // ewww, this module failed. suspend execution
+        pl->self->setFailed(true);
+        qDebug().noquote().nospace() << "Module '" << pl->module->name() << "' failed in event loop. Stopping.";
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+typedef struct {
+    GSource source;
+    int event_fd;
+    gpointer event_fd_tag;
+} EFDSignalSource;
+
+gboolean efd_signal_source_prepare(GSource*, gint *timeout)
+{
+    *timeout = -1;
+    return FALSE;
+}
+
+gboolean efd_signal_source_dispatch(GSource* source, GSourceFunc callback, gpointer user_data)
+{
+    EFDSignalSource* efd_source = (EFDSignalSource*) source;
+
+    unsigned events = g_source_query_unix_fd(source, efd_source->event_fd_tag);
+    if (events & G_IO_HUP || events & G_IO_ERR || events & G_IO_NVAL) {
+        return G_SOURCE_REMOVE;
+    }
+
+    gboolean result_continue = G_SOURCE_CONTINUE;
+    if (events & G_IO_IN) {
+        uint64_t buffer;
+        // just read the buffer count for now to empty it
+        // (maybe we can do something useful with the element count later?)
+        read(efd_source->event_fd, &buffer, sizeof(buffer));
+        result_continue = callback(user_data);
+    }
+    g_source_set_ready_time(source, -1);
+    return result_continue;
+}
+
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+static GSourceFuncs efd_source_funcs = {
+  .prepare = efd_signal_source_prepare,
+  .check = NULL,
+  .dispatch = efd_signal_source_dispatch,
+  .finalize = NULL
+};
+#pragma GCC diagnostic pop
+
+GSource *efd_signal_source_new(int event_fd)
+{
+    auto source = (EFDSignalSource*) g_source_new(&efd_source_funcs, sizeof(EFDSignalSource));
+    source->event_fd = event_fd;
+    source->event_fd_tag = g_source_add_unix_fd((GSource*) source,
+                                                event_fd,
+                                                (GIOCondition) (G_IO_IN | G_IO_ERR | G_IO_HUP | G_IO_NVAL));
+    return (GSource*) source;
+}
+
 void ModuleEventThread::moduleEventThreadFunc(QList<AbstractModule*> mods, OptionalWaitCondition *waitCondition)
 {
     pthread_setname_np(pthread_self(), qPrintable(d->threadName.mid(0, 15)));
@@ -136,32 +214,11 @@ void ModuleEventThread::moduleEventThreadFunc(QList<AbstractModule*> mods, Optio
     g_autoptr(GMainLoop) loop = g_main_loop_new(context, FALSE);
     d->activeLoop = loop;
 
-    // wait for us to start
-    waitCondition->wait();
-
-    // immediately return on early failures by other modules
-    if (d->failed) {
-        d->activeLoop = nullptr;
-        return;
-    }
-
-    // check if any module signals that it will actually not be doing anything
-    // (if so, we don't need to call it and can maybe even terminate this thread)
-    QMutableListIterator<AbstractModule*> i(mods);
-    while (i.hasNext()) {
-        if (i.next()->state() == ModuleState::IDLE)
-            i.remove();
-    }
-
-    if (mods.isEmpty()) {
-        qDebug() << "All evented modules are idle, shutting down their thread.";
-        d->activeLoop = nullptr;
-        return;
-    }
-
-    // add timer event sources
+    // add event sources
     std::vector<std::unique_ptr<TimerEventPayload>> intervalPayloads;
+    std::vector<std::unique_ptr<RecvDataEventPayload>> recvDataPayloads;
     for (const auto &mod : mods) {
+        // add "timer" event sources
         for (const auto &ev : mod->intervalEventCallbacks()) {
             if (ev.second < 0)
                 continue;
@@ -180,6 +237,47 @@ void ModuleEventThread::moduleEventThreadFunc(QList<AbstractModule*> mods, Optio
             g_source_attach(pl->source, context);
             intervalPayloads.push_back(std::move(pl));
         }
+
+        // add "received data in subscription" event sources
+        for (const auto &ev : mod->recvDataEventCallbacks()) {
+            auto sub = ev.second;
+            int eventfd = sub->enableNotify();
+
+            auto pl = std::make_unique<RecvDataEventPayload>();
+            pl->module = mod;
+            pl->fn = ev.first;
+            pl->self = this;
+            pl->source = efd_signal_source_new(eventfd);
+            g_source_set_callback (pl->source,
+                                   &recvDataEventDispatch,
+                                   pl.get(),
+                                   NULL);
+            g_source_attach(pl->source, context);
+            recvDataPayloads.push_back(std::move(pl));
+        }
+    }
+
+    // wait for us to start
+    waitCondition->wait();
+
+    // check if any module signals that it will actually not be doing anything
+    // (if so, we don't need to call it and can maybe even terminate this thread)
+    QMutableListIterator<AbstractModule*> i(mods);
+    while (i.hasNext()) {
+        if (i.next()->state() == ModuleState::IDLE)
+            i.remove();
+    }
+
+    if (mods.isEmpty()) {
+        qDebug() << "All evented modules are idle, shutting down their thread.";
+        d->activeLoop = nullptr;
+        goto out;
+    }
+
+    // immediately return in case other modules have already failed
+    if (d->failed) {
+        d->activeLoop = nullptr;
+        goto out;
     }
 
     // if we are already stopped, do nothing
@@ -192,8 +290,12 @@ void ModuleEventThread::moduleEventThreadFunc(QList<AbstractModule*> mods, Optio
 out:
     d->activeLoop = nullptr;
 
-    // clean up sources
+    // clean up sources (shouldn't be necessary, but we do it anyway)
     for (const auto &pl : intervalPayloads) {
+        g_source_destroy(pl->source);
+        g_source_unref(pl->source);
+    }
+    for (const auto &pl : recvDataPayloads) {
         g_source_destroy(pl->source);
         g_source_unref(pl->source);
     }

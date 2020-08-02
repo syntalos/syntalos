@@ -282,6 +282,9 @@ private:
 /// Event function type for timed callbacks
 using intervalEventFunc_t = void(AbstractModule::*)(int &);
 
+/// Event function type for subscription new data callbacks
+using recvDataEventFunc_t = void(AbstractModule::*)();
+
 /**
  * @brief Abstract base class for all modules
  *
@@ -549,6 +552,7 @@ public:
     std::shared_ptr<StreamOutputPort> outPortById(const QString &id) const;
 
     QList<QPair<intervalEventFunc_t, int>> intervalEventCallbacks() const;
+    QList<QPair<recvDataEventFunc_t, std::shared_ptr<VariantStreamSubscription>>> recvDataEventCallbacks() const;
 
     QVariant serializeDisplayUiGeometry();
     void restoreDisplayUiGeometry(const QVariant &var);
@@ -673,9 +677,9 @@ protected:
      * The interval will also not be adjusted to "catch up" for lost time.
      *
      * Please ensure that the callback function never blocks for an extended period of time
-     * to give other modules as chance to run as well. Also, you can expect this function to
+     * to give other modules a chance to run as well. Also, you can expect this function to
      * be run in a different thread compared to where the module's prepare() function was run.
-     * The function may even move between threads, so do not make any assumptions about threading.
+     * The function may even move between threads, so make sure it is reentrant.
      */
     template<typename T>
     void registerTimedEvent(void(T::*fn)(int &), const milliseconds_t &interval)
@@ -684,6 +688,26 @@ protected:
                 "Callback needs to point to a member function of a class derived from AbstractModule");
         const auto amFn = static_cast<intervalEventFunc_t>(fn);
         m_intervalEventCBList.append(qMakePair(amFn, interval.count()));
+    }
+
+    /**
+     * @brief Request a member function of this module to be called when a subscription has new data.
+     *
+     * Set a pointer to a member function of this module as first paremter, to be called
+     * once the stream subscription given as second parameter has received more data.
+     *
+     * Please ensure that the callback function never blocks for an extended period of time
+     * to give other modules a chance to run as well. Also, you can expect this function to
+     * be run in a different thread compared to where the module's prepare() function was run.
+     * The function may even move between threads, so make sure it is reentrant.
+     */
+    template<typename T>
+    void registerDataReceivedEvent(void(T::*fn)(), std::shared_ptr<VariantStreamSubscription> subscription)
+    {
+        static_assert(std::is_base_of<AbstractModule, T>::value,
+                "Callback needs to point to a member function of a class derived from AbstractModule");
+        const auto amFn = static_cast<recvDataEventFunc_t>(fn);
+        m_recvDataEventCBList.append(qMakePair(amFn, subscription));
     }
 
     /**
@@ -745,6 +769,8 @@ private:
     QMap<QString, std::shared_ptr<VarStreamInputPort>> m_inPorts;
 
     QList<QPair<intervalEventFunc_t, int>> m_intervalEventCBList;
+    QList<QPair<recvDataEventFunc_t,
+                std::shared_ptr<VariantStreamSubscription>>> m_recvDataEventCBList;
 
     void setState(ModuleState state);
     void setId(const QString &id);

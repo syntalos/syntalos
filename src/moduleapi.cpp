@@ -556,6 +556,12 @@ QList<QPair<intervalEventFunc_t, int> > AbstractModule::intervalEventCallbacks()
     return m_intervalEventCBList;
 }
 
+QList<QPair<recvDataEventFunc_t, std::shared_ptr<VariantStreamSubscription>>>
+AbstractModule::recvDataEventCallbacks() const
+{
+    return m_recvDataEventCBList;
+}
+
 bool AbstractModule::makeDirectory(const QString &dir)
 {
     if (!QDir().mkpath(dir)) {
