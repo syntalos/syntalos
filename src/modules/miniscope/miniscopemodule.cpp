@@ -40,16 +40,20 @@ private:
     std::unique_ptr<SecondaryClockSynchronizer> m_clockSync;
     bool m_acceptFrames;
     MScope::Miniscope *m_miniscope;
+    QFile *m_valChangeLogFile;
     MiniscopeSettingsDialog *m_settingsDialog;
 
 public:
     explicit MiniscopeModule(QObject *parent = nullptr)
         : AbstractModule(parent),
+          m_acceptFrames(false),
           m_miniscope(nullptr),
           m_settingsDialog(nullptr)
     {
         m_rawOut = registerOutputPort<Frame>(QStringLiteral("frames-raw-out"), QStringLiteral("Raw Frames"));
         m_dispOut = registerOutputPort<Frame>(QStringLiteral("frames-disp-out"), QStringLiteral("Display Frames"));
+
+        m_valChangeLogFile = new QFile();
 
         m_miniscope = new Miniscope();
         m_settingsDialog = new MiniscopeSettingsDialog(m_miniscope);
@@ -60,12 +64,13 @@ public:
 
         m_miniscope->setOnFrame(&on_newRawFrame, this);
         m_miniscope->setOnDisplayFrame(&on_newDisplayFrame, this);
+        m_miniscope->setOnControlValueChange(&on_controlValueChanged, this);
 
         m_evTimer = new QTimer(this);
         m_evTimer->setInterval(200);
         connect(m_evTimer, &QTimer::timeout, this, &MiniscopeModule::checkMSStatus);
 
-        // print output for better debugging
+        // show status messages
         m_miniscope->setOnStatusMessage([&](const QString &msg, void*) {
             setStatusMessage(msg);
         });
@@ -74,6 +79,10 @@ public:
     ~MiniscopeModule()
     {
         delete m_miniscope;
+
+        if (m_valChangeLogFile->isOpen())
+            m_valChangeLogFile->close();
+        delete m_valChangeLogFile;
     }
 
     ModuleFeatures features() const override
@@ -89,13 +98,32 @@ public:
 
     bool prepare(const TestSubject &) override
     {
+        // do not accept any frames yet
+        m_acceptFrames = false;
+
+        // obtain logfile location to write control change information to
+        auto dstore = getOrCreateDefaultDataset();
+        const auto valChangeLogFname = dstore->setDataFile("ctlvalue-changes.csv");
+        m_valChangeLogFile->setFileName(valChangeLogFname);
+        if (!m_valChangeLogFile->open(QFile::WriteOnly | QFile::Truncate)) {
+            raiseError(QStringLiteral("Unable to open control value change logfile for writing!"));
+            return false;
+        }
+
+        // write logfile header
+        {
+            QTextStream tsout(m_valChangeLogFile);
+            tsout << "Time" << ";"
+                  << "ID" << ";"
+                  << "Display Value" << ";"
+                  << "Device Value" << ";"
+                  << "\n";
+        }
+
         if (!m_miniscope->connect()) {
             raiseError(m_miniscope->lastError());
             return false;
         }
-
-        // do not accept any frames yet
-        m_acceptFrames = false;
 
         // we already start capturing video here, and only start emitting frames later
         if (!m_miniscope->run()) {
@@ -173,6 +201,24 @@ public:
         self->m_dispOut->push(Frame(mat, time));
     }
 
+    static void on_controlValueChanged(const QString& id, double dispValue, double devValue, void *udata)
+    {
+        const auto self = static_cast<MiniscopeModule*>(udata);
+        if (!self->m_valChangeLogFile->isOpen())
+            return;
+
+        auto timestamp = self->m_syTimer->timeSinceStartMsec().count();
+        if (!self->m_running)
+            timestamp = 0;
+
+        QTextStream tsout(self->m_valChangeLogFile);
+        tsout << timestamp << ";"
+              << id << ";"
+              << dispValue << ";"
+              << devValue << ";"
+              << "\n";
+    }
+
     void checkMSStatus()
     {
         if (!m_miniscope->running()) {
@@ -191,6 +237,10 @@ public:
         m_evTimer->stop();
         m_miniscope->stop();
         m_settingsDialog->setRunning(false);
+
+        if (m_valChangeLogFile->isOpen())
+            m_valChangeLogFile->close();
+
         m_miniscope->disconnect();
         safeStopSynchronizer(m_clockSync);
     }
