@@ -136,6 +136,8 @@ void MiniscopeSettingsDialog::on_deviceTypeCB_currentIndexChanged(const QString 
 
 void MiniscopeSettingsDialog::on_sbCamId_valueChanged(int arg1)
 {
+    if (m_mscope->isConnected())
+        m_mscope->disconnect();
     m_mscope->setScopeCamId(arg1);
 }
 

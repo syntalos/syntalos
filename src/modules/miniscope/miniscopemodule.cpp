@@ -78,6 +78,8 @@ public:
 
     ~MiniscopeModule()
     {
+        if (m_miniscope->isConnected())
+            m_miniscope->disconnect();
         delete m_miniscope;
 
         if (m_valChangeLogFile->isOpen())
@@ -120,9 +122,14 @@ public:
                   << "\n";
         }
 
-        if (!m_miniscope->connect()) {
-            raiseError(m_miniscope->lastError());
-            return false;
+        // connect Miniscope if it isn't connected yet
+        // (we do something ugly here and keep a working connection in the background,
+        // as reconnecting a DAQ box that has already been connected once frequently fails)
+        if (!m_miniscope->isConnected()) {
+            if (!m_miniscope->connect()) {
+                raiseError(m_miniscope->lastError());
+                return false;
+            }
         }
 
         // we already start capturing video here, and only start emitting frames later
@@ -241,7 +248,11 @@ public:
         if (m_valChangeLogFile->isOpen())
             m_valChangeLogFile->close();
 
-        m_miniscope->disconnect();
+        // NOTE: We do intentionally not always reconnect and disconnect the Miniscope, because
+        // doing so requires the device to be power-cycled frequently to reset.
+        // So once we have a stable connection, we keep the device connected forever, unless
+        // an error happens or the video device ID is changed (in which case we must reconnect)
+
         safeStopSynchronizer(m_clockSync);
     }
 
