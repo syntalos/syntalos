@@ -138,8 +138,17 @@ MainWindow::MainWindow(QWidget *parent) :
     // setup general page
     ui->exportBaseDirLabel->setText(QStringLiteral("[No directory selected]"));
     ui->exportDirLabel->setText(QStringLiteral("???"));
+
+    // prepare warning labels
     ui->runWarningIconLabel->setPixmap(QIcon::fromTheme(QStringLiteral("emblem-warning")).pixmap(16, 16));
     ui->runWarnWidget->setVisible(false);
+    ui->cpuWarningIconLabel->setPixmap(QIcon::fromTheme(QStringLiteral("emblem-warning")).pixmap(16, 16));
+    ui->cpuWarnWidget->setVisible(false);
+    ui->diskSpaceWarningIconLabel->setPixmap(QIcon::fromTheme(QStringLiteral("emblem-important")).pixmap(16, 16));
+    ui->diskSpaceWarnWidget->setVisible(false);
+    ui->memoryWarningIconLabel->setPixmap(QIcon::fromTheme(QStringLiteral("emblem-important")).pixmap(16, 16));
+    ui->memoryWarnWidget->setVisible(false);
+    ui->warnNotifyLayout->setAlignment(Qt::AlignLeft | Qt::AlignBottom);
 
     ui->gbRunInfo->setEnabled(false);
 
