@@ -39,6 +39,13 @@ public:
     explicit Engine(QWidget *parentWidget = nullptr);
     ~Engine();
 
+    enum SystemResource {
+        StorageSpace,
+        Memory,
+        CpuCores
+    };
+    Q_ENUM(SystemResource)
+
     ModuleLibrary *library() const;
     SysInfo *sysInfo() const;
 
@@ -95,6 +102,7 @@ signals:
     void runFailed(AbstractModule *mod, const QString &message);
     void runStopped();
     void moduleError(AbstractModule *mod, const QString& message);
+    void resourceWarning(SystemResource kind, bool resolved, const QString &message);
 
 private slots:
     void receiveModuleError(const QString& message);

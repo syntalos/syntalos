@@ -142,7 +142,7 @@ MainWindow::MainWindow(QWidget *parent) :
     // prepare warning labels
     ui->runWarningIconLabel->setPixmap(QIcon::fromTheme(QStringLiteral("emblem-warning")).pixmap(16, 16));
     ui->runWarnWidget->setVisible(false);
-    ui->cpuWarningIconLabel->setPixmap(QIcon::fromTheme(QStringLiteral("emblem-warning")).pixmap(16, 16));
+    ui->cpuWarningIconLabel->setPixmap(QIcon::fromTheme(QStringLiteral("emblem-information")).pixmap(16, 16));
     ui->cpuWarnWidget->setVisible(false);
     ui->diskSpaceWarningIconLabel->setPixmap(QIcon::fromTheme(QStringLiteral("emblem-important")).pixmap(16, 16));
     ui->diskSpaceWarnWidget->setVisible(false);
@@ -265,6 +265,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(m_engine, &Engine::moduleCreated, this, &MainWindow::onModuleCreated);
     connect(m_engine, &Engine::preRunStart, this, &MainWindow::onEnginePreRunStart);
     connect(m_engine, &Engine::runStopped, this, &MainWindow::onEngineStopped);
+    connect(m_engine, &Engine::resourceWarning, this, &MainWindow::onEngineResourceWarning);
     connect(ui->graphForm, &ModuleGraphForm::busyStart, this, &MainWindow::showBusyIndicatorProcessing);
     connect(ui->graphForm, &ModuleGraphForm::busyEnd, this, &MainWindow::hideBusyIndicator);
 
@@ -853,6 +854,10 @@ void MainWindow::onEnginePreRunStart()
     m_rtElapsedTimer->start();
     showBusyIndicatorRunning();
     m_timingsDialog->clear();
+
+    ui->diskSpaceWarnWidget->setVisible(false);
+    ui->memoryWarnWidget->setVisible(false);
+    ui->cpuWarnWidget->setVisible(false);
 }
 
 void MainWindow::onEngineStopped()
@@ -861,6 +866,28 @@ void MainWindow::onEngineStopped()
     hideBusyIndicator();
     setRunPossible(true);
     setStopPossible(false);
+
+    ui->diskSpaceWarnWidget->setVisible(false);
+    ui->memoryWarnWidget->setVisible(false);
+    ui->cpuWarnWidget->setVisible(false);
+}
+
+void MainWindow::onEngineResourceWarning(Engine::SystemResource kind, bool resolved, const QString &message)
+{
+    switch (kind) {
+    case Engine::StorageSpace:
+        ui->diskSpaceWarningLabel->setText(message);
+        ui->diskSpaceWarnWidget->setVisible(!resolved);
+        break;
+    case Engine::Memory:
+        ui->memoryWarningLabel->setText(message);
+        ui->memoryWarnWidget->setVisible(!resolved);
+        break;
+    case Engine::CpuCores:
+        ui->cpuWarningLabel->setText(message);
+        ui->cpuWarnWidget->setVisible(!resolved);
+        break;
+    }
 }
 
 void MainWindow::statusMessageChanged(const QString &message)

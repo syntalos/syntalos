@@ -25,6 +25,7 @@
 #include "utils.h"
 #include "testsubjectlistmodel.h"
 #include "moduleapi.h"
+#include "engine.h"
 
 #if !defined(DOXYGEN_SHOULD_SKIP_THIS)
 class QLabel;
@@ -33,7 +34,6 @@ class ModuleIndicator;
 class QSvgWidget;
 class QSettings;
 namespace Syntalos {
-class Engine;
 class ModuleInfo;
 class AbstractModule;
 class TimingsDialog;
@@ -76,6 +76,7 @@ private slots:
     void moduleErrorReceived(AbstractModule *mod, const QString& message);
     void onEnginePreRunStart();
     void onEngineStopped();
+    void onEngineResourceWarning(Engine::SystemResource kind, bool resolved, const QString &message);
     void onElapsedTimeUpdate();
 
     void statusMessageChanged(const QString &message);

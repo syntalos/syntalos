@@ -42,6 +42,7 @@ public:
     QString osType() const;
     QString osVersion() const;
     QString kernelInfo() const;
+    SysInfoCheckResult checkKernel();
 
     QString initName() const;
     SysInfoCheckResult checkInitSystem();

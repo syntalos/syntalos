@@ -44,6 +44,7 @@ SysInfoDialog::SysInfoDialog(SysInfo *sysInfo, QWidget *parent) :
     // OS Information
     ui->valOSName->setText(sysInfo->prettyOSName());
     ui->valKernel->setText(sysInfo->kernelInfo());
+    setLabelTextStyle(sysInfo->checkKernel(), ui->valKernel);
     ui->valInitSystem->setText(sysInfo->initName());
     setLabelTextStyle(sysInfo->checkInitSystem(), ui->valInitSystem);
     ui->valUsbFsMemory->setText(QStringLiteral("%1 MB").arg(sysInfo->usbFsMemoryMb()));

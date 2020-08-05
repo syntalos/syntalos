@@ -28,6 +28,8 @@
 #include <QThread>
 #include <QVector>
 #include <QTemporaryDir>
+#include <QTimer>
+#include <filesystem>
 
 #include "oop/oopmodule.h"
 #include "edlstorage.h"
@@ -35,6 +37,7 @@
 #include "moduleeventthread.h"
 #include "globalconfig.h"
 #include "sysinfo.h"
+#include "meminfo.h"
 #include "syclock.h"
 #include "rtkit.h"
 #include "cpuaffinity.h"
@@ -796,6 +799,8 @@ bool Engine::runInternal(const QString &exportDirPath)
     for (auto &mod : orderedActiveModules)
         mod->setPotentialNoaffinityCPUCount(potentialNoaffinityCPUCount);
 
+    QCoreApplication::processEvents();
+
     // prepare modules
     for (auto &mod : orderedActiveModules) {
         // Prepare module. At this point it should have a timer,
@@ -921,6 +926,10 @@ bool Engine::runInternal(const QString &exportDirPath)
             }
         }
 
+        // only emit a resource warning if we are using way more threads than we probably should
+        if (threadedModulesTotalN > (cpuCoreCount + (cpuCoreCount / 2)))
+            Q_EMIT resourceWarning(CpuCores, false, QStringLiteral("Likely not enough CPU cores available for optimal operation."));
+
         // launch threads for threaded modules, except for out out-of-process
         // modules - they get special treatment
         for (int i = 0; i < threadedModules.size(); i++) {
@@ -1030,6 +1039,47 @@ bool Engine::runInternal(const QString &exportDirPath)
     if (initSuccessful) {
         emitStatusMessage(QStringLiteral("Launch setup completed."));
 
+        // set up resource watchers
+        bool diskSpaceWarningEmitted = false;
+        QTimer diskSpaceCheckTimer;
+        diskSpaceCheckTimer.setInterval(60 * 1000); // check every 60sec
+        connect(&diskSpaceCheckTimer, &QTimer::timeout, [&]() {
+            const auto ssi = std::filesystem::space(d->exportBaseDir.toStdString());
+            const double mibAvailable = ssi.available / 1024.0 / 1024.0;
+            if (mibAvailable < 8192) {
+                Q_EMIT resourceWarning(StorageSpace, false, QStringLiteral("Disk space is very low. Less than %1 GiB remaining.").arg(mibAvailable / 1024.0, 0, 'f', 1));
+                diskSpaceWarningEmitted = true;
+            } else {
+                if (diskSpaceWarningEmitted) {
+                    Q_EMIT resourceWarning(StorageSpace, true, QStringLiteral("%1 GiB of disk space remaining.").arg(mibAvailable / 1024.0, 0, 'f', 1));
+                    diskSpaceWarningEmitted = false;
+                }
+            }
+        });
+
+        bool memoryWarningEmitted = false;
+        QTimer memCheckTimer;
+        memCheckTimer.setInterval(10 * 1000); // check every 10sec
+        connect(&memCheckTimer, &QTimer::timeout, [&]() {
+            const auto memInfo = read_meminfo();
+            if (memInfo.memAvailablePercent < 5) {
+                // when we have less than 5% memory remaining, there usually still is (slower) swap space available,
+                // this is why 5% is relatively low.
+                // NOTE: Be more clever here in future and check available swap space in advance for this warning?
+                Q_EMIT resourceWarning(Memory, false, QStringLiteral("System memory is low. Only %1% remaining.").arg(memInfo.memAvailablePercent, 0, 'f', 1));
+                memoryWarningEmitted = true;
+            } else {
+                if (memoryWarningEmitted) {
+                    Q_EMIT resourceWarning(Memory, true, QStringLiteral("%1% of system memory remaining.").arg(memInfo.memAvailablePercent, 0, 'f', 1));
+                    memoryWarningEmitted = true;
+                }
+            }
+        });
+
+        // start resource watchers
+        diskSpaceCheckTimer.start();
+        memCheckTimer.start();
+
         // we officially start now, launch the timer
         d->timer->start();
         d->running = true;
@@ -1087,6 +1137,10 @@ bool Engine::runInternal(const QString &exportDirPath)
             if (d->failed)
                 break;
         }
+
+        // stop resource watcher timers
+        diskSpaceCheckTimer.stop();
+        memCheckTimer.stop();
     }
 
     auto finishTimestamp = static_cast<long long>(d->timer->timeSinceStartMsec().count());

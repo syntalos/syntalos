@@ -30,6 +30,8 @@
 #include <QOpenGLFunctions>
 #include <opencv2/core.hpp>
 #include <Eigen/Core>
+#include <sys/utsname.h>
+#include <stdlib.h>
 extern "C" {
 #include <libavutil/avutil.h>
 }
@@ -134,6 +136,40 @@ QString SysInfo::kernelInfo() const
 {
     return QStringLiteral("%1 %2").arg(QSysInfo::kernelType())
             .arg(QSysInfo::kernelVersion());
+}
+
+SysInfoCheckResult SysInfo::checkKernel()
+{
+    struct utsname buffer;
+    long ver[16];
+
+    errno = 0;
+    if (uname(&buffer) != 0)
+        qFatal("Call to uname failed: %s", std::strerror(errno));
+
+    auto p = buffer.release;
+    int i = 0;
+    while (*p != '\0') {
+        if (isdigit(*p)) {
+            ver[i] = strtol(p, &p, 10);
+            i++;
+        } else {
+            p++;
+        }
+        if (i >= 16)
+            break;
+    }
+
+    if (ver[0] < 3)
+        return SysInfoCheckResult::ISSUE;
+    if ((ver[0] == 3) && (ver[1] < 14))
+        return SysInfoCheckResult::ISSUE;
+    if (ver[0] < 5)
+        return SysInfoCheckResult::SUSPICIOUS;
+    if ((ver[0] == 5) && (ver[1] < 4))
+        return SysInfoCheckResult::SUSPICIOUS;
+
+    return SysInfoCheckResult::OK;
 }
 
 QString SysInfo::initName() const
