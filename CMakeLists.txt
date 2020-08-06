@@ -1,5 +1,6 @@
-cmake_minimum_required(VERSION 3.2)
+cmake_minimum_required(VERSION 3.16)
 project(Syntalos
+        DESCRIPTION "Synchronized parallel DAQ from diverse sources and flexible experiment control"
         VERSION 1.0
 )
 
