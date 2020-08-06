@@ -47,7 +47,7 @@ MSControlWidget::MSControlWidget(const MScope::ControlDefinition &ctlDef, QWidge
 
         m_slider->setRange(ctlDef.valueMin, ctlDef.valueMax);
         m_slider->setSingleStep(1);
-        m_slider->setValue(ctlDef.startValue);
+        m_slider->setValue(ctlDef.valueStart);
         selLayout->addWidget(m_slider, 0, 0, 1, valuesCount);
 
         for (int i = 0; i < valuesCount; ++i) {
@@ -67,7 +67,7 @@ MSControlWidget::MSControlWidget(const MScope::ControlDefinition &ctlDef, QWidge
         m_slider = new QSlider(Qt::Horizontal, this);
         // just assume slider here, for now
         m_slider->setRange(ctlDef.valueMin, ctlDef.valueMax);
-        m_slider->setValue(ctlDef.startValue);
+        m_slider->setValue(ctlDef.valueStart);
         m_slider->setSingleStep(ctlDef.stepSize);
         layout->addWidget(m_slider);
     }

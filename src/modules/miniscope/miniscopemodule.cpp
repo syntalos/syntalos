@@ -228,7 +228,7 @@ public:
 
     void checkMSStatus()
     {
-        if (!m_miniscope->running()) {
+        if (!m_miniscope->isRunning()) {
             if (!m_miniscope->lastError().isEmpty()) {
                 raiseError(m_miniscope->lastError());
                 m_evTimer->stop();

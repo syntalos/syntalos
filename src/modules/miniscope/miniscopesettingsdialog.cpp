@@ -46,7 +46,7 @@ MiniscopeSettingsDialog::MiniscopeSettingsDialog(MScope::Miniscope *mscope, QWid
     m_controlsLayout->addStretch();
 
     // register available Miniscope types
-    ui->deviceTypeCB->addItems(m_mscope->availableMiniscopeTypes());
+    ui->deviceTypeCB->addItems(m_mscope->availableDeviceTypes());
 
     // register available view modes
     ui->viewModeCB->addItem(QStringLiteral("Raw Data"), QVariant::fromValue(DisplayMode::RawFrames));
