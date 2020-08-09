@@ -19,6 +19,7 @@ set(CMAKE_AUTOMOC ON)
 #
 option(MAINTAINER "Enable maintainer mode" OFF)
 option(TRACING "Compile with -pg flag for function tracing & profiling" OFF)
+option(OPTIMIZATION_LTO "Enable link-time optimizations (unless we are in explicit debug mode)" ON)
 option(OPTIMIZATION_AVX2 "Enable AVX2 instructions when building in release mode" ON)
 option(OPTIMIZATION_NATIVE "Optimize for native CPU when in release mode" OFF)
 
@@ -61,7 +62,7 @@ if(OPTIMIZATION_AVX2 AND NOT OPTIMIZATION_NATIVE)
   set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} ${o_avxflags}")
   set(CMAKE_CXX_FLAGS_MINSIZEREL     "${CMAKE_CXX_FLAGS_MINSIZEREL} ${o_avxflags}")
 
-  message(STATUS "Using AVX/AVX2 instructions")
+  message(STATUS "Using AVX/AVX2 instructions (when doing optimized build)")
 endif()
 
 if(OPTIMIZATION_NATIVE)
@@ -75,7 +76,18 @@ if(OPTIMIZATION_NATIVE)
   set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} ${o_nativeflags}")
   set(CMAKE_CXX_FLAGS_MINSIZEREL     "${CMAKE_CXX_FLAGS_MINSIZEREL} ${o_nativeflags}")
 
-  message(STATUS "Optimizing build for native CPU architecture")
+  message(STATUS "Optimizing build for native CPU architecture (when doing optimized build)")
+endif()
+
+if(OPTIMIZATION_LTO)
+  string(TOLOWER "${CMAKE_BUILD_TYPE}" build_type_lower)
+  if (NOT "${build_type_lower}" STREQUAL "debug")
+    include(CheckIPOSupported)
+    check_ipo_supported()
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+
+    message(STATUS "Using link-time optimization")
+  endif()
 endif()
 
 #
