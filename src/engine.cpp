@@ -1049,7 +1049,14 @@ bool Engine::runInternal(const QString &exportDirPath)
         QTimer diskSpaceCheckTimer;
         diskSpaceCheckTimer.setInterval(60 * 1000); // check every 60sec
         connect(&diskSpaceCheckTimer, &QTimer::timeout, [&]() {
-            const auto ssi = std::filesystem::space(d->exportBaseDir.toStdString());
+            std::filesystem::space_info ssi;
+            try {
+                ssi = std::filesystem::space(d->exportBaseDir.toStdString());
+            } catch (const std::filesystem::filesystem_error &e) {
+                qCWarning(logEngine).noquote() << "Could not determine remaining free disk space:" << e.what();
+                return;
+            }
+
             const double mibAvailable = ssi.available / 1024.0 / 1024.0;
             if (mibAvailable < 8192) {
                 Q_EMIT resourceWarning(StorageSpace, false, QStringLiteral("Disk space is very low. Less than %1 GiB remaining.").arg(mibAvailable / 1024.0, 0, 'f', 1));
