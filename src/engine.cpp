@@ -1028,6 +1028,11 @@ bool Engine::runInternal(const QString &exportDirPath)
                     initSuccessful = false;
                     break;
                 }
+                if (d->failed) {
+                    // we failed elsewhere
+                    initSuccessful = false;
+                    break;
+                }
             }
         }
 
