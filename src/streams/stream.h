@@ -71,6 +71,8 @@ public:
     virtual bool hasPending() const = 0;
     virtual size_t approxPendingCount() const = 0;
     virtual int enableNotify() = 0;
+    virtual void setThrottleItemsPerSec(uint itemsPerSec,
+                                        bool allowMore = true) = 0;
 
     virtual QHash<QString, QVariant> metadata() const = 0;
     virtual QVariant metadataValue(const QString &key,
@@ -297,7 +299,7 @@ public:
      * Internally, the throttle value represents the minimum time in microseconds between elements.
      * This also effectively means you can not throttle a connection over 1000000 items/sec.
      */
-    void setThrottleItemsPerSec(uint itemsPerSec, bool allowMore = true)
+    void setThrottleItemsPerSec(uint itemsPerSec, bool allowMore = true) override
     {
         if (itemsPerSec == 0)
             m_throttle = 0;

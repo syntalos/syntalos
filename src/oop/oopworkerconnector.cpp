@@ -38,6 +38,7 @@ OOPWorkerConnector::OOPWorkerConnector(QSharedPointer<OOPWorkerReplica> ptr, con
 {
     connect(m_reptr.data(), &OOPWorkerReplica::sendOutput, this, &OOPWorkerConnector::receiveOutput);
     connect(m_reptr.data(), &OOPWorkerReplica::outPortMetadataUpdated, this, &OOPWorkerConnector::receiveOutputPortMetadataUpdate);
+    connect(m_reptr.data(), &OOPWorkerReplica::inputThrottleItemsPerSecRequested, this, &OOPWorkerConnector::receiveInputThrottleRequest);
 
     // merge stdout of worker with ours by default
     setCaptureStdout(false);
@@ -288,6 +289,14 @@ void OOPWorkerConnector::receiveOutputPortMetadataUpdate(int outPortId, const QV
         return;
     auto outPort = m_outPorts[outPortId];
     outPort->streamVar()->setMetadata(metadata);
+}
+
+void OOPWorkerConnector::receiveInputThrottleRequest(int inPortId, uint itemsPerSec, bool allowMore)
+{
+    if (!m_portsInitialized)
+        return;
+    auto sub = m_subs[inPortId];
+    sub.second->setThrottleItemsPerSec(itemsPerSec, allowMore);
 }
 
 void OOPWorkerConnector::sendInputData(int typeId, int portId, const QVariant &data, QEventLoop *loop)

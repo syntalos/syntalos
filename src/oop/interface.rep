@@ -52,4 +52,5 @@ class OOPWorker
 
     SIGNAL(sendOutput(int outPortId, const QVariant &argData));
     SLOT(bool receiveInput(int inPortId, const QVariant &argData));
+    SIGNAL(inputThrottleItemsPerSecRequested(int inPortId, uint itemsPerSec, bool allowMore));
 };

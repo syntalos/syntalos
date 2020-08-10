@@ -64,6 +64,7 @@ private slots:
     void receiveReadyChange(bool ready);
     void receiveOutput(int outPortId, QVariant argData);
     void receiveOutputPortMetadataUpdate(int outPortId, const QVariantHash &metadata);
+    void receiveInputThrottleRequest(int inPortId, uint itemsPerSec, bool allowMore);
 
 private:
     QSharedPointer<OOPWorkerReplica> m_reptr;
