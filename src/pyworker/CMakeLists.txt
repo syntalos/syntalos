@@ -1,14 +1,7 @@
 # PyWorker helper process
 
-find_package(Boost 1.60 COMPONENTS python3)
-if (NOT ${Boost_PYTHON3_FOUND})
-    find_package(Boost 1.60 REQUIRED COMPONENTS python)
-endif()
-
+find_package(pybind11 REQUIRED)
 find_package(NumPy REQUIRED)
-
-# Boost.Python has a few of these in templates
-remove_definitions("-Wzero-as-null-pointer-constant")
 
 qt5_generate_repc(REP_WORKER_S_SRC ../oop/interface.rep SOURCE)
 
@@ -18,10 +11,7 @@ set(MAPYWORKER_SRC
     worker.cpp
     syio.h
     syio.cpp
-    timetopy.h
-    timetopy.cpp
     qstringtopy.h
-    qstringtopy.cpp
     ../rtkit.h
     ../rtkit.cpp
     ../cpuaffinity.h
@@ -46,10 +36,10 @@ target_link_libraries(pyworker
     ${RT_LIB}
     ${MA_OOPSHARED_LIB}
     ${SY_BASE_LIBS}
+    pybind11::module
     Qt5::RemoteObjects
     Qt5::DBus
     ${PYTHON_LIBRARIES}
-    ${Boost_LIBRARIES}
     ${OpenCV_LIBS}
 )
 set_target_properties(pyworker PROPERTIES COMPILE_FLAGS "-DNO_TID_PORTCONSTRUCTORS")

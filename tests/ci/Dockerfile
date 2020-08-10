@@ -28,13 +28,12 @@ RUN DEBIAN_FRONTEND=noninteractive eatmydata apt-get install -yq --no-install-re
     libqt5svg5-dev \
     libqt5remoteobjects5-dev \
     libqt5remoteobjects5-bin \
-    libboost-container-dev \
-    libboost-python-dev \
     libopencv-dev \
     libavcodec-dev \
     libavutil-dev \
     libavformat-dev \
     libswscale-dev \
+    pybind11-dev \
     uuid-dev \
     libkf5archive-dev \
     libkf5texteditor-dev \

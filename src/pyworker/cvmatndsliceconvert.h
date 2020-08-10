@@ -17,15 +17,34 @@
  * along with this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef CVMATNDSLICECONVERT_H
-#define CVMATNDSLICECONVERT_H
+#pragma once
 
-#include <Python.h>
+#include <pybind11/pybind11.h>
 #include <opencv2/core/core.hpp>
 
-PyObject *initNDArray();
+class NDArrayConverter {
+public:
+    // calls import_array1() and has to be called first!
+    static bool initNDArray();
 
-PyObject* cvMatToNDArray(const cv::Mat& m);
-cv::Mat cvMatFromNdArray(PyObject *o);
+    static bool toMat(PyObject* o, cv::Mat &m);
+    static PyObject* toNDArray(const cv::Mat& mat);
+};
 
-#endif // CVMATNDSLICECONVERT_H
+namespace pybind11 {
+namespace detail {
+
+template <> struct type_caster<cv::Mat> {
+public:
+    PYBIND11_TYPE_CASTER(cv::Mat, _("numpy.ndarray"));
+
+    bool load(handle src, bool) {
+        return NDArrayConverter::toMat(src.ptr(), value);
+    }
+
+    static handle cast(const cv::Mat &m, return_value_policy, handle) {
+        return handle(NDArrayConverter::toNDArray(m));
+    }
+};
+}
+}

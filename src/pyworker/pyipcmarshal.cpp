@@ -17,18 +17,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <boost/python.hpp>
+#include <pybind11/pybind11.h>
+#include <pybind11/stl_bind.h>
+#include <pybind11/chrono.h>
 
 #include "pyipcmarshal.h"
 #include "ipcmarshal.h"
 #include "cvmatndsliceconvert.h"
 
-using namespace boost;
-
 /**
  * @brief Create a Python object from received data.
  */
-python::object unmarshalDataToPyObject(int typeId, const QVariant &argData, std::unique_ptr<SharedMemory> &shm)
+py::object unmarshalDataToPyObject(int typeId, const QVariant &argData, std::unique_ptr<SharedMemory> &shm)
 {
     /**
      ** Frame
@@ -36,39 +36,39 @@ python::object unmarshalDataToPyObject(int typeId, const QVariant &argData, std:
 
     if (typeId == qMetaTypeId<Frame>()) {
         auto floatingMat = cvMatFromShm(shm, false);
-        auto matPyO = cvMatToNDArray(floatingMat);
 
-        PyFrame pyFrame;
-        pyFrame.mat = boost::python::object(boost::python::handle<>(matPyO));
+        Frame frame;
+        frame.mat = floatingMat;
 
         const auto plist = argData.toList();
         if (plist.length() == 2) {
-            pyFrame.index = plist[0].toUInt();
-            pyFrame.time_msec = plist[1].toLongLong();
+            frame.index = plist[0].toUInt();
+            frame.time = milliseconds_t(plist[1].toLongLong());
         }
 
-        return python::object(pyFrame);
+        // floating mat gets copied here, for use in Python
+        return py::cast(frame);
     }
 
     if (!argData.isValid())
-        return python::object();
+        return py::none();
 
     /**
      ** Control Command
      **/
 
     if (typeId == qMetaTypeId<ControlCommand>())
-        return python::object(qvariant_cast<ControlCommand>(argData));
+        return py::cast(qvariant_cast<ControlCommand>(argData));
 
     /**
      ** Firmata
      **/
 
     if (typeId == qMetaTypeId<FirmataControl>())
-        return python::object(qvariant_cast<FirmataControl>(argData));
+        return py::cast(qvariant_cast<FirmataControl>(argData));
 
     if (typeId == qMetaTypeId<FirmataData>())
-        return python::object(qvariant_cast<FirmataData>(argData));
+        return py::cast(qvariant_cast<FirmataData>(argData));
 
     /**
      ** Table Rows
@@ -76,7 +76,7 @@ python::object unmarshalDataToPyObject(int typeId, const QVariant &argData, std:
 
     if (typeId == qMetaTypeId<TableRow>()) {
         auto rows = argData.toList();
-        python::list pyRow;
+        py::list pyRow;
         for (const QVariant &colVar : rows) {
             const auto col = colVar.toString();
             pyRow.append(col.toStdString());
@@ -84,14 +84,14 @@ python::object unmarshalDataToPyObject(int typeId, const QVariant &argData, std:
         return std::move(pyRow);
     }
 
-    return python::object();
+    return py::none();
 }
 
 template<typename T>
-static bool marshalAndAddSimple(const int &typeId, const boost::python::object &pyObj, QVariant &argData)
+static bool marshalAndAddSimple(const int &typeId, const py::object &pyObj, QVariant &argData)
 {
     if (typeId == qMetaTypeId<T>()) {
-        const T etype = python::extract<T>(pyObj);
+        const T etype = pyObj.cast<T>();
         argData = QVariant::fromValue(etype);
         return true;
     }
@@ -101,7 +101,7 @@ static bool marshalAndAddSimple(const int &typeId, const boost::python::object &
 /**
  * @brief Prepare data from a Python object for transmission.
  */
-bool marshalPyDataElement(int typeId, const boost::python::object &pyObj,
+bool marshalPyDataElement(int typeId, const py::object &pyObj,
                           QVariant &argData, std::unique_ptr<SharedMemory> &shm)
 {
     /**
@@ -109,18 +109,15 @@ bool marshalPyDataElement(int typeId, const boost::python::object &pyObj,
      **/
 
     if (typeId == qMetaTypeId<Frame>()) {
-        python::object pyMat = python::extract<python::object>(pyObj.attr("mat"));
-        auto mat = cvMatFromNdArray(pyMat.ptr());
-        if (!cvMatToShm(shm, mat))
-            return false;
+        const auto frame = pyObj.cast<Frame>();
 
-        const uint index = python::extract<uint>(pyObj.attr("index"));
-        const long time_msec = python::extract<long>(pyObj.attr("time_msec"));
+        if (!cvMatToShm(shm, frame.mat))
+            return false;
 
         QVariantList plist;
         plist.reserve(2);
-        plist.append(index);
-        plist.append(QVariant::fromValue(time_msec));
+        plist.append((uint)frame.index);
+        plist.append(QVariant::fromValue(frame.time.count()));
         argData = QVariant::fromValue(plist);
         return true;
     }
@@ -146,21 +143,25 @@ bool marshalPyDataElement(int typeId, const boost::python::object &pyObj,
      **/
 
     if (typeId == qMetaTypeId<TableRow>()) {
-        const python::list pyList = python::extract<python::list>(pyObj);
-        const auto pyListLen = python::len(pyList);
-        if (pyListLen < 0)
-            return true;
+        const py::list pyList = pyObj.cast<py::list>();
+        const auto pyListLen = py::len(pyList);
+
         TableRow row;
         row.reserve(pyListLen);
-        for (ssize_t i = 0; i < pyListLen; i++) {
-            const auto loP = pyList[i];
-            const python::object lo = python::extract<python::object>(loP);
+        for (size_t i = 0; i < pyListLen; i++) {
+            const auto lo = pyList[i];
             if (PyLong_CheckExact(lo.ptr())) {
-                const long value = python::extract<long>(lo.ptr());
+                const long value = lo.cast<long>();
                 row.append(QString::number(value));
+            } else if (PyUnicode_CheckExact(lo.ptr())) {
+                row.append(QString::fromStdString(lo.cast<std::string>()));
             } else {
-                const auto value = python::extract<std::string>(lo);
-                row.append(QString::fromStdString(value));
+                try {
+                    row.append(QString::number(lo.cast<milliseconds_t>().count()));
+                } catch (const py::cast_error&) {
+                    // try string again, as last resort
+                    row.append(QString::fromStdString(lo.cast<std::string>()));
+                }
             }
         }
         argData = QVariant::fromValue(row);

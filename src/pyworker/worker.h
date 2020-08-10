@@ -22,12 +22,13 @@
 #include <QObject>
 #include <QQueue>
 #include <QTimer>
-#include <boost/python.hpp>
+#include <pybind11/pybind11.h>
 
 #include "rep_interface_source.h"
 #include "sharedmemory.h"
 #include "ipcmarshal.h"
 
+namespace py = pybind11;
 using namespace Syntalos;
 class PyBridge;
 
@@ -43,8 +44,9 @@ public:
     std::optional<InputPortInfo> inputPortInfoByIdString(const QString &idstr);
     std::optional<OutputPortInfo> outputPortInfoByIdString(const QString &idstr);
 
-    bool submitOutput(int outPortId, boost::python::object pyObj);
+    bool submitOutput(int outPortId, py::object pyObj);
     void setOutPortMetadataValue(int outPortId, const QString &key, const QVariant &value);
+    void setInputThrottleItemsPerSec(int inPortId, uint itemsPerSec, bool allowMore = true);
 
     void raiseError(const QString &message);
 

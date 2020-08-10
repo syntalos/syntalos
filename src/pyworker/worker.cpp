@@ -113,7 +113,7 @@ void OOPWorker::setInputPortInfo(const QList<InputPortInfo> &ports)
         m_inPortInfo[i] = port;
 
         m_shmRecv[port.id()]->setShmKey(port.shmKeyRecv());
-        m_pyb->incomingData.append(QQueue<boost::python::object>());
+        m_pyb->incomingData.append(QQueue<py::object>());
     }
 }
 
@@ -421,7 +421,7 @@ bool OOPWorker::receiveInput(int inPortId, const QVariant &argData)
     return true;
 }
 
-bool OOPWorker::submitOutput(int outPortId, python::object pyObj)
+bool OOPWorker::submitOutput(int outPortId, py::object pyObj)
 {
     // don't send anything if nothing is connected to this port
     if (!m_outPortInfo[outPortId].connected())
@@ -442,6 +442,11 @@ void OOPWorker::setOutPortMetadataValue(int outPortId, const QString &key, const
     mdata.insert(key, value);
     portInfo.setMetadata(mdata);
     m_outPortInfo[outPortId] = std::move(portInfo);
+}
+
+void OOPWorker::setInputThrottleItemsPerSec(int inPortId, uint itemsPerSec, bool allowMore)
+{
+    Q_EMIT inputThrottleItemsPerSecRequested(inPortId, itemsPerSec, allowMore);
 }
 
 void OOPWorker::setStage(OOPWorker::Stage stage)

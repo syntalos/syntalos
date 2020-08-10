@@ -19,27 +19,17 @@
 
 #pragma once
 
+#include <pybind11/pybind11.h>
+#include <pybind11/stl_bind.h>
+#include <pybind11/chrono.h>
 #include <memory>
 #include <QVariant>
-#include <boost/python.hpp>
 
 #include "streams/datatypes.h"
 
+namespace py = pybind11;
+
 class SharedMemory;
-using namespace boost;
 
-class PyFrame
-{
-public:
-    explicit PyFrame()
-        : index(0),
-          time_msec(0)
-    {}
-
-    size_t index;
-    time_t time_msec;
-    python::object mat;
-};
-
-python::object unmarshalDataToPyObject(int typeId, const QVariant &argData, std::unique_ptr<SharedMemory> &shm);
-bool marshalPyDataElement(int typeId, const boost::python::api::object &pyObj, QVariant &argData, std::unique_ptr<SharedMemory> &shm);
+py::object unmarshalDataToPyObject(int typeId, const QVariant &argData, std::unique_ptr<SharedMemory> &shm);
+bool marshalPyDataElement(int typeId, const py::object &pyObj, QVariant &argData, std::unique_ptr<SharedMemory> &shm);

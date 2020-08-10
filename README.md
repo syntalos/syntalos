@@ -64,7 +64,7 @@ Currently, the following modules are built-in or can be enabled at build-time:
  * OpenCV (>= 4.1)
  * KF5 Archive
  * KF5 TextEditor
- * Boost-Python3 (>= 1.66)
+ * [pybind11](https://github.com/pybind/pybind11)
 
 We recommend Debian 11 (Bullseye) or Ubuntu 20.04 (Focal Fossa) to run Syntalos,
 but any Linux distribution that has a recent enough C++ compiler and Qt version

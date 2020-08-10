@@ -23,10 +23,11 @@
 #include <QObject>
 #include <mutex>
 #include <memory>
-#include <boost/python.hpp>
+#include <pybind11/pybind11.h>
 
 #include "../syclock.h"
 
+namespace py = pybind11;
 using namespace Syntalos;
 
 class OOPWorker;
@@ -51,7 +52,7 @@ public:
     SyncTimer *timer() const;
     OOPWorker *worker();
 
-    QList<QQueue<boost::python::object> > incomingData;
+    QList<QQueue<py::object>> incomingData;
 
 private:
     Q_DISABLE_COPY(PyBridge)
