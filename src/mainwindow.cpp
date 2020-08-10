@@ -150,7 +150,7 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->memoryWarnWidget->setVisible(false);
     ui->warnNotifyLayout->setAlignment(Qt::AlignLeft | Qt::AlignBottom);
 
-    ui->gbRunInfo->setEnabled(false);
+    ui->panelRunInfo->setEnabled(false);
 
     connect(ui->tbOpenDir, &QToolButton::clicked, this, &MainWindow::openDataExportDirectory);
     connect(ui->subjectIdEdit, &QLineEdit::textChanged, [=](const QString& mouseId) {
@@ -277,6 +277,9 @@ MainWindow::MainWindow(QWidget *parent) :
     m_busyIndicator->raise();
     m_busyIndicator->hide();
 
+    // don't show experimenter selection yet
+    setExperimenterSelectVisible(false);
+
     // timer to update verious time display during a run
     m_rtElapsedTimer = new QTimer(this);
     m_rtElapsedTimer->setInterval(1000);
@@ -301,8 +304,8 @@ void MainWindow::setStopPossible(bool enabled)
 {
     ui->actionStop->setEnabled(enabled);
     ui->graphForm->setModifyPossible(!enabled);
-    ui->gbRunInfo->setEnabled(enabled);
-    ui->gbRunSettings->setEnabled(!enabled);
+    ui->panelRunInfo->setEnabled(enabled);
+    ui->panelRunSettings->setEnabled(!enabled);
     ui->actionGlobalConfig->setEnabled(!enabled);
 
     // do not permit save/load while we are running
@@ -316,6 +319,12 @@ void MainWindow::setStopPossible(bool enabled)
         showBusyIndicatorProcessing();
     else
         hideBusyIndicator();
+}
+
+void MainWindow::setExperimenterSelectVisible(bool visible)
+{
+    ui->experimenterLabel->setVisible(visible);
+    ui->experimenterWidget->setVisible(visible);
 }
 
 void MainWindow::runActionTriggered()

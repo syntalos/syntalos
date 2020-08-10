@@ -102,6 +102,7 @@ private:
 
     void setRunPossible(bool enabled);
     void setStopPossible(bool enabled);
+    void setExperimenterSelectVisible(bool visible);
 
     void setDataExportBaseDir(const QString& dir);
 
