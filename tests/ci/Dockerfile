@@ -33,6 +33,7 @@ RUN DEBIAN_FRONTEND=noninteractive eatmydata apt-get install -yq --no-install-re
     libavutil-dev \
     libavformat-dev \
     libswscale-dev \
+    python3-dev \
     pybind11-dev \
     uuid-dev \
     libkf5archive-dev \
