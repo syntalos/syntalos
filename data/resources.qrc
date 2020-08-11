@@ -11,6 +11,7 @@
         <file alias="generic-view">generic-view.svg</file>
         <file alias="generic-config">generic-config.svg</file>
         <file alias="show-all-windows">show-all-windows.svg</file>
+        <file alias="project-settings">project-settings.svg</file>
     </qresource>
     <qresource prefix="/images">
         <file>mouse-top.png</file>
@@ -39,7 +40,7 @@
         <file alias="devel">modules/devmodule.svg</file>
         <file alias="canvas">modules/canvas.svg</file>
         <file alias="table">modules/table.svg</file>
-	<file alias="firmatauserctl">modules/firmatauserctl.svg</file>
+        <file alias="firmatauserctl">modules/firmatauserctl.svg</file>
     </qresource>
     <qresource prefix="/texts">
         <file>pyscript-sample.py</file>

@@ -104,7 +104,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
     // create main window UI
     ui->setupUi(this);
-    ui->tabWidget->setCurrentIndex(0);
+    ui->stackedWidget->setCurrentIndex(0);
 
     // Create status bar
     m_statusBarLabel = new QLabel(QString(), statusBar());
@@ -287,6 +287,9 @@ MainWindow::MainWindow(QWidget *parent) :
 
     // reset project filename
     setCurrentProjectFile(QString());
+
+    // switch default focus
+    ui->graphForm->setFocus();
 }
 
 MainWindow::~MainWindow()
@@ -689,13 +692,13 @@ void MainWindow::closeEvent(QCloseEvent *event)
 void MainWindow::resizeEvent(QResizeEvent *event)
 {
     QMainWindow::resizeEvent(event);
-    m_busyIndicator->move(ui->tabWidget->width() - m_busyIndicator->width() - 4, ui->menuBar->height() + 4);
+    m_busyIndicator->move(ui->stackedWidget->width() - m_busyIndicator->width() - 4, ui->menuBar->height() + 4);
 }
 
 void MainWindow::showEvent(QShowEvent *event)
 {
     QMainWindow::showEvent(event);
-    m_busyIndicator->move(ui->tabWidget->width() - m_busyIndicator->width() - 4, ui->menuBar->height() + 4);
+    m_busyIndicator->move(ui->stackedWidget->width() - m_busyIndicator->width() - 4, ui->menuBar->height() + 4);
 }
 
 void MainWindow::projectSaveAsActionTriggered()
@@ -773,6 +776,14 @@ void MainWindow::projectOpenActionTriggered()
     ui->menuBar->setEnabled(true);
     ui->mainToolBar->setEnabled(true);
     ui->projectToolBar->setEnabled(true);
+}
+
+void MainWindow::on_actionProjectDetails_toggled(bool arg1)
+{
+    if (arg1)
+        ui->stackedWidget->setCurrentWidget(ui->pageProject);
+    else
+        ui->stackedWidget->setCurrentWidget(ui->pageMain);
 }
 
 void MainWindow::globalConfigActionTriggered()

@@ -69,6 +69,7 @@ private slots:
     void projectSaveActionTriggered();
     void projectOpenActionTriggered();
 
+    void on_actionProjectDetails_toggled(bool arg1);
     void globalConfigActionTriggered();
     void aboutActionTriggered();
 
