@@ -3,6 +3,10 @@
 find_package(pybind11 REQUIRED)
 find_package(NumPy REQUIRED)
 
+# QRO replica compiler generates code with a bunch of these, for compatibility
+# (so we can't fail hard on these style issues)
+remove_definitions("-Wzero-as-null-pointer-constant")
+
 qt5_generate_repc(REP_WORKER_S_SRC ../oop/interface.rep SOURCE)
 
 set(MAPYWORKER_SRC
