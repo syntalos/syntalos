@@ -39,19 +39,22 @@ exhale_args = {
                                 INPUT                = ../src
                                 BUILTIN_STL_SUPPORT  = YES
                                 EXTRACT_PRIVATE      = NO
-                                EXTRACT_PRIV_VIRTUAL = YES
+                                #EXTRACT_PRIV_VIRTUAL = YES
                                 EXCLUDE_PATTERNS     = *.txt \
                                                        *.md \
-                                                       */modules/rhd2000/okFrontPanelDLL*
+                                                       */modules/rhd2000/okFrontPanelDLL* \
+                                                       */modules/firmata-io* \
+                                                       *elidedlabel* \
+                                                       *rangeslider*
                                 INCLUDE_FILE_PATTERNS = *.h *.hpp
                                 EXTENSION_MAPPING    = h=C++
                                 ENABLE_PREPROCESSING = YES
                                 RECURSIVE            = YES
-                                EXCLUDE_SYMBOLS      = *Private
+                                EXCLUDE_SYMBOLS      = *::Private \
+                                                       Q_DECLARE_*
                                 EXTRACT_LOCAL_CLASSES  = NO
                                 FORCE_LOCAL_INCLUDES   = YES
                                 CLANG_ASSISTED_PARSING = YES
-                                MACRO_EXPANSION = YES
                                 ''')
 }
 
