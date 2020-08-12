@@ -45,6 +45,7 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QFileDialog>
+#include <QInputDialog>
 #include <memory>
 #include <QListWidgetItem>
 #include <QScrollBar>
@@ -175,12 +176,13 @@ MainWindow::MainWindow(QWidget *parent) :
         changeTestSubject(sub);
     });
 
-    // set up test subjects page
+    // set up test subjects listing
     m_subjectList = new TestSubjectListModel(this);
     ui->subjectListView->setModel(m_subjectList);
 
     connect(ui->btnSubjectRemove, &QToolButton::clicked, [&]() {
-        m_subjectList->removeRow(ui->subjectListView->currentIndex().row());
+        if (ui->subjectListView->currentIndex().isValid())
+            m_subjectList->removeRow(ui->subjectListView->currentIndex().row());
     });
 
     connect(ui->btnSubjectAdd, &QToolButton::clicked, [&]() {
@@ -235,6 +237,56 @@ MainWindow::MainWindow(QWidget *parent) :
     });
 
     ui->subjectSelectComboBox->setModel(m_subjectList);
+
+    // set up experimenter listing
+    m_experimenterList = new ExperimenterListModel(this);
+    ui->experimenterListView->setModel(m_experimenterList);
+
+    connect(ui->btnExperimenterRemove, &QToolButton::clicked, [&]() {
+        if (ui->experimenterListView->currentIndex().isValid())
+            m_experimenterList->removeRow(ui->experimenterListView->currentIndex().row());
+        setExperimenterSelectVisible(!m_experimenterList->isEmpty());
+        changeExperimenter(EDLAuthor());
+    });
+
+    connect(ui->btnExperimenterAdd, &QToolButton::clicked, [&]() {
+        if (m_experimenterList->isEmpty())
+            changeExperimenter(EDLAuthor());
+        EDLAuthor newPerson;
+
+        newPerson.name = QInputDialog::getText(this,
+                                               QStringLiteral("Add new experimenter"),
+                                               QStringLiteral("Full name of the new experimenter:")).trimmed();
+        if (newPerson.name.isEmpty()) {
+            QMessageBox::warning(this,
+                                 QStringLiteral("Could not add experimenter"),
+                                 QStringLiteral("Can not add a person with no name."));
+            return;
+        }
+
+        while (true) {
+            newPerson.email = QInputDialog::getText(this,
+                                                   QStringLiteral("Add new experimenter"),
+                                                   QStringLiteral("E-Mail address of the new experimenter (can be left blank):"),
+                                                    QLineEdit::Normal,
+                                                    newPerson.email).trimmed();
+            // very rudimental check whether the entered stuff somewhat resembles an email address
+            if (!newPerson.email.isEmpty() && (!newPerson.email.contains('@') || !newPerson.email.contains('.'))) {
+                QMessageBox::information(this,
+                                         QStringLiteral("E-Mail Invalid"),
+                                         QStringLiteral("The entered E-Mail address is invalid. Please try again!"));
+            } else {
+                break;
+            }
+        }
+
+        m_experimenterList->addPerson(newPerson);
+        setExperimenterSelectVisible(!m_experimenterList->isEmpty());
+    });
+
+    connect(ui->tbChooseExperimenter, &QToolButton::clicked, [&]() {
+        showExperimenterSelector(QStringLiteral("Person conducting the current experiment:"));
+    });
 
     // diagnostics panels
     m_timingsDialog = new TimingsDialog(this);
@@ -397,6 +449,9 @@ bool MainWindow::saveConfiguration(const QString &fileName)
     // save list of subjects
     tar.writeFile ("subjects.toml", qVariantHashToTomlData(m_subjectList->toVariantHash()));
 
+    // save list of experimenters
+    tar.writeFile ("experimenters.toml", qVariantHashToTomlData(m_experimenterList->toVariantHash()));
+
     // save graph settings
     ui->graphForm->graphView()->saveState();
     tar.writeFile ("graph.toml", qVariantHashToTomlData(ui->graphForm->graphView()->settings()));
@@ -493,6 +548,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
     ui->expIdEdit->setText(rootObj.value("experiment_id").toString());
 
     // load list of subjects
+    m_subjectList->clear();
     auto subjectsFile = rootDir->file("subjects.toml");
     if (subjectsFile != nullptr) {
         // not having a list of subjects is totally fine
@@ -502,8 +558,24 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         if (parseError.isEmpty())
             m_subjectList->fromVariantHash(subjData);
         else
-            qWarning() << "Unable to load subject file:" << parseError;
+            qWarning() << "Unable to load test-subject data:" << parseError;
     }
+
+    // load list of experimenters
+    m_experimenterList->clear();
+    changeExperimenter(EDLAuthor());
+    auto experimentersFile = rootDir->file("experimenters.toml");
+    if (experimentersFile != nullptr) {
+        // not having a list of subjects is totally fine
+
+        setStatusText("Loading experimenter data...");
+        const auto peopleData = parseTomlData(experimentersFile->data(), parseError);
+        if (parseError.isEmpty())
+            m_experimenterList->fromVariantHash(peopleData);
+        else
+            qWarning() << "Unable to load experimenter data:" << parseError;
+    }
+    setExperimenterSelectVisible(!m_experimenterList->isEmpty());
 
     setStatusText("Destroying old modules...");
     m_engine->removeAllModules();
@@ -628,6 +700,22 @@ bool MainWindow::loadConfiguration(const QString &fileName)
     // we are ready now
     setCurrentProjectFile(fileName);
     setStatusText("Board successfully loaded from file.");
+
+    // (ask to) select an experimenter, if this board file knows some
+    if (!m_experimenterList->isEmpty()) {
+        if (m_experimenterList->rowCount() == 1) {
+            changeExperimenter(m_experimenterList->person(0));
+        } else {
+            // we have many people registered for this board, ask user to choose one!
+            showExperimenterSelector(QStringLiteral("Welcome to this experiment!\n"
+                                                    "Please select your name from the list - in case you can't find it,\n"
+                                                    "you may select \"[Not selected]\" to select no experimenter."));
+        }
+
+        if (m_engine->experimenter().isValid())
+            setStatusText(QStringLiteral("Welcome %1! - Board successfully loaded.").arg(m_engine->experimenter().name));
+    }
+
     return true;
 }
 
@@ -647,6 +735,31 @@ void MainWindow::openDataExportDirectory()
                                                  QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
                                                  QFileDialog::ShowDirsOnly);
     setDataExportBaseDir(dir);
+}
+
+void MainWindow::showExperimenterSelector(const QString &message)
+{
+    auto items = m_experimenterList->toStringList();
+    items.append(QStringLiteral("[Not selected]"));
+    bool ok;
+    const auto selection = QInputDialog::getItem(this,
+                                                 QStringLiteral("Select an experimenter"),
+                                                 message,
+                                                 items,
+                                                 0, false, &ok);
+    if (!ok)
+        return;
+    const auto idx = items.indexOf(selection);
+    if ((idx < 0) || (idx >= m_experimenterList->rowCount()))
+        changeExperimenter(EDLAuthor());
+    else
+        changeExperimenter(m_experimenterList->person(idx));
+}
+
+void MainWindow::changeExperimenter(const EDLAuthor &person)
+{
+    m_engine->setExperimenter(person);
+    ui->currentExperimenterLabel->setText(person.isValid()? person.name : QStringLiteral("[Person not set]"));
 }
 
 void MainWindow::changeTestSubject(const TestSubject &subject)

@@ -60,6 +60,9 @@ public:
     QString experimentId() const;
     void setExperimentId(const QString &id);
 
+    EDLAuthor experimenter() const;
+    void setExperimenter(const EDLAuthor &person);
+
     QString exportDir() const;
     bool isRunning() const;
     bool isActive() const;

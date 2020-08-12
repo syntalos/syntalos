@@ -40,6 +40,12 @@ public:
     explicit EDLAuthor(const QString &name, const QString &email)
         : name(name), email(email)
     {}
+    explicit EDLAuthor()
+        : name(QString()), email(QString())
+    {}
+
+    bool isValid() const { return !name.isEmpty(); }
+
     QString name;
     QString email;
     QHash<QString, QString> values;
@@ -96,7 +102,7 @@ public:
     QUuid collectionId() const;
     virtual void setCollectionId(const QUuid &uuid);
 
-    void addAuthor(const EDLAuthor author);
+    void addAuthor(const EDLAuthor &author);
     QList<EDLAuthor> authors() const;
 
     QString path() const;

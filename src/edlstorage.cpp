@@ -154,7 +154,7 @@ void EDLObject::setCollectionId(const QUuid &uuid)
     d->collectionId = uuid;
 }
 
-void EDLObject::addAuthor(const EDLAuthor author)
+void EDLObject::addAuthor(const EDLAuthor &author)
 {
     d->authors.append(author);
 }

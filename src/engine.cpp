@@ -79,12 +79,13 @@ public:
     ModuleLibrary *modLibrary;
     std::shared_ptr<SyncTimer> timer;
 
-    TestSubject testSubject;
     QString exportBaseDir;
     QString exportDir;
     bool exportDirIsTempDir;
     bool exportDirIsValid;
 
+    EDLAuthor experimenter;
+    TestSubject testSubject;
     QString experimentId;
 
     std::atomic_bool active;
@@ -190,6 +191,16 @@ void Engine::setExperimentId(const QString &id)
 {
     d->experimentId = id;
     refreshExportDirPath();
+}
+
+EDLAuthor Engine::experimenter() const
+{
+    return d->experimenter;
+}
+
+void Engine::setExperimenter(const EDLAuthor &person)
+{
+    d->experimenter = person;
 }
 
 QString Engine::exportDir() const
@@ -1277,6 +1288,8 @@ bool Engine::runInternal(const QString &exportDirPath)
         storageCollection->setGeneratorId(QStringLiteral("%1 %2")
                                           .arg(QCoreApplication::applicationName())
                                           .arg(QCoreApplication::applicationVersion()));
+        if (d->experimenter.isValid())
+            storageCollection->addAuthor(d->experimenter);
 
         QVariantHash extraData;
         extraData.insert("subject_id", d->testSubject.id.isEmpty()? QVariant() : d->testSubject.id);

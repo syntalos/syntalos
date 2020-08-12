@@ -42,6 +42,8 @@ set(SYNTALOS_SRC
     cpuaffinity.cpp
     elidedlabel.h
     elidedlabel.cpp
+    entitylistmodels.h
+    entitylistmodels.cpp
     engine.h
     engine.cpp
     flowgraphview.h
@@ -69,8 +71,6 @@ set(SYNTALOS_SRC
     sysinfo.cpp
     sysinfodialog.h
     sysinfodialog.cpp
-    testsubjectlistmodel.h
-    testsubjectlistmodel.cpp
     timingsdialog.h
     timingsdialog.cpp
 )

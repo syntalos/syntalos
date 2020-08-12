@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2019 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2020 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -17,13 +17,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef TESTSUBJECTLISTMODEL_H
-#define TESTSUBJECTLISTMODEL_H
+#pragma once
 
 #include <QAbstractListModel>
 #include <QList>
 
 #include "moduleapi.h"
+#include "edlstorage.h"
 
 class TestSubjectListModel : public QAbstractListModel
 {
@@ -34,7 +34,6 @@ public:
                                   QObject *parent = nullptr);
     explicit TestSubjectListModel(QObject *parent = nullptr);
 
-    // Basic functionality:
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
 
     QVariant data(const QModelIndex &index,
@@ -43,8 +42,8 @@ public:
     bool removeRows(int position, int rows, const QModelIndex &parent) override;
     bool removeRow(int row, const QModelIndex &parent = QModelIndex());
 
-    void insertSubject(int row, TestSubject subject);
-    void addSubject(const TestSubject subject);
+    void insertSubject(int row, const TestSubject &subject);
+    void addSubject(const TestSubject &subject);
     TestSubject subject(int row) const;
 
     QVariantHash toVariantHash();
@@ -56,4 +55,34 @@ private:
     QList<TestSubject> m_subjects;
 };
 
-#endif // TESTSUBJECTLISTMODEL_H
+class ExperimenterListModel : public QAbstractListModel
+{
+    Q_OBJECT
+
+public:
+    explicit ExperimenterListModel(const QList<EDLAuthor>& people,
+                                  QObject *parent = nullptr);
+    explicit ExperimenterListModel(QObject *parent = nullptr);
+
+    int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+    bool isEmpty() const;
+
+    QVariant data(const QModelIndex &index,
+                  int role = Qt::DisplayRole) const override;
+
+    bool removeRows(int position, int rows, const QModelIndex &parent) override;
+    bool removeRow(int row, const QModelIndex &parent = QModelIndex());
+
+    void insertPerson(int row, const EDLAuthor &person);
+    void addPerson(const EDLAuthor &person);
+    EDLAuthor person(int row) const;
+
+    QVariantHash toVariantHash() const;
+    void fromVariantHash(const QVariantHash& var);
+    QStringList toStringList() const;
+
+    void clear();
+
+private:
+    QList<EDLAuthor> m_people;
+};

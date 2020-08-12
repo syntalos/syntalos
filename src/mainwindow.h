@@ -23,7 +23,7 @@
 #include <QMainWindow>
 
 #include "utils.h"
-#include "testsubjectlistmodel.h"
+#include "entitylistmodels.h"
 #include "moduleapi.h"
 #include "engine.h"
 
@@ -55,15 +55,13 @@ public:
 
     void setStatusText(const QString& msg);
 
-    void changeExperimentId(const QString &text);
-    void changeTestSubject(const TestSubject& subject);
-
 private slots:
     void runActionTriggered();
     void temporaryRunActionTriggered();
     void stopActionTriggered();
 
     void openDataExportDirectory();
+    void showExperimenterSelector(const QString &message);
 
     void projectSaveAsActionTriggered();
     void projectSaveActionTriggered();
@@ -99,13 +97,16 @@ protected:
 private:
     void shutdown();
     void setCurrentProjectFile(const QString& fileName);
+    void setDataExportBaseDir(const QString& dir);
     void updateExportDirDisplay();
+
+    void changeExperimenter(const EDLAuthor& person);
+    void changeTestSubject(const TestSubject& subject);
+    void changeExperimentId(const QString &text);
 
     void setRunPossible(bool enabled);
     void setStopPossible(bool enabled);
     void setExperimenterSelectVisible(bool visible);
-
-    void setDataExportBaseDir(const QString& dir);
 
     bool saveConfiguration(const QString& fileName);
     bool loadConfiguration(const QString& fileName);
@@ -121,6 +122,7 @@ private:
     QSvgWidget *m_busyIndicator;
 
     TestSubjectListModel *m_subjectList;
+    ExperimenterListModel *m_experimenterList;
 
     TimingsDialog *m_timingsDialog;
 };
