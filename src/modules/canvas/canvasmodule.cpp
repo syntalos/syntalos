@@ -42,13 +42,10 @@ private:
     long m_lastFrameTime;
     double m_avgFrameTimeDiffMsec;
 
+    double m_expectedDisplayFps;
     double m_currentDisplayFps;
     symaster_timepoint m_lastDisplayTime;
 
-    uint m_lastPendingCount;
-    uint m_maxPendingFrames;
-    uint m_maxThrottleAdjustWaitN;
-    uint m_throttleAdjustFramesWaited;
     uint m_throttleCount;
 
 public:
@@ -97,22 +94,11 @@ public:
         // case so the user is aware that they're not seeing every single frame
         m_expectedFps = m_frameSub->metadata().value("framerate", 0).toDouble();
 
-        // never try to display more than 120fps by default
+        // never ever try to display more than 140fps by default
         // the module will lower this on its own if too much data is queued
-        m_throttleCount = 120;
+        m_throttleCount = 140;
         m_frameSub->setThrottleItemsPerSec(m_throttleCount);
-
-        // permit a maximum of about 320msec of pending frames in queue
-        m_maxPendingFrames = qRound(m_expectedFps / 3.125);
-        if (m_maxPendingFrames < 5)
-            m_maxPendingFrames = 5;
-        m_lastPendingCount = 0;
-        m_throttleAdjustFramesWaited = m_maxPendingFrames;
-
-        // wait some amount of frames for throttle changes to take effect
-        m_maxThrottleAdjustWaitN = qRound(m_expectedFps / 40.0);
-        if (m_maxThrottleAdjustWaitN < 5)
-            m_maxThrottleAdjustWaitN = 5;
+        m_expectedDisplayFps = (m_expectedFps < m_throttleCount)? m_expectedFps : m_throttleCount;
 
         // assume perfect frame diff for now
         m_avgFrameTimeDiffMsec = 1000.0 / m_expectedFps;
@@ -140,29 +126,36 @@ public:
             return;
         const auto skippedFrames = m_frameSub->retrieveApproxSkippedElements();
         const auto framesPendingCount = m_frameSub->approxPendingCount();
-        if (framesPendingCount > m_maxPendingFrames) {
+        if (framesPendingCount > m_expectedDisplayFps) {
             // we have too many frames pending in the queue, we may have to throttle
             // the subscription more
 
-            if (m_throttleAdjustFramesWaited >= m_maxThrottleAdjustWaitN) {
-                if (framesPendingCount >= m_lastPendingCount) {
-                    m_throttleCount--;
-                    if (m_throttleCount <= 4) {
-                        // throttle to less then 4fps? This looks suspicious, terminate.
-                        m_frameSub->suspend();
-                        raiseError(QStringLiteral("Dropped below 4fps in display frequency, but we are still not able to display frames fast enough. "
-                                                  "Either the displayed frames are excessively large, something is wrong with the display hardware, "
-                                                  "or there is a bug in the display code."));
-                        return;
-                    }
-                    m_frameSub->setThrottleItemsPerSec(m_throttleCount);
-                }
+            uint throttleAdjust = 1;
+            if ((m_throttleCount > 40) && (m_throttleCount > (framesPendingCount / 4))) {
+                throttleAdjust = framesPendingCount / 4;
+                if (throttleAdjust == 0)
+                    throttleAdjust = 1;
+            }
+            m_throttleCount -= throttleAdjust;
 
-                m_lastPendingCount = framesPendingCount;
-                m_throttleAdjustFramesWaited = 0;
+            if ((m_throttleCount <= 2) && (m_expectedFps != 0)) {
+                // throttle to less then 2fps? This looks suspicious, terminate.
+                m_frameSub->suspend();
+                raiseError(QStringLiteral("Dropped below 2fps in display frequency, but we are still not able to display frames fast enough. "
+                                          "Either the displayed frames are excessively large, something is wrong with the display hardware, "
+                                          "or there is a bug in the display code."));
+                return;
             }
 
-            m_throttleAdjustFramesWaited++;
+            m_frameSub->setThrottleItemsPerSec(m_throttleCount);
+            m_expectedDisplayFps = m_throttleCount;
+            m_currentFps = m_expectedFps;
+
+            // we don't show the current image, so the fps values of display and stream can
+            // be updated properly in the next run.
+            // since we are already skipping frames at this point, not showing the current one
+            // is no loss
+            return;
         }
 
         // get all timing info and show the image
@@ -176,18 +169,15 @@ public:
             // we use a moving average of the inter-frame-time over two seconds, as the framerate occasionally fluctuates
             // (especially when throttling the subscription) and we want to display a more steady (but accurate)
             // info to the user instead, without twitching around too much
-            m_avgFrameTimeDiffMsec = ((m_avgFrameTimeDiffMsec * m_expectedFps * 2) + ((frameTime - m_lastFrameTime) / (skippedFrames + 1))) / (m_expectedFps * 2 + 1);
+            m_avgFrameTimeDiffMsec = ((m_avgFrameTimeDiffMsec * m_expectedFps) + ((frameTime - m_lastFrameTime) / (skippedFrames + 1))) / (m_expectedFps + 1);
             m_lastFrameTime = frameTime;
-            if (m_avgFrameTimeDiffMsec > 0)
-                m_currentFps = (1000.0 / m_avgFrameTimeDiffMsec);
-            else
-                m_currentFps = m_expectedFps;
+            m_currentFps = (m_avgFrameTimeDiffMsec > 0)? (1000.0 / m_avgFrameTimeDiffMsec) : m_expectedFps;
 
             const auto frameDisplayTime = currentTimePoint();
             if (std::isinf(m_currentDisplayFps))
                 m_currentDisplayFps = 1000.0 / timeDiffMsec(frameDisplayTime, m_lastDisplayTime).count();
             else
-                m_currentDisplayFps = ((m_currentDisplayFps * 20) + (1000.0 / timeDiffMsec(frameDisplayTime, m_lastDisplayTime).count())) / (20 + 1);
+                m_currentDisplayFps = ((m_currentDisplayFps * m_expectedDisplayFps) + (1000.0 / timeDiffMsec(frameDisplayTime, m_lastDisplayTime).count())) / (m_expectedDisplayFps + 1);
             m_lastDisplayTime = frameDisplayTime;
 
             m_cvView->setStatusText(QStringLiteral("%1 | Stream: %2fps (of %3fps) | Display: %4fps")
