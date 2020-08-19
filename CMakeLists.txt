@@ -17,10 +17,10 @@ set(CMAKE_AUTOMOC ON)
 #
 # Options
 #
-option(MAINTAINER "Enable maintainer mode" OFF)
-option(TRACING "Compile with -pg flag for function tracing & profiling" OFF)
-option(OPTIMIZATION_LTO "Enable link-time optimizations (unless we are in explicit debug mode)" ON)
-option(OPTIMIZATION_AVX2 "Enable AVX2 instructions when building in release mode" ON)
+option(MAINTAINER          "Enable maintainer mode" OFF)
+option(TRACING             "Compile with -pg flag for function tracing & profiling" OFF)
+option(OPTIMIZATION_LTO    "Enable link-time optimizations (unless we are in explicit debug mode)" ON)
+option(OPTIMIZATION_AVX2   "Enable AVX2 instructions when building in release mode" ON)
 option(OPTIMIZATION_NATIVE "Optimize for native CPU when in release mode" OFF)
 
 option(MOD_CAMERA_UEYE "Enable uEye camera module" OFF)
@@ -52,42 +52,42 @@ string(REPLACE "-rdynamic" "" CMAKE_SHARED_LIBRARY_LINK_C_FLAGS ${CMAKE_SHARED_L
 string(REPLACE "-rdynamic" "" CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS ${CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS})
 
 if(OPTIMIZATION_AVX2 AND NOT OPTIMIZATION_NATIVE)
-  set(o_avxflags "-mavx -mavx2")
+    set(o_avxflags "-mavx -mavx2")
 
-  set(CMAKE_C_FLAGS_RELEASE        "${CMAKE_C_FLAGS_RELEASE} ${o_avxflags}")
-  set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${o_avxflags}")
-  set(CMAKE_C_FLAGS_MINSIZEREL     "${CMAKE_C_FLAGS_MINSIZEREL} ${o_avxflags}")
+    set(CMAKE_C_FLAGS_RELEASE        "${CMAKE_C_FLAGS_RELEASE} ${o_avxflags}")
+    set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${o_avxflags}")
+    set(CMAKE_C_FLAGS_MINSIZEREL     "${CMAKE_C_FLAGS_MINSIZEREL} ${o_avxflags}")
 
-  set(CMAKE_CXX_FLAGS_RELEASE        "${CMAKE_CXX_FLAGS_RELEASE} ${o_avxflags}")
-  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} ${o_avxflags}")
-  set(CMAKE_CXX_FLAGS_MINSIZEREL     "${CMAKE_CXX_FLAGS_MINSIZEREL} ${o_avxflags}")
+    set(CMAKE_CXX_FLAGS_RELEASE        "${CMAKE_CXX_FLAGS_RELEASE} ${o_avxflags}")
+    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} ${o_avxflags}")
+    set(CMAKE_CXX_FLAGS_MINSIZEREL     "${CMAKE_CXX_FLAGS_MINSIZEREL} ${o_avxflags}")
 
-  message(STATUS "Using AVX/AVX2 instructions (when doing optimized build)")
+    message(STATUS "Using AVX/AVX2 instructions (when doing optimized build)")
 endif()
 
 if(OPTIMIZATION_NATIVE)
-  set(o_nativeflags "-march=native")
+    set(o_nativeflags "-march=native")
 
-  set(CMAKE_C_FLAGS_RELEASE        "${CMAKE_C_FLAGS_RELEASE} ${o_nativeflags}")
-  set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${o_nativeflags}")
-  set(CMAKE_C_FLAGS_MINSIZEREL     "${CMAKE_C_FLAGS_MINSIZEREL} ${o_nativeflags}")
+    set(CMAKE_C_FLAGS_RELEASE        "${CMAKE_C_FLAGS_RELEASE} ${o_nativeflags}")
+    set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${o_nativeflags}")
+    set(CMAKE_C_FLAGS_MINSIZEREL     "${CMAKE_C_FLAGS_MINSIZEREL} ${o_nativeflags}")
 
-  set(CMAKE_CXX_FLAGS_RELEASE        "${CMAKE_CXX_FLAGS_RELEASE} ${o_nativeflags}")
-  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} ${o_nativeflags}")
-  set(CMAKE_CXX_FLAGS_MINSIZEREL     "${CMAKE_CXX_FLAGS_MINSIZEREL} ${o_nativeflags}")
+    set(CMAKE_CXX_FLAGS_RELEASE        "${CMAKE_CXX_FLAGS_RELEASE} ${o_nativeflags}")
+    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} ${o_nativeflags}")
+    set(CMAKE_CXX_FLAGS_MINSIZEREL     "${CMAKE_CXX_FLAGS_MINSIZEREL} ${o_nativeflags}")
 
-  message(STATUS "Optimizing build for native CPU architecture (when doing optimized build)")
+    message(STATUS "Optimizing build for native CPU architecture (when doing optimized build)")
 endif()
 
 if(OPTIMIZATION_LTO)
-  string(TOLOWER "${CMAKE_BUILD_TYPE}" build_type_lower)
-  if (NOT "${build_type_lower}" STREQUAL "debug")
-    include(CheckIPOSupported)
-    check_ipo_supported()
-    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+    string(TOLOWER "${CMAKE_BUILD_TYPE}" build_type_lower)
+    if (NOT "${build_type_lower}" STREQUAL "debug")
+        include(CheckIPOSupported)
+        check_ipo_supported()
+        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 
-    message(STATUS "Using link-time optimization")
-  endif()
+        message(STATUS "Using link-time optimization")
+    endif()
 endif()
 
 # Ensure minimal compiler requirements are met (so features like LTO work well)
