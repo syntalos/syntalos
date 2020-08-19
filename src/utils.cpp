@@ -41,14 +41,14 @@ QString simplifyStrForModuleName(const QString &s)
 {
     return s.simplified()
             .replace("/", "-")
-            .replace("\\", "-")
-            .replace(":", "");
+            .replace("\\", "-");
 }
 
 QString simplifyStrForFileBasename(const QString &s)
 {
     return simplifyStrForModuleName(s)
-            .replace(" ", "");
+            .replace(" ", "")
+            .replace(":", "_");
 }
 
 QString simplifyStrForFileBasenameLower(const QString &s)
