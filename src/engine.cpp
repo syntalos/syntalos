@@ -797,7 +797,7 @@ bool Engine::runInternal(const QString &exportDirPath)
             continue;
         }
 
-        if (mod->features().testFlag(ModuleFeature::RUN_THREADED))
+        if (mod->driver() == ModuleDriverKind::THREAD_DEDICATED)
             threadedModules.append(mod);
     }
     const auto threadedModulesTotalN = threadedModules.size() + oopModules.size();
@@ -975,7 +975,7 @@ bool Engine::runInternal(const QString &exportDirPath)
 
         // collect all modules which do idle event execution
         for (auto &mod : orderedActiveModules)
-            if (mod->features().testFlag(ModuleFeature::RUN_EVENTS))
+            if (mod->driver() == ModuleDriverKind::EVENTS_SHARED)
                 idleEventModules.append(mod);
 
         // prepare out-of-process modules
@@ -1109,8 +1109,9 @@ bool Engine::runInternal(const QString &exportDirPath)
 
         // first, launch all threaded and evented modules
         for (auto& mod : orderedActiveModules) {
-            if ((!mod->features().testFlag(ModuleFeature::RUN_THREADED)) &&
-                (!mod->features().testFlag(ModuleFeature::RUN_EVENTS)))
+            if ((mod->driver() != ModuleDriverKind::THREAD_DEDICATED) &&
+                (mod->driver() != ModuleDriverKind::EVENTS_DEDICATED) &&
+                (mod->driver() != ModuleDriverKind::EVENTS_SHARED))
                 continue;
 
             mod->start();
@@ -1134,8 +1135,9 @@ bool Engine::runInternal(const QString &exportDirPath)
         // tell all non-threaded modules individuall now that we started
         for (auto& mod : orderedActiveModules) {
             // ignore threaded & evented
-            if ((mod->features().testFlag(ModuleFeature::RUN_THREADED)) ||
-                (mod->features().testFlag(ModuleFeature::RUN_EVENTS)))
+            if ((mod->driver() == ModuleDriverKind::THREAD_DEDICATED) ||
+                (mod->driver() == ModuleDriverKind::EVENTS_DEDICATED) ||
+                (mod->driver() == ModuleDriverKind::EVENTS_SHARED))
                 continue;
 
             mod->start();

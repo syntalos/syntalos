@@ -45,9 +45,14 @@ public:
         m_dataStream = registerOutputPort<TableRow>(QStringLiteral("track-data"), QStringLiteral("Tracking Data"));
     }
 
+    ModuleDriverKind driver() const override
+    {
+        return ModuleDriverKind::THREAD_DEDICATED;
+    }
+
     ModuleFeatures features() const override
     {
-        return ModuleFeature::RUN_THREADED;
+        return ModuleFeature::NONE;
     }
 
     bool prepare(const TestSubject &testSubject) override

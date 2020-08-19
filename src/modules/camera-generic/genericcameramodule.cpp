@@ -65,10 +65,14 @@ public:
         m_camSettingsWindow->setWindowTitle(QStringLiteral("Settings for %1").arg(name));
     }
 
+    ModuleDriverKind driver() const override
+    {
+        return ModuleDriverKind::THREAD_DEDICATED;
+    }
+
     ModuleFeatures features() const override
     {
-        return ModuleFeature::RUN_THREADED |
-               ModuleFeature::REALTIME |
+        return ModuleFeature::REALTIME |
                ModuleFeature::CORE_AFFINITY |
                ModuleFeature::SHOW_SETTINGS;
     }

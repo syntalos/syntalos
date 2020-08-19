@@ -400,6 +400,11 @@ void AbstractModule::setName(const QString &name)
     emit nameChanged(d->name);
 }
 
+ModuleDriverKind AbstractModule::driver() const
+{
+    return ModuleDriverKind::NONE;
+}
+
 ModuleFeatures AbstractModule::features() const
 {
     return ModuleFeature::SHOW_DISPLAY |

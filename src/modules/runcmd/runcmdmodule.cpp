@@ -49,10 +49,14 @@ public:
     ~RunCmdModule()
     {}
 
+    ModuleDriverKind driver() const override
+    {
+        return ModuleDriverKind::EVENTS_SHARED;
+    }
+
     ModuleFeatures features() const override
     {
-        return ModuleFeature::SHOW_SETTINGS |
-               ModuleFeature::RUN_EVENTS;
+        return ModuleFeature::SHOW_SETTINGS;
     }
 
     static QStringList splitCommandLine(const QString & cmdLine)

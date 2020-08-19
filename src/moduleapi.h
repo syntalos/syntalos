@@ -36,10 +36,8 @@
 
 namespace Syntalos {
 
-#if !defined(DOXYGEN_SHOULD_SKIP_THIS)
 class AbstractModule;
 class StreamOutputPort;
-#endif // DOXYGEN_SHOULD_SKIP_THIS
 
 /**
  * @brief The ModuleFeature flags
@@ -47,8 +45,6 @@ class StreamOutputPort;
  */
 enum class ModuleFeature {
     NONE = 0,
-    RUN_EVENTS    = 1 << 0,  /// Module will use the internal event loop
-    RUN_THREADED  = 1 << 1,  /// Module needs to run in a dedicated thread
     REALTIME      = 1 << 2,  /// Enable realtime scheduling for the module's thread
     CORE_AFFINITY = 1 << 3,  /// Pin the module's thread to a separate CPU core, if possible
     SHOW_SETTINGS = 1 << 4,  /// Module can display a settings window
@@ -57,6 +53,16 @@ enum class ModuleFeature {
 };
 Q_DECLARE_FLAGS(ModuleFeatures, ModuleFeature)
 Q_DECLARE_OPERATORS_FOR_FLAGS(ModuleFeatures)
+
+/**
+ * @brief The ModuleDriverKind enum
+ */
+enum class ModuleDriverKind {
+    NONE,             /// Module will be run in the main (GUI) thread
+    THREAD_DEDICATED, /// Module needs to run in a dedicated thread
+    EVENTS_DEDICATED, /// Module shares a thread(pool) with other modules of its kind, in an event loop
+    EVENTS_SHARED     /// Module shares a thread(pool) with arbitrary other modules, triggered by an event loop
+};
 
 class ModuleInfo : public QObject
 {
@@ -337,6 +343,11 @@ public:
      */
     virtual QString name() const;
     virtual void setName(const QString& name);
+
+    /**
+     * @brief Select how this module will be executed by the Syntalos engine.
+     */
+    virtual ModuleDriverKind driver() const;
 
     /**
      * @brief Return a bitfield of features this module supports.

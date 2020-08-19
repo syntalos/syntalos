@@ -42,7 +42,12 @@ public:
 
     ModuleFeatures features() const override
     {
-        return ModuleFeature::RUN_THREADED;
+        return ModuleFeature::NONE;
+    }
+
+    ModuleDriverKind driver() const override
+    {
+        return ModuleDriverKind::THREAD_DEDICATED;
     }
 
     bool prepare(const TestSubject &) override
