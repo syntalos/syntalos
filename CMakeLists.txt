@@ -90,6 +90,19 @@ if(OPTIMIZATION_LTO)
   endif()
 endif()
 
+# Ensure minimal compiler requirements are met (so features like LTO work well)
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.2)
+        message(FATAL_ERROR "The minimum supported GCC version is 9.2 (detected ${CMAKE_CXX_COMPILER_VERSION})")
+    endif()
+elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10.0)
+        message(FATAL_ERROR "The minimum supported Clang version is 10.0 (detected ${CMAKE_CXX_COMPILER_VERSION})")
+    endif()
+else()
+    message(WARNING "You are using an unsupported compiler! Software has only been tested with GCC (and may work with Clang).")
+endif()
+
 #
 # Dependencies
 #
