@@ -102,6 +102,7 @@ void ModuleGraphForm::setModifyPossible(bool allowModify)
     ui->actionRemove->setEnabled(m_modifyPossible);
     ui->actionConnect->setEnabled(m_modifyPossible);
     ui->actionDisconnect->setEnabled(m_modifyPossible);
+    ui->graphView->setAllowEdit(m_modifyPossible);
 }
 
 void ModuleGraphForm::moduleAdded(ModuleInfo *info, AbstractModule *mod)

@@ -1112,6 +1112,7 @@ FlowGraphView::FlowGraphView(QWidget *parent)
       m_zoom(1.0),
       m_zoomrange(false),
       m_selected_nodes(0),
+      m_allowEdit(true),
       m_edit_item(nullptr),
       m_editor(nullptr),
       m_edited(0)
@@ -1146,6 +1147,16 @@ FlowGraphView::~FlowGraphView(void)
 QGraphicsScene *FlowGraphView::scene(void) const
 {
     return m_scene;
+}
+
+bool FlowGraphView::allowEdit() const
+{
+    return m_allowEdit;
+}
+
+void FlowGraphView::setAllowEdit(bool allowed)
+{
+    m_allowEdit = allowed;
 }
 
 void FlowGraphView::addItem(FlowGraphItem *item)
@@ -1195,6 +1206,9 @@ FlowGraphItem *FlowGraphView::currentItem(void) const
 
 bool FlowGraphView::canConnect(void) const
 {
+    if (!m_allowEdit)
+        return false;
+
     int nins = 0;
     int nouts = 0;
 
@@ -1217,6 +1231,9 @@ bool FlowGraphView::canConnect(void) const
 
 bool FlowGraphView::canDisconnect(void) const
 {
+    if (!m_allowEdit)
+        return false;
+
     foreach (QGraphicsItem *item, m_scene->selectedItems()) {
         if (item->type() == FlowGraphEdge::Type)
             return true;
@@ -1227,10 +1244,12 @@ bool FlowGraphView::canDisconnect(void) const
 
 bool FlowGraphView::canRenameItem(void) const
 {
-    FlowGraphItem *item = currentItem();
+    if (!m_allowEdit)
+        return false;
 
-    return (item
-            && (item->type() == FlowGraphNode::Type || item->type() == FlowGraphNodePort::Type));
+    FlowGraphItem *item = currentItem();
+    return (item &&
+            (item->type() == FlowGraphNode::Type || item->type() == FlowGraphNodePort::Type));
 }
 
 void FlowGraphView::setZoom(qreal zoom)
@@ -1714,6 +1733,8 @@ void FlowGraphView::keyPressEvent(QKeyEvent *event)
  */
 void FlowGraphView::connectItems(FlowGraphNodePort *port1, FlowGraphNodePort *port2)
 {
+    if (!m_allowEdit)
+        return;
     if (port1 == nullptr)
         return;
     if (port2 == nullptr)
@@ -1730,6 +1751,9 @@ void FlowGraphView::connectItems(FlowGraphNodePort *port1, FlowGraphNodePort *po
  */
 void FlowGraphView::connectItems(void)
 {
+    if (!m_allowEdit)
+        return;
+
     QList<FlowGraphNodePort *> outs;
     QList<FlowGraphNodePort *> ins;
 
@@ -1774,6 +1798,9 @@ void FlowGraphView::connectItems(void)
 
 void FlowGraphView::disconnectItems(FlowGraphNodePort *port1, FlowGraphNodePort *port2)
 {
+    if (!m_allowEdit)
+        return;
+
     auto connect = port1->findConnect(port2);
     if (connect == nullptr)
         connect = port2->findConnect(port1);
@@ -1789,6 +1816,9 @@ void FlowGraphView::disconnectItems(FlowGraphNodePort *port1, FlowGraphNodePort 
  */
 void FlowGraphView::disconnectItems(void)
 {
+    if (!m_allowEdit)
+        return;
+
     QList<FlowGraphEdge *> connects;
 
     foreach (QGraphicsItem *item, m_scene->selectedItems()) {
@@ -1846,6 +1876,9 @@ void FlowGraphView::selectInvert(void)
 
 void FlowGraphView::renameItem(void)
 {
+    if (!m_allowEdit)
+        return;
+
     FlowGraphItem *item = currentItem();
 
     if (item && item->type() == FlowGraphNode::Type) {

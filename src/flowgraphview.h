@@ -395,6 +395,9 @@ public:
 
     QGraphicsScene *scene() const;
 
+    bool allowEdit() const;
+    void setAllowEdit(bool allowed);
+
     void addItem(FlowGraphItem *item);
     void removeItem(FlowGraphItem *item);
 
@@ -509,6 +512,7 @@ private:
 
     QHash<uint, QColor> m_port_colors;
 
+    bool m_allowEdit;
     FlowGraphItem *m_edit_item;
     QLineEdit *m_editor;
     int m_edited;
