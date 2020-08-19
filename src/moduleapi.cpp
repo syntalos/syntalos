@@ -391,7 +391,7 @@ QString AbstractModule::name() const
 
 void AbstractModule::setName(const QString &name)
 {
-    d->name = name;
+    d->name = simplifyStrForModuleName(name);
     for (auto &oport : outPorts()) {
         oport->streamVar()->setCommonMetadata(d->id,
                                               d->name,

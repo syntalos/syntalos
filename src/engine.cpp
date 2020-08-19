@@ -253,9 +253,9 @@ AbstractModule *Engine::createModule(const QString &id, const QString &name)
         if (modInfo->count() > 1)
             mod->setName(QStringLiteral("%1 %2").arg(modInfo->name()).arg(modInfo->count()));
         else
-            mod->setName(modInfo->name());
+            mod->setName(simplifyStrForModuleName(modInfo->name()));
     } else {
-        mod->setName(name);
+        mod->setName(simplifyStrForModuleName(name));
     }
 
     d->activeModules.append(mod);
@@ -784,6 +784,29 @@ bool Engine::runInternal(const QString &exportDirPath)
     // assume success until a module actually fails
     bool initSuccessful = true;
     d->failed = false;
+
+    // perform module name sanity check
+    {
+        QSet<QString> modNameSet;
+        for (auto &mod : orderedActiveModules) {
+            const auto expectedName = simplifyStrForModuleName(mod->name());
+            if (mod->name() != expectedName) {
+                qCWarning(logEngine).noquote() << "Module" << mod->name() << "has invalid name. Expected:" << expectedName << "(The module has been renamed)";
+                mod->setName(expectedName);
+            }
+
+            if (modNameSet.contains(mod->name())) {
+                QMessageBox::critical(d->parentWidget,
+                                      QStringLiteral("Can not run this board"),
+                                      QStringLiteral("A module with the name '%1' exists twice in this board. "
+                                                     "Please give the duplicate a unique name in order to execute this board.").arg(mod->name()));
+                d->active = false;
+                d->failed = true;
+                return false;
+            }
+            modNameSet.insert(mod->name());
+        }
+    }
 
     // prepare information about threaded modules
     QList<AbstractModule*> threadedModules;

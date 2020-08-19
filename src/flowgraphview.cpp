@@ -45,6 +45,7 @@
 #include <math.h>
 
 #include "moduleapi.h"
+#include "utils.h"
 
 //----------------------------------------------------------------------------
 // FlowGraphItem
@@ -613,7 +614,7 @@ FlowGraphNode::~FlowGraphNode(void)
 
 void FlowGraphNode::setNodeName(const QString &name)
 {
-    m_module->setName(name);
+    m_module->setName(simplifyStrForModuleName(name));
     QGraphicsPathItem::setToolTip(m_module->name());
 }
 

@@ -37,13 +37,23 @@ QString createRandomString(int len)
     return str;
 }
 
-QString simplifyStringForFilebasename(const QString &s)
+QString simplifyStrForModuleName(const QString &s)
 {
     return s.simplified()
             .replace("/", "-")
             .replace("\\", "-")
-            .replace(" ", "")
             .replace(":", "");
+}
+
+QString simplifyStrForFileBasename(const QString &s)
+{
+    return simplifyStrForModuleName(s)
+            .replace(" ", "");
+}
+
+QString simplifyStrForFileBasenameLower(const QString &s)
+{
+    return simplifyStrForFileBasename(s).toLower();
 }
 
 QStringList qStringSplitLimit(const QString &str, const QChar &sep, int maxSplit, Qt::CaseSensitivity cs)

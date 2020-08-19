@@ -30,6 +30,7 @@
 #include "moduleapi.h"
 #include "engine.h"
 #include "streams/frametype.h"
+#include "utils.h"
 
 ModuleGraphForm::ModuleGraphForm(QWidget *parent)
     : QWidget(parent),
@@ -186,8 +187,8 @@ void ModuleGraphForm::itemRenamed(FlowGraphItem *item, const QString &name)
         qCritical() << "Orphaned node" << node->nodeName() << ", can not change name";
         return;
     }
-    node->module()->setName(name);
-    node->setNodeTitle(name);
+    node->module()->setName(simplifyStrForModuleName(name));
+    node->setNodeTitle(node->module()->name());
 }
 
 FlowGraphNode *ModuleGraphForm::selectedSingleNode() const

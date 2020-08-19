@@ -29,9 +29,19 @@
 QString createRandomString(int len);
 
 /**
+ * @brief Simplify a string for use as a module name
+ */
+QString simplifyStrForModuleName(const QString &s);
+
+/**
  * @brief Simplify a string for use in file basenames.
  */
-QString simplifyStringForFilebasename(const QString &s);
+QString simplifyStrForFileBasename(const QString &s);
+
+/**
+ * @brief Simplify a string for use in file basenames, and return a lowercased version.
+ */
+QString simplifyStrForFileBasenameLower(const QString &s);
 
 /**
  * @brief Split a string, limiting the amount of splits made
