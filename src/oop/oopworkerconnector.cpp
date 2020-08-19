@@ -34,7 +34,8 @@ OOPWorkerConnector::OOPWorkerConnector(QSharedPointer<OOPWorkerReplica> ptr, con
       m_reptr(ptr),
       m_proc(new QProcess(this)),
       m_workerBinary(workerBin),
-      m_portsInitialized(false)
+      m_inPortsAvailable(-1),
+      m_outPortsAvailable(-1)
 {
     connect(m_reptr.data(), &OOPWorkerReplica::sendOutput, this, &OOPWorkerConnector::receiveOutput);
     connect(m_reptr.data(), &OOPWorkerReplica::outPortMetadataUpdated, this, &OOPWorkerConnector::receiveOutputPortMetadataUpdate);
@@ -112,8 +113,9 @@ bool OOPWorkerConnector::connectAndRun(const QVector<uint> &cpuAffinity)
     return true;
 }
 
-void OOPWorkerConnector::setInputPorts(QList<std::shared_ptr<VarStreamInputPort> > inPorts)
+void OOPWorkerConnector::setPorts(QList<std::shared_ptr<VarStreamInputPort>> inPorts, QList<std::shared_ptr<StreamOutputPort>> outPorts)
 {
+    // (re)set input port information
     m_shmSend.clear();
     m_subs.clear();
 
@@ -144,10 +146,9 @@ void OOPWorkerConnector::setInputPorts(QList<std::shared_ptr<VarStreamInputPort>
     }
 
     m_reptr->setInputPortInfo(iPortInfo);
-}
+    m_inPortsAvailable = m_subs.size();
 
-void OOPWorkerConnector::setOutputPorts(QList<std::shared_ptr<StreamOutputPort> > outPorts)
-{
+    // (re)set output port information
     m_shmRecv.clear();
     m_outPorts.clear();
 
@@ -174,7 +175,7 @@ void OOPWorkerConnector::setOutputPorts(QList<std::shared_ptr<StreamOutputPort> 
     }
 
     m_reptr->setOutputPortInfo(oPortInfo);
-    m_portsInitialized = true;
+    m_outPortsAvailable = m_outPorts.size();
 }
 
 void OOPWorkerConnector::initWithPythonScript(const QString &script, const QString &env)
@@ -274,7 +275,7 @@ static bool unmarshalDataAndOutput(int typeId, const QVariant &argData, std::uni
 
 void OOPWorkerConnector::receiveOutput(int outPortId, QVariant argData)
 {
-    if (!m_portsInitialized)
+    if ((outPortId >= m_outPortsAvailable) || (m_outPortsAvailable < 0))
         return;
     auto outPort = m_outPorts[outPortId];
     const auto typeId = outPort->dataTypeId();
@@ -285,7 +286,7 @@ void OOPWorkerConnector::receiveOutput(int outPortId, QVariant argData)
 
 void OOPWorkerConnector::receiveOutputPortMetadataUpdate(int outPortId, const QVariantHash &metadata)
 {
-    if (!m_portsInitialized)
+    if ((outPortId >= m_outPortsAvailable) || (m_outPortsAvailable < 0))
         return;
     auto outPort = m_outPorts[outPortId];
     outPort->streamVar()->setMetadata(metadata);
@@ -293,7 +294,7 @@ void OOPWorkerConnector::receiveOutputPortMetadataUpdate(int outPortId, const QV
 
 void OOPWorkerConnector::receiveInputThrottleRequest(int inPortId, uint itemsPerSec, bool allowMore)
 {
-    if (!m_portsInitialized)
+    if ((inPortId >= m_inPortsAvailable) || (m_inPortsAvailable < 0))
         return;
     auto sub = m_subs[inPortId];
     sub.second->setThrottleItemsPerSec(itemsPerSec, allowMore);

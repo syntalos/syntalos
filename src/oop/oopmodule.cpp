@@ -119,9 +119,8 @@ bool OOPModule::oopPrepare(QEventLoop *loop, const QVector<uint> &cpuAffinity)
         return false;
     }
 
-    wc->setInputPorts(inPorts());
-    wc->setOutputPorts(outPorts());
-
+    // set port information and load Python script
+    wc->setPorts(inPorts(), outPorts());
     wc->initWithPythonScript(d->pyScript, d->pyEnv);
 
     // check if we already received messages from the worker,
