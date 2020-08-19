@@ -1391,18 +1391,26 @@ void FlowGraphView::mousePressEvent(QMouseEvent *event)
     m_item = nullptr;
     m_pos = QGraphicsView::mapToScene(event->pos());
 
-    FlowGraphItem *item = itemAt(m_pos);
-    if (item && item->type() >= QGraphicsItem::UserType)
-        m_item = static_cast<FlowGraphItem *>(item);
+    if (event->button() == Qt::LeftButton) {
+        FlowGraphItem *item = itemAt(m_pos);
+        if (item && item->type() >= QGraphicsItem::UserType)
+            m_item = static_cast<FlowGraphItem *>(item);
 
-    if (event->button() == Qt::LeftButton)
-        m_state = DragStart;
+        if (event->button() == Qt::LeftButton)
+            m_state = DragStart;
 
-    if (m_state == DragStart && m_item == nullptr && (event->modifiers() & Qt::ControlModifier)
-        && m_scene->selectedItems().isEmpty()) {
-        QGraphicsView::setDragMode(QGraphicsView::ScrollHandDrag);
-        QGraphicsView::mousePressEvent(event);
-        m_state = DragScroll;
+        if (m_state == DragStart && m_item == nullptr && (event->modifiers() & Qt::ControlModifier)
+            && m_scene->selectedItems().isEmpty()) {
+            QGraphicsView::setDragMode(QGraphicsView::ScrollHandDrag);
+            QGraphicsView::mousePressEvent(event);
+            m_state = DragScroll;
+        }
+    } else if (event->button() == Qt::RightButton) {
+        m_item = itemAt(m_pos);
+        if (m_item && canRenameItem()) {
+            QGraphicsView::centerOn(m_pos);
+            renameItem();
+        }
     }
 }
 
@@ -1647,13 +1655,21 @@ void FlowGraphView::mouseReleaseEvent(QMouseEvent *event)
 void FlowGraphView::mouseDoubleClickEvent(QMouseEvent *event)
 {
     m_pos = QGraphicsView::mapToScene(event->pos());
-    m_item = itemAt(m_pos);
+    FlowGraphItem *item = itemAt(m_pos);
 
-    if (m_item && canRenameItem()) {
-        renameItem();
-    } else {
-        QGraphicsView::centerOn(m_pos);
-    }
+    if (item && item->type() >= QGraphicsItem::UserType)
+        m_item = static_cast<FlowGraphItem *>(item);
+    if (m_item == nullptr)
+        return;
+    if (m_item->type() != FlowGraphNode::Type)
+        return;
+    auto node = static_cast<FlowGraphNode *>(m_item);
+
+    if (node->module()->features().testFlag(ModuleFeature::SHOW_DISPLAY))
+        node->module()->showDisplayUi();
+    else if (node->module()->features().testFlag(ModuleFeature::SHOW_SETTINGS))
+        node->module()->showSettingsUi();
+    QGraphicsView::centerOn(m_pos);
 }
 
 void FlowGraphView::wheelEvent(QWheelEvent *event)
