@@ -10,6 +10,7 @@ add_subdirectory(table)
 
 # Video
 add_subdirectory(videorecorder)
+add_subdirectory(videotransform)
 add_subdirectory(camera-generic)
 if(MOD_CAMERA_TIS)
     add_subdirectory(camera-tis)

@@ -33,6 +33,7 @@
 #include "modules/table/tablemodule.h"
 
 #include "modules/videorecorder/videorecordmodule.h"
+#include "modules/videotransform/videotransformmodule.h"
 #include "modules/camera-generic/genericcameramodule.h"
 #ifdef HAVE_TIS_CAMERA
 #include "modules/camera-tis/tiscameramodule.h"
@@ -82,6 +83,7 @@ ModuleLibrary::ModuleLibrary(QObject *parent)
     registerModuleInfo<TableModuleInfo>();
 
     registerModuleInfo<VideoRecorderModuleInfo>();
+    registerModuleInfo<VideoTransformModuleInfo>();
     registerModuleInfo<GenericCameraModuleInfo>();
 #ifdef HAVE_TIS_CAMERA
     registerModuleInfo<TISCameraModuleInfo>();

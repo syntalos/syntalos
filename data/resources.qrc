@@ -41,6 +41,7 @@
         <file alias="canvas">modules/canvas.svg</file>
         <file alias="table">modules/table.svg</file>
         <file alias="firmatauserctl">modules/firmatauserctl.svg</file>
+        <file alias="videotransform">modules/videotransform.svg</file>
     </qresource>
     <qresource prefix="/texts">
         <file>pyscript-sample.py</file>
