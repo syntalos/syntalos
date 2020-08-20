@@ -87,6 +87,7 @@ public:
     EDLAuthor experimenter;
     TestSubject testSubject;
     QString experimentId;
+    bool simpleStorageNames;
 
     std::atomic_bool active;
     std::atomic_bool running;
@@ -109,6 +110,7 @@ Engine::Engine(QWidget *parentWidget)
     d->exportDirIsValid = false;
     d->active = false;
     d->running = false;
+    d->simpleStorageNames = true;
     d->modLibrary = new ModuleLibrary(this);
     d->parentWidget = parentWidget;
     d->timer.reset(new SyncTimer);
@@ -201,6 +203,16 @@ EDLAuthor Engine::experimenter() const
 void Engine::setExperimenter(const EDLAuthor &person)
 {
     d->experimenter = person;
+}
+
+bool Engine::simpleStorageNames() const
+{
+    return d->simpleStorageNames;
+}
+
+void Engine::setSimpleStorageNames(bool enabled)
+{
+    d->simpleStorageNames = enabled;
 }
 
 QString Engine::exportDir() const
@@ -795,16 +807,17 @@ bool Engine::runInternal(const QString &exportDirPath)
                 mod->setName(expectedName);
             }
 
-            if (modNameSet.contains(mod->name())) {
+            const auto uniqName = simplifyStrForFileBasenameLower(mod->name());
+            if (modNameSet.contains(uniqName)) {
                 QMessageBox::critical(d->parentWidget,
                                       QStringLiteral("Can not run this board"),
-                                      QStringLiteral("A module with the name '%1' exists twice in this board. "
+                                      QStringLiteral("A module with the name '%1' exists twice in this board, or another module has a very similar name. "
                                                      "Please give the duplicate a unique name in order to execute this board.").arg(mod->name()));
                 d->active = false;
                 d->failed = true;
                 return false;
             }
-            modNameSet.insert(mod->name());
+            modNameSet.insert(uniqName);
         }
     }
 
@@ -848,6 +861,7 @@ bool Engine::runInternal(const QString &exportDirPath)
         mod->setTimer(d->timer);
         mod->setState(ModuleState::PREPARING);
 
+        mod->setSimpleStorageNames(d->simpleStorageNames);
         if ((modInfo != nullptr) && (!modInfo->storageGroupName().isEmpty())) {
             auto storageGroup = storageCollection->groupByName(modInfo->storageGroupName(), true);
             if (storageGroup.get() == nullptr) {

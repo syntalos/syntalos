@@ -63,6 +63,9 @@ public:
     EDLAuthor experimenter() const;
     void setExperimenter(const EDLAuthor &person);
 
+    bool simpleStorageNames() const;
+    void setSimpleStorageNames(bool enabled);
+
     QString exportDir() const;
     bool isRunning() const;
     bool isActive() const;

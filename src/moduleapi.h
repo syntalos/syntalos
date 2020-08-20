@@ -787,6 +787,7 @@ private:
     void setState(ModuleState state);
     void setId(const QString &id);
     void setIndex(int index);
+    void setSimpleStorageNames(bool enabled);
     void setStorageGroup(std::shared_ptr<EDLGroup> edlGroup);
     void resetEventCallbacks();
     void setPotentialNoaffinityCPUCount(uint coreN);

@@ -314,6 +314,7 @@ public:
     Private()
         : state(ModuleState::INITIALIZING),
           modIndex(0),
+          simpleStorageNames(true),
           initialized(false)
     {}
     ~Private() {}
@@ -328,6 +329,7 @@ public:
     QList<QPair<QWidget*, bool>> displayWindows;
     QList<QPair<QWidget*, bool>> settingsWindows;
 
+    bool simpleStorageNames;
     std::shared_ptr<EDLGroup> rootDataGroup;
     std::shared_ptr<EDLDataset> defaultDataset;
 
@@ -582,11 +584,13 @@ QString AbstractModule::datasetNameSuggestion(bool lowercase) const
     auto rawName = name();
     if (lowercase)
         rawName = rawName.toLower();
-    const auto datasetName = rawName.simplified()
-                                    .replace("/", "-")
-                                    .replace("\\", "-")
-                                    .replace(" ", "_")
-                                    .replace(":", "");
+
+    QString datasetName;
+    if (d->simpleStorageNames) {
+        datasetName = simplifyStrForFileBasenameLower(rawName);
+    } else {
+        datasetName = simplifyStrForFileBasename(rawName);
+    }
 
     // we should never get here, the dataset name should never consist only
     // of unsuitable characters - but just in ase it does, we safeguard against that
@@ -614,6 +618,8 @@ QString AbstractModule::datasetNameFromSubMetadata(const QVariantHash &subMetada
 
     if (dataName.isEmpty())
         dataName = datasetNameSuggestion();
+    else if (d->simpleStorageNames)
+        dataName = simplifyStrForFileBasenameLower(dataName);
 
     return dataName;
 }
@@ -630,6 +636,8 @@ QString AbstractModule::dataBasenameFromSubMetadata(const QVariantHash &subMetad
 
     if (dataName.isEmpty())
         dataName = defaultName;
+    if (d->simpleStorageNames)
+        dataName = simplifyStrForFileBasenameLower(dataName);
 
     return dataName;
 }
@@ -780,6 +788,11 @@ void AbstractModule::setId(const QString &id)
 void AbstractModule::setIndex(int index)
 {
     d->modIndex = index;
+}
+
+void AbstractModule::setSimpleStorageNames(bool enabled)
+{
+    d->simpleStorageNames = enabled;
 }
 
 void AbstractModule::setStorageGroup(std::shared_ptr<EDLGroup> edlGroup)

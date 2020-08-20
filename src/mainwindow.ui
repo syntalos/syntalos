@@ -284,6 +284,11 @@
                        <verstretch>0</verstretch>
                       </sizepolicy>
                      </property>
+                     <property name="font">
+                      <font>
+                       <italic>true</italic>
+                      </font>
+                     </property>
                      <property name="text">
                       <string>Unknown Person</string>
                      </property>
@@ -794,6 +799,19 @@
                 </property>
                </widget>
               </item>
+              <item>
+               <widget class="QCheckBox" name="cbSimpleStorageNames">
+                <property name="toolTip">
+                 <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Simplify the names of datasets that are saved to disk, e.g. they will be lowercased, some characters may be replaced and no whitespaces will be used.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                </property>
+                <property name="text">
+                 <string>Use simplified names for stored datasets</string>
+                </property>
+                <property name="checked">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
              </layout>
             </widget>
            </item>
@@ -950,7 +968,7 @@
                     </widget>
                    </item>
                    <item row="3" column="1">
-                    <widget class="QCheckBox" name="subjectActiveCheckBox">
+                    <widget class="QCheckBox" name="cbSubjectActive">
                      <property name="checked">
                       <bool>true</bool>
                      </property>

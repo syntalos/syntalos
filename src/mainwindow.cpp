@@ -194,7 +194,7 @@ MainWindow::MainWindow(QWidget *parent) :
         }
 
         sub.group = ui->groupLineEdit->text();
-        sub.active = ui->subjectActiveCheckBox->isChecked();
+        sub.active = ui->cbSubjectActive->isChecked();
         sub.comment = ui->remarksTextEdit->toPlainText();
         m_subjectList->addSubject(sub);
     });
@@ -204,7 +204,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
         ui->idLineEdit->setText(sub.id);
         ui->groupLineEdit->setText(sub.group);
-        ui->subjectActiveCheckBox->setChecked(sub.active);
+        ui->cbSubjectActive->setChecked(sub.active);
         ui->remarksTextEdit->setPlainText(sub.comment);
 
         ui->btnSubjectRemove->setEnabled(true);
@@ -228,7 +228,7 @@ MainWindow::MainWindow(QWidget *parent) :
         sub.id = id;
 
         sub.group = ui->groupLineEdit->text();
-        sub.active = ui->subjectActiveCheckBox->isChecked();
+        sub.active = ui->cbSubjectActive->isChecked();
         sub.comment = ui->remarksTextEdit->toPlainText();
 
         m_subjectList->removeRow(row);
@@ -362,6 +362,7 @@ void MainWindow::setStopPossible(bool enabled)
     ui->panelRunInfo->setEnabled(enabled);
     ui->panelRunSettings->setEnabled(!enabled);
     ui->actionGlobalConfig->setEnabled(!enabled);
+    ui->widgetProjectSettings->setEnabled(!enabled);
 
     // do not permit save/load while we are running
     ui->actionProjectOpen->setEnabled(!enabled);
@@ -389,6 +390,7 @@ void MainWindow::runActionTriggered()
     ui->runWarnWidget->setVisible(false);
 
     m_engine->setSaveInternalDiagnostics(m_gconf->saveExperimentDiagnostics());
+    m_engine->setSimpleStorageNames(ui->cbSimpleStorageNames->isChecked());
     m_engine->run();
 
     setStopPossible(false);
@@ -442,6 +444,8 @@ bool MainWindow::saveConfiguration(const QString &fileName)
 
     settings.insert("export_base_dir", m_engine->exportBaseDir());
     settings.insert("experiment_id", m_engine->experimentId());
+
+    settings.insert("simple_storage_names", ui->cbSimpleStorageNames->isChecked());
 
     // basic configuration
     tar.writeFile ("main.toml", qVariantHashToTomlData(settings));
@@ -546,6 +550,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
 
     setDataExportBaseDir(rootObj.value("export_base_dir").toString());
     ui->expIdEdit->setText(rootObj.value("experiment_id").toString());
+    ui->cbSimpleStorageNames->setChecked(rootObj.value("simple_storage_names", true).toBool());
 
     // load list of subjects
     m_subjectList->clear();
