@@ -37,10 +37,13 @@ static const QString EDL_FORMAT_VERSION = QStringLiteral("1");
 
 static QString edlSanitizeFilename(const QString &name)
 {
-    return name.simplified()
-               .replace("/", "_")
-               .replace("\\", "_")
-               .replace(":", "");
+    const auto tmp = name.simplified()
+                         .replace("/", "_")
+                         .replace("\\", "_")
+                         .replace(":", "");
+    if (tmp == "AUX")
+        return QStringLiteral("_AUX");
+    return tmp;
 }
 
 class EDLObject::Private
