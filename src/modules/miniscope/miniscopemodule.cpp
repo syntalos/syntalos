@@ -142,6 +142,9 @@ public:
         // controls we don't want changed
         m_settingsDialog->setRunning(true);
 
+        // ensure GUI values reflect reality, in case the Miniscope has changed them during initialization
+        m_settingsDialog->updateValues();
+
         // we need to set the framerate-related stuff after the miniscope has been started, so
         // we will get the right, final FPS value
         m_rawOut->setMetadataValue("framerate", (double) m_miniscope->fps());
