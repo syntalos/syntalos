@@ -39,9 +39,12 @@ QString createRandomString(int len)
 
 QString simplifyStrForModuleName(const QString &s)
 {
-    return s.simplified()
-            .replace("/", "-")
-            .replace("\\", "-");
+    const auto tmp = s.simplified()
+                      .replace("/", "-")
+                      .replace("\\", "-");
+    if (tmp.isEmpty())
+        return QStringLiteral("Unnamed");
+    return tmp;
 }
 
 QString simplifyStrForFileBasename(const QString &s)
