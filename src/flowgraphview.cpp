@@ -711,7 +711,14 @@ void FlowGraphNode::updateNodeState(ModuleState state)
 
 void FlowGraphNode::setNodeInfoText(const QString &info)
 {
-    m_infoText->setHtml(info);
+    if (info.contains("/>")) {
+        m_infoText->setHtml(info);
+    } else {
+        QFontMetrics fm(m_infoText->font());
+        // shorten the text to about 100 characters
+        const auto shortText = fm.elidedText(info, Qt::ElideRight, fm.averageCharWidth() * 100);
+        m_infoText->setPlainText(shortText);
+    }
 }
 
 QString FlowGraphNode::nodeInfoText() const
