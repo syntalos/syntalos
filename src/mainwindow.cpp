@@ -1025,6 +1025,10 @@ void MainWindow::onEngineResourceWarning(Engine::SystemResource kind, bool resol
         ui->cpuWarningLabel->setText(message);
         ui->cpuWarnWidget->setVisible(!resolved);
         break;
+    case Engine::StreamBuffers:
+        ui->memoryWarningLabel->setText(message);
+        ui->memoryWarnWidget->setVisible(!resolved);
+        break;
     }
 }
 

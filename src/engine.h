@@ -42,7 +42,8 @@ public:
     enum SystemResource {
         StorageSpace,
         Memory,
-        CpuCores
+        CpuCores,
+        StreamBuffers
     };
     Q_ENUM(SystemResource)
 

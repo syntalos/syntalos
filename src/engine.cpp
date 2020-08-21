@@ -1129,6 +1129,8 @@ bool Engine::runInternal(const QString &exportDirPath)
         emitStatusMessage(QStringLiteral("Launch setup completed."));
 
         // set up resource watchers
+
+        // watcher for disk space
         bool diskSpaceWarningEmitted = false;
         QTimer diskSpaceCheckTimer;
         diskSpaceCheckTimer.setInterval(60 * 1000); // check every 60sec
@@ -1153,6 +1155,7 @@ bool Engine::runInternal(const QString &exportDirPath)
             }
         });
 
+        // watcher for remaining system memory
         bool memoryWarningEmitted = false;
         QTimer memCheckTimer;
         memCheckTimer.setInterval(10 * 1000); // check every 10sec
@@ -1172,9 +1175,37 @@ bool Engine::runInternal(const QString &exportDirPath)
             }
         });
 
+        // watcher for subscription buffer
+        std::vector<std::shared_ptr<VariantStreamSubscription>> monitoredSubscriptions;
+        for (auto& mod : orderedActiveModules) {
+            for (auto &port : mod->inPorts()) {
+                if (!port->hasSubscription())
+                    continue;
+                monitoredSubscriptions.push_back(port->subscriptionVar());
+            }
+        }
+        bool subBufferWarningEmitted = false;
+        QTimer subBufferCheckTimer;
+        subBufferCheckTimer.setInterval(10 * 1000); // check every 10sec
+        connect(&subBufferCheckTimer, &QTimer::timeout, [&]() {
+            bool issueFound = false;
+            for (auto& sub : monitoredSubscriptions) {
+                if (sub->approxPendingCount() > 100) {
+                    Q_EMIT resourceWarning(StreamBuffers, false, QStringLiteral("A module is overwhelmed with its input and not fast enough."));
+                    subBufferWarningEmitted = true;
+                    issueFound = true;
+                    break;
+                }
+            }
+
+            if (!issueFound && subBufferWarningEmitted)
+                Q_EMIT resourceWarning(StreamBuffers, false, QStringLiteral("All modules appear to run fast enough."));
+        });
+
         // start resource watchers
         diskSpaceCheckTimer.start();
         memCheckTimer.start();
+        subBufferCheckTimer.start();
 
         // we officially start now, launch the timer
         d->timer->start();
