@@ -1083,7 +1083,7 @@ bool Engine::runInternal(const QString &exportDirPath)
 
         // run special threads with built-in event loops for modules that selected an event-based driver
         for (const auto evThreadKey : eventModules.keys()) {
-            std::shared_ptr<ModuleEventThread> evThread(new ModuleEventThread);
+            std::shared_ptr<ModuleEventThread> evThread(new ModuleEventThread(evThreadKey));
             evThread->run(eventModules[evThreadKey], startWaitCondition.get());
             evThreads[evThreadKey] = evThread;
             qCDebug(logEngine).noquote().nospace() << "Started event thread '" << evThreadKey << "' with " << eventModules[evThreadKey].length() << " participating modules";
@@ -1242,6 +1242,7 @@ bool Engine::runInternal(const QString &exportDirPath)
     }
 
     auto finishTimestamp = static_cast<long long>(d->timer->timeSinceStartMsec().count());
+    emitStatusMessage(QStringLiteral("Run stopped, finalizing..."));
 
     // Wake all threads again if we have failed, because some module may have
     // failed so early that other modules may not even have made it through their
@@ -1260,10 +1261,12 @@ bool Engine::runInternal(const QString &exportDirPath)
 
     // join all threads running evented modules, therefore stop
     // processing any new events
+    lastPhaseTimepoint = d->timer->currentTimePoint();
     for (const auto &evThread : evThreads.values()) {
         emitStatusMessage(QStringLiteral("Waiting for event thread `%1`...").arg(evThread->threadName()));
         evThread->stop();
     }
+    qCDebug(logEngine).noquote().nospace() << "Waited " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec for event threads to stop.";
 
     // send stop command to all modules
     for (auto &mod : createModuleStopOrderFromExecOrder(orderedActiveModules)) {
@@ -1287,7 +1290,7 @@ bool Engine::runInternal(const QString &exportDirPath)
                 if (remainingElements == 0)
                     break;
                 qApp->processEvents();
-            } while ((d->timer->timeSinceStartMsec() - startPortWaitTS).count() <= 1200);
+            } while ((d->timer->timeSinceStartMsec() - startPortWaitTS).count() <= 1600);
 
             if (remainingElements != 0)
                 qCDebug(logEngine).noquote().nospace() << "Module '" << mod->name() << "' "

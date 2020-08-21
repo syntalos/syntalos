@@ -272,6 +272,9 @@ void ModuleEventThread::moduleEventThreadFunc(QList<AbstractModule*> mods, Optio
             i.remove();
     }
 
+    // used later to measure wait time on shutdown
+    symaster_timepoint tpWaitStart;
+
     if (mods.isEmpty()) {
         qDebug() << "All evented modules are idle, shutting down their thread.";
         d->activeLoop = nullptr;
@@ -290,6 +293,13 @@ void ModuleEventThread::moduleEventThreadFunc(QList<AbstractModule*> mods, Optio
 
     // run the event loop
     g_main_loop_run(loop);
+
+    // cleanup and process remaining events
+    tpWaitStart = symaster_clock::now();
+    while (timeDiffToNowMsec(tpWaitStart).count() < 1000) {
+        if (!g_main_context_iteration(context, FALSE))
+            break;
+    }
 
 out:
     d->activeLoop = nullptr;
