@@ -66,7 +66,7 @@ public:
 };
 #pragma GCC diagnostic pop
 
-ModuleEventThread::ModuleEventThread(QObject *parent)
+ModuleEventThread::ModuleEventThread(const QString &threadName, QObject *parent)
     : QObject(parent),
       d(new ModuleEventThread::Private)
 {
@@ -74,7 +74,10 @@ ModuleEventThread::ModuleEventThread(QObject *parent)
     d->running = false;
     d->failed = false;
     d->threadActive = false;
-    d->threadName = QStringLiteral("evexec_%1").arg(createRandomString(4));
+    if (threadName.isEmpty())
+        d->threadName = QStringLiteral("ev:%1").arg(createRandomString(9));
+    else
+        d->threadName = QStringLiteral("ev:%1").arg(threadName);
 }
 
 ModuleEventThread::~ModuleEventThread()

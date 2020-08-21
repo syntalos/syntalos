@@ -821,11 +821,20 @@ bool Engine::runInternal(const QString &exportDirPath)
         }
     }
 
-    // prepare information about threaded modules
+    // the dedicated threads our modules run in, references owned by the vector
+    std::vector<std::thread> dThreads;
     QList<AbstractModule*> threadedModules;
-    QList<OOPModule*> oopModules;
 
-    // filter out threaded modules, those get special treatment
+    // special event threads and their assigned modules, with a specific identifier string as hash key
+    QHash<QString, QList<AbstractModule*>> eventModules;
+    QHash<QString, std::shared_ptr<ModuleEventThread>> evThreads;
+
+    // out-of-process modules need a thread to handle communication in the master application, so
+    // we provide one here (and possibly more in future in case this doesn't scale well).
+    QList<OOPModule*> oopModules;
+    std::vector<std::thread> oopThreads;
+
+    // filter out dedicated-thread modules, those get special treatment
     for (auto &mod : orderedActiveModules) {
         auto oopMod = qobject_cast<OOPModule*>(mod);
         if (oopMod != nullptr) {
@@ -888,15 +897,9 @@ bool Engine::runInternal(const QString &exportDirPath)
         qCDebug(logEngine).noquote().nospace() << "Module '" << mod->name() << "' prepared in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
     }
 
-    // threads our modules run in, as module name/thread pairs
-    std::vector<std::thread> dThreads;
+    // wait condition for all threads to block them until we have actually started (or not block them, in case
+    // the thread was really slow to initialize and we are already running)
     std::unique_ptr<OptionalWaitCondition> startWaitCondition(new OptionalWaitCondition());
-
-    QList<AbstractModule*> idleEventModules;
-    QList<AbstractModule*> idleUiEventModules;
-    std::vector<std::shared_ptr<ModuleEventThread>> evThreads;
-
-    std::vector<std::thread> oopThreads;
 
     // Only actually launch if preparation didn't fail.
     // we still call stop() on all modules afterwards though,
@@ -905,9 +908,9 @@ bool Engine::runInternal(const QString &exportDirPath)
     // Modules are expected to deal with multiple calls to stop().
     if (initSuccessful) {
         emitStatusMessage(QStringLiteral("Initializing launch..."));
-
         lastPhaseTimepoint = currentTimePoint();
 
+        // prepare pinning threads to CPU cores
         QHash<AbstractModule*, std::vector<uint>> modCPUMap;
         if (explicitCoreAffinities) {
             if (threadedModulesTotalN <= (cpuCoreCount - 1)) {
@@ -1010,10 +1013,44 @@ bool Engine::runInternal(const QString &exportDirPath)
         }
         assert(dThreads.size() == (size_t)threadedModules.size());
 
-        // collect all modules which do idle event execution
-        for (auto &mod : orderedActiveModules)
-            if (mod->driver() == ModuleDriverKind::EVENTS_SHARED)
-                idleEventModules.append(mod);
+        // collect all modules which do some kind of event-based execution
+        {
+            QHash<QString, int> remainingEvModCountById;
+            for (auto &mod : orderedActiveModules) {
+                if ((mod->driver() == ModuleDriverKind::EVENTS_SHARED) ||
+                    (mod->driver() == ModuleDriverKind::EVENTS_DEDICATED)) {
+                    if (!remainingEvModCountById.contains(mod->id()))
+                        remainingEvModCountById[mod->id()] = 0;
+                    remainingEvModCountById[mod->id()] += 1;
+                }
+            }
+
+            // assign modules to their threads and give the groups an ID
+            for (auto &mod : orderedActiveModules) {
+                QString evGroupId;
+                if (mod->driver() == ModuleDriverKind::EVENTS_SHARED) {
+                    evGroupId = QStringLiteral("shared_0");
+                } else if (mod->driver() == ModuleDriverKind::EVENTS_DEDICATED) {
+                    if (mod->eventsMaxModulesPerThread() <= 0) {
+                        evGroupId = QStringLiteral("m:%1").arg(mod->id());
+                        remainingEvModCountById[mod->id()] -= 1;
+                    } else {
+                        // reduce number first to get "0 / eventsMaxModulesPerThread" last
+                        remainingEvModCountById[mod->id()] -= 1;
+                        int evGroupPerModIdx = static_cast<int>(remainingEvModCountById[mod->id()] / mod->eventsMaxModulesPerThread());
+                        evGroupId = QStringLiteral("m:%1_%2").arg(mod->id(), evGroupPerModIdx);
+                    }
+                } else {
+                    // not an event-driven module
+                    continue;
+                }
+
+                // add module to hash map
+                if (!eventModules.contains(evGroupId))
+                    eventModules[evGroupId] = QList<AbstractModule*>();
+                eventModules[evGroupId].append(mod);
+            }
+        }
 
         // prepare out-of-process modules
         // NOTE: We currently throw them all into one thread, which may not
@@ -1026,7 +1063,7 @@ bool Engine::runInternal(const QString &exportDirPath)
             ThreadDetails td;
             td.niceness = defaultThreadNice;
             td.allowedRTPriority = defaultRTPriority;
-            td.name = QStringLiteral("oop_comm_1");
+            td.name = QStringLiteral("oopc:shared");
 
             if (modCPUMap.contains(oopModules[0])) {
                 td.cpuAffinity = modCPUMap[oopModules[0]];
@@ -1044,13 +1081,12 @@ bool Engine::runInternal(const QString &exportDirPath)
                                              std::ref(d->running)));
         }
 
-        // create new thread for idle-event processing modules, if needed
-        // TODO: on systems with low CPU count we could also move the execution of those
-        // to the main thread
-        if (!idleEventModules.isEmpty()) {
+        // run special threads with built-in event loops for modules that selected an event-based driver
+        for (const auto evThreadKey : eventModules.keys()) {
             std::shared_ptr<ModuleEventThread> evThread(new ModuleEventThread);
-            evThread->run(idleEventModules, startWaitCondition.get());
-            evThreads.push_back(evThread);
+            evThread->run(eventModules[evThreadKey], startWaitCondition.get());
+            evThreads[evThreadKey] = evThread;
+            qCDebug(logEngine).noquote().nospace() << "Started event thread '" << evThreadKey << "' with " << eventModules[evThreadKey].length() << " participating modules";
         }
 
         qCDebug(logEngine).noquote().nospace() << "Module and engine threads created in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";

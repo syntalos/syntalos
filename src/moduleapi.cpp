@@ -325,6 +325,7 @@ public:
     QString lastError;
     int modIndex;
     uint potentialNoaffinityCPUCount;
+    static int s_eventsMaxModulesPerThread;
 
     QList<QPair<QWidget*, bool>> displayWindows;
     QList<QPair<QWidget*, bool>> settingsWindows;
@@ -336,6 +337,9 @@ public:
     bool initialized;
 };
 
+// instantiate static field
+int AbstractModule::Private::s_eventsMaxModulesPerThread = -1;
+
 AbstractModule::AbstractModule(QObject *parent) :
     QObject(parent),
     m_running(false),
@@ -343,6 +347,7 @@ AbstractModule::AbstractModule(QObject *parent) :
 {
     d->id = QStringLiteral("unknown");
     d->name = QStringLiteral("Unknown Module");
+    d->s_eventsMaxModulesPerThread = -1;
 }
 
 AbstractModule::~AbstractModule()
@@ -512,6 +517,16 @@ void AbstractModule::inputPortConnected(VarStreamInputPort *)
 QString AbstractModule::lastError() const
 {
     return d->lastError;
+}
+
+void AbstractModule::setEventsMaxModulesPerThread(int maxModuleCount)
+{
+    d->s_eventsMaxModulesPerThread = maxModuleCount;
+}
+
+int AbstractModule::eventsMaxModulesPerThread() const
+{
+    return d->s_eventsMaxModulesPerThread;
 }
 
 void AbstractModule::clearInPorts()

@@ -45,7 +45,7 @@ class ModuleEventThread : public QObject
 {
     Q_OBJECT
 public:
-    explicit ModuleEventThread(QObject *parent = nullptr);
+    explicit ModuleEventThread(const QString &threadName = QString(), QObject *parent = nullptr);
     ~ModuleEventThread();
 
     bool isRunning() const;
