@@ -726,7 +726,7 @@ bool VideoWriter::prepareFrame(const cv::Mat &inImage)
 
     // sanity checks
     if ((static_cast<int>(height) > d->height) || (static_cast<int>(width) > d->width))
-        throw std::runtime_error(QStringLiteral("Received bigger frame than we expected (%1x%2 instead %3x%4)")
+        throw std::runtime_error(QStringLiteral("Received bigger frame than we expected (%1x%2 instead of %3x%4)")
                                  .arg(width).arg(height)
                                  .arg(d->width).arg(d->height)
                                  .toStdString());
