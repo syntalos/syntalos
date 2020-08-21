@@ -1260,7 +1260,7 @@ bool Engine::runInternal(const QString &exportDirPath)
 
     // join all threads running evented modules, therefore stop
     // processing any new events
-    for (const auto &evThread : evThreads) {
+    for (const auto &evThread : evThreads.values()) {
         emitStatusMessage(QStringLiteral("Waiting for event thread `%1`...").arg(evThread->threadName()));
         evThread->stop();
     }

@@ -129,6 +129,7 @@ public:
     {
         m_active = false;
         unsubscribe();
+        m_notify = false;
         close(m_eventfd);
     }
 
@@ -365,7 +366,7 @@ private:
         if (m_notify) {
             const uint64_t buffer = 1;
             if (write(m_eventfd, &buffer, sizeof(buffer)) == -1)
-                qWarning().noquote() << "Unable to write to eventfd in" << dataTypeName() << "data subscription.";
+                qWarning().noquote() << "Unable to write to eventfd in" << dataTypeName() << "data subscription. FD:" << m_eventfd << "Error:" << std::strerror(errno);
         }
     }
 

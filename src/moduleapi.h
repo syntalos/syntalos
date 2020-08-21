@@ -227,7 +227,8 @@ public:
         if (sub == nullptr) {
             if (hasSubscription()) {
                 qCritical().noquote() << "Conversion of variant subscription to dedicated type" << typeid(T).name() << "failed."
-                                      << "Modules are connected in a way they shouldn't be, will probably crash now.";
+                                      << "Modules are connected in a way they shouldn't be (terminating now).";
+                qFatal("Bad module connection.");
                 assert(0);
             } else {
                 qWarning().noquote() << "Tried to obtain" << typeid(T).name() << "subscription from a port that was not subscribed to anything.";
