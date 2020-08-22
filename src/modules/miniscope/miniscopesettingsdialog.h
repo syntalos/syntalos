@@ -39,7 +39,7 @@ public:
     explicit MiniscopeSettingsDialog(MScope::Miniscope *mscope, QWidget *parent = nullptr);
     ~MiniscopeSettingsDialog();
 
-    void updateValues();
+    void readCurrentValues();
     void setRunning(bool running);
 
     void setDeviceType(const QString &devType);

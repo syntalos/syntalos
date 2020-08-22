@@ -142,9 +142,6 @@ public:
         // controls we don't want changed
         m_settingsDialog->setRunning(true);
 
-        // ensure GUI values reflect reality, in case the Miniscope has changed them during initialization
-        m_settingsDialog->updateValues();
-
         // we need to set the framerate-related stuff after the miniscope has been started, so
         // we will get the right, final FPS value
         m_rawOut->setMetadataValue("framerate", (double) m_miniscope->fps());
@@ -269,7 +266,7 @@ public:
     {
         m_miniscope->setScopeCamId(settings.value("scope_cam_id", 0).toInt());
         m_settingsDialog->setDeviceType(settings.value("device_type").toString());
-        m_settingsDialog->updateValues();
+        m_settingsDialog->readCurrentValues();
         return true;
     }
 };

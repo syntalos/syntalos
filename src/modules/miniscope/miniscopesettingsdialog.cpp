@@ -56,7 +56,7 @@ MiniscopeSettingsDialog::MiniscopeSettingsDialog(MScope::Miniscope *mscope, QWid
     m_initDone = true;
 
     // display default values
-    updateValues();
+    readCurrentValues();
 }
 
 MiniscopeSettingsDialog::~MiniscopeSettingsDialog()
@@ -64,7 +64,7 @@ MiniscopeSettingsDialog::~MiniscopeSettingsDialog()
     delete ui;
 }
 
-void MiniscopeSettingsDialog::updateValues()
+void MiniscopeSettingsDialog::readCurrentValues()
 {
     ui->sbCamId->setValue(m_mscope->scopeCamId());
     ui->accAlphaSpinBox->setValue(m_mscope->bgAccumulateAlpha());
@@ -76,6 +76,7 @@ void MiniscopeSettingsDialog::updateValues()
 
 void MiniscopeSettingsDialog::setRunning(bool running)
 {
+    m_mscope->setBgAccumulateAlpha(ui->accAlphaSpinBox->value());
     for (const auto &w : m_controls) {
         if (running)
             m_mscope->setControlValue(w->controlId(), w->value());
