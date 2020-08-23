@@ -5,7 +5,8 @@ Syntalos
    :maxdepth: 2
    :caption: Contents:
 
-   intro.rst
+   intro
+   modules/pyscript
    api/sysrc_root.rst
 
 

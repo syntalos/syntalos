@@ -228,7 +228,7 @@ void OOPWorker::emitPyError()
 #pragma GCC diagnostic ignored "-Wold-style-cast"
 void OOPWorker::runScript()
 {
-    //! Py_SetProgramName("mazeamaze-script");
+    Py_SetProgramName(QCoreApplication::arguments()[0].toStdWString().c_str());
 
     // initialize Python in the thread
     Py_Initialize();
@@ -461,6 +461,28 @@ void OOPWorker::raiseError(const QString &message)
     std::cerr << "ERROR: " << message.toStdString() << std::endl;
     setStage(OOPWorker::ERROR);
     Q_EMIT error(message);
+}
+
+void OOPWorker::makeDocFileAndQuit(const QString &fname)
+{
+    // FIXME: We ignore Python warnings for now, as we otherwise get lots of
+    // "Couldn't read PEP-224 variable docstrings from <Class X>: <class  X> is a built-in class"
+    // messages that - currently - we can't do anything about
+    qputenv("PYTHONWARNINGS", "ignore");
+
+    Py_Initialize();
+    PyRun_SimpleString(qPrintable(QStringLiteral(
+                       "import pdoc\n"
+                       "\n"
+                       "with open('%1', 'w') as f:\n"
+                       "    f.write(pdoc.text('syio'))\n"
+                       "    f.write('\\n')\n"
+                       "\n").arg(QString(fname).replace("'", "\\'"))));
+    if (Py_FinalizeEx() < 0)
+        exit(9);
+
+    // documentation generated successfully, we can quit now
+    exit(0);
 }
 
 bool OOPWorker::setNiceness(int nice)

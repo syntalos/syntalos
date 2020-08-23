@@ -31,6 +31,20 @@ int main(int argc, char *argv[])
 
     auto worker = new OOPWorker(&a);
 
+    if (a.arguments().length() < 2) {
+        qCritical() << "Invalid amount of arguments!";
+        return 2;
+    }
+
+    if (a.arguments()[1] == "--doc") {
+        if (a.arguments().length() != 3) {
+            qCritical() << "Documentation: Invalid amount of arguments!";
+            return 2;
+        }
+        worker->makeDocFileAndQuit(a.arguments()[2]);
+        return a.exec();
+    }
+
     if (a.arguments().length() != 2) {
         qCritical() << "Invalid amount of arguments!";
         return 2;

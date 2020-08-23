@@ -50,6 +50,8 @@ public:
 
     void raiseError(const QString &message);
 
+    void makeDocFileAndQuit(const QString &fname);
+
 public Q_SLOTS:
     bool setNiceness(int nice) override;
     void setMaxRealtimePriority(int priority) override;
