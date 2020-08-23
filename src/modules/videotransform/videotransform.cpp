@@ -137,12 +137,12 @@ bool CropTransform::allowOnlineModify() const
 
 cv::Size CropTransform::resultSize() const
 {
-    if (m_applyRoi.empty())
+    if (m_activeRoi.empty())
         return m_originalSize;
 
     cv::Size size;
-    size.width = m_applyRoi.width - m_applyRoi.x;
-    size.height = m_applyRoi.height - m_applyRoi.y;
+    size.width = m_activeRoi.width - m_activeRoi.x;
+    size.height = m_activeRoi.height - m_activeRoi.y;
     return size;
 }
 
@@ -162,7 +162,8 @@ void CropTransform::start()
         m_roi.height = m_originalSize.height;
     }
 
-    m_applyRoi = m_roi;
+    m_activeRoi = m_roi;
+    m_activeOutSize = resultSize();
     m_onlineModified = false;
 }
 
@@ -170,16 +171,41 @@ void CropTransform::process(Frame &frame)
 {
     // handle the simple case: no online modifications
     if (!m_onlineModified) {
-        // FIXME: frame.mat = frame.mat(m_applyRoi) should work in theory, but OpenCV simply doesn't apply the X and Y limits.
+        // FIXME: frame.mat = frame.mat(m_activeRoi) should work in theory, but OpenCV simply doesn't apply the X and Y limits.
         // A workaround was using ranges
-        frame.mat = frame.mat(cv::Range(m_applyRoi.y, m_applyRoi.height), cv::Range(m_applyRoi.x, m_applyRoi.width));
+        frame.mat = frame.mat(cv::Range(m_activeRoi.y, m_activeRoi.height), cv::Range(m_activeRoi.x, m_activeRoi.width));
         return;
     }
 
+    // online modification: since we are not allowed to alter the image dimensions, we add black bars for now or scale accordingly
     const std::lock_guard<std::mutex> lock(m_mutex);
 
-    // TODO: Online modify support
-    frame.mat = frame.mat(cv::Range(m_applyRoi.y, m_applyRoi.height), cv::Range(m_applyRoi.x, m_applyRoi.width));
+    // sanity check
+    if (((m_roi.height - m_roi.y) <= 0) || ((m_roi.width - m_roi.x) <= 0)) {
+        frame.mat = frame.mat(cv::Range(m_activeRoi.y, m_activeRoi.height), cv::Range(m_activeRoi.x, m_activeRoi.width));
+        return;
+    }
+
+    // actually to the "fake resizing"
+    cv::Mat cropScaleMat = frame.mat(cv::Range(m_roi.y, m_roi.height), cv::Range(m_roi.x, m_roi.width));
+    cv::Mat outMat = cv::Mat::zeros(m_activeOutSize, frame.mat.type());
+
+    double scaleFactor = 1;
+    if (cropScaleMat.cols > outMat.cols)
+        scaleFactor = (double) outMat.cols / (double) cropScaleMat.cols;
+    if (cropScaleMat.rows > outMat.rows) {
+        double scale = (double) outMat.rows / (double) cropScaleMat.rows;
+        scaleFactor = (scale < scaleFactor)? scale : scaleFactor;
+    }
+    if (scaleFactor == 0) {
+        // weird... scale factor should never be zero
+        frame.mat = outMat;
+        return;
+    }
+
+    cv::resize(cropScaleMat, cropScaleMat, cv::Size(), scaleFactor, scaleFactor);
+    cropScaleMat.copyTo(outMat(cv::Rect((outMat.cols - cropScaleMat.cols) / 2, (outMat.rows - cropScaleMat.rows) / 2, cropScaleMat.cols, cropScaleMat.rows)));
+    frame.mat = outMat;
 }
 
 QVariantHash CropTransform::toVariantHash()
@@ -233,11 +259,6 @@ void ScaleTransform::createSettingsUi(QWidget *parent)
 cv::Size ScaleTransform::resultSize() const
 {
     return cv::Size(round(m_originalSize.width * m_scaleFactor), round(m_originalSize.height * m_scaleFactor));
-}
-
-void ScaleTransform::start()
-{
-    // TODO: Implement online scaling
 }
 
 void ScaleTransform::process(Frame &frame)

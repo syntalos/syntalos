@@ -75,10 +75,12 @@ public:
     void fromVariantHash(const QVariantHash &settings) override;
 
 private:
+    std::mutex m_mutex;
+
     cv::Size m_maxima;
     cv::Rect m_roi;
-    cv::Rect m_applyRoi;
-    std::mutex m_mutex;
+    cv::Rect m_activeRoi;
+    cv::Size m_activeOutSize;
     std::atomic_bool m_onlineModified;
 };
 
@@ -96,8 +98,6 @@ public:
     void createSettingsUi(QWidget *parent) override;
 
     cv::Size resultSize() const override;
-
-    void start() override;
     void process(Frame &frame) override;
 
     QVariantHash toVariantHash() override;
