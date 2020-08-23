@@ -86,7 +86,7 @@ void VTransformCtlDialog::on_btnAdd_clicked()
     auto item = QInputDialog::getItem(this,
                                       QStringLiteral("Select Transformation"),
                                       QStringLiteral("New Transformation:"),
-                                      QStringList() << "Crop" << "Scale" << "Remove Color",
+                                      QStringList() << "Crop" << "Scale",  // TODO: Remove Color; Flip; Reduce Rate
                                       0,
                                       false,
                                       &ok);
@@ -124,4 +124,32 @@ void VTransformCtlDialog::on_activeTFListView_activated(const QModelIndex &index
 
     if (m_running && !tf->allowOnlineModify())
         m_curSettingsPanel->setEnabled(false);
+}
+
+void VTransformCtlDialog::on_btnMoveUp_clicked()
+{
+    if (!ui->activeTFListView->currentIndex().isValid())
+        return;
+    const auto rowIdx = ui->activeTFListView->currentIndex().row();
+    if (rowIdx <= 0)
+        return;
+
+    auto tf = m_vtfListModel->transform(rowIdx);
+    m_vtfListModel->removeRow(rowIdx);
+    m_vtfListModel->insertTransform(rowIdx - 1, tf);
+    ui->activeTFListView->setCurrentIndex(m_vtfListModel->index(rowIdx - 1));
+}
+
+void VTransformCtlDialog::on_btnMoveDown_clicked()
+{
+    if (!ui->activeTFListView->currentIndex().isValid())
+        return;
+    const auto rowIdx = ui->activeTFListView->currentIndex().row();
+    if (rowIdx >= m_vtfListModel->rowCount())
+        return;
+
+    auto tf = m_vtfListModel->transform(rowIdx);
+    m_vtfListModel->removeRow(rowIdx);
+    m_vtfListModel->insertTransform(rowIdx + 1, tf);
+    ui->activeTFListView->setCurrentIndex(m_vtfListModel->index(rowIdx + 1));
 }
