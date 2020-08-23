@@ -40,6 +40,7 @@ public:
     ~MiniscopeSettingsDialog();
 
     void readCurrentValues();
+    void applyValues();
     void setRunning(bool running);
 
     void setDeviceType(const QString &devType);

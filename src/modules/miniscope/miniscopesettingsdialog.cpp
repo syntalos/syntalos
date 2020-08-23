@@ -74,6 +74,15 @@ void MiniscopeSettingsDialog::readCurrentValues()
         w->setValue(m_mscope->controlValue(w->controlId()));
 }
 
+void MiniscopeSettingsDialog::applyValues()
+{
+    for (const auto &w : m_controls) {
+        if (w->controlId() == "frameRate")
+            continue;
+        m_mscope->setControlValue(w->controlId(), w->value());
+    }
+}
+
 void MiniscopeSettingsDialog::setRunning(bool running)
 {
     m_mscope->setBgAccumulateAlpha(ui->accAlphaSpinBox->value());
