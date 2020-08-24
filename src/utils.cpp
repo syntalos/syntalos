@@ -40,8 +40,8 @@ QString createRandomString(int len)
 QString simplifyStrForModuleName(const QString &s)
 {
     const auto tmp = s.simplified()
-                      .replace("/", "-")
-                      .replace("\\", "-");
+                      .replace("/", "_")
+                      .replace("\\", "_");
     if (tmp.isEmpty())
         return QStringLiteral("Unnamed");
     return tmp;
@@ -56,7 +56,9 @@ QString simplifyStrForFileBasename(const QString &s)
 
 QString simplifyStrForFileBasenameLower(const QString &s)
 {
-    return simplifyStrForFileBasename(s).toLower();
+    return simplifyStrForModuleName(s)
+            .replace(" ", "-") // use dash to make resulting name easier to read (possible camelcasing won't work in the resulting all-lowercase string)
+            .replace(":", "_").toLower();
 }
 
 QStringList qStringSplitLimit(const QString &str, const QChar &sep, int maxSplit, Qt::CaseSensitivity cs)
