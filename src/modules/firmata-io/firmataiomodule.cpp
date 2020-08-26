@@ -294,7 +294,7 @@ QString FirmataIOModuleInfo::id() const
 
 QString FirmataIOModuleInfo::name() const
 {
-    return QStringLiteral("Firmata I/O");
+    return QStringLiteral("Firmata IO");
 }
 
 QString FirmataIOModuleInfo::description() const
