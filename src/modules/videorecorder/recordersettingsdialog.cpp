@@ -215,10 +215,6 @@ void RecorderSettingsDialog::on_codecComboBox_currentIndexChanged(int)
         // Raw is always lossless
         ui->losslessCheckBox->setEnabled(false);
         ui->losslessCheckBox->setChecked(true);
-
-        // Raw RGB only works with AVI containers
-        ui->containerComboBox->setCurrentIndex(1);
-        ui->containerComboBox->setEnabled(false);
     }
 
     // change VAAPI possibility

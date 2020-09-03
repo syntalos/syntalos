@@ -255,14 +255,6 @@ void VideoWriter::initializeHWAccell()
 
 void VideoWriter::initializeInternal()
 {
-    // sanity check. 'Raw' is the only "codec" that we allow to only actually work with one
-    // container, all other codecs have to work with all containers.
-    if ((d->codec == VideoCodec::Raw) && (d->container != VideoContainer::AVI)) {
-        std::cerr << "Video codec was set to 'Raw', but container was not 'AVI'. Assuming 'AVI' as desired container format." << std::endl;
-        d->container = VideoContainer::AVI;
-
-    }
-
     // if file slicing is used, give our new file the appropriate name
     QString fname;
     if (d->fileSliceIntervalMin > 0)
