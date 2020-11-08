@@ -36,8 +36,10 @@ private slots:
 
         // read the timesync file
         auto tsreader = new TimeSyncFileReader;
+        timer.start();
         ret = tsreader->open(tsFilename + QStringLiteral(".tsync"));
         QVERIFY2(ret, qPrintable(tsreader->lastError()));
+        qDebug().noquote() << "TSync read operation took" << timer.elapsed() << "milliseconds";
 
         QCOMPARE(tsreader->moduleName(), QStringLiteral("UnittestDummyModule"));
         QCOMPARE(tsreader->collectionId(), QUuid("a12975f1-84b7-4350-8683-7a5fe9ed968f"));

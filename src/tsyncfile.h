@@ -33,7 +33,7 @@ namespace Syntalos {
 Q_DECLARE_LOGGING_CATEGORY(logTSyncFile)
 
 /**
- * @brief Mode of a TSync file
+ * @brief Timepoint storage of a TSync file
  */
 enum class TSyncFileMode
 {

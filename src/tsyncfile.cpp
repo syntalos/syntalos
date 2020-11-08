@@ -113,9 +113,7 @@ TimeSyncFileWriter::TimeSyncFileWriter()
 
 TimeSyncFileWriter::~TimeSyncFileWriter()
 {
-    flush();
-    if (m_file->isOpen())
-        m_file->close();
+    this->close();
     delete m_file;
 }
 
@@ -243,6 +241,10 @@ void TimeSyncFileWriter::flush()
 void TimeSyncFileWriter::close()
 {
     if (m_file->isOpen()) {
+        // terminate the last open block
+        writeBlockTerminator();
+
+        // finish writing file to disk
         m_file->flush();
         m_file->close();
     }
@@ -421,7 +423,23 @@ bool TimeSyncFileReader::open(const QString &fname)
     m_times.clear();
     int bIndex = 0;
     crc = 0;
+    const auto data_sec_end = file.size() - 8;
     while (!in.atEnd()) {
+        if (file.pos() == data_sec_end) {
+            // read last 8 bytes, which *must* be the block terminator of the final block, otherwise
+            // our file was truncated or corrupted.
+            quint32 expectedCRC;
+            in >> blockTerm >> expectedCRC;
+
+            if (blockTerm != TSYNC_FILE_BLOCK_TERM) {
+                m_lastError = QStringLiteral("Unable to read all tsync data: File was likely truncated (its last block is not complete).");
+                return false;
+            }
+            if (expectedCRC != crc)
+                qCWarning(logTSyncFile).noquote() << "CRC check failed for last tsync data block: Data is likely corrupted.";
+            break;
+        }
+
         long long timeVal1;
         long long timeVal2;
 
@@ -469,7 +487,7 @@ bool TimeSyncFileReader::open(const QString &fname)
             in >> blockTerm >> expectedCRC;
 
             if (blockTerm != TSYNC_FILE_BLOCK_TERM) {
-                qCCritical(logTSyncFile).noquote() << "Unable to read all tsync data: Block separator was invalid.";
+                m_lastError = QStringLiteral("Unable to read all tsync data: Block separator was invalid.");
                 return false;
             }
             if (expectedCRC != crc)
