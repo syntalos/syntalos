@@ -115,7 +115,7 @@ Classes
     ### Instance variables
 
     `name`
-    :   (self: handle) -> str
+    :   name(self: handle) -> str
 
 `FirmataCommandKind(...)`
 :   Members:
@@ -171,7 +171,7 @@ Classes
     ### Instance variables
 
     `name`
-    :   (self: handle) -> str
+    :   name(self: handle) -> str
 
 `FirmataControl(...)`
 :   __init__(self: syio.FirmataControl) -> None
@@ -291,7 +291,7 @@ Classes
     ### Instance variables
 
     `name`
-    :   (self: handle) -> str
+    :   name(self: handle) -> str
 
 `OutputPort(...)`
 :   __init__(self: syio.OutputPort, arg0: str, arg1: int) -> None
@@ -334,7 +334,7 @@ Classes
     
     Copy constructor
     
-    3. __init__(self: syio.VectorDouble, arg0: iterable) -> None
+    3. __init__(self: syio.VectorDouble, arg0: Iterable) -> None
 
     ### Ancestors (in MRO)
 
@@ -358,7 +358,7 @@ Classes
         
         Extend the list by appending all the items in the given list
         
-        2. extend(self: syio.VectorDouble, L: iterable) -> None
+        2. extend(self: syio.VectorDouble, L: Iterable) -> None
         
         Extend the list by appending all the items in the given list
 
