@@ -111,6 +111,7 @@ set(OpenGL_GL_PREFERENCE GLVND)
 include(GNUInstallDirs)
 find_package(PkgConfig)
 find_package(Threads)
+find_library(ZLIB z)
 find_library(RT_LIB rt)
 find_package(Qt5Core REQUIRED)
 find_package(Qt5Test REQUIRED)
@@ -139,6 +140,7 @@ pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0 gstreamer-app-1.0 gstreamer-v
 # anything using the Syntalos API
 # NOTE: QtWidgets is required since modules expose QAction items
 set(SY_BASE_LIBS ${CMAKE_THREAD_LIBS_INIT}
+                 ${ZLIB}
                  Qt5::Core
                  Qt5::Widgets
                  Eigen3::Eigen

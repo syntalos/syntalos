@@ -84,11 +84,14 @@ private slots:
         auto ret = tswriter->open(microseconds_t(1500), QStringLiteral("UnittestDummyModule"));
         QVERIFY2(ret, qPrintable(tswriter->lastError()));
 
-        for (int i = 0; i < 100; ++i) {
+        QElapsedTimer timer;
+        timer.start();
+        for (int i = 0; i < 128000; ++i) {
             const auto tbase = microseconds_t(i * 1000);
             tswriter->writeTimes(tbase, tbase + microseconds_t(i * 50));
         }
         delete tswriter;
+        qDebug().noquote() << "TSync write operation took" << timer.elapsed() << "milliseconds";
 
         // read the timesync file
         auto tsreader = new TimeSyncFileReader;
@@ -98,9 +101,10 @@ private slots:
         QCOMPARE(tsreader->tolerance().count(), 1500);
         QCOMPARE(tsreader->moduleName(), QStringLiteral("UnittestDummyModule"));
 
-        QCOMPARE(tsreader->times().count(), 100);
-        for (int i = 0; i < tsreader->times().count(); ++i) {
-            const auto pair = tsreader->times()[i];
+        const auto timesRead = tsreader->times();
+        QCOMPARE(timesRead.count(), 128000);
+        for (int i = 0; i < timesRead.count(); ++i) {
+            const auto pair = timesRead[i];
             const auto tbase = i * 1000;
             QCOMPARE(pair.first, tbase);
             QCOMPARE(pair.second, tbase + i * 50);

@@ -24,6 +24,7 @@
 #include <QString>
 #include <QMetaType>
 #include <QDataStream>
+#include <QUuid>
 
 #include "syclock.h"
 #include "eigenaux.h"
@@ -85,11 +86,26 @@ namespace Syntalos {
  */
 enum class TimeSyncFileTimeUnit
 {
-    INDEX,
-    NANOSECONDS,
-    MICROSECONDS,
-    MILLISECONDS,
-    SECONDS
+    INDEX        = 0,
+    NANOSECONDS  = 1,
+    MICROSECONDS = 2,
+    MILLISECONDS = 3,
+    SECONDS      = 4
+};
+
+/**
+ * @brief Data types use for storing time values in the data file.
+ */
+enum class TimeSyncFileDataType
+{
+    INVALID = 0,
+    INT16  = 2,
+    INT32  = 3,
+    INT64  = 4,
+
+    UINT16 = 6,
+    UINT32 = 7,
+    UINT64 = 8
 };
 
 QString timeSyncFileTimeUnitToString(const TimeSyncFileTimeUnit &tsftunit);
@@ -111,10 +127,13 @@ public:
 
     QString lastError() const;
 
-    void setTimeNames(QPair<QString, QString> pair);
-    void setTimeUnits(QPair<TimeSyncFileTimeUnit, TimeSyncFileTimeUnit> pair);
+    void setTimeNames(const QString &time1Name, const QString &time2Name);
+    void setTimeUnits(TimeSyncFileTimeUnit time1Unit, TimeSyncFileTimeUnit time2Unit);
+    void setTimeDataTypes(TimeSyncFileDataType time1DType, TimeSyncFileDataType time2DType);
+
     void setFileName(const QString &fname);
-    bool open(const microseconds_t &tolerance, const QString &modName);
+    bool open(const QString &modName, const QUuid &collectionId, const QVariantHash &userData = QVariantHash());
+    bool open(const microseconds_t &tolerance, const QString &modName, const QUuid &collectionId = QUuid(), const QVariantHash &userData = QVariantHash());
     void flush();
     void close();
 
@@ -124,10 +143,20 @@ public:
 private:
     QFile *m_file;
     QDataStream m_stream;
-    int m_index;
+    int m_blockSize;
+    int m_bIndex;
+    quint32 m_blockCRC;
     QString m_lastError;
+
     QPair<QString, QString> m_timeNames;
     QPair<TimeSyncFileTimeUnit, TimeSyncFileTimeUnit> m_timeUnits;
+    TimeSyncFileDataType m_time1DType;
+    TimeSyncFileDataType m_time2DType;
+
+    template<class T>
+    void writeData(const T &data);
+    template<class T1, class T2>
+    void writeEntry(const T1 &time1, const T2 &time2);
 };
 
 /**
@@ -157,6 +186,11 @@ private:
     QString m_lastError;
     QString m_moduleName;
     qint64 m_creationTime;
+    QUuid m_collectionId;
+    QVariantHash m_userData;
+
+    int m_blockSize;
+
     microseconds_t m_tolerance;
     QList<QPair<long long, long long>> m_times;
     QPair<QString, QString> m_timeNames;

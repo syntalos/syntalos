@@ -1491,8 +1491,8 @@ void Engine::onSynchronizerDetailsChanged(const QString &id, const TimeSyncStrat
 
     std::shared_ptr<TimeSyncFileWriter> tsw(new TimeSyncFileWriter);
     tsw->setFileName(ds->setDataFile("offsets.tsync"));
-    tsw->setTimeUnits(qMakePair(TimeSyncFileTimeUnit::MICROSECONDS, TimeSyncFileTimeUnit::MICROSECONDS));
-    tsw->setTimeNames(qMakePair(QStringLiteral("approx-master-time"), QStringLiteral("sync-offset")));
+    tsw->setTimeUnits(TimeSyncFileTimeUnit::MICROSECONDS, TimeSyncFileTimeUnit::MICROSECONDS);
+    tsw->setTimeNames(QStringLiteral("approx-master-time"), QStringLiteral("sync-offset"));
     tsw->open(microseconds_t(0), QStringLiteral("SyntalosInternal::%1").arg(modId).arg(mod->name()));
     d->internalTSyncWriters[id] = tsw;
 }
