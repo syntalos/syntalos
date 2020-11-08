@@ -29,7 +29,7 @@ private slots:
         timer.start();
         for (int i = 0; i < 142000; ++i) {
             const auto tbase = microseconds_t(i * 1000);
-            tswriter->writeTimes(tbase, tbase + microseconds_t(i * 50 + 1));
+            tswriter->writeTimes(tbase, tbase + microseconds_t(i * 51));
         }
         delete tswriter;
         qDebug().noquote() << "TSync write operation took" << timer.elapsed() << "milliseconds";
@@ -53,7 +53,7 @@ private slots:
             const auto pair = timesRead[i];
             const auto tbase = i * 1000;
             QCOMPARE(pair.first, tbase);
-            QCOMPARE(pair.second, tbase + 1 + i * 50);
+            QCOMPARE(pair.second, tbase + i * 51);
         }
         delete tsreader;
 

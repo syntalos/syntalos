@@ -118,7 +118,7 @@ private:
     TSyncFileDataType m_time1DType;
     TSyncFileDataType m_time2DType;
 
-    void writeBlockTerminator();
+    void writeBlockTerminator(bool check = true);
     template<class T> void crcWriteValue(const T &data);
     template<class T1, class T2> void writeTimeEntry(const T1 &time1, const T2 &time2);
 };

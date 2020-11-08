@@ -219,7 +219,7 @@ bool TimeSyncFileWriter::open(const QString &modName, const QUuid &collectionId,
     crcWriteValue<quint16>((quint16) m_time2DType);
 
     // write end of header and header CRC-32
-    writeBlockTerminator();
+    writeBlockTerminator(false);
 
     m_file->flush();
     return true;
@@ -241,7 +241,7 @@ void TimeSyncFileWriter::flush()
 void TimeSyncFileWriter::close()
 {
     if (m_file->isOpen()) {
-        // terminate the last open block
+        // terminate the last open block, if we have one
         writeBlockTerminator();
 
         // finish writing file to disk
@@ -260,8 +260,10 @@ void TimeSyncFileWriter::writeTimes(const long long &timeIndex, const microsecon
     writeTimeEntry(timeIndex, masterTime.count());
 }
 
-void TimeSyncFileWriter::writeBlockTerminator()
+void TimeSyncFileWriter::writeBlockTerminator(bool check)
 {
+    if (check && (m_bIndex == 0))
+        return;
     m_stream << (quint32) TSYNC_FILE_BLOCK_TERM;
     m_stream << (quint32) m_blockCRC;
     m_blockCRC = 0;
