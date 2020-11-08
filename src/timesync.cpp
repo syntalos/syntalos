@@ -21,10 +21,6 @@
 
 #include <QDebug>
 #include <QDateTime>
-#include <QFile>
-#include <QJsonObject>
-#include <QJsonDocument>
-#include <zlib.h>
 #include "moduleapi.h"
 
 #include "utils.h"
@@ -35,14 +31,6 @@ namespace Syntalos {
 
 using namespace Syntalos;
 using namespace Eigen;
-
-// TSYNC file magic number (converted to LE): 8A T S Y N C ⏲
-#define TSYNC_FILE_MAGIC 0xF223434E5953548A
-
-#define TSYNC_FILE_VERSION_MAJOR  1
-#define TSYNC_FILE_VERSION_MINOR  0
-
-#define TSYNC_FILE_BLOCK_TERM 0x1126000000000000
 
 const QString Syntalos::timeSyncStrategyToHString(const TimeSyncStrategy &strategy)
 {
@@ -80,403 +68,14 @@ const QString Syntalos::timeSyncStrategiesToHString(const TimeSyncStrategies &st
     return sl.join(" and ");
 }
 
-QString Syntalos::timeSyncFileTimeUnitToString(const TimeSyncFileTimeUnit &tsftunit)
-{
-    switch (tsftunit) {
-    case TimeSyncFileTimeUnit::INDEX:
-        return QStringLiteral("index");
-    case TimeSyncFileTimeUnit::MICROSECONDS:
-        return QStringLiteral("µs");
-    case TimeSyncFileTimeUnit::MILLISECONDS:
-        return QStringLiteral("ms");
-    case TimeSyncFileTimeUnit::SECONDS:
-        return QStringLiteral("sec");
-    default:
-        return QStringLiteral("?");
-    }
-}
-
-// ------------------
-// TimeSyncFileWriter
-// ------------------
-
-TimeSyncFileWriter::TimeSyncFileWriter()
-    : m_file(new QFile()),
-      m_bIndex(0)
-{
-    m_timeNames = qMakePair(QStringLiteral("device-time"),
-                            QStringLiteral("master-time"));
-    m_timeUnits = qMakePair(TimeSyncFileTimeUnit::MICROSECONDS,
-                            TimeSyncFileTimeUnit::MICROSECONDS);
-    m_time1DType = TimeSyncFileDataType::UINT32;
-    m_time2DType = TimeSyncFileDataType::UINT32;
-    m_blockSize = 2400;
-
-    m_stream.setVersion(QDataStream::Qt_5_12);
-    m_stream.setByteOrder(QDataStream::LittleEndian);
-}
-
-TimeSyncFileWriter::~TimeSyncFileWriter()
-{
-    flush();
-    if (m_file->isOpen())
-        m_file->close();
-    delete m_file;
-}
-
-QString TimeSyncFileWriter::lastError() const
-{
-    return m_lastError;
-}
-
-void TimeSyncFileWriter::setTimeNames(const QString &time1Name, const QString &time2Name)
-{
-    m_timeNames = qMakePair(time1Name, time2Name);
-}
-
-void TimeSyncFileWriter::setTimeUnits(TimeSyncFileTimeUnit time1Unit, TimeSyncFileTimeUnit time2Unit)
-{
-    m_timeUnits = qMakePair(time1Unit, time2Unit);
-}
-
-void TimeSyncFileWriter::setTimeDataTypes(TimeSyncFileDataType time1DType, TimeSyncFileDataType time2DType)
-{
-    m_time1DType = time1DType;
-    m_time2DType = time2DType;
-}
-
-void TimeSyncFileWriter::setFileName(const QString &fname)
-{
-    if (m_file->isOpen())
-        m_file->close();
-
-    auto tsyncFname = fname;
-    if (!tsyncFname.endsWith(QStringLiteral(".tsync")))
-        tsyncFname = tsyncFname + QStringLiteral(".tsync");
-    m_file->setFileName(tsyncFname);
-}
-
-bool Syntalos::TimeSyncFileWriter::TimeSyncFileWriter::open(const QString &modName, const QUuid &collectionId, const QVariantHash &userData)
-{
-    if (m_file->isOpen())
-        m_file->close();
-
-    if (!m_file->open(QIODevice::WriteOnly)) {
-        m_lastError = m_file->errorString();
-        return false;
-    }
-
-    // ensure block size is not extremely small
-    if ((m_blockSize >= 0) && (m_blockSize < 128))
-        m_blockSize = 128;
-
-    m_bIndex = 0;
-    m_blockCRC = 0;
-    m_stream.setDevice(m_file);
-
-    // user-defined metadata
-    QJsonDocument jdoc(QJsonObject::fromVariantHash(userData));
-    const QString userDataJson(jdoc.toJson(QJsonDocument::Compact));
-
-    // write file header
-    QDateTime currentTime(QDateTime::currentDateTime());
-
-    m_stream << (quint64) TSYNC_FILE_MAGIC;
-    m_stream << (quint16) TSYNC_FILE_VERSION_MAJOR;
-    m_stream << (quint16) TSYNC_FILE_VERSION_MINOR;
-    m_stream << (qint64) currentTime.toTime_t();
-    m_stream << modName.toUtf8();
-    m_stream << collectionId.toString(QUuid::WithoutBraces).toUtf8();
-    m_stream << userDataJson.toUtf8(); // custom JSON values
-
-    m_stream << (qint32) m_blockSize;
-
-    m_stream << m_timeNames.first.toUtf8();
-    m_stream << (quint16) m_timeUnits.first;
-    m_stream << (quint16) m_time1DType;
-
-    m_stream << m_timeNames.second.toUtf8();
-    m_stream << (quint16) m_timeUnits.second;
-    m_stream << (quint16) m_time2DType;
-
-    m_file->flush();
-    return true;
-}
-
-bool TimeSyncFileWriter::open(const microseconds_t &tolerance, const QString &modName, const QUuid &collectionId, const QVariantHash &userData)
-{
-    QVariantHash udata = userData;
-    udata["tolerance_us"] = QVariant::fromValue(tolerance.count());
-    return open(modName, collectionId, udata);
-}
-
-void TimeSyncFileWriter::flush()
-{
-    if (m_file->isOpen())
-        m_file->flush();
-}
-
-void TimeSyncFileWriter::close()
-{
-    if (m_file->isOpen()) {
-        m_file->flush();
-        m_file->close();
-    }
-}
-
-void TimeSyncFileWriter::writeTimes(const microseconds_t &deviceTime, const microseconds_t &masterTime)
-{
-    writeEntry(deviceTime.count(), masterTime.count());
-}
-
-void TimeSyncFileWriter::writeTimes(const long long &timeIndex, const microseconds_t &masterTime)
-{
-    writeEntry(timeIndex, masterTime.count());
-}
-
-template<class T>
-void TimeSyncFileWriter::writeData(const T &data)
-{
-    auto d = (T) data;
-    m_stream << d;
-    m_blockCRC = crc32_z(m_blockCRC, (const Bytef*) &d, sizeof(d));
-}
-
-template<class T1, class T2>
-void TimeSyncFileWriter::writeEntry(const T1 &time1, const T2 &time2)
-{
-    switch (m_time1DType) {
-        case TimeSyncFileDataType::INT16:
-            writeData<qint16>(time1); break;
-        case TimeSyncFileDataType::INT32:
-            writeData<qint32>(time1); break;
-        case TimeSyncFileDataType::INT64:
-            writeData<qint64>(time1); break;
-        case TimeSyncFileDataType::UINT16:
-            writeData<quint16>(time1); break;
-        case TimeSyncFileDataType::UINT32:
-            writeData<quint32>(time1); break;
-        case TimeSyncFileDataType::UINT64:
-            writeData<quint64>(time1); break;
-        default:
-            qFatal("Tried to write unknown datatype to timesync file for time1: %i", (int) m_time1DType);
-            break;
-    }
-
-    switch (m_time2DType) {
-        case TimeSyncFileDataType::INT16:
-            writeData<qint16>(time2); break;
-        case TimeSyncFileDataType::INT32:
-            writeData<qint32>(time2); break;
-        case TimeSyncFileDataType::INT64:
-            writeData<qint64>(time2); break;
-        case TimeSyncFileDataType::UINT16:
-            writeData<quint16>(time2); break;
-        case TimeSyncFileDataType::UINT32:
-            writeData<quint32>(time2); break;
-        case TimeSyncFileDataType::UINT64:
-            writeData<quint64>(time2); break;
-        default:
-            qFatal("Tried to write unknown datatype to timesync file for time2: %i", (int) m_time1DType);
-            break;
-    }
-
-    m_bIndex++;
-    if (m_bIndex >= m_blockSize) {
-        m_stream << (quint64) TSYNC_FILE_BLOCK_TERM;
-        m_stream << (quint32) m_blockCRC;
-        m_blockCRC = 0;
-        m_bIndex = 0;
-    }
-}
-
-TimeSyncFileReader::TimeSyncFileReader()
-    : m_lastError(QString())
-{}
-
-template<class T>
-static long long readTsyncValue(QDataStream &in, quint32 *crc)
-{
-    T value;
-    in >> value;
-    *crc = crc32_z(*crc, (const Bytef*) &value, sizeof(value));
-    return value;
-}
-
-bool TimeSyncFileReader::open(const QString &fname)
-{
-    QFile file(fname);
-    if (!file.open(QIODevice::ReadOnly)) {
-        m_lastError = file.errorString();
-        return false;
-    }
-    QDataStream in(&file);
-    in.setVersion(QDataStream::Qt_5_12);
-    in.setByteOrder(QDataStream::LittleEndian);
-
-    // read the header
-    quint64 magic;
-    quint16 formatVMajor;
-    quint16 formatVMinor;
-
-    in >> magic >> formatVMajor >> formatVMinor;
-    if ((magic != TSYNC_FILE_MAGIC) || (formatVMajor != TSYNC_FILE_VERSION_MAJOR)) {
-        m_lastError = QStringLiteral("Unable to read data: This file is not a valid timesync metadata file.");
-        return false;
-    }
-
-    in >> m_creationTime;
-
-    QByteArray modNameUtf8;
-    QByteArray collectionIdUtf8;
-    QByteArray userJsonUtf8;
-
-    in >> modNameUtf8 >> collectionIdUtf8 >> userJsonUtf8;
-    m_moduleName = QString::fromUtf8(modNameUtf8);
-    m_collectionId = QUuid(QString::fromUtf8(collectionIdUtf8));
-
-
-    QJsonDocument jdoc = QJsonDocument::fromJson(userJsonUtf8);
-    m_userData = QVariantHash();
-    if (jdoc.isObject())
-        m_userData = jdoc.object().toVariantHash();
-
-    // block size
-    qint32 bSize;
-    in >> bSize;
-    m_blockSize = bSize;
-
-    // time info
-    quint16 timeUnit1;
-    quint16 timeUnit2;
-    quint16 timeDType1_i;
-    quint16 timeDType2_i;
-    QByteArray timeName1Utf8;
-    QByteArray timeName2Utf8;
-
-    in >> timeName1Utf8
-       >> timeUnit1
-       >> timeDType1_i
-       >> timeName2Utf8
-       >> timeUnit2
-       >> timeDType2_i;
-
-    m_timeNames.first = QString::fromUtf8(timeName1Utf8);
-    m_timeNames.second = QString::fromUtf8(timeName2Utf8);
-    m_tolerance = microseconds_t(m_userData.value("tolerance_us").toLongLong());
-    m_timeUnits.first = static_cast<TimeSyncFileTimeUnit>(timeUnit1);
-    m_timeUnits.second = static_cast<TimeSyncFileTimeUnit>(timeUnit2);
-
-    const auto timeDType1 = static_cast<TimeSyncFileDataType>(timeDType1_i);
-    const auto timeDType2 = static_cast<TimeSyncFileDataType>(timeDType2_i);
-
-    // read the time data
-    m_times.clear();
-    int bIndex = 0;
-    quint32 crc = 0;
-    while (!in.atEnd()) {
-        long long timeVal1;
-        long long timeVal2;
-
-        switch (timeDType1) {
-            case TimeSyncFileDataType::INT16:
-                timeVal1 = readTsyncValue<qint16>(in, &crc); break;
-            case TimeSyncFileDataType::INT32:
-                timeVal1 = readTsyncValue<qint32>(in, &crc); break;
-            case TimeSyncFileDataType::INT64:
-                timeVal1 = readTsyncValue<qint64>(in, &crc); break;
-            case TimeSyncFileDataType::UINT16:
-                timeVal1 = readTsyncValue<quint16>(in, &crc); break;
-            case TimeSyncFileDataType::UINT32:
-                timeVal1 = readTsyncValue<quint32>(in, &crc); break;
-            case TimeSyncFileDataType::UINT64:
-                timeVal1 = readTsyncValue<quint64>(in, &crc); break;
-            default:
-                qFatal("Tried to read unknown datatype to timesync file for time1: %i", (int) timeDType1);
-                break;
-        }
-
-        switch (timeDType2) {
-            case TimeSyncFileDataType::INT16:
-                timeVal2 = readTsyncValue<qint16>(in, &crc); break;
-            case TimeSyncFileDataType::INT32:
-                timeVal2 = readTsyncValue<qint32>(in, &crc); break;
-            case TimeSyncFileDataType::INT64:
-                timeVal2 = readTsyncValue<qint64>(in, &crc); break;
-            case TimeSyncFileDataType::UINT16:
-                timeVal2 = readTsyncValue<quint16>(in, &crc); break;
-            case TimeSyncFileDataType::UINT32:
-                timeVal2 = readTsyncValue<quint32>(in, &crc); break;
-            case TimeSyncFileDataType::UINT64:
-                timeVal2 = readTsyncValue<quint64>(in, &crc); break;
-            default:
-                qFatal("Tried to read unknown datatype to timesync file for time2: %i", (int) timeDType2);
-                break;
-        }
-
-        m_times.append(qMakePair(timeVal1, timeVal2));
-
-        bIndex++;
-        if (bIndex == m_blockSize) {
-            quint64 terminator;
-            quint32 expectedCRC;
-            in >> terminator >> expectedCRC;
-
-            if (terminator != TSYNC_FILE_BLOCK_TERM) {
-                qCritical().noquote() << "Unable to read all tsync data: Block separator was invalid.";
-                return false;
-            }
-            if (expectedCRC != crc)
-                qWarning().noquote() << "CRC check failed for tsync data block: Data is likely corrupted.";
-
-            crc = 0;
-            bIndex = 0;
-        }
-    }
-
-    return true;
-}
-
-QString TimeSyncFileReader::lastError() const
-{
-    return m_lastError;
-}
-
-QString TimeSyncFileReader::moduleName() const
-{
-    return m_moduleName;
-}
-
-time_t TimeSyncFileReader::creationTime() const
-{
-    return m_creationTime;
-}
-
-microseconds_t TimeSyncFileReader::tolerance() const
-{
-    return m_tolerance;
-}
-
-QPair<QString, QString> TimeSyncFileReader::timeNames() const
-{
-    return m_timeNames;
-}
-
-QPair<TimeSyncFileTimeUnit, TimeSyncFileTimeUnit> TimeSyncFileReader::timeUnits() const
-{
-    return m_timeUnits;
-}
-
-QList<QPair<long long, long long> > TimeSyncFileReader::times() const
-{
-    return m_times;
-}
-
 // -----------------------
 // FreqCounterSynchronizer
 // -----------------------
 
-FreqCounterSynchronizer::FreqCounterSynchronizer(std::shared_ptr<SyncTimer> masterTimer, AbstractModule *mod, double frequencyHz, const QString &id)
+FreqCounterSynchronizer::FreqCounterSynchronizer(std::shared_ptr<SyncTimer> masterTimer,
+                                                 AbstractModule *mod,
+                                                 double frequencyHz,
+                                                 const QString &id)
     : m_mod(mod),
       m_id(id),
       m_strategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD | TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD),
@@ -517,8 +116,9 @@ void FreqCounterSynchronizer::setCalibrationBlocksCount(int count)
     m_calibrationMaxBlockN = count;
 }
 
-void FreqCounterSynchronizer::setTimeSyncBasename(const QString &fname)
+void FreqCounterSynchronizer::setTimeSyncBasename(const QString &fname, const QUuid &collectionId)
 {
+    m_collectionId = collectionId;
     m_tswriter->setFileName(fname);
     m_strategies = m_strategies.setFlag(TimeSyncStrategy::WRITE_TSYNCFILE, !fname.isEmpty());
 }
@@ -557,7 +157,9 @@ bool FreqCounterSynchronizer::start()
         return false;
     }
     if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE)) {
-        if (!m_tswriter->open(microseconds_t(m_toleranceUsec), m_mod->name())) {
+        m_tswriter->setSyncMode(TSyncFileMode::SYNCPOINTS);
+        m_tswriter->setTimeDataTypes(TSyncFileDataType::INT64, TSyncFileDataType::INT64);
+        if (!m_tswriter->open(m_mod->name(), m_collectionId, microseconds_t(m_toleranceUsec))) {
             qCritical().noquote().nospace() << "Unable to open timesync file for " << m_mod->name() << "[" << m_id << "]: " << m_tswriter->lastError();
             return false;
         }
@@ -766,7 +368,9 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &recvTimest
 // SecondaryClockSynchronizer
 // --------------------------
 
-SecondaryClockSynchronizer::SecondaryClockSynchronizer(std::shared_ptr<SyncTimer> masterTimer, AbstractModule *mod, const QString &id)
+SecondaryClockSynchronizer::SecondaryClockSynchronizer(std::shared_ptr<SyncTimer> masterTimer,
+                                                       AbstractModule *mod,
+                                                       const QString &id)
     : m_mod(mod),
       m_id(id),
       m_strategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD | TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD),
@@ -828,8 +432,9 @@ void SecondaryClockSynchronizer::setExpectedClockFrequencyHz(double frequency)
     emitSyncDetailsChanged();
 }
 
-void SecondaryClockSynchronizer::setTimeSyncBasename(const QString &fname)
+void SecondaryClockSynchronizer::setTimeSyncBasename(const QString &fname, const QUuid &collectionId)
 {
+    m_collectionId = collectionId;
     m_tswriter->setFileName(fname);
     m_strategies = m_strategies.setFlag(TimeSyncStrategy::WRITE_TSYNCFILE, !fname.isEmpty());
 }
@@ -871,7 +476,9 @@ bool SecondaryClockSynchronizer::start()
         return false;
     }
     if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE)) {
-        if (!m_tswriter->open(microseconds_t(m_toleranceUsec), m_mod->name())) {
+        m_tswriter->setSyncMode(TSyncFileMode::SYNCPOINTS);
+        m_tswriter->setTimeDataTypes(TSyncFileDataType::INT64, TSyncFileDataType::INT64);
+        if (!m_tswriter->open(m_mod->name(), m_collectionId, microseconds_t(m_toleranceUsec))) {
             qCCritical(logTimeSync).noquote().nospace() << "Unable to open timesync file for " << m_mod->name() << "[" << m_id << "]: " << m_tswriter->lastError();
             return false;
         }

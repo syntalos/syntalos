@@ -147,7 +147,7 @@ bool Rhd2000Module::prepare(const TestSubject &)
     // set up slave-clock synchronizer
     clockSync = initCounterSynchronizer(m_intanUi->getSampleRate());
     clockSync->setStrategies(TimeSyncStrategy::WRITE_TSYNCFILE);
-    clockSync->setTimeSyncBasename(intanBaseFilename);
+    clockSync->setTimeSyncBasename(intanBaseFilename, dstore->collectionId());
 
     // permit 2ms tolerance - this was a very realistic tolerance to achieve in tests,
     // while lower values resulted in constant adjustment attempts

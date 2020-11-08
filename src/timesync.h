@@ -28,6 +28,7 @@
 
 #include "syclock.h"
 #include "eigenaux.h"
+#include "tsyncfile.h"
 
 class QFile;
 
@@ -82,122 +83,6 @@ Q_DECLARE_METATYPE(Syntalos::TimeSyncStrategies);
 namespace Syntalos {
 
 /**
- * @brief Unit types for time representation in a TSync file
- */
-enum class TimeSyncFileTimeUnit
-{
-    INDEX        = 0,
-    NANOSECONDS  = 1,
-    MICROSECONDS = 2,
-    MILLISECONDS = 3,
-    SECONDS      = 4
-};
-
-/**
- * @brief Data types use for storing time values in the data file.
- */
-enum class TimeSyncFileDataType
-{
-    INVALID = 0,
-    INT16  = 2,
-    INT32  = 3,
-    INT64  = 4,
-
-    UINT16 = 6,
-    UINT32 = 7,
-    UINT64 = 8
-};
-
-QString timeSyncFileTimeUnitToString(const TimeSyncFileTimeUnit &tsftunit);
-
-/**
- * @brief Write a timestamp synchronization file
- *
- * Helper class to write a timestamp synchronization file to adjust
- * timestamps in a recording post-hoc. This is commonly used if the
- * format data is stored in does not support timestamp adjustments, or
- * as additional set of datapoints to ensure timestamps are really
- * synchronized.
- */
-class TimeSyncFileWriter
-{
-public:
-    explicit TimeSyncFileWriter();
-    ~TimeSyncFileWriter();
-
-    QString lastError() const;
-
-    void setTimeNames(const QString &time1Name, const QString &time2Name);
-    void setTimeUnits(TimeSyncFileTimeUnit time1Unit, TimeSyncFileTimeUnit time2Unit);
-    void setTimeDataTypes(TimeSyncFileDataType time1DType, TimeSyncFileDataType time2DType);
-
-    void setFileName(const QString &fname);
-    bool open(const QString &modName, const QUuid &collectionId, const QVariantHash &userData = QVariantHash());
-    bool open(const microseconds_t &tolerance, const QString &modName, const QUuid &collectionId = QUuid(), const QVariantHash &userData = QVariantHash());
-    void flush();
-    void close();
-
-    void writeTimes(const microseconds_t &deviceTime, const microseconds_t &masterTime);
-    void writeTimes(const long long &timeIndex, const microseconds_t &masterTime);
-
-private:
-    QFile *m_file;
-    QDataStream m_stream;
-    int m_blockSize;
-    int m_bIndex;
-    quint32 m_blockCRC;
-    QString m_lastError;
-
-    QPair<QString, QString> m_timeNames;
-    QPair<TimeSyncFileTimeUnit, TimeSyncFileTimeUnit> m_timeUnits;
-    TimeSyncFileDataType m_time1DType;
-    TimeSyncFileDataType m_time2DType;
-
-    template<class T>
-    void writeData(const T &data);
-    template<class T1, class T2>
-    void writeEntry(const T1 &time1, const T2 &time2);
-};
-
-/**
- * @brief Read a time-sync (.tsync) file
- *
- * Simple helper class to read the contents of a .tsync file,
- * for adjustments of the source timestamps or simply conversion
- * into a non-binary format.
- */
-class TimeSyncFileReader
-{
-public:
-    explicit TimeSyncFileReader();
-
-    bool open(const QString &fname);
-    QString lastError() const;
-
-    QString moduleName() const;
-    time_t creationTime() const;
-    microseconds_t tolerance() const;
-    QPair<QString, QString> timeNames() const;
-    QPair<TimeSyncFileTimeUnit, TimeSyncFileTimeUnit> timeUnits() const;
-
-    QList<QPair<long long, long long>> times() const;
-
-private:
-    QString m_lastError;
-    QString m_moduleName;
-    qint64 m_creationTime;
-    QUuid m_collectionId;
-    QVariantHash m_userData;
-
-    int m_blockSize;
-
-    microseconds_t m_tolerance;
-    QList<QPair<long long, long long>> m_times;
-    QPair<QString, QString> m_timeNames;
-    QPair<TimeSyncFileTimeUnit, TimeSyncFileTimeUnit> m_timeUnits;
-};
-
-/**
  * @brief Synchronizer for a monotonic counter, given a frequency
  *
  * This synchronizer helps synchronizing the counting of a monotonic counter
@@ -210,13 +95,16 @@ private:
 class FreqCounterSynchronizer
 {
 public:
-    explicit FreqCounterSynchronizer(std::shared_ptr<SyncTimer> masterTimer, AbstractModule *mod, double frequencyHz, const QString &id = nullptr);
+    explicit FreqCounterSynchronizer(std::shared_ptr<SyncTimer> masterTimer,
+                                     AbstractModule *mod,
+                                     double frequencyHz,
+                                     const QString &id = nullptr);
     ~FreqCounterSynchronizer();
 
     void setCalibrationBlocksCount(int count);
     void setStrategies(const TimeSyncStrategies &strategies);
     void setTolerance(const std::chrono::microseconds &tolerance);
-    void setTimeSyncBasename(const QString &fname);
+    void setTimeSyncBasename(const QString &fname, const QUuid &collectionId);
 
     bool isCalibrated() const;
     int indexOffset() const;
@@ -232,6 +120,7 @@ private:
     Q_DISABLE_COPY(FreqCounterSynchronizer)
 
     AbstractModule *m_mod;
+    QUuid m_collectionId;
     QString m_id;
     TimeSyncStrategies m_strategies;
     microseconds_t m_lastOffsetEmission;
@@ -270,7 +159,9 @@ private:
 class SecondaryClockSynchronizer
 {
 public:
-    explicit SecondaryClockSynchronizer(std::shared_ptr<SyncTimer> masterTimer, AbstractModule *mod, const QString &id = QString());
+    explicit SecondaryClockSynchronizer(std::shared_ptr<SyncTimer> masterTimer,
+                                        AbstractModule *mod,
+                                        const QString &id = QString());
     ~SecondaryClockSynchronizer();
 
     /**
@@ -293,7 +184,7 @@ public:
 
     void setStrategies(const TimeSyncStrategies &strategies);
     void setTolerance(const microseconds_t &tolerance);
-    void setTimeSyncBasename(const QString &fname);
+    void setTimeSyncBasename(const QString &fname, const QUuid &collectionId);
 
     bool isCalibrated() const;
     microseconds_t expectedOffsetToMaster() const;
@@ -308,6 +199,7 @@ private:
     void emitSyncDetailsChanged();
 
     AbstractModule *m_mod;
+    QUuid m_collectionId;
     QString m_id;
     TimeSyncStrategies m_strategies;
     microseconds_t m_lastOffsetEmission;

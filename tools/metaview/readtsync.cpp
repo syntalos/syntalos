@@ -35,10 +35,15 @@ int displayTSyncMetadata(const QString &fname)
 
     std::cout << "File: " << "TimeSync" << "\n"
               << "Module: " << tsr->moduleName().toStdString() << "\n"
+              << "CollectionID: " << tsr->collectionId().toString(QUuid::WithoutBraces).toStdString() << "\n"
               << "CreationTimestampUnix: " << tsr->creationTime() << "\n"
-              << "Tolerance: " << tsr->tolerance().count() << " µs\n"
-              << "TimeUnits: " << timeSyncFileTimeUnitToString(tsr->timeUnits().first).toStdString() << "; "
-                               << timeSyncFileTimeUnitToString(tsr->timeUnits().second).toStdString() << "\n"
+              << "Mode: " << tsyncFileModeToString(tsr->syncMode()).toStdString() << "\n";
+    if (tsr->tolerance().count() != 0)
+        std::cout << "Tolerance: " << tsr->tolerance().count() << " µs\n";
+    std::cout << "TimeDTypes: " << tsyncFileDataTypeToString(tsr->timeDTypes().first).toStdString() << "; "
+                                << tsyncFileDataTypeToString(tsr->timeDTypes().first).toStdString() << "\n"
+              << "TimeUnits: " << tsyncFileTimeUnitToString(tsr->timeUnits().first).toStdString() << "; "
+                               << tsyncFileTimeUnitToString(tsr->timeUnits().second).toStdString() << "\n"
               << std::endl;
 
     auto timeNames = tsr->timeNames();

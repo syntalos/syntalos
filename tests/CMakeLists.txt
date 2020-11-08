@@ -48,3 +48,16 @@ target_link_libraries(test-edlstorage
     Qt5::Test
 )
 add_test(edlstorage test-edlstorage)
+
+#
+# TSync file verification
+#
+add_executable(test-tsyncfile
+    test-tsyncfile.cpp
+)
+target_link_libraries(test-tsyncfile
+    ${SY_BASE_LIBS}
+    syntalos_shared
+    Qt5::Test
+)
+add_test(tsyncfile test-tsyncfile)

@@ -21,6 +21,7 @@
 
 #include <QCoreApplication>
 #include <QCommandLineParser>
+#include <iostream>
 
 #include "readtsync.h"
 
@@ -46,6 +47,10 @@ int main(int argc, char *argv[])
     QString tsyncFile = parser.value(tsyncOption);
     if (!tsyncFile.isEmpty())
         return displayTSyncMetadata(tsyncFile);
+    else {
+        std::cout << parser.helpText().toStdString() << std::endl;
+        return 0;
+    }
 
     return a.exec();
 }

@@ -22,6 +22,8 @@ set(SYNTALOS_SHARED_SRC
     timesync.cpp
     tomlutils.h
     tomlutils.cpp
+    tsyncfile.h
+    tsyncfile.cpp
     utils.h
     utils.cpp
 
