@@ -31,6 +31,7 @@ option(MOD_MINISCOPE   "Enable Miniscope module" ON)
 #
 # Compiler flags
 #
+set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
 add_definitions("-Wall")
 add_definitions("-Werror=suggest-override")
 if (MAINTAINER)

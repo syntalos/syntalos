@@ -31,7 +31,7 @@ namespace py = pybind11;
 using namespace Syntalos;
 
 class OOPWorker;
-class PyBridge : public QObject
+class Q_DECL_HIDDEN PyBridge : public QObject
 {
     Q_OBJECT
 public:

@@ -32,7 +32,7 @@ namespace py = pybind11;
 using namespace Syntalos;
 class PyBridge;
 
-class OOPWorker : public OOPWorkerSource
+class Q_DECL_HIDDEN OOPWorker : public OOPWorkerSource
 {
     Q_OBJECT
 public:
