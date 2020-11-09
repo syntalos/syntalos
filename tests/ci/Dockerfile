@@ -1,7 +1,7 @@
 #
 # Docker file for Syntalos tests
 #
-FROM ubuntu:focal
+FROM debian:bullseye
 
 # prepare
 RUN apt-get update -qq
