@@ -149,6 +149,13 @@ void TimeSyncFileWriter::setFileName(const QString &fname)
     m_file->setFileName(tsyncFname);
 }
 
+QString TimeSyncFileWriter::fileName() const
+{
+    if (!m_file->isOpen())
+        return QString();
+    return m_file->fileName();
+}
+
 void TimeSyncFileWriter::setSyncMode(TSyncFileMode mode)
 {
     m_tsMode = mode;

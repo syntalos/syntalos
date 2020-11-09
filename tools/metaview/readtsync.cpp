@@ -37,14 +37,21 @@ int displayTSyncMetadata(const QString &fname)
               << "Module: " << tsr->moduleName().toStdString() << "\n"
               << "CollectionID: " << tsr->collectionId().toString(QUuid::WithoutBraces).toStdString() << "\n"
               << "CreationTimestampUnix: " << tsr->creationTime() << "\n"
-              << "Mode: " << tsyncFileModeToString(tsr->syncMode()).toStdString() << "\n";
-    if (tsr->tolerance().count() != 0)
-        std::cout << "Tolerance: " << tsr->tolerance().count() << " µs\n";
-    std::cout << "TimeDTypes: " << tsyncFileDataTypeToString(tsr->timeDTypes().first).toStdString() << "; "
+              << "Mode: " << tsyncFileModeToString(tsr->syncMode()).toStdString() << "\n"
+              << "TimeDTypes: " << tsyncFileDataTypeToString(tsr->timeDTypes().first).toStdString() << "; "
                                 << tsyncFileDataTypeToString(tsr->timeDTypes().second).toStdString() << "\n"
               << "TimeUnits: " << tsyncFileTimeUnitToString(tsr->timeUnits().first).toStdString() << "; "
-                               << tsyncFileTimeUnitToString(tsr->timeUnits().second).toStdString() << "\n"
-              << std::endl;
+                               << tsyncFileTimeUnitToString(tsr->timeUnits().second).toStdString() << "\n";
+    if (tsr->tolerance().count() != 0)
+        std::cout << "Tolerance: " << tsr->tolerance().count() << " µs\n";
+    if (!tsr->userData().isEmpty()) {
+        const auto userData =  tsr->userData();
+
+        std::cout << "User Metadata:\n";
+        for (const auto key : userData.keys())
+            std::cout << "    " << key.toStdString() << ": " << userData[key].toString().toStdString() << "\n";
+    }
+    std::cout << std::endl;
 
     auto timeNames = tsr->timeNames();
     if (timeNames.first.isEmpty())

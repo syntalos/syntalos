@@ -94,6 +94,8 @@ public:
     void setTimeDataTypes(TSyncFileDataType time1DType, TSyncFileDataType time2DType);
 
     void setFileName(const QString &fname);
+    QString fileName() const;
+
     void setSyncMode(TSyncFileMode mode);
     void setChunkSize(int size);
 
