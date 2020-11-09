@@ -561,7 +561,7 @@ void VideoWriter::initializeInternal()
         d->tsfWriter.setTimeNames(QStringLiteral("frame-no"), QStringLiteral("master-time"));
         d->tsfWriter.setTimeUnits(TSyncFileTimeUnit::INDEX, TSyncFileTimeUnit::MILLISECONDS);
         d->tsfWriter.setTimeDataTypes(TSyncFileDataType::UINT32, TSyncFileDataType::UINT64);
-        d->tsfWriter.setChunkSize((d->fps.num / d->fps.den) * 60 * 2); // new chunk about every 2min
+        d->tsfWriter.setChunkSize((d->fps.num / d->fps.den) * 60 * 1); // new chunk about every minute
         d->tsfWriter.setFileName(timestampFname);
         if (!d->tsfWriter.open(d->modName, d->collectionId)) {
             finalizeInternal(false);
