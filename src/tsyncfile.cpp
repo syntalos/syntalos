@@ -154,6 +154,11 @@ void TimeSyncFileWriter::setSyncMode(TSyncFileMode mode)
     m_tsMode = mode;
 }
 
+void TimeSyncFileWriter::setChunkSize(int size)
+{
+    m_blockSize = size;
+}
+
 template<class T>
 void TimeSyncFileWriter::crcWriteValue(const T &data)
 {
@@ -258,6 +263,11 @@ void TimeSyncFileWriter::writeTimes(const microseconds_t &deviceTime, const micr
 void TimeSyncFileWriter::writeTimes(const long long &timeIndex, const microseconds_t &masterTime)
 {
     writeTimeEntry(timeIndex, masterTime.count());
+}
+
+void TimeSyncFileWriter::writeTimes(const long &time1, const long &time2)
+{
+    writeTimeEntry(time1, time2);
 }
 
 void TimeSyncFileWriter::writeBlockTerminator(bool check)

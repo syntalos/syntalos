@@ -214,7 +214,7 @@ public:
                         // be deferred to that point
                         if (m_initDone) {
                             // start our new section
-                            if (!m_videoWriter->startNewSection(QStringLiteral("%1%2").arg(vidSavePathBase).arg(currentSecSuffix).toStdString())) {
+                            if (!m_videoWriter->startNewSection(QStringLiteral("%1%2").arg(vidSavePathBase).arg(currentSecSuffix))) {
                                 raiseError(QStringLiteral("Unable to initialize recording of a new section: %1").arg(QString::fromStdString(m_videoWriter->lastError())));
                                 return;
                             }
@@ -291,14 +291,16 @@ public:
                 const auto dataBasename = dataBasenameFromSubMetadata(m_inSub->metadata(), "video");
                 vidSavePathBase = m_vidDataset->pathForDataBasename(dataBasename);
                 m_vidDataset->setDataScanPattern(QStringLiteral("%1*").arg(dataBasename));
-                m_vidDataset->setAuxDataScanPattern(QStringLiteral("%1*.csv").arg(dataBasename));
+                m_vidDataset->setAuxDataScanPattern(QStringLiteral("%1*.tsync").arg(dataBasename));
 
                 auto vidSecFnameBase = vidSavePathBase;
                 if (!currentSecSuffix.isEmpty())
                     vidSecFnameBase = QStringLiteral("%1%2").arg(vidSecFnameBase).arg(currentSecSuffix);
 
                 try {
-                    m_videoWriter->initialize(vidSecFnameBase.toStdString(),
+                    m_videoWriter->initialize(vidSecFnameBase,
+                                              name(),
+                                              m_vidDataset->collectionId(),
                                               frameSize.width(),
                                               frameSize.height(),
                                               framerate,

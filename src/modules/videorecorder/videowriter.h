@@ -83,10 +83,18 @@ public:
     VideoWriter();
     ~VideoWriter();
 
-    void initialize(const std::string &fname, int width, int height, int fps, int cvDepth, bool hasColor, bool saveTimestamps = true);
+    void initialize(const QString &fname,
+                    const QString &modName,
+                    const QUuid &collectionId,
+                    int width,
+                    int height,
+                    int fps,
+                    int cvDepth,
+                    bool hasColor,
+                    bool saveTimestamps = true);
     void finalize();
     bool initialized() const;
-    bool startNewSection(const std::string &fname);
+    bool startNewSection(const QString &fname);
 
     std::chrono::milliseconds captureStartTimestamp() const;
     void setCaptureStartTimestamp(const std::chrono::milliseconds& startTimestamp);

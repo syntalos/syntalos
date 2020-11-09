@@ -95,6 +95,7 @@ public:
 
     void setFileName(const QString &fname);
     void setSyncMode(TSyncFileMode mode);
+    void setChunkSize(int size);
 
     bool open(const QString &modName, const QUuid &collectionId, const QVariantHash &userData = QVariantHash());
     bool open(const QString &modName, const QUuid &collectionId, const microseconds_t &tolerance, const QVariantHash &userData = QVariantHash());
@@ -103,6 +104,7 @@ public:
 
     void writeTimes(const microseconds_t &deviceTime, const microseconds_t &masterTime);
     void writeTimes(const long long &timeIndex, const microseconds_t &masterTime);
+    void writeTimes(const long &time1, const long &time2);
 
 private:
     QFile *m_file;

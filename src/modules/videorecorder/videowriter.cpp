@@ -37,6 +37,8 @@ extern "C" {
 #include <libswscale/swscale.h>
 }
 
+#include "tsyncfile.h"
+
 VideoCodec stringToVideoCodec(const std::string &str)
 {
     if (str == "Raw")
@@ -136,7 +138,9 @@ public:
 
     std::string lastError;
 
-    std::string fnameBase;
+    QString modName;
+    QUuid collectionId;
+    QString fnameBase;
     uint fileSliceIntervalMin;
     uint currentSliceNo;
     VideoCodec codec;
@@ -150,7 +154,7 @@ public:
     int threadCount;
 
     bool saveTimestamps;
-    std::ofstream timestampFile;
+    TimeSyncFileWriter tsfWriter;
     std::chrono::milliseconds captureStartTimestamp;
 
     AVFrame *encFrame;
@@ -258,12 +262,12 @@ void VideoWriter::initializeInternal()
     // if file slicing is used, give our new file the appropriate name
     QString fname;
     if (d->fileSliceIntervalMin > 0)
-        fname = QStringLiteral("%1_%2").arg(QString::fromStdString(d->fnameBase)).arg(d->currentSliceNo);
+        fname = QStringLiteral("%1_%2").arg(d->fnameBase).arg(d->currentSliceNo);
     else
-        fname = QString::fromStdString(d->fnameBase);
+        fname = d->fnameBase;
 
     // prepare timestamp filename
-    auto timestampFname = fname + "_timestamps.csv";
+    auto timestampFname = fname + "_timestamps.tsync";
 
     // set container format
     switch (d->container) {
@@ -425,6 +429,7 @@ void VideoWriter::initializeInternal()
 
         if (d->codec == VideoCodec::HEVC) {
             d->cctx->gop_size = 16;
+            av_dict_set(&codecopts, "preset", "veryfast", 0);
             av_dict_set_int(&codecopts, "crf", 28, 0);
         }
     }
@@ -551,11 +556,17 @@ void VideoWriter::initializeInternal()
     d->framePts = 0;
 
     if (d->saveTimestamps) {
-        d->timestampFile.close(); // ensure file is closed
-        d->timestampFile.clear();
-        d->timestampFile.open(timestampFname.toStdString());
-        d->timestampFile << "frame; timestamp" << "\n";
-        d->timestampFile.flush();
+        d->tsfWriter.close(); // ensure file is closed
+        d->tsfWriter.setSyncMode(TSyncFileMode::CONTINUOUS);
+        d->tsfWriter.setTimeNames(QStringLiteral("frame-no"), QStringLiteral("master-time"));
+        d->tsfWriter.setTimeUnits(TSyncFileTimeUnit::INDEX, TSyncFileTimeUnit::MILLISECONDS);
+        d->tsfWriter.setTimeDataTypes(TSyncFileDataType::UINT32, TSyncFileDataType::UINT64);
+        d->tsfWriter.setChunkSize((d->fps.num / d->fps.den) * 60 * 2); // new chunk about every 2min
+        d->tsfWriter.setFileName(timestampFname);
+        if (!d->tsfWriter.open(d->modName, d->collectionId)) {
+            finalizeInternal(false);
+            throw std::runtime_error(QStringLiteral("Unable to initialize timesync file: %1").arg(d->tsfWriter.lastError()).toStdString());
+        }
     }
 
     d->initialized = true;
@@ -574,7 +585,7 @@ void VideoWriter::finalizeInternal(bool writeTrailer)
 
     // ensure timestamps file is closed
     if (d->saveTimestamps)
-        d->timestampFile.close();
+        d->tsfWriter.close();
 
     // free all FFmpeg resources
     if (d->encFrame != nullptr) {
@@ -612,7 +623,15 @@ void VideoWriter::finalizeInternal(bool writeTrailer)
     d->initialized = false;
 }
 
-void VideoWriter::initialize(const std::string &fname, int width, int height, int fps, int cvDepth, bool hasColor, bool saveTimestamps)
+void VideoWriter::initialize(const QString &fname,
+                             const QString &modName,
+                             const QUuid &collectionId,
+                             int width,
+                             int height,
+                             int fps,
+                             int cvDepth,
+                             bool hasColor,
+                             bool saveTimestamps)
 {
     if (d->initialized)
         throw std::runtime_error("Tried to initialize an already initialized video writer.");
@@ -623,8 +642,8 @@ void VideoWriter::initialize(const std::string &fname, int width, int height, in
     d->framesN = 0;
     d->saveTimestamps = saveTimestamps;
     d->currentSliceNo = 1;
-    if (fname.substr(fname.find_last_of(".") + 1).length() == 3)
-        d->fnameBase = fname.substr(0, fname.length() - 4); // remove 3-char suffix from filename
+    if (fname.mid(fname.lastIndexOf('.') + 1).length() == 3)
+        d->fnameBase = fname.left(fname.length() - 4); // remove 3-char suffix from filename
     else
         d->fnameBase = fname;
 
@@ -637,6 +656,9 @@ void VideoWriter::initialize(const std::string &fname, int width, int height, in
         else
             d->inputPixFormat = AV_PIX_FMT_GRAY8;
     }
+
+    d->modName = modName;
+    d->collectionId = collectionId;
 
     // initialize encoder
     initializeInternal();
@@ -652,7 +674,7 @@ bool VideoWriter::initialized() const
     return d->initialized;
 }
 
-bool VideoWriter::startNewSection(const std::string &fname)
+bool VideoWriter::startNewSection(const QString &fname)
 {
     if (!d->initialized) {
         d->lastError = "Can not start a new slice if we are not initialized.";
@@ -664,8 +686,8 @@ bool VideoWriter::startNewSection(const std::string &fname)
         finalizeInternal(true);
 
         // set new filrname for this section
-        if (fname.substr(fname.find_last_of(".") + 1).length() == 3)
-            d->fnameBase = fname.substr(0, fname.length() - 4); // remove 3-char suffix from filename
+        if (fname.mid(fname.lastIndexOf('.') + 1).length() == 3)
+            d->fnameBase = fname.left(fname.length() - 4); // remove 3-char suffix from filename
         else
             d->fnameBase = fname;
 
@@ -836,7 +858,7 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::milliseco
 
     // store timestamp (if necessary)
     if (d->saveTimestamps)
-        d->timestampFile << d->framePts << "; " << tsMsec << "\n";
+        d->tsfWriter.writeTimes(d->framePts, tsMsec);
 
     if (d->fileSliceIntervalMin != 0) {
         const auto tsMin = static_cast<double>(tsMsec - d->captureStartTimestamp.count()) / 1000.0 / 60.0;
