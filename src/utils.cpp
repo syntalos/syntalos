@@ -51,14 +51,18 @@ QString simplifyStrForFileBasename(const QString &s)
 {
     return simplifyStrForModuleName(s)
             .replace(" ", "")
-            .replace(":", "_");
+            .replace(":", "_")
+            .replace("_-", "-")
+            .replace("-_", "-");
 }
 
 QString simplifyStrForFileBasenameLower(const QString &s)
 {
     return simplifyStrForModuleName(s)
             .replace(" ", "-") // use dash to make resulting name easier to read (possible camelcasing won't work in the resulting all-lowercase string)
-            .replace(":", "_").toLower();
+            .replace(":", "_")
+            .replace("_-", "-")
+            .replace("-_", "-").toLower();
 }
 
 QStringList qStringSplitLimit(const QString &str, const QChar &sep, int maxSplit, Qt::CaseSensitivity cs)

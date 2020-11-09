@@ -601,13 +601,12 @@ QString AbstractModule::datasetNameSuggestion(bool lowercase) const
         rawName = rawName.toLower();
 
     QString datasetName;
-    if (d->simpleStorageNames) {
+    if (d->simpleStorageNames)
         datasetName = simplifyStrForFileBasenameLower(rawName);
-    } else {
+    else
         datasetName = simplifyStrForFileBasename(rawName);
-    }
 
-    // we should never get here, the dataset name should never consist only
+    // this check should never fail, the dataset name should never consist only
     // of unsuitable characters - but just in ase it does, we safeguard against that
     if (datasetName.isEmpty())
         return createRandomString(8);
@@ -666,7 +665,13 @@ std::shared_ptr<EDLDataset> AbstractModule::getOrCreateDefaultDataset(const QStr
         return nullptr;
     }
 
-    d->defaultDataset = getOrCreateDatasetInGroup(d->rootDataGroup, preferredName, subMetadata);
+    QString datasetName;
+    if (d->simpleStorageNames)
+        datasetName = simplifyStrForFileBasenameLower(preferredName);
+    else
+        datasetName = simplifyStrForFileBasename(preferredName);
+
+    d->defaultDataset = getOrCreateDatasetInGroup(d->rootDataGroup, datasetName, subMetadata);
     return d->defaultDataset;
 }
 
