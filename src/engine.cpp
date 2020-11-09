@@ -279,7 +279,7 @@ AbstractModule *Engine::createModule(const QString &id, const QString &name)
     QCoreApplication::processEvents();
     if (!mod->initialize()) {
         QMessageBox::critical(d->parentWidget, QStringLiteral("Module initialization failed"),
-                              QStringLiteral("Failed to initialize module %1, it can not be added. Message: %2").arg(mod->id()).arg(mod->lastError()),
+                              QStringLiteral("Failed to initialize module '%1', it can not be added. %2").arg(mod->id()).arg(mod->lastError()),
                               QMessageBox::Ok);
         removeModule(mod);
         return nullptr;
@@ -536,8 +536,10 @@ static void executeModuleThread(const ThreadDetails td, AbstractModule *mod, Opt
     if (!td.cpuAffinity.empty())
         thread_set_affinity_from_vec(pthread_self(), td.cpuAffinity);
 
-    if (mod->features().testFlag(ModuleFeature::REALTIME))
-        setCurrentThreadRealtime(td.allowedRTPriority);
+    if (mod->features().testFlag(ModuleFeature::REALTIME)) {
+        if (setCurrentThreadRealtime(td.allowedRTPriority))
+            qCDebug(logEngine).noquote().nospace() << "Module thread for '" << mod->name() << "' set to realtime mode.";
+    }
 
     mod->runThread(waitCondition);
 }
@@ -563,6 +565,7 @@ static void executeOOPModuleThread(const ThreadDetails td, QList<OOPModule*> mod
     // prepare all OOP modules in their new thread
     {
         QList<OOPModule*> readyMods;
+        bool threadIsRealtime = false;
         for (auto &mod : mods) {
 
 #if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
@@ -584,8 +587,12 @@ static void executeOOPModuleThread(const ThreadDetails td, QList<OOPModule*> mod
             // FIXME: if only one of the modules requests realtime prority, the whole thread goes RT at the moment.
             // we do actually want to split out such modules to their of thread (currently, this situation never happens,
             // because OOP modules aren't realtime).
-            if (mod->features().testFlag(ModuleFeature::REALTIME))
-                setCurrentThreadRealtime(td.allowedRTPriority);
+            if (!threadIsRealtime && mod->features().testFlag(ModuleFeature::REALTIME)) {
+                if (setCurrentThreadRealtime(td.allowedRTPriority)) {
+                    threadIsRealtime = true;
+                    qCDebug(logEngine).noquote().nospace() << "OOP thread " << td.name << " set to realtime mode (requested by '" << mod->name() << "').";
+                }
+            }
 
             // ensure we are ready - the engine has reset ourselves to "PREPARING"
             // to make this possible before launching this thread
@@ -861,7 +868,7 @@ bool Engine::runInternal(const QString &exportDirPath)
     for (auto &mod : orderedActiveModules) {
         // Prepare module. At this point it should have a timer,
         // the location where data is saved and be in the PREPARING state.
-        emitStatusMessage(QStringLiteral("Preparing %1...").arg(mod->name()));
+        emitStatusMessage(QStringLiteral("Preparing '%1'...").arg(mod->name()));
         lastPhaseTimepoint = currentTimePoint();
 
         const auto modInfo = d->modLibrary->moduleInfo(mod->id());
@@ -1103,7 +1110,7 @@ bool Engine::runInternal(const QString &exportDirPath)
             // have had additional setup to do
             if (mod->state() == ModuleState::IDLE)
                 continue;
-            emitStatusMessage(QStringLiteral("Waiting for %1 to get ready...").arg(mod->name()));
+            emitStatusMessage(QStringLiteral("Waiting for '%1' to get ready...").arg(mod->name()));
             while (mod->state() != ModuleState::READY) {
                 QThread::msleep(500);
                 QCoreApplication::processEvents();
@@ -1301,7 +1308,7 @@ bool Engine::runInternal(const QString &exportDirPath)
 
     // send stop command to all modules
     for (auto &mod : createModuleStopOrderFromExecOrder(orderedActiveModules)) {
-        emitStatusMessage(QStringLiteral("Stopping %1...").arg(mod->name()));
+        emitStatusMessage(QStringLiteral("Stopping '%1'...").arg(mod->name()));
         lastPhaseTimepoint = d->timer->currentTimePoint();
 
         // wait a little bit for modules to process remaining data from their
@@ -1361,7 +1368,7 @@ bool Engine::runInternal(const QString &exportDirPath)
     for (size_t i = 0; i < dThreads.size(); i++) {
         auto &thread = dThreads[i];
         auto mod = threadedModules[i];
-        emitStatusMessage(QStringLiteral("Waiting for %1...").arg(mod->name()));
+        emitStatusMessage(QStringLiteral("Waiting for '%1'...").arg(mod->name()));
         qApp->processEvents();
         thread.join();
     }
