@@ -25,6 +25,7 @@
 
 #include "engine.h"
 
+#include "modules/devel.clock/clockmodule.h"
 #include "modules/devel.datasource/datasourcemodule.h"
 #include "modules/devel.datasst/datasstmodule.h"
 #include "modules/devel.pyooptest/pyooptestmodule.h"
@@ -75,6 +76,7 @@ ModuleLibrary::ModuleLibrary(QObject *parent)
     : QObject(parent),
       d(new ModuleLibrary::Private)
 {
+    registerModuleInfo<DevelClockModuleInfo>();
     registerModuleInfo<DevelDataSourceModuleInfo>();
     registerModuleInfo<DevelDataSSTModuleInfo>();
     registerModuleInfo<PyOOPTestModuleInfo>();

@@ -42,6 +42,7 @@
         <file alias="table">modules/table.svg</file>
         <file alias="firmatauserctl">modules/firmatauserctl.svg</file>
         <file alias="videotransform">modules/videotransform.svg</file>
+        <file alias="devclock">modules/devclock.svg</file>
     </qresource>
     <qresource prefix="/texts">
         <file>pyscript-sample.py</file>

@@ -1,5 +1,6 @@
 
 # Developer modules
+add_subdirectory(devel.clock)
 add_subdirectory(devel.datasource)
 add_subdirectory(devel.datasst)
 add_subdirectory(devel.pyooptest)
