@@ -19,7 +19,7 @@ RUN DEBIAN_FRONTEND=noninteractive eatmydata apt-get install -yq --no-install-re
     cmake \
     gettext \
     libegl-dev \
-    qt5-default \
+    qtbase5-dev \
     libeigen3-dev \
     libglib2.0-dev \
     libqt5serialport5-dev \
