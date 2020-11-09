@@ -100,11 +100,12 @@ public:
         }
 
         m_videoWriter.reset(new VideoWriter);
+        auto codecProps = m_settingsDialog->codecProps();
         m_videoWriter->setContainer(m_settingsDialog->videoContainer());
-        m_videoWriter->setCodec(m_settingsDialog->videoCodec());
-        m_videoWriter->setLossless(m_settingsDialog->isLossless());
-        m_videoWriter->setUseVAAPI(m_settingsDialog->vaapiEnabled());
-        m_videoWriter->setThreadCount((potentialNoaffinityCPUCount() >= 2)? potentialNoaffinityCPUCount() : 2);
+
+        codecProps.setThreadCount((potentialNoaffinityCPUCount() >= 2)? potentialNoaffinityCPUCount() : 2);
+        m_videoWriter->setCodecProps(codecProps);
+
         m_videoWriter->setFileSliceInterval(0); // no slicing allowed, unless changed later
         if (m_settingsDialog->slicingEnabled())
             m_videoWriter->setFileSliceInterval(m_settingsDialog->sliceInterval());
@@ -367,15 +368,17 @@ public:
 
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
     {
+        const auto codecProps = m_settingsDialog->codecProps();
+
         settings.insert("video_name_from_source", m_settingsDialog->videoNameFromSource());
         settings.insert("video_name", m_settingsDialog->videoName());
         settings.insert("save_timestamps", m_settingsDialog->saveTimestamps());
         settings.insert("start_stopped", m_settingsDialog->startStopped());
 
-        settings.insert("video_codec", static_cast<int>(m_settingsDialog->videoCodec()));
+        settings.insert("video_codec", static_cast<int>(codecProps.codec()));
         settings.insert("video_container", static_cast<int>(m_settingsDialog->videoContainer()));
-        settings.insert("lossless", m_settingsDialog->isLossless());
-        settings.insert("vaapi_enabled", m_settingsDialog->vaapiEnabled());
+        settings.insert("lossless", codecProps.isLossless());
+        settings.insert("vaapi_enabled", codecProps.useVaapi());
 
         settings.insert("slices_enabled", static_cast<int>(m_settingsDialog->slicingEnabled()));
         settings.insert("slices_interval", static_cast<int>(m_settingsDialog->sliceInterval()));
@@ -388,10 +391,11 @@ public:
         m_settingsDialog->setSaveTimestamps(settings.value("save_timestamps", true).toBool());
         m_settingsDialog->setStartStopped(settings.value("start_stopped", false).toBool());
 
-        m_settingsDialog->setVideoCodec(static_cast<VideoCodec>(settings.value("video_codec").toInt()));
         m_settingsDialog->setVideoContainer(static_cast<VideoContainer>(settings.value("video_container").toInt()));
-        m_settingsDialog->setLossless(settings.value("lossless").toBool());
-        m_settingsDialog->setVAAPIEnabled(settings.value("vaapi_enabled").toBool());
+        CodecProperties codecProps(static_cast<VideoCodec>(settings.value("video_codec").toInt()));
+        codecProps.setLossless(settings.value("lossless").toBool());
+        codecProps.setUseVaapi(settings.value("vaapi_enabled").toBool());
+        m_settingsDialog->setCodecProps(codecProps);
 
         m_settingsDialog->setSlicingEnabled(settings.value("slices_enabled").toBool());
         m_settingsDialog->setSliceInterval(static_cast<uint>(settings.value("slices_interval").toInt()));

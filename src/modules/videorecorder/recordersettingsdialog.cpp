@@ -97,19 +97,26 @@ bool RecorderSettingsDialog::saveTimestamps() const
     return ui->timestampFileCheckBox->isChecked();
 }
 
-void RecorderSettingsDialog::setVideoCodec(const VideoCodec& codec)
+CodecProperties RecorderSettingsDialog::codecProps() const
 {
+    return m_codecProps;
+}
+
+void RecorderSettingsDialog::setCodecProps(CodecProperties props)
+{
+    m_codecProps = props;
+
+    // select codec in UI
     for (int i = 0; i < ui->codecComboBox->count(); i++) {
-        if (ui->codecComboBox->itemData(i).value<VideoCodec>() == codec) {
+        if (ui->codecComboBox->itemData(i).value<VideoCodec>() == props.codec()) {
             ui->codecComboBox->setCurrentIndex(i);
             break;
         }
     }
-}
 
-VideoCodec RecorderSettingsDialog::videoCodec() const
-{
-    return ui->codecComboBox->currentData().value<VideoCodec>();
+    // other properties
+    ui->losslessCheckBox->setChecked(m_codecProps.useVaapi());
+    ui->vaapiCheckBox->setChecked(m_codecProps.isLossless());
 }
 
 void RecorderSettingsDialog::setVideoContainer(const VideoContainer& container)
@@ -125,26 +132,6 @@ void RecorderSettingsDialog::setVideoContainer(const VideoContainer& container)
 VideoContainer RecorderSettingsDialog::videoContainer() const
 {
     return ui->containerComboBox->currentData().value<VideoContainer>();
-}
-
-void RecorderSettingsDialog::setLossless(bool lossless)
-{
-    ui->losslessCheckBox->setChecked(lossless);
-}
-
-bool RecorderSettingsDialog::isLossless() const
-{
-    return ui->losslessCheckBox->isChecked();
-}
-
-bool RecorderSettingsDialog::vaapiEnabled() const
-{
-    return ui->vaapiCheckBox->isChecked();
-}
-
-void RecorderSettingsDialog::setVAAPIEnabled(bool enabled)
-{
-    ui->vaapiCheckBox->setChecked(enabled);
 }
 
 bool RecorderSettingsDialog::slicingEnabled() const
@@ -190,44 +177,34 @@ void RecorderSettingsDialog::on_codecComboBox_currentIndexChanged(int)
     ui->containerComboBox->setEnabled(true);
 
     const auto codec = ui->codecComboBox->currentData().value<VideoCodec>();
+    CodecProperties tmpCP(codec);
+    m_codecProps = tmpCP;
 
-    if (codec == VideoCodec::FFV1) {
-        // FFV1 is always lossless
+    // always prefer the Matroska container
+    ui->containerComboBox->setCurrentIndex(0);
+    ui->containerComboBox->setEnabled(m_codecProps.allowsAviContainer());
+
+    // set lossles UI preferences
+    if (m_codecProps.losslessMode() == CodecProperties::Always) {
         ui->losslessCheckBox->setEnabled(false);
         ui->losslessCheckBox->setChecked(true);
-
-    } else if ((codec == VideoCodec::H264) || (codec == VideoCodec::HEVC)) {
-        // H.264 and HEVC only work with MKV and MP4 containers, select MKV by default
-        ui->containerComboBox->setCurrentIndex(0);
-        ui->containerComboBox->setEnabled(false);
-
-    } else if (codec == VideoCodec::VP9) {
-        // VP9 only seems to work well in MKV containers, so select those
-        ui->containerComboBox->setCurrentIndex(0);
-        ui->containerComboBox->setEnabled(false);
-
-    } else if (codec == VideoCodec::MPEG4) {
-        // MPEG-4 can't do lossless encoding
+    } else if (m_codecProps.losslessMode() == CodecProperties::Never) {
         ui->losslessCheckBox->setEnabled(false);
         ui->losslessCheckBox->setChecked(false);
-
-    } else if (codec == VideoCodec::Raw) {
-        // Raw is always lossless
-        ui->losslessCheckBox->setEnabled(false);
-        ui->losslessCheckBox->setChecked(true);
+    } else {
+        ui->losslessCheckBox->setEnabled(true);
+        ui->losslessCheckBox->setChecked(false);
     }
-
     // change VAAPI possibility
-    const auto canUseVAAPI = VideoWriter::canUseVAAPI(codec);
-    ui->vaapiCheckBox->setEnabled(canUseVAAPI);
-    ui->vaapiLabel->setEnabled(canUseVAAPI);
-    if (!canUseVAAPI)
+    ui->vaapiCheckBox->setEnabled(m_codecProps.canUseVaapi());
+    ui->vaapiLabel->setEnabled(m_codecProps.canUseVaapi());
+    if (!m_codecProps.canUseVaapi())
         ui->vaapiCheckBox->setChecked(false);
 
     // update slicing issue hint
     ui->sliceWarnButton->setVisible(false);
     if (ui->slicingCheckBox->isChecked()) {
-        if (VideoWriter::codecNeedsInitFrames(codec))
+        if (!m_codecProps.allowsSlicing())
             ui->sliceWarnButton->setVisible(true);
     }
 }
@@ -237,12 +214,20 @@ void RecorderSettingsDialog::on_nameFromSrcCheckBox_toggled(bool checked)
     ui->nameLineEdit->setEnabled(!checked);
 }
 
+void RecorderSettingsDialog::on_losslessCheckBox_toggled(bool checked)
+{
+    m_codecProps.setLossless(checked);
+}
+
 void RecorderSettingsDialog::on_vaapiCheckBox_toggled(bool checked)
 {
     if (checked)
         ui->vaapiCheckBox->setText(QStringLiteral("(experimental)"));
     else
         ui->vaapiCheckBox->setText(QStringLiteral(" "));
+
+    if (m_codecProps.canUseVaapi())
+        m_codecProps.setUseVaapi(checked);
 }
 
 void RecorderSettingsDialog::on_sliceWarnButton_clicked()
@@ -259,7 +244,7 @@ void RecorderSettingsDialog::on_slicingCheckBox_toggled(bool checked)
 {
     ui->sliceWarnButton->setVisible(false);
     if (checked) {
-        if (VideoWriter::codecNeedsInitFrames(videoCodec()))
+        if (!m_codecProps.allowsSlicing())
             ui->sliceWarnButton->setVisible(true);
     }
     ui->sliceIntervalSpinBox->setEnabled(checked);

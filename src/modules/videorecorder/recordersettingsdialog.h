@@ -46,17 +46,11 @@ public:
     void setSaveTimestamps(bool save);
     bool saveTimestamps() const;
 
-    void setVideoCodec(const VideoCodec& codec);
-    VideoCodec videoCodec() const;
+    CodecProperties codecProps() const;
+    void setCodecProps(CodecProperties props);
 
     void setVideoContainer(const VideoContainer &container);
     VideoContainer videoContainer() const;
-
-    void setLossless(bool lossless);
-    bool isLossless() const;
-
-    bool vaapiEnabled() const;
-    void setVAAPIEnabled(bool enabled);
 
     bool slicingEnabled() const;
     void setSlicingEnabled(bool enabled);
@@ -71,6 +65,7 @@ private slots:
     void on_codecComboBox_currentIndexChanged(int index);
     void on_nameLineEdit_textChanged(const QString &arg1);
     void on_nameFromSrcCheckBox_toggled(bool checked);
+    void on_losslessCheckBox_toggled(bool checked);
     void on_vaapiCheckBox_toggled(bool checked);
 
     void on_slicingCheckBox_toggled(bool checked);
@@ -80,6 +75,7 @@ private:
     Ui::RecorderSettingsDialog *ui;
 
     QString m_videoName;
+    CodecProperties m_codecProps;
 };
 
 #endif // RECORDERSETTINGSDIALOG_H

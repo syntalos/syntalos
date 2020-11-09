@@ -37,7 +37,8 @@
 enum class VideoContainer {
     Unknown,
     Matroska,
-    AVI
+    AVI,
+    Last
 };
 Q_DECLARE_METATYPE(VideoContainer);
 
@@ -62,12 +63,56 @@ enum class VideoCodec {
     VP9,
     H264,
     HEVC,
-    MPEG4
+    MPEG4,
+    Last
 };
 Q_DECLARE_METATYPE(VideoCodec);
 
 std::string videoCodecToString(VideoCodec codec);
 VideoCodec stringToVideoCodec(const std::string& str);
+
+/**
+ * @brief The CodecProperties class
+ *
+ * Define default properties for a codec and allow user to change
+ * certain values to tune a codec to a specific application.
+ */
+class CodecProperties
+{
+public:
+    explicit CodecProperties(VideoCodec codec = VideoCodec::FFV1);
+    ~CodecProperties();
+
+    CodecProperties(const CodecProperties& rhs);
+    CodecProperties& operator=(const CodecProperties& rhs);
+
+    enum LosslessMode {
+        Selectable,
+        Always,
+        Never
+    };
+
+    VideoCodec codec() const;
+
+    LosslessMode losslessMode() const;
+    bool isLossless() const;
+    void setLossless(bool enabled);
+
+    bool canUseVaapi() const;
+    bool useVaapi() const;
+    void setUseVaapi(bool enabled);
+
+    int threadCount() const;
+    void setThreadCount(int n);
+
+    bool allowsSlicing() const;
+    bool allowsAviContainer() const;
+
+private:
+    class Private;
+    std::unique_ptr<Private> d;
+    Q_DISABLE_MOVE(CodecProperties)
+};
 
 /**
  * @brief The VideoWriter class
@@ -80,7 +125,7 @@ VideoCodec stringToVideoCodec(const std::string& str);
 class VideoWriter
 {
 public:
-    VideoWriter();
+    explicit VideoWriter();
     ~VideoWriter();
 
     void initialize(const QString &fname,
@@ -101,9 +146,9 @@ public:
 
     bool encodeFrame(const cv::Mat& frame, const std::chrono::milliseconds& timestamp);
 
-    VideoCodec codec() const;
+    CodecProperties codecProps() const;
     void setCodec(VideoCodec codec);
-    static bool codecNeedsInitFrames(VideoCodec codec);
+    void setCodecProps(CodecProperties props);
 
     VideoContainer container() const;
     void setContainer(VideoContainer container);
@@ -112,25 +157,15 @@ public:
     int height() const;
     int fps() const;
 
-    bool lossless() const;
-    void setLossless(bool enabled);
-
-    int threadCount() const;
-    void setThreadCount(int n);
-
-    static bool canUseVAAPI(VideoCodec codec);
-    bool canUseVAAPI() const;
-    bool useVAAPI() const;
-    void setUseVAAPI(bool enabled);
-
     uint fileSliceInterval() const;
     void setFileSliceInterval(uint minutes);
 
     std::string lastError() const;
 
 private:
-    class VideoWriterData;
-    std::unique_ptr<VideoWriterData> d;
+    class Private;
+    std::unique_ptr<Private> d;
+    Q_DISABLE_COPY(VideoWriter)
 
     void initializeHWAccell();
     void initializeInternal();

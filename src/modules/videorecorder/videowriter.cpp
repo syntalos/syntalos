@@ -83,6 +83,14 @@ std::string videoCodecToString(VideoCodec codec)
     }
 }
 
+/**
+ * @brief VideoCodec enum hash function
+ */
+inline uint qHash(const VideoCodec &key)
+{
+    return qHash((uint) key);
+}
+
 std::string videoContainerToString(VideoContainer container)
 {
     switch (container) {
@@ -107,13 +115,166 @@ VideoContainer stringToVideoContainer(const std::string &str)
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpadded"
-class VideoWriter::VideoWriterData
+class CodecProperties::Private
 {
 public:
-    VideoWriterData()
+    VideoCodec codec;
+    LosslessMode losslessMode;
+    bool lossless;
+
+    int threadCount;
+    bool canUseVaapi;
+    bool useVaapi;
+
+    bool slicingAllowed;
+    bool aviAllowed;
+};
+#pragma GCC diagnostic pop
+
+CodecProperties::CodecProperties(VideoCodec codec)
+    : d(new CodecProperties::Private())
+{
+    d->codec = codec;
+
+    d->threadCount = 0;
+    d->canUseVaapi = false;
+    d->useVaapi = false;
+    d->slicingAllowed = true;
+    d->aviAllowed = false;
+
+    switch (codec) {
+    case VideoCodec::Raw:
+        d->losslessMode = Always;
+        d->aviAllowed = true;
+
+        break;
+
+    case VideoCodec::FFV1:
+        d->losslessMode = Always;
+
+        break;
+
+    case VideoCodec::AV1:
+        d->losslessMode = Selectable;
+
+        break;
+
+    case VideoCodec::VP9:
+        d->losslessMode = Selectable;
+        d->canUseVaapi = true;
+        d->slicingAllowed = false; // codec needs init frames
+
+        break;
+
+    case VideoCodec::H264:
+        d->losslessMode = Selectable;
+        d->canUseVaapi = true;
+        d->slicingAllowed = false; // codec needs init frames
+
+        break;
+
+    case VideoCodec::HEVC:
+        d->losslessMode = Selectable;
+        d->canUseVaapi = true;
+        d->slicingAllowed = false; // codec needs init frames
+
+        break;
+
+    case VideoCodec::MPEG4:
+        d->losslessMode = Never;
+        d->aviAllowed = true;
+
+        break;
+
+    default:
+        throw std::runtime_error(QStringLiteral("No properties found for codec: %1")
+                                 .arg(QString::fromStdString(videoCodecToString(codec))).toStdString());
+    }
+
+    // ensure hardware render node is available, if not disable VAAPI
+    QFileInfo fi("/dev/dri/renderD128");
+    if (!fi.exists())
+        d->canUseVaapi = false;
+}
+
+CodecProperties::~CodecProperties()
+{}
+
+CodecProperties::CodecProperties(const CodecProperties &rhs)
+    : d(new CodecProperties::Private(*rhs.d))
+{}
+
+CodecProperties &CodecProperties::operator=(const CodecProperties &rhs)
+{
+    if (this != &rhs)
+        d.reset(new CodecProperties::Private(*rhs.d));
+    return *this;
+}
+
+VideoCodec CodecProperties::codec() const
+{
+    return d->codec;
+}
+
+CodecProperties::LosslessMode CodecProperties::losslessMode() const
+{
+    return d->losslessMode;
+}
+
+void CodecProperties::setLossless(bool enabled)
+{
+    d->lossless = enabled;
+}
+
+bool CodecProperties::canUseVaapi() const
+{
+    return d->canUseVaapi;
+}
+
+bool CodecProperties::useVaapi() const
+{
+    return d->useVaapi;
+}
+
+void CodecProperties::setUseVaapi(bool enabled)
+{
+    if (canUseVaapi())
+        d->useVaapi = enabled;
+}
+
+int CodecProperties::threadCount() const
+{
+    return d->threadCount;
+}
+
+void CodecProperties::setThreadCount(int n)
+{
+    d->threadCount = n;
+}
+
+bool CodecProperties::allowsSlicing() const
+{
+    return d->slicingAllowed;
+}
+
+bool CodecProperties::allowsAviContainer() const
+{
+    return d->aviAllowed;
+}
+
+bool CodecProperties::isLossless() const
+{
+    return d->lossless;
+}
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpadded"
+class VideoWriter::Private
+{
+public:
+    Private()
     {
         initialized = false;
-        codec = VideoCodec::VP9;
         container = VideoContainer::Matroska;
         fileSliceIntervalMin = 0;  // never slice our recording by default
         captureStartTimestamp = std::chrono::milliseconds(0); //by default we assume the first frame was recorded at timepoint 0
@@ -126,11 +287,8 @@ public:
         vstrm = nullptr;
         cctx = nullptr;
         swsctx = nullptr;
-        lossless = false;
-        threadCount = 0;
         encPixFormat = AV_PIX_FMT_YUV420P;
 
-        useVAAPI = false;
         hwDevCtx = nullptr;
         hwFrameCtx = nullptr;
         hwFrame = nullptr;
@@ -143,15 +301,13 @@ public:
     QString fnameBase;
     uint fileSliceIntervalMin;
     uint currentSliceNo;
-    VideoCodec codec;
+    CodecProperties codecProps;
     VideoContainer container;
 
     bool initialized;
     int width;
     int height;
     AVRational fps;
-    bool lossless;
-    int threadCount;
 
     bool saveTimestamps;
     TimeSyncFileWriter tsfWriter;
@@ -171,7 +327,6 @@ public:
 
     size_t framesN;
 
-    bool useVAAPI;
     AVBufferRef *hwDevCtx;
     AVBufferRef *hwFrameCtx;
     AVFrame *hwFrame;
@@ -180,12 +335,16 @@ public:
 #pragma GCC diagnostic pop
 
 VideoWriter::VideoWriter()
-    : d(new VideoWriterData())
+    : d(new VideoWriter::Private())
 {
     d->initialized = false;
 
     // DRI node for HW acceleration, currently hardcoded
     d->hwDevice = QStringLiteral("/dev/dri/renderD128");
+
+    // initialize codec properties
+    CodecProperties cp(VideoCodec::FFV1);
+    d->codecProps = cp;
 }
 
 VideoWriter::~VideoWriter()
@@ -300,7 +459,7 @@ void VideoWriter::initializeInternal()
     }
 
     auto codecId = AV_CODEC_ID_AV1;
-    switch (d->codec) {
+    switch (d->codecProps.codec()) {
     case VideoCodec::Raw:
         codecId = AV_CODEC_ID_RAWVIDEO;
         break;
@@ -328,20 +487,20 @@ void VideoWriter::initializeInternal()
     }
 
     // sanity check to only try VAAPI codecs if we have whitelisted them
-    if (d->useVAAPI) {
-        if (!canUseVAAPI())
-            d->useVAAPI = false;
+    if (d->codecProps.useVaapi()) {
+        if (!d->codecProps.canUseVaapi())
+            d->codecProps.setUseVaapi(false);
     }
 
     // initialize codec and context
     AVCodec *vcodec;
-    if (d->useVAAPI) {
+    if (d->codecProps.useVaapi()) {
         // we should try to use hardware acceleration
-        if (d->codec == VideoCodec::VP9)
+        if (d->codecProps.codec() == VideoCodec::VP9)
             vcodec = avcodec_find_encoder_by_name("vp9_vaapi");
-        else if (d->codec == VideoCodec::H264)
+        else if (d->codecProps.codec() == VideoCodec::H264)
             vcodec = avcodec_find_encoder_by_name("h264_vaapi");
-        else if (d->codec == VideoCodec::HEVC)
+        else if (d->codecProps.codec() == VideoCodec::HEVC)
             vcodec = avcodec_find_encoder_by_name("hevc_vaapi");
         else
             throw std::runtime_error("Unable to find hardware-accelerated version of the selected codec.");
@@ -369,23 +528,23 @@ void VideoWriter::initializeInternal()
     d->cctx->framerate = d->fps;
     d->cctx->workaround_bugs = FF_BUG_AUTODETECT;
 
-    if (d->threadCount > 0)
-        d->cctx->thread_count = d->threadCount;
+    if (d->codecProps.threadCount() > 0)
+        d->cctx->thread_count = d->codecProps.threadCount();
 
-    if (d->codec == VideoCodec::Raw)
+    if (d->codecProps.codec() == VideoCodec::Raw)
         d->encPixFormat = d->inputPixFormat == AV_PIX_FMT_GRAY8 ||
                                 d->inputPixFormat == AV_PIX_FMT_GRAY16LE ||
                                 d->inputPixFormat == AV_PIX_FMT_GRAY16BE ? d->inputPixFormat : AV_PIX_FMT_YUV420P;
 
     // enable experimental mode to encode AV1
-    if (d->codec == VideoCodec::AV1)
+    if (d->codecProps.codec() == VideoCodec::AV1)
         d->cctx->strict_std_compliance = -2;
 
     if (d->octx->oformat->flags & AVFMT_GLOBALHEADER)
         d->cctx->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
 
     // setup hardware acceleration, if requested
-    if (d->useVAAPI) {
+    if (d->codecProps.useVaapi()) {
         initializeHWAccell();
         d->cctx->hw_frames_ctx = av_buffer_ref(d->hwFrameCtx);
 
@@ -395,10 +554,10 @@ void VideoWriter::initializeInternal()
     }
 
     AVDictionary *codecopts = nullptr;
-    if (d->lossless) {
+    if (d->codecProps.isLossless()) {
         // settings for lossless option
 
-        switch (d->codec) {
+        switch (d->codecProps.codec()) {
         case VideoCodec::Raw:
             // uncompressed frames are always lossless
             break;
@@ -420,21 +579,21 @@ void VideoWriter::initializeInternal()
         case VideoCodec::MPEG4:
             // NOTE: MPEG-4 has no lossless option
             std::cerr << "The MPEG-4 codec has no lossless preset, switching to lossy compression." << std::endl;
-            d->lossless = false;
+            d->codecProps.setLossless(false);
             break;
         default: break;
         }
     } else {
         // not lossless
 
-        if (d->codec == VideoCodec::HEVC) {
+        if (d->codecProps.codec() == VideoCodec::HEVC) {
             d->cctx->gop_size = 16;
             av_dict_set(&codecopts, "preset", "veryfast", 0);
             av_dict_set_int(&codecopts, "crf", 28, 0);
         }
     }
 
-    if (d->codec == VideoCodec::VP9) {
+    if (d->codecProps.codec() == VideoCodec::VP9) {
         // See https://developers.google.com/media/vp9/live-encoding
         // for more information on the settings.
 
@@ -454,14 +613,14 @@ void VideoWriter::initializeInternal()
         av_dict_set_int(&codecopts, "row-mt", 1, 0);
         av_dict_set_int(&codecopts, "error-resilient", 1, 0);
 
-        if (!d->lossless) {
+        if (!d->codecProps.isLossless()) {
             av_dict_set_int(&codecopts, "crf", 31, 0);
             d->cctx->bit_rate = 0;
         }
     }
 
-    if (d->codec == VideoCodec::FFV1) {
-        d->lossless = true; // this codec is always lossless
+    if (d->codecProps.codec() == VideoCodec::FFV1) {
+        d->codecProps.setLossless(true); // this codec is always lossless
         d->cctx->level = 3; // Ensure we use FFV1 v3
         av_dict_set_int(&codecopts, "slicecrc", 1, 0); // Add CRC information to each slice
         av_dict_set_int(&codecopts, "slices", 24, 0);  // Use 24 slices
@@ -474,7 +633,7 @@ void VideoWriter::initializeInternal()
     }
 
     // Adjust pixel color formats for selected video codecs
-    switch (d->codec) {
+    switch (d->codecProps.codec()) {
     case VideoCodec::FFV1:
         if (d->inputPixFormat == AV_PIX_FMT_GRAY8)
             d->encPixFormat = AV_PIX_FMT_GRAY8;
@@ -839,7 +998,7 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::milliseco
     if (ret != 0) {
         // some encoders need to be fed a few frames before they produce a useful result
         // ignore errors in that case for a little bit.
-        if ((ret == AVERROR(EAGAIN)) && codecNeedsInitFrames(d->codec)) {
+        if ((ret == AVERROR(EAGAIN)) && d->codecProps.allowsSlicing()) {
             success = true;
             goto out;
         } else {
@@ -888,23 +1047,22 @@ out:
     return success;
 }
 
-VideoCodec VideoWriter::codec() const
+CodecProperties VideoWriter::codecProps() const
 {
-    return d->codec;
+    return d->codecProps;
 }
 
 void VideoWriter::setCodec(VideoCodec codec)
 {
-    d->codec = codec;
+    if ((codec == VideoCodec::Unknown) || (codec == VideoCodec::Last))
+        return;
+    CodecProperties cp(codec);
+    d->codecProps = cp;
 }
 
-bool VideoWriter::codecNeedsInitFrames(VideoCodec codec)
+void VideoWriter::setCodecProps(CodecProperties props)
 {
-    if ((codec == VideoCodec::VP9) ||
-        (codec == VideoCodec::H264) ||
-        (codec == VideoCodec::HEVC))
-        return true;
-    return false;
+    d->codecProps = props;
 }
 
 VideoContainer VideoWriter::container() const
@@ -925,57 +1083,6 @@ int VideoWriter::height() const
 int VideoWriter::fps() const
 {
     return d->fps.num;
-}
-
-bool VideoWriter::lossless() const
-{
-    return d->lossless;
-}
-
-void VideoWriter::setLossless(bool enabled)
-{
-    d->lossless = enabled;
-}
-
-int VideoWriter::threadCount() const
-{
-    return d->threadCount;
-}
-
-void VideoWriter::setThreadCount(int n)
-{
-    d->threadCount = n;
-}
-
-bool VideoWriter::canUseVAAPI(VideoCodec codec)
-{
-    if (codec == VideoCodec::VP9)
-        return true;
-    if (codec == VideoCodec::H264)
-        return true;
-    if (codec == VideoCodec::HEVC)
-        return true;
-    return false;
-}
-
-bool VideoWriter::canUseVAAPI() const
-{
-    QFileInfo fi(d->hwDevice);
-    if (!fi.exists())
-        return false;
-    return VideoWriter::canUseVAAPI(d->codec);
-}
-
-bool VideoWriter::useVAAPI() const
-{
-    return d->useVAAPI;
-}
-
-void VideoWriter::setUseVAAPI(bool enabled)
-{
-    d->useVAAPI = false;
-    if (canUseVAAPI())
-        d->useVAAPI = enabled;
 }
 
 uint VideoWriter::fileSliceInterval() const
