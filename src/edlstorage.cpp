@@ -340,7 +340,7 @@ QString EDLObject::serializeManifest()
 
     // serialize manifest data to TOML
     std::stringstream strData;
-    strData << document << "\n";
+    strData << document;
 
     return QString::fromStdString(strData.str());
 }
@@ -356,7 +356,7 @@ QString EDLObject::serializeAttributes()
 
     // serialize user attributes to TOML
     std::stringstream strData;
-    strData << document << "\n";
+    strData << document;
 
     return QString::fromStdString(strData.str());
 }
