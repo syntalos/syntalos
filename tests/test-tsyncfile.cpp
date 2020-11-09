@@ -14,7 +14,7 @@ class TestTSyncFile : public QObject
     Q_OBJECT
 private slots:
 
-    void tsyncFileRWForDTypes(TSyncFileDataType dt1, TSyncFileDataType dt2)
+    void tsyncFileRWForDTypes(TSyncFileDataType dt1, TSyncFileDataType dt2, int values_n = 142000)
     {
         auto tsFilename = QStringLiteral("/tmp/tstest-%1").arg(createRandomString(8));
 
@@ -27,7 +27,7 @@ private slots:
 
         QElapsedTimer timer;
         timer.start();
-        for (int i = 0; i < 142000; ++i) {
+        for (int i = 0; i < values_n; ++i) {
             const auto tbase = microseconds_t(i * 1000);
             tswriter->writeTimes(tbase, tbase + microseconds_t(i * 51));
         }
@@ -48,7 +48,7 @@ private slots:
         QCOMPARE(tsreader->syncMode(), TSyncFileMode::CONTINUOUS);
 
         const auto timesRead = tsreader->times();
-        QCOMPARE(timesRead.size(), 142000);
+        QCOMPARE(timesRead.size(), values_n);
         for (size_t i = 0; i < timesRead.size(); ++i) {
             const auto pair = timesRead[i];
             const auto tbase = i * 1000;
@@ -80,6 +80,13 @@ private slots:
     void runTestTSyncUInt32_UInt64()
     {
         tsyncFileRWForDTypes(TSyncFileDataType::UINT32, TSyncFileDataType::UINT64);
+    }
+
+    void runBenchmark()
+    {
+        QBENCHMARK {
+            tsyncFileRWForDTypes(TSyncFileDataType::UINT32, TSyncFileDataType::UINT64, 512000);
+        }
     }
 
 };
