@@ -41,7 +41,7 @@ int displayTSyncMetadata(const QString &fname)
     if (tsr->tolerance().count() != 0)
         std::cout << "Tolerance: " << tsr->tolerance().count() << " µs\n";
     std::cout << "TimeDTypes: " << tsyncFileDataTypeToString(tsr->timeDTypes().first).toStdString() << "; "
-                                << tsyncFileDataTypeToString(tsr->timeDTypes().first).toStdString() << "\n"
+                                << tsyncFileDataTypeToString(tsr->timeDTypes().second).toStdString() << "\n"
               << "TimeUnits: " << tsyncFileTimeUnitToString(tsr->timeUnits().first).toStdString() << "; "
                                << tsyncFileTimeUnitToString(tsr->timeUnits().second).toStdString() << "\n"
               << std::endl;
