@@ -990,7 +990,8 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::milliseco
     // encode video frame
     ret = avcodec_send_frame(d->cctx, outputFrame);
     if (ret < 0) {
-        std::cerr << "Unable to send frame to encoder. N:" << d->framesN + 1 << std::endl;
+        d->lastError = QStringLiteral("Unable to send frame to encoder. N: %1").arg(d->framesN + 1).toStdString();
+        std::cerr << d->lastError << std::endl;
         goto out;
     }
 
@@ -998,10 +999,12 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::milliseco
     if (ret != 0) {
         // some encoders need to be fed a few frames before they produce a useful result
         // ignore errors in that case for a little bit.
-        if ((ret == AVERROR(EAGAIN)) && d->codecProps.allowsSlicing()) {
+        if ((ret == AVERROR(EAGAIN)) && !d->codecProps.allowsSlicing()) {
             success = true;
             goto out;
         } else {
+            d->lastError = QStringLiteral("Unable to send packet to codec: Code %1").arg(ret).toStdString();
+            std::cerr << d->lastError << std::endl;
             goto out;
         }
     }
