@@ -1,12 +1,4 @@
 
-# we don't want to fix all warnings in this code to keep it as close
-# as possible to the pristine Intan code.
-if (MAINTAINER)
-    remove_definitions("-Werror" "-Wzero-as-null-pointer-constant")
-    add_definitions("-Werror=suggest-override")
-    add_definitions("-Wno-unused-but-set-variable")
-endif()
-
 set(INTAN_RHD2000_SRC
     rhd2000module.h
     rhd2000module.cpp
@@ -80,5 +72,16 @@ target_link_libraries(mod_intan_rhd2000
 include_directories(
     ${CMAKE_SOURCE_DIR}/src
 )
+
+# we don't want to fix all warnings in this code to keep it as close
+# as possible to the pristine Intan code.
+if (MAINTAINER)
+    #remove_definitions("-Werror" )
+    target_compile_options(mod_intan_rhd2000 PRIVATE
+                           "-Wno-error"
+                           "-Wno-zero-as-null-pointer-constant"
+                           "-Werror=suggest-override")
+endif()
+
 
 set(MA_MODULE_LIBS ${MA_MODULE_LIBS} mod_intan_rhd2000 PARENT_SCOPE)

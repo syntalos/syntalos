@@ -32,8 +32,8 @@ class AuxDigOutConfigDialog : public QDialog
 {
     Q_OBJECT
 public:
-    explicit AuxDigOutConfigDialog(QVector<bool> &auxOutEnabledIn, QVector<int> &auxOutChannelIn, QWidget *parent = 0);
-    
+    explicit AuxDigOutConfigDialog(QVector<bool> &auxOutEnabledIn, QVector<int> &auxOutChannelIn, QWidget *parent = nullptr);
+
     QCheckBox *enablePortACheckBox;
     QCheckBox *enablePortBCheckBox;
     QCheckBox *enablePortCCheckBox;
@@ -54,9 +54,9 @@ private:
     QVector<int> auxOutChannel;
 
 signals:
-    
+
 public slots:
-    
+
 private slots:
     void enablePortAChanged(bool enable);
     void enablePortBChanged(bool enable);

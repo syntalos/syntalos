@@ -22,7 +22,7 @@
 #include <glib.h>
 #include <thread>
 
-#include "utils.h"
+#include "utils/misc.h"
 
 using namespace Syntalos;
 

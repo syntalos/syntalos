@@ -30,7 +30,7 @@
 #include "moduleapi.h"
 #include "engine.h"
 #include "streams/frametype.h"
-#include "utils.h"
+#include "utils/misc.h"
 
 ModuleGraphForm::ModuleGraphForm(QWidget *parent)
     : QWidget(parent),

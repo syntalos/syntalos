@@ -38,7 +38,7 @@ class SpikePlot : public QWidget
     Q_OBJECT
 public:
     explicit SpikePlot(SignalProcessor *inSignalProcessor, SignalChannel *initialChannel,
-                       SpikeScopeDialog *inSpikeScopeDialog, QWidget *parent = 0);
+                       SpikeScopeDialog *inSpikeScopeDialog, QWidget *parent = nullptr);
     void setYScale(int newYScale);
     void setSampleRate(double newSampleRate);
     void updateWaveform(int numBlocks);

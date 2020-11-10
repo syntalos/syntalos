@@ -17,7 +17,7 @@
  * along with this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "utils.h"
+#include "misc.h"
 
 #include <QDebug>
 #include <QCollator>

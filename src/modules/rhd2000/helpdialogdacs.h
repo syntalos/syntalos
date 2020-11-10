@@ -28,12 +28,12 @@ class HelpDialogDacs : public QDialog
 {
     Q_OBJECT
 public:
-    explicit HelpDialogDacs(QWidget *parent = 0);
-    
+    explicit HelpDialogDacs(QWidget *parent = nullptr);
+
 signals:
-    
+
 public slots:
-    
+
 };
 
 #endif // HELPDIALOGDACS_H

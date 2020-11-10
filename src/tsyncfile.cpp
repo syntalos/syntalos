@@ -338,7 +338,9 @@ void TimeSyncFileWriter::writeTimeEntry(const T1 &time1, const T2 &time2)
 
 TimeSyncFileReader::TimeSyncFileReader()
     : m_lastError(QString())
-{}
+{
+    crc32c_init();
+}
 
 template<class T>
 inline T crcReadValue(QDataStream &in, quint32 *crc)

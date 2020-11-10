@@ -34,8 +34,8 @@ class CableDelayDialog : public QDialog
 {
     Q_OBJECT
 public:
-    explicit CableDelayDialog(QVector<bool> &manualDelayEnabled, vector<int> &currentDelay, QWidget *parent = 0);
-    
+    explicit CableDelayDialog(QVector<bool> &manualDelayEnabled, vector<int> &currentDelay, QWidget *parent = nullptr);
+
     QCheckBox *manualPortACheckBox;
     QCheckBox *manualPortBCheckBox;
     QCheckBox *manualPortCCheckBox;
@@ -49,9 +49,9 @@ public:
     QDialogButtonBox *buttonBox;
 
 signals:
-    
+
 public slots:
-    
+
 };
 
 #endif // CABLEDELAYDIALOG_H

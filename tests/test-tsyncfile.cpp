@@ -5,7 +5,7 @@
 
 #include "syclock.h"
 #include "timesync.h"
-#include "utils.h"
+#include "utils/misc.h"
 
 using namespace Syntalos;
 
@@ -58,7 +58,7 @@ private slots:
         delete tsreader;
 
         // delete temporary file
-        QFile file (tsFilename);
+        QFile file (tsFilename + QStringLiteral(".tsync"));
         file.remove();
     }
 

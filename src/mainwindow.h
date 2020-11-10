@@ -22,7 +22,7 @@
 
 #include <QMainWindow>
 
-#include "utils.h"
+#include "utils/misc.h"
 #include "entitylistmodels.h"
 #include "moduleapi.h"
 #include "engine.h"

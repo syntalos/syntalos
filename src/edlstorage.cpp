@@ -30,8 +30,8 @@
 #include <QUuid>
 #include <toml++/toml.h>
 
-#include "utils.h"
-#include "tomlutils.h"
+#include "utils/misc.h"
+#include "utils/tomlutils.h"
 
 static const QString EDL_FORMAT_VERSION = QStringLiteral("1");
 

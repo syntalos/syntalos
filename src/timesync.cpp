@@ -23,7 +23,7 @@
 #include <QDateTime>
 #include "moduleapi.h"
 
-#include "utils.h"
+#include "utils/misc.h"
 
 namespace Syntalos {
     Q_LOGGING_CATEGORY(logTimeSync, "time.synchronizer")

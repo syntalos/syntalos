@@ -21,7 +21,7 @@
 #include "streams/frametype.h"
 
 #include <opencv2/imgproc.hpp>
-#include "utils.h"
+#include "utils/misc.h"
 
 class DataSSTModule : public AbstractModule
 {

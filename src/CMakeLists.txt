@@ -20,12 +20,15 @@ set(SYNTALOS_SHARED_SRC
     syclock.cpp
     timesync.h
     timesync.cpp
-    tomlutils.h
-    tomlutils.cpp
     tsyncfile.h
     tsyncfile.cpp
-    utils.h
-    utils.cpp
+
+    utils/crc32c.h
+    utils/crc32c.cpp
+    utils/misc.h
+    utils/misc.cpp
+    utils/tomlutils.h
+    utils/tomlutils.cpp
 
     streams/atomicops.h
     streams/datatypes.h

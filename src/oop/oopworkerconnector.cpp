@@ -23,7 +23,7 @@
 #include <QUuid>
 
 #include "streams/frametype.h"
-#include "utils.h"
+#include "utils/misc.h"
 #include "ipcmarshal.h"
 #include "globalconfig.h"
 

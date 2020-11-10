@@ -28,12 +28,12 @@ class HelpDialogComparators : public QDialog
 {
     Q_OBJECT
 public:
-    explicit HelpDialogComparators(QWidget *parent = 0);
-    
+    explicit HelpDialogComparators(QWidget *parent = nullptr);
+
 signals:
-    
+
 public slots:
-    
+
 };
 
 #endif // HELPDIALOGCOMPARATORS_H

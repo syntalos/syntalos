@@ -39,7 +39,7 @@ class SpikeScopeDialog : public QDialog
     Q_OBJECT
 public:
     explicit SpikeScopeDialog(SignalProcessor *inSignalProcessor, SignalSources *inSignalSources,
-                              SignalChannel *initialChannel, QWidget *parent = 0);
+                              SignalChannel *initialChannel, QWidget *parent = nullptr);
     void setYScale(int index);
     void setSampleRate(double newSampleRate);
     void updateWaveform(int numBlocks);
@@ -49,9 +49,9 @@ public:
     void contractYScale();
 
 signals:
-    
+
 public slots:
-    
+
 private slots:
     void changeYScale(int index);
     void setTriggerType(int index);

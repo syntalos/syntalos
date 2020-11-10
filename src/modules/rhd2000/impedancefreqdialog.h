@@ -33,15 +33,15 @@ class ImpedanceFreqDialog : public QDialog
     Q_OBJECT
 public:
     explicit ImpedanceFreqDialog(double desiredImpedanceFreq, double lowerBandwidth, double upperBandwidth,
-                                 double dspCutoffFreq, bool dspEnabled, double sampleRate, QWidget *parent = 0);
+                                 double dspCutoffFreq, bool dspEnabled, double sampleRate, QWidget *parent = nullptr);
 
     QLineEdit *impedanceFreqLineEdit;
     QDialogButtonBox *buttonBox;
 
 signals:
-    
+
 public slots:
-    
+
 private slots:
     void onLineEditTextChanged();
 

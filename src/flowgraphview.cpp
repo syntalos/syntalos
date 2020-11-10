@@ -45,7 +45,7 @@
 #include <math.h>
 
 #include "moduleapi.h"
-#include "utils.h"
+#include "utils/misc.h"
 
 //----------------------------------------------------------------------------
 // FlowGraphItem

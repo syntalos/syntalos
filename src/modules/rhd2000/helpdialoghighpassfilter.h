@@ -28,12 +28,12 @@ class HelpDialogHighpassFilter : public QDialog
 {
     Q_OBJECT
 public:
-    explicit HelpDialogHighpassFilter(QWidget *parent = 0);
-    
+    explicit HelpDialogHighpassFilter(QWidget *parent = nullptr);
+
 signals:
-    
+
 public slots:
-    
+
 };
 
 #endif // HELPDIALOGHIGHPASSFILTER_H

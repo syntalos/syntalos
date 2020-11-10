@@ -32,22 +32,21 @@ option(MOD_MINISCOPE   "Enable Miniscope module" ON)
 # Compiler flags
 #
 set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
-add_definitions("-Wall")
-add_definitions("-Werror=suggest-override")
+add_compile_options("-Wall")
+add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Werror=suggest-override>)
 if (MAINTAINER)
-    add_definitions("-Werror" "-Wextra")
-    add_definitions("-Wzero-as-null-pointer-constant"
-                    "-Wsuggest-final-methods"
-    )
+    add_compile_options("-Werror" "-Wextra")
+    add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Wzero-as-null-pointer-constant>)
+    add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Wsuggest-final-methods>)
 endif()
 
 if (TRACING)
-    add_definitions("-pg")
+    add_compile_options("-pg")
 endif()
 
 # we can't link with -rdynamic, because otherwise dlopen'ing the proprietary Opal library fails
 if (";${CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS};" MATCHES ";-rdynamic;")
-    add_definitions("-g")
+    add_compile_options("-g")
 endif()
 string(REPLACE "-rdynamic" "" CMAKE_SHARED_LIBRARY_LINK_C_FLAGS ${CMAKE_SHARED_LIBRARY_LINK_C_FLAGS})
 string(REPLACE "-rdynamic" "" CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS ${CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS})
@@ -111,7 +110,6 @@ set(OpenGL_GL_PREFERENCE GLVND)
 include(GNUInstallDirs)
 find_package(PkgConfig)
 find_package(Threads)
-find_library(ZLIB z)
 find_library(RT_LIB rt)
 find_package(Qt5Core REQUIRED)
 find_package(Qt5Test REQUIRED)
@@ -140,7 +138,6 @@ pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0 gstreamer-app-1.0 gstreamer-v
 # anything using the Syntalos API
 # NOTE: QtWidgets is required since modules expose QAction items
 set(SY_BASE_LIBS ${CMAKE_THREAD_LIBS_INIT}
-                 ${ZLIB}
                  Qt5::Core
                  Qt5::Widgets
                  Eigen3::Eigen

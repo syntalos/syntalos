@@ -3,9 +3,9 @@
 #include <QtTest>
 #include <QDebug>
 
-#include "utils.h"
+#include "utils/misc.h"
+#include "utils/tomlutils.h"
 #include "edlstorage.h"
-#include "tomlutils.h"
 
 class TestEDL : public QObject
 {

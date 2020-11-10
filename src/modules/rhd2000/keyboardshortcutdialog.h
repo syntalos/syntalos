@@ -28,12 +28,12 @@ class KeyboardShortcutDialog : public QDialog
 {
     Q_OBJECT
 public:
-    explicit KeyboardShortcutDialog(QWidget *parent = 0);
-    
+    explicit KeyboardShortcutDialog(QWidget *parent = nullptr);
+
 signals:
-    
+
 public slots:
-    
+
 };
 
 #endif // KEYBOARDSHORTCUTDIALOG_H

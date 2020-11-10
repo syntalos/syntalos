@@ -5,7 +5,7 @@
 
 #include "syclock.h"
 #include "timesync.h"
-#include "utils.h"
+#include "utils/misc.h"
 
 using namespace Syntalos;
 using namespace Eigen;

@@ -28,12 +28,12 @@ class HelpDialogFastSettle : public QDialog
 {
     Q_OBJECT
 public:
-    explicit HelpDialogFastSettle(QWidget *parent = 0);
-    
+    explicit HelpDialogFastSettle(QWidget *parent = nullptr);
+
 signals:
-    
+
 public slots:
-    
+
 };
 
 #endif // HELPDIALOGFASTSETTLE_H

@@ -37,7 +37,7 @@ extern "C" {
 }
 
 #include "rtkit.h"
-#include "utils.h"
+#include "utils/misc.h"
 
 using namespace Syntalos;
 

@@ -62,7 +62,7 @@
 #include "moduleapi.h"
 #include "sysinfodialog.h"
 #include "timingsdialog.h"
-#include "tomlutils.h"
+#include "utils/tomlutils.h"
 
 // config format API level
 static const QString CONFIG_FILE_FORMAT_VERSION = QStringLiteral("1");

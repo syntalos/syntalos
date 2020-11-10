@@ -41,7 +41,7 @@
 #include "syclock.h"
 #include "rtkit.h"
 #include "cpuaffinity.h"
-#include "utils.h"
+#include "utils/misc.h"
 
 namespace Syntalos {
     Q_LOGGING_CATEGORY(logEngine, "engine")

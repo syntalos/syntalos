@@ -25,7 +25,7 @@
 #include <QMessageBox>
 #include <QStandardPaths>
 
-#include "utils.h"
+#include "utils/misc.h"
 
 using namespace Syntalos;
 

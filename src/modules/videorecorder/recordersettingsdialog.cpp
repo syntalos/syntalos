@@ -23,7 +23,7 @@
 #include <QVariant>
 #include <QMessageBox>
 
-#include "utils.h"
+#include "utils/misc.h"
 
 RecorderSettingsDialog::RecorderSettingsDialog(QWidget *parent) :
     QDialog(parent),

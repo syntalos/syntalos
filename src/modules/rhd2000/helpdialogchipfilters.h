@@ -28,12 +28,12 @@ class HelpDialogChipFilters : public QDialog
 {
     Q_OBJECT
 public:
-    explicit HelpDialogChipFilters(QWidget *parent = 0);
-    
+    explicit HelpDialogChipFilters(QWidget *parent = nullptr);
+
 signals:
-    
+
 public slots:
-    
+
 };
 
 #endif // HELPDIALOGCHIPFILTERS_H

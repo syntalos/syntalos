@@ -28,12 +28,12 @@ class HelpDialogNotchFilter : public QDialog
 {
     Q_OBJECT
 public:
-    explicit HelpDialogNotchFilter(QWidget *parent = 0);
-    
+    explicit HelpDialogNotchFilter(QWidget *parent = nullptr);
+
 signals:
-    
+
 public slots:
-    
+
 };
 
 #endif // HELPDIALOGNOTCHFILTER_H
