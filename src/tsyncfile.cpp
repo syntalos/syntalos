@@ -24,9 +24,9 @@
 #include <QFile>
 #include <QJsonObject>
 #include <QJsonDocument>
-#include <zlib.h>
 
-#include "utils.h"
+#include "utils/misc.h"
+#include "utils/crc32c.h"
 
 namespace Syntalos {
 Q_LOGGING_CATEGORY(logTSyncFile, "tsyncfile")
@@ -98,6 +98,8 @@ TimeSyncFileWriter::TimeSyncFileWriter()
     : m_file(new QFile()),
       m_bIndex(0)
 {
+    crc32c_init();
+
     m_timeNames = qMakePair(QStringLiteral("device-time"),
                             QStringLiteral("master-time"));
     m_timeUnits = qMakePair(TSyncFileTimeUnit::MICROSECONDS,
@@ -173,14 +175,14 @@ void TimeSyncFileWriter::crcWriteValue(const T &data)
 
     auto d = (T) data;
     m_stream << d;
-    m_blockCRC = crc32_z(m_blockCRC, (const Bytef*) &d, sizeof(d));
+    m_blockCRC = crc32c(m_blockCRC, (const uint8_t*) &d, sizeof(d));
 }
 
 template <>
 void TimeSyncFileWriter::crcWriteValue<QByteArray>(const QByteArray &data)
 {
     m_stream << data;
-    m_blockCRC = crc32_z(m_blockCRC, (const Bytef*) data.constData(), sizeof(char) * data.size());
+    m_blockCRC = crc32c(m_blockCRC, (const uint8_t*) data.constData(), sizeof(char) * data.size());
 }
 
 bool TimeSyncFileWriter::open(const QString &modName, const QUuid &collectionId, const QVariantHash &userData)
@@ -345,7 +347,7 @@ inline T crcReadValue(QDataStream &in, quint32 *crc)
 
     T value;
     in >> value;
-    *crc = crc32_z(*crc, (const Bytef*) &value, sizeof(value));
+    *crc = crc32c(*crc, (const uint8_t*) &value, sizeof(value));
     return value;
 }
 
@@ -354,7 +356,7 @@ inline QByteArray crcReadValue(QDataStream &in, quint32 *crc)
 {
     QByteArray value;
     in >> value;
-    *crc = crc32_z(*crc, (const Bytef*) value.constData(), sizeof(char) * value.size());
+    *crc = crc32c(*crc, (const uint8_t*) value.constData(), sizeof(char) * value.size());
     return value;
 }
 
