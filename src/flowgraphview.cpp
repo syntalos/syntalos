@@ -1695,7 +1695,6 @@ void FlowGraphView::mouseDoubleClickEvent(QMouseEvent *event)
         node->module()->showDisplayUi();
     else if (node->module()->features().testFlag(ModuleFeature::SHOW_SETTINGS))
         node->module()->showSettingsUi();
-    QGraphicsView::centerOn(m_pos);
 }
 
 void FlowGraphView::wheelEvent(QWheelEvent *event)
