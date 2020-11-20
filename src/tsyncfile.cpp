@@ -173,7 +173,7 @@ void TimeSyncFileWriter::crcWriteValue(const T &data)
 {
     static_assert(std::is_arithmetic<T>::value, "T must be an arithmetic type.");
 
-    auto d = (T) data;
+    auto d = static_cast<T>(data);
     m_stream << d;
     m_blockCRC = crc32c(m_blockCRC, (const uint8_t*) &d, sizeof(d));
 }

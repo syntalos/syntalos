@@ -257,7 +257,7 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
 
         // send (possibly initial) offset info to the controller)
         if (m_mod != nullptr)
-            emit m_mod->synchronizerOffsetChanged(m_id, microseconds_t(avgOffsetDeviationUsec));
+            emit m_mod->synchronizerOffsetChanged(m_id, microseconds_t(m_tsOffsetsUsec.mean() - m_expectedOffset.count()));
 
         m_lastTimeIndex = secondaryLastIdx;
         return;
