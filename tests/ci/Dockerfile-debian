@@ -1,0 +1,20 @@
+#
+# Docker file for Syntalos Tests on Debian
+#
+FROM debian:bullseye
+
+# prepare
+RUN apt-get update -qq
+RUN mkdir -p /build/ci/
+
+# install build dependencies
+COPY install-deps-deb.sh /build/ci/
+RUN chmod +x /build/ci/install-deps-deb.sh && /build/ci/install-deps-deb.sh
+
+# build & install 3rd-party libraries
+COPY make-install-3rdparty.sh /build/ci/
+RUN chmod +x /build/ci/make-install-3rdparty.sh && /build/ci/make-install-3rdparty.sh
+RUN rm -rf /build/ci/
+
+# finish
+WORKDIR /build

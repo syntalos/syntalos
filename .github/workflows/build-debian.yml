@@ -1,10 +1,6 @@
-name: Build
+name: Build on Debian
 
 on: [push]
-
-env:
-  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
-  BUILD_TYPE: Release
 
 jobs:
   build:
@@ -14,8 +10,8 @@ jobs:
     - uses: actions/checkout@v2
 
     - name: Create Build Environment
-      run: docker build -t syntalos -f tests/ci/Dockerfile .
+      run: cd tests/ci/ && docker build -t syntalos -f ./Dockerfile-debian .
       
     - name: Build & Test
       run: docker run -t -e COMPILER_VENDOR=$CVENDOR -e CC=gcc -e CXX=g++ -v `pwd`:/build syntalos
-           ./tests/ci/build_and_test.sh
+           ./tests/ci/build-and-test.sh
