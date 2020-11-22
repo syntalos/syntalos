@@ -76,11 +76,10 @@ include_directories(
 # we don't want to fix all warnings in this code to keep it as close
 # as possible to the pristine Intan code.
 if (MAINTAINER)
-    #remove_definitions("-Werror" )
     target_compile_options(mod_intan_rhd2000 PRIVATE
-                           "-Wno-error"
-                           "-Wno-zero-as-null-pointer-constant"
-                           "-Werror=suggest-override")
+                           "-Wno-error=zero-as-null-pointer-constant"
+                           "-Wno-error=deprecated-declarations"
+                           "-Wno-error=unused-but-set-variable")
 endif()
 
 

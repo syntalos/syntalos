@@ -50,6 +50,13 @@ target_link_libraries(lslice_oop
     Qt5::RemoteObjects
     ${OpenCV_LIBS}
 )
-set_target_properties(lslice_oop PROPERTIES COMPILE_FLAGS "-Wno-zero-as-null-pointer-constant")
+
+if (MAINTAINER)
+    # NOTE: This can be removed once we no longer support Qt < 5.15
+    target_compile_options(lslice_oop PRIVATE
+                           "-Wno-error=zero-as-null-pointer-constant")
+    target_compile_options(lslice_oopshared PRIVATE
+                           "-Wno-error=zero-as-null-pointer-constant")
+endif()
 
 set(MA_OOP_LIB lslice_oop PARENT_SCOPE)

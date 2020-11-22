@@ -56,6 +56,12 @@ include_directories(
     ${NUMPY_INCLUDE_DIRS}
 )
 
+if (MAINTAINER)
+    # NOTE: This can be removed once we no longer support Qt < 5.15
+    target_compile_options(pyworker PRIVATE
+                           "-Wno-error=zero-as-null-pointer-constant")
+endif()
+
 install(TARGETS pyworker DESTINATION ${MA_ARCH_INSTALL_DIR})
 
 # Generate some documentation files for the embedded scripting interface,
