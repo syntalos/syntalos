@@ -115,7 +115,7 @@ private:
     Q_DISABLE_MOVE(CodecProperties)
 #else
     CodecProperties(CodecProperties &&) = delete;
-    CodecProperties &operator=(Class &&) = delete;
+    CodecProperties &operator=(CodecProperties &&) = delete;
 #endif
 };
 
