@@ -20,8 +20,7 @@ cmake -G Ninja \
       ..
 
 # Build, Test & Install
-# (the number of Ninja jobs needs to be limited, so Travis doesn't kill us)
-ninja -j8
+ninja
 DESTDIR=/tmp/install_root/ ninja install
 export CTEST_PROGRESS_OUTPUT=1
 export CTEST_OUTPUT_ON_FAILURE=1
