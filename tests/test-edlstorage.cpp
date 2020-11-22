@@ -18,7 +18,7 @@ private:
                                                 "\n"
                                                 "[child]\n"
                                                 "float = 1.248\n"
-                                                "key = 'stringvalue'\n");
+                                                "key = 'stringvalue'");
 
 private slots:
     void runTomlSerialize()
