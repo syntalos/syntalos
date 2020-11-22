@@ -1,0 +1,39 @@
+name: Build Test
+
+on: [push]
+
+jobs:
+  build-debian:
+    name: Debian
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Create Build Environment
+      run: cd tests/ci/ && docker build -t syntalos -f ./Dockerfile-debian .
+
+    - name: Build & Test
+      run: docker run -t -e COMPILER_VENDOR=$CVENDOR -e CC=gcc -e CXX=g++ -v `pwd`:/build syntalos
+           ./tests/ci/build-and-test.sh
+
+  build-ubuntu:
+    name: Ubuntu
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Create Build Environment
+      run: |
+        mkdir env-prep && cd env-prep
+        sudo ../tests/ci/install-deps-deb.sh
+
+    - name: Build 3rd-party components
+      run: |
+        sudo apt install python3-pip
+        sudo apt purge meson
+        sudo pip3 install meson
+        cd env-prep && sudo ../tests/ci/make-install-3rdparty.sh
+        rm -rf env-prep
+      
+    - name: Build & Test
+      run: CC=gcc CXX=g++ ./tests/ci/build-and-test.sh
