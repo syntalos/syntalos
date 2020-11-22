@@ -86,7 +86,7 @@ Classes
     
     CUSTOM
     
-    __init__(self: syio.ControlCommandKind, arg0: int) -> None
+    __init__(self: syio.ControlCommandKind, value: int) -> None
 
     ### Ancestors (in MRO)
 
@@ -136,7 +136,7 @@ Classes
     
     SYSEX
     
-    __init__(self: syio.FirmataCommandKind, arg0: int) -> None
+    __init__(self: syio.FirmataCommandKind, value: int) -> None
 
     ### Ancestors (in MRO)
 
@@ -271,7 +271,7 @@ Classes
     
     CANCELLED
     
-    __init__(self: syio.InputWaitResult, arg0: int) -> None
+    __init__(self: syio.InputWaitResult, value: int) -> None
 
     ### Ancestors (in MRO)
 
