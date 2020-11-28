@@ -32,7 +32,6 @@ eatmydata apt-get install -yq --no-install-recommends \
     libavformat-dev \
     libswscale-dev \
     python3-dev \
-    libpython3-dev \
     pybind11-dev \
     uuid-dev \
     libkf5archive-dev \
