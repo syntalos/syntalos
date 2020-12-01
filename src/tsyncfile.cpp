@@ -232,6 +232,14 @@ bool TimeSyncFileWriter::open(const QString &modName, const QUuid &collectionId,
     crcWriteValue<quint16>((quint16) m_timeUnits.second);
     crcWriteValue<quint16>((quint16) m_time2DType);
 
+    m_file->flush();
+    const auto headerBytes = m_file->size();
+    if (headerBytes <= 0)
+        qFatal("Could not determine amount of bytes written for tsync file header.");
+    const int padding = (headerBytes * -1) & (8 - 1); // 8-byte align header
+    for (int i = 0; i < padding; i++)
+        crcWriteValue<quint8>(0);
+
     // write end of header and header CRC-32
     writeBlockTerminator(false);
 
@@ -428,6 +436,11 @@ bool TimeSyncFileReader::open(const QString &fname)
     const auto timeDType1 = static_cast<TSyncFileDataType>(timeDType1_i);
     const auto timeDType2 = static_cast<TSyncFileDataType>(timeDType2_i);
     m_timeDTypes = qMakePair(timeDType1, timeDType2);
+
+    // skip potential alignment bytes
+    const int padding = (file.pos() * -1) & (8 - 1); // files use 8-byte alignment
+    for (int i = 0; i < padding; i++)
+        crcReadValue<quint8>(in, &crc);
 
     // check header CRC
     quint32 expectedHeaderCRC;
