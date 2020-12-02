@@ -329,7 +329,7 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     m_indexOffset = static_cast<int>((m_timeCorrectionOffset.count() / 1000.0 / 1000.0) * m_freq);
 
     if (m_indexOffset != 0) {
-        m_offsetChangeWaitBlocks = ceil(m_calibrationMaxBlockN / 8.0);
+        m_offsetChangeWaitBlocks = ceil(m_calibrationMaxBlockN / 4.0);
 
         m_applyIndexOffset = false;
         if (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD)) {
