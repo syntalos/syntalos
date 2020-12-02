@@ -217,6 +217,7 @@ void RecorderSettingsDialog::on_nameFromSrcCheckBox_toggled(bool checked)
 void RecorderSettingsDialog::on_losslessCheckBox_toggled(bool checked)
 {
     m_codecProps.setLossless(checked);
+    ui->brqWidget->setDisabled(checked);
 }
 
 void RecorderSettingsDialog::on_vaapiCheckBox_toggled(bool checked)

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>408</width>
-    <height>304</height>
+    <width>569</width>
+    <height>453</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -30,127 +30,48 @@
     <number>4</number>
    </property>
    <item>
-    <layout class="QFormLayout" name="formLayout_2">
-     <property name="horizontalSpacing">
-      <number>6</number>
-     </property>
-     <property name="verticalSpacing">
-      <number>6</number>
-     </property>
-     <property name="rightMargin">
-      <number>0</number>
-     </property>
-     <property name="bottomMargin">
-      <number>0</number>
-     </property>
-     <item row="1" column="0">
-      <widget class="QLabel" name="nameLabel">
-       <property name="text">
-        <string>Name</string>
-       </property>
-      </widget>
-     </item>
-     <item row="1" column="1">
-      <widget class="QLineEdit" name="nameLineEdit"/>
-     </item>
-     <item row="2" column="0">
-      <widget class="QLabel" name="codecLabel">
-       <property name="text">
-        <string>Codec</string>
-       </property>
-      </widget>
-     </item>
-     <item row="2" column="1">
-      <widget class="QComboBox" name="codecComboBox">
-       <property name="toolTip">
-        <string>Video codec (FFV1 is recommended for size and speed)</string>
-       </property>
-      </widget>
-     </item>
-     <item row="3" column="0">
-      <widget class="QLabel" name="containerLabel">
-       <property name="text">
-        <string>Container</string>
-       </property>
-      </widget>
-     </item>
-     <item row="3" column="1">
-      <widget class="QComboBox" name="containerComboBox">
-       <property name="toolTip">
-        <string>Video container format, MKV is recommended</string>
-       </property>
-      </widget>
-     </item>
-     <item row="4" column="0">
-      <widget class="QLabel" name="losslessLabel">
-       <property name="text">
-        <string>Lossless</string>
-       </property>
-      </widget>
-     </item>
-     <item row="4" column="1">
-      <widget class="QCheckBox" name="losslessCheckBox">
-       <property name="toolTip">
-        <string>Switch video codec to lossless compression mode, if it supports that</string>
-       </property>
-      </widget>
-     </item>
-     <item row="6" column="0">
-      <widget class="QLabel" name="slicingLabel">
-       <property name="text">
-        <string>Slicing</string>
-       </property>
-      </widget>
-     </item>
-     <item row="7" column="0">
-      <widget class="QLabel" name="timestampFileLabel">
-       <property name="text">
-        <string>Timestamp File</string>
-       </property>
-      </widget>
-     </item>
-     <item row="7" column="1">
-      <widget class="QCheckBox" name="timestampFileCheckBox">
-       <property name="checked">
-        <bool>false</bool>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="0">
-      <widget class="QLabel" name="nameFromSourceLabel">
-       <property name="text">
-        <string>Name from Source</string>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="1">
-      <widget class="QCheckBox" name="nameFromSrcCheckBox"/>
-     </item>
-     <item row="8" column="0">
-      <widget class="QLabel" name="startStoppedLabel">
-       <property name="text">
-        <string>Start Stopped</string>
-       </property>
-      </widget>
-     </item>
-     <item row="8" column="1">
-      <widget class="QCheckBox" name="startStoppedCheckBox">
-       <property name="toolTip">
-        <string>Start in stopped, non-recording state and wait for a control signal</string>
-       </property>
-      </widget>
-     </item>
-     <item row="6" column="1">
-      <widget class="QWidget" name="widget" native="true">
-       <layout class="QHBoxLayout" name="horizontalLayout">
-        <property name="spacing">
-         <number>4</number>
+    <widget class="QWidget" name="widget_2" native="true">
+     <layout class="QVBoxLayout" name="verticalLayout_2">
+      <property name="spacing">
+       <number>0</number>
+      </property>
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
+      </property>
+      <item>
+       <widget class="QLabel" name="label">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
         </property>
-        <property name="leftMargin">
-         <number>0</number>
+        <property name="font">
+         <font>
+          <pointsize>14</pointsize>
+         </font>
         </property>
-        <property name="topMargin">
-         <number>0</number>
+        <property name="text">
+         <string>General</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <layout class="QFormLayout" name="formLayout_2">
+        <property name="horizontalSpacing">
+         <number>6</number>
+        </property>
+        <property name="verticalSpacing">
+         <number>6</number>
         </property>
         <property name="rightMargin">
          <number>0</number>
@@ -158,94 +79,409 @@
         <property name="bottomMargin">
          <number>0</number>
         </property>
-        <item>
-         <widget class="QCheckBox" name="slicingCheckBox">
-          <property name="statusTip">
-           <string>Enable video file slicing</string>
-          </property>
-          <property name="checked">
-           <bool>true</bool>
+        <item row="0" column="0">
+         <widget class="QLabel" name="nameFromSourceLabel">
+          <property name="text">
+           <string>Name from Source</string>
           </property>
          </widget>
         </item>
-        <item>
-         <widget class="QSpinBox" name="sliceIntervalSpinBox">
+        <item row="1" column="0">
+         <widget class="QLabel" name="nameLabel">
+          <property name="text">
+           <string>Name</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QLineEdit" name="nameLineEdit"/>
+        </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="codecLabel">
+          <property name="text">
+           <string>Codec</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QComboBox" name="codecComboBox">
           <property name="toolTip">
-           <string>The interval in which a new video file should be started. Set to 0 to never create new files.</string>
-          </property>
-          <property name="statusTip">
-           <string>Amount of time each video file slice should be recorded to</string>
-          </property>
-          <property name="suffix">
-           <string>min</string>
-          </property>
-          <property name="prefix">
-           <string>Interval: </string>
-          </property>
-          <property name="maximum">
-           <number>120</number>
-          </property>
-          <property name="value">
-           <number>15</number>
+           <string>Video codec (FFV1 is recommended for size and speed)</string>
           </property>
          </widget>
         </item>
-        <item>
-         <widget class="QPushButton" name="sliceWarnButton">
+        <item row="3" column="0">
+         <widget class="QLabel" name="containerLabel">
+          <property name="text">
+           <string>Container</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="1">
+         <widget class="QComboBox" name="containerComboBox">
+          <property name="toolTip">
+           <string>Video container format, MKV is recommended</string>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="0">
+         <widget class="QLabel" name="slicingLabel">
+          <property name="text">
+           <string>Slicing</string>
+          </property>
+         </widget>
+        </item>
+        <item row="5" column="0">
+         <widget class="QLabel" name="timestampFileLabel">
+          <property name="text">
+           <string>Timestamp File</string>
+          </property>
+         </widget>
+        </item>
+        <item row="5" column="1">
+         <widget class="QCheckBox" name="timestampFileCheckBox">
+          <property name="checked">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="6" column="0">
+         <widget class="QLabel" name="startStoppedLabel">
+          <property name="text">
+           <string>Start Stopped</string>
+          </property>
+         </widget>
+        </item>
+        <item row="6" column="1">
+         <widget class="QCheckBox" name="startStoppedCheckBox">
+          <property name="toolTip">
+           <string>Start in stopped, non-recording state and wait for a control signal</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QCheckBox" name="nameFromSrcCheckBox"/>
+        </item>
+        <item row="4" column="1">
+         <widget class="QWidget" name="widget" native="true">
+          <layout class="QHBoxLayout" name="horizontalLayout">
+           <property name="spacing">
+            <number>4</number>
+           </property>
+           <property name="leftMargin">
+            <number>0</number>
+           </property>
+           <property name="topMargin">
+            <number>0</number>
+           </property>
+           <property name="rightMargin">
+            <number>0</number>
+           </property>
+           <property name="bottomMargin">
+            <number>0</number>
+           </property>
+           <item>
+            <widget class="QCheckBox" name="slicingCheckBox">
+             <property name="statusTip">
+              <string>Enable video file slicing</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QSpinBox" name="sliceIntervalSpinBox">
+             <property name="toolTip">
+              <string>The interval in which a new video file should be started. Set to 0 to never create new files.</string>
+             </property>
+             <property name="statusTip">
+              <string>Amount of time each video file slice should be recorded to</string>
+             </property>
+             <property name="suffix">
+              <string>min</string>
+             </property>
+             <property name="prefix">
+              <string>Interval: </string>
+             </property>
+             <property name="maximum">
+              <number>120</number>
+             </property>
+             <property name="value">
+              <number>15</number>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="sliceWarnButton">
+             <property name="text">
+              <string/>
+             </property>
+             <property name="icon">
+              <iconset theme="emblem-warning">
+               <normaloff>.</normaloff>.</iconset>
+             </property>
+             <property name="flat">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="horizontalSpacer">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QWidget" name="widget_4" native="true">
+     <layout class="QVBoxLayout" name="verticalLayout_3">
+      <property name="spacing">
+       <number>4</number>
+      </property>
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
+      </property>
+      <item>
+       <widget class="Line" name="line">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="label_2">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>14</pointsize>
+         </font>
+        </property>
+        <property name="text">
+         <string>Encoder Details</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <layout class="QFormLayout" name="formLayout">
+        <property name="fieldGrowthPolicy">
+         <enum>QFormLayout::ExpandingFieldsGrow</enum>
+        </property>
+        <item row="1" column="0">
+         <widget class="QLabel" name="vaapiLabel">
+          <property name="text">
+           <string>VA-API Acceleration</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QCheckBox" name="vaapiCheckBox">
+          <property name="font">
+           <font>
+            <italic>true</italic>
+           </font>
+          </property>
+          <property name="statusTip">
+           <string>Enable hardware acceleration via VAAPI for some codecs</string>
+          </property>
           <property name="text">
            <string/>
           </property>
-          <property name="icon">
-           <iconset theme="emblem-warning">
-            <normaloff>.</normaloff>.</iconset>
-          </property>
-          <property name="flat">
-           <bool>true</bool>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QCheckBox" name="losslessCheckBox">
+          <property name="toolTip">
+           <string>Switch video codec to lossless compression mode, if it supports that</string>
           </property>
          </widget>
         </item>
-        <item>
-         <spacer name="horizontalSpacer">
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
+        <item row="0" column="0">
+         <widget class="QLabel" name="losslessLabel">
+          <property name="text">
+           <string>Lossless</string>
           </property>
-          <property name="sizeHint" stdset="0">
-           <size>
-            <width>40</width>
-            <height>20</height>
-           </size>
-          </property>
-         </spacer>
+         </widget>
         </item>
        </layout>
-      </widget>
-     </item>
-     <item row="5" column="0">
-      <widget class="QLabel" name="vaapiLabel">
-       <property name="text">
-        <string>VA-API Acceleration</string>
-       </property>
-      </widget>
-     </item>
-     <item row="5" column="1">
-      <widget class="QCheckBox" name="vaapiCheckBox">
-       <property name="font">
-        <font>
-         <italic>true</italic>
-        </font>
-       </property>
-       <property name="statusTip">
-        <string>Enable hardware acceleration via VAAPI for some codecs</string>
-       </property>
-       <property name="text">
-        <string/>
-       </property>
-      </widget>
-     </item>
-    </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QWidget" name="brqWidget" native="true">
+     <layout class="QHBoxLayout" name="horizontalLayout_2">
+      <property name="spacing">
+       <number>0</number>
+      </property>
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
+      </property>
+      <item>
+       <widget class="QWidget" name="widget_3" native="true">
+        <layout class="QGridLayout" name="gridLayout">
+         <property name="leftMargin">
+          <number>0</number>
+         </property>
+         <property name="topMargin">
+          <number>0</number>
+         </property>
+         <property name="rightMargin">
+          <number>0</number>
+         </property>
+         <property name="bottomMargin">
+          <number>0</number>
+         </property>
+         <property name="spacing">
+          <number>4</number>
+         </property>
+         <item row="3" column="0">
+          <widget class="QRadioButton" name="radioButton_2">
+           <property name="text">
+            <string>Bitrate</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="1">
+          <widget class="QSpinBox" name="bitrateSpinBox">
+           <property name="suffix">
+            <string> kbps</string>
+           </property>
+           <property name="maximum">
+            <number>1000000</number>
+           </property>
+           <property name="value">
+            <number>6000</number>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="QSpinBox" name="qualitySpinBox">
+           <property name="prefix">
+            <string>RF </string>
+           </property>
+           <property name="maximum">
+            <number>51</number>
+           </property>
+           <property name="value">
+            <number>22</number>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="0">
+          <widget class="QRadioButton" name="radioButton">
+           <property name="text">
+            <string>Constant Quality</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer_2">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>296</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
    </item>
   </layout>
  </widget>
  <resources/>
- <connections/>
+ <connections>
+  <connection>
+   <sender>radioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>qualitySpinBox</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>201</x>
+     <y>330</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>363</x>
+     <y>329</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>radioButton_2</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>bitrateSpinBox</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>150</x>
+     <y>363</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>360</x>
+     <y>360</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>
