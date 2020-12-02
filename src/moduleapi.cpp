@@ -665,31 +665,33 @@ std::shared_ptr<EDLDataset> AbstractModule::getOrCreateDefaultDataset(const QStr
         return nullptr;
     }
 
-    QString datasetName;
-    if (d->simpleStorageNames)
-        datasetName = simplifyStrForFileBasenameLower(preferredName);
-    else
-        datasetName = simplifyStrForFileBasename(preferredName);
-
-    d->defaultDataset = getOrCreateDatasetInGroup(d->rootDataGroup, datasetName, subMetadata);
+    d->defaultDataset = getOrCreateDatasetInGroup(d->rootDataGroup, preferredName, subMetadata);
     return d->defaultDataset;
 }
 
 std::shared_ptr<EDLDataset> AbstractModule::getOrCreateDatasetInGroup(std::shared_ptr<EDLGroup> group, const QString &preferredName, const QVariantHash &subMetadata)
 {
-    auto dataName = preferredName;
+    QString datasetName;
 
     // if we have subscription metadata, try to use that data to determine the
     // data set name
     if (!subMetadata.isEmpty()) {
-        dataName = datasetNameFromSubMetadata(subMetadata);
+        datasetName = datasetNameFromSubMetadata(subMetadata);
+    }
+
+    // attempt to use the preferred name (if we have one)
+    if (!preferredName.isEmpty()) {
+        if (d->simpleStorageNames)
+            datasetName = simplifyStrForFileBasenameLower(preferredName);
+        else
+            datasetName = simplifyStrForFileBasename(preferredName);
     }
 
     // just set our module name if we still have no data set name
-    if (dataName.isEmpty())
-        dataName = datasetNameSuggestion();
+    if (datasetName.isEmpty())
+        datasetName = datasetNameSuggestion();
 
-    return group->datasetByName(dataName, true);
+    return group->datasetByName(datasetName, true);
 }
 
 std::shared_ptr<EDLGroup> AbstractModule::createStorageGroup(const QString &groupName)
