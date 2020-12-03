@@ -123,8 +123,9 @@ private:
     Q_DISABLE_COPY(Engine)
     QScopedPointer<Private> d;
 
-    bool runInternal(const QString &exportDirPath);
+    int obtainSleepShutdownIdleInhibitor();
     bool makeDirectory(const QString &dir);
+    bool runInternal(const QString &exportDirPath);
     void refreshExportDirPath();
     void emitStatusMessage(const QString &message);
     QList<AbstractModule*> createModuleExecOrderList();

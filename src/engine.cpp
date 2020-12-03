@@ -29,6 +29,9 @@
 #include <QVector>
 #include <QTemporaryDir>
 #include <QTimer>
+#include <QDBusInterface>
+#include <QDBusReply>
+#include <QDBusUnixFileDescriptor>
 #include <filesystem>
 
 #include "oop/oopmodule.h"
@@ -359,6 +362,31 @@ bool Engine::saveInternalDiagnostics() const
 void Engine::setSaveInternalDiagnostics(bool save)
 {
     d->saveInternal = save;
+}
+
+int Engine::obtainSleepShutdownIdleInhibitor()
+{
+    QDBusInterface iface(QStringLiteral("org.freedesktop.login1"),
+                         QStringLiteral("/org/freedesktop/login1"),
+                         QStringLiteral("org.freedesktop.login1.Manager"),
+                         QDBusConnection::systemBus());
+    if (!iface.isValid()) {
+        qCDebug(logEngine).noquote() << "Unable to connect to logind DBus interface";
+        return -1;
+    }
+
+    QDBusReply<QDBusUnixFileDescriptor> reply;
+    reply = iface.call(QStringLiteral("Inhibit"),
+                       QStringLiteral("sleep:shutdown:idle"),
+                       QCoreApplication::applicationName(),
+                       QStringLiteral("Experiment run in progress"),
+                       QStringLiteral("block"));
+    if (!reply.isValid()) {
+        qCDebug(logEngine).noquote() << "Unable to request sleep/shutdown/idle inhibitor from logind.";
+        return -1;
+    }
+
+    return ::dup(reply.value().fileDescriptor());
 }
 
 bool Engine::makeDirectory(const QString &dir)
@@ -828,6 +856,13 @@ bool Engine::runInternal(const QString &exportDirPath)
         }
     }
 
+    // prevent the system from sleeping or shutdown
+    const int sleepInhibitorLockFd = obtainSleepShutdownIdleInhibitor();
+    if (sleepInhibitorLockFd < 0)
+        qCWarning(logEngine).noquote() << "Could not inhibit system sleep/idle/shutdown for this run.";
+    else
+        qCDebug(logEngine).noquote() << "Obtained system sleep/idle/shutdown inhibitor for this run.";
+
     // the dedicated threads our modules run in, references owned by the vector
     std::vector<std::thread> dThreads;
     QList<AbstractModule*> threadedModules;
@@ -1264,6 +1299,7 @@ bool Engine::runInternal(const QString &exportDirPath)
         emit runStarted();
 
         emitStatusMessage(QStringLiteral("Running..."));
+        QCoreApplication::processEvents();
 
         // run the main loop and process UI events
         // modules may have injected themselves into the UI event loop
@@ -1441,6 +1477,10 @@ bool Engine::runInternal(const QString &exportDirPath)
 
         qCDebug(logEngine).noquote().nospace() << "Manifest and additional data saved in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
     }
+
+    // release system sleep inhibitor lock
+    if (sleepInhibitorLockFd != -1)
+        ::close(sleepInhibitorLockFd);
 
     // reset main thread niceness, we are not important anymore of no experiment is running
     setCurrentThreadNiceness(0);
