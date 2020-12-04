@@ -80,26 +80,50 @@ void CropTransform::createSettingsUi(QWidget *parent)
     sbWidth->setRange(0, m_originalSize.width);
     sbWidth->setSuffix("px");
     sbWidth->setValue(m_roi.width);
-    connect(sbWidth, qOverload<int>(&QSpinBox::valueChanged), [=](int value) {
-        const std::lock_guard<std::mutex> lock(m_mutex);
-        m_roi.width = value;
-        m_onlineModified = true;
-    });
-
-    auto sbHeight= new QSpinBox(parent);
-    sbHeight->setRange(0, m_originalSize.height);
-    sbHeight->setSuffix("px");
-    sbHeight->setValue(m_roi.height);
-    connect(sbHeight, qOverload<int>(&QSpinBox::valueChanged), [=](int value) {
-        const std::lock_guard<std::mutex> lock(m_mutex);
-        m_roi.height = value;
-        m_onlineModified = true;
-    });
+    sbWidth->setMinimumWidth(100);
 
     auto sbX = new QSpinBox(parent);
     sbX->setRange(0, m_originalSize.width - 1);
     sbX->setSuffix("px");
     sbX->setValue(m_roi.x);
+    sbX->setMinimumWidth(100);
+
+    auto sbHeight= new QSpinBox(parent);
+    sbHeight->setRange(0, m_originalSize.height);
+    sbHeight->setSuffix("px");
+    sbHeight->setValue(m_roi.height);
+    sbHeight->setMinimumWidth(100);
+
+    auto sbY = new QSpinBox(parent);
+    sbY->setRange(0, m_originalSize.height - 1);
+    sbY->setSuffix("px");
+    sbY->setValue(m_roi.y);
+    sbY->setMinimumWidth(100);
+
+    connect(sbWidth, qOverload<int>(&QSpinBox::valueChanged), [=](int value) {
+        {
+            const std::lock_guard<std::mutex> lock(m_mutex);
+            m_roi.width = value;
+            m_onlineModified = true;
+        }
+        sbX->setMaximum(m_originalSize.width - value);
+        if (sbX->value() == sbX->maximum())
+            sbX->setValue(sbX->maximum() - 1);
+    });
+
+
+    connect(sbHeight, qOverload<int>(&QSpinBox::valueChanged), [=](int value) {
+        {
+            const std::lock_guard<std::mutex> lock(m_mutex);
+            m_roi.height = value;
+            m_onlineModified = true;
+        }
+        sbY->setMaximum(m_originalSize.height - value);
+        if (sbY->value() == sbY->maximum())
+            sbY->setValue(sbY->maximum() - 1);
+    });
+
+
     connect(sbX, qOverload<int>(&QSpinBox::valueChanged), [=](int value) {
         {
             const std::lock_guard<std::mutex> lock(m_mutex);
@@ -107,12 +131,10 @@ void CropTransform::createSettingsUi(QWidget *parent)
             m_onlineModified = true;
         }
         sbWidth->setMaximum(m_originalSize.width - value);
+        if (sbWidth->value() == sbWidth->maximum())
+            sbWidth->setValue(sbWidth->maximum() - 1);
     });
 
-    auto sbY = new QSpinBox(parent);
-    sbY->setRange(0, m_originalSize.height - 1);
-    sbY->setSuffix("px");
-    sbY->setValue(m_roi.y);
     connect(sbY, qOverload<int>(&QSpinBox::valueChanged), [=](int value) {
         {
             const std::lock_guard<std::mutex> lock(m_mutex);
@@ -120,6 +142,8 @@ void CropTransform::createSettingsUi(QWidget *parent)
             m_onlineModified = true;
         }
         sbHeight->setMaximum(m_originalSize.height - value);
+        if (sbHeight->value() == sbHeight->maximum())
+            sbHeight->setValue(sbHeight->maximum() - 1);
     });
 
     QFormLayout *formLayout = new QFormLayout;
@@ -263,7 +287,9 @@ cv::Size ScaleTransform::resultSize() const
 
 void ScaleTransform::process(Frame &frame)
 {
-    cv::resize(frame.mat, frame.mat, cv::Size(), m_scaleFactor, m_scaleFactor);
+    cv::Mat outMat(frame.mat);
+    cv::resize(outMat, outMat, cv::Size(), m_scaleFactor, m_scaleFactor);
+    frame.mat = outMat;
 }
 
 QVariantHash ScaleTransform::toVariantHash()
