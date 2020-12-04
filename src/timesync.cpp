@@ -235,6 +235,13 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     if (!m_haveExpectedOffset) {
         m_expectedOffsetCalCount++;
 
+        // if we are writing a timesync-file, always write the time when the very first
+        // datapoint was acquired as first value
+        if (m_expectedOffsetCalCount == 1) {
+            if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
+                m_tswriter->writeTimes(idxTimestamps[0] * m_timePerPointUs, masterAssumedAcqTS);
+        }
+
         // we want a bit more values than needed for perpetual calibration, because the first
         // few values in the vector stem from the initialization phase of Syntalos and may have
         // a higher variance than actually expected during normal operation (as in the startup
@@ -521,6 +528,12 @@ void SecondaryClockSynchronizer::processTimestamp(microseconds_t &masterTimestam
     // of the secondary clock and master clock
     if (!m_haveExpectedOffset) {
         m_expectedOffsetCalCount++;
+
+        // always store initial offset in file, if we are writing a tsync file
+        if (m_expectedOffsetCalCount == 1) {
+            if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
+                m_tswriter->writeTimes(secondaryAcqTimestamp, masterTimestamp);
+        }
 
         // we want a bit more values than needed for perpetual calibration, because the first
         // few values in the vector stem from the initialization phase of Syntalos and may have
