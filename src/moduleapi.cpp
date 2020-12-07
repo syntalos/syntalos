@@ -679,8 +679,8 @@ std::shared_ptr<EDLDataset> AbstractModule::getOrCreateDatasetInGroup(std::share
         datasetName = datasetNameFromSubMetadata(subMetadata);
     }
 
-    // attempt to use the preferred name (if we have one)
-    if (!preferredName.isEmpty()) {
+    // attempt to use the preferred name (if we have one, and don't already have a dataset name from subscription metadata)
+    if (datasetName.isEmpty() && !preferredName.isEmpty()) {
         if (d->simpleStorageNames)
             datasetName = simplifyStrForFileBasenameLower(preferredName);
         else
