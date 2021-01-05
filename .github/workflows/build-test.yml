@@ -24,6 +24,7 @@ jobs:
 
     - name: Create Build Environment
       run: |
+        sudo add-apt-repository -y ppa:ximion/syntalos
         mkdir env-prep && cd env-prep
         sudo ../tests/ci/install-deps-deb.sh
 
