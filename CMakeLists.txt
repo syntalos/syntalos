@@ -175,6 +175,7 @@ include_directories(${CMAKE_BINARY_DIR})
 #
 # Subdirectories
 #
+add_subdirectory(modules)
 add_subdirectory(src)
 add_subdirectory(tools)
 add_subdirectory(data)

@@ -2,7 +2,6 @@
 
 add_subdirectory(oop)
 add_subdirectory(pyworker)
-add_subdirectory(modules)
 
 set(SYNTALOS_SHARED_SRC
     edlstorage.h
@@ -140,6 +139,7 @@ target_link_libraries(syntalos
 )
 
 include_directories(
+    ${CMAKE_SOURCE_DIR}
     ${XXHASH_INCLUDE_DIRS}
     ${GLIB_INCLUDE_DIRS}
     ${TOML_INCLUDE_DIRS}

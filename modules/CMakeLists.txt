@@ -1,3 +1,6 @@
+# CMakeLists for Syntalos Modules
+
+include_directories(${CMAKE_SOURCE_DIR})
 
 # Developer modules
 add_subdirectory(devel.clock)

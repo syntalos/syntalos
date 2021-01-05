@@ -324,15 +324,18 @@ public:
                 vInfo.insert("frame_height", frameSize.height());
                 vInfo.insert("framerate", framerate);
                 vInfo.insert("colored", useColor);
-                vInfo.insert("lossless", m_activeCodecProps.isLossless());
-                vInfo.insert("thread_count", m_activeCodecProps.threadCount());
+
+                QVariantHash encInfo;
+                encInfo.insert("lossless", m_activeCodecProps.isLossless());
+                encInfo.insert("thread_count", m_activeCodecProps.threadCount());
                 if (m_activeCodecProps.useVaapi())
-                    vInfo.insert("vaapi_enabled", true);
+                    encInfo.insert("vaapi_enabled", true);
                 if (m_activeCodecProps.mode() == CodecProperties::ConstantBitrate)
-                    vInfo.insert("target_bitrate_kbps", m_activeCodecProps.bitrateKbps());
+                    encInfo.insert("target_bitrate_kbps", m_activeCodecProps.bitrateKbps());
                 else
-                    vInfo.insert("target_quality", m_activeCodecProps.quality());
+                    encInfo.insert("target_quality", m_activeCodecProps.quality());
                 m_vidDataset->insertAttribute(QStringLiteral("video"), vInfo);
+                m_vidDataset->insertAttribute(QStringLiteral("encoder"), encInfo);
 
                 // signal that we are actually recording this session
                 m_initDone = true;
