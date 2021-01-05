@@ -26,7 +26,6 @@
 #include <QJsonDocument>
 
 #include "utils/misc.h"
-#include "utils/crc32c.h"
 
 namespace Syntalos {
 Q_LOGGING_CATEGORY(logTSyncFile, "tsyncfile")
@@ -38,9 +37,9 @@ using namespace Syntalos;
 #define TSYNC_FILE_MAGIC 0xF223434E5953548A
 
 #define TSYNC_FILE_VERSION_MAJOR  1
-#define TSYNC_FILE_VERSION_MINOR  0
+#define TSYNC_FILE_VERSION_MINOR  2
 
-#define TSYNC_FILE_BLOCK_TERM 0x11260000
+#define TSYNC_FILE_BLOCK_TERM 0x1126000000000000
 
 QString Syntalos::tsyncFileTimeUnitToString(const TSyncFileTimeUnit &tsftunit)
 {
@@ -98,7 +97,7 @@ TimeSyncFileWriter::TimeSyncFileWriter()
     : m_file(new QFile()),
       m_bIndex(0)
 {
-    crc32c_init();
+    m_xxh3State = XXH3_createState();
 
     m_timeNames = qMakePair(QStringLiteral("device-time"),
                             QStringLiteral("master-time"));
@@ -107,7 +106,7 @@ TimeSyncFileWriter::TimeSyncFileWriter()
     m_time1DType = TSyncFileDataType::UINT32;
     m_time2DType = TSyncFileDataType::UINT32;
     m_tsMode = TSyncFileMode::CONTINUOUS;
-    m_blockSize = 3600;
+    m_blockSize = 2800;
 
     m_stream.setVersion(QDataStream::Qt_5_12);
     m_stream.setByteOrder(QDataStream::LittleEndian);
@@ -117,6 +116,7 @@ TimeSyncFileWriter::~TimeSyncFileWriter()
 {
     this->close();
     delete m_file;
+    XXH3_freeState(m_xxh3State);
 }
 
 QString TimeSyncFileWriter::lastError() const
@@ -169,20 +169,20 @@ void TimeSyncFileWriter::setChunkSize(int size)
 }
 
 template<class T>
-void TimeSyncFileWriter::crcWriteValue(const T &data)
+void TimeSyncFileWriter::csWriteValue(const T &data)
 {
     static_assert(std::is_arithmetic<T>::value, "T must be an arithmetic type.");
 
     auto d = static_cast<T>(data);
     m_stream << d;
-    m_blockCRC = crc32c(m_blockCRC, (const uint8_t*) &d, sizeof(d));
+    XXH3_64bits_update(m_xxh3State, (const uint8_t*) &d, sizeof(d));
 }
 
 template <>
-void TimeSyncFileWriter::crcWriteValue<QByteArray>(const QByteArray &data)
+void TimeSyncFileWriter::csWriteValue<QByteArray>(const QByteArray &data)
 {
     m_stream << data;
-    m_blockCRC = crc32c(m_blockCRC, (const uint8_t*) data.constData(), sizeof(char) * data.size());
+    XXH3_64bits_update(m_xxh3State, (const uint8_t*) data.constData(), sizeof(char) * data.size());
 }
 
 bool TimeSyncFileWriter::open(const QString &modName, const QUuid &collectionId, const QVariantHash &userData)
@@ -200,7 +200,7 @@ bool TimeSyncFileWriter::open(const QString &modName, const QUuid &collectionId,
         m_blockSize = 128;
 
     m_bIndex = 0;
-    m_blockCRC = 0;
+    XXH3_64bits_reset(m_xxh3State);
     m_stream.setDevice(m_file);
 
     // user-defined metadata
@@ -212,25 +212,25 @@ bool TimeSyncFileWriter::open(const QString &modName, const QUuid &collectionId,
 
     m_stream << (quint64) TSYNC_FILE_MAGIC;
 
-    crcWriteValue<quint16>(TSYNC_FILE_VERSION_MAJOR);
-    crcWriteValue<quint16>(TSYNC_FILE_VERSION_MINOR);
+    csWriteValue<quint16>(TSYNC_FILE_VERSION_MAJOR);
+    csWriteValue<quint16>(TSYNC_FILE_VERSION_MINOR);
 
-    crcWriteValue<qint64>(currentTime.toTime_t());
+    csWriteValue<qint64>(currentTime.toTime_t());
 
-    crcWriteValue(modName.toUtf8());
-    crcWriteValue(collectionId.toString(QUuid::WithoutBraces).toUtf8());
-    crcWriteValue(userDataJson.toUtf8()); // custom JSON values
+    csWriteValue(modName.toUtf8());
+    csWriteValue(collectionId.toString(QUuid::WithoutBraces).toUtf8());
+    csWriteValue(userDataJson.toUtf8()); // custom JSON values
 
-    crcWriteValue<quint16>((quint16) m_tsMode);
-    crcWriteValue<qint32>(m_blockSize);
+    csWriteValue<quint16>((quint16) m_tsMode);
+    csWriteValue<qint32>(m_blockSize);
 
-    crcWriteValue(m_timeNames.first.toUtf8());
-    crcWriteValue<quint16>((quint16) m_timeUnits.first);
-    crcWriteValue<quint16>((quint16) m_time1DType);
+    csWriteValue(m_timeNames.first.toUtf8());
+    csWriteValue<quint16>((quint16) m_timeUnits.first);
+    csWriteValue<quint16>((quint16) m_time1DType);
 
-    crcWriteValue(m_timeNames.second.toUtf8());
-    crcWriteValue<quint16>((quint16) m_timeUnits.second);
-    crcWriteValue<quint16>((quint16) m_time2DType);
+    csWriteValue(m_timeNames.second.toUtf8());
+    csWriteValue<quint16>((quint16) m_timeUnits.second);
+    csWriteValue<quint16>((quint16) m_time2DType);
 
     m_file->flush();
     const auto headerBytes = m_file->size();
@@ -238,7 +238,7 @@ bool TimeSyncFileWriter::open(const QString &modName, const QUuid &collectionId,
         qFatal("Could not determine amount of bytes written for tsync file header.");
     const int padding = (headerBytes * -1) & (8 - 1); // 8-byte align header
     for (int i = 0; i < padding; i++)
-        crcWriteValue<quint8>(0);
+        csWriteValue<quint8>(0);
 
     // write end of header and header CRC-32
     writeBlockTerminator(false);
@@ -291,9 +291,9 @@ void TimeSyncFileWriter::writeBlockTerminator(bool check)
 {
     if (check && (m_bIndex == 0))
         return;
-    m_stream << (quint32) TSYNC_FILE_BLOCK_TERM;
-    m_stream << (quint32) m_blockCRC;
-    m_blockCRC = 0;
+    m_stream << (quint64) TSYNC_FILE_BLOCK_TERM;
+    m_stream << (quint64) XXH3_64bits_digest(m_xxh3State);
+    XXH3_64bits_reset(m_xxh3State);
     m_bIndex = 0;
 }
 
@@ -305,17 +305,17 @@ void TimeSyncFileWriter::writeTimeEntry(const T1 &time1, const T2 &time2)
 
     switch (m_time1DType) {
         case TSyncFileDataType::INT16:
-            crcWriteValue<qint16>(time1); break;
+            csWriteValue<qint16>(time1); break;
         case TSyncFileDataType::INT32:
-            crcWriteValue<qint32>(time1); break;
+            csWriteValue<qint32>(time1); break;
         case TSyncFileDataType::INT64:
-            crcWriteValue<qint64>(time1); break;
+            csWriteValue<qint64>(time1); break;
         case TSyncFileDataType::UINT16:
-            crcWriteValue<quint16>(time1); break;
+            csWriteValue<quint16>(time1); break;
         case TSyncFileDataType::UINT32:
-            crcWriteValue<quint32>(time1); break;
+            csWriteValue<quint32>(time1); break;
         case TSyncFileDataType::UINT64:
-            crcWriteValue<quint64>(time1); break;
+            csWriteValue<quint64>(time1); break;
         default:
             qFatal("Tried to write unknown datatype to timesync file for time1: %i", (int) m_time1DType);
             break;
@@ -323,17 +323,17 @@ void TimeSyncFileWriter::writeTimeEntry(const T1 &time1, const T2 &time2)
 
     switch (m_time2DType) {
         case TSyncFileDataType::INT16:
-            crcWriteValue<qint16>(time2); break;
+            csWriteValue<qint16>(time2); break;
         case TSyncFileDataType::INT32:
-            crcWriteValue<qint32>(time2); break;
+            csWriteValue<qint32>(time2); break;
         case TSyncFileDataType::INT64:
-            crcWriteValue<qint64>(time2); break;
+            csWriteValue<qint64>(time2); break;
         case TSyncFileDataType::UINT16:
-            crcWriteValue<quint16>(time2); break;
+            csWriteValue<quint16>(time2); break;
         case TSyncFileDataType::UINT32:
-            crcWriteValue<quint32>(time2); break;
+            csWriteValue<quint32>(time2); break;
         case TSyncFileDataType::UINT64:
-            crcWriteValue<quint64>(time2); break;
+            csWriteValue<quint64>(time2); break;
         default:
             qFatal("Tried to write unknown datatype to timesync file for time2: %i", (int) m_time1DType);
             break;
@@ -347,26 +347,25 @@ void TimeSyncFileWriter::writeTimeEntry(const T1 &time1, const T2 &time2)
 TimeSyncFileReader::TimeSyncFileReader()
     : m_lastError(QString())
 {
-    crc32c_init();
 }
 
 template<class T>
-inline T crcReadValue(QDataStream &in, quint32 *crc)
+inline T csReadValue(QDataStream &in, XXH3_state_t *state)
 {
     static_assert(std::is_arithmetic<T>::value, "T must be an arithmetic type.");
 
     T value;
     in >> value;
-    *crc = crc32c(*crc, (const uint8_t*) &value, sizeof(value));
+    XXH3_64bits_update(state, (const uint8_t*) &value, sizeof(value));
     return value;
 }
 
 template<>
-inline QByteArray crcReadValue(QDataStream &in, quint32 *crc)
+inline QByteArray csReadValue(QDataStream &in, XXH3_state_t *state)
 {
     QByteArray value;
     in >> value;
-    *crc = crc32c(*crc, (const uint8_t*) value.constData(), sizeof(char) * value.size());
+    XXH3_64bits_update(state, (const uint8_t*) value.constData(), sizeof(char) * value.size());
     return value;
 }
 
@@ -389,20 +388,23 @@ bool TimeSyncFileReader::open(const QString &fname)
         return false;
     }
 
-    quint32 crc = 0;
-    const auto formatVMajor = crcReadValue<quint16>(in, &crc);
-    const auto formatVMinor = crcReadValue<quint16>(in, &crc);
-    if ((formatVMajor != TSYNC_FILE_VERSION_MAJOR)) {
+    XXH3_state_t *csState = XXH3_createState();
+    XXH3_64bits_reset(csState);
+
+    const auto formatVMajor = csReadValue<quint16>(in, csState);
+    const auto formatVMinor = csReadValue<quint16>(in, csState);
+    if ((formatVMajor != TSYNC_FILE_VERSION_MAJOR) || (formatVMinor < TSYNC_FILE_VERSION_MINOR)) {
         m_lastError = QStringLiteral("Unable to read data: This file is using an incompatible (probably newer) version of the format which we can not read (%1.%2 vs %3.%4).")
                 .arg(formatVMajor).arg(formatVMinor).arg(TSYNC_FILE_VERSION_MAJOR).arg(TSYNC_FILE_VERSION_MINOR);
+        XXH3_freeState(csState);
         return false;
     }
 
-    m_creationTime = crcReadValue<qint64>(in, &crc);
+    m_creationTime = csReadValue<qint64>(in, csState);
 
-    const auto modNameUtf8 = crcReadValue<QByteArray>(in, &crc);
-    const auto collectionIdUtf8 = crcReadValue<QByteArray>(in, &crc);
-    const auto userJsonUtf8 = crcReadValue<QByteArray>(in, &crc);
+    const auto modNameUtf8 = csReadValue<QByteArray>(in, csState);
+    const auto collectionIdUtf8 = csReadValue<QByteArray>(in, csState);
+    const auto userJsonUtf8 = csReadValue<QByteArray>(in, csState);
 
     m_moduleName = QString::fromUtf8(modNameUtf8);
     m_collectionId = QUuid(QString::fromUtf8(collectionIdUtf8));
@@ -413,19 +415,19 @@ bool TimeSyncFileReader::open(const QString &fname)
         m_userData = jdoc.object().toVariantHash();
 
     // file storage mode
-    m_tsMode = static_cast<TSyncFileMode>(crcReadValue<quint16>(in, &crc));
+    m_tsMode = static_cast<TSyncFileMode>(csReadValue<quint16>(in, csState));
 
     // block size
-    m_blockSize = crcReadValue<qint32>(in, &crc);
+    m_blockSize = csReadValue<qint32>(in, csState);
 
     // time info
-    const auto timeName1Utf8 = crcReadValue<QByteArray>(in, &crc);
-    const auto timeUnit1_i = crcReadValue<quint16>(in, &crc);
-    const auto timeDType1_i = crcReadValue<quint16>(in, &crc);
+    const auto timeName1Utf8 = csReadValue<QByteArray>(in, csState);
+    const auto timeUnit1_i = csReadValue<quint16>(in, csState);
+    const auto timeDType1_i = csReadValue<quint16>(in, csState);
 
-    const auto timeName2Utf8 = crcReadValue<QByteArray>(in, &crc);
-    const auto timeUnit2_i = crcReadValue<quint16>(in, &crc);
-    const auto timeDType2_i = crcReadValue<quint16>(in, &crc);
+    const auto timeName2Utf8 = csReadValue<QByteArray>(in, csState);
+    const auto timeUnit2_i = csReadValue<quint16>(in, csState);
+    const auto timeDType2_i = csReadValue<quint16>(in, csState);
 
     m_timeNames.first = QString::fromUtf8(timeName1Utf8);
     m_timeNames.second = QString::fromUtf8(timeName2Utf8);
@@ -440,38 +442,41 @@ bool TimeSyncFileReader::open(const QString &fname)
     // skip potential alignment bytes
     const int padding = (file.pos() * -1) & (8 - 1); // files use 8-byte alignment
     for (int i = 0; i < padding; i++)
-        crcReadValue<quint8>(in, &crc);
+        csReadValue<quint8>(in, csState);
 
     // check header CRC
-    quint32 expectedHeaderCRC;
-    quint32 blockTerm;
+    quint64 expectedHeaderCRC;
+    quint64 blockTerm;
     in >> blockTerm >> expectedHeaderCRC;
     if (blockTerm != TSYNC_FILE_BLOCK_TERM) {
         m_lastError = QStringLiteral("Header block terminator not found: The file is either invalid or its header block was damaged.");
+        XXH3_freeState(csState);
         return false;
     }
-    if (expectedHeaderCRC != crc) {
+    if (expectedHeaderCRC != XXH3_64bits_digest(csState)) {
         m_lastError = QStringLiteral("Header checksum mismatch: The file is either invalid or its header block was damaged.");
+        XXH3_freeState(csState);
         return false;
     }
 
     // read the time data
     m_times.clear();
     int bIndex = 0;
-    crc = 0;
-    const auto data_sec_end = file.size() - 8;
+    XXH3_64bits_reset(csState);
+    const auto data_sec_end = file.size() - 16;
     while (!in.atEnd()) {
         if (file.pos() == data_sec_end) {
-            // read last 8 bytes, which *must* be the block terminator of the final block, otherwise
+            // read last 16 bytes, which *must* be the block terminator of the final block, otherwise
             // our file was truncated or corrupted.
-            quint32 expectedCRC;
+            quint64 expectedCRC;
             in >> blockTerm >> expectedCRC;
 
             if (blockTerm != TSYNC_FILE_BLOCK_TERM) {
                 m_lastError = QStringLiteral("Unable to read all tsync data: File was likely truncated (its last block is not complete).");
+                XXH3_freeState(csState);
                 return false;
             }
-            if (expectedCRC != crc)
+            if (expectedCRC != XXH3_64bits_digest(csState))
                 qCWarning(logTSyncFile).noquote() << "CRC check failed for last tsync data block: Data is likely corrupted.";
             break;
         }
@@ -481,17 +486,17 @@ bool TimeSyncFileReader::open(const QString &fname)
 
         switch (timeDType1) {
             case TSyncFileDataType::INT16:
-                timeVal1 = crcReadValue<qint16>(in, &crc); break;
+                timeVal1 = csReadValue<qint16>(in, csState); break;
             case TSyncFileDataType::INT32:
-                timeVal1 = crcReadValue<qint32>(in, &crc); break;
+                timeVal1 = csReadValue<qint32>(in, csState); break;
             case TSyncFileDataType::INT64:
-                timeVal1 = crcReadValue<qint64>(in, &crc); break;
+                timeVal1 = csReadValue<qint64>(in, csState); break;
             case TSyncFileDataType::UINT16:
-                timeVal1 = crcReadValue<quint16>(in, &crc); break;
+                timeVal1 = csReadValue<quint16>(in, csState); break;
             case TSyncFileDataType::UINT32:
-                timeVal1 = crcReadValue<quint32>(in, &crc); break;
+                timeVal1 = csReadValue<quint32>(in, csState); break;
             case TSyncFileDataType::UINT64:
-                timeVal1 = crcReadValue<quint64>(in, &crc); break;
+                timeVal1 = csReadValue<quint64>(in, csState); break;
             default:
                 qFatal("Tried to read unknown datatype from timesync file for time1: %i", (int) timeDType1);
                 break;
@@ -499,17 +504,17 @@ bool TimeSyncFileReader::open(const QString &fname)
 
         switch (timeDType2) {
             case TSyncFileDataType::INT16:
-                timeVal2 = crcReadValue<qint16>(in, &crc); break;
+                timeVal2 = csReadValue<qint16>(in, csState); break;
             case TSyncFileDataType::INT32:
-                timeVal2 = crcReadValue<qint32>(in, &crc); break;
+                timeVal2 = csReadValue<qint32>(in, csState); break;
             case TSyncFileDataType::INT64:
-                timeVal2 = crcReadValue<qint64>(in, &crc); break;
+                timeVal2 = csReadValue<qint64>(in, csState); break;
             case TSyncFileDataType::UINT16:
-                timeVal2 = crcReadValue<quint16>(in, &crc); break;
+                timeVal2 = csReadValue<quint16>(in, csState); break;
             case TSyncFileDataType::UINT32:
-                timeVal2 = crcReadValue<quint32>(in, &crc); break;
+                timeVal2 = csReadValue<quint32>(in, csState); break;
             case TSyncFileDataType::UINT64:
-                timeVal2 = crcReadValue<quint64>(in, &crc); break;
+                timeVal2 = csReadValue<quint64>(in, csState); break;
             default:
                 qFatal("Tried to read unknown datatype from timesync file for time2: %i", (int) timeDType2);
                 break;
@@ -519,21 +524,23 @@ bool TimeSyncFileReader::open(const QString &fname)
 
         bIndex++;
         if (bIndex == m_blockSize) {
-            quint32 expectedCRC;
+            quint64 expectedCRC;
             in >> blockTerm >> expectedCRC;
 
             if (blockTerm != TSYNC_FILE_BLOCK_TERM) {
                 m_lastError = QStringLiteral("Unable to read all tsync data: Block separator was invalid.");
+                XXH3_freeState(csState);
                 return false;
             }
-            if (expectedCRC != crc)
+            if (expectedCRC != XXH3_64bits_digest(csState))
                 qCWarning(logTSyncFile).noquote() << "CRC check failed for tsync data block: Data is likely corrupted.";
 
-            crc = 0;
+            XXH3_64bits_reset(csState);
             bIndex = 0;
         }
     }
 
+    XXH3_freeState(csState);
     return true;
 }
 

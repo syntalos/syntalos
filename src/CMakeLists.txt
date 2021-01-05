@@ -23,8 +23,6 @@ set(SYNTALOS_SHARED_SRC
     tsyncfile.h
     tsyncfile.cpp
 
-    utils/crc32c.h
-    utils/crc32c.cpp
     utils/misc.h
     utils/misc.cpp
     utils/tomlutils.h
@@ -142,6 +140,7 @@ target_link_libraries(syntalos
 )
 
 include_directories(
+    ${XXHASH_INCLUDE_DIRS}
     ${GLIB_INCLUDE_DIRS}
     ${TOML_INCLUDE_DIRS}
     ${OpenCV_INCLUDE_DIRS}

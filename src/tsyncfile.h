@@ -23,6 +23,7 @@
 #include <QLoggingCategory>
 #include <QDataStream>
 #include <QUuid>
+#include <xxhash.h>
 
 #include "syclock.h"
 
@@ -114,7 +115,7 @@ private:
     TSyncFileMode m_tsMode;
     int m_blockSize;
     int m_bIndex;
-    quint32 m_blockCRC;
+    XXH3_state_t *m_xxh3State;
     QString m_lastError;
 
     QPair<QString, QString> m_timeNames;
@@ -123,7 +124,7 @@ private:
     TSyncFileDataType m_time2DType;
 
     void writeBlockTerminator(bool check = true);
-    template<class T> void crcWriteValue(const T &data);
+    template<class T> void csWriteValue(const T &data);
     template<class T1, class T2> void writeTimeEntry(const T1 &time1, const T2 &time2);
 };
 
