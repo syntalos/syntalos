@@ -158,7 +158,7 @@ public:
             // warn if there is a bigger framerate drop
             if (currentFps < (m_fps - 2)) {
                 fpsLow = true;
-                setStatusMessage(QStringLiteral("<font color=\"red\"><b>Framerate (%1fps) is too low!</b></font>").arg(currentFps));
+                setStatusMessage(QStringLiteral("<html><font color=\"red\"><b>Framerate (%1fps) is too low!</b></font>").arg(currentFps));
             } else if (fpsLow) {
                 fpsLow = false;
                 statusMessage("Acquiring frames...");

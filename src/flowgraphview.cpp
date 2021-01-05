@@ -711,7 +711,7 @@ void FlowGraphNode::updateNodeState(ModuleState state)
 
 void FlowGraphNode::setNodeInfoText(const QString &info)
 {
-    if (info.contains("/>")) {
+    if (info.startsWith("<html>")) {
         m_infoText->setHtml(info);
     } else {
         QFontMetrics fm(m_infoText->font());
