@@ -4,6 +4,9 @@ set -x
 
 export DEBIAN_FRONTEND=noninteractive
 
+# update caches
+apt-get update -qq
+
 # install build essentials
 apt-get install -yq \
     eatmydata build-essential gdb gcc g++
