@@ -115,8 +115,8 @@ void RecorderSettingsDialog::setCodecProps(CodecProperties props)
     }
 
     // other properties
-    ui->losslessCheckBox->setChecked(m_codecProps.useVaapi());
-    ui->vaapiCheckBox->setChecked(m_codecProps.isLossless());
+    ui->losslessCheckBox->setChecked(m_codecProps.isLossless());
+    ui->vaapiCheckBox->setChecked(m_codecProps.useVaapi());
 }
 
 void RecorderSettingsDialog::setVideoContainer(const VideoContainer& container)
