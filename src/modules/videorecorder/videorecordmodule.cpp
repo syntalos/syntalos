@@ -48,6 +48,7 @@ private:
     std::unique_ptr<VideoWriter> m_videoWriter;
 
     RecorderSettingsDialog *m_settingsDialog;
+    CodecProperties m_activeCodecProps;
 
     std::shared_ptr<StreamInputPort<Frame>> m_inPort;
     std::shared_ptr<StreamSubscription<Frame>> m_inSub;
@@ -105,6 +106,9 @@ public:
 
         codecProps.setThreadCount((potentialNoaffinityCPUCount() >= 2)? potentialNoaffinityCPUCount() : 2);
         m_videoWriter->setCodecProps(codecProps);
+
+        // copy codec properties so the worker thread has direct access to a copy
+        m_activeCodecProps = codecProps;
 
         m_videoWriter->setFileSliceInterval(0); // no slicing allowed, unless changed later
         if (m_settingsDialog->slicingEnabled())
@@ -320,6 +324,14 @@ public:
                 vInfo.insert("frame_height", frameSize.height());
                 vInfo.insert("framerate", framerate);
                 vInfo.insert("colored", useColor);
+                vInfo.insert("lossless", m_activeCodecProps.isLossless());
+                vInfo.insert("thread_count", m_activeCodecProps.threadCount());
+                if (m_activeCodecProps.useVaapi())
+                    vInfo.insert("vaapi_enabled", true);
+                if (m_activeCodecProps.mode() == CodecProperties::ConstantBitrate)
+                    vInfo.insert("target_bitrate_kbps", m_activeCodecProps.bitrateKbps());
+                else
+                    vInfo.insert("target_quality", m_activeCodecProps.quality());
                 m_vidDataset->insertAttribute(QStringLiteral("video"), vInfo);
 
                 // signal that we are actually recording this session
@@ -379,6 +391,9 @@ public:
         settings.insert("video_container", static_cast<int>(m_settingsDialog->videoContainer()));
         settings.insert("lossless", codecProps.isLossless());
         settings.insert("vaapi_enabled", codecProps.useVaapi());
+        settings.insert("bitrate_kbps", codecProps.bitrateKbps());
+        settings.insert("quality", codecProps.quality());
+        settings.insert("mode", CodecProperties::modeToString(codecProps.mode()));
 
         settings.insert("slices_enabled", static_cast<int>(m_settingsDialog->slicingEnabled()));
         settings.insert("slices_interval", static_cast<int>(m_settingsDialog->sliceInterval()));
@@ -386,17 +401,22 @@ public:
 
     bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
     {
+        // set codec first, which may apply some default settings
+        CodecProperties codecProps(static_cast<VideoCodec>(settings.value("video_codec").toInt()));
+        codecProps.setMode(CodecProperties::stringToMode(settings.value("mode").toString()));
+        codecProps.setLossless(settings.value("lossless").toBool());
+        codecProps.setUseVaapi(settings.value("vaapi_enabled").toBool());
+        codecProps.setBitrateKbps(settings.value("bitrate_kbps", codecProps.bitrateKbps()).toInt());
+        codecProps.setQuality(settings.value("quality", codecProps.quality()).toInt());
+        m_settingsDialog->setCodecProps(codecProps);
+
+        // set user settings (possibly overriding codec defaults)
         m_settingsDialog->setVideoNameFromSource(settings.value("video_name_from_source", true).toBool());
         m_settingsDialog->setVideoName(settings.value("video_name").toString());
         m_settingsDialog->setSaveTimestamps(settings.value("save_timestamps", true).toBool());
         m_settingsDialog->setStartStopped(settings.value("start_stopped", false).toBool());
 
         m_settingsDialog->setVideoContainer(static_cast<VideoContainer>(settings.value("video_container").toInt()));
-        CodecProperties codecProps(static_cast<VideoCodec>(settings.value("video_codec").toInt()));
-        codecProps.setLossless(settings.value("lossless").toBool());
-        codecProps.setUseVaapi(settings.value("vaapi_enabled").toBool());
-        m_settingsDialog->setCodecProps(codecProps);
-
         m_settingsDialog->setSlicingEnabled(settings.value("slices_enabled").toBool());
         m_settingsDialog->setSliceInterval(static_cast<uint>(settings.value("slices_interval").toInt()));
 

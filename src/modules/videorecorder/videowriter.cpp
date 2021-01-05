@@ -120,6 +120,7 @@ class CodecProperties::Private
 public:
     VideoCodec codec;
     LosslessMode losslessMode;
+    EncoderMode mode;
     bool lossless;
 
     int threadCount;
@@ -128,6 +129,12 @@ public:
 
     bool slicingAllowed;
     bool aviAllowed;
+
+    int qualityMin;
+    int qualityMax;
+    int quality;
+
+    int bitrate;
 };
 #pragma GCC diagnostic pop
 
@@ -141,48 +148,76 @@ CodecProperties::CodecProperties(VideoCodec codec)
     d->useVaapi = false;
     d->slicingAllowed = true;
     d->aviAllowed = false;
+    d->mode = ConstantQuality;
+    d->bitrate = 8000;
+    d->quality = 0;
+    d->qualityMin = 0;
+    d->qualityMax = 0;
 
     switch (codec) {
     case VideoCodec::Raw:
         d->losslessMode = Always;
         d->aviAllowed = true;
+        d->lossless = true;
 
         break;
 
     case VideoCodec::FFV1:
         d->losslessMode = Always;
+        d->lossless = true;
 
         break;
 
     case VideoCodec::AV1:
-        d->losslessMode = Selectable;
+        d->losslessMode = Option;
+
+        d->quality = 24;
+        d->qualityMax = 0;
+        d->qualityMin = 63;
 
         break;
 
     case VideoCodec::VP9:
-        d->losslessMode = Selectable;
+        d->losslessMode = Option;
         d->canUseVaapi = true;
         d->slicingAllowed = false; // codec needs init frames
+
+        d->quality = 24;
+        d->qualityMax = 0;
+        d->qualityMin = 63;
+        d->bitrate = 128 * 1000;
 
         break;
 
     case VideoCodec::H264:
-        d->losslessMode = Selectable;
+        d->losslessMode = Option;
         d->canUseVaapi = true;
         d->slicingAllowed = false; // codec needs init frames
+
+        d->quality = 24;
+        d->qualityMax = 0;
+        d->qualityMin = 51;
 
         break;
 
     case VideoCodec::HEVC:
-        d->losslessMode = Selectable;
+        d->losslessMode = Option;
         d->canUseVaapi = true;
         d->slicingAllowed = false; // codec needs init frames
+
+        d->quality = 24;
+        d->qualityMax = 0;
+        d->qualityMin = 51;
 
         break;
 
     case VideoCodec::MPEG4:
         d->losslessMode = Never;
         d->aviAllowed = true;
+
+        d->quality = 3;
+        d->qualityMax = 0;
+        d->qualityMin = 31;
 
         break;
 
@@ -211,6 +246,27 @@ CodecProperties &CodecProperties::operator=(const CodecProperties &rhs)
     return *this;
 }
 
+QString CodecProperties::modeToString(CodecProperties::EncoderMode mode)
+{
+    switch (mode) {
+    case ConstantQuality:
+        return QStringLiteral("constant-quality");
+    case ConstantBitrate:
+        return QStringLiteral("constant-bitrate");
+    default:
+        return QStringLiteral("unknown");
+    }
+}
+
+CodecProperties::EncoderMode CodecProperties::stringToMode(const QString &str)
+{
+    if (str == QStringLiteral("constant-quality"))
+        return ConstantQuality;
+    if (str == QStringLiteral("constant-bitrate"))
+        return ConstantBitrate;
+    return None;
+}
+
 VideoCodec CodecProperties::codec() const
 {
     return d->codec;
@@ -219,6 +275,11 @@ VideoCodec CodecProperties::codec() const
 CodecProperties::LosslessMode CodecProperties::losslessMode() const
 {
     return d->losslessMode;
+}
+
+bool CodecProperties::isLossless() const
+{
+    return d->lossless;
 }
 
 void CodecProperties::setLossless(bool enabled)
@@ -262,9 +323,44 @@ bool CodecProperties::allowsAviContainer() const
     return d->aviAllowed;
 }
 
-bool CodecProperties::isLossless() const
+CodecProperties::EncoderMode CodecProperties::mode() const
 {
-    return d->lossless;
+    return d->mode;
+}
+
+void CodecProperties::setMode(CodecProperties::EncoderMode mode)
+{
+    d->mode = mode;
+}
+
+int CodecProperties::qualityMin() const
+{
+    return d->qualityMin;
+}
+
+int CodecProperties::qualityMax() const
+{
+    return d->qualityMax;
+}
+
+int CodecProperties::quality() const
+{
+    return d->quality;
+}
+
+void CodecProperties::setQuality(int q)
+{
+    d->quality = q;
+}
+
+int CodecProperties::bitrateKbps() const
+{
+    return d->bitrate;
+}
+
+void CodecProperties::setBitrateKbps(int bitrate)
+{
+    d->bitrate = bitrate;
 }
 
 #pragma GCC diagnostic push
@@ -554,6 +650,15 @@ void VideoWriter::initializeInternal()
     }
 
     AVDictionary *codecopts = nullptr;
+
+    // set bitrate/crf
+    d->cctx->bit_rate = 0;
+    av_dict_set_int(&codecopts, "crf", 0, 0);
+    if (d->codecProps.mode() == CodecProperties::ConstantQuality)
+        av_dict_set_int(&codecopts, "crf", d->codecProps.quality(), 0);
+    else if (d->codecProps.mode() == CodecProperties::ConstantBitrate)
+        d->cctx->bit_rate = d->codecProps.bitrateKbps() * 1000;
+
     if (d->codecProps.isLossless()) {
         // settings for lossless option
 
@@ -589,7 +694,6 @@ void VideoWriter::initializeInternal()
         if (d->codecProps.codec() == VideoCodec::HEVC) {
             d->cctx->gop_size = 16;
             av_dict_set(&codecopts, "preset", "veryfast", 0);
-            av_dict_set_int(&codecopts, "crf", 28, 0);
         }
     }
 
@@ -598,9 +702,11 @@ void VideoWriter::initializeInternal()
         // for more information on the settings.
 
         d->cctx->gop_size = 90;
-        d->cctx->qmin = 4;
-        d->cctx->qmax = 48;
-        d->cctx->bit_rate = 7800 * 1000;
+        if (d->codecProps.mode() == CodecProperties::ConstantBitrate) {
+            d->cctx->qmin = 4;
+            d->cctx->qmax = 48;
+            av_dict_set_int(&codecopts, "crf", 24, 0);
+        }
 
         av_dict_set(&codecopts, "quality", "realtime", 0);
         av_dict_set(&codecopts, "deadline", "realtime", 0);
@@ -612,11 +718,6 @@ void VideoWriter::initializeInternal()
         av_dict_set_int(&codecopts, "lag-in-frames", 0, 0);
         av_dict_set_int(&codecopts, "row-mt", 1, 0);
         av_dict_set_int(&codecopts, "error-resilient", 1, 0);
-
-        if (!d->codecProps.isLossless()) {
-            av_dict_set_int(&codecopts, "crf", 31, 0);
-            d->cctx->bit_rate = 0;
-        }
     }
 
     if (d->codecProps.codec() == VideoCodec::FFV1) {

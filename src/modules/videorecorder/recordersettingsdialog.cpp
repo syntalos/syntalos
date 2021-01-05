@@ -109,14 +109,64 @@ void RecorderSettingsDialog::setCodecProps(CodecProperties props)
     // select codec in UI
     for (int i = 0; i < ui->codecComboBox->count(); i++) {
         if (ui->codecComboBox->itemData(i).value<VideoCodec>() == props.codec()) {
+            if (ui->codecComboBox->currentIndex() == i)
+                break;
             ui->codecComboBox->setCurrentIndex(i);
             break;
         }
     }
 
+    if (!m_codecProps.allowsAviContainer())
+        ui->containerComboBox->setCurrentIndex(0);
+    ui->containerComboBox->setEnabled(m_codecProps.allowsAviContainer());
+
+    // set lossles UI preferences
+    if (m_codecProps.losslessMode() == CodecProperties::Always) {
+        ui->losslessCheckBox->setEnabled(false);
+        ui->losslessCheckBox->setChecked(true);
+    } else if (m_codecProps.losslessMode() == CodecProperties::Never) {
+        ui->losslessCheckBox->setEnabled(false);
+        ui->losslessCheckBox->setChecked(false);
+    } else {
+        ui->losslessCheckBox->setEnabled(true);
+        ui->losslessCheckBox->setChecked(false);
+    }
+
+    // change VAAPI option
+    ui->vaapiCheckBox->setEnabled(m_codecProps.canUseVaapi());
+    ui->vaapiLabel->setEnabled(m_codecProps.canUseVaapi());
+    if (!m_codecProps.canUseVaapi())
+        ui->vaapiCheckBox->setChecked(false);
+
+    // update slicing issue hint
+    ui->sliceWarnButton->setVisible(false);
+    if (ui->slicingCheckBox->isChecked()) {
+        if (!m_codecProps.allowsSlicing())
+            ui->sliceWarnButton->setVisible(true);
+    }
+
+    // set min/max quality, default bitrate
+    if (m_codecProps.qualityMax() < m_codecProps.qualityMin()) {
+        ui->qualitySlider->setMaximum(m_codecProps.qualityMax());
+        ui->qualitySlider->setMinimum(m_codecProps.qualityMin() * -1);
+        ui->qualitySlider->setValue(m_codecProps.quality() * -1);
+    } else {
+        ui->qualitySlider->setMaximum(m_codecProps.qualityMax());
+        ui->qualitySlider->setMinimum(m_codecProps.qualityMin());
+        ui->qualitySlider->setValue(m_codecProps.quality());
+    }
+    ui->bitrateSpinBox->setValue(m_codecProps.bitrateKbps());
+
     // other properties
     ui->losslessCheckBox->setChecked(m_codecProps.isLossless());
     ui->vaapiCheckBox->setChecked(m_codecProps.useVaapi());
+
+    ui->brqWidget->setEnabled(true);
+    if (m_codecProps.losslessMode() == CodecProperties::Always)
+        ui->brqWidget->setEnabled(false);
+
+    ui->radioButtonBitrate->setChecked(m_codecProps.mode() == CodecProperties::ConstantBitrate);
+    on_radioButtonBitrate_toggled(m_codecProps.mode() == CodecProperties::ConstantBitrate);
 }
 
 void RecorderSettingsDialog::setVideoContainer(const VideoContainer& container)
@@ -177,36 +227,14 @@ void RecorderSettingsDialog::on_codecComboBox_currentIndexChanged(int)
     ui->containerComboBox->setEnabled(true);
 
     const auto codec = ui->codecComboBox->currentData().value<VideoCodec>();
-    CodecProperties tmpCP(codec);
-    m_codecProps = tmpCP;
+    if (codec == m_codecProps.codec())
+        return;
 
     // always prefer the Matroska container
     ui->containerComboBox->setCurrentIndex(0);
-    ui->containerComboBox->setEnabled(m_codecProps.allowsAviContainer());
 
-    // set lossles UI preferences
-    if (m_codecProps.losslessMode() == CodecProperties::Always) {
-        ui->losslessCheckBox->setEnabled(false);
-        ui->losslessCheckBox->setChecked(true);
-    } else if (m_codecProps.losslessMode() == CodecProperties::Never) {
-        ui->losslessCheckBox->setEnabled(false);
-        ui->losslessCheckBox->setChecked(false);
-    } else {
-        ui->losslessCheckBox->setEnabled(true);
-        ui->losslessCheckBox->setChecked(false);
-    }
-    // change VAAPI possibility
-    ui->vaapiCheckBox->setEnabled(m_codecProps.canUseVaapi());
-    ui->vaapiLabel->setEnabled(m_codecProps.canUseVaapi());
-    if (!m_codecProps.canUseVaapi())
-        ui->vaapiCheckBox->setChecked(false);
-
-    // update slicing issue hint
-    ui->sliceWarnButton->setVisible(false);
-    if (ui->slicingCheckBox->isChecked()) {
-        if (!m_codecProps.allowsSlicing())
-            ui->sliceWarnButton->setVisible(true);
-    }
+    CodecProperties tmpCP(codec);
+    setCodecProps(tmpCP);
 }
 
 void RecorderSettingsDialog::on_nameFromSrcCheckBox_toggled(bool checked)
@@ -250,4 +278,27 @@ void RecorderSettingsDialog::on_slicingCheckBox_toggled(bool checked)
     }
     ui->sliceIntervalSpinBox->setEnabled(checked);
     ui->sliceWarnButton->setEnabled(checked);
+}
+
+void RecorderSettingsDialog::on_qualitySlider_valueChanged(int value)
+{
+    auto realVal = value;
+    if (m_codecProps.qualityMax() < m_codecProps.qualityMin())
+        realVal = value * -1;
+    m_codecProps.setQuality(realVal);
+    ui->qualityValLabel->setText(QString::number(realVal));
+}
+
+void RecorderSettingsDialog::on_bitrateSpinBox_valueChanged(int b)
+{
+    m_codecProps.setBitrateKbps(b);
+}
+
+void RecorderSettingsDialog::on_radioButtonBitrate_toggled(bool checked)
+{
+    ui->qualityValWidget->setEnabled(!checked);
+    if (checked)
+        m_codecProps.setMode(CodecProperties::ConstantBitrate);
+    else
+        m_codecProps.setMode(CodecProperties::ConstantQuality);
 }

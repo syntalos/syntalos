@@ -373,7 +373,7 @@
           <number>4</number>
          </property>
          <item row="3" column="0">
-          <widget class="QRadioButton" name="radioButton_2">
+          <widget class="QRadioButton" name="radioButtonBitrate">
            <property name="text">
             <string>Bitrate</string>
            </property>
@@ -392,27 +392,52 @@
            </property>
           </widget>
          </item>
-         <item row="2" column="1">
-          <widget class="QSpinBox" name="qualitySpinBox">
-           <property name="prefix">
-            <string>RF </string>
-           </property>
-           <property name="maximum">
-            <number>51</number>
-           </property>
-           <property name="value">
-            <number>22</number>
-           </property>
-          </widget>
-         </item>
          <item row="2" column="0">
-          <widget class="QRadioButton" name="radioButton">
+          <widget class="QRadioButton" name="radioButtonQuality">
            <property name="text">
             <string>Constant Quality</string>
            </property>
            <property name="checked">
             <bool>true</bool>
            </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="QWidget" name="qualityValWidget" native="true">
+           <layout class="QHBoxLayout" name="horizontalLayout_3">
+            <property name="spacing">
+             <number>2</number>
+            </property>
+            <property name="leftMargin">
+             <number>0</number>
+            </property>
+            <property name="topMargin">
+             <number>0</number>
+            </property>
+            <property name="rightMargin">
+             <number>0</number>
+            </property>
+            <property name="bottomMargin">
+             <number>0</number>
+            </property>
+            <item>
+             <widget class="QSlider" name="qualitySlider">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="tickPosition">
+               <enum>QSlider::TicksBothSides</enum>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="qualityValLabel">
+              <property name="text">
+               <string>0</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </widget>
          </item>
         </layout>
@@ -452,23 +477,7 @@
  <resources/>
  <connections>
   <connection>
-   <sender>radioButton</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>qualitySpinBox</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>201</x>
-     <y>330</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>363</x>
-     <y>329</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>radioButton_2</sender>
+   <sender>radioButtonBitrate</sender>
    <signal>toggled(bool)</signal>
    <receiver>bitrateSpinBox</receiver>
    <slot>setEnabled(bool)</slot>

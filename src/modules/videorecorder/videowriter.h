@@ -87,10 +87,18 @@ public:
     CodecProperties& operator=(const CodecProperties& rhs);
 
     enum LosslessMode {
-        Selectable,
+        Option,
         Always,
         Never
     };
+
+    enum EncoderMode {
+        None,
+        ConstantQuality,
+        ConstantBitrate
+    };
+    static QString modeToString(EncoderMode mode);
+    static EncoderMode stringToMode(const QString &str);
 
     VideoCodec codec() const;
 
@@ -107,6 +115,17 @@ public:
 
     bool allowsSlicing() const;
     bool allowsAviContainer() const;
+
+    EncoderMode mode() const;
+    void setMode(EncoderMode mode);
+
+    int qualityMin() const;
+    int qualityMax() const;
+    int quality() const;
+    void setQuality(int q);
+
+    int bitrateKbps() const;
+    void setBitrateKbps(int bitrate);
 
 private:
     class Private;

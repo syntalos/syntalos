@@ -71,6 +71,10 @@ private slots:
     void on_slicingCheckBox_toggled(bool checked);
     void on_sliceWarnButton_clicked();
 
+    void on_qualitySlider_valueChanged(int value);
+    void on_bitrateSpinBox_valueChanged(int arg1);
+    void on_radioButtonBitrate_toggled(bool checked);
+
 private:
     Ui::RecorderSettingsDialog *ui;
 
