@@ -27,7 +27,6 @@ using namespace Syntalos;
 
 class PyScriptModuleInfo : public ModuleInfo
 {
-    Q_OBJECT
 public:
     QString id() const override;
     QString name() const override;

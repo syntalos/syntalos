@@ -15,7 +15,7 @@ apt-get install -yq \
 eatmydata apt-get install -yq --no-install-recommends \
     git ca-certificates \
     xvfb xauth \
-    meson \
+    python3-pip \
     ninja-build \
     cmake \
     gettext \
@@ -42,7 +42,8 @@ eatmydata apt-get install -yq --no-install-recommends \
     libkf5texteditor-dev \
     python3-numpy \
     libgstreamer1.0-dev \
-    libgstreamer-plugins-base1.0-dev
+    libgstreamer-plugins-base1.0-dev \
+    udev
 
 # install additional dependencies
 eatmydata apt-get install -yq --no-install-recommends \
@@ -51,3 +52,5 @@ eatmydata apt-get install -yq --no-install-recommends \
     libusb-1.0-0-dev \
     libzip-dev \
     libudev-dev
+
+pip install git+https://github.com/ximion/meson.git@wip/gencustomdep

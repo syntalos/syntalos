@@ -1,0 +1,3 @@
+[syntalos_module]
+type = "library"
+main = "@lib_name@"

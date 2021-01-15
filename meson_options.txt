@@ -1,0 +1,50 @@
+option('optimize-avx',
+       type : 'boolean',
+       value : true,
+       description : 'Enable AVX2 instructions when building in release mode'
+)
+option('optimize-native',
+       type : 'boolean',
+       value : false,
+       description : 'Optimize for native CPU when in release mode'
+)
+option('udevdir',
+    type: 'string',
+    value: '',
+    description: 'Directory for udev rules'
+)
+
+option('mod-camera-flir',
+       type : 'boolean',
+       value : false,
+       description : 'Enable FLIR camera module using the Spinnaker API'
+)
+option('mod-camera-ueye',
+       type : 'boolean',
+       value : false,
+       description : 'Enable uEye camera module'
+)
+option('mod-camera-tis',
+       type : 'boolean',
+       value : true,
+       description : 'Enable camera module for The Imaging Source cameras'
+)
+option('mod-miniscope',
+       type : 'boolean',
+       value : true,
+       description : 'Enable Miniscope module'
+)
+
+#
+# For development
+#
+option('tracing',
+       type : 'boolean',
+       value : false,
+       description : 'Compile with -pg flag for function tracing & profiling'
+)
+option('maintainer',
+       type : 'boolean',
+       value : false,
+       description : 'Enable maintainer mode (use strict compiler flags, e.g. -Werror)'
+)

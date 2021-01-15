@@ -26,7 +26,6 @@ class SignalSources;
 
 class Rhd2000ModuleInfo : public ModuleInfo
 {
-    Q_OBJECT
 public:
     QString id() const override;
     QString name() const override;
@@ -36,6 +35,10 @@ public:
     bool singleton() const override;
     AbstractModule *createModule(QObject *parent = nullptr) override;
 };
+
+//SYNTALOS_DECLARE_MODULE(Rhd2000ModuleInfo, rhd2000)
+extern "C" ModuleInfo *syntalos_module_rhd2000_info ();
+//extern "C" uint syntalos_module_rhd2000_api_level () { return SYNTALOS_MODULE_API_LEVEL; }
 
 template<typename T>
 class StreamDataInfo

@@ -24,7 +24,6 @@
 
 class DevelClockModuleInfo : public ModuleInfo
 {
-    Q_OBJECT
 public:
     QString id() const override;
     QString name() const override;
@@ -33,3 +32,5 @@ public:
     bool devel() const override;
     AbstractModule *createModule(QObject *parent = nullptr) override;
 };
+
+SYNTALOS_DECLARE_MODULE

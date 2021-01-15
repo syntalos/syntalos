@@ -352,3 +352,8 @@ void Rhd2000Module::noRecordRunActionTriggered()
     else
         m_intanUi->stopInterfaceBoard();
 }
+
+ModuleInfo *syntalos_module_rhd2000_info()
+{
+     return new Rhd2000ModuleInfo;
+}

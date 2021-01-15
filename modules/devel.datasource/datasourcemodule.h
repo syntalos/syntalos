@@ -26,7 +26,6 @@ using namespace Syntalos;
 
 class DevelDataSourceModuleInfo : public ModuleInfo
 {
-    Q_OBJECT
 public:
     QString id() const override;
     QString name() const override;

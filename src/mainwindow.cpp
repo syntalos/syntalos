@@ -32,7 +32,6 @@
 #include <QRadioButton>
 #include <QDebug>
 #include <QTimer>
-#include <QSerialPortInfo>
 #include <QTableWidget>
 #include <QMdiSubWindow>
 #include <QSpinBox>

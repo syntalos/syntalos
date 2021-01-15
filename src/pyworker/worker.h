@@ -19,10 +19,10 @@
 
 #pragma once
 
+#include <pybind11/pybind11.h>
 #include <QObject>
 #include <QQueue>
 #include <QTimer>
-#include <pybind11/pybind11.h>
 
 #include "rep_interface_source.h"
 #include "sharedmemory.h"

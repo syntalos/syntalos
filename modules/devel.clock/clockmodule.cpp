@@ -27,6 +27,8 @@
 
 #define NSEC_IN_SEC 1000000000
 
+SYNTALOS_MODULE(DevelClockModule)
+
 static inline
 struct timespec timespecAdd(const struct timespec &t1, const struct timespec &t2)
 {

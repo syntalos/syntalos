@@ -1,13 +1,13 @@
 //------------------------------------------------------------------------
 // okFrontPanelDLL.c/cpp
 //
-// This is the import source for the FrontPanel API DLL.  If you are 
+// This is the import source for the FrontPanel API DLL.  If you are
 // building an application using the DLL, this source should be included
 // within your C++/C project.  It includes methods that will
 // automatically load the DLL and map function calls to the DLL entry
 // points.
 //
-// This library is not necessary when you call the DLL methods from 
+// This library is not necessary when you call the DLL methods from
 // another application or language such as LabVIEW or VisualBasic.
 //
 // This methods in this DLL correspond closely with the C++ API.
@@ -29,7 +29,7 @@
 // $Rev: 1251 $ $Date: 2012-10-01 22:25:50 -0700 (Mon, 01 Oct 2012) $
 //------------------------------------------------------------------------
 
-#include "config.h"
+#include "config-rhd2000.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -78,7 +78,7 @@ dll_entrypoint(DLL *dll, const char *name)
 	ep = (DLL_EP)dlsym(handle, name);
 	return( (dlerror()==0) ? (ep) : ((DLL_EP)NULL) );
 #endif
-}	
+}
 
 
 #if defined(_WIN32) && defined(_UNICODE)
@@ -547,7 +547,7 @@ okFrontPanel_GETDEVICECOUNT_FN                   _okFrontPanel_GetDeviceCount = 
 okFrontPanel_GETDEVICELISTMODEL_FN               _okFrontPanel_GetDeviceListModel = NULL;
 okFrontPanel_GETDEVICELISTSERIAL_FN              _okFrontPanel_GetDeviceListSerial = NULL;
 okFrontPanel_OPENBYSERIAL_FN                     _okFrontPanel_OpenBySerial = NULL;
-okFrontPanel_ISOPEN_FN                           _okFrontPanel_IsOpen = NULL; 
+okFrontPanel_ISOPEN_FN                           _okFrontPanel_IsOpen = NULL;
 okFrontPanel_ENABLEASYNCHRONOUSTRANSFERS_FN      _okFrontPanel_EnableAsynchronousTransfers = NULL;
 okFrontPanel_SETBTPIPEPOLLINGINTERVAL_FN         _okFrontPanel_SetBTPipePollingInterval = NULL;
 okFrontPanel_SETTIMEOUT_FN                       _okFrontPanel_SetTimeout = NULL;
@@ -607,7 +607,7 @@ okFrontPanelDLL_GetVersionString()
 }
 
 
-/// Loads the FrontPanel API DLL.  This function returns False if the 
+/// Loads the FrontPanel API DLL.  This function returns False if the
 /// DLL did not load for some reason, True otherwise.
 Bool
 okFrontPanelDLL_LoadLib(okFP_dll_pchar libname)
@@ -733,7 +733,7 @@ okFrontPanelDLL_LoadLib(okFP_dll_pchar libname)
     if (NULL == hLib) {
 		return(FALSE);
     }
-    
+
 	return(TRUE);
 }
 

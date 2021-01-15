@@ -38,9 +38,8 @@ public:
     int count;
 };
 
-ModuleInfo::ModuleInfo(QObject *parent)
-    : QObject(parent),
-      d(new ModuleInfo::Private)
+ModuleInfo::ModuleInfo()
+    : d(new ModuleInfo::Private)
 {
     d->count = 0;
 }

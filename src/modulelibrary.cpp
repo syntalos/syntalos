@@ -25,6 +25,7 @@
 
 #include "engine.h"
 
+#if 0
 #include "modules/devel.clock/clockmodule.h"
 #include "modules/devel.datasource/datasourcemodule.h"
 #include "modules/devel.datasst/datasstmodule.h"
@@ -55,10 +56,13 @@
 #include "modules/firmata-userctl/firmatauserctlmod.h"
 #include "modules/pyscript/pyscriptmodule.h"
 
-#include "modules/rhd2000/rhd2000module.h"
+//#include "modules/rhd2000/rhd2000module.h"
 #include "modules/traceplot/traceplotmodule.h"
 
 #include "modules/runcmd/runcmdmodule.h"
+#endif
+
+#include <QLibrary>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpadded"
@@ -76,6 +80,7 @@ ModuleLibrary::ModuleLibrary(QObject *parent)
     : QObject(parent),
       d(new ModuleLibrary::Private)
 {
+#if 0
     registerModuleInfo<DevelClockModuleInfo>();
     registerModuleInfo<DevelDataSourceModuleInfo>();
     registerModuleInfo<DevelDataSSTModuleInfo>();
@@ -106,9 +111,12 @@ ModuleLibrary::ModuleLibrary(QObject *parent)
     registerModuleInfo<FirmataUserCtlModuleInfo>();
     registerModuleInfo<PyScriptModuleInfo>();
 
-    registerModuleInfo<Rhd2000ModuleInfo>();
+    //registerModuleInfo<Rhd2000ModuleInfo>();
     registerModuleInfo<TracePlotModuleInfo>();
     registerModuleInfo<RunCmdModuleInfo>();
+
+#endif
+
 }
 
 ModuleLibrary::~ModuleLibrary()

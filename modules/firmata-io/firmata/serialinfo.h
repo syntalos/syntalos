@@ -22,6 +22,8 @@
 #include <QAbstractListModel>
 
 class SerialPortList : public QAbstractListModel {
+    Q_OBJECT
+
 public:
     enum SerialPortRoles {
         NameRole = Qt::UserRole+1,

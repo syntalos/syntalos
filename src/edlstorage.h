@@ -87,7 +87,7 @@ class EDLObject
     friend class EDLGroup;
 public:
     explicit EDLObject(EDLObjectKind kind, EDLObject *parent = nullptr);
-    ~EDLObject();
+    virtual ~EDLObject();
 
     EDLObjectKind objectKind() const;
     QString objectKindString() const;

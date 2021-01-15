@@ -39,6 +39,8 @@ namespace Syntalos {
 class AbstractModule;
 class StreamOutputPort;
 
+#define SYNTALOS_MODULE_API_LEVEL 0
+
 /**
  * @brief The ModuleFeature flags
  * List of basic features this module may or may not support.
@@ -64,12 +66,11 @@ enum class ModuleDriverKind {
     EVENTS_SHARED     /// Module shares a thread(pool) with arbitrary other modules, actions are triggered by events
 };
 
-class ModuleInfo : public QObject
+class Q_DECL_EXPORT ModuleInfo
 {
-    Q_OBJECT
     friend class Engine;
 public:
-    explicit ModuleInfo(QObject *parent = nullptr);
+    explicit ModuleInfo();
     ~ModuleInfo();
 
     /**
@@ -138,18 +139,29 @@ private:
     void setCount(int count);
 };
 
-} // end Syntalos of namespace
+/**
+  * Define interfaces for a dynamically loaded Syntalos module, so we can
+  * find it at runtime.
+  */
+#define SYNTALOS_DECLARE_MODULE \
+    _Pragma("GCC visibility push(default)") \
+    extern "C" ModuleInfo *syntalos_module_info(); \
+    extern "C" uint syntalos_module_api_level(); \
+    _Pragma("GCC visibility pop")
 
-#define ModuleInfoInterface_iid "com.draguhnlab.MazeAmaze.ModuleInfoInterface"
-Q_DECLARE_INTERFACE(Syntalos::ModuleInfo, ModuleInfoInterface_iid)
-
-namespace Syntalos {
+/**
+  * Define interfaces for a dynamically loaded Syntalos module, so we can
+  * find it at runtime.
+  */
+#define SYNTALOS_MODULE(MI) \
+    ModuleInfo *syntalos_module_info() { return new MI##Info; } \
+    uint syntalos_module_api_level() { return SYNTALOS_MODULE_API_LEVEL; }
 
 /**
  * @brief The TestSubject struct
  * Data about a test subject.
  */
-class TestSubject
+class Q_DECL_EXPORT TestSubject
 {
 public:
     QString id;
@@ -168,13 +180,13 @@ enum class PortDirection {
     OUTPUT
 };
 
-class AbstractStreamPort
+class Q_DECL_EXPORT AbstractStreamPort
 {
 public:
     virtual QString id() const = 0;
     virtual QString title() const = 0;
 
-    virtual PortDirection direction() const { return PortDirection::NONE; };
+    virtual PortDirection direction() const { return PortDirection::NONE; }
 
     virtual int dataTypeId() const = 0;
     virtual QString dataTypeName() const = 0;
@@ -182,7 +194,7 @@ public:
     virtual AbstractModule *owner() const = 0;
 };
 
-class VarStreamInputPort : public AbstractStreamPort
+class Q_DECL_EXPORT VarStreamInputPort : public AbstractStreamPort
 {
 public:
     explicit VarStreamInputPort(AbstractModule *owner, const QString &id, const QString &title);
@@ -257,7 +269,7 @@ private:
     QString m_acceptedTypeName;
 };
 
-class StreamOutputPort : public AbstractStreamPort
+class Q_DECL_EXPORT StreamOutputPort : public AbstractStreamPort
 {
 public:
     explicit StreamOutputPort(AbstractModule *owner, const QString &id, const QString &title, std::shared_ptr<VariantDataStream> stream);
@@ -299,7 +311,7 @@ using recvDataEventFunc_t = void(AbstractModule::*)();
  * This class describes the interface for every Syntalos module and contains
  * helper functions and other API to make writing modules simple.
  */
-class AbstractModule : public QObject
+class Q_DECL_EXPORT AbstractModule : public QObject
 {
     Q_OBJECT
     friend class Engine;
@@ -808,4 +820,5 @@ private:
 };
 
 } // end of namespace
+
 #endif // MODULEAPI_H

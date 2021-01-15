@@ -33,6 +33,7 @@
 #include <vector>
 #include <queue>
 
+#include "config-rhd2000.h"
 #include "modules/rhd2000/intanui.h"
 #include "globalconstants.h"
 #include "signalprocessor.h"
@@ -1697,12 +1698,9 @@ void IntanUi::openInterfaceBoard()
     }
 
     // find FPGA bitfile
-    auto bitfilename_tmp = QStringLiteral("/usr/local/share/syntalos/main.bit");
-    if (!QFileInfo(bitfilename_tmp).isFile()) {
-        bitfilename_tmp = QStringLiteral("/usr/share/syntalos/main.bit");
-        if (!QFileInfo(bitfilename_tmp).isFile())
-            bitfilename_tmp = QString(QCoreApplication::applicationDirPath() + "/main.bit");
-    }
+    auto bitfilename_tmp = QStringLiteral(RHYTHM_BITFILE_NAME);
+    if (!QFileInfo(bitfilename_tmp).isFile())
+        bitfilename_tmp = QString(QCoreApplication::applicationDirPath() + "/main.bit");
 
     // Load Rhythm FPGA configuration bitfile (provided by Intan Technologies).
     qDebug() << "Loading FPGA config bitfile from:" << bitfilename_tmp;
