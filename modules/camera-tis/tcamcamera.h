@@ -80,6 +80,7 @@ public:
     std::string group;
     std::string type;
 
+    virtual ~Property() = default;
     virtual std::string to_string();
 
     // Convenience getters / setters
@@ -100,6 +101,7 @@ public:
     int max;
     int step_size;
 
+    virtual ~IntegerProperty() = default;
     virtual std::string to_string() override;
     virtual bool get( TcamCamera &cam, int &value ) override;
     virtual bool set(TcamCamera &cam, int value) override;
@@ -114,6 +116,7 @@ public:
     double max;
     double step_size;
 
+    virtual ~DoubleProperty() = default;
     virtual std::string to_string() override;
     virtual bool get(TcamCamera &cam, double &value) override;
     virtual bool set(TcamCamera &cam, double value) override;
@@ -125,6 +128,7 @@ public:
     std::string value;
     std::string default_value;
 
+    virtual ~StringProperty() = default;
     virtual std::string to_string() override;
     virtual bool get(TcamCamera &cam, std::string &value) override;
     virtual bool set(TcamCamera &cam, std::string value) override;
@@ -135,6 +139,7 @@ class EnumProperty : public StringProperty
 public:
     std::vector<std::string> values;
 
+    virtual ~EnumProperty() = default;
     virtual std::string to_string() override;
 };
 
@@ -144,6 +149,7 @@ public:
     bool value;
     bool default_value;
 
+    virtual ~BooleanProperty() = default;
     virtual std::string to_string() override;
     virtual bool get(TcamCamera &cam, int &value) override;
     virtual bool set(TcamCamera &cam, int value) override;
@@ -152,6 +158,7 @@ public:
 class ButtonProperty : public BooleanProperty
 {
 public:
+    virtual ~ButtonProperty() = default;
     virtual bool set(TcamCamera &cam, int value=true) override;
 private:
     virtual bool get(TcamCamera &cam, int &value) override;

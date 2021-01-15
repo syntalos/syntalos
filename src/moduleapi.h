@@ -71,7 +71,7 @@ class Q_DECL_EXPORT ModuleInfo
     friend class Engine;
 public:
     explicit ModuleInfo();
-    ~ModuleInfo();
+    virtual ~ModuleInfo();
 
     /**
      * @brief Name of this module used internally as unique identifier
@@ -183,6 +183,8 @@ enum class PortDirection {
 class Q_DECL_EXPORT AbstractStreamPort
 {
 public:
+    virtual ~AbstractStreamPort() = default;
+
     virtual QString id() const = 0;
     virtual QString title() const = 0;
 
@@ -198,7 +200,7 @@ class Q_DECL_EXPORT VarStreamInputPort : public AbstractStreamPort
 {
 public:
     explicit VarStreamInputPort(AbstractModule *owner, const QString &id, const QString &title);
-    ~VarStreamInputPort();
+    virtual ~VarStreamInputPort();
 
     virtual bool acceptsSubscription(const QString &typeName) = 0;
     bool hasSubscription() const;
@@ -273,7 +275,7 @@ class Q_DECL_EXPORT StreamOutputPort : public AbstractStreamPort
 {
 public:
     explicit StreamOutputPort(AbstractModule *owner, const QString &id, const QString &title, std::shared_ptr<VariantDataStream> stream);
-    ~StreamOutputPort();
+    virtual ~StreamOutputPort();
 
     bool canSubscribe(const QString &typeName);
     int dataTypeId() const override;

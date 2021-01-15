@@ -111,7 +111,7 @@ opencv_dep = dependency('opencv4')
 avcodec_dep = dependency('libavcodec', version: '>= 58.20')
 avformat_dep = dependency('libavformat', version: '>= 58.20')
 avutil_dep = dependency('libavutil', version: '>= 56.20')
-swscale_dep = dependency('libswscale', version: '>= 5.6')
+swscale_dep = dependency('libswscale', version: '>= 5.5')
 
 glib_dep = dependency('glib-2.0', version: '>=2.58')
 gobject_dep = dependency('gobject-2.0', version: '>=2.58')

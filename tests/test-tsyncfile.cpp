@@ -48,12 +48,12 @@ private slots:
         QCOMPARE(tsreader->syncMode(), TSyncFileMode::CONTINUOUS);
 
         const auto timesRead = tsreader->times();
-        QCOMPARE(timesRead.size(), values_n);
+        QCOMPARE((int) timesRead.size(), values_n);
         for (size_t i = 0; i < timesRead.size(); ++i) {
             const auto pair = timesRead[i];
-            const auto tbase = i * 1000;
+            const auto tbase = (long) i * 1000;
             QCOMPARE(pair.first, tbase);
-            QCOMPARE(pair.second, tbase + i * 51);
+            QCOMPARE(pair.second, tbase + (long) i * 51);
         }
         delete tsreader;
 
