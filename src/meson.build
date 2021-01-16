@@ -8,12 +8,16 @@ syntalos_shared_src = [
     'edlstorage.h',
     'edlstorage.cpp',
     'eigenaux.h',
+    'globalconfig.h',
+    'globalconfig.cpp',
     'moduleapi.h',
     'moduleapi.cpp',
     'optionalwaitcondition.h',
     'optionalwaitcondition.cpp',
     'rangeslider.h',
     'rangeslider.cpp',
+    'rtkit.h',
+    'rtkit.cpp',
     'subscriptionwatcher.h',
     'subscriptionwatcher.cpp',
     'syclock.h',
@@ -22,6 +26,11 @@ syntalos_shared_src = [
     'timesync.cpp',
     'tsyncfile.h',
     'tsyncfile.cpp',
+
+    'oop/oopmodule.h',
+    'oop/oopworkerconnector.h',
+    'oop/oopmodule.cpp',
+    'oop/oopworkerconnector.cpp',
 
     'utils/misc.h',
     'utils/misc.cpp',
@@ -50,8 +59,6 @@ syntalos_src = [
     'engine.cpp',
     'flowgraphview.h',
     'flowgraphview.cpp',
-    'globalconfig.h',
-    'globalconfig.cpp',
     'globalconfigdialog.h',
     'globalconfigdialog.cpp',
     'main.cpp',
@@ -67,8 +74,6 @@ syntalos_src = [
     'modulelibrary.cpp',
     'moduleselectdialog.h',
     'moduleselectdialog.cpp',
-    'rtkit.h',
-    'rtkit.cpp',
     'sysinfo.h',
     'sysinfo.cpp',
     'sysinfodialog.h',
@@ -88,7 +93,6 @@ syntalos_ui = [
 ]
 
 syntalos_res = ['../data/resources.qrc']
-
 
 syntalos_moc_h = []
 syntalos_moc_s = []
@@ -123,18 +127,23 @@ syntalos_shared_moc = qt.preprocess(
     moc_extra_arguments: ['--no-notes']
 )
 
-syntalos_shared_lib = static_library('syntalos_shared',
-    [syntalos_shared_src, syntalos_shared_moc],
-    name_prefix: '',
+syntalos_shared_lib = shared_library('syntalos-shared',
+    [syntalos_shared_src, syntalos_shared_moc,
+     config_h, sy_oop_moc, rep_worker_rep_hdr],
     dependencies: [sy_base_deps,
                    opengl_dep,
-                   opencv_dep]
+                   opencv_dep,
+                   qt_dbus_dep,
+                   qt_remoteobj_dep],
+    link_with: [sy_oopshared_lib],
+    install: true,
+    install_dir: sy_libdir
 )
 
 syntalos_shared_dep = declare_dependency(
     link_with: syntalos_shared_lib,
     dependencies: [sy_base_deps],
-    include_directories: [include_directories('..'),
+    include_directories: [root_include_dir,
                           syntalos_core_inc_dir,
                           syntalos_oop_inc_dir]
 )
@@ -161,7 +170,7 @@ syntalos_exe = executable('syntalos',
                    opengl_dep,
                    opencv_dep,
                    gstreamer_dep],
-    link_with: [sy_oop_lib],
-    include_directories: [include_directories('..')],
-    install: true
+    include_directories: [root_include_dir],
+    install: true,
+    install_rpath: sy_libdir
 )

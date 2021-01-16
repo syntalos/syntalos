@@ -77,6 +77,7 @@ public:
     int cpuCount() const;
     int cpuPhysicalCoreCount() const;
 
+    QString syntalosVersion() const;
     QString qtVersion() const;
     QString openCVVersionString() const;
     QString eigenVersionString() const;

@@ -24,6 +24,8 @@
 #include "flircamera.h"
 #include "flircamsettingsdialog.h"
 
+SYNTALOS_MODULE(FLIRCameraModule)
+
 class FLIRCameraMod : public AbstractModule
 {
     Q_OBJECT

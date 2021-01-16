@@ -22,47 +22,25 @@
 
 #include <QMessageBox>
 #include <QDebug>
-
-#include "engine.h"
-
-#if 0
-#include "modules/devel.clock/clockmodule.h"
-#include "modules/devel.datasource/datasourcemodule.h"
-#include "modules/devel.datasst/datasstmodule.h"
-#include "modules/devel.pyooptest/pyooptestmodule.h"
-
-#include "modules/canvas/canvasmodule.h"
-#include "modules/table/tablemodule.h"
-
-#include "modules/videorecorder/videorecordmodule.h"
-#include "modules/videotransform/videotransformmodule.h"
-#include "modules/camera-generic/genericcameramodule.h"
-#ifdef HAVE_TIS_CAMERA
-#include "modules/camera-tis/tiscameramodule.h"
-#endif
-#ifdef HAVE_FLIR_CAMERA
-#include "modules/camera-flir/flircameramod.h"
-#endif
-#ifdef HAVE_UEYE_CAMERA
-#include "modules/camera-ueye/ueyecameramodule.h"
-#endif
-#ifdef HAVE_MINISCOPE
-#include "modules/miniscope/miniscopemodule.h"
-#endif
-
-#include "modules/triled-tracker/triledtrackermodule.h"
-
-#include "modules/firmata-io/firmataiomodule.h"
-#include "modules/firmata-userctl/firmatauserctlmod.h"
-#include "modules/pyscript/pyscriptmodule.h"
-
-//#include "modules/rhd2000/rhd2000module.h"
-#include "modules/traceplot/traceplotmodule.h"
-
-#include "modules/runcmd/runcmdmodule.h"
-#endif
-
+#include <QCoreApplication>
+#include <QDirIterator>
 #include <QLibrary>
+
+#include "moduleapi.h"
+#include "utils/tomlutils.h"
+
+
+namespace Syntalos {
+    Q_LOGGING_CATEGORY(logModLibrary, "modulelibrary")
+}
+
+class ModuleLocation
+{
+public:
+    QString path;
+    explicit ModuleLocation(const QString &dir)
+        : path(dir) {};
+};
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpadded"
@@ -72,7 +50,11 @@ public:
     Private() { }
     ~Private() { }
 
+    QString syntalosApiId;
+    QList<ModuleLocation> locations;
     QMap<QString, QSharedPointer<ModuleInfo>> modInfos;
+
+    QStringList issueLog;
 };
 #pragma GCC diagnostic pop
 
@@ -80,54 +62,123 @@ ModuleLibrary::ModuleLibrary(QObject *parent)
     : QObject(parent),
       d(new ModuleLibrary::Private)
 {
-#if 0
-    registerModuleInfo<DevelClockModuleInfo>();
-    registerModuleInfo<DevelDataSourceModuleInfo>();
-    registerModuleInfo<DevelDataSSTModuleInfo>();
-    registerModuleInfo<PyOOPTestModuleInfo>();
+    d->syntalosApiId = QStringLiteral(SY_VCS_TAG);
 
-    registerModuleInfo<CanvasModuleInfo>();
-    registerModuleInfo<TableModuleInfo>();
+    bool haveLocalModDir = false;
+    if (!QCoreApplication::applicationDirPath().startsWith("/usr")) {
+        const auto path = QDir(QStringLiteral("%1/%2").arg(QCoreApplication::applicationDirPath()).arg("../modules")).canonicalPath();
+        if (QDir(path).exists()) {
+            d->locations.append(ModuleLocation(path));
+            haveLocalModDir = true;
+        }
+    }
 
-    registerModuleInfo<VideoRecorderModuleInfo>();
-    registerModuleInfo<VideoTransformModuleInfo>();
-    registerModuleInfo<GenericCameraModuleInfo>();
-#ifdef HAVE_TIS_CAMERA
-    registerModuleInfo<TISCameraModuleInfo>();
-#endif
-#ifdef HAVE_FLIR_CAMERA
-    registerModuleInfo<FLIRCameraModuleInfo>();
-#endif
-#ifdef HAVE_UEYE_CAMERA
-    registerModuleInfo<UEyeCameraModuleInfo>();
-#endif
-#ifdef HAVE_MINISCOPE
-    registerModuleInfo<MiniscopeModuleInfo>();
-#endif
-
-    registerModuleInfo<TriLedTrackerModuleInfo>();
-
-    registerModuleInfo<FirmataIOModuleInfo>();
-    registerModuleInfo<FirmataUserCtlModuleInfo>();
-    registerModuleInfo<PyScriptModuleInfo>();
-
-    //registerModuleInfo<Rhd2000ModuleInfo>();
-    registerModuleInfo<TracePlotModuleInfo>();
-    registerModuleInfo<RunCmdModuleInfo>();
-
-#endif
-
+    // we only want to load the global system modules directory if we are not
+    // loading the local one, to prevent name clashes and confusion
+    if (!haveLocalModDir) {
+        if (QDir(SY_MODULESDIR).exists())
+            d->locations.append(ModuleLocation(SY_MODULESDIR));
+    }
 }
 
 ModuleLibrary::~ModuleLibrary()
 {
 }
 
-template<typename T>
-void ModuleLibrary::registerModuleInfo()
+bool ModuleLibrary::load()
 {
-    QSharedPointer<ModuleInfo> info(new T);
+    for (const auto &loc : d->locations) {
+        qCDebug(logModLibrary).noquote() << "Loading modules from location:" << loc.path;
+        d->issueLog.append(QStringLiteral("Loading modules from: %1").arg(loc.path));
+
+        int count = 0;
+        QDirIterator it(loc.path, QDir::Dirs | QDir::NoDotAndDotDot, QDirIterator::NoIteratorFlags);
+        while (it.hasNext()) {
+            const auto modDir = it.next();
+            const auto modName = QFileInfo(modDir).fileName();
+
+            qCDebug(logModLibrary).noquote() << "Loading:" << modName;
+            QString errorMessage;
+            QVariantHash modDef = parseTomlFile(QDir(modDir).filePath("module.toml"), errorMessage);
+            if (modDef.isEmpty()) {
+                qCWarning(logModLibrary).noquote().nospace() << "Unable to load module '" << modName << "': " << errorMessage;
+                logModuleIssue(modName, "toml", errorMessage);
+                continue;
+            }
+            modDef = modDef["syntalos_module"].toHash();
+            if (modDef.value("type") == "library") {
+                if (loadLibraryModInfo(modName, QDir(modDir).filePath(modDef.value("main").toString())))
+                    count++;
+            } else {
+                qCWarning(logModLibrary).noquote().nospace() << "Unable to load module '" << modName << "': "
+                                                             << "Module type is unknown.";
+                logModuleIssue(modName, "toml", "Not found.");
+            }
+        }
+        d->issueLog.append(QStringLiteral("Loaded %1 modules.").arg(count));
+    }
+
+    return true;
+}
+
+bool ModuleLibrary::loadLibraryModInfo(const QString &modName, const QString &libFname)
+{
+    typedef ModuleInfo* (*SyntalosModInfoFn)();
+    typedef const char* (*SyntalosModAPIIdFn)();
+
+    QLibrary modLib(libFname);
+
+    modLib.setLoadHints(QLibrary::ResolveAllSymbolsHint | QLibrary::ExportExternalSymbolsHint);
+    if (!modLib.load()) {
+        qCWarning(logModLibrary).noquote().nospace() << "Unable to load library for module '" << modName << "': "
+                                                     << modLib.errorString();
+        logModuleIssue(modName, "lib", modLib.errorString());
+        return false;
+    }
+
+    auto fnAPIId = (SyntalosModAPIIdFn) modLib.resolve("syntalos_module_api_id");
+    if (fnAPIId == nullptr) {
+        qCWarning(logModLibrary).noquote().nospace() << "Unable to load library for module '" << modName << "': "
+                                                     << "Library is not a Syntalos module, 'syntalos_module_api_id' symbol not found.";
+        logModuleIssue(modName, "api", "'syntalos_module_api_id' not found.");
+        return false;
+    }
+
+    auto fnModInfo = (SyntalosModInfoFn) modLib.resolve("syntalos_module_info");
+    if (fnModInfo == nullptr) {
+        qCWarning(logModLibrary).noquote().nospace() << "Unable to load library for module '" << modName << "': "
+                                                     << "Library is not a Syntalos module, 'syntalos_module_info' symbol not found.";
+        logModuleIssue(modName, "api", "'syntalos_module_info' not found.");
+        return false;
+    }
+
+    const auto modApiId = QString::fromUtf8(fnAPIId());
+    if (modApiId != d->syntalosApiId) {
+        const auto apiMismatchError = QStringLiteral("API ID mismatch between module and engine: %1 vs %2").arg(modApiId).arg(d->syntalosApiId);
+        qCWarning(logModLibrary).noquote().nospace() << "Prevented module load for '" << modName << "': "
+                                                     << apiMismatchError;
+        logModuleIssue(modName, "api", apiMismatchError);
+        return false;
+    }
+
+    // now we can load the module info object from the module's shared library
+    auto modInfo = static_cast<ModuleInfo*> (fnModInfo());
+    if (modInfo == nullptr) {
+        qCWarning(logModLibrary).noquote().nospace() << "Prevented module load for '" << modName << "': "
+                                                     << "Received invalid (NULL) module info data.";
+        logModuleIssue(modName, "api", "Module info was NULL");
+        return false;
+    }
+
+    // register
+    QSharedPointer<ModuleInfo> info(modInfo);
     d->modInfos.insert(info->id(), info);
+    return true;
+}
+
+void ModuleLibrary::logModuleIssue(const QString &modName, const QString &context, const QString &msg)
+{
+    d->issueLog.append(QStringLiteral("<b>%1</b>: <i>&lt;%2&gt;</i> %3").arg(modName).arg(context).arg(msg));
 }
 
 QList<QSharedPointer<ModuleInfo> > ModuleLibrary::moduleInfo() const
@@ -138,4 +189,9 @@ QList<QSharedPointer<ModuleInfo> > ModuleLibrary::moduleInfo() const
 QSharedPointer<ModuleInfo> ModuleLibrary::moduleInfo(const QString &id)
 {
     return d->modInfos.value(id);
+}
+
+QString ModuleLibrary::issueLogHtml() const
+{
+    return d->issueLog.join("<br/>");
 }

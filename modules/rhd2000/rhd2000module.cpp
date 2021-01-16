@@ -25,6 +25,8 @@
 #include "signalsources.h"
 #include "signalgroup.h"
 
+SYNTALOS_MODULE(Rhd2000Module)
+
 QString Rhd2000ModuleInfo::id() const
 {
     return QStringLiteral("intan_rhd2000");

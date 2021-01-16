@@ -331,6 +331,9 @@ MainWindow::MainWindow(QWidget *parent) :
     // don't show experimenter selection yet
     setExperimenterSelectVisible(false);
 
+    // load modules
+    m_engine->load();
+
     // timer to update verious time display during a run
     m_rtElapsedTimer = new QTimer(this);
     m_rtElapsedTimer->setInterval(1000);
@@ -1115,4 +1118,22 @@ void MainWindow::on_actionSystemInfo_triggered()
 {
     SysInfoDialog sysInfoDlg(m_engine->sysInfo(), this);
     sysInfoDlg.exec();
+}
+
+void MainWindow::on_actionModuleLoadInfo_triggered()
+{
+    QDialog dlg;
+    QHBoxLayout layout;
+    QTextEdit logBox;
+    layout.addWidget(&logBox);
+    dlg.setLayout(&layout);
+    auto logText = m_engine->library()->issueLogHtml();
+    if (logText.isEmpty())
+        logText = QStringLiteral("No issues reported.");
+    logBox.setWordWrapMode(QTextOption::NoWrap);
+    logBox.setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
+    logBox.setText(QStringLiteral("<html>") + logText);
+    dlg.setWindowTitle(QStringLiteral("Dynamic module loader log"));
+    dlg.resize(620, 400);
+    dlg.exec();
 }

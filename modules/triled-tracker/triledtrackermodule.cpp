@@ -24,6 +24,8 @@
 #include "streams/frametype.h"
 #include "tracker.h"
 
+SYNTALOS_MODULE(TriLedTrackerModule)
+
 class TriLedTrackerModule : public AbstractModule
 {
     Q_OBJECT

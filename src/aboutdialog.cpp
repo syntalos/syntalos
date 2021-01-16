@@ -19,6 +19,7 @@
 
 #include "aboutdialog.h"
 #include "ui_aboutdialog.h"
+#include "config.h"
 
 #include <QFontDatabase>
 
@@ -42,9 +43,15 @@ AboutDialog::AboutDialog(QWidget *parent) :
 {
     ui->setupUi(this);
 
+    const auto syVersion = QStringLiteral("v%1").arg(QCoreApplication::applicationVersion());
+    const auto syVcs = QStringLiteral(SY_VCS_TAG).replace(syVersion + QStringLiteral("-"), "");
+
     setWindowTitle(QStringLiteral("About Syntalos"));
-    ui->versionLabel->setText(QStringLiteral("v%1").arg(QCoreApplication::applicationVersion()));
     ui->asciiArtLabel->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
+    if (syVcs.isEmpty())
+        ui->versionLabel->setText(syVersion);
+    else
+        ui->versionLabel->setText(QStringLiteral("%1 (%2)").arg(syVersion).arg(syVcs));
 
     auto rect = geometry();
     rect.setWidth(ui->asciiArtLabel->width() + 10);

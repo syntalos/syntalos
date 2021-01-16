@@ -21,6 +21,8 @@
 
 #include "moduleapi.h"
 
+SYNTALOS_DECLARE_MODULE
+
 class RunCmdModuleInfo : public ModuleInfo
 {
 public:

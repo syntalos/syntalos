@@ -1283,6 +1283,7 @@
     </property>
     <addaction name="actionSystemInfo"/>
     <addaction name="actionTimings"/>
+    <addaction name="actionModuleLoadInfo"/>
    </widget>
    <widget class="QMenu" name="menuTool">
     <property name="title">
@@ -1529,6 +1530,15 @@
    </property>
    <property name="toolTip">
     <string>Project Details</string>
+   </property>
+  </action>
+  <action name="actionModuleLoadInfo">
+   <property name="icon">
+    <iconset resource="../data/resources.qrc">
+     <normaloff>:/module/generic</normaloff>:/module/generic</iconset>
+   </property>
+   <property name="text">
+    <string>Module Loader</string>
    </property>
   </action>
  </widget>

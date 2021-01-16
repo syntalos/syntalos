@@ -26,6 +26,8 @@
 #include "ueyecamera.h"
 #include "ueyecamerasettingsdialog.h"
 
+SYNTALOS_MODULE(UEyeCameraModule)
+
 class UEyeCameraModule : public AbstractModule
 {
     Q_OBJECT

@@ -23,9 +23,12 @@
 #include <QList>
 #include <QPixmap>
 #include <QScopedPointer>
+#include <QLoggingCategory>
 
 namespace Syntalos {
 class ModuleInfo;
+
+Q_DECLARE_LOGGING_CATEGORY(logModLibrary)
 }
 using namespace Syntalos;
 
@@ -40,13 +43,18 @@ public:
     explicit ModuleLibrary(QObject *parent = nullptr);
     ~ModuleLibrary();
 
+    bool load();
+
     QList<QSharedPointer<ModuleInfo>> moduleInfo() const;
     QSharedPointer<ModuleInfo> moduleInfo(const QString &id);
+
+    QString issueLogHtml() const;
 
 private:
     Q_DISABLE_COPY(ModuleLibrary)
     class Private;
     QScopedPointer<Private> d;
 
-    template<typename T> void registerModuleInfo();
+    bool loadLibraryModInfo(const QString &modName, const QString &libFname);
+    void logModuleIssue(const QString &modName, const QString &context, const QString &msg);
 };

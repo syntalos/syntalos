@@ -711,26 +711,6 @@
          <number>2</number>
         </property>
         <item row="1" column="0">
-         <widget class="QLabel" name="openCVLabel">
-          <property name="font">
-           <font>
-            <weight>75</weight>
-            <bold>true</bold>
-           </font>
-          </property>
-          <property name="text">
-           <string>OpenCV</string>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="1">
-         <widget class="QLabel" name="valOpenCV">
-          <property name="text">
-           <string>???</string>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="0">
          <widget class="QLabel" name="qtLabel">
           <property name="font">
            <font>
@@ -743,15 +723,15 @@
           </property>
          </widget>
         </item>
-        <item row="0" column="1">
+        <item row="1" column="1">
          <widget class="QLabel" name="valQt">
           <property name="text">
            <string>???</string>
           </property>
          </widget>
         </item>
-        <item row="3" column="0">
-         <widget class="QLabel" name="ffmpegLabel">
+        <item row="2" column="0">
+         <widget class="QLabel" name="openCVLabel">
           <property name="font">
            <font>
             <weight>75</weight>
@@ -759,18 +739,18 @@
            </font>
           </property>
           <property name="text">
-           <string>FFmpeg</string>
+           <string>OpenCV</string>
           </property>
          </widget>
         </item>
-        <item row="3" column="1">
-         <widget class="QLabel" name="valFFmpeg">
+        <item row="2" column="1">
+         <widget class="QLabel" name="valOpenCV">
           <property name="text">
            <string>???</string>
           </property>
          </widget>
         </item>
-        <item row="2" column="0">
+        <item row="3" column="0">
          <widget class="QLabel" name="eigenLabel">
           <property name="font">
            <font>
@@ -783,8 +763,48 @@
           </property>
          </widget>
         </item>
-        <item row="2" column="1">
+        <item row="3" column="1">
          <widget class="QLabel" name="valEigen">
+          <property name="text">
+           <string>???</string>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="0">
+         <widget class="QLabel" name="ffmpegLabel">
+          <property name="font">
+           <font>
+            <weight>75</weight>
+            <bold>true</bold>
+           </font>
+          </property>
+          <property name="text">
+           <string>FFmpeg</string>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="1">
+         <widget class="QLabel" name="valFFmpeg">
+          <property name="text">
+           <string>???</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="0">
+         <widget class="QLabel" name="syntalosLabel">
+          <property name="font">
+           <font>
+            <weight>75</weight>
+            <bold>true</bold>
+           </font>
+          </property>
+          <property name="text">
+           <string>Syntalos</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QLabel" name="valSyntalos">
           <property name="text">
            <string>???</string>
           </property>

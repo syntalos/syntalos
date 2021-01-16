@@ -25,6 +25,8 @@
 #include "camera.h"
 #include "genericcamerasettingsdialog.h"
 
+SYNTALOS_MODULE(GenericCameraModule)
+
 class GenericCameraModule : public AbstractModule
 {
     Q_OBJECT

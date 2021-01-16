@@ -23,6 +23,8 @@
 #include <chrono>
 #include "moduleapi.h"
 
+SYNTALOS_DECLARE_MODULE
+
 using namespace Syntalos;
 
 class PyScriptModuleInfo : public ModuleInfo

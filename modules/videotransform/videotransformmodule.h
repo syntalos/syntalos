@@ -21,6 +21,8 @@
 
 #include "moduleapi.h"
 
+SYNTALOS_DECLARE_MODULE
+
 class VideoTransformModuleInfo : public ModuleInfo
 {
 public:

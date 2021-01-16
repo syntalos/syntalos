@@ -23,6 +23,8 @@
 
 #include <QMessageBox>
 
+SYNTALOS_MODULE(PyOOPTestModule)
+
 class PyOOPTestModule : public OOPModule
 {
 private:

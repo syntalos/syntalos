@@ -26,6 +26,8 @@
 #include "streams/frametype.h"
 #include "miniscopesettingsdialog.h"
 
+SYNTALOS_MODULE(MiniscopeModule)
+
 using namespace MScope;
 
 class MiniscopeModule : public AbstractModule

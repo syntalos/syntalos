@@ -17,9 +17,16 @@ sy_major_version = varr[0]
 sy_minor_version = varr[1]
 sy_micro_version = varr[2]
 
+root_include_dir = include_directories('.')
+
 #
 # Configure files
 #
+sy_libdir = join_paths(get_option('prefix'),
+                       get_option('libdir'),
+                       'syntalos')
+sy_modules_dir = join_paths(sy_libdir, 'modules')
+
 conf = configuration_data()
 conf.set('SY_MAJOR_VERSION_CONF', sy_major_version)
 conf.set('SY_MINOR_VERSION_CONF', sy_minor_version)
@@ -40,13 +47,10 @@ conf.set_quoted('BINDIR',
 conf.set_quoted('SYSCONFDIR',
                 join_paths(get_option('prefix'),
                            get_option('sysconfdir')))
-
-configure_file(output: 'config.h', configuration: conf)
-
-sy_libdir = join_paths(get_option('prefix'),
-                       get_option('libdir'),
-                       'syntalos')
-sy_modules_dir = join_paths(sy_libdir, 'modules')
+conf.set_quoted('SY_MODULESDIR', sy_modules_dir)
+conf.set_quoted('SY_VCS_TAG', '@VCS_TAG@')
+config_h = configure_file(output: 'config.h.in', configuration: conf)
+config_h = vcs_tag(input: config_h, output: 'config.h')
 
 #
 # Custom compile flags

@@ -23,6 +23,8 @@
 
 #include "moduleapi.h"
 
+SYNTALOS_DECLARE_MODULE
+
 class VideoRecorderModuleInfo : public ModuleInfo
 {
 public:

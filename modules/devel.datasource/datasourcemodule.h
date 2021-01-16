@@ -24,6 +24,8 @@
 
 using namespace Syntalos;
 
+SYNTALOS_DECLARE_MODULE
+
 class DevelDataSourceModuleInfo : public ModuleInfo
 {
 public:

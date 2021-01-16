@@ -26,6 +26,8 @@
 #include <QMutex>
 #include "moduleapi.h"
 
+SYNTALOS_DECLARE_MODULE
+
 class SerialFirmata;
 class FirmataSettingsDialog;
 

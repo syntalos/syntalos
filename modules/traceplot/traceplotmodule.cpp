@@ -23,6 +23,8 @@
 
 #include "tracedisplay.h"
 
+SYNTALOS_MODULE(TracePlotModule)
+
 class TracePlotModule : public AbstractModule
 {
     Q_OBJECT

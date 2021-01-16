@@ -28,6 +28,8 @@
 #include "cpropertiesdialog.h"
 #include "tcamcamera.h"
 
+SYNTALOS_MODULE(TISCameraModule)
+
 namespace Syntalos {
     Q_LOGGING_CATEGORY(logTISCam, "mod.tiscam")
 }

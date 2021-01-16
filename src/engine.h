@@ -47,6 +47,8 @@ public:
     };
     Q_ENUM(SystemResource)
 
+    bool load();
+
     ModuleLibrary *library() const;
     SysInfo *sysInfo() const;
 

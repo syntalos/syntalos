@@ -25,6 +25,8 @@
 #include "canvaswindow.h"
 #include "streams/frametype.h"
 
+SYNTALOS_MODULE(CanvasModule)
+
 class CanvasModule : public AbstractModule
 {
 private:

@@ -17,6 +17,7 @@
  * along with this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "config.h"
 #include "sysinfo.h"
 
 #include <QDebug>
@@ -300,6 +301,14 @@ int SysInfo::cpuCount() const
 int SysInfo::cpuPhysicalCoreCount() const
 {
     return d->cpuPhysicalCoreCount;
+}
+
+QString SysInfo::syntalosVersion() const
+{
+    auto syVersion = QStringLiteral(SY_VCS_TAG);
+    if (syVersion.startsWith("v"))
+        syVersion = syVersion.remove(0, 1);
+    return syVersion;
 }
 
 QString SysInfo::qtVersion() const

@@ -74,6 +74,7 @@ SysInfoDialog::SysInfoDialog(SysInfo *sysInfo, QWidget *parent) :
     ui->valOpenGL->setText(sysInfo->glVersion());
 
     // Software Information
+    ui->valSyntalos->setText(sysInfo->syntalosVersion());
     ui->valQt->setText(sysInfo->qtVersion());
     ui->valOpenCV->setText(sysInfo->openCVVersionString());
     ui->valEigen->setText(sysInfo->eigenVersionString());

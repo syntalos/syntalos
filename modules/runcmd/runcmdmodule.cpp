@@ -24,6 +24,8 @@
 
 #include "runcmdsettingsdlg.h"
 
+SYNTALOS_MODULE(RunCmdModule)
+
 class RunCmdModule : public AbstractModule
 {
     Q_OBJECT

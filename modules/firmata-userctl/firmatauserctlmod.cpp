@@ -22,6 +22,8 @@
 #include <QTimer>
 #include "firmatactldialog.h"
 
+SYNTALOS_MODULE(FirmataUserCtlModule)
+
 class FirmataUserCtlModule : public AbstractModule
 {
 private:

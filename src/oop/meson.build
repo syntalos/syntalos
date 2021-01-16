@@ -20,40 +20,21 @@ sy_oop_shared_src = [
     'ipcmarshal.cpp'
 ]
 
-sy_oop_hdr = [
-    'oopmodule.h',
-    'oopworkerconnector.h'
-]
-sy_oop_src = [
-    'oopmodule.cpp',
-    'oopworkerconnector.cpp'
-]
-
 sy_oop_shared_moc = qt.preprocess(
-    moc_headers: sy_oop_shared_hdr,
-    moc_sources: sy_oop_shared_src
-)
-sy_oop_moc = qt.preprocess(
-    moc_headers: [sy_oop_hdr, rep_worker_rep_hdr],
-    moc_sources: sy_oop_src,
-    dependencies: [qt_remoteobj_dep],
-    moc_extra_arguments: ['--no-notes']
+    moc_headers: sy_oop_shared_hdr
 )
 
-sy_oopshared_lib = static_library('sy_oopshared',
+sy_oop_moc = qt.preprocess(
+    moc_headers: [rep_worker_rep_hdr],
+    dependencies: [qt_remoteobj_dep]
+)
+
+sy_oopshared_lib = static_library('sy_oop_shared',
     [sy_oop_shared_src, sy_oop_shared_moc],
     dependencies: [sy_base_deps,
                    qt_remoteobj_dep,
                    opencv_dep],
-    include_directories: [include_directories('..')],
+    include_directories: [root_include_dir,
+                          include_directories('..')],
     cpp_args: ['-DNO_TID_PORTCONSTRUCTORS']
-)
-
-sy_oop_lib = static_library('sy_oop',
-    [sy_oop_src, rep_worker_rep_hdr, sy_oop_moc],
-    link_with: [sy_oopshared_lib],
-    dependencies: [sy_base_deps,
-                   qt_remoteobj_dep,
-                   opencv_dep],
-    include_directories: [include_directories('..')]
 )

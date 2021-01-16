@@ -25,6 +25,8 @@
 
 #include "recordedtable.h"
 
+SYNTALOS_MODULE(TableModule)
+
 class TableModule : public AbstractModule
 {
 private:

@@ -28,6 +28,8 @@
 #include "videowriter.h"
 #include "recordersettingsdialog.h"
 
+SYNTALOS_MODULE(VideoRecorderModule)
+
 enum class RecordingState
 {
     RUNNING,

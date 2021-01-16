@@ -22,6 +22,8 @@
 #include <QObject>
 #include "moduleapi.h"
 
+SYNTALOS_DECLARE_MODULE
+
 class TableModuleInfo : public ModuleInfo
 {
 public:

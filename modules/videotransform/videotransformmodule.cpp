@@ -22,6 +22,8 @@
 #include "streams/frametype.h"
 #include "vtransformctldialog.h"
 
+SYNTALOS_MODULE(VideoTransformModule)
+
 class VideoTransformModule : public AbstractModule
 {
     Q_OBJECT

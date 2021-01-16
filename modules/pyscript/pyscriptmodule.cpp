@@ -35,6 +35,8 @@
 #include "oop/oopmodule.h"
 #include "porteditordialog.h"
 
+SYNTALOS_MODULE(PyScriptModule)
+
 class PyScriptModule : public OOPModule
 {
     Q_OBJECT
@@ -126,7 +128,7 @@ public:
         extraData = m_scriptView->document()->text().toUtf8();
 
         QVariantList varInPorts;
-        for (const auto port : inPorts()) {
+        for (const auto &port : inPorts()) {
             QVariantHash po;
             po.insert("id", port->id());
             po.insert("title", port->title());
@@ -135,7 +137,7 @@ public:
         }
 
         QVariantList varOutPorts;
-        for (const auto port : outPorts()) {
+        for (const auto &port : outPorts()) {
             QVariantHash po;
             po.insert("id", port->id());
             po.insert("title", port->title());
@@ -154,14 +156,14 @@ public:
         const auto varInPorts = settings.value("ports_in").toList();
         const auto varOutPorts = settings.value("ports_out").toList();
 
-        for (const auto pv : varInPorts) {
+        for (const auto &pv : varInPorts) {
             const auto po = pv.toHash();
             registerInputPortByTypeId(QMetaType::type(qPrintable(po.value("data_type").toString())),
                                       po.value("id").toString(),
                                       po.value("title").toString());
         }
 
-        for (const auto pv : varOutPorts) {
+        for (const auto &pv : varOutPorts) {
             const auto po = pv.toHash();
             registerOutputPortByTypeId(QMetaType::type(qPrintable(po.value("data_type").toString())),
                                        po.value("id").toString(),

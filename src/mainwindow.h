@@ -88,6 +88,7 @@ private slots:
     void on_actionSubjectsSave_triggered();
     void on_actionTimings_triggered();
     void on_actionSystemInfo_triggered();
+    void on_actionModuleLoadInfo_triggered();
 
 protected:
     void closeEvent(QCloseEvent *event) override;

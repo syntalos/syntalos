@@ -25,6 +25,8 @@
 #include "firmatasettingsdialog.h"
 #include "firmata/serialport.h"
 
+SYNTALOS_MODULE(FirmataIOModule)
+
 enum class PinKind
 {
     Unknown,

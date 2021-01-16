@@ -118,7 +118,7 @@ void PortEditorDialog::updatePortLists()
     ui->lwInputPorts->clear();
     ui->lwOutputPorts->clear();
 
-    for (const auto port : m_mod->inPorts()) {
+    for (const auto &port : m_mod->inPorts()) {
         auto item = new QListWidgetItem(QStringLiteral("%1 (%2) [>>%3]").arg(port->title())
                                                                         .arg(port->id())
                                                                         .arg(port->dataTypeName()),
@@ -126,7 +126,7 @@ void PortEditorDialog::updatePortLists()
         item->setData(Qt::UserRole, port->id());
     }
 
-    for (const auto port : m_mod->outPorts()) {
+    for (const auto &port : m_mod->outPorts()) {
         auto item = new QListWidgetItem(QStringLiteral("%1 (%2) [<<%3]").arg(port->title())
                                                                         .arg(port->id())
                                                                         .arg(port->dataTypeName()),

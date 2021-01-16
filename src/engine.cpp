@@ -132,6 +132,11 @@ Engine::Engine(QWidget *parentWidget)
 Engine::~Engine()
 {}
 
+bool Engine::load()
+{
+    return d->modLibrary->load();
+}
+
 ModuleLibrary *Engine::library() const
 {
     return d->modLibrary;

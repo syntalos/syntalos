@@ -22,6 +22,8 @@
 #include <QObject>
 #include "moduleapi.h"
 
+SYNTALOS_DECLARE_MODULE
+
 class DevelClockModuleInfo : public ModuleInfo
 {
 public:
@@ -32,5 +34,3 @@ public:
     bool devel() const override;
     AbstractModule *createModule(QObject *parent = nullptr) override;
 };
-
-SYNTALOS_DECLARE_MODULE

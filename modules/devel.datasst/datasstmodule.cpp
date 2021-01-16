@@ -23,6 +23,8 @@
 #include <opencv2/imgproc.hpp>
 #include "utils/misc.h"
 
+SYNTALOS_MODULE(DevelDataSSTModule)
+
 class DataSSTModule : public AbstractModule
 {
 private:

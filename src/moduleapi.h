@@ -27,6 +27,7 @@
 #include <QPixmap>
 #include <QDebug>
 
+#include "config.h"
 #include "syclock.h"
 #include "timesync.h"
 #include "streams/datatypes.h"
@@ -38,8 +39,6 @@ namespace Syntalos {
 
 class AbstractModule;
 class StreamOutputPort;
-
-#define SYNTALOS_MODULE_API_LEVEL 0
 
 /**
  * @brief The ModuleFeature flags
@@ -146,7 +145,7 @@ private:
 #define SYNTALOS_DECLARE_MODULE \
     _Pragma("GCC visibility push(default)") \
     extern "C" ModuleInfo *syntalos_module_info(); \
-    extern "C" uint syntalos_module_api_level(); \
+    extern "C" const char *syntalos_module_api_id(); \
     _Pragma("GCC visibility pop")
 
 /**
@@ -155,7 +154,7 @@ private:
   */
 #define SYNTALOS_MODULE(MI) \
     ModuleInfo *syntalos_module_info() { return new MI##Info; } \
-    uint syntalos_module_api_level() { return SYNTALOS_MODULE_API_LEVEL; }
+    const char *syntalos_module_api_id() { return SY_VCS_TAG; }
 
 /**
  * @brief The TestSubject struct

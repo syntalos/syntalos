@@ -17,11 +17,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef GENERICCAMERAMODULE_H
-#define GENERICCAMERAMODULE_H
+#pragma once
 
 #include <QObject>
 #include "moduleapi.h"
+
+SYNTALOS_DECLARE_MODULE
 
 class GenericCameraModuleInfo : public ModuleInfo
 {
@@ -33,5 +34,3 @@ public:
     QColor color() const override;
     AbstractModule *createModule(QObject *parent = nullptr) override;
 };
-
-#endif // GENERICCAMERAMODULE_H
