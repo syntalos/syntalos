@@ -4,21 +4,22 @@ module_name = 'camera-tis'
 
 tcam_dep = dependency('tcam')
 
-module_hdr = []
-module_moc_hdr = [
+module_hdr = [
     'tiscameramodule.h',
-    'tcamcamera.h',
+    'tcamcamera.h'
+]
+module_moc_hdr = [
     'cpropertiesdialog.h',
     'cdeviceselectiondlg.h'
-
 ]
 
-module_src = []
-module_moc_src = [
-    'tiscameramodule.cpp',
+module_src = [
     'tcamcamera.cpp',
     'cpropertiesdialog.cpp',
     'cdeviceselectiondlg.cpp'
+]
+module_moc_src = [
+    'tiscameramodule.cpp',
 ]
 
 module_ui = []

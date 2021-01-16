@@ -29,6 +29,7 @@ SYNTALOS_MODULE(CanvasModule)
 
 class CanvasModule : public AbstractModule
 {
+    Q_OBJECT
 private:
     std::shared_ptr<StreamInputPort<Frame>> m_framesIn;
     std::shared_ptr<StreamInputPort<ControlCommand>> m_ctlIn;

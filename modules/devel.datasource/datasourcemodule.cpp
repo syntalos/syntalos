@@ -27,6 +27,7 @@ SYNTALOS_MODULE(DevelDataSourceModule)
 
 class DataSourceModule : public AbstractModule
 {
+    Q_OBJECT
 private:
     std::shared_ptr<DataStream<Frame>> m_frameOut;
     std::shared_ptr<DataStream<TableRow>> m_rowsOut;

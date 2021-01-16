@@ -1,16 +1,17 @@
 # Build definitions for module: firmata-userctl
 
-module_hdr = []
+module_hdr = [
+    'firmatauserctlmod.h'
+]
 module_moc_hdr = [
-    'firmatauserctlmod.h',
     'firmatactldialog.h'
 ]
 
-module_src = []
-module_moc_src = [
+module_src = [
     'firmatauserctlmod.cpp',
     'firmatactldialog.cpp'
 ]
+module_moc_src = []
 
 module_ui = ['firmatactldialog.ui']
 

@@ -99,7 +99,8 @@ endif
 module_moc = qt.preprocess(
     moc_headers: module_moc_hdr,
     moc_sources: module_moc_src,
-    ui_files: module_ui
+    ui_files: module_ui,
+    moc_extra_arguments: ['--no-notes']
 )
 mod = shared_module(module_name,
     [module_hdr, module_moc_hdr,

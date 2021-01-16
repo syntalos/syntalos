@@ -3,15 +3,17 @@
 module_name = 'table'
 
 module_hdr = [
-    'tablemodule.h',
+    'tablemodule.h'
+]
+module_moc_hdr = [
     'recordedtable.h'
-
 ]
 
 module_src = [
     'tablemodule.cpp',
     'recordedtable.cpp'
 ]
+module_moc_src = []
 
 module_ui = []
 
@@ -21,15 +23,17 @@ module_deps = [opencv_dep]
 # Generic module setup
 #
 module_moc = qt.preprocess(
-    moc_headers: module_hdr,
-    moc_sources: module_src,
+    moc_headers: module_moc_hdr,
+    moc_sources: module_moc_src,
     ui_files: module_ui
 )
 
 mod_install_dir = join_paths(sy_modules_dir, fs.name(meson.current_source_dir()))
 
 mod = shared_module(module_name,
-    [module_hdr, module_src, module_moc],
+    [module_hdr, module_moc_hdr,
+     module_src, module_moc_src,
+     module_moc],
     name_prefix: '',
     dependencies: [syntalos_shared_dep,
                    module_deps],

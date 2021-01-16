@@ -20,17 +20,13 @@ sy_oop_shared_src = [
     'ipcmarshal.cpp'
 ]
 
-sy_oop_shared_moc = qt.preprocess(
-    moc_headers: sy_oop_shared_hdr
-)
-
 sy_oop_moc = qt.preprocess(
     moc_headers: [rep_worker_rep_hdr],
     dependencies: [qt_remoteobj_dep]
 )
 
 sy_oopshared_lib = static_library('sy_oop_shared',
-    [sy_oop_shared_src, sy_oop_shared_moc],
+    [sy_oop_shared_src, sy_oop_shared_hdr],
     dependencies: [sy_base_deps,
                    qt_remoteobj_dep,
                    opencv_dep],

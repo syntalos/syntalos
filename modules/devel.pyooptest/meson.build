@@ -18,7 +18,6 @@ module_deps = [opencv_dep]
 # Generic module setup
 #
 module_moc = qt.preprocess(
-    moc_headers: module_hdr,
     moc_sources: module_src,
     ui_files: module_ui
 )

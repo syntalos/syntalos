@@ -2,19 +2,20 @@
 
 module_name = 'miniscope'
 
-module_hdr = []
-module_moc_hdr = [
+module_hdr = [
     'miniscopemodule.h',
+]
+module_moc_hdr = [
     'mscontrolwidget.h',
     'miniscopesettingsdialog.h'
-
 ]
 
-module_src = []
+module_src = [
+    'miniscopesettingsdialog.cpp',
+    'mscontrolwidget.cpp'
+]
 module_moc_src = [
-    'miniscopemodule.cpp',
-    'mscontrolwidget.cpp',
-    'miniscopesettingsdialog.cpp'
+    'miniscopemodule.cpp'
 ]
 
 module_ui = ['miniscopesettingsdialog.ui']

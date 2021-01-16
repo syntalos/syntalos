@@ -27,6 +27,7 @@ SYNTALOS_MODULE(DevelDataSSTModule)
 
 class DataSSTModule : public AbstractModule
 {
+    Q_OBJECT
 private:
     std::shared_ptr<StreamInputPort<FloatSignalBlock>> m_fpSignalIn;
 

@@ -1,24 +1,29 @@
 # Build definitions for module: firmata-io
 
-module_hdr = []
-module_moc_hdr = [
+module_hdr = [
     'firmataiomodule.h',
+
+    'firmata/fmutils.h',
+    'firmata/backend.h'
+]
+module_moc_hdr = [
+
     'firmatasettingsdialog.h',
 
-    'firmata/backend.h',
     'firmata/serialinfo.h',
     'firmata/serialport.h',
-    'firmata/fmutils.h'
+
 ]
 
-module_src = []
-module_moc_src = [
-    'firmataiomodule.cpp',
+module_src = [
     'firmatasettingsdialog.cpp',
 
-    'firmata/backend.cpp',
     'firmata/serialinfo.cpp',
-    'firmata/serialport.cpp'
+    'firmata/serialport.cpp',
+    'firmata/backend.cpp'
+]
+module_moc_src = [
+    'firmataiomodule.cpp',
 ]
 
 module_ui = ['firmatasettingsdialog.ui']

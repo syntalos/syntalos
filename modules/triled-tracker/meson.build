@@ -1,15 +1,17 @@
 # Build definitions for module: triled-tracker
 
-module_hdr = []
-module_moc_hdr = [
+module_hdr = [
     'triledtrackermodule.h',
+]
+module_moc_hdr = [
     'tracker.h'
 ]
 
-module_src = []
-module_moc_src = [
-    'triledtrackermodule.cpp',
+module_src = [
     'tracker.cpp'
+]
+module_moc_src = [
+    'triledtrackermodule.cpp'
 ]
 
 module_ui = []

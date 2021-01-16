@@ -29,6 +29,7 @@ SYNTALOS_MODULE(TableModule)
 
 class TableModule : public AbstractModule
 {
+    Q_OBJECT
 private:
     std::shared_ptr<StreamInputPort<TableRow>> m_rowsIn;
 

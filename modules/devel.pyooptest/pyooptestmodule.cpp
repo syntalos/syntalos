@@ -27,6 +27,7 @@ SYNTALOS_MODULE(PyOOPTestModule)
 
 class PyOOPTestModule : public OOPModule
 {
+    Q_OBJECT
 private:
     std::shared_ptr<DataStream<Frame>> m_vOut;
 public:

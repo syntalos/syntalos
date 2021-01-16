@@ -1,16 +1,17 @@
 # Build definitions for module: pyscript
 
-module_hdr = []
+module_hdr = [
+    'pyscriptmodule.h'
+]
 module_moc_hdr = [
-    'pyscriptmodule.h',
     'porteditordialog.h'
-
 ]
 
-module_src = []
-module_moc_src = [
-    'pyscriptmodule.cpp',
+module_src = [
     'porteditordialog.cpp'
+]
+module_moc_src = [
+    'pyscriptmodule.cpp'
 ]
 
 module_ui = ['porteditordialog.ui']

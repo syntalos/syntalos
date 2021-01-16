@@ -2,18 +2,20 @@
 
 module_name = 'camera-generic'
 
-module_hdr = []
-module_moc_hdr = [
+module_hdr = [
     'genericcameramodule.h',
-    'camera.h',
+    'camera.h'
+]
+module_moc_hdr = [
     'genericcamerasettingsdialog.h'
 ]
 
-module_src = []
-module_moc_src = [
-    'genericcameramodule.cpp',
+module_src = [
     'camera.cpp',
     'genericcamerasettingsdialog.cpp'
+]
+module_moc_src = [
+    'genericcameramodule.cpp'
 ]
 
 module_ui = ['genericcamerasettingsdialog.ui']
