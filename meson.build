@@ -65,7 +65,6 @@ if get_option('maintainer')
                          '-Wformat-security',
                          '-Winit-self',
                          '-Wnull-dereference',
-                         '-Wfloat-equal',
                          '-Winline'
     ]
     maintainer_cpp_args = ['-Wzero-as-null-pointer-constant',
@@ -78,7 +77,7 @@ endif
 
 # a few compiler warning/error flags we always want enabled
 add_project_arguments('-Werror=implicit-function-declaration', '-Wno-unused-parameter', language: 'c')
-add_project_arguments('-Wno-unused-parameter', language: 'cpp') # '-Werror=suggest-override'
+add_project_arguments('-Wno-unused-parameter', '-Werror=suggest-override', language: 'cpp')
 
 if get_option('tracing')
     add_project_arguments('-pg', language: 'c')
@@ -95,22 +94,22 @@ endif
 #
 # Dependencies
 #
-qt_core_dep = dependency('qt5', modules: ['Core'], version: '>= 5.12')
+qt_core_dep = dependency('qt5', modules: ['Core'], version: '>= 5.12', include_type: 'system')
 qt_gui_dep = dependency('qt5', modules: ['Gui', 'Widgets'])
 qt_test_dep = dependency('qt5', modules: ['Test'])
 qt_opengl_dep = dependency('qt5', modules: ['OpenGL'])
 qt_remoteobj_dep = dependency('qt5', modules: ['RemoteObjects'])
 qt_svg_dep = dependency('qt5', modules: ['Svg'])
 qt_dbus_dep = dependency('qt5', modules: ['DBus'])
-qt_charts_dep = dependency('qt5', modules: ['Charts'])
+qt_charts_dep = dependency('qt5', modules: ['Charts'], include_type: 'system')
 
 rt_lib = cpp_compiler.find_library('rt')
 thread_dep = dependency('threads')
 opengl_dep = dependency('GL')
 xxhash_dep = dependency('libxxhash')
-eigen_dep = dependency('eigen3', version: '>= 3.3')
+eigen_dep = dependency('eigen3', version: '>= 3.3', include_type: 'system')
 toml_dep = dependency('tomlplusplus', version: '>=2.0')
-opencv_dep = dependency('opencv4')
+opencv_dep = dependency('opencv4', include_type: 'system')
 
 avcodec_dep = dependency('libavcodec', version: '>= 58.20')
 avformat_dep = dependency('libavformat', version: '>= 58.20')

@@ -5,8 +5,8 @@
 
 #include <vector>
 #include <string>
+#include <stdint.h>
 #include <stdexcept>
-
 #include <iostream>
 
 #include <QDebug>
@@ -597,7 +597,10 @@ TcamCamera::set_new_frame_callback(std::function<GstFlowReturn(GstAppSink *appsi
 {
     callback_ = callback;
     callback_data_ = data;
-    GstAppSinkCallbacks callbacks = {nullptr, nullptr, new_frame_callback};
+    GstAppSinkCallbacks callbacks = { .eos = nullptr,
+                                      .new_preroll = nullptr,
+                                      .new_sample = new_frame_callback,
+                                      nullptr };
     gst_app_sink_set_callbacks(GST_APP_SINK(capturesink_), &callbacks, this, nullptr);
 }
 

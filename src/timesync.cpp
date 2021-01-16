@@ -426,8 +426,8 @@ void SecondaryClockSynchronizer::setExpectedClockFrequencyHz(double frequency)
         return;
     }
 
-    if (frequency == 0) {
-        qCWarning(logTimeSync).noquote() << "Rejected bogus frequency change to 0 for" << m_mod->name();
+    if (frequency <= 0) {
+        qCWarning(logTimeSync).noquote() << "Rejected bogus frequency change to <= 0 for" << m_mod->name();
         return;
     }
 
