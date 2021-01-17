@@ -20,6 +20,8 @@
 #include "globalconfig.h"
 
 #include <QSettings>
+#include <QStandardPaths>
+#include <QDir>
 
 #include "rtkit.h"
 
@@ -122,4 +124,10 @@ bool GlobalConfig::saveExperimentDiagnostics() const
 void GlobalConfig::setSaveExperimentDiagnostics(bool enabled)
 {
     m_s->setValue("devel/save_diagnostics", enabled);
+}
+
+QString GlobalConfig::virtualenvDir() const
+{
+    const auto dataDir = QStandardPaths::writableLocation(QStandardPaths::DataLocation);
+    return QDir(dataDir).filePath("venv");
 }

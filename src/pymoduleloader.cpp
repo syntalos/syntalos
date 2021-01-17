@@ -21,9 +21,16 @@
 
 #include <iostream>
 #include <QDir>
+#include <QFile>
 #include <QIcon>
+#include <QStandardPaths>
+#include <QMessageBox>
+#include <QCoreApplication>
 
 #include "oopmodule.h"
+#include "globalconfig.h"
+#include "utils/executils.h"
+#include "utils/misc.h"
 
 class PythonModule : public OOPModule
 {
@@ -63,11 +70,94 @@ public:
         }
     }
 
+    QString virtualEnvDir() const
+    {
+        GlobalConfig gconf;
+        return QStringLiteral("%1/%2").arg(gconf.virtualenvDir()).arg(id());
+    }
+
+    bool virtualEnvExists()
+    {
+        return QFile::exists(QStringLiteral("%1/bin/python").arg(virtualEnvDir()));
+    }
+
+    bool installVirtualEnv()
+    {
+        GlobalConfig gconf;
+        auto rtdDir = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
+        if (rtdDir.isEmpty())
+            rtdDir = "/tmp";
+        const auto venvDir = virtualEnvDir();
+        QDir().mkpath(venvDir);
+
+        const auto tmpCommandFile = QStringLiteral("%1/sy-venv-%2.sh").arg(rtdDir).arg(createRandomString(6));
+        QFile file(tmpCommandFile);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            qWarning().noquote() << "Unable to open temporary file" << tmpCommandFile << "for writing.";
+            return false;
+        }
+
+        qDebug().noquote() << "Creating new Python virtualenv in:" << venvDir;
+        QTextStream out(&file);
+        out << "#!/bin/bash\n\n"
+            << "run_check() {\n"
+            << "    echo -e \"\\033[1;33m-\\033[0m \\033[1m$@\\033[0m\"\n"
+            << "    $@\n"
+            << "    if [ $? -ne 0 ]\n"
+            << "    then\n"
+            << "        echo \"\"\n"
+            << "        read -p \"Command failed to run. Press enter to exit.\"\n"
+            << "        exit 1\n"
+            << "    fi\n"
+            << "}\n\n"
+
+            << "cd " << shellQuote(venvDir) << "\n"
+            << "run_check virtualenv ." << "\n"
+            << "run_check source " << shellQuote(QStringLiteral("%1/bin/activate").arg(venvDir)) << "\n"
+            << "run_check pip install --ignore-requires-python -r " << shellQuote(QStringLiteral("%1/requirements.txt").arg(m_pyModDir)) << "\n"
+
+            << "echo \"\"\n"
+            << "read -p \"Success! Press any key to exit.\"" << "\n";
+        file.flush();
+        file.setPermissions(QFileDevice::ExeUser | QFileDevice::ReadUser | QFileDevice::WriteUser);
+        file.close();
+
+        int ret = runInExternalTerminal(tmpCommandFile, QStringList(), venvDir);
+
+        //file.remove();
+        if (ret == 0)
+            return true;
+        // failure, let's try to remove the bad virtualenv (failures to do so are ignored)
+        QDir(venvDir).removeRecursively();
+        return false;
+    }
+
     bool initialize() override
     {
         if (workerBinary().isEmpty()) {
             raiseError("Unable to find Python worker binary. Is Syntalos installed correctly?");
             return false;
+        }
+
+        if (m_useVEnv && !virtualEnvExists() && QFile::exists(QStringLiteral("%1/requirements.txt").arg(m_pyModDir))) {
+            auto reply = QMessageBox::question(nullptr,
+                                               QStringLiteral("Create virtual environment for %1?").arg(id()),
+                                               QStringLiteral("The '%1' module requested to run its Python code in a virtual environment, however "
+                                                              "a virtual Python environment for modules of type '%2' does not exist yet. "
+                                                              "Should Syntalos attempt to set up the environment automatically? "
+                                                              "(This will open a system terminal and run the necessary command, which may take some time)")
+                                                              .arg(name()).arg(id()),
+                                               QMessageBox::Yes | QMessageBox::No);
+            if (reply == QMessageBox::No)
+                return false;
+
+            QCoreApplication::processEvents();
+            if (!installVirtualEnv()) {
+                QMessageBox::warning(nullptr,
+                                     QStringLiteral("Failed to create virtual environment for %1?").arg(id()),
+                                     QStringLiteral("Failed to set up the virtual environment - refer to the terminal log for more information."));
+                return false;
+            }
         }
 
         setInitialized();
@@ -76,7 +166,7 @@ public:
 
     bool prepare(const TestSubject &testSubject) override
     {
-        loadPythonFile(m_mainPyFname, m_pyVEnv, m_pyVEnv);
+        loadPythonFile(m_mainPyFname, m_pyModDir, m_pyVEnv);
         return OOPModule::prepare(testSubject);
     }
 
@@ -98,9 +188,21 @@ public:
         m_mainPyFname = fname;
     }
 
+    void setModSourceDir(const QString wdir)
+    {
+        m_pyModDir = wdir;
+    }
+
+    void setUseVEnv(bool use)
+    {
+        m_useVEnv = use;
+    }
+
 private:
     QString m_mainPyFname;
     QString m_pyVEnv;
+    QString m_pyModDir;
+    bool m_useVEnv;
 };
 
 class PyModuleInfo : public ModuleInfo
@@ -123,11 +225,15 @@ public:
     {
         auto mod = new PythonModule(parent);
         mod->setMainPyFname(m_pyFname);
+        mod->setModSourceDir(m_pyModDir);
+        mod->setUseVEnv(m_useVEnv);
         mod->setupPorts(m_portDefInput, m_portDefOutput);
         return mod;
     }
 
     void setMainPyScriptFname(const QString &pyFname) { m_pyFname = pyFname; }
+    void setModSourceDir(const QString &wdir) { m_pyModDir = wdir; }
+    void setUseVEnv(bool enabled) { m_useVEnv = enabled; }
     void setPortDef(const QVariantList &defInput, const QVariantList &defOutput)
     {
         m_portDefInput = defInput;
@@ -141,6 +247,9 @@ private:
     QPixmap m_icon;
 
     QString m_pyFname;
+    QString m_pyModDir;
+    bool m_useVEnv;
+
     QVariantList m_portDefInput;
     QVariantList m_portDefOutput;
 };
@@ -152,6 +261,7 @@ ModuleInfo *loadPythonModuleInfo(const QString &modId, const QString &modDir, co
     const auto name = modDef.value("name").toString();
     const auto desc = modDef.value("description").toString();
     const auto iconName = modDef.value("icon").toString();
+    const auto useVEnv = modDef.value("use_venv", false).toBool();
 
     if (name.isEmpty())
         throw std::runtime_error("Required 'name' key not found in module metadata.");
@@ -170,6 +280,8 @@ ModuleInfo *loadPythonModuleInfo(const QString &modId, const QString &modDir, co
 
     modInfo = new PyModuleInfo(modId, name, desc, icon);
     modInfo->setMainPyScriptFname(pyFile);
+    modInfo->setModSourceDir(modDir);
+    modInfo->setUseVEnv(useVEnv);
 
     const auto portsDef = modData.value("ports").toHash();
     if (!portsDef.isEmpty())

@@ -81,7 +81,10 @@ syntalos_src = [
     'sysinfodialog.h',
     'sysinfodialog.cpp',
     'timingsdialog.h',
-    'timingsdialog.cpp'
+    'timingsdialog.cpp',
+
+    'utils/executils.h',
+    'utils/executils.cpp'
 ]
 
 syntalos_ui = [

@@ -53,6 +53,8 @@ public:
     bool saveExperimentDiagnostics() const;
     void setSaveExperimentDiagnostics(bool enabled);
 
+    QString virtualenvDir() const;
+
 private:
     QSettings *m_s;
 };
