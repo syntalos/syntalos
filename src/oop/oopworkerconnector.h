@@ -47,7 +47,8 @@ public:
     void setPorts(QList<std::shared_ptr<VarStreamInputPort>> inPorts,
                   QList<std::shared_ptr<StreamOutputPort>> outPorts);
 
-    void initWithPythonScript(const QString &script, const QString &env = QString());
+    void initWithPythonScript(const QString &script, const QString &wdir = QString());
+    void setPythonVirtualEnv(const QString &venvDir);
 
     void start(const symaster_timepoint &timePoint);
 
@@ -70,6 +71,7 @@ private:
     QSharedPointer<OOPWorkerReplica> m_reptr;
     QProcess *m_proc;
     QString m_workerBinary;
+    QString m_pyVenvDir;
     bool m_captureStdout;
     bool m_workerReady;
     bool m_failed;

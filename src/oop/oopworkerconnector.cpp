@@ -21,11 +21,13 @@
 
 #include <thread>
 #include <QUuid>
+#include <QProcessEnvironment>
 
 #include "streams/frametype.h"
 #include "utils/misc.h"
 #include "ipcmarshal.h"
 #include "globalconfig.h"
+#include "sysinfo.h"
 
 using namespace Syntalos;
 
@@ -94,6 +96,16 @@ bool OOPWorkerConnector::connectAndRun(const QVector<uint> &cpuAffinity)
         return false;
     }
 
+    auto penv = QProcessEnvironment::systemEnvironment();
+    penv.insert("SYNTALOS_VERSION", syntalosVersionFull());
+    if (!m_pyVenvDir.isEmpty()) {
+        penv.remove("PYTHONHOME");
+        penv.insert("VIRTUAL_ENV", m_pyVenvDir);
+        penv.insert("PATH", QStringLiteral("%1/bin/:%2").arg(m_pyVenvDir).arg(penv.value("PATH", "")));
+    }
+    m_proc->setProcessChannelMode(QProcess::ForwardedChannels);
+
+    m_proc->setProcessEnvironment(penv);
     m_proc->start(m_workerBinary, QStringList() << address);
     if (!m_proc->waitForStarted()) {
         m_failed = true;
@@ -178,9 +190,14 @@ void OOPWorkerConnector::setPorts(QList<std::shared_ptr<VarStreamInputPort>> inP
     m_outPortsAvailable = m_outPorts.size();
 }
 
-void OOPWorkerConnector::initWithPythonScript(const QString &script, const QString &env)
+void OOPWorkerConnector::initWithPythonScript(const QString &script, const QString &wdir)
 {
-    m_reptr->initializeFromData(script, env).waitForFinished(10000);
+    m_reptr->initializeFromData(script, wdir).waitForFinished(10000);
+}
+
+void OOPWorkerConnector::setPythonVirtualEnv(const QString &venvDir)
+{
+    m_pyVenvDir = venvDir;
 }
 
 void OOPWorkerConnector::start(const symaster_timepoint &timePoint)

@@ -73,10 +73,10 @@ std::optional<OutputPortInfo> OOPWorker::outputPortInfoByIdString(const QString 
     return res;
 }
 
-bool OOPWorker::initializeFromData(const QString &script, const QString &env)
+bool OOPWorker::initializeFromData(const QString &script, const QString &wdir)
 {
-    if (!env.isEmpty())
-        QDir::setCurrent(env);
+    if (!wdir.isEmpty())
+        QDir::setCurrent(wdir);
 
     m_script = script;
     qDebug() << "Initialized from Python script";
@@ -84,9 +84,9 @@ bool OOPWorker::initializeFromData(const QString &script, const QString &env)
     return true;
 }
 
-bool OOPWorker::initializeFromFile(const QString &fname, const QString &env)
+bool OOPWorker::initializeFromFile(const QString &fname, const QString &wdir)
 {
-    Q_UNUSED(env)
+    Q_UNUSED(wdir)
     Q_UNUSED(fname)
 
     QTimer::singleShot(0, this, &OOPWorker::runScript);
@@ -230,7 +230,13 @@ void OOPWorker::runScript()
 {
     Py_SetProgramName(QCoreApplication::arguments()[0].toStdWString().c_str());
 
-    // initialize Python in the thread
+    // HACK: make Python thing *we* are the Python interpreter, so it finds
+    // all modules correctly when we are in a virtual environment.
+    const auto venvDir = QString::fromUtf8(qgetenv("VIRTUAL_ENV"));
+    if (!venvDir.isEmpty())
+        Py_SetProgramName(QDir(venvDir).filePath("bin/python").toStdWString().c_str());
+
+    // initialize Python in this process
     Py_Initialize();
 
     PyObject *mainModule = PyImport_AddModule("__main__");

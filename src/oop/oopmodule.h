@@ -32,7 +32,7 @@ class OOPModule : public AbstractModule
     Q_OBJECT
 public:
     explicit OOPModule(QObject *parent = nullptr);
-    ~OOPModule();
+    virtual ~OOPModule() override;
 
     ModuleFeatures features() const override;
 
@@ -47,8 +47,10 @@ signals:
     void processStdoutReceived(const QString &text);
 
 protected:
-    void loadPythonScript(const QString &script, const QString &env = QString());
-    void loadPythonFile(const QString &fname, const QString &env = QString());
+    void loadPythonScript(const QString &script,
+                          const QString &wdir = QString(), const QString &venv = QString());
+    void loadPythonFile(const QString &fname,
+                        const QString &wdir = QString(), const QString &venv = QString());
 
     QString workerBinary() const;
     void setWorkerBinary(const QString &binPath);

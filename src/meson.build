@@ -74,6 +74,8 @@ syntalos_src = [
     'modulelibrary.cpp',
     'moduleselectdialog.h',
     'moduleselectdialog.cpp',
+    'pymoduleloader.h',
+    'pymoduleloader.cpp',
     'sysinfo.h',
     'sysinfo.cpp',
     'sysinfodialog.h',

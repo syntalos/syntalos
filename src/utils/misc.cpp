@@ -17,6 +17,7 @@
  * along with this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "config.h"
 #include "misc.h"
 
 #include <QDebug>
@@ -106,4 +107,12 @@ QStringList stringListNaturalSort(QStringList &list)
     std::sort(list.begin(), list.end(), collator);
 
     return list;
+}
+
+QString syntalosVersionFull()
+{
+    auto syVersion = QStringLiteral(SY_VCS_TAG);
+    if (syVersion.startsWith("v"))
+        syVersion = syVersion.remove(0, 1);
+    return syVersion;
 }

@@ -55,6 +55,7 @@ private:
     class Private;
     QScopedPointer<Private> d;
 
-    bool loadLibraryModInfo(const QString &modName, const QString &libFname);
-    void logModuleIssue(const QString &modName, const QString &context, const QString &msg);
+    bool loadLibraryModInfo(const QString &modId, const QString &libFname);
+    bool loadPythonModInfo(const QString &modId, const QString &modDir, const QVariantHash &modData);
+    void logModuleIssue(const QString &modId, const QString &context, const QString &msg);
 };

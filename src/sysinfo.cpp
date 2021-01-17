@@ -305,10 +305,7 @@ int SysInfo::cpuPhysicalCoreCount() const
 
 QString SysInfo::syntalosVersion() const
 {
-    auto syVersion = QStringLiteral(SY_VCS_TAG);
-    if (syVersion.startsWith("v"))
-        syVersion = syVersion.remove(0, 1);
-    return syVersion;
+    return syntalosVersionFull();
 }
 
 QString SysInfo::qtVersion() const

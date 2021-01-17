@@ -51,7 +51,8 @@ public:
     ~Private() {}
 
     QString pyScript;
-    QString pyEnv;
+    QString pyVEnv;
+    QString wdir;
     QString workerBinary;
     bool captureStdout;
     OOPWorkerReplica::Stage workerStage;
@@ -70,8 +71,7 @@ OOPModule::OOPModule(QObject *parent)
 }
 
 OOPModule::~OOPModule()
-{
-}
+{}
 
 ModuleFeatures OOPModule::features() const
 {
@@ -113,6 +113,7 @@ bool OOPModule::oopPrepare(QEventLoop *loop, const QVector<uint> &cpuAffinity)
         setStatusMessage(text);
     });
 
+    wc->setPythonVirtualEnv(d->pyVEnv);
     wc->setCaptureStdout(d->captureStdout);
     if (!wc->connectAndRun(cpuAffinity)) {
         raiseError("Unable to start worker process!");
@@ -121,7 +122,7 @@ bool OOPModule::oopPrepare(QEventLoop *loop, const QVector<uint> &cpuAffinity)
 
     // set port information and load Python script
     wc->setPorts(inPorts(), outPorts());
-    wc->initWithPythonScript(d->pyScript, d->pyEnv);
+    wc->initWithPythonScript(d->pyScript, d->wdir);
 
     // check if we already received messages from the worker,
     // such as errors or output port metadata updates
@@ -193,13 +194,14 @@ void OOPModule::oopFinalize(QEventLoop *loop)
     statusMessage("");
 }
 
-void OOPModule::loadPythonScript(const QString &script, const QString &env)
+void OOPModule::loadPythonScript(const QString &script, const QString &wdir, const QString &venv)
 {
     d->pyScript = script;
-    d->pyEnv = env;
+    d->pyVEnv = venv;
+    d->wdir = wdir;
 }
 
-void OOPModule::loadPythonFile(const QString &fname, const QString &env)
+void OOPModule::loadPythonFile(const QString &fname, const QString &wdir, const QString &venv)
 {
     QFile f(fname);
     if (!f.open(QFile::ReadOnly | QFile::Text)) {
@@ -207,7 +209,7 @@ void OOPModule::loadPythonFile(const QString &fname, const QString &env)
         return;
     }
     QTextStream in(&f);
-    loadPythonScript(in.readAll(), env);
+    loadPythonScript(in.readAll(), wdir, venv);
 }
 
 QString OOPModule::workerBinary() const

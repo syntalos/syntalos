@@ -56,4 +56,9 @@ QStringList qStringSplitLimit(const QString &str,
 **/
 QStringList stringListNaturalSort(QStringList &list);
 
+/**
+ * @brief Return the complete current Syntalos version number.
+ */
+QString syntalosVersionFull();
+
 #endif // UTILS_H

@@ -318,7 +318,7 @@ class Q_DECL_EXPORT AbstractModule : public QObject
     friend class Engine;
 public:
     explicit AbstractModule(QObject *parent = nullptr);
-    ~AbstractModule();
+    virtual ~AbstractModule();
 
     ModuleState state() const;
 

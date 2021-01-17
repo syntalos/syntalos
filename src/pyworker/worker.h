@@ -57,8 +57,8 @@ public Q_SLOTS:
     void setMaxRealtimePriority(int priority) override;
     void setCPUAffinity(QVector<uint> cores) override;
 
-    bool initializeFromData(const QString & script, const QString & env) override;
-    bool initializeFromFile(const QString & fname, const QString & env) override;
+    bool initializeFromData(const QString & script, const QString &wdir) override;
+    bool initializeFromFile(const QString & fname, const QString &wdir) override;
 
     void setInputPortInfo(const QList<InputPortInfo> &ports) override;
     void setOutputPortInfo(const QList<OutputPortInfo> &ports) override;

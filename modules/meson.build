@@ -1,6 +1,7 @@
 # Syntalos Modules
 
 module_lib_def_tmpl = files('module-lib-def.toml.in')
+ln_exe = find_program('ln')
 
 # Developer modules
 subdir('devel.clock')
