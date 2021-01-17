@@ -28,7 +28,6 @@ class RunCmdSettingsDlg;
 class RunCmdSettingsDlg : public QDialog
 {
     Q_OBJECT
-
 public:
     explicit RunCmdSettingsDlg(QWidget *parent = nullptr);
     ~RunCmdSettingsDlg();

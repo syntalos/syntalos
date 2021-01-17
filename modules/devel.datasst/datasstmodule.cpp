@@ -116,3 +116,5 @@ AbstractModule *DevelDataSSTModuleInfo::createModule(QObject *parent)
 {
     return new DataSSTModule(parent);
 }
+
+#include "datasstmodule.moc"

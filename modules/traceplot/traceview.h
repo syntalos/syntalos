@@ -26,6 +26,7 @@ QT_CHARTS_USE_NAMESPACE
 
 class TraceView : public QChartView
 {
+    Q_OBJECT
 public:
     TraceView(QWidget *parent = nullptr);
     TraceView(QChart *chart, QWidget *parent = nullptr);

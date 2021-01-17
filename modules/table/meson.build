@@ -10,10 +10,11 @@ module_moc_hdr = [
 ]
 
 module_src = [
-    'tablemodule.cpp',
     'recordedtable.cpp'
 ]
-module_moc_src = []
+module_moc_src = [
+    'tablemodule.cpp'
+]
 
 module_ui = []
 

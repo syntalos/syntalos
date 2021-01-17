@@ -158,3 +158,5 @@ AbstractModule *TableModuleInfo::createModule(QObject *parent)
 {
     return new TableModule(parent);
 }
+
+#include "tablemodule.moc"

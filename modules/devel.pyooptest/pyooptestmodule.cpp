@@ -122,3 +122,5 @@ AbstractModule *PyOOPTestModuleInfo::createModule(QObject *parent)
 {
     return new PyOOPTestModule(parent);
 }
+
+#include "pyooptestmodule.moc"

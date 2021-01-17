@@ -216,3 +216,5 @@ AbstractModule *CanvasModuleInfo::createModule(QObject *parent)
 {
     return new CanvasModule(parent);
 }
+
+#include "canvasmodule.moc"

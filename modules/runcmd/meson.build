@@ -1,15 +1,17 @@
 # Build definitions for module: runcmd
 
-module_hdr = []
+module_hdr = [
+    'runcmdmodule.h'
+]
 module_moc_hdr = [
-    'runcmdmodule.h',
     'runcmdsettingsdlg.h'
 ]
 
-module_src = []
-module_moc_src = [
-    'runcmdmodule.cpp',
+module_src = [
     'runcmdsettingsdlg.cpp'
+]
+module_moc_src = [
+    'runcmdmodule.cpp'
 ]
 
 module_ui = ['runcmdsettingsdlg.ui']

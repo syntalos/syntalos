@@ -8,7 +8,6 @@ module_hdr = [
 module_moc_hdr = [
     'imageviewwidget.h',
     'canvaswindow.h'
-
 ]
 
 module_src = [

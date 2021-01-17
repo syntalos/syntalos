@@ -171,3 +171,5 @@ AbstractModule *DevelDataSourceModuleInfo::createModule(QObject *parent)
 {
     return new DataSourceModule(parent);
 }
+
+#include "datasourcemodule.moc"

@@ -3,8 +3,7 @@
 module_hdr = [
     'firmataiomodule.h',
 
-    'firmata/fmutils.h',
-    'firmata/backend.h'
+    'firmata/fmutils.h'
 ]
 module_moc_hdr = [
 
@@ -12,7 +11,7 @@ module_moc_hdr = [
 
     'firmata/serialinfo.h',
     'firmata/serialport.h',
-
+    'firmata/backend.h'
 ]
 
 module_src = [
@@ -23,7 +22,7 @@ module_src = [
     'firmata/backend.cpp'
 ]
 module_moc_src = [
-    'firmataiomodule.cpp',
+    'firmataiomodule.cpp'
 ]
 
 module_ui = ['firmatasettingsdialog.ui']

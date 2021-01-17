@@ -3,12 +3,12 @@
 module_name = 'videotransform'
 
 module_hdr = [
-    'videotransformmodule.h',
-    'vtransformctldialog.h'
+    'videotransformmodule.h'
 ]
 module_moc_hdr = [
     'videotransform.h',
-    'vtransformlistmodel.h'
+    'vtransformlistmodel.h',
+    'vtransformctldialog.h'
 ]
 
 module_src = [

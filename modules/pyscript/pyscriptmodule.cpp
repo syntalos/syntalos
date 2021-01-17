@@ -48,7 +48,7 @@ public:
         m_pyoutWindow = nullptr;
         m_scriptWindow = nullptr;
 
-        // we use the generic Python OOP wrker process for this
+        // we use the generic Python OOP worker process for this
         setWorkerBinaryPyWorker();
 
         m_pyoutWindow = new QTextBrowser;

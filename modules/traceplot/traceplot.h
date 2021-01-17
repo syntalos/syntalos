@@ -29,6 +29,7 @@ QT_CHARTS_USE_NAMESPACE
 
 class TracePlot : public QChart
 {
+    Q_OBJECT
 public:
     explicit TracePlot(QGraphicsItem *parent = nullptr, Qt::WindowFlags wFlags = Qt::WindowFlags());
     ~TracePlot() override;
