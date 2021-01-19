@@ -21,8 +21,13 @@
 
 #include <QObject>
 #include <QEventLoop>
+#include <QRemoteObjectPendingReply>
 
 #include "moduleapi.h"
+
+namespace Syntalos {
+    Q_DECLARE_LOGGING_CATEGORY(logOOPMod)
+}
 
 /**
  * @brief Base for out-of-process module implementations
@@ -34,10 +39,11 @@ public:
     explicit OOPModule(QObject *parent = nullptr);
     virtual ~OOPModule() override;
 
-    ModuleFeatures features() const override;
+    virtual ModuleFeatures features() const override;
 
-    bool prepare(const TestSubject &testSubject) override;
+    bool prepare(const TestSubject &) override;
 
+    virtual void preOOPPrepare();
     bool oopPrepare(QEventLoop *loop, const QVector<uint> &cpuAffinity);
     void oopStart(QEventLoop *);
     void oopRunEvent(QEventLoop *loop);
@@ -47,10 +53,14 @@ signals:
     void processStdoutReceived(const QString &text);
 
 protected:
-    void loadPythonScript(const QString &script,
-                          const QString &wdir = QString(), const QString &venv = QString());
-    void loadPythonFile(const QString &fname,
-                        const QString &wdir = QString(), const QString &venv = QString());
+    void setPythonScript(const QString &script,
+                         const QString &wdir = QString(), const QString &venv = QString());
+    void setPythonFile(const QString &fname,
+                       const QString &wdir = QString(), const QString &venv = QString());
+    bool initAndLaunchWorker(const QVector<uint> &cpuAffinity = QVector<uint>());
+    void terminateWorkerIfRunning(QEventLoop *loop);
+
+    std::optional<QRemoteObjectPendingReply<QByteArray> > showSettingsChangeUi(const QByteArray &oldSettings);
 
     QString workerBinary() const;
     void setWorkerBinary(const QString &binPath);

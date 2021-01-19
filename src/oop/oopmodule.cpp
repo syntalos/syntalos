@@ -24,6 +24,10 @@
 
 #include "oopworkerconnector.h"
 
+namespace Syntalos {
+    Q_LOGGING_CATEGORY(logOOPMod, "oopmodule")
+}
+
 class OOPModuleRunData
 {
 public:
@@ -79,11 +83,16 @@ ModuleFeatures OOPModule::features() const
            ModuleFeature::SHOW_SETTINGS;
 }
 
-bool OOPModule::prepare(const TestSubject &testSubject)
+bool OOPModule::prepare(const TestSubject &)
 {
-    Q_UNUSED(testSubject)
-
     return true;
+}
+
+void OOPModule::preOOPPrepare()
+{
+    // terminate worker and its interface in the current thread,
+    // in case we still have one running.
+    terminateWorkerIfRunning(nullptr);
 }
 
 bool OOPModule::oopPrepare(QEventLoop *loop, const QVector<uint> &cpuAffinity)
@@ -91,6 +100,101 @@ bool OOPModule::oopPrepare(QEventLoop *loop, const QVector<uint> &cpuAffinity)
     // We have to do all the setup stuff on thread creation, as moving QObject
     // instances between different threads is not ideal and the QRO connection
     // occasionally doesn't get established properly if we shift work between threads
+    qCDebug(logOOPMod).noquote() << "Initializing OOP worker launch.";
+    if (!initAndLaunchWorker(cpuAffinity))
+        return false;
+    auto wc = d->runData->wc;
+
+    // run prepare and init steps of the script, have it wait
+    // for the actual start trigger to start its loop
+    qCDebug(logOOPMod).noquote() << "Preparing OOP worker experiment start.";
+    wc->prepareStart();
+
+    // check if we already received messages from the worker,
+    // such as errors or output port metadata updates
+    // we need to wait for some time until the worker is ready
+    statusMessage("Waiting for worker to get ready...");
+    qCDebug(logOOPMod).noquote() << "Waiting for ready signal from worker.";
+    const auto waitStartTime = currentTimePoint();
+    while (d->workerStage != OOPWorkerReplica::READY) {
+        loop->processEvents();
+
+        // if we are in a failed state, we have already emitted an error message
+        if (wc->failed() || d->failed)
+            return false;
+
+        if (timeDiffMsec(currentTimePoint(), waitStartTime).count() > 20000) {
+            // waiting 20sec is long enough, presumably the worker died and we can not
+            // continue here
+            raiseError("The worker did not signal readyness - maybe it crashed or is frozen?");
+            return false;
+        }
+    }
+
+    // set all outgoing streams as active (which propagates metadata)
+    for (auto &port : outPorts())
+        port->streamVar()->start();
+
+    if (wc->failed())
+        return false;
+
+    statusMessage("Worker is ready.");
+    qCDebug(logOOPMod).noquote() << "Worker is ready.";
+    setStateReady();
+    return true;
+}
+
+void OOPModule::oopStart(QEventLoop *)
+{
+    statusMessage("");
+    d->runData->wc->start(m_syTimer->startTime());
+}
+
+void OOPModule::oopRunEvent(QEventLoop *loop)
+{
+    // first thing to do: Look for possible (error) signals from our worker
+    loop->processEvents();
+
+    // forward incoming data to the worker
+    d->runData->wc->forwardInputData(loop);
+
+    if (d->captureStdout) {
+        const auto data = d->runData->wc->readProcessStdout();
+        if (!data.isEmpty())
+            emit processStdoutReceived(data);
+    }
+
+    if (d->runData->wc->failed())
+        m_running = false;
+}
+
+void OOPModule::oopFinalize(QEventLoop *loop)
+{
+    statusMessage("Waiting for worker to terminate...");
+    terminateWorkerIfRunning(loop);
+    statusMessage("");
+}
+
+void OOPModule::setPythonScript(const QString &script, const QString &wdir, const QString &venv)
+{
+    d->pyScript = script;
+    d->pyVEnv = venv;
+    d->wdir = wdir;
+}
+
+void OOPModule::setPythonFile(const QString &fname, const QString &wdir, const QString &venv)
+{
+    QFile f(fname);
+    if (!f.open(QFile::ReadOnly | QFile::Text)) {
+        raiseError(QStringLiteral("Unable to open Python script file: %1").arg(fname));
+        return;
+    }
+    QTextStream in(&f);
+    setPythonScript(in.readAll(), wdir, venv);
+}
+
+bool OOPModule::initAndLaunchWorker(const QVector<uint> &cpuAffinity)
+{
     d->runData.reset(new OOPModuleRunData);
 
     d->runData->replica.reset(d->runData->repNode->acquire<OOPWorkerReplica>());
@@ -123,93 +227,38 @@ bool OOPModule::oopPrepare(QEventLoop *loop, const QVector<uint> &cpuAffinity)
     // set port information and load Python script
     wc->setPorts(inPorts(), outPorts());
     wc->initWithPythonScript(d->pyScript, d->wdir);
+    statusMessage("Worker initialized.");
 
-    // check if we already received messages from the worker,
-    // such as errors or output port metadata updates
-    // we need to wait for some time until the worker is ready
-    statusMessage("Waiting for worker to get ready...");
-    const auto waitStartTime = currentTimePoint();
-    while (d->workerStage != OOPWorkerReplica::READY) {
-        loop->processEvents();
-
-        // if we are in a failed state, we have already emitted an error message
-        if (wc->failed() || d->failed)
-            return false;
-
-        if (timeDiffMsec(currentTimePoint(), waitStartTime).count() > 20000) {
-            // waiting 20sec is long enough, presumably the worker died and we can not
-            // continue here
-            raiseError("The worker did not signal readyness - maybe it crashed or is frozen?");
-            return false;
-        }
-    }
-
-    // set all outgoing streams as active (which propagates metadata)
-    for (auto &port : outPorts())
-        port->streamVar()->start();
-
-    if (wc->failed())
-        return false;
-
-    statusMessage("Worker is ready.");
-    setStateReady();
     return true;
 }
 
-void OOPModule::oopStart(QEventLoop *)
+void OOPModule::terminateWorkerIfRunning(QEventLoop *loop)
 {
-    statusMessage("");
-    d->runData->wc->start(m_syTimer->startTime());
-}
+    if (d->runData.isNull())
+        return;
+    if (d->runData->wc.isNull())
+        return;
 
-void OOPModule::oopRunEvent(QEventLoop *loop)
-{
-    // first thing to do: Look for possible (error) signals from our worker
-    loop->processEvents();
-
-    // forward incoming data to the worker
-    d->runData->wc->forwardInputData(loop);
-
-    if (d->captureStdout) {
-        const auto data = d->runData->wc->readProcessStdout();
-        if (!data.isEmpty())
-            emit processStdoutReceived(data);
-    }
-
-    if (d->runData->wc->failed())
-        m_running = false;
-}
-
-void OOPModule::oopFinalize(QEventLoop *loop)
-{
-    statusMessage("Waiting for worker to terminate...");
+    qCDebug(logOOPMod).noquote() << "Terminating OOP worker.";
     d->runData->wc->terminate(loop);
     if (d->captureStdout) {
         const auto data = d->runData->wc->readProcessStdout();
         if (!data.isEmpty())
             emit processStdoutReceived(data);
     }
+    qCDebug(logOOPMod).noquote() << "OOP worker terminated.";
 
     d->runData.reset();
-    statusMessage("");
 }
 
-void OOPModule::loadPythonScript(const QString &script, const QString &wdir, const QString &venv)
+std::optional<QRemoteObjectPendingReply<QByteArray>> OOPModule::showSettingsChangeUi(const QByteArray &oldSettings)
 {
-    d->pyScript = script;
-    d->pyVEnv = venv;
-    d->wdir = wdir;
-}
-
-void OOPModule::loadPythonFile(const QString &fname, const QString &wdir, const QString &venv)
-{
-    QFile f(fname);
-    if (!f.open(QFile::ReadOnly | QFile::Text)) {
-        raiseError(QStringLiteral("Unable to open Python script file: %1").arg(fname));
-        return;
+    if (d->runData.isNull() || d->runData->wc.isNull()) {
+        // launch worker, it is not yet running
+        if (!initAndLaunchWorker())
+            return std::nullopt;
     }
-    QTextStream in(&f);
-    loadPythonScript(in.readAll(), wdir, venv);
+    return d->runData->wc->changeSettings(oldSettings);
 }
 
 QString OOPModule::workerBinary() const

@@ -57,16 +57,19 @@ public Q_SLOTS:
     void setMaxRealtimePriority(int priority) override;
     void setCPUAffinity(QVector<uint> cores) override;
 
-    bool initializeFromData(const QString & script, const QString &wdir) override;
-    bool initializeFromFile(const QString & fname, const QString &wdir) override;
+    bool loadPythonScript(const QString &script, const QString &wdir) override;
 
     void setInputPortInfo(const QList<InputPortInfo> &ports) override;
     void setOutputPortInfo(const QList<OutputPortInfo> &ports) override;
 
+    QByteArray changeSettings(const QByteArray &oldSettings) override;
+    bool prepareStart() override;
     void start(long startTimestampUsec) override;
+
+    bool prepareShutdown() override;
     void shutdown() override;
 
-    void runScript();
+    void prepareAndRun();
 
     std::optional<bool> waitForInput();
     bool receiveInput(int inPortId, const QVariant &argData = QVariant()) override;
@@ -76,8 +79,10 @@ protected:
 
 private:
     Stage m_stage;
+    bool m_pyInitialized;
+    PyObject *m_pyMain;
+
     bool m_running;
-    QString m_script;
     std::vector<std::unique_ptr<SharedMemory>> m_shmSend;
     std::vector<std::unique_ptr<SharedMemory>> m_shmRecv;
 

@@ -1104,8 +1104,10 @@ bool Engine::runInternal(const QString &exportDirPath)
         // be the most performant thing to do if there are a lot of OOP modules.
         // But let's address that case when we actually run into performance issues
         if (!oopModules.isEmpty()) {
-            for (auto &mod : oopModules)
+            for (auto &mod : oopModules) {
                 mod->setState(ModuleState::PREPARING);
+                mod->preOOPPrepare();
+            }
 
             ThreadDetails td;
             td.niceness = defaultThreadNice;
@@ -1129,7 +1131,7 @@ bool Engine::runInternal(const QString &exportDirPath)
         }
 
         // run special threads with built-in event loops for modules that selected an event-based driver
-        for (const auto evThreadKey : eventModules.keys()) {
+        for (const auto &evThreadKey : eventModules.keys()) {
             std::shared_ptr<ModuleEventThread> evThread(new ModuleEventThread(evThreadKey));
             evThread->run(eventModules[evThreadKey], startWaitCondition.get());
             evThreads[evThreadKey] = evThread;
@@ -1387,7 +1389,7 @@ bool Engine::runInternal(const QString &exportDirPath)
 
         // ensure modules really have terminated all their outgoing streams,
         // because if they didn't do that, connected modules may not be able to exit
-        for (auto const port : mod->outPorts())
+        for (auto const &port : mod->outPorts())
             port->stopStream();
 
         // ensure modules display the correct state after we stopped a run

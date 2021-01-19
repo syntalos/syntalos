@@ -61,9 +61,14 @@ void OOPWorkerConnector::terminate(QEventLoop *loop)
 {
     if (loop)
         loop->processEvents();
+    else
+        QCoreApplication::processEvents();
 
     if (m_proc->state() != QProcess::Running)
         return;
+
+    // have worker prepare for shutdown
+    m_reptr->prepareShutdown().waitForFinished(10000);
 
     // ask the worker to shut down
     m_reptr->shutdown();
@@ -192,12 +197,17 @@ void OOPWorkerConnector::setPorts(QList<std::shared_ptr<VarStreamInputPort>> inP
 
 void OOPWorkerConnector::initWithPythonScript(const QString &script, const QString &wdir)
 {
-    m_reptr->initializeFromData(script, wdir).waitForFinished(10000);
+    m_reptr->loadPythonScript(script, wdir).waitForFinished(10000);
 }
 
 void OOPWorkerConnector::setPythonVirtualEnv(const QString &venvDir)
 {
     m_pyVenvDir = venvDir;
+}
+
+void OOPWorkerConnector::prepareStart()
+{
+    m_reptr->prepareStart().waitForFinished(10000);
 }
 
 void OOPWorkerConnector::start(const symaster_timepoint &timePoint)
@@ -222,6 +232,11 @@ void OOPWorkerConnector::forwardInputData(QEventLoop *loop)
 bool OOPWorkerConnector::failed() const
 {
     return m_failed;
+}
+
+QRemoteObjectPendingReply<QByteArray> OOPWorkerConnector::changeSettings(const QByteArray &oldSettings)
+{
+    return m_reptr->changeSettings(oldSettings);
 }
 
 bool OOPWorkerConnector::captureStdout() const

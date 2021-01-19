@@ -44,13 +44,17 @@ class OOPWorker
     SLOT(void setOutputPortInfo(const QList<OutputPortInfo> &ports));
     SIGNAL(outPortMetadataUpdated(int outPortId, const QVariantHash &metadata));
 
-    SLOT(bool initializeFromData(const QString &script, const QString &wdir));
-    SLOT(bool initializeFromFile(const QString &fname, const QString &wdir));
+    SLOT(bool loadPythonScript(const QString &script, const QString &wdir));
 
+    SLOT(bool prepareStart());
     SLOT(void start(long startTimestampUsec));
+
+    SLOT(bool prepareShutdown());
     SLOT(void shutdown());
 
     SIGNAL(sendOutput(int outPortId, const QVariant &argData));
     SLOT(bool receiveInput(int inPortId, const QVariant &argData));
     SIGNAL(inputThrottleItemsPerSecRequested(int inPortId, uint itemsPerSec, bool allowMore));
+
+    SLOT(QByteArray changeSettings(const QByteArray &oldSettings));
 };

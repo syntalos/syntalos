@@ -43,7 +43,7 @@ public:
         // we use the generic Python OOP worker process for this
         setWorkerBinaryPyWorker();
 
-        setCaptureStdout(true);
+        setCaptureStdout(false);  // don't capture stdout until we are running
         connect(this, &OOPModule::processStdoutReceived, this, [&](const QString& data) {
             std::cout << "py." << id().toStdString() << "(" << name().toStdString() << "): "
                       << data.toStdString() << std::endl;
@@ -52,6 +52,11 @@ public:
 
     ~PythonModule() override
     {}
+
+    ModuleFeatures features() const override
+    {
+        return ModuleFeature::SHOW_SETTINGS;
+    }
 
     void setupPorts(const QVariantList &varInPorts, const QVariantList &varOutPorts)
     {
@@ -166,20 +171,38 @@ public:
 
     bool prepare(const TestSubject &testSubject) override
     {
-        loadPythonFile(m_mainPyFname, m_pyModDir, m_pyVEnv);
+        setCaptureStdout(true);
+        setPythonFile(m_mainPyFname, m_pyModDir, m_pyVEnv);
         return OOPModule::prepare(testSubject);
+    }
+
+    void preOOPPrepare() override
+    {
+        OOPModule::preOOPPrepare();
+        // recover any adjusted settings
+        if (m_pendingSettings.isFinished())
+            m_settingsData = m_pendingSettings.returnValue();
+    }
+
+    void showSettingsUi() override
+    {
+        setCaptureStdout(false);
+        setPythonFile(m_mainPyFname, m_pyModDir, m_pyVEnv);
+        auto res = showSettingsChangeUi(m_settingsData);
+        if (res.has_value())
+            m_pendingSettings = res.value();
     }
 
     void serializeSettings(const QString&, QVariantHash &settings, QByteArray &extraData) override
     {
         Q_UNUSED(settings)
-        Q_UNUSED(extraData)
+        extraData = m_settingsData;
     }
 
     bool loadSettings(const QString&, const QVariantHash &settings, const QByteArray &extraData) override
     {
         Q_UNUSED(settings)
-        Q_UNUSED(extraData)
+        m_settingsData = extraData;
         return true;
     }
 
@@ -203,6 +226,8 @@ private:
     QString m_pyVEnv;
     QString m_pyModDir;
     bool m_useVEnv;
+    QByteArray m_settingsData;
+    QRemoteObjectPendingReply<QByteArray> m_pendingSettings;
 };
 
 class PyModuleInfo : public ModuleInfo

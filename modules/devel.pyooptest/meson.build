@@ -12,7 +12,7 @@ module_src = [
 
 module_ui = []
 
-module_deps = [opencv_dep]
+module_deps = [opencv_dep, qt_remoteobj_dep]
 
 #
 # Generic module setup

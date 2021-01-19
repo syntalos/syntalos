@@ -118,7 +118,7 @@ public:
     bool prepare(const TestSubject &testSubject) override
     {
         m_pyoutWindow->clear();
-        loadPythonScript(m_scriptView->document()->text());
+        setPythonScript(m_scriptView->document()->text());
 
         return OOPModule::prepare(testSubject);
     }

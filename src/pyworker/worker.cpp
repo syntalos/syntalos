@@ -42,6 +42,8 @@ OOPWorker::OOPWorker(QObject *parent)
 
 OOPWorker::~OOPWorker()
 {
+    if (m_pyInitialized)
+        Py_Finalize();
 }
 
 OOPWorker::Stage OOPWorker::stage() const
@@ -71,26 +73,6 @@ std::optional<OutputPortInfo> OOPWorker::outputPortInfoByIdString(const QString 
         }
     }
     return res;
-}
-
-bool OOPWorker::initializeFromData(const QString &script, const QString &wdir)
-{
-    if (!wdir.isEmpty())
-        QDir::setCurrent(wdir);
-
-    m_script = script;
-    qDebug() << "Initialized from Python script";
-    QTimer::singleShot(0, this, &OOPWorker::runScript);
-    return true;
-}
-
-bool OOPWorker::initializeFromFile(const QString &fname, const QString &wdir)
-{
-    Q_UNUSED(wdir)
-    Q_UNUSED(fname)
-
-    QTimer::singleShot(0, this, &OOPWorker::runScript);
-    return true;
 }
 
 void OOPWorker::setInputPortInfo(const QList<InputPortInfo> &ports)
@@ -138,12 +120,62 @@ void OOPWorker::setOutputPortInfo(const QList<OutputPortInfo> &ports)
     }
 }
 
+QByteArray OOPWorker::changeSettings(const QByteArray &oldSettings)
+{
+    if (!m_pyInitialized)
+        return oldSettings;
+
+    // check if we even have a function to change settings
+    if (!PyObject_HasAttrString(m_pyMain, "change_settings"))
+        return oldSettings;
+
+    auto pFnSettings = PyObject_GetAttrString(m_pyMain, "change_settings");
+    if (!pFnSettings || !PyCallable_Check(pFnSettings)) {
+        // change_settings was not a callable, we ignore this
+        Py_XDECREF(pFnSettings);
+        return oldSettings;
+    }
+
+    auto pyOldSettings = PyBytes_FromStringAndSize(oldSettings.data(), oldSettings.size());
+    QByteArray settings = oldSettings;
+    const auto pyRes = PyObject_CallOneArg(pFnSettings, pyOldSettings);
+    if (pyRes == nullptr) {
+        if (PyErr_Occurred()) {
+            emitPyError();
+        } else {
+            raiseError(QStringLiteral("Did not receive settings output from Python script!"));
+        }
+    } else {
+        if (pyRes != Py_None && !PyBytes_Check(pyRes)) {
+            raiseError(QStringLiteral("Did not receive settings output from Python script!"));
+        } else {
+            char *bytes;
+            ssize_t bytes_len;
+            PyBytes_AsStringAndSize(pyRes, &bytes, &bytes_len);
+            settings = QByteArray::fromRawData(bytes, bytes_len);
+        }
+
+        Py_XDECREF(pyRes);
+    }
+
+    Py_XDECREF(pFnSettings);
+    Py_XDECREF(pyOldSettings);
+    return settings;
+}
+
 void OOPWorker::start(long startTimestampUsec)
 {
     const auto timePoint = symaster_timepoint(microseconds_t(startTimestampUsec));
     m_pyb->timer()->startAt(timePoint);
 
     m_running = true;
+}
+
+bool OOPWorker::prepareShutdown()
+{
+    m_running = false;
+    QCoreApplication::processEvents();
+    return true;
 }
 
 void OOPWorker::shutdown()
@@ -153,7 +185,56 @@ void OOPWorker::shutdown()
 
     // give other events a bit of time (10ms) to react to the fact that we are no longer running
     QTimer::singleShot(10, this, &QCoreApplication::quit);
-    qDebug() << "Shutting down Python worker.";
+    qDebug().noquote() << "Python worker is shutting down.";
+}
+
+bool OOPWorker::loadPythonScript(const QString &script, const QString &wdir)
+{
+    if (!wdir.isEmpty())
+        QDir::setCurrent(wdir);
+
+    Py_SetProgramName(QCoreApplication::arguments()[0].toStdWString().c_str());
+
+    // HACK: make Python thing *we* are the Python interpreter, so it finds
+    // all modules correctly when we are in a virtual environment.
+    const auto venvDir = QString::fromUtf8(qgetenv("VIRTUAL_ENV"));
+    if (!venvDir.isEmpty())
+        Py_SetProgramName(QDir(venvDir).filePath("bin/python").toStdWString().c_str());
+
+    // initialize Python in this process
+    Py_Initialize();
+    m_pyInitialized = true;
+
+    PyObject *mainModule = PyImport_AddModule("__main__");
+    if (mainModule == nullptr) {
+        raiseError("Can not execute Python code: No __main__ module.");
+
+        Py_Finalize();
+        return false;
+    }
+    PyObject *mainDict = PyModule_GetDict(mainModule);
+
+    // load script
+    auto res = PyRun_String(qPrintable(script), Py_file_input, mainDict, mainDict);
+    if (res != nullptr) {
+        // everything is good, we can run some Python functions
+        // explicitly now
+        m_pyMain = PyImport_ImportModule("__main__");
+        Py_XDECREF(res);
+        qDebug().noquote() << "worker: Python script loaded.";
+        return true;
+    } else {
+        if (PyErr_Occurred())
+            emitPyError();
+        qDebug().noquote() << "worker: Failed to load Python script data.";
+        return false;
+    }
+}
+
+bool OOPWorker::prepareStart()
+{
+    QTimer::singleShot(0, this, &OOPWorker::prepareAndRun);
+    return m_pyInitialized;
 }
 
 void OOPWorker::emitPyError()
@@ -222,48 +303,30 @@ void OOPWorker::emitPyError()
         Py_XDECREF(excTraceback);
         Py_XDECREF(excType);
         Py_XDECREF(excValue);
+
+        if (m_pyInitialized) {
+            Py_Finalize();
+            m_pyInitialized = false;
+        }
 }
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wold-style-cast"
-void OOPWorker::runScript()
+void OOPWorker::prepareAndRun()
 {
-    Py_SetProgramName(QCoreApplication::arguments()[0].toStdWString().c_str());
+    // don't attempt to run if we have already failed
+    if (m_stage == OOPWorker::ERROR)
+        return;
 
-    // HACK: make Python thing *we* are the Python interpreter, so it finds
-    // all modules correctly when we are in a virtual environment.
-    const auto venvDir = QString::fromUtf8(qgetenv("VIRTUAL_ENV"));
-    if (!venvDir.isEmpty())
-        Py_SetProgramName(QDir(venvDir).filePath("bin/python").toStdWString().c_str());
-
-    // initialize Python in this process
-    Py_Initialize();
-
-    PyObject *mainModule = PyImport_AddModule("__main__");
-    if (mainModule == nullptr) {
-        raiseError("Can not execute Python code: No __main__ module.");
-
-        Py_Finalize();
+    if (!m_pyInitialized) {
+        raiseError(QStringLiteral("Can not run module: Python was not initialized."));
         return;
     }
-    PyObject *mainDict = PyModule_GetDict(mainModule);
 
-    // run script
-    setStage(OOPWorker::PREPARING);
-    auto res = PyRun_String(qPrintable(m_script), Py_file_input, mainDict, mainDict);
-
-    // check if we already failed
-    if (m_stage == OOPWorker::ERROR)
-        goto finalize;
-
-    if (res != nullptr) {
-        // everything is good, we can run some Python functions
-        // explicitly now
-        auto pyMain = PyImport_ImportModule("__main__");
-
+    {
         // run prepare function if it exists for initial setup
-        if (PyObject_HasAttrString(pyMain, "prepare")) {
-            auto pFnPrep = PyObject_GetAttrString(pyMain, "prepare");
+        if (PyObject_HasAttrString(m_pyMain, "prepare")) {
+            auto pFnPrep = PyObject_GetAttrString(m_pyMain, "prepare");
             if (pFnPrep && PyCallable_Check(pFnPrep)) {
                 const auto pyRes = PyObject_CallObject(pFnPrep, nullptr);
                 if (pyRes == nullptr) {
@@ -292,8 +355,8 @@ void OOPWorker::runScript()
 
         // find the start function if it exists
         PyObject *pFnStart = nullptr;
-        if (PyObject_HasAttrString(pyMain, "start")) {
-            pFnStart = PyObject_GetAttrString(pyMain, "start");
+        if (PyObject_HasAttrString(m_pyMain, "start")) {
+            pFnStart = PyObject_GetAttrString(m_pyMain, "start");
             if (!pFnStart || !PyCallable_Check(pFnStart)) {
                 Py_XDECREF(pFnStart);
                 pFnStart = nullptr;
@@ -303,7 +366,7 @@ void OOPWorker::runScript()
         // find the loop function - this function *must* exists,
         // and unlike the other functions isn't optional, so GetAttrString
         // is allowed to throw an error here
-        auto pFnLoop = PyObject_GetAttrString(pyMain, "loop");
+        auto pFnLoop = PyObject_GetAttrString(m_pyMain, "loop");
         if (!pFnLoop || !PyCallable_Check(pFnLoop)) {
             raiseError("Could not find loop() function entrypoint in Python script.");
             Py_XDECREF(pFnLoop);
@@ -359,8 +422,8 @@ void OOPWorker::runScript()
         }
 
         // we have stopped, so call the stop function if one exists
-        if (PyObject_HasAttrString(pyMain, "stop")) {
-            auto pFnStop = PyObject_GetAttrString(pyMain, "stop");
+        if (PyObject_HasAttrString(m_pyMain, "stop")) {
+            auto pFnStop = PyObject_GetAttrString(m_pyMain, "stop");
             if (pFnStop && PyCallable_Check(pFnStop)) {
                 const auto pyRes = PyObject_CallObject(pFnStop, nullptr);
                 if (pyRes == nullptr) {
@@ -377,15 +440,6 @@ void OOPWorker::runScript()
     }
 
 finalize:
-    if (res == nullptr) {
-        if (PyErr_Occurred())
-            emitPyError();
-    } else {
-        Py_XDECREF(res);
-    }
-
-    Py_Finalize();
-
     // we aren't ready anymore,
     // and also stopped running the loop
     setStage(OOPWorker::IDLE);

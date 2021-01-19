@@ -50,11 +50,14 @@ public:
     void initWithPythonScript(const QString &script, const QString &wdir = QString());
     void setPythonVirtualEnv(const QString &venvDir);
 
+    void prepareStart();
     void start(const symaster_timepoint &timePoint);
 
     void forwardInputData(QEventLoop *loop = nullptr);
 
     bool failed() const;
+
+    QRemoteObjectPendingReply<QByteArray> changeSettings(const QByteArray &oldSettings);
 
     bool captureStdout() const;
     void setCaptureStdout(bool capture);
