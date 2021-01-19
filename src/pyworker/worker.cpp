@@ -138,7 +138,7 @@ QByteArray OOPWorker::changeSettings(const QByteArray &oldSettings)
 
     auto pyOldSettings = PyBytes_FromStringAndSize(oldSettings.data(), oldSettings.size());
     QByteArray settings = oldSettings;
-    const auto pyRes = PyObject_CallOneArg(pFnSettings, pyOldSettings);
+    const auto pyRes = PyObject_CallFunctionObjArgs(pFnSettings, pyOldSettings, nullptr);
     if (pyRes == nullptr) {
         if (PyErr_Occurred()) {
             emitPyError();
