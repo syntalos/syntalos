@@ -38,7 +38,8 @@ class PythonModule : public OOPModule
 public:
 
     explicit PythonModule(QObject *parent = nullptr)
-        : OOPModule(parent)
+        : OOPModule(parent),
+          m_settingsOpened(false)
     {
         // we use the generic Python OOP worker process for this
         setWorkerBinaryPyWorker();
@@ -173,52 +174,48 @@ public:
     {
         setCaptureStdout(true);
         setPythonFile(m_mainPyFname, m_pyModDir, m_pyVEnv);
-        return OOPModule::prepare(testSubject);
-    }
 
-    void preOOPPrepare() override
-    {
-        OOPModule::preOOPPrepare();
+        OOPModule::prepare(testSubject);
+
         // recover any adjusted settings
         if (m_pendingSettings.isFinished())
-            m_settingsData = m_pendingSettings.returnValue();
+            setSettingsData(m_pendingSettings.returnValue());
+        m_settingsOpened = false;
+        return true;
     }
 
     void showSettingsUi() override
     {
+        if (!m_pendingSettings.isFinished() && m_settingsOpened)
+            return;
+        if (m_settingsOpened)
+            setSettingsData(m_pendingSettings.returnValue());
         setCaptureStdout(false);
         setPythonFile(m_mainPyFname, m_pyModDir, m_pyVEnv);
-        auto res = showSettingsChangeUi(m_settingsData);
+        auto res = showSettingsChangeUi(settingsData());
         if (res.has_value())
             m_pendingSettings = res.value();
+        m_settingsOpened = true;
     }
 
     void serializeSettings(const QString&, QVariantHash &settings, QByteArray &extraData) override
     {
         Q_UNUSED(settings)
-        extraData = m_settingsData;
+        extraData = settingsData();
     }
 
     bool loadSettings(const QString&, const QVariantHash &settings, const QByteArray &extraData) override
     {
         Q_UNUSED(settings)
-        m_settingsData = extraData;
+        setSettingsData(extraData);
         return true;
     }
 
-    void setMainPyFname(const QString &fname)
+    void setPythonInfo(const QString &fname, const QString wdir, bool useVEnv)
     {
         m_mainPyFname = fname;
-    }
-
-    void setModSourceDir(const QString wdir)
-    {
         m_pyModDir = wdir;
-    }
-
-    void setUseVEnv(bool use)
-    {
-        m_useVEnv = use;
+        m_useVEnv = useVEnv;
     }
 
 private:
@@ -226,7 +223,8 @@ private:
     QString m_pyVEnv;
     QString m_pyModDir;
     bool m_useVEnv;
-    QByteArray m_settingsData;
+
+    bool m_settingsOpened;
     QRemoteObjectPendingReply<QByteArray> m_pendingSettings;
 };
 
@@ -249,9 +247,7 @@ public:
     AbstractModule *createModule(QObject *parent = nullptr) override
     {
         auto mod = new PythonModule(parent);
-        mod->setMainPyFname(m_pyFname);
-        mod->setModSourceDir(m_pyModDir);
-        mod->setUseVEnv(m_useVEnv);
+        mod->setPythonInfo(m_pyFname, m_pyModDir, m_useVEnv);
         mod->setupPorts(m_portDefInput, m_portDefOutput);
         return mod;
     }

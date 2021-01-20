@@ -50,7 +50,7 @@ public:
     void initWithPythonScript(const QString &script, const QString &wdir = QString());
     void setPythonVirtualEnv(const QString &venvDir);
 
-    void prepareStart();
+    void prepareStart(const QByteArray &settings = QByteArray());
     void start(const symaster_timepoint &timePoint);
 
     void forwardInputData(QEventLoop *loop = nullptr);

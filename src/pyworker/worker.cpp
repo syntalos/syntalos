@@ -129,6 +129,8 @@ QByteArray OOPWorker::changeSettings(const QByteArray &oldSettings)
     if (!PyObject_HasAttrString(m_pyMain, "change_settings"))
         return oldSettings;
 
+    m_running = true;
+
     auto pFnSettings = PyObject_GetAttrString(m_pyMain, "change_settings");
     if (!pFnSettings || !PyCallable_Check(pFnSettings)) {
         // change_settings was not a callable, we ignore this
@@ -231,8 +233,9 @@ bool OOPWorker::loadPythonScript(const QString &script, const QString &wdir)
     }
 }
 
-bool OOPWorker::prepareStart()
+bool OOPWorker::prepareStart(const QByteArray &settings)
 {
+    m_settings = settings;
     QTimer::singleShot(0, this, &OOPWorker::prepareAndRun);
     return m_pyInitialized;
 }
@@ -324,6 +327,24 @@ void OOPWorker::prepareAndRun()
     }
 
     {
+        // pass selected settings to the current run
+        if (PyObject_HasAttrString(m_pyMain, "set_settings")) {
+            auto pFnSettings = PyObject_GetAttrString(m_pyMain, "set_settings");
+            if (pFnSettings && PyCallable_Check(pFnSettings)) {
+                auto pySettings = PyBytes_FromStringAndSize(m_settings.data(), m_settings.size());
+                const auto pyRes = PyObject_CallFunctionObjArgs(pFnSettings, pySettings, nullptr);
+                if (pyRes == nullptr) {
+                    if (PyErr_Occurred()) {
+                        emitPyError();
+                        goto finalize;
+                    }
+                } else {
+                    Py_XDECREF(pyRes);
+                }
+            }
+            Py_XDECREF(pFnSettings);
+        }
+
         // run prepare function if it exists for initial setup
         if (PyObject_HasAttrString(m_pyMain, "prepare")) {
             auto pFnPrep = PyObject_GetAttrString(m_pyMain, "prepare");
@@ -470,6 +491,12 @@ std::optional<bool> OOPWorker::waitForInput()
     }
 
     return res;
+}
+
+bool OOPWorker::checkRunning()
+{
+    QCoreApplication::processEvents();
+    return m_running;
 }
 
 bool OOPWorker::receiveInput(int inPortId, const QVariant &argData)

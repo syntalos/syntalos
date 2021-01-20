@@ -1104,10 +1104,8 @@ bool Engine::runInternal(const QString &exportDirPath)
         // be the most performant thing to do if there are a lot of OOP modules.
         // But let's address that case when we actually run into performance issues
         if (!oopModules.isEmpty()) {
-            for (auto &mod : oopModules) {
+            for (auto &mod : oopModules)
                 mod->setState(ModuleState::PREPARING);
-                mod->preOOPPrepare();
-            }
 
             ThreadDetails td;
             td.niceness = defaultThreadNice;

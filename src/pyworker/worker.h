@@ -63,7 +63,7 @@ public Q_SLOTS:
     void setOutputPortInfo(const QList<OutputPortInfo> &ports) override;
 
     QByteArray changeSettings(const QByteArray &oldSettings) override;
-    bool prepareStart() override;
+    bool prepareStart(const QByteArray &settings) override;
     void start(long startTimestampUsec) override;
 
     bool prepareShutdown() override;
@@ -72,6 +72,7 @@ public Q_SLOTS:
     void prepareAndRun();
 
     std::optional<bool> waitForInput();
+    bool checkRunning();
     bool receiveInput(int inPortId, const QVariant &argData = QVariant()) override;
 
 protected:
@@ -85,6 +86,7 @@ private:
     bool m_running;
     std::vector<std::unique_ptr<SharedMemory>> m_shmSend;
     std::vector<std::unique_ptr<SharedMemory>> m_shmRecv;
+    QByteArray m_settings;
 
     QList<InputPortInfo> m_inPortInfo;
     QList<OutputPortInfo> m_outPortInfo;

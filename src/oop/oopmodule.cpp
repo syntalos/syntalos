@@ -58,6 +58,7 @@ public:
     QString pyVEnv;
     QString wdir;
     QString workerBinary;
+    QByteArray settingsData;
     bool captureStdout;
     OOPWorkerReplica::Stage workerStage;
 
@@ -85,14 +86,10 @@ ModuleFeatures OOPModule::features() const
 
 bool OOPModule::prepare(const TestSubject &)
 {
-    return true;
-}
-
-void OOPModule::preOOPPrepare()
-{
     // terminate worker and its interface in the current thread,
     // in case we still have one running.
     terminateWorkerIfRunning(nullptr);
+    return true;
 }
 
 bool OOPModule::oopPrepare(QEventLoop *loop, const QVector<uint> &cpuAffinity)
@@ -108,7 +105,7 @@ bool OOPModule::oopPrepare(QEventLoop *loop, const QVector<uint> &cpuAffinity)
     // run prepare and init steps of the script, have it wait
     // for the actual start trigger to start its loop
     qCDebug(logOOPMod).noquote() << "Preparing OOP worker experiment start.";
-    wc->prepareStart();
+    wc->prepareStart(d->settingsData);
 
     // check if we already received messages from the worker,
     // such as errors or output port metadata updates
@@ -290,4 +287,14 @@ bool OOPModule::captureStdout() const
 void OOPModule::setCaptureStdout(bool capture)
 {
     d->captureStdout = capture;
+}
+
+QByteArray OOPModule::settingsData() const
+{
+    return d->settingsData;
+}
+
+void OOPModule::setSettingsData(const QByteArray &settingsData)
+{
+    d->settingsData = settingsData;
 }

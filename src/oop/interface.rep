@@ -46,7 +46,7 @@ class OOPWorker
 
     SLOT(bool loadPythonScript(const QString &script, const QString &wdir));
 
-    SLOT(bool prepareStart());
+    SLOT(bool prepareStart(const QByteArray &settings));
     SLOT(void start(long startTimestampUsec));
 
     SLOT(bool prepareShutdown());

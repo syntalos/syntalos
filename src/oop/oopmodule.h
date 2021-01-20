@@ -41,9 +41,8 @@ public:
 
     virtual ModuleFeatures features() const override;
 
-    bool prepare(const TestSubject &) override;
+    virtual bool prepare(const TestSubject &) override;
 
-    virtual void preOOPPrepare();
     bool oopPrepare(QEventLoop *loop, const QVector<uint> &cpuAffinity);
     void oopStart(QEventLoop *);
     void oopRunEvent(QEventLoop *loop);
@@ -68,6 +67,9 @@ protected:
 
     bool captureStdout() const;
     void setCaptureStdout(bool capture);
+
+    QByteArray settingsData() const;
+    void setSettingsData(const QByteArray &settingsData);
 
 private:
     class Private;

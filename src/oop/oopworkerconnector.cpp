@@ -205,9 +205,9 @@ void OOPWorkerConnector::setPythonVirtualEnv(const QString &venvDir)
     m_pyVenvDir = venvDir;
 }
 
-void OOPWorkerConnector::prepareStart()
+void OOPWorkerConnector::prepareStart(const QByteArray &settings)
 {
-    m_reptr->prepareStart().waitForFinished(10000);
+    m_reptr->prepareStart(settings).waitForFinished(10000);
 }
 
 void OOPWorkerConnector::start(const symaster_timepoint &timePoint)

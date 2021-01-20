@@ -125,6 +125,12 @@ static InputWaitResult await_new_input()
         return IWR_CANCELLED;
 }
 
+static bool check_running()
+{
+    auto pb = PyBridge::instance();
+    return pb->worker()->checkRunning();
+}
+
 struct InputPort
 {
     InputPort(std::string name, int id)
@@ -384,6 +390,7 @@ PYBIND11_MODULE(syio, m)
     m.def("wait", wait, "Wait (roughly) for the given amount of milliseconds without blocking communication with the master process.");
     m.def("wait_sec", wait_sec, "Wait (roughly) for the given amount of seconds without blocking communication with the master process.");
     m.def("await_new_input", await_new_input, "Wait for any new input to arrive via our input ports.");
+    m.def("check_running", check_running, "Process all messages and return True if we are still running, False if we are supposed to shut down.");
 
     m.def("get_input_port", get_input_port, "Get reference to input port with the give ID.");
     m.def("get_output_port", get_output_port, "Get reference to output port with the give ID.");
