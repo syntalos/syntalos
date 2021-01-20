@@ -186,10 +186,11 @@ public:
 
     void showSettingsUi() override
     {
-        if (!m_pendingSettings.isFinished() && m_settingsOpened)
+        if (m_settingsOpened && !m_pendingSettings.isFinished())
             return;
         if (m_settingsOpened)
             setSettingsData(m_pendingSettings.returnValue());
+
         setCaptureStdout(false);
         setPythonFile(m_mainPyFname, m_pyModDir, m_pyVEnv);
         auto res = showSettingsChangeUi(settingsData());
