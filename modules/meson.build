@@ -42,3 +42,6 @@ subdir('traceplot')
 
 # Misc
 subdir('runcmd')
+
+# Examples
+subdir('example-py')

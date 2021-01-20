@@ -1,0 +1,26 @@
+[syntalos_module]
+type = "python"
+
+name = "Python Module Example"
+description = "Example for a Syntalos Python module"
+icon = "penrose-py.svg"
+
+main = "mod-main.py"
+use_venv = false
+
+[ports]
+
+    [[ports.in]]
+    data_type = 'Frame'
+    id = 'frames-in'
+    title = 'Frames'
+
+    [[ports.out]]
+    data_type = 'TableRow'
+    id = 'rows-out'
+    title = 'Indices'
+
+    [[ports.out]]
+    data_type = 'Frame'
+    id = 'frames-out'
+    title = 'Marked Frames'
