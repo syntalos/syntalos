@@ -2,6 +2,7 @@
 
 module_lib_def_tmpl = files('module-lib-def.toml.in')
 ln_exe = find_program('ln')
+modules_enabled = get_option('modules')
 
 # Developer modules
 subdir('devel.clock')
@@ -17,16 +18,17 @@ subdir('table')
 subdir('videorecorder')
 subdir('videotransform')
 subdir('camera-generic')
-if get_option('mod-camera-tis')
+
+if 'camera-tis' in modules_enabled
     subdir('camera-tis')
 endif
-if get_option('mod-camera-flir')
+if 'camera-flir' in modules_enabled
     subdir('camera-flir')
 endif
-if get_option('mod-camera-ueye')
+if 'camera-ueye' in modules_enabled
     subdir('camera-ueye')
 endif
-if get_option('mod-miniscope')
+if 'miniscope' in modules_enabled
     subdir('miniscope')
 endif
 subdir('triled-tracker')

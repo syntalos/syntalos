@@ -4,7 +4,7 @@ project('Syntalos', 'c', 'cpp',
                     'cpp_std=gnu++17',
                     'b_lto=true'],
 
-  license: 'LGPL-3.0-or-later',
+  license: 'LGPL-3.0+',
   version: '1.0.0',
 )
 
@@ -89,6 +89,10 @@ if get_option('optimize-avx') and not get_option('optimize-native')
     o_avxflags = ['-mavx', '-mavx2']
     add_project_arguments(o_avxflags, language: 'c')
     add_project_arguments(o_avxflags, language: 'cpp')
+endif
+if get_option('optimize-native')
+    add_project_arguments('-march=native', language: 'c')
+    add_project_arguments('-march=native', language: 'cpp')
 endif
 
 #

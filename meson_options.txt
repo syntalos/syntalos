@@ -1,12 +1,12 @@
 option('optimize-avx',
-       type : 'boolean',
-       value : true,
-       description : 'Enable AVX2 instructions when building in release mode'
+    type : 'boolean',
+    value : true,
+    description : 'Enable AVX2 instructions when building in release mode'
 )
 option('optimize-native',
-       type : 'boolean',
-       value : false,
-       description : 'Optimize for native CPU when in release mode'
+    type : 'boolean',
+    value : false,
+    description : 'Optimize for native CPU when in release mode'
 )
 option('udevdir',
     type: 'string',
@@ -14,25 +14,17 @@ option('udevdir',
     description: 'Directory for udev rules'
 )
 
-option('mod-camera-flir',
-       type : 'boolean',
-       value : false,
-       description : 'Enable FLIR camera module using the Spinnaker API'
-)
-option('mod-camera-ueye',
-       type : 'boolean',
-       value : false,
-       description : 'Enable uEye camera module'
-)
-option('mod-camera-tis',
-       type : 'boolean',
-       value : true,
-       description : 'Enable camera module for The Imaging Source cameras'
-)
-option('mod-miniscope',
-       type : 'boolean',
-       value : true,
-       description : 'Enable Miniscope module'
+option('modules',
+    type: 'array',
+    choices: ['camera-flir',  # FLIR camera module using the Spinnaker API
+              'camera-ueye',  # uEye camera module
+              'camera-tis',   # Camera module for The Imaging Source cameras
+              'miniscope'     # UCLA Miniscope module
+    ],
+    value : ['camera-tis',
+             'miniscope'
+    ],
+    description: 'Select modules to enable.'
 )
 
 #

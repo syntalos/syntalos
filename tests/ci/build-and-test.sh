@@ -22,7 +22,7 @@ $CXX --version
 mkdir build && cd build
 meson \
     -Dmaintainer=$maintainer_mode \
-    -Dmod-camera-ueye=false \
+    -Dmodules='camera-tis, miniscope' \
     ..
 
 # Build, Test & Install
