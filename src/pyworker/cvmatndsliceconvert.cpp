@@ -52,8 +52,9 @@
  * the use of this software, even if advised of the possibility of such damage.
  **/
 
-#include "cvmatndsliceconvert.h"
+#define PY_SSIZE_T_CLEAN
 #include <Python.h>
+#include "cvmatndsliceconvert.h"
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #include <numpy/ndarrayobject.h>
 #include <opencv2/core/core.hpp>

@@ -330,6 +330,11 @@ QString SysInfo::ffmpegVersionString() const
     return QString::fromUtf8(av_version_info());
 }
 
+QString SysInfo::pythonApiVersion() const
+{
+    return QStringLiteral(PYTHON_LANG_VERSION);
+}
+
 QString SysInfo::readSysFsValue(const QString &path)
 {
     QFile file(path);

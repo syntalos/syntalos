@@ -20,6 +20,13 @@ sy_micro_version = varr[2]
 root_include_dir = include_directories('.')
 
 #
+# Modules
+#
+fs     = import('fs')
+qt     = import('qt5')
+python = import('python').find_installation('python3')
+
+#
 # Configure files
 #
 sy_libdir = join_paths(get_option('prefix'),
@@ -49,6 +56,7 @@ conf.set_quoted('SYSCONFDIR',
                            get_option('sysconfdir')))
 conf.set_quoted('SY_MODULESDIR', sy_modules_dir)
 conf.set_quoted('SY_VCS_TAG', '@VCS_TAG@')
+conf.set_quoted('PYTHON_LANG_VERSION', python.language_version())
 config_h = configure_file(output: 'config.h.in', configuration: conf)
 config_h = vcs_tag(input: config_h, output: 'config.h')
 
@@ -160,12 +168,6 @@ if udevdir == ''
     udev = dependency('udev')
     udevdir = udev.get_variable(pkgconfig: 'udevdir')
 endif
-
-#
-# Modules
-#
-fs = import('fs')
-qt = import('qt5')
 
 
 #

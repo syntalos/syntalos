@@ -82,6 +82,7 @@ public:
     QString openCVVersionString() const;
     QString eigenVersionString() const;
     QString ffmpegVersionString() const;
+    QString pythonApiVersion() const;
 
 private:
     class Private;

@@ -79,6 +79,7 @@ SysInfoDialog::SysInfoDialog(SysInfo *sysInfo, QWidget *parent) :
     ui->valOpenCV->setText(sysInfo->openCVVersionString());
     ui->valEigen->setText(sysInfo->eigenVersionString());
     ui->valFFmpeg->setText(sysInfo->ffmpegVersionString());
+    ui->valPythonAPI->setText(sysInfo->pythonApiVersion());
 }
 
 SysInfoDialog::~SysInfoDialog()
