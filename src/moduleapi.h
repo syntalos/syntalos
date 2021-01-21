@@ -95,7 +95,7 @@ public:
     /**
      * @brief Icon of this module
      */
-    virtual QPixmap pixmap() const;
+    virtual QIcon icon() const;
 
     /**
      * @brief The dominant color for this module.

@@ -199,9 +199,9 @@ QString PyScriptModuleInfo::description() const
     return QStringLiteral("Control certain aspects of MazeAmaze (most notably Firmata I/O) using a Python script.");
 }
 
-QPixmap PyScriptModuleInfo::pixmap() const
+QIcon PyScriptModuleInfo::icon() const
 {
-    return QPixmap(":/module/python");
+    return QIcon(":/module/python");
 }
 
 QColor PyScriptModuleInfo::color() const

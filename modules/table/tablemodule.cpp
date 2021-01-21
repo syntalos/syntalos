@@ -149,9 +149,9 @@ QString TableModuleInfo::description() const
     return QStringLiteral("Display & record data that can be represented as a table.");
 }
 
-QPixmap TableModuleInfo::pixmap() const
+QIcon TableModuleInfo::icon() const
 {
-    return QPixmap(":/module/table");
+    return QIcon(":/module/table");
 }
 
 AbstractModule *TableModuleInfo::createModule(QObject *parent)

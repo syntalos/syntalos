@@ -102,9 +102,9 @@ QString DevelDataSSTModuleInfo::description() const
     return QStringLiteral("Developer module representing a source, sink and transformer for debug logging.");
 }
 
-QPixmap DevelDataSSTModuleInfo::pixmap() const
+QIcon DevelDataSSTModuleInfo::icon() const
 {
-    return QPixmap(":/module/devel");
+    return QIcon(":/module/devel");
 }
 
 bool DevelDataSSTModuleInfo::devel() const

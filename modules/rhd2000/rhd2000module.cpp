@@ -48,9 +48,9 @@ QString Rhd2000ModuleInfo::license() const
     return QStringLiteral("Intan Technologies RHD2000 Interface, (c) 2013-2019 <a href=\"http://intantech.com/\">Intan Technologies</a> [LGPLv3+]");
 }
 
-QPixmap Rhd2000ModuleInfo::pixmap() const
+QIcon Rhd2000ModuleInfo::icon() const
 {
-    return QPixmap(":/module/rhd2000");
+    return QIcon(":/module/rhd2000");
 }
 
 bool Rhd2000ModuleInfo::singleton() const

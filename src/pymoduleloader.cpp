@@ -233,7 +233,7 @@ class PyModuleInfo : public ModuleInfo
 {
 public:
     explicit PyModuleInfo(const QString &id, const QString &name,
-                          const QString &description, const QPixmap &icon,
+                          const QString &description, const QIcon &icon,
                           bool isDevModule)
         : m_id(id),
           m_name(name),
@@ -246,7 +246,7 @@ public:
     QString id() const override { return m_id; }
     QString name() const override { return m_name; };
     QString description() const override { return m_description; };
-    QPixmap pixmap() const override { return m_icon; };
+    QIcon icon() const override { return m_icon; };
     bool devel() const override { return m_isDevModule; }
     AbstractModule *createModule(QObject *parent = nullptr) override
     {
@@ -269,7 +269,7 @@ private:
     QString m_id;
     QString m_name;
     QString m_description;
-    QPixmap m_icon;
+    QIcon m_icon;
     bool m_isDevModule;
 
     QString m_pyFname;
@@ -295,10 +295,13 @@ ModuleInfo *loadPythonModuleInfo(const QString &modId, const QString &modDir, co
     if (desc.isEmpty())
         throw std::runtime_error("Required 'description' key not found in module metadata.");
 
-    QPixmap icon = QPixmap(":/module/generic");
+    QIcon icon = QIcon(":/module/generic");
     if (!iconName.isEmpty()) {
-        if (!icon.load(QDir(modDir).filePath(iconName)))
-            icon = QIcon::fromTheme(iconName, QIcon(":/module/generic")).pixmap(64, 64);
+        const auto iconFname = QDir(modDir).filePath(iconName);
+        if (QFileInfo::exists(iconFname))
+            icon = QIcon(iconFname);
+        else
+            icon = QIcon::fromTheme(iconName, QIcon(":/module/generic"));
     }
 
     const auto pyFile = QDir(modDir).filePath(modDef.value("main").toString());

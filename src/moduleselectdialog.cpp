@@ -1,20 +1,20 @@
 /*
- * Copyright (C) 2019 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2021 Matthias Klumpp <matthias@tenstral.net>
  *
- * Licensed under the GNU General Public License Version 3
+ * Licensed under the GNU Lesser General Public License Version 3
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
+ * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the license, or
  * (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This software is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "moduleselectdialog.h"
@@ -65,17 +65,17 @@ void HtmlDelegate::paint(QPainter *painter, const QStyleOptionViewItem& option, 
 
     painter->save();
 
-    QSize iconSize = options.icon.actualSize(options.rect.size());
+    const auto iconWidthSpace = option.decorationSize.width() + 16;
     QTextDocument doc;
     doc.setHtml(options.text);
-    doc.setTextWidth(options.rect.width() - iconSize.width());
+    doc.setTextWidth(options.rect.width() - iconWidthSpace);
 
     options.text = "";
     options.widget->style()->drawControl(QStyle::CE_ItemViewItem, &options, painter);
 
     // shift text right to make icon visible
-    painter->translate(options.rect.left() + iconSize.width(), options.rect.top());
-    QRect clip(0, 0, options.rect.width() + iconSize.width(), options.rect.height());
+    painter->translate(options.rect.left() + iconWidthSpace, options.rect.top());
+    QRect clip(0, 0, options.rect.width() + iconWidthSpace, options.rect.height());
 
     painter->setClipRect(clip);
     QAbstractTextDocumentLayout::PaintContext ctx;
@@ -131,8 +131,9 @@ void ModuleSelectDialog::setModuleInfo(QList<QSharedPointer<ModuleInfo>> infos)
         if (info->devel() && !showDevModules)
             continue;
 
-        auto item = new QStandardItem(QIcon(info->pixmap()),
+        auto item = new QStandardItem(info->icon(),
                                       QStringLiteral("<b>%1</b><br/><span>%2</span>").arg(info->name()).arg(info->description()));
+        item->setTextAlignment(Qt::AlignLeft);
         item->setData(info->id());
         m_model->appendRow(item);
 

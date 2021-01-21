@@ -113,7 +113,7 @@ void ModuleGraphForm::moduleAdded(ModuleInfo *info, AbstractModule *mod)
     connect(mod, &AbstractModule::portsConnected, this, &ModuleGraphForm::on_portsConnected);
 
     auto node = new FlowGraphNode(mod);
-    node->setNodeIcon(info->pixmap());
+    node->setNodeIcon(info->icon());
     node->setShadowColor(info->color());
     for (auto &iport : mod->inPorts())
         node->addPort(std::dynamic_pointer_cast<AbstractStreamPort>(iport));

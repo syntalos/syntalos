@@ -32,7 +32,7 @@ public:
     QString id() const override;
     QString name() const override;
     QString description() const override;
-    QPixmap pixmap() const override;
+    QIcon icon() const override;
     bool devel() const override;
     AbstractModule *createModule(QObject *parent = nullptr) override;
 };

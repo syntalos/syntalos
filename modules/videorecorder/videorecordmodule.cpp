@@ -444,7 +444,7 @@ QString VideoRecorderModuleInfo::description() const
     return QStringLiteral("Store a video composed of frames from an image source module to disk.");
 }
 
-QPixmap VideoRecorderModuleInfo::pixmap() const
+QIcon VideoRecorderModuleInfo::icon() const
 {
     return QPixmap(":/module/videorecorder");
 }

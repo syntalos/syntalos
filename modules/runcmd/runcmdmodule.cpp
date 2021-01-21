@@ -184,9 +184,9 @@ QString RunCmdModuleInfo::description() const
     return QStringLiteral("Run an external command when the experiment run was started.");
 }
 
-QPixmap RunCmdModuleInfo::pixmap() const
+QIcon RunCmdModuleInfo::icon() const
 {
-    return QPixmap(":/module/runcmd");
+    return QIcon(":/module/runcmd");
 }
 
 AbstractModule *RunCmdModuleInfo::createModule(QObject *parent)

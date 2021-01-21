@@ -117,9 +117,9 @@ QString TracePlotModuleInfo::description() const
     return QStringLiteral("Display signal data (usually from an electrophysiology data source) and plot it instantly.");
 }
 
-QPixmap TracePlotModuleInfo::pixmap() const
+QIcon TracePlotModuleInfo::icon() const
 {
-    return QPixmap(":/module/traceplot");
+    return QIcon(":/module/traceplot");
 }
 
 bool TracePlotModuleInfo::singleton() const

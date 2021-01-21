@@ -309,9 +309,9 @@ QString FirmataIOModuleInfo::license() const
     return QStringLiteral("Module licensed as GPLv3+, uses the Qt Firmata implementation (c) 2016 Calle Laakkonen (GPLv3+ licensed)");
 }
 
-QPixmap FirmataIOModuleInfo::pixmap() const
+QIcon FirmataIOModuleInfo::icon() const
 {
-    return QPixmap(":/module/firmata-io");
+    return QIcon(":/module/firmata-io");
 }
 
 AbstractModule *FirmataIOModuleInfo::createModule(QObject *parent)

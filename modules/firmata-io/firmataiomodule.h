@@ -38,7 +38,7 @@ public:
     QString name() const override;
     QString description() const override;
     QString license() const override;
-    QPixmap pixmap() const override;
+    QIcon icon() const override;
     AbstractModule *createModule(QObject *parent = nullptr) override;
 };
 

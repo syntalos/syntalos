@@ -157,9 +157,9 @@ QString DevelDataSourceModuleInfo::description() const
     return QStringLiteral("Developer module generating different artificial data.");
 }
 
-QPixmap DevelDataSourceModuleInfo::pixmap() const
+QIcon DevelDataSourceModuleInfo::icon() const
 {
-    return QPixmap(":/module/devel");
+    return QIcon(":/module/devel");
 }
 
 bool DevelDataSourceModuleInfo::devel() const

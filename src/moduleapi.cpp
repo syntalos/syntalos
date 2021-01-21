@@ -67,14 +67,14 @@ QString ModuleInfo::license() const
     return QString();
 }
 
-QPixmap ModuleInfo::pixmap() const
+QIcon ModuleInfo::icon() const
 {
-    return QPixmap(":/module/generic");
+    return QIcon(":/module/generic");
 }
 
 QColor ModuleInfo::color() const
 {
-    auto img = pixmap().toImage().convertToFormat(QImage::Format_ARGB32);
+    auto img = icon().pixmap(32, 32).toImage().convertToFormat(QImage::Format_ARGB32);
     if (img.isNull())
         return Qt::lightGray;
 

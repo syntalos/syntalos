@@ -108,9 +108,9 @@ QString PyOOPTestModuleInfo::description() const
     return QStringLiteral("Test module to test out-of-process and Python capabilities.");
 }
 
-QPixmap PyOOPTestModuleInfo::pixmap() const
+QIcon PyOOPTestModuleInfo::icon() const
 {
-    return QPixmap(":/module/devel");
+    return QIcon(":/module/devel");
 }
 
 bool PyOOPTestModuleInfo::devel() const

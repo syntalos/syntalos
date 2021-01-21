@@ -118,9 +118,9 @@ QString FirmataUserCtlModuleInfo::description() const
     return QStringLiteral("A simple control panel to manually change Firmata output and view raw input data.");
 }
 
-QPixmap FirmataUserCtlModuleInfo::pixmap() const
+QIcon FirmataUserCtlModuleInfo::icon() const
 {
-    return QPixmap(":/module/firmatauserctl");
+    return QIcon(":/module/firmatauserctl");
 }
 
 AbstractModule *FirmataUserCtlModuleInfo::createModule(QObject *parent)

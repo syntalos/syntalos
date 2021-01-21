@@ -42,6 +42,7 @@ subdir('traceplot')
 
 # Misc
 subdir('runcmd')
+subdir('deeplabcut-live')
 
 # Examples
 subdir('example-py')

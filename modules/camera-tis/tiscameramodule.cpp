@@ -383,9 +383,9 @@ QString TISCameraModuleInfo::description() const
     return QStringLiteral("Capture video with a camera from The Imaging Source.");
 }
 
-QPixmap TISCameraModuleInfo::pixmap() const
+QIcon TISCameraModuleInfo::icon() const
 {
-    return QPixmap(":/module/camera-tis");
+    return QIcon(":/module/camera-tis");
 }
 
 QString TISCameraModuleInfo::license() const

@@ -1,10 +1,11 @@
 # Build definitions for module: tracedisplay
 
-module_hdr = []
+module_hdr = [
+    'traceplotmodule.h'
+]
 module_moc_hdr = [
     'traceplot.h',
     'traceview.h',
-    'traceplotmodule.h',
     'tracedisplay.h'
 ]
 

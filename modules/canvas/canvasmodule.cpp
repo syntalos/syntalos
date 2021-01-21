@@ -207,9 +207,9 @@ QString CanvasModuleInfo::description() const
     return QStringLiteral("Display any image or video sequence.");
 }
 
-QPixmap CanvasModuleInfo::pixmap() const
+QIcon CanvasModuleInfo::icon() const
 {
-    return QPixmap(":/module/canvas");
+    return QIcon(":/module/canvas");
 }
 
 AbstractModule *CanvasModuleInfo::createModule(QObject *parent)
