@@ -1,0 +1,26 @@
+[syntalos_module]
+type = "python"
+
+name = "DeepLabCut Live"
+description = "Run DeepLabCut on a live video stream"
+icon = "dlc-logo.png"
+
+main = "dlc-live.py"
+use_venv = true
+
+[ports]
+
+    [[ports.in]]
+    data_type = 'Frame'
+    id = 'frames-in'
+    title = 'Frames'
+
+    [[ports.out]]
+    data_type = 'TableRow'
+    id = 'rows-out'
+    title = 'Tracking'
+
+    [[ports.out]]
+    data_type = 'Frame'
+    id = 'frames-out'
+    title = 'Labeled Frames'
