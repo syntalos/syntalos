@@ -42,8 +42,6 @@ exhale_args = {
                                 #EXTRACT_PRIV_VIRTUAL = YES
                                 EXCLUDE_PATTERNS     = *.txt \
                                                        *.md \
-                                                       */modules/rhd2000/okFrontPanelDLL* \
-                                                       */modules/firmata-io* \
                                                        *elidedlabel* \
                                                        *rangeslider*
                                 INCLUDE_FILE_PATTERNS = *.h *.hpp

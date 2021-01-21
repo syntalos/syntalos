@@ -87,22 +87,15 @@ pyworker_exe = executable('pyworker',
 
 # Generate some documentation files for the embedded scripting interface,
 # if we can
-
-#find_program(PDOC_EXE pdoc)
-#if (PDOC_EXE)
-#    # the pdoc Python module is probably there, so we can try to refresh the documentation
-#    set(syio_doc_fname ${CMAKE_SOURCE_DIR}/docs/modules/pyapi_syio.rst)
-#    add_custom_command(
-#      DEPENDS pyworker
-#      COMMAND pyworker --doc ${syio_doc_fname}
-#      COMMAND ${CMAKE_COMMAND} -E touch syio_doc_gen.stamp
-#      OUTPUT syio_doc_gen.stamp
-#      COMMENT "Extracting embedded Python documentation"
-#      VERBATIM
-#    )
-#
-#    add_custom_target(
-#      sysio-pdoc ALL
-#      DEPENDS syio_doc_gen.stamp
-#    )
-#endif()
+pdoc_exe = find_program('pdoc', required: false)
+if pdoc_exe.found()
+    # the pdoc Python module is probably there, so we can try to refresh the documentation
+    syio_doc_fname = files(join_paths(source_root, 'docs', 'modules', 'pyapi_syio.rst'))
+    custom_target('pyworker-mkdoc',
+        build_by_default: true,
+        command : [pyworker_exe,
+                    '--doc',
+                    '@OUTPUT0@'],
+        output: 'pyapi_syio.rst'
+    )
+endif

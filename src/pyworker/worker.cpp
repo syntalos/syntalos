@@ -558,13 +558,23 @@ void OOPWorker::makeDocFileAndQuit(const QString &fname)
     qputenv("PYTHONWARNINGS", "ignore");
 
     Py_Initialize();
-    PyRun_SimpleString(qPrintable(QStringLiteral(
-                       "import pdoc\n"
-                       "\n"
-                       "with open('%1', 'w') as f:\n"
-                       "    f.write(pdoc.text('syio'))\n"
-                       "    f.write('\\n')\n"
-                       "\n").arg(QString(fname).replace("'", "\\'"))));
+    PyRun_SimpleString(qPrintable(
+                           QStringLiteral(
+                               "import pdoc\n"
+                               "\n"
+                               "context = pdoc.Context()\n"
+                               "mod = pdoc.Module('syio', context=context)\n"
+                               "pdoc.link_inheritance(context)\n"
+                               "\n"
+                               "with open('%1', 'w') as f:\n"
+                               "    f.write(mod.text())\n"
+                               "    f.write('\\n')\n"
+                               "\n"
+                               "with open('%1.html', 'w') as f:\n"
+                               "    f.write(mod.html())\n"
+                               "    f.write('\\n')\n"
+                               "\n")
+                           .arg(QString(fname).replace("'", "\\'"))));
     if (Py_FinalizeEx() < 0)
         exit(9);
 

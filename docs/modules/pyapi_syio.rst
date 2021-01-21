@@ -10,6 +10,10 @@ Functions
 :   Wait for any new input to arrive via our input ports.
 
     
+`check_running() ‑> bool`
+:   Process all messages and return True if we are still running, False if we are supposed to shut down.
+
+    
 `get_input_port(arg0: str) ‑> object`
 :   Get reference to input port with the give ID.
 
@@ -316,7 +320,7 @@ Classes
     `submit(self: syio.OutputPort, arg0: object)`
     :
 
-`SyntalosPyError(...)`
+`SyntalosPyError(*args, **kwargs)`
 :   Common base class for all non-exit exceptions.
 
     ### Ancestors (in MRO)
