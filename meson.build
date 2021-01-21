@@ -85,12 +85,19 @@ if get_option('tracing')
     add_project_link_arguments('-pg')
 endif
 
-if get_option('optimize-avx') and not get_option('optimize-native')
-    o_avxflags = ['-mavx', '-mavx2']
-    add_project_arguments(o_avxflags, language: 'c')
-    add_project_arguments(o_avxflags, language: 'cpp')
+if get_option('optimize-modern-amd64') and build_machine.cpu_family() == 'x86_64' and not get_option('optimize-native')
+    if cpp_compiler.has_argument('--with-arch_64=x86-64-v3')
+        message('Using x86-64-v3 feature levels from ' + cpp_compiler.get_id() + ' ' + cpp_compiler.version())
+        o_flags = ['--with-arch_64=x86-64-v3']
+    else
+        message('Compiler ' + cpp_compiler.get_id() + ' ' + cpp_compiler.version() + ' ' +
+                'does not support x86-64 microarchitecture feature levels. Just enabling AVX/AVX2.')
+        o_flags = ['-mavx', '-mavx2']
+    endif
+    add_project_arguments(o_flags, language: 'c')
+    add_project_arguments(o_flags, language: 'cpp')
 endif
-if get_option('optimize-native')
+if get_option('optimize-native') and not get_option('optimize-modern-amd64')
     add_project_arguments('-march=native', language: 'c')
     add_project_arguments('-march=native', language: 'cpp')
 endif

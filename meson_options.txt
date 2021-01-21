@@ -1,7 +1,8 @@
-option('optimize-avx',
+option('optimize-modern-amd64',
     type : 'boolean',
     value : true,
-    description : 'Enable AVX2 instructions when building in release mode'
+    description : 'Use modern x86-64 CPU features (x86-64-v3) if the CPU architecture ' +
+                  'and compiler support this feature.'
 )
 option('optimize-native',
     type : 'boolean',
