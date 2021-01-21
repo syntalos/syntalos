@@ -149,10 +149,21 @@ QString ModuleSelectDialog::selectedEntryId() const
 
 void ModuleSelectDialog::on_listView_activated(const QModelIndex &index)
 {
-    m_selectedEntryId = m_model->itemFromIndex(index)->data().toString();
+    setEntryIdFromIndex(index);
 }
 
 void ModuleSelectDialog::on_listView_clicked(const QModelIndex &index)
+{
+    setEntryIdFromIndex(index);
+}
+
+void ModuleSelectDialog::on_listView_doubleClicked(const QModelIndex &index)
+{
+    setEntryIdFromIndex(index);
+    this->done(QDialog::Accepted);
+}
+
+void ModuleSelectDialog::setEntryIdFromIndex(const QModelIndex &index)
 {
     m_selectedEntryId = m_model->itemFromIndex(index)->data().toString();
 }

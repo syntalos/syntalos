@@ -44,9 +44,12 @@ public:
 private slots:
     void on_listView_activated(const QModelIndex &index);
     void on_listView_clicked(const QModelIndex &index);
+    void on_listView_doubleClicked(const QModelIndex &index);
 
 private:
     Ui::ModuleSelectDialog *ui;
+
+    void setEntryIdFromIndex(const QModelIndex &index);
 
     QStandardItemModel *m_model;
     QString m_selectedEntryId;
