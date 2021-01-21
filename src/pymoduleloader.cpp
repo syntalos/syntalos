@@ -233,11 +233,13 @@ class PyModuleInfo : public ModuleInfo
 {
 public:
     explicit PyModuleInfo(const QString &id, const QString &name,
-                          const QString &description, const QPixmap &icon)
+                          const QString &description, const QPixmap &icon,
+                          bool isDevModule)
         : m_id(id),
           m_name(name),
           m_description(description),
-          m_icon (icon) {}
+          m_icon (icon),
+          m_isDevModule(isDevModule) {}
 
     ~PyModuleInfo() override {}
 
@@ -245,6 +247,7 @@ public:
     QString name() const override { return m_name; };
     QString description() const override { return m_description; };
     QPixmap pixmap() const override { return m_icon; };
+    bool devel() const override { return m_isDevModule; }
     AbstractModule *createModule(QObject *parent = nullptr) override
     {
         auto mod = new PythonModule(parent);
@@ -267,6 +270,7 @@ private:
     QString m_name;
     QString m_description;
     QPixmap m_icon;
+    bool m_isDevModule;
 
     QString m_pyFname;
     QString m_pyModDir;
@@ -283,6 +287,7 @@ ModuleInfo *loadPythonModuleInfo(const QString &modId, const QString &modDir, co
     const auto name = modDef.value("name").toString();
     const auto desc = modDef.value("description").toString();
     const auto iconName = modDef.value("icon").toString();
+    const auto isDevMod = modDef.value("devel", false).toBool();
     const auto useVEnv = modDef.value("use_venv", false).toBool();
 
     if (name.isEmpty())
@@ -300,7 +305,7 @@ ModuleInfo *loadPythonModuleInfo(const QString &modId, const QString &modDir, co
     if (!QFileInfo::exists(pyFile))
         throw std::runtime_error(qPrintable(QStringLiteral("Main entrypoint Python file %1 does not exist").arg(pyFile)));
 
-    modInfo = new PyModuleInfo(modId, name, desc, icon);
+    modInfo = new PyModuleInfo(modId, name, desc, icon, isDevMod);
     modInfo->setMainPyScriptFname(pyFile);
     modInfo->setModSourceDir(modDir);
     modInfo->setUseVEnv(useVEnv);

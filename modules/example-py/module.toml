@@ -8,6 +8,8 @@ icon = "penrose-py.svg"
 main = "mod-main.py"
 use_venv = false
 
+devel = true
+
 [ports]
 
     [[ports.in]]
