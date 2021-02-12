@@ -3,8 +3,6 @@
 import os
 import sys
 import textwrap
-from jupyter_sphinx_theme import *
-init_theme()
 from breathe.renderer.sphinxrenderer import DomainDirectiveFactory, CMacroObject
 
 # -- Project information -----------------------------------------------------
@@ -17,6 +15,16 @@ author = 'Matthias Klumpp'
 release = '0.1'
 
 # -- General configuration ---------------------------------------------------
+thisfile = __file__
+if not os.path.isabs(thisfile):
+    thisfile = os.path.normpath(os.path.join(os.getcwd(), thisfile))
+project_root = os.path.normpath(os.path.join(os.path.dirname(thisfile), '..'))
+
+html_theme = 'cloud'
+html_theme_options = {'borderless_decor': True,
+                      'lighter_header_decor': True,
+                      'min_height': '16cm',
+                      'roottarget': 'index'}
 
 extensions = [
     'breathe',
