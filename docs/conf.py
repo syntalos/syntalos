@@ -1,8 +1,11 @@
 # Configuration file for the Sphinx documentation builder.
 
+import os
+import sys
 import textwrap
 from jupyter_sphinx_theme import *
 init_theme()
+from breathe.renderer.sphinxrenderer import DomainDirectiveFactory, CMacroObject
 
 # -- Project information -----------------------------------------------------
 
@@ -20,6 +23,9 @@ extensions = [
     'exhale'
 ]
 
+# FIXME: work around Breathe having issues with Qt properties
+DomainDirectiveFactory.cpp_classes['property'] = (CMacroObject, 'macro')
+
 # Setup the breathe extension
 breathe_projects = {
     'Syntalos': './doxyoutput/xml'
@@ -36,22 +42,27 @@ exhale_args = {
     'createTreeView':        True,
     'exhaleExecutesDoxygen': True,
     'exhaleDoxygenStdin':    textwrap.dedent('''
-                                INPUT                = ../src
+                                INPUT                = ../src/
                                 BUILTIN_STL_SUPPORT  = YES
                                 EXTRACT_PRIVATE      = NO
                                 #EXTRACT_PRIV_VIRTUAL = YES
                                 EXCLUDE_PATTERNS     = *.txt \
                                                        *.md \
-                                                       *elidedlabel* \
-                                                       *rangeslider*
+                                                       *.build \
+                                                       *.ui \
+                                                       */pyworker/cvmatndsliceconvert.cpp
                                 INCLUDE_FILE_PATTERNS = *.h *.hpp
                                 EXTENSION_MAPPING    = h=C++
                                 ENABLE_PREPROCESSING = YES
                                 RECURSIVE            = YES
                                 EXCLUDE_SYMBOLS      = *::Private \
-                                                       Q_DECLARE_*
+                                                       Q_DECLARE_METATYPE \
+                                                       Q_DECLARE_FLAGS \
+                                                       Q_DECLARE_LOGGING_CATEGORY \
+                                                       Q_LOGGING_CATEGORY \
+                                                       Q_DECLARE_SMART_POINTER_METATYPE \
+                                                       Q_GLOBAL_STATIC_WITH_ARGS
                                 EXTRACT_LOCAL_CLASSES  = NO
-                                FORCE_LOCAL_INCLUDES   = YES
                                 CLANG_ASSISTED_PARSING = YES
                                 ''')
 }
