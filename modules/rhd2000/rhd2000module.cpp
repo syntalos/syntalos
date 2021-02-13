@@ -66,7 +66,8 @@ AbstractModule *Rhd2000ModuleInfo::createModule(QObject *parent)
 Rhd2000Module::Rhd2000Module(QObject *parent)
     : AbstractModule(parent),
       m_intanUi(new IntanUi(this)),
-      m_evTimer(new QTimer(this))
+      m_evTimer(new QTimer(this)),
+      m_prepared(false)
 {
     // set up Intan GUI and board
     m_intanUi->setWindowIcon(QIcon(":/icons/generic-config"));
@@ -119,6 +120,7 @@ bool Rhd2000Module::prepare(const TestSubject &)
     m_intanUi->interfaceBoardPrepareRecording();
     m_intanUi->interfaceBoardInitRun(m_syTimer);
     m_runAction->setEnabled(false);
+    m_prepared = true;
 
     // set sampling rate metadata and nullify every data block
     for (auto &pair : m_ampStreamBlocks) {
@@ -192,10 +194,12 @@ void Rhd2000Module::runBoardDAQ()
 
 void Rhd2000Module::stop()
 {
-    m_intanUi->interfaceBoardStopFinalize();
+    if (m_prepared)
+        m_intanUi->interfaceBoardStopFinalize();
     m_runAction->setEnabled(true);
     m_evTimer->stop();
     safeStopSynchronizer(clockSync);
+    m_prepared = false;
 }
 
 QList<QAction *> Rhd2000Module::actions()

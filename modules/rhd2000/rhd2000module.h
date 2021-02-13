@@ -96,6 +96,7 @@ private:
     QList<QAction *> m_actions;
     QAction *m_runAction;
     QTimer *m_evTimer;
+    bool m_prepared;
 
     std::vector<std::pair<std::shared_ptr<DataStream<FloatSignalBlock>>, std::shared_ptr<FloatSignalBlock>>> m_ampStreamBlocks;
 
