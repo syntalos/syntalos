@@ -2,6 +2,8 @@
 set -e
 set -x
 
+pip install git+https://github.com/mesonbuild/meson.git
+
 mkdir -p 3rdparty
 
 # TOML++ to read and write TOML files

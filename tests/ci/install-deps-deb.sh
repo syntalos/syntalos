@@ -18,6 +18,7 @@ eatmydata apt-get install -yq --no-install-recommends \
     python3-pip \
     ninja-build \
     cmake \
+    meson \
     gettext \
     libegl-dev \
     qtbase5-dev \
@@ -52,5 +53,3 @@ eatmydata apt-get install -yq --no-install-recommends \
     libusb-1.0-0-dev \
     libzip-dev \
     libudev-dev
-
-pip install git+https://github.com/ximion/meson.git@wip/gencustomdep

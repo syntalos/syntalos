@@ -1,5 +1,5 @@
 project('Syntalos', 'c', 'cpp',
-  meson_version: '>=0.56',
+  meson_version: '>=0.57',
   default_options: ['c_std=gnu17',
                     'cpp_std=gnu++17',
                     'b_lto=true'],
