@@ -1,0 +1,16 @@
+This module is based on the original Intan RHX code from
+https://github.com/Intan-Technologies/Intan-RHX
+
+The last commit used for the derived version is mentioned below.
+It is recommended to regularly merge in upstream patches that affect
+Syntalos as well.
+
+--------------------
+
+commit 60d528f733bae8a66a43b388d460765cf0fff94d (HEAD -> main, origin/main, origin/HEAD)
+Author: Adrian Foy <afoy@intantech.com>
+Date:   Fri Apr 16 13:54:52 2021 -0700
+
+    Update README.md
+
+    Clarify that for changes to be integrated into official Intan software, developers should contact Intan to request a feature or report a bug.

@@ -20,10 +20,12 @@ option('modules',
     choices: ['camera-flir',  # FLIR camera module using the Spinnaker API
               'camera-ueye',  # uEye camera module
               'camera-tis',   # Camera module for The Imaging Source cameras
-              'miniscope'     # UCLA Miniscope module
+              'miniscope',    # UCLA Miniscope module
+              'intan-rhx',    # Intan RHX DAQ module
     ],
     value : ['camera-tis',
-             'miniscope'
+             'miniscope',
+             'intan-rhx',
     ],
     description: 'Select modules to enable.'
 )

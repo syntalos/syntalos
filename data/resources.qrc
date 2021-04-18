@@ -24,8 +24,9 @@
         <file alias="idle">status/status-idle.svg</file>
     </qresource>
     <qresource prefix="/module">
-        <file alias="rhd2000">modules/intan-rhd2000.svg</file>
         <file alias="generic">modules/generic.svg</file>
+        <file alias="rhd2000">modules/intan-rhd2000.svg</file>
+        <file alias="intan-rhx">modules/intan-rhx.svg</file>
         <file alias="traceplot">modules/traceplot.svg</file>
         <file alias="camera-generic">modules/camera-generic.svg</file>
         <file alias="camera-tis">modules/camera-tis.svg</file>

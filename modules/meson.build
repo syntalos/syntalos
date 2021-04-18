@@ -39,7 +39,9 @@ subdir('firmata-userctl')
 subdir('pyscript')
 
 # Electrophysiology
-subdir('rhd2000')
+if 'intan-rhx' in modules_enabled
+    subdir('intan-rhx')
+endif
 subdir('traceplot')
 
 # Misc
