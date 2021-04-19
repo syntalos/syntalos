@@ -16,7 +16,7 @@ cd ../..
 # PoMiDAQ for Miniscope support
 git clone --depth 1 https://github.com/bothlab/pomidaq.git pomidaq
 mkdir pomidaq/b && cd pomidaq/b/
-cmake -GNinja --prefix=/usr -DPYTHON=OFF ..
+cmake -GNinja -DPYTHON=OFF ..
 ninja && ninja install
 cd ../..
 
