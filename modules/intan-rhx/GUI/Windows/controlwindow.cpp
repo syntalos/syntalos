@@ -148,8 +148,6 @@ ControlWindow::ControlWindow(SystemState* state_, CommandParser* parser_, Contro
     connect(state, SIGNAL(headstagesChanged()), this, SLOT(updateForChangeHeadstages()));
     state->writeToLog("Connected updateForChangeHeadstages");
 
-    setAttribute(Qt::WA_DeleteOnClose);
-
     state->writeToLog("About to create showControlPanelButton");
     showControlPanelButton = new QToolButton(this);
     showControlPanelButton->setIcon(QIcon(":/images/showicon.png"));
@@ -178,16 +176,16 @@ ControlWindow::ControlWindow(SystemState* state_, CommandParser* parser_, Contro
         controlButtons->addAction(rewindAction);
         controlButtons->addAction(fastForwardAction);
     }
-    controlButtons->addAction(stopAction);
-    controlButtons->addAction(runAction);
+    stopAction->setVisible(false);
+    runAction->setVisible(false);
     if (state->playback->getValue()) {
         controlButtons->addAction(fastPlaybackAction);
         controlButtons->addAction(jumpAction);
     }
+    selectFilenameAction->setVisible(false);
+    recordAction->setVisible(false);
+    triggeredRecordAction->setVisible(false);
     controlButtons->addAction(chooseFileFormatAction);
-    controlButtons->addAction(selectFilenameAction);
-    controlButtons->addAction(recordAction);
-    controlButtons->addAction(triggeredRecordAction);
 
     controlButtons->addWidget(new QLabel("   "));
 
@@ -1429,6 +1427,13 @@ void ControlWindow::restoreDisplaySettings()
     // Update display settings from displaySettings string: state of multi-column display, scroll bars, pinned
     // waveforms, etc.
     multiColumnDisplay->restoreFromDisplaySettingsString(state->displaySettings->getValueString());
+}
+
+void ControlWindow::setSaveFilenameTemplate(const QString &fname)
+{
+    QFileInfo newFileInfo(fname);
+    state->filename->setBaseFilename(newFileInfo.baseName());
+    state->filename->setPath(newFileInfo.absolutePath());
 }
 
 void ControlWindow::loadSettingsSlot()

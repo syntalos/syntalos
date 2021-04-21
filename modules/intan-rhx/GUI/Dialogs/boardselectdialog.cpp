@@ -367,7 +367,6 @@ BoardSelectDialog::BoardSelectDialog(QWidget *parent) :
     QDialog(parent),
     boardTable(nullptr),
     openButton(nullptr),
-    playbackButton(nullptr),
     defaultSampleRateCheckBox(nullptr),
     defaultSettingsFileCheckBox(nullptr),
     boardIdentifier(nullptr),
@@ -378,11 +377,6 @@ BoardSelectDialog::BoardSelectDialog(QWidget *parent) :
     parser(nullptr),
     controlWindow(nullptr)
 {
-    // Information used by QSettings to save basic settings across sessions.
-    QCoreApplication::setOrganizationName(OrganizationName);
-    QCoreApplication::setOrganizationDomain(OrganizationDomain);
-    QCoreApplication::setApplicationName(ApplicationName);
-
     // Initialize Board Identifier.
     boardIdentifier = new BoardIdentifier(this);
 
@@ -401,17 +395,12 @@ BoardSelectDialog::BoardSelectDialog(QWidget *parent) :
     openButton->setEnabled(false);
     connect(openButton, SIGNAL(clicked()), this, SLOT(openSelectedBoard()));
 
-    // Allow the user to open a data file for playback.
-    playbackButton = new QPushButton(tr("Data File Playback"), this);
-    connect(playbackButton, SIGNAL(clicked()), this, SLOT(playbackDataFile()));
-
     defaultSampleRateCheckBox = new QCheckBox(this);
     defaultSettingsFileCheckBox = new QCheckBox(this);
 
     QHBoxLayout *firstRowLayout = new QHBoxLayout;
     firstRowLayout->addWidget(defaultSettingsFileCheckBox);
     firstRowLayout->addStretch(1);
-    firstRowLayout->addWidget(playbackButton);
 
     QHBoxLayout *secondRowLayout = new QHBoxLayout;
     secondRowLayout->addWidget(defaultSampleRateCheckBox);
@@ -469,6 +458,16 @@ bool BoardSelectDialog::validControllersPresent(QVector<ControllerInfo*> cInfo)
             return true;
     }
     return false;
+}
+
+ControlWindow *BoardSelectDialog::getControlWindow() const
+{
+    return controlWindow;
+}
+
+ControllerInterface *BoardSelectDialog::getControllerInterface() const
+{
+    return controllerInterface;
 }
 
 void BoardSelectDialog::showDemoMessageBox()
@@ -725,7 +724,6 @@ void BoardSelectDialog::newRowSelected(int row)
 void BoardSelectDialog::startBoard(int row)
 {
     openButton->setEnabled(false);
-    playbackButton->setEnabled(false);
     boardTable->setEnabled(false);
 
     AmplifierSampleRate sampleRate = SampleRate20000Hz;

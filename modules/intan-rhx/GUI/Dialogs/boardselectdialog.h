@@ -112,6 +112,9 @@ public:
 
     static bool validControllersPresent(QVector<ControllerInfo*> cInfo);
 
+    ControlWindow *getControlWindow() const;
+    ControllerInterface *getControllerInterface() const;
+
 private slots:
     void openSelectedBoard();
     void newRowSelected(int row);
@@ -128,7 +131,6 @@ private:
 
     QTableWidget *boardTable;
     QPushButton *openButton;
-    QPushButton *playbackButton;
 
     QCheckBox *defaultSampleRateCheckBox;
     QCheckBox *defaultSettingsFileCheckBox;

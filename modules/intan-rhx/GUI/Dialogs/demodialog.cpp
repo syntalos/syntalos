@@ -40,7 +40,7 @@ DemoDialog::DemoDialog(DemoSelections *demoSelection_, QWidget *parent) :
     playbackButton(nullptr)
 {
     message = new QLabel(tr("No Intan controllers have been detected. Ensure devices are powered on and connected to this machine.\n"
-                            "You may also run this software in demonstration mode or play back a saved data file."));
+                            "You may also run this Syntalos module in demonstration mode."));
 
     usbInterfaceButton = new QPushButton(tr("RHD USB Interface Board Demo"), this);
     recordControllerButton = new QPushButton(tr("RHD Recording Controller Demo"), this);
@@ -71,6 +71,9 @@ DemoDialog::DemoDialog(DemoSelections *demoSelection_, QWidget *parent) :
     mainLayout->setAlignment(recordControllerButton, Qt::AlignHCenter);
     mainLayout->setAlignment(stimControllerButton, Qt::AlignHCenter);
     mainLayout->setAlignment(playbackButton, Qt::AlignHCenter);
+
+    // syntalos: Users must not be able to playback existing files!
+    playbackButton->setVisible(false);
 
     setWindowTitle(tr("No Intan Controllers Detected"));
     setLayout(mainLayout);

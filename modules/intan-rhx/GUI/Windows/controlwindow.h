@@ -73,6 +73,8 @@ public:
     bool loadSettingsFile(QString filename);
     void restoreDisplaySettings();
 
+    void setSaveFilenameTemplate(const QString &fname);
+
 signals:
     void sendSetCommand(QString parameter, QString value);
     void sendGetCommand(QString parameter);
@@ -103,6 +105,9 @@ public slots:
     void updateMainCpuLoad(double percent) { mainCpuLoad = percent; }
     void hideControlPanel();
 
+    void recordControllerSlot();
+    void stopControllerSlot();
+
 private slots:
     void showControlPanel();
 
@@ -124,9 +129,7 @@ private slots:
     void selectBaseFilenameSlot();
 
     void runControllerSlot();
-    void recordControllerSlot();
     void triggeredRecordControllerSlot();
-    void stopControllerSlot();
 
     void rewindSlot() { initiateSweep(-2.5); }
     void fastForwardSlot() { initiateSweep(2.5); }

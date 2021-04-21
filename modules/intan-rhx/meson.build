@@ -24,6 +24,8 @@ module_moc_src = [
 
 module_ui = []
 
+module_res = ['IntanRHX.qrc']
+
 #
 # Dependencies
 #
@@ -76,6 +78,7 @@ module_moc = qt.preprocess(
     moc_headers: module_moc_hdr,
     moc_sources: module_moc_src,
     ui_files: module_ui,
+    qresources: module_res,
     moc_extra_arguments: ['--no-notes']
 )
 mod = shared_module(module_name,

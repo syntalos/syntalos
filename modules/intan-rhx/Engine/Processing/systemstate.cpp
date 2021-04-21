@@ -179,6 +179,7 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
 
     newSaveFilePeriodMinutes = new IntRangeItem("NewSaveFilePeriodMinutes", globalItems, this, 1, 999, 1);
     newSaveFilePeriodMinutes->setRestricted(RestrictIfRunning, RunningErrorMessage);
+    newSaveFilePeriodMinutes->setValue(15);
 
     filename = new StateFilenameItem("Filename", &stateFilenameItems, this);
     filename->setRestricted(RestrictIfRunning, RunningErrorMessage);

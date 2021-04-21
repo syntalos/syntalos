@@ -48,14 +48,16 @@ IntanFileSaveManager::~IntanFileSaveManager()
 bool IntanFileSaveManager::openAllSaveFiles()
 {
     dateTimeStamp = getDateTimeStamp();
-    bool firstTime = (subdirName == "");
-    if (firstTime) {  // If subdirectory does not yet exist, create one with initial time/date stamp.
-        subdirName = state->filename->getBaseFilename() + dateTimeStamp;
-        QDir dir(state->filename->getPath());
-        if (!dir.mkdir(subdirName)) {
-            return false;       // Cannot create subdirectory.
-        }
-    }
+    subdirName = ""; // syntalos: We do not want an extra subdirectory, as we have already created one
+    const bool firstTime = true;
+    //bool firstTime = (subdirName == "");
+    //if (firstTime) {  // If subdirectory does not yet exist, create one with initial time/date stamp.
+    //    subdirName = state->filename->getBaseFilename() + dateTimeStamp;
+    //    QDir dir(state->filename->getPath());
+    //    if (!dir.mkdir(subdirName)) {
+    //        return false;       // Cannot create subdirectory.
+    //    }
+    //}
     QString subdirPath = state->filename->getPath() + "/" + subdirName + "/";
     if (firstTime) {
         // Write settings file.

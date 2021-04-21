@@ -54,6 +54,7 @@
 #include "spikesortingdialog.h"
 
 class ControlPanel;
+class ControllerRunStateData;
 
 class ControllerInterface : public QObject
 {
@@ -75,7 +76,9 @@ public:
     void toggleAudioThread(bool enabled);
     void runTCPDataOutputThread();
 
-    void runController();
+    void controllerRunStart();
+    void controllerRunIter();
+    void controllerRunFinalize();
     void runControllerSilently(double nSeconds, QProgressDialog* progress = nullptr);
     float measureRmsLevel(string waveName, double timeSec) const;
     void setAllSpikeDetectionThresholds();
@@ -178,6 +181,7 @@ private:
     AbstractRHXController* rhxController;
     DataFileReader* dataFileReader;
     TCPDataOutputThread* tcpDataOutputThread;
+    ControllerRunStateData* rsData;
 
     XPUController* xpuController;
 

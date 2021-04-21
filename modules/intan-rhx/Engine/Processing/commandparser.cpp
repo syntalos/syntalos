@@ -428,7 +428,7 @@ void CommandParser::setRunModeCommand(const QString& value)
         state->sweeping = false;
         emit updateGUIFromState();
         state->forceUpdate();
-        controllerInterface->runController();
+        controllerInterface->controllerRunStart();
     } else if (value == "record") {
         if (state->running) {
             emit TCPErrorSignal("Board must be stopped in order to start recording");
@@ -448,7 +448,7 @@ void CommandParser::setRunModeCommand(const QString& value)
         state->sweeping = false;
         emit updateGUIFromState();
         state->forceUpdate();
-        controllerInterface->runController();
+        controllerInterface->controllerRunStart();
     } else if (value == "trigger") {
         if (state->running) {
             emit TCPErrorSignal("Board must be stopped in order to start trigger");
@@ -468,7 +468,7 @@ void CommandParser::setRunModeCommand(const QString& value)
         state->sweeping = false;
         emit updateGUIFromState();
         state->forceUpdate();
-        controllerInterface->runController();
+        controllerInterface->controllerRunStart();
     } else if (value == "stop") {
         if (!state->running) {
             emit TCPErrorSignal("Board must be running in order to stop");
@@ -481,6 +481,7 @@ void CommandParser::setRunModeCommand(const QString& value)
         state->sweeping = false;
         emit updateGUIFromState();
         state->forceUpdate();
+        controllerInterface->controllerRunFinalize();
     } else
         emit TCPErrorSignal("Invalid value for SetRunMode command");
     return;
