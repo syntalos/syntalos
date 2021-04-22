@@ -1222,6 +1222,13 @@ bool Engine::runInternal(const QString &exportDirPath)
             }
         });
 
+        // collect modules which have an explicit UI callback method
+        std::vector<AbstractModule*> callUiEventModules;
+        for (auto& mod : orderedActiveModules) {
+            if (mod->features().testFlag(ModuleFeature::CALL_UI_EVENTS))
+                callUiEventModules.push_back(mod);
+        }
+
         // watcher for subscription buffer
         std::vector<std::shared_ptr<VariantStreamSubscription>> monitoredSubscriptions;
         for (auto& mod : orderedActiveModules) {
@@ -1310,7 +1317,14 @@ bool Engine::runInternal(const QString &exportDirPath)
         // modules may have injected themselves into the UI event loop
         // as well via QTimer callbacks, in case they need to modify UI elements.
         while (d->running) {
-            QCoreApplication::processEvents(QEventLoop::WaitForMoreEvents);
+            // process modules which want to be explicitly called to process UI events
+            for (auto& mod : callUiEventModules)
+                mod->processUiEvents();
+
+            // process application GUI events
+            qApp->processEvents(QEventLoop::WaitForMoreEvents);
+
+            // bail in case something has failed
             if (d->failed)
                 break;
         }

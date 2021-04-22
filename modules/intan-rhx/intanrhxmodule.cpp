@@ -33,22 +33,15 @@ private:
     ControlWindow *m_ctlWindow;
     ControllerInterface *m_controllerIntf;
 
-    QTimer *m_evTimer;
-
 public:
     explicit IntanRhxModule(QObject *parent = nullptr)
-        : AbstractModule(parent),
-          m_evTimer(new QTimer(this))
+        : AbstractModule(parent)
     {
         m_boardSelectDlg = new BoardSelectDialog;
         m_ctlWindow = m_boardSelectDlg->getControlWindow();
         if (m_ctlWindow != nullptr)
             m_ctlWindow->hide();
         m_controllerIntf = m_boardSelectDlg->getControllerInterface();
-
-        // set up timer to render Intan RHX UX while running
-        m_evTimer->setInterval(0);
-        connect(m_evTimer, &QTimer::timeout, this, &IntanRhxModule::runDaqUpdate);
     }
 
     ~IntanRhxModule()
@@ -70,11 +63,9 @@ public:
 
     ModuleFeatures features() const override
     {
-        ModuleFeatures flags = ModuleFeature::SHOW_SETTINGS |
-                                ModuleFeature::SHOW_DISPLAY |
-                                ModuleFeature::CORE_AFFINITY |
-                                ModuleFeature::REALTIME;
-        return flags;
+        return ModuleFeature::CALL_UI_EVENTS |
+               ModuleFeature::SHOW_SETTINGS |
+               ModuleFeature::SHOW_DISPLAY;
     }
 
     ModuleDriverKind driver() const override
@@ -99,8 +90,12 @@ public:
 
         // run (but wait for the starting signal)
         m_ctlWindow->recordControllerSlot();
-        m_evTimer->start();
         return true;
+    }
+
+    void processUiEvents() override
+    {
+        m_controllerIntf->controllerRunIter();
     }
 
     void start() override
@@ -110,15 +105,8 @@ public:
 
     void stop() override
     {
-        m_evTimer->stop();
         m_ctlWindow->stopControllerSlot();
         AbstractModule::stop();
-    }
-
-private slots:
-    void runDaqUpdate()
-    {
-        m_controllerIntf->controllerRunIter();
     }
 
 private:

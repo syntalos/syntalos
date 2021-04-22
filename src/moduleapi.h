@@ -46,11 +46,12 @@ class StreamOutputPort;
  */
 enum class ModuleFeature {
     NONE = 0,
-    REALTIME      = 1 << 2,  /// Enable realtime scheduling for the module's thread
-    CORE_AFFINITY = 1 << 3,  /// Pin the module's thread to a separate CPU core, if possible
-    SHOW_SETTINGS = 1 << 4,  /// Module can display a settings window
-    SHOW_DISPLAY  = 1 << 5,  /// Module has one or more display window(s) to show
-    SHOW_ACTIONS  = 1 << 6   /// Module supports context menu actions
+    REALTIME       = 1 << 0,  /// Enable realtime scheduling for the module's thread
+    CORE_AFFINITY  = 1 << 1,  /// Pin the module's thread to a separate CPU core, if possible
+    CALL_UI_EVENTS = 1 << 2,  /// Call direct UI events processing method
+    SHOW_SETTINGS  = 1 << 3,  /// Module can display a settings window
+    SHOW_DISPLAY   = 1 << 4,  /// Module has one or more display window(s) to show
+    SHOW_ACTIONS   = 1 << 5   /// Module supports context menu actions
 };
 Q_DECLARE_FLAGS(ModuleFeatures, ModuleFeature)
 Q_DECLARE_OPERATORS_FOR_FLAGS(ModuleFeatures)
@@ -495,6 +496,19 @@ public:
      * @return true if no error
      */
     virtual void runThread(OptionalWaitCondition *startWaitCondition);
+
+    /**
+     * @brief Called to process UI events
+     *
+     * If ModuleFeature::CALL_UI_EVENTS is set, the engine will explicitly
+     * call this method in quick succession to process UI events.
+     * Usually modules can hook into the main UI event loop using a QTimer
+     * at interval 0, but the added overhead of this method may be significant
+     * for modules which have to draw a lot of things on screen in quick succession.
+     * These modules may opt to implement this modules and set the CALL_UI_EVENTS
+     * feature for more efficient continuous drawing callbacks.
+     */
+    virtual void processUiEvents();
 
     /**
      * @brief Stop running an experiment.

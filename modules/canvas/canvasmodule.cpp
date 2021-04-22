@@ -38,7 +38,6 @@ private:
     std::shared_ptr<StreamSubscription<ControlCommand>> m_ctlSub;
 
     CanvasWindow *m_cvView;
-    QTimer *m_evTimer;
 
     double m_expectedFps;
     double m_currentFps;
@@ -60,14 +59,11 @@ public:
 
         m_cvView = new CanvasWindow;
         addDisplayWindow(m_cvView);
-        m_evTimer = new QTimer(this);
-        m_evTimer->setInterval(0);
-        connect(m_evTimer, &QTimer::timeout, this, &CanvasModule::updateImage);
     }
 
     ModuleFeatures features() const override
     {
-        return ModuleFeature::SHOW_DISPLAY;
+        return ModuleFeature::CALL_UI_EVENTS | ModuleFeature::SHOW_DISPLAY;
     }
 
     bool prepare(const TestSubject &) override
@@ -113,16 +109,9 @@ public:
         if (!portTitle.isEmpty())
             imgWinTitle = QStringLiteral("%1 - %2").arg(imgWinTitle).arg(portTitle);
         m_cvView->setWindowTitle(imgWinTitle);
-
-        m_evTimer->start();
     }
 
-    void stop() override
-    {
-        m_evTimer->stop();
-    }
-
-    void updateImage()
+    void processUiEvents() override
     {
         auto maybeFrame = m_frameSub->peekNext();
         if (!maybeFrame.has_value())

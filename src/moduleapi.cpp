@@ -436,6 +436,11 @@ void AbstractModule::runThread(OptionalWaitCondition *)
     // Do nothing
 }
 
+void AbstractModule::processUiEvents()
+{
+    // Do nothing
+}
+
 void AbstractModule::stop()
 {
     m_running = false;
