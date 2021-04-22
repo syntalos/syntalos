@@ -37,7 +37,7 @@
 SetFileFormatDialog::SetFileFormatDialog(SystemState *state_, QWidget *parent) :
     QDialog(parent),
     state(state_)
-{ 
+{
     setWindowTitle(tr("Select Saved Data File Format"));
 
     fileFormatIntanButton = new QRadioButton(tr("Traditional Intan File Format"), this);
@@ -53,7 +53,7 @@ SetFileFormatDialog::SetFileFormatDialog(SystemState *state_, QWidget *parent) :
     buttonGroup->setId(fileFormatOpenEphysButton, (int) FileFormatFilePerChannel);
 
     recordTimeSpinBox = new QSpinBox(this);
-    state->newSaveFilePeriodMinutes->setupSpinBox(recordTimeSpinBox);    
+    state->newSaveFilePeriodMinutes->setupSpinBox(recordTimeSpinBox);
 
     saveAuxInWithAmpCheckBox = new QCheckBox(tr("Save Auxiliary Inputs (Accelerometers) in Wideband Amplifier Data File"), this);
     saveWidebandAmplifierWaveformsCheckBox = new QCheckBox(tr("Save Wideband Amplifier Waveforms"), this);
@@ -191,18 +191,39 @@ SetFileFormatDialog::SetFileFormatDialog(SystemState *state_, QWidget *parent) :
     mainLayout->addWidget(disableSuggestion);
     mainLayout->addWidget(linkMessage);
     mainLayout->addWidget(buttonBox);
+    mainLayout->addStretch();
 
     QWidget *mainWidget = new QWidget(this);
     mainWidget->setLayout(mainLayout);
 
-    QScrollArea *scrollArea = new QScrollArea(this);
-    scrollArea->setWidget(mainWidget);
-    scrollArea->setFrameShape(QFrame::NoFrame);
+    //QScrollArea *scrollArea = new QScrollArea(this);
+    //scrollArea->setWidget(mainWidget);
+    //scrollArea->setFrameShape(QFrame::NoFrame);
 
     QVBoxLayout *scrollLayout = new QVBoxLayout;
-    scrollLayout->addWidget(scrollArea);
+    scrollLayout->addWidget(mainWidget);
 
     setLayout(scrollLayout);
+
+    // hide formats we do not support in Syntalos right now
+    oneFilePerSignalTypeBox->setVisible(false);
+    oneFilePerChannelBox->setVisible(false);
+    saveWidebandAmplifierWaveformsCheckBox->setVisible(false);
+    saveHighpassAmplifierWaveformsCheckBox->setVisible(false);
+    if (state->getControllerTypeEnum() == ControllerStimRecordUSB2)
+        saveDCAmplifierWaveformsCheckBox->setVisible(false);
+
+    saveLowpassAmplifierWaveformsCheckBox->setVisible(false);
+    downsampleLabel->setVisible(false);
+    lowpassWaveformDownsampleRateComboBox->setVisible(false);
+    lowpassSampleRateLabel->setVisible(false);
+
+    saveSpikeDataCheckBox->setVisible(false);
+    saveSpikeSnapshotsCheckBox->setVisible(false);
+    fromLabel->setVisible(false);
+    spikeSnapshotPreDetectSpinBox->setVisible(false);
+    toLabel->setVisible(false);
+    spikeSnapshotPostDetectSpinBox->setVisible(false);
 
     // Set dialog initial size to 5% larger than scrollArea's sizeHint - should avoid scroll bars for default size.
     int initialWidth = round(mainWidget->sizeHint().width() * 1.05);

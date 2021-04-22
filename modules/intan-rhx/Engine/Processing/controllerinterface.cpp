@@ -1807,6 +1807,11 @@ void ControllerInterface::uploadStimParameters()
     }
 }
 
+void ControllerInterface::updateStartWaitCondition(AbstractModule *syModule, OptionalWaitCondition *waitCondition)
+{
+    usbDataThread->updateStartWaitCondition(syModule, waitCondition);
+}
+
 void ControllerInterface::sendTCPError(QString errorMessage)
 {
     emit TCPErrorMessage(errorMessage);

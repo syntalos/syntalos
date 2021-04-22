@@ -42,6 +42,9 @@ public:
         if (m_ctlWindow != nullptr)
             m_ctlWindow->hide();
         m_controllerIntf = m_boardSelectDlg->getControllerInterface();
+
+        m_boardSelectDlg->setWindowIcon(QIcon(":/module/intan-rhx"));
+        m_ctlWindow->setWindowIcon(QIcon(":/module/intan-rhx"));
     }
 
     ~IntanRhxModule()
@@ -71,6 +74,11 @@ public:
     ModuleDriverKind driver() const override
     {
         return ModuleDriverKind::NONE;
+    }
+
+    void updateStartWaitCondition(OptionalWaitCondition *waitCondition) override
+    {
+        m_controllerIntf->updateStartWaitCondition(this, waitCondition);
     }
 
     bool prepare(const TestSubject&) override
@@ -137,6 +145,11 @@ QString IntanRhxModuleInfo::license() const
 QIcon IntanRhxModuleInfo::icon() const
 {
     return QIcon(":/module/intan-rhx");
+}
+
+bool IntanRhxModuleInfo::singleton() const
+{
+    return true;
 }
 
 AbstractModule *IntanRhxModuleInfo::createModule(QObject *parent)

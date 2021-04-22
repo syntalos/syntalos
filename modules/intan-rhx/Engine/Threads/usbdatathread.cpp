@@ -41,7 +41,9 @@ USBDataThread::USBDataThread(AbstractRHXController* controller_, DataStreamFifo*
     running(false),
     stopThread(false),
     numUsbBlocksToRead(1),
-    usbBufferIndex(0)
+    usbBufferIndex(0),
+    m_startWaitCondition(nullptr),
+    m_syModule(nullptr)
 {
     bufferSize = (BufferSizeInBlocks + 1) * BytesPerWord *
             RHXDataBlock::dataBlockSizeInWords(controller->getType(), controller->maxNumDataStreams());
@@ -68,6 +70,14 @@ USBDataThread::~USBDataThread()
 void USBDataThread::run()
 {
     emit hardwareFifoReport(0.0);
+
+    if (m_startWaitCondition != nullptr) {
+        // wait until we actually start acquiring data
+        m_startWaitCondition->wait(m_syModule);
+    } else {
+        qWarning().noquote() << "No start wait condition in Intan RHX module!";
+    }
+
     while (!stopThread) {
         QElapsedTimer fifoReportTimer;
 //        QElapsedTimer workTimer, loopTimer, reportTimer;
@@ -193,6 +203,9 @@ void USBDataThread::run()
             usleep(100);
         }
     }
+
+    // the wait condition is invalid now
+    m_startWaitCondition = nullptr;
 }
 
 void USBDataThread::startRunning()
@@ -228,4 +241,10 @@ void USBDataThread::setNumUsbBlocksToRead(int numUsbBlocksToRead_)
 void USBDataThread::setErrorCheckingEnabled(bool enabled)
 {
     errorChecking = enabled;
+}
+
+void USBDataThread::updateStartWaitCondition(AbstractModule *syModule, OptionalWaitCondition *startWaitCondition)
+{
+    m_startWaitCondition = startWaitCondition;
+    m_syModule = syModule;
 }

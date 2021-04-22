@@ -146,6 +146,8 @@ public:
     void uploadStimParameters(Channel* channel);
     void uploadStimParameters();
 
+    void updateStartWaitCondition(AbstractModule *syModule, OptionalWaitCondition *waitCondition);
+
 signals:
     void setTimeLabel(QString text);
     void setTopStatusLabel(QString text);

@@ -1099,6 +1099,11 @@ bool Engine::runInternal(const QString &exportDirPath)
             }
         }
 
+        // give modules which roll their own threads their own start-wait-conditions at this point
+        // (right before the PREPARE stage is reached)
+        for (auto &mod : orderedActiveModules)
+            mod->updateStartWaitCondition(startWaitCondition.get());
+
         // prepare out-of-process modules
         // NOTE: We currently throw them all into one thread, which may not
         // be the most performant thing to do if there are a lot of OOP modules.

@@ -32,5 +32,6 @@ public:
     QString description() const override;
     QString license() const override;
     QIcon icon() const override;
+    bool singleton() const;
     AbstractModule *createModule(QObject *parent = nullptr) override;
 };

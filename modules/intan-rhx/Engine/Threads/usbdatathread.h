@@ -37,6 +37,8 @@
 #include "abstractrhxcontroller.h"
 #include "datastreamfifo.h"
 
+#include "moduleapi.h"
+
 const int BufferSizeInBlocks = 32;
 
 class USBDataThread : public QThread
@@ -58,6 +60,8 @@ public:
 
     bool memoryWasAllocated(double& memoryRequestedGB) const { memoryRequestedGB += memoryNeededGB; return memoryAllocated; }
 
+    void updateStartWaitCondition(AbstractModule *syModule, OptionalWaitCondition *startWaitCondition);
+
 signals:
     void hardwareFifoReport(double percentFull);
 
@@ -75,6 +79,9 @@ private:
 
     bool memoryAllocated;
     double memoryNeededGB;
+
+    OptionalWaitCondition *m_startWaitCondition;
+    AbstractModule *m_syModule;
 };
 
 #endif // USBDATATHREAD_H

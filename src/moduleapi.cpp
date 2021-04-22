@@ -433,12 +433,12 @@ void AbstractModule::start()
 
 void AbstractModule::runThread(OptionalWaitCondition *)
 {
-    // Do nothing
+    /* do nothing */
 }
 
 void AbstractModule::processUiEvents()
 {
-    // Do nothing
+    /* do nothing */
 }
 
 void AbstractModule::stop()
@@ -448,7 +448,7 @@ void AbstractModule::stop()
 
 void AbstractModule::finalize()
 {
-    // Do nothing.
+    /* do nothing */
 }
 
 void AbstractModule::showDisplayUi()
@@ -514,6 +514,11 @@ bool AbstractModule::loadSettings(const QString &, const QVariantHash &, const Q
 }
 
 void AbstractModule::inputPortConnected(VarStreamInputPort *)
+{
+    /* do nothing */
+}
+
+void AbstractModule::updateStartWaitCondition(OptionalWaitCondition *waitCondition)
 {
     /* do nothing */
 }
