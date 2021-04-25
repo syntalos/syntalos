@@ -272,8 +272,8 @@ void OOPModule::setWorkerBinaryPyWorker()
 {
     d->workerBinary = QStringLiteral("%1/pyworker/pyworker").arg(QCoreApplication::applicationDirPath());
     QFileInfo checkBin(d->workerBinary);
-    if (!checkBin.exists()) {
-        d->workerBinary = QStringLiteral("%1/../lib/syntalos/pyworker").arg(QCoreApplication::applicationDirPath());
+    if (!checkBin.exists() || d->workerBinary.startsWith("/usr/")) {
+        d->workerBinary = QStringLiteral("%1/pyworker").arg(SY_LIBDIR);
         QFileInfo fi(d->workerBinary);
         d->workerBinary = fi.canonicalFilePath();
     }

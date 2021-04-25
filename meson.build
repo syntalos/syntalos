@@ -54,6 +54,7 @@ conf.set_quoted('BINDIR',
 conf.set_quoted('SYSCONFDIR',
                 join_paths(get_option('prefix'),
                            get_option('sysconfdir')))
+conf.set_quoted('SY_LIBDIR', sy_libdir)
 conf.set_quoted('SY_MODULESDIR', sy_modules_dir)
 conf.set_quoted('SY_VCS_TAG', '@VCS_TAG@')
 conf.set_quoted('PYTHON_LANG_VERSION', python.language_version())
