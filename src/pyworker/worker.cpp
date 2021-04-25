@@ -240,6 +240,34 @@ bool OOPWorker::prepareStart(const QByteArray &settings)
     return m_pyInitialized;
 }
 
+static QString pyObjectToQStr(PyObject *pyObj)
+{
+    if (!PyList_Check(pyObj)) {
+        // not a list
+        auto pyStr = PyObject_Str(pyObj);
+        if (pyStr == nullptr)
+            return QString();
+        const auto qStr = QString::fromUtf8(PyUnicode_AsUTF8(pyStr));
+        Py_XDECREF(pyStr);
+        return qStr;
+    }
+
+    const auto listLen = PyList_Size(pyObj);
+    if (listLen < 0)
+        return QString();
+
+    QString qResStr("");
+    for (Py_ssize_t i = 0; i < listLen; i++) {
+        auto pyItem = PyList_GetItem(pyObj, i);
+        auto pyStr = PyObject_Str(pyItem);
+        if (pyStr == nullptr)
+            continue;
+        qResStr.append(QString::fromUtf8(PyUnicode_AsUTF8(pyStr)));
+        Py_XDECREF(pyStr);
+    }
+    return qResStr;
+}
+
 void OOPWorker::emitPyError()
 {
         PyObject *excType, *excValue, *excTraceback;
@@ -247,21 +275,13 @@ void OOPWorker::emitPyError()
         PyErr_NormalizeException(&excType, &excValue, &excTraceback);
 
         QString message;
-        if (excType) {
-            PyObject* str = PyObject_Str(excType);
-            if (str != nullptr) {
-                message = QString::fromUtf8(PyUnicode_AsUTF8(str));
-                Py_XDECREF(str);
-            }
-        }
+        if (excType)
+            message = pyObjectToQStr(excType);
 
         if (excValue) {
-            PyObject* str = PyObject_Str(excValue);
-            if (str != nullptr) {
-                message = QString::fromUtf8("%1\n%2").arg(message)
-                                                     .arg(QString::fromUtf8(PyUnicode_AsUTF8(str)));
-                Py_XDECREF(str);
-            }
+            const auto str = pyObjectToQStr(excValue);
+            if (!str.isEmpty())
+                message = QString::fromUtf8("%1\n%2").arg(message).arg(str);
         }
 
         if (excTraceback) {
@@ -272,12 +292,9 @@ void OOPWorker::emitPyError()
 
                 if (pyTbModName == nullptr) {
                     // we can't create a good backtrace, just print the thing as string as a fallback
-                    auto str = PyObject_Str(excTraceback);
-                    if (str != nullptr) {
-                        message = QString::fromUtf8("%1\n%2").arg(message)
-                                                             .arg(QString::fromUtf8(PyUnicode_AsUTF8(str)));
-                        Py_XDECREF(str);
-                    }
+                    const auto str = pyObjectToQStr(excTraceback);
+                    if (!str.isEmpty())
+                        message = QString::fromUtf8("%1\n%2").arg(message).arg(str);
                 } else {
                     const auto pyFnFormatE = PyObject_GetAttrString(pyTbMod, "format_exception");
                     if (pyFnFormatE && PyCallable_Check(pyFnFormatE)) {
@@ -286,12 +303,9 @@ void OOPWorker::emitPyError()
                                                                     excValue,
                                                                     excTraceback,
                                                                     nullptr);
-                        auto str = PyObject_Str(pyTbVal);
-                        if (str != nullptr) {
-                            message = QString::fromUtf8("%1\n%2").arg(message)
-                                                                 .arg(QString::fromUtf8(PyUnicode_AsUTF8(str)));
-                            Py_XDECREF(str);
-                        }
+                        const auto str = pyObjectToQStr(pyTbVal);
+                        if (str != nullptr)
+                            message = QString::fromUtf8("%1\n%2").arg(message).arg(str);
                     } else {
                         message = QString::fromUtf8("%1\n<<Unable to format traceback.>>").arg(message);
                     }
@@ -465,6 +479,9 @@ finalize:
     // and also stopped running the loop
     setStage(OOPWorker::IDLE);
     m_running = false;
+
+    // ensure any pending emitted events are processed
+    qApp->processEvents();
 }
 #pragma GCC diagnostic pop
 
@@ -548,6 +565,9 @@ void OOPWorker::raiseError(const QString &message)
     std::cerr << "ERROR: " << message.toStdString() << std::endl;
     setStage(OOPWorker::ERROR);
     Q_EMIT error(message);
+
+    prepareShutdown();
+    shutdown();
 }
 
 void OOPWorker::makeDocFileAndQuit(const QString &fname)

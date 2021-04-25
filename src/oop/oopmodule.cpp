@@ -190,6 +190,14 @@ void OOPModule::setPythonFile(const QString &fname, const QString &wdir, const Q
     setPythonScript(in.readAll(), wdir, venv);
 }
 
+
+void OOPModule::recvError(const QString &message)
+{
+    d->failed = true;
+    raiseError(message);
+    m_running = false;
+}
+
 bool OOPModule::initAndLaunchWorker(const QVector<uint> &cpuAffinity)
 {
     d->runData.reset(new OOPModuleRunData);
@@ -205,11 +213,7 @@ bool OOPModule::initAndLaunchWorker(const QVector<uint> &cpuAffinity)
         d->workerStage = newStage;
     });
 
-    connect(d->runData->replica.data(), &OOPWorkerReplica::error, this, [&](const QString &message) {
-        d->failed = true;
-        raiseError(message);
-        m_running = false;
-    });
+    connect(d->runData->replica.data(), &OOPWorkerReplica::error, this, &OOPModule::recvError);
     connect(d->runData->replica.data(), &OOPWorkerReplica::statusMessage, this, [&](const QString &text) {
         setStatusMessage(text);
     });

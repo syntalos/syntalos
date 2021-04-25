@@ -75,4 +75,6 @@ private:
     class Private;
     Q_DISABLE_COPY(OOPModule)
     QScopedPointer<Private> d;
+
+    void recvError(const QString &message);
 };

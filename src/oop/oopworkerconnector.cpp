@@ -108,7 +108,6 @@ bool OOPWorkerConnector::connectAndRun(const QVector<uint> &cpuAffinity)
         penv.insert("VIRTUAL_ENV", m_pyVenvDir);
         penv.insert("PATH", QStringLiteral("%1/bin/:%2").arg(m_pyVenvDir).arg(penv.value("PATH", "")));
     }
-    m_proc->setProcessChannelMode(QProcess::ForwardedChannels);
 
     m_proc->setProcessEnvironment(penv);
     m_proc->start(m_workerBinary, QStringList() << address);
@@ -257,7 +256,6 @@ QString OOPWorkerConnector::readProcessStdout()
 {
     if (!m_captureStdout)
         return QString();
-
     return m_proc->readAllStandardOutput();
 }
 
@@ -342,7 +340,7 @@ void OOPWorkerConnector::sendInputData(int typeId, int portId, const QVariant &d
         const auto dataTypeName = QMetaType::typeName(typeId);
         m_failed = true;
         if (!m_shmSend[portId]->lastError().isEmpty())
-            emit m_reptr->error(QStringLiteral("Unable to write %1 element into shared memory: %2").arg(dataTypeName).arg(m_shmSend[portId]->lastError()));
+            emit m_reptr->error(QStringLiteral("Unable to write %1 element into shared memory: %2").arg(dataTypeName, m_shmSend[portId]->lastError()));
         else
             emit m_reptr->error(QStringLiteral("Marshalling of %1 element for subprocess submission failed. This is a bug.").arg(dataTypeName));
         return;
