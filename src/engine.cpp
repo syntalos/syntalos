@@ -1189,7 +1189,7 @@ bool Engine::runInternal(const QString &exportDirPath)
         connect(&diskSpaceCheckTimer, &QTimer::timeout, [&]() {
             std::filesystem::space_info ssi;
             try {
-                ssi = std::filesystem::space(d->exportBaseDir.toStdString());
+                ssi = std::filesystem::space(exportDirPath.toStdString());
             } catch (const std::filesystem::filesystem_error &e) {
                 qCWarning(logEngine).noquote() << "Could not determine remaining free disk space:" << e.what();
                 return;
