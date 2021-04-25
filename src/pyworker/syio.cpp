@@ -27,8 +27,10 @@
 #include <stdexcept>
 #include <iostream>
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 #include <pybind11/chrono.h>
+#include <pybind11/functional.h>
 
 #include "qstringtopy.h"
 #include "cvmatndsliceconvert.h"
@@ -130,6 +132,15 @@ static bool check_running()
 {
     auto pb = PyBridge::instance();
     return pb->worker()->checkRunning();
+}
+
+static void schedule_delayed_call(int delay_msec, const std::function<void()> &fn)
+{
+    if (delay_msec < 0)
+        throw SyntalosPyError("Delay must be positive or zero.");
+    QTimer::singleShot(delay_msec, [=]() {
+        fn();
+    });
 }
 
 struct InputPort
@@ -392,6 +403,7 @@ PYBIND11_MODULE(syio, m)
     m.def("wait_sec", wait_sec, "Wait (roughly) for the given amount of seconds without blocking communication with the master process.");
     m.def("await_new_input", await_new_input, "Wait for any new input to arrive via our input ports.");
     m.def("check_running", check_running, "Process all messages and return True if we are still running, False if we are supposed to shut down.");
+    m.def("schedule_delayed_call", &schedule_delayed_call, "Schedule call to a callable to be processed after a set amount of milliseconds.");
 
     m.def("get_input_port", get_input_port, "Get reference to input port with the give ID.");
     m.def("get_output_port", get_output_port, "Get reference to output port with the give ID.");
