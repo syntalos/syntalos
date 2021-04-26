@@ -20,6 +20,7 @@
 #include "datasstmodule.h"
 #include "streams/frametype.h"
 
+#include <iostream>
 #include <opencv2/imgproc.hpp>
 #include "utils/misc.h"
 
@@ -77,8 +78,8 @@ public:
 
                 const auto sb = maybeSb.value();
 
-                for (int i = 0; i < 16; i++)
-                    qDebug() << i << sb.data[i];
+                for (size_t i = 0; i < sb.cols(); i++)
+                    std::cout << i << ": " << sb.data.col(i) << std::endl;
             }
         }
     }

@@ -29,6 +29,9 @@ typedef Eigen::Matrix<uint, Eigen::Dynamic, 1> VectorXu;
 typedef Eigen::Matrix<long, Eigen::Dynamic, 1> VectorXl;
 typedef Eigen::Matrix<double,  Eigen::Dynamic, 1> VectorXd;
 
+typedef Eigen::Matrix<int,    Eigen::Dynamic, Eigen::Dynamic> MatrixXi;
+typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> MatrixXd;
+
 template<typename T>
 double vectorMedianInplace(Eigen::Matrix<T, Eigen::Dynamic, 1> &vec)
 {

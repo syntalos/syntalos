@@ -224,17 +224,20 @@ Q_DECLARE_METATYPE(SignalDataType)
 class IntSignalBlock
 {
 public:
-    explicit IntSignalBlock(uint sampleCount = 60)
+    explicit IntSignalBlock(uint sampleCount = 60, uint channelCount = 1)
     {
+        Q_ASSERT(channelCount > 0);
         timestamps.resize(sampleCount);
-        for (uint i = 0; i < SIGNAL_BLOCK_CHAN_COUNT; i++)
-            data[i].resize(sampleCount);
+        data.resize(sampleCount, channelCount);
     }
 
-    size_t size() { return timestamps.size(); }
+    size_t length() const { return timestamps.size(); }
+
+    size_t rows() const { return data.rows(); }
+    size_t cols() const { return data.cols(); }
 
     VectorXu timestamps;
-    std::vector<int> data[SIGNAL_BLOCK_CHAN_COUNT];
+    MatrixXi data;
 
     friend QDataStream &operator<<(QDataStream &out, const IntSignalBlock &obj)
     {
@@ -261,17 +264,20 @@ Q_DECLARE_METATYPE(IntSignalBlock)
 class FloatSignalBlock
 {
 public:
-    explicit FloatSignalBlock(uint sampleCount = 60)
+    explicit FloatSignalBlock(uint sampleCount = 60, uint channelCount = 1)
     {
+        Q_ASSERT(channelCount > 0);
         timestamps.resize(sampleCount);
-        for (uint i = 0; i < SIGNAL_BLOCK_CHAN_COUNT; i++)
-            data[i].resize(sampleCount);
+        data.resize(sampleCount, channelCount);
     }
 
-    size_t size() { return timestamps.size(); }
+    size_t length() const { return timestamps.size(); }
+
+    size_t rows() const { return data.rows(); }
+    size_t cols() const { return data.cols(); }
 
     VectorXu timestamps;
-    std::vector<double> data[SIGNAL_BLOCK_CHAN_COUNT];
+    MatrixXd data;
 
     friend QDataStream &operator<<(QDataStream &out, const FloatSignalBlock &obj)
     {

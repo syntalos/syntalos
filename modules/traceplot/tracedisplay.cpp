@@ -231,8 +231,8 @@ static inline bool updateDataForActiveChannels(QList<QPair<std::shared_ptr<Strea
             if (!pcd->enabled())
                 continue;
 
-            for (size_t i = 0; i < sigBlock.data[pcd->chanDataIndex].size(); i++)
-                pcd->addNewYValue(sigBlock.data[pcd->chanDataIndex][i]);
+            for (ssize_t i = 0; i < sigBlock.data.col(pcd->chanDataIndex).size(); i++)
+                pcd->addNewYValue(sigBlock.data(pcd->chanDataIndex, i));
 
             updated = true;
         }

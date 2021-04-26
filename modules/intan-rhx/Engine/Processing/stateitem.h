@@ -142,7 +142,7 @@ public:
     bool isValid() const { return !path.isEmpty() && !baseFilename.isEmpty(); }
     QString getFullFilename() const { return isValid() ? path + "/" + baseFilename : ""; }
 
-    QString getValidValues() const { return "Path: [path/to/file], BaseFilename: [filename.rhx]"; }
+    QString getValidValues() const override { return "Path: [path/to/file], BaseFilename: [filename.rhx]"; }
 
 private:
     QString path;
