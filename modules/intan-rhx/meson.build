@@ -59,13 +59,21 @@ module_inc_dirs = [intanrhx_engine_inc_dirs,
 
 # we don't want to fix all warnings in this code to keep it as close
 # as possible to the pristine Intan code.
-module_cpp_args = ['-Wno-error=suggest-override']
+module_cpp_args = [
+    '-Wno-error=suggest-override',
+    '-Wno-suggest-override',
+    '-Wno-non-virtual-dtor',
+    '-Wno-odr'
+]
 if get_option('maintainer')
     module_cpp_args = ['-Wno-error=zero-as-null-pointer-constant',
                        '-Wno-error=deprecated-declarations',
                        '-Wno-error=unused-but-set-variable',
     ]
 endif
+
+# target OpenCL 3.0
+module_cpp_args += ['-DCL_TARGET_OPENCL_VERSION=300']
 
 #
 # Generic module setup
