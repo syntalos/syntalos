@@ -60,7 +60,6 @@ ControlWindow::ControlWindow(SystemState* state_, CommandParser* parser_, Contro
     displayMenu(nullptr),
     channelMenu(nullptr),
     stimulationMenu(nullptr),
-    tcpMenu(nullptr),
     impedanceMenu(nullptr),
     toolsMenu(nullptr),
     helpMenu(nullptr),
@@ -645,10 +644,6 @@ void ControlWindow::createMenus()
     toolsMenu->addAction(psthAction);
     toolsMenu->addAction(spectrogramAction);
     toolsMenu->addAction(probeMapAction);
-
-    // Network menu
-    tcpMenu = menuBar()->addMenu(tr("Network"));
-    tcpMenu->addAction(remoteControlAction);
 
     // Performance menu
     toolsMenu = menuBar()->addMenu(tr("Performance"));

@@ -210,7 +210,6 @@ private:
     QMenu *displayMenu;
     QMenu *channelMenu;
     QMenu *stimulationMenu;
-    QMenu *tcpMenu;
     QMenu *impedanceMenu;
     QMenu *toolsMenu;
     QMenu *helpMenu;

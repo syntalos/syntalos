@@ -6,20 +6,20 @@ subdir('GUI')
 #
 # Sources
 #
-module_hdr = [
-    'intanrhxmodule.h'
-]
+module_hdr = []
 module_moc_hdr = [
+    'intanrhxmodule.h',
     intanrhx_engine_hdr,
     intanrhx_gui_hdr,
+    'chanexportdialog.h',
 ]
 
-module_src = [
-]
+module_src = []
 module_moc_src = [
     'intanrhxmodule.cpp',
     intanrhx_engine_src,
     intanrhx_gui_src,
+    'chanexportdialog.cpp',
 ]
 
 module_ui = []

@@ -470,6 +470,11 @@ ControllerInterface *BoardSelectDialog::getControllerInterface() const
     return controllerInterface;
 }
 
+SystemState *BoardSelectDialog::systemState() const
+{
+    return state;
+}
+
 void BoardSelectDialog::showDemoMessageBox()
 {
     AmplifierSampleRate sampleRate = SampleRate20000Hz;

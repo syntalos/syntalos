@@ -32,6 +32,63 @@ public:
     QString description() const override;
     QString license() const override;
     QIcon icon() const override;
-    bool singleton() const;
+    bool singleton() const override;
     AbstractModule *createModule(QObject *parent = nullptr) override;
+};
+
+class BoardSelectDialog;
+class ControlWindow;
+class ChanExportDialog;
+class ControllerInterface;
+class SystemState;
+class Channel;
+
+template<typename T>
+class StreamDataInfo
+{
+public:
+    explicit StreamDataInfo(int group = -1, int channel = -1)
+        : channelGroup(group),
+          nativeChannel(channel)
+    { }
+
+    std::shared_ptr<DataStream<T>> stream;
+    std::shared_ptr<T> signalBlock;
+    int channelGroup;
+    int nativeChannel;
+};
+
+class IntanRhxModule : public AbstractModule
+{
+    Q_OBJECT
+public:
+    explicit IntanRhxModule(QObject *parent = nullptr);
+    ~IntanRhxModule();
+
+    bool initialize() override;
+
+    ModuleFeatures features() const override;
+    ModuleDriverKind driver() const override;
+
+    void updateStartWaitCondition(OptionalWaitCondition *waitCondition) override;
+    bool prepare(const TestSubject&) override;
+
+    void processUiEvents() override;
+    void start() override;
+
+    void stop() override;
+
+    std::vector<std::vector<StreamDataInfo<FloatSignalBlock>>> floatSdiByGroupChannel;
+    std::vector<std::vector<StreamDataInfo<IntSignalBlock>>> intSdiByGroupChannel;
+
+private slots:
+    void onExportedChannelsChanged(const QList<Channel*> &channels);
+
+private:
+    BoardSelectDialog *m_boardSelectDlg;
+    ControlWindow *m_ctlWindow;
+    ChanExportDialog *m_chanExportDlg;
+    ControllerInterface *m_controllerIntf;
+    SystemState *m_sysState;
+
 };

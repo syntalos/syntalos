@@ -114,6 +114,7 @@ public:
 
     ControlWindow *getControlWindow() const;
     ControllerInterface *getControllerInterface() const;
+    SystemState *systemState() const;
 
 private slots:
     void openSelectedBoard();
