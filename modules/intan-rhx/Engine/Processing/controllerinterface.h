@@ -147,6 +147,7 @@ public:
     void uploadStimParameters();
 
     void updateStartWaitCondition(AbstractModule *syModule, OptionalWaitCondition *waitCondition);
+    void setSyntalosStartTime(const symaster_timepoint &startTime);
 
 signals:
     void setTimeLabel(QString text);

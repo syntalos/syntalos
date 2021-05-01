@@ -1812,6 +1812,11 @@ void ControllerInterface::updateStartWaitCondition(AbstractModule *syModule, Opt
     usbDataThread->updateStartWaitCondition(syModule, waitCondition);
 }
 
+void ControllerInterface::setSyntalosStartTime(const symaster_timepoint &startTime)
+{
+    usbDataThread->setSyntalosStartTime(startTime);
+}
+
 void ControllerInterface::sendTCPError(QString errorMessage)
 {
     emit TCPErrorMessage(errorMessage);

@@ -43,6 +43,9 @@ class ControllerInterface;
 class SystemState;
 class Channel;
 
+// length of a datablock emitted by the Syntalos module
+static const uint INTANRHX_SIGBLOCK_LEN = 60;
+
 template<typename T>
 class StreamDataInfo
 {

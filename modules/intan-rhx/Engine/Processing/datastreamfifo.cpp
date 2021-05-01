@@ -67,12 +67,22 @@ DataStreamFifo::~DataStreamFifo()
     delete [] buffer;
 }
 
-bool DataStreamFifo::writeToBuffer(const uint8_t* dataSource, int numWords)
+bool DataStreamFifo::writeToBuffer(const uint8_t* dataSource, int numWords, uint32_t timestamp, bool writeTimestampPrefix)
 {
     const uint8_t* pRead = dataSource;
     uint16_t highByte, lowByte;
+    const int numWordsReal = writeTimestampPrefix? numWords + (BytesPerSyTimestamp / BytesPerWord) : numWords;
 
-    if (freeWords.tryAcquire(numWords)) {
+    if (freeWords.tryAcquire(numWordsReal)) {
+        if (writeTimestampPrefix) {
+            buffer[bufferWriteIndex++] = (uint16_t) (timestamp >> 16);
+            if (bufferWriteIndex >= bufferSize)
+                bufferWriteIndex = 0;
+            buffer[bufferWriteIndex++] = (uint16_t) (timestamp & 0xffff);
+            if (bufferWriteIndex >= bufferSize)
+                bufferWriteIndex = 0;
+        }
+
         for (int i = 0; i < numWords; ++i) {
             // TODO: Try using bitfields or unions to speed up 2 x byte --> uint16.
             lowByte = (uint16_t) (*pRead);
@@ -84,11 +94,12 @@ bool DataStreamFifo::writeToBuffer(const uint8_t* dataSource, int numWords)
                 bufferWriteIndex = 0;
             }
         }
-        usedWords.release(numWords);
+
+        usedWords.release(numWordsReal);
         return true;
     } else {
-        cerr << "DataStreamFifo: Buffer overrun on request of " << numWords << " words." << '\n';
-        cerr << "   ...only " << freeWords.available() << " words are available." << '\n';
+        cerr << "DataStreamFifo: Buffer overrun on request of " << numWordsReal << " words." << '\n';
+        cerr << "   ...only " << freeWords.available() << " words are available." << std::endl;
         return false;  // Buffer overrun error
     }
 }

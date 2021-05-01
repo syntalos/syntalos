@@ -213,8 +213,6 @@ enum class SignalDataType {
 };
 Q_DECLARE_METATYPE(SignalDataType)
 
-#define SIGNAL_BLOCK_CHAN_COUNT 16
-
 /**
   * @brief A block of integer signal data from a data source
   *

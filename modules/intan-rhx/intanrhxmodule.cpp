@@ -106,6 +106,7 @@ bool IntanRhxModule::initialize()
     connect(m_chanExportDlg, &ChanExportDialog::exportedChannelsChanged,
             this, &IntanRhxModule::onExportedChannelsChanged);
 
+    m_controllerIntf->setSyntalosStartTime(symaster_clock::now());
     return true;
 }
 
@@ -153,6 +154,7 @@ void IntanRhxModule::processUiEvents()
 
 void IntanRhxModule::start()
 {
+    m_controllerIntf->setSyntalosStartTime(m_syTimer->startTime());
     AbstractModule::start();
 }
 
@@ -180,6 +182,8 @@ void IntanRhxModule::onExportedChannelsChanged(const QList<Channel *> &channels)
 
             StreamDataInfo<IntSignalBlock> sdi(channel->getGroupID(), channel->getNativeChannelNumber());
             sdi.stream = registerOutputPort<IntSignalBlock>(channel->getNativeName(), channel->getNativeAndCustomNames());
+            sdi.signalBlock->timestamps.resize(INTANRHX_SIGBLOCK_LEN);
+            sdi.signalBlock->data.resize(INTANRHX_SIGBLOCK_LEN, 1);
 
             intSdiByGroupChannel[channel->getGroupID()][channel->getNativeChannelNumber()] = sdi;
         } else {
@@ -190,6 +194,8 @@ void IntanRhxModule::onExportedChannelsChanged(const QList<Channel *> &channels)
 
             StreamDataInfo<FloatSignalBlock> sdi(channel->getGroupID(), channel->getNativeChannelNumber());
             sdi.stream = registerOutputPort<FloatSignalBlock>(channel->getNativeName(), channel->getNativeAndCustomNames());
+            sdi.signalBlock->timestamps.resize(INTANRHX_SIGBLOCK_LEN);
+            sdi.signalBlock->data.resize(INTANRHX_SIGBLOCK_LEN, 1);
 
             floatSdiByGroupChannel[channel->getGroupID()][channel->getNativeChannelNumber()] = sdi;
         }

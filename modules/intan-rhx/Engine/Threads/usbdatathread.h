@@ -61,6 +61,7 @@ public:
     bool memoryWasAllocated(double& memoryRequestedGB) const { memoryRequestedGB += memoryNeededGB; return memoryAllocated; }
 
     void updateStartWaitCondition(AbstractModule *syModule, OptionalWaitCondition *startWaitCondition);
+    void setSyntalosStartTime(const symaster_timepoint &startTime);
 
 signals:
     void hardwareFifoReport(double percentFull);
@@ -82,6 +83,7 @@ private:
 
     OptionalWaitCondition *m_startWaitCondition;
     AbstractModule *m_syModule;
+    symaster_timepoint m_syStartTime;
 };
 
 #endif // USBDATATHREAD_H

@@ -265,6 +265,7 @@ const int Register59MISOA = 53;
 const int Register59MISOB = 58;
 
 const int BytesPerWord = 2;
+const int BytesPerSyTimestamp = sizeof(uint32_t);
 
 // Trigonometric constants
 const double Pi = 3.14159265359;

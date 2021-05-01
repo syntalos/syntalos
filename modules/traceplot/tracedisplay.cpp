@@ -190,11 +190,6 @@ void TraceDisplay::updatePortChannels()
         int dataIdx = 0;
         QList<PlotChannelData*> channels;
         for (int chan = firstChanNo; chan <= lastChanNo; chan++) {
-            if (dataIdx >= SIGNAL_BLOCK_CHAN_COUNT) {
-                qWarning().noquote().nospace() << "Traceplot port " << port->id() << " indicates more than " << SIGNAL_BLOCK_CHAN_COUNT << " channels, which is not permitted.";
-                break;
-            }
-
             auto pcd = new PlotChannelData(this);
             pcd->chanId = chan;
             pcd->chanDataIndex = dataIdx;

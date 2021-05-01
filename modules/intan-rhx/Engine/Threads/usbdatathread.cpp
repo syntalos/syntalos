@@ -90,6 +90,8 @@ void USBDataThread::run()
             int numBytesPerDataFrame = BytesPerWord *
                     RHXDataBlock::dataBlockSizeInWords(type, controller->getNumEnabledDataStreams()) /
                     RHXDataBlock::samplesPerDataBlock(type);
+            int numBytesPerDataBlock = BytesPerWord * RHXDataBlock::dataBlockSizeInWords(type, controller->getNumEnabledDataStreams());
+            int dataBlockIndex = 0;
             int ledArray[8] = {1, 0, 0, 0, 0, 0, 0, 0};
             int ledIndex = 0;
             if (type == ControllerRecordUSB2) {
@@ -110,47 +112,69 @@ void USBDataThread::run()
                 // Performance note:  Executing the following command takes around 88% of the total time of this loop,
                 // with or without error checking enabled.
 
-                numBytesRead = (int) controller->readDataBlocksRaw(numUsbBlocksToRead, &usbBuffer[usbBufferIndex]);
+                const auto daqTimestamp = FUNC_EXEC_TIMESTAMP(m_syStartTime,
+                                    numBytesRead = (int) controller->readDataBlocksRaw(numUsbBlocksToRead, &usbBuffer[usbBufferIndex]));
+                const auto daqTimestampU32 = static_cast<uint32_t>(daqTimestamp.count());
 
                 bytesInBuffer = usbBufferIndex + numBytesRead;
                 if (numBytesRead > 0) {
                     if (!errorChecking) {
+                        usbBufferIndex = 0;
+
                         // If not checking for USB data glitches, just write all the data to the FIFO buffer.
-                        if (!usbFifo->writeToBuffer(&usbBuffer[usbBufferIndex], (numBytesRead + usbBufferIndex) / BytesPerWord)) {
-                            cerr << "USBDataThread: USB FIFO overrun (1)." << '\n';
+                        while (usbBufferIndex <= bytesInBuffer - numBytesPerDataFrame - USBHeaderSizeInBytes) {
+                            // If we find two correct headers, assume the data in between is a good data block,
+                            // and write it to the FIFO buffer.
+                            if (!usbFifo->writeToBuffer(&usbBuffer[usbBufferIndex],
+                                                        numBytesPerDataFrame / BytesPerWord,
+                                                        daqTimestampU32,
+                                                        dataBlockIndex == 0)) {
+                                cerr << "USBDataThread: USB FIFO overrun (1)." << std::endl;
+                            }
+                            usbBufferIndex += numBytesPerDataFrame;
+                            dataBlockIndex += numBytesPerDataFrame;
+                            if (dataBlockIndex >= numBytesPerDataBlock)
+                                dataBlockIndex = 0;
                         }
+                   } else {
                         usbBufferIndex = 0;
-                    } else {
-                        usbBufferIndex = 0;
+
                         // Otherwise, check each USB data block for the correct header bytes before writing.
                         while (usbBufferIndex <= bytesInBuffer - numBytesPerDataFrame - USBHeaderSizeInBytes) {
                             if (RHXDataBlock::checkUsbHeader(usbBuffer, usbBufferIndex, type) &&
                                 RHXDataBlock::checkUsbHeader(usbBuffer, usbBufferIndex + numBytesPerDataFrame, type)) {
                                 // If we find two correct headers, assume the data in between is a good data block,
                                 // and write it to the FIFO buffer.
-                                if (!usbFifo->writeToBuffer(&usbBuffer[usbBufferIndex], numBytesPerDataFrame / BytesPerWord)) {
-                                    cerr << "USBDataThread: USB FIFO overrun (2)." << '\n';
+                                if (!usbFifo->writeToBuffer(&usbBuffer[usbBufferIndex],
+                                                            numBytesPerDataFrame / BytesPerWord,
+                                                            daqTimestampU32,
+                                                            dataBlockIndex == 0)) {
+                                    cerr << "USBDataThread: USB FIFO overrun (2)." << std::endl;
                                 }
                                 usbBufferIndex += numBytesPerDataFrame;
+                                dataBlockIndex += numBytesPerDataFrame;
+                                if (dataBlockIndex >= numBytesPerDataBlock)
+                                    dataBlockIndex = 0;
                             } else {
                                 // If headers are not found, advance word by word until we find them
                                 usbBufferIndex += 2;
                             }
                         }
-                        // If any data remains in usbBuffer, shift it to the front.
-                        if (usbBufferIndex > 0) {
-                            int j = 0;
-                            for (int i = usbBufferIndex; i < bytesInBuffer; ++i) {
-                                usbBuffer[j++] = usbBuffer[i];
-                            }
-                            usbBufferIndex = j;
-                        } else {
-                            // If usbBufferIndex == 0, we didn't have enough data to work with; append more.
-                            usbBufferIndex = bytesInBuffer;
+                    }
+
+                    // If any data remains in usbBuffer, shift it to the front.
+                    if (usbBufferIndex > 0) {
+                        int j = 0;
+                        for (int i = usbBufferIndex; i < bytesInBuffer; ++i) {
+                            usbBuffer[j++] = usbBuffer[i];
                         }
-                        if (usbBufferIndex + numBytesRead >= bufferSize) {
-                            cerr << "USBDataThread: USB buffer overrun (3)." << '\n';
-                        }
+                        usbBufferIndex = j;
+                    } else {
+                        // If usbBufferIndex == 0, we didn't have enough data to work with; append more.
+                        usbBufferIndex = bytesInBuffer;
+                    }
+                    if (usbBufferIndex + numBytesRead >= bufferSize) {
+                        cerr << "USBDataThread: USB buffer overrun (3)." << '\n';
                     }
 
                     bool hasBeenUpdated = false;
@@ -247,4 +271,9 @@ void USBDataThread::updateStartWaitCondition(AbstractModule *syModule, OptionalW
 {
     m_startWaitCondition = startWaitCondition;
     m_syModule = syModule;
+}
+
+void USBDataThread::setSyntalosStartTime(const symaster_timepoint &startTime)
+{
+    m_syStartTime = startTime;
 }

@@ -59,14 +59,13 @@ void WaveformProcessorThread::run()
 {
     const int NumBlocks = 1;  // Note: GPU spike extraction works on single data blocks only; this value must be 1 if spikes are read.
     const int NumSamples = NumBlocks * RHXDataBlock::samplesPerDataBlock(type);
-    uint16_t* usbData = nullptr;
     bool firstTime = true;
     bool softwareRefInfoUpdated = false;
     SoftwareReferenceProcessor swRefProcessor(type, numDataStreams, NumSamples);
     QElapsedTimer loopTimer, workTimer, reportTimer;
 
     while (!stopThread) {
-        int numUsbWords = RHXDataBlock::dataBlockSizeInWords(type, numDataStreams);
+        int numUsbWords = RHXDataBlock::dataBlockSizeInWords(type, numDataStreams) + (BytesPerSyTimestamp / BytesPerWord);
 
         fill(cpuLoadHistory.begin(), cpuLoadHistory.end(), 0.0);
 
@@ -93,8 +92,13 @@ void WaveformProcessorThread::run()
                     softwareRefInfoUpdated = true;
                 }
 
-                usbData = usbFifo->pointerToData(numUsbWords);  // Get pointer to new USB data, if available.
+                const auto usbDataOrig = usbFifo->pointerToData(numUsbWords);  // Get pointer to new USB data, if available.
+                uint16_t *usbData = usbDataOrig;
                 if (usbData) {
+                    // read u32 Syntalos timestamp integer for this block
+                    uint32_t tsVal = (usbData[0] << 16) | (usbData[1] & 0xffff);
+                    usbData += BytesPerSyTimestamp / BytesPerWord;
+
                     if (state->getReportSpikes()) {
                         state->advanceSpikeTimer();
                     }
