@@ -36,6 +36,8 @@
 #include "signalsources.h"
 #include "waveformprocessorthread.h"
 
+#include "intanrhxmodule.h"
+
 WaveformProcessorThread::WaveformProcessorThread(SystemState* state_, int numDataStreams_, double sampleRate_,
                                                  DataStreamFifo *usbFifo_, WaveformFifo *waveformFifo_,
                                                  XPUController* xpuController_, QObject *parent) :
@@ -50,7 +52,8 @@ WaveformProcessorThread::WaveformProcessorThread(SystemState* state_, int numDat
     xpuController(xpuController_),
     keepGoing(false),
     running(false),
-    stopThread(false)
+    stopThread(false),
+    syMod(nullptr)
 {
     cpuLoadHistory.resize(20, 0.0);
 }
@@ -63,6 +66,9 @@ void WaveformProcessorThread::run()
     bool softwareRefInfoUpdated = false;
     SoftwareReferenceProcessor swRefProcessor(type, numDataStreams, NumSamples);
     QElapsedTimer loopTimer, workTimer, reportTimer;
+
+    if (syMod)
+        syMod->setPortSignalBlockSampleSize(NumSamples);
 
     while (!stopThread) {
         int numUsbWords = RHXDataBlock::dataBlockSizeInWords(type, numDataStreams) + (BytesPerSyTimestamp / BytesPerWord);
@@ -139,6 +145,7 @@ void WaveformProcessorThread::run()
                     uint16_t* digitalWaveform = nullptr;
 
                     dataReader.readTimeStampData(waveformFifo->pointerToTimeStampWriteSpace());
+                    syntalosModuleSetSignalBlocksTimestamps(syMod, waveformFifo->pointerToTimeStampWriteSpace(), NumSamples);
 
                     QString spikingChannelNames("");
 
@@ -163,11 +170,16 @@ void WaveformProcessorThread::run()
                                     // This signal should be ultimately received by ProbeMapWindow, which will then internally handle the time decay
                                 }
 
+                                syntalosModuleExportAmplifierChanData(syMod, group, channel->getNativeChannelNumber(),
+                                                                      wide, NumSamples,
+                                                                      signalSources->numAmplifierChannels(), gpuWaveformAddress.waveformIndex);
+
                                 if (signalSources->getControllerType() == ControllerStimRecordUSB2) {
                                     // Load DC amplifier data and stimulation markers.
                                     analogWaveform = waveformFifo->getAnalogWaveformPointer(waveName + "|DC");
                                     dataReader.readDcAmplifierData(waveformFifo->pointerToAnalogWriteSpace(analogWaveform),
                                                                    channel->getBoardStream(), channel->getChipChannel());
+
                                     digitalWaveform = waveformFifo->getDigitalWaveformPointer(waveName + "|STIM");
                                     dataReader.readStimParamData(waveformFifo->pointerToDigitalWriteSpace(digitalWaveform),
                                                               channel->getBoardStream(), channel->getChipChannel());
@@ -192,6 +204,9 @@ void WaveformProcessorThread::run()
                                 analogWaveform = waveformFifo->getAnalogWaveformPointer(waveName);
                                 dataReader.readDigInData(waveformFifo->pointerToAnalogWriteSpace(analogWaveform),
                                                          channel->getNativeChannelNumber());
+
+                                syntalosModuleExportDigitalChanData(syMod, group, channel->getNativeChannelNumber(),
+                                                                    waveformFifo->pointerToAnalogWriteSpace(analogWaveform), NumSamples);
                             } else if (channel->getSignalType() == BoardDigitalOutSignal) {
                                 analogWaveform = waveformFifo->getAnalogWaveformPointer(waveName);
                                 dataReader.readDigOutData(waveformFifo->pointerToAnalogWriteSpace(analogWaveform),
@@ -270,6 +285,11 @@ void WaveformProcessorThread::close()
 {
     keepGoing = false;
     stopThread = true;
+}
+
+void WaveformProcessorThread::setSyntalosModule(IntanRhxModule *mod)
+{
+    syMod = mod;
 }
 
 bool WaveformProcessorThread::isActive() const

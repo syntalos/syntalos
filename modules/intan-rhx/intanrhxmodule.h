@@ -24,6 +24,8 @@
 
 SYNTALOS_DECLARE_MODULE
 
+using namespace Syntalos;
+
 class IntanRhxModuleInfo : public ModuleInfo
 {
 public:
@@ -43,18 +45,19 @@ class ControllerInterface;
 class SystemState;
 class Channel;
 
-// length of a datablock emitted by the Syntalos module
-static const uint INTANRHX_SIGBLOCK_LEN = 60;
-
 template<typename T>
 class StreamDataInfo
 {
 public:
     explicit StreamDataInfo(int group = -1, int channel = -1)
-        : channelGroup(group),
+        : active(false),
+          channelGroup(group),
           nativeChannel(channel)
-    { }
+    {
+        signalBlock = std::make_shared<T>();
+    }
 
+    bool active;
     std::shared_ptr<DataStream<T>> stream;
     std::shared_ptr<T> signalBlock;
     int channelGroup;
@@ -81,8 +84,11 @@ public:
 
     void stop() override;
 
+    void setPortSignalBlockSampleSize(size_t sampleNum);
     std::vector<std::vector<StreamDataInfo<FloatSignalBlock>>> floatSdiByGroupChannel;
     std::vector<std::vector<StreamDataInfo<IntSignalBlock>>> intSdiByGroupChannel;
+
+    std::unique_ptr<FreqCounterSynchronizer> clockSync;
 
 private slots:
     void onExportedChannelsChanged(const QList<Channel*> &channels);
@@ -95,3 +101,71 @@ private:
     SystemState *m_sysState;
 
 };
+
+inline void syntalosModuleSetSignalBlocksTimestamps(IntanRhxModule *mod, uint32_t* tsBuf, size_t tsLen)
+{
+    if (mod == nullptr)
+        return;
+
+    Eigen::Map<VectorXu> tvm(tsBuf, tsLen);
+    for (auto &blocks : mod->intSdiByGroupChannel) {
+        for (auto &sdi : blocks) {
+            if (!sdi.active)
+                continue;
+            sdi.signalBlock->timestamps = tvm;
+        }
+    }
+
+    for (auto &blocks : mod->floatSdiByGroupChannel) {
+        for (auto &sdi : blocks) {
+            if (!sdi.active)
+                continue;
+            sdi.signalBlock->timestamps = tvm;
+        }
+    }
+}
+
+inline void syntalosModuleExportAmplifierChanData(IntanRhxModule *mod, int group, int channel, uint16_t *rawBuf, size_t numSamples,
+                                                  int numAmplifierChannels, int rawChanIndex)
+{
+    if (mod == nullptr)
+        return;
+
+    if (group >= (int) mod->floatSdiByGroupChannel.size())
+        return;
+    auto &blocks = mod->floatSdiByGroupChannel[group];
+    if (channel >= (int) blocks.size())
+        return;
+    auto &sdi = blocks[channel];
+    if (!sdi.active)
+        return;
+
+    sdi.signalBlock->data.resize(numSamples, 1);
+    for (size_t i = 0; i < numSamples; ++i)
+        sdi.signalBlock->data(i, 0) = 0.195F * (((double) rawBuf[numAmplifierChannels * i + rawChanIndex]) - 32768.0F);
+
+    // publish new data on this stream
+    sdi.stream->push(*sdi.signalBlock.get());
+}
+
+inline void syntalosModuleExportDigitalChanData(IntanRhxModule *mod, int group, int channel, float *rawBuf, size_t numSamples)
+{
+    if (mod == nullptr)
+        return;
+
+    if (group >= (int) mod->intSdiByGroupChannel.size())
+        return;
+    auto &blocks = mod->intSdiByGroupChannel[group];
+    if (channel >= (int) blocks.size())
+        return;
+    auto &sdi = blocks[channel];
+    if (!sdi.active)
+        return;
+
+    sdi.signalBlock->data.resize(numSamples, 1);
+    for (size_t i = 0; i < numSamples; ++i)
+        sdi.signalBlock->data(i, 0) = static_cast<int>(rawBuf[i]);
+
+    // publish new data on this stream
+    sdi.stream->push(*sdi.signalBlock.get());
+}

@@ -37,7 +37,7 @@
 #include "abstractrhxcontroller.h"
 #include "datastreamfifo.h"
 
-#include "moduleapi.h"
+#include "intanrhxmodule.h"
 
 const int BufferSizeInBlocks = 32;
 
@@ -60,7 +60,7 @@ public:
 
     bool memoryWasAllocated(double& memoryRequestedGB) const { memoryRequestedGB += memoryNeededGB; return memoryAllocated; }
 
-    void updateStartWaitCondition(AbstractModule *syModule, OptionalWaitCondition *startWaitCondition);
+    void updateStartWaitCondition(IntanRhxModule *syModule, OptionalWaitCondition *startWaitCondition);
     void setSyntalosStartTime(const symaster_timepoint &startTime);
 
 signals:
@@ -82,7 +82,7 @@ private:
     double memoryNeededGB;
 
     OptionalWaitCondition *m_startWaitCondition;
-    AbstractModule *m_syModule;
+    IntanRhxModule *m_syModule;
     symaster_timepoint m_syStartTime;
 };
 

@@ -267,7 +267,7 @@ void USBDataThread::setErrorCheckingEnabled(bool enabled)
     errorChecking = enabled;
 }
 
-void USBDataThread::updateStartWaitCondition(AbstractModule *syModule, OptionalWaitCondition *startWaitCondition)
+void USBDataThread::updateStartWaitCondition(IntanRhxModule *syModule, OptionalWaitCondition *startWaitCondition)
 {
     m_startWaitCondition = startWaitCondition;
     m_syModule = syModule;

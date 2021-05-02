@@ -114,6 +114,7 @@ public:
     SignalGroup* baseGroupByIndex(int index) const { return baseGroups[index]; }
     SignalGroup* groupByIndex(int index) const;
     SignalGroup* groupByName(const QString& groupName) const;
+    int groupIndexByName(const QString &groupName) const;
     Channel* channelByName(const QString& nativeName) const;
     Channel* channelByName(const string& nativeName) const;
     Channel* getAmplifierChannel(int boardStream, int chipChannel) const;

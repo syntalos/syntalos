@@ -395,6 +395,20 @@ SignalGroup* SignalSources::groupByName(const QString& groupName) const
     return nullptr;
 }
 
+int SignalSources::groupIndexByName(const QString &groupName) const
+{
+    QString groupNameLower = groupName.toLower();
+    for (int i = 0; i < numPortGroups(); ++i) {
+        SignalGroup* group = portGroupByIndex(i);
+        if (group->getName().toLower() == groupNameLower) return i;
+    }
+    for (int i = 0; i < numBaseGroups(); ++i) {
+        SignalGroup* group = baseGroupByIndex(i);
+        if (group->getName().toLower() == groupNameLower) return i + portGroups.size();
+    }
+    return -1;
+}
+
 // Return a pointer to a SignalChannel with a particular nativeName (e.g., "A-002").
 Channel* SignalSources::channelByName(const QString& nativeName) const
 {

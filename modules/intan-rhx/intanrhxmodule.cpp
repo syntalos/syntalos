@@ -74,6 +74,7 @@ IntanRhxModule::IntanRhxModule(QObject *parent)
         m_ctlWindow->hide();
     m_sysState = m_boardSelectDlg->systemState();
     m_controllerIntf = m_boardSelectDlg->getControllerInterface();
+    m_controllerIntf->setSyntalosModule(this);
 
     m_boardSelectDlg->setWindowIcon(QIcon(":/module/intan-rhx"));
     m_ctlWindow->setWindowIcon(QIcon(":/module/intan-rhx"));
@@ -124,7 +125,7 @@ ModuleDriverKind IntanRhxModule::driver() const
 
 void IntanRhxModule::updateStartWaitCondition(OptionalWaitCondition *waitCondition)
 {
-    m_controllerIntf->updateStartWaitCondition(this, waitCondition);
+    m_controllerIntf->updateStartWaitCondition(waitCondition);
 }
 
 bool IntanRhxModule::prepare(const TestSubject &)
@@ -141,6 +142,52 @@ bool IntanRhxModule::prepare(const TestSubject &)
     if (intanBaseFilename.isEmpty())
         return false;
     m_ctlWindow->setSaveFilenameTemplate(intanBaseFilename);
+
+    // set port metadata
+    const auto sampleRate = m_controllerIntf->getRhxController()->getSampleRate();
+    for (auto &blocks : intSdiByGroupChannel) {
+        for (uint i = 0; i < blocks.size(); ++ i) {
+            auto &sdi = blocks[i];
+            if (!sdi.active)
+                continue;
+            sdi.stream->setMetadataValue(QStringLiteral("samplingrate"), sampleRate);
+            sdi.stream->setMetadataValue(QStringLiteral("channel_index_first"), i);
+            sdi.stream->setMetadataValue(QStringLiteral("channel_index_last"),  i);
+        }
+    }
+    for (auto &blocks : floatSdiByGroupChannel) {
+        for (uint i = 0; i < blocks.size(); ++ i) {
+            auto &sdi = blocks[i];
+            if (!sdi.active)
+                continue;
+            sdi.stream->setMetadataValue(QStringLiteral("samplingrate"), sampleRate);
+            sdi.stream->setMetadataValue(QStringLiteral("channel_index_first"), i);
+            sdi.stream->setMetadataValue(QStringLiteral("channel_index_last"),  i);
+        }
+    }
+
+    // start output port streams
+    for (auto &port : outPorts())
+        port->startStream();
+
+    // set up slave-clock synchronizer
+    clockSync = initCounterSynchronizer(sampleRate);
+    clockSync->setStrategies(TimeSyncStrategy::WRITE_TSYNCFILE);
+    clockSync->setTimeSyncBasename(intanBaseFilename, dstore->collectionId());
+
+    // permit 1.5ms tolerance - this was a very realistic tolerance to achieve in tests,
+    // while lower values resulted in constant adjustment attempts
+    clockSync->setTolerance(std::chrono::microseconds(1500));
+
+    // we only permit calibration with the very first data block - this seems to be sufficient and
+    // yielded the best results (due to device and USB buffering, the later data blocks are more
+    // susceptible to error)
+  //!!!  clockSync->setCalibrationBlocksCount((m_intanUi->getSampleRate() / Rhd2000DataBlock::getSamplesPerDataBlock()) * 10);
+
+    if (!clockSync->start()) {
+        raiseError(QStringLiteral("Unable to set up timestamp synchronizer!"));
+        return false;
+    }
 
     // run (but wait for the starting signal)
     m_ctlWindow->recordControllerSlot();
@@ -161,7 +208,26 @@ void IntanRhxModule::start()
 void IntanRhxModule::stop()
 {
     m_ctlWindow->stopControllerSlot();
+    safeStopSynchronizer(clockSync);
+
     AbstractModule::stop();
+}
+
+void IntanRhxModule::setPortSignalBlockSampleSize(size_t sampleNum)
+{
+    for (auto &blocks : intSdiByGroupChannel) {
+        for (auto &sdi : blocks) {
+            sdi.signalBlock->timestamps.resize(sampleNum);
+            sdi.signalBlock->data.resize(sampleNum, 1);
+        }
+    }
+
+    for (auto &blocks : floatSdiByGroupChannel) {
+        for (auto &sdi : blocks) {
+            sdi.signalBlock->timestamps.resize(sampleNum);
+            sdi.signalBlock->data.resize(sampleNum, 1);
+        }
+    }
 }
 
 void IntanRhxModule::onExportedChannelsChanged(const QList<Channel *> &channels)
@@ -169,35 +235,39 @@ void IntanRhxModule::onExportedChannelsChanged(const QList<Channel *> &channels)
     // reset all our ports, we are adding new ones
     clearOutPorts();
     clearInPorts();
+    intSdiByGroupChannel.clear();
+    floatSdiByGroupChannel.clear();
+
+    auto signalSources = m_sysState->signalSources;
 
     // add new ports
     for (const auto &channel : channels) {
         bool isDigital = (channel->getSignalType() == BoardDigitalInSignal) ||
                          (channel->getSignalType() == BoardDigitalOutSignal);
         if (isDigital) {
-            if ((int) intSdiByGroupChannel.size() <= channel->getGroupID())
-                intSdiByGroupChannel.resize(channel->getGroupID() + 1);
-            if ((int) intSdiByGroupChannel[channel->getGroupID()].size() <= channel->getNativeChannelNumber())
-                intSdiByGroupChannel[channel->getGroupID()].resize(channel->getNativeChannelNumber() + 1);
+            const auto groupIndex = signalSources->groupIndexByName(channel->getGroupName());
+            if ((int) intSdiByGroupChannel.size() <= groupIndex)
+                intSdiByGroupChannel.resize(groupIndex + 1);
+            if ((int) intSdiByGroupChannel[groupIndex].size() <= channel->getNativeChannelNumber())
+                intSdiByGroupChannel[groupIndex].resize(channel->getNativeChannelNumber() + 1);
 
-            StreamDataInfo<IntSignalBlock> sdi(channel->getGroupID(), channel->getNativeChannelNumber());
+            StreamDataInfo<IntSignalBlock> sdi(groupIndex, channel->getNativeChannelNumber());
             sdi.stream = registerOutputPort<IntSignalBlock>(channel->getNativeName(), channel->getNativeAndCustomNames());
-            sdi.signalBlock->timestamps.resize(INTANRHX_SIGBLOCK_LEN);
-            sdi.signalBlock->data.resize(INTANRHX_SIGBLOCK_LEN, 1);
+            sdi.active = true;
 
-            intSdiByGroupChannel[channel->getGroupID()][channel->getNativeChannelNumber()] = sdi;
+            intSdiByGroupChannel[groupIndex][channel->getNativeChannelNumber()] = sdi;
         } else {
-            if ((int) floatSdiByGroupChannel.size() <= channel->getGroupID())
-                floatSdiByGroupChannel.resize(channel->getGroupID() + 1);
-            if ((int) floatSdiByGroupChannel[channel->getGroupID()].size() <= channel->getNativeChannelNumber())
-                floatSdiByGroupChannel[channel->getGroupID()].resize(channel->getNativeChannelNumber() + 1);
+            const auto groupIndex = signalSources->groupIndexByName(channel->getGroupName());
+            if ((int) floatSdiByGroupChannel.size() <= groupIndex)
+                floatSdiByGroupChannel.resize(groupIndex + 1);
+            if ((int) floatSdiByGroupChannel[groupIndex].size() <= channel->getNativeChannelNumber())
+                floatSdiByGroupChannel[groupIndex].resize(channel->getNativeChannelNumber() + 1);
 
-            StreamDataInfo<FloatSignalBlock> sdi(channel->getGroupID(), channel->getNativeChannelNumber());
+            StreamDataInfo<FloatSignalBlock> sdi(groupIndex, channel->getNativeChannelNumber());
             sdi.stream = registerOutputPort<FloatSignalBlock>(channel->getNativeName(), channel->getNativeAndCustomNames());
-            sdi.signalBlock->timestamps.resize(INTANRHX_SIGBLOCK_LEN);
-            sdi.signalBlock->data.resize(INTANRHX_SIGBLOCK_LEN, 1);
+            sdi.active = true;
 
-            floatSdiByGroupChannel[channel->getGroupID()][channel->getNativeChannelNumber()] = sdi;
+            floatSdiByGroupChannel[groupIndex][channel->getNativeChannelNumber()] = sdi;
         }
     }
 }

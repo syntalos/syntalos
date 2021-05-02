@@ -39,6 +39,7 @@
 #include "xpucontroller.h"
 
 using namespace std;
+class IntanRhxModule;
 
 class WaveformProcessorThread : public QThread
 {
@@ -53,6 +54,8 @@ public:
     void stopRunning();
     bool isActive() const;
     void close();
+
+    void setSyntalosModule(IntanRhxModule *mod);
 
 signals:
     void cpuLoadPercent(double percent);
@@ -73,6 +76,8 @@ private:
     volatile bool keepGoing;
     volatile bool running;
     volatile bool stopThread;
+
+    IntanRhxModule *syMod;
 };
 
 #endif // WAVEFORMPROCESSORTHREAD_H

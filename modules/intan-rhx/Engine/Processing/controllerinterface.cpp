@@ -86,7 +86,8 @@ ControllerInterface::ControllerInterface(SystemState* state_, AbstractRHXControl
     spectrogramDialog(nullptr),
     spikeSortingDialog(nullptr),
     audioThread(nullptr),
-    saveToDiskThread(nullptr)
+    saveToDiskThread(nullptr),
+    syMod(nullptr)
 {
     state->writeToLog("Entered ControllerInterface ctor");
     connect(state, SIGNAL(stateChanged()), this, SLOT(updateFromState()));
@@ -1807,14 +1808,25 @@ void ControllerInterface::uploadStimParameters()
     }
 }
 
-void ControllerInterface::updateStartWaitCondition(AbstractModule *syModule, OptionalWaitCondition *waitCondition)
+void ControllerInterface::setSyntalosModule(IntanRhxModule *mod)
 {
-    usbDataThread->updateStartWaitCondition(syModule, waitCondition);
+    syMod = mod;
+    waveformProcessorThread->setSyntalosModule(syMod);
+}
+
+void ControllerInterface::updateStartWaitCondition(OptionalWaitCondition *waitCondition)
+{
+    usbDataThread->updateStartWaitCondition(syMod, waitCondition);
 }
 
 void ControllerInterface::setSyntalosStartTime(const symaster_timepoint &startTime)
 {
     usbDataThread->setSyntalosStartTime(startTime);
+}
+
+AbstractRHXController *ControllerInterface::getRhxController() const
+{
+    return rhxController;
 }
 
 void ControllerInterface::sendTCPError(QString errorMessage)

@@ -55,6 +55,8 @@
 
 class ControlPanel;
 class ControllerRunStateData;
+class IntanRhxModule;
+
 
 class ControllerInterface : public QObject
 {
@@ -146,8 +148,10 @@ public:
     void uploadStimParameters(Channel* channel);
     void uploadStimParameters();
 
-    void updateStartWaitCondition(AbstractModule *syModule, OptionalWaitCondition *waitCondition);
+    void setSyntalosModule(IntanRhxModule *mod);
+    void updateStartWaitCondition(OptionalWaitCondition *waitCondition);
     void setSyntalosStartTime(const symaster_timepoint &startTime);
+    AbstractRHXController* getRhxController() const;
 
 signals:
     void setTimeLabel(QString text);
@@ -213,6 +217,8 @@ private:
     double hardwareFifoPercentFull;
     double waveformProcessorCpuLoad;
     vector<double> cpuLoadHistory;
+
+    IntanRhxModule *syMod;
 
     void outOfMemoryError(double memRequiredGB);
 };

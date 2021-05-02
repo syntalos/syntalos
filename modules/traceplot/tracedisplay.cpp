@@ -182,7 +182,7 @@ void TraceDisplay::updatePortChannels()
         const auto lastChanNo = mdata.value(QStringLiteral("channel_index_last")).toInt();
 
         // sanity check
-        if (firstChanNo == lastChanNo) {
+        if (firstChanNo > lastChanNo) {
             qWarning().noquote().nospace() << "Ignored traceplot port " << port->id() << ": Channel count limits are invalid.";
             return;
         }
@@ -227,7 +227,7 @@ static inline bool updateDataForActiveChannels(QList<QPair<std::shared_ptr<Strea
                 continue;
 
             for (ssize_t i = 0; i < sigBlock.data.col(pcd->chanDataIndex).size(); i++)
-                pcd->addNewYValue(sigBlock.data(pcd->chanDataIndex, i));
+                pcd->addNewYValue(sigBlock.data(i, pcd->chanDataIndex));
 
             updated = true;
         }
@@ -275,7 +275,7 @@ void TraceDisplay::resetPlotConfig()
     m_activeFSubChans.clear();
     m_activeISubChans.clear();
 
-    for (const auto pair : m_portsChannels) {
+    for (const auto &pair : m_portsChannels) {
         auto port = pair.first;
         for (const auto pcd : pair.second)
             pcd->reset();
@@ -300,7 +300,7 @@ void TraceDisplay::resetPlotConfig()
 
 void TraceDisplay::repaintPlot()
 {
-    for (const auto pair : m_portsChannels) {
+    for (const auto &pair : m_portsChannels) {
         for (const auto pcd : pair.second) {
             if (!pcd->enabled())
                 continue;
@@ -334,8 +334,8 @@ void TraceDisplay::on_plotApplyButton_clicked()
 {
     ui->plotApplyButton->setEnabled(false);
 
-    for (const auto pair : m_portsChannels) {
-        for (const auto pcd : pair.second) {
+    for (const auto &pair : m_portsChannels) {
+        for (const auto &pcd : pair.second) {
             if (!pcd->enabled())
                 continue;
             if (pcd->dataOrig.size() == 0)
