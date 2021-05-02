@@ -191,6 +191,10 @@ bool IntanRhxModule::prepare(const TestSubject &)
         return false;
     }
 
+    // call stop, to catch the case when a user was starting an experiment run while also
+    // having an ongoing sweep action
+    m_ctlWindow->stopControllerSlot();
+
     // run (but wait for the starting signal)
     m_ctlWindow->recordControllerSlot();
     return true;

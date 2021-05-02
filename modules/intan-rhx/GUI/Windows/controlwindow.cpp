@@ -175,7 +175,7 @@ ControlWindow::ControlWindow(SystemState* state_, CommandParser* parser_, Contro
         controlButtons->addAction(rewindAction);
         controlButtons->addAction(fastForwardAction);
     }
-    stopAction->setVisible(false);
+    controlButtons->addAction(stopAction);
     runAction->setVisible(false);
     if (state->playback->getValue()) {
         controlButtons->addAction(fastPlaybackAction);
@@ -749,7 +749,7 @@ void ControlWindow::updateForRun()
     runAction->setEnabled(fastPlaybackMode);
     fastForwardAction->setEnabled(false);
     rewindAction->setEnabled(false);
-    stopAction->setEnabled(true);
+    //!stopAction->setEnabled(true);
 
     recordAction->setEnabled(false);
     if (state->filename->isValid())
@@ -1210,6 +1210,7 @@ void ControlWindow::fastPlaybackSlot()
 void ControlWindow::recordControllerSlot()
 {
     emit sendSetCommand("RunMode", "Record");
+    stopAction->setEnabled(false);
 }
 
 // Wait for user-defined trigger to start recording data from USB interface board to disk.
