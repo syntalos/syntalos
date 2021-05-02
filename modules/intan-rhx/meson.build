@@ -78,8 +78,7 @@ module_cpp_args += ['-DCL_TARGET_OPENCL_VERSION=300']
 #
 # Generic module setup
 #
-module_name = fs.name(meson.current_source_dir()).to_lower().underscorify()
-module_name = '-'.join(module_name.split('_'))
+module_name = fs.name(meson.current_source_dir()).to_lower().underscorify().replace('_', '-')
 mod_install_dir = join_paths(sy_modules_dir, fs.name(meson.current_source_dir()))
 
 module_moc = qt.preprocess(

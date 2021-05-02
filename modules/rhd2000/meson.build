@@ -1,7 +1,6 @@
 # Build definitions for module: rhd2000
 
-module_name = fs.name(meson.current_source_dir()).to_lower().underscorify()
-module_name = '-'.join(module_name.split('_'))
+module_name = fs.name(meson.current_source_dir()).to_lower().underscorify().replace('_', '-')
 mod_install_dir = join_paths(sy_modules_dir, fs.name(meson.current_source_dir()))
 rhd2000_mod_install_dir = mod_install_dir
 
