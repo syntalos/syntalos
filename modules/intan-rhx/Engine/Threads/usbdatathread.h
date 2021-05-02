@@ -61,7 +61,8 @@ public:
     bool memoryWasAllocated(double& memoryRequestedGB) const { memoryRequestedGB += memoryNeededGB; return memoryAllocated; }
 
     void updateStartWaitCondition(IntanRhxModule *syModule, OptionalWaitCondition *startWaitCondition);
-    void setSyntalosStartTime(const symaster_timepoint &startTime);
+    void startWithSyntalosStartTime(const symaster_timepoint &startTime);
+    void setDefaultRealtimePriority(int prio);
 
 signals:
     void hardwareFifoReport(double percentFull);
@@ -84,6 +85,7 @@ private:
     OptionalWaitCondition *m_startWaitCondition;
     IntanRhxModule *m_syModule;
     symaster_timepoint m_syStartTime;
+    int defaultRTPriority;
 };
 
 #endif // USBDATATHREAD_H

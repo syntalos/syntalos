@@ -113,6 +113,12 @@ ChanExportDialog::ChanExportDialog(SystemState *state, QWidget *parent) :
 
     setWindowIcon(QIcon(":/module/intan-rhx"));
     setWindowTitle("Select Exported Channels");
+
+    setGeometry(QStyle::alignedRect(
+                    Qt::LeftToRight,
+                    Qt::AlignCenter,
+                    size(),
+                    qApp->screens()[0]->availableGeometry()));
 }
 
 void ChanExportDialog::updateAvailableChannelsTable()

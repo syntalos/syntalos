@@ -67,7 +67,7 @@ DataStreamFifo::~DataStreamFifo()
     delete [] buffer;
 }
 
-bool DataStreamFifo::writeToBuffer(const uint8_t* dataSource, int numWords, uint32_t timestamp, bool writeTimestampPrefix)
+bool DataStreamFifo::writeToBuffer(const uint8_t* dataSource, int numWords, uint64_t timestamp, bool writeTimestampPrefix)
 {
     const uint8_t* pRead = dataSource;
     uint16_t highByte, lowByte;
@@ -75,12 +75,12 @@ bool DataStreamFifo::writeToBuffer(const uint8_t* dataSource, int numWords, uint
 
     if (freeWords.tryAcquire(numWordsReal)) {
         if (writeTimestampPrefix) {
-            buffer[bufferWriteIndex++] = (uint16_t) (timestamp >> 16);
-            if (bufferWriteIndex >= bufferSize)
-                bufferWriteIndex = 0;
-            buffer[bufferWriteIndex++] = (uint16_t) (timestamp & 0xffff);
-            if (bufferWriteIndex >= bufferSize)
-                bufferWriteIndex = 0;
+            const auto tsPtr = (uint16_t*) &timestamp;
+            for (int i = 0; i < 4; ++i) {
+                buffer[bufferWriteIndex++] = tsPtr[i];
+                if (bufferWriteIndex >= bufferSize)
+                    bufferWriteIndex = 0;
+            }
         }
 
         for (int i = 0; i < numWords; ++i) {

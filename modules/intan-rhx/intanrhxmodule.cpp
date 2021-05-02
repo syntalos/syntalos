@@ -107,7 +107,6 @@ bool IntanRhxModule::initialize()
     connect(m_chanExportDlg, &ChanExportDialog::exportedChannelsChanged,
             this, &IntanRhxModule::onExportedChannelsChanged);
 
-    m_controllerIntf->setSyntalosStartTime(symaster_clock::now());
     return true;
 }
 
@@ -137,11 +136,13 @@ bool IntanRhxModule::prepare(const TestSubject &)
     dstore->setDataScanPattern(QStringLiteral("*.rhd"));
     dstore->setAuxDataScanPattern(QStringLiteral("*.tsync"));
 
-    const auto intanBasePart = QStringLiteral("%1_data.rhd").arg(dstore->collectionId().toString(QUuid::WithoutBraces).left(4));
+    const auto intanBasePart = QStringLiteral("%1_data").arg(dstore->collectionId().toString(QUuid::WithoutBraces).left(4));
     const auto intanBaseFilename = dstore->pathForDataBasename(intanBasePart);
     if (intanBaseFilename.isEmpty())
         return false;
-    m_ctlWindow->setSaveFilenameTemplate(intanBaseFilename);
+    m_ctlWindow->setSaveFilenameTemplate(intanBaseFilename + QStringLiteral(".rhd"));
+
+    m_controllerIntf->setDefaultRealtimePriority(defaultRealtimePriority());
 
     // set port metadata
     const auto sampleRate = m_controllerIntf->getRhxController()->getSampleRate();
@@ -182,7 +183,7 @@ bool IntanRhxModule::prepare(const TestSubject &)
     // we only permit calibration with the very first data block - this seems to be sufficient and
     // yielded the best results (due to device and USB buffering, the later data blocks are more
     // susceptible to error)
-  //!!!  clockSync->setCalibrationBlocksCount((m_intanUi->getSampleRate() / Rhd2000DataBlock::getSamplesPerDataBlock()) * 10);
+    clockSync->setCalibrationBlocksCount((sampleRate / RHXDataBlock::samplesPerDataBlock(m_controllerIntf->getRhxController()->getType())) * 20);
 
     if (!clockSync->start()) {
         raiseError(QStringLiteral("Unable to set up timestamp synchronizer!"));
@@ -201,7 +202,7 @@ void IntanRhxModule::processUiEvents()
 
 void IntanRhxModule::start()
 {
-    m_controllerIntf->setSyntalosStartTime(m_syTimer->startTime());
+    m_controllerIntf->startDAQWithSyntalosStartTime(m_syTimer->startTime());
     AbstractModule::start();
 }
 

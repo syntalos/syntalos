@@ -324,6 +324,7 @@ public:
     QString lastError;
     int modIndex;
     uint potentialNoaffinityCPUCount;
+    int defaultRealtimePriority;
     static int s_eventsMaxModulesPerThread;
 
     QList<QPair<QWidget*, bool>> displayWindows;
@@ -750,6 +751,11 @@ uint AbstractModule::potentialNoaffinityCPUCount() const
     return d->potentialNoaffinityCPUCount;
 }
 
+int AbstractModule::defaultRealtimePriority() const
+{
+    return d->defaultRealtimePriority;
+}
+
 void AbstractModule::setInitialized()
 {
     if (d->initialized)
@@ -840,6 +846,11 @@ void AbstractModule::resetEventCallbacks()
 void AbstractModule::setPotentialNoaffinityCPUCount(uint coreN)
 {
     d->potentialNoaffinityCPUCount = coreN;
+}
+
+void AbstractModule::setDefaultRTPriority(int prio)
+{
+    d->defaultRealtimePriority = prio;
 }
 
 void AbstractModule::setStatusMessage(const QString &message)

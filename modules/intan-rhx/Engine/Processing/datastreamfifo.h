@@ -39,7 +39,7 @@ public:
     ~DataStreamFifo();
 
     bool writeToBuffer(const uint8_t* dataSource, int numWords,
-                       uint32_t timestamp = 0, bool writeTimestamp = false);
+                       uint64_t timestamp = 0, bool writeTimestamp = false);
     bool dataAvailable(unsigned int numWords) const;
 
     bool readFromBuffer(uint16_t *dataSink, int numWords);

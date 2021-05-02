@@ -1819,9 +1819,14 @@ void ControllerInterface::updateStartWaitCondition(OptionalWaitCondition *waitCo
     usbDataThread->updateStartWaitCondition(syMod, waitCondition);
 }
 
-void ControllerInterface::setSyntalosStartTime(const symaster_timepoint &startTime)
+void ControllerInterface::startDAQWithSyntalosStartTime(const symaster_timepoint &startTime)
 {
-    usbDataThread->setSyntalosStartTime(startTime);
+    usbDataThread->startWithSyntalosStartTime(startTime);
+}
+
+void ControllerInterface::setDefaultRealtimePriority(int prio)
+{
+    usbDataThread->setDefaultRealtimePriority(prio);
 }
 
 AbstractRHXController *ControllerInterface::getRhxController() const

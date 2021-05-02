@@ -102,12 +102,13 @@ private:
 
 };
 
-inline void syntalosModuleSetSignalBlocksTimestamps(IntanRhxModule *mod, uint32_t* tsBuf, size_t tsLen)
+inline void syntalosModuleSetSignalBlocksTimestamps(IntanRhxModule *mod, const microseconds_t &blockRecvTimestamp,
+                                                    uint32_t* tsBuf, size_t tsLen)
 {
     if (mod == nullptr)
         return;
 
-    Eigen::Map<VectorXu> tvm(tsBuf, tsLen);
+    VectorXu tvm = Eigen::Map<VectorXu, Eigen::Unaligned>(tsBuf, tsLen);
     for (auto &blocks : mod->intSdiByGroupChannel) {
         for (auto &sdi : blocks) {
             if (!sdi.active)
@@ -123,6 +124,10 @@ inline void syntalosModuleSetSignalBlocksTimestamps(IntanRhxModule *mod, uint32_
             sdi.signalBlock->timestamps = tvm;
         }
     }
+
+    // calculate time sync guesstimates
+    mod->clockSync->processTimestamps(blockRecvTimestamp, microseconds_t(0),
+                                          0, 1, tvm);
 }
 
 inline void syntalosModuleExportAmplifierChanData(IntanRhxModule *mod, int group, int channel, uint16_t *rawBuf, size_t numSamples,

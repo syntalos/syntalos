@@ -815,6 +815,18 @@ protected:
      */
     uint potentialNoaffinityCPUCount() const;
 
+    /**
+     * @brief Default thread realtime priority
+     *
+     * The default priority for realtime threads Syntalos is supposed to use.
+     * This value can be used if the module needs to manage its own realtime threads
+     * and wants to set the default priority on them (but managing threads on their own
+     * is generally discouraged for modules).
+     *
+     * @return RT thread priority value
+     */
+    int defaultRealtimePriority() const;
+
     void setInitialized();
     bool initialized() const;
 
@@ -841,6 +853,7 @@ private:
     void setStorageGroup(std::shared_ptr<EDLGroup> edlGroup);
     void resetEventCallbacks();
     void setPotentialNoaffinityCPUCount(uint coreN);
+    void setDefaultRTPriority(int prio);
 };
 
 } // end of namespace

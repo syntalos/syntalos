@@ -150,7 +150,8 @@ public:
 
     void setSyntalosModule(IntanRhxModule *mod);
     void updateStartWaitCondition(OptionalWaitCondition *waitCondition);
-    void setSyntalosStartTime(const symaster_timepoint &startTime);
+    void startDAQWithSyntalosStartTime(const symaster_timepoint &startTime);
+    void setDefaultRealtimePriority(int prio);
     AbstractRHXController* getRhxController() const;
 
 signals:

@@ -883,6 +883,8 @@ bool Engine::runInternal(const QString &exportDirPath)
 
     // filter out dedicated-thread modules, those get special treatment
     for (auto &mod : orderedActiveModules) {
+        mod->setDefaultRTPriority(defaultRTPriority);
+
         auto oopMod = qobject_cast<OOPModule*>(mod);
         if (oopMod != nullptr) {
             oopModules.append(oopMod);

@@ -32,6 +32,8 @@
 #include <iostream>
 #include "usbdatathread.h"
 
+#include "rtkit.h"
+
 USBDataThread::USBDataThread(AbstractRHXController* controller_, DataStreamFifo* usbFifo_, QObject *parent) :
     QThread(parent),
     errorChecking(true),
@@ -43,7 +45,8 @@ USBDataThread::USBDataThread(AbstractRHXController* controller_, DataStreamFifo*
     numUsbBlocksToRead(1),
     usbBufferIndex(0),
     m_startWaitCondition(nullptr),
-    m_syModule(nullptr)
+    m_syModule(nullptr),
+    defaultRTPriority(-1)
 {
     bufferSize = (BufferSizeInBlocks + 1) * BytesPerWord *
             RHXDataBlock::dataBlockSizeInWords(controller->getType(), controller->maxNumDataStreams());
@@ -78,6 +81,9 @@ void USBDataThread::run()
         qWarning().noquote() << "No start wait condition in Intan RHX module!";
     }
 
+    if (defaultRTPriority > 0)
+        setCurrentThreadRealtime(defaultRTPriority);
+
     while (!stopThread) {
         QElapsedTimer fifoReportTimer;
 //        QElapsedTimer workTimer, loopTimer, reportTimer;
@@ -87,10 +93,12 @@ void USBDataThread::run()
             int numBytesRead = 0;
             int bytesInBuffer = 0;
             ControllerType type = controller->getType();
+            const auto samplesPerDataBlock = RHXDataBlock::samplesPerDataBlock(type);
             int numBytesPerDataFrame = BytesPerWord *
                     RHXDataBlock::dataBlockSizeInWords(type, controller->getNumEnabledDataStreams()) /
-                    RHXDataBlock::samplesPerDataBlock(type);
-            int numBytesPerDataBlock = BytesPerWord * RHXDataBlock::dataBlockSizeInWords(type, controller->getNumEnabledDataStreams());
+                    samplesPerDataBlock;
+            const auto dataBlockSizeInWords = RHXDataBlock::dataBlockSizeInWords(type, controller->getNumEnabledDataStreams());
+            int numBytesPerDataBlock = BytesPerWord * dataBlockSizeInWords;
             int dataBlockIndex = 0;
             int ledArray[8] = {1, 0, 0, 0, 0, 0, 0, 0};
             int ledIndex = 0;
@@ -99,6 +107,7 @@ void USBDataThread::run()
                 controller->setLedDisplay(ledArray);
             }
 
+            const auto boardSampleRate = controller->getSampleRate();
             controller->setStimCmdMode(true);
             controller->setContinuousRunMode(true);
             controller->run();
@@ -114,7 +123,18 @@ void USBDataThread::run()
 
                 const auto daqTimestamp = FUNC_EXEC_TIMESTAMP(m_syStartTime,
                                     numBytesRead = (int) controller->readDataBlocksRaw(numUsbBlocksToRead, &usbBuffer[usbBufferIndex]));
-                const auto daqTimestampU32 = static_cast<uint32_t>(daqTimestamp.count());
+
+                // factor in latency due to words in USB FIFO buffer
+                bool hasBeenUpdated = false;
+                unsigned int wordsInFifo = controller->getLastNumWordsInFifo(hasBeenUpdated);
+                const auto deviceLatencyUs = 1000.0 * 1000.0 * samplesPerDataBlock *
+                                             (wordsInFifo / dataBlockSizeInWords) * (1.0 / boardSampleRate);
+
+                // guess the Syntalos master time when this data block was likely acquired
+                // TODO: Use __builtin_expect/likely here?
+                const auto daqTimestampUsU64 = (daqTimestamp.count() >= deviceLatencyUs)?
+                                                static_cast<uint64_t>(daqTimestamp.count() - deviceLatencyUs) :
+                                                static_cast<uint64_t>(daqTimestamp.count());
 
                 bytesInBuffer = usbBufferIndex + numBytesRead;
                 if (numBytesRead > 0) {
@@ -127,7 +147,7 @@ void USBDataThread::run()
                             // and write it to the FIFO buffer.
                             if (!usbFifo->writeToBuffer(&usbBuffer[usbBufferIndex],
                                                         numBytesPerDataFrame / BytesPerWord,
-                                                        daqTimestampU32,
+                                                        daqTimestampUsU64,
                                                         dataBlockIndex == 0)) {
                                 cerr << "USBDataThread: USB FIFO overrun (1)." << std::endl;
                             }
@@ -147,7 +167,7 @@ void USBDataThread::run()
                                 // and write it to the FIFO buffer.
                                 if (!usbFifo->writeToBuffer(&usbBuffer[usbBufferIndex],
                                                             numBytesPerDataFrame / BytesPerWord,
-                                                            daqTimestampU32,
+                                                            daqTimestampUsU64,
                                                             dataBlockIndex == 0)) {
                                     cerr << "USBDataThread: USB FIFO overrun (2)." << std::endl;
                                 }
@@ -177,8 +197,8 @@ void USBDataThread::run()
                         cerr << "USBDataThread: USB buffer overrun (3)." << '\n';
                     }
 
-                    bool hasBeenUpdated = false;
-                    unsigned int wordsInFifo = controller->getLastNumWordsInFifo(hasBeenUpdated);
+                    hasBeenUpdated = false;
+                    wordsInFifo = controller->getLastNumWordsInFifo(hasBeenUpdated);
                     if (hasBeenUpdated || (fifoReportTimer.nsecsElapsed() > qint64(50e6))) {
                         double fifoPercentageFull = 100.0 * wordsInFifo / FIFOCapacityInWords;
                         emit hardwareFifoReport(fifoPercentageFull);
@@ -234,7 +254,10 @@ void USBDataThread::run()
 
 void USBDataThread::startRunning()
 {
-    keepGoing = true;
+    // NOTE: We *intentionally* do not start running here,
+    // instead Syntalos kicks off the run by passing a start
+    // time to the thread first (avoids a race condition).
+    keepGoing = false;
 }
 
 void USBDataThread::stopRunning()
@@ -273,7 +296,13 @@ void USBDataThread::updateStartWaitCondition(IntanRhxModule *syModule, OptionalW
     m_syModule = syModule;
 }
 
-void USBDataThread::setSyntalosStartTime(const symaster_timepoint &startTime)
+void USBDataThread::startWithSyntalosStartTime(const symaster_timepoint &startTime)
 {
     m_syStartTime = startTime;
+    keepGoing = true;
+}
+
+void USBDataThread::setDefaultRealtimePriority(int prio)
+{
+    defaultRTPriority = prio;
 }

@@ -101,8 +101,9 @@ void WaveformProcessorThread::run()
                 const auto usbDataOrig = usbFifo->pointerToData(numUsbWords);  // Get pointer to new USB data, if available.
                 uint16_t *usbData = usbDataOrig;
                 if (usbData) {
-                    // read u32 Syntalos timestamp integer for this block
-                    uint32_t tsVal = (usbData[0] << 16) | (usbData[1] & 0xffff);
+                    // read u64 Syntalos timestamp integer for this block
+                    uint64_t tsValUs = 0;
+                    memcpy(&tsValUs, usbData, BytesPerSyTimestamp);
                     usbData += BytesPerSyTimestamp / BytesPerWord;
 
                     if (state->getReportSpikes()) {
@@ -145,7 +146,8 @@ void WaveformProcessorThread::run()
                     uint16_t* digitalWaveform = nullptr;
 
                     dataReader.readTimeStampData(waveformFifo->pointerToTimeStampWriteSpace());
-                    syntalosModuleSetSignalBlocksTimestamps(syMod, waveformFifo->pointerToTimeStampWriteSpace(), NumSamples);
+                    syntalosModuleSetSignalBlocksTimestamps(syMod, microseconds_t(tsValUs),
+                                                            waveformFifo->pointerToTimeStampWriteSpace(), NumSamples);
 
                     QString spikingChannelNames("");
 
