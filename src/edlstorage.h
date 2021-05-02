@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2020 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2021 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -26,7 +26,7 @@
 #include <QFileInfo>
 #include <QUuid>
 
-enum class EDLObjectKind
+enum class EDLUnitKind
 {
     UNKNOWN,
     COLLECTION,
@@ -73,6 +73,7 @@ public:
     QString className;
     QString fileType;
     QString mediaType;
+    QString summary;
     QList<EDLDataPart> parts;
 };
 
@@ -82,16 +83,16 @@ class EDLDataset;
 /**
  * @brief Base class for all EDL entities
  */
-class EDLObject
+class EDLUnit
 {
     friend class EDLGroup;
 public:
-    explicit EDLObject(EDLObjectKind kind, EDLObject *parent = nullptr);
-    virtual ~EDLObject();
+    explicit EDLUnit(EDLUnitKind kind, EDLUnit *parent = nullptr);
+    virtual ~EDLUnit();
 
-    EDLObjectKind objectKind() const;
+    EDLUnitKind objectKind() const;
     QString objectKindString() const;
-    EDLObject *parent() const;
+    EDLUnit *parent() const;
 
     QString name() const;
     virtual bool setName(const QString &name);
@@ -101,6 +102,7 @@ public:
 
     QUuid collectionId() const;
     virtual void setCollectionId(const QUuid &uuid);
+    QString collectionShortTag() const;
 
     void addAuthor(const EDLAuthor &author);
     QList<EDLAuthor> authors() const;
@@ -122,14 +124,14 @@ public:
     QString serializeAttributes();
 
 protected:
-    void setObjectKind(const EDLObjectKind &kind);
-    void setParent(EDLObject *parent);
+    void setObjectKind(const EDLUnitKind &kind);
+    void setParent(EDLUnit *parent);
     void setLastError(const QString &message);
 
     virtual void setRootPath(const QString &root);
 
     void setDataObjects(std::optional<EDLDataFile> dataFile,
-                        std::optional<EDLDataFile> auxDataFile = std::nullopt);
+                        const QList<EDLDataFile> &auxDataFiles = QList<EDLDataFile>());
 
     bool saveManifest();
     bool saveAttributes();
@@ -139,7 +141,7 @@ protected:
 
 private:
     class Private;
-    Q_DISABLE_COPY(EDLObject)
+    Q_DISABLE_COPY(EDLUnit)
     std::unique_ptr<Private> d;
 };
 
@@ -149,7 +151,7 @@ private:
  * A set of data files which belongs together
  * (usually data of the same modality from the same source)
  */
-class EDLDataset : public EDLObject
+class EDLDataset : public EDLUnit
 {
 public:
     explicit EDLDataset(EDLGroup *parent = nullptr);
@@ -157,11 +159,11 @@ public:
 
     bool save() override;
 
-    QString setDataFile(const QString &fname);
+    QString setDataFile(const QString &fname, const QString &summary = QString());
     QString addDataFilePart(const QString &fname, int index = -1);
 
-    QString setAuxDataFile(const QString &fname);
-    QString addAuxDataFilePart(const QString &fname, int index = -1);
+    QString addAuxDataFile(const QString &fname, const QString &key = QString(), const QString &summary = QString());
+    QString addAuxDataFilePart(const QString &fname, const QString &key = QString(), int index = -1);
 
     /**
      * @brief Set a pattern to find data files
@@ -171,8 +173,8 @@ public:
      * is saved, if the data was generated externally and could not
      * be registered properly with addDataPartFilename().
      */
-    void setDataScanPattern(const QString &wildcard);
-    void setAuxDataScanPattern(const QString &wildcard);
+    void setDataScanPattern(const QString &wildcard, const QString &summary = QString());
+    void addAuxDataScanPattern(const QString &wildcard, const QString &summary = QString());
 
     /**
      * @brief Get absolute path for data with a given basename
@@ -199,7 +201,7 @@ private:
 /**
  * @brief A grouping of groups or datasets
  */
-class EDLGroup : public EDLObject
+class EDLGroup : public EDLUnit
 {
 public:
     explicit EDLGroup(EDLGroup *parent = nullptr);
@@ -209,8 +211,8 @@ public:
     void setRootPath(const QString &root) override;
     void setCollectionId(const QUuid &uuid) override;
 
-    QList<std::shared_ptr<EDLObject>> children() const;
-    void addChild(std::shared_ptr<EDLObject> edlObj);
+    QList<std::shared_ptr<EDLUnit>> children() const;
+    void addChild(std::shared_ptr<EDLUnit> edlObj);
 
     std::shared_ptr<EDLGroup> groupByName(const QString &name, bool create = false);
     std::shared_ptr<EDLDataset> datasetByName(const QString &name, bool create = false);

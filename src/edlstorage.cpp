@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2020 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2021 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -46,15 +46,15 @@ static QString edlSanitizeFilename(const QString &name)
     return tmp;
 }
 
-class EDLObject::Private
+class EDLUnit::Private
 {
 public:
     Private() {}
     ~Private() {}
 
-    EDLObjectKind objectKind;
+    EDLUnitKind objectKind;
     QString formatVersion;
-    EDLObject *parent;
+    EDLUnit *parent;
 
     QUuid collectionId;
     QDateTime timeCreated;
@@ -65,7 +65,7 @@ public:
     QString rootPath;
 
     std::optional<EDLDataFile> dataFile;
-    std::optional<EDLDataFile> auxDataFile;
+    QList<EDLDataFile> auxDataFiles;
     QHash<QString, QVariant> attrs;
 
     QString lastError;
@@ -73,47 +73,47 @@ public:
     std::mutex mutex;
 };
 
-EDLObject::EDLObject(EDLObjectKind kind, EDLObject *parent)
-    : d(new EDLObject::Private)
+EDLUnit::EDLUnit(EDLUnitKind kind, EDLUnit *parent)
+    : d(new EDLUnit::Private)
 {
     d->objectKind = kind;
     d->formatVersion = EDL_FORMAT_VERSION;
     d->parent = parent;
 }
 
-EDLObject::~EDLObject()
+EDLUnit::~EDLUnit()
 {}
 
-EDLObjectKind EDLObject::objectKind() const
+EDLUnitKind EDLUnit::objectKind() const
 {
     return d->objectKind;
 }
 
-QString EDLObject::objectKindString() const
+QString EDLUnit::objectKindString() const
 {
     switch (d->objectKind) {
-    case EDLObjectKind::COLLECTION:
+    case EDLUnitKind::COLLECTION:
         return QStringLiteral("collection");
-    case EDLObjectKind::GROUP:
+    case EDLUnitKind::GROUP:
         return QStringLiteral("group");
-    case EDLObjectKind::DATASET:
+    case EDLUnitKind::DATASET:
         return QStringLiteral("dataset");
     default:
         return QString();
     }
 }
 
-EDLObject *EDLObject::parent() const
+EDLUnit *EDLUnit::parent() const
 {
     return d->parent;
 }
 
-QString EDLObject::name() const
+QString EDLUnit::name() const
 {
     return d->name;
 }
 
-bool EDLObject::setName(const QString &name)
+bool EDLUnit::setName(const QString &name)
 {
     const std::lock_guard<std::mutex> lock(d->mutex);
     const auto oldDirPath = path();
@@ -137,37 +137,46 @@ bool EDLObject::setName(const QString &name)
     return true;
 }
 
-QDateTime EDLObject::timeCreated() const
+QDateTime EDLUnit::timeCreated() const
 {
     return d->timeCreated;
 }
 
-void EDLObject::setTimeCreated(const QDateTime &time)
+void EDLUnit::setTimeCreated(const QDateTime &time)
 {
     d->timeCreated = time;
 }
 
-QUuid EDLObject::collectionId() const
+QUuid EDLUnit::collectionId() const
 {
     return d->collectionId;
 }
 
-void EDLObject::setCollectionId(const QUuid &uuid)
+void EDLUnit::setCollectionId(const QUuid &uuid)
 {
     d->collectionId = uuid;
 }
 
-void EDLObject::addAuthor(const EDLAuthor &author)
+/**
+ * @brief Get part of the long collection-id as a short tag in e.g. filenames
+ * @return Collection ID fragment string for use as short tag
+ */
+QString EDLUnit::collectionShortTag() const
+{
+    return d->collectionId.toString(QUuid::WithoutBraces).left(6);
+}
+
+void EDLUnit::addAuthor(const EDLAuthor &author)
 {
     d->authors.append(author);
 }
 
-QList<EDLAuthor> EDLObject::authors() const
+QList<EDLAuthor> EDLUnit::authors() const
 {
     return d->authors;
 }
 
-void EDLObject::setPath(const QString &path)
+void EDLUnit::setPath(const QString &path)
 {
     const std::lock_guard<std::mutex> lock(d->mutex);
     QDir dir(path);
@@ -175,42 +184,42 @@ void EDLObject::setPath(const QString &path)
     d->rootPath = QDir::cleanPath(QStringLiteral("%1/..").arg(path));
 }
 
-QString EDLObject::path() const
+QString EDLUnit::path() const
 {
     if (d->rootPath.isEmpty())
         return QString();
     return QDir::cleanPath(d->rootPath + QStringLiteral("/") + name());
 }
 
-QString EDLObject::rootPath() const
+QString EDLUnit::rootPath() const
 {
     return d->rootPath;
 }
 
-void EDLObject::setRootPath(const QString &root)
+void EDLUnit::setRootPath(const QString &root)
 {
     d->rootPath = root;
 }
 
-QHash<QString, QVariant> EDLObject::attributes() const
+QHash<QString, QVariant> EDLUnit::attributes() const
 {
     const std::lock_guard<std::mutex> lock(d->mutex);
     return d->attrs;
 }
 
-void EDLObject::setAttributes(const QHash<QString, QVariant> &attributes)
+void EDLUnit::setAttributes(const QHash<QString, QVariant> &attributes)
 {
     const std::lock_guard<std::mutex> lock(d->mutex);
     d->attrs = attributes;
 }
 
-void EDLObject::insertAttribute(const QString &key, const QVariantHash &value)
+void EDLUnit::insertAttribute(const QString &key, const QVariantHash &value)
 {
     const std::lock_guard<std::mutex> lock(d->mutex);
     d->attrs.insert(key, value);
 }
 
-bool EDLObject::save()
+bool EDLUnit::save()
 {
     if (d->rootPath.isEmpty()) {
         d->lastError = QStringLiteral("Unable to save experiment data: No root directory is set.");
@@ -221,30 +230,30 @@ bool EDLObject::save()
     return saveAttributes();
 }
 
-QString EDLObject::lastError() const
+QString EDLUnit::lastError() const
 {
     return d->lastError;
 }
 
-void EDLObject::setObjectKind(const EDLObjectKind &kind)
+void EDLUnit::setObjectKind(const EDLUnitKind &kind)
 {
     d->objectKind = kind;
 }
 
-void EDLObject::setParent(EDLObject *parent)
+void EDLUnit::setParent(EDLUnit *parent)
 {
     d->parent = parent;
 }
 
-void EDLObject::setLastError(const QString &message)
+void EDLUnit::setLastError(const QString &message)
 {
     d->lastError = message;
 }
 
-void EDLObject::setDataObjects(std::optional<EDLDataFile> dataFile, std::optional<EDLDataFile> auxDataFile)
+void EDLUnit::setDataObjects(std::optional<EDLDataFile> dataFile, const QList<EDLDataFile> &auxDataFiles)
 {
     d->dataFile = dataFile;
-    d->auxDataFile = auxDataFile;
+    d->auxDataFiles = auxDataFiles;
 }
 
 static toml::table createManifestFileSection(EDLDataFile &df)
@@ -273,6 +282,8 @@ static toml::table createManifestFileSection(EDLDataFile &df)
         dataTab.insert("media_type", df.mediaType.toStdString());
     if (!df.className.isEmpty())
         dataTab.insert("class", df.className.toLower().toStdString());
+    if (!df.summary.isEmpty())
+        dataTab.insert("summary", df.summary.toStdString());
 
     toml::array filePartsArr;
     for (int i = 0; i < df.parts.length(); i++) {
@@ -281,7 +292,8 @@ static toml::table createManifestFileSection(EDLDataFile &df)
             fpart.index = i;
         toml::table fpartTab;
 
-        fpartTab.insert("index", fpart.index);
+        if (df.parts.length() > 1)
+            fpartTab.insert("index", fpart.index);
         fpartTab.insert("fname", fpart.fname.toStdString());
 
         filePartsArr.push_back(std::move(fpartTab));
@@ -291,7 +303,7 @@ static toml::table createManifestFileSection(EDLDataFile &df)
     return dataTab;
 }
 
-QString EDLObject::serializeManifest()
+QString EDLUnit::serializeManifest()
 {
     const std::lock_guard<std::mutex> lock(d->mutex);
     toml::table document;
@@ -333,9 +345,17 @@ QString EDLObject::serializeManifest()
         document.insert("data", std::move(dataTab));
     }
 
-    if (d->auxDataFile.has_value() && !d->auxDataFile->parts.isEmpty()) {
-        auto dataTab = createManifestFileSection(d->auxDataFile.value());
-        document.insert("data_aux", std::move(dataTab));
+    // register auxilary data files (metadata or extra data accompanying the main data files)
+    if (!d->auxDataFiles.isEmpty()) {
+        toml::array auxDataArr;
+        for (auto &adf : d->auxDataFiles) {
+            if (adf.parts.isEmpty())
+                continue;
+            auto dataTab = createManifestFileSection(adf);
+            auxDataArr.push_back(dataTab);
+
+        }
+        document.insert("data_aux", std::move(auxDataArr));
     }
 
     // serialize manifest data to TOML
@@ -345,7 +365,7 @@ QString EDLObject::serializeManifest()
     return QString::fromStdString(strData.str());
 }
 
-QString EDLObject::serializeAttributes()
+QString EDLUnit::serializeAttributes()
 {
     const std::lock_guard<std::mutex> lock(d->mutex);
     // no user-defined attributes means the document is empty
@@ -361,7 +381,7 @@ QString EDLObject::serializeAttributes()
     return QString::fromStdString(strData.str());
 }
 
-bool EDLObject::saveManifest()
+bool EDLUnit::saveManifest()
 {
     QDir dir;
     if (!dir.mkpath(path())) {
@@ -383,7 +403,7 @@ bool EDLObject::saveManifest()
     return true;
 }
 
-bool EDLObject::saveAttributes()
+bool EDLUnit::saveAttributes()
 {
     // do nothing if we have no user-defined attributes to save
     if (d->attrs.isEmpty())
@@ -409,12 +429,12 @@ bool EDLObject::saveAttributes()
     return true;
 }
 
-QString EDLObject::generatorId() const
+QString EDLUnit::generatorId() const
 {
     return d->generatorId;
 }
 
-void EDLObject::setGeneratorId(const QString &idString)
+void EDLUnit::setGeneratorId(const QString &idString)
 {
     d->generatorId = idString;
 }
@@ -426,14 +446,14 @@ public:
     ~Private() {}
 
     EDLDataFile dataFile;
-    EDLDataFile auxFile;
+    QMap<QString, EDLDataFile> auxFiles;
 
-    QString dataScanPattern;
-    QString auxDataScanPattern;
+    QPair<QString, EDLDataFile> dataScanPattern;
+    QMap<QString, EDLDataFile> auxDataScanPatterns;
 };
 
 EDLDataset::EDLDataset(EDLGroup *parent)
-    : EDLObject(EDLObjectKind::DATASET, parent),
+    : EDLUnit(EDLUnitKind::DATASET, parent),
       d(new EDLDataset::Private)
 {
 }
@@ -455,42 +475,57 @@ bool EDLDataset::save()
     // we protect against badly written modules by not having them accidentally register
     // files as both primary data and aux data.
     QSet<QString> auxFiles;
-    if (!d->auxDataScanPattern.isEmpty()) {
-        d->auxFile.parts.clear();
-        const auto files = findFilesByPattern(d->auxDataScanPattern);
-        if (files.isEmpty()) {
-            qWarning().noquote().nospace()
-                    << "Dataset '" << name() << "' expected to find auxiliary data matching pattern `" << d->auxDataScanPattern << "`, but no data was found.";
-        } else {
-            for (const auto &fname : files) {
-                auxFiles.insert(fname);
-                addAuxDataFilePart(fname);
+    if (!d->auxDataScanPatterns.isEmpty()) {
+        QMapIterator<QString, EDLDataFile> adKV(d->auxDataScanPatterns);
+        while (adKV.hasNext()) {
+            adKV.next();
+
+            const auto files = findFilesByPattern(adKV.key());
+            if (files.isEmpty()) {
+                qWarning().noquote().nospace()
+                        << "Dataset '" << name() << "' expected to find auxiliary data matching pattern `" << adKV.key() << "`, but no data was found.";
+            } else {
+                for (int i = 0; i < files.size(); ++i) {
+                    auxFiles.insert(files[i]);
+                    if (i == 0)
+                        addAuxDataFile(files[0], adKV.key(), adKV.value().summary);
+                    else
+                        addAuxDataFilePart(files[i]);
+                }
             }
+
         }
     }
-    if (!d->dataScanPattern.isEmpty()) {
+
+    // register actual data found via pattern scan
+    if (!d->dataScanPattern.first.isEmpty()) {
         d->dataFile.parts.clear();
-        const auto files = findFilesByPattern(d->dataScanPattern);
+        const auto files = findFilesByPattern(d->dataScanPattern.first);
         if (files.isEmpty()) {
             qWarning().noquote().nospace()
-                    << "Dataset '" << name() << "' expected to find data matching pattern `" << d->dataScanPattern << "`, but no data was found.";
+                    << "Dataset '" << name() << "' expected to find data matching pattern `" << d->dataScanPattern.first << "`, but no data was found.";
         } else {
-            for (const auto &fname : files) {
-                if (!auxFiles.contains(fname))
-                    addDataFilePart(fname);
+            for (int i = 0; i < files.size(); ++i) {
+                if (auxFiles.contains(files[i]))
+                    continue;
+                if (d->dataFile.parts.isEmpty())
+                    setDataFile(files[0], d->dataScanPattern.second.summary);
+                else
+                    addDataFilePart(files[i]);
             }
         }
     }
 
-    setDataObjects(d->dataFile, d->auxFile);
+    setDataObjects(d->dataFile, d->auxFiles.values());
     if (!saveManifest())
         return false;
     return saveAttributes();
 }
 
-QString EDLDataset::setDataFile(const QString &fname)
+QString EDLDataset::setDataFile(const QString &fname, const QString &summary)
 {
     d->dataFile.parts.clear();
+    d->dataFile.summary = summary;
     return addDataFilePart(fname);
 }
 
@@ -506,32 +541,41 @@ QString EDLDataset::addDataFilePart(const QString &fname, int index)
     return pathForDataBasename(baseName);
 }
 
-QString EDLDataset::setAuxDataFile(const QString &fname)
+QString EDLDataset::addAuxDataFile(const QString &fname, const QString &key, const QString &summary)
 {
-    d->auxFile.parts.clear();
-    return addAuxDataFilePart(fname);
+    EDLDataFile adf;
+    adf.summary = summary;
+    d->auxFiles[key] = adf;
+    return addAuxDataFilePart(fname, key);
 }
 
-QString EDLDataset::addAuxDataFilePart(const QString &fname, int index)
+QString EDLDataset::addAuxDataFilePart(const QString &fname, const QString &key, int index)
 {
     QFileInfo fi(fname);
     const auto baseName = fi.fileName();
 
+    if (!d->auxFiles.contains(key))
+        d->auxFiles[key] = EDLDataFile();
+
     EDLDataPart part(baseName);
     part.index = index;
-    d->auxFile.parts.append(part);
+    d->auxFiles[key].parts.append(part);
 
     return pathForDataBasename(baseName);
 }
 
-void EDLDataset::setDataScanPattern(const QString &wildcard)
+void EDLDataset::setDataScanPattern(const QString &wildcard, const QString &summary)
 {
-    d->dataScanPattern = wildcard;
+    EDLDataFile df;
+    df.summary = summary;
+    d->dataScanPattern = qMakePair(wildcard, df);
 }
 
-void EDLDataset::setAuxDataScanPattern(const QString &wildcard)
+void EDLDataset::addAuxDataScanPattern(const QString &wildcard, const QString &summary)
 {
-    d->auxDataScanPattern = wildcard;
+    EDLDataFile adf;
+    adf.summary = summary;
+    d->auxDataScanPatterns[wildcard] = adf;
 }
 
 QString EDLDataset::pathForDataBasename(const QString &baseName)
@@ -573,12 +617,12 @@ public:
     Private() {}
     ~Private() {}
 
-    QList<std::shared_ptr<EDLObject>> children;
+    QList<std::shared_ptr<EDLUnit>> children;
     std::mutex mutex;
 };
 
 EDLGroup::EDLGroup(EDLGroup *parent)
-    : EDLObject(EDLObjectKind::GROUP, parent),
+    : EDLUnit(EDLUnitKind::GROUP, parent),
       d(new EDLGroup::Private)
 {
 }
@@ -589,7 +633,7 @@ EDLGroup::~EDLGroup()
 bool EDLGroup::setName(const QString &name)
 {
     const std::lock_guard<std::mutex> lock(d->mutex);
-    if (!EDLObject::setName(name))
+    if (!EDLUnit::setName(name))
         return false;
     // propagate path change through the hierarchy
     for (auto &node : d->children)
@@ -600,7 +644,7 @@ bool EDLGroup::setName(const QString &name)
 void EDLGroup::setRootPath(const QString &root)
 {
     const std::lock_guard<std::mutex> lock(d->mutex);
-    EDLObject::setRootPath(root);
+    EDLUnit::setRootPath(root);
     // propagate path change through the hierarchy
     for (auto &node : d->children)
         node->setRootPath(path());
@@ -609,19 +653,19 @@ void EDLGroup::setRootPath(const QString &root)
 void EDLGroup::setCollectionId(const QUuid &uuid)
 {
     const std::lock_guard<std::mutex> lock(d->mutex);
-    EDLObject::setCollectionId(uuid);
+    EDLUnit::setCollectionId(uuid);
     // propagate collection UUID through the DAG
     for (auto &node : d->children)
         node->setCollectionId(uuid);
 }
 
-QList<std::shared_ptr<EDLObject>> EDLGroup::children() const
+QList<std::shared_ptr<EDLUnit>> EDLGroup::children() const
 {
     const std::lock_guard<std::mutex> lock(d->mutex);
     return d->children;
 }
 
-void EDLGroup::addChild(std::shared_ptr<EDLObject> edlObj)
+void EDLGroup::addChild(std::shared_ptr<EDLUnit> edlObj)
 {
     const std::lock_guard<std::mutex> lock(d->mutex);
     edlObj->setParent(this);
@@ -675,7 +719,7 @@ bool EDLGroup::save()
     }
 
     // save all our subnodes first
-    QMutableListIterator<std::shared_ptr<EDLObject>> i(d->children);
+    QMutableListIterator<std::shared_ptr<EDLUnit>> i(d->children);
     while (i.hasNext()) {
         auto obj = i.next();
         if (obj->parent() != this) {
@@ -689,7 +733,7 @@ bool EDLGroup::save()
         }
     }
 
-    return EDLObject::save();
+    return EDLUnit::save();
 }
 
 class EDLCollection::Private
@@ -703,7 +747,7 @@ public:
 EDLCollection::EDLCollection(const QString &name)
     : d(new EDLCollection::Private)
 {
-    setObjectKind(EDLObjectKind::COLLECTION);
+    setObjectKind(EDLUnitKind::COLLECTION);
     setParent(nullptr);
     setName(name);
 

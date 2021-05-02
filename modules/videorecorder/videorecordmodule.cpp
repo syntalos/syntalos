@@ -295,14 +295,16 @@ public:
                     return;
                 }
 
-                const auto dataBasename = dataBasenameFromSubMetadata(m_inSub->metadata(), "video");
+                const auto inSubSrcModName = m_inSub->metadataValue(CommonMetadataKey::SrcModName).toString();
+                const auto dataBasename = dataBasenameFromSubMetadata(m_inSub->metadata(), QStringLiteral("%1-video").arg(m_vidDataset->collectionShortTag()));
                 vidSavePathBase = m_vidDataset->pathForDataBasename(dataBasename);
-                m_vidDataset->setDataScanPattern(QStringLiteral("%1*").arg(dataBasename));
-                m_vidDataset->setAuxDataScanPattern(QStringLiteral("%1*.tsync").arg(dataBasename));
+                m_vidDataset->setDataScanPattern(QStringLiteral("%1*").arg(dataBasename),
+                                                 inSubSrcModName.isEmpty()? QString() : QStringLiteral("Video recording from %1").arg(inSubSrcModName));
+                m_vidDataset->addAuxDataScanPattern(QStringLiteral("%1*.tsync").arg(dataBasename), QStringLiteral("Video timestamps"));
 
                 auto vidSecFnameBase = vidSavePathBase;
                 if (!currentSecSuffix.isEmpty())
-                    vidSecFnameBase = QStringLiteral("%1%2").arg(vidSecFnameBase).arg(currentSecSuffix);
+                    vidSecFnameBase = QStringLiteral("%1%2").arg(vidSecFnameBase, currentSecSuffix);
 
                 try {
                     m_videoWriter->initialize(vidSecFnameBase,

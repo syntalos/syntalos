@@ -133,10 +133,11 @@ bool IntanRhxModule::prepare(const TestSubject &)
     auto dstore = getOrCreateDefaultDataset(QStringLiteral("intan-signals"));
 
     // we use the ugly scanning method -for now
-    dstore->setDataScanPattern(QStringLiteral("*.rhd"));
-    dstore->setAuxDataScanPattern(QStringLiteral("*.tsync"));
+    dstore->setDataScanPattern(QStringLiteral("*.rhd"), QStringLiteral("Electrophysiology data"));
+    dstore->addAuxDataScanPattern(QStringLiteral("*.tsync"), QStringLiteral("Timestamp synchronization information"));
+    dstore->addAuxDataScanPattern(QStringLiteral("settings.xml"), QStringLiteral("Intan DAQ configuration used for this recording"));
 
-    const auto intanBasePart = QStringLiteral("%1_data").arg(dstore->collectionId().toString(QUuid::WithoutBraces).left(4));
+    const auto intanBasePart = QStringLiteral("%1-data").arg(dstore->collectionShortTag());
     const auto intanBaseFilename = dstore->pathForDataBasename(intanBasePart);
     if (intanBaseFilename.isEmpty())
         return false;
