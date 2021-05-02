@@ -1,5 +1,5 @@
 project('Syntalos', 'c', 'cpp',
-  meson_version: '>=0.57',
+  meson_version: '>=0.58',
   default_options: ['c_std=gnu17',
                     'cpp_std=gnu++17',
                     'b_lto=true'],
@@ -9,7 +9,7 @@ project('Syntalos', 'c', 'cpp',
 )
 
 cpp_compiler = meson.get_compiler('cpp')
-source_root = meson.source_root()
+source_root = meson.project_source_root()
 
 sy_version = meson.project_version()
 varr = sy_version.split('.')

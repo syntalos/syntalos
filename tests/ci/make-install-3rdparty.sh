@@ -2,7 +2,7 @@
 set -e
 set -x
 
-pip install git+https://github.com/mesonbuild/meson.git
+pip install 'meson>=0.58'
 
 mkdir -p 3rdparty
 
