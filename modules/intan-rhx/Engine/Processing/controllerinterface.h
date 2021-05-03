@@ -63,6 +63,7 @@ class ControllerInterface : public QObject
     Q_OBJECT
 public:
     ControllerInterface(SystemState* state_, AbstractRHXController* rhxController_, const QString& boardSerialNumber,
+                        IntanRhxModule *mod,
                         DataFileReader* dataFileReader_ = nullptr, QObject* parent = nullptr);
     ~ControllerInterface();
 
@@ -148,7 +149,7 @@ public:
     void uploadStimParameters(Channel* channel);
     void uploadStimParameters();
 
-    void setSyntalosModule(IntanRhxModule *mod);
+    void setSyntalosModule();
     void updateStartWaitCondition(OptionalWaitCondition *waitCondition);
     void startDAQWithSyntalosStartTime(const symaster_timepoint &startTime);
     void setDefaultRealtimePriority(int prio);

@@ -53,7 +53,7 @@ WaveformProcessorThread::WaveformProcessorThread(SystemState* state_, int numDat
     keepGoing(false),
     running(false),
     stopThread(false),
-    syMod(nullptr)
+    syMod(state->syMod)
 {
     cpuLoadHistory.resize(20, 0.0);
 }
@@ -287,11 +287,6 @@ void WaveformProcessorThread::close()
 {
     keepGoing = false;
     stopThread = true;
-}
-
-void WaveformProcessorThread::setSyntalosModule(IntanRhxModule *mod)
-{
-    syMod = mod;
 }
 
 bool WaveformProcessorThread::isActive() const

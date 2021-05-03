@@ -66,7 +66,7 @@ public:
     }
 };
 
-ControllerInterface::ControllerInterface(SystemState* state_, AbstractRHXController* rhxController_, const QString& boardSerialNumber,
+ControllerInterface::ControllerInterface(SystemState* state_, AbstractRHXController* rhxController_, const QString& boardSerialNumber, IntanRhxModule *mod,
                                          DataFileReader* dataFileReader_, QObject* parent) :
     QObject(parent),
     state(state_),
@@ -87,7 +87,7 @@ ControllerInterface::ControllerInterface(SystemState* state_, AbstractRHXControl
     spikeSortingDialog(nullptr),
     audioThread(nullptr),
     saveToDiskThread(nullptr),
-    syMod(nullptr)
+    syMod(mod)
 {
     state->writeToLog("Entered ControllerInterface ctor");
     connect(state, SIGNAL(stateChanged()), this, SLOT(updateFromState()));
@@ -563,7 +563,7 @@ void ControllerInterface::openController(const QString& boardSerialNumber)
     } else {
         bitfilename = ConfigFileRHSController;
     }
-    if (!rhxController->uploadFPGABitfile(QString(QCoreApplication::applicationDirPath() + "/" + bitfilename).toStdString())) {
+    if (!rhxController->uploadFPGABitfile(QString(syMod->moduleRootDir() + "/" + bitfilename).toStdString())) {
         QMessageBox::critical(nullptr, tr("Configuration File Error: Software Aborting"),
                               tr("Cannot upload configuration file: ") + bitfilename +
                               tr(".  Make sure file is in the same directory as the executable file."));
@@ -1806,12 +1806,6 @@ void ControllerInterface::uploadStimParameters()
         Channel* channel = state->signalSources->channelByName(QString::fromStdString(allChannels[i]));
         uploadStimParameters(channel);
     }
-}
-
-void ControllerInterface::setSyntalosModule(IntanRhxModule *mod)
-{
-    syMod = mod;
-    waveformProcessorThread->setSyntalosModule(syMod);
 }
 
 void ControllerInterface::updateStartWaitCondition(OptionalWaitCondition *waitCondition)

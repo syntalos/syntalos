@@ -363,7 +363,7 @@ ScrollableMessageBox::ScrollableMessageBox(QWidget *parent, const QString &title
 }
 
 // Create a dialog window for user to select which board's software to initialize.
-BoardSelectDialog::BoardSelectDialog(QWidget *parent) :
+BoardSelectDialog::BoardSelectDialog(IntanRhxModule *mod, QWidget *parent) :
     QDialog(parent),
     boardTable(nullptr),
     openButton(nullptr),
@@ -375,7 +375,8 @@ BoardSelectDialog::BoardSelectDialog(QWidget *parent) :
     state(nullptr),
     controllerInterface(nullptr),
     parser(nullptr),
-    controlWindow(nullptr)
+    controlWindow(nullptr),
+    syMod(mod)
 {
     // Initialize Board Identifier.
     boardIdentifier = new BoardIdentifier(this);
@@ -611,9 +612,10 @@ void BoardSelectDialog::startSoftware(ControllerType controllerType, AmplifierSa
     }
 
     state = new SystemState(rhxController, stimStepSize, numSPIPorts, expanderConnected);
+    state->setSyntalosModule(syMod);
     state->highDPIScaleFactor = this->devicePixelRatio();  // Use this to adjust graphics for high-DPI monitors.
     state->availableScreenResolution = QGuiApplication::primaryScreen()->geometry();
-    controllerInterface = new ControllerInterface(state, rhxController, boardSerialNumber, dataFileReader, this);
+    controllerInterface = new ControllerInterface(state, rhxController, boardSerialNumber, syMod, dataFileReader, this);
     state->setupGlobalSettingsLoadSave(controllerInterface);
     parser = new CommandParser(state, controllerInterface, this);
     controlWindow = new ControlWindow(state, parser, controllerInterface);

@@ -50,6 +50,7 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
                          bool expanderConnected_) :
     numSPIPorts(numSPIPorts_),
     logErrors(false),
+    syMod(nullptr),
     reportSpikes(false),
     decayTime(1.0),
     globalSettingsInterface(nullptr)
@@ -1210,4 +1211,9 @@ void SystemState::spikeReport(QString names)
 void SystemState::advanceSpikeTimer()
 {
     emit spikeTimerTick();
+}
+
+void SystemState::setSyntalosModule(IntanRhxModule *mod)
+{
+    syMod = mod;
 }

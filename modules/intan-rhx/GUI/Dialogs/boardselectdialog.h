@@ -107,7 +107,7 @@ class BoardSelectDialog : public QDialog
 {
     Q_OBJECT
 public:
-    BoardSelectDialog(QWidget *parent = nullptr);
+    BoardSelectDialog(IntanRhxModule *mod, QWidget *parent = nullptr);
     ~BoardSelectDialog();
 
     static bool validControllersPresent(QVector<ControllerInfo*> cInfo);
@@ -145,6 +145,8 @@ private:
     ControllerInterface *controllerInterface;
     CommandParser *parser;
     ControlWindow *controlWindow;
+
+    IntanRhxModule *syMod;
 };
 
 #endif // BOARDSELECTDIALOG_H

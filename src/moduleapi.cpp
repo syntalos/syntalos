@@ -24,6 +24,7 @@
 #include <QDir>
 #include <QMessageBox>
 #include <QStandardPaths>
+#include <QCoreApplication>
 
 #include "utils/misc.h"
 
@@ -350,14 +351,20 @@ AbstractModule::AbstractModule(QObject *parent) :
     d->s_eventsMaxModulesPerThread = -1;
 }
 
+AbstractModule::AbstractModule(const QString &id, QObject *parent)
+    : AbstractModule(parent)
+{
+    setId(id);
+}
+
 AbstractModule::~AbstractModule()
 {
     // delete windows if we own them
-    for (auto wp : d->displayWindows) {
+    for (auto &wp : d->displayWindows) {
         if (wp.second)
             delete wp.first;
     }
-    for (auto wp : d->settingsWindows) {
+    for (auto &wp : d->settingsWindows) {
         if (wp.second)
             delete wp.first;
     }
@@ -519,7 +526,7 @@ void AbstractModule::inputPortConnected(VarStreamInputPort *)
     /* do nothing */
 }
 
-void AbstractModule::updateStartWaitCondition(OptionalWaitCondition *waitCondition)
+void AbstractModule::updateStartWaitCondition(OptionalWaitCondition *)
 {
     /* do nothing */
 }
@@ -527,6 +534,19 @@ void AbstractModule::updateStartWaitCondition(OptionalWaitCondition *waitConditi
 QString AbstractModule::lastError() const
 {
     return d->lastError;
+}
+
+QString AbstractModule::moduleRootDir() const
+{
+    auto moduleDir = QStringLiteral("%1/../modules/%2").arg(QCoreApplication::applicationDirPath(), id());
+    QFileInfo checkModDir(moduleDir);
+    if (moduleDir.startsWith("/usr/") || !checkModDir.exists())
+        moduleDir = QStringLiteral("%1/%2").arg(SY_MODULESDIR, id());
+    const auto origModuleDir = moduleDir;
+    QFileInfo fi(moduleDir);
+    moduleDir = fi.canonicalFilePath();
+
+    return moduleDir.isEmpty()? origModuleDir : moduleDir;
 }
 
 void AbstractModule::setEventsMaxModulesPerThread(int maxModuleCount)

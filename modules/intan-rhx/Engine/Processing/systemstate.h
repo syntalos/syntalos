@@ -56,6 +56,7 @@ class Channel;
 class BooleanItem;
 class XMLInterface;
 class ControllerInterface;
+class IntanRhxModule;
 
 struct CPUInfo {
     cl_platform_id platformId;
@@ -134,6 +135,8 @@ public:
 
     void spikeReport(QString names);
     void advanceSpikeTimer();
+
+    void setSyntalosModule(IntanRhxModule *mod);
 
     // Intrinsic variables that shouldn't be changed solely through software (e.g. hardware-related, or set in software upon startup)
     SignalSources* signalSources;
@@ -368,6 +371,8 @@ public:
 
     SingleItemList globalItems;
     FilenameItemList stateFilenameItems;
+
+    IntanRhxModule *syMod;
 
 signals:
     void stateChanged();

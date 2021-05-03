@@ -29,6 +29,7 @@
 //------------------------------------------------------------------------------
 
 #include "gpuinterface.h"
+#include "intanrhxmodule.h"
 
 GPUInterface::GPUInterface(SystemState *state_, QObject *parent) :
     AbstractXPUInterface(state_, parent)
@@ -573,7 +574,7 @@ bool GPUInterface::createKernel(int devIndex)
     }
     state->writeToLog("Completed clCreateCommandQueue");
 
-    QString filename(qApp->applicationDirPath() + "/kernel.cl");
+    QString filename(state->syMod->moduleRootDir() + "/kernel.cl");
     QFile *file = new QFile(filename);
     if (!file->open(QIODevice::ReadOnly)) {
         gpuErrorMessage(tr("Cannot load kernel file to read. Is kernel.cl present?"));

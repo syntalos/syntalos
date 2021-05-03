@@ -60,21 +60,20 @@ bool IntanRhxModuleInfo::singleton() const
 
 AbstractModule *IntanRhxModuleInfo::createModule(QObject *parent)
 {
-    return new IntanRhxModule(parent);
+    return new IntanRhxModule(id(), parent);
 }
 
-IntanRhxModule::IntanRhxModule(QObject *parent)
-    : AbstractModule(parent),
+IntanRhxModule::IntanRhxModule(const QString &id, QObject *parent)
+    : AbstractModule(id, parent),
       m_chanExportDlg(nullptr),
       m_sysState(nullptr)
 {
-    m_boardSelectDlg = new BoardSelectDialog;
+    m_boardSelectDlg = new BoardSelectDialog(this);
     m_ctlWindow = m_boardSelectDlg->getControlWindow();
     if (m_ctlWindow != nullptr)
         m_ctlWindow->hide();
     m_sysState = m_boardSelectDlg->systemState();
     m_controllerIntf = m_boardSelectDlg->getControllerInterface();
-    m_controllerIntf->setSyntalosModule(this);
 
     m_boardSelectDlg->setWindowIcon(QIcon(":/module/intan-rhx"));
     m_ctlWindow->setWindowIcon(QIcon(":/module/intan-rhx"));

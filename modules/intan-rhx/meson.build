@@ -3,6 +3,8 @@
 subdir('Engine')
 subdir('GUI')
 
+mod_install_dir = join_paths(sy_modules_dir, fs.name(meson.current_source_dir()))
+
 #
 # Sources
 #
@@ -25,6 +27,33 @@ module_moc_src = [
 module_ui = []
 
 module_res = ['IntanRHX.qrc']
+
+# OpenCL kernel
+configure_file(
+    input: 'kernel.cl',
+    output: 'kernel.cl',
+    copy: true,
+    install: true,
+    install_dir: mod_install_dir
+)
+
+# FPGA bitfiles
+intanrhx_bitfiles = [
+    'FPGA-bitfiles/ConfigRHDController.bit',
+    'FPGA-bitfiles/ConfigRHDInterfaceBoard.bit',
+    'FPGA-bitfiles/ConfigRHSController.bit',
+    'FPGA-bitfiles/ConfigXEM6010Tester.bit',
+    'FPGA-bitfiles/USBEvaluationBoard.bit',
+]
+foreach bfile : intanrhx_bitfiles
+    configure_file(
+        input: bfile,
+        output: fs.name(bfile),
+        copy: true,
+        install: true,
+        install_dir: mod_install_dir
+    )
+endforeach
 
 #
 # Dependencies
@@ -79,8 +108,6 @@ module_cpp_args += ['-DCL_TARGET_OPENCL_VERSION=300']
 # Generic module setup
 #
 module_name = fs.name(meson.current_source_dir()).to_lower().underscorify().replace('_', '-')
-mod_install_dir = join_paths(sy_modules_dir, fs.name(meson.current_source_dir()))
-
 module_moc = qt.preprocess(
     moc_headers: module_moc_hdr,
     moc_sources: module_moc_src,

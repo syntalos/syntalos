@@ -55,8 +55,6 @@ public:
     bool isActive() const;
     void close();
 
-    void setSyntalosModule(IntanRhxModule *mod);
-
 signals:
     void cpuLoadPercent(double percent);
 

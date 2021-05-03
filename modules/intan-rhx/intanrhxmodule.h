@@ -68,7 +68,7 @@ class IntanRhxModule : public AbstractModule
 {
     Q_OBJECT
 public:
-    explicit IntanRhxModule(QObject *parent = nullptr);
+    explicit IntanRhxModule(const QString &id, QObject *parent = nullptr);
     ~IntanRhxModule();
 
     bool initialize() override;
