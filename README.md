@@ -32,13 +32,13 @@ Currently, the following modules are built-in or can be enabled at build-time:
  * *firmata-io*: Control a (wired) serial device that speaks the [Firmata](http://firmata.org/wiki/Main_Page) protocol, usually an Arduino.
    This module can be controlled with a custom user script via the Python module.
  * *firmata-userctl*: Manually send commands to a *firmata-io* module to change pin states using a simple GUI.
- * *rhd2000*: Use an [RHD2000 USB Interface Board](http://intantech.com/RHD2000_USB_interface_board.html) by [IntanTech](http://intantech.com/)
+ * *intan-rhx*: Use an [RHD2000 USB Interface Board](http://intantech.com/RHD2000_USB_interface_board.html) by [IntanTech](http://intantech.com/)
    for biopotential recordings of up to 256 channels.
  * *miniscope*: Perform calcium imaging in awake, freely moving animals using devices from the [UCLA Miniscope Project](http://miniscope.org/index.php/Main_Page).
  * *pyscript*: Run arbitrary Python 3 code and send automation commands to other modules in the active experiment.
  * *runcmd*: Run any external command when the experiment was started.
  * *table*: Display & record tabular data in a standardized CSV format.
- * *traceplot*: Plot long-running signal traces (usually recorded via the *rhd2000* module).
+ * *traceplot*: Plot long-running signal traces (usually recorded via the *intan-rhx* module).
  * *triled-tracker*: Track an animal via three LEDs mounted on a headstage and save various behavior parameters.
  * *videorecorder*: Record image streams from cameras to video files in various formats.
 

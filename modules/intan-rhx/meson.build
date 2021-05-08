@@ -1,9 +1,10 @@
 # Build definitions for module: intan-rhx
 
+mod_install_dir = join_paths(sy_modules_dir, fs.name(meson.current_source_dir()))
+
 subdir('Engine')
 subdir('GUI')
-
-mod_install_dir = join_paths(sy_modules_dir, fs.name(meson.current_source_dir()))
+subdir('udev')
 
 #
 # Sources
@@ -67,8 +68,16 @@ okfp_lib = cpp_compiler.find_library(
 configure_file(
     input: 'libraries/libokFrontPanel.so',
     output: 'libokFrontPanel.so',
-    copy: true
+    copy: true,
+    install: true,
+    install_dir: mod_install_dir
 )
+
+if build_machine.cpu_family() != 'x86_64'
+    error('Due to the proprietary OpalKelly FrontPanel in the Intan RHX module of Syntalos, ' +
+          'it will only work on Intel/Amd x86 and x86_64 architectures. It looks like your CPU ' + build_machine.cpu() + 'is not supported.\n' +
+          'You can compile Syntalos by disabling the `intan-rhx` module.')
+endif
 
 module_deps = [
     opengl_dep,
