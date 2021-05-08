@@ -121,6 +121,8 @@ public:
     void setupGlobalSettingsLoadSave(ControllerInterface* controllerInterface);
     bool loadGlobalSettings(const QString& filename, QString &errorMessage) const;
     bool saveGlobalSettings(const QString& filename) const;
+    QByteArray globalSettingsAsByteArray() const;
+    bool globalSettingsFromByteArray(const QByteArray &settings, QString &errorMessage, bool probeMap = false);
 
     void updateForChangeHeadstages();
 

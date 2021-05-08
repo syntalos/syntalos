@@ -75,6 +75,9 @@ public:
 
     void setSaveFilenameTemplate(const QString &fname);
 
+    QByteArray globalSettingsAsByteArray();
+    bool globalSettingsFromByteArray(const QByteArray &settings);
+
 signals:
     void sendSetCommand(QString parameter, QString value);
     void sendGetCommand(QString parameter);

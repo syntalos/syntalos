@@ -174,6 +174,11 @@ void ChanExportDialog::updateExportChannelsTable()
     emit exportedChannelsChanged(m_exportedChannels.values());
 }
 
+QStringList ChanExportDialog::exportedChannelNames() const
+{
+    return m_exportedChannels.keys();
+}
+
 void ChanExportDialog::availableChannelSelected()
 {
     bool changeChannelsAllowed = !m_state->running && (m_availableChannelsTable->selectedItems().size() > 0);

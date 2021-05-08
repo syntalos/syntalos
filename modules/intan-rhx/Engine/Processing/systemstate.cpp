@@ -1114,6 +1114,20 @@ bool SystemState::saveGlobalSettings(const QString& filename) const
     return globalSettingsInterface->saveFile(filename);
 }
 
+QByteArray SystemState::globalSettingsAsByteArray() const
+{
+    if (!globalSettingsInterface) {
+        cerr << "SystemState::loadGlobalSettings: Must run setupGlobalSettingsLoadSave first." << endl;
+        return QByteArray();
+    }
+    return globalSettingsInterface->saveByteArray();
+}
+
+bool SystemState::globalSettingsFromByteArray(const QByteArray &settings, QString &errorMessage, bool probeMap)
+{
+    return globalSettingsInterface->parseByteArray(settings, errorMessage, probeMap);
+}
+
 void SystemState::updateForChangeHeadstages()
 {
     // If a single channel is selected, then initialize the isi/psth/spectrogram/spikesorting to that channel.
@@ -1134,10 +1148,10 @@ void SystemState::updateForChangeHeadstages()
 void SystemState::enableLogging(bool enable)
 {
     // Set QSettings bool
-    QSettings settings;
-    settings.setValue("generateLogFile", enable);
-
-    setupLog();
+    //QSettings settings;
+    //settings.setValue("generateLogFile", enable);
+    Q_UNUSED(enable)
+    //setupLog();
 }
 
 // Called from State ctor and enableLogging(). Checks QSettings to see if file should actually be created, and writes first message

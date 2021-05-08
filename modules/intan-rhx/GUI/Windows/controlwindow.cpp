@@ -574,6 +574,7 @@ void ControlWindow::createActions()
 void ControlWindow::createMenus()
 {
     // File menu
+#if 0
     fileMenu = menuBar()->addMenu(tr("File"));
     fileMenu->addAction(loadSettingsAction);
     fileMenu->addAction(saveSettingsAction);
@@ -581,6 +582,7 @@ void ControlWindow::createMenus()
     fileMenu->addAction(defaultSettingsAction);
     fileMenu->addSeparator();
     fileMenu->addAction(exitAction);
+#endif
 
     // Display menu
     displayMenu = menuBar()->addMenu(tr("Display"));
@@ -1430,6 +1432,28 @@ void ControlWindow::setSaveFilenameTemplate(const QString &fname)
     QFileInfo newFileInfo(fname);
     state->filename->setBaseFilename(newFileInfo.baseName());
     state->filename->setPath(newFileInfo.absolutePath());
+}
+
+QByteArray ControlWindow::globalSettingsAsByteArray()
+{
+    state->displaySettings->setValue(multiColumnDisplay->getDisplaySettingsString());
+    return state->globalSettingsAsByteArray();
+}
+
+bool ControlWindow::globalSettingsFromByteArray(const QByteArray &settings)
+{
+    QString errorMessage;
+    const auto ret = state->globalSettingsFromByteArray(settings, errorMessage);
+
+    if (!ret) {
+        QMessageBox::critical(this, QStringLiteral("Error: Could not load settings"), errorMessage);
+    } else if (!errorMessage.isEmpty()) {
+        QMessageBox::critical(this, QStringLiteral("Warning: Problem loading settings"), errorMessage);
+    }
+    controllerInterface->updateChipCommandLists(false);  // Update amplifier bandwidth settings.
+    restoreDisplaySettings();
+
+    return ret;
 }
 
 void ControlWindow::loadSettingsSlot()

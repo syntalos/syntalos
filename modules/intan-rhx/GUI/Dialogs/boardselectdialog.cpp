@@ -659,6 +659,7 @@ void BoardSelectDialog::startSoftware(ControllerType controllerType, AmplifierSa
 
     controlWindow->show();
 
+#if 0
     QSettings settings;
     settings.beginGroup(ControllerTypeSettingsGroup[(int)state->getControllerTypeEnum()]);
     if (defaultSettingsFileCheckBox->isChecked()) {
@@ -673,6 +674,7 @@ void BoardSelectDialog::startSoftware(ControllerType controllerType, AmplifierSa
         settings.setValue("loadDefaultSettingsFile", false);
     }
     settings.endGroup();
+#endif
 }
 
 // Trigger the currently selected board's software.

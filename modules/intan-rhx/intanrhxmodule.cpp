@@ -218,6 +218,30 @@ void IntanRhxModule::stop()
     AbstractModule::stop();
 }
 
+void IntanRhxModule::serializeSettings(const QString&, QVariantHash &settings, QByteArray &extraData)
+{
+    extraData = m_ctlWindow->globalSettingsAsByteArray();
+
+    settings.insert("port_channel_names", m_chanExportDlg->exportedChannelNames());
+}
+
+bool IntanRhxModule::loadSettings(const QString &, const QVariantHash &settings, const QByteArray &extraData)
+{
+    if (!extraData.isEmpty()) {
+        const auto ret = m_ctlWindow->globalSettingsFromByteArray(extraData);
+        if (!ret)
+            return ret;
+    }
+
+    m_chanExportDlg->removeAllChannels();
+    const auto exportedChannelNames = settings.value("port_channel_names").toStringList();
+    for (const auto &chanName : exportedChannelNames)
+        m_chanExportDlg->addChannel(chanName, false);
+    m_chanExportDlg->updateExportChannelsTable();
+
+    return true;
+}
+
 void IntanRhxModule::setPortSignalBlockSampleSize(size_t sampleNum)
 {
     for (auto &blocks : intSdiByGroupChannel) {

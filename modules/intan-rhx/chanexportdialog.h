@@ -34,15 +34,20 @@ public:
     explicit ChanExportDialog(SystemState *state, QWidget *parent = nullptr);
     void updateFromState();
 
+public slots:
+    void addChannel(const QString &channelName, bool notify = true);
+    void removeAllChannels();
+    void updateExportChannelsTable();
+    QStringList exportedChannelNames() const;
+
 private slots:
     void availableChannelSelected();
 
     void addChannels();
-    void addChannel(const QString &channelName, bool notify = true);
+
     void addAllChannels();
     void removeChannels();
     void removeChannel(const QString &channelName, bool notify = true);
-    void removeAllChannels();
 
 signals:
     void exportedChannelsChanged(const QList<Channel*> &channels);
@@ -67,5 +72,4 @@ private:
     QMap<QString, Channel*> m_exportedChannels;
 
     void updateAvailableChannelsTable();
-    void updateExportChannelsTable();
 };

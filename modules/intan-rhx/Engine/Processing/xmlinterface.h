@@ -62,9 +62,9 @@ public:
 
     void saveAsElement(QXmlStreamWriter &stream) const; // Save as an XML element.
 
-private:
     QByteArray saveByteArray() const; // Save as a single QByteArray.
 
+private:
     bool parseDocumentStart(const QByteArray &byteArray, QString &errorMessage, bool &ignoreStimParameters, bool probeMap = false) const;
     bool parseGeneralConfig(const QByteArray &byteArray, QString &errorMessage) const;
     bool parseSignalGroups(const QByteArray &byteArray, QString &errorMessage) const;
