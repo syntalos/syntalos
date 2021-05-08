@@ -48,7 +48,7 @@ Currently, the following modules are built-in or can be enabled at build-time:
 
  * C++17 compatible compiler
    (GCC >= 7.1 or Clang >= 4. GCC is recommended)
- * cmake (>= 3.12)
+ * meson (>= 0.58)
  * Qt5 (>= 5.12)
  * Qt5 Test
  * Qt5 OpenGL
@@ -71,16 +71,19 @@ but any Linux distribution that has a recent enough C++ compiler and Qt version
 should work.
 
 Some modules may add additional dependencies for libraries to talk to individual devices or for a certain special feature.
-In case you get a dependency error when running `cmake`, install the missing dependency or try to build with less modules enabled.
+In case you get a dependency error when running `meson`, install the missing dependency or try to build with less modules enabled.
 
 Before attempting to build Syntalos, ensure all dependencies (and their development files) are installed on your system.
-You should then be able to build the software after configuring the build with cmake for your platform:
+You should then be able to build the software after configuring the build with Meson for your platform:
 ```sh
 mkdir build && cd build
-cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DOPTIMIZATION_NATIVE=ON ..
-make
-sudo make install
+meson --buildtype=debugoptimized -Doptimize-native=true ..
+ninja
+sudo ninja install
 ```
+
+Modules can be enabled and disabled via the `-Dmodules` flag - refer to `meson_options.txt` for a list of possible,
+comma-separated values.
 
 Pull-requests are very welcome! (Code should be valid C++17, use 4 spaces for indentation)
 
