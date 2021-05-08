@@ -20,7 +20,10 @@
 #include "config.h"
 #include <QApplication>
 #include <KDBusService>
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wzero-as-null-pointer-constant"
 #include <gst/gst.h>
+#pragma GCC diagnostic pop
 
 #include "mainwindow.h"
 

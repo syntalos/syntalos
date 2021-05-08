@@ -20,8 +20,11 @@
 #include "tiscameramodule.h"
 
 #include <QDebug>
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wzero-as-null-pointer-constant"
 #include <gst/app/gstappsink.h>
 #include <gst/video/video-format.h>
+#pragma GCC diagnostic pop
 #include "streams/frametype.h"
 
 #include "cdeviceselectiondlg.h"

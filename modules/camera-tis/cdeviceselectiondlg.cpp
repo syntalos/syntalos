@@ -22,7 +22,10 @@
 #include <unistd.h>
 #include <qdialog.h>
 #include <glib.h>
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wzero-as-null-pointer-constant"
 #include <gst/gst.h>
+#pragma GCC diagnostic pop
 
 /////////////////////////////////////////////////////////////////////
 // Helper templates

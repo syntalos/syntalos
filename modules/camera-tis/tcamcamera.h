@@ -6,7 +6,10 @@
 #include <memory>
 #include <functional>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wzero-as-null-pointer-constant"
 #include <gst/gst.h>
+#pragma GCC diagnostic pop
 #include <gst/app/gstappsink.h>
 #include <gst/video/videooverlay.h>
 

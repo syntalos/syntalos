@@ -26,7 +26,10 @@
 #include <QThread>
 #include <QDialog>
 #include <glib.h>
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wzero-as-null-pointer-constant"
 #include <gst/gst.h>
+#pragma GCC diagnostic pop
 
 #include <tcamprop.h>
 #include <vector>
