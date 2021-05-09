@@ -26,6 +26,7 @@
 #include <queue>
 #include <fstream>
 #include <QFileInfo>
+#include <QDateTime>
 #include <opencv2/imgproc/imgproc.hpp>
 extern "C" {
 #include <libavformat/avformat.h>
@@ -394,6 +395,8 @@ public:
 
     QString modName;
     QUuid collectionId;
+    QString videoTitle;
+    QString recordingDate;
     QString fnameBase;
     uint fileSliceIntervalMin;
     uint currentSliceNo;
@@ -807,6 +810,13 @@ void VideoWriter::initializeInternal()
         }
     }
 
+    // set file metadata
+    AVDictionary *metadataDict = nullptr;
+    av_dict_set(&metadataDict, "title", qPrintable(d->videoTitle), 0);
+    av_dict_set(&metadataDict, "collection_id", qPrintable(d->collectionId.toString(QUuid::WithoutBraces)), 0);
+    av_dict_set(&metadataDict, "date_recorded", qPrintable(d->recordingDate), 0);
+    d->octx->metadata = metadataDict;
+
     // write format header, after this we are ready to encode frames
     ret = avformat_write_header(d->octx, nullptr);
     if (ret < 0) {
@@ -885,7 +895,9 @@ void VideoWriter::finalizeInternal(bool writeTrailer)
 
 void VideoWriter::initialize(const QString &fname,
                              const QString &modName,
+                             const QString &sourceModName,
                              const QUuid &collectionId,
+                             const QString &subjectName,
                              int width,
                              int height,
                              int fps,
@@ -919,6 +931,19 @@ void VideoWriter::initialize(const QString &fname,
 
     d->modName = modName;
     d->collectionId = collectionId;
+
+    const auto time = QDateTime::currentDateTime();
+    d->recordingDate = time.date().toString("yyyy-MM-dd");
+
+    auto subjectInfo = subjectName;
+    if (subjectInfo.isEmpty()) {
+        QFileInfo tmpFi(d->fnameBase);
+        subjectInfo = QStringLiteral("Video ") + tmpFi.fileName();
+    }
+    if (sourceModName.isEmpty())
+        d->videoTitle = QStringLiteral("%1 (%2 on %3)").arg(subjectInfo, modName, d->recordingDate);
+    else
+        d->videoTitle = QStringLiteral("%1 via %2 on %3").arg(subjectInfo, sourceModName, d->recordingDate);
 
     // initialize encoder
     initializeInternal();

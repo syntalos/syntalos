@@ -58,10 +58,13 @@ private:
     std::shared_ptr<StreamInputPort<ControlCommand>> m_ctlPort;
     std::shared_ptr<StreamSubscription<ControlCommand>> m_ctlSub;
     bool m_checkCommands;
+
+    QString m_subjectName;
 public:
     explicit VideoRecorderModule(QObject *parent = nullptr)
         : AbstractModule(parent),
-          m_settingsDialog(nullptr)
+          m_settingsDialog(nullptr),
+          m_subjectName(QString())
     {
         m_inPort = registerInputPort<Frame>(QStringLiteral("frames-in"), QStringLiteral("Frames"));
         m_ctlPort = registerInputPort<ControlCommand>(QStringLiteral("control-in"), QStringLiteral("Control"));
@@ -95,7 +98,7 @@ public:
                ModuleFeature::SHOW_SETTINGS;
     }
 
-    bool prepare(const TestSubject&) override
+    bool prepare(const TestSubject &subject) override
     {
         if (!m_settingsDialog->videoNameFromSource() && m_settingsDialog->videoName().isEmpty()) {
             raiseError("Video recording name is not set. Please set it in the settings to continue.");
@@ -135,6 +138,8 @@ public:
         m_inSub = m_inPort->subscription();
         m_recording = true;
         m_recordingFinished = false;
+
+        m_subjectName = subject.id;
 
         // don't permit configuration changes while we are running
         m_settingsDialog->setEnabled(false);
@@ -309,7 +314,9 @@ public:
                 try {
                     m_videoWriter->initialize(vidSecFnameBase,
                                               name(),
+                                              inSubSrcModName,
                                               m_vidDataset->collectionId(),
+                                              m_subjectName,
                                               frameSize.width(),
                                               frameSize.height(),
                                               framerate,

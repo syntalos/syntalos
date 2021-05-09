@@ -153,8 +153,8 @@ public:
     ~VideoWriter();
 
     void initialize(const QString &fname,
-                    const QString &modName,
-                    const QUuid &collectionId,
+                    const QString &modName, const QString &sourceModName,
+                    const QUuid &collectionId, const QString &subjectName,
                     int width,
                     int height,
                     int fps,
