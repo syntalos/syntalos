@@ -695,8 +695,8 @@ void BoardSelectDialog::newRowSelected(int row)
 
     QSettings settings;
     settings.beginGroup(ControllerTypeSettingsGroup[(int)controllerType]);
-    bool useDefaultSettings = settings.value("useDefaultSettings", false).toBool();
-    bool loadDefaultSettingsFile = settings.value("loadDefaultSettingsFile", false).toBool();
+    bool useDefaultSettings = false; //settings.value("useDefaultSettings", false).toBool();
+    bool loadDefaultSettingsFile = false; //settings.value("loadDefaultSettingsFile", false).toBool();
 
     if (useDefaultSettings) {
         defaultSampleRateCheckBox->setChecked(true);

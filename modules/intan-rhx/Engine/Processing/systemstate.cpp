@@ -55,7 +55,7 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
     decayTime(1.0),
     globalSettingsInterface(nullptr)
 {
-    setupLog();
+    //setupLog();
 
     writeToLog("Entered SystemState ctor");
     // Private variables
