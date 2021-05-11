@@ -208,10 +208,12 @@ void EncodeTask::run()
             attrs["encoder"] = encInfo;
 
             QFile f(attrFname);
-            if (f.open(QFile::ReadWrite))
+            if (f.open(QFile::ReadWrite)) {
                 f.write(qVariantHashToTomlData(attrs));
-            else
+                f.write("\n");
+            } else {
                 qCWarning(logEncodeTask).noquote() << "Unable to open attributes file for writing: " << errorMsg;
+            }
         }
     } else {
         qCWarning(logEncodeTask).noquote() << "Unable to read dataset attributes: " << errorMsg;
