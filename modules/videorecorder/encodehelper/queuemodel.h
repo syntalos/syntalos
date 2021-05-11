@@ -22,6 +22,7 @@
 #include <QObject>
 #include <QAbstractTableModel>
 #include <QStyledItemDelegate>
+#include <QMutex>
 
 #include "../videowriter.h"
 
@@ -49,13 +50,15 @@ public:
     int progress() const;
     void setProgress(int progress);
 
-    QString errorMessage() const;
+    QString errorMessage();
     void setError(const QString &text);
 
 signals:
     void dataChanged();
 
 private:
+    QMutex m_mutex;
+
     QString m_projectId;
     QString m_videoId;
     QueueStatus m_status;
@@ -83,6 +86,7 @@ public:
     void append(QueueItem *queueItem);
     void remove(QSet<QueueItem *> rmItems);
     QList<QueueItem *> queueItems();
+    QueueItem *itemByIndex(const QModelIndex &index);
 
 private slots:
     void itemDataChanged();

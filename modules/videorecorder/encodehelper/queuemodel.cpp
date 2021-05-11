@@ -24,6 +24,7 @@
 #include <QPainter>
 #include <QTextDocument>
 #include <QAbstractTextDocumentLayout>
+#include <QMutexLocker>
 
 QueueItem::QueueItem(const QString &projectId, const QString &fname, QObject *parent)
     : QObject(parent),
@@ -78,6 +79,7 @@ QueueItem::QueueStatus QueueItem::status() const
 
 void QueueItem::setStatus(QueueItem::QueueStatus status)
 {
+    QMutexLocker locker(&m_mutex);
     m_status = status;
     emit dataChanged();
 }
@@ -91,17 +93,20 @@ void QueueItem::setProgress(int progress)
 {
     if (m_progress == progress)
         return;
+    QMutexLocker locker(&m_mutex);
     m_progress = progress;
     emit dataChanged();
 }
 
-QString QueueItem::errorMessage() const
+QString QueueItem::errorMessage()
 {
+    QMutexLocker locker(&m_mutex);
     return m_errorMsg;
 }
 
 void QueueItem::setError(const QString &text)
 {
+    QMutexLocker locker(&m_mutex);
     m_errorMsg = text;
     m_status = FAILED;
     emit dataChanged();
@@ -206,6 +211,15 @@ void QueueModel::remove(QSet<QueueItem *> rmItems)
 QList<QueueItem*> QueueModel::queueItems()
 {
     return m_data;
+}
+
+QueueItem *QueueModel::itemByIndex(const QModelIndex &index)
+{
+    if (index.row() > m_data.count())
+        return nullptr;
+    if (index.row() < 0)
+        return nullptr;
+    return m_data[index.row()];
 }
 
 void QueueModel::itemDataChanged()

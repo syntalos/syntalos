@@ -59,6 +59,7 @@ EncodeWindow::EncodeWindow(QWidget *parent)
         if (i != 2)
             ui->tasksTable->horizontalHeader()->setSectionResizeMode(i, QHeaderView::Stretch);
     }
+    ui->tasksTable->setSelectionBehavior(QAbstractItemView::SelectRows);
 
     ui->parallelTasksCountSpinBox->setMaximum(QThread::idealThreadCount() + 1);
     ui->parallelTasksCountSpinBox->setMinimum(1);
@@ -70,6 +71,7 @@ EncodeWindow::EncodeWindow(QWidget *parent)
     // enable the run button if new tasks are available
     connect(m_taskManager, &TaskManager::newTasksAvailable, [&]() {
         ui->runButton->setEnabled(true);
+        ui->detailsWidget->setVisible(false);
     });
     connect(m_taskManager, &TaskManager::encodingStarted, [&]() {
         ui->runButton->setEnabled(false);
@@ -93,8 +95,9 @@ EncodeWindow::EncodeWindow(QWidget *parent)
     });
     m_checkTimer->start();
 
-    // hide details display for now
+    // hide details display initially
     ui->detailsWidget->setVisible(false);
+    ui->splitter->setStretchFactor(0, 4);
 }
 
 EncodeWindow::~EncodeWindow()
@@ -110,6 +113,36 @@ void EncodeWindow::on_runButton_clicked()
 void EncodeWindow::on_parallelTasksCountSpinBox_valueChanged(int value)
 {
     m_taskManager->setParallelCount(value);
+}
+
+void EncodeWindow::on_tasksTable_activated(const QModelIndex &index)
+{
+    if (index.row() < 0)
+        return;
+    const auto item = m_queueModel->itemByIndex(index);
+    if (item == nullptr)
+        return;
+    ui->detailsWidget->setVisible(true);
+
+    const auto errorMsg = item->errorMessage();
+
+    QString info = "<b>General</b>";
+    QHashIterator<QString, QVariant> i(item->mdata());
+    while (i.hasNext()) {
+        i.next();
+        info += QStringLiteral("<br/>%1 = %2").arg(i.key(), i.value().toString());
+    }
+    info += "<br/><br/><b>Encoder</b>";
+    QHashIterator<QString, QVariant> ei(item->codecProps().toVariant());
+    while (ei.hasNext()) {
+        ei.next();
+        info += QStringLiteral("<br/>%1 = %2").arg(ei.key(), ei.value().toString());
+    }
+
+    const auto text = QStringLiteral("<h3>Errors</h3><p>%1</p>"
+                                     "<h3>Technical Details</h3><p>%2</p>").arg(errorMsg.isEmpty()? "None" : errorMsg,
+                                                                                info);
+    ui->detailsBrowser->setHtml(text);
 }
 
 void EncodeWindow::closeEvent(QCloseEvent *event)

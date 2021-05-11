@@ -45,6 +45,7 @@ protected:
 private slots:
     void on_runButton_clicked();
     void on_parallelTasksCountSpinBox_valueChanged(int value);
+    void on_tasksTable_activated(const QModelIndex &index);
 
 private:
     Ui::EncodeWindow *ui;
