@@ -104,9 +104,12 @@ module_cpp_args = [
     '-Wno-odr'
 ]
 if get_option('maintainer')
-    module_cpp_args = ['-Wno-error=zero-as-null-pointer-constant',
-                       '-Wno-error=deprecated-declarations',
-                       '-Wno-error=unused-but-set-variable',
+    module_cpp_args += ['-Wno-error=zero-as-null-pointer-constant',
+                        '-Wno-error=deprecated-declarations',
+                        '-Wno-error=unused-but-set-variable',
+                        '-Wno-error=non-virtual-dtor',
+                        '-Wno-error=type-limits', # this shows real errors, but we rather want to fix them upstream @ Intan
+                        '-Wno-error=sequence-point',
     ]
 endif
 
