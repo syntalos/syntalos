@@ -101,7 +101,6 @@ module_cpp_args = [
     '-Wno-error=suggest-override',
     '-Wno-suggest-override',
     '-Wno-non-virtual-dtor',
-    '-Wno-odr'
 ]
 if get_option('maintainer')
     module_cpp_args += ['-Wno-error=zero-as-null-pointer-constant',
