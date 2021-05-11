@@ -628,12 +628,21 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         const auto uiDisplayGeometry = iobj.value("ui_display_geometry").toHash();
         const auto jSubs = iobj.value("subscriptions").toHash();
 
-        setStatusText(QStringLiteral("Instantiating module: %1(%2)").arg(modId).arg(modName));
+        setStatusText(QStringLiteral("Instantiating module: %1(%2)").arg(modId, modName));
         auto mod = m_engine->createModule(modId, modName);
         if (mod == nullptr) {
             QMessageBox::critical(this, QStringLiteral("Can not load settings"),
                                   QStringLiteral("Unable to find module '%1' - please install the module first, then attempt to load this configuration again.").arg(modId));
             setStatusText("Failed to load settings.");
+
+            const auto reply = QMessageBox::question(this, QStringLiteral("Ignore missing module?"),
+                                                     QStringLiteral("While installing thie missing module is the right solution to load this board, "
+                                                                    "you can also enforce loading it. Please be aware that loading may fail. Load anyway?"),
+                                                     QMessageBox::Yes | QMessageBox::No);
+            if (reply == QMessageBox::Yes) {
+                qWarning().noquote().nospace() << QStringLiteral("Module %1[%2] was missing, but trying to load board anyway.").arg(modId, modName);
+                continue;
+            }
             return false;
         }
         auto sfile = rootDir->file(QStringLiteral("%1/%2.toml").arg(ename).arg(modId));
