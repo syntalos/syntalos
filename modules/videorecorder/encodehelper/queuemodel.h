@@ -71,7 +71,7 @@ class QueueModel : public QAbstractTableModel
     Q_OBJECT
 public:
 
-    QueueModel(QObject * parent = 0);
+    QueueModel(QObject *parent = nullptr);
     int rowCount(const QModelIndex &) const override;
     int columnCount(const QModelIndex &) const override;
 
