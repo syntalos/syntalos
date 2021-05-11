@@ -94,7 +94,8 @@ if get_option('tracing')
     add_project_link_arguments('-pg')
 endif
 
-if get_option('optimize-modern-amd64') and build_machine.cpu_family() == 'x86_64' and not get_option('optimize-native')
+optimize_modern_amd64 = get_option('optimize-modern-amd64') and not get_option('optimize-native')
+if optimize_modern_amd64 and build_machine.cpu_family() == 'x86_64'
     if cpp_compiler.has_argument('--with-arch_64=x86-64-v3')
         message('Using x86-64-v3 feature levels from ' + cpp_compiler.get_id() + ' ' + cpp_compiler.version())
         o_flags = ['--with-arch_64=x86-64-v3']
@@ -106,7 +107,8 @@ if get_option('optimize-modern-amd64') and build_machine.cpu_family() == 'x86_64
     add_project_arguments(o_flags, language: 'c')
     add_project_arguments(o_flags, language: 'cpp')
 endif
-if get_option('optimize-native') and not get_option('optimize-modern-amd64')
+if get_option('optimize-native')
+    message('Optimizing for native CPU (micro)architecture')
     add_project_arguments('-march=native', language: 'c')
     add_project_arguments('-march=native', language: 'cpp')
 endif
