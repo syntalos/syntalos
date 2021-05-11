@@ -117,6 +117,9 @@
             <property name="text">
              <string>Run</string>
             </property>
+            <property name="icon">
+             <iconset theme="media-playback-start"/>
+            </property>
            </widget>
           </item>
           <item>
