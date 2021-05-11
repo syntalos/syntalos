@@ -96,6 +96,7 @@ public:
     std::atomic_bool running;
     std::atomic_bool failed;
     QString runFailedReason;
+    bool runIsEphemeral;
 
     bool saveInternal;
     std::shared_ptr<EDLGroup> edlInternalData;
@@ -117,6 +118,7 @@ Engine::Engine(QWidget *parentWidget)
     d->modLibrary = new ModuleLibrary(this);
     d->parentWidget = parentWidget;
     d->timer.reset(new SyncTimer);
+    d->runIsEphemeral = false;
 
     // allow sending states via Qt queued connections,
     // and also register all other transmittable data types
@@ -658,6 +660,7 @@ bool Engine::run()
         return false;
 
     d->failed = true; // if we exit before this is reset, initialization has failed
+    d->runIsEphemeral = false; // not a volatile run
 
     if (d->activeModules.isEmpty()) {
         QMessageBox::warning(d->parentWidget,
@@ -743,6 +746,9 @@ bool Engine::runEphemeral()
     qCDebug(logEngine, "Initializing new ephemeral recording run");
 
     auto tempExportDir = tempDir.filePath("edl");
+
+    // mark run as volatile
+    d->runIsEphemeral = true;
 
     // perform the actual run, in a temporary directory
     auto ret = runInternal(tempExportDir);
@@ -918,6 +924,7 @@ bool Engine::runInternal(const QString &exportDirPath)
         mod->setStatusMessage(QString());
         mod->setTimer(d->timer);
         mod->setState(ModuleState::PREPARING);
+        mod->setEphemeralRun(d->runIsEphemeral);
 
         mod->setSimpleStorageNames(d->simpleStorageNames);
         if ((modInfo != nullptr) && (!modInfo->storageGroupName().isEmpty())) {

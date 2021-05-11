@@ -403,6 +403,11 @@ public:
 
     void enqueueVideosForDeferredEncoding()
     {
+        if (isEphemeralRun()) {
+            qDebug().noquote() << "Not performing deferred encoding, run was ephemeral.";
+            return;
+        }
+
         QEventLoop loop;
         QDBusServiceWatcher watcher(EQUEUE_DBUS_SERVICE,
                                     QDBusConnection::sessionBus(),

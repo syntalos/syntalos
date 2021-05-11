@@ -336,6 +336,7 @@ public:
     std::shared_ptr<EDLDataset> defaultDataset;
 
     bool initialized;
+    bool runIsEmphemeral;
 };
 
 // instantiate static field
@@ -349,6 +350,7 @@ AbstractModule::AbstractModule(QObject *parent) :
     d->id = QStringLiteral("unknown");
     d->name = QStringLiteral("Unknown Module");
     d->s_eventsMaxModulesPerThread = -1;
+    d->runIsEmphemeral = false;
 }
 
 AbstractModule::AbstractModule(const QString &id, QObject *parent)
@@ -776,6 +778,11 @@ int AbstractModule::defaultRealtimePriority() const
     return d->defaultRealtimePriority;
 }
 
+bool AbstractModule::isEphemeralRun() const
+{
+    return d->runIsEmphemeral;
+}
+
 void AbstractModule::setInitialized()
 {
     if (d->initialized)
@@ -871,6 +878,11 @@ void AbstractModule::setPotentialNoaffinityCPUCount(uint coreN)
 void AbstractModule::setDefaultRTPriority(int prio)
 {
     d->defaultRealtimePriority = prio;
+}
+
+void AbstractModule::setEphemeralRun(bool isEphemeral)
+{
+    d->runIsEmphemeral = isEphemeral;
 }
 
 void AbstractModule::setStatusMessage(const QString &message)

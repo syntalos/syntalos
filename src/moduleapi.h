@@ -834,6 +834,17 @@ protected:
      */
     int defaultRealtimePriority() const;
 
+    /**
+     * @brief Returns true if the currently ongoing or last run is/was ephemeral
+     *
+     * An emphameral (or volatile) run is a type of run where no data is stored permanently.
+     * Usually, a Syntalos module will not need to handle this type of run explicitly, but there
+     * are some cases where a module needs to be aware that all data will get deleted immediately
+     * after a run has completed (e.g. if postprocessing steps are deferred to an external process).
+     * @return True if the current run is/was ephemeral.
+     */
+    bool isEphemeralRun() const;
+
     void setInitialized();
     bool initialized() const;
 
@@ -861,6 +872,7 @@ private:
     void resetEventCallbacks();
     void setPotentialNoaffinityCPUCount(uint coreN);
     void setDefaultRTPriority(int prio);
+    void setEphemeralRun(bool isEphemeral);
 };
 
 } // end of namespace
