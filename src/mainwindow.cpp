@@ -946,8 +946,7 @@ void MainWindow::updateExportDirDisplay()
 
     auto font = ui->exportBaseDirLabel->font();
     font.setBold(false);
-    auto palette = ui->exportBaseDirLabel->palette();
-    palette.setColor(QPalette::WindowText, ui->dataLocationLabel->palette().color(QPalette::WindowText));
+    auto palette = QApplication::palette(ui->exportBaseDirLabel);
     if (m_engine->exportDirIsTempDir()) {
         font.setBold(true);
         palette.setColor(QPalette::WindowText, syColorDangerHigh());
@@ -959,8 +958,7 @@ void MainWindow::updateExportDirDisplay()
     if (!m_engine->isRunning())
         setRunPossible(true);
 
-    palette = ui->exportDirLabel->palette();
-    palette.setColor(QPalette::WindowText, ui->dataLocationLabel->palette().color(QPalette::WindowText));
+    palette = QApplication::palette(ui->exportDirLabel);
     if (m_engine->exportDirIsTempDir())
         palette.setColor(QPalette::WindowText, syColorDangerHigh());
     ui->exportDirLabel->setPalette(palette);

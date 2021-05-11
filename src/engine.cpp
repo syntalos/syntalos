@@ -1267,7 +1267,7 @@ bool Engine::runInternal(const QString &exportDirPath)
             }
 
             if (!issueFound && subBufferWarningEmitted)
-                Q_EMIT resourceWarning(StreamBuffers, false, QStringLiteral("All modules appear to run fast enough."));
+                Q_EMIT resourceWarning(StreamBuffers, false, QStringLiteral("All modules appear to be running fast enough."));
         });
 
         // start resource watchers
