@@ -509,7 +509,7 @@ bool EDLDataset::save()
                 if (auxFiles.contains(files[i]))
                     continue;
                 if (d->dataFile.parts.isEmpty())
-                    setDataFile(files[0], d->dataScanPattern.second.summary);
+                    setDataFile(files[i], d->dataScanPattern.second.summary);
                 else
                     addDataFilePart(files[i]);
             }
@@ -539,6 +539,11 @@ QString EDLDataset::addDataFilePart(const QString &fname, int index)
     d->dataFile.parts.append(part);
 
     return pathForDataBasename(baseName);
+}
+
+EDLDataFile EDLDataset::dataFile() const
+{
+    return d->dataFile;
 }
 
 QString EDLDataset::addAuxDataFile(const QString &fname, const QString &key, const QString &summary)
@@ -592,6 +597,12 @@ QString EDLDataset::pathForDataBasename(const QString &baseName)
         return QString();
     }
     return dir.filePath(bname);
+}
+
+QString EDLDataset::pathForDataPart(const EDLDataPart &dpart)
+{
+    QDir dir(path());
+    return dir.filePath(dpart.fname);
 }
 
 QStringList EDLDataset::findFilesByPattern(const QString &wildcard)

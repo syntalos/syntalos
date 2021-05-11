@@ -81,6 +81,7 @@ class CodecProperties
 {
 public:
     explicit CodecProperties(VideoCodec codec = VideoCodec::FFV1);
+    explicit CodecProperties(const QVariantHash &v);
     ~CodecProperties();
 
     CodecProperties(const CodecProperties& rhs);
@@ -127,6 +128,8 @@ public:
     int bitrateKbps() const;
     void setBitrateKbps(int bitrate);
 
+    QVariantHash toVariant() const;
+
 private:
     class Private;
     std::unique_ptr<Private> d;
@@ -167,12 +170,14 @@ public:
 
     std::chrono::milliseconds captureStartTimestamp() const;
     void setCaptureStartTimestamp(const std::chrono::milliseconds& startTimestamp);
+    void setTsyncFileCreationTimeOverride(const QDateTime &dt);
 
     bool encodeFrame(const cv::Mat& frame, const std::chrono::milliseconds& timestamp);
 
     CodecProperties codecProps() const;
     void setCodec(VideoCodec codec);
     void setCodecProps(CodecProperties props);
+    QString selectedEncoderName() const;
 
     VideoContainer container() const;
     void setContainer(VideoContainer container);

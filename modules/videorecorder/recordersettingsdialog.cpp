@@ -22,6 +22,7 @@
 
 #include <QVariant>
 #include <QMessageBox>
+#include <QThread>
 
 #include "utils/misc.h"
 
@@ -59,6 +60,14 @@ RecorderSettingsDialog::RecorderSettingsDialog(QWidget *parent) :
 
     // no slicing warning by default
     ui->sliceWarnButton->setVisible(false);
+
+    // no deferred encoding by default
+    ui->encodeAfterRunCheckBox->setChecked(false);
+    on_encodeAfterRunCheckBox_toggled(ui->encodeAfterRunCheckBox->isChecked());
+    ui->deferredParallelCountSpinBox->setMaximum(QThread::idealThreadCount() + 1);
+    ui->deferredParallelCountSpinBox->setMinimum(1);
+    const auto defaultDeferredTasks = QThread::idealThreadCount() - 2;
+    ui->deferredParallelCountSpinBox->setValue((defaultDeferredTasks >= 2)? defaultDeferredTasks : 2);
 }
 
 RecorderSettingsDialog::~RecorderSettingsDialog()
@@ -214,6 +223,36 @@ void RecorderSettingsDialog::setStartStopped(bool startStopped)
     ui->startStoppedCheckBox->setChecked(startStopped);
 }
 
+bool RecorderSettingsDialog::deferredEncoding()
+{
+    return ui->encodeAfterRunCheckBox->isChecked();
+}
+
+void RecorderSettingsDialog::setDeferredEncoding(bool enabled)
+{
+    ui->encodeAfterRunCheckBox->setChecked(enabled);
+}
+
+bool RecorderSettingsDialog::deferredEncodingInstantStart()
+{
+    return ui->deferredInstantEncodeCheckBox->isChecked();
+}
+
+void RecorderSettingsDialog::setDeferredEncodingInstantStart(bool enabled)
+{
+    ui->deferredInstantEncodeCheckBox->setChecked(enabled);
+}
+
+int RecorderSettingsDialog::deferredEncodingParallelCount()
+{
+    return ui->deferredParallelCountSpinBox->value();
+}
+
+void RecorderSettingsDialog::setDeferredEncodingParallelCount(int count)
+{
+    ui->deferredParallelCountSpinBox->setValue(count);
+}
+
 void RecorderSettingsDialog::on_nameLineEdit_textChanged(const QString &arg1)
 {
     m_videoName = simplifyStrForFileBasename(arg1);
@@ -267,6 +306,28 @@ void RecorderSettingsDialog::on_sliceWarnButton_clicked()
                                             "Since by slicing the data we need to re-initialize the video encoding for each new file, some frames may be lost when a new slice is started.\n"
                                             "This is usually only a very small quantity, but depending on the video's purpose and framerate, it may be noticeable and could be an issue.\n"
                                             "Please verify if this is an issue for you, and if it is, consider creating bigger slices, not using slicing or choosing a different codec."));
+}
+
+void RecorderSettingsDialog::on_deferredEncodeWarnButton_clicked()
+{
+    QMessageBox::information(this,
+                             QStringLiteral("Information on deferred encoding"),
+                             QStringLiteral("<html>"
+                                            "In order to free up CPU and I/O resources while the experiment is running, Syntalos can perform the expensive video "
+                                            "encoding step after the experiment is done. This is especially useful if GPU-accelerated encoding can not be used, "
+                                            "or a slower codec is in use.<br/>"
+                                            "Encoding can run in the background, or be run in batch after many experiments have completed.<br/>"
+                                            "However, during the recording the video data will be saved <b>uncompressed</b> and may exist on disk twice while encoding is ongoing. "
+                                            "This effect is multiplied when more videos are encoded in parallel. Please ensure that you have <b>excess diskspace</b> available "
+                                            "when using this option!"));
+}
+
+void RecorderSettingsDialog::on_encodeAfterRunCheckBox_toggled(bool checked)
+{
+    ui->deferredInstantEncodeCheckBox->setEnabled(checked);
+    ui->deferredParallelCountSpinBox->setEnabled(checked);
+    ui->startEncodingImmediatelyLabel->setEnabled(checked);
+    ui->parallelTasksLabel->setEnabled(checked);
 }
 
 void RecorderSettingsDialog::on_slicingCheckBox_toggled(bool checked)

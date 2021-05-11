@@ -161,6 +161,7 @@ public:
 
     QString setDataFile(const QString &fname, const QString &summary = QString());
     QString addDataFilePart(const QString &fname, int index = -1);
+    EDLDataFile dataFile() const;
 
     QString addAuxDataFile(const QString &fname, const QString &key = QString(), const QString &summary = QString());
     QString addAuxDataFilePart(const QString &fname, const QString &key = QString(), int index = -1);
@@ -189,6 +190,18 @@ public:
      * An empty string may be returned in case no path could be created.
      */
     QString pathForDataBasename(const QString &baseName);
+
+    /**
+     * @brief Return absolute path to data file on disk.
+     * This function will just return the absolute path of the given data part
+     * on disk. If the data part passed as parameter does not belong to this
+     * dataset, an invalid part will be returned.
+     * The function will not check for existence of the file!
+     *
+     * @param dpart The data part to resolve
+     * @return Absolute filepath
+     */
+    QString pathForDataPart(const EDLDataPart &dpart);
 
 private:
     class Private;

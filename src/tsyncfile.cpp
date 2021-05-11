@@ -168,6 +168,11 @@ void TimeSyncFileWriter::setChunkSize(int size)
     m_blockSize = size;
 }
 
+void TimeSyncFileWriter::setCreationTimeOverride(const QDateTime &dt)
+{
+    m_creationTimeOverride = dt;
+}
+
 template<class T>
 void TimeSyncFileWriter::csWriteValue(const T &data)
 {
@@ -208,7 +213,10 @@ bool TimeSyncFileWriter::open(const QString &modName, const QUuid &collectionId,
     const QString userDataJson(jdoc.toJson(QJsonDocument::Compact));
 
     // write file header
-    QDateTime currentTime(QDateTime::currentDateTime());
+    QDateTime currentTime = m_creationTimeOverride;
+    if (!currentTime.isValid())
+        currentTime = QDateTime::currentDateTime();
+    m_creationTimeOverride = QDateTime();
 
     m_stream << (quint64) TSYNC_FILE_MAGIC;
 

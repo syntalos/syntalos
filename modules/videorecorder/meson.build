@@ -1,6 +1,10 @@
 # Build definitions for module: videorecorder
 
 module_name = 'videorecorder'
+mod_install_dir = join_paths(sy_modules_dir, fs.name(meson.current_source_dir()))
+
+# small helper tool to enqueue files for deferred encoding
+subdir('encodehelper')
 
 module_hdr = [
     'videorecordmodule.h',
@@ -24,7 +28,8 @@ module_deps = [opencv_dep,
                avcodec_dep,
                avformat_dep,
                avutil_dep,
-               swscale_dep
+               swscale_dep,
+               qt_dbus_dep,
 ]
 
 #

@@ -233,6 +233,32 @@ CodecProperties::CodecProperties(VideoCodec codec)
         d->canUseVaapi = false;
 }
 
+CodecProperties::CodecProperties(const QVariantHash &v)
+    : CodecProperties(qvariant_cast<VideoCodec>(v["codec"]))
+{
+    Q_ASSERT(d->codec == static_cast<VideoCodec>(v["codec"].toInt()));
+
+    setBitrateKbps(v["bitrate"].toInt());
+    setLossless(v["lossless"].toBool());
+    setUseVaapi(v["use-vaapi"].toBool());
+    setMode(static_cast<EncoderMode>(v["mode"].toInt()));
+    setQuality(v["quality"].toInt());
+}
+
+QVariantHash CodecProperties::toVariant() const
+{
+    QVariantHash v;
+
+    v["bitrate"] = QVariant::fromValue(d->bitrate);
+    v["codec"] = QVariant::fromValue(static_cast<int>(d->codec));
+    v["lossless"] = QVariant::fromValue(d->lossless);
+    v["use-vaapi"] = QVariant::fromValue(d->useVaapi);
+    v["mode"] = QVariant::fromValue(static_cast<int>(d->mode));
+    v["quality"] = QVariant::fromValue(d->quality);
+
+    return v;
+}
+
 CodecProperties::~CodecProperties()
 {}
 
@@ -389,6 +415,8 @@ public:
         hwDevCtx = nullptr;
         hwFrameCtx = nullptr;
         hwFrame = nullptr;
+
+        selectedEncoderName = QStringLiteral("No encoder selected yet");
     }
 
     std::string lastError;
@@ -402,6 +430,7 @@ public:
     uint currentSliceNo;
     CodecProperties codecProps;
     VideoContainer container;
+    QString selectedEncoderName;
 
     bool initialized;
     int width;
@@ -608,6 +637,7 @@ void VideoWriter::initializeInternal()
         vcodec = avcodec_find_encoder(codecId);
     }
     d->cctx = avcodec_alloc_context3(vcodec);
+    d->selectedEncoderName = QString::fromUtf8(vcodec->name);
 
     // create new video stream
     d->vstrm = avformat_new_stream(d->octx, vcodec);
@@ -998,6 +1028,11 @@ void VideoWriter::setCaptureStartTimestamp(const std::chrono::milliseconds &star
     d->captureStartTimestamp = startTimestamp;
 }
 
+void VideoWriter::setTsyncFileCreationTimeOverride(const QDateTime &dt)
+{
+    d->tsfWriter.setCreationTimeOverride(dt);
+}
+
 inline
 bool VideoWriter::prepareFrame(const cv::Mat &inImage)
 {
@@ -1192,6 +1227,11 @@ void VideoWriter::setCodec(VideoCodec codec)
 void VideoWriter::setCodecProps(CodecProperties props)
 {
     d->codecProps = props;
+}
+
+QString VideoWriter::selectedEncoderName() const
+{
+    return d->selectedEncoderName;
 }
 
 VideoContainer VideoWriter::container() const

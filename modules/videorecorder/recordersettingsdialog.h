@@ -61,6 +61,15 @@ public:
     bool startStopped() const;
     void setStartStopped(bool startStopped);
 
+    bool deferredEncoding();
+    void setDeferredEncoding(bool enabled);
+
+    bool deferredEncodingInstantStart();
+    void setDeferredEncodingInstantStart(bool enabled);
+
+    int deferredEncodingParallelCount();
+    void setDeferredEncodingParallelCount(int count);
+
 private slots:
     void on_codecComboBox_currentIndexChanged(int index);
     void on_nameLineEdit_textChanged(const QString &arg1);
@@ -70,6 +79,9 @@ private slots:
 
     void on_slicingCheckBox_toggled(bool checked);
     void on_sliceWarnButton_clicked();
+
+    void on_deferredEncodeWarnButton_clicked();
+    void on_encodeAfterRunCheckBox_toggled(bool checked);
 
     void on_qualitySlider_valueChanged(int value);
     void on_bitrateSpinBox_valueChanged(int arg1);

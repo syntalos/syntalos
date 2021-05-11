@@ -23,6 +23,7 @@
 #include <QLoggingCategory>
 #include <QDataStream>
 #include <QUuid>
+#include <QDateTime>
 #include <xxhash.h>
 
 #include "syclock.h"
@@ -94,11 +95,13 @@ public:
     void setTimeUnits(TSyncFileTimeUnit time1Unit, TSyncFileTimeUnit time2Unit);
     void setTimeDataTypes(TSyncFileDataType time1DType, TSyncFileDataType time2DType);
 
-    void setFileName(const QString &fname);
     QString fileName() const;
+    void setFileName(const QString &fname);
 
     void setSyncMode(TSyncFileMode mode);
     void setChunkSize(int size);
+
+    void setCreationTimeOverride(const QDateTime &dt);
 
     bool open(const QString &modName, const QUuid &collectionId, const QVariantHash &userData = QVariantHash());
     bool open(const QString &modName, const QUuid &collectionId, const microseconds_t &tolerance, const QVariantHash &userData = QVariantHash());
@@ -117,6 +120,7 @@ private:
     int m_bIndex;
     XXH3_state_t *m_xxh3State;
     QString m_lastError;
+    QDateTime m_creationTimeOverride;
 
     QPair<QString, QString> m_timeNames;
     QPair<TSyncFileTimeUnit, TSyncFileTimeUnit> m_timeUnits;

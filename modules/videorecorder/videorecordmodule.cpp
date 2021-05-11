@@ -23,10 +23,18 @@
 #include <QDebug>
 #include <QFileInfo>
 #include <QCoreApplication>
+#include <QProcess>
+#include <QDBusServiceWatcher>
+#include <QDBusConnection>
+#include <QDBusInterface>
+#include <QDBusReply>
+#include <QDBusMetaType>
+#include <QTimer>
 #include "streams/frametype.h"
 
 #include "videowriter.h"
 #include "recordersettingsdialog.h"
+#include "equeueshared.h"
 
 SYNTALOS_MODULE(VideoRecorderModule)
 
@@ -60,6 +68,7 @@ private:
     bool m_checkCommands;
 
     QString m_subjectName;
+
 public:
     explicit VideoRecorderModule(QObject *parent = nullptr)
         : AbstractModule(parent),
@@ -98,6 +107,15 @@ public:
                ModuleFeature::SHOW_SETTINGS;
     }
 
+    QString findEncodeHelperBinary()
+    {
+        QString binFname = moduleRootDir() + "/encodehelper/encodehelper";
+        QFileInfo fi(binFname);
+        if (!fi.exists())
+            binFname = moduleRootDir() + "/encodehelper";
+        return binFname;
+    }
+
     bool prepare(const TestSubject &subject) override
     {
         if (!m_settingsDialog->videoNameFromSource() && m_settingsDialog->videoName().isEmpty()) {
@@ -105,11 +123,23 @@ public:
             return false;
         }
 
+        if (!QDBusConnection::sessionBus().isConnected()) {
+            raiseError("Cannot connect to the D-Bus session bus.\nSomething is wrong with the system or session configuration.");
+            return false;
+        }
+
         m_videoWriter.reset(new VideoWriter);
-        auto codecProps = m_settingsDialog->codecProps();
         m_videoWriter->setContainer(m_settingsDialog->videoContainer());
 
+        auto codecProps = m_settingsDialog->codecProps();
         codecProps.setThreadCount((potentialNoaffinityCPUCount() >= 2)? potentialNoaffinityCPUCount() : 2);
+
+        if (m_settingsDialog->deferredEncoding()) {
+            // deferred encoding is enabled, so we actually have to save a raw video file
+            m_videoWriter->setContainer(VideoContainer::Matroska);
+            CodecProperties cprops(VideoCodec::Raw);
+            codecProps = cprops;
+        }
         m_videoWriter->setCodecProps(codecProps);
 
         // copy codec properties so the worker thread has direct access to a copy
@@ -226,7 +256,7 @@ public:
                         // be deferred to that point
                         if (m_initDone) {
                             // start our new section
-                            if (!m_videoWriter->startNewSection(QStringLiteral("%1%2").arg(vidSavePathBase).arg(currentSecSuffix))) {
+                            if (!m_videoWriter->startNewSection(QStringLiteral("%1%2").arg(vidSavePathBase, currentSecSuffix))) {
                                 raiseError(QStringLiteral("Unable to initialize recording of a new section: %1").arg(QString::fromStdString(m_videoWriter->lastError())));
                                 return;
                             }
@@ -337,6 +367,7 @@ public:
                 vInfo.insert("colored", useColor);
 
                 QVariantHash encInfo;
+                encInfo.insert("name", m_videoWriter->selectedEncoderName());
                 encInfo.insert("lossless", m_activeCodecProps.isLossless());
                 encInfo.insert("thread_count", m_activeCodecProps.threadCount());
                 if (m_activeCodecProps.useVaapi())
@@ -370,6 +401,87 @@ public:
         m_recordingFinished = true;
     }
 
+    void enqueueVideosForDeferredEncoding()
+    {
+        QEventLoop loop;
+        QDBusServiceWatcher watcher(EQUEUE_DBUS_SERVICE,
+                                    QDBusConnection::sessionBus(),
+                                    QDBusServiceWatcher::WatchForRegistration);
+        connect(&watcher, &QDBusServiceWatcher::serviceRegistered,
+                [&](const QString &busName){
+
+            if (busName != EQUEUE_DBUS_SERVICE)
+                return;
+            loop.quit();
+        });
+
+        auto iface = new QDBusInterface(EQUEUE_DBUS_SERVICE,
+                                        "/", EQUEUE_DBUS_MANAGERINTF,
+                                   QDBusConnection::sessionBus(), this);
+
+        if (!iface->isValid()) {
+            // service is not available, start detached queue processor
+            // (will not do anything if process is already running)
+            QProcess equeueProc;
+            equeueProc.setProcessChannelMode(QProcess::ForwardedChannels);
+            equeueProc.startDetached(findEncodeHelperBinary(), QStringList());
+
+            // wait for the service to become available
+            QTimer timer;
+            timer.setSingleShot(true);
+            connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
+            timer.start(4000);
+            loop.exec();
+        }
+
+        if (!iface->isValid()) {
+            raiseError(QStringLiteral("Unable to connect to the encode queue service bia D-Bus. "
+                                      "Videos of this run will remain unencoded. Did the encoding service crash? Message: %1")
+                       .arg(QDBusConnection::sessionBus().lastError().message()));
+            return;
+        }
+
+        // set maximum number of parallel encoding jobs
+        iface->call("setParallelCount", m_settingsDialog->deferredEncodingParallelCount());
+
+        // display some "project name" useful for humans
+        const auto time = QDateTime::currentDateTime();
+        const auto projectName = m_subjectName.isEmpty()? QStringLiteral("%1 on %2").arg(m_vidDataset->name(),
+                                                                                         time.toString("HH:mm yy-MM-dd"))
+                                                        : QStringLiteral("%1 @ %2 on %3").arg(m_subjectName,
+                                                                                              m_vidDataset->name(),
+                                                                                              time.toString("HH:mm yy-MM-dd"));
+
+        // we need to explicitly save the dataset here to ensure any globs are finalized into
+        // actual data- and aux file parts.
+        m_vidDataset->save();
+
+        // schedule encoding jobs in the external encoder process
+        for (auto &dataPart : m_vidDataset->dataFile().parts) {
+            QVariantHash mdata;
+            mdata["mod-name"] = QVariant::fromValue(name());
+            mdata["src-mod-name"] = m_inSub->metadataValue(CommonMetadataKey::SrcModName).toString();
+            mdata["collection-id"] = m_vidDataset->collectionId().toString(QUuid::WithoutBraces);
+            mdata["subject-name"] = m_subjectName;
+            mdata["save-timestamps"] = m_settingsDialog->saveTimestamps();
+            mdata["video-container"] = static_cast<int>(m_settingsDialog->videoContainer());
+
+            QDBusReply<bool> reply = iface->call("enqueueVideo",
+                                                 projectName,
+                                                 m_vidDataset->pathForDataPart(dataPart),
+                                                 m_settingsDialog->codecProps().toVariant(),
+                                                 mdata);
+            if (!reply.isValid() || !reply.value())
+                raiseError(QStringLiteral("Unable to submit video data for encoding: %1").arg(reply.error().message()));
+        }
+
+        if (m_settingsDialog->deferredEncodingInstantStart()) {
+            QDBusReply<bool> reply = iface->call("processVideos");
+            if (!reply.isValid() || !reply.value())
+                qWarning().noquote() << "Unable to request immediate video encoding:" << reply.error().message();
+        }
+    }
+
     void stop() override
     {
         // this will terminate the thread
@@ -387,6 +499,9 @@ public:
 
         statusMessage(QStringLiteral("Recording stopped."));
         m_videoWriter.reset(nullptr);
+
+        if (m_settingsDialog->deferredEncoding())
+            enqueueVideosForDeferredEncoding();
 
         // permit settings canges again
         m_settingsDialog->setEnabled(true);
@@ -411,6 +526,10 @@ public:
 
         settings.insert("slices_enabled", static_cast<int>(m_settingsDialog->slicingEnabled()));
         settings.insert("slices_interval", static_cast<int>(m_settingsDialog->sliceInterval()));
+
+        settings.insert("deferred_encode_enabled", m_settingsDialog->deferredEncoding());
+        settings.insert("deferred_encode_instant_start", m_settingsDialog->deferredEncodingInstantStart());
+        settings.insert("deferred_encode_parallel_count", m_settingsDialog->deferredEncodingParallelCount());
     }
 
     bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
@@ -434,6 +553,10 @@ public:
         m_settingsDialog->setSlicingEnabled(settings.value("slices_enabled").toBool());
         m_settingsDialog->setSliceInterval(static_cast<uint>(settings.value("slices_interval").toInt()));
 
+        m_settingsDialog->setDeferredEncoding(settings.value("deferred_encode_enabled", false).toBool());
+        m_settingsDialog->setDeferredEncodingInstantStart(settings.value("deferred_encode_instant_start", true).toBool());
+        m_settingsDialog->setDeferredEncodingParallelCount(settings.value("deferred_encode_parallel_count", 4).toInt());
+
         return true;
     }
 };
@@ -455,7 +578,7 @@ QString VideoRecorderModuleInfo::description() const
 
 QIcon VideoRecorderModuleInfo::icon() const
 {
-    return QPixmap(":/module/videorecorder");
+    return QIcon(":/module/videorecorder");
 }
 
 QString VideoRecorderModuleInfo::storageGroupName() const
