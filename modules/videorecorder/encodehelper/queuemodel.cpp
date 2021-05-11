@@ -21,6 +21,9 @@
 
 #include <QApplication>
 #include <QFileInfo>
+#include <QPainter>
+#include <QTextDocument>
+#include <QAbstractTextDocumentLayout>
 
 QueueItem::QueueItem(const QString &projectId, const QString &fname, QObject *parent)
     : QObject(parent),
@@ -140,10 +143,10 @@ QVariant QueueModel::data(const QModelIndex &index, int role) const
                 str = "In Progress";
                 break;
             case QueueItem::FINISHED:
-                str = "Finished";
+                str = "<font color=\"#27ae60\">Finished</font>";
                 break;
             case QueueItem::FAILED:
-                str = "Failed";
+                str = "<font color=\"#da4453\"><b>Failed</b></font>";
                 break;
 
             default:
@@ -230,6 +233,52 @@ void ProgressBarDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
     progressBarOption.text = QString::number(progress) + QStringLiteral(" %");
     progressBarOption.textVisible = true;
 
-    QApplication::style()->drawControl(QStyle::CE_ProgressBar,
-        &progressBarOption, painter);
+    QApplication::style()->drawControl(QStyle::CE_ProgressBar, &progressBarOption, painter);
+}
+
+HtmlDelegate::HtmlDelegate(QObject *parent)
+    : QStyledItemDelegate(parent)
+{}
+
+QString HtmlDelegate::anchorAt(QString html, const QPoint &point) const
+{
+    QTextDocument doc;
+    doc.setHtml(html);
+
+    auto textLayout = doc.documentLayout();
+    Q_ASSERT(textLayout != nullptr);
+    return textLayout->anchorAt(point);
+}
+
+void HtmlDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
+{
+    auto options = option;
+    initStyleOption(&options, index);
+
+    painter->save();
+
+    QTextDocument doc;
+    doc.setHtml(options.text);
+
+    options.text = "";
+    options.widget->style()->drawControl(QStyle::CE_ItemViewItem, &option, painter);
+
+    doc.setTextWidth(options.rect.width());
+    const auto offsetY = (option.rect.height() - doc.size().height()) / 2;
+
+    painter->translate(options.rect.x(), options.rect.y() + offsetY);
+    QRect clip(0, 0, options.rect.width(), options.rect.height());
+    doc.drawContents(painter, clip);
+
+    painter->restore();
+}
+
+QSize HtmlDelegate::sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const {
+    auto options = option;
+    initStyleOption(&options, index);
+
+    QTextDocument doc;
+    doc.setHtml(options.text);
+    doc.setTextWidth(options.rect.width());
+    return QSize(doc.idealWidth(), doc.size().height());
 }

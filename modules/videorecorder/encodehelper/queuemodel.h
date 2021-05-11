@@ -94,9 +94,23 @@ private:
 class ProgressBarDelegate : public QStyledItemDelegate
 {
     Q_OBJECT
-
 public:
     ProgressBarDelegate(QObject *parent = nullptr);
+
+protected:
     void paint(QPainter *painter, const QStyleOptionViewItem &option,
         const QModelIndex &index) const override;
+};
+
+class HtmlDelegate : public QStyledItemDelegate
+{
+    Q_OBJECT
+public:
+    explicit HtmlDelegate(QObject *parent = nullptr);
+
+    QString anchorAt(QString html, const QPoint &point) const;
+
+protected:
+    void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const override;
+    QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const override;
 };

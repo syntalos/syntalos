@@ -43,6 +43,7 @@ EncodeWindow::EncodeWindow(QWidget *parent)
     m_queueModel = new QueueModel(ui->tasksTable);
 
     ui->tasksTable->setModel(m_queueModel);
+    ui->tasksTable->setItemDelegateForColumn(2, new HtmlDelegate(this));
     ui->tasksTable->setItemDelegateForColumn(3, new ProgressBarDelegate(this));
 
     m_taskManager = new TaskManager(m_queueModel, this);
