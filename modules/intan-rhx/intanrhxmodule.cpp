@@ -26,7 +26,6 @@
 
 SYNTALOS_MODULE(IntanRhxModule)
 
-
 QString IntanRhxModuleInfo::id() const
 {
     return QStringLiteral("intan-rhx");
@@ -69,32 +68,32 @@ IntanRhxModule::IntanRhxModule(const QString &id, QObject *parent)
       m_sysState(nullptr)
 {
     m_boardSelectDlg = new BoardSelectDialog(this);
-    m_ctlWindow = m_boardSelectDlg->getControlWindow();
-    if (m_ctlWindow != nullptr)
-        m_ctlWindow->hide();
-    m_sysState = m_boardSelectDlg->systemState();
-    m_controllerIntf = m_boardSelectDlg->getControllerInterface();
-
     m_boardSelectDlg->setWindowIcon(QIcon(":/module/intan-rhx"));
-    m_ctlWindow->setWindowIcon(QIcon(":/module/intan-rhx"));
-
-    if (m_sysState == nullptr)
-        return;
 }
 
 IntanRhxModule::~IntanRhxModule()
 {
     delete m_boardSelectDlg;
-    delete m_ctlWindow;
+    if (m_ctlWindow != nullptr)
+        delete m_ctlWindow;
 }
 
 bool IntanRhxModule::initialize()
 {
+    if (m_boardSelectDlg->getControlWindow() == nullptr)
+        m_boardSelectDlg->exec();
+
+    m_ctlWindow = m_boardSelectDlg->getControlWindow();
+    m_sysState = m_boardSelectDlg->systemState();
+    m_controllerIntf = m_boardSelectDlg->getControllerInterface();
     if (m_ctlWindow == nullptr) {
         raiseError(QStringLiteral("No reference to control window found. This is an internal error."));
         return false;
     }
-    if (m_sysState == nullptr) {
+    m_ctlWindow->hide();
+    m_ctlWindow->setWindowIcon(QIcon(":/module/intan-rhx"));
+
+    if ((m_sysState == nullptr) || (m_controllerIntf == nullptr)) {
         raiseError(QStringLiteral("Failed to initialize module."));
         return false;
     }
