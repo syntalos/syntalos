@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
     // set up GUI application and application details
     QApplication app(argc, argv);
     app.setApplicationName("Syntalos");
-    app.setOrganizationDomain("uni-heidelberg.de");
+    app.setOrganizationDomain("draguhnlab.com");
     app.setApplicationVersion(PROJECT_VERSION);
 
     // ensure we only ever run one instance of the application

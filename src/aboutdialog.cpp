@@ -25,7 +25,8 @@
 
 const QString aboutDlgCopyInfo = QStringLiteral(
         "<html>"
-        "(c) 2016-2020 Matthias Klumpp"
+        "(c) 2016-2021 Matthias Klumpp"
+        "<p>Developed at the Draguhn Group at Heidelberg University, Germany</p>"
         "<p>Syntalos is free software: you can redistribute it and/or modify "
         "it under the terms of the GNU General Public License as published by "
         "the Free Software Foundation, either version 3 of the License, or "
@@ -51,7 +52,7 @@ AboutDialog::AboutDialog(QWidget *parent) :
     if (syVcs.isEmpty())
         ui->versionLabel->setText(syVersion);
     else
-        ui->versionLabel->setText(QStringLiteral("%1 (%2)").arg(syVersion).arg(syVcs));
+        ui->versionLabel->setText(QStringLiteral("%1 (%2)").arg(syVersion, syVcs));
 
     auto rect = geometry();
     rect.setWidth(ui->asciiArtLabel->width() + 10);
