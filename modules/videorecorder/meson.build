@@ -50,8 +50,7 @@ mod = shared_module(module_name,
     dependencies: [syntalos_shared_dep,
                    module_deps],
     install: true,
-    install_dir: mod_install_dir,
-    install_rpath: sy_libdir
+    install_dir: mod_install_dir
 )
 
 mod_data = configuration_data()

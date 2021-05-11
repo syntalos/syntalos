@@ -44,5 +44,6 @@ executable('encodehelper',
                    avutil_dep,
                    swscale_dep],
     install: true,
-    install_dir: mod_install_dir
+    install_dir: mod_install_dir,
+    install_rpath: sy_libdir
 )
