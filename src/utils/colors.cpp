@@ -17,29 +17,24 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef ABOUTDIALOG_H
-#define ABOUTDIALOG_H
+#include "colors.h"
 
-#include <QDialog>
-
-namespace Ui {
-class AboutDialog;
+QColor syColorDanger()
+{
+    return QColor(218, 68, 83);
 }
 
-class AboutDialog : public QDialog
+QColor syColorDangerHigh()
 {
-    Q_OBJECT
+    return QColor(237, 21, 21);
+}
 
-public:
-    explicit AboutDialog(QWidget *parent = nullptr);
-    ~AboutDialog();
+QColor syColorSuccess()
+{
+    return QColor(39, 174, 96);
+}
 
-    void addModuleLicense(const QString& modName, const QString& license);
-
-private:
-    Ui::AboutDialog *ui;
-
-    QString m_licenseText;
-};
-
-#endif // ABOUTDIALOG_H
+QColor syColorWarning()
+{
+    return QColor(246, 116, 0);
+}

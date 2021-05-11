@@ -46,6 +46,7 @@
 
 #include "moduleapi.h"
 #include "utils/misc.h"
+#include "utils/colors.h"
 
 //----------------------------------------------------------------------------
 // FlowGraphItem
@@ -697,12 +698,12 @@ void FlowGraphNode::updateNodeState(ModuleState state)
     case ModuleState::ERROR:
         m_statusPix->setPixmap(QIcon(QPixmap(":/status/error")).pixmap(24, 24));
         m_statusText->setPlainText(QStringLiteral("Error!"));
-        effect->setColor(Qt::red);
+        effect->setColor(syColorDanger());
         break;
     default:
         m_statusPix->setPixmap(QIcon(QPixmap(":/status/preparing")).pixmap(24, 24));
         m_statusText->setPlainText(QStringLiteral("Module is in an unknown state."));
-        effect->setColor(Qt::red);
+        effect->setColor(syColorDanger());
         break;
     }
 

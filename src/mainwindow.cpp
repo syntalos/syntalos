@@ -62,6 +62,7 @@
 #include "sysinfodialog.h"
 #include "timingsdialog.h"
 #include "utils/tomlutils.h"
+#include "utils/colors.h"
 
 // config format API level
 static const QString CONFIG_FILE_FORMAT_VERSION = QStringLiteral("1");
@@ -940,7 +941,7 @@ void MainWindow::updateExportDirDisplay()
     palette.setColor(QPalette::WindowText, ui->dataLocationLabel->palette().color(QPalette::WindowText));
     if (m_engine->exportDirIsTempDir()) {
         font.setBold(true);
-        palette.setColor(QPalette::WindowText, Qt::red);
+        palette.setColor(QPalette::WindowText, syColorDangerHigh());
     }
     ui->exportBaseDirLabel->setPalette(palette);
     ui->exportBaseDirLabel->setFont(font);
@@ -952,7 +953,7 @@ void MainWindow::updateExportDirDisplay()
     palette = ui->exportDirLabel->palette();
     palette.setColor(QPalette::WindowText, ui->dataLocationLabel->palette().color(QPalette::WindowText));
     if (m_engine->exportDirIsTempDir())
-        palette.setColor(QPalette::WindowText, Qt::red);
+        palette.setColor(QPalette::WindowText, syColorDangerHigh());
     ui->exportDirLabel->setPalette(palette);
     ui->exportDirLabel->setText(m_engine->exportDir());
 }

@@ -17,29 +17,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef ABOUTDIALOG_H
-#define ABOUTDIALOG_H
+#pragma once
 
-#include <QDialog>
+#include <QColor>
 
-namespace Ui {
-class AboutDialog;
-}
-
-class AboutDialog : public QDialog
-{
-    Q_OBJECT
-
-public:
-    explicit AboutDialog(QWidget *parent = nullptr);
-    ~AboutDialog();
-
-    void addModuleLicense(const QString& modName, const QString& license);
-
-private:
-    Ui::AboutDialog *ui;
-
-    QString m_licenseText;
-};
-
-#endif // ABOUTDIALOG_H
+QColor syColorDanger();
+QColor syColorDangerHigh();
+QColor syColorWarning();
+QColor syColorSuccess();
