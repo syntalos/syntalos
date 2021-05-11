@@ -380,7 +380,7 @@ BoardSelectDialog::BoardSelectDialog(IntanRhxModule *mod, QWidget *parent) :
     syMod(mod)
 {
     // Initialize Board Identifier.
-    boardIdentifier = new BoardIdentifier(state->syMod->moduleRootDir(), this);
+    boardIdentifier = new BoardIdentifier(mod->moduleRootDir(), this);
 
     setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
 
