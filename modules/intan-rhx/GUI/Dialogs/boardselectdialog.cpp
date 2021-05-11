@@ -33,8 +33,9 @@
 #include "boardselectdialog.h"
 
 // Check if FrontPanel DLL is loaded, and create an instance of okCFrontPanel.
-BoardIdentifier::BoardIdentifier(QWidget *parent_) :
-    parent(parent_)
+BoardIdentifier::BoardIdentifier(const QString &bitfileDir, QWidget *parent_) :
+    parent(parent_),
+    bitfileRootDir(bitfileDir)
 {
     qDebug() << "---- Intan Technologies ----\n";
     if (!okFrontPanel_TryLoadLib()) {
@@ -162,7 +163,7 @@ void BoardIdentifier::identifyController(ControllerInfo *controller, int index)
     QString bitfilename = (controller->usbVersion == USB2) ? ConfigFileXEM6010Tester : ConfigFileRHDController;
 
     // Upload bit file.
-    if (!uploadFpgaBitfileQMessageBox(QCoreApplication::applicationDirPath() + "/" + bitfilename)) {
+    if (!uploadFpgaBitfileQMessageBox(bitfileRootDir + "/" + bitfilename)) {
         QMessageBox::critical(nullptr, QObject::tr("Configuration File Error: Software Aborting"),
                               QObject::tr("Cannot upload configuration file: ") + bitfilename +
                               QObject::tr(".  Make sure file is in the same directory as the executable file."));
@@ -379,7 +380,7 @@ BoardSelectDialog::BoardSelectDialog(IntanRhxModule *mod, QWidget *parent) :
     syMod(mod)
 {
     // Initialize Board Identifier.
-    boardIdentifier = new BoardIdentifier(this);
+    boardIdentifier = new BoardIdentifier(state->syMod->moduleRootDir(), this);
 
     setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
 

@@ -70,7 +70,7 @@ struct ControllerInfo {
 class BoardIdentifier
 {
 public:
-    BoardIdentifier(QWidget* parent_);
+    BoardIdentifier(const QString &bitfileDir, QWidget* parent_);
     ~BoardIdentifier();
 
     static QString getBoardTypeString(BoardMode mode, int numSpiPorts);
@@ -87,6 +87,7 @@ private:
     QWidget *parent;
 
     okCFrontPanel *dev;
+    QString bitfileRootDir;
 };
 
 class ScrollableMessageBox : public QDialog
