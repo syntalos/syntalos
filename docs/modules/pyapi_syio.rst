@@ -42,6 +42,10 @@ Functions
 :   Emit an error message string, immediately terminating the current action and (if applicable) the experiment.
 
     
+`schedule_delayed_call(arg0: int, arg1: Callable[[], NoneType])`
+:   Schedule call to a callable to be processed after a set amount of milliseconds.
+
+    
 `time_since_start_msec() ‑> int`
 :   Get time since experiment started in milliseconds.
 
@@ -121,6 +125,9 @@ Classes
     `name`
     :   name(self: handle) -> str
 
+    `value`
+    :   (arg0: syio.ControlCommandKind) -> int
+
 `FirmataCommandKind(...)`
 :   Members:
     
@@ -176,6 +183,9 @@ Classes
 
     `name`
     :   name(self: handle) -> str
+
+    `value`
+    :   (arg0: syio.FirmataCommandKind) -> int
 
 `FirmataControl(...)`
 :   __init__(self: syio.FirmataControl) -> None
@@ -297,6 +307,9 @@ Classes
     `name`
     :   name(self: handle) -> str
 
+    `value`
+    :   (arg0: syio.InputWaitResult) -> int
+
 `OutputPort(...)`
 :   __init__(self: syio.OutputPort, arg0: str, arg1: int) -> None
 
@@ -334,7 +347,7 @@ Classes
     
     1. __init__(self: syio.VectorDouble) -> None
     
-    2. __init__(self: syio.VectorDouble, arg0: syio.VectorDouble) -> None
+    2. __init__(self: syio.VectorDouble, arg0: List[float]) -> None
     
     Copy constructor
     
@@ -346,39 +359,39 @@ Classes
 
     ### Methods
 
-    `append(self: syio.VectorDouble, x: float)`
+    `append(self: List[float], x: float)`
     :   Add an item to the end of the list
 
-    `clear(self: syio.VectorDouble)`
+    `clear(self: List[float])`
     :   Clear the contents
 
-    `count(self: syio.VectorDouble, x: float) ‑> int`
+    `count(self: List[float], x: float) ‑> int`
     :   Return the number of times ``x`` appears in the list
 
     `extend(*args, **kwargs)`
     :   Overloaded function.
         
-        1. extend(self: syio.VectorDouble, L: syio.VectorDouble) -> None
+        1. extend(self: List[float], L: List[float]) -> None
         
         Extend the list by appending all the items in the given list
         
-        2. extend(self: syio.VectorDouble, L: Iterable) -> None
+        2. extend(self: List[float], L: Iterable) -> None
         
         Extend the list by appending all the items in the given list
 
-    `insert(self: syio.VectorDouble, i: int, x: float)`
+    `insert(self: List[float], i: int, x: float)`
     :   Insert an item at a given position.
 
     `pop(*args, **kwargs)`
     :   Overloaded function.
         
-        1. pop(self: syio.VectorDouble) -> float
+        1. pop(self: List[float]) -> float
         
         Remove and return the last item
         
-        2. pop(self: syio.VectorDouble, i: int) -> float
+        2. pop(self: List[float], i: int) -> float
         
         Remove and return the item at index ``i``
 
-    `remove(self: syio.VectorDouble, x: float)`
+    `remove(self: List[float], x: float)`
     :   Remove the first item from the list whose value is x. It is an error if there is no such item.
