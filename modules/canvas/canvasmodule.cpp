@@ -49,6 +49,7 @@ private:
     symaster_timepoint m_lastDisplayTime;
 
     uint m_throttleCount;
+    bool m_active;
 
 public:
     explicit CanvasModule(QObject *parent = nullptr)
@@ -86,8 +87,11 @@ public:
     void start() override
     {
         m_lastFrameTime = m_syTimer->timeSinceStartMsec().count();
-        if (m_frameSub.get() == nullptr)
+        if (m_frameSub.get() == nullptr) {
+            m_active = false;
             return;
+        }
+        m_active = true;
 
         // check framerate and throttle it, showing a remark in the latter
         // case so the user is aware that they're not seeing every single frame
@@ -113,6 +117,8 @@ public:
 
     void processUiEvents() override
     {
+        if (!m_active)
+            return;
         auto maybeFrame = m_frameSub->peekNext();
         if (!maybeFrame.has_value())
             return;
