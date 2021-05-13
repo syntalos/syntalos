@@ -2,6 +2,7 @@ name: Release Builds
 
 on:
   create:
+  workflow_dispatch:
   schedule:
     - cron: '0 10 * * 1'
 
