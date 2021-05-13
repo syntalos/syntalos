@@ -28,14 +28,17 @@
 #include <QHBoxLayout>
 #include <QMenuBar>
 #include <QMetaType>
+#include <QSplitter>
 #include <KTextEditor/Document>
 #include <KTextEditor/Editor>
 #include <KTextEditor/View>
+#include <QShortcut>
 
 #include "oop/oopmodule.h"
+#include "utils/colors.h"
 #include "porteditordialog.h"
 
-SYNTALOS_MODULE(PyScriptModule)
+SYNTALOS_MODULE(PyScriptModule);
 
 class PyScriptModule : public OOPModule
 {
@@ -43,21 +46,11 @@ class PyScriptModule : public OOPModule
 public:
 
     explicit PyScriptModule(QObject *parent = nullptr)
-        : OOPModule(parent)
+        : OOPModule(parent),
+          m_scriptWindow(nullptr)
     {
-        m_pyoutWindow = nullptr;
-        m_scriptWindow = nullptr;
-
         // we use the generic Python OOP worker process for this
         setWorkerBinaryPyWorker();
-
-        m_pyoutWindow = new QTextBrowser;
-        m_pyoutWindow->setFontFamily(QStringLiteral("Monospace"));
-        m_pyoutWindow->setFontPointSize(10);
-        m_pyoutWindow->setWindowTitle(QStringLiteral("Python Console Output"));
-        m_pyoutWindow->setWindowIcon(QIcon(":/icons/generic-view"));
-        m_pyoutWindow->resize(540, 210);
-        addDisplayWindow(m_pyoutWindow);
 
         // set up code editor
         auto editor = KTextEditor::Editor::instance();
@@ -71,38 +64,72 @@ public:
         samplePyRc.close();
 
         m_scriptWindow = new QWidget;
+        addDisplayWindow(m_scriptWindow);
+
         m_scriptWindow->setWindowIcon(QIcon(":/icons/generic-config"));
-        m_scriptWindow->setWindowTitle(QStringLiteral("Python Code"));
+        m_scriptWindow->setWindowTitle(QStringLiteral("%1 - Editor").arg(name()));
+
+        m_scriptView = pyDoc->createView(m_scriptWindow);
+        pyDoc->setHighlightingMode("python");
+
+        // add console output widget
+        m_pyconsoleWidget = new QTextBrowser(m_scriptWindow);
+        m_pyconsoleWidget->setFontFamily(QStringLiteral("Monospace"));
+        m_pyconsoleWidget->setFontPointSize(10);
+
+        m_pyconsoleWidget->setTextColor(SyColorWhite);
+        auto pal = m_pyconsoleWidget->palette();
+        pal.setColor(QPalette::Base, SyColorDark);
+        m_pyconsoleWidget->setPalette(pal);
+
+        auto splitter = new QSplitter(Qt::Vertical, m_scriptWindow);
+        splitter->addWidget(m_scriptView);
+        splitter->addWidget(m_pyconsoleWidget);
+        splitter->setStretchFactor(0, 8);
+        splitter->setStretchFactor(1, 1);
         auto scriptLayout = new QHBoxLayout(m_scriptWindow);
         m_scriptWindow->setLayout(scriptLayout);
         scriptLayout->setMargin(2);
+        scriptLayout->addWidget(splitter);
 
+        // add ports dialog
         auto menuBar = new QMenuBar();
         auto portsMenu = new QMenu("Ports");
         menuBar->addMenu(portsMenu);
         auto portEditAction = portsMenu->addAction("Edit");
         m_scriptWindow->layout()->setMenuBar(menuBar);
-        m_scriptWindow->resize(680, 780);
+        m_scriptWindow->resize(720, 800);
 
         m_portsDialog = new PortEditorDialog(this, m_scriptWindow);
-        addSettingsWindow(m_scriptWindow);
 
-        m_scriptView = pyDoc->createView(m_scriptWindow);
-        scriptLayout->addWidget(m_scriptView);
-        pyDoc->setHighlightingMode("python");
-
+        // connect UI events
         setCaptureStdout(true);
         connect(this, &OOPModule::processStdoutReceived, this, [&](const QString& data) {
-            m_pyoutWindow->append(data);
+            m_pyconsoleWidget->append(data);
         });
 
         connect(portEditAction, &QAction::triggered, this, [&](bool) {
             m_portsDialog->exec();
         });
+
+        // FIXME: Dirty hack: This introduces a shortcut conflict between the KTextEditor-registered one
+        // and this one. Ideally hitting Ctrl+S would save the Syntalos board, but instead it triggers
+        // the KTextEditor save dialog, which confused some users. Now, we show an error instead, which
+        // is also awful, but at least never leads to users doing the wrong thing. Long-term this needs
+        // a proper fix (if KTextEditor doesn't have the needed API, I should contribute it...).
+        auto shortcut = new QShortcut(QKeySequence(tr("Ctrl+S", "File|Save")),
+                                 m_scriptWindow);
+        connect(shortcut, &QShortcut::activated, [=]() {});
     }
 
     ~PyScriptModule() override
     {}
+
+    void setName(const QString &value) override
+    {
+        OOPModule::setName(value);
+        m_scriptWindow->setWindowTitle(QStringLiteral("%1 - Editor").arg(name()));
+    }
 
     bool initialize() override
     {
@@ -117,7 +144,7 @@ public:
 
     bool prepare(const TestSubject &testSubject) override
     {
-        m_pyoutWindow->clear();
+        m_pyconsoleWidget->clear();
         setPythonScript(m_scriptView->document()->text());
 
         return OOPModule::prepare(testSubject);
@@ -177,7 +204,7 @@ public:
     }
 
 private:
-    QTextBrowser *m_pyoutWindow;
+    QTextBrowser *m_pyconsoleWidget;
     KTextEditor::View *m_scriptView;
     PortEditorDialog *m_portsDialog;
 

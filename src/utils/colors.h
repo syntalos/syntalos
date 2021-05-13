@@ -21,7 +21,11 @@
 
 #include <QColor>
 
-QColor syColorDanger();
-QColor syColorDangerHigh();
-QColor syColorWarning();
-QColor syColorSuccess();
+// define a few commonly used color code for Syntalos
+const auto SyColorDanger = QColor(218, 68, 83);
+const auto SyColorDangerHigh = QColor(237, 21, 21);
+const auto SyColorWarning = QColor(246, 116, 0);
+const auto SyColorSuccess = QColor(39, 174, 96);
+
+const auto SyColorWhite = QColor(252, 252, 252);
+const auto SyColorDark = QColor(44, 62, 80);

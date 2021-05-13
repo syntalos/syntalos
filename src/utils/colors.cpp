@@ -18,23 +18,3 @@
  */
 
 #include "colors.h"
-
-QColor syColorDanger()
-{
-    return QColor(218, 68, 83);
-}
-
-QColor syColorDangerHigh()
-{
-    return QColor(237, 21, 21);
-}
-
-QColor syColorSuccess()
-{
-    return QColor(39, 174, 96);
-}
-
-QColor syColorWarning()
-{
-    return QColor(246, 116, 0);
-}
