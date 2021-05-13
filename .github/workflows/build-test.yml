@@ -30,9 +30,6 @@ jobs:
 
     - name: Build 3rd-party components
       run: |
-        sudo apt install python3-pip
-        sudo apt purge meson
-        sudo pip3 install meson
         cd env-prep && sudo ../tests/ci/make-install-3rdparty.sh
         rm -rf env-prep
 

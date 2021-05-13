@@ -1,0 +1,23 @@
+Source: syntalos
+Section: science
+Priority: optional
+Maintainer: Matthias Klumpp <mak@debian.org>
+Build-Depends: debhelper-compat (= 12),
+               meson
+Standards-Version: 4.5.0
+
+Package: syntalos
+Architecture: any
+Depends: ${misc:Depends},
+         ${shlibs:Depends}
+Description: Synchronized parallel DAQ from diverse sources
+ Syntalos is a software for timestamp-synchronized parallel data acquisition
+ from diverse data sources.
+ It is especially useful for in-vivo behavior tracking, electrophysiology,
+ miniscope recordings and control of automated closed-loop experiments in
+ neuroscience. Its modularity allows it to be used for a wide variety of
+ different experiment types.
+ .
+ The project contains many modules by default which allow acquisition of
+ data from a wide array of data sources, as well as common online processing
+ tasks. Some modules may require 3rd-party components to work properly.

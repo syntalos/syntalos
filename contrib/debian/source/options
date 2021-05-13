@@ -1,0 +1,8 @@
+tar-ignore=*.a
+tar-ignore=*.o
+tar-ignore=moc_*
+tar-ignore=.git
+tar-ignore=.gitattributes
+tar-ignore=.gitignore
+tar-ignore=.gitmodules
+tar-ignore=.gitreview

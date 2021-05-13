@@ -1,0 +1,56 @@
+name: Release Builds
+
+on: [push]
+
+jobs:
+
+  package-debian:
+    name: Debian Stable
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Create Build Environment
+      run: cd tests/ci/ && podman build -t syntalos -f ./Dockerfile-debian .
+
+    - name: Package Build
+      run: |
+        podman run -t -e CI=true -e DEBEMAIL=no-reply@physiologie.uni-heidelberg.de -v `pwd`:/build syntalos \
+            ./tests/ci/auto-build-deb.sh
+
+    - name: Upload Debian package artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: Debian Package
+        path: |
+          result/*.deb
+          result/*.build*
+
+
+  package-ubuntu:
+    name: Ubuntu LTS
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Create Build Environment
+      run: cd tests/ci/ && podman build -t syntalos -f Dockerfile-ubuntu .
+
+    - name: Package Build
+      run: |
+        podman run -t -e CI=true -e DEBEMAIL=no-reply@physiologie.uni-heidelberg.de -v `pwd`:/build syntalos \
+            ./tests/ci/auto-build-deb.sh
+
+    - name: Upload Ubuntu package artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: Ubuntu LTS Package
+        path: |
+          result/*.deb
+          result/*.build*
