@@ -90,7 +90,6 @@ bool IntanRhxModule::initialize()
         raiseError(QStringLiteral("No reference to control window found. This is an internal error."));
         return false;
     }
-    m_ctlWindow->hide();
     m_ctlWindow->setWindowIcon(QIcon(":/module/intan-rhx"));
 
     if ((m_sysState == nullptr) || (m_controllerIntf == nullptr)) {

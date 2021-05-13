@@ -824,6 +824,8 @@ void AbstractModule::restoreDisplayUiGeometry(const QVariant &var)
             continue;
         if (winfo.value("visible").toBool())
             wp.first->show();
+        else
+            wp.first->hide();
 
         auto b64Geometry = winfo.value("geometry").toString();
         wp.first->restoreGeometry(QByteArray::fromBase64(b64Geometry.toUtf8()));
