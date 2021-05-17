@@ -25,6 +25,8 @@
 #include "../equeueshared.h"
 #include "queuemodel.h"
 
+Q_DECLARE_LOGGING_CATEGORY(logEncodeMgr)
+
 class QThreadPool;
 
 class TaskManager: public QDBusAbstractAdaptor
@@ -53,9 +55,19 @@ public slots:
 signals:
     void newTasksAvailable();
     void encodingStarted();
+    void encodingFinished();
     void parallelCountChanged(int count);
+
+private slots:
+    void checkThreadPoolRunning();
+
+private:
+    void obtainSleepShutdownIdleInhibitor();
+    void releaseSleepShutdownIdleInhibitor();
 
 private:
     QueueModel *m_queue;
     QThreadPool *m_threadPool;
+    QTimer *m_checkTimer;
+    int m_idleInhibitFd;
 };

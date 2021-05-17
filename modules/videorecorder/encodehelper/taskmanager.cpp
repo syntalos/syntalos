@@ -23,20 +23,32 @@
 #include <QCoreApplication>
 #include <QDBusConnection>
 #include <QDBusError>
+#include <QDBusInterface>
+#include <QDBusReply>
+#include <QDBusUnixFileDescriptor>
 #include <QMessageBox>
 #include <QThreadPool>
+#include <QTimer>
 
 #include "encodetask.h"
+
+Q_LOGGING_CATEGORY(logEncodeMgr, "encoder.manager")
 
 TaskManager::TaskManager(QueueModel *queue, QObject *parent)
     : QDBusAbstractAdaptor(parent),
       m_queue(queue),
-      m_threadPool(new QThreadPool(this))
+      m_threadPool(new QThreadPool(this)),
+      m_checkTimer(new QTimer(this)),
+      m_idleInhibitFd(-1)
 {
     auto maxThreads = QThread::idealThreadCount() - 2;
     if (maxThreads < 2)
         maxThreads = 2;
     setProperty("parallelCount", maxThreads);
+
+    m_checkTimer->setInterval(1500);
+    connect(m_checkTimer, &QTimer::timeout, this, &TaskManager::checkThreadPoolRunning);
+    m_checkTimer->stop();
 }
 
 int TaskManager::parallelCount() const
@@ -72,6 +84,15 @@ bool TaskManager::isRunning()
     return m_threadPool->activeThreadCount() > 0;
 }
 
+void TaskManager::checkThreadPoolRunning()
+{
+    if (!isRunning()) {
+        m_checkTimer->stop();
+        emit encodingFinished();
+        releaseSleepShutdownIdleInhibitor();
+    }
+}
+
 bool TaskManager::enqueueVideo(const QString &projectId, const QString &videoFname,
                                const QHash<QString, QVariant> &codecProps,
                                const QHash<QString, QVariant> &mdata)
@@ -105,6 +126,41 @@ bool TaskManager::processVideos()
     // FIXME: Queue cleanup doesn't work properly yet
     //m_queue->remove(rmItems);
 
+    obtainSleepShutdownIdleInhibitor();
+    m_checkTimer->start();
     emit encodingStarted();
     return true;
+}
+
+void TaskManager::obtainSleepShutdownIdleInhibitor()
+{
+    if (m_idleInhibitFd > 0)
+        return;
+    QDBusInterface iface(QStringLiteral("org.freedesktop.login1"),
+                         QStringLiteral("/org/freedesktop/login1"),
+                         QStringLiteral("org.freedesktop.login1.Manager"),
+                         QDBusConnection::systemBus());
+    if (!iface.isValid()) {
+        qCDebug(logEncodeMgr).noquote() << "Unable to connect to logind DBus interface";
+        m_idleInhibitFd = -1;
+    }
+
+    QDBusReply<QDBusUnixFileDescriptor> reply;
+    reply = iface.call(QStringLiteral("Inhibit"),
+                       QStringLiteral("sleep:shutdown:idle"),
+                       QCoreApplication::applicationName(),
+                       QStringLiteral("Encoding video datasets"),
+                       QStringLiteral("block"));
+    if (!reply.isValid()) {
+        qCDebug(logEncodeMgr).noquote() << "Unable to request sleep/shutdown/idle inhibitor from logind.";
+        m_idleInhibitFd = -1;
+    }
+
+    m_idleInhibitFd = ::dup(reply.value().fileDescriptor());
+}
+
+void TaskManager::releaseSleepShutdownIdleInhibitor()
+{
+    if (m_idleInhibitFd != -1)
+        ::close(m_idleInhibitFd);
 }

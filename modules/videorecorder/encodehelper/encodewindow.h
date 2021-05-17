@@ -48,11 +48,13 @@ private slots:
     void on_tasksTable_activated(const QModelIndex &index);
 
 private:
+    void obtainSleepShutdownIdleInhibitor();
+
+private:
     Ui::EncodeWindow *ui;
 
     QueueModel *m_queueModel;
     TaskManager *m_taskManager;
 
     QSvgWidget *m_busyIndicator;
-    QTimer *m_checkTimer;
 };

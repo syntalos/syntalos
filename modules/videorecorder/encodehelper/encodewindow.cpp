@@ -27,14 +27,13 @@
 #include <QCloseEvent>
 #include <QMessageBox>
 #include <QSvgWidget>
-#include <QTimer>
 
 #include "taskmanager.h"
 #include "../videowriter.h"
 
 EncodeWindow::EncodeWindow(QWidget *parent)
-    : QMainWindow(parent)
-    , ui(new Ui::EncodeWindow)
+    : QMainWindow(parent),
+      ui(new Ui::EncodeWindow)
 {
     ui->setupUi(this);
     setWindowTitle("Syntalos - Video Encoding Queue");
@@ -80,20 +79,17 @@ EncodeWindow::EncodeWindow(QWidget *parent)
 
     // busy indicator
     m_busyIndicator = new QSvgWidget(ui->busyIndicatorContainer);
-    m_busyIndicator->load(QStringLiteral(":/animations/busy.svg"));
+    m_busyIndicator->load(QStringLiteral(":/animations/encoding.svg"));
     m_busyIndicator->setMaximumSize(QSize(40, 40));
     m_busyIndicator->setMinimumSize(QSize(40, 40));
     m_busyIndicator->hide();
 
-    m_checkTimer = new QTimer;
-    m_checkTimer->setInterval(1500);
-    connect(m_checkTimer, &QTimer::timeout, [&]() {
-        if (m_taskManager->isRunning())
-            m_busyIndicator->show();
-        else
-            m_busyIndicator->hide();
+    connect(m_taskManager, &TaskManager::encodingStarted, [&]() {
+        m_busyIndicator->show();
     });
-    m_checkTimer->start();
+    connect(m_taskManager, &TaskManager::encodingFinished, [&]() {
+        m_busyIndicator->hide();
+    });
 
     // hide details display initially
     ui->detailsWidget->setVisible(false);
