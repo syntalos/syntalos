@@ -30,7 +30,7 @@ class QueueItem;
 class EncodeTask : public QRunnable
 {
 public:
-    EncodeTask(QueueItem *item, bool updateAttrs);
+    EncodeTask(QueueItem *item, bool updateAttrs, int codecThreadN = 4);
 
     void run() override;
 
@@ -40,6 +40,7 @@ private:
 private:
     QueueItem *m_item;
     bool m_updateAttrsData;
+    int m_codecThreadCount;
     QString m_datasetRoot;
     QString m_srcFname;
     QString m_destFname;

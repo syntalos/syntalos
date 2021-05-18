@@ -60,7 +60,7 @@ EncodeWindow::EncodeWindow(QWidget *parent)
     }
     ui->tasksTable->setSelectionBehavior(QAbstractItemView::SelectRows);
 
-    ui->parallelTasksCountSpinBox->setMaximum(QThread::idealThreadCount() + 1);
+    ui->parallelTasksCountSpinBox->setMaximum(QThread::idealThreadCount() + 2);
     ui->parallelTasksCountSpinBox->setMinimum(1);
     ui->parallelTasksCountSpinBox->setValue(m_taskManager->parallelCount());
     connect(m_taskManager, &TaskManager::parallelCountChanged, [&](int count) {

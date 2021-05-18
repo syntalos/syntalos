@@ -33,10 +33,11 @@
 
 Q_LOGGING_CATEGORY(logEncodeTask, "encoder.task")
 
-EncodeTask::EncodeTask(QueueItem *item, bool updateAttrs)
+EncodeTask::EncodeTask(QueueItem *item, bool updateAttrs, int codecThreadN)
     : QRunnable(),
       m_item(item),
       m_updateAttrsData(updateAttrs),
+      m_codecThreadCount(codecThreadN),
       m_writeTsync(false)
 {}
 
@@ -98,7 +99,14 @@ void EncodeTask::run()
     VideoWriter vwriter;
     vwriter.setFileSliceInterval(0); // no slicing allowed
     vwriter.setContainer(static_cast<VideoContainer>(md["video-container"].toInt()));
-    vwriter.setCodecProps(m_item->codecProps());
+
+    // set codec properties
+    if (m_codecThreadCount <= 0)
+        m_codecThreadCount = 1;
+
+    auto cprops = m_item->codecProps();
+    cprops.setThreadCount(m_codecThreadCount);
+    vwriter.setCodecProps(cprops);
 
     // open source tsync file and load it
     TSyncFileTimeUnit tsyncTimeUnit;

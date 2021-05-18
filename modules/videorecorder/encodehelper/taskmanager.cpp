@@ -126,6 +126,12 @@ bool TaskManager::processVideos()
             // start encoding new items
             item->setStatus(QueueItem::SCHEDULED);
 
+            // allow codecs to use some multithreading (especially FFV1 benefits a lot from this)
+            // we are certainly overcommitting the CPU here, but in reality this seems to work extremely
+            // well for resource utilization and performance balance.
+            int codecThreadCount = QThread::idealThreadCount() - m_threadPool->maxThreadCount() - 2;
+            codecThreadCount = (codecThreadCount <= 1)? 2 : codecThreadCount;
+
             // we only set the "update attribute metadata" flag for the first
             // video in a dataset the we encounter. Otherwise we have multiple parallel
             // writers trying to write to the same file, which causes ugly race conditions
@@ -133,7 +139,8 @@ bool TaskManager::processVideos()
             const auto datasetRoot = fi.dir().path();
 
             auto task = new EncodeTask(item,
-                                       !scheduledDSPaths.contains(datasetRoot));
+                                       !scheduledDSPaths.contains(datasetRoot),
+                                       codecThreadCount);
             scheduledDSPaths.insert(datasetRoot);
 
             m_threadPool->start(task);
