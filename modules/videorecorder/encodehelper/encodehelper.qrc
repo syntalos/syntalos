@@ -3,6 +3,6 @@
         <file alias="videorecorder.svg">../../../data/modules/videorecorder.svg</file>
     </qresource>
     <qresource prefix="/animations">
-        <file alias="encoding.svg">../../../data/animations/queue.svg</file>
+        <file alias="encoding.svg">../../../data/animations/encoding.svg</file>
     </qresource>
 </RCC>
