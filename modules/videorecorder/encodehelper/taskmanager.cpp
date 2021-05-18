@@ -104,6 +104,12 @@ bool TaskManager::enqueueVideo(const QString &projectId, const QString &videoFna
     item->setMdata(mdata);
 
     m_queue->append(item);
+
+    // we prohibit shutdown even if we just have stuff queued - all data should be processed
+    // before the user can shutdown the system
+    obtainSleepShutdownIdleInhibitor();
+
+    // notify about the new task
     emit newTasksAvailable();
     return true;
 }
@@ -126,7 +132,6 @@ bool TaskManager::processVideos()
     // FIXME: Queue cleanup doesn't work properly yet
     //m_queue->remove(rmItems);
 
-    obtainSleepShutdownIdleInhibitor();
     m_checkTimer->start();
     emit encodingStarted();
     return true;
@@ -134,7 +139,7 @@ bool TaskManager::processVideos()
 
 void TaskManager::obtainSleepShutdownIdleInhibitor()
 {
-    if (m_idleInhibitFd > 0)
+    if (m_idleInhibitFd >= 0)
         return;
     QDBusInterface iface(QStringLiteral("org.freedesktop.login1"),
                          QStringLiteral("/org/freedesktop/login1"),
