@@ -29,6 +29,8 @@
 #include <QMessageBox>
 #include <QThreadPool>
 #include <QTimer>
+#include <QFileInfo>
+#include <QDir>
 
 #include "encodetask.h"
 
@@ -117,11 +119,23 @@ bool TaskManager::enqueueVideo(const QString &projectId, const QString &videoFna
 bool TaskManager::processVideos()
 {
     QSet<QueueItem*> rmItems;
+    QSet<QString> scheduledDSPaths;
+
     for (auto &item : m_queue->queueItems()) {
         if (item->status() == QueueItem::WAITING) {
             // start encoding new items
             item->setStatus(QueueItem::SCHEDULED);
-            auto task = new EncodeTask(item);
+
+            // we only set the "update attribute metadata" flag for the first
+            // video in a dataset the we encounter. Otherwise we have multiple parallel
+            // writers trying to write to the same file, which causes ugly race conditions
+            QFileInfo fi(item->fname());
+            const auto datasetRoot = fi.dir().path();
+
+            auto task = new EncodeTask(item,
+                                       !scheduledDSPaths.contains(datasetRoot));
+            scheduledDSPaths.insert(datasetRoot);
+
             m_threadPool->start(task);
         } else if (item->status() == QueueItem::FINISHED) {
             // remove successfuly completed entries

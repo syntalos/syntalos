@@ -33,9 +33,10 @@
 
 Q_LOGGING_CATEGORY(logEncodeTask, "encoder.task")
 
-EncodeTask::EncodeTask(QueueItem *item)
+EncodeTask::EncodeTask(QueueItem *item, bool updateAttrs)
     : QRunnable(),
       m_item(item),
+      m_updateAttrsData(updateAttrs),
       m_writeTsync(false)
 {}
 
@@ -181,42 +182,44 @@ void EncodeTask::run()
     vwriter.finalize();
 
     // update dataset attributes metadata
-    QString errorMsg;
-    QString attrFname = m_datasetRoot + QStringLiteral("/attributes.toml");
-    auto attrs = parseTomlFile(attrFname, errorMsg);
-    if (errorMsg.isEmpty()) {
-        // FIXME: There is still a race condition here if many encoder tasks try to write to this file
-        // simultaneously (should be rare to hit, but it's still a bug)
-        if (attrs.value("encoder").toHash().value("name").toString() != vwriter.selectedEncoderName()) {
-            QVariantHash vInfo;
-            vInfo.insert("frame_width", frameWidth);
-            vInfo.insert("frame_height", frameHeight);
-            vInfo.insert("framerate", vsrc.get(cv::CAP_PROP_FPS));
-            vInfo.insert("colored", useColor);
+    if (m_updateAttrsData) {
+        QString errorMsg;
+        QString attrFname = m_datasetRoot + QStringLiteral("/attributes.toml");
+        auto attrs = parseTomlFile(attrFname, errorMsg);
+        if (errorMsg.isEmpty()) {
+            // FIXME: There is still a race condition here if many encoder tasks try to write to this file
+            // simultaneously (should be rare to hit, but it's still a bug)
+            if (attrs.value("encoder").toHash().value("name").toString() != vwriter.selectedEncoderName()) {
+                QVariantHash vInfo;
+                vInfo.insert("frame_width", frameWidth);
+                vInfo.insert("frame_height", frameHeight);
+                vInfo.insert("framerate", vsrc.get(cv::CAP_PROP_FPS));
+                vInfo.insert("colored", useColor);
 
-            QVariantHash encInfo;
-            encInfo.insert("name", vwriter.selectedEncoderName());
-            encInfo.insert("lossless", vwriter.codecProps().isLossless());
-            encInfo.insert("thread_count", vwriter.codecProps().threadCount());
-            if (vwriter.codecProps().useVaapi())
-                encInfo.insert("vaapi_enabled", true);
-            if (vwriter.codecProps().mode() == CodecProperties::ConstantBitrate)
-                encInfo.insert("target_bitrate_kbps", vwriter.codecProps().bitrateKbps());
-            else
-                encInfo.insert("target_quality", vwriter.codecProps().quality());
-            attrs["video"] = vInfo;
-            attrs["encoder"] = encInfo;
+                QVariantHash encInfo;
+                encInfo.insert("name", vwriter.selectedEncoderName());
+                encInfo.insert("lossless", vwriter.codecProps().isLossless());
+                encInfo.insert("thread_count", vwriter.codecProps().threadCount());
+                if (vwriter.codecProps().useVaapi())
+                    encInfo.insert("vaapi_enabled", true);
+                if (vwriter.codecProps().mode() == CodecProperties::ConstantBitrate)
+                    encInfo.insert("target_bitrate_kbps", vwriter.codecProps().bitrateKbps());
+                else
+                    encInfo.insert("target_quality", vwriter.codecProps().quality());
+                attrs["video"] = vInfo;
+                attrs["encoder"] = encInfo;
 
-            QFile f(attrFname);
-            if (f.open(QFile::ReadWrite)) {
-                f.write(qVariantHashToTomlData(attrs));
-                f.write("\n");
-            } else {
-                qCWarning(logEncodeTask).noquote() << "Unable to open attributes file for writing: " << errorMsg;
+                QFile f(attrFname);
+                if (f.open(QFile::ReadWrite)) {
+                    f.write(qVariantHashToTomlData(attrs));
+                    f.write("\n");
+                } else {
+                    qCWarning(logEncodeTask).noquote() << "Unable to open attributes file for writing: " << errorMsg;
+                }
             }
+        } else {
+            qCWarning(logEncodeTask).noquote() << "Unable to read dataset attributes: " << errorMsg;
         }
-    } else {
-        qCWarning(logEncodeTask).noquote() << "Unable to read dataset attributes: " << errorMsg;
     }
 
     if (vsrc.get(cv::CAP_PROP_POS_FRAMES) != frameCount) {
