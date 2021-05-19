@@ -46,7 +46,7 @@
 
 #include "moduleapi.h"
 #include "utils/misc.h"
-#include "utils/colors.h"
+#include "utils/style.h"
 
 //----------------------------------------------------------------------------
 // FlowGraphItem

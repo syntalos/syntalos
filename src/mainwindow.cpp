@@ -62,33 +62,11 @@
 #include "sysinfodialog.h"
 #include "timingsdialog.h"
 #include "utils/tomlutils.h"
-#include "utils/colors.h"
+#include "utils/style.h"
+
 
 // config format API level
 static const QString CONFIG_FILE_FORMAT_VERSION = QStringLiteral("1");
-
-static bool switchIconTheme(const QString& themeName)
-{
-    if (themeName.isEmpty())
-        return false;
-    if (QIcon::themeName() == themeName)
-        return true;
-    auto found = false;
-    for (auto &path : QIcon::themeSearchPaths()) {
-        QFileInfo fi(QStringLiteral("%1/%2").arg(path).arg(themeName));
-        if (fi.isDir()) {
-            found = true;
-            break;
-        }
-    }
-
-    if (!found)
-        return false;
-    QIcon::setThemeName(themeName);
-    qDebug() << "Switched icon theme to" << themeName;
-
-    return true;
-}
 
 
 MainWindow::MainWindow(QWidget *parent) :
@@ -98,6 +76,12 @@ MainWindow::MainWindow(QWidget *parent) :
     // Load settings and set icon theme explicitly
     // (otherwise the application may look ugly or incomplete on GNOME)
     m_gconf = new GlobalConfig(this);
+
+    // set default style, prefer Breeze for the main application for a more
+    // consistent look (we should test with more "native" styles and their dark
+    // modes first before blindly enabling them by default and make UI elements
+    // vanish for the user by accident)
+    setDefaultStyle(true);
 
     // try to enforce breeze first, then the user-defined theme name, then the system default
     switchIconTheme(QStringLiteral("breeze"));

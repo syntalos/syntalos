@@ -35,7 +35,7 @@
 #include <QShortcut>
 
 #include "oop/oopmodule.h"
-#include "utils/colors.h"
+#include "utils/style.h"
 #include "porteditordialog.h"
 
 SYNTALOS_MODULE(PyScriptModule);

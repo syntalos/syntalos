@@ -29,3 +29,6 @@ const auto SyColorSuccess = QColor(39, 174, 96);
 
 const auto SyColorWhite = QColor(252, 252, 252);
 const auto SyColorDark = QColor(44, 62, 80);
+
+void setDefaultStyle(bool preferBreeze = false);
+bool switchIconTheme(const QString& themeName);

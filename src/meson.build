@@ -32,10 +32,10 @@ syntalos_shared_src = [
     'oop/oopmodule.cpp',
     'oop/oopworkerconnector.cpp',
 
-    'utils/colors.h',
-    'utils/colors.cpp',
     'utils/misc.h',
     'utils/misc.cpp',
+    'utils/style.h',
+    'utils/style.cpp',
     'utils/tomlutils.h',
     'utils/tomlutils.cpp',
 

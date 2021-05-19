@@ -21,10 +21,15 @@
 
 #include <QApplication>
 
+#include "utils/style.h"
+
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
     EncodeWindow w;
+
+    // set Syntalos default style
+    setDefaultStyle();
 
     w.show();
     return a.exec();
