@@ -343,11 +343,12 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     }
 
     // calculate time-based correction offset, half of the needed correction time
-    m_timeCorrectionOffset = microseconds_t(std::lround((m_timeCorrectionOffset.count() + avgOffsetDeviationUsec) / 2.0 / 2.0));
+    m_timeCorrectionOffset = microseconds_t(std::lround((m_timeCorrectionOffset.count() - avgOffsetDeviationUsec) / 2.0 / 2.0));
+    m_tpDebug << "avgOffsetDeviationUsec" << ";" << "time-adjust-pending" << ";" << avgOffsetDeviationUsec << "\n";
 
     // sanity check: we need to correct by at least one datapoint for any synchronization to occur at all
     if (abs(m_timeCorrectionOffset.count()) <= m_timePerPointUs)
-        m_timeCorrectionOffset = microseconds_t(std::lround(m_timeCorrectionOffset.count() * 2.0));
+        m_timeCorrectionOffset = microseconds_t(static_cast<int>(ceil(m_timePerPointUs)));
 
     // translate the clock update offset to indices. We round up here as we are already below threshold,
     // and overshooting slightly appears to be the better solution than being too conservative
