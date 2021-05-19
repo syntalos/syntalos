@@ -435,7 +435,7 @@ public:
             QTimer timer;
             timer.setSingleShot(true);
             connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
-            timer.start(4000);
+            timer.start(10000);
             loop.exec();
         }
 

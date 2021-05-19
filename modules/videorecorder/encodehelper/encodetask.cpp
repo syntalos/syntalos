@@ -89,7 +89,7 @@ void EncodeTask::run()
     }
 
     // open source video file
-    cv::VideoCapture vsrc(m_srcFname.toStdString());
+    cv::VideoCapture vsrc(m_srcFname.toStdString(), cv::CAP_FFMPEG);
     if (!vsrc.isOpened()) {
         m_item->setError("Unable to open recorded raw video. Encoding failed");
         return;
