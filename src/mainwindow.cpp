@@ -994,7 +994,7 @@ void MainWindow::moduleErrorReceived(AbstractModule *, const QString&)
 void MainWindow::onEnginePreRunStart()
 {
     m_rtElapsedTimer->start();
-    showBusyIndicatorRunning();
+    showBusyIndicatorProcessing();
     m_timingsDialog->clear();
 
     ui->diskSpaceWarnWidget->setVisible(false);
@@ -1007,6 +1007,7 @@ void MainWindow::onEngineRunStarted()
     // we passed preflight and are actually running now,
     // therefore the user is permitted to cancel a run
     setRunUiControlStates(true, true);
+    showBusyIndicatorRunning();
 }
 
 void MainWindow::onEngineStopped()
