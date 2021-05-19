@@ -359,10 +359,14 @@ void MainWindow::setRunUiControlStates(bool engineRunning, bool stopPossible)
     ui->actionSubjectsLoad->setEnabled(!engineRunning);
     ui->actionSubjectsSave->setEnabled(!engineRunning);
 
-    if (engineRunning)
+    // display the correct busy animation for preflight/running/stopped
+    if (engineRunning && !stopPossible)
         showBusyIndicatorProcessing();
-    else
+    if (engineRunning && stopPossible)
+        showBusyIndicatorRunning();
+    if (!engineRunning)
         hideBusyIndicator();
+    qApp->processEvents();
 }
 
 void MainWindow::setExperimenterSelectVisible(bool visible)
