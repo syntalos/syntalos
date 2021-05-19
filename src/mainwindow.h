@@ -74,6 +74,7 @@ private slots:
     void onModuleCreated(ModuleInfo *info, AbstractModule *mod);
     void moduleErrorReceived(AbstractModule *mod, const QString& message);
     void onEnginePreRunStart();
+    void onEngineRunStarted();
     void onEngineStopped();
     void onEngineResourceWarning(Engine::SystemResource kind, bool resolved, const QString &message);
     void onElapsedTimeUpdate();
@@ -106,7 +107,7 @@ private:
     void changeExperimentId(const QString &text);
 
     void setRunPossible(bool enabled);
-    void setStopPossible(bool enabled);
+    void setRunUiControlStates(bool engineRunning, bool stopPossible);
     void setExperimenterSelectVisible(bool visible);
 
     bool saveConfiguration(const QString& fileName);

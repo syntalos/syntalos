@@ -300,6 +300,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(m_engine, &Engine::statusMessage, this, &MainWindow::statusMessageChanged);
     connect(m_engine, &Engine::moduleCreated, this, &MainWindow::onModuleCreated);
     connect(m_engine, &Engine::preRunStart, this, &MainWindow::onEnginePreRunStart);
+    connect(m_engine, &Engine::runStarted, this, &MainWindow::onEngineRunStarted);
     connect(m_engine, &Engine::runStopped, this, &MainWindow::onEngineStopped);
     connect(m_engine, &Engine::resourceWarning, this, &MainWindow::onEngineResourceWarning);
     connect(ui->graphForm, &ModuleGraphForm::busyStart, this, &MainWindow::showBusyIndicatorProcessing);
@@ -342,23 +343,23 @@ void MainWindow::setRunPossible(bool enabled)
     ui->actionRunTemp->setEnabled(enabled);
 }
 
-void MainWindow::setStopPossible(bool enabled)
+void MainWindow::setRunUiControlStates(bool engineRunning, bool stopPossible)
 {
-    ui->actionStop->setEnabled(enabled);
-    ui->graphForm->setModifyPossible(!enabled);
-    ui->panelRunInfo->setEnabled(enabled);
-    ui->panelRunSettings->setEnabled(!enabled);
-    ui->actionGlobalConfig->setEnabled(!enabled);
-    ui->widgetProjectSettings->setEnabled(!enabled);
+    ui->actionStop->setEnabled(stopPossible);
+    ui->graphForm->setModifyPossible(!engineRunning);
+    ui->panelRunInfo->setEnabled(engineRunning);
+    ui->panelRunSettings->setEnabled(!engineRunning);
+    ui->actionGlobalConfig->setEnabled(!engineRunning);
+    ui->widgetProjectSettings->setEnabled(!engineRunning);
 
     // do not permit save/load while we are running
-    ui->actionProjectOpen->setEnabled(!enabled);
-    ui->actionProjectSave->setEnabled(!enabled);
-    ui->actionProjectSaveAs->setEnabled(!enabled);
-    ui->actionSubjectsLoad->setEnabled(!enabled);
-    ui->actionSubjectsSave->setEnabled(!enabled);
+    ui->actionProjectOpen->setEnabled(!engineRunning);
+    ui->actionProjectSave->setEnabled(!engineRunning);
+    ui->actionProjectSaveAs->setEnabled(!engineRunning);
+    ui->actionSubjectsLoad->setEnabled(!engineRunning);
+    ui->actionSubjectsSave->setEnabled(!engineRunning);
 
-    if (enabled)
+    if (engineRunning)
         showBusyIndicatorProcessing();
     else
         hideBusyIndicator();
@@ -373,21 +374,25 @@ void MainWindow::setExperimenterSelectVisible(bool visible)
 void MainWindow::runActionTriggered()
 {
     setRunPossible(false);
-    setStopPossible(true);
     ui->runWarnWidget->setVisible(false);
+
+    // stop is only possible when we are actually running
+    setRunUiControlStates(true, false);
 
     m_engine->setSaveInternalDiagnostics(m_gconf->saveExperimentDiagnostics());
     m_engine->setSimpleStorageNames(ui->cbSimpleStorageNames->isChecked());
     m_engine->run();
 
-    setStopPossible(false);
+    // we are stopped now
+    setRunUiControlStates(false, false);
     setRunPossible(true);
 }
 
 void MainWindow::temporaryRunActionTriggered()
 {
     setRunPossible(false);
-    setStopPossible(true);
+    // stop is only possible when we are actually running
+    setRunUiControlStates(true, false);
 
     ui->exportDirLabel->setText(QStringLiteral("???"));
     ui->runWarningLabel->setText(QStringLiteral("No data of this run will be saved permanently!"));
@@ -395,7 +400,8 @@ void MainWindow::temporaryRunActionTriggered()
 
     m_engine->runEphemeral();
 
-    setStopPossible(false);
+    // we are stopped now, ephemeral run has finished
+    setRunUiControlStates(false, false);
     ui->actionRunTemp->setEnabled(true);
     ui->runWarnWidget->setVisible(false);
     updateExportDirDisplay();
@@ -978,7 +984,7 @@ void MainWindow::setStatusText(const QString& msg)
 
 void MainWindow::moduleErrorReceived(AbstractModule *, const QString&)
 {
-    setStopPossible(false);
+    setRunUiControlStates(false, false);
 }
 
 void MainWindow::onEnginePreRunStart()
@@ -992,12 +998,19 @@ void MainWindow::onEnginePreRunStart()
     ui->cpuWarnWidget->setVisible(false);
 }
 
+void MainWindow::onEngineRunStarted()
+{
+    // we passed preflight and are actually running now,
+    // therefore the user is permitted to cancel a run
+    setRunUiControlStates(true, true);
+}
+
 void MainWindow::onEngineStopped()
 {
     m_rtElapsedTimer->stop();
     hideBusyIndicator();
     setRunPossible(true);
-    setStopPossible(false);
+    setRunUiControlStates(false, false);
 
     ui->diskSpaceWarnWidget->setVisible(false);
     ui->memoryWarnWidget->setVisible(false);

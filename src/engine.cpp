@@ -942,7 +942,7 @@ bool Engine::runInternal(const QString &exportDirPath)
         if (!mod->prepare(d->testSubject)) {
             initSuccessful = false;
             d->failed = true;
-            d->runFailedReason = QStringLiteral("Prepare step failed for: %1(%2)").arg(mod->id()).arg(mod->name());
+            d->runFailedReason = QStringLiteral("Prepare step failed for: %1(%2)").arg(mod->id(), mod->name());
             emitStatusMessage(QStringLiteral("Module '%1' failed to prepare.").arg(mod->name()));
             break;
         }
