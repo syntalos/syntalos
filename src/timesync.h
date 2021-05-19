@@ -25,6 +25,7 @@
 #include <QMetaType>
 #include <QDataStream>
 #include <QUuid>
+#include <fstream>
 
 #include "syclock.h"
 #include "eigenaux.h"
@@ -148,6 +149,8 @@ private:
     bool m_applyIndexOffset;
 
     std::unique_ptr<TimeSyncFileWriter> m_tswriter;
+
+    std::ofstream m_tpDebug;
 };
 
 /**
