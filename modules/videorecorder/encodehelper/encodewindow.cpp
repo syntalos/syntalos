@@ -71,6 +71,7 @@ EncodeWindow::EncodeWindow(QWidget *parent)
     connect(m_taskManager, &TaskManager::newTasksAvailable, [&]() {
         ui->runButton->setEnabled(true);
         ui->detailsWidget->setVisible(false);
+        ui->tasksTable->scrollToBottom();
     });
     connect(m_taskManager, &TaskManager::encodingStarted, [&]() {
         ui->runButton->setEnabled(false);
