@@ -330,7 +330,6 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     if (m_offsetChangeWaitBlocks > 0) {
         m_offsetChangeWaitBlocks--;
         m_lastTimeIndex = secondaryLastIdx;
-        m_tpDebug << "offsetChangeWaitBlocks" << ";" << "cooldown-time" << ";" << m_offsetChangeWaitBlocks << "\n";
         return;
     }
 
@@ -353,10 +352,18 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     // translate the clock update offset to indices. We round up here as we are already below threshold,
     // and overshooting slightly appears to be the better solution than being too conservative
     const bool initialOffset = m_indexOffset == 0;
-    m_indexOffset = static_cast<int>((m_timeCorrectionOffset.count() / 1000.0 / 1000.0) * m_freq);
+    const int newIndexOffset = static_cast<int>((m_timeCorrectionOffset.count() / 1000.0 / 1000.0) * m_freq);
+
+    // only make adjustments (and potentially write to a tsync file) if we actually changed
+    // the index offset and not just the time value associated with it
+    // (this may result in less accurate, but also within-tolerance and less noisy tsync files)
+    if (m_indexOffset == newIndexOffset)
+        return;
+    m_indexOffset = newIndexOffset;
 
     if (m_indexOffset != 0) {
-        m_offsetChangeWaitBlocks = ceil(m_calibrationMaxBlockN / 3);
+        m_offsetChangeWaitBlocks = ceil(m_calibrationMaxBlockN / 1.5);
+        m_tpDebug << "offsetChangeWaitBlocks" << ";" << "cooldown-time" << ";" << m_offsetChangeWaitBlocks << "\n";
 
         m_applyIndexOffset = false;
         if (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD)) {
@@ -374,7 +381,7 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     }
 
     // we're out of sync, record that fact to the tsync file if we are writing one
-    // NOTE: we have to use the unadjusted time value for the device clock - sicne we didn't need that until now,
+    // NOTE: we have to use the unadjusted time value for the device clock - since we didn't need that until now,
     // we calculate it here from the unadjusted last index value of the current block.
     if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
         m_tswriter->writeTimes(microseconds_t(std::lround((secondaryLastIdxUnadjusted + 1) * m_timePerPointUs)),
