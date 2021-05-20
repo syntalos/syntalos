@@ -17,6 +17,7 @@
  * along with this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "config.h"
 #include "encodewindow.h"
 
 #include <QApplication>
@@ -25,12 +26,16 @@
 
 int main(int argc, char *argv[])
 {
-    QApplication a(argc, argv);
+    QApplication app(argc, argv);
+    app.setApplicationName("Syntalos.EncodeHelper");
+    app.setOrganizationDomain("draguhnlab.com");
+    app.setApplicationVersion(PROJECT_VERSION);
+
     EncodeWindow w;
 
     // set Syntalos default style
     setDefaultStyle();
 
     w.show();
-    return a.exec();
+    return app.exec();
 }
