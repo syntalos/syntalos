@@ -22,6 +22,7 @@
 #include <chrono>
 #include <atomic>
 #include <memory>
+#include <ratio>
 #include <QMetaType>
 #include <QLoggingCategory>
 
@@ -65,10 +66,10 @@ using symaster_timepoint = std::chrono::time_point<symaster_clock>;
 using milliseconds_t = std::chrono::milliseconds;
 
 /// Shorthand for microseconds
-using microseconds_t = std::chrono::microseconds;
+using microseconds_t = std::chrono::duration<int64_t, std::micro>;
 
 /// Shorthand for nanoseconds
-using nanoseconds_t = std::chrono::nanoseconds;
+using nanoseconds_t = std::chrono::duration<int64_t, std::nano>;
 
 /**
  * @brief Convert microseconds to milliseconds
