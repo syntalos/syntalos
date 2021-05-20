@@ -299,10 +299,13 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
         // reset it as the external clock for some reason may be accurate again
         if ((m_indexOffset != 0) && (abs(avgOffsetDeviationUsec + m_timeCorrectionOffset.count()) < (m_toleranceUsec / 2))) {
             m_indexOffset = m_indexOffset / 2.0;
+
+            m_tpDebug << "timeCorrectionOffset(pre)" << ";" << "corr-offset-reset" << ";" << m_timeCorrectionOffset.count() << "\n";
             if (m_indexOffset == 0)
                 m_timeCorrectionOffset = microseconds_t(0);
             else
                 m_timeCorrectionOffset = microseconds_t(static_cast<long>(floor(m_timeCorrectionOffset.count() / 2.0)));
+            m_tpDebug << "timeCorrectionOffset(post)" << ";" << "corr-offset-reset" << ";" << m_timeCorrectionOffset.count() << "\n";
         }
 
         m_lastOffsetWithinTolerance = true;
@@ -342,8 +345,11 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     }
 
     // calculate time-based correction offset, half of the needed correction time
-    m_timeCorrectionOffset = microseconds_t(std::lround(avgOffsetDeviationUsec / 2.0));
+    const auto smallestAvgOffsetShiftUsec = (avgOffsetDeviationUsec > 0)? avgOffsetDeviationUsec - offsetsSD : avgOffsetDeviationUsec + offsetsSD;
+    m_timeCorrectionOffset = microseconds_t(std::lround(smallestAvgOffsetShiftUsec / 2.0));
     m_tpDebug << "avgOffsetDeviationUsec" << ";" << "time-adjust-pending" << ";" << avgOffsetDeviationUsec << "\n";
+    m_tpDebug << "currentOffsetsSD" << ";" << "time-adjust-pending" << ";" << offsetsSD << "\n";
+    m_tpDebug << "smallestAvgOffsetShiftUsec" << ";" << "time-adjust-pending" << ";" << smallestAvgOffsetShiftUsec << "\n";
 
     // sanity check: we need to correct by at least one datapoint for any synchronization to occur at all
     if (abs(m_timeCorrectionOffset.count()) <= m_timePerPointUs)
@@ -362,7 +368,7 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     m_indexOffset = newIndexOffset;
 
     if (m_indexOffset != 0) {
-        m_offsetChangeWaitBlocks = ceil(m_calibrationMaxBlockN / 1.5);
+        m_offsetChangeWaitBlocks = ceil(m_calibrationMaxBlockN / 1.8);
         m_tpDebug << "offsetChangeWaitBlocks" << ";" << "cooldown-time" << ";" << m_offsetChangeWaitBlocks << "\n";
 
         m_applyIndexOffset = false;
