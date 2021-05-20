@@ -28,6 +28,7 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
     app.setApplicationName("Syntalos.EncodeHelper");
+    app.setOrganizationName("DraguhnLab");
     app.setOrganizationDomain("draguhnlab.com");
     app.setApplicationVersion(PROJECT_VERSION);
 

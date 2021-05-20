@@ -38,6 +38,7 @@ int main(int argc, char *argv[])
     // set up GUI application and application details
     QApplication app(argc, argv);
     app.setApplicationName("Syntalos");
+    app.setOrganizationName("DraguhnLab");
     app.setOrganizationDomain("draguhnlab.com");
     app.setApplicationVersion(PROJECT_VERSION);
 
