@@ -232,7 +232,7 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     const long long curOffsetUsec = (secondaryLastTS - masterAssumedAcqTS).count();
 
     // calculate offsets without the new datapoint included
-    const auto avgOffsetUsec = m_tsOffsetsUsec.mean();
+    const auto avgOffsetUsec = (long) vectorMedian(m_tsOffsetsUsec);
     const auto avgOffsetDeviationUsec = avgOffsetUsec - m_expectedOffset.count();
 
     // add new datapoint to our "memory" vector
@@ -314,7 +314,7 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     }
     m_lastOffsetWithinTolerance = false;
 
-    const auto offsetsSD = sqrt(vectorVariance(m_tsOffsetsUsec, avgOffsetUsec));
+    const auto offsetsSD = sqrt(vectorVariance(m_tsOffsetsUsec, m_tsOffsetsUsec.mean()));
     if (abs(avgOffsetUsec - curOffsetUsec) > offsetsSD) {
         // the current offset diff to the moving average offset is not within standard deviation range.
         // This means the data point we just added is likely a fluke, potentially due to a context switch
