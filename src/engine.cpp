@@ -81,6 +81,7 @@ public:
     QList<AbstractModule*> activeModules;
     ModuleLibrary *modLibrary;
     std::shared_ptr<SyncTimer> timer;
+    std::vector<uint> mainThreadCoreAffinity;
 
     QString exportBaseDir;
     QString exportDir;
@@ -119,6 +120,7 @@ Engine::Engine(QWidget *parentWidget)
     d->parentWidget = parentWidget;
     d->timer.reset(new SyncTimer);
     d->runIsEphemeral = false;
+    d->mainThreadCoreAffinity.clear();
 
     // allow sending states via Qt queued connections,
     // and also register all other transmittable data types
@@ -769,6 +771,7 @@ QHash<AbstractModule *, std::vector<uint>> Engine::setupCoreAffinityConfig(const
 {
     // prepare pinning threads to CPU cores
     QHash<AbstractModule*, std::vector<uint>> modCPUMap;
+    d->mainThreadCoreAffinity.clear();
 
     auto availableCores = get_online_cores_count() - 1; // all cores minus the one our main thread is running on
 
@@ -788,8 +791,8 @@ QHash<AbstractModule *, std::vector<uint>> Engine::setupCoreAffinityConfig(const
     if (!d->gconf->explicitCoreAffinities())
         return modCPUMap;
 
-    // tie main thread to first CPU
-    thread_set_affinity(pthread_self(), 0);
+    // tie main thread to first CPU by default
+    d->mainThreadCoreAffinity.push_back(0);
 
     // we try to give each thread to a dedicated core, to (ideally) prevent
     // the scheduler from moving them around between CPUs too much once they go idle
@@ -831,17 +834,18 @@ QHash<AbstractModule *, std::vector<uint>> Engine::setupCoreAffinityConfig(const
             // NOTE: A lot of threads & tasks will still fork off the main thread,
             // so this is well-invested
             remainingCores.push_back(0);
-            thread_set_affinity_from_vec(pthread_self(), remainingCores);
+            d->mainThreadCoreAffinity = remainingCores;
         } else {
             if ((remainingCores.size() / 2) > 0) {
                 // share remaining cores between main and oop thread(s)
                 std::vector<uint> oopCores;
-                std::vector<uint> mainCores;
+                d->mainThreadCoreAffinity.clear();
+                d->mainThreadCoreAffinity.push_back(0);
                 for (uint i = 0; i < remainingCores.size(); ++i) {
                     if (i % 2 == 0)
                         oopCores.push_back(remainingCores[i]);
                     else
-                        mainCores.push_back(remainingCores[i]);
+                        d->mainThreadCoreAffinity.push_back(remainingCores[i]);
                 }
 
                 for (auto &mod : oopModules) {
@@ -849,9 +853,6 @@ QHash<AbstractModule *, std::vector<uint>> Engine::setupCoreAffinityConfig(const
                         continue;
                     modCPUMap[mod] = oopCores;
                 }
-
-                mainCores.push_back(0);
-                thread_set_affinity_from_vec(pthread_self(), mainCores);
             } else {
                 // give remaining cores to OOP threads
                 for (auto &mod : oopModules) {
@@ -904,7 +905,7 @@ bool Engine::runInternal(const QString &exportDirPath)
     // cache number of online CPUs
     const auto cpuCoreCount = get_online_cores_count();
 
-    // set main thread niceness for the current run
+    // set main thread default niceness for the current run
     setCurrentThreadNiceness(defaultThreadNice);
 
     // set CPU core affinities base setting
@@ -1360,6 +1361,12 @@ bool Engine::runInternal(const QString &exportDirPath)
 
         emitStatusMessage(QStringLiteral("Running..."));
         QCoreApplication::processEvents();
+
+        // apply main thread core affinity now
+        // (this must not be done earlier, as otherwise external module threads may inherit
+        //  the main thread's affinity settings)
+        if (!d->mainThreadCoreAffinity.empty())
+            thread_set_affinity_from_vec(pthread_self(), d->mainThreadCoreAffinity);
 
         // run the main loop and process UI events
         // modules may have injected themselves into the UI event loop
