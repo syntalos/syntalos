@@ -295,6 +295,11 @@ void TimeSyncFileWriter::writeTimes(const long &time1, const long &time2)
     writeTimeEntry(time1, time2);
 }
 
+void TimeSyncFileWriter::writeTimes(const uint64_t &time1, const uint64_t &time2)
+{
+    writeTimeEntry(time1, time2);
+}
+
 void TimeSyncFileWriter::writeBlockTerminator(bool check)
 {
     if (check && (m_bIndex == 0))

@@ -111,6 +111,7 @@ public:
     void writeTimes(const microseconds_t &deviceTime, const microseconds_t &masterTime);
     void writeTimes(const long long &timeIndex, const microseconds_t &masterTime);
     void writeTimes(const long &time1, const long &time2);
+    void writeTimes(const uint64_t &time1, const uint64_t &time2);
 
 private:
     QFile *m_file;

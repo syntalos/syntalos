@@ -140,10 +140,10 @@ void USBDataThread::run()
                 // guess the Syntalos master time when this data block was likely acquired
                 // TODO: Use __builtin_expect/likely here?
                 const uint64_t daqTimestampUsU64 = (daqTimestamp.count() >= deviceLatencyUs)?
-                                                    static_cast<uint64_t>((uint64_t) daqTimestamp.count() - deviceLatencyUs) :
+                                                    static_cast<uint64_t>(daqTimestamp.count() - deviceLatencyUs) :
                                                     static_cast<uint64_t>(daqTimestamp.count());
 
-                tswriter.writeTimes(daqTimestampUsU64, daqTimestamp.count());
+                tswriter.writeTimes(daqTimestampUsU64, deviceLatencyUs);
 
                 bytesInBuffer = usbBufferIndex + numBytesRead;
                 if (numBytesRead > 0) {
