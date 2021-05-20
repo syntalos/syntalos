@@ -345,11 +345,9 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     }
 
     // calculate time-based correction offset, half of the needed correction time
-    const auto smallestAvgOffsetShiftUsec = (avgOffsetDeviationUsec > 0)? avgOffsetDeviationUsec - offsetsSD : avgOffsetDeviationUsec + offsetsSD;
-    m_timeCorrectionOffset = microseconds_t(std::lround(smallestAvgOffsetShiftUsec / 2.0));
+    m_timeCorrectionOffset = microseconds_t(std::lround(avgOffsetDeviationUsec / 2.0));
     m_tpDebug << "avgOffsetDeviationUsec" << ";" << "time-adjust-pending" << ";" << avgOffsetDeviationUsec << "\n";
     m_tpDebug << "currentOffsetsSD" << ";" << "time-adjust-pending" << ";" << offsetsSD << "\n";
-    m_tpDebug << "smallestAvgOffsetShiftUsec" << ";" << "time-adjust-pending" << ";" << smallestAvgOffsetShiftUsec << "\n";
 
     // sanity check: we need to correct by at least one datapoint for any synchronization to occur at all
     if (abs(m_timeCorrectionOffset.count()) <= m_timePerPointUs)

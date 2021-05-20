@@ -107,6 +107,12 @@ void USBDataThread::run()
                 controller->setLedDisplay(ledArray);
             }
 
+
+            TimeSyncFileWriter tswriter;
+            tswriter.setFileName("/var/tmp/syntalos-intan-tp.tsync");
+            tswriter.open(QStringLiteral("IntanTestpoint"), QUuid("a12975f1-84b7-4350-8683-7a5fe9ed968f"), microseconds_t(0));
+
+
             const auto boardSampleRate = controller->getSampleRate();
             controller->setStimCmdMode(true);
             controller->setContinuousRunMode(true);
@@ -121,20 +127,23 @@ void USBDataThread::run()
                 // Performance note:  Executing the following command takes around 88% of the total time of this loop,
                 // with or without error checking enabled.
 
-                const auto daqTimestamp = FUNC_EXEC_TIMESTAMP(m_syStartTime,
-                                    numBytesRead = (int) controller->readDataBlocksRaw(numUsbBlocksToRead, &usbBuffer[usbBufferIndex]));
-
                 // factor in latency due to words in USB FIFO buffer
                 bool hasBeenUpdated = false;
                 unsigned int wordsInFifo = controller->getLastNumWordsInFifo(hasBeenUpdated);
                 const auto deviceLatencyUs = 1000.0 * 1000.0 * samplesPerDataBlock *
                                              (wordsInFifo / dataBlockSizeInWords) * (1.0 / boardSampleRate);
 
+                const auto daqTimestamp = FUNC_EXEC_TIMESTAMP(m_syStartTime,
+                                    numBytesRead = (int) controller->readDataBlocksRaw(numUsbBlocksToRead, &usbBuffer[usbBufferIndex]));
+
+
                 // guess the Syntalos master time when this data block was likely acquired
                 // TODO: Use __builtin_expect/likely here?
                 const auto daqTimestampUsU64 = (daqTimestamp.count() >= deviceLatencyUs)?
                                                 static_cast<uint64_t>(daqTimestamp.count() - deviceLatencyUs) :
                                                 static_cast<uint64_t>(daqTimestamp.count());
+
+                tswriter.writeTimes(daqTimestampUsU64, deviceLatencyUs);
 
                 bytesInBuffer = usbBufferIndex + numBytesRead;
                 if (numBytesRead > 0) {
