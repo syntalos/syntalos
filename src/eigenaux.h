@@ -33,6 +33,23 @@ typedef Eigen::Matrix<int,    Eigen::Dynamic, Eigen::Dynamic> MatrixXi;
 typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> MatrixXd;
 
 template<typename T>
+double vectorMedian(const Eigen::Matrix<T, Eigen::Dynamic, 1> &vec)
+{
+    const auto size = vec.size();
+    if (size == 0)
+        return nan(""); // what is the median of an empty vector?
+
+    std::vector<T> vecSorted(vec.size());
+    std::partial_sort_copy(vec.data(), vec.data() + vec.size(),
+                           std::begin(vecSorted), std::end(vecSorted));
+
+    if (size % 2 == 0)
+        return ((long long) vecSorted[size / 2 - 1] + (long long) vecSorted[size / 2]) / 2.0;
+    else
+        return vecSorted[size / 2];
+}
+
+template<typename T>
 double vectorMedianInplace(Eigen::Matrix<T, Eigen::Dynamic, 1> &vec)
 {
     const auto size = vec.size();

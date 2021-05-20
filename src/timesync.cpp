@@ -260,7 +260,7 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
             return;
 
         m_expectedSD = sqrt(vectorVariance(m_tsOffsetsUsec));
-        m_expectedOffset = microseconds_t(std::lround(vectorMedianInplace(m_tsOffsetsUsec)));
+        m_expectedOffset = microseconds_t(std::lround(vectorMedian(m_tsOffsetsUsec)));
 
         qCDebug(logTimeSync).noquote().nospace() << QTime::currentTime().toString() << "[" << m_id << "] "
                 << "Determined expected time offset: " << m_expectedOffset.count() << "µs "
@@ -578,7 +578,7 @@ void SecondaryClockSynchronizer::processTimestamp(microseconds_t &masterTimestam
             return;
 
         m_expectedSD = sqrt(vectorVariance(m_clockOffsetsUsec));
-        m_expectedOffset = microseconds_t(std::lround(vectorMedianInplace(m_clockOffsetsUsec)));
+        m_expectedOffset = microseconds_t(std::lround(vectorMedian(m_clockOffsetsUsec)));
 
         qCDebug(logTimeSync).noquote().nospace() << QTime::currentTime().toString() << "[" << m_id << "] "
                 << "Determined expected time offset: " << m_expectedOffset.count() << "µs "
