@@ -27,6 +27,7 @@
 #include <QCloseEvent>
 #include <QMessageBox>
 #include <QSvgWidget>
+#include <QSettings>
 
 #include "taskmanager.h"
 #include "../videowriter.h"
@@ -95,6 +96,10 @@ EncodeWindow::EncodeWindow(QWidget *parent)
     // hide details display initially
     ui->detailsWidget->setVisible(false);
     ui->splitter->setStretchFactor(0, 4);
+
+    // restore window geometry
+    QSettings settings;
+    restoreGeometry(settings.value("main/geometry").toByteArray());
 }
 
 EncodeWindow::~EncodeWindow()
@@ -146,6 +151,9 @@ void EncodeWindow::closeEvent(QCloseEvent *event)
 {
     if (m_taskManager->allTasksCompleted()) {
         event->accept();
+
+        QSettings settings;
+        settings.setValue("main/geometry", saveGeometry());
         QApplication::quit();
     } else {
         QMessageBox::warning(this, QStringLiteral("Encoding in progress"),
