@@ -50,7 +50,7 @@
       <enum>QTabWidget::West</enum>
      </property>
      <property name="currentIndex">
-      <number>0</number>
+      <number>1</number>
      </property>
      <property name="iconSize">
       <size>
@@ -239,7 +239,54 @@
                 </widget>
                </item>
                <item row="2" column="1">
-                <widget class="QCheckBox" name="explicitCoreAffinitiesCheckBox"/>
+                <widget class="QWidget" name="widget_4" native="true">
+                 <property name="minimumSize">
+                  <size>
+                   <width>0</width>
+                   <height>22</height>
+                  </size>
+                 </property>
+                 <layout class="QHBoxLayout" name="horizontalLayout_4">
+                  <property name="spacing">
+                   <number>2</number>
+                  </property>
+                  <property name="leftMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="topMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="rightMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="bottomMargin">
+                   <number>0</number>
+                  </property>
+                  <item>
+                   <widget class="QCheckBox" name="explicitCoreAffinitiesCheckBox"/>
+                  </item>
+                  <item>
+                   <widget class="QPushButton" name="cpuAffinityWarnButton">
+                    <property name="text">
+                     <string/>
+                    </property>
+                    <property name="icon">
+                     <iconset theme="emblem-warning">
+                      <normaloff>../modules/videorecorder</normaloff>../modules/videorecorder</iconset>
+                    </property>
+                    <property name="iconSize">
+                     <size>
+                      <width>16</width>
+                      <height>16</height>
+                     </size>
+                    </property>
+                    <property name="flat">
+                     <bool>true</bool>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
                </item>
               </layout>
              </item>

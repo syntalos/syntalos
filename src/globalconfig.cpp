@@ -98,7 +98,7 @@ void GlobalConfig::setDefaultRTThreadPriority(int priority)
 
 bool GlobalConfig::explicitCoreAffinities() const
 {
-    return m_s->value("engine/explicit_core_affinities", true).toBool();
+    return m_s->value("engine/explicit_core_affinities", false).toBool();
 }
 
 void GlobalConfig::setExplicitCoreAffinities(bool enabled)

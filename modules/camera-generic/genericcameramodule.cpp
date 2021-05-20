@@ -75,7 +75,7 @@ public:
     ModuleFeatures features() const override
     {
         return ModuleFeature::REALTIME |
-               ModuleFeature::CORE_AFFINITY |
+               ModuleFeature::REQUEST_CPU_AFFINITY |
                ModuleFeature::SHOW_SETTINGS;
     }
 

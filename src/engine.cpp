@@ -764,6 +764,108 @@ bool Engine::runEphemeral()
     return ret;
 }
 
+QHash<AbstractModule *, std::vector<uint>> Engine::setupCoreAffinityConfig(const QList<AbstractModule *> &threadedModules,
+                                                                           const QList<OOPModule *> &oopModules)
+{
+    // prepare pinning threads to CPU cores
+    QHash<AbstractModule*, std::vector<uint>> modCPUMap;
+
+    auto availableCores = get_online_cores_count() - 1; // all cores minus the one our main thread is running on
+
+    // give modules which explicitly want to be tied to a CPU core their CPU affinity
+    // setting, independent of whether the "explicitCoreAffinities" use setting is set
+    for (auto &mod : threadedModules) {
+        if (!mod->features().testFlag(ModuleFeature::REQUEST_CPU_AFFINITY))
+            continue;
+        if (availableCores > 0) {
+            modCPUMap[mod] = std::vector<uint>{(uint)availableCores};
+            availableCores--;
+        } else
+            break;
+    }
+
+    // we are done here if the "explicit core affinities" setting wasn't set by the user
+    if (!d->gconf->explicitCoreAffinities())
+        return modCPUMap;
+
+    // tie main thread to first CPU
+    thread_set_affinity(pthread_self(), 0);
+
+    // we try to give each thread to a dedicated core, to (ideally) prevent
+    // the scheduler from moving them around between CPUs too much once they go idle
+
+    // all modules which explicitly requested an own core already got one, so
+    // prefer OOP threads next if at least two cores will remain!
+    bool oopDedicatedThreads = false;
+    if ((availableCores - oopModules.size()) >= 2) {
+        for (auto &mod : oopModules) {
+            if (availableCores > 0) {
+                modCPUMap[mod] = std::vector<uint>{(uint)availableCores};
+                availableCores--;
+                oopDedicatedThreads = true;
+            } else
+                break;
+        }
+    }
+
+    // now give a CPU core to all other modules, unless they explicitly don't want that
+    // and override the user's selection
+    for (auto &mod : threadedModules) {
+        if (mod->features().testFlag(ModuleFeature::PROHIBIT_CPU_AFFINITY))
+            continue;
+        if (availableCores > 0) {
+            modCPUMap[mod] = std::vector<uint>{(uint)availableCores};
+            availableCores--;
+        } else
+            break;
+    }
+
+    // give the remaining cores to other modules
+    std::vector<uint> remainingCores;
+    for (uint i = availableCores; i > 0; i--)
+        remainingCores.push_back(i);
+
+    if (!remainingCores.empty()) {
+        if (oopDedicatedThreads) {
+            // give remaining threads to main thread
+            // NOTE: A lot of threads & tasks will still fork off the main thread,
+            // so this is well-invested
+            remainingCores.push_back(0);
+            thread_set_affinity_from_vec(pthread_self(), remainingCores);
+        } else {
+            if ((remainingCores.size() / 2) > 0) {
+                // share remaining cores between main and oop thread(s)
+                std::vector<uint> oopCores;
+                std::vector<uint> mainCores;
+                for (uint i = 0; i < remainingCores.size(); ++i) {
+                    if (i % 2 == 0)
+                        oopCores.push_back(remainingCores[i]);
+                    else
+                        mainCores.push_back(remainingCores[i]);
+                }
+
+                for (auto &mod : oopModules) {
+                    if (modCPUMap.contains(mod))
+                        continue;
+                    modCPUMap[mod] = oopCores;
+                }
+
+                mainCores.push_back(0);
+                thread_set_affinity_from_vec(pthread_self(), mainCores);
+            } else {
+                // give remaining cores to OOP threads
+                for (auto &mod : oopModules) {
+                    if (modCPUMap.contains(mod))
+                        continue;
+                    modCPUMap[mod] = remainingCores;
+                }
+            }
+        }
+    }
+
+    return modCPUMap;
+}
+
 /**
  * @brief Actually run an experiment module board
  * @return true on succees
@@ -806,14 +908,10 @@ bool Engine::runInternal(const QString &exportDirPath)
     setCurrentThreadNiceness(defaultThreadNice);
 
     // set CPU core affinities base setting
-    const auto explicitCoreAffinities = d->gconf->explicitCoreAffinities();
-    if (explicitCoreAffinities) {
+    if (d->gconf->explicitCoreAffinities())
         qCDebug(logEngine).noquote().nospace() << "Explicit CPU core affinity is enabled.";
-        // tie main thread to first CPU
-        thread_set_affinity(pthread_self(), 0);
-    } else {
+    else
         qCDebug(logEngine).noquote().nospace() << "Explicit CPU core affinity is disabled.";
-    }
 
     // create new experiment directory layout (EDL) collection to store
     // all data modules generate in
@@ -966,72 +1064,8 @@ bool Engine::runInternal(const QString &exportDirPath)
         emitStatusMessage(QStringLiteral("Initializing launch..."));
         lastPhaseTimepoint = currentTimePoint();
 
-        // prepare pinning threads to CPU cores
-        QHash<AbstractModule*, std::vector<uint>> modCPUMap;
-        if (explicitCoreAffinities) {
-            if (threadedModulesTotalN <= (cpuCoreCount - 1)) {
-                // we have enough cores and can tie each thread to a dedicated core, to (ideally) prevent
-                // the scheduler from moving them around between CPUs too much once they go idle
-                auto availableCores = cpuCoreCount - 1; // all cores minus the one our main thread is running on
-
-                for (auto &mod : threadedModules) {
-                    if (availableCores > 0) {
-                        modCPUMap[mod] = std::vector<uint>{(uint)availableCores};
-                        availableCores--;
-                    }
-                }
-                for (auto &mod : oopModules) {
-                    if (availableCores > 0) {
-                        modCPUMap[mod] = std::vector<uint>{(uint)availableCores};
-                        availableCores--;
-                    }
-                }
-            } else {
-                // we don't have enough cores - in this case, prefer modules which requested to be run on a dedicated core
-                // OOP modules will get their own core if at all possible in a sensible way
-                auto availableCores = cpuCoreCount - 1;
-                for (auto &mod : threadedModules) {
-                    if (!mod->features().testFlag(ModuleFeature::CORE_AFFINITY))
-                        continue;
-                    if (availableCores > 0) {
-                        modCPUMap[mod] = std::vector<uint>{(uint)availableCores};
-                        availableCores--;
-                    }
-                }
-
-                bool oopDedicatedThreads = false;
-                if (availableCores > 0) {
-                    // give OOP modules their own core if at least two remain
-                    if ((availableCores - oopModules.size()) >= 2) {
-                        for (auto &mod : oopModules) {
-                            if (availableCores > 0) {
-                                modCPUMap[mod] = std::vector<uint>{(uint)availableCores};
-                                availableCores--;
-                            }
-                        }
-                        oopDedicatedThreads = true;
-                    }
-                }
-
-                // give the remaining cores to other modules
-                std::vector<uint> remainingCores;
-                for (uint i = availableCores; i > 0; i--)
-                    remainingCores.push_back(i);
-                for (auto &mod : threadedModules) {
-                    if (modCPUMap.contains(mod))
-                        continue;
-                    modCPUMap[mod] = remainingCores;
-                }
-                // treat OOP modules the same if we are low on threads
-                if (!oopDedicatedThreads) {
-                    for (auto &mod : oopModules) {
-                        if (modCPUMap.contains(mod))
-                            continue;
-                        modCPUMap[mod] = remainingCores;
-                    }
-                }
-            }
-        }
+        // create CPU core affinity configuration, and apply it to the main thread if feasible
+        const auto modCPUMap = setupCoreAffinityConfig(threadedModules, oopModules);
 
         // only emit a resource warning if we are using way more threads than we probably should
         if (threadedModulesTotalN > (cpuCoreCount + (cpuCoreCount / 2)))
@@ -1351,6 +1385,10 @@ bool Engine::runInternal(const QString &exportDirPath)
     auto finishTimestamp = static_cast<long long>(d->timer->timeSinceStartMsec().count());
     emitStatusMessage(QStringLiteral("Run stopped, finalizing..."));
 
+    // clear any thread affinity of the main process, so anything the stop() actions
+    // of modules do isn't confined to the main UI threads
+    thread_clear_affinity(pthread_self());
+
     // Wake all threads again if we have failed, because some module may have
     // failed so early that other modules may not even have made it through their
     // startup phase, and in this case are stuck waiting.
@@ -1518,7 +1556,7 @@ bool Engine::runInternal(const QString &exportDirPath)
     // reset main thread niceness, we are not important anymore of no experiment is running
     setCurrentThreadNiceness(0);
 
-    // clear main thread CPU affinity
+    // ensure main thread CPU affinity is cleared
     thread_clear_affinity(pthread_self());
 
     // we have stopped doing things with modules

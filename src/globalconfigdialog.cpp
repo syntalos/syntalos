@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2020-2021 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -19,6 +19,8 @@
 
 #include "globalconfigdialog.h"
 #include "ui_globalconfigdialog.h"
+
+#include <QMessageBox>
 
 #include "rtkit.h"
 
@@ -49,6 +51,7 @@ GlobalConfigDialog::GlobalConfigDialog(QWidget *parent) :
     ui->defaultRTPrioSpinBox->setMinimum(1);
     ui->defaultRTPrioSpinBox->setValue(m_gc->defaultRTThreadPriority());
 
+    ui->cpuAffinityWarnButton->setVisible(false);
     ui->explicitCoreAffinitiesCheckBox->setChecked(m_gc->explicitCoreAffinities());
 
     // devel section
@@ -77,6 +80,24 @@ void GlobalConfigDialog::on_defaultRTPrioSpinBox_valueChanged(int arg1)
 void GlobalConfigDialog::on_explicitCoreAffinitiesCheckBox_toggled(bool checked)
 {
     if (m_acceptChanges) m_gc->setExplicitCoreAffinities(checked);
+    ui->cpuAffinityWarnButton->setVisible(checked);
+}
+
+void GlobalConfigDialog::on_cpuAffinityWarnButton_clicked()
+{
+    QMessageBox::information(this,
+                             QStringLiteral("Information on explicit CPU affinity"),
+                             QStringLiteral("<html>"
+                                            "By selecting the explicit CPU affinity option, threads of individual modules are bound to "
+                                            "specific CPU cores by the operating system. This can greatly improve latency in some scenarios, "
+                                            "and may occasionally even improve performance due to better CPU cache coherency.<br/><br/>"
+                                            "<b>However</b> using this option can also massively degrade performance, as module threads and "
+                                            "their descendants can not be moved freely between otherwise idle CPU cores anymore. So, while getting "
+                                            "more consistent latencies, you may get much reduced performance.<br/><br/>"
+                                            "The affinity selector does not know about individual module's runtime CPU utilization (yet...), so its "
+                                            "guesses may be wrong and lead to suboptimal results.<br/><br/>"
+                                            "Therefore, using this option is not recommended for most users - you can safely give it a try though and "
+                                            "see if it helps your individual setup's performance or latency."));
 }
 
 void GlobalConfigDialog::on_cbDisplayDevModules_toggled(bool checked)

@@ -27,6 +27,8 @@
 #include "modulelibrary.h"
 #include "sysinfo.h"
 
+class OOPModule;
+
 namespace Syntalos {
 
 Q_DECLARE_LOGGING_CATEGORY(logEngine)
@@ -127,6 +129,10 @@ private:
 
     int obtainSleepShutdownIdleInhibitor();
     bool makeDirectory(const QString &dir);
+
+    QHash<AbstractModule*, std::vector<uint>> setupCoreAffinityConfig(const QList<AbstractModule *> &threadedModules,
+                                                                      const QList<OOPModule *> &oopModules);
+
     bool runInternal(const QString &exportDirPath);
     void refreshExportDirPath();
     void emitStatusMessage(const QString &message);

@@ -42,16 +42,18 @@ class StreamOutputPort;
 
 /**
  * @brief The ModuleFeature flags
- * List of basic features this module may or may not support.
+ * List of basic features this module may or may not support,
+ * or may request from the engine to be available.
  */
 enum class ModuleFeature {
     NONE = 0,
-    REALTIME       = 1 << 0,  /// Enable realtime scheduling for the module's thread
-    CORE_AFFINITY  = 1 << 1,  /// Pin the module's thread to a separate CPU core, if possible
-    CALL_UI_EVENTS = 1 << 2,  /// Call direct UI events processing method
-    SHOW_SETTINGS  = 1 << 3,  /// Module can display a settings window
-    SHOW_DISPLAY   = 1 << 4,  /// Module has one or more display window(s) to show
-    SHOW_ACTIONS   = 1 << 5   /// Module supports context menu actions
+    SHOW_SETTINGS         = 1 << 0,  /// Module can display a settings window
+    SHOW_DISPLAY          = 1 << 1,  /// Module has one or more display window(s) to show
+    SHOW_ACTIONS          = 1 << 2,  /// Module supports context menu actions
+    REALTIME              = 1 << 3,  /// Enable realtime scheduling for the module's thread
+    REQUEST_CPU_AFFINITY  = 1 << 4,  /// Pin the module's thread to a separate CPU core, if possible (even if the user disabled this)
+    PROHIBIT_CPU_AFFINITY = 1 << 5,  /// Never set a core affinity for the thread of this module, even if the user wanted it
+    CALL_UI_EVENTS        = 1 << 6,  /// Call direct UI events processing method
 };
 Q_DECLARE_FLAGS(ModuleFeatures, ModuleFeature)
 Q_DECLARE_OPERATORS_FOR_FLAGS(ModuleFeatures)

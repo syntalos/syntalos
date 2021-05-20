@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2020-2021 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -40,6 +40,7 @@ private slots:
     void on_defaultNicenessSpinBox_valueChanged(int arg1);
     void on_defaultRTPrioSpinBox_valueChanged(int arg1);
     void on_explicitCoreAffinitiesCheckBox_toggled(bool checked);
+    void on_cpuAffinityWarnButton_clicked();
 
     void on_cbDisplayDevModules_toggled(bool checked);
     void on_cbSaveDiagnostic_toggled(bool checked);

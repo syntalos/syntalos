@@ -55,6 +55,8 @@ int thread_clear_affinity(pthread_t thread)
 {
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
+    for (int i = 0; i < get_online_cores_count(); ++i)
+        CPU_SET(i, &cpuset);
 
     int rc = pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
     return (rc == 0 ? 0 : -1);

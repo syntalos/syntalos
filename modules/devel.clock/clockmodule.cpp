@@ -74,7 +74,7 @@ public:
         ModuleFeatures flags = ModuleFeature::SHOW_SETTINGS;
 
         if (m_settingsDlg->highPriorityThread())
-            flags |= ModuleFeature::CORE_AFFINITY | ModuleFeature::REALTIME;
+            flags |= ModuleFeature::REQUEST_CPU_AFFINITY | ModuleFeature::REALTIME;
         return flags;
     }
 
