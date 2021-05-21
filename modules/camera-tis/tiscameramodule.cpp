@@ -312,14 +312,14 @@ public:
                 // only do time adjustment if we have a valid timestamp
                 const auto pts = buffer->pts;
                 if (pts != GST_CLOCK_TIME_NONE) {
-                    // mark as us not being able to do any time adjustments if no valid timestamps are received
                     clockSync->processTimestamp(frameRecvTime, std::chrono::duration_cast<microseconds_t>(nanoseconds_t(pts)));
+                    m_firstTimestamp = false;
                 } else {
+                    // mark as us not being able to do any time adjustments if no valid timestamps are received
                     if (m_firstTimestamp)
                         clockSync->setStrategies(TimeSyncStrategy::NONE);
                 }
                 frame.time = usecToMsec(frameRecvTime);
-                m_firstTimestamp = false;
 
                 m_outStream->push(frame);
             }
