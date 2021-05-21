@@ -240,6 +240,8 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     const auto avgOffsetUsec = m_tsOffsetsUsec.mean();
     const auto avgOffsetDeviationUsec = avgOffsetUsec - m_expectedOffset.count();
 
+    m_tpDebug << "curOffsetUsec" << ";" << "offset-tp" << ";" << curOffsetUsec << "\n";
+
     // we do nothing more until we have enought measurements to estimate the "natural" timer offset
     // of the secondary clock and master clock
     if (!m_haveExpectedOffset) {
