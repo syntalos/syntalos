@@ -128,12 +128,13 @@ void USBDataThread::run()
                 // factor in latency due to words in USB FIFO buffer
                 bool hasBeenUpdated = false;
                 unsigned int wordsInFifo = controller->getLastNumWordsInFifo(hasBeenUpdated);
-                const auto deviceLatencyUs = 1000.0 * 1000.0 * samplesPerDataBlock *
-                                             (wordsInFifo / dataBlockSizeInWords) * (1.0 / boardSampleRate);
 
                 const auto daqTimestamp = FUNC_EXEC_TIMESTAMP(m_syStartTime,
                                     numBytesRead = (int) controller->readDataBlocksRaw(numUsbBlocksToRead, &usbBuffer[usbBufferIndex]));
 
+                const auto deviceLatencyUs = 1000.0 * 1000.0 * samplesPerDataBlock
+                                                * ((wordsInFifo - (numBytesRead / BytesPerWord))
+                                                / dataBlockSizeInWords) / boardSampleRate;
 
                 // guess the Syntalos master time when this data block was likely acquired
                 // TODO: Use __builtin_expect/likely here?
@@ -141,7 +142,7 @@ void USBDataThread::run()
                                                     static_cast<uint64_t>(daqTimestamp.count() - deviceLatencyUs) :
                                                     static_cast<uint64_t>(daqTimestamp.count());
 
-                tpDebug << daqTimestampUsU64 << ";0\n";
+                tpDebug << daqTimestampUsU64 << ";" << deviceLatencyUs << ";" << wordsInFifo << ";" << numBytesRead << "\n";
 
                 bytesInBuffer = usbBufferIndex + numBytesRead;
                 if (numBytesRead > 0) {
