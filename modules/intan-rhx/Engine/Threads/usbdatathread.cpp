@@ -108,9 +108,7 @@ void USBDataThread::run()
             }
 
 
-            TimeSyncFileWriter tswriter;
-            tswriter.setFileName("/var/tmp/syntalos-intan-tp.tsync");
-            tswriter.open(QStringLiteral("IntanTestpoint"), QUuid("a12975f1-84b7-4350-8683-7a5fe9ed968f"), microseconds_t(0));
+            std::ofstream tpDebug("/var/tmp/syntalos-intan-tp.txt");
 
 
             const auto boardSampleRate = controller->getSampleRate();
@@ -143,7 +141,7 @@ void USBDataThread::run()
                                                     static_cast<uint64_t>(daqTimestamp.count() - deviceLatencyUs) :
                                                     static_cast<uint64_t>(daqTimestamp.count());
 
-                tswriter.writeTimes(daqTimestampUsU64, deviceLatencyUs);
+                tpDebug << daqTimestampUsU64 << ";0\n";
 
                 bytesInBuffer = usbBufferIndex + numBytesRead;
                 if (numBytesRead > 0) {
