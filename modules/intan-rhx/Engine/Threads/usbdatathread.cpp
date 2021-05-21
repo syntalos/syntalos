@@ -111,7 +111,8 @@ void USBDataThread::run()
             std::ofstream tpDebug("/var/tmp/syntalos-intan-tp.txt");
             tpDebug << "samplesPerDataBlock: " << samplesPerDataBlock << "\n"
                     << "dataBlockSizeInWords: " << dataBlockSizeInWords << "\n"
-                    << "boardSampleRate: " << controller->getSampleRate() << "\n";
+                    << "boardSampleRate: " << controller->getSampleRate() << "\n"
+                    << "\n";
 
 
             const auto boardSampleRate = controller->getSampleRate();
@@ -128,29 +129,30 @@ void USBDataThread::run()
                 // Performance note:  Executing the following command takes around 88% of the total time of this loop,
                 // with or without error checking enabled.
 
-                // factor in latency due to words in USB FIFO buffer
+                // check how many words are in the USB FIFO buffer before reading data
                 uint wordsInFifo = controller->getLastNumWordsInFifo();
-
+                // try to get a USB data block
                 const auto daqTimestamp = FUNC_EXEC_TIMESTAMP(m_syStartTime,
                                     numBytesRead = (int) controller->readDataBlocksRaw(numUsbBlocksToRead, &usbBuffer[usbBufferIndex]));
 
-                const uint numWordsRead = numBytesRead / BytesPerWord;
-                uint deviceLatencyUs = 0;
-                if (numWordsRead < wordsInFifo)
-                    deviceLatencyUs = 1000.0 * 1000.0 * samplesPerDataBlock
-                                        * ((wordsInFifo - numWordsRead)
-                                        / dataBlockSizeInWords) / boardSampleRate;
-
-                // guess the Syntalos master time when this data block was likely acquired
-                // TODO: Use __builtin_expect/likely here?
-                const uint64_t daqTimestampUsU64 = (daqTimestamp.count() >= deviceLatencyUs)?
-                                                    static_cast<uint64_t>(daqTimestamp.count() - deviceLatencyUs) :
-                                                    static_cast<uint64_t>(daqTimestamp.count());
-
-                tpDebug << daqTimestampUsU64 << ";" << deviceLatencyUs << ";" << wordsInFifo << ";" << numWordsRead << "\n";
-
                 bytesInBuffer = usbBufferIndex + numBytesRead;
                 if (numBytesRead > 0) {
+
+                    const uint numWordsRead = numBytesRead / BytesPerWord;
+                    uint deviceLatencyUs = 0;
+                    if (numWordsRead < wordsInFifo)
+                        deviceLatencyUs = 1000.0 * 1000.0 * samplesPerDataBlock
+                                            * ((wordsInFifo - numWordsRead)
+                                            / dataBlockSizeInWords) / boardSampleRate;
+
+                    // guess the Syntalos master time when this data block was likely acquired
+                    // TODO: Use __builtin_expect/likely here?
+                    const uint64_t daqTimestampUsU64 = (daqTimestamp.count() >= deviceLatencyUs)?
+                                                        static_cast<uint64_t>(daqTimestamp.count() - deviceLatencyUs) :
+                                                        static_cast<uint64_t>(daqTimestamp.count());
+
+                    tpDebug << daqTimestampUsU64 << ";" << deviceLatencyUs << ";" << wordsInFifo << ";" << numWordsRead << "\n";
+
                     if (!errorChecking) {
                         usbBufferIndex = 0;
 
