@@ -177,21 +177,12 @@ bool FreqCounterSynchronizer::start()
     m_offsetChangeWaitBlocks = 0;
     m_applyIndexOffset = false;
 
-    std::ofstream tpF("/var/tmp/syntalos-testpoint-freqcounter.txt");
-    m_tpDebug = std::move(tpF);
-    m_tpDebug << "TimeCorrectionOffsetUs: " << m_timeCorrectionOffset.count() << "\n"
-              << "ToleranceUs: " << m_toleranceUsec << "\n"
-              << "CalibrationMaxBlockN: " << m_calibrationMaxBlockN << "\n"
-              << "Sequence:\n";
-    m_tpDebug << "what?;why?;which?\n";
-
     return true;
 }
 
 void FreqCounterSynchronizer::stop()
 {
     m_tswriter->close();
-    m_tpDebug.close();
 }
 
 void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecvTimestamp,
@@ -239,9 +230,6 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     const auto avgOffsetUsec = m_tsOffsetsUsec.mean();
     const auto avgOffsetDeviationUsec = avgOffsetUsec - m_expectedOffset.count();
 
-    m_tpDebug << "secondaryLastTS" << ";" << "secondaryts-tp" << ";" << secondaryLastTS.count() << "\n";
-    m_tpDebug << "masterAssumedAcqTS" << ";" << "masterts-tp" << ";" << masterAssumedAcqTS.count() << "\n";
-
     // we do nothing more until we have enought measurements to estimate the "natural" timer offset
     // of the secondary clock and master clock
     if (!m_haveExpectedOffset) {
@@ -268,9 +256,6 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
                 << "Determined expected time offset: " << m_expectedOffset.count() << "µs "
                 << "SD: " << m_expectedSD;
         m_haveExpectedOffset = true;
-
-        m_tpDebug << "expectedSD" << ";" << "no-exp-offset" << ";" << m_expectedSD << "\n";
-        m_tpDebug << "expectedOffsetUs" << ";" << "no-exp-offset" << ";" << m_expectedOffset.count() << "\n";
 
         // if we are writing a timesync-file, write the initial two timestamps when we
         // calibrated the system to the file (as additional verification point)
@@ -302,12 +287,10 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
         if ((m_indexOffset != 0) && (abs(avgOffsetDeviationUsec + m_timeCorrectionOffset.count()) < (m_toleranceUsec / 2))) {
             m_indexOffset = m_indexOffset / 2.0;
 
-            m_tpDebug << "timeCorrectionOffset(pre)" << ";" << "corr-offset-reset" << ";" << m_timeCorrectionOffset.count() << "\n";
             if (m_indexOffset == 0)
                 m_timeCorrectionOffset = microseconds_t(0);
             else
                 m_timeCorrectionOffset = microseconds_t(static_cast<long>(floor(m_timeCorrectionOffset.count() / 2.0)));
-            m_tpDebug << "timeCorrectionOffset(post)" << ";" << "corr-offset-reset" << ";" << m_timeCorrectionOffset.count() << "\n";
         }
 
         m_lastOffsetWithinTolerance = true;
@@ -325,7 +308,6 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
         if (m_offsetChangeWaitBlocks > 0)
             m_offsetChangeWaitBlocks--;
         m_lastTimeIndex = secondaryLastIdx;
-        m_tpDebug << "currentOffsetsSD" << ";" << "fluke-ignored" << ";" << offsetsSD << "\n";
         return;
     }
 
@@ -348,8 +330,6 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
 
     // calculate time-based correction offset, a bit less than half of the needed correction time
     m_timeCorrectionOffset = microseconds_t(std::lround(avgOffsetDeviationUsec / 2.5));
-    m_tpDebug << "avgOffsetDeviationUsec" << ";" << "time-adjust-pending" << ";" << avgOffsetDeviationUsec << "\n";
-    m_tpDebug << "currentOffsetsSD" << ";" << "time-adjust-pending" << ";" << offsetsSD << "\n";
 
     // sanity check: we need to correct by at least one datapoint for any synchronization to occur at all
     if (abs(m_timeCorrectionOffset.count()) <= m_timePerPointUs)
@@ -369,7 +349,6 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
 
     if (m_indexOffset != 0) {
         m_offsetChangeWaitBlocks = ceil(m_calibrationMaxBlockN / 1.5);
-        m_tpDebug << "offsetChangeWaitBlocks" << ";" << "cooldown-time" << ";" << m_offsetChangeWaitBlocks << "\n";
 
         m_applyIndexOffset = false;
         if (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD)) {
@@ -392,10 +371,6 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
         m_tswriter->writeTimes(microseconds_t(std::lround((secondaryLastIdxUnadjusted + 1) * m_timePerPointUs)),
                                masterAssumedAcqTS);
-
-    m_tpDebug << "avgOffsetUsec" << ";" << "time-adjusted" << ";" << avgOffsetUsec << "\n";
-    m_tpDebug << "timeCorrectionOffsetUs" << ";" << "time-adjusted" << ";" << m_timeCorrectionOffset.count() << "\n";
-    m_tpDebug << "indexOffset" << ";" << "time-adjusted" << ";" << m_indexOffset << "\n";
 
     m_lastTimeIndex = secondaryLastIdx;
 }

@@ -147,8 +147,6 @@ private:
     bool m_applyIndexOffset;
 
     std::unique_ptr<TimeSyncFileWriter> m_tswriter;
-
-    std::ofstream m_tpDebug;
 };
 
 /**

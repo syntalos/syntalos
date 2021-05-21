@@ -109,14 +109,6 @@ void USBDataThread::run()
                 controller->setLedDisplay(ledArray);
             }
 
-
-            std::ofstream tpDebug("/var/tmp/syntalos-intan-tp.txt");
-            tpDebug << "samplesPerDataBlock: " << samplesPerDataBlock << "\n"
-                    << "dataBlockSizeInWords: " << dataBlockSizeInWords << "\n"
-                    << "boardSampleRate: " << controller->getSampleRate() << "\n"
-                    << "\n";
-
-
             const auto boardSampleRate = controller->getSampleRate();
             controller->setStimCmdMode(true);
             controller->setContinuousRunMode(true);
@@ -152,8 +144,6 @@ void USBDataThread::run()
                     const uint64_t daqTimestampUsU64 = (daqTimestamp.count() >= deviceLatencyUs)?
                                                         static_cast<uint64_t>(daqTimestamp.count() - deviceLatencyUs) :
                                                         static_cast<uint64_t>(daqTimestamp.count());
-
-                    tpDebug << daqTimestampUsU64 << ";" << deviceLatencyUs << ";" << wordsInFifo << ";" << numWordsRead << "\n";
 
                     if (!errorChecking) {
                         usbBufferIndex = 0;
