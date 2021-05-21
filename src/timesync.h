@@ -112,9 +112,7 @@ public:
 
     bool start();
     void stop();
-    void processTimestamps(const microseconds_t &blocksRecvTimestamp, const microseconds_t &deviceLatency,
-                           int blockIndex, int blockCount, VectorXu &idxTimestamps);
-    void processTimestamps(const microseconds_t &recvTimestamp, const double &devLatencyMs,
+    void processTimestamps(const microseconds_t &blocksRecvTimestamp,
                            int blockIndex, int blockCount, VectorXu &idxTimestamps);
 
 private:

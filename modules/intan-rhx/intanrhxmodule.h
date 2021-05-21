@@ -129,8 +129,7 @@ inline void syntalosModuleSetSignalBlocksTimestamps(IntanRhxModule *mod, const m
     }
 
     // calculate time sync guesstimates
-    mod->clockSync->processTimestamps(blockRecvTimestamp, microseconds_t(0),
-                                          0, 1, tvm);
+    mod->clockSync->processTimestamps(blockRecvTimestamp, 0, 1, tvm);
 }
 
 inline void syntalosModuleExportAmplifierChanData(IntanRhxModule *mod, int group, int channel, uint16_t *rawBuf, size_t numSamples,

@@ -194,7 +194,7 @@ void FreqCounterSynchronizer::stop()
     m_tpDebug.close();
 }
 
-void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecvTimestamp, const microseconds_t &deviceLatency,
+void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecvTimestamp,
                                                 int blockIndex, int blockCount, VectorXu &idxTimestamps)
 {
     // basic input value sanity checks
@@ -213,8 +213,7 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     // and based on the master clock timestamp generated upon data receival
     const microseconds_t masterAssumedAcqTS = blocksRecvTimestamp
                                                 - microseconds_t(std::lround(m_timePerPointUs * ((blockCount - 1) * idxTimestamps.rows())))
-                                                + microseconds_t(std::lround(m_timePerPointUs * (blockIndex * idxTimestamps.rows())))
-                                                - deviceLatency;
+                                                + microseconds_t(std::lround(m_timePerPointUs * (blockIndex * idxTimestamps.rows())));
 
     // value of the last entry of the current block
     const auto secondaryLastIdx = idxTimestamps[idxTimestamps.rows() - 1];
@@ -240,7 +239,8 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     const auto avgOffsetUsec = m_tsOffsetsUsec.mean();
     const auto avgOffsetDeviationUsec = avgOffsetUsec - m_expectedOffset.count();
 
-    m_tpDebug << "curOffsetUsec" << ";" << "offset-tp" << ";" << curOffsetUsec << "\n";
+    m_tpDebug << "secondaryLastTS" << ";" << "secondaryts-tp" << ";" << secondaryLastTS.count() << "\n";
+    m_tpDebug << "masterAssumedAcqTS" << ";" << "masterts-tp" << ";" << masterAssumedAcqTS.count() << "\n";
 
     // we do nothing more until we have enought measurements to estimate the "natural" timer offset
     // of the secondary clock and master clock
@@ -400,12 +400,6 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     m_lastTimeIndex = secondaryLastIdx;
 }
 
-void FreqCounterSynchronizer::processTimestamps(const microseconds_t &recvTimestamp, const double &devLatencyMs, int blockIndex, int blockCount, VectorXu &idxTimestamps)
-{
-    // we want the device latency in microseconds
-    auto deviceLatency = std::chrono::microseconds(static_cast<long>(devLatencyMs * 1000));
-    processTimestamps(recvTimestamp, deviceLatency, blockIndex, blockCount, idxTimestamps);
-}
 
 // --------------------------
 // SecondaryClockSynchronizer

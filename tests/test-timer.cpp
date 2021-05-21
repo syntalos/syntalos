@@ -365,12 +365,12 @@ private slots:
             auto syncMasterTS = curMasterTS;
 
             auto currentBlock = idxDev->generateBlock();
-            sync->processTimestamps(syncMasterTS, 0, 0, 2, currentBlock);
+            sync->processTimestamps(syncMasterTS, 0, 2, currentBlock);
             QCOMPARE(sync->indexOffset(), 0);
             QCOMPARE(last(currentBlock), idxDev->lastIndex());
 
             currentBlock = idxDev->generateBlock();
-            sync->processTimestamps(syncMasterTS, 0, 1, 2, currentBlock);
+            sync->processTimestamps(syncMasterTS, 1, 2, currentBlock);
             QCOMPARE(sync->indexOffset(), 0);
             QCOMPARE(last(currentBlock), idxDev->lastIndex());
 
@@ -386,12 +386,12 @@ private slots:
             auto syncMasterTS = curMasterTS;
 
             auto currentBlock = idxDev->generateBlock();
-            sync->processTimestamps(syncMasterTS, 0, 0, 2, currentBlock);
+            sync->processTimestamps(syncMasterTS, 0, 2, currentBlock);
             QCOMPARE(sync->indexOffset(), 0);
             QCOMPARE(last(currentBlock), idxDev->lastIndex());
 
             currentBlock = idxDev->generateBlock();
-            sync->processTimestamps(syncMasterTS, 0, 1, 2, currentBlock);
+            sync->processTimestamps(syncMasterTS, 1, 2, currentBlock);
             QCOMPARE(sync->indexOffset(), 0);
             QCOMPARE(last(currentBlock), idxDev->lastIndex());
         }
@@ -409,14 +409,14 @@ private slots:
 
             auto syncMasterTS = curMasterTS;
             auto currentBlock = idxDev->generateBlock();
-            sync->processTimestamps(syncMasterTS, 0, 0, 2, currentBlock);
+            sync->processTimestamps(syncMasterTS, 0, 2, currentBlock);
             if (currentDivergenceUsec < toleranceValue.count()) {
                 QVERIFY2(last(currentBlock) >= idxDev->lastIndex(), qPrintable(QString::number(last(currentBlock))
                                                                                + " >= " + QString::number(idxDev->lastIndex())));
             }
 
             currentBlock = idxDev->generateBlock();
-            sync->processTimestamps(syncMasterTS, 0, 1, 2, currentBlock);
+            sync->processTimestamps(syncMasterTS, 1, 2, currentBlock);
             if (currentDivergenceUsec < toleranceValue.count()) {
                 QVERIFY2(last(currentBlock) >= idxDev->lastIndex(), qPrintable(QString::number(last(currentBlock))
                                                                                + " >= " + QString::number(idxDev->lastIndex())));
@@ -483,14 +483,14 @@ private slots:
             // check that no matter the timestamp turbulence we will not alter our
             // offset index
             auto currentBlock = idxDev->generateBlock();
-            sync->processTimestamps(syncMasterTS, 0, 0, 2, currentBlock);
+            sync->processTimestamps(syncMasterTS, 0, 2, currentBlock);
             if (i > calibrationCount) {
                 QCOMPARE(sync->indexOffset(), expectedIdxOffset);
                 QCOMPARE(last(currentBlock), idxDev->lastIndex() - expectedIdxOffset);
             }
 
             currentBlock = idxDev->generateBlock();
-            sync->processTimestamps(syncMasterTS, 0, 1, 2, currentBlock);
+            sync->processTimestamps(syncMasterTS, 1, 2, currentBlock);
             if (i > calibrationCount) {
                 QCOMPARE(sync->indexOffset(), expectedIdxOffset);
                 QCOMPARE(last(currentBlock), idxDev->lastIndex() - expectedIdxOffset);
@@ -509,14 +509,14 @@ private slots:
             auto syncMasterTS = curMasterTS;
 
             auto currentBlock = idxDev->generateBlock();
-            sync->processTimestamps(syncMasterTS, 0, 0, 2, currentBlock);
+            sync->processTimestamps(syncMasterTS, 0, 2, currentBlock);
             if (i > calibrationCount) {
                 QCOMPARE(sync->indexOffset(), 0);
                 QCOMPARE(last(currentBlock), idxDev->lastIndex());
             }
 
             currentBlock = idxDev->generateBlock();
-            sync->processTimestamps(syncMasterTS, 0, 1, 2, currentBlock);
+            sync->processTimestamps(syncMasterTS, 1, 2, currentBlock);
             if (i > calibrationCount) {
                 QCOMPARE(sync->indexOffset(), 0);
                 QCOMPARE(last(currentBlock), idxDev->lastIndex());
@@ -538,14 +538,14 @@ private slots:
 
             auto syncMasterTS = curMasterTS;
             auto currentBlock = idxDev->generateBlock();
-            sync->processTimestamps(syncMasterTS, 0, 0, 2, currentBlock);
+            sync->processTimestamps(syncMasterTS, 0, 2, currentBlock);
             if (currentDivergenceUsec < toleranceValue.count()) {
                 QVERIFY2(last(currentBlock) >= idxDev->lastIndex(), qPrintable(QString::number(last(currentBlock))
                                                                                + " >= " + QString::number(idxDev->lastIndex())));
             }
 
             currentBlock = idxDev->generateBlock();
-            sync->processTimestamps(syncMasterTS, 0, 1, 2, currentBlock);
+            sync->processTimestamps(syncMasterTS, 1, 2, currentBlock);
             if (currentDivergenceUsec < toleranceValue.count()) {
                 QVERIFY2(last(currentBlock) >= idxDev->lastIndex(), qPrintable(QString::number(last(currentBlock))
                                                                                + " >= " + QString::number(idxDev->lastIndex())));
