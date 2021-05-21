@@ -84,6 +84,8 @@ void USBDataThread::run()
     if (defaultRTPriority > 0)
         setCurrentThreadRealtime(defaultRTPriority);
 
+    syntalosModuleSetBlocksPerTimestamp(m_syModule, numUsbBlocksToRead);
+
     while (!stopThread) {
         QElapsedTimer fifoReportTimer;
 //        QElapsedTimer workTimer, loopTimer, reportTimer;

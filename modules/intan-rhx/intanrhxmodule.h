@@ -93,6 +93,11 @@ public:
 
     std::unique_ptr<FreqCounterSynchronizer> clockSync;
 
+    // these are used by timesync code
+    int blocksPerTimestamp;
+    int currentBlockIdx;
+    microseconds_t lastBlockTimestamp;
+
 private slots:
     void onExportedChannelsChanged(const QList<Channel*> &channels);
 
@@ -104,6 +109,11 @@ private:
     SystemState *m_sysState;
 
 };
+
+inline void syntalosModuleSetBlocksPerTimestamp(IntanRhxModule *mod, int count)
+{
+    mod->blocksPerTimestamp = count;
+}
 
 inline void syntalosModuleSetSignalBlocksTimestamps(IntanRhxModule *mod, const microseconds_t &blockRecvTimestamp,
                                                     uint32_t* tsBuf, size_t tsLen)
@@ -128,8 +138,22 @@ inline void syntalosModuleSetSignalBlocksTimestamps(IntanRhxModule *mod, const m
         }
     }
 
+    int currentBlockIdx = mod->currentBlockIdx;
+    const auto blocksPerTimestamp = mod->blocksPerTimestamp;
+    if (blockRecvTimestamp != mod->lastBlockTimestamp) {
+        currentBlockIdx = 0;
+        mod->lastBlockTimestamp = blockRecvTimestamp;
+    } else {
+        currentBlockIdx++;
+        if (currentBlockIdx >= blocksPerTimestamp)
+            currentBlockIdx = blocksPerTimestamp;
+    }
+
     // calculate time sync guesstimates
-    mod->clockSync->processTimestamps(blockRecvTimestamp, 0, 1, tvm);
+    mod->clockSync->processTimestamps(blockRecvTimestamp,
+                                      currentBlockIdx, blocksPerTimestamp,
+                                      tvm);
+    mod->currentBlockIdx = currentBlockIdx;
 }
 
 inline void syntalosModuleExportAmplifierChanData(IntanRhxModule *mod, int group, int channel, uint16_t *rawBuf, size_t numSamples,

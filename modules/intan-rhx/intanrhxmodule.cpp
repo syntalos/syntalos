@@ -67,6 +67,7 @@ IntanRhxModule::IntanRhxModule(const QString &id, QObject *parent)
       m_chanExportDlg(nullptr),
       m_sysState(nullptr)
 {
+    blocksPerTimestamp = 5;
     m_boardSelectDlg = new BoardSelectDialog(this);
     m_boardSelectDlg->setWindowIcon(QIcon(":/module/intan-rhx"));
 }
@@ -191,6 +192,8 @@ bool IntanRhxModule::prepare(const TestSubject &)
     // call stop, to catch the case when a user was starting an experiment run while also
     // having an ongoing sweep action
     m_ctlWindow->stopControllerSlot();
+
+    currentBlockIdx = 0;
 
     // run (but wait for the starting signal)
     m_ctlWindow->recordControllerSlot();
