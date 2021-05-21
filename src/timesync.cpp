@@ -231,14 +231,14 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     // calculate time offset
     const long long curOffsetUsec = (secondaryLastTS - masterAssumedAcqTS).count();
 
-    // calculate offsets without the new datapoint included
-    const auto avgOffsetUsec = (long) vectorMedian(m_tsOffsetsUsec);
-    const auto avgOffsetDeviationUsec = avgOffsetUsec - m_expectedOffset.count();
-
     // add new datapoint to our "memory" vector
     m_tsOffsetsUsec[m_calibrationIdx++] = curOffsetUsec;
     if (m_calibrationIdx >= m_calibrationMaxBlockN)
         m_calibrationIdx = 0;
+
+    // calculate offsets and offset expectation delta
+    const auto avgOffsetUsec = m_tsOffsetsUsec.mean();
+    const auto avgOffsetDeviationUsec = avgOffsetUsec - m_expectedOffset.count();
 
     // we do nothing more until we have enought measurements to estimate the "natural" timer offset
     // of the secondary clock and master clock
@@ -277,7 +277,7 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
 
         // send (possibly initial) offset info to the controller)
         if (m_mod != nullptr)
-            emit m_mod->synchronizerOffsetChanged(m_id, microseconds_t(m_tsOffsetsUsec.mean() - m_expectedOffset.count()));
+            emit m_mod->synchronizerOffsetChanged(m_id, microseconds_t(avgOffsetUsec - m_expectedOffset.count()));
 
         m_lastTimeIndex = secondaryLastIdx;
         return;
@@ -314,7 +314,7 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     }
     m_lastOffsetWithinTolerance = false;
 
-    const auto offsetsSD = sqrt(vectorVariance(m_tsOffsetsUsec, m_tsOffsetsUsec.mean()));
+    const auto offsetsSD = sqrt(vectorVariance(m_tsOffsetsUsec, avgOffsetUsec));
     if (abs(avgOffsetUsec - curOffsetUsec) > offsetsSD) {
         // the current offset diff to the moving average offset is not within standard deviation range.
         // This means the data point we just added is likely a fluke, potentially due to a context switch
@@ -344,8 +344,8 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
         m_lastOffsetEmission = blocksRecvTimestamp;
     }
 
-    // calculate time-based correction offset, half of the needed correction time
-    m_timeCorrectionOffset = microseconds_t(std::lround(avgOffsetDeviationUsec / 2.0));
+    // calculate time-based correction offset, a bit less than half of the needed correction time
+    m_timeCorrectionOffset = microseconds_t(std::lround(avgOffsetDeviationUsec / 2.5));
     m_tpDebug << "avgOffsetDeviationUsec" << ";" << "time-adjust-pending" << ";" << avgOffsetDeviationUsec << "\n";
     m_tpDebug << "currentOffsetsSD" << ";" << "time-adjust-pending" << ";" << offsetsSD << "\n";
 
@@ -366,7 +366,7 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     m_indexOffset = newIndexOffset;
 
     if (m_indexOffset != 0) {
-        m_offsetChangeWaitBlocks = ceil(m_calibrationMaxBlockN / 1.8);
+        m_offsetChangeWaitBlocks = ceil(m_calibrationMaxBlockN / 1.5);
         m_tpDebug << "offsetChangeWaitBlocks" << ";" << "cooldown-time" << ";" << m_offsetChangeWaitBlocks << "\n";
 
         m_applyIndexOffset = false;
