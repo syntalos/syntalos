@@ -213,6 +213,7 @@ void IntanRhxModule::start()
 
 void IntanRhxModule::stop()
 {
+    m_controllerIntf->updateStartWaitCondition(nullptr);
     m_ctlWindow->stopControllerSlot();
     safeStopSynchronizer(clockSync);
 

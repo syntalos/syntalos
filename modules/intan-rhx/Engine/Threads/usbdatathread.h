@@ -33,6 +33,7 @@
 
 #include <QObject>
 #include <QThread>
+#include <QMutex>
 #include "rhxdatablock.h"
 #include "abstractrhxcontroller.h"
 #include "datastreamfifo.h"
@@ -83,6 +84,7 @@ private:
     bool memoryAllocated;
     double memoryNeededGB;
 
+    QMutex m_swcMutex;
     OptionalWaitCondition *m_startWaitCondition;
     IntanRhxModule *m_syModule;
     symaster_timepoint m_syStartTime;

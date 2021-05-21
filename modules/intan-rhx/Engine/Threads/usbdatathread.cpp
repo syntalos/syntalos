@@ -81,10 +81,11 @@ void USBDataThread::run()
 
     while (!stopThread) {
         if (m_startWaitCondition != nullptr) {
+            QMutexLocker locker(&m_swcMutex);
             // wait until we actually start acquiring data
-            m_startWaitCondition->wait(m_syModule);
-        } else {
-            qWarning().noquote() << "No start wait condition in Intan RHX module!";
+            // (second nullptr check is necessary, as the previous one wasn't mutex-protected)
+            if (m_startWaitCondition != nullptr)
+                m_startWaitCondition->wait(m_syModule);
         }
 
         QElapsedTimer fifoReportTimer;
@@ -299,6 +300,7 @@ void USBDataThread::setErrorCheckingEnabled(bool enabled)
 
 void USBDataThread::updateStartWaitCondition(OptionalWaitCondition *startWaitCondition)
 {
+    QMutexLocker locker(&m_swcMutex);
     m_startWaitCondition = startWaitCondition;
 }
 
@@ -306,6 +308,8 @@ void USBDataThread::startWithSyntalosStartTime(const symaster_timepoint &startTi
 {
     m_syStartTime = startTime;
     keepGoing = true;
+    if (m_startWaitCondition == nullptr)
+        qWarning().noquote() << "intan-rhx:" << "No start wait condition set!";
 }
 
 void USBDataThread::setDefaultRealtimePriority(int prio)
