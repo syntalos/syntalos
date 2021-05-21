@@ -310,7 +310,9 @@ public:
                 }
 
                 // only do time adjustment if we have a valid timestamp
-                const auto pts = buffer->pts;
+                // NOTE: We use the DTS here as using PTS (as before) has stopped working with newer TIS camera versions.
+                // For our purpose here, PTS and DTS should be identical anyway.
+                const auto pts = GST_BUFFER_DTS(buffer);
                 if (pts != GST_CLOCK_TIME_NONE) {
                     clockSync->processTimestamp(frameRecvTime, std::chrono::duration_cast<microseconds_t>(nanoseconds_t(pts)));
                     m_firstTimestamp = false;
