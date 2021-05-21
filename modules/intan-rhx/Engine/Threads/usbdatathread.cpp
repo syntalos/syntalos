@@ -109,6 +109,9 @@ void USBDataThread::run()
 
 
             std::ofstream tpDebug("/var/tmp/syntalos-intan-tp.txt");
+            tpDebug << "samplesPerDataBlock: " << samplesPerDataBlock << "\n"
+                    << "dataBlockSizeInWords: " << dataBlockSizeInWords << "\n"
+                    << "boardSampleRate: " << controller->getSampleRate() << "\n";
 
 
             const auto boardSampleRate = controller->getSampleRate();
@@ -126,15 +129,17 @@ void USBDataThread::run()
                 // with or without error checking enabled.
 
                 // factor in latency due to words in USB FIFO buffer
-                bool hasBeenUpdated = false;
-                unsigned int wordsInFifo = controller->getLastNumWordsInFifo(hasBeenUpdated);
+                uint wordsInFifo = controller->getLastNumWordsInFifo();
 
                 const auto daqTimestamp = FUNC_EXEC_TIMESTAMP(m_syStartTime,
                                     numBytesRead = (int) controller->readDataBlocksRaw(numUsbBlocksToRead, &usbBuffer[usbBufferIndex]));
 
-                const auto deviceLatencyUs = 1000.0 * 1000.0 * samplesPerDataBlock
-                                                * ((wordsInFifo - (numBytesRead / BytesPerWord))
-                                                / dataBlockSizeInWords) / boardSampleRate;
+                const uint numWordsRead = numBytesRead / BytesPerWord;
+                uint deviceLatencyUs = 0;
+                if (numWordsRead < wordsInFifo)
+                    deviceLatencyUs = 1000.0 * 1000.0 * samplesPerDataBlock
+                                        * ((wordsInFifo - numWordsRead)
+                                        / dataBlockSizeInWords) / boardSampleRate;
 
                 // guess the Syntalos master time when this data block was likely acquired
                 // TODO: Use __builtin_expect/likely here?
@@ -142,7 +147,7 @@ void USBDataThread::run()
                                                     static_cast<uint64_t>(daqTimestamp.count() - deviceLatencyUs) :
                                                     static_cast<uint64_t>(daqTimestamp.count());
 
-                tpDebug << daqTimestampUsU64 << ";" << deviceLatencyUs << ";" << wordsInFifo << ";" << numBytesRead << "\n";
+                tpDebug << daqTimestampUsU64 << ";" << deviceLatencyUs << ";" << wordsInFifo << ";" << numWordsRead << "\n";
 
                 bytesInBuffer = usbBufferIndex + numBytesRead;
                 if (numBytesRead > 0) {
@@ -205,7 +210,7 @@ void USBDataThread::run()
                         cerr << "USBDataThread: USB buffer overrun (3)." << '\n';
                     }
 
-                    hasBeenUpdated = false;
+                    bool hasBeenUpdated = false;
                     wordsInFifo = controller->getLastNumWordsInFifo(hasBeenUpdated);
                     if (hasBeenUpdated || (fifoReportTimer.nsecsElapsed() > qint64(50e6))) {
                         double fifoPercentageFull = 100.0 * wordsInFifo / FIFOCapacityInWords;
