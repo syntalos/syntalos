@@ -34,7 +34,7 @@
 
 #include "rtkit.h"
 
-USBDataThread::USBDataThread(AbstractRHXController* controller_, DataStreamFifo* usbFifo_, QObject *parent) :
+USBDataThread::USBDataThread(AbstractRHXController* controller_, DataStreamFifo* usbFifo_, IntanRhxModule *syModule, QObject *parent) :
     QThread(parent),
     errorChecking(true),
     controller(controller_),
@@ -45,7 +45,7 @@ USBDataThread::USBDataThread(AbstractRHXController* controller_, DataStreamFifo*
     numUsbBlocksToRead(1),
     usbBufferIndex(0),
     m_startWaitCondition(nullptr),
-    m_syModule(nullptr),
+    m_syModule(syModule),
     defaultRTPriority(-1)
 {
     bufferSize = (BufferSizeInBlocks + 1) * BytesPerWord *
@@ -74,19 +74,19 @@ void USBDataThread::run()
 {
     emit hardwareFifoReport(0.0);
 
-    if (m_startWaitCondition != nullptr) {
-        // wait until we actually start acquiring data
-        m_startWaitCondition->wait(m_syModule);
-    } else {
-        qWarning().noquote() << "No start wait condition in Intan RHX module!";
-    }
-
     if (defaultRTPriority > 0)
         setCurrentThreadRealtime(defaultRTPriority);
 
     syntalosModuleSetBlocksPerTimestamp(m_syModule, numUsbBlocksToRead);
 
     while (!stopThread) {
+        if (m_startWaitCondition != nullptr) {
+            // wait until we actually start acquiring data
+            m_startWaitCondition->wait(m_syModule);
+        } else {
+            qWarning().noquote() << "No start wait condition in Intan RHX module!";
+        }
+
         QElapsedTimer fifoReportTimer;
 //        QElapsedTimer workTimer, loopTimer, reportTimer;
         if (keepGoing) {
@@ -307,10 +307,9 @@ void USBDataThread::setErrorCheckingEnabled(bool enabled)
     errorChecking = enabled;
 }
 
-void USBDataThread::updateStartWaitCondition(IntanRhxModule *syModule, OptionalWaitCondition *startWaitCondition)
+void USBDataThread::updateStartWaitCondition(OptionalWaitCondition *startWaitCondition)
 {
     m_startWaitCondition = startWaitCondition;
-    m_syModule = syModule;
 }
 
 void USBDataThread::startWithSyntalosStartTime(const symaster_timepoint &startTime)

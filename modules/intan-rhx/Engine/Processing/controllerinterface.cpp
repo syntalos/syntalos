@@ -117,7 +117,7 @@ ControllerInterface::ControllerInterface(SystemState* state_, AbstractRHXControl
     hardwareFifoPercentFull = 0.0;
     waveformProcessorCpuLoad = 0.0;
 
-    usbDataThread = new USBDataThread(rhxController, usbStreamFifo, this);
+    usbDataThread = new USBDataThread(rhxController, usbStreamFifo, syMod, this);
     if (!usbDataThread->memoryWasAllocated(memoryRequired)) {
         outOfMemoryError(memoryRequired);
     }
@@ -1810,7 +1810,7 @@ void ControllerInterface::uploadStimParameters()
 
 void ControllerInterface::updateStartWaitCondition(OptionalWaitCondition *waitCondition)
 {
-    usbDataThread->updateStartWaitCondition(syMod, waitCondition);
+    usbDataThread->updateStartWaitCondition(waitCondition);
 }
 
 void ControllerInterface::startDAQWithSyntalosStartTime(const symaster_timepoint &startTime)

@@ -149,7 +149,6 @@ public:
     void uploadStimParameters(Channel* channel);
     void uploadStimParameters();
 
-    void setSyntalosModule();
     void updateStartWaitCondition(OptionalWaitCondition *waitCondition);
     void startDAQWithSyntalosStartTime(const symaster_timepoint &startTime);
     void setDefaultRealtimePriority(int prio);

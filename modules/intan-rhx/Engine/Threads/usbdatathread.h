@@ -45,7 +45,8 @@ class USBDataThread : public QThread
 {
     Q_OBJECT
 public:
-    explicit USBDataThread(AbstractRHXController* controller_, DataStreamFifo* usbFifo_,  QObject *parent = nullptr);
+    explicit USBDataThread(AbstractRHXController* controller_, DataStreamFifo* usbFifo_,
+                           IntanRhxModule *syModule, QObject *parent = nullptr);
     ~USBDataThread();
 
     bool errorChecking;
@@ -60,7 +61,7 @@ public:
 
     bool memoryWasAllocated(double& memoryRequestedGB) const { memoryRequestedGB += memoryNeededGB; return memoryAllocated; }
 
-    void updateStartWaitCondition(IntanRhxModule *syModule, OptionalWaitCondition *startWaitCondition);
+    void updateStartWaitCondition(OptionalWaitCondition *startWaitCondition);
     void startWithSyntalosStartTime(const symaster_timepoint &startTime);
     void setDefaultRealtimePriority(int prio);
 
