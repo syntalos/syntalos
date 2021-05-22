@@ -302,7 +302,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(m_engine, &Engine::preRunStart, this, &MainWindow::onEnginePreRunStart);
     connect(m_engine, &Engine::runStarted, this, &MainWindow::onEngineRunStarted);
     connect(m_engine, &Engine::runStopped, this, &MainWindow::onEngineStopped);
-    connect(m_engine, &Engine::resourceWarning, this, &MainWindow::onEngineResourceWarning);
+    connect(m_engine, &Engine::resourceWarningUpdate, this, &MainWindow::onEngineResourceWarningUpdate);
     connect(ui->graphForm, &ModuleGraphForm::busyStart, this, &MainWindow::showBusyIndicatorProcessing);
     connect(ui->graphForm, &ModuleGraphForm::busyEnd, this, &MainWindow::hideBusyIndicator);
 
@@ -1022,7 +1022,7 @@ void MainWindow::onEngineStopped()
     ui->cpuWarnWidget->setVisible(false);
 }
 
-void MainWindow::onEngineResourceWarning(Engine::SystemResource kind, bool resolved, const QString &message)
+void MainWindow::onEngineResourceWarningUpdate(Engine::SystemResource kind, bool resolved, const QString &message)
 {
     switch (kind) {
     case Engine::StorageSpace:

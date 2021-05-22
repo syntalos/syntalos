@@ -113,7 +113,7 @@ signals:
     void runFailed(AbstractModule *mod, const QString &message);
     void runStopped();
     void moduleError(AbstractModule *mod, const QString& message);
-    void resourceWarning(SystemResource kind, bool resolved, const QString &message);
+    void resourceWarningUpdate(SystemResource kind, bool resolved, const QString &message);
 
 private slots:
     void receiveModuleError(const QString& message);

@@ -76,7 +76,8 @@ private slots:
     void onEnginePreRunStart();
     void onEngineRunStarted();
     void onEngineStopped();
-    void onEngineResourceWarning(Engine::SystemResource kind, bool resolved, const QString &message);
+    void onEngineResourceWarningUpdate(Engine::SystemResource kind, bool resolved,
+                                       const QString &message);
     void onElapsedTimeUpdate();
 
     void statusMessageChanged(const QString &message);

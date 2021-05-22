@@ -1070,7 +1070,8 @@ bool Engine::runInternal(const QString &exportDirPath)
 
         // only emit a resource warning if we are using way more threads than we probably should
         if (threadedModulesTotalN > (cpuCoreCount + (cpuCoreCount / 2)))
-            Q_EMIT resourceWarning(CpuCores, false, QStringLiteral("Likely not enough CPU cores available for optimal operation."));
+            Q_EMIT resourceWarningUpdate(CpuCores, false,
+                                         QStringLiteral("Likely not enough CPU cores available for optimal operation."));
 
         // launch threads for threaded modules, except for out out-of-process
         // modules - they get special treatment
@@ -1241,11 +1242,13 @@ bool Engine::runInternal(const QString &exportDirPath)
 
             const double mibAvailable = ssi.available / 1024.0 / 1024.0;
             if (mibAvailable < 8192) {
-                Q_EMIT resourceWarning(StorageSpace, false, QStringLiteral("Disk space is very low. Less than %1 GiB remaining.").arg(mibAvailable / 1024.0, 0, 'f', 1));
+                Q_EMIT resourceWarningUpdate(StorageSpace, false,
+                                             QStringLiteral("Disk space is very low. Less than %1 GiB remaining.").arg(mibAvailable / 1024.0, 0, 'f', 1));
                 diskSpaceWarningEmitted = true;
             } else {
                 if (diskSpaceWarningEmitted) {
-                    Q_EMIT resourceWarning(StorageSpace, true, QStringLiteral("%1 GiB of disk space remaining.").arg(mibAvailable / 1024.0, 0, 'f', 1));
+                    Q_EMIT resourceWarningUpdate(StorageSpace, true,
+                                                 QStringLiteral("%1 GiB of disk space remaining.").arg(mibAvailable / 1024.0, 0, 'f', 1));
                     diskSpaceWarningEmitted = false;
                 }
             }
@@ -1261,11 +1264,13 @@ bool Engine::runInternal(const QString &exportDirPath)
                 // when we have less than 5% memory remaining, there usually still is (slower) swap space available,
                 // this is why 5% is relatively low.
                 // NOTE: Be more clever here in future and check available swap space in advance for this warning?
-                Q_EMIT resourceWarning(Memory, false, QStringLiteral("System memory is low. Only %1% remaining.").arg(memInfo.memAvailablePercent, 0, 'f', 1));
+                Q_EMIT resourceWarningUpdate(Memory, false,
+                                             QStringLiteral("System memory is low. Only %1% remaining.").arg(memInfo.memAvailablePercent, 0, 'f', 1));
                 memoryWarningEmitted = true;
             } else {
                 if (memoryWarningEmitted) {
-                    Q_EMIT resourceWarning(Memory, true, QStringLiteral("%1% of system memory remaining.").arg(memInfo.memAvailablePercent, 0, 'f', 1));
+                    Q_EMIT resourceWarningUpdate(Memory, true,
+                                                 QStringLiteral("%1% of system memory remaining.").arg(memInfo.memAvailablePercent, 0, 'f', 1));
                     memoryWarningEmitted = true;
                 }
             }
@@ -1294,7 +1299,8 @@ bool Engine::runInternal(const QString &exportDirPath)
             bool issueFound = false;
             for (auto& sub : monitoredSubscriptions) {
                 if (sub->approxPendingCount() > 100) {
-                    Q_EMIT resourceWarning(StreamBuffers, false, QStringLiteral("A module is overwhelmed with its input and not fast enough."));
+                    Q_EMIT resourceWarningUpdate(StreamBuffers, false,
+                                                 QStringLiteral("A module is overwhelmed with its input and not fast enough."));
                     subBufferWarningEmitted = true;
                     issueFound = true;
                     break;
@@ -1302,7 +1308,8 @@ bool Engine::runInternal(const QString &exportDirPath)
             }
 
             if (!issueFound && subBufferWarningEmitted)
-                Q_EMIT resourceWarning(StreamBuffers, false, QStringLiteral("All modules appear to be running fast enough."));
+                Q_EMIT resourceWarningUpdate(StreamBuffers, true,
+                                             QStringLiteral("All modules appear to be running fast enough."));
         });
 
         // start resource watchers
