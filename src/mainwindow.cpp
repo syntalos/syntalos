@@ -291,8 +291,9 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->actionAbout, &QAction::triggered, this, &MainWindow::aboutActionTriggered);
     connect(ui->actionGlobalConfig, &QAction::triggered, this, &MainWindow::globalConfigActionTriggered);
 
-    // restore main window geometry
+    // restore main window geometry and state
     restoreGeometry(m_gconf->mainWinGeometry());
+    restoreState(m_gconf->mainWinState());
 
     // get a reference to the current engine
     m_engine = ui->graphForm->engine();
@@ -810,8 +811,9 @@ void MainWindow::closeEvent(QCloseEvent *event)
         shutdown();
     }
 
-    // save main window geometry to global config
+    // save main window geometry and state to global config
     m_gconf->setMainWinGeometry(saveGeometry());
+    m_gconf->setMainWinState(saveState());
 }
 
 void MainWindow::resizeEvent(QResizeEvent *event)

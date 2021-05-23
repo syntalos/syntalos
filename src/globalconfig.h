@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2020 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2021 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -37,6 +37,9 @@ public:
 
     QByteArray mainWinGeometry() const;
     void setMainWinGeometry(const QByteArray &geometry);
+
+    QByteArray mainWinState() const;
+    void setMainWinState(const QByteArray &state);
 
     int defaultThreadNice() const;
     void setDefaultThreadNice(int nice);

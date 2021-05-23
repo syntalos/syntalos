@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2020 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2021 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -35,22 +35,32 @@ GlobalConfig::GlobalConfig(QObject *parent)
 
 QString GlobalConfig::iconThemeName() const
 {
-    return m_s->value("main/icon_theme", QStringLiteral("breeze")).toString();
+    return m_s->value("ui/icon_theme", QStringLiteral("breeze")).toString();
 }
 
 void GlobalConfig::setIconThemeName(const QString &iconTheme)
 {
-    m_s->setValue("main/icon_theme", iconTheme);
+    m_s->setValue("ui/icon_theme", iconTheme);
 }
 
 QByteArray GlobalConfig::mainWinGeometry() const
 {
-    return m_s->value("main/geometry").toByteArray();
+    return m_s->value("ui/geometry").toByteArray();
 }
 
 void GlobalConfig::setMainWinGeometry(const QByteArray &geometry)
 {
-    m_s->setValue("main/geometry", geometry);
+    m_s->setValue("ui/geometry", geometry);
+}
+
+QByteArray GlobalConfig::mainWinState() const
+{
+    return m_s->value("ui/window_state").toByteArray();
+}
+
+void GlobalConfig::setMainWinState(const QByteArray &state)
+{
+    m_s->setValue("ui/window_state", state);
 }
 
 int GlobalConfig::defaultThreadNice() const
