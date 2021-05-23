@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2020 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2021 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -303,6 +303,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(m_engine, &Engine::runStarted, this, &MainWindow::onEngineRunStarted);
     connect(m_engine, &Engine::runStopped, this, &MainWindow::onEngineStopped);
     connect(m_engine, &Engine::resourceWarningUpdate, this, &MainWindow::onEngineResourceWarningUpdate);
+    connect(m_engine, &Engine::connectionHeatChangedAtPort, this, &MainWindow::onEngineConnectionHeatChanged);
     connect(ui->graphForm, &ModuleGraphForm::busyStart, this, &MainWindow::showBusyIndicatorProcessing);
     connect(ui->graphForm, &ModuleGraphForm::busyEnd, this, &MainWindow::hideBusyIndicator);
 
@@ -1000,6 +1001,9 @@ void MainWindow::onEnginePreRunStart()
     ui->diskSpaceWarnWidget->setVisible(false);
     ui->memoryWarnWidget->setVisible(false);
     ui->cpuWarnWidget->setVisible(false);
+
+    // ensure the edge cache is cleared, it may be invalid
+    m_portGraphEdgeCache.clear();
 }
 
 void MainWindow::onEngineRunStarted()
@@ -1020,6 +1024,9 @@ void MainWindow::onEngineStopped()
     ui->diskSpaceWarnWidget->setVisible(false);
     ui->memoryWarnWidget->setVisible(false);
     ui->cpuWarnWidget->setVisible(false);
+
+    // clear edge cache (used for faster edge heat updates)
+    m_portGraphEdgeCache.clear();
 }
 
 void MainWindow::onEngineResourceWarningUpdate(Engine::SystemResource kind, bool resolved, const QString &message)
@@ -1041,6 +1048,18 @@ void MainWindow::onEngineResourceWarningUpdate(Engine::SystemResource kind, bool
         ui->memoryWarningLabel->setText(message);
         ui->memoryWarnWidget->setVisible(!resolved);
         break;
+    }
+}
+
+void MainWindow::onEngineConnectionHeatChanged(std::shared_ptr<VarStreamInputPort> iport, ConnectionHeatLevel hlevel)
+{
+    const auto iportPtr = iport.get();
+    auto edge = m_portGraphEdgeCache.value(iportPtr);
+    if (edge == nullptr) {
+        edge = ui->graphForm->updateConnectionHeat(iportPtr, iport->outPort(), hlevel);
+        m_portGraphEdgeCache.insert(iportPtr, edge);
+    } else {
+        edge->setHeatLevel(hlevel);
     }
 }
 

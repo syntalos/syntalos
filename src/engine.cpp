@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2020 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2021 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -1284,32 +1284,84 @@ bool Engine::runInternal(const QString &exportDirPath)
         }
 
         // watcher for subscription buffer
-        std::vector<std::shared_ptr<VariantStreamSubscription>> monitoredSubscriptions;
+        struct SubscriptionBufferWatchData {
+            std::shared_ptr<VariantStreamSubscription> sub;
+            std::shared_ptr<VarStreamInputPort> port;
+            ConnectionHeatLevel heat;
+        };
+
+        std::vector<SubscriptionBufferWatchData> monitoredSubscriptions;
         for (auto& mod : orderedActiveModules) {
             for (auto &port : mod->inPorts()) {
                 if (!port->hasSubscription())
                     continue;
-                monitoredSubscriptions.push_back(port->subscriptionVar());
+                SubscriptionBufferWatchData data;
+                data.sub = port->subscriptionVar();
+                data.port = port;
+                data.heat = ConnectionHeatLevel::NONE;
+                monitoredSubscriptions.push_back(data);
+
+                // reset all connection heat levels
+                Q_EMIT connectionHeatChangedAtPort(port, ConnectionHeatLevel::NONE);
             }
         }
+
         bool subBufferWarningEmitted = false;
         QTimer subBufferCheckTimer;
         subBufferCheckTimer.setInterval(10 * 1000); // check every 10sec
         connect(&subBufferCheckTimer, &QTimer::timeout, [&]() {
             bool issueFound = false;
-            for (auto& sub : monitoredSubscriptions) {
-                if (sub->approxPendingCount() > 100) {
-                    Q_EMIT resourceWarningUpdate(StreamBuffers, false,
-                                                 QStringLiteral("A module is overwhelmed with its input and not fast enough."));
-                    subBufferWarningEmitted = true;
+            for (auto& msd : monitoredSubscriptions) {
+                const auto &sub = msd.sub;
+                const auto approxPendingCount = sub->approxPendingCount();
+
+                // less than 100 pending items is arbitrarily considered "okay"
+                if (approxPendingCount < 100) {
+                    if (msd.heat != ConnectionHeatLevel::NONE) {
+                        Q_EMIT connectionHeatChangedAtPort(msd.port, ConnectionHeatLevel::NONE);
+                        msd.heat = ConnectionHeatLevel::NONE;
+                        qCDebug(logEngine).noquote() << "Connection heat removed from"
+                                                     << QString("%1:%2[<%3]").arg(msd.port->owner()->name(),
+                                                                                  msd.port->title(),
+                                                                                  msd.port->dataTypeName());
+                    }
+                    continue;
+                }
+
+                // determine connection "heat" level
+                ConnectionHeatLevel heat;
+                if (approxPendingCount > 250)
+                    heat = ConnectionHeatLevel::HIGH;
+                else if (approxPendingCount > 200)
+                    heat = ConnectionHeatLevel::MEDIUM;
+                else
+                    heat = ConnectionHeatLevel::LOW;
+                if (heat != msd.heat) {
+                    msd.heat = heat;
+                    Q_EMIT connectionHeatChangedAtPort(msd.port, msd.heat);
+                    qCDebug(logEngine).noquote().nospace()
+                            << "Connection heat changed to \"" << connectionHeatToHumanString(msd.heat) << "\" for "
+                            << QString("%1:%2[<%3]").arg(msd.port->owner()->name(),
+                                                         msd.port->title(),
+                                                         msd.port->dataTypeName())
+                            << "(level: " << approxPendingCount << ")";
+                }
+
+                if (heat > ConnectionHeatLevel::LOW) {
                     issueFound = true;
-                    break;
+                    if (!subBufferWarningEmitted) {
+                        Q_EMIT resourceWarningUpdate(StreamBuffers, false,
+                                                     QStringLiteral("A module is overwhelmed with its input and not fast enough."));
+                        subBufferWarningEmitted = true;
+                    }
                 }
             }
 
-            if (!issueFound && subBufferWarningEmitted)
+            if (!issueFound && subBufferWarningEmitted) {
                 Q_EMIT resourceWarningUpdate(StreamBuffers, true,
                                              QStringLiteral("All modules appear to be running fast enough."));
+                subBufferWarningEmitted = false;
+            }
         });
 
         // start resource watchers

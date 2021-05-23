@@ -922,18 +922,7 @@ FlowGraphEdge::FlowGraphEdge(void)
     QGraphicsPathItem::setFlag(QGraphicsItem::ItemIsSelectable);
 
     FlowGraphItem::setBackground(FlowGraphItem::foreground());
-
-    const QPalette pal;
-    const bool is_darkest = (pal.base().color().value() < 24);
-    QColor shadow_color = (is_darkest ? Qt::white : Qt::black);
-    shadow_color.setAlpha(220);
-
-    QGraphicsDropShadowEffect *effect = new QGraphicsDropShadowEffect();
-    effect->setColor(shadow_color);
-    effect->setBlurRadius(is_darkest ? 4 : 8);
-    effect->setOffset(is_darkest ? 0 : 1);
-    QGraphicsPathItem::setGraphicsEffect(effect);
-
+    setHeatLevel(ConnectionHeatLevel::NONE);
     QGraphicsPathItem::setAcceptHoverEvents(true);
 }
 
@@ -1106,6 +1095,38 @@ void FlowGraphEdge::updatePortTypeColors(void)
         FlowGraphItem::setForeground(color);
         FlowGraphItem::setBackground(color);
     }
+}
+
+void FlowGraphEdge::setHeatLevel(ConnectionHeatLevel hlevel)
+{
+    const QPalette pal;
+    const bool isDarkest = pal.base().color().value() < 24;
+    QColor shadowColor = isDarkest ? Qt::white : Qt::black;
+    shadowColor.setAlpha(220);
+    qreal blurRadius = isDarkest ? 4 : 8;
+    qreal shadowOffset = isDarkest ? 0 : 1;
+
+    switch (hlevel) {
+    case ConnectionHeatLevel::NONE: break;
+    case ConnectionHeatLevel::LOW:
+        shadowColor = SyColorWarning;
+        break;
+    case ConnectionHeatLevel::MEDIUM:
+        shadowColor = SyColorDanger;
+        break;
+    case ConnectionHeatLevel::HIGH:
+        shadowColor = SyColorDangerHigh;
+        blurRadius = 16;
+        shadowOffset = 2;
+        shadowColor.setAlpha(255);
+        break;
+    }
+
+    auto effect = new QGraphicsDropShadowEffect();
+    effect->setColor(shadowColor);
+    effect->setBlurRadius(blurRadius);
+    effect->setOffset(shadowOffset);
+    QGraphicsPathItem::setGraphicsEffect(effect);
 }
 
 //----------------------------------------------------------------------------

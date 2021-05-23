@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2020 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2021 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -33,6 +33,7 @@ class ModuleManager;
 class ModuleIndicator;
 class QSvgWidget;
 class QSettings;
+class FlowGraphEdge;
 namespace Syntalos {
 class ModuleInfo;
 class AbstractModule;
@@ -78,6 +79,8 @@ private slots:
     void onEngineStopped();
     void onEngineResourceWarningUpdate(Engine::SystemResource kind, bool resolved,
                                        const QString &message);
+    void onEngineConnectionHeatChanged(std::shared_ptr<VarStreamInputPort> iport,
+                                       ConnectionHeatLevel hlevel);
     void onElapsedTimeUpdate();
 
     void statusMessageChanged(const QString &message);
@@ -128,6 +131,8 @@ private:
     ExperimenterListModel *m_experimenterList;
 
     TimingsDialog *m_timingsDialog;
+
+    QHash<VarStreamInputPort*, FlowGraphEdge*> m_portGraphEdgeCache;
 };
 
 #endif // MAINWINDOW_H

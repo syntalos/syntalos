@@ -47,6 +47,26 @@ operator>>(QDataStream &s, T &t)
 #endif
 
 /**
+ * @brief Connection heat level
+ *
+ * Warning level dependent on how full the buffer that is
+ * repesented by a connection is.
+ * A high heat means lots of pending stuff and potentially a
+ * slow receiving module or not enough system resources.
+ * This state is managed internally by Syntalos.
+ */
+enum class ConnectionHeatLevel
+{
+    NONE,
+    LOW,
+    MEDIUM,
+    HIGH
+};
+Q_DECLARE_METATYPE(ConnectionHeatLevel)
+
+QString connectionHeatToHumanString(ConnectionHeatLevel heat);
+
+/**
  * @brief The ModuleState enum
  *
  * Describes the state a module can be in. The state is usually displayed

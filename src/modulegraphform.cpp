@@ -109,6 +109,33 @@ void ModuleGraphForm::setModifyPossible(bool allowModify)
     ui->graphView->setAllowEdit(m_modifyPossible);
 }
 
+FlowGraphEdge *ModuleGraphForm::updateConnectionHeat(const VarStreamInputPort *inPort, const StreamOutputPort *outPort,
+                                                     ConnectionHeatLevel hlevel)
+{
+    const auto inNode = m_modNodeMap.value(inPort->owner());
+    const auto outNode = m_modNodeMap.value(outPort->owner());
+
+    if ((inNode == nullptr) || (outNode == nullptr)) {
+        qCCritical(logGraphUi).noquote()
+                << "Unable to find port graph nodes to update edge heat level. Source owner:" << inPort->owner()->name();
+        return nullptr;
+    }
+
+    const auto graphInPort = inNode->findPort(inPort->id(), FlowGraphNodePort::Input, inPort->dataTypeId());
+    const auto graphOutPort = outNode->findPort(outPort->id(), FlowGraphNodePort::Output, outPort->dataTypeId());
+
+    auto edge = graphInPort->findConnect(graphOutPort);
+    if (edge == nullptr) {
+        qCCritical(logGraphUi).noquote()
+                << "Unable to find graph edge connecting" << inPort->owner()->name() << "and" << outPort->owner()->name()
+                << "to update its heat level.";
+        return nullptr;
+    }
+
+    edge->setHeatLevel(hlevel);
+    return edge;
+}
+
 void ModuleGraphForm::moduleAdded(ModuleInfo *info, AbstractModule *mod)
 {
     connect(mod, &AbstractModule::stateChanged, this, &ModuleGraphForm::receiveStateChange);

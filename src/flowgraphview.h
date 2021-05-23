@@ -371,6 +371,8 @@ public:
 
     void updatePortTypeColors();
 
+    void setHeatLevel(ConnectionHeatLevel hlevel);
+
 protected:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
     QVariant itemChange(GraphicsItemChange change, const QVariant &value) override;

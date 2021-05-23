@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2020 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2021 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -113,7 +113,9 @@ signals:
     void runFailed(AbstractModule *mod, const QString &message);
     void runStopped();
     void moduleError(AbstractModule *mod, const QString& message);
+
     void resourceWarningUpdate(SystemResource kind, bool resolved, const QString &message);
+    void connectionHeatChangedAtPort(std::shared_ptr<VarStreamInputPort> iport, ConnectionHeatLevel hlevel);
 
 private slots:
     void receiveModuleError(const QString& message);

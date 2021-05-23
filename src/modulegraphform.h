@@ -59,6 +59,9 @@ public:
     bool modifyPossible() const;
     void setModifyPossible(bool allowModify);
 
+    FlowGraphEdge *updateConnectionHeat(const VarStreamInputPort *inPort, const StreamOutputPort *outPort,
+                                        ConnectionHeatLevel hlevel);
+
 private slots:
     void on_actionAddModule_triggered();
     void on_actionConnect_triggered();
