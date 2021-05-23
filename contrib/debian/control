@@ -18,7 +18,7 @@ Description: Synchronized parallel DAQ from diverse sources
  Syntalos is a software for timestamp-synchronized parallel data acquisition
  from diverse data sources.
  It is especially useful for in-vivo behavior tracking, electrophysiology,
- miniscope recordings and control of automated closed-loop experiments in
+ Miniscope recordings and control of automated closed-loop experiments in
  neuroscience. Its modularity allows it to be used for a wide variety of
  different experiment types.
  .

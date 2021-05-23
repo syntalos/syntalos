@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.bothlab.syntalos</id>
+
+  <name>Syntalos</name>
+  <summary>Flow-based synchronized parallel DAQ from diverse sources and flexible control for neuroscience experiments</summary>
+
+  <metadata_license>FSFAP</metadata_license>
+  <project_license>LGPL-3.0-or-later and GPL-3.0-or-later</project_license>
+
+  <description>
+    <p>
+      Syntalos is a software for timestamp-synchronized parallel data acquisition from diverse data sources.
+      It is especially useful for in-vivo behavior tracking, electrophysiology, Miniscope recordings and control
+      of automated closed-loop experiments in neuroscience. Its modularity allows it to be used for a wide variety
+      of different experiment types.
+    </p>
+    <p>
+      The project contains many modules by default which allow acquisition of data from a wide array of data sources,
+      as well as common online processing tasks. Some modules may require 3rd-party components to work properly.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">syntalos.desktop</launchable>
+
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/bothlab/syntalos/master/contrib/screenshots/scr1-miniscope.png</image>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/bothlab/syntalos/master/contrib/screenshots/scr2-complexboard.png</image>
+    </screenshot>
+  </screenshots>
+</component>
