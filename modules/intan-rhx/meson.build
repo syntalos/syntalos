@@ -135,6 +135,7 @@ mod = shared_module(module_name,
                    module_deps],
     install: true,
     install_dir: mod_install_dir,
+    install_rpath: mod_install_dir,
     include_directories: module_inc_dirs,
     cpp_args: module_cpp_args
 )
