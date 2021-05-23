@@ -30,11 +30,17 @@ class ModuleInfo;
 class AbstractModule;
 class VarStreamInputPort;
 class StreamOutputPort;
+
+Q_DECLARE_LOGGING_CATEGORY(logGraphUi)
 }
 #endif // DOXYGEN_SHOULD_SKIP_THIS
 
 namespace Ui {
 class ModuleGraphForm;
+}
+
+namespace Syntalos {
+Q_DECLARE_LOGGING_CATEGORY(logGraphUi)
 }
 
 using namespace Syntalos;

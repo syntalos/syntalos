@@ -32,6 +32,10 @@
 #include "streams/frametype.h"
 #include "utils/misc.h"
 
+namespace Syntalos {
+    Q_LOGGING_CATEGORY(logGraphUi, "graphui")
+}
+
 ModuleGraphForm::ModuleGraphForm(QWidget *parent)
     : QWidget(parent),
       ui(new Ui::ModuleGraphForm),
@@ -185,7 +189,7 @@ void ModuleGraphForm::itemRenamed(FlowGraphItem *item, const QString &name)
         return;
     auto node = static_cast<FlowGraphNode*>(item);
     if (node == nullptr || node->module() == nullptr) {
-        qCritical() << "Orphaned node" << node->nodeName() << ", can not change name";
+        qCCritical(logGraphUi).noquote() << "Orphaned node" << node->nodeName() << ", can not change name";
         return;
     }
     node->module()->setName(simplifyStrForModuleName(name));
@@ -244,7 +248,7 @@ void ModuleGraphForm::on_graphPortsConnected(FlowGraphNodePort *port1, FlowGraph
 {
     // sanity check
     if (!m_modifyPossible) {
-        qCritical() << "Tried to connect ports while board modifications were prohibited.";
+        qCCritical(logGraphUi).noquote() << "Tried to connect ports while board modifications were prohibited.";
         ui->graphView->disconnectItems(port1, port2);
         return;
     }
@@ -262,14 +266,14 @@ void ModuleGraphForm::on_graphPortsConnected(FlowGraphNodePort *port1, FlowGraph
 
     if ((inPort == nullptr || outPort == nullptr)) {
         // something went wrong or we connected two ports of the same type
-        qWarning().noquote() << "Attempt to connect possibly incompatible ports failed.";
+        qCWarning(logGraphUi).noquote() << "Attempt to connect possibly incompatible ports failed.";
 
         ui->graphView->disconnectItems(port1, port2);
         return;
     }
 
     if (!inPort->acceptsSubscription(outPort->dataTypeName())) {
-        qWarning().noquote() << "Tried to connect incompatible ports.";
+        qCWarning(logGraphUi).noquote() << "Tried to connect incompatible ports.";
         ui->graphView->disconnectItems(port1, port2);
         return;
     }
@@ -281,7 +285,7 @@ void ModuleGraphForm::on_graphPortsConnected(FlowGraphNodePort *port1, FlowGraph
     }
 
     inPort->setSubscription(outPort, outPort->subscribe());
-    qDebug().noquote() << "Connected ports:"
+    qCDebug(logGraphUi).noquote() << "Connected ports:"
                        << QString("%1[>%2]").arg(outPort->title()).arg(outPort->dataTypeName())
                        << "->"
                        << QString("%1[<%2]").arg(inPort->title()).arg(inPort->dataTypeName());
@@ -291,7 +295,7 @@ void ModuleGraphForm::on_graphPortsDisconnected(FlowGraphNodePort *port1, FlowGr
 {
     // sanity check
     if (!m_modifyPossible) {
-        qCritical() << "Disconnected ports in graph UI although board modifications were prohibited. This is a bug.";
+        qCCritical(logGraphUi).noquote() << "Disconnected ports in graph UI although board modifications were prohibited. This is a bug.";
         return;
     }
 
@@ -307,7 +311,7 @@ void ModuleGraphForm::on_graphPortsDisconnected(FlowGraphNodePort *port1, FlowGr
         outPort = dynamic_cast<StreamOutputPort*>(port1->streamPort().get());
 
     if (inPort == nullptr || outPort == nullptr) {
-        qCritical() << "Disconnected nonexisting ports. This should not be possible.";
+        qCCritical(logGraphUi).noquote() << "Disconnected nonexisting ports. This should not be possible.";
         return;
     }
 
@@ -316,7 +320,7 @@ void ModuleGraphForm::on_graphPortsDisconnected(FlowGraphNodePort *port1, FlowGr
     const auto subscriptionExisted = inPort->hasSubscription();
     inPort->resetSubscription();
     if (subscriptionExisted)
-        qDebug().noquote() << "Disconnected ports:"
+        qCDebug(logGraphUi).noquote() << "Disconnected ports:"
                            << QString("%1[>%2]").arg(outPort->title()).arg(outPort->dataTypeName())
                            << "->"
                            << QString("%1[<%2]").arg(inPort->title()).arg(inPort->dataTypeName());
@@ -376,7 +380,7 @@ void ModuleGraphForm::on_modulePreRemove(AbstractModule *mod)
 
     // sanity check
     if (node == nullptr) {
-        qCritical() << "Module " << mod->name() << "without node representation is being removed.";
+        qCCritical(logGraphUi).noquote() << "Module " << mod->name() << "without node representation is being removed.";
         return;
     }
 
@@ -391,7 +395,7 @@ void ModuleGraphForm::on_portsConnected(const VarStreamInputPort *inPort, const 
     const auto outNode = m_modNodeMap.value(outPort->owner());
 
     if ((inNode == nullptr) || (outNode == nullptr)) {
-        qCritical() << "Ports of modules were connected, but we could not find one or both of their graph nodes.";
+        qCCritical(logGraphUi).noquote() << "Ports of modules were connected, but we could not find one or both of their graph nodes.";
         return;
     }
 
@@ -404,7 +408,7 @@ void ModuleGraphForm::on_modulePortConfigChanged()
 {
     auto mod = qobject_cast<AbstractModule*>(sender());
     if (mod == nullptr) {
-        qCritical().noquote() << "Port configuration of an unknown module has changed.";
+        qCCritical(logGraphUi).noquote() << "Port configuration of an unknown module has changed.";
         return;
     }
     auto node = m_modNodeMap.value(mod);
