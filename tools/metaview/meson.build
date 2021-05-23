@@ -21,5 +21,6 @@ syntalos_metaview_exe = executable('syntalos-metaview',
      syntalos_metaview_src, syntalos_metaview_moc_src,
      syntalos_metaview_moc],
     dependencies: [syntalos_shared_dep],
-    install: true
+    install: true,
+    install_rpath: sy_libdir
 )
