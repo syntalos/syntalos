@@ -399,6 +399,7 @@ BoardSelectDialog::BoardSelectDialog(IntanRhxModule *mod, QWidget *parent) :
 
     defaultSampleRateCheckBox = new QCheckBox(this);
     defaultSettingsFileCheckBox = new QCheckBox(this);
+    defaultSampleRateCheckBox->setVisible(false);
 
     QHBoxLayout *firstRowLayout = new QHBoxLayout;
     firstRowLayout->addWidget(defaultSettingsFileCheckBox);

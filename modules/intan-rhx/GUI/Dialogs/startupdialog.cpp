@@ -113,6 +113,7 @@ StartupDialog::StartupDialog(ControllerType controllerType_, AmplifierSampleRate
     } else {
         rememberSettingsCheckBox->setText(tr("Always use this sample rate with ") + ControllerTypeString[(int)controllerType]);
     }
+    askToRememberSettings = false;
     rememberSettingsCheckBox->setVisible(askToRememberSettings);
 
     buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok, this);
