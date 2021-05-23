@@ -44,6 +44,7 @@ private slots:
 
     void on_cbDisplayDevModules_toggled(bool checked);
     void on_cbSaveDiagnostic_toggled(bool checked);
+    void on_cbPythonCreateVEnvLink_toggled(bool checked);
 
 private:
     Ui::GlobalConfigDialog *ui;

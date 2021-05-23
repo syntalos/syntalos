@@ -141,3 +141,33 @@ QString GlobalConfig::virtualenvDir() const
     const auto dataDir = QStandardPaths::writableLocation(QStandardPaths::DataLocation);
     return QDir(dataDir).filePath("venv");
 }
+
+void GlobalConfig::triggerCreateVirtualenvUserLink()
+{
+    if (!createVEnvUserLink())
+        return;
+
+    QDir venvDir(virtualenvDir());
+    if (!venvDir.exists() || venvDir.isEmpty())
+        return;
+
+    const auto homeDir = QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
+    const auto linkFname = QDir(homeDir).filePath("SyntalosVEnvs");
+
+    QFileInfo fi(linkFname);
+    if (fi.exists())
+        return;
+    QFile::link(virtualenvDir(), linkFname);
+}
+
+bool GlobalConfig::createVEnvUserLink() const
+{
+    return m_s->value("devel/venv_user_link", false).toBool();
+}
+
+void GlobalConfig::setCreateVEnvUserLink(bool enabled)
+{
+    if (enabled)
+        triggerCreateVirtualenvUserLink();
+    m_s->setValue("devel/venv_user_link", enabled);
+}

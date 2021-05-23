@@ -79,7 +79,7 @@ public:
     QString virtualEnvDir() const
     {
         GlobalConfig gconf;
-        return QStringLiteral("%1/%2").arg(gconf.virtualenvDir()).arg(id());
+        return QStringLiteral("%1/%2").arg(gconf.virtualenvDir(), id());
     }
 
     bool virtualEnvExists()
@@ -96,7 +96,7 @@ public:
         const auto venvDir = virtualEnvDir();
         QDir().mkpath(venvDir);
 
-        const auto tmpCommandFile = QStringLiteral("%1/sy-venv-%2.sh").arg(rtdDir).arg(createRandomString(6));
+        const auto tmpCommandFile = QStringLiteral("%1/sy-venv-%2.sh").arg(rtdDir, createRandomString(6));
         QFile file(tmpCommandFile);
         if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
             qWarning().noquote() << "Unable to open temporary file" << tmpCommandFile << "for writing.";
@@ -120,7 +120,7 @@ public:
             << "cd " << shellQuote(venvDir) << "\n"
             << "run_check virtualenv ." << "\n"
             << "run_check source " << shellQuote(QStringLiteral("%1/bin/activate").arg(venvDir)) << "\n"
-            << "run_check pip install --ignore-requires-python -r " << shellQuote(QStringLiteral("%1/requirements.txt").arg(m_pyModDir)) << "\n"
+            << "run_check pip install -r " << shellQuote(QStringLiteral("%1/requirements.txt").arg(m_pyModDir)) << "\n"
 
             << "echo \"\"\n"
             << "read -p \"Success! Press any key to exit.\"" << "\n";
@@ -130,7 +130,7 @@ public:
 
         int ret = runInExternalTerminal(tmpCommandFile, QStringList(), venvDir);
 
-        //file.remove();
+        file.remove();
         if (ret == 0)
             return true;
         // failure, let's try to remove the bad virtualenv (failures to do so are ignored)
@@ -152,7 +152,7 @@ public:
                                                               "a virtual Python environment for modules of type '%2' does not exist yet. "
                                                               "Should Syntalos attempt to set up the environment automatically? "
                                                               "(This will open a system terminal and run the necessary command, which may take some time)")
-                                                              .arg(name()).arg(id()),
+                                                              .arg(name(), id()),
                                                QMessageBox::Yes | QMessageBox::No);
             if (reply == QMessageBox::No)
                 return false;
@@ -164,6 +164,8 @@ public:
                                      QStringLiteral("Failed to set up the virtual environment - refer to the terminal log for more information."));
                 return false;
             }
+            GlobalConfig gconf;
+            gconf.triggerCreateVirtualenvUserLink();
         }
 
         setInitialized();

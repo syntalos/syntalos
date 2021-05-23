@@ -15,12 +15,17 @@ class DLCLiveModule:
         self._iport = None
         self._oport_img = None
         self._oport_rows = None
+        self._dlc_live = None
+        self._first_frame = True
+        self._dlc_proc = Processor()
 
     def prepare(self):
         # Get port references
         self._iport = sy.get_input_port('frames-in')
         self._oport_img = sy.get_output_port('frames-out')
         self._oport_rows = sy.get_output_port('rows-out')
+        self._first_frame = True
+        self._dlc_live = DLCLive('TODO', processor=self._dlc_proc)
 
     def start(self):
         pass
@@ -38,12 +43,16 @@ class DLCLiveModule:
                 # no more data, exit
                 break
 
-            mat = frame.mat
+            if self._first_frame:
+                self._first_frame = False
+                self._dlc_live.init_inference(frame.mat)
+                continue
+
+            pose = self._dlc_live.get_pose(frame.mat)
 
             # TODO
 
             # submit new data to an output port
-            frame.mat = mat
             self._oport_img.submit(frame)
 
         # we don't want to quite data processing, so return True

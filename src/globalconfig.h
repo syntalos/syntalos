@@ -57,6 +57,10 @@ public:
     void setSaveExperimentDiagnostics(bool enabled);
 
     QString virtualenvDir() const;
+    void triggerCreateVirtualenvUserLink();
+
+    bool createVEnvUserLink() const;
+    void setCreateVEnvUserLink(bool enabled);
 
 private:
     QSettings *m_s;

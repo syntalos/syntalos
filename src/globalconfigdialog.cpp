@@ -57,6 +57,7 @@ GlobalConfigDialog::GlobalConfigDialog(QWidget *parent) :
     // devel section
     ui->cbDisplayDevModules->setChecked(m_gc->showDevelModules());
     ui->cbSaveDiagnostic->setChecked(m_gc->saveExperimentDiagnostics());
+    ui->cbPythonCreateVEnvLink->setChecked(m_gc->createVEnvUserLink());
 
     // we can accept user changes now!
     m_acceptChanges = true;
@@ -108,4 +109,9 @@ void GlobalConfigDialog::on_cbDisplayDevModules_toggled(bool checked)
 void GlobalConfigDialog::on_cbSaveDiagnostic_toggled(bool checked)
 {
     if (m_acceptChanges) m_gc->setSaveExperimentDiagnostics(checked);
+}
+
+void GlobalConfigDialog::on_cbPythonCreateVEnvLink_toggled(bool checked)
+{
+    if (m_acceptChanges) m_gc->setCreateVEnvUserLink(checked);
 }
