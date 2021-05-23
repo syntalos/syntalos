@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2020 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2021 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -20,9 +20,11 @@
 #include "mscontrolwidget.h"
 
 #include <QSlider>
+#include <QSpinBox>
 #include <QLabel>
-#include <QVBoxLayout>
 #include <QGridLayout>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
 
 MSControlWidget::MSControlWidget(const MScope::ControlDefinition &ctlDef, QWidget *parent)
     : QWidget(parent)
@@ -64,12 +66,32 @@ MSControlWidget::MSControlWidget(const MScope::ControlDefinition &ctlDef, QWidge
         sc->setLayout(selLayout);
         layout->addWidget(sc);
     } else {
-        m_slider = new QSlider(Qt::Horizontal, this);
+        const auto slw = new QWidget(this);
+        auto slLayout = new QHBoxLayout(slw);
+        slLayout->setMargin(0);
+        slLayout->setSpacing(2);
+
+        m_slider = new QSlider(Qt::Horizontal, slw);
         // just assume slider here, for now
         m_slider->setRange(ctlDef.valueMin, ctlDef.valueMax);
         m_slider->setValue(ctlDef.valueStart);
         m_slider->setSingleStep(ctlDef.stepSize);
-        layout->addWidget(m_slider);
+        slLayout->addWidget(m_slider);
+
+        auto sb = new QSpinBox(slw);
+        sb->setRange(ctlDef.valueMin, ctlDef.valueMax);
+        sb->setValue(ctlDef.valueStart);
+        sb->setSingleStep(ctlDef.stepSize);
+        sb->setMinimumWidth(64);
+        slLayout->addWidget(sb);
+
+        connect(sb, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), m_slider, &QSlider::setValue);
+        connect(m_slider, &QSlider::valueChanged, sb, &QSpinBox::setValue);
+
+        slLayout->setStretchFactor(sb, 1);
+        slLayout->setStretchFactor(m_slider, 4);
+        slw->setLayout(slLayout);
+        layout->addWidget(slw);
     }
 
     connect(m_slider, &QSlider::valueChanged, this, &MSControlWidget::recvSliderValueChange);
