@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2019 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2021 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -50,8 +50,10 @@ private slots:
     void on_deviceTypeCB_currentIndexChanged(const QString &arg1);
     void on_sbCamId_valueChanged(int arg1);
     void on_cbExtRecTrigger_toggled(bool checked);
+
     void on_sbDisplayMax_valueChanged(int arg1);
     void on_sbDisplayMin_valueChanged(int arg1);
+    void on_btnDispLimitsReset_clicked();
 
     void on_viewModeCB_currentIndexChanged(int index);
     void on_accAlphaSpinBox_valueChanged(double arg1);

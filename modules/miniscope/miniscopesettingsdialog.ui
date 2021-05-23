@@ -294,6 +294,45 @@
                 </property>
                </widget>
               </item>
+              <item row="3" column="0">
+               <widget class="QLabel" name="accumulateAlphaLabel">
+                <property name="text">
+                 <string>Alpha Factor</string>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="1">
+               <widget class="QDoubleSpinBox" name="accAlphaSpinBox">
+                <property name="toolTip">
+                 <string>Accumulated average update speed (~1 = forget earlier frames quickly, ~0 = never forget earlier frames)</string>
+                </property>
+                <property name="decimals">
+                 <number>3</number>
+                </property>
+                <property name="minimum">
+                 <double>0.001000000000000</double>
+                </property>
+                <property name="maximum">
+                 <double>0.990000000000000</double>
+                </property>
+                <property name="singleStep">
+                 <double>0.010000000000000</double>
+                </property>
+                <property name="value">
+                 <double>0.010000000000000</double>
+                </property>
+               </widget>
+              </item>
+              <item row="2" column="0">
+               <widget class="QLabel" name="viewLabel">
+                <property name="text">
+                 <string>View</string>
+                </property>
+               </widget>
+              </item>
+              <item row="2" column="1">
+               <widget class="QComboBox" name="viewModeCB"/>
+              </item>
               <item row="1" column="1">
                <widget class="QWidget" name="displayMinMaxWidget" native="true">
                 <layout class="QHBoxLayout" name="horizontalLayout_9">
@@ -339,47 +378,41 @@
                    </property>
                   </widget>
                  </item>
+                 <item>
+                  <widget class="QPushButton" name="btnDispLimitsReset">
+                   <property name="enabled">
+                    <bool>false</bool>
+                   </property>
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="icon">
+                    <iconset theme="edit-reset">
+                     <normaloff>../../../PoMiDAQ/src</normaloff>../../../PoMiDAQ/src</iconset>
+                   </property>
+                   <property name="flat">
+                    <bool>true</bool>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <spacer name="horizontalSpacer">
+                   <property name="orientation">
+                    <enum>Qt::Horizontal</enum>
+                   </property>
+                   <property name="sizeHint" stdset="0">
+                    <size>
+                     <width>40</width>
+                     <height>20</height>
+                    </size>
+                   </property>
+                  </spacer>
+                 </item>
                 </layout>
                </widget>
-              </item>
-              <item row="3" column="0">
-               <widget class="QLabel" name="accumulateAlphaLabel">
-                <property name="text">
-                 <string>Alpha Factor</string>
-                </property>
-               </widget>
-              </item>
-              <item row="3" column="1">
-               <widget class="QDoubleSpinBox" name="accAlphaSpinBox">
-                <property name="toolTip">
-                 <string>Accumulated average update speed (~1 = forget earlier frames quickly, ~0 = never forget earlier frames)</string>
-                </property>
-                <property name="decimals">
-                 <number>3</number>
-                </property>
-                <property name="minimum">
-                 <double>0.001000000000000</double>
-                </property>
-                <property name="maximum">
-                 <double>0.990000000000000</double>
-                </property>
-                <property name="singleStep">
-                 <double>0.010000000000000</double>
-                </property>
-                <property name="value">
-                 <double>0.010000000000000</double>
-                </property>
-               </widget>
-              </item>
-              <item row="2" column="0">
-               <widget class="QLabel" name="viewLabel">
-                <property name="text">
-                 <string>View</string>
-                </property>
-               </widget>
-              </item>
-              <item row="2" column="1">
-               <widget class="QComboBox" name="viewModeCB"/>
               </item>
              </layout>
             </item>

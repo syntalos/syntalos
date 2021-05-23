@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2019 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2021 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -159,11 +159,20 @@ void MiniscopeSettingsDialog::on_cbExtRecTrigger_toggled(bool checked)
 void MiniscopeSettingsDialog::on_sbDisplayMin_valueChanged(int arg1)
 {
     m_mscope->setMinFluorDisplay(arg1);
+    ui->btnDispLimitsReset->setEnabled(true);
 }
 
 void MiniscopeSettingsDialog::on_sbDisplayMax_valueChanged(int arg1)
 {
     m_mscope->setMaxFluorDisplay(arg1);
+    ui->btnDispLimitsReset->setEnabled(true);
+}
+
+void MiniscopeSettingsDialog::on_btnDispLimitsReset_clicked()
+{
+    ui->sbDisplayMin->setValue(ui->sbDisplayMin->minimum());
+    ui->sbDisplayMax->setValue(ui->sbDisplayMax->maximum());
+    ui->btnDispLimitsReset->setEnabled(false);
 }
 
 void MiniscopeSettingsDialog::on_viewModeCB_currentIndexChanged(int)
