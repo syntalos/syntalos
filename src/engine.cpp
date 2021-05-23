@@ -317,7 +317,7 @@ AbstractModule *Engine::createModule(const QString &id, const QString &name)
     QCoreApplication::processEvents();
     if (!mod->initialize()) {
         QMessageBox::critical(d->parentWidget, QStringLiteral("Module initialization failed"),
-                              QStringLiteral("Failed to initialize module '%1', it can not be added. %2").arg(mod->id()).arg(mod->lastError()),
+                              QStringLiteral("Failed to initialize module '%1', it can not be added. %2").arg(mod->id(), mod->lastError()),
                               QMessageBox::Ok);
         removeModule(mod);
         return nullptr;

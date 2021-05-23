@@ -176,7 +176,7 @@ bool ModuleLibrary::loadLibraryModInfo(const QString &modId, const QString &libF
 
     const auto modApiId = QString::fromUtf8(fnAPIId());
     if (modApiId != d->syntalosApiId) {
-        const auto apiMismatchError = QStringLiteral("API ID mismatch between module and engine: %1 vs %2").arg(modApiId).arg(d->syntalosApiId);
+        const auto apiMismatchError = QStringLiteral("API ID mismatch between module and engine: %1 vs %2").arg(modApiId, d->syntalosApiId);
         qCWarning(logModLibrary).noquote().nospace() << "Prevented module load for '" << modId << "': "
                                                      << apiMismatchError;
         logModuleIssue(modId, "api", apiMismatchError);
