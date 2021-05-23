@@ -604,6 +604,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
     // we load the modules in two passes, to ensure they can all register
     // their interdependencies correctly.
     QList<QPair<AbstractModule*, QPair<QVariantHash, QByteArray>>> modSettingsList;
+    QList<QPair<AbstractModule*, QVariantHash>> modDisplayGeometryList;
 
     // add modules
     QList<QPair<AbstractModule*, QVariantHash>> jSubInfo;
@@ -653,8 +654,11 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         if (sfile != nullptr)
             modSettingsEx = sfile->data();
 
+        // save display geometries - we apply them after settings have been loaded,
+        // as some modules do odd things in their settings loading phase which impact
+        // display UI geometry loading
         if (!uiDisplayGeometry.isEmpty())
-            mod->restoreDisplayUiGeometry(uiDisplayGeometry);
+            modDisplayGeometryList.append(qMakePair(mod, uiDisplayGeometry));
 
         // store subscription info to connect modules later
         jSubInfo.append(qMakePair(mod, jSubs));
@@ -677,6 +681,10 @@ bool MainWindow::loadConfiguration(const QString &fileName)
             return false;
         }
     }
+
+    // apply module view geometries
+    for (auto &pair : modDisplayGeometryList)
+        pair.first->restoreDisplayUiGeometry(pair.second);
 
     // create module connections
     setStatusText("Restoring streams and subscriptions...");
