@@ -8,8 +8,12 @@ Standards-Version: 4.5.0
 
 Package: syntalos
 Architecture: any
-Depends: ${misc:Depends},
+Depends: breeze-icon-theme,
+         libpam-systemd,
+         rtkit,
+         ${misc:Depends},
          ${shlibs:Depends}
+Recommends: pomidaq
 Description: Synchronized parallel DAQ from diverse sources
  Syntalos is a software for timestamp-synchronized parallel data acquisition
  from diverse data sources.
