@@ -115,7 +115,7 @@ signals:
     void moduleError(AbstractModule *mod, const QString& message);
 
     void resourceWarningUpdate(SystemResource kind, bool resolved, const QString &message);
-    void connectionHeatChangedAtPort(std::shared_ptr<VarStreamInputPort> iport, ConnectionHeatLevel hlevel);
+    void connectionHeatChangedAtPort(VarStreamInputPort *iport, ConnectionHeatLevel hlevel);
 
 private slots:
     void receiveModuleError(const QString& message);
@@ -123,6 +123,9 @@ private slots:
     void onSynchronizerDetailsChanged(const QString &id, const TimeSyncStrategies &strategies,
                                       const microseconds_t &tolerance);
     void onSynchronizerOffsetChanged(const QString &id, const microseconds_t &currentOffset);
+    void onDiskspaceMonitorEvent();
+    void onMemoryMonitorEvent();
+    void onBufferMonitorEvent();
 
 private:
     class Private;
@@ -134,6 +137,8 @@ private:
 
     QHash<AbstractModule*, std::vector<uint>> setupCoreAffinityConfig(const QList<AbstractModule *> &threadedModules,
                                                                       const QList<OOPModule *> &oopModules);
+    void startResourceMonitoring(QList<AbstractModule *> activeModules, const QString &exportDirPath);
+    void stopResourceMonitoring();
 
     bool runInternal(const QString &exportDirPath);
     void refreshExportDirPath();

@@ -79,7 +79,7 @@ private slots:
     void onEngineStopped();
     void onEngineResourceWarningUpdate(Engine::SystemResource kind, bool resolved,
                                        const QString &message);
-    void onEngineConnectionHeatChanged(std::shared_ptr<VarStreamInputPort> iport,
+    void onEngineConnectionHeatChanged(VarStreamInputPort *iport,
                                        ConnectionHeatLevel hlevel);
     void onElapsedTimeUpdate();
 

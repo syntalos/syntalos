@@ -1051,13 +1051,12 @@ void MainWindow::onEngineResourceWarningUpdate(Engine::SystemResource kind, bool
     }
 }
 
-void MainWindow::onEngineConnectionHeatChanged(std::shared_ptr<VarStreamInputPort> iport, ConnectionHeatLevel hlevel)
+void MainWindow::onEngineConnectionHeatChanged(VarStreamInputPort *iport, ConnectionHeatLevel hlevel)
 {
-    const auto iportPtr = iport.get();
-    auto edge = m_portGraphEdgeCache.value(iportPtr);
+    auto edge = m_portGraphEdgeCache.value(iport);
     if (edge == nullptr) {
-        edge = ui->graphForm->updateConnectionHeat(iportPtr, iport->outPort(), hlevel);
-        m_portGraphEdgeCache.insert(iportPtr, edge);
+        edge = ui->graphForm->updateConnectionHeat(iport, iport->outPort(), hlevel);
+        m_portGraphEdgeCache.insert(iport, edge);
     } else {
         edge->setHeatLevel(hlevel);
     }

@@ -69,10 +69,34 @@ public:
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpadded"
+
+class EngineResourceMonitorData
+{
+public:
+    struct SubscriptionBufferWatchData {
+        VariantStreamSubscription *sub;
+        VarStreamInputPort *port;
+        ConnectionHeatLevel heat;
+    };
+
+    std::vector<SubscriptionBufferWatchData> monitoredSubscriptions;
+    QString exportDirPath;
+
+    bool diskSpaceWarningEmitted;
+    bool memoryWarningEmitted;
+    bool subBufferWarningEmitted;
+
+    QTimer diskSpaceCheckTimer;
+    QTimer memCheckTimer;
+    QTimer subBufferCheckTimer;
+};
+
 class Engine::Private
 {
 public:
-    Private() { }
+    Private()
+        : monitoring(new EngineResourceMonitorData)
+    { }
     ~Private() { }
 
     SysInfo *sysInfo;
@@ -102,6 +126,8 @@ public:
     bool saveInternal;
     std::shared_ptr<EDLGroup> edlInternalData;
     QHash<QString, std::shared_ptr<TimeSyncFileWriter>> internalTSyncWriters;
+
+    QScopedPointer<EngineResourceMonitorData> monitoring;
 };
 #pragma GCC diagnostic pop
 
@@ -867,6 +893,166 @@ QHash<AbstractModule *, std::vector<uint>> Engine::setupCoreAffinityConfig(const
     return modCPUMap;
 }
 
+void Engine::onDiskspaceMonitorEvent()
+{
+    std::filesystem::space_info ssi;
+    try {
+        ssi = std::filesystem::space(d->monitoring->exportDirPath.toStdString());
+    } catch (const std::filesystem::filesystem_error &e) {
+        qCWarning(logEngine).noquote() << "Could not determine remaining free disk space:" << e.what();
+        return;
+    }
+
+    const double mibAvailable = ssi.available / 1024.0 / 1024.0;
+    if (mibAvailable < 8192) {
+        Q_EMIT resourceWarningUpdate(StorageSpace, false,
+                                     QStringLiteral("Disk space is very low. Less than %1 GiB remaining.").arg(mibAvailable / 1024.0, 0, 'f', 1));
+        d->monitoring->diskSpaceWarningEmitted = true;
+    } else {
+        if (d->monitoring->diskSpaceWarningEmitted) {
+            Q_EMIT resourceWarningUpdate(StorageSpace, true,
+                                         QStringLiteral("%1 GiB of disk space remaining.").arg(mibAvailable / 1024.0, 0, 'f', 1));
+            d->monitoring->diskSpaceWarningEmitted = false;
+        }
+    }
+}
+
+void Engine::onMemoryMonitorEvent()
+{
+    const auto memInfo = read_meminfo();
+    if (memInfo.memAvailablePercent < 5) {
+        // when we have less than 5% memory remaining, there usually still is (slower) swap space available,
+        // this is why 5% is relatively low.
+        // NOTE: Be more clever here in future and check available swap space in advance for this warning?
+        Q_EMIT resourceWarningUpdate(Memory, false,
+                                     QStringLiteral("System memory is low. Only %1% remaining.").arg(memInfo.memAvailablePercent, 0, 'f', 1));
+        d->monitoring->memoryWarningEmitted = true;
+    } else {
+        if (d->monitoring->memoryWarningEmitted) {
+            Q_EMIT resourceWarningUpdate(Memory, true,
+                                         QStringLiteral("%1% of system memory remaining.").arg(memInfo.memAvailablePercent, 0, 'f', 1));
+            d->monitoring->memoryWarningEmitted = true;
+        }
+    }
+}
+
+void Engine::onBufferMonitorEvent()
+{
+    bool issueFound = false;
+    bool subBufferWarningEmitted = d->monitoring->subBufferWarningEmitted;
+
+    for (auto& msd : d->monitoring->monitoredSubscriptions) {
+        const auto approxPendingCount = msd.sub->approxPendingCount();
+
+        // less than 100 pending items is arbitrarily considered "okay"
+        if (approxPendingCount < 100) {
+            if (msd.heat != ConnectionHeatLevel::NONE) {
+                Q_EMIT connectionHeatChangedAtPort(msd.port, ConnectionHeatLevel::NONE);
+                msd.heat = ConnectionHeatLevel::NONE;
+                qCDebug(logEngine).noquote() << "Connection heat removed from"
+                                             << QString("%1:%2[<%3]").arg(msd.port->owner()->name(),
+                                                                          msd.port->title(),
+                                                                          msd.port->dataTypeName());
+            }
+            continue;
+        }
+
+        // determine connection "heat" level
+        ConnectionHeatLevel heat;
+        if (approxPendingCount > 300)
+            heat = ConnectionHeatLevel::HIGH;
+        else if (approxPendingCount > 200)
+            heat = ConnectionHeatLevel::MEDIUM;
+        else
+            heat = ConnectionHeatLevel::LOW;
+        if (heat != msd.heat) {
+            msd.heat = heat;
+            Q_EMIT connectionHeatChangedAtPort(msd.port, msd.heat);
+            qCDebug(logEngine).noquote().nospace()
+                    << "Connection heat changed to \"" << connectionHeatToHumanString(msd.heat) << "\" for "
+                    << QString("%1:%2[<%3]").arg(msd.port->owner()->name(),
+                                                 msd.port->title(),
+                                                 msd.port->dataTypeName())
+                    << " (level: " << approxPendingCount << ")";
+        }
+
+        if (heat > ConnectionHeatLevel::LOW) {
+            issueFound = true;
+            if (!subBufferWarningEmitted) {
+                Q_EMIT resourceWarningUpdate(StreamBuffers, false,
+                                             QStringLiteral("A module is overwhelmed with its input and not fast enough."));
+                subBufferWarningEmitted = true;
+            }
+        }
+    }
+
+    if (!issueFound && subBufferWarningEmitted) {
+        Q_EMIT resourceWarningUpdate(StreamBuffers, true,
+                                     QStringLiteral("All modules appear to be running fast enough."));
+        subBufferWarningEmitted = false;
+    }
+
+    d->monitoring->subBufferWarningEmitted = subBufferWarningEmitted;
+}
+
+void Engine::startResourceMonitoring(QList<AbstractModule *> activeModules, const QString &exportDirPath)
+{
+    // watcher for disk space
+    d->monitoring->exportDirPath = exportDirPath;
+    d->monitoring->diskSpaceWarningEmitted = false;
+    d->monitoring->diskSpaceCheckTimer.setInterval(60 * 1000); // check every 60sec
+    connect(&d->monitoring->diskSpaceCheckTimer, &QTimer::timeout, this, &Engine::onDiskspaceMonitorEvent);
+
+    // watcher for remaining system memory
+    d->monitoring->memoryWarningEmitted = false;
+    d->monitoring->memCheckTimer.setInterval(10 * 1000); // check every 10sec
+    connect(&d->monitoring->memCheckTimer, &QTimer::timeout, this, &Engine::onMemoryMonitorEvent);
+
+    // watcher for subscription buffer
+    d->monitoring->monitoredSubscriptions.clear();
+    for (auto& mod : activeModules) {
+        for (auto &port : mod->inPorts()) {
+            if (!port->hasSubscription())
+                continue;
+            EngineResourceMonitorData::SubscriptionBufferWatchData data;
+            data.sub = port->subscriptionVar().get();
+            data.port = port.get();
+            data.heat = ConnectionHeatLevel::NONE;
+            d->monitoring->monitoredSubscriptions.push_back(data);
+
+            // reset all connection heat levels
+            Q_EMIT connectionHeatChangedAtPort(port.get(), ConnectionHeatLevel::NONE);
+        }
+    }
+
+    d->monitoring->subBufferWarningEmitted = false;
+    d->monitoring->subBufferCheckTimer.setInterval(10 * 1000); // check every 10sec
+    connect(&d->monitoring->subBufferCheckTimer, &QTimer::timeout, this, &Engine::onBufferMonitorEvent);
+
+    // start resource watchers
+    d->monitoring->diskSpaceCheckTimer.start();
+    d->monitoring->memCheckTimer.start();
+    d->monitoring->subBufferCheckTimer.start();
+    qCDebug(logEngine).noquote().nospace() << "Started system resource monitoring.";
+}
+
+void Engine::stopResourceMonitoring()
+{
+    d->monitoring->diskSpaceCheckTimer.stop();
+    d->monitoring->diskSpaceCheckTimer.disconnect(this);
+
+    d->monitoring->memCheckTimer.stop();
+    d->monitoring->memCheckTimer.disconnect(this);
+
+    d->monitoring->subBufferCheckTimer.stop();
+    d->monitoring->subBufferCheckTimer.disconnect(this);
+
+    d->monitoring->monitoredSubscriptions.clear();
+    d->monitoring->exportDirPath = QString();
+
+    qCDebug(logEngine).noquote().nospace() << "Stopped monitoring system resources.";
+}
+
 /**
  * @brief Actually run an experiment module board
  * @return true on succees
@@ -1225,57 +1411,6 @@ bool Engine::runInternal(const QString &exportDirPath)
     if (initSuccessful) {
         emitStatusMessage(QStringLiteral("Launch setup completed."));
 
-        // set up resource watchers
-
-        // watcher for disk space
-        bool diskSpaceWarningEmitted = false;
-        QTimer diskSpaceCheckTimer;
-        diskSpaceCheckTimer.setInterval(60 * 1000); // check every 60sec
-        connect(&diskSpaceCheckTimer, &QTimer::timeout, [&]() {
-            std::filesystem::space_info ssi;
-            try {
-                ssi = std::filesystem::space(exportDirPath.toStdString());
-            } catch (const std::filesystem::filesystem_error &e) {
-                qCWarning(logEngine).noquote() << "Could not determine remaining free disk space:" << e.what();
-                return;
-            }
-
-            const double mibAvailable = ssi.available / 1024.0 / 1024.0;
-            if (mibAvailable < 8192) {
-                Q_EMIT resourceWarningUpdate(StorageSpace, false,
-                                             QStringLiteral("Disk space is very low. Less than %1 GiB remaining.").arg(mibAvailable / 1024.0, 0, 'f', 1));
-                diskSpaceWarningEmitted = true;
-            } else {
-                if (diskSpaceWarningEmitted) {
-                    Q_EMIT resourceWarningUpdate(StorageSpace, true,
-                                                 QStringLiteral("%1 GiB of disk space remaining.").arg(mibAvailable / 1024.0, 0, 'f', 1));
-                    diskSpaceWarningEmitted = false;
-                }
-            }
-        });
-
-        // watcher for remaining system memory
-        bool memoryWarningEmitted = false;
-        QTimer memCheckTimer;
-        memCheckTimer.setInterval(10 * 1000); // check every 10sec
-        connect(&memCheckTimer, &QTimer::timeout, [&]() {
-            const auto memInfo = read_meminfo();
-            if (memInfo.memAvailablePercent < 5) {
-                // when we have less than 5% memory remaining, there usually still is (slower) swap space available,
-                // this is why 5% is relatively low.
-                // NOTE: Be more clever here in future and check available swap space in advance for this warning?
-                Q_EMIT resourceWarningUpdate(Memory, false,
-                                             QStringLiteral("System memory is low. Only %1% remaining.").arg(memInfo.memAvailablePercent, 0, 'f', 1));
-                memoryWarningEmitted = true;
-            } else {
-                if (memoryWarningEmitted) {
-                    Q_EMIT resourceWarningUpdate(Memory, true,
-                                                 QStringLiteral("%1% of system memory remaining.").arg(memInfo.memAvailablePercent, 0, 'f', 1));
-                    memoryWarningEmitted = true;
-                }
-            }
-        });
-
         // collect modules which have an explicit UI callback method
         std::vector<AbstractModule*> callUiEventModules;
         for (auto& mod : orderedActiveModules) {
@@ -1283,91 +1418,8 @@ bool Engine::runInternal(const QString &exportDirPath)
                 callUiEventModules.push_back(mod);
         }
 
-        // watcher for subscription buffer
-        struct SubscriptionBufferWatchData {
-            std::shared_ptr<VariantStreamSubscription> sub;
-            std::shared_ptr<VarStreamInputPort> port;
-            ConnectionHeatLevel heat;
-        };
-
-        std::vector<SubscriptionBufferWatchData> monitoredSubscriptions;
-        for (auto& mod : orderedActiveModules) {
-            for (auto &port : mod->inPorts()) {
-                if (!port->hasSubscription())
-                    continue;
-                SubscriptionBufferWatchData data;
-                data.sub = port->subscriptionVar();
-                data.port = port;
-                data.heat = ConnectionHeatLevel::NONE;
-                monitoredSubscriptions.push_back(data);
-
-                // reset all connection heat levels
-                Q_EMIT connectionHeatChangedAtPort(port, ConnectionHeatLevel::NONE);
-            }
-        }
-
-        bool subBufferWarningEmitted = false;
-        QTimer subBufferCheckTimer;
-        subBufferCheckTimer.setInterval(10 * 1000); // check every 10sec
-        connect(&subBufferCheckTimer, &QTimer::timeout, [&]() {
-            bool issueFound = false;
-            for (auto& msd : monitoredSubscriptions) {
-                const auto &sub = msd.sub;
-                const auto approxPendingCount = sub->approxPendingCount();
-
-                // less than 100 pending items is arbitrarily considered "okay"
-                if (approxPendingCount < 100) {
-                    if (msd.heat != ConnectionHeatLevel::NONE) {
-                        Q_EMIT connectionHeatChangedAtPort(msd.port, ConnectionHeatLevel::NONE);
-                        msd.heat = ConnectionHeatLevel::NONE;
-                        qCDebug(logEngine).noquote() << "Connection heat removed from"
-                                                     << QString("%1:%2[<%3]").arg(msd.port->owner()->name(),
-                                                                                  msd.port->title(),
-                                                                                  msd.port->dataTypeName());
-                    }
-                    continue;
-                }
-
-                // determine connection "heat" level
-                ConnectionHeatLevel heat;
-                if (approxPendingCount > 250)
-                    heat = ConnectionHeatLevel::HIGH;
-                else if (approxPendingCount > 200)
-                    heat = ConnectionHeatLevel::MEDIUM;
-                else
-                    heat = ConnectionHeatLevel::LOW;
-                if (heat != msd.heat) {
-                    msd.heat = heat;
-                    Q_EMIT connectionHeatChangedAtPort(msd.port, msd.heat);
-                    qCDebug(logEngine).noquote().nospace()
-                            << "Connection heat changed to \"" << connectionHeatToHumanString(msd.heat) << "\" for "
-                            << QString("%1:%2[<%3]").arg(msd.port->owner()->name(),
-                                                         msd.port->title(),
-                                                         msd.port->dataTypeName())
-                            << "(level: " << approxPendingCount << ")";
-                }
-
-                if (heat > ConnectionHeatLevel::LOW) {
-                    issueFound = true;
-                    if (!subBufferWarningEmitted) {
-                        Q_EMIT resourceWarningUpdate(StreamBuffers, false,
-                                                     QStringLiteral("A module is overwhelmed with its input and not fast enough."));
-                        subBufferWarningEmitted = true;
-                    }
-                }
-            }
-
-            if (!issueFound && subBufferWarningEmitted) {
-                Q_EMIT resourceWarningUpdate(StreamBuffers, true,
-                                             QStringLiteral("All modules appear to be running fast enough."));
-                subBufferWarningEmitted = false;
-            }
-        });
-
-        // start resource watchers
-        diskSpaceCheckTimer.start();
-        memCheckTimer.start();
-        subBufferCheckTimer.start();
+        // start monitoring resource issues during this run
+        startResourceMonitoring(orderedActiveModules, exportDirPath);
 
         // we officially start now, launch the timer
         d->timer->start();
@@ -1444,8 +1496,7 @@ bool Engine::runInternal(const QString &exportDirPath)
         }
 
         // stop resource watcher timers
-        diskSpaceCheckTimer.stop();
-        memCheckTimer.stop();
+        stopResourceMonitoring();
     }
 
     auto finishTimestamp = static_cast<long long>(d->timer->timeSinceStartMsec().count());
