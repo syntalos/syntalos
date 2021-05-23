@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>569</width>
-    <height>453</height>
+    <height>490</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -94,6 +94,9 @@
           <property name="text">
            <string>Name</string>
           </property>
+          <property name="buddy">
+           <cstring>nameLineEdit</cstring>
+          </property>
          </widget>
         </item>
         <item row="1" column="1">
@@ -103,6 +106,9 @@
          <widget class="QLabel" name="codecLabel">
           <property name="text">
            <string>Codec</string>
+          </property>
+          <property name="buddy">
+           <cstring>codecComboBox</cstring>
           </property>
          </widget>
         </item>
@@ -118,6 +124,9 @@
           <property name="text">
            <string>Container</string>
           </property>
+          <property name="buddy">
+           <cstring>containerComboBox</cstring>
+          </property>
          </widget>
         </item>
         <item row="3" column="1">
@@ -131,6 +140,9 @@
          <widget class="QLabel" name="slicingLabel">
           <property name="text">
            <string>Slicing</string>
+          </property>
+          <property name="buddy">
+           <cstring>slicingCheckBox</cstring>
           </property>
          </widget>
         </item>
@@ -225,6 +237,9 @@
           <property name="text">
            <string>Timestamp File</string>
           </property>
+          <property name="buddy">
+           <cstring>timestampFileCheckBox</cstring>
+          </property>
          </widget>
         </item>
         <item row="5" column="1">
@@ -238,6 +253,9 @@
          <widget class="QLabel" name="startStoppedLabel">
           <property name="text">
            <string>Start Stopped</string>
+          </property>
+          <property name="buddy">
+           <cstring>startStoppedCheckBox</cstring>
           </property>
          </widget>
         </item>
@@ -254,7 +272,7 @@
     </widget>
    </item>
    <item>
-    <widget class="QWidget" name="widget_5" native="true">
+    <widget class="QWidget" name="deferredEncodeWidget" native="true">
      <layout class="QVBoxLayout" name="verticalLayout_4">
       <property name="spacing">
        <number>4</number>
@@ -302,6 +320,9 @@
          <widget class="QLabel" name="encodeAfterRunLabel">
           <property name="text">
            <string>Encode After Run</string>
+          </property>
+          <property name="buddy">
+           <cstring>encodeAfterRunCheckBox</cstring>
           </property>
          </widget>
         </item>
@@ -371,6 +392,9 @@
           <property name="text">
            <string>Start Immediately</string>
           </property>
+          <property name="buddy">
+           <cstring>deferredInstantEncodeCheckBox</cstring>
+          </property>
          </widget>
         </item>
         <item row="1" column="1">
@@ -384,6 +408,9 @@
          <widget class="QLabel" name="parallelTasksLabel">
           <property name="text">
            <string>Parallel Tasks</string>
+          </property>
+          <property name="buddy">
+           <cstring>deferredParallelCountSpinBox</cstring>
           </property>
          </widget>
         </item>
@@ -486,6 +513,9 @@
           <property name="text">
            <string>VA-API Acceleration</string>
           </property>
+          <property name="buddy">
+           <cstring>vaapiCheckBox</cstring>
+          </property>
          </widget>
         </item>
         <item row="1" column="1">
@@ -514,6 +544,9 @@
          <widget class="QLabel" name="losslessLabel">
           <property name="text">
            <string>Lossless</string>
+          </property>
+          <property name="buddy">
+           <cstring>losslessCheckBox</cstring>
           </property>
          </widget>
         </item>
@@ -660,6 +693,27 @@
    </item>
   </layout>
  </widget>
+ <tabstops>
+  <tabstop>nameFromSrcCheckBox</tabstop>
+  <tabstop>nameLineEdit</tabstop>
+  <tabstop>codecComboBox</tabstop>
+  <tabstop>containerComboBox</tabstop>
+  <tabstop>slicingCheckBox</tabstop>
+  <tabstop>sliceIntervalSpinBox</tabstop>
+  <tabstop>timestampFileCheckBox</tabstop>
+  <tabstop>startStoppedCheckBox</tabstop>
+  <tabstop>encodeAfterRunCheckBox</tabstop>
+  <tabstop>deferredInstantEncodeCheckBox</tabstop>
+  <tabstop>deferredParallelCountSpinBox</tabstop>
+  <tabstop>losslessCheckBox</tabstop>
+  <tabstop>vaapiCheckBox</tabstop>
+  <tabstop>qualitySlider</tabstop>
+  <tabstop>bitrateSpinBox</tabstop>
+  <tabstop>radioButtonQuality</tabstop>
+  <tabstop>radioButtonBitrate</tabstop>
+  <tabstop>deferredEncodeWarnButton</tabstop>
+  <tabstop>sliceWarnButton</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>

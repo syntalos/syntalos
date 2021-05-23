@@ -140,6 +140,7 @@ void RecorderSettingsDialog::setCodecProps(CodecProperties props)
         ui->losslessCheckBox->setEnabled(true);
         ui->losslessCheckBox->setChecked(false);
     }
+    ui->losslessLabel->setEnabled(ui->losslessCheckBox->isEnabled());
 
     // change VAAPI option
     ui->vaapiCheckBox->setEnabled(m_codecProps.canUseVaapi());
@@ -176,6 +177,16 @@ void RecorderSettingsDialog::setCodecProps(CodecProperties props)
 
     ui->radioButtonBitrate->setChecked(m_codecProps.mode() == CodecProperties::ConstantBitrate);
     on_radioButtonBitrate_toggled(m_codecProps.mode() == CodecProperties::ConstantBitrate);
+
+    // change whether deferred encoding is possible
+    ui->encodeAfterRunCheckBox->setEnabled(true);
+    if (m_codecProps.codec() == VideoCodec::Raw) {
+        // deferred encoding makes no sense for "Raw" video, as there would be no
+        // encoding step that could be deferred
+        ui->encodeAfterRunCheckBox->setChecked(false);
+        ui->encodeAfterRunCheckBox->setEnabled(false);
+    }
+    ui->encodeAfterRunLabel->setEnabled(ui->encodeAfterRunCheckBox->isEnabled());
 }
 
 void RecorderSettingsDialog::setVideoContainer(const VideoContainer& container)
