@@ -25,6 +25,7 @@
 #include <QMessageBox>
 #include <QStandardPaths>
 #include <QCoreApplication>
+#include <QMainWindow>
 
 #include "utils/misc.h"
 
@@ -805,6 +806,11 @@ QVariant AbstractModule::serializeDisplayUiGeometry()
         QVariantHash info;
         info.insert("visible", wp.first->isVisible());
         info.insert("geometry", QString::fromUtf8(wp.first->saveGeometry().toBase64()));
+
+        const auto mw = qobject_cast<QMainWindow*>(wp.first);
+        if (mw != nullptr)
+            info.insert("state", QString::fromUtf8(mw->saveState().toBase64()));
+
         obj.insert(QString::number(i), info);
     }
 
@@ -827,8 +833,14 @@ void AbstractModule::restoreDisplayUiGeometry(const QVariant &var)
         else
             wp.first->hide();
 
-        auto b64Geometry = winfo.value("geometry").toString();
+        const auto b64Geometry = winfo.value("geometry").toString();
         wp.first->restoreGeometry(QByteArray::fromBase64(b64Geometry.toUtf8()));
+
+        const auto mw = qobject_cast<QMainWindow*>(wp.first);
+        if (mw != nullptr) {
+            const auto b64State = winfo.value("state").toString();
+            mw->restoreState(QByteArray::fromBase64(b64State.toUtf8()));
+        }
     }
 }
 
