@@ -4,7 +4,7 @@ project('Syntalos', 'c', 'cpp',
                     'cpp_std=gnu++17',
                     'b_lto=true'],
 
-  license: 'LGPL-3.0+',
+  license: 'LGPL-3.0+ and GPL-3.0+',
   version: '0.8.0',
 )
 
