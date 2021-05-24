@@ -61,10 +61,18 @@ endforeach
 #
 qt_net_dep = dependency('qt5', modules: ['Network'])
 qt_xml_dep = dependency('qt5', modules: ['Xml'])
-okfp_lib = cpp_compiler.find_library(
-    'okFrontPanel',
-    dirs: join_paths(meson.current_source_dir(), 'libraries')
-)
+
+# We should use find_library() but can't do that currently because
+# of Meson bug #7766:
+# https://github.com/mesonbuild/meson/issues/7766
+#okfp_lib = cpp_compiler.find_library(
+#    'okFrontPanel',
+#    dirs: join_paths(meson.current_source_dir(), 'libraries'),
+#    static: false
+#)
+okfp_lib_dir = join_paths(meson.current_source_dir(), 'libraries')
+okfp_lib = declare_dependency(link_args: ['-L' + okfp_lib_dir, '-lokFrontPanel'])
+
 configure_file(
     input: 'libraries/libokFrontPanel.so',
     output: 'libokFrontPanel.so',
@@ -136,6 +144,7 @@ mod = shared_module(module_name,
     install: true,
     install_dir: mod_install_dir,
     install_rpath: mod_install_dir,
+    build_rpath: okfp_lib_dir,
     include_directories: module_inc_dirs,
     cpp_args: module_cpp_args
 )
