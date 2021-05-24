@@ -5,7 +5,7 @@ project('Syntalos', 'c', 'cpp',
                     'b_lto=true'],
 
   license: 'LGPL-3.0+ and GPL-3.0+',
-  version: '0.8.0',
+  version: '0.8.1',
 )
 
 cpp_compiler = meson.get_compiler('cpp')
