@@ -392,7 +392,7 @@ bool EDLUnit::saveManifest()
     // write the manifest file
     QFile file(QStringLiteral("%1/manifest.toml").arg(path()));
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        d->lastError = QStringLiteral("Unable to open manifest file for writing (in '%1'): %2").arg(path()).arg(file.errorString());
+        d->lastError = QStringLiteral("Unable to open manifest file for writing (in '%1'): %2").arg(path(), file.errorString());
         return false;
     }
 
@@ -418,7 +418,7 @@ bool EDLUnit::saveAttributes()
     // write the attributes file
     QFile file(QStringLiteral("%1/attributes.toml").arg(path()));
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        d->lastError = QStringLiteral("Unable to open attributes file for writing (in '%1'): %2").arg(path()).arg(file.errorString());
+        d->lastError = QStringLiteral("Unable to open attributes file for writing (in '%1'): %2").arg(path(), file.errorString());
         return false;
     }
 
@@ -734,12 +734,12 @@ bool EDLGroup::save()
     while (i.hasNext()) {
         auto obj = i.next();
         if (obj->parent() != this) {
-            qWarning().noquote() << QStringLiteral("Unlinking EDL child '%1' that doesn't believe '%2' is its parent.").arg(obj->name()).arg(name());
+            qWarning().noquote() << QStringLiteral("Unlinking EDL child '%1' that doesn't believe '%2' is its parent.").arg(obj->name(), name());
             i.remove();
             continue;
         }
         if (!obj->save()) {
-            setLastError(QStringLiteral("Saving of '%1' failed: %2").arg(obj->name()).arg(obj->lastError()));
+            setLastError(QStringLiteral("Saving of '%1' failed: %2").arg(obj->name(), obj->lastError()));
             return false;
         }
     }
