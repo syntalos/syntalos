@@ -490,7 +490,7 @@ bool EDLDataset::save()
                     if (i == 0)
                         addAuxDataFile(files[0], adKV.key(), adKV.value().summary);
                     else
-                        addAuxDataFilePart(files[i]);
+                        addAuxDataFilePart(files[i], adKV.key());
                 }
             }
 
