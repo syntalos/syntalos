@@ -492,12 +492,13 @@ public:
         // this will terminate the thread
         m_running = false;
 
-        if (m_initDone && m_recording && m_videoWriter.get() != nullptr) {
+        if (m_initDone && m_recording) {
             // wait until the thread has shut down and we are no longer encoding frames,
-            // the finalize the video. Otherwise we might crash the encoder, as it isn't
+            // then finalize the video. Otherwise we might crash the encoder, as it isn't
             // threadsafe (for a tiny performance gain)
             while (!m_recordingFinished) { QCoreApplication::processEvents(); }
-
+        }
+        if (m_videoWriter.get() != nullptr) {
             // now shut down the recorder
             m_videoWriter->finalize();
         }
