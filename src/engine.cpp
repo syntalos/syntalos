@@ -219,6 +219,7 @@ TestSubject Engine::testSubject() const
 void Engine::setTestSubject(const TestSubject &ts)
 {
     d->testSubject = ts;
+    d->testSubject.id = d->testSubject.id.trimmed();
     refreshExportDirPath();
 }
 
@@ -229,7 +230,7 @@ QString Engine::experimentId() const
 
 void Engine::setExperimentId(const QString &id)
 {
-    d->experimentId = id;
+    d->experimentId = id.trimmed();
     refreshExportDirPath();
 }
 
@@ -445,9 +446,9 @@ void Engine::refreshExportDirPath()
 
     d->exportDir = QDir::cleanPath(QStringLiteral("%1/%2/%3/%4")
                                    .arg(d->exportBaseDir)
-                                   .arg(d->testSubject.id)
+                                   .arg(d->testSubject.id.trimmed())
                                    .arg(currentDate)
-                                   .arg(d->experimentId));
+                                   .arg(d->experimentId.trimmed()));
 }
 
 void Engine::emitStatusMessage(const QString &message)

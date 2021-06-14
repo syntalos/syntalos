@@ -171,15 +171,15 @@ MainWindow::MainWindow(QWidget *parent) :
 
     connect(ui->btnSubjectAdd, &QToolButton::clicked, [&]() {
         TestSubject sub;
-        sub.id = ui->idLineEdit->text();
+        sub.id = ui->idLineEdit->text().trimmed();
         if (sub.id.isEmpty()) {
             QMessageBox::warning(this, "Could not add test subject", "Can not add test subject with an empty ID!");
             return;
         }
 
-        sub.group = ui->groupLineEdit->text();
+        sub.group = ui->groupLineEdit->text().trimmed();
         sub.active = ui->cbSubjectActive->isChecked();
-        sub.comment = ui->remarksTextEdit->toPlainText();
+        sub.comment = ui->remarksTextEdit->toPlainText().trimmed();
         m_subjectList->addSubject(sub);
     });
 
@@ -204,16 +204,16 @@ MainWindow::MainWindow(QWidget *parent) :
 
         auto row = index.row();
         auto sub = m_subjectList->subject(row);
-        auto id = ui->idLineEdit->text();
+        auto id = ui->idLineEdit->text().trimmed();
         if (id.isEmpty()) {
             QMessageBox::warning(this, "Could not change test subject", "Can not change test subject with an empty ID!");
             return;
         }
         sub.id = id;
 
-        sub.group = ui->groupLineEdit->text();
+        sub.group = ui->groupLineEdit->text().trimmed();
         sub.active = ui->cbSubjectActive->isChecked();
-        sub.comment = ui->remarksTextEdit->toPlainText();
+        sub.comment = ui->remarksTextEdit->toPlainText().trimmed();
 
         m_subjectList->removeRow(row);
         m_subjectList->insertSubject(row, sub);
