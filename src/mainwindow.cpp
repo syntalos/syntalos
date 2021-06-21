@@ -141,6 +141,9 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->subjectIdEdit, &QLineEdit::textChanged, [=](const QString& mouseId) {
         if (mouseId.isEmpty()) {
             ui->subjectSelectComboBox->setEnabled(true);
+            ui->subjectSelectComboBox->setCurrentIndex(0);
+            auto sub = m_subjectList->subject(0);
+            changeTestSubject(sub);
             return;
         }
         TestSubject sub;
