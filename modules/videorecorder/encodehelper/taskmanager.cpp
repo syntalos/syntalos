@@ -90,6 +90,7 @@ void TaskManager::checkThreadPoolRunning()
 {
     if (!isRunning()) {
         m_checkTimer->stop();
+        m_scheduledDSPaths.clear();
         emit encodingFinished();
         releaseSleepShutdownIdleInhibitor();
     }
@@ -119,7 +120,6 @@ bool TaskManager::enqueueVideo(const QString &projectId, const QString &videoFna
 bool TaskManager::processVideos()
 {
     QSet<QueueItem*> rmItems;
-    QSet<QString> scheduledDSPaths;
 
     for (auto &item : m_queue->queueItems()) {
         if (item->status() == QueueItem::WAITING) {
@@ -139,9 +139,9 @@ bool TaskManager::processVideos()
             const auto datasetRoot = fi.dir().path();
 
             auto task = new EncodeTask(item,
-                                       !scheduledDSPaths.contains(datasetRoot),
+                                       !m_scheduledDSPaths.contains(datasetRoot),
                                        codecThreadCount);
-            scheduledDSPaths.insert(datasetRoot);
+            m_scheduledDSPaths.insert(datasetRoot);
 
             m_threadPool->start(task);
         } else if (item->status() == QueueItem::FINISHED) {

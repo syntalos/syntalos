@@ -68,6 +68,7 @@ private:
 private:
     QueueModel *m_queue;
     QThreadPool *m_threadPool;
+    QSet<QString> m_scheduledDSPaths;
     QTimer *m_checkTimer;
     int m_idleInhibitFd;
 };
