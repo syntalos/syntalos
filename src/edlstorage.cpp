@@ -329,7 +329,8 @@ QString EDLUnit::serializeManifest()
         for (const auto& author : d->authors) {
             toml::table authorTab;
             authorTab.insert("name", author.name.toStdString());
-            authorTab.insert("email", author.email.toStdString());
+            if (!author.email.isEmpty())
+                authorTab.insert("email", author.email.toStdString());
             QHashIterator<QString, QString> iter(author.values);
             while (iter.hasNext()) {
                 iter.next();
