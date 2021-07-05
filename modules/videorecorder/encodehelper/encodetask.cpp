@@ -191,6 +191,9 @@ void EncodeTask::run()
 
     // update dataset attributes metadata
     if (m_updateAttrsData) {
+        static std::mutex attrMutex;
+        std::lock_guard<std::mutex> lock(attrMutex);
+
         QString errorMsg;
         QString attrFname = m_datasetRoot + QStringLiteral("/attributes.toml");
         auto attrs = parseTomlFile(attrFname, errorMsg);

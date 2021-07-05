@@ -136,7 +136,7 @@ bool TaskManager::processVideos()
             // video in a dataset the we encounter. Otherwise we have multiple parallel
             // writers trying to write to the same file, which causes ugly race conditions
             QFileInfo fi(item->fname());
-            const auto datasetRoot = fi.dir().path();
+            const auto datasetRoot = fi.absoluteDir().canonicalPath();
 
             auto task = new EncodeTask(item,
                                        !m_scheduledDSPaths.contains(datasetRoot),
