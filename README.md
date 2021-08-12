@@ -74,7 +74,12 @@ Some modules may add additional dependencies for libraries to talk to individual
 In case you get a dependency error when running `meson`, install the missing dependency or try to build with less modules enabled.
 
 Before attempting to build Syntalos, ensure all dependencies (and their development files) are installed on your system.
-You should then be able to build the software after configuring the build with Meson for your platform:
+If you are using Debian or Ubuntu, you may choose to locally run the system package installation script that the CI system uses:
+`sudo ./tests/ci/install-deps-deb.sh`. *IMPORTANT:* This script runs APT with fsync/sync disabled to speed up package installation,
+but this leaves the system vulnerable to data corruption in case of an unexpected power outage or other issues during installation.
+If you are concerned by this, please install the packages mentioned in the script file manually.
+
+After installing all dependencies, you should be able to build the software after configuring the build with Meson for your platform:
 ```sh
 mkdir build && cd build
 meson --buildtype=debugoptimized -Doptimize-native=true ..
