@@ -19,20 +19,21 @@ module_moc_src = [
 
 module_ui = ['flircamsettingsdialog.ui']
 
-spinnaker_dep = find_library('Spinnaker')
+spinnaker_dep = cpp_compiler.find_library('Spinnaker', dirs: '/opt/spinnaker/lib')
 spinnaker_cargs = []
 found = false
 foreach idir : ['/usr/include',
                 '/usr/local/include',
                 '/usr/include/spinnaker',
-                '/usr/local/include/spinnaker']
-  inc_arg = '-I' + idir
+                '/usr/local/include/spinnaker',
+                '/opt/spinnaker/include']
+  inc_arg = '-isystem' + idir
   if cpp_compiler.has_header('Spinnaker.h', args: inc_arg)
     spinnaker_cargs += [inc_arg]
     break
   endif
 endforeach
-if not spinnaker_cargs
+if spinnaker_cargs.length() == 0
     error('Unable to find Spinnaker SDK include directories! Please install the SDK or disable FLIR camera support.')
 endif
 
