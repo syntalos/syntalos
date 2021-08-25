@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.3
+//  Version 3.0.4
 //
 //  Copyright (c) 2020-2021 Intan Technologies
 //
@@ -119,8 +119,6 @@ void AudioThread::run()
 
                 // Wait for samples to arrive from WaveformFifo (enough where, when scaled to 44.1 kHz audio, NumSoundSamples can be written)
                 if (waveformFifo->requestReadNewData(WaveformFifo::ReaderAudio, rawBlockSampleSize)) {
-
-                    state->writeToLog("Start audio loop");
                     s->device()->seek(0);
                     s->writeRawData(finalSoundBytesBuffer, NumSoundBytes);
                     s->device()->seek(0);
@@ -138,7 +136,6 @@ void AudioThread::run()
                     if (mAudioOutput->state() != QAudio::ActiveState) {
                         mAudioOutput->start(s->device());
                     }
-                    state->writeToLog("End audio loop");
                     qApp->processEvents();
 
                 } else {

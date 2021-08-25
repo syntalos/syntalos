@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.3
+//  Version 3.0.4
 //
 //  Copyright (c) 2020-2021 Intan Technologies
 //
@@ -34,7 +34,8 @@
 #include "rhxdatablock.h"
 #include "waveformfifo.h"
 
-WaveformFifo::WaveformFifo(SignalSources *signalSources_, int bufferSizeInDataBlocks_, int memorySizeInDataBlocks_, int maxWriteSizeInDataBlocks_) :
+WaveformFifo::WaveformFifo(SignalSources *signalSources_, int bufferSizeInDataBlocks_, int memorySizeInDataBlocks_, int maxWriteSizeInDataBlocks_, SystemState* state_) :
+    state(state_),
     signalSources(signalSources_),
     bufferSizeInDataBlocks(bufferSizeInDataBlocks_),
     memorySizeInDataBlocks(memorySizeInDataBlocks_),
@@ -285,9 +286,15 @@ bool WaveformFifo::requestReadNewData(Reader reader, int numWords)
             numWordsToBeRead[reader] = numWords;
             return true;
         } else {
+            if (reader == ReaderDisplay) {
+                state->writeToLog("Failed to acquire words. numWords: " + QString::number(numWords));
+            }
             return false;
         }
     } else {
+        if (reader == ReaderDisplay) {
+            state->writeToLog("Insufficient data available in buffer. Available: " + QString::number(numWords) + " ... requested: " + QString::number(usedWordsNewData[reader].available()));
+        }
         return false;   // insufficient data available in buffer
     }
 }

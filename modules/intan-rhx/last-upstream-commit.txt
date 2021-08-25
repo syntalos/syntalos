@@ -7,10 +7,8 @@ Syntalos as well.
 
 --------------------
 
-commit 60d528f733bae8a66a43b388d460765cf0fff94d (HEAD -> main, origin/main, origin/HEAD)
+commit eaf15163f83dc146b8626e49194fb37bef781b47 (HEAD -> main, tag: 3.0.4, origin/main, origin/HEAD)
 Author: Adrian Foy <afoy@intantech.com>
-Date:   Fri Apr 16 13:54:52 2021 -0700
+Date:   Thu Aug 5 15:58:44 2021 -0700
 
-    Update README.md
-
-    Clarify that for changes to be integrated into official Intan software, developers should contact Intan to request a feature or report a bug.
+    Update from 3.0.3 to 3.0.4

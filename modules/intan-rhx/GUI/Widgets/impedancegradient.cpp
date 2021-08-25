@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.3
+//  Version 3.0.4
 //
 //  Copyright (c) 2020-2021 Intan Technologies
 //

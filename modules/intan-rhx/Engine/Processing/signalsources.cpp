@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.3
+//  Version 3.0.4
 //
 //  Copyright (c) 2020-2021 Intan Technologies
 //
@@ -70,12 +70,16 @@ SignalGroup::~SignalGroup()
     }
 }
 
-void SignalGroup::addAmplifierChannel(int nativeChannelNumber, int boardStream, int commandStream, int chipChannel)
+void SignalGroup::addAmplifierChannel(int nativeChannelNumber, int boardStream, int commandStream, int chipChannel,
+                                      double impedanceMagnitude, double impedancePhase)
 {
     QString nativeChannelName = prefix->getValueString() + "-" + QString("%1").arg(nativeChannelNumber, 3, 10, QChar('0'));
     QString customChannelName = nativeChannelName;
     Channel* newChannel = new Channel(AmplifierSignal, customChannelName, nativeChannelName, nativeChannelNumber, state,
                                       this, boardStream, chipChannel, commandStream);
+    if (impedanceMagnitude != 0.0) {
+        newChannel->setImpedance(impedanceMagnitude, impedancePhase);
+    }
     signalChannels.push_back(newChannel);
     numAmpChannels->setValue(numAmpChannels->getValue() + 1);
 }

@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.3
+//  Version 3.0.4
 //
 //  Copyright (c) 2020-2021 Intan Technologies
 //
@@ -585,7 +585,7 @@ void RHXController::setExternalFastSettleChannel(int channel)
     dev->UpdateWireIns();
     if (type == ControllerRecordUSB3) {
         dev->ActivateTriggerIn(TrigInConfig_USB3, 7);
-    } else if (type == ControllerRecordUSB3) {
+    } else if (type == ControllerRecordUSB2) {
         dev->ActivateTriggerIn(TrigInExtFastSettle_R_USB2, 1);
     }
 }
@@ -1109,7 +1109,7 @@ void RHXController::enableExternalFastSettle(bool enable)
     dev->UpdateWireIns();
     if (type == ControllerRecordUSB3) {
         dev->ActivateTriggerIn(TrigInConfig_USB3, 6);
-    } else if (type == ControllerRecordUSB3) {
+    } else if (type == ControllerRecordUSB2) {
         dev->ActivateTriggerIn(TrigInExtFastSettle_R_USB2, 0);
     }
 }
@@ -1696,14 +1696,22 @@ int RHXController::findConnectedChips(vector<ChipType> &chipType, vector<int> &p
         }
     }
 
-    // Run the SPI interface for one command sequence (i.e., one data block).
+    // Run the SPI interface for multiple command sequences (i.e., NRepeats data blocks).
+    const int NRepeats = 12;
     RHXDataBlock dataBlock(type, getNumEnabledDataStreams());
-    setMaxTimeStep(dataBlock.samplesPerDataBlock());
+    setMaxTimeStep(NRepeats * dataBlock.samplesPerDataBlock());
     setContinuousRunMode(false);
 
-    vector<int> sumGoodDelays(maxMISOLines, 0);
-    vector<int> indexFirstGoodDelay(maxMISOLines, -1);
-    vector<int> indexSecondGoodDelay(maxMISOLines, -1);
+    int auxCmdSlot = (type == ControllerStimRecordUSB2 ? AuxCmd1 : AuxCmd3);
+
+    vector<vector<int> > goodDelays;
+    goodDelays.resize(maxMISOLines);
+    for (int i = 0; i < maxMISOLines; ++i) {
+        goodDelays[i].resize(16);
+        for (int j = 0; j < 16; ++j) {
+            goodDelays[i][j] = 0;
+        }
+    }
 
     // Run SPI command sequence at all 16 possible FPGA MISO delay settings
     // to find optimum delay for each SPI interface cable.
@@ -1720,43 +1728,70 @@ int RHXController::findConnectedChips(vector<ChipType> &chipType, vector<int> &p
         }
         run();
 
-        // Wait for the 128-sample run to complete.
+        // Wait for the run to complete.
         while (isRunning()) {
-            std::this_thread::sleep_for(std::chrono::microseconds(100));\
+            std::this_thread::sleep_for(std::chrono::microseconds(100));
         }
 
-        // Read the resulting single data block from the USB interface.
-        readDataBlock(&dataBlock);
+        for (int i = 0; i < NRepeats; ++i) {
+            // Read one data block from the USB interface.
+            readDataBlock(&dataBlock);
 
-        // Read the Intan chip ID number from each RHD or RHS chip found.
-        // Record delay settings that yield good communication with the chip.
-        int auxCmdSlot = (type == ControllerStimRecordUSB2 ? AuxCmd1 : AuxCmd3);
-        int register59Value;
-        for (int stream = 0; stream < maxMISOLines; stream++) {
-            int id = dataBlock.getChipID(stream, auxCmdSlot, register59Value);
-            if (id == (int)RHD2132Chip || id == (int)RHD2216Chip || id == (int)RHS2116Chip ||
-                (id == (int)RHD2164Chip && register59Value == Register59MISOA)) {
-                sumGoodDelays[stream] = sumGoodDelays[stream] + 1;
-                if (indexFirstGoodDelay[stream] == -1) {
-                    indexFirstGoodDelay[stream] = delay;
-                    chipTypeOld[stream] = (ChipType)id;
-                } else if (indexSecondGoodDelay[stream] == -1) {
-                    indexSecondGoodDelay[stream] = delay;
+            // Read the Intan chip ID number from each RHD or RHS chip found.
+            // Record delay settings that yield good communication with the chip.
+            int register59Value;
+            for (int stream = 0; stream < maxMISOLines; stream++) {
+                int id = dataBlock.getChipID(stream, auxCmdSlot, register59Value);
+                if (id == (int)RHD2132Chip || id == (int)RHD2216Chip || id == (int)RHS2116Chip ||
+                    (id == (int)RHD2164Chip && register59Value == Register59MISOA)) {
+                    goodDelays[stream][delay] = goodDelays[stream][delay] + 1;
                     chipTypeOld[stream] = (ChipType)id;
                 }
             }
         }
-        // TODO: Maybe change above code to run for *multiple* dataBlocks to find RHD2164 DDR glitches?
     }
 
     // Set cable delay settings that yield good communication with each chip.
     vector<int> optimumDelay(maxMISOLines, 0);
     for (int stream = 0; stream < maxMISOLines; ++stream) {
-        if (sumGoodDelays[stream] == 1 || sumGoodDelays[stream] == 2) {
-            optimumDelay[stream] = indexFirstGoodDelay[stream];
-        } else if (sumGoodDelays[stream] > 2) {
-            optimumDelay[stream] = indexSecondGoodDelay[stream];
+        int bestCount = -1;
+        for (int delay = 0; delay < 16; ++delay) {
+            if (goodDelays[stream][delay] > bestCount) {
+                bestCount = goodDelays[stream][delay];
+            }
         }
+        int numBest = 0;
+        for (int delay = 0; delay < 16; ++ delay) {
+            if (goodDelays[stream][delay] == bestCount) {
+                ++numBest;
+            }
+        }
+        int bestDelay = -1;
+        if (numBest == 2 && (chipTypeOld[stream] == RHD2164Chip)) {
+            for (int delay = 15; delay >= 0; --delay) {  // DDR SPI from RHD2164 chip seems to work best with longer of two valid delays.
+                if (goodDelays[stream][delay] == bestCount) {
+                    bestDelay = delay;
+                    break;
+                }
+            }
+        } else {
+            for (int delay = 0; delay < 16; ++delay) {
+                if (goodDelays[stream][delay] == bestCount) {
+                    bestDelay = delay;
+                    break;
+                }
+            }
+            if (numBest > 2) {  // If 3 or more valid delays, don't use the longest or shortest.
+                for (int delay = bestDelay + 1; delay < 16; ++delay) {
+                    if (goodDelays[stream][delay] == bestCount) {
+                        bestDelay = delay;
+                        break;
+                    }
+                }
+            }
+        }
+
+        optimumDelay[stream] = bestDelay;
     }
 
     setCableDelay(PortA, max(optimumDelay[0], optimumDelay[1]));

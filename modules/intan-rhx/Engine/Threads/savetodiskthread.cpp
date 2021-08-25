@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.3
+//  Version 3.0.4
 //
 //  Copyright (c) 2020-2021 Intan Technologies
 //
@@ -119,7 +119,7 @@ void SaveToDiskThread::run()
                         bool triggerBeginFound = triggerTimeIndex >= 0;
 
                         if (triggerBeginFound) {    // Triggered start recording.
-//                            cout << "TRIGGER BEGIN FOUND" << EndOfLine;
+//                            cout << "TRIGGER BEGIN FOUND" << endl;
                             state->triggered = true;
                             state->triggerSet = false;
                             state->recording = true;
@@ -175,20 +175,25 @@ void SaveToDiskThread::run()
                         if (state->triggered) {     // A trigger has been found and we are recording
                             if (triggerEndCounter == 0) {   // No end trigger has yet been found
                                 triggerBeginCounter += NumSamples;
-                                if (triggerEndCounter == 0 && triggerBeginCounter > glitchThreshold) {
+                                if (triggerBeginCounter > glitchThreshold) {
                                     // Watch for trigger end event.
                                     int triggerTimeIndex = findTrigger(NumSamples, FindTriggerEnd);
                                     bool triggerEndFound = triggerTimeIndex >= 0;
                                     if (triggerEndFound) {
-//                                        cout << "TRIGGER END FOUND" << EndOfLine;
+//                                        cout << "TRIGGER END FOUND" << endl;
                                         triggerEndCounter += NumSamples - triggerTimeIndex; // Trigger end found; start counting.
                                     }
                                 }
                             } else {    // Trigger end has previously been found; keep counting.
-                                triggerEndCounter += NumSamples;
+                                if (findTrigger(NumSamples, FindTriggerBegin) >= 0) {
+                                    triggerEndCounter = 0;  // Ignore brief trigger-off events
+//                                    cout << "TRIGGER REASSERTED" << endl;
+                                } else {
+                                    triggerEndCounter += NumSamples;
+                                }
                             }
                             if (triggerEndCounter > triggerEndSamples) {    // We have recorded sufficient post-trigger samples.
-//                                cout << "CLOSING TRIGGERED FILE" << EndOfLine;
+//                                cout << "CLOSING TRIGGERED FILE" << endl;
                                 state->triggerSet = false;
                                 state->recording = false;
                                 saveManager->closeAllSaveFiles();
@@ -201,7 +206,7 @@ void SaveToDiskThread::run()
                             totalSamplesInFile += NumSamples;
                             if (saveManager->maxSamplesInFile() > 0) {
                                 if (totalSamplesInFile >= saveManager->maxSamplesInFile()) {  // Time limit reached.  Start new file.
-//                                    cout << "TIME LIMIT REACHED; STARTING NEW FILE" << EndOfLine;
+//                                    cout << "TIME LIMIT REACHED; STARTING NEW FILE" << endl;
                                     saveManager->closeAllSaveFiles();
                                     if (!saveManager->openAllSaveFiles()) {
                                         emit error("Could not open save file(s)");
@@ -217,7 +222,7 @@ void SaveToDiskThread::run()
                     } else if (state->triggered && !state->triggerSet) {   // Ignore glitches immediately after trigger end.
                         triggerEndCounter += NumSamples;
                         if (triggerEndCounter > triggerEndSamples + glitchThreshold) {  // Retriggered
-//                            cout << "RETRIGGERED" << EndOfLine;
+//                            cout << "RETRIGGERED" << endl;
                             state->triggered = false;
                             state->triggerSet = true;
                             triggerEndCounter = 0;

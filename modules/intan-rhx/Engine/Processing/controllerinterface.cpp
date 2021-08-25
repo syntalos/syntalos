@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.3
+//  Version 3.0.4
 //
 //  Copyright (c) 2020-2021 Intan Technologies
 //
@@ -150,7 +150,7 @@ ControllerInterface::ControllerInterface(SystemState* state_, AbstractRHXControl
     double samplesPerDataBlock = (double) RHXDataBlock::samplesPerDataBlock(state->getControllerTypeEnum());
     int waveformFifoMemoryDataBlocks = ceil(waveformMemoryInSeconds * sampleRate / samplesPerDataBlock);
     int waveformFifoBufferDataBlocks = ceil((waveformMemoryInSeconds + waveformExtraBufferInSeconds) * sampleRate / samplesPerDataBlock);
-    waveformFifo = new WaveformFifo(state->signalSources, waveformFifoBufferDataBlocks, waveformFifoMemoryDataBlocks, 1);
+    waveformFifo = new WaveformFifo(state->signalSources, waveformFifoBufferDataBlocks, waveformFifoMemoryDataBlocks, 1, state);
     if (!waveformFifo->memoryWasAllocated(memoryRequired)) {
         outOfMemoryError(memoryRequired);
     }
@@ -521,19 +521,20 @@ void ControllerInterface::addPlaybackHeadstageChannels()
                 const HeaderFileChannel& fileChannel = fileGroup.channels[i];
                 if (fileChannel.signalType == AmplifierSignal) {
                     group->addAmplifierChannel(fileChannel.nativeOrder, fileChannel.boardStream,
-                                               fileChannel.commandStream, fileChannel.chipChannel);
+                                               fileChannel.commandStream, fileChannel.chipChannel,
+                                               fileChannel.impedanceMagnitude, fileChannel.impedancePhase);
 //                    cout << "Playback configuration: Adding " << portPrefix.toStdString() << "-" <<
-//                            QString("%1").arg(fileChannel.channelNumber(), 3, 10, QChar('0')).toStdString() << EndOfLine;
+//                            QString("%1").arg(fileChannel.channelNumber(), 3, 10, QChar('0')).toStdString() << endl;
                 } else if (fileChannel.signalType == AuxInputSignal) {
                     group->addAuxInputChannel(fileChannel.nativeOrder, fileChannel.boardStream,
                                               fileChannel.chipChannel, fileChannel.endingNumber(1));
 //                    cout << "Playback configuration: Adding " << portPrefix.toStdString() << "-AUX" <<
-//                            fileChannel.endingNumber(1) << EndOfLine;
+//                            fileChannel.endingNumber(1) << endl;
                 } else if (fileChannel.signalType == SupplyVoltageSignal) {
                     group->addSupplyVoltageChannel(fileChannel.nativeOrder, fileChannel.boardStream,
                                                    fileChannel.endingNumber(1));
 //                    cout << "Playback configuration: Adding " << portPrefix.toStdString() << "-VDD" <<
-//                            fileChannel.endingNumber(1) << EndOfLine;
+//                            fileChannel.endingNumber(1) << endl;
                 }
             }
         }

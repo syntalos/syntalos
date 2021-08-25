@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.3
+//  Version 3.0.4
 //
 //  Copyright (c) 2020-2021 Intan Technologies
 //
@@ -524,8 +524,33 @@ bool XMLInterface::parseSignalGroups(const QByteArray &byteArray, QString &error
             }
         }
 
+
         SignalGroup* thisSignalGroup = state->signalSources->groupByName(portName);
         // If the SignalGroup couldn't be found, just skip this element
+        if (!thisSignalGroup) {
+            // If there are no 'Port' signal groups, there could still be Analog In, Analog Out, Digital In, or Digital Out signal groups present
+            // If prefix attribute is "ANALOG-IN", then get the "Analog In Ports" group
+            if (portName == "Port ANALOG-IN") {
+                thisSignalGroup = state->signalSources->groupByName("Analog In Ports");
+            }
+
+            // If prefix attribute is "ANALOG-OUT", then get the "Analog Out Ports" group
+            else if (portName == "Port ANALOG-OUT") {
+                thisSignalGroup = state->signalSources->groupByName("Analog Out Ports");
+            }
+
+            // If prefix attribute is "DIGITAL-IN", then get the "Digital In Ports" group
+            else if (portName == "Port DIGITAL-IN") {
+                thisSignalGroup = state->signalSources->groupByName("Digital In Ports");
+            }
+
+            // If prefix attribute is "DIGITAL-OUT", then get the "Digital Out Ports" group
+            else if (portName == "Port DIGITAL-OUT") {
+                thisSignalGroup = state->signalSources->groupByName("Digital Out Ports");
+            }
+        }
+
+        // If the SignalGroup still can't be found, just skip this element
         if (!thisSignalGroup) {
             stream.skipCurrentElement();
             continue;

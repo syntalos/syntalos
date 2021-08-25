@@ -1,0 +1,56 @@
+Intan RHX release notes
+-----------------------
+
+* Version 3.0, 11 February 2021
+- First release; started with v3.0 to avoid confusion with older Intan software.
+
+* Version 3.0.1, 12 February 2021
+- Fixed bug that caused crash during electrode impedance measurement.
+
+* Version 3.0.2, 24 March 2021
+- Improvements to Spike Scope:
+   - Added RMS display, consistent with old software.
+   - Added spike rate display.
+   - Number of spikes in recent spike history can now be as high as 500.
+   - Each channel's recent spike history is persistent when channels are changed.
+   - Added 'Take Snapshot' and 'Clear Snapshot' buttons to permit freezing spike history in background of display on a per-channel basis.
+- Added longer post-trigger spans to PSTH tool: 5s, 10s, and 20s.
+- Added ability to use analog inputs as digital triggers in PSTH tool.
+- Added ability to use analog inputs as digital triggers in Display Trigger (in Trigger tab).
+- Added ability to display thresholded analog inputs as digital signals in Spectrogram Tool.
+- In data file playback mode, added 'run immediately' option after 'jump to position'.
+- Extended range of y-axis spacing between waveforms on waveform display.
+- Fixed bug where 'Stop' button was not working during rewinding.
+- Fixed bug where the 'Automatically Save Trigger Channel' option in triggered recording was not working.
+- Fixed issue where software crashed upon exiting on some Macs.
+- Fixed crashing upon software startup with some smaller screens.
+- Improvements to TCP output:
+   - Added ability to disable and enable individual channels for TCP output while system is running.
+   - Improved TCP parser so that path names and file names may include spaces.
+   - Fixed TCP output timestamps to match timestamps in recorded data.
+   - Fixed issue where TCP data output could fill up software 'Waveform FIFO' buffer under certain conditions.
+   - Changed TCP parameter name 'DisplayTriggerAnalogVoltageThresholdVolts' to 'TriggerAnalogVoltageThresholdVolts'.
+- Switched to latest version (v5.2.3) of Opal Kelly DLL.
+- Changes to support Linux compilation.
+- Windows installer:
+   - Fixed issue where certain anti-virus programs would interfere with Windows installation.
+   - Added additonal DLLs to Windows installation:
+       api-ms-win-core-winrt-string-l1-1-0.dll
+       api-ms-win-core-winrt-l1-1-0.dll
+       OpenCL.dll
+
+* Version 3.0.3, 15 April 2021
+- Added 50 ms option to PSTH pre-trigger and post-trigger spans.
+- In "One File Per Signal Type" data file format, added option to save auxiliary inputs (e.g., acccelerometer data) in amplifier.dat file.
+- Fixed bug that sometimes causes crashing when PC audio was enabled.
+- Fixed bug that did not display auxiliary inputs or supply voltages from second headstage when dual headstage adapter was used.
+- Expanded OpenCL compatibility to fix problems with OpenCL initialization on some systems.
+
+* Version 3.0.4, 5 August 2021
+- Fixed small memory leak that occurred when saving in the File Per Signal Type file format.
+- Improved XML settings file parsing so that files that don't include any headstage channels can still be correctly loaded.
+- Minor improvement to make error logging more detailed and efficient.
+- Modify episodic triggered recording algorithm to ignore brief trigger-off events.
+- Improved optimum SPI delay finding algorithm so that setting delay manually is less likely to be necessary.
+- In data file playback mode, electrode impedances are now displayed.
+- Fixed issue with external fast settling in RHD systems not properly triggering as a result of digital input activity

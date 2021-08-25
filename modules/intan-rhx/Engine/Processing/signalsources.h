@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.3
+//  Version 3.0.4
 //
 //  Copyright (c) 2020-2021 Intan Technologies
 //
@@ -53,7 +53,8 @@ public:
     SignalGroup(const QString &name_, const QString &prefix_, SystemState* state_, bool enabled_ = true);
     ~SignalGroup();
 
-    void addAmplifierChannel(int nativeChannelNumber, int boardStream, int commandStream, int chipChannel);
+    void addAmplifierChannel(int nativeChannelNumber, int boardStream, int commandStream, int chipChannel,
+                             double impedanceMagnitude = 0.0, double impedancePhase = 0.0);
     void addAuxInputChannel(int nativeChannelNumber, int boardStream, int auxNumber, int nameNumber);
     void addSupplyVoltageChannel(int nativeChannelNumber, int boardStream, int nameNumber);
     void addAnalogDigitalIOChannel(SignalType signalType, int nativeChannelNumber);

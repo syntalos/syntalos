@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.3
+//  Version 3.0.4
 //
 //  Copyright (c) 2020-2021 Intan Technologies
 //
@@ -84,7 +84,7 @@ public:
         NumberOfReaders   // Don't use this last enum; used only by constructor to count total number of readers.
     };
 
-    WaveformFifo(SignalSources *signalSources_, int bufferSizeInDataBlocks_, int memorySizeInDataBlocks_, int maxWriteSizeInDataBlocks_);
+    WaveformFifo(SignalSources *signalSources_, int bufferSizeInDataBlocks_, int memorySizeInDataBlocks_, int maxWriteSizeInDataBlocks_, SystemState* state_);
     ~WaveformFifo();
 
     // Three methods used (in this sequence) for writing to buffer:
@@ -247,6 +247,7 @@ public:
     bool memoryWasAllocated(double& memoryRequestedGB) const { memoryRequestedGB += memoryNeededGB; return memoryAllocated; }
 
 private:
+    SystemState *state;
     mutex mtx;
     SignalSources *signalSources;
     int numAmplifierChannels;

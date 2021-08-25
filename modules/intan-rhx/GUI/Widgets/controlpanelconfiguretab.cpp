@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.3
+//  Version 3.0.4
 //
 //  Copyright (c) 2020-2021 Intan Technologies
 //
@@ -218,7 +218,7 @@ void ControlPanelConfigureTab::updateFromState()
     if (externalFastSettleChannel != externalFastSettleChannelOld) {
         externalFastSettleChannelOld = externalFastSettleChannel;
         externalFastSettleSpinBox->setValue(externalFastSettleChannel);
-        controllerInterface->setExternalFastSettleChannel(externalFastSettleChannel - 1);
+        controllerInterface->setExternalFastSettleChannel(externalFastSettleChannel);
     }
 
     bool manualDelayChanged = false;
@@ -277,7 +277,7 @@ void ControlPanelConfigureTab::rescanPorts()
 
     QElapsedTimer timer;
     timer.start();
-    for (int i = 0; i <= maxProgress; ++i) {
+    for (int i = 0; i < maxProgress / 2; ++i) {
         progress.setValue(i);
         while (timer.nsecsElapsed() < qint64(50000000)) {
             qApp->processEvents();
@@ -286,6 +286,14 @@ void ControlPanelConfigureTab::rescanPorts()
     }
 
     emit sendExecuteCommand("RescanPorts");
+
+    for (int i = maxProgress / 2; i <= maxProgress; ++i) {
+        progress.setValue(i);
+        while (timer.nsecsElapsed() < qint64(50000000)) {
+            qApp->processEvents();
+        }
+        timer.restart();
+    }
 }
 
 void ControlPanelConfigureTab::manualCableDelayControl()
