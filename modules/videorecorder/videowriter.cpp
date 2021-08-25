@@ -1123,10 +1123,11 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::milliseco
         return false;
     }
 
-    AVPacket pkt;
-    pkt.data = nullptr;
-    pkt.size = 0;
-    av_init_packet(&pkt);
+    AVPacket *pkt = av_packet_alloc();
+    if (!pkt) {
+        d->lastError = QStringLiteral("Unable to allocate packet.").toStdString();
+        return false;
+    }
 
     AVBufferRef *savedBuf0 = nullptr;
     auto outputFrame = d->encFrame;
@@ -1156,7 +1157,7 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::milliseco
         goto out;
     }
 
-    ret = avcodec_receive_packet(d->cctx, &pkt);
+    ret = avcodec_receive_packet(d->cctx, pkt);
     if (ret != 0) {
         // some encoders need to be fed a few frames before they produce a useful result
         // ignore errors in that case for a little bit.
@@ -1171,13 +1172,12 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::milliseco
     }
 
     // rescale packet timestamp
-    pkt.duration = 1;
-    av_packet_rescale_ts(&pkt, d->cctx->time_base, d->vstrm->time_base);
+    pkt->duration = 1;
+    av_packet_rescale_ts(pkt, d->cctx->time_base, d->vstrm->time_base);
 
     // write packet
-    av_write_frame(d->octx, &pkt);
+    av_write_frame(d->octx, pkt);
     d->framesN++;
-    av_packet_unref(&pkt);
 
     // store timestamp (if necessary)
     if (d->saveTimestamps)
@@ -1204,6 +1204,8 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::milliseco
 
     success = true;
 out:
+    av_packet_free(&pkt);
+
     // restore frame buffer, so that it can be properly freed in the end
     if (savedBuf0)
         d->encFrame->buf[0] = savedBuf0;
