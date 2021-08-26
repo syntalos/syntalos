@@ -24,6 +24,7 @@
 #pragma GCC diagnostic ignored "-Wzero-as-null-pointer-constant"
 #include <gst/gst.h>
 #pragma GCC diagnostic pop
+#include <libusb.h>
 
 #include "mainwindow.h"
 
@@ -31,6 +32,9 @@ int main(int argc, char *argv[])
 {
     // set random seed
     srand(static_cast<uint>(time(nullptr)));
+
+    // initialize libusb
+    libusb_init(nullptr);
 
     // initialize GStreamer so modules can use it if they need to
     gst_init(&argc,&argv);
@@ -46,7 +50,14 @@ int main(int argc, char *argv[])
     KDBusService service(KDBusService::Unique);
 
     // create main view and run the application
-    MainWindow w;
-    w.show();
-    return app.exec();
+    auto w = new MainWindow;
+    w->show();
+
+    // run application
+    int rc = app.exec();
+
+    // finalize & quit
+    delete w;
+    libusb_exit(nullptr);
+    return rc;
 }

@@ -68,6 +68,16 @@ enum class ModuleDriverKind {
     EVENTS_SHARED     /// Module shares a thread(pool) with arbitrary other modules, actions are triggered by events
 };
 
+/**
+ * @brief The UsbHotplugEventKind enum
+ */
+enum class UsbHotplugEventKind {
+    NONE,           /// No USB hotplug event
+    DEVICE_ARRIVED, /// A new device appeared
+    DEVICE_LEFT,    /// A device has left
+    DEVICES_CHANGE  /// Devices have appeared and left
+};
+
 class Q_DECL_EXPORT ModuleInfo
 {
     friend class Engine;
@@ -846,6 +856,15 @@ protected:
      * @return True if the current run is/was ephemeral.
      */
     bool isEphemeralRun() const;
+
+    /**
+     * @brief Handle USB hotplug events
+     *
+     * This function is called by the engine when a new USB device appears or leaves.
+     * Its call is deferred when an experiment is running and dispatched after a run
+     * has completed.
+     */
+    virtual void usbHotplugEvent(UsbHotplugEventKind kind);
 
     void setInitialized();
     bool initialized() const;

@@ -212,6 +212,13 @@ public:
         m_camSettingsWindow->updateValues();
         return true;
     }
+
+    void usbHotplugEvent(UsbHotplugEventKind) override
+    {
+        if (!m_stopped)
+            return;
+        m_camSettingsWindow->updateValues();
+    }
 };
 
 QString GenericCameraModuleInfo::id() const

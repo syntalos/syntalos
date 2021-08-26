@@ -170,6 +170,7 @@ syntalos_exe = executable('syntalos',
                    kfdbusaddons_dep,
                    kfarchive_dep,
 
+                   libusb_dep,
                    avutil_dep,
                    eigen_dep,
                    glib_dep,

@@ -68,6 +68,7 @@ void GenericCameraSettingsDialog::setRunning(bool running)
 
 void GenericCameraSettingsDialog::updateValues()
 {
+    const auto prevCamId = m_camera->camId();
     ui->cameraComboBox->clear();
     auto cameras = Camera::availableCameras();
     for (const auto &cameraInfo : cameras) {
@@ -75,8 +76,9 @@ void GenericCameraSettingsDialog::updateValues()
     }
 
     for (int i = 0; i < ui->cameraComboBox->count(); i++) {
-        if (ui->cameraComboBox->itemData(i).toInt() == m_camera->camId()) {
+        if (ui->cameraComboBox->itemData(i).toInt() == prevCamId) {
             ui->cameraComboBox->setCurrentIndex(i);
+            on_cameraComboBox_currentIndexChanged(i);
             break;
         }
     }

@@ -784,6 +784,11 @@ bool AbstractModule::isEphemeralRun() const
     return d->runIsEmphemeral;
 }
 
+void AbstractModule::usbHotplugEvent(UsbHotplugEventKind kind)
+{
+    /* do nothing */
+}
+
 void AbstractModule::setInitialized()
 {
     if (d->initialized)

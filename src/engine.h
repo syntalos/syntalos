@@ -87,6 +87,8 @@ public:
     bool saveInternalDiagnostics() const;
     void setSaveInternalDiagnostics(bool save);
 
+    void notifyUsbHotplugEvent(UsbHotplugEventKind kind);
+
 public slots:
     /**
      * @brief Run the current board, save all data

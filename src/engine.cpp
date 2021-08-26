@@ -33,6 +33,7 @@
 #include <QDBusReply>
 #include <QDBusUnixFileDescriptor>
 #include <filesystem>
+#include <libusb.h>
 
 #include "oop/oopmodule.h"
 #include "edlstorage.h"
@@ -51,6 +52,9 @@ namespace Syntalos {
 }
 
 using namespace Syntalos;
+
+static int engineUsbHotplugDispatchCB(struct libusb_context *ctx, struct libusb_device *dev,
+                                      libusb_hotplug_event event, void *enginePtr);
 
 class ThreadDetails
 {
@@ -128,6 +132,9 @@ public:
     QHash<QString, std::shared_ptr<TimeSyncFileWriter>> internalTSyncWriters;
 
     QScopedPointer<EngineResourceMonitorData> monitoring;
+
+    libusb_hotplug_callback_handle usbHotplugCBHandle;
+    QTimer *usbEventsTimer;
 };
 #pragma GCC diagnostic pop
 
@@ -157,10 +164,52 @@ Engine::Engine(QWidget *parentWidget)
     // synchronizers, as they may run in arbitrary threads and some may even
     // try to register simultaneously
     qRegisterMetaType<TimeSyncStrategies>();
+
+    // register dispatch callback for USB hotplug events
+    d->usbEventsTimer = new QTimer;
+    d->usbEventsTimer->setInterval(10);
+    int rc = libusb_hotplug_register_callback(nullptr,
+                                              LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED | LIBUSB_HOTPLUG_EVENT_DEVICE_LEFT,
+                                              0, // hotplug flags
+                                              LIBUSB_HOTPLUG_MATCH_ANY, LIBUSB_HOTPLUG_MATCH_ANY, LIBUSB_HOTPLUG_MATCH_ANY,
+                                              engineUsbHotplugDispatchCB, this,
+                                              &d->usbHotplugCBHandle);
+    if (rc != LIBUSB_SUCCESS) {
+        qCWarning(logEngine).noquote() << "Unable to register USB hotplug callback: Can not notify modules of USB hotplug events.";
+        d->usbHotplugCBHandle = -1;
+    } else {
+        connect(d->usbEventsTimer, &QTimer::timeout, [=]() {
+            struct timeval tv{0, 0};
+            libusb_handle_events_timeout_completed(nullptr, &tv, nullptr);
+        });
+        d->usbEventsTimer->start();
+    }
 }
 
 Engine::~Engine()
-{}
+{
+    delete d->usbEventsTimer;
+    if (d->usbHotplugCBHandle != -1)
+        libusb_hotplug_deregister_callback(nullptr, d->usbHotplugCBHandle);
+}
+
+static int engineUsbHotplugDispatchCB(struct libusb_context *ctx, struct libusb_device *dev,
+                                      libusb_hotplug_event event, void *enginePtr)
+{
+    auto engine = static_cast<Engine*>(enginePtr);
+    UsbHotplugEventKind kind = UsbHotplugEventKind::NONE;
+    if (event == LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED) {
+        kind = UsbHotplugEventKind::DEVICE_ARRIVED;
+    } else if (event == LIBUSB_HOTPLUG_EVENT_DEVICE_LEFT) {
+        kind = UsbHotplugEventKind::DEVICE_LEFT;
+    } else {
+        qCDebug(logEngine).noquote() << "Unhandled USB hotplug event:" << event;
+        return 0;
+    }
+
+    engine->notifyUsbHotplugEvent(kind);
+    return 0;
+}
 
 bool Engine::load()
 {
@@ -583,6 +632,20 @@ QList<AbstractModule *> Engine::createModuleStopOrderFromExecOrder(const QList<A
     assert(stopOrderMods.length() == modExecList.length());
 
     return stopOrderMods;
+}
+
+void Engine::notifyUsbHotplugEvent(UsbHotplugEventKind kind)
+{
+    if (kind == UsbHotplugEventKind::NONE)
+        return;
+    if (d->active || d->running) {
+        // we are running, we must not dispatch the event
+        return;
+    }
+
+    // notify our modules that something changed
+    for (auto mod : d->activeModules)
+        mod->usbHotplugEvent(kind);
 }
 
 /**
@@ -1078,6 +1141,7 @@ bool Engine::runInternal(const QString &exportDirPath)
 
     // the engine is actively doing stuff with modules now
     d->active = true;
+    d->usbEventsTimer->stop();
 
     // reset failure reason, in case one was set from a previous run
     d->runFailedReason = QString();
@@ -1147,6 +1211,7 @@ bool Engine::runInternal(const QString &exportDirPath)
                                                      "Please give the duplicate a unique name in order to execute this board.").arg(mod->name()));
                 d->active = false;
                 d->failed = true;
+                d->usbEventsTimer->start();
                 return false;
             }
             modNameSet.insert(uniqName);
@@ -1679,6 +1744,9 @@ bool Engine::runInternal(const QString &exportDirPath)
 
     // we have stopped doing things with modules
     d->active = false;
+
+    // notify modules about any deferred USB events again
+    d->usbEventsTimer->start();
 
     // tell listeners that we are stopped now
     emit runStopped();

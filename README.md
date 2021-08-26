@@ -48,7 +48,7 @@ Currently, the following modules are built-in or can be enabled at build-time:
 
  * C++17 compatible compiler
    (GCC >= 7.1 or Clang >= 4. GCC is recommended)
- * meson (>= 0.58)
+ * Meson (>= 0.58)
  * Qt5 (>= 5.12)
  * Qt5 Test
  * Qt5 OpenGL
@@ -65,6 +65,7 @@ Currently, the following modules are built-in or can be enabled at build-time:
  * KF5 Archive
  * KF5 TextEditor
  * [pybind11](https://github.com/pybind/pybind11)
+ * libusb (>= 1.0)
 
 We recommend Debian 11 (Bullseye) or Ubuntu 20.04 (Focal Fossa) to run Syntalos,
 but any Linux distribution that has a recent enough C++ compiler and Qt version

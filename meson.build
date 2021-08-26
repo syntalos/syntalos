@@ -134,6 +134,7 @@ xxhash_dep = dependency('libxxhash')
 eigen_dep = dependency('eigen3', version: '>= 3.3', include_type: 'system')
 toml_dep = dependency('tomlplusplus', version: '>=2.0')
 opencv_dep = dependency('opencv4', include_type: 'system')
+libusb_dep = dependency('libusb-1.0')
 
 avcodec_dep = dependency('libavcodec', version: '>= 58.20')
 avformat_dep = dependency('libavformat', version: '>= 58.20')
