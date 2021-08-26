@@ -169,8 +169,8 @@ Engine::Engine(QWidget *parentWidget)
     d->usbEventsTimer = new QTimer;
     d->usbEventsTimer->setInterval(10);
     int rc = libusb_hotplug_register_callback(nullptr,
-                                              LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED | LIBUSB_HOTPLUG_EVENT_DEVICE_LEFT,
-                                              0, // hotplug flags
+                                              (libusb_hotplug_event)(LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED | LIBUSB_HOTPLUG_EVENT_DEVICE_LEFT),
+                                              LIBUSB_HOTPLUG_NO_FLAGS,
                                               LIBUSB_HOTPLUG_MATCH_ANY, LIBUSB_HOTPLUG_MATCH_ANY, LIBUSB_HOTPLUG_MATCH_ANY,
                                               engineUsbHotplugDispatchCB, this,
                                               &d->usbHotplugCBHandle);
