@@ -118,7 +118,8 @@ public:
 
     EDLAuthor experimenter;
     TestSubject testSubject;
-    QString experimentId;
+    QString experimentIdTmpl;
+    QString experimentIdFinal;
     bool simpleStorageNames;
 
     std::atomic_bool active;
@@ -132,6 +133,8 @@ public:
     QHash<QString, std::shared_ptr<TimeSyncFileWriter>> internalTSyncWriters;
 
     QScopedPointer<EngineResourceMonitorData> monitoring;
+    int runCount;
+    int runCountPadding;
 
     libusb_hotplug_callback_handle usbHotplugCBHandle;
     QTimer *usbEventsTimer;
@@ -154,6 +157,8 @@ Engine::Engine(QWidget *parentWidget)
     d->timer.reset(new SyncTimer);
     d->runIsEphemeral = false;
     d->mainThreadCoreAffinity.clear();
+    d->runCount = 0;
+    d->runCountPadding = 1;
 
     // allow sending states via Qt queued connections,
     // and also register all other transmittable data types
@@ -274,13 +279,19 @@ void Engine::setTestSubject(const TestSubject &ts)
 
 QString Engine::experimentId() const
 {
-    return d->experimentId;
+    return d->experimentIdTmpl;
 }
 
 void Engine::setExperimentId(const QString &id)
 {
-    d->experimentId = id.trimmed();
+    d->experimentIdTmpl = id.trimmed();
     refreshExportDirPath();
+}
+
+bool Engine::hasExperimentIdReplaceables() const
+{
+    qDebug() << d->experimentIdTmpl;
+    return d->experimentIdTmpl.contains("{n}") || d->experimentIdTmpl.contains("{time}");
 }
 
 EDLAuthor Engine::experimenter() const
@@ -328,6 +339,26 @@ milliseconds_t Engine::currentRunElapsedTime() const
     if (!d->running)
         return milliseconds_t(0);
     return d->timer->timeSinceStartMsec();
+}
+
+void Engine::resetSuccessRunsCounter()
+{
+    d->runCount = 0;
+}
+
+int Engine::successRunsCount()
+{
+    return d->runCount;
+}
+
+void Engine::setRunCountExpectedMax(int maxValue)
+{
+    // configure zero padding for "n" replaceable
+    d->runCountPadding = 1;
+    if (maxValue >= 10)
+        d->runCountPadding = 2;
+    if (maxValue >= 100)
+        d->runCountPadding = 3;
 }
 
 AbstractModule *Engine::createModule(const QString &id, const QString &name)
@@ -488,16 +519,27 @@ bool Engine::makeDirectory(const QString &dir)
     return true;
 }
 
+void Engine::makeFinalExperimentId()
+{
+    // replace substitution variables (create copy of template string first!)
+    d->experimentIdFinal = QString(d->experimentIdTmpl)
+                                    .replace("{n}", QStringLiteral("%1").arg(d->runCount + 1,
+                                                                             d->runCountPadding > 1? d->runCountPadding : 1,
+                                                                             10, QLatin1Char('0')))
+                                    .replace("{time}", QTime::currentTime().toString("hhmmss"));
+}
+
 void Engine::refreshExportDirPath()
 {
     auto time = QDateTime::currentDateTime();
     auto currentDate = time.date().toString("yyyy-MM-dd");
 
+    makeFinalExperimentId();
     d->exportDir = QDir::cleanPath(QStringLiteral("%1/%2/%3/%4")
                                    .arg(d->exportBaseDir)
                                    .arg(d->testSubject.id.trimmed())
                                    .arg(currentDate)
-                                   .arg(d->experimentId.trimmed()));
+                                   .arg(d->experimentIdFinal.trimmed()));
 }
 
 void Engine::emitStatusMessage(const QString &message)
@@ -794,6 +836,10 @@ bool Engine::run()
         return false;
     }
 
+    // update paths and IDs
+    makeFinalExperimentId();
+    refreshExportDirPath();
+
     // safeguard against accidental data removals
     QDir deDir(d->exportDir);
     if (deDir.exists()) {
@@ -841,6 +887,10 @@ bool Engine::runEphemeral()
 
     // mark run as volatile
     d->runIsEphemeral = true;
+
+    // update paths and IDs
+    makeFinalExperimentId();
+    refreshExportDirPath();
 
     // perform the actual run, in a temporary directory
     auto ret = runInternal(tempExportDir);
@@ -1169,8 +1219,8 @@ bool Engine::runInternal(const QString &exportDirPath)
     // all data modules generate in
     std::shared_ptr<EDLCollection> storageCollection(new EDLCollection(QStringLiteral("%1_%2_%3")
                                                                        .arg(d->testSubject.id)
-                                                                       .arg(d->experimentId)
-                                                                       .arg(QDateTime::currentDateTime().toString("yy-MM-dd+hh.mm"))));
+                                                                       .arg(d->experimentIdFinal)
+                                                                       .arg(QDateTime::currentDateTime().toString("yy-MM-dd hh:mm"))));
     storageCollection->setPath(exportDirPath);
 
     // if we should save internal diagnostic data, create a group for it!
@@ -1741,6 +1791,10 @@ bool Engine::runInternal(const QString &exportDirPath)
 
     // ensure main thread CPU affinity is cleared
     thread_clear_affinity(pthread_self());
+
+    // increase counter of successful runs
+    if (!d->failed)
+        d->runCount++;
 
     // we have stopped doing things with modules
     d->active = false;

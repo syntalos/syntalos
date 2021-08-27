@@ -64,6 +64,7 @@ public:
 
     QString experimentId() const;
     void setExperimentId(const QString &id);
+    bool hasExperimentIdReplaceables() const;
 
     EDLAuthor experimenter() const;
     void setExperimenter(const EDLAuthor &person);
@@ -76,6 +77,10 @@ public:
     bool isActive() const;
     bool hasFailed() const;
     milliseconds_t currentRunElapsedTime() const;
+
+    void resetSuccessRunsCounter();
+    int successRunsCount();
+    void setRunCountExpectedMax(int maxValue);
 
     AbstractModule *createModule(const QString &id, const QString &name = QString());
     bool removeModule(AbstractModule *mod);
@@ -143,6 +148,7 @@ private:
     void stopResourceMonitoring();
 
     bool runInternal(const QString &exportDirPath);
+    void makeFinalExperimentId();
     void refreshExportDirPath();
     void emitStatusMessage(const QString &message);
     QList<AbstractModule*> createModuleExecOrderList();

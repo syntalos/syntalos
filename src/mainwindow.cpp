@@ -57,6 +57,7 @@
 #include "aboutdialog.h"
 #include "globalconfig.h"
 #include "globalconfigdialog.h"
+#include "intervalrundialog.h"
 #include "engine.h"
 #include "moduleapi.h"
 #include "sysinfodialog.h"
@@ -275,6 +276,10 @@ MainWindow::MainWindow(QWidget *parent) :
         showExperimenterSelector(QStringLiteral("Person conducting the current experiment:"));
     });
 
+    // interval run config dialog
+    m_intervalRunDialog = new IntervalRunDialog(this);
+    m_isIntervalRun = false;
+
     // diagnostics panels
     m_timingsDialog = new TimingsDialog(this);
 
@@ -388,9 +393,76 @@ void MainWindow::runActionTriggered()
     // stop is only possible when we are actually running
     setRunUiControlStates(true, false);
 
+    // start run count at 1
+    m_engine->resetSuccessRunsCounter();
+
+    // handle interval run setup
+    m_isIntervalRun = m_intervalRunDialog->intervalRunEnabled();
+    if (m_isIntervalRun) {
+        qDebug().noquote() << "Running experiment multiple times in intervals";
+        updateIntervalRunMessage();
+        ui->runWarnWidget->setVisible(true);
+
+        // set a hint as to how many runs we expect to do (this mainly affects number formatting)
+        m_engine->setRunCountExpectedMax(m_intervalRunDialog->runsN());
+
+        // we must have replaceables, otherwise we can't launch another run (as that would have the same name)
+        if (!m_engine->hasExperimentIdReplaceables()) {
+            QMessageBox::critical(this, QStringLiteral("Can not start interval run"),
+                                  QStringLiteral("The interval run can not be started, as the experiment ID is missing a time/run-based substitution variable.\n"
+                                                 "Check out the documentation on information on this."));
+            setRunUiControlStates(false, false);
+            setRunPossible(true);
+            return;
+        }
+    }
+
     m_engine->setSaveInternalDiagnostics(m_gconf->saveExperimentDiagnostics());
     m_engine->setSimpleStorageNames(ui->cbSimpleStorageNames->isChecked());
-    m_engine->run();
+
+    if (m_isIntervalRun) {
+        // run multiple times at set intervals
+        for (int i = 1; i <= m_intervalRunDialog->runsN(); i++) {
+            // perform the experiment run
+            qDebug().noquote() << QStringLiteral("New run: %1/%2").arg(m_engine->successRunsCount() + 1).arg(m_intervalRunDialog->runsN());
+            m_engine->run();
+
+            // stop immediately if the interval mode was suspended
+            if (!m_isIntervalRun)
+                break;
+
+            // also skip the "delay block" on the last run
+            if (i == m_intervalRunDialog->runsN()) {
+                m_isIntervalRun = false;
+                if (!m_engine->isRunning())
+                    onEngineStopped();
+                break;
+            }
+
+            // wait the requested delay time
+            if (m_intervalRunDialog->delayMin() > 0) {
+                showBusyIndicatorWaiting();
+                qDebug().noquote() << "Delaying next run for" << m_intervalRunDialog->delayMin() << "min";
+                auto continueTime= QTime::currentTime().addSecs(60 * m_intervalRunDialog->delayMin());
+                ui->runWarningLabel->setText(QStringLiteral("Running for %1 min every %2 min. Now waiting %3 min. Next run: %4/%5")
+                                             .arg(m_intervalRunDialog->runDurationMin())
+                                             .arg(m_intervalRunDialog->runDurationMin() + m_intervalRunDialog->delayMin())
+                                             .arg(m_intervalRunDialog->delayMin())
+                                             .arg(m_engine->successRunsCount() + 1)
+                                             .arg(m_intervalRunDialog->runsN()));
+                while (QTime::currentTime() < continueTime) {
+                    QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
+                    setStatusText(QStringLiteral("Starting next run in: %1 seconds").arg(QTime::currentTime().secsTo(continueTime)));
+                }
+            }
+            updateIntervalRunMessage();
+        }
+
+        ui->runWarnWidget->setVisible(false);
+        qDebug().noquote() << "Finished interval run session";
+    } else {
+        m_engine->run();
+    }
 
     // we are stopped now
     setRunUiControlStates(false, false);
@@ -404,9 +476,12 @@ void MainWindow::temporaryRunActionTriggered()
     setRunUiControlStates(true, false);
 
     ui->exportDirLabel->setText(QStringLiteral("???"));
+    ui->runWarningIconLabel->setPixmap(QIcon::fromTheme(QStringLiteral("emblem-warning")).pixmap(16, 16));
     ui->runWarningLabel->setText(QStringLiteral("No data of this run will be saved permanently!"));
     ui->runWarnWidget->setVisible(true);
 
+    m_engine->resetSuccessRunsCounter();
+    m_isIntervalRun = false;
     m_engine->runEphemeral();
 
     // we are stopped now, ephemeral run has finished
@@ -419,6 +494,10 @@ void MainWindow::temporaryRunActionTriggered()
 
 void MainWindow::stopActionTriggered()
 {
+    // we need to prevent any interval timer/loop from restarting the engine
+    m_isIntervalRun = false;
+
+    // shutdown
     ui->actionStop->setEnabled(false);
     showBusyIndicatorProcessing();
     QApplication::processEvents();
@@ -427,10 +506,10 @@ void MainWindow::stopActionTriggered()
 
 bool MainWindow::saveConfiguration(const QString &fileName)
 {
-    qDebug() << "Saving board as" << fileName;
+    qDebug().noquote() << "Saving board as" << fileName;
     KTar tar(fileName);
     if (!tar.open(QIODevice::WriteOnly)) {
-        qWarning() << "Unable to open new configuration file for writing.";
+        qWarning().noquote() << "Unable to open new configuration file for writing.";
         return false;
     }
     setStatusText("Saving configuration to file...");
@@ -973,6 +1052,16 @@ void MainWindow::updateExportDirDisplay()
     ui->exportDirLabel->setText(m_engine->exportDir());
 }
 
+void MainWindow::updateIntervalRunMessage()
+{
+    ui->runWarningIconLabel->setPixmap(QIcon::fromTheme(QStringLiteral("emblem-information")).pixmap(16, 16));
+    ui->runWarningLabel->setText(QStringLiteral("Running for %1 min every %2 min. Current run: %3/%4.")
+                                 .arg(m_intervalRunDialog->runDurationMin())
+                                 .arg(m_intervalRunDialog->runDurationMin() + m_intervalRunDialog->delayMin())
+                                 .arg(m_engine->successRunsCount() + 1)
+                                 .arg(m_intervalRunDialog->runsN()));
+}
+
 void MainWindow::aboutActionTriggered()
 {
     AboutDialog about(this);
@@ -991,7 +1080,24 @@ void MainWindow::onModuleCreated(ModuleInfo *, AbstractModule *mod)
 
 void MainWindow::onElapsedTimeUpdate()
 {
-    ui->elapsedTimeLabel->setText(QTime::fromMSecsSinceStartOfDay(m_engine->currentRunElapsedTime().count()).toString("hh:mm:ss"));
+    const auto elapsedTime = m_engine->currentRunElapsedTime();
+    ui->elapsedTimeLabel->setText(QTime::fromMSecsSinceStartOfDay(elapsedTime.count()).toString("hh:mm:ss"));
+
+    if (m_isIntervalRun) {
+        // stop the current run in interval mode when its maximum runtime was reached
+        if (std::chrono::duration_cast<std::chrono::minutes>(elapsedTime).count() < m_intervalRunDialog->runDurationMin())
+            return;
+
+        if (m_engine->successRunsCount() >= m_intervalRunDialog->runsN()) {
+            m_isIntervalRun = false;
+            stopActionTriggered();
+            return;
+        }
+
+        // stop the current run, the interval loop will start another one unless we
+        // reached the expected run count
+        m_engine->stop();
+    }
 }
 
 void MainWindow::setStatusText(const QString& msg)
@@ -1029,6 +1135,11 @@ void MainWindow::onEngineRunStarted()
 
 void MainWindow::onEngineStopped()
 {
+    // do nothing if we are still in interval mode and will laucnh again
+    if (m_isIntervalRun)
+        return;
+
+    // reset everything so we can start again
     m_rtElapsedTimer->stop();
     hideBusyIndicator();
     setRunPossible(true);
@@ -1090,6 +1201,13 @@ void MainWindow::showBusyIndicatorProcessing()
 void MainWindow::showBusyIndicatorRunning()
 {
     m_busyIndicator->load(QStringLiteral(":/animations/running.svg"));
+    m_busyIndicator->show();
+    QApplication::processEvents();
+}
+
+void MainWindow::showBusyIndicatorWaiting()
+{
+    m_busyIndicator->load(QStringLiteral(":/animations/waiting.svg"));
     m_busyIndicator->show();
     QApplication::processEvents();
 }
@@ -1177,4 +1295,9 @@ void MainWindow::on_actionModuleLoadInfo_triggered()
     dlg.setWindowTitle(QStringLiteral("Dynamic module loader log"));
     dlg.resize(620, 400);
     dlg.exec();
+}
+
+void MainWindow::on_actionIntervalRunConfig_triggered()
+{
+    m_intervalRunDialog->exec();
 }

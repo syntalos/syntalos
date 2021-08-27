@@ -63,6 +63,8 @@ syntalos_src = [
     'flowgraphview.cpp',
     'globalconfigdialog.h',
     'globalconfigdialog.cpp',
+    'intervalrundialog.h',
+    'intervalrundialog.cpp',
     'main.cpp',
     'mainwindow.h',
     'mainwindow.cpp',
@@ -92,6 +94,7 @@ syntalos_src = [
 syntalos_ui = [
     'aboutdialog.ui',
     'globalconfigdialog.ui',
+    'intervalrundialog.ui',
     'mainwindow.ui',
     'modulegraphform.ui',
     'moduleselectdialog.ui',

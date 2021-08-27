@@ -1290,6 +1290,7 @@
      <string>Tool</string>
     </property>
     <addaction name="actionGlobalConfig"/>
+    <addaction name="actionIntervalRunConfig"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuTool"/>
@@ -1539,6 +1540,14 @@
    </property>
    <property name="text">
     <string>Module Loader</string>
+   </property>
+  </action>
+  <action name="actionIntervalRunConfig">
+   <property name="icon">
+    <iconset theme="view-time-schedule-edit"/>
+   </property>
+   <property name="text">
+    <string>Interval Run</string>
    </property>
   </action>
  </widget>

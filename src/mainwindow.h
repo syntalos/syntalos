@@ -39,6 +39,7 @@ class ModuleInfo;
 class AbstractModule;
 class TimingsDialog;
 class GlobalConfig;
+class IntervalRunDialog;
 }
 #endif // DOXYGEN_SHOULD_SKIP_THIS
 
@@ -87,6 +88,7 @@ private slots:
 
     void showBusyIndicatorProcessing();
     void showBusyIndicatorRunning();
+    void showBusyIndicatorWaiting();
     void hideBusyIndicator();
 
     void on_actionSubjectsLoad_triggered();
@@ -94,6 +96,7 @@ private slots:
     void on_actionTimings_triggered();
     void on_actionSystemInfo_triggered();
     void on_actionModuleLoadInfo_triggered();
+    void on_actionIntervalRunConfig_triggered();
 
 protected:
     void closeEvent(QCloseEvent *event) override;
@@ -105,6 +108,7 @@ private:
     void setCurrentProjectFile(const QString& fileName);
     void setDataExportBaseDir(const QString& dir);
     void updateExportDirDisplay();
+    void updateIntervalRunMessage();
 
     void changeExperimenter(const EDLAuthor& person);
     void changeTestSubject(const TestSubject& subject);
@@ -123,6 +127,7 @@ private:
     QTimer *m_rtElapsedTimer;
     Engine *m_engine;
     QString m_currentProjectFname;
+    bool m_isIntervalRun;
 
     QLabel *m_statusBarLabel;
     QSvgWidget *m_busyIndicator;
@@ -131,6 +136,7 @@ private:
     ExperimenterListModel *m_experimenterList;
 
     TimingsDialog *m_timingsDialog;
+    IntervalRunDialog *m_intervalRunDialog;
 
     QHash<VarStreamInputPort*, FlowGraphEdge*> m_portGraphEdgeCache;
 };
