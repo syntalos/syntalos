@@ -58,13 +58,13 @@ exhale_args = {
                                                        *.md \
                                                        *.build \
                                                        *.ui \
-                                                       */pyworker/cvmatndsliceconvert.cpp \
-                                                       */streams/readerwriterqueue.h
+                                                       */pyworker/cvmatndsliceconvert.cpp
                                 INCLUDE_FILE_PATTERNS = *.h *.hpp
                                 EXTENSION_MAPPING    = h=C++
                                 ENABLE_PREPROCESSING = YES
                                 RECURSIVE            = YES
                                 EXCLUDE_SYMBOLS      = *::Private \
+                                                       moodycamel::* \
                                                        Q_DECLARE_METATYPE \
                                                        Q_DECLARE_FLAGS \
                                                        Q_DECLARE_LOGGING_CATEGORY \
