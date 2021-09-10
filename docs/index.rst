@@ -6,6 +6,8 @@ Syntalos
    :caption: Contents:
 
    intro
+   install
+   reading_data
    modules/pyscript
    changes
    api/sysrc_root.rst
