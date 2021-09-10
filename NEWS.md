@@ -6,6 +6,7 @@ Features:
  * Auto-switch to registered subject list if no override is set
  * Add easy way for modules to react to USB hotplug events
  * Add feature to auto-repeat an experiment run at set intervals
+ * intan-rhx: Merge 3.0.4 upstream changes
 
 Bugfixes:
  * Correctly list all aux data files in EDL manifests
