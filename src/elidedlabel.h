@@ -7,8 +7,10 @@
 class ElidedLabel : public QFrame
 {
     Q_OBJECT
+#if !defined(DOXYGEN_SHOULD_SKIP_THIS)
     Q_PROPERTY(QString text READ text WRITE setText)
     Q_PROPERTY(bool isElided READ isElided)
+#endif
 
 public:
     explicit ElidedLabel(QWidget *parent = nullptr);

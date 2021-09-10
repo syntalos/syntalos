@@ -12,7 +12,7 @@ copyright = '2018-2020, Matthias Klumpp'
 author = 'Matthias Klumpp'
 
 # The full version, including alpha/beta/rc tags
-release = '0.1'
+release = '0.8'
 
 # -- General configuration ---------------------------------------------------
 thisfile = __file__
@@ -53,12 +53,13 @@ exhale_args = {
                                 INPUT                = ../src/
                                 BUILTIN_STL_SUPPORT  = YES
                                 EXTRACT_PRIVATE      = NO
-                                #EXTRACT_PRIV_VIRTUAL = YES
+                                EXTRACT_PRIV_VIRTUAL = YES
                                 EXCLUDE_PATTERNS     = *.txt \
                                                        *.md \
                                                        *.build \
                                                        *.ui \
-                                                       */pyworker/cvmatndsliceconvert.cpp
+                                                       */pyworker/cvmatndsliceconvert.cpp \
+                                                       */streams/readerwriterqueue.h
                                 INCLUDE_FILE_PATTERNS = *.h *.hpp
                                 EXTENSION_MAPPING    = h=C++
                                 ENABLE_PREPROCESSING = YES

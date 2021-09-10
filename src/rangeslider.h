@@ -39,12 +39,14 @@ class RangeSliderPrivate;
 class RangeSlider : public QSlider
 {
     Q_OBJECT
+#if !defined(DOXYGEN_SHOULD_SKIP_THIS)
     Q_PROPERTY(int minimumValue READ minimumValue WRITE setMinimumValue)
     Q_PROPERTY(int maximumValue READ maximumValue WRITE setMaximumValue)
     Q_PROPERTY(int minimumPosition READ minimumPosition WRITE setMinimumPosition)
     Q_PROPERTY(int maximumPosition READ maximumPosition WRITE setMaximumPosition)
     Q_PROPERTY(bool symmetricMoves READ symmetricMoves WRITE setSymmetricMoves)
     Q_PROPERTY(QString handleToolTip READ handleToolTip WRITE setHandleToolTip)
+#endif
 
 public:
     // Superclass typedef

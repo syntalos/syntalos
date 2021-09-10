@@ -7,6 +7,7 @@ Syntalos
 
    intro
    modules/pyscript
+   changes
    api/sysrc_root.rst
 
 
