@@ -291,6 +291,10 @@ ControlWindow::ControlWindow(SystemState* state_, CommandParser* parser_, Contro
 
 ControlWindow::~ControlWindow()
 {
+    // Perform any clean-up here before application closes.
+    if (state->running)
+        emit sendSetCommand("RunMode", "Stop");
+
     if (probeMapWindow) {
         probeMapWindow->close();
         delete probeMapWindow;
@@ -1398,10 +1402,6 @@ void ControlWindow::keyReleaseEvent(QKeyEvent *event)
 
 void ControlWindow::closeEvent(QCloseEvent *event)
 {
-    // Perform any clean-up here before application closes.
-    if (state->running)
-        emit sendSetCommand("RunMode", "Stop");
-
     event->accept();
 }
 
