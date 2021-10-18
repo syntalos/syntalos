@@ -228,7 +228,7 @@ bool OOPModule::initAndLaunchWorker(const QVector<uint> &cpuAffinity)
     // set port information and load Python script
     wc->setPorts(inPorts(), outPorts());
     wc->initWithPythonScript(d->pyScript, d->wdir);
-    statusMessage("Worker initialized.");
+    setStatusMessage("Worker initialized.");
 
     return true;
 }
@@ -254,11 +254,13 @@ void OOPModule::terminateWorkerIfRunning(QEventLoop *loop)
 
 std::optional<QRemoteObjectPendingReply<QByteArray>> OOPModule::showSettingsChangeUi(const QByteArray &oldSettings)
 {
-    if (d->runData.isNull() || d->runData->wc.isNull()) {
-        // launch worker, it is not yet running
+    if (d->runData.isNull() || d->runData->wc.isNull() || !d->runData->wc->isRunning()) {
+        // launch worker
+        terminateWorkerIfRunning(nullptr);
         if (!initAndLaunchWorker())
             return std::nullopt;
     }
+
     return d->runData->wc->changeSettings(oldSettings);
 }
 

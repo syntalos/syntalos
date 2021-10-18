@@ -57,6 +57,11 @@ void OOPWorkerConnector::setWorkerBinary(const QString &binPath)
     m_workerBinary = binPath;
 }
 
+bool OOPWorkerConnector::isRunning()
+{
+    return m_proc->state() == QProcess::Running;
+}
+
 void OOPWorkerConnector::terminate(QEventLoop *loop)
 {
     if (loop)
@@ -64,7 +69,7 @@ void OOPWorkerConnector::terminate(QEventLoop *loop)
     else
         QCoreApplication::processEvents();
 
-    if (m_proc->state() != QProcess::Running)
+    if (!isRunning())
         return;
 
     // have worker prepare for shutdown

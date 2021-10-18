@@ -40,6 +40,7 @@ public:
 
     void setWorkerBinary(const QString &binPath);
 
+    bool isRunning();
     void terminate(QEventLoop *loop = nullptr);
 
     bool connectAndRun(const QVector<uint> &cpuAffinity);
