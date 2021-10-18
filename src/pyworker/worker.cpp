@@ -28,6 +28,11 @@
 #include "pyipcmarshal.h"
 #include "streams/datatypes.h"
 
+using namespace Syntalos;
+namespace Syntalos {
+    Q_LOGGING_CATEGORY(logPyWorker, "pyworker")
+}
+
 OOPWorker::OOPWorker(QObject *parent)
     : OOPWorkerSource(parent),
       m_stage(OOPWorker::IDLE),
@@ -187,7 +192,7 @@ void OOPWorker::shutdown()
 
     // give other events a bit of time (10ms) to react to the fact that we are no longer running
     QTimer::singleShot(10, this, &QCoreApplication::quit);
-    qDebug().noquote() << "Python worker is shutting down.";
+    qCDebug(logPyWorker).noquote() << "Shutting down.";
 }
 
 bool OOPWorker::loadPythonScript(const QString &script, const QString &wdir)
@@ -197,9 +202,10 @@ bool OOPWorker::loadPythonScript(const QString &script, const QString &wdir)
 
     Py_SetProgramName(QCoreApplication::arguments()[0].toStdWString().c_str());
 
-    // HACK: make Python thing *we* are the Python interpreter, so it finds
+    // HACK: make Python think *we* are the Python interpreter, so it finds
     // all modules correctly when we are in a virtual environment.
     const auto venvDir = QString::fromUtf8(qgetenv("VIRTUAL_ENV"));
+    qCDebug(logPyWorker).noquote() << "Using virtual environment:" << venvDir;
     if (!venvDir.isEmpty())
         Py_SetProgramName(QDir(venvDir).filePath("bin/python").toStdWString().c_str());
 
@@ -223,12 +229,12 @@ bool OOPWorker::loadPythonScript(const QString &script, const QString &wdir)
         // explicitly now
         m_pyMain = PyImport_ImportModule("__main__");
         Py_XDECREF(res);
-        qDebug().noquote() << "worker: Python script loaded.";
+        qCDebug(logPyWorker).noquote() << "Script loaded.";
         return true;
     } else {
         if (PyErr_Occurred())
             emitPyError();
-        qDebug().noquote() << "worker: Failed to load Python script data.";
+        qCDebug(logPyWorker).noquote() << "Failed to load Python script data.";
         return false;
     }
 }

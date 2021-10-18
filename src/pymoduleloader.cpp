@@ -151,7 +151,7 @@ public:
                                                QStringLiteral("The '%1' module requested to run its Python code in a virtual environment, however "
                                                               "a virtual Python environment for modules of type '%2' does not exist yet. "
                                                               "Should Syntalos attempt to set up the environment automatically? "
-                                                              "(This will open a system terminal and run the necessary command, which may take some time)")
+                                                              "(This will open a system terminal and run the necessary commands, which may take some time)")
                                                               .arg(name(), id()),
                                                QMessageBox::Yes | QMessageBox::No);
             if (reply == QMessageBox::No)
@@ -175,7 +175,9 @@ public:
     bool prepare(const TestSubject &testSubject) override
     {
         setCaptureStdout(true);
-        setPythonFile(m_mainPyFname, m_pyModDir, m_pyVEnv);
+        setPythonFile(m_mainPyFname,
+                      m_pyModDir,
+                      virtualEnvDir());
 
         OOPModule::prepare(testSubject);
 
@@ -194,7 +196,9 @@ public:
             setSettingsData(m_pendingSettings.returnValue());
 
         setCaptureStdout(false);
-        setPythonFile(m_mainPyFname, m_pyModDir, m_pyVEnv);
+        setPythonFile(m_mainPyFname,
+                      m_pyModDir,
+                      virtualEnvDir());
         auto res = showSettingsChangeUi(settingsData());
         if (res.has_value())
             m_pendingSettings = res.value();
@@ -223,7 +227,6 @@ public:
 
 private:
     QString m_mainPyFname;
-    QString m_pyVEnv;
     QString m_pyModDir;
     bool m_useVEnv;
 

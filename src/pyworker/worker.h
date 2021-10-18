@@ -32,6 +32,10 @@ namespace py = pybind11;
 using namespace Syntalos;
 class PyBridge;
 
+namespace Syntalos {
+    Q_DECLARE_LOGGING_CATEGORY(logPyWorker)
+}
+
 class Q_DECL_HIDDEN OOPWorker : public OOPWorkerSource
 {
     Q_OBJECT
