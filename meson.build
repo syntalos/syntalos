@@ -58,6 +58,7 @@ conf.set_quoted('SY_LIBDIR', sy_libdir)
 conf.set_quoted('SY_MODULESDIR', sy_modules_dir)
 conf.set_quoted('SY_VCS_TAG', '@VCS_TAG@')
 conf.set_quoted('PYTHON_LANG_VERSION', python.language_version())
+conf.set_quoted('PYTHON_INSTALL_PATH', python.get_install_dir())
 config_h = configure_file(output: 'config.h.in', configuration: conf)
 config_h = vcs_tag(input: config_h, output: 'config.h')
 

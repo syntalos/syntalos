@@ -19,7 +19,7 @@
 
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
-#include <QCoreApplication>
+#include <QApplication>
 
 #include <sys/prctl.h>
 #include <signal.h>
@@ -28,7 +28,7 @@
 
 int main(int argc, char *argv[])
 {
-    QCoreApplication a(argc, argv);
+    QApplication a(argc, argv);
 
     auto worker = new OOPWorker(&a);
 

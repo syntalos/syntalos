@@ -87,6 +87,37 @@ public:
         return QFile::exists(QStringLiteral("%1/bin/python").arg(virtualEnvDir()));
     }
 
+    void injectSystemPyModule(const QString &venvDir, const QString &pyModName)
+    {
+        QDir dir(QStringLiteral("%1/lib/").arg(venvDir));
+        QStringList vpDirs = dir.entryList(QStringList() << QStringLiteral("python*"));
+
+        QStringList systemPyModPaths = QStringList() << QStringLiteral("/usr/lib/python3/dist-packages/%1/").arg(pyModName)
+                                                     << QStringLiteral("/usr/local/lib/python3/dist-packages/%1/").arg(pyModName);
+
+        for (const auto &systemPyQtPath : systemPyModPaths) {
+            QDir sysPyQtDir(systemPyQtPath);
+            if (!sysPyQtDir.exists())
+                continue;
+
+            for (const auto &pyDir : vpDirs) {
+                qDebug().noquote() << "Adding system Python module to venv:" << systemPyQtPath;
+                QFile::link(systemPyQtPath, QStringLiteral("%1/lib/%2/site-packages/%3").arg(venvDir, pyDir, pyModName));
+            }
+        }
+    }
+
+    bool injectSystemPyQtBindings(const QString &venvDir)
+    {
+        // the PyQt5/PySide modules must be for the same version as Syntalos was compiled for,
+        // as the pyworker binary is linked against Qt as well (and trying to load a different
+        // version will fail)
+        // therefore, we add this hack and inject just the system Qt Python bindings into the
+        // virtual environment.
+        injectSystemPyModule(venvDir, QStringLiteral("PyQt5"));
+        return true;
+    }
+
     bool installVirtualEnv()
     {
         GlobalConfig gconf;
@@ -97,14 +128,37 @@ public:
         QDir().mkpath(venvDir);
 
         const auto tmpCommandFile = QStringLiteral("%1/sy-venv-%2.sh").arg(rtdDir, createRandomString(6));
-        QFile file(tmpCommandFile);
-        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QFile shFile(tmpCommandFile);
+        if (!shFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
             qWarning().noquote() << "Unable to open temporary file" << tmpCommandFile << "for writing.";
             return false;
         }
 
+        const auto origRequirementsFname = QStringLiteral("%1/requirements.txt").arg(m_pyModDir);
+        const auto tmpRequirementsFname = QStringLiteral("%1/%2-requirements_%3.txt").arg(rtdDir, id(), createRandomString(4));
+        QFile tmpReqFile(tmpRequirementsFname);
+        if (!tmpReqFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            qWarning().noquote() << "Unable to open temporary file" << tmpRequirementsFname << "for writing.";
+            return false;
+        }
+
+        QFile reqFile(origRequirementsFname);
+        if (!reqFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            qWarning().noquote() << "Unable to open file" << origRequirementsFname << "for reading.";
+            return false;
+        }
+
+        QTextStream rqfIn(&reqFile);
+        QTextStream rqfOut(&tmpReqFile);
+        while (!rqfIn.atEnd()) {
+            QString line = rqfIn.readLine();
+            if (!line.startsWith("PyQt5"))
+                rqfOut << line << "\n";
+        }
+        tmpReqFile.close();
+
         qDebug().noquote() << "Creating new Python virtualenv in:" << venvDir;
-        QTextStream out(&file);
+        QTextStream out(&shFile);
         out << "#!/bin/bash\n\n"
             << "run_check() {\n"
             << "    echo -e \"\\033[1;33m-\\033[0m \\033[1m$@\\033[0m\"\n"
@@ -120,19 +174,20 @@ public:
             << "cd " << shellQuote(venvDir) << "\n"
             << "run_check virtualenv ." << "\n"
             << "run_check source " << shellQuote(QStringLiteral("%1/bin/activate").arg(venvDir)) << "\n"
-            << "run_check pip install -r " << shellQuote(QStringLiteral("%1/requirements.txt").arg(m_pyModDir)) << "\n"
+            << "run_check pip install -r " << shellQuote(tmpRequirementsFname) << "\n"
 
             << "echo \"\"\n"
             << "read -p \"Success! Press any key to exit.\"" << "\n";
-        file.flush();
-        file.setPermissions(QFileDevice::ExeUser | QFileDevice::ReadUser | QFileDevice::WriteUser);
-        file.close();
+        shFile.flush();
+        shFile.setPermissions(QFileDevice::ExeUser | QFileDevice::ReadUser | QFileDevice::WriteUser);
+        shFile.close();
 
         int ret = runInExternalTerminal(tmpCommandFile, QStringList(), venvDir);
 
-        file.remove();
+        shFile.remove();
+        tmpReqFile.remove();
         if (ret == 0)
-            return true;
+            return injectSystemPyQtBindings(venvDir);
         // failure, let's try to remove the bad virtualenv (failures to do so are ignored)
         QDir(venvDir).removeRecursively();
         return false;
@@ -190,19 +245,30 @@ public:
 
     void showSettingsUi() override
     {
-        if (m_settingsOpened && !m_pendingSettings.isFinished())
+        if (m_running) {
+            QMessageBox::information(nullptr,
+                                     QStringLiteral("Settings unavailable"),
+                                     QStringLiteral("Settings can not be shown while the module is running in an experiment."));
             return;
-        if (m_settingsOpened)
-            setSettingsData(m_pendingSettings.returnValue());
+        }
+        if (m_settingsOpened) {
+            if (m_pendingSettings.isFinished()) {
+                setSettingsData(m_pendingSettings.returnValue());
+                m_settingsOpened = false;
+            } else {
+                return;
+            }
+        }
 
         setCaptureStdout(false);
         setPythonFile(m_mainPyFname,
                       m_pyModDir,
                       virtualEnvDir());
         auto res = showSettingsChangeUi(settingsData());
-        if (res.has_value())
+        if (res.has_value()) {
             m_pendingSettings = res.value();
-        m_settingsOpened = true;
+            m_settingsOpened = true;
+        }
     }
 
     void serializeSettings(const QString&, QVariantHash &settings, QByteArray &extraData) override
