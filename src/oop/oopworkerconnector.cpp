@@ -346,7 +346,7 @@ void OOPWorkerConnector::sendInputData(int typeId, int portId, const QVariant &d
         return;
     }
 
-    if (!m_reptr->receiveInput(portId, outData).waitForFinished(1000)) {
+    if (!m_reptr->receiveInput(portId, outData).waitForFinished(4000)) {
         // ensure we handle potential error events before emitting our own
         if (loop != nullptr)
             loop->processEvents();
