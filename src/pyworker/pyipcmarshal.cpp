@@ -151,7 +151,10 @@ bool marshalPyDataElement(int typeId, const py::object &pyObj,
         for (size_t i = 0; i < pyListLen; i++) {
             const auto lo = pyList[i];
             if (PyLong_CheckExact(lo.ptr())) {
-                const long value = lo.cast<long>();
+                const auto value = lo.cast<long>();
+                row.append(QString::number(value));
+            } else if (PyFloat_CheckExact(lo.ptr())) {
+                const auto value = lo.cast<double>();
                 row.append(QString::number(value));
             } else if (PyUnicode_CheckExact(lo.ptr())) {
                 row.append(QString::fromStdString(lo.cast<std::string>()));
