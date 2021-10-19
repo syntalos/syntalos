@@ -20,7 +20,7 @@ use_venv = true
     id = 'rows-out'
     title = 'Tracking'
 
-    [[ports.out]]
-    data_type = 'Frame'
-    id = 'frames-out'
-    title = 'Labeled Frames'
+    #[[ports.out]]
+    #data_type = 'Frame'
+    #id = 'frames-out'
+    #title = 'Labeled Frames'
