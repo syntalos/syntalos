@@ -9,7 +9,7 @@ mkdir -p 3rdparty
 # TOML++ to read and write TOML files
 git clone --depth 1 https://github.com/marzer/tomlplusplus.git toml++
 mkdir toml++/b && cd toml++/b/
-meson -DBUILD_TESTS=disabled ..
+meson -Dbuild_tests=false ..
 ninja && ninja install
 cd ../..
 
