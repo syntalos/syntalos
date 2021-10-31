@@ -48,7 +48,7 @@ int displayTSyncMetadata(const QString &fname)
         const auto userData =  tsr->userData();
 
         std::cout << "User Metadata:\n";
-        for (const auto key : userData.keys())
+        for (const auto &key : userData.keys())
             std::cout << "    " << key.toStdString() << ": " << userData[key].toString().toStdString() << "\n";
     }
     std::cout << std::endl;

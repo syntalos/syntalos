@@ -213,7 +213,7 @@ static inline bool updateDataForActiveChannels(QList<QPair<std::shared_ptr<Strea
 {
     bool updated = false;
 
-    for (const auto pair : activeSubChans) {
+    for (const auto &pair : activeSubChans) {
         const auto sub = pair.first;
 
         auto maybeSigBlock = sub->peekNext();

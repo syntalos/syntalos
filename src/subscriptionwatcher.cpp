@@ -52,7 +52,7 @@ bool SubscriptionWatcher::isValid() const
 SubscriptionWatcher::WaitResult SubscriptionWatcher::wait()
 {
     // skip all the epoll waiting in case we already have new data
-    for (const auto sub : d->subs) {
+    for (const auto &sub : d->subs) {
         if (sub->hasPending())
             return NEWDATA;
     }
@@ -88,7 +88,7 @@ SubscriptionWatcher::WaitResult SubscriptionWatcher::wait()
 
         } else if (ret == 0) {
             // we hit a timeout, check if we got any data in subscriptions, just in case
-            for (const auto sub : d->subs) {
+            for (const auto &sub : d->subs) {
                 if (sub->hasPending())
                     return NEWDATA;
             }
@@ -115,7 +115,7 @@ SubscriptionWatcher::SubscriptionWatcher(std::initializer_list<std::shared_ptr<V
     }
 
     // add eventfds to the list of watched file descriptors
-    for (const auto sub : subscriptions) {
+    for (const auto &sub : subscriptions) {
         const auto efd = sub->enableNotify();
         qDebug() << "Enabled notify for" << sub->dataTypeName() << "subscription";
 

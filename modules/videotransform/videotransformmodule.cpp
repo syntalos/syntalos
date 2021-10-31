@@ -87,7 +87,7 @@ public:
         cv::Size tfISize;
         tfISize.width = origQSize.width();
         tfISize.height = origQSize.height();
-        for (const auto vtf : m_activeVTFList) {
+        for (const auto &vtf : m_activeVTFList) {
             vtf->setOriginalSize(tfISize);
             vtf->start();
             tfISize = vtf->resultSize();
@@ -125,7 +125,7 @@ public:
         frame.mat.copyTo(frame.mat);
 
         // apply transformations
-        for (const auto vtf : m_activeVTFList) {
+        for (const auto &vtf : m_activeVTFList) {
             vtf->process(frame);
         }
         m_framesOut->push(frame);
@@ -133,7 +133,7 @@ public:
 
     void stop() override
     {
-        for (const auto vtf : m_activeVTFList)
+        for (const auto &vtf : m_activeVTFList)
             vtf->stop();
         m_activeVTFList.clear();
 
