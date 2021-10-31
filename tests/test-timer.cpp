@@ -1,5 +1,6 @@
 
 #include <iostream>
+#include <thread>
 #include <QtTest>
 #include <QDebug>
 

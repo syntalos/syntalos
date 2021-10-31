@@ -20,6 +20,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <QObject>
 #include <QHash>
 #include <QDateTime>
