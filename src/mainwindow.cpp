@@ -427,8 +427,8 @@ void MainWindow::runActionTriggered()
             qDebug().noquote() << QStringLiteral("New run: %1/%2").arg(m_engine->successRunsCount() + 1).arg(m_intervalRunDialog->runsN());
             m_engine->run();
 
-            // stop immediately if the interval mode was suspended
-            if (!m_isIntervalRun)
+            // stop immediately if the interval mode was suspended or an error occurred
+            if (!m_isIntervalRun || m_engine->hasFailed())
                 break;
 
             // also skip the "delay block" on the last run
