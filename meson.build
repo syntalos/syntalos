@@ -95,19 +95,25 @@ if get_option('tracing')
     add_project_link_arguments('-pg')
 endif
 
+# check if we should optimize for modern x86_64, but still be generic enough to run on many
+# recent CPUs
 optimize_modern_amd64 = get_option('optimize-modern-amd64') and not get_option('optimize-native')
 if optimize_modern_amd64 and build_machine.cpu_family() == 'x86_64'
-    if cpp_compiler.has_argument('--with-arch_64=x86-64-v3')
+    if cpp_compiler.has_argument('-march=x86-64-v3')
         message('Using x86-64-v3 feature levels from ' + cpp_compiler.get_id() + ' ' + cpp_compiler.version())
-        o_flags = ['--with-arch_64=x86-64-v3']
+        o_flags = ['-march=x86-64-v3']
     else
+        o_flags = ['-mavx', '-mavx2',
+                   '-msse4', '-msha',
+                   '-msse4.1', '-msse4.2']
         message('Compiler ' + cpp_compiler.get_id() + ' ' + cpp_compiler.version() + ' ' +
-                'does not support x86-64 microarchitecture feature levels. Just enabling AVX/AVX2.')
-        o_flags = ['-mavx', '-mavx2']
+                'does not support x86-64 microarchitecture feature levels.\nExplicitly enabling extensions: ' + ','.join(o_flags))
+
     endif
     add_project_arguments(o_flags, language: 'c')
     add_project_arguments(o_flags, language: 'cpp')
 endif
+# optimize for the current (native) CPU only
 if get_option('optimize-native')
     message('Optimizing for native CPU (micro)architecture')
     add_project_arguments('-march=native', language: 'c')
