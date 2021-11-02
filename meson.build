@@ -100,7 +100,7 @@ endif
 optimize_modern_amd64 = get_option('optimize-modern-amd64') and not get_option('optimize-native')
 if optimize_modern_amd64 and build_machine.cpu_family() == 'x86_64'
     if cpp_compiler.has_argument('-march=x86-64-v3')
-        message('Using x86-64-v3 feature levels from ' + cpp_compiler.get_id() + ' ' + cpp_compiler.version())
+        message('Using x86-64-v3 base microarchitecture level with ' + cpp_compiler.get_id() + ' ' + cpp_compiler.version())
         o_flags = ['-march=x86-64-v3']
     else
         o_flags = ['-mavx', '-mavx2',
