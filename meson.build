@@ -95,24 +95,44 @@ if get_option('tracing')
     add_project_link_arguments('-pg')
 endif
 
-# check if we should optimize for modern x86_64, but still be generic enough to run on many
-# recent CPUs
-optimize_modern_amd64 = get_option('optimize-modern-amd64') and not get_option('optimize-native')
-if optimize_modern_amd64 and build_machine.cpu_family() == 'x86_64'
-    if cpp_compiler.has_argument('-march=x86-64-v3')
-        message('Using x86-64-v3 base microarchitecture level with ' + cpp_compiler.get_id() + ' ' + cpp_compiler.version())
-        o_flags = ['-march=x86-64-v3']
-    else
-        o_flags = ['-mavx', '-mavx2',
-                   '-msse4', '-msha',
-                   '-msse4.1', '-msse4.2']
-        message('Compiler ' + cpp_compiler.get_id() + ' ' + cpp_compiler.version() + ' ' +
-                'does not support x86-64 microarchitecture feature levels.\nExplicitly enabling extensions: ' + ','.join(o_flags))
+# set x86_64 specific optimization flags
+o_flags = []
+if build_machine.cpu_family() == 'x86_64' and not get_option('optimize-native')
+    if get_option('optimize-modern-amd64')
+        # check if we should optimize for modern x86_64, but still be generic enough to run on many
+        # recent CPUs
+        if cpp_compiler.has_argument('-march=x86-64-v3')
+            message('Enabling x86-64-v3 base microarchitecture level with ' + cpp_compiler.get_id() + ' ' + cpp_compiler.version())
+            o_flags = ['-march=x86-64-v3']
+        else
+            o_flags = ['-mavx', '-mavx2',
+                    '-msse4', '-msha',
+                    '-msse4.1', '-msse4.2']
+            message('Compiler ' + cpp_compiler.get_id() + ' ' + cpp_compiler.version() + ' ' +
+                    'does not support x86-64 microarchitecture feature levels.\nExplicitly enabling extensions: ' + ','.join(o_flags))
 
+        endif
+    else
+        # check if we can tune for modern x86_64 CPUs, but still run on older x86_64 based CPUs
+        if cpp_compiler.has_argument('-mtune=x86-64-v3')
+            message('Tuning for x86-64-v3 base microarchitecture level')
+            o_flags = ['-mtune=x86-64-v3']
+        endif
     endif
-    add_project_arguments(o_flags, language: 'c')
-    add_project_arguments(o_flags, language: 'cpp')
 endif
+
+# vectoization helps a tiny bit for some loops, so we enable it (especially for the Intan module)
+# NOTE: This has only been properly tested with GCC >= 10.x, and GCC 12
+# enables this already at -O2, so we limit setting the flags to older GCC versions.
+if cpp_compiler.get_id() == 'gcc' and cpp_compiler.version().version_compare('<12')
+    message('Vectorization enabled explicitly (very-cheap cost model)')
+    o_flags += ['-ftree-vectorize', '-fvect-cost-model=very-cheap']
+endif
+
+# apply optimization flags set so far
+add_project_arguments(o_flags, language: 'c')
+add_project_arguments(o_flags, language: 'cpp')
+
 # optimize for the current (native) CPU only
 if get_option('optimize-native')
     message('Optimizing for native CPU (micro)architecture')
