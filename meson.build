@@ -126,7 +126,12 @@ endif
 # enables this already at -O2, so we limit setting the flags to older GCC versions.
 if cpp_compiler.get_id() == 'gcc' and cpp_compiler.version().version_compare('<12')
     message('Vectorization enabled explicitly (very-cheap cost model)')
-    o_flags += ['-ftree-vectorize', '-fvect-cost-model=very-cheap']
+    o_flags += ['-ftree-vectorize']
+    if cpp_compiler.has_argument('-fvect-cost-model=very-cheap')
+        o_flags += ['-fvect-cost-model=very-cheap']
+    else
+        o_flags += ['-fvect-cost-model=cheap']
+    endif
 endif
 
 # apply optimization flags set so far
