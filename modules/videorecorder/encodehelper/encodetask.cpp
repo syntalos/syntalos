@@ -24,12 +24,14 @@
 #include <QFile>
 #include <QUuid>
 #include <opencv2/videoio.hpp>
+#include <filesystem>
 
 #include "queuemodel.h"
 #include "../videowriter.h"
 #include "tsyncfile.h"
 #include "edlstorage.h"
 #include "utils/tomlutils.h"
+#include "utils/misc.h"
 
 Q_LOGGING_CATEGORY(logEncodeTask, "encoder.task")
 
@@ -195,11 +197,10 @@ void EncodeTask::run()
         std::lock_guard<std::mutex> lock(attrMutex);
 
         QString errorMsg;
-        QString attrFname = m_datasetRoot + QStringLiteral("/attributes.toml");
+        const auto attrFname = m_datasetRoot + QStringLiteral("/attributes.toml");
+        const auto attrFnameTmp = m_datasetRoot + QStringLiteral("/attributes.tmp%1").arg(createRandomString(6));
         auto attrs = parseTomlFile(attrFname, errorMsg);
         if (errorMsg.isEmpty()) {
-            // FIXME: There is still a race condition here if many encoder tasks try to write to this file
-            // simultaneously (should be rare to hit, but it's still a bug)
             if (attrs.value("encoder").toHash().value("name").toString() != vwriter.selectedEncoderName()) {
                 QVariantHash vInfo;
                 vInfo.insert("frame_width", frameWidth);
@@ -220,12 +221,22 @@ void EncodeTask::run()
                 attrs["video"] = vInfo;
                 attrs["encoder"] = encInfo;
 
-                QFile f(attrFname);
+                QFile f(attrFnameTmp);
                 if (f.open(QFile::ReadWrite)) {
                     f.write(qVariantHashToTomlData(attrs));
                     f.write("\n");
+                    f.close();
+
+                    // atomically replace old attributes file with our new one
+                    std::error_code error;
+                    std::filesystem::rename(attrFnameTmp.toStdString(), attrFname.toStdString(), error);
+                    if (error) {
+                        qCWarning(logEncodeTask).noquote() << "Unable to replace old attributes file: " << QString::fromStdString(error.message());
+                        QFile::remove(attrFnameTmp);
+                    }
                 } else {
-                    qCWarning(logEncodeTask).noquote() << "Unable to open attributes file for writing: " << errorMsg;
+                    qCWarning(logEncodeTask).noquote() << "Unable to open temporary attributes file for writing: " << errorMsg;
+                    QFile::remove(attrFnameTmp);
                 }
             }
         } else {
