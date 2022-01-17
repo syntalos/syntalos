@@ -37,7 +37,7 @@ public:
     {}
 
     std::chrono::time_point<symaster_clock> startTime;
-    cv::VideoCapture cam;
+    cv::VideoCapture *cam;
     int camId;
 
     int fps;
@@ -87,11 +87,14 @@ Camera::Camera()
     d->saturation = 55;
     d->hue = 0;
     d->gain = 0;
+
+    d->cam = new cv::VideoCapture();
 }
 
 Camera::~Camera()
 {
     disconnect();
+    delete d->cam;
 }
 
 void Camera::fail(const QString& msg)
@@ -122,7 +125,7 @@ void Camera::setResolution(const cv::Size& size)
 
 int Camera::framerate() const
 {
-    const int capFps = d->cam.get(cv::CAP_PROP_FPS);
+    const int capFps = d->cam->get(cv::CAP_PROP_FPS);
     if (capFps <= 0)
         return d->fps;
     return capFps;
@@ -131,7 +134,7 @@ int Camera::framerate() const
 void Camera::setFramerate(int fps)
 {
     d->fps = fps;
-    d->cam.set(cv::CAP_PROP_FPS, d->fps);
+    d->cam->set(cv::CAP_PROP_FPS, d->fps);
 }
 
 cv::Size Camera::resolution() const
@@ -152,7 +155,7 @@ void Camera::setExposure(double value)
         value = 100;
 
     d->exposure = value;
-    d->cam.set(cv::CAP_PROP_EXPOSURE, value * d->exposureScaleFactor);
+    d->cam->set(cv::CAP_PROP_EXPOSURE, value * d->exposureScaleFactor);
 }
 
 double Camera::brightness() const
@@ -168,7 +171,7 @@ void Camera::setBrightness(double value)
         value = -100;
 
     d->brightness = value;
-    d->cam.set(cv::CAP_PROP_BRIGHTNESS, value * d->brightnessScaleFactor);
+    d->cam->set(cv::CAP_PROP_BRIGHTNESS, value * d->brightnessScaleFactor);
 }
 
 double Camera::contrast() const
@@ -184,7 +187,7 @@ void Camera::setContrast(double value)
         value = 100;
 
     d->contrast = value;
-    d->cam.set(cv::CAP_PROP_CONTRAST, value * d->contrastScaleFactor);
+    d->cam->set(cv::CAP_PROP_CONTRAST, value * d->contrastScaleFactor);
 }
 
 double Camera::saturation() const
@@ -198,7 +201,7 @@ void Camera::setSaturation(double value)
         value = 100;
 
     d->saturation = value;
-    d->cam.set(cv::CAP_PROP_SATURATION, value);
+    d->cam->set(cv::CAP_PROP_SATURATION, value);
 }
 
 double Camera::hue() const
@@ -214,7 +217,7 @@ void Camera::setHue(double value)
         value = -100;
 
     d->hue = value;
-    d->cam.set(cv::CAP_PROP_HUE, value);
+    d->cam->set(cv::CAP_PROP_HUE, value);
 }
 
 double Camera::gain() const
@@ -228,7 +231,7 @@ void Camera::setGain(double value)
         value = 100;
 
     d->gain = value;
-    d->cam.set(cv::CAP_PROP_GAIN, value);
+    d->cam->set(cv::CAP_PROP_GAIN, value);
 }
 
 bool Camera::connect()
@@ -243,28 +246,31 @@ bool Camera::connect()
         }
     }
 
+    delete d->cam;
+    d->cam = new cv::VideoCapture;
+
     auto apiPreference = cv::CAP_ANY;
 #ifdef Q_OS_LINUX
     apiPreference = cv::CAP_V4L2;
 #elif defined(Q_OS_WINDOWS)
     apiPreference = cv::CAP_DSHOW;
 #endif
-    auto ret = d->cam.open(d->camId, apiPreference);
+    auto ret = d->cam->open(d->camId, apiPreference);
     if (!ret) {
         // we failed opening the camera - try again using OpenCV's backend autodetection
         qDebug() << "Unable to use preferred camera backend for" << d->camId << "falling back to autodetection.";
-        ret = d->cam.open(d->camId);
+        ret = d->cam->open(d->camId);
     }
-    d->cam.set(cv::CAP_PROP_FRAME_WIDTH, d->frameSize.width);
-    d->cam.set(cv::CAP_PROP_FRAME_HEIGHT, d->frameSize.height);
-    d->cam.set(cv::CAP_PROP_FPS, d->fps);
+    d->cam->set(cv::CAP_PROP_FRAME_WIDTH, d->frameSize.width);
+    d->cam->set(cv::CAP_PROP_FRAME_HEIGHT, d->frameSize.height);
+    d->cam->set(cv::CAP_PROP_FPS, d->fps);
 
     // Apparently, setting this to 1 *disables* auto exposure for most cameras when V4L
     // is used and gives us manual control. This is a bit insane, and maybe we need to expose
     // this as a setting in case we find cameras that behave differently.
     // The values for this setting, according to some docs, are:
     // 0: Auto Mode 1: Manual Mode 2: Shutter Priority Mode 3: Aperture Priority Mode
-    d->cam.set(cv::CAP_PROP_AUTO_EXPOSURE, 1);
+    d->cam->set(cv::CAP_PROP_AUTO_EXPOSURE, 1);
 
     // set default values
     setExposure(d->exposure);
@@ -286,7 +292,7 @@ bool Camera::connect()
 
 void Camera::disconnect()
 {
-    d->cam.release();
+    d->cam->release();
     if (d->connected)
         qDebug() << "Disconnected camera" << d->camId;
     d->connected = false;
@@ -295,11 +301,11 @@ void Camera::disconnect()
 bool Camera::recordFrame(Frame &frame, SecondaryClockSynchronizer *clockSync)
 {
     bool status = false;
-    auto frameRecvTime = FUNC_DONE_TIMESTAMP(d->startTime, status = d->cam.grab());
+    auto frameRecvTime = FUNC_DONE_TIMESTAMP(d->startTime, status = d->cam->grab());
 
     // timestamp in "driver time", which usually seems to be a UNIX timestamp, but
     // we can't be sure of that
-    const auto driverFrameTimestamp = microseconds_t(static_cast<time_t> (d->cam.get(cv::CAP_PROP_POS_MSEC) * 1000.0));
+    const auto driverFrameTimestamp = microseconds_t(static_cast<time_t> (d->cam->get(cv::CAP_PROP_POS_MSEC) * 1000.0));
 
     // adjust the received time if necessary, gather clock sync information
     clockSync->processTimestamp(frameRecvTime, driverFrameTimestamp);
@@ -312,7 +318,7 @@ bool Camera::recordFrame(Frame &frame, SecondaryClockSynchronizer *clockSync)
     }
 
     try {
-        status = d->cam.retrieve(frame.mat);
+        status = d->cam->retrieve(frame.mat);
     } catch (const cv::Exception& e) {
         status = false;
         std::cerr << "Caught OpenCV exception:" << e.what() << std::endl;
