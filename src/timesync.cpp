@@ -252,12 +252,12 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
         // datapoint was acquired as first value
         // Since we want the secondary clock time to start at zero, the length of the index vector
         // in µs needs to be subtracted from the assumed master time (as we assume master time to be
-        // the time when a block has finished being acquired). We don't need to care about blocks here,
-        // as the code will only be executed in the first calibration iteration.
+        // the time when a block has finished being acquired). We can multiply blockCount with the sample
+        // amount directly here, as we want to save the (assumed) master time at the start of the sample vector.
         if (m_expectedOffsetCalCount == 1) {
             if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
                 m_tswriter->writeTimes(idxTimestamps[0] * m_timePerPointUs,
-                                       masterAssumedAcqTS - microseconds_t(std::lround(idxTimestamps.rows() * m_timePerPointUs)));
+                                       masterAssumedAcqTS - microseconds_t(std::lround(m_timePerPointUs * (blockCount * idxTimestamps.rows()))));
         }
 
         // we want a bit more values than needed for perpetual calibration, because the first
