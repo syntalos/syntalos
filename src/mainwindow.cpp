@@ -1289,10 +1289,31 @@ void MainWindow::on_actionModuleLoadInfo_triggered()
     auto logText = m_engine->library()->issueLogHtml();
     if (logText.isEmpty())
         logText = QStringLiteral("No issues reported.");
+
+    // do some dumb opportunistic word wrapping (no points for cleverness given here)
+    QString tmpText;
+    for (const auto &tmpLine : logText.split("<br/>")) {
+        uint lineLength = 0;
+        for (int i = 0; i< tmpLine.length(); i++) {
+            lineLength++;
+            const auto c = tmpLine.at(i);
+            if (lineLength > 80) {
+                if (c == " ") {
+                    tmpText.append(QStringLiteral("<br/>%1").arg(QStringLiteral("&nbsp;").repeated(8)));
+                    lineLength = 0;
+                }
+            }
+            tmpText.append(c);
+        }
+        tmpText.append("<br/>");
+    }
+    logText = tmpText;
+
+    // show module loader issue log
     logBox.setWordWrapMode(QTextOption::NoWrap);
     logBox.setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
     logBox.setText(QStringLiteral("<html>") + logText);
-    dlg.setWindowTitle(QStringLiteral("Dynamic module loader log"));
+    dlg.setWindowTitle(QStringLiteral("Module Loader Log"));
     dlg.resize(620, 400);
     dlg.exec();
 }
