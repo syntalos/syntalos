@@ -11,7 +11,7 @@
 using namespace Syntalos;
 using namespace Eigen;
 
-static uint last(const VectorXu &vec)
+static uint vecLast(const VectorXu &vec)
 {
     return vec[vec.rows() - 1];
 }
@@ -38,7 +38,7 @@ public:
 
     VectorXu generateBlock()
     {
-        if (last(m_lastIndexBlock) == 0) {
+        if (vecLast(m_lastIndexBlock) == 0) {
             m_lastIndexBlock += VectorXu::LinSpaced(m_lastIndexBlock.rows(), 0, m_lastIndexBlock.rows());
         } else {
             const auto prevLastVal = m_lastIndexBlock[m_lastIndexBlock.rows() - 1];
@@ -368,12 +368,12 @@ private slots:
             auto currentBlock = idxDev->generateBlock();
             sync->processTimestamps(syncMasterTS, 0, 2, currentBlock);
             QCOMPARE(sync->indexOffset(), 0);
-            QCOMPARE(last(currentBlock), idxDev->lastIndex());
+            QCOMPARE(vecLast(currentBlock), idxDev->lastIndex());
 
             currentBlock = idxDev->generateBlock();
             sync->processTimestamps(syncMasterTS, 1, 2, currentBlock);
             QCOMPARE(sync->indexOffset(), 0);
-            QCOMPARE(last(currentBlock), idxDev->lastIndex());
+            QCOMPARE(vecLast(currentBlock), idxDev->lastIndex());
 
             // set some limit on the amount of datapoints used for calibration, so we don't run
             // forever if code is buggy or acting unreasonable
@@ -389,12 +389,12 @@ private slots:
             auto currentBlock = idxDev->generateBlock();
             sync->processTimestamps(syncMasterTS, 0, 2, currentBlock);
             QCOMPARE(sync->indexOffset(), 0);
-            QCOMPARE(last(currentBlock), idxDev->lastIndex());
+            QCOMPARE(vecLast(currentBlock), idxDev->lastIndex());
 
             currentBlock = idxDev->generateBlock();
             sync->processTimestamps(syncMasterTS, 1, 2, currentBlock);
             QCOMPARE(sync->indexOffset(), 0);
-            QCOMPARE(last(currentBlock), idxDev->lastIndex());
+            QCOMPARE(vecLast(currentBlock), idxDev->lastIndex());
         }
 
         // run with clock divergence, the secondary timing device is "faulty" and
@@ -412,15 +412,15 @@ private slots:
             auto currentBlock = idxDev->generateBlock();
             sync->processTimestamps(syncMasterTS, 0, 2, currentBlock);
             if (currentDivergenceUsec < toleranceValue.count()) {
-                QVERIFY2(last(currentBlock) >= idxDev->lastIndex(), qPrintable(QString::number(last(currentBlock))
-                                                                               + " >= " + QString::number(idxDev->lastIndex())));
+                QVERIFY2(vecLast(currentBlock) >= idxDev->lastIndex(), qPrintable(QString::number(vecLast(currentBlock))
+                                                                                  + " >= " + QString::number(idxDev->lastIndex())));
             }
 
             currentBlock = idxDev->generateBlock();
             sync->processTimestamps(syncMasterTS, 1, 2, currentBlock);
             if (currentDivergenceUsec < toleranceValue.count()) {
-                QVERIFY2(last(currentBlock) >= idxDev->lastIndex(), qPrintable(QString::number(last(currentBlock))
-                                                                               + " >= " + QString::number(idxDev->lastIndex())));
+                QVERIFY2(vecLast(currentBlock) >= idxDev->lastIndex(), qPrintable(QString::number(vecLast(currentBlock))
+                                                                                  + " >= " + QString::number(idxDev->lastIndex())));
             }
 
             if (adjustmentIterN > 0) {
@@ -430,7 +430,7 @@ private slots:
 
             if (currentDivergenceUsec < toleranceValue.count()) {
                 QCOMPARE(sync->indexOffset(), 0);
-                QCOMPARE(last(currentBlock), idxDev->lastIndex());
+                QCOMPARE(vecLast(currentBlock), idxDev->lastIndex());
             } else {
                 // clock correction must never "shoot over" the actual divergence
                 QVERIFY2(sync->indexOffset() < currentDivergenceIdx, qPrintable(QString::number(sync->indexOffset())
@@ -445,8 +445,8 @@ private slots:
 
                 // since the master clock is considered accurate, but the secondary clock is "too fast",
                 // we expect timestamps to be shifted backwards a bit in order to match them up again
-                QVERIFY(last(currentBlock) != idxDev->lastIndex());
-                QVERIFY2(last(currentBlock) < idxDev->lastIndex(), qPrintable(QString::number(last(currentBlock))
+                QVERIFY(vecLast(currentBlock) != idxDev->lastIndex());
+                QVERIFY2(vecLast(currentBlock) < idxDev->lastIndex(), qPrintable(QString::number(vecLast(currentBlock))
                                                                       + " < " + QString::number(idxDev->lastIndex())));
             }
 
@@ -487,14 +487,14 @@ private slots:
             sync->processTimestamps(syncMasterTS, 0, 2, currentBlock);
             if (i > calibrationCount) {
                 QCOMPARE(sync->indexOffset(), expectedIdxOffset);
-                QCOMPARE(last(currentBlock), idxDev->lastIndex() - expectedIdxOffset);
+                QCOMPARE(vecLast(currentBlock), idxDev->lastIndex() - expectedIdxOffset);
             }
 
             currentBlock = idxDev->generateBlock();
             sync->processTimestamps(syncMasterTS, 1, 2, currentBlock);
             if (i > calibrationCount) {
                 QCOMPARE(sync->indexOffset(), expectedIdxOffset);
-                QCOMPARE(last(currentBlock), idxDev->lastIndex() - expectedIdxOffset);
+                QCOMPARE(vecLast(currentBlock), idxDev->lastIndex() - expectedIdxOffset);
             }
         }
 
@@ -513,14 +513,14 @@ private slots:
             sync->processTimestamps(syncMasterTS, 0, 2, currentBlock);
             if (i > calibrationCount) {
                 QCOMPARE(sync->indexOffset(), 0);
-                QCOMPARE(last(currentBlock), idxDev->lastIndex());
+                QCOMPARE(vecLast(currentBlock), idxDev->lastIndex());
             }
 
             currentBlock = idxDev->generateBlock();
             sync->processTimestamps(syncMasterTS, 1, 2, currentBlock);
             if (i > calibrationCount) {
                 QCOMPARE(sync->indexOffset(), 0);
-                QCOMPARE(last(currentBlock), idxDev->lastIndex());
+                QCOMPARE(vecLast(currentBlock), idxDev->lastIndex());
             } else {
                 QVERIFY(sync->indexOffset() <= lastIndexOffset);
             }
@@ -541,14 +541,14 @@ private slots:
             auto currentBlock = idxDev->generateBlock();
             sync->processTimestamps(syncMasterTS, 0, 2, currentBlock);
             if (currentDivergenceUsec < toleranceValue.count()) {
-                QVERIFY2(last(currentBlock) >= idxDev->lastIndex(), qPrintable(QString::number(last(currentBlock))
+                QVERIFY2(vecLast(currentBlock) >= idxDev->lastIndex(), qPrintable(QString::number(vecLast(currentBlock))
                                                                                + " >= " + QString::number(idxDev->lastIndex())));
             }
 
             currentBlock = idxDev->generateBlock();
             sync->processTimestamps(syncMasterTS, 1, 2, currentBlock);
             if (currentDivergenceUsec < toleranceValue.count()) {
-                QVERIFY2(last(currentBlock) >= idxDev->lastIndex(), qPrintable(QString::number(last(currentBlock))
+                QVERIFY2(vecLast(currentBlock) >= idxDev->lastIndex(), qPrintable(QString::number(vecLast(currentBlock))
                                                                                + " >= " + QString::number(idxDev->lastIndex())));
             }
 
@@ -559,7 +559,7 @@ private slots:
 
             if (currentDivergenceUsec < toleranceValue.count()) {
                 QCOMPARE(sync->indexOffset(), 0);
-                QCOMPARE(last(currentBlock), idxDev->lastIndex());
+                QCOMPARE(vecLast(currentBlock), idxDev->lastIndex());
             } else {
                 // clock correction must never "underflow" the actual divergence
                 QVERIFY2(sync->indexOffset() > currentDivergenceIdx, qPrintable(QString::number(sync->indexOffset())
@@ -574,8 +574,8 @@ private slots:
 
                 // since the master clock is considered accurate, but the secondary clock is "too slow",
                 // we expect indices to be shifted forward a bit in order to match them up again
-                QVERIFY(last(currentBlock) != idxDev->lastIndex());
-                QVERIFY2(last(currentBlock) > idxDev->lastIndex(), qPrintable(QString::number(last(currentBlock))
+                QVERIFY(vecLast(currentBlock) != idxDev->lastIndex());
+                QVERIFY2(vecLast(currentBlock) > idxDev->lastIndex(), qPrintable(QString::number(vecLast(currentBlock))
                                                                       + " > " + QString::number(idxDev->lastIndex())));
             }
 

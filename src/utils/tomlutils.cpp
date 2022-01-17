@@ -233,7 +233,8 @@ QVariant tomlValueToVariant(const T &value)
             if (auto tab = n.as_table()) {
                 QVariantHash vHash;
                 for (auto&& [tk, tv] : *tab)
-                    vHash.insert(QString::fromStdString(tk), tomlValueToVariant(tv));
+                    vHash.insert(QString::fromLocal8Bit(tk.data(), tk.length()),
+                                 tomlValueToVariant(tv));
                 res = vHash;
             }
         }
@@ -246,7 +247,8 @@ static QVariantHash tomlToVariantHash(const toml::table &tab)
 {
     QVariantHash res;
     for (auto&& [k, v] : tab) {
-        res.insert(QString::fromStdString(k), tomlValueToVariant(v));
+        res.insert(QString::fromLocal8Bit(k.data(), k.length()),
+                   tomlValueToVariant(v));
     }
 
     return res;
