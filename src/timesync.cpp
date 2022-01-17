@@ -177,11 +177,22 @@ bool FreqCounterSynchronizer::start()
     m_offsetChangeWaitBlocks = 0;
     m_applyIndexOffset = false;
 
+    m_lastSecondaryIdxUnandjusted = 0;
+    m_lastMasterAssumedAcqTS = microseconds_t(0);
+
     return true;
 }
 
 void FreqCounterSynchronizer::stop()
 {
+    // Write the last timestamp, even if it was not out of tolerance.
+    // This (for the most part) removes some guesswork and extrapolation in post-processing
+    if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE)) {
+        if (m_lastSecondaryIdxUnandjusted != 0 && m_lastMasterAssumedAcqTS.count() != 0)
+            m_tswriter->writeTimes(microseconds_t(std::lround((m_lastSecondaryIdxUnandjusted + 1) * m_timePerPointUs)),
+                                   m_lastMasterAssumedAcqTS);
+    }
+
     m_tswriter->close();
 }
 
@@ -195,6 +206,7 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
 
     // get last index value of vector before we made any adjustments to it
     const auto secondaryLastIdxUnadjusted = idxTimestamps[idxTimestamps.rows() - 1];
+    m_lastSecondaryIdxUnandjusted = secondaryLastIdxUnadjusted;
 
     // adjust timestamp based on our current offset
     if (m_applyIndexOffset && (m_indexOffset != 0))
@@ -205,6 +217,7 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     const microseconds_t masterAssumedAcqTS = blocksRecvTimestamp
                                                 - microseconds_t(std::lround(m_timePerPointUs * ((blockCount - 1) * idxTimestamps.rows())))
                                                 + microseconds_t(std::lround(m_timePerPointUs * (blockIndex * idxTimestamps.rows())));
+    m_lastMasterAssumedAcqTS = masterAssumedAcqTS;
 
     // value of the last entry of the current block
     const auto secondaryLastIdx = idxTimestamps[idxTimestamps.rows() - 1];
@@ -235,11 +248,16 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     if (!m_haveExpectedOffset) {
         m_expectedOffsetCalCount++;
 
-        // if we are writing a timesync-file, always write the time when the very first
+        // If we are writing a timesync-file, always write the time when the very first
         // datapoint was acquired as first value
+        // Since we want the secondary clock time to start at zero, the length of the index vector
+        // in µs needs to be subtracted from the assumed master time (as we assume master time to be
+        // the time when a block has finished being acquired). We don't need to care about blocks here,
+        // as the code will only be executed in the first calibration iteration.
         if (m_expectedOffsetCalCount == 1) {
             if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
-                m_tswriter->writeTimes(idxTimestamps[0] * m_timePerPointUs, masterAssumedAcqTS);
+                m_tswriter->writeTimes(idxTimestamps[0] * m_timePerPointUs,
+                                       masterAssumedAcqTS - microseconds_t(std::lround(idxTimestamps.rows() * m_timePerPointUs)));
         }
 
         // we want a bit more values than needed for perpetual calibration, because the first
@@ -256,11 +274,6 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
                 << "Determined expected time offset: " << m_expectedOffset.count() << "µs "
                 << "SD: " << m_expectedSD;
         m_haveExpectedOffset = true;
-
-        // if we are writing a timesync-file, write the initial two timestamps when we
-        // calibrated the system to the file (as additional verification point)
-        if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
-            m_tswriter->writeTimes(secondaryLastTS, masterAssumedAcqTS);
 
         // send (possibly initial) offset info to the controller)
         if (m_mod != nullptr)
@@ -507,12 +520,19 @@ bool SecondaryClockSynchronizer::start()
     m_expectedOffsetCalCount = 0;
     m_clockOffsetsUsec = VectorXl::Zero(m_calibrationMaxN);
     m_lastMasterTS = m_syTimer->timeSinceStartMsec();
+    m_lastSecondaryAcqTS = microseconds_t(0);
 
     return true;
 }
 
 void SecondaryClockSynchronizer::stop()
 {
+    // write the last acquired timestamp pair, to simplify data post processing
+    if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE)) {
+        if (m_lastSecondaryAcqTS.count() != 0)
+            m_tswriter->writeTimes(m_lastSecondaryAcqTS, m_lastMasterTS);
+    }
+
     m_tswriter->close();
 }
 
@@ -561,6 +581,8 @@ void SecondaryClockSynchronizer::processTimestamp(microseconds_t &masterTimestam
         if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
             m_tswriter->writeTimes(secondaryAcqTimestamp, masterTimestamp);
 
+        // remember the secondary clock timestamp & master timestamp for the next iteration
+        m_lastSecondaryAcqTS = secondaryAcqTimestamp;
         m_lastMasterTS = masterTimestamp;
         return;
     }
@@ -602,6 +624,9 @@ void SecondaryClockSynchronizer::processTimestamp(microseconds_t &masterTimestam
         }
         m_lastOffsetWithinTolerance = true;
         m_clockCorrectionOffset = microseconds_t(0);
+
+        // remember the secondary clock timestamp & master timestamp for the next iteration
+        m_lastSecondaryAcqTS = secondaryAcqTimestamp;
         m_lastMasterTS = masterTimestamp;
         return;
     }
@@ -653,6 +678,9 @@ void SecondaryClockSynchronizer::processTimestamp(microseconds_t &masterTimestam
                 << masterTimestamp.count() << " !< " << m_lastMasterTS.count() << " (mitigated by reusing previous time)";
         masterTimestamp = m_lastMasterTS;
     }
+
+    // remember the secondary clock timestamp & master timestamp for the next iteration
+    m_lastSecondaryAcqTS = secondaryAcqTimestamp;
     m_lastMasterTS = masterTimestamp;
 }
 

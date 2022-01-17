@@ -146,6 +146,9 @@ private:
     int m_indexOffset;
     bool m_applyIndexOffset;
 
+    uint m_lastSecondaryIdxUnandjusted;
+    microseconds_t m_lastMasterAssumedAcqTS;
+
     std::unique_ptr<TimeSyncFileWriter> m_tswriter;
 };
 
@@ -218,6 +221,7 @@ private:
 
     microseconds_t m_clockCorrectionOffset;
     microseconds_t m_lastMasterTS;
+    microseconds_t m_lastSecondaryAcqTS;
 
     std::unique_ptr<TimeSyncFileWriter> m_tswriter;
 };
