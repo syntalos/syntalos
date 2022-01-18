@@ -189,7 +189,7 @@ void FreqCounterSynchronizer::stop()
     // This (for the most part) removes some guesswork and extrapolation in post-processing
     if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE)) {
         if (m_lastSecondaryIdxUnandjusted != 0 && m_lastMasterAssumedAcqTS.count() != 0)
-            m_tswriter->writeTimes(microseconds_t(std::lround((m_lastSecondaryIdxUnandjusted + 1) * m_timePerPointUs)),
+            m_tswriter->writeTimes(microseconds_t(std::lround(m_lastSecondaryIdxUnandjusted * m_timePerPointUs)),
                                    m_lastMasterAssumedAcqTS);
     }
 
@@ -382,7 +382,7 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     // NOTE: we have to use the unadjusted time value for the device clock - since we didn't need that until now,
     // we calculate it here from the unadjusted last index value of the current block.
     if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
-        m_tswriter->writeTimes(microseconds_t(std::lround((secondaryLastIdxUnadjusted + 1) * m_timePerPointUs)),
+        m_tswriter->writeTimes(microseconds_t(std::lround(secondaryLastIdxUnadjusted * m_timePerPointUs)),
                                masterAssumedAcqTS);
 
     m_lastTimeIndex = secondaryLastIdx;
