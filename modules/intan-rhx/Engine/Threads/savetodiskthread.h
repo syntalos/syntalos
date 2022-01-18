@@ -79,6 +79,7 @@ private:
     SaveManager* saveManager;
 
     volatile bool keepGoing;
+    volatile bool stopRunASAP;
     volatile bool running;
     volatile bool stopThread;
 

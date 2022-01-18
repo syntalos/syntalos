@@ -40,6 +40,7 @@ SaveToDiskThread::SaveToDiskThread(WaveformFifo* waveformFifo_, SystemState* sta
     state(state_),
     saveManager(nullptr)
 {
+    stopRunASAP = false;
     keepGoing = false;
     running = false;
     stopThread = false;
@@ -241,7 +242,10 @@ void SaveToDiskThread::run()
 //                        reportTimer.restart();
 //                    }
                 } else {
-                    usleep(1000);    // If new data is not ready, wait 1000 microseconds and try again.
+                    if (stopRunASAP)
+                        keepGoing = false;
+                    else
+                        usleep(1000);    // If new data is not ready, wait 1000 microseconds and try again.
                 }
             }
 
@@ -301,17 +305,18 @@ void SaveToDiskThread::startRunning()
         break;
     }
 
+    stopRunASAP = false;
     keepGoing = true;
 }
 
 void SaveToDiskThread::stopRunning()
 {
-    keepGoing = false;
+    stopRunASAP = true;
 }
 
 void SaveToDiskThread::close()
 {
-    keepGoing = false;
+    stopRunASAP = true;
     stopThread = true;
 }
 

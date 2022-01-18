@@ -956,13 +956,13 @@ void ControllerInterface::controllerRunFinalize()
         tcpDataOutputEnabled = false;
     }
 
-    saveToDiskThread->stopRunning();
-    while (saveToDiskThread->isActive()) {
+    waveformProcessorThread->stopRunning();
+    while(waveformProcessorThread->isActive()) {
         qApp->processEvents();
     }
 
-    waveformProcessorThread->stopRunning();
-    while(waveformProcessorThread->isActive()) {
+    saveToDiskThread->stopRunning();
+    while (saveToDiskThread->isActive()) {
         qApp->processEvents();
     }
 
