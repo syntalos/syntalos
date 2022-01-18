@@ -14,7 +14,8 @@
    <string>Interval Run Configuration</string>
   </property>
   <property name="windowIcon">
-   <iconset theme="view-time-schedule-edit"/>
+   <iconset theme="view-time-schedule-edit">
+    <normaloff>.</normaloff>.</iconset>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <property name="spacing">
@@ -140,15 +141,24 @@ increasing with each successful run.
           </widget>
          </item>
          <item>
-          <widget class="QSpinBox" name="spinBoxDuration">
+          <widget class="QDoubleSpinBox" name="spinBoxDuration">
            <property name="suffix">
             <string>min</string>
            </property>
+           <property name="decimals">
+            <number>2</number>
+           </property>
            <property name="minimum">
-            <number>1</number>
+            <double>0.150000000000000</double>
            </property>
            <property name="maximum">
-            <number>999</number>
+            <double>999.000000000000000</double>
+           </property>
+           <property name="singleStep">
+            <double>0.500000000000000</double>
+           </property>
+           <property name="value">
+            <double>2.000000000000000</double>
            </property>
           </widget>
          </item>
@@ -194,12 +204,15 @@ increasing with each successful run.
           </widget>
          </item>
          <item>
-          <widget class="QSpinBox" name="spinBoxDelay">
+          <widget class="QDoubleSpinBox" name="spinBoxDelay">
            <property name="suffix">
             <string>min</string>
            </property>
            <property name="maximum">
-            <number>999</number>
+            <double>999.000000000000000</double>
+           </property>
+           <property name="singleStep">
+            <double>0.500000000000000</double>
            </property>
           </widget>
          </item>

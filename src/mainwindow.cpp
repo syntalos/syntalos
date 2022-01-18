@@ -443,11 +443,11 @@ void MainWindow::runActionTriggered()
             if (m_intervalRunDialog->delayMin() > 0) {
                 showBusyIndicatorWaiting();
                 qDebug().noquote() << "Delaying next run for" << m_intervalRunDialog->delayMin() << "min";
-                auto continueTime= QTime::currentTime().addSecs(60 * m_intervalRunDialog->delayMin());
+                auto continueTime= QTime::currentTime().addSecs(std::round(60 * m_intervalRunDialog->delayMin()));
                 ui->runWarningLabel->setText(QStringLiteral("Running for %1 min every %2 min. Now waiting %3 min. Next run: %4/%5")
-                                             .arg(m_intervalRunDialog->runDurationMin())
-                                             .arg(m_intervalRunDialog->runDurationMin() + m_intervalRunDialog->delayMin())
-                                             .arg(m_intervalRunDialog->delayMin())
+                                             .arg(m_intervalRunDialog->runDurationMin(), 0, 'f', 2)
+                                             .arg(m_intervalRunDialog->runDurationMin() + m_intervalRunDialog->delayMin(), 0, 'f', 2)
+                                             .arg(m_intervalRunDialog->delayMin(), 0, 'f', 2)
                                              .arg(m_engine->successRunsCount() + 1)
                                              .arg(m_intervalRunDialog->runsN()));
                 while (QTime::currentTime() < continueTime) {
@@ -1056,8 +1056,8 @@ void MainWindow::updateIntervalRunMessage()
 {
     ui->runWarningIconLabel->setPixmap(QIcon::fromTheme(QStringLiteral("emblem-information")).pixmap(16, 16));
     ui->runWarningLabel->setText(QStringLiteral("Running for %1 min every %2 min. Current run: %3/%4.")
-                                 .arg(m_intervalRunDialog->runDurationMin())
-                                 .arg(m_intervalRunDialog->runDurationMin() + m_intervalRunDialog->delayMin())
+                                 .arg(m_intervalRunDialog->runDurationMin(), 0, 'f', 2)
+                                 .arg(m_intervalRunDialog->runDurationMin() + m_intervalRunDialog->delayMin(), 0, 'f', 2)
                                  .arg(m_engine->successRunsCount() + 1)
                                  .arg(m_intervalRunDialog->runsN()));
 }
@@ -1085,7 +1085,7 @@ void MainWindow::onElapsedTimeUpdate()
 
     if (m_isIntervalRun) {
         // stop the current run in interval mode when its maximum runtime was reached
-        if (std::chrono::duration_cast<std::chrono::minutes>(elapsedTime).count() < m_intervalRunDialog->runDurationMin())
+        if (std::chrono::duration_cast<std::chrono::seconds>(elapsedTime).count() < (m_intervalRunDialog->runDurationMin() * 60))
             return;
 
         if (m_engine->successRunsCount() >= m_intervalRunDialog->runsN()) {
