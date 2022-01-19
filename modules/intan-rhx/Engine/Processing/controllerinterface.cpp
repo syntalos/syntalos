@@ -185,10 +185,6 @@ ControllerInterface::~ControllerInterface()
         state->running = false;
     }
 
-    saveToDiskThread->close();
-    saveToDiskThread->wait();
-    delete saveToDiskThread;
-
     waveformProcessorThread->close();
     waveformProcessorThread->wait();
     delete waveformProcessorThread;
@@ -196,6 +192,10 @@ ControllerInterface::~ControllerInterface()
     usbDataThread->close();
     usbDataThread->wait();
     delete usbDataThread;
+
+    saveToDiskThread->close();
+    saveToDiskThread->wait();
+    delete saveToDiskThread;
 
     if (audioThread) {
         audioThread->close();
@@ -961,14 +961,14 @@ void ControllerInterface::controllerRunFinalize()
         qApp->processEvents();
     }
 
-    saveToDiskThread->stopRunning();
-    while (saveToDiskThread->isActive()) {
-        qApp->processEvents();
-    }
-
     usbDataThread->stopRunning();
     while (usbDataThread->isActive()) {  // Important: Must wait for usbDataThread to fully stop before we reset usbStreamFifo buffer!
         qApp->processEvents();  // Stay responsive to GUI events during this loop.
+    }
+
+    saveToDiskThread->stopRunning();
+    while (saveToDiskThread->isActive()) {
+        qApp->processEvents();
     }
 
     waveformFifo->pauseBuffer();

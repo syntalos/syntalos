@@ -244,8 +244,7 @@ void SaveToDiskThread::run()
                 } else {
                     if (stopRunASAP)
                         keepGoing = false;
-                    else
-                        usleep(1000);    // If new data is not ready, wait 1000 microseconds and try again.
+                    usleep(1000);    // If new data is not ready, wait 1000 microseconds and try again.
                 }
             }
 
