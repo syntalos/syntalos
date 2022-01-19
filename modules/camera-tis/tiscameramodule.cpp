@@ -304,7 +304,8 @@ public:
                     frame.mat.create(m_resolution, CV_16UC(1));
                     memcpy(frame.mat.data, info.data, m_resolution.width * m_resolution.height);
                 } else {
-                    qCDebug(logTISCam).noquote() << "Received buffer with unsupported format:" << format_str;
+                    qCDebug(logTISCam).noquote().nospace() << m_camSerial << ": "
+                                                           << "Received buffer with unsupported format: " << format_str;
                     gst_buffer_unmap (buffer, &info);
                     continue;
                 }
@@ -353,22 +354,127 @@ public:
 
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
     {
-        settings.insert("camera", m_camSerial);
+        settings.insert("camera_serial", m_camSerial);
         settings.insert("format", m_imgFormat);
         settings.insert("width", m_resolution.width);
         settings.insert("height", m_resolution.height);
         settings.insert("fps_numerator", m_fpsNumerator);
         settings.insert("fps_denominator", m_fpsDenominator);
+
+        if (m_camera == nullptr) {
+            qCWarning(logTISCam).noquote().nospace() << "No TIS camera selected, will not save settings to file.";
+            return;
+        }
+
+        QVariantList camProps;
+        for (const auto &prop : m_camera->get_camera_property_list()) {
+            const auto ptype = QString::fromStdString(prop->type);
+            bool success = false;
+            QVariantHash sProp;
+            sProp.insert("type", ptype);
+
+            if (ptype == "integer") {
+                const auto intProp = std::dynamic_pointer_cast<gsttcam::IntegerProperty>(prop);
+                success = intProp != nullptr;
+                if (success)
+                    sProp.insert("value", intProp->value);
+            } else if (ptype == "double") {
+                const auto doubleProp = std::dynamic_pointer_cast<gsttcam::DoubleProperty>(prop);
+                success = doubleProp != nullptr;
+                if (success)
+                    sProp.insert("value", doubleProp->value);
+            } else if (ptype == "string") {
+                const auto strProp = std::dynamic_pointer_cast<gsttcam::StringProperty>(prop);
+                success = strProp != nullptr;
+                if (success)
+                    sProp.insert("value", QString::fromStdString(strProp->value));
+            } else if (ptype == "enum") {
+                const auto enumProp = std::dynamic_pointer_cast<gsttcam::EnumProperty>(prop);
+                success = enumProp != nullptr;
+                if (success)
+                    sProp.insert("value", QString::fromStdString(enumProp->value));
+            } else if (ptype == "boolean" || ptype == "button") {
+                const auto boolProp = std::dynamic_pointer_cast<gsttcam::BooleanProperty>(prop);
+                success = boolProp != nullptr;
+                if (success)
+                    sProp.insert("value", boolProp->value);
+            } else {
+                qCWarning(logTISCam).noquote().nospace() << m_camSerial << ": "
+                                                         << "Can not save camera property of unknown type: " << QString::fromStdString(prop->to_string());
+                continue;
+            }
+
+            if (!success) {
+                qCWarning(logTISCam).noquote().nospace() << m_camSerial << ": "
+                                                         << "Unable to save camera property:" << QString::fromStdString(prop->to_string());
+                continue;
+            }
+
+            sProp.insert("name", QString::fromStdString(prop->name));
+            sProp.insert("group", QString::fromStdString(prop->group));
+            sProp.insert("category", QString::fromStdString(prop->category));
+            camProps.append(sProp);
+        }
+
+        settings.insert("camera_properties", camProps);
     }
 
     bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
     {
-        selectCamera(settings.value("camera").toString(),
+        selectCamera(settings.value("camera_serial").toString(),
                      settings.value("format").toString(),
                      settings.value("width").toInt(),
                      settings.value("height").toInt(),
                      settings.value("fps_numerator").toInt(),
                      settings.value("fps_denominator").toInt());
+
+        // only continue loading camera settings if we selected the right camera
+        if (m_camera == nullptr) {
+            qCWarning(logTISCam).noquote().nospace() << "Unable to load find exact camera match for '" << settings.value("camera_serial").toString() << "' "
+                                                     << "Will not load camera settings.";
+            return true;
+        }
+
+        const auto camProps = settings.value("camera_properties").toList();
+        for (const auto &cpropVar : camProps) {
+            const auto cprop = cpropVar.toHash();
+            const auto ptype = cprop.value("type").toString();
+            const auto pname = cprop.value("name").toString();
+            const auto valueVar = cprop.value("value");
+
+            // sanity check for damaged configuration
+            if (pname.isEmpty() || valueVar.isNull())
+                continue;
+
+            GValue gval = G_VALUE_INIT;
+            if (ptype == "integer") {
+                g_value_init(&gval, G_TYPE_INT);
+                g_value_set_int(&gval, valueVar.toInt());
+            } else if (ptype == "double") {
+                g_value_init(&gval, G_TYPE_DOUBLE);
+                g_value_set_double(&gval, valueVar.toDouble());
+            } else if (ptype == "string") {
+                g_value_init(&gval, G_TYPE_STRING);
+                g_value_set_string(&gval, qPrintable(valueVar.toString()));
+            } else if (ptype == "enum") {
+                g_value_init(&gval, G_TYPE_STRING);
+                g_value_set_string(&gval, qPrintable(valueVar.toString()));
+            } else if (ptype == "boolean" || ptype == "button") {
+                g_value_init(&gval, G_TYPE_BOOLEAN);
+                g_value_set_boolean(&gval, valueVar.toBool());
+            } else {
+                qCWarning(logTISCam).noquote().nospace() << m_camSerial << ": "
+                                                         << "Unable to load camera property of unknown type:" << ptype;
+                continue;
+            }
+
+            bool ret = m_camera->set_property(pname.toStdString(), gval);
+            if (!ret)
+                qCWarning(logTISCam).noquote().nospace() << m_camSerial << ": "
+                                                         << "Unable to set camera property '" << pname << "' to '" << valueVar << "'";
+        }
+
+        m_propDialog->updateProperties();
         return true;
     }
 };

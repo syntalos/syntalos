@@ -106,7 +106,7 @@ public:
 
     virtual ~IntegerProperty() = default;
     virtual std::string to_string() override;
-    virtual bool get( TcamCamera &cam, int &value ) override;
+    virtual bool get(TcamCamera &cam, int &value ) override;
     virtual bool set(TcamCamera &cam, int value) override;
 };
 

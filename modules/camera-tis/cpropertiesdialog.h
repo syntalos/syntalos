@@ -226,8 +226,10 @@ public:
 protected:
     void showEvent(QShowEvent *) override;
 
-private slots:
+public slots:
     void updateProperties();
+
+private slots:
     void onOK();
 
 signals:
