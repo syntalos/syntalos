@@ -189,7 +189,7 @@ void FreqCounterSynchronizer::stop()
     // This (for the most part) removes some guesswork and extrapolation in post-processing
     if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE)) {
         if (m_lastSecondaryIdxUnandjusted != 0 && m_lastMasterAssumedAcqTS.count() != 0)
-            m_tswriter->writeTimes(microseconds_t(std::lround(m_lastSecondaryIdxUnandjusted * m_timePerPointUs)),
+            m_tswriter->writeTimes(microseconds_t(std::lround((m_lastSecondaryIdxUnandjusted + 1) * m_timePerPointUs)),
                                    m_lastMasterAssumedAcqTS);
     }
 
@@ -256,7 +256,7 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
         // amount directly here, as we want to save the (assumed) master time at the start of the sample vector.
         if (m_expectedOffsetCalCount == 1) {
             if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
-                m_tswriter->writeTimes(idxTimestamps[0] * m_timePerPointUs,
+                m_tswriter->writeTimes(idxTimestamps[0] * m_timePerPointUs, // should always be 0
                                        masterAssumedAcqTS - microseconds_t(std::lround(m_timePerPointUs * (blockCount * idxTimestamps.rows()))));
         }
 
@@ -381,8 +381,10 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     // we're out of sync, record that fact to the tsync file if we are writing one
     // NOTE: we have to use the unadjusted time value for the device clock - since we didn't need that until now,
     // we calculate it here from the unadjusted last index value of the current block.
+    // 1 is added to secondaryLastIdxUnadjusted becuse the timestamp reflects the time *after* a sample was acquired,
+    // so the zero-index needs to be offset by one.
     if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
-        m_tswriter->writeTimes(microseconds_t(std::lround(secondaryLastIdxUnadjusted * m_timePerPointUs)),
+        m_tswriter->writeTimes(microseconds_t(std::lround((secondaryLastIdxUnadjusted + 1) * m_timePerPointUs)),
                                masterAssumedAcqTS);
 
     m_lastTimeIndex = secondaryLastIdx;
