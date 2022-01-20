@@ -243,8 +243,7 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
         idxTimestamps -= VectorXu::Ones(idxTimestamps.rows()) * m_indexOffset;
 
     // timestamp when (as far and well as we can guess...) the current block was actually acquired, in microseconds
-    // and based on the master clock timestamp generated upon data receival (mean between the time before requesting the data
-    // and after the data was received)
+    // and based on the master clock timestamp generated upon data receival.
     const microseconds_t masterAssumedAcqTS = blocksRecvTimestamp
                                                 - microseconds_t(std::lround(m_timePerPointUs * ((blockCount - 1) * idxTimestamps.rows())))
                                                 + microseconds_t(std::lround(m_timePerPointUs * (blockIndex * idxTimestamps.rows())));
@@ -279,18 +278,6 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     if (!m_haveExpectedOffset) {
         m_expectedOffsetCalCount++;
 
-        // If we are writing a timesync-file, always write the time when the very first
-        // datapoint was acquired as first value
-        // Since we want the secondary clock time to start at zero, the length of the index vector
-        // in µs needs to be subtracted from the assumed master time (as we assume master time to be
-        // the time when a block has finished being acquired). We can multiply blockCount with the sample
-        // amount directly here, as we want to save the (assumed) master time at the start of the sample vector.
-        if (m_expectedOffsetCalCount == 1) {
-            if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
-                m_tswriter->writeTimes(idxTimestamps[0] * m_timePerPointUs, // should always be 0
-                                       masterAssumedAcqTS - microseconds_t(std::lround(m_timePerPointUs * (blockCount * idxTimestamps.rows()))));
-        }
-
         // we want a bit more values than needed for perpetual calibration, because the first
         // few values in the vector stem from the initialization phase of Syntalos and may have
         // a higher variance than actually expected during normal operation (as in the startup
@@ -309,6 +296,14 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
         // send (possibly initial) offset info to the controller)
         if (m_mod != nullptr)
             emit m_mod->synchronizerOffsetChanged(m_id, microseconds_t(avgOffsetUsec - m_expectedOffset.count()));
+
+        // If we are writing a timesync-file, always write the time when the very first
+        // datapoint was acquired as first value.
+        // We used the calibration phase to just guess the offset between the counting clock and master
+        // clock by calculating backwards.
+        if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
+            m_tswriter->writeTimes(0,
+                                   m_expectedOffset * -1);
 
         m_lastTimeIndex = secondaryLastIdx;
         return;

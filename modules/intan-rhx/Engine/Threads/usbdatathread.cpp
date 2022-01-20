@@ -127,7 +127,7 @@ void USBDataThread::run()
                 // check how many words are in the USB FIFO buffer before reading data
                 uint wordsInFifo = controller->getLastNumWordsInFifo();
                 // try to get a USB data block
-                const auto daqTimestamp = FUNC_EXEC_TIMESTAMP(m_syStartTime,
+                const auto daqTimestamp = FUNC_DONE_TIMESTAMP(m_syStartTime,
                                     numBytesRead = (int) controller->readDataBlocksRaw(numUsbBlocksToRead, &usbBuffer[usbBufferIndex]));
 
                 bytesInBuffer = usbBufferIndex + numBytesRead;
