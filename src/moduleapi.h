@@ -871,6 +871,9 @@ protected:
 
     std::atomic_bool m_running;
 
+    /**
+     * @brief Global master timer reference for this module, valid only during a run.
+     */
     std::shared_ptr<SyncTimer> m_syTimer;
 
 private:

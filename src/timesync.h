@@ -106,6 +106,9 @@ public:
     void setStrategies(const TimeSyncStrategies &strategies);
     void setTolerance(const std::chrono::microseconds &tolerance);
     void setTimeSyncBasename(const QString &fname, const QUuid &collectionId);
+    void setLastValidMasterTimestamp(microseconds_t masterTimestamp);
+
+    microseconds_t lastMasterAssumedAcqTS() const;
 
     bool isCalibrated() const;
     int indexOffset() const;
@@ -148,6 +151,7 @@ private:
 
     uint m_lastSecondaryIdxUnandjusted;
     microseconds_t m_lastMasterAssumedAcqTS;
+    microseconds_t m_lastValidMasterTimestamp;
 
     std::unique_ptr<TimeSyncFileWriter> m_tswriter;
 };
@@ -234,6 +238,17 @@ void safeStopSynchronizer(const T &synchronizerSmartPtr)
                   "This function requires a smart pointer to a clock synchronizer.");
     if (synchronizerSmartPtr.get() != nullptr)
         synchronizerSmartPtr->stop();
+}
+
+template<typename T>
+void safeStopSynchronizer(const T &synchronizer, const microseconds_t &lastValidMasterTimestamp)
+{
+    static_assert(std::is_base_of<FreqCounterSynchronizer, typename T::element_type>::value,
+                  "This function requires a smart pointer to a FreqCounter clock synchronizer.");
+    if (synchronizer) {
+        synchronizer->setLastValidMasterTimestamp(lastValidMasterTimestamp);
+        safeStopSynchronizer(synchronizer);
+    }
 }
 
 } // end of namespace

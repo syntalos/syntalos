@@ -215,7 +215,14 @@ void IntanRhxModule::stop()
 {
     m_controllerIntf->updateStartWaitCondition(nullptr);
     m_ctlWindow->stopControllerSlot();
-    safeStopSynchronizer(clockSync);
+
+    // since the synchronizer sees data that never gets written to disk, due to IntanRHX' threading implementation,
+    // we add a very dirty hack here to get close to the last datapoint, but not quite there (usually not more than two
+    // data blocks are missing from the final file)
+    const auto timePerPointUs = (1.0 / m_controllerIntf->getRhxController()->getSampleRate()) * 1000.0 * 1000.0;
+    const auto fakeSemiLastDatapoint = clockSync->lastMasterAssumedAcqTS() -
+                                       microseconds_t(std::lround(RHXDataBlock::samplesPerDataBlock(m_controllerIntf->getRhxController()->getType()) * 2 * timePerPointUs));
+    safeStopSynchronizer(clockSync, fakeSemiLastDatapoint);
 
     AbstractModule::stop();
 }

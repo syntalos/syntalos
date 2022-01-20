@@ -87,6 +87,7 @@ FreqCounterSynchronizer::FreqCounterSynchronizer(std::shared_ptr<SyncTimer> mast
       m_calibrationIdx(0),
       m_haveExpectedOffset(false),
       m_freq(frequencyHz),
+      m_lastValidMasterTimestamp(0),
       m_tswriter(new TimeSyncFileWriter)
 {
     if (m_id.isEmpty())
@@ -124,6 +125,22 @@ void FreqCounterSynchronizer::setTimeSyncBasename(const QString &fname, const QU
     m_strategies = m_strategies.setFlag(TimeSyncStrategy::WRITE_TSYNCFILE, !fname.isEmpty());
 }
 
+/**
+ * @brief Set the last known valid master timestamp.
+ *
+ * This is a hack in case the timestamp-generating module generates timestamps that
+ * it may not write to disk.
+ */
+void FreqCounterSynchronizer::setLastValidMasterTimestamp(microseconds_t masterTimestamp)
+{
+    m_lastValidMasterTimestamp = masterTimestamp;
+}
+
+microseconds_t FreqCounterSynchronizer::lastMasterAssumedAcqTS() const
+{
+    return m_lastMasterAssumedAcqTS;
+}
+
 bool FreqCounterSynchronizer::isCalibrated() const
 {
     return m_haveExpectedOffset;
@@ -132,7 +149,8 @@ bool FreqCounterSynchronizer::isCalibrated() const
 void FreqCounterSynchronizer::setStrategies(const TimeSyncStrategies &strategies)
 {
     if (m_haveExpectedOffset) {
-        qWarning().noquote() << "Rejected strategy change on active FreqCounter Synchronizer for" << m_mod->name();
+        qCWarning(logTimeSync).noquote() << "Rejected strategy change on active FreqCounter Synchronizer for"
+                                         << m_mod->name();
         return;
     }
     m_strategies = strategies;
@@ -143,7 +161,8 @@ void FreqCounterSynchronizer::setStrategies(const TimeSyncStrategies &strategies
 void FreqCounterSynchronizer::setTolerance(const std::chrono::microseconds &tolerance)
 {
     if (m_haveExpectedOffset) {
-        qWarning().noquote() << "Rejected tolerance change on active FreqCounter Synchronizer for" << m_mod->name();
+        qCWarning(logTimeSync).noquote() << "Rejected tolerance change on active FreqCounter Synchronizer for"
+                                         << m_mod->name();
         return;
     }
     m_toleranceUsec = tolerance.count();
@@ -154,14 +173,15 @@ void FreqCounterSynchronizer::setTolerance(const std::chrono::microseconds &tole
 bool FreqCounterSynchronizer::start()
 {
     if (m_haveExpectedOffset) {
-        qWarning().noquote() << "Restarting a FreqCounter Synchronizer that has already been used is not permitted. This is an issue in " << m_mod->name();
+        qCWarning(logTimeSync).noquote() << "Restarting a FreqCounter Synchronizer that has already been used is not permitted. This is an issue in"
+                                         << m_mod->name();
         return false;
     }
     if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE)) {
         m_tswriter->setSyncMode(TSyncFileMode::SYNCPOINTS);
         m_tswriter->setTimeDataTypes(TSyncFileDataType::INT64, TSyncFileDataType::INT64);
         if (!m_tswriter->open(m_mod->name(), m_collectionId, microseconds_t(m_toleranceUsec))) {
-            qCritical().noquote().nospace() << "Unable to open timesync file for " << m_mod->name() << "[" << m_id << "]: " << m_tswriter->lastError();
+            qCCritical(logTimeSync).noquote().nospace() << "Unable to open timesync file for " << m_mod->name() << "[" << m_id << "]: " << m_tswriter->lastError();
             return false;
         }
     }
@@ -188,9 +208,19 @@ void FreqCounterSynchronizer::stop()
     // Write the last timestamp, even if it was not out of tolerance.
     // This (for the most part) removes some guesswork and extrapolation in post-processing
     if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE)) {
-        if (m_lastSecondaryIdxUnandjusted != 0 && m_lastMasterAssumedAcqTS.count() != 0)
-            m_tswriter->writeTimes(microseconds_t(std::lround((m_lastSecondaryIdxUnandjusted + 1) * m_timePerPointUs)),
-                                   m_lastMasterAssumedAcqTS);
+        if (m_lastSecondaryIdxUnandjusted != 0 && m_lastMasterAssumedAcqTS.count() != 0) {
+            auto offset = m_lastValidMasterTimestamp - m_lastMasterAssumedAcqTS;
+            // we do not allow an to jump forward in time via the offset
+            if (offset.count() > 0)
+                offset = microseconds_t(0);
+            else if (offset.count() != 0)
+                qCDebug(logTimeSync).noquote() << "Cutting off" << offset.count() << "µs from timesync file to align endpoint for" << m_mod->name();
+
+            m_tswriter->writeTimes(microseconds_t(std::lround((m_lastSecondaryIdxUnandjusted + 1) * m_timePerPointUs)) + offset,
+                                   m_lastMasterAssumedAcqTS + offset);
+        }
+        m_lastValidMasterTimestamp = microseconds_t(0);
+        m_lastMasterAssumedAcqTS = microseconds_t(0);
     }
 
     m_tswriter->close();
@@ -213,7 +243,8 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
         idxTimestamps -= VectorXu::Ones(idxTimestamps.rows()) * m_indexOffset;
 
     // timestamp when (as far and well as we can guess...) the current block was actually acquired, in microseconds
-    // and based on the master clock timestamp generated upon data receival
+    // and based on the master clock timestamp generated upon data receival (mean between the time before requesting the data
+    // and after the data was received)
     const microseconds_t masterAssumedAcqTS = blocksRecvTimestamp
                                                 - microseconds_t(std::lround(m_timePerPointUs * ((blockCount - 1) * idxTimestamps.rows())))
                                                 + microseconds_t(std::lround(m_timePerPointUs * (blockIndex * idxTimestamps.rows())));
