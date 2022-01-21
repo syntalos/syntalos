@@ -25,6 +25,15 @@ class QSettings;
 
 namespace Syntalos {
 
+enum class ColorMode {
+    SYSTEM,
+    BRIGHT,
+    DARK
+};
+
+QString colorModeToString(ColorMode mode);
+ColorMode colorModeFromString(const QString &str);
+
 class GlobalConfig : public QObject
 {
     Q_OBJECT
@@ -34,6 +43,9 @@ public:
 
     QString iconThemeName() const;
     void setIconThemeName(const QString &iconTheme);
+
+    ColorMode appColorMode() const;
+    void setAppColorMode(ColorMode mode);
 
     QByteArray mainWinGeometry() const;
     void setMainWinGeometry(const QByteArray &geometry);

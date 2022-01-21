@@ -23,6 +23,9 @@
 #include <QFile>
 #include <QIcon>
 
+// This file contains globally valid styling information that not only the Syntalos main application,
+// but also any modules should have access to.
+
 // define a few commonly used color code for Syntalos
 const auto SyColorDanger = QColor(218, 68, 83);
 const auto SyColorDangerHigh = QColor(237, 21, 21);
@@ -33,8 +36,6 @@ const auto SyColorWhite = QColor(252, 252, 252);
 const auto SyColorDark = QColor(44, 62, 80);
 
 void setDefaultStyle(bool preferBreeze = false);
-bool switchIconTheme(const QString& themeName);
-
 bool currentThemeIsDark();
 
 /**

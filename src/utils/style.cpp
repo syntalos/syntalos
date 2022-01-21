@@ -19,12 +19,11 @@
 
 #include "style.h"
 
-#include <QStyleFactory>
-#include <QApplication>
-#include <QIcon>
 #include <QDebug>
-#include <QFileInfo>
+#include <QApplication>
 #include <QPalette>
+#include <QStyleFactory>
+
 
 void setDefaultStyle(bool preferBreeze)
 {
@@ -55,35 +54,6 @@ void setDefaultStyle(bool preferBreeze)
     }
 
     // if we are here, we just use whatever Qt things should be default - usually this means the "Fusion" style
-}
-
-bool switchIconTheme(const QString &themeName)
-{
-    if (themeName.isEmpty())
-        return false;
-
-    QString realThemeName = themeName;
-    if (currentThemeIsDark() && themeName.toLower() == "breeze")
-        realThemeName = QStringLiteral("breeze-dark");
-
-    if (QIcon::themeName() == realThemeName)
-        return true;
-
-    auto found = false;
-    for (auto &path : QIcon::themeSearchPaths()) {
-        QFileInfo fi(QStringLiteral("%1/%2").arg(path).arg(realThemeName));
-        if (fi.isDir()) {
-            found = true;
-            break;
-        }
-    }
-
-    if (!found)
-        return false;
-    QIcon::setThemeName(realThemeName);
-    qDebug().noquote() << "Switched icon theme to" << realThemeName;
-
-    return true;
 }
 
 bool currentThemeIsDark()

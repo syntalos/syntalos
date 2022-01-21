@@ -51,6 +51,8 @@ syntalos_shared_src = [
 syntalos_src = [
     'aboutdialog.h',
     'aboutdialog.cpp',
+    'appstyle.h',
+    'appstyle.cpp',
     'cpuaffinity.h',
     'cpuaffinity.cpp',
     'elidedlabel.h',
@@ -172,6 +174,7 @@ syntalos_exe = executable('syntalos',
 
                    kfdbusaddons_dep,
                    kfarchive_dep,
+                   kfconfigwidgets_dep,
 
                    libusb_dep,
                    avutil_dep,

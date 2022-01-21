@@ -23,6 +23,7 @@
 #include <QMessageBox>
 
 #include "rtkit.h"
+#include "appstyle.h"
 
 using namespace Syntalos;
 
@@ -41,6 +42,15 @@ GlobalConfigDialog::GlobalConfigDialog(QWidget *parent) :
 
     // ensure we always show the first page when opening
     ui->tabWidget->setCurrentIndex(0);
+
+    // general section
+    ui->colorModeComboBox->clear();
+    ui->colorModeComboBox->addItem("System Default", Syntalos::colorModeToString(ColorMode::SYSTEM));
+    if (darkColorSchemeAvailable()) {
+        ui->colorModeComboBox->addItem("Bright Colors", Syntalos::colorModeToString(ColorMode::BRIGHT));
+        ui->colorModeComboBox->addItem("Dark Colors", Syntalos::colorModeToString(ColorMode::DARK));
+        ui->colorModeComboBox->setCurrentIndex(static_cast<int>(m_gc->appColorMode()));
+    }
 
     // advanced section
     ui->defaultNicenessSpinBox->setMaximum(20);
@@ -66,6 +76,19 @@ GlobalConfigDialog::GlobalConfigDialog(QWidget *parent) :
 GlobalConfigDialog::~GlobalConfigDialog()
 {
     delete ui;
+}
+
+void GlobalConfigDialog::on_colorModeComboBox_currentIndexChanged(int index)
+{
+    if (!m_acceptChanges)
+        return;
+
+    if (index == 0 && m_gc->appColorMode() != Syntalos::ColorMode::SYSTEM)
+        QMessageBox::information(this, "Restart may be required",
+                                 "You may need to restart Syntalos for this change to take effect.");
+
+    m_gc->setAppColorMode(Syntalos::colorModeFromString(ui->colorModeComboBox->currentData().toString()));
+    Q_EMIT defaultColorSchemeChanged();
 }
 
 void GlobalConfigDialog::on_defaultNicenessSpinBox_valueChanged(int arg1)

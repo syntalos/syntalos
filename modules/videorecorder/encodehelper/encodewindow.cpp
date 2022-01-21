@@ -29,6 +29,7 @@
 #include <QSvgWidget>
 #include <QSettings>
 
+#include "utils/style.h"
 #include "taskmanager.h"
 #include "../videowriter.h"
 
@@ -81,7 +82,7 @@ EncodeWindow::EncodeWindow(QWidget *parent)
 
     // busy indicator
     m_busyIndicator = new QSvgWidget(ui->busyIndicatorContainer);
-    m_busyIndicator->load(QStringLiteral(":/animations/encoding.svg"));
+    m_busyIndicator->load(loadBusyAnimation(QStringLiteral("encoding.svg")));
     m_busyIndicator->setMaximumSize(QSize(40, 40));
     m_busyIndicator->setMinimumSize(QSize(40, 40));
     m_busyIndicator->hide();
@@ -105,6 +106,29 @@ EncodeWindow::EncodeWindow(QWidget *parent)
 EncodeWindow::~EncodeWindow()
 {
     delete ui;
+}
+
+QByteArray EncodeWindow::loadBusyAnimation(const QString &name) const
+{
+    bool isDark = currentThemeIsDark();
+
+    QFile f(QStringLiteral(":/animations/") + name);
+    if (!f.open(QFile::ReadOnly | QFile::Text)) {
+        qWarning().noquote() << "Failed to load busy animation" << name << ": " << f.errorString();
+        return QByteArray();
+    }
+
+    QTextStream in(&f);
+    auto data = in.readAll();
+    if (!isDark)
+        return data.toLocal8Bit();
+
+
+
+    // adjust for dark theme
+    return data.replace(QStringLiteral("#232629"), QStringLiteral("#eff0f1"))
+               .replace(QStringLiteral("#4d4d4d"), QStringLiteral("#bdc3c7"))
+               .toLocal8Bit();
 }
 
 void EncodeWindow::on_runButton_clicked()

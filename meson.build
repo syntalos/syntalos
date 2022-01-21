@@ -178,6 +178,7 @@ gobject_dep = dependency('gobject-2.0', version: '>=2.58')
 
 kfarchive_dep = dependency('KF5Archive')
 kfdbusaddons_dep = dependency('KF5DBusAddons')
+kfconfigwidgets_dep = dependency('KF5ConfigWidgets')
 
 gstreamer_dep = dependency('gstreamer-1.0')
 gstreamer_app_dep = dependency('gstreamer-app-1.0')

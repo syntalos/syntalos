@@ -22,7 +22,7 @@
 
 #include <QApplication>
 
-#include "utils/style.h"
+#include "appstyle.h"
 
 int main(int argc, char *argv[])
 {

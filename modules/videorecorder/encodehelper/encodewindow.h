@@ -48,6 +48,7 @@ private slots:
     void on_tasksTable_activated(const QModelIndex &index);
 
 private:
+    QByteArray loadBusyAnimation(const QString &name) const;
     void obtainSleepShutdownIdleInhibitor();
 
 private:

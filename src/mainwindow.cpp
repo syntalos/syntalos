@@ -54,6 +54,7 @@
 #include <QFontMetricsF>
 #include <KTar>
 
+#include "appstyle.h"
 #include "aboutdialog.h"
 #include "globalconfig.h"
 #include "globalconfigdialog.h"
@@ -63,7 +64,6 @@
 #include "sysinfodialog.h"
 #include "timingsdialog.h"
 #include "utils/tomlutils.h"
-#include "utils/style.h"
 
 
 // config format API level
@@ -78,15 +78,9 @@ MainWindow::MainWindow(QWidget *parent) :
     // (otherwise the application may look ugly or incomplete on GNOME)
     m_gconf = new GlobalConfig(this);
 
-    // set default style, prefer Breeze for the main application for a more
-    // consistent look (we should test with more "native" styles and their dark
-    // modes first before blindly enabling them by default and make UI elements
-    // vanish for the user by accident)
-    setDefaultStyle(true);
-
-    // try to enforce breeze first, then the user-defined theme name, then the system default
-    switchIconTheme(QStringLiteral("breeze"));
-    switchIconTheme(m_gconf->iconThemeName());
+    // apply our selected style early, before creating the main UI
+    // (we can't update icons yet, as not all GUI elements have been created)
+    applySelectedAppStyle(false);
 
     // create main window UI
     ui->setupUi(this);
@@ -348,6 +342,32 @@ MainWindow::MainWindow(QWidget *parent) :
 MainWindow::~MainWindow()
 {
     delete ui;
+}
+
+void MainWindow::applySelectedAppStyle(bool updateIcons)
+{
+    // set default style, prefer Breeze for the main application for a more
+    // consistent look (we should test with more "native" styles and their dark
+    // modes first before blindly enabling them by default and make UI elements
+    // vanish for the user by accident)
+    setDefaultStyle(true);
+
+    // apply default color scheme
+    if (m_gconf->appColorMode() != Syntalos::ColorMode::SYSTEM) {
+        qDebug().noquote() << "Changing application color scheme to:" << Syntalos::colorModeToString(m_gconf->appColorMode());
+        if (m_gconf->appColorMode() == Syntalos::ColorMode::DARK && darkColorSchemeAvailable())
+            changeColorsDarkmode(true);
+        else
+            changeColorsDarkmode(false);
+    }
+
+    // try to enforce breeze first, then the user-defined theme name, then the system default
+    switchIconTheme(QStringLiteral("breeze"));
+    switchIconTheme(m_gconf->iconThemeName());
+
+    // update icons in case we switched between a dark and light style
+    if (updateIcons)
+        updateIconStyles();
 }
 
 void MainWindow::setRunPossible(bool enabled)
@@ -1017,7 +1037,14 @@ void MainWindow::on_actionProjectDetails_toggled(bool arg1)
 
 void MainWindow::globalConfigActionTriggered()
 {
-    GlobalConfigDialog gcDlg;
+    GlobalConfigDialog gcDlg(this);
+
+    // react to user color scheme changes instantly
+    connect(&gcDlg, &GlobalConfigDialog::defaultColorSchemeChanged, [=]() {
+        applySelectedAppStyle();
+    });
+
+    // show configuration dialog
     gcDlg.exec();
 }
 

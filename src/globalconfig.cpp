@@ -43,6 +43,17 @@ void GlobalConfig::setIconThemeName(const QString &iconTheme)
     m_s->setValue("ui/icon_theme", iconTheme);
 }
 
+ColorMode GlobalConfig::appColorMode() const
+{
+    const auto strMode = m_s->value("ui/color_mode", QStringLiteral("system")).toString();
+    return colorModeFromString(strMode);
+}
+
+void GlobalConfig::setAppColorMode(ColorMode mode)
+{
+    m_s->setValue("ui/color_mode", colorModeToString(mode));
+}
+
 QByteArray GlobalConfig::mainWinGeometry() const
 {
     return m_s->value("ui/geometry").toByteArray();
@@ -170,4 +181,23 @@ void GlobalConfig::setCreateVEnvUserLink(bool enabled)
     if (enabled)
         triggerCreateVirtualenvUserLink();
     m_s->setValue("devel/venv_user_link", enabled);
+}
+
+QString Syntalos::colorModeToString(ColorMode mode)
+{
+    switch (mode) {
+    case ColorMode::BRIGHT: return QStringLiteral("bright");
+    case ColorMode::DARK: return QStringLiteral("dark");
+    default:
+        return QStringLiteral("system");
+    }
+}
+
+ColorMode Syntalos::colorModeFromString(const QString &str)
+{
+    if (str == "bright")
+        return ColorMode::BRIGHT;
+    if (str == "dark")
+        return ColorMode::DARK;
+    return ColorMode::SYSTEM;
 }

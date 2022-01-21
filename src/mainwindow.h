@@ -104,6 +104,7 @@ protected:
     void showEvent(QShowEvent *event) override;
 
 private:
+    void applySelectedAppStyle(bool updateIcons = true);
     void updateIconStyles();
     void shutdown();
     void setCurrentProjectFile(const QString& fileName);

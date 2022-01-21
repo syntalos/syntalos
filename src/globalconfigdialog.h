@@ -37,6 +37,8 @@ public:
     ~GlobalConfigDialog();
 
 private slots:
+    void on_colorModeComboBox_currentIndexChanged(int index);
+
     void on_defaultNicenessSpinBox_valueChanged(int arg1);
     void on_defaultRTPrioSpinBox_valueChanged(int arg1);
     void on_explicitCoreAffinitiesCheckBox_toggled(bool checked);
@@ -45,6 +47,9 @@ private slots:
     void on_cbDisplayDevModules_toggled(bool checked);
     void on_cbSaveDiagnostic_toggled(bool checked);
     void on_cbPythonCreateVEnvLink_toggled(bool checked);
+
+signals:
+    void defaultColorSchemeChanged();
 
 private:
     Ui::GlobalConfigDialog *ui;
