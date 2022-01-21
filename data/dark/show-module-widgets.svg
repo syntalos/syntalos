@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg
-   viewBox="0 0 22 22"
+   viewBox="0 0 32 32"
    version="1.1"
    id="svg6"
    sodipodi:docname="show-module-widgets.svg"
    inkscape:version="1.1.1 (3bf5ae0d25, 2021-09-20)"
+   width="32"
+   height="32"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -20,7 +22,6 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -33,15 +34,15 @@
      guidetolerance="10"
      inkscape:pageopacity="0"
      inkscape:pageshadow="2"
-     inkscape:window-width="1491"
+     inkscape:window-width="2270"
      inkscape:window-height="1088"
      id="namedview8"
      showgrid="false"
      inkscape:zoom="10.727273"
-     inkscape:cx="-9.8813557"
+     inkscape:cx="-41.949151"
      inkscape:cy="11.04661"
-     inkscape:window-x="3619"
-     inkscape:window-y="0"
+     inkscape:window-x="949"
+     inkscape:window-y="96"
      inkscape:window-maximized="0"
      inkscape:current-layer="svg6"
      inkscape:pagecheckerboard="0" />
@@ -56,8 +57,8 @@
       </style>
   </defs>
   <path
-     style="fill:#f2f2f2;fill-opacity:1;stroke:none"
-     d="M 3 3 L 3 17 L 19 17 L 19 3 L 3 3 z M 4 4 L 18 4 L 18 16 L 4 16 L 4 4 z M 5 5 L 5 9 L 7 9 L 9 7 L 9 5 L 5 5 z M 13.5 6 C 11.561005 6 10 7.561005 10 9.5 C 10 11.438995 11.561005 13 13.5 13 C 15.438995 13 17 11.438995 17 9.5 C 17 7.561005 15.438995 6 13.5 6 z M 13.5 7 C 14.884997 7 16 8.115003 16 9.5 C 16 10.884997 14.884997 12 13.5 12 C 12.115003 12 11 10.884997 11 9.5 C 11 8.115003 12.115003 7 13.5 7 z M 9 8 L 8 9 L 9 9 L 9 8 z M 13 8 L 13 10 L 14 10 L 15 10 L 15 9 L 14 9 L 14 8 L 13 8 z M 5 12 L 5 14 L 7 14 L 8 15 L 8 14 L 8.2363281 14 L 8.2363281 12 L 5 12 z M 3 18 L 3 19 L 19 19 L 19 18 L 3 18 z "
+     style="fill:#f2f2f2;fill-opacity:1;stroke:none;stroke-width:1.49999"
+     d="M 4,4 V 25 H 28 V 4 Z m 1.5,1.5 h 21 v 18 H 5.5 Z M 7,7 v 6 h 3 l 3,-3 V 7 Z m 12.75,1.5 c -2.908493,0 -5.25,2.341508 -5.25,5.25 0,2.908493 2.341507,5.25 5.25,5.25 C 22.658492,19 25,16.658493 25,13.75 25,10.841508 22.658492,8.5 19.75,8.5 Z m 0,1.5 c 2.077496,0 3.75,1.672504 3.75,3.75 0,2.077496 -1.672504,3.75 -3.75,3.75 C 17.672504,17.5 16,15.827496 16,13.75 16,11.672504 17.672504,10 19.75,10 Z M 13,11.5 11.5,13 H 13 Z m 6,0 v 3 H 20.5 22 V 13 h -1.5 v -1.5 z m -12,6 v 3 h 3 l 1.5,1.5 v -1.5 h 0.354492 v -3 z m -3,9 V 28 h 24 v -1.5 z"
      class="ColorScheme-Text"
      id="path4" />
 </svg>

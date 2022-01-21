@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg
-   xmlns:dc="http://purl.org/dc/elements/1.1/"
-   xmlns:cc="http://creativecommons.org/ns#"
-   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
-   xmlns:svg="http://www.w3.org/2000/svg"
-   xmlns="http://www.w3.org/2000/svg"
-   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
-   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   viewBox="0 0 24 24"
+   viewBox="0 0 32 32"
    version="1.1"
    id="svg6"
    sodipodi:docname="show-all-windows.svg"
-   width="24"
-   height="24"
-   inkscape:version="0.92.4 (5da689c313, 2019-01-14)">
+   width="32"
+   height="32"
+   inkscape:version="1.1.1 (3bf5ae0d25, 2021-09-20)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
   <metadata
      id="metadata10">
     <rdf:RDF>
@@ -22,7 +22,6 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -35,17 +34,19 @@
      guidetolerance="10"
      inkscape:pageopacity="0"
      inkscape:pageshadow="2"
-     inkscape:window-width="1920"
-     inkscape:window-height="1021"
+     inkscape:window-width="2123"
+     inkscape:window-height="1138"
      id="namedview8"
      showgrid="false"
      inkscape:zoom="14.75"
-     inkscape:cx="8"
-     inkscape:cy="8"
-     inkscape:window-x="0"
-     inkscape:window-y="0"
-     inkscape:window-maximized="1"
-     inkscape:current-layer="svg6" />
+     inkscape:cx="-23.423729"
+     inkscape:cy="7.9661017"
+     inkscape:window-x="1688"
+     inkscape:window-y="127"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="svg6"
+     inkscape:pagecheckerboard="0"
+     width="32px" />
   <defs
      id="defs3051">
     <style
@@ -58,8 +59,8 @@
   </defs>
   <path
      inkscape:connector-curvature="0"
-     style="color:#4d4d4d;fill:currentColor;stroke-width:1.57142866"
+     style="color:#4d4d4d;fill:currentColor;stroke-width:1.71429"
      class="ColorScheme-Text"
-     d="m 0.99999984,1 v 9.428572 H 13.571428 V 1 Z M 16.714286,1 v 9.428572 H 23 V 1 Z M 0.99999984,13.571429 V 23 H 23 v -9.428571 z"
+     d="M 4,4 V 14.285715 H 17.714285 V 4 Z M 21.142857,4 V 14.285715 H 28 V 4 Z M 4,17.714286 V 28 H 28 V 17.714286 Z"
      id="path5" />
 </svg>
