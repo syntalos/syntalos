@@ -25,7 +25,7 @@
 
 const QString aboutDlgCopyInfo = QStringLiteral(
         "<html>"
-        "(c) 2016-2021 Matthias Klumpp"
+        "(c) 2016-2022 Matthias Klumpp"
         "<p>Developed at the Draguhn Group at Heidelberg University, Germany</p>"
         "<p>Syntalos is free software: you can redistribute it and/or modify "
         "it under the terms of the GNU General Public License as published by "
@@ -45,7 +45,11 @@ AboutDialog::AboutDialog(QWidget *parent) :
     ui->setupUi(this);
 
     const auto syVersion = QStringLiteral("v%1").arg(QCoreApplication::applicationVersion());
-    const auto syVcs = QStringLiteral(SY_VCS_TAG).replace(syVersion + QStringLiteral("-"), "");
+    auto syVcs = QStringLiteral(SY_VCS_TAG).replace(syVersion, "");
+    if (syVcs.startsWith("-g"))
+        syVcs.remove(0, 2);
+    else if (syVcs.startsWith("-"))
+        syVcs.remove(0, 1);
 
     setWindowTitle(QStringLiteral("About Syntalos"));
     ui->asciiArtLabel->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
