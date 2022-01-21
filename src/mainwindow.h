@@ -104,11 +104,13 @@ protected:
     void showEvent(QShowEvent *event) override;
 
 private:
+    void updateIconStyles();
     void shutdown();
     void setCurrentProjectFile(const QString& fileName);
     void setDataExportBaseDir(const QString& dir);
     void updateExportDirDisplay();
     void updateIntervalRunMessage();
+    QByteArray loadBusyAnimation(const QString &name) const;
 
     void changeExperimenter(const EDLAuthor& person);
     void changeTestSubject(const TestSubject& subject);

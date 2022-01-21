@@ -31,6 +31,7 @@
 #include "engine.h"
 #include "streams/frametype.h"
 #include "utils/misc.h"
+#include "utils/style.h"
 
 namespace Syntalos {
     Q_LOGGING_CATEGORY(logGraphUi, "graphui")
@@ -81,6 +82,14 @@ ModuleGraphForm::~ModuleGraphForm()
 {
     m_shutdown = true; // ignore some pending events while we are deleting the UI
     delete ui;
+}
+
+void ModuleGraphForm::updateIconStyles()
+{
+    bool isDark = currentThemeIsDark();
+    setWidgetIconFromResource(ui->actionSettings, "settings", isDark);
+    setWidgetIconFromResource(ui->actionMenu, "menu", isDark);
+    setWidgetIconFromResource(ui->actionDisplay, "show-all-windows", isDark);
 }
 
 FlowGraphView *ModuleGraphForm::graphView() const

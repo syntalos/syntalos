@@ -24,6 +24,7 @@
 #include <QIcon>
 #include <QDebug>
 #include <QFileInfo>
+#include <QPalette>
 
 void setDefaultStyle(bool preferBreeze)
 {
@@ -60,11 +61,17 @@ bool switchIconTheme(const QString &themeName)
 {
     if (themeName.isEmpty())
         return false;
-    if (QIcon::themeName() == themeName)
+
+    QString realThemeName = themeName;
+    if (currentThemeIsDark() && themeName.toLower() == "breeze")
+        realThemeName = QStringLiteral("breeze-dark");
+
+    if (QIcon::themeName() == realThemeName)
         return true;
+
     auto found = false;
     for (auto &path : QIcon::themeSearchPaths()) {
-        QFileInfo fi(QStringLiteral("%1/%2").arg(path).arg(themeName));
+        QFileInfo fi(QStringLiteral("%1/%2").arg(path).arg(realThemeName));
         if (fi.isDir()) {
             found = true;
             break;
@@ -73,8 +80,15 @@ bool switchIconTheme(const QString &themeName)
 
     if (!found)
         return false;
-    QIcon::setThemeName(themeName);
-    qDebug().noquote() << "Switched icon theme to" << themeName;
+    QIcon::setThemeName(realThemeName);
+    qDebug().noquote() << "Switched icon theme to" << realThemeName;
 
     return true;
+}
+
+bool currentThemeIsDark()
+{
+    const QPalette pal;
+    const auto bgColor = pal.button().color();
+    return bgColor.value() < 128;
 }

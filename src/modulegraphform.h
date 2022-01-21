@@ -53,6 +53,8 @@ public:
     explicit ModuleGraphForm(QWidget *parent = nullptr);
     ~ModuleGraphForm();
 
+    void updateIconStyles();
+
     FlowGraphView *graphView() const;
     Engine *engine() const;
 

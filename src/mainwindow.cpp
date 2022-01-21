@@ -340,6 +340,9 @@ MainWindow::MainWindow(QWidget *parent) :
 
     // switch default focus
     ui->graphForm->setFocus();
+
+    // update icons to adapt to the current light/dark style
+    updateIconStyles();
 }
 
 MainWindow::~MainWindow()
@@ -644,7 +647,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         if (parseError.isEmpty())
             m_subjectList->fromVariantHash(subjData);
         else
-            qWarning() << "Unable to load test-subject data:" << parseError;
+            qWarning().noquote() << "Unable to load test-subject data:" << parseError;
     }
 
     // load list of experimenters
@@ -659,7 +662,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         if (parseError.isEmpty())
             m_experimenterList->fromVariantHash(peopleData);
         else
-            qWarning() << "Unable to load experimenter data:" << parseError;
+            qWarning().noquote() << "Unable to load experimenter data:" << parseError;
     }
     setExperimenterSelectVisible(!m_experimenterList->isEmpty());
 
@@ -679,7 +682,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
             ui->graphForm->graphView()->setSettings(graphConfig);
             ui->graphForm->graphView()->restoreState();
         } else {
-            qWarning() << "Unable to parse graph configuration:" << parseError;
+            qWarning().noquote() << "Unable to parse graph configuration:" << parseError;
         }
     }
 
@@ -875,6 +878,15 @@ void MainWindow::changeExperimentId(const QString& text)
 {
     m_engine->setExperimentId(text);
     updateExportDirDisplay();
+}
+
+void MainWindow::updateIconStyles()
+{
+    bool isDark = currentThemeIsDark();
+    ui->graphForm->updateIconStyles();
+    setWidgetIconFromResource(ui->actionRun, "run", isDark);
+    setWidgetIconFromResource(ui->actionRunTemp, "run-temp", isDark);
+    setWidgetIconFromResource(ui->actionProjectDetails, "project-settings", isDark);
 }
 
 void MainWindow::shutdown()
@@ -1191,23 +1203,42 @@ void MainWindow::statusMessageChanged(const QString &message)
     setStatusText(message);
 }
 
+QByteArray MainWindow::loadBusyAnimation(const QString &name) const
+{
+    bool isDark = currentThemeIsDark();
+
+    QFile f(QStringLiteral(":/animations/") + name);
+    if (!f.open(QFile::ReadOnly | QFile::Text)) {
+        qWarning().noquote() << "Failed to load busy animation" << name << ": " << f.errorString();
+        return QByteArray();
+    }
+
+    QTextStream in(&f);
+    auto data = in.readAll();
+    if (!isDark)
+        return data.toLocal8Bit();
+
+    // adjust for dark theme
+    return data.replace(QStringLiteral("#232629"), QStringLiteral("#eff0f1")).toLocal8Bit();
+}
+
 void MainWindow::showBusyIndicatorProcessing()
 {
-    m_busyIndicator->load(QStringLiteral(":/animations/busy.svg"));
+    m_busyIndicator->load(loadBusyAnimation(QStringLiteral("busy.svg")));
     m_busyIndicator->show();
     QApplication::processEvents();
 }
 
 void MainWindow::showBusyIndicatorRunning()
 {
-    m_busyIndicator->load(QStringLiteral(":/animations/running.svg"));
+    m_busyIndicator->load(loadBusyAnimation(QStringLiteral("running.svg")));
     m_busyIndicator->show();
     QApplication::processEvents();
 }
 
 void MainWindow::showBusyIndicatorWaiting()
 {
-    m_busyIndicator->load(QStringLiteral(":/animations/waiting.svg"));
+    m_busyIndicator->load(loadBusyAnimation(QStringLiteral("waiting.svg")));
     m_busyIndicator->show();
     QApplication::processEvents();
 }

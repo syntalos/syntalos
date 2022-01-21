@@ -11,7 +11,18 @@
         <file alias="generic-view">generic-view.svg</file>
         <file alias="generic-config">generic-config.svg</file>
         <file alias="show-all-windows">show-all-windows.svg</file>
+        <file alias="show-all-config">show-all-config.svg</file>
         <file alias="project-settings">project-settings.svg</file>
+    </qresource>
+    <qresource prefix="/icons/dark">
+        <file alias="run">dark/run.svg</file>
+        <file alias="run-temp">dark/run-temp.svg</file>
+        <file alias="settings">dark/settings.svg</file>
+        <file alias="show-module">dark/show-module-widgets.svg</file>
+        <file alias="menu">dark/menu.svg</file>
+        <file alias="show-all-windows">dark/show-all-windows.svg</file>
+        <file alias="show-all-config">dark/show-all-config.svg</file>
+        <file alias="project-settings">dark/project-settings.svg</file>
     </qresource>
     <qresource prefix="/images">
         <file>mouse-top.png</file>

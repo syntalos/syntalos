@@ -20,6 +20,8 @@
 #pragma once
 
 #include <QColor>
+#include <QFile>
+#include <QIcon>
 
 // define a few commonly used color code for Syntalos
 const auto SyColorDanger = QColor(218, 68, 83);
@@ -32,3 +34,23 @@ const auto SyColorDark = QColor(44, 62, 80);
 
 void setDefaultStyle(bool preferBreeze = false);
 bool switchIconTheme(const QString& themeName);
+
+bool currentThemeIsDark();
+
+/**
+ * Apply an icon to the selected widget from our internal resource,
+ * selecting a dark variant if necessary.
+ */
+template<typename T>
+void setWidgetIconFromResource(const T &widget, const QString &name, bool isDark)
+{
+    QString path;
+    bool pathValid = false;
+    if (isDark) {
+        path = QStringLiteral(":/icons/dark/") + name;
+        pathValid = QFile::exists(path);
+    }
+    if (!pathValid)
+        path = QStringLiteral(":/icons/") + name;
+    widget->setIcon(QIcon(path));
+}
