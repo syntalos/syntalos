@@ -85,7 +85,7 @@ void GlobalConfigDialog::on_colorModeComboBox_currentIndexChanged(int index)
 
     if (index == 0 && m_gc->appColorMode() != Syntalos::ColorMode::SYSTEM)
         QMessageBox::information(this, "Restart may be required",
-                                 "You may need to restart Syntalos for this change to take effect.");
+                                 "You may need to restart Syntalos for this style change to take effect.");
 
     m_gc->setAppColorMode(Syntalos::colorModeFromString(ui->colorModeComboBox->currentData().toString()));
     Q_EMIT defaultColorSchemeChanged();
