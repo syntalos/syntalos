@@ -1,7 +1,7 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 
 Files: *
-Copyright: 2019-2021, Matthias Klumpp <matthias@tenstral.net>
+Copyright: 2019-2022, Matthias Klumpp <matthias@tenstral.net>
 License: GPL-3+ and LGPL-3+
 
 Files: debian/*

@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2014 Jakob Unterwurzacher
- * Copyright (C) 2019-2020 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2022 Matthias Klumpp <matthias@tenstral.net>
  *
  * SPDX-License-Identifier: MIT or LGPL-3.0-or-later
  *

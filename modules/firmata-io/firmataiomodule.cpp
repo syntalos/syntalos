@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016-2019 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2022 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -306,7 +306,7 @@ QString FirmataIOModuleInfo::description() const
 
 QString FirmataIOModuleInfo::license() const
 {
-    return QStringLiteral("Module licensed as GPLv3+, uses the Qt Firmata implementation (c) 2016 Calle Laakkonen (GPLv3+ licensed)");
+    return QStringLiteral("Module licensed under GPL-3.0+, uses the Qt Firmata implementation © 2016 Calle Laakkonen [GPL-3.0+]");
 }
 
 QIcon FirmataIOModuleInfo::icon() const

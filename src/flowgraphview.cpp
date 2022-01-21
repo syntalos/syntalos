@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2020 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2022 Matthias Klumpp <matthias@tenstral.net>
  * Copyright (C) 2003-2019, rncbc aka Rui Nuno Capela, qjackctl
  *
  * Licensed under the GNU General Public License Version 3

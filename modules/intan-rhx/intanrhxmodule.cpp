@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2021 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2022 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -44,7 +44,7 @@ QString IntanRhxModuleInfo::description() const
 
 QString IntanRhxModuleInfo::license() const
 {
-    return QStringLiteral("Copyright (c) 2020-2021 <a href=\"https://intantech.com/\">Intan Technologies</a> [GPLv3+]");
+    return QStringLiteral("Copyright © 2020-2021 <a href=\"https://intantech.com/\">Intan Technologies</a> [GPL-3.0+]");
 }
 
 QIcon IntanRhxModuleInfo::icon() const
