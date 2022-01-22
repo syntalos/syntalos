@@ -19,10 +19,11 @@
 
 #include "aboutdialog.h"
 #include "ui_aboutdialog.h"
-#include "config.h"
 
 #include <QFont>
 #include <QFontDatabase>
+
+#include "utils/misc.h"
 
 const QString aboutDlgCopyInfo = QStringLiteral(
         "<html>"
@@ -48,21 +49,9 @@ AboutDialog::AboutDialog(QWidget *parent) :
 {
     ui->setupUi(this);
 
-    const auto syVersion = QStringLiteral("v%1").arg(QCoreApplication::applicationVersion());
-    auto syVcs = QStringLiteral(SY_VCS_TAG).replace(syVersion, "");
-    if (syVcs.startsWith("-g"))
-        syVcs.remove(0, 2);
-    else if (syVcs.startsWith("-"))
-        syVcs.remove(0, 1);
-    else if (syVcs.startsWith("v"))
-        syVcs.remove(0, 1);
-
     setWindowTitle(QStringLiteral("About Syntalos"));
     ui->asciiArtLabel->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
-    if (syVcs.isEmpty())
-        ui->versionLabel->setText(syVersion);
-    else
-        ui->versionLabel->setText(QStringLiteral("%1 (%2)").arg(syVersion, syVcs));
+    ui->versionLabel->setText(QStringLiteral("v%1").arg(syntalosVersionFull()));
 
     auto rect = geometry();
     rect.setWidth(ui->asciiArtLabel->width() + 10);

@@ -23,6 +23,7 @@
 #include <QDebug>
 #include <QCollator>
 #include <QRandomGenerator>
+#include <QCoreApplication>
 
 QString createRandomString(int len)
 {
@@ -109,10 +110,21 @@ QStringList stringListNaturalSort(QStringList &list)
     return list;
 }
 
+/**
+ * Retrieve the full Syntalos version, including any VCS information.
+ */
 QString syntalosVersionFull()
 {
-    auto syVersion = QStringLiteral(SY_VCS_TAG);
-    if (syVersion.startsWith("v"))
-        syVersion = syVersion.remove(0, 1);
-    return syVersion;
+    auto syVersion = QCoreApplication::applicationVersion();
+    auto syVcs = QStringLiteral(SY_VCS_TAG).replace(syVersion, "");
+    if (syVcs.contains("-"))
+        syVcs = syVcs.section('-', 1);
+    if (syVcs.startsWith("v"))
+        syVcs.remove(0, 1);
+    if (syVcs == QStringLiteral("+")) {
+        syVersion = syVersion + QStringLiteral("+");
+        syVcs = "";
+    }
+
+    return syVcs.isEmpty()? syVersion : QStringLiteral("%1 (%2)").arg(syVersion, syVcs);
 }

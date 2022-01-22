@@ -1743,7 +1743,7 @@ bool Engine::runInternal(const QString &exportDirPath)
 
         storageCollection->setGeneratorId(QStringLiteral("%1 %2")
                                           .arg(QCoreApplication::applicationName())
-                                          .arg(QCoreApplication::applicationVersion()));
+                                          .arg(syntalosVersionFull()));
         if (d->experimenter.isValid())
             storageCollection->addAuthor(d->experimenter);
 
