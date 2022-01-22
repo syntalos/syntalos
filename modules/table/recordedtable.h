@@ -20,6 +20,7 @@
 #pragma once
 
 #include <QObject>
+#include <QIcon>
 
 class QTableWidget;
 class QFile;
@@ -28,7 +29,7 @@ class RecordedTable : public QObject
 {
     Q_OBJECT
 public:
-    explicit RecordedTable(QObject *parent = nullptr);
+    explicit RecordedTable(QObject *parent = nullptr, const QIcon &winIcon = QIcon());
     ~RecordedTable();
 
     QString name() const;

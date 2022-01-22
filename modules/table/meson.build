@@ -18,7 +18,7 @@ module_moc_src = [
 
 module_ui = []
 
-module_deps = [opencv_dep]
+module_deps = [qt_svg_dep]
 
 #
 # Generic module setup

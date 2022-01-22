@@ -22,10 +22,16 @@
 #include <QTimer>
 #include <QTime>
 #include <QDir>
+#include <QFile>
+#include <QSvgRenderer>
+#include <QPainter>
 
+#include "utils/style.h"
 #include "recordedtable.h"
 
 SYNTALOS_MODULE(TableModule)
+
+static QIcon getTableModuleIcon();
 
 class TableModule : public AbstractModule
 {
@@ -45,7 +51,7 @@ public:
     {
         m_rowsIn = registerInputPort<TableRow>(QStringLiteral("rows"), QStringLiteral("Rows"));
 
-        m_recTable = new RecordedTable;
+        m_recTable = new RecordedTable(nullptr, getTableModuleIcon());
         addDisplayWindow(m_recTable->widget(), false); // we register this to get automatic layout save/restore
         m_evTimer = new QTimer(this);
         m_evTimer->setInterval(0);
@@ -151,12 +157,38 @@ QString TableModuleInfo::description() const
 
 QIcon TableModuleInfo::icon() const
 {
-    return QIcon(":/module/table");
+    return getTableModuleIcon();
 }
 
 AbstractModule *TableModuleInfo::createModule(QObject *parent)
 {
     return new TableModule(parent);
+}
+
+static QIcon getTableModuleIcon()
+{
+    const auto tableIconResStr = QStringLiteral(":/module/table");
+    bool isDark = currentThemeIsDark();
+    if (!isDark)
+        return QIcon(tableIconResStr);
+
+    // convert our bright-mode icon into something that's visible easier
+    // on a dark background
+    QFile f(QStringLiteral(":/module/table"));
+    if (!f.open(QFile::ReadOnly | QFile::Text)) {
+        qWarning().noquote() << "Failed to table module icon: " << f.errorString();
+        return QIcon(tableIconResStr);
+    }
+
+    QTextStream in(&f);
+    auto data = in.readAll();
+    QSvgRenderer renderer(data.replace(QStringLiteral("#232629"), QStringLiteral("#eff0f1")).toLocal8Bit());
+    QPixmap pix(96, 96);
+    pix.fill(QColor(0, 0, 0, 255));
+    QPainter painter(&pix);
+    renderer.render(&painter, pix.rect());
+
+    return QIcon(pix);
 }
 
 #include "tablemodule.moc"

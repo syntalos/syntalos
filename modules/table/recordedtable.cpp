@@ -25,14 +25,18 @@
 #include <QHeaderView>
 #include <QMessageBox>
 
-RecordedTable::RecordedTable(QObject *parent)
+RecordedTable::RecordedTable(QObject *parent, const QIcon &winIcon)
     : QObject(parent),
       m_name(QString())
 {
     m_tableWidget = new QTableWidget;
     m_tableWidget->setWindowTitle(QStringLiteral("Table"));
-    m_tableWidget->setWindowIcon(QIcon(":/module/table"));
     m_tableWidget->horizontalHeader()->hide();
+
+    if (winIcon.isNull())
+        m_tableWidget->setWindowIcon(QIcon(":/module/table"));
+    else
+        m_tableWidget->setWindowIcon(winIcon);
 
     m_eventFile = new QFile;
     m_haveEvents = false;
