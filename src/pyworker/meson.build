@@ -3,8 +3,12 @@
 
 # try to find NumPy
 python_inc_args = python_embed_dep.get_variable(pkgconfig: 'Cflags').strip().split()
-python_inc_args += run_command('python3', ['-c', 'import site\nfor i in site.getsitepackages(): print("-I" + i + "/numpy/core/include")']).stdout().strip().split()
-python_inc_args += '-I' + run_command('python3', ['-m', 'site', '--user-site']).stdout().strip() + '/numpy/core/include'
+python_inc_args += run_command('python3',
+                               ['-c', 'import site\nfor i in site.getsitepackages(): print("-I" + i + "/numpy/core/include")'],
+                               check: true).stdout().strip().split()
+python_inc_args += '-I' + run_command('python3',
+                                      ['-m', 'site', '--user-site'],
+                                      check: true).stdout().strip() + '/numpy/core/include'
 
 have_numpy = false
 foreach inc_arg : python_inc_args
