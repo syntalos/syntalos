@@ -119,7 +119,6 @@ signals:
     void runStarted();
     void runFailed(AbstractModule *mod, const QString &message);
     void runStopped();
-    void moduleError(AbstractModule *mod, const QString& message);
 
     void resourceWarningUpdate(SystemResource kind, bool resolved, const QString &message);
     void connectionHeatChangedAtPort(VarStreamInputPort *iport, ConnectionHeatLevel hlevel);

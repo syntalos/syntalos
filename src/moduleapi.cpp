@@ -860,7 +860,7 @@ void AbstractModule::raiseError(const QString &message)
     d->lastError = message;
     emit error(message);
     setState(ModuleState::ERROR);
-    qCritical() << message;
+    qCritical().noquote().nospace() << "Error raised by module '" << name() << "': " << message;
 }
 
 void AbstractModule::setId(const QString &id)

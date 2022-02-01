@@ -197,14 +197,9 @@ void ModuleGraphForm::receiveErrorMessage(const QString &message)
 {
     const auto mod = qobject_cast<AbstractModule*>(sender());
     const auto node = m_modNodeMap.value(mod);
-    auto errorTitle = QStringLiteral("Unknown module error");
-    if (mod != nullptr)
-        errorTitle = QStringLiteral("Error in: %1").arg(mod->name());
 
     if (node != nullptr)
         node->setNodeInfoText(message);
-
-    QMessageBox::critical(this, errorTitle, message);
 }
 
 void ModuleGraphForm::receiveMessage(const QString &message)

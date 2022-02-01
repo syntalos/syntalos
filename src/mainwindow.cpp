@@ -1145,9 +1145,14 @@ void MainWindow::setStatusText(const QString& msg)
     QApplication::processEvents();
 }
 
-void MainWindow::moduleErrorReceived(AbstractModule *, const QString&)
+void MainWindow::moduleErrorReceived(AbstractModule *mod, const QString &message)
 {
     setRunUiControlStates(false, false);
+
+    auto errorTitle = QStringLiteral("Unknown module error");
+    if (mod != nullptr)
+        errorTitle = QStringLiteral("Error in: %1").arg(mod->name());
+    QMessageBox::critical(this, errorTitle, message);
 }
 
 void MainWindow::onEnginePreRunStart()

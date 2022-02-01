@@ -128,6 +128,8 @@ public:
     QString runFailedReason;
     bool runIsEphemeral;
 
+    QList<QPair<AbstractModule*, QString>> pendingErrors;
+
     bool saveInternal;
     std::shared_ptr<EDLGroup> edlInternalData;
     QHash<QString, std::shared_ptr<TimeSyncFileWriter>> internalTSyncWriters;
@@ -1189,6 +1191,9 @@ bool Engine::runInternal(const QString &exportDirPath)
     if (!makeDirectory(exportDirPath))
         return false;
 
+    // ensure error queue is clean
+    d->pendingErrors.clear();
+
     // the engine is actively doing stuff with modules now
     d->active = true;
     d->usbEventsTimer->stop();
@@ -1792,6 +1797,12 @@ bool Engine::runInternal(const QString &exportDirPath)
     // ensure main thread CPU affinity is cleared
     thread_clear_affinity(pthread_self());
 
+    // it is safe now to send any error message that we previously deferred
+    // to external, possibly blocking, error handlers
+    for (const auto &errorDetail : d->pendingErrors)
+        emit runFailed(errorDetail.first, errorDetail.second);
+    d->pendingErrors.clear();
+
     // increase counter of successful runs
     if (!d->failed)
         d->runCount++;
@@ -1825,10 +1836,13 @@ void Engine::receiveModuleError(const QString& message)
     const bool wasRunning = d->running;
     d->failed = true;
     d->running = false;
-    if (mod != nullptr)
-        emit moduleError(mod, message);
 
+    // if we were running, defer message emission: We first need to terminate all modules
+    // to ensure that a modal error message (which may be created when this event is received)
+    // doesn't lock up the main thread and any other module's drawing buffers run full.
     if (wasRunning)
+        d->pendingErrors.append(qMakePair(mod, message));
+    else
         emit runFailed(mod, message);
 }
 
