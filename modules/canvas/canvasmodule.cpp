@@ -49,6 +49,7 @@ private:
     symaster_timepoint m_lastDisplayTime;
 
     uint m_throttleCount;
+    uint m_blackOutCount;
     bool m_active;
 
 public:
@@ -80,6 +81,7 @@ public:
         // with real values once we are displaying an image
         m_lastDisplayTime = currentTimePoint();
         m_currentDisplayFps = 60.0;
+        m_blackOutCount = 0;
 
         return true;
     }
@@ -97,9 +99,9 @@ public:
         // case so the user is aware that they're not seeing every single frame
         m_expectedFps = m_frameSub->metadata().value("framerate", 0).toDouble();
 
-        // never ever try to display more than 140fps by default
+        // never ever try to display more than 144fps by default
         // the module will lower this on its own if too much data is queued
-        m_throttleCount = 140;
+        m_throttleCount = 144;
         m_frameSub->setThrottleItemsPerSec(m_throttleCount);
         m_expectedDisplayFps = (m_expectedFps < m_throttleCount)? m_expectedFps : m_throttleCount;
 
@@ -124,7 +126,7 @@ public:
             return;
         const auto skippedFrames = m_frameSub->retrieveApproxSkippedElements();
         const auto framesPendingCount = m_frameSub->approxPendingCount();
-        if (framesPendingCount > m_expectedDisplayFps) {
+        if (framesPendingCount > (m_expectedFps * 2)) {
             // we have too many frames pending in the queue, we may have to throttle
             // the subscription more
 
@@ -139,9 +141,23 @@ public:
             if ((m_throttleCount <= 2) && (m_expectedFps != 0)) {
                 // throttle to less then 2fps? This looks suspicious, terminate.
                 m_frameSub->suspend();
-                raiseError(QStringLiteral("Dropped below 2fps in display frequency, but we are still not able to display frames fast enough. "
-                                          "Either the displayed frames are excessively large, something is wrong with the display hardware, "
-                                          "or there is a bug in the display code."));
+                m_blackOutCount++;
+
+                if (m_blackOutCount >= 3) {
+                    raiseError(QStringLiteral("Dropped below 2fps in display render speed multiple times. Even when discarding most frames we still "
+                                              "can not display images fast enough to empty the pending data queue.\n"
+                                              "Either the displayed frames are excessively large, something is wrong with the display hardware, "
+                                              "or there is a bug in the display code."));
+                    return;
+                }
+
+                // resume operation, maybe we have better luck this time?
+                // (if we can not manage to display at reasonable speed,
+                // we will give up after a few tries)
+                m_throttleCount = 144;
+                m_expectedDisplayFps = (m_expectedFps < m_throttleCount)? m_expectedFps : m_throttleCount;
+                m_frameSub->setThrottleItemsPerSec(m_throttleCount);
+                m_frameSub->resume();
                 return;
             }
 
