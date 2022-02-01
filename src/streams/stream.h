@@ -312,8 +312,9 @@ public:
         // (this prevents clients from skipping elements too much if they are overeager
         // when adjusting the throttle value)
         if (newThrottle > m_throttle) {
-            for (size_t i = 0; i < m_queue.size_approx(); ++i)
-                m_queue.pop();
+            // suspending and immediately resuming efficiently clears the current buffer
+            suspend();
+            resume();
         }
 
         // apply

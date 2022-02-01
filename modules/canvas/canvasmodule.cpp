@@ -126,17 +126,20 @@ public:
             return;
         const auto skippedFrames = m_frameSub->retrieveApproxSkippedElements();
         const auto framesPendingCount = m_frameSub->approxPendingCount();
-        if (framesPendingCount > (m_expectedFps * 2)) {
+        if (framesPendingCount > (m_expectedDisplayFps * 2)) {
             // we have too many frames pending in the queue, we may have to throttle
             // the subscription more
 
             uint throttleAdjust = 1;
-            if ((m_throttleCount > 40) && (m_throttleCount > (framesPendingCount / 4))) {
-                throttleAdjust = framesPendingCount / 4;
+            if (m_throttleCount > 60) {
+                throttleAdjust = framesPendingCount / 8;
                 if (throttleAdjust == 0)
                     throttleAdjust = 1;
             }
-            m_throttleCount -= throttleAdjust;
+            if (throttleAdjust >= m_throttleCount)
+                m_throttleCount = 1;
+            else
+                m_throttleCount -= throttleAdjust;
 
             if ((m_throttleCount <= 2) && (m_expectedFps != 0)) {
                 // throttle to less then 2fps? This looks suspicious, terminate.
