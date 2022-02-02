@@ -29,7 +29,7 @@ CanvasWindow::CanvasWindow(QWidget *parent)
     : QWidget(parent)
 {
     setWindowTitle("Canvas");
-    setMinimumSize(QSize(320, 256));
+    setMinimumSize(QSize(240, 240));
     setWindowIcon(QIcon(":/module/canvas"));
 
     m_imgView = new ImageViewWidget(this);
