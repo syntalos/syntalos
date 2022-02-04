@@ -4,7 +4,11 @@
 # try to find NumPy
 python_inc_args = python_embed_dep.get_variable(pkgconfig: 'Cflags').strip().split()
 python_inc_args += run_command('python3',
-                               ['-c', 'import site\nfor i in site.getsitepackages(): print("-I" + i + "/numpy/core/include")'],
+                               ['-c',
+                                'import site\n' +
+                                'import sys\n' +
+                                'for i in site.getsitepackages() + sys.path:\n' +
+                                '    if i: print("-I" + i + "/numpy/core/include")'],
                                check: true).stdout().strip().split()
 python_inc_args += '-I' + run_command('python3',
                                       ['-m', 'site', '--user-site'],
@@ -22,7 +26,7 @@ foreach inc_arg : python_inc_args
     endif
 endforeach
 if not have_numpy
-    error('Unable to found Python\'s NumPy module. Please install it to continue.')
+    error('Unable to find Python\'s NumPy module. Please install it to continue.')
 endif
 
 rep_worker_src_hdr = custom_target('gen-worker-qro-source',
