@@ -201,7 +201,7 @@ public:
                                     .arg(QTime::fromMSecsSinceStartOfDay(frameTime).toString("hh:mm:ss.zzz"))
                                     .arg(m_currentFps, 0, 'f', 1)
                                     .arg(m_expectedFps, 0, 'f', 1)
-                                    .arg(m_currentDisplayFps, 0, 'f', 1));
+                                    .arg(m_currentDisplayFps, 0, 'f', 0));
         }
     }
 };
