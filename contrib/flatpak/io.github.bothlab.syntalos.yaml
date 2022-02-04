@@ -1,0 +1,192 @@
+---
+id: io.github.bothlab.syntalos
+runtime: org.kde.Platform
+runtime-version: 5.15-21.08
+sdk: org.kde.Sdk
+command: syntalos
+rename-icon: syntalos
+finish-args:
+  - '--share=network'
+  - '--share=ipc'
+  - '--socket=x11'
+  - '--socket=wayland'
+  - '--device=all'
+  - '--filesystem=host'
+  - '--socket=system-bus'
+add-extensions:
+  org.freedesktop.Platform.ffmpeg-full:
+    directory: lib/ffmpeg
+    add-ld-path: '.'
+    version: '20.08'
+    autodelete: false
+modules:
+
+- name: xxhash
+  no-autogen: true
+  make-install-args:
+    - PREFIX=${FLATPAK_DEST}
+  cleanup:
+    - /bin/*
+    - /include
+    - /lib/pkgconfig
+    - /lib/*.a
+    - /share
+  sources:
+    - type: archive
+      url: https://github.com/Cyan4973/xxHash/archive/refs/tags/v0.8.1.tar.gz
+      sha256: 3bb6b7d6f30c591dd65aaaff1c8b7a5b94d81687998ca9400082c739a690436c
+
+- name: eigen3
+  buildsystem: cmake-ninja
+  builddir: true
+  sources:
+    - type: archive
+      url: https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.bz2
+      sha256: b4c198460eba6f28d34894e3a5710998818515104d6e74e5cc331ce31e46e626
+  cleanup:
+    - '*'
+
+- name: toml++
+  buildsystem: meson
+  builddir: true
+  sources:
+    - type: archive
+      url: https://github.com/marzer/tomlplusplus/archive/refs/tags/v3.0.1.tar.gz
+      sha256: e05b2814b891e223d7546aa2408d6cba0628164a84ac453205c7743cb667b9cf
+
+- name: opencv
+  buildsystem: cmake-ninja
+  builddir: true
+  config-opts:
+    - -DCMAKE_BUILD_TYPE=RelWithDebInfo
+    - -DOPENCV_GENERATE_PKGCONFIG=ON
+    - -DWITH_OPENCL=ON
+    - -DWITH_OPENGL=ON
+    - -DWITH_TBB=ON
+    - -DWITH_VULKAN=ON
+    - -DBUILD_WITH_DEBUG_INFO=OFF
+    - -DBUILD_TESTS=OFF
+    - -DBUILD_PERF_TESTS=OFF
+    - -DBUILD_EXAMPLES=OFF
+    - -DINSTALL_C_EXAMPLES=OFF
+    - -DINSTALL_PYTHON_EXAMPLES=OFF
+    # - -DOPENCV_EXTRA_MODULES_PATH="contrib/modules"
+    - -DWITH_1394=OFF
+    - -DWITH_PROTOBUF=ON
+    - -DBUILD_LIST=calib3d,core,dnn,features2d,flann,highgui,imgcodecs,imgproc,java_bindings_generator,ml,objdetect,photo,python_bindings_generator,python_tests,stitching,video,videoio
+  # cleanup:
+  #   - "/bin"
+  sources:
+    - type: archive
+      url: https://github.com/opencv/opencv/archive/4.2.0.tar.gz
+      sha256: 9ccb2192d7e8c03c58fee07051364d94ed7599363f3b0dce1c5e6cc11c1bb0ec
+    - type: archive
+      url: https://github.com/opencv/opencv_contrib/archive/4.2.0.tar.gz
+      sha256: 8a6b5661611d89baa59a26eb7ccf4abb3e55d73f99bb52d8f7c32265c8a43020
+
+- name: libusb
+  sources:
+    - type: archive
+      url: https://github.com/libusb/libusb/archive/v1.0.24.tar.gz
+      sha256: b7724c272dfc5713dce88ff717efd60f021ca5b7c8e30f08ebb2c42d2eea08ae
+
+- name: pybind11
+  buildsystem: simple
+  build-commands:
+    - python3 setup.py build
+    - cmake -DPYBIND11_INSTALL=ON -DPYBIND11_TEST=OFF -DCMAKE_INSTALL_INCLUDEDIR:PATH=${FLATPAK_DEST}/include
+      -DCMAKE_INSTALL_LIBDIR:PATH=${FLATPAK_DEST}/lib -DCMAKE_INSTALL_DATAROOTDIR:PATH=${FLATPAK_DEST}/share
+      .
+    - python3 setup.py install --prefix=${FLATPAK_DEST}
+    - cmake --build .
+    - cmake --install .
+  sources:
+    - type: archive
+      url: https://github.com/pybind/pybind11/archive/v2.9.0.tar.gz
+      sha256: 057fb68dafd972bc13afb855f3b0d8cf0fa1a78ef053e815d9af79be7ff567cb
+
+- name: lapack
+  buildsystem: cmake
+  builddir: true
+  config-opts:
+    - '-DCMAKE_BUILD_TYPE=Release'
+    - '-DBUILD_SHARED_LIBS=ON'
+    - '-DBUILD_TESTING=OFF'
+    - '-DLAPACKE=ON'
+    - '-DCBLAS=ON'
+  sources:
+    - type: archive
+      url: http://www.netlib.org/lapack/lapack-3.8.0.tar.gz
+      sha512: 17786cb7306fccdc9b4a242de7f64fc261ebe6a10b6ec55f519deb4cb673cb137e8742aa5698fd2dc52f1cd56d3bd116af3f593a01dcf6770c4dcc86c50b2a7f
+  cleanup:
+    - '/lib/cmake'
+
+- name: python3-numpy
+  buildsystem: simple
+  build-commands:
+    - python3 setup.py build -j6
+    - python3 setup.py install --prefix=/app --root=/ --optimize=1
+  build-options:
+    env:
+      ATLAS: None
+      BLAS: "/app/lib"
+      LAPACK: "/app/lib"
+  cleanup:
+    - "/bin"
+  sources:
+    - type: archive
+      url: https://github.com/numpy/numpy/releases/download/v1.22.2/numpy-1.22.2.tar.gz
+      sha256: 093d513a460fd94f94c16193c3ef29b2d69a33e482071e3d6d6e561a700587a6
+
+# libzip is needed for tiscamera
+- name: libzip
+  buildsystem: cmake-ninja
+  config-opts:
+  - "-DCMAKE_BUILD_TYPE=Release"
+  - "-DCMAKE_INSTALL_LIBDIR=lib"
+  cleanup:
+  - "/include"
+  - "/bin"
+  - "/share"
+  - "/lib/pkgconfig"
+  - "/lib/*.la"
+  sources:
+  - type: archive
+    url: https://libzip.org/download/libzip-1.8.0.tar.xz
+    sha256: f0763bda24ba947e80430be787c4b068d8b6aa6027a26a19923f0acfa3dac97e
+
+#- name: tiscamera
+#  buildsystem: cmake-ninja
+#  builddir: true
+#  config-opts:
+#    - -DTCAM_INSTALL_UDEV=/app/lib/udev
+#    - -DTCAM_INSTALL_UVCDYNCTRL=/app/share/uvcdynctrl/data/199e
+#    - -DTCAM_INSTALL_SYSTEMD=/app/lib/systemd/system/
+#    - -DGOBJECT_INTROSPECTION_1.0_GIRDIR=/app/share/gir-1.0/
+#    - -DGOBJECT_INTROSPECTION_1.0_TYPELIBDIR=/app/lib/girepository-1.0
+#    - -DGSTREAMER_1.0_PLUGINSDIR=/app/lib/gstreamer-1.0
+#    - -DGSTREAMER_1.0_INCLUDEDIR=/include/gstreamer-1.0
+#  sources:
+#    - type: git
+#      url: https://github.com/TheImagingSource/tiscamera.git
+
+- name: pomidaq
+  buildsystem: cmake-ninja
+  builddir: true
+  config-opts:
+    - -DPYTHON=OFF
+    - -DGUI=OFF
+  sources:
+    - type: git
+      url: https://github.com/bothlab/pomidaq.git
+
+- name: syntalos
+  buildsystem: meson
+  builddir: true
+  config-opts:
+    - -Doptimize-modern-amd64=true
+    - -Dudevdir=/app/lib/udev
+    - -Dmodules=miniscope,intan-rhx
+  sources:
+    - type: dir
+      path: ../..
