@@ -595,13 +595,16 @@ void
 TcamCamera::set_new_frame_callback(std::function<GstFlowReturn(GstAppSink *appsink, gpointer data)>callback,
                                    gpointer data)
 {
-    callback_ = callback;
-    callback_data_ = data;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
     GstAppSinkCallbacks callbacks = { .eos = nullptr,
                                       .new_preroll = nullptr,
                                       .new_sample = new_frame_callback,
-                                      .new_event = nullptr,
                                       nullptr };
+#pragma GCC diagnostic pop
+    callback_ = callback;
+    callback_data_ = data;
+
     gst_app_sink_set_callbacks(GST_APP_SINK(capturesink_), &callbacks, this, nullptr);
 }
 
