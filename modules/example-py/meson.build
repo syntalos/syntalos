@@ -13,7 +13,8 @@ install_subdir(meson.current_source_dir(),
     exclude_files: ['meson.build']
 )
 run_command(ln_exe,
-    ['-sn',
+    ['-snf',
     meson.current_source_dir(),
-    join_paths(meson.current_build_dir(), '..', module_name + '.srclink')]
+    join_paths(meson.current_build_dir(), '..', module_name + '.srclink')],
+    check: true
 )
