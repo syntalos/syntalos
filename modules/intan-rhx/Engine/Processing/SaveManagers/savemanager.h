@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.4
+//  Version 3.0.5
 //
-//  Copyright (c) 2020-2021 Intan Technologies
+//  Copyright (c) 2020-2022 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -88,6 +88,8 @@ protected:
     static QString getDateTimeStamp();
     void getAllWaveformPointers();
     QString intanFileExtension() const;
+
+    static int calculateBufferSize(SystemState* state_);
 
     uint16_t convertAmplifierValue(float voltage) const;
     void convertAmplifierValue(uint16_t* dest, const float* voltage, int numSamples) const;

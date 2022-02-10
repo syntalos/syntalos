@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.4
+//  Version 3.0.5
 //
-//  Copyright (c) 2020-2021 Intan Technologies
+//  Copyright (c) 2020-2022 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -55,6 +55,12 @@ FilePerSignalTypeSaveManager::FilePerSignalTypeSaveManager(WaveformFifo* wavefor
     saveSpikeSnapshot = false;
     samplesPreDetect = 0;
     samplesPostDetect = 0;
+
+    tenthOfSecondTimestamps = (int) round(state->sampleRate->getNumericValue() / 10);
+    lastForceFlushTimestamp = 0;
+    mostRecentSpikeTimestamp = 0;
+
+    spikeCounter = 0;
 }
 
 FilePerSignalTypeSaveManager::~FilePerSignalTypeSaveManager()
@@ -66,24 +72,32 @@ bool FilePerSignalTypeSaveManager::openAllSaveFiles()
 {
     const QString DataFileExtension = ".dat";
     dateTimeStamp = getDateTimeStamp();
-    QString subdirName = state->filename->getBaseFilename() + dateTimeStamp;
-    QDir dir(state->filename->getPath());
-    if (!dir.mkdir(subdirName)) {
-        return false;       // Cannot create subdirectory.
+    int bufferSize = calculateBufferSize(state);
+
+    QString subdirName, subdirPath;
+    if (state->createNewDirectory->getValue()) {
+        subdirName = state->filename->getBaseFilename() + dateTimeStamp;
+        QDir dir(state->filename->getPath());
+        if (!dir.mkdir(subdirName)) {
+            return false; // Cannot create subdirectory.
+        }
+        subdirPath = state->filename->getPath() + "/" + subdirName + "/";
+    } else {
+        subdirName = state->filename->getFullFilename();
+        subdirPath = subdirName + "/";
     }
-    QString subdirPath = state->filename->getPath() + "/" + subdirName + "/";
 
     saveAuxInsWithAmps = state->saveAuxInWithAmpWaveforms->getValue();
 
     // Write settings file.
     state->saveGlobalSettings(subdirPath + "settings.xml");
 
-    infoFile = new SaveFile(subdirPath + "info" + intanFileExtension());
+    infoFile = new SaveFile(subdirPath + "info" + intanFileExtension(), bufferSize);
     if (!infoFile->isOpen()) {
         closeAllSaveFiles();
         return false;
     }
-    timeStampFile = new SaveFile(subdirPath + "time" + DataFileExtension);
+    timeStampFile = new SaveFile(subdirPath + "time" + DataFileExtension, bufferSize);
     if (!timeStampFile->isOpen()) {
         closeAllSaveFiles();
         return false;
@@ -94,28 +108,28 @@ bool FilePerSignalTypeSaveManager::openAllSaveFiles()
 
     if (!saveList.amplifier.empty()) {
         if (state->saveWidebandAmplifierWaveforms->getValue()) {
-            amplifierFile = new SaveFile(subdirPath + "amplifier" + DataFileExtension);
+            amplifierFile = new SaveFile(subdirPath + "amplifier" + DataFileExtension, bufferSize);
             if (!amplifierFile->isOpen()) {
                 closeAllSaveFiles();
                 return false;
             }
         }
         if (state->saveLowpassAmplifierWaveforms->getValue()) {
-            lowpassAmplifierFile = new SaveFile(subdirPath + "lowpass" + DataFileExtension);
+            lowpassAmplifierFile = new SaveFile(subdirPath + "lowpass" + DataFileExtension, bufferSize);
             if (!lowpassAmplifierFile->isOpen()) {
                 closeAllSaveFiles();
                 return false;
             }
         }
         if (state->saveHighpassAmplifierWaveforms->getValue()) {
-            highpassAmplifierFile = new SaveFile(subdirPath + "highpass" + DataFileExtension);
+            highpassAmplifierFile = new SaveFile(subdirPath + "highpass" + DataFileExtension, bufferSize);
             if (!highpassAmplifierFile->isOpen()) {
                 closeAllSaveFiles();
                 return false;
             }
         }
         if (state->saveSpikeData->getValue()) {
-            spikeFile = new SaveFile(subdirPath + "spike" + DataFileExtension);
+            spikeFile = new SaveFile(subdirPath + "spike" + DataFileExtension, bufferSize);
             if (!spikeFile->isOpen()) {
                 closeAllSaveFiles();
                 return false;
@@ -171,13 +185,13 @@ bool FilePerSignalTypeSaveManager::openAllSaveFiles()
 
         }
         if (type == ControllerStimRecordUSB2) {
-            stimFile = new SaveFile(subdirPath + "stim" + DataFileExtension);
+            stimFile = new SaveFile(subdirPath + "stim" + DataFileExtension, bufferSize);
             if (!stimFile->isOpen()) {
                 closeAllSaveFiles();
                 return false;
             }
             if (state->saveDCAmplifierWaveforms->getValue()) {
-                dcAmplifierFile = new SaveFile(subdirPath + "dcamplifier" + DataFileExtension);
+                dcAmplifierFile = new SaveFile(subdirPath + "dcamplifier" + DataFileExtension, bufferSize);
                 if (!dcAmplifierFile->isOpen()) {
                     closeAllSaveFiles();
                     return false;
@@ -187,14 +201,14 @@ bool FilePerSignalTypeSaveManager::openAllSaveFiles()
     }
     if (type != ControllerStimRecordUSB2) {
         if (!saveList.auxInput.empty() && !saveAuxInsWithAmps) {
-            auxInputFile = new SaveFile(subdirPath + "auxiliary" + DataFileExtension);
+            auxInputFile = new SaveFile(subdirPath + "auxiliary" + DataFileExtension, bufferSize);
             if (!auxInputFile->isOpen()) {
                 closeAllSaveFiles();
                 return false;
             }
         }
         if (!saveList.supplyVoltage.empty()) {
-            supplyVoltageFile = new SaveFile(subdirPath + "supply" + DataFileExtension);
+            supplyVoltageFile = new SaveFile(subdirPath + "supply" + DataFileExtension, bufferSize);
             if (!supplyVoltageFile->isOpen()) {
                 closeAllSaveFiles();
                 return false;
@@ -202,28 +216,28 @@ bool FilePerSignalTypeSaveManager::openAllSaveFiles()
         }
     }
     if (!saveList.boardAdc.empty()) {
-        analogInputFile = new SaveFile(subdirPath + "analogin" + DataFileExtension);
+        analogInputFile = new SaveFile(subdirPath + "analogin" + DataFileExtension, bufferSize);
         if (!analogInputFile->isOpen()) {
             closeAllSaveFiles();
             return false;
         }
     }
     if (type == ControllerStimRecordUSB2 && !saveList.boardDac.empty()) {
-        analogOutputFile = new SaveFile(subdirPath + "analogout" + DataFileExtension);
+        analogOutputFile = new SaveFile(subdirPath + "analogout" + DataFileExtension, bufferSize);
         if (!analogOutputFile->isOpen()) {
             closeAllSaveFiles();
             return false;
         }
     }
     if (!saveList.boardDigitalIn.empty()) {
-        digitalInputFile = new SaveFile(subdirPath + "digitalin" + DataFileExtension);
+        digitalInputFile = new SaveFile(subdirPath + "digitalin" + DataFileExtension, bufferSize);
         if (!digitalInputFile->isOpen()) {
             closeAllSaveFiles();
             return false;
         }
     }
     if (!saveList.boardDigitalOut.empty()) {
-        digitalOutputFile = new SaveFile(subdirPath + "digitalout" + DataFileExtension);
+        digitalOutputFile = new SaveFile(subdirPath + "digitalout" + DataFileExtension, bufferSize);
         if (!digitalOutputFile->isOpen()) {
             closeAllSaveFiles();
             return false;
@@ -375,12 +389,15 @@ int64_t FilePerSignalTypeSaveManager::writeToSaveFiles(int numSamples, int timeI
 
     // Save spike data.
     if (spikeFile) {
+
         for (int t = timeIndex - samplesPostDetect; t < timeIndex + numSamples - samplesPostDetect; ++t) {
             for (int i = 0; i < (int) saveList.amplifier.size(); ++i) {
                 uint8_t spikeId = (uint8_t) waveformFifo->getDigitalData(WaveformFifo::ReaderDisk, spikeWaveform[i], t);
                 if (spikeId != SpikeIdNoSpike) {
                     spikeFile->writeStringAsCharArray(saveList.amplifier[i]);   // Write channel name (e.g., "A-000")
-                    spikeFile->writeInt32(waveformFifo->getTimeStamp(WaveformFifo::ReaderDisk, t) - timeStampOffset);  // Write 32-bit timestamp
+                    mostRecentSpikeTimestamp = waveformFifo->getTimeStamp(WaveformFifo::ReaderDisk, t) - timeStampOffset;
+                    spikeCounter++;
+                    spikeFile->writeInt32(mostRecentSpikeTimestamp);
                     spikeFile->writeUInt8(spikeId);                             // Write 8-bit spike ID
                     if (saveSpikeSnapshot) {                                    // Optionally, write spike snapshot
                         for (int tSnap = t - samplesPreDetect; tSnap < t + samplesPostDetect; ++tSnap) {
@@ -391,6 +408,13 @@ int64_t FilePerSignalTypeSaveManager::writeToSaveFiles(int numSamples, int timeI
                     }
                 }
             }
+        }
+
+        // Force flush if enough spikes have accumulated and the last forced flush was at least 0.1 s ago
+        if ((spikeCounter >= 1) && (mostRecentSpikeTimestamp - lastForceFlushTimestamp >= tenthOfSecondTimestamps)) {
+            spikeCounter = 0;
+            lastForceFlushTimestamp = mostRecentSpikeTimestamp;
+            spikeFile->forceFlush();
         }
     }
 

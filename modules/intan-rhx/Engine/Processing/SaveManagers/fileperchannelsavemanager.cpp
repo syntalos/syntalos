@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.4
+//  Version 3.0.5
 //
-//  Copyright (c) 2020-2021 Intan Technologies
+//  Copyright (c) 2020-2022 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -42,35 +42,68 @@ FilePerChannelSaveManager::FilePerChannelSaveManager(WaveformFifo* waveformFifo_
     saveSpikeSnapshot = false;
     samplesPreDetect = 0;
     samplesPostDetect = 0;
+
+    tenthOfSecondTimestamps = (int) round(state->sampleRate->getNumericValue() / 10);
+
+    int numSpikeChannels = (int) state->signalSources->getSaveSignalList().amplifier.size();
+    if (state->saveSpikeData->getValue() && numSpikeChannels > 0) {
+        spikeCounter = new int[numSpikeChannels];
+        mostRecentSpikeTimestamp = new int[numSpikeChannels];
+        lastForceFlushTimestamp = new int[numSpikeChannels];
+        for (int i = 0; i < numSpikeChannels; ++i) {
+            spikeCounter[i] = 0;
+            mostRecentSpikeTimestamp[i] = 0;
+            lastForceFlushTimestamp[i] = 0;
+        }
+    } else {
+        spikeCounter = nullptr;
+        mostRecentSpikeTimestamp = nullptr;
+        lastForceFlushTimestamp = nullptr;
+    }
 }
 
 FilePerChannelSaveManager::~FilePerChannelSaveManager()
 {
     closeAllSaveFiles();
+
+    if (spikeCounter)
+        delete [] spikeCounter;
+    if (mostRecentSpikeTimestamp)
+        delete [] mostRecentSpikeTimestamp;
+    if (lastForceFlushTimestamp)
+        delete [] lastForceFlushTimestamp;
 }
 
 bool FilePerChannelSaveManager::openAllSaveFiles()
 {
     const QString DataFileExtension = ".dat";
+    int bufferSize = calculateBufferSize(state);
+    //int bufferSize = 128;
+
     dateTimeStamp = getDateTimeStamp();
-    const int BufferSize = 65536;   // Reduce buffer size from default since we will have so many SaveFile objects,
-                                    // each with their own buffer.
-    QString subdirName = state->filename->getBaseFilename() + dateTimeStamp;
-    QDir dir(state->filename->getPath());
-    if (!dir.mkdir(subdirName)) {
-        return false;       // Cannot create subdirectory.
+
+    QString subdirName, subdirPath;
+    if (state->createNewDirectory->getValue()) {
+        subdirName = state->filename->getBaseFilename() + dateTimeStamp;
+        QDir dir(state->filename->getPath());
+        if (!dir.mkdir(subdirName)) {
+            return false; // Cannot create subdirectory.
+        }
+        subdirPath = state->filename->getPath() + "/" + subdirName + "/";
+    } else {
+        subdirName = state->filename->getFullFilename();
+        subdirPath = subdirName + "/";
     }
-    QString subdirPath = state->filename->getPath() + "/" + subdirName + "/";
 
     // Write settings file.
     state->saveGlobalSettings(subdirPath + "settings.xml");
 
     liveNotesFileName = subdirPath + "notes.txt";
-    infoFile = new SaveFile(subdirPath + "info" + intanFileExtension(), BufferSize);
+    infoFile = new SaveFile(subdirPath + "info" + intanFileExtension(), bufferSize);
     if (!infoFile->isOpen()) {
         return false;
     }
-    timeStampFile = new SaveFile(subdirPath + "time" + DataFileExtension, BufferSize);
+    timeStampFile = new SaveFile(subdirPath + "time" + DataFileExtension, bufferSize);
     if (!timeStampFile->isOpen()) {
         return false;
     }
@@ -80,7 +113,7 @@ bool FilePerChannelSaveManager::openAllSaveFiles()
     for (int i = 0; i < (int) saveList.amplifier.size(); ++i) {
         if (state->saveWidebandAmplifierWaveforms->getValue()) {
             amplifierFiles.push_back(new SaveFile(subdirPath + "amp-" + QString::fromStdString(saveList.amplifier[i]) +
-                                                  DataFileExtension, BufferSize));
+                                                  DataFileExtension, bufferSize));
             if (!amplifierFiles.back()->isOpen()) {
                 closeAllSaveFiles();
                 return false;
@@ -88,7 +121,7 @@ bool FilePerChannelSaveManager::openAllSaveFiles()
         }
         if (state->saveLowpassAmplifierWaveforms->getValue()) {
             lowpassAmplifierFiles.push_back(new SaveFile(subdirPath + "low-" + QString::fromStdString(saveList.amplifier[i]) +
-                                                         DataFileExtension, BufferSize));
+                                                         DataFileExtension, bufferSize));
             if (!lowpassAmplifierFiles.back()->isOpen()) {
                 closeAllSaveFiles();
                 return false;
@@ -96,7 +129,7 @@ bool FilePerChannelSaveManager::openAllSaveFiles()
         }
         if (state->saveHighpassAmplifierWaveforms->getValue()) {
             highpassAmplifierFiles.push_back(new SaveFile(subdirPath + "high-" + QString::fromStdString(saveList.amplifier[i]) +
-                                                          DataFileExtension, BufferSize));
+                                                          DataFileExtension, bufferSize));
             if (!highpassAmplifierFiles.back()->isOpen()) {
                 closeAllSaveFiles();
                 return false;
@@ -104,11 +137,12 @@ bool FilePerChannelSaveManager::openAllSaveFiles()
         }
         if (state->saveSpikeData->getValue()) {
             spikeFiles.push_back(new SaveFile(subdirPath + "spike-" + QString::fromStdString(saveList.amplifier[i]) +
-                                              DataFileExtension, BufferSize));
+                                              DataFileExtension, bufferSize));
             if (!spikeFiles.back()->isOpen()) {
                 closeAllSaveFiles();
                 return false;
             }
+
             //  Write spike file header.
 
             SaveFile* spikeFile = spikeFiles.back();
@@ -152,7 +186,7 @@ bool FilePerChannelSaveManager::openAllSaveFiles()
         if (type == ControllerStimRecordUSB2) {
             if (saveList.stimEnabled[i]) {
                 stimFiles.push_back(new SaveFile(subdirPath + "stim-" + QString::fromStdString(saveList.amplifier[i]) +
-                                                 DataFileExtension, BufferSize));
+                                                 DataFileExtension, bufferSize));
                 if (!stimFiles.back()->isOpen()) {
                     closeAllSaveFiles();
                     return false;
@@ -160,7 +194,7 @@ bool FilePerChannelSaveManager::openAllSaveFiles()
             }
             if (state->saveDCAmplifierWaveforms->getValue()) {
                 dcAmplifierFiles.push_back(new SaveFile(subdirPath + "dc-" + QString::fromStdString(saveList.amplifier[i]) +
-                                                        DataFileExtension, BufferSize));
+                                                        DataFileExtension, bufferSize));
                 if (!dcAmplifierFiles.back()->isOpen()) {
                     closeAllSaveFiles();
                     return false;
@@ -171,7 +205,7 @@ bool FilePerChannelSaveManager::openAllSaveFiles()
     if (type != ControllerStimRecordUSB2) {
         for (int i = 0; i < (int) saveList.auxInput.size(); ++i) {
             auxInputFiles.push_back(new SaveFile(subdirPath + "aux-" + QString::fromStdString(saveList.auxInput[i]) +
-                                                 DataFileExtension, BufferSize));
+                                                 DataFileExtension, bufferSize));
             if (!auxInputFiles.back()->isOpen()) {
                 closeAllSaveFiles();
                 return false;
@@ -179,7 +213,7 @@ bool FilePerChannelSaveManager::openAllSaveFiles()
         }
         for (int i = 0; i < (int) saveList.supplyVoltage.size(); ++i) {
             supplyVoltageFiles.push_back(new SaveFile(subdirPath + "vdd-" + QString::fromStdString(saveList.supplyVoltage[i]) +
-                                                      DataFileExtension, BufferSize));
+                                                      DataFileExtension, bufferSize));
             if (!supplyVoltageFiles.back()->isOpen()) {
                 closeAllSaveFiles();
                 return false;
@@ -188,7 +222,7 @@ bool FilePerChannelSaveManager::openAllSaveFiles()
     }
     for (int i = 0; i < (int) saveList.boardAdc.size(); ++i) {
         analogInputFiles.push_back(new SaveFile(subdirPath + "board-" + QString::fromStdString(saveList.boardAdc[i]) +
-                                                DataFileExtension, BufferSize));
+                                                DataFileExtension, bufferSize));
         if (!analogInputFiles.back()->isOpen()) {
             closeAllSaveFiles();
             return false;
@@ -197,7 +231,7 @@ bool FilePerChannelSaveManager::openAllSaveFiles()
     if (type == ControllerStimRecordUSB2) {
         for (int i = 0; i < (int) saveList.boardDac.size(); ++i) {
             analogOutputFiles.push_back(new SaveFile(subdirPath + "board-" + QString::fromStdString(saveList.boardDac[i]) +
-                                                     DataFileExtension, BufferSize));
+                                                     DataFileExtension, bufferSize));
             if (!analogOutputFiles.back()->isOpen()) {
                 closeAllSaveFiles();
                 return false;
@@ -206,7 +240,7 @@ bool FilePerChannelSaveManager::openAllSaveFiles()
     }
     for (int i = 0; i < (int) saveList.boardDigitalIn.size(); ++i) {
         digitalInputFiles.push_back(new SaveFile(subdirPath + "board-" + QString::fromStdString(saveList.boardDigitalIn[i]) +
-                                                 DataFileExtension, BufferSize));
+                                                 DataFileExtension, bufferSize));
         if (!digitalInputFiles.back()->isOpen()) {
             closeAllSaveFiles();
             return false;
@@ -215,7 +249,7 @@ bool FilePerChannelSaveManager::openAllSaveFiles()
     if (!saveList.boardDigitalOut.empty()) {
         for (int i = 0; i < (int) saveList.boardDigitalOut.size(); ++i) {
             digitalOutputFiles.push_back(new SaveFile(subdirPath + "board-" + QString::fromStdString(saveList.boardDigitalOut[i]) +
-                                                      DataFileExtension, BufferSize));
+                                                      DataFileExtension, bufferSize));
             if (!digitalOutputFiles.back()->isOpen()) {
                 closeAllSaveFiles();
                 return false;
@@ -392,7 +426,9 @@ int64_t FilePerChannelSaveManager::writeToSaveFiles(int numSamples, int timeInde
             for (int t = timeIndex - samplesPostDetect; t < timeIndex + numSamples - samplesPostDetect; ++t) {
                 uint8_t spikeId = (uint8_t) waveformFifo->getDigitalData(WaveformFifo::ReaderDisk, spikeWaveform[i], t);
                 if (spikeId != SpikeIdNoSpike) {
-                    spikeFiles[i]->writeInt32(waveformFifo->getTimeStamp(WaveformFifo::ReaderDisk, t) - timeStampOffset);  // Write 32-bit timestamp
+                    mostRecentSpikeTimestamp[i] = waveformFifo->getTimeStamp(WaveformFifo::ReaderDisk, t) - timeStampOffset;
+                    spikeFiles[i]->writeInt32(mostRecentSpikeTimestamp[i]); // Write 32-bit timestamp
+                    spikeCounter[i]++;
                     spikeFiles[i]->writeUInt8(spikeId);     // Write 8-bit spike ID
                     if (saveSpikeSnapshot) {                // Optionally, write spike snapshot
                         for (int tSnap = t - samplesPreDetect; tSnap < t + samplesPostDetect; ++tSnap) {
@@ -402,6 +438,15 @@ int64_t FilePerChannelSaveManager::writeToSaveFiles(int numSamples, int timeInde
                         }
                     }
                 }
+            }
+        }
+
+        // Force flush all channel files for which enough spikes have accumulated and the last forced flush was at least 0.1 s ago
+        for (int i = 0; i < (int) saveList.amplifier.size(); ++i) {
+            if ((spikeCounter[i] >= 1) && (mostRecentSpikeTimestamp[i] - lastForceFlushTimestamp[i] >= tenthOfSecondTimestamps)) {
+                spikeCounter[i] = 0;
+                lastForceFlushTimestamp[i] = mostRecentSpikeTimestamp[i];
+                spikeFiles[i]->forceFlush();
             }
         }
     }

@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.4
+//  Version 3.0.5
 //
-//  Copyright (c) 2020-2021 Intan Technologies
+//  Copyright (c) 2020-2022 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -47,7 +47,7 @@ signals:
     void updateGUIFromState();
     void TCPReturnSignal(QString result);
     void TCPErrorSignal(QString error);
-    void sEndOfLineiveNote(QString note);
+    void sendLiveNote(QString note);
     void stimTriggerOn(QString keyName);
     void stimTriggerOff(QString keyName);
     void stimTriggerPulse(QString keyName);

@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.4
+//  Version 3.0.5
 //
-//  Copyright (c) 2020-2021 Intan Technologies
+//  Copyright (c) 2020-2022 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -46,7 +46,8 @@ FilePerSignalTypeManager::FilePerSignalTypeManager(const QString& fileName_, Int
     analogInFile(nullptr),
     analogOutFile(nullptr),
     digitalInFile(nullptr),
-    digitalOutFile(nullptr)
+    digitalOutFile(nullptr),
+    auxInAmplifier(false)
 {
     QFileInfo fileInfo(fileName);
     QString path = fileInfo.path();
@@ -72,6 +73,16 @@ FilePerSignalTypeManager::FilePerSignalTypeManager(const QString& fileName_, Int
             if (numAmpSamples < totalNumSamples) {
                 totalNumSamples = numAmpSamples;
                 limitingFile = amplifierFile->getFileName();
+            }
+
+            // Consider possibility that auxiliary data is saved within wideband amplifier file
+            else if (numAmpSamples > totalNumSamples) {
+                int64_t extraAuxSamples = totalNumSamples * info->numEnabledAuxInputChannels;
+                int64_t originalAmpSamples = totalNumSamples * info->numEnabledAmplifierChannels;
+                int64_t totalSamplesInFile = amplifierFile->fileSize() / 2;
+                if (totalSamplesInFile == (originalAmpSamples + extraAuxSamples)) {
+                    auxInAmplifier = true;
+                }
             }
         }
     }
@@ -113,15 +124,17 @@ FilePerSignalTypeManager::FilePerSignalTypeManager(const QString& fileName_, Int
         }
     }
     if (info->numEnabledAuxInputChannels > 0) {
-        auxInputFile = new DataFile(path + "/" + "auxiliary.dat");
-        if (!auxInputFile->isOpen()) {
-            report += "Warning: Could not open auxiliary.dat" + EndOfLine;
-            info->removeAllChannels(AuxInputSignal);
-        } else {
-            int64_t numAuxInSamples = auxInputFile->fileSize() / (info->numEnabledAuxInputChannels * 2);
-            if (numAuxInSamples < totalNumSamples) {
-                totalNumSamples = numAuxInSamples;
-                limitingFile = auxInputFile->getFileName();
+        if (!auxInAmplifier) {
+            auxInputFile = new DataFile(path + "/" + "auxiliary.dat");
+            if (!auxInputFile->isOpen()) {
+                report += "Warning: Could not open auxiliary.dat" + EndOfLine;
+                info->removeAllChannels(AuxInputSignal);
+            } else {
+                int64_t numAuxInSamples = auxInputFile->fileSize() / (info->numEnabledAuxInputChannels * 2);
+                if (numAuxInSamples < totalNumSamples) {
+                    totalNumSamples = numAuxInSamples;
+                    limitingFile = auxInputFile->getFileName();
+                }
             }
         }
     }
@@ -288,7 +301,11 @@ void FilePerSignalTypeManager::loadDataFrame()
         for (int i = 0; i < numDataStreams; ++i) {
             for (int j = 0; j < 3; ++j) {
                 if (auxInputWasSaved[i][j]) {
-                    auxInputData[i][j] = auxInputFile->readWord();
+                    if (auxInAmplifier) {
+                        auxInputData[i][j] = amplifierFile->readWord() ^ 0x8000U;
+                    } else {
+                        auxInputData[i][j] = auxInputFile->readWord();
+                    }
                 } else {
                     auxInputData[i][j] = 0;
                 }
@@ -345,7 +362,13 @@ int64_t FilePerSignalTypeManager::jumpToTimeStamp(int64_t target)
     target -= firstTimeStamp;   // firstTimeStamp can be negative in triggered recordings.
 
     timeFile->seek(target * 4);
-    if (amplifierFile) amplifierFile->seek(target * 2 * info->numEnabledAmplifierChannels);
+    if (amplifierFile) {
+        if (auxInAmplifier) {
+            amplifierFile->seek(target * 2 * (info->numEnabledAmplifierChannels + info->numEnabledAuxInputChannels));
+        } else {
+            amplifierFile->seek(target * 2 * info->numEnabledAmplifierChannels);
+        }
+    }
     if (dcAmplifierFile) dcAmplifierFile->seek(target * 2 * info->numEnabledAmplifierChannels);
     if (stimFile) stimFile->seek(target * 2 * info->numEnabledAmplifierChannels);
     if (auxInputFile) auxInputFile->seek(target * 2 * info->numEnabledAuxInputChannels);

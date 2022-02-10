@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.4
+//  Version 3.0.5
 //
-//  Copyright (c) 2020-2021 Intan Technologies
+//  Copyright (c) 2020-2022 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -55,7 +55,11 @@ SetFileFormatDialog::SetFileFormatDialog(SystemState *state_, QWidget *parent) :
     recordTimeSpinBox = new QSpinBox(this);
     state->newSaveFilePeriodMinutes->setupSpinBox(recordTimeSpinBox);
 
-    saveAuxInWithAmpCheckBox = new QCheckBox(tr("Save Auxiliary Inputs (Accelerometers) in Wideband Amplifier Data File"), this);
+    createNewDirectoryCheckBox = new QCheckBox(tr("Create new save directory with timestamp for each recording (recommended)"), this);
+
+    if (state->getControllerTypeEnum() != ControllerStimRecordUSB2) {
+        saveAuxInWithAmpCheckBox = new QCheckBox(tr("Save Auxiliary Inputs (Accelerometers) in Wideband Amplifier Data File"), this);
+    }
     saveWidebandAmplifierWaveformsCheckBox = new QCheckBox(tr("Save Wideband Amplifier Waveforms"), this);
     saveLowpassAmplifierWaveformsCheckBox = new QCheckBox(tr("Save Lowpass Amplifier Waveforms"), this);
     saveHighpassAmplifierWaveformsCheckBox = new QCheckBox(tr("Save Highpass Amplifier Waveforms"), this);
@@ -141,7 +145,9 @@ SetFileFormatDialog::SetFileFormatDialog(SystemState *state_, QWidget *parent) :
     oneFilePerSignalTypeBoxLayout->addWidget(fileFormatNeuroScopeButton);
     oneFilePerSignalTypeBoxLayout->addWidget(oneFilePerSignalTypeDescription);
     oneFilePerSignalTypeBoxLayout->addWidget(NeuroScopeDescription);
-    oneFilePerSignalTypeBoxLayout->addWidget(saveAuxInWithAmpCheckBox);
+    if (state->getControllerTypeEnum() != ControllerStimRecordUSB2) {
+        oneFilePerSignalTypeBoxLayout->addWidget(saveAuxInWithAmpCheckBox);
+    }
 
     QVBoxLayout *oneFilePerChannelBoxLayout = new QVBoxLayout;
     oneFilePerChannelBoxLayout->addWidget(fileFormatOpenEphysButton);
@@ -181,6 +187,7 @@ SetFileFormatDialog::SetFileFormatDialog(SystemState *state_, QWidget *parent) :
     mainLayout->addWidget(traditionalBox);
     mainLayout->addWidget(oneFilePerSignalTypeBox);
     mainLayout->addWidget(oneFilePerChannelBox);
+    mainLayout->addWidget(createNewDirectoryCheckBox);
     mainLayout->addWidget(saveWidebandAmplifierWaveformsCheckBox);
     mainLayout->addLayout(lowpassSaveLayout);
     mainLayout->addWidget(saveHighpassAmplifierWaveformsCheckBox);
@@ -243,7 +250,10 @@ void SetFileFormatDialog::updateFromState()
         fileFormatOpenEphysButton->setChecked(true);
     }
 
-    saveAuxInWithAmpCheckBox->setChecked(state->saveAuxInWithAmpWaveforms->getValue());
+    if (state->getControllerTypeEnum() != ControllerStimRecordUSB2) {
+        saveAuxInWithAmpCheckBox->setChecked(state->saveAuxInWithAmpWaveforms->getValue());
+    }
+    createNewDirectoryCheckBox->setChecked(state->createNewDirectory->getValue());
     saveWidebandAmplifierWaveformsCheckBox->setChecked(state->saveWidebandAmplifierWaveforms->getValue());
     saveLowpassAmplifierWaveformsCheckBox->setChecked(state->saveLowpassAmplifierWaveforms->getValue());
     saveHighpassAmplifierWaveformsCheckBox->setChecked(state->saveHighpassAmplifierWaveforms->getValue());
@@ -270,9 +280,18 @@ QString SetFileFormatDialog::getFileFormat() const
     return state->fileFormat->getValue(buttonGroup->checkedId());
 }
 
+bool SetFileFormatDialog::getCreateNewDirectory() const
+{
+    return createNewDirectoryCheckBox->isChecked();
+}
+
 bool SetFileFormatDialog::getSaveAuxInWithAmps() const
 {
-    return saveAuxInWithAmpCheckBox->isChecked();
+    if (state->getControllerTypeEnum() != ControllerStimRecordUSB2) {
+        return saveAuxInWithAmpCheckBox->isChecked();
+    } else {
+        return false;
+    }
 }
 
 bool SetFileFormatDialog::getSaveWidebandAmps() const
@@ -365,6 +384,10 @@ void SetFileFormatDialog::updateSaveSnapshots()
 
 void SetFileFormatDialog::updateOldFileFormat()
 {
+    if (state->getControllerTypeEnum() != ControllerStimRecordUSB2) {
+        saveAuxInWithAmpCheckBox->setEnabled(buttonGroup->checkedButton() == fileFormatNeuroScopeButton);
+    }
+
     // Traditional Intan format does not support saving lowpass, highpass, or spike data.
     bool oldFileFormat = (buttonGroup->checkedButton() == fileFormatIntanButton);
 

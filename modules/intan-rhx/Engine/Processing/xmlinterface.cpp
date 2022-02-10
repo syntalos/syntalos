@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.4
+//  Version 3.0.5
 //
-//  Copyright (c) 2020-2021 Intan Technologies
+//  Copyright (c) 2020-2022 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -43,7 +43,7 @@ XMLInterface::XMLInterface(SystemState *state_, ControllerInterface* controllerI
 {
 }
 
-bool XMLInterface::loadFile(const QString &filename, QString &errorMessage, bool stimLegacy, bool probeMap) const
+bool XMLInterface::loadFile(const QString &filename, QString &errorMessage, bool stimLegacy, bool probeMap, bool stimOnly) const
 {
     QFile file(filename);
 
@@ -60,7 +60,7 @@ bool XMLInterface::loadFile(const QString &filename, QString &errorMessage, bool
             return false;
         }
     } else {
-        if (!parseByteArray(byteArray, errorMessage, probeMap)) {
+        if (!parseByteArray(byteArray, errorMessage, probeMap, stimOnly)) {
             qDebug() << "Failure parsing XML data. Error message: " << errorMessage;
             return false;
         }
@@ -84,10 +84,20 @@ bool XMLInterface::saveFile(const QString &filename) const
     return true;
 }
 
-bool XMLInterface::parseByteArray(const QByteArray &byteArray, QString &errorMessage, bool probeMap) const
+bool XMLInterface::parseByteArray(const QByteArray &byteArray, QString &errorMessage, bool probeMap, bool stimOnly) const
 {
     state->holdUpdate();
     bool ignoreStimParameters = false;
+
+    // If probeMap is false (should be loading a general settings file), do a quick run through to see if <ProbeMapSettings> is present
+    // If it is, then give an error message clarifying that probe map files should be loaded through the probe map dialog instead, and return false.
+    if (!probeMap) {
+        if (probeMapDetected(byteArray, errorMessage)) {
+            state->releaseUpdate();
+            return false;
+        }
+    }
+
     if (!parseDocumentStart(byteArray, errorMessage, ignoreStimParameters, probeMap))  {
         state->releaseUpdate();
         return false;
@@ -98,13 +108,19 @@ bool XMLInterface::parseByteArray(const QByteArray &byteArray, QString &errorMes
             return false;
         }
     } else {
-        if (!parseGeneralConfig(byteArray, errorMessage)) {
-            state->releaseUpdate();
-            return false;
-        }
-        if (!parseSignalGroups(byteArray, errorMessage)) {
-            state->releaseUpdate();
-            return false;
+        if (!stimOnly) {
+            if (!checkConsistentChannels(byteArray, errorMessage)) {
+                state->releaseUpdate();
+                return false;
+            }
+            if (!parseGeneralConfig(byteArray, errorMessage)) {
+                state->releaseUpdate();
+                return false;
+            }
+            if (!parseSignalGroups(byteArray, errorMessage)) {
+                state->releaseUpdate();
+                return false;
+            }
         }
         if (state->getControllerTypeEnum() == ControllerStimRecordUSB2 && !ignoreStimParameters &&
                 (includeParameters == XMLIncludeGlobalParameters || includeParameters == XMLIncludeStimParameters)) {
@@ -115,6 +131,23 @@ bool XMLInterface::parseByteArray(const QByteArray &byteArray, QString &errorMes
         }
     }
     state->releaseUpdate();
+    return true;
+}
+
+bool XMLInterface::probeMapDetected(const QByteArray &byteArray, QString &errorMessage) const
+{
+    QDomDocument doc("XMLSettings");
+    if (!doc.setContent(byteArray)) {
+        errorMessage.append("Error: XML file not read as DOM properly - check for invalid syntax.");
+        return false;
+    }
+
+    QDomElement docElem = doc.documentElement().firstChildElement("ProbeMapSettings");
+    if (docElem.isNull()) {
+        return false;
+    }
+
+    errorMessage.append("Error: This appears to be a Probe Map file, not a general settings file. This file should be loaded through the Probe Map dialog instead.");
     return true;
 }
 
@@ -391,6 +424,164 @@ bool XMLInterface::parseDocumentStart(const QByteArray &byteArray, QString &erro
     }
 }
 
+bool XMLInterface::checkConsistentChannels(const QByteArray &byteArray, QString &errorMessage) const
+{
+    QXmlStreamReader stream(byteArray);
+
+    bool dummyIgnore = false;
+    QString dummyError("");
+    bool validDocumentStart = parseDocumentStart(byteArray, dummyError, dummyIgnore);
+    if (!validDocumentStart) return false;
+
+    // Get list of all present channels
+    vector<string> allChannels = state->signalSources->completeChannelsNameList();
+
+    // Create a parallel list of bools to represent if these channels have been initialized from XML
+    vector<bool> channelsInitializedFromXML(allChannels.size(), false);
+
+    // Get to SignalGroups
+    while (!stream.atEnd()) {
+
+        // Make sure we enter at least the first SignalGroup element. If we've gone past all the SignalGroups and are at the end of the document, just return
+        while (stream.name() != "SignalGroup") {
+            QXmlStreamReader::TokenType token = stream.readNext();
+
+            // Handle if no signal groups at all are present by giving a warning and returning
+            if (token == QXmlStreamReader::EndDocument) {
+                errorMessage.append("Warning: No signal groups, which contain all channel-specific settings, could be found in the settings file.");
+                return true;
+            }
+        }
+
+        // Parse this SignalGroup element.
+        QXmlStreamAttributes attributes = stream.attributes();
+
+        // Try to find the SignalGroup's name as "Port " + prefix
+        QString portName("");
+
+        for (auto& attribute : attributes) {
+            if (attribute.name().toString().toLower() == "prefix") {
+                portName = "Port " + attribute.value().toString();
+                break;
+            }
+        }
+
+        SignalGroup* thisSignalGroup = state->signalSources->groupByName(portName);
+        // If the SignalGroup couldn't be found, just skip this element
+        if (!thisSignalGroup) {
+            // If there are no 'Port' signal groups, there could still be Analog In, Analog Out, Digital In, or Digital Out signal groups present
+            // If prefix attribute is "ANALOG-IN", then get the "Analog In Ports" group
+            if (portName == "Port ANALOG-IN") {
+                thisSignalGroup = state->signalSources->groupByName("Analog In Ports");
+            }
+
+            // If prefix attribute is "ANALOG OUT", then get the "Analog Out Ports" group
+            else if (portName == "Port ANALOG-OUT") {
+                thisSignalGroup = state->signalSources->groupByName("Analog Out Ports");
+            }
+
+            // If prefix attribute is "DIGITAL-IN", then get the "Digital In Ports" group
+            else if (portName == "Port DIGITAL-IN") {
+                thisSignalGroup = state->signalSources->groupByName("Digital In Ports");
+            }
+
+            // If prefix attribute is "DIGITAL-OUT", then get the "Digital Out Ports" group
+            else if (portName == "Port DIGITAL-OUT") {
+                thisSignalGroup = state->signalSources->groupByName("Digital Out Ports");
+            }
+        }
+
+        // If the SignalGroup still can't be found, give an error and return
+        if (!thisSignalGroup) {
+            errorMessage.append("Error: Settings file includes port " + portName + " but the Intan controller currently has no channels on a port of this name.");
+            return false;
+        }
+
+        bool missingChannel = false;
+        // Parse Channels
+        while (!stream.atEnd()) {
+
+            // Make sure we enter at least the first Channel element. If we've gone past all the Channels and are at the end of the document, just return.
+            while (stream.name() != "Channel") {
+                QXmlStreamReader::TokenType token = stream.readNext();
+                if (token == QXmlStreamReader::EndDocument) {
+
+                    // Before exiting, check all initialized channels against all present channels, giving a warning if channels were not initialized
+                    vector<string> uninitializedChannels = findUninitializedChannels(allChannels, channelsInitializedFromXML);
+
+                    // If at least one channel is uninitialized, populate errorMessage with a description
+                    if (uninitializedChannels.size() > 0) {
+                        if (errorMessage.length() > 0) {
+                            errorMessage.append("\n");
+                        }
+                        errorMessage.append("Warning: The following channels are currently detected by the Intan controller but are not included in the settings file:");
+                        for (uint i = 0; i < uninitializedChannels.size(); ++i) {
+                            errorMessage.append("\n" + QString::fromStdString(uninitializedChannels[i]));
+                        }
+                    }
+
+                    // Return true if all channels were consistent
+                    // Return true but with errorMessage populated with a warning if some present channels were uninitialized by XML
+                    // Return false with errorMessage populated with an error message if some channels from the XML are not present
+                    return !missingChannel;
+                }
+            }
+
+            // Parse this Channel element.
+            QXmlStreamAttributes attributes = stream.attributes();
+
+            // Try to find the Channel's name
+            QString nativeChannelName("");
+            for (auto& attribute : attributes) {
+                if (attribute.name().toString().toLower() == "nativechannelname") {
+                    nativeChannelName = attribute.value().toString();
+                    break;
+                }
+            }
+
+            Channel *thisChannel = state->signalSources->channelByName(nativeChannelName);
+
+            // If the Channel couldn't be found (not connected to hardware), complain and flag missingChannel, ultimately resulting in an error.
+            if (!thisChannel) {
+                if (!missingChannel) {
+                    errorMessage.append("Error: Settings file includes the following channels that are currently not detected by the Intan controller:");
+                    missingChannel = true;
+                }
+                errorMessage.append("\n" + nativeChannelName);
+            } else {
+
+                // If the Channel could be found, set its bool in channelsInitializedFromXML to true to flag that it was found.
+                vector<string>::iterator it;
+                it = find(allChannels.begin(), allChannels.end(), nativeChannelName.toStdString());
+                if (it != allChannels.end()) {
+                    int thisChannelIdx = it - allChannels.begin();
+                    channelsInitializedFromXML[thisChannelIdx] = true;
+                }
+            }
+
+            // Skip this Channel element once we're done with it.
+            stream.skipCurrentElement();
+            stream.readNext();
+        }
+
+        // Skip this SignalGroup element once we're done with it.
+        stream.skipCurrentElement();
+        stream.readNext();
+    }
+    return true;
+}
+
+vector<string> XMLInterface::findUninitializedChannels(vector<string> allChannels, vector<bool> channelsInitializedFromXML) const
+{
+    vector<string> uninitializedChannels;
+    for (uint i = 0; i < allChannels.size(); ++i) {
+        if (!channelsInitializedFromXML[i]) {
+            uninitializedChannels.push_back(allChannels[i]);
+        }
+    }
+    return uninitializedChannels;
+}
+
 bool XMLInterface::parseGeneralConfig(const QByteArray &byteArray, QString &errorMessage) const
 {
     QXmlStreamReader stream(byteArray);
@@ -411,7 +602,7 @@ bool XMLInterface::parseGeneralConfig(const QByteArray &byteArray, QString &erro
 
     // Iterate through all XML attributes.
     QXmlStreamAttributes attributes = stream.attributes();
-    for (auto attribute : attributes) {
+    for (auto& attribute : attributes) {
         // Get the attribute name and value from the XML.
         QString attributeName = attribute.name().toString();
         QString attributeValue = attribute.value().toString();

@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.4
+//  Version 3.0.5
 //
-//  Copyright (c) 2020-2021 Intan Technologies
+//  Copyright (c) 2020-2022 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -43,7 +43,9 @@ using namespace std;
 class SaveFile
 {
 public:
-    SaveFile(const QString& fileName_, int bufferSize_ = 262144); // 262144 = 2^18 bytes = 256K
+    SaveFile(const QString& fileName_, int bufferSize_);
+    //SaveFile(const QString& fileName_, int bufferSize_ = 262144); // 262144 = 2^18 bytes = 256K
+    //SaveFile(const QString& fileName_, int bufferSize_ = 2048);
     ~SaveFile();
 
     void writeInt32(int32_t word);
@@ -69,6 +71,7 @@ public:
     void writeSignalGroup(const SignalGroup* signalGroup);
     void close();
     void flush();
+    void forceFlush();
     bool isOpen() const { return file != nullptr; }
     void openForAppend();
     inline int64_t getNumBytesWritten() const { return numBytesWritten; }

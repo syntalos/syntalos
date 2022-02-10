@@ -54,3 +54,21 @@ Intan RHX release notes
 - Improved optimum SPI delay finding algorithm so that setting delay manually is less likely to be necessary.
 - In data file playback mode, electrode impedances are now displayed.
 - Fixed issue with external fast settling in RHD systems not properly triggering as a result of digital input activity
+
+* Version 3.0.5, 3 February 2022
+- Removed unused Context Help buttons from dialogs.
+- Reduced latency of spike .dat file writing so that these files are updated as soon as spikes are detected.
+- Added option to start software without OpenCL.
+- Improved TCP parsing to handle unexpected whitespace in a string of commands.
+- Added WriteToDiskLatency setting for users to control.
+- Added CreateNewDirectory setting for users to control.
+- Fixed displaying 'save to disk' icon for enabled non-amplifier signals (e.g., aux in, digital in, analog in).
+- Fixed small memory leak during TCP data streaming.
+- Altered 'Rescan Ports' behavior so that if the system went from no headstages to at least one detected, the displayed port will update to the present chip(s).
+- Added drag'n'drop option for various settings files.
+- Added more descriptive error messages when a Probe Map file is loaded as a general settings file.
+- Fixed bug that would only flag channels as spike-TCP enabled if they were also waveform-TCP enabled.
+- Removed unusable 'aux in wideband' checkbox hidden for RHS systems, because they don't have aux in channels.
+- Added more descriptive error/warning messages when channels loaded from XML file are inconsistent with those currently plugged in.
+- Fixed bug where loading data for playback that had aux inputs saved in wideband file wouldn't parse correctly.
+- Fixed bug with external fast settling not properly triggering as a result of digital input activity.

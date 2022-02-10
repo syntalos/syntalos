@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.4
+//  Version 3.0.5
 //
-//  Copyright (c) 2020-2021 Intan Technologies
+//  Copyright (c) 2020-2022 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -182,7 +182,7 @@ ControlPanelConfigureTab::ControlPanelConfigureTab(ControllerInterface* controll
 
     connect(this, SIGNAL(sendExecuteCommand(QString)), parser, SLOT(executeCommandSlot(QString)));
     connect(this, SIGNAL(sendNoteCommand(QString)), parser, SLOT(noteCommandSlot(QString)));
-    connect(parser, SIGNAL(sEndOfLineiveNote(QString)), this, SLOT(displayLastLiveNote(QString)));
+    connect(parser, SIGNAL(sendLiveNote(QString)), this, SLOT(displayLastLiveNote(QString)));
     connect(scanButton, SIGNAL(clicked()), this, SLOT(rescanPorts()));
     connect(setCableDelayButton, SIGNAL(clicked()), this, SLOT(manualCableDelayControl()));
 }

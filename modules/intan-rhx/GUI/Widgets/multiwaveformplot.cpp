@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.4
+//  Version 3.0.5
 //
-//  Copyright (c) 2020-2021 Intan Technologies
+//  Copyright (c) 2020-2022 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -1084,7 +1084,8 @@ void MultiWaveformPlot::drawWaveformLabel(QPainter &painter, const QString& name
                 (state->saveLowpassAmplifierWaveforms->getValue() && filterText == "LOW" && !oldSaveFile) ||
                 (state->saveHighpassAmplifierWaveforms->getValue() && filterText == "HIGH" && !oldSaveFile) ||
                 (state->saveSpikeData->getValue() && filterText == "SPK" && !oldSaveFile) ||
-                (state->saveDCAmplifierWaveforms->getValue() && filterText == "DC")) {
+                (state->saveDCAmplifierWaveforms->getValue() && filterText == "DC") ||
+                (!isAmpSignal)) {
                 painter.fillRect(x1, y1, 13, labelHeight, color);
                 painter.drawImage(x1 + 2, y1 + 2, darkText ? saveSelectedBadge : saveBadge);
                 xOffset += 11;

@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.4
+//  Version 3.0.5
 //
-//  Copyright (c) 2020-2021 Intan Technologies
+//  Copyright (c) 2020-2022 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -62,9 +62,8 @@ class ControllerInterface : public QObject
 {
     Q_OBJECT
 public:
-    ControllerInterface(SystemState* state_, AbstractRHXController* rhxController_, const QString& boardSerialNumber,
-                        IntanRhxModule *mod,
-                        DataFileReader* dataFileReader_ = nullptr, QObject* parent = nullptr);
+    ControllerInterface(SystemState* state_, AbstractRHXController* rhxController_, const QString& boardSerialNumber, bool useOpenCL,
+                        IntanRhxModule *mod, DataFileReader* dataFileReader_ = nullptr, QObject* parent = nullptr);
     ~ControllerInterface();
 
     void rescanPorts(bool updateDisplay = false);

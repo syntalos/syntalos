@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.4
+//  Version 3.0.5
 //
-//  Copyright (c) 2020-2021 Intan Technologies
+//  Copyright (c) 2020-2022 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -52,6 +52,9 @@ class SpikeSortingDialog : public QDialog
 public:
     SpikeSortingDialog(SystemState* state_, ControllerInterface* controllerInterface_, QWidget *parent = nullptr);
     ~SpikeSortingDialog();
+
+    void dragEnterEvent(QDragEnterEvent *event) override;
+    void dropEvent(QDropEvent *event) override;
 
     void updateForRun();
     void updateForLoad();

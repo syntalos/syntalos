@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.4
+//  Version 3.0.5
 //
-//  Copyright (c) 2020-2021 Intan Technologies
+//  Copyright (c) 2020-2022 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -55,20 +55,24 @@ class XMLInterface
 public:
     XMLInterface(SystemState* state_, ControllerInterface* controllerInterface_, XMLIncludeParameters includeParameters_);
 
-    bool loadFile(const QString& filename, QString &errorMessage, bool stimLegacy = false, bool probeMap = false) const;
+    bool loadFile(const QString& filename, QString &errorMessage, bool stimLegacy = false, bool probeMap = false, bool stimOnly = false) const;
     bool saveFile(const QString& filename) const;
 
-    bool parseByteArray(const QByteArray &byteArray, QString &errorMessage, bool probeMap) const;
+    bool parseByteArray(const QByteArray &byteArray, QString &errorMessage, bool probeMap, bool stimOnly = false) const;
 
     void saveAsElement(QXmlStreamWriter &stream) const; // Save as an XML element.
 
     QByteArray saveByteArray() const; // Save as a single QByteArray.
 
 private:
+    bool probeMapDetected(const QByteArray &byteArray, QString &errorMessage) const;
     bool parseDocumentStart(const QByteArray &byteArray, QString &errorMessage, bool &ignoreStimParameters, bool probeMap = false) const;
+    bool checkConsistentChannels(const QByteArray &byteArray, QString &errorMessage) const;
     bool parseGeneralConfig(const QByteArray &byteArray, QString &errorMessage) const;
     bool parseSignalGroups(const QByteArray &byteArray, QString &errorMessage) const;
     bool parseStimParameters(const QByteArray &byteArray, QString &errorMessage) const;
+
+    vector<string> findUninitializedChannels(vector<string> allChannels, vector<bool> channelInitializedFromXML) const;
 
     bool parseProbeMapSettingsDOM(const QByteArray &byteArray, QString &errorMessage) const;
 

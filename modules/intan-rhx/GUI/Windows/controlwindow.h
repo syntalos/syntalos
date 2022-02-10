@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.4
+//  Version 3.0.5
 //
-//  Copyright (c) 2020-2021 Intan Technologies
+//  Copyright (c) 2020-2022 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -65,6 +65,9 @@ class ControlWindow : public QMainWindow
 public:
     ControlWindow(SystemState* state_, CommandParser* parser_, ControllerInterface* controllerInterface_);
     ~ControlWindow();
+
+    void dragEnterEvent(QDragEnterEvent *event) override;
+    void dropEvent(QDropEvent *event) override;
 
     bool groupIsPossible() const { return multiColumnDisplay->groupIsPossible(); }
     bool ungroupIsPossible() const { return multiColumnDisplay->ungroupIsPossible(); }
@@ -215,6 +218,7 @@ private:
     QMenu *stimulationMenu;
     QMenu *impedanceMenu;
     QMenu *toolsMenu;
+    QMenu *performanceMenu;
     QMenu *helpMenu;
 
     QAction *runAction;
@@ -341,6 +345,7 @@ private:
     void adjustYScale(int delta);
 
     bool stimParamWarning();
+    bool overwriteWarning();
 };
 
 #endif // CONTROLWINDOW_H

@@ -7,8 +7,8 @@ Syntalos as well.
 
 --------------------
 
-commit eaf15163f83dc146b8626e49194fb37bef781b47 (HEAD -> main, tag: 3.0.4, origin/main, origin/HEAD)
+commit d2fe0bd5ea714b51b3e369184c5883adeb834216 (HEAD -> main, tag: 3.0.5, origin/main, origin/HEAD)
 Author: Adrian Foy <afoy@intantech.com>
-Date:   Thu Aug 5 15:58:44 2021 -0700
+Date:   Wed Feb 9 09:53:55 2022 -0800
 
-    Update from 3.0.3 to 3.0.4
+    Update from 3.0.4 to 3.0.5

@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.4
+//  Version 3.0.5
 //
-//  Copyright (c) 2020-2021 Intan Technologies
+//  Copyright (c) 2020-2022 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -38,7 +38,7 @@ class StimFigure : public AbstractFigure
 {
     Q_OBJECT
 public:
-    explicit StimFigure(StimParameters* stimParameters, QWidget *parent = 0);
+    explicit StimFigure(StimParameters* stimParameters, QWidget *parent = nullptr);
 
     void uniqueRedraw(QPainter &painter) override;
 

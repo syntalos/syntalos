@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.4
+//  Version 3.0.5
 //
-//  Copyright (c) 2020-2021 Intan Technologies
+//  Copyright (c) 2020-2022 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -780,6 +780,13 @@ void TCPDisplay::parseCommands(const QString& commands)
     if (commandsList.last().isEmpty())
         commandsList.removeLast();
 
+    // Detect any whitespace-only commands, and remove those.
+    for (auto &command : commandsList) {
+        if (command.trimmed().size() == 0) {
+            commandsList.removeAll(command);
+        }
+    }
+
     // For each command, determine its syntax validity. Good syntax should result in a signal emission, bad syntax should result in a TCP error message being sent.
     for (int i = 0; i < commandsList.size(); i++) {
 
@@ -839,6 +846,7 @@ void TCPDisplay::parseCommands(const QString& commands)
         } else {
             // Unrecognized command
             QString errorMessage = "Error - Command " + QString::number(i + 1) + ": Unrecognized command";
+            qDebug() << "UNRECOGNIZED COMMAND.... words size: " << words.size() << " first word: " << words.at(0);
             state->tcpCommandCommunicator->writeQString(errorMessage);
         }
     }

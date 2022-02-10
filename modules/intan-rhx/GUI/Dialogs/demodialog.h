@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.4
+//  Version 3.0.5
 //
-//  Copyright (c) 2020-2021 Intan Technologies
+//  Copyright (c) 2020-2022 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -41,7 +41,7 @@ class DemoDialog : public QDialog
 {
     Q_OBJECT
 public:
-    explicit DemoDialog(DemoSelections *demoSelection_, QWidget *parent = nullptr);
+    explicit DemoDialog(DemoSelections *demoSelection_, bool &useOpenCL_, QWidget *parent = nullptr);
 
 protected:
     void closeEvent(QCloseEvent *) override;
@@ -49,17 +49,20 @@ protected:
 private:
     DemoSelections *demoSelection;
 
+    bool *useOpenCL;
     QLabel *message;
     QPushButton *usbInterfaceButton;
     QPushButton *recordControllerButton;
     QPushButton *stimControllerButton;
     QPushButton *playbackButton;
+    QPushButton *advancedButton;
 
 private slots:
     void usbInterface();
     void recordController();
     void stimController();
     void playback();
+    void advanced();
 };
 
 #endif // DEMODIALOG_H

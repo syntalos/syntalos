@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.4
+//  Version 3.0.5
 //
-//  Copyright (c) 2020-2021 Intan Technologies
+//  Copyright (c) 2020-2022 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -371,8 +371,26 @@ void SaveToDiskThread::setStatusBarRecording(double bytesPerMinute, const QStrin
     int totalRecordTimeSeconds = round((double)totalRecordedSamples / state->sampleRate->getNumericValue());
     QString timeString = recordTime.addSecs(totalRecordTimeSeconds).toString("HH:mm:ss");
 
-    emit setStatusBar(tr("Saving data to ") + state->filename->getFullFilename() +
-                      dateTimeStamp + ".  (" + QString::number(bytesPerMinute / (1024.0 * 1024.0), 'f', 1) +
+    QString statusFilename = state->filename->getFullFilename();
+    QString suffix = state->getControllerTypeEnum() == ControllerStimRecordUSB2 ? ".rhs" : ".rhd";
+
+    switch (state->getFileFormatEnum()) {
+    case FileFormatIntan:
+        statusFilename += dateTimeStamp;
+        if (!state->createNewDirectory->getValue()) {
+            statusFilename += suffix;
+        }
+        break;
+    case FileFormatFilePerSignalType:
+    case FileFormatFilePerChannel:
+        if (state->createNewDirectory->getValue()) {
+            statusFilename += dateTimeStamp;
+        }
+        break;
+    }
+
+    emit setStatusBar(tr("Saving data to ") + statusFilename +
+                      ".  (" + QString::number(bytesPerMinute / (1024.0 * 1024.0), 'f', 1) +
                       tr(" MB/minute.  File size may be reduced by disabling unused inputs.)  "
                          "Total data saved: ") + QString::number(totalBytesSaved / (1024.0 * 1024.0), 'f', 1) +
                       tr(" MB."));

@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.4
+//  Version 3.0.5
 //
-//  Copyright (c) 2020-2021 Intan Technologies
+//  Copyright (c) 2020-2022 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -38,6 +38,7 @@ ProbeMapWindow::ProbeMapWindow(SystemState* state_, ControllerInterface* control
     state(state_),
     controllerInterface(controllerInterface_)
 {
+    setAcceptDrops(true);
     connect(state, SIGNAL(stateChanged()), this, SLOT(updateFromState()));
     connect(state, SIGNAL(spikeReportSignal(QString)), this, SLOT(catchSpikeReport(QString)));
     connect(state, SIGNAL(spikeTimerTick()), this, SLOT(catchSpikeTimerTick()));
@@ -112,6 +113,7 @@ ProbeMapWindow::ProbeMapWindow(SystemState* state_, ControllerInterface* control
     pageTabWidget = new QTabWidget(this);
     pageTabWidget->setTabPosition(QTabWidget::South);
     pageTabWidget->setTabShape(QTabWidget::Triangular);
+    pageTabWidget->setAcceptDrops(true);
 
     statusCoords = new QLabel(" ", this);
     statusSiteInfo = new QLabel(" ", this);
@@ -228,6 +230,54 @@ ProbeMapWindow::~ProbeMapWindow()
 QSize ProbeMapWindow::sizeHint() const
 {
     return QSize(600, 600);
+}
+
+void ProbeMapWindow::dragEnterEvent(QDragEnterEvent *event)
+{
+    if (event->mimeData()->hasUrls()) {
+        // Only accept events with a single local file url
+        if (event->mimeData()->urls().size() == 1) {
+            if (event->mimeData()->urls().at(0).isLocalFile())
+                event->accept();
+        }
+    }
+}
+
+void ProbeMapWindow::dropEvent(QDropEvent *event)
+{
+    QSettings settings;
+    QString filename = event->mimeData()->urls().at(0).toLocalFile();
+
+    QString errorMessage;
+    bool loadSuccess = probeMapSettingsInterface->loadFile(filename, errorMessage, false, true); // Specify that this XML parsing is probe-map specific.
+
+    if (!loadSuccess) {
+        QMessageBox::critical(this, tr("Error: Loading from XML"), errorMessage);
+        return;
+    } else if (!errorMessage.isEmpty()) {
+        QMessageBox::warning(this, tr("Warning: Loading from XML"), errorMessage);
+    }
+
+    // Once a load has successfully completed, enable QActions
+    enableActions(true);
+
+    QFileInfo fileInfo(filename);
+    settings.setValue("probeMapDirectory", fileInfo.absolutePath());
+
+    // Temporarily suppress 'currentChanged' signal so that the current page can be initialized.
+    disconnect(pageTabWidget, SIGNAL(currentChanged(int)), this, SLOT(pageChanged(int)));
+    currentPage = -1;
+    clearTabWidget();
+    populateTabWidget();
+
+    // Reactive 'currentChanged' signal.
+    connect(pageTabWidget, SIGNAL(currentChanged(int)), this, SLOT(pageChanged(int)));
+
+    // Initialize current page to the first page.
+    pageTabWidget->setCurrentIndex(0);
+    pageChanged(0);
+
+    update();
 }
 
 void ProbeMapWindow::updateFromState()
@@ -528,7 +578,7 @@ void ProbeMapWindow::load()
         QMessageBox::warning(this, tr("Warning: Loading from XML"), errorMessage);
     }
 
-    // Once a load has successfully completed, enable QActions
+    // Once a load has successfully completed, enable QActions.
     enableActions(true);
 
     QFileInfo fileInfo(filename);

@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.4
+//  Version 3.0.5
 //
-//  Copyright (c) 2020-2021 Intan Technologies
+//  Copyright (c) 2020-2022 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -251,8 +251,6 @@ void FilterPlot::drawHashmarks(QPainter &painter)
 void FilterPlot::logLines(double start, double stop, double increment, QPainter &painter)
 {
     painter.setPen(Qt::lightGray);
-
-    qDebug() << "start: " << start << " ... stop: " << stop << " ... increment: " << increment;
 
     // Convert start, stop, and increment to hundredths for the for-loop, to avoid iterating with a double variable
     for (int currentXHundredth = start * 100; currentXHundredth <= stop * 100; currentXHundredth += increment * 100) {

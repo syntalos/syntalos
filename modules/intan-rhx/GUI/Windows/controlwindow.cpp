@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.4
+//  Version 3.0.5
 //
-//  Copyright (c) 2020-2021 Intan Technologies
+//  Copyright (c) 2020-2022 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -38,6 +38,7 @@
 #include "renamechanneldialog.h"
 #include "referenceselectdialog.h"
 #include "controlwindow.h"
+#include "scrollablemessageboxdialog.h"
 
 using namespace std;
 
@@ -62,6 +63,7 @@ ControlWindow::ControlWindow(SystemState* state_, CommandParser* parser_, Contro
     stimulationMenu(nullptr),
     impedanceMenu(nullptr),
     toolsMenu(nullptr),
+    performanceMenu(nullptr),
     helpMenu(nullptr),
     runAction(nullptr),
     stopAction(nullptr),
@@ -143,6 +145,7 @@ ControlWindow::ControlWindow(SystemState* state_, CommandParser* parser_, Contro
     mainCpuLoad(0.0)
 
 {
+    setAcceptDrops(true);
     state->writeToLog("Entered ControlWindow ctor");
     connect(state, SIGNAL(headstagesChanged()), this, SLOT(updateForChangeHeadstages()));
     state->writeToLog("Connected updateForChangeHeadstages");
@@ -330,6 +333,37 @@ ControlWindow::~ControlWindow()
     if (stimParametersInterface) {
         delete stimParametersInterface;
     }
+}
+
+void ControlWindow::dragEnterEvent(QDragEnterEvent *event)
+{
+    if (event->mimeData()->hasUrls()) {
+        // Only accept events with a single local file url
+        if (event->mimeData()->urls().size() == 1) {
+            if (event->mimeData()->urls().at(0).isLocalFile())
+                event->accept();
+        }
+    }
+}
+
+void ControlWindow::dropEvent(QDropEvent *event)
+{
+    if (stimParamWarning()) return;
+
+    updateForLoad();
+
+    QSettings settings;
+    QString filename = event->mimeData()->urls().at(0).toLocalFile();
+
+    bool loadSuccess = loadSettingsFile(filename);
+
+    if (loadSuccess) {
+        QFileInfo fileInfo(filename);
+        settings.beginGroup(ControllerTypeSettingsGroup[(int)state->getControllerTypeEnum()]);
+        settings.setValue("settingsDirectory", fileInfo.absolutePath());
+        settings.endGroup();
+    }
+    updateForStop();
 }
 
 void ControlWindow::createActions()
@@ -652,8 +686,8 @@ void ControlWindow::createMenus()
     toolsMenu->addAction(probeMapAction);
 
     // Performance menu
-    toolsMenu = menuBar()->addMenu(tr("Performance"));
-    toolsMenu->addAction(performanceAction);
+    performanceMenu = menuBar()->addMenu(tr("Performance"));
+    performanceMenu->addAction(performanceAction);
 
     menuBar()->addSeparator();
 
@@ -1084,6 +1118,7 @@ void ControlWindow::performance()
     if (performanceDialog.exec()) {
         // Get updated settings
         changeUsedXPUIndex(performanceDialog.XPUSelectionComboBox->currentIndex());
+        state->writeToDiskLatency->setIndex(performanceDialog.writeLatencyComboBox->currentIndex());
     }
 }
 
@@ -1110,6 +1145,7 @@ void ControlWindow::chooseFileFormatDialog()
     if (fileFormatDialog->exec()) {
         // Store current dialog values before sending update commands, so that GUI updates don't clear any changes.
         QString fileFormat = fileFormatDialog->getFileFormat();
+        bool createNewDirectory = fileFormatDialog->getCreateNewDirectory();
         bool saveAuxInWithAmpWaveforms = fileFormatDialog->getSaveAuxInWithAmps();
         bool saveWidebandAmplifierWaveforms = fileFormatDialog->getSaveWidebandAmps();
         bool saveLowpassAmplifierWaveforms = fileFormatDialog->getSaveLowpassAmps();
@@ -1128,6 +1164,7 @@ void ControlWindow::chooseFileFormatDialog()
         state->holdUpdate();
 
         state->fileFormat->setValue(fileFormat);
+        state->createNewDirectory->setValue(createNewDirectory);
         state->saveAuxInWithAmpWaveforms->setValue(saveAuxInWithAmpWaveforms);
         state->saveWidebandAmplifierWaveforms->setValue(saveWidebandAmplifierWaveforms);
         state->saveLowpassAmplifierWaveforms->setValue(saveLowpassAmplifierWaveforms);
@@ -1160,11 +1197,21 @@ void ControlWindow::selectBaseFilenameSlot()
         break;
 
     case FileFormatFilePerSignalType:
-        newFilename = QFileDialog::getSaveFileName(this, tr("Select Base Filename"), defaultDirectory, tr("Intan Data Files (*") + suffix + ")");
+        if (state->createNewDirectory->getValue()) {
+            newFilename = QFileDialog::getSaveFileName(this, tr("Select Base Filename"), defaultDirectory, tr("Intan Data Files (*") + suffix + ")");
+        } else {
+            // HERE - just get directory
+            newFilename = QFileDialog::getExistingDirectory(this, tr("Select Existing Directory"), defaultDirectory);
+        }
         break;
 
     case FileFormatFilePerChannel:
+        if (state->createNewDirectory->getValue()) {
         newFilename = QFileDialog::getSaveFileName(this, tr("Select Base Filename"), defaultDirectory, tr("Intan Data Files (*") + suffix + ")");
+        } else {
+            // HERE - just get directory
+            newFilename = QFileDialog::getExistingDirectory(this, tr("Select Existing Directory"), defaultDirectory);
+        }
         break;
     }
 
@@ -1215,6 +1262,9 @@ void ControlWindow::fastPlaybackSlot()
 
 void ControlWindow::recordControllerSlot()
 {
+    // Check to make sure that user is aware of possible overwrites when not creating a new directory
+    if (overwriteWarning())
+        return;
     emit sendSetCommand("RunMode", "Record");
     stopAction->setEnabled(false);
 }
@@ -1251,6 +1301,9 @@ void ControlWindow::triggeredRecordControllerSlot()
             if (triggerChannel) triggerChannel->setEnabled(true);
         }
 
+        // Check to make sure that user is aware of possible overwrites when not creating a new directory
+        if (overwriteWarning())
+            return;
         emit sendSetCommand("RunMode", "Trigger");
     } else {
         delete triggerRecordDialog;
@@ -1411,9 +1464,11 @@ bool ControlWindow::loadSettingsFile(QString filename)
     bool loadSuccess = state->loadGlobalSettings(filename, errorMessage);
 
     if (!loadSuccess) {
-        QMessageBox::critical(this, tr("Error: Could not load settings file ") + filename, errorMessage);
+        ScrollableMessageBoxDialog msgBox(this, tr("Error: Could not load settings file " ) + filename, errorMessage);
+        msgBox.exec();
     } else if (!errorMessage.isEmpty()) {
-        QMessageBox::critical(this, tr("Warning: Problem loading settings file ") + filename, errorMessage);
+        ScrollableMessageBoxDialog msgBox(this, tr("Warning: Problem loading settings file " ) + filename, errorMessage);
+        msgBox.exec();
     }
     controllerInterface->updateChipCommandLists(false);  // Update amplifier bandwidth settings.
     restoreDisplaySettings();
@@ -1557,7 +1612,7 @@ void ControlWindow::loadStimSettingsSlot()
 
     QString errorMessage;
     bool loadSuccess = false;
-    loadSuccess = stimParametersInterface->loadFile(filename, errorMessage);
+    loadSuccess = stimParametersInterface->loadFile(filename, errorMessage, false, false, true); // Parse with stimOnly, so StimParameters are all that are loaded
 
     if (!loadSuccess) {
         QMessageBox::critical(this, tr("Error: Loading from XML"), errorMessage + " Trying to parse this XML as a legacy file...");
@@ -1569,7 +1624,7 @@ void ControlWindow::loadStimSettingsSlot()
     }
 
     errorMessage = "";
-    loadSuccess = stimParametersInterface->loadFile(filename, errorMessage, true); // Try parsing as with stimLegacy=true
+    loadSuccess = stimParametersInterface->loadFile(filename, errorMessage, true, false, true); // Try parsing as with stimLegacy=true
 
     if (!loadSuccess) {
         QMessageBox::critical(this, tr("Error: Loading from XML"), errorMessage);
@@ -1984,6 +2039,21 @@ bool ControlWindow::stimParamWarning()
             state->stimParamsHaveChanged = false;
         }
         else if (ret == QMessageBox::No)
+            cancel = true;
+    }
+    return cancel;
+}
+
+// Return true if user canceled recording. Returns false if user hasn't canceled, or if this warning doesn't apply.
+bool ControlWindow::overwriteWarning()
+{
+    bool cancel = false;
+    if (state->getFileFormatEnum() != FileFormatIntan && !state->createNewDirectory->getValue()) {
+        QMessageBox::StandardButton ret = QMessageBox::warning(this, tr("Warning: Possible Data File Overwrite"),
+                                     tr("Saving data in this file format will overwrite pre-existing data files in the directory "
+                                        + state->filename->getFullFilename().toUtf8() + "/.  Do you wish to continue?"),
+                                        QMessageBox::Yes | QMessageBox::No);
+        if (ret != QMessageBox::Yes)
             cancel = true;
     }
     return cancel;

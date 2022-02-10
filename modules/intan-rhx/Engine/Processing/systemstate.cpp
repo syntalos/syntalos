@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.4
+//  Version 3.0.5
 //
-//  Copyright (c) 2020-2021 Intan Technologies
+//  Copyright (c) 2020-2022 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -141,6 +141,18 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
     fileFormat->addItem("OneFilePerSignalType", "OneFilePerSignalType");
     fileFormat->addItem("OneFilePerChannel", "OneFilePerChannel");
     fileFormat->setValue("Traditional");
+
+    writeToDiskLatency = new DiscreteItemList("WriteToDiskLatency", globalItems, this);
+    writeToDiskLatency->setRestricted(RestrictIfRunning, RunningErrorMessage);
+    writeToDiskLatency->addItem("Highest", "Highest", 1.0);
+    writeToDiskLatency->addItem("High", "High", 4.0);
+    writeToDiskLatency->addItem("Medium", "Medium", 16.0);
+    writeToDiskLatency->addItem("Low", "Low", 64.0);
+    writeToDiskLatency->addItem("Lowest", "Lowest", 256.0);
+    writeToDiskLatency->setValue("Highest");
+
+    createNewDirectory = new BooleanItem("CreateNewDirectory", globalItems, this, true);
+    createNewDirectory->setRestricted(RestrictIfRunning, RunningErrorMessage);
 
     saveAuxInWithAmpWaveforms = new BooleanItem("SaveAuxInWithAmplifierWaveforms", globalItems, this, false);
     saveAuxInWithAmpWaveforms->setRestricted(RestrictIfRunning, RunningErrorMessage);

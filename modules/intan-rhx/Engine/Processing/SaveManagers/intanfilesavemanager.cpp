@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.4
+//  Version 3.0.5
 //
-//  Copyright (c) 2020-2021 Intan Technologies
+//  Copyright (c) 2020-2022 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -48,23 +48,37 @@ IntanFileSaveManager::~IntanFileSaveManager()
 bool IntanFileSaveManager::openAllSaveFiles()
 {
     dateTimeStamp = getDateTimeStamp();
-    subdirName = ""; // syntalos: We do not want an extra subdirectory, as we have already created one
-    const bool firstTime = true;
-    //bool firstTime = (subdirName == "");
-    //if (firstTime) {  // If subdirectory does not yet exist, create one with initial time/date stamp.
-    //    subdirName = state->filename->getBaseFilename() + dateTimeStamp;
-    //    QDir dir(state->filename->getPath());
-    //    if (!dir.mkdir(subdirName)) {
-    //        return false;       // Cannot create subdirectory.
-    //    }
-    //}
-    QString subdirPath = state->filename->getPath() + "/" + subdirName + "/";
-    if (firstTime) {
-        // Write settings file.
-        state->saveGlobalSettings(subdirPath + "settings.xml");
-    }
+    int bufferSize = calculateBufferSize(state);
 
-    saveFile = new SaveFile(subdirPath + state->filename->getBaseFilename() + dateTimeStamp + intanFileExtension());
+    subdirName = ""; // syntalos: We do not want an extra subdirectory, as we have already created one
+    QString subdirPath;
+
+//    if (state->createNewDirectory->getValue()) {
+//        bool firstTime = (subdirName == "");
+//        if (firstTime) {  // If subdirectory does not yet exist, create one with initial time/date stamp.
+//            subdirName = state->filename->getBaseFilename() + dateTimeStamp;
+//            QDir dir(state->filename->getPath());
+//            if (!dir.mkdir(subdirName)) {
+//                return false;       // Cannot create subdirectory.
+//            }
+//        }
+//        subdirPath = state->filename->getPath() + "/" + subdirName + "/";
+//        if (firstTime) {
+//            // Write settings file.
+//            state->saveGlobalSettings(subdirPath + "settings.xml");
+//        }
+//    } else {
+//        subdirName = state->filename->getPath();
+//        subdirPath = subdirName + "/";
+//        state->saveGlobalSettings(subdirPath + "settings.xml");
+//    }
+
+    // syntalos: Just save the settings alongside the other data
+    subdirName = state->filename->getPath();
+    subdirPath = subdirName + "/";
+    state->saveGlobalSettings(subdirPath + "settings.xml");
+
+    saveFile = new SaveFile(subdirPath + state->filename->getBaseFilename() + dateTimeStamp + intanFileExtension(), bufferSize);
     if (!saveFile->isOpen()) {
         closeAllSaveFiles();
         return false;

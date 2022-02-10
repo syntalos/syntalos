@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.4
+//  Version 3.0.5
 //
-//  Copyright (c) 2020-2021 Intan Technologies
+//  Copyright (c) 2020-2022 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -390,6 +390,7 @@ bool GPUInterface::findPlatformDevices()
         // Platform profile
         char* returnedString = nullptr;
         size_t size;
+
         clGetPlatformInfo(platformIds[platformIndex], CL_PLATFORM_PROFILE, (size_t) nullptr, nullptr, &size); // get size of profile char array
         returnedString = new char[size];
         clGetPlatformInfo(platformIds[platformIndex], CL_PLATFORM_PROFILE, size, returnedString, nullptr); // get profile char array

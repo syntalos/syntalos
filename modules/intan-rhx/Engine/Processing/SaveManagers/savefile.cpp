@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.4
+//  Version 3.0.5
 //
-//  Copyright (c) 2020-2021 Intan Technologies
+//  Copyright (c) 2020-2022 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -299,7 +299,7 @@ void SaveFile::writeUInt16StimDataArray(const uint16_t* wordArray, int numSample
         ++waveformIndex;
         if (waveformIndex == numWaveforms) waveformIndex = 0;
     }
-    if (bufferIndex >= bufferSize) {    // Check for overrun since this function can write large numbers of bytes.
+    if (bufferIndex > bufferSize) {    // Check for overrun since this function can write large numbers of bytes. Note: Was previously >=, likely overreporting this error
         cerr << "SaveFile::writeUInt16StimDataArray: buffer size exceeded.\n";
     }
 }
@@ -428,6 +428,31 @@ void SaveFile::flush()
     dataStream->writeRawData(buffer, bufferIndex);
     numBytesWritten += bufferIndex;
     bufferIndex = 0;
+}
+
+
+// For Windows 10, it appears that there's an internal buffer of 16 KB when writing to files.
+// This is most cumbersome when writing spike.dat files, which can go long periods with minimal data writing.
+// Even when flushing, if less than 16 KB of data is to be written, it doesn't appear to actually get written,
+// unless the file is closed. A flush can thus be forced by closing then reopening the file.
+void SaveFile::forceFlush()
+{
+    if (!file) return;
+    flush();
+    file->close();
+    if (dataStream) {
+        delete dataStream;
+        dataStream = nullptr;
+    }
+
+    if (!file->open(QIODevice::Append)) {
+        cerr << "SaveFile:: Cannot open file " << fileName.toStdString() << " for writing: " <<
+                qPrintable(file->errorString()) << '\n';
+        if (file) delete file;
+        file = nullptr;
+        return;
+    }
+    createDataStream(file);
 }
 
 void SaveFile::openForAppend()

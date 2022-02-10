@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.4
+//  Version 3.0.5
 //
-//  Copyright (c) 2020-2021 Intan Technologies
+//  Copyright (c) 2020-2022 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -34,6 +34,7 @@ TCPDataOutputThread::TCPDataOutputThread(WaveformFifo *waveformFifo_, const doub
     QThread(parent),
     tcpWaveformDataCommunicator(state_->tcpWaveformDataCommunicator),
     tcpSpikeDataCommunicator(state_->tcpSpikeDataCommunicator),
+    previousSample(nullptr),
     waveformFifo(waveformFifo_),
     signalSources(state_->signalSources),
     sampleRate(sampleRate_),
@@ -318,6 +319,7 @@ void TCPDataOutputThread::run()
             // Any 'finish up' code goes here.
 
             delete [] previousSample;
+            previousSample = nullptr;
             running = false;
         } else {
             qApp->processEvents();
@@ -330,6 +332,10 @@ void TCPDataOutputThread::updateEnabledChannels()
 {
     // Always start with a clean slate
     channelNames = signalSources->completeChannelsNameList();
+    if (previousSample) {
+        delete [] previousSample;
+        previousSample = nullptr;
+    }
 
     enabledChannelNames.clear();
     enabledStimChannelNames.clear();
@@ -462,6 +468,8 @@ void TCPDataOutputThread::updateEnabledChannels()
     spikeArray.clear();
     spikeArray.resize(state->tcpNumDataBlocksWrite->getValue() * numBytesPerSpikeChunk * maxChunksPerDataBlock);
     spikeArrayIndex = 0;
+
+    previousEnabledBands = state->signalSources->getTcpFilterBands();
 
     closeRequested = false;
     closeCompleted = false;

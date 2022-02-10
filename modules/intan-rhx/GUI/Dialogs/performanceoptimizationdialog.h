@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.4
+//  Version 3.0.5
 //
-//  Copyright (c) 2020-2021 Intan Technologies
+//  Copyright (c) 2020-2022 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -49,6 +49,7 @@ public:
     explicit PerformanceOptimizationDialog(SystemState* state_, QWidget *parent = nullptr);
 
     QComboBox *XPUSelectionComboBox;
+    QComboBox *writeLatencyComboBox;
 
 signals:
     void usedXPUIndexChanged(int index);

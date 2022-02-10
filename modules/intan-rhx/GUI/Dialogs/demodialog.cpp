@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.4
+//  Version 3.0.5
 //
-//  Copyright (c) 2020-2021 Intan Technologies
+//  Copyright (c) 2020-2022 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -29,10 +29,12 @@
 //------------------------------------------------------------------------------
 
 #include "demodialog.h"
+#include "advancedstartupdialog.h"
 
-DemoDialog::DemoDialog(DemoSelections *demoSelection_, QWidget *parent) :
+DemoDialog::DemoDialog(DemoSelections *demoSelection_, bool &useOpenCL_, QWidget *parent) :
     QDialog(parent),
     demoSelection(demoSelection_),
+    useOpenCL(&useOpenCL_),
     message(nullptr),
     usbInterfaceButton(nullptr),
     recordControllerButton(nullptr),
@@ -47,6 +49,11 @@ DemoDialog::DemoDialog(DemoSelections *demoSelection_, QWidget *parent) :
     stimControllerButton = new QPushButton(tr("RHS Stim/Record Controller Demo"), this);
     playbackButton = new QPushButton(tr("Data File Playback"));
 
+    advancedButton = new QPushButton(tr("Advanced"), this);
+    advancedButton->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
+    int advancedButtonWidth = advancedButton->sizeHint().width() + 10;
+    advancedButton->setFixedWidth(advancedButtonWidth);
+
     stimControllerButton->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
     int buttonWidth = stimControllerButton->sizeHint().width() + 10;
     stimControllerButton->setFixedWidth(buttonWidth);
@@ -58,6 +65,7 @@ DemoDialog::DemoDialog(DemoSelections *demoSelection_, QWidget *parent) :
     connect(recordControllerButton, SIGNAL(clicked(bool)), this, SLOT(recordController()));
     connect(stimControllerButton, SIGNAL(clicked(bool)), this, SLOT(stimController()));
     connect(playbackButton, SIGNAL(clicked(bool)), this, SLOT(playback()));
+    connect(advancedButton, SIGNAL(clicked(bool)), this, SLOT(advanced()));
 
     QVBoxLayout *mainLayout = new QVBoxLayout;
     mainLayout->addWidget(message);
@@ -66,6 +74,8 @@ DemoDialog::DemoDialog(DemoSelections *demoSelection_, QWidget *parent) :
     mainLayout->addWidget(stimControllerButton);
     mainLayout->addSpacing(8);
     mainLayout->addWidget(playbackButton);
+    mainLayout->addSpacing(8);
+    mainLayout->addWidget(advancedButton);
 
     mainLayout->setAlignment(usbInterfaceButton, Qt::AlignHCenter);
     mainLayout->setAlignment(recordControllerButton, Qt::AlignHCenter);
@@ -106,4 +116,10 @@ void DemoDialog::playback()
 {
     *demoSelection = DemoPlayback;
     accept();
+}
+
+void DemoDialog::advanced()
+{
+    AdvancedStartupDialog advancedStartupDialog(*useOpenCL, this);
+    advancedStartupDialog.exec();
 }

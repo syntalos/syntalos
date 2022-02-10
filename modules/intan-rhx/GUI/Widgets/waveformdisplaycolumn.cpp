@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.4
+//  Version 3.0.5
 //
-//  Copyright (c) 2020-2021 Intan Technologies
+//  Copyright (c) 2020-2022 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -279,7 +279,7 @@ void WaveformDisplayColumn::setShowPinnedWaveforms(bool show)
     pinnedShown = show;
 }
 
-void WaveformDisplayColumn::updatePortSelectionBox()
+void WaveformDisplayColumn::updatePortSelectionBox(bool switchToFirstPort)
 {
     QString selectedItemText = portComboBox->currentText();
     int n = portComboBox->count();
@@ -288,7 +288,9 @@ void WaveformDisplayColumn::updatePortSelectionBox()
     }
     portComboBox->addItems(state->signalSources->populatedGroupListWithChannelCounts());
     portComboBox->setCurrentIndex(0);  // Default to first port on new combo box list...
-    portComboBox->setCurrentText(selectedItemText);  // ...but if previous selection is present, use that.
+    if (!switchToFirstPort) {
+        portComboBox->setCurrentText(selectedItemText); // ... but if previous selection is present, use that. Don't do this if we switch to first port.
+    }
     waveformPlot->adjustToNewNumberOfPorts(portComboBox->count());
     // Caller should probably force updateFromState() after calling this function.
 }

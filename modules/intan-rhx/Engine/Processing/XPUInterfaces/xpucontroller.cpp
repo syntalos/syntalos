@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.4
+//  Version 3.0.5
 //
-//  Copyright (c) 2020-2021 Intan Technologies
+//  Copyright (c) 2020-2022 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -30,8 +30,9 @@
 
 #include "xpucontroller.h"
 
-XPUController::XPUController(SystemState *state_, QObject *parent) :
+XPUController::XPUController(SystemState *state_, bool useOpenCL_, QObject *parent) :
     QObject(parent),
+    useOpenCL(useOpenCL_),
     state(state_),
     usedXPUIndex(-1)
 {
@@ -73,15 +74,13 @@ void XPUController::updateNumStreams(int numStreams)
 void XPUController::runDiagnostic()
 {
     state->writeToLog("Entered runDiagnostic()");
-    bool NO_OPEN_CL = false;
-    //bool NO_OPEN_CL = true;
 
     state->gpuList.clear();
     state->writeToLog("Cleared gpuList");
 
     cpuInterface->speedTest();
     state->writeToLog("Completed cpuInterface->speedTest()");
-    if (!NO_OPEN_CL) {
+    if (useOpenCL) {
         gpuInterface->speedTest();
         state->writeToLog("Completed gpuInterface->speedTest()");
     }

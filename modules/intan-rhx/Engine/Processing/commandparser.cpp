@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.4
+//  Version 3.0.5
 //
-//  Copyright (c) 2020-2021 Intan Technologies
+//  Copyright (c) 2020-2022 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -363,7 +363,7 @@ void CommandParser::noteCommandSlot(QString note)
         emit TCPErrorSignal("LiveNotes cannot be added unless the board is recording");
         return;
     }
-    emit sEndOfLineiveNote(note);
+    emit sendLiveNote(note);
 }
 
 void CommandParser::TCPErrorSlot(QString errorMessage)

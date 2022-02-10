@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.4
+//  Version 3.0.5
 //
-//  Copyright (c) 2020-2021 Intan Technologies
+//  Copyright (c) 2020-2022 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -188,6 +188,16 @@ QString SaveManager::intanFileExtension() const
 {
     if (type == ControllerStimRecordUSB2) return QString(".rhs");
     else return QString(".rhd");
+}
+
+int SaveManager::calculateBufferSize(SystemState *state_)
+{
+    // For File Per Channel, reduce buffer size since we will have so many SaveFile objects,
+    // each with their own buffer
+    int baseBufferSize = state_->getFileFormatEnum() == FileFormatFilePerChannel ? 65536 : 262144;
+
+    // Divide this buffer size by the factor in WriteToDiskLatency
+    return baseBufferSize / ((int) state_->writeToDiskLatency->getNumericValue());
 }
 
 uint16_t SaveManager::convertAmplifierValue(float voltage) const  // voltage in microvolts

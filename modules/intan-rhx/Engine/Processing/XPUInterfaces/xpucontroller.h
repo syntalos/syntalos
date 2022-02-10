@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.4
+//  Version 3.0.5
 //
-//  Copyright (c) 2020-2021 Intan Technologies
+//  Copyright (c) 2020-2022 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -41,7 +41,7 @@ class XPUController  : public QObject
 {
     Q_OBJECT
 public:
-    explicit XPUController(SystemState* state_, QObject *parent = nullptr);
+    explicit XPUController(SystemState* state_, bool useOpenCL_, QObject *parent = nullptr);
     ~XPUController();
 
     void resetPrev();
@@ -55,6 +55,8 @@ private slots:
 
 private:
     void compare();
+
+    bool useOpenCL;
 
     SystemState* state;
     CPUInterface *cpuInterface;

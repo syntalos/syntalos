@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.4
+//  Version 3.0.5
 //
-//  Copyright (c) 2020-2021 Intan Technologies
+//  Copyright (c) 2020-2022 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -66,6 +66,12 @@ private:
     bool saveSpikeSnapshot;
     int samplesPreDetect;
     int samplesPostDetect;
+
+    int *spikeCounter;
+
+    int *mostRecentSpikeTimestamp;
+    int tenthOfSecondTimestamps;
+    int *lastForceFlushTimestamp;
 };
 
 #endif // FILEPERCHANNELSAVEMANAGER_H

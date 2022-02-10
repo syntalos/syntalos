@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.4
+//  Version 3.0.5
 //
-//  Copyright (c) 2020-2021 Intan Technologies
+//  Copyright (c) 2020-2022 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -66,8 +66,8 @@ public:
     }
 };
 
-ControllerInterface::ControllerInterface(SystemState* state_, AbstractRHXController* rhxController_, const QString& boardSerialNumber, IntanRhxModule *mod,
-                                         DataFileReader* dataFileReader_, QObject* parent) :
+ControllerInterface::ControllerInterface(SystemState* state_, AbstractRHXController* rhxController_, const QString& boardSerialNumber, bool useOpenCL,
+                                         IntanRhxModule *mod, DataFileReader* dataFileReader_, QObject* parent) :
     QObject(parent),
     state(state_),
     rhxController(rhxController_),
@@ -122,16 +122,14 @@ ControllerInterface::ControllerInterface(SystemState* state_, AbstractRHXControl
         outOfMemoryError(memoryRequired);
     }
 
-    state->writeToLog("Created USBDataThread");
     usbDataThread->setNumUsbBlocksToRead(RHXDataBlock::blocksFor30Hz(state->getSampleRateEnum()));
     connect(usbDataThread, SIGNAL(finished()), usbDataThread, SLOT(deleteLater()));
     connect(usbDataThread, SIGNAL(hardwareFifoReport(double)), this, SLOT(updateHardwareFifo(double)));
-    state->writeToLog("Set num usb blocks to read, and connected signals");
 
     initializeController();
     state->writeToLog("Completed initializeController()");
 
-    xpuController = new XPUController(state);
+    xpuController = new XPUController(state, useOpenCL, this);
     state->writeToLog("Created XPUController");
 
     rescanPorts();
@@ -290,6 +288,7 @@ void ControllerInterface::runTCPDataOutputThread()
 
 void ControllerInterface::rescanPorts(bool updateDisplay)
 {
+    bool previousHeadstagePresent = state->signalSources->numAmplifierChannels() != 0;
     int numDataStreams = 0;
     if (rhxController->isPlayback()) {
         rhxController->enableDataStream(0, false);
@@ -314,7 +313,11 @@ void ControllerInterface::rescanPorts(bool updateDisplay)
     xpuController->updateNumStreams(numDataStreams);
 
     if (updateDisplay) {
-        display->updatePortSelectionBoxes();
+        // Determine if port selection should switch to a headstage port
+        // This should only occur if prior to scanning, 0 headstages were present, and after, at least 1 was present
+        bool currentHeadstagePresent = state->signalSources->numAmplifierChannels() != 0;
+        bool switchToFirstPort = !previousHeadstagePresent && currentHeadstagePresent;
+        display->updatePortSelectionBoxes(switchToFirstPort);
     }
 
     state->headstagePresent->setValue(state->signalSources->numAmplifierChannels() > 0);
