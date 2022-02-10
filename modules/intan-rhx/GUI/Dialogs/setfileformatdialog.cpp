@@ -213,6 +213,7 @@ SetFileFormatDialog::SetFileFormatDialog(SystemState *state_, QWidget *parent) :
     setLayout(scrollLayout);
 
     // hide formats we do not support in Syntalos right now
+    createNewDirectoryCheckBox->setVisible(false);
     oneFilePerSignalTypeBox->setVisible(false);
     oneFilePerChannelBox->setVisible(false);
     saveWidebandAmplifierWaveformsCheckBox->setVisible(false);

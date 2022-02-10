@@ -149,9 +149,9 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
     writeToDiskLatency->addItem("Medium", "Medium", 16.0);
     writeToDiskLatency->addItem("Low", "Low", 64.0);
     writeToDiskLatency->addItem("Lowest", "Lowest", 256.0);
-    writeToDiskLatency->setValue("Highest");
+    writeToDiskLatency->setValue("High");
 
-    createNewDirectory = new BooleanItem("CreateNewDirectory", globalItems, this, true);
+    createNewDirectory = new BooleanItem("CreateNewDirectory", globalItems, this, false);
     createNewDirectory->setRestricted(RestrictIfRunning, RunningErrorMessage);
 
     saveAuxInWithAmpWaveforms = new BooleanItem("SaveAuxInWithAmplifierWaveforms", globalItems, this, false);
