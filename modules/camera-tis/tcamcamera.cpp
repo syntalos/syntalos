@@ -600,6 +600,7 @@ TcamCamera::set_new_frame_callback(std::function<GstFlowReturn(GstAppSink *appsi
     GstAppSinkCallbacks callbacks = { .eos = nullptr,
                                       .new_preroll = nullptr,
                                       .new_sample = new_frame_callback,
+                                      .new_event = nullptr,
                                       nullptr };
     gst_app_sink_set_callbacks(GST_APP_SINK(capturesink_), &callbacks, this, nullptr);
 }
