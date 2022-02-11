@@ -211,7 +211,7 @@
                <item row="1" column="0">
                 <widget class="QLabel" name="defaultRTPrioLabel">
                  <property name="text">
-                  <string>Default realtime priority for realtime threads</string>
+                  <string>Default realtime priority for RT threads</string>
                  </property>
                 </widget>
                </item>
