@@ -90,7 +90,7 @@ void CropTransform::createSettingsUi(QWidget *parent)
     });
 
     auto sbWidth = new QSpinBox(parent);
-    sbWidth->setRange(0, m_originalSize.width);
+    sbWidth->setRange((m_originalSize.width > 10)? 10 : 0, m_originalSize.width);
     sbWidth->setSuffix("px");
     sbWidth->setValue(m_roi.width);
     sbWidth->setMinimumWidth(100);
@@ -102,7 +102,7 @@ void CropTransform::createSettingsUi(QWidget *parent)
     sbX->setMinimumWidth(100);
 
     auto sbHeight= new QSpinBox(parent);
-    sbHeight->setRange(0, m_originalSize.height);
+    sbHeight->setRange((m_originalSize.height > 10)? 10 : 0, m_originalSize.height);
     sbHeight->setSuffix("px");
     sbHeight->setValue(m_roi.height);
     sbHeight->setMinimumWidth(100);
@@ -237,7 +237,10 @@ void CropTransform::process(Frame &frame)
     }
 
     cv::resize(cropScaleMat, cropScaleMat, cv::Size(), scaleFactor, scaleFactor);
-    cropScaleMat.copyTo(outMat(cv::Rect((outMat.cols - cropScaleMat.cols) / 2, (outMat.rows - cropScaleMat.rows) / 2, cropScaleMat.cols, cropScaleMat.rows)));
+    cropScaleMat.copyTo(outMat(cv::Rect((outMat.cols - cropScaleMat.cols) / 2,
+                                        (outMat.rows - cropScaleMat.rows) / 2,
+                                        cropScaleMat.cols,
+                                        cropScaleMat.rows)));
     frame.mat = outMat;
 }
 
@@ -267,6 +270,10 @@ void CropTransform::checkAndUpdateRoi()
         m_roi.width = m_originalSize.width - m_roi.x;
     if (m_roi.y + m_roi.height > m_originalSize.height || m_roi.height < 0)
         m_roi.height = m_originalSize.height - m_roi.y;
+    if (m_roi.width < 1)
+        m_roi.width = 1;
+    if (m_roi.height < 1)
+        m_roi.height = 1;
 
     // give user some info as to what we are actually doing
     if (m_sizeInfoLabel != nullptr) {
