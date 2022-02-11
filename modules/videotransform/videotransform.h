@@ -24,6 +24,8 @@
 #include <QIcon>
 #include "streams/frametype.h"
 
+class QLabel;
+
 /**
  * @brief Interface for all transformation classes
  */
@@ -37,7 +39,7 @@ public:
     virtual void createSettingsUi(QWidget *parent) = 0;
 
     void setOriginalSize(const cv::Size &size);
-    virtual cv::Size resultSize() const;
+    virtual cv::Size resultSize();
 
     virtual bool allowOnlineModify() const;
 
@@ -66,7 +68,7 @@ public:
     void createSettingsUi(QWidget *parent) override;
 
     bool allowOnlineModify() const override;
-    cv::Size resultSize() const override;
+    cv::Size resultSize() override;
 
     void start() override;
     void process(Frame &frame) override;
@@ -75,6 +77,10 @@ public:
     void fromVariantHash(const QVariantHash &settings) override;
 
 private:
+    void checkAndUpdateRoi();
+
+    QLabel *m_sizeInfoLabel;
+
     std::mutex m_mutex;
 
     cv::Size m_maxima;
@@ -97,7 +103,7 @@ public:
     QIcon icon() const override;
     void createSettingsUi(QWidget *parent) override;
 
-    cv::Size resultSize() const override;
+    cv::Size resultSize() override;
     void process(Frame &frame) override;
 
     QVariantHash toVariantHash() override;

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>620</width>
-    <height>480</height>
+    <width>740</width>
+    <height>486</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -99,7 +99,8 @@
                 <string/>
                </property>
                <property name="icon">
-                <iconset theme="list-add"/>
+                <iconset theme="list-add">
+                 <normaloff>.</normaloff>.</iconset>
                </property>
                <property name="default">
                 <bool>true</bool>
@@ -115,7 +116,8 @@
                 <string/>
                </property>
                <property name="icon">
-                <iconset theme="list-remove"/>
+                <iconset theme="list-remove">
+                 <normaloff>.</normaloff>.</iconset>
                </property>
                <property name="flat">
                 <bool>true</bool>
@@ -135,7 +137,8 @@
                 <string/>
                </property>
                <property name="icon">
-                <iconset theme="go-up"/>
+                <iconset theme="go-up">
+                 <normaloff>.</normaloff>.</iconset>
                </property>
                <property name="flat">
                 <bool>true</bool>
@@ -148,7 +151,8 @@
                 <string/>
                </property>
                <property name="icon">
-                <iconset theme="go-down"/>
+                <iconset theme="go-down">
+                 <normaloff>.</normaloff>.</iconset>
                </property>
                <property name="flat">
                 <bool>true</bool>

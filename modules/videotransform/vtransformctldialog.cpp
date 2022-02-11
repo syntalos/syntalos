@@ -120,7 +120,7 @@ void VTransformCtlDialog::on_activeTFListView_activated(const QModelIndex &index
     resetSettingsPanel();
     auto tf = m_vtfListModel->transform(index.row());
     tf->createSettingsUi(m_curSettingsPanel);
-    ui->labelSettingsHeader->setText(QStringLiteral("Settings for %1").arg(tf->name()));
+    ui->labelSettingsHeader->setText(QStringLiteral("Settings for: %1").arg(tf->name()));
 
     if (m_running && !tf->allowOnlineModify())
         m_curSettingsPanel->setEnabled(false);

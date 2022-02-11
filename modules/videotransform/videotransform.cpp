@@ -22,7 +22,10 @@
 #include <QFormLayout>
 #include <QSpinBox>
 #include <QDoubleSpinBox>
+#include <QLabel>
+#include <QTimer>
 #include <opencv2/imgproc.hpp>
+
 
 VideoTransform::VideoTransform()
     : QObject()
@@ -36,7 +39,7 @@ void VideoTransform::setOriginalSize(const cv::Size &size)
     m_originalSize = size;
 }
 
-cv::Size VideoTransform::resultSize() const
+cv::Size VideoTransform::resultSize()
 {
     return m_originalSize;
 }
@@ -61,7 +64,8 @@ void VideoTransform::fromVariantHash(const QVariantHash &)
 {}
 
 CropTransform::CropTransform()
-    : VideoTransform()
+    : VideoTransform(),
+      m_sizeInfoLabel(nullptr)
 {}
 
 QString CropTransform::name() const
@@ -76,6 +80,15 @@ QIcon CropTransform::icon() const
 
 void CropTransform::createSettingsUi(QWidget *parent)
 {
+    if (m_sizeInfoLabel != nullptr) {
+        qCritical().noquote() << "Tried to create CropTransform UI twice. This is not allowed!";
+        return;
+    }
+    m_sizeInfoLabel = new QLabel(parent);
+    connect(m_sizeInfoLabel, &QWidget::destroyed, [&] () {
+        m_sizeInfoLabel = nullptr;
+    });
+
     auto sbWidth = new QSpinBox(parent);
     sbWidth->setRange(0, m_originalSize.width);
     sbWidth->setSuffix("px");
@@ -83,7 +96,7 @@ void CropTransform::createSettingsUi(QWidget *parent)
     sbWidth->setMinimumWidth(100);
 
     auto sbX = new QSpinBox(parent);
-    sbX->setRange(0, m_originalSize.width - 1);
+    sbX->setRange(0, m_originalSize.width - 10);
     sbX->setSuffix("px");
     sbX->setValue(m_roi.x);
     sbX->setMinimumWidth(100);
@@ -95,62 +108,78 @@ void CropTransform::createSettingsUi(QWidget *parent)
     sbHeight->setMinimumWidth(100);
 
     auto sbY = new QSpinBox(parent);
-    sbY->setRange(0, m_originalSize.height - 1);
+    sbY->setRange(0, m_originalSize.height - 10);
     sbY->setSuffix("px");
     sbY->setValue(m_roi.y);
     sbY->setMinimumWidth(100);
 
-    connect(sbWidth, qOverload<int>(&QSpinBox::valueChanged), [=](int value) {
+    connect(sbWidth, qOverload<int>(&QSpinBox::valueChanged), [=](int) {
+        QTimer::singleShot(500, sbWidth, &QSpinBox::editingFinished);
+    });
+    connect(sbWidth, &QSpinBox::editingFinished, [=]() {
         {
             const std::lock_guard<std::mutex> lock(m_mutex);
-            m_roi.width = value;
+            m_roi.width = sbWidth->value() - m_roi.x;
             m_onlineModified = true;
+
+            checkAndUpdateRoi();
         }
-        sbX->setMaximum(m_originalSize.width - value);
-        if (sbX->value() == sbX->maximum())
-            sbX->setValue(sbX->maximum() - 1);
+        sbHeight->setValue(m_roi.height + m_roi.y);
+        sbX->setValue(m_roi.x);
+        sbY->setValue(m_roi.y);
     });
 
-
-    connect(sbHeight, qOverload<int>(&QSpinBox::valueChanged), [=](int value) {
+    connect(sbHeight, qOverload<int>(&QSpinBox::valueChanged), [=](int) {
+        QTimer::singleShot(500, sbHeight, &QSpinBox::editingFinished);
+    });
+    connect(sbHeight, &QSpinBox::editingFinished, [=]() {
         {
             const std::lock_guard<std::mutex> lock(m_mutex);
-            m_roi.height = value;
+            m_roi.height = sbHeight->value() - m_roi.y;
             m_onlineModified = true;
+            checkAndUpdateRoi();
         }
-        sbY->setMaximum(m_originalSize.height - value);
-        if (sbY->value() == sbY->maximum())
-            sbY->setValue(sbY->maximum() - 1);
+        sbWidth->setValue(m_roi.width + m_roi.x);
+        sbX->setValue(m_roi.x);
+        sbY->setValue(m_roi.y);
     });
 
-
-    connect(sbX, qOverload<int>(&QSpinBox::valueChanged), [=](int value) {
+    connect(sbX, qOverload<int>(&QSpinBox::valueChanged), [=](int) {
+        QTimer::singleShot(500, sbX, &QSpinBox::editingFinished);
+    });
+    connect(sbX, &QSpinBox::editingFinished, [=]() {
         {
             const std::lock_guard<std::mutex> lock(m_mutex);
-            m_roi.x = value;
+            m_roi.x = sbX->value();
             m_onlineModified = true;
+            checkAndUpdateRoi();
         }
-        sbWidth->setMaximum(m_originalSize.width - value);
-        if (sbWidth->value() == sbWidth->maximum())
-            sbWidth->setValue(sbWidth->maximum() - 1);
+        sbWidth->setValue(m_roi.width + m_roi.x);
+        sbHeight->setValue(m_roi.height + m_roi.y);
+        sbY->setValue(m_roi.y);
     });
 
-    connect(sbY, qOverload<int>(&QSpinBox::valueChanged), [=](int value) {
+    connect(sbY, qOverload<int>(&QSpinBox::valueChanged), [=](int) {
+        QTimer::singleShot(500, sbY, &QSpinBox::editingFinished);
+    });
+    connect(sbY, &QSpinBox::editingFinished, [=]() {
         {
             const std::lock_guard<std::mutex> lock(m_mutex);
-            m_roi.y = value;
+            m_roi.y = sbY->value();
             m_onlineModified = true;
+            checkAndUpdateRoi();
         }
-        sbHeight->setMaximum(m_originalSize.height - value);
-        if (sbHeight->value() == sbHeight->maximum())
-            sbHeight->setValue(sbHeight->maximum() - 1);
+        sbWidth->setValue(m_roi.width + m_roi.x);
+        sbHeight->setValue(m_roi.height + m_roi.y);
+        sbX->setValue(m_roi.x);
     });
 
     QFormLayout *formLayout = new QFormLayout;
     formLayout->addRow(QStringLiteral("Start X:"), sbX);
-    formLayout->addRow(QStringLiteral("Start Y:"), sbY);
     formLayout->addRow(QStringLiteral("Width:"), sbWidth);
+    formLayout->addRow(QStringLiteral("Start Y:"), sbY);
     formLayout->addRow(QStringLiteral("Height:"), sbHeight);
+    formLayout->addWidget(m_sizeInfoLabel);
     parent->setLayout(formLayout);
 }
 
@@ -159,14 +188,15 @@ bool CropTransform::allowOnlineModify() const
     return true;
 }
 
-cv::Size CropTransform::resultSize() const
+cv::Size CropTransform::resultSize()
 {
     if (m_activeRoi.empty())
         return m_originalSize;
 
+    checkAndUpdateRoi();
     cv::Size size;
-    size.width = m_activeRoi.width - m_activeRoi.x;
-    size.height = m_activeRoi.height - m_activeRoi.y;
+    size.width = m_activeRoi.width;
+    size.height = m_activeRoi.height;
     return size;
 }
 
@@ -177,15 +207,7 @@ void CropTransform::start()
         m_roi.height = m_originalSize.height;
     }
 
-    if (((m_roi.width - m_roi.x) > m_originalSize.width) || ((m_roi.width - m_roi.x) <= 0)) {
-        m_roi.x = 0;
-        m_roi.width = m_originalSize.width;
-    }
-    if (((m_roi.height - m_roi.y) > m_originalSize.height) || ((m_roi.height - m_roi.y) <= 0)) {
-        m_roi.y = 0;
-        m_roi.height = m_originalSize.height;
-    }
-
+    checkAndUpdateRoi();
     m_activeRoi = m_roi;
     m_activeOutSize = resultSize();
     m_onlineModified = false;
@@ -195,23 +217,15 @@ void CropTransform::process(Frame &frame)
 {
     // handle the simple case: no online modifications
     if (!m_onlineModified) {
-        // FIXME: frame.mat = frame.mat(m_activeRoi) should work in theory, but OpenCV simply doesn't apply the X and Y limits.
-        // A workaround was using ranges
-        frame.mat = frame.mat(cv::Range(m_activeRoi.y, m_activeRoi.height), cv::Range(m_activeRoi.x, m_activeRoi.width));
+        frame.mat = frame.mat(m_activeRoi);
         return;
     }
 
     // online modification: since we are not allowed to alter the image dimensions, we add black bars for now or scale accordingly
     const std::lock_guard<std::mutex> lock(m_mutex);
 
-    // sanity check
-    if (((m_roi.height - m_roi.y) <= 0) || ((m_roi.width - m_roi.x) <= 0)) {
-        frame.mat = frame.mat(cv::Range(m_activeRoi.y, m_activeRoi.height), cv::Range(m_activeRoi.x, m_activeRoi.width));
-        return;
-    }
-
-    // actually to the "fake resizing"
-    cv::Mat cropScaleMat = frame.mat(cv::Range(m_roi.y, m_roi.height), cv::Range(m_roi.x, m_roi.width));
+    // actually do the "fake resizing"
+    cv::Mat cropScaleMat(frame.mat, m_roi);
     cv::Mat outMat = cv::Mat::zeros(m_activeOutSize, frame.mat.type());
 
     double scaleFactor = 1;
@@ -220,11 +234,6 @@ void CropTransform::process(Frame &frame)
     if (cropScaleMat.rows > outMat.rows) {
         double scale = (double) outMat.rows / (double) cropScaleMat.rows;
         scaleFactor = (scale < scaleFactor)? scale : scaleFactor;
-    }
-    if (scaleFactor == 0) {
-        // weird... scale factor should never be zero
-        frame.mat = outMat;
-        return;
     }
 
     cv::resize(cropScaleMat, cropScaleMat, cv::Size(), scaleFactor, scaleFactor);
@@ -248,6 +257,27 @@ void CropTransform::fromVariantHash(const QVariantHash &settings)
     m_roi.y = settings.value("crop_y", 0).toInt();
     m_roi.width = settings.value("crop_width", 0).toInt();
     m_roi.height = settings.value("crop_height", 0).toInt();
+    checkAndUpdateRoi();
+}
+
+void CropTransform::checkAndUpdateRoi()
+{
+    // sanity checks
+    if (m_roi.x + m_roi.width > m_originalSize.width || m_roi.width < 0)
+        m_roi.width = m_originalSize.width - m_roi.x;
+    if (m_roi.y + m_roi.height > m_originalSize.height || m_roi.height < 0)
+        m_roi.height = m_originalSize.height - m_roi.y;
+
+    // give user some info as to what we are actually doing
+    if (m_sizeInfoLabel != nullptr) {
+        m_sizeInfoLabel->setText(QStringLiteral("Result size: %1x%2px (x%3 - w%4; y%5 - h%6)\n"
+                                                "Original size: %7x%8px")
+                                     .arg(m_roi.width)
+                                     .arg(m_roi.height)
+                                     .arg(m_roi.x).arg(m_roi.width + m_roi.x)
+                                     .arg(m_roi.y).arg(m_roi.height + m_roi.y)
+                                     .arg(m_originalSize.width).arg(m_originalSize.height));
+    };
 }
 
 ScaleTransform::ScaleTransform()
@@ -280,7 +310,7 @@ void ScaleTransform::createSettingsUi(QWidget *parent)
     parent->setLayout(formLayout);
 }
 
-cv::Size ScaleTransform::resultSize() const
+cv::Size ScaleTransform::resultSize()
 {
     return cv::Size(round(m_originalSize.width * m_scaleFactor), round(m_originalSize.height * m_scaleFactor));
 }
