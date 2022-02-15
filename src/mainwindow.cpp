@@ -181,7 +181,8 @@ MainWindow::MainWindow(QWidget *parent) :
         m_subjectList->addSubject(sub);
     });
 
-    connect(ui->subjectListView, &QListView::activated, [&](const QModelIndex &index) {
+    connect(ui->subjectListView->selectionModel(), &QItemSelectionModel::currentChanged,
+            [&](const QModelIndex &index, const QModelIndex &) {
         auto sub = m_subjectList->subject(index.row());
 
         ui->idLineEdit->setText(sub.id);

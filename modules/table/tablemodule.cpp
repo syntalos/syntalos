@@ -184,7 +184,7 @@ static QIcon getTableModuleIcon()
     auto data = in.readAll();
     QSvgRenderer renderer(data.replace(QStringLiteral("#232629"), QStringLiteral("#eff0f1")).toLocal8Bit());
     QPixmap pix(96, 96);
-    pix.fill(QColor(0, 0, 0, 255));
+    pix.fill(QColor(0, 0, 0, 0));
     QPainter painter(&pix);
     renderer.render(&painter, pix.rect());
 

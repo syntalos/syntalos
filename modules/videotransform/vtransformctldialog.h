@@ -46,9 +46,11 @@ public:
 private slots:
     void on_btnAdd_clicked();
     void on_btnRemove_clicked();
-    void on_activeTFListView_activated(const QModelIndex &index);
     void on_btnMoveUp_clicked();
     void on_btnMoveDown_clicked();
+
+private:
+    void transformListViewSelectionChanged(const QModelIndex &index);
 
 private:
     Ui::VTransformCtlDialog *ui;

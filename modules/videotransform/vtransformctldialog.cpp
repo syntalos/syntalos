@@ -34,6 +34,11 @@ VTransformCtlDialog::VTransformCtlDialog(QWidget *parent) :
 
     m_vtfListModel = new VTransformListModel(this);
     ui->activeTFListView->setModel(m_vtfListModel);
+
+    connect(ui->activeTFListView->selectionModel(), &QItemSelectionModel::currentChanged,
+            [&](const QModelIndex &index, const QModelIndex &) {
+        transformListViewSelectionChanged(index);
+    });
 }
 
 VTransformCtlDialog::~VTransformCtlDialog()
@@ -113,19 +118,6 @@ void VTransformCtlDialog::on_btnRemove_clicked()
     resetSettingsPanel();
 }
 
-void VTransformCtlDialog::on_activeTFListView_activated(const QModelIndex &index)
-{
-    if (!index.isValid())
-        return;
-    resetSettingsPanel();
-    auto tf = m_vtfListModel->transform(index.row());
-    tf->createSettingsUi(m_curSettingsPanel);
-    ui->labelSettingsHeader->setText(QStringLiteral("Settings for: %1").arg(tf->name()));
-
-    if (m_running && !tf->allowOnlineModify())
-        m_curSettingsPanel->setEnabled(false);
-}
-
 void VTransformCtlDialog::on_btnMoveUp_clicked()
 {
     if (!ui->activeTFListView->currentIndex().isValid())
@@ -152,4 +144,17 @@ void VTransformCtlDialog::on_btnMoveDown_clicked()
     m_vtfListModel->removeRow(rowIdx);
     m_vtfListModel->insertTransform(rowIdx + 1, tf);
     ui->activeTFListView->setCurrentIndex(m_vtfListModel->index(rowIdx + 1));
+}
+
+void VTransformCtlDialog::transformListViewSelectionChanged(const QModelIndex &index)
+{
+    if (!index.isValid())
+        return;
+    resetSettingsPanel();
+    auto tf = m_vtfListModel->transform(index.row());
+    tf->createSettingsUi(m_curSettingsPanel);
+    ui->labelSettingsHeader->setText(QStringLiteral("Settings for: %1").arg(tf->name()));
+
+    if (m_running && !tf->allowOnlineModify())
+        m_curSettingsPanel->setEnabled(false);
 }

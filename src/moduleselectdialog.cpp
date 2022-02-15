@@ -102,6 +102,11 @@ ModuleSelectDialog::ModuleSelectDialog(QList<QSharedPointer<ModuleInfo> > infos,
 
     m_selectedEntryId.clear();
     setModuleInfo(infos);
+
+    connect(ui->listView->selectionModel(), &QItemSelectionModel::currentChanged,
+            [&](const QModelIndex &index, const QModelIndex &) {
+        setEntryIdFromIndex(index);
+    });
 }
 
 ModuleSelectDialog::~ModuleSelectDialog()
@@ -145,16 +150,6 @@ void ModuleSelectDialog::setModuleInfo(QList<QSharedPointer<ModuleInfo>> infos)
 QString ModuleSelectDialog::selectedEntryId() const
 {
     return m_selectedEntryId;
-}
-
-void ModuleSelectDialog::on_listView_activated(const QModelIndex &index)
-{
-    setEntryIdFromIndex(index);
-}
-
-void ModuleSelectDialog::on_listView_clicked(const QModelIndex &index)
-{
-    setEntryIdFromIndex(index);
 }
 
 void ModuleSelectDialog::on_listView_doubleClicked(const QModelIndex &index)
