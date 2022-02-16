@@ -203,6 +203,9 @@ Engine::~Engine()
 static int engineUsbHotplugDispatchCB(struct libusb_context *ctx, struct libusb_device *dev,
                                       libusb_hotplug_event event, void *enginePtr)
 {
+    Q_UNUSED(ctx)
+    Q_UNUSED(dev)
+
     auto engine = static_cast<Engine*>(enginePtr);
     UsbHotplugEventKind kind = UsbHotplugEventKind::NONE;
     if (event == LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED) {
@@ -1829,7 +1832,7 @@ void Engine::receiveModuleError(const QString& message)
 {
     auto mod = qobject_cast<AbstractModule*>(sender());
     if (mod != nullptr)
-        d->runFailedReason = QStringLiteral("%1(%2): %3").arg(mod->id()).arg(mod->name()).arg(message);
+        d->runFailedReason = QStringLiteral("%1(%2): %3").arg(mod->id(), mod->name(), message);
     else
         d->runFailedReason = QStringLiteral("?(?): %1").arg(message);
 
@@ -1866,7 +1869,7 @@ void Engine::onSynchronizerDetailsChanged(const QString &id, const TimeSyncStrat
     tsw->setTimeUnits(TSyncFileTimeUnit::MICROSECONDS, TSyncFileTimeUnit::MICROSECONDS);
     tsw->setTimeDataTypes(TSyncFileDataType::INT64, TSyncFileDataType::INT64);
     tsw->setTimeNames(QStringLiteral("approx-master-time"), QStringLiteral("sync-offset"));
-    tsw->open(QStringLiteral("SyntalosInternal::%1").arg(modId).arg(mod->name()), ds->collectionId());
+    tsw->open(QStringLiteral("SyntalosInternal::%1_%2").arg(modId, mod->name().simplified()), ds->collectionId());
     d->internalTSyncWriters[id] = tsw;
 }
 
