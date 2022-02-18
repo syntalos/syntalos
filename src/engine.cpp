@@ -1701,13 +1701,15 @@ bool Engine::runInternal(const QString &exportDirPath)
         if ((mod->state() != ModuleState::IDLE) && (mod->state() != ModuleState::ERROR))
             mod->setState(ModuleState::IDLE);
 
-        // all module data must be written by this point, so we "steal" its storage group,
-        // so the module will trigger an error message if is still tries to access the final
-        // data.
-        mod->setStorageGroup(nullptr);
-
         qCDebug(logEngine).noquote().nospace() << "Module '" << mod->name() << "' stopped in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
     }
+
+    // All module data must be written by this point, so we "steal" its storage group,
+    // so the module will trigger an error message if is still tries to access the final
+    // data. We mast do this in a separate loop, as some modules may share an EDL group
+    // to store data in.
+    for (auto &mod : orderedActiveModules)
+        mod->setStorageGroup(nullptr);
 
     lastPhaseTimepoint = d->timer->currentTimePoint();
 
