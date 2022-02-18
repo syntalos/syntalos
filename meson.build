@@ -167,6 +167,7 @@ eigen_dep = dependency('eigen3', version: '>= 3.3', include_type: 'system')
 toml_dep = dependency('tomlplusplus', version: '>=3.0')
 opencv_dep = dependency('opencv4', include_type: 'system')
 libusb_dep = dependency('libusb-1.0')
+libsystemd_dep = dependency('libsystemd')
 
 avcodec_dep = dependency('libavcodec', version: '>= 58.20')
 avformat_dep = dependency('libavformat', version: '>= 58.20')

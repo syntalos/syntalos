@@ -1,2 +1,3 @@
 
+subdir('crashreport')
 subdir('metaview')
