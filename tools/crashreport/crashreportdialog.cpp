@@ -27,7 +27,7 @@
 
 #include "debugcollect.h"
 
-static const int MAX_LOG_ENTRIES_IN_REPORT = 50;
+static const int MAX_LOG_ENTRIES_IN_REPORT = 100;
 
 CrashReportDialog::CrashReportDialog(ReportMode mode, QWidget *parent)
     : QDialog(parent),
