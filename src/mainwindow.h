@@ -97,6 +97,9 @@ private slots:
     void on_actionSystemInfo_triggered();
     void on_actionModuleLoadInfo_triggered();
     void on_actionIntervalRunConfig_triggered();
+    void on_actionOnlineDocs_triggered();
+    void on_actionReportIssue_triggered();
+    void on_actionOpenCrashCollector_triggered();
 
 protected:
     void closeEvent(QCloseEvent *event) override;

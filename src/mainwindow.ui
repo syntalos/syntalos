@@ -1245,7 +1245,7 @@
      <x>0</x>
      <y>0</y>
      <width>800</width>
-     <height>22</height>
+     <height>20</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuHelp">
@@ -1253,6 +1253,9 @@
      <string>He&amp;lp</string>
     </property>
     <addaction name="actionAbout"/>
+    <addaction name="actionOnlineDocs"/>
+    <addaction name="actionReportIssue"/>
+    <addaction name="actionOpenCrashCollector"/>
    </widget>
    <widget class="QMenu" name="menuFile">
     <property name="title">
@@ -1544,10 +1547,35 @@
   </action>
   <action name="actionIntervalRunConfig">
    <property name="icon">
-    <iconset theme="view-time-schedule-edit"/>
+    <iconset theme="view-time-schedule-edit">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>Interval Run</string>
+   </property>
+  </action>
+  <action name="actionReportIssue">
+   <property name="icon">
+    <iconset theme="tools-report-bug"/>
+   </property>
+   <property name="text">
+    <string>Report issue</string>
+   </property>
+  </action>
+  <action name="actionOnlineDocs">
+   <property name="icon">
+    <iconset theme="internet-web-browser"/>
+   </property>
+   <property name="text">
+    <string>Online documentation</string>
+   </property>
+  </action>
+  <action name="actionOpenCrashCollector">
+   <property name="icon">
+    <iconset theme="quickopen"/>
+   </property>
+   <property name="text">
+    <string>Open crash collector</string>
    </property>
   </action>
  </widget>

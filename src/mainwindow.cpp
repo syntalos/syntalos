@@ -52,6 +52,8 @@
 #include <QSvgWidget>
 #include <QSvgRenderer>
 #include <QFontMetricsF>
+#include <QDesktopServices>
+#include <QProcess>
 #include <KTar>
 
 #include "appstyle.h"
@@ -1385,4 +1387,35 @@ void MainWindow::on_actionModuleLoadInfo_triggered()
 void MainWindow::on_actionIntervalRunConfig_triggered()
 {
     m_intervalRunDialog->exec();
+}
+
+void MainWindow::on_actionOnlineDocs_triggered()
+{
+    QDesktopServices::openUrl(QUrl("https://syntalos.rtfd.io/", QUrl::TolerantMode));
+}
+
+void MainWindow::on_actionReportIssue_triggered()
+{
+    QMessageBox::information(this,
+                             QStringLiteral("Info on reporting issues"),
+                             QStringLiteral("You will be redirected to GitHub where you can file an issue (you may need to register an account there first).\n"
+                                            "To file an actionable issue report, please think about these things:\n"
+                                            "  * What did you want or expect to happen?\n"
+                                            "  * What happened instead?\n"
+                                            "  * What kind of configuration were you trying to run?\n"
+                                            "  * Are there any warnings listed on the system diagnostics page of Syntalos?\n"
+                                            "Happy issue reporting!"));
+    QDesktopServices::openUrl(QUrl(SY_BUG_REPORT_URL, QUrl::TolerantMode));
+}
+
+void MainWindow::on_actionOpenCrashCollector_triggered()
+{
+    auto crashReportExe = QStringLiteral("%1/../tools/crashreport/syntalos-crashreport").arg(QCoreApplication::applicationDirPath());
+    QFileInfo checkBin(crashReportExe);
+    if (crashReportExe.startsWith("/usr/") || !checkBin.exists())
+        crashReportExe = QStringLiteral(LIBEXECDIR "/syntalos-crashreport");
+
+    QProcess proc;
+    proc.setProgram(crashReportExe);
+    proc.startDetached();
 }
