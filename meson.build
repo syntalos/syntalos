@@ -157,6 +157,7 @@ qt_svg_dep = dependency('qt5', modules: ['Svg'])
 qt_dbus_dep = dependency('qt5', modules: ['DBus'])
 qt_multimedia_dep = dependency('qt5', modules: ['Multimedia'])
 qt_charts_dep = dependency('qt5', modules: ['Charts'], include_type: 'system')
+qt_concurrent_dep = dependency('qt5', modules: ['Concurrent'])
 
 rt_lib = cpp_compiler.find_library('rt')
 thread_dep = dependency('threads')
@@ -177,7 +178,7 @@ swscale_dep = dependency('libswscale', version: '>= 5.5')
 glib_dep = dependency('glib-2.0', version: '>=2.58')
 gobject_dep = dependency('gobject-2.0', version: '>=2.58')
 
-kfarchive_dep = dependency('KF5Archive')
+kfarchive_dep = dependency('KF5Archive', version: '>=5.82')
 kfdbusaddons_dep = dependency('KF5DBusAddons')
 kfconfigwidgets_dep = dependency('KF5ConfigWidgets')
 

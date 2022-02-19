@@ -21,13 +21,35 @@
 
 #include <QtCore>
 
+struct JournalEntry {
+    QDateTime time;
+    QString id;
+    QString unit;
+    QString message;
+    int priority;
+    QString bootID;
+
+    QString coredumpFname;
+    QString coredumpExe;
+    QString coredumpSignal;
+};
+
 class JournalCollector
 {
 public:
     JournalCollector();
 
-    bool findLastCoredump();
+    bool findJournalEntries(const QString &exeNameFilter);
+    bool exportCoredumpFile(const JournalEntry &journalEntry, const QString &outFname, QString *details = nullptr);
+    QString generateBacktrace(const JournalEntry &journalEntry);
+
+    QList<JournalEntry> coredumpEntries() const;
+    QList<JournalEntry> messageEntries() const;
 
 private:
     QString m_lastError;
+    QList<JournalEntry> m_coredumpEntries;
+    QList<JournalEntry> m_messageEntries;
 };
+
+QString generateCoredumpBacktrace(const JournalEntry &journalEntry);

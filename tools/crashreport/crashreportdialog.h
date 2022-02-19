@@ -38,5 +38,10 @@ private slots:
     void on_nextButton_clicked();
 
 private:
+
+private:
     Ui::CrashReportDialog *ui;
+
+    QString m_lastMdReport;
+    bool m_allToolsFound;
 };
