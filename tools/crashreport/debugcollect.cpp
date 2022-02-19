@@ -78,7 +78,7 @@ static JournalEntry readJournalEntry(sd_journal *journal)
 
         res = sd_journal_get_data(journal, "COREDUMP_SIGNAL", &data, &length);
         if (res == 0) {
-#ifdef HAVE_SIGDESCR_NP
+#if HAVE_SIGDESCR_NP
             entry.coredumpSignal = sigdescr_np(QString::fromUtf8((const char *)data, length).section(QChar::fromLatin1('='), 1).toInt());
 #else
             entry.coredumpSignal = QString::fromUtf8((const char *)data, length).section(QChar::fromLatin1('='), 1);
