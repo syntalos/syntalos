@@ -27,6 +27,8 @@
 
 #include "debugcollect.h"
 
+static const int MAX_LOG_ENTRIES_IN_REPORT = 50;
+
 CrashReportDialog::CrashReportDialog(ReportMode mode, QWidget *parent)
     : QDialog(parent),
       ui(new Ui::CrashReportDialog),
@@ -104,16 +106,13 @@ static QString sliceJournalMessages(JournalCollector &journal)
     const auto msgEntries = journal.messageEntries();
     for (int i = 0; i < msgEntries.length(); i++) {
         const auto entry = msgEntries[i];
-        report += QStringLiteral("[%1] %2 :: %3 - %4\n%5\n").arg(entry.bootID,
-                                                                 QString::number(entry.priority),
-                                                                 entry.time.toString(Qt::ISODate),
-                                                                 entry.unit,
-                                                                 entry.message);
-        if (i >= 50)
-            break;
+        report += QStringLiteral("%1 %2 [%3]: %4\n").arg(entry.time.toString(Qt::ISODate),
+                                                         QString::number(entry.priority),
+                                                         entry.unit,
+                                                         entry.message);
     }
-    if (msgEntries.length() > 50)
-        report += QStringLiteral("- List truncated, included only the last 50 of %1 entries.\n").arg(msgEntries.length());
+    if (msgEntries.length() > MAX_LOG_ENTRIES_IN_REPORT)
+        report += QStringLiteral("\n- List truncated, included only the last %1 entries.\n").arg(MAX_LOG_ENTRIES_IN_REPORT);
 
     return report;
 }
@@ -123,22 +122,31 @@ extern QString generateCrashReport()
     QString report;
     JournalCollector journal;
 
-    qDebug().noquote() << "Finding Syntalos-related journal entries...";
-    journal.findJournalEntries("syntalos");
-
     qDebug().noquote() << "Generating crash report.";
     report += QStringLiteral("# Syntalos Crash Report (generated: %1)\n\n").arg(QDateTime::currentDateTime().toString(Qt::ISODate));
     report += "### Log Messages\n";
+    report += QStringLiteral("Boot: %1\n").arg(journal.currentBootId());
+
+    qDebug().noquote() << "Finding Syntalos-related journal entries...";
+    bool ret = journal.findMessageEntries("syntalos", MAX_LOG_ENTRIES_IN_REPORT);
     if (journal.messageEntries().isEmpty()) {
-        report += "- None found!\n";
+        if (ret)
+            report += "- None found!\n";
+        else
+            report += journal.lastError();
     } else {
-        report += sliceJournalMessages(journal);
+        report += "\n" + sliceJournalMessages(journal);
     }
 
+    qDebug().noquote() << "Finding Syntalos coredump entries...";
+    ret = journal.findCoredumpEntries("syntalos");
     const auto coredumpEntries = journal.coredumpEntries();
     report += "\n### Latest Crash Backtrace\n";
     if (coredumpEntries.length() < 1) {
-        report += "- No recent crashes found!\n";
+        if (ret)
+            report += "- No recent crashes found!\n";
+        else
+            report += journal.lastError();
         return report;
     }
     const auto coredumpEntry = coredumpEntries.first();
@@ -161,10 +169,14 @@ extern QString generateStallReport()
 
     JournalCollector journal;
     report += "### Log Messages\n";
+    bool ret = journal.findMessageEntries("syntalos", MAX_LOG_ENTRIES_IN_REPORT);
     if (journal.messageEntries().isEmpty()) {
-        report += "- None found!\n";
+        if (ret)
+            report += "- None found!\n";
+        else
+            report += journal.lastError();
     } else {
-        report += sliceJournalMessages(journal);
+        report += "\n" + sliceJournalMessages(journal);
     }
 
     report += "\n### Backtrace\n";

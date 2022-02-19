@@ -39,15 +39,22 @@ class JournalCollector
 public:
     JournalCollector();
 
-    bool findJournalEntries(const QString &exeNameFilter);
+    QString lastError() const;
+
+    bool findCoredumpEntries(const QString &exeNameFilter, int limit = 3);
+    bool findMessageEntries(const QString &keywordFilter, int limit = -1);
+
     bool exportCoredumpFile(const JournalEntry &journalEntry, const QString &outFname, QString *details = nullptr);
     QString generateBacktrace(const JournalEntry &journalEntry);
 
+    QString currentBootId() const;
     QList<JournalEntry> coredumpEntries() const;
     QList<JournalEntry> messageEntries() const;
 
 private:
     QString m_lastError;
+
+    QString m_currentBootId;
     QList<JournalEntry> m_coredumpEntries;
     QList<JournalEntry> m_messageEntries;
 };

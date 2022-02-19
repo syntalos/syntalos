@@ -28,6 +28,17 @@
 
 JournalCollector::JournalCollector()
 {
+    QFile file(QLatin1String("/proc/sys/kernel/random/boot_id"));
+    if (file.open(QIODevice::ReadOnly | QFile::Text)) {
+        QTextStream stream(&file);
+        m_currentBootId = stream.readAll().trimmed();
+        m_currentBootId.remove(QChar::fromLatin1('-'));
+    }
+}
+
+QString JournalCollector::lastError() const
+{
+    return m_lastError;
 }
 
 static JournalEntry readJournalEntry(sd_journal *journal)
@@ -91,7 +102,7 @@ static JournalEntry readJournalEntry(sd_journal *journal)
     return entry;
 }
 
-bool JournalCollector::findJournalEntries(const QString &exeNameFilter)
+bool JournalCollector::findCoredumpEntries(const QString &exeNameFilter, int limit)
 {
     sd_journal *journal;
 
@@ -113,18 +124,18 @@ bool JournalCollector::findJournalEntries(const QString &exeNameFilter)
         }
     }
 
-    res = sd_journal_seek_head(journal);
+    res = sd_journal_seek_tail(journal);
     if (res < 0) {
-        m_lastError = "Failed to seek journal head.";
+        m_lastError = "Failed to seek journal tail.";
         sd_journal_close(journal);
         return false;
     }
 
     // check found entries
     QList<JournalEntry> syCoredumps;
-    QList<JournalEntry> syMessages;
+    int count = 0;
     while (true) {
-        res = sd_journal_next(journal);
+        res = sd_journal_previous(journal);
         if (res < 0) {
             m_lastError = "Failed to access next journal entry.";
             break;
@@ -135,23 +146,77 @@ bool JournalCollector::findJournalEntries(const QString &exeNameFilter)
         }
 
         auto entry = readJournalEntry(journal);
-        if (!entry.coredumpExe.isEmpty() && QFileInfo(entry.coredumpExe).baseName().startsWith(exeNameFilter))
+        if (!entry.coredumpExe.isEmpty() && QFileInfo(entry.coredumpExe).baseName().startsWith(exeNameFilter)) {
             syCoredumps.append(entry);
-        else if (entry.message.contains(exeNameFilter) || entry.unit.contains(exeNameFilter))
-            syMessages.append(entry);
+            count++;
+            if (limit > 0 && count >= limit)
+                break;
+        }
     }
 
-    // ensure entries are sorted
-    std::sort(syCoredumps.begin(), syCoredumps.end(), [](JournalEntry a, JournalEntry b) {
-        return a.time > b.time;
-    });
-    std::sort(syMessages.begin(), syMessages.end(), [](JournalEntry a, JournalEntry b) {
-        return a.time > b.time;
-    });
-
     m_coredumpEntries = syCoredumps;
-    m_messageEntries = syMessages;
+    sd_journal_close(journal);
+    return m_lastError.isEmpty();
+}
 
+bool JournalCollector::findMessageEntries(const QString &keywordFilter, int limit)
+{
+    sd_journal *journal;
+
+    m_lastError.clear();
+    int res = sd_journal_open(&journal, SD_JOURNAL_CURRENT_USER | SD_JOURNAL_SYSTEM);
+    if (res < 0) {
+        m_lastError = "Failed to access the journal.";
+        return false;
+    }
+
+    if (m_currentBootId.isEmpty()) {
+        m_lastError = "Boot ID is empty (Likely failed to open /proc/sys/kernel/random/boot_id)";
+        return false;
+    }
+
+    const auto jFilters = QStringList() << QStringLiteral("_BOOT_ID=%1").arg(m_currentBootId);
+
+    for (const QString &filter : jFilters) {
+        res = sd_journal_add_match(journal, filter.toUtf8().constData(), 0);
+        if (res < 0) {
+            m_lastError = "Failed to add journal match filter.";
+            sd_journal_close(journal);
+            return false;
+        }
+    }
+
+    res = sd_journal_seek_tail(journal);
+    if (res < 0) {
+        m_lastError = "Failed to seek journal tail.";
+        sd_journal_close(journal);
+        return false;
+    }
+
+    // check found entries
+    int count = 0;
+    QList<JournalEntry> syMessages;
+    while (true) {
+        res = sd_journal_previous(journal);
+        if (res < 0) {
+            m_lastError = "Failed to access next journal entry.";
+            break;
+        }
+        if (res == 0) {
+            // last journal entry reached
+            break;
+        }
+
+        auto entry = readJournalEntry(journal);
+        if (entry.unit.contains(keywordFilter) || entry.message.contains(keywordFilter, Qt::CaseInsensitive)) {
+            syMessages.append(entry);
+            count++;
+            if (limit > 0 && count >= limit)
+                break;
+        }
+    }
+
+    m_messageEntries = syMessages;
     sd_journal_close(journal);
     return m_lastError.isEmpty();
 }
@@ -223,6 +288,11 @@ QString JournalCollector::generateBacktrace(const JournalEntry &journalEntry)
         return QStringLiteral("Failed to generate a backtrace for '%1':\n%2").arg(journalEntry.coredumpFname,
                                                                                   QString::fromUtf8(gdbProc.readAllStandardOutput()));
     return cdctlDetails + "\n------------\n" + QString::fromUtf8(gdbProc.readAllStandardOutput());
+}
+
+QString JournalCollector::currentBootId() const
+{
+    return m_currentBootId;
 }
 
 QList<JournalEntry> JournalCollector::coredumpEntries() const
