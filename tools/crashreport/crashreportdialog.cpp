@@ -123,7 +123,7 @@ static QString sliceJournalMessages(JournalCollector &journal)
     return report;
 }
 
-extern QString generateCrashReport()
+extern QPair<QString, QPair<bool, QDateTime>> generateCrashReport()
 {
     QString report;
     JournalCollector journal;
@@ -148,17 +148,20 @@ extern QString generateCrashReport()
     ret = journal.findCoredumpEntries("syntalos");
     const auto coredumpEntries = journal.coredumpEntries();
     report += "\n### Latest Crash Backtrace\n";
-    if (coredumpEntries.length() < 1) {
+    auto coredumpTime = QDateTime::currentDateTime();
+    bool haveCoredump = coredumpEntries.length() >= 1;
+    if (haveCoredump) {
+        const auto coredumpEntry = coredumpEntries.first();
+        report += journal.generateBacktrace(coredumpEntry);
+        coredumpTime = coredumpEntry.time;
+    } else {
         if (ret)
             report += "- No recent crashes found!\n";
         else
             report += journal.lastError();
-        return report;
     }
-    const auto coredumpEntry = coredumpEntries.first();
-    report += journal.generateBacktrace(coredumpEntry);
 
-    return report;
+    return qMakePair(report, qMakePair(haveCoredump, coredumpTime));
 }
 
 extern QString generateStallReport()
@@ -196,12 +199,13 @@ void CrashReportDialog::runPastCrashCollect()
     ui->progressBar->setRange(0, 0);
     // TODO: Make use of QPromise when we can switch to Qt6 to display
     // a proper progress bar.
-    QFuture<QString> future = QtConcurrent::run(generateCrashReport);
+    QFuture<QPair<QString, QPair<bool, QDateTime>>> future = QtConcurrent::run(generateCrashReport);
     while (!future.isFinished())
         QApplication::processEvents();
 
     qDebug().noquote() << "Received crash report data.";
-    m_lastMdReport = future.result();
+    const auto reportResult = future.result();
+    m_lastMdReport = reportResult.first;
 
     ui->pageStack->setCurrentWidget(ui->pageResult);
     ui->nextButton->setText("Save Report");
@@ -209,8 +213,16 @@ void CrashReportDialog::runPastCrashCollect()
     ui->nextButton->setEnabled(true);
     ui->closeButton->setEnabled(true);
 
-    ui->doneInfoLabel->setText(QStringLiteral("<html><b>All done!</b><br/>"
-                                              "You can now save the generated report to disk for sharing. Click on <i>Save Report</i> to save it."));
+    ui->doneInfoLabel->setText(QStringLiteral("<html><p><b>All done!</b><br/>"
+                                              "You can now save the generated report to disk for sharing. Click on <i>Save Report</i> to save it.</p>"));
+    if (reportResult.second.first) {
+        ui->doneInfoLabel->setText(ui->doneInfoLabel->text() +
+                                   QStringLiteral("<p>The crash described in this report happened on: <b>%1</b></p>").arg(reportResult.second.second.toString()));
+    } else {
+        // we didn't actually find a crash!
+        ui->doneInfoLabel->setText(ui->doneInfoLabel->text() +
+                                   QStringLiteral("<p><b>No crash / coredump data was found!</b> The report only contains log data.</p>"));
+    }
     if (!m_allToolsFound)
         ui->doneInfoLabel->setText(ui->doneInfoLabel->text() + QStringLiteral("<br/>"
                                                                               "Please keep in mind that this report may be <b>incomplete</b> "
