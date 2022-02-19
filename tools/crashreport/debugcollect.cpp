@@ -19,8 +19,10 @@
 
 #include "debugcollect.h"
 
-#include <QFileInfo>
+#include "config.h"
+#include <string.h>
 #include <systemd/sd-journal.h>
+#include <QFileInfo>
 
 JournalCollector::JournalCollector()
 {
@@ -73,10 +75,15 @@ static JournalEntry readJournalEntry(sd_journal *journal)
         entry.coredumpExe = QString::fromUtf8((const char *)data, length).section(QChar::fromLatin1('='), 1);
 
         res = sd_journal_get_data(journal, "COREDUMP_SIGNAL", &data, &length);
-        if (res == 0)
+        if (res == 0) {
+#ifdef HAVE_SIGDESCR_NP
             entry.coredumpSignal = sigdescr_np(QString::fromUtf8((const char *)data, length).section(QChar::fromLatin1('='), 1).toInt());
-        else
+#else
+            entry.coredumpSignal = QString::fromUtf8((const char *)data, length).section(QChar::fromLatin1('='), 1);
+#endif
+        } else {
             entry.coredumpSignal = "<unknown signal>";
+        }
     }
 
     return entry;
