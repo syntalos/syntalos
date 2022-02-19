@@ -479,7 +479,12 @@ void MainWindow::runActionTriggered()
                 while (QTime::currentTime() < continueTime) {
                     QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
                     setStatusText(QStringLiteral("Starting next run in: %1 seconds").arg(QTime::currentTime().secsTo(continueTime)));
+
+                    if (!m_isIntervalRun)
+                        break;
                 }
+                if (!m_isIntervalRun)
+                    break;
             }
             updateIntervalRunMessage();
         }
