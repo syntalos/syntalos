@@ -19,6 +19,7 @@
 
 #include "oopmodule.h"
 
+#include "config.h"
 #include <QEventLoop>
 #include <QRemoteObjectNode>
 

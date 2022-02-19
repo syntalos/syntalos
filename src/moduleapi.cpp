@@ -20,6 +20,7 @@
 #include <opencv2/core.hpp>
 #include "moduleapi.h"
 
+#include "config.h"
 #include <QDebug>
 #include <QDir>
 #include <QMessageBox>

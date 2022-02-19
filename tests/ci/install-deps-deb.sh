@@ -38,6 +38,7 @@ eatmydata apt-get install -yq --no-install-recommends \
     libswscale-dev \
     libxxhash-dev \
     libusb-1.0-0-dev \
+    libsystemd-dev \
     ocl-icd-opencl-dev \
     python3-dev \
     pybind11-dev \

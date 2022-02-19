@@ -148,6 +148,7 @@ syntalos_shared_lib = shared_library('syntalos-shared',
                    qt_dbus_dep,
                    qt_remoteobj_dep],
     link_with: [sy_oopshared_lib],
+    include_directories: [root_include_dir],
     install: true,
     install_dir: sy_libdir
 )
@@ -161,7 +162,7 @@ syntalos_shared_dep = declare_dependency(
 )
 
 syntalos_exe = executable('syntalos',
-    [syntalos_src, syntalos_moc],
+    [syntalos_src, syntalos_moc, config_h],
     gnu_symbol_visibility: 'hidden',
     dependencies: [syntalos_shared_dep,
                    thread_dep,
