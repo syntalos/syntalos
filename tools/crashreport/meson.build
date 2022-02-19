@@ -13,6 +13,8 @@ sy_crashreport_src = [
     'crashreportdialog.cpp',
     'debugcollect.cpp',
     'utils.cpp',
+    '../../src/appstyle.cpp',
+    '../../src/utils/style.cpp',
 ]
 sy_crashreport_moc_src = [
 ]
@@ -40,9 +42,11 @@ executable('syntalos-crashreport',
     dependencies: [qt_core_dep,
                    qt_gui_dep,
                    qt_concurrent_dep,
+                   libsystemd_dep,
                    kfarchive_dep,
-                   libsystemd_dep],
-    include_directories: [root_include_dir],
+                   kfconfigwidgets_dep],
+    include_directories: [root_include_dir,
+                          include_directories('../../src')],
     install_dir: get_option('libexecdir'),
     install: true
 )

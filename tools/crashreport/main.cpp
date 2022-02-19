@@ -23,6 +23,8 @@
 #include <QApplication>
 #include <QCommandLineParser>
 
+#include "appstyle.h"
+
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
@@ -41,10 +43,16 @@ int main(int argc, char *argv[])
 
     parser.process(app);
 
+    // set our operating mode
     auto mode = ReportMode::COLLECT_CRASH_INFO;
     if (parser.isSet(freezeDebugOption))
         mode = ReportMode::DEBUG_FREEZE;
 
+    // set Syntalos default style
+    setDefaultStyle();
+    switchIconTheme(QStringLiteral("breeze"));
+
+    // finally show the dialog window
     CrashReportDialog w(mode);
     w.show();
     return app.exec();
