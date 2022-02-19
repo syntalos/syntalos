@@ -24,6 +24,8 @@
 #include <systemd/sd-journal.h>
 #include <QFileInfo>
 
+#include "utils.h"
+
 JournalCollector::JournalCollector()
 {
 }
@@ -231,4 +233,37 @@ QList<JournalEntry> JournalCollector::coredumpEntries() const
 QList<JournalEntry> JournalCollector::messageEntries() const
 {
     return m_messageEntries;
+}
+
+QString generateBacktraceForRunningProcess(const QString &procName, bool *processFound)
+{
+    if (processFound != nullptr)
+        *processFound = true;
+    const auto pid = findFirstProcIdByName(procName.toStdString());
+    if (pid <= 0) {
+        if (processFound != nullptr)
+            *processFound = false;
+        return QStringLiteral("Error: No running Syntalos process found!");
+    }
+
+    const auto gdbExe = QStandardPaths::findExecutable("gdb");
+    if (gdbExe.isEmpty())
+        return QStringLiteral("Failed to generate a backtrace for '%1': GDB was not found.").arg(procName);
+
+    // create a backtrace with gdb
+    QProcess gdbProc;
+    gdbProc.setProcessChannelMode(QProcess::MergedChannels);
+    gdbProc.setProgram(gdbExe);
+    gdbProc.setArguments(QStringList() << "-batch"
+                         << "-ex" << QStringLiteral("attach %1").arg(pid)
+                         << "-ex" << "thread apply all bt full"
+                         << "-ex" << "detach");
+    gdbProc.start();
+    bool ret = gdbProc.waitForFinished(60 * 1000);
+    if (!ret)
+        return QStringLiteral("Failed to generate a backtrace for '%1': GDB timed out.").arg(procName);
+    if (gdbProc.exitCode() != 0)
+        return QStringLiteral("Failed to generate a backtrace for '%1':\n%2").arg(procName,
+                                                                                  QString::fromUtf8(gdbProc.readAllStandardOutput()));
+    return QString::fromUtf8(gdbProc.readAllStandardOutput());
 }

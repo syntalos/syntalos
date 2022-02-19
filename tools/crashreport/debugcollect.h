@@ -53,3 +53,5 @@ private:
 };
 
 QString generateCoredumpBacktrace(const JournalEntry &journalEntry);
+
+QString generateBacktraceForRunningProcess(const QString &procName, bool *processFound = nullptr);

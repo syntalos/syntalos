@@ -19,38 +19,6 @@
 
 #pragma once
 
-#include <QDialog>
+#include <string>
 
-QT_BEGIN_NAMESPACE
-namespace Ui { class CrashReportDialog; }
-QT_END_NAMESPACE
-
-enum class ReportMode
-{
-    COLLECT_CRASH_INFO,
-    DEBUG_FREEZE
-};
-
-class CrashReportDialog : public QDialog
-{
-    Q_OBJECT
-
-public:
-    CrashReportDialog(ReportMode mode, QWidget *parent = nullptr);
-    ~CrashReportDialog();
-
-private slots:
-    void on_closeButton_clicked();
-    void on_nextButton_clicked();
-
-private:
-    void runPastCrashCollect();
-    void runFreezeDebug();
-
-private:
-    Ui::CrashReportDialog *ui;
-
-    ReportMode m_mode;
-    QString m_lastMdReport;
-    bool m_allToolsFound;
-};
+int findFirstProcIdByName(std::string procName);

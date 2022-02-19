@@ -19,12 +19,33 @@
 
 #include "crashreportdialog.h"
 
+#include "config.h"
 #include <QApplication>
+#include <QCommandLineParser>
 
 int main(int argc, char *argv[])
 {
-    QApplication a(argc, argv);
-    CrashReportDialog w;
+    QApplication app(argc, argv);
+    app.setApplicationName("syntalos-crash-reporter");
+    app.setOrganizationName("DraguhnLab");
+    app.setOrganizationDomain("draguhnlab.com");
+    app.setApplicationVersion(PROJECT_VERSION);
+
+    QCommandLineParser parser;
+    parser.setApplicationDescription("Automatically collect debug information about Syntalos");
+    parser.addHelpOption();
+    parser.addVersionOption();
+
+    QCommandLineOption freezeDebugOption("debug-freeze", "Generate debug info about a frozen Syntalos instance");
+    parser.addOption(freezeDebugOption);
+
+    parser.process(app);
+
+    auto mode = ReportMode::COLLECT_CRASH_INFO;
+    if (parser.isSet(freezeDebugOption))
+        mode = ReportMode::DEBUG_FREEZE;
+
+    CrashReportDialog w(mode);
     w.show();
-    return a.exec();
+    return app.exec();
 }

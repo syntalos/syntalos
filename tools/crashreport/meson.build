@@ -1,7 +1,8 @@
 # Build definition for the Syntalos Crash Report Helper
 
 sy_crashreport_hdr = [
-    'debugcollect.h'
+    'debugcollect.h',
+    'utils.h',
 ]
 sy_crashreport_moc_hdr = [
     'crashreportdialog.h',
@@ -11,6 +12,7 @@ sy_crashreport_src = [
     'main.cpp',
     'crashreportdialog.cpp',
     'debugcollect.cpp',
+    'utils.cpp',
 ]
 sy_crashreport_moc_src = [
 ]
@@ -40,6 +42,7 @@ executable('syntalos-crashreport',
                    qt_concurrent_dep,
                    kfarchive_dep,
                    libsystemd_dep],
+    include_directories: [root_include_dir],
     install_dir: get_option('libexecdir'),
     install: true
 )
