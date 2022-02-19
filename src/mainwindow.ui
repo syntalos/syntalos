@@ -1252,10 +1252,10 @@
     <property name="title">
      <string>He&amp;lp</string>
     </property>
-    <addaction name="actionAbout"/>
     <addaction name="actionOnlineDocs"/>
     <addaction name="actionReportIssue"/>
     <addaction name="actionOpenCrashCollector"/>
+    <addaction name="actionAbout"/>
    </widget>
    <widget class="QMenu" name="menuFile">
     <property name="title">
