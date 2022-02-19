@@ -181,7 +181,7 @@ swscale_dep = dependency('libswscale', version: '>= 5.5')
 glib_dep = dependency('glib-2.0', version: '>=2.58')
 gobject_dep = dependency('gobject-2.0', version: '>=2.58')
 
-kfarchive_dep = dependency('KF5Archive', version: '>=5.82')
+kfarchive_dep = dependency('KF5Archive')
 kfdbusaddons_dep = dependency('KF5DBusAddons')
 kfconfigwidgets_dep = dependency('KF5ConfigWidgets')
 
