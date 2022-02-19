@@ -28,6 +28,11 @@
 #include <fstream>
 #include <stdlib.h>
 #include <stdio.h>
+#include <QDebug>
+#include <QFile>
+#include <QTextStream>
+#include <QStandardPaths>
+#include <QProcess>
 
 /**
  * @brief Get the initial PID that matches a name.
@@ -72,4 +77,58 @@ int findFirstProcIdByName(std::string procName)
     closedir(dp);
 
     return pid;
+}
+
+PtraceScopeManager::PtraceScopeManager()
+{
+    m_prevScope = readPtraceScope();
+    m_pkexecExe = QStandardPaths::findExecutable("pkexec");
+}
+
+void PtraceScopeManager::ensureAllowed()
+{
+    if (m_prevScope.isEmpty()) {
+        qWarning().noquote() << "Unable to determine the state of yama/ptrace_scope!";
+        return;
+    }
+    if (m_prevScope == "0")
+        return;
+    changePtraceScope(false);
+}
+
+void PtraceScopeManager::reset()
+{
+    if (m_prevScope.isEmpty())
+        return;
+    if (readPtraceScope() == m_prevScope)
+        return;
+    changePtraceScope(m_prevScope != "0");
+}
+
+QString PtraceScopeManager::readPtraceScope()
+{
+    QFile file(QLatin1String("/proc/sys/kernel/yama/ptrace_scope"));
+    if (file.open(QIODevice::ReadOnly | QFile::Text)) {
+        QTextStream stream(&file);
+        return stream.readAll().trimmed();
+    }
+    return QString();
+}
+
+void PtraceScopeManager::changePtraceScope(bool state)
+{
+    if (m_pkexecExe.isEmpty()) {
+        qWarning().noquote() << "Unable to change yama/ptrace_scope - pkexec is missing.";
+        return;
+    }
+
+    QProcess pkProc;
+    pkProc.setProgram(m_pkexecExe);
+    pkProc.setArguments(QStringList() << "/bin/sh"
+                                      << "-c"
+                                      << QStringLiteral("echo %1 > /proc/sys/kernel/yama/ptrace_scope").arg(state? 1 : 0));
+    pkProc.start();
+    bool ret = pkProc.waitForFinished(120 * 1000);
+    if (!ret)
+        qWarning().noquote() << "Unable to change yama/ptrace_scope - pkexec timed out.";
 }

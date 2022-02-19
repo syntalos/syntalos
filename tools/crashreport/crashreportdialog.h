@@ -21,6 +21,8 @@
 
 #include <QDialog>
 
+#include "utils.h"
+
 QT_BEGIN_NAMESPACE
 namespace Ui { class CrashReportDialog; }
 QT_END_NAMESPACE
@@ -51,6 +53,7 @@ private:
     Ui::CrashReportDialog *ui;
 
     ReportMode m_mode;
+    PtraceScopeManager m_ptsMgr;
     QString m_lastMdReport;
     bool m_allToolsFound;
 };

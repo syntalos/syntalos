@@ -20,5 +20,22 @@
 #pragma once
 
 #include <string>
+#include <QString>
 
 int findFirstProcIdByName(std::string procName);
+
+class PtraceScopeManager
+{
+public:
+    PtraceScopeManager();
+
+    void ensureAllowed();
+    void reset();
+
+private:
+    QString readPtraceScope();
+    void changePtraceScope(bool state);
+
+    QString m_prevScope;
+    QString m_pkexecExe;
+};

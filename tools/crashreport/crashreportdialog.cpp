@@ -87,11 +87,17 @@ CrashReportDialog::CrashReportDialog(ReportMode mode, QWidget *parent)
             ui->nextButton->setEnabled(false);
             ui->warnLabel->setText("We can not continue without the GNU Debugger (GDB).\nPlease install it and try again!");
         }
+
+        // we need to attach to a running process, try to make sure that we are allowed to do so
+        m_ptsMgr.ensureAllowed();
     }
 }
 
 CrashReportDialog::~CrashReportDialog()
 {
+    if (m_mode == ReportMode::DEBUG_FREEZE)
+        m_ptsMgr.reset();
+
     delete ui;
 }
 
@@ -226,6 +232,7 @@ void CrashReportDialog::runFreezeDebug()
         QMessageBox::warning(this, "Syntalos not found", "Unable to find a running Syntalos instance!");
         ui->pageStack->setCurrentWidget(ui->pageIntro);
         ui->nextButton->setEnabled(true);
+        ui->closeButton->setEnabled(true);
         return;
     }
 
