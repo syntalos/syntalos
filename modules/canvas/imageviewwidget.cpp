@@ -74,7 +74,7 @@ void ImageViewWidget::initializeGL()
     glClearColor(r, g, b, 1.0f);
 }
 
-GLuint ImageViewWidget::matToTexture(cv::Mat &mat, GLenum minFilter, GLenum magFilter, GLenum wrapFilter)
+GLuint ImageViewWidget::matToTexture(const cv::Mat &mat, GLenum minFilter, GLenum magFilter, GLenum wrapFilter)
 {
     // Generate a number for our textureID's unique handle
     GLuint textureID;
@@ -202,12 +202,11 @@ void ImageViewWidget::recalculatePosition()
 bool ImageViewWidget::showImage(const cv::Mat& image)
 {
     auto channels = image.channels();
+    image.copyTo(d->origImage);
     if (channels == 1)
-        cvtColor(image, d->origImage, cv::COLOR_GRAY2BGR);
+        cvtColor(d->origImage, d->origImage, cv::COLOR_GRAY2BGR);
     else if (channels == 4)
-        cvtColor(image, d->origImage, cv::COLOR_BGRA2BGR);
-    else
-        image.copyTo(d->origImage);
+        cvtColor(d->origImage, d->origImage, cv::COLOR_BGRA2BGR);
 
     recalculatePosition();
     update();

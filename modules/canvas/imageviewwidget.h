@@ -48,5 +48,5 @@ private:
     QScopedPointer<Private> d;
 
     void recalculatePosition();
-    GLuint matToTexture(cv::Mat &mat, GLenum minFilter, GLenum magFilter, GLenum wrapFilter);
+    GLuint matToTexture(const cv::Mat &mat, GLenum minFilter, GLenum magFilter, GLenum wrapFilter);
 };

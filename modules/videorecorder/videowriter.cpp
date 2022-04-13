@@ -851,7 +851,11 @@ void VideoWriter::initializeInternal()
     ret = avformat_write_header(d->octx, nullptr);
     if (ret < 0) {
         finalizeInternal(false);
-        throw std::runtime_error(QStringLiteral("Failed to write format header: %1").arg(ret).toStdString());
+        char errBuf[1280] = { 0 };
+        if (av_strerror(ret, errBuf, sizeof(errBuf)) == 0)
+            throw std::runtime_error(QStringLiteral("Failed to write format header: %1").arg(errBuf).toStdString());
+        else
+            throw std::runtime_error(QStringLiteral("Failed to write format header: %1").arg(ret).toStdString());
     }
     d->framePts = 0;
 
@@ -1036,21 +1040,25 @@ void VideoWriter::setTsyncFileCreationTimeOverride(const QDateTime &dt)
 inline
 bool VideoWriter::prepareFrame(const cv::Mat &inImage)
 {
-    auto image = inImage;
+    // We unfortunately needed to create a deep copy of the matrix with clone() here,
+    // as OpenCV might otherwise decide to modify data in-place which may crash our
+    // module or other modules accessing the data in parallel
+    // (unfortunately, with OpenCV's memory model, immutability isn't really a thing)
+    // TODO: We can likely still optimize this whole code to create less data copies in many circumstances.
+    auto image = inImage.clone();
+    const auto channels = image.channels();
 
-    // convert color formats around to match what was actually selected as
+    // Convert color formats around to match what was actually selected as
     // input pixel format
     if (d->inputPixFormat == AV_PIX_FMT_GRAY8) {
-        if (image.channels() != 1)
-            cv::cvtColor(inImage, image, cv::COLOR_BGR2GRAY);
+        if (channels != 1)
+            cv::cvtColor(image, image, cv::COLOR_BGR2GRAY);
     } else if (d->inputPixFormat == AV_PIX_FMT_BGR24) {
-        if (image.channels() == 4)
-            cv::cvtColor(inImage, image, cv::COLOR_BGRA2BGR);
-        else if (image.channels() == 1)
-            cv::cvtColor(inImage, image, cv::COLOR_GRAY2BGR);
+        if (channels == 4)
+            cv::cvtColor(image, image, cv::COLOR_BGRA2BGR);
+        else if (channels == 1)
+            cv::cvtColor(image, image, cv::COLOR_GRAY2BGR);
     }
-
-    const auto channels = image.channels();
 
     auto step = image.step[0];
     auto data = image.ptr();
@@ -1085,7 +1093,7 @@ bool VideoWriter::prepareFrame(const cv::Mat &inImage)
             d->alignedInput = static_cast<uchar*>(av_mallocz(aligned_step * static_cast<size_t>(height)));
 
         for (size_t y = 0; y < static_cast<size_t>(height); y++)
-            memcpy(d->alignedInput + y*aligned_step, image.ptr() + y*step, step);
+            memcpy(d->alignedInput + y*aligned_step, data + y*step, step);
 
         data = d->alignedInput;
         step = aligned_step;
