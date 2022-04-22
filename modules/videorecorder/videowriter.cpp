@@ -445,6 +445,7 @@ public:
     AVFrame *inputFrame;
     int64_t framePts;
     uchar *alignedInput;
+    size_t alignedInputSize;
 
     AVFormatContext *octx;
     AVStream *vstrm;
@@ -514,7 +515,7 @@ void VideoWriter::initializeHWAccell()
 {
     int ret = av_hwdevice_ctx_create(&d->hwDevCtx,
                                      av_hwdevice_find_type_by_name("vaapi"),
-                                     qPrintable(d->hwDevice), NULL, 0);
+                                     qPrintable(d->hwDevice), nullptr, 0);
 
     if (ret != 0)
         throw std::runtime_error(QStringLiteral("Failed to create hw encoding device for %1: %2").arg(d->hwDevice).arg(ret).toStdString());
@@ -525,7 +526,7 @@ void VideoWriter::initializeHWAccell()
         throw std::runtime_error("Failed to initialize hw frame context");
     }
 
-    auto cst = av_hwdevice_get_hwframe_constraints(d->hwDevCtx, NULL);
+    auto cst = av_hwdevice_get_hwframe_constraints(d->hwDevCtx, nullptr);
     if (!cst) {
         av_buffer_unref(&d->hwDevCtx);
         throw std::runtime_error("Failed to get hwframe constraints");
@@ -921,8 +922,10 @@ void VideoWriter::finalizeInternal(bool writeTrailer)
         d->octx = nullptr;
     }
 
-    if (d->alignedInput != nullptr)
+    if (d->alignedInput != nullptr) {
         av_freep(&d->alignedInput);
+        d->alignedInputSize = 0;
+    }
 
     d->initialized = false;
 }
@@ -945,6 +948,7 @@ void VideoWriter::initialize(const QString &fname,
     d->width = width;
     d->height = height;
     d->fps = {fps, 1};
+    d->alignedInputSize = 0;
     d->framesN = 0;
     d->saveTimestamps = saveTimestamps;
     d->currentSliceNo = 1;
@@ -1040,28 +1044,30 @@ void VideoWriter::setTsyncFileCreationTimeOverride(const QDateTime &dt)
 inline
 bool VideoWriter::prepareFrame(const cv::Mat &inImage)
 {
-    // We unfortunately needed to create a deep copy of the matrix with clone() here,
-    // as OpenCV might otherwise decide to modify data in-place which may crash our
-    // module or other modules accessing the data in parallel
-    // (unfortunately, with OpenCV's memory model, immutability isn't really a thing)
-    // TODO: We can likely still optimize this whole code to create less data copies in many circumstances.
-    auto image = inImage.clone();
-    const auto channels = image.channels();
+    cv::Mat image;
+    auto channels = inImage.channels();
 
     // Convert color formats around to match what was actually selected as
     // input pixel format
     if (d->inputPixFormat == AV_PIX_FMT_GRAY8) {
         if (channels != 1)
-            cv::cvtColor(image, image, cv::COLOR_BGR2GRAY);
+            cv::cvtColor(inImage, image, cv::COLOR_BGR2GRAY);
+        else
+            image = inImage;
     } else if (d->inputPixFormat == AV_PIX_FMT_BGR24) {
         if (channels == 4)
-            cv::cvtColor(image, image, cv::COLOR_BGRA2BGR);
+            cv::cvtColor(inImage, image, cv::COLOR_BGRA2BGR);
         else if (channels == 1)
-            cv::cvtColor(image, image, cv::COLOR_GRAY2BGR);
+            cv::cvtColor(inImage, image, cv::COLOR_GRAY2BGR);
+        else
+            image = inImage;
+    } else {
+        image = inImage;
     }
 
     auto step = image.step[0];
     auto data = image.ptr();
+    channels = image.channels();
 
     const auto height = image.rows;
     const auto width = image.cols;
@@ -1085,18 +1091,28 @@ bool VideoWriter::prepareFrame(const cv::Mat &inImage)
     // the supplied input buffer. To ensure that doesn't happen, we pad the
     // step to a multiple of 32 (that's the minimal alignment for which Valgrind
     // doesn't raise any warnings).
-    const size_t STEP_ALIGNMENT = 32;
-    if (step % STEP_ALIGNMENT != 0) {
-        auto aligned_step = (step + STEP_ALIGNMENT - 1) & -STEP_ALIGNMENT;
+    const size_t CV_STEP_ALIGNMENT = 32;
+    const size_t CV_SIMD_SIZE = 32;
+    const size_t CV_PAGE_MASK = ~(size_t)(4096 - 1);
+    const unsigned char* dataend = data + ((size_t)height * step);
+    if (step % CV_STEP_ALIGNMENT != 0 ||
+        (((size_t) dataend - CV_SIMD_SIZE) & CV_PAGE_MASK) != (((size_t) dataend + CV_SIMD_SIZE) & CV_PAGE_MASK)) {
+        auto alignedStep = (step + CV_STEP_ALIGNMENT - 1) & ~(CV_STEP_ALIGNMENT - 1);
 
-        if (d->alignedInput == nullptr)
-            d->alignedInput = static_cast<uchar*>(av_mallocz(aligned_step * static_cast<size_t>(height)));
+        // reallocate alignment buffer if needed
+        size_t newSize = (alignedStep * height + CV_SIMD_SIZE);
+        if (d->alignedInput == nullptr || d->alignedInputSize < newSize) {
+            if (d->alignedInput != nullptr)
+                av_freep(&d->alignedInput);
+            d->alignedInputSize = newSize;
+            d->alignedInput = (unsigned char*) av_mallocz(d->alignedInputSize);
+        }
 
         for (size_t y = 0; y < static_cast<size_t>(height); y++)
-            memcpy(d->alignedInput + y*aligned_step, data + y*step, step);
+            memcpy(d->alignedInput + y*alignedStep, data + y*step, step);
 
         data = d->alignedInput;
-        step = aligned_step;
+        step = alignedStep;
     }
 
     if (d->encPixFormat != d->inputPixFormat) {
