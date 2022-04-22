@@ -1115,22 +1115,20 @@ bool VideoWriter::prepareFrame(const cv::Mat &inImage)
         step = alignedStep;
     }
 
-    if (d->encPixFormat != d->inputPixFormat) {
-        // let input_picture point to the raw data buffer of 'image'
-        av_image_fill_arrays(d->inputFrame->data, d->inputFrame->linesize, static_cast<const uint8_t*>(data), d->inputPixFormat, width, height, 1);
-        d->inputFrame->linesize[0] = static_cast<int>(step);
+    // let input_picture point to the raw data buffer of 'image'
+    av_image_fill_arrays(d->inputFrame->data, d->inputFrame->linesize, static_cast<const uint8_t*>(data), d->inputPixFormat, width, height, 1);
+    d->inputFrame->linesize[0] = static_cast<int>(step);
 
-        if (sws_scale(d->swsctx, d->inputFrame->data,
-                               d->inputFrame->linesize, 0,
-                               d->height,
-                               d->encFrame->data, d->encFrame->linesize) < 0) {
-            d->lastError = "Unable to scale image in pixel format conversion.";
-            return false;
-        }
-
-    } else {
-        av_image_fill_arrays(d->encFrame->data, d->encFrame->linesize, static_cast<const uint8_t*>(data), d->inputPixFormat, width, height, 1);
-        d->encFrame->linesize[0] = static_cast<int>(step);
+    // perform scaling and pixel format conversion
+    // FIXME: If encPixFormat == inputPixFormat we should be able to skip this step,
+    // but newer FFmpeg versions seem to crash in this case within avcodec_send_frame(),
+    // so as a workaround we will always run sws_scale
+    if (sws_scale(d->swsctx, d->inputFrame->data,
+                           d->inputFrame->linesize, 0,
+                           d->height,
+                           d->encFrame->data, d->encFrame->linesize) < 0) {
+        d->lastError = "Unable to scale image in pixel format conversion.";
+        return false;
     }
 
     d->encFrame->pts = d->framePts++;
