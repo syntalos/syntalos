@@ -509,6 +509,9 @@ public:
         if (m_settingsDialog->deferredEncoding())
             enqueueVideosForDeferredEncoding();
 
+        // drop reference on dataset
+        m_vidDataset.reset();
+
         // permit settings canges again
         m_settingsDialog->setEnabled(true);
     }
