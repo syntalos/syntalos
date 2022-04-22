@@ -1704,13 +1704,6 @@ bool Engine::runInternal(const QString &exportDirPath)
         qCDebug(logEngine).noquote().nospace() << "Module '" << mod->name() << "' stopped in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
     }
 
-    // All module data must be written by this point, so we "steal" its storage group,
-    // so the module will trigger an error message if is still tries to access the final
-    // data. We mast do this in a separate loop, as some modules may share an EDL group
-    // to store data in.
-    for (auto &mod : orderedActiveModules)
-        mod->setStorageGroup(nullptr);
-
     lastPhaseTimepoint = d->timer->currentTimePoint();
 
     // join all dedicated module threads with the main thread again, waiting for them to terminate
@@ -1732,6 +1725,13 @@ bool Engine::runInternal(const QString &exportDirPath)
 
     qCDebug(logEngine).noquote().nospace() << "All (non-event) engine threads joined in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
     lastPhaseTimepoint = d->timer->currentTimePoint();
+
+    // All module data must be written by this point, so we "steal" its storage group,
+    // so the module will trigger an error message if is still tries to access the final
+    // data. We mast do this in a separate loop, as some modules may share an EDL group
+    // to store data in.
+    for (auto &mod : orderedActiveModules)
+        mod->setStorageGroup(nullptr);
 
     if (d->saveInternal) {
         emitStatusMessage(QStringLiteral("Finalizing internal dataset..."));
