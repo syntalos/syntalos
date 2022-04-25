@@ -622,7 +622,7 @@ void VideoWriter::initializeInternal()
     }
 
     // initialize codec and context
-    AVCodec *vcodec;
+    AVCodec *vcodec = nullptr;
     if (d->codecProps.useVaapi()) {
         // we should try to use hardware acceleration
         if (d->codecProps.codec() == VideoCodec::VP9)
@@ -634,9 +634,19 @@ void VideoWriter::initializeInternal()
         else
             throw std::runtime_error("Unable to find hardware-accelerated version of the selected codec.");
     } else {
-        // no hardware acceleration, proceed as usual
-        vcodec = avcodec_find_encoder(codecId);
+        // No hardware acceleration, select software encoder
+        // We only use SVT-AV1 for AV1 encoding, because it is much faster and even
+        // produced better quality images while encoding live (aom-av1 is not really
+        // suitable for live encoding tasks)
+        if (codecId == AV_CODEC_ID_AV1)
+            vcodec = avcodec_find_encoder_by_name("libsvtav1");
+        else
+            vcodec = avcodec_find_encoder(codecId);
     }
+    if (vcodec == nullptr)
+        throw std::runtime_error(QStringLiteral("Unable to find suitable video encoder for codec %1. This codec may not have been enabled at compile time or the system is missing the required encoder.")
+                                 .arg(videoCodecToString(d->codecProps.codec()).c_str()).toStdString());
+
     d->cctx = avcodec_alloc_context3(vcodec);
     d->selectedEncoderName = QString::fromUtf8(vcodec->name);
 
@@ -666,10 +676,6 @@ void VideoWriter::initializeInternal()
                                 d->inputPixFormat == AV_PIX_FMT_GRAY16LE ||
                                 d->inputPixFormat == AV_PIX_FMT_GRAY16BE ? d->inputPixFormat : AV_PIX_FMT_YUV420P;
 
-    // enable experimental mode to encode AV1
-    if (d->codecProps.codec() == VideoCodec::AV1)
-        d->cctx->strict_std_compliance = -2;
-
     if (d->octx->oformat->flags & AVFMT_GLOBALHEADER)
         d->cctx->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
 
@@ -693,6 +699,7 @@ void VideoWriter::initializeInternal()
     else if (d->codecProps.mode() == CodecProperties::ConstantBitrate)
         d->cctx->bit_rate = d->codecProps.bitrateKbps() * 1000;
 
+    d->cctx->gop_size = 100;
     if (d->codecProps.isLossless()) {
         // settings for lossless option
 
@@ -701,6 +708,7 @@ void VideoWriter::initializeInternal()
             // uncompressed frames are always lossless
             break;
         case VideoCodec::AV1:
+            av_dict_set_int(&codecopts, "crf", 0, 0);
             av_dict_set_int(&codecopts, "lossless", 1, 0);
             break;
         case VideoCodec::FFV1:
@@ -957,7 +965,7 @@ void VideoWriter::initialize(const QString &fname,
     else
         d->fnameBase = fname;
 
-    // select FFMpeg pixel format of OpenCV matrixes
+    // select FFMpeg pixel format of OpenCV matrices
     if (hasColor) {
         d->inputPixFormat = AV_PIX_FMT_BGR24;
     } else {
