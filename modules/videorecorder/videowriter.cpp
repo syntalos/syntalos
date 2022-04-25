@@ -683,10 +683,6 @@ void VideoWriter::initializeInternal()
     if (d->codecProps.useVaapi()) {
         initializeHWAccell();
         d->cctx->hw_frames_ctx = av_buffer_ref(d->hwFrameCtx);
-
-        // the global header seems to cause troubles with pretty much all HW-accelerated codecs.
-        // disable it for now.
-        d->cctx->flags &= ~(AV_CODEC_FLAG_GLOBAL_HEADER);
     }
 
     AVDictionary *codecopts = nullptr;
