@@ -183,7 +183,9 @@ gboolean efd_signal_source_dispatch(GSource* source, GSourceFunc callback, gpoin
         uint64_t buffer;
         // just read the buffer count for now to empty it
         // (maybe we can do something useful with the element count later?)
-        (void) read(efd_source->event_fd, &buffer, sizeof(buffer));
+        if (G_UNLIKELY (read(efd_source->event_fd, &buffer, sizeof(buffer)) == -1))
+            qWarning().noquote() << "Failed to read from eventfd:" << g_strerror(errno);
+
         result_continue = callback(user_data);
     }
     g_source_set_ready_time(source, -1);
@@ -276,7 +278,7 @@ void ModuleEventThread::moduleEventThreadFunc(QList<AbstractModule*> mods, Optio
     symaster_timepoint tpWaitStart;
 
     if (mods.isEmpty()) {
-        qDebug() << "All evented modules are idle, shutting down their thread.";
+        qDebug().noquote() << "All evented modules are idle, shutting down their thread.";
         d->activeLoop = nullptr;
         goto out;
     }
