@@ -518,7 +518,7 @@ void VideoWriter::initializeHWAccell()
                                      qPrintable(d->hwDevice), nullptr, 0);
 
     if (ret != 0)
-        throw std::runtime_error(QStringLiteral("Failed to create hw encoding device for %1: %2").arg(d->hwDevice).arg(ret).toStdString());
+        throw std::runtime_error(QStringLiteral("Failed to create hardware encoding device for %1: %2").arg(d->hwDevice).arg(ret).toStdString());
 
     d->hwFrameCtx = av_hwframe_ctx_alloc(d->hwDevCtx);
     if (!d->hwFrameCtx) {
@@ -699,6 +699,13 @@ void VideoWriter::initializeInternal()
     else if (d->codecProps.mode() == CodecProperties::ConstantBitrate)
         d->cctx->bit_rate = d->codecProps.bitrateKbps() * 1000;
 
+    if (d->codecProps.useVaapi()) {
+        // some hardware-accelerated codecs use different options for some reason
+        if (d->codecProps.codec() == VideoCodec::HEVC &&
+            d->codecProps.mode() == CodecProperties::ConstantQuality)
+            av_dict_set_int(&codecopts, "qp", d->codecProps.quality(), 0);
+    }
+
     d->cctx->gop_size = 100;
     if (d->codecProps.isLossless()) {
         // settings for lossless option
@@ -734,7 +741,7 @@ void VideoWriter::initializeInternal()
         // not lossless
 
         if (d->codecProps.codec() == VideoCodec::HEVC) {
-            d->cctx->gop_size = 16;
+            d->cctx->gop_size = 32;
             av_dict_set(&codecopts, "preset", "veryfast", 0);
         }
     }
