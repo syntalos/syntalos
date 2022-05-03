@@ -1,9 +1,7 @@
 # PyWorker helper process
 
-
 # try to find NumPy
-python_inc_args = python_embed_dep.get_variable(pkgconfig: 'Cflags').strip().split()
-python_inc_args += run_command('python3',
+python_inc_args = run_command('python3',
                                ['-c',
                                 'import site\n' +
                                 'import sys\n' +
