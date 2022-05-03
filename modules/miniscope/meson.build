@@ -7,7 +7,7 @@ module_hdr = [
 ]
 module_moc_hdr = [
     'mscontrolwidget.h',
-    'miniscopesettingsdialog.h'
+    'miniscopesettingsdialog.h',
 ]
 
 module_src = [
@@ -15,7 +15,7 @@ module_src = [
     'mscontrolwidget.cpp'
 ]
 module_moc_src = [
-    'miniscopemodule.cpp'
+    'miniscopemodule.cpp',
 ]
 
 module_ui = ['miniscopesettingsdialog.ui']

@@ -100,6 +100,12 @@ public:
         m_settingsDialog->setWindowTitle(QStringLiteral("Settings for %1").arg(name));
     }
 
+    void usbHotplugEvent(UsbHotplugEventKind) override
+    {
+        // ensure the currently displayed device info is accurate
+        m_settingsDialog->updateCurrentDeviceName();
+    }
+
     bool prepare(const TestSubject &) override
     {
         // do not accept any frames yet

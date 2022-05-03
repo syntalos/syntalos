@@ -46,6 +46,8 @@ public:
     void setDeviceType(const QString &devType);
     void setCurrentPixRangeValues(int min, int max);
 
+    void updateCurrentDeviceName();
+
 private slots:
     void on_deviceTypeCB_currentIndexChanged(const QString &arg1);
     void on_sbCamId_valueChanged(int arg1);

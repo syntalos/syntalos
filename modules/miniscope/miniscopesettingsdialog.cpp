@@ -67,6 +67,7 @@ MiniscopeSettingsDialog::~MiniscopeSettingsDialog()
 void MiniscopeSettingsDialog::readCurrentValues()
 {
     ui->sbCamId->setValue(m_mscope->scopeCamId());
+    updateCurrentDeviceName();
     ui->accAlphaSpinBox->setValue(m_mscope->bgAccumulateAlpha());
     setDeviceType(m_mscope->deviceType());
 
@@ -114,6 +115,11 @@ void MiniscopeSettingsDialog::setCurrentPixRangeValues(int min, int max)
     ui->labelScopeMax->setText(QString::number(max).rightJustified(3, '0'));
 }
 
+void MiniscopeSettingsDialog::updateCurrentDeviceName()
+{
+    on_sbCamId_valueChanged(ui->sbCamId->value());
+}
+
 void MiniscopeSettingsDialog::on_deviceTypeCB_currentIndexChanged(const QString &arg1)
 {
     if (!m_initDone)
@@ -149,6 +155,10 @@ void MiniscopeSettingsDialog::on_sbCamId_valueChanged(int arg1)
     if (m_mscope->isConnected())
         m_mscope->disconnect();
     m_mscope->setScopeCamId(arg1);
+    auto vdevName = videoDeviceNameFromId(arg1);
+    if (vdevName.isEmpty())
+        vdevName = QStringLiteral("unknown or invalid");
+    ui->camInfoLabel->setText(QStringLiteral("➞ %1").arg(vdevName));
 }
 
 void MiniscopeSettingsDialog::on_cbExtRecTrigger_toggled(bool checked)
