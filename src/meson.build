@@ -7,6 +7,8 @@ syntalos_core_inc_dir = include_directories('.')
 syntalos_shared_src = [
     'edlstorage.h',
     'edlstorage.cpp',
+    'elidedlabel.h',
+    'elidedlabel.cpp',
     'eigenaux.h',
     'globalconfig.h',
     'globalconfig.cpp',
@@ -55,8 +57,6 @@ syntalos_src = [
     'appstyle.cpp',
     'cpuaffinity.h',
     'cpuaffinity.cpp',
-    'elidedlabel.h',
-    'elidedlabel.cpp',
     'entitylistmodels.h',
     'entitylistmodels.cpp',
     'engine.h',

@@ -1,65 +1,56 @@
+/*
+ * Copyright (C) 2016-2022 Matthias Klumpp <matthias@tenstral.net>
+ *
+ * Licensed under the GNU Lesser General Public License Version 3
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the license, or
+ * (at your option) any later version.
+ *
+ * This software is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this software.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #include "elidedlabel.h"
 
 #include <QTextLayout>
-#include <QPainter>
 
 ElidedLabel::ElidedLabel(QWidget *parent)
-    : ElidedLabel(nullptr, parent)
+    : ElidedLabel(QString(), parent)
 {
 }
 
 ElidedLabel::ElidedLabel(const QString &text, QWidget *parent)
-    : QFrame(parent)
-    , elided(false)
-    , content(text)
+    : QLabel(parent),
+      m_elideMode(Qt::ElideMiddle)
 {
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    setText(text);
 }
 
 void ElidedLabel::setText(const QString &newText)
 {
-    content = newText;
-    update();
+    m_rawText = newText;
+    m_realMinWidth = minimumWidth();
+    updateElision();
 }
 
-void ElidedLabel::paintEvent(QPaintEvent *event)
+void ElidedLabel::resizeEvent(QResizeEvent *)
 {
-    QFrame::paintEvent(event);
+    updateElision();
+}
 
-    QPainter painter(this);
-    QFontMetrics fontMetrics = painter.fontMetrics();
-
-    bool didElide = false;
-    int lineSpacing = fontMetrics.lineSpacing();
-    int y = qRound((height() / 2.0) - (fontMetrics.height() / 2.0));
-
-    QTextLayout textLayout(content, painter.font());
-    textLayout.beginLayout();
-    forever {
-        QTextLine line = textLayout.createLine();
-
-        if (!line.isValid())
-            break;
-
-        line.setLineWidth(width());
-        int nextLineY = y + lineSpacing;
-
-        if (height() >= nextLineY + lineSpacing) {
-            line.draw(&painter, QPoint(0, y));
-            y = nextLineY;
-        } else {
-            QString lastLine = content.mid(line.textStart());
-            QString elidedLastLine = fontMetrics.elidedText(lastLine, Qt::ElideMiddle, width());
-            painter.drawText(QPoint(0, y + fontMetrics.ascent()), elidedLastLine);
-            line = textLayout.createLine();
-            didElide = line.isValid();
-            break;
-        }
-    }
-    textLayout.endLayout();
-    if (didElide != elided) {
-        elided = didElide;
-        emit elisionChanged(didElide);
-    }
+void ElidedLabel::updateElision()
+{
+    QFontMetrics metrics(font());
+    QString elidedText = metrics.elidedText(m_rawText, m_elideMode, width());
+    QLabel::setText(elidedText);
+    if (!elidedText.isEmpty())
+        setMinimumWidth((m_realMinWidth == 0)? 1 : m_realMinWidth);
 }
