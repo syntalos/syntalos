@@ -5,6 +5,8 @@ runtime-version: 5.15-21.08
 sdk: org.kde.Sdk
 command: syntalos
 rename-icon: syntalos
+rename-desktop-file: syntalos.desktop
+
 finish-args:
   - '--share=network'
   - '--share=ipc'
@@ -13,13 +15,39 @@ finish-args:
   - '--device=all'
   - '--filesystem=host'
   - '--socket=system-bus'
+  - '--socket=session-bus'
+
 add-extensions:
+  org.freedesktop.Platform.GL:
+    directory: lib/GL
+    version: '21.08'
+    subdirectories: true
+    add-ld-path: lib
+    merge-dirs: vulkan/icd.d;glvnd/egl_vendor.d
+    download-if: active-gl-driver
+    enable-if: active-gl-driver
   org.freedesktop.Platform.ffmpeg-full:
     directory: lib/ffmpeg
     add-ld-path: '.'
-    version: '20.08'
+    version: '21.08'
     autodelete: false
+
 modules:
+- name: essential-dirs
+  buildsystem: simple
+  build-commands:
+    - mkdir -p /app/lib/ffmpeg
+    - mkdir -p /app/lib/GL
+
+- name: opencl-headers
+  buildsystem: simple
+  build-commands:
+    - mkdir -p /app/include/CL
+    - cp -av CL/* /app/include/CL
+  sources:
+    - type: archive
+      url: https://github.com/KhronosGroup/OpenCL-Headers/archive/refs/tags/v2022.01.04.tar.gz
+      sha256: 6e716e2b13fc8d363b40a165ca75021b102f9328e2b38f8054d7db5884de29c9
 
 - name: xxhash
   no-autogen: true
@@ -27,7 +55,6 @@ modules:
     - PREFIX=${FLATPAK_DEST}
   cleanup:
     - /bin/*
-    - /include
     - /lib/pkgconfig
     - /lib/*.a
     - /share
