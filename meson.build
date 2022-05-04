@@ -199,6 +199,9 @@ python_dep = dependency('python3')
 python_embed_dep = dependency('python3-embed')
 pybind11_dep = dependency('pybind11')
 
+# check for OpenCL headers
+cpp_compiler.has_header('CL/cl.h', required: true)
+
 # essential dependencies definitely required by
 # anything using the Syntalos API
 # NOTE: QtWidgets is required since modules expose QAction items

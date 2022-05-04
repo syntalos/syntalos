@@ -70,7 +70,9 @@ sy_pyworker_moc = qt.preprocess(
     moc_headers: [pyworker_moc_h, rep_worker_src_hdr],
     moc_sources: pyworker_moc_s,
     dependencies: [qt_remoteobj_dep],
-    moc_extra_arguments: ['--no-notes']
+    # FIXME: The forced include directive works around a weird issue in KDE's Flatpak runtime,
+    # where some Qt modules are not found properly, resulting in parsing errors.
+    moc_extra_arguments: ['-I/usr/include', '--no-notes']
 )
 
 pyworker_exe = executable('pyworker',

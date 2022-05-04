@@ -22,7 +22,10 @@ sy_oop_shared_src = [
 
 sy_oop_moc = qt.preprocess(
     moc_headers: [rep_worker_rep_hdr],
-    dependencies: [qt_remoteobj_dep]
+    dependencies: [qt_remoteobj_dep],
+    # FIXME: The forced include directive works around a weird issue in KDE's Flatpak runtime,
+    # where some Qt modules are not found properly, resulting in parsing errors.
+    moc_extra_arguments: ['-I/usr/include']
 )
 
 sy_oopshared_lib = static_library('sy_oop_shared',
