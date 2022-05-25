@@ -1767,7 +1767,7 @@ bool Engine::runInternal(const QString &exportDirPath)
             extraData.insert("failure_reason", d->runFailedReason);
         }
         extraData.insert("machine_node", QStringLiteral("%1 [%2 %3]").arg(d->sysInfo->machineHostName())
-                                                                     .arg(d->sysInfo->osType())
+                                                                     .arg(d->sysInfo->osId())
                                                                      .arg(d->sysInfo->osVersion()));
 
         QVariantList attrModList;

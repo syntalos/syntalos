@@ -28,6 +28,7 @@
 
 #include "moduleapi.h"
 #include "pymoduleloader.h"
+#include "sysinfo.h"
 #include "utils/tomlutils.h"
 
 
@@ -66,9 +67,10 @@ ModuleLibrary::ModuleLibrary(QObject *parent)
       d(new ModuleLibrary::Private)
 {
     d->syntalosApiId = QStringLiteral(SY_VCS_TAG);
+    SysInfo sysInfo;
 
     bool haveLocalModDir = false;
-    if (!QCoreApplication::applicationDirPath().startsWith("/usr")) {
+    if (!QCoreApplication::applicationDirPath().startsWith("/usr") && !sysInfo.inFlatpakSandbox()) {
         const auto path = QDir(QStringLiteral("%1/%2").arg(QCoreApplication::applicationDirPath()).arg("../modules")).canonicalPath();
         if (QDir(path).exists()) {
             d->locations.append(ModuleLocation(path, true));

@@ -50,6 +50,13 @@ public:
     Private() { }
     ~Private() { }
 
+    QString osId;
+    QString osName;
+    QString osVersion;
+
+    QString runtimeName;
+    QString runtimeVersion;
+
     QString currentClocksource;
     QString availableClocksources;
     QString initName;
@@ -67,8 +74,82 @@ public:
 
     QString glVersion;
     QString glExtensions;
+
+    bool inFlatpakSandbox;
 };
 #pragma GCC diagnostic pop
+
+static QString unquote(const char *begin, const char *end)
+{
+    // man os-release says:
+    // Variable assignment values must be enclosed in double
+    // or single quotes if they include spaces, semicolons or
+    // other special characters outside of A–Z, a–z, 0–9. Shell
+    // special characters ("$", quotes, backslash, backtick)
+    // must be escaped with backslashes, following shell style.
+    // All strings should be in UTF-8 format, and non-printable
+    // characters should not be used. It is not supported to
+    // concatenate multiple individually quoted strings.
+    if (*begin == '"') {
+        Q_ASSERT(end[-1] == '"');
+        return QString::fromUtf8(begin + 1, end - begin - 2);
+    }
+    return QString::fromUtf8(begin, end - begin);
+}
+
+typedef struct
+{
+    QString id;
+    QString name;
+    QString version;
+} OsReleaseInfo;
+
+static OsReleaseInfo readOsRelease(const char *filename)
+{
+
+    const QByteArray idKey = QByteArrayLiteral("ID=");
+    const QByteArray versionKey = QByteArrayLiteral("VERSION_ID=");
+    const QByteArray prettyNameKey = QByteArrayLiteral("PRETTY_NAME=");
+    OsReleaseInfo relInfo;
+
+    QFile file(filename);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+        return relInfo;
+
+    const auto buffer = file.readAll();
+
+    const char *ptr = buffer.constData();
+    const char *end = buffer.constEnd();
+    const char *eol;
+    QByteArray line;
+    for (; ptr != end; ptr = eol + 1) {
+        // find the end of the line after ptr
+        eol = static_cast<const char *>(memchr(ptr, '\n', end - ptr));
+        if (!eol)
+            eol = end - 1;
+        line.setRawData(ptr, eol - ptr);
+
+        if (line.startsWith(idKey)) {
+            ptr += idKey.length();
+            relInfo.id = unquote(ptr, eol);
+            continue;
+        }
+
+        if (line.startsWith(prettyNameKey)) {
+            ptr += prettyNameKey.length();
+            relInfo.name = unquote(ptr, eol);
+            continue;
+        }
+
+        if (line.startsWith(versionKey)) {
+            ptr += versionKey.length();
+            relInfo.version = unquote(ptr, eol);
+            continue;
+        }
+    }
+
+    return relInfo;
+}
 
 SysInfo::SysInfo(QObject *parent)
     : QObject(parent),
@@ -102,6 +183,33 @@ SysInfo::SysInfo(QObject *parent)
     d->glVersion = QString::fromUtf8((const char*)ctx.functions()->glGetString(GL_VERSION));
     d->glExtensions = QString::fromUtf8((const char*) ctx.functions()->glGetString(GL_EXTENSIONS));
 
+    // test if we are sndboxed in a Flatpak environment
+    d->inFlatpakSandbox = qEnvironmentVariable("container") == QStringLiteral("flatpak");
+    if (d->inFlatpakSandbox) {
+        // we're in a Flatpak sandbox, so special rules apply to get some information about the host
+        // as well as the Flatpak runtime that we are using.
+        const auto osInfo = readOsRelease("/run/host/etc/os-release");
+        if (osInfo.id.isEmpty()) {
+            d->osId = QSysInfo::productType();
+            d->osName = QSysInfo::prettyProductName();
+            d->osVersion = QSysInfo::productVersion();
+        } else {
+            d->osId = osInfo.id;
+            d->osName = osInfo.name;
+            d->osVersion = osInfo.version;
+        }
+        d->runtimeName = QSysInfo::prettyProductName();
+        d->runtimeVersion = QSysInfo::productVersion();
+    } else {
+        // we're not in a sandbox, so we can just take the native OS values
+        d->osId = QSysInfo::productType();
+        d->osName = QSysInfo::prettyProductName();
+        d->osVersion = QSysInfo::productVersion();
+        d->runtimeName = QSysInfo::prettyProductName();
+        d->runtimeVersion = d->osVersion;
+    }
+
+    // load CPU data
     readCPUInfo();
 }
 
@@ -113,14 +221,14 @@ QString SysInfo::machineHostName() const
     return QSysInfo::machineHostName();
 }
 
-QString SysInfo::prettyOSName() const
+QString SysInfo::osId() const
 {
-    return QSysInfo::prettyProductName();
+    return d->osId;
 }
 
-QString SysInfo::osType() const
+QString SysInfo::prettyOSName() const
 {
-    return QSysInfo::productType();
+    return d->osName;
 }
 
 QString SysInfo::osVersion() const
@@ -180,6 +288,10 @@ QString SysInfo::initName() const
 
 SysInfoCheckResult SysInfo::checkInitSystem()
 {
+    // if we are in Flatpak, we ignore this check for now
+    if (inFlatpakSandbox())
+        return SysInfoCheckResult::OK;
+
     // we communicate with systemd in some occasions,
     // and no tests have been done with other init systems
     if (d->initName.startsWith("systemd"))
@@ -274,6 +386,11 @@ bool SysInfo::tscIsConstant() const
 SysInfoCheckResult SysInfo::checkTSCConstant()
 {
     return d->tscIsConstant? SysInfoCheckResult::OK : SysInfoCheckResult::ISSUE;
+}
+
+bool SysInfo::inFlatpakSandbox() const
+{
+    return d->inFlatpakSandbox;
 }
 
 QString SysInfo::supportedAVXInstructions() const

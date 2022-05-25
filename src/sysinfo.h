@@ -39,7 +39,7 @@ public:
 
     QString machineHostName() const;
     QString prettyOSName() const;
-    QString osType() const;
+    QString osId() const;
     QString osVersion() const;
     QString kernelInfo() const;
     SysInfoCheckResult checkKernel();
@@ -69,6 +69,8 @@ public:
 
     bool tscIsConstant() const;
     SysInfoCheckResult checkTSCConstant();
+
+    bool inFlatpakSandbox() const;
 
     QString supportedAVXInstructions() const;
     SysInfoCheckResult checkAVXInstructions();
