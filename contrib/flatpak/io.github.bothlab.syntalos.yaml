@@ -26,17 +26,11 @@ add-extensions:
     merge-dirs: vulkan/icd.d;glvnd/egl_vendor.d
     download-if: active-gl-driver
     enable-if: active-gl-driver
-  org.freedesktop.Platform.ffmpeg-full:
-    directory: lib/ffmpeg
-    add-ld-path: '.'
-    version: '21.08'
-    autodelete: false
 
 modules:
 - name: essential-dirs
   buildsystem: simple
   build-commands:
-    - mkdir -p /app/lib/ffmpeg
     - mkdir -p /app/lib/GL
 
 - name: opencl-headers
@@ -73,6 +67,85 @@ modules:
   cleanup:
     - '*'
 
+- name: svt-av1
+  buildsystem: cmake-ninja
+  builddir: true
+  sources:
+    - type: git
+      url: https://gitlab.com/AOMediaCodec/SVT-AV1.git
+      tag: v1.1.0
+
+- name: libx264
+  config-opts:
+    - --disable-cli
+    - --enable-shared
+  sources:
+    - type: archive
+      url: https://download.videolan.org/x264/snapshots/x264-snapshot-20191217-2245-stable.tar.bz2
+      sha256: b2495c8f2930167d470994b1ce02b0f4bfb24b3317ba36ba7f112e9809264160
+
+- name: x265
+  buildsystem: cmake-ninja
+  builddir: true
+  subdir: source
+  config-opts:
+    - -DCMAKE_BUILD_TYPE=RelWithDebInfo
+    - -DENABLE_CLI=OFF
+  sources:
+    - type: archive
+      url: https://deb.debian.org/debian/pool/main/x/x265/x265_3.5.orig.tar.gz
+      sha256: e70a3335cacacbba0b3a20ec6fecd6783932288ebc8163ad74bcc9606477cae8
+
+- name: ffmpeg
+  config-opts:
+    - --enable-shared
+    - --disable-static
+    - --disable-doc
+    - --disable-manpages
+    - --disable-stripping
+    - --disable-ffplay
+    - --disable-ffprobe
+
+    - --enable-gpl
+    - --enable-version3
+    - --enable-optimizations
+    - --enable-postproc
+    - --enable-pthreads
+    - --enable-gnutls
+    - --enable-libxcb-xfixes
+    - --enable-opengl
+    - --enable-opencl
+    - --enable-sdl2
+    - --enable-vaapi
+    - --enable-vdpau
+    - --enable-zlib
+    - --enable-bzlib
+    - --enable-lzma
+
+    - --enable-fontconfig
+    - --enable-libfontconfig
+    - --enable-libfreetype
+    - --enable-libxml2
+
+    - --enable-avcodec
+    - --enable-avfilter
+    - --enable-swscale
+
+    - --enable-libxcb
+    - --enable-protocol=file
+
+    # Codecs we need / want: FFV1, AV1, VP9, H.264, HEVC
+    - --enable-libsvtav1
+    - --enable-libvpx
+    - --enable-libx264
+    - --enable-libx265
+  sources:
+    - type: archive
+      url: https://ffmpeg.org/releases/ffmpeg-4.4.2.tar.xz
+      sha256: af419a7f88adbc56c758ab19b4c708afbcae15ef09606b82b855291f6a6faa93
+  cleanup:
+    - /share/ffmpeg/examples
+
 - name: toml++
   buildsystem: meson
   builddir: true
@@ -105,11 +178,11 @@ modules:
   #   - "/bin"
   sources:
     - type: archive
-      url: https://github.com/opencv/opencv/archive/4.2.0.tar.gz
-      sha256: 9ccb2192d7e8c03c58fee07051364d94ed7599363f3b0dce1c5e6cc11c1bb0ec
+      url: https://github.com/opencv/opencv/archive/refs/tags/4.5.5.tar.gz
+      sha256: a1cfdcf6619387ca9e232687504da996aaa9f7b5689986b8331ec02cb61d28ad
     - type: archive
-      url: https://github.com/opencv/opencv_contrib/archive/4.2.0.tar.gz
-      sha256: 8a6b5661611d89baa59a26eb7ccf4abb3e55d73f99bb52d8f7c32265c8a43020
+      url: https://github.com/opencv/opencv_contrib/archive/refs/tags/4.5.5.tar.gz
+      sha256: a97c2eaecf7a23c6dbd119a609c6d7fae903e5f9ff5f1fe678933e01c67a6c11
 
 - name: libusb
   sources:
@@ -182,20 +255,21 @@ modules:
     url: https://libzip.org/download/libzip-1.8.0.tar.xz
     sha256: f0763bda24ba947e80430be787c4b068d8b6aa6027a26a19923f0acfa3dac97e
 
-#- name: tiscamera
-#  buildsystem: cmake-ninja
-#  builddir: true
-#  config-opts:
-#    - -DTCAM_INSTALL_UDEV=/app/lib/udev
-#    - -DTCAM_INSTALL_UVCDYNCTRL=/app/share/uvcdynctrl/data/199e
-#    - -DTCAM_INSTALL_SYSTEMD=/app/lib/systemd/system/
-#    - -DGOBJECT_INTROSPECTION_1.0_GIRDIR=/app/share/gir-1.0/
-#    - -DGOBJECT_INTROSPECTION_1.0_TYPELIBDIR=/app/lib/girepository-1.0
-#    - -DGSTREAMER_1.0_PLUGINSDIR=/app/lib/gstreamer-1.0
-#    - -DGSTREAMER_1.0_INCLUDEDIR=/include/gstreamer-1.0
-#  sources:
-#    - type: git
-#      url: https://github.com/TheImagingSource/tiscamera.git
+- name: tiscamera
+  buildsystem: cmake-ninja
+  builddir: true
+  config-opts:
+    - -DTCAM_INSTALL_UDEV=/app/lib/udev
+    - -DTCAM_INSTALL_UVCDYNCTRL=/app/share/uvcdynctrl/data/199e
+    - -DTCAM_INSTALL_SYSTEMD=/app/lib/systemd/system/
+    - -DTCAM_BUILD_WITH_GUI=OFF
+    - -DGOBJECT_INTROSPECTION_1.0_GIRDIR=/app/share/gir-1.0/
+    - -DGOBJECT_INTROSPECTION_1.0_TYPELIBDIR=/app/lib/girepository-1.0
+    - -DGSTREAMER_1.0_PLUGINSDIR=/app/lib/gstreamer-1.0
+    - -DGSTREAMER_1.0_INCLUDEDIR=/include/gstreamer-1.0
+  sources:
+    - type: git
+      url: https://github.com/TheImagingSource/tiscamera.git
 
 - name: pomidaq
   buildsystem: cmake-ninja
@@ -213,7 +287,7 @@ modules:
   config-opts:
     - -Doptimize-modern-amd64=true
     - -Dudevdir=/app/lib/udev
-    - -Dmodules=miniscope,intan-rhx
+    - -Dmodules=miniscope,camera-tis,intan-rhx
   sources:
     - type: dir
       path: ../..
