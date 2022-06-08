@@ -71,6 +71,8 @@ public:
     SysInfoCheckResult checkTSCConstant();
 
     bool inFlatpakSandbox() const;
+    QString runtimeName() const;
+    QString runtimeVersion() const;
 
     QString supportedAVXInstructions() const;
     SysInfoCheckResult checkAVXInstructions();

@@ -21,6 +21,7 @@
 #include "ui_sysinfodialog.h"
 
 #include <QIcon>
+#include <QClipboard>
 
 SysInfoDialog::SysInfoDialog(SysInfo *sysInfo, QWidget *parent) :
     QDialog(parent),
@@ -80,11 +81,35 @@ SysInfoDialog::SysInfoDialog(SysInfo *sysInfo, QWidget *parent) :
     ui->valEigen->setText(sysInfo->eigenVersionString());
     ui->valFFmpeg->setText(sysInfo->ffmpegVersionString());
     ui->valPythonAPI->setText(sysInfo->pythonApiVersion());
+    if (sysInfo->inFlatpakSandbox())
+        ui->valSandboxInfo->setText(QStringLiteral("Flatpak; Runtime: %1 %2")
+                                    .arg(sysInfo->runtimeName(), sysInfo->runtimeVersion()));
+    else
+        ui->valSandboxInfo->setText(QStringLiteral("None detected"));
 }
 
 SysInfoDialog::~SysInfoDialog()
 {
     delete ui;
+}
+
+void SysInfoDialog::on_btnClipboardCopy_clicked()
+{
+    auto infoText = QStringLiteral("Syntalos %1 | %2 (Kernel: %3)\n")
+                        .arg(ui->valSyntalos->text(),
+                             ui->valOSName->text(),
+                             ui->valKernel->text());
+    infoText += QStringLiteral("Software: Qt %1 | OpenCV %2 | FFMpeg %3 | Python %4\n")
+                        .arg(ui->valQt->text(),
+                             ui->valOpenCV->text(),
+                             ui->valFFmpeg->text(),
+                             ui->valPythonAPI->text());
+    infoText += QStringLiteral("Sandbox: %1\n").arg(ui->valSandboxInfo->text());
+    infoText += QStringLiteral("Architecture: %1 | CPU: %2 | OpenGL: %3\n")
+                        .arg(ui->valHWArch->text(),
+                             ui->valCPU0ModelName->text(),
+                             ui->valOpenGL->text());
+    QGuiApplication::clipboard()->setText(infoText);
 }
 
 void SysInfoDialog::setLabelTextStyle(SysInfoCheckResult checkResult, QLabel *label)

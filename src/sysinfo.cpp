@@ -393,6 +393,16 @@ bool SysInfo::inFlatpakSandbox() const
     return d->inFlatpakSandbox;
 }
 
+QString SysInfo::runtimeName() const
+{
+    return d->runtimeName;
+}
+
+QString SysInfo::runtimeVersion() const
+{
+    return d->runtimeVersion;
+}
+
 QString SysInfo::supportedAVXInstructions() const
 {
     return d->supportedAVXInstructions;

@@ -37,6 +37,9 @@ public:
     explicit SysInfoDialog(SysInfo *sysInfo, QWidget *parent = nullptr);
     ~SysInfoDialog();
 
+private slots:
+    void on_btnClipboardCopy_clicked();
+
 private:
     Ui::SysInfoDialog *ui;
     QPalette m_okTextPal;
