@@ -255,20 +255,37 @@ modules:
     url: https://libzip.org/download/libzip-1.8.0.tar.xz
     sha256: f0763bda24ba947e80430be787c4b068d8b6aa6027a26a19923f0acfa3dac97e
 
+- name: aravis
+  buildsystem: meson
+  builddir: true
+  config-opts:
+    - -Dviewer=disabled
+    - -Dgst-plugin=enabled
+  sources:
+    - type: git
+      tag: '0.8.21'
+      url: https://github.com/AravisProject/aravis.git
+
 - name: tiscamera
   buildsystem: cmake-ninja
   builddir: true
   config-opts:
+    - -DBUILD_DOCUMENTATION=OFF
+    - -DTCAM_INSTALL_FORCE_PREFIX=ON
     - -DTCAM_INSTALL_UDEV=/app/lib/udev
-    - -DTCAM_INSTALL_UVCDYNCTRL=/app/share/uvcdynctrl/data/199e
     - -DTCAM_INSTALL_SYSTEMD=/app/lib/systemd/system/
     - -DTCAM_BUILD_WITH_GUI=OFF
+    - -DTCAM_BUILD_DOCUMENTATION=OFF
+    - -DTCAM_DOWNLOAD_MESON=OFF
+    - -DTCAM_INTERNAL_ARAVIS=OFF
+    - -Daravis_INCLUDE_DIR=/app/include/aravis-0.8
     - -DGOBJECT_INTROSPECTION_1.0_GIRDIR=/app/share/gir-1.0/
     - -DGOBJECT_INTROSPECTION_1.0_TYPELIBDIR=/app/lib/girepository-1.0
     - -DGSTREAMER_1.0_PLUGINSDIR=/app/lib/gstreamer-1.0
     - -DGSTREAMER_1.0_INCLUDEDIR=/include/gstreamer-1.0
   sources:
     - type: git
+      commit: 0e8155c7c63526c8ba90f9ba81aa0c824247bb78
       url: https://github.com/TheImagingSource/tiscamera.git
 
 - name: pomidaq
