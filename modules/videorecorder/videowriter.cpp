@@ -622,7 +622,7 @@ void VideoWriter::initializeInternal()
     }
 
     // initialize codec and context
-    AVCodec *vcodec = nullptr;
+    const AVCodec *vcodec = nullptr;
     if (d->codecProps.useVaapi()) {
         // we should try to use hardware acceleration
         if (d->codecProps.codec() == VideoCodec::VP9)
