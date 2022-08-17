@@ -8,14 +8,15 @@ rename-icon: syntalos
 rename-desktop-file: syntalos.desktop
 
 finish-args:
-  - '--share=network'
-  - '--share=ipc'
-  - '--socket=x11'
-  - '--socket=wayland'
-  - '--device=all'
-  - '--filesystem=host'
-  - '--socket=system-bus'
-  - '--socket=session-bus'
+  - --share=network
+  - --share=ipc
+  - --socket=x11
+  - --socket=wayland
+  - --device=all
+  - --filesystem=host
+  - --socket=system-bus
+  - --socket=session-bus
+  - --env=PATH=/app/bin:/usr/bin:/usr/sbin
 
 add-extensions:
   org.freedesktop.Platform.GL:
@@ -251,6 +252,9 @@ modules:
     - type: archive
       url: https://github.com/numpy/numpy/releases/download/v1.22.2/numpy-1.22.2.tar.gz
       sha256: 093d513a460fd94f94c16193c3ef29b2d69a33e482071e3d6d6e561a700587a6
+
+- modules/python-venv.yaml
+- modules/git.yaml
 
 # libzip is needed for tiscamera
 - name: libzip

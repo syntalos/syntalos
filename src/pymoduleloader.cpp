@@ -169,7 +169,8 @@ public:
             << "        read -p \"Command failed to run. Press enter to exit.\"\n"
             << "        exit 1\n"
             << "    fi\n"
-            << "}\n\n"
+            << "}\n"
+            << "export PATH=$PATH:/app/bin\n\n"
 
             << "cd " << shellQuote(venvDir) << "\n"
             << "run_check virtualenv ." << "\n"
