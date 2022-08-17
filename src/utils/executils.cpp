@@ -23,10 +23,13 @@
 #include <QProcess>
 #include <QStandardPaths>
 #include <QFile>
+#include <QFileInfo>
 #include <glib.h>
 
+#include "sysinfo.h"
 #include "utils/misc.h"
 
+using namespace Syntalos;
 
 QString shellQuote(const QString &str)
 {
@@ -36,22 +39,47 @@ QString shellQuote(const QString &str)
     return res;
 }
 
+/**
+ * @brief Find executable on the host system (if running in a sandbox)
+ * @param exe Name of the executable to look for
+ * @return Executable name, or empty string if not found
+ */
+QString findHostExecutable(const QString &exe)
+{
+    auto sysInfo = SysInfo::get();
+    if (sysInfo->inFlatpakSandbox()) {
+        QStringList exeLocations = QStringList() << "/usr/bin" << "/usr/local/bin" << "/usr/sbin" << "";
+        for (const auto &loc : exeLocations) {
+            QString exeHost = QStringLiteral("/run/host%1/%2").arg(loc, exe);
+            QFileInfo fi(exeHost);
+            if (fi.isExecutable())
+                return loc + "/" + exe;
+        }
+        return QString();
+    }
+
+    // no sandbox
+    return QStandardPaths::findExecutable(exe);
+}
+
 int runInExternalTerminal(const QString &cmd, const QStringList &args, const QString &wdir)
 {
     QString terminalExe;
     QStringList extraTermArgs;
+    auto sysInfo = SysInfo::get();
+
     if (terminalExe.isEmpty()) {
-        terminalExe = QStandardPaths::findExecutable("konsole");
+        terminalExe = findHostExecutable("konsole");
         extraTermArgs.append("--hide-menubar");
     }
     if (terminalExe.isEmpty()) {
-        terminalExe = QStandardPaths::findExecutable("gnome-terminal");
+        terminalExe = findHostExecutable("gnome-terminal");
         extraTermArgs.append("--hide-menubar");
     }
     if (terminalExe.isEmpty())
-        terminalExe = QStandardPaths::findExecutable("xterm");
+        terminalExe = findHostExecutable("xterm");
     if (terminalExe.isEmpty())
-        terminalExe = QStandardPaths::findExecutable("x-terminal-emulator");
+        terminalExe = findHostExecutable("x-terminal-emulator");
 
     if (terminalExe.isEmpty())
         return -255;
@@ -60,18 +88,46 @@ int runInExternalTerminal(const QString &cmd, const QStringList &args, const QSt
     if (rtdDir.isEmpty())
         rtdDir = "/tmp";
     auto exitFname = QStringLiteral("%1/sy-termexit-%2").arg(rtdDir, createRandomString(6));
+    auto shHelperFname = QStringLiteral("%1/sy-termrun-%2").arg(rtdDir, createRandomString(6));
+
+    QFile shFile(shHelperFname);
+    if (!shFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        qWarning().noquote() << "Unable to open temporary file" << shHelperFname << "for writing.";
+        return -255;
+    }
 
     QString cmdShell = shellQuote(cmd);
     for (const auto &a : args)
         cmdShell += QStringLiteral(" %1").arg(shellQuote(a));
-    cmdShell += QStringLiteral( "; echo $? > %1").arg(exitFname);
+    QTextStream out(&shFile);
+    out << "#!/bin/sh\n"
+        << cmdShell << "\n"
+        << QStringLiteral("echo $? > %1\n").arg(exitFname);
+    shFile.flush();
+    shFile.setPermissions(QFileDevice::ExeUser | QFileDevice::ReadUser | QFileDevice::WriteUser);
+    shFile.close();
 
-    const auto termArgs = QStringList() << "-e" << "sh" << "-c" << cmdShell;
     QProcess proc;
-    if (!wdir.isEmpty())
-        proc.setWorkingDirectory(wdir);
-    proc.start(terminalExe, extraTermArgs + termArgs);
+    proc.setProcessChannelMode(QProcess::ForwardedChannels);
+    if (sysInfo->inFlatpakSandbox()) {
+        // in sandbox, go via flatpak-spawn
+        QStringList fpsArgs = QStringList() << "--host";
+        if (!wdir.isEmpty())
+            fpsArgs << "--directory=" + wdir;
+        fpsArgs << terminalExe;
+
+        const auto termArgs = QStringList() << "-e" << "flatpak enter " + sysInfo->sandboxAppId() + " sh -c " + shHelperFname;
+        proc.start("flatpak-spawn", fpsArgs + extraTermArgs + termArgs);
+    } else {
+        // no sandbox, we can run the command directly
+        const auto termArgs = QStringList() << "-e" << "sh" << "-c" << shHelperFname;
+        if (!wdir.isEmpty())
+            proc.setWorkingDirectory(wdir);
+
+        proc.start(terminalExe, extraTermArgs + termArgs);
+    }
     proc.waitForFinished(-1);
+    shFile.remove();
 
     // the terminal itself failed, so the command can't have worked
     if (proc.exitStatus() != 0) {
