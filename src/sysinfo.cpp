@@ -151,8 +151,8 @@ static OsReleaseInfo readOsRelease(const char *filename)
     return relInfo;
 }
 
-SysInfo::SysInfo(QObject *parent)
-    : QObject(parent),
+SysInfo::SysInfo()
+    : QObject(nullptr),
       d(new SysInfo::Private)
 {
     d->cpuCount = QThread::idealThreadCount();
@@ -250,7 +250,7 @@ QString SysInfo::kernelInfo() const
 SysInfoCheckResult SysInfo::checkKernel()
 {
     struct utsname buffer;
-    long ver[16];
+    long ver[16] = {0};
 
     errno = 0;
     if (uname(&buffer) != 0)
@@ -401,6 +401,11 @@ QString SysInfo::runtimeName() const
 QString SysInfo::runtimeVersion() const
 {
     return d->runtimeVersion;
+}
+
+QString SysInfo::sandboxAppId() const
+{
+    return QStringLiteral("io.github.bothlab.syntalos");
 }
 
 QString SysInfo::supportedAVXInstructions() const

@@ -67,10 +67,10 @@ ModuleLibrary::ModuleLibrary(QObject *parent)
       d(new ModuleLibrary::Private)
 {
     d->syntalosApiId = QStringLiteral(SY_VCS_TAG);
-    SysInfo sysInfo;
+    auto sysInfo = SysInfo::get();
 
     bool haveLocalModDir = false;
-    if (!QCoreApplication::applicationDirPath().startsWith("/usr") && !sysInfo.inFlatpakSandbox()) {
+    if (!QCoreApplication::applicationDirPath().startsWith("/usr") && !sysInfo->inFlatpakSandbox()) {
         const auto path = QDir(QStringLiteral("%1/%2").arg(QCoreApplication::applicationDirPath()).arg("../modules")).canonicalPath();
         if (QDir(path).exists()) {
             d->locations.append(ModuleLocation(path, true));

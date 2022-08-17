@@ -149,7 +149,7 @@ Engine::Engine(QWidget *parentWidget)
 {
     d->saveInternal = false;
     d->gconf = new GlobalConfig(this);
-    d->sysInfo = new SysInfo(this);
+    d->sysInfo = SysInfo::get();
     d->exportDirIsValid = false;
     d->active = false;
     d->running = false;

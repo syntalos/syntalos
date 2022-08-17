@@ -34,8 +34,12 @@ class SysInfo : public QObject
 {
     Q_OBJECT
 public:
-    explicit SysInfo(QObject *parent = nullptr);
-    ~SysInfo();
+    static SysInfo *get() {
+        static SysInfo instance;
+        return &instance;
+    }
+    SysInfo(SysInfo const&) = delete;
+    void operator=(SysInfo const&) = delete;
 
     QString machineHostName() const;
     QString prettyOSName() const;
@@ -73,6 +77,7 @@ public:
     bool inFlatpakSandbox() const;
     QString runtimeName() const;
     QString runtimeVersion() const;
+    QString sandboxAppId() const;
 
     QString supportedAVXInstructions() const;
     SysInfoCheckResult checkAVXInstructions();
@@ -90,8 +95,10 @@ public:
 
 private:
     class Private;
-    Q_DISABLE_COPY(SysInfo)
     QScopedPointer<Private> d;
+
+    explicit SysInfo();
+    ~SysInfo();
 
     QString readSysFsValue(const QString &path);
     void readCPUInfo();
