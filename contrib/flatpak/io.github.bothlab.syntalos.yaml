@@ -57,6 +57,23 @@ modules:
       url: https://github.com/Cyan4973/xxHash/archive/refs/tags/v0.8.1.tar.gz
       sha256: 3bb6b7d6f30c591dd65aaaff1c8b7a5b94d81687998ca9400082c739a690436c
 
+- name: lapack
+  buildsystem: cmake
+  builddir: true
+  config-opts:
+    - -DCMAKE_BUILD_TYPE=Release
+    - -DBUILD_TESTING=OFF
+    - -DBUILD_SHARED_LIBS=ON
+    - -DCMAKE_Fortran_COMPILER=gfortran
+    - -DLAPACKE=ON
+    - -DCBLAS=ON
+  sources:
+    - type: archive
+      url: https://github.com/Reference-LAPACK/lapack/archive/refs/tags/v3.10.1.tar.gz
+      sha512: 0500bbbb48483208c0a35b74972ff0059c389da6032824a2079637266a99fa980882eedf7f1fc490219ee4ff27812ac8c6afe118e25f40a9c2387e7b997762fb
+  cleanup:
+    - '/lib/cmake'
+
 - name: eigen3
   buildsystem: cmake-ninja
   builddir: true
@@ -141,8 +158,8 @@ modules:
     - --enable-libx265
   sources:
     - type: archive
-      url: https://ffmpeg.org/releases/ffmpeg-4.4.2.tar.xz
-      sha256: af419a7f88adbc56c758ab19b4c708afbcae15ef09606b82b855291f6a6faa93
+      url: https://ffmpeg.org/releases/ffmpeg-5.1.tar.xz
+      sha256: 55eb6aab5ee235550fa54a33eaf8bf1b4ec66c01453182b12f6a993d75698b03
   cleanup:
     - /share/ffmpeg/examples
 
@@ -164,6 +181,8 @@ modules:
     - -DWITH_OPENGL=ON
     - -DWITH_TBB=ON
     - -DWITH_VULKAN=ON
+    - -DWITH_LAPACK=ON
+    - -DLAPACK_LIBRARIES=lapack -lcblas
     - -DBUILD_WITH_DEBUG_INFO=OFF
     - -DBUILD_TESTS=OFF
     - -DBUILD_PERF_TESTS=OFF
@@ -171,18 +190,29 @@ modules:
     - -DINSTALL_C_EXAMPLES=OFF
     - -DINSTALL_PYTHON_EXAMPLES=OFF
     # - -DOPENCV_EXTRA_MODULES_PATH="contrib/modules"
+    - -DCPU_BASELINE=AVX
+    - -DCPU_DISPATCH=AVX,AVX2
     - -DWITH_1394=OFF
+    - -DWITH_V4L=ON
     - -DWITH_PROTOBUF=ON
+    - -DWITH_QT=ON
+    - -DWITH_GTK=OFF
     - -DBUILD_LIST=calib3d,core,dnn,features2d,flann,highgui,imgcodecs,imgproc,java_bindings_generator,ml,objdetect,photo,python_bindings_generator,python_tests,stitching,video,videoio
+  build-options:
+    env:
+      BLAS: "/app/lib"
+      LAPACK: "/app/lib"
   # cleanup:
   #   - "/bin"
   sources:
     - type: archive
-      url: https://github.com/opencv/opencv/archive/refs/tags/4.5.5.tar.gz
-      sha256: a1cfdcf6619387ca9e232687504da996aaa9f7b5689986b8331ec02cb61d28ad
+      url: https://github.com/opencv/opencv/archive/refs/tags/4.6.0.tar.gz
+      sha256: 1ec1cba65f9f20fe5a41fda1586e01c70ea0c9a6d7b67c9e13edf0cfe2239277
     - type: archive
-      url: https://github.com/opencv/opencv_contrib/archive/refs/tags/4.5.5.tar.gz
-      sha256: a97c2eaecf7a23c6dbd119a609c6d7fae903e5f9ff5f1fe678933e01c67a6c11
+      url: https://github.com/opencv/opencv_contrib/archive/refs/tags/4.6.0.tar.gz
+      sha256: 1777d5fd2b59029cf537e5fd6f8aa68d707075822f90bde683fcde086f85f7a7
+    - type: patch
+      path: patches/ffmpeg_01_Add-missing-header-for-LIBAVCODEC_VERSION_INT.patch
 
 - name: libusb
   sources:
@@ -204,22 +234,6 @@ modules:
     - type: archive
       url: https://github.com/pybind/pybind11/archive/v2.9.0.tar.gz
       sha256: 057fb68dafd972bc13afb855f3b0d8cf0fa1a78ef053e815d9af79be7ff567cb
-
-- name: lapack
-  buildsystem: cmake
-  builddir: true
-  config-opts:
-    - '-DCMAKE_BUILD_TYPE=Release'
-    - '-DBUILD_SHARED_LIBS=ON'
-    - '-DBUILD_TESTING=OFF'
-    - '-DLAPACKE=ON'
-    - '-DCBLAS=ON'
-  sources:
-    - type: archive
-      url: http://www.netlib.org/lapack/lapack-3.8.0.tar.gz
-      sha512: 17786cb7306fccdc9b4a242de7f64fc261ebe6a10b6ec55f519deb4cb673cb137e8742aa5698fd2dc52f1cd56d3bd116af3f593a01dcf6770c4dcc86c50b2a7f
-  cleanup:
-    - '/lib/cmake'
 
 - name: python3-numpy
   buildsystem: simple
@@ -304,7 +318,7 @@ modules:
   config-opts:
     - -Doptimize-modern-amd64=true
     - -Dudevdir=/app/lib/udev
-    - -Dmodules=miniscope,camera-tis,intan-rhx
+    - -Dmodules=miniscope,intan-rhx
   sources:
     - type: dir
       path: ../..
