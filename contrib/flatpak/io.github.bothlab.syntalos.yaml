@@ -58,22 +58,34 @@ modules:
       url: https://github.com/Cyan4973/xxHash/archive/refs/tags/v0.8.1.tar.gz
       sha256: 3bb6b7d6f30c591dd65aaaff1c8b7a5b94d81687998ca9400082c739a690436c
 
-- name: lapack
-  buildsystem: cmake
+- name: toml++
+  buildsystem: meson
   builddir: true
-  config-opts:
-    - -DCMAKE_BUILD_TYPE=Release
-    - -DBUILD_TESTING=OFF
-    - -DBUILD_SHARED_LIBS=ON
-    - -DCMAKE_Fortran_COMPILER=gfortran
-    - -DLAPACKE=ON
-    - -DCBLAS=ON
   sources:
     - type: archive
-      url: https://github.com/Reference-LAPACK/lapack/archive/refs/tags/v3.10.1.tar.gz
-      sha512: 0500bbbb48483208c0a35b74972ff0059c389da6032824a2079637266a99fa980882eedf7f1fc490219ee4ff27812ac8c6afe118e25f40a9c2387e7b997762fb
+      url: https://github.com/marzer/tomlplusplus/archive/refs/tags/v3.0.1.tar.gz
+      sha256: e05b2814b891e223d7546aa2408d6cba0628164a84ac453205c7743cb667b9cf
+
+- name: openblas
+  no-autogen: true
+  make-args:
+    - DYNAMIC_ARCH=1
+    - FC=gfortran
+    - NO_LAPACKE=1
+    - USE_OPENMP=1
+    - NO_WARMUP=1
+    - NUM_THREADS=64
+  make-install-args:
+    - PREFIX=/app
+  sources:
+    - type: archive
+      url: https://github.com/xianyi/OpenBLAS/archive/v0.3.21.tar.gz
+      sha256: f36ba3d7a60e7c8bcc54cd9aaa9b1223dd42eaf02c811791c37e8ca707c241ca
   cleanup:
-    - '/lib/cmake'
+    - "*.a"
+    - "/include"
+    - "/lib/cmake"
+    - "/lib/pkgconfig"
 
 - name: eigen3
   buildsystem: cmake-ninja
@@ -85,92 +97,7 @@ modules:
   cleanup:
     - '*'
 
-- name: svt-av1
-  buildsystem: cmake-ninja
-  builddir: true
-  sources:
-    - type: git
-      url: https://gitlab.com/AOMediaCodec/SVT-AV1.git
-      tag: v1.1.0
-
-- name: libx264
-  config-opts:
-    - --disable-cli
-    - --enable-shared
-  sources:
-    - type: archive
-      url: https://download.videolan.org/x264/snapshots/x264-snapshot-20191217-2245-stable.tar.bz2
-      sha256: b2495c8f2930167d470994b1ce02b0f4bfb24b3317ba36ba7f112e9809264160
-
-- name: x265
-  buildsystem: cmake-ninja
-  builddir: true
-  subdir: source
-  config-opts:
-    - -DCMAKE_BUILD_TYPE=RelWithDebInfo
-    - -DENABLE_CLI=OFF
-  sources:
-    - type: archive
-      url: https://deb.debian.org/debian/pool/main/x/x265/x265_3.5.orig.tar.gz
-      sha256: e70a3335cacacbba0b3a20ec6fecd6783932288ebc8163ad74bcc9606477cae8
-
-- name: ffmpeg
-  config-opts:
-    - --enable-shared
-    - --disable-static
-    - --disable-doc
-    - --disable-manpages
-    - --disable-stripping
-    - --disable-ffplay
-    - --disable-ffprobe
-
-    - --enable-gpl
-    - --enable-version3
-    - --enable-optimizations
-    - --enable-postproc
-    - --enable-pthreads
-    - --enable-gnutls
-    - --enable-libxcb-xfixes
-    - --enable-opengl
-    - --enable-opencl
-    - --enable-sdl2
-    - --enable-vaapi
-    - --enable-vdpau
-    - --enable-zlib
-    - --enable-bzlib
-    - --enable-lzma
-
-    - --enable-fontconfig
-    - --enable-libfontconfig
-    - --enable-libfreetype
-    - --enable-libxml2
-
-    - --enable-avcodec
-    - --enable-avfilter
-    - --enable-swscale
-
-    - --enable-libxcb
-    - --enable-protocol=file
-
-    # Codecs we need / want: FFV1, AV1, VP9, H.264, HEVC
-    - --enable-libsvtav1
-    - --enable-libvpx
-    - --enable-libx264
-    - --enable-libx265
-  sources:
-    - type: archive
-      url: https://ffmpeg.org/releases/ffmpeg-5.1.tar.xz
-      sha256: 55eb6aab5ee235550fa54a33eaf8bf1b4ec66c01453182b12f6a993d75698b03
-  cleanup:
-    - /share/ffmpeg/examples
-
-- name: toml++
-  buildsystem: meson
-  builddir: true
-  sources:
-    - type: archive
-      url: https://github.com/marzer/tomlplusplus/archive/refs/tags/v3.0.1.tar.gz
-      sha256: e05b2814b891e223d7546aa2408d6cba0628164a84ac453205c7743cb667b9cf
+- modules/ffmpeg.yaml
 
 - name: opencv
   buildsystem: cmake-ninja
@@ -181,9 +108,10 @@ modules:
     - -DWITH_OPENCL=ON
     - -DWITH_OPENGL=ON
     - -DWITH_TBB=ON
+    - -DWITH_OPENMP=ON
+    - -DWITH_IPP=ON
     - -DWITH_VULKAN=ON
     - -DWITH_LAPACK=ON
-    - -DLAPACK_LIBRARIES=lapack -lcblas
     - -DBUILD_WITH_DEBUG_INFO=OFF
     - -DBUILD_TESTS=OFF
     - -DBUILD_PERF_TESTS=OFF
@@ -198,7 +126,7 @@ modules:
     - -DWITH_PROTOBUF=ON
     - -DWITH_QT=ON
     - -DWITH_GTK=OFF
-    - -DBUILD_LIST=calib3d,core,dnn,features2d,flann,highgui,imgcodecs,imgproc,java_bindings_generator,ml,objdetect,photo,python_bindings_generator,python_tests,stitching,video,videoio
+    - -DBUILD_LIST=core,dnn,features2d,flann,highgui,imgcodecs,imgproc,ml,objdetect,photo,python_bindings_generator,python_tests,stitching,video,videoio
   build-options:
     env:
       BLAS: "/app/lib"
@@ -255,6 +183,7 @@ modules:
 
 - modules/python-venv.yaml
 - modules/git.yaml
+- modules/appstream.yaml
 
 # libzip is needed for tiscamera
 - name: libzip
