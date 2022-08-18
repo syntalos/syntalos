@@ -14,15 +14,25 @@ install_data('syntalos.svg',
 metainfo_file = files('io.github.bothlab.syntalos.metainfo.xml')
 ascli_exe = find_program('appstreamcli', required: false)
 if ascli_exe.found()
-  test('validate metainfo file',
-        ascli_exe,
-        args: ['validate',
-               '--no-net',
-               '--pedantic',
-               metainfo_file]
-  )
-endif
+    test('validate metainfo file',
+         ascli_exe,
+         args: ['validate',
+                '--no-net',
+                '--pedantic',
+                metainfo_file]
+    )
 
-install_data(metainfo_file,
-    install_dir: join_paths(get_option ('datadir'), 'metainfo')
-)
+    metainfo_with_rel = custom_target('gen-metainfo-rel',
+        input: ['../NEWS.md', metainfo_file],
+        output: ['io.github.bothlab.syntalos.metainfo.xml'],
+        command: [ascli_exe, 'news-to-metainfo',
+                  '--format=text', '--limit=6',
+                  '@INPUT0@', '@INPUT1@', '@OUTPUT@'],
+        install: true,
+        install_dir: join_paths(get_option ('datadir'), 'metainfo')
+    )
+else
+    install_data(metainfo_file,
+        install_dir: join_paths(get_option ('datadir'), 'metainfo')
+    )
+endif
