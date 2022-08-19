@@ -7,6 +7,7 @@
 
   <metadata_license>FSFAP</metadata_license>
   <project_license>LGPL-3.0-or-later and GPL-3.0-or-later</project_license>
+  <developer_name translate="no">Matthias Klumpp</developer_name>
 
   <description>
     <p>
@@ -22,6 +23,11 @@
   </description>
 
   <launchable type="desktop-id">syntalos.desktop</launchable>
+
+  <url type="homepage">https://github.com/bothlab/syntalos</url>
+  <url type="bugtracker">https://github.com/bothlab/syntalos/issues</url>
+
+  <content_rating type="oars-1.1" />
 
   <screenshots>
     <screenshot type="default">
