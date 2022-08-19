@@ -1,5 +1,5 @@
 # Generated with flatpak-pip-generator --yaml --runtime org.kde.Sdk/x86_64/5.15-21.08
-name: python3-virtualenv
+name: python-virtualenv
 buildsystem: simple
 build-commands:
   - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"

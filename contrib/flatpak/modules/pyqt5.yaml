@@ -1,0 +1,51 @@
+name: pyqt5
+modules:
+- name: packaging
+  buildsystem: simple
+  build-commands:
+    - python3 setup.py install --prefix=/app --root=/
+  sources:
+    - type: archive
+      url: https://files.pythonhosted.org/packages/55/fd/fc1aca9cf51ed2f2c11748fa797370027babd82f87829c7a8e6dbe720145/packaging-20.4.tar.gz
+      sha256: 4357f74f47b9c12db93624a82154e9b120fa8293699949152b22065d556079f8
+  cleanup:
+  - /bin
+- name: pyparsing
+  buildsystem: simple
+  build-commands:
+    - python3 setup.py install --prefix=/app --root=/
+  sources:
+    - type: archive
+      url: https://files.pythonhosted.org/packages/c1/47/dfc9c342c9842bbe0036c7f763d2d6686bcf5eb1808ba3e170afdb282210/pyparsing-2.4.7.tar.gz
+      sha256: c203ec8783bf771a155b207279b9bccb8dea02d8f0c9e5f8ead507bc3246ecc1
+  cleanup:
+  - /bin
+- name: sip
+  buildsystem: simple
+  build-commands:
+    - python3 setup.py install --prefix=/app --root=/
+  sources:
+    - type: archive
+      url: https://files.pythonhosted.org/packages/33/e9/27730ac17713c0a80d81d8f3bb56213f1549d96f9dc183fd16a7eec6287c/sip-5.5.0.tar.gz
+      sha256: 5d024c419b30fea8a6de8c71a560c7ab0bc3c221fbfb14d55a5b865bd58eaac5
+  cleanup:
+    - /bin
+- name: pyqt5
+  config-opts:
+    - --disable-static
+    - --enable-x11
+    - --enable-wayland
+  buildsystem: simple
+  build-commands:
+    - PYVER=$(python3 -c "import sys;print(sys.version_info[1])") && QMAKEPATH=/app/lib
+      python3 configure.py --confirm-license --no-designer-plugin --bindir=/app/bin
+      --destdir=/app/lib/python3.${PYVER}/site-packages --qml-plugindir=/app/lib/plugins/PyQt5
+      --sipdir=/app/share/sip --stubsdir=/app/lib/python3.${PYVER}/site-packages/PyQt5
+    - make -j $FLATPAK_BUILDER_N_JOBS
+    - make install
+  sources:
+    - type: archive
+      url: https://files.pythonhosted.org/packages/8e/a4/d5e4bf99dd50134c88b95e926d7b81aad2473b47fde5e3e4eac2c69a8942/PyQt5-5.15.4.tar.gz
+      sha256: 2a69597e0dd11caabe75fae133feca66387819fc9bc050f547e5551bce97e5be
+  cleanup:
+    - /bin

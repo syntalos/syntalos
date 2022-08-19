@@ -1,0 +1,12 @@
+name: pyqt-sip
+buildsystem: simple
+build-commands:
+- python setup.py build
+- python setup.py install --skip-build --prefix=$FLATPAK_DEST --root=/ --optimize=1
+sources:
+- type: archive
+  url: https://files.pythonhosted.org/packages/39/5f/fd9384fdcb9cd0388088899c110838007f49f5da1dd1ef6749bfb728a5da/PyQt5_sip-12.11.0.tar.gz
+  sha256: b4710fd85b57edef716cc55fae45bfd5bfac6fc7ba91036f1dcc3f331ca0eb39
+  x-checker-data:
+    type: pypi
+    name: PyQt5-sip

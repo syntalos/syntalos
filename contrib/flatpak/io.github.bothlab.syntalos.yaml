@@ -181,9 +181,14 @@ modules:
       url: https://github.com/numpy/numpy/releases/download/v1.22.2/numpy-1.22.2.tar.gz
       sha256: 093d513a460fd94f94c16193c3ef29b2d69a33e482071e3d6d6e561a700587a6
 
-- modules/python-venv.yaml
 - modules/git.yaml
 - modules/appstream.yaml
+- modules/python-venv.yaml
+- modules/python-tomlkit.yaml
+#- modules/python-edlio.yaml
+- modules/python-tkinter.yaml
+- modules/pyqt5.yaml
+- modules/pyqt5-sip.yaml
 
 # libzip is needed for tiscamera
 - name: libzip
