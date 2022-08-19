@@ -126,13 +126,14 @@ modules:
     - -DWITH_PROTOBUF=ON
     - -DWITH_QT=ON
     - -DWITH_GTK=OFF
+    - -DWITH_CAROTENE=OFF # fails on Flathub ARM builders and is only relevant for ARM
     - -DBUILD_LIST=core,dnn,features2d,flann,highgui,imgcodecs,imgproc,ml,objdetect,photo,python_bindings_generator,python_tests,stitching,video,videoio
   build-options:
     env:
       BLAS: "/app/lib"
       LAPACK: "/app/lib"
-  # cleanup:
-  #   - "/bin"
+  cleanup:
+    - /bin
   sources:
     - type: archive
       url: https://github.com/opencv/opencv/archive/refs/tags/4.6.0.tar.gz

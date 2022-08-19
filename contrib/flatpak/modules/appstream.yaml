@@ -12,10 +12,12 @@ modules:
    - -Dstemmer=false
    - -Dintrospection=false
    - -Dgtkdoc=false
+  cleanup:
+   - '*'
   sources:
-  - type: git
-    url: https://github.com/hughsie/libxmlb.git
-    tag: '0.3.8'
+   - type: git
+     url: https://github.com/hughsie/libxmlb.git
+     tag: '0.3.8'
 
 - name: appstream
   buildsystem: meson
@@ -24,7 +26,9 @@ modules:
    - -Dgir=false
    - -Dapidocs=false
    - -Dstemming=false
+  cleanup:
+   - '*'
   sources:
-  - type: git
-    url: https://github.com/ximion/appstream.git
-    tag: v0.15.2
+   - type: git
+     url: https://github.com/ximion/appstream.git
+     tag: v0.15.2
