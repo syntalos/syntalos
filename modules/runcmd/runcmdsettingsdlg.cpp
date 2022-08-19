@@ -54,3 +54,19 @@ void RunCmdSettingsDlg::setParametersStr(const QString parameters)
 {
     ui->parametersLineEdit->setText(parameters);
 }
+
+bool RunCmdSettingsDlg::runOnHost() const
+{
+    return ui->runOnHostCheckBox->isChecked();
+}
+
+void RunCmdSettingsDlg::setRunOnHost(bool onHost)
+{
+    ui->runOnHostCheckBox->setChecked(onHost);
+}
+
+void RunCmdSettingsDlg::setSandboxUiVisible(bool visible)
+{
+    ui->runOnHostCheckBox->setVisible(visible);
+    ui->runOnHostLabel->setVisible(visible);
+}

@@ -61,4 +61,9 @@ QStringList stringListNaturalSort(QStringList &list);
  */
 QString syntalosVersionFull();
 
+/**
+ * @brief Check if Syntalos is running in a Flatpak sandbox.
+ */
+bool isInFlatpakSandbox();
+
 #endif // UTILS_H

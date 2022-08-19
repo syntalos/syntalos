@@ -22,6 +22,7 @@
 #include <QMessageBox>
 #include <QProcess>
 
+#include "utils/misc.h"
 #include "runcmdsettingsdlg.h"
 
 SYNTALOS_MODULE(RunCmdModule)
@@ -35,6 +36,7 @@ private:
     QProcess *m_proc;
     QProcessEnvironment m_procEnv;
     bool m_startProc;
+    bool m_inSandbox;
 
 public:
     explicit RunCmdModule(QObject *parent = nullptr)
@@ -46,6 +48,10 @@ public:
 
         // register event function to check for the current process every 1.5s
         registerTimedEvent(&RunCmdModule::runEvent, milliseconds_t(1500));
+
+        // if we are in a Flatpak sandbox, we can run a command within it or outside of it
+        m_inSandbox = isInFlatpakSandbox();
+        m_settings->setSandboxUiVisible(m_inSandbox);
     }
 
     ~RunCmdModule()
@@ -100,8 +106,14 @@ public:
         m_procEnv.insert("SY_SUBJECT_ID", testSubject.id);
         m_procEnv.insert("SY_SUBJECT_GROUP", testSubject.group);
 
-        m_proc->setProgram(m_settings->executable());
-        m_proc->setArguments(splitCommandLine(m_settings->parametersStr()));
+        if (m_inSandbox && m_settings->runOnHost()) {
+            m_proc->setProgram("flatpak-spawn");
+            const auto fpsArgs = QStringList() << "--host" << m_settings->executable();
+            m_proc->setArguments(fpsArgs + splitCommandLine(m_settings->parametersStr()));
+        } else {
+            m_proc->setProgram(m_settings->executable());
+            m_proc->setArguments(splitCommandLine(m_settings->parametersStr()));
+        }
         m_proc->setProcessChannelMode(QProcess::ForwardedChannels);
 
         if (m_proc->program().isEmpty()) {
@@ -159,12 +171,14 @@ public:
     {
         settings.insert("executable", m_settings->executable());
         settings.insert("parameters", m_settings->parametersStr());
+        settings.insert("run_on_host", m_settings->runOnHost());
     }
 
     bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
     {
         m_settings->setExecutable(settings.value("executable").toString());
         m_settings->setParametersStr(settings.value("parameters").toString());
+        m_settings->setRunOnHost(settings.value("run_on_host").toBool());
         return true;
     }
 };

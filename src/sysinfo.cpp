@@ -183,8 +183,8 @@ SysInfo::SysInfo()
     d->glVersion = QString::fromUtf8((const char*)ctx.functions()->glGetString(GL_VERSION));
     d->glExtensions = QString::fromUtf8((const char*) ctx.functions()->glGetString(GL_EXTENSIONS));
 
-    // test if we are sndboxed in a Flatpak environment
-    d->inFlatpakSandbox = qEnvironmentVariable("container") == QStringLiteral("flatpak");
+    // test if we are sandboxed in a Flatpak environment
+    d->inFlatpakSandbox = isInFlatpakSandbox();
     if (d->inFlatpakSandbox) {
         // we're in a Flatpak sandbox, so special rules apply to get some information about the host
         // as well as the Flatpak runtime that we are using.

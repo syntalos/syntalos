@@ -38,6 +38,11 @@ public:
     QString parametersStr() const;
     void setParametersStr(const QString parameters);
 
+    bool runOnHost() const;
+    void setRunOnHost(bool onHost);
+
+    void setSandboxUiVisible(bool visible);
+
 private:
     Ui::RunCmdSettingsDlg *ui;
 };

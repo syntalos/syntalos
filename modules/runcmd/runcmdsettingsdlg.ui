@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>587</width>
-    <height>311</height>
+    <height>304</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -69,6 +69,20 @@
      </item>
      <item row="1" column="1">
       <widget class="QLineEdit" name="parametersLineEdit"/>
+     </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="runOnHostLabel">
+       <property name="text">
+        <string>Run on host</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QCheckBox" name="runOnHostCheckBox">
+       <property name="checked">
+        <bool>true</bool>
+       </property>
+      </widget>
      </item>
     </layout>
    </item>
