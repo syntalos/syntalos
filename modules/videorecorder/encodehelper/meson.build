@@ -29,9 +29,11 @@ encodehelper_moc = qt.preprocess(
 
 executable('encodehelper',
     ['main.cpp',
+     config_h,
      encodehelper_hdr,
      encodehelper_src,
      encodehelper_moc],
+    include_directories: [root_include_dir],
     dependencies: [syntalos_shared_dep,
                    qt_core_dep,
                    qt_gui_dep,
