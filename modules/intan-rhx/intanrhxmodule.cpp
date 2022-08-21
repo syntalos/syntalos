@@ -20,7 +20,9 @@
 #include "intanrhxmodule.h"
 
 #include <QTimer>
+#include <QMessageBox>
 
+#include "utils/misc.h"
 #include "boardselectdialog.h"
 #include "chanexportdialog.h"
 
@@ -104,6 +106,17 @@ bool IntanRhxModule::initialize()
 
     connect(m_chanExportDlg, &ChanExportDialog::exportedChannelsChanged,
             this, &IntanRhxModule::onExportedChannelsChanged);
+
+    // be nice and warn the user in case udev rules are missing
+    if (findHostFile("/lib/udev/rules.d/90-syntalos-intan.rules").isEmpty() &&
+        findHostFile("/usr/lib/udev/rules.d/90-syntalos-intan.rules").isEmpty() &&
+        findHostFile("/etc/udev/rules.d/90-syntalos-intan.rules").isEmpty()) {
+        QMessageBox::warning(m_ctlWindow, QStringLiteral("Hardware configuration not installed"),
+                             QStringLiteral("The hardware rules for Syntalos/Intan may not be installed on this system. "
+                                            "This means the Intan hardware may not be accessible and may not work. "
+                                            "Please install the necessary data (udev rules) on the host system!"),
+                             QMessageBox::Ok);
+    }
 
     return true;
 }

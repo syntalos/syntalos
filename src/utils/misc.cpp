@@ -20,10 +20,14 @@
 #include "config.h"
 #include "misc.h"
 
+#include <filesystem>
+
 #include <QDebug>
 #include <QCollator>
 #include <QRandomGenerator>
 #include <QCoreApplication>
+
+namespace fs = std::filesystem;
 
 QString createRandomString(int len)
 {
@@ -132,4 +136,17 @@ QString syntalosVersionFull()
 bool isInFlatpakSandbox()
 {
     return qEnvironmentVariable("container") == QStringLiteral("flatpak");
+}
+
+QString findHostFile(const QString &path)
+{
+    if (isInFlatpakSandbox()) {
+        const auto hostPath = fs::path(QStringLiteral("/run/host/%1").arg(path).toStdString()).lexically_normal();
+        if (fs::exists(hostPath))
+            return QString::fromStdString(hostPath.string());
+    } else {
+        if (fs::exists(fs::path(path.toStdString())))
+            return path;
+    }
+    return QString();
 }
