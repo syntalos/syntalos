@@ -49,6 +49,8 @@ private slots:
     void on_btnMoveUp_clicked();
     void on_btnMoveDown_clicked();
 
+    void on_activeTFListView_activated(const QModelIndex &index);
+
 private:
     void transformListViewSelectionChanged(const QModelIndex &index);
 

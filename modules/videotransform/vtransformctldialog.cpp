@@ -158,3 +158,9 @@ void VTransformCtlDialog::transformListViewSelectionChanged(const QModelIndex &i
     if (m_running && !tf->allowOnlineModify())
         m_curSettingsPanel->setEnabled(false);
 }
+
+void VTransformCtlDialog::on_activeTFListView_activated(const QModelIndex &index)
+{
+    transformListViewSelectionChanged(index);
+}
+
