@@ -435,12 +435,19 @@ public:
             QTimer timer;
             timer.setSingleShot(true);
             connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
-            timer.start(10000);
-            loop.exec();
+
+            // try to reach the encode helper a bunch of times
+            for (uint i = 0; i < 10; i++) {
+                if (iface->isValid())
+                    break;
+                QCoreApplication::processEvents();
+                timer.start(2000);
+                loop.exec();
+            }
         }
 
         if (!iface->isValid()) {
-            raiseError(QStringLiteral("Unable to connect to the encode queue service bia D-Bus. "
+            raiseError(QStringLiteral("Unable to connect to the encode queue service via D-Bus. "
                                       "Videos of this run will remain unencoded. Did the encoding service crash? Message: %1")
                        .arg(QDBusConnection::sessionBus().lastError().message()));
             return;
