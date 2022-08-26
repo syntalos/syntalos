@@ -246,6 +246,7 @@ void ProgressBarDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
     progressBarOption.progress = progress;
     progressBarOption.text = QString::number(progress) + QStringLiteral(" %");
     progressBarOption.textVisible = true;
+    progressBarOption.state = QStyle::StateFlag::State_Horizontal;
 
     QApplication::style()->drawControl(QStyle::CE_ProgressBar, &progressBarOption, painter);
 }
