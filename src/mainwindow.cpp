@@ -357,6 +357,9 @@ MainWindow::MainWindow(QWidget *parent) :
                                                     "<p>We hope you like using Syntalos and good luck with your experiments!</p>"),
                                      QMessageBox::Ok | QMessageBox::NoIcon);
         });
+
+        // hide crash collector, it does not do anything useful in the sandbox
+        ui->actionOpenCrashCollector->setVisible(false);
     }
 }
 
