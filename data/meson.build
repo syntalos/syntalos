@@ -1,6 +1,6 @@
 # Build definitions Syntalos static data
 
-# .desktop file
+# desktop-entry file
 install_data('syntalos.desktop',
     install_dir: join_paths(get_option('datadir'), 'applications')
 )
@@ -8,6 +8,11 @@ install_data('syntalos.desktop',
 # icon
 install_data('syntalos.svg',
     install_dir: join_paths(get_option('datadir'), 'icons', 'hicolor', 'scalable', 'apps')
+)
+
+# systemd tmpfilesd snippet (for systemd which don't clean this up on their own)
+install_data('tmpfiles.d/syntalos.conf',
+    install_dir: systemd_dep.get_pkgconfig_variable('tmpfiles_dir')
 )
 
 # metainfo file
