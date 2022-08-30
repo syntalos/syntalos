@@ -11,9 +11,11 @@ install_data('syntalos.svg',
 )
 
 # systemd tmpfilesd snippet (for systemd which don't clean this up on their own)
-install_data('tmpfiles.d/syntalos.conf',
-    install_dir: systemd_dep.get_pkgconfig_variable('tmpfiles_dir')
-)
+if systemd_dep.found()
+    install_data('tmpfiles.d/syntalos.conf',
+        install_dir: systemd_dep.get_pkgconfig_variable('tmpfiles_dir')
+    )
+endif
 
 # metainfo file
 metainfo_file = files('io.github.bothlab.syntalos.metainfo.xml')
