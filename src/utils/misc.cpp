@@ -21,11 +21,15 @@
 #include "misc.h"
 
 #include <filesystem>
+#include <sys/vfs.h>
+#include <linux/magic.h>
 
 #include <QDebug>
 #include <QCollator>
+#include <QDir>
 #include <QRandomGenerator>
 #include <QCoreApplication>
+#include <QStandardPaths>
 
 namespace fs = std::filesystem;
 
@@ -149,4 +153,32 @@ QString findHostFile(const QString &path)
             return path;
     }
     return QString();
+}
+
+QString tempDirRoot()
+{
+    return QDir::tempPath();
+}
+
+static bool isFileOnTmpfs(const QString &fname)
+{
+    struct statfs info;
+    statfs(qPrintable(fname), &info);
+
+    if (info.f_type == TMPFS_MAGIC)
+        return true;
+    return false;
+}
+
+QString tempDirLargeRoot()
+{
+    QString tmpDir = QStringLiteral("/var/tmp");
+    if (fs::exists(tmpDir.toStdString()) && !isFileOnTmpfs(tmpDir))
+        return tmpDir;
+
+    tmpDir = tempDirRoot();
+    if (!isFileOnTmpfs(tmpDir))
+        return tmpDir;
+
+    return QStandardPaths::writableLocation(QStandardPaths::TempLocation);
 }

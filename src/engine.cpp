@@ -878,7 +878,8 @@ bool Engine::runEphemeral()
         return false;
     }
 
-    QTemporaryDir tempDir(QStringLiteral("%1/syntalos-tmprun-XXXXXX").arg(QDir::tempPath()));
+    QTemporaryDir tempDir(QStringLiteral("%1/syntalos-tmprun-XXXXXX").arg(tempDirLargeRoot()));
+    qCDebug(logEngine).noquote() << "Storing temporary data in:" << tempDir.path();
     if (!tempDir.isValid()) {
         QMessageBox::warning(d->parentWidget,
                              QStringLiteral("Unable to run"),

@@ -67,6 +67,18 @@ QString syntalosVersionFull();
 bool isInFlatpakSandbox();
 
 /**
+ * @brief Get path to the OSes default temporary directory.
+ * @return An absolute path to temp dir.
+ */
+QString tempDirRoot();
+
+/**
+ * @brief Get path to a temporary directory that can hold large files.
+ * @return An absolute path to temp dir.
+ */
+QString tempDirLargeRoot();
+
+/**
  * @brief Find file on the host system (if running in a sandbox)
  * @param path Path of the file to check for
  * @return The absolute path to the requested file, or an empty string if not found.
