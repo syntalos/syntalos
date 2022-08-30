@@ -68,16 +68,6 @@ public:
         return ModuleFeature::SHOW_DISPLAY;
     }
 
-    void showDisplayUi() override
-    {
-        m_recTable->show();
-    }
-
-    void hideDisplayUi() override
-    {
-        m_recTable->hide();
-    }
-
     bool prepare(const TestSubject &) override
     {
         m_rowSub.reset();
