@@ -340,6 +340,24 @@ MainWindow::MainWindow(QWidget *parent) :
 
     // update icons to adapt to the current light/dark style
     updateIconStyles();
+
+    // show an information message if we are running in a Flatpak sandbox, as a few modules
+    // are still missing and this mode has not yet received enough testing.
+    if (m_engine->sysInfo()->inFlatpakSandbox()) {
+        QTimer::singleShot(0, [=]() {
+            QMessageBox::information(this, QStringLiteral("Syntalos as Flatpak"),
+                                     QStringLiteral("<html><p>Congratulations, you are running Syntalos installed via Flatpak in an isolated environment!</p>"
+                                                    "<p>Even though Syntalos requests a lot of permissions for access to the system, some isolation from the host environment is "
+                                                    "always present, which does confuse some of Syntalos' modules that were not written for this mode. Syntalos itself also needed "
+                                                    "quite a bit of work to play nice in this environment (we think we addressed all of these issues though).</p>"
+                                                    "<p>Still, <i>some modules are <b>not yet available</b> in the Flatpak bundle</i> and there may also <i>still be issues you could run into</i> "
+                                                    "which do not exist with the natively installed variant of Syntalos.</p>"
+                                                    "<p>We are working on adding the missing modules to this distribution of Syntalos as well, and are planning to make the Flatpak bundle "
+                                                    "a first-class supported method of installing Syntalos. This will take a bit of time, so please report any bugs you find!</p>"
+                                                    "<p>We hope you like using Syntalos and good luck with your experiments!</p>"),
+                                     QMessageBox::Ok | QMessageBox::NoIcon);
+        });
+    }
 }
 
 MainWindow::~MainWindow()
