@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.5
+//  Version 3.1.0
 //
 //  Copyright (c) 2020-2022 Intan Technologies
 //
@@ -133,6 +133,7 @@ public:
     bool isCustomNamePresent(const QString& customName) const;
     int numChannels(SignalType type) const;
     int numAmplifierChannels() const { return numChannels(AmplifierSignal); }
+    int numUSBAmpChannels() const;
     ControllerType getControllerType() const { return state->getControllerTypeEnum(); }
 
     vector<string> amplifierChannelsNameList() const;

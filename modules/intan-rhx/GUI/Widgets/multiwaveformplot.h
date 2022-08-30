@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.5
+//  Version 3.1.0
 //
 //  Copyright (c) 2020-2022 Intan Technologies
 //
@@ -96,6 +96,9 @@ public:
     int currentPageIndex() const;
     void adjustToNewNumberOfPorts(int numPorts) { scrollBar->adjustToNewNumberOfPages(numPorts); }
 
+    void requestRedraw();
+    void requestReset();
+
 public slots:
     void updateFromState();
     void openWaveformSelectDialog();
@@ -130,7 +133,9 @@ private:
 
     ScrollBar* scrollBar;
 
-    QImage image;
+    QImage image; // Paint target for traditional plotting
+    QPixmap corePixmap; // Paint target for experimental plotting - CORE includes only changes that should be retained across multiple paintEvents
+    QPixmap fullPixmap; // Paint target for experimental plotting - FULL includes CORE, plus transient changes that should only be shown currently, not retained in the future
 
     QImage saveBadge;
     QImage stimBadge;
@@ -202,6 +207,22 @@ private:
 
     QColor adjustedColor(const DisplayedWaveform& waveform, bool hoverSelect = false) const;
     int spreadAroundDraggingTarget(int y, int hoverIndex, int index) const;
+
+    int current_tScale;
+    int current_yScaleWide;
+    int current_yScaleLow;
+    int current_yScaleHigh;
+    int current_yScaleDC;
+    int current_yScaleAux;
+    int current_yScaleAnalog;
+
+    int prev_tScale;
+    int prev_yScaleWide;
+    int prev_yScaleLow;
+    int prev_yScaleHigh;
+    int prev_yScaleDC;
+    int prev_yScaleAux;
+    int prev_yScaleAnalog;
 };
 
 #endif // MULTIWAVEFORMPLOT_H

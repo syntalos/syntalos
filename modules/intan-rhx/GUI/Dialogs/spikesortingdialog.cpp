@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.5
+//  Version 3.1.0
 //
 //  Copyright (c) 2020-2022 Intan Technologies
 //
@@ -38,7 +38,6 @@ SpikeSortingDialog:: SpikeSortingDialog(SystemState* state_, ControllerInterface
     controllerInterface(controllerInterface_)
 {
     setAcceptDrops(true);
-    setWindowTitle(tr("Spike Scope"));
     connect(state, SIGNAL(stateChanged()), this, SLOT(updateFromState()));
 
     channelName = new QLabel("", this);
@@ -341,6 +340,8 @@ void SpikeSortingDialog::updateFromState()
 
     if (suppressionThresholdSpinBox->value() != state->suppressionThreshold->getValue())
         suppressionThresholdSpinBox->setValue(state->suppressionThreshold->getValue());
+
+    updateTitle();
 }
 
 void SpikeSortingDialog::updateForRun()
@@ -434,4 +435,9 @@ void SpikeSortingDialog::toggleSuppressionEnabled(bool enabled)
     suppressionThresholdLabel1->setEnabled(enabled);
     suppressionThresholdSpinBox->setEnabled(enabled);
     state->suppressionEnabled->setValue(enabled);
+}
+
+void SpikeSortingDialog::updateTitle()
+{
+    setWindowTitle(tr("Spike Scope") + " (" + state->spikeScopeChannel->getValue() + ")");
 }

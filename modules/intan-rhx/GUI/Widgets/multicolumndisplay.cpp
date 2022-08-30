@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.5
+//  Version 3.1.0
 //
 //  Copyright (c) 2020-2022 Intan Technologies
 //
@@ -126,6 +126,9 @@ bool MultiColumnDisplay::addColumn(int position)
     updateColumnIndices();
     updateLayout();
     state->writeToLog("Completed updateColumnIndices() and updateLayout()");
+    waveformManager->numColumns = displayColumns.size();
+    waveformManager->needsFullRedraw = true;
+    waveformManager->needsFullReset = true;
     return true;
 }
 
@@ -148,6 +151,7 @@ bool MultiColumnDisplay::deleteColumn(int position, bool silent)
 
     updateColumnIndices();
     updateLayout();
+    waveformManager->numColumns = displayColumns.size();
     return true;
 }
 

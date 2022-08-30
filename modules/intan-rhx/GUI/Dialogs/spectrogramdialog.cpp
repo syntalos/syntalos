@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.5
+//  Version 3.1.0
 //
 //  Copyright (c) 2020-2022 Intan Technologies
 //
@@ -37,7 +37,6 @@ SpectrogramDialog::SpectrogramDialog(SystemState* state_, QWidget *parent) :
     QDialog(parent),
     state(state_)
 {
-    setWindowTitle(tr("Spectrogram"));
     connect(state, SIGNAL(stateChanged()), this, SLOT(updateFromState()));
 
     channelName = new QLabel("", this);
@@ -286,6 +285,7 @@ void SpectrogramDialog::updateFromState()
         digitalDisplayComboBox->setCurrentIndex(state->digitalDisplaySpectrogram->getIndex());
 
     updateDeltaTimeFreqLabels();
+    updateTitle();
 }
 
 void SpectrogramDialog::activate()
@@ -428,6 +428,11 @@ void SpectrogramDialog::saveData()
         }
     }
     specPlot->setFocus();
+}
+
+void SpectrogramDialog::updateTitle()
+{
+    setWindowTitle(tr("Spectrogram") + " (" + state->spectrogramChannel->getValue() + ")");
 }
 
 

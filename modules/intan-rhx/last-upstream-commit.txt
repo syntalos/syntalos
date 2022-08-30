@@ -4,11 +4,13 @@ https://github.com/Intan-Technologies/Intan-RHX
 The last commit used for the derived version is mentioned below.
 It is recommended to regularly merge in upstream patches that affect
 Syntalos as well.
+When merging, please not that the "semaphore.h" header was renamed to "rhx-semaphore.h"
+to avoid conflicts with the POSIX header of the same name that Syntalos relies on.
 
 --------------------
 
-commit d2fe0bd5ea714b51b3e369184c5883adeb834216 (HEAD -> main, tag: 3.0.5, origin/main, origin/HEAD)
+commit 2025227777898e384489ace209063fee62cb3e38 (HEAD -> main, tag: v3.1.0, origin/main, origin/HEAD)
 Author: Adrian Foy <afoy@intantech.com>
-Date:   Wed Feb 9 09:53:55 2022 -0800
+Date:   Mon Jun 6 16:28:03 2022 -0700
 
-    Update from 3.0.4 to 3.0.5
+    Final changes for 3.1.0

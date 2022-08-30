@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.5
+//  Version 3.1.0
 //
 //  Copyright (c) 2020-2022 Intan Technologies
 //
@@ -129,6 +129,8 @@ private:
     QVector<QLabel*> vBLabels;
 
     SpikePlot *spikePlot;
+
+    void updateTitle();
 };
 
 #endif // SPIKESORTINGDIALOG_H

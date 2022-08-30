@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.5
+//  Version 3.1.0
 //
 //  Copyright (c) 2020-2022 Intan Technologies
 //
@@ -411,6 +411,11 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
     showSupplyVoltages = new BooleanItem("ShowSupplyVoltages", globalItems, this, false, XMLGroupGeneral, TypeDependencyNonStim);
     backgroundColor = new StringItem("BackgroundColor", globalItems, this, "#000000", XMLGroupGeneral);  // default to black
     displaySettings = new StringItem("DisplaySettings", globalItems, this, "", XMLGroupGeneral);
+
+    plottingMode = new DiscreteItemList("PlottingMode", globalItems, this);
+    plottingMode->addItem("Original", "Original", 0);
+    plottingMode->addItem("High Efficiency", "High Efficiency", 1);
+    plottingMode->setValue("Original");
 
     note1 = new StringItem("Note1", globalItems, this, "");
     note1->setRestricted(RestrictIfRunning, RunningErrorMessage);

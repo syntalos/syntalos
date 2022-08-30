@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.5
+//  Version 3.1.0
 //
 //  Copyright (c) 2020-2022 Intan Technologies
 //
@@ -83,6 +83,9 @@ public:
 
     void updateSlidersEnabled(YScaleUsed yScaleUsed);
     YScaleUsed slidersEnabled() const;
+
+    void setCurrentTabName(QString tabName);
+    QString currentTabName() const;
 
 public slots:
     void updateFromState();

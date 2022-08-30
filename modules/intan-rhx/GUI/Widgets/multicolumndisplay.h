@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.5
+//  Version 3.1.0
 //
 //  Copyright (c) 2020-2022 Intan Technologies
 //
@@ -107,7 +107,8 @@ private:
     WaveformDisplayManager* waveformManager;
     vector<int> numRefreshZones;
 
-    static const int MaxNumColumns = 10;
+    //static const int MaxNumColumns = 10;
+    static const int MaxNumColumns = 16;
     QList<WaveformDisplayColumn*> displayColumns;
 
     int tScaleFormerIndex;

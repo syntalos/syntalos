@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.5
+//  Version 3.1.0
 //
 //  Copyright (c) 2020-2022 Intan Technologies
 //
@@ -50,6 +50,7 @@ public:
 
     QComboBox *XPUSelectionComboBox;
     QComboBox *writeLatencyComboBox;
+    QComboBox *plottingModeComboBox;
 
 signals:
     void usedXPUIndexChanged(int index);

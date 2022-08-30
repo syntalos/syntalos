@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.5
+//  Version 3.1.0
 //
 //  Copyright (c) 2020-2022 Intan Technologies
 //
@@ -57,6 +57,9 @@ PerformanceOptimizationDialog::PerformanceOptimizationDialog(SystemState* state_
     writeLatencyComboBox = new QComboBox(this);
     state->writeToDiskLatency->setupComboBox(writeLatencyComboBox);
 
+    plottingModeComboBox = new QComboBox(this);
+    state->plottingMode->setupComboBox(plottingModeComboBox);
+
     QHBoxLayout *XPUSelectionRow = new QHBoxLayout;
     XPUSelectionRow->addWidget(new QLabel(tr("Selected XPU:"), this));
     XPUSelectionRow->addWidget(XPUSelectionComboBox);
@@ -64,6 +67,10 @@ PerformanceOptimizationDialog::PerformanceOptimizationDialog(SystemState* state_
     QHBoxLayout *writeLatencySelectionRow = new QHBoxLayout;
     writeLatencySelectionRow->addWidget(new QLabel(tr("Write Latency:"), this));
     writeLatencySelectionRow->addWidget(writeLatencyComboBox);
+
+    QHBoxLayout *plottingModeRow = new QHBoxLayout;
+    plottingModeRow->addWidget(new QLabel(tr("Plotting Mode:"), this));
+    plottingModeRow->addWidget(plottingModeComboBox);
 
     QVBoxLayout *XPUGroupBoxLayout = new QVBoxLayout;
     XPUGroupBoxLayout->addWidget(new QLabel(tr(         "This software can use any connected XPU (CPU or GPU) to accelerate filtering\n"
@@ -81,11 +88,21 @@ PerformanceOptimizationDialog::PerformanceOptimizationDialog(SystemState* state_
                                                         "When saving large amounts of data, the highest latency is recommended."), this));
     writeLatencyGroupBoxLayout->addLayout(writeLatencySelectionRow);
 
+    QVBoxLayout *plottingModeGroupBoxLayout = new QVBoxLayout;
+    plottingModeGroupBoxLayout->addWidget(new QLabel(tr("For large resolution monitors, the Original method of plotting may be too\n"
+                                                        "slow to keep up in real time. High Efficiency plotting mode significantly\n"
+                                                        "improves performance by only plotting the most recently acquired sections\n"
+                                                        "of the waveforms. This feature works only for sweep mode."), this));
+    plottingModeGroupBoxLayout->addLayout(plottingModeRow);
+
     QGroupBox *XPUGroupBox = new QGroupBox(tr("XPU"), this);
     XPUGroupBox->setLayout(XPUGroupBoxLayout);
 
     QGroupBox *writeLatencyGroupBox = new QGroupBox(tr("Write to Disk Latency"), this);
     writeLatencyGroupBox->setLayout(writeLatencyGroupBoxLayout);
+
+    QGroupBox *plottingModeGroupBox = new QGroupBox(tr("Plotting Mode"), this);
+    plottingModeGroupBox->setLayout(plottingModeGroupBoxLayout);
 
     buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
 
@@ -95,6 +112,7 @@ PerformanceOptimizationDialog::PerformanceOptimizationDialog(SystemState* state_
     QVBoxLayout *mainLayout = new QVBoxLayout;
     mainLayout->addWidget(XPUGroupBox);
     mainLayout->addWidget(writeLatencyGroupBox);
+    mainLayout->addWidget(plottingModeGroupBox);
     mainLayout->addWidget(buttonBox);
 
     setLayout(mainLayout);
@@ -113,4 +131,7 @@ void PerformanceOptimizationDialog::initialize()
 
     // Find the current write-to-disk latency and make the selected entry in its combo box.
     writeLatencyComboBox->setCurrentIndex(state->writeToDiskLatency->getIndex());
+
+    // Find the current plottingMode state and make the selected entry in its combo box.
+    plottingModeComboBox->setCurrentIndex(state->plottingMode->getIndex());
 }

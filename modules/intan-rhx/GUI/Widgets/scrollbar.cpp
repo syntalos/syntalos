@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.5
+//  Version 3.1.0
 //
 //  Copyright (c) 2020-2022 Intan Technologies
 //
@@ -110,6 +110,7 @@ void ScrollBar::scroll(int delta)
 {
     int pageIndex = parent->currentPageIndex();
     setTopPosition(scrollState.topPosition[pageIndex] + delta, pageIndex);
+    parent->requestRedraw();
 }
 
 ScrollBarState ScrollBar::getState() const
@@ -233,6 +234,7 @@ bool ScrollBar::handleMouseMove(QPoint position)
     if (barActive) {
         double deltaY = position.y() - barGrabPoint;
         setTopPosition(barGrabPosition + scrollState.range * (deltaY / (double)scrollFrame.height()), pageIndex);
+        parent->requestRedraw();
     } else if (upButtonActive) {
         if (!upButton.contains(position)) {
             upButtonActive = false;
@@ -275,9 +277,11 @@ bool ScrollBar::handleKeyPressEvent(int key)
         break;
     case Qt::Key_Home:
         setTopPosition(0, pageIndex);
+        parent->requestRedraw();
         break;
     case Qt::Key_End:
         setTopPosition(scrollState.range - scrollState.pageSize, pageIndex);
+        parent->requestRedraw();
         break;
     }
     return (scrollState.topPosition[pageIndex] != topPositionOld || scrollState.pageSize != pageSizeOld);

@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.5
+//  Version 3.1.0
 //
 //  Copyright (c) 2020-2022 Intan Technologies
 //
@@ -245,6 +245,7 @@ bool FilePerChannelSaveManager::openAllSaveFiles()
             closeAllSaveFiles();
             return false;
         }
+        digitalInputFileIndices.push_back(signalSources->channelByName(saveList.boardDigitalIn[i])->getNativeChannelNumber());
     }
     if (!saveList.boardDigitalOut.empty()) {
         for (int i = 0; i < (int) saveList.boardDigitalOut.size(); ++i) {
@@ -254,6 +255,7 @@ bool FilePerChannelSaveManager::openAllSaveFiles()
                 closeAllSaveFiles();
                 return false;
             }
+            digitalOutputFileIndices.push_back(signalSources->channelByName(saveList.boardDigitalOut[i])->getNativeChannelNumber());
         }
     }
 
@@ -374,6 +376,7 @@ void FilePerChannelSaveManager::closeAllSaveFiles()
         }
     }
     digitalInputFiles.clear();
+    digitalInputFileIndices.clear();
 
     for (int i = 0; i < (int) digitalOutputFiles.size(); ++i) {
         if (digitalOutputFiles[i]) {
@@ -383,6 +386,7 @@ void FilePerChannelSaveManager::closeAllSaveFiles()
         }
     }
     digitalOutputFiles.clear();
+    digitalOutputFileIndices.clear();
 }
 
 int64_t FilePerChannelSaveManager::writeToSaveFiles(int numSamples, int timeIndex)
@@ -514,7 +518,7 @@ int64_t FilePerChannelSaveManager::writeToSaveFiles(int numSamples, int timeInde
     // Save board digital input data.
     for (int i = 0; i < (int) saveList.boardDigitalIn.size(); ++i) {
         waveformFifo->copyDigitalData(WaveformFifo::ReaderDisk, uint16Array, boardDigitalInWaveform, timeIndex, numSamples);
-        digitalInputFiles[i]->writeBitAsUInt16(uint16Array, numSamples, i);
+        digitalInputFiles[i]->writeBitAsUInt16(uint16Array, numSamples, digitalInputFileIndices[i]);
         numBytesWritten += digitalInputFiles[i]->getNumBytesWritten();
     }
 
@@ -522,7 +526,7 @@ int64_t FilePerChannelSaveManager::writeToSaveFiles(int numSamples, int timeInde
     if (!saveList.boardDigitalOut.empty()) {
         for (int i = 0; i < (int) saveList.boardDigitalOut.size(); ++i) {
             waveformFifo->copyDigitalData(WaveformFifo::ReaderDisk, uint16Array, boardDigitalOutWaveform, timeIndex, numSamples);
-            digitalOutputFiles[i]->writeBitAsUInt16(uint16Array, numSamples, i);
+            digitalOutputFiles[i]->writeBitAsUInt16(uint16Array, numSamples, digitalOutputFileIndices[i]);
             numBytesWritten += digitalOutputFiles[i]->getNumBytesWritten();
         }
     }

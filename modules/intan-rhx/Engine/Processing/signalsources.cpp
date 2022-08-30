@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.5
+//  Version 3.1.0
 //
 //  Copyright (c) 2020-2022 Intan Technologies
 //
@@ -586,6 +586,26 @@ int SignalSources::numChannels(SignalType type) const
         count += groupByIndex(i)->numChannels(type);
     }
     return count;
+}
+
+
+// Get the number of amplifier channels expected to come over USB.
+// Each data stream always contributes a full 16 (RHS) or 32 (RHD) channels, regardless of how many
+// channels are disabled, or the fact that RHD2216 chips give 16 channels of good data and 16
+// channels of dummy data.
+// Can also be used for reading data from disk - even when fewer channels are present, it's important
+// to use this function for proper indexing. The data file reader is sophisticated enough to only
+// attempt reading channels that are present and enabled.
+int SignalSources::numUSBAmpChannels() const
+{
+    int numAmpDataStreams = 0;
+    for (const string &ampName : amplifierChannelsNameList()) {
+        Channel *channel = channelByName(ampName);
+        if (channel->getBoardStream() + 1 > numAmpDataStreams) {
+            numAmpDataStreams = channel->getBoardStream() + 1;
+        }
+    }
+    return numAmpDataStreams * RHXDataBlock::channelsPerStream(getControllerType());
 }
 
 SignalList SignalSources::getSaveSignalList() const

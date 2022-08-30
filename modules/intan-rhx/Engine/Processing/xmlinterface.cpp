@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.5
+//  Version 3.1.0
 //
 //  Copyright (c) 2020-2022 Intan Technologies
 //
@@ -398,7 +398,9 @@ bool XMLInterface::parseDocumentStart(const QByteArray &byteArray, QString &erro
 
                             // If version doesn't match, just give warning (unless it's a probe map file)
                             if (singleItem == (StateSingleItem*) state->softwareVersion && !probeMap) {
-                                errorMessage.append("Warning: This file is from a different version of the IntanRHX software. Full compatibility cannot be guaranteed.");
+                                errorMessage.append("Warning: This file is from a different version of the IntanRHX software. Full compatibility cannot be guaranteed.\n"
+                                                    "Re-saving this file with this version of the IntanRHX software will overwrite any settings that may have changed\n"
+                                                    "between versions and avoid this warning for future loads.");
                             }
 
                             // If type doesn't match, give an error.

@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.5
+//  Version 3.1.0
 //
 //  Copyright (c) 2020-2022 Intan Technologies
 //
@@ -37,7 +37,6 @@ ISIDialog::ISIDialog(SystemState *state_, QWidget *parent) :
     QDialog(parent),
     state(state_)
 {
-    setWindowTitle(tr("Inter-Spike Interval Histogram"));
     connect(state, SIGNAL(stateChanged()), this, SLOT(updateFromState()));
 
     channelName = new QLabel("", this);
@@ -182,6 +181,8 @@ void ISIDialog::updateFromState()
 
     if (binSizeComboBox->currentIndex() != state->binSizeISI->getIndex())
         binSizeComboBox->setCurrentIndex(state->binSizeISI->getIndex());
+
+    updateTitle();
 }
 
 void ISIDialog::activate()
@@ -272,6 +273,11 @@ void ISIDialog::saveData()
         }
     }
     isiPlot->setFocus();
+}
+
+void ISIDialog::updateTitle()
+{
+    setWindowTitle(tr("Inter-Spike Interval Histogram") + " (" + state->isiChannel->getValue() + ")");
 }
 
 

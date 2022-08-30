@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.5
+//  Version 3.1.0
 //
 //  Copyright (c) 2020-2022 Intan Technologies
 //
@@ -35,7 +35,7 @@ AbstractXPUInterface::AbstractXPUInterface(SystemState* state_, QObject *parent)
     allocated(false),
     state(state_),
     type(state->getControllerTypeEnum()),
-    channels(state->signalSources->numAmplifierChannels())
+    channels(state->signalSources->numUSBAmpChannels())
 {
     globalParameters.wordsPerFrame = 0;
     globalParameters.type = ControllerRecordUSB2;
@@ -76,7 +76,7 @@ void AbstractXPUInterface::updateMemory()
 void AbstractXPUInterface::updateNumStreams(int numStreams_)
 {
     // Set channels to the new value.
-    channels = state->signalSources->numAmplifierChannels();
+    channels = state->signalSources->numUSBAmpChannels();
 
     // Set numStreams to the new value.
     numStreams = numStreams_;

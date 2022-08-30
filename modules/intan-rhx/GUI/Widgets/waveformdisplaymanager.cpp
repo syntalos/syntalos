@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.5
+//  Version 3.1.0
 //
 //  Copyright (c) 2020-2022 Intan Technologies
 //
@@ -32,7 +32,12 @@
 #include "waveformdisplaymanager.h"
 
 WaveformDisplayManager::WaveformDisplayManager(SystemState* state_, int maxWidthInPixels_, int numRefreshZones_) :
+    needsFullReset(true),
+    needsFullRedraw(true),
+    numColumns(0),
     state(state_),
+    finishedRedraws(0),
+    finishedResets(0),
     maxWidthInPixels(maxWidthInPixels_),
     numRefreshZones(numRefreshZones_)
 {
@@ -421,6 +426,25 @@ float WaveformDisplayManager::getYScaleFactor(YScaleType yScaleType) const
     return ScaleFactorY / yScale;
 }
 
+// Fill the active (soon to be plotted over) section of the pixmap with a rectangle of the color of the background.
+// This effectively clears any previous waveforms that were present, providing a clean slate for subsequent plotting.
+void WaveformDisplayManager::clearActiveSectionOfRect(QPainter &painter, QRect fullRect)
+{
+    if (useVerticalLines) {
+        int validDataStart = validDataIndex - zoneLength;
+        int numLines = zoneLength;
+        if (validDataStart < 0) {
+            validDataStart = 0;
+            numLines = validDataIndex - validDataStart;
+        }
+        QRect backRect(validDataStart + fullRect.left(), fullRect.top(), numLines, fullRect.height());
+        painter.fillRect(backRect, QColor(state->backgroundColor->getValueString()));
+    } else {
+        QRect backRect(fullRect.left(), fullRect.top(), fullRect.width(), fullRect.height());
+        painter.fillRect(backRect, QColor(state->backgroundColor->getValueString()));
+    }
+}
+
 void WaveformDisplayManager::draw(QPainter &painter, const QString& waveName, QPoint position, QColor color)
 {
     map<string, WaveformDisplayDataStore*>::const_iterator it = data.find(waveName.toStdString());
@@ -490,9 +514,35 @@ void WaveformDisplayManager::draw(QPainter &painter, const QString& waveName, QP
                 }
                 // Draw main waveform.
                 painter.setPen(supplyVoltageMode ? supplyVoltageColor(yMinMax) : color);
-                painter.drawLines(&ds->verticalLines[0], validDataIndex);
-                if (!sweepFirstTime && (validDataIndex < length)) {
-                    painter.drawLines(&ds->verticalLines[validDataIndex], length - validDataIndex);
+
+                if (state->plottingMode->getValue() == "Original") {
+                    // ORIGINAL
+                    // Draw new waveform left-to-right up to validDataIndex.
+                    painter.drawLines(&ds->verticalLines[0], validDataIndex);
+                    if (!sweepFirstTime && (validDataIndex < length)) {
+                        // Draw old waveform left-to-right from validDataIndex.
+                        painter.drawLines(&ds->verticalLines[validDataIndex], length - validDataIndex);
+                    }
+                } else {
+                    // EXPERIMENTAL
+                    if (needsFullRedraw) {
+                        // Draw new waveform left-to-right up to validDataIndex.
+                        painter.drawLines(&ds->verticalLines[0], validDataIndex);
+                        if (!sweepFirstTime && (validDataIndex < length)) {
+                            // Draw old waveform left-to-right from validDataIndex.
+                            painter.drawLines(&ds->verticalLines[validDataIndex], length - validDataIndex);
+                        }
+                    } else {
+                        // Only draw part of waveform from validDataStart to validDataIndex,
+                        // which should not be longer in pixel count than zoneLength.
+                        int validDataStart = validDataIndex - zoneLength;
+                        int numLines = zoneLength;
+                        if (validDataStart < 0) {
+                            validDataStart = 0;
+                            numLines = validDataIndex - validDataStart;
+                        }
+                        painter.drawLines(&ds->verticalLines[validDataStart], numLines);
+                    }
                 }
             }
         } else {
@@ -699,5 +749,31 @@ int WaveformDisplayManager::getValidDataXPosition() const
         return validDataIndex;
     } else {
         return zoneWidthInPixels * (validDataIndex / zoneLength);
+    }
+}
+
+// Notify manager that a single plot (single column's) redraw has finished.
+// When all columns have confirmed their redraw finished, reset the counter
+// and consider the redraw complete.
+void WaveformDisplayManager::singlePlotFullRedrawFinished()
+{
+    if (!needsFullRedraw) return;
+
+    if (++finishedRedraws >= numColumns) {
+        finishedRedraws = 0;
+        needsFullRedraw = false;
+    }
+}
+
+// Notify manager that a single plot (single column's) reset has finished.
+// When all columns have confirmed their reset finished, reset the counter
+// and consider the reset complete.
+void WaveformDisplayManager::singlePlotFullResetFinished()
+{
+    if (!needsFullReset) return;
+
+    if (++finishedResets >= numColumns) {
+        finishedResets = 0;
+        needsFullReset = false;
     }
 }

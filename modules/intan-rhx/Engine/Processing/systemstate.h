@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.5
+//  Version 3.1.0
 //
 //  Copyright (c) 2020-2022 Intan Technologies
 //
@@ -282,6 +282,7 @@ public:
     BooleanItem* showSupplyVoltages;
     StringItem* backgroundColor;
     StringItem* displaySettings;  // This is only set when a settings file is saved, and only accessed when a settings file is loaded.
+    DiscreteItemList* plottingMode;
 
     // Playback options
     BooleanItem* runAfterJumpToPosition;

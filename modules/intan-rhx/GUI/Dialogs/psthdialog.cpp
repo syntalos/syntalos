@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.5
+//  Version 3.1.0
 //
 //  Copyright (c) 2020-2022 Intan Technologies
 //
@@ -37,7 +37,6 @@ PSTHDialog::PSTHDialog(SystemState* state_, QWidget *parent) :
     QDialog(parent),
     state(state_)
 {
-    setWindowTitle(tr("Peri-Stimulus Time Histogram"));
     connect(state, SIGNAL(stateChanged()), this, SLOT(updateFromState()));
 
     channelName = new QLabel("", this);
@@ -233,6 +232,8 @@ void PSTHDialog::updateFromState()
 
     if (triggerPolarityComboBox->currentIndex() != state->triggerPolarityPSTH->getIndex())
         triggerPolarityComboBox->setCurrentIndex(state->triggerPolarityPSTH->getIndex());
+
+    updateTitle();
 }
 
 void PSTHDialog::activate()
@@ -323,6 +324,11 @@ void PSTHDialog::saveData()
         }
     }
     psthPlot->setFocus();
+}
+
+void PSTHDialog::updateTitle()
+{
+    setWindowTitle(tr("Per-Stimulus Time Histogram") + " (" + state->psthChannel->getValue() + ")");
 }
 
 

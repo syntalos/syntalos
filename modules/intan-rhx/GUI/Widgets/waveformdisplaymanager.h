@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.5
+//  Version 3.1.0
 //
 //  Copyright (c) 2020-2022 Intan Technologies
 //
@@ -126,6 +126,8 @@ public:
     float getYScaleFactor(YScaleType yScaleType) const;
     float getYScaleFactor(const QString& waveName) const;
 
+    void clearActiveSectionOfRect(QPainter &painter, QRect fullRect);
+
     void draw(QPainter &painter, const QString& waveName, QPoint position, QColor color);
     void drawDivider(QPainter &painter, int yPos, int xStart, int xEnd);
 
@@ -142,8 +144,18 @@ public:
 //        { int samplesPerZone_ = round(sampleRate * ((double)tScaleInMsec_ / 1000.0) / (double)numRefreshZones_);
 //          return samplesPerZone_* numRefreshZones_; }
 
+    void singlePlotFullRedrawFinished();
+    void singlePlotFullResetFinished();
+
+    bool needsFullReset;
+    bool needsFullRedraw;
+    int numColumns;
+
 private:
     SystemState *state;
+
+    int finishedRedraws;
+    int finishedResets;
 
     // Input parameters
     int maxWidthInPixels;

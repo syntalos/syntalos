@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.0.5
+//  Version 3.1.0
 //
 //  Copyright (c) 2020-2022 Intan Technologies
 //
@@ -122,6 +122,8 @@ MultiWaveformPlot::MultiWaveformPlot(int columnIndex_, WaveformDisplayManager* w
     tcpSelectedBadge = QImage(":/images/tcp_badge_selected.png");
     unpinBadge = QImage(":/images/unpin_badge_angle.png");
     image = QImage(size(), QImage::Format_ARGB32_Premultiplied);
+    corePixmap = QPixmap(size());
+    fullPixmap = QPixmap(size());
     state->writeToLog("Created various QImages");
 
 //    contextMenu = nullptr;
@@ -216,6 +218,55 @@ void MultiWaveformPlot::updateFromState()
     if (state->filterDisplay4->getValue() != "None") ++numFiltersDisplayed;
     arrangeByFilter = (state->arrangeBy->getValue() == "Filter");
 
+    if (state->plottingMode->getValue() == "High Efficiency") {
+        // Determine if any time or voltage scales changed (which should trigger a reset of the plot)
+        bool scalesChanged = false; // Consult previous and current time, wide, low, high, DC , aux, and analog scales
+        current_tScale = state->tScale->getIndex();
+        current_yScaleWide = state->yScaleWide->getIndex();
+        current_yScaleLow = state->yScaleLow->getIndex();
+        current_yScaleHigh = state->yScaleHigh->getIndex();
+        current_yScaleDC = state->yScaleDC->getIndex();
+        current_yScaleAux = state->yScaleAux->getIndex();
+        current_yScaleAnalog = state->yScaleAnalog->getIndex();
+
+        if (current_tScale != prev_tScale) {
+            scalesChanged = true;
+            prev_tScale = current_tScale;
+        }
+        if (current_yScaleWide != prev_yScaleWide) {
+            scalesChanged = true;
+            prev_yScaleWide = current_yScaleWide;
+        }
+        if (current_yScaleLow != prev_yScaleLow) {
+            scalesChanged = true;
+            prev_yScaleLow = current_yScaleLow;
+        }
+        if (current_yScaleHigh != prev_yScaleHigh) {
+            scalesChanged = true;
+            prev_yScaleHigh = current_yScaleHigh;
+        }
+        if (current_yScaleDC != prev_yScaleDC) {
+            scalesChanged = true;
+            prev_yScaleDC = current_yScaleDC;
+        }
+        if (current_yScaleAux != prev_yScaleAux) {
+            scalesChanged = true;
+            prev_yScaleAux = current_yScaleAux;
+        }
+        if (current_yScaleAnalog != prev_yScaleAnalog) {
+            scalesChanged = true;
+            prev_yScaleAnalog = current_yScaleAnalog;
+        }
+
+        if (scalesChanged) {
+            requestReset();
+        }
+
+        if (state->running) {
+            requestRedraw();
+        }
+    }
+
     update();
     state->writeToLog("End of updateFromState()");
 }
@@ -276,139 +327,75 @@ bool MultiWaveformPlot::event(QEvent* event)
 
 void MultiWaveformPlot::paintEvent(QPaintEvent* /* event */)
 {
-//    QElapsedTimer timer;
-//    timer.start();
+    if (state->plottingMode->getValue() == "Original" || state->rollMode->getValue()) {
+        // ORIGINAL
+            //QElapsedTimer timer;
+            //timer.start();
 
-    QPainter painter(&image);
-    bool showDisabledChannels = state->showDisabledChannels->getValue();
-    bool clipWaveforms = state->clipWaveforms->getValue();
+        QPainter painter(&image);
+        bool showDisabledChannels = state->showDisabledChannels->getValue();
+        bool clipWaveforms = state->clipWaveforms->getValue();
 
-    int labelWidthIndex = state->labelWidth->getIndex();
-    QRect regionWaveforms1 = regionWaveforms[labelWidthIndex];
-    QRect regionLabels1 = regionLabels[labelWidthIndex];
-    QRect regionTimeAxis1 = regionTimeAxis[labelWidthIndex];
+        int labelWidthIndex = state->labelWidth->getIndex();
+        QRect regionWaveforms1 = regionWaveforms[labelWidthIndex];
+        QRect regionLabels1 = regionLabels[labelWidthIndex];
+        QRect regionTimeAxis1 = regionTimeAxis[labelWidthIndex];
 
-    // Clear old display.
-    QRect imageFrame(rect());
-    const QColor BackgroundColor = QColor(state->backgroundColor->getValueString());
-    painter.fillRect(imageFrame, QBrush(BackgroundColor));
+        // Clear old display.
+        QRect imageFrame(rect());
+        const QColor BackgroundColor = QColor(state->backgroundColor->getValueString());
+        painter.fillRect(imageFrame, QBrush(BackgroundColor));
 
-    calculateDisplayYCoords();
-    QPoint cursor = mapFromGlobal(QCursor::pos());
-    hoverWaveIndex = findSelectedWaveform(cursor.y());
-    bool cursorInWaveformArea = regionLabels1.contains(cursor) || regionWaveforms1.contains(cursor);
+        calculateDisplayYCoords();
+        QPoint cursor = mapFromGlobal(QCursor::pos());
+        hoverWaveIndex = findSelectedWaveform(cursor.y());
+        bool cursorInWaveformArea = regionLabels1.contains(cursor) || regionWaveforms1.contains(cursor);
 
-    // Draw vertical time lines.
-    if (regionTimeAxis1.contains(cursor)) {
-        painter.setClipRegion(imageFrame);
-        drawVerticalTimeLines(painter, regionTimeAxis1.left(), cursor.x());
-    }
-
-    // Draw display trigger line.
-    drawTriggerLine(painter, regionTimeAxis1.left());
-
-    QRect plotClipRegion = regionWaveforms1.united(regionLabels1).united(regionScrollBar);
-    painter.setClipRegion(plotClipRegion);
-    int clipX = plotClipRegion.left();
-    int clipWidth = plotClipRegion.width();
-
-    int yPosition;
-
-    // Draw y = 0 baseline.
-    if (hoverWaveIndex.index >= 0 && cursorInWaveformArea && !dragState.dragging) {
-        yPosition = listManager->displayedWaveform(hoverWaveIndex)->yCoord;
-        painter.setPen(QColor(72, 72, 72));
-        painter.drawLine(QPoint(regionWaveforms1.left(), yPosition), QPoint(regionWaveforms1.right() - 1, yPosition));
-    }
-
-    if (showPinned) {
-        // Draw pinned/unpinned waveform divider.
-        if (!pinnedList.isEmpty()) {
-            waveformManager->drawDivider(painter, pinnedYDivider, regionLabels1.left() + 2, regionWaveforms1.right());
+        // Draw vertical time lines.
+        if (regionTimeAxis1.contains(cursor)) {
+            painter.setClipRegion(imageFrame);
+            drawVerticalTimeLines(painter, regionTimeAxis1.left(), cursor.x());
         }
 
-        // Draw pinned waveforms.
-        for (int i = 0; i < pinnedList.size(); ++i) {
-            yPosition = pinnedList.at(i).yCoord;
-            // If dragging, spread out waveforms around potential drop spot.
-            if (dragState.dragging && dragState.fromPinned && hoverWaveIndex.inPinned) {
-                yPosition = spreadAroundDraggingTarget(yPosition, hoverWaveIndex.index, i);
+        // Draw display trigger line.
+        drawTriggerLine(painter, regionTimeAxis1.left());
+
+        QRect plotClipRegion = regionWaveforms1.united(regionLabels1).united(regionScrollBar);
+        painter.setClipRegion(plotClipRegion);
+        int clipX = plotClipRegion.left();
+        int clipWidth = plotClipRegion.width();
+
+        int yPosition;
+
+        // Draw y = 0 baseline.
+        if (hoverWaveIndex.index >= 0 && cursorInWaveformArea && !dragState.dragging) {
+            yPosition = listManager->displayedWaveform(hoverWaveIndex)->yCoord;
+            painter.setPen(QColor(72, 72, 72));
+            painter.drawLine(QPoint(regionWaveforms1.left(), yPosition), QPoint(regionWaveforms1.right() - 1, yPosition));
+        }
+
+        if (showPinned) {
+            // Draw pinned/unpinned waveform divider.
+            if (!pinnedList.isEmpty()) {
+                waveformManager->drawDivider(painter, pinnedYDivider, regionLabels1.left() + 2, regionWaveforms1.right());
             }
-            QString waveName = pinnedList.at(i).waveName;
-            bool enabled = pinnedList.at(i).isEnabled();
-            if (enabled || showDisabledChannels) {
-                if (enabled) {
-                    bool hoverHighlight = hoverWaveIndex.inPinned && i == hoverWaveIndex.index && cursorInWaveformArea;
-                    QColor waveColor = adjustedColor(pinnedList.at(i), hoverHighlight);
-                    if (clipWaveforms) {
-                        QRect individualClipRegion = QRect(clipX, pinnedList.at(i).yTopLimit, clipWidth,
-                                                           pinnedList.at(i).yBottomLimit - pinnedList.at(i).yTopLimit);
-                        painter.setClipRegion(individualClipRegion);
-                    }
-                    waveformManager->draw(painter, waveName, QPoint(regionWaveforms1.left(), yPosition), waveColor);
-                    if (clipWaveforms) {
-                        painter.setClipRegion(plotClipRegion);
-                    }
+
+            // Draw pinned waveforms.
+            for (int i = 0; i < pinnedList.size(); ++i) {
+                yPosition = pinnedList.at(i).yCoord;
+                // If dragging, spread out waveforms around potential drop spot.
+                if (dragState.dragging && dragState.fromPinned && hoverWaveIndex.inPinned) {
+                    yPosition = spreadAroundDraggingTarget(yPosition, hoverWaveIndex.index, i);
                 }
-                QColor waveColor = adjustedColor(pinnedList.at(i));
-                Channel* channel = pinnedList.at(i).channel;
-                drawWaveformLabel(painter, waveName, channel, QPoint(regionLabels1.right(), yPosition), waveColor,
-                                  pinnedList.at(i).isSelected() ? Qt::black : Qt::white);
-                painter.drawImage(QPoint(regionScrollBar.left() + 1, yPosition - 5), unpinBadge);
-                pinnedList[i].isCurrentlyVisible = enabled;
-            } else {
-                pinnedList[i].isCurrentlyVisible = false;
-            }
-        }
-    }
-
-    // Draw grouping markers.
-    int i = 0;
-    while (i < displayList.size()) {
-        if (displayList.at(i).getGroupID() == 0) {
-            ++i;
-            continue;
-        }
-        // Beginning of group found; now find end.
-        int start = i;
-        int end = 0;
-        int groupID = displayList.at(start).getGroupID();
-        QColor color = adjustedColor(displayList.at(start));
-        ++i;
-        while (i < displayList.size()) {
-            if (displayList.at(i).getGroupID() != groupID) {
-                end = i - 1;
-                break;
-            }
-            ++i;
-        }
-        // Draw group marker.
-        int y1 = displayList.at(start).yTop;
-        int y2 = displayList.at(end).yBottom;
-        painter.fillRect(1, y1, 2, y2 - y1 + 2, color);
-        painter.fillRect(1, y1 - 2, 7, 2, color);
-        painter.fillRect(1, y2 + 2, 7, 2, color);
-    }
-
-    // Draw waveforms.
-    for (int i = 0; i < displayList.size(); ++i) {
-        yPosition = displayList.at(i).yCoord;
-        // If dragging, spread out waveforms around potential drop spot.
-        if (dragState.dragging && !dragState.fromPinned && !hoverWaveIndex.inPinned &&
-                listManager->isValidDragTarget(hoverWaveIndex, numFiltersDisplayed, arrangeByFilter)) {
-            yPosition = spreadAroundDraggingTarget(yPosition, hoverWaveIndex.index, i);
-        }
-        if (yPosition >= pinnedYDivider + YExtra && yPosition <= regionWaveforms1.bottom() - YExtra) {
-            bool enabled = displayList.at(i).isEnabled();
-            if (!displayList.at(i).isDivider()) {
+                QString waveName = pinnedList.at(i).waveName;
+                bool enabled = pinnedList.at(i).isEnabled();
                 if (enabled || showDisabledChannels) {
-                    QString waveName = displayList.at(i).waveName;
                     if (enabled) {
                         bool hoverHighlight = hoverWaveIndex.inPinned && i == hoverWaveIndex.index && cursorInWaveformArea;
-                        QColor waveColor = adjustedColor(displayList.at(i), hoverHighlight);
+                        QColor waveColor = adjustedColor(pinnedList.at(i), hoverHighlight);
                         if (clipWaveforms) {
-                            QRect individualClipRegion = QRect(clipX, displayList.at(i).yTopLimit, clipWidth,
-                                                               displayList.at(i).yBottomLimit - displayList.at(i).yTopLimit);
+                            QRect individualClipRegion = QRect(clipX, pinnedList.at(i).yTopLimit, clipWidth,
+                                                               pinnedList.at(i).yBottomLimit - pinnedList.at(i).yTopLimit);
                             painter.setClipRegion(individualClipRegion);
                         }
                         waveformManager->draw(painter, waveName, QPoint(regionWaveforms1.left(), yPosition), waveColor);
@@ -416,78 +403,441 @@ void MultiWaveformPlot::paintEvent(QPaintEvent* /* event */)
                             painter.setClipRegion(plotClipRegion);
                         }
                     }
-                    QColor waveColor = adjustedColor(displayList.at(i));
-                    Channel* channel = displayList.at(i).channel;
+                    QColor waveColor = adjustedColor(pinnedList.at(i));
+                    Channel* channel = pinnedList.at(i).channel;
                     drawWaveformLabel(painter, waveName, channel, QPoint(regionLabels1.right(), yPosition), waveColor,
-                                      displayList.at(i).isSelected() ? Qt::black : Qt::white);
-                }
-            } else {
-                waveformManager->drawDivider(painter, yPosition, regionLabels1.left() + 2, regionWaveforms1.right());
-            }
-            displayList[i].isCurrentlyVisible = enabled;
-        } else {
-            displayList[i].isCurrentlyVisible = false;
-        }
-    }
-
-    // Draw 'drag target' marker between waveforms.
-    drawBetweenWaveformMarker(painter, regionLabels1.right());
-
-    // Draw vertical scale bar.
-    if (hoverWaveIndex.index >= 0 && !dragState.dragging) {
-        int maxHeight;
-        const DisplayedWaveform* wave = listManager->displayedWaveform(hoverWaveIndex);
-        if (wave->isEnabled()) {
-            int yTop = hoverWaveIndex.inPinned ? regionWaveforms1.top() : pinnedYDivider;
-            if (hoverWaveIndex.index > 0) {
-                const DisplayedWaveform *prevWave = listManager->displayedWaveform(hoverWaveIndex.index - 1, hoverWaveIndex.inPinned);
-                maxHeight = (int)(0.67 * (double)(wave->yCoord - prevWave->yCoord));
-            } else {
-                const DisplayedWaveform *topWave = listManager->displayedWaveform(0, hoverWaveIndex.inPinned);
-                maxHeight = (int)(0.67 * (double)(topWave->yCoord - yTop));
-            }
-            maxHeight = qMax(maxHeight, 12);
-
-            drawYScaleBar(painter, cursor, wave->yCoord, maxHeight, wave);
-        }
-    }
-
-    // Draw vertical scan line.
-    if (!state->sweeping && !state->rollMode->getValue() && state->tScale->getNumericValue() >= 1000) {
-        if ((!pinnedList.isEmpty() && showPinned) || !displayList.isEmpty()) {
-            int x = waveformManager->getRefreshXPosition();
-            painter.setPen(QColor(97, 69, 157));
-            painter.drawLine(QLineF(x + regionWaveforms1.left(), regionWaveforms1.top(),
-                                    x + regionWaveforms1.left(), regionWaveforms1.bottom()));
-        }
-    }
-
-    painter.setClipRegion(imageFrame);
-
-    // Draw time axis and scroll bar.
-    drawTimeAxis(painter, (int) state->tScale->getNumericValue(), regionTimeAxis1.bottomLeft());
-    scrollBar->draw(painter);
-
-    // Draw dragged waveform labels.
-    if (dragState.dragging) {
-        int yPosition;
-        for (int i = 0; i < listManager->numDisplayedWaveforms(dragState.fromPinned); ++i) {
-            DisplayedWaveform* wave = listManager->displayedWaveform(i, dragState.fromPinned);
-            if (wave->isSelected()) {
-                yPosition = wave->yCoord + dragDelta.y();
-                if (yPosition > -labelHeight && yPosition < rect().bottom() + labelHeight) {
-                    QColor waveColor = adjustedColor(*wave, true);
-                    drawWaveformLabel(painter, wave->waveName, wave->channel,
-                                      QPoint(regionLabels1.right() + dragDelta.x(), yPosition), waveColor, Qt::black);
+                                      pinnedList.at(i).isSelected() ? Qt::black : Qt::white);
+                    painter.drawImage(QPoint(regionScrollBar.left() + 1, yPosition - 5), unpinBadge);
+                    pinnedList[i].isCurrentlyVisible = enabled;
+                } else {
+                    pinnedList[i].isCurrentlyVisible = false;
                 }
             }
         }
-    }
 
-    QStylePainter stylePainter(this);
-    stylePainter.drawImage(0, 0, image);
+        // Draw grouping markers.
+        int i = 0;
+        while (i < displayList.size()) {
+            if (displayList.at(i).getGroupID() == 0) {
+                ++i;
+                continue;
+            }
+            // Beginning of group found; now find end.
+            int start = i;
+            int end = 0;
+            int groupID = displayList.at(start).getGroupID();
+            QColor color = adjustedColor(displayList.at(start));
+            ++i;
+            while (i < displayList.size()) {
+                if (displayList.at(i).getGroupID() != groupID) {
+                    end = i - 1;
+                    break;
+                }
+                ++i;
+            }
+            // Draw group marker.
+            int y1 = displayList.at(start).yTop;
+            int y2 = displayList.at(end).yBottom;
+            painter.fillRect(1, y1, 2, y2 - y1 + 2, color);
+            painter.fillRect(1, y1 - 2, 7, 2, color);
+            painter.fillRect(1, y2 + 2, 7, 2, color);
+        }
+
+        // Draw waveforms.
+        for (int i = 0; i < displayList.size(); ++i) {
+            yPosition = displayList.at(i).yCoord;
+            // If dragging, spread out waveforms around potential drop spot.
+            if (dragState.dragging && !dragState.fromPinned && !hoverWaveIndex.inPinned &&
+                    listManager->isValidDragTarget(hoverWaveIndex, numFiltersDisplayed, arrangeByFilter)) {
+                yPosition = spreadAroundDraggingTarget(yPosition, hoverWaveIndex.index, i);
+            }
+            if (yPosition >= pinnedYDivider + YExtra && yPosition <= regionWaveforms1.bottom() - YExtra) {
+                bool enabled = displayList.at(i).isEnabled();
+                if (!displayList.at(i).isDivider()) {
+                    if (enabled || showDisabledChannels) {
+                        QString waveName = displayList.at(i).waveName;
+                        if (enabled) {
+                            bool hoverHighlight = hoverWaveIndex.inPinned && i == hoverWaveIndex.index && cursorInWaveformArea;
+                            QColor waveColor = adjustedColor(displayList.at(i), hoverHighlight);
+                            if (clipWaveforms) {
+                                QRect individualClipRegion = QRect(clipX, displayList.at(i).yTopLimit, clipWidth,
+                                                                   displayList.at(i).yBottomLimit - displayList.at(i).yTopLimit);
+                                painter.setClipRegion(individualClipRegion);
+                            }
+                            waveformManager->draw(painter, waveName, QPoint(regionWaveforms1.left(), yPosition), waveColor);
+                            if (clipWaveforms) {
+                                painter.setClipRegion(plotClipRegion);
+                            }
+                        }
+                        QColor waveColor = adjustedColor(displayList.at(i));
+                        Channel* channel = displayList.at(i).channel;
+                        drawWaveformLabel(painter, waveName, channel, QPoint(regionLabels1.right(), yPosition), waveColor,
+                                          displayList.at(i).isSelected() ? Qt::black : Qt::white);
+                    }
+                } else {
+                    waveformManager->drawDivider(painter, yPosition, regionLabels1.left() + 2, regionWaveforms1.right());
+                }
+                displayList[i].isCurrentlyVisible = enabled;
+            } else {
+                displayList[i].isCurrentlyVisible = false;
+            }
+        }
+
+        // Draw 'drag target' marker between waveforms.
+        drawBetweenWaveformMarker(painter, regionLabels1.right());
+
+        // Draw vertical scale bar.
+        if (hoverWaveIndex.index >= 0 && !dragState.dragging) {
+            int maxHeight;
+            const DisplayedWaveform* wave = listManager->displayedWaveform(hoverWaveIndex);
+            if (wave->isEnabled()) {
+                int yTop = hoverWaveIndex.inPinned ? regionWaveforms1.top() : pinnedYDivider;
+                if (hoverWaveIndex.index > 0) {
+                    const DisplayedWaveform *prevWave = listManager->displayedWaveform(hoverWaveIndex.index - 1, hoverWaveIndex.inPinned);
+                    maxHeight = (int)(0.67 * (double)(wave->yCoord - prevWave->yCoord));
+                } else {
+                    const DisplayedWaveform *topWave = listManager->displayedWaveform(0, hoverWaveIndex.inPinned);
+                    maxHeight = (int)(0.67 * (double)(topWave->yCoord - yTop));
+                }
+                maxHeight = qMax(maxHeight, 12);
+
+                drawYScaleBar(painter, cursor, wave->yCoord, maxHeight, wave);
+            }
+        }
+
+        // Draw vertical scan line.
+        if (!state->sweeping && !state->rollMode->getValue() && state->tScale->getNumericValue() >= 1000) {
+            if ((!pinnedList.isEmpty() && showPinned) || !displayList.isEmpty()) {
+                int x = waveformManager->getRefreshXPosition();
+                painter.setPen(QColor(97, 69, 157));
+                painter.drawLine(QLineF(x + regionWaveforms1.left(), regionWaveforms1.top(),
+                                        x + regionWaveforms1.left(), regionWaveforms1.bottom()));
+            }
+        }
+
+        painter.setClipRegion(imageFrame);
+
+        // Draw time axis and scroll bar.
+        drawTimeAxis(painter, (int) state->tScale->getNumericValue(), regionTimeAxis1.bottomLeft());
+        scrollBar->draw(painter);
+
+        // Draw dragged waveform labels.
+        if (dragState.dragging) {
+            int yPosition;
+            for (int i = 0; i < listManager->numDisplayedWaveforms(dragState.fromPinned); ++i) {
+                DisplayedWaveform* wave = listManager->displayedWaveform(i, dragState.fromPinned);
+                if (wave->isSelected()) {
+                    yPosition = wave->yCoord + dragDelta.y();
+                    if (yPosition > -labelHeight && yPosition < rect().bottom() + labelHeight) {
+                        QColor waveColor = adjustedColor(*wave, true);
+                        drawWaveformLabel(painter, wave->waveName, wave->channel,
+                                          QPoint(regionLabels1.right() + dragDelta.x(), yPosition), waveColor, Qt::black);
+                    }
+                }
+            }
+        }
+
+        QStylePainter stylePainter(this);
+        stylePainter.drawImage(0, 0, image);
 
 //    cout << "plot time (ms): " << timer.nsecsElapsed() / 1.0e6 << EndOfLine;
+//        qDebug() << "plot time (ms): " << timer.nsecsElapsed() / 1.0e6;
+    } else {
+
+        // EXPERIMENTAL
+        //QElapsedTimer timer;
+        //timer.start();
+        QPainter painter(&corePixmap);
+        bool showDisabledChannels = state->showDisabledChannels->getValue();
+        bool clipWaveforms = state->clipWaveforms->getValue();
+
+        int labelWidthIndex = state->labelWidth->getIndex();
+        QRect regionWaveforms1 = regionWaveforms[labelWidthIndex];
+        QRect regionLabels1 = regionLabels[labelWidthIndex];
+        QRect regionTimeAxis1 = regionTimeAxis[labelWidthIndex];
+
+        QRect imageFrame(rect());
+
+        calculateDisplayYCoords();
+        QPoint cursor = mapFromGlobal(QCursor::pos());
+        hoverWaveIndex = findSelectedWaveform(cursor.y());
+        bool cursorInWaveformArea = regionLabels1.contains(cursor) || regionWaveforms1.contains(cursor);
+
+        int yPosition;
+        QRect plotClipRegion = regionWaveforms1.united(regionLabels1).united(regionScrollBar);
+        int clipX = plotClipRegion.left();
+        int clipWidth = plotClipRegion.width();
+
+        // CORE PIXMAP CHANGES
+        // These are the changes that should persist to all future paint events, permanently changing corePixmap.
+
+        if (waveformManager->needsFullRedraw) {
+
+            // Future improvements to high-efficiency plotting:
+            // At this point, it's possible that after a scroll event new waveforms will be visible,
+            // but they won't have previous data loaded - this happens ultimately in controllerinterface
+            // depending on when data comes in. If this redraw occurs before that data load (more than likely),
+            // the newly displayed channels won't display any data before when the scroll occurred.
+            // This could likely be fixed by either a) somehow forcing the data to load at this point in the redraw or
+            // b) triggering another full redraw as soon as more data comes in from controllerinterface.
+
+            // Clear old display.
+            const QColor BackgroundColor = QColor(state->backgroundColor->getValueString());
+            painter.fillRect(imageFrame, QBrush(BackgroundColor));
+
+            // For full reset, reset waveformManager.
+            if (waveformManager->needsFullReset) {
+                waveformManager->resetAll();
+                waveformManager->singlePlotFullResetFinished();
+            }
+
+            // Draw time axis and scroll bar.
+            painter.setClipRegion(imageFrame);
+            drawTimeAxis(painter, (int) state->tScale->getNumericValue(), regionTimeAxis1.bottomLeft());
+            scrollBar->draw(painter);
+        }
+
+        // Clear currently active zone of plot.
+        painter.setClipRegion(plotClipRegion);
+        if (state->running) {
+            waveformManager->clearActiveSectionOfRect(painter, regionWaveforms1);
+        }
+
+        // Draw waveforms.
+        for (int i = 0; i < displayList.size(); ++i) {
+            yPosition = displayList.at(i).yCoord;
+            // If dragging, spread out waveforms around potential drop spot.
+            if (dragState.dragging && !dragState.fromPinned && !hoverWaveIndex.inPinned &&
+                    listManager->isValidDragTarget(hoverWaveIndex, numFiltersDisplayed, arrangeByFilter)) {
+                yPosition = spreadAroundDraggingTarget(yPosition, hoverWaveIndex.index, i);
+            }
+
+            if (yPosition >= pinnedYDivider + YExtra && yPosition <= regionWaveforms1.bottom() - YExtra) {
+                bool enabled = displayList.at(i).isEnabled();
+                if (!displayList.at(i).isDivider()) {
+                    if (enabled || showDisabledChannels) {
+                        QString waveName = displayList.at(i).waveName;
+                        if (enabled) {
+                            //bool hoverHighlight = hoverWaveIndex.inPinned && i == hoverWaveIndex.index && cursorInWaveformArea;
+                            // for high-efficiency mode to reduce redraws, do not highlight waveforms upon hovering.
+                            bool hoverHighlight = false;
+                            QColor waveColor = adjustedColor(displayList.at(i), hoverHighlight);
+                            if (clipWaveforms) {
+                                QRect individualClipRegion = QRect(clipX, displayList.at(i).yTopLimit, clipWidth,
+                                                                   displayList.at(i).yBottomLimit - displayList.at(i).yTopLimit);
+                                painter.setClipRegion(individualClipRegion);
+                            }
+                            waveformManager->draw(painter, waveName, QPoint(regionWaveforms1.left(), yPosition), waveColor);
+                            if (clipWaveforms) {
+                                painter.setClipRegion(plotClipRegion);
+                            }
+                        }
+                    }
+                } else {
+                    waveformManager->drawDivider(painter, yPosition, regionLabels1.left() + 2, regionWaveforms1.right());
+                }
+                displayList[i].isCurrentlyVisible = enabled;
+            } else {
+                displayList[i].isCurrentlyVisible = false;
+            }
+        }
+
+        if (showPinned) {
+            // Draw pinned/unpinned waveform divider.
+            if (!pinnedList.isEmpty()) {
+                waveformManager->drawDivider(painter, pinnedYDivider, regionLabels1.left() + 2, regionWaveforms1.right());
+            }
+
+            // Draw pinned waveforms.
+            for (int i = 0; i < pinnedList.size(); ++i) {
+                yPosition = pinnedList.at(i).yCoord;
+                // If dragging, spread out waveforms around potential drop spot.
+                if (dragState.dragging && dragState.fromPinned && hoverWaveIndex.inPinned) {
+                    yPosition = spreadAroundDraggingTarget(yPosition, hoverWaveIndex.index, i);
+                }
+                QString waveName = pinnedList.at(i).waveName;
+                bool enabled = pinnedList.at(i).isEnabled();
+                if (enabled || showDisabledChannels) {
+                    if (enabled) {
+                        //bool hoverHighlight = hoverWaveIndex.inPinned && i == hoverWaveIndex.index && cursorInWaveformArea;
+                        // for high-efficiency mode to reduce redraws, do not highlight waveforms upon hovering.
+                        bool hoverHighlight = false;
+                        QColor waveColor = adjustedColor(pinnedList.at(i), hoverHighlight);
+                        if (clipWaveforms) {
+                            QRect individualClipRegion = QRect(clipX, pinnedList.at(i).yTopLimit, clipWidth,
+                                                               pinnedList.at(i).yBottomLimit - pinnedList.at(i).yTopLimit);
+                            painter.setClipRegion(individualClipRegion);
+                        }
+                        waveformManager->draw(painter, waveName, QPoint(regionWaveforms1.left(), yPosition), waveColor);
+                        if (clipWaveforms) {
+                            painter.setClipRegion(plotClipRegion);
+                        }
+                    }
+                    pinnedList[i].isCurrentlyVisible = enabled;
+                } else {
+                    pinnedList[i].isCurrentlyVisible = false;
+                }
+            }
+        }
+
+
+        // FULL PIXMAP CHANGES
+        // These are the changes that are only applicable for the current paint event, and only change fullPixmap, not
+        // the underlying corePixmap.
+        // This is for the type of transient changes that depend on things like mousePosition that should not be retained.
+        painter.end();
+        fullPixmap = corePixmap.copy();
+        painter.begin(&fullPixmap);
+
+        // Draw waveform labels
+        for (int i = 0; i < displayList.size(); ++i) {
+            yPosition = displayList.at(i).yCoord;
+            // If dragging, spread out waveforms around potential drop spot.
+            if (dragState.dragging && !dragState.fromPinned && !hoverWaveIndex.inPinned &&
+                    listManager->isValidDragTarget(hoverWaveIndex, numFiltersDisplayed, arrangeByFilter)) {
+                yPosition = spreadAroundDraggingTarget(yPosition, hoverWaveIndex.index, i);
+            }
+
+            if (yPosition >= pinnedYDivider + YExtra && yPosition <= regionWaveforms1.bottom() - YExtra) {
+                bool enabled = displayList.at(i).isEnabled();
+                if (!displayList.at(i).isDivider()) {
+                    if (enabled || showDisabledChannels) {
+                        QString waveName = displayList.at(i).waveName;
+                        QColor waveColor = adjustedColor(displayList.at(i));
+                        Channel* channel = displayList.at(i).channel;
+                        drawWaveformLabel(painter, waveName, channel, QPoint(regionLabels1.right(), yPosition), waveColor,
+                                          displayList.at(i).isSelected() ? Qt::black : Qt::white);
+                    }
+                }
+            }
+        }
+
+        if (showPinned) {
+            for (int i = 0; i < pinnedList.size(); ++i) {
+                yPosition = pinnedList.at(i).yCoord;
+                // If dragging, spread out waveforms around potential drop spot.
+                if (dragState.dragging && !dragState.fromPinned && hoverWaveIndex.inPinned) {
+                    yPosition = spreadAroundDraggingTarget(yPosition, hoverWaveIndex.index, i);
+                }
+
+                QString waveName = pinnedList.at(i).waveName;
+                bool enabled = pinnedList.at(i).isEnabled();
+                if (enabled || showDisabledChannels) {
+                    QColor waveColor = adjustedColor(pinnedList.at(i));
+                    Channel* channel = pinnedList.at(i).channel;
+                    drawWaveformLabel(painter, waveName, channel, QPoint(regionLabels1.right(), yPosition), waveColor,
+                                      pinnedList.at(i).isSelected() ? Qt::black : Qt::white);
+                    painter.drawImage(QPoint(regionScrollBar.left() + 1, yPosition - 5), unpinBadge);
+                }
+
+            }
+        }
+
+        // Draw vertical time lines.
+        if (regionTimeAxis1.contains(cursor)) {
+            painter.setClipRegion(imageFrame);
+            drawVerticalTimeLines(painter, regionTimeAxis1.left(), cursor.x());
+        }
+
+        painter.setClipRegion(plotClipRegion);
+
+        // Draw display trigger line.
+        drawTriggerLine(painter, regionTimeAxis1.left());
+
+        // Draw y = 0 baseline.
+        if (hoverWaveIndex.index >= 0 && cursorInWaveformArea && !dragState.dragging) {
+            yPosition = listManager->displayedWaveform(hoverWaveIndex)->yCoord;
+            painter.setPen(QColor(72, 72, 72));
+            painter.drawLine(QPoint(regionWaveforms1.left(), yPosition), QPoint(regionWaveforms1.right() - 1, yPosition));
+        }
+
+        // Draw grouping markers.
+        int i = 0;
+        while (i < displayList.size()) {
+            if (displayList.at(i).getGroupID() == 0) {
+                ++i;
+                continue;
+            }
+            // Beginning of group found; now find end.
+            int start = i;
+            int end = 0;
+            int groupID = displayList.at(start).getGroupID();
+            QColor color = adjustedColor(displayList.at(start));
+            ++i;
+            while (i < displayList.size()) {
+                if (displayList.at(i).getGroupID() != groupID) {
+                    end = i - 1;
+                    break;
+                }
+                ++i;
+            }
+            // Draw group marker.
+            int y1 = displayList.at(start).yTop;
+            int y2 = displayList.at(end).yBottom;
+            painter.fillRect(1, y1, 2, y2 - y1 + 2, color);
+            painter.fillRect(1, y1 - 2, 7, 2, color);
+            painter.fillRect(1, y2 + 2, 7, 2, color);
+        }
+
+        // Draw 'drag target' marker between waveforms.
+        drawBetweenWaveformMarker(painter, regionLabels1.right());
+
+        // Draw vertical scale bar.
+        if (hoverWaveIndex.index >= 0 && !dragState.dragging) {
+            int maxHeight;
+            const DisplayedWaveform* wave = listManager->displayedWaveform(hoverWaveIndex);
+            if (wave->isEnabled()) {
+                int yTop = hoverWaveIndex.inPinned ? regionWaveforms1.top() : pinnedYDivider;
+                if (hoverWaveIndex.index > 0) {
+                    const DisplayedWaveform *prevWave = listManager->displayedWaveform(hoverWaveIndex.index - 1, hoverWaveIndex.inPinned);
+                    maxHeight = (int)(0.67 * (double)(wave->yCoord - prevWave->yCoord));
+                } else {
+                    const DisplayedWaveform *topWave = listManager->displayedWaveform(0, hoverWaveIndex.inPinned);
+                    maxHeight = (int)(0.67 * (double)(topWave->yCoord - yTop));
+                }
+                maxHeight = qMax(maxHeight, 12);
+
+                drawYScaleBar(painter, cursor, wave->yCoord, maxHeight, wave);
+            }
+        }
+
+        // Draw vertical scan line.
+        if (!state->sweeping && !state->rollMode->getValue() && state->tScale->getNumericValue() >= 1000) {
+            if ((!pinnedList.isEmpty() && showPinned) || !displayList.isEmpty()) {
+                int x = waveformManager->getRefreshXPosition();
+                painter.setPen(QColor(97, 69, 157));
+                painter.drawLine(QLineF(x + regionWaveforms1.left(), regionWaveforms1.top(),
+                                        x + regionWaveforms1.left(), regionWaveforms1.bottom()));
+            }
+        }
+
+        // Draw dragged waveform labels.
+        painter.setClipRegion(imageFrame);
+        if (dragState.dragging) {
+            int yPosition;
+            for (int i = 0; i < listManager->numDisplayedWaveforms(dragState.fromPinned); ++i) {
+                DisplayedWaveform* wave = listManager->displayedWaveform(i, dragState.fromPinned);
+                if (wave->isSelected()) {
+                    yPosition = wave->yCoord + dragDelta.y();
+                    if (yPosition > -labelHeight && yPosition < rect().bottom() + labelHeight) {
+                        QColor waveColor = adjustedColor(*wave, true);
+                        drawWaveformLabel(painter, wave->waveName, wave->channel,
+                                          QPoint(regionLabels1.right() + dragDelta.x(), yPosition), waveColor, Qt::black);
+                    }
+                }
+            }
+        }
+
+        if (waveformManager->needsFullRedraw) {
+            waveformManager->singlePlotFullRedrawFinished();
+        }
+
+        QStylePainter stylePainter(this);
+        stylePainter.drawPixmap(0, 0, fullPixmap);
+
+        //qDebug() << "plot time (ms): " << timer.nsecsElapsed() / 1.0e6;
+        //cout << "plot time (ms): " << timer.nsecsElapsed() / 1.0e6 << EndOfLine;
+    }
 }
 
 QColor MultiWaveformPlot::adjustedColor(const DisplayedWaveform& waveform, bool hoverSelect) const
@@ -866,11 +1216,26 @@ int MultiWaveformPlot::currentPageIndex() const
     return parent->currentPortIndex();
 }
 
+/* Request that a full redraw is triggered on ALL plots */
+void MultiWaveformPlot::requestRedraw() {
+    waveformManager->needsFullRedraw = true;
+}
+
+/* Request that a full reset and redraw is triggered on ALL plots */
+void MultiWaveformPlot::requestReset() {
+    waveformManager->needsFullReset = true;
+    requestRedraw();
+}
+
 void MultiWaveformPlot::resizeEvent(QResizeEvent*) {
     calculateScreenRegions();
     scrollBar->resize(regionScrollBar);
     image = QImage(size(), QImage::Format_ARGB32_Premultiplied);
+    corePixmap = QPixmap(size());
+    fullPixmap = QPixmap(size());
     update();
+
+    requestReset();
 }
 
 void MultiWaveformPlot::drawVerticalTimeLines(QPainter &painter, int xPosition, int xCursor)
@@ -1228,6 +1593,9 @@ void MultiWaveformPlot::loadWaveformData(WaveformFifo* waveformFifo)
     bool dcWaveformsPreset = state->getControllerTypeEnum() == ControllerStimRecordUSB2;
     for (int i = 0; i < displayList.size(); ++i) {
         if (displayList.at(i).isCurrentlyVisible && !displayList.at(i).isDivider()) {
+        // Of interest for future improvements to high-efficiency data plotting:
+        // inefficient way to make sure all data is plotted immediately after scrolling
+        //if (!displayList.at(i).isDivider()) {
             QString waveName = displayList.at(i).waveName;
             if (!loadAllFilters || !waveName.contains('|')) {
                 waveformManager->loadNewData(waveformFifo, waveName);
