@@ -3,22 +3,29 @@
   <id>io.github.bothlab.syntalos</id>
 
   <name>Syntalos</name>
-  <summary>Flow-based synchronized parallel DAQ from diverse sources and flexible control for neuroscience experiments</summary>
+  <summary>Flexible, time-synced parallel data acquisition and control for biological experiments</summary>
 
   <metadata_license>FSFAP</metadata_license>
-  <project_license>LGPL-3.0-or-later and GPL-3.0-or-later</project_license>
+  <project_license>LGPL-3.0-or-later or GPL-3.0-or-later</project_license>
   <developer_name translate="no">Matthias Klumpp</developer_name>
 
   <description>
     <p>
-      Syntalos is a software for timestamp-synchronized parallel data acquisition from diverse data sources.
-      It is especially useful for in-vivo behavior tracking, electrophysiology, Miniscope recordings and control
-      of automated closed-loop experiments in neuroscience. Its modularity allows it to be used for a wide variety
-      of different experiment types.
+      Syntalos is a software for timestamp-synchronized parallel data acquisition from diverse data sources,
+      such as cameras, microendoscopes, Intan electrophysiology amplifiers or Firmata-based serial interfaces.
+      The software also allows closed-loop interventions via the built-in Python scripting support.
+      It is specifically designed for use in (neuro)scientific in-vivo behavior experiments.
     </p>
     <p>
-      The project contains many modules by default which allow acquisition of data from a wide array of data sources,
-      as well as common online processing tasks. Some modules may require 3rd-party components to work properly.
+      The modularity of this software allows its use for a wide variety of experiments without any programming skills,
+      simply by connecting data-processing modules with virtual wires to form a data flow graph using drag &amp; drop.
+      Syntalos can be expanded with custom Python scripts if more flexibility is needed.
+      For all data sources, Syntalos ensures timestamps of incoming data are aligned, so the individual pieces of
+      data can be correlated without additional processig.
+    </p>
+    <p>
+      All data and metadata generated from an experiment run is stored in a well-defined, comprehensive structure,
+      making it easy to compare, pool or share data between experimentalists with different research questions.
     </p>
   </description>
 
@@ -31,10 +38,16 @@
 
   <screenshots>
     <screenshot type="default">
-      <image>https://raw.githubusercontent.com/bothlab/syntalos/master/contrib/screenshots/scr1-miniscope.png</image>
+      <image>https://raw.githubusercontent.com/bothlab/syntalos/master/contrib/screenshots/v0.8.4-ui-overview.png</image>
+      <caption>The Syntalos main window with a few module display and settings windows opened</caption>
     </screenshot>
     <screenshot>
-      <image>https://raw.githubusercontent.com/bothlab/syntalos/master/contrib/screenshots/scr2-complexboard.png</image>
+      <image>https://raw.githubusercontent.com/bothlab/syntalos/master/contrib/screenshots/v0.4.0-miniscope.png</image>
+      <caption>Running a very simple experiment, recording from a UCLA Miniscope and a camera simultaneously</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/bothlab/syntalos/master/contrib/screenshots/v0.4.0-complexboard.png</image>
+      <caption>A more complex configuration for an advanced behavior experiment</caption>
     </screenshot>
   </screenshots>
 </component>
