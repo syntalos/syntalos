@@ -1,8 +1,10 @@
----
 id: io.github.bothlab.syntalos
 runtime: org.kde.Platform
 runtime-version: 5.15-21.08
 sdk: org.kde.Sdk
+base: com.riverbankcomputing.PyQt.BaseApp
+base-version: 5.15-21.08
+
 command: syntalos
 rename-icon: syntalos
 rename-desktop-file: syntalos.desktop
@@ -11,7 +13,6 @@ finish-args:
   - --share=network
   - --share=ipc
   - --socket=x11
-  - --socket=wayland
   - --device=all
   - --filesystem=host
   - --socket=system-bus
@@ -98,6 +99,7 @@ modules:
     - '*'
 
 - modules/ffmpeg.yaml
+- modules/libusb/libusb.json
 
 - name: opencv
   buildsystem: cmake-ninja
@@ -144,12 +146,6 @@ modules:
     - type: patch
       path: patches/ffmpeg_01_Add-missing-header-for-LIBAVCODEC_VERSION_INT.patch
 
-- name: libusb
-  sources:
-    - type: archive
-      url: https://github.com/libusb/libusb/archive/v1.0.24.tar.gz
-      sha256: b7724c272dfc5713dce88ff717efd60f021ca5b7c8e30f08ebb2c42d2eea08ae
-
 - name: pybind11
   buildsystem: simple
   build-commands:
@@ -188,8 +184,6 @@ modules:
 - modules/python-tomlkit.yaml
 #- modules/python-edlio.yaml
 - modules/python-tkinter.yaml
-- modules/pyqt5.yaml
-- modules/pyqt5-sip.yaml
 
 # libzip is needed for tiscamera
 - name: libzip
@@ -216,8 +210,8 @@ modules:
     - -Dgst-plugin=enabled
   sources:
     - type: git
-      tag: '0.8.21'
       url: https://github.com/AravisProject/aravis.git
+      tag: '0.8.21'
 
 - name: tiscamera
   buildsystem: cmake-ninja
@@ -250,6 +244,7 @@ modules:
   sources:
     - type: git
       url: https://github.com/bothlab/pomidaq.git
+      tag: v0.4.5
 
 - name: syntalos
   buildsystem: meson
