@@ -3,7 +3,7 @@
   <id>io.github.bothlab.syntalos</id>
 
   <name>Syntalos</name>
-  <summary>Flexible, time-synced parallel data acquisition and control for biological experiments</summary>
+  <summary>Synchronized data acquisition from diverse sources and flexible experiment control</summary>
 
   <metadata_license>FSFAP</metadata_license>
   <project_license>LGPL-3.0-or-later or GPL-3.0-or-later</project_license>
@@ -13,15 +13,17 @@
     <p>
       Syntalos is a software for timestamp-synchronized parallel data acquisition from diverse data sources,
       such as cameras, microendoscopes, Intan electrophysiology amplifiers or Firmata-based serial interfaces.
-      The software also allows closed-loop interventions via the built-in Python scripting support.
-      It is specifically designed for use in (neuro)scientific in-vivo behavior experiments.
+      The software also allows closed-loop interventions via its built-in Python scripting support.
+      It is specifically designed for use in (neuro)scientific in vivo behavior experiments.
     </p>
     <p>
-      The modularity of this software allows its use for a wide variety of experiments without any programming skills,
-      simply by connecting data-processing modules with virtual wires to form a data flow graph using drag &amp; drop.
-      Syntalos can be expanded with custom Python scripts if more flexibility is needed.
+      The modularity of this software allows its use for a wide variety of experiments and often can be used without
+      any programming skills. Data sources, sinks and processing blocks can be connected graphically with virtual
+      wires to form a data flow graph using drag &amp; drop, to represent how data should be acquired, displayed
+      or stored.
+      Syntalos can be expanded with custom Python scripts and custom modules if more flexibility is needed.
       For all data sources, Syntalos ensures timestamps of incoming data are aligned, so the individual pieces of
-      data can be correlated without additional processig.
+      data can be correlated without additional processig or external synchronization.
     </p>
     <p>
       All data and metadata generated from an experiment run is stored in a well-defined, comprehensive structure,
