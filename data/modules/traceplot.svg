@@ -1,196 +1,35 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<svg
-   xmlns:dc="http://purl.org/dc/elements/1.1/"
-   xmlns:cc="http://creativecommons.org/ns#"
-   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
-   xmlns:svg="http://www.w3.org/2000/svg"
-   xmlns="http://www.w3.org/2000/svg"
-   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
-   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   width="64"
-   height="64"
-   version="1.1"
-   id="svg61"
-   sodipodi:docname="traceplot.svg"
-   inkscape:version="0.92.4 (5da689c313, 2019-01-14)">
-  <metadata
-     id="metadata65">
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64" height="64" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:cc="http://creativecommons.org/ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+  <metadata>
     <rdf:RDF>
-      <cc:Work
-         rdf:about="">
+      <cc:Work rdf:about="">
         <dc:format>image/svg+xml</dc:format>
-        <dc:type
-           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title />
+        <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
       </cc:Work>
     </rdf:RDF>
   </metadata>
-  <sodipodi:namedview
-     pagecolor="#ffffff"
-     bordercolor="#666666"
-     borderopacity="1"
-     objecttolerance="10"
-     gridtolerance="10"
-     guidetolerance="10"
-     inkscape:pageopacity="0"
-     inkscape:pageshadow="2"
-     inkscape:window-width="2560"
-     inkscape:window-height="1373"
-     id="namedview63"
-     showgrid="true"
-     fit-margin-top="0"
-     fit-margin-left="0"
-     fit-margin-right="0"
-     fit-margin-bottom="0"
-     inkscape:zoom="8"
-     inkscape:cx="17.002294"
-     inkscape:cy="27.497489"
-     inkscape:window-x="0"
-     inkscape:window-y="0"
-     inkscape:window-maximized="1"
-     inkscape:current-layer="g852">
-    <inkscape:grid
-       type="xygrid"
-       id="grid874"
-       originx="-0.70589857"
-       originy="-4.6176369" />
-  </sodipodi:namedview>
-  <defs
-     id="defs17">
-    <linearGradient
-       id="a"
-       y1="543.79999"
-       y2="503.79999"
-       x1="434.57001"
-       gradientUnits="userSpaceOnUse"
-       x2="384.57001"
-       gradientTransform="matrix(0.85534625,0,0,1.0264154,60.629483,-17.364717)">
-      <stop
-         stop-color="#343b40"
-         id="stop2" />
-      <stop
-         offset="1"
-         stop-color="#555e63"
-         id="stop4" />
-    </linearGradient>
-    <linearGradient
-       id="b"
-       y1="44"
-       y2="4"
-       gradientUnits="userSpaceOnUse"
-       x2="0"
-       gradientTransform="translate(384.57,499.8)">
-      <stop
-         stop-color="#bd8d48"
-         id="stop7" />
-      <stop
-         offset="1"
-         stop-color="#e8b971"
-         id="stop9" />
-    </linearGradient>
-    <linearGradient
-       id="c"
-       y1="17"
-       x1="17"
-       y2="40"
-       x2="40"
-       gradientUnits="userSpaceOnUse">
-      <stop
-         stop-color="#383e51"
-         id="stop12" />
-      <stop
-         offset="1"
-         stop-color="#655c6f"
-         stop-opacity="0"
-         id="stop14" />
+  <defs>
+    <linearGradient id="a" x1="434.57" x2="384.57" y1="543.8" y2="503.8" gradientTransform="matrix(.85535 0 0 1.0264 60.629 -17.365)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#343b40" offset="0"/>
+      <stop stop-color="#555e63" offset="1"/>
     </linearGradient>
   </defs>
-  <g
-     transform="translate(-385.2759,-479.18236)"
-     id="g59">
-    <g
-       id="g23"
-       transform="matrix(1,0,0,0.85000006,0,78.569977)"
-       style="stroke-width:2.79999995;stroke-opacity:0.55" />
-    <g
-       id="g31"
-       style="fill:#aa7f41" />
-    <g
-       id="g889"
-       transform="matrix(1.5588229,0,0,1.5588229,-221.99475,-299.82906)">
-      <g
-         id="g852"
-         transform="matrix(0.90624997,0,0,0.90610811,38.44673,48.846379)">
-        <g
-           id="g10614">
-          <rect
-             style="fill:url(#a);stroke-width:2.62355757;stroke-opacity:0.55"
-             id="rect19"
-             height="41.056622"
-             y="499.74338"
-             x="389.57001"
-             width="41.056622" />
-          <path
-             sodipodi:nodetypes="ccccccccccccc"
-             id="path8"
-             d="m 390.88424,523.78748 5.97268,-8.73917 4.24724,13.54495 0.70787,-14.96092 3.69142,19.95696 2.67944,-27.03679 2.83149,31.593 2.74265,-31.44132 1.50458,26.47292 2.8315,-20.00158 4.5889,9.81232 3.37504,-5.10761 3.09611,5.90253"
-             style="fill:none;stroke:#d6d6d6;stroke-width:0.80831534;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-             inkscape:connector-curvature="0" />
-          <g
-             style="fill:none;stroke-width:0.98400003"
-             id="g37"
-             transform="translate(0.00316771,-0.16719648)">
-            <path
-               style="stroke:#787e82"
-               inkscape:connector-curvature="0"
-               id="path33"
-               d="m 389.57,524.29 c 13.01,0 15.772,14.973 21.511,15.02 5.739,0.042 5.484,-15.02 18.489,-15.02" />
-            <path
-               sodipodi:nodetypes="csc"
-               style="stroke:#5090c3"
-               inkscape:connector-curvature="0"
-               id="path35"
-               d="m 389.57,523.31 c 13.01,0 15.772,-19.03485 21.511,-19.07685 5.739,-0.042 5.484,19.07685 18.489,19.07685" />
-          </g>
-          <rect
-             style="color:#000000;color-interpolation:sRGB;color-interpolation-filters:linearRGB;fill:#d6d6d6;stroke-width:1.09888458;color-rendering:auto;image-rendering:auto;shape-rendering:auto;text-rendering:auto"
-             id="rect39"
-             height="41.05661"
-             y="499.74982"
-             x="389.57001"
-             width="1" />
-          <g
-             style="color:#000000;color-interpolation:sRGB;color-interpolation-filters:linearRGB;color-rendering:auto;image-rendering:auto;shape-rendering:auto;text-rendering:auto"
-             id="g57"
-             transform="translate(0.00316771,-0.16719648)">
-            <g
-               style="fill:#d6d6d6"
-               id="g55">
-              <rect
-                 id="rect47"
-                 height="1"
-                 y="523.79999"
-                 x="390.57001"
-                 width="39" />
-              <rect
-                 id="rect49"
-                 height="3"
-                 y="522.79999"
-                 x="396.57001"
-                 width="1" />
-              <rect
-                 id="rect51"
-                 height="3"
-                 y="522.79999"
-                 x="410.57001"
-                 width="1" />
-              <rect
-                 id="rect53"
-                 height="3"
-                 y="522.79999"
-                 x="424.57001"
-                 width="1" />
-            </g>
+  <g transform="translate(-385.28 -479.18)">
+    <g transform="matrix(1.5588 0 0 1.5588 -221.99 -299.83)">
+      <g transform="matrix(.90625 0 0 .90611 38.447 48.846)">
+        <rect x="389.57" y="499.74" width="41.057" height="41.057" fill="url(#a)" stroke-opacity=".55" stroke-width="2.6236"/>
+        <path d="m390.88 523.79 5.9727-8.7392 4.2472 13.545 0.70787-14.961 3.6914 19.957 2.6794-27.037 2.8315 31.593 2.7426-31.441 1.5046 26.473 2.8315-20.002 4.5889 9.8123 3.375-5.1076 3.0961 5.9025" fill="none" stroke="#d6d6d6" stroke-linecap="round" stroke-linejoin="round" stroke-width=".80832"/>
+        <g transform="translate(.0031677 -.1672)" fill="none" stroke-width=".984">
+          <path d="m389.57 524.29c13.01 0 15.772 14.973 21.511 15.02 5.739 0.042 5.484-15.02 18.489-15.02" stroke="#787e82"/>
+          <path d="m389.57 523.31c13.01 0 15.772-19.035 21.511-19.077s5.484 19.077 18.489 19.077" stroke="#5090c3"/>
+        </g>
+        <rect x="389.57" y="499.75" width="1" height="41.057" color="#000000" color-rendering="auto" fill="#d6d6d6" image-rendering="auto" shape-rendering="auto" stroke-width="1.0989"/>
+        <g transform="translate(.0031677 -.1672)" color="#000000" color-rendering="auto" image-rendering="auto" shape-rendering="auto">
+          <g fill="#d6d6d6">
+            <rect x="390.57" y="523.8" width="39" height="1"/>
+            <rect x="396.57" y="522.8" width="1" height="3"/>
+            <rect x="410.57" y="522.8" width="1" height="3"/>
+            <rect x="424.57" y="522.8" width="1" height="3"/>
           </g>
         </g>
       </g>
