@@ -18,7 +18,7 @@ endforeach
 # systemd tmpfilesd snippet (for systemd which don't clean this up on their own)
 if systemd_dep.found()
     install_data('tmpfiles.d/syntalos.conf',
-        install_dir: systemd_dep.get_pkgconfig_variable('tmpfiles_dir')
+        install_dir: systemd_dep.get_variable(pkgconfig: 'tmpfiles_dir')
     )
 endif
 
