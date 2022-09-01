@@ -5,10 +5,15 @@ install_data('syntalos.desktop',
     install_dir: join_paths(get_option('datadir'), 'applications')
 )
 
-# icon
+# icons
 install_data('syntalos.svg',
     install_dir: join_paths(get_option('datadir'), 'icons', 'hicolor', 'scalable', 'apps')
 )
+foreach size : ['48x48', '64x64', '128x128']
+    install_data('appicons' / size / 'apps/syntalos.png',
+        install_dir: join_paths(get_option('datadir'), 'icons', 'hicolor', size, 'apps')
+    )
+endforeach
 
 # systemd tmpfilesd snippet (for systemd which don't clean this up on their own)
 if systemd_dep.found()
