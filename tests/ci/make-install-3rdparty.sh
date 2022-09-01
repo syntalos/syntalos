@@ -2,6 +2,8 @@
 set -e
 set -x
 
+pip install 'meson>=0.58'
+
 mkdir -p 3rdparty
 
 # TOML++ to read and write TOML files
