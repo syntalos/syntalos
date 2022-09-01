@@ -2,27 +2,41 @@ Source: syntalos
 Section: science
 Priority: optional
 Maintainer: Matthias Klumpp <mak@debian.org>
-Build-Depends: debhelper-compat (= 12),
+Build-Depends: debhelper-compat (= 13),
                meson
-Standards-Version: 4.5.0
+Standards-Version: 4.6.0
 
 Package: syntalos
 Architecture: any
 Depends: breeze-icon-theme,
+         gstreamer1.0-plugins-bad,
          libpam-systemd,
          rtkit,
-         gstreamer1.0-plugins-bad,
+         syntalos-hwsupport (= ${source:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
 Recommends: pomidaq
-Description: Synchronized parallel DAQ from diverse sources
- Syntalos is a software for timestamp-synchronized parallel data acquisition
- from diverse data sources.
- It is especially useful for in-vivo behavior tracking, electrophysiology,
- Miniscope recordings and control of automated closed-loop experiments in
- neuroscience. Its modularity allows it to be used for a wide variety of
- different experiment types.
+Description: Synchronized DAQ from diverse sources and flexible experiment control
+ Syntalos is a software for timestamp-synchronized parallel data acquisition from
+ diverse data sources, such as cameras, microendoscopes, Intan electrophysiology
+ amplifiers or Firmata-based serial interfaces.
+ The software also allows closed-loop interventions via its built-in Python
+ scripting support. It is specifically designed for use in (neuro)scientific
+ in vivo behavior experiments.
+
+Package: syntalos-hwsupport
+Architecture: all
+Depends: libpam-systemd,
+         rtkit,
+         ${misc:Depends}
+Recommends: pomidaq
+Description: Syntalos DAQ -- Hardware support
+ Syntalos is a software for timestamp-synchronized parallel data acquisition from
+ diverse data sources, such as cameras, microendoscopes, Intan electrophysiology
+ amplifiers or Firmata-based serial interfaces.
+ The software also allows closed-loop interventions via its built-in Python
+ scripting support. It is specifically designed for use in (neuro)scientific
+ in vivo behavior experiments.
  .
- The project contains many modules by default which allow acquisition of
- data from a wide array of data sources, as well as common online processing
- tasks. Some modules may require 3rd-party components to work properly.
+ This package contains hardware support modules (such as udev rules) for
+ hardware supported by Syntalos.
