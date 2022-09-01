@@ -86,6 +86,7 @@ public:
     int cpuCount() const;
     int cpuPhysicalCoreCount() const;
 
+    bool syntalosHWSupportInstalled() const;
     QString syntalosVersion() const;
     QString qtVersion() const;
     QString openCVVersionString() const;

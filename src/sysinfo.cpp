@@ -435,6 +435,13 @@ int SysInfo::cpuPhysicalCoreCount() const
     return d->cpuPhysicalCoreCount;
 }
 
+bool SysInfo::syntalosHWSupportInstalled() const
+{
+    return !findHostFile("/lib/udev/rules.d/90-syntalos-intan.rules").isEmpty() ||
+           !findHostFile("/usr/lib/udev/rules.d/90-syntalos-intan.rules").isEmpty() ||
+           !findHostFile("/etc/udev/rules.d/90-syntalos-intan.rules").isEmpty();
+}
+
 QString SysInfo::syntalosVersion() const
 {
     return syntalosVersionFull();

@@ -74,6 +74,14 @@ SysInfoDialog::SysInfoDialog(SysInfo *sysInfo, QWidget *parent) :
     setLabelTextStyle(sysInfo->checkAVXInstructions(), ui->valAVX);
     ui->valOpenGL->setText(sysInfo->glVersion());
 
+    if (sysInfo->syntalosHWSupportInstalled()) {
+        ui->valSyHWSupport->setText("installed");
+        setLabelTextStyle(SysInfoCheckResult::OK, ui->valSyHWSupport);
+    } else {
+        ui->valSyHWSupport->setText("<html>missing, can be <a href=\"https://github.com/bothlab/syntalos/releases\">downloaded</a>.");
+        setLabelTextStyle(SysInfoCheckResult::SUSPICIOUS, ui->valSyHWSupport);
+    }
+
     // Software Information
     ui->valSyntalos->setText(sysInfo->syntalosVersion());
     ui->valQt->setText(sysInfo->qtVersion());
@@ -109,6 +117,8 @@ void SysInfoDialog::on_btnClipboardCopy_clicked()
                         .arg(ui->valHWArch->text(),
                              ui->valCPU0ModelName->text(),
                              ui->valOpenGL->text());
+    infoText += SysInfo::get()->syntalosHWSupportInstalled()? QStringLiteral("Misc: Hardware support package installed.\n")
+                                                            : QStringLiteral("Misc: Missing hardware support package.\n");
     QGuiApplication::clipboard()->setText(infoText);
 }
 
