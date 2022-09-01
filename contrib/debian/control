@@ -17,9 +17,9 @@ Depends: breeze-icon-theme,
          ${shlibs:Depends}
 Recommends: pomidaq
 Description: Synchronized DAQ from diverse sources and flexible experiment control
- Syntalos is a software for timestamp-synchronized parallel data acquisition from
- diverse data sources, such as cameras, microendoscopes, Intan electrophysiology
- amplifiers or Firmata-based serial interfaces.
+ Syntalos is a software for timestamp-synchronized parallel data acquisition
+ from diverse data sources, such as cameras, microendoscopes,
+ Intan electrophysiology amplifiers or Firmata-based serial interfaces.
  The software also allows closed-loop interventions via its built-in Python
  scripting support. It is specifically designed for use in (neuro)scientific
  in vivo behavior experiments.
@@ -31,9 +31,9 @@ Depends: libpam-systemd,
          ${misc:Depends}
 Recommends: pomidaq
 Description: Syntalos DAQ -- Hardware support
- Syntalos is a software for timestamp-synchronized parallel data acquisition from
- diverse data sources, such as cameras, microendoscopes, Intan electrophysiology
- amplifiers or Firmata-based serial interfaces.
+ Syntalos is a software for timestamp-synchronized parallel data acquisition
+ from diverse data sources, such as cameras, microendoscopes,
+ Intan electrophysiology amplifiers or Firmata-based serial interfaces.
  The software also allows closed-loop interventions via its built-in Python
  scripting support. It is specifically designed for use in (neuro)scientific
  in vivo behavior experiments.
