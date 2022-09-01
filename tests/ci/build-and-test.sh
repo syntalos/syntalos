@@ -22,7 +22,6 @@ $CXX --version
 mkdir build && cd build
 meson \
     -Dmaintainer=$maintainer_mode \
-    -Dmodules='camera-tis, miniscope' \
     ..
 
 # Build, Test & Install
