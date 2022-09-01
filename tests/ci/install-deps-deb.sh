@@ -9,7 +9,7 @@ apt-get update -qq
 
 # install build essentials
 apt-get install -yq \
-    eatmydata build-essential gdb gcc g++
+    eatmydata curl build-essential gdb gcc g++
 
 # install build dependencies
 eatmydata apt-get install -yq --no-install-recommends \
