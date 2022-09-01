@@ -68,6 +68,8 @@ public:
     bool saveExperimentDiagnostics() const;
     void setSaveExperimentDiagnostics(bool enabled);
 
+    QString userModulesDir() const;
+
     QString virtualenvDir() const;
     void triggerCreateVirtualenvUserLink();
 

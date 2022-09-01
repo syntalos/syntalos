@@ -29,6 +29,7 @@
 #include "moduleapi.h"
 #include "pymoduleloader.h"
 #include "sysinfo.h"
+#include "globalconfig.h"
 #include "utils/tomlutils.h"
 
 
@@ -84,6 +85,11 @@ ModuleLibrary::ModuleLibrary(QObject *parent)
         if (QDir(SY_MODULESDIR).exists())
             d->locations.append(ModuleLocation(SY_MODULESDIR));
     }
+
+    // load user-provided modules, if there are any
+    GlobalConfig gconf;
+    if (QDir(gconf.userModulesDir()).exists())
+        d->locations.append(ModuleLocation(gconf.userModulesDir()));
 }
 
 ModuleLibrary::~ModuleLibrary()
@@ -140,6 +146,7 @@ bool ModuleLibrary::load()
             }
         }
         d->issueLog.append(QStringLiteral("Loaded %1 modules.").arg(count));
+        d->issueLog.append(QStringLiteral(""));
     }
 
     return true;

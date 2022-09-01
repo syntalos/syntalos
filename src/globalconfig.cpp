@@ -147,9 +147,15 @@ void GlobalConfig::setSaveExperimentDiagnostics(bool enabled)
     m_s->setValue("devel/save_diagnostics", enabled);
 }
 
+QString GlobalConfig::userModulesDir() const
+{
+    const auto dataDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    return QDir(dataDir).filePath("modules");
+}
+
 QString GlobalConfig::virtualenvDir() const
 {
-    const auto dataDir = QStandardPaths::writableLocation(QStandardPaths::DataLocation);
+    const auto dataDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     return QDir(dataDir).filePath("venv");
 }
 
