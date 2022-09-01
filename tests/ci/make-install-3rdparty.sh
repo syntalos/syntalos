@@ -22,7 +22,8 @@ cd ../..
 
 # Support for "The Imaging Source" cameras
 # FIXME: We need to migrate off of the 0.14.x branch
-wget -O tiscamera_0.14_amd64.deb https://github.com/TheImagingSource/tiscamera/releases/download/v-tiscamera-0.14.0/tiscamera_0.14.0.3054_amd64_ubuntu_1804.deb
+curl https://github.com/TheImagingSource/tiscamera/releases/download/v-tiscamera-0.14.0/tiscamera_0.14.0.3054_amd64_ubuntu_1804.deb \
+    -o tiscamera_0.14_amd64.deb --silent
 apt-get install -y ./tiscamera_0.14_amd64.deb
 rm tiscamera_0.14_amd64.deb
 #git clone --depth 1 --branch=v-tiscamera-1.0.0 https://github.com/TheImagingSource/tiscamera.git tiscamera
