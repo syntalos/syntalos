@@ -4,9 +4,10 @@ Syntalos
 [![Syntalos Screenshot](contrib/screenshots/v0.8.4-ui-overview.png "Syntalos")](https://github.com/bothlab/syntalos/tree/master/contrib/screenshots)
 ![Build Test](https://github.com/bothlab/syntalos/workflows/Build%20Test/badge.svg?branch=master)
 
-Syntalos (formerly known as MazeAmaze) is a software for timestamp-synchronized parallel data acquisition from diverse data sources.
-It is especially useful for in-vivo behavior tracking, electrophysiology, miniscope recordings and control of automated closed-loop
-experiments in neuroscience. Its modularity allows it to be used for a wide variety of different experiment types.
+Syntalos (formerly known as MazeAmaze) is a software for timestamp-synchronized parallel data acquisition from diverse data sources,
+such as cameras, microendoscopes, Intan electrophysiology amplifiers or Firmata-based serial interfaces.
+The software also allows closed-loop interventions via its built-in Python scripting support.
+It is specifically designed for use in (neuro)scientific in vivo behavior experiments.
 
 Syntalos is built with a set of core principles in mind:
  * Timestamps of all data sources of an experiment should be synchronized (within tolerance limits), so data at
