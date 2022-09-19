@@ -95,6 +95,7 @@ private slots:
     void on_actionSubjectsSave_triggered();
     void on_actionTimings_triggered();
     void on_actionSystemInfo_triggered();
+    void on_actionUsbDevices_triggered();
     void on_actionModuleLoadInfo_triggered();
     void on_actionIntervalRunConfig_triggered();
     void on_actionOnlineDocs_triggered();

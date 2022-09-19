@@ -26,5 +26,10 @@
  */
 QString shellQuote(const QString &str);
 
+QString findHostExecutable(const QString &exe);
+int runHostExecutable(const QString &exe,
+                      const QStringList &args,
+                      bool waitForFinished);
+
 int runInExternalTerminal(const QString &cmd, const QStringList &args = QStringList(),
                           const QString &wdir = QString());

@@ -62,10 +62,11 @@
 #include "globalconfigdialog.h"
 #include "intervalrundialog.h"
 #include "engine.h"
-#include "moduleapi.h"
 #include "sysinfodialog.h"
 #include "timingsdialog.h"
+
 #include "utils/tomlutils.h"
+#include "utils/executils.h"
 
 
 // config format API level
@@ -936,6 +937,7 @@ void MainWindow::updateIconStyles()
     setWidgetIconFromResource(ui->actionRun, "run", isDark);
     setWidgetIconFromResource(ui->actionRunTemp, "run-temp", isDark);
     setWidgetIconFromResource(ui->actionProjectDetails, "project-settings", isDark);
+    setWidgetIconFromResource(ui->actionUsbDevices, "usb-device", isDark);
 }
 
 void MainWindow::shutdown()
@@ -1371,11 +1373,83 @@ void MainWindow::on_actionSystemInfo_triggered()
     sysInfoDlg.exec();
 }
 
+/**
+ * @brief Get output of lsusb as tree.
+ */
+static QString fetchLsUsbOutputHtml()
+{
+    QProcess lsusbProc;
+    lsusbProc.start("lsusb", QStringList() << "-t");
+    lsusbProc.waitForFinished();
+    QString lsusbOut(lsusbProc.readAllStandardError());
+    lsusbOut += lsusbProc.readAllStandardOutput();
+
+    QString lsusbHtml;
+    QTextStream htmlOut(&lsusbHtml);
+    htmlOut << "<html>\n";
+    for (auto &line : lsusbOut.split('\n')) {
+        if (line.startsWith("/:"))
+            htmlOut << "<b>" << line << "</b><br/>\n";
+        else
+            htmlOut << line << "<br/>\n";
+    }
+
+    return lsusbHtml;
+}
+
+void MainWindow::on_actionUsbDevices_triggered()
+{
+    QDialog dlg;
+    QVBoxLayout layout;
+    QTextEdit lsusbBox;
+    layout.addWidget(&lsusbBox);
+    dlg.setLayout(&layout);
+    layout.setMargin(4);
+
+    lsusbBox.setWordWrapMode(QTextOption::NoWrap);
+    lsusbBox.setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
+    lsusbBox.setReadOnly(true);
+    lsusbBox.setText(fetchLsUsbOutputHtml());
+
+    QWidget buttonBox;
+    QHBoxLayout btnLayout;
+    btnLayout.setMargin(2);
+    buttonBox.setLayout(&btnLayout);
+
+    QPushButton btnRefresh("Refresh", &dlg);
+    btnLayout.addWidget(&btnRefresh);
+    connect(&btnRefresh, &QPushButton::clicked, [&]() {
+        lsusbBox.setText(fetchLsUsbOutputHtml());
+    });
+
+    QPushButton btnOpenUsbView(&dlg);
+    btnLayout.addWidget(&btnOpenUsbView);
+    bool usbViewFound = !findHostExecutable("usbview").isEmpty();
+    btnOpenUsbView.setText(usbViewFound? "Open USBView" : "Install USBView");
+
+    connect(&btnOpenUsbView, &QPushButton::clicked, [&]() {
+        if (usbViewFound)
+            runHostExecutable("usbview", QStringList(), false);
+        else
+            QProcess::startDetached("xdg-open", QStringList() << "appstream:usbview.desktop");
+        QTimer::singleShot(0, [&]() {
+            dlg.close();
+        });
+    });
+
+    layout.addWidget(&buttonBox);
+
+    dlg.setWindowTitle(QStringLiteral("USB Device Tree"));
+    dlg.resize(600, 400);
+    dlg.exec();
+}
+
 void MainWindow::on_actionModuleLoadInfo_triggered()
 {
     QDialog dlg;
     QHBoxLayout layout;
     QTextEdit logBox;
+    layout.setMargin(4);
     layout.addWidget(&logBox);
     dlg.setLayout(&layout);
     auto logText = m_engine->library()->issueLogHtml();
@@ -1404,6 +1478,7 @@ void MainWindow::on_actionModuleLoadInfo_triggered()
     // show module loader issue log
     logBox.setWordWrapMode(QTextOption::NoWrap);
     logBox.setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
+    logBox.setReadOnly(true);
     logBox.setText(QStringLiteral("<html>") + logText);
     dlg.setWindowTitle(QStringLiteral("Module Loader Log"));
     dlg.resize(620, 400);

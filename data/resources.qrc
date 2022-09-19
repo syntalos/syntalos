@@ -13,6 +13,7 @@
         <file alias="show-all-windows">show-all-windows.svg</file>
         <file alias="show-all-config">show-all-config.svg</file>
         <file alias="project-settings">project-settings.svg</file>
+        <file alias="usb-device">usb-device.svg</file>
     </qresource>
     <qresource prefix="/icons/dark">
         <file alias="run">dark/run.svg</file>
@@ -23,6 +24,7 @@
         <file alias="show-all-windows">dark/show-all-windows.svg</file>
         <file alias="show-all-config">dark/show-all-config.svg</file>
         <file alias="project-settings">dark/project-settings.svg</file>
+        <file alias="usb-device">dark/usb-device.svg</file>
     </qresource>
     <qresource prefix="/images">
         <file>mouse-top.png</file>

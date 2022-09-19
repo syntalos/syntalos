@@ -428,7 +428,6 @@
                   <property name="font">
                    <font>
                     <pointsize>12</pointsize>
-                    <weight>50</weight>
                     <bold>false</bold>
                    </font>
                   </property>
@@ -1245,7 +1244,7 @@
      <x>0</x>
      <y>0</y>
      <width>800</width>
-     <height>20</height>
+     <height>19</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuHelp">
@@ -1285,6 +1284,7 @@
      <string>Diagnostics</string>
     </property>
     <addaction name="actionSystemInfo"/>
+    <addaction name="actionUsbDevices"/>
     <addaction name="actionTimings"/>
     <addaction name="actionModuleLoadInfo"/>
    </widget>
@@ -1556,7 +1556,8 @@
   </action>
   <action name="actionReportIssue">
    <property name="icon">
-    <iconset theme="tools-report-bug"/>
+    <iconset theme="tools-report-bug">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>Report issue</string>
@@ -1564,7 +1565,8 @@
   </action>
   <action name="actionOnlineDocs">
    <property name="icon">
-    <iconset theme="internet-web-browser"/>
+    <iconset theme="internet-web-browser">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>Online documentation</string>
@@ -1572,10 +1574,20 @@
   </action>
   <action name="actionOpenCrashCollector">
    <property name="icon">
-    <iconset theme="quickopen"/>
+    <iconset theme="quickopen">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>Open crash collector</string>
+   </property>
+  </action>
+  <action name="actionUsbDevices">
+   <property name="icon">
+    <iconset resource="../data/resources.qrc">
+     <normaloff>:/icons/usb-device</normaloff>:/icons/usb-device</iconset>
+   </property>
+   <property name="text">
+    <string>USB Devices</string>
    </property>
   </action>
  </widget>

@@ -62,6 +62,41 @@ QString findHostExecutable(const QString &exe)
     return QStandardPaths::findExecutable(exe);
 }
 
+/**
+ * @brief Run command on the host
+ * @param exe The program to run
+ * @param args Program arguments
+ * @param waitForFinished Wait for the command to finish
+ * @return Exit status of the program (if waiting for finished)
+ */
+int runHostExecutable(const QString &exe, const QStringList &args, bool waitForFinished)
+{
+    auto sysInfo = SysInfo::get();
+    QProcess proc;
+    proc.setProcessChannelMode(QProcess::ForwardedChannels);
+    if (sysInfo->inFlatpakSandbox()) {
+        // in sandbox, go via flatpak-spawn
+        QStringList fpsArgs = QStringList() << "--host";
+        fpsArgs << exe;
+        if (waitForFinished)
+            proc.start("flatpak-spawn", fpsArgs + args);
+        else
+            proc.startDetached("flatpak-spawn", fpsArgs + args);
+    } else {
+        // no sandbox, we can run the command directly
+        if (waitForFinished)
+            proc.start(exe, args);
+        else
+            proc.startDetached(exe, args);
+    }
+    if (waitForFinished) {
+        proc.waitForFinished(-1);
+        return proc.exitCode();
+    } else {
+        return 0;
+    }
+}
+
 int runInExternalTerminal(const QString &cmd, const QStringList &args, const QString &wdir)
 {
     QString terminalExe;
