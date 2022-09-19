@@ -124,5 +124,5 @@ void changeColorsDarkmode(bool enabled)
     if (enabled)
         changeColorScheme(QStringLiteral("/usr/share/color-schemes/BreezeDark.colors"), true);
     else
-        changeColorScheme(QStringLiteral("/usr/share/color-schemes/Breeze.colors"), false);
+        changeColorScheme(QStringLiteral("/usr/share/color-schemes/BreezeLight.colors"), false);
 }
