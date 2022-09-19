@@ -1407,7 +1407,6 @@ void MainWindow::on_actionUsbDevices_triggered()
     layout.setMargin(4);
 
     lsusbBox.setWordWrapMode(QTextOption::NoWrap);
-    lsusbBox.setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
     lsusbBox.setReadOnly(true);
     lsusbBox.setText(fetchLsUsbOutputHtml());
 
