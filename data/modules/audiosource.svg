@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64" height="64" version="1.1" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" xmlns:cc="http://creativecommons.org/ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:xlink="http://www.w3.org/1999/xlink">
+ <metadata>
+  <rdf:RDF>
+   <cc:Work rdf:about="">
+    <dc:format>image/svg+xml</dc:format>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style id="current-color-scheme" type="text/css">.ColorScheme-Text {
+        color:#4d4d4d;
+      }
+      .ColorScheme-Background {
+        color:#eff0f1;
+      }
+      .ColorScheme-Highlight {
+        color:#3daee9;
+      }
+      .ColorScheme-ViewText {
+        color:#31363b;
+      }
+      .ColorScheme-ViewBackground {
+        color:#fcfcfc;
+      }
+      .ColorScheme-ViewHover {
+        color:#93cee9;
+      }
+      .ColorScheme-ViewFocus{
+        color:#3daee9;
+      }
+      .ColorScheme-ButtonText {
+        color:#31363b;
+      }
+      .ColorScheme-ButtonBackground {
+        color:#eff0f1;
+      }
+      .ColorScheme-ButtonHover {
+        color:#93cee9;
+      }
+      .ColorScheme-ButtonFocus{
+        color:#3daee9;
+      }</style>
+  <style type="text/css">.ColorScheme-Text {
+        color:#232629;
+      }</style>
+  <style type="text/css">.ColorScheme-Text {
+        color:#232629;
+      }</style>
+ </defs>
+ <style type="text/css">.ColorScheme-Text{color:#232629;}.ColorScheme-PositiveText{color:#27ae60;}</style>
+ <g transform="matrix(.97177 0 0 .97177 .8923 .94401)">
+  <g transform="matrix(2.5819 0 0 2.5819 4.5086 -5.63)">
+   <path class="ColorScheme-Text" d="m10.988 3-4.9883 4.9902v6.0196l4.9883 4.9902h1.0117v-16zm-7.9883 5v6h2v-6z" fill="currentColor"/>
+   <path d="m13.865 3.5371-0.24414 0.97656a7 7 0 0 1 4.3789 6.4863 7 7 0 0 1-4.3809 6.4785l0.24414 0.97461a8 8 0 0 0 5.1367-7.4531 8 8 0 0 0-5.1348-7.4629zm0.45898 3.7441-0.53906 0.86133a4 4 0 0 1 1.2148 2.8574 4 4 0 0 1-1.2109 2.8613l0.53906 0.86328a5 5 0 0 0 1.6719-3.7246 5 5 0 0 0-1.6758-3.7188z" fill="#f67400"/>
+  </g>
+  <g transform="matrix(1.9318 0 0 1.9318 -125.43 -21.268)" fill="#fdbc4b">
+   <path class="ColorScheme-Text" d="m82 34v2h-1v1h-1v1h1v1h1v2h1v-1h1v-1h1v-1h1v1h1v2h1v-1h1v-2h1v1h1v1h1v1h1v-1h1v-1h1v-1h1v-1h-1v-1h-1v-1h-1v-1h-1v1h-1v1h-1v1h-1v-2h-1v-1h-1v2h-1v1h-1v-1h-1v-1h-1v-1z"/>
+   <path class="ColorScheme-Text" d="m76 32v2h-1v1h-1v1h-1v1h-2v-1h-1v-3h-1v2h-1v2h-1v1h1v2h1v1h1v-2h1v-1h2v1h1v1h1v1h1v2h1v-1h1v-2h1v-1h1v-1h1v-1h-1v-1h-1v-1h-1v-2h-1v-1z"/>
+  </g>
+ </g>
+</svg>

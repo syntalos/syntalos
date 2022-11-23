@@ -44,6 +44,7 @@
         <file alias="camera-tis">modules/camera-tis.svg</file>
         <file alias="camera-flir">modules/camera-flir.svg</file>
         <file alias="camera-ueye">modules/camera-ueye.svg</file>
+        <file alias="audiosource">modules/audiosource.svg</file>
         <file alias="miniscope">modules/miniscope.svg</file>
         <file alias="videorecorder">modules/videorecorder.svg</file>
         <file alias="triled-tracker">modules/triled-tracker.svg</file>

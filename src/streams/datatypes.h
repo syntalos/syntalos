@@ -90,10 +90,10 @@ Q_DECLARE_METATYPE(ModuleState)
  */
 enum class ControlCommandKind {
     UNKNOWN,
-    START,
-    PAUSE,
-    STOP,
-    STEP,
+    START,   /// Start an operation
+    PAUSE,   /// Pause an operation, can be resumed with START
+    STOP,    /// Stop an operation
+    STEP,    /// Advance operation by one step
     CUSTOM
 };
 Q_DECLARE_METATYPE(ControlCommandKind)
@@ -105,19 +105,34 @@ Q_DECLARE_METATYPE(ControlCommandKind)
  */
 struct ControlCommand
 {
-    ControlCommandKind kind;
-    QString command;
+    ControlCommandKind kind; /// The command type
+    milliseconds_t duration; /// Duration of the command before resetting to the previous state (zero for infinite)
+    QString command;         /// Custom command name, if in custom mode
+
+    ControlCommand() : duration(0) {}
+
+    void setDuration(ulong value)
+    {
+        duration = milliseconds_t(value);
+    }
+
+    ulong getDurationAsInt()
+    {
+        return duration.count();
+    }
 
     friend QDataStream &operator<<(QDataStream &out, const ControlCommand &obj)
     {
-        out << obj.kind << obj.command;
+        out << obj.kind << (quint64) obj.duration.count() << obj.command;
         return out;
     }
 
     friend QDataStream &operator>>(QDataStream &in, ControlCommand &obj)
     {
-       in >> obj.kind >> obj.command;
-       return in;
+        quint64 durationValue;
+        in >> obj.kind >> durationValue >> obj.command;
+        obj.duration = milliseconds_t(durationValue);
+        return in;
     }
 };
 Q_DECLARE_METATYPE(ControlCommand)

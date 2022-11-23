@@ -14,6 +14,9 @@ subdir('devel.pyooptest')
 subdir('canvas')
 subdir('table')
 
+# Audio
+subdir('audiosource')
+
 # Video
 subdir('videorecorder')
 subdir('videotransform')

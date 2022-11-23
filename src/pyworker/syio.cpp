@@ -353,6 +353,7 @@ PYBIND11_MODULE(syio, m)
     py::class_<ControlCommand>(m, "ControlCommand")
             .def(py::init<>())
             .def_readwrite("kind", &ControlCommand::kind)
+            .def_property("duration", &ControlCommand::getDurationAsInt, &ControlCommand::setDuration)
             .def_readwrite("command", &ControlCommand::command)
     ;
 
