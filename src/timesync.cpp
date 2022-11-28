@@ -282,7 +282,7 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
         // few values in the vector stem from the initialization phase of Syntalos and may have
         // a higher variance than actually expected during normal operation (as in the startup
         // phase, the system load is high and lots of external devices are starting up)
-        if (m_expectedOffsetCalCount < (m_calibrationMaxBlockN + (m_calibrationMaxBlockN / 2)))
+        if (m_expectedOffsetCalCount < (m_calibrationMaxBlockN * 6))
             return;
 
         m_expectedSD = sqrt(vectorVariance(m_tsOffsetsUsec));
@@ -368,7 +368,7 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     }
 
     // calculate time-based correction offset, a bit less than half of the needed correction time
-    m_timeCorrectionOffset = microseconds_t(std::lround(avgOffsetDeviationUsec / 2.5));
+    m_timeCorrectionOffset = microseconds_t(static_cast<long>(std::floor(avgOffsetDeviationUsec / 4.0)));
 
     // sanity check: we need to correct by at least one datapoint for any synchronization to occur at all
     if (abs(m_timeCorrectionOffset.count()) <= m_timePerPointUs)
@@ -669,7 +669,10 @@ void SecondaryClockSynchronizer::processTimestamp(microseconds_t &masterTimestam
     }
 
     // try to adjust a potential external clock slowly (and also adjust our timestamps slowly)
-    const auto newClockCorrectionOffset = microseconds_t(std::lround(((m_clockCorrectionOffset.count() * 15) + avgOffsetDeviationUsec) / (15 + 1.0)));
+    const auto newClockCorrectionOffset = microseconds_t(static_cast<long>(
+                                                             std::floor(((m_clockCorrectionOffset.count() * 15)
+                                                                         + avgOffsetDeviationUsec) / (15 + 1.0))
+                                                        ));
 
     // write offset info to tsync file before we make any adjustments to the master timestamp
     if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE)) {
