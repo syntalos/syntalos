@@ -93,7 +93,7 @@ FreqCounterSynchronizer::FreqCounterSynchronizer(std::shared_ptr<SyncTimer> mast
     if (m_id.isEmpty())
         m_id = createRandomString(4);
 
-    // time one datapoint takes to acquire, if the frequency is accurate, in microseconds
+    // time one datapoint takes to acquire, if the frequency in Hz is accurate, in microseconds
     m_timePerPointUs = (1.0 / m_freq) * 1000.0 * 1000.0;
 
     // make our existence known to the system
@@ -114,7 +114,7 @@ int FreqCounterSynchronizer::indexOffset() const
 void FreqCounterSynchronizer::setCalibrationBlocksCount(int count)
 {
     if (count <= 0)
-        count = 3;
+        count = 10;
     m_calibrationMaxBlockN = count;
 }
 
@@ -282,7 +282,7 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
         // few values in the vector stem from the initialization phase of Syntalos and may have
         // a higher variance than actually expected during normal operation (as in the startup
         // phase, the system load is high and lots of external devices are starting up)
-        if (m_expectedOffsetCalCount < (m_calibrationMaxBlockN * 6))
+        if (m_expectedOffsetCalCount < (m_calibrationMaxBlockN * 2))
             return;
 
         m_expectedSD = sqrt(vectorVariance(m_tsOffsetsUsec));
@@ -387,7 +387,7 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     m_indexOffset = newIndexOffset;
 
     if (m_indexOffset != 0) {
-        m_offsetChangeWaitBlocks = ceil(m_calibrationMaxBlockN / 1.5);
+        m_offsetChangeWaitBlocks = std::floor(m_calibrationMaxBlockN * 1.5);
 
         m_applyIndexOffset = false;
         if (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD)) {
@@ -593,7 +593,7 @@ void SecondaryClockSynchronizer::processTimestamp(microseconds_t &masterTimestam
         // few values in the vector stem from the initialization phase of Syntalos and may have
         // a higher variance than actually expected during normal operation (as in the startup
         // phase, the system load is high and lots of external devices are starting up)
-        if (m_expectedOffsetCalCount < (m_calibrationMaxN + (m_calibrationMaxN / 2)))
+        if (m_expectedOffsetCalCount < (m_calibrationMaxN * 2))
             return;
 
         m_expectedSD = sqrt(vectorVariance(m_clockOffsetsUsec));
