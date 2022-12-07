@@ -18,14 +18,19 @@
  */
 
 #include "audiosrcmodule.h"
+#include "QtSvg/qsvgrenderer.h"
 
 #include <QMessageBox>
 #include <QDebug>
+#include <QSvgRenderer>
+#include <QPainter>
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wzero-as-null-pointer-constant"
 #include <gst/gst.h>
 #pragma GCC diagnostic pop
 
+#include "utils/style.h"
 #include "audiosettingsdialog.h"
 
 SYNTALOS_MODULE(AudioSourceModule)
@@ -264,7 +269,28 @@ QString AudioSourceModuleInfo::description() const
 
 QIcon AudioSourceModuleInfo::icon() const
 {
-    return QIcon(":/module/audiosource");
+    const auto audioSrcIconResStr = QStringLiteral(":/module/audiosource");
+    bool isDark = currentThemeIsDark();
+    if (!isDark)
+        return QIcon(audioSrcIconResStr);
+
+    // convert our bright-mode icon into something that's visible easier
+    // on a dark background
+    QFile f(audioSrcIconResStr);
+    if (!f.open(QFile::ReadOnly | QFile::Text)) {
+        qWarning().noquote() << "Failed to find audiosrc module icon: " << f.errorString();
+        return QIcon(audioSrcIconResStr);
+    }
+
+    QTextStream in(&f);
+    auto data = in.readAll();
+    QSvgRenderer renderer(data.replace(QStringLiteral("#4d4d4d"), QStringLiteral("#bdc3c7")).toLocal8Bit());
+    QPixmap pix(96, 96);
+    pix.fill(QColor(0, 0, 0, 0));
+    QPainter painter(&pix);
+    renderer.render(&painter, pix.rect());
+
+    return QIcon(pix);
 }
 
 AbstractModule *AudioSourceModuleInfo::createModule(QObject *parent)

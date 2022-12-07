@@ -164,9 +164,9 @@ static QIcon getTableModuleIcon()
 
     // convert our bright-mode icon into something that's visible easier
     // on a dark background
-    QFile f(QStringLiteral(":/module/table"));
+    QFile f(tableIconResStr);
     if (!f.open(QFile::ReadOnly | QFile::Text)) {
-        qWarning().noquote() << "Failed to table module icon: " << f.errorString();
+        qWarning().noquote() << "Failed to find table module icon: " << f.errorString();
         return QIcon(tableIconResStr);
     }
 

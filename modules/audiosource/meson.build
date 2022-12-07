@@ -22,6 +22,7 @@ module_ui = ['audiosettingsdialog.ui']
 module_deps = [
     gstreamer_dep,
     gstreamer_app_dep,
+    qt_svg_dep,
 ]
 
 #
