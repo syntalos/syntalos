@@ -195,7 +195,7 @@ bool IntanRhxModule::prepare(const TestSubject &)
     // we only permit calibration with the very first data block - this seems to be sufficient and
     // yielded the best results (due to device and USB buffering, the later data blocks are more
     // susceptible to error)
-    clockSync->setCalibrationBlocksCount((sampleRate / RHXDataBlock::samplesPerDataBlock(m_controllerIntf->getRhxController()->getType())) * 24);
+    clockSync->setCalibrationBlocksCount((sampleRate / RHXDataBlock::samplesPerDataBlock(m_controllerIntf->getRhxController()->getType())) * 20);
 
     if (!clockSync->start()) {
         raiseError(QStringLiteral("Unable to set up timestamp synchronizer!"));

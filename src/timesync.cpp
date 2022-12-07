@@ -114,7 +114,7 @@ int FreqCounterSynchronizer::indexOffset() const
 void FreqCounterSynchronizer::setCalibrationBlocksCount(int count)
 {
     if (count <= 0)
-        count = 10;
+        count = 24;
     m_calibrationMaxBlockN = count;
 }
 
@@ -368,7 +368,7 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     }
 
     // calculate time-based correction offset, a bit less than half of the needed correction time
-    m_timeCorrectionOffset = microseconds_t(static_cast<long>(std::floor(avgOffsetDeviationUsec / 4.0)));
+    m_timeCorrectionOffset = microseconds_t(static_cast<long>(std::floor(avgOffsetDeviationUsec / 3.5)));
 
     // sanity check: we need to correct by at least one datapoint for any synchronization to occur at all
     if (abs(m_timeCorrectionOffset.count()) <= m_timePerPointUs)
@@ -387,7 +387,7 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     m_indexOffset = newIndexOffset;
 
     if (m_indexOffset != 0) {
-        m_offsetChangeWaitBlocks = std::floor(m_calibrationMaxBlockN * 1.5);
+        m_offsetChangeWaitBlocks = m_calibrationMaxBlockN + 1;
 
         m_applyIndexOffset = false;
         if (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD)) {

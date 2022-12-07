@@ -382,7 +382,7 @@ private slots:
 
         // run for a short time with zero divergence
         qDebug() << "\n## Testing precise secondary indices";
-        for (auto i = 0; i < (calibrationCount * 2 + calibrationCount / 2); ++i) {
+        for (auto i = 0; i < (calibrationCount * 2 + calibrationCount * 2); ++i) {
             curMasterTS = curMasterTS + milliseconds_t(1);
             auto syncMasterTS = curMasterTS;
 
@@ -404,7 +404,7 @@ private slots:
         int currentDivergenceUsec = 0;
         int currentDivergenceIdx = 0;
         int adjustmentIterN = 0;
-        for (auto i = 1; i < (calibrationCount * 10 + calibrationCount / 2); ++i) {
+        for (auto i = 1; i < (calibrationCount * 10 + calibrationCount * 2); ++i) {
             // advance
             curMasterTS = curMasterTS + milliseconds_t(1);
 
@@ -465,17 +465,17 @@ private slots:
 
         qDebug() << "\n## Testing fluke divergences for index device with out-of-sync times";
         auto expectedIdxOffset = sync->indexOffset();
-        for (auto i = 1; i < calibrationCount * 4; ++i) {
+        for (auto i = 1; i < calibrationCount * 6; ++i) {
             curMasterTS = curMasterTS + milliseconds_t(1);
             auto syncMasterTS = curMasterTS;
 
-            if (i == calibrationCount)
+            if (i == calibrationCount * 2)
                 expectedIdxOffset = sync->indexOffset();
 
             // the master time may fluctuate depending on system load - we are simulating that here
             // the two clocks have to be already divergent (from the previous test), because otherwise
             // any fluke test can easily be skipped.
-            if (i % 10 == 0) {
+            if (i % 20 == 0) {
                 const auto randomDivergence = microseconds_t(50) + microseconds_t(rand() % 400);
                 qDebug().nospace().noquote() << "Adding master fluke divergence of " << randomDivergence.count() << "µs";
                 syncMasterTS = syncMasterTS + randomDivergence;
@@ -485,14 +485,14 @@ private slots:
             // offset index
             auto currentBlock = idxDev->generateBlock();
             sync->processTimestamps(syncMasterTS, 0, 2, currentBlock);
-            if (i > calibrationCount) {
+            if (i > calibrationCount * 2) {
                 QCOMPARE(sync->indexOffset(), expectedIdxOffset);
                 QCOMPARE(vecLast(currentBlock), idxDev->lastIndex() - expectedIdxOffset);
             }
 
             currentBlock = idxDev->generateBlock();
             sync->processTimestamps(syncMasterTS, 1, 2, currentBlock);
-            if (i > calibrationCount) {
+            if (i > calibrationCount * 2) {
                 QCOMPARE(sync->indexOffset(), expectedIdxOffset);
                 QCOMPARE(vecLast(currentBlock), idxDev->lastIndex() - expectedIdxOffset);
             }
@@ -505,20 +505,20 @@ private slots:
         // the clock correction offset back to zero
         qDebug() << "\n## Testing good secondary indices (again)";
         auto lastIndexOffset = sync->indexOffset();
-        for (auto i = 0; i < (calibrationCount * 8 + calibrationCount / 2); ++i) {
+        for (auto i = 0; i < (calibrationCount * 8 + calibrationCount * 2); ++i) {
             curMasterTS = curMasterTS + milliseconds_t(1);
             auto syncMasterTS = curMasterTS;
 
             auto currentBlock = idxDev->generateBlock();
             sync->processTimestamps(syncMasterTS, 0, 2, currentBlock);
-            if (i > calibrationCount) {
+            if (i > calibrationCount * 2) {
                 QCOMPARE(sync->indexOffset(), 0);
                 QCOMPARE(vecLast(currentBlock), idxDev->lastIndex());
             }
 
             currentBlock = idxDev->generateBlock();
             sync->processTimestamps(syncMasterTS, 1, 2, currentBlock);
-            if (i > calibrationCount) {
+            if (i > calibrationCount * 2) {
                 QCOMPARE(sync->indexOffset(), 0);
                 QCOMPARE(vecLast(currentBlock), idxDev->lastIndex());
             } else {
