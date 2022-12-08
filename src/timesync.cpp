@@ -262,7 +262,7 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
                                     microseconds_t(std::lround((secondaryLastIdxUnadjusted + 1 - m_indexOffset) * m_timePerPointUs));
 
     // calculate time offset
-    const long long curOffsetUsec = (secondaryLastTS - masterAssumedAcqTS).count();
+    const int64_t curOffsetUsec = (secondaryLastTS - masterAssumedAcqTS).count();
 
     // add new datapoint to our "memory" vector
     m_tsOffsetsUsec[m_calibrationIdx++] = curOffsetUsec;
@@ -270,8 +270,8 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
         m_calibrationIdx = 0;
 
     // calculate offsets and offset expectation delta
-    const auto avgOffsetUsec = m_tsOffsetsUsec.mean();
-    const auto avgOffsetDeviationUsec = avgOffsetUsec - m_expectedOffset.count();
+    const int64_t avgOffsetUsec = m_tsOffsetsUsec.mean();
+    const int64_t avgOffsetDeviationUsec = avgOffsetUsec - m_expectedOffset.count();
 
     // we do nothing more until we have enought measurements to estimate the "natural" timer offset
     // of the secondary clock and master clock
@@ -309,6 +309,11 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
         return;
     }
 
+    // we added a new block, so remove one from the wait counter that's used
+    // to wait for new data after a time adjustment was made.
+    if (m_offsetChangeWaitBlocks > 0)
+        m_offsetChangeWaitBlocks--;
+
     // do nothing if we have not enough average deviation from the norm
     if (abs(avgOffsetDeviationUsec) < m_toleranceUsec) {
         // we are within tolerance range!
@@ -338,23 +343,20 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     }
     m_lastOffsetWithinTolerance = false;
 
-    const auto offsetsSD = sqrt(vectorVariance(m_tsOffsetsUsec, avgOffsetUsec));
+    const int64_t offsetsSD = sqrt(vectorVariance(m_tsOffsetsUsec, avgOffsetUsec));
     if (abs(avgOffsetUsec - curOffsetUsec) > offsetsSD) {
         // the current offset diff to the moving average offset is not within standard deviation range.
         // This means the data point we just added is likely a fluke, potentially due to a context switch
         // or system load spike. We just ignore those events completely and don't make time adjustments
         // to index offsets based on them.
-        if (m_offsetChangeWaitBlocks > 0)
-            m_offsetChangeWaitBlocks--;
         m_lastTimeIndex = secondaryLastIdx;
         return;
     }
 
     // Don't do even more adjustments until we have lived with the current one for a while.
-    // Otherwise the system will rapidly shift the index around, usually never reaching
-    // a stable state.
+    // Otherwise the system will rapidly shift the index around, often not reaching a stable
+    // state anymore.
     if (m_offsetChangeWaitBlocks > 0) {
-        m_offsetChangeWaitBlocks--;
         m_lastTimeIndex = secondaryLastIdx;
         return;
     }
@@ -368,26 +370,28 @@ void FreqCounterSynchronizer::processTimestamps(const microseconds_t &blocksRecv
     }
 
     // calculate time-based correction offset, a bit less than half of the needed correction time
-    m_timeCorrectionOffset = microseconds_t(static_cast<long>(std::floor(avgOffsetDeviationUsec / 3.5)));
+    m_timeCorrectionOffset = microseconds_t(static_cast<int64_t>(std::floor(avgOffsetDeviationUsec / 2.5)));
 
     // sanity check: we need to correct by at least one datapoint for any synchronization to occur at all
     if (abs(m_timeCorrectionOffset.count()) <= m_timePerPointUs)
-        m_timeCorrectionOffset = microseconds_t(static_cast<int>(ceil(m_timePerPointUs)));
+        m_timeCorrectionOffset = microseconds_t(static_cast<int64_t>(ceil(m_timePerPointUs)));
 
     // translate the clock update offset to indices. We round up here as we are already below threshold,
     // and overshooting slightly appears to be the better solution than being too conservative
     const bool initialOffset = m_indexOffset == 0;
-    const int newIndexOffset = static_cast<int>((m_timeCorrectionOffset.count() / 1000.0 / 1000.0) * m_freq);
+    const int newIndexOffset = static_cast<int64_t>((m_timeCorrectionOffset.count() / 1000.0 / 1000.0) * m_freq);
 
     // only make adjustments (and potentially write to a tsync file) if we actually changed
     // the index offset and not just the time value associated with it
     // (this may result in less accurate, but also within-tolerance and less noisy tsync files)
-    if (m_indexOffset == newIndexOffset)
+    if (m_indexOffset == newIndexOffset) {
+        m_lastTimeIndex = secondaryLastIdx;
         return;
-    m_indexOffset = newIndexOffset;
+    }
+    m_indexOffset = std::lround(((newIndexOffset * 2) + m_indexOffset) / 3.0);
 
     if (m_indexOffset != 0) {
-        m_offsetChangeWaitBlocks = m_calibrationMaxBlockN + 1;
+        m_offsetChangeWaitBlocks = m_calibrationMaxBlockN * 1.2;
 
         m_applyIndexOffset = false;
         if (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD)) {
