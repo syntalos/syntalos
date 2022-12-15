@@ -34,6 +34,7 @@
 #include <QDBusUnixFileDescriptor>
 #include <filesystem>
 #include <libusb.h>
+#include <pthread.h>
 
 #include "oop/oopmodule.h"
 #include "edlstorage.h"
@@ -50,6 +51,9 @@
 namespace Syntalos {
     Q_LOGGING_CATEGORY(logEngine, "engine")
 }
+
+static_assert(std::is_same<std::thread::native_handle_type, pthread_t>::value,
+    "Native thread implementation for std::thread must be pthread");
 
 using namespace Syntalos;
 
@@ -69,6 +73,106 @@ public:
     int niceness;
     int allowedRTPriority;
     std::vector<uint> cpuAffinity;
+};
+
+/**
+ * @brief Simple pthread wrapper for module-dedicated Syntalos threads.
+ */
+class SyThread
+{
+private:
+
+public:
+    explicit SyThread(ThreadDetails &details, AbstractModule *module, OptionalWaitCondition *waitCondition)
+        : m_created(false), m_joined(false), m_td(details), m_mod(module), m_waitCond(waitCondition)
+    {
+        auto r = pthread_create(&m_thread,
+                                nullptr,
+                                &SyThread::executeModuleThread,
+                                this);
+        if (r != 0)
+            throw std::runtime_error{strerror(r)};
+        m_created = true;
+    }
+
+    ~SyThread()
+    {
+        if (m_created)
+            join();
+    }
+
+    SyThread(const SyThread& other) = delete;
+    SyThread& operator=(const SyThread& other) = delete;
+    SyThread(SyThread&& other) = delete;
+
+    void join()
+    {
+        if (m_joined)
+            return;
+        auto r = pthread_join(m_thread, nullptr);
+        if (r != 0)
+            throw std::runtime_error{strerror(r)};
+        m_joined = true;
+    }
+
+    bool joinTimeout(uint seconds)
+    {
+        struct timespec ts;
+
+        if (clock_gettime(CLOCK_REALTIME, &ts) == -1) {
+            qCCritical(logEngine).noquote() << "Unable to obtain absolute time since epoch!";
+            join();
+            return true;
+        }
+
+        ts.tv_sec += seconds;
+        if (pthread_timedjoin_np(m_thread, nullptr, &ts) == 0) {
+            m_joined = true;
+            return true;
+        }
+
+        return false;
+    }
+
+    pthread_t handle() const
+    {
+        return m_thread;
+    }
+
+ private:
+    bool m_created;
+    pthread_t m_thread;
+    bool m_joined;
+    ThreadDetails m_td;
+    AbstractModule *m_mod;
+    OptionalWaitCondition *m_waitCond;
+
+    /**
+     * @brief Main entry point for engine-managed module threads.
+     */
+    static void *executeModuleThread(void *udata)
+    {
+        auto self = static_cast<SyThread*>(udata);
+        pthread_setname_np(pthread_self(), qPrintable(self->m_td.name.mid(0, 15)));
+
+        // set higher niceness for this thread
+        if (self->m_td.niceness != 0)
+            setCurrentThreadNiceness(self->m_td.niceness);
+
+        // set CPU affinity
+        if (!self->m_td.cpuAffinity.empty())
+            thread_set_affinity_from_vec(pthread_self(), self->m_td.cpuAffinity);
+
+        if (self->m_mod->features().testFlag(ModuleFeature::REALTIME)) {
+            if (setCurrentThreadRealtime(self->m_td.allowedRTPriority))
+                qCDebug(logEngine).noquote().nospace() << "Module thread for '" << self->m_mod->name() << "' set to realtime mode.";
+        }
+
+        self->m_mod->runThread(self->m_waitCond);
+
+        pthread_exit(nullptr);
+        return nullptr;
+    }
 };
 
 #pragma GCC diagnostic push
@@ -295,7 +399,6 @@ void Engine::setExperimentId(const QString &id)
 
 bool Engine::hasExperimentIdReplaceables() const
 {
-    qDebug() << d->experimentIdTmpl;
     return d->experimentIdTmpl.contains("{n}") || d->experimentIdTmpl.contains("{time}");
 }
 
@@ -693,29 +796,6 @@ void Engine::notifyUsbHotplugEvent(UsbHotplugEventKind kind)
     // notify our modules that something changed
     for (auto mod : d->activeModules)
         mod->usbHotplugEvent(kind);
-}
-
-/**
- * @brief Main entry point for engine-managed module threads.
- */
-static void executeModuleThread(const ThreadDetails td, AbstractModule *mod, OptionalWaitCondition *waitCondition)
-{
-    pthread_setname_np(pthread_self(), qPrintable(td.name.mid(0, 15)));
-
-    // set higher niceness for this thread
-    if (td.niceness != 0)
-        setCurrentThreadNiceness(td.niceness);
-
-    // set CPU affinity
-    if (!td.cpuAffinity.empty())
-        thread_set_affinity_from_vec(pthread_self(), td.cpuAffinity);
-
-    if (mod->features().testFlag(ModuleFeature::REALTIME)) {
-        if (setCurrentThreadRealtime(td.allowedRTPriority))
-            qCDebug(logEngine).noquote().nospace() << "Module thread for '" << mod->name() << "' set to realtime mode.";
-    }
-
-    mod->runThread(waitCondition);
 }
 
 /**
@@ -1285,7 +1365,7 @@ bool Engine::runInternal(const QString &exportDirPath)
         qCDebug(logEngine).noquote() << "Obtained system sleep/idle/shutdown inhibitor for this run.";
 
     // the dedicated threads our modules run in, references owned by the vector
-    std::vector<std::thread> dThreads;
+    std::vector<std::unique_ptr<SyThread>> dThreads;
     QList<AbstractModule*> threadedModules;
 
     // special event threads and their assigned modules, with a specific identifier string as hash key
@@ -1409,10 +1489,10 @@ bool Engine::runInternal(const QString &exportDirPath)
 
             // the thread name shouldn't be longer than 16 chars (inlcuding NULL)
             td.name = QStringLiteral("%1-%2").arg(mod->id().midRef(0, 12)).arg(i);
-            dThreads.push_back(std::thread(executeModuleThread,
-                                           td,
-                                           mod,
-                                           startWaitCondition.get()));
+            std::unique_ptr<SyThread> modThread(new SyThread(td,
+                                                             mod,
+                                                             startWaitCondition.get()));
+            dThreads.push_back(std::move(modThread));
         }
         assert(dThreads.size() == (size_t)threadedModules.size());
 
@@ -1714,7 +1794,34 @@ bool Engine::runInternal(const QString &exportDirPath)
         auto mod = threadedModules[i];
         emitStatusMessage(QStringLiteral("Waiting for '%1'...").arg(mod->name()));
         qApp->processEvents();
-        thread.join();
+
+        // Some modules may be stuck in their threads, so we try our absolute best to not
+        // make Syntalos hang while failing to join a misbehaving thread.
+        // Ultimately though we must join the thread, so we will just give up eventually.
+
+        // wait ~20sec for the thread to join
+        if (thread->joinTimeout(20))
+            continue;
+
+        // if we are here, we failed to join the thread
+        qCWarning(logEngine).noquote() << "Failed to join thread for" << mod->name() << "in time, trying to break deadlock...";
+        emitStatusMessage(QStringLiteral("Waiting for '%1' (⚠️ possibly dead / unrecoverable)...").arg(mod->name()));
+        qApp->processEvents();
+
+        // let's try to send its inputs a nullopt
+        for (auto inPort : mod->inPorts()) {
+            if (!inPort->hasSubscription())
+                continue;
+            auto sub = inPort->subscriptionVar();
+            if (!sub->hasPending())
+                sub->forcePushNullopt();
+        }
+
+        if (!thread->joinTimeout(5)) {
+            qCCritical(logEngine).noquote().nospace() << "Failed to join thread for " << mod->name() << ". Application may deadlock now.";
+
+        }
+        thread->join();
     }
 
     // join all out-of-process module communication threads

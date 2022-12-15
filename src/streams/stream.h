@@ -79,6 +79,9 @@ public:
                                    const QVariant &defaultValue = QVariant()) const = 0;
     virtual QVariant metadataValue(CommonMetadataKey key,
                                    const QVariant &defaultValue = QVariant()) const = 0;
+
+    // used internally by Syntalos
+    virtual void forcePushNullopt() = 0;
 };
 
 class VariantDataStream
@@ -320,6 +323,12 @@ public:
         // apply
         m_throttle = newThrottle;
         m_skippedElements = 0;
+    }
+
+    void forcePushNullopt() override
+    {
+        std::optional<T> v;
+        m_queue.enqueue(v);
     }
 
 private:
