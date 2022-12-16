@@ -123,6 +123,7 @@ static QString sliceJournalMessages(JournalCollector &journal)
     return report;
 }
 
+extern QPair<QString, QPair<bool, QDateTime>> generateCrashReport();
 extern QPair<QString, QPair<bool, QDateTime>> generateCrashReport()
 {
     QString report;
@@ -164,6 +165,7 @@ extern QPair<QString, QPair<bool, QDateTime>> generateCrashReport()
     return qMakePair(report, qMakePair(haveCoredump, coredumpTime));
 }
 
+extern QString generateStallReport();
 extern QString generateStallReport()
 {
     QString report;

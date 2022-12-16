@@ -635,7 +635,7 @@ public:
 
 
 
-void printTests(ReaderWriterQueueTests const& tests)
+static void printTests(ReaderWriterQueueTests const& tests)
 {
     std::printf("   Supported tests are:\n");
 

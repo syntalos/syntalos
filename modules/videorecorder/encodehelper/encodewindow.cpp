@@ -119,16 +119,14 @@ QByteArray EncodeWindow::loadBusyAnimation(const QString &name) const
     }
 
     QTextStream in(&f);
-    auto data = in.readAll();
+    auto svgData = in.readAll();
     if (!isDark)
-        return data.toLocal8Bit();
-
-
+        return svgData.toLocal8Bit();
 
     // adjust for dark theme
-    return data.replace(QStringLiteral("#232629"), QStringLiteral("#eff0f1"))
-               .replace(QStringLiteral("#4d4d4d"), QStringLiteral("#bdc3c7"))
-               .toLocal8Bit();
+    return svgData.replace(QStringLiteral("#232629"), QStringLiteral("#eff0f1"))
+                  .replace(QStringLiteral("#4d4d4d"), QStringLiteral("#bdc3c7"))
+                  .toLocal8Bit();
 }
 
 void EncodeWindow::on_runButton_clicked()

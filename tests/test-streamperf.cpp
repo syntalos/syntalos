@@ -19,12 +19,12 @@ typedef struct
 } MyDataFrame;
 Q_DECLARE_METATYPE(MyDataFrame)
 
-cv::Mat process_data_instant(const MyDataFrame &data)
+static cv::Mat process_data_instant(const MyDataFrame &data)
 {
     return data.frame;
 }
 
-cv::Mat process_data_fast(const MyDataFrame &data)
+static cv::Mat process_data_fast(const MyDataFrame &data)
 {
     auto result = data.frame.clone();
     cv::blur(result, result, cv::Size(5, 5));
@@ -32,14 +32,14 @@ cv::Mat process_data_fast(const MyDataFrame &data)
     return result;
 }
 
-cv::Mat process_data_slow(const MyDataFrame &data)
+static  cv::Mat process_data_slow(const MyDataFrame &data)
 {
     for (uint i = 0; i < 4; ++i)
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     return process_data_fast(data);
 }
 
-MyDataFrame transform_data_fast(const MyDataFrame &data, size_t id)
+static MyDataFrame transform_data_fast(const MyDataFrame &data, size_t id)
 {
     MyDataFrame newData;
 
@@ -55,7 +55,7 @@ MyDataFrame transform_data_fast(const MyDataFrame &data, size_t id)
     return newData;
 }
 
-MyDataFrame create_data_200Hz(size_t index)
+static MyDataFrame create_data_200Hz(size_t index)
 {
     MyDataFrame data;
     data.id = index;
@@ -74,7 +74,7 @@ MyDataFrame create_data_200Hz(size_t index)
     return data;
 }
 
-void producer_fast(const std::string& threadName, Barrier *barrier, DataStream<MyDataFrame> *stream)
+static void producer_fast(const std::string& threadName, Barrier *barrier, DataStream<MyDataFrame> *stream)
 {
     pthread_setname_np(pthread_self(), threadName.c_str());
 
@@ -86,7 +86,7 @@ void producer_fast(const std::string& threadName, Barrier *barrier, DataStream<M
     stream->terminate();
 }
 
-void consumer_fast(const std::string& threadName, Barrier *barrier, DataStream<MyDataFrame> *stream)
+static void consumer_fast(const std::string& threadName, Barrier *barrier, DataStream<MyDataFrame> *stream)
 {
     pthread_setname_np(pthread_self(), threadName.c_str());
     size_t lastId = 0;
@@ -109,7 +109,7 @@ void consumer_fast(const std::string& threadName, Barrier *barrier, DataStream<M
         std::cout << "Fast consumer received only " << lastId << " data elements out of " << N_OF_DATAFRAMES << std::endl;
 }
 
-void consumer_slow(const std::string& threadName, Barrier *barrier, DataStream<MyDataFrame> *stream)
+static void consumer_slow(const std::string& threadName, Barrier *barrier, DataStream<MyDataFrame> *stream)
 {
     pthread_setname_np(pthread_self(), threadName.c_str());
     size_t lastId = 0;
@@ -131,7 +131,7 @@ void consumer_slow(const std::string& threadName, Barrier *barrier, DataStream<M
         std::cout << "Slow consumer received only " << lastId << " data elements out of " << N_OF_DATAFRAMES << std::endl;
 }
 
-void consumer_instant(const std::string& threadName, Barrier *barrier, DataStream<MyDataFrame> *stream)
+static void consumer_instant(const std::string& threadName, Barrier *barrier, DataStream<MyDataFrame> *stream)
 {
     pthread_setname_np(pthread_self(), threadName.c_str());
 
@@ -145,7 +145,7 @@ void consumer_instant(const std::string& threadName, Barrier *barrier, DataStrea
     }
 }
 
-void transformer_fast(const std::string& threadName, Barrier *barrier, DataStream<MyDataFrame> *recvStream, DataStream<MyDataFrame> *prodStream)
+static void transformer_fast(const std::string& threadName, Barrier *barrier, DataStream<MyDataFrame> *recvStream, DataStream<MyDataFrame> *prodStream)
 {
     pthread_setname_np(pthread_self(), threadName.c_str());
     size_t count = 1;

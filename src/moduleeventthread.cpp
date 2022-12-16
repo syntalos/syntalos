@@ -163,13 +163,13 @@ typedef struct {
     gpointer event_fd_tag;
 } EFDSignalSource;
 
-gboolean efd_signal_source_prepare(GSource*, gint *timeout)
+static gboolean efd_signal_source_prepare(GSource*, gint *timeout)
 {
     *timeout = -1;
     return FALSE;
 }
 
-gboolean efd_signal_source_dispatch(GSource* source, GSourceFunc callback, gpointer user_data)
+static gboolean efd_signal_source_dispatch(GSource* source, GSourceFunc callback, gpointer user_data)
 {
     EFDSignalSource* efd_source = (EFDSignalSource*) source;
 
@@ -202,7 +202,7 @@ static GSourceFuncs efd_source_funcs = {
 };
 #pragma GCC diagnostic pop
 
-GSource *efd_signal_source_new(int event_fd)
+static GSource *efd_signal_source_new(int event_fd)
 {
     auto source = (EFDSignalSource*) g_source_new(&efd_source_funcs, sizeof(EFDSignalSource));
     source->event_fd = event_fd;

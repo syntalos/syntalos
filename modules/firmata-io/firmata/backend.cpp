@@ -68,8 +68,8 @@ struct FirmataBackend::Private
     uint8_t params[2];
     QByteArray sysexdata;
 
-    Private(FirmataBackend *b)
-        : b(b),
+    Private(FirmataBackend *backend)
+        : b(backend),
           statusText(QStringLiteral("Not configured")),
           available(false),
           ready(false),

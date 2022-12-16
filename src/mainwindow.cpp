@@ -1277,12 +1277,12 @@ QByteArray MainWindow::loadBusyAnimation(const QString &name) const
     }
 
     QTextStream in(&f);
-    auto data = in.readAll();
+    auto svgData = in.readAll();
     if (!isDark)
-        return data.toLocal8Bit();
+        return svgData.toLocal8Bit();
 
     // adjust for dark theme
-    return data.replace(QStringLiteral("#232629"), QStringLiteral("#eff0f1")).toLocal8Bit();
+    return svgData.replace(QStringLiteral("#232629"), QStringLiteral("#eff0f1")).toLocal8Bit();
 }
 
 void MainWindow::showBusyIndicatorProcessing()

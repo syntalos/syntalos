@@ -63,9 +63,9 @@
 #pragma GCC diagnostic ignored "-Wold-style-cast"
 
 struct Tmp {
-    const char * name;
+    const char *name;
 
-    Tmp(const char * name ) : name(name) {}
+    Tmp(const char *pName) : name(pName) {}
 };
 
 Tmp info("return value");

@@ -38,8 +38,8 @@ enum class EDLUnitKind
 class EDLAuthor
 {
 public:
-    explicit EDLAuthor(const QString &name, const QString &email)
-        : name(name), email(email)
+    explicit EDLAuthor(const QString &aName, const QString &aEmail)
+        : name(aName), email(aEmail)
     {}
     explicit EDLAuthor()
         : name(QString()), email(QString())
@@ -58,9 +58,9 @@ public:
     explicit EDLDataPart()
         : index(-1)
     {}
-    explicit EDLDataPart(const QString &fname)
+    explicit EDLDataPart(const QString &filename)
         : index(-1),
-          fname(QFileInfo(fname).fileName())
+          fname(QFileInfo(filename).fileName())
     {}
     int index;
     QString fname;

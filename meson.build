@@ -95,8 +95,41 @@ if get_option('maintainer')
 endif
 
 # a few compiler warning/error flags we always want enabled
-add_project_arguments('-Werror=implicit-function-declaration', '-Wno-unused-parameter', language: 'c')
-add_project_arguments('-Wno-unused-parameter', '-Werror=suggest-override', language: 'cpp')
+add_project_arguments(
+  '-Werror=shadow',
+  '-Werror=empty-body',
+  '-Werror=missing-prototypes',
+  '-Werror=implicit-function-declaration',
+  '-Werror=missing-declarations',
+  '-Werror=return-type',
+  '-Werror=int-conversion',
+  '-Werror=incompatible-pointer-types',
+  '-Werror=misleading-indentation',
+  '-Werror=format-security',
+
+  '-Wno-missing-field-initializers',
+  '-Wno-error=missing-field-initializers',
+  '-Wno-unused-parameter',
+  '-Wno-error=unused-parameter',
+  language: 'c'
+)
+add_project_arguments(
+  cpp_compiler.get_supported_arguments([
+    '-Werror=empty-body',
+    '-Werror=pointer-arith',
+    '-Werror=missing-declarations',
+    '-Werror=return-type',
+    '-Werror=misleading-indentation',
+    '-Werror=format-security',
+    '-Werror=suggest-override',
+
+    '-Wno-missing-field-initializers',
+    '-Wno-error=missing-field-initializers',
+    '-Wno-unused-parameter',
+    '-Wno-error=unused-parameter',
+  ]),
+  language: 'cpp'
+)
 
 if get_option('tracing')
     add_project_arguments('-pg', language: 'c')
