@@ -34,6 +34,7 @@
 SYNTALOS_MODULE(TISCameraModule)
 
 namespace Syntalos {
+    Q_DECLARE_LOGGING_CATEGORY(logTISCam)
     Q_LOGGING_CATEGORY(logTISCam, "mod.tiscam")
 }
 

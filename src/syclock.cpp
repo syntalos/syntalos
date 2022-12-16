@@ -22,7 +22,9 @@
 #include <time.h>
 #include <QDebug>
 
-Q_LOGGING_CATEGORY(logTimeClock, "time.clock")
+namespace Syntalos {
+    Q_LOGGING_CATEGORY(logTimeClock, "time.clock")
+}
 
 using namespace Syntalos;
 using namespace Eigen;

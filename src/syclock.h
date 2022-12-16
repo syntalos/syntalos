@@ -32,9 +32,9 @@ Q_DECLARE_METATYPE(std::chrono::milliseconds);
 Q_DECLARE_METATYPE(std::chrono::microseconds);
 Q_DECLARE_METATYPE(std::chrono::nanoseconds);
 
-Q_DECLARE_LOGGING_CATEGORY(logTimeClock)
-
 namespace Syntalos {
+
+Q_DECLARE_LOGGING_CATEGORY(logTimeClock)
 
 /**
  * @brief Syntalos Master Clock
