@@ -188,9 +188,9 @@ bool IntanRhxModule::prepare(const TestSubject &)
     clockSync->setStrategies(TimeSyncStrategy::WRITE_TSYNCFILE);
     clockSync->setTimeSyncBasename(intanBaseFilename, dstore->collectionId());
 
-    // permit 1.5ms tolerance - this was a very realistic tolerance to achieve in tests,
+    // permit 1.4ms tolerance - this was a very realistic tolerance to achieve in tests,
     // while lower values resulted in constant adjustment attempts
-    clockSync->setTolerance(std::chrono::microseconds(1500));
+    clockSync->setTolerance(std::chrono::microseconds(1400));
 
     // we only permit calibration with the very first data block - this seems to be sufficient and
     // yielded the best results (due to device and USB buffering, the later data blocks are more
