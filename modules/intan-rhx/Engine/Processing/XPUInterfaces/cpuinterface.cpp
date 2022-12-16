@@ -623,7 +623,7 @@ void CPUInterface::initializeMemory()
     }
     parsedPrevHigh = parsedPrevHighOriginal;
 
-    inputIndex = 0;
+    inputIndex = nullptr;
     outputIndex = 0;
     spikeIndex = 0;
 

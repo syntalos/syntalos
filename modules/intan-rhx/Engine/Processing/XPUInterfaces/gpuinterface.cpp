@@ -287,7 +287,7 @@ void GPUInterface::initializeKernelMemory()
         parsedPrevHighOriginal[s] = 32768;
     }
     parsedPrevHigh = parsedPrevHighOriginal;
-    inputIndex = 0, outputIndex = 0, spikeIndex = 0;
+    inputIndex = nullptr, outputIndex = 0, spikeIndex = 0;
     allocated = true;
 
     state->writeToLog("Prep before loop complete. End of initializeKernelMemory()");
