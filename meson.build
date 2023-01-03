@@ -132,8 +132,16 @@ add_project_arguments(
 )
 
 if get_option('tracing')
-    add_project_arguments('-pg', language: 'c')
-    add_project_arguments('-pg', language: 'cpp')
+    add_project_arguments(
+        '-pg',
+        '-fno-omit-frame-pointers',
+        language: 'c'
+    )
+    add_project_arguments(
+        '-pg',
+        '-fno-omit-frame-pointers',
+        language: 'cpp'
+    )
     add_project_link_arguments('-pg')
 endif
 
