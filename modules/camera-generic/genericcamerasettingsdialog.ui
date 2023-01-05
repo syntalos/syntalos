@@ -372,7 +372,10 @@
            <item>
             <widget class="QSlider" name="sliderExposure">
              <property name="maximum">
-              <number>100</number>
+              <number>2048</number>
+             </property>
+             <property name="value">
+              <number>240</number>
              </property>
              <property name="orientation">
               <enum>Qt::Horizontal</enum>
@@ -394,19 +397,19 @@
               <enum>QAbstractSpinBox::PlusMinus</enum>
              </property>
              <property name="decimals">
-              <number>3</number>
+              <number>2</number>
              </property>
              <property name="minimum">
               <double>1.000000000000000</double>
              </property>
              <property name="maximum">
-              <double>100.000000000000000</double>
+              <double>2048.000000000000000</double>
              </property>
              <property name="singleStep">
               <double>0.500000000000000</double>
              </property>
              <property name="value">
-              <double>10.000000000000000</double>
+              <double>240.000000000000000</double>
              </property>
             </widget>
            </item>
@@ -454,7 +457,10 @@
            <item>
             <widget class="QSlider" name="sliderContrast">
              <property name="maximum">
-              <number>100</number>
+              <number>255</number>
+             </property>
+             <property name="value">
+              <number>128</number>
              </property>
              <property name="orientation">
               <enum>Qt::Horizontal</enum>
@@ -473,19 +479,19 @@
               <string>Adjust camera exposure</string>
              </property>
              <property name="decimals">
-              <number>3</number>
+              <number>2</number>
              </property>
              <property name="minimum">
               <double>1.000000000000000</double>
              </property>
              <property name="maximum">
-              <double>100.000000000000000</double>
+              <double>255.000000000000000</double>
              </property>
              <property name="singleStep">
               <double>0.500000000000000</double>
              </property>
              <property name="value">
-              <double>10.000000000000000</double>
+              <double>128.000000000000000</double>
              </property>
             </widget>
            </item>
@@ -526,7 +532,10 @@
            <item>
             <widget class="QSlider" name="sliderSaturation">
              <property name="maximum">
-              <number>100</number>
+              <number>255</number>
+             </property>
+             <property name="value">
+              <number>128</number>
              </property>
              <property name="orientation">
               <enum>Qt::Horizontal</enum>
@@ -545,19 +554,19 @@
               <string>Adjust camera exposure</string>
              </property>
              <property name="decimals">
-              <number>3</number>
+              <number>2</number>
              </property>
              <property name="minimum">
               <double>1.000000000000000</double>
              </property>
              <property name="maximum">
-              <double>100.000000000000000</double>
+              <double>255.000000000000000</double>
              </property>
              <property name="singleStep">
               <double>0.500000000000000</double>
              </property>
              <property name="value">
-              <double>10.000000000000000</double>
+              <double>128.000000000000000</double>
              </property>
             </widget>
            </item>
@@ -620,7 +629,7 @@
               <string>Adjust camera exposure</string>
              </property>
              <property name="decimals">
-              <number>3</number>
+              <number>2</number>
              </property>
              <property name="minimum">
               <double>-100.000000000000000</double>
@@ -673,7 +682,7 @@
            <item>
             <widget class="QSlider" name="sliderGain">
              <property name="maximum">
-              <number>100</number>
+              <number>255</number>
              </property>
              <property name="orientation">
               <enum>Qt::Horizontal</enum>
@@ -692,10 +701,10 @@
               <string>Adjust gain</string>
              </property>
              <property name="decimals">
-              <number>3</number>
+              <number>2</number>
              </property>
              <property name="maximum">
-              <double>100.000000000000000</double>
+              <double>255.000000000000000</double>
              </property>
             </widget>
            </item>
@@ -732,7 +741,10 @@
               <number>-100</number>
              </property>
              <property name="maximum">
-              <number>100</number>
+              <number>255</number>
+             </property>
+             <property name="value">
+              <number>128</number>
              </property>
              <property name="orientation">
               <enum>Qt::Horizontal</enum>
@@ -757,19 +769,19 @@
               <string>Adjust camera exposure</string>
              </property>
              <property name="decimals">
-              <number>3</number>
+              <number>2</number>
              </property>
              <property name="minimum">
               <double>-100.000000000000000</double>
              </property>
              <property name="maximum">
-              <double>100.000000000000000</double>
+              <double>255.000000000000000</double>
              </property>
              <property name="singleStep">
               <double>0.500000000000000</double>
              </property>
              <property name="value">
-              <double>10.000000000000000</double>
+              <double>128.000000000000000</double>
              </property>
             </widget>
            </item>

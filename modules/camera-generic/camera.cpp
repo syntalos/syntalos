@@ -47,13 +47,8 @@ public:
     bool failed;
 
     double exposure;
-    double exposureScaleFactor;
-
     double brightness;
-    double brightnessScaleFactor;
-
     double contrast;
-    double contrastScaleFactor;
 
     double saturation;
     double hue;
@@ -70,16 +65,6 @@ public:
 Camera::Camera()
     : d(new CameraData())
 {
-    // NOTE: We scale the values from 100 to the actual device value that V4L
-    // apparently accepts. Hopefully this isn't device-specific, and ideally
-    // this isn't even backend-specific.
-    // We have to test this (otherwise we need a way to autodetect max values,
-    // or have the user enter manual values which would suck)
-    // OpenCV VideoCapture API really isn't ideal sometimes...
-    d->exposureScaleFactor = 100;
-    d->brightnessScaleFactor = 0.64;
-    d->contrastScaleFactor = 0.5;
-
     // set some default values
     d->frameSize = cv::Size(960, 720);
     d->fps = 30;
@@ -160,11 +145,11 @@ void Camera::setExposure(double value)
 {
     if (floor(value) == 0)
         value = 1;
-    if (value > 100)
-        value = 100;
+    if (value > 2047)
+        value = 2047;
 
     d->exposure = value;
-    d->cam->set(cv::CAP_PROP_EXPOSURE, value * d->exposureScaleFactor);
+    d->cam->set(cv::CAP_PROP_EXPOSURE, value);
 }
 
 double Camera::brightness() const
@@ -174,13 +159,13 @@ double Camera::brightness() const
 
 void Camera::setBrightness(double value)
 {
-    if (value > 100)
-        value = 100;
+    if (value > 255)
+        value = 255;
     if (value < -100)
         value = -100;
 
     d->brightness = value;
-    d->cam->set(cv::CAP_PROP_BRIGHTNESS, value * d->brightnessScaleFactor);
+    d->cam->set(cv::CAP_PROP_BRIGHTNESS, value);
 }
 
 double Camera::contrast() const
@@ -192,11 +177,11 @@ void Camera::setContrast(double value)
 {
     if (floor(value) == 0)
         value = 1;
-    if (value > 100)
-        value = 100;
+    if (value > 255)
+        value = 255;
 
     d->contrast = value;
-    d->cam->set(cv::CAP_PROP_CONTRAST, value * d->contrastScaleFactor);
+    d->cam->set(cv::CAP_PROP_CONTRAST, value);
 }
 
 double Camera::saturation() const
@@ -206,8 +191,8 @@ double Camera::saturation() const
 
 void Camera::setSaturation(double value)
 {
-    if (value > 100)
-        value = 100;
+    if (value > 255)
+        value = 255;
 
     d->saturation = value;
     d->cam->set(cv::CAP_PROP_SATURATION, value);
@@ -236,8 +221,8 @@ double Camera::gain() const
 
 void Camera::setGain(double value)
 {
-    if (value > 100)
-        value = 100;
+    if (value > 255)
+        value = 255;
 
     d->gain = value;
     d->cam->set(cv::CAP_PROP_GAIN, value);
