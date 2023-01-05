@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>483</width>
-    <height>429</height>
+    <width>570</width>
+    <height>508</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -35,13 +35,28 @@
       <string>Camera</string>
      </property>
      <layout class="QHBoxLayout" name="horizontalLayout">
+      <property name="spacing">
+       <number>2</number>
+      </property>
+      <property name="leftMargin">
+       <number>2</number>
+      </property>
+      <property name="topMargin">
+       <number>2</number>
+      </property>
+      <property name="rightMargin">
+       <number>2</number>
+      </property>
+      <property name="bottomMargin">
+       <number>2</number>
+      </property>
       <item>
        <layout class="QFormLayout" name="formLayout_2">
         <property name="horizontalSpacing">
-         <number>6</number>
+         <number>8</number>
         </property>
         <property name="verticalSpacing">
-         <number>6</number>
+         <number>8</number>
         </property>
         <property name="rightMargin">
          <number>2</number>
@@ -58,29 +73,6 @@
         </item>
         <item row="0" column="1">
          <widget class="QComboBox" name="cameraComboBox"/>
-        </item>
-        <item row="2" column="0">
-         <widget class="QLabel" name="fpsLabel">
-          <property name="text">
-           <string>FPS</string>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="1">
-         <widget class="QSpinBox" name="fpsSpinBox">
-          <property name="toolTip">
-           <string>Frames per second</string>
-          </property>
-          <property name="minimum">
-           <number>4</number>
-          </property>
-          <property name="maximum">
-           <number>30</number>
-          </property>
-          <property name="value">
-           <number>20</number>
-          </property>
-         </widget>
         </item>
         <item row="1" column="0">
          <widget class="QLabel" name="resolutionLabel">
@@ -169,6 +161,143 @@
           </layout>
          </widget>
         </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="fpsLabel">
+          <property name="text">
+           <string>FPS</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QSpinBox" name="fpsSpinBox">
+          <property name="toolTip">
+           <string>Frames per second</string>
+          </property>
+          <property name="minimum">
+           <number>4</number>
+          </property>
+          <property name="maximum">
+           <number>30</number>
+          </property>
+          <property name="value">
+           <number>20</number>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="quirkGroupBox">
+     <property name="title">
+      <string>Quirks</string>
+     </property>
+     <property name="checkable">
+      <bool>true</bool>
+     </property>
+     <property name="checked">
+      <bool>false</bool>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayout_2">
+      <property name="spacing">
+       <number>2</number>
+      </property>
+      <property name="leftMargin">
+       <number>2</number>
+      </property>
+      <property name="topMargin">
+       <number>2</number>
+      </property>
+      <property name="rightMargin">
+       <number>2</number>
+      </property>
+      <property name="bottomMargin">
+       <number>2</number>
+      </property>
+      <item>
+       <layout class="QFormLayout" name="formLayout_3">
+        <property name="horizontalSpacing">
+         <number>8</number>
+        </property>
+        <property name="verticalSpacing">
+         <number>8</number>
+        </property>
+        <property name="rightMargin">
+         <number>2</number>
+        </property>
+        <property name="bottomMargin">
+         <number>2</number>
+        </property>
+        <item row="0" column="0">
+         <widget class="QLabel" name="autoExposureRawValueLabel">
+          <property name="text">
+           <string>Auto Exposure Raw Value</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QWidget" name="widget" native="true">
+          <layout class="QHBoxLayout" name="horizontalLayout_10">
+           <property name="spacing">
+            <number>8</number>
+           </property>
+           <property name="leftMargin">
+            <number>0</number>
+           </property>
+           <property name="topMargin">
+            <number>0</number>
+           </property>
+           <property name="rightMargin">
+            <number>0</number>
+           </property>
+           <property name="bottomMargin">
+            <number>0</number>
+           </property>
+           <item>
+            <widget class="QSpinBox" name="autoExposureRawSpinBox">
+             <property name="maximum">
+              <number>4</number>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="autoExposureRawInfoButton">
+             <property name="text">
+              <string/>
+             </property>
+             <property name="icon">
+              <iconset theme="emblem-question">
+               <normaloff>.</normaloff>.</iconset>
+             </property>
+             <property name="iconSize">
+              <size>
+               <width>16</width>
+               <height>16</height>
+              </size>
+             </property>
+             <property name="flat">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="horizontalSpacer">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </widget>
+        </item>
        </layout>
       </item>
      </layout>
@@ -176,6 +305,12 @@
    </item>
    <item>
     <widget class="QGroupBox" name="groupBox">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
      <property name="title">
       <string>Controls</string>
      </property>
@@ -197,6 +332,18 @@
       </property>
       <item>
        <layout class="QFormLayout" name="formLayout">
+        <property name="horizontalSpacing">
+         <number>8</number>
+        </property>
+        <property name="verticalSpacing">
+         <number>8</number>
+        </property>
+        <property name="rightMargin">
+         <number>2</number>
+        </property>
+        <property name="bottomMargin">
+         <number>2</number>
+        </property>
         <item row="1" column="0">
          <widget class="QLabel" name="exposureLabel">
           <property name="text">
@@ -234,6 +381,12 @@
            </item>
            <item>
             <widget class="QDoubleSpinBox" name="sbExposure">
+             <property name="minimumSize">
+              <size>
+               <width>120</width>
+               <height>0</height>
+              </size>
+             </property>
              <property name="toolTip">
               <string>Adjust camera exposure</string>
              </property>
@@ -310,6 +463,12 @@
            </item>
            <item>
             <widget class="QDoubleSpinBox" name="sbContrast">
+             <property name="minimumSize">
+              <size>
+               <width>120</width>
+               <height>0</height>
+              </size>
+             </property>
              <property name="toolTip">
               <string>Adjust camera exposure</string>
              </property>
@@ -376,6 +535,12 @@
            </item>
            <item>
             <widget class="QDoubleSpinBox" name="sbSaturation">
+             <property name="minimumSize">
+              <size>
+               <width>120</width>
+               <height>0</height>
+              </size>
+             </property>
              <property name="toolTip">
               <string>Adjust camera exposure</string>
              </property>
@@ -445,6 +610,12 @@
            </item>
            <item>
             <widget class="QDoubleSpinBox" name="sbHue">
+             <property name="minimumSize">
+              <size>
+               <width>120</width>
+               <height>0</height>
+              </size>
+             </property>
              <property name="toolTip">
               <string>Adjust camera exposure</string>
              </property>
@@ -511,6 +682,12 @@
            </item>
            <item>
             <widget class="QDoubleSpinBox" name="sbGain">
+             <property name="minimumSize">
+              <size>
+               <width>120</width>
+               <height>0</height>
+              </size>
+             </property>
              <property name="toolTip">
               <string>Adjust gain</string>
              </property>
@@ -535,7 +712,7 @@
           </property>
           <layout class="QHBoxLayout" name="horizontalLayout_2">
            <property name="spacing">
-            <number>4</number>
+            <number>6</number>
            </property>
            <property name="leftMargin">
             <number>0</number>
@@ -564,6 +741,18 @@
            </item>
            <item>
             <widget class="QDoubleSpinBox" name="sbBrightness">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="minimumSize">
+              <size>
+               <width>120</width>
+               <height>0</height>
+              </size>
+             </property>
              <property name="toolTip">
               <string>Adjust camera exposure</string>
              </property>

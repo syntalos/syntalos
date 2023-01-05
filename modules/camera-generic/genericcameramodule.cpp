@@ -195,6 +195,11 @@ public:
         settings.insert("saturation", m_camera->saturation());
         settings.insert("hue", m_camera->hue());
         settings.insert("gain", m_camera->gain());
+
+        QVariantHash quirks;
+        quirks.insert("enabled", m_camSettingsWindow->quirksEnabled());
+        quirks.insert("auto_exposure_raw", m_camera->autoExposureRaw());
+        settings.insert("quirks", quirks);
     }
 
     bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
@@ -208,6 +213,13 @@ public:
         m_camera->setHue(settings.value("hue").toDouble());
         m_camera->setGain(settings.value("gain").toDouble());
         m_camSettingsWindow->setFramerate(settings.value("fps").toInt());
+
+        auto quirks = settings.value("quirks").toHash();
+        bool haveQuirks = quirks.value("enabled", false).toBool();
+        m_camSettingsWindow->setQuirksEnabled(haveQuirks);
+        if (haveQuirks) {
+            m_camera->setAutoExposureRaw(quirks.value("auto_exposure_raw", 1).toInt());
+        }
 
         m_camSettingsWindow->updateValues();
         return true;

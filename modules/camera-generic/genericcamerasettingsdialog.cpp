@@ -20,6 +20,8 @@
 #include "genericcamerasettingsdialog.h"
 #include "ui_genericcamerasettingsdialog.h"
 
+#include <QMessageBox>
+
 GenericCameraSettingsDialog::GenericCameraSettingsDialog(Camera *camera, QWidget *parent) :
     QDialog(parent),
     ui(new Ui::GenericCameraSettingsDialog)
@@ -61,9 +63,20 @@ void GenericCameraSettingsDialog::setFramerate(int fps)
     ui->fpsSpinBox->setValue(fps);
 }
 
+bool GenericCameraSettingsDialog::quirksEnabled()
+{
+    return ui->quirkGroupBox->isChecked();
+}
+
+void GenericCameraSettingsDialog::setQuirksEnabled(bool enabled)
+{
+    ui->quirkGroupBox->setChecked(enabled);
+}
+
 void GenericCameraSettingsDialog::setRunning(bool running)
 {
     ui->cameraGroupBox->setEnabled(!running);
+    ui->quirkGroupBox->setEnabled(!running);
 }
 
 void GenericCameraSettingsDialog::updateValues()
@@ -91,6 +104,7 @@ void GenericCameraSettingsDialog::updateValues()
     ui->sbSaturation->setValue(m_camera->saturation());
     ui->sbHue->setValue(m_camera->hue());
     ui->sbGain->setValue(m_camera->gain());
+    ui->autoExposureRawSpinBox->setValue(m_camera->autoExposureRaw());
 }
 
 void GenericCameraSettingsDialog::on_cameraComboBox_currentIndexChanged(int)
@@ -162,4 +176,19 @@ void GenericCameraSettingsDialog::on_sbGain_valueChanged(double arg1)
 void GenericCameraSettingsDialog::on_sliderGain_valueChanged(int value)
 {
     ui->sbGain->setValue(value);
+}
+
+void GenericCameraSettingsDialog::on_autoExposureRawSpinBox_valueChanged(int value)
+{
+    m_camera->setAutoExposureRaw(value);
+}
+
+void GenericCameraSettingsDialog::on_autoExposureRawInfoButton_clicked()
+{
+    QMessageBox::information(this,
+                             QStringLiteral("Information on Auto Exposure"),
+                             QStringLiteral("<html>According to the OpenCV/V4L documentation, values for this should be:<br/>"
+                                            "<b>0</b>: Auto Mode <br/><b>1</b>: Manual Mode <br/><b>2</b>: Shutter Priority Mode <br/><b>3</b>: Aperture Priority Mode<br/>"
+                                            "However, not all cameras seem to behave this way, many times a value of 1 seems to disable auto exposure.<br/>"
+                                            "So, depending on your camera, you may need to play with this value to properly disable auto exposure."));
 }

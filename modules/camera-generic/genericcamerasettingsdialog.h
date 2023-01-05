@@ -41,6 +41,9 @@ public:
     int framerate() const;
     void setFramerate(int fps);
 
+    bool quirksEnabled();
+    void setQuirksEnabled(bool enabled);
+
     void setRunning(bool running);
 
     void updateValues();
@@ -65,6 +68,9 @@ private slots:
 
     void on_sbGain_valueChanged(double arg1);
     void on_sliderGain_valueChanged(int value);
+
+    void on_autoExposureRawSpinBox_valueChanged(int value);
+    void on_autoExposureRawInfoButton_clicked();
 
 private:
     Ui::GenericCameraSettingsDialog *ui;

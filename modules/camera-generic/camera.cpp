@@ -60,6 +60,8 @@ public:
 
     double gain;
 
+    int autoExposureRaw;
+
     uint droppedFrameCount;
     QString lastError;
 };
@@ -87,6 +89,13 @@ Camera::Camera()
     d->saturation = 55;
     d->hue = 0;
     d->gain = 0;
+
+    // Apparently, setting this to 1 *disables* auto exposure for most cameras when V4L
+    // is used and gives us manual control. This is a bit insane, so we expose this as a
+    // quirk setting for cameras that behave differently.
+    // The values for this setting, according to some docs, are:
+    // 0: Auto Mode 1: Manual Mode 2: Shutter Priority Mode 3: Aperture Priority Mode
+    d->autoExposureRaw = 1;
 
     d->cam = new cv::VideoCapture();
 }
@@ -234,6 +243,16 @@ void Camera::setGain(double value)
     d->cam->set(cv::CAP_PROP_GAIN, value);
 }
 
+int Camera::autoExposureRaw() const
+{
+    return d->autoExposureRaw;
+}
+
+void Camera::setAutoExposureRaw(int value)
+{
+    d->autoExposureRaw = value;
+}
+
 bool Camera::connect()
 {
     if (d->connected) {
@@ -264,13 +283,7 @@ bool Camera::connect()
     d->cam->set(cv::CAP_PROP_FRAME_WIDTH, d->frameSize.width);
     d->cam->set(cv::CAP_PROP_FRAME_HEIGHT, d->frameSize.height);
     d->cam->set(cv::CAP_PROP_FPS, d->fps);
-
-    // Apparently, setting this to 1 *disables* auto exposure for most cameras when V4L
-    // is used and gives us manual control. This is a bit insane, and maybe we need to expose
-    // this as a setting in case we find cameras that behave differently.
-    // The values for this setting, according to some docs, are:
-    // 0: Auto Mode 1: Manual Mode 2: Shutter Priority Mode 3: Aperture Priority Mode
-    d->cam->set(cv::CAP_PROP_AUTO_EXPOSURE, 1);
+    d->cam->set(cv::CAP_PROP_AUTO_EXPOSURE, d->autoExposureRaw);
 
     // set default values
     setExposure(d->exposure);

@@ -64,6 +64,9 @@ public:
     double gain() const;
     void setGain(double value);
 
+    int autoExposureRaw() const;
+    void setAutoExposureRaw(int value);
+
     bool connect();
     void disconnect();
 
