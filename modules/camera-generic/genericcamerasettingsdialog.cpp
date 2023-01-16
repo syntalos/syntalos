@@ -73,6 +73,24 @@ void GenericCameraSettingsDialog::setQuirksEnabled(bool enabled)
     ui->quirkGroupBox->setChecked(enabled);
 }
 
+QString GenericCameraSettingsDialog::pixelFormatName() const
+{
+    return m_pixFmtName;
+}
+
+void GenericCameraSettingsDialog::setPixelFormatName(const QString &pixFmtName)
+{
+    m_pixFmtName = pixFmtName;
+    for (int i = 0; i < ui->captureFormatComboBox->count(); i++) {
+        const auto pixFmt = ui->captureFormatComboBox->itemData(i).value<CameraPixelFormat>();
+        if (pixFmt.name == pixFmtName) {
+            ui->captureFormatComboBox->setCurrentIndex(i);
+            on_captureFormatComboBox_currentIndexChanged(i);
+            break;
+        }
+    }
+}
+
 void GenericCameraSettingsDialog::setRunning(bool running)
 {
     ui->cameraGroupBox->setEnabled(!running);
@@ -82,6 +100,7 @@ void GenericCameraSettingsDialog::setRunning(bool running)
 void GenericCameraSettingsDialog::updateValues()
 {
     const auto prevCamId = m_camera->camId();
+    const auto prevPixFmtName = m_pixFmtName;
     ui->cameraComboBox->clear();
     auto cameras = Camera::availableCameras();
     for (const auto &cameraInfo : cameras) {
@@ -96,6 +115,7 @@ void GenericCameraSettingsDialog::updateValues()
         }
     }
 
+    setPixelFormatName(prevPixFmtName);
     ui->spinBoxWidth->setValue(m_camera->resolution().width);
     ui->spinBoxHeight->setValue(m_camera->resolution().height);
     ui->sbExposure->setValue(m_camera->exposure());
@@ -110,6 +130,18 @@ void GenericCameraSettingsDialog::updateValues()
 void GenericCameraSettingsDialog::on_cameraComboBox_currentIndexChanged(int)
 {
     m_camera->setCamId(ui->cameraComboBox->currentData().toInt());
+
+    ui->captureFormatComboBox->clear();
+    for (const auto &pixFmt : m_camera->readPixelFormats()) {
+        ui->captureFormatComboBox->addItem(pixFmt.name, QVariant::fromValue(pixFmt));
+    }
+}
+
+void GenericCameraSettingsDialog::on_captureFormatComboBox_currentIndexChanged(int)
+{
+    const auto pixFmt = ui->captureFormatComboBox->currentData().value<CameraPixelFormat>();
+    m_camera->setPixelFormat(pixFmt);
+    m_pixFmtName = pixFmt.name;
 }
 
 void GenericCameraSettingsDialog::on_sbExposure_valueChanged(double arg1)

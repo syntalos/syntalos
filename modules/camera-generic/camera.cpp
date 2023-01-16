@@ -22,6 +22,10 @@
 #include <QFileInfo>
 #include <opencv2/opencv.hpp>
 #include <opencv2/videoio.hpp>
+#include <fcntl.h>
+#include <libv4l2.h>
+#include <sys/ioctl.h>
+#include <linux/videodev2.h>
 #include <QDebug>
 
 #pragma GCC diagnostic push
@@ -42,6 +46,7 @@ public:
 
     int fps;
     cv::Size frameSize;
+    CameraPixelFormat captureFormat;
 
     bool connected;
     bool failed;
@@ -271,6 +276,7 @@ bool Camera::connect()
     d->cam->set(cv::CAP_PROP_AUTO_EXPOSURE, d->autoExposureRaw);
 
     // set default values
+    setPixelFormat(d->captureFormat);
     setExposure(d->exposure);
     setBrightness(d->brightness);
     setContrast(d->contrast);
@@ -294,6 +300,39 @@ void Camera::disconnect()
     if (d->connected)
         qDebug() << "Disconnected camera" << d->camId;
     d->connected = false;
+}
+
+QList<CameraPixelFormat> Camera::readPixelFormats()
+{
+    QList<CameraPixelFormat> result;
+    if (d->camId < 0)
+        return result;
+
+    int fd = v4l2_open(qPrintable(QStringLiteral("/dev/video%1").arg(d->camId)), O_RDWR);
+    if (fd == -1)
+        return result;
+
+    struct v4l2_fmtdesc fmtdesc;
+    memset(&fmtdesc,0,sizeof(fmtdesc));
+    fmtdesc.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    while (ioctl(fd,VIDIOC_ENUM_FMT,&fmtdesc) == 0) {
+        CameraPixelFormat cpf;
+        cpf.name = QString::fromUtf8((const char*) fmtdesc.description);
+        cpf.fourcc = fmtdesc.pixelformat;
+        result.append(cpf);
+
+        fmtdesc.index++;
+    }
+    v4l2_close(fd);
+
+    return result;
+}
+
+void Camera::setPixelFormat(const CameraPixelFormat &pixFmt)
+{
+    if (pixFmt.fourcc == 0 || pixFmt.name.isEmpty())
+        return;
+    d->cam->set(cv::CAP_PROP_FOURCC, pixFmt.fourcc);
 }
 
 bool Camera::recordFrame(Frame &frame, SecondaryClockSynchronizer *clockSync)

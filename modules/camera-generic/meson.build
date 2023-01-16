@@ -20,7 +20,11 @@ module_moc_src = [
 
 module_ui = ['genericcamerasettingsdialog.ui']
 
-module_deps = [opencv_dep]
+v4l_dep = dependency('libv4l2')
+module_deps = [
+    opencv_dep,
+    v4l_dep,
+]
 
 #
 # Generic module setup

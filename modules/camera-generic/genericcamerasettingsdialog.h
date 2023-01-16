@@ -44,12 +44,16 @@ public:
     bool quirksEnabled();
     void setQuirksEnabled(bool enabled);
 
+    QString pixelFormatName() const;
+    void setPixelFormatName(const QString &pixFmtName);
+
     void setRunning(bool running);
 
     void updateValues();
 
 private slots:
     void on_cameraComboBox_currentIndexChanged(int index);
+    void on_captureFormatComboBox_currentIndexChanged(int index);
 
     void on_sbExposure_valueChanged(double arg1);
     void on_sliderExposure_valueChanged(int value);
@@ -76,6 +80,7 @@ private:
     Ui::GenericCameraSettingsDialog *ui;
 
     Camera *m_camera;
+    QString m_pixFmtName;
 };
 
 #endif // GENERICCAMERASETTINGSDIALOG_H

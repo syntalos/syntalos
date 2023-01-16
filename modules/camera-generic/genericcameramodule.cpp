@@ -186,6 +186,7 @@ public:
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
     {
         settings.insert("camera", m_camera->camId());
+        settings.insert("capture_format", m_camSettingsWindow->pixelFormatName());
         settings.insert("width", m_camSettingsWindow->resolution().width);
         settings.insert("height", m_camSettingsWindow->resolution().height);
         settings.insert("fps", m_camSettingsWindow->framerate());
@@ -205,6 +206,7 @@ public:
     bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
     {
         m_camera->setCamId(settings.value("camera").toInt());
+        m_camSettingsWindow->setPixelFormatName(settings.value("capture_format").toString());
         m_camera->setResolution(cv::Size(settings.value("width").toInt(), settings.value("height").toInt()));
         m_camera->setExposure(settings.value("exposure").toDouble());
         m_camera->setBrightness(settings.value("brightness").toDouble());

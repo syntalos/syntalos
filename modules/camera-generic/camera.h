@@ -29,6 +29,25 @@
 #include "timesync.h"
 #include "streams/frametype.h"
 
+struct CameraPixelFormat
+{
+    QString name;
+    unsigned int fourcc;
+
+    friend QDataStream &operator<<(QDataStream &out, const CameraPixelFormat &obj)
+    {
+        out << (quint32) obj.fourcc << obj.name;
+        return out;
+    }
+
+    friend QDataStream &operator>>(QDataStream &in, CameraPixelFormat &obj)
+    {
+        in >> obj.fourcc >> obj.name;
+        return in;
+    }
+};
+Q_DECLARE_METATYPE(CameraPixelFormat)
+
 class CameraData;
 class Camera
 {
@@ -69,6 +88,9 @@ public:
 
     bool connect();
     void disconnect();
+
+    QList<CameraPixelFormat> readPixelFormats();
+    void setPixelFormat(const CameraPixelFormat &pixFmt);
 
     bool recordFrame(Frame &frame, SecondaryClockSynchronizer *clockSync);
 
