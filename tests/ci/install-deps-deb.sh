@@ -32,6 +32,7 @@ eatmydata apt-get install -yq --no-install-recommends \
     libqt5remoteobjects5-bin \
     qtmultimedia5-dev \
     libopencv-dev \
+    libv4l-dev \
     libavcodec-dev \
     libavutil-dev \
     libavformat-dev \
