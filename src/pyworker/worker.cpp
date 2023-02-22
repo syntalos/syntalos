@@ -200,18 +200,35 @@ bool OOPWorker::loadPythonScript(const QString &script, const QString &wdir)
     if (!wdir.isEmpty())
         QDir::setCurrent(wdir);
 
-    Py_SetProgramName(QCoreApplication::arguments()[0].toStdWString().c_str());
+    PyConfig config;
+    PyConfig_InitPythonConfig(&config);
+
+    auto status = PyConfig_SetString(&config, &config.program_name,
+                                     QCoreApplication::arguments()[0].toStdWString().c_str());
+    if (PyStatus_Exception(status)) {
+        raiseError(QStringLiteral("Unable to set Python program name: %1").arg(status.err_msg));
+        PyConfig_Clear(&config);
+        return false;
+    }
 
     // HACK: make Python think *we* are the Python interpreter, so it finds
     // all modules correctly when we are in a virtual environment.
     const auto venvDir = QString::fromUtf8(qgetenv("VIRTUAL_ENV"));
     qCDebug(logPyWorker).noquote() << "Using virtual environment:" << venvDir;
-    if (!venvDir.isEmpty())
-        Py_SetProgramName(QDir(venvDir).filePath("bin/python").toStdWString().c_str());
+    if (!venvDir.isEmpty()) {
+        status = PyConfig_SetString(&config, &config.program_name,
+                                    QDir(venvDir).filePath("bin/python").toStdWString().c_str());
+        if (PyStatus_Exception(status)) {
+            raiseError(QStringLiteral("Unable to set Python program name: %1").arg(status.err_msg));
+            PyConfig_Clear(&config);
+            return false;
+        }
+    }
 
     // initialize Python in this process
-    Py_Initialize();
+    status = Py_InitializeFromConfig(&config);
     m_pyInitialized = true;
+    PyConfig_Clear(&config);
 
     PyObject *mainModule = PyImport_AddModule("__main__");
     if (mainModule == nullptr) {
