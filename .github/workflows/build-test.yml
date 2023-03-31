@@ -13,25 +13,18 @@ jobs:
       run: cd tests/ci/ && podman build -t syntalos -f ./Dockerfile-debian .
 
     - name: Build & Test
-      run: podman run -t -e COMPILER_VENDOR=$CVENDOR -e CC=gcc -e CXX=g++ -v `pwd`:/build syntalos
+      run: podman run -t -e CC=gcc -e CXX=g++ -v `pwd`:/build syntalos
            ./tests/ci/build-and-test.sh
 
   build-ubuntu:
     name: Ubuntu
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
 
     - name: Create Build Environment
-      run: |
-        sudo add-apt-repository -y ppa:ximion/syntalos
-        mkdir env-prep && cd env-prep
-        sudo ../tests/ci/install-deps-deb.sh
-
-    - name: Build 3rd-party components
-      run: |
-        cd env-prep && sudo ../tests/ci/make-install-3rdparty.sh
-        rm -rf env-prep
+      run: cd tests/ci/ && podman build -t syntalos -f ./Dockerfile-ubuntu .
 
     - name: Build & Test
-      run: CC=gcc CXX=g++ ./tests/ci/build-and-test.sh
+      run: podman run -t -e CC=gcc -e CXX=g++ -v `pwd`:/build syntalos
+           ./tests/ci/build-and-test.sh
