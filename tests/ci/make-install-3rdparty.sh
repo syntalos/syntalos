@@ -2,9 +2,7 @@
 set -e
 set -x
 
-pip install 'meson>=0.58'
-
-mkdir -p 3rdparty
+mkdir -p 3rdparty && cd 3rdparty
 
 # TOML++ to read and write TOML files
 git clone --depth 1 https://github.com/marzer/tomlplusplus.git toml++
@@ -30,3 +28,6 @@ cmake -GNinja \
     ..
 ninja && ninja install
 cd ../..
+
+# cleanup
+cd .. && rm -rf 3rdparty
