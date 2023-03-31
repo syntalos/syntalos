@@ -2,27 +2,53 @@
 
 module_name = 'camera-tis'
 
-tcam_dep = dependency('tcam')
+tcam_dep = dependency('tcam', version: '>= 1.0')
 
 module_hdr = [
-    'tiscameramodule.h',
-    'tcamcamera.h'
+    'device.h',
+    'definitions.h',
+    'caps.h',
 ]
 module_moc_hdr = [
-    'cpropertiesdialog.h',
-    'cdeviceselectiondlg.h'
+    'devicedialog.h',
+    'devicewidget.h',
+    'indexer.h',
+    'propertiesbox.h',
+    'propertyworker.h',
+    'propertywidget.h',
+    'tcamslider.h',
+    'tcamcollection.h',
+    'tcamspinbox.h',
+    'tcamcontroldialog.h',
+    'capswidget.h',
 ]
 
 module_src = [
-    'tcamcamera.cpp',
-    'cpropertiesdialog.cpp',
-    'cdeviceselectiondlg.cpp'
+    'device.cpp',
+    'devicedialog.cpp',
+    'devicewidget.cpp',
+    'indexer.cpp',
+    'propertiesbox.cpp',
+    'propertyworker.cpp',
+    'propertywidget.cpp',
+    'tcamslider.cpp',
+    'tcamcollection.cpp',
+    'tcamspinbox.cpp',
+    'tcamcontroldialog.cpp',
+    'caps.cpp',
+    'capswidget.cpp',
 ]
 module_moc_src = [
     'tiscameramodule.cpp',
 ]
 
-module_ui = []
+module_ui = [
+    'devicedialog.ui',
+    'propertiesbox.ui',
+    'tcamcontroldialog.ui',
+]
+
+module_res = ['tiscamera.qrc']
 
 module_deps = [opencv_dep,
                tcam_dep,
@@ -37,7 +63,8 @@ module_deps = [opencv_dep,
 module_moc = qt.preprocess(
     moc_headers: module_moc_hdr,
     moc_sources: module_moc_src,
-    ui_files: module_ui
+    ui_files: module_ui,
+    qresources: module_res,
 )
 
 mod_install_dir = join_paths(sy_modules_dir, fs.name(meson.current_source_dir()))

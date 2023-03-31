@@ -20,16 +20,13 @@
 #include "tiscameramodule.h"
 
 #include <QDebug>
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wzero-as-null-pointer-constant"
 #include <gst/app/gstappsink.h>
 #include <gst/video/video-format.h>
-#pragma GCC diagnostic pop
+#include <tcam-property-1.0.h>
 #include "streams/frametype.h"
 
-#include "cdeviceselectiondlg.h"
-#include "cpropertiesdialog.h"
-#include "tcamcamera.h"
+#include "tcamcontroldialog.h"
+
 
 SYNTALOS_MODULE(TISCameraModule)
 
@@ -42,37 +39,32 @@ class TISCameraModule : public AbstractModule
 {
     Q_OBJECT
 private:
-    CPropertiesDialog *m_propDialog;
     std::shared_ptr<DataStream<Frame>> m_outStream;
 
-    gsttcam::TcamCamera *m_camera;
-    QString m_camSerial;
-    QString m_imgFormat;
+    std::shared_ptr<TcamCaptureConfig> m_capConfig;
+    TcamControlDialog *m_ctlDialog;
+
+    Device m_device;
+    GstElement *m_pipeline = nullptr;
+    GstAppSink *m_appSink = nullptr;
     cv::Size m_resolution;
 
     double m_fps;
-    int m_fpsNumerator;
-    int m_fpsDenominator;
+    QString m_imgFormat;
 
 public:
     explicit TISCameraModule(QObject *parent = nullptr)
         : AbstractModule(parent),
-          m_propDialog(nullptr),
-          m_camera(nullptr)
+          m_capConfig(std::make_shared<TcamCaptureConfig>())
     {
         m_outStream = registerOutputPort<Frame>(QStringLiteral("video"), QStringLiteral("Video"));
 
-        createNewPropertiesDialog();
+        m_ctlDialog = new TcamControlDialog(m_capConfig);
     }
 
     ~TISCameraModule()
     {
-        if (m_propDialog != nullptr)
-            delete m_propDialog;
-        if (m_camera != nullptr) {
-            m_camera->stop();
-            delete m_camera;
-        }
+        delete m_ctlDialog;
     }
 
     ModuleDriverKind driver() const override
@@ -86,152 +78,54 @@ public:
                ModuleFeature::SHOW_SETTINGS;
     }
 
-    void createNewPropertiesDialog()
-    {
-        QRect oldGeometry;
-        if (m_propDialog != nullptr) {
-            oldGeometry = m_propDialog->geometry();
-            m_propDialog->hide();
-            m_propDialog->setCamera(nullptr);
-            m_propDialog->deleteLater();
-        }
-        m_propDialog = new CPropertiesDialog;
-        connect(m_propDialog, &CPropertiesDialog::deviceSelectClicked, this, &TISCameraModule::onDeviceSelectClicked);
-        m_propDialog->setWindowTitle(QStringLiteral("%1 - Settings").arg(name()));
-        if (!oldGeometry.isEmpty())
-            m_propDialog->setGeometry(oldGeometry);
-    }
-
     void showSettingsUi() override
     {
-        m_propDialog->setWindowTitle(QStringLiteral("%1 - Settings").arg(name()));
-        m_propDialog->show();
-        m_propDialog->raise();
+        m_ctlDialog->setWindowTitle(QStringLiteral("%1 - Settings").arg(name()));
+        m_ctlDialog->show();
+        m_ctlDialog->raise();
     }
 
     bool isSettingsUiVisible() override
     {
-        return m_propDialog->isVisible();
+        return m_ctlDialog->isVisible();
     }
 
     void hideSettingsUi() override
     {
-        m_propDialog->hide();
-    }
-
-    bool resetCamera()
-    {
-        if (m_camSerial.isEmpty())
-            return false;
-        if ((m_fpsNumerator <= 0) || (m_fpsDenominator <= 0) || (m_resolution.empty()))
-            return false;
-
-        if (m_camera != nullptr) {
-            m_camera->stop();
-            delete m_camera;
-        }
-
-        // Instantiate the TcamCamera object with the serial number
-        // of the selected device
-        m_camera = new gsttcam::TcamCamera(m_camSerial.toStdString());
-
-        // Set video format, resolution and frame rate. We display color.
-        m_camera->set_capture_format(m_imgFormat.toStdString(),
-                                     gsttcam::FrameSize{m_resolution.width, m_resolution.height},
-                                     gsttcam::FrameRate{m_fpsNumerator, m_fpsDenominator});
-        return true;
-    }
-
-    void selectCamera(const QString &serial, const QString &format, int width, int height, int fps1, int fps2)
-    {
-        if (serial.isEmpty())
-            return;
-        if ((fps1 <= 0) || (fps2 <= 0) || (width <= 0) || (height <= 0))
-            return;
-
-        m_camSerial = serial;
-        m_imgFormat = format;
-        m_fpsNumerator = fps1;
-        m_fpsDenominator = fps2;
-        m_fps = (double) m_fpsNumerator / (double) m_fpsDenominator;
-        m_resolution = cv::Size(width, height);
-
-        // sanity check on image formats
-        if ((m_imgFormat != QStringLiteral("BGRx")) &&
-            (m_imgFormat != QStringLiteral("GRAY8")) &&
-            (m_imgFormat != QStringLiteral("GRAY16_LE"))) {
-            m_imgFormat = QStringLiteral("BGRx");
-            qCWarning(logTISCam).noquote().nospace() << "Unknown/untested image format '" << format << "' selected, falling back to BGRx";
-        }
-
-        // create a new camera, deleting the old one
-        if (!resetCamera()) {
-            qWarning() << "TISCamera. Unable to reset camera.";
-            return;
-        }
-
-        // delete our old properties dialog, we don't need it anymore
-        // replace it with a new one for the newly selected camera/settings combo
-        createNewPropertiesDialog();
-
-        // Pass the tcambin element to the properties dialog
-        // so in knows, which device do handle
-        const auto camProp = TCAM_PROP(m_camera->getTcamBin());
-        m_propDialog->setCamera(camProp);
-    }
-
-    void onDeviceSelectClicked()
-    {
-        if (m_running)
-            return;
-        m_propDialog->hide();
-        CDeviceSelectionDlg devSelDlg(m_propDialog);
-        if (devSelDlg.exec() != QDialog::Accepted)
-            return;
-
-        selectCamera(QString::fromStdString(devSelDlg.getSerialNumber()),
-                     QString::fromStdString(devSelDlg.getFormat()),
-                     devSelDlg.getWidth(),
-                     devSelDlg.getHeight(),
-                     devSelDlg.getFPSNominator(),
-                     devSelDlg.getFPSDeNominator());
-        m_propDialog->show();
+        m_ctlDialog->hide();
     }
 
     bool prepare(const TestSubject &) override
     {
-        if (m_camera == nullptr) {
+        m_device = m_ctlDialog->selectedDevice();
+        if (m_device.serial().empty()) {
             raiseError("Unable to continue: No valid camera was selected!");
             return false;
         }
 
-        // there are stream issues if we do not recreate the GStreamer pipeline
-        // every single time
-        // FIXME: Find out why restarting the pipeline after it has run once does
-        // not work, so we don't have to recreate it every time.
-        if (!resetCamera()) {
-            raiseError("Unable to initialize camera video streaming pipeline. Is the right camera selected, and is it plugged in?");
-            return false;
-        }
+        m_ctlDialog->setRunning(true);
+        auto caps = m_ctlDialog->currentCaps();
+        GstStructure* structure = gst_caps_get_structure (caps, 0);
 
-        // we have just reset the camera, so we'll also have to recreate the
-        // settings view - again
-        createNewPropertiesDialog();
-        const auto camProp = TCAM_PROP(m_camera->getTcamBin());
-        m_propDialog->setCamera(camProp);
-
-        // don't permit selecting a different device from this point on
-        m_propDialog->setRunning(true);
+        gst_structure_get_int (structure, "width", &m_resolution.width);
+        gst_structure_get_int (structure, "height", &m_resolution.height);
+        const auto framerate = gst_structure_get_value(structure, "framerate");
+        const double fps_n = gst_value_get_fraction_numerator (framerate);
+        const double fps_d = gst_value_get_fraction_denominator (framerate);
+        m_fps = fps_n / fps_d;
+        m_imgFormat = gst_structure_get_string (structure, "format");
 
         // set the required stream metadata for video capture
         m_outStream->setMetadataValue("size", QSize(m_resolution.width, m_resolution.height));
         m_outStream->setMetadataValue("framerate", m_fps);
-        m_outStream->setMetadataValue("has_color", !m_imgFormat.startsWith("GRAY"));
-        if (m_imgFormat.startsWith("GRAY16"))
+        m_outStream->setMetadataValue("has_color", !m_imgFormat.toUpper().startsWith("GRAY"));
+        if (m_imgFormat.toUpper().startsWith("GRAY16"))
             m_outStream->setMetadataValue("depth", CV_16U);
 
         // start the stream
         m_outStream->start();
+        m_pipeline = m_ctlDialog->pipeline();
+        m_appSink = m_ctlDialog->videoSink();
 
         statusMessage("Waiting.");
         return true;
@@ -257,13 +151,12 @@ public:
         // If the appsink max buffer count is low, elements upstream in the pipeline will be blocked until we removed
         // one and free a buffer slot, which means camera DAQ will be delayed to the speed at which we can convert
         // data into Syntalos stream elements, which is exactly what we want.
-        const auto appsink = GST_APP_SINK(m_camera->getCaptureSink());
-        gst_app_sink_set_max_buffers (appsink, 1);
+        gst_app_sink_set_max_buffers (m_appSink, 1);
 
         // wait until we actually start acquiring data
         waitCondition->wait(this);
 
-        if (!m_camera->start()) {
+        if (gst_element_set_state(m_pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
             raiseError(QStringLiteral("Failed to start image acquisition pipeline."));
             return;
         }
@@ -271,16 +164,16 @@ public:
         statusMessage("");
         while (m_running) {
             g_autoptr(GstSample) sample = nullptr;
-            auto frameRecvTime = MTIMER_FUNC_TIMESTAMP(sample = gst_app_sink_pull_sample(appsink));
+            auto frameRecvTime = MTIMER_FUNC_TIMESTAMP(sample = gst_app_sink_pull_sample(m_appSink));
             if (sample == nullptr) {
                 // check if the inout stream has ended
-                if (gst_app_sink_is_eos(appsink)) {
+                if (gst_app_sink_is_eos(m_appSink)) {
                     if (m_running)
                         raiseError(QStringLiteral("Video stream has ended prematurely!"));
                     break;
                 }
                 if (m_running)
-                    qWarning("TISCamera: Received invalid sample.");
+                    qCWarning(logTISCam).noquote() << "Received invalid sample.";
                 continue;
             }
 
@@ -290,7 +183,7 @@ public:
             gst_buffer_map(buffer, &info, GST_MAP_READ);
             if (info.data != nullptr) {
                 GstCaps *caps = gst_sample_get_caps(sample);
-                const auto gS = gst_caps_get_structure (caps, 0);
+                const auto gS = gst_caps_get_structure(caps, 0);
                 const gchar *format_str = gst_structure_get_string(gS, "format");
 
                 // create our frame and push it to subscribers
@@ -305,7 +198,7 @@ public:
                     frame.mat.create(m_resolution, CV_16UC(1));
                     memcpy(frame.mat.data, info.data, m_resolution.width * m_resolution.height);
                 } else {
-                    qCDebug(logTISCam).noquote().nospace() << m_camSerial << ": "
+                    qCDebug(logTISCam).noquote().nospace() << QString::fromStdString(m_device.str()) << ": "
                                                            << "Received buffer with unsupported format: " << format_str;
                     gst_buffer_unmap (buffer, &info);
                     continue;
@@ -333,87 +226,108 @@ public:
         }
 
         statusMessage("Stopped.");
-        m_camera->stop();
+        gst_element_set_state(m_pipeline, GST_STATE_PAUSED);
     }
 
     void stop() override
     {
-        // we may have been called after a failure because no camera was selected...
-        // if that's the case, there is already nothing for us left to do
-        if (m_camera == nullptr)
-            return;
-
         // we may still be blocking on the GStreamer buffer pull, so
         // we need to stop the pipeline here as well to make sure
         // we don't deadlock
         m_running = false;
-        m_camera->stop();
 
         // we are not running anymore, so new device selections are possible again
-        m_propDialog->setRunning(false);
+        m_ctlDialog->setRunning(false);
     }
 
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
     {
-        settings.insert("camera_serial", m_camSerial);
-        settings.insert("format", m_imgFormat);
-        settings.insert("width", m_resolution.width);
-        settings.insert("height", m_resolution.height);
-        settings.insert("fps_numerator", m_fpsNumerator);
-        settings.insert("fps_denominator", m_fpsDenominator);
-
-        if (m_camera == nullptr) {
+        m_device = m_ctlDialog->selectedDevice();
+        if (m_device.serial().empty()) {
             qCWarning(logTISCam).noquote().nospace() << "No TIS camera selected, will not save settings to file.";
             return;
         }
 
+        settings.insert("camera_serial", QString::fromStdString(m_device.serial()));
+        settings.insert("camera_model", QString::fromStdString(m_device.model()));
+        settings.insert("camera_type", QString::fromStdString(m_device.type()));
+        g_autofree gchar *caps_str = gst_caps_to_string(m_ctlDialog->currentCaps());
+        settings.insert("caps", QString::fromUtf8(caps_str));
+
         QVariantList camProps;
-        for (const auto &prop : m_camera->get_camera_property_list()) {
-            const auto ptype = QString::fromStdString(prop->type);
-            bool success = false;
+        auto collection = m_ctlDialog->tcamCollection();
+        auto names = collection.get_names();
+        for (const std::string& name : names) {
+            g_autoptr(GError) error = nullptr;
+            TcamPropertyBase* prop = collection.get_property(name);
+
+            if (!prop) {
+                qCWarning(logTISCam, "Unable to retrieve property: %s", name.c_str());
+                continue;
+            }
+
             QVariantHash sProp;
-            sProp.insert("type", ptype);
+            const auto typeId = tcam_property_base_get_property_type(prop);
+            sProp.insert("type_id", typeId);
+            sProp.insert("name", QString::fromStdString(name));
 
-            if (ptype == "integer") {
-                const auto intProp = std::dynamic_pointer_cast<gsttcam::IntegerProperty>(prop);
-                success = intProp != nullptr;
-                if (success)
-                    sProp.insert("value", intProp->value);
-            } else if (ptype == "double") {
-                const auto doubleProp = std::dynamic_pointer_cast<gsttcam::DoubleProperty>(prop);
-                success = doubleProp != nullptr;
-                if (success)
-                    sProp.insert("value", doubleProp->value);
-            } else if (ptype == "string") {
-                const auto strProp = std::dynamic_pointer_cast<gsttcam::StringProperty>(prop);
-                success = strProp != nullptr;
-                if (success)
-                    sProp.insert("value", QString::fromStdString(strProp->value));
-            } else if (ptype == "enum") {
-                const auto enumProp = std::dynamic_pointer_cast<gsttcam::EnumProperty>(prop);
-                success = enumProp != nullptr;
-                if (success)
-                    sProp.insert("value", QString::fromStdString(enumProp->value));
-            } else if (ptype == "boolean" || ptype == "button") {
-                const auto boolProp = std::dynamic_pointer_cast<gsttcam::BooleanProperty>(prop);
-                success = boolProp != nullptr;
-                if (success)
-                    sProp.insert("value", boolProp->value);
-            } else {
-                qCWarning(logTISCam).noquote().nospace() << m_camSerial << ": "
-                                                         << "Can not save camera property of unknown type: " << QString::fromStdString(prop->to_string());
+            switch (typeId) {
+                case TCAM_PROPERTY_TYPE_FLOAT: {
+                    double value = tcam_property_float_get_value(TCAM_PROPERTY_FLOAT(prop), &error);
+                    if (error)
+                        break;
+
+                    sProp.insert("value", value);
+                    break;
+                }
+                case TCAM_PROPERTY_TYPE_INTEGER: {
+                    g_autoptr(GError) error = nullptr;
+                    auto value = tcam_property_integer_get_value(TCAM_PROPERTY_INTEGER(prop), &error);
+                    if (error)
+                        break;
+
+                    sProp.insert("value", QVariant::fromValue(value));
+                    break;
+                }
+                case TCAM_PROPERTY_TYPE_ENUMERATION: {
+                    g_autoptr(GError) error = nullptr;
+                    auto value = tcam_property_enumeration_get_value(TCAM_PROPERTY_ENUMERATION(prop), &error);
+                    if (error)
+                        break;
+
+                    sProp.insert("value", QString::fromUtf8(value));
+                    break;
+                }
+                case TCAM_PROPERTY_TYPE_BOOLEAN: {
+                    g_autoptr(GError) error = nullptr;
+                    bool value = tcam_property_boolean_get_value(TCAM_PROPERTY_BOOLEAN(prop), &error);
+                    if (error)
+                        break;
+
+                    sProp.insert("value", value);
+                    break;
+                }
+                case TCAM_PROPERTY_TYPE_STRING: {
+                    g_autoptr(GError) error = nullptr;
+                    auto value = tcam_property_string_get_value(TCAM_PROPERTY_STRING(prop), &error);
+                    if (error)
+                        break;
+
+                    sProp.insert("value", value);
+                    break;
+                }
+                case TCAM_PROPERTY_TYPE_COMMAND:
+                    break;
+            }
+
+            if (error != nullptr) {
+                qCWarning(logTISCam).noquote().nospace() << QString::fromStdString(m_device.serial()) << ": "
+                                                         << "Unable to save camera property:" << QString::fromUtf8(error->message);
                 continue;
             }
 
-            if (!success) {
-                qCWarning(logTISCam).noquote().nospace() << m_camSerial << ": "
-                                                         << "Unable to save camera property:" << QString::fromStdString(prop->to_string());
-                continue;
-            }
 
-            sProp.insert("name", QString::fromStdString(prop->name));
-            sProp.insert("group", QString::fromStdString(prop->group));
-            sProp.insert("category", QString::fromStdString(prop->category));
+            sProp.insert("category", QString::fromStdString(tcam_property_base_get_category(prop)));
             camProps.append(sProp);
         }
 
@@ -422,13 +336,15 @@ public:
 
     bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
     {
-        selectCamera(settings.value("camera_serial").toString(),
-                     settings.value("format").toString(),
-                     settings.value("width").toInt(),
-                     settings.value("height").toInt(),
-                     settings.value("fps_numerator").toInt(),
-                     settings.value("fps_denominator").toInt());
+        const auto capsStr = settings.value("caps").toString();
+        g_autoptr(GstCaps) caps = gst_caps_from_string(qPrintable(capsStr));
+        m_ctlDialog->setDevice(settings.value("camera_model").toString(),
+                               settings.value("camera_serial").toString(),
+                               settings.value("camera_type").toString(),
+                               caps);
 
+
+#if 0
         // only continue loading camera settings if we selected the right camera
         if (m_camera == nullptr) {
             qCWarning(logTISCam).noquote().nospace() << "Unable to load find exact camera match for '" << settings.value("camera_serial").toString() << "' "
@@ -476,6 +392,7 @@ public:
         }
 
         m_propDialog->updateProperties();
+#endif
         return true;
     }
 };
