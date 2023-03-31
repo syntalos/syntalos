@@ -75,19 +75,20 @@ config_h = vcs_tag(input: config_h, output: 'config.h')
 # Custom compile flags
 #
 if get_option('maintainer')
-    maintainer_c_args = ['-Werror',
-                         '-Wall',
-                         '-Wextra',
-                         '-Wcast-align',
-                         '-Wno-uninitialized',
-                         '-Wempty-body',
-                         '-Wformat-security',
-                         '-Winit-self',
-                         '-Wnull-dereference',
-                         '-Winline'
+    maintainer_c_args = [
+         '-Werror',
+         '-Wall',
+         '-Wextra',
+         '-Wcast-align',
+         '-Wno-uninitialized',
+         '-Wempty-body',
+         '-Wformat-security',
+         '-Winit-self',
+         '-Wnull-dereference',
+         '-Winline'
     ]
-    maintainer_cpp_args = ['-Wzero-as-null-pointer-constant',
-                           '-Wsuggest-final-methods'
+    maintainer_cpp_args = [
+        '-Wsuggest-final-methods'
     ]
 
     add_project_arguments(maintainer_c_args, language: 'c')
