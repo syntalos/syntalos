@@ -21,20 +21,12 @@ ninja && ninja install
 cd ../..
 
 # Support for "The Imaging Source" cameras
-# FIXME: We need to migrate off of the 0.14.x branch
-. /etc/os-release
-if [ "$ID" = "ubuntu" ]; then
-    curl -L -s -o tiscamera_0.14_amd64.deb \
-        https://github.com/TheImagingSource/tiscamera/releases/download/v-tiscamera-0.14.0/tiscamera_0.14.0.3054_amd64_ubuntu_1804.deb
-    # BUG: This sucks, we need to switch away to the modern tiscam ASAP
-    dpkg --unpack ./tiscamera_0.14_amd64.deb
-    rm /var/lib/dpkg/info/tiscamera.postinst
-    apt-get -f install -y
-    rm tiscamera_0.14_amd64.deb
-else
-    git clone --depth 1 --branch=v-tiscamera-0.14.0 https://github.com/TheImagingSource/tiscamera.git tiscamera
-    mkdir tiscamera/b && cd tiscamera/b/
-    cmake -GNinja ..
-    ninja && ninja install
-    cd ../..
-fi;
+git clone --depth 1 --branch=v-tiscamera-1.0.0 https://github.com/TheImagingSource/tiscamera.git tiscamera
+mkdir tiscamera/b && cd tiscamera/b/
+cmake -GNinja \
+    -DTCAM_BUILD_DOCUMENTATION=OFF \
+    -DTCAM_BUILD_WITH_GUI=OFF \
+    -DTCAM_DOWNLOAD_MESON=OFF \
+    ..
+ninja && ninja install
+cd ../..

@@ -16,40 +16,42 @@ eatmydata apt-get install -yq --no-install-recommends \
     git ca-certificates \
     xvfb xauth \
     python3-pip \
-    ninja-build \
     cmake \
-    meson \
     gettext \
+    libaravis-dev \
+    libavcodec-dev \
+    libavformat-dev \
+    libavutil-dev \
     libegl-dev \
-    qtbase5-dev \
     libeigen3-dev \
     libglib2.0-dev \
-    libqt5serialport5-dev \
-    libqt5opengl5-dev \
-    libqt5charts5-dev \
-    libqt5svg5-dev \
-    libqt5remoteobjects5-dev \
-    libqt5remoteobjects5-bin \
-    qtmultimedia5-dev \
-    libopencv-dev \
-    libv4l-dev \
-    libavcodec-dev \
-    libavutil-dev \
-    libavformat-dev \
-    libswscale-dev \
-    libxxhash-dev \
-    libusb-1.0-0-dev \
-    libsystemd-dev \
-    ocl-icd-opencl-dev \
-    python3-dev \
-    pybind11-dev \
-    uuid-dev \
-    libkf5archive-dev \
-    libkf5texteditor-dev \
-    python3-numpy \
     libgstreamer1.0-dev \
     libgstreamer-plugins-base1.0-dev \
-    udev
+    libkf5archive-dev \
+    libkf5texteditor-dev \
+    libopencv-dev \
+    libqt5charts5-dev \
+    libqt5opengl5-dev \
+    libqt5remoteobjects5-bin \
+    libqt5remoteobjects5-dev \
+    libqt5serialport5-dev \
+    libqt5svg5-dev \
+    libswscale-dev \
+    libsystemd-dev \
+    libusb-1.0-0-dev \
+    libv4l-dev \
+    libxml2-dev \
+    libxxhash-dev \
+    meson \
+    ninja-build \
+    ocl-icd-opencl-dev \
+    pybind11-dev \
+    python3-dev \
+    python3-numpy \
+    qtbase5-dev \
+    qtmultimedia5-dev \
+    udev \
+    uuid-dev
 
 # install additional dependencies
 eatmydata apt-get install -yq --no-install-recommends \
