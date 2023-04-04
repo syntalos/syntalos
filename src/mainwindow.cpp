@@ -602,6 +602,7 @@ bool MainWindow::saveConfiguration(const QString &fileName)
 
         QVariantHash modSettings;
         QByteArray modExtraData;
+        setStatusText(QStringLiteral("Saving data for '%1'...").arg(mod->name()));
 
         mod->serializeSettings(confBaseDir.absolutePath(), modSettings, modExtraData);
         if (!modSettings.isEmpty())
@@ -632,6 +633,7 @@ bool MainWindow::saveConfiguration(const QString &fileName)
         modIndex++;
     }
 
+    setStatusText("Saving configuration to file...");
     tar.close();
 
     setCurrentProjectFile(fileName);
