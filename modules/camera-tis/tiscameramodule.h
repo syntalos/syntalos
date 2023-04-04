@@ -24,6 +24,10 @@
 
 SYNTALOS_DECLARE_MODULE
 
+namespace Syntalos {
+    Q_DECLARE_LOGGING_CATEGORY(logTISCam)
+}
+
 class TISCameraModuleInfo : public ModuleInfo
 {
 public:

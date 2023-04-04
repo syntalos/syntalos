@@ -45,17 +45,24 @@ public:
     GstCaps *currentCaps() const;
 
     Device selectedDevice() const;
-    void setDevice(const QString& model,
+    bool setDevice(const QString& model,
                    const QString& serial,
                    const QString& type,
                    GstCaps* caps);
 
-    TcamCollection tcamCollection() const;
+    TcamCollection *tcamCollection() const;
 
     void refreshPropertiesInfo();
     void setRunning(bool running);
 
- protected:
+    void closePipeline();
+
+    void emitDeviceLostBySerial(const QString& serial);
+
+signals:
+    void deviceLost(const QString& message);
+
+protected:
     void showEvent(QShowEvent *event) override;
 
 private slots:
@@ -63,18 +70,20 @@ private slots:
     void on_selectFormatButton_clicked();
     void on_refreshButton_clicked();
 
+    void emitDeviceLost(const Device& dev);
+
 private:
     void createPropertiesBox();
+    void deletePropertiesBox();
     GstCaps *showFormatDialog();
     void openPipeline(FormatHandling handling);
-    void closePipeline();
 
 private:
     Ui::TcamControlDialog *ui;
 
     std::shared_ptr<Indexer> m_index;
     std::shared_ptr<TcamCaptureConfig> m_capConfig;
-    TcamCollection m_tcamCollection;
+    TcamCollection *m_tcamCollection;
 
     PropertiesBox *m_propsBox = nullptr;
 
@@ -84,7 +93,7 @@ private:
     GstAppSink* m_videoSink = nullptr;
 
     GstCaps *m_currentCaps = nullptr;
-    GstCaps *m_selected_caps = nullptr;
+    GstCaps *m_selectedCaps = nullptr;
     QString m_device_caps;
 
 };

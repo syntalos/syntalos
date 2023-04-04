@@ -13,15 +13,18 @@
 #include "devicedialog.h"
 #include "caps.h"
 #include "capswidget.h"
+#include "tiscameramodule.h"
 
 TcamControlDialog::TcamControlDialog(std::shared_ptr<TcamCaptureConfig> config, QWidget *parent)
     : QDialog(parent),
-      ui(new Ui::TcamControlDialog)
+      ui(new Ui::TcamControlDialog),
+      m_tcamCollection(nullptr)
 {
     ui->setupUi(this);
 
     m_capConfig = config;
     m_index = std::make_shared<Indexer>();
+    connect(m_index.get(), &Indexer::device_lost, this, &TcamControlDialog::emitDeviceLost);
 }
 
 TcamControlDialog::~TcamControlDialog()
@@ -29,6 +32,8 @@ TcamControlDialog::~TcamControlDialog()
     delete ui;
     if (m_currentCaps)
         gst_caps_unref(m_currentCaps);
+    if (m_tcamCollection)
+        delete m_tcamCollection;
 }
 
 GstElement *TcamControlDialog::pipeline() const
@@ -51,19 +56,36 @@ Device TcamControlDialog::selectedDevice() const
     return m_selectedDevice;
 }
 
-void TcamControlDialog::setDevice(const QString &model, const QString &serial, const QString &type, GstCaps *caps)
+bool TcamControlDialog::setDevice(const QString &model, const QString &serial, const QString &type, GstCaps *caps)
 {
+    Q_UNUSED(model)
     closePipeline();
-    if (m_currentCaps)
-        gst_caps_unref(m_currentCaps);
-    m_selectedDevice = Device(model.toStdString(), serial.toStdString(), type.toStdString(), caps);
-    m_currentCaps = gst_caps_ref(caps);
+
+    m_selectedDevice = Device();
+    const auto serialStr = serial.toStdString();
+    const auto typeStr = type.toStdString();
+    for (auto device : m_index->get_device_list()) {
+        if (device.serial() == serialStr && device.type() == typeStr) {
+            m_selectedDevice = device;
+            break;
+        }
+    }
+
+    // return false if device was not found
+    if (m_selectedDevice.serial().empty())
+        return false;
+
+    if (m_selectedCaps)
+        gst_caps_unref(m_selectedCaps);
+    m_selectedCaps = gst_caps_ref(caps);
 
     openPipeline(FormatHandling::Static);
     createPropertiesBox();
+
+    return true;
 }
 
-TcamCollection TcamControlDialog::tcamCollection() const
+TcamCollection *TcamControlDialog::tcamCollection() const
 {
     return m_tcamCollection;
 }
@@ -78,6 +100,26 @@ void TcamControlDialog::setRunning(bool running)
 {
     ui->selectDeviceButton->setEnabled(!running);
     ui->selectFormatButton->setEnabled(!running);
+}
+
+void TcamControlDialog::emitDeviceLostBySerial(const QString &serial)
+{
+    if (!serial.isEmpty())
+        qCWarning(logTISCam, "Device lost: %s", qPrintable(serial));
+
+    if (serial != QString::fromStdString(m_selectedDevice.serial()))
+        return;
+
+    deletePropertiesBox();
+    m_selectedDevice = {};
+
+    emit deviceLost(QStringLiteral("Device %1 has been lost. Please reconnect/restart it.").arg(serial));
+}
+
+void TcamControlDialog::emitDeviceLost(const Device &dev)
+{
+    if (dev == m_selectedDevice)
+        emitDeviceLostBySerial(dev.serial().c_str());
 }
 
 void TcamControlDialog::showEvent(QShowEvent *event)
@@ -97,30 +139,20 @@ static gboolean bus_callback(GstBus* /*bus*/, GstMessage* message, gpointer user
             GError* err = nullptr;
             gst_message_parse_info(message, &err, &str);
 
-            //qInfo("INFO: %s", str);
+            //qCInfo(logTISCam, "INFO: %s", str);
 
             QString s = str;
 
             // infos concerning the caps that are actually set
             // set infos for users
-            if (s.startsWith("Working with src caps:"))
-            {
+            if (s.startsWith("Working with src caps:")) {
                 s = s.remove(QRegExp("\\(\\w*\\)"));
                 s = s.section(":", 1);
-
-#if 0
-                auto mw = ((TcamControlDialog*)user_data);
-                if (mw->p_about)
-                {
-                    mw->p_about->set_device_caps(s);
-                }
-                mw->m_device_caps = s;
-#endif
+                qCInfo(logTISCam, "%s", str);
             }
 
-            if (err)
-            {
-                qInfo("%s", err->message);
+            if (err) {
+                qCInfo(logTISCam, "%s", err->message);
                 g_clear_error(&err);
             }
             break;
@@ -136,7 +168,7 @@ static gboolean bus_callback(GstBus* /*bus*/, GstMessage* message, gpointer user
             {
                 int start = s.indexOf("(") + 1;
                 QString serial = s.mid(start, s.indexOf(")") - start);
-             //!   ((TcamControlDialog*)user_data)->device_lost(serial);
+                ((TcamControlDialog*)user_data)->emitDeviceLostBySerial(serial);
             }
 
             g_error_free(err);
@@ -146,7 +178,7 @@ static gboolean bus_callback(GstBus* /*bus*/, GstMessage* message, gpointer user
         }
         case GST_MESSAGE_EOS:
         {
-            qInfo("Received EOS");
+            qCInfo(logTISCam, "Received EOS");
 
             break;
         }
@@ -168,7 +200,7 @@ static gboolean bus_callback(GstBus* /*bus*/, GstMessage* message, gpointer user
             // GstState pending;
             // gst_message_parse_state_changed(message, &oldstate, &newstate, &pending);
 
-            // qInfo("State change: old: %s new: %s pend: %s",
+            // qCInfo(logTISCam, "State change: old: %s new: %s pend: %s",
             //       gst_element_state_get_name(oldstate),
             //       gst_element_state_get_name(newstate),
             //       gst_element_state_get_name(pending));
@@ -189,7 +221,7 @@ static gboolean bus_callback(GstBus* /*bus*/, GstMessage* message, gpointer user
         }
         default:
         {
-            qInfo("Message handling not implemented: %s", GST_MESSAGE_TYPE_NAME(message));
+            qCInfo(logTISCam, "Message handling not implemented: %s", GST_MESSAGE_TYPE_NAME(message));
             break;
         }
     }
@@ -257,7 +289,7 @@ void TcamControlDialog::openPipeline(FormatHandling handling)
         if (!m_source)
         {
             // TODO throw error to user
-            qInfo("NO source for you");
+            qCInfo(logTISCam, "NO source for you");
             return;
         }
 
@@ -274,7 +306,7 @@ void TcamControlDialog::openPipeline(FormatHandling handling)
 
         if (has_property(m_source, "conversion-element"))
         {
-            qDebug("Setting 'conversion-element' property to '%s'",
+            qCDebug(logTISCam, "Setting 'conversion-element' property to '%s'",
                    conversion_element_to_string(m_capConfig->conversion_element));
             g_object_set(m_source, "conversion-element", m_capConfig->conversion_element, nullptr);
         }
@@ -360,19 +392,19 @@ void TcamControlDialog::openPipeline(FormatHandling handling)
 
     GstCaps* caps = nullptr;
     if (handling == FormatHandling::Dialog) {
-        m_selected_caps = showFormatDialog();
+        m_selectedCaps = showFormatDialog();
 
-        if (!m_selected_caps)
+        if (!m_selectedCaps)
         {
             closePipeline();
             return;
         }
 
-        caps = gst_caps_copy(m_selected_caps);
+        caps = gst_caps_copy(m_selectedCaps);
     }
     else if (handling == FormatHandling::Static)
     {
-        caps = gst_caps_copy(m_selected_caps);
+        caps = gst_caps_copy(m_selectedCaps);
     }
     else
     {
@@ -386,7 +418,7 @@ void TcamControlDialog::openPipeline(FormatHandling handling)
 
     if (has_property(m_source, "device-caps"))
     {
-        qInfo("setting caps to: %s", gst_caps_to_string(caps));
+        qCInfo(logTISCam, "setting caps to: %s", gst_caps_to_string(caps));
         g_object_set(m_source, "device-caps", gst_caps_to_string(caps), nullptr);
     }
     else
@@ -412,7 +444,9 @@ void TcamControlDialog::openPipeline(FormatHandling handling)
     // do this last
     // Class queries elements automatically
     // at this point all properties have to be available
-    m_tcamCollection = TcamCollection(GST_BIN(m_pipeline));
+    if (m_tcamCollection != nullptr)
+        delete m_tcamCollection;
+    m_tcamCollection = new TcamCollection(GST_BIN(m_pipeline));
 
     m_videoSink = GST_APP_SINK(gst_bin_get_by_name(GST_BIN(m_pipeline), "sink"));
     g_object_set(m_videoSink, "max-buffers", 4, "drop", true, nullptr);
@@ -442,9 +476,9 @@ void TcamControlDialog::on_selectDeviceButton_clicked()
     const auto res = dialog.exec();
     if (res == QDialog::Accepted) {
         setEnabled(false);
-        if (m_selected_caps) {
-            gst_caps_unref(m_selected_caps);
-            m_selected_caps = nullptr;
+        if (m_selectedCaps) {
+            gst_caps_unref(m_selectedCaps);
+            m_selectedCaps = nullptr;
         }
         if (m_pipeline) {
             if (m_propsBox) {
@@ -457,13 +491,13 @@ void TcamControlDialog::on_selectDeviceButton_clicked()
         }
 
         m_selectedDevice = dialog.get_selected_device();
-        qInfo("device selected: %s\n", m_selectedDevice.str().c_str());
+        qCInfo(logTISCam, "device selected: %s\n", m_selectedDevice.str().c_str());
 
         openPipeline(m_capConfig->format_selection_type);
         createPropertiesBox();
         setEnabled(true);
     } else {
-        qInfo("No device selected\n");
+        qCInfo(logTISCam, "No device selected\n");
     }
 }
 
@@ -475,13 +509,20 @@ void TcamControlDialog::createPropertiesBox()
     if (!m_pipeline)
         return;
 
-    m_propsBox = new PropertiesBox(m_tcamCollection, ui->propsContainer);
-    //connect(m_propsBox, &QDialog::finished, this, &MainWindow::free_property_dialog);
-    //connect(m_propsBox, &PropertyDialog::device_lost, this, &MainWindow::device_lost);
+    m_propsBox = new PropertiesBox(*m_tcamCollection, ui->propsContainer);
 
     setWindowTitle(QStringLiteral("%1 - %2: Properties").arg(m_selectedDevice.model().c_str(), m_selectedDevice.serial_long().c_str()));
-
     ui->propsContainer->layout()->addWidget(m_propsBox);
+}
+
+void TcamControlDialog::deletePropertiesBox()
+{
+    if (m_propsBox == nullptr)
+        return;
+
+    ui->propsContainer->layout()->removeWidget(m_propsBox);
+    delete m_propsBox;
+    m_propsBox = nullptr;
 }
 
 GstCaps *TcamControlDialog::showFormatDialog()
@@ -555,12 +596,12 @@ void TcamControlDialog::on_selectFormatButton_clicked()
     if (!caps)
         return;
 
-    if (m_selected_caps) {
-        gst_caps_unref(m_selected_caps);
-        m_selected_caps = nullptr;
+    if (m_selectedCaps) {
+        gst_caps_unref(m_selectedCaps);
+        m_selectedCaps = nullptr;
     }
 
-    m_selected_caps = caps;
+    m_selectedCaps = caps;
     openPipeline(FormatHandling::Static);
 }
 

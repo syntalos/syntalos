@@ -21,6 +21,8 @@
 #include <QEvent>
 #include <QCoreApplication>
 
+#include "tiscameramodule.h"
+
 #if QT_VERSION >= QT_VERSION_CHECK(5, 10, 0)
 template <typename F>
 static void postToObject(QObject* obj,F && fun) {
@@ -187,7 +189,7 @@ void Indexer::add_device(GstDevice* new_device)
     }
     if (is_new_device) // moved out of scope of lock
     {
-        qInfo("New device: %s", dev.serial_long().c_str());
+        qCInfo(logTISCam, "New device: %s", dev.serial_long().c_str());
 
         postToObject( this, [this,dev]{ emit this->new_device( dev ); } );
     }
@@ -206,7 +208,7 @@ void Indexer::remove_device(GstDevice* device)
 
     m_mutex.unlock();
 
-    qInfo("Device lost: %s", dev.serial_long().c_str());
+    qCInfo(logTISCam, "Device lost: %s", dev.serial_long().c_str());
 
     postToObject( this, [this,dev]{ emit this->device_lost( dev ); } );
 }

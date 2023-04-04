@@ -31,7 +31,6 @@
 SYNTALOS_MODULE(TISCameraModule)
 
 namespace Syntalos {
-    Q_DECLARE_LOGGING_CATEGORY(logTISCam)
     Q_LOGGING_CATEGORY(logTISCam, "mod.tiscam")
 }
 
@@ -51,6 +50,7 @@ private:
 
     double m_fps;
     QString m_imgFormat;
+    std::atomic_bool m_deviceLost;
 
 public:
     explicit TISCameraModule(QObject *parent = nullptr)
@@ -60,6 +60,7 @@ public:
         m_outStream = registerOutputPort<Frame>(QStringLiteral("video"), QStringLiteral("Video"));
 
         m_ctlDialog = new TcamControlDialog(m_capConfig);
+        connect(m_ctlDialog, &TcamControlDialog::deviceLost, this, &TISCameraModule::onDeviceLost);
     }
 
     ~TISCameraModule()
@@ -83,6 +84,7 @@ public:
         m_ctlDialog->setWindowTitle(QStringLiteral("%1 - Settings").arg(name()));
         m_ctlDialog->show();
         m_ctlDialog->raise();
+        setCameraNameStatus();
     }
 
     bool isSettingsUiVisible() override
@@ -93,10 +95,29 @@ public:
     void hideSettingsUi() override
     {
         m_ctlDialog->hide();
+        setCameraNameStatus();
+    }
+
+    void setCameraNameStatus(const QString& prefix = nullptr)
+    {
+        if (m_device.model().empty()) {
+            if (!prefix.isEmpty())
+                statusMessage(QStringLiteral("<html>%1: Unknown").arg(prefix));
+            return;
+        }
+
+        if (prefix.isEmpty())
+            statusMessage(QStringLiteral("<html>%1 <small>%2</small>").arg(QString::fromStdString(m_device.model()),
+                                                                           QString::fromStdString(m_device.serial())));
+        else
+            statusMessage(QStringLiteral("<html>%1: %2 <small>%3</small>").arg(prefix,
+                                                                               QString::fromStdString(m_device.model()),
+                                                                               QString::fromStdString(m_device.serial())));
     }
 
     bool prepare(const TestSubject &) override
     {
+        m_deviceLost = false;
         m_device = m_ctlDialog->selectedDevice();
         if (m_device.serial().empty()) {
             raiseError("Unable to continue: No valid camera was selected!");
@@ -145,6 +166,8 @@ public:
             return;
         }
 
+        setCameraNameStatus();
+
         // We don't want to hold more than one buffer in the appsink, as otherwise getting the master timestamp
         // on gst_app_sink_pull_sample() will be even less accurate than it already is (and we would have to correct
         // timestamps for pending buffer content, which is difficult to do right, and complicated).
@@ -161,14 +184,13 @@ public:
             return;
         }
 
-        statusMessage("");
         while (m_running) {
             g_autoptr(GstSample) sample = nullptr;
             auto frameRecvTime = MTIMER_FUNC_TIMESTAMP(sample = gst_app_sink_pull_sample(m_appSink));
             if (sample == nullptr) {
                 // check if the inout stream has ended
                 if (gst_app_sink_is_eos(m_appSink)) {
-                    if (m_running)
+                    if (m_running && !m_deviceLost)
                         raiseError(QStringLiteral("Video stream has ended prematurely!"));
                     break;
                 }
@@ -225,8 +247,10 @@ public:
             gst_buffer_unmap (buffer, &info);
         }
 
-        statusMessage("Stopped.");
-        gst_element_set_state(m_pipeline, GST_STATE_PAUSED);
+        if (!m_deviceLost) {
+            gst_element_set_state(m_pipeline, GST_STATE_PAUSED);
+            gst_element_set_state(m_pipeline, GST_STATE_READY);
+        }
     }
 
     void stop() override
@@ -238,6 +262,15 @@ public:
 
         // we are not running anymore, so new device selections are possible again
         m_ctlDialog->setRunning(false);
+    }
+
+    void onDeviceLost(const QString & message)
+    {
+        m_deviceLost = true;
+        stop();
+        m_ctlDialog->closePipeline();
+        raiseError(message);
+
     }
 
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
@@ -256,10 +289,15 @@ public:
 
         QVariantList camProps;
         auto collection = m_ctlDialog->tcamCollection();
-        auto names = collection.get_names();
+        auto names = collection->get_names();
+        if (collection == nullptr) {
+            qCWarning(logTISCam, "Unable to save camera properties: No collection for active camera.");
+            return;
+        }
+
         for (const std::string& name : names) {
             g_autoptr(GError) error = nullptr;
-            TcamPropertyBase* prop = collection.get_property(name);
+            g_autoptr(TcamPropertyBase) prop = collection->get_property(name);
 
             if (!prop) {
                 qCWarning(logTISCam, "Unable to retrieve property: %s", name.c_str());
@@ -281,7 +319,6 @@ public:
                     break;
                 }
                 case TCAM_PROPERTY_TYPE_INTEGER: {
-                    g_autoptr(GError) error = nullptr;
                     auto value = tcam_property_integer_get_value(TCAM_PROPERTY_INTEGER(prop), &error);
                     if (error)
                         break;
@@ -290,7 +327,6 @@ public:
                     break;
                 }
                 case TCAM_PROPERTY_TYPE_ENUMERATION: {
-                    g_autoptr(GError) error = nullptr;
                     auto value = tcam_property_enumeration_get_value(TCAM_PROPERTY_ENUMERATION(prop), &error);
                     if (error)
                         break;
@@ -299,7 +335,6 @@ public:
                     break;
                 }
                 case TCAM_PROPERTY_TYPE_BOOLEAN: {
-                    g_autoptr(GError) error = nullptr;
                     bool value = tcam_property_boolean_get_value(TCAM_PROPERTY_BOOLEAN(prop), &error);
                     if (error)
                         break;
@@ -308,7 +343,6 @@ public:
                     break;
                 }
                 case TCAM_PROPERTY_TYPE_STRING: {
-                    g_autoptr(GError) error = nullptr;
                     auto value = tcam_property_string_get_value(TCAM_PROPERTY_STRING(prop), &error);
                     if (error)
                         break;
@@ -322,7 +356,7 @@ public:
 
             if (error != nullptr) {
                 qCWarning(logTISCam).noquote().nospace() << QString::fromStdString(m_device.serial()) << ": "
-                                                         << "Unable to save camera property:" << QString::fromUtf8(error->message);
+                                                         << "Unable to save camera property: " << QString::fromUtf8(error->message);
                 continue;
             }
 
@@ -338,61 +372,85 @@ public:
     {
         const auto capsStr = settings.value("caps").toString();
         g_autoptr(GstCaps) caps = gst_caps_from_string(qPrintable(capsStr));
-        m_ctlDialog->setDevice(settings.value("camera_model").toString(),
-                               settings.value("camera_serial").toString(),
-                               settings.value("camera_type").toString(),
-                               caps);
+        bool ret = m_ctlDialog->setDevice(settings.value("camera_model").toString(),
+                                          settings.value("camera_serial").toString(),
+                                          settings.value("camera_type").toString(),
+                                          caps);
 
-
-#if 0
         // only continue loading camera settings if we selected the right camera
-        if (m_camera == nullptr) {
-            qCWarning(logTISCam).noquote().nospace() << "Unable to load find exact camera match for '" << settings.value("camera_serial").toString() << "' "
+        if (!ret) {
+            qCWarning(logTISCam).noquote().nospace() << "Unable to load find exact camera match for '"
+                                                     << settings.value("camera_model").toString() << " "
+                                                     <<  settings.value("camera_serial").toString()
+                                                     << " [" << settings.value("camera_type").toString() << "]"
+                                                     << "' "
                                                      << "Will not load camera settings.";
+            setStatusMessage(QStringLiteral("<html><font color=\"red\">Missing:</font> %1 <small>%2</small>").arg(settings.value("camera_model").toString(),
+                                                                                                                  settings.value("camera_serial").toString()));
             return true;
         }
 
+        m_device = m_ctlDialog->selectedDevice();
+        setCameraNameStatus();
+
         const auto camProps = settings.value("camera_properties").toList();
+        auto collection = m_ctlDialog->tcamCollection();
+        if (collection == nullptr) {
+            qCWarning(logTISCam, "Unable to load camera properties: No collection for active camera.");
+            return true;
+        }
         for (const auto &cpropVar : camProps) {
+            bool ok;
             const auto cprop = cpropVar.toHash();
-            const auto ptype = cprop.value("type").toString();
-            const auto pname = cprop.value("name").toString();
+            const auto typeId = cprop.value("type_id").toInt(&ok);
+            const auto name = cprop.value("name").toString();
             const auto valueVar = cprop.value("value");
 
             // sanity check for damaged configuration
-            if (pname.isEmpty() || valueVar.isNull())
+            if (!ok || valueVar.isNull())
                 continue;
 
-            GValue gval = G_VALUE_INIT;
-            if (ptype == "integer") {
-                g_value_init(&gval, G_TYPE_INT);
-                g_value_set_int(&gval, valueVar.toInt());
-            } else if (ptype == "double") {
-                g_value_init(&gval, G_TYPE_DOUBLE);
-                g_value_set_double(&gval, valueVar.toDouble());
-            } else if (ptype == "string") {
-                g_value_init(&gval, G_TYPE_STRING);
-                g_value_set_string(&gval, qPrintable(valueVar.toString()));
-            } else if (ptype == "enum") {
-                g_value_init(&gval, G_TYPE_STRING);
-                g_value_set_string(&gval, qPrintable(valueVar.toString()));
-            } else if (ptype == "boolean" || ptype == "button") {
-                g_value_init(&gval, G_TYPE_BOOLEAN);
-                g_value_set_boolean(&gval, valueVar.toBool());
-            } else {
-                qCWarning(logTISCam).noquote().nospace() << m_camSerial << ": "
-                                                         << "Unable to load camera property of unknown type:" << ptype;
+            g_autoptr(GError) error = nullptr;
+            g_autoptr(TcamPropertyBase) prop = collection->get_property(qPrintable(name));
+
+            // skip unknown properties
+            if (prop == nullptr)
                 continue;
+
+            switch (typeId) {
+                case TCAM_PROPERTY_TYPE_FLOAT: {
+                    tcam_property_float_set_value(TCAM_PROPERTY_FLOAT(prop), valueVar.toDouble(), &error);
+                    break;
+                }
+                case TCAM_PROPERTY_TYPE_INTEGER: {
+                    tcam_property_integer_set_value(TCAM_PROPERTY_INTEGER(prop), valueVar.toInt(), &error);
+                    break;
+                }
+                case TCAM_PROPERTY_TYPE_ENUMERATION: {
+                    tcam_property_enumeration_set_value(TCAM_PROPERTY_ENUMERATION(prop), qPrintable(valueVar.toString()), &error);
+                    break;
+                }
+                case TCAM_PROPERTY_TYPE_BOOLEAN: {
+                    tcam_property_boolean_set_value(TCAM_PROPERTY_BOOLEAN(prop), valueVar.toBool(), &error);
+                    break;
+                }
+                case TCAM_PROPERTY_TYPE_STRING: {
+                    tcam_property_string_set_value(TCAM_PROPERTY_STRING(prop), qPrintable(valueVar.toString()), &error);
+                    break;
+                }
+                case TCAM_PROPERTY_TYPE_COMMAND:
+                    break;
             }
 
-            bool ret = m_camera->set_property(pname.toStdString(), gval);
-            if (!ret)
-                qCWarning(logTISCam).noquote().nospace() << m_camSerial << ": "
-                                                         << "Unable to set camera property '" << pname << "' to '" << valueVar << "'";
+            if (error != nullptr) {
+                qCWarning(logTISCam).noquote().nospace() << QString::fromStdString(m_device.serial()) << ": "
+                                                         << "Unable to load camera property '" << name << "': " << QString::fromUtf8(error->message);
+                continue;
+            }
         }
 
-        m_propDialog->updateProperties();
-#endif
+        m_ctlDialog->refreshPropertiesInfo();
+
         return true;
     }
 };
