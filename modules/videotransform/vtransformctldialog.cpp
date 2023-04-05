@@ -49,15 +49,18 @@ VTransformCtlDialog::~VTransformCtlDialog()
 void VTransformCtlDialog::setRunning(bool running)
 {
     if (running != m_running)
-        unselectAll();
+        updateUi();
     m_running = running;
     ui->modButtonsWidget->setEnabled(!m_running);
 }
 
-void VTransformCtlDialog::unselectAll()
+void VTransformCtlDialog::updateUi()
 {
+    const auto lastIndex = ui->activeTFListView->currentIndex();
     ui->activeTFListView->clearSelection();
     resetSettingsPanel();
+    ui->activeTFListView->setCurrentIndex(lastIndex);
+    transformListViewSelectionChanged(lastIndex);
 }
 
 void VTransformCtlDialog::resetSettingsPanel()
@@ -82,7 +85,7 @@ QVariantHash VTransformCtlDialog::serializeSettings() const
 void VTransformCtlDialog::loadSettings(const QVariantHash &settings)
 {
     m_vtfListModel->fromVariantHash(settings);
-    unselectAll();
+    updateUi();
 }
 
 void VTransformCtlDialog::on_btnAdd_clicked()

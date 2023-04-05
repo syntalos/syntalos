@@ -35,7 +35,7 @@ public:
     ~VTransformCtlDialog();
 
     void setRunning(bool running);
-    void unselectAll();
+    void updateUi();
     void resetSettingsPanel();
 
     QList<std::shared_ptr<VideoTransform>> transformList();

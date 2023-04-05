@@ -96,9 +96,8 @@ public:
         // set new dimensions of output data (we may have changed that)
         m_framesOut->setMetadataValue("size", QSize(tfISize.width, tfISize.height));
 
-        // ensure no UI is visible at the moment, it needs to be updated
-        // with the new limits
-        m_settingsDlg->unselectAll();
+        // update UI with the new limits
+        m_settingsDlg->updateUi();
 
         // start the stream
         m_framesOut->start();
