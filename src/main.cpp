@@ -22,6 +22,7 @@
 #include <KDBusService>
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wzero-as-null-pointer-constant"
+#include <pipewire/pipewire.h>
 #include <gst/gst.h>
 #pragma GCC diagnostic pop
 #include <libusb.h>
@@ -35,6 +36,9 @@ int main(int argc, char *argv[])
 
     // initialize libusb
     libusb_init(nullptr);
+
+    // initialize PipeWire
+    pw_init(&argc, &argv);
 
     // initialize GStreamer so modules can use it if they need to
     gst_init(&argc,&argv);

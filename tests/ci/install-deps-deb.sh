@@ -30,6 +30,7 @@ eatmydata apt-get install -yq --no-install-recommends \
     libkf5archive-dev \
     libkf5texteditor-dev \
     libopencv-dev \
+    libpipewire-0.3-dev \
     libqt5charts5-dev \
     libqt5opengl5-dev \
     libqt5remoteobjects5-bin \

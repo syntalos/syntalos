@@ -20,6 +20,7 @@ module_moc_src = [
 module_ui = ['audiosettingsdialog.ui']
 
 module_deps = [
+    pipewire_dep,
     gstreamer_dep,
     gstreamer_app_dep,
     qt_svg_dep,
