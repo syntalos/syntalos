@@ -183,7 +183,7 @@ static gboolean efd_signal_source_dispatch(GSource* source, GSourceFunc callback
         uint64_t buffer;
         // just read the buffer count for now to empty it
         // (maybe we can do something useful with the element count later?)
-        if (G_UNLIKELY (read(efd_source->event_fd, &buffer, sizeof(buffer)) == -1))
+        if (G_UNLIKELY (read(efd_source->event_fd, &buffer, sizeof(buffer)) == -1 && errno != -EAGAIN))
             qWarning().noquote() << "Failed to read from eventfd:" << g_strerror(errno);
 
         result_continue = callback(user_data);
