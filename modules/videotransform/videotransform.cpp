@@ -221,26 +221,34 @@ void CropTransform::process(Frame &frame)
         return;
     }
 
-    // online modification: since we are not allowed to alter the image dimensions, we add black bars for now or scale accordingly
+    // online modification: since we are not allowed to alter the image dimensions,
+    // we add black bars for now or scale accordingly
     const std::lock_guard<std::mutex> lock(m_mutex);
 
     // actually do the "fake resizing"
     cv::Mat cropScaleMat(frame.mat, m_roi);
     cv::Mat outMat = cv::Mat::zeros(m_activeOutSize, frame.mat.type());
 
-    double scaleFactor = 1;
-    if (cropScaleMat.cols > outMat.cols)
-        scaleFactor = (double) outMat.cols / (double) cropScaleMat.cols;
-    if (cropScaleMat.rows > outMat.rows) {
-        double scale = (double) outMat.rows / (double) cropScaleMat.rows;
-        scaleFactor = (scale < scaleFactor)? scale : scaleFactor;
+    if ((m_roi.width + m_roi.x < m_activeOutSize.width) && (m_roi.height + m_roi.y < m_activeOutSize.height)) {
+        // the crop dimensions are smaller than our output, so we can simply cut things
+        cropScaleMat.copyTo(outMat(m_roi));
+    } else {
+        // the crop dimensions are larger than our output, we need some scaling
+        double scaleFactor = 1;
+        if (cropScaleMat.cols > outMat.cols)
+            scaleFactor = (double) outMat.cols / (double) cropScaleMat.cols;
+        if (cropScaleMat.rows > outMat.rows) {
+            double scale = (double) outMat.rows / (double) cropScaleMat.rows;
+            scaleFactor = (scale < scaleFactor)? scale : scaleFactor;
+        }
+
+        cv::resize(cropScaleMat, cropScaleMat, cv::Size(), scaleFactor, scaleFactor);
+        cropScaleMat.copyTo(outMat(cv::Rect((outMat.cols - cropScaleMat.cols) / 2,
+                                            (outMat.rows - cropScaleMat.rows) / 2,
+                                            cropScaleMat.cols,
+                                            cropScaleMat.rows)));
     }
 
-    cv::resize(cropScaleMat, cropScaleMat, cv::Size(), scaleFactor, scaleFactor);
-    cropScaleMat.copyTo(outMat(cv::Rect((outMat.cols - cropScaleMat.cols) / 2,
-                                        (outMat.rows - cropScaleMat.rows) / 2,
-                                        cropScaleMat.cols,
-                                        cropScaleMat.rows)));
     frame.mat = outMat;
 }
 
@@ -266,9 +274,9 @@ void CropTransform::fromVariantHash(const QVariantHash &settings)
 void CropTransform::checkAndUpdateRoi()
 {
     // sanity checks
-    if (m_roi.x + m_roi.width > m_originalSize.width || m_roi.width < 0)
+    if (m_roi.x + m_roi.width > m_originalSize.width || m_roi.width < 1)
         m_roi.width = m_originalSize.width - m_roi.x;
-    if (m_roi.y + m_roi.height > m_originalSize.height || m_roi.height < 0)
+    if (m_roi.y + m_roi.height > m_originalSize.height || m_roi.height < 1)
         m_roi.height = m_originalSize.height - m_roi.y;
     if (m_roi.width < 1)
         m_roi.width = 1;
