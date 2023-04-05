@@ -98,7 +98,9 @@ public:
         }
         m_pipeline = gst_pipeline_new("sy_audiogen");
         m_audioSource = gst_element_factory_make("audiotestsrc", "source");
-        m_audioSink = gst_element_factory_make("pulsesink", "output");
+        m_audioSink = gst_element_factory_make("pipewiresink", "output");
+        if (m_audioSink == nullptr)
+            m_audioSink = gst_element_factory_make("pulsesink", "output");
         g_object_set(m_audioSink,
                      "client-name",
                      qPrintable(QStringLiteral("Syntalos: %1").arg(name())),
@@ -153,9 +155,13 @@ public:
         if (m_pipeline == nullptr)
             setupPipeline();
 
-        m_ctlIn = m_ctlPort->subscription();
-        if (m_ctlIn.get() != nullptr)
-            registerDataReceivedEvent(&AudioSourceModule::onControlReceived, m_ctlIn);
+        if (m_ctlPort->hasSubscription()) {
+            m_ctlIn = m_ctlPort->subscription();
+            if (m_ctlIn.get() != nullptr)
+                registerDataReceivedEvent(&AudioSourceModule::onControlReceived, m_ctlIn);
+        } else {
+            m_ctlIn.reset();
+        }
 
         resetPipeline();
         g_object_set(m_audioSource, "wave", m_settingsDialog->waveKind(), NULL);
