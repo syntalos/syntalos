@@ -708,7 +708,7 @@ void CommandParser::setSpikeDetectionThresholdsCommand()
 }
 
 bool CommandParser::isDependencyRelated(QString parameter) const
-{   
+{
     if (parameter == "PostTriggerDelayMicroseconds" ||
             parameter == "PreStimAmpSettleMicroseconds" ||
             parameter == "PostStimAmpSettleMicroseconds" ||
@@ -757,6 +757,7 @@ QString CommandParser::validateStimParams(StimParameters *stimParams) const
             stimDuration = 2.0 * stimParams->firstPhaseDuration->getValue() + stimParams->secondPhaseDuration->getValue();
         if (stimParams->pulseTrainPeriod->getValue() < stimDuration)
             return "PulseTrainPeriodMicroseconds cannot be less than total pulse duration (sum of all phases used for this Shape)";
+        break;
 
     case BoardDacSignal:
         // PulseTrainPeriod cannot be less than stimDuration (which depends on Shape)
@@ -774,6 +775,7 @@ QString CommandParser::validateStimParams(StimParameters *stimParams) const
             stimDuration = stimParams->firstPhaseDuration->getValue();
         if (stimParams->pulseTrainPeriod->getValue() < stimDuration)
             return "PulseTrainPeriodMicroseconds cannot be less than total pulse duration (sum of all phases used for this Shape)";
+        break;
 
     case BoardDigitalOutSignal:
         // PulseTrainPeriod cannot be less than FirstPhaseDuration
