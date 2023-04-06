@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -39,6 +39,8 @@
 
 using namespace std;
 
+class SystemState;
+
 
 class FilePerChannelManager : public DataFileManager
 {
@@ -47,9 +49,12 @@ public:
                           DataFileReader* parent);
     ~FilePerChannelManager();
 
+    long readDataBlocksRaw(int numBlocks, uint8_t* buffer);
+    int64_t getLastTimeStamp() override;
     int64_t jumpToTimeStamp(int64_t target) override;
     void loadDataFrame() override;
     QFile* openLiveNotes();
+    int64_t blocksPresent() override;
 
 private:
     DataFile* timeFile;
@@ -62,6 +67,8 @@ private:
     vector<DataFile*> analogOutFiles;
     vector<DataFile*> digitalInFiles;
     vector<DataFile*> digitalOutFiles;
+
+    void updateEndOfData();
 };
 
 #endif // FILEPERCHANNELMANAGER_H

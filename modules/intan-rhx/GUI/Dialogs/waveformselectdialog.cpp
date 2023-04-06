@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -63,7 +63,7 @@ WaveformSelectDialog::WaveformSelectDialog(SignalSources* signalSources_, QWidge
     filterComboBox->addItem("LOW");
     filterComboBox->addItem("HIGH");
     filterComboBox->addItem("SPK");
-    if (signalSources->getControllerType() == ControllerStimRecordUSB2) {
+    if (signalSources->getControllerType() == ControllerStimRecord) {
         filterComboBox->addItem("DC");
     }
     filterComboBox->setEnabled(isAmplifierName(channelComboBox->currentText()));

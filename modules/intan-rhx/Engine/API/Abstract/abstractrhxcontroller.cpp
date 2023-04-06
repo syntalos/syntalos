@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -58,7 +58,8 @@ bool operator >(const StreamChannelPair& a, const StreamChannelPair& b)
 
 AbstractRHXController::AbstractRHXController(ControllerType type_, AmplifierSampleRate sampleRate_) :
     type(type_),
-    sampleRate(sampleRate_)
+    sampleRate(sampleRate_),
+    pipeReadErrorCode(0)
 {
     usbBufferSize = MaxNumBlocksToRead * BytesPerWord * RHXDataBlock::dataBlockSizeInWords(type, maxNumDataStreams());
     cout << "RHXController: Allocating " << usbBufferSize / 1.0e6 << " MBytes for USB buffer.\n";
@@ -82,7 +83,7 @@ AbstractRHXController::~AbstractRHXController()
 void AbstractRHXController::initialize()
 {
     resetBoard();
-    if (type == ControllerStimRecordUSB2) {
+    if (type == ControllerStimRecord) {
         enableAuxCommandsOnAllStreams();
         setGlobalSettlePolicy(false, false, false, false, false);
         setTtlOutMode(false, false, false, false, false, false, false, false);
@@ -97,7 +98,7 @@ void AbstractRHXController::initialize()
     selectAuxCommandLength(AuxCmd1, 0, 0);
     selectAuxCommandLength(AuxCmd2, 0, 0);
     selectAuxCommandLength(AuxCmd3, 0, 0);
-    if (type == ControllerStimRecordUSB2) {
+    if (type == ControllerStimRecord) {
         selectAuxCommandLength(AuxCmd4, 0, 0);
         setStimCmdMode(false);
     }
@@ -136,7 +137,7 @@ void AbstractRHXController::initialize()
         enableDataStream(i, false);
     }
 
-    if (type == ControllerStimRecordUSB2) {
+    if (type == ControllerStimRecord) {
         enableDcAmpConvert(true);
         setExtraStates(0);
     } else {
@@ -188,7 +189,7 @@ void AbstractRHXController::initialize()
     setDacThreshold(6, 32768, true);
     setDacThreshold(7, 32768, true);
 
-    if (type == ControllerStimRecordUSB2 || type == ControllerRecordUSB3) {
+    if (type == ControllerStimRecord || type == ControllerRecordUSB3) {
         enableDacReref(false);
     }
 
@@ -213,7 +214,7 @@ void AbstractRHXController::initialize()
         setExternalDigOutChannel(PortH, 0);
     }
 
-    if (type == ControllerStimRecordUSB2) {
+    if (type == ControllerStimRecord) {
         setAnalogInTriggerThreshold(1.65); // +1.65 V
 
         const int NEVER = 65535;
@@ -275,7 +276,7 @@ int AbstractRHXController::maxNumDataStreams(ControllerType type_)
 {
     switch (type_) {
     case ControllerRecordUSB2:
-    case ControllerStimRecordUSB2:
+    case ControllerStimRecord:
         return 8;   // USB 2 bus is limited to 8 data streams
     case ControllerRecordUSB3:
         return 32;   // USB 3 bus can handle 32 data streams
@@ -295,7 +296,7 @@ int AbstractRHXController::maxNumSPIPorts(ControllerType type_)
 {
     switch (type_) {
     case ControllerRecordUSB2:
-    case ControllerStimRecordUSB2:
+    case ControllerStimRecord:
         return 4;
     case ControllerRecordUSB3:
         return 8;
@@ -318,7 +319,7 @@ int AbstractRHXController::boardMode(ControllerType type_)
         return 0;
     case ControllerRecordUSB3:
         return 13;
-    case ControllerStimRecordUSB2:
+    case ControllerStimRecord:
         return 14;
     default:
         return -1;
@@ -469,18 +470,18 @@ string AbstractRHXController::getBoardTypeString(ControllerType type_)
         typeString = "ControllerRecordUSB2"; break;
     case ControllerRecordUSB3:
         typeString = "ControllerRecordUSB3"; break;
-    case ControllerStimRecordUSB2:
-        typeString = "ControllerStimRecordUSB2"; break;
+    case ControllerStimRecord:
+        typeString = "ControllerStimRecord"; break;
     default:
         typeString = "unknown"; break;
     }
     return typeString;
 }
 
-string AbstractRHXController::getSampleRateString(AmplifierSampleRate sampleRate)
+string AbstractRHXController::getSampleRateString(AmplifierSampleRate sampleRate_)
 {
     string sampleRateString;
-    switch (sampleRate) {
+    switch (sampleRate_) {
     case SampleRate30000Hz:
         sampleRateString = "30 kHz"; break;
     case SampleRate25000Hz:
@@ -521,10 +522,10 @@ string AbstractRHXController::getSampleRateString(AmplifierSampleRate sampleRate
     return sampleRateString;
 }
 
-string AbstractRHXController::getStimStepSizeString(StimStepSize stepSize)
+string AbstractRHXController::getStimStepSizeString(StimStepSize stepSize_)
 {
     string stimStepSizeString;
-    switch (stepSize) {
+    switch (stepSize_) {
     case StimStepSize10nA:
         stimStepSizeString = "10 nA"; break;
     case StimStepSize20nA:
@@ -670,7 +671,7 @@ void AbstractRHXController::printCommandList(const vector<unsigned int> &command
     cout << '\n';
     for (i = 0; i < commandList.size(); ++i) {
         cmd = commandList[i];
-        if (type != ControllerStimRecordUSB2) {
+        if (type != ControllerStimRecord) {
             if (cmd < 0 || cmd > 0xffff) {
                 cout << "  command[" << i << "] = INVALID COMMAND: " << cmd << '\n';
             } else if ((cmd & 0xc000) == 0x0000) {
@@ -840,7 +841,7 @@ void AbstractRHXController::setAllDacsToZero()
 // Configure a particular stimulation trigger.
 void AbstractRHXController::configureStimTrigger(int stream, int channel, int triggerSource, bool triggerEnabled, bool edgeTriggered, bool triggerOnLow)
 {
-    if (type != ControllerStimRecordUSB2) return;
+    if (type != ControllerStimRecord) return;
     int value = (triggerEnabled ? (1 << 7) : 0) + (triggerOnLow ? (1 << 6) : 0) + (edgeTriggered ? (1 << 5) : 0) + triggerSource;
     programStimReg(stream, channel, TriggerParams, value);
 }
@@ -848,7 +849,7 @@ void AbstractRHXController::configureStimTrigger(int stream, int channel, int tr
 // Configure the shape, polarity, and number of pulses for a particular stimulation control unit.
 void AbstractRHXController::configureStimPulses(int stream, int channel, int numPulses, StimShape shape, bool negStimFirst)
 {
-    if (type != ControllerStimRecordUSB2) return;
+    if (type != ControllerStimRecord) return;
     if (numPulses < 1) {
         cerr << "Error in RHXController::configureStimPulses: numPulses out of range.\n";
         return;
@@ -889,7 +890,7 @@ StreamChannelPair AbstractRHXController::streamChannelFromWaveName(const string&
 
     bool auxChannel = false;
     if (waveName.substr(2,3) == "AUX") auxChannel = true;
-    if (auxChannel && type == ControllerStimRecordUSB2) return streamChannelPair;
+    if (auxChannel && type == ControllerStimRecord) return streamChannelPair;
 
     int channelNumber;
     if (auxChannel) {
@@ -900,7 +901,7 @@ StreamChannelPair AbstractRHXController::streamChannelFromWaveName(const string&
         if (channelNumber < 0 || channelNumber > 127) return streamChannelPair;
     }
 
-    if (type == ControllerStimRecordUSB2) {
+    if (type == ControllerStimRecord) {
         int streamBase = 2 * (int)port;
         if (!dataStreamEnabled[streamBase] && dataStreamEnabled[streamBase+1]) {
             // Unlikely case where a single RHS2116 chip is plugged into MISO2 on a port

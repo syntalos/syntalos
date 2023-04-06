@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -34,6 +34,7 @@
 #include "filepersignaltypemanager.h"
 #include "fileperchannelmanager.h"
 #include "datafilereader.h"
+#include "advancedstartupdialog.h"
 
 int IntanHeaderInfo::groupIndex(const QString& prefix) const
 {
@@ -206,14 +207,19 @@ bool operator !=(const IntanHeaderInfo &a, const IntanHeaderInfo &b)
 }
 
 
-DataFileReader::DataFileReader(const QString& fileName, bool& canReadFile, QString& report, QObject* parent) :
+DataFileReader::DataFileReader(const QString& fileName, bool& canReadFile, QString& report, uint8_t playbackPortsInt, QObject* parent) :
     QObject(parent)
 {
+    playbackPorts = AdvancedStartupDialog::portsIntToBool(playbackPortsInt);
     report.clear();
     canReadFile = false;
     canReadFile = readHeader(fileName, headerInfo, report);
     if (!canReadFile) return;
-//    printHeader(headerInfo);
+    //qDebug() << "Original header info:";
+    //printHeader(headerInfo);
+    applyPlaybackPorts(headerInfo, report);
+    //qDebug() << "After applying playback ports header info:";
+    //printHeader(headerInfo);
 
     dataBlockPeriodInNsec = 1.0e9 * ((double)RHXDataBlock::samplesPerDataBlock(headerInfo.controllerType)) /
             AbstractRHXController::getSampleRate(headerInfo.sampleRate);
@@ -260,6 +266,7 @@ DataFileReader::DataFileReader(const QString& fileName, bool& canReadFile, QStri
     }
 
     playbackSpeed = 1.0;
+    live = false;
     timeDeficitInNsec = 0.0;
     timer.start();
 }
@@ -267,6 +274,20 @@ DataFileReader::DataFileReader(const QString& fileName, bool& canReadFile, QStri
 DataFileReader::~DataFileReader()
 {
     if (dataFileManager) delete dataFileManager;
+}
+
+void DataFileReader::applyPlaybackPorts(IntanHeaderInfo &info, QString &report)
+{
+    for (int i = 0; i < info.numGroups(); ++i) {
+        HeaderFileGroup *group = &info.groups[i];
+        QString prefix = QString(QChar('A' + i));
+        if (group->prefix == prefix && !playbackPorts[i] && group->enabled) {
+            group->enabled = false;
+            group->channels.clear();
+            group->numAmplifierChannels = 0;
+            report += "Port " + prefix + " present, but deactivated via Playback Control" + EndOfLine;
+        }
+    }
 }
 
 long DataFileReader::readPlaybackDataBlocksRaw(int numBlocks, uint8_t* buffer)
@@ -450,7 +471,7 @@ bool DataFileReader::readHeader(const QString& fileName, IntanHeaderInfo& info, 
     }
 
     if (info.fileType == RHSHeaderFile) {   // Note: Synth mode recordings from old software saves boardMode = 0.
-        info.controllerType = ControllerStimRecordUSB2;
+        info.controllerType = ControllerStimRecord;
     } else if (info.dataFileMainVersionNumber == 2) {
         info.controllerType = ControllerRecordUSB3;
     } else if (info.dataFileMainVersionNumber == 1) {
@@ -460,7 +481,7 @@ bool DataFileReader::readHeader(const QString& fileName, IntanHeaderInfo& info, 
     } else if (info.boardMode == RHDControllerBoardMode) {
         info.controllerType = ControllerRecordUSB3;
     } else if (info.boardMode == RHSControllerBoardMode) {
-        info.controllerType = ControllerStimRecordUSB2;
+        info.controllerType = ControllerStimRecord;
     } else {
         report = "Header Error: Invalid board mode: " + QString::number(info.boardMode);
         return false;
@@ -642,7 +663,7 @@ void DataFileReader::printHeader(const IntanHeaderInfo& info)
     string controllerString;
     if (info.controllerType == ControllerRecordUSB2) controllerString = "RHD USB interface board";
     else if (info.controllerType == ControllerRecordUSB3) controllerString = "RHD recording controller";
-    else if (info.controllerType == ControllerStimRecordUSB2) controllerString = "RHS stim/recording controller";
+    else if (info.controllerType == ControllerStimRecord) controllerString = "RHS stim/recording controller";
     cout << "Controller type: " << controllerString << '\n';
     cout << "Data file version: " << info.dataFileMainVersionNumber << "." << info.dataFileSecondaryVersionNumber << '\n';
     cout << "Number of samples per data block: " << info.samplesPerDataBlock << '\n';
@@ -681,9 +702,20 @@ void DataFileReader::printHeader(const IntanHeaderInfo& info)
     cout << "time in file: " << info.timeInFile << " s" << '\n';
 }
 
+int64_t DataFileReader::blocksPresent()
+{
+    return dataFileManager->blocksPresent();
+}
+
 void DataFileReader::jumpToStart()
 {
     dataFileManager->jumpToTimeStamp(dataFileManager->getFirstTimeStamp());
+    setStatusBarReady();
+}
+
+void DataFileReader::jumpToEnd()
+{
+    dataFileManager->jumpToTimeStamp(dataFileManager->getLastTimeStamp());
     setStatusBarReady();
 }
 

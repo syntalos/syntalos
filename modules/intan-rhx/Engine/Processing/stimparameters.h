@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -72,6 +72,7 @@ public:
     StimParameters(SingleItemList &hList_, SystemState *state_, SignalType signalType_);
 
     void populateParametersFrom(StimParameters* originalStimParameters);
+    SignalType getSignalType() const { return signalType; }
 
     DiscreteItemList *stimShape;
     DiscreteItemList *stimPolarity;
@@ -103,7 +104,6 @@ public:
 
 private:
     SignalType signalType;
-
 };
 
 

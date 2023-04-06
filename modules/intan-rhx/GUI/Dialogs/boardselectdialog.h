@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -53,10 +53,14 @@ const QString CLAMP8chString = "8ch CLAMP Controller";
 const QString UnknownUSB2String = "Unknown USB2 Device";
 const QString UnknownUSB3String = "Unknown USB3 Device";
 const QString UnknownString = "Unknown Device";
+const QString RHS128ch_7310String = "RHS 128ch Stim/Recording Controller (7310)";
+const QString RHD512ch_7310String = "RHD 512ch Recording Controller (7310)";
+const QString RHD1024ch_7310String = "RHD 1024ch Recording Controller (7310)";
 
 enum UsbVersion {
     USB2,
-    USB3
+    USB3,
+    USB3_7310
 };
 
 struct ControllerInfo {
@@ -119,7 +123,7 @@ private:
 
     void showDemoMessageBox();
     void startSoftware(ControllerType controllerType, AmplifierSampleRate sampleRate, StimStepSize stimStepSize,
-                       int numSPIPorts, bool expanderConnected, const QString& boardSerialNumber, AcquisitionMode mode);
+                       int numSPIPorts, bool expanderConnected, const QString& boardSerialNumber, AcquisitionMode mode, bool is7310, DataFileReader* dataFileReader=nullptr);
 
     QTableWidget *boardTable;
     QPushButton *openButton;
@@ -139,6 +143,7 @@ private:
     ControlWindow *controlWindow;
 
     bool useOpenCL;
+    uint8_t playbackPorts;
 
     IntanRhxModule *syMod;
 };

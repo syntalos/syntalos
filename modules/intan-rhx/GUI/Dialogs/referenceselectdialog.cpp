@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -35,7 +35,7 @@
 
 using namespace std;
 
-ReferenceSelectDialog::ReferenceSelectDialog(QString refString, SignalSources* signalSources_, QWidget* parent) :
+ReferenceSelectDialog::ReferenceSelectDialog(QString refString, SignalSources* signalSources_, bool useMedian, QWidget* parent) :
     QDialog(parent),
     signalSources(signalSources_)
 {
@@ -123,6 +123,13 @@ ReferenceSelectDialog::ReferenceSelectDialog(QString refString, SignalSources* s
     QGroupBox *mainGroupBox3 = new QGroupBox();
     mainGroupBox3->setLayout(boxLayout3);
 
+    medianCheckBox = new QCheckBox(tr("Use median instead of average for all reference calculations."), this);
+    medianCheckBox->setChecked(useMedian);
+
+    QHBoxLayout* medianLayout = new QHBoxLayout;
+    medianLayout->addWidget(medianCheckBox);
+    medianLayout->addStretch(1);
+
     okButton = new QPushButton(tr("OK"), this);
     cancelButton = new QPushButton(tr("Cancel"), this);
 
@@ -138,6 +145,7 @@ ReferenceSelectDialog::ReferenceSelectDialog(QString refString, SignalSources* s
     mainLayout->addWidget(mainGroupBox1);
     mainLayout->addWidget(mainGroupBox2);
     mainLayout->addWidget(mainGroupBox3);
+    mainLayout->addLayout(medianLayout);
     mainLayout->addLayout(buttonLayout);
 
     setLayout(mainLayout);
@@ -201,6 +209,11 @@ QString ReferenceSelectDialog::referenceString() const
     return refString;
 }
 
+bool ReferenceSelectDialog::useMedian() const
+{
+    return medianCheckBox->isChecked();
+}
+
 int ReferenceSelectDialog::numSelectedChannels() const
 {
     QList<QListWidgetItem*> selected = channelListWidget->selectedItems();
@@ -212,6 +225,7 @@ void ReferenceSelectDialog::hardwareButtonSelected()
     okButton->setEnabled(true);
     portComboBox->setEnabled(false);
     channelListWidget->setEnabled(false);
+    medianCheckBox->setEnabled(false);
 }
 
 void ReferenceSelectDialog::portReferenceButtonSelected()
@@ -219,6 +233,7 @@ void ReferenceSelectDialog::portReferenceButtonSelected()
     okButton->setEnabled(true);
     portComboBox->setEnabled(true);
     channelListWidget->setEnabled(false);
+    medianCheckBox->setEnabled(true);
 }
 
 void ReferenceSelectDialog::customReferenceButtonSelected()
@@ -226,6 +241,7 @@ void ReferenceSelectDialog::customReferenceButtonSelected()
     okButton->setEnabled(numSelectedChannels() > 0);
     portComboBox->setEnabled(false);
     channelListWidget->setEnabled(true);
+    medianCheckBox->setEnabled(true);
 }
 
 void ReferenceSelectDialog::selectedChannelsChanged()

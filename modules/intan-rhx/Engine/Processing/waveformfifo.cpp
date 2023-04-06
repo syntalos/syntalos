@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -165,7 +165,7 @@ void WaveformFifo::allocateMemory()
                 gpuWaveformAddresses[waveName + "|HIGH"] = { GpuWaveformHighpass, gpuWaveformIndex };
                 gpuWaveformAddresses[waveName + "|SPK"] = { GpuWaveformSpike, gpuWaveformIndex };
                 allocateDigitalBuffer(amplifierSpikeBuffer, waveName + "|SPK");
-                if (signalSources->getControllerType() == ControllerStimRecordUSB2) {
+                if (signalSources->getControllerType() == ControllerStimRecord) {
                     allocateAnalogBuffer(dcAmplifierBuffer, waveName + "|DC");
                     allocateDigitalBuffer(stimFlagsBuffer, waveName + "|STIM");
                 }
@@ -276,12 +276,14 @@ void WaveformFifo::commitNewData()
     }
 }
 
-bool WaveformFifo::requestReadNewData(Reader reader, int numWords)
+bool WaveformFifo::requestReadNewData(Reader reader, int numWords, bool lastRead)
 {
     lock_guard<mutex> lock(mtx);
 
-    if (usedWordsNewData[reader].available() >= numWords + samplesPerDataBlock) {  // Add one data block to allow spike detection
-                                                                                   // pipline to complete.
+    int necessaryData = lastRead ? numWords : numWords + samplesPerDataBlock; // Add one data block to allow spike detection
+                                                                              // pipeline to complete (as long as this isn't the
+                                                                              // last data block in a playback recording session).
+    if (usedWordsNewData[reader].available() >= necessaryData) {
         if (usedWordsNewData[reader].tryAcquire(numWords)) {
             numWordsToBeRead[reader] = numWords;
             return true;
@@ -817,7 +819,7 @@ void WaveformFifo::pauseBuffer()
 {
     for (int reader = 0; reader < numReaders; ++reader) {
         requestReadNewData((Reader) reader, usedWordsNewData[reader].available() - samplesPerDataBlock);
-        // Subtract one data block to compensate for data block added for spike detection pipline (see requestReadNewData()).
+        // Subtract one data block to compensate for data block added for spike detection pipeline (see requestReadNewData()).
         freeOldData((Reader) reader);
     }
 }

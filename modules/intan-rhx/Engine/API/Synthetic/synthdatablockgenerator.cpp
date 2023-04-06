@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -381,7 +381,7 @@ void SynthDataBlockGenerator::createSynthDataBlock(int numBlocks, int numDataStr
                     }
                 }
                 break;
-            case ControllerStimRecordUSB2:
+            case ControllerStimRecord:
                 // Write auxiliary command 1-3 results.
                 for (int channel = 1; channel < 4; ++channel) {
                     for (int stream = 0; stream < numDataStreams; ++stream) {
@@ -420,8 +420,8 @@ void SynthDataBlockGenerator::createSynthDataBlock(int numBlocks, int numDataStr
                 pWrite++;
             }
 
-            // Write stimulation data (ControllerStimRecordUSB2 only).
-            if (type == ControllerStimRecordUSB2) {
+            // Write stimulation data (ControllerStimRecord only).
+            if (type == ControllerStimRecord) {
                 // Write stimulation on/off data.
                 for (int stream = 0; stream < numDataStreams; ++stream) {
                     *pWrite = 0U;
@@ -447,8 +447,8 @@ void SynthDataBlockGenerator::createSynthDataBlock(int numBlocks, int numDataStr
                 }
             }
 
-            // Write Analog Out data (ControllerStimRecordUSB2 only).
-            if (type == ControllerStimRecordUSB2) {
+            // Write Analog Out data (ControllerStimRecord only).
+            if (type == ControllerStimRecord) {
                 for (int i = 0; i < 8; ++i) {
                     *pWrite = (uint16_t) 32768U;
                     pWrite++;

@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -32,6 +32,7 @@
 #define RHXDATABLOCK_H
 
 #include <cstdint>
+#include <fstream>
 #include "rhxglobals.h"
 
 using namespace std;
@@ -76,6 +77,9 @@ public:
     unsigned int dataBlockSizeInWords() const { return dataBlockSizeInWords(type, numDataStreams); }
 
     void fillFromUsbBuffer(uint8_t* usbBuffer, int blockIndex);
+
+    void print(int stream) const;
+    void write(ofstream &saveOut, int numDataStreams) const;
 
     static bool checkUsbHeader(const uint8_t* usbBuffer, int index, ControllerType type_);
     bool checkUsbHeader(const uint8_t* usbBuffer, int index) const;
@@ -122,6 +126,8 @@ private:
         unsigned int result = (x2 << 8) | (x1 << 0);
         return (int)result;
     }
+
+    void writeWordLittleEndian(ofstream &outputStream, int dataWord) const;
 };
 
 #endif // RHXDATABLOCK_H

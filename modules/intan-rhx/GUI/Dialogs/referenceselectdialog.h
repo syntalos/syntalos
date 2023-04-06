@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -38,9 +38,10 @@ class ReferenceSelectDialog : public QDialog
 {
     Q_OBJECT
 public:
-    explicit ReferenceSelectDialog(QString refString, SignalSources* signalSources_, QWidget* parent = nullptr);
+    explicit ReferenceSelectDialog(QString refString, SignalSources* signalSources_, bool useMedian, QWidget* parent = nullptr);
 
     QString referenceString() const;
+    bool useMedian() const;
 
 private slots:
     void hardwareButtonSelected();
@@ -59,6 +60,7 @@ private:
     QComboBox* portComboBox;
     QListWidget* channelListWidget;
 
+    QCheckBox* medianCheckBox;
     QPushButton* okButton;
     QPushButton* cancelButton;
 

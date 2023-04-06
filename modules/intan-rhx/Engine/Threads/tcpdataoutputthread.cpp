@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -363,7 +363,7 @@ void TCPDataOutputThread::updateEnabledChannels()
             totalEnabledBands += thisChannelBands.size();
 
             // Get stim amplitudes for this channel
-            if (state->getControllerTypeEnum() == ControllerStimRecordUSB2) {
+            if (state->getControllerTypeEnum() == ControllerStimRecord) {
                 if (thisChannel->getOutputToTcpStim()) {
                     enabledStimChannelNames.append(thisChannel->getNativeName());
                     double stimStepSizeuA = RHXRegisters::stimStepSizeToDouble(state->getStimStepSizeEnum()) * 1e6;

@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -86,7 +86,7 @@ bool ImpedanceReader::measureImpedances()
     }
 
     // Create a progress bar to let user know how long this will take.
-    int maxProgress = (controllerType == ControllerStimRecordUSB2) ? 50 : 98;
+    int maxProgress = (controllerType == ControllerStimRecord) ? 50 : 98;
     QProgressDialog progress(QObject::tr("Measuring Electrode Impedances"), QString(), 0, maxProgress);
     progress.setWindowTitle(QObject::tr("Progress"));
     progress.setMinimumDuration(0);
@@ -96,8 +96,10 @@ bool ImpedanceReader::measureImpedances()
     // Create a command list for the AuxCmd1 slot.
     RHXRegisters chipRegisters(controllerType, state->sampleRate->getNumericValue(), state->getStimStepSizeEnum());
     vector<unsigned int> commandList;
+
     int commandSequenceLength = chipRegisters.createCommandListZcheckDac(commandList, state->actualImpedanceFreq->getValue(),
                                                                          128.0);
+
     rhxController->uploadCommandList(commandList, AbstractRHXController::AuxCmd1, 1);
     rhxController->selectAuxCommandLength(AbstractRHXController::AuxCmd1, 0, commandSequenceLength - 1);
 
@@ -114,12 +116,13 @@ bool ImpedanceReader::measureImpedances()
     int numBlocks = ceil((numPeriods + 2) * period / (double) RHXDataBlock::samplesPerDataBlock(controllerType)); // + 2 periods to give time to settle initially
     if (numBlocks < 2) numBlocks = 2;   // need first block for command to switch channels to take effect
 
+
      chipRegisters.setDspCutoffFreq(state->desiredDspCutoffFreq->getValue());
     chipRegisters.setLowerBandwidth(state->desiredLowerBandwidth->getValue(), 0);
     chipRegisters.setUpperBandwidth(state->desiredUpperBandwidth->getValue());
     chipRegisters.enableDsp(state->dspEnabled->getValue());
     chipRegisters.enableZcheck(true);
-    if (controllerType == ControllerStimRecordUSB2) {
+    if (controllerType == ControllerStimRecord) {
         commandSequenceLength = chipRegisters.createCommandListRHSRegisterConfig(commandList, false);
     } else {
         commandSequenceLength = chipRegisters.createCommandListRHDRegisterConfig(commandList, false,
@@ -149,6 +152,28 @@ bool ImpedanceReader::measureImpedances()
         }
     }
 
+    // Data files used to examine data used in impedance measurement, only necessary for testing
+//    QFile cap0File("cap0.dat");
+//    cap0File.open(QIODevice::WriteOnly);
+//    QDataStream cap0Stream(&cap0File);
+//    cap0Stream.setVersion(QDataStream::Qt_5_11);
+//    cap0Stream.setByteOrder(QDataStream::LittleEndian);
+//    cap0Stream.setFloatingPointPrecision(QDataStream::DoublePrecision);
+
+//    QFile cap1File("cap1.dat");
+//    cap1File.open(QIODevice::WriteOnly);
+//    QDataStream cap1Stream(&cap1File);
+//    cap1Stream.setVersion(QDataStream::Qt_5_11);
+//    cap1Stream.setByteOrder(QDataStream::LittleEndian);
+//    cap1Stream.setFloatingPointPrecision(QDataStream::DoublePrecision);
+
+//    QFile cap2File("cap2.dat");
+//    cap2File.open(QIODevice::WriteOnly);
+//    QDataStream cap2Stream(&cap2File);
+//    cap2Stream.setVersion(QDataStream::Qt_5_11);
+//    cap2Stream.setByteOrder(QDataStream::LittleEndian);
+//    cap2Stream.setFloatingPointPrecision(QDataStream::DoublePrecision);
+
     // We execute three complete electrode impedance measurements: one each with
     // Cseries set to 0.1 pF, 1 pF, and 10 pF.  Then we select the best measurement
     // for each channel so that we achieve a wide impedance measurement range.
@@ -170,7 +195,7 @@ bool ImpedanceReader::measureImpedances()
             progress.setValue(numChannelsPerStream * capRange + channel + 2);
 
             chipRegisters.setZcheckChannel(channel);
-            if (controllerType == ControllerStimRecordUSB2) {
+            if (controllerType == ControllerStimRecord) {
                 commandSequenceLength = chipRegisters.createCommandListRHSRegisterConfig(commandList, false);
             } else {
                 commandSequenceLength = chipRegisters.createCommandListRHDRegisterConfig(commandList, false,
@@ -189,6 +214,29 @@ bool ImpedanceReader::measureImpedances()
 
             for (int stream = 0; stream < rhxController->getNumEnabledDataStreams(); ++stream) {
                 if (state->chipType[stream] != RHD2164MISOBChip) {
+                    // Measure impedances, and pass measureComplexAmplitude() a file to write to. Only necessary for testing.
+                    // Otherwise, just call measureComplexAmplitude() without this file for all capRange and channel values.
+//                    if (channel == 0 && stream == 0) {
+//                        if (capRange == 0) {
+//                            measuredImpedance[stream][channel][capRange] =
+//                                    measureComplexAmplitude(dataQueue, stream, channel, state->sampleRate->getNumericValue(),
+//                                                            state->actualImpedanceFreq->getValue(), numPeriods, &cap0Stream);
+//                        } else if (capRange == 1) {
+//                            measuredImpedance[stream][channel][capRange] =
+//                                    measureComplexAmplitude(dataQueue, stream, channel, state->sampleRate->getNumericValue(),
+//                                                            state->actualImpedanceFreq->getValue(), numPeriods, &cap1Stream);
+//                        } else {
+//                            measuredImpedance[stream][channel][capRange] =
+//                                    measureComplexAmplitude(dataQueue, stream, channel, state->sampleRate->getNumericValue(),
+//                                                            state->actualImpedanceFreq->getValue(), numPeriods, &cap2Stream);
+//                        }
+//                    }
+
+//                    else {
+//                    measuredImpedance[stream][channel][capRange] =
+//                            measureComplexAmplitude(dataQueue, stream, channel, state->sampleRate->getNumericValue(),
+//                                                    state->actualImpedanceFreq->getValue(), numPeriods);
+//                    }
                     measuredImpedance[stream][channel][capRange] =
                             measureComplexAmplitude(dataQueue, stream, channel, state->sampleRate->getNumericValue(),
                                                     state->actualImpedanceFreq->getValue(), numPeriods);
@@ -230,10 +278,15 @@ bool ImpedanceReader::measureImpedances()
         }
     }
 
+    // Close data files used to examine data used in impedance measurement, only necessary for testing
+//    cap0File.close();
+//    cap1File.close();
+//    cap2File.close();
+
     const double DacVoltageAmplitude = 128.0 * (1.225 / 256.0); // this assumes the DAC amplitude was set to 128
 
     double parasiticCapacitance;  // Estimate of on-chip parasitic capicitance, including effective amplifier input capacitance.
-    if (controllerType == ControllerStimRecordUSB2) {
+    if (controllerType == ControllerStimRecord) {
         parasiticCapacitance = 12.0e-12;  // 12 pF
     } else {
         parasiticCapacitance = 15.0e-12;  // 15 pF
@@ -293,7 +346,7 @@ bool ImpedanceReader::measureImpedances()
                 // Factor out on-chip parasitic capacitance from impedance measurement.
                 impedance = factorOutParallelCapacitance(impedance, state->actualImpedanceFreq->getValue(), parasiticCapacitance);
 
-                if (controllerType == ControllerStimRecordUSB2) {
+                if (controllerType == ControllerStimRecord) {
                     // Multiply by a factor of 10%: empirical tests indicate that RHS chips usually underestimate impedance
                     // by about 10%
                     impedance.magnitude = 1.1 * impedance.magnitude;
@@ -386,7 +439,7 @@ ComplexPolar ImpedanceReader::factorOutParallelCapacitance(ComplexPolar impedanc
 }
 
 ComplexPolar ImpedanceReader::measureComplexAmplitude(const deque<RHXDataBlock*> &dataQueue, int stream, int chipChannel,
-                                                      double sampleRate, double frequency, int numPeriods) const
+                                                      double sampleRate, double frequency, int numPeriods, QDataStream *outStream) const
 {
     int samplesPerDataBlock = RHXDataBlock::samplesPerDataBlock(state->getControllerTypeEnum());
     int numBlocks = (int) dataQueue.size();
@@ -397,6 +450,9 @@ ComplexPolar ImpedanceReader::measureComplexAmplitude(const deque<RHXDataBlock*>
     for (int block = 0; block < numBlocks; ++block) {
         for (int t = 0; t < samplesPerDataBlock; ++t) {
             waveform[index++] = 0.195 * (double)(dataQueue[block]->amplifierData(stream, chipChannel, t) - 32768);
+            if (outStream) {
+                *outStream << 0.195 * (double)(dataQueue[block]->amplifierData(stream, chipChannel, t) - 32768);
+            }
         }
     }
 
@@ -524,7 +580,7 @@ void ImpedanceReader::runDemoImpedanceMeasurement()
     int numChannelsPerStream = RHXDataBlock::channelsPerStream(controllerType);
 
     // Create a progress bar to let user know how long this will take.
-    int maxProgress = (controllerType == ControllerStimRecordUSB2) ? 50 : 98;
+    int maxProgress = (controllerType == ControllerStimRecord) ? 50 : 98;
     QProgressDialog progress(QObject::tr("Measuring Electrode Impedances"), QString(), 0, maxProgress);
     progress.setWindowTitle(QObject::tr("Progress"));
     progress.setMinimumDuration(0);

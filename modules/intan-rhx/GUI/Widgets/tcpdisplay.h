@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -148,6 +148,7 @@ public slots:
     void readClientCommand();
     void TCPReturn(QString result);
     void TCPError(QString errorString);
+    void TCPWarning(QString warningString);
 };
 
 #endif // TCPDISPLAY_H

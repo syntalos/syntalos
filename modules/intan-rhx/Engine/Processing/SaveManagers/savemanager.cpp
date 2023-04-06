@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -61,27 +61,28 @@ int64_t SaveManager::writeIntanFileHeader(SaveFile* saveFile)
 {
     int64_t numBytesInitial = saveFile->getNumBytesWritten();
 
-    if (type == ControllerStimRecordUSB2) {
+    if (type == ControllerStimRecord) {
         saveFile->writeUInt32(DataFileMagicNumberRHS);
     } else {
         saveFile->writeUInt32(DataFileMagicNumberRHD);
     }
-    saveFile->writeInt16(DataFileMainVersionNumber);
-    saveFile->writeInt16(DataFileSecondaryVersionNumber);
+
+    saveFile->writeInt16(SOFTWARE_MAIN_VERSION_NUMBER);
+    saveFile->writeInt16(SOFTWARE_SECONDARY_VERSION_NUMBER);
 
     saveFile->writeDouble(state->sampleRate->getNumericValue());
     saveFile->writeInt16(state->dspEnabled->getValue());
     saveFile->writeDouble(state->actualDspCutoffFreq->getValue());
     saveFile->writeDouble(state->actualLowerBandwidth->getValue());
 
-    if (type == ControllerStimRecordUSB2) {
+    if (type == ControllerStimRecord) {
         saveFile->writeDouble(state->actualLowerSettleBandwidth->getValue());
     }
     saveFile->writeDouble(state->actualUpperBandwidth->getValue());
 
     saveFile->writeDouble(state->desiredDspCutoffFreq->getValue());
     saveFile->writeDouble(state->desiredLowerBandwidth->getValue());
-    if (type == ControllerStimRecordUSB2) {
+    if (type == ControllerStimRecord) {
         saveFile->writeDouble(state->desiredLowerSettleBandwidth->getValue());
     }
     saveFile->writeDouble(state->desiredUpperBandwidth->getValue());
@@ -91,7 +92,7 @@ int64_t SaveManager::writeIntanFileHeader(SaveFile* saveFile)
     saveFile->writeDouble(state->desiredImpedanceFreq->getValue());
     saveFile->writeDouble(state->actualImpedanceFreq->getValue());
 
-    if (type == ControllerStimRecordUSB2) {
+    if (type == ControllerStimRecord) {
         saveFile->writeInt16(state->useFastSettle->getValue());
         saveFile->writeInt16(state->chargeRecoveryMode->getValue());
 
@@ -104,7 +105,7 @@ int64_t SaveManager::writeIntanFileHeader(SaveFile* saveFile)
     saveFile->writeQString(state->note2->getValueString());
     saveFile->writeQString(state->note3->getValueString());
 
-    if (type == ControllerStimRecordUSB2) {
+    if (type == ControllerStimRecord) {
         saveFile->writeInt16(state->saveDCAmplifierWaveforms->getValue());
     } else {
         saveFile->writeInt16(0);
@@ -186,7 +187,7 @@ QString SaveManager::getDateTimeStamp()
 
 QString SaveManager::intanFileExtension() const
 {
-    if (type == ControllerStimRecordUSB2) return QString(".rhs");
+    if (type == ControllerStimRecord) return QString(".rhs");
     else return QString(".rhd");
 }
 
@@ -340,7 +341,7 @@ void SaveManager::convertBoardAdcValue(uint16_t* dest, const float* voltage, int
     }
 }
 
-// ControllerStimRecordUSB2 only
+// ControllerStimRecord only
 uint16_t SaveManager::convertBoardDacValue(float voltage) const   // voltage in volts
 {
     int result = ((int) round(voltage / 312.5e-6F)) + 32768;
@@ -349,7 +350,7 @@ uint16_t SaveManager::convertBoardDacValue(float voltage) const   // voltage in 
     return (uint16_t) result;
 }
 
-// ControllerStimRecordUSB2 only
+// ControllerStimRecord only
 void SaveManager::convertBoardDacValue(uint16_t* dest, const float* voltage, int numSamples) const  // voltage in volts
 {
     int result;
@@ -379,7 +380,7 @@ void SaveManager::getAllWaveformPointers()
         spikeWaveform[i] = waveformFifo->getDigitalWaveformPointer(saveList.amplifier[i] + "|SPK");
     }
 
-    if (type == ControllerStimRecordUSB2) {
+    if (type == ControllerStimRecord) {
         dcAmplifierWaveform.resize(saveList.amplifier.size());
         stimFlagsWaveform.resize(saveList.amplifier.size());
         posStimAmplitudes.resize(saveList.amplifier.size());

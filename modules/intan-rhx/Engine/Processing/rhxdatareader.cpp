@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -52,20 +52,22 @@ void RHXDataReader::setNumDataStreams(int numDataStreams_)
             RHXDataBlock::samplesPerDataBlock(type);
 }
 
-void RHXDataReader::readTimeStampData(uint32_t* buffer) const
+int RHXDataReader::readTimeStampData(uint32_t* buffer) const
 {
     const uint16_t* pRead = start;
     uint32_t* pWrite = buffer;
+    uint32_t lastTimestamp = 0;
 
     pRead += 4; // skip header
     unsigned int w1, w2;
     for (int i = 0; i < numSamples; ++i) {
         w1 = (uint32_t) *pRead;
         w2 = (uint32_t) *(pRead + 1);
-        *pWrite = (w2 << 16) | w1;
-        pWrite++;
+        lastTimestamp = (w2 << 16) | w1;
+        *pWrite++ = lastTimestamp;
         pRead += dataFrameSizeInWords;
     }
+    return lastTimestamp;
 }
 
 // Read one amplifier waveform from raw USB data bytes, converting to microvolts.
@@ -73,12 +75,12 @@ void RHXDataReader::readAmplifierData(float* buffer, int stream, int channel) co
 {
     const uint16_t* pRead = start;
     float* pWrite = buffer;
-    int misoWordSize = ((type == ControllerStimRecordUSB2) ? 2 : 1);
+    int misoWordSize = ((type == ControllerStimRecord) ? 2 : 1);
 
     pRead += 6; // Skip header and timestamp.
     pRead += misoWordSize * (numDataStreams * 3);  // Skip auxillary channels.
     pRead += misoWordSize * ((numDataStreams * channel) + stream);   // Align with selected stream and channel.
-    if (type == ControllerStimRecordUSB2) pRead++;  // Skip top 16 bits of 32-bit MISO word from RHS system.
+    if (type == ControllerStimRecord) pRead++;  // Skip top 16 bits of 32-bit MISO word from RHS system.
     int adcValue;
     for (int i = 0; i < numSamples; ++i) {
         adcValue = (int) *pRead;
@@ -88,7 +90,7 @@ void RHXDataReader::readAmplifierData(float* buffer, int stream, int channel) co
     }
 }
 
-// Read one DC amplifier waveform from raw USB data bytes, converting to volts (ControllerStimRecordUSB2 only).
+// Read one DC amplifier waveform from raw USB data bytes, converting to volts (ControllerStimRecord only).
 void RHXDataReader::readDcAmplifierData(float* buffer, int stream, int channel) const
 {
     const uint16_t* pRead = start;
@@ -529,7 +531,7 @@ void RHXDataReader::readStimParamData(uint16_t* buffer, int stream, int channel)
     }
 }
 
-// ControllerStimRecordUSB2 only
+// ControllerStimRecord only
 void RHXDataReader::readBoardDacData(float* buffer, int channel) const
 {
     const uint16_t* pRead = start;

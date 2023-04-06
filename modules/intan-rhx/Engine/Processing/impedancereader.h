@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -58,7 +58,7 @@ private:
     static double approximateSaturationVoltage(double actualZFreq, double highCutoff);
     static ComplexPolar factorOutParallelCapacitance(ComplexPolar impedance, double frequency, double parasiticCapacitance);
     ComplexPolar measureComplexAmplitude(const deque<RHXDataBlock*> &dataQueue, int stream, int chipChannel,
-                                         double sampleRate, double frequency, int numPeriods) const;
+                                         double sampleRate, double frequency, int numPeriods, QDataStream *outStream = nullptr) const;
     void applyNotchFilter(vector<double> &waveform, double fNotch, double bandwidth, double sampleRate) const;
     static ComplexPolar amplitudeOfFreqComponent(const vector<double> &waveform, int startIndex, int endIndex,
                                                  double sampleRate, double frequency);

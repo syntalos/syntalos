@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -85,16 +85,16 @@ public:
     void setAmpPowered(int channel, bool powered);
     void powerUpAllAmps();
     void powerDownAllAmps();
-    void setDCAmpPowered(int channel, bool powered);    // ControllerStimRecordUSB2 only
-    void powerUpAllDCAmps();                            // ControllerStimRecordUSB2 only
-    void powerDownAllDCAmps();                          // ControllerStimRecordUSB2 only
+    void setDCAmpPowered(int channel, bool powered);    // ControllerStimRecord only
+    void powerUpAllDCAmps();                            // ControllerStimRecord only
+    void powerDownAllDCAmps();                          // ControllerStimRecord only
 
-    void setStimEnable(bool enable);                    // ControllerStimRecordUSB2 only
+    void setStimEnable(bool enable);                    // ControllerStimRecord only
 
-    void setStimStepSize(StimStepSize step);                        // ControllerStimRecordUSB2 only
-    static double stimStepSizeToDouble(StimStepSize step);          // ControllerStimRecordUSB2 only
-    int setPosStimMagnitude(int channel, int magnitude, int trim);  // ControllerStimRecordUSB2 only
-    int setNegStimMagnitude(int channel, int magnitude, int trim);  // ControllerStimRecordUSB2 only
+    void setStimStepSize(StimStepSize step);                        // ControllerStimRecord only
+    static double stimStepSizeToDouble(StimStepSize step);          // ControllerStimRecord only
+    int setPosStimMagnitude(int channel, int magnitude, int trim);  // ControllerStimRecord only
+    int setNegStimMagnitude(int channel, int magnitude, int trim);  // ControllerStimRecord only
 
     enum ChargeRecoveryCurrentLimit {
         CurrentLimitMin = 0,
@@ -111,9 +111,9 @@ public:
         CurrentLimitMax
     };
 
-    void setChargeRecoveryCurrentLimit(ChargeRecoveryCurrentLimit limit);               // ControllerStimRecordUSB2 only
-    static double chargeRecoveryCurrentLimitToDouble(ChargeRecoveryCurrentLimit limit); // ControllerStimRecordUSB2 only
-    double setChargeRecoveryTargetVoltage(double vTarget);                              // ControllerStimRecordUSB2 only
+    void setChargeRecoveryCurrentLimit(ChargeRecoveryCurrentLimit limit);               // ControllerStimRecord only
+    static double chargeRecoveryCurrentLimitToDouble(ChargeRecoveryCurrentLimit limit); // ControllerStimRecord only
+    double setChargeRecoveryTargetVoltage(double vTarget);                              // ControllerStimRecord only
 
     int getRegisterValue(int reg) const;
 
@@ -140,7 +140,7 @@ public:
         RHXCommandCalClear,
         RHXCommandRegWrite,
         RHXCommandRegRead,
-        RHXCommandComplianceReset  // ControllerStimRecordUSB2 only
+        RHXCommandComplianceReset  // ControllerStimRecord only
     };
 
     unsigned int createRHXCommand(RHXCommandType commandType);

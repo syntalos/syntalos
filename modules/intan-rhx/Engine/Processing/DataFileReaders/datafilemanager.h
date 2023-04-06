@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -47,7 +47,8 @@ public:
     virtual ~DataFileManager();
 
     int64_t getFirstTimeStamp() const { return firstTimeStamp; }
-    int64_t getLastTimeStamp() const { return lastTimeStamp; }
+    virtual int64_t getLastTimeStamp() { return lastTimeStamp; }
+    //int64_t getLastTimeStamp() const { return lastTimeStamp; }
     int64_t getCurrentTimeStamp() const { return readIndex + firstTimeStamp; }
     int64_t getTotalNumSamples() const { return totalNumSamples; }
 
@@ -56,7 +57,7 @@ public:
     bool liveNotesLoaded() const { return !liveNotes.empty(); }
     QString getLastLiveNote();
 
-    long readDataBlocksRaw(int numBlocks, uint8_t* buffer);
+    virtual long readDataBlocksRaw(int numBlocks, uint8_t* buffer);
     virtual int64_t jumpToTimeStamp(int64_t target) = 0;
     virtual void loadDataFrame() = 0;
     void readLiveNotes(QFile* liveNotesFile);
@@ -73,6 +74,8 @@ public:
         uint16_t complianceLimit;
         void clear() { amplitude = 0; stimOn = 0; stimPol = 0; ampSettle = 0; chargeRecov = 0; complianceLimit = 0; }
     };
+
+    virtual int64_t blocksPresent() = 0;
 
 protected:
     QString fileName;

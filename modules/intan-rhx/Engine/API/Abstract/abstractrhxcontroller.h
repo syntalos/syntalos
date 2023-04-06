@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -117,8 +117,8 @@ public:
     static string getDigitalIOChannelNumber(ControllerType type_, int channel_);
 
     static string getBoardTypeString(ControllerType type_);
-    static string getSampleRateString(AmplifierSampleRate sampleRate);
-    static string getStimStepSizeString(StimStepSize stepSize);
+    static string getSampleRateString(AmplifierSampleRate sampleRate_);
+    static string getStimStepSizeString(StimStepSize stepSize_);
     static AmplifierSampleRate nearestSampleRate(double rate, double percentTolerance = 1.0);
     static StimStepSize nearestStimStepSize(double step, double percentTolerance = 1.0);
 
@@ -213,7 +213,9 @@ public:
     virtual void uploadCommandList(const vector<unsigned int> &commandList, AuxCmdSlot auxCommandSlot, int bank) = 0;
 
     virtual int findConnectedChips(vector<ChipType> &chipType, vector<int> &portIndex, vector<int> &commandStream,
-                                   vector<int> &numChannelsOnPort) = 0;
+                                   vector<int> &numChannelsOnPort, bool synthMaxChannels = false) = 0;
+
+    int pipeReadError() const { return pipeReadErrorCode; }
 
 protected:
     ControllerType type;
@@ -233,14 +235,19 @@ protected:
     // Buffer for reading bytes from USB interface
     uint8_t* usbBuffer;
 
-    // Buffers for writing bytes to command RAM (ControllerStimRecordUSB2 only)
-    uint8_t commandBufferMsw[65536];
-    uint8_t commandBufferLsw[65536];
+    // Buffers for writing bytes to command RAM (ControllerStimRecord only)
+    // Size has been doubled to allow for same amount of data to be transmitted
+    // across 32-bit PipeIns for RHS 7310 (zero-padded to remain as compatible
+    // as possible with 16-bit PipeIns of RHS 6010).
+    uint8_t commandBufferMsw[65536 * 2];
+    uint8_t commandBufferLsw[65536 * 2];
 
     virtual unsigned int numWordsInFifo() = 0;
     virtual bool isDcmProgDone() const = 0;
     virtual bool isDataClockLocked() const = 0;
     virtual void forceAllDataStreamsOff() = 0;
+
+    int pipeReadErrorCode;
 
 private:
     static bool approximatelyEqual(double a, double b, double percentTolerance);

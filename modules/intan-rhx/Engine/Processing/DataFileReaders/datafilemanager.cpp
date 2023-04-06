@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -44,7 +44,7 @@ DataFileManager::DataFileManager(const QString& fileName_, IntanHeaderInfo* info
     for (int i = 0; i < (int) amplifierWasSaved.size(); ++i) {
         amplifierWasSaved[i].resize(channelsPerStream, false);
     }
-    if (info->controllerType == ControllerStimRecordUSB2) {
+    if (info->controllerType == ControllerStimRecord) {
         // Can't be confident of value of dcAmplifierDataSaved since old RHS software saves it as 0 in non-Intan format,
         // so always allocate dcAmplifierWasSaved.
         dcAmplifierWasSaved.resize(info->numDataStreams);
@@ -106,7 +106,7 @@ DataFileManager::DataFileManager(const QString& fileName_, IntanHeaderInfo* info
     for (int i = 0; i < (int) amplifierData.size(); ++i) {
         amplifierData[i].resize(channelsPerStream, false);
     }
-    if (info->controllerType == ControllerStimRecordUSB2) {
+    if (info->controllerType == ControllerStimRecord) {
         dcAmplifierData.resize(info->numDataStreams);
         for (int i = 0; i < (int) dcAmplifierData.size(); ++i) {
             dcAmplifierData[i].resize(channelsPerStream, false);
@@ -120,7 +120,7 @@ DataFileManager::DataFileManager(const QString& fileName_, IntanHeaderInfo* info
             negStimAmplitudeFound[i].resize(channelsPerStream, false);
         }
     }
-    if (info->controllerType != ControllerStimRecordUSB2) {
+    if (info->controllerType != ControllerStimRecord) {
         auxInputData.resize(info->numDataStreams);
         for (int i = 0; i < (int) auxInputData.size(); ++i) {
             auxInputData[i].resize(3, false);
@@ -256,7 +256,7 @@ long DataFileManager::readDataBlocksRaw(int numBlocks, uint8_t* buffer)
                     }
                 }
                 break;
-            case ControllerStimRecordUSB2:
+            case ControllerStimRecord:
                 // Write auxiliary command 1-3 results.
                 for (int channel = 1; channel < 4; ++channel) {
                     for (int stream = 0; stream < numDataStreams; ++stream) {
@@ -316,8 +316,8 @@ long DataFileManager::readDataBlocksRaw(int numBlocks, uint8_t* buffer)
                 pWrite += 2;
             }
 
-            // Write stimulation data (ControllerStimRecordUSB2 only).
-            if (type == ControllerStimRecordUSB2) {
+            // Write stimulation data (ControllerStimRecord only).
+            if (type == ControllerStimRecord) {
                 // Write stimulation on/off data.
                 for (int stream = 0; stream < numDataStreams; ++stream) {
                     pWrite[0] = (stimData[stream][7].stimOn << 7) | (stimData[stream][6].stimOn << 6) |
@@ -368,8 +368,8 @@ long DataFileManager::readDataBlocksRaw(int numBlocks, uint8_t* buffer)
                 }
             }
 
-            // Write Analog Out data (ControllerStimRecordUSB2 only).
-            if (type == ControllerStimRecordUSB2) {
+            // Write Analog Out data (ControllerStimRecord only).
+            if (type == ControllerStimRecord) {
                 for (int i = 0; i < 8; ++i) {
                     word = analogOutData[i];
                     pWrite[0] = (word & 0x00ffU) >> 0;

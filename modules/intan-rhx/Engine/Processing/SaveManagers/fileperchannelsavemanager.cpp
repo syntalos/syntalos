@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -183,7 +183,7 @@ bool FilePerChannelSaveManager::openAllSaveFiles()
             spikeFile->writeUInt32(samplesPreDetect);
             spikeFile->writeUInt32(samplesPostDetect);
         }
-        if (type == ControllerStimRecordUSB2) {
+        if (type == ControllerStimRecord) {
             if (saveList.stimEnabled[i]) {
                 stimFiles.push_back(new SaveFile(subdirPath + "stim-" + QString::fromStdString(saveList.amplifier[i]) +
                                                  DataFileExtension, bufferSize));
@@ -202,7 +202,7 @@ bool FilePerChannelSaveManager::openAllSaveFiles()
             }
         }
     }
-    if (type != ControllerStimRecordUSB2) {
+    if (type != ControllerStimRecord) {
         for (int i = 0; i < (int) saveList.auxInput.size(); ++i) {
             auxInputFiles.push_back(new SaveFile(subdirPath + "aux-" + QString::fromStdString(saveList.auxInput[i]) +
                                                  DataFileExtension, bufferSize));
@@ -228,7 +228,7 @@ bool FilePerChannelSaveManager::openAllSaveFiles()
             return false;
         }
     }
-    if (type == ControllerStimRecordUSB2) {
+    if (type == ControllerStimRecord) {
         for (int i = 0; i < (int) saveList.boardDac.size(); ++i) {
             analogOutputFiles.push_back(new SaveFile(subdirPath + "board-" + QString::fromStdString(saveList.boardDac[i]) +
                                                      DataFileExtension, bufferSize));
@@ -455,7 +455,7 @@ int64_t FilePerChannelSaveManager::writeToSaveFiles(int numSamples, int timeInde
         }
     }
 
-    if (type == ControllerStimRecordUSB2) {
+    if (type == ControllerStimRecord) {
         // Save DC amplifier data.
         if (state->saveDCAmplifierWaveforms->getValue()) {
             for (int i = 0; i < (int) saveList.amplifier.size(); ++i) {
@@ -479,7 +479,7 @@ int64_t FilePerChannelSaveManager::writeToSaveFiles(int numSamples, int timeInde
         }
     }
 
-    if (type != ControllerStimRecordUSB2) {
+    if (type != ControllerStimRecord) {
         // Save auxiliary input data.
         for (int i = 0; i < (int) saveList.auxInput.size(); ++i) {
             waveformFifo->copyAnalogData(WaveformFifo::ReaderDisk, vArray, auxInputWaveform[i], timeIndex, numSamples);
@@ -505,7 +505,7 @@ int64_t FilePerChannelSaveManager::writeToSaveFiles(int numSamples, int timeInde
         numBytesWritten += analogInputFiles[i]->getNumBytesWritten();
     }
 
-    if (type == ControllerStimRecordUSB2) {
+    if (type == ControllerStimRecord) {
         // Save board DAC data.
         for (int i = 0; i < (int) saveList.boardDac.size(); ++i) {
             waveformFifo->copyAnalogData(WaveformFifo::ReaderDisk, vArray, boardDacWaveform[i], timeIndex, numSamples);
@@ -544,7 +544,7 @@ double FilePerChannelSaveManager::bytesPerMinute() const
     bytes += 2.0 * saveList.auxInput.size();
     bytes += 2.0 * saveList.supplyVoltage.size();
     bytes += 2.0 * saveList.boardAdc.size();
-    if (type == ControllerStimRecordUSB2) {
+    if (type == ControllerStimRecord) {
         if (state->saveDCAmplifierWaveforms->getValue()) {
             bytes += 2.0 * saveList.amplifier.size();
         }

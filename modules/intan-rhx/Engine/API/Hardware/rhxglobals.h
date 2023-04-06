@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -31,14 +31,11 @@
 #ifndef RHXGLOBALS_H
 #define RHXGLOBALS_H
 
-#include <QString>
+#define USE_QT // Comment out to compile without using Qt
+
+#include <cstdint>
 
 #define CL_USE_DEPRECATED_OPENCL_1_2_APIS
-
-const QString OrganizationName = "Intan Technologies";
-const QString OrganizationDomain = "intantech.com";
-const QString ApplicationName = "IntanRHX";
-const QString ApplicationCopyrightYear = "2020-2022";
 
 const int GRADIENTWIDTH = 300;
 const int GRADIENTHEIGHT = 10;
@@ -48,44 +45,13 @@ const int HASHMARKLENGTH = 5;
 
 // Software version number (e.g., version 1.3.5)
 #define SOFTWARE_MAIN_VERSION_NUMBER 3
-#define SOFTWARE_SECONDARY_VERSION_NUMBER 1
+#define SOFTWARE_SECONDARY_VERSION_NUMBER 2
 #define SOFTWARE_TERTIARY_VERSION_NUMBER 0
-
-const QString SoftwareVersion = QString::number(SOFTWARE_MAIN_VERSION_NUMBER) + "." +
-                                QString::number(SOFTWARE_SECONDARY_VERSION_NUMBER) + "." +
-                                QString::number(SOFTWARE_TERTIARY_VERSION_NUMBER);
-
-// FPGA configuration bitfiles
-const QString ConfigFileRHDBoard = "ConfigRHDInterfaceBoard.bit";
-const QString ConfigFileRHDController = "ConfigRHDController.bit";
-const QString ConfigFileRHSController = "ConfigRHSController.bit";
-const QString ConfigFileXEM6010Tester = "ConfigXEM6010Tester.bit";
-
-// Special Unicode characters, as QString data type
-const QString DeltaSymbol = QString((QChar)0x0394);
-const QString MuSymbol = QString((QChar)0x03bc);
-const QString MicroVoltsSymbol = MuSymbol + QString("V");
-const QString MicroAmpsSymbol = MuSymbol + QString("A");
-const QString MicroSecondsSymbol = MuSymbol + QString("s");
-const QString OmegaSymbol = QString((QChar)0x03a9);
-const QString AngleSymbol = QString((QChar)0x2220);
-const QString DegreeSymbol = QString((QChar)0x00b0);
-const QString PlusMinusSymbol = QString((QChar)0x00b1);
-const QString SqrtSymbol = QString((QChar)0x221a);
-const QString EnDashSymbol = QString((QChar)0x2013);
-const QString EmDashSymbol = QString((QChar)0x2014);
-const QString EllipsisSymbol = QString((QChar)0x2026);
-const QString CopyrightSymbol = QString((QChar)0x00a9);
-
-const QString MuSymbolTCP = QString::fromStdWString(L"\u00b5");
-const QString PlusMinusSymbolTCP = QString::fromStdWString(L"\u00b1");
-
-const QString EndOfLine = QString("\n");
 
 enum ControllerType {
     ControllerRecordUSB2 = 0,
     ControllerRecordUSB3 = 1,
-    ControllerStimRecordUSB2 = 2
+    ControllerStimRecord = 2
 };
 
 enum DemoSelections {
@@ -93,18 +59,6 @@ enum DemoSelections {
     DemoRecordingController,
     DemoStimRecordController,
     DemoPlayback
-};
-
-const QString ControllerTypeString[3] = {
-    "RHD USB Interface Board",
-    "RHD Recording Controller",
-    "RHS Stimulation/Recording Controller"
-};
-
-const QString ControllerTypeSettingsGroup[3] = {
-    "RHDUSBInterfaceBoard",
-    "RHDRecordingController",
-    "RHSStimRecordingController"
 };
 
 enum AmplifierSampleRate {
@@ -127,26 +81,6 @@ enum AmplifierSampleRate {
     SampleRate30000Hz = 16
 };
 
-const QString SampleRateString[17] = {
-    "1.0 kHz",
-    "1.25 kHz",
-    "1.5 kHz",
-    "2 kHz",
-    "2.5 kHz",
-    "3.0 kHz",
-    "3.33 kHz",
-    "4 kHz",
-    "5 kHz",
-    "6.25 kHz",
-    "8 kHz",
-    "10 kHz",
-    "12.5 kHz",
-    "15 kHz",
-    "20 kHz",
-    "25 kHz",
-    "30 kHz"
-};
-
 enum StimStepSize {
     StimStepSizeMin = 0,
     StimStepSize10nA = 1,
@@ -160,21 +94,6 @@ enum StimStepSize {
     StimStepSize5uA = 9,
     StimStepSize10uA = 10,
     StimStepSizeMax = 11
-};
-
-const QString StimStepSizeString[12] = {
-    "minimum step size (imprecise)",
-    PlusMinusSymbol + "2.55 " + MicroAmpsSymbol + " range (10 nA step size)",
-    PlusMinusSymbol + "5.10 " + MicroAmpsSymbol + " range (20 nA step size)",
-    PlusMinusSymbol + "12.75 " + MicroAmpsSymbol + " range (50 nA step size)",
-    PlusMinusSymbol + "25.5 " + MicroAmpsSymbol + " range (0.1 " + MicroAmpsSymbol + " step size)",
-    PlusMinusSymbol + "51.0 " + MicroAmpsSymbol + " range (0.2 " + MicroAmpsSymbol + " step size)",
-    PlusMinusSymbol + "127.5 " + MicroAmpsSymbol + " range (0.5 " + MicroAmpsSymbol + " step size)",
-    PlusMinusSymbol + "255 " + MicroAmpsSymbol + " range (1 " + MicroAmpsSymbol + " step size)",
-    PlusMinusSymbol + "510 " + MicroAmpsSymbol + " range (2 " + MicroAmpsSymbol + " step size)",
-    PlusMinusSymbol + "1.275 mA range (5 " + MicroAmpsSymbol + " step size)",
-    PlusMinusSymbol + "2.550 mA range (10 " + MicroAmpsSymbol + " step size)",
-    "maximum step size (imprecise)"
 };
 
 enum BoardPort {
@@ -246,7 +165,10 @@ enum BoardMode {
     RHDController,
     CLAMPController,
     UnknownUSB2Device,
-    UnknownUSB3Device
+    UnknownUSB3Device,
+    RHSController_7310,
+    RHDController_7310,
+    UnknownUSB3_7310Device
 };
 
 const unsigned int FIFOCapacityInWords = 67108864;
@@ -291,8 +213,6 @@ const double Log10_9 = 0.954242509439;
 // Saved data file constants
 const uint32_t DataFileMagicNumberRHD = 0xc6912702;
 const uint32_t DataFileMagicNumberRHS = 0xd69127ac;
-const int16_t DataFileMainVersionNumber = 3;
-const int16_t DataFileSecondaryVersionNumber = 0;
 const uint32_t SpikeFileMagicNumberAllChannels = 0x18f8474b;
 const uint32_t SpikeFileMagicNumberSingleChannel = 0x18f88c00;
 
@@ -302,6 +222,95 @@ const uint32_t TCPWaveformMagicNumber = 0x2ef07a08;
 // TCP Spike Output magic number
 const uint32_t TCPSpikeMagicNumber = 0x3ae2710f;
 
+#ifdef USE_QT
+#include <QString>
+
+const QString OrganizationName = "Intan Technologies";
+const QString OrganizationDomain = "intantech.com";
+const QString ApplicationName = "IntanRHX";
+const QString ApplicationCopyrightYear = "2020-2023";
+
+const QString SoftwareVersion = QString::number(SOFTWARE_MAIN_VERSION_NUMBER) + "." +
+                                QString::number(SOFTWARE_SECONDARY_VERSION_NUMBER) + "." +
+                                QString::number(SOFTWARE_TERTIARY_VERSION_NUMBER);
+
+// FPGA configuration bitfiles
+const QString ConfigFileRHDBoard = "ConfigRHDInterfaceBoard.bit";
+const QString ConfigFileRHDController = "ConfigRHDController.bit";
+const QString ConfigFileRHSController = "ConfigRHSController.bit";
+const QString ConfigFileXEM6010Tester = "ConfigXEM6010Tester.bit";
+const QString ConfigFileRHDController_7310 = "ConfigRHDController_7310.bit";
+const QString ConfigFileRHSController_7310 = "ConfigRHSController_7310.bit";
+
+// Special Unicode characters, as QString data type
+const QString DeltaSymbol = QString((QChar)0x0394);
+const QString MuSymbol = QString((QChar)0x03bc);
+const QString MicroVoltsSymbol = MuSymbol + QString("V");
+const QString MicroAmpsSymbol = MuSymbol + QString("A");
+const QString MicroSecondsSymbol = MuSymbol + QString("s");
+const QString OmegaSymbol = QString((QChar)0x03a9);
+const QString AngleSymbol = QString((QChar)0x2220);
+const QString DegreeSymbol = QString((QChar)0x00b0);
+const QString PlusMinusSymbol = QString((QChar)0x00b1);
+const QString SqrtSymbol = QString((QChar)0x221a);
+const QString EnDashSymbol = QString((QChar)0x2013);
+const QString EmDashSymbol = QString((QChar)0x2014);
+const QString EllipsisSymbol = QString((QChar)0x2026);
+const QString CopyrightSymbol = QString((QChar)0x00a9);
+
+const QString MuSymbolTCP = QString::fromStdWString(L"\u00b5");
+const QString PlusMinusSymbolTCP = QString::fromStdWString(L"\u00b1");
+
+const QString EndOfLine = QString("\n");
+
+const QString ControllerTypeString[3] = {
+    "RHD USB Interface Board",
+    "RHD Recording Controller",
+    "RHS Stimulation/Recording Controller"
+};
+
+const QString ControllerTypeSettingsGroup[3] = {
+    "RHDUSBInterfaceBoard",
+    "RHDRecordingController",
+    "RHSStimRecordingController"
+};
+
+const QString SampleRateString[17] = {
+    "1.0 kHz",
+    "1.25 kHz",
+    "1.5 kHz",
+    "2 kHz",
+    "2.5 kHz",
+    "3.0 kHz",
+    "3.33 kHz",
+    "4 kHz",
+    "5 kHz",
+    "6.25 kHz",
+    "8 kHz",
+    "10 kHz",
+    "12.5 kHz",
+    "15 kHz",
+    "20 kHz",
+    "25 kHz",
+    "30 kHz"
+};
+
+const QString StimStepSizeString[12] = {
+    "minimum step size (imprecise)",
+    PlusMinusSymbol + "2.55 " + MicroAmpsSymbol + " range (10 nA step size)",
+    PlusMinusSymbol + "5.10 " + MicroAmpsSymbol + " range (20 nA step size)",
+    PlusMinusSymbol + "12.75 " + MicroAmpsSymbol + " range (50 nA step size)",
+    PlusMinusSymbol + "25.5 " + MicroAmpsSymbol + " range (0.1 " + MicroAmpsSymbol + " step size)",
+    PlusMinusSymbol + "51.0 " + MicroAmpsSymbol + " range (0.2 " + MicroAmpsSymbol + " step size)",
+    PlusMinusSymbol + "127.5 " + MicroAmpsSymbol + " range (0.5 " + MicroAmpsSymbol + " step size)",
+    PlusMinusSymbol + "255 " + MicroAmpsSymbol + " range (1 " + MicroAmpsSymbol + " step size)",
+    PlusMinusSymbol + "510 " + MicroAmpsSymbol + " range (2 " + MicroAmpsSymbol + " step size)",
+    PlusMinusSymbol + "1.275 mA range (5 " + MicroAmpsSymbol + " step size)",
+    PlusMinusSymbol + "2.550 mA range (10 " + MicroAmpsSymbol + " step size)",
+    "maximum step size (imprecise)"
+};
+
+
 // Parameter setting error messages
 const QString ReadOnlyErrorMessage = "cannot be changed once software has started.";
 const QString RunningErrorMessage = "cannot be set while controller is running.";
@@ -310,5 +319,6 @@ const QString NonStimErrorMessage = "cannot be set with a non-stim controller";
 const QString NonStimRunningErrorMessage = "cannot be set with a non-stim controller, or while controller is running";
 const QString StimErrorMessage = "cannot be set with a stim controller";
 const QString StimRunningErrorMessage = "cannot be set with a stim controller, or while controller is running";
+#endif
 
 #endif // RHXGLOBALS_H

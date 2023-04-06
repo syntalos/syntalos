@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -133,7 +133,7 @@ ControlPanelConfigureTab::ControlPanelConfigureTab(ControllerInterface* controll
     connect(liveNotesLineEdit, SIGNAL(returnPressed()), this, SLOT(addLiveNote()));
 
     QGroupBox *fastSettleGroupBox;
-    if (state->getControllerTypeEnum() != ControllerStimRecordUSB2) {
+    if (state->getControllerTypeEnum() != ControllerStimRecord) {
         digOutButton = new QPushButton(tr("Configure"), this);
         QHBoxLayout *digOutLayout = new QHBoxLayout;
         digOutLayout->addWidget(digOutButton);
@@ -172,7 +172,7 @@ ControlPanelConfigureTab::ControlPanelConfigureTab(ControllerInterface* controll
         fastSettleGroupBox->setLayout(fastSettleLayout);
     }
     configLayout->addLayout(configTopLayout1);
-    if (state->getControllerTypeEnum() != ControllerStimRecordUSB2) {
+    if (state->getControllerTypeEnum() != ControllerStimRecord) {
         configLayout->addWidget(fastSettleGroupBox);
     }
     configLayout->addWidget(notesGroupBox);
@@ -193,7 +193,7 @@ void ControlPanelConfigureTab::updateFromState()
     scanButton->setEnabled(!state->running && nonPlayback);
     setCableDelayButton->setEnabled(!state->running && nonPlayback);
 
-    if (state->getControllerTypeEnum() != ControllerStimRecordUSB2) {
+    if (state->getControllerTypeEnum() != ControllerStimRecord) {
         digOutButton->setEnabled(!state->running && nonPlayback);
         fastSettleCheckBox->setEnabled(!externalFastSettleCheckBox->isChecked() && nonPlayback);
         externalFastSettleCheckBox->setEnabled(!fastSettleCheckBox->isChecked() && nonPlayback);

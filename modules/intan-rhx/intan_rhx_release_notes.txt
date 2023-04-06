@@ -78,9 +78,20 @@ Intan RHX release notes
 - Increase max number of columns to 16.
 - Put waveform display in a scroll area so that when too many columns are present to be displayed at once, a scroll bar can be used.
 
-* Version 3.1.0, 6 June 2022
+* Version 3.1.0, 3 June 2022
 - Fixed memory issue that caused systems with multiple RHD2216 chips to erroneously duplicate channels.
 - Added Plotting Mode options in the Performance menu, including a new High Efficiency mode that plots data more efficiently.
 - Allowed some elements (including window size, position, and control panel state) of the basic GUI appearance to automatically load/save through QSettings.
 - Added current channel name to the Window Title of the Spike Scope, ISI, PSTH, and Spectrogram tools.
 - Added current loaded filename to the Window Title of the Probe Map tool.
+
+* Version 3.2.0, 3 June 2022
+- Allow user to specify which port(s) to read data from in Advanced dialog
+- For One File Per Channel file format, when playing back data as it's being written, allow for jumping to the end of data for near-real-time playback
+- Support for use of XEM7310 board in Intan controllers to replace XEM6010 and XEM6310
+- Allow user to specify use of median instead of average for reference calculations
+- Fix various issues with re-recorded playback data dropping data blocks at the end
+- Allow user to specify whether or not to use max # of channels possible in synth mode
+- Add "Get CurrentTimestamp" and "Get CurrentTimeSeconds" TCP commands
+- Improved error detection and reporting for TCP commands
+- Various improvements in RHX API including easier use of the API without Qt, and additional utility functions described in Rhythm and RhythmStim documentation.

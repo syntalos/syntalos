@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -33,14 +33,15 @@
 
 using namespace std;
 
-SoftwareReferenceProcessor::SoftwareReferenceProcessor(ControllerType type_, int numDataStreams_, int numSamples_) :
+SoftwareReferenceProcessor::SoftwareReferenceProcessor(ControllerType type_, int numDataStreams_, int numSamples_, SystemState* state_) :
     type(type_),
     numDataStreams(numDataStreams_),
-    numSamples(numSamples_)
+    numSamples(numSamples_),
+    state(state_)
 {
     dataFrameSizeInWords = RHXDataBlock::dataBlockSizeInWords(type, numDataStreams) /
             RHXDataBlock::samplesPerDataBlock(type);
-    misoWordSize = ((type == ControllerStimRecordUSB2) ? 2 : 1);
+    misoWordSize = ((type == ControllerStimRecord) ? 2 : 1);
 }
 
 SoftwareReferenceProcessor::~SoftwareReferenceProcessor()
@@ -117,7 +118,7 @@ void SoftwareReferenceProcessor::updateReferenceInfo(const SignalSources* signal
                             char maxPort = (type == ControllerRecordUSB3) ? 'H' : 'D';
                             for (char port = 'A'; port <= maxPort; ++port) {
                                 QString portPrefix = QString(QChar(port)) + "-";
-                                int maxChannelsPerPort = (type == ControllerStimRecordUSB2) ? 32 : 128;
+                                int maxChannelsPerPort = (type == ControllerStimRecord) ? 32 : 128;
                                 for (int i = 0; i < maxChannelsPerPort; ++i) {
                                     Channel* refChannel = signalSources->channelByName(portPrefix +
                                                                                              QString("%1").arg(i, 3, 10, QChar('0')));
@@ -139,7 +140,7 @@ void SoftwareReferenceProcessor::updateReferenceInfo(const SignalSources* signal
                             shortcutFound = true;
                         } else {
                             QString portPrefix = refString.right(1) + "-";
-                            int maxChannelsPerPort = (type == ControllerStimRecordUSB2) ? 32 : 128;
+                            int maxChannelsPerPort = (type == ControllerStimRecord) ? 32 : 128;
                             for (int i = 0; i < maxChannelsPerPort; ++i) {
                                 Channel* refChannel = signalSources->channelByName(portPrefix +
                                                                                          QString("%1").arg(i, 3, 10, QChar('0')));
@@ -261,14 +262,27 @@ void SoftwareReferenceProcessor::calculateReferenceSignals(const uint16_t* start
         readReferenceSignal(singleReferenceList[i], singleReferenceData[i], start);
     }
 
-    for (int i = 0; i < (int) multiReferenceList.size(); ++i) {
-        readReferenceSignal(multiReferenceList[i][0], multiReferenceData[i], start);
-        for (int j = 1; j < (int) multiReferenceList[i].size(); ++j) {
-            addReferenceSignal(multiReferenceList[i][j], multiReferenceData[i], start);
+    if (!state->useMedianReference->getValue()) {
+        // Use average (mean)
+        for (int i = 0; i < (int) multiReferenceList.size(); ++i) {
+            readReferenceSignal(multiReferenceList[i][0], multiReferenceData[i], start);
+            for (int j = 1; j < (int) multiReferenceList[i].size(); ++j) {
+                addReferenceSignal(multiReferenceList[i][j], multiReferenceData[i], start);
+            }
+            double oneOverN = 1.0 / (double) multiReferenceList[i].size();
+            for (int t = 0; t < numSamples; ++t) {
+                multiReferenceData[i][t] = round(((double) multiReferenceData[i][t]) * oneOverN);  // Calculate average.
+            }
         }
-        double oneOverN = 1.0 / (double) multiReferenceList[i].size();
-        for (int t = 0; t < numSamples; ++t) {
-            multiReferenceData[i][t] = round(((double) multiReferenceData[i][t]) * oneOverN);  // Calculate average.
+    } else {
+        // Use median
+        for (int i = 0; i < (int) multiReferenceList.size(); ++i) {
+            vector<int> samples;
+            samples.resize(multiReferenceList[i].size());
+            for (int t = 0; t < numSamples; ++t) {
+                readReferenceSamples(multiReferenceList[i], t, samples, start);
+                multiReferenceData[i][t] = calculateMedian(samples);
+            }
         }
     }
 }
@@ -281,7 +295,7 @@ void SoftwareReferenceProcessor::readReferenceSignal(StreamChannelPair address, 
     pRead += 6; // Skip header and timestamp.
     pRead += misoWordSize * (numDataStreams * 3);  // Skip auxiliary channels.
     pRead += misoWordSize * ((numDataStreams * address.channel) + address.stream);   // Align with selected stream and channel.
-    if (type == ControllerStimRecordUSB2) pRead++;  // Skip top 16 bits of 32-bit MISO word from RHS system.
+    if (type == ControllerStimRecord) pRead++;  // Skip top 16 bits of 32-bit MISO word from RHS system.
     for (int i = 0; i < numSamples; ++i) {
         *pWrite = (((int) *pRead) - 32768);
         pWrite++;
@@ -297,7 +311,7 @@ void SoftwareReferenceProcessor::addReferenceSignal(StreamChannelPair address, i
     pRead += 6; // Skip header and timestamp.
     pRead += misoWordSize * (numDataStreams * 3);  // Skip auxillary channels.
     pRead += misoWordSize * ((numDataStreams * address.channel) + address.stream);   // Align with selected stream and channel.
-    if (type == ControllerStimRecordUSB2) pRead++;  // Skip top 16 bits of 32-bit MISO word from RHS system.
+    if (type == ControllerStimRecord) pRead++;  // Skip top 16 bits of 32-bit MISO word from RHS system.
     for (int i = 0; i < numSamples; ++i) {
         *pWrite += (((int) *pRead) - 32768);  // Only difference between this function and readReferenceSignal() is this line.
         pWrite++;
@@ -312,7 +326,7 @@ void SoftwareReferenceProcessor::subtractReferenceSignal(StreamChannelPair addre
     pSignal += 6; // Skip header and timestamp.
     pSignal += misoWordSize * (numDataStreams * 3);  // Skip auxillary channels.
     pSignal += misoWordSize * ((numDataStreams * address.channel) + address.stream);   // Align with selected stream and channel.
-    if (type == ControllerStimRecordUSB2) pSignal++;  // Skip top 16 bits of 32-bit MISO word from RHS system.
+    if (type == ControllerStimRecord) pSignal++;  // Skip top 16 bits of 32-bit MISO word from RHS system.
     for (int i = 0; i < numSamples; ++i) {
         int newVal = ((int) *pSignal) - *refSignal;
         newVal = max(newVal, 0);
@@ -321,4 +335,35 @@ void SoftwareReferenceProcessor::subtractReferenceSignal(StreamChannelPair addre
         pSignal += dataFrameSizeInWords;
         refSignal++;
     }
+}
+
+void SoftwareReferenceProcessor::readReferenceSamples(vector<StreamChannelPair> &addresses, int t, vector<int> &destination,
+                                                      const uint16_t* start)
+{
+    const uint16_t* pRead;
+
+    for (uint i = 0; i < addresses.size(); ++i) {
+        pRead = start;
+        pRead += 6; // Skip header and timestamp.
+        pRead += misoWordSize * (numDataStreams * 3);  // Skip auxiliary channels.
+        pRead += misoWordSize * ((numDataStreams * addresses[i].channel) + addresses[i].stream);   // Align with selected stream and channel.
+        if (type == ControllerStimRecord) pRead++;  // Skip top 16 bits of 32-bit MISO word from RHS system.
+        pRead += t * dataFrameSizeInWords;  // Jump to requested time index.
+        destination[i] = (((int) *pRead) - 32768);
+    }
+}
+
+int SoftwareReferenceProcessor::calculateMedian(vector<int> &data)
+{
+    int median;
+    std::sort(data.begin(), data.end());    // Warning: This function reorders the input vector!
+
+    int length = (int) data.size();
+    bool isOdd = length % 2;
+    if (isOdd) {
+        median = data[length / 2];
+    } else {
+        median = (data[length / 2 - 1] + data[length / 2]) / 2;
+    }
+    return median;
 }

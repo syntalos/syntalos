@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -57,7 +57,7 @@ SetFileFormatDialog::SetFileFormatDialog(SystemState *state_, QWidget *parent) :
 
     createNewDirectoryCheckBox = new QCheckBox(tr("Create new save directory with timestamp for each recording (recommended)"), this);
 
-    if (state->getControllerTypeEnum() != ControllerStimRecordUSB2) {
+    if (state->getControllerTypeEnum() != ControllerStimRecord) {
         saveAuxInWithAmpCheckBox = new QCheckBox(tr("Save Auxiliary Inputs (Accelerometers) in Wideband Amplifier Data File"), this);
     }
     saveWidebandAmplifierWaveformsCheckBox = new QCheckBox(tr("Save Wideband Amplifier Waveforms"), this);
@@ -75,7 +75,7 @@ SetFileFormatDialog::SetFileFormatDialog(SystemState *state_, QWidget *parent) :
     fromLabel = new QLabel(tr("from"), this);
     toLabel = new QLabel(tr("to"), this);
 
-    if (state->getControllerTypeEnum() == ControllerStimRecordUSB2) {
+    if (state->getControllerTypeEnum() == ControllerStimRecord) {
         saveDCAmplifierWaveformsCheckBox = new QCheckBox(tr("Save DC Amplifier Waveforms"), this);
     }
 
@@ -102,7 +102,7 @@ SetFileFormatDialog::SetFileFormatDialog(SystemState *state_, QWidget *parent) :
     newFileTimeLayout->addWidget(new QLabel(tr("minutes"), this));
     newFileTimeLayout->addStretch(1);
 
-    QString fileSuffix = "rh" + (QString)(state->getControllerTypeEnum() == ControllerStimRecordUSB2 ? "s" : "d");
+    QString fileSuffix = "rh" + (QString)(state->getControllerTypeEnum() == ControllerStimRecord ? "s" : "d");
 
     QLabel *traditionalFormatDescription = new QLabel(tr("This option saves all waveforms in one file, along with records "
                                      "of sampling rate,\namplifier bandwidth, channel names, etc.  To keep "
@@ -114,7 +114,7 @@ SetFileFormatDialog::SetFileFormatDialog(SystemState *state_, QWidget *parent) :
                                                      " spike data."), this);
 
     QLabel *oneFilePerSignalTypeDescription;
-    if (state->getControllerTypeEnum() == ControllerStimRecordUSB2) {
+    if (state->getControllerTypeEnum() == ControllerStimRecord) {
         oneFilePerSignalTypeDescription = new QLabel(tr("This option creates a subdirectory and saves raw data files for each "
                                      "signal type:\namplifiers and controller analog and digital I/O. For example, the amplifier.dat "
                                      "file\ncontains waveform data from all enabled amplifier channels.  The "
@@ -145,7 +145,7 @@ SetFileFormatDialog::SetFileFormatDialog(SystemState *state_, QWidget *parent) :
     oneFilePerSignalTypeBoxLayout->addWidget(fileFormatNeuroScopeButton);
     oneFilePerSignalTypeBoxLayout->addWidget(oneFilePerSignalTypeDescription);
     oneFilePerSignalTypeBoxLayout->addWidget(NeuroScopeDescription);
-    if (state->getControllerTypeEnum() != ControllerStimRecordUSB2) {
+    if (state->getControllerTypeEnum() != ControllerStimRecord) {
         oneFilePerSignalTypeBoxLayout->addWidget(saveAuxInWithAmpCheckBox);
     }
 
@@ -192,7 +192,7 @@ SetFileFormatDialog::SetFileFormatDialog(SystemState *state_, QWidget *parent) :
     mainLayout->addLayout(lowpassSaveLayout);
     mainLayout->addWidget(saveHighpassAmplifierWaveformsCheckBox);
     mainLayout->addLayout(spikeSaveLayout);
-    if (state->getControllerTypeEnum() == ControllerStimRecordUSB2) {
+    if (state->getControllerTypeEnum() == ControllerStimRecord) {
         mainLayout->addWidget(saveDCAmplifierWaveformsCheckBox);
     }
     mainLayout->addWidget(disableSuggestion);
@@ -218,7 +218,7 @@ SetFileFormatDialog::SetFileFormatDialog(SystemState *state_, QWidget *parent) :
     oneFilePerChannelBox->setVisible(false);
     saveWidebandAmplifierWaveformsCheckBox->setVisible(false);
     saveHighpassAmplifierWaveformsCheckBox->setVisible(false);
-    if (state->getControllerTypeEnum() == ControllerStimRecordUSB2)
+    if (state->getControllerTypeEnum() == ControllerStimRecord)
         saveDCAmplifierWaveformsCheckBox->setVisible(false);
 
     saveLowpassAmplifierWaveformsCheckBox->setVisible(false);
@@ -251,7 +251,7 @@ void SetFileFormatDialog::updateFromState()
         fileFormatOpenEphysButton->setChecked(true);
     }
 
-    if (state->getControllerTypeEnum() != ControllerStimRecordUSB2) {
+    if (state->getControllerTypeEnum() != ControllerStimRecord) {
         saveAuxInWithAmpCheckBox->setChecked(state->saveAuxInWithAmpWaveforms->getValue());
     }
     createNewDirectoryCheckBox->setChecked(state->createNewDirectory->getValue());
@@ -266,7 +266,7 @@ void SetFileFormatDialog::updateFromState()
 
     lowpassWaveformDownsampleRateComboBox->setCurrentIndex(state->lowpassWaveformDownsampleRate->getIndex());
 
-    if (state->getControllerTypeEnum() == ControllerStimRecordUSB2) {
+    if (state->getControllerTypeEnum() == ControllerStimRecord) {
         saveDCAmplifierWaveformsCheckBox->setChecked(state->saveDCAmplifierWaveforms->getValue());
     }
     recordTimeSpinBox->setValue(state->newSaveFilePeriodMinutes->getValue());
@@ -288,7 +288,7 @@ bool SetFileFormatDialog::getCreateNewDirectory() const
 
 bool SetFileFormatDialog::getSaveAuxInWithAmps() const
 {
-    if (state->getControllerTypeEnum() != ControllerStimRecordUSB2) {
+    if (state->getControllerTypeEnum() != ControllerStimRecord) {
         return saveAuxInWithAmpCheckBox->isChecked();
     } else {
         return false;
@@ -385,7 +385,7 @@ void SetFileFormatDialog::updateSaveSnapshots()
 
 void SetFileFormatDialog::updateOldFileFormat()
 {
-    if (state->getControllerTypeEnum() != ControllerStimRecordUSB2) {
+    if (state->getControllerTypeEnum() != ControllerStimRecord) {
         saveAuxInWithAmpCheckBox->setEnabled(buttonGroup->checkedButton() == fileFormatNeuroScopeButton);
     }
 

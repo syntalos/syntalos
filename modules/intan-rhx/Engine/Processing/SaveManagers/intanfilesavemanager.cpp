@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -122,7 +122,7 @@ int64_t IntanFileSaveManager::writeToSaveFiles(int numSamples, int timeIndex)
             saveFile->writeUInt16(uint16Array, samplesPerDataBlock);
         }
 
-        if (type == ControllerStimRecordUSB2) {
+        if (type == ControllerStimRecord) {
             // Save DC amplifier data.
             if (state->saveDCAmplifierWaveforms->getValue()) {
                 for (int i = 0; i < (int) saveList.amplifier.size(); ++i) {
@@ -139,7 +139,7 @@ int64_t IntanFileSaveManager::writeToSaveFiles(int numSamples, int timeIndex)
             }
         }
 
-        if (type != ControllerStimRecordUSB2) {
+        if (type != ControllerStimRecord) {
             // Save auxiliary input data.
             float v;
             for (int i = 0; i < (int) saveList.auxInput.size(); ++i) {
@@ -165,7 +165,7 @@ int64_t IntanFileSaveManager::writeToSaveFiles(int numSamples, int timeIndex)
             saveFile->writeUInt16(uint16Array, samplesPerDataBlock);
         }
 
-        if (type == ControllerStimRecordUSB2) {
+        if (type == ControllerStimRecord) {
             // Save board DAC data.
             for (int i = 0; i < (int) saveList.boardDac.size(); ++i) {
                 waveformFifo->copyAnalogData(WaveformFifo::ReaderDisk, vArray, boardDacWaveform[i], timeIndex, samplesPerDataBlock);
@@ -210,7 +210,7 @@ double IntanFileSaveManager::bytesPerMinute() const
     bytes += 2.0 * (double) saveList.auxInput.size() / 4.0;
     bytes += 2.0 * (double) saveList.supplyVoltage.size() / (double) RHXDataBlock::samplesPerDataBlock(type);
     bytes += 2.0 * saveList.boardAdc.size();
-    if (type == ControllerStimRecordUSB2) {
+    if (type == ControllerStimRecord) {
         if (state->saveDCAmplifierWaveforms->getValue()) {
             bytes += 2.0 * saveList.amplifier.size();
         }

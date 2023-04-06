@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -388,13 +388,13 @@ void SaveFile::writeSignalGroup(const SignalGroup* signalGroup)
         writeInt16(channel->getNativeChannelNumber());
         writeInt16(channel->getUserOrder());
         int signalType = (int) channel->getSignalType();
-        if (signalGroup->getControllerType() != ControllerStimRecordUSB2) {
+        if (signalGroup->getControllerType() != ControllerStimRecord) {
             signalType = Channel::convertToRHDSignalType(channel->getSignalType());
         }
         writeInt16(signalType);
         writeInt16(channel->isEnabled() ? 1 : 0);
         writeInt16(channel->getChipChannel());
-        if (signalGroup->getControllerType() == ControllerStimRecordUSB2) {
+        if (signalGroup->getControllerType() == ControllerStimRecord) {
             writeInt16(channel->getCommandStream());  // TODO: eventually add to new RH? file format?
         }
         writeInt16(channel->getBoardStream());

@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -86,7 +86,7 @@ FilePerSignalTypeManager::FilePerSignalTypeManager(const QString& fileName_, Int
             }
         }
     }
-    if (info->controllerType == ControllerStimRecordUSB2) {
+    if (info->controllerType == ControllerStimRecord) {
         // Always try opening dcamplifier.dat since the old RHS software does not report dcAmplifierDataSaved reliably.
         dcAmplifierFile = new DataFile(path + "/" + "dcamplifier.dat");
         if (!dcAmplifierFile->isOpen()) {
@@ -297,7 +297,7 @@ void FilePerSignalTypeManager::loadDataFrame()
             }
         }
     }
-    if (info->controllerType != ControllerStimRecordUSB2) {
+    if (info->controllerType != ControllerStimRecord) {
         for (int i = 0; i < numDataStreams; ++i) {
             for (int j = 0; j < 3; ++j) {
                 if (auxInputWasSaved[i][j]) {
@@ -380,4 +380,11 @@ int64_t FilePerSignalTypeManager::jumpToTimeStamp(int64_t target)
 
     readIndex = target;
     return readIndex + firstTimeStamp;  // Return actual timestamp jumped to, which should be same as target.
+}
+
+int64_t FilePerSignalTypeManager::blocksPresent()
+{
+    // Should remain accurate even if data file continues growing
+    int numSamples = timeFile->fileSize() / 4;
+    return numSamples / info->samplesPerDataBlock;
 }

@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -248,7 +248,7 @@ void MultiColumnDisplay::addWaveforms()
 {
     state->writeToLog("Beginning of addWaveforms()");
     // Add all waveforms to waveform manager.
-    bool isStim = state->getControllerTypeEnum() == ControllerStimRecordUSB2;
+    bool isStim = state->getControllerTypeEnum() == ControllerStimRecord;
     QStringList groupList = state->signalSources->populatedGroupList();
     state->writeToLog("About to enter groupList for loop. groupList size: " + QString::number(groupList.size()));
     for (int i = 0; i < groupList.size(); ++i) {

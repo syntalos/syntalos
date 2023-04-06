@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -171,7 +171,7 @@ void CPUInterface::processDataBlock(uint16_t * data, uint16_t *lowChunk, uint16_
         // (0) Index this channel's input data from the rawBlock and convert it to float.
         for (int frame = 0; frame < FramesPerBlock; ++frame) {
             uint16_t acSample;
-            if (type == ControllerStimRecordUSB2) {
+            if (type == ControllerStimRecord) {
                 acSample = rawBlock[wordsPerFrame * frame + 6 + (numStreams * 3 * 2) +
                         (inIndexChannel * numStreams * 2) + (2 * inIndexStream + 1)];
             } else {

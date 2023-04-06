@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -74,19 +74,35 @@ bool TCPCommunicator::listen(QString host, int port)
 
 QString TCPCommunicator::read()
 {
-    return socket->readAll();
+    // Straight-forward read if status is Connected
+    if (status == Connected) {
+        return socket->readAll();
+    }
+
+    // Read from cached commands if status is not Connected
+    else {
+        QString cacheString = cachedCommands;
+        cachedCommands.clear();
+        return cacheString;
+    }
 }
 
 void TCPCommunicator::writeQString(QString message)
 {
-    socket->write(message.toLatin1());
-    socket->waitForBytesWritten();
+    // Only attempt a write if status is Connected
+    if (status == Connected) {
+        socket->write(message.toLatin1());
+        socket->waitForBytesWritten();
+    }
 }
 
 void TCPCommunicator::writeData(char *data, qint64 len)
 {
-    socket->write(data, len);
-    socket->waitForBytesWritten();
+    // Only attempt a write if status is Connected
+    if (status == Connected) {
+        socket->write(data, len);
+        socket->waitForBytesWritten();
+    }
 }
 
 void TCPCommunicator::attemptNewConnection()
@@ -99,6 +115,9 @@ void TCPCommunicator::attemptNewConnection()
 void TCPCommunicator::returnToDisconnected()
 {
     if (socket) {
+        // Before disconnecting, if any data is on the socket, grab it.
+        cachedCommands = socket->readAll();
+        // Disconnect and destroy socket
         socket->disconnectFromHost();
         socket = nullptr;
     }

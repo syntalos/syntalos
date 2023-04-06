@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -78,6 +78,8 @@ void SaveToDiskThread::run()
         int64_t totalSamplesInFile = 0;
         int64_t totalBytesWritten = 0;
 
+        int64_t blocksWritten = 0;
+
         double glitchIgnoreInSeconds = 0.2;     // time period following trigger in which glitches in trigger are ignored
         int glitchThreshold = ceil(glitchIgnoreInSeconds * state->sampleRate->getNumericValue());
 
@@ -96,6 +98,9 @@ void SaveToDiskThread::run()
             statusBarUpdateTimer.start();
             while (keepGoing && !stopThread) {
 //                workTimer.restart();
+                int64_t playbackBlocks = state->getPlaybackBlocks();
+                bool lastRead = (playbackBlocks - blocksWritten) == 1;
+                //bool lastRead = true;
 
                 if (!isRecording && state->recording) {     // Manual start recording.
 //                    cout << "MANUAL START RECORD" << EndOfLine;
@@ -111,7 +116,9 @@ void SaveToDiskThread::run()
                     }
                 }
 
-                if (waveformFifo->requestReadNewData(WaveformFifo::ReaderDisk, NumSamples)) {
+                //qDebug() << "Here. playbackBlocks: " << playbackBlocks << " total data blocks written: " << blocksWritten << " lastRead: " << lastRead;
+                if (waveformFifo->requestReadNewData(WaveformFifo::ReaderDisk, NumSamples, lastRead)) {
+                    blocksWritten++;
                     if (state->triggerSet && !state->triggered) {
 
                         // Watch for trigger begin event.
@@ -372,7 +379,7 @@ void SaveToDiskThread::setStatusBarRecording(double bytesPerMinute, const QStrin
     QString timeString = recordTime.addSecs(totalRecordTimeSeconds).toString("HH:mm:ss");
 
     QString statusFilename = state->filename->getFullFilename();
-    QString suffix = state->getControllerTypeEnum() == ControllerStimRecordUSB2 ? ".rhs" : ".rhd";
+    QString suffix = state->getControllerTypeEnum() == ControllerStimRecord ? ".rhs" : ".rhd";
 
     switch (state->getFileFormatEnum()) {
     case FileFormatIntan:

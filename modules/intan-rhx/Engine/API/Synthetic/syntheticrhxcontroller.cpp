@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -29,6 +29,7 @@
 //------------------------------------------------------------------------------
 
 #include <iostream>
+#include <QDebug>
 #include "syntheticrhxcontroller.h"
 
 SyntheticRHXController::SyntheticRHXController(ControllerType type_, AmplifierSampleRate sampleRate_) :
@@ -214,7 +215,7 @@ int SyntheticRHXController::getNumSPIPorts(bool &expanderBoardDetected)
 // of -2 if RHD2216 devices are present so that the user can be reminded that RHD2216 devices consume 32 channels
 // of USB bus bandwidth.
 int SyntheticRHXController::findConnectedChips(vector<ChipType> &chipType, vector<int> &portIndex, vector<int> &commandStream,
-                                               vector<int> &numChannelsOnPort)
+                                               vector<int> &numChannelsOnPort, bool synthMaxChannels)
 {
     int maxNumStreams = maxNumDataStreams();
     int maxSPIPorts = maxNumSPIPorts();
@@ -242,48 +243,102 @@ int SyntheticRHXController::findConnectedChips(vector<ChipType> &chipType, vecto
         setCableDelay(PortH, 1);
     }
 
-    if (type == ControllerRecordUSB2 || type == ControllerRecordUSB3) {
-        chipType[0] = RHD2132Chip;
-        enableDataStream(0, true);
-        if (type == ControllerRecordUSB2) {
-            setDataSource(0, PortA1);
+    // When highestCapacity is false, the default synthetic data of 32 channels on Ports A and B will be set up.
+    // When highestCapacity is true, the maximum # of channels per port will be set up.
+    //bool highestCapacity = false;
+    //bool highestCapacity = true;
+
+    if (synthMaxChannels) {
+        if (type == ControllerRecordUSB2 || type == ControllerRecordUSB3) {
+            // For USB Interface Board, 128 channels on A and 128 channels on B
+            // For Recording Controller, 128 channels on each port A-H
+            int numPorts = type == ControllerRecordUSB2 ? 2 : 8;
+            for (int thisPort = 0; thisPort < numPorts; ++thisPort) {
+                int offset = thisPort * 4;
+                for (int thisStream = 0; thisStream < 4; ++thisStream) {
+                    // Even streams, RHD2164. Odd streams, RHD2164MISOBChip
+                    int streamIndex = offset + thisStream;
+                    chipType[streamIndex] = (thisStream % 2 == 0) ? RHD2164Chip : RHD2164MISOBChip; // Even - RHD2164. Odd - RHD2164MISOBChip
+                    enableDataStream(streamIndex, true);
+                    portIndex[streamIndex] = thisPort;
+                    commandStream[streamIndex] = streamIndex;
+                }
+                if (type == ControllerRecordUSB2) {
+                    setDataSource(0, PortA1);
+                    setDataSource(1, PortA1Ddr);
+                    setDataSource(2, PortA2);
+                    setDataSource(3, PortA2Ddr);
+                    setDataSource(4, PortB1);
+                    setDataSource(5, PortB1Ddr);
+                    setDataSource(6, PortB2);
+                    setDataSource(7, PortB2Ddr);
+                }
+                numChannelsOnPort[thisPort] = 128;
+            }
         }
-        portIndex[0] = 0;  // Port A
-        commandStream[0] = 0;
-        numChannelsOnPort[0] = 32;
 
-        chipType[1] = RHD2132Chip;
-        enableDataStream(1, true);
-        if (type == ControllerRecordUSB2) {
-            setDataSource(1, PortB1);
+        else if (type == ControllerStimRecord) {
+            // For Stim/Recording Controller, 32 channels on each port A-D
+            for (int thisPort = 0; thisPort < 4; ++thisPort) {
+                int offset = thisPort * 2;
+                for (int thisStream = 0; thisStream < 2; ++thisStream) {
+                    int streamIndex = offset + thisStream;
+                    chipType[streamIndex] = RHS2116Chip;
+                    enableDataStream(streamIndex, true);
+                    portIndex[streamIndex] = thisPort;
+                    commandStream[streamIndex] = streamIndex;
+                }
+                numChannelsOnPort[thisPort] = 32;
+            }
         }
-        portIndex[1] = 1;  // Port B
-        commandStream[1] = 1;
-        numChannelsOnPort[1] = 32;
+    }
 
-        for (int stream = 2; stream < maxNumStreams; stream++) enableDataStream(stream, false);
-    } else if (type == ControllerStimRecordUSB2) {
-        chipType[0] = RHS2116Chip;
-        chipType[1] = RHS2116Chip;
-        enableDataStream(0, true);
-        enableDataStream(1, true);
-        portIndex[0] = 0;  // Port A
-        portIndex[1] = 0;  // Port A
-        commandStream[0] = 0;
-        commandStream[1] = 1;
-        numChannelsOnPort[0] = 32;
+    else {
+        if (type == ControllerRecordUSB2 || type == ControllerRecordUSB3) {
+            chipType[0] = RHD2132Chip;
+            enableDataStream(0, true);
+            if (type == ControllerRecordUSB2) {
+                setDataSource(0, PortA1);
+            }
+            portIndex[0] = 0;  // Port A
+            commandStream[0] = 0;
+            numChannelsOnPort[0] = 32;
 
-        chipType[2] = RHS2116Chip;
-        chipType[3] = RHS2116Chip;
-        enableDataStream(2, true);
-        enableDataStream(3, true);
-        portIndex[2] = 1;  // Port B
-        portIndex[3] = 1;  // Port B
-        commandStream[2] = 2;
-        commandStream[3] = 3;
-        numChannelsOnPort[1] = 32;
+            chipType[1] = RHD2132Chip;
+            enableDataStream(1, true);
+            if (type == ControllerRecordUSB2) {
+                setDataSource(1, PortB1);
+            }
+            portIndex[1] = 1;  // Port B
+            commandStream[1] = 1;
+            numChannelsOnPort[1] = 32;
 
-        for (int stream = 4; stream < maxNumStreams; stream++) enableDataStream(stream, false);
+            for (int stream = 2; stream < maxNumStreams; stream++) enableDataStream(stream, false);
+        }
+
+        else if (type == ControllerStimRecord) {
+            chipType[0] = RHS2116Chip;
+            chipType[1] = RHS2116Chip;
+            enableDataStream(0, true);
+            enableDataStream(1, true);
+            portIndex[0] = 0;  // Port A
+            portIndex[1] = 0;  // Port A
+            commandStream[0] = 0;
+            commandStream[1] = 1;
+            numChannelsOnPort[0] = 32;
+
+            chipType[2] = RHS2116Chip;
+            chipType[3] = RHS2116Chip;
+            enableDataStream(2, true);
+            enableDataStream(3, true);
+            portIndex[2] = 1;  // Port B
+            portIndex[3] = 1;  // Port B
+            commandStream[2] = 2;
+            commandStream[3] = 3;
+            numChannelsOnPort[1] = 32;
+
+            for (int stream = 4; stream < maxNumStreams; stream++) enableDataStream(stream, false);
+        }
     }
 
     return 1;

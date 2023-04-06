@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -227,7 +227,7 @@ __kernel void process_block(__global global_param_struct* restrict global_parame
 
     // (0) Index this channel's input data from the raw_block and convert it to float.
     int startingIndex;
-    //if (type == ControllerStimRecordUSB2) {
+    //if (type == ControllerStimRecord) {
     if (type == 2) {
         startingIndex = 6 + (num_streams * 3 * 2) + (in_index_channel * num_streams * 2) + (2 * in_index_stream + 1);
     } else {

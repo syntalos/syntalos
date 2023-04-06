@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -122,7 +122,7 @@ bool XMLInterface::parseByteArray(const QByteArray &byteArray, QString &errorMes
                 return false;
             }
         }
-        if (state->getControllerTypeEnum() == ControllerStimRecordUSB2 && !ignoreStimParameters &&
+        if (state->getControllerTypeEnum() == ControllerStimRecord && !ignoreStimParameters &&
                 (includeParameters == XMLIncludeGlobalParameters || includeParameters == XMLIncludeStimParameters)) {
             if (!parseStimParameters(byteArray, errorMessage)) {
                 state->releaseUpdate();
@@ -307,7 +307,7 @@ void XMLInterface::saveAsElement(QXmlStreamWriter &stream) const
     }
 
     // Write StimParameters element if (a) this is a Stim Controller and (b) Stim Parameters are in the include list
-    if (state->getControllerTypeEnum() == ControllerStimRecordUSB2 &&
+    if (state->getControllerTypeEnum() == ControllerStimRecord &&
             (includeParameters == XMLIncludeGlobalParameters || includeParameters == XMLIncludeStimParameters)) {
 
         // Write StimParameters element
@@ -676,7 +676,7 @@ bool XMLInterface::parseGeneralConfig(const QByteArray &byteArray, QString &erro
         }
     }
 
-    if (state->getControllerTypeEnum() == ControllerStimRecordUSB2) {
+    if (state->getControllerTypeEnum() == ControllerStimRecord) {
         controllerInterface->uploadAmpSettleSettings();
         controllerInterface->uploadChargeRecoverySettings();
     }

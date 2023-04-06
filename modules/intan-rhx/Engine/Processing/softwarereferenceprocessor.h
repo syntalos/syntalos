@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -47,7 +47,7 @@ struct SignalWithSoftwareReference
 class SoftwareReferenceProcessor
 {
 public:
-    SoftwareReferenceProcessor(ControllerType type_, int numDataStreams_, int numSamples_);
+    SoftwareReferenceProcessor(ControllerType type_, int numDataStreams_, int numSamples_, SystemState* state_);
     ~SoftwareReferenceProcessor();
 
     void updateReferenceInfo(const SignalSources* signalSources);
@@ -59,6 +59,8 @@ private:
     int numSamples;
     int dataFrameSizeInWords;
     int misoWordSize;
+
+    SystemState* state;
 
     // Reference signals consisting of a single channel.
     vector<SignalWithSoftwareReference> signalListSingleReference;
@@ -76,6 +78,8 @@ private:
     void readReferenceSignal(StreamChannelPair address, int* destination, const uint16_t* start);
     void addReferenceSignal(StreamChannelPair address, int* destination, const uint16_t* start);
     void subtractReferenceSignal(StreamChannelPair address, const int* refSignal, uint16_t* start);
+    void readReferenceSamples(vector<StreamChannelPair> &addresses, int t, vector<int> &destination, const uint16_t* start);
+    int calculateMedian(vector<int> &data);
     void deleteDataArrays();
 
 };

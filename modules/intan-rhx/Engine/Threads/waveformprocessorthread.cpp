@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -64,7 +64,7 @@ void WaveformProcessorThread::run()
     const int NumSamples = NumBlocks * RHXDataBlock::samplesPerDataBlock(type);
     bool firstTime = true;
     bool softwareRefInfoUpdated = false;
-    SoftwareReferenceProcessor swRefProcessor(type, numDataStreams, NumSamples);
+    SoftwareReferenceProcessor swRefProcessor(type, numDataStreams, NumSamples, state);
     QElapsedTimer loopTimer, workTimer, reportTimer;
 
     if (syMod)
@@ -145,7 +145,8 @@ void WaveformProcessorThread::run()
                     float* analogWaveform = nullptr;
                     uint16_t* digitalWaveform = nullptr;
 
-                    dataReader.readTimeStampData(waveformFifo->pointerToTimeStampWriteSpace());
+                    int lastTimestamp = dataReader.readTimeStampData(waveformFifo->pointerToTimeStampWriteSpace());
+                    state->setLastTimestamp(lastTimestamp);
                     syntalosModuleSetSignalBlocksTimestamps(syMod, microseconds_t(tsValUs),
                                                             waveformFifo->pointerToTimeStampWriteSpace(), NumSamples);
 
@@ -176,7 +177,7 @@ void WaveformProcessorThread::run()
                                                                       wide, NumSamples,
                                                                       signalSources->numAmplifierChannels(), gpuWaveformAddress.waveformIndex);
 
-                                if (signalSources->getControllerType() == ControllerStimRecordUSB2) {
+                                if (signalSources->getControllerType() == ControllerStimRecord) {
                                     // Load DC amplifier data and stimulation markers.
                                     analogWaveform = waveformFifo->getAnalogWaveformPointer(waveName + "|DC");
                                     dataReader.readDcAmplifierData(waveformFifo->pointerToAnalogWriteSpace(analogWaveform),

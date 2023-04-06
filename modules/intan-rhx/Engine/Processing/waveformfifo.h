@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -142,7 +142,7 @@ public:
     // Methods used (in this sequence) for reading from buffer:
 
     // 1:
-    bool requestReadNewData(Reader reader, int numWords); // Call once before reading a block of data.
+    bool requestReadNewData(Reader reader, int numWords, bool lastRead = false); // Call once before reading a block of data.
 
     // 2:
 

@@ -40,8 +40,10 @@ configure_file(
 
 # FPGA bitfiles
 intanrhx_bitfiles = [
+    'FPGA-bitfiles/ConfigRHDController_7310.bit',
     'FPGA-bitfiles/ConfigRHDController.bit',
     'FPGA-bitfiles/ConfigRHDInterfaceBoard.bit',
+    'FPGA-bitfiles/ConfigRHSController_7310.bit',
     'FPGA-bitfiles/ConfigRHSController.bit',
     'FPGA-bitfiles/ConfigXEM6010Tester.bit',
     'FPGA-bitfiles/USBEvaluationBoard.bit',

@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -45,13 +45,17 @@ class RHXController : public AbstractRHXController
 {
 
 public:
-    RHXController(ControllerType type_, AmplifierSampleRate sampleRate_);
+    RHXController(ControllerType type_, AmplifierSampleRate sampleRate_, bool is7310_ = false);
     ~RHXController();
 
     bool isSynthetic() const override { return false; }
     bool isPlayback() const override { return false; }
     AcquisitionMode acquisitionMode() const override { return LiveMode; }
+
+    vector<string> listAvailableDeviceSerials();
+
     int open(const string& boardSerialNumber) override;
+    int open();
     bool uploadFPGABitfile(const string& filename) override;
     void resetBoard() override;
 
@@ -64,22 +68,24 @@ public:
     bool readDataBlocks(int numBlocks, deque<RHXDataBlock*> &dataQueue) override;
     long readDataBlocksRaw(int numBlocks, uint8_t* buffer) override;
 
+    int queueToFile(deque<RHXDataBlock*> &dataQueue, ofstream &saveOut);
+
     void setContinuousRunMode(bool continuousMode) override;
     void setMaxTimeStep(unsigned int maxTimeStep) override;
     void setCableDelay(BoardPort port, int delay) override;
     void setDspSettle(bool enabled) override;
     void setDataSource(int stream, BoardDataSource dataSource) override;  // used only with ControllerRecordUSB2
-    void setTtlOut(const int* ttlOutArray) override;  // not used with ControllerStimRecordUSB2
+    void setTtlOut(const int* ttlOutArray) override;  // not used with ControllerStimRecord
     void setDacManual(int value) override;
     void setLedDisplay(const int* ledArray) override;
     void setSpiLedDisplay(const int* ledArray) override;  // not used with ControllerRecordUSB2
     void setDacGain(int gain) override;
     void setAudioNoiseSuppress(int noiseSuppress) override;
-    void setExternalFastSettleChannel(int channel) override;             // not used with ControllerStimRecordUSB2
-    void setExternalDigOutChannel(BoardPort port, int channel) override; // not used with ControllerStimRecordUSB2
+    void setExternalFastSettleChannel(int channel) override;             // not used with ControllerStimRecord
+    void setExternalDigOutChannel(BoardPort port, int channel) override; // not used with ControllerStimRecord
     void setDacHighpassFilter(double cutoff) override;
     void setDacThreshold(int dacChannel, int threshold, bool trigPolarity) override;
-    void setTtlMode(int mode) override;      // not used with ControllerStimRecordUSB2
+    void setTtlMode(int mode) override;      // not used with ControllerStimRecord
     void setDacRerefSource(int stream, int channel) override;  // not used with ControllerRecordUSB2
     void setExtraStates(unsigned int extraStates) override;
     void setStimCmdMode(bool enabled) override;
@@ -93,8 +99,8 @@ public:
 
     void enableDataStream(int stream, bool enabled) override;
     void enableDac(int dacChannel, bool enabled) override;
-    void enableExternalFastSettle(bool enable) override;                 // not used with ControllerStimRecordUSB2
-    void enableExternalDigOut(BoardPort port, bool enable) override;     // not used with ControllerStimRecordUSB2
+    void enableExternalFastSettle(bool enable) override;                 // not used with ControllerStimRecord
+    void enableExternalDigOut(BoardPort port, bool enable) override;     // not used with ControllerStimRecord
     void enableDacHighpassFilter(bool enable) override;
     void enableDacReref(bool enabled) override;  // not used with ControllerRecordUSB2
     void enableDcAmpConvert(bool enable) override;
@@ -104,23 +110,23 @@ public:
     void selectDacDataStream(int dacChannel, int stream) override;
     void selectDacDataChannel(int dacChannel, int dataChannel) override;
     void selectAuxCommandLength(AuxCmdSlot auxCommandSlot, int loopIndex, int endIndex) override;
-    void selectAuxCommandBank(BoardPort port, AuxCmdSlot auxCommandSlot, int bank) override; // not used with ControllerStimRecordUSB2
+    void selectAuxCommandBank(BoardPort port, AuxCmdSlot auxCommandSlot, int bank) override; // not used with ControllerStimRecord
 
     int getBoardMode() override;
     int getNumSPIPorts(bool& expanderBoardDetected) override;
 
-    void clearTtlOut() override;                 // not used with ControllerStimRecordUSB2
+    void clearTtlOut() override;                 // not used with ControllerStimRecord
     void resetSequencers() override;
     void programStimReg(int stream, int channel, StimRegister reg, int value) override;
     void uploadCommandList(const vector<unsigned int> &commandList, AuxCmdSlot auxCommandSlot, int bank = 0) override;
 
     int findConnectedChips(vector<ChipType> &chipType, vector<int> &portIndex, vector<int> &commandStream,
-                           vector<int> &numChannelsOnPort) override;
+                           vector<int> &numChannelsOnPort, bool = false) override;
 
     // Physical board only
     static void resetBoard(okCFrontPanel* dev_);
     static int getBoardMode(okCFrontPanel* dev_);
-    static int getNumSPIPorts(okCFrontPanel *dev_, bool isUSB3, bool& expanderBoardDetected);
+    static int getNumSPIPorts(okCFrontPanel *dev_, bool isUSB3, bool& expanderBoardDetected, bool isRHS7310 = false);
 
 private:
     // Objects of this class should not be copied.  Disable copy and assignment operators.
@@ -128,6 +134,7 @@ private:
     RHXController& operator=(const RHXController&); // declaration only
 
     okCFrontPanel *dev;
+    bool is7310;
 
     // Opal Kelly module USB interface endpoint addresses common to all controller types
     enum EndPoint {
@@ -220,7 +227,7 @@ private:
         WireOutSerialDigitalIn_R_USB3 = 0x21
     };
 
-    // Opal Kelly module USB interface endpoint addresses unique to ControllerStimRecordUSB2
+    // Opal Kelly module USB interface endpoint addresses unique to ControllerStimRecord
     enum EndPointStimRecordUSB2 {
         WireInStimCmdMode_S_USB2 = 0x05,
         WireInStimRegAddr_S_USB2 = 0x06,

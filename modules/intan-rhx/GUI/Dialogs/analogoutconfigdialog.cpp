@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -177,7 +177,7 @@ AnalogOutConfigDialog::AnalogOutConfigDialog(SystemState* state_, ControllerInte
         connect(dac8ThresholdEnableCheckBox, SIGNAL(clicked(bool)), this, SLOT(enableDac8Threshold(bool)));
     }
 
-    if (state->getControllerTypeEnum() != ControllerStimRecordUSB2) {
+    if (state->getControllerTypeEnum() != ControllerStimRecord) {
         dac1ThresholdEnableCheckBox->setChecked(true);
         dac2ThresholdEnableCheckBox->setChecked(true);
         if (eightAnalogOuts) {

@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -118,12 +118,12 @@ QStringList Channel::getAttributes(XMLGroup xmlGroup) const
                 addAttribute = true;
                 break;
             case TypeDependencyNonStim:
-                if (state->getControllerTypeEnum() != ControllerStimRecordUSB2) {
+                if (state->getControllerTypeEnum() != ControllerStimRecord) {
                     addAttribute = true;
                 }
                 break;
             case TypeDependencyStim:
-                if (state->getControllerTypeEnum() == ControllerStimRecordUSB2) {
+                if (state->getControllerTypeEnum() == ControllerStimRecord) {
                     addAttribute = true;
                 }
                 break;
@@ -148,7 +148,7 @@ QStringList Channel::getTcpBandNames() const
             if (outputToTcpHigh->getValue()) tcpBandNames.append(nativeChannelName->getValue() + "|HIGH");
             if (outputToTcpSpike->getValue()) tcpBandNames.append(nativeChannelName->getValue() + "|SPK");
             // We're treating spike differently through tcp, so don't append the SPK name here
-            if (state->getControllerTypeEnum() == ControllerStimRecordUSB2) {
+            if (state->getControllerTypeEnum() == ControllerStimRecord) {
                 if (outputToTcpDc->getValue()) tcpBandNames.append(nativeChannelName->getValue() + "|DC");
                 if (outputToTcpStim->getValue()) tcpBandNames.append(nativeChannelName->getValue() + "|STIM");
             }
@@ -261,7 +261,7 @@ void Channel::clearTCPDataOutput()
         outputToTcpLow->setValue(false);
         outputToTcpHigh->setValue(false);
         outputToTcpSpike->setValue(false);
-        if (state->getControllerTypeEnum() == ControllerStimRecordUSB2) {
+        if (state->getControllerTypeEnum() == ControllerStimRecord) {
             outputToTcpDc->setValue(false);
             outputToTcpStim->setValue(false);
         }

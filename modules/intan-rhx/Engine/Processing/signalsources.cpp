@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -246,12 +246,12 @@ QStringList SignalGroup::getAttributes(XMLGroup xmlGroup) const
                 addAttribute = true;
                 break;
             case TypeDependencyNonStim:
-                if (state->getControllerTypeEnum() != ControllerStimRecordUSB2) {
+                if (state->getControllerTypeEnum() != ControllerStimRecord) {
                     addAttribute = true;
                 }
                 break;
             case TypeDependencyStim:
-                if (state->getControllerTypeEnum() == ControllerStimRecordUSB2) {
+                if (state->getControllerTypeEnum() == ControllerStimRecord) {
                     addAttribute = true;
                 }
                 break;
@@ -288,7 +288,7 @@ SignalSources::SignalSources(SystemState* state_) :
     }
 
     // Add board analog output signals.
-    if (state->getControllerTypeEnum() == ControllerStimRecordUSB2) {
+    if (state->getControllerTypeEnum() == ControllerStimRecord) {
         baseGroups.push_back(new SignalGroup("Analog Out Ports", "ANALOG-OUT", state));
         for (int channel = 0; channel < numAnalogIO; ++channel) {
             baseGroups.back()->addAnalogDigitalIOChannel(BoardDacSignal, channel);

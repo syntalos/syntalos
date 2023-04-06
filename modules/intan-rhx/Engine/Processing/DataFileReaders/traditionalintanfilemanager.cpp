@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -126,7 +126,6 @@ TraditionalIntanFileManager::TraditionalIntanFileManager(const QString& fileName
     }
     for (int i = 0; i < (int) infoList.size(); ++i) {
         consecutiveFiles[i].fileName = infoList[i].path() + "/" + infoList[i].fileName();
-//        qDebug() << "Added file name: " << consecutiveFiles[i].fileName;
         consecutiveFiles[i].numSamplesInFile = numSamplesInFiles[i];
         if (multipleContiguousFiles) {
             report += "  " + infoList[i].fileName() + EndOfLine;
@@ -260,7 +259,7 @@ void TraditionalIntanFileManager::loadDataFrame()
             }
         }
     }
-    if (info->controllerType != ControllerStimRecordUSB2) {
+    if (info->controllerType != ControllerStimRecord) {
         index = positionInDataBlock / 4;
         for (int i = 0; i < numDataStreams; ++i) {
             for (int j = 0; j < 3; ++j) {
@@ -374,4 +373,14 @@ int64_t TraditionalIntanFileManager::jumpToTimeStamp(int64_t target)
 
     readIndex = target;
     return readIndex + firstTimeStamp;  // Return actual timestamp jumped to, which will be within one data block of target.
+}
+
+int64_t TraditionalIntanFileManager::blocksPresent()
+{
+    // Should remain accurate even if data file continues growing
+    int dataSizeBytes = 0;
+    for (uint i = 0; i < consecutiveFiles.size(); i++) {
+        dataSizeBytes += QFileInfo(consecutiveFiles[i].fileName).size() - info->headerSizeInBytes;
+    }
+    return dataSizeBytes / info->bytesPerDataBlock;
 }

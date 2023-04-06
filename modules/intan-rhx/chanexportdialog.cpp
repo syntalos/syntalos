@@ -50,7 +50,7 @@ ChanExportDialog::ChanExportDialog(SystemState *state, QWidget *parent) :
     m_filterSelectComboBox->addItem("LOW");
     m_filterSelectComboBox->addItem("HIGH");
     m_filterSelectComboBox->addItem("SPK");
-    if (state->getControllerTypeEnum() == ControllerStimRecordUSB2) {
+    if (state->getControllerTypeEnum() == ControllerStimRecord) {
         m_filterSelectComboBox->addItem("DC");
         m_filterSelectComboBox->addItem("STIM");
     }

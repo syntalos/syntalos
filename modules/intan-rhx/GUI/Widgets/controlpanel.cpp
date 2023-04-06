@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -208,7 +208,7 @@ void ControlPanel::updateSlidersEnabled(YScaleUsed yScaleUsed)
     lowLabel->setEnabled(yScaleUsed.lowpassYScaleUsed);
     highSlider->setEnabled(yScaleUsed.highpassYScaleUsed);
     highLabel->setEnabled(yScaleUsed.highpassYScaleUsed);
-    if (state->getControllerTypeEnum() == ControllerStimRecordUSB2) {
+    if (state->getControllerTypeEnum() == ControllerStimRecord) {
         variableSlider->setEnabled(yScaleUsed.dcYScaleUsed);
         variableLabel->setEnabled(yScaleUsed.dcYScaleUsed);
     } else {
@@ -225,7 +225,7 @@ YScaleUsed ControlPanel::slidersEnabled() const
     yScaleUsed.widepassYScaleUsed = wideSlider->isEnabled();
     yScaleUsed.lowpassYScaleUsed = lowSlider->isEnabled();
     yScaleUsed.highpassYScaleUsed = highSlider->isEnabled();
-    if (state->getControllerTypeEnum() == ControllerStimRecordUSB2) {
+    if (state->getControllerTypeEnum() == ControllerStimRecord) {
         yScaleUsed.dcYScaleUsed = variableSlider->isEnabled();
     } else {
         yScaleUsed.auxInputYScaleUsed = variableSlider->isEnabled();
@@ -280,7 +280,7 @@ QHBoxLayout* ControlPanel::createSelectionLayout()
     selectionNameLabel = new QLabel(tr("no selection"), this);
     selectionImpedanceLabel = new QLabel(tr("no selection"), this);
     selectionReferenceLabel = new QLabel(tr("no selection"), this);
-    if (state->getControllerTypeEnum() == ControllerStimRecordUSB2) {
+    if (state->getControllerTypeEnum() == ControllerStimRecord) {
         selectionStimTriggerLabel = new QLabel(tr("no selection"), this);
     }
 
@@ -292,7 +292,7 @@ QHBoxLayout* ControlPanel::createSelectionLayout()
     setRefButton->setFixedWidth(setRefButton->fontMetrics().horizontalAdvance(setRefButton->text()) + 14);
     connect(setRefButton, SIGNAL(clicked()), controlWindow, SLOT(setReference()));
 
-    if (state->getControllerTypeEnum() == ControllerStimRecordUSB2) {
+    if (state->getControllerTypeEnum() == ControllerStimRecord) {
         setStimButton = new QPushButton(tr("Set Stim"), this);
         setStimButton->setFixedWidth(setStimButton->fontMetrics().horizontalAdvance(setStimButton->text()) + 14);
         connect(setStimButton, SIGNAL(clicked()), this, SLOT(openStimParametersDialog()));
@@ -305,7 +305,7 @@ QHBoxLayout* ControlPanel::createSelectionLayout()
     selectionGrid->addWidget(selectionReferenceLabel, 1, 1, 1, 3);
     selectionGrid->addWidget(new QLabel(tr("Impedance:"), this), 2, 0, Qt::AlignRight);
     selectionGrid->addWidget(selectionImpedanceLabel, 2, 1);
-    if (state->getControllerTypeEnum() == ControllerStimRecordUSB2) {
+    if (state->getControllerTypeEnum() == ControllerStimRecord) {
         selectionGrid->addWidget(new QLabel(tr("Stim Trigger:"), this), 2, 2, Qt::AlignRight);
         selectionGrid->addWidget(selectionStimTriggerLabel, 2, 3);
     }
@@ -325,7 +325,7 @@ QHBoxLayout* ControlPanel::createSelectionToolsLayout()
     selectionToolsLayout->addWidget(colorAttribute);
     selectionToolsLayout->addWidget(renameButton);
     selectionToolsLayout->addWidget(setRefButton);
-    if (state->getControllerTypeEnum() == ControllerStimRecordUSB2) {
+    if (state->getControllerTypeEnum() == ControllerStimRecord) {
         selectionToolsLayout->addWidget(setStimButton);
     }
     selectionToolsLayout->addStretch(1);
@@ -383,7 +383,7 @@ QHBoxLayout* ControlPanel::createDisplayLayout()
     variableSlider = new QSlider(Qt::Vertical, this);
     variableSlider->setFixedHeight(SliderHeight);
     variableSlider->setValue(state->yScaleAux->getIndex());
-    if (state->getControllerTypeEnum() == ControllerStimRecordUSB2) {
+    if (state->getControllerTypeEnum() == ControllerStimRecord) {
         variableSlider->setRange(0, state->yScaleDC->numberOfItems() - 1);
         variableSlider->setValue(state->yScaleDC->getIndex());
         connect(variableSlider, SIGNAL(valueChanged(int)), this, SLOT(changeDCSScale(int)));
@@ -410,7 +410,7 @@ QHBoxLayout* ControlPanel::createDisplayLayout()
     wideLabel = new QLabel(tr("WIDE"), this);
     lowLabel = new QLabel(tr("LOW"), this);
     highLabel = new QLabel(tr("HIGH"), this);
-    if (state->getControllerTypeEnum() == ControllerStimRecordUSB2) {
+    if (state->getControllerTypeEnum() == ControllerStimRecord) {
         variableLabel = new QLabel(tr("DC"), this);
     } else {
         variableLabel = new QLabel(tr("AUX"), this);
@@ -615,7 +615,7 @@ void ControlPanel::updateFromState()
     triggerTab->updateFromState();
     state->writeToLog("Completed triggerTab->updateFromState()");
 
-    if (state->getControllerTypeEnum() == ControllerStimRecordUSB2) {
+    if (state->getControllerTypeEnum() == ControllerStimRecord) {
         updateStimTrigger();
         updateStimParamDialogButton();
     }
@@ -628,7 +628,7 @@ void ControlPanel::updateYScales()
     lowSlider->setValue(state->yScaleLow->getIndex());
     highSlider->setValue(state->yScaleHigh->getIndex());
 
-    if (state->getControllerTypeEnum() == ControllerStimRecordUSB2) {
+    if (state->getControllerTypeEnum() == ControllerStimRecord) {
         variableSlider->setValue(state->yScaleDC->getIndex());
     } else {
         variableSlider->setValue(state->yScaleAux->getIndex());

@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -43,7 +43,7 @@ public:
     void setStart(const uint16_t* start_) { start = start_; }
     void setNumSamples(int numSamples_) { numSamples = numSamples_; }
 
-    void readTimeStampData(uint32_t* buffer) const;
+    int readTimeStampData(uint32_t* buffer) const;
     void readAmplifierData(float* buffer, int stream, int channel) const;
     void readDcAmplifierData(float* buffer, int stream, int channel) const;
     void readAuxInData(float* buffer, int stream, int auxChannel);

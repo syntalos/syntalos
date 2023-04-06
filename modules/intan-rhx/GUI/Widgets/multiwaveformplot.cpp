@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.1.0
+//  Version 3.2.0
 //
-//  Copyright (c) 2020-2022 Intan Technologies
+//  Copyright (c) 2020-2023 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -1590,7 +1590,7 @@ void MultiWaveformPlot::loadWaveformData(WaveformFifo* waveformFifo)
         }
     }
     bool loadAllFilters = true;
-    bool dcWaveformsPreset = state->getControllerTypeEnum() == ControllerStimRecordUSB2;
+    bool dcWaveformsPreset = state->getControllerTypeEnum() == ControllerStimRecord;
     for (int i = 0; i < displayList.size(); ++i) {
         if (displayList.at(i).isCurrentlyVisible && !displayList.at(i).isDivider()) {
         // Of interest for future improvements to high-efficiency data plotting:
