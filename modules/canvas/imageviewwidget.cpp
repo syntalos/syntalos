@@ -100,25 +100,38 @@ GLuint ImageViewWidget::matToTexture(const cv::Mat &mat, GLenum minFilter, GLenu
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapFilter);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapFilter);
 
+#ifdef IV_USE_GLES
+    // glTexImage2D can't take BGR data in GLES, so we need to convert the format
+    // first, unfortunately.
+    cv::Mat dispMat;
+    cv::cvtColor(mat, dispMat, cv::COLOR_BGR2RGB);
+
+    GLenum inputColorFormat = GL_RGB;
+    if (mat.channels() == 1) {
+        inputColorFormat = GL_LUMINANCE;
+    }
+#else
     // Set incoming texture format to:
     // GL_BGR       for CV_CAP_OPENNI_BGR_IMAGE,
     // GL_LUMINANCE for CV_CAP_OPENNI_DISPARITY_MAP,
     // NOTE: Work out other mappings as required
-    GLenum inputColourFormat = GL_BGR;
+    cv::Mat dispMat = mat;
+    GLenum inputColorFormat = GL_BGR;
     if (mat.channels() == 1) {
-        inputColourFormat = GL_LUMINANCE;
+        inputColorFormat = GL_LUMINANCE;
     }
+#endif
 
     // Create the texture
     glTexImage2D(GL_TEXTURE_2D,     // Type of texture
                  0,                 // Pyramid level (for mip-mapping) - 0 is the top level
                  GL_RGB,            // Internal colour format to convert to
-                 mat.cols,          // Image width  i.e. 640 for Kinect in standard mode
-                 mat.rows,          // Image height i.e. 480 for Kinect in standard mode
+                 dispMat.cols,          // Image width  i.e. 640 for Kinect in standard mode
+                 dispMat.rows,          // Image height i.e. 480 for Kinect in standard mode
                  0,                 // Border width in pixels (can either be 1 or 0)
-                 inputColourFormat, // Input image format (i.e. GL_RGB, GL_RGBA, GL_BGR etc.)
+                 inputColorFormat, // Input image format (i.e. GL_RGB, GL_RGBA, GL_BGR etc.)
                  GL_UNSIGNED_BYTE,  // Image data type
-                 mat.ptr());        // The actual image data itself
+                 dispMat.ptr());        // The actual image data itself
 
     // If we're using mipmaps then generate them.
     if (minFilter == GL_LINEAR_MIPMAP_LINEAR  ||
@@ -133,7 +146,7 @@ GLuint ImageViewWidget::matToTexture(const cv::Mat &mat, GLenum minFilter, GLenu
 
 void ImageViewWidget::resizeGL(int width, int height)
 {
-    glViewport(0, 0, (GLint)width, (GLint)height);
+    glViewport(0, 0, width, height);
 
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
@@ -156,25 +169,22 @@ void ImageViewWidget::renderImage()
     if (d->origImage.empty())
         return;
 
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    glOrtho(0.0f, this->width(), this->height(), 0.0f, 0.0f, 1.0f);
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
     glEnable(GL_TEXTURE_2D);
-    auto tex = matToTexture(d->origImage, GL_NEAREST, GL_NEAREST, GL_CLAMP_TO_BORDER);
+    auto tex = matToTexture(d->origImage, GL_NEAREST, GL_NEAREST, GL_CLAMP_TO_EDGE);
 
     glBindTexture(GL_TEXTURE_2D, tex);
     glBegin(GL_QUADS);
-        glTexCoord2i(0, 1);
-        glVertex2i(d->renderPosX, d->renderHeight - d->renderPosY);
-        glTexCoord2i(0, 0);
-        glVertex2i(d->renderPosX, -d->renderPosY);
-        glTexCoord2i(1, 0);
-        glVertex2i(d->renderWidth + d->renderPosX, -d->renderPosY);
-        glTexCoord2i(1,1);
-        glVertex2i(d->renderWidth + d->renderPosX, d->renderHeight - d->renderPosY);
+        glTexCoord2f(0.0f, 1.0f);
+        glVertex2f(d->renderPosX, d->renderHeight - d->renderPosY);
+        glTexCoord2f(0.0f, 0.0f);
+        glVertex2f(d->renderPosX, -d->renderPosY);
+        glTexCoord2f(1.0f, 0.0f);
+        glVertex2f(d->renderWidth + d->renderPosX, -d->renderPosY);
+        glTexCoord2f(1.0f,1.0f);
+        glVertex2f(d->renderWidth + d->renderPosX, d->renderHeight - d->renderPosY);
     glEnd();
 
     glDeleteTextures(1, &tex);
