@@ -64,6 +64,7 @@ configure_file(
 install_data(
     module_data,
     install_dir: mod_install_dir,
+    preserve_path: true
 )
 foreach fname : module_data
     fs.copyfile(fname)
