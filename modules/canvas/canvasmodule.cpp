@@ -53,13 +53,14 @@ private:
     bool m_active;
 
 public:
-    explicit CanvasModule(QObject *parent = nullptr)
+    explicit CanvasModule(CanvasModuleInfo *modInfo, QObject *parent = nullptr)
         : AbstractModule(parent)
     {
         m_framesIn = registerInputPort<Frame>(QStringLiteral("frames-in"), QStringLiteral("Frames"));
         m_ctlIn = registerInputPort<ControlCommand>(QStringLiteral("control"), QStringLiteral("Control"));
 
         m_cvView = new CanvasWindow;
+        m_cvView->setWindowIcon(modInfo->icon());
         addDisplayWindow(m_cvView);
     }
 
@@ -221,14 +222,9 @@ QString CanvasModuleInfo::description() const
     return QStringLiteral("Display any image or video sequence.");
 }
 
-QIcon CanvasModuleInfo::icon() const
-{
-    return QIcon(":/module/canvas");
-}
-
 AbstractModule *CanvasModuleInfo::createModule(QObject *parent)
 {
-    return new CanvasModule(parent);
+    return new CanvasModule(this, parent);
 }
 
 #include "canvasmodule.moc"

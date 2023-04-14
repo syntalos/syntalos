@@ -26,6 +26,10 @@ module_deps = [
     qt_svg_dep,
 ]
 
+module_data = [
+    'audiosource.svg',
+]
+
 #
 # Generic module setup
 #
@@ -36,6 +40,7 @@ module_moc = qt.preprocess(
 )
 
 mod_install_dir = join_paths(sy_modules_dir, fs.name(meson.current_source_dir()))
+
 mod = shared_module(module_name,
     [module_hdr, module_moc_hdr,
      module_src, module_moc_src,
@@ -56,3 +61,11 @@ configure_file(
     install: true,
     install_dir: mod_install_dir
 )
+install_data(
+    module_data,
+    install_dir: mod_install_dir,
+    preserve_path: true
+)
+foreach fname : module_data
+    fs.copyfile(fname)
+endforeach

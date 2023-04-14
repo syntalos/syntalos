@@ -134,7 +134,7 @@ bool ModuleLibrary::load()
             }
             const auto modDef = modData["syntalos_module"].toHash();
             if (modDef.value("type") == "library") {
-                if (loadLibraryModInfo(modId, QDir(modDir).filePath(modDef.value("main").toString())))
+                if (loadLibraryModInfo(modId, modDir, QDir(modDir).filePath(modDef.value("main").toString())))
                     count++;
             } else if (modDef.value("type") == "python") {
                 if (loadPythonModInfo(modId, modDir, modData))
@@ -152,7 +152,13 @@ bool ModuleLibrary::load()
     return true;
 }
 
-bool ModuleLibrary::loadLibraryModInfo(const QString &modId, const QString &libFname)
+void ModuleLibrary::refreshIcons()
+{
+    for (const auto &modInfo : d->modInfos.values())
+        modInfo->refreshIcon();
+}
+
+bool ModuleLibrary::loadLibraryModInfo(const QString &modId, const QString &modDir, const QString &libFname)
 {
     typedef ModuleInfo* (*SyntalosModInfoFn)();
     typedef const char* (*SyntalosModAPIIdFn)();
@@ -203,6 +209,7 @@ bool ModuleLibrary::loadLibraryModInfo(const QString &modId, const QString &libF
 
     // register
     QSharedPointer<ModuleInfo> info(modInfo);
+    info->setRootDir(modDir);
     d->modInfos.insert(info->id(), info);
     return true;
 }

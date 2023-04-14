@@ -44,7 +44,6 @@
         <file alias="camera-tis">modules/camera-tis.svg</file>
         <file alias="camera-flir">modules/camera-flir.svg</file>
         <file alias="camera-ueye">modules/camera-ueye.svg</file>
-        <file alias="audiosource">modules/audiosource.svg</file>
         <file alias="miniscope">modules/miniscope.svg</file>
         <file alias="videorecorder">modules/videorecorder.svg</file>
         <file alias="triled-tracker">modules/triled-tracker.svg</file>
@@ -52,7 +51,6 @@
         <file alias="python">modules/python.svg</file>
         <file alias="runcmd">modules/runcmd.svg</file>
         <file alias="devel">modules/devmodule.svg</file>
-        <file alias="canvas">modules/canvas.svg</file>
         <file alias="table">modules/table.svg</file>
         <file alias="firmatauserctl">modules/firmatauserctl.svg</file>
         <file alias="videotransform">modules/videotransform.svg</file>

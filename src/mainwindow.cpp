@@ -936,6 +936,7 @@ void MainWindow::updateIconStyles()
 {
     bool isDark = currentThemeIsDark();
     ui->graphForm->updateIconStyles();
+    m_engine->library()->refreshIcons();
     setWidgetIconFromResource(ui->actionRun, "run", isDark);
     setWidgetIconFromResource(ui->actionRunTemp, "run-temp", isDark);
     setWidgetIconFromResource(ui->actionProjectDetails, "project-settings", isDark);

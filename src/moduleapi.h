@@ -111,6 +111,11 @@ public:
     virtual QIcon icon() const;
 
     /**
+     * @brief Called when the icon should be reloaded or updated.
+     */
+    virtual void refreshIcon();
+
+    /**
      * @brief The dominant color for this module.
      */
     virtual QColor color() const;
@@ -142,6 +147,12 @@ public:
     virtual AbstractModule *createModule(QObject *parent = nullptr) = 0;
 
     int count() const;
+
+    QString rootDir() const;
+    void setRootDir(const QString &dir);
+
+protected:
+    void setIcon(const QIcon &icon);
 
 private:
     Q_DISABLE_COPY(ModuleInfo)

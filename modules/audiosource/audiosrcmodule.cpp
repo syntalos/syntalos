@@ -24,6 +24,7 @@
 #include <QDebug>
 #include <QSvgRenderer>
 #include <QPainter>
+#include <QDir>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wzero-as-null-pointer-constant"
@@ -56,7 +57,7 @@ private:
     GstBus *m_bus;
 
 public:
-    explicit AudioSourceModule(QObject *parent = nullptr)
+    explicit AudioSourceModule(ModuleInfo *modInfo, QObject *parent = nullptr)
         : AbstractModule(parent),
           m_settingsDialog(nullptr),
           m_pipeline(nullptr)
@@ -273,19 +274,22 @@ QString AudioSourceModuleInfo::description() const
     return QStringLiteral("Play various acoustic signals.");
 }
 
-QIcon AudioSourceModuleInfo::icon() const
+void AudioSourceModuleInfo::refreshIcon()
 {
-    const auto audioSrcIconResStr = QStringLiteral(":/module/audiosource");
+    const QString audioSrcIconFname = QDir(rootDir()).filePath("audiosource.svg");
     bool isDark = currentThemeIsDark();
-    if (!isDark)
-        return QIcon(audioSrcIconResStr);
+    if (!isDark) {
+        setIcon(QIcon(audioSrcIconFname));
+        return;
+    }
 
     // convert our bright-mode icon into something that's visible easier
     // on a dark background
-    QFile f(audioSrcIconResStr);
+    QFile f(audioSrcIconFname);
     if (!f.open(QFile::ReadOnly | QFile::Text)) {
         qWarning().noquote() << "Failed to find audiosrc module icon: " << f.errorString();
-        return QIcon(audioSrcIconResStr);
+        setIcon(QIcon(audioSrcIconFname));
+        return;
     }
 
     QTextStream in(&f);
@@ -296,12 +300,13 @@ QIcon AudioSourceModuleInfo::icon() const
     QPainter painter(&pix);
     renderer.render(&painter, pix.rect());
 
-    return QIcon(pix);
+    setIcon(QIcon(pix));
+    return;
 }
 
 AbstractModule *AudioSourceModuleInfo::createModule(QObject *parent)
 {
-    return new AudioSourceModule(parent);
+    return new AudioSourceModule(this, parent);
 }
 
 #include "audiosrcmodule.moc"

@@ -323,13 +323,12 @@ public:
     AbstractModule *createModule(QObject *parent = nullptr) override
     {
         auto mod = new PythonModule(parent);
-        mod->setPythonInfo(m_pyFname, m_pyModDir, m_useVEnv);
+        mod->setPythonInfo(m_pyFname, rootDir(), m_useVEnv);
         mod->setupPorts(m_portDefInput, m_portDefOutput);
         return mod;
     }
 
     void setMainPyScriptFname(const QString &pyFname) { m_pyFname = pyFname; }
-    void setModSourceDir(const QString &wdir) { m_pyModDir = wdir; }
     void setUseVEnv(bool enabled) { m_useVEnv = enabled; }
     void setPortDef(const QVariantList &defInput, const QVariantList &defOutput)
     {
@@ -345,7 +344,6 @@ private:
     bool m_isDevModule;
 
     QString m_pyFname;
-    QString m_pyModDir;
     bool m_useVEnv;
 
     QVariantList m_portDefInput;
@@ -381,8 +379,8 @@ ModuleInfo *loadPythonModuleInfo(const QString &modId, const QString &modDir, co
         throw std::runtime_error(qPrintable(QStringLiteral("Main entrypoint Python file %1 does not exist").arg(pyFile)));
 
     modInfo = new PyModuleInfo(modId, name, desc, icon, isDevMod);
+    modInfo->setRootDir(modDir);
     modInfo->setMainPyScriptFname(pyFile);
-    modInfo->setModSourceDir(modDir);
     modInfo->setUseVEnv(useVEnv);
 
     const auto portsDef = modData.value("ports").toHash();

@@ -39,6 +39,8 @@ public:
     ~Private() { }
 
     int count;
+    QString rootDir;
+    QIcon icon;
 };
 
 ModuleInfo::ModuleInfo()
@@ -72,7 +74,31 @@ QString ModuleInfo::license() const
 
 QIcon ModuleInfo::icon() const
 {
-    return QIcon(":/module/generic");
+    if (d->icon.isNull())
+        return QIcon(":/module/generic");
+    return d->icon;
+}
+
+void ModuleInfo::setIcon(const QIcon &icon)
+{
+    d->icon = icon;
+}
+
+void ModuleInfo::refreshIcon()
+{
+    QIcon icon = QIcon(":/module/generic");
+    if (!d->rootDir.isEmpty()) {
+        const auto iconExts = QStringList() << ".svg" << ".svgz" << ".png";
+        for (const auto &iconExt : iconExts) {
+            const auto iconFname = QDir(d->rootDir).filePath(id() + iconExt);
+            if (QFileInfo::exists(iconFname)) {
+                icon = QIcon(iconFname);
+                break;
+            }
+        }
+    }
+
+    d->icon = icon;
 }
 
 QColor ModuleInfo::color() const
@@ -139,10 +165,22 @@ int ModuleInfo::count() const
     return d->count;
 }
 
+QString ModuleInfo::rootDir() const
+{
+    return d->rootDir;
+}
+
 void ModuleInfo::setCount(int count)
 {
     d->count = count;
 }
+
+void ModuleInfo::setRootDir(const QString &dir)
+{
+    d->rootDir = dir;
+    refreshIcon();
+}
+
 
 class VarStreamInputPort::Private
 {
