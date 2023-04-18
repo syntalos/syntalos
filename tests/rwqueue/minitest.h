@@ -36,19 +36,19 @@ public:
 	{
 		std::printf("    FAILED!\n    ******* Assertion failed (line %d): %s\n\n", line, expr);
 	}
-	
+
 	bool validateTestName(std::string const& which) const
 	{
 		return testMap.find(which) != testMap.end();
 	}
-	
+
 	void getAllTestNames(std::vector<std::string>& names) const
 	{
 		for (auto it = testMap.cbegin(); it != testMap.cend(); ++it) {
 			names.push_back(it->first);
 		}
 	}
-	
+
 	bool run(unsigned int iterations = 1)
 	{
 		bool success = true;
@@ -59,7 +59,7 @@ public:
 		}
 		return success;
 	}
-	
+
 	bool run(std::vector<std::string> const& which, unsigned int iterations = 1)
 	{
 		bool success = true;
@@ -70,7 +70,7 @@ public:
 		}
 		return success;
 	}
-	
+
 protected:
 	typedef TSubclass subclass_t;
 
@@ -79,11 +79,11 @@ protected:
 		testVec.push_back(std::make_pair(std::string(name), method));
 		testMap[std::string(name)] = method;
 	}
-	
+
 	bool execTest(std::pair<std::string, bool (subclass_t::*)()> const& testRef, unsigned int iterations)
 	{
 		std::printf("%s::%s... \n", demangle_type_name(typeid(subclass_t).name()).c_str(), testRef.first.c_str());
-		
+
 		bool result = true;
 		for (unsigned int i = 0; i != iterations; ++i) {
 			if (!(static_cast<subclass_t*>(this)->*testRef.second)()) {
@@ -91,7 +91,7 @@ protected:
 				break;
 			}
 		}
-		
+
 		if (result) {
 			std::printf("    passed\n\n");
 		}
@@ -100,7 +100,7 @@ protected:
 		}
 		return result;
 	}
-	
+
 private:
 	static std::string demangle_type_name(const char* name)
 	{
@@ -118,7 +118,7 @@ private:
 		return name;
 #endif
 	}
-	
+
 protected:
 	std::vector<std::pair<std::string, bool (TSubclass::*)()> > testVec;
 	std::map<std::string, bool (TSubclass::*)()> testMap;
