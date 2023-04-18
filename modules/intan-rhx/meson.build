@@ -30,10 +30,9 @@ module_ui = []
 module_res = ['IntanRHX.qrc']
 
 # OpenCL kernel
-configure_file(
-    input: 'kernel.cl',
-    output: 'kernel.cl',
-    copy: true,
+fs.copyfile(
+    'kernel.cl',
+    'kernel.cl',
     install: true,
     install_dir: mod_install_dir
 )
@@ -49,10 +48,9 @@ intanrhx_bitfiles = [
     'FPGA-bitfiles/USBEvaluationBoard.bit',
 ]
 foreach bfile : intanrhx_bitfiles
-    configure_file(
-        input: bfile,
-        output: fs.name(bfile),
-        copy: true,
+    fs.copyfile(
+        bfile,
+        fs.name(bfile),
         install: true,
         install_dir: mod_install_dir
     )
@@ -75,10 +73,9 @@ qt_xml_dep = dependency('qt5', modules: ['Xml'])
 okfp_lib_dir = join_paths(meson.current_source_dir(), 'libraries')
 okfp_lib = declare_dependency(link_args: ['-L' + okfp_lib_dir, '-lokFrontPanel'])
 
-configure_file(
-    input: 'libraries/libokFrontPanel.so',
-    output: 'libokFrontPanel.so',
-    copy: true,
+fs.copyfile(
+    'libraries/libokFrontPanel.so',
+    'libokFrontPanel.so',
     install: true,
     install_dir: mod_install_dir
 )
