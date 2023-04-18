@@ -1,6 +1,6 @@
 <RCC>
     <qresource prefix="/icons">
-        <file alias="videorecorder.svg">../../../data/modules/videorecorder.svg</file>
+        <file alias="videorecorder.svg">../videorecorder.svg</file>
     </qresource>
     <qresource prefix="/animations">
         <file alias="encoding.svg">../../../data/animations/encoding.svg</file>

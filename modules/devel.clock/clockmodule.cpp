@@ -225,11 +225,6 @@ QString DevelClockModuleInfo::description() const
     return QStringLiteral("Developer module emiting clock pulses at precise (as much as possible) intervals.");
 }
 
-QIcon DevelClockModuleInfo::icon() const
-{
-    return QIcon(":/module/devclock");
-}
-
 bool DevelClockModuleInfo::devel() const
 {
     return true;

@@ -167,11 +167,6 @@ QString VideoTransformModuleInfo::description() const
     return QStringLiteral("Perform common transformations on frames, such as cropping and scaling.");
 }
 
-QIcon VideoTransformModuleInfo::icon() const
-{
-    return QIcon(":/module/videotransform");
-}
-
 AbstractModule *VideoTransformModuleInfo::createModule(QObject *parent)
 {
     return new VideoTransformModule(parent);

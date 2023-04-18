@@ -39,7 +39,7 @@ private:
     std::shared_ptr<StreamInputPort<IntSignalBlock>> m_intSig1In;
 
 public:
-    explicit TracePlotModule(QObject *parent = nullptr)
+    explicit TracePlotModule(ModuleInfo *modInfo, QObject *parent = nullptr)
         : AbstractModule(parent),
           m_traceDisplay(nullptr)
     {
@@ -47,6 +47,7 @@ public:
 
         // create trace display and fetch plot controller reference
         m_traceDisplay = new TraceDisplay();
+        m_traceDisplay->setWindowIcon(modInfo->icon());
         addDisplayWindow(m_traceDisplay);
 
         m_fpSig1In = registerInputPort<FloatSignalBlock>(QStringLiteral("fpsig1-in"), QStringLiteral("Float In 1"));
@@ -117,11 +118,6 @@ QString TracePlotModuleInfo::description() const
     return QStringLiteral("Display signal data (usually from an electrophysiology data source) and plot it instantly.");
 }
 
-QIcon TracePlotModuleInfo::icon() const
-{
-    return QIcon(":/module/traceplot");
-}
-
 bool TracePlotModuleInfo::singleton() const
 {
     return true;
@@ -129,7 +125,7 @@ bool TracePlotModuleInfo::singleton() const
 
 AbstractModule *TracePlotModuleInfo::createModule(QObject *parent)
 {
-    return new TracePlotModule(parent);
+    return new TracePlotModule(this, parent);
 }
 
 #include "traceplotmodule.moc"

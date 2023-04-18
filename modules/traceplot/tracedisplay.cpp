@@ -132,7 +132,6 @@ TraceDisplay::TraceDisplay(QWidget *parent)
 {
     ui->setupUi(this);
     setWindowTitle(QStringLiteral("Traces"));
-    setWindowIcon(QIcon(":/module/traceplot"));
 
     m_timer->setSingleShot(true);
     m_timer->setInterval(400);

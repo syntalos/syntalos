@@ -470,11 +470,6 @@ QString TISCameraModuleInfo::description() const
     return QStringLiteral("Capture video with a camera from The Imaging Source.");
 }
 
-QIcon TISCameraModuleInfo::icon() const
-{
-    return QIcon(":/module/camera-tis");
-}
-
 QString TISCameraModuleInfo::license() const
 {
     return QStringLiteral("This module embeds code from <a href=\"https://www.theimagingsource.com/\">The Imaging Source</a> "

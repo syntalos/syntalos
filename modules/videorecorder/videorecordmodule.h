@@ -31,7 +31,6 @@ public:
     QString id() const override;
     QString name() const override;
     QString description() const override;
-    QIcon icon() const override;
     QString storageGroupName() const override;
     AbstractModule *createModule(QObject *parent = nullptr) override;
 };

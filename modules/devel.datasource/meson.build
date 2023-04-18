@@ -1,31 +1,36 @@
 # Build definitions for module: devel.datasource
 
-module_name = 'devel.datasource'
-
 module_hdr = [
     'datasourcemodule.h'
 ]
+module_moc_hdr = []
 
-module_src = [
-    'datasourcemodule.cpp'
+module_src = []
+module_moc_src = [
+    'datasourcemodule.cpp',
 ]
 
 module_ui = []
 
 module_deps = [opencv_dep]
 
+module_data = []
+
 #
 # Generic module setup
 #
-module_moc = qt.preprocess(
-    moc_sources: module_src,
-    ui_files: module_ui
-)
-
+module_name = fs.name(meson.current_source_dir()).to_lower().underscorify().replace('_', '-')
 mod_install_dir = join_paths(sy_modules_dir, fs.name(meson.current_source_dir()))
 
+module_moc = qt.preprocess(
+    moc_headers: module_moc_hdr,
+    moc_sources: module_moc_src,
+    ui_files: module_ui,
+)
 mod = shared_module(module_name,
-    [module_hdr, module_src, module_moc],
+    [module_hdr, module_moc_hdr,
+     module_src, module_moc_src,
+     module_moc],
     name_prefix: '',
     dependencies: [syntalos_shared_dep,
                    module_deps],
@@ -42,3 +47,11 @@ configure_file(
     install: true,
     install_dir: mod_install_dir
 )
+install_data(
+    module_data,
+    install_dir: mod_install_dir,
+    preserve_path: true
+)
+foreach fname : module_data
+    fs.copyfile(fname)
+endforeach

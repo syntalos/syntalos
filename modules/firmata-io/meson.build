@@ -30,6 +30,10 @@ module_ui = ['firmatasettingsdialog.ui']
 qt_serialport_dep = dependency('qt5', modules: ['SerialPort'])
 module_deps = [qt_serialport_dep]
 
+module_data = [
+    'firmataio.svg',
+]
+
 #
 # Generic module setup
 #
@@ -39,7 +43,7 @@ mod_install_dir = join_paths(sy_modules_dir, fs.name(meson.current_source_dir())
 module_moc = qt.preprocess(
     moc_headers: module_moc_hdr,
     moc_sources: module_moc_src,
-    ui_files: module_ui
+    ui_files: module_ui,
 )
 mod = shared_module(module_name,
     [module_hdr, module_moc_hdr,
@@ -61,3 +65,11 @@ configure_file(
     install: true,
     install_dir: mod_install_dir
 )
+install_data(
+    module_data,
+    install_dir: mod_install_dir,
+    preserve_path: true
+)
+foreach fname : module_data
+    fs.copyfile(fname)
+endforeach

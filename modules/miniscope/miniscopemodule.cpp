@@ -46,7 +46,7 @@ private:
     MiniscopeSettingsDialog *m_settingsDialog;
 
 public:
-    explicit MiniscopeModule(QObject *parent = nullptr)
+    explicit MiniscopeModule(ModuleInfo *modInfo, QObject *parent = nullptr)
         : AbstractModule(parent),
           m_acceptFrames(false),
           m_miniscope(nullptr),
@@ -59,6 +59,7 @@ public:
 
         m_miniscope = new Miniscope();
         m_settingsDialog = new MiniscopeSettingsDialog(m_miniscope);
+        m_settingsDialog->setWindowIcon(modInfo->icon());
         addSettingsWindow(m_settingsDialog);
 
         m_miniscope->setScopeCamId(0);
@@ -302,14 +303,9 @@ QString MiniscopeModuleInfo::description() const
     return QStringLiteral("Record fluorescence images from the brain of behaving animals using a UCLA Miniscope.");
 }
 
-QIcon MiniscopeModuleInfo::icon() const
-{
-    return QIcon(":/module/miniscope");
-}
-
 AbstractModule *MiniscopeModuleInfo::createModule(QObject *parent)
 {
-    return new MiniscopeModule(parent);
+    return new MiniscopeModule(this, parent);
 }
 
 #include "miniscopemodule.moc"

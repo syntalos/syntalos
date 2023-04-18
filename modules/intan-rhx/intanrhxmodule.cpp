@@ -49,11 +49,6 @@ QString IntanRhxModuleInfo::license() const
     return QStringLiteral("Copyright © 2020-2021 <a href=\"https://intantech.com/\">Intan Technologies</a> [GPL-3.0+]");
 }
 
-QIcon IntanRhxModuleInfo::icon() const
-{
-    return QIcon(":/module/intan-rhx");
-}
-
 bool IntanRhxModuleInfo::singleton() const
 {
     return true;
@@ -61,17 +56,18 @@ bool IntanRhxModuleInfo::singleton() const
 
 AbstractModule *IntanRhxModuleInfo::createModule(QObject *parent)
 {
-    return new IntanRhxModule(id(), parent);
+    return new IntanRhxModule(id(), this, parent);
 }
 
-IntanRhxModule::IntanRhxModule(const QString &id, QObject *parent)
+IntanRhxModule::IntanRhxModule(const QString &id, IntanRhxModuleInfo *modInfo, QObject *parent)
     : AbstractModule(id, parent),
       m_chanExportDlg(nullptr),
       m_sysState(nullptr)
 {
     blocksPerTimestamp = 5;
     m_boardSelectDlg = new BoardSelectDialog(this);
-    m_boardSelectDlg->setWindowIcon(QIcon(":/module/intan-rhx"));
+    m_modIcon = modInfo->icon();
+    m_boardSelectDlg->setWindowIcon(m_modIcon);
 }
 
 IntanRhxModule::~IntanRhxModule()
@@ -93,7 +89,7 @@ bool IntanRhxModule::initialize()
         raiseError(QStringLiteral("No reference to control window found. This is an internal error."));
         return false;
     }
-    m_ctlWindow->setWindowIcon(QIcon(":/module/intan-rhx"));
+    m_ctlWindow->setWindowIcon(m_modIcon);
 
     if ((m_sysState == nullptr) || (m_controllerIntf == nullptr)) {
         raiseError(QStringLiteral("Failed to initialize module."));
@@ -101,6 +97,7 @@ bool IntanRhxModule::initialize()
     }
 
     m_chanExportDlg = new ChanExportDialog(m_sysState);
+    m_chanExportDlg->setWindowIcon(m_modIcon);
     addSettingsWindow(m_chanExportDlg);
     addDisplayWindow(m_ctlWindow, false);
 
@@ -125,7 +122,7 @@ ModuleFeatures IntanRhxModule::features() const
 {
     return ModuleFeature::CALL_UI_EVENTS |
            ModuleFeature::SHOW_SETTINGS |
-            ModuleFeature::SHOW_DISPLAY;
+           ModuleFeature::SHOW_DISPLAY;
 }
 
 ModuleDriverKind IntanRhxModule::driver() const

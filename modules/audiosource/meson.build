@@ -1,8 +1,5 @@
 # Build definitions for module: audiosource
 
-module_name = 'audiosource'
-mod_install_dir = join_paths(sy_modules_dir, fs.name(meson.current_source_dir()))
-
 module_hdr = [
     'audiosrcmodule.h',
 ]
@@ -33,14 +30,14 @@ module_data = [
 #
 # Generic module setup
 #
+module_name = fs.name(meson.current_source_dir()).to_lower().underscorify().replace('_', '-')
+mod_install_dir = join_paths(sy_modules_dir, fs.name(meson.current_source_dir()))
+
 module_moc = qt.preprocess(
     moc_headers: module_moc_hdr,
     moc_sources: module_moc_src,
-    ui_files: module_ui
+    ui_files: module_ui,
 )
-
-mod_install_dir = join_paths(sy_modules_dir, fs.name(meson.current_source_dir()))
-
 mod = shared_module(module_name,
     [module_hdr, module_moc_hdr,
      module_src, module_moc_src,

@@ -132,10 +132,15 @@ endif
 # target OpenCL 3.0
 module_cpp_args += ['-DCL_TARGET_OPENCL_VERSION=300']
 
+module_data = [
+    'intan-rhx.svg',
+]
+
 #
 # Generic module setup
 #
 module_name = fs.name(meson.current_source_dir()).to_lower().underscorify().replace('_', '-')
+
 module_moc = qt.preprocess(
     moc_headers: module_moc_hdr,
     moc_sources: module_moc_src,
@@ -155,7 +160,7 @@ mod = shared_module(module_name,
     install_rpath: mod_install_dir,
     build_rpath: okfp_lib_dir,
     include_directories: module_inc_dirs,
-    cpp_args: module_cpp_args
+    cpp_args: module_cpp_args,
 )
 
 mod_data = configuration_data()
@@ -167,3 +172,11 @@ configure_file(
     install: true,
     install_dir: mod_install_dir
 )
+install_data(
+    module_data,
+    install_dir: mod_install_dir,
+    preserve_path: true
+)
+foreach fname : module_data
+    fs.copyfile(fname)
+endforeach

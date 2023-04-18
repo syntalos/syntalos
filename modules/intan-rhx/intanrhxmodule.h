@@ -33,7 +33,6 @@ public:
     QString name() const override;
     QString description() const override;
     QString license() const override;
-    QIcon icon() const override;
     bool singleton() const override;
     AbstractModule *createModule(QObject *parent = nullptr) override;
 };
@@ -68,7 +67,9 @@ class IntanRhxModule : public AbstractModule
 {
     Q_OBJECT
 public:
-    explicit IntanRhxModule(const QString &id, QObject *parent = nullptr);
+    explicit IntanRhxModule(const QString &id,
+                            IntanRhxModuleInfo *modInfo,
+                            QObject *parent = nullptr);
     ~IntanRhxModule();
 
     bool initialize() override;
@@ -102,6 +103,7 @@ private slots:
     void onExportedChannelsChanged(const QList<Channel*> &channels);
 
 private:
+    QIcon m_modIcon;
     BoardSelectDialog *m_boardSelectDlg;
     ControlWindow *m_ctlWindow;
     ChanExportDialog *m_chanExportDlg;

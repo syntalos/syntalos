@@ -110,8 +110,6 @@ ChanExportDialog::ChanExportDialog(SystemState *state, QWidget *parent) :
     m_exportChannelsTable->verticalHeader()->setDefaultSectionSize(metrics.height() * 1.5);
 
     setLayout(mainLayout);
-
-    setWindowIcon(QIcon(":/module/intan-rhx"));
     setWindowTitle("Select Exported Channels");
 
     setGeometry(QStyle::alignedRect(
