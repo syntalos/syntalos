@@ -371,11 +371,12 @@ QString SysInfo::availableClocksources() const
 
 SysInfoCheckResult SysInfo::checkClocksource()
 {
-    // we want the CPU timestamp-counter to be default, and not
-    // any of the inferior clocksources
-    if (d->currentClocksource == QStringLiteral("tsc"))
+    // we ideally want the CPU timestamp-counter or HPET to be default
+    if (d->currentClocksource == QStringLiteral("tsc") || d->currentClocksource == QStringLiteral("hpet"))
         return SysInfoCheckResult::OK;
-    return SysInfoCheckResult::ISSUE;
+    if (d->currentClocksource == QStringLiteral("acpi_pm"))
+        return SysInfoCheckResult::ISSUE;
+    return SysInfoCheckResult::SUSPICIOUS;
 }
 
 bool SysInfo::tscIsConstant() const
