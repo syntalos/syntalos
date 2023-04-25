@@ -19,7 +19,7 @@ ninja && ninja install
 cd ../..
 
 # Support for "The Imaging Source" cameras
-git clone --depth 1 --branch=v-tiscamera-1.0.0 https://github.com/TheImagingSource/tiscamera.git tiscamera
+git clone --depth 1 --branch=v-tiscamera-1.1.0 https://github.com/TheImagingSource/tiscamera.git tiscamera
 mkdir tiscamera/b && cd tiscamera/b/
 cmake -GNinja \
     -DTCAM_BUILD_DOCUMENTATION=OFF \
