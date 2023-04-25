@@ -20,10 +20,12 @@
 #include "tiscameramodule.h"
 
 #include <QDebug>
+#include <QMessageBox>
 #include <gst/app/gstappsink.h>
 #include <gst/video/video-format.h>
 #include <tcam-property-1.0.h>
 #include "streams/frametype.h"
+#include "utils/misc.h"
 
 #include "tcamcontroldialog.h"
 
@@ -77,6 +79,21 @@ public:
     {
         return ModuleFeature::REALTIME |
                ModuleFeature::SHOW_SETTINGS;
+    }
+
+    bool initialize() override
+    {
+        // be nice and warn the user in case udev rules are missing
+        if (!hostUdevRuleExists("80-theimagingsource-cameras.rules")) {
+            QMessageBox::warning(nullptr, QStringLiteral("Hardware configuration not installed"),
+                                 QStringLiteral("<html>The hardware definitions for The Imaging Source cameras are not installed.\n"
+                                                "To ensure the devices are detected and work properly, please "
+                                                "<a href=\"https://www.theimagingsource.com/support/download/\">download & install the driver package</a> "
+                                                "from the Imaging Source website."),
+                                 QMessageBox::Ok);
+        }
+
+        return true;
     }
 
     void showSettingsUi() override

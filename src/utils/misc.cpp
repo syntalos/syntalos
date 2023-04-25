@@ -155,6 +155,16 @@ QString findHostFile(const QString &path)
     return QString();
 }
 
+bool hostUdevRuleExists(const QString &ruleFilename)
+{
+    QStringList udevPaths = {"/lib/udev/rules.d", "/usr/lib/udev/rules.d", "/etc/udev/rules.d"};
+    for (const auto &root : udevPaths) {
+        if (!findHostFile(root + "/" + ruleFilename).isEmpty())
+            return true;
+    }
+    return false;
+}
+
 QString tempDirRoot()
 {
     return QDir::tempPath();

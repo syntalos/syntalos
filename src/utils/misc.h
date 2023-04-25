@@ -85,4 +85,11 @@ QString tempDirLargeRoot();
  */
 QString findHostFile(const QString &path);
 
+/**
+ * @brief Check if a udev rule exists.
+ * @param ruleFilename Name of the udev rule file
+ * @return true if the rule existed, false otherwise.
+ */
+bool hostUdevRuleExists(const QString &ruleFilename);
+
 #endif // UTILS_H

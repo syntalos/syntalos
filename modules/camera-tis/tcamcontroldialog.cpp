@@ -491,13 +491,13 @@ void TcamControlDialog::on_selectDeviceButton_clicked()
         }
 
         m_selectedDevice = dialog.get_selected_device();
-        qCInfo(logTISCam, "device selected: %s\n", m_selectedDevice.str().c_str());
+        qCInfo(logTISCam, "device selected: %s", m_selectedDevice.str().c_str());
 
         openPipeline(m_capConfig->format_selection_type);
         createPropertiesBox();
         setEnabled(true);
     } else {
-        qCInfo(logTISCam, "No device selected\n");
+        qCInfo(logTISCam, "No device selected");
     }
 }
 
