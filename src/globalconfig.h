@@ -20,10 +20,13 @@
 #pragma once
 
 #include <QObject>
+#include <QLoggingCategory>
 
 class QSettings;
 
 namespace Syntalos {
+
+Q_DECLARE_LOGGING_CATEGORY(logGlobalConfig)
 
 enum class ColorMode {
     SYSTEM,
@@ -68,6 +71,8 @@ public:
     bool saveExperimentDiagnostics() const;
     void setSaveExperimentDiagnostics(bool enabled);
 
+    QString appDataLocation() const;
+
     QString userModulesDir() const;
 
     QString virtualenvDir() const;
@@ -78,6 +83,8 @@ public:
 
 private:
     QSettings *m_s;
+    QString m_userHome;
+    QString m_appDataRoot;
 };
 
 }

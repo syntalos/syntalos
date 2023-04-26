@@ -251,20 +251,22 @@ Engine::Engine(QWidget *parentWidget)
     : QObject(parentWidget),
       d(new Engine::Private)
 {
-    d->saveInternal = false;
     d->gconf = new GlobalConfig(this);
+    d->saveInternal = false;
     d->sysInfo = SysInfo::get();
     d->exportDirIsValid = false;
     d->active = false;
     d->running = false;
     d->simpleStorageNames = true;
-    d->modLibrary = new ModuleLibrary(this);
+    d->modLibrary = new ModuleLibrary(d->gconf, this);
     d->parentWidget = parentWidget;
     d->timer.reset(new SyncTimer);
     d->runIsEphemeral = false;
     d->mainThreadCoreAffinity.clear();
     d->runCount = 0;
     d->runCountPadding = 1;
+
+    qCDebug(logEngine, "Application data directory: %s", qPrintable(d->gconf->appDataLocation()));
 
     // allow sending states via Qt queued connections,
     // and also register all other transmittable data types

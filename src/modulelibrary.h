@@ -27,6 +27,7 @@
 
 namespace Syntalos {
 class ModuleInfo;
+class GlobalConfig;
 
 Q_DECLARE_LOGGING_CATEGORY(logModLibrary)
 }
@@ -40,7 +41,7 @@ class ModuleLibrary : public QObject
 {
     Q_OBJECT
 public:
-    explicit ModuleLibrary(QObject *parent = nullptr);
+    explicit ModuleLibrary(GlobalConfig *gconf = nullptr, QObject *parent = nullptr);
     ~ModuleLibrary();
 
     bool load();

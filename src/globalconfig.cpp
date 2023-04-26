@@ -19,18 +19,35 @@
 
 #include "globalconfig.h"
 
+#include <QDebug>
 #include <QSettings>
 #include <QStandardPaths>
 #include <QDir>
 
 #include "rtkit.h"
+#include "utils/misc.h"
 
 using namespace Syntalos;
+
+namespace Syntalos {
+    Q_LOGGING_CATEGORY(logGlobalConfig, "global.config")
+}
 
 GlobalConfig::GlobalConfig(QObject *parent)
     : QObject(parent)
 {
     m_s = new QSettings("DraguhnLab", "Syntalos", this);
+
+    m_userHome = QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
+    if (isInFlatpakSandbox())
+        m_appDataRoot = QDir(m_userHome).filePath(".var/app/io.github.bothlab.syntalos/data");
+    else
+        m_appDataRoot = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+
+    if (m_userHome.isEmpty())
+        qCCritical(logGlobalConfig, "Unable to determine user home directory!");
+    if (m_appDataRoot.isEmpty())
+        qCCritical(logGlobalConfig, "Unable to determine application data directory!");
 }
 
 QString GlobalConfig::iconThemeName() const
@@ -147,16 +164,19 @@ void GlobalConfig::setSaveExperimentDiagnostics(bool enabled)
     m_s->setValue("devel/save_diagnostics", enabled);
 }
 
+QString GlobalConfig::appDataLocation() const
+{
+    return m_appDataRoot;
+}
+
 QString GlobalConfig::userModulesDir() const
 {
-    const auto dataDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    return QDir(dataDir).filePath("modules");
+    return QDir(m_appDataRoot).filePath("modules");
 }
 
 QString GlobalConfig::virtualenvDir() const
 {
-    const auto dataDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    return QDir(dataDir).filePath("venv");
+    return QDir(m_appDataRoot).filePath("venv");
 }
 
 void GlobalConfig::triggerCreateVirtualenvUserLink()
@@ -168,9 +188,7 @@ void GlobalConfig::triggerCreateVirtualenvUserLink()
     if (!venvDir.exists() || venvDir.isEmpty())
         return;
 
-    const auto homeDir = QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
-    const auto linkFname = QDir(homeDir).filePath("SyntalosVEnvs");
-
+    const auto linkFname = QDir(m_userHome).filePath("SyntalosVEnvs");
     QFileInfo fi(linkFname);
     if (fi.exists())
         return;

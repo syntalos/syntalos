@@ -63,7 +63,7 @@ public:
 };
 #pragma GCC diagnostic pop
 
-ModuleLibrary::ModuleLibrary(QObject *parent)
+ModuleLibrary::ModuleLibrary(GlobalConfig *gconf, QObject *parent)
     : QObject(parent),
       d(new ModuleLibrary::Private)
 {
@@ -87,9 +87,15 @@ ModuleLibrary::ModuleLibrary(QObject *parent)
     }
 
     // load user-provided modules, if there are any
-    GlobalConfig gconf;
-    if (QDir(gconf.userModulesDir()).exists())
-        d->locations.append(ModuleLocation(gconf.userModulesDir()));
+    QString userModulesDir;
+    if (gconf != nullptr) {
+        userModulesDir = gconf->userModulesDir();
+    } else {
+        GlobalConfig tmpgc;
+        userModulesDir = tmpgc.userModulesDir();
+    }
+    if (QDir(userModulesDir).exists())
+        d->locations.append(ModuleLocation(userModulesDir));
 }
 
 ModuleLibrary::~ModuleLibrary()
