@@ -27,6 +27,10 @@
 
 #include "streams/frametype.h"
 
+namespace Syntalos {
+    Q_DECLARE_LOGGING_CATEGORY(logVRecorder)
+}
+
 /**
  * @brief The VideoContainer enum
  *
@@ -110,6 +114,8 @@ public:
     bool canUseVaapi() const;
     bool useVaapi() const;
     void setUseVaapi(bool enabled);
+    void setRenderNode(const QString &node);
+    QString renderNode() const;
 
     int threadCount() const;
     void setThreadCount(int n);
@@ -140,6 +146,8 @@ private:
     CodecProperties &operator=(CodecProperties &&) = delete;
 #endif
 };
+
+QMap<QString, QString> findVideoRenderNodes();
 
 /**
  * @brief The VideoWriter class

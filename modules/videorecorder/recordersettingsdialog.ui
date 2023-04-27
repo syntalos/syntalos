@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>569</width>
-    <height>490</height>
+    <height>492</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -549,6 +549,16 @@
            <cstring>losslessCheckBox</cstring>
           </property>
          </widget>
+        </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="renderNodeLabel">
+          <property name="text">
+           <string>Render Node</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QComboBox" name="renderNodeComboBox"/>
         </item>
        </layout>
       </item>

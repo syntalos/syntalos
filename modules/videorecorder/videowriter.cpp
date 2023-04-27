@@ -28,6 +28,7 @@
 #include <QFileInfo>
 #include <QDateTime>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <systemd/sd-device.h>
 extern "C" {
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
@@ -39,6 +40,11 @@ extern "C" {
 }
 
 #include "tsyncfile.h"
+
+
+namespace Syntalos {
+    Q_LOGGING_CATEGORY(logVRecorder, "mod.videorecorder")
+}
 
 VideoCodec stringToVideoCodec(const std::string &str)
 {
@@ -127,6 +133,7 @@ public:
     int threadCount;
     bool canUseVaapi;
     bool useVaapi;
+    QString renderNode;
 
     bool slicingAllowed;
     bool aviAllowed;
@@ -154,6 +161,7 @@ CodecProperties::CodecProperties(VideoCodec codec)
     d->quality = 0;
     d->qualityMin = 0;
     d->qualityMax = 0;
+    d->renderNode = QStringLiteral("/dev/dri/renderD128");
 
     switch (codec) {
     case VideoCodec::Raw:
@@ -171,6 +179,7 @@ CodecProperties::CodecProperties(VideoCodec codec)
 
     case VideoCodec::AV1:
         d->losslessMode = Option;
+        d->canUseVaapi = true;
 
         d->quality = 24;
         d->qualityMax = 0;
@@ -226,11 +235,6 @@ CodecProperties::CodecProperties(VideoCodec codec)
         throw std::runtime_error(QStringLiteral("No properties found for codec: %1")
                                  .arg(QString::fromStdString(videoCodecToString(codec))).toStdString());
     }
-
-    // ensure hardware render node is available, if not disable VAAPI
-    QFileInfo fi("/dev/dri/renderD128");
-    if (!fi.exists())
-        d->canUseVaapi = false;
 }
 
 CodecProperties::CodecProperties(const QVariantHash &v)
@@ -328,6 +332,16 @@ void CodecProperties::setUseVaapi(bool enabled)
 {
     if (canUseVaapi())
         d->useVaapi = enabled;
+}
+
+void CodecProperties::setRenderNode(const QString &node)
+{
+    d->renderNode = node;
+}
+
+QString CodecProperties::renderNode() const
+{
+    return d->renderNode;
 }
 
 int CodecProperties::threadCount() const
@@ -459,7 +473,6 @@ public:
     AVBufferRef *hwDevCtx;
     AVBufferRef *hwFrameCtx;
     AVFrame *hwFrame;
-    QString hwDevice;
 };
 #pragma GCC diagnostic pop
 
@@ -467,9 +480,6 @@ VideoWriter::VideoWriter()
     : d(new VideoWriter::Private())
 {
     d->initialized = false;
-
-    // DRI node for HW acceleration, currently hardcoded
-    d->hwDevice = QStringLiteral("/dev/dri/renderD128");
 
     // initialize codec properties
     CodecProperties cp(VideoCodec::FFV1);
@@ -513,12 +523,15 @@ static AVFrame *vw_alloc_frame(int pix_fmt, int width, int height, bool allocate
 
 void VideoWriter::initializeHWAccell()
 {
+    // DRI node for HW acceleration
+    const auto hwDevice = d->codecProps.renderNode();
+
     int ret = av_hwdevice_ctx_create(&d->hwDevCtx,
                                      av_hwdevice_find_type_by_name("vaapi"),
-                                     qPrintable(d->hwDevice), nullptr, 0);
+                                     qPrintable(hwDevice), nullptr, 0);
 
     if (ret != 0)
-        throw std::runtime_error(QStringLiteral("Failed to create hardware encoding device for %1: %2").arg(d->hwDevice).arg(ret).toStdString());
+        throw std::runtime_error(QStringLiteral("Failed to create hardware encoding device for %1: %2").arg(hwDevice).arg(ret).toStdString());
 
     d->hwFrameCtx = av_hwframe_ctx_alloc(d->hwDevCtx);
     if (!d->hwFrameCtx) {
@@ -1307,4 +1320,73 @@ std::string VideoWriter::lastError() const
 void VideoWriter::setContainer(VideoContainer container)
 {
     d->container = container;
+}
+
+QMap<QString, QString> findVideoRenderNodes()
+{
+    __attribute__((cleanup (sd_device_enumerator_unrefp))) sd_device_enumerator *e = NULL;
+    int r;
+
+    QMap<QString, QString> renderNodes;
+    r = sd_device_enumerator_new (&e);
+    if (r < 0) {
+        qCWarning(logVRecorder, "Unable to enumerate render devices: %s", strerror(r));
+        return renderNodes;
+    }
+
+    r = sd_device_enumerator_allow_uninitialized(e);
+    if (r < 0) {
+        qCWarning(logVRecorder, "Failed to allow search for uninitialized devices: %s", strerror(r));
+        return renderNodes;
+    }
+
+    r = sd_device_enumerator_add_match_subsystem(e, "drm", true);
+    if (r < 0) {
+        qCWarning(logVRecorder, "Failed to add DRM subsystem match: %s", strerror(r));
+        return renderNodes;
+    }
+    r = sd_device_enumerator_add_match_property(e, "DEVTYPE", "drm_minor");
+    if (r < 0) {
+        qCWarning(logVRecorder, "Failed to add property match to find render nodes: %s", strerror(r));
+        return renderNodes;
+    }
+
+    for (sd_device *dev = sd_device_enumerator_get_device_first(e);
+         dev;
+         dev = sd_device_enumerator_get_device_next(e)) {
+
+        sd_device *p;
+        const char *devnode = nullptr;
+        const char *vendor_id = nullptr;
+        const char *model_id = nullptr;
+
+        r = sd_device_get_devname(dev, &devnode);
+        if (r < 0) {
+            qCWarning(logVRecorder, "Failed to read DRM device node: %s", strerror(r));
+            continue;
+        }
+
+        if (strstr(devnode, "/dev/dri/render") == nullptr)
+            continue;
+        if (sd_device_get_parent(dev, &p) < 0)
+            continue;
+
+        sd_device_get_property_value(p, "ID_VENDOR_ID", &vendor_id);
+        if (vendor_id == nullptr) {
+            sd_device_get_property_value(p, "ID_VENDOR_FROM_DATABASE", &vendor_id);
+            if (vendor_id == nullptr)
+                sd_device_get_property_value(p, "DRIVER", &vendor_id);
+        }
+
+        sd_device_get_property_value(p, "ID_MODEL_ID", &model_id);
+        if (model_id == nullptr) {
+            sd_device_get_property_value(p, "ID_MODEL_FROM_DATABASE", &model_id);
+            if (model_id == nullptr)
+                model_id = devnode;
+        }
+
+        renderNodes.insert(QString::fromUtf8(devnode), QStringLiteral("%1 - %2").arg(model_id, vendor_id));
+    }
+
+    return renderNodes;
 }

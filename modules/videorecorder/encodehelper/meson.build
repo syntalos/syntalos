@@ -40,6 +40,7 @@ executable('encodehelper',
                    qt_dbus_dep,
                    qt_svg_dep,
 
+                   libsystemd_dep,
                    opencv_dep,
                    avcodec_dep,
                    avformat_dep,

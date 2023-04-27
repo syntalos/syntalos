@@ -56,6 +56,11 @@ RecorderSettingsDialog::RecorderSettingsDialog(QWidget *parent) :
     ui->vaapiCheckBox->setEnabled(false);
     ui->vaapiCheckBox->setChecked(false);
     ui->vaapiLabel->setEnabled(false);
+    ui->renderNodeLabel->setEnabled(false);
+    ui->renderNodeComboBox->setEnabled(false);
+    m_renderNodes = findVideoRenderNodes();
+    for (const auto &node : m_renderNodes.keys())
+        ui->renderNodeComboBox->addItem(m_renderNodes.value(node), node);
 
     // no slicing warning by default
     ui->sliceWarnButton->setVisible(false);
@@ -124,6 +129,16 @@ void RecorderSettingsDialog::setCodecProps(CodecProperties props)
         }
     }
 
+    // set render node
+    for (int i = 0; i < ui->renderNodeComboBox->count(); i++) {
+        if (ui->renderNodeComboBox->itemData(i).value<QString>() == props.renderNode()) {
+            if (ui->renderNodeComboBox->currentIndex() == i)
+                break;
+            ui->renderNodeComboBox->setCurrentIndex(i);
+            break;
+        }
+    }
+
     if (!m_codecProps.allowsAviContainer())
         ui->containerComboBox->setCurrentIndex(0);
     ui->containerComboBox->setEnabled(m_codecProps.allowsAviContainer());
@@ -142,10 +157,16 @@ void RecorderSettingsDialog::setCodecProps(CodecProperties props)
     ui->losslessLabel->setEnabled(ui->losslessCheckBox->isEnabled());
 
     // change VAAPI option
-    ui->vaapiCheckBox->setEnabled(m_codecProps.canUseVaapi());
-    ui->vaapiLabel->setEnabled(m_codecProps.canUseVaapi());
-    if (!m_codecProps.canUseVaapi())
-        ui->vaapiCheckBox->setChecked(false);
+    if (m_renderNodes.isEmpty()) {
+        ui->vaapiCheckBox->setEnabled(false);
+        ui->vaapiLabel->setEnabled(false);
+        ui->renderNodeLabel->setEnabled(false);
+        ui->renderNodeComboBox->setEnabled(false);
+    } else {
+        ui->vaapiCheckBox->setEnabled(m_codecProps.canUseVaapi());
+        ui->vaapiLabel->setEnabled(m_codecProps.canUseVaapi());
+        ui->vaapiCheckBox->setChecked(m_codecProps.canUseVaapi()? m_codecProps.useVaapi() : false);
+    }
 
     // update slicing issue hint
     ui->sliceWarnButton->setVisible(false);
@@ -168,7 +189,6 @@ void RecorderSettingsDialog::setCodecProps(CodecProperties props)
 
     // other properties
     ui->losslessCheckBox->setChecked(m_codecProps.isLossless());
-    ui->vaapiCheckBox->setChecked(m_codecProps.useVaapi());
 
     ui->brqWidget->setEnabled(true);
     if (m_codecProps.losslessMode() == CodecProperties::Always)
@@ -303,9 +323,21 @@ void RecorderSettingsDialog::on_vaapiCheckBox_toggled(bool checked)
         ui->vaapiCheckBox->setText(QStringLiteral("(experimental)"));
     else
         ui->vaapiCheckBox->setText(QStringLiteral(" "));
+    ui->renderNodeLabel->setEnabled(checked);
+    ui->renderNodeComboBox->setEnabled(checked);
 
     if (m_codecProps.canUseVaapi())
         m_codecProps.setUseVaapi(checked);
+}
+
+void RecorderSettingsDialog::on_renderNodeComboBox_currentIndexChanged(int index)
+{
+    Q_UNUSED(index);
+    const auto renderNode = ui->renderNodeComboBox->currentData().value<QString>();
+    if (renderNode == m_codecProps.renderNode())
+        return;
+
+    m_codecProps.setRenderNode(renderNode);
 }
 
 void RecorderSettingsDialog::on_sliceWarnButton_clicked()

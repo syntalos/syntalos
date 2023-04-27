@@ -76,6 +76,7 @@ private slots:
     void on_nameFromSrcCheckBox_toggled(bool checked);
     void on_losslessCheckBox_toggled(bool checked);
     void on_vaapiCheckBox_toggled(bool checked);
+    void on_renderNodeComboBox_currentIndexChanged(int index);
 
     void on_slicingCheckBox_toggled(bool checked);
     void on_sliceWarnButton_clicked();
@@ -92,6 +93,7 @@ private:
 
     QString m_videoName;
     CodecProperties m_codecProps;
+    QMap<QString, QString> m_renderNodes;
 };
 
 #endif // RECORDERSETTINGSDIALOG_H

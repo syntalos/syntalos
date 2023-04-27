@@ -539,6 +539,8 @@ public:
         settings.insert("bitrate_kbps", codecProps.bitrateKbps());
         settings.insert("quality", codecProps.quality());
         settings.insert("mode", CodecProperties::modeToString(codecProps.mode()));
+        if (codecProps.useVaapi())
+            settings.insert("render_node", codecProps.renderNode());
 
         settings.insert("slices_enabled", static_cast<int>(m_settingsDialog->slicingEnabled()));
         settings.insert("slices_interval", static_cast<int>(m_settingsDialog->sliceInterval()));
@@ -557,6 +559,9 @@ public:
         codecProps.setUseVaapi(settings.value("vaapi_enabled").toBool());
         codecProps.setBitrateKbps(settings.value("bitrate_kbps", codecProps.bitrateKbps()).toInt());
         codecProps.setQuality(settings.value("quality", codecProps.quality()).toInt());
+        if (codecProps.useVaapi())
+            codecProps.setRenderNode(settings.value("render_node").toString());
+
         m_settingsDialog->setCodecProps(codecProps);
 
         // set user settings (possibly overriding codec defaults)
