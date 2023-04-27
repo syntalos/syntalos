@@ -1384,8 +1384,10 @@ QMap<QString, QString> findVideoRenderNodes()
             if (model_id == nullptr)
                 model_id = devnode;
         }
+        if (model_id == nullptr)
+            model_id = vendor_id;
 
-        renderNodes.insert(QString::fromUtf8(devnode), QStringLiteral("%1 - %2").arg(model_id, vendor_id));
+        renderNodes.insert(QString::fromUtf8(devnode), QStringLiteral("%1").arg(model_id));
     }
 
     return renderNodes;
