@@ -89,6 +89,15 @@ public:
     QList<AbstractModule*> activeModules() const;
     AbstractModule *moduleByName(const QString &name) const;
 
+    QString lastRunExportDir() const;
+    QString readRunComment(const QString &runExportDir = nullptr) const;
+    /**
+     * @brief Set comment for the next or a last experiment run
+     * @param comment The comment to set
+     * @param runExportDir The export directory, or empty for next run.
+     */
+    void setRunComment(const QString &comment, const QString &runExportDir = nullptr);
+
     bool saveInternalDiagnostics() const;
     void setSaveInternalDiagnostics(bool save);
 

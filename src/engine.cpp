@@ -46,6 +46,7 @@
 #include "syclock.h"
 #include "rtkit.h"
 #include "cpuaffinity.h"
+#include "utils/tomlutils.h"
 #include "utils/misc.h"
 
 namespace Syntalos {
@@ -231,6 +232,9 @@ public:
     std::atomic_bool failed;
     QString runFailedReason;
     bool runIsEphemeral;
+
+    QString lastRunExportDir;
+    QString nextRunComment;
 
     QList<QPair<AbstractModule*, QString>> pendingErrors;
 
@@ -578,6 +582,54 @@ AbstractModule *Engine::moduleByName(const QString &name) const
             return mod;
     }
     return nullptr;
+}
+
+QString Engine::lastRunExportDir() const
+{
+    return d->lastRunExportDir;
+}
+
+QString Engine::readRunComment(const QString &runExportDir) const
+{
+    if (runExportDir.isEmpty())
+        return d->nextRunComment;
+
+    QString parseError;
+    auto attrs = parseTomlFile(QStringLiteral("%1/attributes.toml").arg(runExportDir), parseError);
+    if (!parseError.isEmpty()) {
+        QMessageBox::critical(d->parentWidget,
+                              QStringLiteral("Can not read comment"),
+                              QStringLiteral("Unable to parse EDL metadata in %1:\n%2").arg(runExportDir, parseError));
+        return nullptr;
+    }
+
+    return attrs["user_comment"].toString();
+}
+
+void Engine::setRunComment(const QString &comment, const QString &runExportDir)
+{
+    if (runExportDir.isEmpty()) {
+        d->nextRunComment = comment;
+        return;
+    }
+
+    QString parseError;
+    const auto attrsFname = QStringLiteral("%1/attributes.toml").arg(runExportDir);
+    auto attrs = parseTomlFile(attrsFname, parseError);
+    if (!parseError.isEmpty()) {
+        QMessageBox::critical(d->parentWidget,
+                              QStringLiteral("Can not save comment"),
+                              QStringLiteral("Unable to parse EDL metadata in %1:\n%2").arg(runExportDir, parseError));
+        return;
+    }
+
+    attrs["user_comment"] = comment;
+
+    auto document = qVariantHashToTomlTable(attrs);
+    std::ofstream file;
+    file.open(attrsFname.toStdString());
+    file << document << "\n";
+    file.close();
 }
 
 bool Engine::saveInternalDiagnostics() const
@@ -1879,6 +1931,19 @@ bool Engine::runInternal(const QString &exportDirPath)
         extraData.insert("machine_node", QStringLiteral("%1 [%2 %3]").arg(d->sysInfo->machineHostName())
                                                                      .arg(d->sysInfo->osId())
                                                                      .arg(d->sysInfo->osVersion()));
+
+        if (!d->nextRunComment.isEmpty() && !d->runIsEphemeral) {
+            // add user comment
+            extraData.insert("user_comment", d->nextRunComment);
+
+            // we only remove the comment if the run was a success, as it is very likely
+            // the the user will remove the comment and will try again
+            if (!d->failed)
+                d->nextRunComment.clear();
+        }
+        // update last run directory
+        if (!d->runIsEphemeral)
+            d->lastRunExportDir = exportDirPath;
 
         QVariantList attrModList;
         for (auto &mod : orderedActiveModules) {

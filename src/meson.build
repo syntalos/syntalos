@@ -55,6 +55,8 @@ syntalos_src = [
     'aboutdialog.cpp',
     'appstyle.h',
     'appstyle.cpp',
+    'commentdialog.h',
+    'commentdialog.cpp',
     'cpuaffinity.h',
     'cpuaffinity.cpp',
     'entitylistmodels.h',
@@ -95,6 +97,7 @@ syntalos_src = [
 
 syntalos_ui = [
     'aboutdialog.ui',
+    'commentdialog.ui',
     'globalconfigdialog.ui',
     'intervalrundialog.ui',
     'mainwindow.ui',

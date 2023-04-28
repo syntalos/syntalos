@@ -36,6 +36,7 @@ public:
     explicit ElidedLabel(const QString &text, QWidget *parent = nullptr);
 
     void setText(const QString &text);
+    void setText(const char *text) { setText(QString::fromUtf8(text)); }
     const QString & text() const { return m_rawText; }
 
     Qt::TextElideMode elideMode() { return m_elideMode; }

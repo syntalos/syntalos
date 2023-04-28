@@ -91,6 +91,7 @@ private slots:
     void showBusyIndicatorWaiting();
     void hideBusyIndicator();
 
+    void on_actionEditComment_triggered();
     void on_actionSubjectsLoad_triggered();
     void on_actionSubjectsSave_triggered();
     void on_actionTimings_triggered();

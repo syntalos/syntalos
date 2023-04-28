@@ -1244,7 +1244,7 @@
      <x>0</x>
      <y>0</y>
      <width>800</width>
-     <height>19</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuHelp">
@@ -1346,6 +1346,8 @@
    </attribute>
    <addaction name="actionProjectOpen"/>
    <addaction name="actionProjectSave"/>
+   <addaction name="separator"/>
+   <addaction name="actionEditComment"/>
    <addaction name="actionProjectDetails"/>
   </widget>
   <widget class="QToolBar" name="toolbarVSpacing">
@@ -1588,6 +1590,18 @@
    </property>
    <property name="text">
     <string>USB Devices</string>
+   </property>
+  </action>
+  <action name="actionEditComment">
+   <property name="icon">
+    <iconset theme="edit-comment">
+     <normaloff>.</normaloff>.</iconset>
+   </property>
+   <property name="text">
+    <string>Add Comment</string>
+   </property>
+   <property name="toolTip">
+    <string>Edit user comment on last or next experiment run</string>
    </property>
   </action>
  </widget>

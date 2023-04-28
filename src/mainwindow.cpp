@@ -60,6 +60,7 @@
 #include "aboutdialog.h"
 #include "globalconfig.h"
 #include "globalconfigdialog.h"
+#include "commentdialog.h"
 #include "intervalrundialog.h"
 #include "engine.h"
 #include "sysinfodialog.h"
@@ -1314,6 +1315,12 @@ void MainWindow::hideBusyIndicator()
     m_busyIndicator->load(QByteArray());
     m_busyIndicator->hide();
     QApplication::processEvents();
+}
+
+void MainWindow::on_actionEditComment_triggered()
+{
+    CommentDialog dlg(m_engine, this);
+    dlg.exec();
 }
 
 void MainWindow::on_actionSubjectsLoad_triggered()
