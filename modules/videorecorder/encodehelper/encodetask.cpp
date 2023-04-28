@@ -146,19 +146,23 @@ void EncodeTask::run()
             frameWidth = frame.cols;
             frameHeight = frame.rows;
             useColor = frame.channels() > 1;
-            vwriter.initialize(m_destFname,
-                               md["mod-name"].toString(),
-                               md["src-mod-name"].toString(),
-                               QUuid::fromString(md["collection-id"].toString()),
-                               md["subject-name"].toString(),
-                               frameWidth,
-                               frameHeight,
-                               vsrc.get(cv::CAP_PROP_FPS),
-                               frame.depth(),
-                               useColor,
-                               m_writeTsync);
-
-
+            try {
+                vwriter.initialize(m_destFname,
+                                   md["mod-name"].toString(),
+                                   md["src-mod-name"].toString(),
+                                   QUuid::fromString(md["collection-id"].toString()),
+                                   md["subject-name"].toString(),
+                                   frameWidth,
+                                   frameHeight,
+                                   vsrc.get(cv::CAP_PROP_FPS),
+                                   frame.depth(),
+                                   useColor,
+                                   m_writeTsync);
+            } catch (const std::runtime_error& e) {
+                m_item->setError(QStringLiteral("Unable to initialize recording: %1").arg(e.what()));
+                success = false;
+                break;
+            }
         }
 
         // write timestamp info
