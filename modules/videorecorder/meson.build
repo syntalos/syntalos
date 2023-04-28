@@ -1,5 +1,7 @@
 # Build definitions for module: videorecorder
 
+vrecmod_install_dir = join_paths(sy_modules_dir, fs.name(meson.current_source_dir()))
+
 # small helper tool to enqueue files for deferred encoding
 subdir('encodehelper')
 
@@ -38,7 +40,7 @@ module_data = [
 # Generic module setup
 #
 module_name = fs.name(meson.current_source_dir()).to_lower().underscorify().replace('_', '-')
-mod_install_dir = join_paths(sy_modules_dir, fs.name(meson.current_source_dir()))
+mod_install_dir = vrecmod_install_dir
 
 module_moc = qt.preprocess(
     moc_headers: module_moc_hdr,
