@@ -20,6 +20,7 @@
 #include "datasourcemodule.h"
 #include "streams/frametype.h"
 
+#include <QInputDialog>
 #include <opencv2/imgproc.hpp>
 #include "utils/misc.h"
 
@@ -32,12 +33,14 @@ private:
     std::shared_ptr<DataStream<Frame>> m_frameOut;
     std::shared_ptr<DataStream<TableRow>> m_rowsOut;
     std::shared_ptr<DataStream<FirmataControl>> m_fctlOut;
+    int m_fps;
 
     time_t m_prevRowTime;
 
 public:
     explicit DataSourceModule(QObject *parent = nullptr)
-        : AbstractModule(parent)
+        : AbstractModule(parent),
+          m_fps(200)
     {
         m_frameOut = registerOutputPort<Frame>(QStringLiteral("frames-out"), QStringLiteral("Frames"));
         m_rowsOut = registerOutputPort<TableRow>(QStringLiteral("rows-out"), QStringLiteral("Table Rows"));
@@ -56,12 +59,28 @@ public:
 
     ModuleFeatures features() const override
     {
-        return ModuleFeature::NONE;
+        return ModuleFeature::NONE | ModuleFeature::SHOW_SETTINGS;
+    }
+
+    void showSettingsUi() override
+    {
+        if (m_running)
+            return;
+
+        bool ok;
+        int value = QInputDialog::getInt(nullptr,
+                                         "Configure Debug Data Source",
+                                         "Video Framerate",
+                                         m_fps,
+                                         2, 10000, 1,
+                                         &ok);
+        if (ok)
+            m_fps = value;
     }
 
     bool prepare(const TestSubject &) override
     {
-        m_frameOut->setMetadataValue("framerate", (double) 320);
+        m_frameOut->setMetadataValue("framerate", (double) m_fps);
         m_frameOut->setMetadataValue("size", QSize(800, 600));
         m_frameOut->start();
 
@@ -84,7 +103,7 @@ public:
 
         size_t dataIndex = 0;
         while (m_running) {
-            m_frameOut->push(createFrames_about200Hz(dataIndex));
+            m_frameOut->push(createFrame_sleep(dataIndex, m_fps));
 
             auto row = createTablerow();
             if (row.has_value())
@@ -106,7 +125,7 @@ public:
     }
 
 private:
-    Frame createFrames_about200Hz(size_t index)
+    Frame createFrame_sleep(size_t index, int fps)
     {
         const auto startTime = currentTimePoint();
         Frame frame;
@@ -121,7 +140,7 @@ private:
                     cv::Scalar(255,255,255));
         frame.time = m_syTimer->timeSinceStartMsec();
 
-        std::this_thread::sleep_for(std::chrono::microseconds(5000) - timeDiffUsec(currentTimePoint(), startTime));
+        std::this_thread::sleep_for(std::chrono::microseconds((1000 / fps) * 1000) - timeDiffUsec(currentTimePoint(), startTime));
         return frame;
     }
 

@@ -180,6 +180,7 @@ CodecProperties::CodecProperties(VideoCodec codec)
     case VideoCodec::AV1:
         d->losslessMode = Option;
         d->canUseVaapi = true;
+        d->slicingAllowed = false; // codec needs init frames
 
         d->quality = 24;
         d->qualityMax = 0;
@@ -640,12 +641,18 @@ void VideoWriter::initializeInternal()
         // we should try to use hardware acceleration
         if (d->codecProps.codec() == VideoCodec::VP9)
             vcodec = avcodec_find_encoder_by_name("vp9_vaapi");
+        else if (d->codecProps.codec() == VideoCodec::AV1)
+            vcodec = avcodec_find_encoder_by_name("av1_vaapi");
         else if (d->codecProps.codec() == VideoCodec::H264)
             vcodec = avcodec_find_encoder_by_name("h264_vaapi");
         else if (d->codecProps.codec() == VideoCodec::HEVC)
             vcodec = avcodec_find_encoder_by_name("hevc_vaapi");
         else
             throw std::runtime_error("Unable to find hardware-accelerated version of the selected codec.");
+
+        if (vcodec == nullptr)
+            throw std::runtime_error(QStringLiteral("Unable to find suitable hardware video encoder for codec %1. Your accelerator may not support encoding with this codec.")
+                                     .arg(videoCodecToString(d->codecProps.codec()).c_str()).toStdString());
     } else {
         // No hardware acceleration, select software encoder
         // We only use SVT-AV1 for AV1 encoding, because it is much faster and even
@@ -659,6 +666,10 @@ void VideoWriter::initializeInternal()
     if (vcodec == nullptr)
         throw std::runtime_error(QStringLiteral("Unable to find suitable video encoder for codec %1. This codec may not have been enabled at compile time or the system is missing the required encoder.")
                                  .arg(videoCodecToString(d->codecProps.codec()).c_str()).toStdString());
+
+    if ((d->fps.num / d->fps.den) > 240 && QString::fromUtf8(vcodec->name) == "libsvtav1")
+        throw std::runtime_error(QStringLiteral("Can not encode videos with a framerate higher than 240 FPS using the %1 encoder.")
+                                 .arg(vcodec->name).toStdString());
 
     d->cctx = avcodec_alloc_context3(vcodec);
     d->selectedEncoderName = QString::fromUtf8(vcodec->name);
@@ -818,7 +829,7 @@ void VideoWriter::initializeInternal()
     if (ret < 0) {
         finalizeInternal(false);
         av_dict_free(&codecopts);
-        throw std::runtime_error(QStringLiteral("Failed to open video encoder: %1").arg(ret).toStdString());
+        throw std::runtime_error(QStringLiteral("Failed to open video encoder with the current parameters: %1").arg(ret).toStdString());
     }
 
     // stream codec parameters must be set after opening the encoder
@@ -1384,10 +1395,11 @@ QMap<QString, QString> findVideoRenderNodes()
             if (model_id == nullptr)
                 model_id = devnode;
         }
-        if (model_id == nullptr)
-            model_id = vendor_id;
 
-        renderNodes.insert(QString::fromUtf8(devnode), QStringLiteral("%1").arg(model_id));
+        auto fullName = QStringLiteral("%1 - %2").arg(model_id, vendor_id);
+        if (fullName.length() > 40)
+            fullName = QString::fromUtf8(model_id);
+        renderNodes.insert(QString::fromUtf8(devnode), fullName);
     }
 
     return renderNodes;
