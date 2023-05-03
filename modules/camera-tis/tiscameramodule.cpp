@@ -321,6 +321,12 @@ public:
                 continue;
             }
 
+            // we don't want to store values for read-only or write-only properties, as we could either
+            // not write them back later, or load their values to save now.
+            const auto accessLevel = tcam_property_base_get_access(prop);
+            if (accessLevel == TCAM_PROPERTY_ACCESS_RO || accessLevel == TCAM_PROPERTY_ACCESS_WO)
+                continue;
+
             QVariantHash sProp;
             const auto typeId = tcam_property_base_get_property_type(prop);
             sProp.insert("type_id", typeId);
@@ -433,6 +439,18 @@ public:
             // skip unknown properties
             if (prop == nullptr)
                 continue;
+
+            // only load values for properties that we can write to
+            if (tcam_property_base_get_access(prop) == TCAM_PROPERTY_ACCESS_RO) {
+                qCDebug(logTISCam).noquote().nospace() << QString::fromStdString(m_device.serial()) << ": "
+                                                         << "Skipped loading read-only property '" << name << "'";
+                continue;
+            }
+            if (tcam_property_base_is_locked(prop, nullptr)) {
+                qCDebug(logTISCam).noquote().nospace() << QString::fromStdString(m_device.serial()) << ": "
+                                                         << "Skipped loading locked property '" << name << "'";
+                continue;
+            }
 
             switch (typeId) {
                 case TCAM_PROPERTY_TYPE_FLOAT: {
