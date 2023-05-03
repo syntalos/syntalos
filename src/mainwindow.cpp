@@ -1093,7 +1093,7 @@ void MainWindow::setCurrentProjectFile(const QString &fileName)
     } else {
         m_currentProjectFname = fileName;
         QFileInfo fi(fileName);
-        this->setWindowTitle(QStringLiteral("Syntalos - %2").arg(fi.baseName()));
+        this->setWindowTitle(QStringLiteral("Syntalos - %2").arg(fi.completeBaseName()));
         qDebug().noquote() << "Current board settings file:" << m_currentProjectFname;
     }
 }
