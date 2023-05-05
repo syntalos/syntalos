@@ -12,8 +12,8 @@
 #include "hardware/structs/clocks.h"
 
 
-#define LED_PIN         10
-#define MODE_SWITCH_PIN 21
+#define LED_PIN         22
+#define MODE_SWITCH_PIN  5
 #define LED_PULSE_LEN 240
 
 
