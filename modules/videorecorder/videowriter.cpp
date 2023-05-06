@@ -248,6 +248,7 @@ CodecProperties::CodecProperties(const QVariantHash &v)
     setUseVaapi(v["use-vaapi"].toBool());
     setMode(static_cast<EncoderMode>(v["mode"].toInt()));
     setQuality(v["quality"].toInt());
+    d->renderNode = v.value("render-node", QString()).toString();
 }
 
 QVariantHash CodecProperties::toVariant() const
@@ -260,6 +261,8 @@ QVariantHash CodecProperties::toVariant() const
     v["use-vaapi"] = QVariant::fromValue(d->useVaapi);
     v["mode"] = QVariant::fromValue(static_cast<int>(d->mode));
     v["quality"] = QVariant::fromValue(d->quality);
+    if (d->useVaapi)
+        v["render-node"] = QVariant::fromValue(d->renderNode);
 
     return v;
 }

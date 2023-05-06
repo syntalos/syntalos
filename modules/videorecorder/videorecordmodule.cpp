@@ -404,7 +404,13 @@ public:
     void enqueueVideosForDeferredEncoding()
     {
         if (isEphemeralRun()) {
-            qDebug().noquote() << "Not performing deferred encoding, run was ephemeral.";
+            qDebug().noquote().nospace() << name() << ": "
+                                         << "Not performing deferred encoding, run was ephemeral.";
+            return;
+        }
+        if (m_vidDataset.get() == nullptr) {
+            qDebug().noquote().nospace() << name() << ": "
+                                         << "Not performing deferred encoding, video dataset was not set (we probably failed the run early).";
             return;
         }
 

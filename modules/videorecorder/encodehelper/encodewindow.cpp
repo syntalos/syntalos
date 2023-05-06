@@ -154,13 +154,25 @@ void EncodeWindow::on_tasksTable_activated(const QModelIndex &index)
     QHashIterator<QString, QVariant> i(item->mdata());
     while (i.hasNext()) {
         i.next();
-        info += QStringLiteral("<br/>%1 = %2").arg(i.key(), i.value().toString());
+        auto key = i.key();
+        QString value;
+        if (key == "video-container")
+            value = QString::fromStdString(videoContainerToString(static_cast<VideoContainer>(i.value().toInt())));
+        else
+            value = i.value().toString();
+        info += QStringLiteral("<br/>%1 = %2").arg(key, value);
     }
     info += "<br/><br/><b>Encoder</b>";
     QHashIterator<QString, QVariant> ei(item->codecProps().toVariant());
     while (ei.hasNext()) {
         ei.next();
-        info += QStringLiteral("<br/>%1 = %2").arg(ei.key(), ei.value().toString());
+        auto key = ei.key();
+        QString value;
+        if (key == "codec")
+            value = QString::fromStdString(videoCodecToString(static_cast<VideoCodec>(ei.value().toInt())));
+        else
+            value = ei.value().toString();
+        info += QStringLiteral("<br/>%1 = %2").arg(key, value);
     }
 
     const auto text = QStringLiteral("<h3>Errors</h3><p>%1</p>"
