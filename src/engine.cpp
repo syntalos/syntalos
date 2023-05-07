@@ -194,6 +194,8 @@ public:
     bool diskSpaceWarningEmitted;
     bool memoryWarningEmitted;
     bool subBufferWarningEmitted;
+    double prevMemAvailablePercent;
+    bool emergencyOOMStop;
 
     QTimer diskSpaceCheckTimer;
     QTimer memCheckTimer;
@@ -269,6 +271,7 @@ Engine::Engine(QWidget *parentWidget)
     d->mainThreadCoreAffinity.clear();
     d->runCount = 0;
     d->runCountPadding = 1;
+    d->monitoring->emergencyOOMStop = d->gconf->emergencyOOMStop();
 
     qCDebug(logEngine, "Application data directory: %s", qPrintable(d->gconf->appDataLocation()));
 
@@ -1174,10 +1177,18 @@ void Engine::onDiskspaceMonitorEvent()
 void Engine::onMemoryMonitorEvent()
 {
     const auto memInfo = read_meminfo();
-    if (memInfo.memAvailablePercent < 5) {
+
+    if (memInfo.memAvailablePercent < d->monitoring->prevMemAvailablePercent && memInfo.memAvailablePercent < 1.6 && d->monitoring->emergencyOOMStop) {
+        qCInfo(logEngine).noquote() << "Less than 2% of system memory available and shrinking, commencing emergency stop.";
+        receiveModuleError(QStringLiteral("Emergency stop: We are low on system memory, and it is continuing to shrink rapidly.\n"
+                                          "To prevent Syntalos from being killed by the system and loosing data, this run has been stopped.\n"
+                                          "Please check your module setup to ensure modules are able to process incoming data fast enough.\n"
+                                          "Slow connections are currently highlighted in red. Depending on the setup complexity, upgrading the system may also be a viable solution"));
+        d->runFailedReason = QStringLiteral("engine: Emergency stop due to low system memory.");
+    } else if (memInfo.memAvailablePercent < 5) {
         // when we have less than 5% memory remaining, there usually still is (slower) swap space available,
         // this is why 5% is relatively low.
-        // NOTE: Be more clever here in future and check available swap space in advance for this warning?
+        // TODO: Be more clever here in future and check available swap space in advance for this warning?
         Q_EMIT resourceWarningUpdate(Memory, false,
                                      QStringLiteral("System memory is low. Only %1% remaining.").arg(memInfo.memAvailablePercent, 0, 'f', 1));
         d->monitoring->memoryWarningEmitted = true;
@@ -1188,6 +1199,8 @@ void Engine::onMemoryMonitorEvent()
             d->monitoring->memoryWarningEmitted = true;
         }
     }
+
+    d->monitoring->prevMemAvailablePercent = memInfo.memAvailablePercent;
 }
 
 void Engine::onBufferMonitorEvent()
@@ -1258,6 +1271,8 @@ void Engine::startResourceMonitoring(QList<AbstractModule *> activeModules, cons
     connect(&d->monitoring->diskSpaceCheckTimer, &QTimer::timeout, this, &Engine::onDiskspaceMonitorEvent);
 
     // watcher for remaining system memory
+    d->monitoring->prevMemAvailablePercent = 100;
+    d->monitoring->emergencyOOMStop = d->gconf->emergencyOOMStop();
     d->monitoring->memoryWarningEmitted = false;
     d->monitoring->memCheckTimer.setInterval(10 * 1000); // check every 10sec
     connect(&d->monitoring->memCheckTimer, &QTimer::timeout, this, &Engine::onMemoryMonitorEvent);

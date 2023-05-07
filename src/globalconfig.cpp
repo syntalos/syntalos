@@ -207,6 +207,16 @@ void GlobalConfig::setCreateVEnvUserLink(bool enabled)
     m_s->setValue("devel/venv_user_link", enabled);
 }
 
+bool GlobalConfig::emergencyOOMStop() const
+{
+    return m_s->value("engine/emergency_oom_stop", true).toBool();
+}
+
+void GlobalConfig::setEmergencyOOMStop(bool enabled)
+{
+    m_s->setValue("engine/emergency_oom_stop", enabled);
+}
+
 QString Syntalos::colorModeToString(ColorMode mode)
 {
     switch (mode) {

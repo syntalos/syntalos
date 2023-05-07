@@ -51,6 +51,7 @@ GlobalConfigDialog::GlobalConfigDialog(QWidget *parent) :
         ui->colorModeComboBox->addItem("Dark Colors", Syntalos::colorModeToString(ColorMode::DARK));
         ui->colorModeComboBox->setCurrentIndex(static_cast<int>(m_gc->appColorMode()));
     }
+    ui->cbEmergencyOOMStop->setChecked(m_gc->emergencyOOMStop());
 
     // advanced section
     ui->defaultNicenessSpinBox->setMaximum(20);
@@ -89,6 +90,11 @@ void GlobalConfigDialog::on_colorModeComboBox_currentIndexChanged(int index)
 
     m_gc->setAppColorMode(Syntalos::colorModeFromString(ui->colorModeComboBox->currentData().toString()));
     Q_EMIT defaultColorSchemeChanged();
+}
+
+void GlobalConfigDialog::on_emergencyOOMStopCheckBox_toggled(bool checked)
+{
+    if (m_acceptChanges) m_gc->setEmergencyOOMStop(checked);
 }
 
 void GlobalConfigDialog::on_defaultNicenessSpinBox_valueChanged(int arg1)

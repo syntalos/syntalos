@@ -81,6 +81,9 @@ public:
     bool createVEnvUserLink() const;
     void setCreateVEnvUserLink(bool enabled);
 
+    bool emergencyOOMStop() const;
+    void setEmergencyOOMStop(bool enabled);
+
 private:
     QSettings *m_s;
     QString m_userHome;
