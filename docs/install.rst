@@ -4,27 +4,46 @@ Installation
 You can find the source code and precompiled binaries for some distribution
 for the latest Syntalos releases at the `Syntalos GitHub releases page <https://github.com/bothlab/syntalos/releases>`_.
 
+Installing via Flathub / from the App-Center
+============================================
+Syntalos is avaulable as Flatpak bundle for download via Flathub.
+The Flatpak'ed version will run on any Linux distribution, but due to Flatpak's sandbox
+constraints may need some additional external software installed for certain hardware
+to work properly. If these components are needed, Syntalos will notify the user.
+
+You can `view & download Syntalos on Flathub.org <https://flathub.org/apps/io.github.bothlab.syntalos>`_,
+or install it directly from you software store application (GNOME Software or KDE Discover), if Flatpak is
+set up with Flathub, which it is on most distributions (with the notable exception being Ubuntu).
+
+If Flathub is not set up, you can find instructions how to set it up `here <https://flatpak.org/setup/>`_.
+
+For the command-line way to install Syntalos using Flatpak you may execute these commands:
+
+.. code-block:: bash
+
+    # replace this command with the distribution's native package manager to install Flatpak
+    sudo apt install flatpak
+    # set up Flathub
+    sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+    # install Syntalos
+    flatpak install flathub io.github.bothlab.syntalos
+
 Installing via Packages
 =======================
-Please be aware that these precompiled binary packages have not yet received much testing, so you may still find
-issues with them.
 
 Debian
 ------
-Ensure to have Debian 11 (Bullseye) or later, then install the package via your graphical package manager or via
-the command-line: ``sudo apt install ./syntalos_0.8.0*.deb``. You can then launch Syntalos from the application menu
+Ensure to have Debian 12 (Bookworm) or later, then install the package via your graphical package manager or via
+the command-line: ``sudo apt install ./syntalos_*.deb``. You can then launch Syntalos from the application menu
 or command-line. A ``-dbgsym`` package is provided to easily produce debug backtraces in case of crashes, but this
 package is optional and does not need to be installed.
 
 Ubuntu
 ------
-Ensure you are on Ubuntu 20.04 (Focal) or later. You will need a higher version of ``xxhash`` than what the Ubuntu
-repositories of 20.04 provide, so upgrade this package version via a PPA:
-``sudo add-apt-repository -y ppa:ximion/syntalos`` (old and new ``xxhash`` are ABI-compatible, so this change should not
-impact any other software).
+Ensure you are on Ubuntu 22.04 (Jammy Jellyfish) or later.
 
 After the PPA is registered, you should be able to install the package via your graphical package manager or
-the command-line: ``sudo apt install ./syntalos_0.8.0*.deb``.
+the command-line: ``sudo apt install ./syntalos_*.deb``.
 You can then launch Syntalos from the application menu.
 
 Module dependencies
