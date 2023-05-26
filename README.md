@@ -19,6 +19,10 @@ Syntalos is built with a set of core principles in mind:
  * Be Linux-native: Syntalos is written and used on Linux, which enables it to make use of some beneficial Linux-specific functionality
    to increase its robustness or performance (a Windows port is likely possible, but would need extensive testing).
 
+<a href="https://flathub.org/apps/io.github.bothlab.syntalos">
+<img src="https://flathub.org/assets/badges/flathub-badge-en.png" width="140"/>
+</a>
+
 ## Modules
 
 Syntalos modules are self-contained entities which can perform arbitrary data acquisition, processing and/or storage tasks.
