@@ -1,7 +1,9 @@
 name: Release Builds
 
 on:
-  create:
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
   schedule:
     - cron: '0 10 * * 1'
@@ -13,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0
 
@@ -26,7 +28,7 @@ jobs:
             ./tests/ci/auto-build-deb.sh
 
     - name: Upload Debian package artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: Debian Package
         path: |
@@ -39,7 +41,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0
 
@@ -52,7 +54,7 @@ jobs:
             ./tests/ci/auto-build-deb.sh
 
     - name: Upload Ubuntu package artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: Ubuntu LTS Package
         path: |

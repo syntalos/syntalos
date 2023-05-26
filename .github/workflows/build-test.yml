@@ -7,7 +7,7 @@ jobs:
     name: Debian
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: Create Build Environment
       run: cd tests/ci/ && podman build -t syntalos -f ./Dockerfile-debian .
@@ -20,7 +20,7 @@ jobs:
     name: Ubuntu
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: Create Build Environment
       run: cd tests/ci/ && podman build -t syntalos -f ./Dockerfile-ubuntu .
