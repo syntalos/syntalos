@@ -2,17 +2,17 @@ Syntalos Release Notes
 
 1. Set variables
 
-OLD_VERSION="0.8.3"
-NEW_VERSION="0.8.4"
+OLD_VERSION="0.8.4"
+NEW_VERSION="0.8.5"
 
 2. Write NEWS.md entries for Syntalos in the same format as usual.
 
 git shortlog v$OLD_VERSION.. | grep -i -v trivial | grep -v Merge > NEWS.new
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Version 0.8.4
+Version 0.8.5
 -------------
-Released: 2022-xx-xx
+Released: 2023-xx-xx
 
 Notes:
 
