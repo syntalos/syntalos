@@ -17,9 +17,9 @@
       It is specifically designed for use in (neuro)scientific in vivo behavior experiments.
     </p>
     <p>
-      The modularity of this software allows its use for a wide variety of experiments and often can be used without
+      The modularity of this software allows its use for a wide variety of experiments and it often can be used without
       any programming skills. Data sources, sinks and processing blocks can be connected graphically with virtual
-      wires to form a data flow graph using drag &amp; drop, to represent how data should be acquired, displayed
+      "wires" to form a data flow graph using drag &amp; drop, to represent how data should be acquired, displayed
       or stored.
       Syntalos can be expanded with custom Python scripts and custom modules if more flexibility is needed.
       For all data sources, Syntalos ensures timestamps of incoming data are aligned, so the individual pieces of
