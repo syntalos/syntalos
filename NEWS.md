@@ -1,3 +1,56 @@
+Version 0.8.4
+-------------
+Released: 2023-05-26
+
+Features:
+ * Add USB connection diagram display to diagnostics toolbox
+ * Display smaller status steps when saving a file
+ * Allow module icons to be auto-loaded from files instead of embedded resources
+ * Allow user to annotate experiment runs with custom comments
+ * Drop info message when Syntalos is running in a Flatpak sandbox
+ * Make user module locations Flatpak-aware
+ * Add emergency fuse to stop if low on system memory
+ * Add code for simple Pi Pico-based testpulse generator
+ * Add simple circuit drawing for test pulse generator
+ * audiosrc: Add simple audio signal generator
+ * camera-tis: Port to new tcam 1.0 API
+ * intan-rhx: Update to v3.2.0
+ * videotransform: crop: Improve performance
+ * videorecorder: Make AV1 codec work, allow hardware acceleration for it
+
+Bugfixes:
+ * Make dark/light color scheme switching work with recent Breeze versions
+ * Try to break thread deadlocks in misbehaving modules
+ * Set no-omit-frame-pointers explicitly when tracing
+ * Stop using deprecated Python symbols and migrate to PyConfig
+ * Don't complain when eventfd read fails with EAGAIN
+ * Allow the direct use of PipeWire in Syntalos
+ * Mark HPET as acceptable clocksource
+ * Display the proper project name in title, even if it has dots
+ * camera-tis: Check for presence of udev rules when module is initialized
+ * camera-tis: Skip save/load of read-only properties
+ * camera-generic: Allow manually overriding exposure mode as quirk setting
+ * camera-generic: Don't scale settings values
+ * camera-generic: Allow user to set a capture pixel format (if possible)
+ * videotransform: Don't deselect the UI when launching an experiment
+ * intan-rhx: Add missing break statements
+ * videorecorder: Stop hardcoding render node used for VAAPI
+ * videorecorder: Don't crash if deferred encoder initialization fails
+ * videorecorder: Make combined hardware & deferred encoding work properly
+
+Miscellaneous:
+ * Apply some stricter compile-time checks
+ * Move module icons out of global resources and load from files
+ * timesync: Adjust times a bit more slowly
+ * timesync: Re-fill buffer vector completely after time adjustment/calibration
+ * timesync: intan: Don't wait too long after time adjustment
+ * Update rwqueue implementation to latest upstream
+ * docs: Update install instructions, add Flatpak info
+ * intan-rhx: Silence warnings due to upstream code issues
+ * intan-rhx: Reduce time sync tolerance slightly
+ * canvas: Slightly modernize OpenGL
+ * videorecorder: Only show model name in DRI device selection
+
 Version 0.8.3
 -------------
 Released: 2022-09-01
