@@ -2,4 +2,4 @@ sphinx>=3.0
 pygments>=2.6
 breathe>=4.16
 exhale
-cloud_sptheme
+insipid-sphinx-theme

@@ -98,12 +98,12 @@ pyworker_exe = executable('pyworker',
 pdoc_exe = find_program('pdoc', required: false)
 if pdoc_exe.found()
     # the pdoc Python module is probably there, so we can try to refresh the documentation
-    syio_doc_fname = files(join_paths(source_root, 'docs', 'modules', 'pyapi_syio.rst'))
+    syio_doc_fname = source_root / 'docs' / 'syio_api_embed.html'
     custom_target('pyworker-mkdoc',
         build_by_default: true,
         command : [pyworker_exe,
                     '--doc',
                     '@OUTPUT0@'],
-        output: 'pyapi_syio.rst'
+        output: 'syio_api_embed.html'
     )
 endif

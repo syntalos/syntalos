@@ -600,22 +600,41 @@ void OOPWorker::makeDocFileAndQuit(const QString &fname)
     // messages that - currently - we can't do anything about
     qputenv("PYTHONWARNINGS", "ignore");
 
+    QString jinjaTemplate = R""""(
+<div>
+    {% block content %}{% endblock %}
+
+    {% filter minify_css %}
+        {% block style %}
+            <style>{% include "syntax-highlighting.css" %}</style>
+            <style>{% include "theme.css" %}</style>
+            <style>{% include "content.css" %}</style>
+        {% endblock %}
+    {% endfilter %}
+</div>
+)"""";
+
+    QString jinjaTemplatePyLiteral = "\"\"\"" + jinjaTemplate + "\n\"\"\"";
+
     Py_Initialize();
     PyRun_SimpleString(qPrintable(
                            QStringLiteral(
+                               "import os\n"
+                               "import tempfile\n"
                                "import pdoc\n"
+                               "import syio\n"
                                "\n"
-                               "context = pdoc.Context()\n"
-                               "mod = pdoc.Module('syio', context=context)\n"
-                               "pdoc.link_inheritance(context)\n"
+                               "jinjaTmpl = ") + jinjaTemplatePyLiteral + QStringLiteral("\n"
                                "\n"
-                               "with open('%1', 'w') as f:\n"
-                               "    f.write(mod.text())\n"
-                               "    f.write('\\n')\n"
-                               "\n"
-                               "with open('%1.html', 'w') as f:\n"
-                               "    f.write(mod.html())\n"
-                               "    f.write('\\n')\n"
+                               "doc = pdoc.doc.Module(syio)\n"
+                               "with tempfile.TemporaryDirectory() as tmp_dir:\n"
+                               "    with open(os.path.join(tmp_dir, 'frame.html.jinja2'), 'w') as f:\n"
+                               "        f.write(jinjaTmpl)\n"
+                               "    pdoc.render.configure(template_directory=tmp_dir)\n"
+                               "    html_data = pdoc.render.html_module(module=doc, all_modules={'syio': doc})\n"
+                               "    with open('%1', 'w') as f:\n"
+                               "        f.write(html_data)\n"
+                               "        f.write('\\n')\n"
                                "\n")
                            .arg(QString(fname).replace("'", "\\'"))));
     if (Py_FinalizeEx() < 0)

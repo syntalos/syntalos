@@ -8,11 +8,11 @@ from breathe.renderer.sphinxrenderer import DomainDirectiveFactory, CMacroObject
 # -- Project information -----------------------------------------------------
 
 project = 'Syntalos'
-copyright = '2018-2020, Matthias Klumpp'
+copyright = '2018-2023, Matthias Klumpp'
 author = 'Matthias Klumpp'
 
 # The full version, including alpha/beta/rc tags
-release = '0.8'
+release = '1.0'
 
 # -- General configuration ---------------------------------------------------
 thisfile = __file__
@@ -20,11 +20,18 @@ if not os.path.isabs(thisfile):
     thisfile = os.path.normpath(os.path.join(os.getcwd(), thisfile))
 project_root = os.path.normpath(os.path.join(os.path.dirname(thisfile), '..'))
 
-html_theme = 'cloud'
-html_theme_options = {'borderless_decor': True,
-                      'lighter_header_decor': True,
-                      'min_height': '16cm',
-                      'roottarget': 'index'}
+html_theme = 'insipid'
+html_permalinks_icon = '#'
+html_copy_source = False
+html_theme_options = {'breadcrumbs': True}
+
+html_context = {
+    'display_github': True,
+    'github_user': 'bothlab',
+    'github_repo': 'syntalos',
+    'conf_py_path': '/docs/',
+    "github_version": 'master',
+}
 
 extensions = [
     'breathe',
@@ -45,7 +52,7 @@ exhale_args = {
     # These arguments are required
     'containmentFolder':     './api',
     'rootFileName':          'sysrc_root.rst',
-    'rootFileTitle':         'Syntalos API',
+    'rootFileTitle':         'Internal Syntalos API',
     'doxygenStripFromPath':  '../src',
     'createTreeView':        True,
     'exhaleExecutesDoxygen': True,

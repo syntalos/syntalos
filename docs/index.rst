@@ -9,6 +9,7 @@ Syntalos
    install
    reading_data
    modules/pyscript
+   syio_api
    changes
    api/sysrc_root.rst
 

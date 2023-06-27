@@ -32,12 +32,9 @@
 #include <pybind11/chrono.h>
 #include <pybind11/functional.h>
 
-#include "qstringtopy.h"
 #include "cvmatndsliceconvert.h"
 #include "worker.h"
-#include "qstringtopy.h"
 #include "cvmatndsliceconvert.h"
-#include "pyipcmarshal.h"
 
 
 namespace py = pybind11;
