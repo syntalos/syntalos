@@ -14,11 +14,12 @@ to make more advanced changes.
 
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Contents:
 
    intro
    install
+   tutorials/index
    reading_data
    modules/pyscript
    syio_api
@@ -26,9 +27,8 @@ to make more advanced changes.
    api/sysrc_root.rst
 
 
-Indices and tables
-==================
+Indices
+#######
 
 * :ref:`genindex`
-* :ref:`modindex`
 * :ref:`search`
