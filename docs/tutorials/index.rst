@@ -9,3 +9,4 @@ introduce some of Syntalos' functionality.
    :caption: Contents:
 
    01_hello-world
+   02_first-images
