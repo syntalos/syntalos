@@ -23,7 +23,10 @@ project_root = os.path.normpath(os.path.join(os.path.dirname(thisfile), '..'))
 html_theme = 'insipid'
 html_permalinks_icon = '#'
 html_copy_source = False
-html_theme_options = {'breadcrumbs': True}
+html_theme_options = {
+    'body_max_width': '48rem',
+    'breadcrumbs': True
+}
 
 html_context = {
     'display_github': True,
