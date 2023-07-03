@@ -31,6 +31,7 @@ PortEditorDialog::PortEditorDialog(AbstractModule *mod, QWidget *parent) :
     m_mod(mod)
 {
     ui->setupUi(this);
+    setWindowTitle("Port Editor");
     updatePortLists();
 }
 

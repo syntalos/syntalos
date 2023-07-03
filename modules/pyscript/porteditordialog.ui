@@ -80,12 +80,26 @@
                <string>Add Input Port</string>
               </property>
               <property name="icon">
-               <iconset theme="list-add"/>
+               <iconset theme="list-add">
+                <normaloff>.</normaloff>.</iconset>
               </property>
               <property name="toolButtonStyle">
                <enum>Qt::ToolButtonTextBesideIcon</enum>
               </property>
              </widget>
+            </item>
+            <item>
+             <spacer name="horizontalSpacer">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
             </item>
             <item>
              <widget class="QToolButton" name="tbRemoveInputPort">
@@ -96,7 +110,8 @@
                <string>Remove Selected</string>
               </property>
               <property name="icon">
-               <iconset theme="list-remove"/>
+               <iconset theme="list-remove">
+                <normaloff>.</normaloff>.</iconset>
               </property>
               <property name="toolButtonStyle">
                <enum>Qt::ToolButtonTextBesideIcon</enum>
@@ -149,6 +164,19 @@
                <enum>Qt::ToolButtonTextBesideIcon</enum>
               </property>
              </widget>
+            </item>
+            <item>
+             <spacer name="horizontalSpacer_2">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
             </item>
             <item>
              <widget class="QToolButton" name="tbRemoveOutputPort">
