@@ -1,7 +1,7 @@
-03. Controling experiments via scripts
-######################################
+03. Controlling experiments via scripts
+#######################################
 
-Syntalos allows users to write custom hyperlink:`Python <https://docs.python.org/3/tutorial/>`_
+Syntalos allows users to write custom `Python <https://docs.python.org/3/tutorial/>`_
 scripts to control module behavior, to realize a wite array of different experiments and to
 tailor module behavior to the user's need.
 This tutorial is a basic introduction for using the `Python Script` module in Syntalos.
@@ -91,6 +91,8 @@ of Python code (this is the whole script file):
        while True:
            oport.submit(ctl)
            sy.wait_sec(5)
+           if not sy.check_running():
+               return False
 
        return True
 
@@ -107,6 +109,10 @@ Any datatypes you can use with output ports, and commands you can use on input p
     functions from ``syio`` for that purpose. That way Syntalos knows about the waiting state of the  module,
     and can disrupt a sleeping module to stop it instead of waiting for it. It also allows Syntalos to make smarter
     scheduling and queueing decisions.
+
+By calling ``sy.check_running()`` in our endless loop, we can check if the Syntalos experiment is still running, and
+terminate voluntarily in case it is not. Otherwise, Syntalos will interrupt script execution if a script does not react
+in time to a stop request.
 
 4. Run it!
 ==========

@@ -35,7 +35,7 @@ The, open the `Video Recorder` settings and disable video slicing. If you have a
 disk space, you may also enable post-run encoding by clicking the *Encode after Run* and *Start Immediately*
 checkboxes, so Syntalos does not need to use computing resources for encoding while acquiring data, but can encode
 videos after the run is finished.
-By default, Syntalos will encode all videos losslessly using the hyperlink:`FFV1 <https://en.wikipedia.org/wiki/FFV1>`_
+By default, Syntalos will encode all videos losslessly using the `FFV1 <https://en.wikipedia.org/wiki/FFV1>`_
 codec, but other codecs are available as well.
 
 3. Connecting modules
