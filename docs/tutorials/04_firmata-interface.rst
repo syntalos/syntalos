@@ -1,5 +1,5 @@
-04. Control simple devices with Syntalos
-########################################
+04. Controlling simple devices
+##############################
 
 `Arduino <https://www.arduino.cc/>`_ is an open-source microcontroller platform that,
 when combined with the `Firmata <https://github.com/firmata/protocol>`_ firmware, can

@@ -1,5 +1,5 @@
-03. Controlling experiments via scripts
-#######################################
+03. Customization with Python scripts
+#####################################
 
 Syntalos allows users to write custom `Python <https://docs.python.org/3/tutorial/>`_
 scripts to control module behavior, to realize a wite array of different experiments and to
