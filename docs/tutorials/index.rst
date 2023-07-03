@@ -10,3 +10,4 @@ introduce some of Syntalos' functionality.
 
    01_hello-world
    02_first-images
+   03_script-control
