@@ -31,7 +31,7 @@ qt_serialport_dep = dependency('qt5', modules: ['SerialPort'])
 module_deps = [qt_serialport_dep]
 
 module_data = [
-    'firmataio.svg',
+    'firmata-io.svg',
 ]
 
 #
