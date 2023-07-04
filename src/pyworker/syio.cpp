@@ -179,7 +179,8 @@ struct OutputPort
     {
         auto pb = PyBridge::instance();
         if (!pb->worker()->submitOutput(_inst_id, pyObj))
-            throw SyntalosPyError("Could not submit data on output port.");
+            throw SyntalosPyError("Data submission failed: "
+                                  "Tried to send data via output port that can't carry it (sent data and port type are mismatched, or data can't be serialized).");
     }
 
     void set_metadata_value(const std::string &key, const py::object &obj)
@@ -239,6 +240,41 @@ struct OutputPort
                                               QVariant::fromValue(size));
     }
 
+    FirmataControl firmata_register_digital_pin(int pinId, const std::string &name, bool isOutput, bool isPullUp = false)
+    {
+        FirmataControl ctl;
+        ctl.command = FirmataCommandKind::NEW_DIG_PIN;
+        ctl.pinName = QString::fromStdString(name);
+        ctl.pinId = pinId;
+        ctl.isOutput = isOutput;
+        ctl.isPullUp = isPullUp;
+
+        submit(py::cast(ctl));
+        return ctl;
+    }
+
+    FirmataControl firmata_submit_digital_value(const std::string &name, bool value)
+    {
+        FirmataControl ctl;
+        ctl.command = FirmataCommandKind::WRITE_DIGITAL;
+        ctl.pinName = QString::fromStdString(name);
+        ctl.value = value;
+
+        submit(py::cast(ctl));
+        return ctl;
+    }
+
+    FirmataControl firmata_submit_digital_pulse(const std::string &name, int duration_msec = 50)
+    {
+        FirmataControl ctl;
+        ctl.command = FirmataCommandKind::WRITE_DIGITAL_PULSE;
+        ctl.pinName = QString::fromStdString(name);
+        ctl.value = duration_msec;
+
+        submit(py::cast(ctl));
+        return ctl;
+    }
+
     std::string _name;
     int _inst_id;
 };
@@ -290,51 +326,6 @@ static FirmataControl new_firmatactl_with_name(FirmataCommandKind kind, const st
     return ctl;
 }
 
-static FirmataControl firmata_register_digital_pin(const OutputPort &oport, int pinId, const std::string &name, bool isOutput, bool isPullUp = false)
-{
-    FirmataControl ctl;
-    ctl.command = FirmataCommandKind::NEW_DIG_PIN;
-    ctl.pinName = QString::fromStdString(name);
-    ctl.pinId = pinId;
-    ctl.isOutput = isOutput;
-    ctl.isPullUp = isPullUp;
-
-    auto pb = PyBridge::instance();
-    if (!pb->worker()->submitOutput(oport._inst_id, py::cast(ctl)))
-        throw SyntalosPyError("Could not submit data on output port.");
-
-    return ctl;
-}
-
-static FirmataControl firmata_submit_digital_value(const OutputPort &oport, const std::string &name, bool value)
-{
-    FirmataControl ctl;
-    ctl.command = FirmataCommandKind::WRITE_DIGITAL;
-    ctl.pinName = QString::fromStdString(name);
-    ctl.value = value;
-
-    auto pb = PyBridge::instance();
-    if (!pb->worker()->submitOutput(oport._inst_id, py::cast(ctl)))
-        throw SyntalosPyError("Could not submit data on output port.");
-
-    return ctl;
-}
-
-static FirmataControl firmata_submit_digital_pulse(const OutputPort &oport, const std::string &name, int duration_msec = 50)
-{
-    FirmataControl ctl;
-    ctl.command = FirmataCommandKind::WRITE_DIGITAL_PULSE;
-    ctl.pinName = QString::fromStdString(name);
-    ctl.value = duration_msec;
-
-    auto pb = PyBridge::instance();
-    if (!pb->worker()->submitOutput(oport._inst_id, py::cast(ctl)))
-        throw SyntalosPyError("Could not submit data on output port.");
-
-    return ctl;
-}
-
-
 
 PYBIND11_MODULE(syio, m)
 {
@@ -359,6 +350,26 @@ PYBIND11_MODULE(syio, m)
             .def_readonly("name", &OutputPort::_name)
             .def("set_metadata_value", &OutputPort::set_metadata_value, "Set (immutable) metadata value for this port.")
             .def("set_metadata_value_size", &OutputPort::set_metadata_value_size, "Set (immutable) metadata value for a 2D size type for this port.")
+
+            // convenience functions
+            .def("firmata_register_digital_pin",
+                  &OutputPort::firmata_register_digital_pin,
+                  py::arg("pin_id"),
+                  py::arg("name"),
+                  py::arg("is_output"),
+                  py::arg("is_pullup") = false,
+                  "Convenience function to create a command to register a named digital pin and immediately submit it on this port. "
+                  "The pin can later be referred to by its name.")
+            .def("firmata_submit_digital_value",
+                  &OutputPort::firmata_submit_digital_value,
+                  py::arg("name"),
+                  py::arg("value"),
+                  "Convenience function to write a digital value to a named pin.")
+            .def("firmata_submit_digital_pulse",
+                  &OutputPort::firmata_submit_digital_pulse,
+                  py::arg("name"),
+                  py::arg("duration_msec") = 50,
+                  "Convenience function to emit a digital pulse on a named pin.")
     ;
 
     py::enum_<InputWaitResult>(m, "InputWaitResult")
@@ -466,27 +477,6 @@ PYBIND11_MODULE(syio, m)
           new_firmatactl_with_name,
           py::arg("kind"), py::arg("name"),
           "Create new Firmata control command with a given pin name (the name needs to be registered previously).");
-    m.def("firmata_register_digital_pin",
-          firmata_register_digital_pin,
-          py::arg("oport"),
-          py::arg("pin_id"),
-          py::arg("name"),
-          py::arg("is_output"),
-          py::arg("is_pullup") = false,
-          "Convenience function to create a command to register a named digital pin and immediately submit it on a port. "
-          "The pin can later be referred to by its name.");
-    m.def("firmata_submit_digital_value",
-          firmata_submit_digital_value,
-          py::arg("oport"),
-          py::arg("name"),
-          py::arg("value"),
-          "Convenience function to write a digital value to a named pin.");
-    m.def("firmata_submit_digital_pulse",
-          firmata_submit_digital_pulse,
-          py::arg("oport"),
-          py::arg("name"),
-          py::arg("duration_msec") = 50,
-          "Convenience function to emit a digital pulse on a named pin.");
 };
 
 void pythonRegisterSyioModule()

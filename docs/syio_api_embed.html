@@ -390,6 +390,57 @@ Overloaded function.</p>
 
 
                             </div>
+                            <div id="OutputPort.firmata_register_digital_pin" class="classattr">
+                                <div class="attr function">
+            
+        <span class="def">def</span>
+        <span class="name">firmata_register_digital_pin</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">unknown</span></span><span class="return-annotation">):</span></span>
+
+        
+    </div>
+    <a class="headerlink" href="#OutputPort.firmata_register_digital_pin"></a>
+    
+            <div class="docstring"><p>firmata_register_digital_pin(self: <a href="#OutputPort">syio.OutputPort</a>, pin_id: int, name: str, is_output: bool, is_pullup: bool = False) -> FirmataControl</p>
+
+<p>Convenience function to create a command to register a named digital pin and immediately submit it on this port. The pin can later be referred to by its name.</p>
+</div>
+
+
+                            </div>
+                            <div id="OutputPort.firmata_submit_digital_value" class="classattr">
+                                <div class="attr function">
+            
+        <span class="def">def</span>
+        <span class="name">firmata_submit_digital_value</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">unknown</span></span><span class="return-annotation">):</span></span>
+
+        
+    </div>
+    <a class="headerlink" href="#OutputPort.firmata_submit_digital_value"></a>
+    
+            <div class="docstring"><p>firmata_submit_digital_value(self: <a href="#OutputPort">syio.OutputPort</a>, name: str, value: bool) -> FirmataControl</p>
+
+<p>Convenience function to write a digital value to a named pin.</p>
+</div>
+
+
+                            </div>
+                            <div id="OutputPort.firmata_submit_digital_pulse" class="classattr">
+                                <div class="attr function">
+            
+        <span class="def">def</span>
+        <span class="name">firmata_submit_digital_pulse</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">unknown</span></span><span class="return-annotation">):</span></span>
+
+        
+    </div>
+    <a class="headerlink" href="#OutputPort.firmata_submit_digital_pulse"></a>
+    
+            <div class="docstring"><p>firmata_submit_digital_pulse(self: <a href="#OutputPort">syio.OutputPort</a>, name: str, duration_msec: int = 50) -> FirmataControl</p>
+
+<p>Convenience function to emit a digital pulse on a named pin.</p>
+</div>
+
+
+                            </div>
                 </section>
                 <section id="InputWaitResult">
                     <div class="attr class">
@@ -1395,57 +1446,6 @@ Overloaded function.</p>
             <div class="docstring"><p>new_firmatactl_with_name(kind: <a href="#FirmataCommandKind">syio.FirmataCommandKind</a>, name: str) -> <a href="#FirmataControl">syio.FirmataControl</a></p>
 
 <p>Create new Firmata control command with a given pin name (the name needs to be registered previously).</p>
-</div>
-
-
-                </section>
-                <section id="firmata_register_digital_pin">
-                    <div class="attr function">
-            
-        <span class="def">def</span>
-        <span class="name">firmata_register_digital_pin</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">unknown</span></span><span class="return-annotation">):</span></span>
-
-        
-    </div>
-    <a class="headerlink" href="#firmata_register_digital_pin"></a>
-    
-            <div class="docstring"><p>firmata_register_digital_pin(oport: <a href="#OutputPort">syio.OutputPort</a>, pin_id: int, name: str, is_output: bool, is_pullup: bool = False) -> <a href="#FirmataControl">syio.FirmataControl</a></p>
-
-<p>Convenience function to create a command to register a named digital pin and immediately submit it on a port. The pin can later be referred to by its name.</p>
-</div>
-
-
-                </section>
-                <section id="firmata_submit_digital_value">
-                    <div class="attr function">
-            
-        <span class="def">def</span>
-        <span class="name">firmata_submit_digital_value</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">unknown</span></span><span class="return-annotation">):</span></span>
-
-        
-    </div>
-    <a class="headerlink" href="#firmata_submit_digital_value"></a>
-    
-            <div class="docstring"><p>firmata_submit_digital_value(oport: <a href="#OutputPort">syio.OutputPort</a>, name: str, value: bool) -> <a href="#FirmataControl">syio.FirmataControl</a></p>
-
-<p>Convenience function to write a digital value to a named pin.</p>
-</div>
-
-
-                </section>
-                <section id="firmata_submit_digital_pulse">
-                    <div class="attr function">
-            
-        <span class="def">def</span>
-        <span class="name">firmata_submit_digital_pulse</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">unknown</span></span><span class="return-annotation">):</span></span>
-
-        
-    </div>
-    <a class="headerlink" href="#firmata_submit_digital_pulse"></a>
-    
-            <div class="docstring"><p>firmata_submit_digital_pulse(oport: <a href="#OutputPort">syio.OutputPort</a>, name: str, duration_msec: int = 50) -> <a href="#FirmataControl">syio.FirmataControl</a></p>
-
-<p>Convenience function to emit a digital pulse on a named pin.</p>
 </div>
 
 
