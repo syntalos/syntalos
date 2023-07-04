@@ -92,4 +92,10 @@ QString findHostFile(const QString &path);
  */
 bool hostUdevRuleExists(const QString &ruleFilename);
 
+/**
+ * @brief Delay execution by approximately the given time, not blocking the main event loop.
+ * @param waitMsec Time to wait.
+ */
+void delay(int waitMsec);
+
 #endif // UTILS_H

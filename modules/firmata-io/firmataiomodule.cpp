@@ -25,7 +25,13 @@
 #include "firmatasettingsdialog.h"
 #include "firmata/serialport.h"
 
+#include "utils/misc.h"
+
 SYNTALOS_MODULE(FirmataIOModule)
+
+namespace Syntalos {
+    Q_LOGGING_CATEGORY(logFmMod, "mod.firmata")
+}
 
 enum class PinKind
 {
@@ -163,12 +169,12 @@ public:
             break;
         case FirmataCommandKind::WRITE_DIGITAL_PULSE:
             if (ctl.pinName.isEmpty())
-                pinSignalPulse(ctl.pinId);
+                pinSignalPulse(ctl.pinId, ctl.value);
             else
-                pinSignalPulse(ctl.pinName);
+                pinSignalPulse(ctl.pinName, ctl.value);
             break;
         default:
-            qWarning() << "Received not-implemented Firmata instruction of type" << QString::number(static_cast<int>(ctl.command));
+            qCWarning(logFmMod) << "Received not-implemented Firmata instruction of type" << QString::number(static_cast<int>(ctl.command));
             break;
         }
     }
@@ -195,7 +201,7 @@ public:
             // initialize output pin
             m_firmata->setPinMode(pin.id, IoMode::Output);
             m_firmata->writeDigitalPin(pin.id, false);
-            qDebug() << "Firmata: Pin" << pinId << "set as output";
+            qCDebug(logFmMod) << "Firmata: Pin" << pinId << "set as output";
         } else {
             // connect input pin
             if (pullUp)
@@ -206,7 +212,7 @@ public:
             uint8_t port = pin.id >> 3;
             m_firmata->reportDigitalPort(port, true);
 
-            qDebug() << "Firmata: Pin" << pinId << "set as input";
+            qCDebug(logFmMod) << "Firmata: Pin" << pinId << "set as input";
         }
 
         auto pname = pinName;
@@ -217,6 +223,14 @@ public:
         m_pinNameMap.insert(pin.id, pname);
     }
 
+    FmPin findPin(const QString &pinName)
+    {
+        auto pin = m_namePinMap.value(pinName);
+        if (pin.kind == PinKind::Unknown)
+            qCCritical(logFmMod) << QStringLiteral("Unable to deliver message to pin '%1' (pin does not exist, it needs to be registered first)").arg(pinName);
+        return pin;
+    }
+
     void pinSetValue(int pinId, bool value)
     {
         m_firmata->writeDigitalPin(pinId, value);
@@ -224,26 +238,27 @@ public:
 
     void pinSetValue(const QString &pinName, bool value)
     {
-        auto pin = m_namePinMap.value(pinName);
-        if (pin.kind == PinKind::Unknown) {
-            qCritical() << QStringLiteral("Unable to deliver message to pin '%1' (pin does not exist, it needs to be registered first)").arg(pinName);
+        auto pin = findPin(pinName);
+        if (pin.kind == PinKind::Unknown)
             return;
-        }
         pinSetValue(pin.id, value);
     }
 
-    void pinSignalPulse(int pinId)
+    void pinSignalPulse(int pinId, int pulseDuration = 0)
     {
+        if (pulseDuration <= 0)
+            pulseDuration = 50;  // 50 msec is our default pulse length
         pinSetValue(pinId, true);
-        QThread::usleep(50 * 1000); // sleep 50msec
+        delay(pulseDuration);
         pinSetValue(pinId, false);
     }
 
-    void pinSignalPulse(const QString &pinName)
+    void pinSignalPulse(const QString &pinName, int pulseDuration = 0)
     {
-        pinSetValue(pinName, true);
-        QThread::usleep(50 * 1000); // sleep 50msec
-        pinSetValue(pinName, false);
+        auto pin = findPin(pinName);
+        if (pin.kind == PinKind::Unknown)
+            return;
+        pinSignalPulse(pin.id, pulseDuration);
     }
 
 private slots:
@@ -254,7 +269,7 @@ private slots:
         const int last = first + 7;
         const auto timestamp = m_syTimer->timeSinceStartMsec();
 
-        qDebug("Firmata: Digital port read: %d (%d - %d)", value, first, last);
+        qCDebug(logFmMod, "Digital port read: %d (%d - %d)", value, first, last);
         for (const FmPin p : m_namePinMap.values()) {
             if ((!p.output) && (p.kind != PinKind::Unknown)) {
                 if ((p.id >= first) && (p.id <= last)) {
@@ -284,7 +299,7 @@ private slots:
             return;
         }
 
-        qDebug("Firmata: digital pin read: %d=%d", pin, value);
+        qCDebug(logFmMod, "Digital pin read: %d=%d", pin, value);
         m_fmStream->push(fdata);
     }
 };

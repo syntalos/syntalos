@@ -25,6 +25,8 @@
 #include <linux/magic.h>
 
 #include <QDebug>
+#include <QTime>
+#include <QThread>
 #include <QCollator>
 #include <QDir>
 #include <QRandomGenerator>
@@ -191,4 +193,18 @@ QString tempDirLargeRoot()
         return tmpDir;
 
     return QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+}
+
+void delay(int waitMsec)
+{
+    if (waitMsec <= 200) {
+        // if it's just a short wait, we don't bother with the event loop
+        QThread::usleep(waitMsec * 1000);
+        return;
+    }
+
+    QTime doneTime = QTime::currentTime().addMSecs(waitMsec);
+    while( QTime::currentTime() < doneTime)
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
+
 }
