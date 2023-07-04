@@ -290,6 +290,52 @@ static FirmataControl new_firmatactl_with_name(FirmataCommandKind kind, const st
     return ctl;
 }
 
+static FirmataControl firmata_register_digital_pin(const OutputPort &oport, int pinId, const std::string &name, bool isOutput, bool isPullUp = false)
+{
+    FirmataControl ctl;
+    ctl.command = FirmataCommandKind::NEW_DIG_PIN;
+    ctl.pinName = QString::fromStdString(name);
+    ctl.pinId = pinId;
+    ctl.isOutput = isOutput;
+    ctl.isPullUp = isPullUp;
+
+    auto pb = PyBridge::instance();
+    if (!pb->worker()->submitOutput(oport._inst_id, py::cast(ctl)))
+        throw SyntalosPyError("Could not submit data on output port.");
+
+    return ctl;
+}
+
+static FirmataControl firmata_submit_digital_value(const OutputPort &oport, const std::string &name, bool value)
+{
+    FirmataControl ctl;
+    ctl.command = FirmataCommandKind::WRITE_DIGITAL;
+    ctl.pinName = QString::fromStdString(name);
+    ctl.value = value;
+
+    auto pb = PyBridge::instance();
+    if (!pb->worker()->submitOutput(oport._inst_id, py::cast(ctl)))
+        throw SyntalosPyError("Could not submit data on output port.");
+
+    return ctl;
+}
+
+static FirmataControl firmata_submit_digital_pulse(const OutputPort &oport, const std::string &name, int duration_msec = 50)
+{
+    FirmataControl ctl;
+    ctl.command = FirmataCommandKind::WRITE_DIGITAL_PULSE;
+    ctl.pinName = QString::fromStdString(name);
+    ctl.value = duration_msec;
+
+    auto pb = PyBridge::instance();
+    if (!pb->worker()->submitOutput(oport._inst_id, py::cast(ctl)))
+        throw SyntalosPyError("Could not submit data on output port.");
+
+    return ctl;
+}
+
+
+
 PYBIND11_MODULE(syio, m)
 {
     m.doc() = "Syntalos Interface";
@@ -299,7 +345,7 @@ PYBIND11_MODULE(syio, m)
 
     py::register_exception<SyntalosPyError>(m, "SyntalosPyError");
 
-    py::class_<InputPort>(m, "InputPort")
+    py::class_<InputPort>(m, "InputPort", "Representation of a module input port.")
             .def(py::init<std::string, int>())
             .def("next", &InputPort::next, "Retrieve the next element, return None if no element is available.")
             .def("set_throttle_items_per_sec", &InputPort::setThrottleItemsPerSec, "Limit the amount of input received to a set amount of elements per second.",
@@ -307,9 +353,9 @@ PYBIND11_MODULE(syio, m)
             .def_readonly("name", &InputPort::_name)
     ;
 
-    py::class_<OutputPort>(m, "OutputPort")
+    py::class_<OutputPort>(m, "OutputPort", "Representation of a module output port.")
             .def(py::init<std::string, int>())
-            .def("submit", &OutputPort::submit)
+            .def("submit", &OutputPort::submit, "Submit the given entity to the output port for transfer to its destination(s).")
             .def_readonly("name", &OutputPort::_name)
             .def("set_metadata_value", &OutputPort::set_metadata_value, "Set (immutable) metadata value for this port.")
             .def("set_metadata_value_size", &OutputPort::set_metadata_value_size, "Set (immutable) metadata value for a 2D size type for this port.")
@@ -317,8 +363,8 @@ PYBIND11_MODULE(syio, m)
 
     py::enum_<InputWaitResult>(m, "InputWaitResult")
             .value("NONE", IWR_NONE)
-            .value("NEWDATA", IWR_NEWDATA)
-            .value("CANCELLED", IWR_CANCELLED)
+            .value("NEWDATA", IWR_NEWDATA, "New data is available to be read.")
+            .value("CANCELLED", IWR_CANCELLED, "The current run was cancelled.")
             .export_values()
     ;
 
@@ -326,11 +372,11 @@ PYBIND11_MODULE(syio, m)
      ** Frames
      **/
 
-    py::class_<Frame>(m, "Frame")
+    py::class_<Frame>(m, "Frame", "A video frame.")
             .def(py::init<>())
-            .def_readwrite("index", &Frame::index)
-            .def_readwrite("time_msec", &Frame::time)
-            .def_readwrite("mat", &Frame::mat)
+            .def_readwrite("index", &Frame::index, "Number of the frame.")
+            .def_readwrite("time_msec", &Frame::time, "Time when the frame was recorded.")
+            .def_readwrite("mat", &Frame::mat, "Frame data.")
     ;
 
     /**
@@ -344,7 +390,6 @@ PYBIND11_MODULE(syio, m)
             .value("STOP", ControlCommandKind::STOP)
             .value("STEP", ControlCommandKind::STEP)
             .value("CUSTOM", ControlCommandKind::CUSTOM)
-            .export_values()
     ;
 
     py::class_<ControlCommand>(m, "ControlCommand")
@@ -367,7 +412,6 @@ PYBIND11_MODULE(syio, m)
             .value("WRITE_DIGITAL", FirmataCommandKind::WRITE_DIGITAL)
             .value("WRITE_DIGITAL_PULSE", FirmataCommandKind::WRITE_DIGITAL_PULSE)
             .value("SYSEX", FirmataCommandKind::SYSEX)
-            .export_values()
     ;
 
     py::class_<FirmataControl>(m, "FirmataControl")
@@ -386,30 +430,63 @@ PYBIND11_MODULE(syio, m)
             .def_readwrite("pin_name", &FirmataData::pinName)
             .def_readwrite("value", &FirmataData::value)
             .def_readwrite("is_digital", &FirmataData::isDigital)
-            .def_readwrite("time", &FirmataData::time)
+            .def_readwrite("time", &FirmataData::time, "Time when the data was acquired.")
     ;
 
     /**
      ** Additional Functions
      **/
 
-    m.def("println", println, "Print text to stdout.");
-    m.def("raise_error", raise_error, "Emit an error message string, immediately terminating the current action and (if applicable) the experiment.");
+    m.def("println", println, py::arg("text"), "Print text to stdout.");
+    m.def("raise_error", raise_error, py::arg("message"), "Emit an error message string, immediately terminating the current action and (if applicable) the experiment.");
     m.def("time_since_start_msec", time_since_start_msec, "Get time since experiment started in milliseconds.");
     m.def("time_since_start_usec", time_since_start_usec, "Get time since experiment started in microseconds.");
-    m.def("wait", wait, "Wait (roughly) for the given amount of milliseconds without blocking communication with the master process.");
-    m.def("wait_sec", wait_sec, "Wait (roughly) for the given amount of seconds without blocking communication with the master process.");
+    m.def("wait", wait, py::arg("msec"), "Wait (roughly) for the given amount of milliseconds without blocking communication with the master process.");
+    m.def("wait_sec", wait_sec, py::arg("sec"), "Wait (roughly) for the given amount of seconds without blocking communication with the master process.");
     m.def("await_new_input", await_new_input, "Wait for any new input to arrive via our input ports.");
     m.def("check_running", check_running, "Process all messages and return True if we are still running, False if we are supposed to shut down.");
-    m.def("schedule_delayed_call", &schedule_delayed_call, "Schedule call to a callable to be processed after a set amount of milliseconds.");
+    m.def("schedule_delayed_call", &schedule_delayed_call,
+          py::arg("delay_msec"),
+          py::arg("callable_fn"),
+          "Schedule call to a callable to be processed after a set amount of milliseconds.");
 
-    m.def("get_input_port", get_input_port, "Get reference to input port with the give ID.");
-    m.def("get_output_port", get_output_port, "Get reference to output port with the give ID.");
+    m.def("get_input_port", get_input_port, py::arg("id"), "Get reference to input port with the give ID.");
+    m.def("get_output_port", get_output_port, py::arg("id"), "Get reference to output port with the give ID.");
 
     // Firmata helpers
-    m.def("new_firmatactl_with_id_name", new_firmatactl_with_id_name, "Create new Firmata control command with a given pin ID and registered name.");
-    m.def("new_firmatactl_with_id", new_firmatactl_with_id, "Create new Firmata control command with a given pin ID.");
-    m.def("new_firmatactl_with_name", new_firmatactl_with_name, "Create new Firmata control command with a given pin name (the name needs to be registered previously).");
+    m.def("new_firmatactl_with_id_name",
+          new_firmatactl_with_id_name,
+          py::arg("kind"), py::arg("pin_id"), py::arg("name"),
+          "Create new Firmata control command with a given pin ID and registered name.");
+    m.def("new_firmatactl_with_id",
+          new_firmatactl_with_id,
+          py::arg("kind"), py::arg("pin_id"),
+          "Create new Firmata control command with a given pin ID.");
+    m.def("new_firmatactl_with_name",
+          new_firmatactl_with_name,
+          py::arg("kind"), py::arg("name"),
+          "Create new Firmata control command with a given pin name (the name needs to be registered previously).");
+    m.def("firmata_register_digital_pin",
+          firmata_register_digital_pin,
+          py::arg("oport"),
+          py::arg("pin_id"),
+          py::arg("name"),
+          py::arg("is_output"),
+          py::arg("is_pullup") = false,
+          "Convenience function to create a command to register a named digital pin and immediately submit it on a port. "
+          "The pin can later be referred to by its name.");
+    m.def("firmata_submit_digital_value",
+          firmata_submit_digital_value,
+          py::arg("oport"),
+          py::arg("name"),
+          py::arg("value"),
+          "Convenience function to write a digital value to a named pin.");
+    m.def("firmata_submit_digital_pulse",
+          firmata_submit_digital_pulse,
+          py::arg("oport"),
+          py::arg("name"),
+          py::arg("duration_msec") = 50,
+          "Convenience function to emit a digital pulse on a named pin.");
 };
 
 void pythonRegisterSyioModule()
