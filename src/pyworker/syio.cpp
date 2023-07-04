@@ -359,7 +359,7 @@ PYBIND11_MODULE(syio, m)
                   py::arg("is_output"),
                   py::arg("is_pullup") = false,
                   "Convenience function to create a command to register a named digital pin and immediately submit it on this port. "
-                  "The pin can later be referred to by its name.")
+                  "The registered pin can later be referred to by its name.")
             .def("firmata_submit_digital_value",
                   &OutputPort::firmata_submit_digital_value,
                   py::arg("name"),
