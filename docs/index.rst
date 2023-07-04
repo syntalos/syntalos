@@ -21,9 +21,10 @@ to make more advanced changes.
    install
    tutorials/index
    reading_data
-   modules/pyscript
-   syio_api
+   delay_verification
+   modules/index
    changes
+   syio_api
    api/sysrc_root.rst
 
 
