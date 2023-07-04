@@ -144,7 +144,7 @@ syntalos_shared_moc = qt.preprocess(
 
 syntalos_shared_lib = shared_library('syntalos-shared',
     [syntalos_shared_src, syntalos_shared_moc,
-     config_h, sy_oop_moc, rep_worker_rep_hdr],
+     modconfig_h, sy_oop_moc, rep_worker_rep_hdr],
     dependencies: [sy_base_deps,
                    opengl_dep,
                    opencv_dep,
@@ -165,7 +165,7 @@ syntalos_shared_dep = declare_dependency(
 )
 
 syntalos_exe = executable('syntalos',
-    [syntalos_src, syntalos_moc, config_h],
+    [syntalos_src, syntalos_moc, config_h, modconfig_h],
     gnu_symbol_visibility: 'hidden',
     dependencies: [syntalos_shared_dep,
                    thread_dep,

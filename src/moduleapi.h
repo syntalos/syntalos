@@ -27,7 +27,7 @@
 #include <QPixmap>
 #include <QDebug>
 
-#include "config.h"
+#include "modconfig.h"
 #include "syclock.h"
 #include "timesync.h"
 #include "streams/datatypes.h"
@@ -178,7 +178,7 @@ private:
   */
 #define SYNTALOS_MODULE(MI) \
     ModuleInfo *syntalos_module_info() { return new MI##Info; } \
-    const char *syntalos_module_api_id() { return SY_VCS_TAG; }
+    const char *syntalos_module_api_id() { return SY_MODULE_API_TAG; }
 
 /**
  * @brief The TestSubject struct

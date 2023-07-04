@@ -71,6 +71,10 @@ conf.set_quoted('SY_BUG_REPORT_URL', bug_report_url)
 config_h = configure_file(output: 'config.h.in', configuration: conf)
 config_h = vcs_tag(input: config_h, output: 'config.h')
 
+mconf = configuration_data()
+mconf.set_quoted('SY_MODULE_API_TAG', 'sy-' + sy_version)
+modconfig_h = configure_file(output: 'modconfig.h', configuration: mconf)
+
 #
 # Custom compile flags
 #

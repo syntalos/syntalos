@@ -18,6 +18,7 @@
  */
 
 #include "config.h"
+#include "modconfig.h"
 #include "modulelibrary.h"
 
 #include <QMessageBox>
@@ -26,7 +27,6 @@
 #include <QDirIterator>
 #include <QLibrary>
 
-#include "moduleapi.h"
 #include "pymoduleloader.h"
 #include "sysinfo.h"
 #include "globalconfig.h"
@@ -67,7 +67,7 @@ ModuleLibrary::ModuleLibrary(GlobalConfig *gconf, QObject *parent)
     : QObject(parent),
       d(new ModuleLibrary::Private)
 {
-    d->syntalosApiId = QStringLiteral(SY_VCS_TAG);
+    d->syntalosApiId = QStringLiteral(SY_MODULE_API_TAG);
     auto sysInfo = SysInfo::get();
 
     bool haveLocalModDir = false;
