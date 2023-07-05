@@ -25,8 +25,8 @@ to make more advanced changes.
    intro
    install
    tutorials/index
-   reading_data
-   delay_verification
+   reading-data
+   timesync-verification
    modules/index
    changes
    syio_api
