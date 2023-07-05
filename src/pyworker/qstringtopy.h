@@ -36,6 +36,7 @@
 
 namespace pybind11
 {
+
 namespace detail
 {
 
@@ -48,7 +49,7 @@ public:
     PYBIND11_TYPE_CASTER(QString, _("QString"));
 
     /**
-      *  @brief Conversion part 1 (Python->C++): convert a PyObject into a QString
+      * @brief Conversion part 1 (Python->C++): convert a PyObject into a QString
       * instance or return false upon failure. The second argument
       * indicates whether implicit conversions should be applied.
       * @param src
@@ -56,13 +57,12 @@ public:
       */
     bool load(handle src, bool)
     {
-        if(!src)
-        {
+        if (!src)
             return false;
-        }
+
         object temp;
         handle load_src = src;
-        if(PyUnicode_Check(load_src.ptr()))
+        if (PyUnicode_Check(load_src.ptr()))
         {
             temp = reinterpret_steal<object>(PyUnicode_AsUTF8String(load_src.ptr()));
             if(!temp) /* A UnicodeEncodeError occured */
@@ -75,7 +75,7 @@ public:
         char* buffer = nullptr;
         ssize_t length = 0;
         int err = PYBIND11_BYTES_AS_STRING_AND_SIZE(load_src.ptr(), &buffer, &length);
-        if(err == -1) /* A TypeError occured */
+        if (err == -1) /* A TypeError occured */
         {
             PyErr_Clear();
             return false;

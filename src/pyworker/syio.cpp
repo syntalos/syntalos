@@ -33,8 +33,8 @@
 #include <pybind11/functional.h>
 
 #include "cvmatndsliceconvert.h"
+#include "qstringtopy.h" // needed for QString registration
 #include "worker.h"
-#include "cvmatndsliceconvert.h"
 
 
 namespace py = pybind11;
