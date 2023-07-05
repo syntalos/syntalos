@@ -24,7 +24,7 @@ We will change that in the next step.
 ===============
 
 In order to control other modules from our Python script module, we need it to have an output
-port to even emit data. Double-click the Python module 8or click on *Settings* after selecting it).
+port to even emit data. Double-click the Python module or click on *Settings* after selecting it).
 
 A new window opens which lets you edit the Python code. We ignore that for now and click on
 *Ports → Edit* in the window's main menu. A new *Port Editor* dialog opens, which allows for adding
