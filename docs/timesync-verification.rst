@@ -72,5 +72,19 @@ It can either operate in fixed-interval pulses, or vary the pulse interval.
 Syntalos Measurement
 ====================
 
+There are two types of time synchronization measurement tests that you can perform:
+Long-running measurements to check whether the device times remain aligned for very long measurements ("*Marathon Sync Test*"),
+and short measurements of many experiments where they are continuously started and stopped to determine if the initial time offset
+between devices is small and constant ("*LaunchSync Offset Test*").
+
+Marathon Sync Test
+^^^^^^^^^^^^^^^^^^
+
+`TODO`
+Coming soon!
+
+LaunchSync Offset Test
+^^^^^^^^^^^^^^^^^^^^^^
+
 `TODO`
 Coming soon!

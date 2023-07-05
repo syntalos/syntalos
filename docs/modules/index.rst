@@ -8,4 +8,5 @@ their usage instructions and programming interface information.
    :maxdepth: 1
    :caption: Modules:
 
+   audiosource
    pyscript
