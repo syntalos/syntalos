@@ -109,7 +109,8 @@ struct ControlCommand
     milliseconds_t duration; /// Duration of the command before resetting to the previous state (zero for infinite)
     QString command;         /// Custom command name, if in custom mode
 
-    ControlCommand() : duration(0) {}
+    explicit ControlCommand() : duration(0) {}
+    explicit ControlCommand(ControlCommandKind ckind) : kind(ckind), duration(0) {}
 
     void setDuration(ulong value)
     {
@@ -173,6 +174,19 @@ struct FirmataControl
     bool isOutput;
     bool isPullUp;
     uint16_t value;
+
+    explicit FirmataControl()
+        : isPullUp(false),
+          value(0)
+    {
+    }
+
+    explicit FirmataControl(FirmataCommandKind cmd)
+        : command(cmd),
+          isPullUp(false),
+          value(0)
+    {
+    }
 
     friend QDataStream &operator<<(QDataStream &out, const FirmataControl &obj)
     {

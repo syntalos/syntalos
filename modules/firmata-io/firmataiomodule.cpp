@@ -248,6 +248,8 @@ public:
     {
         if (pulseDuration <= 0)
             pulseDuration = 50;  // 50 msec is our default pulse length
+        else if (pulseDuration > 4000)
+            pulseDuration = 4000;  // clamp pulse length at 4 sec max
         pinSetValue(pinId, true);
         delay(pulseDuration);
         pinSetValue(pinId, false);
