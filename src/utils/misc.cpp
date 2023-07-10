@@ -197,14 +197,15 @@ QString tempDirLargeRoot()
 
 void delay(int waitMsec)
 {
-    if (waitMsec <= 200) {
+    if (waitMsec <= 54) {
         // if it's just a short wait, we don't bother with the event loop
         QThread::usleep(waitMsec * 1000);
         return;
     }
 
     QTime doneTime = QTime::currentTime().addMSecs(waitMsec);
-    while( QTime::currentTime() < doneTime)
-        QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
-
+    while (QTime::currentTime() < doneTime) {
+        QThread::usleep(500);
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
+    }
 }
