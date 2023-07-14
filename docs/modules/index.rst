@@ -10,3 +10,5 @@ their usage instructions and programming interface information.
 
    audiosource
    pyscript
+   camera-generic
+   camera-tis
