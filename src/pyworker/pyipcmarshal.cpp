@@ -81,7 +81,7 @@ py::object unmarshalDataToPyObject(int typeId, const QVariant &argData, std::uni
             const auto col = colVar.toString();
             pyRow.append(col.toStdString());
         }
-        return std::move(pyRow);
+        return pyRow;
     }
 
     return py::none();

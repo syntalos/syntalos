@@ -197,8 +197,15 @@ public:
         AbstractModule::start();
     }
 
-    static void on_newRawFrame(const cv::Mat &mat, milliseconds_t &frameTime, const milliseconds_t &masterRecvTime, const milliseconds_t &deviceTime, void *udata)
+    static void on_newRawFrame(const cv::Mat &mat,
+                               milliseconds_t &frameTime,
+                               const milliseconds_t &masterRecvTime,
+                               const milliseconds_t &deviceTime,
+                               const std::vector<float> &orientation,
+                               void *udata)
     {
+        Q_UNUSED(orientation);
+
         const auto self = static_cast<MiniscopeModule*>(udata);
         if (!self->m_acceptFrames) {
             self->m_acceptFrames = self->m_running? self->m_miniscope->captureStartTimeInitialized() : false;
