@@ -37,6 +37,10 @@ class MiniscopeModule : public AbstractModule
 private:
     std::shared_ptr<DataStream<Frame>> m_rawOut;
     std::shared_ptr<DataStream<Frame>> m_dispOut;
+    std::shared_ptr<DataStream<FloatSignalBlock>> m_bnoVecOut;
+    std::shared_ptr<DataStream<TableRow>> m_bnoTabOut;
+
+    std::vector<float> m_lastOrientationVec;
 
     QTimer *m_evTimer;
     std::unique_ptr<SecondaryClockSynchronizer> m_clockSync;
@@ -54,6 +58,10 @@ public:
     {
         m_rawOut = registerOutputPort<Frame>(QStringLiteral("frames-raw-out"), QStringLiteral("Raw Frames"));
         m_dispOut = registerOutputPort<Frame>(QStringLiteral("frames-disp-out"), QStringLiteral("Display Frames"));
+        m_bnoVecOut = registerOutputPort<FloatSignalBlock>(QStringLiteral("bno-raw-out"), QStringLiteral("Orientation Vector"));
+        m_bnoTabOut = registerOutputPort<TableRow>(QStringLiteral("bno-tab-out"), QStringLiteral("Orientation Rows"));
+        m_bnoVecOut->setMetadataValue("channel_index_first", 0);
+        m_bnoVecOut->setMetadataValue("channel_index_last", 3);
 
         m_valChangeLogFile = new QFile();
 
@@ -155,15 +163,25 @@ public:
         // we will get the right, final FPS value
         m_rawOut->setMetadataValue("framerate", (double) m_miniscope->fps());
         m_rawOut->setMetadataValue("has_color", false);
-        m_rawOut->setSuggestedDataName(QStringLiteral("%1/msSlice").arg(datasetNameSuggestion()));
+        m_rawOut->setSuggestedDataName(QStringLiteral("%1/mscope").arg(datasetNameSuggestion()));
 
         m_dispOut->setMetadataValue("framerate", (double) m_miniscope->fps());
         m_dispOut->setMetadataValue("has_color", false);
-        m_dispOut->setSuggestedDataName(QStringLiteral("%1_display/msDisplaySlice").arg(datasetNameSuggestion()));
+        m_dispOut->setSuggestedDataName(QStringLiteral("%1_display/mscope_display").arg(datasetNameSuggestion()));
+
+        m_bnoTabOut->setMetadataValue("table_header", QStringList() << "Time [ms]" << "qw" << "qx" << "qy" << "qz");
+        m_bnoTabOut->setSuggestedDataName(QStringLiteral("%1/orientation").arg(datasetNameSuggestion()));
+
+        m_bnoVecOut->setMetadataValue("channel_index_first", 0);
+        m_bnoVecOut->setMetadataValue("channel_index_last", 3);
 
         // start the streams
         m_rawOut->start();
         m_dispOut->start();
+        if (m_miniscope->hasHeadOrientationSupport()) {
+            m_bnoTabOut->start();
+            m_bnoVecOut->start();
+        }
 
         // set up clock synchronizer
         m_clockSync = initClockSynchronizer(m_miniscope->fps());
@@ -204,8 +222,6 @@ public:
                                const std::vector<float> &orientation,
                                void *udata)
     {
-        Q_UNUSED(orientation);
-
         const auto self = static_cast<MiniscopeModule*>(udata);
         if (!self->m_acceptFrames) {
             self->m_acceptFrames = self->m_running? self->m_miniscope->captureStartTimeInitialized() : false;
@@ -222,6 +238,22 @@ public:
             return;
 
         self->m_rawOut->push(Frame(mat, frameTime));
+
+        if (orientation[4] < 0.05) {
+            if (self->m_lastOrientationVec == orientation)
+                return;
+            self->m_lastOrientationVec = orientation;
+
+            if (self->m_bnoTabOut->active())
+                self->m_bnoTabOut->push(QStringList() << QString::number(frameTime.count())
+                                                      << QString::number(orientation[0])
+                                                      << QString::number(orientation[1])
+                                                      << QString::number(orientation[2])
+                                                      << QString::number(orientation[3]));
+
+            if (self->m_bnoVecOut->active())
+                self->m_bnoVecOut->push(FloatSignalBlock(orientation, frameTime.count()));
+        }
     }
 
     static void on_newDisplayFrame(const cv::Mat &mat, const milliseconds_t &time, void *udata)
@@ -284,12 +316,14 @@ public:
     {
         settings.insert("scope_cam_id", m_miniscope->scopeCamId());
         settings.insert("device_type", m_miniscope->deviceType());
+        settings.insert("orientation_indicator", m_miniscope->isBNOIndicatorVisible());
     }
 
     bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
     {
         m_miniscope->setScopeCamId(settings.value("scope_cam_id", 0).toInt());
         m_settingsDialog->setDeviceType(settings.value("device_type").toString());
+        m_settingsDialog->setOrientationIndicatorVisible(settings.value("orientation_indicator", true).toBool());
         m_settingsDialog->readCurrentValues();
         return true;
     }

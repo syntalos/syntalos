@@ -447,6 +447,16 @@
                 </layout>
                </widget>
               </item>
+              <item row="4" column="0">
+               <widget class="QLabel" name="orientationIndicatorLabel">
+                <property name="text">
+                 <string>Orientation Indicator</string>
+                </property>
+               </widget>
+              </item>
+              <item row="4" column="1">
+               <widget class="QCheckBox" name="orientationIndicatorCheckBox"/>
+              </item>
              </layout>
             </item>
            </layout>

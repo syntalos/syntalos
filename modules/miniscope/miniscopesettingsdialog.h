@@ -45,6 +45,7 @@ public:
 
     void setDeviceType(const QString &devType);
     void setCurrentPixRangeValues(int min, int max);
+    void setOrientationIndicatorVisible(bool visible);
 
     void updateCurrentDeviceName();
 
@@ -59,6 +60,7 @@ private slots:
 
     void on_viewModeCB_currentIndexChanged(int index);
     void on_accAlphaSpinBox_valueChanged(double arg1);
+    void on_orientationIndicatorCheckBox_toggled(bool checked);
 
 private:
     Ui::MiniscopeSettingsDialog *ui;

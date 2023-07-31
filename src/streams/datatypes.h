@@ -318,6 +318,14 @@ public:
         data.resize(sampleCount, channelCount);
     }
 
+    explicit FloatSignalBlock(const std::vector<float> &floatVec, uint timestamp)
+    {
+        timestamps.array() += timestamp;
+        data.resize(1, floatVec.size());
+        for (size_t i = 0; i < floatVec.size(); ++i)
+            data(0, i) = floatVec[i];
+    }
+
     size_t length() const { return timestamps.size(); }
 
     size_t rows() const { return data.rows(); }

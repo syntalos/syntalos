@@ -99,7 +99,7 @@ void MiniscopeSettingsDialog::setDeviceType(const QString &devType)
 {
     auto selectedDevice = devType.toLower();
     if (selectedDevice.isEmpty())
-        selectedDevice = QStringLiteral("Miniscope_V4").toLower();
+        selectedDevice = QStringLiteral("Miniscope_V4_BNO").toLower();
 
     for (int i = 0; i < ui->deviceTypeCB->count(); ++i) {
         if (ui->deviceTypeCB->itemText(i).toLower() == selectedDevice) {
@@ -113,6 +113,12 @@ void MiniscopeSettingsDialog::setCurrentPixRangeValues(int min, int max)
 {
     ui->labelScopeMin->setText(QString::number(min).rightJustified(3, '0'));
     ui->labelScopeMax->setText(QString::number(max).rightJustified(3, '0'));
+}
+
+void MiniscopeSettingsDialog::setOrientationIndicatorVisible(bool visible)
+{
+    ui->orientationIndicatorCheckBox->setChecked(visible);
+    on_orientationIndicatorCheckBox_toggled(visible);
 }
 
 void MiniscopeSettingsDialog::updateCurrentDeviceName()
@@ -140,6 +146,8 @@ void MiniscopeSettingsDialog::on_deviceTypeCB_currentIndexChanged(const QString 
     }
 
     // display widgets for new controls
+    ui->orientationIndicatorLabel->setEnabled(m_mscope->hasHeadOrientationSupport());
+    ui->orientationIndicatorCheckBox->setEnabled(m_mscope->hasHeadOrientationSupport());
     for (const auto &ctl : m_mscope->controls()) {
         const auto w = new MSControlWidget(ctl, ui->gbDeviceCtls);
         m_controlsLayout->insertWidget(0, w);
@@ -201,3 +209,9 @@ void MiniscopeSettingsDialog::on_accAlphaSpinBox_valueChanged(double arg1)
 {
     m_mscope->setBgAccumulateAlpha(arg1);
 }
+
+void MiniscopeSettingsDialog::on_orientationIndicatorCheckBox_toggled(bool checked)
+{
+    m_mscope->setBNOIndicatorVisible(checked);
+}
+

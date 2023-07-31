@@ -257,16 +257,16 @@ void TraceDisplay::updatePlotData(bool adjustView)
 
 void TraceDisplay::plotAdjustView()
 {
-    if (m_maxXVal < 2000)
+    if (m_maxXVal < 500)
         return;
     auto axisX = m_plot->axes(Qt::Horizontal).back();
-    axisX->setRange(m_maxXVal - 2000, m_maxXVal);
+    axisX->setRange(m_maxXVal - 500, m_maxXVal);
 }
 
 void TraceDisplay::plotMoveTo(int position)
 {
     auto axisX = m_plot->axes(Qt::Horizontal).back();
-    axisX->setRange(position, position + 2000);
+    axisX->setRange(position - 100, position + 10);
 }
 
 void TraceDisplay::resetPlotConfig()
