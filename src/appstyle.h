@@ -21,7 +21,7 @@
 
 #include "utils/style.h"
 
-bool switchIconTheme(const QString& themeName);
+bool switchIconTheme(const QString &themeName);
 
 bool darkColorSchemeAvailable();
 void changeColorsDarkmode(bool enabled);

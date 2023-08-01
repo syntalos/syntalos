@@ -23,11 +23,11 @@
 #include <QDebug>
 #include <QInputDialog>
 
-VTransformCtlDialog::VTransformCtlDialog(QWidget *parent) :
-    QDialog(parent),
-    ui(new Ui::VTransformCtlDialog),
-    m_curSettingsPanel(nullptr),
-    m_running(false)
+VTransformCtlDialog::VTransformCtlDialog(QWidget *parent)
+    : QDialog(parent),
+      ui(new Ui::VTransformCtlDialog),
+      m_curSettingsPanel(nullptr),
+      m_running(false)
 {
     ui->setupUi(this);
     setWindowIcon(QIcon(":/icons/generic-config"));
@@ -35,10 +35,13 @@ VTransformCtlDialog::VTransformCtlDialog(QWidget *parent) :
     m_vtfListModel = new VTransformListModel(this);
     ui->activeTFListView->setModel(m_vtfListModel);
 
-    connect(ui->activeTFListView->selectionModel(), &QItemSelectionModel::currentChanged,
-            [&](const QModelIndex &index, const QModelIndex &) {
-        transformListViewSelectionChanged(index);
-    });
+    connect(
+        ui->activeTFListView->selectionModel(),
+        &QItemSelectionModel::currentChanged,
+        [&](const QModelIndex &index, const QModelIndex &) {
+            transformListViewSelectionChanged(index);
+        }
+    );
 }
 
 VTransformCtlDialog::~VTransformCtlDialog()
@@ -72,7 +75,7 @@ void VTransformCtlDialog::resetSettingsPanel()
     ui->labelSettingsHeader->setText(QStringLiteral("Settings"));
 }
 
-QList<std::shared_ptr<VideoTransform> > VTransformCtlDialog::transformList()
+QList<std::shared_ptr<VideoTransform>> VTransformCtlDialog::transformList()
 {
     return m_vtfListModel->toList();
 }
@@ -91,13 +94,16 @@ void VTransformCtlDialog::loadSettings(const QVariantHash &settings)
 void VTransformCtlDialog::on_btnAdd_clicked()
 {
     bool ok;
-    auto item = QInputDialog::getItem(this,
-                                      QStringLiteral("Select Transformation"),
-                                      QStringLiteral("New Transformation:"),
-                                      QStringList() << "Crop" << "Scale",  // TODO: Remove Color; Flip; Reduce Rate
-                                      0,
-                                      false,
-                                      &ok);
+    auto item = QInputDialog::getItem(
+        this,
+        QStringLiteral("Select Transformation"),
+        QStringLiteral("New Transformation:"),
+        QStringList() << "Crop"
+                      << "Scale", // TODO: Remove Color; Flip; Reduce Rate
+        0,
+        false,
+        &ok
+    );
     if (!ok || item.isEmpty())
         return;
 
@@ -166,4 +172,3 @@ void VTransformCtlDialog::on_activeTFListView_activated(const QModelIndex &index
 {
     transformListViewSelectionChanged(index);
 }
-

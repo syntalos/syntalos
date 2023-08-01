@@ -24,11 +24,13 @@
 
 #include "moduleapi.h"
 
-namespace Ui {
+namespace Ui
+{
 class TimingsDialog;
 }
 
-namespace Syntalos {
+namespace Syntalos
+{
 
 class TimingDisplayWidget : public QWidget
 {
@@ -58,8 +60,11 @@ public:
     explicit TimingsDialog(QWidget *parent = nullptr);
     ~TimingsDialog();
 
-    void onSynchronizerDetailsChanged(const QString &id, const TimeSyncStrategies &strategies,
-                                      const microseconds_t &tolerance);
+    void onSynchronizerDetailsChanged(
+        const QString &id,
+        const TimeSyncStrategies &strategies,
+        const microseconds_t &tolerance
+    );
     void onSynchronizerOffsetChanged(const QString &id, const microseconds_t &currentOffset);
 
     void clear();
@@ -67,7 +72,7 @@ public:
 private:
     Ui::TimingsDialog *ui;
 
-    QHash<AbstractModule*, TimingDisplayWidget*> m_tdispMap;
+    QHash<AbstractModule *, TimingDisplayWidget *> m_tdispMap;
 };
 
-}; // end of namespace
+}; // namespace Syntalos

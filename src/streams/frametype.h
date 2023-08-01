@@ -36,13 +36,15 @@ public:
         : index(0),
           time(t),
           mat(m)
-    {}
+    {
+    }
 
     explicit Frame(const size_t &i, const cv::Mat &m, const milliseconds_t &t)
         : index(i),
           time(t),
           mat(m)
-    {}
+    {
+    }
 
     size_t index;
     milliseconds_t time;

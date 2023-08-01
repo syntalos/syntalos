@@ -30,9 +30,11 @@
 
 #pragma once
 
+// clang-format off
 #include <pybind11/pybind11.h>
 #include <QString>
 #include <QStringList>
+// clang-format on
 
 namespace pybind11
 {
@@ -43,18 +45,18 @@ namespace detail
 /**
  * QString conversion
  */
-template <> struct type_caster<QString>
-{
+template<>
+struct type_caster<QString> {
 public:
     PYBIND11_TYPE_CASTER(QString, _("QString"));
 
     /**
-      * @brief Conversion part 1 (Python->C++): convert a PyObject into a QString
-      * instance or return false upon failure. The second argument
-      * indicates whether implicit conversions should be applied.
-      * @param src
-      * @return boolean
-      */
+     * @brief Conversion part 1 (Python->C++): convert a PyObject into a QString
+     * instance or return false upon failure. The second argument
+     * indicates whether implicit conversions should be applied.
+     * @param src
+     * @return boolean
+     */
     bool load(handle src, bool)
     {
         if (!src)
@@ -62,17 +64,16 @@ public:
 
         object temp;
         handle load_src = src;
-        if (PyUnicode_Check(load_src.ptr()))
-        {
+        if (PyUnicode_Check(load_src.ptr())) {
             temp = reinterpret_steal<object>(PyUnicode_AsUTF8String(load_src.ptr()));
-            if(!temp) /* A UnicodeEncodeError occured */
+            if (!temp) /* A UnicodeEncodeError occured */
             {
                 PyErr_Clear();
                 return false;
             }
             load_src = temp;
         }
-        char* buffer = nullptr;
+        char *buffer = nullptr;
         ssize_t length = 0;
         int err = PYBIND11_BYTES_AS_STRING_AND_SIZE(load_src.ptr(), &buffer, &length);
         if (err == -1) /* A TypeError occured */
@@ -85,16 +86,16 @@ public:
     }
 
     /**
-      * @brief Conversion part 2 (C++ -> Python): convert an QString instance into
-      * a Python object. The second and third arguments are used to
-      * indicate the return value policy and parent object (for
-      * ``return_value_policy::reference_internal``) and are generally
-      * ignored by implicit casters.
-      *
-      * @param src
-      * @return
-      */
-    static handle cast(const QString& src, return_value_policy /* policy */, handle /* parent */)
+     * @brief Conversion part 2 (C++ -> Python): convert an QString instance into
+     * a Python object. The second and third arguments are used to
+     * indicate the return value policy and parent object (for
+     * ``return_value_policy::reference_internal``) and are generally
+     * ignored by implicit casters.
+     *
+     * @param src
+     * @return
+     */
+    static handle cast(const QString &src, return_value_policy /* policy */, handle /* parent */)
     {
         assert(sizeof(QChar) == 2);
         return PyUnicode_FromKindAndData(PyUnicode_2BYTE_KIND, src.constData(), src.length());
@@ -104,25 +105,29 @@ public:
 /**
  * QStringList conversion
  */
-template<> struct type_caster<QStringList> {
-    public:
-        PYBIND11_TYPE_CASTER(QStringList, _("QStringList"));
+template<>
+struct type_caster<QStringList> {
+public:
+    PYBIND11_TYPE_CASTER(QStringList, _("QStringList"));
 
-        bool load(handle src, bool) {
-            if(!isinstance<sequence>(src)) return false;
-            sequence seq = reinterpret_borrow<sequence>(src);
-            for(size_t i = 0; i < seq.size(); i++)
-                value.push_back(seq[i].cast<QString>());
-            return true;
-        }
+    bool load(handle src, bool)
+    {
+        if (!isinstance<sequence>(src))
+            return false;
+        sequence seq = reinterpret_borrow<sequence>(src);
+        for (size_t i = 0; i < seq.size(); i++)
+            value.push_back(seq[i].cast<QString>());
+        return true;
+    }
 
-        static handle cast(const QStringList& src, return_value_policy /* policy */, handle /* parent */) {
-            list lst;
-            for(const QString& s : src)
-                lst.append(pybind11::cast(s));
-            return lst.release();
-        }
-    };
+    static handle cast(const QStringList &src, return_value_policy /* policy */, handle /* parent */)
+    {
+        list lst;
+        for (const QString &s : src)
+            lst.append(pybind11::cast(s));
+        return lst.release();
+    }
+};
 
-}
-}
+} // namespace detail
+} // namespace pybind11

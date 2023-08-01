@@ -19,14 +19,15 @@
 
 #pragma once
 
-#include <QDialog>
 #include <QAbstractButton>
+#include <QDialog>
 
 #include "engine.h"
 
 using namespace Syntalos;
 
-namespace Ui {
+namespace Ui
+{
 class CommentDialog;
 }
 

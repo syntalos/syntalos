@@ -19,11 +19,10 @@
 
 #include "style.h"
 
-#include <QDebug>
 #include <QApplication>
+#include <QDebug>
 #include <QPalette>
 #include <QStyleFactory>
-
 
 void setDefaultStyle(bool preferBreeze)
 {
@@ -48,8 +47,8 @@ void setDefaultStyle(bool preferBreeze)
     // test for a GNOME desktop and set Adwaita style if we have it
     if (desktopEnv.endsWith(QStringLiteral("GNOME"))) {
         if (availableStyle.contains(QStringLiteral("Adwaita"))) {
-                QApplication::setStyle(QStyleFactory::create(QStringLiteral("Adwaita")));
-                return;
+            QApplication::setStyle(QStyleFactory::create(QStringLiteral("Adwaita")));
+            return;
         }
     }
 

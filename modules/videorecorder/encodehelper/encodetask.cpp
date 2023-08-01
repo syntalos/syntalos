@@ -19,19 +19,19 @@
 
 #include "encodetask.h"
 
-#include <QFileInfo>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QUuid>
-#include <opencv2/videoio.hpp>
 #include <filesystem>
+#include <opencv2/videoio.hpp>
 
-#include "queuemodel.h"
 #include "../videowriter.h"
-#include "tsyncfile.h"
 #include "edlstorage.h"
-#include "utils/tomlutils.h"
+#include "queuemodel.h"
+#include "tsyncfile.h"
 #include "utils/misc.h"
+#include "utils/tomlutils.h"
 
 Q_LOGGING_CATEGORY(logEncodeTask, "encoder.task")
 
@@ -41,7 +41,8 @@ EncodeTask::EncodeTask(QueueItem *item, bool updateAttrs, int codecThreadN)
       m_updateAttrsData(updateAttrs),
       m_codecThreadCount(codecThreadN),
       m_writeTsync(false)
-{}
+{
+}
 
 bool EncodeTask::prepareSourceFiles()
 {
@@ -86,7 +87,9 @@ void EncodeTask::run()
     // sanity check
     const auto md = m_item->mdata();
     if (m_writeTsync != md["save-timestamps"].toBool()) {
-        m_item->setError("No tsync file was found, but we were requested to write a timestamp file. Unable to proceed safely.");
+        m_item->setError(
+            "No tsync file was found, but we were requested to write a timestamp file. Unable to proceed safely."
+        );
         return;
     }
 
@@ -116,7 +119,9 @@ void EncodeTask::run()
     if (m_writeTsync) {
         TimeSyncFileReader tfr;
         if (!tfr.open(m_tsyncSrcFname)) {
-            m_item->setError(QStringLiteral("Unable to open tsync file of this video for reading: %1").arg(tfr.lastError()));
+            m_item->setError(
+                QStringLiteral("Unable to open tsync file of this video for reading: %1").arg(tfr.lastError())
+            );
             return;
         }
 
@@ -147,18 +152,20 @@ void EncodeTask::run()
             frameHeight = frame.rows;
             useColor = frame.channels() > 1;
             try {
-                vwriter.initialize(m_destFname,
-                                   md["mod-name"].toString(),
-                                   md["src-mod-name"].toString(),
-                                   QUuid::fromString(md["collection-id"].toString()),
-                                   md["subject-name"].toString(),
-                                   frameWidth,
-                                   frameHeight,
-                                   vsrc.get(cv::CAP_PROP_FPS),
-                                   frame.depth(),
-                                   useColor,
-                                   m_writeTsync);
-            } catch (const std::runtime_error& e) {
+                vwriter.initialize(
+                    m_destFname,
+                    md["mod-name"].toString(),
+                    md["src-mod-name"].toString(),
+                    QUuid::fromString(md["collection-id"].toString()),
+                    md["subject-name"].toString(),
+                    frameWidth,
+                    frameHeight,
+                    vsrc.get(cv::CAP_PROP_FPS),
+                    frame.depth(),
+                    useColor,
+                    m_writeTsync
+                );
+            } catch (const std::runtime_error &e) {
                 m_item->setError(QStringLiteral("Unable to initialize recording: %1").arg(e.what()));
                 success = false;
                 break;
@@ -181,7 +188,9 @@ void EncodeTask::run()
         }
 
         if (!vwriter.encodeFrame(frame, timestamp)) {
-            m_item->setError(QStringLiteral("Unable to reencode video: %1").arg(QString::fromStdString(vwriter.lastError())));
+            m_item->setError(
+                QStringLiteral("Unable to reencode video: %1").arg(QString::fromStdString(vwriter.lastError()))
+            );
             success = false;
             break;
         }
@@ -235,11 +244,13 @@ void EncodeTask::run()
                     std::error_code error;
                     std::filesystem::rename(attrFnameTmp.toStdString(), attrFname.toStdString(), error);
                     if (error) {
-                        qCWarning(logEncodeTask).noquote() << "Unable to replace old attributes file: " << QString::fromStdString(error.message());
+                        qCWarning(logEncodeTask).noquote()
+                            << "Unable to replace old attributes file: " << QString::fromStdString(error.message());
                         QFile::remove(attrFnameTmp);
                     }
                 } else {
-                    qCWarning(logEncodeTask).noquote() << "Unable to open temporary attributes file for writing: " << errorMsg;
+                    qCWarning(logEncodeTask).noquote()
+                        << "Unable to open temporary attributes file for writing: " << errorMsg;
                     QFile::remove(attrFnameTmp);
                 }
             }
@@ -250,7 +261,8 @@ void EncodeTask::run()
 
     if (vsrc.get(cv::CAP_PROP_POS_FRAMES) != frameCount) {
         m_item->setError(QStringLiteral("Expected to encode %1 frames, but only encoded %2.")
-                         .arg(frameCount).arg(vsrc.get(cv::CAP_PROP_POS_FRAMES)));
+                             .arg(frameCount)
+                             .arg(vsrc.get(cv::CAP_PROP_POS_FRAMES)));
         success = false;
     }
     if (success) {

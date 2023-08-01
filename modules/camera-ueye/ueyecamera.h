@@ -20,12 +20,12 @@
 #ifndef UEYECAMERA_H
 #define UEYECAMERA_H
 
+#include "syclock.h"
+#include <QList>
 #include <QObject>
 #include <QPair>
-#include <QList>
 #include <QSize>
 #include <opencv2/core/core.hpp>
-#include "syclock.h"
 
 class UEyeCamera : public QObject
 {
@@ -35,12 +35,12 @@ public:
     ~UEyeCamera();
     QString lastError() const;
 
-    static QList<QPair<QString, QVariant>> availableCameras() ;
+    static QList<QPair<QString, QVariant>> availableCameras();
 
     int camId() const;
     void setCamId(int id);
 
-    bool open(const cv::Size& size);
+    bool open(const cv::Size &size);
     bool close();
 
     bool setFramerate(double fps);
@@ -51,7 +51,7 @@ public:
     bool setAutoGain(bool enabled);
     bool setExposureTime(double val);
 
-    void setConfFile(const QString& fileName);
+    void setConfFile(const QString &fileName);
     QString confFile() const;
 
     bool setGPIOFlash(bool enabled);
@@ -62,7 +62,7 @@ public slots:
 
 private:
     bool checkInit();
-    void setError(const QString& message, int code = 0);
+    void setError(const QString &message, int code = 0);
     bool freeCamBuffer();
     bool reallocateCamBuffer();
 

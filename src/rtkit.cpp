@@ -24,16 +24,16 @@
 #endif
 
 #include <string.h>
-#include <unistd.h>
-#include <sys/types.h>
+#include <sys/resource.h>
 #include <sys/syscall.h>
 #include <sys/time.h>
-#include <sys/resource.h>
+#include <sys/types.h>
+#include <unistd.h>
 
-#include <QDebug>
-#include <QDBusInterface>
 #include <QDBusArgument>
+#include <QDBusInterface>
 #include <QDBusReply>
+#include <QDebug>
 
 #ifndef RLIMIT_RTTIME
 #define RLIMIT_RTTIME 15
@@ -47,11 +47,9 @@ Q_LOGGING_CATEGORY(logRtKit, "rtkit")
 RtKit::RtKit(QObject *parent)
     : QObject(parent)
 {
-    m_rtkitIntf = new QDBusInterface(RTKIT_SERVICE_NAME,
-                                     RTKIT_OBJECT_PATH,
-                                     RTKIT_INTERFACE_NAME,
-                                     QDBusConnection::systemBus(),
-                                     this);
+    m_rtkitIntf = new QDBusInterface(
+        RTKIT_SERVICE_NAME, RTKIT_OBJECT_PATH, RTKIT_INTERFACE_NAME, QDBusConnection::systemBus(), this
+    );
 }
 
 QString RtKit::lastError() const
@@ -79,14 +77,16 @@ bool RtKit::makeHighPriority(pid_t thread, int niceLevel)
     if (thread == 0)
         thread = gettid();
 
-    QDBusReply<void> reply = m_rtkitIntf->call(QStringLiteral("MakeThreadHighPriority"),
-                                              QVariant::fromValue((qulonglong) thread),
-                                              QVariant::fromValue((int32_t) niceLevel));
+    QDBusReply<void> reply = m_rtkitIntf->call(
+        QStringLiteral("MakeThreadHighPriority"),
+        QVariant::fromValue((qulonglong)thread),
+        QVariant::fromValue((int32_t)niceLevel)
+    );
     if (reply.isValid())
         return true;
 
-    m_lastError = QStringLiteral("Unable to change thread priority via RtKit: %1: %2").arg(reply.error().name(),
-                                                                                           reply.error().message());
+    m_lastError = QStringLiteral("Unable to change thread priority via RtKit: %1: %2")
+                      .arg(reply.error().name(), reply.error().message());
     return false;
 }
 
@@ -103,23 +103,24 @@ bool RtKit::makeRealtime(pid_t thread, uint priority)
         thread = gettid();
     }
 
-    QDBusReply<void> reply = m_rtkitIntf->call(QStringLiteral("MakeThreadRealtime"),
-                                              QVariant::fromValue((qulonglong) thread),
-                                              QVariant::fromValue((uint32_t) priority));
+    QDBusReply<void> reply = m_rtkitIntf->call(
+        QStringLiteral("MakeThreadRealtime"),
+        QVariant::fromValue((qulonglong)thread),
+        QVariant::fromValue((uint32_t)priority)
+    );
     if (reply.isValid())
         return true;
 
-    m_lastError = QStringLiteral("Unable to change thread priority via RtKit: %1: %2").arg(reply.error().name(),
-                                                                                           reply.error().message());
+    m_lastError = QStringLiteral("Unable to change thread priority via RtKit: %1: %2")
+                      .arg(reply.error().name(), reply.error().message());
     return false;
 }
 
 long long RtKit::getIntProperty(const QString &propName, bool *ok)
 {
-    auto m = QDBusMessage::createMethodCall(RTKIT_SERVICE_NAME,
-                                            RTKIT_OBJECT_PATH,
-                                            QStringLiteral("org.freedesktop.DBus.Properties"),
-                                            QStringLiteral("Get"));
+    auto m = QDBusMessage::createMethodCall(
+        RTKIT_SERVICE_NAME, RTKIT_OBJECT_PATH, QStringLiteral("org.freedesktop.DBus.Properties"), QStringLiteral("Get")
+    );
     m << RTKIT_INTERFACE_NAME << propName;
 
     QDBusReply<QVariant> reply = QDBusConnection::systemBus().call(m);
@@ -133,8 +134,8 @@ long long RtKit::getIntProperty(const QString &propName, bool *ok)
             m_lastError = QStringLiteral("Reply to RtKit property request for '%1' was empty.").arg(propName);
         }
     } else {
-        m_lastError = QStringLiteral("RtKit property DBus request for '%1' failed: %2: %3").arg(propName,
-                                                                                                reply.error().name(), reply.error().message());
+        m_lastError = QStringLiteral("RtKit property DBus request for '%1' failed: %2: %3")
+                          .arg(propName, reply.error().name(), reply.error().message());
     }
 
     if (ok == nullptr)
@@ -151,7 +152,8 @@ bool setCurrentThreadNiceness(int nice)
     const auto minNice = rtkit.queryMinNiceLevel();
     if (minNice < 0) {
         if (nice < minNice) {
-            qCDebug(logRtKit).noquote().nospace() << "Unable to set thread niceness to " << nice << ", clamped to min value " << minNice;
+            qCDebug(logRtKit).noquote().nospace()
+                << "Unable to set thread niceness to " << nice << ", clamped to min value " << minNice;
             nice = minNice;
         }
     }
@@ -178,7 +180,8 @@ bool setCurrentThreadRealtime(int priority)
 
     const auto maxRTPrio = rtkit.queryMaxRealtimePriority();
     if (priority > maxRTPrio) {
-        qCDebug(logRtKit).noquote().nospace() << "Unable to set thread realtime priority to " << priority << ", clamped to max value " << maxRTPrio;
+        qCDebug(logRtKit).noquote().nospace()
+            << "Unable to set thread realtime priority to " << priority << ", clamped to max value " << maxRTPrio;
         priority = maxRTPrio;
     }
 

@@ -24,24 +24,24 @@
 class TcamCollection
 {
 private:
-    std::vector<GstElement*> m_elements;
+    std::vector<GstElement *> m_elements;
 
-    struct entry
-    {
+    struct entry {
         std::string prop_name;
-        GstElement* elem = nullptr;
+        GstElement *elem = nullptr;
     };
 
     std::vector<entry> m_prop_origin;
+
 public:
     TcamCollection() = default;
     ~TcamCollection();
 
-    explicit TcamCollection(GstBin* pipeline);
+    explicit TcamCollection(GstBin *pipeline);
 
     std::vector<std::string> get_names() const;
 
-    TcamPropertyBase* get_property(const std::string& name);
+    TcamPropertyBase *get_property(const std::string &name);
 
     bool is_trigger_mode_active();
 };

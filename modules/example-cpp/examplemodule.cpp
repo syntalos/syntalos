@@ -38,10 +38,7 @@ public:
         m_frameOut = registerOutputPort<Frame>(QStringLiteral("frames-out"), QStringLiteral("Frames Out"));
     }
 
-    ~ExampleCppModule() override
-    {
-
-    }
+    ~ExampleCppModule() override {}
 
     ModuleFeatures features() const override
     {
@@ -96,7 +93,6 @@ public:
     }
 
 private:
-
 };
 
 QString ExampleCppModuleInfo::id() const

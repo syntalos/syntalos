@@ -25,8 +25,9 @@
 #include <QAction>
 #include <QKeyEvent>
 
-PropertyTree::PropertyTree(const std::vector<Property*>& properties, QWidget* parent)
-    : QWidget(parent), m_properties(properties)
+PropertyTree::PropertyTree(const std::vector<Property *> &properties, QWidget *parent)
+    : QWidget(parent),
+      m_properties(properties)
 {
     setWindowFlags(windowFlags() | Qt::WindowStaysOnTopHint);
 
@@ -35,14 +36,13 @@ PropertyTree::PropertyTree(const std::vector<Property*>& properties, QWidget* pa
 
 void PropertyTree::setup_ui()
 {
-    QFormLayout* l = new QFormLayout();
+    QFormLayout *l = new QFormLayout();
     setLayout(l);
 
-    for (auto* ptr : m_properties)
-    {
-        auto widget = dynamic_cast<QWidget*>(ptr);
+    for (auto *ptr : m_properties) {
+        auto widget = dynamic_cast<QWidget *>(ptr);
 
-        QLabel* name_label = new QLabel(ptr->get_name());
+        QLabel *name_label = new QLabel(ptr->get_name());
 
         static const int min_height = 50;
 
@@ -53,8 +53,9 @@ void PropertyTree::setup_ui()
     }
 }
 
-PropertiesBox::PropertiesBox(TcamCollection& collection, QWidget* parent)
-    : QWidget(parent), ui(new Ui::PropertiesBox)
+PropertiesBox::PropertiesBox(TcamCollection &collection, QWidget *parent)
+    : QWidget(parent),
+      ui(new Ui::PropertiesBox)
 {
     setMinimumSize(720, 640);
 
@@ -76,19 +77,16 @@ PropertiesBox::~PropertiesBox()
 {
     delete ui;
 
-    if (p_work_thread->isRunning())
-    {
+    if (p_work_thread->isRunning()) {
         p_work_thread->quit();
     }
     p_work_thread->wait();
 }
 
-
-void PropertiesBox::notify_device_lost(const QString& info)
+void PropertiesBox::notify_device_lost(const QString &info)
 {
     emit device_lost(info);
 }
-
 
 void PropertiesBox::update_tab(int index)
 {
@@ -96,27 +94,23 @@ void PropertiesBox::update_tab(int index)
     emit this->update_category(name);
 }
 
-
 void PropertiesBox::refresh()
 {
     int index = ui->tabWidget->currentIndex();
     update_tab(index);
 }
 
-
-void PropertiesBox::keyPressEvent(QKeyEvent* event)
+void PropertiesBox::keyPressEvent(QKeyEvent *event)
 {
     // this is to ensure the property dialog behaves
     // like a normal dialog
     // esc == quit
-    if (event->key() == Qt::Key_Escape)
-    {
+    if (event->key() == Qt::Key_Escape) {
         this->close();
     }
 }
 
-
-void PropertiesBox::initialize_dialog(TcamCollection& collection)
+void PropertiesBox::initialize_dialog(TcamCollection &collection)
 {
     this->ui->tabWidget->clear();
 
@@ -124,95 +118,84 @@ void PropertiesBox::initialize_dialog(TcamCollection& collection)
 
     std::vector<std::string> known_categories;
 
-    std::vector<Property*>& prop_list = m_properties;
+    std::vector<Property *> &prop_list = m_properties;
 
-    for (const std::string& name : names)
-    {
-        TcamPropertyBase* prop = collection.get_property(name);
+    for (const std::string &name : names) {
+        TcamPropertyBase *prop = collection.get_property(name);
 
-        if (!prop)
-        {
+        if (!prop) {
             qWarning("Unable to retrieve property: %s", name.c_str());
             continue;
         }
 
         std::string category;
-        if (auto cat = tcam_property_base_get_category(prop); cat)
-        {
+        if (auto cat = tcam_property_base_get_category(prop); cat) {
             category = cat;
         }
 
-        if (category.empty())
-        {
+        if (category.empty()) {
             qWarning("%s has empty category!", name.c_str());
         }
 
         auto is_known_category =
-            std::any_of(known_categories.begin(),
-                        known_categories.end(),
-                        [&category](const std::string& categ) { return categ == category; });
+            std::any_of(known_categories.begin(), known_categories.end(), [&category](const std::string &categ) {
+                return categ == category;
+            });
 
         if (!is_known_category)
             known_categories.push_back(category);
 
-        switch (tcam_property_base_get_property_type(prop))
-        {
-            case TCAM_PROPERTY_TYPE_FLOAT:
-            {
-                auto ptr = new DoubleWidget(TCAM_PROPERTY_FLOAT(prop));
-                connect(ptr, &DoubleWidget::value_changed, p_worker, &PropertyWorker::write_property, Qt::QueuedConnection);
-                connect(ptr, &DoubleWidget::update_category, p_worker, &PropertyWorker::update_category, Qt::QueuedConnection);
-                connect(ptr, &DoubleWidget::device_lost, this, &PropertiesBox::notify_device_lost);
-                prop_list.push_back(ptr);
-                break;
-            }
-            case TCAM_PROPERTY_TYPE_INTEGER:
-            {
-                auto ptr = new IntWidget(TCAM_PROPERTY_INTEGER(prop));
-                connect(ptr, &IntWidget::value_changed, p_worker, &PropertyWorker::write_property, Qt::QueuedConnection);
-                connect(ptr, &IntWidget::update_category, p_worker, &PropertyWorker::update_category, Qt::QueuedConnection);
-                connect(ptr, &IntWidget::device_lost, this, &PropertiesBox::notify_device_lost);
-                prop_list.push_back(ptr);
-                break;
-            }
-            case TCAM_PROPERTY_TYPE_ENUMERATION:
-            {
-                auto ptr = new EnumWidget(TCAM_PROPERTY_ENUMERATION(prop));
-                connect(ptr, &EnumWidget::value_changed, p_worker, &PropertyWorker::write_property);
-                connect(ptr, &EnumWidget::update_category, p_worker, &PropertyWorker::update_category);
-                connect(ptr, &EnumWidget::device_lost, this, &PropertiesBox::notify_device_lost);
-                prop_list.push_back(ptr);
-                break;
-            }
-            case TCAM_PROPERTY_TYPE_BOOLEAN:
-            {
-                auto ptr = new BoolWidget(TCAM_PROPERTY_BOOLEAN(prop));
-                connect(ptr, &BoolWidget::value_changed, p_worker, &PropertyWorker::write_property);
-                connect(ptr, &BoolWidget::device_lost, this, &PropertiesBox::notify_device_lost);
-                prop_list.push_back(ptr);
-                break;
-            }
-            case TCAM_PROPERTY_TYPE_COMMAND:
-            {
-                auto ptr = new ButtonWidget(TCAM_PROPERTY_COMMAND(prop));
-                connect(
-                    ptr, &ButtonWidget::value_changed, p_worker, &PropertyWorker::write_property);
-                connect(ptr, &ButtonWidget::device_lost, this, &PropertiesBox::notify_device_lost);
-                prop_list.push_back(ptr);
-                break;
-            }
-            case TCAM_PROPERTY_TYPE_STRING:
-            {
-                auto ptr = new StringWidget(TCAM_PROPERTY_STRING(prop));
-                connect(ptr, &StringWidget::device_lost, this, &PropertiesBox::notify_device_lost);
-                prop_list.push_back(ptr);
-                break;
-            }
+        switch (tcam_property_base_get_property_type(prop)) {
+        case TCAM_PROPERTY_TYPE_FLOAT: {
+            auto ptr = new DoubleWidget(TCAM_PROPERTY_FLOAT(prop));
+            connect(ptr, &DoubleWidget::value_changed, p_worker, &PropertyWorker::write_property, Qt::QueuedConnection);
+            connect(
+                ptr, &DoubleWidget::update_category, p_worker, &PropertyWorker::update_category, Qt::QueuedConnection
+            );
+            connect(ptr, &DoubleWidget::device_lost, this, &PropertiesBox::notify_device_lost);
+            prop_list.push_back(ptr);
+            break;
+        }
+        case TCAM_PROPERTY_TYPE_INTEGER: {
+            auto ptr = new IntWidget(TCAM_PROPERTY_INTEGER(prop));
+            connect(ptr, &IntWidget::value_changed, p_worker, &PropertyWorker::write_property, Qt::QueuedConnection);
+            connect(ptr, &IntWidget::update_category, p_worker, &PropertyWorker::update_category, Qt::QueuedConnection);
+            connect(ptr, &IntWidget::device_lost, this, &PropertiesBox::notify_device_lost);
+            prop_list.push_back(ptr);
+            break;
+        }
+        case TCAM_PROPERTY_TYPE_ENUMERATION: {
+            auto ptr = new EnumWidget(TCAM_PROPERTY_ENUMERATION(prop));
+            connect(ptr, &EnumWidget::value_changed, p_worker, &PropertyWorker::write_property);
+            connect(ptr, &EnumWidget::update_category, p_worker, &PropertyWorker::update_category);
+            connect(ptr, &EnumWidget::device_lost, this, &PropertiesBox::notify_device_lost);
+            prop_list.push_back(ptr);
+            break;
+        }
+        case TCAM_PROPERTY_TYPE_BOOLEAN: {
+            auto ptr = new BoolWidget(TCAM_PROPERTY_BOOLEAN(prop));
+            connect(ptr, &BoolWidget::value_changed, p_worker, &PropertyWorker::write_property);
+            connect(ptr, &BoolWidget::device_lost, this, &PropertiesBox::notify_device_lost);
+            prop_list.push_back(ptr);
+            break;
+        }
+        case TCAM_PROPERTY_TYPE_COMMAND: {
+            auto ptr = new ButtonWidget(TCAM_PROPERTY_COMMAND(prop));
+            connect(ptr, &ButtonWidget::value_changed, p_worker, &PropertyWorker::write_property);
+            connect(ptr, &ButtonWidget::device_lost, this, &PropertiesBox::notify_device_lost);
+            prop_list.push_back(ptr);
+            break;
+        }
+        case TCAM_PROPERTY_TYPE_STRING: {
+            auto ptr = new StringWidget(TCAM_PROPERTY_STRING(prop));
+            connect(ptr, &StringWidget::device_lost, this, &PropertiesBox::notify_device_lost);
+            prop_list.push_back(ptr);
+            break;
+        }
         }
     }
 
-    static const std::string best_order[] =
-    {
+    static const std::string best_order[] = {
         "Exposure",
         "Color",
         "Auto ROI",
@@ -230,23 +213,19 @@ void PropertiesBox::initialize_dialog(TcamCollection& collection)
     std::vector<std::string> added_tabs;
     added_tabs.reserve(known_categories.size());
 
-    for (const auto& o : best_order)
-    {
-        std::vector<Property*> props;
+    for (const auto &o : best_order) {
+        std::vector<Property *> props;
 
-        for (auto& p : prop_list)
-        {
-            if (p->get_category() == o)
-            {
+        for (auto &p : prop_list) {
+            if (p->get_category() == o) {
                 props.push_back(p);
             }
         }
-        if (props.empty())
-        {
+        if (props.empty()) {
             continue;
         }
 
-        PropertyTree* tab_tree = new PropertyTree(props);
+        PropertyTree *tab_tree = new PropertyTree(props);
 
         ui->tabWidget->addTab(tab_tree, o.c_str());
         added_tabs.push_back(o);
@@ -256,31 +235,26 @@ void PropertiesBox::initialize_dialog(TcamCollection& collection)
     // to get more predictable behavior
     std::sort(known_categories.begin(), known_categories.end());
 
-    for (const auto& cat : known_categories)
-    {
-        if (std::any_of(added_tabs.begin(),
-                        added_tabs.end(),
-                        [&cat](const std::string& o){return cat == o;}))
-        {
+    for (const auto &cat : known_categories) {
+        if (std::any_of(added_tabs.begin(), added_tabs.end(), [&cat](const std::string &o) {
+                return cat == o;
+            })) {
             continue;
         }
 
-        std::vector<Property*> props;
+        std::vector<Property *> props;
 
-        for (auto& p : prop_list)
-        {
-            if (p->get_category() == cat)
-            {
+        for (auto &p : prop_list) {
+            if (p->get_category() == cat) {
                 props.push_back(p);
             }
         }
 
-        if (props.empty())
-        {
+        if (props.empty()) {
             continue;
         }
 
-        PropertyTree* tab_tree = new PropertyTree(props);
+        PropertyTree *tab_tree = new PropertyTree(props);
 
         ui->tabWidget->addTab(tab_tree, cat.c_str());
     }

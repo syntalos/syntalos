@@ -19,12 +19,12 @@
 
 #include "miniscopemodule.h"
 
-#include <QTimer>
 #include <QDebug>
+#include <QTimer>
 #include <miniscope.h>
 
-#include "streams/frametype.h"
 #include "miniscopesettingsdialog.h"
+#include "streams/frametype.h"
 
 SYNTALOS_MODULE(MiniscopeModule)
 
@@ -58,7 +58,9 @@ public:
     {
         m_rawOut = registerOutputPort<Frame>(QStringLiteral("frames-raw-out"), QStringLiteral("Raw Frames"));
         m_dispOut = registerOutputPort<Frame>(QStringLiteral("frames-disp-out"), QStringLiteral("Display Frames"));
-        m_bnoVecOut = registerOutputPort<FloatSignalBlock>(QStringLiteral("bno-raw-out"), QStringLiteral("Orientation Vector"));
+        m_bnoVecOut = registerOutputPort<FloatSignalBlock>(
+            QStringLiteral("bno-raw-out"), QStringLiteral("Orientation Vector")
+        );
         m_bnoTabOut = registerOutputPort<TableRow>(QStringLiteral("bno-tab-out"), QStringLiteral("Orientation Rows"));
         m_bnoVecOut->setMetadataValue("channel_index_first", 0);
         m_bnoVecOut->setMetadataValue("channel_index_last", 3);
@@ -82,7 +84,7 @@ public:
         connect(m_evTimer, &QTimer::timeout, this, &MiniscopeModule::checkMSStatus);
 
         // show status messages
-        m_miniscope->setOnStatusMessage([&](const QString &msg, void*) {
+        m_miniscope->setOnStatusMessage([&](const QString &msg, void *) {
             setStatusMessage(msg);
         });
     }
@@ -132,10 +134,14 @@ public:
         // write logfile header
         {
             QTextStream tsout(m_valChangeLogFile);
-            tsout << "Time" << ";"
-                  << "ID" << ";"
-                  << "Display Value" << ";"
-                  << "Device Value" << ";"
+            tsout << "Time"
+                  << ";"
+                  << "ID"
+                  << ";"
+                  << "Display Value"
+                  << ";"
+                  << "Device Value"
+                  << ";"
                   << "\n";
         }
 
@@ -161,15 +167,22 @@ public:
 
         // we need to set the framerate-related stuff after the miniscope has been started, so
         // we will get the right, final FPS value
-        m_rawOut->setMetadataValue("framerate", (double) m_miniscope->fps());
+        m_rawOut->setMetadataValue("framerate", (double)m_miniscope->fps());
         m_rawOut->setMetadataValue("has_color", false);
         m_rawOut->setSuggestedDataName(QStringLiteral("%1/mscope").arg(datasetNameSuggestion()));
 
-        m_dispOut->setMetadataValue("framerate", (double) m_miniscope->fps());
+        m_dispOut->setMetadataValue("framerate", (double)m_miniscope->fps());
         m_dispOut->setMetadataValue("has_color", true);
         m_dispOut->setSuggestedDataName(QStringLiteral("%1_display/mscope_display").arg(datasetNameSuggestion()));
 
-        m_bnoTabOut->setMetadataValue("table_header", QStringList() << "Time [ms]" << "qw" << "qx" << "qy" << "qz");
+        m_bnoTabOut->setMetadataValue(
+            "table_header",
+            QStringList() << "Time [ms]"
+                          << "qw"
+                          << "qx"
+                          << "qy"
+                          << "qz"
+        );
         m_bnoTabOut->setSuggestedDataName(QStringLiteral("%1/orientation").arg(datasetNameSuggestion()));
 
         m_bnoVecOut->setMetadataValue("channel_index_first", 0);
@@ -215,16 +228,18 @@ public:
         AbstractModule::start();
     }
 
-    static void on_newRawFrame(const cv::Mat &mat,
-                               milliseconds_t &frameTime,
-                               const milliseconds_t &masterRecvTime,
-                               const milliseconds_t &deviceTime,
-                               const std::vector<float> &orientation,
-                               void *udata)
+    static void on_newRawFrame(
+        const cv::Mat &mat,
+        milliseconds_t &frameTime,
+        const milliseconds_t &masterRecvTime,
+        const milliseconds_t &deviceTime,
+        const std::vector<float> &orientation,
+        void *udata
+    )
     {
-        const auto self = static_cast<MiniscopeModule*>(udata);
+        const auto self = static_cast<MiniscopeModule *>(udata);
         if (!self->m_acceptFrames) {
-            self->m_acceptFrames = self->m_running? self->m_miniscope->captureStartTimeInitialized() : false;
+            self->m_acceptFrames = self->m_running ? self->m_miniscope->captureStartTimeInitialized() : false;
             if (!self->m_acceptFrames)
                 return;
         }
@@ -245,11 +260,11 @@ public:
             self->m_lastOrientationVec = orientation;
 
             if (self->m_bnoTabOut->active())
-                self->m_bnoTabOut->push(QStringList() << QString::number(frameTime.count())
-                                                      << QString::number(orientation[0])
-                                                      << QString::number(orientation[1])
-                                                      << QString::number(orientation[2])
-                                                      << QString::number(orientation[3]));
+                self->m_bnoTabOut->push(
+                    QStringList() << QString::number(frameTime.count()) << QString::number(orientation[0])
+                                  << QString::number(orientation[1]) << QString::number(orientation[2])
+                                  << QString::number(orientation[3])
+                );
 
             if (self->m_bnoVecOut->active())
                 self->m_bnoVecOut->push(FloatSignalBlock(orientation, frameTime.count()));
@@ -258,15 +273,15 @@ public:
 
     static void on_newDisplayFrame(const cv::Mat &mat, const milliseconds_t &time, void *udata)
     {
-        const auto self = static_cast<MiniscopeModule*>(udata);
+        const auto self = static_cast<MiniscopeModule *>(udata);
         if (!self->m_acceptFrames)
             return;
         self->m_dispOut->push(Frame(mat, time));
     }
 
-    static void on_controlValueChanged(const QString& id, double dispValue, double devValue, void *udata)
+    static void on_controlValueChanged(const QString &id, double dispValue, double devValue, void *udata)
     {
-        const auto self = static_cast<MiniscopeModule*>(udata);
+        const auto self = static_cast<MiniscopeModule *>(udata);
         if (!self->m_valChangeLogFile->isOpen())
             return;
 
@@ -275,10 +290,7 @@ public:
             timestamp = 0;
 
         QTextStream tsout(self->m_valChangeLogFile);
-        tsout << timestamp << ";"
-              << id << ";"
-              << dispValue << ";"
-              << devValue << ";"
+        tsout << timestamp << ";" << id << ";" << dispValue << ";" << devValue << ";"
               << "\n";
     }
 
@@ -291,7 +303,9 @@ public:
                 return;
             }
         }
-        statusMessage(QStringLiteral("FPS: %1 Dropped: %2").arg(m_miniscope->currentFps()).arg(m_miniscope->droppedFramesCount()));
+        statusMessage(
+            QStringLiteral("FPS: %1 Dropped: %2").arg(m_miniscope->currentFps()).arg(m_miniscope->droppedFramesCount())
+        );
         m_settingsDialog->setCurrentPixRangeValues(m_miniscope->minFluor(), m_miniscope->maxFluor());
     }
 

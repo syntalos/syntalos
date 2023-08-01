@@ -22,9 +22,9 @@
 
 #include <QIcon>
 
-ClockSettingsDialog::ClockSettingsDialog(QWidget *parent) :
-    QDialog(parent),
-    ui(new Ui::ClockSettingsDialog)
+ClockSettingsDialog::ClockSettingsDialog(QWidget *parent)
+    : QDialog(parent),
+      ui(new Ui::ClockSettingsDialog)
 {
     ui->setupUi(this);
     setWindowIcon(QIcon(":/icons/generic-config"));

@@ -22,10 +22,10 @@
 
 #include <QMainWindow>
 
-#include "utils/misc.h"
+#include "engine.h"
 #include "entitylistmodels.h"
 #include "moduleapi.h"
-#include "engine.h"
+#include "utils/misc.h"
 
 #if !defined(DOXYGEN_SHOULD_SKIP_THIS)
 class QLabel;
@@ -34,16 +34,18 @@ class ModuleIndicator;
 class QSvgWidget;
 class QSettings;
 class FlowGraphEdge;
-namespace Syntalos {
+namespace Syntalos
+{
 class ModuleInfo;
 class AbstractModule;
 class TimingsDialog;
 class GlobalConfig;
 class IntervalRunDialog;
-}
+} // namespace Syntalos
 #endif // DOXYGEN_SHOULD_SKIP_THIS
 
-namespace Ui {
+namespace Ui
+{
 class MainWindow;
 }
 
@@ -55,7 +57,7 @@ public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow() override;
 
-    void setStatusText(const QString& msg);
+    void setStatusText(const QString &msg);
 
 private slots:
     void runActionTriggered();
@@ -74,14 +76,12 @@ private slots:
     void aboutActionTriggered();
 
     void onModuleCreated(ModuleInfo *info, AbstractModule *mod);
-    void moduleErrorReceived(AbstractModule *mod, const QString& message);
+    void moduleErrorReceived(AbstractModule *mod, const QString &message);
     void onEnginePreRunStart();
     void onEngineRunStarted();
     void onEngineStopped();
-    void onEngineResourceWarningUpdate(Engine::SystemResource kind, bool resolved,
-                                       const QString &message);
-    void onEngineConnectionHeatChanged(VarStreamInputPort *iport,
-                                       ConnectionHeatLevel hlevel);
+    void onEngineResourceWarningUpdate(Engine::SystemResource kind, bool resolved, const QString &message);
+    void onEngineConnectionHeatChanged(VarStreamInputPort *iport, ConnectionHeatLevel hlevel);
     void onElapsedTimeUpdate();
 
     void statusMessageChanged(const QString &message);
@@ -112,22 +112,22 @@ private:
     void applySelectedAppStyle(bool updateIcons = true);
     void updateIconStyles();
     void shutdown();
-    void setCurrentProjectFile(const QString& fileName);
-    void setDataExportBaseDir(const QString& dir);
+    void setCurrentProjectFile(const QString &fileName);
+    void setDataExportBaseDir(const QString &dir);
     void updateExportDirDisplay();
     void updateIntervalRunMessage();
     QByteArray loadBusyAnimation(const QString &name) const;
 
-    void changeExperimenter(const EDLAuthor& person);
-    void changeTestSubject(const TestSubject& subject);
+    void changeExperimenter(const EDLAuthor &person);
+    void changeTestSubject(const TestSubject &subject);
     void changeExperimentId(const QString &text);
 
     void setRunPossible(bool enabled);
     void setRunUiControlStates(bool engineRunning, bool stopPossible);
     void setExperimenterSelectVisible(bool visible);
 
-    bool saveConfiguration(const QString& fileName);
-    bool loadConfiguration(const QString& fileName);
+    bool saveConfiguration(const QString &fileName);
+    bool loadConfiguration(const QString &fileName);
 
     Ui::MainWindow *ui;
 
@@ -146,7 +146,7 @@ private:
     TimingsDialog *m_timingsDialog;
     IntervalRunDialog *m_intervalRunDialog;
 
-    QHash<VarStreamInputPort*, FlowGraphEdge*> m_portGraphEdgeCache;
+    QHash<VarStreamInputPort *, FlowGraphEdge *> m_portGraphEdgeCache;
 };
 
 #endif // MAINWINDOW_H

@@ -18,46 +18,36 @@
 
 #include <QObject>
 
-enum class FormatHandling : int
-{
+enum class FormatHandling : int {
     Static = 0,
     Auto,
     Dialog,
 };
 
-
-enum class ConversionElement : int
-{
+enum class ConversionElement : int {
     Auto = 0,
     TcamConvert,
     TcamDutils,
     TcamDutilsCuda,
 };
 
-
-inline const char* conversion_element_to_string (const ConversionElement entry)
+inline const char *conversion_element_to_string(const ConversionElement entry)
 {
-    switch(entry)
-    {
-        case ConversionElement::Auto:
-        {
-            return "auto";
-        }
-        case ConversionElement::TcamConvert:
-        {
-            return "tcamconvert";
-        }
-        case ConversionElement::TcamDutils:
-        {
-            return "tcamdutils";
-        }
-        case ConversionElement::TcamDutilsCuda:
-        {
-            return "tcamdutils-cuda";
-        }
-        default:
-        {
-            return "";
-        }
+    switch (entry) {
+    case ConversionElement::Auto: {
+        return "auto";
+    }
+    case ConversionElement::TcamConvert: {
+        return "tcamconvert";
+    }
+    case ConversionElement::TcamDutils: {
+        return "tcamdutils";
+    }
+    case ConversionElement::TcamDutilsCuda: {
+        return "tcamdutils-cuda";
+    }
+    default: {
+        return "";
+    }
     }
 }

@@ -20,21 +20,22 @@
 #include "modulegraphform.h"
 #include "ui_modulegraphform.h"
 
-#include <QObject>
-#include <QMessageBox>
-#include <QMenu>
-#include <QToolButton>
 #include <QDebug>
+#include <QMenu>
+#include <QMessageBox>
+#include <QObject>
+#include <QToolButton>
 
-#include "moduleselectdialog.h"
-#include "moduleapi.h"
 #include "engine.h"
+#include "moduleapi.h"
+#include "moduleselectdialog.h"
 #include "streams/frametype.h"
 #include "utils/misc.h"
 #include "utils/style.h"
 
-namespace Syntalos {
-    Q_LOGGING_CATEGORY(logGraphUi, "graphui")
+namespace Syntalos
+{
+Q_LOGGING_CATEGORY(logGraphUi, "graphui")
 }
 
 ModuleGraphForm::ModuleGraphForm(QWidget *parent)
@@ -59,9 +60,12 @@ ModuleGraphForm::ModuleGraphForm(QWidget *parent)
 
     m_menu = new QMenu(this);
     ui->actionMenu->setMenu(m_menu);
-    connect(ui->actionMenu, &QAction::triggered,
-            qobject_cast<QToolButton*>(ui->toolBar->widgetForAction(ui->actionMenu)),
-            &QToolButton::showMenu);
+    connect(
+        ui->actionMenu,
+        &QAction::triggered,
+        qobject_cast<QToolButton *>(ui->toolBar->widgetForAction(ui->actionMenu)),
+        &QToolButton::showMenu
+    );
 
     connect(ui->graphView->scene(), &QGraphicsScene::selectionChanged, this, &ModuleGraphForm::on_selectionChanged);
     connect(ui->graphView, &FlowGraphView::renamed, this, &ModuleGraphForm::itemRenamed);
@@ -118,15 +122,18 @@ void ModuleGraphForm::setModifyPossible(bool allowModify)
     ui->graphView->setAllowEdit(m_modifyPossible);
 }
 
-FlowGraphEdge *ModuleGraphForm::updateConnectionHeat(const VarStreamInputPort *inPort, const StreamOutputPort *outPort,
-                                                     ConnectionHeatLevel hlevel)
+FlowGraphEdge *ModuleGraphForm::updateConnectionHeat(
+    const VarStreamInputPort *inPort,
+    const StreamOutputPort *outPort,
+    ConnectionHeatLevel hlevel
+)
 {
     const auto inNode = m_modNodeMap.value(inPort->owner());
     const auto outNode = m_modNodeMap.value(outPort->owner());
 
     if ((inNode == nullptr) || (outNode == nullptr)) {
-        qCCritical(logGraphUi).noquote()
-                << "Unable to find port graph nodes to update edge heat level. Source owner:" << inPort->owner()->name();
+        qCCritical(logGraphUi).noquote() << "Unable to find port graph nodes to update edge heat level. Source owner:"
+                                         << inPort->owner()->name();
         return nullptr;
     }
 
@@ -135,9 +142,8 @@ FlowGraphEdge *ModuleGraphForm::updateConnectionHeat(const VarStreamInputPort *i
 
     auto edge = graphInPort->findConnect(graphOutPort);
     if (edge == nullptr) {
-        qCCritical(logGraphUi).noquote()
-                << "Unable to find graph edge connecting" << inPort->owner()->name() << "and" << outPort->owner()->name()
-                << "to update its heat level.";
+        qCCritical(logGraphUi).noquote() << "Unable to find graph edge connecting" << inPort->owner()->name() << "and"
+                                         << outPort->owner()->name() << "to update its heat level.";
         return nullptr;
     }
 
@@ -162,7 +168,7 @@ void ModuleGraphForm::moduleAdded(ModuleInfo *info, AbstractModule *mod)
     ui->graphView->addItem(node);
     m_modNodeMap.insert(mod, node);
 
-    connect(mod, &AbstractModule::nameChanged, [=](const QString& name) {
+    connect(mod, &AbstractModule::nameChanged, [=](const QString &name) {
         node->setNodeTitle(name);
     });
 
@@ -185,7 +191,7 @@ void ModuleGraphForm::on_actionAddModule_triggered()
 
 void ModuleGraphForm::receiveStateChange(ModuleState state)
 {
-    const auto mod = qobject_cast<AbstractModule*>(sender());
+    const auto mod = qobject_cast<AbstractModule *>(sender());
     const auto node = m_modNodeMap.value(mod);
     if (node == nullptr)
         return;
@@ -195,7 +201,7 @@ void ModuleGraphForm::receiveStateChange(ModuleState state)
 
 void ModuleGraphForm::receiveErrorMessage(const QString &message)
 {
-    const auto mod = qobject_cast<AbstractModule*>(sender());
+    const auto mod = qobject_cast<AbstractModule *>(sender());
     const auto node = m_modNodeMap.value(mod);
 
     if (node != nullptr)
@@ -207,7 +213,7 @@ void ModuleGraphForm::receiveMessage(const QString &message)
     if (m_shutdown)
         return;
 
-    const auto mod = qobject_cast<AbstractModule*>(sender());
+    const auto mod = qobject_cast<AbstractModule *>(sender());
     const auto node = m_modNodeMap.value(mod);
     if (node == nullptr)
         return;
@@ -218,7 +224,7 @@ void ModuleGraphForm::itemRenamed(FlowGraphItem *item, const QString &name)
 {
     if (item->type() != FlowGraphNode::Type)
         return;
-    auto node = static_cast<FlowGraphNode*>(item);
+    auto node = static_cast<FlowGraphNode *>(item);
     if (node == nullptr || node->module() == nullptr) {
         qCCritical(logGraphUi).noquote() << "Orphaned node" << node->nodeName() << ", can not change name";
         return;
@@ -287,13 +293,13 @@ void ModuleGraphForm::on_graphPortsConnected(FlowGraphNodePort *port1, FlowGraph
     VarStreamInputPort *inPort = nullptr;
     StreamOutputPort *outPort = nullptr;
     if (port1->isInput())
-        inPort = dynamic_cast<VarStreamInputPort*>(port1->streamPort().get());
+        inPort = dynamic_cast<VarStreamInputPort *>(port1->streamPort().get());
     if (port2->isInput())
-        inPort = dynamic_cast<VarStreamInputPort*>(port2->streamPort().get());
+        inPort = dynamic_cast<VarStreamInputPort *>(port2->streamPort().get());
     if (port1->isOutput())
-        outPort = dynamic_cast<StreamOutputPort*>(port1->streamPort().get());
+        outPort = dynamic_cast<StreamOutputPort *>(port1->streamPort().get());
     if (port2->isOutput())
-        outPort = dynamic_cast<StreamOutputPort*>(port1->streamPort().get());
+        outPort = dynamic_cast<StreamOutputPort *>(port1->streamPort().get());
 
     if ((inPort == nullptr || outPort == nullptr)) {
         // something went wrong or we connected two ports of the same type
@@ -317,29 +323,29 @@ void ModuleGraphForm::on_graphPortsConnected(FlowGraphNodePort *port1, FlowGraph
 
     inPort->setSubscription(outPort, outPort->subscribe());
     qCDebug(logGraphUi).noquote() << "Connected ports:"
-                       << QString("%1[>%2]").arg(outPort->title()).arg(outPort->dataTypeName())
-                       << "->"
-                       << QString("%1[<%2]").arg(inPort->title()).arg(inPort->dataTypeName());
+                                  << QString("%1[>%2]").arg(outPort->title()).arg(outPort->dataTypeName()) << "->"
+                                  << QString("%1[<%2]").arg(inPort->title()).arg(inPort->dataTypeName());
 }
 
 void ModuleGraphForm::on_graphPortsDisconnected(FlowGraphNodePort *port1, FlowGraphNodePort *port2)
 {
     // sanity check
     if (!m_modifyPossible) {
-        qCCritical(logGraphUi).noquote() << "Disconnected ports in graph UI although board modifications were prohibited. This is a bug.";
+        qCCritical(logGraphUi).noquote()
+            << "Disconnected ports in graph UI although board modifications were prohibited. This is a bug.";
         return;
     }
 
     VarStreamInputPort *inPort = nullptr;
     StreamOutputPort *outPort = nullptr;
     if (port1->isInput())
-        inPort = dynamic_cast<VarStreamInputPort*>(port1->streamPort().get());
+        inPort = dynamic_cast<VarStreamInputPort *>(port1->streamPort().get());
     if (port2->isInput())
-        inPort = dynamic_cast<VarStreamInputPort*>(port2->streamPort().get());
+        inPort = dynamic_cast<VarStreamInputPort *>(port2->streamPort().get());
     if (port1->isOutput())
-        outPort = dynamic_cast<StreamOutputPort*>(port1->streamPort().get());
+        outPort = dynamic_cast<StreamOutputPort *>(port1->streamPort().get());
     if (port2->isOutput())
-        outPort = dynamic_cast<StreamOutputPort*>(port1->streamPort().get());
+        outPort = dynamic_cast<StreamOutputPort *>(port1->streamPort().get());
 
     if (inPort == nullptr || outPort == nullptr) {
         qCCritical(logGraphUi).noquote() << "Disconnected nonexisting ports. This should not be possible.";
@@ -352,9 +358,8 @@ void ModuleGraphForm::on_graphPortsDisconnected(FlowGraphNodePort *port1, FlowGr
     inPort->resetSubscription();
     if (subscriptionExisted)
         qCDebug(logGraphUi).noquote() << "Disconnected ports:"
-                           << QString("%1[>%2]").arg(outPort->title()).arg(outPort->dataTypeName())
-                           << "->"
-                           << QString("%1[<%2]").arg(inPort->title()).arg(inPort->dataTypeName());
+                                      << QString("%1[>%2]").arg(outPort->title()).arg(outPort->dataTypeName()) << "->"
+                                      << QString("%1[<%2]").arg(inPort->title()).arg(inPort->dataTypeName());
 }
 
 void ModuleGraphForm::on_actionConnect_triggered()
@@ -426,7 +431,8 @@ void ModuleGraphForm::on_portsConnected(const VarStreamInputPort *inPort, const 
     const auto outNode = m_modNodeMap.value(outPort->owner());
 
     if ((inNode == nullptr) || (outNode == nullptr)) {
-        qCCritical(logGraphUi).noquote() << "Ports of modules were connected, but we could not find one or both of their graph nodes.";
+        qCCritical(logGraphUi).noquote()
+            << "Ports of modules were connected, but we could not find one or both of their graph nodes.";
         return;
     }
 
@@ -437,7 +443,7 @@ void ModuleGraphForm::on_portsConnected(const VarStreamInputPort *inPort, const 
 
 void ModuleGraphForm::on_modulePortConfigChanged()
 {
-    auto mod = qobject_cast<AbstractModule*>(sender());
+    auto mod = qobject_cast<AbstractModule *>(sender());
     if (mod == nullptr) {
         qCCritical(logGraphUi).noquote() << "Port configuration of an unknown module has changed.";
         return;
@@ -456,7 +462,9 @@ void ModuleGraphForm::on_modulePortConfigChanged()
             if (otherPort == port)
                 otherPort = conn->port2();
 
-            m_connMemory[mod->name()+port->streamPort()->id()] = qMakePair(otherPort->portNode(), otherPort->streamPort()->id());
+            m_connMemory[mod->name() + port->streamPort()->id()] = qMakePair(
+                otherPort->portNode(), otherPort->streamPort()->id()
+            );
         }
     }
 
@@ -469,7 +477,7 @@ void ModuleGraphForm::on_modulePortConfigChanged()
 
     // restore connections for ports which have the same ID
     for (const auto &port : node->ports()) {
-        const auto pairing = m_connMemory.value(mod->name()+port->streamPort()->id());
+        const auto pairing = m_connMemory.value(mod->name() + port->streamPort()->id());
         if (pairing.first == nullptr)
             continue;
         const auto otherNode = pairing.first;

@@ -20,12 +20,14 @@
 
 #include "ui_devicedialog.h"
 
-DeviceDialog::DeviceDialog(std::shared_ptr<Indexer> index, QWidget* parent)
-    : QDialog(parent), ui(new Ui::DeviceDialog), _index(index)
+DeviceDialog::DeviceDialog(std::shared_ptr<Indexer> index, QWidget *parent)
+    : QDialog(parent),
+      ui(new Ui::DeviceDialog),
+      _index(index)
 {
     ui->setupUi(this);
 
-    // prevent dialog maximization 
+    // prevent dialog maximization
     setWindowFlags(windowFlags() | Qt::Tool);
 
     QObject::connect(_index.get(), &Indexer::new_list, this, &DeviceDialog::update_device_listing);
@@ -47,21 +49,18 @@ void DeviceDialog::fill_list()
     auto selection = this->ui->listWidget->currentItem();
     Device selected_dev;
     bool have_device = false;
-    if (selection)
-    {
+    if (selection) {
         have_device = true;
-        selected_dev = ((const DeviceWidget*)selection)->get_device();
+        selected_dev = ((const DeviceWidget *)selection)->get_device();
     }
 
     this->ui->listWidget->blockSignals(true);
     this->ui->listWidget->clear();
 
-    for (const auto& dev : m_device_list)
-    {
+    for (const auto &dev : m_device_list) {
         auto w = new DeviceWidget(dev);
         this->ui->listWidget->addItem(w);
-        if (have_device && dev == selected_dev)
-        {
+        if (have_device && dev == selected_dev) {
             w->setSelected(true);
         }
     }
@@ -80,7 +79,7 @@ void DeviceDialog::on_buttonBox_accepted()
     hide();
 }
 
-void DeviceDialog::new_device(const Device& new_device)
+void DeviceDialog::new_device(const Device &new_device)
 {
     auto w = new DeviceWidget(new_device);
     this->ui->listWidget->blockSignals(true);
@@ -88,14 +87,12 @@ void DeviceDialog::new_device(const Device& new_device)
     this->ui->listWidget->blockSignals(false);
 }
 
-void DeviceDialog::lost_device(const Device& lost_device)
+void DeviceDialog::lost_device(const Device &lost_device)
 {
-    for (int i = 0; i < this->ui->listWidget->count(); ++i)
-    {
-        auto itemf = static_cast<DeviceWidget*>(this->ui->listWidget->item(i));
-        if (*itemf == lost_device)
-        {
-            QListWidgetItem* item = this->ui->listWidget->takeItem(i);
+    for (int i = 0; i < this->ui->listWidget->count(); ++i) {
+        auto itemf = static_cast<DeviceWidget *>(this->ui->listWidget->item(i));
+        if (*itemf == lost_device) {
+            QListWidgetItem *item = this->ui->listWidget->takeItem(i);
 
             delete item;
             break;
@@ -103,30 +100,24 @@ void DeviceDialog::lost_device(const Device& lost_device)
     }
 }
 
-void DeviceDialog::update_device_listing(const std::vector<Device>& /*dev_list*/)
-{}
+void DeviceDialog::update_device_listing(const std::vector<Device> & /*dev_list*/) {}
 
-void DeviceDialog::on_listWidget_currentItemChanged(QListWidgetItem* current,
-                                                    QListWidgetItem* /*previous*/)
+void DeviceDialog::on_listWidget_currentItemChanged(QListWidgetItem *current, QListWidgetItem * /*previous*/)
 {
-    if (current)
-    {
-        m_selected_device = ((DeviceWidget*)current)->get_device();
+    if (current) {
+        m_selected_device = ((DeviceWidget *)current)->get_device();
     }
-
 }
 
-void DeviceDialog::on_listWidget_itemDoubleClicked(QListWidgetItem* item)
+void DeviceDialog::on_listWidget_itemDoubleClicked(QListWidgetItem *item)
 {
-    if (item)
-    {
-        m_selected_device = ((DeviceWidget*)item)->get_device();
+    if (item) {
+        m_selected_device = ((DeviceWidget *)item)->get_device();
     }
     this->accept();
 }
 
-void DeviceDialog::on_listWidget_itemClicked(QListWidgetItem* /*item*/)
+void DeviceDialog::on_listWidget_itemClicked(QListWidgetItem * /*item*/)
 {
     m_device_is_selected = false;
-
 }

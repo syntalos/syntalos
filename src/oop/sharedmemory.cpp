@@ -19,15 +19,15 @@
 
 #include "sharedmemory.h"
 
+#include <QDebug>
+#include <QUuid>
+#include <cstring>
+#include <fcntl.h>
+#include <semaphore.h>
+#include <string.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
-#include <fcntl.h>
-#include <string.h>
-#include <cstring>
 #include <unistd.h>
-#include <semaphore.h>
-#include <QUuid>
-#include <QDebug>
 
 SharedMemory::SharedMemory()
     : m_attached(false),
@@ -146,8 +146,8 @@ bool SharedMemory::create(size_t size)
         return false;
     }
 
-    m_mutex = static_cast<sem_t*>(m_shmPtr);
-    m_data = static_cast<int*>(m_shmPtr) + sizeof(sem_t);
+    m_mutex = static_cast<sem_t *>(m_shmPtr);
+    m_data = static_cast<int *>(m_shmPtr) + sizeof(sem_t);
     if (sem_init(m_mutex, 1, 1) < 0) {
         setErrorFromErrno("semaphore initialization");
         return false;
@@ -181,7 +181,7 @@ bool SharedMemory::attach()
     struct stat sbuf;
     auto res = fstat(fd, &sbuf);
     if (res == 0) {
-        m_shmLen = sbuf.st_size < 0? 0 : static_cast<size_t>(sbuf.st_size);
+        m_shmLen = sbuf.st_size < 0 ? 0 : static_cast<size_t>(sbuf.st_size);
     } else {
         setErrorFromErrno(QString("attach/stat#%1").arg(res));
         return false;
@@ -197,10 +197,10 @@ bool SharedMemory::attach()
     }
 
     // fetch pointer to semaphore
-    m_mutex = static_cast<sem_t*>(m_shmPtr);
+    m_mutex = static_cast<sem_t *>(m_shmPtr);
 
     m_dataLen = m_shmLen - sizeof(sem_t);
-    m_data = static_cast<int*>(m_shmPtr) + sizeof(sem_t);
+    m_data = static_cast<int *>(m_shmPtr) + sizeof(sem_t);
 
     qDebug() << "Attached shared memory:" << m_shmKey;
     m_attached = true;
@@ -209,7 +209,8 @@ bool SharedMemory::attach()
 
 void SharedMemory::lock()
 {
-    while (sem_wait(m_mutex) != 0) {}
+    while (sem_wait(m_mutex) != 0) {
+    }
 }
 
 void SharedMemory::unlock()

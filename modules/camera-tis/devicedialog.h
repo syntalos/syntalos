@@ -38,30 +38,30 @@ class DeviceDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit DeviceDialog(std::shared_ptr<Indexer> index, QWidget* parent = nullptr);
+    explicit DeviceDialog(std::shared_ptr<Indexer> index, QWidget *parent = nullptr);
     ~DeviceDialog();
 
     Device get_selected_device() const;
     // GstCaps* get_selected_caps() const;
 
 public slots:
-    void new_device(const Device& new_device);
-    void lost_device(const Device& new_device);
-    void update_device_listing(const std::vector<Device>& dev_list);
+    void new_device(const Device &new_device);
+    void lost_device(const Device &new_device);
+    void update_device_listing(const std::vector<Device> &dev_list);
 
 private slots:
     void on_buttonBox_accepted();
 
-    void on_listWidget_currentItemChanged(QListWidgetItem* current, QListWidgetItem* previous);
+    void on_listWidget_currentItemChanged(QListWidgetItem *current, QListWidgetItem *previous);
 
-    void on_listWidget_itemDoubleClicked(QListWidgetItem* item);
+    void on_listWidget_itemDoubleClicked(QListWidgetItem *item);
 
     void on_listWidget_itemClicked(QListWidgetItem *item);
 
 private:
     void fill_list();
 
-    Ui::DeviceDialog* ui;
+    Ui::DeviceDialog *ui;
 
     bool m_device_is_selected = false;
     Device m_selected_device;

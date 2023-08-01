@@ -24,11 +24,13 @@
 #include "utils.h"
 
 QT_BEGIN_NAMESPACE
-namespace Ui { class CrashReportDialog; }
+namespace Ui
+{
+class CrashReportDialog;
+}
 QT_END_NAMESPACE
 
-enum class ReportMode
-{
+enum class ReportMode {
     COLLECT_CRASH_INFO,
     DEBUG_FREEZE
 };

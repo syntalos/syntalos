@@ -19,47 +19,54 @@
 
 #include "engine.h"
 
-#include <QDebug>
-#include <QMessageBox>
-#include <QStorageInfo>
 #include <QCoreApplication>
-#include <QDateTime>
-#include <QStandardPaths>
-#include <QThread>
-#include <QVector>
-#include <QTemporaryDir>
-#include <QTimer>
 #include <QDBusInterface>
 #include <QDBusReply>
 #include <QDBusUnixFileDescriptor>
+#include <QDateTime>
+#include <QDebug>
+#include <QMessageBox>
+#include <QStandardPaths>
+#include <QStorageInfo>
+#include <QTemporaryDir>
+#include <QThread>
+#include <QTimer>
+#include <QVector>
 #include <filesystem>
 #include <libusb.h>
 #include <pthread.h>
 
-#include "oop/oopmodule.h"
-#include "edlstorage.h"
-#include "modulelibrary.h"
-#include "moduleeventthread.h"
-#include "globalconfig.h"
-#include "sysinfo.h"
-#include "meminfo.h"
-#include "syclock.h"
-#include "rtkit.h"
 #include "cpuaffinity.h"
-#include "utils/tomlutils.h"
+#include "edlstorage.h"
+#include "globalconfig.h"
+#include "meminfo.h"
+#include "moduleeventthread.h"
+#include "modulelibrary.h"
+#include "oop/oopmodule.h"
+#include "rtkit.h"
+#include "syclock.h"
+#include "sysinfo.h"
 #include "utils/misc.h"
+#include "utils/tomlutils.h"
 
-namespace Syntalos {
-    Q_LOGGING_CATEGORY(logEngine, "engine")
+namespace Syntalos
+{
+Q_LOGGING_CATEGORY(logEngine, "engine")
 }
 
-static_assert(std::is_same<std::thread::native_handle_type, pthread_t>::value,
-    "Native thread implementation for std::thread must be pthread");
+static_assert(
+    std::is_same<std::thread::native_handle_type, pthread_t>::value,
+    "Native thread implementation for std::thread must be pthread"
+);
 
 using namespace Syntalos;
 
-static int engineUsbHotplugDispatchCB(struct libusb_context *ctx, struct libusb_device *dev,
-                                      libusb_hotplug_event event, void *enginePtr);
+static int engineUsbHotplugDispatchCB(
+    struct libusb_context *ctx,
+    struct libusb_device *dev,
+    libusb_hotplug_event event,
+    void *enginePtr
+);
 
 class ThreadDetails
 {
@@ -68,7 +75,8 @@ public:
         : name(createRandomString(8)),
           niceness(0),
           allowedRTPriority(0)
-    {}
+    {
+    }
 
     QString name;
     int niceness;
@@ -82,15 +90,15 @@ public:
 class SyThread
 {
 private:
-
 public:
     explicit SyThread(ThreadDetails &details, AbstractModule *module, OptionalWaitCondition *waitCondition)
-        : m_created(false), m_joined(false), m_td(details), m_mod(module), m_waitCond(waitCondition)
+        : m_created(false),
+          m_joined(false),
+          m_td(details),
+          m_mod(module),
+          m_waitCond(waitCondition)
     {
-        auto r = pthread_create(&m_thread,
-                                nullptr,
-                                &SyThread::executeModuleThread,
-                                this);
+        auto r = pthread_create(&m_thread, nullptr, &SyThread::executeModuleThread, this);
         if (r != 0)
             throw std::runtime_error{strerror(r)};
         m_created = true;
@@ -102,9 +110,9 @@ public:
             join();
     }
 
-    SyThread(const SyThread& other) = delete;
-    SyThread& operator=(const SyThread& other) = delete;
-    SyThread(SyThread&& other) = delete;
+    SyThread(const SyThread &other) = delete;
+    SyThread &operator=(const SyThread &other) = delete;
+    SyThread(SyThread &&other) = delete;
 
     void join()
     {
@@ -140,7 +148,7 @@ public:
         return m_thread;
     }
 
- private:
+private:
     bool m_created;
     pthread_t m_thread;
     bool m_joined;
@@ -153,7 +161,7 @@ public:
      */
     static void *executeModuleThread(void *udata)
     {
-        auto self = static_cast<SyThread*>(udata);
+        auto self = static_cast<SyThread *>(udata);
         pthread_setname_np(pthread_self(), qPrintable(self->m_td.name.mid(0, 15)));
 
         // set higher niceness for this thread
@@ -166,7 +174,8 @@ public:
 
         if (self->m_mod->features().testFlag(ModuleFeature::REALTIME)) {
             if (setCurrentThreadRealtime(self->m_td.allowedRTPriority))
-                qCDebug(logEngine).noquote().nospace() << "Module thread for '" << self->m_mod->name() << "' set to realtime mode.";
+                qCDebug(logEngine).noquote().nospace()
+                    << "Module thread for '" << self->m_mod->name() << "' set to realtime mode.";
         }
 
         self->m_mod->runThread(self->m_waitCond);
@@ -207,13 +216,14 @@ class Engine::Private
 public:
     Private()
         : monitoring(new EngineResourceMonitorData)
-    { }
-    ~Private() { }
+    {
+    }
+    ~Private() {}
 
     SysInfo *sysInfo;
     GlobalConfig *gconf;
     QWidget *parentWidget;
-    QList<AbstractModule*> activeModules;
+    QList<AbstractModule *> activeModules;
     ModuleLibrary *modLibrary;
     std::shared_ptr<SyncTimer> timer;
     std::vector<uint> mainThreadCoreAffinity;
@@ -238,7 +248,7 @@ public:
     QString lastRunExportDir;
     QString nextRunComment;
 
-    QList<QPair<AbstractModule*, QString>> pendingErrors;
+    QList<QPair<AbstractModule *, QString>> pendingErrors;
 
     bool saveInternal;
     std::shared_ptr<EDLGroup> edlInternalData;
@@ -288,18 +298,26 @@ Engine::Engine(QWidget *parentWidget)
     // register dispatch callback for USB hotplug events
     d->usbEventsTimer = new QTimer;
     d->usbEventsTimer->setInterval(10);
-    int rc = libusb_hotplug_register_callback(nullptr,
-                                              (libusb_hotplug_event)(LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED | LIBUSB_HOTPLUG_EVENT_DEVICE_LEFT),
-                                              LIBUSB_HOTPLUG_NO_FLAGS,
-                                              LIBUSB_HOTPLUG_MATCH_ANY, LIBUSB_HOTPLUG_MATCH_ANY, LIBUSB_HOTPLUG_MATCH_ANY,
-                                              engineUsbHotplugDispatchCB, this,
-                                              &d->usbHotplugCBHandle);
+    int rc = libusb_hotplug_register_callback(
+        nullptr,
+        (libusb_hotplug_event)(LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED | LIBUSB_HOTPLUG_EVENT_DEVICE_LEFT),
+        LIBUSB_HOTPLUG_NO_FLAGS,
+        LIBUSB_HOTPLUG_MATCH_ANY,
+        LIBUSB_HOTPLUG_MATCH_ANY,
+        LIBUSB_HOTPLUG_MATCH_ANY,
+        engineUsbHotplugDispatchCB,
+        this,
+        &d->usbHotplugCBHandle
+    );
     if (rc != LIBUSB_SUCCESS) {
-        qCWarning(logEngine).noquote() << "Unable to register USB hotplug callback: Can not notify modules of USB hotplug events.";
+        qCWarning(logEngine).noquote(
+        ) << "Unable to register USB hotplug callback: Can not notify modules of USB hotplug events.";
         d->usbHotplugCBHandle = -1;
     } else {
         connect(d->usbEventsTimer, &QTimer::timeout, [=]() {
-            struct timeval tv{0, 0};
+            struct timeval tv {
+                0, 0
+            };
             libusb_handle_events_timeout_completed(nullptr, &tv, nullptr);
         });
         d->usbEventsTimer->start();
@@ -313,13 +331,17 @@ Engine::~Engine()
         libusb_hotplug_deregister_callback(nullptr, d->usbHotplugCBHandle);
 }
 
-static int engineUsbHotplugDispatchCB(struct libusb_context *ctx, struct libusb_device *dev,
-                                      libusb_hotplug_event event, void *enginePtr)
+static int engineUsbHotplugDispatchCB(
+    struct libusb_context *ctx,
+    struct libusb_device *dev,
+    libusb_hotplug_event event,
+    void *enginePtr
+)
 {
     Q_UNUSED(ctx)
     Q_UNUSED(dev)
 
-    auto engine = static_cast<Engine*>(enginePtr);
+    auto engine = static_cast<Engine *>(enginePtr);
     UsbHotplugEventKind kind = UsbHotplugEventKind::NONE;
     if (event == LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED) {
         kind = UsbHotplugEventKind::DEVICE_ARRIVED;
@@ -363,8 +385,8 @@ void Engine::setExportBaseDir(const QString &dataDir)
 
     d->exportDirIsValid = QDir().exists(d->exportBaseDir);
     d->exportDirIsTempDir = false;
-    if (d->exportBaseDir.startsWith(QStandardPaths::writableLocation(QStandardPaths::TempLocation)) ||
-        d->exportBaseDir.startsWith(QStandardPaths::writableLocation(QStandardPaths::CacheLocation))) {
+    if (d->exportBaseDir.startsWith(QStandardPaths::writableLocation(QStandardPaths::TempLocation))
+        || d->exportBaseDir.startsWith(QStandardPaths::writableLocation(QStandardPaths::CacheLocation))) {
         d->exportDirIsTempDir = true;
     }
 
@@ -514,9 +536,13 @@ AbstractModule *Engine::createModule(const QString &id, const QString &name)
     mod->setState(ModuleState::INITIALIZING);
     QCoreApplication::processEvents();
     if (!mod->initialize()) {
-        QMessageBox::critical(d->parentWidget, QStringLiteral("Module initialization failed"),
-                              QStringLiteral("Failed to initialize module '%1', it can not be added. %2").arg(mod->id(), mod->lastError()),
-                              QMessageBox::Ok);
+        QMessageBox::critical(
+            d->parentWidget,
+            QStringLiteral("Module initialization failed"),
+            QStringLiteral("Failed to initialize module '%1', it can not be added. %2")
+                .arg(mod->id(), mod->lastError()),
+            QMessageBox::Ok
+        );
         removeModule(mod);
         return nullptr;
     }
@@ -525,8 +551,20 @@ AbstractModule *Engine::createModule(const QString &id, const QString &name)
     connect(mod, &AbstractModule::error, this, &Engine::receiveModuleError);
 
     // connect synchronizer details callbacks
-    connect(mod, &AbstractModule::synchronizerDetailsChanged, this, &Engine::onSynchronizerDetailsChanged, Qt::QueuedConnection);
-    connect(mod, &AbstractModule::synchronizerOffsetChanged, this, &Engine::onSynchronizerOffsetChanged, Qt::QueuedConnection);
+    connect(
+        mod,
+        &AbstractModule::synchronizerDetailsChanged,
+        this,
+        &Engine::onSynchronizerDetailsChanged,
+        Qt::QueuedConnection
+    );
+    connect(
+        mod,
+        &AbstractModule::synchronizerOffsetChanged,
+        this,
+        &Engine::onSynchronizerOffsetChanged,
+        Qt::QueuedConnection
+    );
 
     mod->setState(ModuleState::IDLE);
     return mod;
@@ -553,7 +591,8 @@ void Engine::removeAllModules()
     if (d->running)
         stop();
     if (d->active) {
-        qCInfo(logEngine).noquote() << "Requested to remove all modules, but engine is still active. Waiting for it to shut down.";
+        qCInfo(logEngine).noquote(
+        ) << "Requested to remove all modules, but engine is still active. Waiting for it to shut down.";
         for (int i = 0; i < 800; ++i) {
             if (!d->active)
                 break;
@@ -561,7 +600,10 @@ void Engine::removeAllModules()
             QThread::msleep(50);
         };
         if (d->active) {
-            qFatal("Requested to remove all modules on an active engine that did not manage to shut down in time. This must not happen.");
+            qFatal(
+                "Requested to remove all modules on an active engine that did not manage to shut down in time. This "
+                "must not happen."
+            );
             assert(0);
         }
     }
@@ -600,9 +642,11 @@ QString Engine::readRunComment(const QString &runExportDir) const
     QString parseError;
     auto attrs = parseTomlFile(QStringLiteral("%1/attributes.toml").arg(runExportDir), parseError);
     if (!parseError.isEmpty()) {
-        QMessageBox::critical(d->parentWidget,
-                              QStringLiteral("Can not read comment"),
-                              QStringLiteral("Unable to parse EDL metadata in %1:\n%2").arg(runExportDir, parseError));
+        QMessageBox::critical(
+            d->parentWidget,
+            QStringLiteral("Can not read comment"),
+            QStringLiteral("Unable to parse EDL metadata in %1:\n%2").arg(runExportDir, parseError)
+        );
         return nullptr;
     }
 
@@ -620,9 +664,11 @@ void Engine::setRunComment(const QString &comment, const QString &runExportDir)
     const auto attrsFname = QStringLiteral("%1/attributes.toml").arg(runExportDir);
     auto attrs = parseTomlFile(attrsFname, parseError);
     if (!parseError.isEmpty()) {
-        QMessageBox::critical(d->parentWidget,
-                              QStringLiteral("Can not save comment"),
-                              QStringLiteral("Unable to parse EDL metadata in %1:\n%2").arg(runExportDir, parseError));
+        QMessageBox::critical(
+            d->parentWidget,
+            QStringLiteral("Can not save comment"),
+            QStringLiteral("Unable to parse EDL metadata in %1:\n%2").arg(runExportDir, parseError)
+        );
         return;
     }
 
@@ -647,21 +693,25 @@ void Engine::setSaveInternalDiagnostics(bool save)
 
 int Engine::obtainSleepShutdownIdleInhibitor()
 {
-    QDBusInterface iface(QStringLiteral("org.freedesktop.login1"),
-                         QStringLiteral("/org/freedesktop/login1"),
-                         QStringLiteral("org.freedesktop.login1.Manager"),
-                         QDBusConnection::systemBus());
+    QDBusInterface iface(
+        QStringLiteral("org.freedesktop.login1"),
+        QStringLiteral("/org/freedesktop/login1"),
+        QStringLiteral("org.freedesktop.login1.Manager"),
+        QDBusConnection::systemBus()
+    );
     if (!iface.isValid()) {
         qCDebug(logEngine).noquote() << "Unable to connect to logind DBus interface";
         return -1;
     }
 
     QDBusReply<QDBusUnixFileDescriptor> reply;
-    reply = iface.call(QStringLiteral("Inhibit"),
-                       QStringLiteral("sleep:shutdown:idle"),
-                       QCoreApplication::applicationName(),
-                       QStringLiteral("Experiment run in progress"),
-                       QStringLiteral("block"));
+    reply = iface.call(
+        QStringLiteral("Inhibit"),
+        QStringLiteral("sleep:shutdown:idle"),
+        QCoreApplication::applicationName(),
+        QStringLiteral("Experiment run in progress"),
+        QStringLiteral("block")
+    );
     if (!reply.isValid()) {
         qCDebug(logEngine).noquote() << "Unable to request sleep/shutdown/idle inhibitor from logind.";
         return -1;
@@ -674,9 +724,7 @@ bool Engine::makeDirectory(const QString &dir)
 {
     if (!QDir().mkpath(dir)) {
         const auto message = QStringLiteral("Unable to create directory '%1'.").arg(dir);
-        QMessageBox::critical(d->parentWidget,
-                              QStringLiteral("Error"),
-                              message);
+        QMessageBox::critical(d->parentWidget, QStringLiteral("Error"), message);
         emitStatusMessage("OS error.");
         return false;
     }
@@ -687,11 +735,15 @@ bool Engine::makeDirectory(const QString &dir)
 void Engine::makeFinalExperimentId()
 {
     // replace substitution variables (create copy of template string first!)
-    d->experimentIdFinal = QString(d->experimentIdTmpl)
-                                    .replace("{n}", QStringLiteral("%1").arg(d->runCount + 1,
-                                                                             d->runCountPadding > 1? d->runCountPadding : 1,
-                                                                             10, QLatin1Char('0')))
-                                    .replace("{time}", QTime::currentTime().toString("hhmmss"));
+    d->experimentIdFinal =
+        QString(d->experimentIdTmpl)
+            .replace(
+                "{n}",
+                QStringLiteral("%1").arg(
+                    d->runCount + 1, d->runCountPadding > 1 ? d->runCountPadding : 1, 10, QLatin1Char('0')
+                )
+            )
+            .replace("{time}", QTime::currentTime().toString("hhmmss"));
 }
 
 void Engine::refreshExportDirPath()
@@ -701,10 +753,10 @@ void Engine::refreshExportDirPath()
 
     makeFinalExperimentId();
     d->exportDir = QDir::cleanPath(QStringLiteral("%1/%2/%3/%4")
-                                   .arg(d->exportBaseDir)
-                                   .arg(d->testSubject.id.trimmed())
-                                   .arg(currentDate)
-                                   .arg(d->experimentIdFinal.trimmed()));
+                                       .arg(d->exportBaseDir)
+                                       .arg(d->testSubject.id.trimmed())
+                                       .arg(currentDate)
+                                       .arg(d->experimentIdFinal.trimmed()));
 }
 
 void Engine::emitStatusMessage(const QString &message)
@@ -727,8 +779,8 @@ QList<AbstractModule *> Engine::createModuleExecOrderList()
     // but we only need one that's "good enough" here for now. So this algorithm
     // will not produce a perfect result, especially if there are cycles in the
     // module graph.
-    QList<AbstractModule*> orderedActiveModules;
-    QSet<AbstractModule*> assignedMods;
+    QList<AbstractModule *> orderedActiveModules;
+    QSet<AbstractModule *> assignedMods;
 
     const auto modCount = d->activeModules.length();
     assignedMods.reserve(modCount);
@@ -771,7 +823,8 @@ QList<AbstractModule *> Engine::createModuleExecOrderList()
     }
 
     if (orderedActiveModules.length() != modCount)
-        qCCritical(logEngine).noquote() << "Invalid count of ordered modules:" << orderedActiveModules.length() << "!=" << modCount;
+        qCCritical(logEngine).noquote() << "Invalid count of ordered modules:" << orderedActiveModules.length()
+                                        << "!=" << modCount;
     assert(orderedActiveModules.length() == modCount);
 
     auto debugText = QStringLiteral("Running modules in order: ");
@@ -787,8 +840,8 @@ QList<AbstractModule *> Engine::createModuleExecOrderList()
  */
 QList<AbstractModule *> Engine::createModuleStopOrderFromExecOrder(const QList<AbstractModule *> &modExecList)
 {
-    QList<AbstractModule*> stopOrderMods;
-    QSet<AbstractModule*> assignedMods;
+    QList<AbstractModule *> stopOrderMods;
+    QSet<AbstractModule *> assignedMods;
     stopOrderMods.reserve(modExecList.length());
 
     for (auto &mod : modExecList) {
@@ -835,7 +888,8 @@ QList<AbstractModule *> Engine::createModuleStopOrderFromExecOrder(const QList<A
     }
 
     if (stopOrderMods.length() != modExecList.length())
-        qCCritical(logEngine).noquote() << "Invalid count of stop-ordered modules:" << stopOrderMods.length() << "!=" << modExecList.length();
+        qCCritical(logEngine).noquote() << "Invalid count of stop-ordered modules:" << stopOrderMods.length()
+                                        << "!=" << modExecList.length();
     assert(stopOrderMods.length() == modExecList.length());
 
     return stopOrderMods;
@@ -858,8 +912,12 @@ void Engine::notifyUsbHotplugEvent(UsbHotplugEventKind kind)
 /**
  * @brief Main entry point for threads used to manage out-of-process worker modules.
  */
-static void executeOOPModuleThread(const ThreadDetails td, QList<OOPModule*> mods,
-                                   OptionalWaitCondition *waitCondition, std::atomic_bool &running)
+static void executeOOPModuleThread(
+    const ThreadDetails td,
+    QList<OOPModule *> mods,
+    OptionalWaitCondition *waitCondition,
+    std::atomic_bool &running
+)
 {
     pthread_setname_np(pthread_self(), qPrintable(td.name.mid(0, 15)));
 
@@ -875,7 +933,7 @@ static void executeOOPModuleThread(const ThreadDetails td, QList<OOPModule*> mod
 
     // prepare all OOP modules in their new thread
     {
-        QList<OOPModule*> readyMods;
+        QList<OOPModule *> readyMods;
         bool threadIsRealtime = false;
         for (auto &mod : mods) {
 
@@ -891,17 +949,19 @@ static void executeOOPModuleThread(const ThreadDetails td, QList<OOPModule*> mod
                     reMod->oopFinalize(&loop);
                 mod->oopFinalize(&loop);
 
-                qCDebug(logEngine).noquote().nospace() << "Failed to prepare OOP module " << mod->name() << ": " << mod->lastError();
+                qCDebug(logEngine).noquote().nospace()
+                    << "Failed to prepare OOP module " << mod->name() << ": " << mod->lastError();
                 return;
             }
 
             // FIXME: if only one of the modules requests realtime prority, the whole thread goes RT at the moment.
-            // we do actually want to split out such modules to their of thread (currently, this situation never happens,
-            // because OOP modules aren't realtime).
+            // we do actually want to split out such modules to their of thread (currently, this situation never
+            // happens, because OOP modules aren't realtime).
             if (!threadIsRealtime && mod->features().testFlag(ModuleFeature::REALTIME)) {
                 if (setCurrentThreadRealtime(td.allowedRTPriority)) {
                     threadIsRealtime = true;
-                    qCDebug(logEngine).noquote().nospace() << "OOP thread " << td.name << " set to realtime mode (requested by '" << mod->name() << "').";
+                    qCDebug(logEngine).noquote().nospace()
+                        << "OOP thread " << td.name << " set to realtime mode (requested by '" << mod->name() << "').";
                 }
             }
 
@@ -935,20 +995,24 @@ bool Engine::run()
     if (d->running)
         return false;
 
-    d->failed = true; // if we exit before this is reset, initialization has failed
+    d->failed = true;          // if we exit before this is reset, initialization has failed
     d->runIsEphemeral = false; // not a volatile run
 
     if (d->activeModules.isEmpty()) {
-        QMessageBox::warning(d->parentWidget,
-                             QStringLiteral("Configuration error"),
-                             QStringLiteral("You did not add a single module to be run.\nPlease add a module to the board to continue."));
+        QMessageBox::warning(
+            d->parentWidget,
+            QStringLiteral("Configuration error"),
+            QStringLiteral("You did not add a single module to be run.\nPlease add a module to the board to continue.")
+        );
         return false;
     }
 
     if (!exportDirIsValid() || d->exportBaseDir.isEmpty() || d->exportDir.isEmpty()) {
-        QMessageBox::critical(d->parentWidget,
-                             QStringLiteral("Configuration error"),
-                             QStringLiteral("Data export directory was not properly set. Can not continue."));
+        QMessageBox::critical(
+            d->parentWidget,
+            QStringLiteral("Configuration error"),
+            QStringLiteral("Data export directory was not properly set. Can not continue.")
+        );
         return false;
     }
 
@@ -962,19 +1026,27 @@ bool Engine::run()
         qCDebug(logEngine).noquote() << mbAvailable << "MB available in data export location";
         // TODO: Make the warning level configurable in global settings
         if (mbAvailable < 8000) {
-            auto reply = QMessageBox::question(d->parentWidget,
-                                               QStringLiteral("Disk is almost full - Continue anyway?"),
-                                               QStringLiteral("The disk '%1' is located on has low amounts of space available (< 8 GB). "
-                                                              "If this run generates more data than we have space for, it will fail (possibly corrupting data). Continue anyway?")
-                                                              .arg(d->exportBaseDir),
-                                               QMessageBox::Yes | QMessageBox::No);
+            auto reply = QMessageBox::question(
+                d->parentWidget,
+                QStringLiteral("Disk is almost full - Continue anyway?"),
+                QStringLiteral("The disk '%1' is located on has low amounts of space available (< 8 GB). "
+                               "If this run generates more data than we have space for, it will fail (possibly "
+                               "corrupting data). Continue anyway?")
+                    .arg(d->exportBaseDir),
+                QMessageBox::Yes | QMessageBox::No
+            );
             if (reply == QMessageBox::No)
                 return false;
         }
     } else {
-        QMessageBox::critical(d->parentWidget,
-                              QStringLiteral("Disk not ready"),
-                              QStringLiteral("The disk device at '%1' is either invalid (not mounted) or not ready for operation. Can not continue.").arg(d->exportBaseDir));
+        QMessageBox::critical(
+            d->parentWidget,
+            QStringLiteral("Disk not ready"),
+            QStringLiteral(
+                "The disk device at '%1' is either invalid (not mounted) or not ready for operation. Can not continue."
+            )
+                .arg(d->exportBaseDir)
+        );
         return false;
     }
 
@@ -985,12 +1057,14 @@ bool Engine::run()
     // safeguard against accidental data removals
     QDir deDir(d->exportDir);
     if (deDir.exists()) {
-        auto reply = QMessageBox::question(d->parentWidget,
-                                           QStringLiteral("Existing data found - Continue anyway?"),
-                                           QStringLiteral("The directory '%1' already contains data (likely from a previous run). "
-                                                          "If you continue, the old data will be deleted. Continue and delete data?")
-                                                          .arg(d->exportDir),
-                                           QMessageBox::Yes | QMessageBox::No);
+        auto reply = QMessageBox::question(
+            d->parentWidget,
+            QStringLiteral("Existing data found - Continue anyway?"),
+            QStringLiteral("The directory '%1' already contains data (likely from a previous run). "
+                           "If you continue, the old data will be deleted. Continue and delete data?")
+                .arg(d->exportDir),
+            QMessageBox::Yes | QMessageBox::No
+        );
         if (reply == QMessageBox::No)
             return false;
 
@@ -1009,18 +1083,23 @@ bool Engine::runEphemeral()
 
     d->failed = true; // if we exit before this is reset, initialization has failed
     if (d->activeModules.isEmpty()) {
-        QMessageBox::warning(d->parentWidget,
-                             QStringLiteral("Configuration error"),
-                             QStringLiteral("You did not add a single module to be run.\nPlease add a module to the board to continue."));
+        QMessageBox::warning(
+            d->parentWidget,
+            QStringLiteral("Configuration error"),
+            QStringLiteral("You did not add a single module to be run.\nPlease add a module to the board to continue.")
+        );
         return false;
     }
 
     QTemporaryDir tempDir(QStringLiteral("%1/syntalos-tmprun-XXXXXX").arg(tempDirLargeRoot()));
     qCDebug(logEngine).noquote() << "Storing temporary data in:" << tempDir.path();
     if (!tempDir.isValid()) {
-        QMessageBox::warning(d->parentWidget,
-                             QStringLiteral("Unable to run"),
-                             QStringLiteral("Unable to perform ephemeral run: Temporary data storage could not be created. %s").arg(tempDir.errorString()));
+        QMessageBox::warning(
+            d->parentWidget,
+            QStringLiteral("Unable to run"),
+            QStringLiteral("Unable to perform ephemeral run: Temporary data storage could not be created. %s")
+                .arg(tempDir.errorString())
+        );
         return false;
     }
 
@@ -1049,11 +1128,13 @@ bool Engine::runEphemeral()
     return ret;
 }
 
-QHash<AbstractModule *, std::vector<uint>> Engine::setupCoreAffinityConfig(const QList<AbstractModule *> &threadedModules,
-                                                                           const QList<OOPModule *> &oopModules)
+QHash<AbstractModule *, std::vector<uint>> Engine::setupCoreAffinityConfig(
+    const QList<AbstractModule *> &threadedModules,
+    const QList<OOPModule *> &oopModules
+)
 {
     // prepare pinning threads to CPU cores
-    QHash<AbstractModule*, std::vector<uint>> modCPUMap;
+    QHash<AbstractModule *, std::vector<uint>> modCPUMap;
     d->mainThreadCoreAffinity.clear();
 
     auto availableCores = get_online_cores_count() - 1; // all cores minus the one our main thread is running on
@@ -1162,13 +1243,19 @@ void Engine::onDiskspaceMonitorEvent()
 
     const double mibAvailable = ssi.available / 1024.0 / 1024.0;
     if (mibAvailable < 8192) {
-        Q_EMIT resourceWarningUpdate(StorageSpace, false,
-                                     QStringLiteral("Disk space is very low. Less than %1 GiB remaining.").arg(mibAvailable / 1024.0, 0, 'f', 1));
+        Q_EMIT resourceWarningUpdate(
+            StorageSpace,
+            false,
+            QStringLiteral("Disk space is very low. Less than %1 GiB remaining.").arg(mibAvailable / 1024.0, 0, 'f', 1)
+        );
         d->monitoring->diskSpaceWarningEmitted = true;
     } else {
         if (d->monitoring->diskSpaceWarningEmitted) {
-            Q_EMIT resourceWarningUpdate(StorageSpace, true,
-                                         QStringLiteral("%1 GiB of disk space remaining.").arg(mibAvailable / 1024.0, 0, 'f', 1));
+            Q_EMIT resourceWarningUpdate(
+                StorageSpace,
+                true,
+                QStringLiteral("%1 GiB of disk space remaining.").arg(mibAvailable / 1024.0, 0, 'f', 1)
+            );
             d->monitoring->diskSpaceWarningEmitted = false;
         }
     }
@@ -1178,24 +1265,35 @@ void Engine::onMemoryMonitorEvent()
 {
     const auto memInfo = read_meminfo();
 
-    if (memInfo.memAvailablePercent < d->monitoring->prevMemAvailablePercent && memInfo.memAvailablePercent < 1.6 && d->monitoring->emergencyOOMStop) {
-        qCInfo(logEngine).noquote() << "Less than 2% of system memory available and shrinking, commencing emergency stop.";
-        receiveModuleError(QStringLiteral("Emergency stop: We are low on system memory, and it is continuing to shrink rapidly.\n"
-                                          "To prevent Syntalos from being killed by the system and loosing data, this run has been stopped.\n"
-                                          "Please check your module setup to ensure modules are able to process incoming data fast enough.\n"
-                                          "Slow connections are currently highlighted in red. Depending on the setup complexity, upgrading the system may also be a viable solution"));
+    if (memInfo.memAvailablePercent < d->monitoring->prevMemAvailablePercent && memInfo.memAvailablePercent < 1.6
+        && d->monitoring->emergencyOOMStop) {
+        qCInfo(logEngine).noquote(
+        ) << "Less than 2% of system memory available and shrinking, commencing emergency stop.";
+        receiveModuleError(QStringLiteral(
+            "Emergency stop: We are low on system memory, and it is continuing to shrink rapidly.\n"
+            "To prevent Syntalos from being killed by the system and loosing data, this run has been stopped.\n"
+            "Please check your module setup to ensure modules are able to process incoming data fast enough.\n"
+            "Slow connections are currently highlighted in red. Depending on the setup complexity, upgrading the "
+            "system may also be a viable solution"
+        ));
         d->runFailedReason = QStringLiteral("engine: Emergency stop due to low system memory.");
     } else if (memInfo.memAvailablePercent < 5) {
         // when we have less than 5% memory remaining, there usually still is (slower) swap space available,
         // this is why 5% is relatively low.
         // TODO: Be more clever here in future and check available swap space in advance for this warning?
-        Q_EMIT resourceWarningUpdate(Memory, false,
-                                     QStringLiteral("System memory is low. Only %1% remaining.").arg(memInfo.memAvailablePercent, 0, 'f', 1));
+        Q_EMIT resourceWarningUpdate(
+            Memory,
+            false,
+            QStringLiteral("System memory is low. Only %1% remaining.").arg(memInfo.memAvailablePercent, 0, 'f', 1)
+        );
         d->monitoring->memoryWarningEmitted = true;
     } else {
         if (d->monitoring->memoryWarningEmitted) {
-            Q_EMIT resourceWarningUpdate(Memory, true,
-                                         QStringLiteral("%1% of system memory remaining.").arg(memInfo.memAvailablePercent, 0, 'f', 1));
+            Q_EMIT resourceWarningUpdate(
+                Memory,
+                true,
+                QStringLiteral("%1% of system memory remaining.").arg(memInfo.memAvailablePercent, 0, 'f', 1)
+            );
             d->monitoring->memoryWarningEmitted = true;
         }
     }
@@ -1208,7 +1306,7 @@ void Engine::onBufferMonitorEvent()
     bool issueFound = false;
     bool subBufferWarningEmitted = d->monitoring->subBufferWarningEmitted;
 
-    for (auto& msd : d->monitoring->monitoredSubscriptions) {
+    for (auto &msd : d->monitoring->monitoredSubscriptions) {
         const auto approxPendingCount = msd.sub->approxPendingCount();
 
         // less than 100 pending items is arbitrarily considered "okay"
@@ -1216,10 +1314,9 @@ void Engine::onBufferMonitorEvent()
             if (msd.heat != ConnectionHeatLevel::NONE) {
                 Q_EMIT connectionHeatChangedAtPort(msd.port, ConnectionHeatLevel::NONE);
                 msd.heat = ConnectionHeatLevel::NONE;
-                qCDebug(logEngine).noquote() << "Connection heat removed from"
-                                             << QString("%1:%2[<%3]").arg(msd.port->owner()->name(),
-                                                                          msd.port->title(),
-                                                                          msd.port->dataTypeName());
+                qCDebug(logEngine).noquote(
+                ) << "Connection heat removed from"
+                  << QString("%1:%2[<%3]").arg(msd.port->owner()->name(), msd.port->title(), msd.port->dataTypeName());
             }
             continue;
         }
@@ -1236,26 +1333,26 @@ void Engine::onBufferMonitorEvent()
             msd.heat = heat;
             Q_EMIT connectionHeatChangedAtPort(msd.port, msd.heat);
             qCDebug(logEngine).noquote().nospace()
-                    << "Connection heat changed to \"" << connectionHeatToHumanString(msd.heat) << "\" for "
-                    << QString("%1:%2[<%3]").arg(msd.port->owner()->name(),
-                                                 msd.port->title(),
-                                                 msd.port->dataTypeName())
-                    << " (level: " << approxPendingCount << ")";
+                << "Connection heat changed to \"" << connectionHeatToHumanString(msd.heat) << "\" for "
+                << QString("%1:%2[<%3]").arg(msd.port->owner()->name(), msd.port->title(), msd.port->dataTypeName())
+                << " (level: " << approxPendingCount << ")";
         }
 
         if (heat > ConnectionHeatLevel::LOW) {
             issueFound = true;
             if (!subBufferWarningEmitted) {
-                Q_EMIT resourceWarningUpdate(StreamBuffers, false,
-                                             QStringLiteral("A module is overwhelmed with its input and not fast enough."));
+                Q_EMIT resourceWarningUpdate(
+                    StreamBuffers, false, QStringLiteral("A module is overwhelmed with its input and not fast enough.")
+                );
                 subBufferWarningEmitted = true;
             }
         }
     }
 
     if (!issueFound && subBufferWarningEmitted) {
-        Q_EMIT resourceWarningUpdate(StreamBuffers, true,
-                                     QStringLiteral("All modules appear to be running fast enough."));
+        Q_EMIT resourceWarningUpdate(
+            StreamBuffers, true, QStringLiteral("All modules appear to be running fast enough.")
+        );
         subBufferWarningEmitted = false;
     }
 
@@ -1279,7 +1376,7 @@ void Engine::startResourceMonitoring(QList<AbstractModule *> activeModules, cons
 
     // watcher for subscription buffer
     d->monitoring->monitoredSubscriptions.clear();
-    for (auto& mod : activeModules) {
+    for (auto &mod : activeModules) {
         for (auto &port : mod->inPorts()) {
             if (!port->hasSubscription())
                 continue;
@@ -1334,10 +1431,13 @@ bool Engine::runInternal(const QString &exportDirPath)
 {
     QDir edlDir(exportDirPath);
     if (edlDir.exists()) {
-        QMessageBox::critical(d->parentWidget,
-                             QStringLiteral("Internal Error"),
-                             QStringLiteral("Directory '%1' was expected to be nonexistent, but the directory exists. "
-                                            "Stopped run to prevent potential data loss. This condition should never happen.").arg(exportDirPath));
+        QMessageBox::critical(
+            d->parentWidget,
+            QStringLiteral("Internal Error"),
+            QStringLiteral("Directory '%1' was expected to be nonexistent, but the directory exists. "
+                           "Stopped run to prevent potential data loss. This condition should never happen.")
+                .arg(exportDirPath)
+        );
         return false;
     }
 
@@ -1375,10 +1475,12 @@ bool Engine::runInternal(const QString &exportDirPath)
 
     // create new experiment directory layout (EDL) collection to store
     // all data modules generate in
-    std::shared_ptr<EDLCollection> storageCollection(new EDLCollection(QStringLiteral("%1_%2_%3")
-                                                                       .arg(d->testSubject.id)
-                                                                       .arg(d->experimentIdFinal)
-                                                                       .arg(QDateTime::currentDateTime().toString("yy-MM-dd hh:mm"))));
+    std::shared_ptr<EDLCollection> storageCollection(
+        new EDLCollection(QStringLiteral("%1_%2_%3")
+                              .arg(d->testSubject.id)
+                              .arg(d->experimentIdFinal)
+                              .arg(QDateTime::currentDateTime().toString("yy-MM-dd hh:mm")))
+    );
     storageCollection->setPath(exportDirPath);
 
     // if we should save internal diagnostic data, create a group for it!
@@ -1407,16 +1509,22 @@ bool Engine::runInternal(const QString &exportDirPath)
         for (auto &mod : orderedActiveModules) {
             const auto expectedName = simplifyStrForModuleName(mod->name());
             if (mod->name() != expectedName) {
-                qCWarning(logEngine).noquote() << "Module" << mod->name() << "has invalid name. Expected:" << expectedName << "(The module has been renamed)";
+                qCWarning(logEngine).noquote()
+                    << "Module" << mod->name() << "has invalid name. Expected:" << expectedName
+                    << "(The module has been renamed)";
                 mod->setName(expectedName);
             }
 
             const auto uniqName = simplifyStrForFileBasenameLower(mod->name());
             if (modNameSet.contains(uniqName)) {
-                QMessageBox::critical(d->parentWidget,
-                                      QStringLiteral("Can not run this board"),
-                                      QStringLiteral("A module with the name '%1' exists twice in this board, or another module has a very similar name. "
-                                                     "Please give the duplicate a unique name in order to execute this board.").arg(mod->name()));
+                QMessageBox::critical(
+                    d->parentWidget,
+                    QStringLiteral("Can not run this board"),
+                    QStringLiteral("A module with the name '%1' exists twice in this board, or another module has a "
+                                   "very similar name. "
+                                   "Please give the duplicate a unique name in order to execute this board.")
+                        .arg(mod->name())
+                );
                 d->active = false;
                 d->failed = true;
                 d->usbEventsTimer->start();
@@ -1435,22 +1543,22 @@ bool Engine::runInternal(const QString &exportDirPath)
 
     // the dedicated threads our modules run in, references owned by the vector
     std::vector<std::unique_ptr<SyThread>> dThreads;
-    QList<AbstractModule*> threadedModules;
+    QList<AbstractModule *> threadedModules;
 
     // special event threads and their assigned modules, with a specific identifier string as hash key
-    QHash<QString, QList<AbstractModule*>> eventModules;
+    QHash<QString, QList<AbstractModule *>> eventModules;
     QHash<QString, std::shared_ptr<ModuleEventThread>> evThreads;
 
     // out-of-process modules need a thread to handle communication in the master application, so
     // we provide one here (and possibly more in future in case this doesn't scale well).
-    QList<OOPModule*> oopModules;
+    QList<OOPModule *> oopModules;
     std::vector<std::thread> oopThreads;
 
     // filter out dedicated-thread modules, those get special treatment
     for (auto &mod : orderedActiveModules) {
         mod->setDefaultRTPriority(defaultRTPriority);
 
-        auto oopMod = qobject_cast<OOPModule*>(mod);
+        auto oopMod = qobject_cast<OOPModule *>(mod);
         if (oopMod != nullptr) {
             oopModules.append(oopMod);
             continue;
@@ -1465,7 +1573,8 @@ bool Engine::runInternal(const QString &exportDirPath)
     uint potentialNoaffinityCPUCount = 0;
     if (threadedModulesTotalN <= (cpuCoreCount - 1))
         potentialNoaffinityCPUCount = cpuCoreCount - threadedModulesTotalN - 1;
-    qCDebug(logEngine).noquote() << "Predicted amount of CPU cores with no (explicitly known) occupation:" << potentialNoaffinityCPUCount;
+    qCDebug(logEngine).noquote() << "Predicted amount of CPU cores with no (explicitly known) occupation:"
+                                 << potentialNoaffinityCPUCount;
     for (auto &mod : orderedActiveModules)
         mod->setPotentialNoaffinityCPUCount(potentialNoaffinityCPUCount);
 
@@ -1509,7 +1618,8 @@ bool Engine::runInternal(const QString &exportDirPath)
         if (mod->state() != ModuleState::READY)
             mod->setState(ModuleState::IDLE);
 
-        qCDebug(logEngine).noquote().nospace() << "Module '" << mod->name() << "' prepared in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
+        qCDebug(logEngine).noquote().nospace()
+            << "Module '" << mod->name() << "' prepared in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
     }
 
     // wait condition for all threads to block them until we have actually started (or not block them, in case
@@ -1530,8 +1640,9 @@ bool Engine::runInternal(const QString &exportDirPath)
 
         // only emit a resource warning if we are using way more threads than we probably should
         if (threadedModulesTotalN > (cpuCoreCount + (cpuCoreCount / 2)))
-            Q_EMIT resourceWarningUpdate(CpuCores, false,
-                                         QStringLiteral("Likely not enough CPU cores available for optimal operation."));
+            Q_EMIT resourceWarningUpdate(
+                CpuCores, false, QStringLiteral("Likely not enough CPU cores available for optimal operation.")
+            );
 
         // launch threads for threaded modules, except for out out-of-process
         // modules - they get special treatment
@@ -1553,14 +1664,14 @@ bool Engine::runInternal(const QString &exportDirPath)
                 std::copy(td.cpuAffinity.begin(), td.cpuAffinity.end() - 1, std::ostream_iterator<uint>(oss, ","));
                 oss << td.cpuAffinity.back();
 
-                qCDebug(logEngine).noquote().nospace() << "Module '" << mod->name() << "' thread will prefer CPU core(s) " << QString::fromStdString(oss.str());
+                qCDebug(logEngine).noquote().nospace()
+                    << "Module '" << mod->name() << "' thread will prefer CPU core(s) "
+                    << QString::fromStdString(oss.str());
             }
 
             // the thread name shouldn't be longer than 16 chars (inlcuding NULL)
             td.name = QStringLiteral("%1-%2").arg(mod->id().midRef(0, 12)).arg(i);
-            std::unique_ptr<SyThread> modThread(new SyThread(td,
-                                                             mod,
-                                                             startWaitCondition.get()));
+            std::unique_ptr<SyThread> modThread(new SyThread(td, mod, startWaitCondition.get()));
             dThreads.push_back(std::move(modThread));
         }
         assert(dThreads.size() == (size_t)threadedModules.size());
@@ -1569,8 +1680,8 @@ bool Engine::runInternal(const QString &exportDirPath)
         {
             QHash<QString, int> remainingEvModCountById;
             for (auto &mod : orderedActiveModules) {
-                if ((mod->driver() == ModuleDriverKind::EVENTS_SHARED) ||
-                    (mod->driver() == ModuleDriverKind::EVENTS_DEDICATED)) {
+                if ((mod->driver() == ModuleDriverKind::EVENTS_SHARED)
+                    || (mod->driver() == ModuleDriverKind::EVENTS_DEDICATED)) {
                     if (!remainingEvModCountById.contains(mod->id()))
                         remainingEvModCountById[mod->id()] = 0;
                     remainingEvModCountById[mod->id()] += 1;
@@ -1589,7 +1700,9 @@ bool Engine::runInternal(const QString &exportDirPath)
                     } else {
                         // reduce number first to get "0 / eventsMaxModulesPerThread" last
                         remainingEvModCountById[mod->id()] -= 1;
-                        int evGroupPerModIdx = static_cast<int>(remainingEvModCountById[mod->id()] / mod->eventsMaxModulesPerThread());
+                        int evGroupPerModIdx = static_cast<int>(
+                            remainingEvModCountById[mod->id()] / mod->eventsMaxModulesPerThread()
+                        );
                         evGroupId = QStringLiteral("m:%1_%2").arg(mod->id(), evGroupPerModIdx);
                     }
                 } else {
@@ -1599,7 +1712,7 @@ bool Engine::runInternal(const QString &exportDirPath)
 
                 // add module to hash map
                 if (!eventModules.contains(evGroupId))
-                    eventModules[evGroupId] = QList<AbstractModule*>();
+                    eventModules[evGroupId] = QList<AbstractModule *>();
                 eventModules[evGroupId].append(mod);
             }
         }
@@ -1628,14 +1741,13 @@ bool Engine::runInternal(const QString &exportDirPath)
                 std::copy(td.cpuAffinity.begin(), td.cpuAffinity.end() - 1, std::ostream_iterator<uint>(oss, ","));
                 oss << td.cpuAffinity.back();
 
-                qCDebug(logEngine).noquote().nospace() << "OOP thread '" << td.name << "' will prefer CPU core(s) " << QString::fromStdString(oss.str());
+                qCDebug(logEngine).noquote().nospace()
+                    << "OOP thread '" << td.name << "' will prefer CPU core(s) " << QString::fromStdString(oss.str());
             }
 
-            oopThreads.push_back(std::thread(executeOOPModuleThread,
-                                             td,
-                                             oopModules,
-                                             startWaitCondition.get(),
-                                             std::ref(d->running)));
+            oopThreads.push_back(
+                std::thread(executeOOPModuleThread, td, oopModules, startWaitCondition.get(), std::ref(d->running))
+            );
         }
 
         // run special threads with built-in event loops for modules that selected an event-based driver
@@ -1643,10 +1755,12 @@ bool Engine::runInternal(const QString &exportDirPath)
             std::shared_ptr<ModuleEventThread> evThread(new ModuleEventThread(evThreadKey));
             evThread->run(eventModules[evThreadKey], startWaitCondition.get());
             evThreads[evThreadKey] = evThread;
-            qCDebug(logEngine).noquote().nospace() << "Started event thread '" << evThreadKey << "' with " << eventModules[evThreadKey].length() << " participating modules";
+            qCDebug(logEngine).noquote().nospace() << "Started event thread '" << evThreadKey << "' with "
+                                                   << eventModules[evThreadKey].length() << " participating modules";
         }
 
-        qCDebug(logEngine).noquote().nospace() << "Module and engine threads created in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
+        qCDebug(logEngine).noquote().nospace()
+            << "Module and engine threads created in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
         lastPhaseTimepoint = currentTimePoint();
 
         // ensure all modules are in the READY state
@@ -1677,7 +1791,8 @@ bool Engine::runInternal(const QString &exportDirPath)
             }
         }
 
-        qCDebug(logEngine).noquote().nospace() << "Waited for modules to get ready for " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
+        qCDebug(logEngine).noquote().nospace()
+            << "Waited for modules to get ready for " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
     }
 
     // Meanwhile, threaded modules may have failed, so let's check again if we are still
@@ -1686,8 +1801,8 @@ bool Engine::runInternal(const QString &exportDirPath)
         emitStatusMessage(QStringLiteral("Launch setup completed."));
 
         // collect modules which have an explicit UI callback method
-        std::vector<AbstractModule*> callUiEventModules;
-        for (auto& mod : orderedActiveModules) {
+        std::vector<AbstractModule *> callUiEventModules;
+        for (auto &mod : orderedActiveModules) {
             if (mod->features().testFlag(ModuleFeature::CALL_UI_EVENTS))
                 callUiEventModules.push_back(mod);
         }
@@ -1700,10 +1815,10 @@ bool Engine::runInternal(const QString &exportDirPath)
         d->running = true;
 
         // first, launch all threaded and evented modules
-        for (auto& mod : orderedActiveModules) {
-            if ((mod->driver() != ModuleDriverKind::THREAD_DEDICATED) &&
-                (mod->driver() != ModuleDriverKind::EVENTS_DEDICATED) &&
-                (mod->driver() != ModuleDriverKind::EVENTS_SHARED))
+        for (auto &mod : orderedActiveModules) {
+            if ((mod->driver() != ModuleDriverKind::THREAD_DEDICATED)
+                && (mod->driver() != ModuleDriverKind::EVENTS_DEDICATED)
+                && (mod->driver() != ModuleDriverKind::EVENTS_SHARED))
                 continue;
 
             mod->start();
@@ -1721,15 +1836,16 @@ bool Engine::runInternal(const QString &exportDirPath)
         // may prepare stuff in start() that the threads need, like timestamp syncs)
         startWaitCondition->wakeAll();
 
-        qCDebug(logEngine).noquote().nospace() << "Threaded/evented module startup completed, took " << d->timer->timeSinceStartMsec().count() << "msec";
+        qCDebug(logEngine).noquote().nospace()
+            << "Threaded/evented module startup completed, took " << d->timer->timeSinceStartMsec().count() << "msec";
         lastPhaseTimepoint = d->timer->currentTimePoint();
 
         // tell all non-threaded modules individuall now that we started
-        for (auto& mod : orderedActiveModules) {
+        for (auto &mod : orderedActiveModules) {
             // ignore threaded & evented
-            if ((mod->driver() == ModuleDriverKind::THREAD_DEDICATED) ||
-                (mod->driver() == ModuleDriverKind::EVENTS_DEDICATED) ||
-                (mod->driver() == ModuleDriverKind::EVENTS_SHARED))
+            if ((mod->driver() == ModuleDriverKind::THREAD_DEDICATED)
+                || (mod->driver() == ModuleDriverKind::EVENTS_DEDICATED)
+                || (mod->driver() == ModuleDriverKind::EVENTS_SHARED))
                 continue;
 
             mod->start();
@@ -1739,7 +1855,8 @@ bool Engine::runInternal(const QString &exportDirPath)
             mod->setState(ModuleState::RUNNING);
         }
 
-        qCDebug(logEngine).noquote().nospace() << "Startup phase completed, all modules are running. Took additional " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
+        qCDebug(logEngine).noquote().nospace() << "Startup phase completed, all modules are running. Took additional "
+                                               << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
 
         // tell listeners that we are running now
         emit runStarted();
@@ -1758,7 +1875,7 @@ bool Engine::runInternal(const QString &exportDirPath)
         // as well via QTimer callbacks, in case they need to modify UI elements.
         while (d->running) {
             // process modules which want to be explicitly called to process UI events
-            for (auto& mod : callUiEventModules)
+            for (auto &mod : callUiEventModules)
                 mod->processUiEvents();
 
             // process application GUI events
@@ -1802,7 +1919,8 @@ bool Engine::runInternal(const QString &exportDirPath)
         emitStatusMessage(QStringLiteral("Waiting for event thread `%1`...").arg(evThread->threadName()));
         evThread->stop();
     }
-    qCDebug(logEngine).noquote().nospace() << "Waited " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec for event threads to stop.";
+    qCDebug(logEngine).noquote().nospace()
+        << "Waited " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec for event threads to stop.";
 
     // send stop command to all modules
     for (auto &mod : createModuleStopOrderFromExecOrder(orderedActiveModules)) {
@@ -1830,8 +1948,8 @@ bool Engine::runInternal(const QString &exportDirPath)
 
             if (remainingElements != 0)
                 qCDebug(logEngine).noquote().nospace() << "Module '" << mod->name() << "' "
-                                             << "subscription `" << iport->id() << "` "
-                                             << "possibly lost " << remainingElements << " element(s)";
+                                                       << "subscription `" << iport->id() << "` "
+                                                       << "possibly lost " << remainingElements << " element(s)";
         }
 
         // send the stop command
@@ -1851,7 +1969,8 @@ bool Engine::runInternal(const QString &exportDirPath)
         if ((mod->state() != ModuleState::IDLE) && (mod->state() != ModuleState::ERROR))
             mod->setState(ModuleState::IDLE);
 
-        qCDebug(logEngine).noquote().nospace() << "Module '" << mod->name() << "' stopped in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
+        qCDebug(logEngine).noquote().nospace()
+            << "Module '" << mod->name() << "' stopped in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
     }
 
     lastPhaseTimepoint = d->timer->currentTimePoint();
@@ -1873,8 +1992,10 @@ bool Engine::runInternal(const QString &exportDirPath)
             continue;
 
         // if we are here, we failed to join the thread
-        qCWarning(logEngine).noquote() << "Failed to join thread for" << mod->name() << "in time, trying to break deadlock...";
-        emitStatusMessage(QStringLiteral("Waiting for '%1' (⚠️ possibly dead / unrecoverable)...").arg(mod->name()));
+        qCWarning(logEngine).noquote() << "Failed to join thread for" << mod->name()
+                                       << "in time, trying to break deadlock...";
+        emitStatusMessage(QStringLiteral("Waiting for '%1' (⚠️ possibly dead / unrecoverable)...").arg(mod->name())
+        );
         qApp->processEvents();
 
         // let's try to send its inputs a nullopt
@@ -1887,8 +2008,8 @@ bool Engine::runInternal(const QString &exportDirPath)
         }
 
         if (!thread->joinTimeout(5)) {
-            qCCritical(logEngine).noquote().nospace() << "Failed to join thread for " << mod->name() << ". Application may deadlock now.";
-
+            qCCritical(logEngine).noquote().nospace()
+                << "Failed to join thread for " << mod->name() << ". Application may deadlock now.";
         }
         thread->join();
     }
@@ -1900,7 +2021,8 @@ bool Engine::runInternal(const QString &exportDirPath)
         oopThread.join();
     }
 
-    qCDebug(logEngine).noquote().nospace() << "All (non-event) engine threads joined in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
+    qCDebug(logEngine).noquote().nospace()
+        << "All (non-event) engine threads joined in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
     lastPhaseTimepoint = d->timer->currentTimePoint();
 
     // All module data must be written by this point, so we "steal" its storage group,
@@ -1928,24 +2050,28 @@ bool Engine::runInternal(const QString &exportDirPath)
         // write collection metadata with information about this experiment
         storageCollection->setTimeCreated(QDateTime::currentDateTime());
 
-        storageCollection->setGeneratorId(QStringLiteral("%1 %2")
-                                          .arg(QCoreApplication::applicationName())
-                                          .arg(syntalosVersionFull()));
+        storageCollection->setGeneratorId(
+            QStringLiteral("%1 %2").arg(QCoreApplication::applicationName()).arg(syntalosVersionFull())
+        );
         if (d->experimenter.isValid())
             storageCollection->addAuthor(d->experimenter);
 
         QVariantHash extraData;
-        extraData.insert("subject_id", d->testSubject.id.isEmpty()? QVariant() : d->testSubject.id);
-        extraData.insert("subject_group", d->testSubject.group.isEmpty()? QVariant() : d->testSubject.group);
-        extraData.insert("subject_comment", d->testSubject.comment.isEmpty()? QVariant() : d->testSubject.comment);
+        extraData.insert("subject_id", d->testSubject.id.isEmpty() ? QVariant() : d->testSubject.id);
+        extraData.insert("subject_group", d->testSubject.group.isEmpty() ? QVariant() : d->testSubject.group);
+        extraData.insert("subject_comment", d->testSubject.comment.isEmpty() ? QVariant() : d->testSubject.comment);
         extraData.insert("recording_length_msec", finishTimestamp);
         extraData.insert("success", !d->failed);
         if (d->failed && !d->runFailedReason.isEmpty()) {
             extraData.insert("failure_reason", d->runFailedReason);
         }
-        extraData.insert("machine_node", QStringLiteral("%1 [%2 %3]").arg(d->sysInfo->machineHostName())
-                                                                     .arg(d->sysInfo->osId())
-                                                                     .arg(d->sysInfo->osVersion()));
+        extraData.insert(
+            "machine_node",
+            QStringLiteral("%1 [%2 %3]")
+                .arg(d->sysInfo->machineHostName())
+                .arg(d->sysInfo->osId())
+                .arg(d->sysInfo->osVersion())
+        );
 
         if (!d->nextRunComment.isEmpty() && !d->runIsEphemeral) {
             // add user comment
@@ -1973,13 +2099,16 @@ bool Engine::runInternal(const QString &exportDirPath)
         qCDebug(logEngine) << "Saving experiment metadata in:" << storageCollection->path();
 
         if (!storageCollection->save()) {
-            QMessageBox::critical(d->parentWidget,
-                                  QStringLiteral("Unable to finish recording"),
-                                  QStringLiteral("Unable to save experiment metadata: %1").arg(storageCollection->lastError()));
+            QMessageBox::critical(
+                d->parentWidget,
+                QStringLiteral("Unable to finish recording"),
+                QStringLiteral("Unable to save experiment metadata: %1").arg(storageCollection->lastError())
+            );
             d->failed = true;
         }
 
-        qCDebug(logEngine).noquote().nospace() << "Manifest and additional data saved in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
+        qCDebug(logEngine).noquote().nospace()
+            << "Manifest and additional data saved in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
     }
 
     // release system sleep inhibitor lock
@@ -2020,9 +2149,9 @@ void Engine::stop()
     d->running = false;
 }
 
-void Engine::receiveModuleError(const QString& message)
+void Engine::receiveModuleError(const QString &message)
 {
-    auto mod = qobject_cast<AbstractModule*>(sender());
+    auto mod = qobject_cast<AbstractModule *>(sender());
     if (mod != nullptr)
         d->runFailedReason = QStringLiteral("%1(%2): %3").arg(mod->id(), mod->name(), message);
     else
@@ -2048,7 +2177,7 @@ void Engine::onSynchronizerDetailsChanged(const QString &id, const TimeSyncStrat
     if (d->internalTSyncWriters.value(id).get() != nullptr)
         return;
     QString modId;
-    auto mod = qobject_cast<AbstractModule*>(sender());
+    auto mod = qobject_cast<AbstractModule *>(sender());
     if (mod != nullptr)
         modId = mod->id();
 

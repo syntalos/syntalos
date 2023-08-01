@@ -22,8 +22,8 @@
 #include <QMessageBox>
 #include <QProcess>
 
-#include "utils/misc.h"
 #include "runcmdsettingsdlg.h"
+#include "utils/misc.h"
 
 SYNTALOS_MODULE(RunCmdModule)
 
@@ -54,8 +54,7 @@ public:
         m_settings->setSandboxUiVisible(m_inSandbox);
     }
 
-    ~RunCmdModule()
-    {}
+    ~RunCmdModule() {}
 
     ModuleDriverKind driver() const override
     {
@@ -67,7 +66,7 @@ public:
         return ModuleFeature::SHOW_SETTINGS;
     }
 
-    static QStringList splitCommandLine(const QString & cmdLine)
+    static QStringList splitCommandLine(const QString &cmdLine)
     {
         QStringList list;
         if (cmdLine.isEmpty())
@@ -75,32 +74,52 @@ public:
 
         QString arg;
         bool escape = false;
-        enum { Idle, Arg, QuotedArg } state = Idle;
+        enum {
+            Idle,
+            Arg,
+            QuotedArg
+        } state = Idle;
         foreach (QChar const c, cmdLine) {
-            if (!escape && c == '\\') { escape = true; continue; }
+            if (!escape && c == '\\') {
+                escape = true;
+                continue;
+            }
             switch (state) {
             case Idle:
-                if (!escape && c == '"') state = QuotedArg;
-                else if (escape || !c.isSpace()) { arg += c; state = Arg; }
+                if (!escape && c == '"')
+                    state = QuotedArg;
+                else if (escape || !c.isSpace()) {
+                    arg += c;
+                    state = Arg;
+                }
                 break;
             case Arg:
-                if (!escape && c == '"') state = QuotedArg;
-                else if (escape || !c.isSpace()) arg += c;
-                else { list << arg; arg.clear(); state = Idle; }
+                if (!escape && c == '"')
+                    state = QuotedArg;
+                else if (escape || !c.isSpace())
+                    arg += c;
+                else {
+                    list << arg;
+                    arg.clear();
+                    state = Idle;
+                }
                 break;
             case QuotedArg:
-                if (!escape && c == '"') state = arg.isEmpty() ? Idle : Arg;
-                else arg += c;
+                if (!escape && c == '"')
+                    state = arg.isEmpty() ? Idle : Arg;
+                else
+                    arg += c;
                 break;
             }
             escape = false;
         }
 
-        if (!arg.isEmpty()) list << arg;
+        if (!arg.isEmpty())
+            list << arg;
         return list;
     }
 
-    bool prepare(const TestSubject& testSubject) override
+    bool prepare(const TestSubject &testSubject) override
     {
         m_procEnv = QProcessEnvironment::systemEnvironment();
         m_procEnv.insert("SY_SUBJECT_ID", testSubject.id);
@@ -128,7 +147,10 @@ public:
 
     void start() override
     {
-        const auto unixStartTime = std::chrono::duration_cast<milliseconds_t>((std::chrono::system_clock::now() - m_syTimer->timeSinceStartMsec()).time_since_epoch()).count();
+        const auto unixStartTime = std::chrono::duration_cast<milliseconds_t>((std::chrono::system_clock::now()
+                                                                               - m_syTimer->timeSinceStartMsec())
+                                                                                  .time_since_epoch())
+                                       .count();
         m_procEnv.insert("SY_START_TIME_UNIX_MS", QString::number(unixStartTime));
         m_proc->setProcessEnvironment(m_procEnv);
         m_proc->start();
@@ -140,10 +162,14 @@ public:
         if (m_proc->state() != QProcess::Running) {
             // we are not running anymore - check for errors
             if (m_proc->exitStatus() == QProcess::CrashExit) {
-                raiseError(QStringLiteral("The process %1 crashed: %2").arg(m_proc->program()).arg(m_proc->errorString()));
+                raiseError(
+                    QStringLiteral("The process %1 crashed: %2").arg(m_proc->program()).arg(m_proc->errorString())
+                );
             } else {
                 if (m_proc->exitCode() != 0)
-                    raiseError(QStringLiteral("The process %1 failed with exit code: %2").arg(m_proc->program()).arg(m_proc->exitCode()));
+                    raiseError(QStringLiteral("The process %1 failed with exit code: %2")
+                                   .arg(m_proc->program())
+                                   .arg(m_proc->exitCode()));
             }
 
             setStatusMessage("Process terminated.");

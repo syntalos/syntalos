@@ -26,26 +26,27 @@
 #include "utils/misc.h"
 
 const QString aboutDlgCopyInfo = QStringLiteral(
-        "<html>"
-        "© 2016-2022 Matthias Klumpp"
-        "<p>Developed at the Draguhn Group at Heidelberg University, Germany</p>"
-        "<p>Syntalos is free software: you can redistribute it and/or modify "
-        "it under the terms of the GNU General Public License (GPL-3.0+) and "
-        "GNU Lesser General Public License (LGPL-3.0+) as published by the Free Software Foundation, "
-        "either version 3 of the License, or (at your option) any later version.</p>"
-        "<p>While the main application as a combined work falls under the GPL-3.0+ license, "
-        "Syntalos' plugin interface and in fact most of its code is licensed under the LGPL-3.0+ license.</p>"
-        "<p>Syntalos is distributed in the hope that it will be useful, "
-        "but WITHOUT ANY WARRANTY; without even the implied warranty of "
-        "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the "
-        "GNU General Public License for more details.</p>"
-        "<p>Icons are based on the Breeze Iconset by the <a href=\"https://kde.org/\">KDE Community</a> [LGPLv3+]<br/>"
-        "ASCII art credit for this window: hjw `97</p>"
-        "<h3>Modules:</h3>");
+    "<html>"
+    "© 2016-2023 Matthias Klumpp"
+    "<p>Developed at the Draguhn Group at Heidelberg University, Germany</p>"
+    "<p>Syntalos is free software: you can redistribute it and/or modify "
+    "it under the terms of the GNU General Public License (GPL-3.0+) and "
+    "GNU Lesser General Public License (LGPL-3.0+) as published by the Free Software Foundation, "
+    "either version 3 of the License, or (at your option) any later version.</p>"
+    "<p>While the main application as a combined work falls under the GPL-3.0+ license, "
+    "Syntalos' plugin interface and in fact most of its code is licensed under the LGPL-3.0+ license.</p>"
+    "<p>Syntalos is distributed in the hope that it will be useful, "
+    "but WITHOUT ANY WARRANTY; without even the implied warranty of "
+    "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the "
+    "GNU General Public License for more details.</p>"
+    "<p>Icons are based on the Breeze Iconset by the <a href=\"https://kde.org/\">KDE Community</a> [LGPLv3+]<br/>"
+    "ASCII art credit for this window: hjw `97</p>"
+    "<h3>Modules:</h3>"
+);
 
-AboutDialog::AboutDialog(QWidget *parent) :
-    QDialog(parent),
-    ui(new Ui::AboutDialog)
+AboutDialog::AboutDialog(QWidget *parent)
+    : QDialog(parent),
+      ui(new Ui::AboutDialog)
 {
     ui->setupUi(this);
 
@@ -81,8 +82,6 @@ void AboutDialog::addModuleLicense(const QString &modName, const QString &licens
     if (license.isEmpty())
         return;
 
-    m_licenseText.append(QStringLiteral("<p><b>%2:</b><br/>%3")
-                                        .arg(modName)
-                                        .arg(license));
+    m_licenseText.append(QStringLiteral("<p><b>%2:</b><br/>%3").arg(modName).arg(license));
     ui->licenseTextBrowser->setText(m_licenseText);
 }

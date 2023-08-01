@@ -19,51 +19,49 @@
 
 #pragma once
 
-#include <memory>
-#include <QLoggingCategory>
 #include <QDataStream>
-#include <QUuid>
 #include <QDateTime>
+#include <QLoggingCategory>
+#include <QUuid>
+#include <memory>
 #include <xxhash.h>
 
 #include "syclock.h"
 
 class QFile;
 
-namespace Syntalos {
+namespace Syntalos
+{
 
 Q_DECLARE_LOGGING_CATEGORY(logTSyncFile)
 
 /**
  * @brief Timepoint storage of a TSync file
  */
-enum class TSyncFileMode
-{
-    CONTINUOUS   = 0, /// Continous time-point mapping with no gaps
-    SYNCPOINTS   = 1  /// Only synchronization points are saved
+enum class TSyncFileMode {
+    CONTINUOUS = 0, /// Continous time-point mapping with no gaps
+    SYNCPOINTS = 1  /// Only synchronization points are saved
 };
 
 /**
  * @brief Unit types for time representation in a TSync file
  */
-enum class TSyncFileTimeUnit
-{
-    INDEX        = 0,
-    NANOSECONDS  = 1,
+enum class TSyncFileTimeUnit {
+    INDEX = 0,
+    NANOSECONDS = 1,
     MICROSECONDS = 2,
     MILLISECONDS = 3,
-    SECONDS      = 4
+    SECONDS = 4
 };
 
 /**
  * @brief Data types use for storing time values in the data file.
  */
-enum class TSyncFileDataType
-{
+enum class TSyncFileDataType {
     INVALID = 0,
-    INT16  = 2,
-    INT32  = 3,
-    INT64  = 4,
+    INT16 = 2,
+    INT32 = 3,
+    INT64 = 4,
 
     UINT16 = 6,
     UINT32 = 7,
@@ -104,7 +102,12 @@ public:
     void setCreationTimeOverride(const QDateTime &dt);
 
     bool open(const QString &modName, const QUuid &collectionId, const QVariantHash &userData = QVariantHash());
-    bool open(const QString &modName, const QUuid &collectionId, const microseconds_t &tolerance, const QVariantHash &userData = QVariantHash());
+    bool open(
+        const QString &modName,
+        const QUuid &collectionId,
+        const microseconds_t &tolerance,
+        const QVariantHash &userData = QVariantHash()
+    );
     void flush();
     void close();
 
@@ -129,8 +132,10 @@ private:
     TSyncFileDataType m_time2DType;
 
     void writeBlockTerminator(bool check = true);
-    template<class T> void csWriteValue(const T &data);
-    template<class T1, class T2> void writeTimeEntry(const T1 &time1, const T2 &time2);
+    template<class T>
+    void csWriteValue(const T &data);
+    template<class T1, class T2>
+    void writeTimeEntry(const T1 &time1, const T2 &time2);
 };
 
 /**
@@ -179,4 +184,4 @@ private:
     QPair<TSyncFileDataType, TSyncFileDataType> m_timeDTypes;
 };
 
-} // end of namespace
+} // namespace Syntalos

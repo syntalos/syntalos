@@ -48,7 +48,7 @@ bool cvMatToShm(std::unique_ptr<SharedMemory> &shm, const cv::Mat &frame)
     }
 
     shm->lock();
-    auto shm_data = static_cast<char*>(shm->data());
+    auto shm_data = static_cast<char *>(shm->data());
 
     // write header
     size_t pos = 0;
@@ -60,8 +60,7 @@ bool cvMatToShm(std::unique_ptr<SharedMemory> &shm, const cv::Mat &frame)
     // write image data
     if (frame.isContinuous()) {
         std::memcpy(shm_data + pos, frame.ptr<char>(0), (frame.dataend - frame.datastart));
-    }
-    else {
+    } else {
         size_t rowsz = static_cast<size_t>(CV_ELEM_SIZE(mat_type) * frame.cols);
         for (int r = 0; r < frame.rows; ++r) {
             std::memcpy(shm_data + pos, frame.ptr<char>(r), rowsz);
@@ -81,7 +80,7 @@ cv::Mat cvMatFromShm(std::unique_ptr<SharedMemory> &shm, bool copy)
         return cv::Mat();
 
     shm->lock();
-    auto shm_data = static_cast<const char*>(shm->data());
+    auto shm_data = static_cast<const char *>(shm->data());
     size_t pos = 0;
 
     // read header
@@ -96,14 +95,13 @@ cv::Mat cvMatFromShm(std::unique_ptr<SharedMemory> &shm, bool copy)
         shm->unlock();
         return mat;
     } else {
-        cv::Mat mat(header[2], header[3], header[0], (uchar*) (shm_data + pos));
+        cv::Mat mat(header[2], header[3], header[0], (uchar *)(shm_data + pos));
         shm->unlock();
         return mat;
     }
 }
 
-bool marshalDataElement(int typeId, const QVariant &data,
-                        QVariant &outData, std::unique_ptr<SharedMemory> &shm)
+bool marshalDataElement(int typeId, const QVariant &data, QVariant &outData, std::unique_ptr<SharedMemory> &shm)
 {
     if (typeId == qMetaTypeId<Frame>()) {
         auto frame = data.value<Frame>();

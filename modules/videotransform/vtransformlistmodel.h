@@ -32,8 +32,7 @@ public:
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
 
-    QVariant data(const QModelIndex &index,
-                  int role = Qt::DisplayRole) const override;
+    QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
 
     bool removeRows(int position, int rows, const QModelIndex &parent) override;
     bool removeRow(int row, const QModelIndex &parent = QModelIndex());
@@ -43,7 +42,7 @@ public:
     std::shared_ptr<VideoTransform> transform(int row) const;
 
     QVariantHash toVariantHash();
-    void fromVariantHash(const QVariantHash& var);
+    void fromVariantHash(const QVariantHash &var);
 
     QList<std::shared_ptr<VideoTransform>> toList() const;
 

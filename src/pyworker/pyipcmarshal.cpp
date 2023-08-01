@@ -17,13 +17,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <pybind11/chrono.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl_bind.h>
-#include <pybind11/chrono.h>
 
-#include "pyipcmarshal.h"
-#include "ipcmarshal.h"
 #include "cvmatndsliceconvert.h"
+#include "ipcmarshal.h"
+#include "pyipcmarshal.h"
 
 /**
  * @brief Create a Python object from received data.
@@ -101,8 +101,7 @@ static bool marshalAndAddSimple(const int &typeId, const py::object &pyObj, QVar
 /**
  * @brief Prepare data from a Python object for transmission.
  */
-bool marshalPyDataElement(int typeId, const py::object &pyObj,
-                          QVariant &argData, std::unique_ptr<SharedMemory> &shm)
+bool marshalPyDataElement(int typeId, const py::object &pyObj, QVariant &argData, std::unique_ptr<SharedMemory> &shm)
 {
     /**
      ** Frame
@@ -161,7 +160,7 @@ bool marshalPyDataElement(int typeId, const py::object &pyObj,
             } else {
                 try {
                     row.append(QString::number(lo.cast<milliseconds_t>().count()));
-                } catch (const py::cast_error&) {
+                } catch (const py::cast_error &) {
                     // try string again, as last resort
                     row.append(QString::fromStdString(lo.cast<std::string>()));
                 }

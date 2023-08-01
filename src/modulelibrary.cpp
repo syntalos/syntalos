@@ -17,24 +17,24 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "modulelibrary.h"
 #include "config.h"
 #include "modconfig.h"
-#include "modulelibrary.h"
 
-#include <QMessageBox>
-#include <QDebug>
 #include <QCoreApplication>
+#include <QDebug>
 #include <QDirIterator>
 #include <QLibrary>
+#include <QMessageBox>
 
+#include "globalconfig.h"
 #include "pymoduleloader.h"
 #include "sysinfo.h"
-#include "globalconfig.h"
 #include "utils/tomlutils.h"
 
-
-namespace Syntalos {
-    Q_LOGGING_CATEGORY(logModLibrary, "modulelibrary")
+namespace Syntalos
+{
+Q_LOGGING_CATEGORY(logModLibrary, "modulelibrary")
 }
 
 class ModuleLocation
@@ -44,7 +44,7 @@ public:
     bool isBuildLocal;
     explicit ModuleLocation(const QString &dir, bool buildLocal = false)
         : path(dir),
-          isBuildLocal(buildLocal) {};
+          isBuildLocal(buildLocal){};
 };
 
 #pragma GCC diagnostic push
@@ -52,8 +52,8 @@ public:
 class ModuleLibrary::Private
 {
 public:
-    Private() { }
-    ~Private() { }
+    Private() {}
+    ~Private() {}
 
     QString syntalosApiId;
     QList<ModuleLocation> locations;
@@ -72,7 +72,8 @@ ModuleLibrary::ModuleLibrary(GlobalConfig *gconf, QObject *parent)
 
     bool haveLocalModDir = false;
     if (!QCoreApplication::applicationDirPath().startsWith("/usr") && !sysInfo->inFlatpakSandbox()) {
-        const auto path = QDir(QStringLiteral("%1/%2").arg(QCoreApplication::applicationDirPath()).arg("../modules")).canonicalPath();
+        const auto path = QDir(QStringLiteral("%1/%2").arg(QCoreApplication::applicationDirPath()).arg("../modules"))
+                              .canonicalPath();
         if (QDir(path).exists()) {
             d->locations.append(ModuleLocation(path, true));
             haveLocalModDir = true;
@@ -98,9 +99,7 @@ ModuleLibrary::ModuleLibrary(GlobalConfig *gconf, QObject *parent)
         d->locations.append(ModuleLocation(userModulesDir));
 }
 
-ModuleLibrary::~ModuleLibrary()
-{
-}
+ModuleLibrary::~ModuleLibrary() {}
 
 bool ModuleLibrary::load()
 {
@@ -134,7 +133,8 @@ bool ModuleLibrary::load()
             QString errorMessage;
             const auto modData = parseTomlFile(modDefFname, errorMessage);
             if (modData.isEmpty()) {
-                qCWarning(logModLibrary).noquote().nospace() << "Unable to load module '" << modId << "': " << errorMessage;
+                qCWarning(logModLibrary).noquote().nospace()
+                    << "Unable to load module '" << modId << "': " << errorMessage;
                 logModuleIssue(modId, "toml", errorMessage);
                 continue;
             }
@@ -166,46 +166,49 @@ void ModuleLibrary::refreshIcons()
 
 bool ModuleLibrary::loadLibraryModInfo(const QString &modId, const QString &modDir, const QString &libFname)
 {
-    typedef ModuleInfo* (*SyntalosModInfoFn)();
-    typedef const char* (*SyntalosModAPIIdFn)();
+    typedef ModuleInfo *(*SyntalosModInfoFn)();
+    typedef const char *(*SyntalosModAPIIdFn)();
 
     QLibrary modLib(libFname);
 
     modLib.setLoadHints(QLibrary::ResolveAllSymbolsHint | QLibrary::ExportExternalSymbolsHint);
     if (!modLib.load()) {
-        qCWarning(logModLibrary).noquote().nospace() << "Unable to load library for module '" << modId << "': "
-                                                     << modLib.errorString();
+        qCWarning(logModLibrary).noquote().nospace()
+            << "Unable to load library for module '" << modId << "': " << modLib.errorString();
         logModuleIssue(modId, "lib", modLib.errorString());
         return false;
     }
 
-    auto fnAPIId = (SyntalosModAPIIdFn) modLib.resolve("syntalos_module_api_id");
+    auto fnAPIId = (SyntalosModAPIIdFn)modLib.resolve("syntalos_module_api_id");
     if (fnAPIId == nullptr) {
-        qCWarning(logModLibrary).noquote().nospace() << "Unable to load library for module '" << modId << "': "
-                                                     << "Library is not a Syntalos module, 'syntalos_module_api_id' symbol not found.";
+        qCWarning(logModLibrary).noquote().nospace()
+            << "Unable to load library for module '" << modId << "': "
+            << "Library is not a Syntalos module, 'syntalos_module_api_id' symbol not found.";
         logModuleIssue(modId, "api", "'syntalos_module_api_id' not found.");
         return false;
     }
 
-    auto fnModInfo = (SyntalosModInfoFn) modLib.resolve("syntalos_module_info");
+    auto fnModInfo = (SyntalosModInfoFn)modLib.resolve("syntalos_module_info");
     if (fnModInfo == nullptr) {
-        qCWarning(logModLibrary).noquote().nospace() << "Unable to load library for module '" << modId << "': "
-                                                     << "Library is not a Syntalos module, 'syntalos_module_info' symbol not found.";
+        qCWarning(logModLibrary).noquote().nospace()
+            << "Unable to load library for module '" << modId << "': "
+            << "Library is not a Syntalos module, 'syntalos_module_info' symbol not found.";
         logModuleIssue(modId, "api", "'syntalos_module_info' not found.");
         return false;
     }
 
     const auto modApiId = QString::fromUtf8(fnAPIId());
     if (modApiId != d->syntalosApiId) {
-        const auto apiMismatchError = QStringLiteral("API ID mismatch between module and engine: %1 vs %2").arg(modApiId, d->syntalosApiId);
-        qCWarning(logModLibrary).noquote().nospace() << "Prevented module load for '" << modId << "': "
-                                                     << apiMismatchError;
+        const auto apiMismatchError = QStringLiteral("API ID mismatch between module and engine: %1 vs %2")
+                                          .arg(modApiId, d->syntalosApiId);
+        qCWarning(logModLibrary).noquote().nospace()
+            << "Prevented module load for '" << modId << "': " << apiMismatchError;
         logModuleIssue(modId, "api", apiMismatchError);
         return false;
     }
 
     // now we can load the module info object from the module's shared library
-    auto modInfo = static_cast<ModuleInfo*> (fnModInfo());
+    auto modInfo = static_cast<ModuleInfo *>(fnModInfo());
     if (modInfo == nullptr) {
         qCWarning(logModLibrary).noquote().nospace() << "Prevented module load for '" << modId << "': "
                                                      << "Received invalid (NULL) module info data.";
@@ -245,7 +248,7 @@ void ModuleLibrary::logModuleIssue(const QString &modId, const QString &context,
     d->issueLog.append(QStringLiteral("<b>%1</b>: <i>&lt;%2&gt;</i> %3").arg(modId).arg(context).arg(msg));
 }
 
-QList<QSharedPointer<ModuleInfo> > ModuleLibrary::moduleInfo() const
+QList<QSharedPointer<ModuleInfo>> ModuleLibrary::moduleInfo() const
 {
     return d->modInfos.values();
 }

@@ -20,10 +20,10 @@
 #include "canvaswindow.h"
 #include "imageviewwidget.h"
 
+#include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
 #include <QVBoxLayout>
-#include <QHBoxLayout>
 
 CanvasWindow::CanvasWindow(QWidget *parent)
     : QWidget(parent)

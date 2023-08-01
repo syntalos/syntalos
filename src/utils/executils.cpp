@@ -20,10 +20,10 @@
 #include "executils.h"
 
 #include <QDebug>
-#include <QProcess>
-#include <QStandardPaths>
 #include <QFile>
 #include <QFileInfo>
+#include <QProcess>
+#include <QStandardPaths>
 #include <glib.h>
 
 #include "sysinfo.h"
@@ -48,7 +48,10 @@ QString findHostExecutable(const QString &exe)
 {
     auto sysInfo = SysInfo::get();
     if (sysInfo->inFlatpakSandbox()) {
-        QStringList exeLocations = QStringList() << "/usr/bin" << "/usr/local/bin" << "/usr/sbin" << "";
+        QStringList exeLocations = QStringList() << "/usr/bin"
+                                                 << "/usr/local/bin"
+                                                 << "/usr/sbin"
+                                                 << "";
         for (const auto &loc : exeLocations) {
             QString exeHost = QStringLiteral("/run/host%1/%2").arg(loc, exe);
             QFileInfo fi(exeHost);
@@ -135,9 +138,7 @@ int runInExternalTerminal(const QString &cmd, const QStringList &args, const QSt
     for (const auto &a : args)
         cmdShell += QStringLiteral(" %1").arg(shellQuote(a));
     QTextStream out(&shFile);
-    out << "#!/bin/sh\n"
-        << cmdShell << "\n"
-        << QStringLiteral("echo $? > %1\n").arg(exitFname);
+    out << "#!/bin/sh\n" << cmdShell << "\n" << QStringLiteral("echo $? > %1\n").arg(exitFname);
     shFile.flush();
     shFile.setPermissions(QFileDevice::ExeUser | QFileDevice::ReadUser | QFileDevice::WriteUser);
     shFile.close();
@@ -151,11 +152,14 @@ int runInExternalTerminal(const QString &cmd, const QStringList &args, const QSt
             fpsArgs << "--directory=" + wdir;
         fpsArgs << terminalExe;
 
-        const auto termArgs = QStringList() << "-e" << "flatpak enter " + sysInfo->sandboxAppId() + " sh -c " + shHelperFname;
+        const auto termArgs = QStringList() << "-e"
+                                            << "flatpak enter " + sysInfo->sandboxAppId() + " sh -c " + shHelperFname;
         proc.start("flatpak-spawn", fpsArgs + extraTermArgs + termArgs);
     } else {
         // no sandbox, we can run the command directly
-        const auto termArgs = QStringList() << "-e" << "sh" << "-c" << shHelperFname;
+        const auto termArgs = QStringList() << "-e"
+                                            << "sh"
+                                            << "-c" << shHelperFname;
         if (!wdir.isEmpty())
             proc.setWorkingDirectory(wdir);
 

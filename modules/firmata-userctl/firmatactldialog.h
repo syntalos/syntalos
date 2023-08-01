@@ -19,9 +19,9 @@
 
 #pragma once
 
+#include "moduleapi.h"
 #include <QDialog>
 #include <QWidget>
-#include "moduleapi.h"
 
 class QSpinBox;
 class QPushButton;
@@ -32,8 +32,11 @@ class FirmataOutputWidget : public QWidget
     Q_OBJECT
 
 public:
-    explicit FirmataOutputWidget(std::shared_ptr<DataStream<FirmataControl> > fmCtlStream,
-                                 bool analog, QWidget *parent = nullptr);
+    explicit FirmataOutputWidget(
+        std::shared_ptr<DataStream<FirmataControl>> fmCtlStream,
+        bool analog,
+        QWidget *parent = nullptr
+    );
 
     bool isAnalog() const;
 
@@ -56,7 +59,7 @@ private:
     QSpinBox *m_sbValue;
     QPushButton *m_btnPulse;
     QPushButton *m_btnSend;
-    std::shared_ptr<DataStream<FirmataControl> > m_fmCtlStream;
+    std::shared_ptr<DataStream<FirmataControl>> m_fmCtlStream;
 };
 
 class FirmataInputWidget : public QWidget
@@ -64,8 +67,11 @@ class FirmataInputWidget : public QWidget
     Q_OBJECT
 
 public:
-    explicit FirmataInputWidget(std::shared_ptr<DataStream<FirmataControl> > fmCtlStream,
-                                bool analog, QWidget *parent = nullptr);
+    explicit FirmataInputWidget(
+        std::shared_ptr<DataStream<FirmataControl>> fmCtlStream,
+        bool analog,
+        QWidget *parent = nullptr
+    );
 
     bool isAnalog() const;
 
@@ -86,10 +92,11 @@ private:
     QSpinBox *m_sbPinId;
 
     QLabel *m_lblValue;
-    std::shared_ptr<DataStream<FirmataControl> > m_fmCtlStream;
+    std::shared_ptr<DataStream<FirmataControl>> m_fmCtlStream;
 };
 
-namespace Ui {
+namespace Ui
+{
 class FirmataCtlDialog;
 }
 
@@ -115,5 +122,5 @@ private:
     Ui::FirmataCtlDialog *ui;
 
     int m_lastPinId;
-    std::shared_ptr<DataStream<FirmataControl> > m_fmCtlStream;
+    std::shared_ptr<DataStream<FirmataControl>> m_fmCtlStream;
 };

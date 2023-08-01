@@ -19,9 +19,9 @@
 
 #pragma once
 
-#include <toml++/toml.h>
 #include <QDateTime>
 #include <QVariant>
+#include <toml++/toml.h>
 
 toml::time qTimeToToml(const QTime &qtime);
 toml::date qDateToToml(const QDate &qdate);

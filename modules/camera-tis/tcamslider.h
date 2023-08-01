@@ -7,8 +7,7 @@
 
 #include <cmath>
 
-enum class TcamSliderScale
-{
+enum class TcamSliderScale {
     Linear,
     Logarithmic,
 };
@@ -18,8 +17,8 @@ class TcamSlider : public QSlider
     Q_OBJECT
 
 public:
-    TcamSlider(TcamSliderScale scale_type=TcamSliderScale::Linear);
-    void setRange(double min, double max,double step);
+    TcamSlider(TcamSliderScale scale_type = TcamSliderScale::Linear);
+    void setRange(double min, double max, double step);
     void setValue(double value);
 
     double value();
@@ -31,13 +30,12 @@ signals:
 
 private slots:
 
-    void mouseDoubleClickEvent(QMouseEvent* event) override;
+    void mouseDoubleClickEvent(QMouseEvent *event) override;
     void onSliderChanged(double);
 
 private:
-
-    int calculate_slider_value (double user_value);
-    double calculate_user_value (int slider_value);
+    int calculate_slider_value(double user_value);
+    double calculate_user_value(int slider_value);
 
     TcamSliderScale m_scale_type = TcamSliderScale::Linear;
 

@@ -19,8 +19,8 @@
 
 #pragma once
 
-#include <QObject>
 #include <QIcon>
+#include <QObject>
 
 class QTableWidget;
 class QFile;
@@ -46,7 +46,7 @@ public:
     void addRows(const QStringList &data);
 
     const QRect &geometry() const;
-    void setGeometry(const QRect& rect);
+    void setGeometry(const QRect &rect);
 
     QWidget *widget() const;
 

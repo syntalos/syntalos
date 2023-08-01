@@ -20,22 +20,23 @@
 #ifndef MODULEAPI_H
 #define MODULEAPI_H
 
-#include <QObject>
-#include <QList>
-#include <QByteArray>
 #include <QAction>
-#include <QPixmap>
+#include <QByteArray>
 #include <QDebug>
+#include <QList>
+#include <QObject>
+#include <QPixmap>
 
+#include "edlstorage.h"
 #include "modconfig.h"
+#include "optionalwaitcondition.h"
+#include "streams/datatypes.h"
+#include "subscriptionwatcher.h"
 #include "syclock.h"
 #include "timesync.h"
-#include "streams/datatypes.h"
-#include "optionalwaitcondition.h"
-#include "edlstorage.h"
-#include "subscriptionwatcher.h"
 
-namespace Syntalos {
+namespace Syntalos
+{
 
 class AbstractModule;
 class StreamOutputPort;
@@ -47,13 +48,15 @@ class StreamOutputPort;
  */
 enum class ModuleFeature {
     NONE = 0,
-    SHOW_SETTINGS         = 1 << 0,  /// Module can display a settings window
-    SHOW_DISPLAY          = 1 << 1,  /// Module has one or more display window(s) to show
-    SHOW_ACTIONS          = 1 << 2,  /// Module supports context menu actions
-    REALTIME              = 1 << 3,  /// Enable realtime scheduling for the module's thread
-    REQUEST_CPU_AFFINITY  = 1 << 4,  /// Pin the module's thread to a separate CPU core, if possible (even if the user disabled this)
-    PROHIBIT_CPU_AFFINITY = 1 << 5,  /// Never set a core affinity for the thread of this module, even if the user wanted it
-    CALL_UI_EVENTS        = 1 << 6,  /// Call direct UI events processing method
+    SHOW_SETTINGS = 1 << 0, /// Module can display a settings window
+    SHOW_DISPLAY = 1 << 1,  /// Module has one or more display window(s) to show
+    SHOW_ACTIONS = 1 << 2,  /// Module supports context menu actions
+    REALTIME = 1 << 3,      /// Enable realtime scheduling for the module's thread
+    REQUEST_CPU_AFFINITY =
+        1 << 4, /// Pin the module's thread to a separate CPU core, if possible (even if the user disabled this)
+    PROHIBIT_CPU_AFFINITY =
+        1 << 5,              /// Never set a core affinity for the thread of this module, even if the user wanted it
+    CALL_UI_EVENTS = 1 << 6, /// Call direct UI events processing method
 };
 Q_DECLARE_FLAGS(ModuleFeatures, ModuleFeature)
 Q_DECLARE_OPERATORS_FOR_FLAGS(ModuleFeatures)
@@ -81,6 +84,7 @@ enum class UsbHotplugEventKind {
 class Q_DECL_EXPORT ModuleInfo
 {
     friend class Engine;
+
 public:
     explicit ModuleInfo();
     virtual ~ModuleInfo();
@@ -163,22 +167,27 @@ private:
 };
 
 /**
-  * Define interfaces for a dynamically loaded Syntalos module, so we can
-  * find it at runtime.
-  */
-#define SYNTALOS_DECLARE_MODULE \
-    _Pragma("GCC visibility push(default)") \
-    extern "C" ModuleInfo *syntalos_module_info(); \
-    extern "C" const char *syntalos_module_api_id(); \
+ * Define interfaces for a dynamically loaded Syntalos module, so we can
+ * find it at runtime.
+ */
+#define SYNTALOS_DECLARE_MODULE                                                                                        \
+    _Pragma("GCC visibility push(default)") extern "C" ModuleInfo *syntalos_module_info();                             \
+    extern "C" const char *syntalos_module_api_id();                                                                   \
     _Pragma("GCC visibility pop")
 
 /**
-  * Define interfaces for a dynamically loaded Syntalos module, so we can
-  * find it at runtime.
-  */
-#define SYNTALOS_MODULE(MI) \
-    ModuleInfo *syntalos_module_info() { return new MI##Info; } \
-    const char *syntalos_module_api_id() { return SY_MODULE_API_TAG; }
+ * Define interfaces for a dynamically loaded Syntalos module, so we can
+ * find it at runtime.
+ */
+#define SYNTALOS_MODULE(MI)                                                                                            \
+    ModuleInfo *syntalos_module_info()                                                                                 \
+    {                                                                                                                  \
+        return new MI##Info;                                                                                           \
+    }                                                                                                                  \
+    const char *syntalos_module_api_id()                                                                               \
+    {                                                                                                                  \
+        return SY_MODULE_API_TAG;                                                                                      \
+    }
 
 /**
  * @brief The TestSubject struct
@@ -211,7 +220,10 @@ public:
     virtual QString id() const = 0;
     virtual QString title() const = 0;
 
-    virtual PortDirection direction() const { return PortDirection::NONE; }
+    virtual PortDirection direction() const
+    {
+        return PortDirection::NONE;
+    }
 
     virtual int dataTypeId() const = 0;
     virtual QString dataTypeName() const = 0;
@@ -263,12 +275,14 @@ public:
         auto sub = std::dynamic_pointer_cast<StreamSubscription<T>>(m_sub.value());
         if (sub == nullptr) {
             if (hasSubscription()) {
-                qCritical().noquote() << "Conversion of variant subscription to dedicated type" << typeid(T).name() << "failed."
+                qCritical().noquote() << "Conversion of variant subscription to dedicated type" << typeid(T).name()
+                                      << "failed."
                                       << "Modules are connected in a way they shouldn't be (terminating now).";
                 qFatal("Bad module connection.");
                 assert(0);
             } else {
-                qWarning().noquote() << "Tried to obtain" << typeid(T).name() << "subscription from a port that was not subscribed to anything.";
+                qWarning().noquote() << "Tried to obtain" << typeid(T).name()
+                                     << "subscription from a port that was not subscribed to anything.";
             }
         }
         return sub;
@@ -297,7 +311,12 @@ private:
 class Q_DECL_EXPORT StreamOutputPort : public AbstractStreamPort
 {
 public:
-    explicit StreamOutputPort(AbstractModule *owner, const QString &id, const QString &title, std::shared_ptr<VariantDataStream> stream);
+    explicit StreamOutputPort(
+        AbstractModule *owner,
+        const QString &id,
+        const QString &title,
+        std::shared_ptr<VariantDataStream> stream
+    );
     virtual ~StreamOutputPort();
 
     bool canSubscribe(const QString &typeName);
@@ -305,7 +324,10 @@ public:
     QString dataTypeName() const override;
 
     template<typename T>
-    std::shared_ptr<DataStream<T>> stream() { return std::dynamic_pointer_cast<DataStream<T>>(streamVar()); }
+    std::shared_ptr<DataStream<T>> stream()
+    {
+        return std::dynamic_pointer_cast<DataStream<T>>(streamVar());
+    }
     std::shared_ptr<VariantDataStream> streamVar();
 
     std::shared_ptr<VariantStreamSubscription> subscribe();
@@ -325,10 +347,10 @@ private:
 };
 
 /// Event function type for timed callbacks
-using intervalEventFunc_t = void(AbstractModule::*)(int &);
+using intervalEventFunc_t = void (AbstractModule::*)(int &);
 
 /// Event function type for subscription new data callbacks
-using recvDataEventFunc_t = void(AbstractModule::*)();
+using recvDataEventFunc_t = void (AbstractModule::*)();
 
 /**
  * @brief Abstract base class for all modules
@@ -340,6 +362,7 @@ class Q_DECL_EXPORT AbstractModule : public QObject
 {
     Q_OBJECT
     friend class Engine;
+
 public:
     explicit AbstractModule(QObject *parent = nullptr);
     explicit AbstractModule(const QString &id, QObject *parent = nullptr);
@@ -381,7 +404,7 @@ public:
      * @brief Name of this module displayed to the user
      */
     virtual QString name() const;
-    virtual void setName(const QString& name);
+    virtual void setName(const QString &name);
 
     /**
      * @brief Select how this module will be executed by the Syntalos engine.
@@ -446,7 +469,11 @@ public:
      *
      * @returns A variant data stream instance for this module to write to.
      */
-    std::shared_ptr<VariantDataStream> registerOutputPortByTypeId(int typeId, const QString &id, const QString &title = QString())
+    std::shared_ptr<VariantDataStream> registerOutputPortByTypeId(
+        int typeId,
+        const QString &id,
+        const QString &title = QString()
+    )
     {
         if (m_outPorts.contains(id))
             qWarning() << "Module" << name() << "already registered an output port with ID:" << id;
@@ -468,7 +495,11 @@ public:
      *
      * @returns A VarStreamInputPort instance, which can be checked for subscriptions
      */
-    std::shared_ptr<VarStreamInputPort> registerInputPortByTypeId(int typeId, const QString &id, const QString &title = QString())
+    std::shared_ptr<VarStreamInputPort> registerInputPortByTypeId(
+        int typeId,
+        const QString &id,
+        const QString &title = QString()
+    )
     {
         if (m_inPorts.contains(id))
             qWarning() << "Module" << name() << "already registered an output port with ID:" << id;
@@ -500,7 +531,7 @@ public:
      * prior to every experiment run.
      * @return true if success
      */
-    virtual bool prepare(const TestSubject& testSubject) = 0;
+    virtual bool prepare(const TestSubject &testSubject) = 0;
 
     /**
      * @brief Run when the experiment is started and the HRTimer has an initial time set.
@@ -573,7 +604,7 @@ public:
      * @brief Get actions to add to the module's submenu
      * @return
      */
-    virtual QList<QAction*> actions();
+    virtual QList<QAction *> actions();
 
     /**
      * @brief Serialize the settings of this module
@@ -590,7 +621,7 @@ public:
      * settings from previously saved data.
      * @return true if successful.
      */
-    virtual bool loadSettings(const QString& confBaseDir, const QVariantHash &settings, const QByteArray& extraData);
+    virtual bool loadSettings(const QString &confBaseDir, const QVariantHash &settings, const QByteArray &extraData);
 
     /**
      * @brief Called when one of this module's input ports is subscribed to a stream.
@@ -654,19 +685,22 @@ public:
 signals:
     void actionsUpdated();
     void stateChanged(ModuleState state);
-    void error(const QString& message);
-    void statusMessage(const QString& message);
-    void nameChanged(const QString& name);
+    void error(const QString &message);
+    void statusMessage(const QString &message);
+    void nameChanged(const QString &name);
     void portsConnected(const VarStreamInputPort *inPort, const StreamOutputPort *outPort);
     void portConfigurationUpdated();
-    void synchronizerDetailsChanged(const QString &id, const TimeSyncStrategies &strategies,
-                                    const microseconds_t &tolerance);
+    void synchronizerDetailsChanged(
+        const QString &id,
+        const TimeSyncStrategies &strategies,
+        const microseconds_t &tolerance
+    );
     void synchronizerOffsetChanged(const QString &id, const microseconds_t &currentOffset);
 
 protected:
-    void raiseError(const QString& message);
+    void raiseError(const QString &message);
 
-    void setStatusMessage(const QString& message);
+    void setStatusMessage(const QString &message);
     bool makeDirectory(const QString &dir);
 
     /**
@@ -702,32 +736,43 @@ protected:
      *
      * This function returns the "default" string if no suggestion was made.
      */
-    QString dataBasenameFromSubMetadata(const QVariantHash &subMetadata, const QString &defaultName = QStringLiteral("data"));
+    QString dataBasenameFromSubMetadata(
+        const QVariantHash &subMetadata,
+        const QString &defaultName = QStringLiteral("data")
+    );
 
     /**
      * @brief Create or retrieve default dataset for data storage in default storage group
      * @param preferredName The preferred name for the dataset.
-     * @param subMetadata Metadata from a stream subscription, in case using the desired name from a module upstream is wanted.
+     * @param subMetadata Metadata from a stream subscription, in case using the desired name from a module upstream is
+     * wanted.
      *
-     * Retrieve the default dataset with the given name for this module. The module can use it to get file paths to write data to.
-     * In case a module needs to create more then one dataset, creating a new group is advised first.
-     * Use the createStorageGroup() and getOrCreateDatasetInGroup() methods for that.
+     * Retrieve the default dataset with the given name for this module. The module can use it to get file paths to
+     * write data to. In case a module needs to create more then one dataset, creating a new group is advised first. Use
+     * the createStorageGroup() and getOrCreateDatasetInGroup() methods for that.
      *
-     * This method will return NULL in case the module was not yet assigned a data storage group. Use it only in and after the PREPARE
-     * phase to get a valid dataset!
+     * This method will return NULL in case the module was not yet assigned a data storage group. Use it only in and
+     * after the PREPARE phase to get a valid dataset!
      */
-    std::shared_ptr<EDLDataset> getOrCreateDefaultDataset(const QString &preferredName = QString(), const QVariantHash &subMetadata = QVariantHash());
-    std::shared_ptr<EDLDataset> getOrCreateDatasetInGroup(std::shared_ptr<EDLGroup> group, const QString &preferredName = QString(), const QVariantHash &subMetadata = QVariantHash());
+    std::shared_ptr<EDLDataset> getOrCreateDefaultDataset(
+        const QString &preferredName = QString(),
+        const QVariantHash &subMetadata = QVariantHash()
+    );
+    std::shared_ptr<EDLDataset> getOrCreateDatasetInGroup(
+        std::shared_ptr<EDLGroup> group,
+        const QString &preferredName = QString(),
+        const QVariantHash &subMetadata = QVariantHash()
+    );
 
     /**
      * @brief Create new data storage group with the given name
      * @param groupName
      *
-     * Creates a new data storage group name, or retrieves a reference to the group in case one with this name already exists.
-     * The group is placed as child of the module's default storage group.
+     * Creates a new data storage group name, or retrieves a reference to the group in case one with this name already
+     * exists. The group is placed as child of the module's default storage group.
      *
-     * This method will return NULL in case the module was not yet assigned a data storage group. Use it only in and after the PREPARE
-     * phase to get a valid dataset!
+     * This method will return NULL in case the module was not yet assigned a data storage group. Use it only in and
+     * after the PREPARE phase to get a valid dataset!
      */
     std::shared_ptr<EDLGroup> createStorageGroup(const QString &groupName);
 
@@ -774,10 +819,12 @@ protected:
      * The function may even move between threads, so make sure it is reentrant.
      */
     template<typename T>
-    void registerTimedEvent(void(T::*fn)(int &), const milliseconds_t &interval)
+    void registerTimedEvent(void (T::*fn)(int &), const milliseconds_t &interval)
     {
-        static_assert(std::is_base_of<AbstractModule, T>::value,
-                "Callback needs to point to a member function of a class derived from AbstractModule");
+        static_assert(
+            std::is_base_of<AbstractModule, T>::value,
+            "Callback needs to point to a member function of a class derived from AbstractModule"
+        );
         const auto amFn = static_cast<intervalEventFunc_t>(fn);
         m_intervalEventCBList.append(qMakePair(amFn, interval.count()));
     }
@@ -794,10 +841,12 @@ protected:
      * The function may even move between threads, so make sure it is reentrant.
      */
     template<typename T>
-    void registerDataReceivedEvent(void(T::*fn)(), std::shared_ptr<VariantStreamSubscription> subscription)
+    void registerDataReceivedEvent(void (T::*fn)(), std::shared_ptr<VariantStreamSubscription> subscription)
     {
-        static_assert(std::is_base_of<AbstractModule, T>::value,
-                "Callback needs to point to a member function of a class derived from AbstractModule");
+        static_assert(
+            std::is_base_of<AbstractModule, T>::value,
+            "Callback needs to point to a member function of a class derived from AbstractModule"
+        );
         const auto amFn = static_cast<recvDataEventFunc_t>(fn);
         m_recvDataEventCBList.append(qMakePair(amFn, subscription));
     }
@@ -896,8 +945,7 @@ private:
     QMap<QString, std::shared_ptr<VarStreamInputPort>> m_inPorts;
 
     QList<QPair<intervalEventFunc_t, int>> m_intervalEventCBList;
-    QList<QPair<recvDataEventFunc_t,
-                std::shared_ptr<VariantStreamSubscription>>> m_recvDataEventCBList;
+    QList<QPair<recvDataEventFunc_t, std::shared_ptr<VariantStreamSubscription>>> m_recvDataEventCBList;
 
     void setState(ModuleState state);
     void setId(const QString &id);
@@ -910,6 +958,6 @@ private:
     void setEphemeralRun(bool isEphemeral);
 };
 
-} // end of namespace
+} // namespace Syntalos
 
 #endif // MODULEAPI_H

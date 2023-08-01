@@ -19,10 +19,11 @@
 
 #pragma once
 
-#include <QDialog>
 #include "flircamera.h"
+#include <QDialog>
 
-namespace Ui {
+namespace Ui
+{
 class FLIRCamSettingsDialog;
 }
 

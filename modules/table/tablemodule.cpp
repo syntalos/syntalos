@@ -19,15 +19,15 @@
 
 #include "tablemodule.h"
 
-#include <QTimer>
-#include <QTime>
 #include <QDir>
 #include <QFile>
-#include <QSvgRenderer>
 #include <QPainter>
+#include <QSvgRenderer>
+#include <QTime>
+#include <QTimer>
 
-#include "utils/style.h"
 #include "recordedtable.h"
+#include "utils/style.h"
 
 SYNTALOS_MODULE(TableModule)
 

@@ -19,15 +19,15 @@
 
 #include "edlstorage.h"
 
-#include <iostream>
-#include <fstream>
-#include <chrono>
-#include <mutex>
 #include <QDebug>
+#include <QDir>
 #include <QFileInfo>
 #include <QMimeDatabase>
-#include <QDir>
 #include <QUuid>
+#include <chrono>
+#include <fstream>
+#include <iostream>
+#include <mutex>
 #include <toml++/toml.h>
 
 #include "utils/misc.h"
@@ -37,10 +37,7 @@ static const QString EDL_FORMAT_VERSION = QStringLiteral("1");
 
 static QString edlSanitizeFilename(const QString &name)
 {
-    const auto tmp = name.simplified()
-                         .replace("/", "_")
-                         .replace("\\", "_")
-                         .replace(":", "");
+    const auto tmp = name.simplified().replace("/", "_").replace("\\", "_").replace(":", "");
     if (tmp == "AUX")
         return QStringLiteral("_AUX");
     return tmp;
@@ -81,8 +78,7 @@ EDLUnit::EDLUnit(EDLUnitKind kind, EDLUnit *parent)
     d->parent = parent;
 }
 
-EDLUnit::~EDLUnit()
-{}
+EDLUnit::~EDLUnit() {}
 
 EDLUnitKind EDLUnit::objectKind() const
 {
@@ -127,8 +123,9 @@ bool EDLUnit::setName(const QString &name)
 
     if (!oldDirPath.isEmpty()) {
         QDir dir;
-        if  (dir.exists(oldDirPath) && !dir.rename(oldDirPath, path())) {
-            qWarning().noquote() << "EDL:" << "Unable to rename directory" << oldDirPath << "to" << path();
+        if (dir.exists(oldDirPath) && !dir.rename(oldDirPath, path())) {
+            qWarning().noquote() << "EDL:"
+                                 << "Unable to rename directory" << oldDirPath << "to" << path();
             d->name = oldName;
             return false;
         }
@@ -264,7 +261,7 @@ static toml::table createManifestFileSection(EDLDataFile &df)
     if (df.mediaType.isEmpty()) {
         QMimeDatabase db;
         const auto mime = db.mimeTypeForFile(df.parts.first().fname);
-        if (mime.isValid()  && !mime.isDefault())
+        if (mime.isValid() && !mime.isDefault())
             df.mediaType = mime.name();
     }
 
@@ -326,7 +323,7 @@ QString EDLUnit::serializeManifest()
 
     if (!d->authors.isEmpty()) {
         toml::array authorsArr;
-        for (const auto& author : d->authors) {
+        for (const auto &author : d->authors) {
             toml::table authorTab;
             authorTab.insert("name", author.name.toStdString());
             if (!author.email.isEmpty())
@@ -354,7 +351,6 @@ QString EDLUnit::serializeManifest()
                 continue;
             auto dataTab = createManifestFileSection(adf);
             auxDataArr.push_back(dataTab);
-
         }
         document.insert("data_aux", std::move(auxDataArr));
     }
@@ -393,7 +389,8 @@ bool EDLUnit::saveManifest()
     // write the manifest file
     QFile file(QStringLiteral("%1/manifest.toml").arg(path()));
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        d->lastError = QStringLiteral("Unable to open manifest file for writing (in '%1'): %2").arg(path(), file.errorString());
+        d->lastError = QStringLiteral("Unable to open manifest file for writing (in '%1'): %2")
+                           .arg(path(), file.errorString());
         return false;
     }
 
@@ -419,7 +416,8 @@ bool EDLUnit::saveAttributes()
     // write the attributes file
     QFile file(QStringLiteral("%1/attributes.toml").arg(path()));
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        d->lastError = QStringLiteral("Unable to open attributes file for writing (in '%1'): %2").arg(path(), file.errorString());
+        d->lastError = QStringLiteral("Unable to open attributes file for writing (in '%1'): %2")
+                           .arg(path(), file.errorString());
         return false;
     }
 
@@ -459,8 +457,7 @@ EDLDataset::EDLDataset(EDLGroup *parent)
 {
 }
 
-EDLDataset::~EDLDataset()
-{}
+EDLDataset::~EDLDataset() {}
 
 bool EDLDataset::save()
 {
@@ -484,7 +481,8 @@ bool EDLDataset::save()
             const auto files = findFilesByPattern(adKV.key());
             if (files.isEmpty()) {
                 qWarning().noquote().nospace()
-                        << "Dataset '" << name() << "' expected to find auxiliary data matching pattern `" << adKV.key() << "`, but no data was found.";
+                    << "Dataset '" << name() << "' expected to find auxiliary data matching pattern `" << adKV.key()
+                    << "`, but no data was found.";
             } else {
                 for (int i = 0; i < files.size(); ++i) {
                     auxFiles.insert(files[i]);
@@ -494,7 +492,6 @@ bool EDLDataset::save()
                         addAuxDataFilePart(files[i], adKV.key());
                 }
             }
-
         }
     }
 
@@ -503,8 +500,8 @@ bool EDLDataset::save()
         d->dataFile.parts.clear();
         const auto files = findFilesByPattern(d->dataScanPattern.first);
         if (files.isEmpty()) {
-            qWarning().noquote().nospace()
-                    << "Dataset '" << name() << "' expected to find data matching pattern `" << d->dataScanPattern.first << "`, but no data was found.";
+            qWarning().noquote().nospace() << "Dataset '" << name() << "' expected to find data matching pattern `"
+                                           << d->dataScanPattern.first << "`, but no data was found.";
         } else {
             for (int i = 0; i < files.size(); ++i) {
                 if (auxFiles.contains(files[i]))
@@ -639,8 +636,7 @@ EDLGroup::EDLGroup(EDLGroup *parent)
 {
 }
 
-EDLGroup::~EDLGroup()
-{}
+EDLGroup::~EDLGroup() {}
 
 bool EDLGroup::setName(const QString &name)
 {
@@ -735,7 +731,8 @@ bool EDLGroup::save()
     while (i.hasNext()) {
         auto obj = i.next();
         if (obj->parent() != this) {
-            qWarning().noquote() << QStringLiteral("Unlinking EDL child '%1' that doesn't believe '%2' is its parent.").arg(obj->name(), name());
+            qWarning().noquote() << QStringLiteral("Unlinking EDL child '%1' that doesn't believe '%2' is its parent.")
+                                        .arg(obj->name(), name());
             i.remove();
             continue;
         }
@@ -753,7 +750,6 @@ class EDLCollection::Private
 public:
     Private() {}
     ~Private() {}
-
 };
 
 EDLCollection::EDLCollection(const QString &name)
@@ -768,8 +764,7 @@ EDLCollection::EDLCollection(const QString &name)
     setCollectionId(QUuid::createUuid());
 }
 
-EDLCollection::~EDLCollection()
-{}
+EDLCollection::~EDLCollection() {}
 
 QString EDLCollection::generatorId() const
 {

@@ -43,19 +43,19 @@
 #include "meminfo.h"
 
 #include <QDebug>
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <errno.h>
 #include <unistd.h>
 
 /* Parse the contents of /proc/meminfo (in buf), return value of "name"
  * (example: MemTotal)
  * Returns -errno if the entry cannot be found. */
-static long long get_entry(const char* name, const char* buf)
+static long long get_entry(const char *name, const char *buf)
 {
-    const char* hit = strstr(buf, name);
+    const char *hit = strstr(buf, name);
     if (hit == NULL) {
         return -ENODATA;
     }
@@ -71,7 +71,7 @@ static long long get_entry(const char* name, const char* buf)
 }
 
 /* Like get_entry(), but exit if the value cannot be found */
-static long long get_entry_fatal(const char* name, const char* buf)
+static long long get_entry_fatal(const char *name, const char *buf)
 {
     const long long val = get_entry(name, buf);
     if (val < 0) {
@@ -82,7 +82,7 @@ static long long get_entry_fatal(const char* name, const char* buf)
 
 /* If the kernel does not provide MemAvailable (introduced in Linux 3.14),
  * approximate it using other data we can get */
-static long long available_guesstimate(const char* buf)
+static long long available_guesstimate(const char *buf)
 {
     long long Cached = get_entry_fatal("Cached:", buf);
     long long MemFree = get_entry_fatal("MemFree:", buf);
@@ -99,12 +99,12 @@ MemInfo read_meminfo()
 {
     // Note that we do not need to close static FDs that we ensure to
     // `fopen()` maximally once.
-    static FILE* fd;
+    static FILE *fd;
 
     // On Linux 5.3, "wc -c /proc/meminfo" counts 1391 bytes.
     // 8192 should be enough for the foreseeable future.
-    char buf[8192] = { 0 };
-    MemInfo m = { 0, 0, 0 };
+    char buf[8192] = {0};
+    MemInfo m = {0, 0, 0};
 
     if (fd == NULL)
         fd = fopen("/proc/meminfo", "r");

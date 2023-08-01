@@ -35,14 +35,14 @@ class PropertyTree : public QWidget
     Q_OBJECT
 
 public:
-    PropertyTree(const std::vector<Property*>& properties, QWidget* parent = nullptr);
+    PropertyTree(const std::vector<Property *> &properties, QWidget *parent = nullptr);
 
 private:
     void setup_ui();
 
-    std::vector<Property*> m_properties;
+    std::vector<Property *> m_properties;
 
-    QVBoxLayout* p_layout = nullptr;
+    QVBoxLayout *p_layout = nullptr;
 };
 
 class PropertiesBox : public QWidget
@@ -50,29 +50,29 @@ class PropertiesBox : public QWidget
     Q_OBJECT
 
 public:
-    explicit PropertiesBox(TcamCollection& collection, QWidget* parent = nullptr);
+    explicit PropertiesBox(TcamCollection &collection, QWidget *parent = nullptr);
     ~PropertiesBox();
 
 public slots:
 
-    void notify_device_lost(const QString& info);
+    void notify_device_lost(const QString &info);
     void refresh();
     void update_tab(int);
 
-    void keyPressEvent(QKeyEvent* event) override;
+    void keyPressEvent(QKeyEvent *event) override;
 
 signals:
 
-    void device_lost(const QString& info);
+    void device_lost(const QString &info);
     void update_category(QString name);
 
 private:
-    void initialize_dialog(TcamCollection& collection);
+    void initialize_dialog(TcamCollection &collection);
 
-    Ui::PropertiesBox* ui = nullptr;
+    Ui::PropertiesBox *ui = nullptr;
 
-    QThread* p_work_thread = nullptr;
-    PropertyWorker* p_worker = nullptr;
+    QThread *p_work_thread = nullptr;
+    PropertyWorker *p_worker = nullptr;
 
-    std::vector<Property*> m_properties;
+    std::vector<Property *> m_properties;
 };

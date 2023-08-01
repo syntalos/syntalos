@@ -19,8 +19,8 @@
 
 #include "config.h"
 
-#include <QCoreApplication>
 #include <QCommandLineParser>
+#include <QCoreApplication>
 #include <iostream>
 
 #include "readtsync.h"
@@ -31,15 +31,16 @@ int main(int argc, char *argv[])
     QCoreApplication::setApplicationName("syntalos-metaview");
     QCoreApplication::setApplicationVersion(PROJECT_VERSION);
 
-
     QCommandLineParser parser;
-    parser.setApplicationDescription(QStringLiteral("Syntalos MetaView\n\nRead and display metadata from (binary) files."));
+    parser.setApplicationDescription(
+        QStringLiteral("Syntalos MetaView\n\nRead and display metadata from (binary) files.")
+    );
     parser.addHelpOption();
     parser.addVersionOption();
 
-    QCommandLineOption tsyncOption(QStringLiteral("tsync"),
-                                   QStringLiteral("Read data from a time-sync (.tsync) file"),
-                                   QStringLiteral("file"));
+    QCommandLineOption tsyncOption(
+        QStringLiteral("tsync"), QStringLiteral("Read data from a time-sync (.tsync) file"), QStringLiteral("file")
+    );
     parser.addOption(tsyncOption);
 
     parser.process(a);

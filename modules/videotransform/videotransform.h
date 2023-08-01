@@ -19,10 +19,10 @@
 
 #pragma once
 
+#include "streams/frametype.h"
+#include <QIcon>
 #include <QObject>
 #include <QWidget>
-#include <QIcon>
-#include "streams/frametype.h"
 
 class QLabel;
 
@@ -35,7 +35,10 @@ public:
     explicit VideoTransform();
 
     virtual QString name() const = 0;
-    virtual QIcon icon() const { return QIcon::fromTheme("view-filter"); };
+    virtual QIcon icon() const
+    {
+        return QIcon::fromTheme("view-filter");
+    };
     virtual void createSettingsUi(QWidget *parent) = 0;
 
     void setOriginalSize(const cv::Size &size);

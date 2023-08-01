@@ -64,7 +64,6 @@ public:
         connect(m_evTimer, &QTimer::timeout, this, &TracePlotModule::checkNewData);
     }
 
-
     ModuleFeatures features() const override
     {
         return ModuleFeature::SHOW_DISPLAY;
@@ -76,7 +75,7 @@ public:
         m_traceDisplay->updatePortChannels();
     }
 
-    bool prepare(const TestSubject&) override
+    bool prepare(const TestSubject &) override
     {
         // reset trace plot data and ensure active subscriptions
         // are recognized

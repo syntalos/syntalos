@@ -20,11 +20,12 @@
 #ifndef MODULEGRAPHFORM_H
 #define MODULEGRAPHFORM_H
 
-#include <QWidget>
 #include "flowgraphview.h"
+#include <QWidget>
 
 #if !defined(DOXYGEN_SHOULD_SKIP_THIS)
-namespace Syntalos {
+namespace Syntalos
+{
 class Engine;
 class ModuleInfo;
 class AbstractModule;
@@ -32,14 +33,16 @@ class VarStreamInputPort;
 class StreamOutputPort;
 
 Q_DECLARE_LOGGING_CATEGORY(logGraphUi)
-}
+} // namespace Syntalos
 #endif // DOXYGEN_SHOULD_SKIP_THIS
 
-namespace Ui {
+namespace Ui
+{
 class ModuleGraphForm;
 }
 
-namespace Syntalos {
+namespace Syntalos
+{
 Q_DECLARE_LOGGING_CATEGORY(logGraphUi)
 }
 
@@ -61,8 +64,11 @@ public:
     bool modifyPossible() const;
     void setModifyPossible(bool allowModify);
 
-    FlowGraphEdge *updateConnectionHeat(const VarStreamInputPort *inPort, const StreamOutputPort *outPort,
-                                        ConnectionHeatLevel hlevel);
+    FlowGraphEdge *updateConnectionHeat(
+        const VarStreamInputPort *inPort,
+        const StreamOutputPort *outPort,
+        ConnectionHeatLevel hlevel
+    );
 
 private slots:
     void on_actionAddModule_triggered();
@@ -94,10 +100,10 @@ private:
     Engine *m_engine;
     bool m_modifyPossible;
     bool m_shutdown;
-    QHash<AbstractModule*, FlowGraphNode*> m_modNodeMap;
+    QHash<AbstractModule *, FlowGraphNode *> m_modNodeMap;
     QMenu *m_menu;
 
-    QHash<QString, QPair<FlowGraphNode*, QString>> m_connMemory;
+    QHash<QString, QPair<FlowGraphNode *, QString>> m_connMemory;
 
     FlowGraphNode *selectedSingleNode() const;
 };

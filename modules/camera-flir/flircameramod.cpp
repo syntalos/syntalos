@@ -83,8 +83,7 @@ public:
 
     ModuleFeatures features() const override
     {
-        return ModuleFeature::REALTIME |
-               ModuleFeature::SHOW_SETTINGS;
+        return ModuleFeature::REALTIME | ModuleFeature::SHOW_SETTINGS;
     }
 
     bool prepare(const TestSubject &) override
@@ -107,8 +106,7 @@ public:
 
         // set the required stream metadata for video capture
         m_outStream->setMetadataValue("framerate", framerate);
-        m_outStream->setMetadataValue("size", QSize(resolution.width,
-                                                    resolution.height));
+        m_outStream->setMetadataValue("size", QSize(resolution.width, resolution.height));
 
         // start the stream
         m_outStream->start();
@@ -174,7 +172,9 @@ public:
     void stop() override
     {
         m_running = false;
-        while (m_acqRunning) { std::this_thread::sleep_for(std::chrono::milliseconds(100)); };
+        while (m_acqRunning) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        };
         m_camSettingsWindow->setRunning(false);
         statusMessage(QString());
     }
@@ -202,7 +202,6 @@ public:
         m_camSettingsWindow->updateValues();
         return true;
     }
-
 };
 
 bool FLIRCameraMod::s_libVersionPrinted = false;
@@ -219,7 +218,9 @@ QString FLIRCameraModuleInfo::name() const
 
 QString FLIRCameraModuleInfo::description() const
 {
-    return QStringLiteral("Capture video using a camera from FLIR Systems, Inc. that is accessible via their Spinnaker SDK.");
+    return QStringLiteral(
+        "Capture video using a camera from FLIR Systems, Inc. that is accessible via their Spinnaker SDK."
+    );
 }
 
 AbstractModule *FLIRCameraModuleInfo::createModule(QObject *parent)

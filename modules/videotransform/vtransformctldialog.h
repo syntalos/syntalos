@@ -19,10 +19,11 @@
 
 #pragma once
 
-#include <QDialog>
 #include "vtransformlistmodel.h"
+#include <QDialog>
 
-namespace Ui {
+namespace Ui
+{
 class VTransformCtlDialog;
 }
 
@@ -41,7 +42,6 @@ public:
     QList<std::shared_ptr<VideoTransform>> transformList();
     QVariantHash serializeSettings() const;
     void loadSettings(const QVariantHash &settings);
-
 
 private slots:
     void on_btnAdd_clicked();

@@ -25,7 +25,8 @@
 
 #include "videowriter.h"
 
-namespace Ui {
+namespace Ui
+{
 class RecorderSettingsDialog;
 }
 
@@ -41,7 +42,7 @@ public:
     void setVideoNameFromSource(bool fromSource);
 
     QString videoName() const;
-    void setVideoName(const QString& value);
+    void setVideoName(const QString &value);
 
     void setSaveTimestamps(bool save);
     bool saveTimestamps() const;

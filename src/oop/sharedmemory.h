@@ -29,7 +29,7 @@ public:
     ~SharedMemory();
 
     void createShmKey();
-    void setShmKey(const QString& key);
+    void setShmKey(const QString &key);
     QString shmKey() const;
 
     QString lastError() const;
@@ -46,7 +46,7 @@ public:
     bool isAttached() const;
 
 private:
-    void setErrorFromErrno(const QString& hint);
+    void setErrorFromErrno(const QString &hint);
     QString m_shmKey;
     QString m_lastError;
 

@@ -19,8 +19,7 @@
 #include <QAbstractSpinBox>
 #include <cinttypes>
 #if (QT_VERSION < QT_VERSION_CHECK(5, 12, 0))
-enum StepTypeDef
-{
+enum StepTypeDef {
     DefaultStepType,
     AdaptiveDecimalStepType
 };
@@ -28,7 +27,6 @@ using StepType = StepTypeDef;
 #else
 using StepType = QAbstractSpinBox::StepType;
 #endif
-
 
 namespace tcam::tools::capture
 {
@@ -54,9 +52,9 @@ class TcamSpinBox : public QAbstractSpinBox
     Q_PROPERTY(qlonglong displayIntegerBase READ displayIntegerBase WRITE setDisplayIntegerBase)
     Q_PROPERTY(bool wrapping READ wrapping WRITE setWrapping)
 public:
-    explicit TcamSpinBox(QWidget* parent = nullptr);
-    TcamSpinBox(const TcamSpinBox&) = delete;
-    TcamSpinBox& operator=(const TcamSpinBox&) = delete;
+    explicit TcamSpinBox(QWidget *parent = nullptr);
+    TcamSpinBox(const TcamSpinBox &) = delete;
+    TcamSpinBox &operator=(const TcamSpinBox &) = delete;
 
 private:
     virtual ~TcamSpinBox();
@@ -76,11 +74,11 @@ public:
     void setRange(qlonglong min, qlonglong max);
 
     QString prefix() const;
-    void setPrefix(const QString& prefix);
+    void setPrefix(const QString &prefix);
 
     QString suffix() const;
-    void setSuffix(const QString& suffix);
-    
+    void setSuffix(const QString &suffix);
+
     int displayIntegerBase() const;
     void setDisplayIntegerBase(int base);
 
@@ -103,29 +101,28 @@ public:
 
     QString cleanText() const;
 
-
     QSize sizeHint() const override;
 
-    QValidator::State validate(QString& input, int& pos) const override;
-    virtual void fixup(QString& str) const override;
+    QValidator::State validate(QString &input, int &pos) const override;
+    virtual void fixup(QString &str) const override;
     virtual QAbstractSpinBox::StepEnabled stepEnabled() const override;
 
 public slots:
 
     void setValue(qlonglong val);
     void slotEditorCursorPositionChanged(int oldpos, int newpos);
-    void slotEditorTextChanged(const QString& t);
+    void slotEditorTextChanged(const QString &t);
 
 signals:
 
     void valueChanged(qlonglong v);
-    void valueChanged(const QString& v);
+    void valueChanged(const QString &v);
 
 protected:
     void connectLineEdit();
 
 private:
-    TcamSpinBoxImpl* m_impl;
+    TcamSpinBoxImpl *m_impl;
 };
 
 } // namespace tcam::tools::capture

@@ -21,19 +21,19 @@
 #include "ui_miniscopesettingsdialog.h"
 
 #include <QDebug>
-#include <QVariant>
 #include <QMessageBox>
+#include <QVariant>
 #include <miniscope.h>
 
 #include "mscontrolwidget.h"
 
 using namespace MScope;
 
-MiniscopeSettingsDialog::MiniscopeSettingsDialog(MScope::Miniscope *mscope, QWidget *parent) :
-    QDialog(parent),
-    ui(new Ui::MiniscopeSettingsDialog),
-    m_initDone(false),
-    m_mscope(mscope)
+MiniscopeSettingsDialog::MiniscopeSettingsDialog(MScope::Miniscope *mscope, QWidget *parent)
+    : QDialog(parent),
+      ui(new Ui::MiniscopeSettingsDialog),
+      m_initDone(false),
+      m_mscope(mscope)
 {
     ui->setupUi(this);
     setWindowIcon(QIcon(":/icons/generic-config"));
@@ -138,10 +138,9 @@ void MiniscopeSettingsDialog::on_deviceTypeCB_currentIndexChanged(const QString 
 
     // load new controls
     if (!m_mscope->loadDeviceConfig(arg1)) {
-        QMessageBox::critical(this,
-                              "Error",
-                              QString("Unable to load device configuration: %1")
-                              .arg(m_mscope->lastError()));
+        QMessageBox::critical(
+            this, "Error", QString("Unable to load device configuration: %1").arg(m_mscope->lastError())
+        );
         return;
     }
 
@@ -214,4 +213,3 @@ void MiniscopeSettingsDialog::on_orientationIndicatorCheckBox_toggled(bool check
 {
     m_mscope->setBNOIndicatorVisible(checked);
 }
-

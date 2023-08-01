@@ -19,29 +19,28 @@
 
 #include "firmataiomodule.h"
 
-#include <QDebug>
-#include <QTimer>
-#include <QThread>
-#include "firmatasettingsdialog.h"
 #include "firmata/serialport.h"
+#include "firmatasettingsdialog.h"
+#include <QDebug>
+#include <QThread>
+#include <QTimer>
 
 #include "utils/misc.h"
 
 SYNTALOS_MODULE(FirmataIOModule)
 
-namespace Syntalos {
-    Q_LOGGING_CATEGORY(logFmMod, "mod.firmata")
+namespace Syntalos
+{
+Q_LOGGING_CATEGORY(logFmMod, "mod.firmata")
 }
 
-enum class PinKind
-{
+enum class PinKind {
     Unknown,
     Digital,
     Analog
 };
 
-struct FmPin
-{
+struct FmPin {
     PinKind kind;
     bool output;
     uint8_t id;
@@ -81,9 +80,7 @@ public:
         m_fmStream = registerOutputPort<FirmataData>(QStringLiteral("fmdata"), QStringLiteral("Firmata Data"));
     }
 
-    ~FirmataIOModule() override
-    {
-    }
+    ~FirmataIOModule() override {}
 
     ModuleFeatures features() const override
     {
@@ -174,7 +171,8 @@ public:
                 pinSignalPulse(ctl.pinName, ctl.value);
             break;
         default:
-            qCWarning(logFmMod) << "Received not-implemented Firmata instruction of type" << QString::number(static_cast<int>(ctl.command));
+            qCWarning(logFmMod) << "Received not-implemented Firmata instruction of type"
+                                << QString::number(static_cast<int>(ctl.command));
             break;
         }
     }
@@ -227,7 +225,11 @@ public:
     {
         auto pin = m_namePinMap.value(pinName);
         if (pin.kind == PinKind::Unknown)
-            qCCritical(logFmMod) << QStringLiteral("Unable to deliver message to pin '%1' (pin does not exist, it needs to be registered first)").arg(pinName);
+            qCCritical(logFmMod)
+                << QStringLiteral(
+                       "Unable to deliver message to pin '%1' (pin does not exist, it needs to be registered first)"
+                   )
+                       .arg(pinName);
         return pin;
     }
 
@@ -247,9 +249,9 @@ public:
     void pinSignalPulse(int pinId, int pulseDuration = 0)
     {
         if (pulseDuration <= 0)
-            pulseDuration = 50;  // 50 msec is our default pulse length
+            pulseDuration = 50; // 50 msec is our default pulse length
         else if (pulseDuration > 4000)
-            pulseDuration = 4000;  // clamp pulse length at 4 sec max
+            pulseDuration = 4000; // clamp pulse length at 4 sec max
         pinSetValue(pinId, true);
         delay(pulseDuration);
         pinSetValue(pinId, false);
@@ -280,7 +282,7 @@ private slots:
                     fdata.isDigital = true;
                     fdata.pinId = p.id;
                     fdata.pinName = m_pinNameMap.value(p.id);
-                    fdata.value = (value & (1 << (p.id - first)))? 1 : 0;
+                    fdata.value = (value & (1 << (p.id - first))) ? 1 : 0;
 
                     m_fmStream->push(fdata);
                 }
@@ -323,7 +325,9 @@ QString FirmataIOModuleInfo::description() const
 
 QString FirmataIOModuleInfo::license() const
 {
-    return QStringLiteral("Module licensed under GPL-3.0+, uses the Qt Firmata implementation © 2016 Calle Laakkonen [GPL-3.0+]");
+    return QStringLiteral(
+        "Module licensed under GPL-3.0+, uses the Qt Firmata implementation © 2016 Calle Laakkonen [GPL-3.0+]"
+    );
 }
 
 AbstractModule *FirmataIOModuleInfo::createModule(QObject *parent)

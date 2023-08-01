@@ -19,16 +19,15 @@
 
 #include "flircamera.h"
 
+#include <QDebug>
 #include <QFileInfo>
 #include <QSet>
-#include <QDebug>
 
 namespace spn_gic = Spinnaker::GenICam;
 
 Q_LOGGING_CATEGORY(logModFlirCam, "mod.cam-flir")
 
-enum class FLIRCamValueChange
-{
+enum class FLIRCamValueChange {
     GAIN,
     GAMMA,
     EXPOSURE
@@ -44,8 +43,7 @@ inline uint qHash(FLIRCamValueChange key, uint seed)
 class FLIRCamera::Private
 {
 public:
-    Private()
-    {}
+    Private() {}
 
     QString lastError;
     std::chrono::time_point<symaster_clock> startTime;
@@ -89,7 +87,8 @@ FLIRCamera::FLIRCamera()
 FLIRCamera::~FLIRCamera()
 {
     if (d->activeCam.IsValid())
-        qCWarning(logModFlirCam).noquote() << "Deleting camera class while camera was still loaded and active. Acquisition should have been stopped before.";
+        qCWarning(logModFlirCam).noquote() << "Deleting camera class while camera was still loaded and active. "
+                                              "Acquisition should have been stopped before.";
     terminateRun();
 }
 
@@ -107,8 +106,10 @@ void FLIRCamera::terminateRun()
 {
     if (d->acqThreadId != std::this_thread::get_id()) {
         d->running = false;
-        qCCritical(logModFlirCam).noquote() << "Attempt to shut down camera in a different thread than where it was initialized in was ignored, since the Spinnaker API is not threadsafe or reentrant."
-                                            << "Please fix this API usage error.";
+        qCCritical(logModFlirCam).noquote()
+            << "Attempt to shut down camera in a different thread than where it was initialized in was ignored, since "
+               "the Spinnaker API is not threadsafe or reentrant."
+            << "Please fix this API usage error.";
         return;
     }
 
@@ -148,7 +149,7 @@ QString FLIRCamera::lastError() const
 /**
  * Disables heartbeat on GEV cameras so debugging does not incur timeout errors
  */
-static bool disableGEVHeartbeat(spn_ga::INodeMap& nodeMap, spn_ga::INodeMap& nodeMapTLDevice)
+static bool disableGEVHeartbeat(spn_ga::INodeMap &nodeMap, spn_ga::INodeMap &nodeMapTLDevice)
 {
     // Write to boolean node controlling the camera's heartbeat
     //
@@ -171,14 +172,17 @@ static bool disableGEVHeartbeat(spn_ga::INodeMap& nodeMap, spn_ga::INodeMap& nod
         return false;
     } else {
         if (ptrDeviceType->GetIntValue() == spn::DeviceTypeEnum::DeviceType_GigEVision) {
-            qDebug() << "FLIR Camera:" << "Attempting to disable GigE camera heartbeat before continuing";
+            qDebug() << "FLIR Camera:"
+                     << "Attempting to disable GigE camera heartbeat before continuing";
             spn_ga::CBooleanPtr ptrDeviceHeartbeat = nodeMap.GetNode("GevGVCPHeartbeatDisable");
             if (!IsAvailable(ptrDeviceHeartbeat) || !IsWritable(ptrDeviceHeartbeat)) {
-                qDebug() << "FLIR Camera:" << "Unable to disable heartbeat on camera.";
+                qDebug() << "FLIR Camera:"
+                         << "Unable to disable heartbeat on camera.";
                 return false;
             } else {
                 ptrDeviceHeartbeat->SetValue(true);
-                qDebug() << "FLIR Camera:" << "WARNING: Heartbeat on GigE camera disabled for the rest of Debug Mode."
+                qDebug() << "FLIR Camera:"
+                         << "WARNING: Heartbeat on GigE camera disabled for the rest of Debug Mode."
                          << "Power cycle camera when done debugging to re-enable the heartbeat.";
             }
         }
@@ -218,7 +222,7 @@ bool FLIRCamera::applyInitialCamParameters(spn_ga::INodeMap &nodeMap)
         d->resolution = cv::Size(ptrWidth->GetValue(), d->resolution.height);
     } else {
         d->lastError = QStringLiteral("Unable to set frame width to %1, this dimension may not be supported")
-                                      .arg(d->resolution.width);
+                           .arg(d->resolution.width);
         return false;
     }
 
@@ -229,7 +233,7 @@ bool FLIRCamera::applyInitialCamParameters(spn_ga::INodeMap &nodeMap)
         d->resolution = cv::Size(d->resolution.width, ptrHeight->GetValue());
     } else {
         d->lastError = QStringLiteral("Unable to set frame height to %1, this dimension may not be supported")
-                                      .arg(d->resolution.height);
+                           .arg(d->resolution.height);
         return false;
     }
 
@@ -249,7 +253,10 @@ bool FLIRCamera::applyInitialCamParameters(spn_ga::INodeMap &nodeMap)
     if (IsAvailable(ptrAcqFPSEnable) && IsWritable(ptrAcqFPSEnable)) {
         ptrAcqFPSEnable->SetValue(true);
     } else {
-        d->lastError = QStringLiteral("Unable to get manual control over acquisition framerate. This feature may be unsupported by the selected camera.");
+        d->lastError = QStringLiteral(
+            "Unable to get manual control over acquisition framerate. This feature may be unsupported by the selected "
+            "camera."
+        );
         return false;
     }
     spn_ga::CFloatPtr ptrFramerate = nodeMap.GetNode("AcquisitionFrameRate");
@@ -258,7 +265,7 @@ bool FLIRCamera::applyInitialCamParameters(spn_ga::INodeMap &nodeMap)
         d->framerate = ptrFramerate->GetValue();
     } else {
         d->lastError = QStringLiteral("Unable to set framerate to %1, this action may be unsupported.")
-                                      .arg(d->framerate);
+                           .arg(d->framerate);
         return false;
     }
 
@@ -294,20 +301,21 @@ bool FLIRCamera::initAcquisition()
         auto camList = d->system->GetCameras();
         d->activeCam = camList.GetBySerial(d->camSerial.toStdString());
         camList.Clear();
-    } catch (Spinnaker::Exception& e) {
+    } catch (Spinnaker::Exception &e) {
         d->lastError = QStringLiteral("Unable to get camera list: %1").arg(QString::fromStdString(e.what()));
         terminateRun();
         return false;
     }
 
     if (!d->activeCam.IsValid()) {
-        d->lastError = QStringLiteral("Unable to set up FLIR Camera: Couldn't find device with serial %1").arg(d->camSerial);
+        d->lastError = QStringLiteral("Unable to set up FLIR Camera: Couldn't find device with serial %1")
+                           .arg(d->camSerial);
         terminateRun();
         return false;
     }
 
     // update camera serial number, just in case
-    spn_ga::INodeMap& nodeMapTLDevice = d->activeCam->GetTLDeviceNodeMap();
+    spn_ga::INodeMap &nodeMapTLDevice = d->activeCam->GetTLDeviceNodeMap();
     spn_ga::CStringPtr ptrDeviceID = nodeMapTLDevice.GetNode("DeviceID");
     if (IsAvailable(ptrDeviceID) && IsReadable(ptrDeviceID)) {
         const auto deviceId = ptrDeviceID->ToString();
@@ -333,14 +341,18 @@ bool FLIRCamera::initAcquisition()
         // set acquisition mode to continuous
         spn_ga::CEnumerationPtr ptrAcquisitionMode = d->activeCam->GetNodeMap().GetNode("AcquisitionMode");
         if (!IsAvailable(ptrAcquisitionMode) || !IsWritable(ptrAcquisitionMode)) {
-            d->lastError = QStringLiteral("Unable to set acquisition mode to continuous (node retrieval; camera %1)").arg(serial());
+            d->lastError = QStringLiteral("Unable to set acquisition mode to continuous (node retrieval; camera %1)")
+                               .arg(serial());
             terminateRun();
             return false;
         }
 
         spn_ga::CEnumEntryPtr ptrAcquisitionModeContinuous = ptrAcquisitionMode->GetEntryByName("Continuous");
         if (!IsAvailable(ptrAcquisitionModeContinuous) || !IsReadable(ptrAcquisitionModeContinuous)) {
-            d->lastError = QStringLiteral("Unable to set acquisition mode to continuous (entry 'continuous' retrieval camera %1)").arg(serial());
+            d->lastError = QStringLiteral(
+                               "Unable to set acquisition mode to continuous (entry 'continuous' retrieval camera %1)"
+            )
+                               .arg(serial());
             terminateRun();
             return false;
         }
@@ -351,8 +363,9 @@ bool FLIRCamera::initAcquisition()
         // begin acquiring images
         d->activeCam->BeginAcquisition();
         d->running = true;
-    } catch (Spinnaker::Exception& e) {
-        d->lastError = QStringLiteral("Unable to initialize data acquisition: %1").arg(QString::fromStdString(e.what()));
+    } catch (Spinnaker::Exception &e) {
+        d->lastError = QStringLiteral("Unable to initialize data acquisition: %1")
+                           .arg(QString::fromStdString(e.what()));
         terminateRun();
         return false;
     }
@@ -367,8 +380,10 @@ void FLIRCamera::endAcquisition()
 
     if (d->acqThreadId != std::this_thread::get_id()) {
         d->running = false;
-        qCCritical(logModFlirCam).noquote() << "Ignored attempt to shut down camera acquisition in a different thread than where it was started, since the Spinnaker API is not threadsafe or reentrant."
-                                            << "Please fix this API usage error.";
+        qCCritical(logModFlirCam).noquote()
+            << "Ignored attempt to shut down camera acquisition in a different thread than where it was started, since "
+               "the Spinnaker API is not threadsafe or reentrant."
+            << "Please fix this API usage error.";
         return;
     }
 
@@ -385,7 +400,7 @@ void FLIRCamera::endAcquisition()
         // deinitialize camera
         qCDebug(logModFlirCam).noquote() << "Camera cleanup runtime objects";
         terminateRun();
-    } catch (Spinnaker::Exception& e) {
+    } catch (Spinnaker::Exception &e) {
         qWarning().noquote().nospace() << "FLIR Camera: Issue while trying to end data acquisition. " << e.what();
     }
 }
@@ -422,9 +437,10 @@ bool FLIRCamera::acquireFrame(Frame &frame, SecondaryClockSynchronizer *clockSyn
                     }
                     break;
                 default:
-                    qCDebug(logModFlirCam).noquote() << "No value change code implemented for property change for" << static_cast<int>(change);
+                    qCDebug(logModFlirCam).noquote()
+                        << "No value change code implemented for property change for" << static_cast<int>(change);
                 }
-            } catch (Spinnaker::Exception&) {
+            } catch (Spinnaker::Exception &) {
                 // Ignore any problems when changing the values for now.
             };
         }
@@ -437,7 +453,9 @@ bool FLIRCamera::acquireFrame(Frame &frame, SecondaryClockSynchronizer *clockSyn
         spn::ImagePtr image;
         auto frameRecvTime = FUNC_DONE_TIMESTAMP(d->startTime, image = d->activeCam->GetNextImage(10000));
         if (image->IsIncomplete()) {
-            d->lastError = QStringLiteral("FLIR Camera %1: Frame dropped, image status was %1").arg(serial()).arg(image->GetImageStatus());
+            d->lastError = QStringLiteral("FLIR Camera %1: Frame dropped, image status was %1")
+                               .arg(serial())
+                               .arg(image->GetImageStatus());
             image->Release();
             return false;
         }
@@ -450,27 +468,27 @@ bool FLIRCamera::acquireFrame(Frame &frame, SecondaryClockSynchronizer *clockSyn
 
         cv::Mat tmpMat;
         if (pixFmt == spn::PixelFormatEnums::PixelFormat_Mono8)
-            tmpMat = cv::Mat(rows, cols, CV_8UC1, static_cast<unsigned char*>(data), stride);
+            tmpMat = cv::Mat(rows, cols, CV_8UC1, static_cast<unsigned char *>(data), stride);
         else if (pixFmt == spn::PixelFormatEnums::PixelFormat_BGR8)
-            tmpMat = cv::Mat(rows, cols, CV_8UC3, static_cast<unsigned char*>(data), stride);
+            tmpMat = cv::Mat(rows, cols, CV_8UC3, static_cast<unsigned char *>(data), stride);
         else if (pixFmt == spn::PixelFormatEnums::PixelFormat_BGR16)
-            tmpMat = cv::Mat(rows, cols, CV_16UC3, static_cast<unsigned char*>(data), stride);
+            tmpMat = cv::Mat(rows, cols, CV_16UC3, static_cast<unsigned char *>(data), stride);
         else {
             // Convert image to BGR8 transparently if we can not handle its original format natively
             auto convertedImage = image->Convert(spn::PixelFormat_BGR8, spn::HQ_LINEAR);
             image->Release();
             image = convertedImage;
             data = image->GetData();
-            tmpMat = cv::Mat(rows, cols, CV_8UC3, static_cast<unsigned char*>(data), stride);
+            tmpMat = cv::Mat(rows, cols, CV_8UC3, static_cast<unsigned char *>(data), stride);
         }
 
         // create deep copy to our final frame
         tmpMat.copyTo(frame.mat);
 
         const auto chunkData = image->GetChunkData();
-        // get the device timestamp. FIXME: The Spinnaker API doesn't explicitly mention the timestamp unit, but it appears
-        // to be nanoseconds (at least for non-GigE cameras, those may return ticks (?))
-        // This should be tested with more cameras, to ensure we get an accurate time.
+        // get the device timestamp. FIXME: The Spinnaker API doesn't explicitly mention the timestamp unit, but it
+        // appears to be nanoseconds (at least for non-GigE cameras, those may return ticks (?)) This should be tested
+        // with more cameras, to ensure we get an accurate time.
         const size_t timestampUs = std::lround(chunkData.GetTimestamp() / 1000.0);
 
         // adjust the received time if necessary, gather clock sync information
@@ -480,7 +498,7 @@ bool FLIRCamera::acquireFrame(Frame &frame, SecondaryClockSynchronizer *clockSyn
 
         // release image
         image->Release();
-    } catch (Spinnaker::Exception& e) {
+    } catch (Spinnaker::Exception &e) {
         d->lastError = QStringLiteral("Unable to acquire image: %1").arg(e.what());
         return false;
     }
@@ -511,7 +529,7 @@ void FLIRCamera::setExposureTime(microseconds_t time)
 {
     const std::lock_guard<std::mutex> lock(d->valChangeMutex);
 
-    d->exposureTimeUs= time.count();
+    d->exposureTimeUs = time.count();
 
     d->valChangeNotify.insert(FLIRCamValueChange::EXPOSURE);
     d->haveValueChange = true;
@@ -556,12 +574,13 @@ void FLIRCamera::printLibraryVersion()
 {
     auto system = spn::System::GetInstance();
     const auto spinnakerLibraryVersion = system->GetLibraryVersion();
-    qCDebug(logModFlirCam).noquote().nospace() << "Using Spinnaker library version: " << spinnakerLibraryVersion.major << "." << spinnakerLibraryVersion.minor
-                                               << "." << spinnakerLibraryVersion.type << "." << spinnakerLibraryVersion.build;
+    qCDebug(logModFlirCam).noquote().nospace()
+        << "Using Spinnaker library version: " << spinnakerLibraryVersion.major << "." << spinnakerLibraryVersion.minor
+        << "." << spinnakerLibraryVersion.type << "." << spinnakerLibraryVersion.build;
     system->ReleaseInstance();
 }
 
-QList<QPair<QString, QString> > FLIRCamera::availableCameras()
+QList<QPair<QString, QString>> FLIRCamera::availableCameras()
 {
     QList<QPair<QString, QString>> res;
 
@@ -574,7 +593,7 @@ QList<QPair<QString, QString> > FLIRCamera::availableCameras()
         QString camDisplayName;
         QString camSerial;
         auto cam = camList.GetByIndex(i);
-        spn_ga::INodeMap& nodeMapTLDevice = cam->GetTLDeviceNodeMap();
+        spn_ga::INodeMap &nodeMapTLDevice = cam->GetTLDeviceNodeMap();
 
         spn_ga::CStringPtr ptrDeviceVendorName = nodeMapTLDevice.GetNode("DeviceVendorName");
         if (IsAvailable(ptrDeviceVendorName) && IsReadable(ptrDeviceVendorName)) {
@@ -587,7 +606,8 @@ QList<QPair<QString, QString> > FLIRCamera::availableCameras()
         spn_ga::CStringPtr ptrDeviceModelName = nodeMapTLDevice.GetNode("DeviceModelName");
         if (IsAvailable(ptrDeviceModelName) && IsReadable(ptrDeviceModelName)) {
             const auto deviceModelName = ptrDeviceModelName->ToString();
-            camDisplayName = QStringLiteral("%1 - %2").arg(camDisplayName).arg(QString::fromUtf8(deviceModelName.c_str()));
+            camDisplayName =
+                QStringLiteral("%1 - %2").arg(camDisplayName).arg(QString::fromUtf8(deviceModelName.c_str()));
             if (camDisplayName.isEmpty())
                 camDisplayName = QStringLiteral("Unknown Device");
         }

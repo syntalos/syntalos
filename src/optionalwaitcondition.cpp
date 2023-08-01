@@ -20,8 +20,8 @@
 #include <QMutex>
 #include <QWaitCondition>
 
-#include "optionalwaitcondition.h"
 #include "moduleapi.h"
+#include "optionalwaitcondition.h"
 
 using namespace Syntalos;
 

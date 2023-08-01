@@ -19,31 +19,31 @@
 
 #include "videowriter.h"
 
-#include <string.h>
-#include <iostream>
-#include <atomic>
-#include <thread>
-#include <queue>
-#include <fstream>
-#include <QFileInfo>
 #include <QDateTime>
+#include <QFileInfo>
+#include <atomic>
+#include <fstream>
+#include <iostream>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <queue>
+#include <string.h>
 #include <systemd/sd-device.h>
+#include <thread>
 extern "C" {
-#include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
-#include <libavutil/avutil.h>
-#include <libavutil/pixdesc.h>
+#include <libavformat/avformat.h>
 #include <libavutil/avconfig.h>
+#include <libavutil/avutil.h>
 #include <libavutil/imgutils.h>
+#include <libavutil/pixdesc.h>
 #include <libswscale/swscale.h>
 }
 
 #include "tsyncfile.h"
 
-
-namespace Syntalos {
-    Q_LOGGING_CATEGORY(logVRecorder, "mod.videorecorder")
+namespace Syntalos
+{
+Q_LOGGING_CATEGORY(logVRecorder, "mod.videorecorder")
 }
 
 VideoCodec stringToVideoCodec(const std::string &str)
@@ -95,7 +95,7 @@ std::string videoCodecToString(VideoCodec codec)
  */
 inline uint qHash(const VideoCodec &key)
 {
-    return qHash((uint) key);
+    return qHash((uint)key);
 }
 
 std::string videoContainerToString(VideoContainer container)
@@ -234,7 +234,8 @@ CodecProperties::CodecProperties(VideoCodec codec)
 
     default:
         throw std::runtime_error(QStringLiteral("No properties found for codec: %1")
-                                 .arg(QString::fromStdString(videoCodecToString(codec))).toStdString());
+                                     .arg(QString::fromStdString(videoCodecToString(codec)))
+                                     .toStdString());
     }
 }
 
@@ -267,12 +268,12 @@ QVariantHash CodecProperties::toVariant() const
     return v;
 }
 
-CodecProperties::~CodecProperties()
-{}
+CodecProperties::~CodecProperties() {}
 
 CodecProperties::CodecProperties(const CodecProperties &rhs)
     : d(new CodecProperties::Private(*rhs.d))
-{}
+{
+}
 
 CodecProperties &CodecProperties::operator=(const CodecProperties &rhs)
 {
@@ -417,8 +418,9 @@ public:
     {
         initialized = false;
         container = VideoContainer::Matroska;
-        fileSliceIntervalMin = 0;  // never slice our recording by default
-        captureStartTimestamp = std::chrono::milliseconds(0); //by default we assume the first frame was recorded at timepoint 0
+        fileSliceIntervalMin = 0; // never slice our recording by default
+        captureStartTimestamp = std::chrono::milliseconds(0
+        ); // by default we assume the first frame was recorded at timepoint 0
 
         encFrame = nullptr;
         inputFrame = nullptr;
@@ -514,12 +516,14 @@ static AVFrame *vw_alloc_frame(int pix_fmt, int width, int height, bool allocate
 
     auto size = av_image_get_buffer_size(static_cast<AVPixelFormat>(pix_fmt), width, height, 1);
     if (allocate) {
-        aframe_buf = static_cast<uint8_t*>(malloc(static_cast<size_t>(size)));
+        aframe_buf = static_cast<uint8_t *>(malloc(static_cast<size_t>(size)));
         if (!aframe_buf) {
             av_free(aframe);
             return nullptr;
         }
-        av_image_fill_arrays(aframe->data, aframe->linesize, aframe_buf, static_cast<AVPixelFormat>(pix_fmt), width, height, 1);
+        av_image_fill_arrays(
+            aframe->data, aframe->linesize, aframe_buf, static_cast<AVPixelFormat>(pix_fmt), width, height, 1
+        );
     }
 
     return aframe;
@@ -530,12 +534,14 @@ void VideoWriter::initializeHWAccell()
     // DRI node for HW acceleration
     const auto hwDevice = d->codecProps.renderNode();
 
-    int ret = av_hwdevice_ctx_create(&d->hwDevCtx,
-                                     av_hwdevice_find_type_by_name("vaapi"),
-                                     qPrintable(hwDevice), nullptr, 0);
+    int ret = av_hwdevice_ctx_create(
+        &d->hwDevCtx, av_hwdevice_find_type_by_name("vaapi"), qPrintable(hwDevice), nullptr, 0
+    );
 
     if (ret != 0)
-        throw std::runtime_error(QStringLiteral("Failed to create hardware encoding device for %1: %2").arg(hwDevice).arg(ret).toStdString());
+        throw std::runtime_error(
+            QStringLiteral("Failed to create hardware encoding device for %1: %2").arg(hwDevice).arg(ret).toStdString()
+        );
 
     d->hwFrameCtx = av_hwframe_ctx_alloc(d->hwDevCtx);
     if (!d->hwFrameCtx) {
@@ -549,7 +555,7 @@ void VideoWriter::initializeHWAccell()
         throw std::runtime_error("Failed to get hwframe constraints");
     }
 
-    auto ctx = (AVHWFramesContext*) d->hwFrameCtx->data;
+    auto ctx = (AVHWFramesContext *)d->hwFrameCtx->data;
     ctx->width = d->width;
     ctx->height = d->height;
     ctx->format = cst->valid_hw_formats[0];
@@ -654,8 +660,10 @@ void VideoWriter::initializeInternal()
             throw std::runtime_error("Unable to find hardware-accelerated version of the selected codec.");
 
         if (vcodec == nullptr)
-            throw std::runtime_error(QStringLiteral("Unable to find suitable hardware video encoder for codec %1. Your accelerator may not support encoding with this codec.")
-                                     .arg(videoCodecToString(d->codecProps.codec()).c_str()).toStdString());
+            throw std::runtime_error(QStringLiteral("Unable to find suitable hardware video encoder for codec %1. Your "
+                                                    "accelerator may not support encoding with this codec.")
+                                         .arg(videoCodecToString(d->codecProps.codec()).c_str())
+                                         .toStdString());
     } else {
         // No hardware acceleration, select software encoder
         // We only use SVT-AV1 for AV1 encoding, because it is much faster and even
@@ -667,12 +675,19 @@ void VideoWriter::initializeInternal()
             vcodec = avcodec_find_encoder(codecId);
     }
     if (vcodec == nullptr)
-        throw std::runtime_error(QStringLiteral("Unable to find suitable video encoder for codec %1. This codec may not have been enabled at compile time or the system is missing the required encoder.")
-                                 .arg(videoCodecToString(d->codecProps.codec()).c_str()).toStdString());
+        throw std::runtime_error(
+            QStringLiteral("Unable to find suitable video encoder for codec %1. This codec may not have been enabled "
+                           "at compile time or the system is missing the required encoder.")
+                .arg(videoCodecToString(d->codecProps.codec()).c_str())
+                .toStdString()
+        );
 
     if ((d->fps.num / d->fps.den) > 240 && QString::fromUtf8(vcodec->name) == "libsvtav1")
-        throw std::runtime_error(QStringLiteral("Can not encode videos with a framerate higher than 240 FPS using the %1 encoder.")
-                                 .arg(vcodec->name).toStdString());
+        throw std::runtime_error(
+            QStringLiteral("Can not encode videos with a framerate higher than 240 FPS using the %1 encoder.")
+                .arg(vcodec->name)
+                .toStdString()
+        );
 
     d->cctx = avcodec_alloc_context3(vcodec);
     d->selectedEncoderName = QString::fromUtf8(vcodec->name);
@@ -699,9 +714,10 @@ void VideoWriter::initializeInternal()
         d->cctx->thread_count = d->codecProps.threadCount();
 
     if (d->codecProps.codec() == VideoCodec::Raw)
-        d->encPixFormat = d->inputPixFormat == AV_PIX_FMT_GRAY8 ||
-                                d->inputPixFormat == AV_PIX_FMT_GRAY16LE ||
-                                d->inputPixFormat == AV_PIX_FMT_GRAY16BE ? d->inputPixFormat : AV_PIX_FMT_YUV420P;
+        d->encPixFormat = d->inputPixFormat == AV_PIX_FMT_GRAY8 || d->inputPixFormat == AV_PIX_FMT_GRAY16LE
+                                  || d->inputPixFormat == AV_PIX_FMT_GRAY16BE
+                              ? d->inputPixFormat
+                              : AV_PIX_FMT_YUV420P;
 
     if (d->octx->oformat->flags & AVFMT_GLOBALHEADER)
         d->cctx->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
@@ -724,8 +740,7 @@ void VideoWriter::initializeInternal()
 
     if (d->codecProps.useVaapi()) {
         // some hardware-accelerated codecs use different options for some reason
-        if (d->codecProps.codec() == VideoCodec::HEVC &&
-            d->codecProps.mode() == CodecProperties::ConstantQuality)
+        if (d->codecProps.codec() == VideoCodec::HEVC && d->codecProps.mode() == CodecProperties::ConstantQuality)
             av_dict_set_int(&codecopts, "qp", d->codecProps.quality(), 0);
     }
 
@@ -758,7 +773,8 @@ void VideoWriter::initializeInternal()
             std::cerr << "The MPEG-4 codec has no lossless preset, switching to lossy compression." << std::endl;
             d->codecProps.setLossless(false);
             break;
-        default: break;
+        default:
+            break;
         }
     } else {
         // not lossless
@@ -793,8 +809,8 @@ void VideoWriter::initializeInternal()
     }
 
     if (d->codecProps.codec() == VideoCodec::FFV1) {
-        d->codecProps.setLossless(true); // this codec is always lossless
-        d->cctx->level = 3; // Ensure we use FFV1 v3
+        d->codecProps.setLossless(true);               // this codec is always lossless
+        d->cctx->level = 3;                            // Ensure we use FFV1 v3
         av_dict_set_int(&codecopts, "slicecrc", 1, 0); // Add CRC information to each slice
         av_dict_set_int(&codecopts, "slices", 24, 0);  // Use 24 slices
         av_dict_set_int(&codecopts, "coder", 1, 0);    // Range coder
@@ -802,7 +818,7 @@ void VideoWriter::initializeInternal()
 
         // NOTE: For archival use, GOP-size should be 1, but that also increases the file size quite a bit.
         // Keeping a good balance between recording space/performance/integrity is difficult sometimes.
-        //av_dict_set_int(&codecopts, "g", 1, 0);
+        // av_dict_set_int(&codecopts, "g", 1, 0);
     }
 
     // Adjust pixel color formats for selected video codecs
@@ -813,7 +829,8 @@ void VideoWriter::initializeInternal()
         if (d->inputPixFormat == AV_PIX_FMT_GRAY16LE)
             d->encPixFormat = AV_PIX_FMT_GRAY8;
         break;
-    default: break;
+    default:
+        break;
     }
 
     // set pixel format to encoder pixel format, unless we are in
@@ -832,7 +849,9 @@ void VideoWriter::initializeInternal()
     if (ret < 0) {
         finalizeInternal(false);
         av_dict_free(&codecopts);
-        throw std::runtime_error(QStringLiteral("Failed to open video encoder with the current parameters: %1").arg(ret).toStdString());
+        throw std::runtime_error(
+            QStringLiteral("Failed to open video encoder with the current parameters: %1").arg(ret).toStdString()
+        );
     }
 
     // stream codec parameters must be set after opening the encoder
@@ -840,17 +859,19 @@ void VideoWriter::initializeInternal()
     d->vstrm->r_frame_rate = d->vstrm->avg_frame_rate = d->fps;
 
     // initialize sample scaler
-    d->swsctx = sws_getCachedContext(nullptr,
-                                     d->width,
-                                     d->height,
-                                     d->inputPixFormat,
-                                     d->width,
-                                     d->height,
-                                     d->encPixFormat,
-                                     SWS_BICUBIC,
-                                     nullptr,
-                                     nullptr,
-                                     nullptr);
+    d->swsctx = sws_getCachedContext(
+        nullptr,
+        d->width,
+        d->height,
+        d->inputPixFormat,
+        d->width,
+        d->height,
+        d->encPixFormat,
+        SWS_BICUBIC,
+        nullptr,
+        nullptr,
+        nullptr
+    );
 
     if (!d->swsctx) {
         finalizeInternal(false);
@@ -867,7 +888,7 @@ void VideoWriter::initializeInternal()
         // setup frame for hardware acceleration
 
         d->hwFrame = av_frame_alloc();
-        auto frctx = (AVHWFramesContext*) d->hwFrameCtx->data;
+        auto frctx = (AVHWFramesContext *)d->hwFrameCtx->data;
         d->hwFrame->format = frctx->format;
         d->hwFrame->hw_frames_ctx = av_buffer_ref(d->hwFrameCtx);
         d->hwFrame->width = d->width;
@@ -890,7 +911,7 @@ void VideoWriter::initializeInternal()
     ret = avformat_write_header(d->octx, nullptr);
     if (ret < 0) {
         finalizeInternal(false);
-        char errBuf[1280] = { 0 };
+        char errBuf[1280] = {0};
         if (av_strerror(ret, errBuf, sizeof(errBuf)) == 0)
             throw std::runtime_error(QStringLiteral("Failed to write format header: %1").arg(errBuf).toStdString());
         else
@@ -908,7 +929,9 @@ void VideoWriter::initializeInternal()
         d->tsfWriter.setFileName(timestampFname);
         if (!d->tsfWriter.open(d->modName, d->collectionId)) {
             finalizeInternal(false);
-            throw std::runtime_error(QStringLiteral("Unable to initialize timesync file: %1").arg(d->tsfWriter.lastError()).toStdString());
+            throw std::runtime_error(
+                QStringLiteral("Unable to initialize timesync file: %1").arg(d->tsfWriter.lastError()).toStdString()
+            );
         }
     }
 
@@ -968,17 +991,19 @@ void VideoWriter::finalizeInternal(bool writeTrailer)
     d->initialized = false;
 }
 
-void VideoWriter::initialize(const QString &fname,
-                             const QString &modName,
-                             const QString &sourceModName,
-                             const QUuid &collectionId,
-                             const QString &subjectName,
-                             int width,
-                             int height,
-                             int fps,
-                             int cvDepth,
-                             bool hasColor,
-                             bool saveTimestamps)
+void VideoWriter::initialize(
+    const QString &fname,
+    const QString &modName,
+    const QString &sourceModName,
+    const QUuid &collectionId,
+    const QString &subjectName,
+    int width,
+    int height,
+    int fps,
+    int cvDepth,
+    bool hasColor,
+    bool saveTimestamps
+)
 {
     if (d->initialized)
         throw std::runtime_error("Tried to initialize an already initialized video writer.");
@@ -1055,7 +1080,7 @@ bool VideoWriter::startNewSection(const QString &fname)
         // set slice number to one, since we are starting fresh
         d->currentSliceNo = 1;
         initializeInternal();
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
         // propagate error and stop, we can not really recover from this
         d->lastError = e.what();
         return false;
@@ -1079,8 +1104,7 @@ void VideoWriter::setTsyncFileCreationTimeOverride(const QDateTime &dt)
     d->tsfWriter.setCreationTimeOverride(dt);
 }
 
-inline
-bool VideoWriter::prepareFrame(const cv::Mat &inImage)
+inline bool VideoWriter::prepareFrame(const cv::Mat &inImage)
 {
     cv::Mat image;
     auto channels = inImage.channels();
@@ -1113,15 +1137,19 @@ bool VideoWriter::prepareFrame(const cv::Mat &inImage)
     // sanity checks
     if ((static_cast<int>(height) > d->height) || (static_cast<int>(width) > d->width))
         throw std::runtime_error(QStringLiteral("Received bigger frame than we expected (%1x%2 instead of %3x%4)")
-                                 .arg(width).arg(height)
-                                 .arg(d->width).arg(d->height)
-                                 .toStdString());
+                                     .arg(width)
+                                     .arg(height)
+                                     .arg(d->width)
+                                     .arg(d->height)
+                                     .toStdString());
     if ((d->inputPixFormat == AV_PIX_FMT_BGR24) && (channels != 3)) {
-        d->lastError = QStringLiteral("Expected BGR colored image, but received image has %1 channels").arg(channels).toStdString();
+        d->lastError = QStringLiteral("Expected BGR colored image, but received image has %1 channels")
+                           .arg(channels)
+                           .toStdString();
         return false;
-    }
-    else if ((d->inputPixFormat == AV_PIX_FMT_GRAY8) && (channels != 1)) {
-        d->lastError = QStringLiteral("Expected grayscale image, but received image has %1 channels").arg(channels).toStdString();
+    } else if ((d->inputPixFormat == AV_PIX_FMT_GRAY8) && (channels != 1)) {
+        d->lastError =
+            QStringLiteral("Expected grayscale image, but received image has %1 channels").arg(channels).toStdString();
         return false;
     }
 
@@ -1132,9 +1160,9 @@ bool VideoWriter::prepareFrame(const cv::Mat &inImage)
     const size_t CV_STEP_ALIGNMENT = 32;
     const size_t CV_SIMD_SIZE = 32;
     const size_t CV_PAGE_MASK = ~(size_t)(4096 - 1);
-    const unsigned char* dataend = data + ((size_t)height * step);
-    if (step % CV_STEP_ALIGNMENT != 0 ||
-        (((size_t) dataend - CV_SIMD_SIZE) & CV_PAGE_MASK) != (((size_t) dataend + CV_SIMD_SIZE) & CV_PAGE_MASK)) {
+    const unsigned char *dataend = data + ((size_t)height * step);
+    if (step % CV_STEP_ALIGNMENT != 0
+        || (((size_t)dataend - CV_SIMD_SIZE) & CV_PAGE_MASK) != (((size_t)dataend + CV_SIMD_SIZE) & CV_PAGE_MASK)) {
         auto alignedStep = (step + CV_STEP_ALIGNMENT - 1) & ~(CV_STEP_ALIGNMENT - 1);
 
         // reallocate alignment buffer if needed
@@ -1143,28 +1171,42 @@ bool VideoWriter::prepareFrame(const cv::Mat &inImage)
             if (d->alignedInput != nullptr)
                 av_freep(&d->alignedInput);
             d->alignedInputSize = newSize;
-            d->alignedInput = (unsigned char*) av_mallocz(d->alignedInputSize);
+            d->alignedInput = (unsigned char *)av_mallocz(d->alignedInputSize);
         }
 
         for (size_t y = 0; y < static_cast<size_t>(height); y++)
-            memcpy(d->alignedInput + y*alignedStep, data + y*step, step);
+            memcpy(d->alignedInput + y * alignedStep, data + y * step, step);
 
         data = d->alignedInput;
         step = alignedStep;
     }
 
     // let input_picture point to the raw data buffer of 'image'
-    av_image_fill_arrays(d->inputFrame->data, d->inputFrame->linesize, static_cast<const uint8_t*>(data), d->inputPixFormat, width, height, 1);
+    av_image_fill_arrays(
+        d->inputFrame->data,
+        d->inputFrame->linesize,
+        static_cast<const uint8_t *>(data),
+        d->inputPixFormat,
+        width,
+        height,
+        1
+    );
     d->inputFrame->linesize[0] = static_cast<int>(step);
 
     // perform scaling and pixel format conversion
     // FIXME: If encPixFormat == inputPixFormat we should be able to skip this step,
     // but newer FFmpeg versions seem to crash in this case within avcodec_send_frame(),
     // so as a workaround we will always run sws_scale
-    if (sws_scale(d->swsctx, d->inputFrame->data,
-                           d->inputFrame->linesize, 0,
-                           d->height,
-                           d->encFrame->data, d->encFrame->linesize) < 0) {
+    if (sws_scale(
+            d->swsctx,
+            d->inputFrame->data,
+            d->inputFrame->linesize,
+            0,
+            d->height,
+            d->encFrame->data,
+            d->encFrame->linesize
+        )
+        < 0) {
         d->lastError = "Unable to scale image in pixel format conversion.";
         return false;
     }
@@ -1254,7 +1296,7 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::milliseco
                 // increment current slice number and attempt to reinitialize recording.
                 d->currentSliceNo += 1;
                 initializeInternal();
-            } catch (const std::exception& e) {
+            } catch (const std::exception &e) {
                 // propagate error and stop encoding thread, as we can not really recover from this
                 d->lastError = e.what();
                 goto out;
@@ -1338,11 +1380,11 @@ void VideoWriter::setContainer(VideoContainer container)
 
 QMap<QString, QString> findVideoRenderNodes()
 {
-    __attribute__((cleanup (sd_device_enumerator_unrefp))) sd_device_enumerator *e = NULL;
+    __attribute__((cleanup(sd_device_enumerator_unrefp))) sd_device_enumerator *e = NULL;
     int r;
 
     QMap<QString, QString> renderNodes;
-    r = sd_device_enumerator_new (&e);
+    r = sd_device_enumerator_new(&e);
     if (r < 0) {
         qCWarning(logVRecorder, "Unable to enumerate render devices: %s", strerror(r));
         return renderNodes;
@@ -1365,8 +1407,7 @@ QMap<QString, QString> findVideoRenderNodes()
         return renderNodes;
     }
 
-    for (sd_device *dev = sd_device_enumerator_get_device_first(e);
-         dev;
+    for (sd_device *dev = sd_device_enumerator_get_device_first(e); dev;
          dev = sd_device_enumerator_get_device_next(e)) {
 
         sd_device *p;

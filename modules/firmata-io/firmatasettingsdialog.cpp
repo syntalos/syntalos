@@ -22,9 +22,9 @@
 
 #include <QSerialPortInfo>
 
-FirmataSettingsDialog::FirmataSettingsDialog(QWidget *parent) :
-    QDialog(parent),
-    ui(new Ui::FirmataSettingsDialog)
+FirmataSettingsDialog::FirmataSettingsDialog(QWidget *parent)
+    : QDialog(parent),
+      ui(new Ui::FirmataSettingsDialog)
 {
     ui->setupUi(this);
     setWindowIcon(QIcon(":/icons/generic-config"));
@@ -32,7 +32,9 @@ FirmataSettingsDialog::FirmataSettingsDialog(QWidget *parent) :
     // Arduino / Firmata I/O
     auto allPorts = QSerialPortInfo::availablePorts();
     for (auto &port : allPorts) {
-        ui->portsComboBox->addItem(QString("%1 (%2)").arg(port.portName()).arg(port.description()), port.systemLocation());
+        ui->portsComboBox->addItem(
+            QString("%1 (%2)").arg(port.portName()).arg(port.description()), port.systemLocation()
+        );
     }
 }
 

@@ -19,9 +19,9 @@
 
 #pragma once
 
+#include <QLoggingCategory>
 #include <QObject>
 #include <QRunnable>
-#include <QLoggingCategory>
 
 Q_DECLARE_LOGGING_CATEGORY(logEncodeTask)
 

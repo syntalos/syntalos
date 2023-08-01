@@ -22,7 +22,8 @@
 
 #include <QDialog>
 
-namespace Ui {
+namespace Ui
+{
 class FirmataSettingsDialog;
 }
 

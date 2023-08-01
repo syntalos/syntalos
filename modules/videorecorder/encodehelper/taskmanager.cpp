@@ -19,18 +19,18 @@
 
 #include "taskmanager.h"
 
-#include <QDebug>
 #include <QCoreApplication>
 #include <QDBusConnection>
 #include <QDBusError>
 #include <QDBusInterface>
 #include <QDBusReply>
 #include <QDBusUnixFileDescriptor>
+#include <QDebug>
+#include <QDir>
+#include <QFileInfo>
 #include <QMessageBox>
 #include <QThreadPool>
 #include <QTimer>
-#include <QFileInfo>
-#include <QDir>
 
 #include "encodetask.h"
 
@@ -60,7 +60,7 @@ int TaskManager::parallelCount() const
 
 void TaskManager::setParallelCount(int count)
 {
-    m_threadPool->setMaxThreadCount((count >= 1)? count : 1);
+    m_threadPool->setMaxThreadCount((count >= 1) ? count : 1);
     emit parallelCountChanged(m_threadPool->maxThreadCount());
 }
 
@@ -75,8 +75,7 @@ bool TaskManager::tasksAvailable()
 bool TaskManager::allTasksCompleted()
 {
     for (auto &item : m_queue->queueItems())
-        if ((item->status() != QueueItem::FAILED) &&
-            (item->status() != QueueItem::FINISHED))
+        if ((item->status() != QueueItem::FAILED) && (item->status() != QueueItem::FINISHED))
             return false;
     return true;
 }
@@ -96,9 +95,12 @@ void TaskManager::checkThreadPoolRunning()
     }
 }
 
-bool TaskManager::enqueueVideo(const QString &projectId, const QString &videoFname,
-                               const QHash<QString, QVariant> &codecProps,
-                               const QHash<QString, QVariant> &mdata)
+bool TaskManager::enqueueVideo(
+    const QString &projectId,
+    const QString &videoFname,
+    const QHash<QString, QVariant> &codecProps,
+    const QHash<QString, QVariant> &mdata
+)
 {
     CodecProperties cprops(codecProps);
 
@@ -119,7 +121,7 @@ bool TaskManager::enqueueVideo(const QString &projectId, const QString &videoFna
 
 bool TaskManager::processVideos()
 {
-    QSet<QueueItem*> rmItems;
+    QSet<QueueItem *> rmItems;
 
     for (auto &item : m_queue->queueItems()) {
         if (item->status() == QueueItem::WAITING) {
@@ -130,7 +132,7 @@ bool TaskManager::processVideos()
             // we are certainly overcommitting the CPU here, but in reality this seems to work extremely
             // well for resource utilization and performance balance.
             int codecThreadCount = QThread::idealThreadCount() - m_threadPool->maxThreadCount() - 2;
-            codecThreadCount = (codecThreadCount <= 1)? 2 : codecThreadCount;
+            codecThreadCount = (codecThreadCount <= 1) ? 2 : codecThreadCount;
 
             // we only set the "update attribute metadata" flag for the first
             // video in a dataset the we encounter. Otherwise we have multiple parallel
@@ -138,9 +140,7 @@ bool TaskManager::processVideos()
             QFileInfo fi(item->fname());
             const auto datasetRoot = fi.absoluteDir().canonicalPath();
 
-            auto task = new EncodeTask(item,
-                                       !m_scheduledDSPaths.contains(datasetRoot),
-                                       codecThreadCount);
+            auto task = new EncodeTask(item, !m_scheduledDSPaths.contains(datasetRoot), codecThreadCount);
             m_scheduledDSPaths.insert(datasetRoot);
 
             m_threadPool->start(task);
@@ -151,7 +151,7 @@ bool TaskManager::processVideos()
     }
 
     // FIXME: Queue cleanup doesn't work properly yet
-    //m_queue->remove(rmItems);
+    // m_queue->remove(rmItems);
 
     m_checkTimer->start();
     emit encodingStarted();
@@ -162,21 +162,25 @@ void TaskManager::obtainSleepShutdownIdleInhibitor()
 {
     if (m_idleInhibitFd >= 0)
         return;
-    QDBusInterface iface(QStringLiteral("org.freedesktop.login1"),
-                         QStringLiteral("/org/freedesktop/login1"),
-                         QStringLiteral("org.freedesktop.login1.Manager"),
-                         QDBusConnection::systemBus());
+    QDBusInterface iface(
+        QStringLiteral("org.freedesktop.login1"),
+        QStringLiteral("/org/freedesktop/login1"),
+        QStringLiteral("org.freedesktop.login1.Manager"),
+        QDBusConnection::systemBus()
+    );
     if (!iface.isValid()) {
         qCDebug(logEncodeMgr).noquote() << "Unable to connect to logind DBus interface";
         m_idleInhibitFd = -1;
     }
 
     QDBusReply<QDBusUnixFileDescriptor> reply;
-    reply = iface.call(QStringLiteral("Inhibit"),
-                       QStringLiteral("sleep:shutdown:idle"),
-                       QCoreApplication::applicationName(),
-                       QStringLiteral("Encoding video datasets"),
-                       QStringLiteral("block"));
+    reply = iface.call(
+        QStringLiteral("Inhibit"),
+        QStringLiteral("sleep:shutdown:idle"),
+        QCoreApplication::applicationName(),
+        QStringLiteral("Encoding video datasets"),
+        QStringLiteral("block")
+    );
     if (!reply.isValid()) {
         qCDebug(logEncodeMgr).noquote() << "Unable to request sleep/shutdown/idle inhibitor from logind.";
         m_idleInhibitFd = -1;

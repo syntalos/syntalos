@@ -19,14 +19,14 @@
 
 #include "camera.h"
 
+#include <QDebug>
 #include <QFileInfo>
-#include <opencv2/opencv.hpp>
-#include <opencv2/videoio.hpp>
 #include <fcntl.h>
 #include <libv4l2.h>
-#include <sys/ioctl.h>
 #include <linux/videodev2.h>
-#include <QDebug>
+#include <opencv2/opencv.hpp>
+#include <opencv2/videoio.hpp>
+#include <sys/ioctl.h>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpadded"
@@ -38,7 +38,8 @@ public:
           connected(false),
           failed(false),
           droppedFrameCount(0)
-    {}
+    {
+    }
 
     std::chrono::time_point<symaster_clock> startTime;
     cv::VideoCapture *cam;
@@ -96,7 +97,7 @@ Camera::~Camera()
     delete d->cam;
 }
 
-void Camera::fail(const QString& msg)
+void Camera::fail(const QString &msg)
 {
     d->failed = true;
     d->lastError = msg;
@@ -117,7 +118,7 @@ void Camera::setStartTime(const symaster_timepoint &time)
     d->startTime = time;
 }
 
-void Camera::setResolution(const cv::Size& size)
+void Camera::setResolution(const cv::Size &size)
 {
     d->frameSize = size;
 }
@@ -313,11 +314,11 @@ QList<CameraPixelFormat> Camera::readPixelFormats()
         return result;
 
     struct v4l2_fmtdesc fmtdesc;
-    memset(&fmtdesc,0,sizeof(fmtdesc));
+    memset(&fmtdesc, 0, sizeof(fmtdesc));
     fmtdesc.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    while (ioctl(fd,VIDIOC_ENUM_FMT,&fmtdesc) == 0) {
+    while (ioctl(fd, VIDIOC_ENUM_FMT, &fmtdesc) == 0) {
         CameraPixelFormat cpf;
-        cpf.name = QString::fromUtf8((const char*) fmtdesc.description);
+        cpf.name = QString::fromUtf8((const char *)fmtdesc.description);
         cpf.fourcc = fmtdesc.pixelformat;
         result.append(cpf);
 
@@ -342,7 +343,7 @@ bool Camera::recordFrame(Frame &frame, SecondaryClockSynchronizer *clockSync)
 
     // timestamp in "driver time", which usually seems to be a UNIX timestamp, but
     // we can't be sure of that
-    const auto driverFrameTimestamp = microseconds_t(static_cast<time_t> (d->cam->get(cv::CAP_PROP_POS_MSEC) * 1000.0));
+    const auto driverFrameTimestamp = microseconds_t(static_cast<time_t>(d->cam->get(cv::CAP_PROP_POS_MSEC) * 1000.0));
 
     // adjust the received time if necessary, gather clock sync information
     clockSync->processTimestamp(frameRecvTime, driverFrameTimestamp);
@@ -356,7 +357,7 @@ bool Camera::recordFrame(Frame &frame, SecondaryClockSynchronizer *clockSync)
 
     try {
         status = d->cam->retrieve(frame.mat);
-    } catch (const cv::Exception& e) {
+    } catch (const cv::Exception &e) {
         status = false;
         std::cerr << "Caught OpenCV exception:" << e.what() << std::endl;
     }
@@ -379,7 +380,7 @@ QString Camera::lastError() const
     return d->lastError;
 }
 
-QList<QPair<QString, int> > Camera::availableCameras()
+QList<QPair<QString, int>> Camera::availableCameras()
 {
     QList<QPair<QString, int>> res;
 

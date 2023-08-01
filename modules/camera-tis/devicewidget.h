@@ -25,9 +25,9 @@
 class DeviceWidget : public QListWidgetItem
 {
 public:
-    DeviceWidget(const Device& dev, QListWidget* parent = nullptr);
+    DeviceWidget(const Device &dev, QListWidget *parent = nullptr);
 
-    bool operator==(const Device& dev) const;
+    bool operator==(const Device &dev) const;
 
     Device get_device() const;
 

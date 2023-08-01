@@ -19,21 +19,24 @@
 
 #pragma once
 
+// clang-format off
 #include <pybind11/pybind11.h>
 #include <QObject>
 #include <QQueue>
 #include <QTimer>
+// clang-format on
 
+#include "ipcmarshal.h"
 #include "rep_interface_source.h"
 #include "sharedmemory.h"
-#include "ipcmarshal.h"
 
 namespace py = pybind11;
 using namespace Syntalos;
 class PyBridge;
 
-namespace Syntalos {
-    Q_DECLARE_LOGGING_CATEGORY(logPyWorker)
+namespace Syntalos
+{
+Q_DECLARE_LOGGING_CATEGORY(logPyWorker)
 }
 
 class Q_DECL_HIDDEN OOPWorker : public OOPWorkerSource

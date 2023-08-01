@@ -17,21 +17,21 @@
  * along with this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "config.h"
 #include "misc.h"
+#include "config.h"
 
 #include <filesystem>
-#include <sys/vfs.h>
 #include <linux/magic.h>
+#include <sys/vfs.h>
 
-#include <QDebug>
-#include <QTime>
-#include <QThread>
 #include <QCollator>
+#include <QCoreApplication>
+#include <QDebug>
 #include <QDir>
 #include <QRandomGenerator>
-#include <QCoreApplication>
 #include <QStandardPaths>
+#include <QThread>
+#include <QTime>
 
 namespace fs = std::filesystem;
 
@@ -40,7 +40,7 @@ QString createRandomString(int len)
     const auto possibleChars = QStringLiteral("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789");
 
     QString str;
-    for (int i=0; i < len; i++) {
+    for (int i = 0; i < len; i++) {
         int index = QRandomGenerator::global()->generate() % possibleChars.length();
         QChar nextChar = possibleChars.at(index);
         str.append(nextChar);
@@ -51,9 +51,7 @@ QString createRandomString(int len)
 
 QString simplifyStrForModuleName(const QString &s)
 {
-    const auto tmp = s.simplified()
-                      .replace("/", "_")
-                      .replace("\\", "_");
+    const auto tmp = s.simplified().replace("/", "_").replace("\\", "_");
     if (tmp.isEmpty())
         return QStringLiteral("Unnamed");
     return tmp;
@@ -61,20 +59,18 @@ QString simplifyStrForModuleName(const QString &s)
 
 QString simplifyStrForFileBasename(const QString &s)
 {
-    return simplifyStrForModuleName(s)
-            .replace(" ", "")
-            .replace(":", "_")
-            .replace("_-", "-")
-            .replace("-_", "-");
+    return simplifyStrForModuleName(s).replace(" ", "").replace(":", "_").replace("_-", "-").replace("-_", "-");
 }
 
 QString simplifyStrForFileBasenameLower(const QString &s)
 {
     return simplifyStrForModuleName(s)
-            .replace(" ", "-") // use dash to make resulting name easier to read (possible camelcasing won't work in the resulting all-lowercase string)
-            .replace(":", "_")
-            .replace("_-", "-")
-            .replace("-_", "-").toLower();
+        .replace(" ", "-") // use dash to make resulting name easier to read (possible camelcasing won't work in the
+                           // resulting all-lowercase string)
+        .replace(":", "_")
+        .replace("_-", "-")
+        .replace("-_", "-")
+        .toLower();
 }
 
 QStringList qStringSplitLimit(const QString &str, const QChar &sep, int maxSplit, Qt::CaseSensitivity cs)
@@ -136,7 +132,7 @@ QString syntalosVersionFull()
         syVcs = "";
     }
 
-    return syVcs.isEmpty()? syVersion : QStringLiteral("%1 (%2)").arg(syVersion, syVcs);
+    return syVcs.isEmpty() ? syVersion : QStringLiteral("%1 (%2)").arg(syVersion, syVcs);
 }
 
 bool isInFlatpakSandbox()

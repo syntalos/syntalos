@@ -42,7 +42,7 @@ class SerialFirmata : public FirmataBackend
     Q_PROPERTY(int baudRate READ baudRate WRITE setBaudRate NOTIFY baudRateChanged)
 
 public:
-    SerialFirmata(QObject *parent=nullptr);
+    SerialFirmata(QObject *parent = nullptr);
     ~SerialFirmata();
 
     QString device() const;

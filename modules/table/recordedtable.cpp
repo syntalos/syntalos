@@ -21,9 +21,9 @@
 
 #include <QDebug>
 #include <QFile>
-#include <QTableWidget>
 #include <QHeaderView>
 #include <QMessageBox>
+#include <QTableWidget>
 
 RecordedTable::RecordedTable(QObject *parent, const QIcon &winIcon)
     : QObject(parent),
@@ -59,7 +59,7 @@ void RecordedTable::setName(const QString &name)
     m_tableWidget->setWindowTitle(m_name);
 }
 
-bool RecordedTable::open(const QString& fileName)
+bool RecordedTable::open(const QString &fileName)
 {
     m_eventFileName = fileName;
     close();
@@ -92,9 +92,11 @@ void RecordedTable::reset()
 void RecordedTable::setHeader(const QStringList &headers)
 {
     if (m_haveEvents) {
-        QMessageBox::warning(m_tableWidget,
-                             QStringLiteral("Warning"),
-                             QStringLiteral("Can not change table headers after already receiving events."));
+        QMessageBox::warning(
+            m_tableWidget,
+            QStringLiteral("Warning"),
+            QStringLiteral("Can not change table headers after already receiving events.")
+        );
         return;
     }
 
@@ -107,8 +109,7 @@ void RecordedTable::setHeader(const QStringList &headers)
         return;
     QTextStream tsout(m_eventFile);
     auto csvHdr = headers;
-    tsout << csvHdr.replaceInStrings(QStringLiteral(";"), QStringLiteral("；"))
-                    .join(";") << "\n";
+    tsout << csvHdr.replaceInStrings(QStringLiteral(";"), QStringLiteral("；")).join(";") << "\n";
 }
 
 void RecordedTable::addRows(const QStringList &data)
@@ -117,15 +118,14 @@ void RecordedTable::addRows(const QStringList &data)
 
     // write to file if file is opened
     if (!m_eventFile->isOpen())
-            return;
+        return;
     QTextStream tsout(m_eventFile);
 
     // since our tables are semicolon-separated, we replace the "regular" semicolon
     // with a unicode fullwith semicolon (U+FF1B). That way, users of the table module
     // can use pretty much any character they want and a machine-readable CSV table will be generated.
     auto csvRows = data;
-    tsout << csvRows.replaceInStrings(QStringLiteral(";"), QStringLiteral("；"))
-                    .join(";") << "\n";
+    tsout << csvRows.replaceInStrings(QStringLiteral(";"), QStringLiteral("；")).join(";") << "\n";
 
     auto columnCount = m_tableWidget->columnCount();
     if (columnCount < data.count()) {

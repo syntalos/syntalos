@@ -22,9 +22,9 @@
 
 using namespace Syntalos;
 
-IntervalRunDialog::IntervalRunDialog(QWidget *parent) :
-    QDialog(parent),
-    ui(new Ui::IntervalRunDialog)
+IntervalRunDialog::IntervalRunDialog(QWidget *parent)
+    : QDialog(parent),
+      ui(new Ui::IntervalRunDialog)
 {
     ui->setupUi(this);
 }

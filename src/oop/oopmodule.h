@@ -19,14 +19,15 @@
 
 #pragma once
 
-#include <QObject>
 #include <QEventLoop>
+#include <QObject>
 #include <QRemoteObjectPendingReply>
 
 #include "moduleapi.h"
 
-namespace Syntalos {
-    Q_DECLARE_LOGGING_CATEGORY(logOOPMod)
+namespace Syntalos
+{
+Q_DECLARE_LOGGING_CATEGORY(logOOPMod)
 }
 
 /**
@@ -52,14 +53,12 @@ signals:
     void processStdoutReceived(const QString &text);
 
 protected:
-    void setPythonScript(const QString &script,
-                         const QString &wdir = QString(), const QString &venv = QString());
-    void setPythonFile(const QString &fname,
-                       const QString &wdir = QString(), const QString &venv = QString());
+    void setPythonScript(const QString &script, const QString &wdir = QString(), const QString &venv = QString());
+    void setPythonFile(const QString &fname, const QString &wdir = QString(), const QString &venv = QString());
     bool initAndLaunchWorker(const QVector<uint> &cpuAffinity = QVector<uint>());
     void terminateWorkerIfRunning(QEventLoop *loop);
 
-    std::optional<QRemoteObjectPendingReply<QByteArray> > showSettingsChangeUi(const QByteArray &oldSettings);
+    std::optional<QRemoteObjectPendingReply<QByteArray>> showSettingsChangeUi(const QByteArray &oldSettings);
 
     QString workerBinary() const;
     void setWorkerBinary(const QString &binPath);

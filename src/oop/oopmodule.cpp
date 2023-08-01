@@ -25,8 +25,9 @@
 
 #include "oopworkerconnector.h"
 
-namespace Syntalos {
-    Q_LOGGING_CATEGORY(logOOPMod, "oopmodule")
+namespace Syntalos
+{
+Q_LOGGING_CATEGORY(logOOPMod, "oopmodule")
 }
 
 class OOPModuleRunData
@@ -36,8 +37,7 @@ public:
     {
         repNode.reset(new QRemoteObjectNode);
     }
-    ~OOPModuleRunData()
-    {}
+    ~OOPModuleRunData() {}
 
     std::unique_ptr<QRemoteObjectNode> repNode;
     QSharedPointer<OOPWorkerReplica> replica;
@@ -52,7 +52,8 @@ public:
     Private()
         : captureStdout(false),
           runData(new OOPModuleRunData)
-    {}
+    {
+    }
     ~Private() {}
 
     QString pyScript;
@@ -76,13 +77,11 @@ OOPModule::OOPModule(QObject *parent)
     setWorkerBinaryPyWorker();
 }
 
-OOPModule::~OOPModule()
-{}
+OOPModule::~OOPModule() {}
 
 ModuleFeatures OOPModule::features() const
 {
-    return ModuleFeature::SHOW_DISPLAY |
-           ModuleFeature::SHOW_SETTINGS;
+    return ModuleFeature::SHOW_DISPLAY | ModuleFeature::SHOW_SETTINGS;
 }
 
 bool OOPModule::prepare(const TestSubject &)
@@ -191,7 +190,6 @@ void OOPModule::setPythonFile(const QString &fname, const QString &wdir, const Q
     setPythonScript(in.readAll(), wdir, venv);
 }
 
-
 void OOPModule::recvError(const QString &message)
 {
     d->failed = true;
@@ -210,9 +208,14 @@ bool OOPModule::initAndLaunchWorker(const QVector<uint> &cpuAffinity)
     d->failed = false;
 
     // connect some of the important signals of our replica
-    connect(d->runData->replica.data(), &OOPWorkerReplica::stageChanged, this, [&](const OOPWorkerReplica::Stage &newStage) {
-        d->workerStage = newStage;
-    });
+    connect(
+        d->runData->replica.data(),
+        &OOPWorkerReplica::stageChanged,
+        this,
+        [&](const OOPWorkerReplica::Stage &newStage) {
+            d->workerStage = newStage;
+        }
+    );
 
     connect(d->runData->replica.data(), &OOPWorkerReplica::error, this, &OOPModule::recvError);
     connect(d->runData->replica.data(), &OOPWorkerReplica::statusMessage, this, [&](const QString &text) {

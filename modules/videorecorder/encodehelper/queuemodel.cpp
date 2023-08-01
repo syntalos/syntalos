@@ -19,12 +19,12 @@
 
 #include "queuemodel.h"
 
+#include <QAbstractTextDocumentLayout>
 #include <QApplication>
 #include <QFileInfo>
+#include <QMutexLocker>
 #include <QPainter>
 #include <QTextDocument>
-#include <QAbstractTextDocumentLayout>
-#include <QMutexLocker>
 
 QueueItem::QueueItem(const QString &projectId, const QString &fname, QObject *parent)
     : QObject(parent),
@@ -114,7 +114,8 @@ void QueueItem::setError(const QString &text)
 
 QueueModel::QueueModel(QObject *parent)
     : QAbstractTableModel(parent)
-{}
+{
+}
 
 int QueueModel::rowCount(const QModelIndex &) const
 {
@@ -133,34 +134,38 @@ QVariant QueueModel::data(const QModelIndex &index, int role) const
 
     const QueueItem *queueItem = m_data[index.row()];
     switch (index.column()) {
-        case 0: return queueItem->projectId();
-        case 1: return queueItem->videoId();
-        case 2: {
-            std::string str;
-            switch (queueItem->status()){
-            case QueueItem::WAITING :
-                str = "Waiting";
-                break;
-            case QueueItem::SCHEDULED :
-                str = "Scheduled";
-                break;
-            case QueueItem::RUNNING:
-                str = "In Progress";
-                break;
-            case QueueItem::FINISHED:
-                str = "<font color=\"#27ae60\">Finished</font>";
-                break;
-            case QueueItem::FAILED:
-                str = "<font color=\"#da4453\"><b>Failed</b></font>";
-                break;
+    case 0:
+        return queueItem->projectId();
+    case 1:
+        return queueItem->videoId();
+    case 2: {
+        std::string str;
+        switch (queueItem->status()) {
+        case QueueItem::WAITING:
+            str = "Waiting";
+            break;
+        case QueueItem::SCHEDULED:
+            str = "Scheduled";
+            break;
+        case QueueItem::RUNNING:
+            str = "In Progress";
+            break;
+        case QueueItem::FINISHED:
+            str = "<font color=\"#27ae60\">Finished</font>";
+            break;
+        case QueueItem::FAILED:
+            str = "<font color=\"#da4453\"><b>Failed</b></font>";
+            break;
 
-            default:
-                str = "Unkown";
-            }
-            return QString::fromStdString(str);
+        default:
+            str = "Unkown";
         }
-        case 3: return queueItem->progress();
-        default: return QVariant();
+        return QString::fromStdString(str);
+    }
+    case 3:
+        return queueItem->progress();
+    default:
+        return QVariant();
     };
 }
 
@@ -172,11 +177,16 @@ QVariant QueueModel::headerData(int section, Qt::Orientation orientation, int ro
         return QVariant();
 
     switch (section) {
-    case 0: return QStringLiteral("Project");
-    case 1: return QStringLiteral("Video");
-    case 2: return QStringLiteral("Status");
-    case 3: return QStringLiteral("Progress");
-    default: return QVariant();
+    case 0:
+        return QStringLiteral("Project");
+    case 1:
+        return QStringLiteral("Video");
+    case 2:
+        return QStringLiteral("Status");
+    case 3:
+        return QStringLiteral("Progress");
+    default:
+        return QVariant();
     }
 }
 
@@ -187,17 +197,17 @@ void QueueModel::refresh()
 
 void QueueModel::append(QueueItem *queueItem)
 {
-   beginInsertRows(QModelIndex(), m_data.count(), m_data.count());
-   m_data.append(queueItem);
-   endInsertRows();
-   connect(queueItem, &QueueItem::dataChanged, this, &QueueModel::itemDataChanged);
+    beginInsertRows(QModelIndex(), m_data.count(), m_data.count());
+    m_data.append(queueItem);
+    endInsertRows();
+    connect(queueItem, &QueueItem::dataChanged, this, &QueueModel::itemDataChanged);
 }
 
 void QueueModel::remove(QSet<QueueItem *> rmItems)
 {
     beginRemoveRows(QModelIndex(), 0, m_data.count());
 
-    QMutableListIterator<QueueItem*> i(m_data);
+    QMutableListIterator<QueueItem *> i(m_data);
     while (i.hasNext()) {
         auto item = i.next();
         if (rmItems.contains(item))
@@ -208,7 +218,7 @@ void QueueModel::remove(QSet<QueueItem *> rmItems)
     refresh();
 }
 
-QList<QueueItem*> QueueModel::queueItems()
+QList<QueueItem *> QueueModel::queueItems()
 {
     return m_data;
 }
@@ -224,16 +234,17 @@ QueueItem *QueueModel::itemByIndex(const QModelIndex &index)
 
 void QueueModel::itemDataChanged()
 {
-    //auto item = qobject_cast<QueueItem*>(sender());
+    // auto item = qobject_cast<QueueItem*>(sender());
     emit dataChanged(index(0, 0), index(m_data.count() - 1, 5));
-    //QModelIndex startOfRow = this->index(row, 0);
-    //QModelIndex endOfRow   = this->index(row, Column::MaxColumns);
-    //emit QAbstractItemModel::dataChanged(startOfRow, endOfRow);
+    // QModelIndex startOfRow = this->index(row, 0);
+    // QModelIndex endOfRow   = this->index(row, Column::MaxColumns);
+    // emit QAbstractItemModel::dataChanged(startOfRow, endOfRow);
 }
 
 ProgressBarDelegate::ProgressBarDelegate(QObject *parent)
     : QStyledItemDelegate(parent)
-{}
+{
+}
 
 void ProgressBarDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
 {
@@ -253,7 +264,8 @@ void ProgressBarDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
 
 HtmlDelegate::HtmlDelegate(QObject *parent)
     : QStyledItemDelegate(parent)
-{}
+{
+}
 
 QString HtmlDelegate::anchorAt(QString html, const QPoint &point) const
 {
@@ -288,7 +300,8 @@ void HtmlDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, 
     painter->restore();
 }
 
-QSize HtmlDelegate::sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const {
+QSize HtmlDelegate::sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const
+{
     auto options = option;
     initStyleOption(&options, index);
 

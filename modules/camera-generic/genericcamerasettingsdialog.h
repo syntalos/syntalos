@@ -20,10 +20,11 @@
 #ifndef GENERICCAMERASETTINGSDIALOG_H
 #define GENERICCAMERASETTINGSDIALOG_H
 
-#include <QDialog>
 #include "camera.h"
+#include <QDialog>
 
-namespace Ui {
+namespace Ui
+{
 class GenericCameraSettingsDialog;
 }
 

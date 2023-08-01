@@ -49,10 +49,11 @@ class QWheelEvent;
 class QKeyEvent;
 
 #if !defined(DOXYGEN_SHOULD_SKIP_THIS)
-namespace Syntalos {
+namespace Syntalos
+{
 class AbstractModule;
 class AbstractStreamPort;
-}
+} // namespace Syntalos
 #endif // DOXYGEN_SHOULD_SKIP_THIS
 
 using namespace Syntalos;
@@ -79,10 +80,12 @@ public:
     void setHighlight(bool hilite);
     bool isHighlight() const;
 
-    enum Mode { None = 0,
-                Input = 1,
-                Output = 2,
-                Duplex = Input | Output};
+    enum Mode {
+        None = 0,
+        Input = 1,
+        Output = 2,
+        Duplex = Input | Output
+    };
 
     // Item hash/map key.
     class ItemKey
@@ -92,22 +95,32 @@ public:
             : m_name(name),
               m_mode(mode),
               m_type(type)
-        {}
+        {
+        }
         ItemKey(const ItemKey &key)
             : m_name(key.name()),
               m_mode(key.mode()),
               m_type(key.type())
-        {}
+        {
+        }
 
-        const QString &name() const { return m_name; }
-        Mode mode() const { return m_mode; }
-        uint type() const { return m_type; }
+        const QString &name() const
+        {
+            return m_name;
+        }
+        Mode mode() const
+        {
+            return m_mode;
+        }
+        uint type() const
+        {
+            return m_type;
+        }
 
         // Hash/map key comparators.
         bool operator==(const ItemKey &key) const
         {
-            return ItemKey::type() == key.type() && ItemKey::mode() == key.mode()
-                   && ItemKey::name() == key.name();
+            return ItemKey::type() == key.type() && ItemKey::mode() == key.mode() && ItemKey::name() == key.name();
         }
 
     private:
@@ -153,9 +166,14 @@ public:
 
     ~FlowGraphNodePort() override;
 
-    enum { Type = QGraphicsItem::UserType + 2 };
+    enum {
+        Type = QGraphicsItem::UserType + 2
+    };
 
-    int type() const override { return Type; }
+    int type() const override
+    {
+        return Type;
+    }
 
     FlowGraphNode *portNode() const;
 
@@ -198,32 +216,38 @@ public:
         // Constructors.
         PortKey(FlowGraphNodePort *port)
             : ItemKey(port->portId(), port->portMode(), port->portType())
-        {}
+        {
+        }
     };
 
     // Port sorting type.
-    enum SortType { PortName = 0, PortTitle, PortIndex };
+    enum SortType {
+        PortName = 0,
+        PortTitle,
+        PortIndex
+    };
 
     static void setSortType(SortType sort_type);
     static SortType sortType();
 
     // Port sorting order.
-    enum SortOrder { Ascending = 0, Descending };
+    enum SortOrder {
+        Ascending = 0,
+        Descending
+    };
 
     static void setSortOrder(SortOrder sort_order);
     static SortOrder sortOrder();
 
     // Port sorting comparators.
-    struct Compare
-    {
+    struct Compare {
         bool operator()(FlowGraphNodePort *port1, FlowGraphNodePort *port2) const
         {
             return FlowGraphNodePort::lessThan(port1, port2);
         }
     };
 
-    struct ComparePos
-    {
+    struct ComparePos {
         bool operator()(FlowGraphNodePort *port1, FlowGraphNodePort *port2) const
         {
             return (port1->scenePos().y() < port2->scenePos().y());
@@ -275,9 +299,14 @@ public:
     FlowGraphNode(AbstractModule *module, uint type = 0);
     ~FlowGraphNode() override;
 
-    enum { Type = QGraphicsItem::UserType + 1 };
+    enum {
+        Type = QGraphicsItem::UserType + 1
+    };
 
-    int type() const override { return Type; }
+    int type() const override
+    {
+        return Type;
+    }
 
     void setNodeName(const QString &name);
     const QString nodeName() const;
@@ -314,10 +343,9 @@ public:
     {
     public:
         NodeKey(FlowGraphNode *node)
-            : ItemKey(node->nodeName(),
-                      FlowGraphItem::Duplex,
-                      node->nodeType())
-        {}
+            : ItemKey(node->nodeName(), FlowGraphItem::Duplex, node->nodeType())
+        {
+        }
     };
 
     QRectF editorRect() const override;
@@ -354,8 +382,13 @@ public:
     FlowGraphEdge();
     ~FlowGraphEdge() override;
 
-    enum { Type = QGraphicsItem::UserType + 3 };
-    int type() const override { return Type; }
+    enum {
+        Type = QGraphicsItem::UserType + 3
+    };
+    int type() const override
+    {
+        return Type;
+    }
 
     bool setPort1(FlowGraphNodePort *port);
     FlowGraphNodePort *port1() const;
@@ -495,7 +528,12 @@ protected:
     void updateEditorGeometry();
 
 private:
-    enum DragState { DragNone = 0, DragStart, DragMove, DragScroll };
+    enum DragState {
+        DragNone = 0,
+        DragStart,
+        DragMove,
+        DragScroll
+    };
 
     QGraphicsScene *m_scene;
     DragState m_state;

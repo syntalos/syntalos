@@ -19,8 +19,8 @@
 
 #include "clockmodule.h"
 
-#include <time.h>
 #include <glib.h>
+#include <time.h>
 
 #include "clocksettingsdialog.h"
 #include "tsyncfile.h"
@@ -29,8 +29,7 @@
 
 SYNTALOS_MODULE(DevelClockModule)
 
-static inline
-struct timespec timespecAdd(const struct timespec &t1, const struct timespec &t2)
+static inline struct timespec timespecAdd(const struct timespec &t1, const struct timespec &t2)
 {
     long sec = t2.tv_sec + t1.tv_sec;
     long nsec = t2.tv_nsec + t1.tv_nsec;
@@ -38,7 +37,7 @@ struct timespec timespecAdd(const struct timespec &t1, const struct timespec &t2
         nsec -= NSEC_IN_SEC;
         sec++;
     }
-    return (struct timespec){ .tv_sec = sec, .tv_nsec = nsec };
+    return (struct timespec){.tv_sec = sec, .tv_nsec = nsec};
 }
 
 class ClockModule : public AbstractModule
@@ -64,10 +63,7 @@ public:
         addSettingsWindow(m_settingsDlg);
     }
 
-    ~ClockModule() override
-    {
-
-    }
+    ~ClockModule() override {}
 
     ModuleFeatures features() const override
     {
@@ -104,7 +100,9 @@ public:
         m_tsWriter.setTimeNames(QStringLiteral("no"), QStringLiteral("master-time"));
         m_tsWriter.setTimeUnits(TSyncFileTimeUnit::INDEX, TSyncFileTimeUnit::MICROSECONDS);
         m_tsWriter.setTimeDataTypes(TSyncFileDataType::UINT32, TSyncFileDataType::UINT64);
-        m_tsWriter.setChunkSize((m_settingsDlg->pulseIntervalUs() / 1000 / 1000) * 60 * 2); // new chunk about every 2min
+        m_tsWriter.setChunkSize(
+            (m_settingsDlg->pulseIntervalUs() / 1000 / 1000) * 60 * 2
+        ); // new chunk about every 2min
 
         // prepare dataset
         auto dstore = getOrCreateDefaultDataset(name());
@@ -139,7 +137,8 @@ public:
         r = clock_gettime(CLOCK_MONOTONIC, &ts);
         if (G_UNLIKELY(r != 0)) {
             m_running = false;
-            raiseError(QStringLiteral("Unable to obtain initial monotonic clock time: %1").arg(QString::fromStdString(std::strerror(errno))));
+            raiseError(QStringLiteral("Unable to obtain initial monotonic clock time: %1")
+                           .arg(QString::fromStdString(std::strerror(errno))));
             return;
         }
         ts = timespecAdd(ts, m_interval);
@@ -147,15 +146,13 @@ public:
         m_stopped = false;
         index = 0;
         while (m_running) {
-            r = clock_nanosleep(CLOCK_MONOTONIC,
-                                TIMER_ABSTIME,
-                                &ts,
-                                nullptr);
+            r = clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, nullptr);
             if (G_UNLIKELY(r == -EINTR)) {
                 r = clock_gettime(CLOCK_MONOTONIC, &ts);
                 if (G_UNLIKELY(r != 0)) {
                     m_running = false;
-                    raiseError(QStringLiteral("Unable to obtain monotonic clock time: %1").arg(QString::fromStdString(std::strerror(errno))));
+                    raiseError(QStringLiteral("Unable to obtain monotonic clock time: %1")
+                                   .arg(QString::fromStdString(std::strerror(errno))));
                     break;
                 }
                 continue;
@@ -168,7 +165,8 @@ public:
             r = clock_gettime(CLOCK_MONOTONIC, &ts);
             if (G_UNLIKELY(r != 0)) {
                 m_running = false;
-                raiseError(QStringLiteral("Unable to obtain monotonic clock time: %1").arg(QString::fromStdString(std::strerror(errno))));
+                raiseError(QStringLiteral("Unable to obtain monotonic clock time: %1")
+                               .arg(QString::fromStdString(std::strerror(errno))));
                 break;
             }
 
@@ -189,7 +187,9 @@ public:
     void stop() override
     {
         m_running = false;
-        while (!m_stopped) { usleep(1000); }
+        while (!m_stopped) {
+            usleep(1000);
+        }
         m_tsWriter.close();
     }
 
@@ -199,7 +199,7 @@ public:
         settings.insert(QStringLiteral("interval_us"), QVariant::fromValue(m_settingsDlg->pulseIntervalUs()));
     }
 
-    bool loadSettings(const QString&, const QVariantHash &settings, const QByteArray& ) override
+    bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
     {
         m_settingsDlg->setHighPriorityThread(settings.value(QStringLiteral("high_priority"), false).toBool());
         m_settingsDlg->setPulseIntervalUs(settings.value(QStringLiteral("interval_us"), 500 * 1000).toLongLong());
@@ -207,7 +207,6 @@ public:
     }
 
 private:
-
 };
 
 QString DevelClockModuleInfo::id() const

@@ -19,8 +19,8 @@
 
 #pragma once
 
-#include <string>
 #include <QString>
+#include <string>
 
 int findFirstProcIdByName(std::string procName);
 

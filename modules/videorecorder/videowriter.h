@@ -20,15 +20,16 @@
 #ifndef VIDEOWRITER_H
 #define VIDEOWRITER_H
 
-#include <memory>
-#include <chrono>
-#include <opencv2/core.hpp>
 #include <QMetaType>
+#include <chrono>
+#include <memory>
+#include <opencv2/core.hpp>
 
 #include "streams/frametype.h"
 
-namespace Syntalos {
-    Q_DECLARE_LOGGING_CATEGORY(logVRecorder)
+namespace Syntalos
+{
+Q_DECLARE_LOGGING_CATEGORY(logVRecorder)
 }
 
 /**
@@ -47,7 +48,7 @@ enum class VideoContainer {
 Q_DECLARE_METATYPE(VideoContainer);
 
 std::string videoContainerToString(VideoContainer container);
-VideoContainer stringToVideoContainer(const std::string& str);
+VideoContainer stringToVideoContainer(const std::string &str);
 
 /**
  * @brief The VideoCodec enum
@@ -73,7 +74,7 @@ enum class VideoCodec {
 Q_DECLARE_METATYPE(VideoCodec);
 
 std::string videoCodecToString(VideoCodec codec);
-VideoCodec stringToVideoCodec(const std::string& str);
+VideoCodec stringToVideoCodec(const std::string &str);
 
 /**
  * @brief The CodecProperties class
@@ -88,8 +89,8 @@ public:
     explicit CodecProperties(const QVariantHash &v);
     ~CodecProperties();
 
-    CodecProperties(const CodecProperties& rhs);
-    CodecProperties& operator=(const CodecProperties& rhs);
+    CodecProperties(const CodecProperties &rhs);
+    CodecProperties &operator=(const CodecProperties &rhs);
 
     enum LosslessMode {
         Option,
@@ -163,24 +164,28 @@ public:
     explicit VideoWriter();
     ~VideoWriter();
 
-    void initialize(const QString &fname,
-                    const QString &modName, const QString &sourceModName,
-                    const QUuid &collectionId, const QString &subjectName,
-                    int width,
-                    int height,
-                    int fps,
-                    int cvDepth,
-                    bool hasColor,
-                    bool saveTimestamps = true);
+    void initialize(
+        const QString &fname,
+        const QString &modName,
+        const QString &sourceModName,
+        const QUuid &collectionId,
+        const QString &subjectName,
+        int width,
+        int height,
+        int fps,
+        int cvDepth,
+        bool hasColor,
+        bool saveTimestamps = true
+    );
     void finalize();
     bool initialized() const;
     bool startNewSection(const QString &fname);
 
     std::chrono::milliseconds captureStartTimestamp() const;
-    void setCaptureStartTimestamp(const std::chrono::milliseconds& startTimestamp);
+    void setCaptureStartTimestamp(const std::chrono::milliseconds &startTimestamp);
     void setTsyncFileCreationTimeOverride(const QDateTime &dt);
 
-    bool encodeFrame(const cv::Mat& frame, const std::chrono::milliseconds& timestamp);
+    bool encodeFrame(const cv::Mat &frame, const std::chrono::milliseconds &timestamp);
 
     CodecProperties codecProps() const;
     void setCodec(VideoCodec codec);

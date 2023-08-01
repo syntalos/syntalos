@@ -31,11 +31,10 @@ class CanvasWindow : public QWidget
 public:
     explicit CanvasWindow(QWidget *parent = nullptr);
 
-    void showImage(const cv::Mat& image);
+    void showImage(const cv::Mat &image);
     void setStatusText(const QString &text);
 
 private:
     ImageViewWidget *m_imgView;
     QLabel *m_statusLabel;
-
 };

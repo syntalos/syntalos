@@ -24,7 +24,8 @@
 
 #include "globalconfig.h"
 
-namespace Ui {
+namespace Ui
+{
 class GlobalConfigDialog;
 }
 

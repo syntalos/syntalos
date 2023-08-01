@@ -19,11 +19,12 @@
 
 #pragma once
 
-#include <QObject>
-#include "optionalwaitcondition.h"
 #include "moduleapi.h"
+#include "optionalwaitcondition.h"
+#include <QObject>
 
-namespace Syntalos {
+namespace Syntalos
+{
 
 /**
  * @brief Manages a thread which is running evented modules
@@ -66,8 +67,7 @@ private:
     QScopedPointer<Private> d;
 
     void shutdownThread();
-    void moduleEventThreadFunc(QList<AbstractModule *> mods,
-                               OptionalWaitCondition *waitCondition);
+    void moduleEventThreadFunc(QList<AbstractModule *> mods, OptionalWaitCondition *waitCondition);
 };
 
-} // end of namespace
+} // namespace Syntalos

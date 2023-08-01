@@ -29,32 +29,30 @@ class Tracker : public QObject
 {
     Q_OBJECT
 public:
-    struct LEDTriangle
-    {
-        cv::Point red; // a
+    struct LEDTriangle {
+        cv::Point red;   // a
         cv::Point green; // b
-        cv::Point blue; // c
+        cv::Point blue;  // c
 
         cv::Point2f center;
 
-        double gamma; // angle at c
+        double gamma;     // angle at c
         double turnAngle; // triangle turn angle
     };
 
-    explicit Tracker(std::shared_ptr<DataStream<TableRow> > dataStream, const QString &subjectId);
+    explicit Tracker(std::shared_ptr<DataStream<TableRow>> dataStream, const QString &subjectId);
     ~Tracker();
 
     QString lastError() const;
 
     bool initialize();
-    void analyzeFrame(const cv::Mat& frame, const milliseconds_t time,
-                      cv::Mat *trackingFrame, cv::Mat *infoFrame);
+    void analyzeFrame(const cv::Mat &frame, const milliseconds_t time, cv::Mat *trackingFrame, cv::Mat *infoFrame);
     QVariantHash finalize();
 
 private:
-    void setError(const QString& msg);
+    void setError(const QString &msg);
 
-    LEDTriangle trackPoints(const cv::Mat& image, cv::Mat *infoFrame, cv::Mat *trackingFrame);
+    LEDTriangle trackPoints(const cv::Mat &image, cv::Mat *infoFrame, cv::Mat *trackingFrame);
 
     bool m_initialized;
     bool m_firstFrame;

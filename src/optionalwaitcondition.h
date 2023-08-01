@@ -21,7 +21,8 @@
 
 #include <QSharedPointer>
 
-namespace Syntalos {
+namespace Syntalos
+{
 
 #if !defined(DOXYGEN_SHOULD_SKIP_THIS)
 class AbstractModule;
@@ -33,8 +34,10 @@ class AbstractModule;
  * Create a thread barrier to synchronize a
  * set of threads to run at once.
  */
-class OptionalWaitCondition {
+class OptionalWaitCondition
+{
     friend class Engine;
+
 public:
     OptionalWaitCondition();
 
@@ -52,4 +55,4 @@ private:
     void reset();
 };
 
-} // end of namespace
+} // namespace Syntalos

@@ -19,12 +19,12 @@
 
 #pragma once
 
-#include <chrono>
+#include <QLoggingCategory>
+#include <QMetaType>
 #include <atomic>
+#include <chrono>
 #include <memory>
 #include <ratio>
-#include <QMetaType>
-#include <QLoggingCategory>
 
 #include "eigenaux.h"
 
@@ -32,7 +32,8 @@ Q_DECLARE_METATYPE(std::chrono::milliseconds);
 Q_DECLARE_METATYPE(std::chrono::microseconds);
 Q_DECLARE_METATYPE(std::chrono::nanoseconds);
 
-namespace Syntalos {
+namespace Syntalos
+{
 
 Q_DECLARE_LOGGING_CATEGORY(logTimeClock)
 
@@ -47,18 +48,16 @@ Q_DECLARE_LOGGING_CATEGORY(logTimeClock)
  * This clock exists so we can be independent of the C++ standard library
  * and exactly control and adjust our clock, as well as experiment with new
  * types of clocks.
-*/
-struct symaster_clock
-{
-  typedef std::chrono::nanoseconds  duration;
-  typedef duration::rep             rep;
-  typedef duration::period          period;
-  typedef std::chrono::time_point<symaster_clock, duration> 	time_point;
+ */
+struct symaster_clock {
+    typedef std::chrono::nanoseconds duration;
+    typedef duration::rep rep;
+    typedef duration::period period;
+    typedef std::chrono::time_point<symaster_clock, duration> time_point;
 
-  static constexpr bool is_steady = true;
+    static constexpr bool is_steady = true;
 
-  static time_point
-  now() noexcept;
+    static time_point now() noexcept;
 };
 
 /// A timepoint on the master clock
@@ -93,7 +92,7 @@ inline microseconds_t timeDiffUsec(const symaster_timepoint &timePoint1, const s
     return std::chrono::duration_cast<microseconds_t>(timePoint1 - timePoint2);
 }
 
-inline milliseconds_t timeDiffToNowMsec(const std::chrono::time_point<symaster_clock>& timePoint) noexcept
+inline milliseconds_t timeDiffToNowMsec(const std::chrono::time_point<symaster_clock> &timePoint) noexcept
 {
     return std::chrono::duration_cast<milliseconds_t>(symaster_clock::now() - timePoint);
 }
@@ -154,10 +153,11 @@ private:
  *
  * The resulting timestamp is in µs
  */
-#define TIMER_FUNC_TIMESTAMP(T, F) ({ \
-    const auto __stime = T->timeSinceStartNsec(); \
-    F; \
-    std::chrono::round<microseconds_t>((__stime + T->timeSinceStartNsec()) / 2.0); \
+#define TIMER_FUNC_TIMESTAMP(T, F)                                                                                     \
+    ({                                                                                                                 \
+        const auto __stime = T->timeSinceStartNsec();                                                                  \
+        F;                                                                                                             \
+        std::chrono::round<microseconds_t>((__stime + T->timeSinceStartNsec()) / 2.0);                                 \
     })
 #define MTIMER_FUNC_TIMESTAMP(F) (TIMER_FUNC_TIMESTAMP(m_syTimer, F))
 
@@ -168,10 +168,13 @@ private:
  *
  * The resulting timestamp is in µs
  */
-#define FUNC_EXEC_TIMESTAMP(INIT_TIME, F) ({ \
-    const auto __stime = std::chrono::duration_cast<nanoseconds_t>(symaster_clock::now() - (INIT_TIME)); \
-    F; \
-    std::chrono::round<microseconds_t>((__stime + std::chrono::duration_cast<nanoseconds_t>(symaster_clock::now() - (INIT_TIME))) / 2.0); \
+#define FUNC_EXEC_TIMESTAMP(INIT_TIME, F)                                                                              \
+    ({                                                                                                                 \
+        const auto __stime = std::chrono::duration_cast<nanoseconds_t>(symaster_clock::now() - (INIT_TIME));           \
+        F;                                                                                                             \
+        std::chrono::round<microseconds_t>(                                                                            \
+            (__stime + std::chrono::duration_cast<nanoseconds_t>(symaster_clock::now() - (INIT_TIME))) / 2.0           \
+        );                                                                                                             \
     })
 
 /**
@@ -181,9 +184,10 @@ private:
  *
  * The resulting timestamp is in µs
  */
-#define FUNC_DONE_TIMESTAMP(INIT_TIME, F) ({ \
-    F; \
-    std::chrono::duration_cast<microseconds_t>(symaster_clock::now() - (INIT_TIME)); \
+#define FUNC_DONE_TIMESTAMP(INIT_TIME, F)                                                                              \
+    ({                                                                                                                 \
+        F;                                                                                                             \
+        std::chrono::duration_cast<microseconds_t>(symaster_clock::now() - (INIT_TIME));                               \
     })
 
-} // end of namespace
+} // namespace Syntalos

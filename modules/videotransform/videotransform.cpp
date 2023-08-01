@@ -19,13 +19,12 @@
 
 #include "videotransform.h"
 
-#include <QFormLayout>
-#include <QSpinBox>
 #include <QDoubleSpinBox>
+#include <QFormLayout>
 #include <QLabel>
+#include <QSpinBox>
 #include <QTimer>
 #include <opencv2/imgproc.hpp>
-
 
 VideoTransform::VideoTransform()
     : QObject()
@@ -49,24 +48,22 @@ bool VideoTransform::allowOnlineModify() const
     return false;
 }
 
-void VideoTransform::start()
-{}
+void VideoTransform::start() {}
 
-void VideoTransform::stop()
-{}
+void VideoTransform::stop() {}
 
 QVariantHash VideoTransform::toVariantHash()
 {
     return QVariantHash();
 }
 
-void VideoTransform::fromVariantHash(const QVariantHash &)
-{}
+void VideoTransform::fromVariantHash(const QVariantHash &) {}
 
 CropTransform::CropTransform()
     : VideoTransform(),
       m_sizeInfoLabel(nullptr)
-{}
+{
+}
 
 QString CropTransform::name() const
 {
@@ -85,12 +82,12 @@ void CropTransform::createSettingsUi(QWidget *parent)
         return;
     }
     m_sizeInfoLabel = new QLabel(parent);
-    connect(m_sizeInfoLabel, &QWidget::destroyed, [&] () {
+    connect(m_sizeInfoLabel, &QWidget::destroyed, [&]() {
         m_sizeInfoLabel = nullptr;
     });
 
     auto sbWidth = new QSpinBox(parent);
-    sbWidth->setRange((m_originalSize.width > 10)? 10 : 0, m_originalSize.width);
+    sbWidth->setRange((m_originalSize.width > 10) ? 10 : 0, m_originalSize.width);
     sbWidth->setSuffix("px");
     sbWidth->setValue(m_roi.width);
     sbWidth->setMinimumWidth(100);
@@ -101,8 +98,8 @@ void CropTransform::createSettingsUi(QWidget *parent)
     sbX->setValue(m_roi.x);
     sbX->setMinimumWidth(100);
 
-    auto sbHeight= new QSpinBox(parent);
-    sbHeight->setRange((m_originalSize.height > 10)? 10 : 0, m_originalSize.height);
+    auto sbHeight = new QSpinBox(parent);
+    sbHeight->setRange((m_originalSize.height > 10) ? 10 : 0, m_originalSize.height);
     sbHeight->setSuffix("px");
     sbHeight->setValue(m_roi.height);
     sbHeight->setMinimumWidth(100);
@@ -236,17 +233,19 @@ void CropTransform::process(Frame &frame)
         // the crop dimensions are larger than our output, we need some scaling
         double scaleFactor = 1;
         if (cropScaleMat.cols > outMat.cols)
-            scaleFactor = (double) outMat.cols / (double) cropScaleMat.cols;
+            scaleFactor = (double)outMat.cols / (double)cropScaleMat.cols;
         if (cropScaleMat.rows > outMat.rows) {
-            double scale = (double) outMat.rows / (double) cropScaleMat.rows;
-            scaleFactor = (scale < scaleFactor)? scale : scaleFactor;
+            double scale = (double)outMat.rows / (double)cropScaleMat.rows;
+            scaleFactor = (scale < scaleFactor) ? scale : scaleFactor;
         }
 
         cv::resize(cropScaleMat, cropScaleMat, cv::Size(), scaleFactor, scaleFactor);
-        cropScaleMat.copyTo(outMat(cv::Rect((outMat.cols - cropScaleMat.cols) / 2,
-                                            (outMat.rows - cropScaleMat.rows) / 2,
-                                            cropScaleMat.cols,
-                                            cropScaleMat.rows)));
+        cropScaleMat.copyTo(outMat(cv::Rect(
+            (outMat.cols - cropScaleMat.cols) / 2,
+            (outMat.rows - cropScaleMat.rows) / 2,
+            cropScaleMat.cols,
+            cropScaleMat.rows
+        )));
     }
 
     frame.mat = outMat;
@@ -289,9 +288,12 @@ void CropTransform::checkAndUpdateRoi()
                                                 "Original size: %7x%8px")
                                      .arg(m_roi.width)
                                      .arg(m_roi.height)
-                                     .arg(m_roi.x).arg(m_roi.width + m_roi.x)
-                                     .arg(m_roi.y).arg(m_roi.height + m_roi.y)
-                                     .arg(m_originalSize.width).arg(m_originalSize.height));
+                                     .arg(m_roi.x)
+                                     .arg(m_roi.width + m_roi.x)
+                                     .arg(m_roi.y)
+                                     .arg(m_roi.height + m_roi.y)
+                                     .arg(m_originalSize.width)
+                                     .arg(m_originalSize.height));
     };
 }
 

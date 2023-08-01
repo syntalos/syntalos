@@ -25,18 +25,17 @@
 #include <QSize>
 #include <opencv2/core.hpp>
 
+#include "streams/frametype.h"
 #include "syclock.h"
 #include "timesync.h"
-#include "streams/frametype.h"
 
-struct CameraPixelFormat
-{
+struct CameraPixelFormat {
     QString name;
     unsigned int fourcc;
 
     friend QDataStream &operator<<(QDataStream &out, const CameraPixelFormat &obj)
     {
-        out << (quint32) obj.fourcc << obj.name;
+        out << (quint32)obj.fourcc << obj.name;
         return out;
     }
 

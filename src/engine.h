@@ -19,9 +19,9 @@
 
 #pragma once
 
-#include <memory>
-#include <QObject>
 #include <QLoggingCategory>
+#include <QObject>
+#include <memory>
 
 #include "moduleapi.h"
 #include "modulelibrary.h"
@@ -29,7 +29,8 @@
 
 class OOPModule;
 
-namespace Syntalos {
+namespace Syntalos
+{
 
 Q_DECLARE_LOGGING_CATEGORY(logEngine)
 
@@ -37,6 +38,7 @@ class Engine : public QObject
 {
     Q_OBJECT
     friend class ModuleManager;
+
 public:
     explicit Engine(QWidget *parentWidget = nullptr);
     ~Engine();
@@ -86,7 +88,7 @@ public:
     bool removeModule(AbstractModule *mod);
     void removeAllModules();
 
-    QList<AbstractModule*> activeModules() const;
+    QList<AbstractModule *> activeModules() const;
     AbstractModule *moduleByName(const QString &name) const;
 
     QString lastRunExportDir() const;
@@ -133,10 +135,13 @@ signals:
     void connectionHeatChangedAtPort(VarStreamInputPort *iport, ConnectionHeatLevel hlevel);
 
 private slots:
-    void receiveModuleError(const QString& message);
+    void receiveModuleError(const QString &message);
 
-    void onSynchronizerDetailsChanged(const QString &id, const TimeSyncStrategies &strategies,
-                                      const microseconds_t &tolerance);
+    void onSynchronizerDetailsChanged(
+        const QString &id,
+        const TimeSyncStrategies &strategies,
+        const microseconds_t &tolerance
+    );
     void onSynchronizerOffsetChanged(const QString &id, const microseconds_t &currentOffset);
     void onDiskspaceMonitorEvent();
     void onMemoryMonitorEvent();
@@ -150,8 +155,10 @@ private:
     int obtainSleepShutdownIdleInhibitor();
     bool makeDirectory(const QString &dir);
 
-    QHash<AbstractModule*, std::vector<uint>> setupCoreAffinityConfig(const QList<AbstractModule *> &threadedModules,
-                                                                      const QList<OOPModule *> &oopModules);
+    QHash<AbstractModule *, std::vector<uint>> setupCoreAffinityConfig(
+        const QList<AbstractModule *> &threadedModules,
+        const QList<OOPModule *> &oopModules
+    );
     void startResourceMonitoring(QList<AbstractModule *> activeModules, const QString &exportDirPath);
     void stopResourceMonitoring();
 
@@ -159,8 +166,8 @@ private:
     void makeFinalExperimentId();
     void refreshExportDirPath();
     void emitStatusMessage(const QString &message);
-    QList<AbstractModule*> createModuleExecOrderList();
-    QList<AbstractModule*> createModuleStopOrderFromExecOrder(const QList<AbstractModule*> &modExecList);
+    QList<AbstractModule *> createModuleExecOrderList();
+    QList<AbstractModule *> createModuleStopOrderFromExecOrder(const QList<AbstractModule *> &modExecList);
 };
 
-} // end of namespace
+} // namespace Syntalos

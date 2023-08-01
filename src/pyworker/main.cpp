@@ -21,8 +21,8 @@
 #include <Python.h>
 #include <QApplication>
 
-#include <sys/prctl.h>
 #include <signal.h>
+#include <sys/prctl.h>
 
 #include "worker.h"
 

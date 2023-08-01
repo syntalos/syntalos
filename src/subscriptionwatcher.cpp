@@ -19,16 +19,16 @@
 
 #include "subscriptionwatcher.h"
 
-#include <sys/eventfd.h>
 #include <sys/epoll.h>
+#include <sys/eventfd.h>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpadded"
 class SubscriptionWatcher::Private
 {
 public:
-    Private() { }
-    ~Private() { }
+    Private() {}
+    ~Private() {}
 
     bool valid;
     int epollFD;
@@ -36,7 +36,9 @@ public:
 };
 #pragma GCC diagnostic pop
 
-std::optional<std::unique_ptr<SubscriptionWatcher>> SubscriptionWatcher::construct(std::initializer_list<std::shared_ptr<VariantStreamSubscription>> subscriptions)
+std::optional<std::unique_ptr<SubscriptionWatcher>> SubscriptionWatcher::construct(
+    std::initializer_list<std::shared_ptr<VariantStreamSubscription>> subscriptions
+)
 {
     std::unique_ptr<SubscriptionWatcher> watcher(new SubscriptionWatcher(subscriptions));
     if (watcher->isValid())
@@ -73,7 +75,7 @@ SubscriptionWatcher::WaitResult SubscriptionWatcher::wait()
                     return DONE;
                 } else if (events[i].events & EPOLLERR) {
                     qWarning("Eventfd has epoll error");
-                  //  return ERROR;
+                    //  return ERROR;
                 } else if (events[i].events & EPOLLIN) {
                     auto efd = events[i].data.fd;
                     ret = read(efd, &count, sizeof(count));
@@ -102,7 +104,8 @@ SubscriptionWatcher::WaitResult SubscriptionWatcher::wait()
     }
 }
 
-SubscriptionWatcher::SubscriptionWatcher(std::initializer_list<std::shared_ptr<VariantStreamSubscription> > subscriptions)
+SubscriptionWatcher::SubscriptionWatcher(std::initializer_list<std::shared_ptr<VariantStreamSubscription>> subscriptions
+)
     : d(new SubscriptionWatcher::Private)
 {
     d->valid = false;

@@ -19,10 +19,10 @@
 
 #pragma once
 
-#include <QObject>
 #include <QAbstractTableModel>
-#include <QStyledItemDelegate>
 #include <QMutex>
+#include <QObject>
+#include <QStyledItemDelegate>
 
 #include "../videowriter.h"
 
@@ -30,7 +30,13 @@ class QueueItem : public QObject
 {
     Q_OBJECT
 public:
-    enum QueueStatus { WAITING = 0, SCHEDULED, RUNNING, FINISHED, FAILED };
+    enum QueueStatus {
+        WAITING = 0,
+        SCHEDULED,
+        RUNNING,
+        FINISHED,
+        FAILED
+    };
 
     QueueItem(const QString &projectId, const QString &fname, QObject *parent);
 
@@ -73,7 +79,6 @@ class QueueModel : public QAbstractTableModel
 {
     Q_OBJECT
 public:
-
     QueueModel(QObject *parent = nullptr);
     int rowCount(const QModelIndex &) const override;
     int columnCount(const QModelIndex &) const override;
@@ -92,7 +97,7 @@ private slots:
     void itemDataChanged();
 
 private:
-    QList<QueueItem*> m_data;
+    QList<QueueItem *> m_data;
 };
 
 class ProgressBarDelegate : public QStyledItemDelegate
@@ -102,8 +107,7 @@ public:
     ProgressBarDelegate(QObject *parent = nullptr);
 
 protected:
-    void paint(QPainter *painter, const QStyleOptionViewItem &option,
-        const QModelIndex &index) const override;
+    void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const override;
 };
 
 class HtmlDelegate : public QStyledItemDelegate

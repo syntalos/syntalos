@@ -19,19 +19,19 @@
 
 #pragma once
 
-#include <thread>
-#include <atomic>
-#include <mutex>
-#include <algorithm>
-#include <optional>
-#include <cmath>
-#include <QVariant>
 #include <QDebug>
+#include <QVariant>
+#include <algorithm>
+#include <atomic>
+#include <cmath>
+#include <mutex>
+#include <optional>
 #include <sys/eventfd.h>
+#include <thread>
 #include <unistd.h>
 
-#include "readerwriterqueue.h"
 #include "datatypes.h"
+#include "readerwriterqueue.h"
 #include "syclock.h"
 
 using namespace moodycamel;
@@ -49,14 +49,18 @@ inline uint qHash(CommonMetadataKey key, uint seed)
     return ::qHash(static_cast<uint>(key), seed);
 }
 
+// clang-format off
 typedef QHash<CommonMetadataKey, QString> CommonMetadataKeyMap;
-Q_GLOBAL_STATIC_WITH_ARGS(CommonMetadataKeyMap, _commonMetadataKeyMap, ( {
-    { CommonMetadataKey::SrcModType, QLatin1String("src_mod_type") },
-    { CommonMetadataKey::SrcModName, QLatin1String("src_mod_name") },
-    { CommonMetadataKey::SrcModPortTitle, QLatin1String("src_mod_port_title") },
-    { CommonMetadataKey::DataNameProposal, QLatin1String("data_name_proposal") },
-    }
-));
+Q_GLOBAL_STATIC_WITH_ARGS(CommonMetadataKeyMap,
+      _commonMetadataKeyMap,
+      ({
+          {CommonMetadataKey::SrcModType, QLatin1String("src_mod_type")},
+          {CommonMetadataKey::SrcModName, QLatin1String("src_mod_name")},
+          {CommonMetadataKey::SrcModPortTitle, QLatin1String("src_mod_port_title")},
+          {CommonMetadataKey::DataNameProposal, QLatin1String("data_name_proposal")},
+      })
+);
+// clang-format on
 
 class VariantStreamSubscription
 {
@@ -71,14 +75,11 @@ public:
     virtual bool hasPending() const = 0;
     virtual size_t approxPendingCount() const = 0;
     virtual int enableNotify() = 0;
-    virtual void setThrottleItemsPerSec(uint itemsPerSec,
-                                        bool allowMore = true) = 0;
+    virtual void setThrottleItemsPerSec(uint itemsPerSec, bool allowMore = true) = 0;
 
     virtual QHash<QString, QVariant> metadata() const = 0;
-    virtual QVariant metadataValue(const QString &key,
-                                   const QVariant &defaultValue = QVariant()) const = 0;
-    virtual QVariant metadataValue(CommonMetadataKey key,
-                                   const QVariant &defaultValue = QVariant()) const = 0;
+    virtual QVariant metadataValue(const QString &key, const QVariant &defaultValue = QVariant()) const = 0;
+    virtual QVariant metadataValue(CommonMetadataKey key, const QVariant &defaultValue = QVariant()) const = 0;
 
     // used internally by Syntalos
     virtual void forcePushNullopt() = 0;
@@ -97,9 +98,7 @@ public:
     virtual QHash<QString, QVariant> metadata() = 0;
     virtual void setMetadata(const QHash<QString, QVariant> &metadata) = 0;
     virtual void setMetadataValue(const QString &key, const QVariant &value) = 0;
-    virtual void setCommonMetadata(const QString &srcModType,
-                                   const QString &srcModName,
-                                   const QString &portTitle) = 0;
+    virtual void setCommonMetadata(const QString &srcModType, const QString &srcModName, const QString &portTitle) = 0;
 };
 
 template<typename T>
@@ -109,6 +108,7 @@ template<typename T>
 class StreamSubscription : public VariantStreamSubscription
 {
     friend DataStream<T>;
+
 public:
     StreamSubscription(DataStream<T> *stream)
         : m_stream(stream),
@@ -261,7 +261,8 @@ public:
         m_suspended = true;
 
         // drop currently pending data
-        while (m_queue.pop()) {}
+        while (m_queue.pop()) {
+        }
     }
 
     /**
@@ -309,7 +310,8 @@ public:
         if (itemsPerSec == 0)
             newThrottle = 0;
         else
-            newThrottle = allowMore? std::floor((1000.0 / itemsPerSec) * 1000) : std::ceil((1000.0 / itemsPerSec) * 1000);
+            newThrottle = allowMore ? std::floor((1000.0 / itemsPerSec) * 1000)
+                                    : std::ceil((1000.0 / itemsPerSec) * 1000);
 
         // clear current queue contents quickly in case we throttle down the subscription
         // (this prevents clients from skipping elements too much if they are overeager
@@ -376,7 +378,8 @@ private:
         if (m_notify) {
             const uint64_t buffer = 1;
             if (write(m_eventfd, &buffer, sizeof(buffer)) == -1)
-                qWarning().noquote() << "Unable to write to eventfd in" << dataTypeName() << "data subscription. FD:" << m_eventfd << "Error:" << std::strerror(errno);
+                qWarning().noquote() << "Unable to write to eventfd in" << dataTypeName()
+                                     << "data subscription. FD:" << m_eventfd << "Error:" << std::strerror(errno);
         }
     }
 
@@ -392,10 +395,10 @@ private:
         m_active = true;
         m_throttle = 0;
         m_lastItemTime = currentTimePoint();
-        while (m_queue.pop()) {}  // ensure the queue is empty
+        while (m_queue.pop()) {
+        } // ensure the queue is empty
     }
 };
-
 
 template<typename T>
 class DataStream : public VariantDataStream
@@ -493,7 +496,7 @@ public:
     void start() override
     {
         m_ownerId = std::this_thread::get_id();
-        for (auto const& sub: m_subs) {
+        for (auto const &sub : m_subs) {
             sub->reset();
             sub->setMetadata(m_metadata);
         }
@@ -502,7 +505,7 @@ public:
 
     void stop() override
     {
-        for (auto const& sub: m_subs)
+        for (auto const &sub : m_subs)
             sub->stop();
         m_active = false;
     }
@@ -511,7 +514,7 @@ public:
     {
         if (!m_active)
             return;
-        for(auto& sub: m_subs)
+        for (auto &sub : m_subs)
             sub->push(data);
     }
 
@@ -521,7 +524,7 @@ public:
 
         // "unsubscribe" use forcefully from any active subscription,
         // as this stream is terminated.
-        for (auto const& sub: m_subs)
+        for (auto const &sub : m_subs)
             sub->m_stream = nullptr;
         m_subs.clear();
     }

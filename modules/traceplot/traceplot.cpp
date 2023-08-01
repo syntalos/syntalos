@@ -37,9 +37,7 @@ TracePlot::TracePlot(QGraphicsItem *parent, Qt::WindowFlags wFlags)
     setAnimationOptions(QChart::SeriesAnimations);
 }
 
-TracePlot::~TracePlot()
-{
-}
+TracePlot::~TracePlot() {}
 
 bool TracePlot::sceneEvent(QEvent *event)
 {

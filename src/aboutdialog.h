@@ -22,7 +22,8 @@
 
 #include <QDialog>
 
-namespace Ui {
+namespace Ui
+{
 class AboutDialog;
 }
 
@@ -34,7 +35,7 @@ public:
     explicit AboutDialog(QWidget *parent = nullptr);
     ~AboutDialog();
 
-    void addModuleLicense(const QString& modName, const QString& license);
+    void addModuleLicense(const QString &modName, const QString &license);
 
 private:
     Ui::AboutDialog *ui;

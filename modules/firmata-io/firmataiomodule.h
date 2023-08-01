@@ -20,16 +20,17 @@
 #ifndef FIRMATAIOMODULE_H
 #define FIRMATAIOMODULE_H
 
-#include <QObject>
-#include <chrono>
-#include <QQueue>
-#include <QMutex>
 #include "moduleapi.h"
+#include <QMutex>
+#include <QObject>
+#include <QQueue>
+#include <chrono>
 
 SYNTALOS_DECLARE_MODULE
 
-namespace Syntalos {
-    Q_DECLARE_LOGGING_CATEGORY(logFmMod)
+namespace Syntalos
+{
+Q_DECLARE_LOGGING_CATEGORY(logFmMod)
 }
 
 class SerialFirmata;

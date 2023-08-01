@@ -21,57 +21,47 @@ Device::Device()
     p_caps = nullptr;
 }
 
-Device::Device(const std::string& model,
-               const std::string& serial,
-               const std::string& type,
-               GstCaps* caps)
-    : m_serial(serial), m_model(model), m_type(type)
+Device::Device(const std::string &model, const std::string &serial, const std::string &type, GstCaps *caps)
+    : m_serial(serial),
+      m_model(model),
+      m_type(type)
 {
-    if (caps)
-    {
+    if (caps) {
         p_caps = gst_caps_copy(caps);
-    }
-    else
-    {
+    } else {
         p_caps = nullptr;
     }
 }
-Device::Device(const Device& other)
-    : m_serial(other.m_serial), m_model(other.m_model), m_type(other.m_type)
+Device::Device(const Device &other)
+    : m_serial(other.m_serial),
+      m_model(other.m_model),
+      m_type(other.m_type)
 {
-    if (other.p_caps)
-    {
+    if (other.p_caps) {
         p_caps = gst_caps_copy(other.p_caps);
-    }
-    else
-    {
+    } else {
         p_caps = nullptr;
     }
 }
 
-
-Device& Device::operator=(const Device& other)
+Device &Device::operator=(const Device &other)
 {
     m_serial = other.m_serial;
     m_model = other.m_model;
     m_type = other.m_type;
 
-    if (other.p_caps)
-    {
+    if (other.p_caps) {
         p_caps = gst_caps_copy(other.p_caps);
-    }
-    else
-    {
+    } else {
         p_caps = nullptr;
     }
 
     return *this;
 }
 
-bool Device::operator==(const Device& other) const
+bool Device::operator==(const Device &other) const
 {
-    if (other.m_serial == m_serial && other.m_model == m_model && other.m_type == m_type)
-    {
+    if (other.m_serial == m_serial && other.m_model == m_model && other.m_type == m_type) {
         return true;
     }
     return false;
@@ -79,8 +69,7 @@ bool Device::operator==(const Device& other) const
 
 Device::~Device()
 {
-    if (p_caps)
-    {
+    if (p_caps) {
         gst_caps_unref(p_caps);
     }
 }
@@ -110,18 +99,16 @@ std::string Device::str() const
     return m_model + "-" + m_serial + "-" + m_type;
 }
 
-void Device::set_caps(GstCaps* caps)
+void Device::set_caps(GstCaps *caps)
 {
-    if (p_caps)
-    {
+    if (p_caps) {
         gst_caps_unref(p_caps);
     }
 
     p_caps = gst_caps_copy(caps);
-
 }
 
-GstCaps* Device::caps() const
+GstCaps *Device::caps() const
 {
     return p_caps;
 }

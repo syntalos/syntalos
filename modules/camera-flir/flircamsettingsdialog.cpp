@@ -20,9 +20,9 @@
 #include "flircamsettingsdialog.h"
 #include "ui_flircamsettingsdialog.h"
 
-FLIRCamSettingsDialog::FLIRCamSettingsDialog(FLIRCamera *camera, QWidget *parent) :
-    QDialog(parent),
-    ui(new Ui::FLIRCamSettingsDialog)
+FLIRCamSettingsDialog::FLIRCamSettingsDialog(FLIRCamera *camera, QWidget *parent)
+    : QDialog(parent),
+      ui(new Ui::FLIRCamSettingsDialog)
 {
     ui->setupUi(this);
     m_camera = camera;

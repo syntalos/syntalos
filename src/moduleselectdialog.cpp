@@ -20,25 +20,24 @@
 #include "moduleselectdialog.h"
 #include "ui_moduleselectdialog.h"
 
-#include <QStandardItemModel>
+#include <QAbstractTextDocumentLayout>
+#include <QDebug>
+#include <QPainter>
 #include <QStandardItem>
+#include <QStandardItemModel>
 #include <QStyledItemDelegate>
 #include <QTextDocument>
-#include <QAbstractTextDocumentLayout>
-#include <QPainter>
 #include <QtMath>
-#include <QDebug>
 
 #include "globalconfig.h"
 #include "moduleapi.h"
 
-
 class HtmlDelegate : public QStyledItemDelegate
 {
 protected:
-    void paint(QPainter *painter, const QStyleOptionViewItem& option, const QModelIndex& index) const override;
+    void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const override;
 
-    QSize sizeHint(const QStyleOptionViewItem & option, const QModelIndex& index) const override
+    QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const override
     {
         auto options = option;
         initStyleOption(&options, index);
@@ -58,7 +57,7 @@ protected:
     }
 };
 
-void HtmlDelegate::paint(QPainter *painter, const QStyleOptionViewItem& option, const QModelIndex& index) const
+void HtmlDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
 {
     auto options = option;
     initStyleOption(&options, index);
@@ -85,9 +84,9 @@ void HtmlDelegate::paint(QPainter *painter, const QStyleOptionViewItem& option, 
     painter->restore();
 }
 
-ModuleSelectDialog::ModuleSelectDialog(QList<QSharedPointer<ModuleInfo> > infos, QWidget *parent) :
-    QDialog(parent),
-    ui(new Ui::ModuleSelectDialog)
+ModuleSelectDialog::ModuleSelectDialog(QList<QSharedPointer<ModuleInfo>> infos, QWidget *parent)
+    : QDialog(parent),
+      ui(new Ui::ModuleSelectDialog)
 {
     ui->setupUi(this);
     this->setWindowModality(Qt::ApplicationModal);
@@ -103,10 +102,13 @@ ModuleSelectDialog::ModuleSelectDialog(QList<QSharedPointer<ModuleInfo> > infos,
     m_selectedEntryId.clear();
     setModuleInfo(infos);
 
-    connect(ui->listView->selectionModel(), &QItemSelectionModel::currentChanged,
-            [&](const QModelIndex &index, const QModelIndex &) {
-        setEntryIdFromIndex(index);
-    });
+    connect(
+        ui->listView->selectionModel(),
+        &QItemSelectionModel::currentChanged,
+        [&](const QModelIndex &index, const QModelIndex &) {
+            setEntryIdFromIndex(index);
+        }
+    );
 }
 
 ModuleSelectDialog::~ModuleSelectDialog()
@@ -136,8 +138,9 @@ void ModuleSelectDialog::setModuleInfo(QList<QSharedPointer<ModuleInfo>> infos)
         if (info->devel() && !showDevModules)
             continue;
 
-        auto item = new QStandardItem(info->icon(),
-                                      QStringLiteral("<b>%1</b><br/><span>%2</span>").arg(info->name()).arg(info->description()));
+        auto item = new QStandardItem(
+            info->icon(), QStringLiteral("<b>%1</b><br/><span>%2</span>").arg(info->name()).arg(info->description())
+        );
         item->setTextAlignment(Qt::AlignLeft);
         item->setData(info->id());
         m_model->appendRow(item);

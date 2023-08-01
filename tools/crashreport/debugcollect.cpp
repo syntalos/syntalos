@@ -20,9 +20,9 @@
 #include "debugcollect.h"
 
 #include "config.h"
+#include <QFileInfo>
 #include <string.h>
 #include <systemd/sd-journal.h>
-#include <QFileInfo>
 
 #include "utils.h"
 
@@ -90,7 +90,9 @@ static JournalEntry readJournalEntry(sd_journal *journal)
         res = sd_journal_get_data(journal, "COREDUMP_SIGNAL", &data, &length);
         if (res == 0) {
 #if HAVE_SIGDESCR_NP
-            entry.coredumpSignal = sigdescr_np(QString::fromUtf8((const char *)data, length).section(QChar::fromLatin1('='), 1).toInt());
+            entry.coredumpSignal = sigdescr_np(
+                QString::fromUtf8((const char *)data, length).section(QChar::fromLatin1('='), 1).toInt()
+            );
 #else
             entry.coredumpSignal = QString::fromUtf8((const char *)data, length).section(QChar::fromLatin1('='), 1);
 #endif
@@ -225,7 +227,8 @@ bool JournalCollector::exportCoredumpFile(const JournalEntry &journalEntry, cons
 {
     const auto cdctlExe = QStandardPaths::findExecutable("coredumpctl");
     if (cdctlExe.isEmpty()) {
-        m_lastError = QStringLiteral("Failed to generate a backtrace for '%1': coredumpctl was not found.").arg(journalEntry.coredumpFname);
+        m_lastError = QStringLiteral("Failed to generate a backtrace for '%1': coredumpctl was not found.")
+                          .arg(journalEntry.coredumpFname);
         return false;
     }
 
@@ -233,19 +236,19 @@ bool JournalCollector::exportCoredumpFile(const JournalEntry &journalEntry, cons
     QProcess cdctlProc;
     cdctlProc.setProcessChannelMode(QProcess::MergedChannels);
     cdctlProc.setProgram(cdctlExe);
-    cdctlProc.setArguments(QStringList()
-                           << "dump"
-                           << QStringLiteral("MESSAGE_ID=%1").arg(journalEntry.id)
-                           << "-o" << outFname);
+    cdctlProc.setArguments(
+        QStringList() << "dump" << QStringLiteral("MESSAGE_ID=%1").arg(journalEntry.id) << "-o" << outFname
+    );
     cdctlProc.start();
     bool ret = cdctlProc.waitForFinished(60 * 1000);
     if (!ret) {
-        m_lastError = QStringLiteral("Failed to generate a backtrace for '%1': coredumctl timed out.").arg(journalEntry.id);
+        m_lastError = QStringLiteral("Failed to generate a backtrace for '%1': coredumctl timed out.")
+                          .arg(journalEntry.id);
         return false;
     }
     if (cdctlProc.exitCode() != 0) {
-        m_lastError = QStringLiteral("Failed to generate a backtrace for '%1':\n%2").arg(journalEntry.coredumpFname,
-                                                                                         QString::fromUtf8(cdctlProc.readAllStandardOutput()));
+        m_lastError = QStringLiteral("Failed to generate a backtrace for '%1':\n%2")
+                          .arg(journalEntry.coredumpFname, QString::fromUtf8(cdctlProc.readAllStandardOutput()));
         return false;
     }
     if (details != nullptr)
@@ -258,35 +261,39 @@ QString JournalCollector::generateBacktrace(const JournalEntry &journalEntry)
 {
     const auto gdbExe = QStandardPaths::findExecutable("gdb");
     if (gdbExe.isEmpty())
-        return QStringLiteral("Failed to generate a backtrace for '%1': GDB was not found.").arg(journalEntry.coredumpFname);
+        return QStringLiteral("Failed to generate a backtrace for '%1': GDB was not found.")
+            .arg(journalEntry.coredumpFname);
 
     QTemporaryFile tmpCoreFile(QDir::tempPath() + "/syntalos-retrace_XXXXXX");
     if (!tmpCoreFile.open())
-        return QStringLiteral("Failed to create temporary file '%1': %2").arg(tmpCoreFile.fileName(),
-                                                                              tmpCoreFile.errorString());
+        return QStringLiteral("Failed to create temporary file '%1': %2")
+            .arg(tmpCoreFile.fileName(), tmpCoreFile.errorString());
     tmpCoreFile.setAutoRemove(true);
 
     // fetch the coredump file first
     QString cdctlDetails;
     if (!exportCoredumpFile(journalEntry, tmpCoreFile.fileName(), &cdctlDetails))
-        return QStringLiteral("Failed to generate a backtrace for '%1': %2.").arg(journalEntry.coredumpFname,
-                                                                                  m_lastError);
+        return QStringLiteral("Failed to generate a backtrace for '%1': %2.")
+            .arg(journalEntry.coredumpFname, m_lastError);
 
     // create a backtrace with gdb
     QProcess gdbProc;
     gdbProc.setProcessChannelMode(QProcess::MergedChannels);
     gdbProc.setProgram(gdbExe);
-    gdbProc.setArguments(QStringList() << "-batch"
-                         << "-ex" << "thread apply all bt full"
-                         << "-c" << tmpCoreFile.fileName()
-                         << journalEntry.coredumpExe);
+    gdbProc.setArguments(
+        QStringList() << "-batch"
+                      << "-ex"
+                      << "thread apply all bt full"
+                      << "-c" << tmpCoreFile.fileName() << journalEntry.coredumpExe
+    );
     gdbProc.start();
     bool ret = gdbProc.waitForFinished(60 * 1000);
     if (!ret)
-        return QStringLiteral("Failed to generate a backtrace for '%1': GDB timed out.").arg(journalEntry.coredumpFname);
+        return QStringLiteral("Failed to generate a backtrace for '%1': GDB timed out.")
+            .arg(journalEntry.coredumpFname);
     if (gdbProc.exitCode() != 0)
-        return QStringLiteral("Failed to generate a backtrace for '%1':\n%2").arg(journalEntry.coredumpFname,
-                                                                                  QString::fromUtf8(gdbProc.readAllStandardOutput()));
+        return QStringLiteral("Failed to generate a backtrace for '%1':\n%2")
+            .arg(journalEntry.coredumpFname, QString::fromUtf8(gdbProc.readAllStandardOutput()));
     return cdctlDetails + "\n------------\n" + QString::fromUtf8(gdbProc.readAllStandardOutput());
 }
 
@@ -324,16 +331,19 @@ QString generateBacktraceForRunningProcess(const QString &procName, bool *proces
     QProcess gdbProc;
     gdbProc.setProcessChannelMode(QProcess::MergedChannels);
     gdbProc.setProgram(gdbExe);
-    gdbProc.setArguments(QStringList() << "-batch"
-                         << "-ex" << QStringLiteral("attach %1").arg(pid)
-                         << "-ex" << "thread apply all bt full"
-                         << "-ex" << "detach");
+    gdbProc.setArguments(
+        QStringList() << "-batch"
+                      << "-ex" << QStringLiteral("attach %1").arg(pid) << "-ex"
+                      << "thread apply all bt full"
+                      << "-ex"
+                      << "detach"
+    );
     gdbProc.start();
     bool ret = gdbProc.waitForFinished(60 * 1000);
     if (!ret)
         return QStringLiteral("Failed to generate a backtrace for '%1': GDB timed out.").arg(procName);
     if (gdbProc.exitCode() != 0)
-        return QStringLiteral("Failed to generate a backtrace for '%1':\n%2").arg(procName,
-                                                                                  QString::fromUtf8(gdbProc.readAllStandardOutput()));
+        return QStringLiteral("Failed to generate a backtrace for '%1':\n%2")
+            .arg(procName, QString::fromUtf8(gdbProc.readAllStandardOutput()));
     return QString::fromUtf8(gdbProc.readAllStandardOutput());
 }

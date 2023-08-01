@@ -19,20 +19,20 @@
 
 #include "utils.h"
 
-#include <sys/types.h>
 #include <dirent.h>
 #include <errno.h>
+#include <sys/types.h>
 #include <vector>
 
-#include <iostream>
-#include <fstream>
-#include <stdlib.h>
-#include <stdio.h>
 #include <QDebug>
 #include <QFile>
-#include <QTextStream>
-#include <QStandardPaths>
 #include <QProcess>
+#include <QStandardPaths>
+#include <QTextStream>
+#include <fstream>
+#include <iostream>
+#include <stdio.h>
+#include <stdlib.h>
 
 /**
  * @brief Get the initial PID that matches a name.
@@ -124,9 +124,10 @@ void PtraceScopeManager::changePtraceScope(bool state)
 
     QProcess pkProc;
     pkProc.setProgram(m_pkexecExe);
-    pkProc.setArguments(QStringList() << "/bin/sh"
-                                      << "-c"
-                                      << QStringLiteral("echo %1 > /proc/sys/kernel/yama/ptrace_scope").arg(state? 1 : 0));
+    pkProc.setArguments(
+        QStringList() << "/bin/sh"
+                      << "-c" << QStringLiteral("echo %1 > /proc/sys/kernel/yama/ptrace_scope").arg(state ? 1 : 0)
+    );
     pkProc.start();
     bool ret = pkProc.waitForFinished(120 * 1000);
     if (!ret)

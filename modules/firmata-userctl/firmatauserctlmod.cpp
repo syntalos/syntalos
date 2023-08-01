@@ -19,8 +19,8 @@
 
 #include "firmatauserctlmod.h"
 
-#include <QTimer>
 #include "firmatactldialog.h"
+#include <QTimer>
 
 SYNTALOS_MODULE(FirmataUserCtlModule)
 
@@ -38,7 +38,9 @@ public:
         : AbstractModule(parent)
     {
         m_fmInPort = registerInputPort<FirmataData>(QStringLiteral("firmata-in"), QStringLiteral("Firmata Input"));
-        m_fmCtlStream = registerOutputPort<FirmataControl>(QStringLiteral("firmata-out"), QStringLiteral("Firmata Control"));
+        m_fmCtlStream = registerOutputPort<FirmataControl>(
+            QStringLiteral("firmata-out"), QStringLiteral("Firmata Control")
+        );
         m_ctlDialog = new FirmataCtlDialog(m_fmCtlStream);
         addDisplayWindow(m_ctlDialog);
 
@@ -47,8 +49,7 @@ public:
         connect(m_evTimer, &QTimer::timeout, this, &FirmataUserCtlModule::readFirmataEvents);
     }
 
-    ~FirmataUserCtlModule() override
-    {}
+    ~FirmataUserCtlModule() override {}
 
     ModuleFeatures features() const override
     {
@@ -100,7 +101,6 @@ public:
     }
 
 private:
-
 };
 
 QString FirmataUserCtlModuleInfo::id() const

@@ -53,8 +53,8 @@
  **/
 
 #define PY_SSIZE_T_CLEAN
-#include <Python.h>
 #include "cvmatndsliceconvert.h"
+#include <Python.h>
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #include <numpy/ndarrayobject.h>
 #include <opencv2/core/core.hpp>
@@ -65,7 +65,10 @@
 struct Tmp {
     const char *name;
 
-    Tmp(const char *pName) : name(pName) {}
+    Tmp(const char *pName)
+        : name(pName)
+    {
+    }
 };
 
 Tmp info("return value");
@@ -77,7 +80,7 @@ bool NDArrayConverter::initNDArray()
     return true;
 }
 
-static PyObject* opencv_error = nullptr;
+static PyObject *opencv_error = nullptr;
 
 static int failmsg(const char *fmt, ...)
 {
@@ -95,37 +98,42 @@ static int failmsg(const char *fmt, ...)
 class PyAllowThreads
 {
 public:
-    PyAllowThreads() : _state(PyEval_SaveThread()) {}
+    PyAllowThreads()
+        : _state(PyEval_SaveThread())
+    {
+    }
     ~PyAllowThreads()
     {
         PyEval_RestoreThread(_state);
     }
+
 private:
-    PyThreadState* _state;
+    PyThreadState *_state;
 };
 
 class PyEnsureGIL
 {
 public:
-    PyEnsureGIL() : _state(PyGILState_Ensure()) {}
+    PyEnsureGIL()
+        : _state(PyGILState_Ensure())
+    {
+    }
     ~PyEnsureGIL()
     {
         PyGILState_Release(_state);
     }
+
 private:
     PyGILState_STATE _state;
 };
 
-#define ERRWRAP2(expr) \
-    try \
-{ \
-    PyAllowThreads allowThreads; \
-    expr; \
-    } \
-    catch (const cv::Exception &e) \
-{ \
-    PyErr_SetString(opencv_error, e.what()); \
-    return nullptr; \
+#define ERRWRAP2(expr)                                                                                                 \
+    try {                                                                                                              \
+        PyAllowThreads allowThreads;                                                                                   \
+        expr;                                                                                                          \
+    } catch (const cv::Exception &e) {                                                                                 \
+        PyErr_SetString(opencv_error, e.what());                                                                       \
+        return nullptr;                                                                                                \
     }
 
 using namespace cv;
@@ -133,23 +141,34 @@ using namespace cv;
 class NumpyAllocator : public MatAllocator
 {
 public:
-    NumpyAllocator() { stdAllocator = Mat::getStdAllocator(); }
+    NumpyAllocator()
+    {
+        stdAllocator = Mat::getStdAllocator();
+    }
     ~NumpyAllocator() {}
 
-    UMatData* allocate(PyObject* o, int dims, const int* sizes, int type, size_t* step) const
+    UMatData *allocate(PyObject *o, int dims, const int *sizes, int type, size_t *step) const
     {
-        UMatData* u = new UMatData(this);
-        u->data = u->origdata = (uchar*)PyArray_DATA((PyArrayObject*) o);
-        npy_intp* _strides = PyArray_STRIDES((PyArrayObject*) o);
-        for( int i = 0; i < dims - 1; i++ )
+        UMatData *u = new UMatData(this);
+        u->data = u->origdata = (uchar *)PyArray_DATA((PyArrayObject *)o);
+        npy_intp *_strides = PyArray_STRIDES((PyArrayObject *)o);
+        for (int i = 0; i < dims - 1; i++)
             step[i] = (size_t)_strides[i];
-        step[dims-1] = CV_ELEM_SIZE(type);
-        u->size = sizes[0]*step[0];
+        step[dims - 1] = CV_ELEM_SIZE(type);
+        u->size = sizes[0] * step[0];
         u->userdata = o;
         return u;
     }
 
-    UMatData* allocate(int dims0, const int* sizes, int type, void* data, size_t* step, AccessFlag flags, UMatUsageFlags usageFlags) const override
+    UMatData *allocate(
+        int dims0,
+        const int *sizes,
+        int type,
+        void *data,
+        size_t *step,
+        AccessFlag flags,
+        UMatUsageFlags usageFlags
+    ) const override
     {
         if (data != nullptr) {
             CV_Error(Error::StsAssert, "The data should normally be NULL!");
@@ -160,46 +179,47 @@ public:
 
         int depth = CV_MAT_DEPTH(type);
         int cn = CV_MAT_CN(type);
-        const int f = (int)(sizeof(size_t)/8);
-        int typenum = depth == CV_8U ? NPY_UBYTE : depth == CV_8S ? NPY_BYTE :
-                                                    depth == CV_16U ? NPY_USHORT :
-                                                     depth == CV_16S ? NPY_SHORT :
-                                                      depth == CV_32S ? NPY_INT :
-                                                       depth == CV_32F ? NPY_FLOAT :
-                                                        depth == CV_64F ? NPY_DOUBLE : f * NPY_ULONGLONG + (f ^ 1) * NPY_UINT;
+        const int f = (int)(sizeof(size_t) / 8);
+        int typenum = depth == CV_8U    ? NPY_UBYTE
+                      : depth == CV_8S  ? NPY_BYTE
+                      : depth == CV_16U ? NPY_USHORT
+                      : depth == CV_16S ? NPY_SHORT
+                      : depth == CV_32S ? NPY_INT
+                      : depth == CV_32F ? NPY_FLOAT
+                      : depth == CV_64F ? NPY_DOUBLE
+                                        : f * NPY_ULONGLONG + (f ^ 1) * NPY_UINT;
         int i, dims = dims0;
         cv::AutoBuffer<npy_intp> _sizes(dims + 1);
-        for( i = 0; i < dims; i++ )
+        for (i = 0; i < dims; i++)
             _sizes[i] = sizes[i];
-        if( cn > 1 )
+        if (cn > 1)
             _sizes[dims++] = cn;
-        PyObject* o = PyArray_SimpleNew(dims, _sizes, typenum);
-        if(!o)
+        PyObject *o = PyArray_SimpleNew(dims, _sizes, typenum);
+        if (!o)
             CV_Error_(Error::StsError, ("The numpy array of typenum=%d, ndims=%d can not be created", typenum, dims));
         return allocate(o, dims0, sizes, type, step);
     }
 
-    bool allocate(UMatData* u, AccessFlag accessFlags, UMatUsageFlags usageFlags) const override
+    bool allocate(UMatData *u, AccessFlag accessFlags, UMatUsageFlags usageFlags) const override
     {
         return stdAllocator->allocate(u, accessFlags, usageFlags);
     }
 
-    void deallocate(UMatData* u) const override
+    void deallocate(UMatData *u) const override
     {
-        if(!u)
+        if (!u)
             return;
         PyEnsureGIL gil;
         CV_Assert(u->urefcount >= 0);
         CV_Assert(u->refcount >= 0);
-        if(u->refcount == 0)
-        {
-            PyObject* o = (PyObject*)u->userdata;
+        if (u->refcount == 0) {
+            PyObject *o = (PyObject *)u->userdata;
             Py_XDECREF(o);
             delete u;
         }
     }
 
-    const MatAllocator* stdAllocator;
+    const MatAllocator *stdAllocator;
 };
 
 NumpyAllocator g_numpyAllocator;
@@ -207,38 +227,32 @@ NumpyAllocator g_numpyAllocator;
 bool NDArrayConverter::toMat(PyObject *o, Mat &m)
 {
     bool allowND = true;
-    if (!o || o == Py_None)
-    {
-        if( !m.data )
+    if (!o || o == Py_None) {
+        if (!m.data)
             m.allocator = &g_numpyAllocator;
         return true;
     }
 
-    if (PyLong_Check(o))
-    {
-        double v[] = {static_cast<double>(PyLong_AsLong((PyObject*)o)), 0., 0., 0.};
+    if (PyLong_Check(o)) {
+        double v[] = {static_cast<double>(PyLong_AsLong((PyObject *)o)), 0., 0., 0.};
         m = Mat(4, 1, CV_64F, v).clone();
         return true;
     }
-    if (PyFloat_Check(o))
-    {
-        double v[] = {PyFloat_AsDouble((PyObject*)o), 0., 0., 0.};
+    if (PyFloat_Check(o)) {
+        double v[] = {PyFloat_AsDouble((PyObject *)o), 0., 0., 0.};
         m = Mat(4, 1, CV_64F, v).clone();
         return true;
     }
-    if (PyTuple_Check(o))
-    {
-        int i, sz = (int)PyTuple_Size((PyObject*)o);
+    if (PyTuple_Check(o)) {
+        int i, sz = (int)PyTuple_Size((PyObject *)o);
         m = Mat(sz, 1, CV_64F);
-        for( i = 0; i < sz; i++ )
-        {
-            PyObject* oi = PyTuple_GET_ITEM(o, i);
-            if( PyLong_Check(oi) )
+        for (i = 0; i < sz; i++) {
+            PyObject *oi = PyTuple_GET_ITEM(o, i);
+            if (PyLong_Check(oi))
                 m.at<double>(i) = (double)PyLong_AsLong(oi);
-            else if( PyFloat_Check(oi) )
+            else if (PyFloat_Check(oi))
                 m.at<double>(i) = (double)PyFloat_AsDouble(oi);
-            else
-            {
+            else {
                 failmsg("%s is not a numerical tuple", info.name);
                 m.release();
                 return false;
@@ -247,35 +261,31 @@ bool NDArrayConverter::toMat(PyObject *o, Mat &m)
         return true;
     }
 
-    if (!PyArray_Check(o))
-    {
+    if (!PyArray_Check(o)) {
         failmsg("%s is not a numpy array, neither a scalar", info.name);
         return false;
     }
 
-    PyArrayObject* oarr = (PyArrayObject*) o;
+    PyArrayObject *oarr = (PyArrayObject *)o;
 
     bool needcopy = false, needcast = false;
     int typenum = PyArray_TYPE(oarr), new_typenum = typenum;
-    int type = typenum == NPY_UBYTE ? CV_8U :
-                                      typenum == NPY_BYTE ? CV_8S :
-                                       typenum == NPY_USHORT ? CV_16U :
-                                        typenum == NPY_SHORT ? CV_16S :
-                                         typenum == NPY_INT ? CV_32S :
-                                          typenum == NPY_INT32 ? CV_32S :
-                                           typenum == NPY_FLOAT ? CV_32F :
-                                            typenum == NPY_DOUBLE ? CV_64F : -1;
+    int type = typenum == NPY_UBYTE    ? CV_8U
+               : typenum == NPY_BYTE   ? CV_8S
+               : typenum == NPY_USHORT ? CV_16U
+               : typenum == NPY_SHORT  ? CV_16S
+               : typenum == NPY_INT    ? CV_32S
+               : typenum == NPY_INT32  ? CV_32S
+               : typenum == NPY_FLOAT  ? CV_32F
+               : typenum == NPY_DOUBLE ? CV_64F
+                                       : -1;
 
-    if( type < 0 )
-    {
-        if( typenum == NPY_INT64 || typenum == NPY_UINT64 || typenum == NPY_LONG )
-        {
+    if (type < 0) {
+        if (typenum == NPY_INT64 || typenum == NPY_UINT64 || typenum == NPY_LONG) {
             needcopy = needcast = true;
             new_typenum = NPY_INT;
             type = CV_32S;
-        }
-        else
-        {
+        } else {
             failmsg("%s data type = %d is not supported", info.name, typenum);
             return false;
         }
@@ -286,43 +296,39 @@ bool NDArrayConverter::toMat(PyObject *o, Mat &m)
 #endif
 
     int ndims = PyArray_NDIM(oarr);
-    if(ndims >= CV_MAX_DIM)
-    {
+    if (ndims >= CV_MAX_DIM) {
         failmsg("%s dimensionality (=%d) is too high", info.name, ndims);
         return false;
     }
 
-    int size[CV_MAX_DIM+1];
-    size_t step[CV_MAX_DIM+1];
+    int size[CV_MAX_DIM + 1];
+    size_t step[CV_MAX_DIM + 1];
     size_t elemsize = CV_ELEM_SIZE1(type);
-    const npy_intp* _sizes = PyArray_DIMS(oarr);
-    const npy_intp* _strides = PyArray_STRIDES(oarr);
+    const npy_intp *_sizes = PyArray_DIMS(oarr);
+    const npy_intp *_strides = PyArray_STRIDES(oarr);
     bool ismultichannel = ndims == 3 && _sizes[2] <= CV_CN_MAX;
 
-    for( int i = ndims-1; i >= 0 && !needcopy; i-- )
-    {
+    for (int i = ndims - 1; i >= 0 && !needcopy; i--) {
         // these checks handle cases of
         //  a) multi-dimensional (ndims > 2) arrays, as well as simpler 1- and 2-dimensional cases
         //  b) transposed arrays, where _strides[] elements go in non-descending order
         //  c) flipped arrays, where some of _strides[] elements are negative
         // the _sizes[i] > 1 is needed to avoid spurious copies when NPY_RELAXED_STRIDES is set
-        if( (i == ndims-1 && _sizes[i] > 1 && (size_t)_strides[i] != elemsize) ||
-                (i < ndims-1 && _sizes[i] > 1 && _strides[i] < _strides[i+1]) )
+        if ((i == ndims - 1 && _sizes[i] > 1 && (size_t)_strides[i] != elemsize)
+            || (i < ndims - 1 && _sizes[i] > 1 && _strides[i] < _strides[i + 1]))
             needcopy = true;
     }
 
-    if( ismultichannel && _strides[1] != (npy_intp)elemsize*_sizes[2] )
+    if (ismultichannel && _strides[1] != (npy_intp)elemsize * _sizes[2])
         needcopy = true;
 
-    if (needcopy)
-    {
-        if( needcast ) {
+    if (needcopy) {
+        if (needcast) {
             o = PyArray_Cast(oarr, new_typenum);
-            oarr = (PyArrayObject*) o;
-        }
-        else {
+            oarr = (PyArrayObject *)o;
+        } else {
             oarr = PyArray_GETCONTIGUOUS(oarr);
-            o = (PyObject*) oarr;
+            o = (PyObject *)oarr;
         }
 
         _strides = PyArray_STRIDES(oarr);
@@ -330,36 +336,30 @@ bool NDArrayConverter::toMat(PyObject *o, Mat &m)
 
     // Normalize strides in case NPY_RELAXED_STRIDES is set
     size_t default_step = elemsize;
-    for ( int i = ndims - 1; i >= 0; --i )
-    {
+    for (int i = ndims - 1; i >= 0; --i) {
         size[i] = (int)_sizes[i];
-        if ( size[i] > 1 )
-        {
+        if (size[i] > 1) {
             step[i] = (size_t)_strides[i];
             default_step = step[i] * size[i];
-        }
-        else
-        {
+        } else {
             step[i] = default_step;
             default_step *= size[i];
         }
     }
 
     // handle degenerate case
-    if( ndims == 0) {
+    if (ndims == 0) {
         size[ndims] = 1;
         step[ndims] = elemsize;
         ndims++;
     }
 
-    if( ismultichannel )
-    {
+    if (ismultichannel) {
         ndims--;
         type |= CV_MAKETYPE(0, size[2]);
     }
 
-    if( ndims > 2 && !allowND )
-    {
+    if (ndims > 2 && !allowND) {
         failmsg("%s has more than 2 dimensions", info.name);
         return false;
     }
@@ -368,8 +368,7 @@ bool NDArrayConverter::toMat(PyObject *o, Mat &m)
     m.u = g_numpyAllocator.allocate(o, ndims, size, type, step);
     m.addref();
 
-    if( !needcopy )
-    {
+    if (!needcopy) {
         Py_INCREF(o);
     }
     m.allocator = &g_numpyAllocator;
@@ -377,18 +376,17 @@ bool NDArrayConverter::toMat(PyObject *o, Mat &m)
     return true;
 }
 
-PyObject* NDArrayConverter::toNDArray(const cv::Mat& m)
+PyObject *NDArrayConverter::toNDArray(const cv::Mat &m)
 {
-    if( !m.data )
+    if (!m.data)
         Py_RETURN_NONE;
-    Mat temp, *p = (Mat*)&m;
-    if(!p->u || p->allocator != &g_numpyAllocator)
-    {
+    Mat temp, *p = (Mat *)&m;
+    if (!p->u || p->allocator != &g_numpyAllocator) {
         temp.allocator = &g_numpyAllocator;
         ERRWRAP2(m.copyTo(temp));
         p = &temp;
     }
-    PyObject* o = (PyObject*)p->u->userdata;
+    PyObject *o = (PyObject *)p->u->userdata;
     Py_INCREF(o);
     return o;
 }

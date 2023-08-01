@@ -19,22 +19,22 @@
 
 #pragma once
 
-#include <memory>
 #include <QVariant>
+#include <memory>
 
 #include "sharedmemory.h"
 #include "streams/datatypes.h"
 #include "streams/frametype.h"
 
-namespace Syntalos {
+namespace Syntalos
+{
 class StreamOutputPort;
 }
 
 cv::Mat cvMatFromShm(std::unique_ptr<SharedMemory> &shm, bool copy = true);
 bool cvMatToShm(std::unique_ptr<SharedMemory> &shm, const cv::Mat &frame);
 
-bool marshalDataElement(int typeId, const QVariant &data,
-                        QVariant &outData, std::unique_ptr<SharedMemory> &shm);
+bool marshalDataElement(int typeId, const QVariant &data, QVariant &outData, std::unique_ptr<SharedMemory> &shm);
 
 // NOTE: unmarshalDataAndOutput is in oopworkerconnector, as it needs access to the output ports,
 // which this common IPC marshalling file can't have at the moment.

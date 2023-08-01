@@ -20,18 +20,18 @@
 #include "encodewindow.h"
 #include "ui_encodewindow.h"
 
+#include <QCloseEvent>
 #include <QDBusConnection>
 #include <QDBusError>
 #include <QDBusMetaType>
-#include <QThread>
-#include <QCloseEvent>
 #include <QMessageBox>
-#include <QSvgWidget>
 #include <QSettings>
+#include <QSvgWidget>
+#include <QThread>
 
-#include "utils/style.h"
-#include "taskmanager.h"
 #include "../videowriter.h"
+#include "taskmanager.h"
+#include "utils/style.h"
 
 EncodeWindow::EncodeWindow(QWidget *parent)
     : QMainWindow(parent),
@@ -50,8 +50,7 @@ EncodeWindow::EncodeWindow(QWidget *parent)
     m_taskManager = new TaskManager(m_queueModel, this);
     QDBusConnection::sessionBus().registerObject("/", this);
     if (!QDBusConnection::sessionBus().registerService(EQUEUE_DBUS_SERVICE)) {
-        fprintf(stderr, "%s\n",
-                qPrintable(QDBusConnection::sessionBus().lastError().message()));
+        fprintf(stderr, "%s\n", qPrintable(QDBusConnection::sessionBus().lastError().message()));
         exit(1);
     }
 
@@ -125,8 +124,8 @@ QByteArray EncodeWindow::loadBusyAnimation(const QString &name) const
 
     // adjust for dark theme
     return svgData.replace(QStringLiteral("#232629"), QStringLiteral("#eff0f1"))
-                  .replace(QStringLiteral("#4d4d4d"), QStringLiteral("#bdc3c7"))
-                  .toLocal8Bit();
+        .replace(QStringLiteral("#4d4d4d"), QStringLiteral("#bdc3c7"))
+        .toLocal8Bit();
 }
 
 void EncodeWindow::on_runButton_clicked()
@@ -175,9 +174,11 @@ void EncodeWindow::on_tasksTable_activated(const QModelIndex &index)
         info += QStringLiteral("<br/>%1 = %2").arg(key, value);
     }
 
-    const auto text = QStringLiteral("<h3>Errors</h3><p>%1</p>"
-                                     "<h3>Technical Details</h3><p>%2</p>").arg(errorMsg.isEmpty()? "None" : errorMsg,
-                                                                                info);
+    const auto text = QStringLiteral(
+                          "<h3>Errors</h3><p>%1</p>"
+                          "<h3>Technical Details</h3><p>%2</p>"
+    )
+                          .arg(errorMsg.isEmpty() ? "None" : errorMsg, info);
     ui->detailsBrowser->setHtml(text);
 }
 
@@ -190,9 +191,12 @@ void EncodeWindow::closeEvent(QCloseEvent *event)
         settings.setValue("main/geometry", saveGeometry());
         QApplication::quit();
     } else {
-        QMessageBox::warning(this, QStringLiteral("Encoding in progress"),
-                             QStringLiteral("You can not close this tool while there are still encoding tasks ongoing or pending.\n"
-                                            "Please encode all videos before quitting."));
+        QMessageBox::warning(
+            this,
+            QStringLiteral("Encoding in progress"),
+            QStringLiteral("You can not close this tool while there are still encoding tasks ongoing or pending.\n"
+                           "Please encode all videos before quitting.")
+        );
         event->ignore();
     }
 }

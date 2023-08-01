@@ -1,7 +1,7 @@
 
-#include <iostream>
-#include <QtTest>
 #include <QDebug>
+#include <QtTest>
+#include <iostream>
 
 #include "syclock.h"
 #include "timesync.h"
@@ -22,7 +22,9 @@ private slots:
         auto tswriter = new TimeSyncFileWriter;
         tswriter->setFileName(tsFilename);
         tswriter->setTimeDataTypes(dt1, dt2);
-        auto ret = tswriter->open(QStringLiteral("UnittestDummyModule"), QUuid("a12975f1-84b7-4350-8683-7a5fe9ed968f"), microseconds_t(1500));
+        auto ret = tswriter->open(
+            QStringLiteral("UnittestDummyModule"), QUuid("a12975f1-84b7-4350-8683-7a5fe9ed968f"), microseconds_t(1500)
+        );
         QVERIFY2(ret, qPrintable(tswriter->lastError()));
 
         QElapsedTimer timer;
@@ -48,17 +50,17 @@ private slots:
         QCOMPARE(tsreader->syncMode(), TSyncFileMode::CONTINUOUS);
 
         const auto timesRead = tsreader->times();
-        QCOMPARE((int) timesRead.size(), values_n);
+        QCOMPARE((int)timesRead.size(), values_n);
         for (size_t i = 0; i < timesRead.size(); ++i) {
             const auto pair = timesRead[i];
-            const auto tbase = (long) i * 1000;
+            const auto tbase = (long)i * 1000;
             QCOMPARE(pair.first, tbase);
-            QCOMPARE(pair.second, tbase + (long) i * 51);
+            QCOMPARE(pair.second, tbase + (long)i * 51);
         }
         delete tsreader;
 
         // delete temporary file
-        QFile file (tsFilename + QStringLiteral(".tsync"));
+        QFile file(tsFilename + QStringLiteral(".tsync"));
         file.remove();
     }
 
@@ -88,7 +90,6 @@ private slots:
             tsyncFileRWForDTypes(TSyncFileDataType::UINT32, TSyncFileDataType::UINT64, 512000);
         }
     }
-
 };
 
 QTEST_MAIN(TestTSyncFile)

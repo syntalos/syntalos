@@ -24,12 +24,12 @@
 #include "moduleapi.h"
 #endif
 
-#define CHECK_RETURN_INPUT_PORT( T ) \
-    if (typeId == qMetaTypeId<T>()) \
+#define CHECK_RETURN_INPUT_PORT(T)                                                                                     \
+    if (typeId == qMetaTypeId<T>())                                                                                    \
         return new StreamInputPort<T>(mod, id, title);
 
-#define CHECK_RETURN_STREAM( T ) \
-    if (typeId == qMetaTypeId<T>()) \
+#define CHECK_RETURN_STREAM(T)                                                                                         \
+    if (typeId == qMetaTypeId<T>())                                                                                    \
         return new DataStream<T>();
 
 static QMap<QString, int> g_streamTypeIdMap;
@@ -38,9 +38,9 @@ template<typename T, bool streamOperators = true, bool isPrimary = true>
 static void registerStreamType()
 {
     qRegisterMetaType<T>();
-    if constexpr(streamOperators)
+    if constexpr (streamOperators)
         qRegisterMetaTypeStreamOperators<T>();
-    if constexpr(isPrimary) {
+    if constexpr (isPrimary) {
         auto id = qMetaTypeId<T>();
         g_streamTypeIdMap[QMetaType::typeName(id)] = id;
     }
@@ -70,7 +70,12 @@ QMap<QString, int> streamTypeIdMap()
 
 #ifndef NO_TID_PORTCONSTRUCTORS
 
-VarStreamInputPort *Syntalos::newInputPortForType(int typeId, AbstractModule *mod, const QString &id, const QString &title = QString())
+VarStreamInputPort *Syntalos::newInputPortForType(
+    int typeId,
+    AbstractModule *mod,
+    const QString &id,
+    const QString &title = QString()
+)
 {
     CHECK_RETURN_INPUT_PORT(ControlCommand)
     CHECK_RETURN_INPUT_PORT(TableRow)

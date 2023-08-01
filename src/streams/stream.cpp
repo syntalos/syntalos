@@ -19,10 +19,6 @@
 
 #include "stream.h"
 
-VariantStreamSubscription::~VariantStreamSubscription()
-{
-}
+VariantStreamSubscription::~VariantStreamSubscription() {}
 
-VariantDataStream::~VariantDataStream()
-{
-}
+VariantDataStream::~VariantDataStream() {}

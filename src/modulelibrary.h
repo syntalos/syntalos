@@ -19,18 +19,19 @@
 
 #pragma once
 
-#include <QObject>
 #include <QList>
+#include <QLoggingCategory>
+#include <QObject>
 #include <QPixmap>
 #include <QScopedPointer>
-#include <QLoggingCategory>
 
-namespace Syntalos {
+namespace Syntalos
+{
 class ModuleInfo;
 class GlobalConfig;
 
 Q_DECLARE_LOGGING_CATEGORY(logModLibrary)
-}
+} // namespace Syntalos
 using namespace Syntalos;
 
 /**

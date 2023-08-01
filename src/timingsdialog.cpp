@@ -86,10 +86,14 @@ TimingsDialog::~TimingsDialog()
     delete ui;
 }
 
-void TimingsDialog::onSynchronizerDetailsChanged(const QString &id, const TimeSyncStrategies &strategies, const microseconds_t &tolerance)
+void TimingsDialog::onSynchronizerDetailsChanged(
+    const QString &id,
+    const TimeSyncStrategies &strategies,
+    const microseconds_t &tolerance
+)
 {
     Q_UNUSED(id)
-    auto mod = ::qobject_cast<AbstractModule*>(sender());
+    auto mod = ::qobject_cast<AbstractModule *>(sender());
     if (mod == nullptr)
         return;
     auto tdisp = m_tdispMap.value(mod);
@@ -108,7 +112,7 @@ void TimingsDialog::onSynchronizerDetailsChanged(const QString &id, const TimeSy
 void TimingsDialog::onSynchronizerOffsetChanged(const QString &id, const microseconds_t &currentOffset)
 {
     Q_UNUSED(id)
-    auto mod = ::qobject_cast<AbstractModule*>(sender());
+    auto mod = ::qobject_cast<AbstractModule *>(sender());
     if (mod == nullptr)
         return;
     auto tdisp = m_tdispMap.value(mod);
@@ -123,5 +127,3 @@ void TimingsDialog::clear()
         delete w;
     m_tdispMap.clear();
 }
-
-

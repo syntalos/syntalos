@@ -21,7 +21,8 @@
 
 VTransformListModel::VTransformListModel(QObject *parent)
     : QAbstractListModel(parent)
-{}
+{
+}
 
 int VTransformListModel::rowCount(const QModelIndex &parent) const
 {
@@ -56,9 +57,9 @@ std::shared_ptr<VideoTransform> VTransformListModel::transform(int row) const
     return m_vtfs.at(row);
 }
 
-bool VTransformListModel::removeRows(int position, int rows, const QModelIndex&)
+bool VTransformListModel::removeRows(int position, int rows, const QModelIndex &)
 {
-    beginRemoveRows(QModelIndex(), position, position+rows-1);
+    beginRemoveRows(QModelIndex(), position, position + rows - 1);
 
     for (int row = 0; row < rows; ++row) {
         m_vtfs.removeAt(position);
@@ -68,7 +69,7 @@ bool VTransformListModel::removeRows(int position, int rows, const QModelIndex&)
     return true;
 }
 
-bool VTransformListModel::removeRow(int row, const QModelIndex&)
+bool VTransformListModel::removeRow(int row, const QModelIndex &)
 {
     beginRemoveRows(QModelIndex(), row, row);
     m_vtfs.removeAt(row);

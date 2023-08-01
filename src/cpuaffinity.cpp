@@ -22,12 +22,12 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
-#include <unistd.h>
 #include <sched.h>
+#include <unistd.h>
 
 int get_online_cores_count()
 {
-    return (int) sysconf(_SC_NPROCESSORS_ONLN);
+    return (int)sysconf(_SC_NPROCESSORS_ONLN);
 }
 
 int thread_set_affinity(pthread_t thread, unsigned core)

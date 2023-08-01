@@ -49,7 +49,8 @@ enum class IoMode {
 //! The virtual function \a writeBuffer must be implemented
 //! to actually write data to the device. Received data can
 //! be parsed by calling the function \a bytesRead
-class FirmataBackend : public QObject {
+class FirmataBackend : public QObject
+{
     Q_OBJECT
     //! Is the backend available?
 
@@ -62,7 +63,7 @@ class FirmataBackend : public QObject {
     Q_PROPERTY(QString statusText READ statusText NOTIFY statusTextChanged)
 
 public:
-    FirmataBackend(QObject *parent=nullptr);
+    FirmataBackend(QObject *parent = nullptr);
     ~FirmataBackend();
 
     bool isAvailable() const;

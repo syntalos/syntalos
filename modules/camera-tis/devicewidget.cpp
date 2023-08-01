@@ -16,19 +16,19 @@
 
 #include "devicewidget.h"
 
-DeviceWidget::DeviceWidget(const Device& dev, QListWidget* parent)
-    : QListWidgetItem(parent), _dev(dev)
+DeviceWidget::DeviceWidget(const Device &dev, QListWidget *parent)
+    : QListWidgetItem(parent),
+      _dev(dev)
 {
     setIcon(QIcon(QString(icon_path.c_str())));
     setTextAlignment(Qt::AlignHCenter | Qt::AlignBottom);
     setText((_dev.model() + "\n" + _dev.serial() + "\n" + _dev.type()).c_str());
-    setSizeHint({160,140});
+    setSizeHint({160, 140});
 }
 
-bool DeviceWidget::operator==(const Device& dev) const
+bool DeviceWidget::operator==(const Device &dev) const
 {
-    if (_dev == dev)
-    {
+    if (_dev == dev) {
         return true;
     }
     return false;
@@ -38,7 +38,6 @@ Device DeviceWidget::get_device() const
 {
     return _dev;
 }
-
 
 QSize DeviceWidget::minimumSizeHint() const
 {

@@ -19,8 +19,8 @@
 
 #include "genericcameramodule.h"
 
-#include <QDebug>
 #include "streams/frametype.h"
+#include <QDebug>
 
 #include "camera.h"
 #include "genericcamerasettingsdialog.h"
@@ -74,9 +74,7 @@ public:
 
     ModuleFeatures features() const override
     {
-        return ModuleFeature::REALTIME |
-               ModuleFeature::REQUEST_CPU_AFFINITY |
-               ModuleFeature::SHOW_SETTINGS;
+        return ModuleFeature::REALTIME | ModuleFeature::REQUEST_CPU_AFFINITY | ModuleFeature::SHOW_SETTINGS;
     }
 
     bool prepare(const TestSubject &) override
@@ -98,8 +96,7 @@ public:
         m_camera->setFramerate(m_fps);
 
         // set the required stream metadata for video capture
-        m_outStream->setMetadataValue("size", QSize(m_camera->resolution().width,
-                                                    m_camera->resolution().height));
+        m_outStream->setMetadataValue("size", QSize(m_camera->resolution().width, m_camera->resolution().height));
         m_outStream->setMetadataValue("framerate", m_fps);
 
         // start the stream
@@ -146,7 +143,10 @@ public:
                 frameRecordFailedCount++;
                 if (frameRecordFailedCount > 32) {
                     m_running = false;
-                    raiseError(QStringLiteral("Too many attempts to record frames from this camera have failed. Is the camera connected properly?"));
+                    raiseError(
+                        QStringLiteral("Too many attempts to record frames from this camera have failed. Is the camera "
+                                       "connected properly?")
+                    );
                 }
                 continue;
             }
@@ -160,7 +160,8 @@ public:
             // warn if there is a bigger framerate drop
             if (currentFps < (m_fps - 2)) {
                 fpsLow = true;
-                setStatusMessage(QStringLiteral("<html><font color=\"red\"><b>Framerate (%1fps) is too low!</b></font>").arg(currentFps));
+                setStatusMessage(QStringLiteral("<html><font color=\"red\"><b>Framerate (%1fps) is too low!</b></font>")
+                                     .arg(currentFps));
             } else if (fpsLow) {
                 fpsLow = false;
                 statusMessage("Acquiring frames...");
@@ -175,7 +176,8 @@ public:
         statusMessage("Cleaning up...");
         AbstractModule::stop();
 
-        while (!m_stopped) {}
+        while (!m_stopped) {
+        }
 
         m_camera->disconnect();
         m_camSettingsWindow->setRunning(false);

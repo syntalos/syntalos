@@ -19,15 +19,16 @@
 
 #include "tsyncfile.h"
 
-#include <QDebug>
 #include <QDateTime>
+#include <QDebug>
 #include <QFile>
-#include <QJsonObject>
 #include <QJsonDocument>
+#include <QJsonObject>
 
 #include "utils/misc.h"
 
-namespace Syntalos {
+namespace Syntalos
+{
 Q_LOGGING_CATEGORY(logTSyncFile, "tsyncfile")
 }
 
@@ -36,8 +37,8 @@ using namespace Syntalos;
 // TSYNC file magic number (saved as LE): 8A T S Y N C ⏲
 #define TSYNC_FILE_MAGIC 0xF223434E5953548A
 
-#define TSYNC_FILE_VERSION_MAJOR  1
-#define TSYNC_FILE_VERSION_MINOR  2
+#define TSYNC_FILE_VERSION_MAJOR 1
+#define TSYNC_FILE_VERSION_MINOR 2
 
 #define TSYNC_FILE_BLOCK_TERM 0x1126000000000000
 
@@ -99,10 +100,8 @@ TimeSyncFileWriter::TimeSyncFileWriter()
 {
     m_xxh3State = XXH3_createState();
 
-    m_timeNames = qMakePair(QStringLiteral("device-time"),
-                            QStringLiteral("master-time"));
-    m_timeUnits = qMakePair(TSyncFileTimeUnit::MICROSECONDS,
-                            TSyncFileTimeUnit::MICROSECONDS);
+    m_timeNames = qMakePair(QStringLiteral("device-time"), QStringLiteral("master-time"));
+    m_timeUnits = qMakePair(TSyncFileTimeUnit::MICROSECONDS, TSyncFileTimeUnit::MICROSECONDS);
     m_time1DType = TSyncFileDataType::UINT32;
     m_time2DType = TSyncFileDataType::UINT32;
     m_tsMode = TSyncFileMode::CONTINUOUS;
@@ -180,14 +179,14 @@ void TimeSyncFileWriter::csWriteValue(const T &data)
 
     auto d = static_cast<T>(data);
     m_stream << d;
-    XXH3_64bits_update(m_xxh3State, (const uint8_t*) &d, sizeof(d));
+    XXH3_64bits_update(m_xxh3State, (const uint8_t *)&d, sizeof(d));
 }
 
-template <>
+template<>
 void TimeSyncFileWriter::csWriteValue<QByteArray>(const QByteArray &data)
 {
     m_stream << data;
-    XXH3_64bits_update(m_xxh3State, (const uint8_t*) data.constData(), sizeof(char) * data.size());
+    XXH3_64bits_update(m_xxh3State, (const uint8_t *)data.constData(), sizeof(char) * data.size());
 }
 
 bool TimeSyncFileWriter::open(const QString &modName, const QUuid &collectionId, const QVariantHash &userData)
@@ -218,7 +217,7 @@ bool TimeSyncFileWriter::open(const QString &modName, const QUuid &collectionId,
         currentTime = QDateTime::currentDateTime();
     m_creationTimeOverride = QDateTime();
 
-    m_stream << (quint64) TSYNC_FILE_MAGIC;
+    m_stream << (quint64)TSYNC_FILE_MAGIC;
 
     csWriteValue<quint16>(TSYNC_FILE_VERSION_MAJOR);
     csWriteValue<quint16>(TSYNC_FILE_VERSION_MINOR);
@@ -229,16 +228,16 @@ bool TimeSyncFileWriter::open(const QString &modName, const QUuid &collectionId,
     csWriteValue(collectionId.toString(QUuid::WithoutBraces).toUtf8());
     csWriteValue(userDataJson.toUtf8()); // custom JSON values
 
-    csWriteValue<quint16>((quint16) m_tsMode);
+    csWriteValue<quint16>((quint16)m_tsMode);
     csWriteValue<qint32>(m_blockSize);
 
     csWriteValue(m_timeNames.first.toUtf8());
-    csWriteValue<quint16>((quint16) m_timeUnits.first);
-    csWriteValue<quint16>((quint16) m_time1DType);
+    csWriteValue<quint16>((quint16)m_timeUnits.first);
+    csWriteValue<quint16>((quint16)m_time1DType);
 
     csWriteValue(m_timeNames.second.toUtf8());
-    csWriteValue<quint16>((quint16) m_timeUnits.second);
-    csWriteValue<quint16>((quint16) m_time2DType);
+    csWriteValue<quint16>((quint16)m_timeUnits.second);
+    csWriteValue<quint16>((quint16)m_time2DType);
 
     m_file->flush();
     const auto headerBytes = m_file->size();
@@ -255,7 +254,12 @@ bool TimeSyncFileWriter::open(const QString &modName, const QUuid &collectionId,
     return true;
 }
 
-bool TimeSyncFileWriter::open(const QString &modName, const QUuid &collectionId, const microseconds_t &tolerance, const QVariantHash &userData)
+bool TimeSyncFileWriter::open(
+    const QString &modName,
+    const QUuid &collectionId,
+    const microseconds_t &tolerance,
+    const QVariantHash &userData
+)
 {
     QVariantHash udata = userData;
     udata["tolerance_us"] = QVariant::fromValue(tolerance.count());
@@ -304,8 +308,8 @@ void TimeSyncFileWriter::writeBlockTerminator(bool check)
 {
     if (check && (m_bIndex == 0))
         return;
-    m_stream << (quint64) TSYNC_FILE_BLOCK_TERM;
-    m_stream << (quint64) XXH3_64bits_digest(m_xxh3State);
+    m_stream << (quint64)TSYNC_FILE_BLOCK_TERM;
+    m_stream << (quint64)XXH3_64bits_digest(m_xxh3State);
     XXH3_64bits_reset(m_xxh3State);
     m_bIndex = 0;
 }
@@ -317,39 +321,51 @@ void TimeSyncFileWriter::writeTimeEntry(const T1 &time1, const T2 &time2)
     static_assert(std::is_arithmetic<T2>::value, "T2 must be an arithmetic type.");
 
     switch (m_time1DType) {
-        case TSyncFileDataType::INT16:
-            csWriteValue<qint16>(time1); break;
-        case TSyncFileDataType::INT32:
-            csWriteValue<qint32>(time1); break;
-        case TSyncFileDataType::INT64:
-            csWriteValue<qint64>(time1); break;
-        case TSyncFileDataType::UINT16:
-            csWriteValue<quint16>(time1); break;
-        case TSyncFileDataType::UINT32:
-            csWriteValue<quint32>(time1); break;
-        case TSyncFileDataType::UINT64:
-            csWriteValue<quint64>(time1); break;
-        default:
-            qFatal("Tried to write unknown datatype to timesync file for time1: %i", (int) m_time1DType);
-            break;
+    case TSyncFileDataType::INT16:
+        csWriteValue<qint16>(time1);
+        break;
+    case TSyncFileDataType::INT32:
+        csWriteValue<qint32>(time1);
+        break;
+    case TSyncFileDataType::INT64:
+        csWriteValue<qint64>(time1);
+        break;
+    case TSyncFileDataType::UINT16:
+        csWriteValue<quint16>(time1);
+        break;
+    case TSyncFileDataType::UINT32:
+        csWriteValue<quint32>(time1);
+        break;
+    case TSyncFileDataType::UINT64:
+        csWriteValue<quint64>(time1);
+        break;
+    default:
+        qFatal("Tried to write unknown datatype to timesync file for time1: %i", (int)m_time1DType);
+        break;
     }
 
     switch (m_time2DType) {
-        case TSyncFileDataType::INT16:
-            csWriteValue<qint16>(time2); break;
-        case TSyncFileDataType::INT32:
-            csWriteValue<qint32>(time2); break;
-        case TSyncFileDataType::INT64:
-            csWriteValue<qint64>(time2); break;
-        case TSyncFileDataType::UINT16:
-            csWriteValue<quint16>(time2); break;
-        case TSyncFileDataType::UINT32:
-            csWriteValue<quint32>(time2); break;
-        case TSyncFileDataType::UINT64:
-            csWriteValue<quint64>(time2); break;
-        default:
-            qFatal("Tried to write unknown datatype to timesync file for time2: %i", (int) m_time1DType);
-            break;
+    case TSyncFileDataType::INT16:
+        csWriteValue<qint16>(time2);
+        break;
+    case TSyncFileDataType::INT32:
+        csWriteValue<qint32>(time2);
+        break;
+    case TSyncFileDataType::INT64:
+        csWriteValue<qint64>(time2);
+        break;
+    case TSyncFileDataType::UINT16:
+        csWriteValue<quint16>(time2);
+        break;
+    case TSyncFileDataType::UINT32:
+        csWriteValue<quint32>(time2);
+        break;
+    case TSyncFileDataType::UINT64:
+        csWriteValue<quint64>(time2);
+        break;
+    default:
+        qFatal("Tried to write unknown datatype to timesync file for time2: %i", (int)m_time1DType);
+        break;
     }
 
     m_bIndex++;
@@ -369,7 +385,7 @@ inline T csReadValue(QDataStream &in, XXH3_state_t *state)
 
     T value;
     in >> value;
-    XXH3_64bits_update(state, (const uint8_t*) &value, sizeof(value));
+    XXH3_64bits_update(state, (const uint8_t *)&value, sizeof(value));
     return value;
 }
 
@@ -378,7 +394,7 @@ inline QByteArray csReadValue(QDataStream &in, XXH3_state_t *state)
 {
     QByteArray value;
     in >> value;
-    XXH3_64bits_update(state, (const uint8_t*) value.constData(), sizeof(char) * value.size());
+    XXH3_64bits_update(state, (const uint8_t *)value.constData(), sizeof(char) * value.size());
     return value;
 }
 
@@ -407,8 +423,14 @@ bool TimeSyncFileReader::open(const QString &fname)
     const auto formatVMajor = csReadValue<quint16>(in, csState);
     const auto formatVMinor = csReadValue<quint16>(in, csState);
     if ((formatVMajor != TSYNC_FILE_VERSION_MAJOR) || (formatVMinor < TSYNC_FILE_VERSION_MINOR)) {
-        m_lastError = QStringLiteral("Unable to read data: This file is using an incompatible (probably newer) version of the format which we can not read (%1.%2 vs %3.%4).")
-                .arg(formatVMajor).arg(formatVMinor).arg(TSYNC_FILE_VERSION_MAJOR).arg(TSYNC_FILE_VERSION_MINOR);
+        m_lastError = QStringLiteral(
+                          "Unable to read data: This file is using an incompatible (probably newer) version of the "
+                          "format which we can not read (%1.%2 vs %3.%4)."
+        )
+                          .arg(formatVMajor)
+                          .arg(formatVMinor)
+                          .arg(TSYNC_FILE_VERSION_MAJOR)
+                          .arg(TSYNC_FILE_VERSION_MINOR);
         XXH3_freeState(csState);
         return false;
     }
@@ -462,12 +484,16 @@ bool TimeSyncFileReader::open(const QString &fname)
     quint64 blockTerm;
     in >> blockTerm >> expectedHeaderCRC;
     if (blockTerm != TSYNC_FILE_BLOCK_TERM) {
-        m_lastError = QStringLiteral("Header block terminator not found: The file is either invalid or its header block was damaged.");
+        m_lastError = QStringLiteral(
+            "Header block terminator not found: The file is either invalid or its header block was damaged."
+        );
         XXH3_freeState(csState);
         return false;
     }
     if (expectedHeaderCRC != XXH3_64bits_digest(csState)) {
-        m_lastError = QStringLiteral("Header checksum mismatch: The file is either invalid or its header block was damaged.");
+        m_lastError = QStringLiteral(
+            "Header checksum mismatch: The file is either invalid or its header block was damaged."
+        );
         XXH3_freeState(csState);
         return false;
     }
@@ -485,12 +511,15 @@ bool TimeSyncFileReader::open(const QString &fname)
             in >> blockTerm >> expectedCRC;
 
             if (blockTerm != TSYNC_FILE_BLOCK_TERM) {
-                m_lastError = QStringLiteral("Unable to read all tsync data: File was likely truncated (its last block is not complete).");
+                m_lastError = QStringLiteral(
+                    "Unable to read all tsync data: File was likely truncated (its last block is not complete)."
+                );
                 XXH3_freeState(csState);
                 return false;
             }
             if (expectedCRC != XXH3_64bits_digest(csState))
-                qCWarning(logTSyncFile).noquote() << "CRC check failed for last tsync data block: Data is likely corrupted.";
+                qCWarning(logTSyncFile).noquote()
+                    << "CRC check failed for last tsync data block: Data is likely corrupted.";
             break;
         }
 
@@ -498,39 +527,51 @@ bool TimeSyncFileReader::open(const QString &fname)
         long long timeVal2;
 
         switch (timeDType1) {
-            case TSyncFileDataType::INT16:
-                timeVal1 = csReadValue<qint16>(in, csState); break;
-            case TSyncFileDataType::INT32:
-                timeVal1 = csReadValue<qint32>(in, csState); break;
-            case TSyncFileDataType::INT64:
-                timeVal1 = csReadValue<qint64>(in, csState); break;
-            case TSyncFileDataType::UINT16:
-                timeVal1 = csReadValue<quint16>(in, csState); break;
-            case TSyncFileDataType::UINT32:
-                timeVal1 = csReadValue<quint32>(in, csState); break;
-            case TSyncFileDataType::UINT64:
-                timeVal1 = csReadValue<quint64>(in, csState); break;
-            default:
-                qFatal("Tried to read unknown datatype from timesync file for time1: %i", (int) timeDType1);
-                break;
+        case TSyncFileDataType::INT16:
+            timeVal1 = csReadValue<qint16>(in, csState);
+            break;
+        case TSyncFileDataType::INT32:
+            timeVal1 = csReadValue<qint32>(in, csState);
+            break;
+        case TSyncFileDataType::INT64:
+            timeVal1 = csReadValue<qint64>(in, csState);
+            break;
+        case TSyncFileDataType::UINT16:
+            timeVal1 = csReadValue<quint16>(in, csState);
+            break;
+        case TSyncFileDataType::UINT32:
+            timeVal1 = csReadValue<quint32>(in, csState);
+            break;
+        case TSyncFileDataType::UINT64:
+            timeVal1 = csReadValue<quint64>(in, csState);
+            break;
+        default:
+            qFatal("Tried to read unknown datatype from timesync file for time1: %i", (int)timeDType1);
+            break;
         }
 
         switch (timeDType2) {
-            case TSyncFileDataType::INT16:
-                timeVal2 = csReadValue<qint16>(in, csState); break;
-            case TSyncFileDataType::INT32:
-                timeVal2 = csReadValue<qint32>(in, csState); break;
-            case TSyncFileDataType::INT64:
-                timeVal2 = csReadValue<qint64>(in, csState); break;
-            case TSyncFileDataType::UINT16:
-                timeVal2 = csReadValue<quint16>(in, csState); break;
-            case TSyncFileDataType::UINT32:
-                timeVal2 = csReadValue<quint32>(in, csState); break;
-            case TSyncFileDataType::UINT64:
-                timeVal2 = csReadValue<quint64>(in, csState); break;
-            default:
-                qFatal("Tried to read unknown datatype from timesync file for time2: %i", (int) timeDType2);
-                break;
+        case TSyncFileDataType::INT16:
+            timeVal2 = csReadValue<qint16>(in, csState);
+            break;
+        case TSyncFileDataType::INT32:
+            timeVal2 = csReadValue<qint32>(in, csState);
+            break;
+        case TSyncFileDataType::INT64:
+            timeVal2 = csReadValue<qint64>(in, csState);
+            break;
+        case TSyncFileDataType::UINT16:
+            timeVal2 = csReadValue<quint16>(in, csState);
+            break;
+        case TSyncFileDataType::UINT32:
+            timeVal2 = csReadValue<quint32>(in, csState);
+            break;
+        case TSyncFileDataType::UINT64:
+            timeVal2 = csReadValue<quint64>(in, csState);
+            break;
+        default:
+            qFatal("Tried to read unknown datatype from timesync file for time2: %i", (int)timeDType2);
+            break;
         }
 
         m_times.push_back(std::make_pair(timeVal1, timeVal2));
@@ -607,7 +648,7 @@ QPair<TSyncFileDataType, TSyncFileDataType> TimeSyncFileReader::timeDTypes() con
     return m_timeDTypes;
 }
 
-std::vector<std::pair<long long, long long> > TimeSyncFileReader::times() const
+std::vector<std::pair<long long, long long>> TimeSyncFileReader::times() const
 {
     return m_times;
 }

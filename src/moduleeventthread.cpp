@@ -53,8 +53,8 @@ public:
 class ModuleEventThread::Private
 {
 public:
-    Private() { }
-    ~Private() { }
+    Private() {}
+    ~Private() {}
 
     QString threadName;
     bool running;
@@ -107,7 +107,7 @@ void ModuleEventThread::setFailed(bool failed)
 
 static gboolean timerEventDispatch(gpointer udata)
 {
-    const auto pl = static_cast<TimerEventPayload*>(udata);
+    const auto pl = static_cast<TimerEventPayload *>(udata);
     int interval = pl->interval;
     std::invoke(pl->fn, pl->module, interval);
 
@@ -133,10 +133,7 @@ static gboolean timerEventDispatch(gpointer udata)
     g_source_destroy(pl->source);
     g_source_unref(pl->source);
     pl->source = g_timeout_source_new(pl->interval);
-    g_source_set_callback (pl->source,
-                           &timerEventDispatch,
-                           pl,
-                           NULL);
+    g_source_set_callback(pl->source, &timerEventDispatch, pl, NULL);
     g_source_attach(pl->source, pl->context);
 
     return FALSE;
@@ -144,7 +141,7 @@ static gboolean timerEventDispatch(gpointer udata)
 
 static gboolean recvDataEventDispatch(gpointer udata)
 {
-    const auto pl = static_cast<RecvDataEventPayload*>(udata);
+    const auto pl = static_cast<RecvDataEventPayload *>(udata);
     std::invoke(pl->fn, pl->module);
 
     if (pl->module->state() == ModuleState::ERROR) {
@@ -163,15 +160,15 @@ typedef struct {
     gpointer event_fd_tag;
 } EFDSignalSource;
 
-static gboolean efd_signal_source_prepare(GSource*, gint *timeout)
+static gboolean efd_signal_source_prepare(GSource *, gint *timeout)
 {
     *timeout = -1;
     return FALSE;
 }
 
-static gboolean efd_signal_source_dispatch(GSource* source, GSourceFunc callback, gpointer user_data)
+static gboolean efd_signal_source_dispatch(GSource *source, GSourceFunc callback, gpointer user_data)
 {
-    EFDSignalSource* efd_source = (EFDSignalSource*) source;
+    EFDSignalSource *efd_source = (EFDSignalSource *)source;
 
     unsigned events = g_source_query_unix_fd(source, efd_source->event_fd_tag);
     if (events & G_IO_HUP || events & G_IO_ERR || events & G_IO_NVAL) {
@@ -183,7 +180,7 @@ static gboolean efd_signal_source_dispatch(GSource* source, GSourceFunc callback
         uint64_t buffer;
         // just read the buffer count for now to empty it
         // (maybe we can do something useful with the element count later?)
-        if (G_UNLIKELY (read(efd_source->event_fd, &buffer, sizeof(buffer)) == -1 && errno != -EAGAIN))
+        if (G_UNLIKELY(read(efd_source->event_fd, &buffer, sizeof(buffer)) == -1 && errno != -EAGAIN))
             qWarning().noquote() << "Failed to read from eventfd:" << g_strerror(errno);
 
         result_continue = callback(user_data);
@@ -194,25 +191,21 @@ static gboolean efd_signal_source_dispatch(GSource* source, GSourceFunc callback
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
-static GSourceFuncs efd_source_funcs = {
-  .prepare = efd_signal_source_prepare,
-  .check = NULL,
-  .dispatch = efd_signal_source_dispatch,
-  .finalize = NULL
-};
+static GSourceFuncs efd_source_funcs =
+    {.prepare = efd_signal_source_prepare, .check = NULL, .dispatch = efd_signal_source_dispatch, .finalize = NULL};
 #pragma GCC diagnostic pop
 
 static GSource *efd_signal_source_new(int event_fd)
 {
-    auto source = (EFDSignalSource*) g_source_new(&efd_source_funcs, sizeof(EFDSignalSource));
+    auto source = (EFDSignalSource *)g_source_new(&efd_source_funcs, sizeof(EFDSignalSource));
     source->event_fd = event_fd;
-    source->event_fd_tag = g_source_add_unix_fd((GSource*) source,
-                                                event_fd,
-                                                (GIOCondition) (G_IO_IN | G_IO_ERR | G_IO_HUP | G_IO_NVAL));
-    return (GSource*) source;
+    source->event_fd_tag = g_source_add_unix_fd(
+        (GSource *)source, event_fd, (GIOCondition)(G_IO_IN | G_IO_ERR | G_IO_HUP | G_IO_NVAL)
+    );
+    return (GSource *)source;
 }
 
-void ModuleEventThread::moduleEventThreadFunc(QList<AbstractModule*> mods, OptionalWaitCondition *waitCondition)
+void ModuleEventThread::moduleEventThreadFunc(QList<AbstractModule *> mods, OptionalWaitCondition *waitCondition)
 {
     pthread_setname_np(pthread_self(), qPrintable(d->threadName.mid(0, 15)));
     g_autoptr(GMainContext) context = g_main_context_new();
@@ -236,10 +229,7 @@ void ModuleEventThread::moduleEventThreadFunc(QList<AbstractModule*> mods, Optio
             pl->self = this;
             pl->context = context;
             pl->source = g_timeout_source_new(pl->interval);
-            g_source_set_callback (pl->source,
-                                   &timerEventDispatch,
-                                   pl.get(),
-                                   NULL);
+            g_source_set_callback(pl->source, &timerEventDispatch, pl.get(), NULL);
             g_source_attach(pl->source, context);
             intervalPayloads.push_back(std::move(pl));
         }
@@ -254,10 +244,7 @@ void ModuleEventThread::moduleEventThreadFunc(QList<AbstractModule*> mods, Optio
             pl->fn = ev.first;
             pl->self = this;
             pl->source = efd_signal_source_new(eventfd);
-            g_source_set_callback (pl->source,
-                                   &recvDataEventDispatch,
-                                   pl.get(),
-                                   NULL);
+            g_source_set_callback(pl->source, &recvDataEventDispatch, pl.get(), NULL);
             g_source_attach(pl->source, context);
             recvDataPayloads.push_back(std::move(pl));
         }
@@ -268,7 +255,7 @@ void ModuleEventThread::moduleEventThreadFunc(QList<AbstractModule*> mods, Optio
 
     // check if any module signals that it will actually not be doing anything
     // (if so, we don't need to call it and can maybe even terminate this thread)
-    QMutableListIterator<AbstractModule*> i(mods);
+    QMutableListIterator<AbstractModule *> i(mods);
     while (i.hasNext()) {
         if (i.next()->state() == ModuleState::IDLE)
             i.remove();
@@ -317,16 +304,14 @@ out:
     }
 }
 
-void ModuleEventThread::run(QList<AbstractModule*> mods, OptionalWaitCondition *waitCondition)
+void ModuleEventThread::run(QList<AbstractModule *> mods, OptionalWaitCondition *waitCondition)
 {
     if (d->threadActive)
         return;
 
     d->running = true;
     d->threadActive = true;
-    d->thread = std::thread(&ModuleEventThread::moduleEventThreadFunc, this,
-                            mods,
-                            waitCondition);
+    d->thread = std::thread(&ModuleEventThread::moduleEventThreadFunc, this, mods, waitCondition);
 }
 
 void ModuleEventThread::stop()

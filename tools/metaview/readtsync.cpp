@@ -19,9 +19,9 @@
 
 #include "readtsync.h"
 
-#include <memory>
-#include <iostream>
 #include "timesync.h"
+#include <iostream>
+#include <memory>
 
 using namespace Syntalos;
 
@@ -29,23 +29,26 @@ int displayTSyncMetadata(const QString &fname)
 {
     auto tsr = std::make_unique<TimeSyncFileReader>();
     if (!tsr->open(fname)) {
-        std::cerr << "Unable to open file '" << fname.toStdString() << "': " << tsr->lastError().toStdString() << std::endl;
+        std::cerr << "Unable to open file '" << fname.toStdString() << "': " << tsr->lastError().toStdString()
+                  << std::endl;
         return 1;
     }
 
-    std::cout << "File: " << "TimeSync" << "\n"
+    std::cout << "File: "
+              << "TimeSync"
+              << "\n"
               << "Module: " << tsr->moduleName().toStdString() << "\n"
               << "CollectionID: " << tsr->collectionId().toString(QUuid::WithoutBraces).toStdString() << "\n"
               << "CreationTimestampUnix: " << tsr->creationTime() << "\n"
               << "Mode: " << tsyncFileModeToString(tsr->syncMode()).toStdString() << "\n"
               << "TimeDTypes: " << tsyncFileDataTypeToString(tsr->timeDTypes().first).toStdString() << "; "
-                                << tsyncFileDataTypeToString(tsr->timeDTypes().second).toStdString() << "\n"
+              << tsyncFileDataTypeToString(tsr->timeDTypes().second).toStdString() << "\n"
               << "TimeUnits: " << tsyncFileTimeUnitToString(tsr->timeUnits().first).toStdString() << "; "
-                               << tsyncFileTimeUnitToString(tsr->timeUnits().second).toStdString() << "\n";
+              << tsyncFileTimeUnitToString(tsr->timeUnits().second).toStdString() << "\n";
     if (tsr->tolerance().count() != 0)
         std::cout << "Tolerance: " << tsr->tolerance().count() << " µs\n";
     if (!tsr->userData().isEmpty()) {
-        const auto userData =  tsr->userData();
+        const auto userData = tsr->userData();
 
         std::cout << "User Metadata:\n";
         for (const auto &key : userData.keys())

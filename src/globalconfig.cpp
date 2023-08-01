@@ -20,17 +20,18 @@
 #include "globalconfig.h"
 
 #include <QDebug>
+#include <QDir>
 #include <QSettings>
 #include <QStandardPaths>
-#include <QDir>
 
 #include "rtkit.h"
 #include "utils/misc.h"
 
 using namespace Syntalos;
 
-namespace Syntalos {
-    Q_LOGGING_CATEGORY(logGlobalConfig, "global.config")
+namespace Syntalos
+{
+Q_LOGGING_CATEGORY(logGlobalConfig, "global.config")
 }
 
 GlobalConfig::GlobalConfig(QObject *parent)
@@ -220,8 +221,10 @@ void GlobalConfig::setEmergencyOOMStop(bool enabled)
 QString Syntalos::colorModeToString(ColorMode mode)
 {
     switch (mode) {
-    case ColorMode::BRIGHT: return QStringLiteral("bright");
-    case ColorMode::DARK: return QStringLiteral("dark");
+    case ColorMode::BRIGHT:
+        return QStringLiteral("bright");
+    case ColorMode::DARK:
+        return QStringLiteral("dark");
     default:
         return QStringLiteral("system");
     }

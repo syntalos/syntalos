@@ -18,8 +18,8 @@
 #include "backend.h"
 #include "fmutils.h"
 
-#include <QtEndian>
 #include <QDebug>
+#include <QtEndian>
 
 #include <QCoreApplication>
 #include <QEventLoop>
@@ -33,30 +33,22 @@ enum class ParserState {
 };
 
 //! Standard commands
-static const uint8_t
-    CMD_ANALOG_IO = 0xe0,
-    CMD_DIGITAL_IO = 0x90,
-    CMD_ANALOG_REPORT = 0xc0,
-    CMD_DIGITAL_REPORT = 0xd0,
-    CMD_SYSEX_START = 0xf0,
-    CMD_SYSEX_END = 0xF7,
-    CMD_SET_PINMODE = 0xf4,
-    CMD_SET_DIGITAL_PIN = 0xf5,
-    CMD_PROTOCOL_VERSION = 0xf9,
+static const uint8_t CMD_ANALOG_IO = 0xe0, CMD_DIGITAL_IO = 0x90, CMD_ANALOG_REPORT = 0xc0, CMD_DIGITAL_REPORT = 0xd0,
+                     CMD_SYSEX_START = 0xf0, CMD_SYSEX_END = 0xF7, CMD_SET_PINMODE = 0xf4, CMD_SET_DIGITAL_PIN = 0xf5,
+                     CMD_PROTOCOL_VERSION = 0xf9,
 
-    SYSEX_EXTENDED_ANALOG = 0x6f
-    ;
+                     SYSEX_EXTENDED_ANALOG = 0x6f;
 
 //! Combine pin/port number with a command
-inline uint8_t cmdPin(uint8_t cmd, uint8_t pin) {
-    Q_ASSERT((cmd & 0x0f)==0);
-    Q_ASSERT((pin & 0xf0)==0);
+inline uint8_t cmdPin(uint8_t cmd, uint8_t pin)
+{
+    Q_ASSERT((cmd & 0x0f) == 0);
+    Q_ASSERT((pin & 0xf0) == 0);
     return cmd | pin;
 }
 
-struct FirmataBackend::Private
-{
-    FirmataBackend * const b;
+struct FirmataBackend::Private {
+    FirmataBackend *const b;
     QString statusText;
     bool available;
     bool ready;
@@ -74,18 +66,19 @@ struct FirmataBackend::Private
           available(false),
           ready(false),
           parserState(ParserState::ExpectNothing)
-    { }
+    {
+    }
 
     void parse(uint8_t val)
     {
-        if((val & 0x80)) {
+        if ((val & 0x80)) {
             // high bit set: this is a command
             parseCommand(val);
             return;
         }
 
         // bit 7 zero: parameter data
-        switch(parserState) {
+        switch (parserState) {
         case ParserState::ExpectNothing:
             break;
         case ParserState::ExpectParam1:
@@ -106,7 +99,7 @@ struct FirmataBackend::Private
     void parseCommand(uint8_t cmd)
     {
         const uint8_t nib = cmd & 0xf0;
-        switch(nib) {
+        switch (nib) {
         case CMD_ANALOG_IO:
         case CMD_DIGITAL_IO:
             currentCommand = nib;
@@ -115,7 +108,7 @@ struct FirmataBackend::Private
             return;
         }
 
-        switch(cmd) {
+        switch (cmd) {
         case CMD_SET_DIGITAL_PIN:
         case CMD_PROTOCOL_VERSION:
             currentCommand = cmd;
@@ -137,7 +130,7 @@ struct FirmataBackend::Private
 
     void executeCommand()
     {
-        switch(currentCommand) {
+        switch (currentCommand) {
         case CMD_SET_DIGITAL_PIN:
             emit b->digitalPinRead(params[0], params[1]);
             break;
@@ -159,8 +152,10 @@ struct FirmataBackend::Private
 };
 
 FirmataBackend::FirmataBackend(QObject *parent)
-    : QObject(parent), d(new Private(this))
-{}
+    : QObject(parent),
+      d(new Private(this))
+{
+}
 
 FirmataBackend::~FirmataBackend()
 {
@@ -174,7 +169,7 @@ bool FirmataBackend::isAvailable() const
 
 void FirmataBackend::setAvailable(bool a)
 {
-    if(a != d->available) {
+    if (a != d->available) {
         d->available = a;
         emit availabilityChanged(a);
     }
@@ -211,7 +206,7 @@ QString FirmataBackend::statusText() const
 
 void FirmataBackend::setStatusText(const QString &text)
 {
-    if(d->statusText != text) {
+    if (d->statusText != text) {
         d->statusText = text;
         emit statusTextChanged(text);
     }
@@ -220,23 +215,18 @@ void FirmataBackend::setStatusText(const QString &text)
 void FirmataBackend::writeAnalogPin(uint8_t pin, uint16_t value)
 {
     qDebug("Write analog pin %d <- %d", pin, value);
-    if(pin<0x10) {
-        const uint8_t buffer[] {
-            cmdPin(CMD_ANALOG_IO, pin),
-            lsb14(value),
-            msb14(value)
-        };
+    if (pin < 0x10) {
+        const uint8_t buffer[]{cmdPin(CMD_ANALOG_IO, pin), lsb14(value), msb14(value)};
         writeBuffer(buffer, sizeof(buffer));
 
-    } else if(pin<0x80) {
-        const uint8_t buffer[] {
+    } else if (pin < 0x80) {
+        const uint8_t buffer[]{
             CMD_SYSEX_START,
             SYSEX_EXTENDED_ANALOG,
             pin,
             lsb14(value),
             msb14(value), // TODO support >14bit resolutions?
-            CMD_SYSEX_END
-        };
+            CMD_SYSEX_END};
         writeBuffer(buffer, sizeof(buffer));
 
     } else {
@@ -247,12 +237,8 @@ void FirmataBackend::writeAnalogPin(uint8_t pin, uint16_t value)
 void FirmataBackend::writeDigitalPin(uint8_t pin, bool value)
 {
     qDebug("Write digital pin %d <- %d", pin, value);
-    if(pin<0x80) {
-        const uint8_t buffer[] {
-            CMD_SET_DIGITAL_PIN,
-            pin,
-            value
-        };
+    if (pin < 0x80) {
+        const uint8_t buffer[]{CMD_SET_DIGITAL_PIN, pin, value};
         writeBuffer(buffer, sizeof(buffer));
 
     } else {
@@ -263,11 +249,8 @@ void FirmataBackend::writeDigitalPin(uint8_t pin, bool value)
 void FirmataBackend::reportAnalogPin(uint8_t pin, bool enable)
 {
     qDebug("Report analog pin %d = %s", pin, enable ? "on" : "off");
-    if(pin<0x10) {
-        const uint8_t buffer[] {
-            cmdPin(CMD_ANALOG_REPORT, pin),
-            enable
-        };
+    if (pin < 0x10) {
+        const uint8_t buffer[]{cmdPin(CMD_ANALOG_REPORT, pin), enable};
         writeBuffer(buffer, sizeof(buffer));
 
     } else {
@@ -278,11 +261,8 @@ void FirmataBackend::reportAnalogPin(uint8_t pin, bool enable)
 void FirmataBackend::reportDigitalPort(uint8_t port, bool enable)
 {
     qDebug("Report digital port %d = %s", port, enable ? "on" : "off");
-    if(port<0x10) {
-        const uint8_t buffer[] {
-            cmdPin(CMD_DIGITAL_REPORT, port),
-            enable
-        };
+    if (port < 0x10) {
+        const uint8_t buffer[]{cmdPin(CMD_DIGITAL_REPORT, port), enable};
         writeBuffer(buffer, sizeof(buffer));
 
     } else {
@@ -299,12 +279,8 @@ void FirmataBackend::reportProtocolVersion()
 void FirmataBackend::setPinMode(uint8_t pin, IoMode mode)
 {
     qDebug("Set pin mode %d = %d", pin, int(mode));
-    if(pin<0x80) {
-        const uint8_t buffer[] {
-            CMD_SET_PINMODE,
-            pin,
-            uint8_t(mode)
-        };
+    if (pin < 0x80) {
+        const uint8_t buffer[]{CMD_SET_PINMODE, pin, uint8_t(mode)};
         writeBuffer(buffer, sizeof(buffer));
 
     } else {
@@ -314,15 +290,15 @@ void FirmataBackend::setPinMode(uint8_t pin, IoMode mode)
 
 void FirmataBackend::writeSysex(const uint8_t *data, int len)
 {
-    Q_ASSERT(len>0);
+    Q_ASSERT(len > 0);
 #ifndef NDEBUG
-    for(int i=0;i<len;++i) {
-        if(data[i] & 0x80) {
+    for (int i = 0; i < len; ++i) {
+        if (data[i] & 0x80) {
             qFatal("writeSysex: data must be 7-bit!");
         }
     }
 #endif
-    qDebug("Writing sysex 0x%x (payload len=%d)", data[0], len-1);
+    qDebug("Writing sysex 0x%x (payload len=%d)", data[0], len - 1);
     writeBuffer(&CMD_SYSEX_START, 1);
     writeBuffer(data, len);
     writeBuffer(&CMD_SYSEX_END, 1);
@@ -330,7 +306,7 @@ void FirmataBackend::writeSysex(const uint8_t *data, int len)
 
 void FirmataBackend::bytesRead(const char *data, int len)
 {
-    while(len-->0) {
+    while (len-- > 0) {
         d->parse(*(data++));
     }
 }

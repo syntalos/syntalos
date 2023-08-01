@@ -19,8 +19,7 @@
 
 #include "entitylistmodels.h"
 
-TestSubjectListModel::TestSubjectListModel(const QList<TestSubject> &subjects,
-                                           QObject *parent)
+TestSubjectListModel::TestSubjectListModel(const QList<TestSubject> &subjects, QObject *parent)
     : QAbstractListModel(parent)
 {
     m_subjects = subjects;
@@ -28,7 +27,8 @@ TestSubjectListModel::TestSubjectListModel(const QList<TestSubject> &subjects,
 
 TestSubjectListModel::TestSubjectListModel(QObject *parent)
     : QAbstractListModel(parent)
-{}
+{
+}
 
 int TestSubjectListModel::rowCount(const QModelIndex &parent) const
 {
@@ -61,9 +61,9 @@ TestSubject TestSubjectListModel::subject(int row) const
     return m_subjects.at(row);
 }
 
-bool TestSubjectListModel::removeRows(int position, int rows, const QModelIndex&)
+bool TestSubjectListModel::removeRows(int position, int rows, const QModelIndex &)
 {
-    beginRemoveRows(QModelIndex(), position, position+rows-1);
+    beginRemoveRows(QModelIndex(), position, position + rows - 1);
 
     for (int row = 0; row < rows; ++row) {
         m_subjects.removeAt(position);
@@ -73,7 +73,7 @@ bool TestSubjectListModel::removeRows(int position, int rows, const QModelIndex&
     return true;
 }
 
-bool TestSubjectListModel::removeRow(int row, const QModelIndex&)
+bool TestSubjectListModel::removeRow(int row, const QModelIndex &)
 {
     beginRemoveRows(QModelIndex(), row, row);
     m_subjects.removeAt(row);
@@ -150,8 +150,7 @@ void TestSubjectListModel::clear()
     m_subjects.clear();
 }
 
-ExperimenterListModel::ExperimenterListModel(const QList<EDLAuthor> &people,
-                                           QObject *parent)
+ExperimenterListModel::ExperimenterListModel(const QList<EDLAuthor> &people, QObject *parent)
     : QAbstractListModel(parent)
 {
     m_people = people;
@@ -159,7 +158,8 @@ ExperimenterListModel::ExperimenterListModel(const QList<EDLAuthor> &people,
 
 ExperimenterListModel::ExperimenterListModel(QObject *parent)
     : QAbstractListModel(parent)
-{}
+{
+}
 
 int ExperimenterListModel::rowCount(const QModelIndex &parent) const
 {
@@ -200,9 +200,9 @@ QVariant ExperimenterListModel::data(const QModelIndex &index, int role) const
         return QVariant();
 }
 
-bool ExperimenterListModel::removeRows(int position, int rows, const QModelIndex&)
+bool ExperimenterListModel::removeRows(int position, int rows, const QModelIndex &)
 {
-    beginRemoveRows(QModelIndex(), position, position+rows-1);
+    beginRemoveRows(QModelIndex(), position, position + rows - 1);
 
     for (int row = 0; row < rows; ++row) {
         m_people.removeAt(position);
@@ -212,7 +212,7 @@ bool ExperimenterListModel::removeRows(int position, int rows, const QModelIndex
     return true;
 }
 
-bool ExperimenterListModel::removeRow(int row, const QModelIndex&)
+bool ExperimenterListModel::removeRow(int row, const QModelIndex &)
 {
     beginRemoveRows(QModelIndex(), row, row);
     m_people.removeAt(row);

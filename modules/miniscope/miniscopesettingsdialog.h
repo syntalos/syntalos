@@ -22,12 +22,14 @@
 #include <QDialog>
 #include <QList>
 
-namespace MScope {
+namespace MScope
+{
 class Miniscope;
 }
 class MSControlWidget;
 class QVBoxLayout;
-namespace Ui {
+namespace Ui
+{
 class MiniscopeSettingsDialog;
 }
 
@@ -68,6 +70,6 @@ private:
     QString m_recName;
     MScope::Miniscope *m_mscope;
 
-    QList<MSControlWidget*> m_controls;
+    QList<MSControlWidget *> m_controls;
     QVBoxLayout *m_controlsLayout;
 };

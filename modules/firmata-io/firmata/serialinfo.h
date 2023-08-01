@@ -18,15 +18,16 @@
 #ifndef QFIRMATA_BACKEND_SERIALINFO_H
 #define QFIRMATA_BACKEND_SERIALINFO_H
 
-#include <QObject>
 #include <QAbstractListModel>
+#include <QObject>
 
-class SerialPortList : public QAbstractListModel {
+class SerialPortList : public QAbstractListModel
+{
     Q_OBJECT
 
 public:
     enum SerialPortRoles {
-        NameRole = Qt::UserRole+1,
+        NameRole = Qt::UserRole + 1,
         SystemLocationRole,
         DescriptionRole,
         ProductIdRole,
@@ -35,10 +36,10 @@ public:
         SerialNumberRole,
     };
 
-    SerialPortList(QObject *parent=nullptr);
+    SerialPortList(QObject *parent = nullptr);
 
-    int rowCount(const QModelIndex &parent=QModelIndex()) const override;
-    QVariant data(const QModelIndex &index, int role=Qt::DisplayRole) const override;
+    int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+    QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
 
     QHash<int, QByteArray> roleNames() const override;
 
@@ -49,6 +50,5 @@ private:
     struct Private;
     Private *d;
 };
-
 
 #endif

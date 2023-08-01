@@ -17,41 +17,37 @@
 #ifndef CAPSWIDGET_H
 #define CAPSWIDGET_H
 
+#include "caps.h"
 #include <QComboBox>
 #include <QFormLayout>
 #include <QLabel>
 #include <QSlider>
 #include <QSpinBox>
 #include <QWidget>
-#include "caps.h"
-
 
 #ifndef tcam_image_size
 
-struct tcam_image_size
-{
+struct tcam_image_size {
     uint32_t width;
     uint32_t height;
 
-    bool operator<(const struct tcam_image_size& other) const
+    bool operator<(const struct tcam_image_size &other) const
     {
-        if (height <= other.height && width <= other.width)
-        {
+        if (height <= other.height && width <= other.width) {
             return true;
         }
         return false;
     }
 
-    bool operator==(const struct tcam_image_size& other) const
+    bool operator==(const struct tcam_image_size &other) const
     {
-        if (height == other.height && width == other.width)
-        {
+        if (height == other.height && width == other.width) {
             return true;
         }
         return false;
     }
 
-    bool operator!=(const struct tcam_image_size& other) const
+    bool operator!=(const struct tcam_image_size &other) const
     {
         return !operator==(other);
     }
@@ -59,54 +55,52 @@ struct tcam_image_size
 
 #endif
 
-
 class CapsWidget : public QWidget
 {
     Q_OBJECT
 public:
-    explicit CapsWidget(const Caps& caps, QWidget* parent = nullptr);
+    explicit CapsWidget(const Caps &caps, QWidget *parent = nullptr);
 
-    GstCaps* get_caps() const;
-    void set_caps(GstCaps*, GstElement& element);
+    GstCaps *get_caps() const;
+    void set_caps(GstCaps *, GstElement &element);
 
 public slots:
-    void combo_fps_changed(const QString& new_value);
-    void combo_res_changed(const QString& new_value);
-    void combo_skipping_changed(const QString& new_value);
-    void combo_binning_changed(const QString& new_value);
-    void combo_format_changed(const QString& new_value);
+    void combo_fps_changed(const QString &new_value);
+    void combo_res_changed(const QString &new_value);
+    void combo_skipping_changed(const QString &new_value);
+    void combo_binning_changed(const QString &new_value);
+    void combo_format_changed(const QString &new_value);
 
 signals:
 
 private:
     void setup_ui();
-    void fill_combo_binning(const QString& format);
-    void fill_combo_skipping(const QString& format);
-    void fill_combo_resolution(const QString& format, const scaling &scale = {});
-    void fill_combo_framerate(const QString& format, const scaling& scale, int width, int height);
+    void fill_combo_binning(const QString &format);
+    void fill_combo_skipping(const QString &format);
+    void fill_combo_resolution(const QString &format, const scaling &scale = {});
+    void fill_combo_framerate(const QString &format, const scaling &scale, int width, int height);
 
     scaling get_scaling() const;
     tcam_image_size get_resolution() const;
 
     Caps m_caps;
 
-    QFormLayout* p_layout = nullptr;
+    QFormLayout *p_layout = nullptr;
 
-    QComboBox* p_combo_format = nullptr;
-    QComboBox* p_combo_binning = nullptr;
-    QComboBox* p_combo_skipping = nullptr;
+    QComboBox *p_combo_format = nullptr;
+    QComboBox *p_combo_binning = nullptr;
+    QComboBox *p_combo_skipping = nullptr;
 
-    QSlider* p_slider_width = nullptr;
-    QSpinBox* p_box_width = nullptr;
-    QSlider* p_slider_height = nullptr;
-    QSpinBox* p_box_height = nullptr;
-    QSlider* p_slider_framerate = nullptr;
-    QSpinBox* p_box_fps = nullptr;
+    QSlider *p_slider_width = nullptr;
+    QSpinBox *p_box_width = nullptr;
+    QSlider *p_slider_height = nullptr;
+    QSpinBox *p_box_height = nullptr;
+    QSlider *p_slider_framerate = nullptr;
+    QSpinBox *p_box_fps = nullptr;
 
-    QComboBox* p_combo_resolution = nullptr;
-    QComboBox* p_combo_height = nullptr;
-    QComboBox* p_combo_framerate = nullptr;
-
+    QComboBox *p_combo_resolution = nullptr;
+    QComboBox *p_combo_height = nullptr;
+    QComboBox *p_combo_framerate = nullptr;
 };
 
 #endif // CAPSWIDGET_H

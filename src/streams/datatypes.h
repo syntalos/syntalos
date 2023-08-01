@@ -19,9 +19,9 @@
 
 #pragma once
 
-#include <memory>
-#include <QMetaType>
 #include <QDataStream>
+#include <QMetaType>
+#include <memory>
 
 #include "stream.h"
 #include "syclock.h"
@@ -35,15 +35,17 @@ Q_DECLARE_SMART_POINTER_METATYPE(std::shared_ptr)
  * we are compiling with older versions of Qt.
  */
 #if (QT_VERSION < QT_VERSION_CHECK(5, 14, 0))
-template <typename T>
-typename std::enable_if<std::is_enum<T>::value, QDataStream &>::type&
-operator<<(QDataStream &s, const T &t)
-{ return s << static_cast<typename std::underlying_type<T>::type>(t); }
+template<typename T>
+typename std::enable_if<std::is_enum<T>::value, QDataStream &>::type &operator<<(QDataStream &s, const T &t)
+{
+    return s << static_cast<typename std::underlying_type<T>::type>(t);
+}
 
-template <typename T>
-typename std::enable_if<std::is_enum<T>::value, QDataStream &>::type&
-operator>>(QDataStream &s, T &t)
-{ return s >> reinterpret_cast<typename std::underlying_type<T>::type &>(t); }
+template<typename T>
+typename std::enable_if<std::is_enum<T>::value, QDataStream &>::type &operator>>(QDataStream &s, T &t)
+{
+    return s >> reinterpret_cast<typename std::underlying_type<T>::type &>(t);
+}
 #endif
 
 /**
@@ -55,8 +57,7 @@ operator>>(QDataStream &s, T &t)
  * slow receiving module or not enough system resources.
  * This state is managed internally by Syntalos.
  */
-enum class ConnectionHeatLevel
-{
+enum class ConnectionHeatLevel {
     NONE,
     LOW,
     MEDIUM,
@@ -90,10 +91,10 @@ Q_DECLARE_METATYPE(ModuleState)
  */
 enum class ControlCommandKind {
     UNKNOWN,
-    START,   /// Start an operation
-    PAUSE,   /// Pause an operation, can be resumed with START
-    STOP,    /// Stop an operation
-    STEP,    /// Advance operation by one step
+    START, /// Start an operation
+    PAUSE, /// Pause an operation, can be resumed with START
+    STOP,  /// Stop an operation
+    STEP,  /// Advance operation by one step
     CUSTOM
 };
 Q_DECLARE_METATYPE(ControlCommandKind)
@@ -103,14 +104,20 @@ Q_DECLARE_METATYPE(ControlCommandKind)
  *
  * Generic data type to stream commands to other modules.
  */
-struct ControlCommand
-{
+struct ControlCommand {
     ControlCommandKind kind; /// The command type
     milliseconds_t duration; /// Duration of the command before resetting to the previous state (zero for infinite)
     QString command;         /// Custom command name, if in custom mode
 
-    explicit ControlCommand() : duration(0) {}
-    explicit ControlCommand(ControlCommandKind ckind) : kind(ckind), duration(0) {}
+    explicit ControlCommand()
+        : duration(0)
+    {
+    }
+    explicit ControlCommand(ControlCommandKind ckind)
+        : kind(ckind),
+          duration(0)
+    {
+    }
 
     void setDuration(ulong value)
     {
@@ -124,7 +131,7 @@ struct ControlCommand
 
     friend QDataStream &operator<<(QDataStream &out, const ControlCommand &obj)
     {
-        out << obj.kind << (quint64) obj.duration.count() << obj.command;
+        out << obj.kind << (quint64)obj.duration.count() << obj.command;
         return out;
     }
 
@@ -166,8 +173,7 @@ Q_DECLARE_METATYPE(FirmataCommandKind)
 /**
  * @brief Commands to control Firmata output.
  */
-struct FirmataControl
-{
+struct FirmataControl {
     FirmataCommandKind command;
     uint8_t pinId;
     QString pinName;
@@ -190,24 +196,14 @@ struct FirmataControl
 
     friend QDataStream &operator<<(QDataStream &out, const FirmataControl &obj)
     {
-        out << obj.command
-            << obj.pinId
-            << obj.pinName
-            << obj.isOutput
-            << obj.isPullUp
-            << obj.value;
+        out << obj.command << obj.pinId << obj.pinName << obj.isOutput << obj.isPullUp << obj.value;
         return out;
     }
 
     friend QDataStream &operator>>(QDataStream &in, FirmataControl &obj)
     {
-        in >> obj.command
-           >> obj.pinId
-           >> obj.pinName
-           >> obj.isOutput
-           >> obj.isPullUp
-           >> obj.value;
-       return in;
+        in >> obj.command >> obj.pinId >> obj.pinName >> obj.isOutput >> obj.isPullUp >> obj.value;
+        return in;
     }
 };
 Q_DECLARE_METATYPE(FirmataControl)
@@ -215,8 +211,7 @@ Q_DECLARE_METATYPE(FirmataControl)
 /**
  * @brief Output data returned from a Firmata device.
  */
-struct FirmataData
-{
+struct FirmataData {
     uint8_t pinId;
     QString pinName;
     uint16_t value;
@@ -225,22 +220,14 @@ struct FirmataData
 
     friend QDataStream &operator<<(QDataStream &out, const FirmataData &obj)
     {
-        out << obj.pinId
-            << obj.pinName
-            << obj.value
-            << obj.isDigital
-            << static_cast<quint32>(obj.time.count());
+        out << obj.pinId << obj.pinName << obj.value << obj.isDigital << static_cast<quint32>(obj.time.count());
         return out;
     }
 
     friend QDataStream &operator>>(QDataStream &in, FirmataData &obj)
     {
         quint32 timeMs;
-        in >> obj.pinId
-           >> obj.pinName
-           >> obj.value
-           >> obj.isDigital
-           >> timeMs;
+        in >> obj.pinId >> obj.pinName >> obj.value >> obj.isDigital >> timeMs;
         obj.time = milliseconds_t(timeMs);
         return in;
     }
@@ -263,11 +250,11 @@ enum class SignalDataType {
 Q_DECLARE_METATYPE(SignalDataType)
 
 /**
-  * @brief A block of integer signal data from a data source
-  *
-  * This signal data block contains data for up to 16 channels. It contains
-  * data as integers and is usually used for digital inputs.
-  */
+ * @brief A block of integer signal data from a data source
+ *
+ * This signal data block contains data for up to 16 channels. It contains
+ * data as integers and is usually used for digital inputs.
+ */
 class IntSignalBlock
 {
 public:
@@ -278,10 +265,19 @@ public:
         data.resize(sampleCount, channelCount);
     }
 
-    size_t length() const { return timestamps.size(); }
+    size_t length() const
+    {
+        return timestamps.size();
+    }
 
-    size_t rows() const { return data.rows(); }
-    size_t cols() const { return data.cols(); }
+    size_t rows() const
+    {
+        return data.rows();
+    }
+    size_t cols() const
+    {
+        return data.cols();
+    }
 
     VectorXu timestamps;
     MatrixXi data;
@@ -295,19 +291,19 @@ public:
 
     friend QDataStream &operator>>(QDataStream &in, IntSignalBlock &obj)
     {
-       // TODO: Not yet implemented
-       Q_UNUSED(obj)
-       return in;
+        // TODO: Not yet implemented
+        Q_UNUSED(obj)
+        return in;
     }
 };
 Q_DECLARE_METATYPE(IntSignalBlock)
 
 /**
-  * @brief A block of floating-point signal data from an analog data source
-  *
-  * This signal data block contains data for up to 16 channels. It usually contains
-  * possibly preprocessed / prefiltered analog data.
-  */
+ * @brief A block of floating-point signal data from an analog data source
+ *
+ * This signal data block contains data for up to 16 channels. It usually contains
+ * possibly preprocessed / prefiltered analog data.
+ */
 class FloatSignalBlock
 {
 public:
@@ -326,10 +322,19 @@ public:
             data(0, i) = floatVec[i];
     }
 
-    size_t length() const { return timestamps.size(); }
+    size_t length() const
+    {
+        return timestamps.size();
+    }
 
-    size_t rows() const { return data.rows(); }
-    size_t cols() const { return data.cols(); }
+    size_t rows() const
+    {
+        return data.rows();
+    }
+    size_t cols() const
+    {
+        return data.cols();
+    }
 
     VectorXu timestamps;
     MatrixXd data;
@@ -343,9 +348,9 @@ public:
 
     friend QDataStream &operator>>(QDataStream &in, FloatSignalBlock &obj)
     {
-       // TODO: Not yet implemented
-       Q_UNUSED(obj)
-       return in;
+        // TODO: Not yet implemented
+        Q_UNUSED(obj)
+        return in;
     }
 };
 Q_DECLARE_METATYPE(FloatSignalBlock)
@@ -367,7 +372,8 @@ QMap<QString, int> streamTypeIdMap();
 #if !defined(DOXYGEN_SHOULD_SKIP_THIS)
 
 class VariantDataStream;
-namespace Syntalos {
+namespace Syntalos
+{
 class VarStreamInputPort;
 class AbstractModule;
 
@@ -381,6 +387,6 @@ VariantDataStream *newStreamForType(int typeId);
  */
 VarStreamInputPort *newInputPortForType(int typeId, AbstractModule *mod, const QString &id, const QString &title);
 
-} // end of namespace
+} // namespace Syntalos
 #endif // DOXYGEN_SHOULD_SKIP_THIS
 #endif

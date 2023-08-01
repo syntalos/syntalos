@@ -1,24 +1,26 @@
 
-#include <iostream>
-#include <QtTest>
 #include <QDebug>
+#include <QtTest>
+#include <iostream>
 
+#include "edlstorage.h"
 #include "utils/misc.h"
 #include "utils/tomlutils.h"
-#include "edlstorage.h"
 
 class TestEDL : public QObject
 {
     Q_OBJECT
 private:
-    const QString expectedToml = QStringLiteral("boolean = true\n"
-                                                "date = 1977-04-23T13:37:12Z\n"
-                                                "list = [ 'spam', 8, 'eggs', true, 12.4, 'spam', false ]\n"
-                                                "string = 'Hello World - öäß-!?'\n"
-                                                "\n"
-                                                "[child]\n"
-                                                "float = 1.248\n"
-                                                "key = 'stringvalue'");
+    const QString expectedToml = QStringLiteral(
+        "boolean = true\n"
+        "date = 1977-04-23T13:37:12Z\n"
+        "list = [ 'spam', 8, 'eggs', true, 12.4, 'spam', false ]\n"
+        "string = 'Hello World - öäß-!?'\n"
+        "\n"
+        "[child]\n"
+        "float = 1.248\n"
+        "key = 'stringvalue'"
+    );
 
 private slots:
     void runTomlSerialize()
@@ -91,7 +93,12 @@ private slots:
         dset->addDataFilePart("/usr/local/share/blah.test");
 
         QVariantHash attrs;
-        attrs.insert("alpha", QStringList() << "aaa" << "bbbb" << "cccc");
+        attrs.insert(
+            "alpha",
+            QStringList() << "aaa"
+                          << "bbbb"
+                          << "cccc"
+        );
         QVariantHash subMap;
         subMap.insert("world", 123);
         subMap.insert("nnn", QVariantList() << "spam" << 1.23 << "eggs");
@@ -123,7 +130,12 @@ private slots:
     void runUtilsSortTest()
     {
         QStringList files;
-        files << "test_1.mkv" << "test_2.mkv" << "test_9.mkv" << "test_10.mkv" << "test_11.mkv" << "test_8.mkv";
+        files << "test_1.mkv"
+              << "test_2.mkv"
+              << "test_9.mkv"
+              << "test_10.mkv"
+              << "test_11.mkv"
+              << "test_8.mkv";
         stringListNaturalSort(files);
         QCOMPARE(files[0], "test_1.mkv");
         QCOMPARE(files[1], "test_2.mkv");

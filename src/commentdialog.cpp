@@ -22,9 +22,9 @@
 
 #include <QMessageBox>
 
-CommentDialog::CommentDialog(Engine *engine, QWidget *parent) :
-    QDialog(parent),
-    ui(new Ui::CommentDialog)
+CommentDialog::CommentDialog(Engine *engine, QWidget *parent)
+    : QDialog(parent),
+      ui(new Ui::CommentDialog)
 {
     ui->setupUi(this);
     m_engine = engine;
@@ -51,10 +51,12 @@ void CommentDialog::closeEvent(QCloseEvent *event)
         return;
     }
 
-    auto reply = QMessageBox::question(this,
-                                       "Discard comment?",
-                                       QStringLiteral("Do you want to discard the entered text and not save it for the selected run?"),
-                                       QMessageBox::Yes | QMessageBox::No);
+    auto reply = QMessageBox::question(
+        this,
+        "Discard comment?",
+        QStringLiteral("Do you want to discard the entered text and not save it for the selected run?"),
+        QMessageBox::Yes | QMessageBox::No
+    );
     if (reply == QMessageBox::No) {
         event->ignore();
         return;
@@ -72,7 +74,6 @@ void CommentDialog::on_radioBtnCommentNext_toggled(bool checked)
     ui->commentTextEdit->setPlainText(m_engine->readRunComment());
 }
 
-
 void CommentDialog::on_radioBtnCommentLast_toggled(bool checked)
 {
     if (!checked)
@@ -82,7 +83,6 @@ void CommentDialog::on_radioBtnCommentLast_toggled(bool checked)
     ui->editInfoLabel->setText(lastRunDir);
     ui->commentTextEdit->setPlainText(m_engine->readRunComment(lastRunDir));
 }
-
 
 void CommentDialog::on_buttonBox_accepted()
 {
@@ -105,4 +105,3 @@ void CommentDialog::on_buttonBox_clicked(QAbstractButton *button)
     else if (role == QDialogButtonBox::DestructiveRole)
         ui->buttonBox->rejected();
 }
-

@@ -20,13 +20,13 @@
 #include "tracker.h"
 
 #include <QDebug>
-#include <QFile>
 #include <QDir>
-#include <QtMath>
+#include <QFile>
 #include <QTextStream>
+#include <QtMath>
+#include <opencv2/features2d/features2d.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/features2d/features2d.hpp>
 
 Tracker::Tracker(std::shared_ptr<DataStream<TableRow>> dataStream, const QString &subjectId)
     : QObject(nullptr),
@@ -36,10 +36,10 @@ Tracker::Tracker(std::shared_ptr<DataStream<TableRow>> dataStream, const QString
 {
     // load mouse graphic from resource store
     QFile file(":/images/mouse-top.png");
-    if(file.open(QIODevice::ReadOnly)) {
+    if (file.open(QIODevice::ReadOnly)) {
         auto sz = file.size();
         std::vector<uchar> buf(static_cast<size_t>(sz));
-        file.read((char*) buf.data(), sz);
+        file.read((char *)buf.data(), sz);
         m_mouseGraphicMat = cv::imdecode(buf, cv::IMREAD_COLOR);
     } else {
         qCritical() << "Unable to load mouse image from internal resources.";
@@ -69,13 +69,13 @@ bool Tracker::initialize()
     }
 
     // set position header and start the output data stream
-    m_dataStream->setMetadataValue("table_header", QStringList()
-                                   << QStringLiteral("Time")
-                                   << QStringLiteral("Red X") << QStringLiteral("Red Y")
-                                   << QStringLiteral("Green X") << QStringLiteral("Green Y")
-                                   << QStringLiteral("Blue X") << QStringLiteral("Blue Y")
-                                   << QStringLiteral("Center X") << QStringLiteral("Center Y")
-                                   << QStringLiteral("Turn Angle (deg)"));
+    m_dataStream->setMetadataValue(
+        "table_header",
+        QStringList() << QStringLiteral("Time") << QStringLiteral("Red X") << QStringLiteral("Red Y")
+                      << QStringLiteral("Green X") << QStringLiteral("Green Y") << QStringLiteral("Blue X")
+                      << QStringLiteral("Blue Y") << QStringLiteral("Center X") << QStringLiteral("Center Y")
+                      << QStringLiteral("Turn Angle (deg)")
+    );
     m_dataStream->start();
 
     // clear maze position data
@@ -87,7 +87,7 @@ bool Tracker::initialize()
     return true;
 }
 
-void Tracker::analyzeFrame(const cv::Mat& frame, const milliseconds_t time, cv::Mat *trackingFrame, cv::Mat *infoFrame)
+void Tracker::analyzeFrame(const cv::Mat &frame, const milliseconds_t time, cv::Mat *trackingFrame, cv::Mat *infoFrame)
 {
     // do the tracking on the source frame
     auto triangle = trackPoints(frame, infoFrame, trackingFrame);
@@ -143,8 +143,7 @@ QVariantHash Tracker::finalize()
     return mazeInfo;
 }
 
-static
-std::vector<cv::Point2f> findCornerBlobs(const cv::Mat& grayMat)
+static std::vector<cv::Point2f> findCornerBlobs(const cv::Mat &grayMat)
 {
     cv::Mat blurMap(grayMat.size(), grayMat.type());
 
@@ -220,8 +219,12 @@ std::vector<cv::Point2f> findCornerBlobs(const cv::Mat& grayMat)
     return mazeRect;
 }
 
-static
-cv::Point findMaxColorBrightness(const cv::Mat& image, const cv::Mat& imageGray, cv::Scalar minColors, cv::Scalar maxColors)
+static cv::Point findMaxColorBrightness(
+    const cv::Mat &image,
+    const cv::Mat &imageGray,
+    cv::Scalar minColors,
+    cv::Scalar maxColors
+)
 {
     double maxVal;
     cv::Point maxLoc;
@@ -235,12 +238,14 @@ cv::Point findMaxColorBrightness(const cv::Mat& image, const cv::Mat& imageGray,
 
     // find maximum
     imageGray.copyTo(colorMat, colorMaskMat);
-    cv::minMaxLoc(colorMat,
-                  nullptr, // minimum value
-                  &maxVal,
-                  nullptr, // minimum location (Point),
-                  &maxLoc,
-                  cv::Mat());
+    cv::minMaxLoc(
+        colorMat,
+        nullptr, // minimum value
+        &maxVal,
+        nullptr, // minimum location (Point),
+        &maxLoc,
+        cv::Mat()
+    );
     if (((maxLoc.x == 0) && (maxLoc.y == 0)) && (maxVal == 0)) {
         // we didn't find a maximum, our tracking dot vanished. Set an invalid point.
         maxLoc.x = -1;
@@ -250,8 +255,7 @@ cv::Point findMaxColorBrightness(const cv::Mat& image, const cv::Mat& imageGray,
     return maxLoc;
 }
 
-static
-double calculateTriangleGamma(Tracker::LEDTriangle& tri)
+static double calculateTriangleGamma(Tracker::LEDTriangle &tri)
 {
     // sanity checks
     if ((tri.red.x < 0) || (tri.red.y < 0) || (tri.green.x < 0) || (tri.green.x < 0)) {
@@ -271,9 +275,9 @@ double calculateTriangleGamma(Tracker::LEDTriangle& tri)
     }
 
     // calculate triangle side lengths
-    auto cLen = qSqrt(qPow((tri.red.x   - tri.green.x), 2) + qPow((tri.red.y   - tri.green.y), 2));
-    auto bLen = qSqrt(qPow((tri.red.x   - tri.blue.x), 2)  + qPow((tri.red.y   - tri.blue.y), 2));
-    auto aLen = qSqrt(qPow((tri.green.x - tri.blue.x), 2)  + qPow((tri.green.y - tri.blue.y), 2));
+    auto cLen = qSqrt(qPow((tri.red.x - tri.green.x), 2) + qPow((tri.red.y - tri.green.y), 2));
+    auto bLen = qSqrt(qPow((tri.red.x - tri.blue.x), 2) + qPow((tri.red.y - tri.blue.y), 2));
+    auto aLen = qSqrt(qPow((tri.green.x - tri.blue.x), 2) + qPow((tri.green.y - tri.blue.y), 2));
 
     // calculate gamma angle at the blue LED
     auto gamma = qAcos((qPow(bLen, 2) + qPow(aLen, 2) - qPow(cLen, 2)) / (2 * aLen * bLen));
@@ -282,8 +286,7 @@ double calculateTriangleGamma(Tracker::LEDTriangle& tri)
     return tri.gamma;
 }
 
-static
-cv::Point2f calculateTriangleCentroid(Tracker::LEDTriangle& tri)
+static cv::Point2f calculateTriangleCentroid(Tracker::LEDTriangle &tri)
 {
     auto x = (tri.red.x + tri.green.x + tri.blue.x) / 3;
     auto y = (tri.red.y + tri.green.y + tri.blue.y) / 3;
@@ -291,8 +294,7 @@ cv::Point2f calculateTriangleCentroid(Tracker::LEDTriangle& tri)
     return cv::Point2f(x, y);
 }
 
-static
-double calculateTriangleTurnAngle(Tracker::LEDTriangle& tri)
+static double calculateTriangleTurnAngle(Tracker::LEDTriangle &tri)
 {
     if (tri.red.x <= 0 && tri.green.x <= 0 && tri.blue.x <= 0) {
         // looks like we don't know where the triangle is
@@ -325,8 +327,11 @@ double calculateTriangleTurnAngle(Tracker::LEDTriangle& tri)
     return angle;
 }
 
-static bool
-cvRectFuzzyEqual(const std::vector<cv::Point2f>& a, const std::vector<cv::Point2f>& b, const uint tolerance = 2)
+static bool cvRectFuzzyEqual(
+    const std::vector<cv::Point2f> &a,
+    const std::vector<cv::Point2f> &b,
+    const uint tolerance = 2
+)
 {
     if (a.size() != 4)
         return false;
@@ -378,21 +383,23 @@ Tracker::LEDTriangle Tracker::trackPoints(const cv::Mat &image, cv::Mat *infoFra
     // calculate gamma angle
     res.gamma = calculateTriangleGamma(res);
     if (res.gamma > 0)
-        cv::putText(trackMat,
-                    QStringLiteral("y%1").arg(res.gamma).toStdString(),
-                    cv::Point(res.blue.x + 7, res.blue.y + 7),
-                    cv::FONT_HERSHEY_SIMPLEX,
-                    0.6,
-                    cv::Scalar(100, 100, 255));
+        cv::putText(
+            trackMat,
+            QStringLiteral("y%1").arg(res.gamma).toStdString(),
+            cv::Point(res.blue.x + 7, res.blue.y + 7),
+            cv::FONT_HERSHEY_SIMPLEX,
+            0.6,
+            cv::Scalar(100, 100, 255)
+        );
 
     // find the maze
     if (m_mazeRect.size() == 4) {
         // draw maze rect
-        cv::line(trackMat, m_mazeRect[0],  m_mazeRect[1], cv::Scalar(40, 120, 120), 2);
-        cv::line(trackMat, m_mazeRect[2],  m_mazeRect[3], cv::Scalar(40, 120, 120), 2);
+        cv::line(trackMat, m_mazeRect[0], m_mazeRect[1], cv::Scalar(40, 120, 120), 2);
+        cv::line(trackMat, m_mazeRect[2], m_mazeRect[3], cv::Scalar(40, 120, 120), 2);
 
-        cv::line(trackMat, m_mazeRect[0],  m_mazeRect[2], cv::Scalar(40, 120, 120), 2);
-        cv::line(trackMat, m_mazeRect[1],  m_mazeRect[3], cv::Scalar(40, 120, 120), 2);
+        cv::line(trackMat, m_mazeRect[0], m_mazeRect[2], cv::Scalar(40, 120, 120), 2);
+        cv::line(trackMat, m_mazeRect[1], m_mazeRect[3], cv::Scalar(40, 120, 120), 2);
 
         // we need to try to find the maze a few times, to not make assumptions based
         // on a bad initial image delivered by the camera warming up.
@@ -428,26 +435,32 @@ Tracker::LEDTriangle Tracker::trackPoints(const cv::Mat &image, cv::Mat *infoFra
 
     // display position in infographic
     if (res.center.x >= 0) {
-        cv::putText(infoMat,
-                    QStringLiteral("X: %2 Y: %3").arg(res.center.x).arg(res.center.y).toStdString(),
-                    cv::Point(6, 20),
-                    cv::FONT_HERSHEY_SIMPLEX,
-                    0.8,
-                    cv::Scalar(255, 180, 180));
-        cv::putText(infoMat,
-                    m_subjectId.toStdString(),
-                    cv::Point(m_mouseGraphicMat.cols - (m_subjectId.length() * 18) - 6, 20),
-                    cv::FONT_HERSHEY_SIMPLEX,
-                    0.8,
-                    cv::Scalar(255, 180, 180));
+        cv::putText(
+            infoMat,
+            QStringLiteral("X: %2 Y: %3").arg(res.center.x).arg(res.center.y).toStdString(),
+            cv::Point(6, 20),
+            cv::FONT_HERSHEY_SIMPLEX,
+            0.8,
+            cv::Scalar(255, 180, 180)
+        );
+        cv::putText(
+            infoMat,
+            m_subjectId.toStdString(),
+            cv::Point(m_mouseGraphicMat.cols - (m_subjectId.length() * 18) - 6, 20),
+            cv::FONT_HERSHEY_SIMPLEX,
+            0.8,
+            cv::Scalar(255, 180, 180)
+        );
     } else {
         infoMat.setTo(cv::Scalar(0, 0, 0));
-        cv::putText(infoMat,
-                    "Oh no, we do not know where the test subject is!",
-                    cv::Point(14, (m_mouseGraphicMat.rows / 2) - 8),
-                    cv::FONT_HERSHEY_SIMPLEX,
-                    0.6,
-                    cv::Scalar(100, 100, 255));
+        cv::putText(
+            infoMat,
+            "Oh no, we do not know where the test subject is!",
+            cv::Point(14, (m_mouseGraphicMat.rows / 2) - 8),
+            cv::FONT_HERSHEY_SIMPLEX,
+            0.6,
+            cv::Scalar(100, 100, 255)
+        );
     }
 
     (*infoFrame) = infoMat;

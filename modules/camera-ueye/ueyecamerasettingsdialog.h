@@ -20,13 +20,14 @@
 #ifndef UEYECAMERASETTINGSDIALOG_H
 #define UEYECAMERASETTINGSDIALOG_H
 
-#include <QDialog>
 #include "ueyecamera.h"
+#include <QDialog>
 
 class QCheckBox;
 class QLabel;
 
-namespace Ui {
+namespace Ui
+{
 class UEyeCameraSettingsDialog;
 }
 
@@ -47,13 +48,13 @@ public:
     int framerate() const;
     void setFramerate(int fps);
 
-    void setRunning(bool running); 
+    void setRunning(bool running);
 
     bool automaticGain();
     void setAutomaticGain(bool automatic);
 
     QString uEyeConfigFile();
-    void setUEyeConfigFile(const QString& value);
+    void setUEyeConfigFile(const QString &value);
 
     bool gpioFlash();
     void setGpioFlash(bool flash);

@@ -2,15 +2,16 @@
 #define BARRIER_H
 
 #include <QMutex>
-#include <QWaitCondition>
 #include <QSharedPointer>
+#include <QWaitCondition>
 #include <chrono>
 
 class BarrierData
 {
 public:
     BarrierData(int count)
-        : count(count), goal(count)
+        : count(count),
+          goal(count)
     {
         m_startTime = std::chrono::high_resolution_clock::now();
     }
@@ -50,10 +51,14 @@ private:
     double m_timeElapsed;
 };
 
-class Barrier {
+class Barrier
+{
 public:
     // Create a barrier that will wait for count threads
-    Barrier(int count) : d(new BarrierData(count)) {}
+    Barrier(int count)
+        : d(new BarrierData(count))
+    {
+    }
     void wait()
     {
         d->wait();

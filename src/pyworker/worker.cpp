@@ -18,19 +18,20 @@
  */
 
 #define QT_NO_KEYWORDS
-#include <iostream>
-#include <QMetaType>
 #include "worker.h"
+#include <QMetaType>
+#include <iostream>
 
-#include "rtkit.h"
 #include "cpuaffinity.h"
-#include "syio.h"
 #include "pyipcmarshal.h"
+#include "rtkit.h"
 #include "streams/datatypes.h"
+#include "syio.h"
 
 using namespace Syntalos;
-namespace Syntalos {
-    Q_LOGGING_CATEGORY(logPyWorker, "pyworker")
+namespace Syntalos
+{
+Q_LOGGING_CATEGORY(logPyWorker, "pyworker")
 }
 
 OOPWorker::OOPWorker(QObject *parent)
@@ -203,8 +204,9 @@ bool OOPWorker::loadPythonScript(const QString &script, const QString &wdir)
     PyConfig config;
     PyConfig_InitPythonConfig(&config);
 
-    auto status = PyConfig_SetString(&config, &config.program_name,
-                                     QCoreApplication::arguments()[0].toStdWString().c_str());
+    auto status = PyConfig_SetString(
+        &config, &config.program_name, QCoreApplication::arguments()[0].toStdWString().c_str()
+    );
     if (PyStatus_Exception(status)) {
         raiseError(QStringLiteral("Unable to set Python program name: %1").arg(status.err_msg));
         PyConfig_Clear(&config);
@@ -216,8 +218,9 @@ bool OOPWorker::loadPythonScript(const QString &script, const QString &wdir)
     const auto venvDir = QString::fromUtf8(qgetenv("VIRTUAL_ENV"));
     qCDebug(logPyWorker).noquote() << "Using virtual environment:" << venvDir;
     if (!venvDir.isEmpty()) {
-        status = PyConfig_SetString(&config, &config.program_name,
-                                    QDir(venvDir).filePath("bin/python").toStdWString().c_str());
+        status = PyConfig_SetString(
+            &config, &config.program_name, QDir(venvDir).filePath("bin/python").toStdWString().c_str()
+        );
         if (PyStatus_Exception(status)) {
             raiseError(QStringLiteral("Unable to set Python program name: %1").arg(status.err_msg));
             PyConfig_Clear(&config);
@@ -293,61 +296,57 @@ static QString pyObjectToQStr(PyObject *pyObj)
 
 void OOPWorker::emitPyError()
 {
-        PyObject *excType, *excValue, *excTraceback;
-        PyErr_Fetch(&excType, &excValue, &excTraceback);
-        PyErr_NormalizeException(&excType, &excValue, &excTraceback);
+    PyObject *excType, *excValue, *excTraceback;
+    PyErr_Fetch(&excType, &excValue, &excTraceback);
+    PyErr_NormalizeException(&excType, &excValue, &excTraceback);
 
-        QString message;
-        if (excType)
-            message = pyObjectToQStr(excType);
+    QString message;
+    if (excType)
+        message = pyObjectToQStr(excType);
 
-        if (excValue) {
-            const auto str = pyObjectToQStr(excValue);
+    if (excValue) {
+        const auto str = pyObjectToQStr(excValue);
+        if (!str.isEmpty())
+            message = QString::fromUtf8("%1\n%2").arg(message).arg(str);
+    }
+
+    if (excTraceback) {
+        // let's try to generate a useful traceback
+        auto pyTbModName = PyUnicode_FromString("traceback");
+        auto pyTbMod = PyImport_Import(pyTbModName);
+        Py_DECREF(pyTbModName);
+
+        if (pyTbModName == nullptr) {
+            // we can't create a good backtrace, just print the thing as string as a fallback
+            const auto str = pyObjectToQStr(excTraceback);
             if (!str.isEmpty())
                 message = QString::fromUtf8("%1\n%2").arg(message).arg(str);
+        } else {
+            const auto pyFnFormatE = PyObject_GetAttrString(pyTbMod, "format_exception");
+            if (pyFnFormatE && PyCallable_Check(pyFnFormatE)) {
+                auto pyTbVal = PyObject_CallFunctionObjArgs(pyFnFormatE, excType, excValue, excTraceback, nullptr);
+                const auto str = pyObjectToQStr(pyTbVal);
+                if (str != nullptr)
+                    message = QString::fromUtf8("%1\n%2").arg(message).arg(str);
+            } else {
+                message = QString::fromUtf8("%1\n<<Unable to format traceback.>>").arg(message);
+            }
         }
+    }
 
-        if (excTraceback) {
-            // let's try to generate a useful traceback
-                auto pyTbModName = PyUnicode_FromString("traceback");
-                auto pyTbMod = PyImport_Import(pyTbModName);
-                Py_DECREF(pyTbModName);
+    if (message.isEmpty())
+        message = QStringLiteral("An unknown Python error occured.");
 
-                if (pyTbModName == nullptr) {
-                    // we can't create a good backtrace, just print the thing as string as a fallback
-                    const auto str = pyObjectToQStr(excTraceback);
-                    if (!str.isEmpty())
-                        message = QString::fromUtf8("%1\n%2").arg(message).arg(str);
-                } else {
-                    const auto pyFnFormatE = PyObject_GetAttrString(pyTbMod, "format_exception");
-                    if (pyFnFormatE && PyCallable_Check(pyFnFormatE)) {
-                        auto pyTbVal = PyObject_CallFunctionObjArgs(pyFnFormatE,
-                                                                    excType,
-                                                                    excValue,
-                                                                    excTraceback,
-                                                                    nullptr);
-                        const auto str = pyObjectToQStr(pyTbVal);
-                        if (str != nullptr)
-                            message = QString::fromUtf8("%1\n%2").arg(message).arg(str);
-                    } else {
-                        message = QString::fromUtf8("%1\n<<Unable to format traceback.>>").arg(message);
-                    }
-                }
-        }
+    raiseError(QStringLiteral("Python:\n%1").arg(message));
 
-        if (message.isEmpty())
-            message = QStringLiteral("An unknown Python error occured.");
+    Py_XDECREF(excTraceback);
+    Py_XDECREF(excType);
+    Py_XDECREF(excValue);
 
-        raiseError(QStringLiteral("Python:\n%1").arg(message));
-
-        Py_XDECREF(excTraceback);
-        Py_XDECREF(excType);
-        Py_XDECREF(excValue);
-
-        if (m_pyInitialized) {
-            Py_Finalize();
-            m_pyInitialized = false;
-        }
+    if (m_pyInitialized) {
+        Py_Finalize();
+        m_pyInitialized = false;
+    }
 }
 
 #pragma GCC diagnostic push
@@ -432,7 +431,9 @@ void OOPWorker::prepareAndRun()
         }
 
         // while we are not running, wait for the start signal
-        while (!m_running) { QCoreApplication::processEvents(); }
+        while (!m_running) {
+            QCoreApplication::processEvents();
+        }
         setStage(OOPWorker::RUNNING);
 
         // run the start function first, if we have it
@@ -468,7 +469,7 @@ void OOPWorker::prepareAndRun()
                         emitPyError();
                     callEventLoop = false;
                 } else {
-                    if (PyBool_Check (loopRes))
+                    if (PyBool_Check(loopRes))
                         callEventLoop = loopRes == Py_True;
                     else
                         callEventLoop = false;
@@ -618,25 +619,27 @@ void OOPWorker::makeDocFileAndQuit(const QString &fname)
 
     Py_Initialize();
     PyRun_SimpleString(qPrintable(
-                           QStringLiteral(
-                               "import os\n"
-                               "import tempfile\n"
-                               "import pdoc\n"
-                               "import syio\n"
-                               "\n"
-                               "jinjaTmpl = ") + jinjaTemplatePyLiteral + QStringLiteral("\n"
-                               "\n"
-                               "doc = pdoc.doc.Module(syio)\n"
-                               "with tempfile.TemporaryDirectory() as tmp_dir:\n"
-                               "    with open(os.path.join(tmp_dir, 'frame.html.jinja2'), 'w') as f:\n"
-                               "        f.write(jinjaTmpl)\n"
-                               "    pdoc.render.configure(template_directory=tmp_dir)\n"
-                               "    html_data = pdoc.render.html_module(module=doc, all_modules={'syio': doc})\n"
-                               "    with open('%1', 'w') as f:\n"
-                               "        f.write(html_data)\n"
-                               "        f.write('\\n')\n"
-                               "\n")
-                           .arg(QString(fname).replace("'", "\\'"))));
+        QStringLiteral("import os\n"
+                       "import tempfile\n"
+                       "import pdoc\n"
+                       "import syio\n"
+                       "\n"
+                       "jinjaTmpl = ")
+        + jinjaTemplatePyLiteral
+        + QStringLiteral("\n"
+                         "\n"
+                         "doc = pdoc.doc.Module(syio)\n"
+                         "with tempfile.TemporaryDirectory() as tmp_dir:\n"
+                         "    with open(os.path.join(tmp_dir, 'frame.html.jinja2'), 'w') as f:\n"
+                         "        f.write(jinjaTmpl)\n"
+                         "    pdoc.render.configure(template_directory=tmp_dir)\n"
+                         "    html_data = pdoc.render.html_module(module=doc, all_modules={'syio': doc})\n"
+                         "    with open('%1', 'w') as f:\n"
+                         "        f.write(html_data)\n"
+                         "        f.write('\\n')\n"
+                         "\n")
+              .arg(QString(fname).replace("'", "\\'"))
+    ));
     if (Py_FinalizeEx() < 0)
         exit(9);
 

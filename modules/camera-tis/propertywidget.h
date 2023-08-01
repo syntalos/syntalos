@@ -44,43 +44,43 @@ public:
     std::string get_category() const;
 
 protected:
-    virtual TcamPropertyBase* get_property_base() const noexcept = 0;
+    virtual TcamPropertyBase *get_property_base() const noexcept = 0;
 };
 
 class EnumWidget : public QWidget, public Property
 {
     Q_OBJECT
 public:
-    EnumWidget(TcamPropertyEnumeration* prop, QWidget* parent = nullptr);
+    EnumWidget(TcamPropertyEnumeration *prop, QWidget *parent = nullptr);
 
     virtual void update() final;
 
     virtual void set_in_backend() final;
 
 protected:
-    virtual TcamPropertyBase* get_property_base() const noexcept final
+    virtual TcamPropertyBase *get_property_base() const noexcept final
     {
         return TCAM_PROPERTY_BASE(p_prop);
     }
 
 public slots:
 
-    void drop_down_changed(const QString& entry);
+    void drop_down_changed(const QString &entry);
 
 signals:
 
     // update_category signal is
     // used for QTimer::singleShot to update Once actions
     void update_category(QString category);
-    void value_changed(Property*);
-    void device_lost(const QString& info);
+    void value_changed(Property *);
+    void device_lost(const QString &info);
 
 private:
     void setup_ui();
 
-    QComboBox* p_combobox = nullptr;
+    QComboBox *p_combobox = nullptr;
 
-    TcamPropertyEnumeration* p_prop = nullptr;
+    TcamPropertyEnumeration *p_prop = nullptr;
     bool is_readonly_ = false;
 };
 
@@ -88,13 +88,13 @@ class IntWidget : public QWidget, public Property
 {
     Q_OBJECT
 public:
-    IntWidget(TcamPropertyInteger* prop, QWidget* parent = nullptr);
+    IntWidget(TcamPropertyInteger *prop, QWidget *parent = nullptr);
 
     virtual void update() final;
     virtual void set_in_backend() final;
 
 protected:
-    virtual TcamPropertyBase* get_property_base() const noexcept final
+    virtual TcamPropertyBase *get_property_base() const noexcept final
     {
         return TCAM_PROPERTY_BASE(p_prop);
     }
@@ -107,32 +107,31 @@ public slots:
 signals:
 
     void update_category(QString category);
-    void value_changed(Property*);
-    void device_lost(const QString& info);
+    void value_changed(Property *);
+    void device_lost(const QString &info);
 
 private:
     void setup_ui();
     void write_value(int64_t new_value);
 
-    TcamSlider* p_slider = nullptr;
-    tcam::tools::capture::TcamSpinBox* p_box = nullptr;
+    TcamSlider *p_slider = nullptr;
+    tcam::tools::capture::TcamSpinBox *p_box = nullptr;
 
-    TcamPropertyInteger* p_prop = nullptr;
+    TcamPropertyInteger *p_prop = nullptr;
     bool is_readonly_ = false;
 };
-
 
 class DoubleWidget : public QWidget, public Property
 {
     Q_OBJECT
 public:
-    DoubleWidget(TcamPropertyFloat* prop, QWidget* parent = nullptr);
+    DoubleWidget(TcamPropertyFloat *prop, QWidget *parent = nullptr);
 
     virtual void update() final;
     virtual void set_in_backend() final;
 
 protected:
-    virtual TcamPropertyBase* get_property_base() const noexcept final
+    virtual TcamPropertyBase *get_property_base() const noexcept final
     {
         return TCAM_PROPERTY_BASE(p_prop);
     }
@@ -145,33 +144,32 @@ public slots:
 signals:
 
     void update_category(QString category);
-    void value_changed(Property*);
-    void device_lost(const QString& info);
+    void value_changed(Property *);
+    void device_lost(const QString &info);
 
 private:
     void setup_ui();
     void write_value(double new_value);
 
-    TcamSlider* p_slider = nullptr;
-    QDoubleSpinBox* p_box = nullptr;
+    TcamSlider *p_slider = nullptr;
+    QDoubleSpinBox *p_box = nullptr;
 
-    TcamPropertyFloat* p_prop = nullptr;
+    TcamPropertyFloat *p_prop = nullptr;
 
     bool is_readonly_ = false;
 };
-
 
 class BoolWidget : public QWidget, public Property
 {
     Q_OBJECT
 public:
-    BoolWidget(TcamPropertyBoolean* prop, QWidget* parent = nullptr);
+    BoolWidget(TcamPropertyBoolean *prop, QWidget *parent = nullptr);
 
     virtual void update() final;
     virtual void set_in_backend() final;
 
 protected:
-    virtual TcamPropertyBase* get_property_base() const noexcept final
+    virtual TcamPropertyBase *get_property_base() const noexcept final
     {
         return TCAM_PROPERTY_BASE(p_prop);
     }
@@ -182,31 +180,29 @@ public slots:
 
 signals:
 
-    void value_changed(Property*);
-    void device_lost(const QString& info);
+    void value_changed(Property *);
+    void device_lost(const QString &info);
 
 private:
     void setup_ui();
 
-    QCheckBox* p_checkbox = nullptr;
+    QCheckBox *p_checkbox = nullptr;
 
-    TcamPropertyBoolean* p_prop = nullptr;
+    TcamPropertyBoolean *p_prop = nullptr;
     bool is_readonly_ = false;
 };
-
 
 class ButtonWidget : public QWidget, public Property
 {
     Q_OBJECT
 public:
-    ButtonWidget(TcamPropertyCommand* prop, QWidget* parent = nullptr);
-
+    ButtonWidget(TcamPropertyCommand *prop, QWidget *parent = nullptr);
 
     virtual void update() final;
     virtual void set_in_backend() final;
 
 protected:
-    virtual TcamPropertyBase* get_property_base() const noexcept final
+    virtual TcamPropertyBase *get_property_base() const noexcept final
     {
         return TCAM_PROPERTY_BASE(p_prop);
     }
@@ -217,43 +213,42 @@ public slots:
 
 signals:
 
-    void value_changed(Property*);
-    void device_lost(const QString& info);
+    void value_changed(Property *);
+    void device_lost(const QString &info);
 
 private:
     void setup_ui();
 
-    QPushButton* p_button = nullptr;
+    QPushButton *p_button = nullptr;
 
-    TcamPropertyCommand* p_prop = nullptr;
+    TcamPropertyCommand *p_prop = nullptr;
 };
-
 
 class StringWidget : public QWidget, public Property
 {
     Q_OBJECT
 public:
-    explicit StringWidget(TcamPropertyString* prop, QWidget* parent = nullptr);
+    explicit StringWidget(TcamPropertyString *prop, QWidget *parent = nullptr);
 
     virtual void update() final;
     virtual void set_in_backend() final;
 
 protected:
-    virtual TcamPropertyBase* get_property_base() const noexcept final
+    virtual TcamPropertyBase *get_property_base() const noexcept final
     {
         return TCAM_PROPERTY_BASE(p_prop);
     }
 
 signals:
 
-    void device_lost(const QString& info);
+    void device_lost(const QString &info);
 
 private:
     void setup_ui();
 
-    QLabel* p_label = nullptr;
+    QLabel *p_label = nullptr;
 
-    TcamPropertyString* p_prop = nullptr;
+    TcamPropertyString *p_prop = nullptr;
 };
 
 #endif // PROPERTYWIDGET_H

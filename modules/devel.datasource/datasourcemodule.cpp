@@ -20,9 +20,9 @@
 #include "datasourcemodule.h"
 #include "streams/frametype.h"
 
+#include "utils/misc.h"
 #include <QInputDialog>
 #include <opencv2/imgproc.hpp>
-#include "utils/misc.h"
 
 SYNTALOS_MODULE(DevelDataSourceModule)
 
@@ -47,10 +47,7 @@ public:
         m_fctlOut = registerOutputPort<FirmataControl>(QStringLiteral("fctl-out"), QStringLiteral("Firmata Control"));
     }
 
-    ~DataSourceModule() override
-    {
-
-    }
+    ~DataSourceModule() override {}
 
     ModuleDriverKind driver() const override
     {
@@ -68,27 +65,23 @@ public:
             return;
 
         bool ok;
-        int value = QInputDialog::getInt(nullptr,
-                                         "Configure Debug Data Source",
-                                         "Video Framerate",
-                                         m_fps,
-                                         2, 10000, 1,
-                                         &ok);
+        int value = QInputDialog::getInt(
+            nullptr, "Configure Debug Data Source", "Video Framerate", m_fps, 2, 10000, 1, &ok
+        );
         if (ok)
             m_fps = value;
     }
 
     bool prepare(const TestSubject &) override
     {
-        m_frameOut->setMetadataValue("framerate", (double) m_fps);
+        m_frameOut->setMetadataValue("framerate", (double)m_fps);
         m_frameOut->setMetadataValue("size", QSize(800, 600));
         m_frameOut->start();
 
         m_rowsOut->setSuggestedDataName(QStringLiteral("table-%1/testvalues").arg(datasetNameSuggestion()));
-        m_rowsOut->setMetadataValue("table_header", QStringList()
-                                    << QStringLiteral("Time")
-                                    << QStringLiteral("Tag")
-                                    << QStringLiteral("Value"));
+        m_rowsOut->setMetadataValue(
+            "table_header", QStringList() << QStringLiteral("Time") << QStringLiteral("Tag") << QStringLiteral("Value")
+        );
         m_rowsOut->start();
         m_prevRowTime = 0;
 
@@ -116,7 +109,7 @@ public:
                 fctl.command = FirmataCommandKind::WRITE_DIGITAL;
                 fctl.pinId = 2;
                 fctl.pinName = QStringLiteral("custom-pin-name");
-                fctl.value = (msec % 2 == 0)? 1 : 0;
+                fctl.value = (msec % 2 == 0) ? 1 : 0;
                 m_fctlOut->push(fctl);
             }
 
@@ -132,15 +125,19 @@ private:
 
         frame.mat = cv::Mat(cv::Size(800, 600), CV_8UC3);
         frame.mat.setTo(cv::Scalar(67, 42, 30));
-        cv::putText(frame.mat,
-                    std::string("Frame ") + std::to_string(index),
-                    cv::Point(24, 240),
-                    cv::FONT_HERSHEY_COMPLEX,
-                    1.5,
-                    cv::Scalar(255,255,255));
+        cv::putText(
+            frame.mat,
+            std::string("Frame ") + std::to_string(index),
+            cv::Point(24, 240),
+            cv::FONT_HERSHEY_COMPLEX,
+            1.5,
+            cv::Scalar(255, 255, 255)
+        );
         frame.time = m_syTimer->timeSinceStartMsec();
 
-        std::this_thread::sleep_for(std::chrono::microseconds((1000 / fps) * 1000) - timeDiffUsec(currentTimePoint(), startTime));
+        std::this_thread::sleep_for(
+            std::chrono::microseconds((1000 / fps) * 1000) - timeDiffUsec(currentTimePoint(), startTime)
+        );
         return frame;
     }
 
@@ -154,7 +151,7 @@ private:
         TableRow row;
         row.reserve(3);
         row.append(QString::number(msec));
-        row.append((msec % 2)? QStringLiteral("beta") : QStringLiteral("alpha"));
+        row.append((msec % 2) ? QStringLiteral("beta") : QStringLiteral("alpha"));
         row.append(createRandomString(14));
 
         return row;

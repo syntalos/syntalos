@@ -52,5 +52,5 @@ void ElidedLabel::updateElision()
     QString elidedText = metrics.elidedText(m_rawText, m_elideMode, width());
     QLabel::setText(elidedText);
     if (!elidedText.isEmpty())
-        setMinimumWidth((m_realMinWidth == 0)? 1 : m_realMinWidth);
+        setMinimumWidth((m_realMinWidth == 0) ? 1 : m_realMinWidth);
 }

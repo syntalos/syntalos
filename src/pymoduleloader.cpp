@@ -19,16 +19,16 @@
 
 #include "pymoduleloader.h"
 
-#include <iostream>
+#include <QCoreApplication>
 #include <QDir>
 #include <QFile>
 #include <QIcon>
-#include <QStandardPaths>
 #include <QMessageBox>
-#include <QCoreApplication>
+#include <QStandardPaths>
+#include <iostream>
 
-#include "oopmodule.h"
 #include "globalconfig.h"
+#include "oopmodule.h"
 #include "utils/executils.h"
 #include "utils/misc.h"
 
@@ -36,7 +36,6 @@ class PythonModule : public OOPModule
 {
     Q_OBJECT
 public:
-
     explicit PythonModule(QObject *parent = nullptr)
         : OOPModule(parent),
           m_settingsOpened(false)
@@ -44,15 +43,14 @@ public:
         // we use the generic Python OOP worker process for this
         setWorkerBinaryPyWorker();
 
-        setCaptureStdout(false);  // don't capture stdout until we are running
-        connect(this, &OOPModule::processStdoutReceived, this, [&](const QString& data) {
-            std::cout << "py." << id().toStdString() << "(" << name().toStdString() << "): "
-                      << data.toStdString() << std::endl;
+        setCaptureStdout(false); // don't capture stdout until we are running
+        connect(this, &OOPModule::processStdoutReceived, this, [&](const QString &data) {
+            std::cout << "py." << id().toStdString() << "(" << name().toStdString() << "): " << data.toStdString()
+                      << std::endl;
         });
     }
 
-    ~PythonModule() override
-    {}
+    ~PythonModule() override {}
 
     ModuleFeatures features() const override
     {
@@ -63,16 +61,20 @@ public:
     {
         for (const auto &pv : varInPorts) {
             const auto po = pv.toHash();
-            registerInputPortByTypeId(QMetaType::type(qPrintable(po.value("data_type").toString())),
-                                      po.value("id").toString(),
-                                      po.value("title").toString());
+            registerInputPortByTypeId(
+                QMetaType::type(qPrintable(po.value("data_type").toString())),
+                po.value("id").toString(),
+                po.value("title").toString()
+            );
         }
 
         for (const auto &pv : varOutPorts) {
             const auto po = pv.toHash();
-            registerOutputPortByTypeId(QMetaType::type(qPrintable(po.value("data_type").toString())),
-                                       po.value("id").toString(),
-                                       po.value("title").toString());
+            registerOutputPortByTypeId(
+                QMetaType::type(qPrintable(po.value("data_type").toString())),
+                po.value("id").toString(),
+                po.value("title").toString()
+            );
         }
     }
 
@@ -92,8 +94,9 @@ public:
         QDir dir(QStringLiteral("%1/lib/").arg(venvDir));
         QStringList vpDirs = dir.entryList(QStringList() << QStringLiteral("python*"));
 
-        QStringList systemPyModPaths = QStringList() << QStringLiteral("/usr/lib/python3/dist-packages/%1/").arg(pyModName)
-                                                     << QStringLiteral("/usr/local/lib/python3/dist-packages/%1/").arg(pyModName);
+        QStringList systemPyModPaths = QStringList()
+                                       << QStringLiteral("/usr/lib/python3/dist-packages/%1/").arg(pyModName)
+                                       << QStringLiteral("/usr/local/lib/python3/dist-packages/%1/").arg(pyModName);
 
         for (const auto &systemPyQtPath : systemPyModPaths) {
             QDir sysPyQtDir(systemPyQtPath);
@@ -102,7 +105,9 @@ public:
 
             for (const auto &pyDir : vpDirs) {
                 qDebug().noquote() << "Adding system Python module to venv:" << systemPyQtPath;
-                QFile::link(systemPyQtPath, QStringLiteral("%1/lib/%2/site-packages/%3").arg(venvDir, pyDir, pyModName));
+                QFile::link(
+                    systemPyQtPath, QStringLiteral("%1/lib/%2/site-packages/%3").arg(venvDir, pyDir, pyModName)
+                );
             }
         }
     }
@@ -135,7 +140,8 @@ public:
         }
 
         const auto origRequirementsFname = QStringLiteral("%1/requirements.txt").arg(m_pyModDir);
-        const auto tmpRequirementsFname = QStringLiteral("%1/%2-requirements_%3.txt").arg(rtdDir, id(), createRandomString(4));
+        const auto tmpRequirementsFname = QStringLiteral("%1/%2-requirements_%3.txt")
+                                              .arg(rtdDir, id(), createRandomString(4));
         QFile tmpReqFile(tmpRequirementsFname);
         if (!tmpReqFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
             qWarning().noquote() << "Unable to open temporary file" << tmpRequirementsFname << "for writing.";
@@ -173,12 +179,14 @@ public:
             << "export PATH=$PATH:/app/bin\n\n"
 
             << "cd " << shellQuote(venvDir) << "\n"
-            << "run_check virtualenv ." << "\n"
+            << "run_check virtualenv ."
+            << "\n"
             << "run_check source " << shellQuote(QStringLiteral("%1/bin/activate").arg(venvDir)) << "\n"
             << "run_check pip install -r " << shellQuote(tmpRequirementsFname) << "\n"
 
             << "echo \"\"\n"
-            << "read -p \"Success! Press any key to exit.\"" << "\n";
+            << "read -p \"Success! Press any key to exit.\""
+            << "\n";
         shFile.flush();
         shFile.setPermissions(QFileDevice::ExeUser | QFileDevice::ReadUser | QFileDevice::WriteUser);
         shFile.close();
@@ -202,22 +210,30 @@ public:
         }
 
         if (m_useVEnv && !virtualEnvExists() && QFile::exists(QStringLiteral("%1/requirements.txt").arg(m_pyModDir))) {
-            auto reply = QMessageBox::question(nullptr,
-                                               QStringLiteral("Create virtual environment for %1?").arg(id()),
-                                               QStringLiteral("The '%1' module requested to run its Python code in a virtual environment, however "
-                                                              "a virtual Python environment for modules of type '%2' does not exist yet. "
-                                                              "Should Syntalos attempt to set up the environment automatically? "
-                                                              "(This will open a system terminal and run the necessary commands, which may take some time)")
-                                                              .arg(name(), id()),
-                                               QMessageBox::Yes | QMessageBox::No);
+            auto reply = QMessageBox::question(
+                nullptr,
+                QStringLiteral("Create virtual environment for %1?").arg(id()),
+                QStringLiteral(
+                    "The '%1' module requested to run its Python code in a virtual environment, however "
+                    "a virtual Python environment for modules of type '%2' does not exist yet. "
+                    "Should Syntalos attempt to set up the environment automatically? "
+                    "(This will open a system terminal and run the necessary commands, which may take some time)"
+                )
+                    .arg(name(), id()),
+                QMessageBox::Yes | QMessageBox::No
+            );
             if (reply == QMessageBox::No)
                 return false;
 
             QCoreApplication::processEvents();
             if (!installVirtualEnv()) {
-                QMessageBox::warning(nullptr,
-                                     QStringLiteral("Failed to create virtual environment for %1?").arg(id()),
-                                     QStringLiteral("Failed to set up the virtual environment - refer to the terminal log for more information."));
+                QMessageBox::warning(
+                    nullptr,
+                    QStringLiteral("Failed to create virtual environment for %1?").arg(id()),
+                    QStringLiteral(
+                        "Failed to set up the virtual environment - refer to the terminal log for more information."
+                    )
+                );
                 return false;
             }
             GlobalConfig gconf;
@@ -231,9 +247,7 @@ public:
     bool prepare(const TestSubject &testSubject) override
     {
         setCaptureStdout(true);
-        setPythonFile(m_mainPyFname,
-                      m_pyModDir,
-                      virtualEnvDir());
+        setPythonFile(m_mainPyFname, m_pyModDir, virtualEnvDir());
 
         OOPModule::prepare(testSubject);
 
@@ -247,9 +261,11 @@ public:
     void showSettingsUi() override
     {
         if (m_running) {
-            QMessageBox::information(nullptr,
-                                     QStringLiteral("Settings unavailable"),
-                                     QStringLiteral("Settings can not be shown while the module is running in an experiment."));
+            QMessageBox::information(
+                nullptr,
+                QStringLiteral("Settings unavailable"),
+                QStringLiteral("Settings can not be shown while the module is running in an experiment.")
+            );
             return;
         }
         if (m_settingsOpened) {
@@ -262,9 +278,7 @@ public:
         }
 
         setCaptureStdout(false);
-        setPythonFile(m_mainPyFname,
-                      m_pyModDir,
-                      virtualEnvDir());
+        setPythonFile(m_mainPyFname, m_pyModDir, virtualEnvDir());
         auto res = showSettingsChangeUi(settingsData());
         if (res.has_value()) {
             m_pendingSettings = res.value();
@@ -272,13 +286,13 @@ public:
         }
     }
 
-    void serializeSettings(const QString&, QVariantHash &settings, QByteArray &extraData) override
+    void serializeSettings(const QString &, QVariantHash &settings, QByteArray &extraData) override
     {
         Q_UNUSED(settings)
         extraData = settingsData();
     }
 
-    bool loadSettings(const QString&, const QVariantHash &settings, const QByteArray &extraData) override
+    bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &extraData) override
     {
         Q_UNUSED(settings)
         setSettingsData(extraData);
@@ -304,22 +318,43 @@ private:
 class PyModuleInfo : public ModuleInfo
 {
 public:
-    explicit PyModuleInfo(const QString &id, const QString &name,
-                          const QString &description, const QIcon &icon,
-                          bool isDevModule)
+    explicit PyModuleInfo(
+        const QString &id,
+        const QString &name,
+        const QString &description,
+        const QIcon &icon,
+        bool isDevModule
+    )
         : m_id(id),
           m_name(name),
           m_description(description),
-          m_icon (icon),
-          m_isDevModule(isDevModule) {}
+          m_icon(icon),
+          m_isDevModule(isDevModule)
+    {
+    }
 
     ~PyModuleInfo() override {}
 
-    QString id() const override { return m_id; }
-    QString name() const override { return m_name; };
-    QString description() const override { return m_description; };
-    QIcon icon() const override { return m_icon; };
-    bool devel() const override { return m_isDevModule; }
+    QString id() const override
+    {
+        return m_id;
+    }
+    QString name() const override
+    {
+        return m_name;
+    };
+    QString description() const override
+    {
+        return m_description;
+    };
+    QIcon icon() const override
+    {
+        return m_icon;
+    };
+    bool devel() const override
+    {
+        return m_isDevModule;
+    }
     AbstractModule *createModule(QObject *parent = nullptr) override
     {
         auto mod = new PythonModule(parent);
@@ -328,8 +363,14 @@ public:
         return mod;
     }
 
-    void setMainPyScriptFname(const QString &pyFname) { m_pyFname = pyFname; }
-    void setUseVEnv(bool enabled) { m_useVEnv = enabled; }
+    void setMainPyScriptFname(const QString &pyFname)
+    {
+        m_pyFname = pyFname;
+    }
+    void setUseVEnv(bool enabled)
+    {
+        m_useVEnv = enabled;
+    }
     void setPortDef(const QVariantList &defInput, const QVariantList &defOutput)
     {
         m_portDefInput = defInput;
@@ -376,7 +417,8 @@ ModuleInfo *loadPythonModuleInfo(const QString &modId, const QString &modDir, co
 
     const auto pyFile = QDir(modDir).filePath(modDef.value("main").toString());
     if (!QFileInfo::exists(pyFile))
-        throw std::runtime_error(qPrintable(QStringLiteral("Main entrypoint Python file %1 does not exist").arg(pyFile)));
+        throw std::runtime_error(qPrintable(QStringLiteral("Main entrypoint Python file %1 does not exist").arg(pyFile))
+        );
 
     modInfo = new PyModuleInfo(modId, name, desc, icon, isDevMod);
     modInfo->setRootDir(modDir);
@@ -385,8 +427,7 @@ ModuleInfo *loadPythonModuleInfo(const QString &modId, const QString &modDir, co
 
     const auto portsDef = modData.value("ports").toHash();
     if (!portsDef.isEmpty())
-        modInfo->setPortDef(portsDef.value("in").toList(),
-                            portsDef.value("out").toList());
+        modInfo->setPortDef(portsDef.value("in").toList(), portsDef.value("out").toList());
 
     return modInfo;
 }

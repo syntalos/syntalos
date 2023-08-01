@@ -21,7 +21,8 @@
 
 #include <QDialog>
 
-namespace Ui {
+namespace Ui
+{
 class ClockSettingsDialog;
 }
 

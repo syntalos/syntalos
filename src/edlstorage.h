@@ -19,16 +19,15 @@
 
 #pragma once
 
-#include <memory>
-#include <optional>
-#include <QObject>
-#include <QHash>
 #include <QDateTime>
 #include <QFileInfo>
+#include <QHash>
+#include <QObject>
 #include <QUuid>
+#include <memory>
+#include <optional>
 
-enum class EDLUnitKind
-{
+enum class EDLUnitKind {
     UNKNOWN,
     COLLECTION,
     GROUP,
@@ -39,13 +38,20 @@ class EDLAuthor
 {
 public:
     explicit EDLAuthor(const QString &aName, const QString &aEmail)
-        : name(aName), email(aEmail)
-    {}
+        : name(aName),
+          email(aEmail)
+    {
+    }
     explicit EDLAuthor()
-        : name(QString()), email(QString())
-    {}
+        : name(QString()),
+          email(QString())
+    {
+    }
 
-    bool isValid() const { return !name.isEmpty(); }
+    bool isValid() const
+    {
+        return !name.isEmpty();
+    }
 
     QString name;
     QString email;
@@ -57,11 +63,13 @@ class EDLDataPart
 public:
     explicit EDLDataPart()
         : index(-1)
-    {}
+    {
+    }
     explicit EDLDataPart(const QString &filename)
         : index(-1),
           fname(QFileInfo(filename).fileName())
-    {}
+    {
+    }
     int index;
     QString fname;
 };
@@ -69,8 +77,7 @@ public:
 class EDLDataFile
 {
 public:
-    explicit EDLDataFile()
-    {}
+    explicit EDLDataFile() {}
     QString className;
     QString fileType;
     QString mediaType;
@@ -87,6 +94,7 @@ class EDLDataset;
 class EDLUnit
 {
     friend class EDLGroup;
+
 public:
     explicit EDLUnit(EDLUnitKind kind, EDLUnit *parent = nullptr);
     virtual ~EDLUnit();
@@ -131,8 +139,10 @@ protected:
 
     virtual void setRootPath(const QString &root);
 
-    void setDataObjects(std::optional<EDLDataFile> dataFile,
-                        const QList<EDLDataFile> &auxDataFiles = QList<EDLDataFile>());
+    void setDataObjects(
+        std::optional<EDLDataFile> dataFile,
+        const QList<EDLDataFile> &auxDataFiles = QList<EDLDataFile>()
+    );
 
     bool saveManifest();
     bool saveAttributes();

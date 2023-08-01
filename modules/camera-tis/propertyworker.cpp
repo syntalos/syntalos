@@ -19,39 +19,31 @@
 #include "propertywidget.h"
 #include <QThread>
 
-PropertyWorker::PropertyWorker()
-{}
+PropertyWorker::PropertyWorker() {}
 
-
-void PropertyWorker::add_properties(const std::vector<Property*>& new_props)
+void PropertyWorker::add_properties(const std::vector<Property *> &new_props)
 {
     m_properties.insert(m_properties.end(), new_props.begin(), new_props.end());
 }
 
-
-void PropertyWorker::write_property(Property* p)
+void PropertyWorker::write_property(Property *p)
 {
     p->set_in_backend();
 
     const auto cat = p->get_category();
     const auto name = p->get_name();
 
-    for (auto& prop : m_properties)
-    {
-        if (name != prop->get_name() && prop->get_category() == cat)
-        {
+    for (auto &prop : m_properties) {
+        if (name != prop->get_name() && prop->get_category() == cat) {
             prop->update();
         }
     }
 }
 
-
 void PropertyWorker::update_category(QString category)
 {
-    for (auto& prop : m_properties)
-    {
-        if (prop->get_category() == category.toStdString())
-        {
+    for (auto &prop : m_properties) {
+        if (prop->get_category() == category.toStdString()) {
             prop->update();
         }
     }

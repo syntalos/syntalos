@@ -21,7 +21,8 @@
 
 #include <QObject>
 
-namespace Syntalos {
+namespace Syntalos
+{
 
 enum class SysInfoCheckResult {
     UNKNOWN,
@@ -34,12 +35,13 @@ class SysInfo : public QObject
 {
     Q_OBJECT
 public:
-    static SysInfo *get() {
+    static SysInfo *get()
+    {
         static SysInfo instance;
         return &instance;
     }
-    SysInfo(SysInfo const&) = delete;
-    void operator=(SysInfo const&) = delete;
+    SysInfo(SysInfo const &) = delete;
+    void operator=(SysInfo const &) = delete;
 
     QString machineHostName() const;
     QString prettyOSName() const;
@@ -105,4 +107,4 @@ private:
     void readCPUInfo();
 };
 
-} // end of namespace
+} // namespace Syntalos

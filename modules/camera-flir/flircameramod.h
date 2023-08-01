@@ -19,8 +19,8 @@
 
 #pragma once
 
-#include <QObject>
 #include "moduleapi.h"
+#include <QObject>
 
 SYNTALOS_DECLARE_MODULE
 

@@ -10,9 +10,9 @@
 #include <QMessageBox>
 #include <gst/app/gstappsink.h>
 
-#include "devicedialog.h"
 #include "caps.h"
 #include "capswidget.h"
+#include "devicedialog.h"
 #include "tiscameramodule.h"
 
 TcamControlDialog::TcamControlDialog(std::shared_ptr<TcamCaptureConfig> config, QWidget *parent)
@@ -129,101 +129,89 @@ void TcamControlDialog::showEvent(QShowEvent *event)
     QWidget::showEvent(event);
 }
 
-static gboolean bus_callback(GstBus* /*bus*/, GstMessage* message, gpointer user_data)
+static gboolean bus_callback(GstBus * /*bus*/, GstMessage *message, gpointer user_data)
 {
-    switch (GST_MESSAGE_TYPE(message))
-    {
-        case GST_MESSAGE_INFO:
-        {
-            char* str;
-            GError* err = nullptr;
-            gst_message_parse_info(message, &err, &str);
+    switch (GST_MESSAGE_TYPE(message)) {
+    case GST_MESSAGE_INFO: {
+        char *str;
+        GError *err = nullptr;
+        gst_message_parse_info(message, &err, &str);
 
-            //qCInfo(logTISCam, "INFO: %s", str);
+        // qCInfo(logTISCam, "INFO: %s", str);
 
-            QString s = str;
+        QString s = str;
 
-            // infos concerning the caps that are actually set
-            // set infos for users
-            if (s.startsWith("Working with src caps:")) {
-                s = s.remove(QRegExp("\\(\\w*\\)"));
-                s = s.section(":", 1);
-                qCInfo(logTISCam, "%s", str);
-            }
-
-            if (err) {
-                qCInfo(logTISCam, "%s", err->message);
-                g_clear_error(&err);
-            }
-            break;
+        // infos concerning the caps that are actually set
+        // set infos for users
+        if (s.startsWith("Working with src caps:")) {
+            s = s.remove(QRegExp("\\(\\w*\\)"));
+            s = s.section(":", 1);
+            qCInfo(logTISCam, "%s", str);
         }
-        case GST_MESSAGE_ERROR:
-        {
 
-            char* str = nullptr;
-            GError* err = nullptr;
-            gst_message_parse_error(message, &err, &str);
-            QString s = err->message;
-            if (s.startsWith("Device lost ("))
-            {
-                int start = s.indexOf("(") + 1;
-                QString serial = s.mid(start, s.indexOf(")") - start);
-                ((TcamControlDialog*)user_data)->emitDeviceLostBySerial(serial);
-            }
+        if (err) {
+            qCInfo(logTISCam, "%s", err->message);
+            g_clear_error(&err);
+        }
+        break;
+    }
+    case GST_MESSAGE_ERROR: {
 
-            g_error_free(err);
-            g_free(str);
+        char *str = nullptr;
+        GError *err = nullptr;
+        gst_message_parse_error(message, &err, &str);
+        QString s = err->message;
+        if (s.startsWith("Device lost (")) {
+            int start = s.indexOf("(") + 1;
+            QString serial = s.mid(start, s.indexOf(")") - start);
+            ((TcamControlDialog *)user_data)->emitDeviceLostBySerial(serial);
+        }
 
-            break;
-        }
-        case GST_MESSAGE_EOS:
-        {
-            qCInfo(logTISCam, "Received EOS");
+        g_error_free(err);
+        g_free(str);
 
-            break;
-        }
-        case GST_MESSAGE_STREAM_START:
-        {
-            // all sink elements are playing.
-            // stream actually started
+        break;
+    }
+    case GST_MESSAGE_EOS: {
+        qCInfo(logTISCam, "Received EOS");
 
-            break;
-        }
-        case GST_MESSAGE_STREAM_STATUS:
-        {
-            break;
-        }
-        case GST_MESSAGE_STATE_CHANGED:
-        {
-            // GstState oldstate;
-            // GstState newstate;
-            // GstState pending;
-            // gst_message_parse_state_changed(message, &oldstate, &newstate, &pending);
+        break;
+    }
+    case GST_MESSAGE_STREAM_START: {
+        // all sink elements are playing.
+        // stream actually started
 
-            // qCInfo(logTISCam, "State change: old: %s new: %s pend: %s",
-            //       gst_element_state_get_name(oldstate),
-            //       gst_element_state_get_name(newstate),
-            //       gst_element_state_get_name(pending));
+        break;
+    }
+    case GST_MESSAGE_STREAM_STATUS: {
+        break;
+    }
+    case GST_MESSAGE_STATE_CHANGED: {
+        // GstState oldstate;
+        // GstState newstate;
+        // GstState pending;
+        // gst_message_parse_state_changed(message, &oldstate, &newstate, &pending);
 
-            break;
-        }
-        case GST_MESSAGE_ELEMENT:
-        {
-            break;
-        }
-        case GST_MESSAGE_ASYNC_DONE:
-        { // ignore
-            break;
-        }
-        case GST_MESSAGE_NEW_CLOCK:
-        { // ignore
-            break;
-        }
-        default:
-        {
-            qCInfo(logTISCam, "Message handling not implemented: %s", GST_MESSAGE_TYPE_NAME(message));
-            break;
-        }
+        // qCInfo(logTISCam, "State change: old: %s new: %s pend: %s",
+        //       gst_element_state_get_name(oldstate),
+        //       gst_element_state_get_name(newstate),
+        //       gst_element_state_get_name(pending));
+
+        break;
+    }
+    case GST_MESSAGE_ELEMENT: {
+        break;
+    }
+    case GST_MESSAGE_ASYNC_DONE: { // ignore
+        break;
+    }
+    case GST_MESSAGE_NEW_CLOCK: { // ignore
+        break;
+    }
+    default: {
+        qCInfo(logTISCam, "Message handling not implemented: %s", GST_MESSAGE_TYPE_NAME(message));
+        break;
+    }
     }
 
     return TRUE;
@@ -232,33 +220,25 @@ static gboolean bus_callback(GstBus* /*bus*/, GstMessage* message, gpointer user
 void TcamControlDialog::openPipeline(FormatHandling handling)
 {
     std::string pipeline_string = m_capConfig->pipeline.toStdString();
-    GError* err = nullptr;
+    GError *err = nullptr;
 
     bool set_device = false;
 
-    if (m_pipeline)
-    {
+    if (m_pipeline) {
         GstState state;
         GstState pending;
         // wait 0.1 sec
-        GstStateChangeReturn change_ret =
-            gst_element_get_state(m_pipeline, &state, &pending, 100000000);
+        GstStateChangeReturn change_ret = gst_element_get_state(m_pipeline, &state, &pending, 100000000);
 
-        if (change_ret == GST_STATE_CHANGE_SUCCESS)
-        {
-            if (state == GST_STATE_PAUSED || state == GST_STATE_PLAYING)
-            {
+        if (change_ret == GST_STATE_CHANGE_SUCCESS) {
+            if (state == GST_STATE_PAUSED || state == GST_STATE_PLAYING) {
                 gst_element_set_state(m_pipeline, GST_STATE_READY);
             }
-        }
-        else
-        {
+        } else {
             qWarning("Unable to determine pipeline state. Attempting restart.");
             closePipeline();
         }
-    }
-    else
-    {
+    } else {
         set_device = true;
         m_pipeline = gst_parse_launch(pipeline_string.c_str(), &err);
 
@@ -267,27 +247,22 @@ void TcamControlDialog::openPipeline(FormatHandling handling)
         gst_object_unref(bus);
     }
 
-    if (!m_pipeline)
-    {
+    if (!m_pipeline) {
         qErrnoWarning("Unable to start pipeline!");
-        if (err)
-        {
+        if (err) {
             qErrnoWarning("Reason: %s", err->message);
         }
         return;
     }
 
-    auto has_property = [](GstElement* element, const char* name)
-    {
+    auto has_property = [](GstElement *element, const char *name) {
         return g_object_class_find_property(G_OBJECT_GET_CLASS(element), name) != nullptr;
     };
 
-    if (set_device)
-    {
+    if (set_device) {
         m_source = gst_bin_get_by_name(GST_BIN(m_pipeline), "tcam0");
 
-        if (!m_source)
-        {
+        if (!m_source) {
             // TODO throw error to user
             qCInfo(logTISCam, "NO source for you");
             return;
@@ -298,53 +273,46 @@ void TcamControlDialog::openPipeline(FormatHandling handling)
         //     g_object_set(m_source, "tcam-device", m_selectedDevice, nullptr);
         // }
         // else
-        if (has_property(m_source, "serial"))
-        {
+        if (has_property(m_source, "serial")) {
             std::string serial = m_selectedDevice.serial_long();
             g_object_set(m_source, "serial", serial.c_str(), nullptr);
         }
 
-        if (has_property(m_source, "conversion-element"))
-        {
-            qCDebug(logTISCam, "Setting 'conversion-element' property to '%s'",
-                   conversion_element_to_string(m_capConfig->conversion_element));
+        if (has_property(m_source, "conversion-element")) {
+            qCDebug(
+                logTISCam,
+                "Setting 'conversion-element' property to '%s'",
+                conversion_element_to_string(m_capConfig->conversion_element)
+            );
             g_object_set(m_source, "conversion-element", m_capConfig->conversion_element, nullptr);
         }
     }
 
     // must not be freed
-    GstElementFactory* factory = gst_element_get_factory(m_source);
+    GstElementFactory *factory = gst_element_get_factory(m_source);
     GType element_type = gst_element_factory_get_element_type(factory);
 
     auto src_change_ret = gst_element_set_state(m_source, GST_STATE_READY);
 
-    if (src_change_ret == GST_STATE_CHANGE_ASYNC)
-    {
+    if (src_change_ret == GST_STATE_CHANGE_ASYNC) {
         GstState state;
         GstState pending;
         // wait 0.1 sec
-        GstStateChangeReturn change_ret =
-            gst_element_get_state(m_source, &state, &pending, 100000000);
+        GstStateChangeReturn change_ret = gst_element_get_state(m_source, &state, &pending, 100000000);
 
-        if (change_ret == GST_STATE_CHANGE_SUCCESS)
-        {
-            if (state == GST_STATE_PAUSED || state == GST_STATE_PLAYING)
-            {
+        if (change_ret == GST_STATE_CHANGE_SUCCESS) {
+            if (state == GST_STATE_PAUSED || state == GST_STATE_PLAYING) {
                 gst_element_set_state(m_source, GST_STATE_READY);
             }
-        }
-        else
-        {
+        } else {
             qWarning("Unable to start pipeline. Stopping.");
             closePipeline();
             // #TODO: what now?
             return;
         }
-    }
-    else if (src_change_ret == GST_STATE_CHANGE_FAILURE)
-    {
+    } else if (src_change_ret == GST_STATE_CHANGE_FAILURE) {
         QString err_str = "Unable to open device. Please check gstreamer log 'tcam*:5' for more information.";
-        qWarning("%s",err_str.toStdString().c_str());
+        qWarning("%s", err_str.toStdString().c_str());
         closePipeline();
 
         QMessageBox::critical(this, "Unable to open device", err_str);
@@ -354,32 +322,25 @@ void TcamControlDialog::openPipeline(FormatHandling handling)
     // there are two scenarios
     // tcambin -> get subelement
     // source element -> use that
-    GstElement* tcamsrc = nullptr;
-    if (element_type == g_type_from_name("GstTcamBin"))
-    {
+    GstElement *tcamsrc = nullptr;
+    if (element_type == g_type_from_name("GstTcamBin")) {
         tcamsrc = gst_bin_get_by_name(GST_BIN(m_source), "tcambin-source");
-    }
-    else
-    {
+    } else {
         tcamsrc = m_source;
         gst_object_ref(tcamsrc);
     }
 
-    GstCaps* src_caps = nullptr;
-    if (has_property(m_source, "available-caps"))
-    {
-        const char* available_caps = nullptr;
+    GstCaps *src_caps = nullptr;
+    if (has_property(m_source, "available-caps")) {
+        const char *available_caps = nullptr;
         g_object_get(m_source, "available-caps", &available_caps, NULL);
 
-        if (available_caps)
-        {
+        if (available_caps) {
             src_caps = gst_caps_from_string(available_caps);
             m_selectedDevice.set_caps(src_caps);
         }
-    }
-    else
-    {
-        GstPad* src_pad = gst_element_get_static_pad(tcamsrc, "src");
+    } else {
+        GstPad *src_pad = gst_element_get_static_pad(tcamsrc, "src");
 
         src_caps = gst_pad_query_caps(src_pad, nullptr);
 
@@ -390,48 +351,36 @@ void TcamControlDialog::openPipeline(FormatHandling handling)
         gst_object_unref(tcamsrc);
     }
 
-    GstCaps* caps = nullptr;
+    GstCaps *caps = nullptr;
     if (handling == FormatHandling::Dialog) {
         m_selectedCaps = showFormatDialog();
 
-        if (!m_selectedCaps)
-        {
+        if (!m_selectedCaps) {
             closePipeline();
             return;
         }
 
         caps = gst_caps_copy(m_selectedCaps);
-    }
-    else if (handling == FormatHandling::Static)
-    {
+    } else if (handling == FormatHandling::Static) {
         caps = gst_caps_copy(m_selectedCaps);
-    }
-    else
-    {
+    } else {
         caps = Caps::get_default_caps(src_caps);
     }
 
-    if (src_caps)
-    {
+    if (src_caps) {
         gst_caps_unref(src_caps);
     }
 
-    if (has_property(m_source, "device-caps"))
-    {
+    if (has_property(m_source, "device-caps")) {
         qCInfo(logTISCam, "setting caps to: %s", gst_caps_to_string(caps));
         g_object_set(m_source, "device-caps", gst_caps_to_string(caps), nullptr);
-    }
-    else
-    {
+    } else {
         auto capsfilter = gst_bin_get_by_name(GST_BIN(m_pipeline), "device-caps");
 
-        if (!capsfilter)
-        {
+        if (!capsfilter) {
             qWarning("Source does not have property 'device-caps'.");
             qWarning("Alternative of capsfilter named 'device-caps' does not exist.");
-        }
-        else
-        {
+        } else {
             // TODO check if element really is a capsfilter
             g_object_set(capsfilter, "caps", caps, nullptr);
         }
@@ -450,8 +399,7 @@ void TcamControlDialog::openPipeline(FormatHandling handling)
 
     m_videoSink = GST_APP_SINK(gst_bin_get_by_name(GST_BIN(m_pipeline), "sink"));
     g_object_set(m_videoSink, "max-buffers", 4, "drop", true, nullptr);
-    if (!m_videoSink)
-    {
+    if (!m_videoSink) {
         qErrnoWarning("Unable to find sink element. Potentially unable to stream...");
     }
 }
@@ -511,7 +459,8 @@ void TcamControlDialog::createPropertiesBox()
 
     m_propsBox = new PropertiesBox(*m_tcamCollection, ui->propsContainer);
 
-    setWindowTitle(QStringLiteral("%1 - %2: Properties").arg(m_selectedDevice.model().c_str(), m_selectedDevice.serial_long().c_str()));
+    setWindowTitle(QStringLiteral("%1 - %2: Properties")
+                       .arg(m_selectedDevice.model().c_str(), m_selectedDevice.serial_long().c_str()));
     ui->propsContainer->layout()->addWidget(m_propsBox);
 }
 
@@ -540,10 +489,9 @@ GstCaps *TcamControlDialog::showFormatDialog()
     // dependending on the pipeline we want to use a different element
     // tcambin will change GstQueries we send
     // always prefer tcamsrc when dealing with device caps
-    GstElement* caps_element = m_source;
+    GstElement *caps_element = m_source;
     bool must_free = false;
-    if (strcmp("GstTcamBin", g_type_name(gst_element_factory_get_element_type (factory))) == 0)
-    {
+    if (strcmp("GstTcamBin", g_type_name(gst_element_factory_get_element_type(factory))) == 0) {
         caps_element = gst_bin_get_by_name(GST_BIN(m_source), "tcambin-source");
         must_free = true;
     }
@@ -569,26 +517,22 @@ GstCaps *TcamControlDialog::showFormatDialog()
     format_dialog.setMinimumSize(320, 240);
     format_dialog.setMaximumSize(640, 480);
 
-    if (!m_device_caps.isEmpty())
-    {
-        GstCaps* c = gst_caps_from_string(m_device_caps.toStdString().c_str());
+    if (!m_device_caps.isEmpty()) {
+        GstCaps *c = gst_caps_from_string(m_device_caps.toStdString().c_str());
         fmt_widget->set_caps(c, *caps_element);
         gst_caps_unref(c);
     }
 
-    if (must_free)
-    {
+    if (must_free) {
         gst_object_unref(caps_element);
     }
 
-    if (format_dialog.exec() == QDialog::Accepted)
-    {
-        GstCaps* new_caps = fmt_widget->get_caps();
+    if (format_dialog.exec() == QDialog::Accepted) {
+        GstCaps *new_caps = fmt_widget->get_caps();
         return new_caps;
     }
     return nullptr;
 }
-
 
 void TcamControlDialog::on_selectFormatButton_clicked()
 {
@@ -610,4 +554,3 @@ void TcamControlDialog::on_refreshButton_clicked()
     if (m_propsBox != nullptr)
         m_propsBox->refresh();
 }
-

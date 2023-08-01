@@ -19,19 +19,21 @@
 
 #pragma once
 
-#include <QWidget>
 #include "moduleapi.h"
+#include <QWidget>
 
 class QListWidgetItem;
 class QTimer;
 class TracePlot;
 class PlotChannelData;
 
-namespace Ui {
+namespace Ui
+{
 class TraceDisplay;
 }
 
-namespace QtCharts {
+namespace QtCharts
+{
 class QXYSeries;
 }
 
@@ -43,8 +45,8 @@ public:
     explicit TraceDisplay(QWidget *parent = nullptr);
     ~TraceDisplay();
 
-    void addIntPort(std::shared_ptr<StreamInputPort<IntSignalBlock> > port);
-    void addFloatPort(std::shared_ptr<StreamInputPort<FloatSignalBlock> > port);
+    void addIntPort(std::shared_ptr<StreamInputPort<IntSignalBlock>> port);
+    void addFloatPort(std::shared_ptr<StreamInputPort<FloatSignalBlock>> port);
     void updatePortChannels();
 
     void updatePlotData(bool adjustView = true);
@@ -72,10 +74,10 @@ private:
     TracePlot *m_plot;
     int m_maxXVal;
     QTimer *m_timer;
-    QList<QPair<std::shared_ptr<VarStreamInputPort>, QList<PlotChannelData*>>> m_portsChannels;
+    QList<QPair<std::shared_ptr<VarStreamInputPort>, QList<PlotChannelData *>>> m_portsChannels;
 
-    QList<QPair<std::shared_ptr<StreamSubscription<FloatSignalBlock>>, QList<PlotChannelData*>>> m_activeFSubChans;
-    QList<QPair<std::shared_ptr<StreamSubscription<IntSignalBlock>>, QList<PlotChannelData*>>> m_activeISubChans;
+    QList<QPair<std::shared_ptr<StreamSubscription<FloatSignalBlock>>, QList<PlotChannelData *>>> m_activeFSubChans;
+    QList<QPair<std::shared_ptr<StreamSubscription<IntSignalBlock>>, QList<PlotChannelData *>>> m_activeISubChans;
 
     void addChannel(int streamIndex, int chanIndex);
     PlotChannelData *selectedPlotChannelData();

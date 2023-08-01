@@ -61,56 +61,56 @@ toml::date_time qDateTimeToToml(const QDateTime &qdt)
 // way to do this with the current version of TOML++ that needs to know types
 // immediately for template instanciation and can't infer anything at runtime
 // This macro needs a GCC-compliant compiler (GCC and Clang will work)
-#define CONVERT_SIMPLE_QTYPE_TO_TOMLTYPE(func, var) ({ \
-    bool success = true;                               \
-    if ((var).type() == QVariant::Bool) {              \
-        func((var).toBool());                          \
-    }                                                  \
-                                                       \
-    else if ((var).isNull()) {                         \
-        /* leave out the value */                      \
-    }                                                  \
-                                                       \
-    else if ((var).type() == QVariant::String) {       \
-        func((var).toString().toStdString());          \
-    }                                                  \
-                                                       \
-    else if ((var).type() == QVariant::Int) {          \
-        func((var).toInt());                           \
-    }                                                  \
-                                                       \
-    else if ((var).canConvert<double>()) {             \
-        func((var).toDouble());                        \
-    }                                                  \
-                                                       \
-    else if ((var).canConvert<int64_t>()) {            \
-        func((var).value<int64_t>());                  \
-    }                                                  \
-                                                       \
-    else if ((var).type() == QVariant::Time) {         \
-        func(qTimeToToml((var).toTime()));             \
-    }                                                  \
-                                                       \
-    else if ((var).type() == QVariant::Date) {         \
-        func(qDateToToml((var).toDate()));             \
-    }                                                  \
-                                                       \
-    else if ((var).canConvert<QDateTime>()) {          \
-        func(qDateTimeToToml((var).toDateTime()));     \
-    }                                                  \
-                                                       \
-    /* check Qt knows how to convert the unknown */    \
-    /* value  to a string representation. */           \
-    else if ((var).canConvert<QString>()) {            \
-        func((var).toString().toStdString());          \
-    }                                                  \
-                                                       \
-    else {                                             \
-        /* unable to convert this value */             \
-        success = false;                               \
-    }                                                  \
-    success;                                           \
-})
+#define CONVERT_SIMPLE_QTYPE_TO_TOMLTYPE(func, var)                                                                    \
+    ({                                                                                                                 \
+        bool success = true;                                                                                           \
+        if ((var).type() == QVariant::Bool) {                                                                          \
+            func((var).toBool());                                                                                      \
+        }                                                                                                              \
+                                                                                                                       \
+        else if ((var).isNull()) {                                                                                     \
+            /* leave out the value */                                                                                  \
+        }                                                                                                              \
+                                                                                                                       \
+        else if ((var).type() == QVariant::String) {                                                                   \
+            func((var).toString().toStdString());                                                                      \
+        }                                                                                                              \
+                                                                                                                       \
+        else if ((var).type() == QVariant::Int) {                                                                      \
+            func((var).toInt());                                                                                       \
+        }                                                                                                              \
+                                                                                                                       \
+        else if ((var).canConvert<double>()) {                                                                         \
+            func((var).toDouble());                                                                                    \
+        }                                                                                                              \
+                                                                                                                       \
+        else if ((var).canConvert<int64_t>()) {                                                                        \
+            func((var).value<int64_t>());                                                                              \
+        }                                                                                                              \
+                                                                                                                       \
+        else if ((var).type() == QVariant::Time) {                                                                     \
+            func(qTimeToToml((var).toTime()));                                                                         \
+        }                                                                                                              \
+                                                                                                                       \
+        else if ((var).type() == QVariant::Date) {                                                                     \
+            func(qDateToToml((var).toDate()));                                                                         \
+        }                                                                                                              \
+                                                                                                                       \
+        else if ((var).canConvert<QDateTime>()) {                                                                      \
+            func(qDateTimeToToml((var).toDateTime()));                                                                 \
+        }                                                                                                              \
+                                                                                                                       \
+        /* check Qt knows how to convert the unknown */ /* value  to a string representation. */                       \
+        else if ((var).canConvert<QString>()) {                                                                        \
+            func((var).toString().toStdString());                                                                      \
+        }                                                                                                              \
+                                                                                                                       \
+        else {                                                                                                         \
+            /* unable to convert this value */                                                                         \
+            success = false;                                                                                           \
+        }                                                                                                              \
+        success;                                                                                                       \
+    })
 
 toml::array qVariantListToTomlArray(const QVariantList &varList)
 {
@@ -130,7 +130,8 @@ toml::array qVariantListToTomlArray(const QVariantList &varList)
         if (CONVERT_SIMPLE_QTYPE_TO_TOMLTYPE(arr.push_back, var))
             continue;
 
-        qWarning().noquote() << QStringLiteral("Unable to store type `%1` in TOML attributes (array).").arg(var.typeName());
+        qWarning().noquote(
+        ) << QStringLiteral("Unable to store type `%1` in TOML attributes (array).").arg(var.typeName());
         arr.push_back("�");
     }
 
@@ -158,11 +159,14 @@ toml::table qVariantHashToTomlTable(const QVariantHash &varHash)
             continue;
         }
 
-        auto tabInsertFunc = [&](auto v) { tab.insert(key, v); };
+        auto tabInsertFunc = [&](auto v) {
+            tab.insert(key, v);
+        };
         if (CONVERT_SIMPLE_QTYPE_TO_TOMLTYPE(tabInsertFunc, var))
             continue;
 
-        qWarning().noquote() << QStringLiteral("Unable to store type `%1` in TOML attributes (table).").arg(var.typeName());
+        qWarning().noquote(
+        ) << QStringLiteral("Unable to store type `%1` in TOML attributes (table).").arg(var.typeName());
         tab.insert(key, "�");
     }
 
@@ -203,7 +207,7 @@ template<typename T>
 QVariant tomlValueToVariant(const T &value)
 {
     QVariant res;
-    value.visit([&](auto&& n) {
+    value.visit([&](auto &&n) {
         if constexpr (toml::is_string<decltype(n)>)
             res = QVariant::fromValue(QString::fromStdString(n.as_string()->get()));
         else if constexpr (toml::is_integer<decltype(n)>)
@@ -223,7 +227,7 @@ QVariant tomlValueToVariant(const T &value)
         else if constexpr (toml::is_array<decltype(n)>) {
             if (auto arr = n.as_array()) {
                 QVariantList vList;
-                for (auto& e : *arr)
+                for (auto &e : *arr)
                     vList.append(tomlValueToVariant(e));
                 res = vList;
             }
@@ -232,9 +236,8 @@ QVariant tomlValueToVariant(const T &value)
         else if constexpr (toml::is_table<decltype(n)>) {
             if (auto tab = n.as_table()) {
                 QVariantHash vHash;
-                for (auto&& [tk, tv] : *tab)
-                    vHash.insert(QString::fromLocal8Bit(tk.data(), tk.length()),
-                                 tomlValueToVariant(tv));
+                for (auto &&[tk, tv] : *tab)
+                    vHash.insert(QString::fromLocal8Bit(tk.data(), tk.length()), tomlValueToVariant(tv));
                 res = vHash;
             }
         }
@@ -246,9 +249,8 @@ QVariant tomlValueToVariant(const T &value)
 static QVariantHash tomlToVariantHash(const toml::table &tab)
 {
     QVariantHash res;
-    for (auto&& [k, v] : tab) {
-        res.insert(QString::fromLocal8Bit(k.data(), k.length()),
-                   tomlValueToVariant(v));
+    for (auto &&[k, v] : tab) {
+        res.insert(QString::fromLocal8Bit(k.data(), k.length()), tomlValueToVariant(v));
     }
 
     return res;
@@ -261,7 +263,7 @@ QVariantHash parseTomlData(const QByteArray &data, QString &errorMessage)
 
     try {
         table = toml::parse(data.toStdString());
-    } catch (const toml::parse_error& e) {
+    } catch (const toml::parse_error &e) {
         std::stringstream error;
         error << e;
         errorMessage = QString::fromStdString(error.str());
@@ -283,7 +285,7 @@ QVariantHash parseTomlFile(const QString &fname, QString &errorMessage)
 
     try {
         table = toml::parse_file(fname.toStdString());
-    } catch (const toml::parse_error& e) {
+    } catch (const toml::parse_error &e) {
         std::stringstream error;
         error << e;
         errorMessage = QString::fromStdString(error.str());

@@ -54,8 +54,8 @@ public:
     /// Constructor, builds a RangeSlider that ranges from 0 to 100 and has
     /// a lower and upper values of 0 and 100 respectively, other properties
     /// are set the QSlider default properties.
-    explicit RangeSlider( Qt::Orientation o, QWidget* par = nullptr);
-    explicit RangeSlider( QWidget* par = nullptr);
+    explicit RangeSlider(Qt::Orientation o, QWidget *par = nullptr);
+    explicit RangeSlider(QWidget *par = nullptr);
     virtual ~RangeSlider();
 
     ///
@@ -92,7 +92,7 @@ public:
     ///
     /// When symmetricMoves is true, moving a handle will move the other handle
     /// symmetrically, otherwise the handles are independent. False by default
-    bool symmetricMoves()const;
+    bool symmetricMoves() const;
     void setSymmetricMoves(bool symmetry);
 
     ///
@@ -100,15 +100,15 @@ public:
     /// to the widget tooltip.
     /// "%1" is replaced by the current value of the slider.
     /// Empty string (by default) means no tooltip.
-    QString handleToolTip()const;
+    QString handleToolTip() const;
     void setHandleToolTip(const QString &toolTip);
 
     /// Returns true if the minimum value handle is down, false if it is up.
     /// \sa isMaximumSliderDown()
-    bool isMinimumSliderDown()const;
+    bool isMinimumSliderDown() const;
     /// Returns true if the maximum value handle is down, false if it is up.
     /// \sa isMinimumSliderDown()
-    bool isMaximumSliderDown()const;
+    bool isMaximumSliderDown() const;
 
 Q_SIGNALS:
     ///
@@ -172,24 +172,24 @@ protected Q_SLOTS:
     void onRangeChanged(int minimum, int maximum);
 
 protected:
-    RangeSlider( RangeSliderPrivate* impl, Qt::Orientation o, QWidget* par = nullptr);
-    RangeSlider( RangeSliderPrivate* impl, QWidget* par = nullptr);
+    RangeSlider(RangeSliderPrivate *impl, Qt::Orientation o, QWidget *par = nullptr);
+    RangeSlider(RangeSliderPrivate *impl, QWidget *par = nullptr);
 
     // Description:
     // Standard Qt UI events
-    virtual void mousePressEvent(QMouseEvent* ev) override;
-    virtual void mouseMoveEvent(QMouseEvent* ev) override;
-    virtual void mouseReleaseEvent(QMouseEvent* ev) override;
+    virtual void mousePressEvent(QMouseEvent *ev) override;
+    virtual void mouseMoveEvent(QMouseEvent *ev) override;
+    virtual void mouseReleaseEvent(QMouseEvent *ev) override;
 
     // Description:
     // Rendering is done here.
-    virtual void paintEvent(QPaintEvent* ev) override;
-    virtual void initMinimumSliderStyleOption(QStyleOptionSlider* option) const;
-    virtual void initMaximumSliderStyleOption(QStyleOptionSlider* option) const;
+    virtual void paintEvent(QPaintEvent *ev) override;
+    virtual void initMinimumSliderStyleOption(QStyleOptionSlider *option) const;
+    virtual void initMaximumSliderStyleOption(QStyleOptionSlider *option) const;
 
     // Description:
     // Reimplemented for the tooltips
-    virtual bool event(QEvent* event) override;
+    virtual bool event(QEvent *event) override;
 
 protected:
     QScopedPointer<RangeSliderPrivate> d_ptr;

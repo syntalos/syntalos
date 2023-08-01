@@ -47,8 +47,7 @@ public:
         addSettingsWindow(m_settingsDlg);
     }
 
-    ~VideoTransformModule()
-    {}
+    ~VideoTransformModule() {}
 
     ModuleDriverKind driver() const override
     {
@@ -60,7 +59,7 @@ public:
         return ModuleFeature::SHOW_SETTINGS;
     }
 
-    bool prepare(const TestSubject&) override
+    bool prepare(const TestSubject &) override
     {
         m_framesIn = nullptr;
         // check if there even is something to do for us

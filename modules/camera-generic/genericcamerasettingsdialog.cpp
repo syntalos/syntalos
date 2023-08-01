@@ -22,9 +22,9 @@
 
 #include <QMessageBox>
 
-GenericCameraSettingsDialog::GenericCameraSettingsDialog(Camera *camera, QWidget *parent) :
-    QDialog(parent),
-    ui(new Ui::GenericCameraSettingsDialog)
+GenericCameraSettingsDialog::GenericCameraSettingsDialog(Camera *camera, QWidget *parent)
+    : QDialog(parent),
+      ui(new Ui::GenericCameraSettingsDialog)
 {
     ui->setupUi(this);
     setWindowIcon(QIcon(":/icons/generic-config"));
@@ -217,10 +217,16 @@ void GenericCameraSettingsDialog::on_autoExposureRawSpinBox_valueChanged(int val
 
 void GenericCameraSettingsDialog::on_autoExposureRawInfoButton_clicked()
 {
-    QMessageBox::information(this,
-                             QStringLiteral("Information on Auto Exposure"),
-                             QStringLiteral("<html>According to the OpenCV/V4L documentation, values for this should be:<br/>"
-                                            "<b>0</b>: Auto Mode <br/><b>1</b>: Manual Mode <br/><b>2</b>: Shutter Priority Mode <br/><b>3</b>: Aperture Priority Mode<br/>"
-                                            "However, not all cameras seem to behave this way, many times a value of 1 seems to disable auto exposure.<br/>"
-                                            "So, depending on your camera, you may need to play with this value to properly disable auto exposure."));
+    QMessageBox::information(
+        this,
+        QStringLiteral("Information on Auto Exposure"),
+        QStringLiteral(
+            "<html>According to the OpenCV/V4L documentation, values for this should be:<br/>"
+            "<b>0</b>: Auto Mode <br/><b>1</b>: Manual Mode <br/><b>2</b>: Shutter Priority Mode <br/><b>3</b>: "
+            "Aperture Priority Mode<br/>"
+            "However, not all cameras seem to behave this way, many times a value of 1 seems to disable auto "
+            "exposure.<br/>"
+            "So, depending on your camera, you may need to play with this value to properly disable auto exposure."
+        )
+    );
 }

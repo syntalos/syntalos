@@ -26,7 +26,8 @@
 
 class QStandardItemModel;
 
-namespace Ui {
+namespace Ui
+{
 class ModuleSelectDialog;
 }
 

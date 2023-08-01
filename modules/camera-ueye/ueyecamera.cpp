@@ -59,7 +59,7 @@ bool UEyeCamera::freeCamBuffer()
     return true;
 }
 
-void UEyeCamera::setError(const QString& message, int code)
+void UEyeCamera::setError(const QString &message, int code)
 {
     if (code == 0)
         m_lastError = message;
@@ -81,7 +81,7 @@ QList<QPair<QString, QVariant>> UEyeCamera::availableCameras()
     auto pCamList = new UEYE_CAMERA_LIST;
     pCamList->dwCount = 0;
 
-    if (is_GetCameraList (pCamList) == IS_SUCCESS) {
+    if (is_GetCameraList(pCamList) == IS_SUCCESS) {
         DWORD dw = pCamList->dwCount;
         delete pCamList;
 
@@ -92,8 +92,8 @@ QList<QPair<QString, QVariant>> UEyeCamera::availableCameras()
         // Retrieve camera info
         if (is_GetCameraList(pCamList) == IS_SUCCESS) {
             qDebug() << "Found" << pCamList->dwCount << "uEye cameras.";
-            for (uint i = 0; i < (unsigned int) pCamList->dwCount; i++) {
-                //Test output of camera info on the screen
+            for (uint i = 0; i < (unsigned int)pCamList->dwCount; i++) {
+                // Test output of camera info on the screen
 
                 auto desc = QString("Camera: %1 (ID: %2)").arg(i).arg(pCamList->uci[i].dwCameraID);
                 res.append(qMakePair(desc, i));
@@ -128,7 +128,8 @@ bool UEyeCamera::open(const cv::Size &size)
         return false;
     }
 
-    qDebug() << "Opening uEye camera" << m_camId << "with size" << QStringLiteral("%1x%2").arg(size.width).arg(size.height);
+    qDebug() << "Opening uEye camera" << m_camId << "with size"
+             << QStringLiteral("%1x%2").arg(size.width).arg(size.height);
     if ((size.height == 0) || (size.width == 0)) {
         setError("Invalid dimensions set for recorded frames.");
         return false;
@@ -153,7 +154,9 @@ bool UEyeCamera::open(const cv::Size &size)
         return false;
     }
 
-    res = is_ImageFormat(m_hCam, IMGFRMT_CMD_GET_ARBITRARY_AOI_SUPPORTED, (void*) &nAOISupported, sizeof(nAOISupported));
+    res = is_ImageFormat(
+        m_hCam, IMGFRMT_CMD_GET_ARBITRARY_AOI_SUPPORTED, (void *)&nAOISupported, sizeof(nAOISupported)
+    );
     if (res != IS_SUCCESS) {
         setError("Unable to set image format", res);
         return false;
@@ -175,11 +178,11 @@ bool UEyeCamera::open(const cv::Size &size)
     if (res != IS_SUCCESS) {
         setError("Unable to set binning", res);
         // FIXME: Binning doesn't seem to work...
-        //return false;
+        // return false;
     }
 
     if (!m_confFile.isEmpty()) {
-        res = is_ParameterSet(m_hCam, IS_PARAMETERSET_CMD_LOAD_FILE, (wchar_t*) m_confFile.toStdWString().c_str(), 0);
+        res = is_ParameterSet(m_hCam, IS_PARAMETERSET_CMD_LOAD_FILE, (wchar_t *)m_confFile.toStdWString().c_str(), 0);
         if (res != IS_SUCCESS) {
             setError("Unable to load uEye settings file", res);
             return false;
@@ -223,7 +226,7 @@ bool UEyeCamera::setFramerate(double fps)
 {
     if (!checkInit())
         return false;
-    is_SetFrameRate (m_hCam, fps, &fps);
+    is_SetFrameRate(m_hCam, fps, &fps);
     return true;
 }
 
@@ -235,7 +238,7 @@ cv::Mat UEyeCamera::getFrame(time_t *time)
 
     cv::Mat frame(m_frameSize.height, m_frameSize.width, CV_8UC3);
 
-    auto res = is_GetImageInfo (m_hCam, m_camBufId, &imgInfo, sizeof(imgInfo));
+    auto res = is_GetImageInfo(m_hCam, m_camBufId, &imgInfo, sizeof(imgInfo));
     if (res == IS_SUCCESS) {
         (*time) = imgInfo.u64TimestampDevice / 10000; // 0.1µs resolution, but we want ms
         if ((*time) == m_lastFrameTime) {
@@ -291,7 +294,7 @@ bool UEyeCamera::setExposureTime(double val)
     if (!checkInit())
         return false;
 
-    auto res = is_Exposure(m_hCam, IS_EXPOSURE_CMD_SET_EXPOSURE, (void*) &val, sizeof(val));
+    auto res = is_Exposure(m_hCam, IS_EXPOSURE_CMD_SET_EXPOSURE, (void *)&val, sizeof(val));
     if (res != IS_SUCCESS) {
         if (res == IS_NOT_SUPPORTED)
             return true;
@@ -322,7 +325,7 @@ bool UEyeCamera::setGPIOFlash(bool enabled)
     if (!enabled) {
         // disable flash
         UINT nMode = IO_FLASH_MODE_OFF;
-        nRet = is_IO(m_hCam, IS_IO_CMD_FLASH_SET_MODE, (void*)&nMode, sizeof(nMode));
+        nRet = is_IO(m_hCam, IS_IO_CMD_FLASH_SET_MODE, (void *)&nMode, sizeof(nMode));
 
         // ensure flash is off and stays off
         if (nRet != IS_SUCCESS)
@@ -333,13 +336,13 @@ bool UEyeCamera::setGPIOFlash(bool enabled)
 
     // set the current values for flash delay and flash duration
     IO_FLASH_PARAMS flashParams;
-    nRet = is_IO(m_hCam, IS_IO_CMD_FLASH_GET_GPIO_PARAMS_MIN, (void*)&flashParams, sizeof(flashParams));
+    nRet = is_IO(m_hCam, IS_IO_CMD_FLASH_GET_GPIO_PARAMS_MIN, (void *)&flashParams, sizeof(flashParams));
     if (nRet != IS_SUCCESS)
         qWarning() << "uEye: Unable to get minimum GPIO flash params";
 
     flashParams.u32Duration = 20000; // 20ms
 
-    nRet = is_IO(m_hCam, IS_IO_CMD_FLASH_SET_GPIO_PARAMS, (void*)&flashParams, sizeof(flashParams));
+    nRet = is_IO(m_hCam, IS_IO_CMD_FLASH_SET_GPIO_PARAMS, (void *)&flashParams, sizeof(flashParams));
     if (nRet != IS_SUCCESS)
         qWarning() << "uEye: GPIO flash set-params failed";
 
@@ -349,11 +352,11 @@ bool UEyeCamera::setGPIOFlash(bool enabled)
         qWarning() << "uEye: Failed to set continuous trigger:" << nRet;
 
     auto nValue = IS_FLASH_AUTO_FREERUN_OFF;
-    nRet = is_IO(m_hCam, IS_IO_CMD_FLASH_SET_AUTO_FREERUN, (void*)&nValue, sizeof(nValue));
+    nRet = is_IO(m_hCam, IS_IO_CMD_FLASH_SET_AUTO_FREERUN, (void *)&nValue, sizeof(nValue));
 
     // set the flash to a high active pulse for each image
     auto nMode = IO_FLASH_MODE_FREERUN_HI_ACTIVE;
-    nRet = is_IO(m_hCam, IS_IO_CMD_FLASH_SET_MODE, (void*)&nMode, sizeof(nMode));
+    nRet = is_IO(m_hCam, IS_IO_CMD_FLASH_SET_MODE, (void *)&nMode, sizeof(nMode));
     if (nRet != IS_SUCCESS) {
         qWarning() << "uEye: Failed to enable GPIO flash:" << nRet;
         return false;
@@ -365,7 +368,7 @@ bool UEyeCamera::setGPIOFlash(bool enabled)
     gpioConfiguration.u32Configuration = IS_GPIO_FLASH;
     gpioConfiguration.u32State = 0;
 
-    nRet = is_IO(m_hCam, IS_IO_CMD_GPIOS_SET_CONFIGURATION, (void*)&gpioConfiguration, sizeof(gpioConfiguration));
+    nRet = is_IO(m_hCam, IS_IO_CMD_GPIOS_SET_CONFIGURATION, (void *)&gpioConfiguration, sizeof(gpioConfiguration));
     if (nRet != IS_SUCCESS)
         qWarning() << "uEye: Unable to configure GPIO 1 as flash";
 
@@ -399,10 +402,10 @@ QList<QSize> UEyeCamera::getResolutionList(QVariant cameraId)
     ret = is_ImageFormat(hCam, IMGFRMT_CMD_GET_NUM_ENTRIES, &count, sizeof(count));
     bytesNeeded += (count - 1) * sizeof(IMAGE_FORMAT_INFO);
 
-    void* ptr = malloc(bytesNeeded);
+    void *ptr = malloc(bytesNeeded);
 
     // Create and fill list
-    auto pformatList = (IMAGE_FORMAT_LIST*) ptr;
+    auto pformatList = (IMAGE_FORMAT_LIST *)ptr;
     pformatList->nSizeOfListEntry = sizeof(IMAGE_FORMAT_INFO);
     pformatList->nNumListElements = count;
 
@@ -410,8 +413,7 @@ QList<QSize> UEyeCamera::getResolutionList(QVariant cameraId)
 
     // Get list of supported resolutions
     IMAGE_FORMAT_INFO formatInfo;
-    for (uint i = 0; i < count; i++)
-    {
+    for (uint i = 0; i < count; i++) {
         formatInfo = pformatList->FormatInfo[i];
         res.append(QSize(formatInfo.nWidth, formatInfo.nHeight));
     }

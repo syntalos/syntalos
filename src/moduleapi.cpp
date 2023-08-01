@@ -17,16 +17,16 @@
  * along with this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <opencv2/core.hpp>
 #include "moduleapi.h"
+#include <opencv2/core.hpp>
 
 #include "config.h"
+#include <QCoreApplication>
 #include <QDebug>
 #include <QDir>
+#include <QMainWindow>
 #include <QMessageBox>
 #include <QStandardPaths>
-#include <QCoreApplication>
-#include <QMainWindow>
 
 #include "utils/misc.h"
 
@@ -35,8 +35,8 @@ using namespace Syntalos;
 class ModuleInfo::Private
 {
 public:
-    Private() { }
-    ~Private() { }
+    Private() {}
+    ~Private() {}
 
     int count;
     QString rootDir;
@@ -49,8 +49,7 @@ ModuleInfo::ModuleInfo()
     d->count = 0;
 }
 
-ModuleInfo::~ModuleInfo()
-{}
+ModuleInfo::~ModuleInfo() {}
 
 QString ModuleInfo::id() const
 {
@@ -88,7 +87,9 @@ void ModuleInfo::refreshIcon()
 {
     QIcon icon = QIcon(":/module/generic");
     if (!d->rootDir.isEmpty()) {
-        const auto iconExts = QStringList() << ".svg" << ".svgz" << ".png";
+        const auto iconExts = QStringList() << ".svg"
+                                            << ".svgz"
+                                            << ".png";
         for (const auto &iconExt : iconExts) {
             const auto iconFname = QDir(d->rootDir).filePath(id() + iconExt);
             if (QFileInfo::exists(iconFname)) {
@@ -140,9 +141,7 @@ QColor ModuleInfo::color() const
     if (totalColorCount == 0)
         return QColor::fromRgb(77, 77, 77);
 
-    return QColor::fromRgb(redBucket / totalColorCount,
-                           greenBucket / totalColorCount,
-                           blueBucket / totalColorCount);
+    return QColor::fromRgb(redBucket / totalColorCount, greenBucket / totalColorCount, blueBucket / totalColorCount);
 }
 
 QString ModuleInfo::storageGroupName() const
@@ -181,12 +180,11 @@ void ModuleInfo::setRootDir(const QString &dir)
     refreshIcon();
 }
 
-
 class VarStreamInputPort::Private
 {
 public:
-    Private() { }
-    ~Private() { }
+    Private() {}
+    ~Private() {}
 
     QString id;
     QString title;
@@ -203,8 +201,7 @@ VarStreamInputPort::VarStreamInputPort(AbstractModule *owner, const QString &id,
     d->outPort = nullptr;
 }
 
-VarStreamInputPort::~VarStreamInputPort()
-{}
+VarStreamInputPort::~VarStreamInputPort() {}
 
 bool VarStreamInputPort::hasSubscription() const
 {
@@ -242,7 +239,8 @@ std::shared_ptr<VariantStreamSubscription> VarStreamInputPort::subscriptionVar()
 {
     auto sub = m_sub.value();
     if (sub == nullptr) {
-            qCritical().noquote() << "Tried to obtain variant subscription from a port that was not subscribed to anything.";
+        qCritical().noquote(
+        ) << "Tried to obtain variant subscription from a port that was not subscribed to anything.";
     }
     return sub;
 }
@@ -270,8 +268,8 @@ AbstractModule *VarStreamInputPort::owner() const
 class StreamOutputPort::Private
 {
 public:
-    Private() { }
-    ~Private() { }
+    Private() {}
+    ~Private() {}
 
     QString id;
     QString title;
@@ -279,7 +277,12 @@ public:
     AbstractModule *owner;
 };
 
-StreamOutputPort::StreamOutputPort(AbstractModule *owner, const QString &id, const QString &title, std::shared_ptr<VariantDataStream> stream)
+StreamOutputPort::StreamOutputPort(
+    AbstractModule *owner,
+    const QString &id,
+    const QString &title,
+    std::shared_ptr<VariantDataStream> stream
+)
     : d(new StreamOutputPort::Private)
 {
     d->id = id;
@@ -288,8 +291,7 @@ StreamOutputPort::StreamOutputPort(AbstractModule *owner, const QString &id, con
     d->stream = stream;
 }
 
-StreamOutputPort::~StreamOutputPort()
-{}
+StreamOutputPort::~StreamOutputPort() {}
 
 bool StreamOutputPort::canSubscribe(const QString &typeName)
 {
@@ -321,7 +323,6 @@ void StreamOutputPort::stopStream()
     if (d->stream->active())
         d->stream->stop();
 }
-
 
 void StreamOutputPort::startStream()
 {
@@ -356,7 +357,8 @@ public:
           modIndex(0),
           simpleStorageNames(true),
           initialized(false)
-    {}
+    {
+    }
     ~Private() {}
 
     std::atomic<ModuleState> state;
@@ -368,8 +370,8 @@ public:
     int defaultRealtimePriority;
     static int s_eventsMaxModulesPerThread;
 
-    QList<QPair<QWidget*, bool>> displayWindows;
-    QList<QPair<QWidget*, bool>> settingsWindows;
+    QList<QPair<QWidget *, bool>> displayWindows;
+    QList<QPair<QWidget *, bool>> settingsWindows;
 
     bool simpleStorageNames;
     std::shared_ptr<EDLGroup> rootDataGroup;
@@ -382,10 +384,10 @@ public:
 // instantiate static field
 int AbstractModule::Private::s_eventsMaxModulesPerThread = -1;
 
-AbstractModule::AbstractModule(QObject *parent) :
-    QObject(parent),
-    m_running(false),
-    d(new AbstractModule::Private)
+AbstractModule::AbstractModule(QObject *parent)
+    : QObject(parent),
+      m_running(false),
+      d(new AbstractModule::Private)
 {
     d->id = QStringLiteral("unknown");
     d->name = QStringLiteral("Unknown Module");
@@ -419,8 +421,7 @@ ModuleState AbstractModule::state() const
 
 void AbstractModule::setStateIdle()
 {
-    if ((d->state == ModuleState::RUNNING) ||
-        (d->state == ModuleState::INITIALIZING))
+    if ((d->state == ModuleState::RUNNING) || (d->state == ModuleState::INITIALIZING))
         setState(ModuleState::IDLE);
 }
 
@@ -449,9 +450,7 @@ void AbstractModule::setName(const QString &name)
 {
     d->name = simplifyStrForModuleName(name);
     for (auto &oport : outPorts()) {
-        oport->streamVar()->setCommonMetadata(d->id,
-                                              d->name,
-                                              oport->title());
+        oport->streamVar()->setCommonMetadata(d->id, d->name, oport->title());
     }
     emit nameChanged(d->name);
 }
@@ -463,9 +462,7 @@ ModuleDriverKind AbstractModule::driver() const
 
 ModuleFeatures AbstractModule::features() const
 {
-    return ModuleFeature::SHOW_DISPLAY |
-           ModuleFeature::SHOW_SETTINGS |
-           ModuleFeature::SHOW_ACTIONS;
+    return ModuleFeature::SHOW_DISPLAY | ModuleFeature::SHOW_SETTINGS | ModuleFeature::SHOW_ACTIONS;
 }
 
 bool AbstractModule::initialize()
@@ -549,7 +546,7 @@ void AbstractModule::hideSettingsUi()
 
 QList<QAction *> AbstractModule::actions()
 {
-    QList<QAction*> res;
+    QList<QAction *> res;
     return res;
 }
 
@@ -588,7 +585,7 @@ QString AbstractModule::moduleRootDir() const
     QFileInfo fi(moduleDir);
     moduleDir = fi.canonicalFilePath();
 
-    return moduleDir.isEmpty()? origModuleDir : moduleDir;
+    return moduleDir.isEmpty() ? origModuleDir : moduleDir;
 }
 
 void AbstractModule::setEventsMaxModulesPerThread(int maxModuleCount)
@@ -625,12 +622,12 @@ void AbstractModule::removeOutPortById(const QString &id)
     emit portConfigurationUpdated();
 }
 
-QList<std::shared_ptr<VarStreamInputPort> > AbstractModule::inPorts() const
+QList<std::shared_ptr<VarStreamInputPort>> AbstractModule::inPorts() const
 {
     return m_inPorts.values();
 }
 
-QList<std::shared_ptr<StreamOutputPort> > AbstractModule::outPorts() const
+QList<std::shared_ptr<StreamOutputPort>> AbstractModule::outPorts() const
 {
     return m_outPorts.values();
 }
@@ -645,13 +642,13 @@ std::shared_ptr<StreamOutputPort> AbstractModule::outPortById(const QString &id)
     return m_outPorts.value(id);
 }
 
-QList<QPair<intervalEventFunc_t, int> > AbstractModule::intervalEventCallbacks() const
+QList<QPair<intervalEventFunc_t, int>> AbstractModule::intervalEventCallbacks() const
 {
     return m_intervalEventCBList;
 }
 
-QList<QPair<recvDataEventFunc_t, std::shared_ptr<VariantStreamSubscription>>>
-AbstractModule::recvDataEventCallbacks() const
+QList<QPair<recvDataEventFunc_t, std::shared_ptr<VariantStreamSubscription>>> AbstractModule::recvDataEventCallbacks(
+) const
 {
     return m_recvDataEventCBList;
 }
@@ -728,12 +725,16 @@ QString AbstractModule::dataBasenameFromSubMetadata(const QVariantHash &subMetad
     return dataName;
 }
 
-std::shared_ptr<EDLDataset> AbstractModule::getOrCreateDefaultDataset(const QString &preferredName, const QVariantHash &subMetadata)
+std::shared_ptr<EDLDataset> AbstractModule::getOrCreateDefaultDataset(
+    const QString &preferredName,
+    const QVariantHash &subMetadata
+)
 {
     if (d->defaultDataset.get() != nullptr)
         return d->defaultDataset;
     if (d->rootDataGroup.get() == nullptr) {
-        qCritical().noquote() << "Module" << name() << "tried to obtain its default dataset, but no root storage group has been set yet.";
+        qCritical().noquote() << "Module" << name()
+                              << "tried to obtain its default dataset, but no root storage group has been set yet.";
         return nullptr;
     }
 
@@ -741,7 +742,11 @@ std::shared_ptr<EDLDataset> AbstractModule::getOrCreateDefaultDataset(const QStr
     return d->defaultDataset;
 }
 
-std::shared_ptr<EDLDataset> AbstractModule::getOrCreateDatasetInGroup(std::shared_ptr<EDLGroup> group, const QString &preferredName, const QVariantHash &subMetadata)
+std::shared_ptr<EDLDataset> AbstractModule::getOrCreateDatasetInGroup(
+    std::shared_ptr<EDLGroup> group,
+    const QString &preferredName,
+    const QVariantHash &subMetadata
+)
 {
     QString datasetName;
 
@@ -751,7 +756,8 @@ std::shared_ptr<EDLDataset> AbstractModule::getOrCreateDatasetInGroup(std::share
         datasetName = datasetNameFromSubMetadata(subMetadata);
     }
 
-    // attempt to use the preferred name (if we have one, and don't already have a dataset name from subscription metadata)
+    // attempt to use the preferred name (if we have one, and don't already have a dataset name from subscription
+    // metadata)
     if (datasetName.isEmpty() && !preferredName.isEmpty()) {
         if (d->simpleStorageNames)
             datasetName = simplifyStrForFileBasenameLower(preferredName);
@@ -769,7 +775,8 @@ std::shared_ptr<EDLDataset> AbstractModule::getOrCreateDatasetInGroup(std::share
 std::shared_ptr<EDLGroup> AbstractModule::createStorageGroup(const QString &groupName)
 {
     if (d->rootDataGroup.get() == nullptr) {
-        qCritical().noquote() << "Module" << name() << "tried to create a new storage group, but no root storage group has been set yet.";
+        qCritical().noquote() << "Module" << name()
+                              << "tried to create a new storage group, but no root storage group has been set yet.";
         return nullptr;
     }
 
@@ -851,7 +858,7 @@ QVariant AbstractModule::serializeDisplayUiGeometry()
         info.insert("visible", wp.first->isVisible());
         info.insert("geometry", QString::fromUtf8(wp.first->saveGeometry().toBase64()));
 
-        const auto mw = qobject_cast<QMainWindow*>(wp.first);
+        const auto mw = qobject_cast<QMainWindow *>(wp.first);
         if (mw != nullptr)
             info.insert("state", QString::fromUtf8(mw->saveState().toBase64()));
 
@@ -880,7 +887,7 @@ void AbstractModule::restoreDisplayUiGeometry(const QVariant &var)
         const auto b64Geometry = winfo.value("geometry").toString();
         wp.first->restoreGeometry(QByteArray::fromBase64(b64Geometry.toUtf8()));
 
-        const auto mw = qobject_cast<QMainWindow*>(wp.first);
+        const auto mw = qobject_cast<QMainWindow *>(wp.first);
         if (mw != nullptr) {
             const auto b64State = winfo.value("state").toString();
             mw->restoreState(QByteArray::fromBase64(b64State.toUtf8()));

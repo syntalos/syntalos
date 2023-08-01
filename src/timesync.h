@@ -19,21 +19,22 @@
 
 #pragma once
 
-#include <memory>
-#include <QLoggingCategory>
-#include <QString>
-#include <QMetaType>
 #include <QDataStream>
+#include <QLoggingCategory>
+#include <QMetaType>
+#include <QString>
 #include <QUuid>
 #include <fstream>
+#include <memory>
 
-#include "syclock.h"
 #include "eigenaux.h"
+#include "syclock.h"
 #include "tsyncfile.h"
 
 class QFile;
 
-namespace Syntalos {
+namespace Syntalos
+{
 
 Q_DECLARE_LOGGING_CATEGORY(logTimeSync)
 
@@ -68,8 +69,9 @@ enum class TimeSyncStrategy {
     NONE = 0,
     SHIFT_TIMESTAMPS_FWD = 1 << 0, /// Move timestamps forward to match the master clock
     SHIFT_TIMESTAMPS_BWD = 1 << 1, /// Move timestamps backward to match the master clock
-    ADJUST_CLOCK         = 1 << 2, /// Do not change timestamps by adjust the secondary clocks to match the master clock
-    WRITE_TSYNCFILE      = 1 << 3  /// Do not directly adjust timestamps, but write a time-sync file to correct for errors in postprocessing
+    ADJUST_CLOCK = 1 << 2,         /// Do not change timestamps by adjust the secondary clocks to match the master clock
+    WRITE_TSYNCFILE =
+        1 << 3 /// Do not directly adjust timestamps, but write a time-sync file to correct for errors in postprocessing
 };
 Q_DECLARE_FLAGS(TimeSyncStrategies, TimeSyncStrategy)
 Q_DECLARE_OPERATORS_FOR_FLAGS(TimeSyncStrategies)
@@ -77,11 +79,12 @@ Q_DECLARE_OPERATORS_FOR_FLAGS(TimeSyncStrategies)
 const QString timeSyncStrategyToHString(const TimeSyncStrategy &strategy);
 const QString timeSyncStrategiesToHString(const TimeSyncStrategies &strategies);
 
-} // end of namespace
+} // namespace Syntalos
 
 Q_DECLARE_METATYPE(Syntalos::TimeSyncStrategies);
 
-namespace Syntalos {
+namespace Syntalos
+{
 
 /**
  * @brief Synchronizer for a monotonic counter, given a frequency
@@ -96,10 +99,12 @@ namespace Syntalos {
 class FreqCounterSynchronizer
 {
 public:
-    explicit FreqCounterSynchronizer(std::shared_ptr<SyncTimer> masterTimer,
-                                     AbstractModule *mod,
-                                     double frequencyHz,
-                                     const QString &id = nullptr);
+    explicit FreqCounterSynchronizer(
+        std::shared_ptr<SyncTimer> masterTimer,
+        AbstractModule *mod,
+        double frequencyHz,
+        const QString &id = nullptr
+    );
     ~FreqCounterSynchronizer();
 
     void setCalibrationBlocksCount(int count);
@@ -115,8 +120,12 @@ public:
 
     bool start();
     void stop();
-    void processTimestamps(const microseconds_t &blocksRecvTimestamp,
-                           int blockIndex, int blockCount, VectorXu &idxTimestamps);
+    void processTimestamps(
+        const microseconds_t &blocksRecvTimestamp,
+        int blockIndex,
+        int blockCount,
+        VectorXu &idxTimestamps
+    );
 
 private:
     Q_DISABLE_COPY(FreqCounterSynchronizer)
@@ -165,9 +174,11 @@ private:
 class SecondaryClockSynchronizer
 {
 public:
-    explicit SecondaryClockSynchronizer(std::shared_ptr<SyncTimer> masterTimer,
-                                        AbstractModule *mod,
-                                        const QString &id = QString());
+    explicit SecondaryClockSynchronizer(
+        std::shared_ptr<SyncTimer> masterTimer,
+        AbstractModule *mod,
+        const QString &id = QString()
+    );
     ~SecondaryClockSynchronizer();
 
     /**
@@ -233,9 +244,11 @@ private:
 template<typename T>
 void safeStopSynchronizer(const T &synchronizerSmartPtr)
 {
-    static_assert(std::is_base_of<SecondaryClockSynchronizer, typename T::element_type>::value ||
-                  std::is_base_of<FreqCounterSynchronizer, typename T::element_type>::value,
-                  "This function requires a smart pointer to a clock synchronizer.");
+    static_assert(
+        std::is_base_of<SecondaryClockSynchronizer, typename T::element_type>::value
+            || std::is_base_of<FreqCounterSynchronizer, typename T::element_type>::value,
+        "This function requires a smart pointer to a clock synchronizer."
+    );
     if (synchronizerSmartPtr.get() != nullptr)
         synchronizerSmartPtr->stop();
 }
@@ -243,12 +256,14 @@ void safeStopSynchronizer(const T &synchronizerSmartPtr)
 template<typename T>
 void safeStopSynchronizer(const T &synchronizer, const microseconds_t &lastValidMasterTimestamp)
 {
-    static_assert(std::is_base_of<FreqCounterSynchronizer, typename T::element_type>::value,
-                  "This function requires a smart pointer to a FreqCounter clock synchronizer.");
+    static_assert(
+        std::is_base_of<FreqCounterSynchronizer, typename T::element_type>::value,
+        "This function requires a smart pointer to a FreqCounter clock synchronizer."
+    );
     if (synchronizer) {
         synchronizer->setLastValidMasterTimestamp(lastValidMasterTimestamp);
         safeStopSynchronizer(synchronizer);
     }
 }
 
-} // end of namespace
+} // namespace Syntalos

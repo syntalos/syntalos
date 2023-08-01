@@ -24,38 +24,39 @@ struct SerialPortList::Private {
 };
 
 SerialPortList::SerialPortList(QObject *parent)
-    : QAbstractListModel(parent), d(new Private)
+    : QAbstractListModel(parent),
+      d(new Private)
 {
     refresh();
 }
 
 int SerialPortList::rowCount(const QModelIndex &parent) const
 {
-    if(parent.isValid())
+    if (parent.isValid())
         return 0;
     return d->ports.size();
 }
 
 QVariant SerialPortList::data(const QModelIndex &index, int role) const
 {
-    if(index.isValid() && index.row() >=0 && index.row() < d->ports.size()) {
+    if (index.isValid() && index.row() >= 0 && index.row() < d->ports.size()) {
         const QSerialPortInfo &p = d->ports[index.row()];
-        switch(role) {
-            case Qt::DisplayRole:
-            case NameRole:
-                return p.portName();
-            case SystemLocationRole:
-                return p.systemLocation();
-            case DescriptionRole:
-                return p.description();
-            case ProductIdRole:
-                return p.productIdentifier();
-            case VendorIdrole:
-                return p.vendorIdentifier();
-            case ManufacturerRole:
-                return p.manufacturer();
-            case SerialNumberRole:
-                return p.serialNumber();
+        switch (role) {
+        case Qt::DisplayRole:
+        case NameRole:
+            return p.portName();
+        case SystemLocationRole:
+            return p.systemLocation();
+        case DescriptionRole:
+            return p.description();
+        case ProductIdRole:
+            return p.productIdentifier();
+        case VendorIdrole:
+            return p.vendorIdentifier();
+        case ManufacturerRole:
+            return p.manufacturer();
+        case SerialNumberRole:
+            return p.serialNumber();
         }
     }
 
@@ -75,7 +76,6 @@ QHash<int, QByteArray> SerialPortList::roleNames() const
     roles[SerialNumberRole] = "serialNumber";
     return roles;
 }
-
 
 void SerialPortList::refresh()
 {

@@ -21,11 +21,13 @@
 
 #include <QDialog>
 
-namespace Ui {
+namespace Ui
+{
 class IntervalRunDialog;
 }
 
-namespace Syntalos {
+namespace Syntalos
+{
 
 class IntervalRunDialog : public QDialog
 {
@@ -44,4 +46,4 @@ private:
     Ui::IntervalRunDialog *ui;
 };
 
-}
+} // namespace Syntalos

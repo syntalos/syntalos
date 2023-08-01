@@ -13,8 +13,7 @@
 #include "indexer.h"
 #include "propertiesbox.h"
 
-struct TcamCaptureConfig
-{
+struct TcamCaptureConfig {
     FormatHandling format_selection_type = FormatHandling::Auto;
     ConversionElement conversion_element = ConversionElement::Auto;
     QString video_sink_element = "xvimagesink";
@@ -23,11 +22,13 @@ struct TcamCaptureConfig
     // if a capsfilter element named device-caps exists it will have the configured caps set
     // all tcam-property elements are named: tcam0, tcam1, etc
     // tcam0 is always source
-    QString pipeline = "tcambin name=tcam0 ! video/x-raw,format=BGRx ! queue leaky=downstream ! videoconvert n-threads=4 "
+    QString pipeline =
+        "tcambin name=tcam0 ! video/x-raw,format=BGRx ! queue leaky=downstream ! videoconvert n-threads=4 "
         "! appsink name=sink";
 };
 
-namespace Ui {
+namespace Ui
+{
 class TcamControlDialog;
 }
 
@@ -36,8 +37,7 @@ class TcamControlDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit TcamControlDialog(std::shared_ptr<TcamCaptureConfig> config,
-                               QWidget *parent = nullptr);
+    explicit TcamControlDialog(std::shared_ptr<TcamCaptureConfig> config, QWidget *parent = nullptr);
     ~TcamControlDialog();
 
     GstElement *pipeline() const;
@@ -45,10 +45,7 @@ public:
     GstCaps *currentCaps() const;
 
     Device selectedDevice() const;
-    bool setDevice(const QString& model,
-                   const QString& serial,
-                   const QString& type,
-                   GstCaps* caps);
+    bool setDevice(const QString &model, const QString &serial, const QString &type, GstCaps *caps);
 
     TcamCollection *tcamCollection() const;
 
@@ -57,10 +54,10 @@ public:
 
     void closePipeline();
 
-    void emitDeviceLostBySerial(const QString& serial);
+    void emitDeviceLostBySerial(const QString &serial);
 
 signals:
-    void deviceLost(const QString& message);
+    void deviceLost(const QString &message);
 
 protected:
     void showEvent(QShowEvent *event) override;
@@ -70,7 +67,7 @@ private slots:
     void on_selectFormatButton_clicked();
     void on_refreshButton_clicked();
 
-    void emitDeviceLost(const Device& dev);
+    void emitDeviceLost(const Device &dev);
 
 private:
     void createPropertiesBox();
@@ -89,11 +86,10 @@ private:
 
     Device m_selectedDevice;
     GstElement *m_pipeline = nullptr;
-    GstElement* m_source = nullptr;
-    GstAppSink* m_videoSink = nullptr;
+    GstElement *m_source = nullptr;
+    GstAppSink *m_videoSink = nullptr;
 
     GstCaps *m_currentCaps = nullptr;
     GstCaps *m_selectedCaps = nullptr;
     QString m_device_caps;
-
 };

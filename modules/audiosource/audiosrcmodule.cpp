@@ -20,24 +20,24 @@
 #include "audiosrcmodule.h"
 #include "QtSvg/qsvgrenderer.h"
 
-#include <QMessageBox>
 #include <QDebug>
-#include <QSvgRenderer>
-#include <QPainter>
 #include <QDir>
+#include <QMessageBox>
+#include <QPainter>
+#include <QSvgRenderer>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wzero-as-null-pointer-constant"
 #include <gst/gst.h>
 #pragma GCC diagnostic pop
 
-#include "utils/style.h"
 #include "audiosettingsdialog.h"
+#include "utils/style.h"
 
 SYNTALOS_MODULE(AudioSourceModule)
 Q_LOGGING_CATEGORY(logModAudio, "mod.audiosource")
 
-static gboolean audiosrc_pipeline_watch_func (GstBus *bus, GstMessage *message, gpointer udata);
+static gboolean audiosrc_pipeline_watch_func(GstBus *bus, GstMessage *message, gpointer udata);
 
 class AudioSourceModule : public AbstractModule
 {
@@ -102,15 +102,12 @@ public:
         m_audioSink = gst_element_factory_make("pipewiresink", "output");
         if (m_audioSink == nullptr)
             m_audioSink = gst_element_factory_make("pulsesink", "output");
-        g_object_set(m_audioSink,
-                     "client-name",
-                     qPrintable(QStringLiteral("Syntalos: %1").arg(name())),
-                     NULL);
+        g_object_set(m_audioSink, "client-name", qPrintable(QStringLiteral("Syntalos: %1").arg(name())), NULL);
 
-        gst_bin_add_many(GST_BIN (m_pipeline), m_audioSource, m_audioSink, NULL);
+        gst_bin_add_many(GST_BIN(m_pipeline), m_audioSource, m_audioSink, NULL);
         gst_element_link(m_audioSource, m_audioSink);
 
-        m_bus = gst_pipeline_get_bus(GST_PIPELINE (m_pipeline));
+        m_bus = gst_pipeline_get_bus(GST_PIPELINE(m_pipeline));
         gst_bus_add_watch(m_bus, audiosrc_pipeline_watch_func, this);
 
         return true;
@@ -120,7 +117,7 @@ public:
     {
         if (m_pipeline == nullptr)
             return;
-        gst_element_set_state (m_pipeline, GST_STATE_NULL);
+        gst_element_set_state(m_pipeline, GST_STATE_NULL);
         g_clear_pointer(&m_pipeline, g_object_unref);
         g_clear_pointer(&m_bus, g_object_unref);
     }
@@ -145,9 +142,9 @@ public:
     void setPlayStateFromCommand(ControlCommandKind kind)
     {
         if (kind == ControlCommandKind::START) {
-            gst_element_set_state (m_pipeline, GST_STATE_PLAYING);
+            gst_element_set_state(m_pipeline, GST_STATE_PLAYING);
         } else if (kind == ControlCommandKind::STOP || kind == ControlCommandKind::PAUSE) {
-            gst_element_set_state (m_pipeline, GST_STATE_PAUSED);
+            gst_element_set_state(m_pipeline, GST_STATE_PAUSED);
         }
     }
 
@@ -168,7 +165,8 @@ public:
         g_object_set(m_audioSource, "wave", m_settingsDialog->waveKind(), NULL);
         g_object_set(m_audioSource, "freq", m_settingsDialog->frequency(), NULL);
         g_object_set(m_audioSource, "volume", m_settingsDialog->volume(), NULL);
-        qCDebug(logModAudio).noquote() << "Playing wave" << m_settingsDialog->waveKind() << "@" << m_settingsDialog->frequency() << "Hz, volume:" << m_settingsDialog->volume();
+        qCDebug(logModAudio).noquote() << "Playing wave" << m_settingsDialog->waveKind() << "@"
+                                       << m_settingsDialog->frequency() << "Hz, volume:" << m_settingsDialog->volume();
 
         return true;
     }
@@ -176,10 +174,10 @@ public:
     void start() override
     {
         if (m_settingsDialog->startImmediately()) {
-            gst_element_set_state (m_pipeline, GST_STATE_PLAYING);
+            gst_element_set_state(m_pipeline, GST_STATE_PLAYING);
             m_prevCommand = ControlCommandKind::START;
         } else {
-            gst_element_set_state (m_pipeline, GST_STATE_PAUSED);
+            gst_element_set_state(m_pipeline, GST_STATE_PAUSED);
             m_prevCommand = ControlCommandKind::STOP;
         }
         AbstractModule::start();
@@ -190,7 +188,7 @@ public:
         // this will terminate the thread
         m_running = false;
 
-        gst_element_set_state (m_pipeline, GST_STATE_PAUSED);
+        gst_element_set_state(m_pipeline, GST_STATE_PAUSED);
 
         // permit settings canges again
         m_settingsDialog->setEnabled(true);
@@ -198,7 +196,7 @@ public:
 
     static gboolean onResetTimerTimeout(gpointer udata)
     {
-        auto self = static_cast<AudioSourceModule*>(udata);
+        auto self = static_cast<AudioSourceModule *>(udata);
         self->setPlayStateFromCommand(self->prevCommand());
         return G_SOURCE_REMOVE;
     }
@@ -215,11 +213,7 @@ public:
         if (ctl.duration.count() == 0)
             m_prevCommand = ctl.kind;
         else
-            g_timeout_add_full(G_PRIORITY_HIGH,
-                               ctl.duration.count(),
-                               &onResetTimerTimeout,
-                               this,
-                               nullptr);
+            g_timeout_add_full(G_PRIORITY_HIGH, ctl.duration.count(), &onResetTimerTimeout, this, nullptr);
     }
 
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
@@ -242,15 +236,14 @@ public:
     }
 };
 
-static gboolean
-audiosrc_pipeline_watch_func (GstBus *bus, GstMessage *message, gpointer udata)
+static gboolean audiosrc_pipeline_watch_func(GstBus *bus, GstMessage *message, gpointer udata)
 {
-    auto self = static_cast<AudioSourceModule*>(udata);
+    auto self = static_cast<AudioSourceModule *>(udata);
 
-    if (GST_MESSAGE_TYPE (message) == GST_MESSAGE_ERROR) {
+    if (GST_MESSAGE_TYPE(message) == GST_MESSAGE_ERROR) {
         g_autoptr(GError) err = NULL;
 
-        gst_message_parse_error (message, &err, NULL);
+        gst_message_parse_error(message, &err, NULL);
         self->failPipeline(QString::fromUtf8(err->message));
 
         return FALSE;

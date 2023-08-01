@@ -42,8 +42,12 @@ public:
         : AbstractModule(parent)
     {
         m_inPort = registerInputPort<Frame>(QStringLiteral("frames-in"), QStringLiteral("Frames"));
-        m_trackStream = registerOutputPort<Frame>(QStringLiteral("track-video"), QStringLiteral("Tracking Visualization"));
-        m_animalStream = registerOutputPort<Frame>(QStringLiteral("animal-video"), QStringLiteral("Animal Visualization"));
+        m_trackStream = registerOutputPort<Frame>(
+            QStringLiteral("track-video"), QStringLiteral("Tracking Visualization")
+        );
+        m_animalStream = registerOutputPort<Frame>(
+            QStringLiteral("animal-video"), QStringLiteral("Animal Visualization")
+        );
         m_dataStream = registerOutputPort<TableRow>(QStringLiteral("track-data"), QStringLiteral("Tracking Data"));
     }
 

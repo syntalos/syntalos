@@ -22,15 +22,15 @@
 
 #include <QMessageBox>
 
-#include "rtkit.h"
 #include "appstyle.h"
+#include "rtkit.h"
 
 using namespace Syntalos;
 
-GlobalConfigDialog::GlobalConfigDialog(QWidget *parent) :
-    QDialog(parent),
-    ui(new Ui::GlobalConfigDialog),
-    m_acceptChanges(false)
+GlobalConfigDialog::GlobalConfigDialog(QWidget *parent)
+    : QDialog(parent),
+      ui(new Ui::GlobalConfigDialog),
+      m_acceptChanges(false)
 {
     ui->setupUi(this);
     setWindowTitle(QStringLiteral("Syntalos Settings"));
@@ -85,8 +85,9 @@ void GlobalConfigDialog::on_colorModeComboBox_currentIndexChanged(int index)
         return;
 
     if (index == 0 && m_gc->appColorMode() != Syntalos::ColorMode::SYSTEM)
-        QMessageBox::information(this, "Restart may be required",
-                                 "You may need to restart Syntalos for this style change to take effect.");
+        QMessageBox::information(
+            this, "Restart may be required", "You may need to restart Syntalos for this style change to take effect."
+        );
 
     m_gc->setAppColorMode(Syntalos::colorModeFromString(ui->colorModeComboBox->currentData().toString()));
     Q_EMIT defaultColorSchemeChanged();
@@ -94,53 +95,64 @@ void GlobalConfigDialog::on_colorModeComboBox_currentIndexChanged(int index)
 
 void GlobalConfigDialog::on_emergencyOOMStopCheckBox_toggled(bool checked)
 {
-    if (m_acceptChanges) m_gc->setEmergencyOOMStop(checked);
+    if (m_acceptChanges)
+        m_gc->setEmergencyOOMStop(checked);
 }
 
 void GlobalConfigDialog::on_defaultNicenessSpinBox_valueChanged(int arg1)
 {
-    if (m_acceptChanges) m_gc->setDefaultThreadNice(arg1);
+    if (m_acceptChanges)
+        m_gc->setDefaultThreadNice(arg1);
 }
 
 void GlobalConfigDialog::on_defaultRTPrioSpinBox_valueChanged(int arg1)
 {
-    if (m_acceptChanges) m_gc->setDefaultRTThreadPriority(arg1);
+    if (m_acceptChanges)
+        m_gc->setDefaultRTThreadPriority(arg1);
 }
 
 void GlobalConfigDialog::on_explicitCoreAffinitiesCheckBox_toggled(bool checked)
 {
-    if (m_acceptChanges) m_gc->setExplicitCoreAffinities(checked);
+    if (m_acceptChanges)
+        m_gc->setExplicitCoreAffinities(checked);
     ui->cpuAffinityWarnButton->setVisible(checked);
 }
 
 void GlobalConfigDialog::on_cpuAffinityWarnButton_clicked()
 {
-    QMessageBox::information(this,
-                             QStringLiteral("Information on explicit CPU affinity"),
-                             QStringLiteral("<html>"
-                                            "By selecting the explicit CPU affinity option, threads of individual modules are bound to "
-                                            "specific CPU cores by the operating system. This can greatly improve latency in some scenarios, "
-                                            "and may occasionally even improve performance due to better CPU cache coherency.<br/><br/>"
-                                            "<b>However</b> using this option can also massively degrade performance, as module threads and "
-                                            "their descendants can not be moved freely between otherwise idle CPU cores anymore. So, while getting "
-                                            "more consistent latencies, you may get much reduced performance.<br/><br/>"
-                                            "The affinity selector does not know about individual module's runtime CPU utilization (yet...), so its "
-                                            "guesses may be wrong and lead to suboptimal results.<br/><br/>"
-                                            "Therefore, using this option is not recommended for most users - you can safely give it a try though and "
-                                            "see if it helps your individual setup's performance or latency."));
+    QMessageBox::information(
+        this,
+        QStringLiteral("Information on explicit CPU affinity"),
+        QStringLiteral(
+            "<html>"
+            "By selecting the explicit CPU affinity option, threads of individual modules are bound to "
+            "specific CPU cores by the operating system. This can greatly improve latency in some scenarios, "
+            "and may occasionally even improve performance due to better CPU cache coherency.<br/><br/>"
+            "<b>However</b> using this option can also massively degrade performance, as module threads and "
+            "their descendants can not be moved freely between otherwise idle CPU cores anymore. So, while getting "
+            "more consistent latencies, you may get much reduced performance.<br/><br/>"
+            "The affinity selector does not know about individual module's runtime CPU utilization (yet...), so its "
+            "guesses may be wrong and lead to suboptimal results.<br/><br/>"
+            "Therefore, using this option is not recommended for most users - you can safely give it a try though and "
+            "see if it helps your individual setup's performance or latency."
+        )
+    );
 }
 
 void GlobalConfigDialog::on_cbDisplayDevModules_toggled(bool checked)
 {
-    if (m_acceptChanges) m_gc->setShowDevelModules(checked);
+    if (m_acceptChanges)
+        m_gc->setShowDevelModules(checked);
 }
 
 void GlobalConfigDialog::on_cbSaveDiagnostic_toggled(bool checked)
 {
-    if (m_acceptChanges) m_gc->setSaveExperimentDiagnostics(checked);
+    if (m_acceptChanges)
+        m_gc->setSaveExperimentDiagnostics(checked);
 }
 
 void GlobalConfigDialog::on_cbPythonCreateVEnvLink_toggled(bool checked)
 {
-    if (m_acceptChanges) m_gc->setCreateVEnvUserLink(checked);
+    if (m_acceptChanges)
+        m_gc->setCreateVEnvUserLink(checked);
 }

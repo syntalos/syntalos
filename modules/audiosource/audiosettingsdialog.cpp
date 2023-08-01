@@ -22,9 +22,9 @@
 
 #include <QVariant>
 
-AudioSettingsDialog::AudioSettingsDialog(QWidget *parent) :
-    QDialog(parent),
-    ui(new Ui::AudioSettingsDialog)
+AudioSettingsDialog::AudioSettingsDialog(QWidget *parent)
+    : QDialog(parent),
+      ui(new Ui::AudioSettingsDialog)
 {
     ui->setupUi(this);
     setWindowIcon(QIcon(":/icons/generic-config"));

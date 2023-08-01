@@ -19,11 +19,12 @@
 
 #include "syclock.h"
 
-#include <time.h>
 #include <QDebug>
+#include <time.h>
 
-namespace Syntalos {
-    Q_LOGGING_CATEGORY(logTimeClock, "time.clock")
+namespace Syntalos
+{
+Q_LOGGING_CATEGORY(logTimeClock, "time.clock")
 }
 
 using namespace Syntalos;
@@ -41,8 +42,7 @@ symaster_clock::time_point symaster_clock::now() noexcept
     // -EINVAL, -EFAULT
 
     ::clock_gettime(STEADY_CLOCK_ID, &tp);
-    return time_point(duration(std::chrono::seconds(tp.tv_sec)
-             + std::chrono::nanoseconds(tp.tv_nsec)));
+    return time_point(duration(std::chrono::seconds(tp.tv_sec) + std::chrono::nanoseconds(tp.tv_nsec)));
 }
 
 SyncTimer::SyncTimer()
@@ -58,7 +58,8 @@ void SyncTimer::start() noexcept
 {
     // we should probably crash here, but let's show a warning for now
     if (m_started)
-        qCCritical(logTimeClock).noquote() << "The master sync timer was restarted after it was already running! This must never happen.";
+        qCCritical(logTimeClock).noquote()
+            << "The master sync timer was restarted after it was already running! This must never happen.";
 
     m_startTime = symaster_clock::now();
     m_started = true;
@@ -67,7 +68,8 @@ void SyncTimer::start() noexcept
 void SyncTimer::startAt(const Syntalos::symaster_timepoint &startTimePoint) noexcept
 {
     if (m_started)
-        qCCritical(logTimeClock).noquote() << "The master sync timer was restarted after it was already running! This must never happen.";
+        qCCritical(logTimeClock).noquote()
+            << "The master sync timer was restarted after it was already running! This must never happen.";
 
     m_startTime = startTimePoint;
     m_started = true;

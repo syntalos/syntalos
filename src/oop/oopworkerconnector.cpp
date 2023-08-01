@@ -19,15 +19,15 @@
 
 #include "oopworkerconnector.h"
 
-#include <thread>
-#include <QUuid>
 #include <QProcessEnvironment>
+#include <QUuid>
+#include <thread>
 
-#include "streams/frametype.h"
-#include "utils/misc.h"
-#include "ipcmarshal.h"
 #include "globalconfig.h"
+#include "ipcmarshal.h"
+#include "streams/frametype.h"
 #include "sysinfo.h"
+#include "utils/misc.h"
 
 using namespace Syntalos;
 
@@ -40,8 +40,18 @@ OOPWorkerConnector::OOPWorkerConnector(QSharedPointer<OOPWorkerReplica> ptr, con
       m_outPortsAvailable(-1)
 {
     connect(m_reptr.data(), &OOPWorkerReplica::sendOutput, this, &OOPWorkerConnector::receiveOutput);
-    connect(m_reptr.data(), &OOPWorkerReplica::outPortMetadataUpdated, this, &OOPWorkerConnector::receiveOutputPortMetadataUpdate);
-    connect(m_reptr.data(), &OOPWorkerReplica::inputThrottleItemsPerSecRequested, this, &OOPWorkerConnector::receiveInputThrottleRequest);
+    connect(
+        m_reptr.data(),
+        &OOPWorkerReplica::outPortMetadataUpdated,
+        this,
+        &OOPWorkerConnector::receiveOutputPortMetadataUpdate
+    );
+    connect(
+        m_reptr.data(),
+        &OOPWorkerReplica::inputThrottleItemsPerSecRequested,
+        this,
+        &OOPWorkerConnector::receiveInputThrottleRequest
+    );
 
     // merge stdout of worker with ours by default
     setCaptureStdout(false);
@@ -134,7 +144,10 @@ bool OOPWorkerConnector::connectAndRun(const QVector<uint> &cpuAffinity)
     return true;
 }
 
-void OOPWorkerConnector::setPorts(QList<std::shared_ptr<VarStreamInputPort>> inPorts, QList<std::shared_ptr<StreamOutputPort>> outPorts)
+void OOPWorkerConnector::setPorts(
+    QList<std::shared_ptr<VarStreamInputPort>> inPorts,
+    QList<std::shared_ptr<StreamOutputPort>> outPorts
+)
 {
     // (re)set input port information
     m_shmSend.clear();
@@ -222,7 +235,7 @@ void OOPWorkerConnector::start(const symaster_timepoint &timePoint)
 
 void OOPWorkerConnector::forwardInputData(QEventLoop *loop)
 {
-    for(auto &sip : m_subs) {
+    for (auto &sip : m_subs) {
         if (m_failed)
             break;
 
@@ -279,7 +292,12 @@ static bool unmarshalAndOutputSimple(const int &typeId, const QVariant &argData,
     return false;
 }
 
-static bool unmarshalDataAndOutput(int typeId, const QVariant &argData, std::unique_ptr<SharedMemory> &shm, StreamOutputPort *port)
+static bool unmarshalDataAndOutput(
+    int typeId,
+    const QVariant &argData,
+    std::unique_ptr<SharedMemory> &shm,
+    StreamOutputPort *port
+)
 {
     if (typeId == qMetaTypeId<Frame>()) {
         const auto plist = argData.toList();
@@ -316,7 +334,7 @@ void OOPWorkerConnector::receiveOutput(int outPortId, QVariant argData)
     const auto typeId = outPort->dataTypeId();
 
     if (!unmarshalDataAndOutput(typeId, argData, m_shmRecv[outPortId], outPort.get()))
-            qWarning().noquote() << "Could not interpret data received from worker on port" << outPort->id();
+        qWarning().noquote() << "Could not interpret data received from worker on port" << outPort->id();
 }
 
 void OOPWorkerConnector::receiveOutputPortMetadataUpdate(int outPortId, const QVariantHash &metadata)
@@ -339,15 +357,18 @@ void OOPWorkerConnector::sendInputData(int typeId, int portId, const QVariant &d
 {
     QVariant outData;
 
-    auto ret = marshalDataElement(typeId, data,
-                                  outData, m_shmSend[portId]);
+    auto ret = marshalDataElement(typeId, data, outData, m_shmSend[portId]);
     if (!ret) {
         const auto dataTypeName = QMetaType::typeName(typeId);
         m_failed = true;
         if (!m_shmSend[portId]->lastError().isEmpty())
-            emit m_reptr->error(QStringLiteral("Unable to write %1 element into shared memory: %2").arg(dataTypeName, m_shmSend[portId]->lastError()));
+            emit m_reptr->error(QStringLiteral("Unable to write %1 element into shared memory: %2")
+                                    .arg(dataTypeName, m_shmSend[portId]->lastError()));
         else
-            emit m_reptr->error(QStringLiteral("Marshalling of %1 element for subprocess submission failed. This is a bug.").arg(dataTypeName));
+            emit m_reptr->error(
+                QStringLiteral("Marshalling of %1 element for subprocess submission failed. This is a bug.")
+                    .arg(dataTypeName)
+            );
         return;
     }
 

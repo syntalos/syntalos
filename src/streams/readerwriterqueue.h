@@ -3,6 +3,7 @@
 // in tests/rwqueue/LICENSE.rwqueue for details).
 
 #pragma once
+// clang-format off
 
 #include "atomicops.h"
 #include <new>

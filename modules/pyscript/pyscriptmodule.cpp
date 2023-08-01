@@ -19,24 +19,24 @@
 
 #include "pyscriptmodule.h"
 
-#include <QMessageBox>
-#include <QCoreApplication>
-#include <QFileInfo>
-#include <QProcess>
-#include <QTextBrowser>
-#include <QDebug>
-#include <QHBoxLayout>
-#include <QMenuBar>
-#include <QMetaType>
-#include <QSplitter>
 #include <KTextEditor/Document>
 #include <KTextEditor/Editor>
 #include <KTextEditor/View>
+#include <QCoreApplication>
+#include <QDebug>
+#include <QFileInfo>
+#include <QHBoxLayout>
+#include <QMenuBar>
+#include <QMessageBox>
+#include <QMetaType>
+#include <QProcess>
 #include <QShortcut>
+#include <QSplitter>
+#include <QTextBrowser>
 
 #include "oop/oopmodule.h"
-#include "utils/style.h"
 #include "porteditordialog.h"
+#include "utils/style.h"
 
 SYNTALOS_MODULE(PyScriptModule);
 
@@ -44,7 +44,6 @@ class PyScriptModule : public OOPModule
 {
     Q_OBJECT
 public:
-
     explicit PyScriptModule(QObject *parent = nullptr)
         : OOPModule(parent),
           m_scriptWindow(nullptr)
@@ -58,7 +57,7 @@ public:
         auto pyDoc = editor->createDocument(this);
 
         QFile samplePyRc(QStringLiteral(":/texts/pyscript-sample.py"));
-        if(samplePyRc.open(QIODevice::ReadOnly)) {
+        if (samplePyRc.open(QIODevice::ReadOnly)) {
             pyDoc->setText(samplePyRc.readAll());
         }
         samplePyRc.close();
@@ -104,7 +103,7 @@ public:
 
         // connect UI events
         setCaptureStdout(true);
-        connect(this, &OOPModule::processStdoutReceived, this, [&](const QString& data) {
+        connect(this, &OOPModule::processStdoutReceived, this, [&](const QString &data) {
             m_pyconsoleWidget->append(data);
         });
 
@@ -117,13 +116,11 @@ public:
         // the KTextEditor save dialog, which confused some users. Now, we show an error instead, which
         // is also awful, but at least never leads to users doing the wrong thing. Long-term this needs
         // a proper fix (if KTextEditor doesn't have the needed API, I should contribute it...).
-        auto shortcut = new QShortcut(QKeySequence(tr("Ctrl+S", "File|Save")),
-                                 m_scriptWindow);
+        auto shortcut = new QShortcut(QKeySequence(tr("Ctrl+S", "File|Save")), m_scriptWindow);
         connect(shortcut, &QShortcut::activated, [=]() {});
     }
 
-    ~PyScriptModule() override
-    {}
+    ~PyScriptModule() override {}
 
     void setName(const QString &value) override
     {
@@ -150,7 +147,7 @@ public:
         return OOPModule::prepare(testSubject);
     }
 
-    void serializeSettings(const QString&, QVariantHash &settings, QByteArray &extraData) override
+    void serializeSettings(const QString &, QVariantHash &settings, QByteArray &extraData) override
     {
         extraData = m_scriptView->document()->text().toUtf8();
 
@@ -176,7 +173,7 @@ public:
         settings.insert("ports_out", varOutPorts);
     }
 
-    bool loadSettings(const QString&, const QVariantHash &settings, const QByteArray &extraData) override
+    bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &extraData) override
     {
         m_scriptView->document()->setText(QString::fromUtf8(extraData));
 
@@ -185,16 +182,20 @@ public:
 
         for (const auto &pv : varInPorts) {
             const auto po = pv.toHash();
-            registerInputPortByTypeId(QMetaType::type(qPrintable(po.value("data_type").toString())),
-                                      po.value("id").toString(),
-                                      po.value("title").toString());
+            registerInputPortByTypeId(
+                QMetaType::type(qPrintable(po.value("data_type").toString())),
+                po.value("id").toString(),
+                po.value("title").toString()
+            );
         }
 
         for (const auto &pv : varOutPorts) {
             const auto po = pv.toHash();
-            registerOutputPortByTypeId(QMetaType::type(qPrintable(po.value("data_type").toString())),
-                                       po.value("id").toString(),
-                                       po.value("title").toString());
+            registerOutputPortByTypeId(
+                QMetaType::type(qPrintable(po.value("data_type").toString())),
+                po.value("id").toString(),
+                po.value("title").toString()
+            );
         }
 
         // update port listing in UI

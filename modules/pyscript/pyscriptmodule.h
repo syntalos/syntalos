@@ -19,9 +19,9 @@
 
 #pragma once
 
+#include "moduleapi.h"
 #include <QObject>
 #include <chrono>
-#include "moduleapi.h"
 
 SYNTALOS_DECLARE_MODULE
 

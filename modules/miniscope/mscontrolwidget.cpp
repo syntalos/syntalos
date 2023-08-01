@@ -19,12 +19,12 @@
 
 #include "mscontrolwidget.h"
 
+#include <QGridLayout>
+#include <QHBoxLayout>
+#include <QLabel>
 #include <QSlider>
 #include <QSpinBox>
-#include <QLabel>
-#include <QGridLayout>
 #include <QVBoxLayout>
-#include <QHBoxLayout>
 
 MSControlWidget::MSControlWidget(const MScope::ControlDefinition &ctlDef, QWidget *parent)
     : QWidget(parent)

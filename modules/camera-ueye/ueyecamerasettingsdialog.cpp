@@ -20,13 +20,13 @@
 #include "ueyecamerasettingsdialog.h"
 #include "ui_ueyecamerasettingsdialog.h"
 
-#include <QToolButton>
-#include <QFileDialog>
 #include <QCheckBox>
+#include <QFileDialog>
+#include <QToolButton>
 
-UEyeCameraSettingsDialog::UEyeCameraSettingsDialog(UEyeCamera *camera, QWidget *parent) :
-    QDialog(parent),
-    ui(new Ui::UEyeCameraSettingsDialog)
+UEyeCameraSettingsDialog::UEyeCameraSettingsDialog(UEyeCamera *camera, QWidget *parent)
+    : QDialog(parent),
+      ui(new Ui::UEyeCameraSettingsDialog)
 {
     ui->setupUi(this);
     setWindowIcon(QIcon(":/icons/generic-config"));
@@ -56,9 +56,9 @@ UEyeCameraSettingsDialog::UEyeCameraSettingsDialog(UEyeCamera *camera, QWidget *
     m_ueyeConfFileLbl->setText("No file selected.");
 
     connect(ueyeConfFileBtn, &QToolButton::clicked, [=]() {
-        auto fileName = QFileDialog::getOpenFileName(this,
-                                                     tr("Select uEye Settings"), ".",
-                                                     tr("uEye Settings (*.ini)"));
+        auto fileName = QFileDialog::getOpenFileName(
+            this, tr("Select uEye Settings"), ".", tr("uEye Settings (*.ini)")
+        );
         if (fileName.isEmpty())
             return;
         m_ueyeConfFileLbl->setText(fileName);

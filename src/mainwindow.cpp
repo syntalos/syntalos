@@ -17,66 +17,64 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "config.h"
 #include "mainwindow.h"
+#include "config.h"
 #include "ui_mainwindow.h"
 
-#include <QApplication>
-#include <QPushButton>
-#include <QGroupBox>
-#include <QComboBox>
-#include <QToolButton>
-#include <QLineEdit>
-#include <QDateTime>
-#include <QErrorMessage>
-#include <QRadioButton>
-#include <QDebug>
-#include <QTimer>
-#include <QTableWidget>
-#include <QMdiSubWindow>
-#include <QSpinBox>
-#include <QCloseEvent>
-#include <QFontDatabase>
-#include <QStandardPaths>
-#include <QDoubleSpinBox>
-#include <QMessageBox>
-#include <QProgressDialog>
-#include <QDir>
-#include <QFileInfo>
-#include <QFileDialog>
-#include <QInputDialog>
-#include <memory>
-#include <QListWidgetItem>
-#include <QScrollBar>
-#include <QHeaderView>
-#include <QSvgWidget>
-#include <QSvgRenderer>
-#include <QFontMetricsF>
-#include <QDesktopServices>
-#include <QProcess>
 #include <KTar>
+#include <QApplication>
+#include <QCloseEvent>
+#include <QComboBox>
+#include <QDateTime>
+#include <QDebug>
+#include <QDesktopServices>
+#include <QDir>
+#include <QDoubleSpinBox>
+#include <QErrorMessage>
+#include <QFileDialog>
+#include <QFileInfo>
+#include <QFontDatabase>
+#include <QFontMetricsF>
+#include <QGroupBox>
+#include <QHeaderView>
+#include <QInputDialog>
+#include <QLineEdit>
+#include <QListWidgetItem>
+#include <QMdiSubWindow>
+#include <QMessageBox>
+#include <QProcess>
+#include <QProgressDialog>
+#include <QPushButton>
+#include <QRadioButton>
+#include <QScrollBar>
+#include <QSpinBox>
+#include <QStandardPaths>
+#include <QSvgRenderer>
+#include <QSvgWidget>
+#include <QTableWidget>
+#include <QTimer>
+#include <QToolButton>
+#include <memory>
 
-#include "appstyle.h"
 #include "aboutdialog.h"
+#include "appstyle.h"
+#include "commentdialog.h"
+#include "engine.h"
 #include "globalconfig.h"
 #include "globalconfigdialog.h"
-#include "commentdialog.h"
 #include "intervalrundialog.h"
-#include "engine.h"
 #include "sysinfodialog.h"
 #include "timingsdialog.h"
 
-#include "utils/tomlutils.h"
 #include "utils/executils.h"
-
+#include "utils/tomlutils.h"
 
 // config format API level
 static const QString CONFIG_FILE_FORMAT_VERSION = QStringLiteral("1");
 
-
-MainWindow::MainWindow(QWidget *parent) :
-    QMainWindow(parent),
-    ui(new Ui::MainWindow)
+MainWindow::MainWindow(QWidget *parent)
+    : QMainWindow(parent),
+      ui(new Ui::MainWindow)
 {
     // Load settings and set icon theme explicitly
     // (otherwise the application may look ugly or incomplete on GNOME)
@@ -137,7 +135,7 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->panelRunInfo->setEnabled(false);
 
     connect(ui->tbOpenDir, &QToolButton::clicked, this, &MainWindow::openDataExportDirectory);
-    connect(ui->subjectIdEdit, &QLineEdit::textChanged, [=](const QString& mouseId) {
+    connect(ui->subjectIdEdit, &QLineEdit::textChanged, [=](const QString &mouseId) {
         if (mouseId.isEmpty()) {
             ui->subjectSelectComboBox->setEnabled(true);
             ui->subjectSelectComboBox->setCurrentIndex(0);
@@ -154,13 +152,17 @@ MainWindow::MainWindow(QWidget *parent) :
     });
     connect(ui->expIdEdit, &QLineEdit::textChanged, this, &MainWindow::changeExperimentId);
 
-    connect(ui->subjectSelectComboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), [=](int index) {
-        // empty manual edit to not interfere with the subject selector
-        ui->subjectIdEdit->setText(QString());
+    connect(
+        ui->subjectSelectComboBox,
+        static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+        [=](int index) {
+            // empty manual edit to not interfere with the subject selector
+            ui->subjectIdEdit->setText(QString());
 
-        auto sub = m_subjectList->subject(index);
-        changeTestSubject(sub);
-    });
+            auto sub = m_subjectList->subject(index);
+            changeTestSubject(sub);
+        }
+    );
 
     // set up test subjects listing
     m_subjectList = new TestSubjectListModel(this);
@@ -185,18 +187,21 @@ MainWindow::MainWindow(QWidget *parent) :
         m_subjectList->addSubject(sub);
     });
 
-    connect(ui->subjectListView->selectionModel(), &QItemSelectionModel::currentChanged,
-            [&](const QModelIndex &index, const QModelIndex &) {
-        auto sub = m_subjectList->subject(index.row());
+    connect(
+        ui->subjectListView->selectionModel(),
+        &QItemSelectionModel::currentChanged,
+        [&](const QModelIndex &index, const QModelIndex &) {
+            auto sub = m_subjectList->subject(index.row());
 
-        ui->idLineEdit->setText(sub.id);
-        ui->groupLineEdit->setText(sub.group);
-        ui->cbSubjectActive->setChecked(sub.active);
-        ui->remarksTextEdit->setPlainText(sub.comment);
+            ui->idLineEdit->setText(sub.id);
+            ui->groupLineEdit->setText(sub.group);
+            ui->cbSubjectActive->setChecked(sub.active);
+            ui->remarksTextEdit->setPlainText(sub.comment);
 
-        ui->btnSubjectRemove->setEnabled(true);
-        ui->btnSubjectApplyEdit->setEnabled(true);
-    });
+            ui->btnSubjectRemove->setEnabled(true);
+            ui->btnSubjectApplyEdit->setEnabled(true);
+        }
+    );
 
     connect(ui->btnSubjectApplyEdit, &QToolButton::clicked, [&]() {
         auto index = ui->subjectListView->currentIndex();
@@ -209,7 +214,9 @@ MainWindow::MainWindow(QWidget *parent) :
         auto sub = m_subjectList->subject(row);
         auto id = ui->idLineEdit->text().trimmed();
         if (id.isEmpty()) {
-            QMessageBox::warning(this, "Could not change test subject", "Can not change test subject with an empty ID!");
+            QMessageBox::warning(
+                this, "Could not change test subject", "Can not change test subject with an empty ID!"
+            );
             return;
         }
         sub.id = id;
@@ -241,27 +248,35 @@ MainWindow::MainWindow(QWidget *parent) :
             changeExperimenter(EDLAuthor());
         EDLAuthor newPerson;
 
-        newPerson.name = QInputDialog::getText(this,
-                                               QStringLiteral("Add new experimenter"),
-                                               QStringLiteral("Full name of the new experimenter:")).trimmed();
+        newPerson.name = QInputDialog::getText(
+                             this,
+                             QStringLiteral("Add new experimenter"),
+                             QStringLiteral("Full name of the new experimenter:")
+        )
+                             .trimmed();
         if (newPerson.name.isEmpty()) {
-            QMessageBox::warning(this,
-                                 QStringLiteral("Could not add experimenter"),
-                                 QStringLiteral("Can not add a person with no name."));
+            QMessageBox::warning(
+                this, QStringLiteral("Could not add experimenter"), QStringLiteral("Can not add a person with no name.")
+            );
             return;
         }
 
         while (true) {
-            newPerson.email = QInputDialog::getText(this,
-                                                   QStringLiteral("Add new experimenter"),
-                                                   QStringLiteral("E-Mail address of the new experimenter (can be left blank):"),
-                                                    QLineEdit::Normal,
-                                                    newPerson.email).trimmed();
+            newPerson.email = QInputDialog::getText(
+                                  this,
+                                  QStringLiteral("Add new experimenter"),
+                                  QStringLiteral("E-Mail address of the new experimenter (can be left blank):"),
+                                  QLineEdit::Normal,
+                                  newPerson.email
+            )
+                                  .trimmed();
             // very rudimental check whether the entered stuff somewhat resembles an email address
             if (!newPerson.email.isEmpty() && (!newPerson.email.contains('@') || !newPerson.email.contains('.'))) {
-                QMessageBox::information(this,
-                                         QStringLiteral("E-Mail Invalid"),
-                                         QStringLiteral("The entered E-Mail address is invalid. Please try again!"));
+                QMessageBox::information(
+                    this,
+                    QStringLiteral("E-Mail Invalid"),
+                    QStringLiteral("The entered E-Mail address is invalid. Please try again!")
+                );
             } else {
                 break;
             }
@@ -365,7 +380,8 @@ void MainWindow::applySelectedAppStyle(bool updateIcons)
 
     // apply default color scheme
     if (m_gconf->appColorMode() != Syntalos::ColorMode::SYSTEM) {
-        qDebug().noquote() << "Changing application color scheme to:" << Syntalos::colorModeToString(m_gconf->appColorMode());
+        qDebug().noquote() << "Changing application color scheme to:"
+                           << Syntalos::colorModeToString(m_gconf->appColorMode());
         if (m_gconf->appColorMode() == Syntalos::ColorMode::DARK && darkColorSchemeAvailable())
             changeColorsDarkmode(true);
         else
@@ -442,9 +458,13 @@ void MainWindow::runActionTriggered()
 
         // we must have replaceables, otherwise we can't launch another run (as that would have the same name)
         if (!m_engine->hasExperimentIdReplaceables()) {
-            QMessageBox::critical(this, QStringLiteral("Can not start interval run"),
-                                  QStringLiteral("The interval run can not be started, as the experiment ID is missing a time/run-based substitution variable.\n"
-                                                 "Check out the documentation on information on this."));
+            QMessageBox::critical(
+                this,
+                QStringLiteral("Can not start interval run"),
+                QStringLiteral("The interval run can not be started, as the experiment ID is missing "
+                               "a time/run-based substitution variable.\n"
+                               "Check out the documentation on information on this.")
+            );
             setRunUiControlStates(false, false);
             setRunPossible(true);
             return;
@@ -458,7 +478,9 @@ void MainWindow::runActionTriggered()
         // run multiple times at set intervals
         for (int i = 1; i <= m_intervalRunDialog->runsN(); i++) {
             // perform the experiment run
-            qDebug().noquote() << QStringLiteral("New run: %1/%2").arg(m_engine->successRunsCount() + 1).arg(m_intervalRunDialog->runsN());
+            qDebug().noquote() << QStringLiteral("New run: %1/%2")
+                                      .arg(m_engine->successRunsCount() + 1)
+                                      .arg(m_intervalRunDialog->runsN());
             m_engine->run();
 
             // stop immediately if the interval mode was suspended or an error occurred
@@ -477,16 +499,19 @@ void MainWindow::runActionTriggered()
             if (m_intervalRunDialog->delayMin() > 0) {
                 showBusyIndicatorWaiting();
                 qDebug().noquote() << "Delaying next run for" << m_intervalRunDialog->delayMin() << "min";
-                auto continueTime= QTime::currentTime().addSecs(std::round(60 * m_intervalRunDialog->delayMin()));
-                ui->runWarningLabel->setText(QStringLiteral("Running for %1 min every %2 min. Now waiting %3 min. Next run: %4/%5")
-                                             .arg(m_intervalRunDialog->runDurationMin(), 0, 'f', 2)
-                                             .arg(m_intervalRunDialog->runDurationMin() + m_intervalRunDialog->delayMin(), 0, 'f', 2)
-                                             .arg(m_intervalRunDialog->delayMin(), 0, 'f', 2)
-                                             .arg(m_engine->successRunsCount() + 1)
-                                             .arg(m_intervalRunDialog->runsN()));
+                auto continueTime = QTime::currentTime().addSecs(std::round(60 * m_intervalRunDialog->delayMin()));
+                ui->runWarningLabel->setText(
+                    QStringLiteral("Running for %1 min every %2 min. Now waiting %3 min. Next run: %4/%5")
+                        .arg(m_intervalRunDialog->runDurationMin(), 0, 'f', 2)
+                        .arg(m_intervalRunDialog->runDurationMin() + m_intervalRunDialog->delayMin(), 0, 'f', 2)
+                        .arg(m_intervalRunDialog->delayMin(), 0, 'f', 2)
+                        .arg(m_engine->successRunsCount() + 1)
+                        .arg(m_intervalRunDialog->runsN())
+                );
                 while (QTime::currentTime() < continueTime) {
                     QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
-                    setStatusText(QStringLiteral("Starting next run in: %1 seconds").arg(QTime::currentTime().secsTo(continueTime)));
+                    setStatusText(QStringLiteral("Starting next run in: %1 seconds")
+                                      .arg(QTime::currentTime().secsTo(continueTime)));
 
                     if (!m_isIntervalRun)
                         break;
@@ -568,17 +593,17 @@ bool MainWindow::saveConfiguration(const QString &fileName)
     settings.insert("simple_storage_names", ui->cbSimpleStorageNames->isChecked());
 
     // basic configuration
-    tar.writeFile ("main.toml", qVariantHashToTomlData(settings));
+    tar.writeFile("main.toml", qVariantHashToTomlData(settings));
 
     // save list of subjects
-    tar.writeFile ("subjects.toml", qVariantHashToTomlData(m_subjectList->toVariantHash()));
+    tar.writeFile("subjects.toml", qVariantHashToTomlData(m_subjectList->toVariantHash()));
 
     // save list of experimenters
-    tar.writeFile ("experimenters.toml", qVariantHashToTomlData(m_experimenterList->toVariantHash()));
+    tar.writeFile("experimenters.toml", qVariantHashToTomlData(m_experimenterList->toVariantHash()));
 
     // save graph settings
     ui->graphForm->graphView()->saveState();
-    tar.writeFile ("graph.toml", qVariantHashToTomlData(ui->graphForm->graphView()->settings()));
+    tar.writeFile("graph.toml", qVariantHashToTomlData(ui->graphForm->graphView()->settings()));
 
     // save module settings
     auto modIndex = 0;
@@ -592,11 +617,11 @@ bool MainWindow::saveConfiguration(const QString &fileName)
 
         mod->serializeSettings(confBaseDir.absolutePath(), modSettings, modExtraData);
         if (!modSettings.isEmpty())
-            tar.writeFile(QStringLiteral("%1/%2.toml").arg(modIndex).arg(mod->id()),
-                          qVariantHashToTomlData(modSettings));
+            tar.writeFile(
+                QStringLiteral("%1/%2.toml").arg(modIndex).arg(mod->id()), qVariantHashToTomlData(modSettings)
+            );
         if (!modExtraData.isEmpty())
-            tar.writeFile(QStringLiteral("%1/%2.dat").arg(modIndex).arg(mod->id()),
-                          modExtraData);
+            tar.writeFile(QStringLiteral("%1/%2.dat").arg(modIndex).arg(mod->id()), modExtraData);
 
         QVariantHash modInfo;
         modInfo.insert("id", mod->id());
@@ -641,9 +666,11 @@ bool MainWindow::loadConfiguration(const QString &fileName)
     // load main settings
     auto globalSettingsFile = rootDir->file("main.toml");
     if (globalSettingsFile == nullptr) {
-        QMessageBox::critical(this,
-                              QStringLiteral("Can not load settings"),
-                              QStringLiteral("The settings file is damaged or is no valid Syntalos configuration bundle."));
+        QMessageBox::critical(
+            this,
+            QStringLiteral("Can not load settings"),
+            QStringLiteral("The settings file is damaged or is no valid Syntalos configuration bundle.")
+        );
         setStatusText("");
         return false;
     }
@@ -651,18 +678,25 @@ bool MainWindow::loadConfiguration(const QString &fileName)
     QString parseError;
     const auto rootObj = parseTomlData(globalSettingsFile->data(), parseError);
     if (!parseError.isEmpty()) {
-        QMessageBox::critical(this, QStringLiteral("Can not load settings"),
-                              QStringLiteral("The settings file is damaged or is no valid Syntalos configuration file. %1").arg(parseError));
+        QMessageBox::critical(
+            this,
+            QStringLiteral("Can not load settings"),
+            QStringLiteral("The settings file is damaged or is no valid Syntalos configuration file. %1")
+                .arg(parseError)
+        );
         setStatusText("");
         return false;
     }
 
     if (rootObj.value("version_format").toString() != CONFIG_FILE_FORMAT_VERSION) {
-        auto reply = QMessageBox::question(this,
-                                           "Incompatible configuration",
-                                           QStringLiteral("The settings file you want to load was created with a different, possibly older version of Syntalos and may not work correctly in this version.\n"
-                                                          "Should we attempt to load it anyway? (This may result in unexpected behavior)"),
-                                           QMessageBox::Yes | QMessageBox::No);
+        auto reply = QMessageBox::question(
+            this,
+            "Incompatible configuration",
+            QStringLiteral("The settings file you want to load was created with a different, possibly older version of "
+                           "Syntalos and may not work correctly in this version.\n"
+                           "Should we attempt to load it anyway? (This may result in unexpected behavior)"),
+            QMessageBox::Yes | QMessageBox::No
+        );
         if (reply == QMessageBox::No) {
             this->setEnabled(true);
             setStatusText("Aborted configuration loading.");
@@ -726,11 +760,11 @@ bool MainWindow::loadConfiguration(const QString &fileName)
 
     // we load the modules in two passes, to ensure they can all register
     // their interdependencies correctly.
-    QList<QPair<AbstractModule*, QPair<QVariantHash, QByteArray>>> modSettingsList;
-    QList<QPair<AbstractModule*, QVariantHash>> modDisplayGeometryList;
+    QList<QPair<AbstractModule *, QPair<QVariantHash, QByteArray>>> modSettingsList;
+    QList<QPair<AbstractModule *, QVariantHash>> modDisplayGeometryList;
 
     // add modules
-    QList<QPair<AbstractModule*, QVariantHash>> jSubInfo;
+    QList<QPair<AbstractModule *, QVariantHash>> jSubInfo;
     for (auto &ename : rootEntries) {
         auto e = rootDir->entry(ename);
         if (!e->isDirectory())
@@ -751,16 +785,25 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         setStatusText(QStringLiteral("Instantiating module: %1(%2)").arg(modId, modName));
         auto mod = m_engine->createModule(modId, modName);
         if (mod == nullptr) {
-            QMessageBox::critical(this, QStringLiteral("Can not load settings"),
-                                  QStringLiteral("Unable to find module '%1' - please install the module first, then attempt to load this configuration again.").arg(modId));
+            QMessageBox::critical(
+                this,
+                QStringLiteral("Can not load settings"),
+                QStringLiteral("Unable to find module '%1' - please install the module first, then "
+                               "attempt to load this configuration again.")
+                    .arg(modId)
+            );
             setStatusText("Failed to load settings.");
 
-            const auto reply = QMessageBox::question(this, QStringLiteral("Ignore missing module?"),
-                                                     QStringLiteral("While installing thie missing module is the right solution to load this board, "
-                                                                    "you can also enforce loading it. Please be aware that loading may fail. Load anyway?"),
-                                                     QMessageBox::Yes | QMessageBox::No);
+            const auto reply = QMessageBox::question(
+                this,
+                QStringLiteral("Ignore missing module?"),
+                QStringLiteral("While installing thie missing module is the right solution to load this board, "
+                               "you can also enforce loading it. Please be aware that loading may fail. Load anyway?"),
+                QMessageBox::Yes | QMessageBox::No
+            );
             if (reply == QMessageBox::Yes) {
-                qWarning().noquote().nospace() << QStringLiteral("Module %1[%2] was missing, but trying to load board anyway.").arg(modId, modName);
+                qWarning().noquote().nospace(
+                ) << QStringLiteral("Module %1[%2] was missing, but trying to load board anyway.").arg(modId, modName);
                 continue;
             }
             return false;
@@ -770,7 +813,8 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         if (sfile != nullptr) {
             modSettings = parseTomlData(sfile->data(), parseError);
             if (!parseError.isEmpty())
-                qWarning().noquote().nospace() << "Issue while loading module configuration for " << mod->name() << ": " << parseError;
+                qWarning().noquote().nospace()
+                    << "Issue while loading module configuration for " << mod->name() << ": " << parseError;
         }
         sfile = rootDir->file(QStringLiteral("%1/%2.dat").arg(ename).arg(modId));
         QByteArray modSettingsEx;
@@ -798,8 +842,11 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         const auto settings = pair.second;
         setStatusText(QStringLiteral("Loading settings for module: %1(%2)").arg(mod->id()).arg(mod->name()));
         if (!mod->loadSettings(confBaseDir.absolutePath(), settings.first, settings.second)) {
-            QMessageBox::critical(this, QStringLiteral("Can not load settings"),
-                                  QStringLiteral("Unable to load module settings for '%1'.").arg(mod->name()));
+            QMessageBox::critical(
+                this,
+                QStringLiteral("Can not load settings"),
+                QStringLiteral("Unable to load module settings for '%1'.").arg(mod->name())
+            );
             setStatusText("Failed to load settings.");
             return false;
         }
@@ -817,24 +864,28 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         for (const QString &iPortId : jSubs.keys()) {
             const auto modPortPair = jSubs.value(iPortId).toList();
             if (modPortPair.size() != 2) {
-                qWarning().noquote() << "Malformed project data: Invalid project port pair in" << mod->name() << "settings.";
+                qWarning().noquote() << "Malformed project data: Invalid project port pair in" << mod->name()
+                                     << "settings.";
                 continue;
             }
             const auto srcModName = modPortPair[0].toString();
             const auto srcModOutPortId = modPortPair[1].toString();
             const auto srcMod = m_engine->moduleByName(srcModName);
             if (srcMod == nullptr) {
-                qWarning().noquote() << "Error when loading project: Source module" << srcModName << "plugged into" << iPortId << "of" << mod->name() << "was not found. Skipped connection.";
+                qWarning().noquote() << "Error when loading project: Source module" << srcModName << "plugged into"
+                                     << iPortId << "of" << mod->name() << "was not found. Skipped connection.";
                 continue;
             }
             auto inPort = mod->inPortById(iPortId);
             if (inPort.get() == nullptr) {
-                qWarning().noquote() << "Error when loading project: Module" << mod->name() << "has no input port with ID" << iPortId;
+                qWarning().noquote() << "Error when loading project: Module" << mod->name()
+                                     << "has no input port with ID" << iPortId;
                 continue;
             }
             auto outPort = srcMod->outPortById(srcModOutPortId);
             if (outPort.get() == nullptr) {
-                qWarning().noquote() << "Error when loading project: Module" << srcMod->name() << "has no output port with ID" << srcModOutPortId;
+                qWarning().noquote() << "Error when loading project: Module" << srcMod->name()
+                                     << "has no output port with ID" << srcModOutPortId;
                 continue;
             }
             inPort->setSubscription(outPort.get(), outPort->subscribe());
@@ -851,19 +902,22 @@ bool MainWindow::loadConfiguration(const QString &fileName)
             changeExperimenter(m_experimenterList->person(0));
         } else {
             // we have many people registered for this board, ask user to choose one!
-            showExperimenterSelector(QStringLiteral("Welcome to this experiment!\n"
-                                                    "Please select your name from the list - in case you can't find it,\n"
-                                                    "you may select \"[Not selected]\" to select no experimenter."));
+            showExperimenterSelector(
+                QStringLiteral("Welcome to this experiment!\n"
+                               "Please select your name from the list - in case you can't find it,\n"
+                               "you may select \"[Not selected]\" to select no experimenter.")
+            );
         }
 
         if (m_engine->experimenter().isValid())
-            setStatusText(QStringLiteral("Welcome %1! - Board successfully loaded.").arg(m_engine->experimenter().name));
+            setStatusText(QStringLiteral("Welcome %1! - Board successfully loaded.").arg(m_engine->experimenter().name)
+            );
     }
 
     return true;
 }
 
-void MainWindow::setDataExportBaseDir(const QString& dir)
+void MainWindow::setDataExportBaseDir(const QString &dir)
 {
     if (dir.isEmpty())
         return;
@@ -874,10 +928,12 @@ void MainWindow::setDataExportBaseDir(const QString& dir)
 
 void MainWindow::openDataExportDirectory()
 {
-    auto dir = QFileDialog::getExistingDirectory(this,
-                                                 "Select Directory",
-                                                 QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
-                                                 QFileDialog::ShowDirsOnly);
+    auto dir = QFileDialog::getExistingDirectory(
+        this,
+        "Select Directory",
+        QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
+        QFileDialog::ShowDirsOnly
+    );
     setDataExportBaseDir(dir);
 }
 
@@ -886,11 +942,9 @@ void MainWindow::showExperimenterSelector(const QString &message)
     auto items = m_experimenterList->toStringList();
     items.append(QStringLiteral("[Not selected]"));
     bool ok;
-    const auto selection = QInputDialog::getItem(this,
-                                                 QStringLiteral("Select an experimenter"),
-                                                 message,
-                                                 items,
-                                                 0, false, &ok);
+    const auto selection = QInputDialog::getItem(
+        this, QStringLiteral("Select an experimenter"), message, items, 0, false, &ok
+    );
     if (!ok)
         return;
     const auto idx = items.indexOf(selection);
@@ -903,7 +957,7 @@ void MainWindow::showExperimenterSelector(const QString &message)
 void MainWindow::changeExperimenter(const EDLAuthor &person)
 {
     m_engine->setExperimenter(person);
-    ui->currentExperimenterLabel->setText(person.isValid()? person.name : QStringLiteral("[Person not set]"));
+    ui->currentExperimenterLabel->setText(person.isValid() ? person.name : QStringLiteral("[Person not set]"));
 }
 
 void MainWindow::changeTestSubject(const TestSubject &subject)
@@ -912,7 +966,7 @@ void MainWindow::changeTestSubject(const TestSubject &subject)
     updateExportDirDisplay();
 }
 
-void MainWindow::changeExperimentId(const QString& text)
+void MainWindow::changeExperimentId(const QString &text)
 {
     m_engine->setExperimentId(text);
     updateExportDirDisplay();
@@ -973,10 +1027,12 @@ void MainWindow::showEvent(QShowEvent *event)
 void MainWindow::projectSaveAsActionTriggered()
 {
     QString fileName;
-    fileName = QFileDialog::getSaveFileName(this,
-                                            tr("Select Configuration Filename"),
-                                            QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
-                                            tr("Syntalos Configuration Files (*.syct)"));
+    fileName = QFileDialog::getSaveFileName(
+        this,
+        tr("Select Configuration Filename"),
+        QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
+        tr("Syntalos Configuration Files (*.syct)")
+    );
 
     if (fileName.isEmpty())
         return;
@@ -985,9 +1041,11 @@ void MainWindow::projectSaveAsActionTriggered()
 
     showBusyIndicatorProcessing();
     if (!saveConfiguration(fileName)) {
-        QMessageBox::critical(this,
-                              QStringLiteral("Can not save configuration"),
-                              QStringLiteral("Unable to write configuration file to disk."));
+        QMessageBox::critical(
+            this,
+            QStringLiteral("Can not save configuration"),
+            QStringLiteral("Unable to write configuration file to disk.")
+        );
     }
     hideBusyIndicator();
 }
@@ -1007,19 +1065,23 @@ void MainWindow::projectSaveActionTriggered()
 
     showBusyIndicatorProcessing();
     if (!saveConfiguration(QString(m_currentProjectFname))) {
-        QMessageBox::critical(this,
-                              QStringLiteral("Can not save configuration"),
-                              QStringLiteral("Unable to write configuration file to disk."));
+        QMessageBox::critical(
+            this,
+            QStringLiteral("Can not save configuration"),
+            QStringLiteral("Unable to write configuration file to disk.")
+        );
     }
     hideBusyIndicator();
 }
 
 void MainWindow::projectOpenActionTriggered()
 {
-    auto fileName = QFileDialog::getOpenFileName(this,
-                                                 tr("Select Project Filename"),
-                                                 QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
-                                                 tr("Syntalos Project Files (*.syct)"));
+    auto fileName = QFileDialog::getOpenFileName(
+        this,
+        tr("Select Project Filename"),
+        QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
+        tr("Syntalos Project Files (*.syct)")
+    );
     if (fileName.isEmpty())
         return;
 
@@ -1030,12 +1092,12 @@ void MainWindow::projectOpenActionTriggered()
     ui->menuBar->setEnabled(false);
     ui->mainToolBar->setEnabled(false);
     ui->projectToolBar->setEnabled(false);
-;
+    ;
     showBusyIndicatorProcessing();
     if (!loadConfiguration(fileName)) {
-        QMessageBox::critical(this,
-                              QStringLiteral("Can not load configuration"),
-                              QStringLiteral("Failed to load configuration."));
+        QMessageBox::critical(
+            this, QStringLiteral("Can not load configuration"), QStringLiteral("Failed to load configuration.")
+        );
         m_engine->removeAllModules();
     }
     hideBusyIndicator();
@@ -1114,11 +1176,13 @@ void MainWindow::updateExportDirDisplay()
 void MainWindow::updateIntervalRunMessage()
 {
     ui->runWarningIconLabel->setPixmap(QIcon::fromTheme(QStringLiteral("emblem-information")).pixmap(16, 16));
-    ui->runWarningLabel->setText(QStringLiteral("Running for %1 min every %2 min. Current run: %3/%4.")
-                                 .arg(m_intervalRunDialog->runDurationMin(), 0, 'f', 2)
-                                 .arg(m_intervalRunDialog->runDurationMin() + m_intervalRunDialog->delayMin(), 0, 'f', 2)
-                                 .arg(m_engine->successRunsCount() + 1)
-                                 .arg(m_intervalRunDialog->runsN()));
+    ui->runWarningLabel->setText(
+        QStringLiteral("Running for %1 min every %2 min. Current run: %3/%4.")
+            .arg(m_intervalRunDialog->runDurationMin(), 0, 'f', 2)
+            .arg(m_intervalRunDialog->runDurationMin() + m_intervalRunDialog->delayMin(), 0, 'f', 2)
+            .arg(m_engine->successRunsCount() + 1)
+            .arg(m_intervalRunDialog->runsN())
+    );
 }
 
 void MainWindow::aboutActionTriggered()
@@ -1133,8 +1197,20 @@ void MainWindow::aboutActionTriggered()
 
 void MainWindow::onModuleCreated(ModuleInfo *, AbstractModule *mod)
 {
-    connect(mod, &AbstractModule::synchronizerDetailsChanged, m_timingsDialog, &TimingsDialog::onSynchronizerDetailsChanged, Qt::QueuedConnection);
-    connect(mod, &AbstractModule::synchronizerOffsetChanged, m_timingsDialog, &TimingsDialog::onSynchronizerOffsetChanged, Qt::QueuedConnection);
+    connect(
+        mod,
+        &AbstractModule::synchronizerDetailsChanged,
+        m_timingsDialog,
+        &TimingsDialog::onSynchronizerDetailsChanged,
+        Qt::QueuedConnection
+    );
+    connect(
+        mod,
+        &AbstractModule::synchronizerOffsetChanged,
+        m_timingsDialog,
+        &TimingsDialog::onSynchronizerOffsetChanged,
+        Qt::QueuedConnection
+    );
 }
 
 void MainWindow::onElapsedTimeUpdate()
@@ -1144,7 +1220,8 @@ void MainWindow::onElapsedTimeUpdate()
 
     if (m_isIntervalRun) {
         // stop the current run in interval mode when its maximum runtime was reached
-        if (std::chrono::duration_cast<std::chrono::seconds>(elapsedTime).count() < (m_intervalRunDialog->runDurationMin() * 60))
+        if (std::chrono::duration_cast<std::chrono::seconds>(elapsedTime).count()
+            < (m_intervalRunDialog->runDurationMin() * 60))
             return;
 
         if (m_engine->successRunsCount() >= m_intervalRunDialog->runsN()) {
@@ -1159,7 +1236,7 @@ void MainWindow::onElapsedTimeUpdate()
     }
 }
 
-void MainWindow::setStatusText(const QString& msg)
+void MainWindow::setStatusText(const QString &msg)
 {
     m_statusBarLabel->setText(msg);
     QApplication::processEvents();
@@ -1311,13 +1388,14 @@ void MainWindow::on_actionEditComment_triggered()
 void MainWindow::on_actionSubjectsLoad_triggered()
 {
     QString fileName;
-    fileName = QFileDialog::getOpenFileName(this,
-                                            QStringLiteral("Open Animal List"),
-                                            QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
-                                            QStringLiteral("TOML Markup Files (*.toml)\nAll Files (*)"));
+    fileName = QFileDialog::getOpenFileName(
+        this,
+        QStringLiteral("Open Animal List"),
+        QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
+        QStringLiteral("TOML Markup Files (*.toml)\nAll Files (*)")
+    );
     if (fileName.isEmpty())
         return;
-
 
     QFile f(fileName);
     if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
@@ -1330,19 +1408,23 @@ void MainWindow::on_actionSubjectsLoad_triggered()
         if (parseError.isEmpty())
             m_subjectList->fromVariantHash(var);
         else
-            QMessageBox::critical(this,
-                                  QStringLiteral("Unable to parse subjects list"),
-                                  QStringLiteral("Unable to load subjects list: %1").arg(parseError));
+            QMessageBox::critical(
+                this,
+                QStringLiteral("Unable to parse subjects list"),
+                QStringLiteral("Unable to load subjects list: %1").arg(parseError)
+            );
     }
 }
 
 void MainWindow::on_actionSubjectsSave_triggered()
 {
     QString fileName;
-    fileName = QFileDialog::getSaveFileName(this,
-                                            tr("Save Animal List"),
-                                            QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
-                                            tr("TOML Markup Files (*.toml)"));
+    fileName = QFileDialog::getSaveFileName(
+        this,
+        tr("Save Animal List"),
+        QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
+        tr("TOML Markup Files (*.toml)")
+    );
 
     if (fileName.isEmpty())
         return;
@@ -1419,7 +1501,7 @@ void MainWindow::on_actionUsbDevices_triggered()
     QPushButton btnOpenUsbView(&dlg);
     btnLayout.addWidget(&btnOpenUsbView);
     bool usbViewFound = !findHostExecutable("usbview").isEmpty();
-    btnOpenUsbView.setText(usbViewFound? "Open USBView" : "Install USBView");
+    btnOpenUsbView.setText(usbViewFound ? "Open USBView" : "Install USBView");
 
     connect(&btnOpenUsbView, &QPushButton::clicked, [&]() {
         if (usbViewFound)
@@ -1454,7 +1536,7 @@ void MainWindow::on_actionModuleLoadInfo_triggered()
     QString tmpText;
     for (const auto &tmpLine : logText.split("<br/>")) {
         uint lineLength = 0;
-        for (int i = 0; i< tmpLine.length(); i++) {
+        for (int i = 0; i < tmpLine.length(); i++) {
             lineLength++;
             const auto c = tmpLine.at(i);
             if (lineLength > 80) {
@@ -1491,21 +1573,25 @@ void MainWindow::on_actionOnlineDocs_triggered()
 
 void MainWindow::on_actionReportIssue_triggered()
 {
-    QMessageBox::information(this,
-                             QStringLiteral("Info on reporting issues"),
-                             QStringLiteral("You will be redirected to GitHub where you can file an issue (you may need to register an account there first).\n"
-                                            "To file an actionable issue report, please think about these things:\n"
-                                            "  * What did you want or expect to happen?\n"
-                                            "  * What happened instead?\n"
-                                            "  * What kind of configuration were you trying to run?\n"
-                                            "  * Are there any warnings listed on the system diagnostics page of Syntalos?\n"
-                                            "Happy issue reporting!"));
+    QMessageBox::information(
+        this,
+        QStringLiteral("Info on reporting issues"),
+        QStringLiteral("You will be redirected to GitHub where you can file an issue (you may need to register an "
+                       "account there first).\n"
+                       "To file an actionable issue report, please think about these things:\n"
+                       "  * What did you want or expect to happen?\n"
+                       "  * What happened instead?\n"
+                       "  * What kind of configuration were you trying to run?\n"
+                       "  * Are there any warnings listed on the system diagnostics page of Syntalos?\n"
+                       "Happy issue reporting!")
+    );
     QDesktopServices::openUrl(QUrl(SY_BUG_REPORT_URL, QUrl::TolerantMode));
 }
 
 void MainWindow::on_actionOpenCrashCollector_triggered()
 {
-    auto crashReportExe = QStringLiteral("%1/../tools/crashreport/syntalos-crashreport").arg(QCoreApplication::applicationDirPath());
+    auto crashReportExe = QStringLiteral("%1/../tools/crashreport/syntalos-crashreport")
+                              .arg(QCoreApplication::applicationDirPath());
     QFileInfo checkBin(crashReportExe);
     if (crashReportExe.startsWith("/usr/") || !checkBin.exists())
         crashReportExe = QStringLiteral(LIBEXECDIR "/syntalos-crashreport");

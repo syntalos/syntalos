@@ -22,9 +22,9 @@
 
 #include <QIcon>
 
-RunCmdSettingsDlg::RunCmdSettingsDlg(QWidget *parent) :
-    QDialog(parent),
-    ui(new Ui::RunCmdSettingsDlg)
+RunCmdSettingsDlg::RunCmdSettingsDlg(QWidget *parent)
+    : QDialog(parent),
+      ui(new Ui::RunCmdSettingsDlg)
 {
     ui->setupUi(this);
     setWindowIcon(QIcon(":/icons/generic-config"));

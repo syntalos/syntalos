@@ -19,12 +19,13 @@
 
 #pragma once
 
-#include <QObject>
 #include <QLoggingCategory>
+#include <QObject>
 
 class QSettings;
 
-namespace Syntalos {
+namespace Syntalos
+{
 
 Q_DECLARE_LOGGING_CATEGORY(logGlobalConfig)
 
@@ -90,4 +91,4 @@ private:
     QString m_appDataRoot;
 };
 
-}
+} // namespace Syntalos

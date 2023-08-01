@@ -10,21 +10,40 @@ import fnmatch
 import subprocess
 from glob import glob
 
-EXCLUDE_MATCH = ['*/contrib/*', '*/build/*', '*/venv/*', '*/modules/intan-rhx/*']
+EXCLUDE_MATCH = [
+    '*/contrib/*',
+    '*/build/*',
+    '*/venv/*',
+    '*/modules/intan-rhx/*',
+    '*/tests/rwqueue/*',
+]
 
 
 def format_cpp_sources(sources):
-    pass
+    """Format C/C++ sources with clang-format."""
+
+    command = ['clang-format', '-i']
+    command.extend(sources)
+    subprocess.run(command, check=True)
 
 
 def format_python_sources(sources):
-    """Format all Python code."""
-    command = ['black', '-S', '-l', '100', '-t', 'py311']
+    """Format Python sources with Black."""
+
+    command = [
+        'black',
+        '-S',  # no string normalization
+        '-l',
+        '100',  # line length
+        '-t',
+        'py311',  # minimum Python target
+    ]
     command.extend(sources)
     subprocess.run(command, check=True)
 
 
 def run(current_dir, args):
+    # check for tools
     if not shutil.which('clang-format'):
         print(
             'The `clang-format` formatter is not installed. Please install it to continue!',
@@ -38,9 +57,9 @@ def run(current_dir, args):
         )
         return 1
 
+    # collect sources
     cpp_sources = []
     py_sources = []
-
     for filename in glob(current_dir + '/**/*', recursive=True):
         skip = False
         for exclude in EXCLUDE_MATCH:
@@ -54,7 +73,9 @@ def run(current_dir, args):
         elif filename.endswith('.py'):
             py_sources.append(filename)
 
+    # format
     format_python_sources(py_sources)
+    format_cpp_sources(cpp_sources)
 
     return 0
 

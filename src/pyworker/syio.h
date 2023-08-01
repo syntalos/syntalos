@@ -21,8 +21,8 @@
 #pragma once
 
 #include <QObject>
-#include <mutex>
 #include <memory>
+#include <mutex>
 #include <pybind11/pybind11.h>
 
 #include "../syclock.h"
@@ -35,7 +35,8 @@ class Q_DECL_HIDDEN PyBridge : public QObject
 {
     Q_OBJECT
 public:
-    static PyBridge *instance(OOPWorker *worker = nullptr) {
+    static PyBridge *instance(OOPWorker *worker = nullptr)
+    {
         static std::mutex _mutex;
         std::lock_guard<std::mutex> lock(_mutex);
         static PyBridge *_instance = nullptr;

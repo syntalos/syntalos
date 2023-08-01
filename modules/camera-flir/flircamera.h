@@ -24,9 +24,9 @@
 #include <QSize>
 #include <Spinnaker.h>
 
+#include "streams/frametype.h"
 #include "syclock.h"
 #include "timesync.h"
-#include "streams/frametype.h"
 
 namespace spn = Spinnaker;
 namespace spn_ga = Spinnaker::GenApi;
@@ -72,7 +72,7 @@ public:
     double actualFramerate() const;
 
     static void printLibraryVersion();
-    static QList<QPair<QString, QString> > availableCameras();
+    static QList<QPair<QString, QString>> availableCameras();
 
 private:
     class Private;
@@ -80,5 +80,5 @@ private:
     QScopedPointer<Private> d;
 
     void terminateRun();
-    bool applyInitialCamParameters(spn_ga::INodeMap& nodeMap);
+    bool applyInitialCamParameters(spn_ga::INodeMap &nodeMap);
 };

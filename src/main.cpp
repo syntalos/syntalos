@@ -18,12 +18,12 @@
  */
 
 #include "config.h"
-#include <QApplication>
 #include <KDBusService>
+#include <QApplication>
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wzero-as-null-pointer-constant"
-#include <pipewire/pipewire.h>
 #include <gst/gst.h>
+#include <pipewire/pipewire.h>
 #pragma GCC diagnostic pop
 #include <libusb.h>
 
@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
     pw_init(&argc, &argv);
 
     // initialize GStreamer so modules can use it if they need to
-    gst_init(&argc,&argv);
+    gst_init(&argc, &argv);
 
     // set up GUI application and application details
     QApplication app(argc, argv);

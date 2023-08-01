@@ -20,12 +20,12 @@
 #include "sysinfodialog.h"
 #include "ui_sysinfodialog.h"
 
-#include <QIcon>
 #include <QClipboard>
+#include <QIcon>
 
-SysInfoDialog::SysInfoDialog(SysInfo *sysInfo, QWidget *parent) :
-    QDialog(parent),
-    ui(new Ui::SysInfoDialog)
+SysInfoDialog::SysInfoDialog(SysInfo *sysInfo, QWidget *parent)
+    : QDialog(parent),
+      ui(new Ui::SysInfoDialog)
 {
     ui->setupUi(this);
     ui->iconOS->setPixmap(QIcon::fromTheme("preferences-system-linux").pixmap(24, 24));
@@ -67,7 +67,7 @@ SysInfoDialog::SysInfoDialog(SysInfo *sysInfo, QWidget *parent) :
     ui->valClocksourceCurrent->setText(sysInfo->currentClocksource());
     setLabelTextStyle(sysInfo->checkClocksource(), ui->valClocksourceCurrent);
     ui->valClocksourceAvailable->setText(sysInfo->availableClocksources());
-    ui->valConstantTSC->setText(sysInfo->tscIsConstant()? QStringLiteral("yes") : QStringLiteral("no"));
+    ui->valConstantTSC->setText(sysInfo->tscIsConstant() ? QStringLiteral("yes") : QStringLiteral("no"));
     setLabelTextStyle(sysInfo->checkTSCConstant(), ui->valConstantTSC);
 
     ui->valAVX->setText(sysInfo->supportedAVXInstructions());
@@ -78,7 +78,9 @@ SysInfoDialog::SysInfoDialog(SysInfo *sysInfo, QWidget *parent) :
         ui->valSyHWSupport->setText("installed");
         setLabelTextStyle(SysInfoCheckResult::OK, ui->valSyHWSupport);
     } else {
-        ui->valSyHWSupport->setText("<html>missing, can be <a href=\"https://github.com/bothlab/syntalos/releases\">downloaded</a>.");
+        ui->valSyHWSupport->setText(
+            "<html>missing, can be <a href=\"https://github.com/bothlab/syntalos/releases\">downloaded</a>."
+        );
         setLabelTextStyle(SysInfoCheckResult::SUSPICIOUS, ui->valSyHWSupport);
     }
 
@@ -90,8 +92,9 @@ SysInfoDialog::SysInfoDialog(SysInfo *sysInfo, QWidget *parent) :
     ui->valFFmpeg->setText(sysInfo->ffmpegVersionString());
     ui->valPythonAPI->setText(sysInfo->pythonApiVersion());
     if (sysInfo->inFlatpakSandbox())
-        ui->valSandboxInfo->setText(QStringLiteral("Flatpak; Runtime: %1 %2")
-                                    .arg(sysInfo->runtimeName(), sysInfo->runtimeVersion()));
+        ui->valSandboxInfo->setText(
+            QStringLiteral("Flatpak; Runtime: %1 %2").arg(sysInfo->runtimeName(), sysInfo->runtimeVersion())
+        );
     else
         ui->valSandboxInfo->setText(QStringLiteral("None detected"));
 }
@@ -104,21 +107,15 @@ SysInfoDialog::~SysInfoDialog()
 void SysInfoDialog::on_btnClipboardCopy_clicked()
 {
     auto infoText = QStringLiteral("Syntalos %1 | %2 (Kernel: %3)\n")
-                        .arg(ui->valSyntalos->text(),
-                             ui->valOSName->text(),
-                             ui->valKernel->text());
+                        .arg(ui->valSyntalos->text(), ui->valOSName->text(), ui->valKernel->text());
     infoText += QStringLiteral("Software: Qt %1 | OpenCV %2 | FFMpeg %3 | Python %4\n")
-                        .arg(ui->valQt->text(),
-                             ui->valOpenCV->text(),
-                             ui->valFFmpeg->text(),
-                             ui->valPythonAPI->text());
+                    .arg(ui->valQt->text(), ui->valOpenCV->text(), ui->valFFmpeg->text(), ui->valPythonAPI->text());
     infoText += QStringLiteral("Sandbox: %1\n").arg(ui->valSandboxInfo->text());
     infoText += QStringLiteral("Architecture: %1 | CPU: %2 | OpenGL: %3\n")
-                        .arg(ui->valHWArch->text(),
-                             ui->valCPU0ModelName->text(),
-                             ui->valOpenGL->text());
-    infoText += SysInfo::get()->syntalosHWSupportInstalled()? QStringLiteral("Misc: Hardware support package installed.\n")
-                                                            : QStringLiteral("Misc: Missing hardware support package.\n");
+                    .arg(ui->valHWArch->text(), ui->valCPU0ModelName->text(), ui->valOpenGL->text());
+    infoText += SysInfo::get()->syntalosHWSupportInstalled()
+                    ? QStringLiteral("Misc: Hardware support package installed.\n")
+                    : QStringLiteral("Misc: Missing hardware support package.\n");
     QGuiApplication::clipboard()->setText(infoText);
 }
 

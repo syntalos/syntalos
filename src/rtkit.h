@@ -19,8 +19,8 @@
 
 #pragma once
 
-#include <QObject>
 #include <QLoggingCategory>
+#include <QObject>
 
 Q_DECLARE_LOGGING_CATEGORY(logRtKit)
 
@@ -44,7 +44,6 @@ public:
 private:
     QDBusInterface *m_rtkitIntf;
     QString m_lastError;
-
 
     long long getIntProperty(const QString &propName, bool *ok = nullptr);
 };

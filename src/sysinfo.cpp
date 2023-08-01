@@ -17,22 +17,22 @@
  * along with this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "config.h"
 #include "sysinfo.h"
+#include "config.h"
 
+#include <Eigen/Core>
 #include <QDebug>
-#include <QSysInfo>
 #include <QFile>
+#include <QOffscreenSurface>
+#include <QOpenGLContext>
+#include <QOpenGLFunctions>
+#include <QSet>
+#include <QSysInfo>
 #include <QTextStream>
 #include <QThread>
-#include <QSet>
-#include <QOpenGLContext>
-#include <QOffscreenSurface>
-#include <QOpenGLFunctions>
 #include <opencv2/core.hpp>
-#include <Eigen/Core>
-#include <sys/utsname.h>
 #include <stdlib.h>
+#include <sys/utsname.h>
 extern "C" {
 #include <libavutil/avutil.h>
 }
@@ -47,8 +47,8 @@ using namespace Syntalos;
 class SysInfo::Private
 {
 public:
-    Private() { }
-    ~Private() { }
+    Private() {}
+    ~Private() {}
 
     QString osId;
     QString osName;
@@ -97,8 +97,7 @@ static QString unquote(const char *begin, const char *end)
     return QString::fromUtf8(begin, end - begin);
 }
 
-typedef struct
-{
+typedef struct {
     QString id;
     QString name;
     QString version;
@@ -158,13 +157,16 @@ SysInfo::SysInfo()
     d->cpuCount = QThread::idealThreadCount();
     d->cpuPhysicalCoreCount = d->cpuCount;
 #ifndef Q_OS_LINUX
-    qCritical() << "We are not running on Linux - please make sure to adjust the SysInfo code when porting to other systems!";
+    qCritical(
+    ) << "We are not running on Linux - please make sure to adjust the SysInfo code when porting to other systems!";
     return;
 #endif
 
     d->tscIsConstant = false;
-    d->currentClocksource = readSysFsValue("/sys/devices/system/clocksource/clocksource0/current_clocksource").replace("\n", "");
-    d->availableClocksources = readSysFsValue("/sys/devices/system/clocksource/clocksource0/available_clocksource").replace("\n", "");
+    d->currentClocksource = readSysFsValue("/sys/devices/system/clocksource/clocksource0/current_clocksource")
+                                .replace("\n", "");
+    d->availableClocksources = readSysFsValue("/sys/devices/system/clocksource/clocksource0/available_clocksource")
+                                   .replace("\n", "");
     d->initName = readSysFsValue("/proc/1/comm").replace("\n", "");
     d->usbFsMemoryMb = readSysFsValue("/sys/module/usbcore/parameters/usbfs_memory_mb").replace("\n", "").toInt();
 
@@ -180,8 +182,8 @@ SysInfo::SysInfo()
     QOpenGLContext ctx;
     ctx.create();
     ctx.makeCurrent(&surf);
-    d->glVersion = QString::fromUtf8((const char*)ctx.functions()->glGetString(GL_VERSION));
-    d->glExtensions = QString::fromUtf8((const char*) ctx.functions()->glGetString(GL_EXTENSIONS));
+    d->glVersion = QString::fromUtf8((const char *)ctx.functions()->glGetString(GL_VERSION));
+    d->glExtensions = QString::fromUtf8((const char *)ctx.functions()->glGetString(GL_EXTENSIONS));
 
     // test if we are sandboxed in a Flatpak environment
     d->inFlatpakSandbox = isInFlatpakSandbox();
@@ -213,8 +215,7 @@ SysInfo::SysInfo()
     readCPUInfo();
 }
 
-SysInfo::~SysInfo()
-{}
+SysInfo::~SysInfo() {}
 
 QString SysInfo::machineHostName() const
 {
@@ -243,8 +244,7 @@ QString SysInfo::currentArchitecture() const
 
 QString SysInfo::kernelInfo() const
 {
-    return QStringLiteral("%1 %2").arg(QSysInfo::kernelType())
-            .arg(QSysInfo::kernelVersion());
+    return QStringLiteral("%1 %2").arg(QSysInfo::kernelType()).arg(QSysInfo::kernelVersion());
 }
 
 SysInfoCheckResult SysInfo::checkKernel()
@@ -386,7 +386,7 @@ bool SysInfo::tscIsConstant() const
 
 SysInfoCheckResult SysInfo::checkTSCConstant()
 {
-    return d->tscIsConstant? SysInfoCheckResult::OK : SysInfoCheckResult::ISSUE;
+    return d->tscIsConstant ? SysInfoCheckResult::OK : SysInfoCheckResult::ISSUE;
 }
 
 bool SysInfo::inFlatpakSandbox() const
@@ -418,7 +418,7 @@ SysInfoCheckResult SysInfo::checkAVXInstructions()
 {
     if (d->supportedAVXInstructions.isEmpty())
         return SysInfoCheckResult::ISSUE;
-    return d->supportedAVXInstructions.contains("avx2")? SysInfoCheckResult::OK : SysInfoCheckResult::SUSPICIOUS;
+    return d->supportedAVXInstructions.contains("avx2") ? SysInfoCheckResult::OK : SysInfoCheckResult::SUSPICIOUS;
 }
 
 QString SysInfo::cpu0ModelName() const
@@ -438,9 +438,9 @@ int SysInfo::cpuPhysicalCoreCount() const
 
 bool SysInfo::syntalosHWSupportInstalled() const
 {
-    return !findHostFile("/lib/udev/rules.d/90-syntalos-intan.rules").isEmpty() ||
-           !findHostFile("/usr/lib/udev/rules.d/90-syntalos-intan.rules").isEmpty() ||
-           !findHostFile("/etc/udev/rules.d/90-syntalos-intan.rules").isEmpty();
+    return !findHostFile("/lib/udev/rules.d/90-syntalos-intan.rules").isEmpty()
+           || !findHostFile("/usr/lib/udev/rules.d/90-syntalos-intan.rules").isEmpty()
+           || !findHostFile("/etc/udev/rules.d/90-syntalos-intan.rules").isEmpty();
 }
 
 QString SysInfo::syntalosVersion() const
@@ -460,9 +460,7 @@ QString SysInfo::openCVVersionString() const
 
 QString SysInfo::eigenVersionString() const
 {
-    return QStringLiteral("%1.%2.%3").arg(EIGEN_WORLD_VERSION)
-                                     .arg(EIGEN_MAJOR_VERSION)
-                                     .arg(EIGEN_MINOR_VERSION);
+    return QStringLiteral("%1.%2.%3").arg(EIGEN_WORLD_VERSION).arg(EIGEN_MAJOR_VERSION).arg(EIGEN_MINOR_VERSION);
 }
 
 QString SysInfo::ffmpegVersionString() const

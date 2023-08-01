@@ -29,7 +29,7 @@ Q_DECLARE_LOGGING_CATEGORY(logEncodeMgr)
 
 class QThreadPool;
 
-class TaskManager: public QDBusAbstractAdaptor
+class TaskManager : public QDBusAbstractAdaptor
 {
     Q_OBJECT
     Q_CLASSINFO("D-Bus Interface", EQUEUE_DBUS_MANAGERINTF)
@@ -46,9 +46,12 @@ public:
 
 public slots:
     void setParallelCount(int count);
-    bool enqueueVideo(const QString &projectId, const QString &videoFname,
-                      const QHash<QString, QVariant> &codecProps,
-                      const QHash<QString, QVariant> &mdata);
+    bool enqueueVideo(
+        const QString &projectId,
+        const QString &videoFname,
+        const QHash<QString, QVariant> &codecProps,
+        const QHash<QString, QVariant> &mdata
+    );
 
     bool processVideos();
 

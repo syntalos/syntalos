@@ -5,6 +5,7 @@
 // separate zlib license, embedded below).
 
 #pragma once
+// clang-format off
 
 // Provides portable (VC++2010+, Intel ICC 13, GCC 4.7+, and anything C++11 compliant) implementation
 // of low-level memory barriers, plus a few semi-portable utility macros (for inlining and alignment).

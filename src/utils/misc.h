@@ -46,14 +46,16 @@ QString simplifyStrForFileBasenameLower(const QString &s);
 /**
  * @brief Split a string, limiting the amount of splits made
  */
-QStringList qStringSplitLimit(const QString &str,
-                              const QChar &sep,
-                              int maxSplit,
-                              Qt::CaseSensitivity cs = Qt::CaseSensitive);
+QStringList qStringSplitLimit(
+    const QString &str,
+    const QChar &sep,
+    int maxSplit,
+    Qt::CaseSensitivity cs = Qt::CaseSensitive
+);
 
 /**
  * @brief Naturally sort the give string list (sorting "10" after "9")
-**/
+ **/
 QStringList stringListNaturalSort(QStringList &list);
 
 /**

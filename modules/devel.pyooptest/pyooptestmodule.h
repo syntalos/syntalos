@@ -19,8 +19,8 @@
 
 #pragma once
 
-#include <QObject>
 #include "moduleapi.h"
+#include <QObject>
 
 using namespace Syntalos;
 

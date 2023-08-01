@@ -24,7 +24,10 @@
 #include "queuemodel.h"
 
 QT_BEGIN_NAMESPACE
-namespace Ui { class EncodeWindow; }
+namespace Ui
+{
+class EncodeWindow;
+}
 QT_END_NAMESPACE
 
 class QSvgWidget;

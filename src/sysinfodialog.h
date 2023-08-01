@@ -19,13 +19,14 @@
 
 #pragma once
 
+#include "sysinfo.h"
 #include <QDialog>
 #include <QLabel>
-#include "sysinfo.h"
 
 using namespace Syntalos;
 
-namespace Ui {
+namespace Ui
+{
 class SysInfoDialog;
 }
 

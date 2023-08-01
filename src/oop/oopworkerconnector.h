@@ -20,8 +20,8 @@
 #pragma once
 
 #include <QObject>
-#include <QSharedPointer>
 #include <QProcess>
+#include <QSharedPointer>
 #include <memory>
 
 #include "moduleapi.h"
@@ -45,8 +45,10 @@ public:
 
     bool connectAndRun(const QVector<uint> &cpuAffinity);
 
-    void setPorts(QList<std::shared_ptr<VarStreamInputPort>> inPorts,
-                  QList<std::shared_ptr<StreamOutputPort>> outPorts);
+    void setPorts(
+        QList<std::shared_ptr<VarStreamInputPort>> inPorts,
+        QList<std::shared_ptr<StreamOutputPort>> outPorts
+    );
 
     void initWithPythonScript(const QString &script, const QString &wdir = QString());
     void setPythonVirtualEnv(const QString &venvDir);

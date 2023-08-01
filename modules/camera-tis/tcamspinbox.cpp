@@ -26,32 +26,31 @@
 namespace tcam::tools::capture
 {
 
-enum class SignalEmitPolicy
-{
+enum class SignalEmitPolicy {
     IfChanged,
     Always,
     Never
 };
 
-
 class TcamSpinBoxImpl
 {
 public:
-    TcamSpinBoxImpl(TcamSpinBox* parent) : p_parent(parent) {};
+    TcamSpinBoxImpl(TcamSpinBox *parent)
+        : p_parent(parent){};
 
-    virtual ~TcamSpinBoxImpl() {};
+    virtual ~TcamSpinBoxImpl(){};
 
-    virtual qlonglong valueFromText(const QString& text) const;
+    virtual qlonglong valueFromText(const QString &text) const;
     virtual QString textFromValue(qlonglong val) const;
     void setValue(qlonglong value, SignalEmitPolicy emit_policy, bool update = true);
-    QVariant validateAndInterpret(QString& input, int& pos, QValidator::State& state) const;
+    QVariant validateAndInterpret(QString &input, int &pos, QValidator::State &state) const;
     QVariant calculateAdaptiveDecimalStep(int steps) const;
     void updateEdit();
-    QString stripped(const QString& text, int* pos = 0) const;
+    QString stripped(const QString &text, int *pos = 0) const;
     void clearCache() const;
-    qlonglong bound(const qlonglong& val, const qlonglong& old = 0, int steps = 0) const;
+    qlonglong bound(const qlonglong &val, const qlonglong &old = 0, int steps = 0) const;
     bool specialValue() const;
-    void emitSignals(SignalEmitPolicy ep, const qlonglong& old);
+    void emitSignals(SignalEmitPolicy ep, const qlonglong &old);
     void setRange(qlonglong min, qlonglong max);
     QSize sizeHint() const;
     QAbstractSpinBox::StepEnabled stepEnabled() const;
@@ -77,67 +76,57 @@ public:
     StepType m_step_type = StepType::DefaultStepType;
     bool m_ignore_changed_cursor_position = false;
 
-    TcamSpinBox* p_parent = nullptr;
+    TcamSpinBox *p_parent = nullptr;
 };
 
 void TcamSpinBoxImpl::setValue(qlonglong value, SignalEmitPolicy emit_policy, bool update)
 {
     auto old = m_value;
     m_value = bound(value);
-    if (update)
-    {
+    if (update) {
         updateEdit();
     }
     p_parent->update();
 
-    if (emit_policy == SignalEmitPolicy::Always
-        || (emit_policy == SignalEmitPolicy::IfChanged && old != value))
-    {
+    if (emit_policy == SignalEmitPolicy::Always || (emit_policy == SignalEmitPolicy::IfChanged && old != value)) {
         emitSignals(emit_policy, old);
     }
 }
 
-void TcamSpinBoxImpl::emitSignals(SignalEmitPolicy emit_policy, const qlonglong& old)
+void TcamSpinBoxImpl::emitSignals(SignalEmitPolicy emit_policy, const qlonglong &old)
 {
-    if (emit_policy != SignalEmitPolicy::Never)
-    {
-        if (emit_policy == SignalEmitPolicy::Always || m_value != old)
-        {
+    if (emit_policy != SignalEmitPolicy::Never) {
+        if (emit_policy == SignalEmitPolicy::Always || m_value != old) {
             Q_EMIT p_parent->valueChanged(p_parent->lineEdit()->displayText());
             Q_EMIT p_parent->valueChanged(m_value);
         }
     }
 }
 
-QString TcamSpinBoxImpl::stripped(const QString& t, int* pos) const
+QString TcamSpinBoxImpl::stripped(const QString &t, int *pos) const
 {
     QStringRef text(&t);
-    if (m_special_value_text.size() == 0 || text != m_special_value_text)
-    {
+    if (m_special_value_text.size() == 0 || text != m_special_value_text) {
         int from = 0;
         int size = text.size();
         bool changed = false;
-        if (m_prefix.size() && text.startsWith(m_prefix))
-        {
+        if (m_prefix.size() && text.startsWith(m_prefix)) {
             from += m_prefix.size();
             size -= from;
             changed = true;
         }
-        if (m_suffix.size() && text.endsWith(m_suffix))
-        {
+        if (m_suffix.size() && text.endsWith(m_suffix)) {
             size -= m_suffix.size();
             changed = true;
         }
-        if (changed)
-        {
+        if (changed) {
             text = text.mid(from, size);
         }
     }
 
     const int s = text.size();
     text = text.trimmed();
-    if (pos)
-    {
+    if (pos) {
         (*pos) -= (s - text.size());
     }
     return text.toString();
@@ -151,40 +140,28 @@ void TcamSpinBoxImpl::clearCache() const
     m_cached_state = QValidator::Acceptable;
 }
 
-qlonglong TcamSpinBoxImpl::bound(const qlonglong& val, const qlonglong& old, int steps) const
+qlonglong TcamSpinBoxImpl::bound(const qlonglong &val, const qlonglong &old, int steps) const
 {
     qlonglong v = val;
-    if (!m_wrapping || (steps == 0) || (old == 0))
-    {
-        if (v < m_minimum)
-        {
+    if (!m_wrapping || (steps == 0) || (old == 0)) {
+        if (v < m_minimum) {
             v = m_wrapping ? m_maximum : m_minimum;
         }
-        if (v > m_maximum)
-        {
+        if (v > m_maximum) {
             v = m_wrapping ? m_minimum : m_maximum;
         }
-    }
-    else
-    {
+    } else {
         bool wasMin = old == m_minimum;
         bool wasMax = old == m_maximum;
         bool oldcmp = v > old;
         bool maxcmp = v > m_maximum;
         bool mincmp = v > m_minimum;
         bool wrapped = (oldcmp && steps < 0) || (!oldcmp && steps > 0);
-        if (maxcmp)
-        {
-            v = ((wasMax && !wrapped && steps > 0) || (steps < 0 && !wasMin && wrapped)) ?
-                    m_minimum :
-                    m_maximum;
-        }
-        else if (wrapped && (maxcmp || !mincmp))
-        {
+        if (maxcmp) {
+            v = ((wasMax && !wrapped && steps > 0) || (steps < 0 && !wasMin && wrapped)) ? m_minimum : m_maximum;
+        } else if (wrapped && (maxcmp || !mincmp)) {
             v = ((wasMax && steps > 0) || (!wasMin && steps < 0)) ? m_minimum : m_maximum;
-        }
-        else if (!mincmp)
-        {
+        } else if (!mincmp) {
             v = (!wasMax && !wasMin ? m_minimum : m_maximum);
         }
     }
@@ -197,7 +174,7 @@ bool TcamSpinBoxImpl::specialValue() const
     return (m_value == m_minimum && !m_special_value_text.isEmpty());
 }
 
-qlonglong TcamSpinBoxImpl::valueFromText(const QString& text) const
+qlonglong TcamSpinBoxImpl::valueFromText(const QString &text) const
 {
     QString copy = text;
     int pos = p_parent->lineEdit()->cursorPosition();
@@ -207,34 +184,28 @@ qlonglong TcamSpinBoxImpl::valueFromText(const QString& text) const
 
 QAbstractSpinBox::StepEnabled TcamSpinBoxImpl::stepEnabled() const
 {
-    if (p_parent->isReadOnly())
-    {
+    if (p_parent->isReadOnly()) {
         return QAbstractSpinBox::StepEnabledFlag::StepNone;
     }
 
-    if (m_wrapping)
-    {
-        return QAbstractSpinBox::StepEnabled(QAbstractSpinBox::StepEnabledFlag::StepUpEnabled
-                                             | QAbstractSpinBox::StepEnabledFlag::StepDownEnabled);
+    if (m_wrapping) {
+        return QAbstractSpinBox::StepEnabled(
+            QAbstractSpinBox::StepEnabledFlag::StepUpEnabled | QAbstractSpinBox::StepEnabledFlag::StepDownEnabled
+        );
     }
     QAbstractSpinBox::StepEnabled ret = QAbstractSpinBox::StepEnabledFlag::StepNone;
-    if (m_value < m_maximum)
-    {
+    if (m_value < m_maximum) {
         ret |= QAbstractSpinBox::StepEnabledFlag::StepUpEnabled;
     }
-    if (m_value > m_minimum)
-    {
+    if (m_value > m_minimum) {
         ret |= QAbstractSpinBox::StepEnabledFlag::StepDownEnabled;
     }
     return ret;
 }
 
-QVariant TcamSpinBoxImpl::validateAndInterpret(QString& input,
-                                               int& pos,
-                                               QValidator::State& state) const
+QVariant TcamSpinBoxImpl::validateAndInterpret(QString &input, int &pos, QValidator::State &state) const
 {
-    if (m_cached_text == input && !input.isEmpty())
-    {
+    if (m_cached_text == input && !input.isEmpty()) {
         state = m_cached_state;
         return m_cached_value;
     }
@@ -245,62 +216,41 @@ QVariant TcamSpinBoxImpl::validateAndInterpret(QString& input,
 
     if (m_maximum != m_minimum
         && (copy.isEmpty() || (m_minimum < 0 && copy == QLatin1String("-"))
-            || (m_maximum >= 0 && copy == QLatin1String("+"))))
-    {
+            || (m_maximum >= 0 && copy == QLatin1String("+")))) {
         state = QValidator::Intermediate;
-    }
-    else if (copy.startsWith(QLatin1Char('-')) && m_minimum >= 0)
-    {
+    } else if (copy.startsWith(QLatin1Char('-')) && m_minimum >= 0) {
         state = QValidator::Invalid;
-    }
-    else
-    {
+    } else {
         bool ok = false;
-        if (m_display_base != 10)
-        {
+        if (m_display_base != 10) {
             num = copy.toLongLong(&ok, m_display_base);
-        }
-        else
-        {
+        } else {
             num = p_parent->locale().toLongLong(copy, &ok);
-            if (!ok && (m_maximum >= 1000 || m_minimum <= -1000))
-            {
+            if (!ok && (m_maximum >= 1000 || m_minimum <= -1000)) {
                 const QChar sep = p_parent->locale().groupSeparator();
-                const QChar doubleSep[2] = { sep, sep };
-                if (copy.contains(sep) && !copy.contains(QString(doubleSep, 2)))
-                {
+                const QChar doubleSep[2] = {sep, sep};
+                if (copy.contains(sep) && !copy.contains(QString(doubleSep, 2))) {
                     QString copy2 = copy;
                     copy2.remove(p_parent->locale().groupSeparator());
                     num = p_parent->locale().toLongLong(copy2, &ok);
                 }
             }
         }
-        if (!ok)
-        {
+        if (!ok) {
             state = QValidator::Invalid;
-        }
-        else if (num >= m_minimum && num <= m_maximum)
-        {
+        } else if (num >= m_minimum && num <= m_maximum) {
             state = QValidator::Acceptable;
-        }
-        else if (m_maximum == m_minimum)
-        {
+        } else if (m_maximum == m_minimum) {
             state = QValidator::Invalid;
-        }
-        else
-        {
-            if ((num >= 0 && num > m_maximum) || (num < 0 && num < m_minimum))
-            {
+        } else {
+            if ((num >= 0 && num > m_maximum) || (num < 0 && num < m_minimum)) {
                 state = QValidator::Invalid;
-            }
-            else
-            {
+            } else {
                 state = QValidator::Intermediate;
             }
         }
     }
-    if (state != QValidator::Acceptable)
-    {
+    if (state != QValidator::Acceptable) {
         num = m_maximum > 0 ? m_minimum : m_maximum;
     }
     input = m_prefix + copy + m_suffix;
@@ -316,8 +266,7 @@ QVariant TcamSpinBoxImpl::calculateAdaptiveDecimalStep(int steps) const
     qlonglong value = m_value;
     qlonglong abs_value = std::abs(value);
 
-    if (abs_value < 100)
-    {
+    if (abs_value < 100) {
         return 1;
     }
 
@@ -332,17 +281,13 @@ QVariant TcamSpinBoxImpl::calculateAdaptiveDecimalStep(int steps) const
 void TcamSpinBoxImpl::updateEdit()
 {
     QString newText;
-    if (specialValue())
-    {
+    if (specialValue()) {
         newText = m_special_value_text;
-    }
-    else
-    {
+    } else {
         newText = m_prefix + textFromValue(m_value) + m_suffix;
     }
 
-    if (newText == p_parent->lineEdit()->displayText())
-    {
+    if (newText == p_parent->lineEdit()->displayText()) {
         return;
     }
 
@@ -352,17 +297,12 @@ void TcamSpinBoxImpl::updateEdit()
     const QSignalBlocker blocker(p_parent->lineEdit());
     p_parent->lineEdit()->setText(newText);
 
-    if (!specialValue())
-    {
-        cursor = qBound(
-            m_prefix.size(), cursor, p_parent->lineEdit()->displayText().size() - m_suffix.size());
+    if (!specialValue()) {
+        cursor = qBound(m_prefix.size(), cursor, p_parent->lineEdit()->displayText().size() - m_suffix.size());
 
-        if (selsize > 0)
-        {
+        if (selsize > 0) {
             p_parent->lineEdit()->setSelection(cursor, selsize);
-        }
-        else
-        {
+        } else {
             p_parent->lineEdit()->setCursorPosition(empty ? m_prefix.size() : cursor);
         }
     }
@@ -378,12 +318,9 @@ void TcamSpinBoxImpl::setRange(qlonglong min, qlonglong max)
     m_cached_min_size_hint = QSize();
     m_cached_maximum_string = QString();
 
-    if (!(bound(m_value) == m_value))
-    {
+    if (!(bound(m_value) == m_value)) {
         setValue(bound(m_value), SignalEmitPolicy::IfChanged);
-    }
-    else if (m_value == m_minimum && !m_special_value_text.isEmpty())
-    {
+    } else if (m_value == m_minimum && !m_special_value_text.isEmpty()) {
         updateEdit();
     }
 
@@ -392,8 +329,7 @@ void TcamSpinBoxImpl::setRange(qlonglong min, qlonglong max)
 
 QString TcamSpinBoxImpl::longestAllowedString() const
 {
-    if (m_cached_maximum_string.isEmpty())
-    {
+    if (m_cached_maximum_string.isEmpty()) {
         QString minStr = textFromValue(m_minimum);
         QString maxStr = textFromValue(m_maximum);
         const QFontMetrics fm(p_parent->fontMetrics());
@@ -409,12 +345,9 @@ QString TcamSpinBoxImpl::longestAllowedString() const
         advance_max = fm.width(maxStr);
 #endif
 
-        if (advance_min > advance_max)
-        {
+        if (advance_min > advance_max) {
             m_cached_maximum_string = minStr;
-        }
-        else
-        {
+        } else {
             m_cached_maximum_string = maxStr;
         }
     }
@@ -423,8 +356,7 @@ QString TcamSpinBoxImpl::longestAllowedString() const
 
 QSize TcamSpinBoxImpl::sizeHint() const
 {
-    if (m_cached_size_hint.isEmpty())
-    {
+    if (m_cached_size_hint.isEmpty()) {
         p_parent->ensurePolished();
 
         const QFontMetrics fm(p_parent->fontMetrics());
@@ -445,8 +377,7 @@ QSize TcamSpinBoxImpl::sizeHint() const
 
         w = std::max(w, advance);
 
-        if (m_special_value_text.size())
-        {
+        if (m_special_value_text.size()) {
             s = m_special_value_text;
             w = std::max(w, advance);
         }
@@ -466,16 +397,12 @@ QString TcamSpinBoxImpl::textFromValue(qlonglong value) const
 {
     QString str;
 
-    if (m_display_base != 10)
-    {
+    if (m_display_base != 10) {
         const QLatin1String prefix = value < 0 ? QLatin1String("-") : QLatin1String();
         str = prefix + QString::number(std::abs(value), m_display_base);
-    }
-    else
-    {
+    } else {
         str = p_parent->locale().toString(value);
-        if (!p_parent->isGroupSeparatorShown() && (std::abs(value) >= 1000 || value == INT_MIN))
-        {
+        if (!p_parent->isGroupSeparatorShown() && (std::abs(value) >= 1000 || value == INT_MIN)) {
             str.remove(p_parent->locale().groupSeparator());
         }
     }
@@ -483,9 +410,9 @@ QString TcamSpinBoxImpl::textFromValue(qlonglong value) const
     return str;
 }
 
-
-TcamSpinBox::TcamSpinBox(QWidget* parent)
-    : QAbstractSpinBox(parent), m_impl(new TcamSpinBoxImpl(this))
+TcamSpinBox::TcamSpinBox(QWidget *parent)
+    : QAbstractSpinBox(parent),
+      m_impl(new TcamSpinBoxImpl(this))
 {
     qRegisterMetaType<qlonglong>("qlonglong");
     connectLineEdit();
@@ -500,52 +427,35 @@ qlonglong TcamSpinBox::value() const
 
 void TcamSpinBox::slotEditorCursorPositionChanged(int oldpos, int newpos)
 {
-    if (!lineEdit()->hasSelectedText() && !m_impl->m_ignore_changed_cursor_position
-        && !m_impl->specialValue())
-    {
+    if (!lineEdit()->hasSelectedText() && !m_impl->m_ignore_changed_cursor_position && !m_impl->specialValue()) {
         m_impl->m_ignore_changed_cursor_position = true;
 
         bool allowSelection = true;
         int pos = -1;
-        if (newpos < m_impl->m_prefix.size() && newpos != 0)
-        {
-            if (oldpos == 0)
-            {
+        if (newpos < m_impl->m_prefix.size() && newpos != 0) {
+            if (oldpos == 0) {
                 allowSelection = false;
                 pos = m_impl->m_prefix.size();
-            }
-            else
-            {
+            } else {
                 pos = oldpos;
             }
-        }
-        else if (newpos > lineEdit()->text().size() - m_impl->m_suffix.size()
-                 && newpos != lineEdit()->text().size())
-        {
-            if (oldpos == lineEdit()->text().size())
-            {
+        } else if (newpos > lineEdit()->text().size() - m_impl->m_suffix.size() && newpos != lineEdit()->text().size()) {
+            if (oldpos == lineEdit()->text().size()) {
                 pos = lineEdit()->text().size() - m_impl->m_suffix.size();
                 allowSelection = false;
-            }
-            else
-            {
+            } else {
                 pos = lineEdit()->text().size();
             }
         }
-        if (pos != -1)
-        {
-            const int selSize =
-                lineEdit()->selectionStart() >= 0 && allowSelection ?
-                    (lineEdit()->selectedText().size() * (newpos < pos ? -1 : 1)) - newpos + pos :
-                    0;
+        if (pos != -1) {
+            const int selSize = lineEdit()->selectionStart() >= 0 && allowSelection
+                                    ? (lineEdit()->selectedText().size() * (newpos < pos ? -1 : 1)) - newpos + pos
+                                    : 0;
 
             const QSignalBlocker blocker(lineEdit());
-            if (selSize != 0)
-            {
+            if (selSize != 0) {
                 lineEdit()->setSelection(pos - selSize, selSize);
-            }
-            else
-            {
+            } else {
                 lineEdit()->setCursorPosition(pos);
             }
         }
@@ -553,13 +463,12 @@ void TcamSpinBox::slotEditorCursorPositionChanged(int oldpos, int newpos)
     }
 }
 
-void TcamSpinBox::slotEditorTextChanged(const QString& t)
+void TcamSpinBox::slotEditorTextChanged(const QString &t)
 {
     QString tmp = t;
     int pos = lineEdit()->cursorPosition();
     QValidator::State state = validate(tmp, pos);
-    if (state == QValidator::Acceptable)
-    {
+    if (state == QValidator::Acceptable) {
         auto v = m_impl->valueFromText(tmp);
         m_impl->setValue(v, SignalEmitPolicy::IfChanged, tmp != t);
     }
@@ -575,7 +484,7 @@ QString TcamSpinBox::prefix() const
     return m_impl->m_prefix;
 }
 
-void TcamSpinBox::setPrefix(const QString& prefix)
+void TcamSpinBox::setPrefix(const QString &prefix)
 {
     m_impl->m_prefix = prefix;
     m_impl->updateEdit();
@@ -590,7 +499,7 @@ QString TcamSpinBox::suffix() const
     return m_impl->m_suffix;
 }
 
-void TcamSpinBox::setSuffix(const QString& suffix)
+void TcamSpinBox::setSuffix(const QString &suffix)
 {
     m_impl->m_suffix = suffix;
     m_impl->updateEdit();
@@ -612,8 +521,7 @@ qlonglong TcamSpinBox::singleStep() const
 
 void TcamSpinBox::setSingleStep(qlonglong value)
 {
-    if (value >= 0)
-    {
+    if (value >= 0) {
         m_impl->m_signel_step = value;
         m_impl->updateEdit();
     }
@@ -624,38 +532,29 @@ void TcamSpinBox::stepBy(int steps)
     auto old = m_impl->m_value;
     SignalEmitPolicy e = SignalEmitPolicy::IfChanged;
     qlonglong singleStep = m_impl->m_signel_step;
-    switch (stepType())
-    {
-        case StepType::AdaptiveDecimalStepType:
-        {
-            singleStep = m_impl->calculateAdaptiveDecimalStep(steps).toLongLong();
-            break;
-        }
-        default:
-        {
-            break;
-        }
+    switch (stepType()) {
+    case StepType::AdaptiveDecimalStepType: {
+        singleStep = m_impl->calculateAdaptiveDecimalStep(steps).toLongLong();
+        break;
+    }
+    default: {
+        break;
+    }
     }
 
     double tmp = (double)m_impl->m_value + (double)(singleStep * steps);
     qlonglong tmpValue = 0;
-    if (tmp > maxAllowed())
-    {
+    if (tmp > maxAllowed()) {
         tmpValue = maxAllowed();
-    }
-    else if (tmp < minAllowed())
-    {
+    } else if (tmp < minAllowed()) {
         tmpValue = minAllowed();
-    }
-    else
-    {
+    } else {
         tmpValue = m_impl->m_value + (singleStep * steps);
     }
 
     m_impl->setValue(m_impl->bound(static_cast<qlonglong>(tmpValue), old, steps), e);
     selectAll();
 }
-
 
 bool TcamSpinBox::wrapping() const
 {
@@ -709,14 +608,12 @@ int TcamSpinBox::displayIntegerBase() const
 
 void TcamSpinBox::setDisplayIntegerBase(int base)
 {
-    if (Q_UNLIKELY(base < 2 || base > 36))
-    {
+    if (Q_UNLIKELY(base < 2 || base > 36)) {
         qWarning("TcamSpinBox::setDisplayIntegerBase: base must be between 2 and 36");
         base = 10;
     }
 
-    if (base != m_impl->m_display_base)
-    {
+    if (base != m_impl->m_display_base) {
         m_impl->m_display_base = base;
         m_impl->updateEdit();
     }
@@ -727,43 +624,33 @@ QSize TcamSpinBox::sizeHint() const
     return m_impl->sizeHint();
 }
 
-QValidator::State TcamSpinBox::validate(QString& text, int& pos) const
+QValidator::State TcamSpinBox::validate(QString &text, int &pos) const
 {
     QValidator::State state;
     m_impl->validateAndInterpret(text, pos, state);
     return state;
 }
 
-
 QAbstractSpinBox::StepEnabled TcamSpinBox::stepEnabled() const
 {
     return m_impl->stepEnabled();
 }
 
-
-void TcamSpinBox::fixup(QString& input) const
+void TcamSpinBox::fixup(QString &input) const
 {
-    if (!isGroupSeparatorShown())
-    {
+    if (!isGroupSeparatorShown()) {
         input.remove(locale().groupSeparator());
     }
 }
 
-
 void TcamSpinBox::connectLineEdit()
 {
-    if (!lineEdit())
-    {
+    if (!lineEdit()) {
         return;
     }
     (void)connect(lineEdit(), &QLineEdit::textChanged, this, &TcamSpinBox::slotEditorTextChanged);
-    (void)connect(lineEdit(),
-                  &QLineEdit::cursorPositionChanged,
-                  this,
-                  &TcamSpinBox::slotEditorCursorPositionChanged);
-    (void)connect(
-        lineEdit(), &QLineEdit::cursorPositionChanged, this, &TcamSpinBox::updateMicroFocus);
+    (void)connect(lineEdit(), &QLineEdit::cursorPositionChanged, this, &TcamSpinBox::slotEditorCursorPositionChanged);
+    (void)connect(lineEdit(), &QLineEdit::cursorPositionChanged, this, &TcamSpinBox::updateMicroFocus);
 }
-
 
 } // namespace tcam::tools::capture

@@ -19,9 +19,7 @@
 
 #pragma once
 
-#include <QObject>
 #include "moduleapi.h"
+#include <QObject>
 
-ModuleInfo *loadPythonModuleInfo(const QString &modId,
-                                 const QString &modDir,
-                                 const QVariantHash &modData);
+ModuleInfo *loadPythonModuleInfo(const QString &modId, const QString &modDir, const QVariantHash &modData);

@@ -19,8 +19,8 @@
 
 #pragma once
 
-#include <QWidget>
 #include "miniscope.h"
+#include <QWidget>
 
 class QSlider;
 

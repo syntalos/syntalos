@@ -30,35 +30,38 @@ class PyOOPTestModule : public OOPModule
     Q_OBJECT
 private:
     std::shared_ptr<DataStream<Frame>> m_vOut;
+
 public:
     explicit PyOOPTestModule(QObject *parent = nullptr)
         : OOPModule(parent)
     {
-        setPythonScript("import syio as sy\n"
-                        "import cv2 as cv\n"
-                        "\n"
-                        "iport = sy.get_input_port('nonexistent')\n"
-                        "print('IPort (nonexistent): ' + str(iport))\n"
-                        "iport = sy.get_input_port('video-in')\n"
-                        "oport = sy.get_output_port('video-out')\n"
-                        "print('IPort: ' + str(iport))\n"
-                        "print('OPort: ' + str(oport))\n"
-                        "oport.set_metadata_value('framerate', 200)\n"
-                        "oport.set_metadata_value_size('size', [800, 600])\n"
-                        "def loop() -> bool:\n"
-                        "    r = sy.await_new_input()\n"
-                        "    if r == sy.InputWaitResult.CANCELLED:\n"
-                        "        print('Quitting PyOOPTestModule Loop!', r)\n"
-                        "        return False\n"
-                        "    while True:\n"
-                        "        frame = iport.next()\n"
-                        "        if frame is None:\n"
-                        "            break\n"
-                        "        blur = cv.blur(frame.mat, (5,5))\n"
-                        "        frame.mat = blur\n"
-                        "        oport.submit(frame)\n"
-                        "    return True\n"
-                        "");
+        setPythonScript(
+            "import syio as sy\n"
+            "import cv2 as cv\n"
+            "\n"
+            "iport = sy.get_input_port('nonexistent')\n"
+            "print('IPort (nonexistent): ' + str(iport))\n"
+            "iport = sy.get_input_port('video-in')\n"
+            "oport = sy.get_output_port('video-out')\n"
+            "print('IPort: ' + str(iport))\n"
+            "print('OPort: ' + str(oport))\n"
+            "oport.set_metadata_value('framerate', 200)\n"
+            "oport.set_metadata_value_size('size', [800, 600])\n"
+            "def loop() -> bool:\n"
+            "    r = sy.await_new_input()\n"
+            "    if r == sy.InputWaitResult.CANCELLED:\n"
+            "        print('Quitting PyOOPTestModule Loop!', r)\n"
+            "        return False\n"
+            "    while True:\n"
+            "        frame = iport.next()\n"
+            "        if frame is None:\n"
+            "            break\n"
+            "        blur = cv.blur(frame.mat, (5,5))\n"
+            "        frame.mat = blur\n"
+            "        oport.submit(frame)\n"
+            "    return True\n"
+            ""
+        );
 
         registerInputPort<FirmataData>("firmata-in", "Pin Data");
         registerOutputPort<FirmataControl>("firmata-out", "Pin Control");
@@ -68,10 +71,7 @@ public:
         m_vOut = registerOutputPort<Frame>("video-out", "Processed Frames");
     }
 
-    ~PyOOPTestModule() override
-    {
-
-    }
+    ~PyOOPTestModule() override {}
 
     ModuleFeatures features() const override
     {
@@ -81,16 +81,13 @@ public:
     bool prepare(const TestSubject &) override
     {
         m_vOut->setMetadataValue("size", QSize(800, 600));
-        m_vOut->setMetadataValue("framerate", (double) 200);
+        m_vOut->setMetadataValue("framerate", (double)200);
         m_vOut->start();
 
         return true;
     }
 
-    void stop() override
-    {
-
-    }
+    void stop() override {}
 };
 
 QString PyOOPTestModuleInfo::id() const

@@ -25,10 +25,10 @@
 #include "moduleapi.h"
 #include "streams/datatypes.h"
 
-PortEditorDialog::PortEditorDialog(AbstractModule *mod, QWidget *parent) :
-    QDialog(parent),
-    ui(new Ui::PortEditorDialog),
-    m_mod(mod)
+PortEditorDialog::PortEditorDialog(AbstractModule *mod, QWidget *parent)
+    : QDialog(parent),
+      ui(new Ui::PortEditorDialog),
+      m_mod(mod)
 {
     ui->setupUi(this);
     setWindowTitle("Port Editor");
@@ -45,31 +45,37 @@ void PortEditorDialog::on_tbAddInputPort_clicked()
     auto streamTypeMap = streamTypeIdMap();
 
     bool ok;
-    auto item = QInputDialog::getItem(this,
-                                      QStringLiteral("Input Port Data Type"),
-                                      QStringLiteral("Data type accepted by the input port:"),
-                                      streamTypeMap.keys(),
-                                      0,
-                                      false,
-                                      &ok);
+    auto item = QInputDialog::getItem(
+        this,
+        QStringLiteral("Input Port Data Type"),
+        QStringLiteral("Data type accepted by the input port:"),
+        streamTypeMap.keys(),
+        0,
+        false,
+        &ok
+    );
     if (!ok || item.isEmpty())
         return;
 
-    auto idStr = QInputDialog::getText(this,
-                                       QStringLiteral("Set Port ID"),
-                                       QStringLiteral("An internal, unique ID to identify the port:"),
-                                       QLineEdit::Normal,
-                                       item.toLower() + QStringLiteral("-in"),
-                                       &ok);
+    auto idStr = QInputDialog::getText(
+        this,
+        QStringLiteral("Set Port ID"),
+        QStringLiteral("An internal, unique ID to identify the port:"),
+        QLineEdit::Normal,
+        item.toLower() + QStringLiteral("-in"),
+        &ok
+    );
     if (!ok || idStr.isEmpty())
         return;
 
-    auto title = QInputDialog::getText(this,
-                                        QStringLiteral("Set Port Title"),
-                                        QStringLiteral("A human-readable short port title:"),
-                                        QLineEdit::Normal,
-                                        item + QStringLiteral(" In"),
-                                        &ok);
+    auto title = QInputDialog::getText(
+        this,
+        QStringLiteral("Set Port Title"),
+        QStringLiteral("A human-readable short port title:"),
+        QLineEdit::Normal,
+        item + QStringLiteral(" In"),
+        &ok
+    );
     if (!ok || title.isEmpty())
         return;
 
@@ -82,31 +88,37 @@ void PortEditorDialog::on_tbAddOutputPort_clicked()
     auto streamTypeMap = streamTypeIdMap();
 
     bool ok;
-    auto item = QInputDialog::getItem(this,
-                                      QStringLiteral("Output Port Data Type"),
-                                      QStringLiteral("Type of emitted data:"),
-                                      streamTypeMap.keys(),
-                                      0,
-                                      false,
-                                      &ok);
+    auto item = QInputDialog::getItem(
+        this,
+        QStringLiteral("Output Port Data Type"),
+        QStringLiteral("Type of emitted data:"),
+        streamTypeMap.keys(),
+        0,
+        false,
+        &ok
+    );
     if (!ok || item.isEmpty())
         return;
 
-    auto idStr = QInputDialog::getText(this,
-                                       QStringLiteral("Set Port ID"),
-                                       QStringLiteral("An internal, unique ID to identify the port:"),
-                                       QLineEdit::Normal,
-                                       item.toLower() + QStringLiteral("-out"),
-                                       &ok);
+    auto idStr = QInputDialog::getText(
+        this,
+        QStringLiteral("Set Port ID"),
+        QStringLiteral("An internal, unique ID to identify the port:"),
+        QLineEdit::Normal,
+        item.toLower() + QStringLiteral("-out"),
+        &ok
+    );
     if (!ok || idStr.isEmpty())
         return;
 
-    auto title = QInputDialog::getText(this,
-                                        QStringLiteral("Set Port Title"),
-                                        QStringLiteral("A human-readable short port title:"),
-                                        QLineEdit::Normal,
-                                        item + QStringLiteral(" Out"),
-                                        &ok);
+    auto title = QInputDialog::getText(
+        this,
+        QStringLiteral("Set Port Title"),
+        QStringLiteral("A human-readable short port title:"),
+        QLineEdit::Normal,
+        item + QStringLiteral(" Out"),
+        &ok
+    );
     if (!ok || title.isEmpty())
         return;
 
@@ -120,18 +132,18 @@ void PortEditorDialog::updatePortLists()
     ui->lwOutputPorts->clear();
 
     for (const auto &port : m_mod->inPorts()) {
-        auto item = new QListWidgetItem(QStringLiteral("%1 (%2) [>>%3]").arg(port->title())
-                                                                        .arg(port->id())
-                                                                        .arg(port->dataTypeName()),
-                                        ui->lwInputPorts);
+        auto item = new QListWidgetItem(
+            QStringLiteral("%1 (%2) [>>%3]").arg(port->title()).arg(port->id()).arg(port->dataTypeName()),
+            ui->lwInputPorts
+        );
         item->setData(Qt::UserRole, port->id());
     }
 
     for (const auto &port : m_mod->outPorts()) {
-        auto item = new QListWidgetItem(QStringLiteral("%1 (%2) [<<%3]").arg(port->title())
-                                                                        .arg(port->id())
-                                                                        .arg(port->dataTypeName()),
-                                        ui->lwOutputPorts);
+        auto item = new QListWidgetItem(
+            QStringLiteral("%1 (%2) [<<%3]").arg(port->title()).arg(port->id()).arg(port->dataTypeName()),
+            ui->lwOutputPorts
+        );
         item->setData(Qt::UserRole, port->id());
     }
 }

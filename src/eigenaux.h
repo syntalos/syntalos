@@ -22,14 +22,15 @@
 #include <Eigen/Dense>
 #include <algorithm>
 
-namespace Syntalos {
+namespace Syntalos
+{
 
-typedef Eigen::Matrix<int,  Eigen::Dynamic, 1> VectorXi;
+typedef Eigen::Matrix<int, Eigen::Dynamic, 1> VectorXi;
 typedef Eigen::Matrix<uint, Eigen::Dynamic, 1> VectorXu;
 typedef Eigen::Matrix<long, Eigen::Dynamic, 1> VectorXl;
-typedef Eigen::Matrix<double,  Eigen::Dynamic, 1> VectorXd;
+typedef Eigen::Matrix<double, Eigen::Dynamic, 1> VectorXd;
 
-typedef Eigen::Matrix<int,    Eigen::Dynamic, Eigen::Dynamic> MatrixXi;
+typedef Eigen::Matrix<int, Eigen::Dynamic, Eigen::Dynamic> MatrixXi;
 typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> MatrixXd;
 
 template<typename T>
@@ -40,11 +41,10 @@ double vectorMedian(const Eigen::Matrix<T, Eigen::Dynamic, 1> &vec)
         return nan(""); // what is the median of an empty vector?
 
     std::vector<T> vecSorted(vec.size());
-    std::partial_sort_copy(vec.data(), vec.data() + vec.size(),
-                           std::begin(vecSorted), std::end(vecSorted));
+    std::partial_sort_copy(vec.data(), vec.data() + vec.size(), std::begin(vecSorted), std::end(vecSorted));
 
     if (size % 2 == 0)
-        return ((long long) vecSorted[size / 2 - 1] + (long long) vecSorted[size / 2]) / 2.0;
+        return ((long long)vecSorted[size / 2 - 1] + (long long)vecSorted[size / 2]) / 2.0;
     else
         return vecSorted[size / 2];
 }
@@ -61,7 +61,7 @@ double vectorMedianInplace(Eigen::Matrix<T, Eigen::Dynamic, 1> &vec)
     // would break for vectors with a stride != 1
     std::sort(vec.data(), vec.data() + vec.size());
     if (size % 2 == 0)
-        return ((long long) vec[size / 2 - 1] + (long long) vec[size / 2]) / 2.0;
+        return ((long long)vec[size / 2 - 1] + (long long)vec[size / 2]) / 2.0;
     else
         return vec[size / 2];
 }
@@ -78,4 +78,4 @@ double vectorVariance(const Eigen::Matrix<T, Eigen::Dynamic, 1> &vec)
     return vectorVariance(vec, vec.mean());
 }
 
-} // end of namespace
+} // namespace Syntalos

@@ -21,11 +21,10 @@
 #include "ui_tracedisplay.h"
 
 #include <QDebug>
-#include <QTimer>
 #include <QLineSeries>
+#include <QTimer>
 
 #include "traceplot.h"
-
 
 class PlotChannelData final : public QObject
 {
@@ -154,10 +153,10 @@ TraceDisplay::~TraceDisplay()
     delete ui;
 }
 
-void TraceDisplay::addIntPort(std::shared_ptr<StreamInputPort<IntSignalBlock> > port)
+void TraceDisplay::addIntPort(std::shared_ptr<StreamInputPort<IntSignalBlock>> port)
 {
     auto item = new QListWidgetItem(ui->portListWidget);
-    m_portsChannels.append(qMakePair(port, QList<PlotChannelData*>()));
+    m_portsChannels.append(qMakePair(port, QList<PlotChannelData *>()));
     item->setData(Qt::UserRole, m_portsChannels.size() - 1);
     item->setText(port->title());
 }
@@ -165,7 +164,7 @@ void TraceDisplay::addIntPort(std::shared_ptr<StreamInputPort<IntSignalBlock> > 
 void TraceDisplay::addFloatPort(std::shared_ptr<StreamInputPort<FloatSignalBlock>> port)
 {
     auto item = new QListWidgetItem(ui->portListWidget);
-    m_portsChannels.append(qMakePair(port, QList<PlotChannelData*>()));
+    m_portsChannels.append(qMakePair(port, QList<PlotChannelData *>()));
     item->setData(Qt::UserRole, m_portsChannels.size() - 1);
     item->setText(port->title());
 }
@@ -182,12 +181,13 @@ void TraceDisplay::updatePortChannels()
 
         // sanity check
         if (firstChanNo > lastChanNo) {
-            qWarning().noquote().nospace() << "Ignored traceplot port " << port->id() << ": Channel count limits are invalid.";
+            qWarning().noquote().nospace()
+                << "Ignored traceplot port " << port->id() << ": Channel count limits are invalid.";
             return;
         }
 
         int dataIdx = 0;
-        QList<PlotChannelData*> channels;
+        QList<PlotChannelData *> channels;
         for (int chan = firstChanNo; chan <= lastChanNo; chan++) {
             auto pcd = new PlotChannelData(this);
             pcd->chanId = chan;
@@ -199,7 +199,7 @@ void TraceDisplay::updatePortChannels()
 
         // delete the old elements
         for (int i = 0; i < pcPair.second.size(); i++)
-          delete pcPair.second.takeAt(0);
+            delete pcPair.second.takeAt(0);
         pcPair.second = channels;
     }
 
@@ -208,7 +208,9 @@ void TraceDisplay::updatePortChannels()
 }
 
 template<typename T>
-static inline bool updateDataForActiveChannels(QList<QPair<std::shared_ptr<StreamSubscription<T>>, QList<PlotChannelData*>>> &activeSubChans)
+static inline bool updateDataForActiveChannels(
+    QList<QPair<std::shared_ptr<StreamSubscription<T>>, QList<PlotChannelData *>>> &activeSubChans
+)
 {
     bool updated = false;
 

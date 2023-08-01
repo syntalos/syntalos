@@ -20,8 +20,8 @@
 #ifndef ELIDEDLABEL_H
 #define ELIDEDLABEL_H
 
-#include <QWidget>
 #include <QLabel>
+#include <QWidget>
 
 class ElidedLabel : public QLabel
 {
@@ -36,11 +36,23 @@ public:
     explicit ElidedLabel(const QString &text, QWidget *parent = nullptr);
 
     void setText(const QString &text);
-    void setText(const char *text) { setText(QString::fromUtf8(text)); }
-    const QString & text() const { return m_rawText; }
+    void setText(const char *text)
+    {
+        setText(QString::fromUtf8(text));
+    }
+    const QString &text() const
+    {
+        return m_rawText;
+    }
 
-    Qt::TextElideMode elideMode() { return m_elideMode; }
-    void setElideMode(Qt::TextElideMode mode) { m_elideMode = mode; }
+    Qt::TextElideMode elideMode()
+    {
+        return m_elideMode;
+    }
+    void setElideMode(Qt::TextElideMode mode)
+    {
+        m_elideMode = mode;
+    }
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
