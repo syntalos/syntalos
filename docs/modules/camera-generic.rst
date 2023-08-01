@@ -42,4 +42,4 @@ Stream Metadata
 
    * - Video🠺
      - | ``size``: 2D Size, Dimension of generated frames
-       | ``framerate``: Integer, Target framerate per second.
+       | ``framerate``: Double, Target framerate per second.

@@ -7,7 +7,6 @@ modules_enabled = get_option('modules')
 # Developer modules
 subdir('devel.clock')
 subdir('devel.datasource')
-subdir('devel.datasst')
 subdir('devel.pyooptest')
 
 # Display / Aux modules
@@ -53,3 +52,4 @@ subdir('deeplabcut-live')
 
 # Examples
 subdir('example-py')
+subdir('example-cpp')

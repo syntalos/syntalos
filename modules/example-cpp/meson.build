@@ -1,20 +1,22 @@
-# Build definitions for module: devel.datasst
+# Build definitions for module: example-cpp
 
 module_hdr = [
-    'datasstmodule.h'
+    'examplemodule.h'
 ]
 module_moc_hdr = []
 
 module_src = []
 module_moc_src = [
-    'datasstmodule.cpp',
+    'examplemodule.cpp',
 ]
 
 module_ui = []
 
 module_deps = [opencv_dep]
 
-module_data = []
+module_data = [
+    'example-cpp.svg',
+]
 
 #
 # Generic module setup

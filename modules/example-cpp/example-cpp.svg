@@ -6,7 +6,7 @@
    version="1.1"
    id="svg2"
    inkscape:version="1.3 (0e150ed6c4, 2023-07-21)"
-   sodipodi:docname="penrose-py.svg"
+   sodipodi:docname="penrose-cpp.svg"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -44,8 +44,8 @@
      guidetolerance="10"
      inkscape:pageopacity="0"
      inkscape:pageshadow="2"
-     inkscape:window-width="1723"
-     inkscape:window-height="903"
+     inkscape:window-width="2496"
+     inkscape:window-height="1082"
      id="namedview24"
      showgrid="false"
      fit-margin-top="8"
@@ -54,9 +54,9 @@
      fit-margin-right="8"
      inkscape:zoom="4.3936728"
      inkscape:cx="37.895403"
-     inkscape:cy="64.069405"
-     inkscape:window-x="1348"
-     inkscape:window-y="270"
+     inkscape:cy="64.183205"
+     inkscape:window-x="904"
+     inkscape:window-y="179"
      inkscape:window-maximized="0"
      inkscape:current-layer="g878"
      inkscape:document-rotation="0"
@@ -68,80 +68,98 @@
      transform="matrix(1.0985149,0,0,1.0985149,2.3247839,0.14923957)">
     <g
        id="g1"
-       transform="translate(1.9588003,0.46488)">
+       transform="translate(1.9588003,0.46488)"
+       style="fill:#36a0ff;fill-opacity:1">
       <path
          d="m -5.5742052,5.1253065 18.8090002,-25.8890005 30.434,9.889 -18.809,25.888 -30.4340002,-9.8879995"
          id="path4"
-         style="fill:#ffaa00;stroke:none"
+         style="fill:#36a0ff;stroke:none;fill-opacity:1"
          inkscape:connector-curvature="0" />
       <path
          d="m -5.5742052,5.1253065 -18.8089998,-25.8890005 18.8089998,-25.889 18.8090002,25.889 -18.8090002,25.8890005"
          id="path6"
-         style="fill:#ffaa00;stroke:none"
+         style="fill:#36a0ff;stroke:none;fill-opacity:1"
          inkscape:connector-curvature="0" />
       <path
          d="m -5.5742052,5.1253065 -30.4339998,9.8879995 -18.809,-25.888 30.434,-9.889 18.8089998,25.8890005"
          id="path8"
-         style="fill:#ffaa00;stroke:none"
+         style="fill:#36a0ff;stroke:none;fill-opacity:1"
          inkscape:connector-curvature="0" />
       <path
          d="M -5.5742052,5.1253065 V 37.125306 l -30.4339998,9.888 v -32 L -5.5742052,5.1253065"
          id="path10"
-         style="fill:#ffaa00;stroke:none"
+         style="fill:#36a0ff;stroke:none;fill-opacity:1"
          inkscape:connector-curvature="0" />
       <path
          d="M -5.5742052,5.1253065 24.859795,15.013306 v 32 l -30.4340002,-9.888 V 5.1253065"
          id="path12"
-         style="fill:#ffaa00;stroke:none"
+         style="fill:#36a0ff;stroke:none;fill-opacity:1"
          inkscape:connector-curvature="0" />
       <path
          d="m -5.5742052,5.1253065 18.8090002,-25.8890005 30.434,9.889 -18.809,25.888 -30.4340002,-9.8879995"
          id="path14"
-         style="fill:none;stroke:#000000;stroke-width:0.999522;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none"
+         style="fill:#36a0ff;stroke:#000000;stroke-width:0.999522;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;fill-opacity:1"
          inkscape:connector-curvature="0" />
       <path
          d="m -5.5742052,5.1253065 -18.8089998,-25.8890005 18.8089998,-25.889 18.8090002,25.889 -18.8090002,25.8890005"
          id="path16"
-         style="fill:none;stroke:#000000;stroke-width:0.999522;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none"
+         style="fill:#36a0ff;stroke:#000000;stroke-width:0.999522;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;fill-opacity:1"
          inkscape:connector-curvature="0" />
       <path
          d="m -5.5742052,5.1253065 -30.4339998,9.8879995 -18.809,-25.888 30.434,-9.889 18.8089998,25.8890005"
          id="path18"
-         style="fill:none;stroke:#000000;stroke-width:0.999522;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none"
+         style="fill:#36a0ff;stroke:#000000;stroke-width:0.999522;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;fill-opacity:1"
          inkscape:connector-curvature="0" />
       <path
          d="M -5.5742052,5.1253065 V 37.125306 l -30.4339998,9.888 v -32 L -5.5742052,5.1253065"
          id="path20"
-         style="fill:none;stroke:#000000;stroke-width:0.999522;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none"
+         style="fill:#36a0ff;stroke:#000000;stroke-width:0.999522;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;fill-opacity:1"
          inkscape:connector-curvature="0" />
       <path
          d="M -5.5742052,5.1253065 24.859795,15.013306 v 32 l -30.4340002,-9.888 V 5.1253065"
          id="path22"
-         style="fill:none;stroke:#000000;stroke-width:0.999522;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none"
+         style="fill:#36a0ff;stroke:#000000;stroke-width:0.999522;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;fill-opacity:1"
          inkscape:connector-curvature="0" />
+    </g>
+    <g
+       transform="matrix(0.15337944,0,0,0.15337944,-7.4619614,7.4340932)"
+       id="g11150">
+      <path
+         style="fill:#00599c"
+         inkscape:connector-curvature="0"
+         d="M 302.107,258.262 C 304.508,254.103 306,249.417 306,245.209 V 99.14 c 0,-4.208 -1.49,-8.893 -3.892,-13.052 L 153,172.175 Z"
+         id="path11116" />
+      <path
+         style="fill:#004482"
+         inkscape:connector-curvature="0"
+         d="m 166.25,341.193 126.5,-73.034 c 3.644,-2.104 6.956,-5.737 9.357,-9.897 L 153,172.175 3.893,258.263 c 2.401,4.159 5.714,7.793 9.357,9.896 l 126.5,73.034 c 7.287,4.208 19.213,4.208 26.5,0 z"
+         id="path11118" />
+      <path
+         style="fill:#659ad2"
+         inkscape:connector-curvature="0"
+         d="m 302.108,86.087 c -2.402,-4.16 -5.715,-7.793 -9.358,-9.897 L 166.25,3.156 c -7.287,-4.208 -19.213,-4.208 -26.5,0 L 13.25,76.19 C 5.962,80.397 0,90.725 0,99.14 v 146.069 c 0,4.208 1.491,8.894 3.893,13.053 L 153,172.175 Z"
+         id="path11120" />
       <g
-         id="g858"
-         transform="matrix(3.0161021,0,0,3.0161021,-6.9704443,9.5460644)">
+         id="g11124">
         <path
-           id="path838"
-           d="m 12,4 v 2 c 0,1.108 -0.892,2 -2,2 H 6 C 6,8 4,8 4,10 v 3.5 C 4,14.885 5.5613,16 7.5,16 h 1 C 10.4387,16 12,14.8853 12,13.5 V 12 h 1.5 C 14.885,12 16,10.439 16,8.5 v -1 C 16,5.5613 14.885,4 13.5,4 Z"
+           style="fill:#ffffff"
            inkscape:connector-curvature="0"
-           style="fill:#ffc851" />
-        <path
-           id="path840"
-           d="M 10.5,13 A 0.5,0.5 0 0 1 11,13.5 0.5,0.5 0 0 1 10.5,14 0.5,0.5 0 0 1 10,13.5 0.5,0.5 0 0 1 10.5,13 Z"
-           inkscape:connector-curvature="0"
-           style="fill:#ffffff" />
-        <path
-           id="path842"
-           d="M 7.5,-2e-8 C 5.5613,-2e-8 4,1.115 4,2.5 V 4 H 2.5 C 1.115,4 0,5.5613 0,7.5 v 1 C -2e-8,10.439 1.115,12 2.5,12 H 4 V 10 C 4,8.892 4.892,8 6,8 h 4 c 0,0 2,0 2,-2 V 2.5 C 12,1.115 10.439,-2e-8 8.5,-2e-8 Z"
-           inkscape:connector-curvature="0"
-           style="fill:#4795d1" />
-        <path
-           id="path844"
-           d="M 5.5,2 A 0.5,0.5 0 0 1 6,2.5 0.5,0.5 0 0 1 5.5,3 0.5,0.5 0 0 1 5,2.5 0.5,0.5 0 0 1 5.5,2 Z"
-           inkscape:connector-curvature="0"
-           style="fill:#ffffff" />
+           d="m 153,274.175 c -56.243,0 -102,-45.757 -102,-102 0,-56.243 45.757,-102 102,-102 36.292,0 70.139,19.53 88.331,50.968 l -44.143,25.544 C 188.083,130.951 171.15,121.175 153,121.175 c -28.122,0 -51,22.878 -51,51 0,28.121 22.878,51 51,51 18.152,0 35.085,-9.776 44.191,-25.515 l 44.143,25.543 c -18.192,31.441 -52.04,50.972 -88.334,50.972 z"
+           id="path11122" />
+      </g>
+      <g
+         id="g11128">
+        <polygon
+           style="fill:#ffffff"
+           points="221,177.841 232.334,177.841 232.334,189.175 243.666,189.175 243.666,177.841 255,177.841 255,166.508 243.666,166.508 243.666,155.175 232.334,155.175 232.334,166.508 221,166.508 "
+           id="polygon11126" />
+      </g>
+      <g
+         id="g11132">
+        <polygon
+           style="fill:#ffffff"
+           points="263.5,177.841 274.834,177.841 274.834,189.175 286.166,189.175 286.166,177.841 297.5,177.841 297.5,166.508 286.166,166.508 286.166,155.175 274.834,155.175 274.834,166.508 263.5,166.508 "
+           id="polygon11130" />
       </g>
     </g>
   </g>

@@ -59,6 +59,6 @@ Stream Metadata
    * - Tracking Data🠺
      - | ``table_header``: String List, Table header
    * - Animal Visualization🠺
-     - | ``framerate``: Integer, frame rate in FPS.
+     - | ``framerate``: Double, frame rate in FPS.
    * - Tracking Visualization🠺
-     - | ``framerate``: Integer, frame rate in FPS.
+     - | ``framerate``: Double, frame rate in FPS.

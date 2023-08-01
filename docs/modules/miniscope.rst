@@ -63,6 +63,6 @@ Stream Metadata
    * - Orientation Rows🠺
      - | ``table_header``: String List, Table header
    * - Display Frames🠺
-     - | ``framerate``: Integer, frame rate in FPS.
+     - | ``framerate``: Double, frame rate in FPS.
    * - Raw Frames🠺
-     - | ``framerate``: Integer, frame rate in FPS.
+     - | ``framerate``: Double, frame rate in FPS.

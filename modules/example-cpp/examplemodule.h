@@ -24,13 +24,12 @@
 
 SYNTALOS_DECLARE_MODULE
 
-class DevelDataSSTModuleInfo : public ModuleInfo
+class ExampleCppModuleInfo : public ModuleInfo
 {
 public:
     QString id() const override;
     QString name() const override;
     QString description() const override;
-    QIcon icon() const override;
     bool devel() const override;
     AbstractModule *createModule(QObject *parent = nullptr) override;
 };

@@ -47,4 +47,4 @@ Stream Metadata
      - Metadata
 
    * - Edited Frames🠺
-     - | ``framerate``: Integer, frame rate in FPS.
+     - | ``framerate``: Double, frame rate in FPS.

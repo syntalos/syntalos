@@ -2,7 +2,7 @@
 type = "python"
 
 name = "Python Module Example"
-description = "Example for a Syntalos Python module"
+description = "Example & template for a Syntalos Python module."
 icon = "penrose-py.svg"
 
 main = "mod-main.py"
