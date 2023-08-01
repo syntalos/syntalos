@@ -51,6 +51,7 @@ private:
     uint m_throttleCount;
     uint m_blackOutCount;
     bool m_active;
+    bool m_paused;
 
 public:
     explicit CanvasModule(CanvasModuleInfo *modInfo, QObject *parent = nullptr)
@@ -83,6 +84,7 @@ public:
         m_lastDisplayTime = currentTimePoint();
         m_currentDisplayFps = 60.0;
         m_blackOutCount = 0;
+        m_paused = false;
 
         return true;
     }
@@ -123,6 +125,18 @@ public:
         if (!m_active)
             return;
         auto maybeFrame = m_frameSub->peekNext();
+
+        if (m_ctlSub.get() != nullptr) {
+            auto maybeCtl = m_ctlSub->peekNext();
+            if (maybeCtl.has_value()) {
+                const auto ctlValue = maybeCtl.value();
+                m_paused = ctlValue.kind == ControlCommandKind::STOP || ctlValue.kind == ControlCommandKind::PAUSE;
+            }
+
+            if (m_paused)
+                return;
+        }
+
         if (!maybeFrame.has_value())
             return;
         const auto skippedFrames = m_frameSub->retrieveApproxSkippedElements();
