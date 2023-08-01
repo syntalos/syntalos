@@ -24,6 +24,12 @@ Modules
    intan-rhx
    miniscope
    pyscript
+   runcmd
+   table
+   traceplot
+   triled-tracker
+   videorecorder
+   videotransform
 
 
 Common Stream Metadata
