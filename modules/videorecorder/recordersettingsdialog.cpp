@@ -64,6 +64,7 @@ RecorderSettingsDialog::RecorderSettingsDialog(QWidget *parent) :
 
     // no slicing warning by default
     ui->sliceWarnButton->setVisible(false);
+    on_slicingCheckBox_toggled(ui->slicingCheckBox->isChecked());
 
     // no deferred encoding by default
     ui->encodeAfterRunCheckBox->setChecked(false);

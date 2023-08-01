@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>569</width>
-    <height>523</height>
+    <width>560</width>
+    <height>528</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -170,7 +170,7 @@
               <string>Enable video file slicing</string>
              </property>
              <property name="checked">
-              <bool>true</bool>
+              <bool>false</bool>
              </property>
             </widget>
            </item>
@@ -189,10 +189,10 @@
               <string>Interval: </string>
              </property>
              <property name="maximum">
-              <number>120</number>
+              <number>180</number>
              </property>
              <property name="value">
-              <number>15</number>
+              <number>20</number>
              </property>
             </widget>
            </item>
