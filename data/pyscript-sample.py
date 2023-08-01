@@ -4,8 +4,13 @@ from syio import InputWaitResult
 
 # NOTE: Check https://syntalos.readthedocs.io/en/latest/modules/pyscript.html for documentation
 # on how to write a useful script.
-sy.raise_error(('You are running the Python example script - please edit it to work for your experiment!\n'
-                '(Check https://syntalos.readthedocs.io/en/latest/modules/pyscript.html for help)'))
+sy.raise_error(
+    (
+        'You are running the Python example script - please edit it to work for your experiment!\n'
+        '(Check https://syntalos.readthedocs.io/en/latest/modules/pyscript.html for help)'
+    )
+)
+
 
 def prepare():
     """This function is called before a run is started.

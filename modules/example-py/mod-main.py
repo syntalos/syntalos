@@ -25,6 +25,7 @@ class MyExampleModule:
     You may use just the raw functions below, in case you don't
     want to use objects.
     '''
+
     def __init__(self):
         self._iport = None
         self._oport_frames = None
@@ -79,14 +80,16 @@ class MyExampleModule:
 
             mat = frame.mat
             position = (46, 46)
-            cv.putText(mat,
-                       '{}: {}'.format(self._label_prefix, self._frame_count),
-                       position,
-                       cv.FONT_HERSHEY_SIMPLEX,
-                       1.2,
-                       (0, 116, 246),
-                       2,
-                       cv.LINE_AA)
+            cv.putText(
+                mat,
+                '{}: {}'.format(self._label_prefix, self._frame_count),
+                position,
+                cv.FONT_HERSHEY_SIMPLEX,
+                1.2,
+                (0, 116, 246),
+                2,
+                cv.LINE_AA,
+            )
             self._frame_count += 1
 
             # submit new data to an output port
@@ -119,7 +122,7 @@ class MyExampleModule:
 
         lbl = tk.Label(window, text='Set prefix text:')
         lbl.grid(column=0, row=0)
-        txt = tk.Entry(window,width=10)
+        txt = tk.Entry(window, width=10)
         txt.grid(column=1, row=0)
         txt.insert(0, settings.get('prefix', ''))
 
@@ -151,7 +154,6 @@ class MyExampleModule:
         window.destroy()
         return bytes(json.dumps(settings), 'utf-8')
 
-
     def set_settings(self, data: bytes):
         '''
         Deserialize settings from bytes. Called right before a new run is started.
@@ -174,12 +176,12 @@ def set_settings(settings):
 
 
 def prepare():
-    ''' This function is called before a run is started. '''
+    '''This function is called before a run is started.'''
     mod.prepare()
 
 
 def start():
-    ''' This function is called immediately when a run is started. '''
+    '''This function is called immediately when a run is started.'''
     mod.start()
 
 

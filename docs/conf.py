@@ -23,10 +23,7 @@ project_root = os.path.normpath(os.path.join(os.path.dirname(thisfile), '..'))
 html_theme = 'insipid'
 html_permalinks_icon = '#'
 html_copy_source = False
-html_theme_options = {
-    'body_max_width': '48rem',
-    'breadcrumbs': True
-}
+html_theme_options = {'body_max_width': '48rem', 'breadcrumbs': True}
 
 html_context = {
     'display_github': True,
@@ -36,30 +33,26 @@ html_context = {
     "github_version": 'master',
 }
 
-extensions = [
-    'breathe',
-    'exhale'
-]
+extensions = ['breathe', 'exhale']
 
 # FIXME: work around Breathe having issues with Qt properties
 DomainDirectiveFactory.cpp_classes['property'] = (CMacroObject, 'macro')
 
 # Setup the breathe extension
-breathe_projects = {
-    'Syntalos': './doxyoutput/xml'
-}
+breathe_projects = {'Syntalos': './doxyoutput/xml'}
 breathe_default_project = 'Syntalos'
 
 # Setup the exhale extension
 exhale_args = {
     # These arguments are required
-    'containmentFolder':     './api',
-    'rootFileName':          'sysrc_root.rst',
-    'rootFileTitle':         'Internal Syntalos API',
-    'doxygenStripFromPath':  '../src',
-    'createTreeView':        True,
+    'containmentFolder': './api',
+    'rootFileName': 'sysrc_root.rst',
+    'rootFileTitle': 'Internal Syntalos API',
+    'doxygenStripFromPath': '../src',
+    'createTreeView': True,
     'exhaleExecutesDoxygen': True,
-    'exhaleDoxygenStdin':    textwrap.dedent('''
+    'exhaleDoxygenStdin': textwrap.dedent(
+        '''
                                 INPUT                = ../src/
                                 BUILTIN_STL_SUPPORT  = YES
                                 EXTRACT_PRIVATE      = NO
@@ -83,7 +76,8 @@ exhale_args = {
                                                        Q_GLOBAL_STATIC_WITH_ARGS
                                 EXTRACT_LOCAL_CLASSES  = NO
                                 CLANG_ASSISTED_PARSING = YES
-                                ''')
+                                '''
+    ),
 }
 
 # Tell sphinx what the primary language being documented is.

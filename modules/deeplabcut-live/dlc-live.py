@@ -9,12 +9,21 @@ import cv2 as cv
 from dlclive import DLCLive, Processor
 
 from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QWidget, QDialog, QPushButton, QVBoxLayout, QHBoxLayout, \
-    QFormLayout, QCheckBox, QLabel, QDialogButtonBox, QFileDialog
+from PyQt5.QtWidgets import (
+    QWidget,
+    QDialog,
+    QPushButton,
+    QVBoxLayout,
+    QHBoxLayout,
+    QFormLayout,
+    QCheckBox,
+    QLabel,
+    QDialogButtonBox,
+    QFileDialog,
+)
 
 
 class SettingsDialog(QDialog):
-
     def __init__(self):
         super(SettingsDialog, self).__init__()
         self._create_form_widget()
@@ -78,7 +87,7 @@ class SettingsDialog(QDialog):
 
 
 class DLCLiveModule:
-    ''' DeepLabCut Live Syntalos Module '''
+    '''DeepLabCut Live Syntalos Module'''
 
     def __init__(self):
         self._iport = None
@@ -92,13 +101,13 @@ class DLCLiveModule:
     def prepare(self):
         # Get port references
         self._iport = sy.get_input_port('frames-in')
-        #self._oport_img = sy.get_output_port('frames-out')
+        # self._oport_img = sy.get_output_port('frames-out')
         self._oport_rows = sy.get_output_port('rows-out')
-        self._oport_rows.set_metadata_value('table_header', ['Time [ms]', 'Marker', 'X', 'Y', 'Likelihood'])
+        self._oport_rows.set_metadata_value(
+            'table_header', ['Time [ms]', 'Marker', 'X', 'Y', 'Likelihood']
+        )
         self._first_frame = True
-        self._dlc_live = DLCLive(self._model_path,
-                                 processor=self._dlc_proc,
-                                 display=self._display)
+        self._dlc_live = DLCLive(self._model_path, processor=self._dlc_proc, display=self._display)
 
     def start(self):
         pass
@@ -129,7 +138,7 @@ class DLCLiveModule:
                 self._oport_rows.submit([frame.time_msec, i] + p.tolist())
 
             # submit new data to an output port
-            #self._oport_img.submit(frame)
+            # self._oport_img.submit(frame)
 
         # we don't want to quite data processing, so return True
         return True
