@@ -79,7 +79,7 @@ to the respective ports of `Firmata IO`:
 Open the settings of *Firmata IO* and select the serial port number of your plugged-in Arduino.
 
 .. note::
-    If the device does not show up for selection or you get a permission error upon launching Syntalos,
+    If the device does not show up for selection or you get a permission error upon launching your experiment,
     you may need to add yourself to the ``dialout`` group to use serial devices.
     In order to do that, open a terminal and enter ``sudo adduser $USER dialout``, confirming with
     you administrator password. After a reboot / relogin, connecting to your Arduino should work now.
