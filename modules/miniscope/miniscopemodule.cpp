@@ -166,7 +166,7 @@ public:
         m_rawOut->setSuggestedDataName(QStringLiteral("%1/mscope").arg(datasetNameSuggestion()));
 
         m_dispOut->setMetadataValue("framerate", (double) m_miniscope->fps());
-        m_dispOut->setMetadataValue("has_color", false);
+        m_dispOut->setMetadataValue("has_color", true);
         m_dispOut->setSuggestedDataName(QStringLiteral("%1_display/mscope_display").arg(datasetNameSuggestion()));
 
         m_bnoTabOut->setMetadataValue("table_header", QStringList() << "Time [ms]" << "qw" << "qx" << "qy" << "qz");

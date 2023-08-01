@@ -22,6 +22,7 @@ Modules
    firmata-io
    firmata-userctl
    intan-rhx
+   miniscope
    pyscript
 
 
