@@ -6,16 +6,15 @@
 
 #include <stdio.h>
 #include "pico/stdlib.h"
-#include "hardware/pll.h"
-#include "hardware/clocks.h"
-#include "hardware/structs/pll.h"
-#include "hardware/structs/clocks.h"
 
+#include "hardware/clocks.h"
+#include "hardware/pll.h"
+#include "hardware/structs/clocks.h"
+#include "hardware/structs/pll.h"
 
 #define LED_PIN         22
-#define MODE_SWITCH_PIN  5
-#define LED_PULSE_LEN 240
-
+#define MODE_SWITCH_PIN 5
+#define LED_PULSE_LEN   240
 
 static void emit_led_pulse(uint ledPin)
 {
@@ -46,21 +45,19 @@ int main()
 
     // Change clk_sys to be 48MHz. The simplest way is to take this from PLL_USB
     // which has a source frequency of 48MHz
-    clock_configure(clk_sys,
-                    CLOCKS_CLK_SYS_CTRL_SRC_VALUE_CLKSRC_CLK_SYS_AUX,
-                    CLOCKS_CLK_SYS_CTRL_AUXSRC_VALUE_CLKSRC_PLL_USB,
-                    48 * MHZ,
-                    48 * MHZ);
+    clock_configure(
+        clk_sys,
+        CLOCKS_CLK_SYS_CTRL_SRC_VALUE_CLKSRC_CLK_SYS_AUX,
+        CLOCKS_CLK_SYS_CTRL_AUXSRC_VALUE_CLKSRC_PLL_USB,
+        48 * MHZ,
+        48 * MHZ
+    );
 
     // Turn off PLL sys for good measure
     pll_deinit(pll_sys);
 
     // CLK peri is clocked from clk_sys so need to change clk_peri's freq
-    clock_configure(clk_peri,
-                    0,
-                    CLOCKS_CLK_PERI_CTRL_AUXSRC_VALUE_CLK_SYS,
-                    48 * MHZ,
-                    48 * MHZ);
+    clock_configure(clk_peri, 0, CLOCKS_CLK_PERI_CTRL_AUXSRC_VALUE_CLK_SYS, 48 * MHZ, 48 * MHZ);
 
     // Re init now that clk_peri has changed
     stdio_init_all();

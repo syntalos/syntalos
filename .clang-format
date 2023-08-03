@@ -77,3 +77,10 @@ AlignEscapedNewlines: Right
 
 # Enums should be one entry per line
 AllowShortEnumsOnASingleLine: false
+
+# we want consecutive macros to be aligned
+AlignConsecutiveMacros: true
+
+# never sort includes, only regroup (in rare cases)
+IncludeBlocks: Regroup
+SortIncludes: Never
