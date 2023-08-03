@@ -1,4 +1,8 @@
-#!/bin/env python3
+#!/usr/bin/env python3
+#
+# Copyright (C) 2015-2022 Matthias Klumpp <mak@debian.org>
+#
+# SPDX-License-Identifier: LGPL-3.0+
 #
 # Format all Syntalos source code in-place.
 #
@@ -10,11 +14,12 @@ import fnmatch
 import subprocess
 from glob import glob
 
+INCLUDE_LOCATIONS = ['autoformat.py', 'contrib', 'docs', 'modules', 'src', 'tests', 'tools']
+
 EXCLUDE_MATCH = [
-    '*/contrib/*',
-    '*/build/*',
+    '*/contrib/MuxFirmata/*',
     '*/venv/*',
-    '*/modules/intan-rhx/*',
+    '*/modules/intan-rhx/*',  # we want to keep Intan RHX close to upstream, for easy merging of changes
     '*/tests/rwqueue/*',
 ]
 
@@ -57,21 +62,32 @@ def run(current_dir, args):
         )
         return 1
 
+    # if no include directories are explicitly specified, we read all locations
+    if not INCLUDE_LOCATIONS:
+        INCLUDE_LOCATIONS.append('.')
+
     # collect sources
     cpp_sources = []
     py_sources = []
-    for filename in glob(current_dir + '/**/*', recursive=True):
-        skip = False
-        for exclude in EXCLUDE_MATCH:
-            if fnmatch.fnmatch(filename, exclude):
-                skip = True
-                break
-        if skip:
-            continue
-        if filename.endswith(('.c', '.cpp', '.h', '.hpp')):
-            cpp_sources.append(filename)
-        elif filename.endswith('.py'):
-            py_sources.append(filename)
+    for il_path_base in INCLUDE_LOCATIONS:
+        il_path = os.path.join(current_dir, il_path_base)
+        if os.path.isfile(il_path):
+            candidates = [il_path]
+        else:
+            candidates = glob(il_path + '/**/*', recursive=True)
+
+        for filename in candidates:
+            skip = False
+            for exclude in EXCLUDE_MATCH:
+                if fnmatch.fnmatch(filename, exclude):
+                    skip = True
+                    break
+            if skip:
+                continue
+            if filename.endswith(('.c', '.cpp', '.h', '.hpp')):
+                cpp_sources.append(filename)
+            elif filename.endswith('.py'):
+                py_sources.append(filename)
 
     # format
     format_python_sources(py_sources)
