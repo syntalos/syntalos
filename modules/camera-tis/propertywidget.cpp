@@ -58,10 +58,10 @@ static void emit_error_stuff(TWidget *widget, GError *err)
     err = nullptr;
 }
 
-#define HANDLE_ERROR(err, action)                                                                                      \
-    if (err) {                                                                                                         \
-        emit_error_stuff(this, err);                                                                                   \
-        action;                                                                                                        \
+#define HANDLE_ERROR(err, action)    \
+    if (err) {                       \
+        emit_error_stuff(this, err); \
+        action;                      \
     }
 
 static QString generate_tooltip(TcamPropertyBase *p_prop)

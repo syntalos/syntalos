@@ -24,12 +24,12 @@
 #include "moduleapi.h"
 #endif
 
-#define CHECK_RETURN_INPUT_PORT(T)                                                                                     \
-    if (typeId == qMetaTypeId<T>())                                                                                    \
+#define CHECK_RETURN_INPUT_PORT(T)  \
+    if (typeId == qMetaTypeId<T>()) \
         return new StreamInputPort<T>(mod, id, title);
 
-#define CHECK_RETURN_STREAM(T)                                                                                         \
-    if (typeId == qMetaTypeId<T>())                                                                                    \
+#define CHECK_RETURN_STREAM(T)      \
+    if (typeId == qMetaTypeId<T>()) \
         return new DataStream<T>();
 
 static QMap<QString, int> g_streamTypeIdMap;

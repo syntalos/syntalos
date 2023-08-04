@@ -127,13 +127,13 @@ private:
     PyGILState_STATE _state;
 };
 
-#define ERRWRAP2(expr)                                                                                                 \
-    try {                                                                                                              \
-        PyAllowThreads allowThreads;                                                                                   \
-        expr;                                                                                                          \
-    } catch (const cv::Exception &e) {                                                                                 \
-        PyErr_SetString(opencv_error, e.what());                                                                       \
-        return nullptr;                                                                                                \
+#define ERRWRAP2(expr)                           \
+    try {                                        \
+        PyAllowThreads allowThreads;             \
+        expr;                                    \
+    } catch (const cv::Exception &e) {           \
+        PyErr_SetString(opencv_error, e.what()); \
+        return nullptr;                          \
     }
 
 using namespace cv;

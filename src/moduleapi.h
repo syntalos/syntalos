@@ -170,23 +170,23 @@ private:
  * Define interfaces for a dynamically loaded Syntalos module, so we can
  * find it at runtime.
  */
-#define SYNTALOS_DECLARE_MODULE                                                                                        \
-    _Pragma("GCC visibility push(default)") extern "C" ModuleInfo *syntalos_module_info();                             \
-    extern "C" const char *syntalos_module_api_id();                                                                   \
+#define SYNTALOS_DECLARE_MODULE                                                            \
+    _Pragma("GCC visibility push(default)") extern "C" ModuleInfo *syntalos_module_info(); \
+    extern "C" const char *syntalos_module_api_id();                                       \
     _Pragma("GCC visibility pop")
 
 /**
  * Define interfaces for a dynamically loaded Syntalos module, so we can
  * find it at runtime.
  */
-#define SYNTALOS_MODULE(MI)                                                                                            \
-    ModuleInfo *syntalos_module_info()                                                                                 \
-    {                                                                                                                  \
-        return new MI##Info;                                                                                           \
-    }                                                                                                                  \
-    const char *syntalos_module_api_id()                                                                               \
-    {                                                                                                                  \
-        return SY_MODULE_API_TAG;                                                                                      \
+#define SYNTALOS_MODULE(MI)              \
+    ModuleInfo *syntalos_module_info()   \
+    {                                    \
+        return new MI##Info;             \
+    }                                    \
+    const char *syntalos_module_api_id() \
+    {                                    \
+        return SY_MODULE_API_TAG;        \
     }
 
 /**
