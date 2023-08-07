@@ -6,9 +6,16 @@ introduce some of Syntalos' functionality.
 
 .. toctree::
    :maxdepth: 1
-   :caption: Contents:
+   :caption: User Tutorials:
 
    01_hello-world
    02_first-images
    03_script-control
    04_firmata-interface
+
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Developer Tutorials:
+
+   D1_new-python-module

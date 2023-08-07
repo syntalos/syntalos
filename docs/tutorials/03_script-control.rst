@@ -102,7 +102,7 @@ before falling back to its previous state.
 Then, we just loop endlessly and submit the control command on our predefined output port ``oport``, wait 5 seconds and then
 repeat the process.
 Any datatypes you can use with output ports, and commands you can use on input ports can be found in the
-:doc:`Syio API documentation <../syio_api.rst>` for reference.
+:doc:`Syio API documentation </syio_api>` for reference.
 
 .. note::
     While using Python's own wait functions, like ``time.sleep()``, is possible for delays, it is recommended to use
