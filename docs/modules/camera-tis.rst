@@ -1,5 +1,8 @@
 TIS Camera
 ##########
+.. image:: ../../modules/camera-tis/camera-tis.svg
+   :width: 72
+   :align: right
 
 The "TIS Camera" module supports industrial cameras from `The Imaging Source <https://www.theimagingsource.com/>`_.
 

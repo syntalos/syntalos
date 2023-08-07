@@ -1,5 +1,8 @@
 Canvas
 ######
+.. image:: ../../modules/canvas/canvas.svg
+   :width: 72
+   :align: right
 
 The "Canvas" module displays any image content, most of the time any streaming video.
 

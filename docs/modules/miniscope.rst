@@ -1,5 +1,8 @@
 Miniscope
 #########
+.. image:: ../../modules/miniscope/miniscope.svg
+   :width: 72
+   :align: right
 
 This module provides support for recording data with `UCLA Miniscope <https://github.com/Aharoni-Lab/Miniscope-v4>`_ devices.
 (This sometimes also includes industrial cameras for which no specialized drivers exist).

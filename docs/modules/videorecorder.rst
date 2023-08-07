@@ -1,5 +1,8 @@
 Video Recorder
 ##############
+.. image:: ../../modules/videorecorder/videorecorder.svg
+   :width: 72
+   :align: right
 
 Record a stream of frames as video.
 

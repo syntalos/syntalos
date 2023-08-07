@@ -1,5 +1,8 @@
 Audio Source
 ############
+.. image:: ../../modules/audiosource/audiosource.svg
+   :width: 72
+   :align: right
 
 The "Audio Source" module can generate various test sounds, from sine-waves to clicks.
 

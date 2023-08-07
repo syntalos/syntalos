@@ -1,5 +1,8 @@
 Firmata User Control
 ####################
+.. image:: ../../modules/firmata-userctl/firmata-userctl.svg
+   :width: 72
+   :align: right
 
 This module can connect with any :doc:`firmata-io` module to allow the user manual control
 over the Firmata device.

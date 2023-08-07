@@ -1,5 +1,8 @@
 FLIR Camera
 ##############
+.. image:: ../../modules/camera-flir/camera-flir.svg
+   :width: 72
+   :align: right
 
 The "FLIR Camera" module can connect to any `FLIR Systems <https://www.flir.com/>`_ camera that
 can be addressed using their propriatery `Spinnaker SDK <https://www.flir.com/products/spinnaker-sdk/>`_.

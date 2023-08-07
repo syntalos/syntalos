@@ -1,5 +1,8 @@
 Trace Plot
 ##########
+.. image:: ../../modules/traceplot/traceplot.svg
+   :width: 72
+   :align: right
 
 Very simple module to plot traces, often used for electrophysiology traces.
 

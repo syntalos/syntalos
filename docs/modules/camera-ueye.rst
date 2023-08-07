@@ -1,5 +1,8 @@
 uEye Camera
 ##############
+.. image:: ../../modules/camera-ueye/camera-ueye.svg
+   :width: 72
+   :align: right
 
 The "uEye Camera" module can connect to many `IDS Imaging Development Systems <https://en.ids-imaging.com/>`_ camera that
 can be addressed using their propriatery SDK.

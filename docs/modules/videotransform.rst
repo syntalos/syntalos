@@ -1,5 +1,8 @@
 Video Transformer
 #################
+.. image:: ../../modules/videotransform/videotransform.svg
+   :width: 72
+   :align: right
 
 Transform a stream of frames.
 

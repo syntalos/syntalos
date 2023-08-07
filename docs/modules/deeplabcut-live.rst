@@ -1,5 +1,8 @@
 DeepLabCut Live
 ###############
+.. image:: ../../modules/deeplabcut-live/dlc-logo.png
+   :width: 72
+   :align: right
 
 This module can be used for live animal tracking using `DeepLabCut Live <https://github.com/DeepLabCut/DeepLabCut-live>`_
 on a system with a capable GPU.

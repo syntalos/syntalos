@@ -1,5 +1,8 @@
 Run Command
 ###########
+.. image:: ../../modules/runcmd/runcmd.svg
+   :width: 72
+   :align: right
 
 This module can run an external command when the experiment is launched.
 

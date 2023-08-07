@@ -1,5 +1,8 @@
 Intan RHX
 #########
+.. image:: ../../modules/intan-rhx/intan-rhx.svg
+   :width: 72
+   :align: right
 
 This module can interface with all `Intan Technologies <https://intantech.com/>`_ electrophysiology
 amplifiers, including the RHD and RHS systems.

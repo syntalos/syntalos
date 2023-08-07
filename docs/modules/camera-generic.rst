@@ -1,5 +1,8 @@
 Generic Camera
 ##############
+.. image:: ../../data/modules/camera-generic.svg
+   :width: 72
+   :align: right
 
 The "Generic Camera" module can connect to any UVC webcam / V4L2 supported device that
 can be opened using `OpenCV <https://opencv.org/>`_.

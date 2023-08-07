@@ -1,5 +1,8 @@
 Table
 #####
+.. image:: ../../data/modules/table.svg
+   :width: 72
+   :align: right
 
 The "Table" module displays and saves any tabular content.
 

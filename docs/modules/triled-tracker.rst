@@ -1,5 +1,8 @@
 TriLED Tracker
 ##############
+.. image:: ../../modules/triled-tracker/triled-tracker.svg
+   :width: 72
+   :align: right
 
 Simple module to determine the position and orientation of an object or subject by
 a triangle of red/green/blue LEDs.

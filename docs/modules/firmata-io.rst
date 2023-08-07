@@ -1,5 +1,8 @@
 Firmata I/O
 ###########
+.. image:: ../../modules/firmata-io/firmata-io.svg
+   :width: 72
+   :align: right
 
 This module can connect with any device speaking the `Firmata Protocol <https://github.com/firmata/protocol>`_ via
 a serial port.
