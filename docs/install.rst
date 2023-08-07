@@ -67,7 +67,7 @@ the provided binary package.
 
 Building from source
 ====================
-We recommend Debian 11 (Bullseye) or Ubuntu 20.04 (Focal Fossa) to run Syntalos, but any Linux distribution that has a
+We recommend Debian 12 (Bookworm) or Ubuntu 22.04 (Jammy Jellyfish) to run Syntalos, but any Linux distribution that has a
 recent enough C++ compiler and Qt version should work.
 
 Some modules may add additional dependencies for libraries to talk to individual devices or for a certain special feature.

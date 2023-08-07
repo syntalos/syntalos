@@ -1,4 +1,4 @@
-D1. Creating a new Python Module
+D2. Creating a new Python Module
 ################################
 
 These instructions exit to create a new Python module from scratch.
@@ -12,7 +12,7 @@ First, decice on a short, lower-case name for your modue. The name will be the u
 for modules of your new type and must not be changed in future (or otherwise existing configurations might break).
 
 If you are compiling Syntalos manually, you can add your new Python module directly to the source tree in
-the ``modules/`` directory, and the add a new ``subdir`` directive for it to the toplevel
+the ``modules/`` directory, and then add a new ``subdir`` directive for it to the toplevel
 `modules/meson.build <https://github.com/bothlab/syntalos/blob/master/modules/meson.build>`_ file.
 
 Alternatively, you can also have Python modules loaded from your home directory. Syntalos will look
@@ -28,7 +28,7 @@ Any modules copied there will be automatically loaded.
 ==================
 
 The easiest way to start building a new module is to copy a template to have any boilerplate present.
-A minimal Python module exists in the form of `example-py <https://github.com/bothlab/syntalos/tree/master/modules/example-py>>`_.
+A minimal Python module exists in the form of `example-py <https://github.com/bothlab/syntalos/tree/master/modules/example-py>`_.
 Copy its directory to the location where you develop your module, and rename it to your chosen ID name.
 
 

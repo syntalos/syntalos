@@ -18,4 +18,5 @@ introduce some of Syntalos' functionality.
    :maxdepth: 1
    :caption: Developer Tutorials:
 
-   D1_new-python-module
+   D1_new-cpp-module
+   D2_new-python-module
