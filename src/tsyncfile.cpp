@@ -258,8 +258,7 @@ bool TimeSyncFileWriter::open(
     const QString &modName,
     const QUuid &collectionId,
     const microseconds_t &tolerance,
-    const QVariantHash &userData
-)
+    const QVariantHash &userData)
 {
     QVariantHash udata = userData;
     udata["tolerance_us"] = QVariant::fromValue(tolerance.count());
@@ -425,8 +424,7 @@ bool TimeSyncFileReader::open(const QString &fname)
     if ((formatVMajor != TSYNC_FILE_VERSION_MAJOR) || (formatVMinor < TSYNC_FILE_VERSION_MINOR)) {
         m_lastError = QStringLiteral(
                           "Unable to read data: This file is using an incompatible (probably newer) version of the "
-                          "format which we can not read (%1.%2 vs %3.%4)."
-        )
+                          "format which we can not read (%1.%2 vs %3.%4).")
                           .arg(formatVMajor)
                           .arg(formatVMinor)
                           .arg(TSYNC_FILE_VERSION_MAJOR)
@@ -485,15 +483,13 @@ bool TimeSyncFileReader::open(const QString &fname)
     in >> blockTerm >> expectedHeaderCRC;
     if (blockTerm != TSYNC_FILE_BLOCK_TERM) {
         m_lastError = QStringLiteral(
-            "Header block terminator not found: The file is either invalid or its header block was damaged."
-        );
+            "Header block terminator not found: The file is either invalid or its header block was damaged.");
         XXH3_freeState(csState);
         return false;
     }
     if (expectedHeaderCRC != XXH3_64bits_digest(csState)) {
         m_lastError = QStringLiteral(
-            "Header checksum mismatch: The file is either invalid or its header block was damaged."
-        );
+            "Header checksum mismatch: The file is either invalid or its header block was damaged.");
         XXH3_freeState(csState);
         return false;
     }
@@ -512,8 +508,7 @@ bool TimeSyncFileReader::open(const QString &fname)
 
             if (blockTerm != TSYNC_FILE_BLOCK_TERM) {
                 m_lastError = QStringLiteral(
-                    "Unable to read all tsync data: File was likely truncated (its last block is not complete)."
-                );
+                    "Unable to read all tsync data: File was likely truncated (its last block is not complete).");
                 XXH3_freeState(csState);
                 return false;
             }

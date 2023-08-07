@@ -79,8 +79,7 @@ SysInfoDialog::SysInfoDialog(SysInfo *sysInfo, QWidget *parent)
         setLabelTextStyle(SysInfoCheckResult::OK, ui->valSyHWSupport);
     } else {
         ui->valSyHWSupport->setText(
-            "<html>missing, can be <a href=\"https://github.com/bothlab/syntalos/releases\">downloaded</a>."
-        );
+            "<html>missing, can be <a href=\"https://github.com/bothlab/syntalos/releases\">downloaded</a>.");
         setLabelTextStyle(SysInfoCheckResult::SUSPICIOUS, ui->valSyHWSupport);
     }
 
@@ -93,8 +92,7 @@ SysInfoDialog::SysInfoDialog(SysInfo *sysInfo, QWidget *parent)
     ui->valPythonAPI->setText(sysInfo->pythonApiVersion());
     if (sysInfo->inFlatpakSandbox())
         ui->valSandboxInfo->setText(
-            QStringLiteral("Flatpak; Runtime: %1 %2").arg(sysInfo->runtimeName(), sysInfo->runtimeVersion())
-        );
+            QStringLiteral("Flatpak; Runtime: %1 %2").arg(sysInfo->runtimeName(), sysInfo->runtimeVersion()));
     else
         ui->valSandboxInfo->setText(QStringLiteral("None detected"));
 }

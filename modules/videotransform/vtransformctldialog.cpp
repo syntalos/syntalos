@@ -40,8 +40,7 @@ VTransformCtlDialog::VTransformCtlDialog(QWidget *parent)
         &QItemSelectionModel::currentChanged,
         [&](const QModelIndex &index, const QModelIndex &) {
             transformListViewSelectionChanged(index);
-        }
-    );
+        });
 }
 
 VTransformCtlDialog::~VTransformCtlDialog()
@@ -102,8 +101,7 @@ void VTransformCtlDialog::on_btnAdd_clicked()
                       << "Scale", // TODO: Remove Color; Flip; Reduce Rate
         0,
         false,
-        &ok
-    );
+        &ok);
     if (!ok || item.isEmpty())
         return;
 

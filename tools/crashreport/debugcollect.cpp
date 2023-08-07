@@ -91,8 +91,7 @@ static JournalEntry readJournalEntry(sd_journal *journal)
         if (res == 0) {
 #if HAVE_SIGDESCR_NP
             entry.coredumpSignal = sigdescr_np(
-                QString::fromUtf8((const char *)data, length).section(QChar::fromLatin1('='), 1).toInt()
-            );
+                QString::fromUtf8((const char *)data, length).section(QChar::fromLatin1('='), 1).toInt());
 #else
             entry.coredumpSignal = QString::fromUtf8((const char *)data, length).section(QChar::fromLatin1('='), 1);
 #endif
@@ -237,8 +236,7 @@ bool JournalCollector::exportCoredumpFile(const JournalEntry &journalEntry, cons
     cdctlProc.setProcessChannelMode(QProcess::MergedChannels);
     cdctlProc.setProgram(cdctlExe);
     cdctlProc.setArguments(
-        QStringList() << "dump" << QStringLiteral("MESSAGE_ID=%1").arg(journalEntry.id) << "-o" << outFname
-    );
+        QStringList() << "dump" << QStringLiteral("MESSAGE_ID=%1").arg(journalEntry.id) << "-o" << outFname);
     cdctlProc.start();
     bool ret = cdctlProc.waitForFinished(60 * 1000);
     if (!ret) {
@@ -284,8 +282,7 @@ QString JournalCollector::generateBacktrace(const JournalEntry &journalEntry)
         QStringList() << "-batch"
                       << "-ex"
                       << "thread apply all bt full"
-                      << "-c" << tmpCoreFile.fileName() << journalEntry.coredumpExe
-    );
+                      << "-c" << tmpCoreFile.fileName() << journalEntry.coredumpExe);
     gdbProc.start();
     bool ret = gdbProc.waitForFinished(60 * 1000);
     if (!ret)
@@ -336,8 +333,7 @@ QString generateBacktraceForRunningProcess(const QString &procName, bool *proces
                       << "-ex" << QStringLiteral("attach %1").arg(pid) << "-ex"
                       << "thread apply all bt full"
                       << "-ex"
-                      << "detach"
-    );
+                      << "detach");
     gdbProc.start();
     bool ret = gdbProc.waitForFinished(60 * 1000);
     if (!ret)

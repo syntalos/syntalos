@@ -39,8 +39,7 @@ public:
     {
         m_fmInPort = registerInputPort<FirmataData>(QStringLiteral("firmata-in"), QStringLiteral("Firmata Input"));
         m_fmCtlStream = registerOutputPort<FirmataControl>(
-            QStringLiteral("firmata-out"), QStringLiteral("Firmata Control")
-        );
+            QStringLiteral("firmata-out"), QStringLiteral("Firmata Control"));
         m_ctlDialog = new FirmataCtlDialog(m_fmCtlStream);
         addDisplayWindow(m_ctlDialog);
 

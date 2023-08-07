@@ -205,8 +205,7 @@ bool OOPWorker::loadPythonScript(const QString &script, const QString &wdir)
     PyConfig_InitPythonConfig(&config);
 
     auto status = PyConfig_SetString(
-        &config, &config.program_name, QCoreApplication::arguments()[0].toStdWString().c_str()
-    );
+        &config, &config.program_name, QCoreApplication::arguments()[0].toStdWString().c_str());
     if (PyStatus_Exception(status)) {
         raiseError(QStringLiteral("Unable to set Python program name: %1").arg(status.err_msg));
         PyConfig_Clear(&config);
@@ -219,8 +218,7 @@ bool OOPWorker::loadPythonScript(const QString &script, const QString &wdir)
     qCDebug(logPyWorker).noquote() << "Using virtual environment:" << venvDir;
     if (!venvDir.isEmpty()) {
         status = PyConfig_SetString(
-            &config, &config.program_name, QDir(venvDir).filePath("bin/python").toStdWString().c_str()
-        );
+            &config, &config.program_name, QDir(venvDir).filePath("bin/python").toStdWString().c_str());
         if (PyStatus_Exception(status)) {
             raiseError(QStringLiteral("Unable to set Python program name: %1").arg(status.err_msg));
             PyConfig_Clear(&config);
@@ -638,8 +636,7 @@ void OOPWorker::makeDocFileAndQuit(const QString &fname)
                          "        f.write(html_data)\n"
                          "        f.write('\\n')\n"
                          "\n")
-              .arg(QString(fname).replace("'", "\\'"))
-    ));
+              .arg(QString(fname).replace("'", "\\'"))));
     if (Py_FinalizeEx() < 0)
         exit(9);
 

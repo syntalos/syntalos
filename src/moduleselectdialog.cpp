@@ -107,8 +107,7 @@ ModuleSelectDialog::ModuleSelectDialog(QList<QSharedPointer<ModuleInfo>> infos, 
         &QItemSelectionModel::currentChanged,
         [&](const QModelIndex &index, const QModelIndex &) {
             setEntryIdFromIndex(index);
-        }
-    );
+        });
 }
 
 ModuleSelectDialog::~ModuleSelectDialog()
@@ -139,8 +138,7 @@ void ModuleSelectDialog::setModuleInfo(QList<QSharedPointer<ModuleInfo>> infos)
             continue;
 
         auto item = new QStandardItem(
-            info->icon(), QStringLiteral("<b>%1</b><br/><span>%2</span>").arg(info->name()).arg(info->description())
-        );
+            info->icon(), QStringLiteral("<b>%1</b><br/><span>%2</span>").arg(info->name()).arg(info->description()));
         item->setTextAlignment(Qt::AlignLeft);
         item->setData(info->id());
         m_model->appendRow(item);

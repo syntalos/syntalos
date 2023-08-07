@@ -89,8 +89,7 @@ TimingsDialog::~TimingsDialog()
 void TimingsDialog::onSynchronizerDetailsChanged(
     const QString &id,
     const TimeSyncStrategies &strategies,
-    const microseconds_t &tolerance
-)
+    const microseconds_t &tolerance)
 {
     Q_UNUSED(id)
     auto mod = ::qobject_cast<AbstractModule *>(sender());

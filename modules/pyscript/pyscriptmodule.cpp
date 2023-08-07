@@ -185,8 +185,7 @@ public:
             registerInputPortByTypeId(
                 QMetaType::type(qPrintable(po.value("data_type").toString())),
                 po.value("id").toString(),
-                po.value("title").toString()
-            );
+                po.value("title").toString());
         }
 
         for (const auto &pv : varOutPorts) {
@@ -194,8 +193,7 @@ public:
             registerOutputPortByTypeId(
                 QMetaType::type(qPrintable(po.value("data_type").toString())),
                 po.value("id").toString(),
-                po.value("title").toString()
-            );
+                po.value("title").toString());
         }
 
         // update port listing in UI

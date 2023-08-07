@@ -74,8 +74,7 @@ VarStreamInputPort *Syntalos::newInputPortForType(
     int typeId,
     AbstractModule *mod,
     const QString &id,
-    const QString &title = QString()
-)
+    const QString &title = QString())
 {
     CHECK_RETURN_INPUT_PORT(ControlCommand)
     CHECK_RETURN_INPUT_PORT(TableRow)

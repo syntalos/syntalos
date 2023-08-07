@@ -92,8 +92,7 @@ public:
                                "<a href=\"https://www.theimagingsource.com/support/download/\">download & install the "
                                "driver package</a> "
                                "from the Imaging Source website."),
-                QMessageBox::Ok
-            );
+                QMessageBox::Ok);
         }
 
         return true;
@@ -127,14 +126,13 @@ public:
         }
 
         if (prefix.isEmpty())
-            statusMessage(QStringLiteral("<html>%1 <small>%2</small>")
-                              .arg(QString::fromStdString(m_device.model()), QString::fromStdString(m_device.serial()))
-            );
+            statusMessage(
+                QStringLiteral("<html>%1 <small>%2</small>")
+                    .arg(QString::fromStdString(m_device.model()), QString::fromStdString(m_device.serial())));
         else
             statusMessage(
                 QStringLiteral("<html>%1: %2 <small>%3</small>")
-                    .arg(prefix, QString::fromStdString(m_device.model()), QString::fromStdString(m_device.serial()))
-            );
+                    .arg(prefix, QString::fromStdString(m_device.model()), QString::fromStdString(m_device.serial())));
     }
 
     bool prepare(const TestSubject &) override
@@ -254,8 +252,7 @@ public:
                 const auto pts = GST_BUFFER_DTS(buffer);
                 if (pts != GST_CLOCK_TIME_NONE) {
                     clockSync->processTimestamp(
-                        frameRecvTime, std::chrono::duration_cast<microseconds_t>(nanoseconds_t(pts))
-                    );
+                        frameRecvTime, std::chrono::duration_cast<microseconds_t>(nanoseconds_t(pts)));
                     m_firstTimestamp = false;
                 } else {
                     // mark as us not being able to do any time adjustments if no valid timestamps are received
@@ -405,8 +402,7 @@ public:
             settings.value("camera_model").toString(),
             settings.value("camera_serial").toString(),
             settings.value("camera_type").toString(),
-            caps
-        );
+            caps);
 
         // only continue loading camera settings if we selected the right camera
         if (!ret) {
@@ -417,8 +413,7 @@ public:
                 << "Will not load camera settings.";
             setStatusMessage(
                 QStringLiteral("<html><font color=\"red\">Missing:</font> %1 <small>%2</small>")
-                    .arg(settings.value("camera_model").toString(), settings.value("camera_serial").toString())
-            );
+                    .arg(settings.value("camera_model").toString(), settings.value("camera_serial").toString()));
             return true;
         }
 
@@ -472,8 +467,7 @@ public:
             }
             case TCAM_PROPERTY_TYPE_ENUMERATION: {
                 tcam_property_enumeration_set_value(
-                    TCAM_PROPERTY_ENUMERATION(prop), qPrintable(valueVar.toString()), &error
-                );
+                    TCAM_PROPERTY_ENUMERATION(prop), qPrintable(valueVar.toString()), &error);
                 break;
             }
             case TCAM_PROPERTY_TYPE_BOOLEAN: {
@@ -521,8 +515,7 @@ QString TISCameraModuleInfo::license() const
 {
     return QStringLiteral(
         "This module embeds code from <a href=\"https://www.theimagingsource.com/\">The Imaging Source</a> "
-        "which is distributed under the terms of the Apache-2.0 license."
-    );
+        "which is distributed under the terms of the Apache-2.0 license.");
 }
 
 AbstractModule *TISCameraModuleInfo::createModule(QObject *parent)

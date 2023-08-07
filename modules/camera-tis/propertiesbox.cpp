@@ -137,8 +137,8 @@ void PropertiesBox::initialize_dialog(TcamCollection &collection)
             qWarning("%s has empty category!", name.c_str());
         }
 
-        auto is_known_category =
-            std::any_of(known_categories.begin(), known_categories.end(), [&category](const std::string &categ) {
+        auto is_known_category = std::any_of(
+            known_categories.begin(), known_categories.end(), [&category](const std::string &categ) {
                 return categ == category;
             });
 
@@ -150,8 +150,7 @@ void PropertiesBox::initialize_dialog(TcamCollection &collection)
             auto ptr = new DoubleWidget(TCAM_PROPERTY_FLOAT(prop));
             connect(ptr, &DoubleWidget::value_changed, p_worker, &PropertyWorker::write_property, Qt::QueuedConnection);
             connect(
-                ptr, &DoubleWidget::update_category, p_worker, &PropertyWorker::update_category, Qt::QueuedConnection
-            );
+                ptr, &DoubleWidget::update_category, p_worker, &PropertyWorker::update_category, Qt::QueuedConnection);
             connect(ptr, &DoubleWidget::device_lost, this, &PropertiesBox::notify_device_lost);
             prop_list.push_back(ptr);
             break;

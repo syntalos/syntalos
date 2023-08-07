@@ -175,8 +175,7 @@ public:
         int fps,
         int cvDepth,
         bool hasColor,
-        bool saveTimestamps = true
-    );
+        bool saveTimestamps = true);
     void finalize();
     bool initialized() const;
     bool startNewSection(const QString &fname);

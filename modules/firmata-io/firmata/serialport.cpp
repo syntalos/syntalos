@@ -88,8 +88,7 @@ bool SerialFirmata::setDevice(const QString &device)
                     }
 
                     setStatusText(msg);
-                }
-            );
+                });
 
             if (!d->port->open(QIODevice::ReadWrite)) {
                 qWarning() << "Error opening" << device << d->port->error();

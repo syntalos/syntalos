@@ -176,8 +176,7 @@ void EncodeWindow::on_tasksTable_activated(const QModelIndex &index)
 
     const auto text = QStringLiteral(
                           "<h3>Errors</h3><p>%1</p>"
-                          "<h3>Technical Details</h3><p>%2</p>"
-    )
+                          "<h3>Technical Details</h3><p>%2</p>")
                           .arg(errorMsg.isEmpty() ? "None" : errorMsg, info);
     ui->detailsBrowser->setHtml(text);
 }
@@ -195,8 +194,7 @@ void EncodeWindow::closeEvent(QCloseEvent *event)
             this,
             QStringLiteral("Encoding in progress"),
             QStringLiteral("You can not close this tool while there are still encoding tasks ongoing or pending.\n"
-                           "Please encode all videos before quitting.")
-        );
+                           "Please encode all videos before quitting."));
         event->ignore();
     }
 }

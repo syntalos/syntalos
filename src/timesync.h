@@ -103,8 +103,7 @@ public:
         std::shared_ptr<SyncTimer> masterTimer,
         AbstractModule *mod,
         double frequencyHz,
-        const QString &id = nullptr
-    );
+        const QString &id = nullptr);
     ~FreqCounterSynchronizer();
 
     void setCalibrationBlocksCount(int count);
@@ -124,8 +123,7 @@ public:
         const microseconds_t &blocksRecvTimestamp,
         int blockIndex,
         int blockCount,
-        VectorXu &idxTimestamps
-    );
+        VectorXu &idxTimestamps);
 
 private:
     Q_DISABLE_COPY(FreqCounterSynchronizer)
@@ -177,8 +175,7 @@ public:
     explicit SecondaryClockSynchronizer(
         std::shared_ptr<SyncTimer> masterTimer,
         AbstractModule *mod,
-        const QString &id = QString()
-    );
+        const QString &id = QString());
     ~SecondaryClockSynchronizer();
 
     /**
@@ -247,8 +244,7 @@ void safeStopSynchronizer(const T &synchronizerSmartPtr)
     static_assert(
         std::is_base_of<SecondaryClockSynchronizer, typename T::element_type>::value
             || std::is_base_of<FreqCounterSynchronizer, typename T::element_type>::value,
-        "This function requires a smart pointer to a clock synchronizer."
-    );
+        "This function requires a smart pointer to a clock synchronizer.");
     if (synchronizerSmartPtr.get() != nullptr)
         synchronizerSmartPtr->stop();
 }
@@ -258,8 +254,7 @@ void safeStopSynchronizer(const T &synchronizer, const microseconds_t &lastValid
 {
     static_assert(
         std::is_base_of<FreqCounterSynchronizer, typename T::element_type>::value,
-        "This function requires a smart pointer to a FreqCounter clock synchronizer."
-    );
+        "This function requires a smart pointer to a FreqCounter clock synchronizer.");
     if (synchronizer) {
         synchronizer->setLastValidMasterTimestamp(lastValidMasterTimestamp);
         safeStopSynchronizer(synchronizer);

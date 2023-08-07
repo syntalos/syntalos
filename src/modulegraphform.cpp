@@ -64,8 +64,7 @@ ModuleGraphForm::ModuleGraphForm(QWidget *parent)
         ui->actionMenu,
         &QAction::triggered,
         qobject_cast<QToolButton *>(ui->toolBar->widgetForAction(ui->actionMenu)),
-        &QToolButton::showMenu
-    );
+        &QToolButton::showMenu);
 
     connect(ui->graphView->scene(), &QGraphicsScene::selectionChanged, this, &ModuleGraphForm::on_selectionChanged);
     connect(ui->graphView, &FlowGraphView::renamed, this, &ModuleGraphForm::itemRenamed);
@@ -125,8 +124,7 @@ void ModuleGraphForm::setModifyPossible(bool allowModify)
 FlowGraphEdge *ModuleGraphForm::updateConnectionHeat(
     const VarStreamInputPort *inPort,
     const StreamOutputPort *outPort,
-    ConnectionHeatLevel hlevel
-)
+    ConnectionHeatLevel hlevel)
 {
     const auto inNode = m_modNodeMap.value(inPort->owner());
     const auto outNode = m_modNodeMap.value(outPort->owner());
@@ -463,8 +461,7 @@ void ModuleGraphForm::on_modulePortConfigChanged()
                 otherPort = conn->port2();
 
             m_connMemory[mod->name() + port->streamPort()->id()] = qMakePair(
-                otherPort->portNode(), otherPort->streamPort()->id()
-            );
+                otherPort->portNode(), otherPort->streamPort()->id());
         }
     }
 

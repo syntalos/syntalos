@@ -80,8 +80,7 @@ CrashReportDialog::CrashReportDialog(ReportMode mode, QWidget *parent)
             "Note that the generated debug data may contain sensitive information!<br/>"
             "Please check the generated data before sending it to a potentially untrusted party.</p>"
             "<p>Please make sure Syntalos is <b>running</b> and also currently frozen before clicking the "
-            "<i>Analyze</i> button!</p>"
-        ));
+            "<i>Analyze</i> button!</p>"));
         ui->nextButton->setText("Analyze Now!");
         ui->nextButton->setIcon(QIcon::fromTheme("search"));
 
@@ -89,8 +88,7 @@ CrashReportDialog::CrashReportDialog(ReportMode mode, QWidget *parent)
             // we can't do anything without GDB...
             ui->nextButton->setEnabled(false);
             ui->warnLabel->setText(
-                "We can not continue without the GNU Debugger (GDB).\nPlease install it and try again!"
-            );
+                "We can not continue without the GNU Debugger (GDB).\nPlease install it and try again!");
         }
 
         // we need to attach to a running process, try to make sure that we are allowed to do so
@@ -119,8 +117,7 @@ static QString sliceJournalMessages(JournalCollector &journal)
         const auto entry = msgEntries[i];
         report += QStringLiteral("%1 %2 [%3]: %4\n")
                       .arg(
-                          entry.time.toString(Qt::ISODate), QString::number(entry.priority), entry.unit, entry.message
-                      );
+                          entry.time.toString(Qt::ISODate), QString::number(entry.priority), entry.unit, entry.message);
     }
     if (msgEntries.length() > MAX_LOG_ENTRIES_IN_REPORT)
         report += QStringLiteral("\n- List truncated, included only the last %1 entries.\n")
@@ -225,28 +222,24 @@ void CrashReportDialog::runPastCrashCollect()
 
     ui->doneInfoLabel->setText(QStringLiteral(
         "<html><p><b>All done!</b><br/>"
-        "You can now save the generated report to disk for sharing. Click on <i>Save Report</i> to save it.</p>"
-    ));
+        "You can now save the generated report to disk for sharing. Click on <i>Save Report</i> to save it.</p>"));
     if (reportResult.second.first) {
         ui->doneInfoLabel->setText(
             ui->doneInfoLabel->text()
             + QStringLiteral("<p>The crash described in this report happened on: <b>%1</b></p>")
-                  .arg(reportResult.second.second.toString())
-        );
+                  .arg(reportResult.second.second.toString()));
     } else {
         // we didn't actually find a crash!
         ui->doneInfoLabel->setText(
             ui->doneInfoLabel->text()
-            + QStringLiteral("<p><b>No crash / coredump data was found!</b> The report only contains log data.</p>")
-        );
+            + QStringLiteral("<p><b>No crash / coredump data was found!</b> The report only contains log data.</p>"));
     }
     if (!m_allToolsFound)
         ui->doneInfoLabel->setText(
             ui->doneInfoLabel->text()
             + QStringLiteral("<br/>"
                              "Please keep in mind that this report may be <b>incomplete</b> "
-                             "due to missing analysis tools on this system.")
-        );
+                             "due to missing analysis tools on this system."));
 }
 
 void CrashReportDialog::runFreezeDebug()
@@ -276,15 +269,13 @@ void CrashReportDialog::runFreezeDebug()
 
     ui->doneInfoLabel->setText(QStringLiteral(
         "<html><b>All done!</b><br/>"
-        "You can now save the generated report to disk for sharing. Click on <i>Save Report</i> to save it."
-    ));
+        "You can now save the generated report to disk for sharing. Click on <i>Save Report</i> to save it."));
     if (!m_allToolsFound)
         ui->doneInfoLabel->setText(
             ui->doneInfoLabel->text()
             + QStringLiteral("<br/>"
                              "Please keep in mind that this report may be <b>incomplete</b> "
-                             "due to missing analysis tools on this system.")
-        );
+                             "due to missing analysis tools on this system."));
 }
 
 void CrashReportDialog::on_nextButton_clicked()
@@ -318,8 +309,7 @@ void CrashReportDialog::on_nextButton_clicked()
             this,
             "Select Report Filename",
             QStandardPaths::writableLocation(QStandardPaths::HomeLocation) + "/" + fnameSuggestion,
-            "Text Files (*.md)"
-        );
+            "Text Files (*.md)");
 
         if (fileName.isEmpty())
             return;
@@ -328,8 +318,7 @@ void CrashReportDialog::on_nextButton_clicked()
         QFile file(fileName);
         if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
             QMessageBox::warning(
-                this, "Unable to save file", QStringLiteral("Failed to save file: %1").arg(file.errorString())
-            );
+                this, "Unable to save file", QStringLiteral("Failed to save file: %1").arg(file.errorString()));
             return;
         }
 

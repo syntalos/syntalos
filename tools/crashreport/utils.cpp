@@ -126,8 +126,7 @@ void PtraceScopeManager::changePtraceScope(bool state)
     pkProc.setProgram(m_pkexecExe);
     pkProc.setArguments(
         QStringList() << "/bin/sh"
-                      << "-c" << QStringLiteral("echo %1 > /proc/sys/kernel/yama/ptrace_scope").arg(state ? 1 : 0)
-    );
+                      << "-c" << QStringLiteral("echo %1 > /proc/sys/kernel/yama/ptrace_scope").arg(state ? 1 : 0));
     pkProc.start();
     bool ret = pkProc.waitForFinished(120 * 1000);
     if (!ret)

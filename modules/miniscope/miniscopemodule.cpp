@@ -59,8 +59,7 @@ public:
         m_rawOut = registerOutputPort<Frame>(QStringLiteral("frames-raw-out"), QStringLiteral("Raw Frames"));
         m_dispOut = registerOutputPort<Frame>(QStringLiteral("frames-disp-out"), QStringLiteral("Display Frames"));
         m_bnoVecOut = registerOutputPort<FloatSignalBlock>(
-            QStringLiteral("bno-raw-out"), QStringLiteral("Orientation Vector")
-        );
+            QStringLiteral("bno-raw-out"), QStringLiteral("Orientation Vector"));
         m_bnoTabOut = registerOutputPort<TableRow>(QStringLiteral("bno-tab-out"), QStringLiteral("Orientation Rows"));
         m_bnoVecOut->setMetadataValue("channel_index_first", 0);
         m_bnoVecOut->setMetadataValue("channel_index_last", 3);
@@ -181,9 +180,8 @@ public:
                           << "qw"
                           << "qx"
                           << "qy"
-                          << "qz"
-        );
-        m_bnoTabOut->setSuggestedDataName(QStringLiteral("%1/orientation").arg(datasetNameSuggestion()));
+                          << "qz");
+        m_bnoTabOut->setSuggestedDataName(QStringLiteral("%1_bno/orientation").arg(datasetNameSuggestion()));
 
         m_bnoVecOut->setMetadataValue("channel_index_first", 0);
         m_bnoVecOut->setMetadataValue("channel_index_last", 3);
@@ -234,8 +232,7 @@ public:
         const milliseconds_t &masterRecvTime,
         const milliseconds_t &deviceTime,
         const std::vector<float> &orientation,
-        void *udata
-    )
+        void *udata)
     {
         const auto self = static_cast<MiniscopeModule *>(udata);
         if (!self->m_acceptFrames) {
@@ -263,8 +260,7 @@ public:
                 self->m_bnoTabOut->push(
                     QStringList() << QString::number(frameTime.count()) << QString::number(orientation[0])
                                   << QString::number(orientation[1]) << QString::number(orientation[2])
-                                  << QString::number(orientation[3])
-                );
+                                  << QString::number(orientation[3]));
 
             if (self->m_bnoVecOut->active())
                 self->m_bnoVecOut->push(FloatSignalBlock(orientation, frameTime.count()));
@@ -303,9 +299,9 @@ public:
                 return;
             }
         }
-        statusMessage(
-            QStringLiteral("FPS: %1 Dropped: %2").arg(m_miniscope->currentFps()).arg(m_miniscope->droppedFramesCount())
-        );
+        statusMessage(QStringLiteral("FPS: %1 Dropped: %2")
+                          .arg(m_miniscope->currentFps())
+                          .arg(m_miniscope->droppedFramesCount()));
         m_settingsDialog->setCurrentPixRangeValues(m_miniscope->minFluor(), m_miniscope->maxFluor());
     }
 

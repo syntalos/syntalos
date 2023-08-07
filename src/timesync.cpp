@@ -79,8 +79,7 @@ FreqCounterSynchronizer::FreqCounterSynchronizer(
     std::shared_ptr<SyncTimer> masterTimer,
     AbstractModule *mod,
     double frequencyHz,
-    const QString &id
-)
+    const QString &id)
     : m_mod(mod),
       m_id(id),
       m_strategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD | TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD),
@@ -225,8 +224,7 @@ void FreqCounterSynchronizer::stop()
 
             m_tswriter->writeTimes(
                 microseconds_t(std::lround((m_lastSecondaryIdxUnandjusted + 1) * m_timePerPointUs)) + offset,
-                m_lastMasterAssumedAcqTS + offset
-            );
+                m_lastMasterAssumedAcqTS + offset);
         }
         m_lastValidMasterTimestamp = microseconds_t(0);
         m_lastMasterAssumedAcqTS = microseconds_t(0);
@@ -239,8 +237,7 @@ void FreqCounterSynchronizer::processTimestamps(
     const microseconds_t &blocksRecvTimestamp,
     int blockIndex,
     int blockCount,
-    VectorXu &idxTimestamps
-)
+    VectorXu &idxTimestamps)
 {
     // basic input value sanity checks
     assert(blockCount >= 1);
@@ -273,8 +270,7 @@ void FreqCounterSynchronizer::processTimestamps(
     const auto secondaryLastTS = m_applyIndexOffset
                                      ? microseconds_t(std::lround((secondaryLastIdx + 1) * m_timePerPointUs))
                                      : microseconds_t(std::lround(
-                                         (secondaryLastIdxUnadjusted + 1 - m_indexOffset) * m_timePerPointUs
-                                     ));
+                                         (secondaryLastIdxUnadjusted + 1 - m_indexOffset) * m_timePerPointUs));
 
     // calculate time offset
     const int64_t curOffsetUsec = (secondaryLastTS - masterAssumedAcqTS).count();
@@ -431,8 +427,7 @@ void FreqCounterSynchronizer::processTimestamps(
     // so the zero-index needs to be offset by one.
     if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
         m_tswriter->writeTimes(
-            microseconds_t(std::lround((secondaryLastIdxUnadjusted + 1) * m_timePerPointUs)), masterAssumedAcqTS
-        );
+            microseconds_t(std::lround((secondaryLastIdxUnadjusted + 1) * m_timePerPointUs)), masterAssumedAcqTS);
 
     m_lastTimeIndex = secondaryLastIdx;
 }
@@ -444,8 +439,7 @@ void FreqCounterSynchronizer::processTimestamps(
 SecondaryClockSynchronizer::SecondaryClockSynchronizer(
     std::shared_ptr<SyncTimer> masterTimer,
     AbstractModule *mod,
-    const QString &id
-)
+    const QString &id)
     : m_mod(mod),
       m_id(id),
       m_strategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD | TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD),
@@ -596,8 +590,7 @@ void SecondaryClockSynchronizer::stop()
 
 void SecondaryClockSynchronizer::processTimestamp(
     microseconds_t &masterTimestamp,
-    const microseconds_t &secondaryAcqTimestamp
-)
+    const microseconds_t &secondaryAcqTimestamp)
 {
     const long long curOffsetUsec = (secondaryAcqTimestamp - masterTimestamp).count();
 
@@ -656,8 +649,7 @@ void SecondaryClockSynchronizer::processTimestamp(
         masterTimestamp = microseconds_t(std::lround(
             ((secondaryAcqTimestamp.count() - m_expectedOffset.count())
              + (secondaryAcqTimestamp.count() - avgOffsetUsec))
-            / 2.0
-        ));
+            / 2.0));
 
         /*
         qCDebug(logTimeSync).noquote().nospace() << QTime::currentTime().toString() << "[" << m_id << "] "
@@ -671,8 +663,7 @@ void SecondaryClockSynchronizer::processTimestamp(
         // the master timestamp based on that assumption as average between expected master timestamp
         // based on expected offset and the actual, measured master timestamp.
         masterTimestamp = microseconds_t(
-            std::lround(((secondaryAcqTimestamp.count() - m_expectedOffset.count()) + masterTimestamp.count()) / 2.0)
-        );
+            std::lround(((secondaryAcqTimestamp.count() - m_expectedOffset.count()) + masterTimestamp.count()) / 2.0));
     }
 
     // ensure time doesn't run backwards - at this point, this event may
@@ -711,8 +702,7 @@ void SecondaryClockSynchronizer::processTimestamp(
 
     // try to adjust a potential external clock slowly (and also adjust our timestamps slowly)
     const auto newClockCorrectionOffset = microseconds_t(
-        static_cast<long>(std::floor(((m_clockCorrectionOffset.count() * 15) + avgOffsetDeviationUsec) / (15 + 1.0)))
-    );
+        static_cast<long>(std::floor(((m_clockCorrectionOffset.count() * 15) + avgOffsetDeviationUsec) / (15 + 1.0))));
 
     // write offset info to tsync file before we make any adjustments to the master timestamp
     if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE)) {

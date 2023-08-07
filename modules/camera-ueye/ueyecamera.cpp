@@ -155,8 +155,7 @@ bool UEyeCamera::open(const cv::Size &size)
     }
 
     res = is_ImageFormat(
-        m_hCam, IMGFRMT_CMD_GET_ARBITRARY_AOI_SUPPORTED, (void *)&nAOISupported, sizeof(nAOISupported)
-    );
+        m_hCam, IMGFRMT_CMD_GET_ARBITRARY_AOI_SUPPORTED, (void *)&nAOISupported, sizeof(nAOISupported));
     if (res != IS_SUCCESS) {
         setError("Unable to set image format", res);
         return false;

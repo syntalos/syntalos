@@ -214,8 +214,7 @@ bool OOPModule::initAndLaunchWorker(const QVector<uint> &cpuAffinity)
         this,
         [&](const OOPWorkerReplica::Stage &newStage) {
             d->workerStage = newStage;
-        }
-    );
+        });
 
     connect(d->runData->replica.data(), &OOPWorkerReplica::error, this, &OOPModule::recvError);
     connect(d->runData->replica.data(), &OOPWorkerReplica::statusMessage, this, [&](const QString &text) {

@@ -47,8 +47,7 @@ public:
 
     void setPorts(
         QList<std::shared_ptr<VarStreamInputPort>> inPorts,
-        QList<std::shared_ptr<StreamOutputPort>> outPorts
-    );
+        QList<std::shared_ptr<StreamOutputPort>> outPorts);
 
     void initWithPythonScript(const QString &script, const QString &wdir = QString());
     void setPythonVirtualEnv(const QString &venvDir);

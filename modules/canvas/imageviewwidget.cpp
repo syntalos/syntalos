@@ -62,10 +62,8 @@ void ImageViewWidget::initializeGL()
             QStringLiteral(
                 "Unable to initialize OpenGL functions. Your system needs at least OpenGL 3.0 to run this application. "
                 "You may want to try to upgrade your graphics drivers.\n"
-                "Can not continue."
-            ),
-            QMessageBox::Ok
-        );
+                "Can not continue."),
+            QMessageBox::Ok);
         qFatal("Unable to initialize OpenGL functions. Your system needs at least OpenGL 3.0 to run this application.");
         exit(6);
     }
@@ -132,8 +130,7 @@ GLuint ImageViewWidget::matToTexture(const cv::Mat &mat, GLenum minFilter, GLenu
         0,                // Border width in pixels (can either be 1 or 0)
         inputColorFormat, // Input image format (i.e. GL_RGB, GL_RGBA, GL_BGR etc.)
         GL_UNSIGNED_BYTE, // Image data type
-        dispMat.ptr()
-    ); // The actual image data itself
+        dispMat.ptr());   // The actual image data itself
 
     // If we're using mipmaps then generate them.
     if (minFilter == GL_LINEAR_MIPMAP_LINEAR || minFilter == GL_LINEAR_MIPMAP_NEAREST

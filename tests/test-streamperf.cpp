@@ -49,8 +49,7 @@ static MyDataFrame transform_data_fast(const MyDataFrame &data, size_t id)
         cv::Point(24, 320),
         cv::FONT_HERSHEY_COMPLEX,
         1.5,
-        cv::Scalar(140, 140, 255)
-    );
+        cv::Scalar(140, 140, 255));
     newData.id = id;
 
     return newData;
@@ -69,8 +68,7 @@ static MyDataFrame create_data_200Hz(size_t index)
         cv::Point(24, 240),
         cv::FONT_HERSHEY_COMPLEX,
         1.5,
-        cv::Scalar(255, 255, 255)
-    );
+        cv::Scalar(255, 255, 255));
     data.frame = frame;
 
     std::this_thread::sleep_for(std::chrono::milliseconds(5));
@@ -154,8 +152,7 @@ static void transformer_fast(
     const std::string &threadName,
     Barrier *barrier,
     DataStream<MyDataFrame> *recvStream,
-    DataStream<MyDataFrame> *prodStream
-)
+    DataStream<MyDataFrame> *prodStream)
 {
     pthread_setname_np(pthread_self(), threadName.c_str());
     size_t count = 1;
@@ -194,8 +191,7 @@ private slots:
             threads.push_back(std::thread(consumer_instant, "consumer_instant", &barrier, prodStream.get()));
 
             threads.push_back(
-                std::thread(transformer_fast, "transformer", &barrier, prodStream.get(), transStream.get())
-            );
+                std::thread(transformer_fast, "transformer", &barrier, prodStream.get(), transStream.get()));
             threads.push_back(std::thread(consumer_fast, "consumer_tfo", &barrier, transStream.get()));
 
             for (auto &t : threads)
@@ -218,19 +214,16 @@ private slots:
             threads.push_back(std::thread(consumer_instant, "consumer_instant", &barrier, prodStream.get()));
 
             threads.push_back(
-                std::thread(transformer_fast, "transformer", &barrier, prodStream.get(), transStream.get())
-            );
+                std::thread(transformer_fast, "transformer", &barrier, prodStream.get(), transStream.get()));
 
             for (uint i = 0; i < threadCount - 4; ++i) {
                 // we connect half of the regular consumers to the producer, the rest goes to the transformer
                 if ((i % 2) == 0)
                     threads.push_back(std::thread(
-                        consumer_fast, std::string("consumer_raw_") + std::to_string(i), &barrier, prodStream.get()
-                    ));
+                        consumer_fast, std::string("consumer_raw_") + std::to_string(i), &barrier, prodStream.get()));
                 else
                     threads.push_back(std::thread(
-                        consumer_fast, std::string("consumer_tf_") + std::to_string(i), &barrier, transStream.get()
-                    ));
+                        consumer_fast, std::string("consumer_tf_") + std::to_string(i), &barrier, transStream.get()));
             }
 
             std::cout << "Running " << threads.size() << " threads." << std::endl;

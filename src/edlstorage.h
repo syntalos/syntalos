@@ -141,8 +141,7 @@ protected:
 
     void setDataObjects(
         std::optional<EDLDataFile> dataFile,
-        const QList<EDLDataFile> &auxDataFiles = QList<EDLDataFile>()
-    );
+        const QList<EDLDataFile> &auxDataFiles = QList<EDLDataFile>());
 
     bool saveManifest();
     bool saveAttributes();

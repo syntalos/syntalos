@@ -190,8 +190,7 @@ QAbstractSpinBox::StepEnabled TcamSpinBoxImpl::stepEnabled() const
 
     if (m_wrapping) {
         return QAbstractSpinBox::StepEnabled(
-            QAbstractSpinBox::StepEnabledFlag::StepUpEnabled | QAbstractSpinBox::StepEnabledFlag::StepDownEnabled
-        );
+            QAbstractSpinBox::StepEnabledFlag::StepUpEnabled | QAbstractSpinBox::StepEnabledFlag::StepDownEnabled);
     }
     QAbstractSpinBox::StepEnabled ret = QAbstractSpinBox::StepEnabledFlag::StepNone;
     if (m_value < m_maximum) {
@@ -439,7 +438,8 @@ void TcamSpinBox::slotEditorCursorPositionChanged(int oldpos, int newpos)
             } else {
                 pos = oldpos;
             }
-        } else if (newpos > lineEdit()->text().size() - m_impl->m_suffix.size() && newpos != lineEdit()->text().size()) {
+        } else if (
+            newpos > lineEdit()->text().size() - m_impl->m_suffix.size() && newpos != lineEdit()->text().size()) {
             if (oldpos == lineEdit()->text().size()) {
                 pos = lineEdit()->text().size() - m_impl->m_suffix.size();
                 allowSelection = false;

@@ -29,8 +29,7 @@
 FirmataOutputWidget::FirmataOutputWidget(
     std::shared_ptr<DataStream<FirmataControl>> fmCtlStream,
     bool analog,
-    QWidget *parent
-)
+    QWidget *parent)
     : QWidget(parent),
       m_isAnalog(analog),
       m_fmCtlStream(fmCtlStream)
@@ -168,8 +167,7 @@ void FirmataOutputWidget::onPinIdChange(int)
 FirmataInputWidget::FirmataInputWidget(
     std::shared_ptr<DataStream<FirmataControl>> fmCtlStream,
     bool analog,
-    QWidget *parent
-)
+    QWidget *parent)
     : QWidget(parent),
       m_isAnalog(analog),
       m_fmCtlStream(fmCtlStream)
@@ -387,8 +385,7 @@ void FirmataCtlDialog::on_btnAddOutputControl_clicked()
                       << "Analog",
         0,
         false,
-        &ok
-    );
+        &ok);
     if (!ok || item.isEmpty())
         return;
 
@@ -413,8 +410,7 @@ void FirmataCtlDialog::on_btnAddInputWatch_clicked()
                       << "Analog",
         0,
         false,
-        &ok
-    );
+        &ok);
     if (!ok || item.isEmpty())
         return;
 

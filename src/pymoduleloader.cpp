@@ -64,8 +64,7 @@ public:
             registerInputPortByTypeId(
                 QMetaType::type(qPrintable(po.value("data_type").toString())),
                 po.value("id").toString(),
-                po.value("title").toString()
-            );
+                po.value("title").toString());
         }
 
         for (const auto &pv : varOutPorts) {
@@ -73,8 +72,7 @@ public:
             registerOutputPortByTypeId(
                 QMetaType::type(qPrintable(po.value("data_type").toString())),
                 po.value("id").toString(),
-                po.value("title").toString()
-            );
+                po.value("title").toString());
         }
     }
 
@@ -106,8 +104,7 @@ public:
             for (const auto &pyDir : vpDirs) {
                 qDebug().noquote() << "Adding system Python module to venv:" << systemPyQtPath;
                 QFile::link(
-                    systemPyQtPath, QStringLiteral("%1/lib/%2/site-packages/%3").arg(venvDir, pyDir, pyModName)
-                );
+                    systemPyQtPath, QStringLiteral("%1/lib/%2/site-packages/%3").arg(venvDir, pyDir, pyModName));
             }
         }
     }
@@ -217,11 +214,9 @@ public:
                     "The '%1' module requested to run its Python code in a virtual environment, however "
                     "a virtual Python environment for modules of type '%2' does not exist yet. "
                     "Should Syntalos attempt to set up the environment automatically? "
-                    "(This will open a system terminal and run the necessary commands, which may take some time)"
-                )
+                    "(This will open a system terminal and run the necessary commands, which may take some time)")
                     .arg(name(), id()),
-                QMessageBox::Yes | QMessageBox::No
-            );
+                QMessageBox::Yes | QMessageBox::No);
             if (reply == QMessageBox::No)
                 return false;
 
@@ -231,9 +226,7 @@ public:
                     nullptr,
                     QStringLiteral("Failed to create virtual environment for %1?").arg(id()),
                     QStringLiteral(
-                        "Failed to set up the virtual environment - refer to the terminal log for more information."
-                    )
-                );
+                        "Failed to set up the virtual environment - refer to the terminal log for more information."));
                 return false;
             }
             GlobalConfig gconf;
@@ -264,8 +257,7 @@ public:
             QMessageBox::information(
                 nullptr,
                 QStringLiteral("Settings unavailable"),
-                QStringLiteral("Settings can not be shown while the module is running in an experiment.")
-            );
+                QStringLiteral("Settings can not be shown while the module is running in an experiment."));
             return;
         }
         if (m_settingsOpened) {
@@ -323,8 +315,7 @@ public:
         const QString &name,
         const QString &description,
         const QIcon &icon,
-        bool isDevModule
-    )
+        bool isDevModule)
         : m_id(id),
           m_name(name),
           m_description(description),
@@ -417,8 +408,8 @@ ModuleInfo *loadPythonModuleInfo(const QString &modId, const QString &modDir, co
 
     const auto pyFile = QDir(modDir).filePath(modDef.value("main").toString());
     if (!QFileInfo::exists(pyFile))
-        throw std::runtime_error(qPrintable(QStringLiteral("Main entrypoint Python file %1 does not exist").arg(pyFile))
-        );
+        throw std::runtime_error(
+            qPrintable(QStringLiteral("Main entrypoint Python file %1 does not exist").arg(pyFile)));
 
     modInfo = new PyModuleInfo(modId, name, desc, icon, isDevMod);
     modInfo->setRootDir(modDir);

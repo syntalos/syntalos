@@ -90,8 +90,7 @@ public:
         const std::string &format,
         const scaling &scale,
         unsigned int width,
-        unsigned int height
-    ) const;
+        unsigned int height) const;
 
     bool has_binning() const;
     bool has_skipping() const;

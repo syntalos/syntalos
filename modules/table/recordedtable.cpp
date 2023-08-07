@@ -95,8 +95,7 @@ void RecordedTable::setHeader(const QStringList &headers)
         QMessageBox::warning(
             m_tableWidget,
             QStringLiteral("Warning"),
-            QStringLiteral("Can not change table headers after already receiving events.")
-        );
+            QStringLiteral("Can not change table headers after already receiving events."));
         return;
     }
 

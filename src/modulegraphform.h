@@ -67,8 +67,7 @@ public:
     FlowGraphEdge *updateConnectionHeat(
         const VarStreamInputPort *inPort,
         const StreamOutputPort *outPort,
-        ConnectionHeatLevel hlevel
-    );
+        ConnectionHeatLevel hlevel);
 
 private slots:
     void on_actionAddModule_triggered();

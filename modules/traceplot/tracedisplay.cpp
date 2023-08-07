@@ -209,8 +209,7 @@ void TraceDisplay::updatePortChannels()
 
 template<typename T>
 static inline bool updateDataForActiveChannels(
-    QList<QPair<std::shared_ptr<StreamSubscription<T>>, QList<PlotChannelData *>>> &activeSubChans
-)
+    QList<QPair<std::shared_ptr<StreamSubscription<T>>, QList<PlotChannelData *>>> &activeSubChans)
 {
     bool updated = false;
 

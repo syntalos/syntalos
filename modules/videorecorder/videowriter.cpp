@@ -419,8 +419,8 @@ public:
         initialized = false;
         container = VideoContainer::Matroska;
         fileSliceIntervalMin = 0; // never slice our recording by default
-        captureStartTimestamp = std::chrono::milliseconds(0
-        ); // by default we assume the first frame was recorded at timepoint 0
+        captureStartTimestamp = std::chrono::milliseconds(
+            0); // by default we assume the first frame was recorded at timepoint 0
 
         encFrame = nullptr;
         inputFrame = nullptr;
@@ -522,8 +522,7 @@ static AVFrame *vw_alloc_frame(int pix_fmt, int width, int height, bool allocate
             return nullptr;
         }
         av_image_fill_arrays(
-            aframe->data, aframe->linesize, aframe_buf, static_cast<AVPixelFormat>(pix_fmt), width, height, 1
-        );
+            aframe->data, aframe->linesize, aframe_buf, static_cast<AVPixelFormat>(pix_fmt), width, height, 1);
     }
 
     return aframe;
@@ -535,13 +534,13 @@ void VideoWriter::initializeHWAccell()
     const auto hwDevice = d->codecProps.renderNode();
 
     int ret = av_hwdevice_ctx_create(
-        &d->hwDevCtx, av_hwdevice_find_type_by_name("vaapi"), qPrintable(hwDevice), nullptr, 0
-    );
+        &d->hwDevCtx, av_hwdevice_find_type_by_name("vaapi"), qPrintable(hwDevice), nullptr, 0);
 
     if (ret != 0)
-        throw std::runtime_error(
-            QStringLiteral("Failed to create hardware encoding device for %1: %2").arg(hwDevice).arg(ret).toStdString()
-        );
+        throw std::runtime_error(QStringLiteral("Failed to create hardware encoding device for %1: %2")
+                                     .arg(hwDevice)
+                                     .arg(ret)
+                                     .toStdString());
 
     d->hwFrameCtx = av_hwframe_ctx_alloc(d->hwDevCtx);
     if (!d->hwFrameCtx) {
@@ -679,15 +678,13 @@ void VideoWriter::initializeInternal()
             QStringLiteral("Unable to find suitable video encoder for codec %1. This codec may not have been enabled "
                            "at compile time or the system is missing the required encoder.")
                 .arg(videoCodecToString(d->codecProps.codec()).c_str())
-                .toStdString()
-        );
+                .toStdString());
 
     if ((d->fps.num / d->fps.den) > 240 && QString::fromUtf8(vcodec->name) == "libsvtav1")
         throw std::runtime_error(
             QStringLiteral("Can not encode videos with a framerate higher than 240 FPS using the %1 encoder.")
                 .arg(vcodec->name)
-                .toStdString()
-        );
+                .toStdString());
 
     d->cctx = avcodec_alloc_context3(vcodec);
     d->selectedEncoderName = QString::fromUtf8(vcodec->name);
@@ -850,8 +847,7 @@ void VideoWriter::initializeInternal()
         finalizeInternal(false);
         av_dict_free(&codecopts);
         throw std::runtime_error(
-            QStringLiteral("Failed to open video encoder with the current parameters: %1").arg(ret).toStdString()
-        );
+            QStringLiteral("Failed to open video encoder with the current parameters: %1").arg(ret).toStdString());
     }
 
     // stream codec parameters must be set after opening the encoder
@@ -870,8 +866,7 @@ void VideoWriter::initializeInternal()
         SWS_BICUBIC,
         nullptr,
         nullptr,
-        nullptr
-    );
+        nullptr);
 
     if (!d->swsctx) {
         finalizeInternal(false);
@@ -930,8 +925,7 @@ void VideoWriter::initializeInternal()
         if (!d->tsfWriter.open(d->modName, d->collectionId)) {
             finalizeInternal(false);
             throw std::runtime_error(
-                QStringLiteral("Unable to initialize timesync file: %1").arg(d->tsfWriter.lastError()).toStdString()
-            );
+                QStringLiteral("Unable to initialize timesync file: %1").arg(d->tsfWriter.lastError()).toStdString());
         }
     }
 
@@ -1002,8 +996,7 @@ void VideoWriter::initialize(
     int fps,
     int cvDepth,
     bool hasColor,
-    bool saveTimestamps
-)
+    bool saveTimestamps)
 {
     if (d->initialized)
         throw std::runtime_error("Tried to initialize an already initialized video writer.");
@@ -1189,8 +1182,7 @@ inline bool VideoWriter::prepareFrame(const cv::Mat &inImage)
         d->inputPixFormat,
         width,
         height,
-        1
-    );
+        1);
     d->inputFrame->linesize[0] = static_cast<int>(step);
 
     // perform scaling and pixel format conversion
@@ -1204,8 +1196,7 @@ inline bool VideoWriter::prepareFrame(const cv::Mat &inImage)
             0,
             d->height,
             d->encFrame->data,
-            d->encFrame->linesize
-        )
+            d->encFrame->linesize)
         < 0) {
         d->lastError = "Unable to scale image in pixel format conversion.";
         return false;

@@ -33,14 +33,12 @@ int main(int argc, char *argv[])
 
     QCommandLineParser parser;
     parser.setApplicationDescription(
-        QStringLiteral("Syntalos MetaView\n\nRead and display metadata from (binary) files.")
-    );
+        QStringLiteral("Syntalos MetaView\n\nRead and display metadata from (binary) files."));
     parser.addHelpOption();
     parser.addVersionOption();
 
     QCommandLineOption tsyncOption(
-        QStringLiteral("tsync"), QStringLiteral("Read data from a time-sync (.tsync) file"), QStringLiteral("file")
-    );
+        QStringLiteral("tsync"), QStringLiteral("Read data from a time-sync (.tsync) file"), QStringLiteral("file"));
     parser.addOption(tsyncOption);
 
     parser.process(a);

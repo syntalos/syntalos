@@ -204,10 +204,8 @@ void Indexer::remove_device(GstDevice *device)
             m_device_list.end(),
             [&dev](const Device &d) {
                 return dev == d;
-            }
-        ),
-        m_device_list.end()
-    );
+            }),
+        m_device_list.end());
 
     m_mutex.unlock();
 

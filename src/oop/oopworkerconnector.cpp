@@ -44,14 +44,12 @@ OOPWorkerConnector::OOPWorkerConnector(QSharedPointer<OOPWorkerReplica> ptr, con
         m_reptr.data(),
         &OOPWorkerReplica::outPortMetadataUpdated,
         this,
-        &OOPWorkerConnector::receiveOutputPortMetadataUpdate
-    );
+        &OOPWorkerConnector::receiveOutputPortMetadataUpdate);
     connect(
         m_reptr.data(),
         &OOPWorkerReplica::inputThrottleItemsPerSecRequested,
         this,
-        &OOPWorkerConnector::receiveInputThrottleRequest
-    );
+        &OOPWorkerConnector::receiveInputThrottleRequest);
 
     // merge stdout of worker with ours by default
     setCaptureStdout(false);
@@ -146,8 +144,7 @@ bool OOPWorkerConnector::connectAndRun(const QVector<uint> &cpuAffinity)
 
 void OOPWorkerConnector::setPorts(
     QList<std::shared_ptr<VarStreamInputPort>> inPorts,
-    QList<std::shared_ptr<StreamOutputPort>> outPorts
-)
+    QList<std::shared_ptr<StreamOutputPort>> outPorts)
 {
     // (re)set input port information
     m_shmSend.clear();
@@ -296,8 +293,7 @@ static bool unmarshalDataAndOutput(
     int typeId,
     const QVariant &argData,
     std::unique_ptr<SharedMemory> &shm,
-    StreamOutputPort *port
-)
+    StreamOutputPort *port)
 {
     if (typeId == qMetaTypeId<Frame>()) {
         const auto plist = argData.toList();
@@ -367,8 +363,7 @@ void OOPWorkerConnector::sendInputData(int typeId, int portId, const QVariant &d
         else
             emit m_reptr->error(
                 QStringLiteral("Marshalling of %1 element for subprocess submission failed. This is a bug.")
-                    .arg(dataTypeName)
-            );
+                    .arg(dataTypeName));
         return;
     }
 

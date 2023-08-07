@@ -168,13 +168,12 @@ private:
  *
  * The resulting timestamp is in µs
  */
-#define FUNC_EXEC_TIMESTAMP(INIT_TIME, F)                                                                    \
-    ({                                                                                                       \
-        const auto __stime = std::chrono::duration_cast<nanoseconds_t>(symaster_clock::now() - (INIT_TIME)); \
-        F;                                                                                                   \
-        std::chrono::round<microseconds_t>(                                                                  \
-            (__stime + std::chrono::duration_cast<nanoseconds_t>(symaster_clock::now() - (INIT_TIME))) / 2.0 \
-        );                                                                                                   \
+#define FUNC_EXEC_TIMESTAMP(INIT_TIME, F)                                                                      \
+    ({                                                                                                         \
+        const auto __stime = std::chrono::duration_cast<nanoseconds_t>(symaster_clock::now() - (INIT_TIME));   \
+        F;                                                                                                     \
+        std::chrono::round<microseconds_t>(                                                                    \
+            (__stime + std::chrono::duration_cast<nanoseconds_t>(symaster_clock::now() - (INIT_TIME))) / 2.0); \
     })
 
 /**

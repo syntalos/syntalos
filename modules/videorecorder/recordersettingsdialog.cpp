@@ -353,8 +353,7 @@ void RecorderSettingsDialog::on_sliceWarnButton_clicked()
                        "This is usually only a very small quantity, but depending on the video's purpose and "
                        "framerate, it may be noticeable and could be an issue.\n"
                        "Please verify if this is an issue for you, and if it is, consider creating bigger slices, not "
-                       "using slicing or choosing a different codec.")
-    );
+                       "using slicing or choosing a different codec."));
 }
 
 void RecorderSettingsDialog::on_deferredEncodeWarnButton_clicked()
@@ -374,9 +373,7 @@ void RecorderSettingsDialog::on_deferredEncodeWarnButton_clicked()
             "twice while encoding is ongoing. "
             "This effect is multiplied when more videos are encoded in parallel. Please ensure that you have <b>excess "
             "diskspace</b> available "
-            "when using this option!"
-        )
-    );
+            "when using this option!"));
 }
 
 void RecorderSettingsDialog::on_encodeAfterRunCheckBox_toggled(bool checked)

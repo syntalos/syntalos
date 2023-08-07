@@ -226,7 +226,5 @@ void GenericCameraSettingsDialog::on_autoExposureRawInfoButton_clicked()
             "Aperture Priority Mode<br/>"
             "However, not all cameras seem to behave this way, many times a value of 1 seems to disable auto "
             "exposure.<br/>"
-            "So, depending on your camera, you may need to play with this value to properly disable auto exposure."
-        )
-    );
+            "So, depending on your camera, you may need to play with this value to properly disable auto exposure."));
 }

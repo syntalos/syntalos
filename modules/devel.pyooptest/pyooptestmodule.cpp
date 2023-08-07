@@ -60,8 +60,7 @@ public:
             "        frame.mat = blur\n"
             "        oport.submit(frame)\n"
             "    return True\n"
-            ""
-        );
+            "");
 
         registerInputPort<FirmataData>("firmata-in", "Pin Data");
         registerOutputPort<FirmataControl>("firmata-out", "Pin Control");

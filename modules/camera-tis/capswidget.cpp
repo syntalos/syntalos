@@ -67,8 +67,7 @@ GstCaps *CapsWidget::get_caps() const
         "skipping",
         G_TYPE_STRING,
         scale.skipping_str().c_str(),
-        nullptr
-    );
+        nullptr);
 
     return caps;
 }

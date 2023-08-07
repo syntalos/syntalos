@@ -88,8 +88,7 @@ void EncodeTask::run()
     const auto md = m_item->mdata();
     if (m_writeTsync != md["save-timestamps"].toBool()) {
         m_item->setError(
-            "No tsync file was found, but we were requested to write a timestamp file. Unable to proceed safely."
-        );
+            "No tsync file was found, but we were requested to write a timestamp file. Unable to proceed safely.");
         return;
     }
 
@@ -120,8 +119,7 @@ void EncodeTask::run()
         TimeSyncFileReader tfr;
         if (!tfr.open(m_tsyncSrcFname)) {
             m_item->setError(
-                QStringLiteral("Unable to open tsync file of this video for reading: %1").arg(tfr.lastError())
-            );
+                QStringLiteral("Unable to open tsync file of this video for reading: %1").arg(tfr.lastError()));
             return;
         }
 
@@ -163,8 +161,7 @@ void EncodeTask::run()
                     vsrc.get(cv::CAP_PROP_FPS),
                     frame.depth(),
                     useColor,
-                    m_writeTsync
-                );
+                    m_writeTsync);
             } catch (const std::runtime_error &e) {
                 m_item->setError(QStringLiteral("Unable to initialize recording: %1").arg(e.what()));
                 success = false;
@@ -189,8 +186,7 @@ void EncodeTask::run()
 
         if (!vwriter.encodeFrame(frame, timestamp)) {
             m_item->setError(
-                QStringLiteral("Unable to reencode video: %1").arg(QString::fromStdString(vwriter.lastError()))
-            );
+                QStringLiteral("Unable to reencode video: %1").arg(QString::fromStdString(vwriter.lastError())));
             success = false;
             break;
         }

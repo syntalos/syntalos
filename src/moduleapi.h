@@ -315,8 +315,7 @@ public:
         AbstractModule *owner,
         const QString &id,
         const QString &title,
-        std::shared_ptr<VariantDataStream> stream
-    );
+        std::shared_ptr<VariantDataStream> stream);
     virtual ~StreamOutputPort();
 
     bool canSubscribe(const QString &typeName);
@@ -472,8 +471,7 @@ public:
     std::shared_ptr<VariantDataStream> registerOutputPortByTypeId(
         int typeId,
         const QString &id,
-        const QString &title = QString()
-    )
+        const QString &title = QString())
     {
         if (m_outPorts.contains(id))
             qWarning() << "Module" << name() << "already registered an output port with ID:" << id;
@@ -498,8 +496,7 @@ public:
     std::shared_ptr<VarStreamInputPort> registerInputPortByTypeId(
         int typeId,
         const QString &id,
-        const QString &title = QString()
-    )
+        const QString &title = QString())
     {
         if (m_inPorts.contains(id))
             qWarning() << "Module" << name() << "already registered an output port with ID:" << id;
@@ -693,8 +690,7 @@ signals:
     void synchronizerDetailsChanged(
         const QString &id,
         const TimeSyncStrategies &strategies,
-        const microseconds_t &tolerance
-    );
+        const microseconds_t &tolerance);
     void synchronizerOffsetChanged(const QString &id, const microseconds_t &currentOffset);
 
 protected:
@@ -738,8 +734,7 @@ protected:
      */
     QString dataBasenameFromSubMetadata(
         const QVariantHash &subMetadata,
-        const QString &defaultName = QStringLiteral("data")
-    );
+        const QString &defaultName = QStringLiteral("data"));
 
     /**
      * @brief Create or retrieve default dataset for data storage in default storage group
@@ -756,13 +751,11 @@ protected:
      */
     std::shared_ptr<EDLDataset> getOrCreateDefaultDataset(
         const QString &preferredName = QString(),
-        const QVariantHash &subMetadata = QVariantHash()
-    );
+        const QVariantHash &subMetadata = QVariantHash());
     std::shared_ptr<EDLDataset> getOrCreateDatasetInGroup(
         std::shared_ptr<EDLGroup> group,
         const QString &preferredName = QString(),
-        const QVariantHash &subMetadata = QVariantHash()
-    );
+        const QVariantHash &subMetadata = QVariantHash());
 
     /**
      * @brief Create new data storage group with the given name
@@ -823,8 +816,7 @@ protected:
     {
         static_assert(
             std::is_base_of<AbstractModule, T>::value,
-            "Callback needs to point to a member function of a class derived from AbstractModule"
-        );
+            "Callback needs to point to a member function of a class derived from AbstractModule");
         const auto amFn = static_cast<intervalEventFunc_t>(fn);
         m_intervalEventCBList.append(qMakePair(amFn, interval.count()));
     }
@@ -845,8 +837,7 @@ protected:
     {
         static_assert(
             std::is_base_of<AbstractModule, T>::value,
-            "Callback needs to point to a member function of a class derived from AbstractModule"
-        );
+            "Callback needs to point to a member function of a class derived from AbstractModule");
         const auto amFn = static_cast<recvDataEventFunc_t>(fn);
         m_recvDataEventCBList.append(qMakePair(amFn, subscription));
     }

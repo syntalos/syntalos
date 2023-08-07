@@ -244,8 +244,7 @@ void CropTransform::process(Frame &frame)
             (outMat.cols - cropScaleMat.cols) / 2,
             (outMat.rows - cropScaleMat.rows) / 2,
             cropScaleMat.cols,
-            cropScaleMat.rows
-        )));
+            cropScaleMat.rows)));
     }
 
     frame.mat = outMat;

@@ -1001,14 +1001,12 @@ void FlowGraphEdge::updatePathTo(const QPointF &pos)
     QVector<QPointF> arrow;
     arrow.append(arrow_pos0);
     arrow.append(
-        arrow_pos0 - QPointF(::sin(arrow_angle + M_PI / 2.3) * arrow_size, ::cos(arrow_angle + M_PI / 2.3) * arrow_size)
-    );
+        arrow_pos0
+        - QPointF(::sin(arrow_angle + M_PI / 2.3) * arrow_size, ::cos(arrow_angle + M_PI / 2.3) * arrow_size));
     arrow.append(
         arrow_pos0
         - QPointF(
-            ::sin(arrow_angle + M_PI - M_PI / 2.3) * arrow_size, ::cos(arrow_angle + M_PI - M_PI / 2.3) * arrow_size
-        )
-    );
+            ::sin(arrow_angle + M_PI - M_PI / 2.3) * arrow_size, ::cos(arrow_angle + M_PI - M_PI / 2.3) * arrow_size));
     arrow.append(arrow_pos0);
     path.addPolygon(QPolygonF(arrow));
 
@@ -1380,16 +1378,14 @@ void FlowGraphView::connectPorts(FlowGraphNodePort *port1, FlowGraphNodePort *po
         return;
 
     FlowGraphNode *node1 = findNode(
-        port1->portNode()->nodeName(), FlowGraphItem::Duplex, port1->portNode()->nodeType()
-    );
+        port1->portNode()->nodeName(), FlowGraphItem::Duplex, port1->portNode()->nodeType());
     if (node1 == nullptr)
         node1 = findNode(port1->portNode()->nodeName(), FlowGraphItem::Output, port1->portNode()->nodeType());
     if (node1 == nullptr)
         return;
 
     FlowGraphNode *node2 = findNode(
-        port2->portNode()->nodeName(), FlowGraphItem::Duplex, port2->portNode()->nodeType()
-    );
+        port2->portNode()->nodeName(), FlowGraphItem::Duplex, port2->portNode()->nodeType());
     if (node2 == nullptr)
         node2 = findNode(port2->portNode()->nodeName(), FlowGraphItem::Input, port2->portNode()->nodeType());
     if (node2 == nullptr)

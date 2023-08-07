@@ -161,8 +161,7 @@ MainWindow::MainWindow(QWidget *parent)
 
             auto sub = m_subjectList->subject(index);
             changeTestSubject(sub);
-        }
-    );
+        });
 
     // set up test subjects listing
     m_subjectList = new TestSubjectListModel(this);
@@ -200,8 +199,7 @@ MainWindow::MainWindow(QWidget *parent)
 
             ui->btnSubjectRemove->setEnabled(true);
             ui->btnSubjectApplyEdit->setEnabled(true);
-        }
-    );
+        });
 
     connect(ui->btnSubjectApplyEdit, &QToolButton::clicked, [&]() {
         auto index = ui->subjectListView->currentIndex();
@@ -215,8 +213,7 @@ MainWindow::MainWindow(QWidget *parent)
         auto id = ui->idLineEdit->text().trimmed();
         if (id.isEmpty()) {
             QMessageBox::warning(
-                this, "Could not change test subject", "Can not change test subject with an empty ID!"
-            );
+                this, "Could not change test subject", "Can not change test subject with an empty ID!");
             return;
         }
         sub.id = id;
@@ -251,13 +248,13 @@ MainWindow::MainWindow(QWidget *parent)
         newPerson.name = QInputDialog::getText(
                              this,
                              QStringLiteral("Add new experimenter"),
-                             QStringLiteral("Full name of the new experimenter:")
-        )
+                             QStringLiteral("Full name of the new experimenter:"))
                              .trimmed();
         if (newPerson.name.isEmpty()) {
             QMessageBox::warning(
-                this, QStringLiteral("Could not add experimenter"), QStringLiteral("Can not add a person with no name.")
-            );
+                this,
+                QStringLiteral("Could not add experimenter"),
+                QStringLiteral("Can not add a person with no name."));
             return;
         }
 
@@ -267,16 +264,14 @@ MainWindow::MainWindow(QWidget *parent)
                                   QStringLiteral("Add new experimenter"),
                                   QStringLiteral("E-Mail address of the new experimenter (can be left blank):"),
                                   QLineEdit::Normal,
-                                  newPerson.email
-            )
+                                  newPerson.email)
                                   .trimmed();
             // very rudimental check whether the entered stuff somewhat resembles an email address
             if (!newPerson.email.isEmpty() && (!newPerson.email.contains('@') || !newPerson.email.contains('.'))) {
                 QMessageBox::information(
                     this,
                     QStringLiteral("E-Mail Invalid"),
-                    QStringLiteral("The entered E-Mail address is invalid. Please try again!")
-                );
+                    QStringLiteral("The entered E-Mail address is invalid. Please try again!"));
             } else {
                 break;
             }
@@ -463,8 +458,7 @@ void MainWindow::runActionTriggered()
                 QStringLiteral("Can not start interval run"),
                 QStringLiteral("The interval run can not be started, as the experiment ID is missing "
                                "a time/run-based substitution variable.\n"
-                               "Check out the documentation on information on this.")
-            );
+                               "Check out the documentation on information on this."));
             setRunUiControlStates(false, false);
             setRunPossible(true);
             return;
@@ -506,8 +500,7 @@ void MainWindow::runActionTriggered()
                         .arg(m_intervalRunDialog->runDurationMin() + m_intervalRunDialog->delayMin(), 0, 'f', 2)
                         .arg(m_intervalRunDialog->delayMin(), 0, 'f', 2)
                         .arg(m_engine->successRunsCount() + 1)
-                        .arg(m_intervalRunDialog->runsN())
-                );
+                        .arg(m_intervalRunDialog->runsN()));
                 while (QTime::currentTime() < continueTime) {
                     QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
                     setStatusText(QStringLiteral("Starting next run in: %1 seconds")
@@ -618,8 +611,7 @@ bool MainWindow::saveConfiguration(const QString &fileName)
         mod->serializeSettings(confBaseDir.absolutePath(), modSettings, modExtraData);
         if (!modSettings.isEmpty())
             tar.writeFile(
-                QStringLiteral("%1/%2.toml").arg(modIndex).arg(mod->id()), qVariantHashToTomlData(modSettings)
-            );
+                QStringLiteral("%1/%2.toml").arg(modIndex).arg(mod->id()), qVariantHashToTomlData(modSettings));
         if (!modExtraData.isEmpty())
             tar.writeFile(QStringLiteral("%1/%2.dat").arg(modIndex).arg(mod->id()), modExtraData);
 
@@ -669,8 +661,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         QMessageBox::critical(
             this,
             QStringLiteral("Can not load settings"),
-            QStringLiteral("The settings file is damaged or is no valid Syntalos configuration bundle.")
-        );
+            QStringLiteral("The settings file is damaged or is no valid Syntalos configuration bundle."));
         setStatusText("");
         return false;
     }
@@ -682,8 +673,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
             this,
             QStringLiteral("Can not load settings"),
             QStringLiteral("The settings file is damaged or is no valid Syntalos configuration file. %1")
-                .arg(parseError)
-        );
+                .arg(parseError));
         setStatusText("");
         return false;
     }
@@ -695,8 +685,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
             QStringLiteral("The settings file you want to load was created with a different, possibly older version of "
                            "Syntalos and may not work correctly in this version.\n"
                            "Should we attempt to load it anyway? (This may result in unexpected behavior)"),
-            QMessageBox::Yes | QMessageBox::No
-        );
+            QMessageBox::Yes | QMessageBox::No);
         if (reply == QMessageBox::No) {
             this->setEnabled(true);
             setStatusText("Aborted configuration loading.");
@@ -790,8 +779,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
                 QStringLiteral("Can not load settings"),
                 QStringLiteral("Unable to find module '%1' - please install the module first, then "
                                "attempt to load this configuration again.")
-                    .arg(modId)
-            );
+                    .arg(modId));
             setStatusText("Failed to load settings.");
 
             const auto reply = QMessageBox::question(
@@ -799,11 +787,11 @@ bool MainWindow::loadConfiguration(const QString &fileName)
                 QStringLiteral("Ignore missing module?"),
                 QStringLiteral("While installing thie missing module is the right solution to load this board, "
                                "you can also enforce loading it. Please be aware that loading may fail. Load anyway?"),
-                QMessageBox::Yes | QMessageBox::No
-            );
+                QMessageBox::Yes | QMessageBox::No);
             if (reply == QMessageBox::Yes) {
-                qWarning().noquote().nospace(
-                ) << QStringLiteral("Module %1[%2] was missing, but trying to load board anyway.").arg(modId, modName);
+                qWarning().noquote().nospace()
+                    << QStringLiteral("Module %1[%2] was missing, but trying to load board anyway.")
+                           .arg(modId, modName);
                 continue;
             }
             return false;
@@ -845,8 +833,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
             QMessageBox::critical(
                 this,
                 QStringLiteral("Can not load settings"),
-                QStringLiteral("Unable to load module settings for '%1'.").arg(mod->name())
-            );
+                QStringLiteral("Unable to load module settings for '%1'.").arg(mod->name()));
             setStatusText("Failed to load settings.");
             return false;
         }
@@ -905,13 +892,12 @@ bool MainWindow::loadConfiguration(const QString &fileName)
             showExperimenterSelector(
                 QStringLiteral("Welcome to this experiment!\n"
                                "Please select your name from the list - in case you can't find it,\n"
-                               "you may select \"[Not selected]\" to select no experimenter.")
-            );
+                               "you may select \"[Not selected]\" to select no experimenter."));
         }
 
         if (m_engine->experimenter().isValid())
-            setStatusText(QStringLiteral("Welcome %1! - Board successfully loaded.").arg(m_engine->experimenter().name)
-            );
+            setStatusText(
+                QStringLiteral("Welcome %1! - Board successfully loaded.").arg(m_engine->experimenter().name));
     }
 
     return true;
@@ -932,8 +918,7 @@ void MainWindow::openDataExportDirectory()
         this,
         "Select Directory",
         QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
-        QFileDialog::ShowDirsOnly
-    );
+        QFileDialog::ShowDirsOnly);
     setDataExportBaseDir(dir);
 }
 
@@ -943,8 +928,7 @@ void MainWindow::showExperimenterSelector(const QString &message)
     items.append(QStringLiteral("[Not selected]"));
     bool ok;
     const auto selection = QInputDialog::getItem(
-        this, QStringLiteral("Select an experimenter"), message, items, 0, false, &ok
-    );
+        this, QStringLiteral("Select an experimenter"), message, items, 0, false, &ok);
     if (!ok)
         return;
     const auto idx = items.indexOf(selection);
@@ -1031,8 +1015,7 @@ void MainWindow::projectSaveAsActionTriggered()
         this,
         tr("Select Configuration Filename"),
         QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
-        tr("Syntalos Configuration Files (*.syct)")
-    );
+        tr("Syntalos Configuration Files (*.syct)"));
 
     if (fileName.isEmpty())
         return;
@@ -1044,8 +1027,7 @@ void MainWindow::projectSaveAsActionTriggered()
         QMessageBox::critical(
             this,
             QStringLiteral("Can not save configuration"),
-            QStringLiteral("Unable to write configuration file to disk.")
-        );
+            QStringLiteral("Unable to write configuration file to disk."));
     }
     hideBusyIndicator();
 }
@@ -1068,8 +1050,7 @@ void MainWindow::projectSaveActionTriggered()
         QMessageBox::critical(
             this,
             QStringLiteral("Can not save configuration"),
-            QStringLiteral("Unable to write configuration file to disk.")
-        );
+            QStringLiteral("Unable to write configuration file to disk."));
     }
     hideBusyIndicator();
 }
@@ -1080,8 +1061,7 @@ void MainWindow::projectOpenActionTriggered()
         this,
         tr("Select Project Filename"),
         QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
-        tr("Syntalos Project Files (*.syct)")
-    );
+        tr("Syntalos Project Files (*.syct)"));
     if (fileName.isEmpty())
         return;
 
@@ -1096,8 +1076,7 @@ void MainWindow::projectOpenActionTriggered()
     showBusyIndicatorProcessing();
     if (!loadConfiguration(fileName)) {
         QMessageBox::critical(
-            this, QStringLiteral("Can not load configuration"), QStringLiteral("Failed to load configuration.")
-        );
+            this, QStringLiteral("Can not load configuration"), QStringLiteral("Failed to load configuration."));
         m_engine->removeAllModules();
     }
     hideBusyIndicator();
@@ -1181,8 +1160,7 @@ void MainWindow::updateIntervalRunMessage()
             .arg(m_intervalRunDialog->runDurationMin(), 0, 'f', 2)
             .arg(m_intervalRunDialog->runDurationMin() + m_intervalRunDialog->delayMin(), 0, 'f', 2)
             .arg(m_engine->successRunsCount() + 1)
-            .arg(m_intervalRunDialog->runsN())
-    );
+            .arg(m_intervalRunDialog->runsN()));
 }
 
 void MainWindow::aboutActionTriggered()
@@ -1202,15 +1180,13 @@ void MainWindow::onModuleCreated(ModuleInfo *, AbstractModule *mod)
         &AbstractModule::synchronizerDetailsChanged,
         m_timingsDialog,
         &TimingsDialog::onSynchronizerDetailsChanged,
-        Qt::QueuedConnection
-    );
+        Qt::QueuedConnection);
     connect(
         mod,
         &AbstractModule::synchronizerOffsetChanged,
         m_timingsDialog,
         &TimingsDialog::onSynchronizerOffsetChanged,
-        Qt::QueuedConnection
-    );
+        Qt::QueuedConnection);
 }
 
 void MainWindow::onElapsedTimeUpdate()
@@ -1392,8 +1368,7 @@ void MainWindow::on_actionSubjectsLoad_triggered()
         this,
         QStringLiteral("Open Animal List"),
         QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
-        QStringLiteral("TOML Markup Files (*.toml)\nAll Files (*)")
-    );
+        QStringLiteral("TOML Markup Files (*.toml)\nAll Files (*)"));
     if (fileName.isEmpty())
         return;
 
@@ -1411,8 +1386,7 @@ void MainWindow::on_actionSubjectsLoad_triggered()
             QMessageBox::critical(
                 this,
                 QStringLiteral("Unable to parse subjects list"),
-                QStringLiteral("Unable to load subjects list: %1").arg(parseError)
-            );
+                QStringLiteral("Unable to load subjects list: %1").arg(parseError));
     }
 }
 
@@ -1423,8 +1397,7 @@ void MainWindow::on_actionSubjectsSave_triggered()
         this,
         tr("Save Animal List"),
         QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
-        tr("TOML Markup Files (*.toml)")
-    );
+        tr("TOML Markup Files (*.toml)"));
 
     if (fileName.isEmpty())
         return;
@@ -1583,8 +1556,7 @@ void MainWindow::on_actionReportIssue_triggered()
                        "  * What happened instead?\n"
                        "  * What kind of configuration were you trying to run?\n"
                        "  * Are there any warnings listed on the system diagnostics page of Syntalos?\n"
-                       "Happy issue reporting!")
-    );
+                       "Happy issue reporting!"));
     QDesktopServices::openUrl(QUrl(SY_BUG_REPORT_URL, QUrl::TolerantMode));
 }
 

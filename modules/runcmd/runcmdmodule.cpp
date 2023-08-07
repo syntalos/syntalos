@@ -147,10 +147,10 @@ public:
 
     void start() override
     {
-        const auto unixStartTime = std::chrono::duration_cast<milliseconds_t>((std::chrono::system_clock::now()
-                                                                               - m_syTimer->timeSinceStartMsec())
-                                                                                  .time_since_epoch())
-                                       .count();
+        const auto unixStartTime =
+            std::chrono::duration_cast<milliseconds_t>(
+                (std::chrono::system_clock::now() - m_syTimer->timeSinceStartMsec()).time_since_epoch())
+                .count();
         m_procEnv.insert("SY_START_TIME_UNIX_MS", QString::number(unixStartTime));
         m_proc->setProcessEnvironment(m_procEnv);
         m_proc->start();
@@ -163,8 +163,7 @@ public:
             // we are not running anymore - check for errors
             if (m_proc->exitStatus() == QProcess::CrashExit) {
                 raiseError(
-                    QStringLiteral("The process %1 crashed: %2").arg(m_proc->program()).arg(m_proc->errorString())
-                );
+                    QStringLiteral("The process %1 crashed: %2").arg(m_proc->program()).arg(m_proc->errorString()));
             } else {
                 if (m_proc->exitCode() != 0)
                     raiseError(QStringLiteral("The process %1 failed with exit code: %2")

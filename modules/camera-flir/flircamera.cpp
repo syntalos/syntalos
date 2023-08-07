@@ -255,8 +255,7 @@ bool FLIRCamera::applyInitialCamParameters(spn_ga::INodeMap &nodeMap)
     } else {
         d->lastError = QStringLiteral(
             "Unable to get manual control over acquisition framerate. This feature may be unsupported by the selected "
-            "camera."
-        );
+            "camera.");
         return false;
     }
     spn_ga::CFloatPtr ptrFramerate = nodeMap.GetNode("AcquisitionFrameRate");
@@ -350,8 +349,7 @@ bool FLIRCamera::initAcquisition()
         spn_ga::CEnumEntryPtr ptrAcquisitionModeContinuous = ptrAcquisitionMode->GetEntryByName("Continuous");
         if (!IsAvailable(ptrAcquisitionModeContinuous) || !IsReadable(ptrAcquisitionModeContinuous)) {
             d->lastError = QStringLiteral(
-                               "Unable to set acquisition mode to continuous (entry 'continuous' retrieval camera %1)"
-            )
+                               "Unable to set acquisition mode to continuous (entry 'continuous' retrieval camera %1)")
                                .arg(serial());
             terminateRun();
             return false;

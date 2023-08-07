@@ -168,8 +168,7 @@ public:
                                        "can not display images fast enough to empty the pending data queue.\n"
                                        "Either the displayed frames are excessively large, something is wrong with the "
                                        "display hardware, "
-                                       "or there is a bug in the display code.")
-                    );
+                                       "or there is a bug in the display code."));
                     return;
                 }
 

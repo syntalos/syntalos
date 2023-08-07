@@ -33,8 +33,7 @@ FirmataSettingsDialog::FirmataSettingsDialog(QWidget *parent)
     auto allPorts = QSerialPortInfo::availablePorts();
     for (auto &port : allPorts) {
         ui->portsComboBox->addItem(
-            QString("%1 (%2)").arg(port.portName()).arg(port.description()), port.systemLocation()
-        );
+            QString("%1 (%2)").arg(port.portName()).arg(port.description()), port.systemLocation());
     }
 }
 

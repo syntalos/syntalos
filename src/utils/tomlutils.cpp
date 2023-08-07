@@ -130,8 +130,8 @@ toml::array qVariantListToTomlArray(const QVariantList &varList)
         if (CONVERT_SIMPLE_QTYPE_TO_TOMLTYPE(arr.push_back, var))
             continue;
 
-        qWarning().noquote(
-        ) << QStringLiteral("Unable to store type `%1` in TOML attributes (array).").arg(var.typeName());
+        qWarning().noquote()
+            << QStringLiteral("Unable to store type `%1` in TOML attributes (array).").arg(var.typeName());
         arr.push_back("�");
     }
 
@@ -165,8 +165,8 @@ toml::table qVariantHashToTomlTable(const QVariantHash &varHash)
         if (CONVERT_SIMPLE_QTYPE_TO_TOMLTYPE(tabInsertFunc, var))
             continue;
 
-        qWarning().noquote(
-        ) << QStringLiteral("Unable to store type `%1` in TOML attributes (table).").arg(var.typeName());
+        qWarning().noquote()
+            << QStringLiteral("Unable to store type `%1` in TOML attributes (table).").arg(var.typeName());
         tab.insert(key, "�");
     }
 

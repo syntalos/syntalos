@@ -50,8 +50,7 @@ QStringList qStringSplitLimit(
     const QString &str,
     const QChar &sep,
     int maxSplit,
-    Qt::CaseSensitivity cs = Qt::CaseSensitive
-);
+    Qt::CaseSensitivity cs = Qt::CaseSensitive);
 
 /**
  * @brief Naturally sort the give string list (sorting "10" after "9")

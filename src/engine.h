@@ -140,8 +140,7 @@ private slots:
     void onSynchronizerDetailsChanged(
         const QString &id,
         const TimeSyncStrategies &strategies,
-        const microseconds_t &tolerance
-    );
+        const microseconds_t &tolerance);
     void onSynchronizerOffsetChanged(const QString &id, const microseconds_t &currentOffset);
     void onDiskspaceMonitorEvent();
     void onMemoryMonitorEvent();
@@ -157,8 +156,7 @@ private:
 
     QHash<AbstractModule *, std::vector<uint>> setupCoreAffinityConfig(
         const QList<AbstractModule *> &threadedModules,
-        const QList<OOPModule *> &oopModules
-    );
+        const QList<OOPModule *> &oopModules);
     void startResourceMonitoring(QList<AbstractModule *> activeModules, const QString &exportDirPath);
     void stopResourceMonitoring();
 

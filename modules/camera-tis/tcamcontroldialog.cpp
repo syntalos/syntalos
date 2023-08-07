@@ -282,8 +282,7 @@ void TcamControlDialog::openPipeline(FormatHandling handling)
             qCDebug(
                 logTISCam,
                 "Setting 'conversion-element' property to '%s'",
-                conversion_element_to_string(m_capConfig->conversion_element)
-            );
+                conversion_element_to_string(m_capConfig->conversion_element));
             g_object_set(m_source, "conversion-element", m_capConfig->conversion_element, nullptr);
         }
     }

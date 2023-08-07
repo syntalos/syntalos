@@ -50,8 +50,7 @@ public slots:
         const QString &projectId,
         const QString &videoFname,
         const QHash<QString, QVariant> &codecProps,
-        const QHash<QString, QVariant> &mdata
-    );
+        const QHash<QString, QVariant> &mdata);
 
     bool processVideos();
 

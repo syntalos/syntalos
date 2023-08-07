@@ -106,8 +106,7 @@ public:
         const QString &modName,
         const QUuid &collectionId,
         const microseconds_t &tolerance,
-        const QVariantHash &userData = QVariantHash()
-    );
+        const QVariantHash &userData = QVariantHash());
     void flush();
     void close();
 

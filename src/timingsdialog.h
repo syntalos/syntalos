@@ -63,8 +63,7 @@ public:
     void onSynchronizerDetailsChanged(
         const QString &id,
         const TimeSyncStrategies &strategies,
-        const microseconds_t &tolerance
-    );
+        const microseconds_t &tolerance);
     void onSynchronizerOffsetChanged(const QString &id, const microseconds_t &currentOffset);
 
     void clear();

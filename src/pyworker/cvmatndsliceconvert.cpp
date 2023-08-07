@@ -167,8 +167,7 @@ public:
         void *data,
         size_t *step,
         AccessFlag flags,
-        UMatUsageFlags usageFlags
-    ) const override
+        UMatUsageFlags usageFlags) const override
     {
         if (data != nullptr) {
             CV_Error(Error::StsAssert, "The data should normally be NULL!");

@@ -514,8 +514,7 @@ void DoubleWidget::setup_ui()
             QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this,
             &DoubleWidget::spinbox_changed,
-            Qt::QueuedConnection
-        );
+            Qt::QueuedConnection);
         p_layout->addWidget(p_box);
     }
     this->setToolTip(generate_tooltip(TCAM_PROPERTY_BASE(p_prop)));
@@ -687,8 +686,7 @@ void StringWidget::update()
     if (access != TCAM_PROPERTY_ACCESS_RO && !issue_ro_warning) {
         qWarning(
             "Property '%s' is not read-only. String values are not writeable from tcam-capture.",
-            get_name().toStdString().c_str()
-        );
+            get_name().toStdString().c_str());
         issue_ro_warning = true;
     }
 

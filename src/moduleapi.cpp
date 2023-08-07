@@ -239,8 +239,8 @@ std::shared_ptr<VariantStreamSubscription> VarStreamInputPort::subscriptionVar()
 {
     auto sub = m_sub.value();
     if (sub == nullptr) {
-        qCritical().noquote(
-        ) << "Tried to obtain variant subscription from a port that was not subscribed to anything.";
+        qCritical().noquote()
+            << "Tried to obtain variant subscription from a port that was not subscribed to anything.";
     }
     return sub;
 }
@@ -281,8 +281,7 @@ StreamOutputPort::StreamOutputPort(
     AbstractModule *owner,
     const QString &id,
     const QString &title,
-    std::shared_ptr<VariantDataStream> stream
-)
+    std::shared_ptr<VariantDataStream> stream)
     : d(new StreamOutputPort::Private)
 {
     d->id = id;
@@ -647,8 +646,8 @@ QList<QPair<intervalEventFunc_t, int>> AbstractModule::intervalEventCallbacks() 
     return m_intervalEventCBList;
 }
 
-QList<QPair<recvDataEventFunc_t, std::shared_ptr<VariantStreamSubscription>>> AbstractModule::recvDataEventCallbacks(
-) const
+QList<QPair<recvDataEventFunc_t, std::shared_ptr<VariantStreamSubscription>>> AbstractModule::recvDataEventCallbacks()
+    const
 {
     return m_recvDataEventCBList;
 }
@@ -727,8 +726,7 @@ QString AbstractModule::dataBasenameFromSubMetadata(const QVariantHash &subMetad
 
 std::shared_ptr<EDLDataset> AbstractModule::getOrCreateDefaultDataset(
     const QString &preferredName,
-    const QVariantHash &subMetadata
-)
+    const QVariantHash &subMetadata)
 {
     if (d->defaultDataset.get() != nullptr)
         return d->defaultDataset;
@@ -745,8 +743,7 @@ std::shared_ptr<EDLDataset> AbstractModule::getOrCreateDefaultDataset(
 std::shared_ptr<EDLDataset> AbstractModule::getOrCreateDatasetInGroup(
     std::shared_ptr<EDLGroup> group,
     const QString &preferredName,
-    const QVariantHash &subMetadata
-)
+    const QVariantHash &subMetadata)
 {
     QString datasetName;
 

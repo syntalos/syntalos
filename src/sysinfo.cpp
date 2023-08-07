@@ -157,8 +157,8 @@ SysInfo::SysInfo()
     d->cpuCount = QThread::idealThreadCount();
     d->cpuPhysicalCoreCount = d->cpuCount;
 #ifndef Q_OS_LINUX
-    qCritical(
-    ) << "We are not running on Linux - please make sure to adjust the SysInfo code when porting to other systems!";
+    qCritical()
+        << "We are not running on Linux - please make sure to adjust the SysInfo code when porting to other systems!";
     return;
 #endif
 

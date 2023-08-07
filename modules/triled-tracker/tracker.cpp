@@ -74,8 +74,7 @@ bool Tracker::initialize()
         QStringList() << QStringLiteral("Time") << QStringLiteral("Red X") << QStringLiteral("Red Y")
                       << QStringLiteral("Green X") << QStringLiteral("Green Y") << QStringLiteral("Blue X")
                       << QStringLiteral("Blue Y") << QStringLiteral("Center X") << QStringLiteral("Center Y")
-                      << QStringLiteral("Turn Angle (deg)")
-    );
+                      << QStringLiteral("Turn Angle (deg)"));
     m_dataStream->start();
 
     // clear maze position data
@@ -223,8 +222,7 @@ static cv::Point findMaxColorBrightness(
     const cv::Mat &image,
     const cv::Mat &imageGray,
     cv::Scalar minColors,
-    cv::Scalar maxColors
-)
+    cv::Scalar maxColors)
 {
     double maxVal;
     cv::Point maxLoc;
@@ -244,8 +242,7 @@ static cv::Point findMaxColorBrightness(
         &maxVal,
         nullptr, // minimum location (Point),
         &maxLoc,
-        cv::Mat()
-    );
+        cv::Mat());
     if (((maxLoc.x == 0) && (maxLoc.y == 0)) && (maxVal == 0)) {
         // we didn't find a maximum, our tracking dot vanished. Set an invalid point.
         maxLoc.x = -1;
@@ -330,8 +327,7 @@ static double calculateTriangleTurnAngle(Tracker::LEDTriangle &tri)
 static bool cvRectFuzzyEqual(
     const std::vector<cv::Point2f> &a,
     const std::vector<cv::Point2f> &b,
-    const uint tolerance = 2
-)
+    const uint tolerance = 2)
 {
     if (a.size() != 4)
         return false;
@@ -389,8 +385,7 @@ Tracker::LEDTriangle Tracker::trackPoints(const cv::Mat &image, cv::Mat *infoFra
             cv::Point(res.blue.x + 7, res.blue.y + 7),
             cv::FONT_HERSHEY_SIMPLEX,
             0.6,
-            cv::Scalar(100, 100, 255)
-        );
+            cv::Scalar(100, 100, 255));
 
     // find the maze
     if (m_mazeRect.size() == 4) {
@@ -441,16 +436,14 @@ Tracker::LEDTriangle Tracker::trackPoints(const cv::Mat &image, cv::Mat *infoFra
             cv::Point(6, 20),
             cv::FONT_HERSHEY_SIMPLEX,
             0.8,
-            cv::Scalar(255, 180, 180)
-        );
+            cv::Scalar(255, 180, 180));
         cv::putText(
             infoMat,
             m_subjectId.toStdString(),
             cv::Point(m_mouseGraphicMat.cols - (m_subjectId.length() * 18) - 6, 20),
             cv::FONT_HERSHEY_SIMPLEX,
             0.8,
-            cv::Scalar(255, 180, 180)
-        );
+            cv::Scalar(255, 180, 180));
     } else {
         infoMat.setTo(cv::Scalar(0, 0, 0));
         cv::putText(
@@ -459,8 +452,7 @@ Tracker::LEDTriangle Tracker::trackPoints(const cv::Mat &image, cv::Mat *infoFra
             cv::Point(14, (m_mouseGraphicMat.rows / 2) - 8),
             cv::FONT_HERSHEY_SIMPLEX,
             0.6,
-            cv::Scalar(100, 100, 255)
-        );
+            cv::Scalar(100, 100, 255));
     }
 
     (*infoFrame) = infoMat;

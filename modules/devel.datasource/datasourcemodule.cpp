@@ -66,8 +66,7 @@ public:
 
         bool ok;
         int value = QInputDialog::getInt(
-            nullptr, "Configure Debug Data Source", "Video Framerate", m_fps, 2, 10000, 1, &ok
-        );
+            nullptr, "Configure Debug Data Source", "Video Framerate", m_fps, 2, 10000, 1, &ok);
         if (ok)
             m_fps = value;
     }
@@ -80,8 +79,8 @@ public:
 
         m_rowsOut->setSuggestedDataName(QStringLiteral("table-%1/testvalues").arg(datasetNameSuggestion()));
         m_rowsOut->setMetadataValue(
-            "table_header", QStringList() << QStringLiteral("Time") << QStringLiteral("Tag") << QStringLiteral("Value")
-        );
+            "table_header",
+            QStringList() << QStringLiteral("Time") << QStringLiteral("Tag") << QStringLiteral("Value"));
         m_rowsOut->start();
         m_prevRowTime = 0;
 
@@ -131,13 +130,11 @@ private:
             cv::Point(24, 240),
             cv::FONT_HERSHEY_COMPLEX,
             1.5,
-            cv::Scalar(255, 255, 255)
-        );
+            cv::Scalar(255, 255, 255));
         frame.time = m_syTimer->timeSinceStartMsec();
 
         std::this_thread::sleep_for(
-            std::chrono::microseconds((1000 / fps) * 1000) - timeDiffUsec(currentTimePoint(), startTime)
-        );
+            std::chrono::microseconds((1000 / fps) * 1000) - timeDiffUsec(currentTimePoint(), startTime));
         return frame;
     }
 

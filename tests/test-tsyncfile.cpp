@@ -23,8 +23,7 @@ private slots:
         tswriter->setFileName(tsFilename);
         tswriter->setTimeDataTypes(dt1, dt2);
         auto ret = tswriter->open(
-            QStringLiteral("UnittestDummyModule"), QUuid("a12975f1-84b7-4350-8683-7a5fe9ed968f"), microseconds_t(1500)
-        );
+            QStringLiteral("UnittestDummyModule"), QUuid("a12975f1-84b7-4350-8683-7a5fe9ed968f"), microseconds_t(1500));
         QVERIFY2(ret, qPrintable(tswriter->lastError()));
 
         QElapsedTimer timer;

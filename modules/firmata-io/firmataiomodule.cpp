@@ -227,8 +227,7 @@ public:
         if (pin.kind == PinKind::Unknown)
             qCCritical(logFmMod)
                 << QStringLiteral(
-                       "Unable to deliver message to pin '%1' (pin does not exist, it needs to be registered first)"
-                   )
+                       "Unable to deliver message to pin '%1' (pin does not exist, it needs to be registered first)")
                        .arg(pinName);
         return pin;
     }
@@ -326,8 +325,7 @@ QString FirmataIOModuleInfo::description() const
 QString FirmataIOModuleInfo::license() const
 {
     return QStringLiteral(
-        "Module licensed under GPL-3.0+, uses the Qt Firmata implementation © 2016 Calle Laakkonen [GPL-3.0+]"
-    );
+        "Module licensed under GPL-3.0+, uses the Qt Firmata implementation © 2016 Calle Laakkonen [GPL-3.0+]");
 }
 
 AbstractModule *FirmataIOModuleInfo::createModule(QObject *parent)

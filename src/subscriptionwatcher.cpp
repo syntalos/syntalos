@@ -37,8 +37,7 @@ public:
 #pragma GCC diagnostic pop
 
 std::optional<std::unique_ptr<SubscriptionWatcher>> SubscriptionWatcher::construct(
-    std::initializer_list<std::shared_ptr<VariantStreamSubscription>> subscriptions
-)
+    std::initializer_list<std::shared_ptr<VariantStreamSubscription>> subscriptions)
 {
     std::unique_ptr<SubscriptionWatcher> watcher(new SubscriptionWatcher(subscriptions));
     if (watcher->isValid())
@@ -104,8 +103,8 @@ SubscriptionWatcher::WaitResult SubscriptionWatcher::wait()
     }
 }
 
-SubscriptionWatcher::SubscriptionWatcher(std::initializer_list<std::shared_ptr<VariantStreamSubscription>> subscriptions
-)
+SubscriptionWatcher::SubscriptionWatcher(
+    std::initializer_list<std::shared_ptr<VariantStreamSubscription>> subscriptions)
     : d(new SubscriptionWatcher::Private)
 {
     d->valid = false;

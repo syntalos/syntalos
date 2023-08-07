@@ -50,8 +50,7 @@ int main()
         CLOCKS_CLK_SYS_CTRL_SRC_VALUE_CLKSRC_CLK_SYS_AUX,
         CLOCKS_CLK_SYS_CTRL_AUXSRC_VALUE_CLKSRC_PLL_USB,
         48 * MHZ,
-        48 * MHZ
-    );
+        48 * MHZ);
 
     // Turn off PLL sys for good measure
     pll_deinit(pll_sys);

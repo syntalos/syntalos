@@ -86,8 +86,7 @@ void GlobalConfigDialog::on_colorModeComboBox_currentIndexChanged(int index)
 
     if (index == 0 && m_gc->appColorMode() != Syntalos::ColorMode::SYSTEM)
         QMessageBox::information(
-            this, "Restart may be required", "You may need to restart Syntalos for this style change to take effect."
-        );
+            this, "Restart may be required", "You may need to restart Syntalos for this style change to take effect.");
 
     m_gc->setAppColorMode(Syntalos::colorModeFromString(ui->colorModeComboBox->currentData().toString()));
     Q_EMIT defaultColorSchemeChanged();
@@ -134,9 +133,7 @@ void GlobalConfigDialog::on_cpuAffinityWarnButton_clicked()
             "The affinity selector does not know about individual module's runtime CPU utilization (yet...), so its "
             "guesses may be wrong and lead to suboptimal results.<br/><br/>"
             "Therefore, using this option is not recommended for most users - you can safely give it a try though and "
-            "see if it helps your individual setup's performance or latency."
-        )
-    );
+            "see if it helps your individual setup's performance or latency."));
 }
 
 void GlobalConfigDialog::on_cbDisplayDevModules_toggled(bool checked)

@@ -55,8 +55,7 @@ void CommentDialog::closeEvent(QCloseEvent *event)
         this,
         "Discard comment?",
         QStringLiteral("Do you want to discard the entered text and not save it for the selected run?"),
-        QMessageBox::Yes | QMessageBox::No
-    );
+        QMessageBox::Yes | QMessageBox::No);
     if (reply == QMessageBox::No) {
         event->ignore();
         return;

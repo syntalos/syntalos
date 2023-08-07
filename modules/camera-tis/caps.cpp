@@ -165,8 +165,7 @@ std::vector<double> index_framerates(
     GstElement &element,
     const std::string &fmt,
     struct caps_resolution &res,
-    const GValue *framerate
-)
+    const GValue *framerate)
 {
     std::vector<double> framerates;
 
@@ -204,8 +203,7 @@ std::vector<double> index_framerates(
 std::vector<struct caps_format>::iterator find_format(
     std::vector<struct caps_format> &tmp,
     const std::string &name,
-    const scaling &scale
-)
+    const scaling &scale)
 {
     auto ret = std::find_if(tmp.begin(), tmp.end(), [&name, &scale](const struct caps_format &fmt) {
         if (fmt.format == name && fmt.scale == scale) {
@@ -376,8 +374,7 @@ std::vector<double> Caps::get_framerates(
     const std::string &format,
     const scaling &scale,
     unsigned int width,
-    unsigned int height
-) const
+    unsigned int height) const
 {
     for (const auto &f : formats) {
         if (f.format == format && f.scale == scale) {
@@ -434,8 +431,7 @@ std::vector<struct caps_format> Caps::generate_from_fixed_caps(GstElement &eleme
             } else {
                 qWarning(
                     "format handling not implemented for unexpected type in strcture: %s\n",
-                    gst_structure_to_string(structure)
-                );
+                    gst_structure_to_string(structure));
                 continue;
             }
 
@@ -554,8 +550,7 @@ std::vector<struct caps_format> Caps::generate_from_caps_list(GstElement &elemen
             } else {
                 qWarning(
                     "format handling not implemented for unexpected type in strcture: %s\n",
-                    gst_structure_to_string(structure)
-                );
+                    gst_structure_to_string(structure));
                 continue;
             }
         }

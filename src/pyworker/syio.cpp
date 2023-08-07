@@ -179,8 +179,7 @@ struct OutputPort {
             throw SyntalosPyError(
                 "Data submission failed: "
                 "Tried to send data via output port that can't carry it (sent data and port type are mismatched, or "
-                "data can't be serialized)."
-            );
+                "data can't be serialized).");
     }
 
     void set_metadata_value(const std::string &key, const py::object &obj)
@@ -194,8 +193,7 @@ struct OutputPort {
             // we have a (unicode) string type
             const auto value = obj.cast<std::string>();
             pb->worker()->setOutPortMetadataValue(
-                _inst_id, QString::fromStdString(key), QVariant::fromValue(QString::fromStdString(value))
-            );
+                _inst_id, QString::fromStdString(key), QVariant::fromValue(QString::fromStdString(value)));
         } else if (PyList_Check(obj.ptr())) {
             const auto pyList = obj.cast<py::list>();
             const auto pyListLen = py::len(pyList);
@@ -214,16 +212,14 @@ struct OutputPort {
                 } else {
                     throw SyntalosPyError(
                         std::string("Invalid type found in list metadata entry: ")
-                        + std::string(lo.attr("__py::class__").attr("__name__").cast<std::string>())
-                    );
+                        + std::string(lo.attr("__py::class__").attr("__name__").cast<std::string>()));
                 }
             }
             pb->worker()->setOutPortMetadataValue(_inst_id, QString::fromStdString(key), varList);
         } else {
             throw SyntalosPyError(
                 std::string("Can not set a metadata value for this type: ")
-                + std::string(obj.attr("__py::class__").attr("__name__").cast<std::string>())
-            );
+                + std::string(obj.attr("__py::class__").attr("__name__").cast<std::string>()));
         }
     }
 
@@ -242,8 +238,7 @@ struct OutputPort {
         int pinId,
         const std::string &name,
         bool isOutput,
-        bool isPullUp = false
-    )
+        bool isPullUp = false)
     {
         FirmataControl ctl;
         ctl.command = FirmataCommandKind::NEW_DIG_PIN;
@@ -346,8 +341,7 @@ PYBIND11_MODULE(syio, m)
             &InputPort::setThrottleItemsPerSec,
             "Limit the amount of input received to a set amount of elements per second.",
             py::arg("items_per_sec"),
-            py::arg("allow_more") = true
-        )
+            py::arg("allow_more") = true)
         .def_readonly("name", &InputPort::_name);
 
     py::class_<OutputPort>(m, "OutputPort", "Representation of a module output port.")
@@ -355,15 +349,13 @@ PYBIND11_MODULE(syio, m)
         .def(
             "submit",
             &OutputPort::submit,
-            "Submit the given entity to the output port for transfer to its destination(s)."
-        )
+            "Submit the given entity to the output port for transfer to its destination(s).")
         .def_readonly("name", &OutputPort::_name)
         .def("set_metadata_value", &OutputPort::set_metadata_value, "Set (immutable) metadata value for this port.")
         .def(
             "set_metadata_value_size",
             &OutputPort::set_metadata_value_size,
-            "Set (immutable) metadata value for a 2D size type for this port."
-        )
+            "Set (immutable) metadata value for a 2D size type for this port.")
 
         // convenience functions
         .def(
@@ -375,22 +367,19 @@ PYBIND11_MODULE(syio, m)
             py::arg("is_pullup") = false,
             "Convenience function to create a command to register a named digital pin and immediately submit it on "
             "this port. "
-            "The registered pin can later be referred to by its name."
-        )
+            "The registered pin can later be referred to by its name.")
         .def(
             "firmata_submit_digital_value",
             &OutputPort::firmata_submit_digital_value,
             py::arg("name"),
             py::arg("value"),
-            "Convenience function to write a digital value to a named pin."
-        )
+            "Convenience function to write a digital value to a named pin.")
         .def(
             "firmata_submit_digital_pulse",
             &OutputPort::firmata_submit_digital_pulse,
             py::arg("name"),
             py::arg("duration_msec") = 50,
-            "Convenience function to emit a digital pulse on a named pin."
-        );
+            "Convenience function to emit a digital pulse on a named pin.");
 
     py::enum_<InputWaitResult>(m, "InputWaitResult")
         .value("NONE", IWR_NONE)
@@ -468,35 +457,30 @@ PYBIND11_MODULE(syio, m)
         "raise_error",
         raise_error,
         py::arg("message"),
-        "Emit an error message string, immediately terminating the current action and (if applicable) the experiment."
-    );
+        "Emit an error message string, immediately terminating the current action and (if applicable) the experiment.");
     m.def("time_since_start_msec", time_since_start_msec, "Get time since experiment started in milliseconds.");
     m.def("time_since_start_usec", time_since_start_usec, "Get time since experiment started in microseconds.");
     m.def(
         "wait",
         wait,
         py::arg("msec"),
-        "Wait (roughly) for the given amount of milliseconds without blocking communication with the master process."
-    );
+        "Wait (roughly) for the given amount of milliseconds without blocking communication with the master process.");
     m.def(
         "wait_sec",
         wait_sec,
         py::arg("sec"),
-        "Wait (roughly) for the given amount of seconds without blocking communication with the master process."
-    );
+        "Wait (roughly) for the given amount of seconds without blocking communication with the master process.");
     m.def("await_new_input", await_new_input, "Wait for any new input to arrive via our input ports.");
     m.def(
         "check_running",
         check_running,
-        "Process all messages and return True if we are still running, False if we are supposed to shut down."
-    );
+        "Process all messages and return True if we are still running, False if we are supposed to shut down.");
     m.def(
         "schedule_delayed_call",
         &schedule_delayed_call,
         py::arg("delay_msec"),
         py::arg("callable_fn"),
-        "Schedule call to a callable to be processed after a set amount of milliseconds."
-    );
+        "Schedule call to a callable to be processed after a set amount of milliseconds.");
 
     m.def("get_input_port", get_input_port, py::arg("id"), "Get reference to input port with the give ID.");
     m.def("get_output_port", get_output_port, py::arg("id"), "Get reference to output port with the give ID.");
@@ -508,22 +492,19 @@ PYBIND11_MODULE(syio, m)
         py::arg("kind"),
         py::arg("pin_id"),
         py::arg("name"),
-        "Create new Firmata control command with a given pin ID and registered name."
-    );
+        "Create new Firmata control command with a given pin ID and registered name.");
     m.def(
         "new_firmatactl_with_id",
         new_firmatactl_with_id,
         py::arg("kind"),
         py::arg("pin_id"),
-        "Create new Firmata control command with a given pin ID."
-    );
+        "Create new Firmata control command with a given pin ID.");
     m.def(
         "new_firmatactl_with_name",
         new_firmatactl_with_name,
         py::arg("kind"),
         py::arg("name"),
-        "Create new Firmata control command with a given pin name (the name needs to be registered previously)."
-    );
+        "Create new Firmata control command with a given pin name (the name needs to be registered previously).");
 };
 
 void pythonRegisterSyioModule()

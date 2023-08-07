@@ -48,8 +48,7 @@ RtKit::RtKit(QObject *parent)
     : QObject(parent)
 {
     m_rtkitIntf = new QDBusInterface(
-        RTKIT_SERVICE_NAME, RTKIT_OBJECT_PATH, RTKIT_INTERFACE_NAME, QDBusConnection::systemBus(), this
-    );
+        RTKIT_SERVICE_NAME, RTKIT_OBJECT_PATH, RTKIT_INTERFACE_NAME, QDBusConnection::systemBus(), this);
 }
 
 QString RtKit::lastError() const
@@ -80,8 +79,7 @@ bool RtKit::makeHighPriority(pid_t thread, int niceLevel)
     QDBusReply<void> reply = m_rtkitIntf->call(
         QStringLiteral("MakeThreadHighPriority"),
         QVariant::fromValue((qulonglong)thread),
-        QVariant::fromValue((int32_t)niceLevel)
-    );
+        QVariant::fromValue((int32_t)niceLevel));
     if (reply.isValid())
         return true;
 
@@ -106,8 +104,7 @@ bool RtKit::makeRealtime(pid_t thread, uint priority)
     QDBusReply<void> reply = m_rtkitIntf->call(
         QStringLiteral("MakeThreadRealtime"),
         QVariant::fromValue((qulonglong)thread),
-        QVariant::fromValue((uint32_t)priority)
-    );
+        QVariant::fromValue((uint32_t)priority));
     if (reply.isValid())
         return true;
 
@@ -119,8 +116,10 @@ bool RtKit::makeRealtime(pid_t thread, uint priority)
 long long RtKit::getIntProperty(const QString &propName, bool *ok)
 {
     auto m = QDBusMessage::createMethodCall(
-        RTKIT_SERVICE_NAME, RTKIT_OBJECT_PATH, QStringLiteral("org.freedesktop.DBus.Properties"), QStringLiteral("Get")
-    );
+        RTKIT_SERVICE_NAME,
+        RTKIT_OBJECT_PATH,
+        QStringLiteral("org.freedesktop.DBus.Properties"),
+        QStringLiteral("Get"));
     m << RTKIT_INTERFACE_NAME << propName;
 
     QDBusReply<QVariant> reply = QDBusConnection::systemBus().call(m);

@@ -7,7 +7,7 @@ Standard: Cpp11
 ColumnLimit: 120
 BreakBeforeBraces: Linux
 PointerAlignment: Right
-AlignAfterOpenBracket: BlockIndent
+AlignAfterOpenBracket: AlwaysBreak
 AllowAllParametersOfDeclarationOnNextLine: false
 AlwaysBreakBeforeMultilineStrings: true
 BreakBeforeBinaryOperators: NonAssignment

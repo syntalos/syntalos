@@ -99,8 +99,7 @@ bool TaskManager::enqueueVideo(
     const QString &projectId,
     const QString &videoFname,
     const QHash<QString, QVariant> &codecProps,
-    const QHash<QString, QVariant> &mdata
-)
+    const QHash<QString, QVariant> &mdata)
 {
     CodecProperties cprops(codecProps);
 
@@ -166,8 +165,7 @@ void TaskManager::obtainSleepShutdownIdleInhibitor()
         QStringLiteral("org.freedesktop.login1"),
         QStringLiteral("/org/freedesktop/login1"),
         QStringLiteral("org.freedesktop.login1.Manager"),
-        QDBusConnection::systemBus()
-    );
+        QDBusConnection::systemBus());
     if (!iface.isValid()) {
         qCDebug(logEncodeMgr).noquote() << "Unable to connect to logind DBus interface";
         m_idleInhibitFd = -1;
@@ -179,8 +177,7 @@ void TaskManager::obtainSleepShutdownIdleInhibitor()
         QStringLiteral("sleep:shutdown:idle"),
         QCoreApplication::applicationName(),
         QStringLiteral("Encoding video datasets"),
-        QStringLiteral("block")
-    );
+        QStringLiteral("block"));
     if (!reply.isValid()) {
         qCDebug(logEncodeMgr).noquote() << "Unable to request sleep/shutdown/idle inhibitor from logind.";
         m_idleInhibitFd = -1;

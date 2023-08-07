@@ -35,8 +35,7 @@ public:
     explicit FirmataOutputWidget(
         std::shared_ptr<DataStream<FirmataControl>> fmCtlStream,
         bool analog,
-        QWidget *parent = nullptr
-    );
+        QWidget *parent = nullptr);
 
     bool isAnalog() const;
 
@@ -70,8 +69,7 @@ public:
     explicit FirmataInputWidget(
         std::shared_ptr<DataStream<FirmataControl>> fmCtlStream,
         bool analog,
-        QWidget *parent = nullptr
-    );
+        QWidget *parent = nullptr);
 
     bool isAnalog() const;
 

@@ -19,8 +19,7 @@ private:
         "\n"
         "[child]\n"
         "float = 1.248\n"
-        "key = 'stringvalue'"
-    );
+        "key = 'stringvalue'");
 
 private slots:
     void runTomlSerialize()
@@ -97,8 +96,7 @@ private slots:
             "alpha",
             QStringList() << "aaa"
                           << "bbbb"
-                          << "cccc"
-        );
+                          << "cccc");
         QVariantHash subMap;
         subMap.insert("world", 123);
         subMap.insert("nnn", QVariantList() << "spam" << 1.23 << "eggs");

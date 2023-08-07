@@ -124,8 +124,7 @@ public:
         if (!QDBusConnection::sessionBus().isConnected()) {
             raiseError(
                 "Cannot connect to the D-Bus session bus.\nSomething is wrong with the system or session "
-                "configuration."
-            );
+                "configuration.");
             return false;
         }
 
@@ -258,8 +257,7 @@ public:
                         if (m_initDone) {
                             // start our new section
                             if (!m_videoWriter->startNewSection(
-                                    QStringLiteral("%1%2").arg(vidSavePathBase, currentSecSuffix)
-                                )) {
+                                    QStringLiteral("%1%2").arg(vidSavePathBase, currentSecSuffix))) {
                                 raiseError(QStringLiteral("Unable to initialize recording of a new section: %1")
                                                .arg(QString::fromStdString(m_videoWriter->lastError())));
                                 return;
@@ -336,17 +334,14 @@ public:
 
                 const auto inSubSrcModName = m_inSub->metadataValue(CommonMetadataKey::SrcModName).toString();
                 const auto dataBasename = dataBasenameFromSubMetadata(
-                    m_inSub->metadata(), QStringLiteral("%1-video").arg(m_vidDataset->collectionShortTag())
-                );
+                    m_inSub->metadata(), QStringLiteral("%1-video").arg(m_vidDataset->collectionShortTag()));
                 vidSavePathBase = m_vidDataset->pathForDataBasename(dataBasename);
                 m_vidDataset->setDataScanPattern(
                     QStringLiteral("%1*").arg(dataBasename),
                     inSubSrcModName.isEmpty() ? QString()
-                                              : QStringLiteral("Video recording from %1").arg(inSubSrcModName)
-                );
+                                              : QStringLiteral("Video recording from %1").arg(inSubSrcModName));
                 m_vidDataset->addAuxDataScanPattern(
-                    QStringLiteral("%1*.tsync").arg(dataBasename), QStringLiteral("Video timestamps")
-                );
+                    QStringLiteral("%1*.tsync").arg(dataBasename), QStringLiteral("Video timestamps"));
 
                 auto vidSecFnameBase = vidSavePathBase;
                 if (!currentSecSuffix.isEmpty())
@@ -364,8 +359,7 @@ public:
                         framerate,
                         depth,
                         useColor,
-                        m_settingsDialog->saveTimestamps()
-                    );
+                        m_settingsDialog->saveTimestamps());
                 } catch (const std::runtime_error &e) {
                     raiseError(QStringLiteral("Unable to initialize recording: %1").arg(e.what()));
                     return;
@@ -422,17 +416,15 @@ public:
             return;
         }
         if (m_vidDataset.get() == nullptr) {
-            qDebug().noquote().nospace(
-            ) << name()
-              << ": "
-              << "Not performing deferred encoding, video dataset was not set (we probably failed the run early).";
+            qDebug().noquote().nospace()
+                << name() << ": "
+                << "Not performing deferred encoding, video dataset was not set (we probably failed the run early).";
             return;
         }
 
         QEventLoop loop;
         QDBusServiceWatcher watcher(
-            EQUEUE_DBUS_SERVICE, QDBusConnection::sessionBus(), QDBusServiceWatcher::WatchForRegistration
-        );
+            EQUEUE_DBUS_SERVICE, QDBusConnection::sessionBus(), QDBusServiceWatcher::WatchForRegistration);
         connect(&watcher, &QDBusServiceWatcher::serviceRegistered, [&](const QString &busName) {
             if (busName != EQUEUE_DBUS_SERVICE)
                 return;
@@ -440,8 +432,7 @@ public:
         });
 
         auto iface = new QDBusInterface(
-            EQUEUE_DBUS_SERVICE, "/", EQUEUE_DBUS_MANAGERINTF, QDBusConnection::sessionBus(), this
-        );
+            EQUEUE_DBUS_SERVICE, "/", EQUEUE_DBUS_MANAGERINTF, QDBusConnection::sessionBus(), this);
 
         if (!iface->isValid()) {
             // service is not available, start detached queue processor
@@ -469,8 +460,7 @@ public:
             raiseError(
                 QStringLiteral("Unable to connect to the encode queue service via D-Bus. "
                                "Videos of this run will remain unencoded. Did the encoding service crash? Message: %1")
-                    .arg(QDBusConnection::sessionBus().lastError().message())
-            );
+                    .arg(QDBusConnection::sessionBus().lastError().message()));
             return;
         }
 
@@ -504,8 +494,7 @@ public:
                 projectName,
                 m_vidDataset->pathForDataPart(dataPart),
                 m_settingsDialog->codecProps().toVariant(),
-                mdata
-            );
+                mdata);
             if (!reply.isValid() || !reply.value())
                 raiseError(QStringLiteral("Unable to submit video data for encoding: %1").arg(reply.error().message()));
         }
@@ -600,8 +589,8 @@ public:
         m_settingsDialog->setSliceInterval(static_cast<uint>(settings.value("slices_interval").toInt()));
 
         m_settingsDialog->setDeferredEncoding(settings.value("deferred_encode_enabled", false).toBool());
-        m_settingsDialog->setDeferredEncodingInstantStart(settings.value("deferred_encode_instant_start", true).toBool()
-        );
+        m_settingsDialog->setDeferredEncodingInstantStart(
+            settings.value("deferred_encode_instant_start", true).toBool());
         m_settingsDialog->setDeferredEncodingParallelCount(settings.value("deferred_encode_parallel_count", 4).toInt());
 
         return true;

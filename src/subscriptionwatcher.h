@@ -34,8 +34,7 @@ public:
     };
 
     static std::optional<std::unique_ptr<SubscriptionWatcher>> construct(
-        std::initializer_list<std::shared_ptr<VariantStreamSubscription>> subscriptions
-    );
+        std::initializer_list<std::shared_ptr<VariantStreamSubscription>> subscriptions);
     ~SubscriptionWatcher();
 
     bool isValid() const;

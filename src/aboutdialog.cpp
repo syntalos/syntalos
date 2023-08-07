@@ -41,8 +41,7 @@ const QString aboutDlgCopyInfo = QStringLiteral(
     "GNU General Public License for more details.</p>"
     "<p>Icons are based on the Breeze Iconset by the <a href=\"https://kde.org/\">KDE Community</a> [LGPLv3+]<br/>"
     "ASCII art credit for this window: hjw `97</p>"
-    "<h3>Modules:</h3>"
-);
+    "<h3>Modules:</h3>");
 
 AboutDialog::AboutDialog(QWidget *parent)
     : QDialog(parent),

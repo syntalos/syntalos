@@ -145,8 +145,7 @@ public:
                     m_running = false;
                     raiseError(
                         QStringLiteral("Too many attempts to record frames from this camera have failed. Is the camera "
-                                       "connected properly?")
-                    );
+                                       "connected properly?"));
                 }
                 continue;
             }

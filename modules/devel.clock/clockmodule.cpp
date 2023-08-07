@@ -101,8 +101,7 @@ public:
         m_tsWriter.setTimeUnits(TSyncFileTimeUnit::INDEX, TSyncFileTimeUnit::MICROSECONDS);
         m_tsWriter.setTimeDataTypes(TSyncFileDataType::UINT32, TSyncFileDataType::UINT64);
         m_tsWriter.setChunkSize(
-            (m_settingsDlg->pulseIntervalUs() / 1000 / 1000) * 60 * 2
-        ); // new chunk about every 2min
+            (m_settingsDlg->pulseIntervalUs() / 1000 / 1000) * 60 * 2); // new chunk about every 2min
 
         // prepare dataset
         auto dstore = getOrCreateDefaultDataset(name());
