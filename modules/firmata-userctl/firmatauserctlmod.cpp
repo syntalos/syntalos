@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2010-2022 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -104,7 +104,7 @@ private:
 
 QString FirmataUserCtlModuleInfo::id() const
 {
-    return QStringLiteral("firmatauserctl");
+    return QStringLiteral("firmata-userctl");
 }
 
 QString FirmataUserCtlModuleInfo::name() const

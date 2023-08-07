@@ -18,7 +18,7 @@ module_ui = ['firmatactldialog.ui']
 module_deps = []
 
 module_data = [
-    'firmatauserctl.svg',
+    'firmata-userctl.svg',
 ]
 
 #
