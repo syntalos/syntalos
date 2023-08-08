@@ -18,7 +18,7 @@ module_moc_src = [
 
 module_ui = ['miniscopesettingsdialog.ui']
 
-miniscope_dep = dependency('miniscope', version: '>=0.4')
+miniscope_dep = dependency('miniscope', version: '>=0.5.0')
 module_deps = [opencv_dep, miniscope_dep]
 
 module_data = [
