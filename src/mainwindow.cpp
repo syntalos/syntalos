@@ -1552,12 +1552,17 @@ void MainWindow::on_actionReportIssue_triggered()
         QStringLiteral("You will be redirected to GitHub where you can file an issue (you may need to register an "
                        "account there first).\n"
                        "To file an actionable issue report, please think about these things:\n"
-                       "  * What did you want or expect to happen?\n"
-                       "  * What happened instead?\n"
-                       "  * What kind of configuration were you trying to run?\n"
-                       "  * Are there any warnings listed on the system diagnostics page of Syntalos?\n"
+                       "  • What did you want or expect to happen?\n"
+                       "  • What happened instead?\n"
+                       "  • What kind of configuration were you trying to run?\n"
+                       "  • Are there any warnings listed on the system diagnostics page of Syntalos?\n"
                        "Happy issue reporting!"));
     QDesktopServices::openUrl(QUrl(SY_BUG_REPORT_URL, QUrl::TolerantMode));
+}
+
+void MainWindow::on_actionHelpDiscuss_triggered()
+{
+    QDesktopServices::openUrl(QUrl("https://github.com/bothlab/syntalos/discussions", QUrl::TolerantMode));
 }
 
 void MainWindow::on_actionOpenCrashCollector_triggered()

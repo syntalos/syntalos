@@ -14,7 +14,7 @@
    <string>Syntalos</string>
   </property>
   <property name="windowIcon">
-   <iconset resource="../data/resources.qrc">
+   <iconset>
     <normaloff>:/icons/appicon</normaloff>:/icons/appicon</iconset>
   </property>
   <widget class="QWidget" name="centralWidget">
@@ -495,7 +495,7 @@
                        <string/>
                       </property>
                       <property name="pixmap">
-                       <pixmap resource="../data/resources.qrc">:/status/running</pixmap>
+                       <pixmap>:/status/running</pixmap>
                       </property>
                      </widget>
                     </item>
@@ -545,7 +545,7 @@
                        <string/>
                       </property>
                       <property name="pixmap">
-                       <pixmap resource="../data/resources.qrc">:/status/running</pixmap>
+                       <pixmap>:/status/running</pixmap>
                       </property>
                      </widget>
                     </item>
@@ -595,7 +595,7 @@
                        <string/>
                       </property>
                       <property name="pixmap">
-                       <pixmap resource="../data/resources.qrc">:/status/running</pixmap>
+                       <pixmap>:/status/running</pixmap>
                       </property>
                      </widget>
                     </item>
@@ -645,7 +645,7 @@
                        <string/>
                       </property>
                       <property name="pixmap">
-                       <pixmap resource="../data/resources.qrc">:/status/running</pixmap>
+                       <pixmap>:/status/running</pixmap>
                       </property>
                      </widget>
                     </item>
@@ -1252,6 +1252,7 @@
      <string>He&amp;lp</string>
     </property>
     <addaction name="actionOnlineDocs"/>
+    <addaction name="actionHelpDiscuss"/>
     <addaction name="actionReportIssue"/>
     <addaction name="actionOpenCrashCollector"/>
     <addaction name="actionAbout"/>
@@ -1384,7 +1385,7 @@
   </action>
   <action name="actionRun">
    <property name="icon">
-    <iconset resource="../data/resources.qrc">
+    <iconset>
      <normaloff>:/icons/run</normaloff>:/icons/run</iconset>
    </property>
    <property name="text">
@@ -1396,7 +1397,7 @@
   </action>
   <action name="actionStop">
    <property name="icon">
-    <iconset resource="../data/resources.qrc">
+    <iconset>
      <normaloff>:/icons/stop</normaloff>:/icons/stop</iconset>
    </property>
    <property name="text">
@@ -1495,7 +1496,7 @@
   </action>
   <action name="actionRunTemp">
    <property name="icon">
-    <iconset resource="../data/resources.qrc">
+    <iconset>
      <normaloff>:/icons/run-temp</normaloff>:/icons/run-temp</iconset>
    </property>
    <property name="text">
@@ -1528,7 +1529,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../data/resources.qrc">
+    <iconset>
      <normaloff>:/icons/project-settings</normaloff>:/icons/project-settings</iconset>
    </property>
    <property name="text">
@@ -1540,7 +1541,7 @@
   </action>
   <action name="actionModuleLoadInfo">
    <property name="icon">
-    <iconset resource="../data/resources.qrc">
+    <iconset>
      <normaloff>:/module/generic</normaloff>:/module/generic</iconset>
    </property>
    <property name="text">
@@ -1585,7 +1586,7 @@
   </action>
   <action name="actionUsbDevices">
    <property name="icon">
-    <iconset resource="../data/resources.qrc">
+    <iconset>
      <normaloff>:/icons/usb-device</normaloff>:/icons/usb-device</iconset>
    </property>
    <property name="text">
@@ -1604,6 +1605,14 @@
     <string>Edit user comment on last or next experiment run</string>
    </property>
   </action>
+  <action name="actionHelpDiscuss">
+   <property name="icon">
+    <iconset theme="dialog-question"/>
+   </property>
+   <property name="text">
+    <string>Ask a question</string>
+   </property>
+  </action>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
  <customwidgets>
@@ -1620,9 +1629,7 @@
    <container>1</container>
   </customwidget>
  </customwidgets>
- <resources>
-  <include location="../data/resources.qrc"/>
- </resources>
+ <resources/>
  <connections>
   <connection>
    <sender>actionQuit</sender>

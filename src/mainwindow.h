@@ -101,6 +101,7 @@ private slots:
     void on_actionIntervalRunConfig_triggered();
     void on_actionOnlineDocs_triggered();
     void on_actionReportIssue_triggered();
+    void on_actionHelpDiscuss_triggered();
     void on_actionOpenCrashCollector_triggered();
 
 protected:
