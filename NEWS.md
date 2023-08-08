@@ -1,3 +1,32 @@
+Version 1.0.0
+-------------
+Released: 2023-08-08
+
+Features:
+ * firmata-io: Allow variable pulse lengths and improve logging
+ * pyscript: Add some convenience functions for Firmata handling
+ * python: syio: Make Firmata convenience functions members of OutputPort
+ * pyscript: Use smaller sample script, move explanations to docs
+ * miniscope: Implement support for orientation sensor
+ * miniscope: Require libminiscope >= 0.5.0
+ * canvas: Implement start/stop/pause controls
+ * videorecorder: Disable video slicing by default
+
+Bugfixes:
+ * utils: Don't delay thread for too long in delay()
+ * firmata: Ensure pin pulse lengths are clamped to a maximum length
+
+Miscellaneous:
+ * ci: Update action versions
+ * Relax module ABI check slightly
+ * Add example C++ module
+ * Autoformat Python code
+ * Autoformat C/C++ code
+ * docs: Add small tutorials for beginners
+ * docs: Add initial timing verification documentation
+ * docs: Add simple documentation for all non-developer modules
+ * Add help shortcut to online discussion page
+
 Version 0.8.4
 -------------
 Released: 2023-05-26
