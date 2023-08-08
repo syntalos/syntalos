@@ -23,6 +23,7 @@
 #include <KTextEditor/Editor>
 #include <KTextEditor/View>
 #include <QCoreApplication>
+#include <QDesktopServices>
 #include <QDebug>
 #include <QFileInfo>
 #include <QHBoxLayout>
@@ -93,7 +94,7 @@ public:
 
         // add ports dialog
         auto menuBar = new QMenuBar();
-        auto portsMenu = new QMenu("Ports");
+        auto portsMenu = new QMenu("Ports", menuBar);
         menuBar->addMenu(portsMenu);
         auto portEditAction = portsMenu->addAction("Edit");
         m_scriptWindow->layout()->setMenuBar(menuBar);
@@ -109,6 +110,18 @@ public:
 
         connect(portEditAction, &QAction::triggered, this, [&](bool) {
             m_portsDialog->exec();
+        });
+
+        // add help menu
+        auto helpMenu = new QMenu("Help", menuBar);
+        menuBar->addMenu(helpMenu);
+        auto docHelpAction = helpMenu->addAction("Documentation");
+        auto apiHelpAction = helpMenu->addAction("Syio API Reference");
+        connect(docHelpAction, &QAction::triggered, this, [&](bool) {
+            QDesktopServices::openUrl(QUrl("https://syntalos.readthedocs.io/en/latest/modules/pyscript.html", QUrl::TolerantMode));
+        });
+        connect(apiHelpAction, &QAction::triggered, this, [&](bool) {
+            QDesktopServices::openUrl(QUrl("https://syntalos.readthedocs.io/en/latest/syio_api.html", QUrl::TolerantMode));
         });
 
         // FIXME: Dirty hack: This introduces a shortcut conflict between the KTextEditor-registered one
