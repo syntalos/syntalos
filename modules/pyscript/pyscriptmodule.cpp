@@ -118,10 +118,12 @@ public:
         auto docHelpAction = helpMenu->addAction("Documentation");
         auto apiHelpAction = helpMenu->addAction("Syio API Reference");
         connect(docHelpAction, &QAction::triggered, this, [&](bool) {
-            QDesktopServices::openUrl(QUrl("https://syntalos.readthedocs.io/en/latest/modules/pyscript.html", QUrl::TolerantMode));
+            QDesktopServices::openUrl(
+                QUrl("https://syntalos.readthedocs.io/en/latest/modules/pyscript.html", QUrl::TolerantMode));
         });
         connect(apiHelpAction, &QAction::triggered, this, [&](bool) {
-            QDesktopServices::openUrl(QUrl("https://syntalos.readthedocs.io/en/latest/syio_api.html", QUrl::TolerantMode));
+            QDesktopServices::openUrl(
+                QUrl("https://syntalos.readthedocs.io/en/latest/syio_api.html", QUrl::TolerantMode));
         });
 
         // FIXME: Dirty hack: This introduces a shortcut conflict between the KTextEditor-registered one
