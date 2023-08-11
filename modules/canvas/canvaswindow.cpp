@@ -29,11 +29,11 @@ CanvasWindow::CanvasWindow(QWidget *parent)
     : QWidget(parent)
 {
     setWindowTitle("Canvas");
-    setMinimumSize(QSize(240, 240));
 
     m_imgView = new ImageViewWidget(this);
     m_statusLabel = new QLabel(this);
     m_statusLabel->setText(QStringLiteral("Empty"));
+    setMinimumSize(m_imgView->minimumSize());
 
     auto container = new QWidget(this);
     auto clayout = new QHBoxLayout;

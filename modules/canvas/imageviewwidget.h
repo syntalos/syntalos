@@ -19,11 +19,11 @@
 
 #pragma once
 
-#include <QOpenGLFunctions_3_0>
 #include <QOpenGLWidget>
+#include <QOpenGLFunctions>
 #include <opencv2/core/core.hpp>
 
-class ImageViewWidget : public QOpenGLWidget, protected QOpenGLFunctions_3_0
+class ImageViewWidget : public QOpenGLWidget, protected QOpenGLFunctions
 {
     Q_OBJECT
 public:
@@ -38,15 +38,10 @@ public slots:
 protected:
     void initializeGL() override;
     void paintGL() override;
-    void resizeGL(int width, int height) override;
-
     void renderImage();
 
 private:
     class Private;
     Q_DISABLE_COPY(ImageViewWidget)
     QScopedPointer<Private> d;
-
-    void recalculatePosition();
-    GLuint matToTexture(const cv::Mat &mat, GLenum minFilter, GLenum magFilter, GLenum wrapFilter);
 };

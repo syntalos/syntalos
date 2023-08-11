@@ -123,7 +123,29 @@ private:
         Frame frame;
 
         frame.mat = cv::Mat(cv::Size(800, 600), CV_8UC3);
+
         frame.mat.setTo(cv::Scalar(67, 42, 30));
+        cv::line(
+            frame.mat,
+            cv::Point(0, frame.mat.rows / 2),
+            cv::Point(frame.mat.cols, frame.mat.rows / 2),
+            cv::Scalar(0, 116, 247),
+            2,
+            cv::LINE_8);
+        cv::line(
+            frame.mat,
+            cv::Point(frame.mat.cols / 2, 0),
+            cv::Point(frame.mat.cols / 2, frame.mat.rows),
+            cv::Scalar(0, 116, 247),
+            2,
+            cv::LINE_8);
+        cv::rectangle(
+            frame.mat,
+            cv::Point(10, 10),
+            cv::Point(frame.mat.cols - 10, frame.mat.rows - 10),
+            cv::Scalar(96, 174, 40),
+            4,
+            cv::LINE_8);
         cv::putText(
             frame.mat,
             std::string("Frame ") + std::to_string(index),
@@ -131,6 +153,7 @@ private:
             cv::FONT_HERSHEY_COMPLEX,
             1.5,
             cv::Scalar(255, 255, 255));
+
         frame.time = m_syTimer->timeSinceStartMsec();
 
         std::this_thread::sleep_for(
