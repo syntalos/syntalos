@@ -27,6 +27,7 @@
 #include "ipcmarshal.h"
 #include "streams/frametype.h"
 #include "sysinfo.h"
+#include "oopmodule.h"
 #include "utils/misc.h"
 
 using namespace Syntalos;
@@ -109,7 +110,7 @@ bool OOPWorkerConnector::connectAndRun(const QVector<uint> &cpuAffinity)
     m_reptr->node()->connectToNode(QUrl(address));
 
     if (m_workerBinary.isEmpty()) {
-        qWarning().noquote() << "OOP module has not set a worker binary";
+        qCWarning(logOOPMod).noquote() << "OOP module has not set a worker binary";
         m_failed = true;
         return false;
     }
@@ -319,6 +320,11 @@ static bool unmarshalDataAndOutput(
     if (unmarshalAndOutputSimple<TableRow>(typeId, argData, port))
         return true;
 
+    if (unmarshalAndOutputSimple<IntSignalBlock>(typeId, argData, port))
+        return true;
+    if (unmarshalAndOutputSimple<FloatSignalBlock>(typeId, argData, port))
+        return true;
+
     return false;
 }
 
@@ -330,7 +336,7 @@ void OOPWorkerConnector::receiveOutput(int outPortId, QVariant argData)
     const auto typeId = outPort->dataTypeId();
 
     if (!unmarshalDataAndOutput(typeId, argData, m_shmRecv[outPortId], outPort.get()))
-        qWarning().noquote() << "Could not interpret data received from worker on port" << outPort->id();
+        qCWarning(logOOPMod).noquote() << "Could not interpret data received from worker on port" << outPort->id();
 }
 
 void OOPWorkerConnector::receiveOutputPortMetadataUpdate(int outPortId, const QVariantHash &metadata)

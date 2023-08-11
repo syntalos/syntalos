@@ -284,15 +284,15 @@ public:
 
     friend QDataStream &operator<<(QDataStream &out, const IntSignalBlock &obj)
     {
-        // TODO: Not yet implemented
-        Q_UNUSED(obj)
+        serializeEigen(out, obj.timestamps);
+        serializeEigen(out, obj.data);
         return out;
     }
 
     friend QDataStream &operator>>(QDataStream &in, IntSignalBlock &obj)
     {
-        // TODO: Not yet implemented
-        Q_UNUSED(obj)
+        obj.timestamps = deserializeEigen<VectorXu>(in);
+        obj.data = deserializeEigen<MatrixXi>(in);
         return in;
     }
 };
@@ -341,15 +341,15 @@ public:
 
     friend QDataStream &operator<<(QDataStream &out, const FloatSignalBlock &obj)
     {
-        // TODO: Not yet implemented
-        Q_UNUSED(obj)
+        serializeEigen(out, obj.timestamps);
+        serializeEigen(out, obj.data);
         return out;
     }
 
     friend QDataStream &operator>>(QDataStream &in, FloatSignalBlock &obj)
     {
-        // TODO: Not yet implemented
-        Q_UNUSED(obj)
+        obj.timestamps = deserializeEigen<VectorXu>(in);
+        obj.data = deserializeEigen<MatrixXd>(in);
         return in;
     }
 };

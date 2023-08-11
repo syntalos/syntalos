@@ -21,6 +21,7 @@
 
 #include <Eigen/Dense>
 #include <algorithm>
+#include <QDataStream>
 
 namespace Syntalos
 {
@@ -76,6 +77,41 @@ template<typename T>
 double vectorVariance(const Eigen::Matrix<T, Eigen::Dynamic, 1> &vec)
 {
     return vectorVariance(vec, vec.mean());
+}
+
+template<typename EigenType>
+void serializeEigen(QDataStream &stream, const EigenType &matrix)
+{
+    const auto rows = static_cast<quint64>(matrix.rows());
+    const auto cols = static_cast<quint64>(matrix.cols());
+    stream << rows << cols;
+
+    for (quint64 i = 0; i < rows; ++i) {
+        for (quint64 j = 0; j < cols; ++j) {
+            typename EigenType::Scalar value = matrix(i, j);
+            stream << value;
+        }
+    }
+}
+
+template<typename EigenType>
+EigenType deserializeEigen(QDataStream &stream)
+{
+    EigenType matrix;
+
+    quint64 rows, cols;
+    stream >> rows >> cols;
+
+    matrix.resize(rows, cols);
+    for (quint64 i = 0; i < rows; ++i) {
+        for (quint64 j = 0; j < cols; ++j) {
+            typename EigenType::Scalar value;
+            stream >> value;
+            matrix(i, j) = value;
+        }
+    }
+
+    return matrix;
 }
 
 } // namespace Syntalos

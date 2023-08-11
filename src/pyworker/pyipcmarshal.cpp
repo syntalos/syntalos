@@ -20,6 +20,7 @@
 #include <pybind11/chrono.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl_bind.h>
+#include <pybind11/eigen.h>
 
 #include "cvmatndsliceconvert.h"
 #include "ipcmarshal.h"
@@ -83,6 +84,15 @@ py::object unmarshalDataToPyObject(int typeId, const QVariant &argData, std::uni
         }
         return pyRow;
     }
+
+    /**
+     ** Signal Blocks
+     **/
+
+    if (typeId == qMetaTypeId<IntSignalBlock>())
+        return py::cast(qvariant_cast<IntSignalBlock>(argData));
+    if (typeId == qMetaTypeId<FloatSignalBlock>())
+        return py::cast(qvariant_cast<FloatSignalBlock>(argData));
 
     return py::none();
 }
@@ -169,6 +179,15 @@ bool marshalPyDataElement(int typeId, const py::object &pyObj, QVariant &argData
         argData = QVariant::fromValue(row);
         return true;
     }
+
+    /**
+     ** Signal Blocks
+     **/
+
+    if (marshalAndAddSimple<IntSignalBlock>(typeId, pyObj, argData))
+        return true;
+    if (marshalAndAddSimple<FloatSignalBlock>(typeId, pyObj, argData))
+        return true;
 
     return false;
 }

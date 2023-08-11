@@ -32,6 +32,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
+#include <pybind11/eigen.h>
 #include <stdexcept>
 
 #include "cvmatndsliceconvert.h"
@@ -447,6 +448,25 @@ PYBIND11_MODULE(syio, m)
         .def_readwrite("value", &FirmataData::value)
         .def_readwrite("is_digital", &FirmataData::isDigital)
         .def_readwrite("time", &FirmataData::time, "Time when the data was acquired.");
+
+    /**
+     ** Signal Blocks
+     **/
+
+    py::class_<IntSignalBlock>(m, "IntSignalBlock", "A block of timestamped integer signal data.")
+        .def(py::init<>())
+        .def_readwrite("timestamps", &IntSignalBlock::timestamps, "Timestamps of the data blocks.")
+        .def_readwrite("data", &IntSignalBlock::data, "The data matrix.")
+        .def_property_readonly("length", &IntSignalBlock::length)
+        .def_property_readonly("rows", &IntSignalBlock::rows)
+        .def_property_readonly("cols", &IntSignalBlock::cols);
+    py::class_<FloatSignalBlock>(m, "FloatSignalBlock", "A block of timestamped float signal data.")
+        .def(py::init<>())
+        .def_readwrite("timestamps", &FloatSignalBlock::timestamps, "Timestamps of the data blocks.")
+        .def_readwrite("data", &FloatSignalBlock::data, "The data matrix.")
+        .def_property_readonly("length", &FloatSignalBlock::length)
+        .def_property_readonly("rows", &FloatSignalBlock::rows)
+        .def_property_readonly("cols", &FloatSignalBlock::cols);
 
     /**
      ** Additional Functions
