@@ -151,7 +151,8 @@ void ImageViewWidget::renderImage()
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    float aspectRatio = static_cast<float>(width()) / height();
+    const float imageAspectRatio = static_cast<float>(d->origImage.cols) / d->origImage.rows;
+    const float aspectRatio = static_cast<float>(width()) / height() / imageAspectRatio;
     d->shaderProgram.bind();
     d->shaderProgram.setUniformValue("bgColor", d->bgColorVec);
     d->shaderProgram.setUniformValue("aspectRatio", aspectRatio);

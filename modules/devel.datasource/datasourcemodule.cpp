@@ -34,13 +34,15 @@ private:
     std::shared_ptr<DataStream<TableRow>> m_rowsOut;
     std::shared_ptr<DataStream<FirmataControl>> m_fctlOut;
     int m_fps;
+    cv::Size m_outFrameSize;
 
     time_t m_prevRowTime;
 
 public:
     explicit DataSourceModule(QObject *parent = nullptr)
         : AbstractModule(parent),
-          m_fps(200)
+          m_fps(200),
+          m_outFrameSize(cv::Size(960, 600))
     {
         m_frameOut = registerOutputPort<Frame>(QStringLiteral("frames-out"), QStringLiteral("Frames"));
         m_rowsOut = registerOutputPort<TableRow>(QStringLiteral("rows-out"), QStringLiteral("Table Rows"));
@@ -74,7 +76,7 @@ public:
     bool prepare(const TestSubject &) override
     {
         m_frameOut->setMetadataValue("framerate", (double)m_fps);
-        m_frameOut->setMetadataValue("size", QSize(800, 600));
+        m_frameOut->setMetadataValue("size", QSize(m_outFrameSize.width, m_outFrameSize.height));
         m_frameOut->start();
 
         m_rowsOut->setSuggestedDataName(QStringLiteral("table-%1/testvalues").arg(datasetNameSuggestion()));
@@ -122,7 +124,7 @@ private:
         const auto startTime = currentTimePoint();
         Frame frame;
 
-        frame.mat = cv::Mat(cv::Size(800, 600), CV_8UC3);
+        frame.mat = cv::Mat(m_outFrameSize, CV_8UC3);
 
         frame.mat.setTo(cv::Scalar(67, 42, 30));
         cv::line(
