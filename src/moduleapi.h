@@ -778,7 +778,7 @@ protected:
      * The window instance will be deleted on destruction, if
      * #own was set to true.
      */
-    void addDisplayWindow(QWidget *window, bool owned = true);
+    QWidget *addDisplayWindow(QWidget *window, bool owned = true);
 
     /**
      * @brief Register a settings window for this module.
@@ -789,7 +789,7 @@ protected:
      * The window instance will be deleted on destruction, if
      * #own was set to true.
      */
-    void addSettingsWindow(QWidget *window, bool owned = true);
+    QWidget *addSettingsWindow(QWidget *window, bool owned = true);
 
     /**
      * @brief Request a member function of this module to be called at an interval

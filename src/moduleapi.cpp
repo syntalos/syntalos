@@ -499,7 +499,10 @@ void AbstractModule::finalize()
 
 void AbstractModule::showDisplayUi()
 {
+    const bool onlyOne = d->displayWindows.size() == 1;
     for (auto const wp : d->displayWindows) {
+        if (onlyOne)
+            wp.first->setWindowTitle(name());
         wp.first->show();
         wp.first->raise();
     }
@@ -516,7 +519,10 @@ bool AbstractModule::isDisplayUiVisible()
 
 void AbstractModule::showSettingsUi()
 {
+    const bool onlyOne = d->settingsWindows.size() == 1;
     for (auto const wp : d->settingsWindows) {
+        if (onlyOne)
+            wp.first->setWindowTitle(QStringLiteral("%1 - Settings").arg(name()));
         wp.first->show();
         wp.first->raise();
     }
@@ -780,15 +786,16 @@ std::shared_ptr<EDLGroup> AbstractModule::createStorageGroup(const QString &grou
     return d->rootDataGroup->groupByName(groupName, true);
 }
 
-void AbstractModule::addDisplayWindow(QWidget *window, bool owned)
+QWidget *AbstractModule::addDisplayWindow(QWidget *window, bool owned)
 {
-
     d->displayWindows.append(qMakePair(window, owned));
+    return window;
 }
 
-void AbstractModule::addSettingsWindow(QWidget *window, bool owned)
+QWidget *AbstractModule::addSettingsWindow(QWidget *window, bool owned)
 {
     d->settingsWindows.append(qMakePair(window, owned));
+    return window;
 }
 
 std::unique_ptr<FreqCounterSynchronizer> AbstractModule::initCounterSynchronizer(double frequencyHz)
