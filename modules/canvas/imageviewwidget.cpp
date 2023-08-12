@@ -23,12 +23,24 @@
 #include <QMessageBox>
 #include <QOpenGLTexture>
 #include <QOpenGLShaderProgram>
+#include <QOpenGLBuffer>
+#include <QOpenGLVertexArrayObject>
 #include <opencv2/opencv.hpp>
 
+#if defined(QT_OPENGL_ES)
+#define USE_GLES 1
+#else
+#undef USE_GLES
+#endif
+
 static const char *vertexShaderSource =
-    "#version 120\n"
-    "attribute vec2 position;\n"
-    "varying vec2 texCoord;\n"
+#ifdef USE_GLES
+    "#version 300 es\n"
+#else
+    "#version 330 core\n"
+#endif
+    "layout(location = 0) in vec2 position;\n"
+    "out vec2 texCoord;\n"
     "void main()\n"
     "{\n"
     "    gl_Position = vec4(position, 0.0, 1.0);\n"
@@ -36,11 +48,16 @@ static const char *vertexShaderSource =
     "}\n";
 
 static const char *fragmentShaderSource =
-    "#version 120\n"
+#ifdef USE_GLES
+    "#version 300 es\n"
+#else
+    "#version 330 core\n"
+#endif
+    "in vec2 texCoord;\n"
+    "out vec4 FragColor;\n"
     "uniform sampler2D tex;\n"
     "uniform float aspectRatio;\n"
     "uniform vec4 bgColor;\n"
-    "varying vec2 texCoord;\n"
     "void main()\n"
     "{\n"
     "    vec2 sceneCoord = texCoord;\n"
@@ -53,9 +70,9 @@ static const char *fragmentShaderSource =
     "    }\n"
     "    if (sceneCoord.x < 0.0 || sceneCoord.x > 1.0 || "
     "        sceneCoord.y < 0.0 || sceneCoord.y > 1.0) {\n"
-    "        gl_FragColor = bgColor; // Bars around image\n"
+    "        FragColor = bgColor; // Bars around image\n"
     "    } else {\n"
-    "        gl_FragColor = texture2D(tex, sceneCoord);\n"
+    "        FragColor = texture(tex, sceneCoord);\n"
     "    }\n"
     "}\n";
 
@@ -70,6 +87,8 @@ public:
     QVector4D bgColorVec;
     cv::Mat origImage;
 
+    QOpenGLVertexArrayObject vao;
+    QOpenGLBuffer vbo;
     std::unique_ptr<QOpenGLTexture> matTex;
     QOpenGLShaderProgram shaderProgram;
 };
@@ -85,7 +104,11 @@ ImageViewWidget::ImageViewWidget(QWidget *parent)
     setMinimumSize(QSize(320, 256));
 }
 
-ImageViewWidget::~ImageViewWidget() {}
+ImageViewWidget::~ImageViewWidget()
+{
+    d->vao.destroy();
+    d->vbo.destroy();
+}
 
 void ImageViewWidget::initializeGL()
 {
@@ -102,19 +125,42 @@ void ImageViewWidget::initializeGL()
     d->shaderProgram.addShaderFromSourceCode(QOpenGLShader::Vertex, vertexShaderSource);
     d->shaderProgram.addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource);
 
-    if (!d->shaderProgram.link()) {
+    bool glOkay = d->shaderProgram.link();
+    if (!glOkay)
+        qWarning().noquote() << "Unable to link shader program:" << d->shaderProgram.log();
+
+    // Initialize VAO & VBO
+    d->vao.create();
+    glOkay = glOkay && d->vao.isCreated();
+    if (!glOkay) {
         QMessageBox::critical(
             this,
-            QStringLiteral("Unable to link OpenGL shader"),
-            QStringLiteral(
-                "Unable to link OpenGl shader. Your system needs at least OpenGL ES 2.0 to run this application. "
-                "You may want to try to upgrade your graphics drivers.\n"
-                "Log:\n%1")
-                .arg(d->shaderProgram.log()),
+            QStringLiteral("Unable to initialize OpenGL"),
+            QStringLiteral("Unable to link OpenGL shader or initialize vertex array object. Your system needs at least "
+                           "OpenGL/GLES 3.2 to run this application.\n"
+                           "You may want to try to upgrade your graphics drivers."),
             QMessageBox::Ok);
-        qFatal("Unable to link shader program: %s", qPrintable(d->shaderProgram.log()));
+        qFatal(
+            "Unable to initialize OpenGL:\nVAO: %s\nShader Log: %s",
+            d->vao.isCreated() ? "true" : "false",
+            qPrintable(d->shaderProgram.log()));
         exit(6);
     }
+
+    d->vao.bind();
+
+    GLfloat vertices[] = {-1.0f, -1.0f, 1.0f, -1.0f, 1.0f, 1.0f, -1.0f, 1.0f};
+
+    d->vbo.create();
+    d->vbo.bind();
+    d->vbo.setUsagePattern(QOpenGLBuffer::StaticDraw);
+    d->vbo.allocate(vertices, sizeof(vertices));
+
+    d->shaderProgram.enableAttributeArray(0);
+    d->shaderProgram.setAttributeBuffer(0, GL_FLOAT, 0, 2, 2 * sizeof(GLfloat));
+
+    d->vbo.release();
+    d->vao.release();
 }
 
 void ImageViewWidget::paintGL()
@@ -143,7 +189,11 @@ void ImageViewWidget::renderImage()
         d->origImage.cols,
         d->origImage.rows,
         0,
+#ifdef USE_GLES
+        GL_RGB,
+#else
         GL_BGR,
+#endif
         GL_UNSIGNED_BYTE,
         d->origImage.data);
 
@@ -157,17 +207,9 @@ void ImageViewWidget::renderImage()
     d->shaderProgram.setUniformValue("bgColor", d->bgColorVec);
     d->shaderProgram.setUniformValue("aspectRatio", aspectRatio);
 
-    // Draw a quad
-    glBegin(GL_QUADS);
-    glTexCoord2f(0, 1);
-    glVertex2f(-1, -1);
-    glTexCoord2f(1, 1);
-    glVertex2f(1, -1);
-    glTexCoord2f(1, 0);
-    glVertex2f(1, 1);
-    glTexCoord2f(0, 0);
-    glVertex2f(-1, 1);
-    glEnd();
+    d->vao.bind();
+    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+    d->vao.release();
 
     d->matTex->release();
     d->shaderProgram.release();
@@ -176,11 +218,22 @@ void ImageViewWidget::renderImage()
 bool ImageViewWidget::showImage(const cv::Mat &image)
 {
     auto channels = image.channels();
-    image.copyTo(d->origImage);
+
+#ifdef USE_GLES
     if (channels == 1)
-        cvtColor(d->origImage, d->origImage, cv::COLOR_GRAY2BGR);
+        cvtColor(image, d->origImage, cv::COLOR_GRAY2RGB);
     else if (channels == 4)
-        cvtColor(d->origImage, d->origImage, cv::COLOR_BGRA2BGR);
+        cvtColor(image, d->origImage, cv::COLOR_BGRA2RGB);
+    else
+        cvtColor(image, d->origImage, cv::COLOR_BGR2RGB);
+#else
+    if (channels == 1)
+        cvtColor(image, d->origImage, cv::COLOR_GRAY2BGR);
+    else if (channels == 4)
+        cvtColor(image, d->origImage, cv::COLOR_BGRA2BGR);
+    else
+        image.copyTo(d->origImage);
+#endif
 
     update();
     return true;
