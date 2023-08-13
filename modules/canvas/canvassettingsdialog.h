@@ -1,5 +1,5 @@
-/*
- * Copyright (C) 2019-2022 Matthias Klumpp <matthias@tenstral.net>
+/**
+ * Copyright (C) 2019-2023 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -8,36 +8,40 @@
  * the Free Software Foundation, either version 3 of the license, or
  * (at your option) any later version.
  *
- * This software is distributed in the hope that it will be useful,
+ * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
- * along with this software.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #pragma once
 
-#include <QWidget>
-#include <opencv2/core/core.hpp>
+#include <QDialog>
+#include "canvaswindow.h"
 
-class ImageViewWidget;
-class QLabel;
+namespace Ui
+{
+class CanvasSettingsDialog;
+}
 
-class CanvasWindow : public QWidget
+class CanvasSettingsDialog : public QDialog
 {
     Q_OBJECT
+
 public:
-    explicit CanvasWindow(QWidget *parent = nullptr);
+    explicit CanvasSettingsDialog(CanvasWindow *cvView, QWidget *parent = nullptr);
+    ~CanvasSettingsDialog();
 
-    void showImage(const cv::Mat &image);
-    void setStatusText(const QString &text);
+    void updateUi();
 
-    bool highlightSaturation() const;
-    void setHighlightSaturation(bool enabled);
+private slots:
+    void on_highlightSaturationCheckBox_toggled(bool checked);
 
 private:
-    ImageViewWidget *m_imgView;
-    QLabel *m_statusLabel;
+    Ui::CanvasSettingsDialog *ui;
+
+    CanvasWindow *m_cvView;
 };

@@ -5,18 +5,20 @@ module_hdr = [
 ]
 module_moc_hdr = [
     'imageviewwidget.h',
-    'canvaswindow.h'
+    'canvaswindow.h',
+    'canvassettingsdialog.h',
 ]
 
 module_src = [
     'imageviewwidget.cpp',
-    'canvaswindow.cpp'
+    'canvaswindow.cpp',
+    'canvassettingsdialog.cpp',
 ]
 module_moc_src = [
     'canvasmodule.cpp'
 ]
 
-module_ui = []
+module_ui = ['canvassettingsdialog.ui']
 
 module_deps = [opencv_dep]
 

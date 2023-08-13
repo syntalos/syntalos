@@ -71,3 +71,13 @@ void CanvasWindow::setStatusText(const QString &text)
 {
     m_statusLabel->setText(text);
 }
+
+bool CanvasWindow::highlightSaturation() const
+{
+    return m_imgView->highlightSaturation();
+}
+
+void CanvasWindow::setHighlightSaturation(bool enabled)
+{
+    m_imgView->setHighlightSaturation(enabled);
+}

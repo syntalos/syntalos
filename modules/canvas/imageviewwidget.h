@@ -34,6 +34,8 @@ public slots:
     bool showImage(const cv::Mat &image);
 
     void setMinimumSize(const QSize &size);
+    void setHighlightSaturation(bool enabled);
+    bool highlightSaturation() const;
 
 protected:
     void initializeGL() override;

@@ -41,6 +41,7 @@ static const char *vertexShaderSource =
 #endif
     "layout(location = 0) in vec2 position;\n"
     "out vec2 texCoord;\n"
+    "\n"
     "void main()\n"
     "{\n"
     "    gl_Position = vec4(position, 0.0, 1.0);\n"
@@ -58,6 +59,8 @@ static const char *fragmentShaderSource =
     "uniform sampler2D tex;\n"
     "uniform float aspectRatio;\n"
     "uniform vec4 bgColor;\n"
+    "uniform lowp float showSaturation;\n"
+    "\n"
     "void main()\n"
     "{\n"
     "    vec2 sceneCoord = texCoord;\n"
@@ -73,6 +76,9 @@ static const char *fragmentShaderSource =
     "        FragColor = bgColor; // Bars around image\n"
     "    } else {\n"
     "        FragColor = texture(tex, sceneCoord);\n"
+    "        lowp float cVal = (FragColor.r + FragColor.g + FragColor.b) / 3.0;\n"
+    "        if (cVal >= .99 && showSaturation == 1.0)\n"
+    "            FragColor = vec4(1.0, 0.0, 0.0, 1.0);\n"
     "    }\n"
     "}\n";
 
@@ -87,6 +93,8 @@ public:
     QVector4D bgColorVec;
     cv::Mat origImage;
 
+    bool highlightSaturation;
+
     QOpenGLVertexArrayObject vao;
     QOpenGLBuffer vbo;
     std::unique_ptr<QOpenGLTexture> matTex;
@@ -98,6 +106,7 @@ ImageViewWidget::ImageViewWidget(QWidget *parent)
     : QOpenGLWidget(parent),
       d(new ImageViewWidget::Private)
 {
+    d->highlightSaturation = false;
     d->bgColorVec = QVector4D(0.46, 0.46, 0.46, 1.0);
     setWindowTitle("Video");
 
@@ -121,13 +130,15 @@ void ImageViewWidget::initializeGL()
     d->bgColorVec = QVector4D(r, g, b, 1.0);
     glClearColor(r, g, b, 1.0f);
 
-    // Link shaders
-    d->shaderProgram.addShaderFromSourceCode(QOpenGLShader::Vertex, vertexShaderSource);
-    d->shaderProgram.addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource);
+    // Compile & link shaders
+    bool glOkay = true;
+    glOkay = d->shaderProgram.addShaderFromSourceCode(QOpenGLShader::Vertex, vertexShaderSource) && glOkay;
+    glOkay = d->shaderProgram.addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource) && glOkay;
 
-    bool glOkay = d->shaderProgram.link();
-    if (!glOkay)
+    if (!d->shaderProgram.link()) {
+        glOkay = false;
         qWarning().noquote() << "Unable to link shader program:" << d->shaderProgram.log();
+    }
 
     // Initialize VAO & VBO
     d->vao.create();
@@ -136,9 +147,11 @@ void ImageViewWidget::initializeGL()
         QMessageBox::critical(
             this,
             QStringLiteral("Unable to initialize OpenGL"),
-            QStringLiteral("Unable to link OpenGL shader or initialize vertex array object. Your system needs at least "
-                           "OpenGL/GLES 3.2 to run this application.\n"
-                           "You may want to try to upgrade your graphics drivers."),
+            QStringLiteral(
+                "Unable to compiler or link OpenGL shader or initialize vertex array object. Your system needs at "
+                "least "
+                "OpenGL/GLES 3.2 to run this application.\n"
+                "You may want to try to upgrade your graphics drivers, or check the application log for details."),
             QMessageBox::Ok);
         qFatal(
             "Unable to initialize OpenGL:\nVAO: %s\nShader Log: %s",
@@ -206,6 +219,7 @@ void ImageViewWidget::renderImage()
     d->shaderProgram.bind();
     d->shaderProgram.setUniformValue("bgColor", d->bgColorVec);
     d->shaderProgram.setUniformValue("aspectRatio", aspectRatio);
+    d->shaderProgram.setUniformValue("showSaturation", d->highlightSaturation ? (GLfloat)1.0 : (GLfloat)0.0);
 
     d->vao.bind();
     glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
@@ -243,4 +257,14 @@ void ImageViewWidget::setMinimumSize(const QSize &size)
 {
     setMinimumWidth(size.width());
     setMinimumHeight(size.height());
+}
+
+void ImageViewWidget::setHighlightSaturation(bool enabled)
+{
+    d->highlightSaturation = enabled;
+}
+
+bool ImageViewWidget::highlightSaturation() const
+{
+    return d->highlightSaturation;
 }

@@ -23,6 +23,7 @@
 #include <QTimer>
 
 #include "canvaswindow.h"
+#include "canvassettingsdialog.h"
 #include "streams/frametype.h"
 
 SYNTALOS_MODULE(CanvasModule)
@@ -38,6 +39,7 @@ private:
     std::shared_ptr<StreamSubscription<ControlCommand>> m_ctlSub;
 
     CanvasWindow *m_cvView;
+    CanvasSettingsDialog *m_cvSettings;
 
     double m_expectedFps;
     double m_currentFps;
@@ -61,13 +63,17 @@ public:
         m_ctlIn = registerInputPort<ControlCommand>(QStringLiteral("control"), QStringLiteral("Control"));
 
         m_cvView = new CanvasWindow;
-        m_cvView->setWindowIcon(modInfo->icon());
         addDisplayWindow(m_cvView);
+        m_cvView->setWindowIcon(modInfo->icon());
+
+        m_cvSettings = new CanvasSettingsDialog(m_cvView);
+        addSettingsWindow(m_cvSettings);
+        m_cvSettings->setWindowIcon(modInfo->icon());
     }
 
     ModuleFeatures features() const override
     {
-        return ModuleFeature::CALL_UI_EVENTS | ModuleFeature::SHOW_DISPLAY;
+        return ModuleFeature::CALL_UI_EVENTS | ModuleFeature::SHOW_DISPLAY | ModuleFeature::SHOW_SETTINGS;
     }
 
     bool prepare(const TestSubject &) override
@@ -225,6 +231,18 @@ public:
                                         .arg(m_expectedFps, 0, 'f', 1)
                                         .arg(m_currentDisplayFps, 0, 'f', 0));
         }
+    }
+
+    void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
+    {
+        settings.insert("highlight_saturation", m_cvView->highlightSaturation());
+    }
+
+    bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
+    {
+        m_cvView->setHighlightSaturation(settings.value("highlight_saturation", false).toBool());
+        m_cvSettings->updateUi();
+        return true;
     }
 };
 
