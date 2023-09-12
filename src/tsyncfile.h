@@ -47,7 +47,7 @@ enum class TSyncFileMode {
  * @brief Unit types for time representation in a TSync file
  */
 enum class TSyncFileTimeUnit {
-    INDEX = 0,
+    INDEX = 0, /// monotonically increasing counter without dimension
     NANOSECONDS = 1,
     MICROSECONDS = 2,
     MILLISECONDS = 3,

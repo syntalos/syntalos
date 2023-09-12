@@ -29,6 +29,7 @@ to make more advanced changes.
    timesync-verification
    modules/index
    changes
+   tsync-format
    syio_api
    api/sysrc_root.rst
 
