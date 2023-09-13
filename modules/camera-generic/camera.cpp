@@ -28,6 +28,11 @@
 #include <opencv2/videoio.hpp>
 #include <sys/ioctl.h>
 
+namespace Syntalos
+{
+Q_LOGGING_CATEGORY(logGenCamera, "mod.camera-generic")
+}
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpadded"
 class CameraData
@@ -333,7 +338,10 @@ void Camera::setPixelFormat(const CameraPixelFormat &pixFmt)
 {
     if (pixFmt.fourcc == 0 || pixFmt.name.isEmpty())
         return;
+
+    qCDebug(logGenCamera).noquote() << "Setting pixel format to:" << pixFmt.fourcc;
     d->cam->set(cv::CAP_PROP_FOURCC, pixFmt.fourcc);
+    d->captureFormat = pixFmt;
 }
 
 bool Camera::recordFrame(Frame &frame, SecondaryClockSynchronizer *clockSync)

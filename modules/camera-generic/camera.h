@@ -29,6 +29,11 @@
 #include "syclock.h"
 #include "timesync.h"
 
+namespace Syntalos
+{
+Q_DECLARE_LOGGING_CATEGORY(logGenCamera)
+}
+
 struct CameraPixelFormat {
     QString name;
     unsigned int fourcc;
