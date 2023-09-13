@@ -2,9 +2,49 @@ Source: syntalos
 Section: science
 Priority: optional
 Maintainer: Matthias Klumpp <mak@debian.org>
-Build-Depends: debhelper-compat (= 13),
-               meson
-Standards-Version: 4.6.0
+Build-Depends: cmake,
+               debhelper-compat (= 13),
+               gettext,
+               gobject-introspection,
+               libaravis-dev,
+               libavcodec-dev,
+               libavformat-dev,
+               libavutil-dev,
+               libegl-dev,
+               libeigen3-dev,
+               libgirepository1.0-dev,
+               libglib2.0-dev,
+               libgstreamer-plugins-base1.0-dev,
+               libgstreamer1.0-dev,
+               libkf5archive-dev,
+               libkf5texteditor-dev,
+               libopencv-dev,
+               libpipewire-0.3-dev,
+               libqt5charts5-dev,
+               libqt5opengl5-dev,
+               libqt5remoteobjects5-bin,
+               libqt5remoteobjects5-dev,
+               libqt5serialport5-dev,
+               libqt5svg5-dev,
+               libswscale-dev,
+               libsystemd-dev,
+               libudev-dev,
+               libusb-1.0-0-dev,
+               libv4l-dev,
+               libxml2-dev,
+               libxxhash-dev,
+               libzip-dev,
+               meson,
+               ninja-build,
+               ocl-icd-opencl-dev,
+               pybind11-dev,
+               python3-dev,
+               python3-numpy,
+               qtbase5-dev,
+               qtmultimedia5-dev,
+               udev,
+               uuid-dev
+Standards-Version: 4.6.2
 
 Package: syntalos
 Architecture: any
