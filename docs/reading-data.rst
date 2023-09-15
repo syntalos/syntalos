@@ -55,13 +55,13 @@ you can also use the ``syntalos-metaview`` command-line tool:
 
 *If you installed Syntalos from source/package:*
 
-.. code-block:: console
+.. code-block:: bash
 
     syntalos-metaview --tsync /path/to/your/tsync-file.tsync
 
 *If you installed Syntalos from the software store:*
 
-.. code-block:: console
+.. code-block:: bash
 
     flatpak run --command=syntalos-metaview io.github.bothlab.syntalos --tsync /path/to/your/tsync-file.tsync
 

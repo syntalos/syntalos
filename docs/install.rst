@@ -4,6 +4,7 @@ Installation
 You can find the source code and precompiled binaries for some distribution
 for the latest Syntalos releases at the `Syntalos GitHub releases page <https://github.com/bothlab/syntalos/releases>`_.
 
+
 Installing via Flathub / from the App-Center
 ============================================
 Syntalos is avaulable as Flatpak bundle for download via Flathub.
@@ -28,6 +29,7 @@ For the command-line way to install Syntalos using Flatpak you may execute these
     # install Syntalos
     flatpak install flathub io.github.bothlab.syntalos
 
+
 Installing via Packages
 =======================
 
@@ -45,6 +47,7 @@ Ensure you are on Ubuntu 22.04 (Jammy Jellyfish) or later.
 After the PPA is registered, you should be able to install the package via your graphical package manager or
 the command-line: ``sudo apt install ./syntalos_*.deb``.
 You can then launch Syntalos from the application menu.
+
 
 Module dependencies
 ===================
@@ -64,6 +67,7 @@ UCLA Miniscopes
 For Miniscope support, Syntalos uses the `libminiscope` library provided by `PoMiDAQ <https://github.com/bothlab/pomidaq>`_.
 To use a `UCLA Miniscope <http://miniscope.org/>`_, compile the project - or just the library - from source or install
 the provided binary package.
+
 
 Building from source
 ====================
@@ -97,3 +101,13 @@ After installing all dependencies, you should be able to build the software afte
 
 Modules can be enabled and disabled via the ``-Dmodules`` flag - refer to ``meson_options.txt`` for a list of possible,
 comma-separated values.
+
+
+Installing on Windows
+=====================
+
+Installing Syntalos on Windows is not advised, as its performance will be significantly worse and its time-synchronization
+capabilites have not been tested.
+
+It is however a convenient way to just check out the Syntalos UI and play with it.
+To install it, follow the instructions on :doc:`/install-windows`.
