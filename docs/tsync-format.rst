@@ -1,11 +1,11 @@
-Tsync binary file structure
-###########################
+Tsync binary file format
+########################
 
 .. note::
     This document describes the technical details of the tsync binary format.
     It is not required to know this information if you just want to read `tsync` files,
-    for that, just use `edlio <https://edl.rtfd.io>`_ which implements the necessary
-    code to read the data.
+    for that, just use `edlio <https://edl.rtfd.io>`_ or ``syntalos-metaview`` which already
+    implement the necessary code to read this data.
 
 
 Intro
