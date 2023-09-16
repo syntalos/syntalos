@@ -34,7 +34,7 @@ Install Syntalos
 
 .. note::
     For convenience, you might want to install the `Windows Terminal <https://apps.microsoft.com/store/detail/windows-terminal/9N0DX20HK701>`_
-    from the Microsoft Store, at it is a lot more convient to use than the rather basic default console on Windows.
+    from the Microsoft Store, as it is a lot more convient to use than the rather basic default console on Windows.
 
 Launch *Windows-Subsystem for Linux*, or open the Windows Terminal and click on the down arrow
 next to the new-tab plus sign and select *Ubuntu*.
