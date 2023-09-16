@@ -85,11 +85,11 @@ public:
         }
 
         statusMessage("Connecting camera...");
+        m_camera->setResolution(m_camSettingsWindow->resolution());
         if (!m_camera->connect()) {
             raiseError(QStringLiteral("Unable to connect camera: %1").arg(m_camera->lastError()));
             return false;
         }
-        m_camera->setResolution(m_camSettingsWindow->resolution());
 
         m_camSettingsWindow->setRunning(true);
         m_fps = m_camSettingsWindow->framerate();

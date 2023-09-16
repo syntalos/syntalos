@@ -126,6 +126,8 @@ void Camera::setStartTime(const symaster_timepoint &time)
 void Camera::setResolution(const cv::Size &size)
 {
     d->frameSize = size;
+    d->cam->set(cv::CAP_PROP_FRAME_WIDTH, d->frameSize.width);
+    d->cam->set(cv::CAP_PROP_FRAME_HEIGHT, d->frameSize.height);
 }
 
 int Camera::framerate() const
@@ -276,12 +278,11 @@ bool Camera::connect()
         qDebug() << "Unable to use preferred camera backend for" << d->camId << "falling back to autodetection.";
         ret = d->cam->open(d->camId);
     }
-    d->cam->set(cv::CAP_PROP_FRAME_WIDTH, d->frameSize.width);
-    d->cam->set(cv::CAP_PROP_FRAME_HEIGHT, d->frameSize.height);
+
     d->cam->set(cv::CAP_PROP_FPS, d->fps);
     d->cam->set(cv::CAP_PROP_AUTO_EXPOSURE, d->autoExposureRaw);
 
-    // set default values
+    // set initial defaults
     setPixelFormat(d->captureFormat);
     setExposure(d->exposure);
     setBrightness(d->brightness);
@@ -289,6 +290,10 @@ bool Camera::connect()
     setSaturation(d->saturation);
     setHue(d->hue);
 
+    d->cam->set(cv::CAP_PROP_FRAME_WIDTH, d->frameSize.width);
+    d->cam->set(cv::CAP_PROP_FRAME_HEIGHT, d->frameSize.height);
+
+    // we are connected now
     d->failed = false;
     d->connected = true;
 
