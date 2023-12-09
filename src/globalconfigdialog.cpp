@@ -197,4 +197,3 @@ void GlobalConfigDialog::on_cbPythonVenvForScripts_toggled(bool checked)
     if (m_acceptChanges)
         m_gc->setUseVenvForPyScript(checked);
 }
-

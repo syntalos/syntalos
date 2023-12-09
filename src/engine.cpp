@@ -1963,8 +1963,7 @@ bool Engine::runInternal(const QString &exportDirPath)
         // if we are here, we failed to join the thread
         qCWarning(logEngine).noquote() << "Failed to join thread for" << mod->name()
                                        << "in time, trying to break deadlock...";
-        emitStatusMessage(
-            QStringLiteral("Waiting for '%1' (⚠️ possibly dead / unrecoverable)...").arg(mod->name()));
+        emitStatusMessage(QStringLiteral("Waiting for '%1' (⚠️ possibly dead / unrecoverable)...").arg(mod->name()));
         qApp->processEvents();
 
         // let's try to send its inputs a nullopt
