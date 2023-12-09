@@ -229,8 +229,6 @@ public:
                         "Failed to set up the virtual environment - refer to the terminal log for more information."));
                 return false;
             }
-            GlobalConfig gconf;
-            gconf.triggerCreateVirtualenvUserLink();
         }
 
         setInitialized();

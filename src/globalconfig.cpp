@@ -180,32 +180,19 @@ QString GlobalConfig::virtualenvDir() const
     return QDir(m_appDataRoot).filePath("venv");
 }
 
-void GlobalConfig::triggerCreateVirtualenvUserLink()
+QString GlobalConfig::homeDevelDir() const
 {
-    if (!createVEnvUserLink())
-        return;
-
-    QDir venvDir(virtualenvDir());
-    if (!venvDir.exists() || venvDir.isEmpty())
-        return;
-
-    const auto linkFname = QDir(m_userHome).filePath("SyntalosVEnvs");
-    QFileInfo fi(linkFname);
-    if (fi.exists())
-        return;
-    QFile::link(virtualenvDir(), linkFname);
+    return QDir(m_userHome).filePath("SyntalosDevel");
 }
 
-bool GlobalConfig::createVEnvUserLink() const
+bool GlobalConfig::useVenvForPyScript() const
 {
-    return m_s->value("devel/venv_user_link", false).toBool();
+    return m_s->value("devel/use_venv_for_pyscript", false).toBool();
 }
 
-void GlobalConfig::setCreateVEnvUserLink(bool enabled)
+void GlobalConfig::setUseVenvForPyScript(bool enabled)
 {
-    if (enabled)
-        triggerCreateVirtualenvUserLink();
-    m_s->setValue("devel/venv_user_link", enabled);
+    m_s->setValue("devel/use_venv_for_pyscript", enabled);
 }
 
 bool GlobalConfig::emergencyOOMStop() const

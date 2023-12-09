@@ -23,6 +23,7 @@
 #include <QEventLoop>
 #include <QRemoteObjectNode>
 
+#include "globalconfig.h"
 #include "oopworkerconnector.h"
 
 namespace Syntalos
@@ -177,6 +178,14 @@ void OOPModule::setPythonScript(const QString &script, const QString &wdir, cons
     d->pyScript = script;
     d->pyVEnv = venv;
     d->wdir = wdir;
+
+    GlobalConfig gconf;
+    if (venv.isEmpty() && gconf.useVenvForPyScript()) {
+        // use the base venv if no venv was given
+        d->pyVEnv = QStringLiteral("%1/%2").arg(gconf.virtualenvDir(), "base");
+        if (!QDir(d->pyVEnv).exists())
+            d->pyVEnv = QString();
+    }
 }
 
 void OOPModule::setPythonFile(const QString &fname, const QString &wdir, const QString &venv)

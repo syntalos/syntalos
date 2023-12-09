@@ -48,12 +48,15 @@ private slots:
 
     void on_cbDisplayDevModules_toggled(bool checked);
     void on_cbSaveDiagnostic_toggled(bool checked);
-    void on_cbPythonCreateVEnvLink_toggled(bool checked);
+    void on_btnCreateDevDir_clicked();
+    void on_cbPythonVenvForScripts_toggled(bool checked);
 
 signals:
     void defaultColorSchemeChanged();
 
 private:
+    void updateCreateDevDirButtonState();
+
     Ui::GlobalConfigDialog *ui;
     Syntalos::GlobalConfig *m_gc;
     bool m_acceptChanges;

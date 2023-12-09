@@ -75,12 +75,11 @@ public:
     QString appDataLocation() const;
 
     QString userModulesDir() const;
-
     QString virtualenvDir() const;
-    void triggerCreateVirtualenvUserLink();
+    QString homeDevelDir() const;
 
-    bool createVEnvUserLink() const;
-    void setCreateVEnvUserLink(bool enabled);
+    bool useVenvForPyScript() const;
+    void setUseVenvForPyScript(bool enabled);
 
     bool emergencyOOMStop() const;
     void setEmergencyOOMStop(bool enabled);

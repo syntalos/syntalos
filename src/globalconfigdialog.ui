@@ -50,7 +50,7 @@
       <enum>QTabWidget::West</enum>
      </property>
      <property name="currentIndex">
-      <number>0</number>
+      <number>2</number>
      </property>
      <property name="iconSize">
       <size>
@@ -422,9 +422,50 @@
               <number>2</number>
              </property>
              <item>
-              <widget class="QCheckBox" name="cbPythonCreateVEnvLink">
+              <widget class="QWidget" name="widget_5" native="true">
+               <layout class="QHBoxLayout" name="horizontalLayout_5">
+                <property name="spacing">
+                 <number>4</number>
+                </property>
+                <property name="leftMargin">
+                 <number>0</number>
+                </property>
+                <property name="topMargin">
+                 <number>0</number>
+                </property>
+                <property name="rightMargin">
+                 <number>0</number>
+                </property>
+                <property name="bottomMargin">
+                 <number>0</number>
+                </property>
+                <item>
+                 <widget class="QLabel" name="label_2">
+                  <property name="text">
+                   <string>Module Developer Directory:</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="btnCreateDevDir">
+                  <property name="text">
+                   <string>Create directory in current user home</string>
+                  </property>
+                  <property name="checkable">
+                   <bool>true</bool>
+                  </property>
+                  <property name="flat">
+                   <bool>true</bool>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
+             <item>
+              <widget class="QCheckBox" name="cbPythonVenvForScripts">
                <property name="text">
-                <string>Create link to virtual environments directory in home directory</string>
+                <string>Use &quot;base&quot; virtual environment for generic Python script module</string>
                </property>
               </widget>
              </item>

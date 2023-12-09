@@ -21,6 +21,8 @@
 #include "ui_globalconfigdialog.h"
 
 #include <QMessageBox>
+#include <QStandardPaths>
+#include <QDir>
 
 #include "appstyle.h"
 #include "rtkit.h"
@@ -68,7 +70,8 @@ GlobalConfigDialog::GlobalConfigDialog(QWidget *parent)
     // devel section
     ui->cbDisplayDevModules->setChecked(m_gc->showDevelModules());
     ui->cbSaveDiagnostic->setChecked(m_gc->saveExperimentDiagnostics());
-    ui->cbPythonCreateVEnvLink->setChecked(m_gc->createVEnvUserLink());
+    ui->cbPythonVenvForScripts->setChecked(m_gc->useVenvForPyScript());
+    updateCreateDevDirButtonState();
 
     // we can accept user changes now!
     m_acceptChanges = true;
@@ -148,8 +151,50 @@ void GlobalConfigDialog::on_cbSaveDiagnostic_toggled(bool checked)
         m_gc->setSaveExperimentDiagnostics(checked);
 }
 
-void GlobalConfigDialog::on_cbPythonCreateVEnvLink_toggled(bool checked)
+void GlobalConfigDialog::updateCreateDevDirButtonState()
+{
+    QDir homeDevDir(m_gc->homeDevelDir());
+    auto venvLinkPath = homeDevDir.filePath("venv");
+    QFileInfo fiVenvLink(venvLinkPath);
+
+    ui->btnCreateDevDir->setChecked(fiVenvLink.exists());
+    if (fiVenvLink.exists())
+        ui->btnCreateDevDir->setText("Directory exists (click to update)");
+    else
+        ui->btnCreateDevDir->setText("Create directory in home directory");
+}
+
+void GlobalConfigDialog::on_btnCreateDevDir_clicked()
+{
+    QDir homeDevDir(m_gc->homeDevelDir());
+    QDir().mkdir(homeDevDir.absolutePath());
+
+    // create link to venvs directory
+    auto venvLinkPath = homeDevDir.filePath("venv");
+    QFileInfo fiVenvLink(venvLinkPath);
+    if (!fiVenvLink.exists() || fiVenvLink.isSymLink()) {
+        QFile::remove(venvLinkPath);
+        QDir().mkpath(m_gc->virtualenvDir());
+        if (!QFile::link(m_gc->virtualenvDir(), venvLinkPath))
+            qDebug().noquote() << "Failed to create symlink from" << m_gc->virtualenvDir() << "to" << venvLinkPath;
+    }
+
+    // create link to user modules directory
+    auto modsLinkPath = homeDevDir.filePath("modules");
+    QFileInfo fiModsLink(modsLinkPath);
+    if (!fiModsLink.exists() || fiModsLink.isSymLink()) {
+        QFile::remove(modsLinkPath);
+        QDir().mkpath(m_gc->userModulesDir());
+        if (!QFile::link(m_gc->userModulesDir(), modsLinkPath))
+            qDebug().noquote() << "Failed to create symlink from" << m_gc->userModulesDir() << "to" << modsLinkPath;
+    }
+
+    updateCreateDevDirButtonState();
+}
+
+void GlobalConfigDialog::on_cbPythonVenvForScripts_toggled(bool checked)
 {
     if (m_acceptChanges)
-        m_gc->setCreateVEnvUserLink(checked);
+        m_gc->setUseVenvForPyScript(checked);
 }
+
