@@ -1,3 +1,25 @@
+Version 1.0.1
+-------------
+Released: 2023-12-22
+
+Features:
+ * Add signal block serialization support
+ * canvas: Port to modern OpenGL
+ * canvas: Port display functions to work with GLES
+ * canvas: Add setting to highlight saturated pixels
+ * moduleapi: Auto-name windows if window convenience methods are used
+
+Bugfixes:
+ * videorecorder: Set framerate correctly if AVI container is used
+ * camera-generic: Ensure pixel format is (re)set before framerate is changed
+ * camera-generic: Ensure image dimensions are actually applied again
+ * deb: Set build-deps, so shlibdeps are populated correctly
+
+Miscellaneous:
+ * docs: Document the tsync binary format
+ * docs: Add "Windows" installation instructions
+ * Make options to manage custom Python modules and venvs more obvious
+
 Version 1.0.0
 -------------
 Released: 2023-08-08
