@@ -70,10 +70,10 @@ ModuleLibrary::ModuleLibrary(GlobalConfig *gconf, QObject *parent)
     d->syntalosApiId = QStringLiteral(SY_MODULE_API_TAG);
     auto sysInfo = SysInfo::get();
 
+    const auto appDirPath = QCoreApplication::applicationDirPath();
     bool haveLocalModDir = false;
-    if (!QCoreApplication::applicationDirPath().startsWith("/usr") && !sysInfo->inFlatpakSandbox()) {
-        const auto path = QDir(QStringLiteral("%1/%2").arg(QCoreApplication::applicationDirPath()).arg("../modules"))
-                              .canonicalPath();
+    if (!appDirPath.startsWith("/usr/") && !sysInfo->inFlatpakSandbox() && !appDirPath.startsWith("/app/")) {
+        const auto path = QDir(QStringLiteral("%1/%2").arg(appDirPath).arg("../modules")).canonicalPath();
         if (QDir(path).exists()) {
             d->locations.append(ModuleLocation(path, true));
             haveLocalModDir = true;

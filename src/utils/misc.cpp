@@ -137,7 +137,11 @@ QString syntalosVersionFull()
 
 bool isInFlatpakSandbox()
 {
-    return qEnvironmentVariable("container") == QStringLiteral("flatpak");
+    if (qEnvironmentVariable("container") == QStringLiteral("flatpak"))
+        return true;
+    if (qEnvironmentVariable("FLATPAK_ID").startsWith("io.github"))
+        return true;
+    return false;
 }
 
 QString findHostFile(const QString &path)
