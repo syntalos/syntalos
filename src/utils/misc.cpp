@@ -139,6 +139,9 @@ bool isInFlatpakSandbox()
 {
     if (qEnvironmentVariable("container") == QStringLiteral("flatpak"))
         return true;
+
+    // We check for FLATPAK_ID as well to make this function work for older versions
+    // of Flatpak. 1.14.4 or higher is confirmed to not need this check.
     if (qEnvironmentVariable("FLATPAK_ID").startsWith("io.github"))
         return true;
     return false;
