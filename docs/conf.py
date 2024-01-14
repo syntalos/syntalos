@@ -8,7 +8,7 @@ from breathe.renderer.sphinxrenderer import DomainDirectiveFactory, CMacroObject
 # -- Project information -----------------------------------------------------
 
 project = 'Syntalos'
-copyright = '2018-2023, Matthias Klumpp'
+copyright = '2018-2024, Matthias Klumpp'
 author = 'Matthias Klumpp'
 
 # The full version, including alpha/beta/rc tags
