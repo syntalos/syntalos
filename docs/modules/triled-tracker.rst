@@ -8,8 +8,10 @@ Simple module to determine the position and orientation of an object or subject 
 a triangle of red/green/blue LEDs.
 
 .. warning::
-    This module was useful in the past, but better methods and sensors exist now for
-    tracking. It has not been updated for a while.
+    This module was very useful in the past, but better software methods as well as
+    hardware sensors are now available for more reliable, faster and less invasive
+    animal tracking
+    The module has not been updated for a while.
 
 
 Usage

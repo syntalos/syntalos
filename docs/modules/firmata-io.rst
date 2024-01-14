@@ -17,7 +17,7 @@ Configure as usual by setting a serial device to connect to.
     If the device does not show up for selection or you get a permission error,
     you may need to add yourself to the ``dialout`` group to use serial devices.
     In order to do that, open a terminal and enter ``sudo adduser $USER dialout``, confirming with
-    you administrator password. The log in again.
+    you administrator password. Then log in again.
 
 This module needs another module to be useful.
 
