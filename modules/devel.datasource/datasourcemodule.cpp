@@ -33,10 +33,14 @@ private:
     std::shared_ptr<DataStream<Frame>> m_frameOut;
     std::shared_ptr<DataStream<TableRow>> m_rowsOut;
     std::shared_ptr<DataStream<FirmataControl>> m_fctlOut;
+
+    std::shared_ptr<DataStream<FloatSignalBlock>> m_floatOut;
+
     int m_fps;
     cv::Size m_outFrameSize;
 
     time_t m_prevRowTime;
+    time_t m_prevTimeSData;
 
 public:
     explicit DataSourceModule(QObject *parent = nullptr)
@@ -47,6 +51,7 @@ public:
         m_frameOut = registerOutputPort<Frame>(QStringLiteral("frames-out"), QStringLiteral("Frames"));
         m_rowsOut = registerOutputPort<TableRow>(QStringLiteral("rows-out"), QStringLiteral("Table Rows"));
         m_fctlOut = registerOutputPort<FirmataControl>(QStringLiteral("fctl-out"), QStringLiteral("Firmata Control"));
+        m_floatOut = registerOutputPort<FloatSignalBlock>(QStringLiteral("float-out"), QStringLiteral("Sines"));
     }
 
     ~DataSourceModule() override {}
@@ -86,6 +91,19 @@ public:
         m_rowsOut->start();
         m_prevRowTime = 0;
 
+        m_prevTimeSData = 0;
+        m_floatOut->setMetadataValue(
+            "signal_names",
+            QStringList() << "Sine 1"
+                          << "Sine 2"
+                          << "Sine 3");
+        m_floatOut->setMetadataValue(
+            "signal_units",
+            QStringList() << "au"
+                          << "au"
+                          << "au");
+        m_floatOut->start();
+
         m_fctlOut->start();
 
         return true;
@@ -112,6 +130,23 @@ public:
                 fctl.pinName = QStringLiteral("custom-pin-name");
                 fctl.value = (msec % 2 == 0) ? 1 : 0;
                 m_fctlOut->push(fctl);
+            }
+
+            if ((msec > m_prevTimeSData) && (msec % 2) == 0) {
+                FloatSignalBlock fsb(2, 3);
+                fsb.timestamps[0] = msec - 1;
+                fsb.timestamps[1] = msec;
+                fsb.data(0, 0) = 0.5f * sinf(50 * ((msec - 1) / 20));
+                fsb.data(1, 0) = 0.5f * sinf(50 * (msec / 20));
+
+                fsb.data(0, 1) = 0.25f * sinf(50 * ((msec - 1) / 5) + 1.5);
+                fsb.data(1, 1) = 0.25f * sinf(50 * (msec / 5) + 1.5);
+
+                fsb.data(0, 2) = 0.4f * sinf(50 * ((msec - 1) / 200));
+                fsb.data(1, 2) = 0.4f * sinf(50 * (msec / 200));
+                m_floatOut->push(fsb);
+
+                m_prevTimeSData = msec;
             }
 
             dataIndex++;
