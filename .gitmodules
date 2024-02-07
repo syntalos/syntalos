@@ -1,0 +1,6 @@
+[submodule "modules/plot-timeseries/imgui"]
+	path = modules/plot-timeseries/imgui
+	url = https://github.com/ocornut/imgui.git
+[submodule "modules/plot-timeseries/implot"]
+	path = modules/plot-timeseries/implot
+	url = https://github.com/epezent/implot.git
