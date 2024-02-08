@@ -4,7 +4,7 @@
 # ImGUI
 #
 if not fs.is_file('imgui/imgui.h')
-    error('ImGui submodule is missing. Did you run `git submodule init`?')
+    error('ImGui submodule is missing. Did you run `git submodule update --init`?')
 endif
 imgui_inc = include_directories('imgui/')
 imgui_src = files(
@@ -36,7 +36,7 @@ imgui_dep = declare_dependency(
 # ImPlot
 #
 if not fs.is_file('implot/implot.h')
-    error('ImPlot submodule is missing. Did you run `git submodule init`?')
+    error('ImPlot submodule is missing. Did you run `git submodule update --init`?')
 endif
 implot_inc = include_directories('implot/')
 implot_src = files(
