@@ -1513,7 +1513,7 @@ void MainWindow::on_actionModuleLoadInfo_triggered()
             lineLength++;
             const auto c = tmpLine.at(i);
             if (lineLength > 80) {
-                if (c == " ") {
+                if (c == ' ') {
                     tmpText.append(QStringLiteral("<br/>%1").arg(QStringLiteral("&nbsp;").repeated(8)));
                     lineLength = 0;
                 }

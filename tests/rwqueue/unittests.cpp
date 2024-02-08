@@ -572,9 +572,10 @@ public:
 			SimpleThread writer([&]() {
 				for (int i = 0; i != 1000000; ++i) {
 					q.enqueue(i);
-                                        volatile int dummy = 0;
-                                        for (int x = 0; x != 100; ++x)
-                                            dummy += 1;
+
+					std::atomic<int> x(0);
+					while (x.load(std::memory_order_relaxed) != 100)
+						x.fetch_add(1, std::memory_order_relaxed);
 				}
 			});
 
