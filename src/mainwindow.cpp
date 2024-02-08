@@ -107,7 +107,7 @@ MainWindow::MainWindow(QWidget *parent)
                 setStatusText(myGreeting.value("msg", "Hello World!").toString().trimmed());
                 m_statusBarLabel->setToolTip(myGreeting.value("source", "Unknown").toString().trimmed());
                 // reset tooltip after 10 seconds
-                QTimer::singleShot(10 * 1000, [=]() {
+                QTimer::singleShot(10 * 1000, [&]() {
                     m_statusBarLabel->setToolTip(QString());
                 });
             }
@@ -135,7 +135,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->panelRunInfo->setEnabled(false);
 
     connect(ui->tbOpenDir, &QToolButton::clicked, this, &MainWindow::openDataExportDirectory);
-    connect(ui->subjectIdEdit, &QLineEdit::textChanged, [=](const QString &mouseId) {
+    connect(ui->subjectIdEdit, &QLineEdit::textChanged, [&](const QString &mouseId) {
         if (mouseId.isEmpty()) {
             ui->subjectSelectComboBox->setEnabled(true);
             ui->subjectSelectComboBox->setCurrentIndex(0);
@@ -155,7 +155,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(
         ui->subjectSelectComboBox,
         static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
-        [=](int index) {
+        [&](int index) {
             // empty manual edit to not interfere with the subject selector
             ui->subjectIdEdit->setText(QString());
 
@@ -1101,7 +1101,7 @@ void MainWindow::globalConfigActionTriggered()
     GlobalConfigDialog gcDlg(this);
 
     // react to user color scheme changes instantly
-    connect(&gcDlg, &GlobalConfigDialog::defaultColorSchemeChanged, [=]() {
+    connect(&gcDlg, &GlobalConfigDialog::defaultColorSchemeChanged, [&]() {
         applySelectedAppStyle();
     });
 

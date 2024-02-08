@@ -118,6 +118,7 @@ module_cpp_args = [
 
     '-Wno-error=deprecated-declarations',
     '-Wno-deprecated-declarations',
+    '-Wno-deprecated-enum-enum-conversion',
 ]
 if get_option('maintainer')
     module_cpp_args += ['-Wno-error=zero-as-null-pointer-constant',

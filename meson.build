@@ -1,7 +1,7 @@
 project('Syntalos', 'c', 'cpp',
   meson_version: '>=0.64',
   default_options: ['c_std=gnu17',
-                    'cpp_std=gnu++17',
+                    'cpp_std=gnu++20',
                     'b_lto=true'],
 
   license: 'LGPL-3.0+ and GPL-3.0+',

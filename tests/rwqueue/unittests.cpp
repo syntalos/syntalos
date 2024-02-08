@@ -572,7 +572,9 @@ public:
 			SimpleThread writer([&]() {
 				for (int i = 0; i != 1000000; ++i) {
 					q.enqueue(i);
-					for (volatile int x = 0; x != 100; ++x);
+                                        volatile int dummy = 0;
+                                        for (int x = 0; x != 100; ++x)
+                                            dummy += 1;
 				}
 			});
 

@@ -219,7 +219,7 @@ public:
         // even if we just have resubmitted them in the prepare() step. This is a workaround
         // to ensure we never record with e.g. gain set to zero by accident (we simply resubmit
         // the values 1sec after experiment start)
-        QTimer::singleShot(1000, [=]() {
+        QTimer::singleShot(1000, [&]() {
             m_settingsDialog->applyValues();
         });
 
