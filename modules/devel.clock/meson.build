@@ -18,7 +18,7 @@ module_ui = ['clocksettingsdialog.ui']
 module_deps = [glib_dep]
 
 module_data = [
-    'devclock.svg',
+    'devel.clock.svg',
 ]
 
 #
