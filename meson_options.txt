@@ -18,14 +18,16 @@ option('udevdir',
 option('modules',
     type: 'array',
     choices: ['camera-flir',  # FLIR camera module using the Spinnaker API
-              'camera-ueye',  # uEye camera module
               'camera-tis',   # Camera module for The Imaging Source cameras
-              'miniscope',    # UCLA Miniscope module
+              'camera-ueye',  # uEye camera module
               'intan-rhx',    # Intan RHX DAQ module
+              'miniscope',    # UCLA Miniscope module
+              'plot',         # Plotting modules using ImGui
     ],
     value : ['camera-tis',
-             'miniscope',
              'intan-rhx',
+             'miniscope',
+             'plot',
     ],
     description: 'Select modules to enable.'
 )

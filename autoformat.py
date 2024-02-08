@@ -19,6 +19,7 @@ INCLUDE_LOCATIONS = ['autoformat.py', 'contrib', 'docs', 'modules', 'src', 'test
 EXCLUDE_MATCH = [
     '*/contrib/MuxFirmata/*',
     '*/venv/*',
+    '*/contrib/vendor/*',
     '*/modules/intan-rhx/*',  # we want to keep Intan RHX close to upstream, for easy merging of changes
     '*/tests/rwqueue/*',
 ]

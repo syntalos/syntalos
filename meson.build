@@ -262,6 +262,11 @@ sy_base_deps = [rt_lib,
                 xxhash_dep
 ]
 
+# vendored 3rd-party code
+if 'plot' in get_option('modules')
+    subdir('contrib/vendor')
+endif
+
 #
 # Options
 #
