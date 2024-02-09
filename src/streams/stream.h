@@ -77,6 +77,9 @@ public:
     virtual int enableNotify() = 0;
     virtual void setThrottleItemsPerSec(uint itemsPerSec, bool allowMore = true) = 0;
 
+    virtual void suspend() = 0;
+    virtual void resume() = 0;
+
     virtual QHash<QString, QVariant> metadata() const = 0;
     virtual QVariant metadataValue(const QString &key, const QVariant &defaultValue = QVariant()) const = 0;
     virtual QVariant metadataValue(CommonMetadataKey key, const QVariant &defaultValue = QVariant()) const = 0;
@@ -255,7 +258,7 @@ public:
     /**
      * @brief Stop receiving data, but do not unsubscribe from the stream
      */
-    void suspend()
+    void suspend() override
     {
         // suspend receiving new data
         m_suspended = true;
@@ -268,7 +271,7 @@ public:
     /**
      * @brief Resume data transmission, reverses suspend()
      */
-    void resume()
+    void resume() override
     {
         m_suspended = false;
     }
