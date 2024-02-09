@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64" height="64" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:cc="http://creativecommons.org/ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+  <metadata>
+    <rdf:RDF>
+      <cc:Work rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <defs>
+    <linearGradient id="a" x1="434.57" x2="384.57" y1="543.8" y2="503.8" gradientTransform="matrix(.85535 0 0 1.0264 60.629 -17.365)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#343b40" offset="0"/>
+      <stop stop-color="#555e63" offset="1"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(-385.28 -479.18)">
+    <g transform="matrix(1.5588 0 0 1.5588 -221.99 -299.83)">
+      <g transform="matrix(.90625 0 0 .90611 38.447 48.846)">
+        <rect x="389.57" y="499.74" width="41.057" height="41.057" fill="url(#a)" stroke-opacity=".55" stroke-width="2.6236"/>
+        <path d="m390.88 523.79 5.9727-8.7392 4.2472 13.545 0.70787-14.961 3.6914 19.957 2.6794-27.037 2.8315 31.593 2.7426-31.441 1.5046 26.473 2.8315-20.002 4.5889 9.8123 3.375-5.1076 3.0961 5.9025" fill="none" stroke="#d6d6d6" stroke-linecap="round" stroke-linejoin="round" stroke-width=".80832"/>
+        <g transform="translate(.0031677 -.1672)" fill="none" stroke-width=".984">
+          <path d="m389.57 524.29c13.01 0 15.772 14.973 21.511 15.02 5.739 0.042 5.484-15.02 18.489-15.02" stroke="#787e82"/>
+          <path d="m389.57 523.31c13.01 0 15.772-19.035 21.511-19.077s5.484 19.077 18.489 19.077" stroke="#5090c3"/>
+        </g>
+        <rect x="389.57" y="499.75" width="1" height="41.057" color="#000000" color-rendering="auto" fill="#d6d6d6" image-rendering="auto" shape-rendering="auto" stroke-width="1.0989"/>
+        <g transform="translate(.0031677 -.1672)" color="#000000" color-rendering="auto" image-rendering="auto" shape-rendering="auto">
+          <g fill="#d6d6d6">
+            <rect x="390.57" y="523.8" width="39" height="1"/>
+            <rect x="396.57" y="522.8" width="1" height="3"/>
+            <rect x="410.57" y="522.8" width="1" height="3"/>
+            <rect x="424.57" y="522.8" width="1" height="3"/>
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

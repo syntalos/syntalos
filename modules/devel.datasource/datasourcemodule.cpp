@@ -35,12 +35,14 @@ private:
     std::shared_ptr<DataStream<FirmataControl>> m_fctlOut;
 
     std::shared_ptr<DataStream<FloatSignalBlock>> m_floatOut;
+    std::shared_ptr<DataStream<IntSignalBlock>> m_intOut;
 
     int m_fps;
     cv::Size m_outFrameSize;
 
     time_t m_prevRowTime;
     time_t m_prevTimeSData;
+    int m_prevIntValue;
 
 public:
     explicit DataSourceModule(QObject *parent = nullptr)
@@ -52,6 +54,7 @@ public:
         m_rowsOut = registerOutputPort<TableRow>(QStringLiteral("rows-out"), QStringLiteral("Table Rows"));
         m_fctlOut = registerOutputPort<FirmataControl>(QStringLiteral("fctl-out"), QStringLiteral("Firmata Control"));
         m_floatOut = registerOutputPort<FloatSignalBlock>(QStringLiteral("float-out"), QStringLiteral("Sines"));
+        m_intOut = registerOutputPort<IntSignalBlock>(QStringLiteral("int-out"), QStringLiteral("Numbers"));
     }
 
     ~DataSourceModule() override {}
@@ -97,12 +100,14 @@ public:
             QStringList() << "Sine 1"
                           << "Sine 2"
                           << "Sine 3");
-        m_floatOut->setMetadataValue(
-            "signal_units",
-            QStringList() << "au"
-                          << "au"
-                          << "au");
+        m_floatOut->setMetadataValue("time_unit", "milliseconds");
+        m_floatOut->setMetadataValue("data_unit", "au");
         m_floatOut->start();
+
+        m_intOut->setMetadataValue("signal_names", QStringList() << "Int 1");
+        m_intOut->setMetadataValue("time_unit", "milliseconds");
+        m_intOut->setMetadataValue("data_unit", "au");
+        m_intOut->start();
 
         m_fctlOut->start();
 
@@ -145,6 +150,20 @@ public:
                 fsb.data(0, 2) = 0.4f * sinf(50 * ((msec - 1) / 200));
                 fsb.data(1, 2) = 0.4f * sinf(50 * (msec / 200));
                 m_floatOut->push(fsb);
+
+                IntSignalBlock isb(2, 1);
+                isb.timestamps[0] = msec - 1;
+                isb.timestamps[1] = msec;
+                if (m_prevIntValue > 10) {
+                    isb.data(0, 0) = 8;
+                    isb.data(1, 0) = 2;
+                    m_prevIntValue = 0;
+                } else {
+                    isb.data(0, 0) = m_prevIntValue;
+                    isb.data(1, 0) = m_prevIntValue;
+                    m_prevIntValue++;
+                }
+                m_intOut->push(isb);
 
                 m_prevTimeSData = msec;
             }
