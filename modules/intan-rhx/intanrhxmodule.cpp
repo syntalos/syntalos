@@ -46,7 +46,7 @@ QString IntanRhxModuleInfo::description() const
 
 QString IntanRhxModuleInfo::license() const
 {
-    return QStringLiteral("Copyright © 2020-2021 <a href=\"https://intantech.com/\">Intan Technologies</a> [GPL-3.0+]");
+    return QStringLiteral("Copyright © 2020-2024 <a href=\"https://intantech.com/\">Intan Technologies</a> [GPL-3.0+]");
 }
 
 bool IntanRhxModuleInfo::singleton() const
@@ -158,9 +158,10 @@ bool IntanRhxModule::prepare(const TestSubject &)
             auto &sdi = blocks[i];
             if (!sdi.active)
                 continue;
-            sdi.stream->setMetadataValue(QStringLiteral("samplingrate"), sampleRate);
-            sdi.stream->setMetadataValue(QStringLiteral("channel_index_first"), i);
-            sdi.stream->setMetadataValue(QStringLiteral("channel_index_last"),  i);
+            sdi.stream->setMetadataValue(QStringLiteral("sample_rate"), sampleRate);
+            sdi.stream->setMetadataValue("time_unit", "index");
+            sdi.stream->setMetadataValue("data_unit", "µV");
+            sdi.stream->setMetadataValue("signal_names", QStringList() << QStringLiteral("I%1").arg(i));
         }
     }
     for (auto &blocks : floatSdiByGroupChannel) {
@@ -168,9 +169,10 @@ bool IntanRhxModule::prepare(const TestSubject &)
             auto &sdi = blocks[i];
             if (!sdi.active)
                 continue;
-            sdi.stream->setMetadataValue(QStringLiteral("samplingrate"), sampleRate);
-            sdi.stream->setMetadataValue(QStringLiteral("channel_index_first"), i);
-            sdi.stream->setMetadataValue(QStringLiteral("channel_index_last"),  i);
+            sdi.stream->setMetadataValue(QStringLiteral("sample_rate"), sampleRate);
+            sdi.stream->setMetadataValue("time_unit", "index");
+            sdi.stream->setMetadataValue("data_unit", "µV");
+            sdi.stream->setMetadataValue("signal_names", QStringList() << QStringLiteral("F%1").arg(i));
         }
     }
 

@@ -61,8 +61,9 @@ Stream Metadata
      - Metadata
 
    * - Orientation Vector🠺
-     - | ``channel_index_first``: Integer, 0
-       | ``channel_index_last``: Integer, 1
+     - | ``time_unit``: String, Unit of the timestamps. Always set to "milliseconds".
+       | ``data_unit``: String, Unit of the signal block values. Set to "au".
+       | ``signal_names``: List<String>, List of the quaterion names: "qw", "qx", "qy", "qz"
    * - Orientation Rows🠺
      - | ``table_header``: String List, Table header
    * - Display Frames🠺

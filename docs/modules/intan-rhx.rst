@@ -49,4 +49,15 @@ Ports
 Stream Metadata
 ===============
 
-Default stream metadata.
+.. list-table::
+   :widths: 15 85
+   :header-rows: 1
+
+   * - Name
+     - Metadata
+
+   * - [Channel]🠺
+     - | ``sample_rate``: Double, Sampling rate in samples per second.
+       | ``time_unit``: String, Unit of the data block timestamps. Always set to "index".
+       | ``data_unit``: String, Unit of the signal block values. Usually "µV".
+       | ``signal_names``: List<String>, List of signal names contained in each data block

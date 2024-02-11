@@ -61,8 +61,15 @@ public:
         m_bnoVecOut = registerOutputPort<FloatSignalBlock>(
             QStringLiteral("bno-raw-out"), QStringLiteral("Orientation Vector"));
         m_bnoTabOut = registerOutputPort<TableRow>(QStringLiteral("bno-tab-out"), QStringLiteral("Orientation Rows"));
-        m_bnoVecOut->setMetadataValue("channel_index_first", 0);
-        m_bnoVecOut->setMetadataValue("channel_index_last", 3);
+
+        m_bnoVecOut->setMetadataValue("time_unit", "milliseconds");
+        m_bnoVecOut->setMetadataValue("data_unit", "au");
+        m_bnoVecOut->setMetadataValue(
+            "signal_names",
+            QStringList() << "qw"
+                          << "qx"
+                          << "qy"
+                          << "qz");
 
         m_valChangeLogFile = new QFile();
 
@@ -183,8 +190,14 @@ public:
                           << "qz");
         m_bnoTabOut->setSuggestedDataName(QStringLiteral("%1_bno/orientation").arg(datasetNameSuggestion()));
 
-        m_bnoVecOut->setMetadataValue("channel_index_first", 0);
-        m_bnoVecOut->setMetadataValue("channel_index_last", 3);
+        m_bnoVecOut->setMetadataValue("time_unit", "milliseconds");
+        m_bnoVecOut->setMetadataValue("data_unit", "au");
+        m_bnoVecOut->setMetadataValue(
+            "signal_names",
+            QStringList() << "qw"
+                          << "qx"
+                          << "qy"
+                          << "qz");
 
         // start the streams
         m_rawOut->start();

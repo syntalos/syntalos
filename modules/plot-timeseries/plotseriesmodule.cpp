@@ -42,7 +42,7 @@ public:
     TimePlotWidget *plotWidget;
 
     int expectedSigSeriesCount;
-    int timestampDivisor;
+    double timestampDivisor;
 };
 
 class PlotSeriesModule : public AbstractModule
@@ -107,10 +107,16 @@ public:
                 PlotSubscriptionDetails<FloatSignalBlock> sdF(
                     std::static_pointer_cast<StreamInputPort<FloatSignalBlock>>(port), plotWidget);
                 m_fpSubs.push_back(sdF);
+
+                // prevent receiving more than 4k items/s to safeguard a bit against overflows
+                sdF.sub->setThrottleItemsPerSec(4000);
             } else if (port->dataTypeName() == "IntSignalBlock") {
                 PlotSubscriptionDetails<IntSignalBlock> sdI(
                     std::static_pointer_cast<StreamInputPort<IntSignalBlock>>(port), plotWidget);
                 m_intSubs.push_back(sdI);
+
+                // prevent receiving more than 4k items/s
+                sdI.sub->setThrottleItemsPerSec(4000);
             }
         }
 
@@ -132,6 +138,18 @@ public:
             sd.timestampDivisor = 1000;
         else if (timeUnitStr == "microseconds")
             sd.timestampDivisor = 1000 * 1000;
+        else if (timeUnitStr == "index") {
+            const auto sampleRate = sd.sub->metadataValue("sample_rate", -1).toDouble();
+            if (sampleRate < 0) {
+                raiseError(QStringLiteral("The signal-series on port %1 provides timestamps at indices, but no "
+                                          "\"sample_rate\" metadata value.\n"
+                                          "This value is needed to calculate timestamps. This is a bug in the module "
+                                          "we receive data from.")
+                               .arg(sd.port->title()));
+                return;
+            }
+            sd.timestampDivisor = sampleRate;
+        }
 
         sd.plotWidget->setYAxisLabel(sd.sub->metadataValue("data_unit", "y").toString());
 
