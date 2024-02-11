@@ -195,6 +195,9 @@
                     <property name="text">
                      <string>Add</string>
                     </property>
+                    <property name="icon">
+                     <iconset theme="list-add"/>
+                    </property>
                     <property name="flat">
                      <bool>true</bool>
                     </property>
@@ -202,8 +205,14 @@
                   </item>
                   <item>
                    <widget class="QPushButton" name="removePortBtn">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
                     <property name="text">
                      <string>Remove</string>
+                    </property>
+                    <property name="icon">
+                     <iconset theme="list-remove"/>
                     </property>
                     <property name="flat">
                      <bool>true</bool>

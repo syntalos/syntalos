@@ -22,6 +22,7 @@
 
 #include <QDebug>
 #include <QScrollBar>
+#include <QInputDialog>
 
 #include "moduleapi.h"
 #include "timeplotwidget.h"
@@ -184,6 +185,7 @@ void PlotWindow::on_portListWidget_currentItemChanged(QListWidgetItem *current, 
     if (current == nullptr) {
         ui->sigSettingsGroupBox->setEnabled(false);
         ui->sigListWidget->setEnabled(false);
+        ui->removePortBtn->setEnabled(false);
         return;
     }
 
@@ -195,6 +197,7 @@ void PlotWindow::on_portListWidget_currentItemChanged(QListWidgetItem *current, 
         item->setData(Qt::UserRole, name);
     }
     ui->sigListWidget->setEnabled(true);
+    ui->removePortBtn->setEnabled(true);
 }
 
 void PlotWindow::on_portListWidget_clicked(const QModelIndex &index)
@@ -226,6 +229,58 @@ void PlotWindow::on_sigListWidget_clicked(const QModelIndex &index)
     on_sigListWidget_currentItemChanged(ui->sigListWidget->currentItem(), ui->sigListWidget->currentItem());
 }
 
+void PlotWindow::on_addPortBtn_clicked()
+{
+    QMap<QString, int> streamSignalTypeMap;
+    const auto allStreamTypes = streamTypeIdMap();
+
+    for (const auto& key : allStreamTypes.keys()) {
+        if (key == "FloatSignalBlock")
+            streamSignalTypeMap["Float"] = allStreamTypes[key];
+        else if (key == "IntSignalBlock")
+            streamSignalTypeMap["Int"] = allStreamTypes[key];
+    }
+
+    int newPortNumber = m_mod->inPorts().length() + 1;
+
+    bool ok;
+    auto item = QInputDialog::getItem(
+        this,
+        QStringLiteral("Input Port Data Type"),
+        QStringLiteral("Data type accepted by the input port:"),
+        streamSignalTypeMap.keys(),
+        0,
+        false,
+        &ok);
+    if (!ok || item.isEmpty())
+        return;
+
+    auto title = QInputDialog::getText(
+        this,
+        QStringLiteral("Set Port Title"),
+        QStringLiteral("A human-readable short port title:"),
+        QLineEdit::Normal,
+        item + QStringLiteral(" In %1").arg(newPortNumber),
+        &ok);
+    if (!ok || title.isEmpty())
+        return;
+
+    const auto newPortId = QStringLiteral("sigs%1-in").arg(newPortNumber);
+
+    m_mod->registerInputPortByTypeId(streamSignalTypeMap[item], newPortId, title);
+    updatePortLists();
+}
+
+void PlotWindow::on_removePortBtn_clicked()
+{
+    auto portItem = ui->portListWidget->currentItem();
+    if (portItem == nullptr)
+        return;
+    ui->removePortBtn->setEnabled(false);
+    m_mod->removeInPortById(portItem->data(Qt::UserRole).toString());
+    updatePortLists();
+}
+
 void PlotWindow::on_showSignalCheckBox_toggled(bool checked)
 {
     const auto portId = ui->portListWidget->currentItem()->data(Qt::UserRole).toString();
@@ -252,6 +307,4 @@ void PlotWindow::on_digitalCheckBox_toggled(bool checked)
     const auto portId = ui->portListWidget->currentItem()->data(Qt::UserRole).toString();
     const auto sigName = ui->sigListWidget->currentItem()->data(Qt::UserRole).toString();
     m_signalDetails[portId][sigName].isDigital = checked;
-
-    qDebug() << portId << sigName << m_signalDetails[portId][sigName].isDigital;
 }

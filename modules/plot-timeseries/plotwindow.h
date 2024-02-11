@@ -64,6 +64,9 @@ private slots:
     void on_portListWidget_clicked(const QModelIndex &index);
     void on_sigListWidget_clicked(const QModelIndex &index);
 
+    void on_addPortBtn_clicked();
+    void on_removePortBtn_clicked();
+
     void on_showSignalCheckBox_toggled(bool checked);
     void on_digitalCheckBox_toggled(bool checked);
 
