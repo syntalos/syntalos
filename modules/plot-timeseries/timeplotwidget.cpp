@@ -89,6 +89,7 @@ public:
     Private() {}
     ~Private() {}
 
+    std::mutex dataMutex;
     ImVec4 clearColor = ImColor(114, 144, 154);
     QtImGui::RenderRef qigr = nullptr;
     ImPlotContext *impCtx = nullptr;
@@ -161,18 +162,24 @@ int TimePlotWidget::addSeries(const QString &seriesName, const PlotSeriesSetting
 
 void TimePlotWidget::addToSeriesF(int seriesIndex, const Eigen::RowVectorXd &vec)
 {
+    const std::lock_guard<std::mutex> lock(d->dataMutex);
+
     for (int i = 0; i < vec.size(); ++i)
         d->xdata[seriesIndex].add(vec(i));
 }
 
 void TimePlotWidget::addToSeriesI(int seriesIndex, const Eigen::RowVectorXi &vec)
 {
+    const std::lock_guard<std::mutex> lock(d->dataMutex);
+
     for (int i = 0; i < vec.size(); ++i)
         d->xdata[seriesIndex].add(vec(i));
 }
 
 void TimePlotWidget::addToTimeseries(const VectorXu &vec, double divisor)
 {
+    const std::lock_guard<std::mutex> lock(d->dataMutex);
+
     for (int i = 0; i < vec.rows(); ++i)
         d->timeseries.add(vec(i, 0) / divisor);
 }
@@ -209,6 +216,9 @@ void TimePlotWidget::paintGL()
 
     const float yLimit = d->timeseries.isEmpty() ? 0 : d->timeseries.last();
     if (ImPlot::BeginPlot("##Plot", ImVec2(-1, -1))) {
+        // ensure no new data is added to our buffer while we render existing data
+        const std::lock_guard<std::mutex> lock(d->dataMutex);
+
         ImPlot::SetupAxes("time [s]", qPrintable(d->yAxisLabel), ImPlotAxisFlags_None, ImPlotAxisFlags_AutoFit);
         if (d->isRunning) {
             ImPlot::SetupAxisLimits(ImAxis_X1, yLimit - d->historyLen, yLimit, ImGuiCond_Always);

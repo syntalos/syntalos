@@ -73,7 +73,12 @@ public:
 
     ModuleFeatures features() const override
     {
-        return ModuleFeature::CALL_UI_EVENTS | ModuleFeature::SHOW_DISPLAY;
+        return ModuleFeature::SHOW_DISPLAY;
+    }
+
+    ModuleDriverKind driver() const override
+    {
+        return ModuleDriverKind::EVENTS_DEDICATED;
     }
 
     bool prepare(const TestSubject &) override
@@ -118,6 +123,8 @@ public:
                 // prevent receiving more than 4k items/s
                 sdI.sub->setThrottleItemsPerSec(4000);
             }
+
+            registerDataReceivedEvent(&PlotSeriesModule::onSignalBlockReceived, port->subscriptionVar());
         }
 
         // we are only active if we have something subscribed
@@ -125,6 +132,7 @@ public:
             m_active = true;
 
         // success
+        setStateReady();
         return true;
     }
 
@@ -218,7 +226,7 @@ public:
         }
     }
 
-    void processUiEvents() override
+    void onSignalBlockReceived()
     {
         if (!m_active)
             return;

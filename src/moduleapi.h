@@ -824,7 +824,7 @@ protected:
     /**
      * @brief Request a member function of this module to be called when a subscription has new data.
      *
-     * Set a pointer to a member function of this module as first paremter, to be called
+     * Set a pointer to a member function of this module as first parameter, to be called
      * once the stream subscription given as second parameter has received more data.
      *
      * Please ensure that the callback function never blocks for an extended period of time
