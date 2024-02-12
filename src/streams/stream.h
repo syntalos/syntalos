@@ -537,6 +537,11 @@ public:
         return m_active;
     }
 
+    bool hasSubscribers() const
+    {
+        return !m_subs.empty();
+    }
+
 private:
     std::thread::id m_ownerId;
     std::atomic_bool m_active;
