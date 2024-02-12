@@ -31,6 +31,7 @@ PlotWindow::PlotWindow(AbstractModule *mod, QWidget *parent)
     : QWidget(parent),
       ui(new Ui::PlotWindow),
       m_mod(mod),
+      m_running(false),
       m_defaultSettingsVisible(true)
 {
     ui->setupUi(this);
@@ -164,6 +165,8 @@ void PlotWindow::setRunning(bool running)
     for (TimePlotWidget *w : m_plotWidgets.values())
         w->setRunning(running);
 
+    m_running = running;
+
     // save previous settings panel state when we switch to running mode
     if (running)
         m_defaultSettingsVisible = ui->settingsWidget->isVisible();
@@ -177,6 +180,8 @@ void PlotWindow::setRunning(bool running)
 
 bool PlotWindow::defaultSettingsVisible()
 {
+    if (!m_running)
+        m_defaultSettingsVisible = ui->settingsWidget->isVisible();
     return m_defaultSettingsVisible;
 }
 

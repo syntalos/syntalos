@@ -73,6 +73,7 @@ private slots:
 private:
     Ui::PlotWindow *ui;
     AbstractModule *m_mod;
+    bool m_running;
 
     bool m_defaultSettingsVisible;
     QHash<QString, TimePlotWidget *> m_plotWidgets;
