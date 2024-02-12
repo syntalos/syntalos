@@ -56,6 +56,12 @@ void PlotWindow::setSettingsPanelVisible(bool visible)
 bool PlotWindow::checkAnyPortSignalsVisible(const QString &portId)
 {
     bool anyVisible = false;
+
+    // special case: If there are no signals, we likely will get some metadata
+    // during the next run, so we consider *all* of them visible.
+    if (m_signalDetails[portId].isEmpty())
+        return true;
+
     for (const auto &sd : m_signalDetails[portId].values()) {
         if (sd.isVisible) {
             anyVisible = true;
@@ -131,7 +137,7 @@ bool PlotWindow::signalIsShown(const QString &portId, const QString &signalName)
 {
     const auto sigDetails = m_signalDetails[portId];
 
-    if (!signalName.contains(signalName))
+    if (!sigDetails.contains(signalName))
         return m_plotWidgets.contains(portId);
 
     return sigDetails[signalName].isVisible;
@@ -177,6 +183,7 @@ bool PlotWindow::defaultSettingsVisible()
 void PlotWindow::setDefaultSettingsVisible(bool visible)
 {
     m_defaultSettingsVisible = visible;
+    ui->settingsWidget->setVisible(m_defaultSettingsVisible);
 }
 
 void PlotWindow::on_portListWidget_currentItemChanged(QListWidgetItem *current, QListWidgetItem *previous)
@@ -234,7 +241,7 @@ void PlotWindow::on_addPortBtn_clicked()
     QMap<QString, int> streamSignalTypeMap;
     const auto allStreamTypes = streamTypeIdMap();
 
-    for (const auto& key : allStreamTypes.keys()) {
+    for (const auto &key : allStreamTypes.keys()) {
         if (key == "FloatSignalBlock")
             streamSignalTypeMap["Float"] = allStreamTypes[key];
         else if (key == "IntSignalBlock")
