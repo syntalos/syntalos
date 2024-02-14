@@ -88,6 +88,18 @@ TimePlotWidget *PlotWindow::newPlotWidget(const QString &portId)
     plot->setBufferSize(ui->bufferSizeSpinBox->value() * 1000);
     plot->setUpdateInterval(ui->speedSpinBox->value());
 
+    for (const auto &port : m_mod->inPorts()) {
+        if (port->id() == portId) {
+            plot->setTitle(port->title());
+            plot->setTitleVisible(false);
+            break;
+        }
+    }
+
+    bool showTitles = m_plotWidgets.size() > 1;
+    for (auto p : m_plotWidgets.values())
+        p->setTitleVisible(showTitles);
+
     return plot;
 }
 

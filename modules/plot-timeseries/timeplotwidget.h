@@ -59,6 +59,9 @@ public:
 
     void setUpdateInterval(int frequency);
 
+    void setTitle(const QString &title);
+    void setTitleVisible(bool visible);
+
     void clear();
     void setRunning(bool running);
     void setYAxisLabel(const QString &label);

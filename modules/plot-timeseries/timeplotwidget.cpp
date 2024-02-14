@@ -96,6 +96,8 @@ public:
     ImPlotContext *impCtx = nullptr;
 
     bool isRunning;
+    bool showTitle;
+    QString title;
     QString yAxisLabel;
     size_t bufferSize;
 
@@ -111,6 +113,8 @@ TimePlotWidget::TimePlotWidget(QWidget *parent)
       d(new TimePlotWidget::Private)
 {
     d->isRunning = false;
+    d->showTitle = false;
+    d->title = QStringLiteral("Time Plot");
     d->yAxisLabel = "y";
     d->historyLen = 10.0f;
 
@@ -134,6 +138,18 @@ void TimePlotWidget::setUpdateInterval(int frequency)
     if (frequency < 1)
         frequency = 1;
     d->updateTimer->setInterval(1000 / frequency);
+}
+
+void TimePlotWidget::setTitle(const QString &title)
+{
+    if (title.isEmpty())
+        return;
+    d->title = title;
+}
+
+void TimePlotWidget::setTitleVisible(bool visible)
+{
+    d->showTitle = visible;
 }
 
 void TimePlotWidget::clear()
@@ -229,7 +245,14 @@ void TimePlotWidget::paintGL()
     ImGui::EndDisabled();
 
     const float yLimit = d->timeseries.isEmpty() ? 0 : d->timeseries.last();
-    if (ImPlot::BeginPlot("##Plot", ImVec2(-1, -1))) {
+
+    bool ok;
+    if (d->showTitle)
+        ok = ImPlot::BeginPlot(qPrintable(d->title), ImVec2(-1, -1));
+    else
+        ok = ImPlot::BeginPlot("##Plot", ImVec2(-1, -1));
+
+    if (ok) {
         // ensure no new data is added to our buffer while we render existing data
         const std::lock_guard<std::mutex> lock(d->dataMutex);
 
