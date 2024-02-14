@@ -23,6 +23,7 @@ Modules
    firmata-userctl
    intan-rhx
    miniscope
+   plot-timeseries
    pyscript
    runcmd
    table
