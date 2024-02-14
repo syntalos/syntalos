@@ -17,7 +17,7 @@ from glob import glob
 INCLUDE_LOCATIONS = ['autoformat.py', 'contrib', 'docs', 'modules', 'src', 'tests', 'tools']
 
 EXCLUDE_MATCH = [
-    '*/contrib/MuxFirmata/*',
+    '*/contrib/firmware/*',
     '*/venv/*',
     '*/contrib/vendor/*',
     '*/modules/intan-rhx/*',  # we want to keep Intan RHX close to upstream, for easy merging of changes
