@@ -38,6 +38,9 @@ if 'miniscope' in modules_enabled
 endif
 subdir('triled-tracker')
 
+# Device support
+subdir('sp210-pressuresense')
+
 # Python & Customization
 subdir('firmata-io')
 subdir('firmata-userctl')
