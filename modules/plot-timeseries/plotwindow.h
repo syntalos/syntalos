@@ -57,6 +57,12 @@ public:
     bool defaultSettingsVisible();
     void setDefaultSettingsVisible(bool visible);
 
+    int updateFrequency() const;
+    void setUpdateFrequency(int hz);
+
+    int bufferSize() const;
+    void setBufferSize(int kitems);
+
 private slots:
     void on_settingsDisplayBtn_clicked();
     void on_portListWidget_currentItemChanged(QListWidgetItem *current, QListWidgetItem *previous);
@@ -70,6 +76,9 @@ private slots:
     void on_showSignalCheckBox_toggled(bool checked);
     void on_digitalCheckBox_toggled(bool checked);
 
+    void on_speedSpinBox_valueChanged(int arg1);
+    void on_bufferSizeSpinBox_valueChanged(int arg1);
+
 private:
     Ui::PlotWindow *ui;
     AbstractModule *m_mod;
@@ -81,4 +90,5 @@ private:
 
     void setSettingsPanelVisible(bool visible);
     bool checkAnyPortSignalsVisible(const QString &portId);
+    TimePlotWidget *newPlotWidget(const QString &portId);
 };

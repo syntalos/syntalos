@@ -271,6 +271,8 @@ public:
         settings.insert("ports_in", varInPorts);
         settings.insert("signals_settings", varPortSigConfig);
         settings.insert("settings_panel_visible", m_plotWindow->defaultSettingsVisible());
+        settings.insert("update_frequency", m_plotWindow->updateFrequency());
+        settings.insert("buffer_size", m_plotWindow->bufferSize());
     }
 
     bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
@@ -298,6 +300,8 @@ public:
         }
 
         m_plotWindow->setDefaultSettingsVisible(settings.value("settings_panel_visible").toBool());
+        m_plotWindow->setUpdateFrequency(settings.value("update_frequency", 60).toInt());
+        m_plotWindow->setBufferSize(settings.value("buffer_size", 1024).toInt());
 
         m_plotWindow->updatePortLists();
         return true;

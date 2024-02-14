@@ -57,6 +57,8 @@ public:
     explicit TimePlotWidget(QWidget *parent = nullptr);
     ~TimePlotWidget();
 
+    void setUpdateInterval(int frequency);
+
     void clear();
     void setRunning(bool running);
     void setYAxisLabel(const QString &label);

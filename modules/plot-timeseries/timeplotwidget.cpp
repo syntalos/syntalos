@@ -89,6 +89,7 @@ public:
     Private() {}
     ~Private() {}
 
+    QTimer *updateTimer;
     std::mutex dataMutex;
     ImVec4 clearColor = ImColor(114, 144, 154);
     QtImGui::RenderRef qigr = nullptr;
@@ -115,12 +116,24 @@ TimePlotWidget::TimePlotWidget(QWidget *parent)
 
     // about 16MB per displayed series of double-precision entries by default
     setBufferSize(2080000);
+
+    d->updateTimer = new QTimer(this);
+
+    // update at ~60fps by default
+    d->updateTimer->setInterval(1000 / 60);
 }
 
 TimePlotWidget::~TimePlotWidget()
 {
     if (d->impCtx != nullptr)
         ImPlot::DestroyContext(d->impCtx);
+}
+
+void TimePlotWidget::setUpdateInterval(int frequency)
+{
+    if (frequency < 1)
+        frequency = 1;
+    d->updateTimer->setInterval(1000 / frequency);
 }
 
 void TimePlotWidget::clear()
@@ -142,6 +155,8 @@ void TimePlotWidget::setYAxisLabel(const QString &label)
 
 void TimePlotWidget::setBufferSize(size_t size)
 {
+    if (size < 10)
+        size = 10;
     d->bufferSize = size;
     d->timeseries = AutoTrimBuffer<double>(d->bufferSize);
 
@@ -190,10 +205,9 @@ void TimePlotWidget::initializeGL()
     d->qigr = QtImGui::initialize(this, false);
     d->impCtx = ImPlot::CreateContext();
 
-    // Update graphics at ~60 fps
-    auto *timer = new QTimer(this);
-    QObject::connect(timer, SIGNAL(timeout()), this, SLOT(update()));
-    timer->start(16);
+    // start updating graphics
+    QObject::connect(d->updateTimer, SIGNAL(timeout()), this, SLOT(update()));
+    d->updateTimer->start();
 }
 
 void TimePlotWidget::paintGL()

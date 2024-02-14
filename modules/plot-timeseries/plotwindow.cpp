@@ -77,6 +77,20 @@ bool PlotWindow::checkAnyPortSignalsVisible(const QString &portId)
     return anyVisible;
 }
 
+TimePlotWidget *PlotWindow::newPlotWidget(const QString &portId)
+{
+    auto plot = new TimePlotWidget(this);
+    ui->plotContainer->layout()->addWidget(plot);
+    if (m_plotWidgets.contains(portId))
+        delete m_plotWidgets[portId];
+    m_plotWidgets.insert(portId, plot);
+
+    plot->setBufferSize(ui->bufferSizeSpinBox->value() * 1000);
+    plot->setUpdateInterval(ui->speedSpinBox->value());
+
+    return plot;
+}
+
 void PlotWindow::on_settingsDisplayBtn_clicked()
 {
     setSettingsPanelVisible(!ui->settingsWidget->isVisible());
@@ -97,9 +111,8 @@ void PlotWindow::updatePortLists()
             QStringLiteral("%1 [>>%2]").arg(port->title()).arg(port->dataTypeName()), ui->portListWidget);
         item->setData(Qt::UserRole, port->id());
 
-        auto plot = new TimePlotWidget(this);
-        ui->plotContainer->layout()->addWidget(plot);
-        m_plotWidgets.insert(port->id(), plot);
+        // make new plot widget
+        newPlotWidget(port->id());
 
         if (m_signalDetails.contains(port->id()))
             checkAnyPortSignalsVisible(port->id());
@@ -161,11 +174,13 @@ void PlotWindow::setSignalPlotSettings(const QString &portId, const PlotSeriesSe
 
 void PlotWindow::setRunning(bool running)
 {
-    ui->settingsWidget->setEnabled(!running);
+    m_running = running;
+
+    ui->signalSelectGroupBox->setEnabled(!running);
+    ui->sigSettingsGroupBox->setEnabled(!running);
+    ui->bufferSizeSpinBox->setEnabled(!running);
     for (TimePlotWidget *w : m_plotWidgets.values())
         w->setRunning(running);
-
-    m_running = running;
 
     // save previous settings panel state when we switch to running mode
     if (running)
@@ -189,6 +204,30 @@ void PlotWindow::setDefaultSettingsVisible(bool visible)
 {
     m_defaultSettingsVisible = visible;
     ui->settingsWidget->setVisible(m_defaultSettingsVisible);
+}
+
+int PlotWindow::updateFrequency() const
+{
+    return ui->speedSpinBox->value();
+}
+
+void PlotWindow::setUpdateFrequency(int hz)
+{
+    ui->speedSpinBox->setValue(hz);
+    for (auto *w : m_plotWidgets.values())
+        w->setUpdateInterval(hz);
+}
+
+int PlotWindow::bufferSize() const
+{
+    return ui->bufferSizeSpinBox->value();
+}
+
+void PlotWindow::setBufferSize(int kitems)
+{
+    ui->bufferSizeSpinBox->setValue(kitems);
+    for (auto *w : m_plotWidgets.values())
+        w->setBufferSize(kitems * 1000);
 }
 
 void PlotWindow::on_portListWidget_currentItemChanged(QListWidgetItem *current, QListWidgetItem *previous)
@@ -302,9 +341,7 @@ void PlotWindow::on_showSignalCheckBox_toggled(bool checked)
 
         // ensure the plot widget exists if any signal should be shown
         if (!m_plotWidgets.contains(portId)) {
-            auto plot = new TimePlotWidget(this);
-            ui->plotContainer->layout()->addWidget(plot);
-            m_plotWidgets.insert(portId, plot);
+            newPlotWidget(portId);
         }
     } else {
         m_signalDetails[portId][sigName].isVisible = false;
@@ -319,4 +356,14 @@ void PlotWindow::on_digitalCheckBox_toggled(bool checked)
     const auto portId = ui->portListWidget->currentItem()->data(Qt::UserRole).toString();
     const auto sigName = ui->sigListWidget->currentItem()->data(Qt::UserRole).toString();
     m_signalDetails[portId][sigName].isDigital = checked;
+}
+
+void PlotWindow::on_speedSpinBox_valueChanged(int arg1)
+{
+    setUpdateFrequency(arg1);
+}
+
+void PlotWindow::on_bufferSizeSpinBox_valueChanged(int arg1)
+{
+    setBufferSize(arg1);
 }
