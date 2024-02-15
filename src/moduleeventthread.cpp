@@ -236,6 +236,11 @@ void ModuleEventThread::moduleEventThreadFunc(QList<AbstractModule *> mods, Opti
         // add "received data in subscription" event sources
         for (const auto &ev : mod->recvDataEventCallbacks()) {
             auto sub = ev.second;
+            if (sub == nullptr) {
+                qCritical().noquote().nospace()
+                    << "Bad event destination in module '" << mod->name() << "'. Was the event subscription valid?";
+                continue;
+            }
             int eventfd = sub->enableNotify();
 
             auto pl = std::make_unique<RecvDataEventPayload>();

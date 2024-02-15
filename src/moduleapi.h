@@ -843,6 +843,11 @@ protected:
     }
 
     /**
+     * @brief Remove all registered data-received event callbacks.
+     */
+    void clearDataReceivedEventRegistrations();
+
+    /**
      * @brief Get new frequency/counter synchronizer
      *
      * This function can be called in the PREPARING phase of a module to retrieve a synchronizer

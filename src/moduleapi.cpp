@@ -798,6 +798,11 @@ QWidget *AbstractModule::addSettingsWindow(QWidget *window, bool owned)
     return window;
 }
 
+void AbstractModule::clearDataReceivedEventRegistrations()
+{
+    m_recvDataEventCBList.clear();
+}
+
 std::unique_ptr<FreqCounterSynchronizer> AbstractModule::initCounterSynchronizer(double frequencyHz)
 {
     if ((d->state != ModuleState::PREPARING) && (d->state != ModuleState::READY) && (d->state != ModuleState::RUNNING))
