@@ -25,9 +25,9 @@ to make more advanced changes.
    intro
    install
    tutorials/index
+   modules/index
    reading-data
    timesync-verification
-   modules/index
    changes
    tsync-format
    syio_api
