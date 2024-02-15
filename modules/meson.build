@@ -53,6 +53,7 @@ endif
 subdir('traceplot')
 
 # Misc
+subdir('jsonwriter')
 subdir('runcmd')
 subdir('deeplabcut-live')
 

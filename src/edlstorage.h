@@ -123,7 +123,7 @@ public:
 
     QHash<QString, QVariant> attributes() const;
     void setAttributes(const QHash<QString, QVariant> &attributes);
-    void insertAttribute(const QString &key, const QVariantHash &value);
+    void insertAttribute(const QString &key, const QVariant &value);
 
     virtual bool save();
 

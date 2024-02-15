@@ -210,7 +210,7 @@ void EDLUnit::setAttributes(const QHash<QString, QVariant> &attributes)
     d->attrs = attributes;
 }
 
-void EDLUnit::insertAttribute(const QString &key, const QVariantHash &value)
+void EDLUnit::insertAttribute(const QString &key, const QVariant &value)
 {
     const std::lock_guard<std::mutex> lock(d->mutex);
     d->attrs.insert(key, value);
@@ -260,7 +260,15 @@ static toml::table createManifestFileSection(EDLDataFile &df)
     // try to guess a MIME type in case none is set
     if (df.mediaType.isEmpty()) {
         QMimeDatabase db;
-        const auto mime = db.mimeTypeForFile(df.parts.first().fname);
+        const auto fname = df.parts.first().fname;
+        if (fname.endsWith(".zst") || fname.endsWith(".gz") || fname.endsWith(".xz")) {
+            // always add complete suffix for compressed data, in addition
+            // to the media type of the compression format
+            QFileInfo fi(fname);
+            df.fileType = fi.completeSuffix();
+        }
+
+        const auto mime = db.mimeTypeForFile(fname);
         if (mime.isValid() && !mime.isDefault())
             df.mediaType = mime.name();
     }
