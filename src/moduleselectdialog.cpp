@@ -48,11 +48,10 @@ protected:
         doc.setTextWidth(options.rect.width() - iconSize.width());
 
         auto height = qRound(doc.size().height());
-        if (height < iconSize.height())
+        if (height < 80)
             height = iconSize.height();
 
-        // set a fixed height for now
-        height = 80;
+        height = 96; // set a fixed height for now, automatic/variable height does not work well yet
         return QSize(qCeil(doc.size().width()), height);
     }
 };
@@ -94,7 +93,7 @@ ModuleSelectDialog::ModuleSelectDialog(QList<QSharedPointer<ModuleInfo>> infos, 
 
     m_model = new QStandardItemModel(this);
     ui->listView->setModel(m_model);
-    ui->listView->setIconSize(QSize(48, 48));
+    ui->listView->setIconSize(QSize(56, 56));
 
     auto htmlDelegate = new HtmlDelegate;
     ui->listView->setItemDelegate(htmlDelegate);
