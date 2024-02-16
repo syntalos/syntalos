@@ -1220,8 +1220,6 @@ void MainWindow::setStatusText(const QString &msg)
 
 void MainWindow::moduleErrorReceived(AbstractModule *mod, const QString &message)
 {
-    setRunUiControlStates(false, false);
-
     auto errorTitle = QStringLiteral("Run Failed");
     if (mod != nullptr)
         errorTitle = QStringLiteral("Error in: %1").arg(mod->name());
