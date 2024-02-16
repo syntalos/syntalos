@@ -50,7 +50,6 @@ subdir('pyscript')
 if 'intan-rhx' in modules_enabled
     subdir('intan-rhx')
 endif
-subdir('traceplot')
 
 # Misc
 subdir('jsonwriter')

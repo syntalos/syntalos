@@ -27,7 +27,6 @@ Modules
    pyscript
    runcmd
    table
-   traceplot
    triled-tracker
    videorecorder
    videotransform

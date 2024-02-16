@@ -58,7 +58,6 @@ Currently, the following modules are built-in or can be enabled at build-time:
  * *pyscript*: Run arbitrary Python 3 code and send automation commands to other modules in the active experiment.
  * *runcmd*: Run any external command when the experiment was started.
  * *table*: Display & record tabular data in a standardized CSV format.
- * *traceplot*: Plot long-running signal traces (usually recorded via the *intan-rhx* module).
  * *triled-tracker*: Track an animal via three LEDs mounted on a headstage and save various behavior parameters.
  * *videorecorder*: Record image streams from cameras to video files in various formats.
  * *videotransformer*: Perform common transformations on frames, such as cropping & scaling.
