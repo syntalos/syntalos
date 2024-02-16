@@ -52,6 +52,7 @@ private:
     std::unique_ptr<QTextStream> m_textStream;
     bool m_initFile;
     QSet<int> m_selectedIndices;
+    bool m_writeData;
 
     JSONSettingsDialog *m_settingsDlg;
 
@@ -91,13 +92,15 @@ public:
             return false;
         }
 
+        // we don't write anything to disk if we aren't going to use the data anyway
+        m_writeData = isEphemeralRun();
+
         m_floatSub.reset();
         if (m_floatIn->hasSubscription()) {
             m_floatSub = m_floatIn->subscription();
             m_isrcKind = InputSourceKind::FLOAT;
 
-            if (!isEphemeralRun())
-                registerDataReceivedEvent(&JSONWriterModule::onFloatSignalBlockReceived, m_floatSub);
+            registerDataReceivedEvent(&JSONWriterModule::onFloatSignalBlockReceived, m_floatSub);
         }
 
         bool excessConnections = false;
@@ -108,8 +111,7 @@ public:
                 excessConnections = true;
             m_isrcKind = InputSourceKind::INT;
 
-            if (!isEphemeralRun())
-                registerDataReceivedEvent(&JSONWriterModule::onIntSignalBlockReceived, m_floatSub);
+            registerDataReceivedEvent(&JSONWriterModule::onIntSignalBlockReceived, m_floatSub);
         }
 
         m_rowSub.reset();
@@ -119,8 +121,7 @@ public:
                 excessConnections = true;
             m_isrcKind = InputSourceKind::ROW;
 
-            if (!isEphemeralRun())
-                registerDataReceivedEvent(&JSONWriterModule::onTableRowReceived, m_rowSub);
+            registerDataReceivedEvent(&JSONWriterModule::onTableRowReceived, m_rowSub);
         }
 
         if (excessConnections) {
@@ -329,6 +330,8 @@ public:
         if (!maybeData.has_value())
             return;
         const auto data = maybeData.value();
+        if (!m_writeData)
+            return;
 
         if (m_initFile)
             initJsonFile();
@@ -356,6 +359,8 @@ public:
         if (!maybeData.has_value())
             return;
         const auto data = maybeData.value();
+        if (!m_writeData)
+            return;
 
         if (m_initFile)
             initJsonFile();
@@ -383,6 +388,8 @@ public:
         if (!maybeData.has_value())
             return;
         const auto row = maybeData.value();
+        if (!m_writeData)
+            return;
 
         if (m_initFile) {
             initJsonFile();
@@ -410,11 +417,14 @@ public:
             return;
 
         // write terminator
-        (*m_textStream) << "\n]}\n";
+        if (m_textStream.get() != nullptr) {
+            (*m_textStream) << "\n]}\n";
+            m_textStream->flush();
+        }
 
         // close file, reset pointers
-        m_textStream->flush();
-        m_compDev->close();
+        if (m_compDev.get() != nullptr)
+            m_compDev->close();
         m_textStream.reset();
         m_compDev.reset();
 
