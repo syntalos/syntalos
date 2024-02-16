@@ -22,6 +22,7 @@
 
 #include <QClipboard>
 #include <QIcon>
+#include <QMessageBox>
 
 SysInfoDialog::SysInfoDialog(SysInfo *sysInfo, QWidget *parent)
     : QDialog(parent),
@@ -70,7 +71,14 @@ SysInfoDialog::SysInfoDialog(SysInfo *sysInfo, QWidget *parent)
     ui->valConstantTSC->setText(sysInfo->tscIsConstant() ? QStringLiteral("yes") : QStringLiteral("no"));
     setLabelTextStyle(sysInfo->checkTSCConstant(), ui->valConstantTSC);
 
-    ui->valAVX->setText(sysInfo->supportedAVXInstructions());
+    m_avxFullInfo = sysInfo->supportedAVXInstructions();
+    if (m_avxFullInfo.length() < 40) {
+        ui->valAVX->setText(m_avxFullInfo);
+        ui->infoAvxBtn->setVisible(false);
+    } else {
+        ui->valAVX->setText(m_avxFullInfo.mid(0, 40) + "...");
+        ui->infoAvxBtn->setVisible(true);
+    }
     setLabelTextStyle(sysInfo->checkAVXInstructions(), ui->valAVX);
     ui->valOpenGL->setText(sysInfo->glVersion());
 
@@ -132,3 +140,9 @@ void SysInfoDialog::setLabelTextStyle(SysInfoCheckResult checkResult, QLabel *la
         return;
     }
 }
+
+void SysInfoDialog::on_infoAvxBtn_clicked()
+{
+    QMessageBox::information(this, "Detailed AVX Information", m_avxFullInfo);
+}
+

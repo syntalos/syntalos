@@ -40,12 +40,14 @@ public:
 
 private slots:
     void on_btnClipboardCopy_clicked();
+    void on_infoAvxBtn_clicked();
 
 private:
     Ui::SysInfoDialog *ui;
     QPalette m_okTextPal;
     QPalette m_hintTextPal;
     QPalette m_warnTextPal;
+    QString m_avxFullInfo;
 
     void setLabelTextStyle(SysInfoCheckResult checkResult, QLabel *label);
 };
