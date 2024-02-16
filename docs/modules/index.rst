@@ -26,6 +26,7 @@ Modules
    plot-timeseries
    pyscript
    runcmd
+   sp210-pressuresense
    table
    triled-tracker
    videorecorder
