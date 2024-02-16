@@ -22,6 +22,7 @@ Modules
    firmata-io
    firmata-userctl
    intan-rhx
+   jsonwriter
    miniscope
    plot-timeseries
    pyscript

@@ -54,6 +54,7 @@ Currently, the following modules are built-in or can be enabled at build-time:
  * *firmata-userctl*: Manually send commands to a *firmata-io* module to change pin states using a simple GUI.
  * *intan-rhx*: Use an [RHD2000 USB Interface Board](http://intantech.com/RHD2000_USB_interface_board.html) by [IntanTech](http://intantech.com/)
    for biopotential recordings of up to 256 channels.
+ * *jsonwriter*: Write data to Pandas-compatible JSON files.
  * *miniscope*: Perform calcium imaging in awake, freely moving animals using devices from the [UCLA Miniscope Project](https://github.com/Aharoni-Lab/Miniscope-v4/wiki).
  * *plot-timeseries*: Plot signal traces in real time.
  * *pyscript*: Run arbitrary Python 3 code and send automation commands to other modules in the active experiment.
