@@ -211,7 +211,6 @@ qt_remoteobj_dep = dependency('qt5', modules: ['RemoteObjects'])
 qt_svg_dep = dependency('qt5', modules: ['Svg'])
 qt_dbus_dep = dependency('qt5', modules: ['DBus'])
 qt_multimedia_dep = dependency('qt5', modules: ['Multimedia'])
-qt_charts_dep = dependency('qt5', modules: ['Charts'], include_type: 'system')
 qt_concurrent_dep = dependency('qt5', modules: ['Concurrent'])
 
 rt_lib = cpp_compiler.find_library('rt')
