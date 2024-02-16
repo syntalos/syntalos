@@ -1372,6 +1372,9 @@ FlowGraphItem *FlowGraphView::itemAt(const QPointF &pos) const
  */
 void FlowGraphView::connectPorts(FlowGraphNodePort *port1, FlowGraphNodePort *port2)
 {
+    if (!m_allowEdit)
+        return;
+
     const bool isConnected // already connected?
         = (port1->findConnect(port2) != nullptr);
     if (isConnected)
@@ -1618,7 +1621,7 @@ void FlowGraphView::mouseReleaseEvent(QMouseEvent *event)
                     && port1->portType() == port2->portType() && port1->findConnect(port2) == nullptr) {
                     port2->setSelected(true);
 
-                    if (m_connect->setPort2(port2)) {
+                    if (m_connect->setPort2(port2) && m_allowEdit) {
                         // check if the ports have compatible data types
                         if (port1->streamPort()->dataTypeId() == port2->streamPort()->dataTypeId()) {
                             m_connect->updatePathTo(port2->portPos());
