@@ -51,7 +51,7 @@ protected:
         if (height < 80)
             height = iconSize.height();
 
-        height = 96; // set a fixed height for now, automatic/variable height does not work well yet
+        height = 84; // set a fixed height for now, automatic/variable height does not work well yet
         return QSize(qCeil(doc.size().width()), height);
     }
 };
