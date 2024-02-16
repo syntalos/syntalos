@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.3.1
 //
 //  Copyright (c) 2020-2023 Intan Technologies
 //
@@ -37,6 +37,22 @@ KeyboardShortcutDialog::KeyboardShortcutDialog(QWidget *parent) :
     QDialog(parent)
 {
     setWindowTitle(tr("Keyboard Shortcuts"));
+
+    QVBoxLayout *generalLayout = new QVBoxLayout;
+
+    generalLayout->addWidget(new QLabel(tr("<b>Ctrl+O:</b> Load settings"), this));
+    generalLayout->addWidget(new QLabel(tr("<b>Ctrl+S:</b> Save settings"), this));
+    generalLayout->addWidget(new QLabel(tr("<b>Ctrl+Q:</b> Exit"), this));
+    generalLayout->addWidget(new QLabel(tr("<b>Ctrl+R:</b> Rename selected channel(s)"), this));
+    generalLayout->addWidget(new QLabel(tr("<b>Ctrl+C:</b> Copy selected channel stimulation parameters"), this));
+    generalLayout->addWidget(new QLabel(tr("<b>Ctrl+V:</b> Paste stimulation parameters to selected channel(s)"), this));
+    generalLayout->addWidget(new QLabel(tr("<b>F12:</b> Open/close keyboard shortcuts dialog"), this));
+
+
+    generalLayout->addStretch(1);
+
+    QGroupBox *generalGroupBox = new QGroupBox("General", this);
+    generalGroupBox->setLayout(generalLayout);
 
     QVBoxLayout *waveformPlotLayout = new QVBoxLayout;
 
@@ -84,10 +100,31 @@ KeyboardShortcutDialog::KeyboardShortcutDialog(QWidget *parent) :
     QGroupBox *spikeSortingPlotGroupBox = new QGroupBox("Spike Scope Plot", this);
     spikeSortingPlotGroupBox->setLayout(spikeSortingPlotLayout);
 
-    QVBoxLayout *mainLayout = new QVBoxLayout;
-    mainLayout->addWidget(waveformPlotGroupBox);
-    mainLayout->addWidget(spikeSortingPlotGroupBox);
-    mainLayout->addStretch(1);
+    QVBoxLayout *probeMapLayout = new QVBoxLayout;
+
+    probeMapLayout->addWidget(new QLabel(tr("<b>Mouse Wheel Up or Shift+Up or Ctrl+Up Arrow or +:</b> Zoom in"), this));
+    probeMapLayout->addWidget(new QLabel(tr("<b>Mouse Wheel Down or Shift+Down or Ctrl+Down Arrow or -:</b> Zoom out"), this));
+    probeMapLayout->addWidget(new QLabel(tr("<b>Shift+Mouse Wheel Up or Up Arrow or Page Up:</b> Scroll up"), this));
+    probeMapLayout->addWidget(new QLabel(tr("<b>Shift+Mouse Wheel Down or Down Arrow or Page Down:</b> Scroll down"), this));
+    probeMapLayout->addWidget(new QLabel(tr("<b>Ctrl+Mouse Wheel Up or Left Arrow:</b> Scroll left"), this));
+    probeMapLayout->addWidget(new QLabel(tr("<b>Ctrl+Mouse Wheel Down or Right Arrow:</b> Scroll right"), this));
+
+    probeMapLayout->addStretch(1);
+
+    QGroupBox *probeMapGroupBox = new QGroupBox("Probe Map", this);
+    probeMapGroupBox->setLayout(probeMapLayout);
+
+    QVBoxLayout *column1 = new QVBoxLayout;
+    column1->addWidget(waveformPlotGroupBox);
+
+    QVBoxLayout *column2 = new QVBoxLayout;
+    column2->addWidget(generalGroupBox);
+    column2->addWidget(spikeSortingPlotGroupBox);
+    column2->addWidget(probeMapGroupBox);
+
+    QHBoxLayout *mainLayout = new QHBoxLayout;
+    mainLayout->addLayout(column1);
+    mainLayout->addLayout(column2);
 
     QWidget *mainWidget = new QWidget(this);
     mainWidget->setLayout(mainLayout);
@@ -105,4 +142,14 @@ KeyboardShortcutDialog::KeyboardShortcutDialog(QWidget *parent) :
     resize(initialWidth, initialHeight);
 
     setLayout(scrollLayout);
+}
+
+void KeyboardShortcutDialog::keyPressEvent(QKeyEvent *event)
+{
+    if (event->key() == Qt::Key_F12) {
+        close();
+    }
+    else {
+        QDialog::keyPressEvent(event);
+    }
 }

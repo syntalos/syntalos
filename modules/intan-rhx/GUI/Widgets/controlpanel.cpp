@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.3.1
 //
 //  Copyright (c) 2020-2023 Intan Technologies
 //
@@ -39,108 +39,38 @@
 #include "controlwindow.h"
 #include "controlpanel.h"
 
-ColorWidget::ColorWidget(QWidget *parent) :
-    QWidget(parent)
-{
-    checkerboardIcon = QIcon(":/images/checkerboard.png");
-
-    QPixmap pixmap(16, 16);
-    pixmap.fill(QColor(204, 204, 204));
-    blankIcon = QIcon(pixmap);
-
-    chooseColorToolButton = new QToolButton(this);
-    chooseColorToolButton->setIcon(blankIcon);
-    connect(chooseColorToolButton, SIGNAL(clicked()), this, SIGNAL(clicked()));
-
-    QHBoxLayout *mainLayout = new QHBoxLayout;
-    mainLayout->setContentsMargins(0, 0, 0, 0);
-    mainLayout->addWidget(chooseColorToolButton);
-    setLayout(mainLayout);
-}
-
-void ColorWidget::setColor(QColor color)
-{
-    QPixmap pixmap(16, 16);
-    pixmap.fill(QColor(color));
-    chooseColorToolButton->setIcon(QIcon(pixmap));
-}
-
-
-ControlPanel::ControlPanel(ControllerInterface* controllerInterface_, SystemState* state_, CommandParser* parser_,
-                           ControlWindow *parent) :
-    QWidget(parent),
-    state(state_),
-    parser(parser_),
-    controlWindow(parent),
-    controllerInterface(controllerInterface_),
-    filterDisplaySelector(nullptr),
+ControlPanel::ControlPanel(ControllerInterface *controllerInterface_, SystemState *state_, CommandParser *parser_, ControlWindow *parent) :
+    AbstractPanel(controllerInterface_, state_, parser_, parent),
     hideControlPanelButton(nullptr),
     topLabel(nullptr),
-    tabWidget(nullptr),
     bandwidthTab(nullptr),
     impedanceTab(nullptr),
     audioAnalogTab(nullptr),
-    configureTab(nullptr),
     triggerTab(nullptr),
-    stimParamDialog(nullptr),
-    anOutDialog(nullptr),
-    digOutDialog(nullptr),
-    selectionNameLabel(nullptr),
-    selectionImpedanceLabel(nullptr),
-    selectionReferenceLabel(nullptr),
-    selectionStimTriggerLabel(nullptr),
-    colorAttribute(nullptr),
-    enableCheckBox(nullptr),
-    renameButton(nullptr),
-    setRefButton(nullptr),
-    setStimButton(nullptr),
-    wideSlider(nullptr),
     lowSlider(nullptr),
     highSlider(nullptr),
-    variableSlider(nullptr),
     analogSlider(nullptr),
-    wideLabel(nullptr),
     lowLabel(nullptr),
     highLabel(nullptr),
-    variableLabel(nullptr),
-    analogLabel(nullptr),
-    clipWaveformsCheckBox(nullptr),
-    timeScaleComboBox(nullptr)
+    analogLabel(nullptr)
 {
-    state->writeToLog("Beginning of ControlPanel ctor");
-    setSizePolicy(QSizePolicy::Maximum, QSizePolicy::MinimumExpanding);
-
-    state->writeToLog("About to create topLabel");
     topLabel = new QLabel(tr("Selection Properties"), this);
-    state->writeToLog("Created topLabel. About to create FilterDisplaySelector");
-
-    filterDisplaySelector = new FilterDisplaySelector(state, this);
-    state->writeToLog("Created FilterDisplaySelector");
 
     hideControlPanelButton = new QToolButton(this);
     hideControlPanelButton->setIcon(QIcon(":/images/hideicon.png"));
     hideControlPanelButton->setToolTip(tr("Hide Control Panel"));
     connect(hideControlPanelButton, SIGNAL(clicked()), controlWindow, SLOT(hideControlPanel()));
-    state->writeToLog("Created hideControlPanelButton");
 
     bandwidthTab = new ControlPanelBandwidthTab(controllerInterface, state, this);
-    state->writeToLog("Created bandwidthTab");
     impedanceTab = new ControlPanelImpedanceTab(controllerInterface, state, parser, this);
-    state->writeToLog("Created impedanceTab");
     audioAnalogTab = new ControlPanelAudioAnalogTab(controllerInterface, state, this);
-    state->writeToLog("Created audioAnalogTab");
-    configureTab = new ControlPanelConfigureTab(controllerInterface, state, parser, this);
-    state->writeToLog("Created configureTab");
     triggerTab = new ControlPanelTriggerTab(controllerInterface, state, this);
-    state->writeToLog("Created triggerTab");
 
-    tabWidget = new QTabWidget(this);
     tabWidget->addTab(bandwidthTab, tr("BW"));
     tabWidget->addTab(impedanceTab, tr("Impedance"));
     tabWidget->addTab(audioAnalogTab, tr("Audio/Analog"));
     tabWidget->addTab(configureTab, tr("Config"));
     tabWidget->addTab(triggerTab, tr("Trigger"));
-    state->writeToLog("Created tabWidget");
 
     QHBoxLayout *topRow = new QHBoxLayout;
     topRow->addWidget(hideControlPanelButton);
@@ -170,27 +100,13 @@ ControlPanel::ControlPanel(ControllerInterface* controllerInterface_, SystemStat
 
     YScaleUsed yScaleUsed;
     updateSlidersEnabled(yScaleUsed);
-    state->writeToLog("Created layout. About to call updateFromState()");
 
     updateFromState();
-    state->writeToLog("Completed updateFromState(). End of ControlPanel ctor");
-}
-
-ControlPanel::~ControlPanel()
-{
-    if (stimParamDialog) delete stimParamDialog;
-    if (anOutDialog) delete anOutDialog;
-    if (digOutDialog) delete digOutDialog;
 }
 
 void ControlPanel::updateForRun()
 {
     configureTab->updateForRun();
-}
-
-void ControlPanel::updateForLoad()
-{
-    setEnabled(false);
 }
 
 void ControlPanel::updateForStop()
@@ -386,7 +302,7 @@ QHBoxLayout* ControlPanel::createDisplayLayout()
     if (state->getControllerTypeEnum() == ControllerStimRecord) {
         variableSlider->setRange(0, state->yScaleDC->numberOfItems() - 1);
         variableSlider->setValue(state->yScaleDC->getIndex());
-        connect(variableSlider, SIGNAL(valueChanged(int)), this, SLOT(changeDCSScale(int)));
+        connect(variableSlider, SIGNAL(valueChanged(int)), this, SLOT(changeDCScale(int)));
     } else {
         variableSlider->setRange(0, state->yScaleAux->numberOfItems() - 1);
         variableSlider->setValue(state->yScaleAux->getIndex());
@@ -470,156 +386,31 @@ QHBoxLayout* ControlPanel::createDisplayLayout()
     return displayLayout;
 }
 
-void ControlPanel::promptColorChange()
-{
-    // Identify all currently selected channels.
-    state->signalSources->getSelectedSignals(selectedSignals);
-
-    if (!selectedSignals.empty()) {
-        // Get QColor from modal dialog from user.
-        QColor result = QColorDialog::getColor(selectedSignals.at(0)->getColor(), this);
-
-        // If this color is valid (user didn't cancel), set the color for all currently selected channels.
-        if (result.isValid()) {
-            state->signalSources->undoManager->pushStateToUndoStack();
-            for (int i = 0; i < selectedSignals.size(); i++) {
-                selectedSignals[i]->setColor(result);
-                state->forceUpdate();
-            }
-        }
-    }
-}
-
-void ControlPanel::clipWaveforms(int checked)
-{
-    state->clipWaveforms->setValue(checked != 0);
-}
-
-void ControlPanel::changeTimeScale(int index)
-{
-    state->tScale->setIndex(index);
-}
-
-void ControlPanel::changeWideScale(int index)
-{
-    state->yScaleWide->setIndex(index);
-}
-
-void ControlPanel::changeLowScale(int index)
-{
-    state->yScaleLow->setIndex(index);
-}
-
-void ControlPanel::changeHighScale(int index)
-{
-    state->yScaleHigh->setIndex(index);
-}
-
-void ControlPanel::changeAuxScale(int index)
-{
-    state->yScaleAux->setIndex(index);
-}
-
-void ControlPanel::changeAnaScale(int index)
-{
-    state->yScaleAnalog->setIndex(index);
-}
-
-void ControlPanel::changeDCSScale(int index)
-{
-    state->yScaleDC->setIndex(index);
-}
-
-void ControlPanel::openStimParametersDialog()
-{
-    // This slot should only be called when a single channel is selected AND board is not running.
-    Channel* selectedChannel = state->signalSources->selectedChannel();
-    SignalType type = selectedChannel->getSignalType();
-
-    if (type == AmplifierSignal) {
-        if (stimParamDialog) {
-            disconnect(this, nullptr, stimParamDialog, nullptr);
-            delete stimParamDialog;
-            stimParamDialog = nullptr;
-        }
-        stimParamDialog = new StimParamDialog(state, selectedChannel, this);
-        connect(qApp, SIGNAL(focusChanged(QWidget*, QWidget*)), stimParamDialog, SLOT(notifyFocusChanged(QWidget*, QWidget*)));
-
-        if (stimParamDialog->exec() == QDialog::Accepted) {
-            state->stimParamsHaveChanged = true;
-            controllerInterface->uploadStimParameters(selectedChannel);
-        }
-    } else if (type == BoardDigitalOutSignal) {
-        if (digOutDialog) {
-            disconnect(this, nullptr, digOutDialog, nullptr);
-            delete digOutDialog;
-            digOutDialog = nullptr;
-        }
-        digOutDialog = new DigOutDialog(state, selectedChannel, this);
-        connect(qApp, SIGNAL(focusChanged(QWidget*, QWidget*)), digOutDialog, SLOT(notifyFocusChanged(QWidget*, QWidget*)));
-
-        if (digOutDialog->exec() == QDialog::Accepted){
-            state->stimParamsHaveChanged = true;
-            controllerInterface->uploadStimParameters(selectedChannel);
-        }
-    } else if (type == BoardDacSignal) {
-        if (anOutDialog) {
-            disconnect(this, nullptr, anOutDialog, nullptr);
-            delete anOutDialog;
-            anOutDialog = nullptr;
-        }
-        anOutDialog = new AnOutDialog(state, selectedChannel, this);
-        connect(qApp, SIGNAL(focusChanged(QWidget*, QWidget*)), anOutDialog, SLOT(notifyFocusChanged(QWidget*, QWidget*)));
-
-        if (anOutDialog->exec() == QDialog::Accepted) {
-            state->stimParamsHaveChanged = true;
-            controllerInterface->uploadStimParameters(selectedChannel);
-        }
-    }
-    state->forceUpdate();
-}
-
 void ControlPanel::updateFromState()
 {
-    state->writeToLog("Beginning of updateFromState()");
     state->signalSources->getSelectedSignals(selectedSignals);
-    state->writeToLog("Got selected signals");
 
     filterDisplaySelector->updateFromState();
-    state->writeToLog("Completed filterDisplaySelector->updateFromState()");
     updateSelectionName();
-    state->writeToLog("Completed updateSelectionName()");
     updateElectrodeImpedance();
-    state->writeToLog("Completed updateElectrodeImpedance()");
     updateReferenceChannel();
-    state->writeToLog("Completed updateReferenceChannel()");
     updateColor();
-    state->writeToLog("Completed updateColor()");
     updateEnableCheckBox();
-    state->writeToLog("Completed updateEnableCheckBox()");
     updateYScales();
-    state->writeToLog("Completed updateYScales()");
 
     clipWaveformsCheckBox->setChecked(state->clipWaveforms->getValue());
     timeScaleComboBox->setCurrentIndex(state->tScale->getIndex());
 
-    state->writeToLog("About to do tabs' updateFromStates");
     bandwidthTab->updateFromState();
-    state->writeToLog("Completed bandwidthTab->updateFromState()");
     impedanceTab->updateFromState();
-    state->writeToLog("Completed impedanceTab->updateFromState()");
     audioAnalogTab->updateFromState();
-    state->writeToLog("Completed audioAnalogTab->updateFromState()");
     configureTab->updateFromState();
-    state->writeToLog("Completed configureTab->updateFromState()");
     triggerTab->updateFromState();
-    state->writeToLog("Completed triggerTab->updateFromState()");
 
     if (state->getControllerTypeEnum() == ControllerStimRecord) {
         updateStimTrigger();
         updateStimParamDialogButton();
     }
-    state->writeToLog("End of ControlPanel::updateFromState()");
 }
 
 void ControlPanel::updateYScales()
@@ -635,175 +426,4 @@ void ControlPanel::updateYScales()
     }
 
     analogSlider->setValue(state->yScaleAnalog->getIndex());
-}
-
-void ControlPanel::updateStimParamDialogButton()
-{
-    // If a single channel with stim capability is selected and board is not currently running, then enable the button.
-    bool hasStimCapability = false;
-    if (state->signalSources->numChannelsSelected() == 1) {
-        Channel* channel = state->signalSources->selectedChannel();
-        hasStimCapability = channel->isStimCapable();
-    }
-
-    setStimButton->setEnabled(hasStimCapability && !(state->running || state->sweeping));
-}
-
-void ControlPanel::updateSelectionName()
-{
-    if (selectedSignals.isEmpty()) {
-        selectionNameLabel->setText(tr("no selection"));
-        renameButton->setEnabled(false);
-    } else if (selectedSignals.size() == 1) {
-        QString name = selectedSignals.at(0)->getNativeAndCustomNames();
-        selectionNameLabel->setText(name);
-        renameButton->setEnabled(true);
-    } else {
-        bool allSameGroup = true;
-        int groupID = selectedSignals.at(0)->getGroupID();
-        if (groupID != 0) {
-            for (int i = 1; i < selectedSignals.size(); ++i) {
-                if (selectedSignals.at(i)->getGroupID() != groupID) {
-                    allSameGroup = false;
-                    break;
-                }
-            }
-        } else {
-            allSameGroup = false;
-        }
-        if (allSameGroup) {
-            QString name = selectedSignals.at(0)->getNativeAndCustomNames();
-            selectionNameLabel->setText(name + tr(" GROUP"));
-        } else {
-            selectionNameLabel->setText("");
-        }
-        renameButton->setEnabled(false);
-    }
-    if (state->running || state->sweeping) renameButton->setEnabled(false);
-}
-
-void ControlPanel::updateElectrodeImpedance()
-{
-    QString impedanceText;
-    if (selectedSignals.isEmpty()) {
-        impedanceText = tr("no selection");
-    } else if (selectedSignals.at(0)->getSignalType() != AmplifierSignal) {
-        impedanceText = tr("n/a");
-    } else if (!selectedSignals.at(0)->isImpedanceValid()) {
-        impedanceText = tr("not measured");
-    } else if (selectedSignals.size() == 1) {
-        impedanceText = selectedSignals.at(0)->getImpedanceMagnitudeString() + " " +
-                selectedSignals.at(0)->getImpedancePhaseString();
-    }
-    selectionImpedanceLabel->setText(impedanceText);
-}
-
-void ControlPanel::updateReferenceChannel()
-{   
-    if (selectedSignals.isEmpty()) {
-        selectionReferenceLabel->setText(tr("no selection"));
-        setRefButton->setEnabled(false);
-        return;
-    }
-
-    if (selectedSignals.at(0)->getSignalType() != AmplifierSignal) {
-        selectionReferenceLabel->setText(tr("n/a"));
-        setRefButton->setEnabled(false);
-        return;
-    }
-
-    bool sameReference = true;
-    for (int i = 0; i < selectedSignals.size() - 1; i++) {
-        if (selectedSignals.at(i)->getReference() != selectedSignals.at(i + 1)->getReference()) {
-            sameReference = false;
-            break;
-        }
-    }
-    if (sameReference) {
-        QString refText = selectedSignals.at(0)->getReference();
-        if (refText.length() > 36) refText = refText.left(36) + "...";
-        selectionReferenceLabel->setText(refText);
-    } else {
-        selectionReferenceLabel->setText("");
-    }
-    setRefButton->setEnabled(!(state->running || state->sweeping) && state->signalSources->onlyAmplifierChannelsSelected());
-}
-
-void ControlPanel::updateStimTrigger()
-{
-    if (selectedSignals.isEmpty()) {
-        selectionStimTriggerLabel->setText(tr("no selection"));
-        setStimButton->setEnabled(false);
-        return;
-    }
-
-    if (!selectedSignals.at(0)->isStimCapable()) {
-        selectionStimTriggerLabel->setText(tr("n/a"));
-        setStimButton->setEnabled(false);
-        return;
-    }
-
-    bool sameStimTrigger = true;
-    for (int i = 0; i < selectedSignals.size() - 1; i++) {
-        if (selectedSignals.at(i)->getStimTrigger() != selectedSignals.at(i + 1)->getStimTrigger() ||
-                !selectedSignals.at(i)->isStimEnabled() || !selectedSignals.at(i + 1)->isStimEnabled()) {
-            sameStimTrigger = false;
-            break;
-        }
-    }
-    if (sameStimTrigger) {
-        if (selectedSignals.at(0)->isStimEnabled()) {
-            selectionStimTriggerLabel->setText(selectedSignals.at(0)->getStimTrigger());
-        } else {
-            selectionStimTriggerLabel->setText("");
-        }
-    } else {
-        selectionStimTriggerLabel->setText("");
-    }
-    if (selectedSignals.size() == 1) {
-        setStimButton->setEnabled(!(state->running || state->sweeping));
-    }
-}
-
-void ControlPanel::updateColor()
-{
-    if (selectedSignals.isEmpty()) {
-        colorAttribute->setBlank();
-        colorAttribute->setEnabled(false);
-        return;
-    }
-
-    bool sameColor = true;
-    for (int i = 0; i < selectedSignals.size() - 1; i++) {
-        if (selectedSignals.at(i)->getColor() != selectedSignals.at(i + 1)->getColor()) {
-            sameColor = false;
-            break;
-        }
-    }
-    if (sameColor) {
-        colorAttribute->setColor(selectedSignals.at(0)->getColor());
-        colorAttribute->setEnabled(!(state->running || state->sweeping));
-    } else {
-        colorAttribute->setCheckerboard();
-        colorAttribute->setEnabled(!(state->running || state->sweeping));
-    }
-}
-
-void ControlPanel::updateEnableCheckBox()
-{
-    int enableState = state->signalSources->enableStateOfSelectedChannels();
-    enableCheckBox->setEnabled(enableState >= 0);
-    if (enableState >= 0) {
-        Qt::CheckState checkState = (Qt::CheckState) enableState;
-        enableCheckBox->setCheckState(checkState);
-        if (checkState == Qt::Unchecked || checkState == Qt::Checked) {
-            enableCheckBox->setTristate(false);
-        }
-    }
-}
-
-void ControlPanel::enableChannelsSlot()
-{
-    bool enable = enableCheckBox->checkState() == Qt::Checked;
-    controlWindow->enableSelectedChannels(enable);
 }

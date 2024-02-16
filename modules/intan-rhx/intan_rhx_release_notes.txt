@@ -85,7 +85,7 @@ Intan RHX release notes
 - Added current channel name to the Window Title of the Spike Scope, ISI, PSTH, and Spectrogram tools.
 - Added current loaded filename to the Window Title of the Probe Map tool.
 
-* Version 3.2.0, 3 June 2022
+* Version 3.2.0, 6 March 2023
 - Allow user to specify which port(s) to read data from in Advanced dialog
 - For One File Per Channel file format, when playing back data as it's being written, allow for jumping to the end of data for near-real-time playback
 - Support for use of XEM7310 board in Intan controllers to replace XEM6010 and XEM6310
@@ -95,3 +95,18 @@ Intan RHX release notes
 - Add "Get CurrentTimestamp" and "Get CurrentTimeSeconds" TCP commands
 - Improved error detection and reporting for TCP commands
 - Various improvements in RHX API including easier use of the API without Qt, and additional utility functions described in Rhythm and RhythmStim documentation.
+
+* Version 3.3.0, 23 August 2023
+- Improve TCP reception of commands to not duplicate slot connections
+- Add Chip Test Mode
+- Fix issue where for RHD chips, Rescan Ports would not run chip calibration
+- Fix 7310 bit files so that for RHS systems, using a sample rate other than default (30 kHz) will no longer cause the software to use the wrong sample rate.
+- Fix crashing when attempting to open a new file for recording fails, instead display an error message and stop acquisition.
+
+* Version 3.3.1, 5 December 2023
+- Add 10, 16, and 20 ms time scale options for Spike Scope
+- Fix intermittent Stim Parameters dialog initialization issue that could cause incorrect values to appear
+- Append date/timestamp to end of LiveNotes filename to avoid unintentional file overwriting for multi-file recording sessions
+- Improve TCP functionality to allow for multiple connections/disconnections to occur without having to restart software
+- Add TCP "execute" commands: SaveSettingsFile, LoadSettingsFile, SaveStimulationSettingsFile, LoadStimulationSettingsFile, analogous to already present UI elements.
+- Improve test mode: wider acceptable input signal ranges, reduced likelihood of unintentionally entering test mode, and faster chip testing

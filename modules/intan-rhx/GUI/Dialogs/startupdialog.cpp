@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.3.1
 //
 //  Copyright (c) 2020-2023 Intan Technologies
 //
@@ -33,7 +33,7 @@
 #include <QtWidgets>
 
 StartupDialog::StartupDialog(ControllerType controllerType_, AmplifierSampleRate* sampleRate_, StimStepSize* stimStepSize_,
-                             bool* rememberSettings_, bool askToRememberSettings, QWidget *parent) :
+                             bool* rememberSettings_, bool askToRememberSettings, bool testMode, QWidget *parent) :
     QDialog(parent),
     controllerType(controllerType_),
     sampleRate(sampleRate_),
@@ -67,7 +67,7 @@ StartupDialog::StartupDialog(ControllerType controllerType_, AmplifierSampleRate
         sampleRateComboBox->addItem(tr("20.0 kHz"));
         sampleRateComboBox->addItem(tr("25.0 kHz"));
         sampleRateComboBox->addItem(tr("30.0 kHz"));
-        sampleRateComboBox->setCurrentIndex(14);
+        testMode ? sampleRateComboBox->setCurrentIndex(16) : sampleRateComboBox->setCurrentIndex(14);
     }
 
     QHBoxLayout *sampleRateLayout = new QHBoxLayout();

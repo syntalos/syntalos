@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.3.1
 //
 //  Copyright (c) 2020-2023 Intan Technologies
 //
@@ -37,11 +37,14 @@
 #include "impedancereader.h"
 #include "controllerinterface.h"
 
+class ControlWindow;
+
 class CommandParser : public QObject
 {
     Q_OBJECT
 public:
     explicit CommandParser(SystemState *state_, ControllerInterface *controllerInterface_, QObject *parent = nullptr);
+    ControlWindow *controlWindow;
 
 signals:
     void updateGUIFromState();
@@ -139,6 +142,11 @@ private:
     void uploadBandwidthSettingsCommand();
 
     void setSpikeDetectionThresholdsCommand();
+
+    void loadSettingsFileCommand(QString fileName);
+    void saveSettingsFileCommand(QString fileName);
+    void loadStimulationSettingsFileCommand(QString fileName);
+    void saveStimulationSettingsFileCommand(QString fileName);
 
     bool isDependencyRelated(QString parameter) const;
     QString validateStimParams(StimParameters *stimParams) const;

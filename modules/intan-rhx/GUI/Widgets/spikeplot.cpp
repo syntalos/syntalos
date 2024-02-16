@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.3.1
 //
 //  Copyright (c) 2020-2023 Intan Technologies
 //
@@ -46,8 +46,8 @@ SpikePlot::SpikePlot(SystemState* state_, QWidget *parent) :
     setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
     setFocusPolicy(Qt::StrongFocus);
 
-    samplesPreDetect = 90;
-    samplesPostDetect = 180;
+    samplesPreDetect = 300;
+    samplesPostDetect = 600;
 
     latestRmsCalculation = 0.0;
     latestSpikeRateCalculation = 0;
@@ -136,6 +136,8 @@ void SpikePlot::paintEvent(QPaintEvent * /* event */)
     int snippetLength = samplesPreDetect + samplesPostDetect;
     QPointF *polyline = new QPointF[snippetLength];
 
+    double tScale = state->tScaleSpikeScope->getNumericValue();
+
     if (history) {
         bool showArtifacts = state->artifactsShown->getValue();
 
@@ -213,11 +215,34 @@ void SpikePlot::paintEvent(QPaintEvent * /* event */)
     // Draw vertical axis lines.
     int tMax = qFloor(ct.xMaxReal());
     for (int t = qCeil(ct.xMinReal()); t <= tMax; ++t) {
-        if (t == 0) {
-            painter.setPen(Qt::white);
-        } else {
-            painter.setPen(Qt::darkGray);
+        (t == 0) ? painter.setPen(Qt::white) : painter.setPen(Qt::darkGray);
+
+        // For tScale of 2, 4, or 6 ms, draw a vertical line every 1 ms.
+        // For tScale of 10 ms, draw a vertical line every 2 ms.
+        // For tScale of 16 or 20 ms, draw a vertical line every 4 ms.
+        int divisor = 1;
+        switch ((int) tScale) {
+        case 2:
+        case 4:
+        case 6:
+            divisor = 1;
+            break;
+
+        case 10:
+            divisor = 2;
+            break;
+
+        case 16:
+        case 20:
+            divisor = 4;
+            break;
         }
+
+        // Only draw a vertical line at the far-left border t, the far-right border t, or a t divisible by divisor.
+        // For example, don't draw t = 3 ms with tScale of 20 ms (divisor = 4), but do draw t = 4 ms.
+        if (t != ct.xMinReal() && t != ct.xMaxReal() && t % divisor != 0)
+            continue;  // This t line is not important enough to draw, so move on to next iteration of for loop.
+
         plotDecorator.drawVerticalAxisLine(ct, t);
 
         // Write time axis labels.

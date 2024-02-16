@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.3.1
 //
 //  Copyright (c) 2020-2023 Intan Technologies
 //
@@ -200,7 +200,8 @@ int PlaybackRHXController::getNumSPIPorts(bool &expanderBoardDetected)
 // Not used in playback mode.
 int PlaybackRHXController::findConnectedChips(vector<ChipType>& /* chipType */, vector<int>& /* portIndex */,
                                               vector<int>& /* commandStream */, vector<int>& /* numChannelsOnPort */,
-                                              bool /* synthMaxChannels */)
+                                              bool /* synthMaxChannels */, bool /* returnToFastSettle */,
+                                              bool /* usePreviousDelay */, int /* selectedPort */, int /* lastDetectedChip */)
 {
     return 1;
 }

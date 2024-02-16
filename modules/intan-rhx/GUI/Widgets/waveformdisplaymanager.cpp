@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.3.1
 //
 //  Copyright (c) 2020-2023 Intan Technologies
 //
@@ -41,7 +41,6 @@ WaveformDisplayManager::WaveformDisplayManager(SystemState* state_, int maxWidth
     maxWidthInPixels(maxWidthInPixels_),
     numRefreshZones(numRefreshZones_)
 {
-    state->writeToLog("Beginning of WaveformDisplayManager ctor");
     sampleRate = state->sampleRate->getNumericValue();
     tScaleInMsec = (int) state->tScale->getNumericValue();
 
@@ -49,9 +48,7 @@ WaveformDisplayManager::WaveformDisplayManager(SystemState* state_, int maxWidth
     sweepFirstTime = true;
     validDataIndex = 0;
 
-    state->writeToLog("About to call calculateParameters()");
     calculateParameters();
-    state->writeToLog("Completed calculateParameters(). End of ctor");
 }
 
 WaveformDisplayManager::~WaveformDisplayManager()
@@ -67,22 +64,14 @@ WaveformDisplayManager::~WaveformDisplayManager()
 
 void WaveformDisplayManager::calculateParameters()
 {
-    state->writeToLog("Beginning of calculateParameters()");
     zoneWidthInPixels = floor((double)maxWidthInPixels / (double)numRefreshZones);
-    state->writeToLog("zoneWidthInPixels: " + QString::number(zoneWidthInPixels));
     widthInPixels = numRefreshZones * zoneWidthInPixels;
-    state->writeToLog("widthInPixels: " + QString::number(widthInPixels));
     samplesPerZone = round(sampleRate * ((double)tScaleInMsec / 1000.0) / (double)numRefreshZones);
-    state->writeToLog("samplesPerZone: " + QString::number(samplesPerZone));
     pixelsPerSample = (float)zoneWidthInPixels / (float)samplesPerZone;
-    state->writeToLog("pixelsPerSample: " + QString::number(pixelsPerSample));
     useVerticalLines = pixelsPerSample < 1.0F;
     length = useVerticalLines ? widthInPixels : (samplesPerZone * numRefreshZones);
-    state->writeToLog("length: " + QString::number(length));
     zoneLength = length / numRefreshZones;
-    state->writeToLog("zoneLength: " + QString::number(zoneLength));
     resetAll();
-    state->writeToLog("Completed resetAll(). End of calculateParameters()");
 
 //    cout << EndOfLine;
 //    cout << "WaveformDisplayManager::calculateParameters:" << EndOfLine;
@@ -102,7 +91,7 @@ bool WaveformDisplayManager::addWaveform(const QString& waveName, bool isStim, b
 
     WaveformDisplayDataStore* ds = new WaveformDisplayDataStore;
     ds->isRaster = isRaster;
-    ds->hasStimFlags = isStim && !isRaster;
+    ds->hasStimFlags = (isStim && !isRaster) && !state->testMode->getValue();
     QString filterText = waveName.section('|', 1, 1);
     if (filterText == "WIDE") ds->yScaleType = WidebandYScale;
     else if (filterText == "LOW") ds->yScaleType = LowpassYScale;
@@ -165,6 +154,18 @@ void WaveformDisplayManager::prepForLoadingOldData(int startTime)
     }
 
     // Mark all WaveformDisplayDataStore objects with hasAlreadyLoaded = false.
+    map<string, WaveformDisplayDataStore*>::const_iterator it = data.begin();
+    while (it != data.end()) {
+        it->second->hasAlreadyLoaded = false;
+        ++it;
+    }
+}
+
+void WaveformDisplayManager::prepForLoadingDataDirect()
+{
+    validDataIndex = 0;
+    sweepFirstTime = false;
+
     map<string, WaveformDisplayDataStore*>::const_iterator it = data.begin();
     while (it != data.end()) {
         it->second->hasAlreadyLoaded = false;
@@ -293,6 +294,66 @@ void WaveformDisplayManager::loadOldData(const WaveformFifo* waveformFifo, const
     loadDataSegment(waveformFifo, waveName, ds, 0, validDataIndex, startTime);
     ds->isOutOfDate = false;
     ds->hasAlreadyLoaded = true;
+}
+
+void WaveformDisplayManager::loadDataDirect(QVector<double> &ampData, const QString& waveName)
+{
+    //qDebug() << "here... waveName: " << waveName << " length of data: " << ampData.size();
+
+    map<string, WaveformDisplayDataStore*>::const_iterator it = data.find(waveName.toStdString());
+    if (it == data.end()) {
+        cout << "WaveformDisplayManager::loadDataDirect: Could not find waveName " << waveName.toStdString() << '\n';
+    }
+    WaveformDisplayDataStore* ds = it->second;
+    if (!ds) return;
+
+    loadDataSegmentDirect(ampData, ds); // data, datastore
+    ds->hasAlreadyLoaded = true;
+}
+
+void WaveformDisplayManager::loadDataSegmentDirect(QVector<double> &ampData, WaveformDisplayDataStore* ds)
+{
+    int displaySpan = widthInPixels;
+    int startTime = 0;
+    int displayStartPos = 0;
+    int displayEndPos = displaySpan;
+
+    if (useVerticalLines) { // Samples per pixel > 1
+        int sampleSpan = (displaySpan / zoneWidthInPixels) * samplesPerZone;
+        int pixelsToGo = displaySpan;
+        int samplesToGo = sampleSpan;
+        int timeIndex = startTime;
+
+        MinMax<float> y;
+        // Always assume old data not present
+        y.swap();
+
+        for (int x = displayStartPos; x < displayEndPos; ++x) {
+            y.swap();
+            int samples = round((double)samplesToGo / (double)pixelsToGo);
+            getMinMaxData(y, ampData, timeIndex, samples);
+            ds->yMinMaxData[x] = y;
+            timeIndex += samples;
+            samplesToGo -= samples;
+            --pixelsToGo;
+        }
+    }
+
+    else { // Samples per pixel <= 1
+        // NOTE: This shouldn't happen for a decently high sample rate and reasonably sized screen. However,
+        // if there is a need to implement this, mimic 'waveformFifo->copyAnalogData(WaveformFifo::ReaderDisplay, &ds->yData[displayStartPos], waveform, startTime, displaySpan);'
+        QMessageBox::critical(nullptr, "Plotting Test Waveforms Error", "Software unable to plot for the sample rate " +
+                              state->sampleRate->getValue() + " with a pixels per sample of: " + QString::number(pixelsPerSample) + ". " +
+                              "This should be avoidable by resizing the ControlWindow to be less wide.");
+        //copyToDsDirect(ampData, &ds->yData[displayStartPos], startTime, displaySpan);
+    }
+}
+
+void WaveformDisplayManager::getMinMaxData(MinMax<float> &init, QVector<double> &ampData, int timeIndex, int samples) const
+{
+    for (int i = timeIndex; i < timeIndex + samples; ++i) {
+        init.update(ampData[i]);
+    }
 }
 
 void WaveformDisplayManager::loadDataSegment(const WaveformFifo* waveformFifo, const QString& waveName,

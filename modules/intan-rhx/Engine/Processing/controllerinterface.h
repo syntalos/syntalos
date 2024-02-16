@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.3.1
 //
 //  Copyright (c) 2020-2023 Intan Technologies
 //
@@ -53,7 +53,7 @@
 #include "spectrogramdialog.h"
 #include "spikesortingdialog.h"
 
-class ControlPanel;
+class AbstractPanel;
 class ControllerRunStateData;
 class IntanRhxModule;
 
@@ -89,7 +89,7 @@ public:
     bool fastForwardPossible() const { return currentSweepPosition < 0; }
 
     void setDisplay(MultiColumnDisplay* display_) { display = display_; }
-    void setControlPanel(ControlPanel* controlPanel_) { controlPanel = controlPanel_; }
+    void setControlPanel(AbstractPanel* controlPanel_) { controlPanel = controlPanel_; }
     void setISIDialog(ISIDialog* isiDialog_) { isiDialog = isiDialog_; }
     void setPSTHDialog(PSTHDialog* psthDialog_) { psthDialog = psthDialog_; }
     void setSpectrogramDialog(SpectrogramDialog* spectrogramDialog_) { spectrogramDialog = spectrogramDialog_; }
@@ -145,6 +145,8 @@ public:
     void uploadAmpSettleSettings();
     void uploadChargeRecoverySettings();
     void uploadBandwidthSettings();
+    void uploadAutoStimParameters(int stream);
+    void clearStimParameters(int stream);
     void uploadStimParameters(Channel* channel);
     void uploadStimParameters();
 
@@ -199,7 +201,7 @@ private:
     WaveformProcessorThread* waveformProcessorThread;
 
     MultiColumnDisplay* display;
-    ControlPanel* controlPanel;
+    AbstractPanel* controlPanel;
     ISIDialog* isiDialog;
     PSTHDialog* psthDialog;
     SpectrogramDialog* spectrogramDialog;

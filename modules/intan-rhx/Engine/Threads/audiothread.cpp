@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.3.1
 //
 //  Copyright (c) 2020-2023 Intan Technologies
 //
@@ -51,7 +51,6 @@ AudioThread::AudioThread(SystemState *state_, WaveformFifo *waveformFifo_, const
 
 void AudioThread::initialize()
 {
-    state->writeToLog("Audio Thread initialize begin");
     // Initialize variables.
     mDevice = QAudioDeviceInfo::defaultOutputDevice();
     currentValue = 0.0F;
@@ -103,7 +102,6 @@ void AudioThread::initialize()
     s = new QDataStream(buf, QIODevice::ReadWrite);
     mAudioOutput = new QAudioOutput(mDevice, mFormat);
     connect(mAudioOutput, SIGNAL(stateChanged(QAudio::State)), this, SLOT(catchError()));
-    state->writeToLog("Audio Thread initialize end");
 }
 
 void AudioThread::run()
@@ -221,7 +219,6 @@ bool AudioThread::fillBufferFromWaveformFifo()
 
 void AudioThread::processAudioData()
 {
-    state->writeToLog("Process audio data start");
     // Do floating point interpolation.
     originalSamplesCopied = 0;
     soundSamplesCopied = 0;
@@ -281,7 +278,6 @@ void AudioThread::processAudioData()
         qToLittleEndian<int16_t>(interpInts[i], ptr);
         ptr += 2;
     }
-    state->writeToLog("Process audio data end");
 }
 
 void AudioThread::catchError()
@@ -292,19 +288,15 @@ void AudioThread::catchError()
         break;
     case QAudio::OpenError:
         qDebug() << "Open Error";
-        state->writeToLog("Open Error");
         break;
     case QAudio::IOError:
         qDebug() << "IO Error";
-        state->writeToLog("IO Error");
         break;
     case QAudio::UnderrunError:
         qDebug() << "Underrun Error";
-        state->writeToLog("Underrun Error");
         break;
     case QAudio::FatalError:
         qDebug() << "Fatal Error";
-        state->writeToLog("Fatal Error");
         break;
     }
 }

@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.3.1
 //
 //  Copyright (c) 2020-2023 Intan Technologies
 //
@@ -42,10 +42,11 @@
 
 using namespace std;
 
-ControlWindow::ControlWindow(SystemState* state_, CommandParser* parser_, ControllerInterface* controllerInterface_) :
+ControlWindow::ControlWindow(SystemState* state_, CommandParser* parser_, ControllerInterface* controllerInterface_, AbstractRHXController* rhxController_) :
     QMainWindow(nullptr), // Since the parent isn't a QMainWindow but a QDialog, just pass a nullptr
     state(state_),
     controllerInterface(controllerInterface_),
+    rhxController(rhxController_),
     parser(parser_),
     showControlPanelButton(nullptr),
     probeMapWindow(nullptr),
@@ -147,70 +148,92 @@ ControlWindow::ControlWindow(SystemState* state_, CommandParser* parser_, Contro
 
 {
     setAcceptDrops(true);
-    state->writeToLog("Entered ControlWindow ctor");
+
+    // For test mode, set removed UI elements to nullptr
+    if (state->testMode->getValue()) {
+        showControlPanelButton = nullptr;
+        toolsMenu = nullptr;
+        selectFilenameAction = nullptr;
+        chooseFileFormatAction = nullptr;
+        recordAction = nullptr;
+        triggeredRecordAction = nullptr;
+        rewindAction = nullptr;
+        fastForwardAction = nullptr;
+        enableLoggingAction = nullptr;
+    }
+
     connect(state, SIGNAL(headstagesChanged()), this, SLOT(updateForChangeHeadstages()));
-    state->writeToLog("Connected updateForChangeHeadstages");
 
-    state->writeToLog("About to create showControlPanelButton");
-    showControlPanelButton = new QToolButton(this);
-    showControlPanelButton->setIcon(QIcon(":/images/showicon.png"));
-    showControlPanelButton->setToolTip(tr("Show Control Panel"));
-    connect(showControlPanelButton, SIGNAL(clicked()), this, SLOT(showControlPanel()));
+    if (!state->testMode->getValue()) {
+        showControlPanelButton = new QToolButton(this);
+        showControlPanelButton->setIcon(QIcon(":/images/showicon.png"));
+        showControlPanelButton->setToolTip(tr("Show Control Panel"));
+        connect(showControlPanelButton, SIGNAL(clicked()), this, SLOT(showControlPanel()));
+    }
 
-    state->writeToLog("About to call createActions()");
     createActions();
-    state->writeToLog("Completed createActions()");
-    state->writeToLog("About to call createMenus()");
     createMenus();
-    state->writeToLog("Completed createMenus()");
-    state->writeToLog("About to call createStatusBar()");
     createStatusBar();
-    state->writeToLog("Completed createStatusBar()");
     connect(this, SIGNAL(setStatusBar(QString)), this, SLOT(updateStatusBar(QString)));
     connect(this, SIGNAL(setTimeLabel(QString)), this, SLOT(updateTimeLabel(QString)));
 
-    state->writeToLog("About to create controlButtons");
     controlButtons = new QToolBar(this);
     if (state->playback->getValue()) {
         controlButtons->addAction(jumpToStartAction);
         controlButtons->addAction(jumpBack10SecAction);
         controlButtons->addAction(jumpBack1SecAction);
     } else {
-        controlButtons->addAction(rewindAction);
-        controlButtons->addAction(fastForwardAction);
+        if (!state->testMode->getValue()) {
+            controlButtons->addAction(rewindAction);
+            controlButtons->addAction(fastForwardAction);
+        }
     }
-    controlButtons->addAction(stopAction);
+
+    if (state->testMode->getValue()) {
+        controlButtons->addAction(runAction);
+        controlButtons->addAction(stopAction);
+    } else {
+        controlButtons->addAction(stopAction);
+        controlButtons->addAction(runAction);
+    }
+
     runAction->setVisible(false);
     if (state->playback->getValue()) {
         controlButtons->addAction(fastPlaybackAction);
         controlButtons->addAction(jumpToEndAction);
         controlButtons->addAction(jumpAction);
     }
+
+    if (!state->testMode->getValue()) {
+        controlButtons->addAction(chooseFileFormatAction);
+        controlButtons->addAction(selectFilenameAction);
+        controlButtons->addAction(recordAction);
+        controlButtons->addAction(triggeredRecordAction);
+    }
     selectFilenameAction->setVisible(false);
     recordAction->setVisible(false);
     triggeredRecordAction->setVisible(false);
-    controlButtons->addAction(chooseFileFormatAction);
 
     controlButtons->addWidget(new QLabel("   "));
 
-    state->writeToLog("About to create timeLabel");
-    timeLabel = new QLabel("<b>00:00:00</b>", this);
-    int fontSize = 14;
-    if (state->highDPIScaleFactor > 1) fontSize = 21;
-    state->writeToLog("Font size: " + QString::number(fontSize));
-    QFont timeFont("Courier", fontSize);
-    timeLabel->setFont(timeFont);
     int margin = 6;
-    timeLabel->setContentsMargins(margin, 0, margin, 0);
-    QHBoxLayout* timeLayout = new QHBoxLayout;
-    timeLayout->addWidget(timeLabel);
-    timeLayout->setContentsMargins(0, 0, 0, 0);
-    QFrame* timeBox = new QFrame(this);
-    timeBox->setFrameStyle(QFrame::Box | QFrame::Plain);
-    timeBox->setLayout(timeLayout);
-    controlButtons->addWidget(timeBox);
 
-    state->writeToLog("About to create statusBars");
+    if (!state->testMode->getValue()) {
+        timeLabel = new QLabel("<b>00:00:00</b>", this);
+        int fontSize = 14;
+        if (state->highDPIScaleFactor > 1) fontSize = 21;
+        QFont timeFont("Courier", fontSize);
+        timeLabel->setFont(timeFont);
+        timeLabel->setContentsMargins(margin, 0, margin, 0);
+        QHBoxLayout* timeLayout = new QHBoxLayout;
+        timeLayout->addWidget(timeLabel);
+        timeLayout->setContentsMargins(0, 0, 0, 0);
+        QFrame* timeBox = new QFrame(this);
+        timeBox->setFrameStyle(QFrame::Box | QFrame::Plain);
+        timeBox->setLayout(timeLayout);
+        controlButtons->addWidget(timeBox);
+    }
+
     statusBars = new StatusBars(this);
     controlButtons->addWidget(new QLabel("   "));
     controlButtons->addWidget(statusBars);
@@ -222,7 +245,6 @@ ControlWindow::ControlWindow(SystemState* state_, CommandParser* parser_, Contro
     sampleRateLabel->setContentsMargins(margin, 0, margin, 0);
     controlButtons->addWidget(sampleRateLabel);
 
-    state->writeToLog("About to create topStatusLabel");
     topStatusLabel = new QLabel("", this);
     topStatusLabel->setContentsMargins(margin, 0, margin, 0);
     controlButtons->addWidget(topStatusLabel);
@@ -235,24 +257,24 @@ ControlWindow::ControlWindow(SystemState* state_, CommandParser* parser_, Contro
 
     }
 
-    state->writeToLog("About to create MultiColumnDisplay");
     multiColumnDisplay = new MultiColumnDisplay(controllerInterface, state, this);
-    state->writeToLog("Created MultiColumnDisplay");
     controllerInterface->setDisplay(multiColumnDisplay);
 
-    state->writeToLog("About to create ControlPanel");
-    controlPanel = new ControlPanel(controllerInterface, state, parser, this);
-    state->writeToLog("Created ControlPanel");
+    if (state->testMode->getValue()) {
+        controlPanel = new TestControlPanel(controllerInterface, rhxController, state, parser, multiColumnDisplay, stimParametersInterface, this);
+    } else {
+        controlPanel = new ControlPanel(controllerInterface, state, parser, this);
+    }
     controlPanel->hide();
 
     controllerInterface->setControlPanel(controlPanel);
 
-    state->writeToLog("About to set layouts");
-
     QVBoxLayout *controlPanelCol = new QVBoxLayout;
-    controlPanelCol->addWidget(showControlPanelButton);
+    if (!state->testMode->getValue()) {
+        controlPanelCol->addWidget(showControlPanelButton);
+        controlPanelCol->setAlignment(Qt::AlignTop);
+    }
     controlPanelCol->addWidget(controlPanel);
-    controlPanelCol->setAlignment(Qt::AlignTop);
 
     QHBoxLayout *mainLayout = new QHBoxLayout;
     mainLayout->addLayout(controlPanelCol);
@@ -284,12 +306,12 @@ ControlWindow::ControlWindow(SystemState* state_, CommandParser* parser_, Contro
         title += tr(" - Demonstration Mode");
     } else if (state->playback->getValue()) {
         title += tr(" - Playback Mode: ") + controllerInterface->playbackFileName();
+    } else if (state->testMode->getValue()) {
+        title += tr(" - Chip Testing Mode (Use Advanced settings on startup to return to normal data acquisition mode.)");
     }
     setWindowTitle(title);
-    state->writeToLog("Finished setting window title");
 
     setStatusBarReady();
-    state->writeToLog("Finished setting status bar");
 
     // Get ControlWindow maximize state, size, position, and ControlPanel expanded state and current tab from QSettings.
     QSettings settings;
@@ -299,17 +321,23 @@ ControlWindow::ControlWindow(SystemState* state_, CommandParser* parser_, Contro
     move(defaultPos);
     QByteArray defaultGeometry = saveGeometry();
     restoreGeometry(settings.value("geometry", defaultGeometry).toByteArray());
-    if (settings.value("isMaximized", isMaximized()).toBool())
-        showMaximized();
-    if (settings.value("isControlPanelExpanded", false).toBool())
+
+    if (state->testMode->getValue()) {
+        resize(width(), 875); // Default height for Windows that should match 32 channels vertically for side-by-side column matching
+    } else {
+        if (settings.value("isMaximized", isMaximized()).toBool())
+            showMaximized();
+    }
+
+    if (state->testMode->getValue()) {
         showControlPanel();
-    controlPanel->setCurrentTabName(settings.value("controlPanelTab", "BW").toString());
+    } else {
+        if (settings.value("isControlPanelExpanded", false).toBool())
+            showControlPanel();
+        controlPanel->setCurrentTabName(settings.value("controlPanelTab", "BW").toString());
+    }
 
-    state->writeToLog("Finished resizing");
-
-    state->writeToLog("About to updateMenus()");
     updateMenus();
-    state->writeToLog("Finished updateMenus(). End of ctor");
 }
 
 ControlWindow::~ControlWindow()
@@ -360,8 +388,10 @@ ControlWindow::~ControlWindow()
     if (!isMaximized()) {
         settings.setValue("geometry", saveGeometry());
     }
-    settings.setValue("isControlPanelExpanded", !controlPanel->isHidden());
-    settings.setValue("controlPanelTab", controlPanel->currentTabName());
+    if (!state->testMode->getValue()) {
+        settings.setValue("isControlPanelExpanded", !controlPanel->isHidden());
+        settings.setValue("controlPanelTab", controlPanel->currentTabName());
+    }
 }
 
 void ControlWindow::dragEnterEvent(QDragEnterEvent *event)
@@ -562,10 +592,12 @@ void ControlWindow::createActions()
     keyboardHelpAction->setShortcut(tr("F12"));
     connect(keyboardHelpAction, SIGNAL(triggered()), this, SLOT(keyboardShortcutsHelp()));
 
-    enableLoggingAction = new QAction(tr("Generate Log File for Debug"), this);
-    enableLoggingAction->setCheckable(true);
-    enableLoggingAction->setChecked(state->logErrors);
-    connect(enableLoggingAction, SIGNAL(toggled(bool)), this, SLOT(enableLoggingSlot(bool)));
+    if (!state->testMode->getValue()) {
+        enableLoggingAction = new QAction(tr("Generate Log File for Debug"), this);
+        enableLoggingAction->setCheckable(true);
+        enableLoggingAction->setChecked(state->logErrors);
+        connect(enableLoggingAction, SIGNAL(toggled(bool)), this, SLOT(enableLoggingSlot(bool)));
+    }
 
     intanWebsiteAction = new QAction(tr("Visit Intan Website..."), this);
     connect(intanWebsiteAction, SIGNAL(triggered()), this, SLOT(openIntanWebsite()));
@@ -593,13 +625,15 @@ void ControlWindow::createActions()
     connect(spikeSortingAction, SIGNAL(triggered()), this, SLOT(spikeSorting()));
 
     // Toolbar actions (within the toolbar, represented by an icon)
-    rewindAction = new QAction(QIcon(":/images/rewindicon.png"), tr("Rewind"), this);
-    rewindAction->setEnabled(false);
-    connect(rewindAction, SIGNAL(triggered()), this, SLOT(rewindSlot()));
+    if (!state->testMode->getValue()) {
+        rewindAction = new QAction(QIcon(":/images/rewindicon.png"), tr("Rewind"), this);
+        rewindAction->setEnabled(false);
+        connect(rewindAction, SIGNAL(triggered()), this, SLOT(rewindSlot()));
 
-    fastForwardAction = new QAction(QIcon(":/images/fficon.png"), tr("Fast Forward"), this);
-    fastForwardAction->setEnabled(false);
-    connect(fastForwardAction, SIGNAL(triggered()), this, SLOT(fastForwardSlot()));
+        fastForwardAction = new QAction(QIcon(":/images/fficon.png"), tr("Fast Forward"), this);
+        fastForwardAction->setEnabled(false);
+        connect(fastForwardAction, SIGNAL(triggered()), this, SLOT(fastForwardSlot()));
+    }
 
     runAction = new QAction(QIcon(":/images/runicon.png"), tr("Run"), this);
     connect(runAction, SIGNAL(triggered()), this, SLOT(runControllerSlot()));
@@ -628,23 +662,28 @@ void ControlWindow::createActions()
     jumpAction = new QAction(QIcon(":/images/jumptoicon.png"), tr("Jump to Position"), this);
     connect(jumpAction, SIGNAL(triggered()), this, SLOT(jumpToPositionSlot()));
 
-    recordAction = new QAction(QIcon(":/images/recordicon.png"), tr("Record (no valid filename)"), this);
-    recordAction->setEnabled(state->filename->isValid());
-    connect(recordAction, SIGNAL(triggered()), this, SLOT(recordControllerSlot()));
+    if (!state->testMode->getValue()) {
+        recordAction = new QAction(QIcon(":/images/recordicon.png"), tr("Record (no valid filename)"), this);
+        recordAction->setEnabled(state->filename->isValid());
+        connect(recordAction, SIGNAL(triggered()), this, SLOT(recordControllerSlot()));
+    }
 
-    stopAction = new QAction(QIcon(":/images/stopicon.png"), tr("Stop"), this);
+    const QString stopActionText = state->testMode->getValue() ? "Stop. Shortcut: S" : "Stop";
+    stopAction = new QAction(QIcon(":/images/stopicon.png"), stopActionText, this);
     stopAction->setEnabled(false);
     connect(stopAction, SIGNAL(triggered()), this, SLOT(stopControllerSlot()));
 
-    selectFilenameAction = new QAction(QIcon(":/images/selectfilenameicon.png"), tr("Select Filename"), this);
-    connect(selectFilenameAction, SIGNAL(triggered()), this, SLOT(selectBaseFilenameSlot()));
+    if (!state->testMode->getValue()) {
+        selectFilenameAction = new QAction(QIcon(":/images/selectfilenameicon.png"), tr("Select Filename"), this);
+        connect(selectFilenameAction, SIGNAL(triggered()), this, SLOT(selectBaseFilenameSlot()));
 
-    chooseFileFormatAction = new QAction(QIcon(":/images/choosefileformaticon.png"), tr("Choose File Format"), this);
-    connect(chooseFileFormatAction, SIGNAL(triggered()), this, SLOT(chooseFileFormatDialog()));
+        chooseFileFormatAction = new QAction(QIcon(":/images/choosefileformaticon.png"), tr("Choose File Format"), this);
+        connect(chooseFileFormatAction, SIGNAL(triggered()), this, SLOT(chooseFileFormatDialog()));
 
-    triggeredRecordAction = new QAction(QIcon(":/images/triggeredrecordicon.png"), tr("Triggered Recording (no valid filename)"), this);
-    triggeredRecordAction->setEnabled(state->filename->isValid());
-    connect(triggeredRecordAction, SIGNAL(triggered()), this, SLOT(triggeredRecordControllerSlot()));
+        triggeredRecordAction = new QAction(QIcon(":/images/triggeredrecordicon.png"), tr("Triggered Recording (no valid filename)"), this);
+        triggeredRecordAction->setEnabled(state->filename->isValid());
+        connect(triggeredRecordAction, SIGNAL(triggered()), this, SLOT(triggeredRecordControllerSlot()));
+    }
 }
 
 void ControlWindow::createMenus()
@@ -715,13 +754,19 @@ void ControlWindow::createMenus()
         stimulationMenu->addAction(chargeRecoverySettingsAction);
     }
 
-    // Tools menu
-    toolsMenu = menuBar()->addMenu(tr("Tools"));
-    toolsMenu->addAction(spikeSortingAction);
-    toolsMenu->addAction(isiAction);
-    toolsMenu->addAction(psthAction);
-    toolsMenu->addAction(spectrogramAction);
-    toolsMenu->addAction(probeMapAction);
+    if (!state->testMode->getValue()) {
+        // Tools menu
+        toolsMenu = menuBar()->addMenu(tr("Tools"));
+        toolsMenu->addAction(spikeSortingAction);
+        toolsMenu->addAction(isiAction);
+        toolsMenu->addAction(psthAction);
+        toolsMenu->addAction(spectrogramAction);
+        toolsMenu->addAction(probeMapAction);
+
+        // Network menu
+        //tcpMenu = menuBar()->addMenu(tr("Network"));
+        //tcpMenu->addAction(remoteControlAction);
+    }
 
     // Performance menu
     performanceMenu = menuBar()->addMenu(tr("Performance"));
@@ -733,8 +778,10 @@ void ControlWindow::createMenus()
     helpMenu = menuBar()->addMenu(tr("Help"));
     helpMenu->addAction(keyboardHelpAction);
     helpMenu->addSeparator();
-    helpMenu->addAction(enableLoggingAction);
-    helpMenu->addSeparator();
+    if (!state->testMode->getValue()) {
+        helpMenu->addAction(enableLoggingAction);
+        helpMenu->addSeparator();
+    }
     helpMenu->addAction(intanWebsiteAction);
     helpMenu->addAction(aboutAction);
 }
@@ -810,6 +857,7 @@ void ControlWindow::updateForChangeHeadstages()
 
 void ControlWindow::updateForFilename(bool valid)
 {
+    if (state->testMode->getValue()) return;
     recordAction->setEnabled(valid);
     triggeredRecordAction->setEnabled(valid);
     if (valid) {
@@ -825,24 +873,28 @@ void ControlWindow::updateForRun()
 {
     // Enable/disable various GUI buttons.
     runAction->setEnabled(fastPlaybackMode);
-    fastForwardAction->setEnabled(false);
-    rewindAction->setEnabled(false);
+    if (!state->testMode->getValue()) {
+        fastForwardAction->setEnabled(false);
+        rewindAction->setEnabled(false);
+    }
     //!stopAction->setEnabled(true);
 
-    recordAction->setEnabled(false);
-    if (state->filename->isValid())
-        recordAction->setToolTip(tr("Record (must not be running)"));
-    else
-        recordAction->setToolTip(tr("Record (no valid filename)"));
+    if (!state->testMode->getValue()) {
+        recordAction->setEnabled(false);
+        if (state->filename->isValid())
+            recordAction->setToolTip(tr("Record (must not be running)"));
+        else
+            recordAction->setToolTip(tr("Record (no valid filename)"));
 
-    triggeredRecordAction->setEnabled(false);
-    if (state->filename->isValid())
-        triggeredRecordAction->setToolTip(tr("Triggered Recording (must not be running)"));
-    else
-        triggeredRecordAction->setToolTip(tr("Triggered Recording (no valid filename)"));
+        triggeredRecordAction->setEnabled(false);
+        if (state->filename->isValid())
+            triggeredRecordAction->setToolTip(tr("Triggered Recording (must not be running)"));
+        else
+            triggeredRecordAction->setToolTip(tr("Triggered Recording (no valid filename)"));
 
-    selectFilenameAction->setEnabled(false);
-    chooseFileFormatAction->setEnabled(false);
+        selectFilenameAction->setEnabled(false);
+        chooseFileFormatAction->setEnabled(false);
+    }
 
     if (state->playback->getValue()) {
         fastPlaybackAction->setEnabled(!fastPlaybackMode);
@@ -885,14 +937,18 @@ void ControlWindow::updateForLoad()
 {
     // Disable all GUI buttons to prevent user changes during a load.
     runAction->setEnabled(false);
-    fastForwardAction->setEnabled(false);
-    rewindAction->setEnabled(false);
+    if (!state->testMode->getValue()) {
+        fastForwardAction->setEnabled(false);
+        rewindAction->setEnabled(false);
+    }
     stopAction->setEnabled(false);
 
-    recordAction->setEnabled(false);
-    triggeredRecordAction->setEnabled(false);
-    selectFilenameAction->setEnabled(false);
-    chooseFileFormatAction->setEnabled(false);
+    if (!state->testMode->getValue()) {
+        recordAction->setEnabled(false);
+        triggeredRecordAction->setEnabled(false);
+        selectFilenameAction->setEnabled(false);
+        chooseFileFormatAction->setEnabled(false);
+    }
 
     if (state->playback->getValue()) {
         fastPlaybackAction->setEnabled(false);
@@ -935,26 +991,30 @@ void ControlWindow::updateForStop()
 
     // Enable/disable various GUI buttons.
     runAction->setEnabled(true);
-    fastForwardAction->setEnabled(controllerInterface->fastForwardPossible());
-    rewindAction->setEnabled(controllerInterface->rewindPossible());
+    if (!state->testMode->getValue()) {
+        fastForwardAction->setEnabled(controllerInterface->fastForwardPossible());
+        rewindAction->setEnabled(controllerInterface->rewindPossible());
+    }
     stopAction->setEnabled(false);
 
-    recordAction->setEnabled(state->filename->isValid());
-    if (state->filename->isValid()) {
-        recordAction->setToolTip(tr("Record to ") + state->filename->getFullFilename());
-    } else {
-        recordAction->setToolTip(tr("Record (no valid filename)"));
-    }
+    if (!state->testMode->getValue()) {
+        recordAction->setEnabled(state->filename->isValid());
+        if (state->filename->isValid()) {
+            recordAction->setToolTip(tr("Record to ") + state->filename->getFullFilename());
+        } else {
+            recordAction->setToolTip(tr("Record (no valid filename)"));
+        }
 
-    triggeredRecordAction->setEnabled(state->filename->isValid());
-    if (state->filename->isValid()) {
-        triggeredRecordAction->setToolTip(tr("Triggered Recording to ") + state->filename->getFullFilename());
-    } else {
-        triggeredRecordAction->setToolTip(tr("Triggered Recording (no valid filename)"));
-    }
+        triggeredRecordAction->setEnabled(state->filename->isValid());
+        if (state->filename->isValid()) {
+            triggeredRecordAction->setToolTip(tr("Triggered Recording to ") + state->filename->getFullFilename());
+        } else {
+            triggeredRecordAction->setToolTip(tr("Triggered Recording (no valid filename)"));
+        }
 
-    selectFilenameAction->setEnabled(true);
-    chooseFileFormatAction->setEnabled(true);
+        selectFilenameAction->setEnabled(true);
+        chooseFileFormatAction->setEnabled(true);
+    }
 
     if (state->playback->getValue()) {
         fastPlaybackAction->setEnabled(true);
@@ -987,6 +1047,11 @@ void ControlWindow::updateForStop()
 
     controlPanel->updateForStop();
     multiColumnDisplay->updateForStop();
+}
+
+QString ControlWindow::getDisplaySettingsString()
+{
+    return multiColumnDisplay->getDisplaySettingsString();
 }
 
 void ControlWindow::stopAndReportAnyErrors()
@@ -1029,13 +1094,17 @@ void ControlWindow::setStatusBarLoading()
 
 void ControlWindow::showControlPanel()
 {
-    showControlPanelButton->hide();
+    if (!state->testMode->getValue()) {
+        showControlPanelButton->hide();
+    }
     controlPanel->show();
 }
 
 void ControlWindow::hideControlPanel()
 {
-    showControlPanelButton->show();
+    if (!state->testMode->getValue()) {
+        showControlPanelButton->show();
+    }
     controlPanel->hide();
 }
 
@@ -1113,11 +1182,15 @@ void ControlWindow::enableLoggingSlot(bool enable)
                 settings.setValue("logFileName", fileName);
                 settings.setValue("logFileDirectory", logFileInfo.absolutePath());
             } else {
-                enableLoggingAction->setChecked(false);
+                if (!state->testMode->getValue()) {
+                    enableLoggingAction->setChecked(false);
+                }
                 return;
             }
         } else {
-            enableLoggingAction->setChecked(false);
+            if (!state->testMode->getValue()) {
+                enableLoggingAction->setChecked(false);
+            }
             return;
         }
     }
@@ -1281,8 +1354,10 @@ void ControlWindow::runControllerSlot()
 
 void ControlWindow::initiateSweep(double speed)
 {
-    rewindAction->setEnabled(false);
-    fastForwardAction->setEnabled(false);
+    if (!state->testMode->getValue()) {
+        rewindAction->setEnabled(false);
+        fastForwardAction->setEnabled(false);
+    }
     runAction->setEnabled(false);
     stopAction->setEnabled(true);
     state->sweeping = true;
@@ -1460,6 +1535,51 @@ void ControlWindow::keyPressEvent(QKeyEvent *event)
             controllerInterface->setManualStimTrigger(7, true);
         }
         break;
+    case Qt::Key_T:
+        if (state->testMode->getValue()) {
+            if (!state->running) {
+                ((TestControlPanel*) controlPanel)->testChip();
+            }
+            break;
+        }
+    case Qt::Key_V:
+        if (state->testMode->getValue()) {
+            if (!state->running) {
+                ((TestControlPanel*) controlPanel)->viewReport();
+            }
+            break;
+        }
+    case Qt::Key_U:
+        if (state->testMode->getValue()) {
+            if (!state->running && state->getControllerTypeEnum() == ControllerStimRecord) {
+                ((TestControlPanel*) controlPanel)->uploadStimManual();
+            }
+            break;
+        }
+    case Qt::Key_C:
+        if (state->testMode->getValue()) {
+            if (!state->running) {
+                ((TestControlPanel*) controlPanel)->checkInputWave();
+            }
+            break;
+        }
+    case Qt::Key_Space:
+        if (state->testMode->getValue()) {
+            if (!state->running) {
+                runControllerSlot();
+            } else {
+                stopControllerSlot();
+            }
+            break;
+        }
+    case Qt::Key_R:
+        if (state->testMode->getValue()) {
+            if (!state->running) {
+                ((TestControlPanel*) controlPanel)->rescanPorts();
+            }
+            break;
+        }
+
     default:
         QWidget::keyPressEvent(event);
     }

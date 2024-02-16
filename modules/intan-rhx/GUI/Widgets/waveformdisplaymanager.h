@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.3.1
 //
 //  Copyright (c) 2020-2023 Intan Technologies
 //
@@ -119,8 +119,10 @@ public:
 
     void prepForLoadingNewData();
     void prepForLoadingOldData(int startTime);
+    void prepForLoadingDataDirect();
     void loadNewData(const WaveformFifo* waveformFifo, const QString& waveName) const;
     void loadOldData(const WaveformFifo* waveformFifo, const QString& waveName, int startTime) const;
+    void loadDataDirect(QVector<double> &ampData, const QString& waveName);
     YScaleUsed finishLoading();
 
     float getYScaleFactor(YScaleType yScaleType) const;
@@ -188,8 +190,13 @@ private:
     QColor supplyVoltageColor(MinMax<float> yMinMax) const;
 
     void calculateParameters();
+
+    void getMinMaxData(MinMax<float> &init, QVector<double> &ampData, int timeIndex, int samples) const;
+
     void loadDataSegment(const WaveformFifo* waveformFifo, const QString& waveName,  WaveformDisplayDataStore* ds,
                          int displayStartPos, int displayEndPos, int startTime) const;
+
+    void loadDataSegmentDirect(QVector<double> &ampData, WaveformDisplayDataStore* ds);
     void reset(WaveformDisplayDataStore* ds);
 };
 

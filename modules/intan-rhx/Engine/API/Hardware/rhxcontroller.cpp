@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.3.1
 //
 //  Copyright (c) 2020-2023 Intan Technologies
 //
@@ -48,7 +48,8 @@
 RHXController::RHXController(ControllerType type_, AmplifierSampleRate sampleRate_, bool is7310_) :
     AbstractRHXController(type_, sampleRate_),
     dev(nullptr),
-    is7310(is7310_)
+    is7310(is7310_),
+    previousDelay(-1)
 {
 }
 
@@ -1731,7 +1732,8 @@ void RHXController::uploadCommandList(const vector<unsigned int> &commandList, A
 // of -2 if RHD2216 devices are present so that the user can be reminded that RHD2216 devices consume 32 channels
 // of USB bus bandwidth.
 int RHXController::findConnectedChips(vector<ChipType> &chipType, vector<int> &portIndex, vector<int> &commandStream,
-                                      vector<int> &numChannelsOnPort, bool /* synthMaxChannels */)
+                                      vector<int> &numChannelsOnPort, bool /* synthMaxChannels */, bool returnToFastSettle,
+                                      bool usePreviousDelay, int selectedPort, int lastDetectedChip)
 {
     int returnValue = 1;    // return 1 == everything okay
     int maxNumStreams = maxNumDataStreams();
@@ -1783,6 +1785,11 @@ int RHXController::findConnectedChips(vector<ChipType> &chipType, vector<int> &p
         }
     }
 
+    if (type != ControllerStimRecord) {
+        // For RHD, switch all ports to AuxCmd3, bank 0 to make sure run occurs with calibration
+        selectAuxCommandBankAllPorts(AuxCmd3, 0);
+    }
+
     // Run the SPI interface for multiple command sequences (i.e., NRepeats data blocks).
     const int NRepeats = 12;
     RHXDataBlock dataBlock(type, getNumEnabledDataStreams());
@@ -1800,85 +1807,98 @@ int RHXController::findConnectedChips(vector<ChipType> &chipType, vector<int> &p
         }
     }
 
-    // Run SPI command sequence at all 16 possible FPGA MISO delay settings
-    // to find optimum delay for each SPI interface cable.
-    for (int delay = 0; delay < 16; ++delay) {
-        setCableDelay(PortA, delay);
-        setCableDelay(PortB, delay);
-        setCableDelay(PortC, delay);
-        setCableDelay(PortD, delay);
-        if (type == ControllerRecordUSB3) {
-            setCableDelay(PortE, delay);
-            setCableDelay(PortF, delay);
-            setCableDelay(PortG, delay);
-            setCableDelay(PortH, delay);
-        }
-        run();
-
-        // Wait for the run to complete.
-        while (isRunning()) {
-            std::this_thread::sleep_for(std::chrono::microseconds(100));
-        }
-
-        for (int i = 0; i < NRepeats; ++i) {
-            // Read one data block from the USB interface.
-            readDataBlock(&dataBlock);
-
-            // Read the Intan chip ID number from each RHD or RHS chip found.
-            // Record delay settings that yield good communication with the chip.
-            int register59Value;
-            for (int stream = 0; stream < maxMISOLines; stream++) {
-                int id = dataBlock.getChipID(stream, auxCmdSlot, register59Value);
-                if (id == (int)RHD2132Chip || id == (int)RHD2216Chip || id == (int)RHS2116Chip ||
-                    (id == (int)RHD2164Chip && register59Value == Register59MISOA)) {
-                    goodDelays[stream][delay] = goodDelays[stream][delay] + 1;
-                    chipTypeOld[stream] = (ChipType)id;
-                }
-            }
-        }
-    }
-
-    // Set cable delay settings that yield good communication with each chip.
     vector<int> optimumDelay(maxMISOLines, 0);
-    for (int stream = 0; stream < maxMISOLines; ++stream) {
-        int bestCount = -1;
+    if (!usePreviousDelay || previousDelay == -1) {
+        // Run SPI command sequence at all 16 possible FPGA MISO delay settings
+        // to find optimum delay for each SPI interface cable.
         for (int delay = 0; delay < 16; ++delay) {
-            if (goodDelays[stream][delay] > bestCount) {
-                bestCount = goodDelays[stream][delay];
+            setCableDelay(PortA, delay);
+            setCableDelay(PortB, delay);
+            setCableDelay(PortC, delay);
+            setCableDelay(PortD, delay);
+            if (type == ControllerRecordUSB3) {
+                setCableDelay(PortE, delay);
+                setCableDelay(PortF, delay);
+                setCableDelay(PortG, delay);
+                setCableDelay(PortH, delay);
             }
-        }
-        int numBest = 0;
-        for (int delay = 0; delay < 16; ++ delay) {
-            if (goodDelays[stream][delay] == bestCount) {
-                ++numBest;
+            run();
+
+            // Wait for the run to complete.
+            while (isRunning()) {
+                std::this_thread::sleep_for(std::chrono::microseconds(100));
             }
-        }
-        int bestDelay = -1;
-        if (numBest == 2 && (chipTypeOld[stream] == RHD2164Chip)) {
-            for (int delay = 15; delay >= 0; --delay) {  // DDR SPI from RHD2164 chip seems to work best with longer of two valid delays.
-                if (goodDelays[stream][delay] == bestCount) {
-                    bestDelay = delay;
-                    break;
-                }
-            }
-        } else {
-            for (int delay = 0; delay < 16; ++delay) {
-                if (goodDelays[stream][delay] == bestCount) {
-                    bestDelay = delay;
-                    break;
-                }
-            }
-            if (numBest > 2) {  // If 3 or more valid delays, don't use the longest or shortest.
-                for (int delay = bestDelay + 1; delay < 16; ++delay) {
-                    if (goodDelays[stream][delay] == bestCount) {
-                        bestDelay = delay;
-                        break;
+
+            for (int i = 0; i < NRepeats; ++i) {
+                // Read one data block from the USB interface.
+                readDataBlock(&dataBlock);
+
+                // Read the Intan chip ID number from each RHD or RHS chip found.
+                // Record delay settings that yield good communication with the chip.
+                int register59Value;
+                for (int stream = 0; stream < maxMISOLines; stream++) {
+                    int id = dataBlock.getChipID(stream, auxCmdSlot, register59Value);
+                    if (id == (int)RHD2132Chip || id == (int)RHD2216Chip || id == (int)RHS2116Chip ||
+                        (id == (int)RHD2164Chip && register59Value == Register59MISOA)) {
+                        goodDelays[stream][delay] = goodDelays[stream][delay] + 1;
+                        chipTypeOld[stream] = (ChipType)id;
                     }
                 }
             }
         }
 
-        optimumDelay[stream] = bestDelay;
+        // Set cable delay settings that yield good communication with each chip.
+        for (int stream = 0; stream < maxMISOLines; ++stream) {
+            int bestCount = -1;
+            for (int delay = 0; delay < 16; ++delay) {
+                if (goodDelays[stream][delay] > bestCount) {
+                    bestCount = goodDelays[stream][delay];
+                }
+            }
+            int numBest = 0;
+            for (int delay = 0; delay < 16; ++ delay) {
+                if (goodDelays[stream][delay] == bestCount) {
+                    ++numBest;
+                }
+            }
+            int bestDelay = -1;
+            if (numBest == 2 && (chipTypeOld[stream] == RHD2164Chip)) {
+                for (int delay = 15; delay >= 0; --delay) {  // DDR SPI from RHD2164 chip seems to work best with longer of two valid delays.
+                    if (goodDelays[stream][delay] == bestCount) {
+                        bestDelay = delay;
+                        break;
+                    }
+                }
+            } else {
+                for (int delay = 0; delay < 16; ++delay) {
+                    if (goodDelays[stream][delay] == bestCount) {
+                        bestDelay = delay;
+                        break;
+                    }
+                }
+                if (numBest > 2) {  // If 3 or more valid delays, don't use the longest or shortest.
+                    for (int delay = bestDelay + 1; delay < 16; ++delay) {
+                        if (goodDelays[stream][delay] == bestCount) {
+                            bestDelay = delay;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            optimumDelay[stream] = bestDelay;
+            if (chipTypeOld[stream] != NoChip) previousDelay = bestDelay;
+        }
+    }
+
+    else {
+        int convertedPortIndex = (int) (2 * selectedPort);
+        optimumDelay[convertedPortIndex] = previousDelay;
+        chipTypeOld[convertedPortIndex] = (ChipType) lastDetectedChip;
+        if (lastDetectedChip == RHD2164Chip) {
+            optimumDelay[convertedPortIndex + 1] = previousDelay;
+            chipTypeOld[convertedPortIndex + 1] = RHD2164MISOBChip;
+        }
     }
 
     setCableDelay(PortA, max(optimumDelay[0], optimumDelay[1]));
@@ -2002,6 +2022,11 @@ int RHXController::findConnectedChips(vector<ChipType> &chipType, vector<int> &p
         }
     }
 
+    if (type != ControllerStimRecord) {
+        // For RHD, switch all ports back to AuxCmd3 bank 1 or 2 to make sure run occurs without calibration
+        selectAuxCommandBankAllPorts(AuxCmd3, returnToFastSettle ? 2 : 1);
+    }
+
     return returnValue;
 }
 
@@ -2034,7 +2059,7 @@ int RHXController::getNumSPIPorts(okCFrontPanel* dev_, bool isUSB3, bool& expand
 
     // Now that 7310 is used for both Recording and Stim/Recording Controllers, isUSB3 is no longer a reliable marker of the correct
     // WireIn/Out addresses for these variables.
-    // TODO - clarify - actually, since initial board scan bit file is RHD 7310 file, we shouldn't use different RHS endpoints at this point.
+    // Since initial board scan bit file is RHD 7310 file, we shouldn't use different RHS endpoints at this point.
     // Once that actual RHS bit file is uploaded, those endpoints will be different, but at this point they will always be consistent with RHD.
     int WireOutSerialDigitalIn = endPointWireOutSerialDigitalIn(isUSB3);
     int WireInSerialDigitalInCntl = endPointWireInSerialDigitalInCntl(isUSB3);

@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.3.1
 //
 //  Copyright (c) 2020-2023 Intan Technologies
 //
@@ -35,7 +35,6 @@ MultiColumnDisplay::MultiColumnDisplay(ControllerInterface* controllerInterface_
     controllerInterface(controllerInterface_),
     state(state_)
 {
-    state->writeToLog("Beginning of MultiColumnDisplay ctor");
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 //    setFocusPolicy(Qt::StrongFocus);
 
@@ -54,30 +53,19 @@ MultiColumnDisplay::MultiColumnDisplay(ControllerInterface* controllerInterface_
     numRefreshZones[7] = 40;
     numRefreshZones[8] = 80;    // This index should equal state->tScale->numberOfItems() - 1.
 
-    state->writeToLog("About to create WaveformDisplayManager");
     waveformManager = new WaveformDisplayManager(state, 100, numRefreshZones[state->tScale->getIndex()]);
-    state->writeToLog("Created WaveformDisplayManager");
 
-    state->writeToLog("About to call addWaveforms()");
     addWaveforms();
-    state->writeToLog("Completed addWaveforms()");
 
-    state->writeToLog("About to call waveformManager->resetAll()");
     waveformManager->resetAll();
-    state->writeToLog("Completed waveformManager->resetAll()");
 
-    state->writeToLog("About to call addColumn(0)");
     addColumn(0);
-    state->writeToLog("Completed addColumn(0)");
 
-    state->writeToLog("About to call setDisplayForUndo()");
     state->signalSources->setDisplayForUndo(this);
-    state->writeToLog("completed setDisplayForUndo()");
 
     tScaleFormerIndex = state->tScale->getIndex();
     rollModeFormerValue = state->rollMode->getValue();
     connect(state, SIGNAL(stateChanged()), this, SLOT(updateFromState()));
-    state->writeToLog("End of MultiColumnDisplay ctor");
 }
 
 MultiColumnDisplay::~MultiColumnDisplay()
@@ -99,33 +87,23 @@ int MultiColumnDisplay::numVisibleColumns() const
 
 bool MultiColumnDisplay::addColumn(int position)
 {
-    state->writeToLog("Beginning of addColumn(0)");
     if (numColumns() == MaxNumColumns) {
-        state->writeToLog("numColumns == MaxNumColumns end");
         return false;
     }
     if (position < 0 || position > numColumns()) {
-        state->writeToLog("position < 0 or position > numColumns end. position: " + QString::number(position));
         return false;
     }
 
-    state->writeToLog("About to call clearUndoStack()");
     state->signalSources->undoManager->clearUndoStack();
-    state->writeToLog("Completed clearUndoStack()");
 
-    state->writeToLog("About to create WaveformDisplayColumn");
     WaveformDisplayColumn* newColumn = new WaveformDisplayColumn(position, waveformManager, controllerInterface, state, this);
-    state->writeToLog("Created WaveformDisplayColumn. About to insert newColumn");
     displayColumns.insert(position, newColumn);
-    state->writeToLog("Inserted newColumn");
 
     QList<QString> pinnedList;
     state->pinnedWaveforms.insert(position, pinnedList);
 
-    state->writeToLog("About to call updateColumnIndices() and updateLayout()");
     updateColumnIndices();
     updateLayout();
-    state->writeToLog("Completed updateColumnIndices() and updateLayout()");
     waveformManager->numColumns = displayColumns.size();
     waveformManager->needsFullRedraw = true;
     waveformManager->needsFullReset = true;
@@ -246,14 +224,11 @@ void MultiColumnDisplay::updateForRescan()
 
 void MultiColumnDisplay::addWaveforms()
 {
-    state->writeToLog("Beginning of addWaveforms()");
     // Add all waveforms to waveform manager.
     bool isStim = state->getControllerTypeEnum() == ControllerStimRecord;
     QStringList groupList = state->signalSources->populatedGroupList();
-    state->writeToLog("About to enter groupList for loop. groupList size: " + QString::number(groupList.size()));
     for (int i = 0; i < groupList.size(); ++i) {
         QString groupName = groupList.at(i);
-        state->writeToLog("groupName: " + groupName);
         if (groupName.left(5).toLower() == "port ") {
             // Headstage port
             QStringList amplifierList = state->signalSources->getDisplayListAmplifiersNoFilters(groupName);
@@ -283,7 +258,6 @@ void MultiColumnDisplay::addWaveforms()
             }
         }
     }
-    state->writeToLog("End of addWaveforms()");
 }
 
 void MultiColumnDisplay::updateFromState()
@@ -348,6 +322,28 @@ YScaleUsed MultiColumnDisplay::loadWaveformDataFromMemory(WaveformFifo* waveform
     waveformManager->prepForLoadingOldData(startTime);
     for (int i = 0; i < numColumns(); ++i) {
         displayColumns[i]->loadWaveformDataFromMemory(waveformFifo, startTime, loadAll);
+    }
+    return waveformManager->finishLoading();
+}
+
+YScaleUsed MultiColumnDisplay::loadWaveformDataDirectAmp(QVector<QVector<QVector<double>>> &ampData, QVector<QVector<QString>> &ampChannelNames)
+{
+    waveformManager->resetAll();
+    waveformManager->prepForLoadingDataDirect();
+    for (int i = 0; i < numColumns(); ++i) {
+        displayColumns[i]->loadWaveformDataDirect(ampData, ampChannelNames);
+    }
+    return waveformManager->finishLoading();
+}
+
+YScaleUsed MultiColumnDisplay::loadWaveformDataDirectAmpDC(QVector<QVector<QVector<double>>> &ampData, QVector<QVector<QString>> &ampChannelNames,
+                                                           QVector<QVector<QVector<double>>> &dcData, QVector<QVector<QString>> &dcChannelNames)
+{
+    waveformManager->resetAll();
+    waveformManager->prepForLoadingDataDirect();
+    for (int i = 0; i < numColumns(); ++i) {
+        displayColumns[i]->loadWaveformDataDirect(ampData, ampChannelNames);
+        displayColumns[i]->loadWaveformDataDirect(dcData, dcChannelNames);
     }
     return waveformManager->finishLoading();
 }

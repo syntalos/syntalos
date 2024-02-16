@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.3.1
 //
 //  Copyright (c) 2020-2023 Intan Technologies
 //
@@ -41,7 +41,6 @@ WaveformDisplayColumn::WaveformDisplayColumn(int columnIndex_, WaveformDisplayMa
     controllerInterface(controllerInterface_),
     state(state_)
 {
-    state->writeToLog("Beginning of WaveformDisplayColumn ctor");
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 //    setFocusPolicy(Qt::StrongFocus);
 
@@ -49,17 +48,15 @@ WaveformDisplayColumn::WaveformDisplayColumn(int columnIndex_, WaveformDisplayMa
     deleteButtonEnabled = true;
     pinnedShown = true;
 
-    state->writeToLog("About to create portComboBox");
     portComboBox = new QComboBox(this);
     portComboBox->addItems(state->signalSources->populatedGroupListWithChannelCounts());
-    state->writeToLog("Created portComboBox");
 
-    state->writeToLog("About to create MultiWaveformPlot");
     waveformPlot = new MultiWaveformPlot(columnIndex, waveformManager, controllerInterface, state, this);
-    state->writeToLog("Created MultiWaveformPlot");
     connect(portComboBox, SIGNAL(currentIndexChanged(QString)), waveformPlot, SLOT(updateFromState()));
+    if (state->testMode->getValue()) {
+        portComboBox->setFocusProxy(waveformPlot);
+    }
 
-    state->writeToLog("About to create QToolButtons");
     hideColumnButton = new QToolButton(this);
     hideColumnButton->setIcon(QIcon(":/images/collapseicon.png"));
     hideColumnButton->setToolTip(tr("Hide Column"));
@@ -91,10 +88,19 @@ WaveformDisplayColumn::WaveformDisplayColumn(int columnIndex_, WaveformDisplayMa
     deleteColumnButton->setToolTip(tr("Delete Column"));
     connect(deleteColumnButton, SIGNAL(clicked()), this, SLOT(deleteColumn()));
 
-    pinWaveformButton = new QToolButton(this);
-    pinWaveformButton->setIcon(QIcon(":/images/thumbtackdownicon.png"));
-    pinWaveformButton->setToolTip(tr("Add Pinned Waveform"));
-    connect(pinWaveformButton, SIGNAL(clicked()), waveformPlot, SLOT(openWaveformSelectDialog()));
+    if (state->testMode->getValue()) {
+        pinWaveformButton = nullptr;
+        showPinnedCheckBox = nullptr;
+    } else {
+        pinWaveformButton = new QToolButton(this);
+        pinWaveformButton->setIcon(QIcon(":/images/thumbtackdownicon.png"));
+        pinWaveformButton->setToolTip(tr("Add Pinned Waveform"));
+        connect(pinWaveformButton, SIGNAL(clicked()), waveformPlot, SLOT(openWaveformSelectDialog()));
+
+        showPinnedCheckBox = new QCheckBox(tr("show pinned"), this);
+        showPinnedCheckBox->setChecked(true);
+        connect(showPinnedCheckBox, SIGNAL(clicked()), this, SLOT(showPinnedWaveformsSlot()));
+    }
 
     lessSpacingButton = new QToolButton(this);
     lessSpacingButton->setIcon(QIcon(":/images/lessspacingicon.png"));
@@ -106,29 +112,23 @@ WaveformDisplayColumn::WaveformDisplayColumn(int columnIndex_, WaveformDisplayMa
     moreSpacingButton->setToolTip(tr("More Spacing"));
     connect(moreSpacingButton, SIGNAL(clicked()), waveformPlot, SLOT(increaseSpacing()));
 
-    showPinnedCheckBox = new QCheckBox(tr("show pinned"), this);
-    showPinnedCheckBox->setChecked(true);
-    connect(showPinnedCheckBox, SIGNAL(clicked()), this, SLOT(showPinnedWaveformsSlot()));
-
-    state->writeToLog("Created QToolButtons");
-
     QHBoxLayout* toolRow = new QHBoxLayout;
     toolRow->addWidget(showColumnButton);
     toolRow->addWidget(hideColumnButton);
     toolRow->addWidget(portComboBox);
     toolRow->addWidget(moveLeftButton);
     toolRow->addWidget(moveRightButton);
-    toolRow->addWidget(pinWaveformButton);
-    toolRow->addWidget(showPinnedCheckBox);
+    if (!state->testMode->getValue()) {
+        toolRow->addWidget(pinWaveformButton);
+        toolRow->addWidget(showPinnedCheckBox);
+    }
     toolRow->addWidget(lessSpacingButton);
     toolRow->addWidget(moreSpacingButton);
     toolRow->addStretch(1);
     toolRow->addWidget(addColumnButton);
     toolRow->addWidget(deleteColumnButton);
 
-    state->writeToLog("About to create verticalSpacer");
     verticalSpacer = new QSpacerItem(1, 0, QSizePolicy::Fixed, QSizePolicy::Fixed);
-    state->writeToLog("Created verticalSpacer. About to set main layout");
 
     QVBoxLayout* mainLayout = new QVBoxLayout;
     mainLayout->addWidget(waveformPlot);
@@ -138,7 +138,6 @@ WaveformDisplayColumn::WaveformDisplayColumn(int columnIndex_, WaveformDisplayMa
     mainLayout->setSpacing(1);
 
     setLayout(mainLayout);
-    state->writeToLog("Set main layout. End of ctor");
 
     if (state->running) updateForRun();
 }
@@ -178,8 +177,10 @@ void WaveformDisplayColumn::hideColumn()
     portComboBox->hide();
     moveLeftButton->hide();
     moveRightButton->hide();
-    pinWaveformButton->hide();
-    showPinnedCheckBox->hide();
+    if (!state->testMode->getValue()) {
+        pinWaveformButton->hide();
+        showPinnedCheckBox->hide();
+    }
     lessSpacingButton->hide();
     moreSpacingButton->hide();
     addColumnButton->hide();
@@ -209,8 +210,10 @@ void WaveformDisplayColumn::showColumn()
     portComboBox->show();
     moveLeftButton->show();
     moveRightButton->show();
-    pinWaveformButton->show();
-    showPinnedCheckBox->show();
+    if (!state->testMode->getValue()) {
+        pinWaveformButton->show();
+        showPinnedCheckBox->show();
+    }
     lessSpacingButton->show();
     moreSpacingButton->show();
     addColumnButton->show();
@@ -266,6 +269,7 @@ void WaveformDisplayColumn::moveColumnRight()
 
 void WaveformDisplayColumn::showPinnedWaveformsSlot()
 {
+    if (state->testMode->getValue()) return;
     state->signalSources->undoManager->pushStateToUndoStack();
     bool show = showPinnedCheckBox->checkState() != Qt::Unchecked;
     waveformPlot->showPinnedWaveforms(show);
@@ -274,6 +278,7 @@ void WaveformDisplayColumn::showPinnedWaveformsSlot()
 
 void WaveformDisplayColumn::setShowPinnedWaveforms(bool show)
 {
+    if (state->testMode->getValue()) return;
     showPinnedCheckBox->setChecked(show);
     waveformPlot->showPinnedWaveforms(show);
     pinnedShown = show;

@@ -1,5 +1,6 @@
 
 intanrhx_gui_hdr = files([
+    'Widgets/abstractpanel.h',
     'Widgets/smartspinbox.h',
     'Widgets/controlpaneltriggertab.h',
     'Widgets/controlpanelconfiguretab.h',
@@ -31,6 +32,7 @@ intanrhx_gui_hdr = files([
     'Widgets/psthplot.h',
     'Widgets/controlpanel.h',
     'Widgets/scrollbar.h',
+    'Widgets/testcontrolpanel.h',
     'Dialogs/advancedstartupdialog.h',
     'Dialogs/setthresholdsdialog.h',
     'Dialogs/renamechanneldialog.h',
@@ -67,6 +69,7 @@ intanrhx_gui_hdr = files([
 ])
 
 intanrhx_gui_src = files([
+    'Widgets/abstractpanel.cpp',
     'Widgets/waveformdisplaymanager.cpp',
     'Widgets/multiwaveformplot.cpp',
     'Widgets/tcpdisplay.cpp',
@@ -98,6 +101,7 @@ intanrhx_gui_src = files([
     'Widgets/spikegradient.cpp',
     'Widgets/impedancegradient.cpp',
     'Widgets/spectrogramplot.cpp',
+    'Widgets/testcontrolpanel.cpp',
     'Dialogs/advancedstartupdialog.cpp',
     'Dialogs/renamechanneldialog.cpp',
     'Dialogs/scrollablemessageboxdialog.cpp',

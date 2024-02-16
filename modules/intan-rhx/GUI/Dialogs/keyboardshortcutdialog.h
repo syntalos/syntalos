@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.3.1
 //
 //  Copyright (c) 2020-2023 Intan Technologies
 //
@@ -38,6 +38,9 @@ class KeyboardShortcutDialog : public QDialog
     Q_OBJECT
 public:
     explicit KeyboardShortcutDialog(QWidget *parent = nullptr); 
+
+protected:
+    void keyPressEvent(QKeyEvent* event) override;
 };
 
 #endif // KEYBOARDSHORTCUTDIALOG_H

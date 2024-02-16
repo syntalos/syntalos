@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.3.1
 //
 //  Copyright (c) 2020-2023 Intan Technologies
 //
@@ -293,9 +293,14 @@ void TCPDisplay::updateFromState()
 
 void TCPDisplay::processNewCommandConnection()
 {
+    static bool firstCommandConnection = true;
     if (state->tcpCommandCommunicator->connectionAvailable()) {
         state->tcpCommandCommunicator->establishConnection();
-        connect(state->tcpCommandCommunicator, SIGNAL(readyRead()), this, SLOT(readClientCommand()), Qt::QueuedConnection);
+        if (firstCommandConnection) {
+            connect(state->tcpCommandCommunicator, SIGNAL(readyRead()), this, SLOT(readClientCommand()), Qt::QueuedConnection);
+        }
+        firstCommandConnection = false;
+        //connect(state->tcpCommandCommunicator, SIGNAL(readyRead()), this, SLOT(readClientCommand()), Qt::QueuedConnection); // Possible to connect multiple times, causing repeated slot executions
     }
 }
 

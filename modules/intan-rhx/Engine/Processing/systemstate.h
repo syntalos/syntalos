@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.3.1
 //
 //  Copyright (c) 2020-2023 Intan Technologies
 //
@@ -91,7 +91,7 @@ class SystemState : public QObject
 {
     Q_OBJECT
 public:
-    SystemState(const AbstractRHXController* controller_, StimStepSize stimStepSize_, int numSPIPorts_, bool expanderConnected_, DataFileReader* dataFileReader_=nullptr);
+    SystemState(const AbstractRHXController* controller_, StimStepSize stimStepSize_, int numSPIPorts_, bool expanderConnected_, bool testMode_=false, DataFileReader* dataFileReader_=nullptr);
     ~SystemState();
 
     AmplifierSampleRate getSampleRateEnum() const;
@@ -150,6 +150,7 @@ public:
     DiscreteItemList* stimStepSize;
     int numSPIPorts;  // no direct relation to commands - should leave as is
     BooleanItem* expanderConnected;
+    BooleanItem *testMode;
     int highDPIScaleFactor;  // scale factor for high-DPI monitors (e.g., Retina displays)
     QRect availableScreenResolution;
 
@@ -382,6 +383,10 @@ public:
     FilenameItemList stateFilenameItems;
 
     IntanRhxModule *syMod;
+
+    BooleanItem *usePreviousDelay;
+    IntRangeItem *previousDelaySelectedPort;
+    IntRangeItem *lastDetectedChip;
 
     int64_t getPlaybackBlocks();
     void setLastTimestamp(int timestamp) { lastTimestamp = timestamp; }

@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.3.1
 //
 //  Copyright (c) 2020-2023 Intan Technologies
 //
@@ -44,6 +44,7 @@
 #include "setfileformatdialog.h"
 #include "triggerrecorddialog.h"
 #include "controlpanel.h"
+#include "testcontrolpanel.h"
 #include "multicolumndisplay.h"
 #include "tcpdisplay.h"
 #include "commandparser.h"
@@ -63,7 +64,7 @@ class ControlWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    ControlWindow(SystemState* state_, CommandParser* parser_, ControllerInterface* controllerInterface_);
+    ControlWindow(SystemState* state_, CommandParser* parser_, ControllerInterface* controllerInterface_, AbstractRHXController* rhxController_);
     ~ControlWindow();
 
     void dragEnterEvent(QDragEnterEvent *event) override;
@@ -80,6 +81,12 @@ public:
 
     QByteArray globalSettingsAsByteArray();
     bool globalSettingsFromByteArray(const QByteArray &settings);
+
+    void updateForLoad();
+    void updateForStop();
+    QString getDisplaySettingsString();
+
+    XMLInterface* stimParametersInterface;
 
 signals:
     void sendSetCommand(QString parameter, QString value);
@@ -100,7 +107,7 @@ signals:
 public slots:
     void updateFromState();
     void updateForChangeHeadstages();
-    void updateTimeLabel(QString text) { timeLabel->setText("<b>" + text + "</b>"); }
+    void updateTimeLabel(QString text) { if (state->testMode->getValue()) return; timeLabel->setText("<b>" + text + "</b>"); }
     void updateTopStatusLabel(QString text) { topStatusLabel->setText(text); }
     void updateStatusBar(QString text) { statusBarLabel->setText(text); }
     void queueErrorMessage(QString errorMessage) { queuedErrorMessage = errorMessage; }
@@ -199,6 +206,7 @@ protected:
 private:
     SystemState* state;
     ControllerInterface* controllerInterface;
+    AbstractRHXController* rhxController;
     CommandParser* parser;
 
     QToolButton *showControlPanelButton;
@@ -304,7 +312,7 @@ private:
 
     StatusBars* statusBars;
 
-    ControlPanel *controlPanel;
+    AbstractPanel *controlPanel;
 
     MultiColumnDisplay *multiColumnDisplay;
 
@@ -315,8 +323,6 @@ private:
     QHBoxLayout *showHideRow;
 
     QSpacerItem *showHideStretch;
-
-    XMLInterface* stimParametersInterface;
 
     StimParametersClipboard *stimClipboard;
 
@@ -332,8 +338,6 @@ private:
     void updateForFilename(bool valid);
     void updateLiveNotesDialog();
     void updateForRun();
-    void updateForLoad();
-    void updateForStop();
 
     void createActions();
     void createMenus();

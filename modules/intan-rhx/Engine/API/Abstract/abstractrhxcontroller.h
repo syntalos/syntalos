@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.3.1
 //
 //  Copyright (c) 2020-2023 Intan Technologies
 //
@@ -213,7 +213,8 @@ public:
     virtual void uploadCommandList(const vector<unsigned int> &commandList, AuxCmdSlot auxCommandSlot, int bank) = 0;
 
     virtual int findConnectedChips(vector<ChipType> &chipType, vector<int> &portIndex, vector<int> &commandStream,
-                                   vector<int> &numChannelsOnPort, bool synthMaxChannels = false) = 0;
+                                   vector<int> &numChannelsOnPort, bool synthMaxChannels = false, bool returnToFastSettle = false,
+                                   bool usePreviousDelay = false, int selectedPort = 0, int lastDetectedChip = -1) = 0;
 
     int pipeReadError() const { return pipeReadErrorCode; }
 

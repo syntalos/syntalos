@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.3.1
 //
 //  Copyright (c) 2020-2023 Intan Technologies
 //
@@ -58,6 +58,7 @@ void SaveToDiskThread::run()
 {
     const int NumSamples = RHXDataBlock::samplesPerDataBlock(state->getControllerTypeEnum());
     int bytesPerMinute = 0;
+    const QString saveFileErrorMessage = "Could not open save file(s). Please check that the provided filename is valid, the provided path location exists, and that the location doesn't require elevated permissions to write to.";
 
     boardDigitalInWaveform = waveformFifo->getDigitalWaveformPointer("DIGITAL-IN-WORD");
     boardAdcWaveform.resize(AbstractRHXController::numAnalogIO(state->getControllerTypeEnum(), state->expanderConnected->getValue()));
@@ -105,8 +106,10 @@ void SaveToDiskThread::run()
                 if (!isRecording && state->recording) {     // Manual start recording.
 //                    cout << "MANUAL START RECORD" << EndOfLine;
                     if (!saveManager->openAllSaveFiles()) {
-                        emit error("Could not open save file(s)");
+                        emit error(saveFileErrorMessage);
                         emit sendSetCommand("RunMode", "Stop");
+                        close();
+                        break;
                     } else {
                         isRecording = true;
                         totalRecordedSamples = 0;
@@ -132,8 +135,10 @@ void SaveToDiskThread::run()
                             state->triggerSet = false;
                             state->recording = true;
                             if (!saveManager->openAllSaveFiles()) {
-                                emit error("Could not open save file(s)");
+                                emit error(saveFileErrorMessage);
                                 emit sendSetCommand("RunMode", "Stop");
+                                close();
+                                break;
                             } else {
                                 isRecording = true;
                                 triggerBeginCounter = 0;
@@ -217,8 +222,10 @@ void SaveToDiskThread::run()
 //                                    cout << "TIME LIMIT REACHED; STARTING NEW FILE" << endl;
                                     saveManager->closeAllSaveFiles();
                                     if (!saveManager->openAllSaveFiles()) {
-                                        emit error("Could not open save file(s)");
+                                        emit error(saveFileErrorMessage);
                                         emit sendSetCommand("RunMode", "Stop");
+                                        close();
+                                        break;
                                     } else {
                                         totalSamplesInFile = 0;
                                         bytesPerMinute = saveManager->bytesPerMinute();

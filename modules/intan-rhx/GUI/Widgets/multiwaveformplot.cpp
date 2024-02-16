@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.3.1
 //
 //  Copyright (c) 2020-2023 Intan Technologies
 //
@@ -45,15 +45,14 @@ MultiWaveformPlot::MultiWaveformPlot(int columnIndex_, WaveformDisplayManager* w
     state(state_),
     parent(parent_)
 {
-    state->writeToLog("Beginning of MultiWaveformPlot ctor");
     setBackgroundRole(QPalette::Window);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    state->writeToLog("About to set minimum size. x size: " + QString::number(MINIMUM_X_SIZE_MULTIWAVEFORM_PLOT) + " ... y size: " + QString::number(MINIMUM_Y_SIZE_MULTIWAVEFORM_PLOT));
     setMinimumSize(MINIMUM_X_SIZE_MULTIWAVEFORM_PLOT, MINIMUM_Y_SIZE_MULTIWAVEFORM_PLOT);
-    state->writeToLog("Completed setMinimumSize()");
     setMouseTracking(true);  // If we don't do this, mouseMoveEvent() is active only when mouse button is pressed.
-    setFocusPolicy(Qt::StrongFocus);
-    QApplication::focusWidget();
+    if (!state->testMode->getValue()) {
+        setFocusPolicy(Qt::StrongFocus);
+        QApplication::focusWidget();
+    }
 
     waveformSelectDialog = nullptr;
 
@@ -71,9 +70,7 @@ MultiWaveformPlot::MultiWaveformPlot(int columnIndex_, WaveformDisplayManager* w
     numFiltersDisplayed = 0;
     arrangeByFilter = false;
 
-    state->writeToLog("About to create DisplayListManager");
     listManager = new DisplayListManager(displayList, pinnedList, state);
-    state->writeToLog("Created DisplayListManager");
 
     int fontSize = 8;
     if (state->highDPIScaleFactor > 1) fontSize = 12;
@@ -105,14 +102,10 @@ MultiWaveformPlot::MultiWaveformPlot(int columnIndex_, WaveformDisplayManager* w
     regionLabels.resize(numLabelWidths);
     regionTimeAxis.resize(numLabelWidths);
 
-    state->writeToLog("About to call calculateScreenRegions()");
     calculateScreenRegions();
-    state->writeToLog("Completed calculateScreenRegions(). About to call updateFromState()");
     updateFromState();
-    state->writeToLog("Completed updateFromState(). About to create ScrollBar");
 
     scrollBar = new ScrollBar(regionScrollBar, parent->numPorts(), this);
-    state->writeToLog("Created ScrollBar");
 
     saveBadge = QImage(":/images/save_badge.png");
     stimBadge = QImage(":/images/stim_enabled_badge.png");
@@ -124,14 +117,12 @@ MultiWaveformPlot::MultiWaveformPlot(int columnIndex_, WaveformDisplayManager* w
     image = QImage(size(), QImage::Format_ARGB32_Premultiplied);
     corePixmap = QPixmap(size());
     fullPixmap = QPixmap(size());
-    state->writeToLog("Created various QImages");
 
 //    contextMenu = nullptr;
 //    enableAction = new QAction(tr("Toggle enable"), this);
 //    connect(enableAction, SIGNAL(triggered()), this, SLOT(enableSlot()));
 
     connect(state, SIGNAL(stateChanged()), this, SLOT(updateFromState()));
-    state->writeToLog("End of MultiWaveformPlot ctor");
 }
 
 MultiWaveformPlot::~MultiWaveformPlot()
@@ -146,37 +137,25 @@ MultiWaveformPlot::~MultiWaveformPlot()
 
 void MultiWaveformPlot::calculateScreenRegions()
 {
-    state->writeToLog("Beginning of calculateScreenRegions()");
     int xSize = width();
     int ySize = height();
-    state->writeToLog("xSize: " + QString::number(xSize) + " ... ySize: " + QString::number(ySize));
 
     int xScrollBarLeft = xSize - 18;
     int yWaveformTop = labelHeight + 10;
     int yWaveformBottom = ySize - 8;
-    state->writeToLog("xScrollBarLeft: " + QString::number(xScrollBarLeft) + " ... yWaveformTop: " + QString::number(yWaveformTop) + " ... yWaveformBottom: " + QString::number(yWaveformBottom));
 
-    state->writeToLog("About to enter for loop. label width number of items: " + QString::number(state->labelWidth->numberOfItems()));
     for (int i = 0; i < state->labelWidth->numberOfItems(); ++i) {
-        state->writeToLog("RegionWaveforms[i]... i: " + QString::number(i) + " ... x: " + QString::number(labelWidth[i]) + " ... y: " + QString::number(yWaveformTop) + " ... width: " + QString::number(xScrollBarLeft - labelWidth[i] - 1) + " ... height: " + QString::number(yWaveformBottom - yWaveformTop));
         regionWaveforms[i] = QRect(labelWidth[i], yWaveformTop, xScrollBarLeft - labelWidth[i] - 1,
                                    yWaveformBottom - yWaveformTop);
-        state->writeToLog("RegionLabels[i]... x: 0 ... y: " + QString::number(yWaveformTop) + " ... width: " + QString::number(labelWidth[i]) + " ... height: " + QString::number(yWaveformBottom - yWaveformTop));
         regionLabels[i] = QRect(0, yWaveformTop, labelWidth[i], yWaveformBottom - yWaveformTop);
-        state->writeToLog("RegionTimeAxis[i]... x: " + QString::number(labelWidth[i]) + " ... y: 0 ... width: " + QString::number(xScrollBarLeft - labelWidth[i] - 1) + " ... height: " + QString::number(yWaveformTop + 3));
         regionTimeAxis[i] = QRect(labelWidth[i], 0, xScrollBarLeft - labelWidth[i] - 1, yWaveformTop + 3);
     }
-    state->writeToLog("regionAboveLabels... x: 0 ... y: 0 ... width: " + QString::number(xSize) + " ... height: " + QString::number(yWaveformTop));
     regionAboveLabels = QRect(0, 0, xSize, yWaveformTop);
-    state->writeToLog("regionBelowLabels... x: 0 ... y: " + QString::number(yWaveformBottom) + " ... width: " + QString::number(xSize) + " ... height: " + QString::number(ySize - yWaveformBottom));
     regionBelowLabels = QRect(0, yWaveformBottom, xSize, ySize - yWaveformBottom);
-    state->writeToLog("regionScrollBar... x: " + QString::number(xScrollBarLeft) + " ... y: " + QString::number(yWaveformTop + 4) + " ... width: 14 ... height: " + QString::number(yWaveformBottom - yWaveformTop - 5));
     regionScrollBar = QRect(xScrollBarLeft, yWaveformTop + 4, 14, yWaveformBottom - yWaveformTop - 5);
-    state->writeToLog("regionUnpinSymbols... x: " + QString::number(xScrollBarLeft) + " ... y: " + QString::number(yWaveformTop) + " ... width: 15 ... height: 1");
     regionUnpinSymbols = QRect(xScrollBarLeft, yWaveformTop, 15, 1);
 
     parent->setWaveformWidth(regionWaveforms[state->labelWidth->getIndex()].width());
-    state->writeToLog("End of calculateScreenRegions()");
 }
 
 QSize MultiWaveformPlot::minimumSizeHint() const
@@ -191,12 +170,9 @@ QSize MultiWaveformPlot::sizeHint() const
 
 void MultiWaveformPlot::updateFromState()
 {
-    state->writeToLog("Beginning of updateFromState()");
     int labelWidthIndex = state->labelWidth->getIndex();
     if (labelWidthIndex != labelWidthIndexOld) {
         labelWidthIndexOld = labelWidthIndex;
-        state->writeToLog("Updated labelwidthindex. new index: " + QString::number(labelWidthIndex));
-        state->writeToLog("About to set waveform width. width: " + QString::number(regionWaveforms[labelWidthIndex].width()));
         parent->setWaveformWidth(regionWaveforms[labelWidthIndex].width());
     }
 
@@ -207,9 +183,7 @@ void MultiWaveformPlot::updateFromState()
     QStringList supplyVoltageWaveforms = state->signalSources->getDisplayListSupplyVoltages(selectedPort);
     QStringList baseWaveforms = state->signalSources->getDisplayListBaseGroup(selectedPort);
 
-    state->writeToLog("About to populate display list");
     listManager->populateDisplayList(displayWaveforms, auxInputWaveforms, supplyVoltageWaveforms, baseWaveforms);
-    state->writeToLog("Populated display list");
 
     numFiltersDisplayed = 0;
     if (state->filterDisplay1->getValue() != "None") ++numFiltersDisplayed;
@@ -268,7 +242,6 @@ void MultiWaveformPlot::updateFromState()
     }
 
     update();
-    state->writeToLog("End of updateFromState()");
 }
 
 void MultiWaveformPlot::openWaveformSelectDialog()
@@ -1155,9 +1128,13 @@ void MultiWaveformPlot::keyPressEvent(QKeyEvent* event)
         switch (event->key()) {
 
         case Qt::Key_Space:  // Space bar: Toggle waveform enable.
-            state->signalSources->undoManager->pushStateToUndoStack();
-            listManager->toggleSelectedWaveforms();
-            needToUpdateState = true;
+            if (!state->testMode->getValue()) {
+                state->signalSources->undoManager->pushStateToUndoStack();
+                listManager->toggleSelectedWaveforms();
+                needToUpdateState = true;
+            } else {
+                QWidget::keyPressEvent(event);
+            }
             break;
 
         case Qt::Key_P:
@@ -1632,6 +1609,44 @@ void MultiWaveformPlot::loadWaveformDataFromMemory(WaveformFifo* waveformFifo, i
     // Note: repaint() seems to give slightly smoother animation than update(), but may cause "QWidget::repaint.
     // Recursive repaint detected" crash when columns are added.
 //    repaint();
+    update();
+}
+
+void MultiWaveformPlot::loadWaveformDataDirect(QVector<QVector<QVector<double>>> &ampData, QVector<QVector<QString>> &ampChannelNames)
+{
+    for (int i = 0; i < pinnedList.size(); ++i) {
+        if (pinnedList.at(i).isCurrentlyVisible) {
+
+            // Get this channel's name
+            QString name = pinnedList.at(i).waveName;
+
+            // Find this channel in ampDataNames to get its tream and channel index
+            for (int stream = 0; stream < ampData.size(); ++stream) {
+                for (int channel = 0; channel < ampData[stream].size(); ++channel) {
+                    if (name == ampChannelNames[stream][channel]) {
+                        waveformManager->loadDataDirect(ampData[stream][channel], ampChannelNames[stream][channel]); // Pass the 1-D vector of ampData specifically for this channel
+                    }
+                }
+            }
+        }
+    }
+
+    for (int i = 0; i < displayList.size(); ++i) {
+        if (displayList.at(i).isCurrentlyVisible && !displayList.at(i).isDivider()) {
+
+            // Get this channel's name
+            QString name = displayList.at(i).waveName;
+
+            // Find this channel in ampDataNames to get its stream and channel index
+            for (int stream = 0; stream < ampData.size(); ++stream) {
+                for (int channel = 0; channel < ampData[stream].size(); ++channel) {
+                    if (name == ampChannelNames[stream][channel]) {
+                        waveformManager->loadDataDirect(ampData[stream][channel], ampChannelNames[stream][channel]); // Pass the 1-D vector of ampData specifically for this channel
+                    }
+                }
+            }
+        }
+    }
     update();
 }
 

@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.3.1
 //
 //  Copyright (c) 2020-2023 Intan Technologies
 //
@@ -53,6 +53,8 @@ TCPDataOutputThread::~TCPDataOutputThread()
 
 void TCPDataOutputThread::run()
 {
+    uint32_t lastTimestamp = 0;
+    uint32_t timestamp = 0;
     while (!stopThread) {
         if (keepGoing) {
             running = true;
@@ -99,8 +101,14 @@ void TCPDataOutputThread::run()
                                 waveformArray.replace(waveformArrayIndex, sizeof(TCPWaveformMagicNumber), (const char*)(&TCPWaveformMagicNumber), sizeof(TCPWaveformMagicNumber));
                                 waveformArrayIndex += sizeof(TCPWaveformMagicNumber);
                             }
-                            uint32_t timestamp = waveformFifo->getTimeStamp(WaveformFifo::ReaderTCP, i);
+                            lastTimestamp = timestamp;
+                            timestamp = waveformFifo->getTimeStamp(WaveformFifo::ReaderTCP, i);
+                            //uint32_t timestamp = waveformFifo->getTimeStamp(WaveformFifo::ReaderTCP, i);
                             waveformArray.replace(waveformArrayIndex, sizeof(timestamp), (const char*)(&timestamp), sizeof(timestamp));
+                            if (timestamp != lastTimestamp + 1) {
+                                qDebug() << "discontinuity in timestamps. timestamp: " << timestamp << " last timestamp: " << lastTimestamp << "i: " << i;
+                            }
+                            //qDebug() << "timestamp: " << timestamp << " size of timestamp: " << sizeof(timestamp) << " waveform array index: " << waveformArrayIndex << "i: " << i;
                             waveformArrayIndex += sizeof(timestamp);
 
                             // Grab digital in word and digital out word

@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.3.1
 //
 //  Copyright (c) 2020-2023 Intan Technologies
 //
@@ -47,15 +47,19 @@ public:
     void updateForLoad();
     void updateForStop();
 
+    QCheckBox *fastSettleCheckBox;
+
 signals:
     void sendExecuteCommand(QString);
     void sendNoteCommand(QString);
 
+public slots:
+    void rescanPorts(bool usePreviousDelay=false, int selectedPort=0);
+    void enableFastSettle(bool enable);
+
 private slots:
-    void rescanPorts();
     void manualCableDelayControl();
     void configDigOutControl();
-    void enableFastSettle(bool enable);
     void enableExternalFastSettle(bool enable);
     void setExternalFastSettleChannel(int channel);
     void addLiveNote();
@@ -73,7 +77,6 @@ private:
     QPushButton *setCableDelayButton;
     QPushButton *digOutButton;
 
-    QCheckBox *fastSettleCheckBox;
     QCheckBox *externalFastSettleCheckBox;
     QSpinBox *externalFastSettleSpinBox;
 

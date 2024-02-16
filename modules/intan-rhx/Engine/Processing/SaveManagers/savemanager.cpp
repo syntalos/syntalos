@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.3.1
 //
 //  Copyright (c) 2020-2023 Intan Technologies
 //
@@ -123,7 +123,7 @@ int64_t SaveManager::writeIntanFileHeader(SaveFile* saveFile)
 void SaveManager::writeLiveNote(const QString& note, int64_t numSamplesRecorded)
 {
     if (!liveNotesFile) {  // If live notes file has not yet been created, do so now.
-        liveNotesFile = new SaveFile(liveNotesFileName, 128);
+        liveNotesFile = new SaveFile((liveNotesFileName.chopped(4) + saveFileDateTimeStamp() + ".txt"), 128);
         if (!state->note1->getValueString().isEmpty()) {
             writeLiveNoteEntry(0, state->note1->getValueString());
         }

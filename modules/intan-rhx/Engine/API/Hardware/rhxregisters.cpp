@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.3.1
 //
 //  Copyright (c) 2020-2023 Intan Technologies
 //
@@ -1807,6 +1807,31 @@ int RHXRegisters::createCommandListSetStimMagnitudes(vector<unsigned int> &comma
     // Now, configure RAM registers.
     commandList.push_back(createRHXCommand(RHXCommandRegWrite, 96 + channel, getRegisterValue(96 + channel), 1, 0)); // positive register; update
     commandList.push_back(createRHXCommand(RHXCommandRegWrite, 64 + channel, getRegisterValue(64 + channel), 1, 0)); // negative register; update
+
+    // More dummy commands to make 128 total commands
+    while (commandList.size() < 128) {
+        commandList.push_back(createRHXCommand(RHXCommandRegRead, 255));
+    }
+
+    return (int)commandList.size();
+}
+
+int RHXRegisters::createCommandListSetStimMagnitudesAllChannels(vector<unsigned int> &commandList, int posMag, int posTrim, int negMag, int negTrim)
+{
+    if (type != ControllerStimRecord) return -1;
+
+    commandList.clear(); // If command list already exists, erase it and start a new one.
+
+    // Start with two dummy commands.
+    commandList.push_back(createRHXCommand(RHXCommandRegRead, 255));
+    commandList.push_back(createRHXCommand(RHXCommandRegRead, 255));
+
+    for (int channel = 0; channel < 16; channel++) {
+        setPosStimMagnitude(channel, posMag, posTrim);
+        setNegStimMagnitude(channel, negMag, negTrim);
+        commandList.push_back(createRHXCommand(RHXCommandRegWrite, 96 + channel, getRegisterValue(96 + channel), 1, 0)); // positive register; update
+        commandList.push_back(createRHXCommand(RHXCommandRegWrite, 64 + channel, getRegisterValue(64 + channel), 1, 0)); // negative register; update
+    }
 
     // More dummy commands to make 128 total commands
     while (commandList.size() < 128) {

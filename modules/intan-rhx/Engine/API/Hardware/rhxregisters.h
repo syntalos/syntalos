@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.3.1
 //
 //  Copyright (c) 2020-2023 Intan Technologies
 //
@@ -128,6 +128,7 @@ public:
     int createCommandListRHSRegisterRead(vector<unsigned int> &commandList);
     int createCommandListSetStimMagnitudes(vector<unsigned int> &commandList, int channel,
                                            int posMag, int posTrim, int negMag, int negTrim);
+    int createCommandListSetStimMagnitudesAllChannels(vector<unsigned int> &commandList, int posMag, int posTrim, int negMag, int negTrim);
     int createCommandListConfigChargeRecovery(vector<unsigned int> &commandList, ChargeRecoveryCurrentLimit currentLimit,
                                               double targetVoltage);
 

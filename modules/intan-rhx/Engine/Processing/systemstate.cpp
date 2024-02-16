@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.3.1
 //
 //  Copyright (c) 2020-2023 Intan Technologies
 //
@@ -48,7 +48,7 @@ bool RestrictIfStimControllerOrRunning(const SystemState* state)
     { return (ControllerType) state->controllerType->getIndex() == ControllerStimRecord || state->running; }
 
 SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize stimStepSize_, int numSPIPorts_,
-                         bool expanderConnected_, DataFileReader* dataFileReader_) :
+                         bool expanderConnected_, bool testMode_, DataFileReader* dataFileReader_) :
     numSPIPorts(numSPIPorts_),
     logErrors(false),
     syMod(nullptr),
@@ -76,6 +76,9 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
 
     expanderConnected = new BooleanItem("ExpanderConnected", globalItems, this, expanderConnected_, XMLGroupNone);
     expanderConnected->setRestricted(RestrictAlways, ReadOnlyErrorMessage);
+
+    testMode = new BooleanItem("TestMode", globalItems, this, testMode_, XMLGroupNone);
+    testMode->setRestricted(RestrictAlways, ReadOnlyErrorMessage);
 
     // Intrinsic variables that shouldn't be changed solely through software (e.g. hardware-related, or set in software upon startup)
     signalSources = new SignalSources(this);
@@ -559,7 +562,7 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
     labelWidth->addItem("Hide", "Hide Tags", 0);
     labelWidth->addItem("Narrow", "Narrow Tags", 1);
     labelWidth->addItem("Wide", "Wide Tags", 2);
-    labelWidth->setValue("Wide");
+    labelWidth->setValue(testMode_ ? "Narrow" : "Wide");
 
     writeToLog("Created waveform plotting variables");
 
@@ -719,6 +722,9 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
     tScaleSpikeScope->addItem("2", "2 ms", 2.0);
     tScaleSpikeScope->addItem("4", "4 ms", 4.0);
     tScaleSpikeScope->addItem("6", "6 ms", 6.0);
+    tScaleSpikeScope->addItem("10", "10 ms", 10.0);
+    tScaleSpikeScope->addItem("16", "16 ms", 16.0);
+    tScaleSpikeScope->addItem("20", "20 ms", 20.0);
     tScaleSpikeScope->setValue("2");
     numSpikesDisplayed = new DiscreteItemList("SpikeScopeNumSpikes", globalItems, this);
     numSpikesDisplayed->addItem("10", "10", 10);
@@ -785,6 +791,10 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
     stimParamsHaveChanged = false;
 
     writeToLog("Created stim only variables");
+
+    usePreviousDelay = new BooleanItem("UsePreviousDelay", globalItems, this, false, XMLGroupNone);
+    previousDelaySelectedPort = new IntRangeItem("PreviousDelaySelectedPort", globalItems, this, 0, 7, 0, XMLGroupNone);
+    lastDetectedChip = new IntRangeItem("LastDetectedChip", globalItems, this, -1, 1000, -1, XMLGroupNone);
 
     // Start timer
     timerId = startTimer(20);  // Minimum time between two stateChanged() signals, in milliseconds.

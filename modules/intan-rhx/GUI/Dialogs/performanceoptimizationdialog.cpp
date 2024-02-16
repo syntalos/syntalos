@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.3.1
 //
 //  Copyright (c) 2020-2023 Intan Technologies
 //
@@ -134,4 +134,9 @@ void PerformanceOptimizationDialog::initialize()
 
     // Find the current plottingMode state and make the selected entry in its combo box.
     plottingModeComboBox->setCurrentIndex(state->plottingMode->getIndex());
+
+    if (state->testMode->getValue()) {
+        writeLatencyComboBox->setEnabled(false);
+        plottingModeComboBox->setEnabled(false);
+    }
 }

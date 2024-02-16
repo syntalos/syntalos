@@ -113,8 +113,17 @@ module_cpp_args = [
     '-Wno-error=type-limits', # this shows real errors, but we rather want to fix them upstream @ Intan
     '-Wno-type-limits',
 
+    '-Wno-error=reorder',
+    '-Wno-reorder',
+
     '-Wno-error=unused-but-set-variable',
     '-Wno-unused-but-set-variable',
+
+    '-Wno-error=unused-variable',
+    '-Wno-unused-variable',
+
+    '-Wno-error=implicit-fallthrough',
+    '-Wno-implicit-fallthrough',
 
     '-Wno-error=deprecated-declarations',
     '-Wno-deprecated-declarations',

@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.3.1
 //
 //  Copyright (c) 2020-2023 Intan Technologies
 //
@@ -29,10 +29,12 @@
 //------------------------------------------------------------------------------
 
 #include "commandparser.h"
+#include "controlwindow.h"
 
 CommandParser::CommandParser(SystemState* state_, ControllerInterface *controllerInterface_, QObject *parent) :
     QObject(parent),
     controllerInterface(controllerInterface_),
+    controlWindow(nullptr),
     state(state_)
 {
     // These connections allow for interactions with communicators that may live in another thread
@@ -361,6 +363,30 @@ void CommandParser::executeCommandWithParameterSlot(QString action, QString para
     } else if (actionLower == "uploadstimparameters") {
         if (state->getControllerTypeEnum() == ControllerStimRecord) {
             uploadStimParametersCommand(parameterLower);
+        }
+    } else if (actionLower == "loadsettingsfile") {
+        if (!state->running) {
+            loadSettingsFileCommand(parameterLower);
+        } else {
+            emit TCPErrorSignal("LoadSettingsFile cannot be executed while the board is running");
+        }
+    } else if (actionLower == "savesettingsfile") {
+        if (!state->running) {
+            saveSettingsFileCommand(parameterLower);
+        } else {
+            emit TCPErrorSignal("SaveSettingsFile cannot be executed while the board is running");
+        }
+    } else if (actionLower == "loadstimulationsettingsfile") {
+        if (!state->running) {
+            loadStimulationSettingsFileCommand(parameterLower);
+        } else {
+            emit TCPErrorSignal("LoadStimulationSettingsFile cannot be executed while the board is running");
+        }
+    } else if (actionLower == "savestimulationsettingsfile") {
+        if (!state->running) {
+            saveStimulationSettingsFileCommand(parameterLower);
+        } else {
+            emit TCPErrorSignal("SaveStimulationSettingsFile cannot be executed while the board is running");
         }
     }
 
@@ -705,6 +731,94 @@ void CommandParser::uploadStimParametersCommand(QString channelName)
 void CommandParser::setSpikeDetectionThresholdsCommand()
 {
     controllerInterface->setAllSpikeDetectionThresholds();
+}
+
+void CommandParser::loadSettingsFileCommand(QString fileName)
+{
+    controlWindow->updateForLoad();
+
+    QString errorMessage;
+    bool loadSuccess = state->loadGlobalSettings(fileName, errorMessage);
+    if (!loadSuccess) {
+        emit TCPErrorSignal(errorMessage);
+    } else if (!errorMessage.isEmpty()) {
+        emit TCPErrorSignal(errorMessage);
+    }
+    controllerInterface->updateChipCommandLists(false); // Update amplifier bandwidth settings
+    controlWindow->restoreDisplaySettings();
+
+    if (loadSuccess) {
+        QFileInfo fileInfo(fileName);
+        QSettings settings;
+        settings.beginGroup(ControllerTypeSettingsGroup[(int) state->getControllerTypeEnum()]);
+        settings.setValue("settingsDirectory", fileInfo.absolutePath());
+        settings.endGroup();
+    }
+
+    controlWindow->updateForStop();
+}
+
+void CommandParser::saveSettingsFileCommand(QString fileName)
+{
+    QFileInfo fileInfo(fileName);
+    QSettings settings;
+    settings.setValue("settingsDirectory", fileInfo.absolutePath());
+    settings.endGroup();
+
+    // Generate display settings string to record state of multi-column display, scroll bars, pinned waveforms, etc.
+    state->displaySettings->setValue(controlWindow->getDisplaySettingsString());
+
+    if (!state->saveGlobalSettings(fileName)) {
+        emit TCPErrorSignal("Failure writing XML Global Settings");
+    }
+}
+
+void CommandParser::loadStimulationSettingsFileCommand(QString fileName)
+{    
+    controlWindow->updateForLoad();
+
+    QFileInfo fileInfo(fileName);
+    QString errorMessage;
+    bool loadSuccess = false;
+    loadSuccess = controlWindow->stimParametersInterface->loadFile(fileName, errorMessage, false, false, true); // Parse with stimOnly, so StimParameters are all that are loaded
+    if (loadSuccess) {
+        QSettings settings;
+        settings.beginGroup(ControllerTypeSettingsGroup[(int)state->getControllerTypeEnum()]);
+        settings.setValue("stimSettingsDirectory", fileInfo.absolutePath());
+        settings.endGroup();
+        controlWindow->updateForStop();
+        return;
+    }
+
+    errorMessage = "";
+    loadSuccess = controlWindow->stimParametersInterface->loadFile(fileName, errorMessage, true, false, true); // Try parsing as with stimLegacy=true
+
+    if (!loadSuccess) {
+        emit TCPErrorSignal("Error: Loading from XML: " + errorMessage);
+    } else {
+        if (!errorMessage.isEmpty()) {
+            emit TCPErrorSignal("Warning: Loading from XML: " + errorMessage);
+        }
+        QSettings settings;
+        settings.beginGroup(ControllerTypeSettingsGroup[(int)state->getControllerTypeEnum()]);
+        settings.setValue("stimSettingsDirectory", fileInfo.absolutePath());
+        settings.endGroup();
+        controlWindow->updateForStop();
+        return;
+    }
+}
+
+void CommandParser::saveStimulationSettingsFileCommand(QString fileName)
+{
+    QFileInfo fileInfo(fileName);
+    QSettings settings;
+    settings.beginGroup(ControllerTypeSettingsGroup[(int)state->getControllerTypeEnum()]);
+    settings.setValue("stimSettingsDirectory", fileInfo.absolutePath());
+    settings.endGroup();
+
+    if (!controlWindow->stimParametersInterface->saveFile(fileName)) {
+        emit TCPErrorSignal("Failure writing Stimulation Parameters");
+    }
 }
 
 bool CommandParser::isDependencyRelated(QString parameter) const
