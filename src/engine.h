@@ -160,6 +160,10 @@ private:
     void startResourceMonitoring(QList<AbstractModule *> activeModules, const QString &exportDirPath);
     void stopResourceMonitoring();
 
+    bool finalizeExperimentMetadata(
+        std::shared_ptr<EDLCollection> storageCollection,
+        qint64 finishTimestamp,
+        const QList<AbstractModule *> &activeModules);
     bool runInternal(const QString &exportDirPath);
     void makeFinalExperimentId();
     void refreshExportDirPath();

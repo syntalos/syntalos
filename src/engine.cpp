@@ -1394,6 +1394,74 @@ void Engine::stopResourceMonitoring()
     qCDebug(logEngine).noquote().nospace() << "Stopped monitoring system resources.";
 }
 
+bool Engine::finalizeExperimentMetadata(
+    std::shared_ptr<EDLCollection> storageCollection,
+    qint64 finishTimestamp,
+    const QList<AbstractModule *> &activeModules)
+{
+    emitStatusMessage(QStringLiteral("Writing experiment metadata..."));
+
+    // write collection metadata with information about this experiment
+    storageCollection->setTimeCreated(QDateTime::currentDateTime());
+
+    storageCollection->setGeneratorId(
+        QStringLiteral("%1 %2").arg(QCoreApplication::applicationName()).arg(syntalosVersionFull()));
+    if (d->experimenter.isValid())
+        storageCollection->addAuthor(d->experimenter);
+
+    QVariantHash extraData;
+    extraData.insert("subject_id", d->testSubject.id.isEmpty() ? QVariant() : d->testSubject.id);
+    extraData.insert("subject_group", d->testSubject.group.isEmpty() ? QVariant() : d->testSubject.group);
+    extraData.insert("subject_comment", d->testSubject.comment.isEmpty() ? QVariant() : d->testSubject.comment);
+    extraData.insert("recording_length_msec", finishTimestamp);
+    extraData.insert("success", !d->failed);
+    if (d->failed && !d->runFailedReason.isEmpty()) {
+        extraData.insert("failure_reason", d->runFailedReason);
+    }
+    extraData.insert(
+        "machine_node",
+        QStringLiteral("%1 [%2 %3]")
+            .arg(d->sysInfo->machineHostName())
+            .arg(d->sysInfo->osId())
+            .arg(d->sysInfo->osVersion()));
+
+    if (!d->nextRunComment.isEmpty() && !d->runIsEphemeral) {
+        // add user comment
+        extraData.insert("user_comment", d->nextRunComment);
+
+        // we only remove the comment if the run was a success, as it is very likely
+        // the the user will remove the comment and will try again
+        if (!d->failed)
+            d->nextRunComment.clear();
+    }
+    // update last run directory
+    if (!d->runIsEphemeral)
+        d->lastRunExportDir = storageCollection->path();
+
+    QVariantList attrModList;
+    for (auto &mod : activeModules) {
+        QVariantHash info;
+        info.insert(QStringLiteral("id"), mod->id());
+        info.insert(QStringLiteral("name"), mod->name());
+        attrModList.append(info);
+    }
+    extraData.insert("modules", attrModList);
+    storageCollection->setAttributes(extraData);
+
+    qCDebug(logEngine) << "Saving experiment metadata in:" << storageCollection->path();
+
+    if (!storageCollection->save()) {
+        QMessageBox::critical(
+            d->parentWidget,
+            QStringLiteral("Unable to finish recording"),
+            QStringLiteral("Unable to save experiment metadata: %1").arg(storageCollection->lastError()));
+        d->failed = true;
+    }
+
+    emitStatusMessage(QStringLiteral("Experiment metadata written."));
+    return true;
+}
+
 /**
  * @brief Actually run an experiment module board
  * @return true on succees
@@ -1975,10 +2043,42 @@ bool Engine::runInternal(const QString &exportDirPath)
                 sub->forcePushNullopt();
         }
 
-        if (!thread->joinTimeout(5)) {
+        if (!thread->joinTimeout(15)) {
             qCCritical(logEngine).noquote().nospace()
                 << "Failed to join thread for " << mod->name() << ". Application may deadlock now.";
+
+            // perform emergency save of metadata
+            const auto stallErrorMsg = QStringLiteral(
+                                           "During this run, \"%1\" stalled on shutdown and all attempts to recover "
+                                           "and quit gracefully failed.")
+                                           .arg(mod->name());
+            if (d->failed && !d->runFailedReason.isEmpty()) {
+                d->runFailedReason += QStringLiteral("\n") + stallErrorMsg;
+            } else {
+                d->failed = true;
+                d->runFailedReason = stallErrorMsg;
+            }
+
+            if (initSuccessful)
+                finalizeExperimentMetadata(storageCollection, finishTimestamp, orderedActiveModules);
+
+            emitStatusMessage(QStringLiteral("Unable to recover stalled module '%1' (⚠️ application may deadlock now)")
+                                  .arg(mod->name()));
+            QMessageBox::critical(
+                d->parentWidget,
+                QStringLiteral("Critical failure"),
+                QStringLiteral("While stopping this experiment, module \"%1\" stalled and any attempts to wake it up "
+                               "and return the application to a safe state have failed.\n"
+                               "We tried to save all experiment metadata in emergency mode, so with luck no data "
+                               "should have been lost.\n"
+                               "If this happens again, please check your hardware for defects and if there are no "
+                               "issues, consider filing a bug against Syntalos so we can look into this issue.\n"
+                               "We will still try to enter a safe state, but this will likely fail and the application "
+                               "may lock up now and might need to be terminated forcefully by you.")
+                    .arg(mod->name()));
         }
+
+        qApp->processEvents();
         thread->join();
     }
 
@@ -2013,65 +2113,7 @@ bool Engine::runInternal(const QString &exportDirPath)
         emitStatusMessage(QStringLiteral("Removing broken data..."));
         edlDir.removeRecursively();
     } else {
-        emitStatusMessage(QStringLiteral("Writing experiment metadata..."));
-
-        // write collection metadata with information about this experiment
-        storageCollection->setTimeCreated(QDateTime::currentDateTime());
-
-        storageCollection->setGeneratorId(
-            QStringLiteral("%1 %2").arg(QCoreApplication::applicationName()).arg(syntalosVersionFull()));
-        if (d->experimenter.isValid())
-            storageCollection->addAuthor(d->experimenter);
-
-        QVariantHash extraData;
-        extraData.insert("subject_id", d->testSubject.id.isEmpty() ? QVariant() : d->testSubject.id);
-        extraData.insert("subject_group", d->testSubject.group.isEmpty() ? QVariant() : d->testSubject.group);
-        extraData.insert("subject_comment", d->testSubject.comment.isEmpty() ? QVariant() : d->testSubject.comment);
-        extraData.insert("recording_length_msec", finishTimestamp);
-        extraData.insert("success", !d->failed);
-        if (d->failed && !d->runFailedReason.isEmpty()) {
-            extraData.insert("failure_reason", d->runFailedReason);
-        }
-        extraData.insert(
-            "machine_node",
-            QStringLiteral("%1 [%2 %3]")
-                .arg(d->sysInfo->machineHostName())
-                .arg(d->sysInfo->osId())
-                .arg(d->sysInfo->osVersion()));
-
-        if (!d->nextRunComment.isEmpty() && !d->runIsEphemeral) {
-            // add user comment
-            extraData.insert("user_comment", d->nextRunComment);
-
-            // we only remove the comment if the run was a success, as it is very likely
-            // the the user will remove the comment and will try again
-            if (!d->failed)
-                d->nextRunComment.clear();
-        }
-        // update last run directory
-        if (!d->runIsEphemeral)
-            d->lastRunExportDir = exportDirPath;
-
-        QVariantList attrModList;
-        for (auto &mod : orderedActiveModules) {
-            QVariantHash info;
-            info.insert(QStringLiteral("id"), mod->id());
-            info.insert(QStringLiteral("name"), mod->name());
-            attrModList.append(info);
-        }
-        extraData.insert("modules", attrModList);
-        storageCollection->setAttributes(extraData);
-
-        qCDebug(logEngine) << "Saving experiment metadata in:" << storageCollection->path();
-
-        if (!storageCollection->save()) {
-            QMessageBox::critical(
-                d->parentWidget,
-                QStringLiteral("Unable to finish recording"),
-                QStringLiteral("Unable to save experiment metadata: %1").arg(storageCollection->lastError()));
-            d->failed = true;
-        }
-
+        finalizeExperimentMetadata(storageCollection, finishTimestamp, orderedActiveModules);
         qCDebug(logEngine).noquote().nospace()
             << "Manifest and additional data saved in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
     }
