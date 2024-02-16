@@ -713,7 +713,7 @@ void VideoWriter::initializeInternal()
     d->vstrm->time_base = d->cctx->time_base;
 
     if (d->codecProps.threadCount() > 0)
-        d->cctx->thread_count = d->codecProps.threadCount();
+        d->cctx->thread_count = d->codecProps.threadCount() > 16 ? 16 : d->codecProps.threadCount();
 
     if (d->codecProps.codec() == VideoCodec::Raw)
         d->encPixFormat = d->inputPixFormat == AV_PIX_FMT_GRAY8 || d->inputPixFormat == AV_PIX_FMT_GRAY16LE
@@ -1134,12 +1134,14 @@ inline bool VideoWriter::prepareFrame(const cv::Mat &inImage)
 
     // sanity checks
     if ((static_cast<int>(height) > d->height) || (static_cast<int>(width) > d->width))
-        throw std::runtime_error(QStringLiteral("Received bigger frame than we expected (%1x%2 instead of %3x%4)")
-                                     .arg(width)
-                                     .arg(height)
-                                     .arg(d->width)
-                                     .arg(d->height)
-                                     .toStdString());
+        throw std::runtime_error(
+            QStringLiteral("Received bigger frame than we expected for %1 (%2x%3 instead of %4x%5)")
+                .arg(d->modName)
+                .arg(width)
+                .arg(height)
+                .arg(d->width)
+                .arg(d->height)
+                .toStdString());
     if ((d->inputPixFormat == AV_PIX_FMT_BGR24) && (channels != 3)) {
         d->lastError = QStringLiteral("Expected BGR colored image, but received image has %1 channels")
                            .arg(channels)

@@ -46,7 +46,7 @@ public:
             "print('IPort: ' + str(iport))\n"
             "print('OPort: ' + str(oport))\n"
             "oport.set_metadata_value('framerate', 200)\n"
-            "oport.set_metadata_value_size('size', [800, 600])\n"
+            "oport.set_metadata_value_size('size', [960, 600])\n"
             "def loop() -> bool:\n"
             "    r = sy.await_new_input()\n"
             "    if r == sy.InputWaitResult.CANCELLED:\n"
@@ -79,7 +79,7 @@ public:
 
     bool prepare(const TestSubject &) override
     {
-        m_vOut->setMetadataValue("size", QSize(800, 600));
+        m_vOut->setMetadataValue("size", QSize(960, 600));
         m_vOut->setMetadataValue("framerate", (double)200);
         m_vOut->start();
 
