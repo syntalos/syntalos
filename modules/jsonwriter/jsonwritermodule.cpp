@@ -271,7 +271,14 @@ public:
             columns = m_rowSub->metadataValue("table_header", QStringList()).toStringList();
             break;
         default:
-            stream << "{\n";
+            return;
+        }
+
+        if (columns.isEmpty()) {
+            raiseError(
+                "Unable to determine the data columns - the data source may not have set the "
+                "required `signal_names` or `table_header` metadata. Please ensure the sending module "
+                "emits the correct metadata!");
             return;
         }
 
@@ -284,7 +291,7 @@ public:
 
         stream << "{";
         if (m_settingsDlg->jsonFormat() == "extended-pandas") {
-            stream << "\"uuid\": " << toJsonValue(m_currentDSet->collectionId().toString(QUuid::WithoutBraces));
+            stream << "\"collection_id\": " << toJsonValue(m_currentDSet->collectionId().toString(QUuid::WithoutBraces));
             if (!timeUnit.isEmpty())
                 stream << ",\n\"time_unit\": " << toJsonValue(timeUnit);
             if (!dataUnit.isEmpty())
