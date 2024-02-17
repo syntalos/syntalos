@@ -607,5 +607,7 @@ bool GPUInterface::createKernel(int devIndex)
 
 void GPUInterface::gpuErrorMessage(const QString& errorMessage)
 {
-    QMessageBox::warning(nullptr, tr("OpenCL Error"), errorMessage);
+    QTimer::singleShot(0, [=]() {
+        QMessageBox::warning(nullptr, tr("OpenCL Error"), errorMessage);
+    });
 }
