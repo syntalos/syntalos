@@ -198,6 +198,7 @@ public:
                           << "qx"
                           << "qy"
                           << "qz");
+        m_bnoVecOut->setSuggestedDataName(QStringLiteral("%1_bno/orientation").arg(datasetNameSuggestion()));
 
         // start the streams
         m_rawOut->start();
