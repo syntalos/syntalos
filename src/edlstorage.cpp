@@ -528,6 +528,12 @@ bool EDLDataset::save()
     return saveAttributes();
 }
 
+bool EDLDataset::isEmpty() const
+{
+    return d->dataFile.parts.isEmpty() && d->auxFiles.isEmpty() && d->dataScanPattern.first.isEmpty()
+           && d->auxDataScanPatterns.isEmpty();
+}
+
 QString EDLDataset::setDataFile(const QString &fname, const QString &summary)
 {
     d->dataFile.parts.clear();

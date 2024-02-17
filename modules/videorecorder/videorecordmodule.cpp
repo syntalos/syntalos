@@ -189,9 +189,11 @@ public:
             return;
 
         if (m_settingsDialog->videoNameFromSource())
-            m_vidDataset = getOrCreateDefaultDataset(name(), m_inSub->metadata());
+            m_vidDataset = createDefaultDataset(name(), m_inSub->metadata());
         else
-            m_vidDataset = getOrCreateDefaultDataset(m_settingsDialog->videoName());
+            m_vidDataset = createDefaultDataset(m_settingsDialog->videoName());
+        if (m_vidDataset.get() == nullptr)
+            return;
     }
 
     void runThread(OptionalWaitCondition *startWaitCondition) override

@@ -104,7 +104,9 @@ public:
             (m_settingsDlg->pulseIntervalUs() / 1000 / 1000) * 60 * 2); // new chunk about every 2min
 
         // prepare dataset
-        auto dstore = getOrCreateDefaultDataset(name());
+        auto dstore = createDefaultDataset(name());
+        if (dstore.get() == nullptr)
+            return false;
         m_tsWriter.setFileName(dstore->setDataFile("time-pulses.tsync"));
         QVariantHash userData;
         userData["interval_us"] = QVariant::fromValue(m_settingsDlg->pulseIntervalUs());

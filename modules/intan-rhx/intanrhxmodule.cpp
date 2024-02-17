@@ -136,7 +136,9 @@ void IntanRhxModule::updateStartWaitCondition(OptionalWaitCondition *waitConditi
 bool IntanRhxModule::prepare(const TestSubject &)
 {
     // the Intan module is a singleton, so we can "grab" this very generic name here
-    auto dstore = getOrCreateDefaultDataset(QStringLiteral("intan-signals"));
+    auto dstore = createDefaultDataset(QStringLiteral("intan-signals"));
+    if (dstore.get() == nullptr)
+        return false;
 
     // we use the ugly scanning method -for now
     dstore->setDataScanPattern(QStringLiteral("*.rhd"), QStringLiteral("Electrophysiology data"));

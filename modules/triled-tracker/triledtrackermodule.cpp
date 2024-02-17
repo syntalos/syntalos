@@ -121,7 +121,9 @@ public:
         // table-saving modules is to store data in a set named after our module, we will
         // possibly not create our default dataset here but instead fetch an already existing one.
         // in that event, we "hijack" the dataset and add a few more attributes to it.
-        auto dset = getOrCreateDefaultDataset();
+        auto dset = createDefaultDataset();
+        if (dset.get() == nullptr)
+            return;
         dset->insertAttribute("maze_dimensions", tracker->finalize());
 
         delete tracker;

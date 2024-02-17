@@ -111,7 +111,7 @@ public:
                 excessConnections = true;
             m_isrcKind = InputSourceKind::INT;
 
-            registerDataReceivedEvent(&JSONWriterModule::onIntSignalBlockReceived, m_floatSub);
+            registerDataReceivedEvent(&JSONWriterModule::onIntSignalBlockReceived, m_intSub);
         }
 
         m_rowSub.reset();
@@ -178,9 +178,13 @@ public:
 
         // create dataset for storage
         if (m_settingsDlg->useNameFromSource())
-            m_currentDSet = getOrCreateDefaultDataset(name(), mdata);
+            m_currentDSet = createDefaultDataset(name(), mdata);
         else
-            m_currentDSet = getOrCreateDefaultDataset(m_settingsDlg->dataName());
+            m_currentDSet = createDefaultDataset(m_settingsDlg->dataName());
+        if (m_currentDSet.get() == nullptr) {
+            m_writeData = false;
+            return;
+        }
 
         // get our file basename
         auto fname = dataBasenameFromSubMetadata(mdata, QStringLiteral("data"));

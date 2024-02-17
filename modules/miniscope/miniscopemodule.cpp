@@ -129,7 +129,10 @@ public:
         m_acceptFrames = false;
 
         // obtain logfile location to write control change information to
-        auto dstore = getOrCreateDefaultDataset();
+        auto dstore = createDefaultDataset();
+        if (dstore.get() == nullptr)
+            return false;
+
         const auto valChangeLogFname = dstore->setDataFile("ctlvalue-changes.csv");
         m_valChangeLogFile->setFileName(valChangeLogFname);
         if (!m_valChangeLogFile->open(QFile::WriteOnly | QFile::Truncate)) {

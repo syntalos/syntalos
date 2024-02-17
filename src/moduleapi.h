@@ -721,7 +721,18 @@ protected:
      * This function always returns a valid name, if no suggestion
      * is given from the subscriber, the module's name is used.
      */
-    QString datasetNameFromSubMetadata(const QVariantHash &subMetadata);
+    QString datasetNameFromSubMetadata(const QVariantHash &subMetadata) const;
+
+    /**
+     * @brief Get name of a dataset from subscription metadata and preferred name
+     *
+     * This functions acts like datasetNameFromSubMetadata(), but will also
+     * try to use the supplied preferred name if possible.
+     *
+     * This function always returns a valid name, if no suggestion
+     * is given from the subscriber, the module's name is used.
+     */
+    QString datasetNameFromParameters(const QString &preferredName, const QVariantHash &subMetadata) const;
 
     /**
      * @brief Get file basename for data from subscription metadata
@@ -737,22 +748,37 @@ protected:
         const QString &defaultName = QStringLiteral("data"));
 
     /**
-     * @brief Create or retrieve default dataset for data storage in default storage group
+     * @brief Create dataset for data storage in default storage group for this module
      * @param preferredName The preferred name for the dataset.
      * @param subMetadata Metadata from a stream subscription, in case using the desired name from a module upstream is
      * wanted.
      *
-     * Retrieve the default dataset with the given name for this module. The module can use it to get file paths to
+     * Create the default dataset with the given name for this module. The module can use it to get file paths to
      * write data to. In case a module needs to create more then one dataset, creating a new group is advised first. Use
-     * the createStorageGroup() and getOrCreateDatasetInGroup() methods for that.
+     * the createStorageGroup() and createDatasetInGroup() methods for that.
      *
      * This method will return NULL in case the module was not yet assigned a data storage group. Use it only in and
      * after the PREPARE phase to get a valid dataset!
+     *
+     * An error will be emitted if the requested dataset has already existed before, an NULL is returned in that case
+     * as well. This design exists to prevent two modules from trying to write to the same file.
      */
-    std::shared_ptr<EDLDataset> getOrCreateDefaultDataset(
+    std::shared_ptr<EDLDataset> createDefaultDataset(
         const QString &preferredName = QString(),
         const QVariantHash &subMetadata = QVariantHash());
-    std::shared_ptr<EDLDataset> getOrCreateDatasetInGroup(
+    std::shared_ptr<EDLDataset> createDatasetInGroup(
+        std::shared_ptr<EDLGroup> group,
+        const QString &preferredName = QString(),
+        const QVariantHash &subMetadata = QVariantHash());
+
+    /**
+     * @brief Obtain the module's default dataset if it exists
+     *
+     * If a default dataset has been created using createDefaultDataset(), return
+     * it. Otherwise return NULL.
+     */
+    std::shared_ptr<EDLDataset> getDefaultDataset();
+    std::shared_ptr<EDLDataset> getDatasetInGroup(
         std::shared_ptr<EDLGroup> group,
         const QString &preferredName = QString(),
         const QVariantHash &subMetadata = QVariantHash());

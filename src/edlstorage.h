@@ -169,6 +169,8 @@ public:
 
     bool save() override;
 
+    bool isEmpty() const;
+
     QString setDataFile(const QString &fname, const QString &summary = QString());
     QString addDataFilePart(const QString &fname, int index = -1);
     EDLDataFile dataFile() const;

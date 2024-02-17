@@ -82,7 +82,9 @@ public:
         if (m_rowSub.get() != nullptr) {
             const auto mdata = m_rowSub->metadata();
 
-            auto dstore = getOrCreateDefaultDataset(name(), mdata);
+            auto dstore = createDefaultDataset(name(), mdata);
+            if (dstore.get() == nullptr)
+                return;
 
             // get our file basename
             auto fname = dataBasenameFromSubMetadata(mdata, QStringLiteral("table"));
