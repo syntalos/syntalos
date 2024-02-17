@@ -36,7 +36,7 @@ using namespace Syntalos;
 
 /**
  * @brief The ModuleLibrary class
- * Manage the lifecycle of MazeAmaze modules.
+ * Manage the lifecycle of Syntalos modules.
  */
 class ModuleLibrary : public QObject
 {

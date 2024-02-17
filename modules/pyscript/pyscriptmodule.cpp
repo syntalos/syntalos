@@ -146,7 +146,7 @@ public:
     bool initialize() override
     {
         if (workerBinary().isEmpty()) {
-            raiseError("Unable to find Python worker binary. Is MazeAmaze installed correctly?");
+            raiseError("Unable to find Python worker binary. Is Syntalos installed correctly?");
             return false;
         }
 
@@ -237,7 +237,7 @@ QString PyScriptModuleInfo::name() const
 
 QString PyScriptModuleInfo::description() const
 {
-    return QStringLiteral("Control certain aspects of MazeAmaze (most notably Firmata I/O) using a Python script.");
+    return QStringLiteral("Write custom Python code to control other modules and experiment behavior.");
 }
 
 QIcon PyScriptModuleInfo::icon() const
