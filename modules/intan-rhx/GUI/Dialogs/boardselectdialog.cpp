@@ -747,7 +747,7 @@ void BoardSelectDialog::newRowSelected(int row)
 
     settings.endGroup();
 
-    if (state->testMode->getValue()) {
+    if (state != nullptr && state->testMode->getValue()) {
         state->plottingMode->setValue("Original");
     }
 }
