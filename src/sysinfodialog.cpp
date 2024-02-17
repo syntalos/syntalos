@@ -145,4 +145,3 @@ void SysInfoDialog::on_infoAvxBtn_clicked()
 {
     QMessageBox::information(this, "Detailed AVX Information", m_avxFullInfo);
 }
-

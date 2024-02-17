@@ -291,7 +291,8 @@ public:
 
         stream << "{";
         if (m_settingsDlg->jsonFormat() == "extended-pandas") {
-            stream << "\"collection_id\": " << toJsonValue(m_currentDSet->collectionId().toString(QUuid::WithoutBraces));
+            stream << "\"collection_id\": "
+                   << toJsonValue(m_currentDSet->collectionId().toString(QUuid::WithoutBraces));
             if (!timeUnit.isEmpty())
                 stream << ",\n\"time_unit\": " << toJsonValue(timeUnit);
             if (!dataUnit.isEmpty())
