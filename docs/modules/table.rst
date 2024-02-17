@@ -11,7 +11,18 @@ Usage
 =====
 
 No configuration required for now.
-data is saved unconditionally.
+Data is saved unconditionally into a sanitized CSV table.
+
+It is recommended to load the generated data using the `edlio <https://edl.readthedocs.io/latest/>`_
+Python module, but you can also manually open the data and read it.
+For example, using Pandas in Python:
+
+.. code-block:: python
+
+    import pandas as pd
+
+    df = pd.read_csv('/path/to/data.csv', sep=';')
+    print(df)
 
 
 Ports

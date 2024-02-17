@@ -29,8 +29,15 @@ Metadata will always also be stored in the EDL attributes of the generated datas
 If an Integer or Float signal is connected, the channels to be recorded in JSON can be
 manually selected. Otherwise, all data will be stored.
 
+Reading Data
+------------
+
+It is recommended to load the generated data using the `edlio <https://edl.readthedocs.io/latest/>`_
+Python module, which will do the right thing automatically.
+You can also manually open the data and read it though.
+
 To load the generated data with Pandas directly (without using the ``edlio`` module),
-you can use this Python snippet:
+and if you have selected the *Pandas-compatible JSON* schema, you can use this Python snippet:
 
 .. code-block:: python
 
@@ -38,6 +45,45 @@ you can use this Python snippet:
 
     df = pd.read_json('/path/to/data.json.zst', orient='split')
     print(df)
+
+
+If you selected the *Metadata-extended JSON* schema, you can also load the data manually,
+including the stored metadata:
+
+.. code-block:: python
+
+    import json
+    import zstandard as zstd
+    import pandas as pd
+
+    with open('/path/to/data.json.zst', 'rb') as f:
+        dctx = zstd.ZstdDecompressor()
+        zr = dctx.stream_reader(f)
+        jd = json.load(zr)
+
+    collection_id = jd.pop('collection_id')
+    time_unit = jd.pop('time_unit')
+    data_unit = jd.pop('data_unit')
+    df = pd.DataFrame(jd.pop('data'), columns=jd.pop('columns'))
+
+    print(collection_id)
+    print(time_unit, data_unit)
+    print(df)
+
+
+JSON Extensions
+---------------
+
+Canonical standard-compliant JSON does not allow special types for infinity as well as
+non-numbers for numeric values, and also does not distinguish between floating-point
+numbers and integers.
+
+To be more precise, this module will return ``Infinity``/``-Infinity`` for positive/negative
+infinite values, as well as ``NaN`` for non-numbers. These values are not covered by
+the JSON specification, but parsed by Pandas and many other JSON parsers.
+
+Additionally, floating-point numbers will always contain a dot, while integers will never,
+making them distinguishable.
 
 
 Ports
@@ -69,5 +115,7 @@ Ports
 Stream Metadata
 ===============
 
-No output streams are generated, but input streams must have ``time_unit``, ``data_unit`` and ``signal_names`` set.
-If the time unit is `index`, ``sample_rate`` also has to be set on the incoming channel.
+No output streams are generated, but input streams of type ``FloatSignalBlock``/``IntSignalBlock`` must have
+``time_unit``, ``data_unit`` and ``signal_names`` set.
+
+For ``TableRow`` data, the ``table_header`` metadata entry has to be set.
