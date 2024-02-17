@@ -93,7 +93,7 @@ public:
         }
 
         // we don't write anything to disk if we aren't going to use the data anyway
-        m_writeData = isEphemeralRun();
+        m_writeData = !isEphemeralRun();
 
         m_floatSub.reset();
         if (m_floatIn->hasSubscription()) {
@@ -213,7 +213,7 @@ public:
     QString floatToJsonValue(double value)
     {
         if (std::isnan(value))
-            return "null";
+            return "NaN";
 
         // this is an extension to the JSON spec that Pandas parses
         if (std::isinf(value))
@@ -226,7 +226,7 @@ public:
     QString intToJsonValue(T value)
     {
         if (std::isnan(value))
-            return "null";
+            return "NaN";
 
         // this is an extension to the JSON spec that Pandas parses
         if (std::isinf(value))
@@ -418,7 +418,8 @@ public:
 
         // write terminator
         if (m_textStream.get() != nullptr) {
-            (*m_textStream) << "\n]}\n";
+            if (m_writeData)
+                (*m_textStream) << "\n]}\n";
             m_textStream->flush();
         }
 
