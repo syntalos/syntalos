@@ -174,8 +174,6 @@ public:
             }
         }
 
-        qDebug() << "Selected:" << m_selectedIndices;
-
         // create dataset for storage
         if (m_settingsDlg->useNameFromSource())
             m_currentDSet = createDefaultDataset(name(), mdata);
