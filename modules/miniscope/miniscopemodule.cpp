@@ -207,8 +207,10 @@ public:
         m_rawOut->start();
         m_dispOut->start();
         if (m_miniscope->hasHeadOrientationSupport()) {
-            m_bnoTabOut->start();
-            m_bnoVecOut->start();
+            if (m_bnoTabOut->hasSubscribers())
+                m_bnoTabOut->start();
+            if (m_bnoVecOut->hasSubscribers())
+                m_bnoVecOut->start();
         }
 
         // set up clock synchronizer
@@ -279,8 +281,16 @@ public:
                                   << QString::number(orientation[1]) << QString::number(orientation[2])
                                   << QString::number(orientation[3]));
 
-            if (self->m_bnoVecOut->active())
-                self->m_bnoVecOut->push(FloatSignalBlock(orientation, frameTime.count()));
+            if (self->m_bnoVecOut->active()) {
+                FloatSignalBlock sblock(1, 4);
+                sblock.timestamps(0, 0) = frameTime.count();
+                sblock.data(0, 0) = orientation[0];
+                sblock.data(0, 1) = orientation[1];
+                sblock.data(0, 2) = orientation[2];
+                sblock.data(0, 3) = orientation[3];
+
+                self->m_bnoVecOut->push(sblock);
+            }
         }
     }
 
