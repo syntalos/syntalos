@@ -27,6 +27,7 @@
 #include <QMainWindow>
 #include <QMessageBox>
 #include <QStandardPaths>
+#include <QCursor>
 
 #include "utils/misc.h"
 
@@ -523,6 +524,14 @@ void AbstractModule::showSettingsUi()
     for (auto const wp : d->settingsWindows) {
         if (onlyOne)
             wp.first->setWindowTitle(QStringLiteral("%1 - Settings").arg(name()));
+
+        // set an initial position if we do not have one yet
+        if (wp.first->pos().isNull()) {
+            auto pos = QCursor::pos();
+            pos.setY(pos.y() - (wp.first->height() / 2));
+            wp.first->move(pos);
+        }
+
         wp.first->show();
         wp.first->raise();
     }
