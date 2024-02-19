@@ -1218,6 +1218,13 @@ void MainWindow::setStatusText(const QString &msg)
     QApplication::processEvents();
 }
 
+void MainWindow::loadProjectFilename(const QString &fname)
+{
+    QTimer::singleShot(0, [&]() {
+        loadConfiguration(fname);
+    });
+}
+
 void MainWindow::moduleErrorReceived(AbstractModule *mod, const QString &message)
 {
     auto errorTitle = QStringLiteral("Run Failed");

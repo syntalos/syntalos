@@ -59,6 +59,8 @@ public:
 
     void setStatusText(const QString &msg);
 
+    void loadProjectFilename(const QString &fname);
+
 private slots:
     void runActionTriggered();
     void temporaryRunActionTriggered();

@@ -20,6 +20,7 @@
 #include "config.h"
 #include <KDBusService>
 #include <QApplication>
+#include <QCommandLineParser>
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wzero-as-null-pointer-constant"
 #include <gst/gst.h>
@@ -50,12 +51,25 @@ int main(int argc, char *argv[])
     app.setOrganizationDomain("draguhnlab.com");
     app.setApplicationVersion(PROJECT_VERSION);
 
+    // parse command-line arguments
+    QCommandLineParser parser;
+    parser.setApplicationDescription("Syntalos");
+    parser.addHelpOption();
+    parser.addVersionOption();
+    parser.process(app);
+
+    // fetch project filename to open
+    const auto positionalArgs = parser.positionalArguments();
+    const auto projectFname = positionalArgs.isEmpty() ? QString() : positionalArgs.last();
+
     // ensure we only ever run one instance of the application
     KDBusService service(KDBusService::Unique);
 
     // create main view and run the application
     auto w = new MainWindow;
     w->show();
+    if (!projectFname.isEmpty())
+        w->loadProjectFilename(projectFname);
 
     // run application
     int rc = app.exec();
