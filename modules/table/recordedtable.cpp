@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2022 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -24,27 +24,45 @@
 #include <QHeaderView>
 #include <QMessageBox>
 #include <QTableWidget>
+#include <QVBoxLayout>
+#include <QLabel>
 
 RecordedTable::RecordedTable(QObject *parent, const QIcon &winIcon)
     : QObject(parent),
-      m_name(QString())
+      m_name(QString()),
+      m_saveData(true),
+      m_displayData(true)
 {
-    m_tableWidget = new QTableWidget;
-    m_tableWidget->setWindowTitle(QStringLiteral("Table"));
+    const auto pos = QCursor::pos();
+    m_tableBox = new QWidget;
+    m_tableBox->setGeometry(pos.x(), pos.y(), 800, 260);
+    m_tableBox->setWindowTitle(QStringLiteral("Table"));
+    if (winIcon.isNull())
+        m_tableBox->setWindowIcon(QIcon(":/module/table"));
+    else
+        m_tableBox->setWindowIcon(winIcon);
+
+    m_tableWidget = new QTableWidget(m_tableBox);
     m_tableWidget->horizontalHeader()->hide();
 
-    if (winIcon.isNull())
-        m_tableWidget->setWindowIcon(QIcon(":/module/table"));
-    else
-        m_tableWidget->setWindowIcon(winIcon);
+    auto layout = new QVBoxLayout(m_tableBox);
+    layout->setMargin(2);
+    m_tableBox->setLayout(layout);
+    layout->addWidget(m_tableWidget);
+
+    m_infoLabel = new QLabel("Ready", m_tableBox);
+    m_infoLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    m_infoLabel->setFixedHeight(20);
+    layout->addWidget(m_infoLabel);
 
     m_eventFile = new QFile;
     m_haveEvents = false;
+    m_infoLabel->setVisible(false);
 }
 
 RecordedTable::~RecordedTable()
 {
-    delete m_tableWidget;
+    delete m_tableBox;
     delete m_eventFile;
 }
 
@@ -56,7 +74,29 @@ QString RecordedTable::name() const
 void RecordedTable::setName(const QString &name)
 {
     m_name = name;
-    m_tableWidget->setWindowTitle(m_name);
+    m_tableBox->setWindowTitle(m_name);
+}
+
+bool RecordedTable::displayData() const
+{
+    return m_displayData;
+}
+
+bool RecordedTable::saveData() const
+{
+    return m_saveData;
+}
+
+void RecordedTable::setSaveData(bool save)
+{
+    m_saveData = save;
+    updateInfoLabel();
+}
+
+void RecordedTable::setDisplayData(bool display)
+{
+    m_displayData = display;
+    updateInfoLabel();
 }
 
 bool RecordedTable::open(const QString &fileName)
@@ -75,12 +115,12 @@ void RecordedTable::close()
 
 void RecordedTable::show()
 {
-    m_tableWidget->show();
+    m_tableBox->show();
 }
 
 void RecordedTable::hide()
 {
-    m_tableWidget->hide();
+    m_tableBox->hide();
 }
 
 void RecordedTable::reset()
@@ -93,7 +133,7 @@ void RecordedTable::setHeader(const QStringList &headers)
 {
     if (m_haveEvents) {
         QMessageBox::warning(
-            m_tableWidget,
+            m_tableBox,
             QStringLiteral("Warning"),
             QStringLiteral("Can not change table headers after already receiving events."));
         return;
@@ -115,16 +155,22 @@ void RecordedTable::addRows(const QStringList &data)
 {
     m_haveEvents = true;
 
-    // write to file if file is opened
-    if (!m_eventFile->isOpen())
-        return;
-    QTextStream tsout(m_eventFile);
+    if (m_saveData) {
+        // write to file if file is opened
+        if (!m_eventFile->isOpen())
+            return;
+        QTextStream tsout(m_eventFile);
 
-    // since our tables are semicolon-separated, we replace the "regular" semicolon
-    // with a unicode fullwith semicolon (U+FF1B). That way, users of the table module
-    // can use pretty much any character they want and a machine-readable CSV table will be generated.
-    auto csvRows = data;
-    tsout << csvRows.replaceInStrings(QStringLiteral(";"), QStringLiteral("；")).join(";") << "\n";
+        // since our tables are semicolon-separated, we replace the "regular" semicolon
+        // with a unicode fullwith semicolon (U+FF1B). That way, users of the table module
+        // can use pretty much any character they want and a machine-readable CSV table will be generated.
+        auto csvRows = data;
+        tsout << csvRows.replaceInStrings(QStringLiteral(";"), QStringLiteral("；")).join(";") << "\n";
+    }
+
+    // exit if we shouldn't display data
+    if (!m_displayData)
+        return;
 
     auto columnCount = m_tableWidget->columnCount();
     if (columnCount < data.count()) {
@@ -152,15 +198,38 @@ void RecordedTable::addRows(const QStringList &data)
 
 const QRect &RecordedTable::geometry() const
 {
-    return m_tableWidget->geometry();
+    return m_tableBox->geometry();
 }
 
 void RecordedTable::setGeometry(const QRect &rect)
 {
-    m_tableWidget->setGeometry(rect);
+    m_tableBox->setGeometry(rect);
 }
 
 QWidget *RecordedTable::widget() const
 {
-    return m_tableWidget;
+    return m_tableBox;
+}
+
+void RecordedTable::updateInfoLabel()
+{
+    m_infoLabel->setVisible(false);
+    if (m_displayData && m_saveData)
+        return;
+    m_infoLabel->setVisible(true);
+
+    if (!m_displayData && !m_saveData) {
+        m_infoLabel->setText("⚠ Not saving table data or updating displayed data!");
+        return;
+    }
+
+    if (m_displayData && !m_saveData) {
+        m_infoLabel->setText("⚠ Not saving displayed table data!");
+        return;
+    }
+
+    if (!m_displayData && m_saveData) {
+        m_infoLabel->setText("Saving data, but not updating displayed content.");
+        return;
+    }
 }

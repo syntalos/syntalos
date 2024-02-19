@@ -1,20 +1,24 @@
 # Build definitions for module: table
 
 module_hdr = [
-    'tablemodule.h'
+    'tablemodule.h',
 ]
 module_moc_hdr = [
-    'recordedtable.h'
+    'recordedtable.h',
+    'tablesettingsdialog.h',
 ]
 
 module_src = [
-    'recordedtable.cpp'
+    'recordedtable.cpp',
+    'tablesettingsdialog.cpp',
 ]
 module_moc_src = [
-    'tablemodule.cpp'
+    'tablemodule.cpp',
 ]
 
-module_ui = []
+module_ui = [
+    'tablesettingsdialog.ui',
+]
 
 module_deps = [qt_svg_dep]
 

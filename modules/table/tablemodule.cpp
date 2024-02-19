@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2022 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -27,6 +27,7 @@
 #include <QTimer>
 
 #include "recordedtable.h"
+#include "tablesettingsdialog.h"
 #include "utils/style.h"
 
 SYNTALOS_MODULE(TableModule)
@@ -41,9 +42,9 @@ private:
 
     std::shared_ptr<StreamSubscription<TableRow>> m_rowSub;
 
+    TableSettingsDialog *m_settingsDlg;
     RecordedTable *m_recTable;
     QString m_imgWinTitle;
-    QTimer *m_evTimer;
 
 public:
     explicit TableModule(QObject *parent = nullptr)
@@ -53,9 +54,9 @@ public:
 
         m_recTable = new RecordedTable(nullptr, getTableModuleIcon());
         addDisplayWindow(m_recTable->widget(), false); // we register this to get automatic layout save/restore
-        m_evTimer = new QTimer(this);
-        m_evTimer->setInterval(0);
-        connect(m_evTimer, &QTimer::timeout, this, &TableModule::addRow);
+
+        m_settingsDlg = new TableSettingsDialog;
+        addSettingsWindow(m_settingsDlg);
     }
 
     ~TableModule() override
@@ -65,7 +66,7 @@ public:
 
     ModuleFeatures features() const override
     {
-        return ModuleFeature::SHOW_DISPLAY;
+        return ModuleFeature::SHOW_DISPLAY | ModuleFeature::SHOW_SETTINGS | ModuleFeature::CALL_UI_EVENTS;
     }
 
     bool prepare(const TestSubject &) override
@@ -74,15 +75,33 @@ public:
         if (m_rowsIn->hasSubscription())
             m_rowSub = m_rowsIn->subscription();
 
+        // sanity check
+        if (!m_settingsDlg->useNameFromSource() && m_settingsDlg->dataName().isEmpty()) {
+            raiseError("Data name is not set. Please set it in the settings to continue.");
+            return false;
+        }
+
+        // propagate settings
+        m_settingsDlg->setRunning(true);
+        m_recTable->setSaveData(m_settingsDlg->saveData());
+        m_recTable->setDisplayData(m_settingsDlg->displayData());
+
         return true;
     }
 
     void start() override
     {
-        if (m_rowSub.get() != nullptr) {
-            const auto mdata = m_rowSub->metadata();
+        if (m_rowSub.get() == nullptr)
+            return;
 
-            auto dstore = createDefaultDataset(name(), mdata);
+        const auto mdata = m_rowSub->metadata();
+        if (m_settingsDlg->saveData()) {
+            // determine name for data storage
+            std::shared_ptr<EDLDataset> dstore;
+            if (m_settingsDlg->useNameFromSource())
+                dstore = createDefaultDataset(name(), mdata);
+            else
+                dstore = createDefaultDataset(m_settingsDlg->dataName());
             if (dstore.get() == nullptr)
                 return;
 
@@ -96,32 +115,24 @@ public:
                 raiseError(QStringLiteral("Unable to open file %1").arg(fname));
                 return;
             }
-
-            // remove any old data from the table display
-            m_recTable->reset();
-
-            const auto header = mdata.value("table_header").toStringList();
-            m_recTable->setHeader(header);
-
-            auto imgWinTitle = m_rowSub->metadataValue(CommonMetadataKey::SrcModName).toString();
-            if (imgWinTitle.isEmpty())
-                imgWinTitle = "Canvas";
-            const auto portTitle = m_rowSub->metadataValue(CommonMetadataKey::SrcModPortTitle).toString();
-            if (!portTitle.isEmpty())
-                imgWinTitle = QStringLiteral("%1 - %2").arg(imgWinTitle).arg(portTitle);
-            m_recTable->widget()->setWindowTitle(imgWinTitle);
-
-            m_evTimer->start();
         }
+
+        // remove any old data from the table display
+        m_recTable->reset();
+
+        const auto header = mdata.value("table_header").toStringList();
+        m_recTable->setHeader(header);
+
+        auto imgWinTitle = m_rowSub->metadataValue(CommonMetadataKey::SrcModName).toString();
+        if (imgWinTitle.isEmpty())
+            imgWinTitle = "Canvas";
+        const auto portTitle = m_rowSub->metadataValue(CommonMetadataKey::SrcModPortTitle).toString();
+        if (!portTitle.isEmpty())
+            imgWinTitle = QStringLiteral("%1 - %2").arg(imgWinTitle).arg(portTitle);
+        m_recTable->widget()->setWindowTitle(imgWinTitle);
     }
 
-    void stop() override
-    {
-        m_evTimer->stop();
-        m_recTable->close();
-    }
-
-    void addRow()
+    void processUiEvents() override
     {
         auto maybeRow = m_rowSub->peekNext();
         if (!maybeRow.has_value())
@@ -129,6 +140,32 @@ public:
 
         const auto row = maybeRow.value();
         m_recTable->addRows(row);
+    }
+
+    void stop() override
+    {
+        m_recTable->close();
+        m_settingsDlg->setRunning(false);
+    }
+
+    void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
+    {
+        settings.insert("use_name_from_source", m_settingsDlg->useNameFromSource());
+        settings.insert("data_name", m_settingsDlg->dataName());
+
+        settings.insert("save_data", m_settingsDlg->saveData());
+        settings.insert("display_data", m_settingsDlg->displayData());
+    }
+
+    bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
+    {
+        m_settingsDlg->setUseNameFromSource(settings.value("use_name_from_source", true).toBool());
+        m_settingsDlg->setDataName(settings.value("data_name").toString());
+
+        m_settingsDlg->setSaveData(settings.value("save_data", true).toBool());
+        m_settingsDlg->setDisplayData(settings.value("display_data", true).toBool());
+
+        return true;
     }
 };
 

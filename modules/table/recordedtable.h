@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2022 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -21,6 +21,7 @@
 
 #include <QIcon>
 #include <QObject>
+#include <QLabel>
 
 class QTableWidget;
 class QFile;
@@ -34,6 +35,12 @@ public:
 
     QString name() const;
     void setName(const QString &name);
+
+    bool displayData() const;
+    void setDisplayData(bool display);
+
+    bool saveData() const;
+    void setSaveData(bool save);
 
     bool open(const QString &fileName);
     void close();
@@ -50,14 +57,18 @@ public:
 
     QWidget *widget() const;
 
-signals:
-
-public slots:
+private:
+    void updateInfoLabel();
 
 private:
+    QWidget *m_tableBox;
+    QLabel *m_infoLabel;
     QTableWidget *m_tableWidget;
     QFile *m_eventFile;
     QString m_eventFileName;
     QString m_name;
+
     bool m_haveEvents;
+    bool m_saveData;
+    bool m_displayData;
 };
