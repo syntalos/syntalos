@@ -113,7 +113,7 @@ void CropTransform::createSettingsUi(QWidget *parent)
     connect(sbWidth, qOverload<int>(&QSpinBox::valueChanged), [=](int) {
         QTimer::singleShot(500, sbWidth, &QSpinBox::editingFinished);
     });
-    connect(sbWidth, &QSpinBox::editingFinished, [&]() {
+    connect(sbWidth, &QSpinBox::editingFinished, [=, this]() {
         {
             const std::lock_guard<std::mutex> lock(m_mutex);
             m_roi.width = sbWidth->value() - m_roi.x;
@@ -129,7 +129,7 @@ void CropTransform::createSettingsUi(QWidget *parent)
     connect(sbHeight, qOverload<int>(&QSpinBox::valueChanged), [=](int) {
         QTimer::singleShot(500, sbHeight, &QSpinBox::editingFinished);
     });
-    connect(sbHeight, &QSpinBox::editingFinished, [&]() {
+    connect(sbHeight, &QSpinBox::editingFinished, [=, this]() {
         {
             const std::lock_guard<std::mutex> lock(m_mutex);
             m_roi.height = sbHeight->value() - m_roi.y;
@@ -144,7 +144,7 @@ void CropTransform::createSettingsUi(QWidget *parent)
     connect(sbX, qOverload<int>(&QSpinBox::valueChanged), [=](int) {
         QTimer::singleShot(500, sbX, &QSpinBox::editingFinished);
     });
-    connect(sbX, &QSpinBox::editingFinished, [&]() {
+    connect(sbX, &QSpinBox::editingFinished, [=, this]() {
         {
             const std::lock_guard<std::mutex> lock(m_mutex);
             m_roi.x = sbX->value();
@@ -159,7 +159,7 @@ void CropTransform::createSettingsUi(QWidget *parent)
     connect(sbY, qOverload<int>(&QSpinBox::valueChanged), [=](int) {
         QTimer::singleShot(500, sbY, &QSpinBox::editingFinished);
     });
-    connect(sbY, &QSpinBox::editingFinished, [&]() {
+    connect(sbY, &QSpinBox::editingFinished, [=, this]() {
         {
             const std::lock_guard<std::mutex> lock(m_mutex);
             m_roi.y = sbY->value();
@@ -317,7 +317,7 @@ void ScaleTransform::createSettingsUi(QWidget *parent)
     auto sbSymScale = new QDoubleSpinBox(parent);
     sbSymScale->setRange(0.01, 10);
     sbSymScale->setValue(m_scaleFactor);
-    connect(sbSymScale, qOverload<double>(&QDoubleSpinBox::valueChanged), [&](double value) {
+    connect(sbSymScale, qOverload<double>(&QDoubleSpinBox::valueChanged), [=, this](double value) {
         m_scaleFactor = value;
     });
 

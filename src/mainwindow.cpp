@@ -135,7 +135,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->panelRunInfo->setEnabled(false);
 
     connect(ui->tbOpenDir, &QToolButton::clicked, this, &MainWindow::openDataExportDirectory);
-    connect(ui->subjectIdEdit, &QLineEdit::textChanged, [&](const QString &mouseId) {
+    connect(ui->subjectIdEdit, &QLineEdit::textChanged, [=, this](const QString &mouseId) {
         if (mouseId.isEmpty()) {
             ui->subjectSelectComboBox->setEnabled(true);
             ui->subjectSelectComboBox->setCurrentIndex(0);
