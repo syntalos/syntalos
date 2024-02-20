@@ -814,11 +814,11 @@ void ControllerInterface::controllerRunStart()
     rsData->triggerWaitNotify = 0;
 }
 
-void ControllerInterface::controllerRunIter()
+bool ControllerInterface::controllerRunIter()
 {
     // safety check: don't do anything if we are not actually running
     if (!state->running)
-        return;
+        return false;
 
     rsData->workTimer.restart();
 
@@ -905,7 +905,6 @@ void ControllerInterface::controllerRunIter()
                     }
                 }
             }
-            qApp->processEvents();
         }
 
         if (controlPanel) controlPanel->updateSlidersEnabled(rsData->yScaleUsed);
@@ -965,10 +964,11 @@ void ControllerInterface::controllerRunIter()
 //                cout << "Loop time = " << loopTime / 1.0e6 << " ms" << EndOfLine;
             rsData->reportTimer.restart();
         }
-        qApp->processEvents();
     }
 
     rsData->numSamples = display->getSamplesPerRefresh();
+
+    return true;
 }
 
 void ControllerInterface::controllerRunFinalize()
@@ -1013,6 +1013,9 @@ void ControllerInterface::controllerRunFinalize()
     waveformFifo->pauseBuffer();
 
     usbStreamFifo->resetBuffer();
+
+    // ensure all events of the terminating threads are propagated
+    qApp->processEvents();
 
     delete rsData;
     rsData = nullptr;
@@ -1711,7 +1714,7 @@ void ControllerInterface::pipeReadErrorMessage(int errorID)
                                   "EMF interference sources (e.g., wireless mouse receivers).";
 
     QMessageBox::critical(nullptr, "USB Read Error", errorMessage);
-    exit(EXIT_FAILURE);
+    syMod->stopWithError("Failure to read USB data.");
 }
 
 void ControllerInterface::setDacHighpassFilterEnabled(bool enabled)

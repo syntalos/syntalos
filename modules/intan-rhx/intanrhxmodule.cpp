@@ -212,15 +212,16 @@ bool IntanRhxModule::prepare(const TestSubject &)
     return true;
 }
 
-void IntanRhxModule::processUiEvents()
-{
-    m_controllerIntf->controllerRunIter();
-}
-
 void IntanRhxModule::start()
 {
     m_controllerIntf->startDAQWithSyntalosStartTime(m_syTimer->startTime());
     AbstractModule::start();
+}
+
+void IntanRhxModule::processUiEvents()
+{
+    if (!m_controllerIntf->controllerRunIter())
+        m_ctlWindow->stopAndReportAnyErrors();
 }
 
 void IntanRhxModule::stop()
@@ -261,6 +262,11 @@ bool IntanRhxModule::loadSettings(const QString &, const QVariantHash &settings,
     m_chanExportDlg->updateExportChannelsTable();
 
     return true;
+}
+
+void IntanRhxModule::stopWithError(const QString &message)
+{
+    raiseError(message);
 }
 
 void IntanRhxModule::setPortSignalBlockSampleSize(size_t sampleNum)

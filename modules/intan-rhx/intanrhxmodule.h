@@ -88,6 +88,8 @@ public:
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &extraData) override;
     bool loadSettings(const QString&, const QVariantHash &settings, const QByteArray& extraData) override;
 
+    void stopWithError(const QString &message);
+
     void setPortSignalBlockSampleSize(size_t sampleNum);
     std::vector<std::vector<StreamDataInfo<FloatSignalBlock>>> floatSdiByGroupChannel;
     std::vector<std::vector<StreamDataInfo<IntSignalBlock>>> intSdiByGroupChannel;

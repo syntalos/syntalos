@@ -79,7 +79,7 @@ public:
     void runTCPDataOutputThread();
 
     void controllerRunStart();
-    void controllerRunIter();
+    bool controllerRunIter();
     void controllerRunFinalize();
     void runControllerSilently(double nSeconds, QProgressDialog* progress = nullptr);
     float measureRmsLevel(string waveName, double timeSec) const;

@@ -1059,6 +1059,18 @@ void ControlWindow::stopAndReportAnyErrors()
     updateForStop();
     if (!queuedErrorMessage.isEmpty()) {
         QMessageBox::critical(this, tr("Error"), queuedErrorMessage);
+
+
+        QString shortMsg = QStringLiteral("Data acquisition has failed.");
+        int startIndex = queuedErrorMessage.indexOf("<b>") + 3;
+        if (startIndex != 2) {
+            int endIndex = queuedErrorMessage.indexOf("</b>", startIndex);
+            if (endIndex > 0) {
+                shortMsg = QStringLiteral("Run has failed: %1").arg(queuedErrorMessage.mid(startIndex, endIndex - startIndex));
+            }
+        }
+        state->syMod->stopWithError(shortMsg);
+
         queuedErrorMessage.clear();
     }
 }
