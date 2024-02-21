@@ -425,7 +425,7 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
     plottingMode = new DiscreteItemList("PlottingMode", globalItems, this);
     plottingMode->addItem("Original", "Original", 0);
     plottingMode->addItem("High Efficiency", "High Efficiency", 1);
-    plottingMode->setValue("Original");
+    plottingMode->setValue("High Efficiency");
 
     note1 = new StringItem("Note1", globalItems, this, "");
     note1->setRestricted(RestrictIfRunning, RunningErrorMessage);
