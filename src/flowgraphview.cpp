@@ -710,14 +710,20 @@ void FlowGraphNode::updateNodeState(ModuleState state)
 
 void FlowGraphNode::setNodeInfoText(const QString &info)
 {
-    if (info.startsWith("<html>")) {
-        m_infoText->setHtml(info);
-    } else {
-        QFontMetrics fm(m_infoText->font());
-        // shorten the text to about 100 characters
-        const auto shortText = fm.elidedText(info, Qt::ElideRight, fm.averageCharWidth() * 100);
-        m_infoText->setPlainText(shortText);
+    QString shortInfo = info;
+    const int startIndex = info.indexOf("<b>") + 3;
+    if (startIndex != 2) {
+        const int endIndex = info.indexOf("</b>", startIndex);
+        if (endIndex > 0) {
+            shortInfo = info.mid(startIndex, endIndex - startIndex);
+        }
     }
+
+    // shorten the text even more
+    if (shortInfo.length() > 84)
+        shortInfo = shortInfo.mid(0, 82) + QStringLiteral("...");
+
+    m_infoText->setHtml(shortInfo);
 }
 
 QString FlowGraphNode::nodeInfoText() const
