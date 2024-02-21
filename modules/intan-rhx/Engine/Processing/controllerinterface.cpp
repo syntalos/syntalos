@@ -834,8 +834,16 @@ bool ControllerInterface::controllerRunIter()
 //            plotTimer.start();
 
         if (!state->triggerModeDisplay->getValue()) {
-            // Normal (non-triggered) display
-            rsData->yScaleUsed = display->loadWaveformData(waveformFifo);
+            const auto wfBufferFill = (int) std::floor(waveformFifo->percentFull());
+            if (wfBufferFill >= 80) {
+                // We are close to overrunning the buffer! Sacrifice display for a bit to see
+                // if we can recover
+                if (wfBufferFill % 4 == 0)
+                    rsData->yScaleUsed = display->loadWaveformData(waveformFifo);
+            } else {
+                // Normal (non-triggered) display
+                rsData->yScaleUsed = display->loadWaveformData(waveformFifo);
+            }
             emit setTopStatusLabel("");
         } else {
             // Triggered display
