@@ -7,7 +7,6 @@
 
   <metadata_license>FSFAP</metadata_license>
   <project_license>LGPL-3.0-or-later or GPL-3.0-or-later</project_license>
-  <developer_name translate="no">Matthias Klumpp</developer_name>
 
   <description>
     <p>
@@ -35,6 +34,10 @@
 
   <url type="homepage">https://github.com/bothlab/syntalos</url>
   <url type="bugtracker">https://github.com/bothlab/syntalos/issues</url>
+
+  <developer id="net.tenstral">
+    <name translate="no">Matthias Klumpp</name>
+  </developer>
 
   <content_rating type="oars-1.1" />
 
