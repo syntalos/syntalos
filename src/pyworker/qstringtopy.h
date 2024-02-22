@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020-2022 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2020-2024 Matthias Klumpp <matthias@tenstral.net>
  * Copyright (c) 2009-2019 BlueQuartz Software, LLC
  *
  * Redistribution and use in source and binary forms, with or without modification,
