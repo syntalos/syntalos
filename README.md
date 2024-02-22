@@ -72,8 +72,8 @@ to submit a change, bugfix or new module.
 
 ### Dependencies
 
- * C++17 compatible compiler
-   (GCC >= 7.1 or Clang >= 4. GCC is recommended)
+ * C++20 compatible compiler
+   (GCC >= 10 or Clang >= 12. GCC is recommended)
  * Meson (>= 0.64)
  * Qt5 (>= 5.12)
  * Qt5 Test
@@ -121,4 +121,5 @@ Modules can be enabled and disabled via the `-Dmodules` flag - refer to `meson_o
 comma-separated values.
 
 Pull-requests for new modules, bugfixes or any changes are very welcome!
-(Code should be valid C++17, use 4 spaces for indentation)
+(Code should be valid C++20, use 4 spaces for indentation. With clang-format installed, `autoformat.py` can be used
+to automatically format C++ and Python code)
