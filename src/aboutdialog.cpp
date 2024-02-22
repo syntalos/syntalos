@@ -27,7 +27,7 @@
 
 const QString aboutDlgCopyInfo = QStringLiteral(
     "<html>"
-    "© 2016-2023 Matthias Klumpp"
+    "© 2016-2024 Matthias Klumpp"
     "<p>Developed at the Draguhn Group at Heidelberg University, Germany</p>"
     "<p>Syntalos is free software: you can redistribute it and/or modify "
     "it under the terms of the GNU General Public License (GPL-3.0+) and "
