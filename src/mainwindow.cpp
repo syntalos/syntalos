@@ -404,8 +404,15 @@ void MainWindow::setRunUiControlStates(bool engineRunning, bool stopPossible)
     ui->graphForm->setModifyPossible(!engineRunning);
     ui->panelRunInfo->setEnabled(engineRunning);
     ui->panelRunSettings->setEnabled(!engineRunning);
-    ui->actionGlobalConfig->setEnabled(!engineRunning);
     ui->widgetProjectSettings->setEnabled(!engineRunning);
+    ui->actionGlobalConfig->setEnabled(!engineRunning);
+    ui->actionIntervalRunConfig->setEnabled(!engineRunning);
+
+    // these actions show dialogs that would block the UI processing loop
+    ui->actionSystemInfo->setEnabled(!engineRunning);
+    ui->actionModuleLoadInfo->setEnabled(!engineRunning);
+    ui->actionUsbDevices->setEnabled(!engineRunning);
+    ui->actionAbout->setEnabled(!engineRunning);
 
     // do not permit save/load while we are running
     ui->actionProjectOpen->setEnabled(!engineRunning);
