@@ -1,3 +1,54 @@
+Version 1.1.0
+-------------
+Released: 2024-02-20
+
+Notes:
+ * The "traceplot" module has been replaced with "plot-timeseries".
+   Older projects may need a bit of manual adjustment to the new module.
+
+Features:
+ * plot-timeseries: Add efficient timeseries plotting module
+ * sp210-pressuresense: Add module for the differential pressure sensor
+ * Add SP210 pressure sensor firmware
+ * jsonwriter: Add module to save data as compressed, Pandas-compatible JSON
+ * jsonwriter: Allow encoding of NaN values as NaN
+ * traceplot: Drop the module, plot-timeseries replaces it
+ * Make all modules provide required metadata to work with the new timeplot module
+ * plot-timeseries: Allow user to configure GUI update interval & buffer size
+ * intan-rhx: Sync with upstream 3.3.1
+ * intan-rhx: Try to sacrifice display refresh speed before buffer overrun
+ * intan-rhx: Default to high-efficiency plotting mode
+ * table: Make data visibility and data storage configurable
+ * miniscope: Improve BNO block stream transfer efficiency
+ * streams: Make suspension API accessible to variant streams
+ * Switch to C++20
+ * datasource: Add demo float signal data source
+ * Load project when project file is passed as parameter
+
+Bugfixes:
+ * Fix module loader on older versions of Flatpak / Ubuntu 20.04
+ * stream: Make integer sizes for signal types more clearly defined
+ * engine: Protect better against wrong event API use with dead subscriptions
+ * engine: Attempt emergency save in case of fatal module/thread stalls
+ * videorecorder: Improve error reporting for bad metadata
+ * Don't prematurely unlock UI on module error
+ * Don't draw "fake" connections when user connects ports during a run
+ * sysinfo: Don't overflow UI if CPU supports a lot of AVX instructions
+ * Rename a few instances of "MazeAmaze"
+ * intan-rhx: Work around crash in GUI race condition
+ * intan-rhx: Work around widget rendering crash upon module reload on GNOME
+ * intan-rhx: Improve error reporting
+ * Improve UI when raising very large, complex error messages
+ * Fail immediately if any two modules try to write to the same EDL dataset
+ * Disable some more UI-blocking dialog actions during a run
+
+Miscellaneous:
+ * docs: Add time series plotter module documentation
+ * Increase default size of module select dialog/entries a bit
+ * Update dependency information
+ * docs: Add a few more examples how to read data without edlio
+ * Set a better initial position for managed settings windows
+
 Version 1.0.1
 -------------
 Released: 2023-12-22
