@@ -1,6 +1,6 @@
 Version 1.1.0
 -------------
-Released: 2024-02-20
+Released: 2024-02-22
 
 Notes:
  * The "traceplot" module has been replaced with "plot-timeseries".
