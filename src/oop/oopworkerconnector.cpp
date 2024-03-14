@@ -29,6 +29,7 @@
 #include "sysinfo.h"
 #include "oopmodule.h"
 #include "utils/misc.h"
+#include "utils/vipsutils.h"
 
 using namespace Syntalos;
 
@@ -303,7 +304,7 @@ static bool unmarshalDataAndOutput(
             return false;
         }
         milliseconds_t msec(plist[1].toLongLong());
-        Frame frame(plist[0].toUInt(), cvMatFromShm(shm), msec);
+        Frame frame(cvMatToVips(cvMatFromShm(shm)), plist[0].toUInt(), msec);
 
         port->stream<Frame>()->push(frame);
         return true;

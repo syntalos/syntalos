@@ -48,7 +48,7 @@ private:
     Device m_device;
     GstElement *m_pipeline = nullptr;
     GstAppSink *m_appSink = nullptr;
-    cv::Size m_resolution;
+    QSize m_resolution;
 
     double m_fps;
     QString m_imgFormat;
@@ -148,8 +148,12 @@ public:
         auto caps = m_ctlDialog->currentCaps();
         GstStructure *structure = gst_caps_get_structure(caps, 0);
 
-        gst_structure_get_int(structure, "width", &m_resolution.width);
-        gst_structure_get_int(structure, "height", &m_resolution.height);
+        int value;
+        gst_structure_get_int(structure, "width", &value);
+        m_resolution.setWidth(value);
+        gst_structure_get_int(structure, "height", &value);
+        m_resolution.setHeight(value);
+
         const auto framerate = gst_structure_get_value(structure, "framerate");
         const double fps_n = gst_value_get_fraction_numerator(framerate);
         const double fps_d = gst_value_get_fraction_denominator(framerate);
@@ -157,11 +161,11 @@ public:
         m_imgFormat = gst_structure_get_string(structure, "format");
 
         // set the required stream metadata for video capture
-        m_outStream->setMetadataValue("size", QSize(m_resolution.width, m_resolution.height));
+        m_outStream->setMetadataValue("size", m_resolution);
         m_outStream->setMetadataValue("framerate", m_fps);
         m_outStream->setMetadataValue("has_color", !m_imgFormat.toUpper().startsWith("GRAY"));
         if (m_imgFormat.toUpper().startsWith("GRAY16"))
-            m_outStream->setMetadataValue("depth", CV_16U);
+            m_outStream->setMetadataValue("depth", VIPS_FORMAT_USHORT);
 
         // start the stream
         m_outStream->start();
@@ -231,14 +235,36 @@ public:
                 // create our frame and push it to subscribers
                 Frame frame;
                 if (g_strcmp0(format_str, "BGRx") == 0) {
-                    frame.mat.create(m_resolution, CV_8UC(4));
-                    memcpy(frame.mat.data, info.data, m_resolution.width * m_resolution.height * 4);
+                    frame.mat = vips::VImage::new_from_memory_copy(
+                        info.data,
+                        m_resolution.width() * m_resolution.height() * 4,
+                        m_resolution.width(),
+                        m_resolution.height(),
+                        4,
+                        VIPS_FORMAT_UCHAR);
+
+                    // BGR to RGB
+                    frame.mat = frame.mat.bandjoin({
+                        frame.mat[2], // Red channel
+                        frame.mat[1], // Green channel
+                        frame.mat[0]  // Blue channel
+                    });
                 } else if (g_strcmp0(format_str, "GRAY8") == 0) {
-                    frame.mat.create(m_resolution, CV_8UC(1));
-                    memcpy(frame.mat.data, info.data, m_resolution.width * m_resolution.height);
+                    frame.mat = vips::VImage::new_from_memory_copy(
+                        info.data,
+                        m_resolution.width() * m_resolution.height(),
+                        m_resolution.width(),
+                        m_resolution.height(),
+                        1,
+                        VIPS_FORMAT_UCHAR);
                 } else if (g_strcmp0(format_str, "GRAY16_LE") == 0) {
-                    frame.mat.create(m_resolution, CV_16UC(1));
-                    memcpy(frame.mat.data, info.data, m_resolution.width * m_resolution.height);
+                    frame.mat = vips::VImage::new_from_memory_copy(
+                        info.data,
+                        m_resolution.width() * m_resolution.height(),
+                        m_resolution.width(),
+                        m_resolution.height(),
+                        1,
+                        VIPS_FORMAT_USHORT);
                 } else {
                     qCDebug(logTISCam).noquote().nospace() << QString::fromStdString(m_device.str()) << ": "
                                                            << "Received buffer with unsupported format: " << format_str;

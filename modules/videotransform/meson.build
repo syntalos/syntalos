@@ -20,7 +20,7 @@ module_moc_src = [
 
 module_ui = ['vtransformctldialog.ui']
 
-module_deps = [opencv_dep]
+module_deps = [vips_dep]
 
 module_data = [
     'videotransform.svg',

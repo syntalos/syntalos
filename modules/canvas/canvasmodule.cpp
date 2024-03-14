@@ -106,7 +106,7 @@ public:
 
         // check framerate and throttle it, showing a remark in the latter
         // case so the user is aware that they're not seeing every single frame
-        m_expectedFps = m_frameSub->metadata().value("framerate", 0).toDouble();
+        m_expectedFps = m_frameSub->metadata().value("framerate", 60).toDouble();
 
         // never ever try to display more than 144fps by default
         // the module will lower this on its own if too much data is queued
@@ -201,7 +201,7 @@ public:
 
         // get all timing info and show the image
         const auto frame = maybeFrame.value();
-        m_cvView->showImage(frame.mat);
+        m_cvView->showImage(frame.mat.copy_memory());
         const auto frameTime = frame.time.count();
 
         if (m_expectedFps == 0) {

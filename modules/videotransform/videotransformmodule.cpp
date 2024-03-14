@@ -83,9 +83,7 @@ public:
 
         // notify transformers about original data
         const auto origQSize = m_framesIn->metadataValue("size", QSize()).toSize();
-        cv::Size tfISize;
-        tfISize.width = origQSize.width();
-        tfISize.height = origQSize.height();
+        QSize tfISize = origQSize;
         for (const auto &vtf : m_activeVTFList) {
             vtf->setOriginalSize(tfISize);
             vtf->start();
@@ -93,7 +91,7 @@ public:
         }
 
         // set new dimensions of output data (we may have changed that)
-        m_framesOut->setMetadataValue("size", QSize(tfISize.width, tfISize.height));
+        m_framesOut->setMetadataValue("size", tfISize);
 
         // update UI with the new limits
         m_settingsDlg->updateUi();
@@ -107,7 +105,7 @@ public:
 
     void start() override
     {
-        // TODO
+        // nothing to do here
     }
 
     void onFrameReceived()
@@ -116,16 +114,18 @@ public:
         if (!maybeFrame.has_value())
             return;
 
-        // we have to copy the frame as we must not modify the matrix in-place
-        // (it may be currently in use by other threads - unfortunately immutability
-        // can't be enforced at all on cv::Mat in streams)
+        // get the frame
         auto frame = maybeFrame.value();
-        frame.mat.copyTo(frame.mat);
 
         // apply transformations
         for (const auto &vtf : m_activeVTFList) {
             vtf->process(frame);
         }
+
+        // apply all pending operations
+        frame.mat = frame.mat.copy_memory();
+
+        // forward the frame
         m_framesOut->push(frame);
     }
 

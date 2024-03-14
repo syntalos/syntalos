@@ -21,6 +21,7 @@ module_ui = ['genericcamerasettingsdialog.ui']
 v4l_dep = dependency('libv4l2')
 module_deps = [
     opencv_dep,
+    vips_dep,
     v4l_dep,
 ]
 

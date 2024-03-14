@@ -21,7 +21,7 @@
 
 #include <QOpenGLWidget>
 #include <QOpenGLFunctions>
-#include <opencv2/core/core.hpp>
+#include "vips8-q.h"
 
 class ImageViewWidget : public QOpenGLWidget, protected QOpenGLFunctions
 {
@@ -31,7 +31,7 @@ public:
     ~ImageViewWidget();
 
 public slots:
-    bool showImage(const cv::Mat &image);
+    bool showImage(const vips::VImage &image);
 
     void setMinimumSize(const QSize &size);
     void setHighlightSaturation(bool enabled);

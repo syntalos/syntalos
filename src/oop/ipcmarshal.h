@@ -21,6 +21,7 @@
 
 #include <QVariant>
 #include <memory>
+#include <opencv2/core.hpp>
 
 #include "sharedmemory.h"
 #include "streams/datatypes.h"

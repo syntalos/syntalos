@@ -35,7 +35,7 @@ if spinnaker_cargs.length() == 0
     error('Unable to find Spinnaker SDK include directories! Please install the SDK or disable FLIR camera support.')
 endif
 
-module_deps = [opencv_dep, spinnaker_dep]
+module_deps = [vips_dep, spinnaker_dep]
 
 module_data = [
     'camera-flir.svg',

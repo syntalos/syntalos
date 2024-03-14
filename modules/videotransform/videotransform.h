@@ -41,8 +41,8 @@ public:
     };
     virtual void createSettingsUi(QWidget *parent) = 0;
 
-    void setOriginalSize(const cv::Size &size);
-    virtual cv::Size resultSize();
+    void setOriginalSize(const QSize &size);
+    virtual QSize resultSize();
 
     virtual bool allowOnlineModify() const;
 
@@ -54,7 +54,7 @@ public:
     virtual void fromVariantHash(const QVariantHash &settings);
 
 protected:
-    cv::Size m_originalSize;
+    QSize m_originalSize;
 };
 
 /**
@@ -71,7 +71,7 @@ public:
     void createSettingsUi(QWidget *parent) override;
 
     bool allowOnlineModify() const override;
-    cv::Size resultSize() override;
+    QSize resultSize() override;
 
     void start() override;
     void process(Frame &frame) override;
@@ -86,10 +86,10 @@ private:
 
     std::mutex m_mutex;
 
-    cv::Size m_maxima;
-    cv::Rect m_roi;
-    cv::Rect m_activeRoi;
-    cv::Size m_activeOutSize;
+    QSize m_maxima;
+    QRect m_roi;
+    QSize m_activeOutSize;
+    QRect m_activeRoi;
     std::atomic_bool m_onlineModified;
 };
 
@@ -106,7 +106,7 @@ public:
     QIcon icon() const override;
     void createSettingsUi(QWidget *parent) override;
 
-    cv::Size resultSize() override;
+    QSize resultSize() override;
     void process(Frame &frame) override;
 
     QVariantHash toVariantHash() override;

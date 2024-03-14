@@ -16,7 +16,7 @@ module_moc_src = [
 
 module_ui = []
 
-module_deps = [opencv_dep]
+module_deps = [opencv_dep, vips_dep]
 
 module_data = [
     'triled-tracker.svg',

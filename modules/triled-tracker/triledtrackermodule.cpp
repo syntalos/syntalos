@@ -22,6 +22,7 @@
 #include <QDebug>
 
 #include "streams/frametype.h"
+#include "utils/vipsutils.h"
 #include "tracker.h"
 
 SYNTALOS_MODULE(TriLedTrackerModule)
@@ -111,10 +112,11 @@ public:
 
             cv::Mat infoMat;
             cv::Mat trackMat;
-            tracker->analyzeFrame(frame.mat, frame.time, &trackMat, &infoMat);
+            cv::Mat frameMat = vipsToCvMat(frame.mat);
+            tracker->analyzeFrame(frameMat, frame.time, &trackMat, &infoMat);
 
-            m_trackStream->push(Frame(trackMat, frame.time));
-            m_animalStream->push(Frame(infoMat, frame.time));
+            m_trackStream->push(Frame(cvMatToVips(trackMat), frame.time));
+            m_animalStream->push(Frame(cvMatToVips(infoMat), frame.time));
         }
 
         // store maze dimension metadata - since or metadata storage suggestion to possible

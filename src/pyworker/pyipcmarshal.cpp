@@ -25,6 +25,7 @@
 #include "cvmatndsliceconvert.h"
 #include "ipcmarshal.h"
 #include "pyipcmarshal.h"
+#include "utils/vipsutils.h"
 
 /**
  * @brief Create a Python object from received data.
@@ -36,7 +37,7 @@ py::object unmarshalDataToPyObject(int typeId, const QVariant &argData, std::uni
      **/
 
     if (typeId == qMetaTypeId<Frame>()) {
-        auto floatingMat = cvMatFromShm(shm, false);
+        auto floatingMat = cvMatToVips(cvMatFromShm(shm, false));
 
         Frame frame;
         frame.mat = floatingMat;
@@ -120,7 +121,7 @@ bool marshalPyDataElement(int typeId, const py::object &pyObj, QVariant &argData
     if (typeId == qMetaTypeId<Frame>()) {
         const auto frame = pyObj.cast<Frame>();
 
-        if (!cvMatToShm(shm, frame.mat))
+        if (!cvMatToShm(shm, vipsToCvMat(frame.mat)))
             return false;
 
         QVariantList plist;

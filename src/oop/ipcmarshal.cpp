@@ -20,6 +20,7 @@
 #include "ipcmarshal.h"
 
 #include <chrono>
+#include "utils/vipsutils.h"
 
 /**
  * @brief Write OpenCV Matrix to shared memory region.
@@ -105,7 +106,9 @@ bool marshalDataElement(int typeId, const QVariant &data, QVariant &outData, std
 {
     if (typeId == qMetaTypeId<Frame>()) {
         auto frame = data.value<Frame>();
-        if (!cvMatToShm(shm, frame.mat))
+
+        auto mat = vipsToCvMat(frame.mat);
+        if (!cvMatToShm(shm, mat))
             return false;
 
         QVariantList plist;

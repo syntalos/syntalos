@@ -21,12 +21,14 @@
 #include <KDBusService>
 #include <QApplication>
 #include <QCommandLineParser>
+#include <QMessageBox>
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wzero-as-null-pointer-constant"
 #include <gst/gst.h>
 #include <pipewire/pipewire.h>
 #pragma GCC diagnostic pop
 #include <libusb.h>
+#include "vips8-q.h"
 
 #include "mainwindow.h"
 
@@ -37,6 +39,12 @@ int main(int argc, char *argv[])
 
     // initialize libusb
     libusb_init(nullptr);
+
+    // initailize VIPS
+    if (VIPS_INIT(argv[0])) {
+        QMessageBox::critical(nullptr, "Critical Error", "Failed to initialize Syntalos: Unable to start VIPS");
+        vips_error_exit(nullptr);
+    }
 
     // initialize PipeWire
     pw_init(&argc, &argv);
@@ -76,6 +84,7 @@ int main(int argc, char *argv[])
 
     // finalize & quit
     delete w;
+    vips_shutdown();
     libusb_exit(nullptr);
     return rc;
 }

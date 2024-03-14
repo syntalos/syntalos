@@ -19,35 +19,40 @@
 
 #pragma once
 #include "datatypes.h"
-#include <opencv2/core.hpp>
+#include "vips8-q.h"
 
 /**
  * @brief A single frame of a video stream
  *
  * Describes a single frame in a stream of frames that make up
  * a complete video.
- * Each frame is timestamped for accuracy.
+ * Each frame is timestamped with the exact time of its acquisition.
  */
 class Frame
 {
 public:
     explicit Frame() {}
-    explicit Frame(const cv::Mat &m, const milliseconds_t &t)
+    explicit Frame(const vips::VImage &img, const milliseconds_t &t)
         : index(0),
           time(t),
-          mat(m)
+          mat(img)
     {
     }
 
-    explicit Frame(const size_t &i, const cv::Mat &m, const milliseconds_t &t)
-        : index(i),
+    explicit Frame(const vips::VImage &img, const size_t &idx, const milliseconds_t &t)
+        : index(idx),
           time(t),
-          mat(m)
+          mat(img)
+    {
+    }
+
+    explicit Frame(const size_t &idx)
+        : index(idx)
     {
     }
 
     size_t index;
     milliseconds_t time;
-    cv::Mat mat;
+    vips::VImage mat;
 };
 Q_DECLARE_METATYPE(Frame)

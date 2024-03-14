@@ -19,7 +19,7 @@ module_moc_src = [
 module_ui = ['miniscopesettingsdialog.ui']
 
 miniscope_dep = dependency('miniscope', version: '>=0.5.0')
-module_deps = [opencv_dep, miniscope_dep]
+module_deps = [opencv_dep, vips_dep, miniscope_dep]
 
 module_data = [
     'miniscope.svg',

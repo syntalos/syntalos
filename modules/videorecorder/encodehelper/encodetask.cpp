@@ -24,9 +24,9 @@
 #include <QFileInfo>
 #include <QUuid>
 #include <filesystem>
-#include <opencv2/videoio.hpp>
 
 #include "../videowriter.h"
+#include "videoreader.h"
 #include "edlstorage.h"
 #include "queuemodel.h"
 #include "tsyncfile.h"
@@ -93,13 +93,14 @@ void EncodeTask::run()
     }
 
     // open source video file
-    cv::VideoCapture vsrc(m_srcFname.toStdString(), cv::CAP_FFMPEG);
-    if (!vsrc.isOpened()) {
-        m_item->setError("Unable to open recorded raw video. Encoding failed");
+    VideoReader vsrc;
+    if (!vsrc.open(m_srcFname)) {
+        m_item->setError(
+            QStringLiteral("Unable to open recorded raw video. Encoding failed. %1").arg(vsrc.lastError()));
         return;
     }
 
-    // open video writer to reencode the video
+    // open video writer to re-encode the video
     VideoWriter vwriter;
     vwriter.setFileSliceInterval(0); // no slicing allowed
     vwriter.setContainer(static_cast<VideoContainer>(md["video-container"].toInt()));
@@ -135,20 +136,27 @@ void EncodeTask::run()
     int frameHeight;
     bool useColor = true;
     int progress = 0;
-    size_t frameCount = vsrc.get(cv::CAP_PROP_FRAME_COUNT);
+    const auto frameCount = vsrc.totalFrames();
+    if (frameCount <= 0) {
+        m_item->setError(QStringLiteral("No frames found in video file."));
+        return;
+    }
     double onePerc = 100.0 / frameCount;
 
     while (true) {
-        cv::Mat frame;
-        if (!vsrc.read(frame))
+        auto maybeFrame = vsrc.readFrame();
+        if (!maybeFrame.has_value())
             break;
+        auto frame = maybeFrame.value().first;
+        auto frameNo = maybeFrame.value().second;
 
+        auto bandFormat = frame.format();
         if (firstFrame) {
             firstFrame = false;
+            frameWidth = frame.width();
+            frameHeight = frame.height();
 
-            frameWidth = frame.cols;
-            frameHeight = frame.rows;
-            useColor = frame.channels() > 1;
+            useColor = frame.bands() > 1;
             try {
                 vwriter.initialize(
                     m_destFname,
@@ -158,8 +166,8 @@ void EncodeTask::run()
                     md["subject-name"].toString(),
                     frameWidth,
                     frameHeight,
-                    vsrc.get(cv::CAP_PROP_FPS),
-                    frame.depth(),
+                    vsrc.framerate(),
+                    bandFormat,
                     useColor,
                     m_writeTsync);
             } catch (const std::runtime_error &e) {
@@ -170,7 +178,6 @@ void EncodeTask::run()
         }
 
         // write timestamp info
-        size_t frameNo = vsrc.get(cv::CAP_PROP_POS_FRAMES);
         auto timestamp = milliseconds_t(0);
         size_t frameIdx = frameNo - 1;
         if (m_writeTsync) {
@@ -214,7 +221,7 @@ void EncodeTask::run()
                 QVariantHash vInfo;
                 vInfo.insert("frame_width", frameWidth);
                 vInfo.insert("frame_height", frameHeight);
-                vInfo.insert("framerate", vsrc.get(cv::CAP_PROP_FPS));
+                vInfo.insert("framerate", vsrc.framerate());
                 vInfo.insert("colored", useColor);
 
                 QVariantHash encInfo;
@@ -255,10 +262,10 @@ void EncodeTask::run()
         }
     }
 
-    if (vsrc.get(cv::CAP_PROP_POS_FRAMES) != frameCount) {
+    if (vsrc.lastFrameIndex() != frameCount) {
         m_item->setError(QStringLiteral("Expected to encode %1 frames, but only encoded %2.")
                              .arg(frameCount)
-                             .arg(vsrc.get(cv::CAP_PROP_POS_FRAMES)));
+                             .arg(vsrc.lastFrameIndex()));
         success = false;
     }
     if (success) {

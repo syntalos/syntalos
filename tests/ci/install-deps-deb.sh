@@ -29,9 +29,11 @@ eatmydata apt-get install -yq --no-install-recommends \
     libgstreamer-plugins-base1.0-dev \
     libkf5archive-dev \
     libkf5texteditor-dev \
+    libvips-dev \
     libopencv-dev \
     libpipewire-0.3-dev \
     libqt5opengl5-dev \
+    libiceoryx-introspection-dev \
     libqt5remoteobjects5-bin \
     libqt5remoteobjects5-dev \
     libqt5serialport5-dev \

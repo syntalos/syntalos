@@ -23,7 +23,6 @@
 #include <QMetaType>
 #include <chrono>
 #include <memory>
-#include <opencv2/core.hpp>
 
 #include "streams/frametype.h"
 
@@ -173,7 +172,7 @@ public:
         int width,
         int height,
         int fps,
-        int cvDepth,
+        VipsBandFormat bandFormat,
         bool hasColor,
         bool saveTimestamps = true);
     void finalize();
@@ -184,7 +183,7 @@ public:
     void setCaptureStartTimestamp(const std::chrono::milliseconds &startTimestamp);
     void setTsyncFileCreationTimeOverride(const QDateTime &dt);
 
-    bool encodeFrame(const cv::Mat &frame, const std::chrono::milliseconds &timestamp);
+    bool encodeFrame(const vips::VImage &frame, const std::chrono::milliseconds &timestamp);
 
     CodecProperties codecProps() const;
     void setCodec(VideoCodec codec);
@@ -211,7 +210,7 @@ private:
     void initializeHWAccell();
     void initializeInternal();
     void finalizeInternal(bool writeTrailer);
-    bool prepareFrame(const cv::Mat &inImage);
+    bool prepareFrame(const vips::VImage &inImage);
 };
 
 #endif // VIDEOWRITER_H

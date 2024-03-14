@@ -20,11 +20,13 @@
 #include "datasourcemodule.h"
 #include "streams/frametype.h"
 
-#include "utils/misc.h"
+#include <format>
 #include <QInputDialog>
-#include <opencv2/imgproc.hpp>
+#include "utils/misc.h"
 
 SYNTALOS_MODULE(DevelDataSourceModule)
+
+using namespace vips;
 
 class DataSourceModule : public AbstractModule
 {
@@ -38,7 +40,7 @@ private:
     std::shared_ptr<DataStream<IntSignalBlock>> m_intOut;
 
     int m_fps;
-    cv::Size m_outFrameSize;
+    QSize m_outFrameSize;
 
     time_t m_prevRowTime;
     time_t m_prevTimeSData;
@@ -48,7 +50,7 @@ public:
     explicit DataSourceModule(QObject *parent = nullptr)
         : AbstractModule(parent),
           m_fps(200),
-          m_outFrameSize(cv::Size(960, 600))
+          m_outFrameSize(QSize(960, 600))
     {
         m_frameOut = registerOutputPort<Frame>(QStringLiteral("frames-out"), QStringLiteral("Frames"));
         m_rowsOut = registerOutputPort<TableRow>(QStringLiteral("rows-out"), QStringLiteral("Table Rows"));
@@ -84,7 +86,7 @@ public:
     bool prepare(const TestSubject &) override
     {
         m_frameOut->setMetadataValue("framerate", (double)m_fps);
-        m_frameOut->setMetadataValue("size", QSize(m_outFrameSize.width, m_outFrameSize.height));
+        m_frameOut->setMetadataValue("size", m_outFrameSize);
         m_frameOut->start();
 
         m_rowsOut->setSuggestedDataName(QStringLiteral("table-%1/testvalues").arg(datasetNameSuggestion()));
@@ -176,41 +178,56 @@ private:
     Frame createFrame_sleep(size_t index, int fps)
     {
         const auto startTime = currentTimePoint();
-        Frame frame;
 
-        frame.mat = cv::Mat(m_outFrameSize, CV_8UC3);
+        const auto graphic = std::format(
+            R"xml(<svg
+   width="{0}"
+   height="{1}">
+  <g>
+    <rect
+       style="fill:rgb(30, 42, 67);stroke:none"
+       width="{0}"
+       height="{1}"
+       x="0"
+       y="0" />
+    <rect
+       style="fill:none;stroke:rgb(40, 174, 96);stroke-width:4"
+       width="{2}"
+       height="{3}"
+       x="10"
+       y="10"
+       rx="2"
+       ry="2" />
+    <line x1="{4}" y1="0" x2="{4}" y2="{1}" style="stroke:rgb(247, 116, 0);stroke-width:4" />
+    <line x1="0" y1="{5}" x2="{0}" y2="{5}" style="stroke:rgb(247, 116, 0);stroke-width:4" />
+    <text
+       xml:space="preserve"
+       style="font-size:38;font-family:Sans;fill:#f9f9f9;"
+       x="24"
+       y="240">Frame: {6}</text>
+  </g>
+</svg>)xml",
+            m_outFrameSize.width(),
+            m_outFrameSize.height(),
+            m_outFrameSize.width() - 20,
+            m_outFrameSize.height() - 20,
+            m_outFrameSize.width() / 2,
+            m_outFrameSize.height() / 2,
+            index);
 
-        frame.mat.setTo(cv::Scalar(67, 42, 30));
-        cv::line(
-            frame.mat,
-            cv::Point(0, frame.mat.rows / 2),
-            cv::Point(frame.mat.cols, frame.mat.rows / 2),
-            cv::Scalar(0, 116, 247),
-            2,
-            cv::LINE_8);
-        cv::line(
-            frame.mat,
-            cv::Point(frame.mat.cols / 2, 0),
-            cv::Point(frame.mat.cols / 2, frame.mat.rows),
-            cv::Scalar(0, 116, 247),
-            2,
-            cv::LINE_8);
-        cv::rectangle(
-            frame.mat,
-            cv::Point(10, 10),
-            cv::Point(frame.mat.cols - 10, frame.mat.rows - 10),
-            cv::Scalar(96, 174, 40),
-            4,
-            cv::LINE_8);
-        cv::putText(
-            frame.mat,
-            std::string("Frame ") + std::to_string(index),
-            cv::Point(24, 240),
-            cv::FONT_HERSHEY_COMPLEX,
-            1.5,
-            cv::Scalar(255, 255, 255));
+        // render our image
+        Frame frame(index);
+        auto vblob = vips_blob_new(NULL, graphic.c_str(), graphic.length());
+        frame.mat = vips::VImage::svgload_buffer(vblob);
+        vips_area_unref(VIPS_AREA(vblob));
+
+        // drop alpha channel, if we have one
+        frame.mat = frame.mat.extract_band(0, vips::VImage::option()->set("n", 3));
 
         frame.time = m_syTimer->timeSinceStartMsec();
+
+        // evaluate the new image immediately
+        vips_image_wio_input(frame.mat.get_image());
 
         std::this_thread::sleep_for(
             std::chrono::microseconds((1000 / fps) * 1000) - timeDiffUsec(currentTimePoint(), startTime));

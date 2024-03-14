@@ -18,7 +18,6 @@
  */
 
 #include "moduleapi.h"
-#include <opencv2/core.hpp>
 
 #include "config.h"
 #include <QCoreApplication>

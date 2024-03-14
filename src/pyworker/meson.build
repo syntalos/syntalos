@@ -50,6 +50,8 @@ sy_pyworker_src = [
     '../syclock.cpp',
     '../streams/datatypes.h',
     '../streams/datatypes.cpp',
+    '../utils/vipsutils.h',
+    '../utils/vipsutils.cpp',
     'cvmatndsliceconvert.h',
     'cvmatndsliceconvert.cpp',
     'pyipcmarshal.h',
@@ -84,6 +86,7 @@ pyworker_exe = executable('pyworker',
                    qt_remoteobj_dep,
                    qt_dbus_dep,
                    opencv_dep,
+                   vips_dep,
                    pybind11_dep,
                    python_embed_dep],
     include_directories: [include_directories('..'),
@@ -104,6 +107,8 @@ if pdoc_exe.found()
         command : [pyworker_exe,
                     '--doc',
                     '@OUTPUT0@'],
-        output: 'syio_api_embed.html'
+        output: 'syio_api_embed.html',
+        env: ['LSAN_OPTIONS=suppressions=' +
+                join_paths(source_root, 'tests', 'lsan-suppr.txt')]
     )
 endif

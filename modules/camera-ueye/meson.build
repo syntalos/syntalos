@@ -18,7 +18,7 @@ module_moc_src = [
 module_ui = ['ueyecamerasettingsdialog.ui']
 
 ueye_dep = find_library('ueye_api')
-module_deps = [opencv_dep, ueye_dep]
+module_deps = [ueye_dep]
 
 module_data = [
     'camera-ueye.svg',

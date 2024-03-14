@@ -25,7 +25,6 @@
 #include <QOpenGLShaderProgram>
 #include <QOpenGLBuffer>
 #include <QOpenGLVertexArrayObject>
-#include <opencv2/opencv.hpp>
 
 #if defined(QT_OPENGL_ES)
 #define USE_GLES 1
@@ -91,7 +90,7 @@ public:
     ~Private() {}
 
     QVector4D bgColorVec;
-    cv::Mat origImage;
+    vips::VImage origImage;
 
     bool highlightSaturation;
 
@@ -183,10 +182,9 @@ void ImageViewWidget::paintGL()
 
 void ImageViewWidget::renderImage()
 {
-    if (d->origImage.empty())
+    if (d->origImage.is_null())
         return;
 
-    // Convert cv::Mat to OpenGL texture
     if (!d->matTex) {
         d->matTex.reset(new QOpenGLTexture(QOpenGLTexture::Target2D));
         d->matTex->setWrapMode(QOpenGLTexture::ClampToEdge);
@@ -194,27 +192,17 @@ void ImageViewWidget::renderImage()
         d->matTex->setMagnificationFilter(QOpenGLTexture::Linear);
     }
 
+    const auto imgWidth = d->origImage.width();
+    const auto imgHeight = d->origImage.height();
+
     d->matTex->bind();
-    glTexImage2D(
-        GL_TEXTURE_2D,
-        0,
-        GL_RGBA,
-        d->origImage.cols,
-        d->origImage.rows,
-        0,
-#ifdef USE_GLES
-        GL_RGB,
-#else
-        GL_BGR,
-#endif
-        GL_UNSIGNED_BYTE,
-        d->origImage.data);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, imgWidth, imgHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, d->origImage.data());
 
     // Render the texture on the surface
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    const float imageAspectRatio = static_cast<float>(d->origImage.cols) / d->origImage.rows;
+    const float imageAspectRatio = static_cast<float>(imgWidth) / imgHeight;
     const float aspectRatio = static_cast<float>(width()) / height() / imageAspectRatio;
     d->shaderProgram.bind();
     d->shaderProgram.setUniformValue("bgColor", d->bgColorVec);
@@ -229,25 +217,14 @@ void ImageViewWidget::renderImage()
     d->shaderProgram.release();
 }
 
-bool ImageViewWidget::showImage(const cv::Mat &image)
+bool ImageViewWidget::showImage(const vips::VImage &image)
 {
-    auto channels = image.channels();
-
-#ifdef USE_GLES
-    if (channels == 1)
-        cvtColor(image, d->origImage, cv::COLOR_GRAY2RGB);
-    else if (channels == 4)
-        cvtColor(image, d->origImage, cv::COLOR_BGRA2RGB);
-    else
-        cvtColor(image, d->origImage, cv::COLOR_BGR2RGB);
-#else
-    if (channels == 1)
-        cvtColor(image, d->origImage, cv::COLOR_GRAY2BGR);
-    else if (channels == 4)
-        cvtColor(image, d->origImage, cv::COLOR_BGRA2BGR);
-    else
-        image.copyTo(d->origImage);
-#endif
+    const auto interpretation = image.interpretation();
+    d->origImage = (interpretation == VIPS_INTERPRETATION_sRGB || interpretation == VIPS_INTERPRETATION_RGB)
+                       ? image
+                       : image.colourspace(VIPS_INTERPRETATION_sRGB);
+    if (d->origImage.bands() != 3)
+        d->origImage = d->origImage.extract_band(0, vips::VImage::option()->set("n", 3));
 
     update();
     return true;

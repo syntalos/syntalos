@@ -27,6 +27,7 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/videoio.hpp>
 #include <sys/ioctl.h>
+#include "utils/vipsutils.h"
 
 namespace Syntalos
 {
@@ -369,7 +370,9 @@ bool Camera::recordFrame(Frame &frame, SecondaryClockSynchronizer *clockSync)
     }
 
     try {
-        status = d->cam->retrieve(frame.mat);
+        cv::Mat mat;
+        status = d->cam->retrieve(mat);
+        frame.mat = cvMatToVips(mat);
     } catch (const cv::Exception &e) {
         status = false;
         std::cerr << "Caught OpenCV exception:" << e.what() << std::endl;
@@ -383,7 +386,9 @@ bool Camera::recordFrame(Frame &frame, SecondaryClockSynchronizer *clockSync)
     }
 
     // adjust to selected resolution
-    cv::resize(frame.mat, frame.mat, d->frameSize);
+    double widthScale = static_cast<double>(d->frameSize.width) / frame.mat.width();
+    double heightScale = static_cast<double>(d->frameSize.height) / frame.mat.height();
+    frame.mat = frame.mat.resize(widthScale, vips::VImage::option()->set("vscale", heightScale));
 
     return true;
 }

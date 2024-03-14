@@ -33,6 +33,11 @@ CanvasWindow::CanvasWindow(QWidget *parent)
     m_imgView = new ImageViewWidget(this);
     m_statusLabel = new QLabel(this);
     m_statusLabel->setText(QStringLiteral("Empty"));
+    QFont font;
+    font.setStyleHint(QFont::Monospace, QFont::PreferMatch);
+    font.setFamily("Hack, Fira Code, Noto Mono, Monospace");
+    m_statusLabel->setFont(font);
+
     setMinimumSize(m_imgView->minimumSize());
 
     auto container = new QWidget(this);
@@ -61,7 +66,7 @@ CanvasWindow::CanvasWindow(QWidget *parent)
     m_statusLabel->setPalette(pal);
 }
 
-void CanvasWindow::showImage(const cv::Mat &image)
+void CanvasWindow::showImage(const vips::VImage &image)
 {
     if (isVisible())
         m_imgView->showImage(image);

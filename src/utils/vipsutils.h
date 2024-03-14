@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2023-2024 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -17,34 +17,21 @@
  * along with this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "config.h"
-#include "encodewindow.h"
+#pragma once
 
-#include <QApplication>
-#include <QMessageBox>
-
-#include "appstyle.h"
 #include "vips8-q.h"
+#include "opencv2/core.hpp"
 
-int main(int argc, char *argv[])
-{
-    QApplication app(argc, argv);
-    app.setApplicationName("Syntalos.EncodeHelper");
-    app.setOrganizationName("DraguhnLab");
-    app.setOrganizationDomain("draguhnlab.com");
-    app.setApplicationVersion(PROJECT_VERSION);
+/**
+ * @brief Transform a cv::Mat to a vips::VImage
+ * @param mat The image matrix to transform
+ * @return A copy of the image as VIPS image.
+ */
+vips::VImage cvMatToVips(const cv::Mat &mat);
 
-    // initailize VIPS
-    if (VIPS_INIT(argv[0])) {
-        QMessageBox::critical(nullptr, "Critical Error", "Failed to initialize: Unable to start VIPS");
-        vips_error_exit(NULL);
-    }
-
-    EncodeWindow w;
-
-    // set Syntalos default style
-    setDefaultStyle();
-
-    w.show();
-    return app.exec();
-}
+/**
+ * @brief Transform a VipsImage into a cv::Mat
+ * @param vimg The image to transform
+ * @return A copy of the image as cv::Mat
+ */
+cv::Mat vipsToCvMat(vips::VImage vimg);

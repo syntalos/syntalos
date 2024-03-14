@@ -5,6 +5,7 @@ encodehelper_hdr = [
     'queuemodel.h',
     'taskmanager.h',
     'encodetask.h',
+    'videoreader.h',
 ]
 
 encodehelper_src = [
@@ -13,6 +14,7 @@ encodehelper_src = [
     'queuemodel.cpp',
     'taskmanager.cpp',
     'encodetask.cpp',
+    'videoreader.cpp',
 ]
 
 encodehelper_ui = [
@@ -41,7 +43,7 @@ executable('encodehelper',
                    qt_svg_dep,
 
                    libsystemd_dep,
-                   opencv_dep,
+                   vips_dep,
                    avcodec_dep,
                    avformat_dep,
                    avutil_dep,

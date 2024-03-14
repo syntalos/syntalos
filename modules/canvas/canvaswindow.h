@@ -20,7 +20,7 @@
 #pragma once
 
 #include <QWidget>
-#include <opencv2/core/core.hpp>
+#include "vips8-q.h"
 
 class ImageViewWidget;
 class QLabel;
@@ -31,7 +31,7 @@ class CanvasWindow : public QWidget
 public:
     explicit CanvasWindow(QWidget *parent = nullptr);
 
-    void showImage(const cv::Mat &image);
+    void showImage(const vips::VImage &image);
     void setStatusText(const QString &text);
 
     bool highlightSaturation() const;
