@@ -245,8 +245,7 @@ std::optional<vips::VImage> VideoReader::frameToVImage(AVFrame *frame)
 
     int dstLinesize[1] = {dstNumChannels * d->codecCtx->width}; // Calculate the line size for the destination format
     int numBytes = av_image_get_buffer_size(dstFormat, bufferWidth, bufferHeight, 1);
-    // we pad the buffer with 32 bytes to guard against SIMD overreads
-    auto frameBuffer = static_cast<uint8_t *>(g_malloc(numBytes * sizeof(uint8_t) + 32));
+    auto frameBuffer = static_cast<uint8_t *>(g_malloc(numBytes * sizeof(uint8_t)));
     uint8_t *dstData[1] = {frameBuffer};
 
     sws_scale(swsCtx, frame->data, frame->linesize, 0, d->codecCtx->height, dstData, dstLinesize);
