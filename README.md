@@ -73,7 +73,7 @@ to submit a change, bugfix or new module.
 ### Dependencies
 
  * C++20 compatible compiler
-   (GCC >= 10 or Clang >= 12. GCC is recommended)
+   (GCC >= 12 or Clang >= 16. GCC is recommended)
  * Meson (>= 0.64)
  * Qt5 (>= 5.12)
  * Qt5 Test
@@ -94,7 +94,7 @@ to submit a change, bugfix or new module.
  * libusb (>= 1.0)
  * ImGui / ImPlot (optional, needed for plotting)
 
-We recommend Debian 12 (Bookworm) or Ubuntu 22.04 (Jammy Jellyfish) to build & run Syntalos,
+We recommend Debian 13 (Trixie) or Ubuntu 24.04 (Noble Numbat) to build & run Syntalos,
 but any Linux distribution that has a recent enough C++ compiler and Qt version
 should work.
 On Ubuntu, you can get some updated dependencies by adding the Syntalos PPA: `sudo add-apt-repository -y ppa:ximion/syntalos`

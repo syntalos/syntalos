@@ -1,7 +1,7 @@
 #
 # Docker file for Syntalos CI on Debian
 #
-FROM debian:bookworm
+FROM debian:trixie
 
 # prepare
 RUN apt-get update -qq

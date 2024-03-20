@@ -19,15 +19,11 @@ ninja && ninja install
 cd ../..
 
 # Support for "The Imaging Source" cameras
-git clone --depth 1 --branch=v-tiscamera-1.1.0 https://github.com/TheImagingSource/tiscamera.git tiscamera
-mkdir tiscamera/b && cd tiscamera/b/
-cmake -GNinja \
-    -DTCAM_BUILD_DOCUMENTATION=OFF \
-    -DTCAM_BUILD_WITH_GUI=OFF \
-    -DTCAM_DOWNLOAD_MESON=OFF \
-    ..
-ninja && ninja install
-cd ../..
+mkdir tiscamera && cd tiscamera
+curl -L -o tiscamera.deb https://github.com/TheImagingSource/tiscamera/releases/download/v-tiscamera-1.1.1/tiscamera_1.1.1.4142_amd64_ubuntu_1804.deb
+curl -L -o tiscamera-dev.deb https://github.com/TheImagingSource/tiscamera/releases/download/v-tiscamera-1.1.1/tiscamera-dev_1.1.1.4142_amd64_ubuntu_1804.deb
+apt-get install -yq ./tiscamera.deb ./tiscamera-dev.deb
+cd ../
 
 # cleanup
 cd .. && rm -rf 3rdparty
