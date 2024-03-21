@@ -1,5 +1,6 @@
 
 subdir('oop')
+subdir('roudi')
 subdir('pyworker')
 
 syntalos_core_inc_dir = include_directories('.')

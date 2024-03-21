@@ -336,8 +336,16 @@ MainWindow::MainWindow(QWidget *parent)
     // don't show experimenter selection yet
     setExperimenterSelectVisible(false);
 
-    // load modules
-    m_engine->load();
+    // initialize engine and load modules
+    if (!m_engine->initialize()) {
+        QMessageBox::critical(
+            this,
+            QStringLiteral("Initialization failed"),
+            QStringLiteral("Unable to initialize the Syntalos engine. Can not continue. Please report this issue!"));
+        QTimer::singleShot(0, [&]() {
+            qApp->quit();
+        });
+    }
 
     // timer to update verious time display during a run
     m_rtElapsedTimer = new QTimer(this);

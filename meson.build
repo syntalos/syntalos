@@ -19,6 +19,9 @@ sy_major_version = varr[0]
 sy_minor_version = varr[1]
 sy_micro_version = varr[2]
 
+# Syntalos module link ABI version
+sy_mlink_abi_level = 0
+
 root_include_dir = include_directories('.')
 
 #
@@ -26,6 +29,7 @@ root_include_dir = include_directories('.')
 #
 fs     = import('fs')
 qt     = import('qt5')
+pkgc   = import('pkgconfig')
 python = import('python').find_installation('python3')
 
 #
@@ -225,6 +229,9 @@ vips_dep = dependency('vips-cpp')
 libusb_dep = dependency('libusb-1.0')
 libsystemd_dep = dependency('libsystemd')
 systemd_dep = dependency('systemd', required: false)
+iceoryx_posh_dep = dependency('iceoryx_posh', version: '>= 2.0.5',
+                              modules: ['iceoryx_posh::iceoryx_posh'])
+iceoryx_hoofs_dep = dependency('iceoryx_hoofs', version: '>= 2.0.5')
 
 glib_dep = dependency('glib-2.0', version: '>=2.58')
 gobject_dep = dependency('gobject-2.0', version: '>=2.58')

@@ -51,7 +51,7 @@ public:
     };
     Q_ENUM(SystemResource)
 
-    bool load();
+    bool initialize();
 
     ModuleLibrary *library() const;
     SysInfo *sysInfo() const;
@@ -153,6 +153,7 @@ private:
 
     int obtainSleepShutdownIdleInhibitor();
     bool makeDirectory(const QString &dir);
+    bool ensureRoudi();
 
     QHash<AbstractModule *, std::vector<uint>> setupCoreAffinityConfig(
         const QList<AbstractModule *> &threadedModules,

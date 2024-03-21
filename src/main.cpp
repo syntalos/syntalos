@@ -55,9 +55,12 @@ int main(int argc, char *argv[])
     // set up GUI application and application details
     QApplication app(argc, argv);
     app.setApplicationName("Syntalos");
-    app.setOrganizationName("DraguhnLab");
-    app.setOrganizationDomain("draguhnlab.com");
     app.setApplicationVersion(PROJECT_VERSION);
+
+    // we deliberately do not set an organization, so QSettings
+    // and other will use the app name only
+    app.setOrganizationName(QString());
+    app.setOrganizationDomain(QString());
 
     // parse command-line arguments
     QCommandLineParser parser;
