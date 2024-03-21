@@ -98,7 +98,9 @@ void VTransformCtlDialog::on_btnAdd_clicked()
         QStringLiteral("Select Transformation"),
         QStringLiteral("New Transformation:"),
         QStringList() << "Crop"
-                      << "Scale", // TODO: Remove Color; Flip; Reduce Rate
+                      << "Scale"
+                      << "False Color"
+                      << "Normalize Histogram", // TODO: Remove Color; Flip; Reduce Rate
         0,
         false,
         &ok);
@@ -110,6 +112,10 @@ void VTransformCtlDialog::on_btnAdd_clicked()
         tfPtr = new ScaleTransform;
     else if (item == "Crop")
         tfPtr = new CropTransform;
+    else if (item == "False Color")
+        tfPtr = new FalseColorTransform;
+    else if (item == "Normalize Histogram")
+        tfPtr = new HistNormTransform;
     else
         return;
 

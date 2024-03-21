@@ -344,3 +344,57 @@ void ScaleTransform::fromVariantHash(const QVariantHash &settings)
 {
     m_scaleFactor = settings.value("scale_factor", 1).toDouble();
 }
+
+FalseColorTransform::FalseColorTransform()
+    : VideoTransform()
+{
+}
+
+QString FalseColorTransform::name() const
+{
+    return QStringLiteral("False Colors");
+}
+
+QIcon FalseColorTransform::icon() const
+{
+    return QIcon::fromTheme("color-profile");
+}
+
+void FalseColorTransform::createSettingsUi(QWidget *parent)
+{
+    QFormLayout *formLayout = new QFormLayout(parent);
+    formLayout->addRow(QStringLiteral("This transformation has no settings."), new QLabel(parent));
+    parent->setLayout(formLayout);
+}
+
+void FalseColorTransform::process(Frame &frame)
+{
+    frame.mat = frame.mat.falsecolour();
+}
+
+HistNormTransform::HistNormTransform()
+    : VideoTransform()
+{
+}
+
+QString HistNormTransform::name() const
+{
+    return QStringLiteral("Normalize Histogram");
+}
+
+QIcon HistNormTransform::icon() const
+{
+    return QIcon::fromTheme("histogram-symbolic");
+}
+
+void HistNormTransform::createSettingsUi(QWidget *parent)
+{
+    QFormLayout *formLayout = new QFormLayout(parent);
+    formLayout->addRow(QStringLiteral("This transformation has no settings."), new QLabel(parent));
+    parent->setLayout(formLayout);
+}
+
+void HistNormTransform::process(Frame &frame)
+{
+    frame.mat = frame.mat.hist_norm();
+}

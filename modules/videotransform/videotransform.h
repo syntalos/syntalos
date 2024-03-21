@@ -115,3 +115,37 @@ public:
 private:
     double m_scaleFactor;
 };
+
+/**
+ * @brief Apply a false-color transformation to the video
+ */
+class FalseColorTransform : public VideoTransform
+{
+    Q_OBJECT
+public:
+    explicit FalseColorTransform();
+
+    QString name() const override;
+    QIcon icon() const override;
+
+    void createSettingsUi(QWidget *parent) override;
+
+    void process(Frame &frame) override;
+};
+
+/**
+ * @brief Apply a histogram normalization transformation to the video
+ */
+class HistNormTransform : public VideoTransform
+{
+    Q_OBJECT
+public:
+    explicit HistNormTransform();
+
+    QString name() const override;
+    QIcon icon() const override;
+
+    void createSettingsUi(QWidget *parent) override;
+
+    void process(Frame &frame) override;
+};
