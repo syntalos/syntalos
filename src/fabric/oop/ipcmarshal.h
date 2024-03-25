@@ -24,8 +24,8 @@
 #include <opencv2/core.hpp>
 
 #include "sharedmemory.h"
-#include "streams/datatypes.h"
-#include "streams/frametype.h"
+#include "../fabric/streams/datatypes.h"
+#include "../fabric/streams/frametype.h"
 
 namespace Syntalos
 {

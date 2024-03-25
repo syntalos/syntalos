@@ -14,14 +14,17 @@ rep_worker_rep_hdr = custom_target('gen-worker-qro-replica',
 sy_oop_shared_hdr = [
     'sharedmemory.h',
     'ipcmarshal.h',
+    '../../sysinfo.h',
 ]
 sy_oop_shared_src = [
     'sharedmemory.cpp',
-    'ipcmarshal.cpp'
+    'ipcmarshal.cpp',
+    '../../sysinfo.cpp',
+    '../executils.cpp',
 ]
 
 sy_oop_moc = qt.preprocess(
-    moc_headers: [rep_worker_rep_hdr],
+    moc_headers: [rep_worker_rep_hdr, '../../sysinfo.h'],
     dependencies: [qt_remoteobj_dep],
     # FIXME: The forced include directive works around a weird issue in KDE's Flatpak runtime,
     # where some Qt modules are not found properly, resulting in parsing errors.
@@ -29,8 +32,9 @@ sy_oop_moc = qt.preprocess(
 )
 
 sy_oopshared_lib = static_library('sy_oop_shared',
-    [sy_oop_shared_src, sy_oop_shared_hdr],
+    [sy_oop_shared_src, sy_oop_shared_hdr, sy_oop_moc, rep_worker_rep_hdr],
     dependencies: [sy_base_deps,
+                   syntalos_utils_dep,
                    qt_remoteobj_dep,
                    vips_dep,
                    opencv_dep],

@@ -66,7 +66,7 @@
 #include "sysinfodialog.h"
 #include "timingsdialog.h"
 
-#include "utils/executils.h"
+#include "executils.h"
 #include "utils/tomlutils.h"
 
 // config format API level

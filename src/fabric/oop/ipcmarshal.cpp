@@ -20,7 +20,7 @@
 #include "ipcmarshal.h"
 
 #include <chrono>
-#include "utils/vipsutils.h"
+#include "../utils/vipsutils.h"
 
 /**
  * @brief Write OpenCV Matrix to shared memory region.

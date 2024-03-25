@@ -32,7 +32,7 @@ mod = shared_module(module_name,
      module_src, module_moc_src,
      module_moc],
     name_prefix: '',
-    dependencies: [syntalos_shared_dep,
+    dependencies: [syntalos_fabric_dep,
                    module_deps],
     install: true,
     install_dir: mod_install_dir

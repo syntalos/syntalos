@@ -3,7 +3,7 @@ test_rwqueue_stab_exe = executable('test-rwqueue-stab',
     ['stabtest.cpp',
      'common/simplethread.h',
      'common/simplethread.cpp'],
-    dependencies: [syntalos_shared_dep,
+    dependencies: [syntalos_fabric_dep,
                    qt_test_dep]
 )
 
@@ -12,7 +12,7 @@ test_rwqueue_exe = executable('test-rwqueue',
      'minitest.h',
      'common/simplethread.h',
      'common/simplethread.cpp'],
-    dependencies: [syntalos_shared_dep,
+    dependencies: [syntalos_fabric_dep,
                    qt_test_dep]
 )
 test('sy-test-rwqueue',

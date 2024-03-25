@@ -19,7 +19,11 @@ module_moc_src = [
 module_ui = ['miniscopesettingsdialog.ui']
 
 miniscope_dep = dependency('miniscope', version: '>=0.5.0')
-module_deps = [opencv_dep, vips_dep, miniscope_dep]
+module_deps = [syntalos_uilib_dep,
+               opencv_dep,
+               vips_dep,
+               miniscope_dep
+]
 
 module_data = [
     'miniscope.svg',
@@ -41,7 +45,7 @@ mod = shared_module(module_name,
      module_src, module_moc_src,
      module_moc],
     name_prefix: '',
-    dependencies: [syntalos_shared_dep,
+    dependencies: [syntalos_fabric_dep,
                    module_deps],
     install: true,
     install_dir: mod_install_dir
