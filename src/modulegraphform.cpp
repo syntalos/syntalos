@@ -72,13 +72,13 @@ ModuleGraphForm::ModuleGraphForm(QWidget *parent)
     connect(ui->graphView, &FlowGraphView::disconnected, this, &ModuleGraphForm::on_graphPortsDisconnected);
 
     // set colors for our different data types
-    ui->graphView->setPortTypeColor(qMetaTypeId<ControlCommand>(), QColor::fromRgb(0xEFF0F1));
-    ui->graphView->setPortTypeColor(qMetaTypeId<Frame>(), QColor::fromRgb(0xECC386));
-    ui->graphView->setPortTypeColor(qMetaTypeId<FirmataControl>(), QColor::fromRgb(0xc7abff));
-    ui->graphView->setPortTypeColor(qMetaTypeId<FirmataData>(), QColor::fromRgb(0xD38DEF));
-    ui->graphView->setPortTypeColor(qMetaTypeId<TableRow>(), QColor::fromRgb(0x8FD6FE));
-    ui->graphView->setPortTypeColor(qMetaTypeId<IntSignalBlock>(), QColor::fromRgb(0x2ECC71));
-    ui->graphView->setPortTypeColor(qMetaTypeId<FloatSignalBlock>(), QColor::fromRgb(0xAECC70));
+    ui->graphView->setPortTypeColor(ControlCommand::staticTypeId(), QColor::fromRgb(0xEFF0F1));
+    ui->graphView->setPortTypeColor(Frame::staticTypeId(), QColor::fromRgb(0xECC386));
+    ui->graphView->setPortTypeColor(FirmataControl::staticTypeId(), QColor::fromRgb(0xc7abff));
+    ui->graphView->setPortTypeColor(FirmataData::staticTypeId(), QColor::fromRgb(0xD38DEF));
+    ui->graphView->setPortTypeColor(TableRow::staticTypeId(), QColor::fromRgb(0x8FD6FE));
+    ui->graphView->setPortTypeColor(IntSignalBlock::staticTypeId(), QColor::fromRgb(0x2ECC71));
+    ui->graphView->setPortTypeColor(FloatSignalBlock::staticTypeId(), QColor::fromRgb(0xAECC70));
 }
 
 ModuleGraphForm::~ModuleGraphForm()

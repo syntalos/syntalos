@@ -276,11 +276,13 @@ public:
                 return;
             self->m_lastOrientationVec = orientation;
 
-            if (self->m_bnoTabOut->active())
-                self->m_bnoTabOut->push(
+            if (self->m_bnoTabOut->active()) {
+                const auto row = TableRow(
                     QStringList() << QString::number(frameTime.count()) << QString::number(orientation[0])
                                   << QString::number(orientation[1]) << QString::number(orientation[2])
                                   << QString::number(orientation[3]));
+                self->m_bnoTabOut->push(row);
+            }
 
             if (self->m_bnoVecOut->active()) {
                 FloatSignalBlock sblock(1, 4);

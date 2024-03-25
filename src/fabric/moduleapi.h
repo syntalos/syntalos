@@ -30,6 +30,7 @@
 #include "edlstorage.h"
 #include "modconfig.h"
 #include "optionalwaitcondition.h"
+#include "streams/stream.h"
 #include "streams/datatypes.h"
 #include "subscriptionwatcher.h"
 #include "syclock.h"
@@ -193,9 +194,7 @@ private:
  * @brief The TestSubject struct
  * Data about a test subject.
  */
-class Q_DECL_EXPORT TestSubject
-{
-public:
+struct Q_DECL_EXPORT TestSubject {
     QString id;
     QString group;
     bool active;
@@ -266,8 +265,8 @@ public:
     explicit StreamInputPort(AbstractModule *owner, const QString &id, const QString &title)
         : VarStreamInputPort(owner, id, title)
     {
-        m_acceptedTypeId = qMetaTypeId<T>();
-        m_acceptedTypeName = QMetaType::typeName(m_acceptedTypeId);
+        m_acceptedTypeId = T::staticTypeId();
+        m_acceptedTypeName = BaseDataType::typeIdToString(m_acceptedTypeId);
     }
 
     std::shared_ptr<StreamSubscription<T>> subscription()
@@ -424,6 +423,7 @@ public:
      * @returns The data stream instance for this module to write to.
      */
     template<typename T>
+        requires std::is_base_of_v<BaseDataType, T>
     std::shared_ptr<DataStream<T>> registerOutputPort(const QString &id, const QString &title = QString())
     {
         if (m_outPorts.contains(id))
@@ -448,6 +448,7 @@ public:
      * @returns A StreamInputPort instance, which can be checked for subscriptions
      */
     template<typename T>
+        requires std::is_base_of_v<BaseDataType, T>
     std::shared_ptr<StreamInputPort<T>> registerInputPort(const QString &id, const QString &title = QString())
     {
         if (m_inPorts.contains(id))
@@ -679,7 +680,7 @@ public:
 
     void setTimer(std::shared_ptr<SyncTimer> timer);
 
-signals:
+Q_SIGNALS:
     void actionsUpdated();
     void stateChanged(ModuleState state);
     void error(const QString &message);

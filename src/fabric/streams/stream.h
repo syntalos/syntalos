@@ -22,6 +22,7 @@
 #include <QDebug>
 #include <QVariant>
 #include <algorithm>
+#include <functional>
 #include <atomic>
 #include <cmath>
 #include <mutex>
@@ -62,14 +63,18 @@ Q_GLOBAL_STATIC_WITH_ARGS(CommonMetadataKeyMap,
 );
 // clang-format on
 
+/**
+ * @brief A function that can be used to process a variant value
+ */
+using ProcessVarFn = std::function<void(BaseDataType &)>;
+
 class VariantStreamSubscription
 {
 public:
     virtual ~VariantStreamSubscription();
     virtual int dataTypeId() const = 0;
     virtual QString dataTypeName() const = 0;
-    virtual QVariant nextVar() = 0;
-    virtual QVariant peekNextVar() = 0;
+    virtual bool callIfNextVar(const ProcessVarFn &fn) = 0;
     virtual bool unsubscribe() = 0;
     virtual bool active() const = 0;
     virtual bool hasPending() const = 0;
@@ -170,30 +175,23 @@ public:
     }
 
     /**
-     * @brief Like next(), but returns its result as a QVariant.
+     * @brief Call function on the next element, if there is any.
+     * @param fn The function to call with the next element.
+     * @return True if an element was processed, false if there was no element.
      */
-    QVariant nextVar() override
-    {
-        auto res = next();
-        if (!res.has_value())
-            return QVariant();
-        return QVariant::fromValue(std::move(res.value()));
-    }
-
-    /**
-     * @brief Like peekNext(), but returns its result as a QVariant.
-     */
-    QVariant peekNextVar() override
+    bool callIfNextVar(const ProcessVarFn &fn) override
     {
         auto res = peekNext();
-        if (!res.has_value())
-            return QVariant();
-        return QVariant::fromValue(res.value());
+        if (res.has_value()) {
+            fn(res.value());
+            return true;
+        }
+        return false;
     }
 
     int dataTypeId() const override
     {
-        return qMetaTypeId<T>();
+        return T::staticTypeId();
     }
 
     QString dataTypeName() const override
@@ -420,7 +418,7 @@ public:
 
     int dataTypeId() const override
     {
-        return qMetaTypeId<T>();
+        return T::staticTypeId();
     }
 
     QString dataTypeName() const override

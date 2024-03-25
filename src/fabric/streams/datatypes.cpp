@@ -24,27 +24,15 @@
 #include "moduleapi.h"
 #endif
 
-#define CHECK_RETURN_INPUT_PORT(T)  \
-    if (typeId == qMetaTypeId<T>()) \
+#define CHECK_RETURN_INPUT_PORT(T) \
+    if (typeId == BaseDataType::T) \
         return new StreamInputPort<T>(mod, id, title);
 
-#define CHECK_RETURN_STREAM(T)      \
-    if (typeId == qMetaTypeId<T>()) \
+#define CHECK_RETURN_STREAM(T)     \
+    if (typeId == BaseDataType::T) \
         return new DataStream<T>();
 
 static QMap<QString, int> g_streamTypeIdMap;
-
-template<typename T, bool streamOperators = true, bool isPrimary = true>
-static void registerStreamType()
-{
-    qRegisterMetaType<T>();
-    if constexpr (streamOperators)
-        qRegisterMetaTypeStreamOperators<T>();
-    if constexpr (isPrimary) {
-        auto id = qMetaTypeId<T>();
-        g_streamTypeIdMap[QMetaType::typeName(id)] = id;
-    }
-}
 
 void registerStreamMetaTypes()
 {
@@ -52,23 +40,16 @@ void registerStreamMetaTypes()
     if (!g_streamTypeIdMap.isEmpty())
         return;
 
-    registerStreamType<ModuleState, false, false>();
-    registerStreamType<ControlCommand>();
-    registerStreamType<TableRow>();
-    registerStreamType<FirmataControl>();
-    registerStreamType<FirmataData>();
-    registerStreamType<Frame, false>();
-    registerStreamType<SignalDataType, false, false>();
-    registerStreamType<IntSignalBlock>();
-    registerStreamType<FloatSignalBlock>();
+    for (auto i = BaseDataType::Unknown + 1; i < BaseDataType::Last; ++i) {
+        const auto typeId = static_cast<BaseDataType::TypeId>(i);
+        g_streamTypeIdMap[BaseDataType::typeIdToString(typeId)] = typeId;
+    }
 }
 
 QMap<QString, int> streamTypeIdMap()
 {
     return g_streamTypeIdMap;
 }
-
-#ifndef NO_TID_PORTCONSTRUCTORS
 
 VarStreamInputPort *Syntalos::newInputPortForType(
     int typeId,
@@ -101,8 +82,6 @@ VariantDataStream *Syntalos::newStreamForType(int typeId)
     qCritical() << "Unable to create data stream for unknown type ID" << typeId;
     return nullptr;
 }
-
-#endif
 
 QString connectionHeatToHumanString(ConnectionHeatLevel heat)
 {

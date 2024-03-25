@@ -178,7 +178,7 @@ public:
 
             m_ctlOut->push(cmd);
             row[0] = QString::number(tsUsec);
-            m_tabOut->push(row);
+            m_tabOut->push(TableRow(row));
             m_tsWriter.writeTimes(++index, tsUsec);
         }
 

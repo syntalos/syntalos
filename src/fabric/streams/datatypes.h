@@ -21,9 +21,9 @@
 
 #include <QDataStream>
 #include <QMetaType>
+#include <QMetaEnum>
 #include <memory>
 
-#include "stream.h"
 #include "syclock.h"
 
 using namespace Syntalos;
@@ -47,6 +47,45 @@ typename std::enable_if<std::is_enum<T>::value, QDataStream &>::type &operator>>
     return s >> reinterpret_cast<typename std::underlying_type<T>::type &>(t);
 }
 #endif
+
+/**
+ * @brief The StreamDataType enum
+ *
+ * Describes the type of data that is being transferred,
+ * and provides the needed type reflection in a very efficient
+ * way to allow for type checks in hot code paths.
+ */
+class StreamDataType
+{
+    Q_GADGET
+
+public:
+    enum Value {
+        Unknown,
+        Value2,
+        Value3
+    };
+    Q_ENUM(Value)
+
+    static QString toString(Value value)
+    {
+        const auto metaEnum = QMetaEnum::fromType<Value>();
+        return QString(metaEnum.valueToKey(static_cast<int>(value)));
+    }
+
+    static Value fromString(const QString &str)
+    {
+        const auto metaEnum = QMetaEnum::fromType<Value>();
+        bool ok;
+        auto enumVal = static_cast<Value>(metaEnum.keyToValue(str.toLatin1(), &ok));
+        if (ok) {
+            return enumVal;
+        } else {
+            // Handle error or default case
+            return StreamDataType::Unknown; // Just an example, adjust as necessary
+        }
+    }
+};
 
 /**
  * @brief Connection heat level
@@ -73,7 +112,7 @@ QString connectionHeatToHumanString(ConnectionHeatLevel heat);
  * Describes the state a module can be in. The state is usually displayed
  * to the user via a module indicator widget.
  */
-enum class ModuleState {
+enum class ModuleState : uint16_t {
     UNKNOWN,      /// Module is in an unknown state
     INITIALIZING, /// Module is initializing after being added
     IDLE,         /// Module is inactive and not started
@@ -83,6 +122,126 @@ enum class ModuleState {
     ERROR         /// Module failed to run / is in an error state
 };
 Q_DECLARE_METATYPE(ModuleState)
+
+/**
+ * @brief Base interface for all data types
+ *
+ * This structure defines basic interfaces that data types
+ * need to possess.
+ */
+struct BaseDataType {
+    Q_GADGET
+public:
+    enum TypeId {
+        Unknown,
+        ControlCommand,
+        TableRow,
+        Frame,
+        FirmataControl,
+        FirmataData,
+        IntSignalBlock,
+        FloatSignalBlock,
+        Last
+    };
+    Q_ENUM(TypeId)
+
+    static QString typeIdToString(TypeId value)
+    {
+        const auto metaEnum = QMetaEnum::fromType<TypeId>();
+        return QString(metaEnum.valueToKey(static_cast<int>(value)));
+    }
+
+    static QString typeIdToString(int value)
+    {
+        if (value < 1 || value >= TypeId::Last)
+            return QStringLiteral("<<unknown>>");
+        return typeIdToString(static_cast<TypeId>(value));
+    }
+
+    static TypeId typeIdFromString(const QString &str)
+    {
+        const auto metaEnum = QMetaEnum::fromType<TypeId>();
+        bool ok;
+        auto enumVal = static_cast<TypeId>(metaEnum.keyToValue(str.toLatin1(), &ok));
+        if (ok)
+            return enumVal;
+        else
+            return TypeId::Unknown;
+    }
+
+    /**
+     * Unique ID for the respective data type.
+     */
+    virtual TypeId typeId() const = 0;
+
+    /**
+     * @brief Calculate the size of the data in memory
+     *
+     * Quickly calculate the maximum size this data occupies
+     * in memory. This will be used to allocate appropriate
+     * shared memory blocks in advance.
+     * Return -1 if the size is unknown.
+     */
+    virtual ssize_t memorySize() const
+    {
+        // Size is not known in advance
+        return -1;
+    }
+
+    /**
+     * @brief Write the data to a memory block
+     *
+     * Write the data to a memory block. The required size of the
+     * block is given by the memorySize() method, but a larger size
+     * can be passed if needed.
+     *
+     * Return true if the data was written successfully.
+     */
+    virtual bool writeToMemory(void *memory, ssize_t size = -1) const
+    {
+        return false;
+    };
+
+    /**
+     * @brief Serialize the data to a byte array
+     *
+     * Serialize the data to a byte array for local transmission.
+     */
+    virtual QByteArray toBytes() const = 0;
+};
+
+/**
+ * @brief Convenience function to deserialize a data type from memory
+ */
+template<typename T>
+T deserializeFromMemory(const void *memory, size_t size)
+    requires std::is_base_of_v<BaseDataType, T>
+{
+    return T::fromMemory(memory, size);
+}
+
+/**
+ * @brief Helper macro to define a Syntalos stream data type.
+ */
+#define SY_DEFINE_DATA_TYPE(TypeName)                    \
+    BaseDataType::TypeId typeId() const override         \
+    {                                                    \
+        return BaseDataType::TypeName;                   \
+    }                                                    \
+    static constexpr BaseDataType::TypeId staticTypeId() \
+    {                                                    \
+        return BaseDataType::TypeName;                   \
+    }
+
+/**
+ * @brief Helper function to get the type ID of a data type
+ */
+template<typename T>
+constexpr int dataTypeId()
+    requires std::is_base_of_v<BaseDataType, T>
+{
+    return T::staticTypeId();
+}
 
 /**
  * @brief The ControlCommandKind enum
@@ -97,14 +256,15 @@ enum class ControlCommandKind {
     STEP,  /// Advance operation by one step
     CUSTOM
 };
-Q_DECLARE_METATYPE(ControlCommandKind)
 
 /**
  * @brief A control command to a module.
  *
  * Generic data type to stream commands to other modules.
  */
-struct ControlCommand {
+struct ControlCommand : BaseDataType {
+    SY_DEFINE_DATA_TYPE(ControlCommand)
+
     ControlCommandKind kind; /// The command type
     milliseconds_t duration; /// Duration of the command before resetting to the previous state (zero for infinite)
     QString command;         /// Custom command name, if in custom mode
@@ -129,29 +289,83 @@ struct ControlCommand {
         return duration.count();
     }
 
-    friend QDataStream &operator<<(QDataStream &out, const ControlCommand &obj)
+    QByteArray toBytes() const override
     {
-        out << obj.kind << (quint64)obj.duration.count() << obj.command;
-        return out;
+        QByteArray bytes;
+        QDataStream stream(&bytes, QIODevice::WriteOnly);
+
+        stream << kind << (quint64)duration.count() << command;
+
+        return bytes;
     }
 
-    friend QDataStream &operator>>(QDataStream &in, ControlCommand &obj)
+    static ControlCommand fromMemory(const void *memory, size_t size)
     {
+        ControlCommand obj;
+
+        QByteArray block(reinterpret_cast<const char *>(memory), size);
+        QDataStream stream(block);
+
         quint64 durationValue;
-        in >> obj.kind >> durationValue >> obj.command;
+        stream >> obj.kind >> durationValue >> obj.command;
         obj.duration = milliseconds_t(durationValue);
-        return in;
+
+        return obj;
     }
 };
-Q_DECLARE_METATYPE(ControlCommand)
 
 /**
  * @brief A new row  for a table
  *
  * Generic type emitted for adding a table row.
  */
-using TableRow = QList<QString>;
-Q_DECLARE_METATYPE(TableRow)
+struct TableRow : BaseDataType {
+    SY_DEFINE_DATA_TYPE(TableRow)
+
+    QList<QString> data;
+
+    explicit TableRow() {}
+    explicit TableRow(const QList<QString> &row)
+        : data(row)
+    {
+    }
+
+    void reserve(int size)
+    {
+        data.reserve(size);
+    }
+
+    void append(const QString &t)
+    {
+        data.append(t);
+    }
+
+    int length() const
+    {
+        return data.length();
+    }
+
+    QByteArray toBytes() const override
+    {
+        QByteArray bytes;
+        QDataStream stream(&bytes, QIODevice::WriteOnly);
+
+        stream << data;
+
+        return bytes;
+    }
+
+    static TableRow fromMemory(const void *memory, size_t size)
+    {
+        TableRow obj;
+        QByteArray block(reinterpret_cast<const char *>(memory), size);
+        QDataStream stream(block);
+
+        stream >> obj.data;
+
+        return obj;
+    }
+};
 
 /**
  * @brief The FirmataCommandKind enum
@@ -168,12 +382,13 @@ enum class FirmataCommandKind {
     WRITE_DIGITAL_PULSE,
     SYSEX /// not implemented
 };
-Q_DECLARE_METATYPE(FirmataCommandKind)
 
 /**
  * @brief Commands to control Firmata output.
  */
-struct FirmataControl {
+struct FirmataControl : BaseDataType {
+    SY_DEFINE_DATA_TYPE(FirmataControl)
+
     FirmataCommandKind command;
     uint8_t pinId;
     QString pinName;
@@ -194,45 +409,63 @@ struct FirmataControl {
     {
     }
 
-    friend QDataStream &operator<<(QDataStream &out, const FirmataControl &obj)
+    QByteArray toBytes() const override
     {
-        out << obj.command << obj.pinId << obj.pinName << obj.isOutput << obj.isPullUp << obj.value;
-        return out;
+        QByteArray bytes;
+        QDataStream stream(&bytes, QIODevice::WriteOnly);
+
+        stream << command << pinId << pinName << isOutput << isPullUp << value;
+
+        return bytes;
     }
 
-    friend QDataStream &operator>>(QDataStream &in, FirmataControl &obj)
+    static FirmataControl fromMemory(const void *memory, size_t size)
     {
-        in >> obj.command >> obj.pinId >> obj.pinName >> obj.isOutput >> obj.isPullUp >> obj.value;
-        return in;
+        FirmataControl obj;
+        QByteArray block(reinterpret_cast<const char *>(memory), size);
+        QDataStream stream(block);
+
+        stream >> obj.command >> obj.pinId >> obj.pinName >> obj.isOutput >> obj.isPullUp >> obj.value;
+
+        return obj;
     }
 };
-Q_DECLARE_METATYPE(FirmataControl)
 
 /**
  * @brief Output data returned from a Firmata device.
  */
-struct FirmataData {
+struct FirmataData : BaseDataType {
+    SY_DEFINE_DATA_TYPE(FirmataData)
+
     uint8_t pinId;
     QString pinName;
     uint16_t value;
     bool isDigital;
     milliseconds_t time;
 
-    friend QDataStream &operator<<(QDataStream &out, const FirmataData &obj)
+    QByteArray toBytes() const override
     {
-        out << obj.pinId << obj.pinName << obj.value << obj.isDigital << static_cast<quint32>(obj.time.count());
-        return out;
+        QByteArray bytes;
+        QDataStream stream(&bytes, QIODevice::WriteOnly);
+
+        stream << pinId << pinName << value << isDigital << static_cast<quint32>(time.count());
+
+        return bytes;
     }
 
-    friend QDataStream &operator>>(QDataStream &in, FirmataData &obj)
+    static FirmataData fromMemory(const void *memory, size_t size)
     {
+        FirmataData obj;
+        QByteArray block(reinterpret_cast<const char *>(memory), size);
+        QDataStream stream(block);
+
         quint32 timeMs;
-        in >> obj.pinId >> obj.pinName >> obj.value >> obj.isDigital >> timeMs;
+        stream >> obj.pinId >> obj.pinName >> obj.value >> obj.isDigital >> timeMs;
         obj.time = milliseconds_t(timeMs);
-        return in;
+
+        return obj;
     }
 };
-Q_DECLARE_METATYPE(FirmataData)
 
 /**
  * @brief Type of a signal from a signal source.
@@ -247,7 +480,6 @@ enum class SignalDataType {
     BoardDigIn,
     BoardDigOut
 };
-Q_DECLARE_METATYPE(SignalDataType)
 
 /**
  * @brief A block of integer signal data from a data source
@@ -255,9 +487,9 @@ Q_DECLARE_METATYPE(SignalDataType)
  * This signal data block contains data for up to 16 channels. It contains
  * data as integers and is usually used for digital inputs.
  */
-class IntSignalBlock
-{
-public:
+struct IntSignalBlock : BaseDataType {
+    SY_DEFINE_DATA_TYPE(IntSignalBlock)
+
     explicit IntSignalBlock(uint sampleCount = 60, uint channelCount = 1)
     {
         Q_ASSERT(channelCount > 0);
@@ -282,21 +514,29 @@ public:
     VectorXu timestamps;
     MatrixXi data;
 
-    friend QDataStream &operator<<(QDataStream &out, const IntSignalBlock &obj)
+    QByteArray toBytes() const override
     {
-        serializeEigen(out, obj.timestamps);
-        serializeEigen(out, obj.data);
-        return out;
+        QByteArray bytes;
+        QDataStream stream(&bytes, QIODevice::WriteOnly);
+
+        serializeEigen(stream, timestamps);
+        serializeEigen(stream, data);
+
+        return bytes;
     }
 
-    friend QDataStream &operator>>(QDataStream &in, IntSignalBlock &obj)
+    static IntSignalBlock fromMemory(const void *memory, size_t size)
     {
-        obj.timestamps = deserializeEigen<VectorXu>(in);
-        obj.data = deserializeEigen<MatrixXi>(in);
-        return in;
+        IntSignalBlock obj;
+        QByteArray block(reinterpret_cast<const char *>(memory), size);
+        QDataStream stream(block);
+
+        obj.timestamps = deserializeEigen<VectorXu>(stream);
+        obj.data = deserializeEigen<MatrixXi>(stream);
+
+        return obj;
     }
 };
-Q_DECLARE_METATYPE(IntSignalBlock)
 
 /**
  * @brief A block of floating-point signal data from an analog data source
@@ -304,9 +544,9 @@ Q_DECLARE_METATYPE(IntSignalBlock)
  * This signal data block contains data for up to 16 channels. It usually contains
  * possibly preprocessed / prefiltered analog data.
  */
-class FloatSignalBlock
-{
-public:
+struct FloatSignalBlock : BaseDataType {
+    SY_DEFINE_DATA_TYPE(FloatSignalBlock)
+
     explicit FloatSignalBlock(uint sampleCount = 60, uint channelCount = 1)
     {
         Q_ASSERT(channelCount > 0);
@@ -339,21 +579,29 @@ public:
     VectorXu timestamps;
     MatrixXd data;
 
-    friend QDataStream &operator<<(QDataStream &out, const FloatSignalBlock &obj)
+    QByteArray toBytes() const override
     {
-        serializeEigen(out, obj.timestamps);
-        serializeEigen(out, obj.data);
-        return out;
+        QByteArray bytes;
+        QDataStream stream(&bytes, QIODevice::WriteOnly);
+
+        serializeEigen(stream, timestamps);
+        serializeEigen(stream, data);
+
+        return bytes;
     }
 
-    friend QDataStream &operator>>(QDataStream &in, FloatSignalBlock &obj)
+    static FloatSignalBlock fromMemory(const void *memory, size_t size)
     {
-        obj.timestamps = deserializeEigen<VectorXu>(in);
-        obj.data = deserializeEigen<MatrixXd>(in);
-        return in;
+        FloatSignalBlock obj;
+        QByteArray block(reinterpret_cast<const char *>(memory), size);
+        QDataStream stream(block);
+
+        obj.timestamps = deserializeEigen<VectorXu>(stream);
+        obj.data = deserializeEigen<MatrixXd>(stream);
+
+        return obj;
     }
 };
-Q_DECLARE_METATYPE(FloatSignalBlock)
 
 /**
  * @brief Helper function to register all meta types for stream data

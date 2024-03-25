@@ -139,7 +139,7 @@ public:
             return;
 
         const auto row = maybeRow.value();
-        m_recTable->addRows(row);
+        m_recTable->addRows(row.data);
     }
 
     void stop() override

@@ -414,9 +414,9 @@ public:
         // write row
         for (int i = 0; i < row.length(); i++) {
             if (i == 0)
-                (*m_textStream) << toJsonValue(row[i]);
+                (*m_textStream) << toJsonValue(row.data[i]);
             else
-                (*m_textStream) << "," << toJsonValue(row[i]);
+                (*m_textStream) << "," << toJsonValue(row.data[i]);
         }
         (*m_textStream) << "]";
     }

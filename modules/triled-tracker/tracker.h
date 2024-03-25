@@ -23,6 +23,7 @@
 #include <QFile>
 #include <opencv2/imgproc.hpp>
 
+#include "streams/stream.h"
 #include "streams/frametype.h"
 
 class Tracker : public QObject

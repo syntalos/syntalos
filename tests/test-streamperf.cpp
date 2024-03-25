@@ -11,12 +11,23 @@
 
 static const int N_OF_DATAFRAMES = 2000;
 
-typedef struct {
+struct MyDataFrame : BaseDataType {
+    SY_DEFINE_DATA_TYPE(Frame)
+
     size_t id;
     time_t timestamp;
     cv::Mat frame;
-} MyDataFrame;
-Q_DECLARE_METATYPE(MyDataFrame)
+
+    QByteArray toBytes() const override
+    {
+        QByteArray bytes;
+        QDataStream stream(&bytes, QIODevice::WriteOnly);
+
+        stream << (quint64)id << (quint64)timestamp;
+
+        return bytes;
+    }
+};
 
 static cv::Mat process_data_instant(const MyDataFrame &data)
 {
