@@ -308,7 +308,8 @@ void ModuleGraphForm::on_graphPortsConnected(FlowGraphNodePort *port1, FlowGraph
     }
 
     if (!inPort->acceptsSubscription(outPort->dataTypeName())) {
-        qCWarning(logGraphUi).noquote() << "Tried to connect incompatible ports.";
+        qCWarning(logGraphUi).noquote().nospace() << "Tried to connect incompatible ports. (" << outPort->dataTypeName()
+                                                  << " -> " << inPort->dataTypeName() << ")";
         ui->graphView->disconnectItems(port1, port2);
         return;
     }

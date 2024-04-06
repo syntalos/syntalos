@@ -265,7 +265,7 @@ public:
     explicit StreamInputPort(AbstractModule *owner, const QString &id, const QString &title)
         : VarStreamInputPort(owner, id, title)
     {
-        m_acceptedTypeId = T::staticTypeId();
+        m_acceptedTypeId = ::dataTypeId<T>();
         m_acceptedTypeName = BaseDataType::typeIdToString(m_acceptedTypeId);
     }
 

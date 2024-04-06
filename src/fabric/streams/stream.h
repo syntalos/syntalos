@@ -191,12 +191,12 @@ public:
 
     int dataTypeId() const override
     {
-        return T::staticTypeId();
+        return ::dataTypeId<T>();
     }
 
     QString dataTypeName() const override
     {
-        return QMetaType::typeName(dataTypeId());
+        return BaseDataType::typeIdToString(dataTypeId());
     }
 
     QHash<QString, QVariant> metadata() const override
@@ -423,7 +423,7 @@ public:
 
     QString dataTypeName() const override
     {
-        return QMetaType::typeName(dataTypeId());
+        return BaseDataType::typeIdToString(dataTypeId());
     }
 
     QHash<QString, QVariant> metadata() override

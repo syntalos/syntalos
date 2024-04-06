@@ -49,45 +49,6 @@ typename std::enable_if<std::is_enum<T>::value, QDataStream &>::type &operator>>
 #endif
 
 /**
- * @brief The StreamDataType enum
- *
- * Describes the type of data that is being transferred,
- * and provides the needed type reflection in a very efficient
- * way to allow for type checks in hot code paths.
- */
-class StreamDataType
-{
-    Q_GADGET
-
-public:
-    enum Value {
-        Unknown,
-        Value2,
-        Value3
-    };
-    Q_ENUM(Value)
-
-    static QString toString(Value value)
-    {
-        const auto metaEnum = QMetaEnum::fromType<Value>();
-        return QString(metaEnum.valueToKey(static_cast<int>(value)));
-    }
-
-    static Value fromString(const QString &str)
-    {
-        const auto metaEnum = QMetaEnum::fromType<Value>();
-        bool ok;
-        auto enumVal = static_cast<Value>(metaEnum.keyToValue(str.toLatin1(), &ok));
-        if (ok) {
-            return enumVal;
-        } else {
-            // Handle error or default case
-            return StreamDataType::Unknown; // Just an example, adjust as necessary
-        }
-    }
-};
-
-/**
  * @brief Connection heat level
  *
  * Warning level dependent on how full the buffer that is
@@ -132,6 +93,13 @@ Q_DECLARE_METATYPE(ModuleState)
 struct BaseDataType {
     Q_GADGET
 public:
+    /**
+     * @brief The TypeId enum
+     *
+     * Describes the type of data that is being transferred,
+     * and provides the needed type reflection in a very efficient
+     * way to allow for type checks in hot code paths.
+     */
     enum TypeId {
         Unknown,
         ControlCommand,

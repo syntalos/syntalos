@@ -44,6 +44,9 @@ void registerStreamMetaTypes()
         const auto typeId = static_cast<BaseDataType::TypeId>(i);
         g_streamTypeIdMap[BaseDataType::typeIdToString(typeId)] = typeId;
     }
+
+    // register some Qt types
+    qRegisterMetaType<ModuleState>();
 }
 
 QMap<QString, int> streamTypeIdMap()
