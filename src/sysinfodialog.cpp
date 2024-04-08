@@ -94,7 +94,7 @@ SysInfoDialog::SysInfoDialog(SysInfo *sysInfo, QWidget *parent)
     // Software Information
     ui->valSyntalos->setText(sysInfo->syntalosVersion());
     ui->valQt->setText(sysInfo->qtVersion());
-    ui->valOpenCV->setText(sysInfo->openCVVersionString());
+    ui->valVIPS->setText(sysInfo->vipsVersionString());
     ui->valEigen->setText(sysInfo->eigenVersionString());
     ui->valFFmpeg->setText(sysInfo->ffmpegVersionString());
     ui->valPythonAPI->setText(sysInfo->pythonApiVersion());
@@ -114,8 +114,8 @@ void SysInfoDialog::on_btnClipboardCopy_clicked()
 {
     auto infoText = QStringLiteral("Syntalos %1 | %2 (Kernel: %3)\n")
                         .arg(ui->valSyntalos->text(), ui->valOSName->text(), ui->valKernel->text());
-    infoText += QStringLiteral("Software: Qt %1 | OpenCV %2 | FFMpeg %3 | Python %4\n")
-                    .arg(ui->valQt->text(), ui->valOpenCV->text(), ui->valFFmpeg->text(), ui->valPythonAPI->text());
+    infoText += QStringLiteral("Software: Qt %1 | VIPS %2 | FFMpeg %3 | Python %4\n")
+                    .arg(ui->valQt->text(), ui->valVIPS->text(), ui->valFFmpeg->text(), ui->valPythonAPI->text());
     infoText += QStringLiteral("Sandbox: %1\n").arg(ui->valSandboxInfo->text());
     infoText += QStringLiteral("Architecture: %1 | CPU: %2 | OpenGL: %3\n")
                     .arg(ui->valHWArch->text(), ui->valCPU0ModelName->text(), ui->valOpenGL->text());
