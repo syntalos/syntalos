@@ -1,5 +1,4 @@
 import syio as sy
-from syio import InputWaitResult
 
 
 # NOTE: Check https://syntalos.readthedocs.io/en/latest/modules/pyscript.html for documentation
@@ -23,22 +22,12 @@ def start():
     This function should complete quickly."""
     pass
 
+def run():
+    """This function is called once the experiment run has started."""
 
-def loop() -> bool:
-    """This function is executed by Syntalos continuously until it returns False.
-    Use this function to retrieve input and process it"""
-
-    # wait for new input to arrive
-    wait_result = sy.await_new_input()
-    if wait_result != InputWaitResult.NEWDATA:
-        # stop looping if the run has been cancelled
-        return wait_result != InputWaitResult.CANCELLED
-
-    while True:
-        # TODO: Retrieve data from our ports until we run out of data to process
-        pass
-
-    return True
+    # wait for new data to arrive and communicate with Syntalos
+    while sy.is_running():
+        sy.await_data()
 
 
 def stop():

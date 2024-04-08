@@ -24,35 +24,25 @@
 #include <signal.h>
 #include <sys/prctl.h>
 
-#include "worker.h"
+#include "pyworker.h"
 
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
 
-    auto worker = new OOPWorker(&a);
-
-    if (a.arguments().length() < 2) {
-        qCritical().noquote() << "Invalid amount of arguments!";
-        return 2;
-    }
-
-    if (a.arguments()[1] == "--doc") {
+    if (a.arguments().length() >= 2 && a.arguments()[1] == "--doc") {
         if (a.arguments().length() != 3) {
             qCritical().noquote() << "Documentation: Invalid amount of arguments!";
             return 2;
         }
-        worker->makeDocFileAndQuit(a.arguments()[2]);
+        PyWorker::makeDocFileAndQuit(a.arguments()[2]);
         return a.exec();
     }
 
-    if (a.arguments().length() != 2) {
-        qCritical().noquote() << "Invalid amount of arguments!";
-        return 2;
-    }
-
-    QRemoteObjectHost srcNode(QUrl(a.arguments()[1]));
-    srcNode.enableRemoting(worker);
+    // Initialize link to Syntalos. There can only be one.
+    auto slink = initSyntalosModuleLink();
+    auto worker = std::make_unique<PyWorker>(slink.get(), &a);
+    worker->awaitData(1000);
 
     // ensure that this process dies with its parent
     prctl(PR_SET_PDEATHSIG, SIGKILL);

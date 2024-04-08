@@ -28,29 +28,29 @@
 #include <QFileInfo>
 #include <QHBoxLayout>
 #include <QMenuBar>
-#include <QMessageBox>
 #include <QMetaType>
 #include <QProcess>
 #include <QShortcut>
 #include <QSplitter>
 #include <QTextBrowser>
 
-#include "oop/oopmodule.h"
+#include "mlinkmodule.h"
 #include "porteditordialog.h"
+#include "globalconfig.h"
 #include "utils/style.h"
 
 SYNTALOS_MODULE(PyScriptModule);
 
-class PyScriptModule : public OOPModule
+class PyScriptModule : public MLinkModule
 {
     Q_OBJECT
 public:
     explicit PyScriptModule(QObject *parent = nullptr)
-        : OOPModule(parent),
+        : MLinkModule(parent),
           m_scriptWindow(nullptr)
     {
         // we use the generic Python OOP worker process for this
-        setWorkerBinaryPyWorker();
+        setModuleBinary(findSyntalosPyWorkerBinary());
 
         // set up code editor
         auto editor = KTextEditor::Editor::instance();
@@ -103,8 +103,8 @@ public:
         m_portsDialog = new PortEditorDialog(this, m_scriptWindow);
 
         // connect UI events
-        setCaptureStdout(true);
-        connect(this, &OOPModule::processStdoutReceived, this, [&](const QString &data) {
+        setOutputCaptured(true);
+        connect(this, &MLinkModule::processOutputReceived, this, [&](const QString &data) {
             m_pyconsoleWidget->append(data);
         });
 
@@ -138,13 +138,13 @@ public:
 
     void setName(const QString &value) override
     {
-        OOPModule::setName(value);
+        MLinkModule::setName(value);
         m_scriptWindow->setWindowTitle(QStringLiteral("%1 - Editor").arg(name()));
     }
 
     bool initialize() override
     {
-        if (workerBinary().isEmpty()) {
+        if (moduleBinary().isEmpty()) {
             raiseError("Unable to find Python worker binary. Is Syntalos installed correctly?");
             return false;
         }
@@ -156,9 +156,15 @@ public:
     bool prepare(const TestSubject &testSubject) override
     {
         m_pyconsoleWidget->clear();
-        setPythonScript(m_scriptView->document()->text());
+        setScript(m_scriptView->document()->text());
 
-        return OOPModule::prepare(testSubject);
+        return MLinkModule::prepare(testSubject);
+    }
+
+    void stop() override
+    {
+        MLinkModule::stop();
+        terminateProcess();
     }
 
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &extraData) override

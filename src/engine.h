@@ -27,7 +27,7 @@
 #include "modulelibrary.h"
 #include "sysinfo.h"
 
-class OOPModule;
+class MLinkModule;
 
 namespace Syntalos
 {
@@ -155,9 +155,7 @@ private:
     bool makeDirectory(const QString &dir);
     bool ensureRoudi();
 
-    QHash<AbstractModule *, std::vector<uint>> setupCoreAffinityConfig(
-        const QList<AbstractModule *> &threadedModules,
-        const QList<OOPModule *> &oopModules);
+    QHash<AbstractModule *, std::vector<uint>> setupCoreAffinityConfig(const QList<AbstractModule *> &threadedModules);
     void startResourceMonitoring(QList<AbstractModule *> activeModules, const QString &exportDirPath);
     void stopResourceMonitoring();
 

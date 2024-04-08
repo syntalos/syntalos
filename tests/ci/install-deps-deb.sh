@@ -34,8 +34,6 @@ eatmydata apt-get install -yq --no-install-recommends \
     libpipewire-0.3-dev \
     libqt5opengl5-dev \
     libiceoryx-introspection-dev \
-    libqt5remoteobjects5-bin \
-    libqt5remoteobjects5-dev \
     libqt5serialport5-dev \
     libqt5svg5-dev \
     libswscale-dev \

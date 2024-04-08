@@ -18,14 +18,15 @@
  */
 
 #define QT_NO_KEYWORDS
-#include "worker.h"
-#include <QMetaType>
+#include "pyworker.h"
+#include <QDir>
+#include <QCoreApplication>
 #include <iostream>
 
 #include "cpuaffinity.h"
-#include "pyipcmarshal.h"
 #include "rtkit.h"
 #include "streams/datatypes.h"
+#include "streams/frametype.h"
 #include "syio.h"
 
 using namespace Syntalos;
@@ -34,169 +35,134 @@ namespace Syntalos
 Q_LOGGING_CATEGORY(logPyWorker, "pyworker")
 }
 
-OOPWorker::OOPWorker(QObject *parent)
-    : OOPWorkerSource(parent),
-      m_stage(OOPWorker::IDLE),
-      m_running(false),
-      m_maxRTPriority(0)
+PyWorker::PyWorker(SyntalosLink *slink, QObject *parent)
+    : QObject(parent),
+      m_link(slink),
+      m_running(false)
 {
     m_pyb = PyBridge::instance(this);
     pythonRegisterSyioModule();
 
-    registerStreamMetaTypes();
+    // set up callbacks
+    m_link->setLoadScriptCallback([this](const QString &script, const QString &wdir) {
+        return loadPythonScript(script, wdir);
+    });
+    m_link->setPrepareStartCallback([this](const QByteArray &settings) {
+        return prepareStart(settings);
+    });
+    m_link->setStartCallback([this]() {
+        start();
+    });
+    m_link->setStopCallback([this]() {
+        return stop();
+    });
+    m_link->setShutdownCallback([this]() {
+        shutdown();
+    });
+
+    // process incoming data forever
+    m_evTimer = new QTimer(this);
+    m_evTimer->setInterval(0);
+    connect(m_evTimer, &QTimer::timeout, this, [this]() {
+        m_link->awaitData(500 * 1000);
+    });
+    m_evTimer->start();
 }
 
-OOPWorker::~OOPWorker()
+PyWorker::~PyWorker()
 {
     if (m_pyInitialized)
         Py_Finalize();
 }
 
-OOPWorker::Stage OOPWorker::stage() const
+ModuleState PyWorker::state() const
 {
-    return m_stage;
+    return m_link->state();
 }
 
-std::optional<InputPortInfo> OOPWorker::inputPortInfoByIdString(const QString &idstr)
+SyncTimer *PyWorker::timer() const
 {
-    std::optional<InputPortInfo> res;
-    for (const auto &port : m_inPortInfo) {
-        if (port.idstr() == idstr) {
-            res = port;
-            break;
-        }
+    return m_link->timer();
+}
+
+bool PyWorker::isRunning() const
+{
+    return m_running;
+}
+
+void PyWorker::awaitData(int timeoutUsec)
+{
+    m_link->awaitData(timeoutUsec);
+}
+
+std::shared_ptr<InputPortInfo> PyWorker::inputPortById(const QString &idstr)
+{
+    for (auto &iport : m_link->inputPorts()) {
+        if (iport->id() == idstr)
+            return iport;
     }
-    return res;
+
+    return nullptr;
 }
 
-std::optional<OutputPortInfo> OOPWorker::outputPortInfoByIdString(const QString &idstr)
+std::shared_ptr<OutputPortInfo> PyWorker::outputPortById(const QString &idstr)
 {
-    std::optional<OutputPortInfo> res;
-    for (const auto &port : m_outPortInfo) {
-        if (port.idstr() == idstr) {
-            res = port;
-            break;
-        }
+    for (auto &oport : m_link->outputPorts()) {
+        if (oport->id() == idstr)
+            return oport;
     }
-    return res;
+
+    return nullptr;
 }
 
-void OOPWorker::setInputPortInfo(const QList<InputPortInfo> &ports)
+bool PyWorker::submitOutput(const std::shared_ptr<OutputPortInfo> &oport, const py::object &pyObj)
 {
-    m_inPortInfo = ports;
-    m_shmRecv.clear();
-    m_pyb->incomingData.clear();
-
-    // set up our incoming shared memory links
-    for (int i = 0; i < m_inPortInfo.size(); i++)
-        m_shmRecv.push_back(std::unique_ptr<SharedMemory>(new SharedMemory));
-
-    for (int i = 0; i < m_inPortInfo.size(); i++) {
-        if (i >= m_inPortInfo.size()) {
-            raiseError("Invalid data sent for input port information!");
-            return;
-        }
-        auto port = m_inPortInfo[i];
-        port.setWorkerDataTypeId(QMetaType::type(qPrintable(port.dataTypeName())));
-        m_inPortInfo[i] = port;
-
-        m_shmRecv[port.id()]->setShmKey(port.shmKeyRecv());
-        m_pyb->incomingData.append(QQueue<py::object>());
-    }
-}
-
-void OOPWorker::setOutputPortInfo(const QList<OutputPortInfo> &ports)
-{
-    m_outPortInfo = ports;
-
-    // set up our outgoing shared memory links
-    for (int i = 0; i < m_outPortInfo.size(); i++)
-        m_shmSend.push_back(std::unique_ptr<SharedMemory>(new SharedMemory));
-
-    for (int i = 0; i < m_outPortInfo.size(); i++) {
-        if (i >= m_outPortInfo.size()) {
-            raiseError("Invalid data sent for output port information!");
-            return;
-        }
-        auto port = m_outPortInfo[i];
-        port.setWorkerDataTypeId(QMetaType::type(qPrintable(port.dataTypeName())));
-        m_outPortInfo[i] = port;
-
-        m_shmSend[port.id()]->setShmKey(port.shmKeySend());
+    switch (oport->dataTypeId()) {
+    case dataTypeId<ControlCommand>():
+        return m_link->submitOutput(oport, py::cast<ControlCommand>(pyObj));
+    case dataTypeId<TableRow>():
+        return m_link->submitOutput(oport, py::cast<TableRow>(pyObj));
+    case dataTypeId<Frame>():
+        return m_link->submitOutput(oport, py::cast<Frame>(pyObj));
+    case dataTypeId<FirmataControl>():
+        return m_link->submitOutput(oport, py::cast<FirmataControl>(pyObj));
+    case dataTypeId<FirmataData>():
+        return m_link->submitOutput(oport, py::cast<FirmataData>(pyObj));
+    case dataTypeId<IntSignalBlock>():
+        return m_link->submitOutput(oport, py::cast<IntSignalBlock>(pyObj));
+    case dataTypeId<FloatSignalBlock>():
+        return m_link->submitOutput(oport, py::cast<FloatSignalBlock>(pyObj));
+    default:
+        return false;
     }
 }
 
-QByteArray OOPWorker::changeSettings(const QByteArray &oldSettings)
+void PyWorker::setOutPortMetadataValue(
+    const std::shared_ptr<OutputPortInfo> &oport,
+    const QString &key,
+    const QVariant &value)
 {
-    if (!m_pyInitialized)
-        return oldSettings;
-
-    // check if we even have a function to change settings
-    if (!PyObject_HasAttrString(m_pyMain, "change_settings"))
-        return oldSettings;
-
-    m_running = true;
-
-    auto pFnSettings = PyObject_GetAttrString(m_pyMain, "change_settings");
-    if (!pFnSettings || !PyCallable_Check(pFnSettings)) {
-        // change_settings was not a callable, we ignore this
-        Py_XDECREF(pFnSettings);
-        return oldSettings;
-    }
-
-    auto pyOldSettings = PyBytes_FromStringAndSize(oldSettings.data(), oldSettings.size());
-    QByteArray settings = oldSettings;
-    const auto pyRes = PyObject_CallFunctionObjArgs(pFnSettings, pyOldSettings, nullptr);
-    if (pyRes == nullptr) {
-        if (PyErr_Occurred()) {
-            emitPyError();
-        } else {
-            raiseError(QStringLiteral("Did not receive settings output from Python script!"));
-        }
-    } else {
-        if (pyRes != Py_None && !PyBytes_Check(pyRes)) {
-            raiseError(QStringLiteral("Did not receive settings output from Python script!"));
-        } else {
-            char *bytes;
-            ssize_t bytes_len;
-            PyBytes_AsStringAndSize(pyRes, &bytes, &bytes_len);
-            settings = QByteArray::fromRawData(bytes, bytes_len);
-        }
-
-        Py_XDECREF(pyRes);
-    }
-
-    Py_XDECREF(pFnSettings);
-    Py_XDECREF(pyOldSettings);
-    return settings;
+    oport->setMetadataVar(key, value);
+    m_link->updateOutputPort(oport);
 }
 
-void OOPWorker::start(long startTimestampUsec)
+void PyWorker::setInputThrottleItemsPerSec(const std::shared_ptr<InputPortInfo> &iport, uint itemsPerSec)
 {
-    const auto timePoint = symaster_timepoint(microseconds_t(startTimestampUsec));
-    m_pyb->timer()->startAt(timePoint);
-
-    m_running = true;
+    iport->setThrottleItemsPerSec(itemsPerSec);
+    m_link->updateInputPort(iport);
 }
 
-bool OOPWorker::prepareShutdown()
+void PyWorker::raiseError(const QString &message)
 {
     m_running = false;
-    QCoreApplication::processEvents();
-    return true;
+    std::cerr << "PyWorker-ERROR: " << message.toStdString() << std::endl;
+    m_link->raiseError(message);
+
+    stop();
+    shutdown();
 }
 
-void OOPWorker::shutdown()
-{
-    m_running = false;
-    QCoreApplication::processEvents();
-
-    // give other events a bit of time (10ms) to react to the fact that we are no longer running
-    QTimer::singleShot(10, this, &QCoreApplication::quit);
-    qCDebug(logPyWorker).noquote() << "Shutting down.";
-}
-
-bool OOPWorker::loadPythonScript(const QString &script, const QString &wdir)
+bool PyWorker::loadPythonScript(const QString &script, const QString &wdir)
 {
     if (!wdir.isEmpty())
         QDir::setCurrent(wdir);
@@ -257,11 +223,78 @@ bool OOPWorker::loadPythonScript(const QString &script, const QString &wdir)
     }
 }
 
-bool OOPWorker::prepareStart(const QByteArray &settings)
+QByteArray PyWorker::changeSettings(const QByteArray &oldSettings)
+{
+    if (!m_pyInitialized)
+        return oldSettings;
+
+    // check if we even have a function to change settings
+    if (!PyObject_HasAttrString(m_pyMain, "change_settings"))
+        return oldSettings;
+
+    m_running = true;
+
+    auto pFnSettings = PyObject_GetAttrString(m_pyMain, "change_settings");
+    if (!pFnSettings || !PyCallable_Check(pFnSettings)) {
+        // change_settings was not a callable, we ignore this
+        Py_XDECREF(pFnSettings);
+        return oldSettings;
+    }
+
+    auto pyOldSettings = PyBytes_FromStringAndSize(oldSettings.data(), oldSettings.size());
+    QByteArray settings = oldSettings;
+    const auto pyRes = PyObject_CallFunctionObjArgs(pFnSettings, pyOldSettings, nullptr);
+    if (pyRes == nullptr) {
+        if (PyErr_Occurred()) {
+            emitPyError();
+        } else {
+            raiseError(QStringLiteral("Did not receive settings output from Python script!"));
+        }
+    } else {
+        if (pyRes != Py_None && !PyBytes_Check(pyRes)) {
+            raiseError(QStringLiteral("Did not receive settings output from Python script!"));
+        } else {
+            char *bytes;
+            ssize_t bytes_len;
+            PyBytes_AsStringAndSize(pyRes, &bytes, &bytes_len);
+            settings = QByteArray::fromRawData(bytes, bytes_len);
+        }
+
+        Py_XDECREF(pyRes);
+    }
+
+    Py_XDECREF(pFnSettings);
+    Py_XDECREF(pyOldSettings);
+    return settings;
+}
+
+bool PyWorker::prepareStart(const QByteArray &settings)
 {
     m_settings = settings;
-    QTimer::singleShot(0, this, &OOPWorker::prepareAndRun);
+    QTimer::singleShot(0, this, &PyWorker::prepareAndRun);
     return m_pyInitialized;
+}
+
+void PyWorker::start()
+{
+    m_running = true;
+}
+
+bool PyWorker::stop()
+{
+    m_running = false;
+    QCoreApplication::processEvents();
+    return true;
+}
+
+void PyWorker::shutdown()
+{
+    m_running = false;
+    QCoreApplication::processEvents();
+
+    // give other events a bit of time (10ms) to react to the fact that we are no longer running
+    QTimer::singleShot(10, this, &QCoreApplication::quit);
+    qCDebug(logPyWorker).noquote() << "Shutting down.";
 }
 
 static QString pyObjectToQStr(PyObject *pyObj)
@@ -292,7 +325,7 @@ static QString pyObjectToQStr(PyObject *pyObj)
     return qResStr;
 }
 
-void OOPWorker::emitPyError()
+void PyWorker::emitPyError()
 {
     PyObject *excType, *excValue, *excTraceback;
     PyErr_Fetch(&excType, &excValue, &excTraceback);
@@ -349,10 +382,10 @@ void OOPWorker::emitPyError()
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wold-style-cast"
-void OOPWorker::prepareAndRun()
+void PyWorker::prepareAndRun()
 {
     // don't attempt to run if we have already failed
-    if (m_stage == OOPWorker::ERROR)
+    if (m_link->state() == ModuleState::ERROR)
         return;
 
     if (!m_pyInitialized) {
@@ -397,16 +430,11 @@ void OOPWorker::prepareAndRun()
         }
 
         // check if have failed, and quit in that case
-        if (m_stage == OOPWorker::ERROR)
+        if (m_link->state() == ModuleState::ERROR)
             goto finalize;
 
-        // the script may have changed output port metadata, so we send all of that back to
-        // the master process
-        for (int portId = 0; portId < m_outPortInfo.size(); ++portId)
-            Q_EMIT outPortMetadataUpdated(portId, m_outPortInfo[portId].metadata());
-
         // signal that we are ready now, preparations are done
-        setStage(OOPWorker::READY);
+        m_link->setState(ModuleState::READY);
 
         // find the start function if it exists
         PyObject *pFnStart = nullptr;
@@ -418,21 +446,21 @@ void OOPWorker::prepareAndRun()
             }
         }
 
-        // find the loop function - this function *must* exists,
-        // and unlike the other functions isn't optional, so GetAttrString
-        // is allowed to throw an error here
-        auto pFnLoop = PyObject_GetAttrString(m_pyMain, "loop");
-        if (!pFnLoop || !PyCallable_Check(pFnLoop)) {
-            raiseError("Could not find loop() function entrypoint in Python script.");
-            Py_XDECREF(pFnLoop);
-            goto finalize;
+        // find the "run" function - if it does not exists, we will create
+        // our own run function that does only listen for messages.
+        auto pFnRun = PyObject_GetAttrString(m_pyMain, "run");
+        if (!PyCallable_Check(pFnRun)) {
+            Py_XDECREF(pFnRun);
+            pFnRun = nullptr;
         }
 
         // while we are not running, wait for the start signal
+        m_evTimer->stop();
         while (!m_running) {
+            m_link->awaitData(1 * 1000); // 1ms timeout
             QCoreApplication::processEvents();
         }
-        setStage(OOPWorker::RUNNING);
+        m_link->setState(ModuleState::RUNNING);
 
         // run the start function first, if we have it
         if (pFnStart != nullptr) {
@@ -449,33 +477,28 @@ void OOPWorker::prepareAndRun()
         }
 
         // maybe start() failed? Immediately exit in that case
-        if (m_stage == OOPWorker::ERROR) {
-            Py_XDECREF(pFnLoop);
+        if (m_link->state() == ModuleState::ERROR) {
+            Py_XDECREF(pFnRun);
             goto finalize;
         }
 
-        if (pFnLoop != nullptr) {
-            bool callEventLoop = true;
-
-            // we are running! - loop() until we are stopped
-            do {
+        if (pFnRun == nullptr) {
+            // we have no run function, so we just listen for events implicitly
+            while (m_running) {
+                m_link->awaitData(500 * 1000); // 500ms timeout
                 QCoreApplication::processEvents();
+            }
+        } else {
+            // call the run function
+            auto runRes = PyObject_CallObject(pFnRun, nullptr);
+            if (runRes == nullptr) {
+                if (PyErr_Occurred())
+                    emitPyError();
+            } else {
+                Py_XDECREF(runRes);
+            }
 
-                auto loopRes = PyObject_CallObject(pFnLoop, nullptr);
-                if (loopRes == nullptr) {
-                    if (PyErr_Occurred())
-                        emitPyError();
-                    callEventLoop = false;
-                } else {
-                    if (PyBool_Check(loopRes))
-                        callEventLoop = loopRes == Py_True;
-                    else
-                        callEventLoop = false;
-                    Py_XDECREF(loopRes);
-                }
-            } while (callEventLoop && m_running);
-
-            Py_XDECREF(pFnLoop);
+            Py_XDECREF(pFnRun);
         }
 
         // we have stopped, so call the stop function if one exists
@@ -499,101 +522,24 @@ void OOPWorker::prepareAndRun()
 finalize:
     // we aren't ready anymore,
     // and also stopped running the loop
-    setStage(OOPWorker::IDLE);
+    m_link->setState(ModuleState::IDLE);
     m_running = false;
 
     // ensure any pending emitted events are processed
+    m_evTimer->start();
     qApp->processEvents();
 }
 #pragma GCC diagnostic pop
 
-std::optional<bool> OOPWorker::waitForInput()
+void PyWorker::setState(ModuleState state)
 {
-    std::optional<bool> res = false;
-
-    while (true) {
-        for (const auto &q : m_pyb->incomingData) {
-            if (!q.isEmpty()) {
-                res = true;
-                break;
-            }
-        }
-        if (res.value())
-            break;
-
-        if (!m_running) {
-            res.reset();
-            break;
-        }
-
-        QCoreApplication::processEvents(QEventLoop::WaitForMoreEvents);
-    }
-
-    return res;
+    m_link->setState(state);
 }
 
-bool OOPWorker::checkRunning()
+void PyWorker::makeDocFileAndQuit(const QString &fname)
 {
-    QCoreApplication::processEvents();
-    return m_running;
-}
+    pythonRegisterSyioModule();
 
-bool OOPWorker::receiveInput(int inPortId, const QVariant &argData)
-{
-    const auto typeId = m_inPortInfo[inPortId].workerDataTypeId();
-    auto pyObj = unmarshalDataToPyObject(typeId, argData, m_shmRecv[inPortId]);
-    m_pyb->incomingData[inPortId].append(pyObj);
-
-    return true;
-}
-
-bool OOPWorker::submitOutput(int outPortId, py::object pyObj)
-{
-    // don't send anything if nothing is connected to this port
-    if (!m_outPortInfo[outPortId].connected())
-        return true;
-
-    const auto typeId = m_outPortInfo[outPortId].workerDataTypeId();
-    QVariant argData;
-    const auto ret = marshalPyDataElement(typeId, pyObj, argData, m_shmSend[outPortId]);
-    if (ret)
-        Q_EMIT sendOutput(outPortId, argData);
-    return ret;
-}
-
-void OOPWorker::setOutPortMetadataValue(int outPortId, const QString &key, const QVariant &value)
-{
-    auto portInfo = m_outPortInfo[outPortId];
-    auto mdata = portInfo.metadata();
-    mdata.insert(key, value);
-    portInfo.setMetadata(mdata);
-    m_outPortInfo[outPortId] = std::move(portInfo);
-}
-
-void OOPWorker::setInputThrottleItemsPerSec(int inPortId, uint itemsPerSec, bool allowMore)
-{
-    Q_EMIT inputThrottleItemsPerSecRequested(inPortId, itemsPerSec, allowMore);
-}
-
-void OOPWorker::setStage(OOPWorker::Stage stage)
-{
-    m_stage = stage;
-    Q_EMIT stageChanged(m_stage);
-}
-
-void OOPWorker::raiseError(const QString &message)
-{
-    m_running = false;
-    std::cerr << "ERROR: " << message.toStdString() << std::endl;
-    setStage(OOPWorker::ERROR);
-    Q_EMIT error(message);
-
-    prepareShutdown();
-    shutdown();
-}
-
-void OOPWorker::makeDocFileAndQuit(const QString &fname)
-{
     // FIXME: We ignore Python warnings for now, as we otherwise get lots of
     // "Couldn't read PEP-224 variable docstrings from <Class X>: <class  X> is a built-in class"
     // messages that - currently - we can't do anything about
@@ -642,23 +588,4 @@ void OOPWorker::makeDocFileAndQuit(const QString &fname)
 
     // documentation generated successfully, we can quit now
     exit(0);
-}
-
-bool OOPWorker::setNiceness(int nice)
-{
-    return setCurrentThreadNiceness(nice);
-}
-
-void OOPWorker::setMaxRealtimePriority(int priority)
-{
-    // we just store this value here in case the script wants to go into
-    // realtime mode later for some reason
-    m_maxRTPriority = priority;
-}
-
-void OOPWorker::setCPUAffinity(QVector<uint> cores)
-{
-    if (cores.empty())
-        return;
-    thread_set_affinity_from_vec(pthread_self(), std::vector<uint>(cores.begin(), cores.end()));
 }

@@ -17,14 +17,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-// clang-format off
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 #include "syio.h"
-// clang-format on
 
 #include <QDebug>
 #include <QStringList>
+#include <QCoreApplication>
 
 #include <iostream>
 #include <pybind11/chrono.h>
@@ -35,30 +34,24 @@
 #include <pybind11/eigen.h>
 #include <stdexcept>
 
+#include "streams/datatypes.h"
+#include "streams/frametype.h"
 #include "cvmatndsliceconvert.h"
 #include "qstringtopy.h" // needed for QString registration
-#include "worker.h"
+#include "sydatatopy.h"  // needed for stream data type conversion
+#include "pyworker.h"
 
 namespace py = pybind11;
 
-PyBridge::PyBridge(OOPWorker *worker)
+PyBridge::PyBridge(PyWorker *worker)
     : QObject(worker),
-      m_syTimer(new SyncTimer),
       m_worker(worker)
 {
 }
 
-PyBridge::~PyBridge()
-{
-    delete m_syTimer;
-}
+PyBridge::~PyBridge() {}
 
-SyncTimer *PyBridge::timer() const
-{
-    return m_syTimer;
-}
-
-OOPWorker *PyBridge::worker()
+PyWorker *PyBridge::worker()
 {
     return m_worker;
 }
@@ -72,22 +65,16 @@ SyntalosPyError::SyntalosPyError(const char *what_arg)
 SyntalosPyError::SyntalosPyError(const std::string &what_arg)
     : std::runtime_error(what_arg){};
 
-enum InputWaitResult {
-    IWR_NONE = 0,
-    IWR_NEWDATA = 1,
-    IWR_CANCELLED = 2
-};
-
 static long time_since_start_msec()
 {
     auto pb = PyBridge::instance();
-    return pb->timer()->timeSinceStartMsec().count();
+    return pb->worker()->timer()->timeSinceStartMsec().count();
 }
 
 static long time_since_start_usec()
 {
     auto pb = PyBridge::instance();
-    return pb->timer()->timeSinceStartUsec().count();
+    return pb->worker()->timer()->timeSinceStartUsec().count();
 }
 
 static void println(const std::string &text)
@@ -101,34 +88,32 @@ static void raise_error(const std::string &message)
     pb->worker()->raiseError(QString::fromStdString(message));
 }
 
-static void wait(unsigned int msec)
+static void wait(uint msec)
 {
+    auto pb = PyBridge::instance();
     auto timer = QTime::currentTime().addMSecs(msec);
     while (QTime::currentTime() < timer)
-        QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+        pb->worker()->awaitData(10 * 1000);
 }
 
-static void wait_sec(unsigned int sec)
+static void wait_sec(uint sec)
 {
+    auto pb = PyBridge::instance();
     auto timer = QTime::currentTime().addMSecs(sec * 1000);
     while (QTime::currentTime() < timer)
-        QCoreApplication::processEvents(QEventLoop::AllEvents, 500);
+        pb->worker()->awaitData(100 * 1000);
 }
 
-static InputWaitResult await_new_input()
+static bool is_running()
 {
     auto pb = PyBridge::instance();
-    auto res = pb->worker()->waitForInput();
-    if (res.has_value())
-        return res.value() ? IWR_NEWDATA : IWR_NONE;
-    else
-        return IWR_CANCELLED;
+    return pb->worker()->isRunning();
 }
 
-static bool check_running()
+static void await_data(int timeout_usec)
 {
     auto pb = PyBridge::instance();
-    return pb->worker()->checkRunning();
+    pb->worker()->awaitData(timeout_usec);
 }
 
 static void schedule_delayed_call(int delay_msec, const std::function<void()> &fn)
@@ -141,42 +126,77 @@ static void schedule_delayed_call(int delay_msec, const std::function<void()> &f
 }
 
 struct InputPort {
-    InputPort(std::string name, int id)
-        : _name(name),
-          _inst_id(id)
+    InputPort(const std::shared_ptr<InputPortInfo> &iport)
+        : _iport(iport)
     {
+        _id = _iport->id().toStdString();
+        _dataTypeId = _iport->dataTypeId();
     }
 
-    py::object next()
+    void set_on_data(const PyNewDataFn &fn)
+    {
+        _on_data_cb = fn;
+        if (!_on_data_cb) {
+            _iport->setNewDataRawCallback(nullptr);
+            return;
+        }
+
+        _iport->setNewDataRawCallback([this](const void *data, size_t size) {
+            switch (_dataTypeId) {
+            case dataTypeId<ControlCommand>():
+                _on_data_cb(py::cast(ControlCommand::fromMemory(data, size)));
+                break;
+            case dataTypeId<TableRow>():
+                _on_data_cb(py::cast(TableRow::fromMemory(data, size)));
+                break;
+            case dataTypeId<Frame>():
+                _on_data_cb(py::cast(Frame::fromMemory(data, size)));
+                break;
+            case dataTypeId<FirmataControl>():
+                _on_data_cb(py::cast(FirmataControl::fromMemory(data, size)));
+                break;
+            case dataTypeId<FirmataData>():
+                _on_data_cb(py::cast(FirmataData::fromMemory(data, size)));
+                break;
+            case dataTypeId<IntSignalBlock>():
+                _on_data_cb(py::cast(IntSignalBlock::fromMemory(data, size)));
+                break;
+            case dataTypeId<FloatSignalBlock>():
+                _on_data_cb(py::cast(FloatSignalBlock::fromMemory(data, size)));
+                break;
+            }
+        });
+    }
+
+    PyNewDataFn get_on_data() const
+    {
+        return _on_data_cb;
+    }
+
+    void set_throttle_items_per_sec(uint itemsPerSec)
     {
         auto pb = PyBridge::instance();
-        if (pb->incomingData[_inst_id].isEmpty())
-            return py::none();
-
-        return pb->incomingData[_inst_id].dequeue();
+        pb->worker()->setInputThrottleItemsPerSec(_iport, itemsPerSec);
     }
 
-    void setThrottleItemsPerSec(uint itemsPerSec, bool allowMore = true)
-    {
-        auto pb = PyBridge::instance();
-        pb->worker()->setInputThrottleItemsPerSec(_inst_id, itemsPerSec, allowMore);
-    }
-
-    std::string _name;
-    int _inst_id;
+    std::string _id;
+    int _dataTypeId;
+    const std::shared_ptr<InputPortInfo> _iport;
+    PyNewDataFn _on_data_cb;
 };
 
 struct OutputPort {
-    OutputPort(std::string name, int id)
-        : _name(name),
-          _inst_id(id)
+    OutputPort(const std::shared_ptr<OutputPortInfo> &oport)
+        : _oport(oport)
     {
+        _id = _oport->id().toStdString();
+        _dataTypeId = _oport->dataTypeId();
     }
 
     void submit(py::object pyObj)
     {
         auto pb = PyBridge::instance();
-        if (!pb->worker()->submitOutput(_inst_id, pyObj))
+        if (!pb->worker()->submitOutput(_oport, pyObj))
             throw SyntalosPyError(
                 "Data submission failed: "
                 "Tried to send data via output port that can't carry it (sent data and port type are mismatched, or "
@@ -189,12 +209,12 @@ struct OutputPort {
         if (PyLong_CheckExact(obj.ptr())) {
             // we have an integer type
             const long value = obj.cast<long>();
-            pb->worker()->setOutPortMetadataValue(_inst_id, QString::fromStdString(key), QVariant::fromValue(value));
+            pb->worker()->setOutPortMetadataValue(_oport, QString::fromStdString(key), QVariant::fromValue(value));
         } else if (PyUnicode_CheckExact(obj.ptr())) {
             // we have a (unicode) string type
             const auto value = obj.cast<std::string>();
             pb->worker()->setOutPortMetadataValue(
-                _inst_id, QString::fromStdString(key), QVariant::fromValue(QString::fromStdString(value)));
+                _oport, QString::fromStdString(key), QVariant::fromValue(QString::fromStdString(value)));
         } else if (PyList_Check(obj.ptr())) {
             const auto pyList = obj.cast<py::list>();
             const auto pyListLen = py::len(pyList);
@@ -216,7 +236,7 @@ struct OutputPort {
                         + std::string(lo.attr("__py::class__").attr("__name__").cast<std::string>()));
                 }
             }
-            pb->worker()->setOutPortMetadataValue(_inst_id, QString::fromStdString(key), varList);
+            pb->worker()->setOutPortMetadataValue(_oport, QString::fromStdString(key), varList);
         } else {
             throw SyntalosPyError(
                 std::string("Can not set a metadata value for this type: ")
@@ -232,7 +252,7 @@ struct OutputPort {
         const int width = value[0].cast<int>();
         const int height = value[1].cast<int>();
         QSize size(width, height);
-        pb->worker()->setOutPortMetadataValue(_inst_id, QString::fromStdString(key), QVariant::fromValue(size));
+        pb->worker()->setOutPortMetadataValue(_oport, QString::fromStdString(key), QVariant::fromValue(size));
     }
 
     FirmataControl firmata_register_digital_pin(
@@ -274,29 +294,30 @@ struct OutputPort {
         return ctl;
     }
 
-    std::string _name;
-    int _inst_id;
+    std::string _id;
+    int _dataTypeId;
+    const std::shared_ptr<OutputPortInfo> _oport;
 };
 
 static py::object get_input_port(const std::string &id)
 {
     auto pb = PyBridge::instance();
-    auto res = pb->worker()->inputPortInfoByIdString(QString::fromStdString(id));
-    if (!res.has_value())
+    auto res = pb->worker()->inputPortById(QString::fromStdString(id));
+    if (!res)
         return py::none();
 
-    InputPort pyPort(res->idstr().toStdString(), res->id());
+    InputPort pyPort(res);
     return py::cast(pyPort);
 }
 
 static py::object get_output_port(const std::string &id)
 {
     auto pb = PyBridge::instance();
-    auto res = pb->worker()->outputPortInfoByIdString(QString::fromStdString(id));
-    if (!res.has_value())
+    auto res = pb->worker()->outputPortById(QString::fromStdString(id));
+    if (!res)
         return py::none();
 
-    OutputPort pyPort(res->idstr().toStdString(), res->id());
+    OutputPort pyPort(res);
     return py::cast(pyPort);
 }
 
@@ -335,23 +356,24 @@ PYBIND11_MODULE(syio, m)
     py::register_exception<SyntalosPyError>(m, "SyntalosPyError");
 
     py::class_<InputPort>(m, "InputPort", "Representation of a module input port.")
-        .def(py::init<std::string, int>())
-        .def("next", &InputPort::next, "Retrieve the next element, return None if no element is available.")
+        .def_property(
+            "on_data",
+            &InputPort::get_on_data,
+            &InputPort::set_on_data,
+            "Set function to be called when new data arrives.")
         .def(
             "set_throttle_items_per_sec",
-            &InputPort::setThrottleItemsPerSec,
+            &InputPort::set_throttle_items_per_sec,
             "Limit the amount of input received to a set amount of elements per second.",
-            py::arg("items_per_sec"),
-            py::arg("allow_more") = true)
-        .def_readonly("name", &InputPort::_name);
+            py::arg("items_per_sec"))
+        .def_readonly("name", &InputPort::_id);
 
     py::class_<OutputPort>(m, "OutputPort", "Representation of a module output port.")
-        .def(py::init<std::string, int>())
         .def(
             "submit",
             &OutputPort::submit,
             "Submit the given entity to the output port for transfer to its destination(s).")
-        .def_readonly("name", &OutputPort::_name)
+        .def_readonly("name", &OutputPort::_id)
         .def("set_metadata_value", &OutputPort::set_metadata_value, "Set (immutable) metadata value for this port.")
         .def(
             "set_metadata_value_size",
@@ -381,12 +403,6 @@ PYBIND11_MODULE(syio, m)
             py::arg("name"),
             py::arg("duration_msec") = 50,
             "Convenience function to emit a digital pulse on a named pin.");
-
-    py::enum_<InputWaitResult>(m, "InputWaitResult")
-        .value("NONE", IWR_NONE)
-        .value("NEWDATA", IWR_NEWDATA, "New data is available to be read.")
-        .value("CANCELLED", IWR_CANCELLED, "The current run was cancelled.")
-        .export_values();
 
     /**
      ** Frames
@@ -490,11 +506,16 @@ PYBIND11_MODULE(syio, m)
         wait_sec,
         py::arg("sec"),
         "Wait (roughly) for the given amount of seconds without blocking communication with the master process.");
-    m.def("await_new_input", await_new_input, "Wait for any new input to arrive via our input ports.");
     m.def(
-        "check_running",
-        check_running,
-        "Process all messages and return True if we are still running, False if we are supposed to shut down.");
+        "await_data",
+        await_data,
+        py::arg("timeout_usec") = -1,
+        "Wait for new data to arrive and call selected callbacks. Also keep communication with the Syntalos master "
+        "process.");
+    m.def(
+        "is_running",
+        is_running,
+        "Return True if the experiment is still running, False if we are supposed to shut down.");
     m.def(
         "schedule_delayed_call",
         &schedule_delayed_call,

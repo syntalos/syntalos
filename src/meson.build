@@ -5,6 +5,7 @@ syntalos_main_inc_dir = include_directories('.')
 subdir('utils')
 subdir('fabric')
 subdir('roudi')
+subdir('mlink')
 subdir('uilib')
 subdir('pyworker')
 
@@ -40,8 +41,6 @@ syntalos_src = [
     'moduleselectdialog.cpp',
     'pymoduleloader.h',
     'pymoduleloader.cpp',
-    'sysinfo.h',
-    'sysinfo.cpp',
     'sysinfodialog.h',
     'sysinfodialog.cpp',
     'timingsdialog.h',
@@ -91,8 +90,8 @@ syntalos_exe = executable('syntalos',
                    qt_opengl_dep,
                    qt_svg_dep,
                    qt_dbus_dep,
-                   qt_remoteobj_dep,
                    iceoryx_posh_dep,
+                   iceoryx_hoofs_dep,
 
                    kfdbusaddons_dep,
                    kfarchive_dep,

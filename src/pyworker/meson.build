@@ -27,25 +27,16 @@ if not have_numpy
     error('Unable to find Python\'s NumPy module. Please install it to continue.')
 endif
 
-rep_worker_src_hdr = custom_target('gen-worker-qro-source',
-    input : ['../fabric/oop/interface.rep'],
-    output : ['rep_interface_source.h'],
-    command : [repc_exe, '@INPUT0@',
-                '-o', 'source',
-                '@OUTPUT0@']
-)
-
 sy_pyworker_src = [
     'main.cpp',
-    'worker.h',
-    'worker.cpp',
+    'pyworker.h',
+    'pyworker.cpp',
     'syio.h',
     'syio.cpp',
+    'sydatatopy.h',
     'qstringtopy.h',
     'cvmatndsliceconvert.h',
     'cvmatndsliceconvert.cpp',
-    'pyipcmarshal.h',
-    'pyipcmarshal.cpp'
 ]
 
 pyworker_moc_h = []
@@ -59,29 +50,26 @@ foreach s : sy_pyworker_src
 endforeach
 
 sy_pyworker_moc = qt.preprocess(
-    moc_headers: [pyworker_moc_h, rep_worker_src_hdr],
+    moc_headers: [pyworker_moc_h],
     moc_sources: pyworker_moc_s,
-    dependencies: [qt_remoteobj_dep],
     # FIXME: The forced include directive works around a weird issue in KDE's Flatpak runtime,
     # where some Qt modules are not found properly, resulting in parsing errors.
     moc_extra_arguments: ['-I/usr/include', '--no-notes']
 )
 
 pyworker_exe = executable('pyworker',
-    [sy_pyworker_src, sy_pyworker_moc, rep_worker_src_hdr],
+    [sy_pyworker_src, sy_pyworker_moc],
     gnu_symbol_visibility: 'hidden',
-    link_with: [sy_oopshared_lib],
     dependencies: [syntalos_fabric_dep,
+                   syntalos_mlink_dep,
                    thread_dep,
-                   qt_remoteobj_dep,
                    qt_dbus_dep,
                    opencv_dep,
                    vips_dep,
                    pybind11_dep,
                    python_embed_dep],
-    include_directories: [include_directories('..'),
-                          include_directories('../fabric/oop')],
-    cpp_args: ['-DNO_TID_PORTCONSTRUCTORS', numpy_inc_arg],
+    include_directories: [include_directories('..')],
+    cpp_args: [numpy_inc_arg],
     install: true,
     install_dir: sy_libdir
 )
@@ -99,6 +87,7 @@ if pdoc_exe.found()
                     '@OUTPUT0@'],
         output: 'syio_api_embed.html',
         env: ['LSAN_OPTIONS=suppressions=' +
-                join_paths(source_root, 'tests', 'lsan-suppr.txt')]
+                join_paths(source_root, 'tests', 'lsan-suppr.txt'),
+              'SYNTALOS_MODULE_ID=build_docgen']
     )
 endif

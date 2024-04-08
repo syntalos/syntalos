@@ -211,7 +211,6 @@ qt_core_dep = dependency('qt5', modules: ['Core'], version: '>= 5.12', include_t
 qt_gui_dep = dependency('qt5', modules: ['Gui', 'Widgets'])
 qt_test_dep = dependency('qt5', modules: ['Test'])
 qt_opengl_dep = dependency('qt5', modules: ['OpenGL'])
-qt_remoteobj_dep = dependency('qt5', modules: ['RemoteObjects'])
 qt_svg_dep = dependency('qt5', modules: ['Svg'])
 qt_dbus_dep = dependency('qt5', modules: ['DBus'])
 qt_multimedia_dep = dependency('qt5', modules: ['Multimedia'])

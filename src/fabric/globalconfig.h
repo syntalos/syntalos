@@ -38,6 +38,8 @@ enum class ColorMode {
 QString colorModeToString(ColorMode mode);
 ColorMode colorModeFromString(const QString &str);
 
+QString findSyntalosPyWorkerBinary();
+
 class GlobalConfig : public QObject
 {
     Q_OBJECT

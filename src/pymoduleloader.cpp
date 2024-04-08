@@ -28,23 +28,23 @@
 #include <iostream>
 
 #include "globalconfig.h"
-#include "oopmodule.h"
+#include "mlinkmodule.h"
 #include "fabric/executils.h"
 #include "utils/misc.h"
 
-class PythonModule : public OOPModule
+class PythonModule : public MLinkModule
 {
     Q_OBJECT
 public:
     explicit PythonModule(QObject *parent = nullptr)
-        : OOPModule(parent),
+        : MLinkModule(parent),
           m_settingsOpened(false)
     {
         // we use the generic Python OOP worker process for this
-        setWorkerBinaryPyWorker();
+        setModuleBinary(findSyntalosPyWorkerBinary());
 
-        setCaptureStdout(false); // don't capture stdout until we are running
-        connect(this, &OOPModule::processStdoutReceived, this, [&](const QString &data) {
+        setOutputCaptured(false); // don't capture stdout until we are running
+        connect(this, &MLinkModule::processOutputReceived, this, [&](const QString &data) {
             std::cout << "py." << id().toStdString() << "(" << name().toStdString() << "): " << data.toStdString()
                       << std::endl;
         });
@@ -201,7 +201,7 @@ public:
 
     bool initialize() override
     {
-        if (workerBinary().isEmpty()) {
+        if (moduleBinary().isEmpty()) {
             raiseError("Unable to find Python worker binary. Is Syntalos installed correctly?");
             return false;
         }
@@ -237,14 +237,15 @@ public:
 
     bool prepare(const TestSubject &testSubject) override
     {
-        setCaptureStdout(true);
-        setPythonFile(m_mainPyFname, m_pyModDir, virtualEnvDir());
+        setOutputCaptured(true);
+        setPythonVirtualEnv(virtualEnvDir());
+        if (!setScriptFromFile(m_mainPyFname, m_pyModDir)) {
+            raiseError(QStringLiteral("Unable to open Python script file: %1").arg(m_mainPyFname));
+            return false;
+        }
 
-        OOPModule::prepare(testSubject);
+        MLinkModule::prepare(testSubject);
 
-        // recover any adjusted settings
-        if (m_pendingSettings.isFinished())
-            setSettingsData(m_pendingSettings.returnValue());
         m_settingsOpened = false;
         return true;
     }
@@ -258,22 +259,12 @@ public:
                 QStringLiteral("Settings can not be shown while the module is running in an experiment."));
             return;
         }
-        if (m_settingsOpened) {
-            if (m_pendingSettings.isFinished()) {
-                setSettingsData(m_pendingSettings.returnValue());
-                m_settingsOpened = false;
-            } else {
-                return;
-            }
-        }
 
-        setCaptureStdout(false);
-        setPythonFile(m_mainPyFname, m_pyModDir, virtualEnvDir());
-        auto res = showSettingsChangeUi(settingsData());
-        if (res.has_value()) {
-            m_pendingSettings = res.value();
-            m_settingsOpened = true;
-        }
+        setOutputCaptured(false);
+        setPythonVirtualEnv(virtualEnvDir());
+        setScriptFromFile(m_mainPyFname, m_pyModDir);
+
+        // TODO
     }
 
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &extraData) override
@@ -302,7 +293,6 @@ private:
     bool m_useVEnv;
 
     bool m_settingsOpened;
-    QRemoteObjectPendingReply<QByteArray> m_pendingSettings;
 };
 
 class PyModuleInfo : public ModuleInfo

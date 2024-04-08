@@ -17,7 +17,7 @@ module_moc_src = [
 module_ui = ['porteditordialog.ui']
 
 kftexteditor_dep = dependency('KF5TextEditor')
-module_deps = [kftexteditor_dep, qt_remoteobj_dep]
+module_deps = [kftexteditor_dep]
 
 module_data = []
 

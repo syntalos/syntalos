@@ -30,12 +30,12 @@
 namespace py = pybind11;
 using namespace Syntalos;
 
-class OOPWorker;
+class PyWorker;
 class Q_DECL_HIDDEN PyBridge : public QObject
 {
     Q_OBJECT
 public:
-    static PyBridge *instance(OOPWorker *worker = nullptr)
+    static PyBridge *instance(PyWorker *worker = nullptr)
     {
         static std::mutex _mutex;
         std::lock_guard<std::mutex> lock(_mutex);
@@ -47,19 +47,14 @@ public:
         return _instance;
     }
 
-    explicit PyBridge(OOPWorker *worker = nullptr);
+    explicit PyBridge(PyWorker *worker = nullptr);
     ~PyBridge();
 
-    SyncTimer *timer() const;
-    OOPWorker *worker();
-
-    QList<QQueue<py::object>> incomingData;
+    PyWorker *worker();
 
 private:
     Q_DISABLE_COPY(PyBridge)
-
-    SyncTimer *m_syTimer;
-    OOPWorker *m_worker;
+    PyWorker *m_worker;
 };
 
 void pythonRegisterSyioModule();

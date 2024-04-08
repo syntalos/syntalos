@@ -1,7 +1,5 @@
 # Syntalos Shared and Binding Code
 
-subdir('oop')
-
 syntalos_fabric_src = [
     'cpuaffinity.h',
     'cpuaffinity.cpp',
@@ -12,6 +10,8 @@ syntalos_fabric_src = [
     'executils.cpp',
     'globalconfig.h',
     'globalconfig.cpp',
+    'mlinkmodule.h',
+    'mlinkmodule.cpp',
     'moduleapi.h',
     'moduleapi.cpp',
     'optionalwaitcondition.h',
@@ -20,8 +20,12 @@ syntalos_fabric_src = [
     'rtkit.cpp',
     'subscriptionwatcher.h',
     'subscriptionwatcher.cpp',
+    'streamexporter.h',
+    'streamexporter.cpp',
     'syclock.h',
     'syclock.cpp',
+    'sysinfo.h',
+    'sysinfo.cpp',
     'timesync.h',
     'timesync.cpp',
     'tsyncfile.h',
@@ -34,11 +38,6 @@ syntalos_fabric_src = [
     'streams/readerwriterqueue.h',
     'streams/stream.h',
     'streams/stream.cpp',
-
-    'oop/oopmodule.h',
-    'oop/oopworkerconnector.h',
-    'oop/oopmodule.cpp',
-    'oop/oopworkerconnector.cpp',
 ]
 
 syntalos_fabric_inc_dir = include_directories('.')
@@ -63,21 +62,17 @@ syntalos_fabric_lib = shared_library('syntalos-fabric',
     [syntalos_fabric_src,
      syntalos_fabric_moc,
      modconfig_h],
-    link_with: sy_oopshared_lib,
     dependencies: [sy_base_deps,
                    syntalos_utils_dep,
                    opengl_dep,
                    vips_dep,
                    qt_dbus_dep,
-                   qt_remoteobj_dep,
-
-                   # still needed for QRO OOP
-                   opencv_dep,
                    avutil_dep,
+                   iceoryx_posh_dep,
+                   iceoryx_hoofs_dep,
     ],
     include_directories: [root_include_dir,
-                          syntalos_fabric_inc_dir,
-                          include_directories('oop')],
+                          syntalos_fabric_inc_dir],
     install: true,
     install_dir: sy_libdir
 )
@@ -86,6 +81,5 @@ syntalos_fabric_dep = declare_dependency(
     link_with: syntalos_fabric_lib,
     dependencies: [sy_base_deps, syntalos_utils_dep],
     include_directories: [root_include_dir,
-                          syntalos_fabric_inc_dir,
-                          include_directories('oop')]
+                          syntalos_fabric_inc_dir]
 )

@@ -17,12 +17,14 @@
  * along with this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "config.h"
 #include "globalconfig.h"
 
 #include <QDebug>
 #include <QDir>
 #include <QSettings>
 #include <QStandardPaths>
+#include <QCoreApplication>
 
 #include "rtkit.h"
 #include "utils/misc.h"
@@ -224,4 +226,17 @@ ColorMode Syntalos::colorModeFromString(const QString &str)
     if (str == "dark")
         return ColorMode::DARK;
     return ColorMode::SYSTEM;
+}
+
+QString Syntalos::findSyntalosPyWorkerBinary()
+{
+    auto workerBinary = QStringLiteral("%1/pyworker/pyworker").arg(QCoreApplication::applicationDirPath());
+    QFileInfo checkBin(workerBinary);
+    if (!checkBin.exists() || workerBinary.startsWith("/usr/")) {
+        workerBinary = QStringLiteral("%1/pyworker").arg(SY_LIBDIR);
+        QFileInfo fi(workerBinary);
+        workerBinary = fi.canonicalFilePath();
+    }
+
+    return workerBinary;
 }

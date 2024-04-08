@@ -18,14 +18,15 @@
  */
 
 #include "pyooptestmodule.h"
-#include "oopmodule.h"
+#include "mlinkmodule.h"
 #include "streams/frametype.h"
+#include "globalconfig.h"
 
 #include <QMessageBox>
 
 SYNTALOS_MODULE(PyOOPTestModule)
 
-class PyOOPTestModule : public OOPModule
+class PyOOPTestModule : public MLinkModule
 {
     Q_OBJECT
 private:
@@ -33,9 +34,12 @@ private:
 
 public:
     explicit PyOOPTestModule(QObject *parent = nullptr)
-        : OOPModule(parent)
+        : MLinkModule(parent)
     {
-        setPythonScript(
+        // we use the generic Python OOP worker process for this
+        setModuleBinary(findSyntalosPyWorkerBinary());
+
+        setScript(
             "import syio as sy\n"
             "import cv2 as cv\n"
             "\n"
@@ -47,20 +51,21 @@ public:
             "print('OPort: ' + str(oport))\n"
             "oport.set_metadata_value('framerate', 200)\n"
             "oport.set_metadata_value_size('size', [960, 600])\n"
-            "def loop() -> bool:\n"
-            "    r = sy.await_new_input()\n"
-            "    if r == sy.InputWaitResult.CANCELLED:\n"
-            "        print('Quitting PyOOPTestModule Loop!', r)\n"
-            "        return False\n"
-            "    while True:\n"
-            "        frame = iport.next()\n"
-            "        if frame is None:\n"
-            "            break\n"
-            "        blur = cv.blur(frame.mat, (5,5))\n"
-            "        frame.mat = blur\n"
-            "        oport.submit(frame)\n"
+            "\n"
+            "def prepare() -> bool:\n"
+            "    iport.on_data = new_data_event\n"
             "    return True\n"
-            "");
+            "\n"
+            "def run() -> bool:\n"
+            "    while sy.is_running():\n"
+            "        sy.await_data()\n"
+            "    print('Quitting PyOOPTestModule Loop!')\n"
+            "\n"
+            "def new_data_event(frame) -> None:\n"
+            "    blur = cv.blur(frame.mat, (5,5))\n"
+            "    frame.mat = blur\n"
+            "    oport.submit(frame)\n"
+            "\n");
 
         registerInputPort<FirmataData>("firmata-in", "Pin Data");
         registerOutputPort<FirmataControl>("firmata-out", "Pin Control");
@@ -74,16 +79,16 @@ public:
 
     ModuleFeatures features() const override
     {
-        return OOPModule::features();
+        return MLinkModule::features();
     }
 
-    bool prepare(const TestSubject &) override
+    bool prepare(const TestSubject &subject) override
     {
         m_vOut->setMetadataValue("size", QSize(960, 600));
         m_vOut->setMetadataValue("framerate", (double)200);
         m_vOut->start();
 
-        return true;
+        return MLinkModule::prepare(subject);
     }
 
     void stop() override {}
