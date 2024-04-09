@@ -79,19 +79,20 @@ to submit a change, bugfix or new module.
  * Qt5 Test
  * Qt5 OpenGL
  * Qt5 SVG
- * Qt5 Remote Objects
  * Qt5 SerialPort
  * GLib (>= 2.58)
+ * [Iceoryx](https://github.com/eclipse-iceoryx/iceoryx) (>= 2.0)
  * Eigen3
  * [TOML++](https://github.com/marzer/tomlplusplus/)
  * FFmpeg (>= 4.1)
  * GStreamer (>= 1.0)
  * PipeWire
- * OpenCV (>= 4.1)
+ * [libVIPS](https://www.libvips.org/) (>= 8.14)
  * KF5 Archive
  * KF5 TextEditor
  * [pybind11](https://github.com/pybind/pybind11)
  * libusb (>= 1.0)
+ * OpenCV (>= 4.1) (only for some modules)
  * ImGui / ImPlot (optional, needed for plotting)
 
 We recommend Debian 13 (Trixie) or Ubuntu 24.04 (Noble Numbat) to build & run Syntalos,
