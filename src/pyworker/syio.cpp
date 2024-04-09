@@ -143,25 +143,25 @@ struct InputPort {
 
         _iport->setNewDataRawCallback([this](const void *data, size_t size) {
             switch (_dataTypeId) {
-            case dataTypeId<ControlCommand>():
+            case syDataTypeId<ControlCommand>():
                 _on_data_cb(py::cast(ControlCommand::fromMemory(data, size)));
                 break;
-            case dataTypeId<TableRow>():
+            case syDataTypeId<TableRow>():
                 _on_data_cb(py::cast(TableRow::fromMemory(data, size)));
                 break;
-            case dataTypeId<Frame>():
+            case syDataTypeId<Frame>():
                 _on_data_cb(py::cast(Frame::fromMemory(data, size)));
                 break;
-            case dataTypeId<FirmataControl>():
+            case syDataTypeId<FirmataControl>():
                 _on_data_cb(py::cast(FirmataControl::fromMemory(data, size)));
                 break;
-            case dataTypeId<FirmataData>():
+            case syDataTypeId<FirmataData>():
                 _on_data_cb(py::cast(FirmataData::fromMemory(data, size)));
                 break;
-            case dataTypeId<IntSignalBlock>():
+            case syDataTypeId<IntSignalBlock>():
                 _on_data_cb(py::cast(IntSignalBlock::fromMemory(data, size)));
                 break;
-            case dataTypeId<FloatSignalBlock>():
+            case syDataTypeId<FloatSignalBlock>():
                 _on_data_cb(py::cast(FloatSignalBlock::fromMemory(data, size)));
                 break;
             }
@@ -193,7 +193,7 @@ struct OutputPort {
         _dataTypeId = _oport->dataTypeId();
     }
 
-    void submit(py::object pyObj)
+    void submit(const py::object &pyObj)
     {
         auto pb = PyBridge::instance();
         if (!pb->worker()->submitOutput(_oport, pyObj))

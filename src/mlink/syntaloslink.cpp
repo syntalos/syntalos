@@ -31,6 +31,7 @@
 #include <iceoryx_posh/popo/untyped_publisher.hpp>
 #include <iceoryx_posh/popo/untyped_subscriber.hpp>
 #include <iceoryx_hoofs/posix_wrapper/signal_watcher.hpp>
+#include <iceoryx_hoofs/log/logmanager.hpp>
 
 #include "ipc-types-private.h"
 #include "rtkit.h"
@@ -54,6 +55,13 @@ std::unique_ptr<SyntalosLink> initSyntalosModuleLink()
     const auto rtNameStr = QString::fromUtf8(syModuleId.right(100));
     strncpy(rtName, qPrintable(rtNameStr), sizeof(rtName) - 1);
     rtName[sizeof(rtName) - 1] = '\0';
+
+    // set IOX log level
+    auto verboseLevel = qgetenv("SY_VERBOSE");
+    if (verboseLevel == "1")
+        iox::log::LogManager::GetLogManager().SetDefaultLogLevel(iox::log::LogLevel::kVerbose);
+    else
+        iox::log::LogManager::GetLogManager().SetDefaultLogLevel(iox::log::LogLevel::kInfo);
 
     // connect to RouDi
     iox::runtime::PoshRuntime::initRuntime(rtName);
@@ -145,6 +153,12 @@ public:
     QString title;
     int dataTypeId;
     QVariantHash metadata;
+
+    iox::capro::IdString_t publisherId() const
+    {
+        auto channelId = QStringLiteral("oport_%1").arg(id.mid(0, 80));
+        return iox::capro::IdString_t(iox::cxx::TruncateToCapacity, channelId.toStdString());
+    }
 };
 
 OutputPortInfo::OutputPortInfo(const OutputPortChange &pc)
@@ -172,7 +186,7 @@ class SyntalosLink::Private
 public:
     Private(const QString &instanceId)
     {
-        modId = iox::cxx::string<100>(iox::cxx::TruncateToCapacity, instanceId.toStdString());
+        modId = iox::capro::IdString_t(iox::cxx::TruncateToCapacity, instanceId.toStdString());
 
         // interfaces
         pubError = makePublisher<ErrorEvent>(ERROR_CHANNEL_ID);
@@ -478,8 +492,11 @@ void SyntalosLink::processNotification(const iox::popo::NotificationInfo *notifi
             d->outPortInfo.clear();
             for (const auto &ipc : sppReq.inPorts)
                 d->inPortInfo.push_back(std::shared_ptr<InputPortInfo>(new InputPortInfo(ipc)));
-            for (const auto &opc : sppReq.outPorts)
-                d->outPortInfo.push_back(std::shared_ptr<OutputPortInfo>(new OutputPortInfo(opc)));
+            for (const auto &opc : sppReq.outPorts) {
+                auto oport = std::shared_ptr<OutputPortInfo>(new OutputPortInfo(opc));
+                oport->d->ioxPub = d->makeUntypedPublisher(oport->d->publisherId());
+                d->outPortInfo.push_back(oport);
+            }
 
             auto requestHeader = iox::popo::RequestHeader::fromPayload(requestPayload);
             d->reqSetPortsPreset->loan(requestHeader, sizeof(DoneResponse), alignof(DoneResponse))
@@ -804,6 +821,7 @@ std::shared_ptr<OutputPortInfo> SyntalosLink::registerOutputPort(
         return nullptr;
     } else {
         auto oport = std::shared_ptr<OutputPortInfo>(new OutputPortInfo(opc));
+        oport->d->ioxPub = d->makeUntypedPublisher(oport->d->publisherId());
         d->outPortInfo.push_back(oport);
         return oport;
     }

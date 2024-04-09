@@ -82,8 +82,9 @@ public:
     QString readProcessOutput();
 
     void markIncomingForExport(StreamExporter *exporter);
-    virtual bool prepare(const TestSubject &) override;
+    virtual bool prepare(const TestSubject &subject) override;
     virtual void start() override;
+    virtual void stop() override;
 
 signals:
     void processOutputReceived(const QString &text);
@@ -108,6 +109,10 @@ private:
         iox::popo::Subscriber<ErrorEvent, iox::mepoo::NoUserHeader> *subscriber,
         MLinkModule *self);
     static void onPortChangedCb(iox::popo::UntypedSubscriber *subscriber, MLinkModule *self);
+    static void onOutputDataReceivedCb(iox::popo::UntypedSubscriber *subscriber, VariantDataStream *stream);
+
+    void registerOutPortForwarders();
+    void disconnectOutPortForwarders();
 
 private:
     class Private;

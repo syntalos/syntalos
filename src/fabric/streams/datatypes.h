@@ -179,16 +179,6 @@ public:
 };
 
 /**
- * @brief Convenience function to deserialize a data type from memory
- */
-template<typename T>
-T deserializeFromMemory(const void *memory, size_t size)
-    requires std::is_base_of_v<BaseDataType, T>
-{
-    return T::fromMemory(memory, size);
-}
-
-/**
  * @brief Helper macro to define a Syntalos stream data type.
  */
 #define SY_DEFINE_DATA_TYPE(TypeName)                    \
@@ -205,7 +195,7 @@ T deserializeFromMemory(const void *memory, size_t size)
  * @brief Helper function to get the type ID of a data type
  */
 template<typename T>
-constexpr int dataTypeId()
+constexpr int syDataTypeId()
     requires std::is_base_of_v<BaseDataType, T>
 {
     return T::staticTypeId();
@@ -233,7 +223,7 @@ enum class ControlCommandKind {
 struct ControlCommand : BaseDataType {
     SY_DEFINE_DATA_TYPE(ControlCommand)
 
-    ControlCommandKind kind; /// The command type
+    ControlCommandKind kind{ControlCommandKind::UNKNOWN}; /// The command type
     milliseconds_t duration; /// Duration of the command before resetting to the previous state (zero for infinite)
     QString command;         /// Custom command name, if in custom mode
 
@@ -252,7 +242,7 @@ struct ControlCommand : BaseDataType {
         duration = milliseconds_t(value);
     }
 
-    ulong getDurationAsInt()
+    ulong getDurationAsInt() const
     {
         return duration.count();
     }

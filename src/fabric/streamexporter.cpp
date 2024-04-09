@@ -26,6 +26,7 @@
 
 #include "streams/stream.h"
 #include "utils/misc.h"
+#include "mlinkmodule.h"
 
 using namespace Syntalos;
 
@@ -123,6 +124,7 @@ static std::unique_ptr<iox::popo::UntypedPublisher> makeIoxPublisher(
 
 std::optional<ExportedStreamInfo> StreamExporter::publishStreamByPort(std::shared_ptr<VarStreamInputPort> iport)
 {
+    // we don't export unsubscribed ports
     if (!iport->hasSubscription())
         return std::nullopt;
 
@@ -134,6 +136,10 @@ std::optional<ExportedStreamInfo> StreamExporter::publishStreamByPort(std::share
     ExportedStreamInfo result;
     result.instanceId = modId;
     result.channelId = channelId;
+
+    // if the emitter is an MLink module, the stream is already exported and we just return its expected info
+    if (dynamic_cast<MLinkModule *>(iport->outPort()->owner()) != nullptr)
+        return result;
 
     // return if we are already exporting this exact stream
     if (d->exportedIds.contains(modId + channelId))

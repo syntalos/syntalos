@@ -19,42 +19,22 @@
 
 #pragma once
 
-#include <pybind11/pybind11.h>
-#include "streams/datatypes.h"
+#include "datatypes.h"
+#include "frametype.h"
 
-namespace pybind11
-{
+using namespace Syntalos;
 
-namespace detail
+namespace Syntalos
 {
 
 /**
- * TableRow conversion
+ * @brief Convenience function to deserialize a data type from memory
  */
-template<>
-struct type_caster<TableRow> {
-public:
-    PYBIND11_TYPE_CASTER(TableRow, const_name("TableRow"));
+template<typename T>
+T deserializeFromMemory(const void *memory, size_t size)
+    requires std::is_base_of_v<BaseDataType, T>
+{
+    return T::fromMemory(memory, size);
+}
 
-    bool load(handle src, bool)
-    {
-        if (!isinstance<sequence>(src))
-            return false;
-
-        auto seq = reinterpret_borrow<sequence>(src);
-        for (size_t i = 0; i < seq.size(); i++)
-            value.append(seq[i].cast<QString>());
-        return true;
-    }
-
-    static handle cast(const TableRow &row, return_value_policy /* policy */, handle /* parent */)
-    {
-        list lst;
-        for (const QString &s : row.data)
-            lst.append(pybind11::cast(s));
-        return lst.release();
-    }
-};
-
-} // namespace detail
-} // namespace pybind11
+} // namespace Syntalos

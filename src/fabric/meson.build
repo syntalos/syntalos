@@ -34,6 +34,7 @@ syntalos_fabric_src = [
     'streams/atomicops.h',
     'streams/datatypes.h',
     'streams/datatypes.cpp',
+    'streams/datatype-utils.h',
     'streams/frametype.h',
     'streams/readerwriterqueue.h',
     'streams/stream.h',

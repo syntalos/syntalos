@@ -27,6 +27,18 @@ struct MyDataFrame : BaseDataType {
 
         return bytes;
     }
+
+    static MyDataFrame fromMemory(const void *memory, size_t size)
+    {
+        MyDataFrame obj;
+
+        QByteArray block(reinterpret_cast<const char *>(memory), size);
+        QDataStream stream(block);
+
+        // STUB
+
+        return obj;
+    }
 };
 
 static cv::Mat process_data_instant(const MyDataFrame &data)

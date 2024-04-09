@@ -27,7 +27,11 @@
 #include "rtkit.h"
 #include "streams/datatypes.h"
 #include "streams/frametype.h"
+
 #include "syio.h"
+#include "cvmatndsliceconvert.h"
+#include "qstringtopy.h" // needed for QString registration
+#include "sydatatopy.h"  // needed for stream data type conversion
 
 using namespace Syntalos;
 namespace Syntalos
@@ -118,19 +122,19 @@ std::shared_ptr<OutputPortInfo> PyWorker::outputPortById(const QString &idstr)
 bool PyWorker::submitOutput(const std::shared_ptr<OutputPortInfo> &oport, const py::object &pyObj)
 {
     switch (oport->dataTypeId()) {
-    case dataTypeId<ControlCommand>():
+    case syDataTypeId<ControlCommand>():
         return m_link->submitOutput(oport, py::cast<ControlCommand>(pyObj));
-    case dataTypeId<TableRow>():
+    case syDataTypeId<TableRow>():
         return m_link->submitOutput(oport, py::cast<TableRow>(pyObj));
-    case dataTypeId<Frame>():
+    case syDataTypeId<Frame>():
         return m_link->submitOutput(oport, py::cast<Frame>(pyObj));
-    case dataTypeId<FirmataControl>():
+    case syDataTypeId<FirmataControl>():
         return m_link->submitOutput(oport, py::cast<FirmataControl>(pyObj));
-    case dataTypeId<FirmataData>():
+    case syDataTypeId<FirmataData>():
         return m_link->submitOutput(oport, py::cast<FirmataData>(pyObj));
-    case dataTypeId<IntSignalBlock>():
+    case syDataTypeId<IntSignalBlock>():
         return m_link->submitOutput(oport, py::cast<IntSignalBlock>(pyObj));
-    case dataTypeId<FloatSignalBlock>():
+    case syDataTypeId<FloatSignalBlock>():
         return m_link->submitOutput(oport, py::cast<FloatSignalBlock>(pyObj));
     default:
         return false;
@@ -181,8 +185,8 @@ bool PyWorker::loadPythonScript(const QString &script, const QString &wdir)
     // HACK: make Python think *we* are the Python interpreter, so it finds
     // all modules correctly when we are in a virtual environment.
     const auto venvDir = QString::fromUtf8(qgetenv("VIRTUAL_ENV"));
-    qCDebug(logPyWorker).noquote() << "Using virtual environment:" << venvDir;
     if (!venvDir.isEmpty()) {
+        qCDebug(logPyWorker).noquote() << "Using virtual environment:" << venvDir;
         status = PyConfig_SetString(
             &config, &config.program_name, QDir(venvDir).filePath("bin/python").toStdWString().c_str());
         if (PyStatus_Exception(status)) {

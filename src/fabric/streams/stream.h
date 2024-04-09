@@ -103,6 +103,8 @@ public:
     virtual void start() = 0;
     virtual void stop() = 0;
     virtual bool active() const = 0;
+    virtual bool hasSubscribers() const = 0;
+    virtual void pushRawData(int typeId, const void *data, size_t size) = 0;
     virtual QHash<QString, QVariant> metadata() = 0;
     virtual void setMetadata(const QHash<QString, QVariant> &metadata) = 0;
     virtual void setMetadataValue(const QString &key, const QVariant &value) = 0;
@@ -191,12 +193,12 @@ public:
 
     int dataTypeId() const override
     {
-        return ::dataTypeId<T>();
+        return syDataTypeId<T>();
     }
 
     QString dataTypeName() const override
     {
-        return BaseDataType::typeIdToString(dataTypeId());
+        return BaseDataType::typeIdToString(syDataTypeId<T>());
     }
 
     QHash<QString, QVariant> metadata() const override
@@ -418,12 +420,12 @@ public:
 
     int dataTypeId() const override
     {
-        return T::staticTypeId();
+        return syDataTypeId<T>();
     }
 
     QString dataTypeName() const override
     {
-        return BaseDataType::typeIdToString(dataTypeId());
+        return BaseDataType::typeIdToString(syDataTypeId<T>());
     }
 
     QHash<QString, QVariant> metadata() override
@@ -519,6 +521,20 @@ public:
             sub->push(data);
     }
 
+    void pushRawData(int typeId, const void *data, size_t size) override
+    {
+        if (!m_active)
+            return;
+        if (typeId != syDataTypeId<T>()) {
+            qCritical().noquote() << "Invalid data type ID" << typeId << "for stream of type" << dataTypeName();
+            return;
+        }
+
+        const T &entity = T::fromMemory(data, size);
+        for (auto &sub : m_subs)
+            sub->push(entity);
+    }
+
     void terminate()
     {
         stop();
@@ -535,7 +551,7 @@ public:
         return m_active;
     }
 
-    bool hasSubscribers() const
+    bool hasSubscribers() const override
     {
         return !m_subs.empty();
     }

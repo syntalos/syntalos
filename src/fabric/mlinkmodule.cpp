@@ -33,6 +33,7 @@
 #include <iceoryx_posh/runtime/service_discovery.hpp>
 
 #include "mlink/ipc-types-private.h"
+#include "streams/datatype-utils.h"
 #include "globalconfig.h"
 #include "utils/misc.h"
 
@@ -65,6 +66,9 @@ public:
 
     std::unique_ptr<iox::popo::UntypedSubscriber> subInPortChange;
     std::unique_ptr<iox::popo::UntypedSubscriber> subOutPortChange;
+
+    std::vector<std::pair<std::unique_ptr<iox::popo::UntypedSubscriber>, std::shared_ptr<StreamOutputPort>>>
+        outPortSubs;
 
     iox::popo::Listener ioxListener;
 };
@@ -275,11 +279,11 @@ void MLinkModule::onPortChangedCb(iox::popo::UntypedSubscriber *subscriber, MLin
     // process new input/output ports
     subscriber->take()
         .and_then([subscriber, self](const void *payload) {
-            auto instanceString = subscriber->getServiceDescription().getInstanceIDString();
+            auto eventIdString = subscriber->getServiceDescription().getEventIDString();
             const auto chunkHeader = iox::mepoo::ChunkHeader::fromUserPayload(payload);
             const auto size = chunkHeader->usedSizeOfChunk();
 
-            if (instanceString == IN_PORT_CHANGE_CHANNEL_ID) {
+            if (eventIdString == IN_PORT_CHANGE_CHANNEL_ID) {
                 // deserialize
                 const auto ipc = InputPortChange::fromMemory(payload, size);
                 const auto action = ipc.action;
@@ -291,17 +295,29 @@ void MLinkModule::onPortChangedCb(iox::popo::UntypedSubscriber *subscriber, MLin
                     self->removeInPortById(ipc.id);
                     self->d->inPortIdMap.remove(ipc.id);
                 }
-            } else if (instanceString == OUT_PORT_CHANGE_CHANNEL_ID) {
+            } else if (eventIdString == OUT_PORT_CHANGE_CHANNEL_ID) {
                 // deserialize
                 const auto opc = OutputPortChange::fromMemory(payload, size);
                 const auto action = opc.action;
 
                 if (action == PortAction::ADD) {
                     const auto oport = self->registerOutputPortByTypeId(opc.dataTypeId, opc.id, opc.title);
+                    oport->setMetadata(opc.metadata);
                     self->d->outPortIdMap.insert(opc.id, oport);
                 } else if (action == PortAction::REMOVE) {
                     self->removeOutPortById(opc.id);
                     self->d->outPortIdMap.remove(opc.id);
+                } else if (action == PortAction::CHANGE) {
+                    std::shared_ptr<VariantDataStream> ostream;
+                    if (self->d->outPortIdMap.contains(opc.id)) {
+                        ostream = self->d->outPortIdMap.value(opc.id);
+                    } else {
+                        auto oport = self->outPortById(opc.id);
+                        if (oport)
+                            ostream = oport->streamVar();
+                    }
+                    if (ostream)
+                        ostream->setMetadata(opc.metadata);
                 }
             }
 
@@ -553,7 +569,62 @@ void MLinkModule::markIncomingForExport(StreamExporter *exporter)
     }
 }
 
-bool MLinkModule::prepare(const TestSubject &)
+void MLinkModule::onOutputDataReceivedCb(iox::popo::UntypedSubscriber *subscriber, VariantDataStream *stream)
+{
+    subscriber->take()
+        .and_then([subscriber, stream](const void *payload) {
+            const auto chunkHeader = iox::mepoo::ChunkHeader::fromUserPayload(payload);
+            const auto size = chunkHeader->usedSizeOfChunk();
+
+            stream->pushRawData(stream->dataTypeId(), payload, size);
+
+            // release memory chunk
+            subscriber->release(payload);
+        })
+        .or_else([](auto &result) {
+            if (result != iox::popo::ChunkReceiveResult::NO_CHUNK_AVAILABLE) {
+                qCWarning(logMLinkMod).noquote() << "Failed to receive new output data to forward!";
+            }
+        });
+}
+
+void MLinkModule::registerOutPortForwarders()
+{
+    // ensure we are disconnected
+    disconnectOutPortForwarders();
+
+    // connect to external process streams
+    for (auto &oport : outPorts()) {
+        if (!oport->streamVar()->hasSubscribers())
+            continue;
+        auto sub = makeUntypedSubscriber(QStringLiteral("oport_%1").arg(oport->id().mid(0, 80)));
+        d->ioxListener
+            .attachEvent(
+                *sub,
+                iox::popo::SubscriberEvent::DATA_RECEIVED,
+                iox::popo::createNotificationCallback(onOutputDataReceivedCb, *oport->streamVar().get()))
+            .or_else([this](auto) {
+                raiseError(
+                    "Unable to attach event to listen for output data submissions! Communication with module is not "
+                    "possible.");
+            });
+
+        d->outPortSubs.emplace_back(std::move(sub), oport);
+        oport->startStream();
+    }
+}
+
+void MLinkModule::disconnectOutPortForwarders()
+{
+    // stop listening to messages from external process
+    for (auto &pair : d->outPortSubs) {
+        pair.second->stopStream();
+        d->ioxListener.detachEvent(*pair.first, iox::popo::SubscriberEvent::DATA_RECEIVED);
+        pair.first->releaseQueuedData();
+    }
+}
+
+bool MLinkModule::prepare(const TestSubject &subject)
 {
     GlobalConfig gconf;
     bool ret;
@@ -634,11 +705,17 @@ bool MLinkModule::prepare(const TestSubject &)
     if (!ret)
         return false;
 
+    // register output port forwarding from exported data streams to internal data transmission
+    registerOutPortForwarders();
+    if (state() == ModuleState::ERROR)
+        return false;
+
     return true;
 }
 
 void MLinkModule::start()
 {
+    d->portChangesAllowed = false;
     auto callStart = makeClient<iox::popo::Client<StartRequest, DoneResponse>>(START_CALL_ID.c_str());
 
     auto timestampUs =
@@ -648,4 +725,11 @@ void MLinkModule::start()
     });
 
     AbstractModule::start();
+}
+
+void MLinkModule::stop()
+{
+    disconnectOutPortForwarders();
+    d->portChangesAllowed = true;
+    AbstractModule::stop();
 }
