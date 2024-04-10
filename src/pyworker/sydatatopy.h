@@ -56,5 +56,46 @@ public:
     }
 };
 
+/**
+ * QVariantHash conversion
+ */
+template<>
+class type_caster<QVariantHash>
+{
+public:
+    PYBIND11_TYPE_CASTER(QVariantHash, const_name("QVariantHash"));
+
+    bool load(const handle &src, bool)
+    {
+        if (!py::isinstance<py::dict>(src)) {
+            return false;
+        }
+
+        auto dict = py::cast<py::dict>(src);
+        for (auto item : dict) {
+            auto key = py::str(item.first).cast<QString>();
+            if (py::isinstance<py::bool_>(item.second)) {
+                value.insert(key, py::cast<bool>(item.second));
+            } else if (py::isinstance<py::int_>(item.second)) {
+                value.insert(key, py::cast<int>(item.second));
+            } else if (py::isinstance<py::float_>(item.second)) {
+                value.insert(key, py::cast<double>(item.second));
+            } else {
+                value.insert(key, QString::fromStdString(py::cast<std::string>(item.second)));
+            }
+        }
+        return true;
+    }
+
+    static handle cast(const QVariantHash &src, return_value_policy /* policy */, handle /* parent */)
+    {
+        py::dict dict;
+        for (auto it = src.constBegin(); it != src.constEnd(); ++it) {
+            dict[py::cast(it.key().toStdString())] = py::cast(it.value());
+        }
+        return dict.release();
+    }
+};
+
 } // namespace detail
 } // namespace pybind11

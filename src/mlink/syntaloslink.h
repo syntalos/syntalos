@@ -53,6 +53,7 @@ public:
     QString id() const;
     int dataTypeId() const;
     QString title() const;
+    QVariantHash metadata() const;
 
     /**
      * @brief Sets a function to be called when new data arrives

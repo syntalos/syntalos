@@ -150,6 +150,40 @@ struct OutputPortChange {
 static iox::capro::IdString_t OUT_PORT_CHANGE_CHANNEL_ID = "OutPortChange";
 
 /**
+ * @brief request to update the metadata of an input port
+ */
+struct UpdateInputPortMetadataRequest {
+
+    QString id;
+    QVariantHash metadata;
+
+    UpdateInputPortMetadataRequest() = default;
+
+    QByteArray toBytes() const
+    {
+        QByteArray bytes;
+        QDataStream stream(&bytes, QIODevice::WriteOnly);
+
+        stream << id << metadata;
+
+        return bytes;
+    }
+
+    static UpdateInputPortMetadataRequest fromMemory(const void *memory, size_t size)
+    {
+        UpdateInputPortMetadataRequest req;
+
+        QByteArray block(reinterpret_cast<const char *>(memory), size);
+        QDataStream stream(block);
+
+        stream >> req.id >> req.metadata;
+
+        return req;
+    }
+};
+static iox::capro::IdString_t IN_PORT_UPDATE_METADATA_ID = "UpdateInputPortMetadata";
+
+/**
  * Generic response to a request.
  */
 struct DoneResponse {

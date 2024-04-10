@@ -173,6 +173,11 @@ struct InputPort {
         return _on_data_cb;
     }
 
+    QVariantHash metadata() const
+    {
+        return _iport->metadata();
+    }
+
     void set_throttle_items_per_sec(uint itemsPerSec)
     {
         auto pb = PyBridge::instance();

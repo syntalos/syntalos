@@ -130,6 +130,11 @@ void InputPortInfo::setThrottleItemsPerSec(uint itemsPerSec)
     d->throttleItemsPerSec = itemsPerSec;
 }
 
+QVariantHash InputPortInfo::metadata() const
+{
+    return d->metadata;
+}
+
 /**
  * Reference for a module output port
  */
