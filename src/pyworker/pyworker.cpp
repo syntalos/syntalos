@@ -29,7 +29,6 @@
 #include "streams/frametype.h"
 
 #include "syio.h"
-#include "cvmatndsliceconvert.h"
 #include "qstringtopy.h" // needed for QString registration
 #include "sydatatopy.h"  // needed for stream data type conversion
 

@@ -35,8 +35,6 @@ sy_pyworker_src = [
     'syio.cpp',
     'sydatatopy.h',
     'qstringtopy.h',
-    'cvmatndsliceconvert.h',
-    'cvmatndsliceconvert.cpp',
 ]
 
 pyworker_moc_h = []
@@ -64,7 +62,6 @@ pyworker_exe = executable('pyworker',
                    syntalos_mlink_dep,
                    thread_dep,
                    qt_dbus_dep,
-                   opencv_dep,
                    vips_dep,
                    pybind11_dep,
                    python_embed_dep],
