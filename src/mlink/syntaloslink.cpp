@@ -216,8 +216,8 @@ public:
     {
         iox::popo::PublisherOptions publisherOptn;
 
-        // store the last 10 samples in queue
-        publisherOptn.historyCapacity = 10U;
+        // store the last 2 samples in queue
+        publisherOptn.historyCapacity = 2U;
 
         if (waitForConsumer) {
             // allow the subscriber to block us, to ensure we don't lose data
@@ -234,8 +234,8 @@ public:
     {
         iox::popo::PublisherOptions publisherOptn;
 
-        // store the last 10 samples in queue
-        publisherOptn.historyCapacity = 10U;
+        // store the last 2 samples in queue
+        publisherOptn.historyCapacity = 2U;
 
         if (waitForConsumer) {
             // allow the subscriber to block us, to ensure we don't lose data

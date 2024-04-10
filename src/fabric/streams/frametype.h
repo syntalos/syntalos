@@ -55,6 +55,14 @@ struct Frame : BaseDataType {
     milliseconds_t time;
     vips::VImage mat;
 
+    void copyMemory(bool safe = true)
+    {
+        if (safe)
+            mat = mat.copy_memory();
+        else
+            vips_image_wio_input(mat.get_image());
+    }
+
     ssize_t memorySize() const override
     {
         // Calculate data size based on the format

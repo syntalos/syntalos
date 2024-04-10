@@ -25,6 +25,9 @@
 #include <iceoryx_posh/roudi/iceoryx_roudi_app.hpp>
 #include <iceoryx_posh/roudi/roudi_cmd_line_parser_config_file_option.hpp>
 
+static constexpr uint32_t ONE_KILOBYTE = 1024U;
+static constexpr uint32_t ONE_MEGABYTE = 1024U * 1024;
+
 int main(int argc, char *argv[])
 {
     using iox::roudi::IceOryxRouDiApp;
@@ -39,9 +42,24 @@ int main(int argc, char *argv[])
     // tear down the daemon if our main process dies
     prctl(PR_SET_PDEATHSIG, SIGTERM);
 
-    // use default configuration for now
+    // set a default configuration that works for Syntalos
     iox::RouDiConfig_t roudiConfig;
-    roudiConfig.setDefaults();
+    iox::mepoo::MePooConfig mpConfig;
+
+    mpConfig.addMemPool({128, 100});
+    mpConfig.addMemPool({ONE_KILOBYTE, 100});
+    mpConfig.addMemPool({ONE_KILOBYTE * 512, 100});
+    mpConfig.addMemPool({ONE_MEGABYTE, 20});
+    mpConfig.addMemPool({ONE_MEGABYTE * 2, 20});
+    mpConfig.addMemPool({ONE_MEGABYTE * 4, 20});
+    mpConfig.addMemPool({ONE_MEGABYTE * 6, 20});
+    mpConfig.addMemPool({ONE_MEGABYTE * 24, 5});
+
+    /// use the Shared Memory Segment for the current user
+    auto currentGroup = iox::posix::PosixGroup::getGroupOfCurrentProcess();
+
+    // create an Entry for a new Shared Memory Segment from the MempoolConfig and add it to the RouDiConfig
+    roudiConfig.m_sharedMemorySegments.push_back({currentGroup.getName(), currentGroup.getName(), mpConfig});
 
     // execute RouDi
     IceOryxRouDiApp roudi(cmdLineArgs.value(), roudiConfig);
