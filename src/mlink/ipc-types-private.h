@@ -323,6 +323,28 @@ static iox::capro::IdString_t SET_PORTS_PRESET_CALL_ID = "SetPortsPresetRequest"
  */
 struct PrepareStartRequest {
     QByteArray settings;
+
+    QByteArray toBytes() const
+    {
+        QByteArray bytes;
+        QDataStream stream(&bytes, QIODevice::WriteOnly);
+
+        stream << settings;
+
+        return bytes;
+    }
+
+    static PrepareStartRequest fromMemory(const void *memory, size_t size)
+    {
+        PrepareStartRequest req;
+
+        QByteArray block(reinterpret_cast<const char *>(memory), size);
+        QDataStream stream(block);
+
+        stream >> req.settings;
+
+        return req;
+    }
 };
 static iox::capro::IdString_t PREPARE_START_CALL_ID = "PrepareStart";
 

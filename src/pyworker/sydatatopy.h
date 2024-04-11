@@ -20,6 +20,7 @@
 #pragma once
 
 #include <pybind11/pybind11.h>
+#include <QSize>
 #include "streams/datatypes.h"
 
 namespace pybind11
@@ -57,6 +58,38 @@ public:
 };
 
 /**
+ * QSize conversion
+ */
+template<>
+struct type_caster<QSize> {
+public:
+    PYBIND11_TYPE_CASTER(QSize, const_name("QSize"));
+
+    bool load(handle src, bool)
+    {
+        /* Extract PyObject from handle */
+        if (!py::isinstance<py::tuple>(src)) {
+            return false;
+        }
+        auto t = reinterpret_borrow<py::tuple>(src);
+        if (t.size() != 2) {
+            return false;
+        }
+
+        value.setWidth(t[0].cast<int>());
+        value.setHeight(t[1].cast<int>());
+
+        /* Indicate success */
+        return true;
+    }
+
+    static handle cast(const QSize &src, return_value_policy /* policy */, handle /* parent */)
+    {
+        return py::make_tuple(src.width(), src.height()).release();
+    }
+};
+
+/**
  * QVariantHash conversion
  */
 template<>
@@ -73,15 +106,19 @@ public:
 
         auto dict = py::cast<py::dict>(src);
         for (auto item : dict) {
-            auto key = py::str(item.first).cast<QString>();
-            if (py::isinstance<py::bool_>(item.second)) {
-                value.insert(key, py::cast<bool>(item.second));
-            } else if (py::isinstance<py::int_>(item.second)) {
-                value.insert(key, py::cast<int>(item.second));
-            } else if (py::isinstance<py::float_>(item.second)) {
-                value.insert(key, py::cast<double>(item.second));
+            auto key = py::cast<QString>(item.first);
+            auto &val = item.second;
+
+            if (py::isinstance<py::bool_>(val)) {
+                value.insert(key, py::cast<bool>(val));
+            } else if (py::isinstance<py::int_>(val)) {
+                value.insert(key, py::cast<int>(val));
+            } else if (py::isinstance<py::float_>(val)) {
+                value.insert(key, py::cast<double>(val));
+            } else if (py::isinstance<QSize>(val)) {
+                value.insert(key, py::cast<QSize>(val));
             } else {
-                value.insert(key, QString::fromStdString(py::cast<std::string>(item.second)));
+                value.insert(key, py::cast<QString>(val));
             }
         }
         return true;
@@ -91,7 +128,29 @@ public:
     {
         py::dict dict;
         for (auto it = src.constBegin(); it != src.constEnd(); ++it) {
-            dict[py::cast(it.key().toStdString())] = py::cast(it.value());
+            const auto &val = it.value();
+            switch (val.userType()) {
+            case QMetaType::Bool:
+                dict[py::cast(it.key().toStdString())] = py::cast(val.toBool());
+                break;
+            case QMetaType::Int:
+                dict[py::cast(it.key().toStdString())] = py::cast(val.toInt());
+                break;
+            case QMetaType::Double:
+                dict[py::cast(it.key().toStdString())] = py::cast(val.toDouble());
+                break;
+            case QMetaType::QString:
+                dict[py::cast(it.key().toStdString())] = py::cast(val.toString());
+                break;
+            case QMetaType::QSize:
+                dict[py::cast(it.key().toStdString())] = py::cast(val.toSize());
+                break;
+            case QMetaType::QStringList:
+                dict[py::cast(it.key().toStdString())] = py::cast(val.toStringList());
+                break;
+            default:
+                dict[py::cast(it.key().toStdString())] = py::cast(val.toString());
+            }
         }
         return dict.release();
     }

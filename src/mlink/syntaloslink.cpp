@@ -205,8 +205,9 @@ public:
         reqSetCPUAffinity = makeServer<SetCPUAffinityRequest, DoneResponse>(SET_CPU_AFFINITY_CALL_ID);
         reqLoadScript = makeUntypedServer(LOAD_SCRIPT_CALL_ID);
         reqSetPortsPreset = makeUntypedServer(SET_PORTS_PRESET_CALL_ID);
+        reqUpdateIPortMetadata = makeUntypedServer(IN_PORT_UPDATE_METADATA_ID);
         reqConnectIPort = makeServer<ConnectInputRequest, DoneResponse>(CONNECT_INPUT_CALL_ID);
-        reqPrepareStart = makeServer<PrepareStartRequest, DoneResponse>(PREPARE_START_CALL_ID);
+        reqPrepareStart = makeUntypedServer(PREPARE_START_CALL_ID);
         reqStart = makeServer<StartRequest, DoneResponse>(START_CALL_ID);
         reqStop = makeServer<StopRequest, DoneResponse>(STOP_CALL_ID);
         reqShutdown = makeServer<ShutdownRequest, DoneResponse>(SHUTDOWN_CALL_ID);
@@ -287,8 +288,8 @@ public:
         // hold 5 elements for processing by default
         subOptn.queueCapacity = 5U;
 
-        // get the last 5 samples if for whatever reason we connected too late
-        subOptn.historyRequest = 5U;
+        // get the last 2 samples if for whatever reason we connected too late
+        subOptn.historyRequest = 2U;
 
         // make producer wait for us
         subOptn.queueFullPolicy = iox::popo::QueueFullPolicy::BLOCK_PRODUCER;
@@ -316,8 +317,9 @@ public:
     std::unique_ptr<iox::popo::Server<SetCPUAffinityRequest, DoneResponse>> reqSetCPUAffinity;
     std::unique_ptr<iox::popo::UntypedServer> reqLoadScript;
     std::unique_ptr<iox::popo::UntypedServer> reqSetPortsPreset;
+    std::unique_ptr<iox::popo::UntypedServer> reqUpdateIPortMetadata;
     std::unique_ptr<iox::popo::Server<ConnectInputRequest, DoneResponse>> reqConnectIPort;
-    std::unique_ptr<iox::popo::Server<PrepareStartRequest, DoneResponse>> reqPrepareStart;
+    std::unique_ptr<iox::popo::UntypedServer> reqPrepareStart;
     std::unique_ptr<iox::popo::Server<StartRequest, DoneResponse>> reqStart;
     std::unique_ptr<iox::popo::Server<StopRequest, DoneResponse>> reqStop;
     std::unique_ptr<iox::popo::Server<ShutdownRequest, DoneResponse>> reqShutdown;
@@ -562,25 +564,66 @@ void SyntalosLink::processNotification(const iox::popo::NotificationInfo *notifi
         });
     }
 
+    // Update metadata
+    if (notification->doesOriginateFrom(d->reqUpdateIPortMetadata.get())) {
+        d->reqUpdateIPortMetadata->take().and_then([&](auto &requestPayload) {
+            const auto chunkHeader = iox::mepoo::ChunkHeader::fromUserPayload(requestPayload);
+            const auto size = chunkHeader->usedSizeOfChunk();
+
+            const auto reqUpdateMD = UpdateInputPortMetadataRequest::fromMemory(requestPayload, size);
+
+            // update metadata
+            for (const auto &ip : d->inPortInfo) {
+                if (ip->id() == reqUpdateMD.id) {
+                    ip->d->metadata = reqUpdateMD.metadata;
+                    break;
+                }
+            }
+
+            auto requestHeader = iox::popo::RequestHeader::fromPayload(requestPayload);
+            d->reqUpdateIPortMetadata->loan(requestHeader, sizeof(DoneResponse), alignof(DoneResponse))
+                .and_then([&](auto &responsePayload) {
+                    auto response = static_cast<DoneResponse *>(responsePayload);
+                    response->success = true;
+                    d->reqUpdateIPortMetadata->send(response).or_else([&](auto &error) {
+                        std::cout << "Could not send UpdateInputPortMetadata response! Error: " << error << std::endl;
+                    });
+                })
+                .or_else([&](auto &error) {
+                    std::cout << "Could not allocate UpdateInputPortMetadata response! Error: " << error << std::endl;
+                });
+
+            d->reqUpdateIPortMetadata->releaseRequest(requestPayload);
+        });
+    }
+
     // Prepare start
     if (notification->doesOriginateFrom(d->reqPrepareStart.get())) {
         bool runPrepareRequested = false;
         QByteArray prepareSettings;
-        d->reqPrepareStart->take().and_then([&](const auto &request) {
-            d->reqPrepareStart->loan(request)
-                .and_then([&](auto &response) {
-                    runPrepareRequested = true;
-                    // TODO
-                    // prepareSettings = request->settings;
 
+        d->reqPrepareStart->take().and_then([&](auto &requestPayload) {
+            const auto chunkHeader = iox::mepoo::ChunkHeader::fromUserPayload(requestPayload);
+            const auto size = chunkHeader->usedSizeOfChunk();
+
+            const auto req = PrepareStartRequest::fromMemory(requestPayload, size);
+            runPrepareRequested = true;
+            prepareSettings = req.settings;
+
+            auto requestHeader = iox::popo::RequestHeader::fromPayload(requestPayload);
+            d->reqPrepareStart->loan(requestHeader, sizeof(DoneResponse), alignof(DoneResponse))
+                .and_then([&](auto &responsePayload) {
+                    auto response = static_cast<DoneResponse *>(responsePayload);
                     response->success = true;
-                    response.send().or_else([&](auto &error) {
-                        std::cerr << "Could not respond to PrepareStart! Error: " << error << std::endl;
+                    d->reqPrepareStart->send(response).or_else([&](auto &error) {
+                        std::cout << "Could not send PrepareStart response! Error: " << error << std::endl;
                     });
                 })
                 .or_else([&](auto &error) {
-                    std::cerr << "Could not allocate response! Error: " << error << std::endl;
+                    std::cout << "Could not allocate PrepareStart response! Error: " << error << std::endl;
                 });
+
+            d->reqPrepareStart->releaseRequest(requestPayload);
         });
         if (runPrepareRequested) {
             // call our preparation delegate

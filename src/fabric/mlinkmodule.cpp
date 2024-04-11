@@ -54,6 +54,7 @@ public:
     QString pyVenvDir;
     QString scriptWDir;
     QString scriptContent;
+    QHash<QString, QVariantHash> sentMetadata;
 
     QByteArray settingsData;
 
@@ -78,11 +79,11 @@ std::unique_ptr<T> MLinkModule::makeSubscriber(const QString &eventName)
 {
     iox::popo::SubscriberOptions subOptn;
 
-    // hold 10 elements for processing by default
-    subOptn.queueCapacity = 10U;
+    // hold 2 elements for processing by default
+    subOptn.queueCapacity = 2U;
 
-    // get the last 5 samples if for whatever reason we connected too late
-    subOptn.historyRequest = 5U;
+    // get the last 2 samples if for whatever reason we connected too late
+    subOptn.historyRequest = 2U;
 
     const auto eventNameIox = iox::capro::IdString_t(iox::cxx::TruncateToCapacity, eventName.toStdString());
     return std::make_unique<T>(iox::capro::ServiceDescription{"SyntalosModule", d->clientId, eventNameIox}, subOptn);
@@ -92,11 +93,11 @@ std::unique_ptr<iox::popo::UntypedSubscriber> MLinkModule::makeUntypedSubscriber
 {
     iox::popo::SubscriberOptions subOptn;
 
-    // hold 5 elements for processing by default
-    subOptn.queueCapacity = 5U;
+    // hold 2 elements for processing by default
+    subOptn.queueCapacity = 2U;
 
-    // get the last 5 samples if for whatever reason we connected too late
-    subOptn.historyRequest = 5U;
+    // get the last 2 samples if for whatever reason we connected too late
+    subOptn.historyRequest = 2U;
 
     // block the producer if the queue is full
     subOptn.queueFullPolicy = iox::popo::QueueFullPolicy::BLOCK_PRODUCER;
@@ -643,6 +644,7 @@ bool MLinkModule::prepare(const TestSubject &subject)
     auto callSetMaxRealtimePriority = makeClient<iox::popo::Client<SetMaxRealtimePriority, DoneResponse>>(
         SET_MAX_RT_PRIORITY_CALL_ID.c_str());
     auto callSetPortsPreset = makeUntypedClient(SET_PORTS_PRESET_CALL_ID.c_str());
+    auto callUpdateIPortMetadata = makeUntypedClient(IN_PORT_UPDATE_METADATA_ID.c_str());
     auto callLoadScript = makeUntypedClient(LOAD_SCRIPT_CALL_ID.c_str());
     auto callPrepare = makeClient<iox::popo::Client<PrepareStartRequest, DoneResponse>>(PREPARE_START_CALL_ID.c_str());
 
@@ -690,6 +692,18 @@ bool MLinkModule::prepare(const TestSubject &subject)
             return false;
     }
 
+    // update input port metadata
+    for (auto &iport : inPorts()) {
+        UpdateInputPortMetadataRequest req;
+        req.id = iport->id();
+        req.metadata = iport->subscriptionVar()->metadata();
+        ;
+        d->sentMetadata.insert(req.id, req.metadata);
+        ret = callUntypedClientSimple(callUpdateIPortMetadata, req);
+        if (!ret)
+            return false;
+    }
+
     // set the script to be run, if any exists
     if (!d->scriptContent.isEmpty()) {
         LoadScriptRequest req;
@@ -720,7 +734,24 @@ void MLinkModule::start()
 {
     d->portChangesAllowed = false;
     auto callStart = makeClient<iox::popo::Client<StartRequest, DoneResponse>>(START_CALL_ID.c_str());
+    auto callUpdateIPortMetadata = makeUntypedClient(IN_PORT_UPDATE_METADATA_ID.c_str());
 
+    // update input port metadata if the metadata has changed - this may happen in case of circular module connections
+    for (auto &iport : inPorts()) {
+        const auto mdata = iport->subscriptionVar()->metadata();
+        if (d->sentMetadata.value(iport->id(), QVariantHash()) == mdata)
+            continue;
+
+        UpdateInputPortMetadataRequest req;
+        req.id = iport->id();
+        req.metadata = mdata;
+        bool ret = callUntypedClientSimple(callUpdateIPortMetadata, req);
+        if (!ret)
+            return;
+    }
+    d->sentMetadata.clear();
+
+    // tell the module to launch!
     auto timestampUs =
         std::chrono::duration_cast<std::chrono::microseconds>(m_syTimer->currentTimePoint().time_since_epoch()).count();
     callClientSimple(callStart, [&](auto &request) {
@@ -733,6 +764,7 @@ void MLinkModule::start()
 void MLinkModule::stop()
 {
     disconnectOutPortForwarders();
+    d->sentMetadata.clear();
     d->portChangesAllowed = true;
     AbstractModule::stop();
 }

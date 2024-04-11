@@ -214,6 +214,9 @@ struct OutputPort {
             // we have an integer type
             const long value = obj.cast<long>();
             pb->worker()->setOutPortMetadataValue(_oport, QString::fromStdString(key), QVariant::fromValue(value));
+        } else if (py::isinstance<py::float_>(obj)) {
+            pb->worker()->setOutPortMetadataValue(
+                _oport, QString::fromStdString(key), QVariant::fromValue(obj.cast<double>()));
         } else if (PyUnicode_CheckExact(obj.ptr())) {
             // we have a (unicode) string type
             const auto value = obj.cast<std::string>();
