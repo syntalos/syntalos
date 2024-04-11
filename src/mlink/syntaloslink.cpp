@@ -284,11 +284,14 @@ public:
     {
         iox::popo::SubscriberOptions subOptn;
 
-        // hold 10 elements for processing by default
-        subOptn.queueCapacity = 10U;
+        // hold 5 elements for processing by default
+        subOptn.queueCapacity = 5U;
 
         // get the last 5 samples if for whatever reason we connected too late
         subOptn.historyRequest = 5U;
+
+        // make producer wait for us
+        subOptn.queueFullPolicy = iox::popo::QueueFullPolicy::BLOCK_PRODUCER;
 
         auto subscr = std::make_unique<iox::popo::UntypedSubscriber>(
             iox::capro::ServiceDescription{"SyntalosModule", instanceId, channelId}, subOptn);

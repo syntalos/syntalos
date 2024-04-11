@@ -92,11 +92,14 @@ std::unique_ptr<iox::popo::UntypedSubscriber> MLinkModule::makeUntypedSubscriber
 {
     iox::popo::SubscriberOptions subOptn;
 
-    // hold 10 elements for processing by default
-    subOptn.queueCapacity = 10U;
+    // hold 5 elements for processing by default
+    subOptn.queueCapacity = 5U;
 
     // get the last 5 samples if for whatever reason we connected too late
     subOptn.historyRequest = 5U;
+
+    // block the producer if the queue is full
+    subOptn.queueFullPolicy = iox::popo::QueueFullPolicy::BLOCK_PRODUCER;
 
     const auto eventNameIox = iox::capro::IdString_t(iox::cxx::TruncateToCapacity, eventName.toStdString());
     return std::make_unique<iox::popo::UntypedSubscriber>(
