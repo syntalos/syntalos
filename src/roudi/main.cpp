@@ -46,14 +46,11 @@ int main(int argc, char *argv[])
     iox::RouDiConfig_t roudiConfig;
     iox::mepoo::MePooConfig mpConfig;
 
-    mpConfig.addMemPool({128, 100});
-    mpConfig.addMemPool({ONE_KILOBYTE, 100});
-    mpConfig.addMemPool({ONE_KILOBYTE * 512, 100});
+    mpConfig.addMemPool({ONE_KILOBYTE, 50});
+    mpConfig.addMemPool({ONE_KILOBYTE * 512, 50});
     mpConfig.addMemPool({ONE_MEGABYTE, 20});
-    mpConfig.addMemPool({ONE_MEGABYTE * 2, 20});
-    mpConfig.addMemPool({ONE_MEGABYTE * 4, 20});
     mpConfig.addMemPool({ONE_MEGABYTE * 6, 20});
-    mpConfig.addMemPool({ONE_MEGABYTE * 24, 5});
+    mpConfig.addMemPool({ONE_MEGABYTE * 24, 10});
 
     /// use the Shared Memory Segment for the current user
     auto currentGroup = iox::posix::PosixGroup::getGroupOfCurrentProcess();
