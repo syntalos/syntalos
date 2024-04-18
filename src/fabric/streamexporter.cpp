@@ -80,7 +80,7 @@ StreamExporter::StreamExporter(const QString &threadName, QObject *parent)
 
 StreamExporter::~StreamExporter()
 {
-    shutdownThread();
+    stop();
 }
 
 bool StreamExporter::isRunning() const
@@ -312,6 +312,10 @@ void StreamExporter::run(OptionalWaitCondition *waitCondition)
 void StreamExporter::stop()
 {
     shutdownThread();
+    for (auto &ed : d->exports) {
+        // clear any data that might be left in the subscription
+        ed.subscription->clearPending();
+    }
 }
 
 void StreamExporter::shutdownThread()

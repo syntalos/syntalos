@@ -84,6 +84,7 @@ public:
 
     virtual void suspend() = 0;
     virtual void resume() = 0;
+    virtual void clearPending() = 0;
 
     virtual QHash<QString, QVariant> metadata() const = 0;
     virtual QVariant metadataValue(const QString &key, const QVariant &defaultValue = QVariant()) const = 0;
@@ -273,6 +274,17 @@ public:
      */
     void resume() override
     {
+        m_suspended = false;
+    }
+
+    /**
+     * @brief Clear all pending data from the subscription
+     */
+    void clearPending() override
+    {
+        m_suspended = true;
+        while (m_queue.pop()) {
+        }
         m_suspended = false;
     }
 

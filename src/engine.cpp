@@ -1985,6 +1985,9 @@ bool Engine::runInternal(const QString &exportDirPath)
                 qCDebug(logEngine).noquote().nospace() << "Module '" << mod->name() << "' "
                                                        << "subscription `" << iport->id() << "` "
                                                        << "possibly lost " << remainingElements << " element(s)";
+
+            // drop all remaining elements to save some memory when idle
+            iport->subscriptionVar()->clearPending();
         }
 
         // send the stop command
