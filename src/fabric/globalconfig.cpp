@@ -230,7 +230,7 @@ ColorMode Syntalos::colorModeFromString(const QString &str)
 
 QString Syntalos::findSyntalosPyWorkerBinary()
 {
-    auto workerBinary = QStringLiteral("%1/pyworker/pyworker").arg(QCoreApplication::applicationDirPath());
+    auto workerBinary = QStringLiteral("%1/python/pyworker").arg(QCoreApplication::applicationDirPath());
     QFileInfo checkBin(workerBinary);
     if (!checkBin.exists() || workerBinary.startsWith("/usr/")) {
         workerBinary = QStringLiteral("%1/pyworker").arg(SY_LIBDIR);

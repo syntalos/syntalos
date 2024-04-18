@@ -19,7 +19,7 @@
 
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
-#include "syio.h"
+#include "pysy-mlink.h"
 
 #include <QDebug>
 #include <QStringList>
@@ -34,6 +34,7 @@
 #include <pybind11/eigen.h>
 #include <stdexcept>
 
+#include <syntaloslink.h>
 #include "streams/datatypes.h"
 #include "streams/frametype.h"
 #include "qstringtopy.h" // needed for QString registration
@@ -42,23 +43,21 @@
 
 namespace py = pybind11;
 
-PyBridge::PyBridge(PyWorker *worker)
-    : QObject(worker),
-      m_worker(worker)
+PyBridge::PyBridge(SyntalosLink *mlink)
+    : QObject(mlink),
+      m_mlink(mlink)
 {
 }
 
 PyBridge::~PyBridge() {}
 
-PyWorker *PyBridge::worker()
+SyntalosLink *PyBridge::link()
 {
-    return m_worker;
+    return m_mlink;
 }
 
-struct SyntalosPyError : std::runtime_error {
-    explicit SyntalosPyError(const char *what_arg);
-    explicit SyntalosPyError(const std::string &what_arg);
-};
+using PyNewDataFn = std::function<void(const py::object &obj)>;
+
 SyntalosPyError::SyntalosPyError(const char *what_arg)
     : std::runtime_error(what_arg){};
 SyntalosPyError::SyntalosPyError(const std::string &what_arg)
@@ -67,13 +66,13 @@ SyntalosPyError::SyntalosPyError(const std::string &what_arg)
 static long time_since_start_msec()
 {
     auto pb = PyBridge::instance();
-    return pb->worker()->timer()->timeSinceStartMsec().count();
+    return pb->link()->timer()->timeSinceStartMsec().count();
 }
 
 static long time_since_start_usec()
 {
     auto pb = PyBridge::instance();
-    return pb->worker()->timer()->timeSinceStartUsec().count();
+    return pb->link()->timer()->timeSinceStartUsec().count();
 }
 
 static void println(const std::string &text)
@@ -84,7 +83,7 @@ static void println(const std::string &text)
 static void raise_error(const std::string &message)
 {
     auto pb = PyBridge::instance();
-    pb->worker()->raiseError(QString::fromStdString(message));
+    pb->link()->raiseError(QString::fromStdString(message));
 }
 
 static void wait(uint msec)
@@ -92,7 +91,7 @@ static void wait(uint msec)
     auto pb = PyBridge::instance();
     auto timer = QTime::currentTime().addMSecs(msec);
     while (QTime::currentTime() < timer)
-        pb->worker()->awaitData(10 * 1000);
+        pb->link()->awaitData(10 * 1000);
 }
 
 static void wait_sec(uint sec)
@@ -100,19 +99,19 @@ static void wait_sec(uint sec)
     auto pb = PyBridge::instance();
     auto timer = QTime::currentTime().addMSecs(sec * 1000);
     while (QTime::currentTime() < timer)
-        pb->worker()->awaitData(100 * 1000);
+        pb->link()->awaitData(100 * 1000);
 }
 
 static bool is_running()
 {
     auto pb = PyBridge::instance();
-    return pb->worker()->isRunning();
+    return pb->link()->state() == ModuleState::RUNNING;
 }
 
 static void await_data(int timeout_usec)
 {
     auto pb = PyBridge::instance();
-    pb->worker()->awaitData(timeout_usec);
+    pb->link()->awaitData(timeout_usec);
 }
 
 static void schedule_delayed_call(int delay_msec, const std::function<void()> &fn)
@@ -180,7 +179,8 @@ struct InputPort {
     void set_throttle_items_per_sec(uint itemsPerSec)
     {
         auto pb = PyBridge::instance();
-        pb->worker()->setInputThrottleItemsPerSec(_iport, itemsPerSec);
+        _iport->setThrottleItemsPerSec(itemsPerSec);
+        pb->link()->updateInputPort(_iport);
     }
 
     std::string _id;
@@ -197,31 +197,58 @@ struct OutputPort {
         _dataTypeId = _oport->dataTypeId();
     }
 
+    bool _submit_output_private(const py::object &pyObj)
+    {
+        auto slink = PyBridge::instance()->link();
+        switch (_oport->dataTypeId()) {
+        case syDataTypeId<ControlCommand>():
+            return slink->submitOutput(_oport, py::cast<ControlCommand>(pyObj));
+        case syDataTypeId<TableRow>():
+            return slink->submitOutput(_oport, py::cast<TableRow>(pyObj));
+        case syDataTypeId<Frame>():
+            return slink->submitOutput(_oport, py::cast<Frame>(pyObj));
+        case syDataTypeId<FirmataControl>():
+            return slink->submitOutput(_oport, py::cast<FirmataControl>(pyObj));
+        case syDataTypeId<FirmataData>():
+            return slink->submitOutput(_oport, py::cast<FirmataData>(pyObj));
+        case syDataTypeId<IntSignalBlock>():
+            return slink->submitOutput(_oport, py::cast<IntSignalBlock>(pyObj));
+        case syDataTypeId<FloatSignalBlock>():
+            return slink->submitOutput(_oport, py::cast<FloatSignalBlock>(pyObj));
+        default:
+            return false;
+        }
+    }
+
     void submit(const py::object &pyObj)
     {
-        auto pb = PyBridge::instance();
-        if (!pb->worker()->submitOutput(_oport, pyObj))
+        if (!_submit_output_private(pyObj))
             throw SyntalosPyError(
                 "Data submission failed: "
                 "Tried to send data via output port that can't carry it (sent data and port type are mismatched, or "
                 "data can't be serialized).");
     }
 
+    void _set_metadata_value_private(const QString &key, const QVariant &value)
+    {
+        auto slink = PyBridge::instance()->link();
+        _oport->setMetadataVar(key, value);
+        slink->updateOutputPort(_oport);
+    }
+
     void set_metadata_value(const std::string &key, const py::object &obj)
     {
-        auto pb = PyBridge::instance();
         if (PyLong_CheckExact(obj.ptr())) {
             // we have an integer type
             const long value = obj.cast<long>();
-            pb->worker()->setOutPortMetadataValue(_oport, QString::fromStdString(key), QVariant::fromValue(value));
+            _set_metadata_value_private(QString::fromStdString(key), QVariant::fromValue(value));
         } else if (py::isinstance<py::float_>(obj)) {
-            pb->worker()->setOutPortMetadataValue(
-                _oport, QString::fromStdString(key), QVariant::fromValue(obj.cast<double>()));
+            _set_metadata_value_private(QString::fromStdString(key), QVariant::fromValue(obj.cast<double>()));
         } else if (PyUnicode_CheckExact(obj.ptr())) {
             // we have a (unicode) string type
             const auto value = obj.cast<std::string>();
-            pb->worker()->setOutPortMetadataValue(
-                _oport, QString::fromStdString(key), QVariant::fromValue(QString::fromStdString(value)));
+            _set_metadata_value_private(
+                QString::fromStdString(key), QVariant::fromValue(QString::fromStdString(value)));
         } else if (PyList_Check(obj.ptr())) {
             const auto pyList = obj.cast<py::list>();
             const auto pyListLen = py::len(pyList);
@@ -243,7 +270,7 @@ struct OutputPort {
                         + std::string(lo.attr("__py::class__").attr("__name__").cast<std::string>()));
                 }
             }
-            pb->worker()->setOutPortMetadataValue(_oport, QString::fromStdString(key), varList);
+            _set_metadata_value_private(QString::fromStdString(key), varList);
         } else {
             throw SyntalosPyError(
                 std::string("Can not set a metadata value for this type: ")
@@ -253,13 +280,12 @@ struct OutputPort {
 
     void set_metadata_value_size(const std::string &key, const py::list &value)
     {
-        auto pb = PyBridge::instance();
         if (py::len(value) != 2)
             throw SyntalosPyError("2D Dimension list needs exactly two entries");
         const int width = value[0].cast<int>();
         const int height = value[1].cast<int>();
         QSize size(width, height);
-        pb->worker()->setOutPortMetadataValue(_oport, QString::fromStdString(key), QVariant::fromValue(size));
+        _set_metadata_value_private(QString::fromStdString(key), QVariant::fromValue(size));
     }
 
     FirmataControl firmata_register_digital_pin(
@@ -309,7 +335,15 @@ struct OutputPort {
 static py::object get_input_port(const std::string &id)
 {
     auto pb = PyBridge::instance();
-    auto res = pb->worker()->inputPortById(QString::fromStdString(id));
+
+    std::shared_ptr<InputPortInfo> res = nullptr;
+    const auto idstr = QString::fromStdString(id);
+    for (auto &iport : pb->link()->inputPorts()) {
+        if (iport->id() == idstr) {
+            res = iport;
+            break;
+        }
+    }
     if (!res)
         return py::none();
 
@@ -320,7 +354,15 @@ static py::object get_input_port(const std::string &id)
 static py::object get_output_port(const std::string &id)
 {
     auto pb = PyBridge::instance();
-    auto res = pb->worker()->outputPortById(QString::fromStdString(id));
+
+    const auto idstr = QString::fromStdString(id);
+    std::shared_ptr<OutputPortInfo> res = nullptr;
+    for (auto &oport : pb->link()->outputPorts()) {
+        if (oport->id() == idstr) {
+            res = oport;
+            break;
+        }
+    }
     if (!res)
         return py::none();
 
@@ -383,12 +425,30 @@ static void vips_image_from_py(Frame &frame, const py::object &obj)
     frame.mat = vips::VImage(reinterpret_cast<VipsImage *>(vimg_ptr), vips::NOSTEAL);
 }
 
-PYBIND11_MODULE(syio, m)
+static SyntalosLink *init_link(SyntalosLink *slink = nullptr)
 {
-    m.doc() = "Syntalos Interface";
+    SyntalosLink *finalLink = slink;
+    if (finalLink == nullptr)
+        finalLink = initSyntalosModuleLink().get();
+    PyBridge::instance(finalLink);
+
+    return finalLink;
+}
+
+#pragma GCC visibility push(default)
+PYBIND11_MODULE(syntalos_mlink, m)
+{
+    m.doc() = "Syntalos Python Module Interface";
 
     py::bind_vector<std::vector<double>>(m, "VectorDouble");
     py::register_exception<SyntalosPyError>(m, "SyntalosPyError");
+    py::class_<SyntalosLink>(m, "SyntalosLink");
+
+    m.def(
+        "init_link",
+        init_link,
+        py::arg("slink") = nullptr,
+        "Initialize the connection with a running Syntalos instance.");
 
     py::class_<InputPort>(m, "InputPort", "Representation of a module input port.")
         .def_property(
@@ -583,8 +643,9 @@ PYBIND11_MODULE(syio, m)
         py::arg("name"),
         "Create new Firmata control command with a given pin name (the name needs to be registered previously).");
 };
+#pragma GCC visibility pop
 
 void pythonRegisterSyioModule()
 {
-    PyImport_AppendInittab("syio", &PyInit_syio);
+    PyImport_AppendInittab("syntalos_mlink", &PyInit_syntalos_mlink);
 }

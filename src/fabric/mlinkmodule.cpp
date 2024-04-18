@@ -275,11 +275,6 @@ void MLinkModule::onErrorReceivedCb(iox::popo::Subscriber<ErrorEvent> *subscribe
 
 void MLinkModule::onPortChangedCb(iox::popo::UntypedSubscriber *subscriber, MLinkModule *self)
 {
-    if (!self->d->portChangesAllowed) {
-        qCDebug(logMLinkMod).noquote() << "Port change ignored: No changes are allowed.";
-        return;
-    }
-
     // process new input/output ports
     subscriber->take()
         .and_then([subscriber, self](const void *payload) {
@@ -292,25 +287,38 @@ void MLinkModule::onPortChangedCb(iox::popo::UntypedSubscriber *subscriber, MLin
                 const auto ipc = InputPortChange::fromMemory(payload, size);
                 const auto action = ipc.action;
 
-                if (action == PortAction::ADD) {
-                    const auto iport = self->registerInputPortByTypeId(ipc.dataTypeId, ipc.id, ipc.title);
-                    self->d->inPortIdMap.insert(ipc.id, iport);
-                } else if (action == PortAction::REMOVE) {
-                    self->removeInPortById(ipc.id);
-                    self->d->inPortIdMap.remove(ipc.id);
+                if (!self->d->portChangesAllowed) {
+                    qCDebug(logMLinkMod).noquote() << "Input port change ignored: No changes are allowed.";
+                } else {
+                    if (action == PortAction::ADD) {
+                        const auto iport = self->registerInputPortByTypeId(ipc.dataTypeId, ipc.id, ipc.title);
+                        self->d->inPortIdMap.insert(ipc.id, iport);
+                    } else if (action == PortAction::REMOVE) {
+                        self->removeInPortById(ipc.id);
+                        self->d->inPortIdMap.remove(ipc.id);
+                    }
                 }
+
             } else if (eventIdString == OUT_PORT_CHANGE_CHANNEL_ID) {
                 // deserialize
                 const auto opc = OutputPortChange::fromMemory(payload, size);
                 const auto action = opc.action;
 
                 if (action == PortAction::ADD) {
-                    const auto oport = self->registerOutputPortByTypeId(opc.dataTypeId, opc.id, opc.title);
-                    oport->setMetadata(opc.metadata);
-                    self->d->outPortIdMap.insert(opc.id, oport);
+                    if (!self->d->portChangesAllowed) {
+                        qCDebug(logMLinkMod).noquote() << "Output port addition ignored: No changes are allowed.";
+                    } else {
+                        const auto oport = self->registerOutputPortByTypeId(opc.dataTypeId, opc.id, opc.title);
+                        oport->setMetadata(opc.metadata);
+                        self->d->outPortIdMap.insert(opc.id, oport);
+                    }
                 } else if (action == PortAction::REMOVE) {
-                    self->removeOutPortById(opc.id);
-                    self->d->outPortIdMap.remove(opc.id);
+                    if (!self->d->portChangesAllowed) {
+                        qCDebug(logMLinkMod).noquote() << "Output port removal ignored: No changes are allowed.";
+                    } else {
+                        self->removeOutPortById(opc.id);
+                        self->d->outPortIdMap.remove(opc.id);
+                    }
                 } else if (action == PortAction::CHANGE) {
                     std::shared_ptr<VariantDataStream> ostream;
                     if (self->d->outPortIdMap.contains(opc.id)) {
@@ -460,12 +468,19 @@ void MLinkModule::terminateProcess()
     d->proc->waitForFinished(5000);
 
     // ask nicely
-    d->proc->terminate();
-    d->proc->waitForFinished(5000);
+    if (d->proc->state() == QProcess::Running) {
+        qCDebug(logMLinkMod).noquote() << "Module process" << d->proc->program()
+                                       << "did not terminate on request. Sending SIGTERM.";
+        d->proc->terminate();
+        d->proc->waitForFinished(5000);
+    }
 
     // no response? kill it!
-    d->proc->kill();
-    d->proc->waitForFinished(5000);
+    if (d->proc->state() == QProcess::Running) {
+        qCWarning(logMLinkMod).noquote() << "Module process" << d->proc->program() << "failed to quit. Killing it.";
+        d->proc->kill();
+        d->proc->waitForFinished(5000);
+    }
 }
 
 bool MLinkModule::runProcess()
@@ -626,6 +641,7 @@ void MLinkModule::disconnectOutPortForwarders()
         d->ioxListener.detachEvent(*pair.first, iox::popo::SubscriberEvent::DATA_RECEIVED);
         pair.first->releaseQueuedData();
     }
+    d->outPortSubs.clear();
 }
 
 bool MLinkModule::prepare(const TestSubject &subject)

@@ -30,7 +30,7 @@ to make more advanced changes.
    timesync-verification
    changes
    tsync-format
-   syio_api
+   pysy-mlink-api
    api/sysrc_root.rst
 
 

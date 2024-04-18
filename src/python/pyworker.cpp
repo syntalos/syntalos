@@ -28,7 +28,7 @@
 #include "streams/datatypes.h"
 #include "streams/frametype.h"
 
-#include "syio.h"
+#include "pysy-mlink.h"
 #include "qstringtopy.h" // needed for QString registration
 #include "sydatatopy.h"  // needed for stream data type conversion
 
@@ -43,9 +43,6 @@ PyWorker::PyWorker(SyntalosLink *slink, QObject *parent)
       m_link(slink),
       m_running(false)
 {
-    m_pyb = PyBridge::instance(this);
-    pythonRegisterSyioModule();
-
     // set up callbacks
     m_link->setLoadScriptCallback([this](const QString &script, const QString &wdir) {
         return loadPythonScript(script, wdir);
@@ -63,7 +60,7 @@ PyWorker::PyWorker(SyntalosLink *slink, QObject *parent)
         shutdown();
     });
 
-    // process incoming data forever
+    // process incoming data, so we can react to incoming requests
     m_evTimer = new QTimer(this);
     m_evTimer->setInterval(0);
     connect(m_evTimer, &QTimer::timeout, this, [this]() {
@@ -96,63 +93,6 @@ bool PyWorker::isRunning() const
 void PyWorker::awaitData(int timeoutUsec)
 {
     m_link->awaitData(timeoutUsec);
-}
-
-std::shared_ptr<InputPortInfo> PyWorker::inputPortById(const QString &idstr)
-{
-    for (auto &iport : m_link->inputPorts()) {
-        if (iport->id() == idstr)
-            return iport;
-    }
-
-    return nullptr;
-}
-
-std::shared_ptr<OutputPortInfo> PyWorker::outputPortById(const QString &idstr)
-{
-    for (auto &oport : m_link->outputPorts()) {
-        if (oport->id() == idstr)
-            return oport;
-    }
-
-    return nullptr;
-}
-
-bool PyWorker::submitOutput(const std::shared_ptr<OutputPortInfo> &oport, const py::object &pyObj)
-{
-    switch (oport->dataTypeId()) {
-    case syDataTypeId<ControlCommand>():
-        return m_link->submitOutput(oport, py::cast<ControlCommand>(pyObj));
-    case syDataTypeId<TableRow>():
-        return m_link->submitOutput(oport, py::cast<TableRow>(pyObj));
-    case syDataTypeId<Frame>():
-        return m_link->submitOutput(oport, py::cast<Frame>(pyObj));
-    case syDataTypeId<FirmataControl>():
-        return m_link->submitOutput(oport, py::cast<FirmataControl>(pyObj));
-    case syDataTypeId<FirmataData>():
-        return m_link->submitOutput(oport, py::cast<FirmataData>(pyObj));
-    case syDataTypeId<IntSignalBlock>():
-        return m_link->submitOutput(oport, py::cast<IntSignalBlock>(pyObj));
-    case syDataTypeId<FloatSignalBlock>():
-        return m_link->submitOutput(oport, py::cast<FloatSignalBlock>(pyObj));
-    default:
-        return false;
-    }
-}
-
-void PyWorker::setOutPortMetadataValue(
-    const std::shared_ptr<OutputPortInfo> &oport,
-    const QString &key,
-    const QVariant &value)
-{
-    oport->setMetadataVar(key, value);
-    m_link->updateOutputPort(oport);
-}
-
-void PyWorker::setInputThrottleItemsPerSec(const std::shared_ptr<InputPortInfo> &iport, uint itemsPerSec)
-{
-    iport->setThrottleItemsPerSec(itemsPerSec);
-    m_link->updateInputPort(iport);
 }
 
 void PyWorker::raiseError(const QString &message)
@@ -197,9 +137,24 @@ bool PyWorker::loadPythonScript(const QString &script, const QString &wdir)
 
     // initialize Python in this process
     status = Py_InitializeFromConfig(&config);
+    if (PyStatus_Exception(status))
+        Py_ExitStatusException(status);
     m_pyInitialized = true;
     PyConfig_Clear(&config);
 
+    // make sure we find the syntalos_mlink module even if it isn't installed yet
+    PyRun_SimpleString("import sys");
+    PyRun_SimpleString(
+        qPrintable(QStringLiteral("sys.path.insert(0, '%1')").arg(qApp->applicationDirPath().replace("'", "\\'"))));
+
+    // pass our Syntalos link to the Python code
+    {
+        auto mlink_mod = py::module_::import("syntalos_mlink");
+        auto pySLink = py::cast(m_link, py::return_value_policy::reference);
+        mlink_mod.attr("init_link")(pySLink);
+    }
+
+    // run main
     PyObject *mainModule = PyImport_AddModule("__main__");
     if (mainModule == nullptr) {
         raiseError("Can not execute Python code: No __main__ module.");
@@ -293,11 +248,10 @@ bool PyWorker::stop()
 void PyWorker::shutdown()
 {
     m_running = false;
-    QCoreApplication::processEvents();
-
-    // give other events a bit of time (10ms) to react to the fact that we are no longer running
-    QTimer::singleShot(10, this, &QCoreApplication::quit);
     qCDebug(logPyWorker).noquote() << "Shutting down.";
+    QCoreApplication::processEvents();
+    awaitData(1000);
+    exit(0);
 }
 
 static QString pyObjectToQStr(PyObject *pyObj)
@@ -541,8 +495,6 @@ void PyWorker::setState(ModuleState state)
 
 void PyWorker::makeDocFileAndQuit(const QString &fname)
 {
-    pythonRegisterSyioModule();
-
     // FIXME: We ignore Python warnings for now, as we otherwise get lots of
     // "Couldn't read PEP-224 variable docstrings from <Class X>: <class  X> is a built-in class"
     // messages that - currently - we can't do anything about
@@ -565,22 +517,28 @@ void PyWorker::makeDocFileAndQuit(const QString &fname)
     QString jinjaTemplatePyLiteral = "\"\"\"" + jinjaTemplate + "\n\"\"\"";
 
     Py_Initialize();
+
+    // make sure we find the syntalos_mlink module even if it isn't installed yet
+    PyRun_SimpleString("import sys");
+    PyRun_SimpleString(
+        qPrintable(QStringLiteral("sys.path.insert(0, '%1')").arg(qApp->applicationDirPath().replace("'", "\\'"))));
+
     PyRun_SimpleString(qPrintable(
         QStringLiteral("import os\n"
                        "import tempfile\n"
                        "import pdoc\n"
-                       "import syio\n"
+                       "import syntalos_mlink\n"
                        "\n"
                        "jinjaTmpl = ")
         + jinjaTemplatePyLiteral
         + QStringLiteral("\n"
                          "\n"
-                         "doc = pdoc.doc.Module(syio)\n"
+                         "doc = pdoc.doc.Module(syntalos_mlink)\n"
                          "with tempfile.TemporaryDirectory() as tmp_dir:\n"
                          "    with open(os.path.join(tmp_dir, 'frame.html.jinja2'), 'w') as f:\n"
                          "        f.write(jinjaTmpl)\n"
                          "    pdoc.render.configure(template_directory=tmp_dir)\n"
-                         "    html_data = pdoc.render.html_module(module=doc, all_modules={'syio': doc})\n"
+                         "    html_data = pdoc.render.html_module(module=doc, all_modules={'syntalos_mlink': doc})\n"
                          "    with open('%1', 'w') as f:\n"
                          "        f.write(html_data)\n"
                          "        f.write('\\n')\n"

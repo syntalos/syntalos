@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2018 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2024 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -29,32 +29,48 @@
 
 namespace py = pybind11;
 using namespace Syntalos;
+namespace Syntalos
+{
+class SyntalosLink;
+}
 
-class PyWorker;
+#pragma GCC visibility push(default)
+
+struct SyntalosPyError : std::runtime_error {
+    explicit SyntalosPyError(const char *what_arg);
+    explicit SyntalosPyError(const std::string &what_arg);
+};
+
 class Q_DECL_HIDDEN PyBridge : public QObject
 {
-    Q_OBJECT
+    Q_GADGET
 public:
-    static PyBridge *instance(PyWorker *worker = nullptr)
+    static PyBridge *instance(SyntalosLink *mlink = nullptr)
     {
         static std::mutex _mutex;
         std::lock_guard<std::mutex> lock(_mutex);
         static PyBridge *_instance = nullptr;
         if (_instance == nullptr) {
-            assert(worker != nullptr);
-            _instance = new PyBridge(worker);
+            if (mlink == nullptr) {
+                throw SyntalosPyError(
+                    "Syntalos Module Link was not initialized. Call `syntalos_mlink.init_link()` first!");
+                assert(mlink != nullptr);
+            }
+            _instance = new PyBridge(mlink);
         }
         return _instance;
     }
 
-    explicit PyBridge(PyWorker *worker = nullptr);
+    explicit PyBridge(SyntalosLink *mlink = nullptr);
     ~PyBridge();
 
-    PyWorker *worker();
+    SyntalosLink *link();
 
 private:
     Q_DISABLE_COPY(PyBridge)
-    PyWorker *m_worker;
+    SyntalosLink *m_mlink;
 };
 
 void pythonRegisterSyioModule();
+
+#pragma GCC visibility pop

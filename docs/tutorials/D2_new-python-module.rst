@@ -91,7 +91,7 @@ name that is displayed in the Syntalos GUI.
 After setting all metadata, it is time to actually write your module's code!
 Open ``mod-main.py`` for an example. The Python module has the same familiar ``prepare()``, ``start()``, ``loop()`` and ``stop()``
 functions like a Python Script module, that Syntalos will call at the appropriate time.
-Ports are also accessed the same way, and data is also submitted the same way. Refer to the :doc:`Syio API documentation </syio_api>`
+Ports are also accessed the same way, and data is also submitted the same way. Refer to the :doc:`syntalos_mlink API documentation </pysy-mlink-api>`
 for a full reference of all available methods.
 
 In addition to the known methods, a Python module also has a ``set_settings(settings: bytes)`` and ``change_settings(old_settings: bytes) -> bytes``

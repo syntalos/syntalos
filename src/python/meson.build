@@ -1,4 +1,4 @@
-# PyWorker helper process
+# Syntalos Python Integration
 
 # try to find NumPy
 python_inc_args = run_command('python3',
@@ -27,14 +27,32 @@ if not have_numpy
     error('Unable to find Python\'s NumPy module. Please install it to continue.')
 endif
 
+pysy_mlink_src = [
+    'pysy-mlink.h',
+    'pysy-mlink.cpp',
+    'sydatatopy.h',
+    'qstringtopy.h',
+]
+
+pysy_mlink_mod = python.extension_module(
+    'syntalos_mlink',
+    pysy_mlink_src,
+    gnu_symbol_visibility: 'hidden',
+    dependencies: [syntalos_fabric_dep,
+        syntalos_mlink_dep,
+        thread_dep,
+        vips_dep,
+        pybind11_dep,
+        python_embed_dep],
+    include_directories: [include_directories('..')],
+    cpp_args: [numpy_inc_arg],
+    install: true
+)
+
 sy_pyworker_src = [
     'main.cpp',
     'pyworker.h',
     'pyworker.cpp',
-    'syio.h',
-    'syio.cpp',
-    'sydatatopy.h',
-    'qstringtopy.h',
 ]
 
 pyworker_moc_h = []
@@ -76,13 +94,14 @@ pyworker_exe = executable('pyworker',
 pdoc_exe = find_program('pdoc', required: false)
 if pdoc_exe.found()
     # the pdoc Python module is probably there, so we can try to refresh the documentation
-    syio_doc_fname = source_root / 'docs' / 'syio_api_embed.html'
-    custom_target('pyworker-mkdoc',
+    pysy_mlink_doc_fname = source_root / 'docs' / 'pysy_mlink_api_embed.html'
+    custom_target('pysy-mlink-mkdoc',
         build_by_default: true,
         command : [pyworker_exe,
                     '--doc',
                     '@OUTPUT0@'],
-        output: 'syio_api_embed.html',
+        depends: [pyworker_exe, pysy_mlink_mod],
+        output: 'pysy_mlink_api_embed.html',
         env: ['LSAN_OPTIONS=suppressions=' +
                 join_paths(source_root, 'tests', 'lsan-suppr.txt'),
               'SYNTALOS_MODULE_ID=build_docgen']

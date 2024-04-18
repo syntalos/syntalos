@@ -1,4 +1,4 @@
-import syio as sy
+import syntalos_mlink as sy
 
 
 # NOTE: Check https://syntalos.readthedocs.io/en/latest/modules/pyscript.html for documentation

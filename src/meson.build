@@ -7,7 +7,7 @@ subdir('fabric')
 subdir('roudi')
 subdir('mlink')
 subdir('uilib')
-subdir('pyworker')
+subdir('python')
 
 syntalos_src = [
     'aboutdialog.h',

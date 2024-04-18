@@ -34,8 +34,6 @@ namespace Syntalos
 Q_DECLARE_LOGGING_CATEGORY(logPyWorker)
 }
 
-using PyNewDataFn = std::function<void(const py::object &obj)>;
-
 class Q_DECL_HIDDEN PyWorker : public QObject
 {
     Q_OBJECT
@@ -47,18 +45,7 @@ public:
     SyncTimer *timer() const;
     bool isRunning() const;
 
-    std::shared_ptr<InputPortInfo> inputPortById(const QString &idstr);
-    std::shared_ptr<OutputPortInfo> outputPortById(const QString &idstr);
-
     void awaitData(int timeoutUsec = -1);
-
-    bool submitOutput(const std::shared_ptr<OutputPortInfo> &oport, const py::object &pyObj);
-
-    void setOutPortMetadataValue(
-        const std::shared_ptr<OutputPortInfo> &oport,
-        const QString &key,
-        const QVariant &value);
-    void setInputThrottleItemsPerSec(const std::shared_ptr<InputPortInfo> &iport, uint itemsPerSec);
 
     void raiseError(const QString &message);
     bool loadPythonScript(const QString &script, const QString &wdir);
@@ -78,7 +65,6 @@ protected:
 
 private:
     SyntalosLink *m_link;
-    PyBridge *m_pyb;
     QTimer *m_evTimer;
     bool m_pyInitialized;
     PyObject *m_pyMain;
