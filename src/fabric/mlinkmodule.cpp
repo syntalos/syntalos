@@ -79,11 +79,8 @@ std::unique_ptr<T> MLinkModule::makeSubscriber(const QString &eventName)
 {
     iox::popo::SubscriberOptions subOptn;
 
-    // hold 2 elements for processing by default
-    subOptn.queueCapacity = 2U;
-
-    // get the last 2 samples if for whatever reason we connected too late
-    subOptn.historyRequest = 2U;
+    subOptn.queueCapacity = SY_IOX_QUEUE_CAPACITY;
+    subOptn.historyRequest = SY_IOX_HISTORY_SIZE;
 
     const auto eventNameIox = iox::capro::IdString_t(iox::cxx::TruncateToCapacity, eventName.toStdString());
     return std::make_unique<T>(iox::capro::ServiceDescription{"SyntalosModule", d->clientId, eventNameIox}, subOptn);
@@ -93,11 +90,8 @@ std::unique_ptr<iox::popo::UntypedSubscriber> MLinkModule::makeUntypedSubscriber
 {
     iox::popo::SubscriberOptions subOptn;
 
-    // hold 2 elements for processing by default
-    subOptn.queueCapacity = 2U;
-
-    // get the last 2 samples if for whatever reason we connected too late
-    subOptn.historyRequest = 2U;
+    subOptn.queueCapacity = SY_IOX_QUEUE_CAPACITY;
+    subOptn.historyRequest = SY_IOX_HISTORY_SIZE;
 
     // block the producer if the queue is full
     subOptn.queueFullPolicy = iox::popo::QueueFullPolicy::BLOCK_PRODUCER;
@@ -111,7 +105,7 @@ template<typename T>
 std::unique_ptr<T> MLinkModule::makeClient(const QString &callName)
 {
     iox::popo::ClientOptions optn;
-    optn.responseQueueCapacity = 2U;
+    optn.responseQueueCapacity = SY_IOX_QUEUE_CAPACITY;
 
     const auto callNameIox = iox::capro::IdString_t(iox::cxx::TruncateToCapacity, callName.toStdString());
     return std::make_unique<T>(iox::capro::ServiceDescription{"SyntalosModule", d->clientId, callNameIox}, optn);
@@ -120,7 +114,7 @@ std::unique_ptr<T> MLinkModule::makeClient(const QString &callName)
 std::unique_ptr<iox::popo::UntypedClient> MLinkModule::makeUntypedClient(const QString &callName)
 {
     iox::popo::ClientOptions optn;
-    optn.responseQueueCapacity = 2U;
+    optn.responseQueueCapacity = SY_IOX_QUEUE_CAPACITY;
 
     const auto callNameIox = iox::capro::IdString_t(iox::cxx::TruncateToCapacity, callName.toStdString());
     return std::make_unique<iox::popo::UntypedClient>(
@@ -151,6 +145,7 @@ bool MLinkModule::callClientSimple(const Client &client, Func func, int timeoutS
             raiseError(QStringLiteral("Unable to allocate %1 request!").arg(eventIDString.c_str()));
         });
 
+    // quit immediately if an error was already emitted
     if (state() == ModuleState::ERROR)
         return false;
 

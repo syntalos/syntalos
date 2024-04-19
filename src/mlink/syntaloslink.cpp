@@ -217,14 +217,12 @@ public:
 
     template<typename T>
     std::unique_ptr<iox::popo::Publisher<T>> makePublisher(
-        const iox::cxx::string<100> &channelName,
+        const iox::capro::IdString_t &channelName,
         bool waitForConsumer = true)
     {
         iox::popo::PublisherOptions publisherOptn;
 
-        // store the last 2 samples in queue
-        publisherOptn.historyCapacity = 2U;
-
+        publisherOptn.historyCapacity = SY_IOX_HISTORY_SIZE;
         if (waitForConsumer) {
             // allow the subscriber to block us, to ensure we don't lose data
             publisherOptn.subscriberTooSlowPolicy = iox::popo::ConsumerTooSlowPolicy::WAIT_FOR_CONSUMER;
@@ -235,14 +233,12 @@ public:
     }
 
     std::unique_ptr<iox::popo::UntypedPublisher> makeUntypedPublisher(
-        const iox::cxx::string<100> &channelName,
+        const iox::capro::IdString_t &channelName,
         bool waitForConsumer = true)
     {
         iox::popo::PublisherOptions publisherOptn;
 
-        // store the last 2 samples in queue
-        publisherOptn.historyCapacity = 2U;
-
+        publisherOptn.historyCapacity = SY_IOX_HISTORY_SIZE;
         if (waitForConsumer) {
             // allow the subscriber to block us, to ensure we don't lose data
             publisherOptn.subscriberTooSlowPolicy = iox::popo::ConsumerTooSlowPolicy::WAIT_FOR_CONSUMER;
@@ -285,11 +281,11 @@ public:
     {
         iox::popo::SubscriberOptions subOptn;
 
-        // hold 5 elements for processing by default
-        subOptn.queueCapacity = 5U;
+        // number of elements held for processing by default
+        subOptn.queueCapacity = SY_IOX_QUEUE_CAPACITY;
 
-        // get the last 2 samples if for whatever reason we connected too late
-        subOptn.historyRequest = 2U;
+        // number of samples to get if for whatever reason we connected too late
+        subOptn.historyRequest = SY_IOX_HISTORY_SIZE;
 
         // make producer wait for us
         subOptn.queueFullPolicy = iox::popo::QueueFullPolicy::BLOCK_PRODUCER;
@@ -305,7 +301,7 @@ public:
         return subscr;
     }
 
-    iox::cxx::string<100> modId;
+    iox::capro::IdString_t modId;
 
     std::unique_ptr<iox::popo::Publisher<ErrorEvent>> pubError;
     std::unique_ptr<iox::popo::Publisher<StateChangeEvent>> pubState;

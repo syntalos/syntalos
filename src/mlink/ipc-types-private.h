@@ -32,6 +32,15 @@
 namespace Syntalos
 {
 
+// number of elements to hold in the IPC queue
+static const uint64_t SY_IOX_QUEUE_CAPACITY = 1U;
+
+// number of elements to keep for late connectors
+static const uint64_t SY_IOX_HISTORY_SIZE = 0U;
+
+/**
+ * @brief Action performed to modify a module port
+ */
 enum class PortAction : uint8_t {
     UNKNOWN, /// Undefined action
     ADD,     /// Add a new port
