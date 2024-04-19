@@ -490,6 +490,7 @@ void AbstractModule::processUiEvents()
 void AbstractModule::stop()
 {
     m_running = false;
+    setState(ModuleState::IDLE);
 }
 
 void AbstractModule::finalize()
@@ -953,10 +954,17 @@ void AbstractModule::setState(ModuleState state)
 
 void AbstractModule::raiseError(const QString &message)
 {
+    // if there is multiple errors emitted, likely caused by the first one, we only bubble up the first one
+    if (d->state == ModuleState::ERROR) {
+        qCritical().noquote().nospace() << "Not escalating subsequent error from module '" << name()
+                                        << "': " << message;
+        return;
+    }
+
     d->lastError = message;
-    emit error(message);
     setState(ModuleState::ERROR);
     qCritical().noquote().nospace() << "Error raised by module '" << name() << "': " << message;
+    emit error(message);
 }
 
 void AbstractModule::setId(const QString &id)
