@@ -460,13 +460,12 @@ void SyntalosLink::processNotification(const iox::popo::NotificationInfo *notifi
 
     // Load script
     if (notification->doesOriginateFrom(d->reqLoadScript.get())) {
+        LoadScriptRequest scriptReqData;
         d->reqLoadScript->take().and_then([&](auto &requestPayload) {
             const auto chunkHeader = iox::mepoo::ChunkHeader::fromUserPayload(requestPayload);
             const auto size = chunkHeader->usedSizeOfChunk();
 
-            const auto scriptReq = LoadScriptRequest::fromMemory(requestPayload, size);
-            if (d->loadScriptCb)
-                d->loadScriptCb(scriptReq.script, scriptReq.workingDir);
+            scriptReqData = LoadScriptRequest::fromMemory(requestPayload, size);
 
             auto requestHeader = iox::popo::RequestHeader::fromPayload(requestPayload);
             d->reqLoadScript->loan(requestHeader, sizeof(DoneResponse), alignof(DoneResponse))
@@ -483,6 +482,10 @@ void SyntalosLink::processNotification(const iox::popo::NotificationInfo *notifi
 
             d->reqLoadScript->releaseRequest(requestPayload);
         });
+
+        // load script after sending a reply if we had a valid request
+        if (d->loadScriptCb && !scriptReqData.script.isEmpty())
+            d->loadScriptCb(scriptReqData.script, scriptReqData.workingDir);
     }
 
     // Have the master set all preset ports
