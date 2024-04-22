@@ -1,9 +1,9 @@
-import syntalos_mlink as sy
+import syntalos_mlink as sym
 
 
 # NOTE: Check https://syntalos.readthedocs.io/en/latest/modules/pyscript.html for documentation
 # on how to write a useful script.
-sy.raise_error(
+sym.raise_error(
     (
         'You are running the Python example script - please edit it to work for your experiment!\n'
         '(Check https://syntalos.readthedocs.io/en/latest/modules/pyscript.html for help)'
@@ -26,8 +26,8 @@ def run():
     """This function is called once the experiment run has started."""
 
     # wait for new data to arrive and communicate with Syntalos
-    while sy.is_running():
-        sy.await_data()
+    while sym.is_running():
+        sym.await_data()
 
 
 def stop():
