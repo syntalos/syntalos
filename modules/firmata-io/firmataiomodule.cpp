@@ -57,7 +57,6 @@ private:
     QHash<QString, FmPin> m_namePinMap;
     QHash<int, QString> m_pinNameMap;
 
-    QTimer *m_evTimer;
     std::shared_ptr<StreamInputPort<FirmataControl>> m_inFmCtl;
     std::shared_ptr<DataStream<FirmataData>> m_fmStream;
     std::shared_ptr<StreamSubscription<FirmataControl>> m_fmCtlSub;
@@ -67,14 +66,10 @@ public:
         : AbstractModule(parent),
           m_settingsDialog(nullptr)
     {
-        m_firmata = new SerialFirmata(this);
+        m_firmata = new SerialFirmata(this, true);
         m_settingsDialog = new FirmataSettingsDialog;
         addSettingsWindow(m_settingsDialog);
         m_settingsDialog->setWindowTitle(QStringLiteral("%1 - Settings").arg(name()));
-
-        m_evTimer = new QTimer(this);
-        m_evTimer->setInterval(0);
-        connect(m_evTimer, &QTimer::timeout, this, &FirmataIOModule::checkControlCommands);
 
         m_inFmCtl = registerInputPort<FirmataControl>(QStringLiteral("fmctl"), QStringLiteral("Firmata Control"));
         m_fmStream = registerOutputPort<FirmataData>(QStringLiteral("fmdata"), QStringLiteral("Firmata Data"));
@@ -87,6 +82,11 @@ public:
         return ModuleFeature::SHOW_SETTINGS;
     }
 
+    ModuleDriverKind driver() const override
+    {
+        return ModuleDriverKind::EVENTS_DEDICATED;
+    }
+
     bool prepare(const TestSubject &) override
     {
         // cleanup
@@ -94,9 +94,9 @@ public:
         m_pinNameMap.clear();
 
         delete m_firmata;
-        m_firmata = new SerialFirmata(this);
-        connect(m_firmata, &SerialFirmata::digitalRead, this, &FirmataIOModule::recvDigitalRead);
-        connect(m_firmata, &SerialFirmata::digitalPinRead, this, &FirmataIOModule::recvDigitalPinRead);
+        m_firmata = new SerialFirmata(this, true);
+        connect(m_firmata, &SerialFirmata::digitalRead, this, &FirmataIOModule::recvDigitalRead, Qt::DirectConnection);
+        connect(m_firmata, &SerialFirmata::digitalPinRead, this, &FirmataIOModule::recvDigitalPinRead, Qt::DirectConnection);
 
         auto serialDevice = m_settingsDialog->serialPort();
         if (serialDevice.isEmpty()) {
@@ -112,6 +112,14 @@ public:
             }
         }
 
+        // briefly parse Firmata data in the main thread to wait for the device to be ready
+        QTimer timer;
+        timer.setInterval(0);
+        connect(&timer, &QTimer::timeout, &timer, [this]() {
+            m_firmata->readAndParseData(10);
+        });
+        timer.start();
+
         if (!m_firmata->waitForReady(20000) || m_firmata->statusText().contains("Error")) {
             QString msg;
             if (m_firmata->statusText().contains("Error"))
@@ -121,30 +129,45 @@ public:
 
             raiseError(QStringLiteral("Unable to initialize Firmata: %1").arg(msg));
             m_firmata->setDevice(QString());
+            timer.stop();
             return false;
         }
+        timer.stop();
 
         // start event stream and see if we should listen to control commands
         m_fmStream->start();
         m_fmCtlSub.reset();
-        if (m_inFmCtl->hasSubscription())
+        if (m_inFmCtl->hasSubscription()) {
             m_fmCtlSub = m_inFmCtl->subscription();
+            registerDataReceivedEvent(&FirmataIOModule::onFirmataControlCmdReceived, m_fmCtlSub);
+        }
+
+        // We cheat and run the timed event with a zero-delay, then block in the reading function for
+        // a very short time. Since our event thread is dedicated, this will not cause problems for
+        // other modules and gives us slightly better efficiency (with an accepted latency of the respective
+        // blocking time in onReadInputData())
+        registerTimedEvent(&FirmataIOModule::onReadInputData, milliseconds_t(0));
 
         return true;
     }
 
     void start() override
     {
-        if (m_fmCtlSub.get() != nullptr)
-            m_evTimer->start();
+        AbstractModule::start();
     }
 
     void stop() override
     {
-        m_evTimer->stop();
+        AbstractModule::stop();
     }
 
-    void checkControlCommands()
+    void onReadInputData(int &intervalMsec)
+    {
+        // wait for new data, block for 10msec
+        m_firmata->readAndParseData(10);
+    }
+
+    void onFirmataControlCmdReceived()
     {
         const auto maybeCtl = m_fmCtlSub->peekNext();
         if (!maybeCtl.has_value())
@@ -267,6 +290,8 @@ public:
 private slots:
     void recvDigitalRead(uint8_t port, uint8_t value)
     {
+        // WARNING: This method may be called from a different thread!
+
         // value of a digital port changed: 8 possible pin changes
         const int first = port * 8;
         const int last = first + 7;
@@ -291,6 +316,8 @@ private slots:
 
     void recvDigitalPinRead(uint8_t pin, bool value)
     {
+        // WARNING: This method may be called from a different thread!
+
         FirmataData fdata;
         fdata.time = m_syTimer->timeSinceStartMsec();
         fdata.isDigital = true;

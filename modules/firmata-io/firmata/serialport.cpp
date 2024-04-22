@@ -26,6 +26,7 @@ struct SerialFirmata::Private {
     QScopedPointer<QSerialPort> port;
     QString device;
     int baudRate;
+    bool manualReadTrigger;
 
     Private()
         : baudRate(57600)
@@ -33,10 +34,11 @@ struct SerialFirmata::Private {
     }
 };
 
-SerialFirmata::SerialFirmata(QObject *parent)
+SerialFirmata::SerialFirmata(QObject *parent, bool manualReadTrigger)
     : FirmataBackend(parent),
       d(new Private)
 {
+    d->manualReadTrigger = manualReadTrigger;
 }
 
 SerialFirmata::~SerialFirmata()
@@ -82,6 +84,9 @@ bool SerialFirmata::setDevice(const QString &device)
                     case QSerialPort::ResourceError:
                         msg = QStringLiteral("Unable to communicate with the device. Is it plugged in?");
                         break;
+                    case QSerialPort::TimeoutError:
+                        msg = QStringLiteral("Request timed out");
+                        break;
                     default:
                         msg = QString("Error code %1").arg(e);
                         break;
@@ -97,7 +102,8 @@ bool SerialFirmata::setDevice(const QString &device)
                 setStatusText("Error opening " + device + " " + metaEnum.valueToKey(d->port->error()));
                 return false;
             } else {
-                connect(d->port.data(), &QSerialPort::readyRead, this, &SerialFirmata::onReadyRead);
+                if (!d->manualReadTrigger)
+                    connect(d->port.data(), &QSerialPort::readyRead, this, &SerialFirmata::onReadyRead);
                 setAvailable(true);
                 setStatusText(QStringLiteral("Serial port opened"));
             }
@@ -142,15 +148,24 @@ void SerialFirmata::writeBuffer(const uint8_t *buffer, int len)
     d->port->flush();
 }
 
-void SerialFirmata::onReadyRead()
+void SerialFirmata::readAndParseData(int waitMsecs)
 {
     Q_ASSERT(d->port);
+    if (waitMsecs > 0) {
+        if (!d->port->waitForReadyRead(waitMsecs))
+            return;
+    }
+
     char buffer[256];
     int len;
-
     do {
         len = d->port->read(buffer, sizeof(buffer));
         if (len > 0)
             bytesRead(buffer, len);
     } while (len > 0);
+}
+
+void SerialFirmata::onReadyRead()
+{
+    readAndParseData();
 }
