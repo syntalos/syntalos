@@ -104,8 +104,8 @@ void PyWorker::raiseError(const QString &message)
 static void ensureModuleImportPaths()
 {
     PyRun_SimpleString("import sys");
-    PyRun_SimpleString(
-        qPrintable(QStringLiteral("sys.path.insert(0, '%1')").arg(QStringLiteral(SY_PYTHON_MOD_DIR).replace("'", "\\'"))));
+    PyRun_SimpleString(qPrintable(
+        QStringLiteral("sys.path.insert(0, '%1')").arg(QStringLiteral(SY_PYTHON_MOD_DIR).replace("'", "\\'"))));
     PyRun_SimpleString(
         qPrintable(QStringLiteral("sys.path.insert(0, '%1')").arg(qApp->applicationDirPath().replace("'", "\\'"))));
 }

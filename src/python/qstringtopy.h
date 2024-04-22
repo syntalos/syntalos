@@ -62,7 +62,7 @@ public:
         if (!src)
             return false;
 
-        PyObject* str_obj;
+        PyObject *str_obj;
         if (PyUnicode_Check(src.ptr())) {
             // we already have a string, use it verbatim
             str_obj = src.ptr();
@@ -89,7 +89,7 @@ public:
             Py_DECREF(str_obj);
         }
 
-        return ( !PyErr_Occurred() );
+        return (!PyErr_Occurred());
     }
 
     /**
