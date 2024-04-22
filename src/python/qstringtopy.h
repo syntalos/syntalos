@@ -62,27 +62,34 @@ public:
         if (!src)
             return false;
 
-        object temp;
-        handle load_src = src;
-        if (PyUnicode_Check(load_src.ptr())) {
-            temp = reinterpret_steal<object>(PyUnicode_AsUTF8String(load_src.ptr()));
-            if (!temp) /* A UnicodeEncodeError occured */
-            {
+        PyObject* str_obj;
+        if (PyUnicode_Check(src.ptr())) {
+            // we already have a string, use it verbatim
+            str_obj = src.ptr();
+
+            Py_ssize_t size;
+            const char *buffer = PyUnicode_AsUTF8AndSize(str_obj, &size);
+            if (!buffer)
+                return false;
+            value = QString::fromUtf8(buffer, static_cast<int>(size));
+        } else {
+            // convert any Python object to string via its string representation
+            str_obj = PyObject_Str(src.ptr());
+            if (!str_obj) {
                 PyErr_Clear();
                 return false;
             }
-            load_src = temp;
+
+            Py_ssize_t size;
+            const char *buffer = PyUnicode_AsUTF8AndSize(str_obj, &size);
+            if (!buffer)
+                return false;
+            value = QString::fromUtf8(buffer, static_cast<int>(size));
+
+            Py_DECREF(str_obj);
         }
-        char *buffer = nullptr;
-        ssize_t length = 0;
-        int err = PYBIND11_BYTES_AS_STRING_AND_SIZE(load_src.ptr(), &buffer, &length);
-        if (err == -1) /* A TypeError occured */
-        {
-            PyErr_Clear();
-            return false;
-        }
-        value = QString::fromUtf8(buffer, static_cast<int>(length));
-        return true;
+
+        return ( !PyErr_Occurred() );
     }
 
     /**

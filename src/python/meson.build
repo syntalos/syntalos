@@ -46,7 +46,7 @@ pysy_mlink_mod = python.extension_module(
         python_embed_dep],
     include_directories: [include_directories('..')],
     cpp_args: [numpy_inc_arg],
-    install: true
+    install: true,
 )
 
 sy_pyworker_src = [
@@ -73,8 +73,14 @@ sy_pyworker_moc = qt.preprocess(
     moc_extra_arguments: ['-I/usr/include', '--no-notes']
 )
 
+pywconf = configuration_data()
+pywconf.set_quoted('SY_PYTHON_MOD_DIR', python.get_install_dir(pure: false))
+pyw_config_h = configure_file(output: 'pyw-config.h', configuration: pywconf)
+
 pyworker_exe = executable('pyworker',
-    [sy_pyworker_src, sy_pyworker_moc],
+    [pyw_config_h,
+     sy_pyworker_src,
+     sy_pyworker_moc],
     gnu_symbol_visibility: 'hidden',
     dependencies: [syntalos_fabric_dep,
                    syntalos_mlink_dep,
@@ -86,7 +92,7 @@ pyworker_exe = executable('pyworker',
     include_directories: [include_directories('..')],
     cpp_args: [numpy_inc_arg],
     install: true,
-    install_dir: sy_libdir
+    install_dir: sy_libdir,
 )
 
 # Generate some documentation files for the embedded scripting interface,

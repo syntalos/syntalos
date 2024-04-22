@@ -19,18 +19,14 @@
 
 #define QT_NO_KEYWORDS
 #include "pyworker.h"
+#include "pyw-config.h"
+
 #include <QDir>
 #include <QCoreApplication>
 #include <iostream>
 
 #include "cpuaffinity.h"
 #include "rtkit.h"
-#include "streams/datatypes.h"
-#include "streams/frametype.h"
-
-#include "pysy-mlink.h"
-#include "qstringtopy.h" // needed for QString registration
-#include "sydatatopy.h"  // needed for stream data type conversion
 
 using namespace Syntalos;
 namespace Syntalos
@@ -105,6 +101,15 @@ void PyWorker::raiseError(const QString &message)
     shutdown();
 }
 
+static void ensureModuleImportPaths()
+{
+    PyRun_SimpleString("import sys");
+    PyRun_SimpleString(
+        qPrintable(QStringLiteral("sys.path.insert(0, '%1')").arg(QStringLiteral(SY_PYTHON_MOD_DIR).replace("'", "\\'"))));
+    PyRun_SimpleString(
+        qPrintable(QStringLiteral("sys.path.insert(0, '%1')").arg(qApp->applicationDirPath().replace("'", "\\'"))));
+}
+
 bool PyWorker::loadPythonScript(const QString &script, const QString &wdir)
 {
     if (!wdir.isEmpty())
@@ -143,9 +148,7 @@ bool PyWorker::loadPythonScript(const QString &script, const QString &wdir)
     PyConfig_Clear(&config);
 
     // make sure we find the syntalos_mlink module even if it isn't installed yet
-    PyRun_SimpleString("import sys");
-    PyRun_SimpleString(
-        qPrintable(QStringLiteral("sys.path.insert(0, '%1')").arg(qApp->applicationDirPath().replace("'", "\\'"))));
+    ensureModuleImportPaths();
 
     // pass our Syntalos link to the Python code
     {
@@ -519,9 +522,7 @@ void PyWorker::makeDocFileAndQuit(const QString &fname)
     Py_Initialize();
 
     // make sure we find the syntalos_mlink module even if it isn't installed yet
-    PyRun_SimpleString("import sys");
-    PyRun_SimpleString(
-        qPrintable(QStringLiteral("sys.path.insert(0, '%1')").arg(qApp->applicationDirPath().replace("'", "\\'"))));
+    ensureModuleImportPaths();
 
     PyRun_SimpleString(qPrintable(
         QStringLiteral("import os\n"
