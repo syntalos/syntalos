@@ -106,8 +106,8 @@ MainWindow::MainWindow(QWidget *parent)
                 const auto myGreeting = greetings[rand() % greetings.length()].toHash();
                 setStatusText(myGreeting.value("msg", "Hello World!").toString().trimmed());
                 m_statusBarLabel->setToolTip(myGreeting.value("source", "Unknown").toString().trimmed());
-                // reset tooltip after 10 seconds
-                QTimer::singleShot(10 * 1000, [&]() {
+                // reset tooltip after 24 seconds
+                QTimer::singleShot(24 * 1000, [&]() {
                     m_statusBarLabel->setToolTip(QString());
                 });
             }

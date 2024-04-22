@@ -1976,12 +1976,14 @@ bool Engine::runInternal(const QString &exportDirPath)
             size_t remainingElements = 0;
             do {
                 remainingElements = iport->subscriptionVar()->approxPendingCount();
-                if (remainingElements == 0)
+                // sometimes the approx. pending count is never 0, so we accept loosing one element in any case
+                // (in many cases, the last entity will be a nullopt anyway, so we can ignore it)
+                if (remainingElements <= 1)
                     break;
                 qApp->processEvents();
             } while ((d->timer->timeSinceStartMsec() - startPortWaitTS).count() <= 1600);
 
-            if (remainingElements != 0)
+            if (remainingElements > 1)
                 qCDebug(logEngine).noquote().nospace() << "Module '" << mod->name() << "' "
                                                        << "subscription `" << iport->id() << "` "
                                                        << "possibly lost " << remainingElements << " element(s)";
