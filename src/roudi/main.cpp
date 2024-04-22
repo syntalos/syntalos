@@ -32,12 +32,17 @@ int main(int argc, char *argv[])
 {
     using iox::roudi::IceOryxRouDiApp;
 
-    iox::config::CmdLineParserConfigFileOption cmdLineParser;
-    auto cmdLineArgs = cmdLineParser.parse(argc, argv);
-    if (cmdLineArgs.has_error() && (cmdLineArgs.get_error() != iox::config::CmdLineParserResult::INFO_OUTPUT_ONLY)) {
-        iox::LogFatal() << "Unable to parse command line arguments!";
-        return EXIT_FAILURE;
-    }
+    iox::config::CmdLineArgs_t roudiArgs;
+
+    // disable monitoring for now, as RouDi is far too eager to kill live processes
+    // under very high CPU load, which may happen with Syntalos
+    roudiArgs.monitoringMode = iox::roudi::MonitoringMode::OFF;
+
+    // set other defaults
+    roudiArgs.logLevel = iox::log::LogLevel::kWarn;
+    roudiArgs.compatibilityCheckLevel = iox::version::CompatibilityCheckLevel::PATCH;
+    roudiArgs.processKillDelay = iox::units::Duration::fromSeconds(90);
+    roudiArgs.run = true;
 
     // tear down the daemon if our main process dies
     prctl(PR_SET_PDEATHSIG, SIGTERM);
@@ -59,6 +64,6 @@ int main(int argc, char *argv[])
     roudiConfig.m_sharedMemorySegments.push_back({currentGroup.getName(), currentGroup.getName(), mpConfig});
 
     // execute RouDi
-    IceOryxRouDiApp roudi(cmdLineArgs.value(), roudiConfig);
+    IceOryxRouDiApp roudi(roudiArgs, roudiConfig);
     return roudi.run();
 }
