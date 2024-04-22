@@ -699,6 +699,7 @@ protected:
 
     void setStatusMessage(const QString &message);
     bool makeDirectory(const QString &dir);
+    void mainThreadProcessUiEvents();
 
     /**
      * @brief Suggested name for datasets from this module

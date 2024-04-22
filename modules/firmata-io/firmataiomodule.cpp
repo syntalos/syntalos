@@ -52,7 +52,7 @@ class FirmataIOModule : public AbstractModule
 
 private:
     FirmataSettingsDialog *m_settingsDialog;
-    SerialFirmata *m_firmata;
+    std::atomic_bool m_stopped;
 
     QHash<QString, FmPin> m_namePinMap;
     QHash<int, QString> m_pinNameMap;
@@ -64,9 +64,9 @@ private:
 public:
     explicit FirmataIOModule(QObject *parent = nullptr)
         : AbstractModule(parent),
-          m_settingsDialog(nullptr)
+          m_settingsDialog(nullptr),
+          m_stopped(true)
     {
-        m_firmata = new SerialFirmata(this, true);
         m_settingsDialog = new FirmataSettingsDialog;
         addSettingsWindow(m_settingsDialog);
         m_settingsDialog->setWindowTitle(QStringLiteral("%1 - Settings").arg(name()));
@@ -84,7 +84,7 @@ public:
 
     ModuleDriverKind driver() const override
     {
-        return ModuleDriverKind::EVENTS_DEDICATED;
+        return ModuleDriverKind::THREAD_DEDICATED;
     }
 
     bool prepare(const TestSubject &) override
@@ -93,60 +93,11 @@ public:
         m_namePinMap.clear();
         m_pinNameMap.clear();
 
-        delete m_firmata;
-        m_firmata = new SerialFirmata(this, true);
-        connect(m_firmata, &SerialFirmata::digitalRead, this, &FirmataIOModule::recvDigitalRead, Qt::DirectConnection);
-        connect(m_firmata, &SerialFirmata::digitalPinRead, this, &FirmataIOModule::recvDigitalPinRead, Qt::DirectConnection);
-
-        auto serialDevice = m_settingsDialog->serialPort();
-        if (serialDevice.isEmpty()) {
-            raiseError("Unable to find a Firmata serial device for programmable I/O to connect to. Can not continue.");
-            return false;
-        }
-
-        qDebug() << "Loading Firmata interface" << serialDevice;
-        if (m_firmata->device().isEmpty()) {
-            if (!m_firmata->setDevice(serialDevice)) {
-                raiseError(QStringLiteral("Unable to open serial interface: %1").arg(m_firmata->statusText()));
-                return false;
-            }
-        }
-
-        // briefly parse Firmata data in the main thread to wait for the device to be ready
-        QTimer timer;
-        timer.setInterval(0);
-        connect(&timer, &QTimer::timeout, &timer, [this]() {
-            m_firmata->readAndParseData(10);
-        });
-        timer.start();
-
-        if (!m_firmata->waitForReady(20000) || m_firmata->statusText().contains("Error")) {
-            QString msg;
-            if (m_firmata->statusText().contains("Error"))
-                msg = m_firmata->statusText();
-            else
-                msg = QStringLiteral("Does the selected serial device use the Firmata protocol?");
-
-            raiseError(QStringLiteral("Unable to initialize Firmata: %1").arg(msg));
-            m_firmata->setDevice(QString());
-            timer.stop();
-            return false;
-        }
-        timer.stop();
-
         // start event stream and see if we should listen to control commands
         m_fmStream->start();
         m_fmCtlSub.reset();
-        if (m_inFmCtl->hasSubscription()) {
+        if (m_inFmCtl->hasSubscription())
             m_fmCtlSub = m_inFmCtl->subscription();
-            registerDataReceivedEvent(&FirmataIOModule::onFirmataControlCmdReceived, m_fmCtlSub);
-        }
-
-        // We cheat and run the timed event with a zero-delay, then block in the reading function for
-        // a very short time. Since our event thread is dedicated, this will not cause problems for
-        // other modules and gives us slightly better efficiency (with an accepted latency of the respective
-        // blocking time in onReadInputData())
-        registerTimedEvent(&FirmataIOModule::onReadInputData, milliseconds_t(0));
 
         return true;
     }
@@ -156,18 +107,67 @@ public:
         AbstractModule::start();
     }
 
-    void stop() override
+    void runThread(OptionalWaitCondition *waitCondition) override
     {
-        AbstractModule::stop();
+        auto firmata = std::make_unique<SerialFirmata>(this, true);
+
+        connect(
+            firmata.get(), &SerialFirmata::digitalRead, this, &FirmataIOModule::recvDigitalRead, Qt::DirectConnection);
+        connect(
+            firmata.get(),
+            &SerialFirmata::digitalPinRead,
+            this,
+            &FirmataIOModule::recvDigitalPinRead,
+            Qt::DirectConnection);
+
+        auto serialDevice = m_settingsDialog->serialPort();
+        if (serialDevice.isEmpty()) {
+            raiseError("Unable to find a Firmata serial device for programmable I/O to connect to. Can not continue.");
+            return;
+        }
+
+        qCDebug(logFmMod) << "Loading Firmata interface" << serialDevice;
+        if (firmata->device().isEmpty()) {
+            if (!firmata->setDevice(serialDevice)) {
+                raiseError(QStringLiteral("Unable to open serial interface: %1").arg(firmata->statusText()));
+                return;
+            }
+        }
+
+        // check if we can communicate with the Firmata serial device
+        firmata->reportProtocolVersion();
+        for (uint i = 0; i < 1000; i++) {
+            firmata->readAndParseData(10);
+            if (firmata->isReady())
+                break;
+        }
+        if (!firmata->isReady() || firmata->statusText().contains("Error")) {
+            QString msg;
+            if (firmata->statusText().contains("Error"))
+                msg = firmata->statusText();
+            else
+                msg = QStringLiteral("Does the selected serial device use the Firmata protocol?");
+
+            raiseError(QStringLiteral("Unable to initialize Firmata: %1").arg(msg));
+            return;
+        }
+
+        // wait until we actually start acquiring data
+        m_stopped = false;
+        waitCondition->wait(this);
+
+        while (m_running) {
+            // wait for new data, block for 10msec
+            firmata->readAndParseData(10);
+
+            if (m_fmCtlSub)
+                checkFirmataControlCmdReceived(firmata.get());
+        }
+
+        m_stopped = true;
     }
 
-    void onReadInputData(int &intervalMsec)
-    {
-        // wait for new data, block for 10msec
-        m_firmata->readAndParseData(10);
-    }
-
-    void onFirmataControlCmdReceived()
+    void checkFirmataControlCmdReceived(SerialFirmata *firmata)
     {
         const auto maybeCtl = m_fmCtlSub->peekNext();
         if (!maybeCtl.has_value())
@@ -175,23 +175,23 @@ public:
         const auto ctl = maybeCtl.value();
         switch (ctl.command) {
         case FirmataCommandKind::NEW_DIG_PIN:
-            newDigitalPin(ctl.pinId, ctl.pinName, ctl.isOutput, ctl.isPullUp);
+            newDigitalPin(firmata, ctl.pinId, ctl.pinName, ctl.isOutput, ctl.isPullUp);
             if (ctl.pinName.isEmpty())
-                pinSetValue(ctl.pinId, ctl.value);
+                pinSetValue(firmata, ctl.pinId, ctl.value);
             else
-                pinSetValue(ctl.pinName, ctl.value);
+                pinSetValue(firmata, ctl.pinName, ctl.value);
             break;
         case FirmataCommandKind::WRITE_DIGITAL:
             if (ctl.pinName.isEmpty())
-                pinSetValue(ctl.pinId, ctl.value);
+                pinSetValue(firmata, ctl.pinId, ctl.value);
             else
-                pinSetValue(ctl.pinName, ctl.value);
+                pinSetValue(firmata, ctl.pinName, ctl.value);
             break;
         case FirmataCommandKind::WRITE_DIGITAL_PULSE:
             if (ctl.pinName.isEmpty())
-                pinSignalPulse(ctl.pinId, ctl.value);
+                pinSignalPulse(firmata, ctl.pinId, ctl.value);
             else
-                pinSignalPulse(ctl.pinName, ctl.value);
+                pinSignalPulse(firmata, ctl.pinName, ctl.value);
             break;
         default:
             qCWarning(logFmMod) << "Received not-implemented Firmata instruction of type"
@@ -200,18 +200,7 @@ public:
         }
     }
 
-    void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
-    {
-        settings.insert("serial_port", m_settingsDialog->serialPort());
-    }
-
-    bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
-    {
-        m_settingsDialog->setSerialPort(settings.value("serial_port").toString());
-        return true;
-    }
-
-    void newDigitalPin(int pinId, const QString &pinName, bool output, bool pullUp)
+    void newDigitalPin(SerialFirmata *firmata, int pinId, const QString &pinName, bool output, bool pullUp)
     {
         FmPin pin;
         pin.kind = PinKind::Digital;
@@ -220,18 +209,18 @@ public:
 
         if (pin.output) {
             // initialize output pin
-            m_firmata->setPinMode(pin.id, IoMode::Output);
-            m_firmata->writeDigitalPin(pin.id, false);
+            firmata->setPinMode(pin.id, IoMode::Output);
+            firmata->writeDigitalPin(pin.id, false);
             qCDebug(logFmMod) << "Firmata: Pin" << pinId << "set as output";
         } else {
             // connect input pin
             if (pullUp)
-                m_firmata->setPinMode(pin.id, IoMode::PullUp);
+                firmata->setPinMode(pin.id, IoMode::PullUp);
             else
-                m_firmata->setPinMode(pin.id, IoMode::Input);
+                firmata->setPinMode(pin.id, IoMode::Input);
 
             uint8_t port = pin.id >> 3;
-            m_firmata->reportDigitalPort(port, true);
+            firmata->reportDigitalPort(port, true);
 
             qCDebug(logFmMod) << "Firmata: Pin" << pinId << "set as input";
         }
@@ -255,42 +244,61 @@ public:
         return pin;
     }
 
-    void pinSetValue(int pinId, bool value)
+    void pinSetValue(SerialFirmata *firmata, int pinId, bool value)
     {
-        m_firmata->writeDigitalPin(pinId, value);
+        firmata->writeDigitalPin(pinId, value);
     }
 
-    void pinSetValue(const QString &pinName, bool value)
+    void pinSetValue(SerialFirmata *firmata, const QString &pinName, bool value)
     {
         auto pin = findPin(pinName);
         if (pin.kind == PinKind::Unknown)
             return;
-        pinSetValue(pin.id, value);
+        pinSetValue(firmata, pin.id, value);
     }
 
-    void pinSignalPulse(int pinId, int pulseDuration = 0)
+    void pinSignalPulse(SerialFirmata *firmata, int pinId, int pulseDuration = 0)
     {
         if (pulseDuration <= 0)
             pulseDuration = 50; // 50 msec is our default pulse length
         else if (pulseDuration > 4000)
             pulseDuration = 4000; // clamp pulse length at 4 sec max
-        pinSetValue(pinId, true);
+        pinSetValue(firmata, pinId, true);
         delay(pulseDuration);
-        pinSetValue(pinId, false);
+        pinSetValue(firmata, pinId, false);
     }
 
-    void pinSignalPulse(const QString &pinName, int pulseDuration = 0)
+    void pinSignalPulse(SerialFirmata *firmata, const QString &pinName, int pulseDuration = 0)
     {
         auto pin = findPin(pinName);
         if (pin.kind == PinKind::Unknown)
             return;
-        pinSignalPulse(pin.id, pulseDuration);
+        pinSignalPulse(firmata, pin.id, pulseDuration);
     }
 
-private slots:
+    void stop() override
+    {
+        AbstractModule::stop();
+
+        // wait for our thread to finish
+        while (!m_stopped)
+            mainThreadProcessUiEvents();
+    }
+
+    void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
+    {
+        settings.insert("serial_port", m_settingsDialog->serialPort());
+    }
+
+    bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
+    {
+        m_settingsDialog->setSerialPort(settings.value("serial_port").toString());
+        return true;
+    }
+
     void recvDigitalRead(uint8_t port, uint8_t value)
     {
-        // WARNING: This method may be called from a different thread!
+        // WARNING: This method is called from a different thread!
 
         // value of a digital port changed: 8 possible pin changes
         const int first = port * 8;
@@ -316,7 +324,7 @@ private slots:
 
     void recvDigitalPinRead(uint8_t pin, bool value)
     {
-        // WARNING: This method may be called from a different thread!
+        // WARNING: This method is called from a different thread!
 
         FirmataData fdata;
         fdata.time = m_syTimer->timeSinceStartMsec();

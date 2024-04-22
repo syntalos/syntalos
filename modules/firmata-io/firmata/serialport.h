@@ -51,8 +51,6 @@ public:
     int baudRate() const;
     void setBaudRate(int br);
 
-    bool isReady();
-
     void readAndParseData(int waitMsecs = 0);
 
 signals:

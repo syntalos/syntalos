@@ -677,6 +677,11 @@ bool AbstractModule::makeDirectory(const QString &dir)
     return true;
 }
 
+void AbstractModule::mainThreadProcessUiEvents()
+{
+    qApp->processEvents();
+}
+
 QString AbstractModule::datasetNameSuggestion(bool lowercase) const
 {
     auto rawName = name();
