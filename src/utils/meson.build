@@ -38,7 +38,7 @@ syntalos_utils_lib = shared_library('syntalos-utils',
                           include_directories('.'),
                           syntalos_main_inc_dir],
     install: true,
-    install_dir: sy_libdir
+    install_dir: sy_libdir,
 )
 
 syntalos_utils_dep = declare_dependency(

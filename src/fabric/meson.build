@@ -75,7 +75,8 @@ syntalos_fabric_lib = shared_library('syntalos-fabric',
     include_directories: [root_include_dir,
                           syntalos_fabric_inc_dir],
     install: true,
-    install_dir: sy_libdir
+    install_dir: sy_libdir,
+    install_rpath: sy_libdir,
 )
 
 syntalos_fabric_dep = declare_dependency(

@@ -32,7 +32,8 @@ syntalos_mlink_lib = library('syntalos-mlink',
         vips_dep,
     ],
     include_directories: [],
-    install: true
+    install: true,
+    install_rpath: sy_libdir,
 )
 
 syntalos_mlink_dep = declare_dependency(
