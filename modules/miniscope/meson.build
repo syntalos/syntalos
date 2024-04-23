@@ -19,7 +19,7 @@ module_moc_src = [
 module_ui = ['miniscopesettingsdialog.ui']
 
 miniscope_dep = dependency('miniscope', version: '>=0.5.0')
-module_deps = [syntalos_uilib_dep,
+module_deps = [syntalos_fabric_dep,
                opencv_dep,
                vips_dep,
                miniscope_dep

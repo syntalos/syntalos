@@ -1,8 +1,12 @@
 # Syntalos Common Utilities
 
 syntalos_utils_src = [
+    'cpuaffinity.h',
+    'cpuaffinity.cpp',
     'misc.h',
     'misc.cpp',
+    'rtkit.h',
+    'rtkit.cpp',
     'style.h',
     'style.cpp',
     'tomlutils.h',
@@ -31,6 +35,7 @@ syntalos_utils_lib = shared_library('syntalos-utils',
     [syntalos_utils_src,
      syntalos_utils_moc],
     dependencies: [sy_base_deps,
+                   qt_dbus_dep,
                    opencv_dep,
                    opengl_dep,
                    vips_dep],

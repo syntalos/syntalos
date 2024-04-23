@@ -27,9 +27,9 @@
 
 #include "../videowriter.h"
 #include "videoreader.h"
-#include "edlstorage.h"
 #include "queuemodel.h"
-#include "tsyncfile.h"
+#include "datactl/edlstorage.h"
+#include "datactl/tsyncfile.h"
 #include "utils/misc.h"
 #include "utils/tomlutils.h"
 

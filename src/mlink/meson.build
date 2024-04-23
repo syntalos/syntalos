@@ -28,7 +28,8 @@ syntalos_mlink_lib = library('syntalos-mlink',
         qt_core_dep,
         iceoryx_posh_dep,
         iceoryx_hoofs_dep,
-        syntalos_fabric_dep,
+        syntalos_datactl_dep,
+        syntalos_utils_dep,
         vips_dep,
     ],
     include_directories: [],
@@ -54,5 +55,5 @@ pkgc.generate(
     description: 'Library to build external Syntalos modules in separate processes.',
     filebase: 'syntalos-mlink',
     subdirs: 'syntalos/mlink',
-    requires: ['Qt5Core']
+    requires: ['Qt5Core', 'syntalos-datactl']
 )

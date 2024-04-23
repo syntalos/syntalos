@@ -23,7 +23,7 @@
 #include <time.h>
 
 #include "clocksettingsdialog.h"
-#include "tsyncfile.h"
+#include "datactl/tsyncfile.h"
 
 #define NSEC_IN_SEC 1000000000
 

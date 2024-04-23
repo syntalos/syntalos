@@ -31,9 +31,9 @@
 #include <thread>
 #include <unistd.h>
 
-#include "datatypes.h"
+#include "datactl/datatypes.h"
 #include "readerwriterqueue.h"
-#include "syclock.h"
+#include "datactl/syclock.h"
 
 using namespace moodycamel;
 using namespace Syntalos;

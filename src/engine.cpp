@@ -44,15 +44,15 @@
 #include <iceoryx_hoofs/error_handling/error_handling.hpp>
 
 #include "cpuaffinity.h"
-#include "edlstorage.h"
 #include "globalconfig.h"
 #include "meminfo.h"
 #include "moduleeventthread.h"
 #include "modulelibrary.h"
 #include "mlinkmodule.h"
 #include "rtkit.h"
-#include "syclock.h"
 #include "sysinfo.h"
+#include "datactl/syclock.h"
+#include "datactl/edlstorage.h"
 #include "utils/misc.h"
 #include "utils/tomlutils.h"
 

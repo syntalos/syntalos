@@ -22,8 +22,8 @@
 #include <QAbstractListModel>
 #include <QList>
 
-#include "edlstorage.h"
 #include "moduleapi.h"
+#include "datactl/edlstorage.h"
 
 class TestSubjectListModel : public QAbstractListModel
 {

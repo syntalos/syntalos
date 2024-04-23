@@ -21,9 +21,8 @@
 
 #include <QObject>
 #include <QVariantHash>
-#include <moduleapi.h>
-#include <syclock.h>
-#include <streams/datatypes.h>
+#include <datactl/syclock.h>
+#include <datactl/datatypes.h>
 
 namespace iox::popo
 {

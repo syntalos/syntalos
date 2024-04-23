@@ -19,7 +19,7 @@
 
 #include "pyooptestmodule.h"
 #include "mlinkmodule.h"
-#include "streams/frametype.h"
+#include "datactl/frametype.h"
 #include "globalconfig.h"
 
 #include <QMessageBox>

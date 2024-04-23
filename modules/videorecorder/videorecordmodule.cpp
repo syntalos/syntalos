@@ -19,7 +19,7 @@
 
 #include "videorecordmodule.h"
 
-#include "streams/frametype.h"
+#include "datactl/frametype.h"
 #include <QCoreApplication>
 #include <QDBusConnection>
 #include <QDBusInterface>

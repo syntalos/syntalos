@@ -24,7 +24,7 @@
 #include <chrono>
 #include <memory>
 
-#include "streams/frametype.h"
+#include "datactl/frametype.h"
 
 namespace Syntalos
 {

@@ -27,9 +27,9 @@
 #include <fstream>
 #include <memory>
 
-#include "eigenaux.h"
-#include "syclock.h"
-#include "tsyncfile.h"
+#include "datactl/eigenaux.h"
+#include "datactl/syclock.h"
+#include "datactl/tsyncfile.h"
 
 class QFile;
 

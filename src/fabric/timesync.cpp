@@ -19,11 +19,11 @@
 
 #include "timesync.h"
 
-#include "moduleapi.h"
 #include <QDateTime>
 #include <QDebug>
 #include <iostream>
 
+#include "moduleapi.h"
 #include "utils/misc.h"
 
 namespace Syntalos

@@ -38,7 +38,7 @@ extern "C" {
 #include <libswscale/swscale.h>
 }
 
-#include "tsyncfile.h"
+#include "datactl/tsyncfile.h"
 
 namespace Syntalos
 {

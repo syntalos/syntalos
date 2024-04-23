@@ -18,7 +18,7 @@
  */
 
 #include "examplemodule.h"
-#include "streams/frametype.h"
+#include "datactl/frametype.h"
 
 SYNTALOS_MODULE(ExampleCppModule)
 

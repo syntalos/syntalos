@@ -33,7 +33,6 @@
 #include <iceoryx_posh/runtime/service_discovery.hpp>
 
 #include "mlink/ipc-types-private.h"
-#include "streams/datatype-utils.h"
 #include "globalconfig.h"
 #include "utils/misc.h"
 

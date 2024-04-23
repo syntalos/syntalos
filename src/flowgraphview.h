@@ -31,7 +31,7 @@
 #include <QHash>
 #include <QList>
 
-#include "streams/datatypes.h"
+#include "datactl/datatypes.h"
 
 class FlowGraphView;
 class FlowGraphNode;

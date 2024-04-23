@@ -24,7 +24,7 @@
 #include <opencv2/imgproc.hpp>
 
 #include "streams/stream.h"
-#include "streams/frametype.h"
+#include "datactl/frametype.h"
 
 class Tracker : public QObject
 {

@@ -21,7 +21,7 @@
 
 #include <pybind11/pybind11.h>
 #include <QSize>
-#include "streams/datatypes.h"
+#include "datactl/datatypes.h"
 
 namespace pybind11
 {

@@ -28,6 +28,7 @@
 #include <QStandardPaths>
 #include <QCursor>
 
+#include "datactl/frametype.h"
 #include "utils/misc.h"
 
 using namespace Syntalos;
@@ -346,6 +347,46 @@ PortDirection StreamOutputPort::direction() const
 AbstractModule *StreamOutputPort::owner() const
 {
     return d->owner;
+}
+
+#define CHECK_RETURN_INPUT_PORT(T) \
+    if (typeId == BaseDataType::T) \
+        return new StreamInputPort<T>(mod, id, title);
+
+#define CHECK_RETURN_STREAM(T)     \
+    if (typeId == BaseDataType::T) \
+        return new DataStream<T>();
+
+VarStreamInputPort *Syntalos::newInputPortForType(
+    int typeId,
+    AbstractModule *mod,
+    const QString &id,
+    const QString &title = QString())
+{
+    CHECK_RETURN_INPUT_PORT(ControlCommand)
+    CHECK_RETURN_INPUT_PORT(TableRow)
+    CHECK_RETURN_INPUT_PORT(FirmataControl)
+    CHECK_RETURN_INPUT_PORT(FirmataData)
+    CHECK_RETURN_INPUT_PORT(Frame)
+    CHECK_RETURN_INPUT_PORT(IntSignalBlock)
+    CHECK_RETURN_INPUT_PORT(FloatSignalBlock)
+
+    qCritical() << "Unable to create input port for unknown type ID" << typeId;
+    return nullptr;
+}
+
+VariantDataStream *Syntalos::newStreamForType(int typeId)
+{
+    CHECK_RETURN_STREAM(ControlCommand)
+    CHECK_RETURN_STREAM(TableRow)
+    CHECK_RETURN_STREAM(FirmataControl)
+    CHECK_RETURN_STREAM(FirmataData)
+    CHECK_RETURN_STREAM(Frame)
+    CHECK_RETURN_STREAM(IntSignalBlock)
+    CHECK_RETURN_STREAM(FloatSignalBlock)
+
+    qCritical() << "Unable to create data stream for unknown type ID" << typeId;
+    return nullptr;
 }
 
 class AbstractModule::Private

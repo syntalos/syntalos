@@ -23,6 +23,7 @@
 
 #include <QDebug>
 #include <QStringList>
+#include <QTime>
 #include <QCoreApplication>
 
 #include <iostream>
@@ -35,8 +36,8 @@
 #include <stdexcept>
 
 #include <syntaloslink.h>
-#include "streams/datatypes.h"
-#include "streams/frametype.h"
+#include "datactl/datatypes.h"
+#include "datactl/frametype.h"
 #include "qstringtopy.h" // needed for QString registration
 #include "sydatatopy.h"  // needed for stream data type conversion
 #include "pyworker.h"

@@ -25,8 +25,8 @@
 #include <QSize>
 #include <opencv2/core.hpp>
 
-#include "streams/frametype.h"
-#include "syclock.h"
+#include "datactl/frametype.h"
+#include "datactl/syclock.h"
 #include "timesync.h"
 
 namespace Syntalos

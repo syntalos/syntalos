@@ -24,7 +24,7 @@
 
 #include "canvaswindow.h"
 #include "canvassettingsdialog.h"
-#include "streams/frametype.h"
+#include "datactl/frametype.h"
 
 SYNTALOS_MODULE(CanvasModule)
 

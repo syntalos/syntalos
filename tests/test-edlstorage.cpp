@@ -3,7 +3,7 @@
 #include <QtTest>
 #include <iostream>
 
-#include "edlstorage.h"
+#include "datactl/edlstorage.h"
 #include "utils/misc.h"
 #include "utils/tomlutils.h"
 

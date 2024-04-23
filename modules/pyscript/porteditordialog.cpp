@@ -23,7 +23,7 @@
 #include <QInputDialog>
 
 #include "moduleapi.h"
-#include "streams/datatypes.h"
+#include "datactl/datatypes.h"
 
 PortEditorDialog::PortEditorDialog(AbstractModule *mod, QWidget *parent)
     : QDialog(parent),

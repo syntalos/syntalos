@@ -19,12 +19,11 @@
 
 #include "tiscameramodule.h"
 
-#include "streams/frametype.h"
+#include "datactl/frametype.h"
 #include "utils/misc.h"
 #include <QDebug>
 #include <QMessageBox>
 #include <gst/app/gstappsink.h>
-#include <gst/video/video-format.h>
 #include <tcam-property-1.0.h>
 
 #include "tcamcontroldialog.h"

@@ -202,6 +202,16 @@ constexpr int syDataTypeId()
 }
 
 /**
+ * @brief Convenience function to deserialize a data type from memory
+ */
+template<typename T>
+T deserializeFromMemory(const void *memory, size_t size)
+    requires std::is_base_of_v<BaseDataType, T>
+{
+    return T::fromMemory(memory, size);
+}
+
+/**
  * @brief The ControlCommandKind enum
  *
  * Basic operations to control a module from another module.
@@ -574,25 +584,11 @@ void registerStreamMetaTypes();
  */
 QMap<QString, int> streamTypeIdMap();
 
-#ifndef NO_TID_PORTCONSTRUCTORS
-#if !defined(DOXYGEN_SHOULD_SKIP_THIS)
-
 class VariantDataStream;
 namespace Syntalos
 {
 class VarStreamInputPort;
 class AbstractModule;
 
-/**
- * @brief Create a new DataStream for the type identified by the given ID.
- */
-VariantDataStream *newStreamForType(int typeId);
-
-/**
- * @brief Create a new Input Port for the type identified by the given ID.
- */
-VarStreamInputPort *newInputPortForType(int typeId, AbstractModule *mod, const QString &id, const QString &title);
 
 } // namespace Syntalos
-#endif // DOXYGEN_SHOULD_SKIP_THIS
-#endif

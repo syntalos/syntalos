@@ -53,7 +53,10 @@ exhale_args = {
     'exhaleExecutesDoxygen': True,
     'exhaleDoxygenStdin': textwrap.dedent(
         '''
-                                INPUT                = ../src/
+                                INPUT                = ../src/datactl \
+                                                       ../src/fabric \
+                                                       ../src/mlink \
+                                                       ../src/utils
                                 BUILTIN_STL_SUPPORT  = YES
                                 EXTRACT_PRIVATE      = NO
                                 EXTRACT_PRIV_VIRTUAL = YES
@@ -61,12 +64,13 @@ exhale_args = {
                                                        *.md \
                                                        *.build \
                                                        *.ui \
-                                                       */pyworker/cvmatndsliceconvert.cpp
+                                                       */python/extra/*
                                 INCLUDE_FILE_PATTERNS = *.h *.hpp
                                 EXTENSION_MAPPING    = h=C++
                                 ENABLE_PREPROCESSING = YES
                                 RECURSIVE            = YES
                                 EXCLUDE_SYMBOLS      = *::Private \
+                                                       iox::* \
                                                        moodycamel::* \
                                                        Q_DECLARE_METATYPE \
                                                        Q_DECLARE_FLAGS \

@@ -3,7 +3,7 @@
 #include <QtTest>
 #include <iostream>
 
-#include "syclock.h"
+#include "datactl/syclock.h"
 #include "timesync.h"
 #include "utils/misc.h"
 

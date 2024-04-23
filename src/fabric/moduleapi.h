@@ -27,13 +27,13 @@
 #include <QObject>
 #include <QPixmap>
 
-#include "edlstorage.h"
 #include "modconfig.h"
 #include "optionalwaitcondition.h"
 #include "streams/stream.h"
-#include "streams/datatypes.h"
 #include "subscriptionwatcher.h"
-#include "syclock.h"
+#include "datactl/datatypes.h"
+#include "datactl/edlstorage.h"
+#include "datactl/syclock.h"
 #include "timesync.h"
 
 namespace Syntalos
@@ -343,6 +343,16 @@ private:
     class Private;
     QScopedPointer<Private> d;
 };
+
+/**
+ * @brief Create a new DataStream for the type identified by the given ID.
+ */
+VariantDataStream *newStreamForType(int typeId);
+
+/**
+ * @brief Create a new Input Port for the type identified by the given ID.
+ */
+VarStreamInputPort *newInputPortForType(int typeId, AbstractModule *mod, const QString &id, const QString &title);
 
 /// Event function type for timed callbacks
 using intervalEventFunc_t = void (AbstractModule::*)(int &);

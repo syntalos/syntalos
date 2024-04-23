@@ -19,7 +19,7 @@
 
 #include "genericcameramodule.h"
 
-#include "streams/frametype.h"
+#include "datactl/frametype.h"
 #include <QDebug>
 
 #include "camera.h"

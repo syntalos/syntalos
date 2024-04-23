@@ -29,7 +29,7 @@
 #include "engine.h"
 #include "moduleapi.h"
 #include "moduleselectdialog.h"
-#include "streams/frametype.h"
+#include "datactl/frametype.h"
 #include "utils/misc.h"
 #include "utils/style.h"
 

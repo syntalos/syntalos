@@ -18,7 +18,7 @@
  */
 
 #include "datasourcemodule.h"
-#include "streams/frametype.h"
+#include "datactl/frametype.h"
 
 #include <format>
 #include <QInputDialog>

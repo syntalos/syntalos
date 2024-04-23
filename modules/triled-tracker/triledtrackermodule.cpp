@@ -21,7 +21,7 @@
 
 #include <QDebug>
 
-#include "streams/frametype.h"
+#include "datactl/frametype.h"
 #include "utils/vipsutils.h"
 #include "tracker.h"
 

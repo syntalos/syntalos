@@ -22,7 +22,7 @@
 #include <QOpenGLWidget>
 #include <QOpenGLExtraFunctions>
 
-#include "streams/datatypes.h"
+#include "datactl/datatypes.h"
 
 class PlotSeriesSettings
 {

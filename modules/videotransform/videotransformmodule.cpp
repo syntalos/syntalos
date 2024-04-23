@@ -19,7 +19,7 @@
 
 #include "videotransformmodule.h"
 
-#include "streams/frametype.h"
+#include "datactl/frametype.h"
 #include "vtransformctldialog.h"
 
 SYNTALOS_MODULE(VideoTransformModule)

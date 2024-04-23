@@ -25,7 +25,7 @@
 #include <mutex>
 #include <pybind11/pybind11.h>
 
-#include "syclock.h"
+#include <datactl/syclock.h>
 
 namespace py = pybind11;
 using namespace Syntalos;

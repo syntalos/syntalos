@@ -3,10 +3,10 @@
 syntalos_main_inc_dir = include_directories('.')
 
 subdir('utils')
+subdir('datactl')
 subdir('fabric')
 subdir('roudi')
 subdir('mlink')
-subdir('uilib')
 subdir('python')
 
 syntalos_src = [
@@ -83,7 +83,6 @@ syntalos_exe = executable('syntalos',
     [syntalos_src, syntalos_moc, config_h, modconfig_h],
     gnu_symbol_visibility: 'hidden',
     dependencies: [syntalos_fabric_dep,
-                   syntalos_uilib_dep,
                    thread_dep,
                    qt_core_dep,
                    qt_gui_dep,

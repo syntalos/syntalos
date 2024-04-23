@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include "streams/frametype.h"
+#include "datactl/frametype.h"
 #include <QIcon>
 #include <QObject>
 #include <QWidget>
