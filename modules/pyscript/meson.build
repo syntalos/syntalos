@@ -4,17 +4,15 @@ module_hdr = [
     'pyscriptmodule.h'
 ]
 module_moc_hdr = [
-    'porteditordialog.h'
 ]
 
 module_src = [
-    'porteditordialog.cpp'
 ]
 module_moc_src = [
     'pyscriptmodule.cpp'
 ]
 
-module_ui = ['porteditordialog.ui']
+module_ui = []
 
 kftexteditor_dep = dependency('KF5TextEditor')
 module_deps = [kftexteditor_dep]

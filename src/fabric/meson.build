@@ -13,6 +13,8 @@ syntalos_fabric_src = [
     'moduleapi.cpp',
     'optionalwaitcondition.h',
     'optionalwaitcondition.cpp',
+    'porteditordialog.h',
+    'porteditordialog.cpp',
     'rangeslider.h',
     'rangeslider.cpp',
     'subscriptionwatcher.h',
@@ -26,6 +28,10 @@ syntalos_fabric_src = [
     'streams/readerwriterqueue.h',
     'streams/stream.h',
     'streams/stream.cpp',
+]
+
+syntalos_fabric_ui = [
+    'porteditordialog.ui',
 ]
 
 syntalos_fabric_inc_dir = include_directories('.')
@@ -43,6 +49,7 @@ endforeach
 syntalos_fabric_moc = qt.preprocess(
     moc_headers: syntalos_fabric_h,
     moc_sources: syntalos_fabric_s,
+    ui_files: syntalos_fabric_ui,
     moc_extra_arguments: ['--no-notes']
 )
 
