@@ -44,7 +44,6 @@
         <file alias="table">modules/table.svg</file>
     </qresource>
     <qresource prefix="/texts">
-        <file>pyscript-sample.py</file>
         <file>greetings.toml</file>
     </qresource>
     <qresource prefix="/animations">
