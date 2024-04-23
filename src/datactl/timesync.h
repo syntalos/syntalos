@@ -38,10 +38,6 @@ namespace Syntalos
 
 Q_DECLARE_LOGGING_CATEGORY(logTimeSync)
 
-#if !defined(DOXYGEN_SHOULD_SKIP_THIS)
-class AbstractModule;
-#endif // DOXYGEN_SHOULD_SKIP_THIS
-
 /**
  * @brief The amount of time a secondary clock is allowed to deviate from the master.
  *
@@ -87,6 +83,17 @@ namespace Syntalos
 {
 
 /**
+ * @brief Function to call when synchronizer details have changed
+ */
+using SyncDetailsChangeNotifyFn =
+    std::function<void(const QString &id, const TimeSyncStrategies &strategies, const microseconds_t &tolerance)>;
+
+/**
+ * @brief Function to call to notify about an offset change
+ */
+using OffsetChangeNotifyFn = std::function<void(const QString &id, const microseconds_t &currentOffset)>;
+
+/**
  * @brief Synchronizer for a monotonic counter, given a frequency
  *
  * This synchronizer helps synchronizing the counting of a monotonic counter
@@ -101,10 +108,17 @@ class FreqCounterSynchronizer
 public:
     explicit FreqCounterSynchronizer(
         std::shared_ptr<SyncTimer> masterTimer,
-        AbstractModule *mod,
+        const QString &modName,
         double frequencyHz,
         const QString &id = nullptr);
     ~FreqCounterSynchronizer();
+
+    /**
+     * @brief Set callback functions to notify about state changes
+     */
+    void setNotifyCallbacks(
+        const SyncDetailsChangeNotifyFn &detailsChangeNotifyFn,
+        const OffsetChangeNotifyFn &offsetChangeNotifyFn);
 
     void setCalibrationBlocksCount(int count);
     void setStrategies(const TimeSyncStrategies &strategies);
@@ -128,12 +142,15 @@ public:
 private:
     Q_DISABLE_COPY(FreqCounterSynchronizer)
 
-    AbstractModule *m_mod;
+    QString m_modName;
     QUuid m_collectionId;
     QString m_id;
     TimeSyncStrategies m_strategies;
     microseconds_t m_lastOffsetEmission;
     std::shared_ptr<SyncTimer> m_syTimer;
+
+    SyncDetailsChangeNotifyFn m_detailsChangeNotifyFn;
+    OffsetChangeNotifyFn m_offsetChangeNotifyFn;
 
     uint m_toleranceUsec;
     bool m_lastOffsetWithinTolerance;
@@ -174,9 +191,16 @@ class SecondaryClockSynchronizer
 public:
     explicit SecondaryClockSynchronizer(
         std::shared_ptr<SyncTimer> masterTimer,
-        AbstractModule *mod,
+        const QString &modName,
         const QString &id = QString());
     ~SecondaryClockSynchronizer();
+
+    /**
+     * @brief Set callback functions to notify about state changes
+     */
+    void setNotifyCallbacks(
+        const SyncDetailsChangeNotifyFn &detailsChangeNotifyFn,
+        const OffsetChangeNotifyFn &offsetChangeNotifyFn);
 
     /**
      * @brief An adjustment offset to pring the secondary clock back to speed.
@@ -212,12 +236,15 @@ private:
 
     void emitSyncDetailsChanged();
 
-    AbstractModule *m_mod;
+    QString m_modName;
     QUuid m_collectionId;
     QString m_id;
     TimeSyncStrategies m_strategies;
     microseconds_t m_lastOffsetEmission;
     std::shared_ptr<SyncTimer> m_syTimer;
+
+    SyncDetailsChangeNotifyFn m_detailsChangeNotifyFn;
+    OffsetChangeNotifyFn m_offsetChangeNotifyFn;
 
     uint m_toleranceUsec;
     bool m_lastOffsetWithinTolerance;

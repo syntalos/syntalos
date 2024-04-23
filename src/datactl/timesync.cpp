@@ -23,7 +23,6 @@
 #include <QDebug>
 #include <iostream>
 
-#include "moduleapi.h"
 #include "utils/misc.h"
 
 namespace Syntalos
@@ -77,10 +76,10 @@ const QString Syntalos::timeSyncStrategiesToHString(const TimeSyncStrategies &st
 
 FreqCounterSynchronizer::FreqCounterSynchronizer(
     std::shared_ptr<SyncTimer> masterTimer,
-    AbstractModule *mod,
+    const QString &modName,
     double frequencyHz,
     const QString &id)
-    : m_mod(mod),
+    : m_modName(modName),
       m_id(id),
       m_strategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD | TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD),
       m_lastOffsetEmission(0),
@@ -98,15 +97,23 @@ FreqCounterSynchronizer::FreqCounterSynchronizer(
 
     // time one datapoint takes to acquire, if the frequency in Hz is accurate, in microseconds
     m_timePerPointUs = (1.0 / m_freq) * 1000.0 * 1000.0;
-
-    // make our existence known to the system
-    if (m_mod != nullptr)
-        emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec));
 }
 
 FreqCounterSynchronizer::~FreqCounterSynchronizer()
 {
     stop();
+}
+
+void FreqCounterSynchronizer::setNotifyCallbacks(
+    const SyncDetailsChangeNotifyFn &detailsChangeNotifyFn,
+    const OffsetChangeNotifyFn &offsetChangeNotifyFn)
+{
+    m_detailsChangeNotifyFn = detailsChangeNotifyFn;
+    m_offsetChangeNotifyFn = offsetChangeNotifyFn;
+
+    // make our existence known to the system immediately
+    if (m_detailsChangeNotifyFn)
+        m_detailsChangeNotifyFn(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec));
 }
 
 int FreqCounterSynchronizer::indexOffset() const
@@ -153,24 +160,24 @@ void FreqCounterSynchronizer::setStrategies(const TimeSyncStrategies &strategies
 {
     if (m_haveExpectedOffset) {
         qCWarning(logTimeSync).noquote() << "Rejected strategy change on active FreqCounter Synchronizer for"
-                                         << m_mod->name();
+                                         << m_modName;
         return;
     }
     m_strategies = strategies;
-    if (m_mod != nullptr)
-        emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec));
+    if (m_detailsChangeNotifyFn)
+        m_detailsChangeNotifyFn(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec));
 }
 
 void FreqCounterSynchronizer::setTolerance(const std::chrono::microseconds &tolerance)
 {
     if (m_haveExpectedOffset) {
         qCWarning(logTimeSync).noquote() << "Rejected tolerance change on active FreqCounter Synchronizer for"
-                                         << m_mod->name();
+                                         << m_modName;
         return;
     }
     m_toleranceUsec = tolerance.count();
-    if (m_mod != nullptr)
-        emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec));
+    if (m_detailsChangeNotifyFn)
+        m_detailsChangeNotifyFn(m_id, m_strategies, std::chrono::microseconds(m_toleranceUsec));
 }
 
 bool FreqCounterSynchronizer::start()
@@ -178,15 +185,15 @@ bool FreqCounterSynchronizer::start()
     if (m_haveExpectedOffset) {
         qCWarning(logTimeSync).noquote()
             << "Restarting a FreqCounter Synchronizer that has already been used is not permitted. This is an issue in"
-            << m_mod->name();
+            << m_modName;
         return false;
     }
     if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE)) {
         m_tswriter->setSyncMode(TSyncFileMode::SYNCPOINTS);
         m_tswriter->setTimeDataTypes(TSyncFileDataType::INT64, TSyncFileDataType::INT64);
-        if (!m_tswriter->open(m_mod->name(), m_collectionId, microseconds_t(m_toleranceUsec))) {
-            qCCritical(logTimeSync).noquote().nospace() << "Unable to open timesync file for " << m_mod->name() << "["
-                                                        << m_id << "]: " << m_tswriter->lastError();
+        if (!m_tswriter->open(m_modName, m_collectionId, microseconds_t(m_toleranceUsec))) {
+            qCCritical(logTimeSync).noquote().nospace()
+                << "Unable to open timesync file for " << m_modName << "[" << m_id << "]: " << m_tswriter->lastError();
             return false;
         }
     }
@@ -219,8 +226,8 @@ void FreqCounterSynchronizer::stop()
             if (offset.count() > 0)
                 offset = microseconds_t(0);
             else if (offset.count() != 0)
-                qCDebug(logTimeSync).noquote() << "Cutting off" << offset.count()
-                                               << "µs from timesync file to align endpoint for" << m_mod->name();
+                qCDebug(logTimeSync).noquote()
+                    << "Cutting off" << offset.count() << "µs from timesync file to align endpoint for" << m_modName;
 
             m_tswriter->writeTimes(
                 microseconds_t(std::lround((m_lastSecondaryIdxUnandjusted + 1) * m_timePerPointUs)) + offset,
@@ -306,8 +313,8 @@ void FreqCounterSynchronizer::processTimestamps(
         m_haveExpectedOffset = true;
 
         // send (possibly initial) offset info to the controller)
-        if (m_mod != nullptr)
-            emit m_mod->synchronizerOffsetChanged(m_id, microseconds_t(avgOffsetUsec - m_expectedOffset.count()));
+        if (m_offsetChangeNotifyFn)
+            m_offsetChangeNotifyFn(m_id, microseconds_t(avgOffsetUsec - m_expectedOffset.count()));
 
         // If we are writing a timesync-file, always write the time when the very first
         // datapoint was acquired as first value.
@@ -332,8 +339,8 @@ void FreqCounterSynchronizer::processTimestamps(
         if ((blockIndex == 0)
             && ((!m_lastOffsetWithinTolerance)
                 || (blocksRecvTimestamp.count() > (m_lastOffsetEmission.count() + (30 * 1000 * 1000))))) {
-            if (m_mod != nullptr)
-                emit m_mod->synchronizerOffsetChanged(m_id, microseconds_t(avgOffsetDeviationUsec));
+            if (m_offsetChangeNotifyFn)
+                m_offsetChangeNotifyFn(m_id, microseconds_t(avgOffsetDeviationUsec));
             m_lastOffsetEmission = blocksRecvTimestamp;
         }
 
@@ -376,8 +383,8 @@ void FreqCounterSynchronizer::processTimestamps(
     // Emit offset information to the main controller about every 10sec or slower
     // in case we run at slower speeds
     if ((blockIndex == 0) && (masterAssumedAcqTS.count() > (m_lastOffsetEmission.count() + (10 * 1000 * 1000)))) {
-        if (m_mod != nullptr)
-            emit m_mod->synchronizerOffsetChanged(m_id, microseconds_t(avgOffsetDeviationUsec));
+        if (m_offsetChangeNotifyFn)
+            m_offsetChangeNotifyFn(m_id, microseconds_t(avgOffsetDeviationUsec));
         m_lastOffsetEmission = blocksRecvTimestamp;
     }
 
@@ -438,9 +445,9 @@ void FreqCounterSynchronizer::processTimestamps(
 
 SecondaryClockSynchronizer::SecondaryClockSynchronizer(
     std::shared_ptr<SyncTimer> masterTimer,
-    AbstractModule *mod,
+    const QString &modName,
     const QString &id)
-    : m_mod(mod),
+    : m_modName(modName),
       m_id(id),
       m_strategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD | TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD),
       m_lastOffsetEmission(0),
@@ -463,6 +470,17 @@ SecondaryClockSynchronizer::~SecondaryClockSynchronizer()
     stop();
 }
 
+void SecondaryClockSynchronizer::setNotifyCallbacks(
+    const SyncDetailsChangeNotifyFn &detailsChangeNotifyFn,
+    const OffsetChangeNotifyFn &offsetChangeNotifyFn)
+{
+    m_detailsChangeNotifyFn = detailsChangeNotifyFn;
+    m_offsetChangeNotifyFn = offsetChangeNotifyFn;
+
+    // make our existence known to the system immediately
+    emitSyncDetailsChanged();
+}
+
 microseconds_t SecondaryClockSynchronizer::clockCorrectionOffset() const
 {
     return m_clockCorrectionOffset;
@@ -472,7 +490,7 @@ void SecondaryClockSynchronizer::setCalibrationPointsCount(int timepointCount)
 {
     if (m_haveExpectedOffset) {
         qCWarning(logTimeSync).noquote() << "Rejected calibration point count change on active Clock Synchronizer for"
-                                         << m_mod->name();
+                                         << m_modName;
         return;
     }
     if (timepointCount > 10)
@@ -482,13 +500,12 @@ void SecondaryClockSynchronizer::setCalibrationPointsCount(int timepointCount)
 void SecondaryClockSynchronizer::setExpectedClockFrequencyHz(double frequency)
 {
     if (m_haveExpectedOffset) {
-        qCWarning(logTimeSync).noquote() << "Rejected frequency change on active Clock Synchronizer for"
-                                         << m_mod->name();
+        qCWarning(logTimeSync).noquote() << "Rejected frequency change on active Clock Synchronizer for" << m_modName;
         return;
     }
 
     if (frequency <= 0) {
-        qCWarning(logTimeSync).noquote() << "Rejected bogus frequency change to <= 0 for" << m_mod->name();
+        qCWarning(logTimeSync).noquote() << "Rejected bogus frequency change to <= 0 for" << m_modName;
         return;
     }
 
@@ -523,8 +540,7 @@ microseconds_t SecondaryClockSynchronizer::expectedOffsetToMaster() const
 void SecondaryClockSynchronizer::setStrategies(const TimeSyncStrategies &strategies)
 {
     if (m_haveExpectedOffset) {
-        qCWarning(logTimeSync).noquote() << "Rejected strategy change on active Clock Synchronizer for"
-                                         << m_mod->name();
+        qCWarning(logTimeSync).noquote() << "Rejected strategy change on active Clock Synchronizer for" << m_modName;
         return;
     }
     m_strategies = strategies;
@@ -534,8 +550,7 @@ void SecondaryClockSynchronizer::setStrategies(const TimeSyncStrategies &strateg
 void SecondaryClockSynchronizer::setTolerance(const microseconds_t &tolerance)
 {
     if (m_haveExpectedOffset) {
-        qCWarning(logTimeSync).noquote() << "Rejected tolerance change on active Clock Synchronizer for"
-                                         << m_mod->name();
+        qCWarning(logTimeSync).noquote() << "Rejected tolerance change on active Clock Synchronizer for" << m_modName;
         return;
     }
     m_toleranceUsec = tolerance.count();
@@ -547,22 +562,22 @@ bool SecondaryClockSynchronizer::start()
     if (m_haveExpectedOffset) {
         qCWarning(logTimeSync).noquote()
             << "Restarting a Clock Synchronizer that has already been used is not permitted. This is an issue in "
-            << m_mod->name();
+            << m_modName;
         return false;
     }
     if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE)) {
         m_tswriter->setSyncMode(TSyncFileMode::SYNCPOINTS);
         m_tswriter->setTimeDataTypes(TSyncFileDataType::INT64, TSyncFileDataType::INT64);
-        if (!m_tswriter->open(m_mod->name(), m_collectionId, microseconds_t(m_toleranceUsec))) {
-            qCCritical(logTimeSync).noquote().nospace() << "Unable to open timesync file for " << m_mod->name() << "["
-                                                        << m_id << "]: " << m_tswriter->lastError();
+        if (!m_tswriter->open(m_modName, m_collectionId, microseconds_t(m_toleranceUsec))) {
+            qCCritical(logTimeSync).noquote().nospace()
+                << "Unable to open timesync file for " << m_modName << "[" << m_id << "]: " << m_tswriter->lastError();
             return false;
         }
     }
 
     if (m_calibrationMaxN <= 4)
-        qCCritical(logTimeSync).noquote().nospace() << "Clock synchronizer for " << m_mod->name() << "[" << m_id
-                                                    << "] uses a tiny calibration array (length <= 4)";
+        qCCritical(logTimeSync).noquote().nospace()
+            << "Clock synchronizer for " << m_modName << "[" << m_id << "] uses a tiny calibration array (length <= 4)";
     assert(m_calibrationMaxN > 0);
 
     m_lastOffsetWithinTolerance = false;
@@ -678,8 +693,8 @@ void SecondaryClockSynchronizer::processTimestamp(
         // share the good news with the controller! (immediately on change, or every 30sec otherwise)
         if ((!m_lastOffsetWithinTolerance)
             || (masterTimestamp.count() > (m_lastOffsetEmission.count() + (30 * 1000 * 1000)))) {
-            if (m_mod != nullptr)
-                emit m_mod->synchronizerOffsetChanged(m_id, microseconds_t(avgOffsetDeviationUsec));
+            if (m_offsetChangeNotifyFn)
+                m_offsetChangeNotifyFn(m_id, microseconds_t(avgOffsetDeviationUsec));
             m_lastOffsetEmission = masterTimestamp;
         }
         m_lastOffsetWithinTolerance = true;
@@ -695,8 +710,8 @@ void SecondaryClockSynchronizer::processTimestamp(
     // Emit offset information to the main controller about every 10sec or slower
     // in case we run at slower speeds
     if (masterTimestamp.count() > (m_lastOffsetEmission.count() + (10 * 1000 * 1000))) {
-        if (m_mod != nullptr)
-            emit m_mod->synchronizerOffsetChanged(m_id, microseconds_t(avgOffsetDeviationUsec));
+        if (m_offsetChangeNotifyFn)
+            m_offsetChangeNotifyFn(m_id, microseconds_t(avgOffsetDeviationUsec));
         m_lastOffsetEmission = masterTimestamp;
     }
 
@@ -750,6 +765,6 @@ void SecondaryClockSynchronizer::processTimestamp(
 
 void SecondaryClockSynchronizer::emitSyncDetailsChanged()
 {
-    if (m_mod != nullptr)
-        emit m_mod->synchronizerDetailsChanged(m_id, m_strategies, microseconds_t(m_toleranceUsec));
+    if (m_detailsChangeNotifyFn)
+        m_detailsChangeNotifyFn(m_id, m_strategies, microseconds_t(m_toleranceUsec));
 }

@@ -4,7 +4,7 @@
 #include <iostream>
 
 #include "datactl/syclock.h"
-#include "timesync.h"
+#include "datactl/timesync.h"
 #include "utils/misc.h"
 
 using namespace Syntalos;

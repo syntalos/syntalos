@@ -50,6 +50,7 @@ syntalos_mlink_dep = declare_dependency(
 )
 
 install_headers(sy_mlink_pub_hdr, subdir: 'syntalos' / 'mlink')
+install_headers('syntalos-mlink', subdir: 'syntalos')
 
 pkgc.generate(
     syntalos_mlink_lib,
@@ -57,7 +58,7 @@ pkgc.generate(
     name: 'syntalos-mlink',
     description: 'Library to build external Syntalos modules in separate processes.',
     filebase: 'syntalos-mlink',
-    subdirs: 'syntalos/mlink',
+    subdirs: 'syntalos',
     requires: [
         'Qt5Core',
         'syntalos-datactl'

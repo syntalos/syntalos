@@ -6,6 +6,7 @@ sy_datactl_pub_hdr = [
     'edlstorage.h',
     'eigenaux.h',
     'syclock.h',
+    'timesync.h',
     'tsyncfile.h',
     'vips8-q.h',
     'vipsutils.h',
@@ -19,6 +20,7 @@ sy_datactl_src = [
     'datatypes.cpp',
     'edlstorage.cpp',
     'syclock.cpp',
+    'timesync.cpp',
     'tsyncfile.cpp',
     'vipsutils.cpp',
 ]
@@ -68,7 +70,7 @@ pkgc.generate(
     name: 'syntalos-datactl',
     description: 'Library containing Syntalos data management, streaming and time synchronization primitives.',
     filebase: 'syntalos-datactl',
-    subdirs: 'syntalos/datactl',
+    subdirs: 'syntalos',
     requires: [
         'Qt5Core',
         'eigen3',

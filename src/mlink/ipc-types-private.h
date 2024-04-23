@@ -27,7 +27,6 @@
 #include <iceoryx_posh/popo/untyped_publisher.hpp>
 #include <iceoryx_posh/popo/untyped_subscriber.hpp>
 
-
 namespace Syntalos
 {
 

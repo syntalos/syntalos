@@ -19,9 +19,9 @@
 
 #include "readtsync.h"
 
-#include "timesync.h"
 #include <iostream>
 #include <memory>
+#include "datactl/timesync.h"
 
 using namespace Syntalos;
 

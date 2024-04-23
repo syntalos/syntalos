@@ -26,7 +26,6 @@
 #include <memory>
 #include <ratio>
 
-
 Q_DECLARE_METATYPE(std::chrono::milliseconds);
 Q_DECLARE_METATYPE(std::chrono::microseconds);
 Q_DECLARE_METATYPE(std::chrono::nanoseconds);

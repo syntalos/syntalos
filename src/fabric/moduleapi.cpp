@@ -897,7 +897,15 @@ std::unique_ptr<FreqCounterSynchronizer> AbstractModule::initCounterSynchronizer
         return nullptr;
     assert(frequencyHz > 0);
 
-    std::unique_ptr<FreqCounterSynchronizer> synchronizer(new FreqCounterSynchronizer(m_syTimer, this, frequencyHz));
+    auto synchronizer = std::make_unique<FreqCounterSynchronizer>(m_syTimer, name(), frequencyHz);
+    synchronizer->setNotifyCallbacks(
+        [this](const QString &id, const TimeSyncStrategies &strategies, const microseconds_t &tolerance) {
+            Q_EMIT synchronizerDetailsChanged(id, strategies, tolerance);
+        },
+        [this](const QString &id, const microseconds_t &currentOffset) {
+            Q_EMIT synchronizerOffsetChanged(id, currentOffset);
+        });
+
     return synchronizer;
 }
 
@@ -906,9 +914,18 @@ std::unique_ptr<SecondaryClockSynchronizer> AbstractModule::initClockSynchronize
     if ((d->state != ModuleState::PREPARING) && (d->state != ModuleState::READY) && (d->state != ModuleState::RUNNING))
         return nullptr;
 
-    std::unique_ptr<SecondaryClockSynchronizer> synchronizer(new SecondaryClockSynchronizer(m_syTimer, this));
+    auto synchronizer = std::make_unique<SecondaryClockSynchronizer>(m_syTimer, name());
     if (expectedFrequencyHz > 0)
         synchronizer->setExpectedClockFrequencyHz(expectedFrequencyHz);
+
+    synchronizer->setNotifyCallbacks(
+        [this](const QString &id, const TimeSyncStrategies &strategies, const microseconds_t &tolerance) {
+            Q_EMIT synchronizerDetailsChanged(id, strategies, tolerance);
+        },
+        [this](const QString &id, const microseconds_t &currentOffset) {
+            Q_EMIT synchronizerOffsetChanged(id, currentOffset);
+        });
+
     return synchronizer;
 }
 

@@ -591,5 +591,4 @@ namespace Syntalos
 class VarStreamInputPort;
 class AbstractModule;
 
-
 } // namespace Syntalos

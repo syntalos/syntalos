@@ -27,7 +27,7 @@
 
 #include "datactl/frametype.h"
 #include "datactl/syclock.h"
-#include "timesync.h"
+#include "datactl/timesync.h"
 
 namespace Syntalos
 {

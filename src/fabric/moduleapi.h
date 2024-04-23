@@ -34,7 +34,7 @@
 #include "datactl/datatypes.h"
 #include "datactl/edlstorage.h"
 #include "datactl/syclock.h"
-#include "timesync.h"
+#include "datactl/timesync.h"
 
 namespace Syntalos
 {

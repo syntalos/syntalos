@@ -21,8 +21,6 @@ syntalos_fabric_src = [
     'streamexporter.cpp',
     'sysinfo.h',
     'sysinfo.cpp',
-    'timesync.h',
-    'timesync.cpp',
 
     'streams/atomicops.h',
     'streams/readerwriterqueue.h',
