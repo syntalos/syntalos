@@ -22,6 +22,8 @@
 #include <QDebug>
 #include <time.h>
 
+#include "eigenaux.h"
+
 namespace Syntalos
 {
 Q_LOGGING_CATEGORY(logTimeClock, "time.clock")

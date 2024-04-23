@@ -21,7 +21,7 @@
 
 #include <QOpenGLWidget>
 #include <QOpenGLFunctions>
-#include "vips8-q.h"
+#include "datactl/vips8-q.h"
 
 class ImageViewWidget : public QOpenGLWidget, protected QOpenGLFunctions
 {

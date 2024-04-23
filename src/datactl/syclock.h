@@ -26,7 +26,6 @@
 #include <memory>
 #include <ratio>
 
-#include "eigenaux.h"
 
 Q_DECLARE_METATYPE(std::chrono::milliseconds);
 Q_DECLARE_METATYPE(std::chrono::microseconds);

@@ -27,7 +27,7 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/videoio.hpp>
 #include <sys/ioctl.h>
-#include "utils/vipsutils.h"
+#include "datactl/vipsutils.h"
 
 namespace Syntalos
 {

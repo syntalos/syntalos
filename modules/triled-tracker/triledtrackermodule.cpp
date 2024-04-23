@@ -22,7 +22,7 @@
 #include <QDebug>
 
 #include "datactl/frametype.h"
-#include "utils/vipsutils.h"
+#include "datactl/vipsutils.h"
 #include "tracker.h"
 
 SYNTALOS_MODULE(TriLedTrackerModule)

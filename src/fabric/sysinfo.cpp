@@ -30,9 +30,9 @@
 #include <QSysInfo>
 #include <QTextStream>
 #include <QThread>
-#include <vips8-q.h>
 #include <stdlib.h>
 #include <sys/utsname.h>
+#include <datactl/vips8-q.h>
 extern "C" {
 #include <libavutil/avutil.h>
 }

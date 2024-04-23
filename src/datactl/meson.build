@@ -4,12 +4,15 @@ sy_datactl_pub_hdr = [
     'datatypes.h',
     'frametype.h',
     'edlstorage.h',
+    'eigenaux.h',
     'syclock.h',
     'tsyncfile.h',
+    'vips8-q.h',
+    'vipsutils.h',
 ]
 
 sy_datactl_priv_hdr = [
-    'eigenaux.h',
+
 ]
 
 sy_datactl_src = [
@@ -17,6 +20,7 @@ sy_datactl_src = [
     'edlstorage.cpp',
     'syclock.cpp',
     'tsyncfile.cpp',
+    'vipsutils.cpp',
 ]
 
 sy_datactl_inc_dir = include_directories('..')
@@ -34,8 +38,11 @@ syntalos_datactl_lib = shared_library('syntalos-datactl',
     soversion: sy_mlink_abi_level,
     version: sy_version,
     dependencies: [sy_base_deps,
-                   syntalos_utils_dep,
+                   eigen_dep,
+                   xxhash_dep,
                    vips_dep,
+                   opencv_dep,
+                   syntalos_utils_dep,
     ],
     include_directories: [root_include_dir,
                           sy_datactl_inc_dir],
@@ -45,7 +52,11 @@ syntalos_datactl_lib = shared_library('syntalos-datactl',
 
 syntalos_datactl_dep = declare_dependency(
     link_with: syntalos_datactl_lib,
-    dependencies: [sy_base_deps, syntalos_utils_dep],
+    dependencies: [
+        sy_base_deps,
+        eigen_dep,
+        syntalos_utils_dep
+    ],
     include_directories: [sy_datactl_inc_dir]
 )
 
@@ -58,5 +69,9 @@ pkgc.generate(
     description: 'Library containing Syntalos data management, streaming and time synchronization primitives.',
     filebase: 'syntalos-datactl',
     subdirs: 'syntalos/datactl',
-    requires: ['Qt5Core']
+    requires: [
+        'Qt5Core',
+        'eigen3',
+        'syntalos-utils',
+    ]
 )

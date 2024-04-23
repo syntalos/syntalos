@@ -24,7 +24,7 @@
 #include <QMessageBox>
 
 #include "appstyle.h"
-#include "vips8-q.h"
+#include "datactl/vips8-q.h"
 
 int main(int argc, char *argv[])
 {

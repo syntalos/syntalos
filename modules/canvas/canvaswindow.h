@@ -20,7 +20,7 @@
 #pragma once
 
 #include <QWidget>
-#include "vips8-q.h"
+#include "datactl/vips8-q.h"
 
 class ImageViewWidget;
 class QLabel;

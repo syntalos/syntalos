@@ -42,7 +42,10 @@ syntalos_mlink_dep = declare_dependency(
     sources: [
         sy_mlink_pub_hdr,
     ],
-    dependencies: [qt_core_dep],
+    dependencies: [
+        qt_core_dep,
+        syntalos_datactl_dep,
+    ],
     include_directories: [include_directories('.')],
 )
 
@@ -55,5 +58,8 @@ pkgc.generate(
     description: 'Library to build external Syntalos modules in separate processes.',
     filebase: 'syntalos-mlink',
     subdirs: 'syntalos/mlink',
-    requires: ['Qt5Core', 'syntalos-datactl']
+    requires: [
+        'Qt5Core',
+        'syntalos-datactl'
+    ]
 )

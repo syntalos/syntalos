@@ -257,15 +257,10 @@ pybind11_dep = dependency('pybind11')
 # check for OpenCL headers
 cpp_compiler.has_header('CL/cl.h', required: true)
 
-# essential dependencies definitely required by
-# anything using the Syntalos API
-# NOTE: QtWidgets is required since modules expose QAction items
+# essential dependencies definitely required by any Syntalos binary
 sy_base_deps = [rt_lib,
                 thread_dep,
                 qt_core_dep,
-                qt_gui_dep,
-                eigen_dep,
-                xxhash_dep
 ]
 
 # vendored 3rd-party code

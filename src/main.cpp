@@ -28,7 +28,7 @@
 #include <pipewire/pipewire.h>
 #pragma GCC diagnostic pop
 #include <libusb.h>
-#include "vips8-q.h"
+#include "datactl/vips8-q.h"
 
 #include "mainwindow.h"
 

@@ -24,7 +24,7 @@
 #include <QLabel>
 #include <QSpinBox>
 #include <QTimer>
-#include <vips8-q.h>
+#include <datactl/vips8-q.h>
 
 VideoTransform::VideoTransform()
     : QObject()

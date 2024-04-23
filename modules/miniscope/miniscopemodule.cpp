@@ -25,7 +25,7 @@
 
 #include "miniscopesettingsdialog.h"
 #include "datactl/frametype.h"
-#include "utils/vipsutils.h"
+#include "datactl/vipsutils.h"
 
 SYNTALOS_MODULE(MiniscopeModule)
 

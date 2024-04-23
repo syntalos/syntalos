@@ -25,6 +25,7 @@
 #include <memory>
 
 #include "syclock.h"
+#include "eigenaux.h"
 
 using namespace Syntalos;
 

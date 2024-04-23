@@ -11,8 +11,6 @@ syntalos_utils_src = [
     'style.cpp',
     'tomlutils.h',
     'tomlutils.cpp',
-    'vipsutils.h',
-    'vipsutils.cpp',
 ]
 
 syntalos_utils_h = []
@@ -36,9 +34,9 @@ syntalos_utils_lib = shared_library('syntalos-utils',
      syntalos_utils_moc],
     dependencies: [sy_base_deps,
                    qt_dbus_dep,
-                   opencv_dep,
+                   qt_gui_dep,
                    opengl_dep,
-                   vips_dep],
+    ],
     include_directories: [root_include_dir,
                           include_directories('.'),
                           syntalos_main_inc_dir],
