@@ -24,6 +24,7 @@
 #include <QDir>
 #include <QCoreApplication>
 #include <iostream>
+#include <stdlib.h>
 
 #include "cpuaffinity.h"
 #include "rtkit.h"
@@ -63,6 +64,10 @@ PyWorker::PyWorker(SyntalosLink *slink, QObject *parent)
         m_link->awaitData(500 * 1000);
     });
     m_evTimer->start();
+
+    // switch to unbuffered mode so our parent receives Python output
+    // (e.g. from print() & Co.) faster.
+    setenv("PYTHONUNBUFFERED", "1", 1);
 }
 
 PyWorker::~PyWorker()

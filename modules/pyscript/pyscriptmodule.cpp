@@ -22,6 +22,7 @@
 #include <KTextEditor/Document>
 #include <KTextEditor/Editor>
 #include <KTextEditor/View>
+#include <qtermwidget5/qtermwidget.h>
 #include <QCoreApplication>
 #include <QDesktopServices>
 #include <QDebug>
@@ -73,12 +74,12 @@ public:
         pyDoc->setHighlightingMode("python");
 
         // add console output widget
-        m_pyconsoleWidget = new QTextBrowser(m_scriptWindow);
-        m_pyconsoleWidget->setFontFamily(QStringLiteral("Monospace"));
-        m_pyconsoleWidget->setFontPointSize(10);
+        m_pyconsoleWidget = new QTermWidget(0, m_scriptWindow);
+        m_pyconsoleWidget->setShellProgram(nullptr);
+        m_pyconsoleWidget->setFlowControlEnabled(false);
 
-        m_pyconsoleWidget->setTextColor(SyColorWhite);
         auto pal = m_pyconsoleWidget->palette();
+        pal.setColor(QPalette::Text, SyColorWhite);
         pal.setColor(QPalette::Base, SyColorDark);
         m_pyconsoleWidget->setPalette(pal);
 
@@ -86,7 +87,7 @@ public:
         splitter->addWidget(m_scriptView);
         splitter->addWidget(m_pyconsoleWidget);
         splitter->setStretchFactor(0, 8);
-        splitter->setStretchFactor(1, 1);
+        splitter->setStretchFactor(1, 5);
         auto scriptLayout = new QHBoxLayout(m_scriptWindow);
         m_scriptWindow->setLayout(scriptLayout);
         scriptLayout->setMargin(2);
@@ -105,7 +106,7 @@ public:
         // connect UI events
         setOutputCaptured(true);
         connect(this, &MLinkModule::processOutputReceived, this, [&](const QString &data) {
-            m_pyconsoleWidget->append(data);
+            m_pyconsoleWidget->sendText(data);
         });
 
         connect(portEditAction, &QAction::triggered, this, [&](bool) {
@@ -223,7 +224,7 @@ public:
     }
 
 private:
-    QTextBrowser *m_pyconsoleWidget;
+    QTermWidget *m_pyconsoleWidget;
     KTextEditor::View *m_scriptView;
     PortEditorDialog *m_portsDialog;
 

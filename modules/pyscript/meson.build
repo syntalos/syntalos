@@ -15,7 +15,11 @@ module_moc_src = [
 module_ui = []
 
 kftexteditor_dep = dependency('KF5TextEditor')
-module_deps = [kftexteditor_dep]
+qtermwidget_dep = dependency('qtermwidget5')
+module_deps = [
+    kftexteditor_dep,
+    qtermwidget_dep,
+]
 
 module_data = []
 
