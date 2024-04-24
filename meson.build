@@ -263,6 +263,9 @@ sy_base_deps = [rt_lib,
                 qt_core_dep,
 ]
 
+# sed binary for some file manipulation
+sed_prog = find_program('sed')
+
 # vendored 3rd-party code
 if 'plot' in get_option('modules')
     subdir('contrib/vendor')

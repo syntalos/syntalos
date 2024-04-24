@@ -64,3 +64,16 @@ pkgc.generate(
         'syntalos-datactl'
     ]
 )
+
+# Meson adds (in our case) bogus Requires.private lines which break
+# builds using libappstream. Fix this issue by post-processing the file.
+mlink_pc_fixup = run_command(
+    sed_prog,
+    '-i',
+    '/^Requires.private\|^Libs.private/ d',
+    meson.global_build_root() / 'meson-private' / 'syntalos-mlink.pc',
+    check: false
+)
+if mlink_pc_fixup.returncode() != 0
+    error('Unable to fix up the pc file:\n' + pc_fixup.stderr())
+endif

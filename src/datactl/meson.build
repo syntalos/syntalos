@@ -74,6 +74,5 @@ pkgc.generate(
     requires: [
         'Qt5Core',
         'eigen3',
-        'syntalos-utils',
     ]
 )
