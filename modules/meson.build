@@ -1,8 +1,16 @@
 # Syntalos Modules
 
+# module setup boilerplate
 module_lib_def_tmpl = files('module-lib-def.toml.in')
 ln_exe = find_program('ln')
 modules_enabled = get_option('modules')
+
+module_hdr = []
+module_src = []
+module_moc_hdr = []
+module_moc_src = []
+module_ui = []
+module_res = []
 
 # Developer modules
 subdir('devel.clock')

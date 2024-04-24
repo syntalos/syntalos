@@ -98,3 +98,10 @@ install_data(
 foreach fname : module_data
     fs.copyfile(fname)
 endforeach
+module_hdr = []
+module_src = []
+module_moc_hdr = []
+module_moc_src = []
+module_ui = []
+module_res = []
+module_deps = []

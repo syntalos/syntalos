@@ -1,34 +1,3 @@
-# Build definitions for module: jsonwriter
-
-module_hdr = [
-    'jsonwritermodule.h',
-]
-module_moc_hdr = [
-    'jsonsettingsdialog.h',
-]
-
-module_src = [
-    'jsonsettingsdialog.cpp',
-]
-module_moc_src = [
-    'jsonwritermodule.cpp',
-]
-
-module_ui = [
-    'jsonsettingsdialog.ui',
-]
-
-module_deps = [
-    kfarchive_dep
-]
-
-module_data = [
-    'jsonwriter.svg',
-]
-
-#
-# Generic module setup
-#
 module_name = fs.name(meson.current_source_dir()).to_lower().underscorify().replace('_', '-')
 mod_install_dir = join_paths(sy_modules_dir, fs.name(meson.current_source_dir()))
 

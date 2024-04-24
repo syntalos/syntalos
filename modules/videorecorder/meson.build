@@ -40,12 +40,13 @@ module_data = [
 # Generic module setup
 #
 module_name = fs.name(meson.current_source_dir()).to_lower().underscorify().replace('_', '-')
-mod_install_dir = vrecmod_install_dir
+mod_install_dir = join_paths(sy_modules_dir, fs.name(meson.current_source_dir()))
 
 module_moc = qt.preprocess(
     moc_headers: module_moc_hdr,
     moc_sources: module_moc_src,
     ui_files: module_ui,
+    qresources: module_res,
 )
 mod = shared_module(module_name,
     [module_hdr, module_moc_hdr,
@@ -75,3 +76,10 @@ install_data(
 foreach fname : module_data
     fs.copyfile(fname)
 endforeach
+module_hdr = []
+module_src = []
+module_moc_hdr = []
+module_moc_src = []
+module_ui = []
+module_res = []
+module_deps = []
