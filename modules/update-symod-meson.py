@@ -16,10 +16,12 @@ from glob import glob
 
 # these modules should have their build definitions
 # updated manually and shouldn't use the updater script
-MANUAL_MODULES = set([
-    'intan-rhx',
-    'camera-flir',
-])
+MANUAL_MODULES = set(
+    [
+        'intan-rhx',
+        'camera-flir',
+    ]
+)
 
 
 def update_meson_build_file(meson_fname, new_symod_setup_code):
@@ -36,7 +38,7 @@ def update_meson_build_file(meson_fname, new_symod_setup_code):
     sentinel = ["#\n", "# Generic module setup\n", "#\n"]
     index = -1
     for i in range(len(content) - len(sentinel) + 1):
-        if content[i:i+len(sentinel)] == sentinel:
+        if content[i : i + len(sentinel)] == sentinel:
             index = i + len(sentinel)
             break
 
