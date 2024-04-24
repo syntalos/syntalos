@@ -30,11 +30,12 @@
         <file>mouse-top.png</file>
     </qresource>
     <qresource prefix="/status">
-        <file alias="error">status/status-error.svg</file>
+        <file alias="idle">status/status-idle.svg</file>
         <file alias="preparing">status/status-preparing.svg</file>
+        <file alias="dormant">status/status-dormant.svg</file>
         <file alias="ready">status/status-ready.svg</file>
         <file alias="running">status/status-running.svg</file>
-        <file alias="idle">status/status-idle.svg</file>
+        <file alias="error">status/status-error.svg</file>
     </qresource>
     <qresource prefix="/module">
         <file alias="generic">modules/generic.svg</file>

@@ -172,7 +172,7 @@ public:
             }
 
             setStatusMessage("Process terminated.");
-            setStateIdle();
+            setStateDormant();
             // we don't have to run again, our process is dead
             intervalMsec = -1;
         }

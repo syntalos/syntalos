@@ -1662,9 +1662,12 @@ bool Engine::runInternal(const QString &exportDirPath)
             emitStatusMessage(QStringLiteral("Module '%1' failed to prepare.").arg(mod->name()));
             break;
         }
-        // if the module hasn't set itself to ready yet, assume it is idle
-        if (mod->state() != ModuleState::READY)
-            mod->setState(ModuleState::IDLE);
+        // If the module hasn't set itself to ready yet and is idle or preparing,
+        // assume it is actually ready. Otherwise flag it as dormant.
+        if (mod->state() == ModuleState::IDLE || mod->state() == ModuleState::PREPARING)
+            mod->setState(ModuleState::READY);
+        else if (mod->state() != ModuleState::READY)
+            mod->setState(ModuleState::DORMANT);
 
         qCDebug(logEngine).noquote().nospace()
             << "Module '" << mod->name() << "' prepared in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
@@ -1799,14 +1802,14 @@ bool Engine::runInternal(const QString &exportDirPath)
         for (auto &mod : orderedActiveModules) {
             if (mod->state() == ModuleState::READY)
                 continue;
-            // IDLE is also a valid state at this point, the module may not
+            // DORMANT is also a valid state at this point, the module may not
             // have had additional setup to do
-            if (mod->state() == ModuleState::IDLE)
+            if (mod->state() == ModuleState::DORMANT)
                 continue;
             emitStatusMessage(QStringLiteral("Waiting for '%1' to get ready...").arg(mod->name()));
             while (mod->state() != ModuleState::READY) {
                 QThread::msleep(500);
-                QCoreApplication::processEvents();
+                qApp->processEvents();
                 if (mod->state() == ModuleState::ERROR) {
                     emitStatusMessage(QStringLiteral("Module '%1' failed to initialize.").arg(mod->name()));
                     initSuccessful = false;
@@ -1832,8 +1835,11 @@ bool Engine::runInternal(const QString &exportDirPath)
         // collect modules which have an explicit UI callback method
         std::vector<AbstractModule *> callUiEventModules;
         for (auto &mod : orderedActiveModules) {
-            if (mod->features().testFlag(ModuleFeature::CALL_UI_EVENTS))
-                callUiEventModules.push_back(mod);
+            if (mod->features().testFlag(ModuleFeature::CALL_UI_EVENTS)) {
+                // we do not call UI events for modules that have marked themselves as dormant
+                if (mod->state() != ModuleState::DORMANT)
+                    callUiEventModules.push_back(mod);
+            }
         }
 
         // start monitoring resource issues during this run
@@ -1850,12 +1856,13 @@ bool Engine::runInternal(const QString &exportDirPath)
                 && (mod->driver() != ModuleDriverKind::EVENTS_SHARED))
                 continue;
 
-            mod->start();
+            if (mod->state() != ModuleState::DORMANT)
+                mod->start();
 
             // ensure modules are in their "running" state now, or
-            // have themselves declared "idle" (meaning they won't be used at all)
+            // have themselves declared "dormant" (meaning they won't be used at all)
             mod->m_running = true;
-            if (mod->state() != ModuleState::IDLE)
+            if (mod->state() != ModuleState::DORMANT)
                 mod->setState(ModuleState::RUNNING);
         }
 
@@ -1880,11 +1887,13 @@ bool Engine::runInternal(const QString &exportDirPath)
                 || (mod->driver() == ModuleDriverKind::EVENTS_SHARED))
                 continue;
 
-            mod->start();
+            if (mod->state() != ModuleState::DORMANT)
+                mod->start();
 
             // work around bad modules which don't set this on their own in start()
             mod->m_running = true;
-            mod->setState(ModuleState::RUNNING);
+            if (mod->state() != ModuleState::DORMANT)
+                mod->setState(ModuleState::RUNNING);
         }
 
         qCDebug(logEngine).noquote().nospace() << "Startup phase completed, all modules are running. Took additional "

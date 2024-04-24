@@ -459,10 +459,10 @@ ModuleState AbstractModule::state() const
     return d->state;
 }
 
-void AbstractModule::setStateIdle()
+void AbstractModule::setStateDormant()
 {
     if ((d->state == ModuleState::RUNNING) || (d->state == ModuleState::INITIALIZING))
-        setState(ModuleState::IDLE);
+        setState(ModuleState::DORMANT);
 }
 
 void AbstractModule::setStateReady()

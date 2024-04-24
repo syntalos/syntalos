@@ -64,7 +64,7 @@ public:
         m_framesIn = nullptr;
         // check if there even is something to do for us
         if (!m_framesInPort->hasSubscription()) {
-            setStateIdle();
+            setStateDormant();
             return true;
         }
 

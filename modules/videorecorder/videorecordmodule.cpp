@@ -183,7 +183,7 @@ public:
 
         // we may be actually idle in case we e.g. aren't connected to any source
         if (!m_recording && (state() != ModuleState::ERROR))
-            setStateIdle();
+            setStateDormant();
 
         if (m_inSub.get() == nullptr)
             return;

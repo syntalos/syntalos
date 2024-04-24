@@ -384,7 +384,7 @@ public:
      * This may be useful in case the module us missing an essential stream
      * connection and essentially does nothing in a run.
      */
-    void setStateIdle();
+    void setStateDormant();
 
     /**
      * @brief Allow a preparing module to mark itself as ready

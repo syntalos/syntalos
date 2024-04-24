@@ -71,10 +71,6 @@ public:
 
     bool prepare(const TestSubject &) override
     {
-        m_rowSub.reset();
-        if (m_rowsIn->hasSubscription())
-            m_rowSub = m_rowsIn->subscription();
-
         // sanity check
         if (!m_settingsDlg->useNameFromSource() && m_settingsDlg->dataName().isEmpty()) {
             raiseError("Data name is not set. Please set it in the settings to continue.");
@@ -85,6 +81,17 @@ public:
         m_settingsDlg->setRunning(true);
         m_recTable->setSaveData(m_settingsDlg->saveData());
         m_recTable->setDisplayData(m_settingsDlg->displayData());
+
+        // check if we actually hae work to do
+        m_rowSub.reset();
+        if (m_rowsIn->hasSubscription()) {
+            m_rowSub = m_rowsIn->subscription();
+        } else {
+            // Don't do anything if we have no connection
+            // This will prevent start & processUiEvents from being called.
+            setStateDormant();
+            return true;
+        }
 
         return true;
     }

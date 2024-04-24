@@ -78,7 +78,7 @@ public:
         // don't even try to do anything in case we are not subscribed to a
         // frame source
         if (!m_inPort->hasSubscription()) {
-            setStateIdle();
+            setStateDormant();
             return;
         }
 

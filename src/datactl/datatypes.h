@@ -79,6 +79,7 @@ enum class ModuleState : uint16_t {
     INITIALIZING, /// Module is initializing after being added
     IDLE,         /// Module is inactive and not started
     PREPARING,    /// Module is preparing a run
+    DORMANT,      /// The module is inactive for this run, as it has no work to do
     READY,        /// Everything is prepared, we are ready to start
     RUNNING,      /// Module is running
     ERROR         /// Module failed to run / is in an error state

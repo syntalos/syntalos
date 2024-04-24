@@ -685,6 +685,10 @@ void FlowGraphNode::updateNodeState(ModuleState state)
         m_statusPix->setPixmap(QIcon(QPixmap(":/status/preparing")).pixmap(24, 24));
         m_statusText->setPlainText(QStringLiteral("Preparing..."));
         break;
+    case ModuleState::DORMANT:
+        m_statusPix->setPixmap(QIcon(QPixmap(":/status/dormant")).pixmap(24, 24));
+        m_statusText->setPlainText(QStringLiteral("Dormant."));
+        break;
     case ModuleState::READY:
         m_statusPix->setPixmap(QIcon(QPixmap(":/status/ready")).pixmap(24, 24));
         m_statusText->setPlainText(QStringLiteral("Ready."));
