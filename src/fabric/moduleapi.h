@@ -436,8 +436,10 @@ public:
         requires std::is_base_of_v<BaseDataType, T>
     std::shared_ptr<DataStream<T>> registerOutputPort(const QString &id, const QString &title = QString())
     {
-        if (m_outPorts.contains(id))
-            qWarning() << "Module" << name() << "already registered an output port with ID:" << id;
+        if (m_outPorts.contains(id)) {
+            qWarning().noquote() << "Module" << name() << "already registered an output port with ID:" << id;
+            return m_outPorts[id]->stream<T>();
+        }
 
         std::shared_ptr<DataStream<T>> stream(new DataStream<T>());
         std::shared_ptr<StreamOutputPort> outPort(new StreamOutputPort(this, id, title, stream));
@@ -461,8 +463,10 @@ public:
         requires std::is_base_of_v<BaseDataType, T>
     std::shared_ptr<StreamInputPort<T>> registerInputPort(const QString &id, const QString &title = QString())
     {
-        if (m_inPorts.contains(id))
-            qWarning() << "Module" << name() << "already registered an output port with ID:" << id;
+        if (m_inPorts.contains(id)) {
+            qWarning().noquote() << "Module" << name() << "already registered an input port with ID:" << id;
+            return std::dynamic_pointer_cast<StreamInputPort<T>>(m_inPorts[id]);
+        }
 
         std::shared_ptr<StreamInputPort<T>> inPort(new StreamInputPort<T>(this, id, title));
         m_inPorts.insert(id, inPort);
@@ -484,8 +488,10 @@ public:
         const QString &id,
         const QString &title = QString())
     {
-        if (m_outPorts.contains(id))
-            qWarning() << "Module" << name() << "already registered an output port with ID:" << id;
+        if (m_outPorts.contains(id)) {
+            qWarning().noquote() << "Module" << name() << "already registered an output port with ID:" << id;
+            return m_outPorts[id]->streamVar();
+        }
 
         auto varStream = newStreamForType(typeId);
         if (varStream == nullptr)
@@ -509,8 +515,10 @@ public:
         const QString &id,
         const QString &title = QString())
     {
-        if (m_inPorts.contains(id))
-            qWarning() << "Module" << name() << "already registered an output port with ID:" << id;
+        if (m_inPorts.contains(id)) {
+            qWarning().noquote() << "Module" << name() << "already registered an input port with ID:" << id;
+            return m_inPorts[id];
+        }
 
         auto varInPort = newInputPortForType(typeId, this, id, title);
         if (varInPort == nullptr)
