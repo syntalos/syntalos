@@ -1,0 +1,55 @@
+project('@EXE_NAME@', 'cpp',
+  meson_version: '>=0.64',
+  default_options: [
+      'cpp_std=gnu++20',
+      'buildtype=debugoptimized',
+      'optimization=3'
+  ],
+  version: '0.0',
+)
+
+cpp_compiler = meson.get_compiler('cpp')
+
+# find dependencies
+qt = import('qt5')
+qt_core_dep = dependency('qt5', modules: ['Core'], version: '>= 5.15')
+sy_mlink_dep = dependency('syntalos-mlink')
+
+# prevent some common mistakes
+add_project_arguments(
+  cpp_compiler.get_supported_arguments([
+    '-Werror=empty-body',
+    '-Werror=pointer-arith',
+    '-Werror=missing-declarations',
+    '-Werror=return-type',
+    '-Werror=misleading-indentation',
+    '-Werror=format-security',
+    '-Werror=suggest-override',
+
+    '-Wno-missing-field-initializers',
+    '-Wno-error=missing-field-initializers',
+    '-Wno-unused-parameter',
+    '-Wno-error=unused-parameter',
+  ]),
+  language: 'cpp'
+)
+
+# always optimize for native architecture
+add_project_arguments('-march=native', language: 'cpp')
+
+# define sources & targets
+wbmod_src = ['main.cpp']
+
+wbmod_moc = qt.preprocess(
+    moc_sources: wbmod_src,
+    moc_extra_arguments: ['--no-notes']
+)
+
+executable('@EXE_NAME@',
+    [wbmod_src,
+     wbmod_moc],
+    dependencies: [
+        qt_core_dep,
+        sy_mlink_dep,
+    ]
+)

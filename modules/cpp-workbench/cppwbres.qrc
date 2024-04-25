@@ -1,0 +1,8 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+  <qresource prefix="/code">
+    <file>example-template.cpp</file>
+    <file>template.meson</file>
+    <file>autobuild.sh</file>
+  </qresource>
+</RCC>

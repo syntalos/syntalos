@@ -39,6 +39,7 @@ QString colorModeToString(ColorMode mode);
 ColorMode colorModeFromString(const QString &str);
 
 QString findSyntalosPyWorkerBinary();
+void findSyntalosLibraryPaths(QString &pkgConfigPath, QString &ldLibraryPath, QString &includePath);
 
 class GlobalConfig : public QObject
 {
@@ -79,6 +80,7 @@ public:
     QString userModulesDir() const;
     QString virtualenvDir() const;
     QString homeDevelDir() const;
+    QString userCacheDir() const;
 
     bool useVenvForPyScript() const;
     void setUseVenvForPyScript(bool enabled);

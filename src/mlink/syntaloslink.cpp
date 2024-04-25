@@ -496,12 +496,28 @@ void SyntalosLink::processNotification(const iox::popo::NotificationInfo *notifi
 
             const auto sppReq = SetPortsPresetRequest::fromMemory(requestPayload, size);
 
-            // override our existing ports with the static ones Syntalos provided
-            d->inPortInfo.clear();
-            d->outPortInfo.clear();
-            for (const auto &ipc : sppReq.inPorts)
+            // We must not remove existing ports, as they might be in use. So instead, we
+            // add & merge port data.
+            for (const auto &ipc : sppReq.inPorts) {
+                bool skip = false;
+                for (const auto &ip : d->inPortInfo) {
+                    if (ip->id() == ipc.id)
+                        skip = true;
+                }
+                if (skip)
+                    continue;
                 d->inPortInfo.push_back(std::shared_ptr<InputPortInfo>(new InputPortInfo(ipc)));
+            }
+
             for (const auto &opc : sppReq.outPorts) {
+                bool skip = false;
+                for (const auto &op : d->outPortInfo) {
+                    if (op->id() == opc.id)
+                        skip = true;
+                }
+                if (skip)
+                    continue;
+
                 auto oport = std::shared_ptr<OutputPortInfo>(new OutputPortInfo(opc));
                 oport->d->ioxPub = d->makeUntypedPublisher(oport->d->publisherId());
                 d->outPortInfo.push_back(oport);
@@ -815,6 +831,12 @@ std::shared_ptr<InputPortInfo> SyntalosLink::registerInputPort(
     ipc.title = title;
     ipc.dataTypeId = BaseDataType::typeIdFromString(dataTypeName);
 
+    // check for duplicates
+    for (const auto &ip : d->inPortInfo) {
+        if (ip->id() == ipc.id)
+            return nullptr;
+    }
+
     const auto iportData = ipc.toBytes();
 
     // announce the new port to master
@@ -851,6 +873,12 @@ std::shared_ptr<OutputPortInfo> SyntalosLink::registerOutputPort(
     opc.title = title;
     opc.dataTypeId = BaseDataType::typeIdFromString(dataTypeName);
     opc.metadata = metadata;
+
+    // check for duplicates
+    for (const auto &op : d->outPortInfo) {
+        if (op->id() == opc.id)
+            return nullptr;
+    }
 
     const auto oportData = opc.toBytes();
 

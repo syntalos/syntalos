@@ -237,11 +237,11 @@ MLinkModule::MLinkModule(QObject *parent)
     // merge stdout/stderr of external process with ours by default
     setOutputCaptured(false);
 
-    d->proc->connect(d->proc, &QProcess::readyReadStandardOutput, this, [this]() {
+    connect(d->proc, &QProcess::readyReadStandardOutput, this, [this]() {
         if (d->outputCaptured)
             emit processOutputReceived(readProcessOutput());
     });
-    d->proc->connect(
+    connect(
         d->proc,
         static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
         this,
@@ -285,7 +285,17 @@ void MLinkModule::onPortChangedCb(iox::popo::UntypedSubscriber *subscriber, MLin
                     qCDebug(logMLinkMod).noquote() << "Input port change ignored: No changes are allowed.";
                 } else {
                     if (action == PortAction::ADD) {
-                        const auto iport = self->registerInputPortByTypeId(ipc.dataTypeId, ipc.id, ipc.title);
+                        // only register a new input port if we don't have one already
+                        auto iport = self->inPortById(ipc.id);
+                        if (iport) {
+                            if (iport->dataTypeId() != ipc.dataTypeId) {
+                                self->removeInPortById(ipc.id);
+                                iport = nullptr;
+                            }
+                        }
+
+                        if (!iport)
+                            iport = self->registerInputPortByTypeId(ipc.dataTypeId, ipc.id, ipc.title);
                         self->d->inPortIdMap.insert(ipc.id, iport);
                     } else if (action == PortAction::REMOVE) {
                         self->removeInPortById(ipc.id);
@@ -302,9 +312,22 @@ void MLinkModule::onPortChangedCb(iox::popo::UntypedSubscriber *subscriber, MLin
                     if (!self->d->portChangesAllowed) {
                         qCDebug(logMLinkMod).noquote() << "Output port addition ignored: No changes are allowed.";
                     } else {
-                        const auto oport = self->registerOutputPortByTypeId(opc.dataTypeId, opc.id, opc.title);
-                        oport->setMetadata(opc.metadata);
-                        self->d->outPortIdMap.insert(opc.id, oport);
+                        // only register a new output port if we don't have one already
+                        auto oport = self->outPortById(opc.id);
+                        std::shared_ptr<VariantDataStream> ostream;
+                        if (oport) {
+                            if (oport->dataTypeId() != opc.dataTypeId) {
+                                self->removeOutPortById(opc.id);
+                                oport = nullptr;
+                            } else {
+                                ostream = oport->streamVar();
+                            }
+                        }
+                        if (!ostream)
+                            ostream = self->registerOutputPortByTypeId(opc.dataTypeId, opc.id, opc.title);
+
+                        ostream->setMetadata(opc.metadata);
+                        self->d->outPortIdMap.insert(opc.id, ostream);
                     }
                 } else if (action == PortAction::REMOVE) {
                     if (!self->d->portChangesAllowed) {
@@ -402,6 +425,19 @@ void MLinkModule::setModuleBinary(const QString &binaryPath)
     d->proc->setProgram(binaryPath);
 }
 
+QProcessEnvironment MLinkModule::moduleBinaryEnv() const
+{
+    const auto env = d->proc->processEnvironment();
+    if (env.isEmpty())
+        return QProcessEnvironment::systemEnvironment();
+    return env;
+}
+
+void MLinkModule::setModuleBinaryEnv(const QProcessEnvironment &env)
+{
+    d->proc->setProcessEnvironment(env);
+}
+
 bool MLinkModule::outputCaptured() const
 {
     return d->outputCaptured;
@@ -494,7 +530,7 @@ bool MLinkModule::runProcess()
     // reset connection, just in case we changed our ID
     resetConnection();
 
-    auto penv = QProcessEnvironment::systemEnvironment();
+    auto penv = moduleBinaryEnv();
     penv.insert("SYNTALOS_VERSION", syntalosVersionFull());
     penv.insert("SYNTALOS_MODULE_ID", d->clientId.c_str());
     if (!d->pyVenvDir.isEmpty()) {
@@ -706,8 +742,11 @@ bool MLinkModule::prepare(const TestSubject &subject)
     for (auto &iport : inPorts()) {
         UpdateInputPortMetadataRequest req;
         req.id = iport->id();
-        req.metadata = iport->subscriptionVar()->metadata();
-        ;
+        if (iport->hasSubscription())
+            req.metadata = iport->subscriptionVar()->metadata();
+        else
+            continue;
+
         d->sentMetadata.insert(req.id, req.metadata);
         ret = callUntypedClientSimple(callUpdateIPortMetadata, req);
         if (!ret)
@@ -737,6 +776,7 @@ bool MLinkModule::prepare(const TestSubject &subject)
     if (state() == ModuleState::ERROR)
         return false;
 
+    d->portChangesAllowed = false;
     return true;
 }
 
@@ -748,6 +788,9 @@ void MLinkModule::start()
 
     // update input port metadata if the metadata has changed - this may happen in case of circular module connections
     for (auto &iport : inPorts()) {
+        if (!iport->hasSubscription())
+            continue;
+
         const auto mdata = iport->subscriptionVar()->metadata();
         if (d->sentMetadata.value(iport->id(), QVariantHash()) == mdata)
             continue;

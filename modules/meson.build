@@ -48,11 +48,12 @@ subdir('triled-tracker')
 
 # Device support
 subdir('sp210-pressuresense')
-
-# Python & Customization
 subdir('firmata-io')
 subdir('firmata-userctl')
+
+# Scripting
 subdir('pyscript')
+subdir('cpp-workbench')
 
 # Electrophysiology
 if 'intan-rhx' in modules_enabled

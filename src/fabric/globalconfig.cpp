@@ -187,6 +187,11 @@ QString GlobalConfig::homeDevelDir() const
     return QDir(m_userHome).filePath("SyntalosDevel");
 }
 
+QString GlobalConfig::userCacheDir() const
+{
+    return QDir(m_appDataRoot).filePath("cache");
+}
+
 bool GlobalConfig::useVenvForPyScript() const
 {
     return m_s->value("devel/use_venv_for_pyscript", false).toBool();
@@ -239,4 +244,46 @@ QString Syntalos::findSyntalosPyWorkerBinary()
     }
 
     return workerBinary;
+}
+void Syntalos::findSyntalosLibraryPaths(QString &pkgConfigPath, QString &ldLibraryPath, QString &includePath)
+{
+    // check if we are running from the build directory
+    QFile siFile(QStringLiteral("%1/../sy-source-info.txt").arg(QCoreApplication::applicationDirPath()));
+
+    // If the file does not exist, we are not running from the build directory
+    // and can assume the libraries are found in system search paths
+    if (!siFile.exists())
+        return;
+
+    if (!siFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qWarning().noquote()
+            << "Cannot open source-info file for reading. Syntalos library search paths will not be set.";
+        return;
+    }
+
+    QTextStream in(&siFile);
+    const auto srcRootKey = QStringLiteral("#define SY_SOURCE_ROOT");
+    QString srcRootPath;
+    while (!in.atEnd()) {
+        const auto line = in.readLine();
+        if (line.contains(srcRootKey)) {
+            QString path = line.mid(srcRootKey.length()).trimmed();
+            if (path.startsWith('/'))
+                srcRootPath = path;
+            break;
+        }
+    }
+    siFile.close();
+
+    if (srcRootPath.isEmpty()) {
+        qWarning().noquote() << "Syntalos source-root path was not found. Can not set include paths.";
+    } else {
+        includePath = QStringLiteral("%1/src:%1/src/mlink/include:%1/src/datactl/include").arg(srcRootPath);
+    }
+
+    QFileInfo pkgCRootFi(QStringLiteral("%1/../meson-private/").arg(QCoreApplication::applicationDirPath()));
+    pkgConfigPath = pkgCRootFi.canonicalFilePath();
+    ldLibraryPath = QStringLiteral("%1/mlink").arg(QCoreApplication::applicationDirPath()) + ":"
+                    + QStringLiteral("%1/datactl").arg(QCoreApplication::applicationDirPath()) + ":"
+                    + QStringLiteral("%1/utils").arg(QCoreApplication::applicationDirPath());
 }

@@ -2,6 +2,7 @@
 
 sy_mlink_pub_hdr = [
     'syntaloslink.h',
+    'syntaloslinkmodule.h',
 ]
 
 sy_mlink_priv_hdr = [
@@ -10,6 +11,7 @@ sy_mlink_priv_hdr = [
 
 sy_mlink_src = [
     'syntaloslink.cpp',
+    'syntaloslinkmodule.cpp',
 ]
 
 sy_mlink_moc = qt.preprocess(
@@ -46,11 +48,14 @@ syntalos_mlink_dep = declare_dependency(
         qt_core_dep,
         syntalos_datactl_dep,
     ],
-    include_directories: [include_directories('.')],
+    include_directories: [
+        include_directories('.'),
+        include_directories('./include')
+    ],
 )
 
 install_headers(sy_mlink_pub_hdr, subdir: 'syntalos' / 'mlink')
-install_headers('syntalos-mlink', subdir: 'syntalos')
+install_headers('include/syntalos-mlink', subdir: 'syntalos')
 
 pkgc.generate(
     syntalos_mlink_lib,

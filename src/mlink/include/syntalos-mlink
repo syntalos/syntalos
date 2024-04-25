@@ -1,0 +1,5 @@
+// Syntalos-MLink include file
+
+#pragma once
+#include <mlink/syntaloslink.h>
+#include <mlink/syntaloslinkmodule.h>

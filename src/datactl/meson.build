@@ -25,7 +25,10 @@ sy_datactl_src = [
     'vipsutils.cpp',
 ]
 
-sy_datactl_inc_dir = include_directories('..')
+sy_datactl_inc_dirs = [
+    include_directories('..'),
+    include_directories('./include')
+]
 
 sy_datactl_moc = qt.preprocess(
     moc_headers: sy_datactl_pub_hdr,
@@ -47,7 +50,7 @@ syntalos_datactl_lib = shared_library('syntalos-datactl',
                    syntalos_utils_dep,
     ],
     include_directories: [root_include_dir,
-                          sy_datactl_inc_dir],
+                          sy_datactl_inc_dirs],
     install: true,
     install_rpath: sy_libdir,
 )
@@ -59,10 +62,11 @@ syntalos_datactl_dep = declare_dependency(
         eigen_dep,
         syntalos_utils_dep
     ],
-    include_directories: [sy_datactl_inc_dir]
+    include_directories: [sy_datactl_inc_dirs]
 )
 
 install_headers(sy_datactl_pub_hdr, subdir: 'syntalos' / 'datactl')
+install_headers('include/syntalos-datactl', subdir: 'syntalos')
 
 pkgc.generate(
     syntalos_datactl_lib,

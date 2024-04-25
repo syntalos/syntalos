@@ -280,6 +280,16 @@ if udevdir == ''
     udevdir = udev.get_variable(pkgconfig: 'udevdir')
 endif
 
+#
+# Source info file
+#
+
+# This file is only created to allow some modules to detect
+# whether Syntalos is run from a source tree
+si_data = configuration_data()
+si_data.set('SY_SOURCE_ROOT', source_root)
+configure_file(output : 'sy-source-info.txt',
+               configuration : si_data)
 
 #
 # Subdirectories

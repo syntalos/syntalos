@@ -21,6 +21,7 @@
 
 #include <QEventLoop>
 #include <QObject>
+#include <QProcessEnvironment>
 
 #include "moduleapi.h"
 #include "streamexporter.h"
@@ -63,6 +64,9 @@ public:
 
     QString moduleBinary() const;
     void setModuleBinary(const QString &binaryPath);
+
+    QProcessEnvironment moduleBinaryEnv() const;
+    void setModuleBinaryEnv(const QProcessEnvironment &env);
 
     bool outputCaptured() const;
     void setOutputCaptured(bool capture);
