@@ -46,6 +46,8 @@ private:
     QTimer *m_evTimer;
     std::unique_ptr<SecondaryClockSynchronizer> m_clockSync;
     bool m_acceptFrames;
+    uint64_t m_recFrameCount;
+
     MScope::Miniscope *m_miniscope;
     QFile *m_valChangeLogFile;
     MiniscopeSettingsDialog *m_settingsDialog;
@@ -54,6 +56,7 @@ public:
     explicit MiniscopeModule(ModuleInfo *modInfo, QObject *parent = nullptr)
         : AbstractModule(parent),
           m_acceptFrames(false),
+          m_recFrameCount(0),
           m_miniscope(nullptr),
           m_settingsDialog(nullptr)
     {
@@ -232,6 +235,7 @@ public:
         m_clockSync->start();
 
         const auto stdSteadyClockStartTimepoint = std::chrono::steady_clock::now() - m_syTimer->timeSinceStartNsec();
+        m_recFrameCount = 0;
         m_miniscope->setCaptureStartTime(stdSteadyClockStartTimepoint);
         m_evTimer->start();
 
@@ -269,7 +273,7 @@ public:
         if (mat.empty())
             return;
 
-        self->m_rawOut->push(Frame(cvMatToVips(mat), frameTime));
+        self->m_rawOut->push(Frame(cvMatToVips(mat), self->m_recFrameCount++, frameTime));
 
         if (orientation[4] < 0.05) {
             if (self->m_lastOrientationVec == orientation)

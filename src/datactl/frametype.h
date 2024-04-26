@@ -39,15 +39,16 @@ struct Frame : BaseDataType {
     {
     }
 
-    explicit Frame(const vips::VImage &img, const size_t &idx, const milliseconds_t &t)
+    explicit Frame(const vips::VImage &img, const uint64_t &idx, const milliseconds_t &t)
         : index(idx),
           time(t),
           mat(img)
     {
     }
 
-    explicit Frame(const size_t &idx)
-        : index(idx)
+    explicit Frame(const uint64_t &idx)
+        : index(idx),
+          time(milliseconds_t(0))
     {
     }
 
