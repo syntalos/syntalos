@@ -31,7 +31,8 @@ syntalos_utils_moc = qt.preprocess(
 
 syntalos_utils_lib = shared_library('syntalos-utils',
     [syntalos_utils_src,
-     syntalos_utils_moc],
+     syntalos_utils_moc,
+     config_h],
     dependencies: [sy_base_deps,
                    qt_dbus_dep,
                    qt_gui_dep,
