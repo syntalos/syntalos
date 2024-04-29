@@ -94,18 +94,34 @@ public:
  */
 class SyThread
 {
-private:
 public:
-    explicit SyThread(ThreadDetails &details, AbstractModule *module, OptionalWaitCondition *waitCondition)
+    enum Backend {
+        BackendDefault,
+        BackendQThread
+    };
+
+    explicit SyThread(
+        ThreadDetails &details,
+        AbstractModule *module,
+        OptionalWaitCondition *waitCondition,
+        Backend threadBackend = BackendDefault)
         : m_created(false),
+          m_threadBackend(BackendDefault),
+          m_pThread(0),
           m_joined(false),
           m_td(details),
           m_mod(module),
           m_waitCond(waitCondition)
     {
-        auto r = pthread_create(&m_thread, nullptr, &SyThread::executeModuleThread, this);
-        if (r != 0)
-            throw std::runtime_error{strerror(r)};
+        if (threadBackend == BackendQThread) {
+            m_threadBackend = BackendQThread;
+            m_qThread = std::unique_ptr<QThread>(QThread::create(&SyThread::executeModuleThread, this));
+            m_qThread->start();
+        } else {
+            auto r = pthread_create(&m_pThread, nullptr, &SyThread::executeModuleThread, this);
+            if (r != 0)
+                throw std::runtime_error{strerror(r)};
+        }
         m_created = true;
     }
 
@@ -121,41 +137,50 @@ public:
 
     void join()
     {
-        if (m_joined)
+        if (m_joined || !m_created)
             return;
-        auto r = pthread_join(m_thread, nullptr);
-        if (r != 0)
-            throw std::runtime_error{strerror(r)};
+
+        if (m_threadBackend == BackendQThread) {
+            m_qThread->quit();
+            m_qThread->wait();
+        } else {
+            auto r = pthread_join(m_pThread, nullptr);
+            if (r != 0)
+                throw std::runtime_error{strerror(r)};
+        }
+
         m_joined = true;
     }
 
     bool joinTimeout(uint seconds)
     {
-        struct timespec ts;
+        if (m_threadBackend == BackendQThread) {
+            return m_qThread->wait(seconds * 1000);
+        } else {
+            struct timespec ts = {0};
 
-        if (clock_gettime(CLOCK_REALTIME, &ts) == -1) {
-            qCCritical(logEngine).noquote() << "Unable to obtain absolute time since epoch!";
-            join();
-            return true;
+            if (clock_gettime(CLOCK_REALTIME, &ts) == -1) {
+                qCCritical(logEngine).noquote() << "Unable to obtain absolute time since epoch!";
+                join();
+                return true;
+            }
+
+            ts.tv_sec += seconds;
+            if (pthread_timedjoin_np(m_pThread, nullptr, &ts) == 0) {
+                m_joined = true;
+                return true;
+            }
+
+            return false;
         }
-
-        ts.tv_sec += seconds;
-        if (pthread_timedjoin_np(m_thread, nullptr, &ts) == 0) {
-            m_joined = true;
-            return true;
-        }
-
-        return false;
-    }
-
-    pthread_t handle() const
-    {
-        return m_thread;
     }
 
 private:
     bool m_created;
-    pthread_t m_thread;
+    bool m_threadBackend;
+    pthread_t m_pThread;
+    std::unique_ptr<QThread> m_qThread;
+
     bool m_joined;
     ThreadDetails m_td;
     AbstractModule *m_mod;
@@ -185,7 +210,8 @@ private:
 
         self->m_mod->runThread(self->m_waitCond);
 
-        pthread_exit(nullptr);
+        if (self->m_threadBackend != BackendQThread)
+            pthread_exit(nullptr);
         return nullptr;
     }
 };
@@ -1730,7 +1756,11 @@ bool Engine::runInternal(const QString &exportDirPath)
 
             // the thread name shouldn't be longer than 16 chars (inlcuding NULL)
             td.name = QStringLiteral("%1-%2").arg(mod->id().midRef(0, 12)).arg(i);
-            std::unique_ptr<SyThread> modThread(new SyThread(td, mod, startWaitCondition.get()));
+
+            // We create the dedicated module threads as QThread, as it is a bit more convenient and
+            // sometimes efficients for modules to have access to an Qt event loop.
+            // (SyThread can either be a pure pthread, or a QThread)
+            auto modThread = std::make_unique<SyThread>(td, mod, startWaitCondition.get());
             dThreads.push_back(std::move(modThread));
         }
         assert(dThreads.size() == (size_t)threadedModules.size());
@@ -1861,9 +1891,11 @@ bool Engine::runInternal(const QString &exportDirPath)
 
             // ensure modules are in their "running" state now, or
             // have themselves declared "dormant" (meaning they won't be used at all)
-            mod->m_running = true;
-            if (mod->state() != ModuleState::DORMANT)
-                mod->setState(ModuleState::RUNNING);
+            if (mod->state() != ModuleState::ERROR) {
+                mod->m_running = true;
+                if (mod->state() != ModuleState::DORMANT)
+                    mod->setState(ModuleState::RUNNING);
+            }
         }
 
         // make stream exporter resume its work
@@ -1891,9 +1923,11 @@ bool Engine::runInternal(const QString &exportDirPath)
                 mod->start();
 
             // work around bad modules which don't set this on their own in start()
-            mod->m_running = true;
-            if (mod->state() != ModuleState::DORMANT)
-                mod->setState(ModuleState::RUNNING);
+            if (mod->state() != ModuleState::ERROR) {
+                mod->m_running = true;
+                if (mod->state() != ModuleState::DORMANT)
+                    mod->setState(ModuleState::RUNNING);
+            }
         }
 
         qCDebug(logEngine).noquote().nospace() << "Startup phase completed, all modules are running. Took additional "
@@ -2015,7 +2049,7 @@ bool Engine::runInternal(const QString &exportDirPath)
             port->stopStream();
 
         // ensure modules display the correct state after we stopped a run
-        if ((mod->state() != ModuleState::IDLE) && (mod->state() != ModuleState::ERROR))
+        if (mod->state() != ModuleState::IDLE && mod->state() != ModuleState::ERROR)
             mod->setState(ModuleState::IDLE);
 
         qCDebug(logEngine).noquote().nospace()
