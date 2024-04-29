@@ -360,20 +360,37 @@ struct FirmataControl : BaseDataType {
     SY_DEFINE_DATA_TYPE(FirmataControl)
 
     FirmataCommandKind command;
-    uint8_t pinId;
+    uint8_t pinId{0};
     QString pinName;
-    bool isOutput;
-    bool isPullUp;
+    bool isOutput{false};
+    bool isPullUp{false};
     uint16_t value;
 
     explicit FirmataControl()
-        : isPullUp(false),
+        : command(FirmataCommandKind::UNKNOWN),
           value(0)
     {
     }
 
     explicit FirmataControl(FirmataCommandKind cmd)
         : command(cmd),
+          isPullUp(false),
+          value(0)
+    {
+    }
+
+    FirmataControl(FirmataCommandKind kind, int pinId, QString name = QString())
+        : command(kind),
+          pinId(pinId),
+          pinName(std::move(name)),
+          isPullUp(false),
+          value(0)
+    {
+    }
+
+    FirmataControl(FirmataCommandKind kind, QString name)
+        : command(kind),
+          pinName(std::move(name)),
           isPullUp(false),
           value(0)
     {

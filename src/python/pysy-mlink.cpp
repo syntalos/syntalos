@@ -373,27 +373,17 @@ static py::object get_output_port(const std::string &id)
 
 static FirmataControl new_firmatactl_with_id_name(FirmataCommandKind kind, int pinId, const std::string &name)
 {
-    FirmataControl ctl;
-    ctl.command = kind;
-    ctl.pinId = pinId;
-    ctl.pinName = QString::fromStdString(name);
-    return ctl;
+    return {kind, pinId, QString::fromStdString(name)};
 }
 
 static FirmataControl new_firmatactl_with_id(FirmataCommandKind kind, int pinId)
 {
-    FirmataControl ctl;
-    ctl.command = kind;
-    ctl.pinId = pinId;
-    return ctl;
+    return {kind, pinId};
 }
 
 static FirmataControl new_firmatactl_with_name(FirmataCommandKind kind, const std::string &name)
 {
-    FirmataControl ctl;
-    ctl.command = kind;
-    ctl.pinName = QString::fromStdString(name);
-    return ctl;
+    return {kind, QString::fromStdString(name)};
 }
 
 static py::object vips_image_to_py(const Frame &frame)
