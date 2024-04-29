@@ -24,7 +24,9 @@
 #include <QDebug>
 #include <QThread>
 #include <QTimer>
+#include <QEventLoop>
 
+#include "streams/subscriptionnotifier.h"
 #include "utils/misc.h"
 
 SYNTALOS_MODULE(FirmataIOModule)
@@ -77,17 +79,17 @@ public:
 
     ~FirmataIOModule() override {}
 
-    ModuleFeatures features() const override
+    ModuleFeatures features() const final
     {
         return ModuleFeature::SHOW_SETTINGS;
     }
 
-    ModuleDriverKind driver() const override
+    ModuleDriverKind driver() const final
     {
         return ModuleDriverKind::THREAD_DEDICATED;
     }
 
-    bool prepare(const TestSubject &) override
+    bool prepare(const TestSubject &) final
     {
         // cleanup
         m_namePinMap.clear();
@@ -102,23 +104,18 @@ public:
         return true;
     }
 
-    void start() override
+    void start() final
     {
         AbstractModule::start();
     }
 
-    void runThread(OptionalWaitCondition *waitCondition) override
+    void runThread(OptionalWaitCondition *waitCondition) final
     {
-        auto firmata = std::make_unique<SerialFirmata>(this, true);
+        // event loop for this thread
+        QEventLoop loop;
 
-        connect(
-            firmata.get(), &SerialFirmata::digitalRead, this, &FirmataIOModule::recvDigitalRead, Qt::DirectConnection);
-        connect(
-            firmata.get(),
-            &SerialFirmata::digitalPinRead,
-            this,
-            &FirmataIOModule::recvDigitalPinRead,
-            Qt::DirectConnection);
+        // setup Firmata serial connection to the device
+        auto firmata = std::make_unique<SerialFirmata>(nullptr);
 
         auto serialDevice = m_settingsDialog->serialPort();
         if (serialDevice.isEmpty()) {
@@ -152,26 +149,58 @@ public:
             return;
         }
 
+        // connect to data received events
+        connect(
+            firmata.get(), &SerialFirmata::digitalRead, this, &FirmataIOModule::recvDigitalRead, Qt::DirectConnection);
+        connect(
+            firmata.get(),
+            &SerialFirmata::digitalPinRead,
+            this,
+            &FirmataIOModule::recvDigitalPinRead,
+            Qt::DirectConnection);
+
+        // trigger if we have new input data
+        std::unique_ptr<SubscriptionNotifier> notifier;
+        if (m_fmCtlSub) {
+            notifier = std::make_unique<SubscriptionNotifier>(m_fmCtlSub);
+            connect(notifier.get(), &SubscriptionNotifier::dataReceived, [&loop, &firmata, this]() {
+                for (uint i = 0; i < 4; i++) {
+                    if (!checkFirmataControlCmdReceived(firmata.get()))
+                        break;
+                }
+
+                // quit the loop if we stopped running
+                if (!m_running)
+                    loop.quit();
+            });
+        }
+
+        // periodically check if we have to quit
+        QTimer quitTimer;
+        quitTimer.setInterval(200);
+        quitTimer.setSingleShot(false);
+        quitTimer.start();
+        connect(&quitTimer, &QTimer::timeout, [&loop, this]() {
+            if (!m_running)
+                loop.quit();
+        });
+
         // wait until we actually start acquiring data
         m_stopped = false;
         waitCondition->wait(this);
 
-        while (m_running) {
-            // wait for new data, block for 10msec
-            firmata->readAndParseData(10);
+        // run our internal event loop
+        loop.exec();
 
-            if (m_fmCtlSub)
-                checkFirmataControlCmdReceived(firmata.get());
-        }
-
+        m_fmCtlSub->disableNotify();
         m_stopped = true;
     }
 
-    void checkFirmataControlCmdReceived(SerialFirmata *firmata)
+    bool checkFirmataControlCmdReceived(SerialFirmata *firmata)
     {
         const auto maybeCtl = m_fmCtlSub->peekNext();
         if (!maybeCtl.has_value())
-            return;
+            return false;
         const auto ctl = maybeCtl.value();
         switch (ctl.command) {
         case FirmataCommandKind::NEW_DIG_PIN:
@@ -198,6 +227,8 @@ public:
                                 << QString::number(static_cast<int>(ctl.command));
             break;
         }
+
+        return true;
     }
 
     void newDigitalPin(SerialFirmata *firmata, int pinId, const QString &pinName, bool output, bool pullUp)
@@ -276,7 +307,7 @@ public:
         pinSignalPulse(firmata, pin.id, pulseDuration);
     }
 
-    void stop() override
+    void stop() final
     {
         AbstractModule::stop();
 
@@ -285,12 +316,12 @@ public:
             mainThreadProcessUiEvents();
     }
 
-    void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
+    void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) final
     {
         settings.insert("serial_port", m_settingsDialog->serialPort());
     }
 
-    bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
+    bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) final
     {
         m_settingsDialog->setSerialPort(settings.value("serial_port").toString());
         return true;
@@ -306,7 +337,7 @@ public:
         const auto timestamp = m_syTimer->timeSinceStartMsec();
 
         qCDebug(logFmMod, "Digital port read: %d (%d - %d)", value, first, last);
-        for (const FmPin p : m_namePinMap.values()) {
+        for (const FmPin &p : m_namePinMap.values()) {
             if ((!p.output) && (p.kind != PinKind::Unknown)) {
                 if ((p.id >= first) && (p.id <= last)) {
                     FirmataData fdata;

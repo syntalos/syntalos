@@ -80,6 +80,7 @@ public:
     virtual bool hasPending() const = 0;
     virtual size_t approxPendingCount() const = 0;
     virtual int enableNotify() = 0;
+    virtual void disableNotify() = 0;
     virtual void setThrottleItemsPerSec(uint itemsPerSec, bool allowMore = true) = 0;
 
     virtual void suspend() = 0;
@@ -121,7 +122,7 @@ class StreamSubscription : public VariantStreamSubscription
     friend DataStream<T>;
 
 public:
-    StreamSubscription(DataStream<T> *stream)
+    explicit StreamSubscription(DataStream<T> *stream)
         : m_stream(stream),
           m_queue(BlockingReaderWriterQueue<std::optional<T>>(256)),
           m_eventfd(-1),
@@ -139,7 +140,7 @@ public:
         }
     }
 
-    ~StreamSubscription()
+    ~StreamSubscription() override
     {
         m_active = false;
         unsubscribe();
@@ -251,7 +252,7 @@ public:
      * Do not disable notifications unless you know for sure that nothing is
      * listening on this subscription anymore.
      */
-    void disableNotify()
+    void disableNotify() override
     {
         m_notify = false;
     }

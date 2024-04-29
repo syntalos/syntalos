@@ -28,6 +28,8 @@ syntalos_fabric_src = [
     'streams/readerwriterqueue.h',
     'streams/stream.h',
     'streams/stream.cpp',
+    'streams/subscriptionnotifier.h',
+    'streams/subscriptionnotifier.cpp',
 ]
 
 syntalos_fabric_ui = [

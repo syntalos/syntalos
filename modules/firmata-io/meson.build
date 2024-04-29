@@ -5,8 +5,8 @@ module_hdr = [
 
     'firmata/fmutils.h'
 ]
-module_moc_hdr = [
 
+module_moc_hdr = [
     'firmatasettingsdialog.h',
 
     'firmata/serialinfo.h',

@@ -103,7 +103,12 @@ bool SerialFirmata::setDevice(const QString &device)
                 return false;
             } else {
                 if (!d->manualReadTrigger)
-                    connect(d->port.data(), &QSerialPort::readyRead, this, &SerialFirmata::onReadyRead);
+                    connect(
+                        d->port.data(),
+                        &QSerialPort::readyRead,
+                        this,
+                        &SerialFirmata::onReadyRead,
+                        Qt::DirectConnection);
                 setAvailable(true);
                 setStatusText(QStringLiteral("Serial port opened"));
             }
