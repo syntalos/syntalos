@@ -121,7 +121,7 @@ public:
         return true;
     }
 
-    void runThread(OptionalWaitCondition *startWaitCondition) override
+    void runThread(OptionalWaitCondition *startWaitCondition) final
     {
         struct timespec ts;
         int r;
