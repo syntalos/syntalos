@@ -225,9 +225,9 @@ QString DevelClockModuleInfo::description() const
     return QStringLiteral("Developer module emiting clock pulses at precise (as much as possible) intervals.");
 }
 
-bool DevelClockModuleInfo::devel() const
+ModuleCategories DevelClockModuleInfo::categories() const
 {
-    return true;
+    return ModuleCategory::SYNTALOS_DEV;
 }
 
 AbstractModule *DevelClockModuleInfo::createModule(QObject *parent)

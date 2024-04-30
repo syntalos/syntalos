@@ -8,7 +8,7 @@ icon = "penrose-py.svg"
 main = "mod-main.py"
 use_venv = false
 
-devel = true
+categories = 'sydevel;example'
 
 [ports]
 

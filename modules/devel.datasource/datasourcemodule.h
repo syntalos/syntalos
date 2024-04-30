@@ -29,10 +29,10 @@ SYNTALOS_DECLARE_MODULE
 class DevelDataSourceModuleInfo : public ModuleInfo
 {
 public:
-    QString id() const override;
-    QString name() const override;
-    QString description() const override;
-    QIcon icon() const override;
-    bool devel() const override;
-    AbstractModule *createModule(QObject *parent = nullptr) override;
+    QString id() const final;
+    QString name() const final;
+    QString description() const final;
+    QIcon icon() const final;
+    ModuleCategories categories() const final;
+    AbstractModule *createModule(QObject *parent = nullptr) final;
 };

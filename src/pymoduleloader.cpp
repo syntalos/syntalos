@@ -298,42 +298,41 @@ private:
 class PyModuleInfo : public ModuleInfo
 {
 public:
-    explicit PyModuleInfo(
-        const QString &id,
-        const QString &name,
-        const QString &description,
-        const QIcon &icon,
-        bool isDevModule)
-        : m_id(id),
-          m_name(name),
-          m_description(description),
-          m_icon(icon),
-          m_isDevModule(isDevModule)
+    explicit PyModuleInfo(QString id, QString name, QString description, QIcon icon, ModuleCategories categories)
+        : m_id(std::move(id)),
+          m_name(std::move(name)),
+          m_description(std::move(description)),
+          m_icon(std::move(icon)),
+          m_categories(categories),
+          m_useVEnv(false)
     {
     }
-
-    ~PyModuleInfo() override {}
 
     QString id() const override
     {
         return m_id;
     }
+
     QString name() const override
     {
         return m_name;
     };
+
     QString description() const override
     {
         return m_description;
     };
+
     QIcon icon() const override
     {
         return m_icon;
     };
-    bool devel() const override
+
+    ModuleCategories categories() const final
     {
-        return m_isDevModule;
+        return m_categories;
     }
+
     AbstractModule *createModule(QObject *parent = nullptr) override
     {
         auto mod = new PythonModule(parent);
@@ -361,7 +360,7 @@ private:
     QString m_name;
     QString m_description;
     QIcon m_icon;
-    bool m_isDevModule;
+    ModuleCategories m_categories;
 
     QString m_pyFname;
     bool m_useVEnv;
@@ -377,7 +376,7 @@ ModuleInfo *loadPythonModuleInfo(const QString &modId, const QString &modDir, co
     const auto name = modDef.value("name").toString();
     const auto desc = modDef.value("description").toString();
     const auto iconName = modDef.value("icon").toString();
-    const auto isDevMod = modDef.value("devel", false).toBool();
+    const auto categories = moduleCategoriesFromString(modDef.value("categories", QString()).toString());
     const auto useVEnv = modDef.value("use_venv", false).toBool();
 
     if (name.isEmpty())
@@ -399,7 +398,7 @@ ModuleInfo *loadPythonModuleInfo(const QString &modId, const QString &modDir, co
         throw std::runtime_error(
             qPrintable(QStringLiteral("Main entrypoint Python file %1 does not exist").arg(pyFile)));
 
-    modInfo = new PyModuleInfo(modId, name, desc, icon, isDevMod);
+    modInfo = new PyModuleInfo(modId, name, desc, icon, categories);
     modInfo->setRootDir(modDir);
     modInfo->setMainPyScriptFname(pyFile);
     modInfo->setUseVEnv(useVEnv);

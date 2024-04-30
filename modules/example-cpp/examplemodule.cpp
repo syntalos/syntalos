@@ -110,9 +110,9 @@ QString ExampleCppModuleInfo::description() const
     return QStringLiteral("Most basic module, a starting place to develop a new C++ module.");
 }
 
-bool ExampleCppModuleInfo::devel() const
+ModuleCategories ExampleCppModuleInfo::categories() const
 {
-    return true;
+    return ModuleCategory::SYNTALOS_DEV | ModuleCategory::EXAMPLE;
 }
 
 AbstractModule *ExampleCppModuleInfo::createModule(QObject *parent)

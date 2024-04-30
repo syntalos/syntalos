@@ -271,9 +271,9 @@ QIcon DevelDataSourceModuleInfo::icon() const
     return QIcon(":/module/devel");
 }
 
-bool DevelDataSourceModuleInfo::devel() const
+ModuleCategories DevelDataSourceModuleInfo::categories() const
 {
-    return true;
+    return ModuleCategory::SYNTALOS_DEV;
 }
 
 AbstractModule *DevelDataSourceModuleInfo::createModule(QObject *parent)

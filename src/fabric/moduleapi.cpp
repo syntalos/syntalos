@@ -145,17 +145,17 @@ QColor ModuleInfo::color() const
     return QColor::fromRgb(redBucket / totalColorCount, greenBucket / totalColorCount, blueBucket / totalColorCount);
 }
 
+ModuleCategories ModuleInfo::categories() const
+{
+    return ModuleCategory::NONE;
+}
+
 QString ModuleInfo::storageGroupName() const
 {
     return QString();
 }
 
 bool ModuleInfo::singleton() const
-{
-    return false;
-}
-
-bool ModuleInfo::devel() const
 {
     return false;
 }
@@ -387,6 +387,57 @@ VariantDataStream *Syntalos::newStreamForType(int typeId)
 
     qCritical() << "Unable to create data stream for unknown type ID" << typeId;
     return nullptr;
+}
+
+QString Syntalos::toString(ModuleCategory category)
+{
+    switch (category) {
+    case ModuleCategory::SYNTALOS_DEV:
+        return "sydevel";
+    case ModuleCategory::EXAMPLE:
+        return "example";
+    case ModuleCategory::DEVICE:
+        return "device";
+    case ModuleCategory::GENERATOR:
+        return "generator";
+    case ModuleCategory::SCRIPTING:
+        return "scripting";
+    case ModuleCategory::DISPLAY:
+        return "display";
+    case ModuleCategory::WRITERS:
+        return "writers";
+    case ModuleCategory::PROCESSING:
+        return "processing";
+    default:
+        return "none";
+    }
+}
+
+ModuleCategory Syntalos::moduleCategoryFromString(const QString &categoryStr)
+{
+    static const QMap<QString, ModuleCategory> categoryMap = {
+        {"none",       ModuleCategory::NONE        },
+        {"sydevel",    ModuleCategory::SYNTALOS_DEV},
+        {"example",    ModuleCategory::EXAMPLE     },
+        {"device",     ModuleCategory::DEVICE      },
+        {"generator",  ModuleCategory::GENERATOR   },
+        {"scripting",  ModuleCategory::SCRIPTING   },
+        {"display",    ModuleCategory::DISPLAY     },
+        {"writers",    ModuleCategory::WRITERS     },
+        {"processing", ModuleCategory::PROCESSING  }
+    };
+
+    return categoryMap.value(categoryStr, ModuleCategory::NONE);
+}
+
+ModuleCategories Syntalos::moduleCategoriesFromString(const QString &categoriesStr)
+{
+    ModuleCategories categories = ModuleCategory::NONE;
+    auto catsList = categoriesStr.split(';', Qt::SkipEmptyParts);
+    for (const QString &name : catsList)
+        categories |= moduleCategoryFromString(name);
+
+    return categories;
 }
 
 class AbstractModule::Private

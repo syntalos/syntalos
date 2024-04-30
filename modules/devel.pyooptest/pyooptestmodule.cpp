@@ -114,9 +114,9 @@ QIcon PyOOPTestModuleInfo::icon() const
     return QIcon(":/module/devel");
 }
 
-bool PyOOPTestModuleInfo::devel() const
+ModuleCategories PyOOPTestModuleInfo::categories() const
 {
-    return true;
+    return ModuleCategory::SYNTALOS_DEV;
 }
 
 AbstractModule *PyOOPTestModuleInfo::createModule(QObject *parent)

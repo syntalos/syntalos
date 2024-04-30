@@ -82,6 +82,30 @@ enum class UsbHotplugEventKind {
     DEVICES_CHANGE  /// Devices have appeared and left
 };
 
+/**
+ * @brief Categorization for modules
+ */
+enum class ModuleCategory : uint32_t {
+    NONE = 0,              /// Not categorized
+    SYNTALOS_DEV = 1 << 0, /// A development/test tool for Syntalos itself
+    EXAMPLE = 1 << 1,      /// An example / template module
+    DEVICE = 1 << 2,       /// Modules which communicate with hwrdware devices
+    GENERATOR = 1 << 3,    /// (Test)data generators)
+    SCRIPTING = 1 << 4,    /// Scripting & customization
+    DISPLAY = 1 << 5,      /// Display modules
+    WRITERS = 1 << 6,      /// Modules which write data to disk
+    PROCESSING = 1 << 7    /// Data processing modules
+};
+Q_DECLARE_FLAGS(ModuleCategories, ModuleCategory)
+Q_DECLARE_OPERATORS_FOR_FLAGS(ModuleCategories)
+
+QString toString(ModuleCategory category);
+ModuleCategory moduleCategoryFromString(const QString &categoryStr);
+ModuleCategories moduleCategoriesFromString(const QString &categoriesStr);
+
+/**
+ * @brief Static information about a module
+ */
 class Q_DECL_EXPORT ModuleInfo
 {
     friend class Engine;
@@ -126,6 +150,11 @@ public:
     virtual QColor color() const;
 
     /**
+     * @brief Categories this module belongs to
+     */
+    virtual ModuleCategories categories() const;
+
+    /**
      * @brief Name of a storage group for modules of this type
      *
      * If this is left empty, modules will write into the main data
@@ -138,12 +167,6 @@ public:
      * @return True if singleton.
      */
     virtual bool singleton() const;
-
-    /**
-     * @brief Returns true if this module is a developer module (usually intended for debugging Syntalos itself).
-     * @return True if developer module.
-     */
-    virtual bool devel() const;
 
     /**
      * @brief Instantiate the actual module.

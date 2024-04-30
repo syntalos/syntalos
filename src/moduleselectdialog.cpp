@@ -133,11 +133,11 @@ void ModuleSelectDialog::setModuleInfo(QList<QSharedPointer<ModuleInfo>> infos)
 
     for (auto &info : sortedInfos) {
         // hide developer modules, unless the user explicitly chose to show them
-        if (info->devel() && !showDevModules)
+        if (info->categories().testFlag(ModuleCategory::SYNTALOS_DEV) && !showDevModules)
             continue;
 
         auto item = new QStandardItem(
-            info->icon(), QStringLiteral("<b>%1</b><br/><span>%2</span>").arg(info->name()).arg(info->description()));
+            info->icon(), QStringLiteral("<b>%1</b><br/><span>%2</span>").arg(info->name(), info->description()));
         item->setTextAlignment(Qt::AlignLeft);
         item->setData(info->id());
         m_model->appendRow(item);
