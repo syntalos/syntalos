@@ -15,6 +15,7 @@ module_res = []
 # Developer modules
 subdir('devel.clock')
 subdir('devel.datasource')
+subdir('devel.latencytest')
 subdir('devel.pyooptest')
 
 # Display / Aux modules
