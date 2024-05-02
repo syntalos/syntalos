@@ -36,11 +36,13 @@
 #include <QDir>
 #include <QFileSystemWatcher>
 #include <QProcessEnvironment>
+#include <QMessageBox>
 
 #include "mlinkmodule.h"
 #include "porteditordialog.h"
 #include "globalconfig.h"
 #include "utils/style.h"
+#include "utils/misc.h"
 
 SYNTALOS_MODULE(CppWBenchModule);
 
@@ -55,7 +57,8 @@ class CppWBenchModule : public MLinkModule
 public:
     explicit CppWBenchModule(QObject *parent = nullptr)
         : MLinkModule(parent),
-          m_codeWindow(nullptr)
+          m_codeWindow(nullptr),
+          m_depsOkay(false)
     {
         GlobalConfig gconf;
         m_cacheRoot = gconf.userCacheDir();
@@ -212,10 +215,80 @@ public:
         return true;
     }
 
-    void setName(const QString &value) override
+    void setName(const QString &value) final
     {
         MLinkModule::setName(value);
         m_codeWindow->setWindowTitle(QStringLiteral("%1 - Editor").arg(name()));
+    }
+
+    void showDisplayUi() final
+    {
+        const auto wasVisible = m_codeWindow->isVisible();
+        m_codeWindow->show();
+        m_codeWindow->raise();
+        appProcessEvents();
+
+        QTimer::singleShot(100, this, [this, wasVisible]() {
+            QStringList missingDeps;
+            if (!wasVisible && !verifyDependencies(&missingDeps)) {
+                QMessageBox::warning(
+                    m_codeWindow,
+                    QStringLiteral("Missing dependencies"),
+                    QStringLiteral("<html><b>System dependencies are missing to compile & run this code!</b><br>"
+                                   "You are missing the following components:"
+                                   "<pre>%1</pre>"
+                                   "Please install them in order to run this module. On Debian-based systems, "
+                                   "you can install them by running:"
+                                   "<pre>sudo apt install gcc g++ pkgconf meson ninja-build</pre>"
+                                   "Please also ensure that the Syntalos development package is installed.")
+                        .arg(missingDeps.join(", ")));
+            }
+        });
+    }
+
+    bool verifyDependencies(QStringList *missing = nullptr)
+    {
+        if (m_depsOkay)
+            return true;
+
+        // check for the Meson buildsystem
+        if (!isBinaryInPath("meson")) {
+            if (missing)
+                missing->append("meson");
+            else
+                raiseError("Meson build system not found. Please install it.");
+            return false;
+        }
+
+        // check for the Ninja build tool
+        if (!isBinaryInPath("ninja")) {
+            if (missing)
+                missing->append("ninja");
+            else
+                raiseError("Ninja build tool not found. Please install it.");
+            return false;
+        }
+
+        // Check if either g++ or clang++ are present
+        if (!isBinaryInPath("g++") && !isBinaryInPath("clang++")) {
+            if (missing)
+                missing->append("g++ or clang++");
+            else
+                raiseError("No C++ compiler was found.");
+            return false;
+        }
+
+        // Check for pkg-config
+        if (!isBinaryInPath("pkg-config")) {
+            if (missing)
+                missing->append("pkg-config");
+            else
+                raiseError("pkg-config not found. Please install it.");
+            return false;
+        }
+
+        m_depsOkay = true;
+        return true;
     }
 
     bool performAutobuild(const QString &buildPath)
@@ -284,12 +357,16 @@ public:
 
     bool prepare(const TestSubject &testSubject) override
     {
+        setStatusMessage("Checking dependencies...");
+        if (!verifyDependencies())
+            return false;
+
         setStatusMessage("Preparing build...");
         setModuleBinary(QString());
         m_logWidget->clear();
         // switch to console view
         m_consoleTabWidget->setCurrentIndex(0);
-        mainThreadProcessUiEvents();
+        appProcessEvents();
 
         // basename of the executable that we are about to compile
         const auto exeName = QStringLiteral("%1-%2").arg(id()).arg(index());
@@ -368,7 +445,7 @@ public:
 
         // switch to output view
         m_consoleTabWidget->setCurrentIndex(1);
-        mainThreadProcessUiEvents();
+        appProcessEvents();
 
         return MLinkModule::prepare(testSubject);
     }
@@ -446,6 +523,7 @@ private:
     QString m_autobuildScript;
     QString m_cacheRoot;
     QString m_wsDirPath;
+    bool m_depsOkay;
 };
 
 QString CppWBenchModuleInfo::id() const

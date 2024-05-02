@@ -32,6 +32,7 @@
 #include <QStandardPaths>
 #include <QThread>
 #include <QTime>
+#include <QProcessEnvironment>
 
 namespace fs = std::filesystem;
 
@@ -211,4 +212,20 @@ void delay(int waitMsec)
         QThread::usleep(500);
         QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
     }
+}
+
+bool isBinaryInPath(const QString &binaryName)
+{
+    QString path = QProcessEnvironment::systemEnvironment().value("PATH");
+    QStringList directories = path.split(QDir::listSeparator());
+
+    // check for the binary in all directories in PATH
+    for (const QString &dir : directories) {
+        QFileInfo fileInfo(QDir(dir), binaryName);
+        if (fileInfo.exists() && fileInfo.isExecutable()) {
+            return true;
+        }
+    }
+
+    return false;
 }

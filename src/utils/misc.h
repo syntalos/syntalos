@@ -94,6 +94,13 @@ QString findHostFile(const QString &path);
 bool hostUdevRuleExists(const QString &ruleFilename);
 
 /**
+ * @brief Check if a binary is in the current environment PATH.
+ * @param binaryName Name of the binary to check for
+ * @return true if the binary is in the PATH, false otherwise.
+ */
+bool isBinaryInPath(const QString &binaryName);
+
+/**
  * @brief Delay execution by approximately the given time, not blocking the main event loop.
  * @param waitMsec Time to wait.
  */

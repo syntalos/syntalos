@@ -313,7 +313,7 @@ public:
 
         // wait for our thread to finish
         while (!m_stopped)
-            mainThreadProcessUiEvents();
+            appProcessEvents();
     }
 
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) final

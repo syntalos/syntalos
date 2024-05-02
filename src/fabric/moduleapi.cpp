@@ -769,7 +769,7 @@ bool AbstractModule::makeDirectory(const QString &dir)
     return true;
 }
 
-void AbstractModule::mainThreadProcessUiEvents()
+void AbstractModule::appProcessEvents()
 {
     qApp->processEvents();
 }
