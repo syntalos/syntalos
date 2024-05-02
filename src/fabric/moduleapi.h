@@ -731,9 +731,9 @@ Q_SIGNALS:
     void portConfigurationUpdated();
     void synchronizerDetailsChanged(
         const QString &id,
-        const TimeSyncStrategies &strategies,
-        const microseconds_t &tolerance);
-    void synchronizerOffsetChanged(const QString &id, const microseconds_t &currentOffset);
+        const Syntalos::TimeSyncStrategies &strategies,
+        const Syntalos::microseconds_t &tolerance);
+    void synchronizerOffsetChanged(const QString &id, const Syntalos::microseconds_t &currentOffset);
 
 protected:
     void raiseError(const QString &message);

@@ -202,8 +202,14 @@ void ModuleGraphForm::receiveErrorMessage(const QString &message)
     const auto mod = qobject_cast<AbstractModule *>(sender());
     const auto node = m_modNodeMap.value(mod);
 
-    if (node != nullptr)
+    if (node != nullptr) {
         node->setNodeInfoText(message);
+
+        // update path immediately here instead of asynchronously, so
+        // the node is shown correctly even if an error message box blocks
+        // any UI updating further down.
+        node->updatePath();
+    }
 }
 
 void ModuleGraphForm::receiveMessage(const QString &message)

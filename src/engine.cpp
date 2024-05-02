@@ -1702,10 +1702,12 @@ bool Engine::runInternal(const QString &exportDirPath)
     // exporter for streams so out-of-process mlink modules can access them
     emitStatusMessage(QStringLiteral("Exporting streams for external modules..."));
     auto streamExporter = std::make_unique<StreamExporter>();
-    for (auto &mod : orderedActiveModules) {
-        auto mlinkMod = qobject_cast<MLinkModule *>(mod);
-        if (mlinkMod != nullptr)
-            mlinkMod->markIncomingForExport(streamExporter.get());
+    if (initSuccessful) {
+        for (auto &mod : orderedActiveModules) {
+            auto mlinkMod = qobject_cast<MLinkModule *>(mod);
+            if (mlinkMod != nullptr)
+                mlinkMod->markIncomingForExport(streamExporter.get());
+        }
     }
 
     // wait condition for all threads to block them until we have actually started (or not block them, in case
@@ -2198,6 +2200,7 @@ void Engine::stop()
 void Engine::receiveModuleError(const QString &message)
 {
     auto mod = qobject_cast<AbstractModule *>(sender());
+    mod->setState(ModuleState::ERROR);
     if (mod != nullptr)
         d->runFailedReason = QStringLiteral("%1(%2): %3").arg(mod->id(), mod->name(), message);
     else

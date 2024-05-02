@@ -582,7 +582,8 @@ void AbstractModule::processUiEvents()
 void AbstractModule::stop()
 {
     m_running = false;
-    setState(ModuleState::IDLE);
+    if (d->state != ModuleState::ERROR)
+        setState(ModuleState::IDLE);
 }
 
 void AbstractModule::finalize()
