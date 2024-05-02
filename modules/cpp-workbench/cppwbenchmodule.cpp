@@ -19,9 +19,13 @@
 
 #include "cppwbenchmodule.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #include <KTextEditor/Document>
 #include <KTextEditor/Editor>
 #include <KTextEditor/View>
+#include <KActionCollection>
+#pragma GCC diagnostic pop
 #include <qtermwidget5/qtermwidget.h>
 #include <QTabWidget>
 #include <QCoreApplication>
@@ -65,6 +69,7 @@ public:
 
         // set up code editor
         auto editor = KTextEditor::Editor::instance();
+
         // create a new document
         auto cppDoc = editor->createDocument(this);
 
@@ -166,13 +171,16 @@ public:
                 QUrl("https://syntalos.readthedocs.io/latest/modules/cpp-workbench.html", QUrl::TolerantMode));
         });
 
-        // FIXME: Dirty hack: This introduces a shortcut conflict between the KTextEditor-registered one
-        // and this one. Ideally hitting Ctrl+S would save the Syntalos board, but instead it triggers
-        // the KTextEditor save dialog, which confused some users. Now, we show an error instead, which
-        // is also awful, but at least never leads to users doing the wrong thing. Long-term this needs
-        // a proper fix (if KTextEditor doesn't have the needed API, I should contribute it...).
-        auto shortcut = new QShortcut(QKeySequence(tr("Ctrl+S", "File|Save")), m_codeWindow);
-        connect(shortcut, &QShortcut::activated, [=]() {});
+        // Don't trigger the text editor document save dialog
+        // TODO: Maybe we should save the Syntalos board here instead?
+        auto actionCollection = m_codeView->actionCollection();
+        if (actionCollection) {
+            auto saveAction = actionCollection->action("file_save");
+            if (saveAction) {
+                // Remove default connections to disable default save behavior
+                disconnect(saveAction, nullptr, nullptr, nullptr);
+            }
+        }
     }
 
     ~CppWBenchModule() override
