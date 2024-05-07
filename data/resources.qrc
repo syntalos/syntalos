@@ -8,6 +8,7 @@
         <file alias="show-module">show-module-widgets.svg</file>
         <file alias="remove">remove.svg</file>
         <file alias="menu">menu.svg</file>
+        <file alias="edit-ports">edit-ports.svg</file>
         <file alias="generic-view">generic-view.svg</file>
         <file alias="generic-config">generic-config.svg</file>
         <file alias="show-all-windows">show-all-windows.svg</file>
@@ -21,6 +22,7 @@
         <file alias="settings">dark/settings.svg</file>
         <file alias="show-module">dark/show-module-widgets.svg</file>
         <file alias="menu">dark/menu.svg</file>
+        <file alias="edit-ports">dark/edit-ports.svg</file>
         <file alias="show-all-windows">dark/show-all-windows.svg</file>
         <file alias="show-all-config">dark/show-all-config.svg</file>
         <file alias="project-settings">dark/project-settings.svg</file>

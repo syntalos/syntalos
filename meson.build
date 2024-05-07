@@ -238,6 +238,7 @@ gobject_dep = dependency('gobject-2.0', version: '>=2.58')
 kfarchive_dep = dependency('KF5Archive')
 kfdbusaddons_dep = dependency('KF5DBusAddons')
 kfconfigwidgets_dep = dependency('KF5ConfigWidgets')
+kftexteditor_dep = dependency('KF5TextEditor')
 
 pipewire_dep = dependency('libpipewire-0.3', version: '>= 0.3.48')
 

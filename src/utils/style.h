@@ -43,7 +43,7 @@ bool currentThemeIsDark();
  * selecting a dark variant if necessary.
  */
 template<typename T>
-void setWidgetIconFromResource(const T &widget, const QString &name, bool isDark)
+void setWidgetIconFromResource(const T &widget, const QString &name, bool isDark = currentThemeIsDark())
 {
     QString path;
     bool pathValid = false;

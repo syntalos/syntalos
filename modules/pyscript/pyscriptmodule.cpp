@@ -38,6 +38,7 @@
 #include <QShortcut>
 #include <QSplitter>
 #include <QTextBrowser>
+#include <QToolBar>
 
 #include "mlinkmodule.h"
 #include "porteditordialog.h"
@@ -77,6 +78,18 @@ public:
         m_scriptView = pyDoc->createView(m_scriptWindow);
         pyDoc->setHighlightingMode("python");
 
+        // create main toolbar
+        auto toolbar = new QToolBar(m_scriptWindow);
+        toolbar->setMovable(false);
+        toolbar->layout()->setMargin(2);
+        m_scriptWindow->resize(720, 800);
+        m_portEditAction = toolbar->addAction("Edit Ports");
+        setWidgetIconFromResource(m_portEditAction, "edit-ports");
+
+        auto spacer = new QWidget(toolbar);
+        spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+        toolbar->addWidget(spacer);
+
         // add console output widget
         m_pyconsoleWidget = new QTermWidget(0, m_scriptWindow);
         m_pyconsoleWidget->setShellProgram(nullptr);
@@ -92,19 +105,13 @@ public:
         splitter->addWidget(m_pyconsoleWidget);
         splitter->setStretchFactor(0, 8);
         splitter->setStretchFactor(1, 5);
-        auto scriptLayout = new QHBoxLayout(m_scriptWindow);
+        auto scriptLayout = new QVBoxLayout(m_scriptWindow);
         m_scriptWindow->setLayout(scriptLayout);
-        scriptLayout->setMargin(2);
+        scriptLayout->setMargin(0);
+        scriptLayout->addWidget(toolbar);
         scriptLayout->addWidget(splitter);
 
         // add ports dialog
-        auto menuBar = new QMenuBar();
-        auto portsMenu = new QMenu("Ports", menuBar);
-        menuBar->addMenu(portsMenu);
-        auto portEditAction = portsMenu->addAction("Edit");
-        m_scriptWindow->layout()->setMenuBar(menuBar);
-        m_scriptWindow->resize(720, 800);
-
         m_portsDialog = new PortEditorDialog(this, m_scriptWindow);
 
         // connect UI events
@@ -113,21 +120,28 @@ public:
             m_pyconsoleWidget->sendText(data);
         });
 
-        connect(portEditAction, &QAction::triggered, this, [&](bool) {
+        connect(m_portEditAction, &QAction::triggered, this, [&](bool) {
             m_portsDialog->exec();
         });
 
-        // add help menu
-        auto helpMenu = new QMenu("Help", menuBar);
-        menuBar->addMenu(helpMenu);
-        auto docHelpAction = helpMenu->addAction("Documentation");
-        auto apiHelpAction = helpMenu->addAction("Syio API Reference");
+        // add menu
+        auto menuButton = new QToolButton(toolbar);
+        menuButton->setIcon(QIcon::fromTheme("application-menu"));
+        menuButton->setPopupMode(QToolButton::InstantPopup);
+        auto actionsMenu = new QMenu(m_scriptWindow);
+        auto docHelpAction = actionsMenu->addAction("Documentation");
+        auto apiHelpAction = actionsMenu->addAction("MLink API Reference");
+
+        menuButton->setMenu(actionsMenu);
+        toolbar->addWidget(menuButton);
+
         connect(docHelpAction, &QAction::triggered, this, [&](bool) {
             QDesktopServices::openUrl(
                 QUrl("https://syntalos.readthedocs.io/latest/modules/pyscript.html", QUrl::TolerantMode));
         });
         connect(apiHelpAction, &QAction::triggered, this, [&](bool) {
-            QDesktopServices::openUrl(QUrl("https://syntalos.readthedocs.io/latest/syio_api.html", QUrl::TolerantMode));
+            QDesktopServices::openUrl(
+                QUrl("https://syntalos.readthedocs.io/latest/pysy-mlink-api.html", QUrl::TolerantMode));
         });
 
         // Don't trigger the text editor document save dialog
@@ -163,6 +177,7 @@ public:
 
     bool prepare(const TestSubject &testSubject) override
     {
+        m_portEditAction->setEnabled(false);
         m_pyconsoleWidget->clear();
         setScript(m_scriptView->document()->text());
 
@@ -173,6 +188,7 @@ public:
     {
         MLinkModule::stop();
         terminateProcess();
+        m_portEditAction->setEnabled(true);
     }
 
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &extraData) override
@@ -234,6 +250,7 @@ private:
     QTermWidget *m_pyconsoleWidget;
     KTextEditor::View *m_scriptView;
     PortEditorDialog *m_portsDialog;
+    QAction *m_portEditAction;
 
     QWidget *m_scriptWindow;
 };

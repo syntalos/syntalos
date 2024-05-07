@@ -16,7 +16,6 @@ module_ui = []
 
 module_res = ['pyscriptres.qrc']
 
-kftexteditor_dep = dependency('KF5TextEditor')
 qtermwidget_dep = dependency('qtermwidget5')
 module_deps = [
     kftexteditor_dep,

@@ -5,4 +5,10 @@
     <file>template.meson</file>
     <file>autobuild.sh</file>
   </qresource>
+  <qresource prefix="/icons">
+    <file alias="cpp-compile">cpp-compile.svg</file>
+  </qresource>
+  <qresource prefix="/icons/dark">
+    <file alias="cpp-compile">cpp-compile-dark.svg</file>
+  </qresource>
 </RCC>

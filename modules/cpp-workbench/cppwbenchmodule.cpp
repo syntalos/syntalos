@@ -41,6 +41,7 @@
 #include <QFileSystemWatcher>
 #include <QProcessEnvironment>
 #include <QMessageBox>
+#include <QToolBar>
 
 #include "mlinkmodule.h"
 #include "porteditordialog.h"
@@ -130,26 +131,33 @@ public:
         pal.setColor(QPalette::Base, SyColorDark);
         m_logWidget->setPalette(pal);
 
+        // create main toolbar
+        auto toolbar = new QToolBar(m_codeWindow);
+        toolbar->setMovable(false);
+        toolbar->layout()->setMargin(2);
+        m_codeWindow->resize(800, 920);
+        m_manualCompileAction = toolbar->addAction("Compile Code");
+        setWidgetIconFromResource(m_manualCompileAction, "cpp-compile");
+        m_portEditAction = toolbar->addAction("Edit Ports");
+        setWidgetIconFromResource(m_portEditAction, "edit-ports");
+
+        auto spacer = new QWidget(toolbar);
+        spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+        toolbar->addWidget(spacer);
+
+        m_portsDialog = new PortEditorDialog(this, m_codeWindow);
+
         // combine the UI elements into the main layout
         auto splitter = new QSplitter(Qt::Vertical, m_codeWindow);
         splitter->addWidget(m_codeView);
         splitter->addWidget(m_consoleTabWidget);
         splitter->setStretchFactor(0, 8);
         splitter->setStretchFactor(1, 1);
-        auto codeLayout = new QHBoxLayout(m_codeWindow);
+        auto codeLayout = new QVBoxLayout(m_codeWindow);
         m_codeWindow->setLayout(codeLayout);
-        codeLayout->setMargin(2);
+        codeLayout->setMargin(0);
+        codeLayout->addWidget(toolbar);
         codeLayout->addWidget(splitter);
-
-        // add ports dialog
-        auto menuBar = new QMenuBar();
-        auto portsMenu = new QMenu("Ports", menuBar);
-        menuBar->addMenu(portsMenu);
-        auto portEditAction = portsMenu->addAction("Edit");
-        m_codeWindow->layout()->setMenuBar(menuBar);
-        m_codeWindow->resize(800, 920);
-
-        m_portsDialog = new PortEditorDialog(this, m_codeWindow);
 
         // connect UI events
         setOutputCaptured(true);
@@ -157,19 +165,36 @@ public:
             m_logWidget->append(data);
         });
 
-        connect(portEditAction, &QAction::triggered, this, [this](bool) {
+        connect(m_portEditAction, &QAction::triggered, this, [this](bool) {
             m_portsDialog->updatePortLists();
             m_portsDialog->exec();
         });
 
-        // add help menu
-        auto helpMenu = new QMenu("Help", menuBar);
-        menuBar->addMenu(helpMenu);
-        auto docHelpAction = helpMenu->addAction("Documentation");
+        connect(m_manualCompileAction, &QAction::triggered, this, [this](bool) {
+            if (!verifyDependencies())
+                return;
+            QDir buildDir;
+            QString exeName;
+            if (!prepareBuild(buildDir, exeName))
+                return;
+            if (!performAutobuild(buildDir.absolutePath()))
+                return;
+        });
+
+        // add menu
+        auto menuButton = new QToolButton(toolbar);
+        menuButton->setIcon(QIcon::fromTheme("application-menu"));
+        menuButton->setPopupMode(QToolButton::InstantPopup);
+        auto actionsMenu = new QMenu(m_codeWindow);
+
+        auto docHelpAction = actionsMenu->addAction("Open Module Documentation");
         connect(docHelpAction, &QAction::triggered, this, [](bool) {
             QDesktopServices::openUrl(
                 QUrl("https://syntalos.readthedocs.io/latest/modules/cpp-workbench.html", QUrl::TolerantMode));
         });
+
+        menuButton->setMenu(actionsMenu);
+        toolbar->addWidget(menuButton);
 
         // Don't trigger the text editor document save dialog
         // TODO: Maybe we should save the Syntalos board here instead?
@@ -299,6 +324,71 @@ public:
         return true;
     }
 
+    bool prepareBuild(QDir &resultBuildDir, QString &resultExeName)
+    {
+        // basename of the executable that we are about to compile
+        const auto exeName = QStringLiteral("%1-%2").arg(id()).arg(index());
+
+        QDir wsDir(QStringLiteral("%1/%2").arg(m_cacheRoot, exeName));
+        if (!wsDir.mkpath(QStringLiteral("."))) {
+            raiseError(QStringLiteral("Failed to create workspace directory"));
+            return false;
+        }
+        if (!m_wsDirPath.isEmpty() && wsDir.absolutePath() != m_wsDirPath) {
+            // clean up old workspace
+            QDir oldWsDir(m_wsDirPath);
+            if (!oldWsDir.removeRecursively()) {
+                raiseError(QStringLiteral("Failed to clean up old workspace directory"));
+                return false;
+            }
+        }
+        m_wsDirPath = wsDir.absolutePath();
+        m_termWidget->changeDir(m_wsDirPath);
+
+        // write C++ code to file
+        QFile codeFile(wsDir.absoluteFilePath("main.cpp"));
+        if (!codeFile.open(QIODevice::WriteOnly)) {
+            raiseError(QStringLiteral("Failed to write code to file"));
+            return false;
+        }
+        codeFile.write(m_codeView->document()->text().toUtf8());
+        codeFile.close();
+
+        // write Meson build definition to file
+        QFile mesonDefFile(wsDir.absoluteFilePath("meson.build"));
+        if (!mesonDefFile.exists()) {
+            if (!mesonDefFile.open(QIODevice::WriteOnly)) {
+                raiseError(QStringLiteral("Failed to write Meson build definition to file"));
+                return false;
+            }
+            mesonDefFile.write(m_mesonDefTmpl.replace("@EXE_NAME@", exeName).toUtf8());
+            mesonDefFile.close();
+        }
+
+        // write autobuild helper to file
+        QFile autoBuildFile(wsDir.absoluteFilePath("autobuild.sh"));
+        if (!autoBuildFile.open(QIODevice::WriteOnly)) {
+            raiseError(QStringLiteral("Failed to write autobuild script to file"));
+            return false;
+        }
+        autoBuildFile.write(m_autobuildScript.toUtf8());
+        autoBuildFile.setPermissions(
+            QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner | QFile::ReadGroup | QFile::WriteGroup
+            | QFile::ExeGroup);
+        autoBuildFile.close();
+
+        // create build directory
+        QDir buildDir(wsDir.absoluteFilePath("b"));
+        if (!buildDir.mkpath(QStringLiteral("."))) {
+            raiseError(QStringLiteral("Failed to create build directory"));
+            return false;
+        }
+
+        resultBuildDir = buildDir;
+        resultExeName = exeName;
+        return true;
+    }
+
     bool performAutobuild(const QString &buildPath)
     {
         m_termWidget->changeDir(buildPath);
@@ -365,6 +455,9 @@ public:
 
     bool prepare(const TestSubject &testSubject) override
     {
+        m_portEditAction->setEnabled(false);
+        m_manualCompileAction->setEnabled(false);
+
         setStatusMessage("Checking dependencies...");
         if (!verifyDependencies())
             return false;
@@ -376,63 +469,11 @@ public:
         m_consoleTabWidget->setCurrentIndex(0);
         appProcessEvents();
 
-        // basename of the executable that we are about to compile
-        const auto exeName = QStringLiteral("%1-%2").arg(id()).arg(index());
-
-        QDir wsDir(QStringLiteral("%1/%2").arg(m_cacheRoot, exeName));
-        if (!wsDir.mkpath(QStringLiteral("."))) {
-            raiseError(QStringLiteral("Failed to create workspace directory"));
+        // actually prepare the build
+        QDir buildDir;
+        QString exeName;
+        if (!prepareBuild(buildDir, exeName))
             return false;
-        }
-        if (!m_wsDirPath.isEmpty() && wsDir.absolutePath() != m_wsDirPath) {
-            // clean up old workspace
-            QDir oldWsDir(m_wsDirPath);
-            if (!oldWsDir.removeRecursively()) {
-                raiseError(QStringLiteral("Failed to clean up old workspace directory"));
-                return false;
-            }
-        }
-        m_wsDirPath = wsDir.absolutePath();
-        m_termWidget->changeDir(m_wsDirPath);
-
-        // write C++ code to file
-        QFile codeFile(wsDir.absoluteFilePath("main.cpp"));
-        if (!codeFile.open(QIODevice::WriteOnly)) {
-            raiseError(QStringLiteral("Failed to write code to file"));
-            return false;
-        }
-        codeFile.write(m_codeView->document()->text().toUtf8());
-        codeFile.close();
-
-        // write Meson build definition to file
-        QFile mesonDefFile(wsDir.absoluteFilePath("meson.build"));
-        if (!mesonDefFile.exists()) {
-            if (!mesonDefFile.open(QIODevice::WriteOnly)) {
-                raiseError(QStringLiteral("Failed to write Meson build definition to file"));
-                return false;
-            }
-            mesonDefFile.write(m_mesonDefTmpl.replace("@EXE_NAME@", exeName).toUtf8());
-            mesonDefFile.close();
-        }
-
-        // write autobuild helper to file
-        QFile autoBuildFile(wsDir.absoluteFilePath("autobuild.sh"));
-        if (!autoBuildFile.open(QIODevice::WriteOnly)) {
-            raiseError(QStringLiteral("Failed to write autobuild script to file"));
-            return false;
-        }
-        autoBuildFile.write(m_autobuildScript.toUtf8());
-        autoBuildFile.setPermissions(
-            QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner | QFile::ReadGroup | QFile::WriteGroup
-            | QFile::ExeGroup);
-        autoBuildFile.close();
-
-        // create build directory
-        QDir buildDir(wsDir.absoluteFilePath("b"));
-        if (!buildDir.mkpath(QStringLiteral("."))) {
-            raiseError(QStringLiteral("Failed to create build directory"));
-            return false;
-        }
 
         setStatusMessage("Compiling...");
         if (!performAutobuild(buildDir.absolutePath())) {
@@ -462,6 +503,9 @@ public:
     {
         MLinkModule::stop();
         terminateProcess();
+
+        m_portEditAction->setEnabled(true);
+        m_manualCompileAction->setEnabled(true);
     }
 
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &extraData) override
@@ -526,6 +570,8 @@ private:
     KTextEditor::View *m_codeView;
     PortEditorDialog *m_portsDialog;
     QWidget *m_codeWindow;
+    QAction *m_portEditAction;
+    QAction *m_manualCompileAction;
 
     QString m_mesonDefTmpl;
     QString m_autobuildScript;
