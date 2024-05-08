@@ -286,7 +286,9 @@ public:
             const auto po = pv.toHash();
             const auto portId = po.value("id").toString();
             registerInputPortByTypeId(
-                QMetaType::type(qPrintable(po.value("data_type").toString())), portId, po.value("title").toString());
+                BaseDataType::typeIdFromString(qPrintable(po.value("data_type").toString())),
+                portId,
+                po.value("title").toString());
 
             // read settings for the signals associated with this port
             for (const auto &varSigSet : varPortSigSettings.value(portId, QVariantList()).toList()) {

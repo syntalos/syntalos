@@ -569,9 +569,10 @@ void AbstractModule::start()
     setState(ModuleState::RUNNING);
 }
 
-void AbstractModule::runThread(OptionalWaitCondition *)
+void AbstractModule::runThread(OptionalWaitCondition *waitCondition)
 {
-    /* do nothing */
+    // prevent blocking forever if a threaded module is started without overriding this method
+    waitCondition->wait(this);
 }
 
 void AbstractModule::processUiEvents()
