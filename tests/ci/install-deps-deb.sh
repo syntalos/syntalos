@@ -29,6 +29,7 @@ eatmydata apt-get install -yq --no-install-recommends \
     libgstreamer-plugins-base1.0-dev \
     libkf5archive-dev \
     libkf5texteditor-dev \
+    libkf5windowsystem-dev \
     libqtermwidget5-1-dev \
     libvips-dev \
     libopencv-dev \
