@@ -23,7 +23,6 @@
 #include <QInputDialog>
 
 #include "moduleapi.h"
-#include "datactl/datatypes.h"
 
 PortEditorDialog::PortEditorDialog(AbstractModule *mod, QWidget *parent)
     : QDialog(parent),
@@ -40,21 +39,45 @@ PortEditorDialog::~PortEditorDialog()
     delete ui;
 }
 
+void PortEditorDialog::setAllowedInputTypes(const std::set<BaseDataType::TypeId> &types)
+{
+    m_allowedInputTypes = types;
+}
+
+void PortEditorDialog::setAllowedOutputTypes(const std::set<BaseDataType::TypeId> &types)
+{
+    m_allowedOutputTypes = types;
+}
+
 void PortEditorDialog::on_tbAddInputPort_clicked()
 {
-    auto streamTypeMap = streamTypeIdMap();
+    QMap<QString, int> streamTypeMap;
+    if (!m_allowedInputTypes.empty()) {
+        const auto fullStMap = streamTypeIdMap();
+        for (auto it = fullStMap.keyValueBegin(); it != fullStMap.keyValueEnd(); ++it) {
+            if (m_allowedInputTypes.contains(static_cast<BaseDataType::TypeId>(it->second)))
+                streamTypeMap[it->first] = it->second;
+        }
+    } else {
+        streamTypeMap = streamTypeIdMap();
+    }
 
     bool ok;
-    auto item = QInputDialog::getItem(
-        this,
-        QStringLiteral("Input Port Data Type"),
-        QStringLiteral("Data type accepted by the input port:"),
-        streamTypeMap.keys(),
-        0,
-        false,
-        &ok);
-    if (!ok || item.isEmpty())
-        return;
+    QString item;
+    if (streamTypeMap.size() == 1) {
+        item = streamTypeMap.firstKey();
+    } else {
+        item = QInputDialog::getItem(
+            this,
+            QStringLiteral("Input Port Data Type"),
+            QStringLiteral("Data type accepted by the input port:"),
+            streamTypeMap.keys(),
+            0,
+            false,
+            &ok);
+        if (!ok || item.isEmpty())
+            return;
+    }
 
     auto idStr = QInputDialog::getText(
         this,
@@ -82,19 +105,33 @@ void PortEditorDialog::on_tbAddInputPort_clicked()
 
 void PortEditorDialog::on_tbAddOutputPort_clicked()
 {
-    auto streamTypeMap = streamTypeIdMap();
+    QMap<QString, int> streamTypeMap;
+    if (!m_allowedOutputTypes.empty()) {
+        const auto fullStMap = streamTypeIdMap();
+        for (auto it = fullStMap.keyValueBegin(); it != fullStMap.keyValueEnd(); ++it) {
+            if (m_allowedOutputTypes.contains(static_cast<BaseDataType::TypeId>(it->second)))
+                streamTypeMap[it->first] = it->second;
+        }
+    } else {
+        streamTypeMap = streamTypeIdMap();
+    }
 
     bool ok;
-    auto item = QInputDialog::getItem(
-        this,
-        QStringLiteral("Output Port Data Type"),
-        QStringLiteral("Type of emitted data:"),
-        streamTypeMap.keys(),
-        0,
-        false,
-        &ok);
-    if (!ok || item.isEmpty())
-        return;
+    QString item;
+    if (streamTypeMap.size() == 1) {
+        item = streamTypeMap.firstKey();
+    } else {
+        item = QInputDialog::getItem(
+            this,
+            QStringLiteral("Output Port Data Type"),
+            QStringLiteral("Type of emitted data:"),
+            streamTypeMap.keys(),
+            0,
+            false,
+            &ok);
+        if (!ok || item.isEmpty())
+            return;
+    }
 
     auto idStr = QInputDialog::getText(
         this,
@@ -127,15 +164,13 @@ void PortEditorDialog::updatePortLists()
 
     for (const auto &port : m_mod->inPorts()) {
         auto item = new QListWidgetItem(
-            QStringLiteral("%1 (%2) [>>%3]").arg(port->title()).arg(port->id()).arg(port->dataTypeName()),
-            ui->lwInputPorts);
+            QStringLiteral("%1 (%2) [>>%3]").arg(port->title(), port->id(), port->dataTypeName()), ui->lwInputPorts);
         item->setData(Qt::UserRole, port->id());
     }
 
     for (const auto &port : m_mod->outPorts()) {
         auto item = new QListWidgetItem(
-            QStringLiteral("%1 (%2) [<<%3]").arg(port->title()).arg(port->id()).arg(port->dataTypeName()),
-            ui->lwOutputPorts);
+            QStringLiteral("%1 (%2) [<<%3]").arg(port->title(), port->id(), port->dataTypeName()), ui->lwOutputPorts);
         item->setData(Qt::UserRole, port->id());
     }
 }

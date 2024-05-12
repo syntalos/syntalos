@@ -20,6 +20,9 @@
 #pragma once
 
 #include <QDialog>
+#include <set>
+
+#include "datactl/datatypes.h"
 
 namespace Ui
 {
@@ -40,6 +43,9 @@ public:
     explicit PortEditorDialog(AbstractModule *mod, QWidget *parent = nullptr);
     ~PortEditorDialog();
 
+    void setAllowedInputTypes(const std::set<BaseDataType::TypeId> &types);
+    void setAllowedOutputTypes(const std::set<BaseDataType::TypeId> &types);
+
     void updatePortLists();
 
 private slots:
@@ -53,4 +59,7 @@ private slots:
 private:
     Ui::PortEditorDialog *ui;
     AbstractModule *m_mod;
+
+    std::set<BaseDataType::TypeId> m_allowedInputTypes;
+    std::set<BaseDataType::TypeId> m_allowedOutputTypes;
 };
