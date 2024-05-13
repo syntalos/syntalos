@@ -35,6 +35,8 @@ public:
     explicit FirmataSettingsDialog(QWidget *parent = nullptr);
     ~FirmataSettingsDialog();
 
+    void updatePortList();
+
     void setRunning(bool running);
 
     QString serialPort() const;

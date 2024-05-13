@@ -30,7 +30,6 @@
 #include "modconfig.h"
 #include "optionalwaitcondition.h"
 #include "streams/stream.h"
-#include "subscriptionwatcher.h"
 #include "datactl/datatypes.h"
 #include "datactl/edlstorage.h"
 #include "datactl/syclock.h"

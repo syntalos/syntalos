@@ -89,6 +89,13 @@ public:
         return ModuleDriverKind::THREAD_DEDICATED;
     }
 
+    void usbHotplugEvent(UsbHotplugEventKind) override
+    {
+        if (m_running)
+            return;
+        m_settingsDialog->updatePortList();
+    }
+
     bool prepare(const TestSubject &) final
     {
         // cleanup

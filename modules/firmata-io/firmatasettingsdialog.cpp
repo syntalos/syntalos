@@ -29,17 +29,26 @@ FirmataSettingsDialog::FirmataSettingsDialog(QWidget *parent)
     ui->setupUi(this);
     setWindowIcon(QIcon(":/icons/generic-config"));
 
-    // Arduino / Firmata I/O
-    auto allPorts = QSerialPortInfo::availablePorts();
-    for (auto &port : allPorts) {
-        ui->portsComboBox->addItem(
-            QString("%1 (%2)").arg(port.portName()).arg(port.description()), port.systemLocation());
-    }
+    updatePortList();
 }
 
 FirmataSettingsDialog::~FirmataSettingsDialog()
 {
     delete ui;
+}
+
+void FirmataSettingsDialog::updatePortList()
+{
+    const auto selectedPort = serialPort();
+
+    // List all serial ports
+    auto allPorts = QSerialPortInfo::availablePorts();
+    for (auto &port : allPorts) {
+        ui->portsComboBox->addItem(
+            QString("%1 (%2)").arg(port.portName()).arg(port.description()), port.systemLocation());
+    }
+
+    setSerialPort(selectedPort);
 }
 
 void FirmataSettingsDialog::setRunning(bool running)
