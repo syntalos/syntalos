@@ -55,6 +55,7 @@ subdir('firmata-userctl')
 # Scripting
 subdir('pyscript')
 subdir('cpp-workbench')
+subdir('upy-workbench')
 
 # Electrophysiology
 if 'intan-rhx' in modules_enabled

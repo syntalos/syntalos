@@ -1,0 +1,13 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource prefix="/code">
+        <file>micropy-template.py</file>
+        <file>upy-comms.py</file>
+    </qresource>
+    <qresource prefix="/icons">
+        <file alias="upy-testrun">upy-testrun.svg</file>
+    </qresource>
+    <qresource prefix="/icons/dark">
+        <file alias="upy-testrun">upy-testrun-dark.svg</file>
+    </qresource>
+</RCC>
