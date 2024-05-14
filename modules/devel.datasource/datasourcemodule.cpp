@@ -41,6 +41,7 @@ private:
 
     int m_fps;
     QSize m_outFrameSize;
+    bool m_colorVideo;
 
     time_t m_prevRowTime;
     time_t m_prevTimeSData;
@@ -50,7 +51,8 @@ public:
     explicit DataSourceModule(QObject *parent = nullptr)
         : AbstractModule(parent),
           m_fps(200),
-          m_outFrameSize(QSize(960, 600))
+          m_outFrameSize(QSize(960, 600)),
+          m_colorVideo(true)
     {
         m_frameOut = registerOutputPort<Frame>(QStringLiteral("frames-out"), QStringLiteral("Frames"));
         m_rowsOut = registerOutputPort<TableRow>(QStringLiteral("rows-out"), QStringLiteral("Table Rows"));
@@ -77,10 +79,10 @@ public:
             return;
 
         bool ok;
-        int value = QInputDialog::getInt(
+        auto intVal = QInputDialog::getInt(
             nullptr, "Configure Debug Data Source", "Video Framerate", m_fps, 2, 10000, 1, &ok);
         if (ok)
-            m_fps = value;
+            m_fps = intVal;
     }
 
     bool prepare(const TestSubject &) override
@@ -225,6 +227,10 @@ private:
         frame.mat = frame.mat.extract_band(0, vips::VImage::option()->set("n", 3));
 
         frame.time = m_syTimer->timeSinceStartMsec();
+
+        // create black/white video if needed
+        if (!m_colorVideo)
+            frame.mat = frame.mat.colourspace(VIPS_INTERPRETATION_B_W);
 
         // evaluate the new image immediately
         vips_image_wio_input(frame.mat.get_image());

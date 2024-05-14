@@ -316,7 +316,7 @@ public:
                 const auto mdata = m_inSub->metadata();
                 auto frameSize = mdata.value("size", QSize()).toSize();
                 const auto framerate = mdata.value("framerate", 0).toDouble();
-                const auto bandFormat = static_cast<VipsBandFormat>(mdata.value("depth", VIPS_FORMAT_USHORT).toInt());
+                const auto bandFormat = static_cast<VipsBandFormat>(mdata.value("depth", VIPS_FORMAT_UCHAR).toInt());
                 const auto useColor = mdata.value("has_color", frame.mat.bands() > 1).toBool();
 
                 if (!frameSize.isValid()) {

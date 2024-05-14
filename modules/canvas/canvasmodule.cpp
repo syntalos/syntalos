@@ -98,7 +98,7 @@ public:
     void start() override
     {
         m_lastFrameTime = m_syTimer->timeSinceStartMsec().count();
-        if (m_frameSub.get() == nullptr) {
+        if (m_frameSub == nullptr) {
             m_active = false;
             return;
         }

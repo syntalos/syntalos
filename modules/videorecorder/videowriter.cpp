@@ -121,7 +121,7 @@ VideoContainer stringToVideoContainer(const std::string &str)
 
 static QString averrorToString(int err)
 {
-    char errbuf[AV_ERROR_MAX_STRING_SIZE + 16];
+    char errbuf[AV_ERROR_MAX_STRING_SIZE + 16] = {0};
     av_strerror(AVERROR(err), errbuf, sizeof(errbuf));
 
     return QString::fromUtf8(errbuf);
@@ -722,11 +722,17 @@ void VideoWriter::initializeInternal()
     if (d->codecProps.threadCount() > 0)
         d->cctx->thread_count = d->codecProps.threadCount() > 16 ? 16 : d->codecProps.threadCount();
 
-    if (d->codecProps.codec() == VideoCodec::Raw)
+    if (d->codecProps.codec() == VideoCodec::Raw) {
         d->encPixFormat = d->inputPixFormat == AV_PIX_FMT_GRAY8 || d->inputPixFormat == AV_PIX_FMT_GRAY16LE
                                   || d->inputPixFormat == AV_PIX_FMT_GRAY16BE
                               ? d->inputPixFormat
                               : AV_PIX_FMT_YUV420P;
+
+        // MKV apparently doesn't handle 16-bit gray
+        if (d->container == VideoContainer::Matroska
+            && (d->encPixFormat == AV_PIX_FMT_GRAY16LE || d->encPixFormat == AV_PIX_FMT_GRAY16BE))
+            d->encPixFormat = AV_PIX_FMT_GRAY8;
+    }
 
     if (d->octx->oformat->flags & AVFMT_GLOBALHEADER)
         d->cctx->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
@@ -918,11 +924,8 @@ void VideoWriter::initializeInternal()
     ret = avformat_write_header(d->octx, nullptr);
     if (ret < 0) {
         finalizeInternal(false);
-        char errBuf[1280] = {0};
-        if (av_strerror(ret, errBuf, sizeof(errBuf)) == 0)
-            throw std::runtime_error(QStringLiteral("Failed to write format header: %1").arg(errBuf).toStdString());
-        else
-            throw std::runtime_error(QStringLiteral("Failed to write format header: %1").arg(ret).toStdString());
+        throw std::runtime_error(
+            QStringLiteral("Failed to write format header: %1").arg(averrorToString(ret)).toStdString());
     }
     d->framePts = 0;
 
@@ -1049,16 +1052,16 @@ void VideoWriter::initialize(
     d->framesN = 0;
     d->saveTimestamps = saveTimestamps;
     d->currentSliceNo = 1;
-    if (fname.mid(fname.lastIndexOf('.') + 1).length() == 3)
+    if (fname.midRef(fname.lastIndexOf('.') + 1).length() == 3)
         d->fnameBase = fname.left(fname.length() - 4); // remove 3-char suffix from filename
     else
         d->fnameBase = fname;
 
-    // select FFMpeg pixel format of VIPS matrices
+    // select FFmpeg pixel format of VIPS matrices
     if (hasColor) {
         d->inputPixFormat = AV_PIX_FMT_RGB24;
     } else {
-        if (bandFormat == VIPS_FORMAT_USHORT)
+        if (bandFormat == VIPS_FORMAT_USHORT || bandFormat == VIPS_FORMAT_SHORT)
             d->inputPixFormat = AV_PIX_FMT_GRAY16LE;
         else
             d->inputPixFormat = AV_PIX_FMT_GRAY8;
@@ -1143,19 +1146,18 @@ inline bool VideoWriter::prepareFrame(const vips::VImage &inImage)
     vips::VImage image;
     auto channels = inImage.bands();
 
-    // Convert color formats around to match what was actually selected as
+    // Convert color formats to ensure we match what was actually selected as
     // input pixel format
     if (d->inputPixFormat == AV_PIX_FMT_GRAY8 || d->inputPixFormat == AV_PIX_FMT_GRAY16LE) {
         if (channels != 1)
             image = inImage.colourspace(VIPS_INTERPRETATION_B_W);
         else
             image = inImage;
-        d->inputPixFormat = AV_PIX_FMT_GRAY8;
-    } else if (d->inputPixFormat == AV_PIX_FMT_BGR24) {
+    } else if (d->inputPixFormat == AV_PIX_FMT_RGB24) {
         if (channels == 4)
             image = inImage.flatten();
         else if (channels == 1)
-            image = inImage.bandjoin({inImage, inImage});
+            image = vips::VImage::bandjoin({inImage, inImage, inImage});
         else
             image = inImage;
     } else {
@@ -1164,8 +1166,13 @@ inline bool VideoWriter::prepareFrame(const vips::VImage &inImage)
 
     // Ensure all VIPS operations are applied and we have our own immutable copy
     // of the data at this point
-    // FIXME: We need to adjust the cast for future 16-bit support
-    image = image.cast(VIPS_FORMAT_UCHAR).copy_memory();
+    int pixSize = 1;
+    if (d->inputPixFormat == AV_PIX_FMT_GRAY16LE) {
+        image = image.cast(VIPS_FORMAT_USHORT, vips::VImage::option()->set("shift", true)).copy_memory();
+        pixSize = 2;
+    } else {
+        image = image.cast(VIPS_FORMAT_UCHAR, vips::VImage::option()->set("shift", true)).copy_memory();
+    }
 
     auto data = (const uint8_t *)image.data();
     channels = image.bands();
@@ -1174,7 +1181,7 @@ inline bool VideoWriter::prepareFrame(const vips::VImage &inImage)
     const auto width = image.width();
 
     // FIXME: We assume 8-bit images here!
-    auto step = width * channels;
+    size_t step = width * channels * pixSize;
 
     // sanity checks
     if ((static_cast<int>(height) > d->height) || (static_cast<int>(width) > d->width))
@@ -1186,8 +1193,8 @@ inline bool VideoWriter::prepareFrame(const vips::VImage &inImage)
                 .arg(d->width)
                 .arg(d->height)
                 .toStdString());
-    if ((d->inputPixFormat == AV_PIX_FMT_BGR24) && (channels != 3)) {
-        d->lastError = QStringLiteral("Expected BGR colored image, but received image has %1 channels")
+    if ((d->inputPixFormat == AV_PIX_FMT_RGB24) && (channels != 3)) {
+        d->lastError = QStringLiteral("Expected RGB colored image, but received image has %1 channels")
                            .arg(channels)
                            .toStdString();
         return false;
@@ -1245,7 +1252,7 @@ inline bool VideoWriter::prepareFrame(const vips::VImage &inImage)
             d->inputFrame->data,
             d->inputFrame->linesize,
             0,
-            d->height,
+            height,
             d->encFrame->data,
             d->encFrame->linesize)
         < 0) {
