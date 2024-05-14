@@ -87,9 +87,9 @@ enum class UsbHotplugEventKind {
 enum class ModuleCategory : uint32_t {
     NONE = 0,              /// Not categorized
     SYNTALOS_DEV = 1 << 0, /// A development/test tool for Syntalos itself
-    EXAMPLE = 1 << 1,      /// An example / template module
-    DEVICE = 1 << 2,       /// Modules which communicate with hwrdware devices
-    GENERATOR = 1 << 3,    /// (Test)data generators)
+    EXAMPLES = 1 << 1,     /// An example / template module
+    DEVICES = 1 << 2,      /// Modules which communicate with hwrdware devices
+    GENERATORS = 1 << 3,   /// (Test)data generators)
     SCRIPTING = 1 << 4,    /// Scripting & customization
     DISPLAY = 1 << 5,      /// Display modules
     WRITERS = 1 << 6,      /// Modules which write data to disk
@@ -124,9 +124,19 @@ public:
     virtual QString name() const;
 
     /**
-     * @brief Description of this module
+     * @brief Very brief description of this module.
+     */
+    virtual QString summary() const;
+
+    /**
+     * @brief Long description of this module
      */
     virtual QString description() const;
+
+    /**
+     * @brief Developer(s) of this module, one developer name per line.
+     */
+    virtual QString authors() const;
 
     /**
      * @brief Additional licensing conditions that apply to this module.

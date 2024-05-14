@@ -112,7 +112,7 @@ QString ExampleCppModuleInfo::description() const
 
 ModuleCategories ExampleCppModuleInfo::categories() const
 {
-    return ModuleCategory::SYNTALOS_DEV | ModuleCategory::EXAMPLE;
+    return ModuleCategory::SYNTALOS_DEV | ModuleCategory::EXAMPLES;
 }
 
 AbstractModule *ExampleCppModuleInfo::createModule(QObject *parent)

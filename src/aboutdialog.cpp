@@ -39,7 +39,8 @@ const QString aboutDlgCopyInfo = QStringLiteral(
     "but WITHOUT ANY WARRANTY; without even the implied warranty of "
     "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the "
     "GNU General Public License for more details.</p>"
-    "<p>Icons are based on the Breeze Iconset by the <a href=\"https://kde.org/\">KDE Community</a> [LGPLv3+]<br/>"
+    "<p>Icons are based on the Breeze Iconset by the <a href=\"https://kde.org/\">KDE Community</a> [LGPL-3.0+],<br/>"
+    "some icons are based on the <a href=\"https://github.com/PapirusDevelopmentTeam/papirus-icon-theme/\">Papirus Iconset</a> [GPL-3.0+]<br/>"
     "ASCII art credit for this window: hjw `97</p>"
     "<h3>Modules:</h3>");
 

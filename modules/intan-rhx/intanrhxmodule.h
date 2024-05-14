@@ -29,11 +29,13 @@ using namespace Syntalos;
 class IntanRhxModuleInfo : public ModuleInfo
 {
 public:
-    QString id() const override;
-    QString name() const override;
-    QString description() const override;
-    QString license() const override;
-    bool singleton() const override;
+    QString id() const final;
+    QString name() const final;
+    QString summary() const final;
+    QString description() const final;
+    QString authors() const final;
+    QString license() const final;
+    bool singleton() const final;
     AbstractModule *createModule(QObject *parent = nullptr) override;
 };
 

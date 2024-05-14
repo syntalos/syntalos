@@ -22,9 +22,10 @@
 
 #include <QDialog>
 
-#include "modulelibrary.h"
+#include "moduleapi.h"
 
 class QStandardItemModel;
+class QStandardItem;
 
 namespace Ui
 {
@@ -36,21 +37,34 @@ class ModuleSelectDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit ModuleSelectDialog(QList<QSharedPointer<ModuleInfo>> infos, QWidget *parent = nullptr);
+    explicit ModuleSelectDialog(const QList<QSharedPointer<ModuleInfo>> &infos, QWidget *parent = nullptr);
     ~ModuleSelectDialog();
 
-    void setModuleInfo(QList<QSharedPointer<ModuleInfo>> infos);
+    void setModuleInfo(const QList<QSharedPointer<ModuleInfo>> &infos);
     QString selectedEntryId() const;
 
 private slots:
-    void on_listView_doubleClicked(const QModelIndex &index);
+    void on_modListView_doubleClicked(const QModelIndex &index);
+    void on_filterEdit_editingFinished();
+    void on_filterEdit_textChanged(const QString &arg1);
 
 private:
     Ui::ModuleSelectDialog *ui;
 
-    void setEntryIdFromIndex(const QModelIndex &index);
+    void setModuleViewModel(QStandardItemModel *model);
+    QStandardItem *newCatModelItem(int catId, const QString &name, const QIcon &icon);
+    QStandardItem *newCatModelItem(Syntalos::ModuleCategory cat, const QString &name, const QIcon &icon);
+    void setCategoryFromIndex(const QModelIndex &index);
+    void setModuleIdFromIndex(const QModelIndex &index);
+    void filterByTerm(const QString &filterTerm);
 
-    QStandardItemModel *m_model;
+    bool m_showDevModules;
+    bool m_termFilterPending;
+    QStandardItemModel *m_catModel;
+    QStandardItemModel *m_modModel;
+    QStandardItemModel *m_filterModel;
+    QHash<QString, QSharedPointer<ModuleInfo>> m_modInfoLib;
+    QHash<Syntalos::ModuleCategory, QList<QString>> m_modCats;
     QString m_selectedEntryId;
 };
 

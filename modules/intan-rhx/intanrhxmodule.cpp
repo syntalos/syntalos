@@ -38,15 +38,25 @@ QString IntanRhxModuleInfo::name() const
     return QStringLiteral("Intan RHX");
 }
 
+QString IntanRhxModuleInfo::summary() const
+{
+    return QStringLiteral("Record electrophysiological signals from any Intan-compatible device.");
+}
+
 QString IntanRhxModuleInfo::description() const
 {
     return QStringLiteral("Record electrophysiological signals from any Intan RHD or RHS system using "
-                          "an RHD USB interface board, RHD recording controller, or RHS stim/recording controller.");
+        "an RHD USB interface board, RHD recording controller, or RHS stim/recording controller.");
+}
+
+QString IntanRhxModuleInfo::authors() const
+{
+    return QStringLiteral("Matthias Klumpp\nIntan Technologies");
 }
 
 QString IntanRhxModuleInfo::license() const
 {
-    return QStringLiteral("Copyright © 2020-2024 <a href=\"https://intantech.com/\">Intan Technologies</a> [GPL-3.0+]");
+    return QStringLiteral("Copyright © 2020-2024 <a href=\"https://intantech.com/\">Intan Technologies</a> [GPL-3.0+] ");
 }
 
 bool IntanRhxModuleInfo::singleton() const

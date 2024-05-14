@@ -28,6 +28,7 @@
 #include <QStyledItemDelegate>
 #include <QTextDocument>
 #include <QtMath>
+#include <QTimer>
 
 #include "globalconfig.h"
 #include "moduleapi.h"
@@ -48,10 +49,7 @@ protected:
         doc.setTextWidth(options.rect.width() - iconSize.width());
 
         auto height = qRound(doc.size().height());
-        if (height < 80)
-            height = iconSize.height();
-
-        height = 84; // set a fixed height for now, automatic/variable height does not work well yet
+        height = 64; // set a fixed height for now, automatic/variable height does not work well yet
         return QSize(qCeil(doc.size().width()), height);
     }
 };
@@ -83,7 +81,7 @@ void HtmlDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, 
     painter->restore();
 }
 
-ModuleSelectDialog::ModuleSelectDialog(QList<QSharedPointer<ModuleInfo>> infos, QWidget *parent)
+ModuleSelectDialog::ModuleSelectDialog(const QList<QSharedPointer<ModuleInfo>> &infos, QWidget *parent)
     : QDialog(parent),
       ui(new Ui::ModuleSelectDialog)
 {
@@ -91,22 +89,65 @@ ModuleSelectDialog::ModuleSelectDialog(QList<QSharedPointer<ModuleInfo>> infos, 
     this->setWindowModality(Qt::ApplicationModal);
     this->setWindowTitle(QStringLiteral("Select a module"));
 
-    m_model = new QStandardItemModel(this);
-    ui->listView->setModel(m_model);
-    ui->listView->setIconSize(QSize(56, 56));
+    // load settings
+    Syntalos::GlobalConfig gconf;
+    m_showDevModules = gconf.showDevelModules();
+
+    // categories
+    m_catModel = new QStandardItemModel(this);
+    ui->categoryListView->setModel(m_catModel);
+    ui->categoryListView->setIconSize(QSize(32, 32));
+
+    m_catModel->appendRow(newCatModelItem(-1, "All", QIcon(":/categories/all")));
+    m_catModel->appendRow(newCatModelItem(ModuleCategory::DEVICES, "Device Support", QIcon(":/categories/devices")));
+    m_catModel->appendRow(
+        newCatModelItem(ModuleCategory::GENERATORS, "Data Generators", QIcon(":/categories/generators")));
+    m_catModel->appendRow(
+        newCatModelItem(ModuleCategory::SCRIPTING, "Custom Scripting", QIcon(":/categories/scripting")));
+    m_catModel->appendRow(newCatModelItem(ModuleCategory::DISPLAY, "Display", QIcon(":/categories/display")));
+    m_catModel->appendRow(newCatModelItem(ModuleCategory::WRITERS, "Data Writers", QIcon(":/categories/writers")));
+    m_catModel->appendRow(
+        newCatModelItem(ModuleCategory::PROCESSING, "Live Data Processing", QIcon(":/categories/processing")));
+    m_catModel->appendRow(
+        newCatModelItem(ModuleCategory::EXAMPLES, "Module Templates", QIcon(":/categories/examples")));
+    if (m_showDevModules)
+        m_catModel->appendRow(
+            newCatModelItem(ModuleCategory::SYNTALOS_DEV, "Development & Tests", QIcon(":/categories/development")));
+    ui->categoryListView->setCurrentIndex(m_catModel->index(0, 0));
+
+    // modules
+    m_modModel = new QStandardItemModel(this);
+    m_filterModel = new QStandardItemModel(this);
+    setModuleViewModel(m_modModel);
+    ui->modListView->setIconSize(QSize(48, 48));
 
     auto htmlDelegate = new HtmlDelegate;
-    ui->listView->setItemDelegate(htmlDelegate);
+    ui->modListView->setItemDelegate(htmlDelegate);
 
     m_selectedEntryId.clear();
     setModuleInfo(infos);
 
+    // setup right sidebar
+    ui->modIconLabel->setPixmap(QIcon::fromTheme("question").pixmap(96));
+    ui->modNameLabel->setText("");
+    ui->modDescLabel->setText("");
+    ui->detailsWidget->setVisible(false);
+
+    // setup filter
+    ui->filterEdit->setClearButtonEnabled(true);
+    ui->filterEdit->addAction(QIcon::fromTheme("search"), QLineEdit::LeadingPosition);
+    ui->filterEdit->setPlaceholderText("Filter...");
+
+    // connections
     connect(
-        ui->listView->selectionModel(),
+        ui->categoryListView->selectionModel(),
         &QItemSelectionModel::currentChanged,
-        [&](const QModelIndex &index, const QModelIndex &) {
-            setEntryIdFromIndex(index);
+        [this](const QModelIndex &index, const QModelIndex &) {
+            setCategoryFromIndex(index);
         });
+
+    // focus
+    ui->modListView->setFocus();
 }
 
 ModuleSelectDialog::~ModuleSelectDialog()
@@ -114,11 +155,39 @@ ModuleSelectDialog::~ModuleSelectDialog()
     delete ui;
 }
 
-void ModuleSelectDialog::setModuleInfo(QList<QSharedPointer<ModuleInfo>> infos)
+void ModuleSelectDialog::setModuleViewModel(QStandardItemModel *model)
 {
-    Syntalos::GlobalConfig gconf;
-    const auto showDevModules = gconf.showDevelModules();
+    if (ui->modListView->model() == model)
+        return;
 
+    ui->modListView->setModel(model);
+    connect(
+        ui->modListView->selectionModel(),
+        &QItemSelectionModel::currentChanged,
+        [this](const QModelIndex &index, const QModelIndex &) {
+            setModuleIdFromIndex(index);
+        });
+}
+
+QStandardItem *ModuleSelectDialog::newCatModelItem(int catId, const QString &name, const QIcon &icon)
+{
+    auto item = new QStandardItem(icon, name);
+    auto font = item->font();
+    font.setBold(true);
+    font.setPointSize(11);
+    item->setFont(font);
+    item->setTextAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    item->setData((uint32_t)catId);
+    return item;
+}
+
+QStandardItem *ModuleSelectDialog::newCatModelItem(ModuleCategory cat, const QString &name, const QIcon &icon)
+{
+    return newCatModelItem(static_cast<int>(cat), name, icon);
+}
+
+void ModuleSelectDialog::setModuleInfo(const QList<QSharedPointer<ModuleInfo>> &infos)
+{
     struct {
         bool operator()(const QSharedPointer<ModuleInfo> &mi1, const QSharedPointer<ModuleInfo> &mi2) const
         {
@@ -126,21 +195,23 @@ void ModuleSelectDialog::setModuleInfo(QList<QSharedPointer<ModuleInfo>> infos)
         }
     } moduleInfoLess;
 
-    m_model->clear();
+    m_modModel->clear();
 
     QList<QSharedPointer<ModuleInfo>> sortedInfos = infos;
     std::sort(sortedInfos.begin(), sortedInfos.end(), moduleInfoLess);
 
     for (auto &info : sortedInfos) {
         // hide developer modules, unless the user explicitly chose to show them
-        if (info->categories().testFlag(ModuleCategory::SYNTALOS_DEV) && !showDevModules)
+        if (info->categories().testFlag(ModuleCategory::SYNTALOS_DEV) && !m_showDevModules)
             continue;
 
+        m_modInfoLib[info->id()] = info;
+
         auto item = new QStandardItem(
-            info->icon(), QStringLiteral("<b>%1</b><br/><span>%2</span>").arg(info->name(), info->description()));
+            info->icon(), QStringLiteral("<b>%1</b><br/><span>%2</span>").arg(info->name(), info->summary()));
         item->setTextAlignment(Qt::AlignLeft);
         item->setData(info->id());
-        m_model->appendRow(item);
+        m_modModel->appendRow(item);
 
         if (info->singleton() && info->count() > 0)
             item->setEnabled(false);
@@ -152,13 +223,111 @@ QString ModuleSelectDialog::selectedEntryId() const
     return m_selectedEntryId;
 }
 
-void ModuleSelectDialog::on_listView_doubleClicked(const QModelIndex &index)
+void ModuleSelectDialog::on_modListView_doubleClicked(const QModelIndex &index)
 {
-    setEntryIdFromIndex(index);
+    setModuleIdFromIndex(index);
     this->done(QDialog::Accepted);
 }
 
-void ModuleSelectDialog::setEntryIdFromIndex(const QModelIndex &index)
+void ModuleSelectDialog::setCategoryFromIndex(const QModelIndex &index)
 {
-    m_selectedEntryId = m_model->itemFromIndex(index)->data().toString();
+    auto catId = m_catModel->itemFromIndex(index)->data().toInt();
+    m_filterModel->clear();
+
+    if (catId < 0) {
+        // show all entries
+        setModuleViewModel(m_modModel);
+        return;
+    }
+
+    // show filtered list
+    for (int i = 0; i < m_modModel->rowCount(); ++i) {
+        auto item = m_modModel->item(i);
+        auto info = m_modInfoLib.value(item->data().toString());
+        if (info->categories().testFlag(static_cast<ModuleCategory>(catId))) {
+            m_filterModel->appendRow(item->clone());
+        }
+    }
+
+    setModuleViewModel(m_filterModel);
+}
+
+void ModuleSelectDialog::setModuleIdFromIndex(const QModelIndex &index)
+{
+    if (!index.isValid())
+        return;
+    auto model = qobject_cast<QStandardItemModel *>(ui->modListView->model());
+    m_selectedEntryId = model->itemFromIndex(index)->data().toString();
+    auto info = m_modInfoLib.value(m_selectedEntryId);
+    if (!info)
+        return;
+    ui->modIconLabel->setPixmap(info->icon().pixmap(96));
+    ui->modNameLabel->setText(info->name());
+    ui->modDescLabel->setText(info->description());
+
+    ui->detailsWidget->setVisible(true);
+    ui->licenseInfoLabel->setVisible(false);
+    ui->licenseLabel->setVisible(false);
+    ui->authorsLabel->setVisible(false);
+    ui->authorsInfoLabel->setVisible(false);
+    if (!info->authors().isEmpty()) {
+        ui->authorsLabel->setVisible(true);
+        ui->authorsInfoLabel->setVisible(true);
+        ui->authorsLabel->setText(info->authors());
+    }
+    if (!info->license().isEmpty()) {
+        ui->licenseLabel->setVisible(true);
+        ui->licenseInfoLabel->setVisible(true);
+        ui->licenseLabel->setText(info->license().replace("\n", "<br/>") + QStringLiteral("<br/>"));
+    }
+}
+
+void ModuleSelectDialog::filterByTerm(const QString &filterTerm)
+{
+    m_filterModel->clear();
+
+    if (filterTerm.isEmpty()) {
+        // show all modules
+        setModuleViewModel(m_modModel);
+        ui->categoryListView->setEnabled(true);
+        m_termFilterPending = false;
+        return;
+    }
+
+    // disable category filter
+    ui->categoryListView->setEnabled(false);
+    ui->categoryListView->setCurrentIndex(m_catModel->index(0, 0));
+
+    // show filtered list
+    for (int i = 0; i < m_modModel->rowCount(); ++i) {
+        auto item = m_modModel->item(i);
+        auto info = m_modInfoLib.value(item->data().toString());
+        if (info->name().contains(filterTerm, Qt::CaseInsensitive)
+            || info->description().contains(filterTerm, Qt::CaseInsensitive)) {
+            m_filterModel->appendRow(item->clone());
+        }
+    }
+
+    setModuleViewModel(m_filterModel);
+    m_termFilterPending = false;
+}
+
+void ModuleSelectDialog::on_filterEdit_editingFinished()
+{
+    if (!m_termFilterPending) {
+        m_termFilterPending = true;
+        QTimer::singleShot(200, this, [&]() {
+            filterByTerm(ui->filterEdit->text());
+        });
+    }
+}
+
+void ModuleSelectDialog::on_filterEdit_textChanged(const QString &arg1)
+{
+    if (!m_termFilterPending) {
+        m_termFilterPending = true;
+        QTimer::singleShot(200, this, [&]() {
+            filterByTerm(ui->filterEdit->text());
+        });
+    }
 }

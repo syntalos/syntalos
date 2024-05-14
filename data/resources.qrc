@@ -48,12 +48,23 @@
         <file alias="devel">modules/devmodule.svg</file>
         <file alias="table">modules/table.svg</file>
     </qresource>
-    <qresource prefix="/texts">
-        <file>greetings.toml</file>
+    <qresource prefix="/categories">
+        <file alias="all">categories/all.svg</file>
+        <file alias="examples">categories/examples.svg</file>
+        <file alias="devices">categories/devices.svg</file>
+        <file alias="generators">categories/generators.svg</file>
+        <file alias="scripting">categories/scripting.svg</file>
+        <file alias="display">categories/display.svg</file>
+        <file alias="writers">categories/writers.svg</file>
+        <file alias="processing">categories/processing.svg</file>
+        <file alias="development">categories/sydev.svg</file>
     </qresource>
     <qresource prefix="/animations">
         <file alias="running.svg">animations/running.svg</file>
         <file alias="busy.svg">animations/busy.svg</file>
         <file alias="waiting.svg">animations/waiting.svg</file>
+    </qresource>
+    <qresource prefix="/texts">
+        <file>greetings.toml</file>
     </qresource>
 </RCC>

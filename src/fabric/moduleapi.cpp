@@ -62,9 +62,22 @@ QString ModuleInfo::name() const
     return QStringLiteral("Unknown Module");
 }
 
+QString ModuleInfo::summary() const
+{
+    const auto desc = description();
+    if (desc.length() <= 80)
+        return desc;
+    return desc.left(80) + QStringLiteral("...");
+}
+
 QString ModuleInfo::description() const
 {
     return QStringLiteral("An unknown description.");
+}
+
+QString ModuleInfo::authors() const
+{
+    return QString();
 }
 
 QString ModuleInfo::license() const
@@ -394,11 +407,11 @@ QString Syntalos::toString(ModuleCategory category)
     switch (category) {
     case ModuleCategory::SYNTALOS_DEV:
         return "sydevel";
-    case ModuleCategory::EXAMPLE:
+    case ModuleCategory::EXAMPLES:
         return "example";
-    case ModuleCategory::DEVICE:
+    case ModuleCategory::DEVICES:
         return "device";
-    case ModuleCategory::GENERATOR:
+    case ModuleCategory::GENERATORS:
         return "generator";
     case ModuleCategory::SCRIPTING:
         return "scripting";
@@ -418,9 +431,9 @@ ModuleCategory Syntalos::moduleCategoryFromString(const QString &categoryStr)
     static const QMap<QString, ModuleCategory> categoryMap = {
         {"none",       ModuleCategory::NONE        },
         {"sydevel",    ModuleCategory::SYNTALOS_DEV},
-        {"example",    ModuleCategory::EXAMPLE     },
-        {"device",     ModuleCategory::DEVICE      },
-        {"generator",  ModuleCategory::GENERATOR   },
+        {"example",    ModuleCategory::EXAMPLES    },
+        {"device",     ModuleCategory::DEVICES     },
+        {"generator",  ModuleCategory::GENERATORS  },
         {"scripting",  ModuleCategory::SCRIPTING   },
         {"display",    ModuleCategory::DISPLAY     },
         {"writers",    ModuleCategory::WRITERS     },

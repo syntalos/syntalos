@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>800</width>
-    <height>780</height>
+    <width>1000</width>
+    <height>900</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -1243,7 +1243,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>800</width>
+     <width>1000</width>
      <height>22</height>
     </rect>
    </property>
@@ -1610,7 +1610,8 @@
   </action>
   <action name="actionHelpDiscuss">
    <property name="icon">
-    <iconset theme="dialog-question"/>
+    <iconset theme="dialog-question">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>Ask a question</string>

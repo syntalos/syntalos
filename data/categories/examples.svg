@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="48" height="48" version="1.1" xmlns="http://www.w3.org/2000/svg">
+ <defs>
+  <linearGradient id="a" x1="13" x2="36" y1="1016.4" y2="1040.4" gradientUnits="userSpaceOnUse">
+   <stop stop-color="#292c2f" offset="0"/>
+   <stop stop-opacity="0" offset="1"/>
+  </linearGradient>
+  <linearGradient id="b" x2="0" y1="44" y2="4" gradientUnits="userSpaceOnUse">
+   <stop stop-color="#7cbaf8" offset="0"/>
+   <stop stop-color="#f4fcff" offset="1"/>
+  </linearGradient>
+  <linearGradient id="c" x2="0" y1="39" y2="9" gradientTransform="matrix(1.0286 0 0 1.2 -5.314 -4.8)" gradientUnits="userSpaceOnUse">
+   <stop stop-color="#197cf1" offset="0"/>
+   <stop stop-color="#20bcfa" offset="1"/>
+  </linearGradient>
+ </defs>
+ <g transform="matrix(1.0244 0 0 1.05 -1.0976 -1055.8)" fill-rule="evenodd">
+  <g color="#000000" stroke-width="2">
+   <path transform="translate(0 1004.4)" d="m44 24a20 20 0 1 1-40 0 20 20 0 1 1 40 0" fill="url(#b)"/>
+   <path transform="translate(0 1004.4)" d="m24 6c-9.941 0-18 8.06-18 18 0 9.941 8.06 18 18 18 9.941 0 18-8.06 18-18 0-9.941-8.06-18-18-18m-2 6h4v4h-4zm0 8h4v16h-4v-12z" fill="url(#c)"/>
+  </g>
+  <path d="m26 1020.4h-4l4 4v16h-4l8 8h15v-14l-19-18z" fill="url(#a)" opacity=".2"/>
+ </g>
+</svg>
