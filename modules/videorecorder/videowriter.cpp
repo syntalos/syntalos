@@ -119,6 +119,14 @@ VideoContainer stringToVideoContainer(const std::string &str)
     return VideoContainer::Unknown;
 }
 
+static QString averrorToString(int err)
+{
+    char errbuf[AV_ERROR_MAX_STRING_SIZE + 16];
+    av_strerror(AVERROR(err), errbuf, sizeof(errbuf));
+
+    return QString::fromUtf8(errbuf);
+}
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpadded"
 class CodecProperties::Private
@@ -939,8 +947,37 @@ void VideoWriter::initializeInternal()
 void VideoWriter::finalizeInternal(bool writeTrailer)
 {
     if (d->initialized) {
-        if (d->vstrm != nullptr)
+        if (d->vstrm != nullptr) {
             avcodec_send_frame(d->cctx, nullptr);
+
+            AVPacket *pkt = av_packet_alloc();
+            if (!pkt)
+                qCCritical(logVRecorder).noquote() << "Unable to allocate packet for flushing.";
+
+            while (true) {
+                auto ret = avcodec_receive_packet(d->cctx, pkt);
+                if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
+                    break;
+                } else if (ret < 0) {
+                    qCCritical(logVRecorder).noquote()
+                        << "Unable to receive packet during flush:" << averrorToString(ret);
+                    break;
+                }
+
+                // rescale packet timestamp
+                pkt->duration = 1;
+                av_packet_rescale_ts(pkt, d->cctx->time_base, d->vstrm->time_base);
+
+                // write packet
+                ret = av_write_frame(d->octx, pkt);
+                if (ret < 0) {
+                    qCCritical(logVRecorder).noquote() << "Unable to write frame during flush:" << averrorToString(ret);
+                    break;
+                }
+
+                av_packet_unref(pkt);
+            }
+        }
 
         // write trailer
         if (writeTrailer && (d->octx != nullptr))
@@ -1069,7 +1106,7 @@ bool VideoWriter::startNewSection(const QString &fname)
         finalizeInternal(true);
 
         // set new filrname for this section
-        if (fname.mid(fname.lastIndexOf('.') + 1).length() == 3)
+        if (fname.midRef(fname.lastIndexOf('.') + 1).length() == 3)
             d->fnameBase = fname.left(fname.length() - 4); // remove 3-char suffix from filename
         else
             d->fnameBase = fname;
@@ -1224,6 +1261,7 @@ bool VideoWriter::encodeFrame(const vips::VImage &frame, const std::chrono::mill
 {
     int ret;
     bool success = false;
+    bool havePacket = false;
 
     if (!prepareFrame(frame)) {
         std::cerr << "Unable to prepare frame. N: " << d->framesN + 1 << "(" << d->lastError << ")" << std::endl;
@@ -1266,25 +1304,28 @@ bool VideoWriter::encodeFrame(const vips::VImage &frame, const std::chrono::mill
 
     ret = avcodec_receive_packet(d->cctx, pkt);
     if (ret != 0) {
-        // some encoders need to be fed a few frames before they produce a useful result
-        // ignore errors in that case for a little bit.
-        if ((ret == AVERROR(EAGAIN)) && !d->codecProps.allowsSlicing()) {
-            success = true;
-            goto out;
+        if (ret == AVERROR(EAGAIN)) {
+            // Some encoders need to be fed a few frames before they produce a packet, but the
+            // frames are still saved. So we encounter for that fact.
+            havePacket = false;
         } else {
-            d->lastError = QStringLiteral("Unable to send packet to codec: Code %1").arg(ret).toStdString();
+            // we have a real error and can not continue
+            d->lastError = QStringLiteral("Unable to send packet to codec: %1").arg(averrorToString(ret)).toStdString();
             std::cerr << d->lastError << std::endl;
             goto out;
         }
+    } else {
+        havePacket = true;
     }
 
-    // rescale packet timestamp
-    pkt->duration = 1;
-    av_packet_rescale_ts(pkt, d->cctx->time_base, d->vstrm->time_base);
+    if (havePacket) {
+        // rescale packet timestamp
+        pkt->duration = 1;
+        av_packet_rescale_ts(pkt, d->cctx->time_base, d->vstrm->time_base);
 
-    // write packet
-    av_write_frame(d->octx, pkt);
-    d->framesN++;
+        // write packet
+        av_write_frame(d->octx, pkt);
+    }
 
     // store timestamp (if necessary)
     if (d->saveTimestamps)
