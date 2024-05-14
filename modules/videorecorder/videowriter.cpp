@@ -1108,11 +1108,12 @@ inline bool VideoWriter::prepareFrame(const vips::VImage &inImage)
 
     // Convert color formats around to match what was actually selected as
     // input pixel format
-    if (d->inputPixFormat == AV_PIX_FMT_GRAY8) {
+    if (d->inputPixFormat == AV_PIX_FMT_GRAY8 || d->inputPixFormat == AV_PIX_FMT_GRAY16LE) {
         if (channels != 1)
             image = inImage.colourspace(VIPS_INTERPRETATION_B_W);
         else
             image = inImage;
+        d->inputPixFormat = AV_PIX_FMT_GRAY8;
     } else if (d->inputPixFormat == AV_PIX_FMT_BGR24) {
         if (channels == 4)
             image = inImage.flatten();
