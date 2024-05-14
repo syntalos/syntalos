@@ -34,9 +34,9 @@ class SyntalosOutPort:
         self._out_writer.write('\n')
         await self._out_writer.drain()
 
-    def send_data_sync(self, *args):
+    def send_data_sync(self, *args, **kwargs):
         '''Synchronous function for sending data.'''
-        uasyncio.run(self.send_row(*args))
+        uasyncio.run(self.send_data(*args, **kwargs))
 
 
 class SyntalosCommunicator:
