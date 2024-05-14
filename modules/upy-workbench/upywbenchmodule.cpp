@@ -189,6 +189,7 @@ public:
         });
 
         connect(m_devResetAction, &QAction::triggered, this, [this](bool) {
+            m_consoleWidget->clear();
             upySoftReset(m_userSerial);
         });
 
@@ -496,6 +497,7 @@ public:
         }
 
         m_consoleWidget->setVisible(true);
+        m_consoleWidget->clear();
         return true;
     }
 
