@@ -408,11 +408,11 @@ QString Syntalos::toString(ModuleCategory category)
     case ModuleCategory::SYNTALOS_DEV:
         return "sydevel";
     case ModuleCategory::EXAMPLES:
-        return "example";
+        return "examples";
     case ModuleCategory::DEVICES:
-        return "device";
+        return "devices";
     case ModuleCategory::GENERATORS:
-        return "generator";
+        return "generators";
     case ModuleCategory::SCRIPTING:
         return "scripting";
     case ModuleCategory::DISPLAY:

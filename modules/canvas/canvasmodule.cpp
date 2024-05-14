@@ -261,6 +261,11 @@ QString CanvasModuleInfo::description() const
     return QStringLiteral("Display any image or video sequence.");
 }
 
+ModuleCategories CanvasModuleInfo::categories() const
+{
+    return ModuleCategory::DISPLAY;
+}
+
 AbstractModule *CanvasModuleInfo::createModule(QObject *parent)
 {
     return new CanvasModule(this, parent);

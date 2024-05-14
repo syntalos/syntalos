@@ -222,6 +222,11 @@ QString FLIRCameraModuleInfo::description() const
         "Capture video using a camera from FLIR Systems, Inc. that is accessible via their Spinnaker SDK.");
 }
 
+ModuleCategories FLIRCameraModuleInfo::categories() const
+{
+    return ModuleCategory::DEVICES;
+}
+
 AbstractModule *FLIRCameraModuleInfo::createModule(QObject *parent)
 {
     return new FLIRCameraMod(parent);

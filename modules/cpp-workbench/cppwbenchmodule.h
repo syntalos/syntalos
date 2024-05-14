@@ -35,8 +35,9 @@ using namespace Syntalos;
 class CppWBenchModuleInfo : public ModuleInfo
 {
 public:
-    QString id() const override;
-    QString name() const override;
-    QString description() const override;
-    AbstractModule *createModule(QObject *parent = nullptr) override;
+    QString id() const final;
+    QString name() const final;
+    QString description() const final;
+    ModuleCategories categories() const final;
+    AbstractModule *createModule(QObject *parent = nullptr) final;
 };

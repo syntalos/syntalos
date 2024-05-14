@@ -59,6 +59,11 @@ QString IntanRhxModuleInfo::license() const
     return QStringLiteral("Copyright © 2020-2024 <a href=\"https://intantech.com/\">Intan Technologies</a> [GPL-3.0+] ");
 }
 
+ModuleCategories IntanRhxModuleInfo::categories() const
+{
+    return ModuleCategory::DEVICES;
+}
+
 bool IntanRhxModuleInfo::singleton() const
 {
     return true;

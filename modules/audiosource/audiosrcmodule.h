@@ -29,9 +29,10 @@ Q_DECLARE_LOGGING_CATEGORY(logModAudio)
 class AudioSourceModuleInfo : public ModuleInfo
 {
 public:
-    QString id() const override;
-    QString name() const override;
-    QString description() const override;
+    QString id() const final;
+    QString name() const final;
+    QString description() const final;
+    ModuleCategories categories() const final;
     void refreshIcon() override;
-    AbstractModule *createModule(QObject *parent = nullptr) override;
+    AbstractModule *createModule(QObject *parent = nullptr) final;
 };

@@ -270,6 +270,11 @@ QString PyScriptModuleInfo::description() const
     return QStringLiteral("Write custom Python code to control other modules and experiment behavior.");
 }
 
+ModuleCategories PyScriptModuleInfo::categories() const
+{
+    return ModuleCategory::SCRIPTING;
+}
+
 QIcon PyScriptModuleInfo::icon() const
 {
     return QIcon(":/module/python");

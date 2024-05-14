@@ -388,6 +388,11 @@ QString MiniscopeModuleInfo::description() const
     return QStringLiteral("Record fluorescence images from the brain of behaving animals using a UCLA Miniscope.");
 }
 
+ModuleCategories MiniscopeModuleInfo::categories() const
+{
+    return ModuleCategory::DEVICES;
+}
+
 AbstractModule *MiniscopeModuleInfo::createModule(QObject *parent)
 {
     return new MiniscopeModule(this, parent);

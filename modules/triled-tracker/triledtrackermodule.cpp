@@ -153,6 +153,11 @@ QString TriLedTrackerModuleInfo::description() const
     return QStringLiteral("Track subject behavior via a three-LED triangle mounted on its head.");
 }
 
+ModuleCategories TriLedTrackerModuleInfo::categories() const
+{
+    return ModuleCategory::PROCESSING;
+}
+
 AbstractModule *TriLedTrackerModuleInfo::createModule(QObject *parent)
 {
     return new TriLedTrackerModule(parent);

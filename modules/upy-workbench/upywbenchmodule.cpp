@@ -846,6 +846,11 @@ QString UPyWBenchModuleInfo::description() const
     return QStringLiteral("Program microcontrollers live in Python.");
 }
 
+ModuleCategories UPyWBenchModuleInfo::categories() const
+{
+    return ModuleCategory::SCRIPTING;
+}
+
 AbstractModule *UPyWBenchModuleInfo::createModule(QObject *parent)
 {
     return new UPyWBenchModule(parent);

@@ -191,6 +191,11 @@ QString TableModuleInfo::description() const
     return QStringLiteral("Display & record data that can be represented as a table.");
 }
 
+ModuleCategories TableModuleInfo::categories() const
+{
+    return ModuleCategory::DISPLAY | ModuleCategory::WRITERS;
+}
+
 QIcon TableModuleInfo::icon() const
 {
     return getTableModuleIcon();

@@ -614,6 +614,11 @@ QString VideoRecorderModuleInfo::description() const
     return QStringLiteral("Store a video composed of frames from an image source module to disk.");
 }
 
+ModuleCategories VideoRecorderModuleInfo::categories() const
+{
+    return ModuleCategory::WRITERS;
+}
+
 QString VideoRecorderModuleInfo::storageGroupName() const
 {
     return QStringLiteral("videos");

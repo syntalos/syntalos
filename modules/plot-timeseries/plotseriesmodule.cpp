@@ -327,6 +327,11 @@ QString PlotSeriesModuleInfo::description() const
     return QStringLiteral("Plot data as live time series");
 }
 
+ModuleCategories PlotSeriesModuleInfo::categories() const
+{
+    return ModuleCategory::DISPLAY;
+}
+
 AbstractModule *PlotSeriesModuleInfo::createModule(QObject *parent)
 {
     return new PlotSeriesModule(this, parent);

@@ -32,9 +32,10 @@ Q_DECLARE_LOGGING_CATEGORY(logTISCam)
 class TISCameraModuleInfo : public ModuleInfo
 {
 public:
-    QString id() const override;
-    QString name() const override;
-    QString description() const override;
-    QString license() const override;
-    AbstractModule *createModule(QObject *parent = nullptr) override;
+    QString id() const final;
+    QString name() const final;
+    QString description() const final;
+    ModuleCategories categories() const final;
+    QString license() const final;
+    AbstractModule *createModule(QObject *parent = nullptr) final;
 };

@@ -43,6 +43,7 @@ public:
     QString name() const override;
     QString description() const override;
     QString license() const override;
+    ModuleCategories categories() const override;
     AbstractModule *createModule(QObject *parent = nullptr) override;
 };
 

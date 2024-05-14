@@ -35,6 +35,7 @@ public:
     QString description() const final;
     QString authors() const final;
     QString license() const final;
+    ModuleCategories categories() const final;
     bool singleton() const final;
     AbstractModule *createModule(QObject *parent = nullptr) override;
 };

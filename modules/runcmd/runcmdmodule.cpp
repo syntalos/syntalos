@@ -223,6 +223,11 @@ QString RunCmdModuleInfo::description() const
     return QStringLiteral("Run an external command when the experiment run was started.");
 }
 
+ModuleCategories RunCmdModuleInfo::categories() const
+{
+    return ModuleCategory::SCRIPTING;
+}
+
 AbstractModule *RunCmdModuleInfo::createModule(QObject *parent)
 {
     return new RunCmdModule(parent);

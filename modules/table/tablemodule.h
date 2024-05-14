@@ -27,9 +27,10 @@ SYNTALOS_DECLARE_MODULE
 class TableModuleInfo : public ModuleInfo
 {
 public:
-    QString id() const override;
-    QString name() const override;
-    QString description() const override;
-    QIcon icon() const override;
-    AbstractModule *createModule(QObject *parent = nullptr) override;
+    QString id() const final;
+    QString name() const final;
+    QString description() const final;
+    ModuleCategories categories() const final;
+    QIcon icon() const final;
+    AbstractModule *createModule(QObject *parent = nullptr) final;
 };

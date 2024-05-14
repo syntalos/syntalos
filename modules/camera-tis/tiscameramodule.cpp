@@ -536,6 +536,11 @@ QString TISCameraModuleInfo::description() const
     return QStringLiteral("Capture video with a camera from The Imaging Source.");
 }
 
+ModuleCategories TISCameraModuleInfo::categories() const
+{
+    return ModuleCategory::DEVICES;
+}
+
 QString TISCameraModuleInfo::license() const
 {
     return QStringLiteral(

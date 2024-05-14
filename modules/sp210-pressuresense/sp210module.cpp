@@ -283,6 +283,11 @@ QString SP210ModuleInfo::description() const
         "Support for the Superior Sensor SP210 differential pressure sensor driven by a Raspberry Pi Pico.");
 }
 
+ModuleCategories SP210ModuleInfo::categories() const
+{
+    return ModuleCategory::DEVICES;
+}
+
 AbstractModule *SP210ModuleInfo::createModule(QObject *parent)
 {
     return new SP210Module(parent);

@@ -28,9 +28,10 @@ SYNTALOS_DECLARE_MODULE
 class VideoRecorderModuleInfo : public ModuleInfo
 {
 public:
-    QString id() const override;
-    QString name() const override;
-    QString description() const override;
-    QString storageGroupName() const override;
-    AbstractModule *createModule(QObject *parent = nullptr) override;
+    QString id() const final;
+    QString name() const final;
+    QString description() const final;
+    ModuleCategories categories() const final;
+    QString storageGroupName() const final;
+    AbstractModule *createModule(QObject *parent = nullptr) final;
 };

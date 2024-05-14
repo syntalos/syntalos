@@ -211,6 +211,11 @@ QString UEyeCameraModuleInfo::description() const
     return QStringLiteral("Capture video with an IDS camera that is compatible with the uEye API.");
 }
 
+ModuleCategories UEyeCameraModuleInfo::categories() const
+{
+    return ModuleCategory::DEVICES;
+}
+
 AbstractModule *UEyeCameraModuleInfo::createModule(QObject *parent)
 {
     return new UEyeCameraModule(parent);

@@ -487,6 +487,11 @@ QString JSONWriterModuleInfo::description() const
     return QStringLiteral("Write incoming data into a structured, Pandas-compatible JSON file");
 }
 
+ModuleCategories JSONWriterModuleInfo::categories() const
+{
+    return ModuleCategory::WRITERS;
+}
+
 AbstractModule *JSONWriterModuleInfo::createModule(QObject *parent)
 {
     return new JSONWriterModule(parent);

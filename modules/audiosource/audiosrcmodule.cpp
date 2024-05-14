@@ -267,6 +267,11 @@ QString AudioSourceModuleInfo::description() const
     return QStringLiteral("Play various acoustic signals.");
 }
 
+ModuleCategories AudioSourceModuleInfo::categories() const
+{
+    return ModuleCategory::GENERATORS;
+}
+
 void AudioSourceModuleInfo::refreshIcon()
 {
     const QString audioSrcIconFname = QDir(rootDir()).filePath("audiosource.svg");

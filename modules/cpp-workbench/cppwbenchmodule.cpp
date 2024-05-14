@@ -595,6 +595,11 @@ QString CppWBenchModuleInfo::description() const
     return QStringLiteral("Quickly and safely write small C++ programs for data processing.");
 }
 
+ModuleCategories CppWBenchModuleInfo::categories() const
+{
+    return ModuleCategory::SCRIPTING;
+}
+
 AbstractModule *CppWBenchModuleInfo::createModule(QObject *parent)
 {
     return new CppWBenchModule(parent);

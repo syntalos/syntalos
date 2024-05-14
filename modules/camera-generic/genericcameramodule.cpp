@@ -251,6 +251,11 @@ QString GenericCameraModuleInfo::description() const
     return QStringLiteral("Capture a video with a regular camera compatible with Linux' V4L API.");
 }
 
+ModuleCategories GenericCameraModuleInfo::categories() const
+{
+    return ModuleCategory::DEVICES;
+}
+
 QIcon GenericCameraModuleInfo::icon() const
 {
     return QIcon(":/module/camera-generic");
