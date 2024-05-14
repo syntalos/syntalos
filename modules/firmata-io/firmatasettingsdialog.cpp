@@ -40,6 +40,7 @@ FirmataSettingsDialog::~FirmataSettingsDialog()
 void FirmataSettingsDialog::updatePortList()
 {
     const auto selectedPort = serialPort();
+    ui->portsComboBox->clear();
 
     // List all serial ports
     auto allPorts = QSerialPortInfo::availablePorts();

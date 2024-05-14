@@ -341,6 +341,7 @@ public:
     void updateSerialPortsList()
     {
         const auto selectedPort = m_serialSelector->currentData().toString();
+        m_serialSelector->clear();
 
         // List all serial ports
         auto allPorts = QSerialPortInfo::availablePorts();
@@ -848,7 +849,7 @@ QString UPyWBenchModuleInfo::description() const
 
 ModuleCategories UPyWBenchModuleInfo::categories() const
 {
-    return ModuleCategory::SCRIPTING;
+    return ModuleCategory::SCRIPTING | ModuleCategory::DEVICES;
 }
 
 AbstractModule *UPyWBenchModuleInfo::createModule(QObject *parent)
