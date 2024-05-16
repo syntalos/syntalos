@@ -48,9 +48,12 @@ protected:
         doc.setHtml(options.text);
         doc.setTextWidth(options.rect.width() - iconSize.width());
 
+        doc.adjustSize();
         auto height = qRound(doc.size().height());
-        height = 64; // set a fixed height for now, automatic/variable height does not work well yet
-        return QSize(qCeil(doc.size().width()), height);
+        if (height > 78)
+            height = 78;
+
+        return {qCeil(doc.size().width()), height};
     }
 };
 
