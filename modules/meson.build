@@ -11,6 +11,7 @@ module_moc_hdr = []
 module_moc_src = []
 module_ui = []
 module_res = []
+module_args = []
 
 # Developer modules
 subdir('devel.clock')

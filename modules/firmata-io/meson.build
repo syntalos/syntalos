@@ -45,6 +45,7 @@ module_moc = qt.preprocess(
     moc_sources: module_moc_src,
     ui_files: module_ui,
     qresources: module_res,
+    dependencies: module_deps,
 )
 mod = shared_module(module_name,
     [module_hdr, module_moc_hdr,
@@ -53,8 +54,9 @@ mod = shared_module(module_name,
     name_prefix: '',
     dependencies: [syntalos_fabric_dep,
                    module_deps],
+    cpp_args: module_args,
     install: true,
-    install_dir: mod_install_dir
+    install_dir: mod_install_dir,
 )
 
 mod_data = configuration_data()
@@ -81,3 +83,4 @@ module_moc_src = []
 module_ui = []
 module_res = []
 module_deps = []
+module_args = []

@@ -21,6 +21,7 @@ EXCLUDE_MATCH = [
     '*/venv/*',
     '*/contrib/vendor/*',
     '*/modules/intan-rhx/*',  # we want to keep Intan RHX close to upstream, for easy merging of changes
+    '*/modules/camera-arv/qarv/*',
     '*/tests/rwqueue/*',
 ]
 
