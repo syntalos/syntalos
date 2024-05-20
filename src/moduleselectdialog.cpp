@@ -50,8 +50,8 @@ protected:
 
         doc.adjustSize();
         auto height = qRound(doc.size().height());
-        if (height > 78)
-            height = 78;
+        if (height > 76)
+            height = 76;
 
         return {qCeil(doc.size().width()), height};
     }
