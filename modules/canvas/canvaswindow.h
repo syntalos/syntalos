@@ -23,6 +23,7 @@
 #include "datactl/vips8-q.h"
 
 class ImageViewWidget;
+class ToolsOverlayWidget;
 class QLabel;
 
 class CanvasWindow : public QWidget
@@ -37,7 +38,12 @@ public:
     bool highlightSaturation() const;
     void setHighlightSaturation(bool enabled);
 
+protected:
+    void enterEvent(QEvent *event) override;
+    void leaveEvent(QEvent *event) override;
+
 private:
     ImageViewWidget *m_imgView;
     QLabel *m_statusLabel;
+    ToolsOverlayWidget *m_toolsOverlay;
 };

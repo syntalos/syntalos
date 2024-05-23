@@ -23,7 +23,6 @@
 #include <QTimer>
 
 #include "canvaswindow.h"
-#include "canvassettingsdialog.h"
 #include "datactl/frametype.h"
 
 SYNTALOS_MODULE(CanvasModule)
@@ -39,7 +38,6 @@ private:
     std::shared_ptr<StreamSubscription<ControlCommand>> m_ctlSub;
 
     CanvasWindow *m_cvView;
-    CanvasSettingsDialog *m_cvSettings;
 
     double m_expectedFps;
     double m_currentFps;
@@ -65,10 +63,6 @@ public:
         m_cvView = new CanvasWindow;
         addDisplayWindow(m_cvView);
         m_cvView->setWindowIcon(modInfo->icon());
-
-        m_cvSettings = new CanvasSettingsDialog(m_cvView);
-        addSettingsWindow(m_cvSettings);
-        m_cvSettings->setWindowIcon(modInfo->icon());
     }
 
     ModuleFeatures features() const override
@@ -241,7 +235,7 @@ public:
     bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
     {
         m_cvView->setHighlightSaturation(settings.value("highlight_saturation", false).toBool());
-        m_cvSettings->updateUi();
+
         return true;
     }
 };

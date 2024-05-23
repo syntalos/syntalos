@@ -6,19 +6,17 @@ module_hdr = [
 module_moc_hdr = [
     'imageviewwidget.h',
     'canvaswindow.h',
-    'canvassettingsdialog.h',
 ]
 
 module_src = [
     'imageviewwidget.cpp',
-    'canvaswindow.cpp',
-    'canvassettingsdialog.cpp',
 ]
 module_moc_src = [
-    'canvasmodule.cpp'
+    'canvasmodule.cpp',
+    'canvaswindow.cpp',
 ]
 
-module_ui = ['canvassettingsdialog.ui']
+module_ui = []
 
 module_deps = [vips_dep]
 
