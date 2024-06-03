@@ -32,7 +32,7 @@ public:
 
 public slots:
     bool showImage(const vips::VImage &image);
-    vips::VImage currentImage() const;
+    vips::VImage currentRawImage() const;
 
     void setMinimumSize(const QSize &size);
     void setHighlightSaturation(bool enabled);

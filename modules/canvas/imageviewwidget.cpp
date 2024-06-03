@@ -90,6 +90,7 @@ public:
     ~Private() {}
 
     QVector4D bgColorVec;
+    vips::VImage rgbImage;
     vips::VImage origImage;
 
     bool highlightSaturation;
@@ -182,7 +183,7 @@ void ImageViewWidget::paintGL()
 
 void ImageViewWidget::renderImage()
 {
-    if (d->origImage.is_null())
+    if (d->rgbImage.is_null())
         return;
 
     if (!d->matTex) {
@@ -192,11 +193,11 @@ void ImageViewWidget::renderImage()
         d->matTex->setMagnificationFilter(QOpenGLTexture::Linear);
     }
 
-    const auto imgWidth = d->origImage.width();
-    const auto imgHeight = d->origImage.height();
+    const auto imgWidth = d->rgbImage.width();
+    const auto imgHeight = d->rgbImage.height();
 
     d->matTex->bind();
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, imgWidth, imgHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, d->origImage.data());
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, imgWidth, imgHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, d->rgbImage.data());
 
     // Render the texture on the surface
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -219,18 +220,20 @@ void ImageViewWidget::renderImage()
 
 bool ImageViewWidget::showImage(const vips::VImage &image)
 {
+    d->origImage = image;
+
     const auto interpretation = image.interpretation();
-    d->origImage = (interpretation == VIPS_INTERPRETATION_sRGB || interpretation == VIPS_INTERPRETATION_RGB)
-                       ? image
-                       : image.colourspace(VIPS_INTERPRETATION_sRGB);
-    if (d->origImage.bands() != 3)
-        d->origImage = d->origImage.extract_band(0, vips::VImage::option()->set("n", 3));
+    d->rgbImage = (interpretation == VIPS_INTERPRETATION_sRGB || interpretation == VIPS_INTERPRETATION_RGB)
+                      ? image
+                      : image.colourspace(VIPS_INTERPRETATION_sRGB);
+    if (d->rgbImage.bands() != 3)
+        d->rgbImage = d->rgbImage.extract_band(0, vips::VImage::option()->set("n", 3));
 
     update();
     return true;
 }
 
-vips::VImage ImageViewWidget::currentImage() const
+vips::VImage ImageViewWidget::currentRawImage() const
 {
     return d->origImage;
 }

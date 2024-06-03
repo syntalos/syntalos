@@ -264,29 +264,18 @@ bool CanvasWindow::histogramVisible() const
 }
 
 template<bool depth8>
-static void computeHistogram(const vips::VImage &image, Histograms *hists, bool logarithmic = false)
+static void computeHistogram(const vips::VImage &image, Histograms *hists, bool grayscale, bool logarithmic = false)
 {
     typedef typename std::conditional<depth8, uint8_t, uint16_t>::type ImageType;
 
     if (!hists)
         return;
 
-    bool grayscale;
-    if (image.bands() == 1) {
-        grayscale = true;
-    } else if (image.bands() >= 3) {
-        grayscale = false;
-    } else {
-        return;
-    }
-
-    float *histRed, *histGreen, *histBlue;
-    histRed = hists->red;
-    histGreen = hists->green;
-    histBlue = hists->blue;
-    for (int i = 0; i < 256; i++) {
+    auto histRed = hists->red;
+    auto histGreen = hists->green;
+    auto histBlue = hists->blue;
+    for (int i = 0; i < 256; i++)
         histRed[i] = histGreen[i] = histBlue[i] = 0;
-    }
 
     const int h = image.height();
     const int w = image.width();
@@ -310,13 +299,9 @@ static void computeHistogram(const vips::VImage &image, Histograms *hists, bool 
     } else {
         float *histograms[3] = {histRed, histGreen, histBlue};
         auto rgbImg = image.colourspace(VIPS_INTERPRETATION_sRGB);
-        vips::VImage rgb[3];
-        rgb[0] = rgbImg.extract_band(0); // Red channel
-        rgb[1] = rgbImg.extract_band(1); // Green channel
-        rgb[2] = rgbImg.extract_band(2); // Blue channel
 
         for (int i = 0; i < 3; i++) {
-            auto band = rgb[i];
+            auto band = rgbImg.extract_band(i);
             for (int y = 0; y < h; y++) {
                 const ImageType *row = (const ImageType *)band.data() + y * w;
                 for (int x = 0; x < w; x++) {
@@ -329,8 +314,8 @@ static void computeHistogram(const vips::VImage &image, Histograms *hists, bool 
         if (logarithmic) {
             for (int c = 0; c < 3; c++) {
                 for (int i = 0; i < 256; i++) {
-                    float *hg = histograms[c] + i;
-                    *hg = log2(*hg + 1);
+                    float *hv = histograms[c] + i;
+                    *hv = log2(*hv + 1);
                 }
             }
         }
@@ -340,21 +325,29 @@ static void computeHistogram(const vips::VImage &image, Histograms *hists, bool 
 void CanvasWindow::updateHistogram()
 {
     auto hists = m_histogramWidget->unusedHistograms();
-    const auto image = m_imgView->currentImage();
+    const auto image = m_imgView->currentRawImage();
 
     if (image.is_null())
         return;
 
+    bool grayscale;
+    if (image.bands() == 1)
+        grayscale = true;
+    else if (image.bands() >= 3)
+        grayscale = false;
+    else
+        return;
+
     if (image.format() == VIPS_FORMAT_UCHAR || image.format() == VIPS_FORMAT_CHAR) {
-        computeHistogram<true>(image, hists, false);
+        computeHistogram<true>(image, hists, grayscale, false);
     } else if (image.format() == VIPS_FORMAT_USHORT || image.format() == VIPS_FORMAT_SHORT) {
-        computeHistogram<false>(image, hists, false);
+        computeHistogram<false>(image, hists, grayscale, false);
     } else {
         m_histTimer->stop();
         qWarning().noquote() << "Unsupported image format for histogram computation, disabling rendering.";
     }
 
-    m_histogramWidget->swapHistograms(true);
+    m_histogramWidget->swapHistograms(grayscale);
 }
 
 void CanvasWindow::enterEvent(QEvent *event)
