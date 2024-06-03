@@ -24,7 +24,9 @@
 
 class ImageViewWidget;
 class ToolsOverlayWidget;
+class HistogramWidget;
 class QLabel;
+class QTimer;
 
 class CanvasWindow : public QWidget
 {
@@ -38,12 +40,21 @@ public:
     bool highlightSaturation() const;
     void setHighlightSaturation(bool enabled);
 
+    bool histogramVisible() const;
+    void setHistogramVisible(bool show);
+
 protected:
     void enterEvent(QEvent *event) override;
     void leaveEvent(QEvent *event) override;
+
+private slots:
+    void updateHistogram();
 
 private:
     ImageViewWidget *m_imgView;
     QLabel *m_statusLabel;
     ToolsOverlayWidget *m_toolsOverlay;
+
+    QTimer *m_histTimer;
+    HistogramWidget *m_histogramWidget;
 };

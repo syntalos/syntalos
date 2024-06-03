@@ -6,10 +6,12 @@ module_hdr = [
 module_moc_hdr = [
     'imageviewwidget.h',
     'canvaswindow.h',
+    'histogramwidget.h',
 ]
 
 module_src = [
     'imageviewwidget.cpp',
+    'histogramwidget.cpp',
 ]
 module_moc_src = [
     'canvasmodule.cpp',

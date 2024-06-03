@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2023-2024 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -20,31 +20,33 @@
 #pragma once
 
 #include <QOpenGLWidget>
-#include <QOpenGLFunctions>
-#include "datactl/vips8-q.h"
+#include <QMouseEvent>
+#include <QIcon>
 
-class ImageViewWidget : public QOpenGLWidget, protected QOpenGLFunctions
+struct Histograms {
+    float red[256], green[256], blue[256];
+};
+
+class HistogramWidget : public QOpenGLWidget
 {
     Q_OBJECT
+
 public:
-    explicit ImageViewWidget(QWidget *parent = nullptr);
-    ~ImageViewWidget();
+    explicit HistogramWidget(QWidget *parent = nullptr);
+
+    void paintGL() override;
+    void setIdle();
+    Histograms *unusedHistograms();
+    void swapHistograms(bool grayscale);
 
 public slots:
-    bool showImage(const vips::VImage &image);
-    vips::VImage currentImage() const;
-
-    void setMinimumSize(const QSize &size);
-    void setHighlightSaturation(bool enabled);
-    bool highlightSaturation() const;
-
-protected:
-    void initializeGL() override;
-    void paintGL() override;
-    void renderImage();
+    void setLogarithmic(bool logarithmic);
 
 private:
-    class Private;
-    Q_DISABLE_COPY(ImageViewWidget)
-    QScopedPointer<Private> d;
+    QIcon idleImageIcon;
+    bool indexed, logarithmic, idle;
+    Histograms histograms1, histograms2;
+    Histograms *unusedHists;
+    float *histRed, *histGreen, *histBlue;
+    QBrush backgroundBrush, foregroundBrush;
 };

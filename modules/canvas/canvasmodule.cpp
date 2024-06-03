@@ -230,11 +230,13 @@ public:
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
     {
         settings.insert("highlight_saturation", m_cvView->highlightSaturation());
+        settings.insert("histogram_visible", m_cvView->histogramVisible());
     }
 
     bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
     {
         m_cvView->setHighlightSaturation(settings.value("highlight_saturation", false).toBool());
+        m_cvView->setHistogramVisible(settings.value("histogram_visible", false).toBool());
 
         return true;
     }

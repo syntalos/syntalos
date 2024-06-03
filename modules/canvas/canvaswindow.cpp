@@ -18,8 +18,8 @@
  */
 
 #include "canvaswindow.h"
-#include "imageviewwidget.h"
 
+#include <QDebug>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QIcon>
@@ -28,6 +28,10 @@
 #include <QCheckBox>
 #include <QPushButton>
 #include <QGraphicsEffect>
+#include <QTimer>
+
+#include "imageviewwidget.h"
+#include "histogramwidget.h"
 
 class InvertOpaqueEffect : public QGraphicsEffect
 {
@@ -173,6 +177,9 @@ CanvasWindow::CanvasWindow(QWidget *parent)
     font.setFamily("Hack, Fira Code, Noto Mono, Monospace");
     m_statusLabel->setFont(font);
 
+    m_histogramWidget = new HistogramWidget(this);
+    m_histogramWidget->setVisible(false);
+
     setMinimumSize(m_imgView->minimumSize());
 
     auto container = new QWidget(this);
@@ -186,7 +193,8 @@ CanvasWindow::CanvasWindow(QWidget *parent)
     auto layout = new QVBoxLayout;
     layout->setMargin(0);
     layout->setSpacing(0);
-    layout->addWidget(m_imgView, 1);
+    layout->addWidget(m_imgView, 4);
+    layout->addWidget(m_histogramWidget, 1);
     layout->addWidget(container);
     setLayout(layout);
 
@@ -200,6 +208,11 @@ CanvasWindow::CanvasWindow(QWidget *parent)
     pal.setColor(QPalette::WindowText, Qt::white);
     m_statusLabel->setPalette(pal);
 
+    // histogram timer
+    m_histTimer = new QTimer(this);
+    m_histTimer->setInterval(50);
+    connect(m_histTimer, &QTimer::timeout, this, &CanvasWindow::updateHistogram);
+
     // construct tools overlay
     m_toolsOverlay = new ToolsOverlayWidget(this);
     m_toolsOverlay->hide();
@@ -207,6 +220,15 @@ CanvasWindow::CanvasWindow(QWidget *parent)
 
     connect(m_toolsOverlay, &ToolsOverlayWidget::highlightSaturationChanged, this, [this](bool enabled) {
         m_imgView->setHighlightSaturation(enabled);
+    });
+    connect(m_toolsOverlay, &ToolsOverlayWidget::showHistogramChanged, this, [this](bool enabled) {
+        m_histogramWidget->setVisible(enabled);
+        if (enabled) {
+            m_histTimer->start();
+        } else {
+            m_histTimer->stop();
+            m_histogramWidget->setIdle();
+        }
     });
 }
 
@@ -229,6 +251,110 @@ bool CanvasWindow::highlightSaturation() const
 void CanvasWindow::setHighlightSaturation(bool enabled)
 {
     m_toolsOverlay->setHighlightSaturation(enabled);
+}
+
+void CanvasWindow::setHistogramVisible(bool show)
+{
+    m_toolsOverlay->setShowHistogram(show);
+}
+
+bool CanvasWindow::histogramVisible() const
+{
+    return m_toolsOverlay->showHistogram();
+}
+
+template<bool depth8>
+static void computeHistogram(const vips::VImage &image, Histograms *hists, bool logarithmic = false)
+{
+    typedef typename std::conditional<depth8, uint8_t, uint16_t>::type ImageType;
+
+    if (!hists)
+        return;
+
+    bool grayscale;
+    if (image.bands() == 1) {
+        grayscale = true;
+    } else if (image.bands() >= 3) {
+        grayscale = false;
+    } else {
+        return;
+    }
+
+    float *histRed, *histGreen, *histBlue;
+    histRed = hists->red;
+    histGreen = hists->green;
+    histBlue = hists->blue;
+    for (int i = 0; i < 256; i++) {
+        histRed[i] = histGreen[i] = histBlue[i] = 0;
+    }
+
+    const int h = image.height();
+    const int w = image.width();
+
+    if (grayscale) {
+        auto gray = image.extract_band(0); // Assume single band for grayscale
+        for (int y = 0; y < h; y++) {
+            const ImageType *row = (const ImageType *)gray.data() + y * w;
+            for (int x = 0; x < w; x++) {
+                uint8_t grayValue = depth8 ? row[x] : row[x] >> 8;
+                histRed[grayValue]++;
+            }
+        }
+
+        if (logarithmic) {
+            for (int i = 0; i < 256; i++) {
+                histRed[i] = log2(histRed[i] + 1);
+            }
+        }
+
+    } else {
+        float *histograms[3] = {histRed, histGreen, histBlue};
+        auto rgbImg = image.colourspace(VIPS_INTERPRETATION_sRGB);
+        vips::VImage rgb[3];
+        rgb[0] = rgbImg.extract_band(0); // Red channel
+        rgb[1] = rgbImg.extract_band(1); // Green channel
+        rgb[2] = rgbImg.extract_band(2); // Blue channel
+
+        for (int i = 0; i < 3; i++) {
+            auto band = rgb[i];
+            for (int y = 0; y < h; y++) {
+                const ImageType *row = (const ImageType *)band.data() + y * w;
+                for (int x = 0; x < w; x++) {
+                    uint8_t tmp = depth8 ? row[x] : row[x] >> 8;
+                    histograms[i][tmp]++;
+                }
+            }
+        }
+
+        if (logarithmic) {
+            for (int c = 0; c < 3; c++) {
+                for (int i = 0; i < 256; i++) {
+                    float *hg = histograms[c] + i;
+                    *hg = log2(*hg + 1);
+                }
+            }
+        }
+    }
+}
+
+void CanvasWindow::updateHistogram()
+{
+    auto hists = m_histogramWidget->unusedHistograms();
+    const auto image = m_imgView->currentImage();
+
+    if (image.is_null())
+        return;
+
+    if (image.format() == VIPS_FORMAT_UCHAR || image.format() == VIPS_FORMAT_CHAR) {
+        computeHistogram<true>(image, hists, false);
+    } else if (image.format() == VIPS_FORMAT_USHORT || image.format() == VIPS_FORMAT_SHORT) {
+        computeHistogram<false>(image, hists, false);
+    } else {
+        m_histTimer->stop();
+        qWarning().noquote() << "Unsupported image format for histogram computation, disabling rendering.";
+    }
+
+    m_histogramWidget->swapHistograms(true);
 }
 
 void CanvasWindow::enterEvent(QEvent *event)

@@ -230,6 +230,11 @@ bool ImageViewWidget::showImage(const vips::VImage &image)
     return true;
 }
 
+vips::VImage ImageViewWidget::currentImage() const
+{
+    return d->origImage;
+}
+
 void ImageViewWidget::setMinimumSize(const QSize &size)
 {
     setMinimumWidth(size.width());
