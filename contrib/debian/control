@@ -40,6 +40,7 @@ Build-Depends: cmake,
                python3-numpy,
                qtbase5-dev,
                qtmultimedia5-dev,
+               systemd-dev,
                udev,
                uuid-dev
 Standards-Version: 4.6.2
