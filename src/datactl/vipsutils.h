@@ -35,3 +35,20 @@ vips::VImage cvMatToVips(const cv::Mat &mat);
  * @return A copy of the image as cv::Mat
  */
 cv::Mat vipsToCvMat(vips::VImage vimg);
+
+template<VipsBandFormat format>
+vips::VImage newVipsImage(int width, int height, int bands = 1)
+{
+    size_t buffer_size = 0;
+    switch (format) {
+    case VIPS_FORMAT_USHORT:
+        buffer_size = width * height * sizeof(uint16_t);
+        break;
+    default:
+        static_assert(false, "Unknown VIPS format");
+    }
+
+    auto buffer = vips_malloc(nullptr, buffer_size);
+
+    return vips::VImage::new_from_memory_steal(buffer, buffer_size, width, height, bands, format);
+}

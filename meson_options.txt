@@ -17,14 +17,16 @@ option('udevdir',
 
 option('modules',
     type: 'array',
-    choices: ['camera-flir',  # FLIR camera module using the Spinnaker API
+    choices: ['camera-arv',   # Module for GenICam camera support via Aravis
+              'camera-flir',  # FLIR camera module using the Spinnaker API
               'camera-tis',   # Camera module for The Imaging Source cameras
               'camera-ueye',  # uEye camera module
               'intan-rhx',    # Intan RHX DAQ module
               'miniscope',    # UCLA Miniscope module
               'plot',         # Plotting modules using ImGui
     ],
-    value : ['camera-tis',
+    value : ['camera-arv',
+             'camera-tis',
              'intan-rhx',
              'miniscope',
              'plot',

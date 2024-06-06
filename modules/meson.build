@@ -34,6 +34,9 @@ subdir('videorecorder')
 subdir('videotransform')
 subdir('camera-generic')
 
+if 'camera-arv' in modules_enabled
+    subdir('camera-arv')
+endif
 if 'camera-tis' in modules_enabled
     subdir('camera-tis')
 endif

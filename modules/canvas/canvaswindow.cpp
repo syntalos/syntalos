@@ -291,9 +291,8 @@ static void computeHistogram(const vips::VImage &image, Histograms *hists, bool 
         }
 
         if (logarithmic) {
-            for (int i = 0; i < 256; i++) {
+            for (int i = 0; i < 256; i++)
                 histRed[i] = log2(histRed[i] + 1);
-            }
         }
 
     } else {
