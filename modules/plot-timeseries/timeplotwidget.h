@@ -53,6 +53,7 @@ public:
 
 class TimePlotWidget : public QOpenGLWidget, private QOpenGLExtraFunctions
 {
+    Q_OBJECT
 public:
     explicit TimePlotWidget(QWidget *parent = nullptr);
     ~TimePlotWidget();
