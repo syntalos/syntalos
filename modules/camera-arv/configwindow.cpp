@@ -718,8 +718,10 @@ void ArvConfigWindow::serializeSettings(QVariantHash &settings, QByteArray &camF
         QVariantHash camSettings;
         const auto camInfo = cameraSelector->currentData().value<QArvCameraId>();
         camSettings["device"] = camInfo.id;
-        if (camera)
+        if (camera) {
             camSettings["pixel_format"] = camera->getPixelFormat();
+            camSettings["fps"] = camera->getFPS();
+        }
         settings["camera"] = camSettings;
 
         if (saveAdvancedCb->isChecked()) {
@@ -805,6 +807,7 @@ void ArvConfigWindow::loadSettings(const QVariantHash &settings, const QByteArra
         roiSettings["y"].toInt(),
         roiSettings["width"].toInt(),
         roiSettings["height"].toInt()));
+    camera->setFPS(camSettings["fps"].toInt());
 
     // reload pixel format and update decoder with new ROI as well
     on_pixelFormatSelector_currentIndexChanged(pixelFormatSelector->currentIndex());
