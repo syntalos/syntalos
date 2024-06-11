@@ -116,6 +116,7 @@ module_moc = qt.preprocess(
     ui_files: module_ui,
     qresources: module_res,
     dependencies: module_deps,
+    moc_extra_arguments: ['--no-notes'],
 )
 mod = shared_module(module_name,
     [module_hdr, module_moc_hdr,
