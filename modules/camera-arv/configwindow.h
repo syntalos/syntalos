@@ -124,6 +124,7 @@ private:
     }
 
     QString m_modId;
+    int m_realFps;
     std::shared_ptr<QArvCamera> camera;
     std::shared_ptr<QArvDecoder> decoder;
 

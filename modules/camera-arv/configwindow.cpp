@@ -397,7 +397,7 @@ void ArvConfigWindow::updateDecoder()
 
 void ArvConfigWindow::setCameraInUse(bool camInUse)
 {
-    QList<QWidget *> protectedWidgets = {cameraSelector, refreshCamerasButton, useFastInterpolator, fpsSpinbox, roiBox};
+    QList<QWidget *> protectedWidgets = {cameraSelector, refreshCamerasButton, useFastInterpolator, fpsSpinbox};
 
     for (auto wgt : protectedWidgets)
         wgt->setEnabled(!camInUse);
@@ -416,6 +416,7 @@ void ArvConfigWindow::setCameraInUseExternal(bool camInUse)
     videoWidget->setImage();
 
     setCameraInUse(camInUse);
+    roiBox->setEnabled(!camInUse);
     playButton->setEnabled(!camInUse);
 }
 
@@ -436,9 +437,10 @@ void ArvConfigWindow::toggleVideoPreview(bool start)
             setCameraInUse(true);
 
             Q_EMIT cameraSelected(camera, decoder);
-            camera->setFrameQueueSize(1);
+            camera->setFrameQueueSize(20);
 
             // we only record with a low framerate for the preview
+            m_realFps = camera->getFPS();
             camera->setFPS(10);
             pixelFormatSelector->setEnabled(false);
             camera->startAcquisition();
@@ -446,7 +448,7 @@ void ArvConfigWindow::toggleVideoPreview(bool start)
     } else if (!start && started) {
         started = false;
         camera->stopAcquisition();
-        camera->setFPS(fpsSpinbox->value());
+        camera->setFPS(m_realFps);
         decoder.reset();
 
         setCameraInUse(false);
@@ -666,6 +668,13 @@ void ArvConfigWindow::setupListOfSavedWidgets()
     saved_widgets["general"]["statusbar_timeout"] = statusTimeoutSpinbox;
     saved_widgets["general"]["fast_swscale"] = useFastInterpolator;
 
+    // ROI box
+    saved_widgets["roi"]["x"] = xSpinbox;
+    saved_widgets["roi"]["y"] = ySpinbox;
+    saved_widgets["roi"]["width"] = wSpinbox;
+    saved_widgets["roi"]["height"] = hSpinbox;
+    saved_widgets["roi"]["binning"] = binSpinBox;
+
     // display widgets
     saved_widgets["videodisplay"]["actual_size"] = unzoomButton;
 
@@ -709,6 +718,8 @@ void ArvConfigWindow::serializeSettings(QVariantHash &settings, QByteArray &camF
         QVariantHash camSettings;
         const auto camInfo = cameraSelector->currentData().value<QArvCameraId>();
         camSettings["device"] = camInfo.id;
+        if (camera)
+            camSettings["pixel_format"] = camera->getPixelFormat();
         settings["camera"] = camSettings;
 
         if (saveAdvancedCb->isChecked()) {
@@ -765,7 +776,8 @@ void ArvConfigWindow::loadSettings(const QVariantHash &settings, const QByteArra
     // ensure any timers run to update the list of available cameras or modify settings
     QApplication::processEvents();
 
-    QVariant data = settings["camera"].toHash().value("device");
+    const auto camSettings = settings["camera"].toHash();
+    QVariant data = camSettings.value("device");
     int prevCamIdx = -1;
     for (int i = 0; i < cameraSelector->count(); i++) {
         if (cameraSelector->itemData(i).value<QArvCameraId>().id == data.toString()) {
@@ -782,6 +794,21 @@ void ArvConfigWindow::loadSettings(const QVariantHash &settings, const QByteArra
         logMessage() << "Not loading camera settings: No suitable camera selected";
         return;
     }
+
+    const auto pixelFormat = camSettings["pixel_format"].toString();
+    if (!pixelFormat.isEmpty())
+        pixelFormatSelector->setCurrentIndex(pixelFormatSelector->findData(pixelFormat));
+
+    const auto roiSettings = settings["roi"].toHash();
+    camera->setROI(QRect(
+        roiSettings["x"].toInt(),
+        roiSettings["y"].toInt(),
+        roiSettings["width"].toInt(),
+        roiSettings["height"].toInt()));
+
+    // reload pixel format and update decoder with new ROI as well
+    on_pixelFormatSelector_currentIndexChanged(pixelFormatSelector->currentIndex());
+
     // if no advanced features were saved, we can skip loading them
     if (!saveAdvancedCb->isChecked())
         return;

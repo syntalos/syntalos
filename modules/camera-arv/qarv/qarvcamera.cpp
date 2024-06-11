@@ -123,6 +123,8 @@ QList<QArvCameraId> QArvCamera::listCameras() {
 QArvCameraId QArvCamera::getId() {
     const char* id, * vendor, * model;
     id = arv_camera_get_device_id(camera, nullptr);
+    if (id == nullptr)
+        id = "null";
     vendor = arv_camera_get_vendor_name(camera, nullptr);
     model = arv_camera_get_model_name(camera, nullptr);
     return QArvCameraId(id, vendor, model);
@@ -162,21 +164,14 @@ void QArvCamera::setROI(QRect roi) {
     roi.getRect(&x, &y, &width, &height);
     auto hmin = getROIHeightBounds();
     auto wmin = getROIWidthBounds();
-#ifdef ARAVIS_OLD_SET_FEATURE
-    arv_device_set_integer_feature_value(device, "Width", wmin.first);
-    arv_device_set_integer_feature_value(device, "Height", hmin.first);
-    arv_device_set_integer_feature_value(device, "OffsetX", x);
-    arv_device_set_integer_feature_value(device, "OffsetY", y);
-    arv_device_set_integer_feature_value(device, "Width", width);
-    arv_device_set_integer_feature_value(device, "Height", height);
-#else
+
     arv_device_set_integer_feature_value(device, "Width", wmin.first, nullptr);
     arv_device_set_integer_feature_value(device, "Height", hmin.first, nullptr);
     arv_device_set_integer_feature_value(device, "OffsetX", x, nullptr);
     arv_device_set_integer_feature_value(device, "OffsetY", y, nullptr);
     arv_device_set_integer_feature_value(device, "Width", width, nullptr);
     arv_device_set_integer_feature_value(device, "Height", height, nullptr);
-#endif
+
     emit dataChanged(QModelIndex(), QModelIndex());
 }
 

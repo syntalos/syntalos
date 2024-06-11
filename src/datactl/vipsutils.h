@@ -36,6 +36,14 @@ vips::VImage cvMatToVips(const cv::Mat &mat);
  */
 cv::Mat vipsToCvMat(vips::VImage vimg);
 
+/**
+ * @brief Create a new VIPS image with the given dimensions and format
+ * @tparam format The VIPS format to use
+ * @param width The width of the image
+ * @param height The height of the image
+ * @param bands The number of bands in the image
+ * @return The new VIPS image
+ */
 template<VipsBandFormat format>
 vips::VImage newVipsImage(int width, int height, int bands = 1)
 {
