@@ -28,6 +28,8 @@
 #include <QCheckBox>
 #include <QPushButton>
 #include <QGraphicsEffect>
+#include <QGraphicsOpacityEffect>
+#include <QSplitter>
 #include <QTimer>
 
 #include "imageviewwidget.h"
@@ -176,11 +178,18 @@ CanvasWindow::CanvasWindow(QWidget *parent)
     font.setStyleHint(QFont::Monospace, QFont::PreferMatch);
     font.setFamily("Hack, Fira Code, Noto Mono, Monospace");
     m_statusLabel->setFont(font);
+    setMinimumSize(m_imgView->minimumSize());
+
+    auto splitter = new QSplitter(this);
+    splitter->setOrientation(Qt::Vertical);
 
     m_histogramWidget = new HistogramWidget(this);
+    m_histogramWidget->setMinimumHeight(50);
+    m_histLogarithmicCb = new QCheckBox("Logarithmic", m_histogramWidget);
+    auto hgCtlEffect = new QGraphicsOpacityEffect(m_histLogarithmicCb);
+    hgCtlEffect->setOpacity(0.6);
+    m_histLogarithmicCb->setGraphicsEffect(hgCtlEffect);
     m_histogramWidget->setVisible(false);
-
-    setMinimumSize(m_imgView->minimumSize());
 
     auto container = new QWidget(this);
     auto clayout = new QHBoxLayout;
@@ -190,11 +199,15 @@ CanvasWindow::CanvasWindow(QWidget *parent)
     clayout->addStretch();
     container->setLayout(clayout);
 
+    splitter->addWidget(m_imgView);
+    splitter->addWidget(m_histogramWidget);
+    splitter->setStretchFactor(0, 4);
+    splitter->setStretchFactor(1, 8);
+
     auto layout = new QVBoxLayout;
     layout->setMargin(0);
     layout->setSpacing(0);
-    layout->addWidget(m_imgView, 4);
-    layout->addWidget(m_histogramWidget, 1);
+    layout->addWidget(splitter);
     layout->addWidget(container);
     setLayout(layout);
 
@@ -261,6 +274,16 @@ void CanvasWindow::setHistogramVisible(bool show)
 bool CanvasWindow::histogramVisible() const
 {
     return m_toolsOverlay->showHistogram();
+}
+
+bool CanvasWindow::histogramLogarithmic() const
+{
+    return m_histLogarithmicCb->isChecked();
+}
+
+void CanvasWindow::setHistogramLogarithmic(bool logarithmic)
+{
+    m_histLogarithmicCb->setChecked(logarithmic);
 }
 
 template<bool depth8>
@@ -337,10 +360,11 @@ void CanvasWindow::updateHistogram()
     else
         return;
 
+    const bool logarithmic = m_histLogarithmicCb->isChecked();
     if (image.format() == VIPS_FORMAT_UCHAR || image.format() == VIPS_FORMAT_CHAR) {
-        computeHistogram<true>(image, hists, grayscale, false);
+        computeHistogram<true>(image, hists, grayscale, logarithmic);
     } else if (image.format() == VIPS_FORMAT_USHORT || image.format() == VIPS_FORMAT_SHORT) {
-        computeHistogram<false>(image, hists, grayscale, false);
+        computeHistogram<false>(image, hists, grayscale, logarithmic);
     } else {
         m_histTimer->stop();
         qWarning().noquote() << "Unsupported image format for histogram computation, disabling rendering.";

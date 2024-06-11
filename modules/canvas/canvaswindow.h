@@ -27,6 +27,7 @@ class ToolsOverlayWidget;
 class HistogramWidget;
 class QLabel;
 class QTimer;
+class QCheckBox;
 
 class CanvasWindow : public QWidget
 {
@@ -43,6 +44,9 @@ public:
     bool histogramVisible() const;
     void setHistogramVisible(bool show);
 
+    bool histogramLogarithmic() const;
+    void setHistogramLogarithmic(bool logarithmic);
+
 protected:
     void enterEvent(QEvent *event) override;
     void leaveEvent(QEvent *event) override;
@@ -56,5 +60,6 @@ private:
     ToolsOverlayWidget *m_toolsOverlay;
 
     QTimer *m_histTimer;
+    QCheckBox *m_histLogarithmicCb;
     HistogramWidget *m_histogramWidget;
 };

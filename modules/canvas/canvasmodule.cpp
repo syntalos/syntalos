@@ -67,7 +67,7 @@ public:
 
     ModuleFeatures features() const override
     {
-        return ModuleFeature::CALL_UI_EVENTS | ModuleFeature::SHOW_DISPLAY | ModuleFeature::SHOW_SETTINGS;
+        return ModuleFeature::CALL_UI_EVENTS | ModuleFeature::SHOW_DISPLAY;
     }
 
     bool prepare(const TestSubject &) override

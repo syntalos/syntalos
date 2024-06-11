@@ -51,7 +51,6 @@ void HistogramWidget::setIdle()
 {
     idle = true;
     update();
-    return;
 }
 
 Histograms *HistogramWidget::unusedHistograms()
