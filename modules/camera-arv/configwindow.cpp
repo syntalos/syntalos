@@ -52,7 +52,7 @@ ArvConfigWindow::ArvConfigWindow(const QString &modId, QWidget *parent)
 {
     setupUi(this);
     on_statusTimeoutSpinbox_valueChanged(statusTimeoutSpinbox->value());
-    connect(
+    m_debugConnection = connect(
         &QArvDebug::messageSender, &MessageSender::newDebugMessage, [this](const QString &scope, const QString &msg) {
             if (scope == m_modId || scope.isEmpty())
                 messageList->appendPlainText(msg);
@@ -100,6 +100,7 @@ ArvConfigWindow::~ArvConfigWindow()
 {
     toggleVideoPreview(false);
     camera.reset();
+    disconnect(m_debugConnection);
 }
 
 void ArvConfigWindow::on_refreshCamerasButton_clicked(bool clicked)
@@ -830,6 +831,7 @@ void ArvConfigWindow::loadSettings(const QVariantHash &settings, const QByteArra
         wholefile >> camera.get();
         readBack << camera.get();
         readBack << Qt::endl << Qt::endl;
+        QApplication::processEvents();
     }
     QStringList failures;
     wholefile.seek(0);
