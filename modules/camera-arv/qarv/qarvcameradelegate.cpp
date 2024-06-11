@@ -22,8 +22,8 @@
 #include "qarv-globals.h"
 #include <QLayout>
 
-QArvCameraDelegate::QArvCameraDelegate(QObject* parent) :
-    QStyledItemDelegate(parent) {}
+QArvCameraDelegate::QArvCameraDelegate(const QString &modId, QObject* parent) :
+    QStyledItemDelegate(parent), m_modId(modId) {}
 
 QWidget* QArvCameraDelegate::createEditor(QWidget* parent,
                                           const QStyleOptionViewItem& option,
@@ -41,7 +41,7 @@ void QArvCameraDelegate::setEditorData(QWidget* editor,
                                        const QModelIndex& index) const {
     auto var = index.model()->data(index, Qt::EditRole);
     if (!var.isValid()) {
-        QArv::logMessage() << "Error setting editor data: QArvCameraDelegate";
+        logMessage() << "Error setting editor data: QArvCameraDelegate";
         return;
     }
     auto val = static_cast<QArvType*>(var.data());
@@ -53,7 +53,7 @@ void QArvCameraDelegate::setModelData(QWidget* editor,
                                       const QModelIndex& index) const {
     auto var = model->data(index, Qt::EditRole);
     if (!var.isValid()) {
-        QArv::logMessage() << "Error setting model data: QArvCameraDelegate";
+        logMessage() << "Error setting model data: QArvCameraDelegate";
         return;
     }
     auto val = static_cast<QArvType*>(var.data());

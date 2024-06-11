@@ -23,6 +23,8 @@
 #include <gio/gio.h>  // Workaround for gdbusintrospection's use of "signal".
 #include <QStyledItemDelegate>
 
+#include "qarv/qarv-globals.h"
+
 #pragma GCC visibility push(default)
 
 //! QArvCameraDelegate provides editing widgets to go with the QArvCamera model.
@@ -34,7 +36,7 @@ class QArvCameraDelegate : public QStyledItemDelegate {
     Q_OBJECT
 
 public:
-    explicit QArvCameraDelegate(QObject* parent = 0);
+    explicit QArvCameraDelegate(const QString &modId = QString(), QObject* parent = nullptr);
     QWidget* createEditor(QWidget* parent,
                           const QStyleOptionViewItem& option,
                           const QModelIndex& index) const override;
@@ -50,6 +52,13 @@ public:
 
 private slots:
     void finishEditing();
+
+private:
+    inline QArv::QArvDebug logMessage() const {
+        return {m_modId};
+    }
+
+    QString m_modId;
 };
 
 #pragma GCC visibility pop

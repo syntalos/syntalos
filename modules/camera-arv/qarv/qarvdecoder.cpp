@@ -90,7 +90,7 @@ void QArvDecoder::CV2QImage_RGB24(const cv::Mat& image, QImage& out) {
         break;
 
     default:
-        logMessage() << "CV2QImage: Invalid CV image format";
+        qDebug().noquote() << "CV2QImage: Invalid CV image format";
         return;
     }
 }
@@ -164,7 +164,7 @@ void QArvDecoder::CV2QImage(const cv::Mat& image, QImage& out) {
         break;
 
     default:
-        logMessage() << "CV2QImage: Invalid CV image format";
+        qDebug().noquote() << "CV2QImage: Invalid CV image format";
         return;
     }
 }

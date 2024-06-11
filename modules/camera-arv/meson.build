@@ -12,7 +12,6 @@ module_moc_hdr = [
     'qarv/qarvdecoder.h',
     'qarv/qarvfeaturetree.h',
     'qarv/qarv-globals.h',
-    'qarv/qarvrecordedvideo.h',
     'qarv/qarvtype.h',
 
     'qarv/decoders/bayer.h',
@@ -51,8 +50,6 @@ module_moc_hdr = [
     'qarv/decoders/monounpackeddecoders/Mono8Format.h',
     'qarv/decoders/monounpackeddecoders/Mono8SignedFormat.h',
 
-
-
     'configwindow.h',
     'glvideowidget.h',
     'roicombobox.h',
@@ -64,15 +61,12 @@ module_src = [
     'qarv/qarvcameradelegate.cpp',
     'qarv/qarvdecoder.cpp',
     'qarv/qarvfeaturetree.cpp',
-    'qarv/qarvrecordedvideo.cpp',
     'qarv/qarvtype.cpp',
     'qarv/decoders/bayer.cpp',
     'qarv/decoders/graymap.cpp',
     'qarv/decoders/mono12packed.cpp',
     'qarv/decoders/monounpackeddecoders.cpp',
     'qarv/decoders/swscaledecoder.cpp',
-
-
 
     'configwindow.cpp',
     'glvideowidget.cpp',

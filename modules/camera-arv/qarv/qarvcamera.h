@@ -30,6 +30,8 @@
 #include <QHostAddress>
 #include <QAbstractItemModel>
 
+#include "qarv-globals.h"
+
 #pragma GCC visibility push(default)
 
 //! \name Forward declarations to avoid exposing arv.h
@@ -117,7 +119,7 @@ public:
     static void init();
 
     //! A camera with the given ID is opened.
-    QArvCamera(QArvCameraId id, QObject* parent = NULL);
+    QArvCamera(QArvCameraId id, const QString &modId = QString(), QObject* parent = NULL);
     ~QArvCamera();
 
     static QList<QArvCameraId> listCameras(); //!< Returns a list of all cameras found.
@@ -219,7 +221,11 @@ signals:
 private slots:
     void receiveFrame();
 
+public:
+    QArv::QArvDebug logMessage() const;
+
 private:
+    QString m_modId;
     QArvCameraExtension* ext;
     static QList<QArvCameraId> cameraList;
     ArvCamera* camera;

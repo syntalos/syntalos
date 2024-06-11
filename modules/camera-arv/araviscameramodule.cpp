@@ -32,6 +32,7 @@ class AravisCameraModule : public AbstractModule
 {
     Q_OBJECT
 private:
+    QIcon m_modIcon;
     ArvConfigWindow *m_configWindow;
     std::atomic_bool m_stopped;
     std::shared_ptr<DataStream<Frame>> m_outStream;
@@ -48,9 +49,13 @@ public:
         QArvCamera::init();
 
         m_outStream = registerOutputPort<Frame>(QStringLiteral("video"), QStringLiteral("Video"));
+        m_modIcon = modInfo->icon();
+    }
 
-        m_configWindow = new ArvConfigWindow();
-        m_configWindow->setWindowIcon(modInfo->icon());
+    bool initialize() final
+    {
+        m_configWindow = new ArvConfigWindow(QStringLiteral("%1-%2").arg(id()).arg(index()));
+        m_configWindow->setWindowIcon(m_modIcon);
         addSettingsWindow(m_configWindow);
 
         connect(
@@ -70,26 +75,28 @@ public:
 
         // set initial window titles
         setName(name());
+
+        return true;
     }
 
     ~AravisCameraModule() {}
 
-    void setName(const QString &name) override
+    void setName(const QString &name) final
     {
         AbstractModule::setName(name);
     }
 
-    ModuleDriverKind driver() const override
+    ModuleDriverKind driver() const final
     {
         return ModuleDriverKind::THREAD_DEDICATED;
     }
 
-    ModuleFeatures features() const override
+    ModuleFeatures features() const final
     {
         return ModuleFeature::REALTIME | ModuleFeature::REQUEST_CPU_AFFINITY | ModuleFeature::SHOW_SETTINGS;
     }
 
-    bool prepare(const TestSubject &) override
+    bool prepare(const TestSubject &) final
     {
         if (!m_camera) {
             raiseError(QStringLiteral("No camera selected!"));
@@ -111,7 +118,7 @@ public:
         return true;
     }
 
-    void runThread(OptionalWaitCondition *waitCondition) override
+    void runThread(OptionalWaitCondition *waitCondition) final
     {
         g_autoptr(GMainLoop) loop = g_main_loop_new(nullptr, FALSE);
 
@@ -228,7 +235,7 @@ public:
         m_stopped = true;
     }
 
-    void stop() override
+    void stop() final
     {
         statusMessage("Cleaning up...");
 
@@ -242,18 +249,18 @@ public:
         AbstractModule::stop();
     }
 
-    void serializeSettings(const QString &, QVariantHash &settings, QByteArray &camFeatures) override
+    void serializeSettings(const QString &, QVariantHash &settings, QByteArray &camFeatures) final
     {
         m_configWindow->serializeSettings(settings, camFeatures);
     }
 
-    bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &camFeatures) override
+    bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &camFeatures) final
     {
         m_configWindow->loadSettings(settings, camFeatures);
         return true;
     }
 
-    void usbHotplugEvent(UsbHotplugEventKind) override
+    void usbHotplugEvent(UsbHotplugEventKind) final
     {
         if (!m_stopped)
             return;

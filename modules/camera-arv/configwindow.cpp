@@ -42,16 +42,21 @@ Q_DECLARE_METATYPE(cv::Mat)
 
 using namespace QArv;
 
-ArvConfigWindow::ArvConfigWindow(QWidget *parent)
+ArvConfigWindow::ArvConfigWindow(const QString &modId, QWidget *parent)
     : QMainWindow(parent),
-      camera(NULL),
-      decoder(NULL),
+      m_modId(modId),
+      camera(nullptr),
+      decoder(nullptr),
       playing(false),
       started(false)
 {
     setupUi(this);
     on_statusTimeoutSpinbox_valueChanged(statusTimeoutSpinbox->value());
-    messageList->connect(&QArvDebug::messageSender, SIGNAL(newDebugMessage(QString)), SLOT(appendPlainText(QString)));
+    connect(
+        &QArvDebug::messageSender, &MessageSender::newDebugMessage, [this](const QString &scope, const QString &msg) {
+            if (scope == m_modId || scope.isEmpty())
+                messageList->appendPlainText(msg);
+        });
 
     // Setup theme icons if available.
     QHash<QAbstractButton *, QString> icons;
@@ -209,7 +214,7 @@ void ArvConfigWindow::on_cameraSelector_currentIndexChanged(int index)
         toggleVideoPreview(false);
         camera.reset();
     }
-    camera = std::make_shared<QArvCamera>(camid);
+    camera = std::make_shared<QArvCamera>(camid, m_modId);
     connect(camera.get(), &QArvCamera::frameReady, this, &ArvConfigWindow::previewFrameReceived);
     connect(camera.get(), &QArvCamera::bufferUnderrun, this, &ArvConfigWindow::bufferUnderrunOccured);
 

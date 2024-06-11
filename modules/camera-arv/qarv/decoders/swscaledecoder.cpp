@@ -36,7 +36,7 @@ SwScaleDecoder::SwScaleDecoder(QSize size_, AVPixelFormat inputPixfmt_,
     inputPixfmt(inputPixfmt_), arvPixelFormat(arvPixFmt), flags(swsFlags) {
     if (size.width() != (size.width() / 2) * 2
         || size.height() != (size.height() / 2) * 2) {
-        logMessage() << "Frame size must be factor of two for SwScaleDecoder.";
+        qDebug().noquote() << "Frame size must be factor of two for SwScaleDecoder.";
         OK = false;
         return;
     }
@@ -72,7 +72,7 @@ SwScaleDecoder::SwScaleDecoder(QSize size_, AVPixelFormat inputPixfmt_,
                                  size.width(), size.height(), outputPixFmt,
                                  flags, 0, 0, 0);
     } else {
-        logMessage() << "Pixel format" << av_get_pix_fmt_name(inputPixfmt)
+        qDebug().noquote() << "Pixel format" << av_get_pix_fmt_name(inputPixfmt)
                      << "is not supported for input.";
         OK = false;
     }
@@ -107,7 +107,7 @@ void SwScaleDecoder::decode(QByteArray frame) {
                               0, size.height(),
                               image_pointers, image_strides);
     if (outheight != size.height()) {
-        logMessage() << "swscale error! outheight =" << outheight;
+        qDebug().noquote() << "swscale error! outheight =" << outheight;
     }
 }
 

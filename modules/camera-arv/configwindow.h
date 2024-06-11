@@ -60,7 +60,7 @@ class ArvConfigWindow : public QMainWindow, private Ui::ArvConfigWindowUI
     Q_OBJECT
 
 public:
-    explicit ArvConfigWindow(QWidget *parent = nullptr);
+    explicit ArvConfigWindow(const QString &modId, QWidget *parent = nullptr);
     ~ArvConfigWindow();
 
     void setCameraInUseExternal(bool camInUse);
@@ -118,6 +118,12 @@ private:
     void closeEvent(QCloseEvent *event) override;
     void setCameraInUse(bool camInUse);
 
+    inline QArvDebug logMessage() const
+    {
+        return {m_modId};
+    }
+
+    QString m_modId;
     std::shared_ptr<QArvCamera> camera;
     std::shared_ptr<QArvDecoder> decoder;
 

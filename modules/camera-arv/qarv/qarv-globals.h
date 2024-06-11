@@ -14,17 +14,17 @@ public:
     Q_OBJECT
 
 signals:
-    void newDebugMessage(QString message);
+    void newDebugMessage(const QString &scope, const QString &message);
 
 private:
     bool connected;
-    QStringList preconnectMessages;
+    QList<QPair<QString, QString>> preconnectMessages;
 
     MessageSender();
     void connectNotify(const QMetaMethod& signal) override;
     void disconnectNotify(const QMetaMethod& signal) override;
 
-    void sendMessage(const QString& message);
+    void sendMessage(const QString& scope, const QString& message);
 
     friend class QArvDebug;
 };
@@ -35,18 +35,13 @@ public:
     ~QArvDebug();
     static MessageSender messageSender;
 
+    QArvDebug(const QString &modId) :
+          QDebug(&m_message), m_modId(modId) {}
+
 private:
-    QArvDebug(bool prependProgramName) :
-        QDebug(&message), prepend(prependProgramName) {}
-    QString message;
-    bool prepend;
-
-    friend QArvDebug logMessage(bool);
+    QString m_modId;
+    QString m_message;
 };
-
-inline QArvDebug logMessage(bool prependProgramName = true) {
-    return QArvDebug(prependProgramName);
-}
 
 const int slidersteps = 1000;
 

@@ -11,8 +11,8 @@ MessageSender::MessageSender() : QObject(), connected(false) {}
 void MessageSender::connectNotify(const QMetaMethod& signal) {
     QObject::connectNotify(signal);
     connected = true;
-    foreach (const QString& msg, preconnectMessages)
-    emit newDebugMessage(msg);
+    for (auto& pair : preconnectMessages)
+        emit newDebugMessage(pair.first, pair.second);
     preconnectMessages.clear();
 }
 
@@ -22,27 +22,29 @@ void MessageSender::disconnectNotify(const QMetaMethod& signal) {
         connected = false;
 }
 
-void MessageSender::sendMessage(const QString& message) {
+void MessageSender::sendMessage(const QString &scope, const QString& message) {
     if (connected)
-        emit newDebugMessage(message);
+        emit newDebugMessage(scope, message);
     else
-        preconnectMessages << message;
+        preconnectMessages << qMakePair(scope, message);
 }
 
 QArvDebug::~QArvDebug() {
     auto now = QTime::currentTime().toString("[hh:mm:ss] ");
-    foreach (auto line, message.split('\n')) {
+    foreach (auto line, m_message.split('\n')) {
         if (line.startsWith('"')) {
             auto lineref = line.midRef(1, line.length() - 3);
-            qDebug(prepend ? "QArv %s%s" : "%s%s",
+            qDebug("%s: %s%s",
+                   m_modId.toLocal8Bit().constData(),
                    now.toLocal8Bit().constData(),
                    lineref.toLocal8Bit().constData());
-            messageSender.sendMessage(now + lineref.toString());
+            messageSender.sendMessage(m_modId, now + lineref.toString());
         } else {
-            qDebug(prepend ? "QArv %s%s" : "%s%s",
+            qDebug("%s: %s%s",
+                   m_modId.toLocal8Bit().constData(),
                    now.toLocal8Bit().constData(),
                    line.toLocal8Bit().constData());
-            messageSender.sendMessage(now + line);
+            messageSender.sendMessage(m_modId, now + line);
         }
     }
 }

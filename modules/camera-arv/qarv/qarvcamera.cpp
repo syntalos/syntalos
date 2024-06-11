@@ -76,8 +76,8 @@ QArvCameraId::~QArvCameraId() {
 /*!
  * Acquisition mode is set to CONTINUOUS when the camera is opened.
  */
-QArvCamera::QArvCamera(QArvCameraId id, QObject* parent) :
-    QAbstractItemModel(parent), acquiring(false) {
+QArvCamera::QArvCamera(QArvCameraId id, const QString &modId, QObject* parent) :
+    QAbstractItemModel(parent), m_modId(modId), acquiring(false) {
     ext = new QArvCameraExtension;
     setFrameQueueSize();
     camera = arv_camera_new(id.id, nullptr);
@@ -442,7 +442,7 @@ static QHostAddress GSocketAddress_to_QHostAddress(GSocketAddress* gaddr) {
     sockaddr addr;
     int success = g_socket_address_to_native(gaddr, &addr, sizeof(addr), NULL);
     if (!success) {
-        logMessage() << "Unable to translate IP address.";
+        qDebug().noquote() << "Unable to translate IP address.";
         return QHostAddress();
     }
     return QHostAddress(&addr);
@@ -492,7 +492,7 @@ QTextStream& operator>>(QTextStream& in, QArvCamera* camera) {
     QString vendor, model, id;
     in >> vendor >> model >> id;
     if (!(vendor == ID.vendor && model == ID.model && id == ID.id)) {
-        logMessage()
+        camera->logMessage()
             << QObject::tr("Incompatible camera settings", "QArvCamera");
         return in;
     }
@@ -875,4 +875,9 @@ void QArvCamera::enableRegisterCache(bool enable, bool debug) {
         policy = ARV_REGISTER_CACHE_POLICY_DEBUG;
     }
     arv_gc_set_register_cache_policy(genicam, policy);
+}
+
+QArv::QArvDebug QArvCamera::logMessage() const
+{
+    return {m_modId};;
 }
