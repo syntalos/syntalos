@@ -103,6 +103,7 @@ public:
             return false;
         }
 
+        statusMessage("Configuring streams...");
         m_configWindow->setCameraInUseExternal(true);
         m_tfParams = m_configWindow->currentTransformParams();
 
@@ -245,7 +246,7 @@ public:
         }
 
         m_configWindow->setCameraInUseExternal(false);
-        statusMessage("Camera disconnected.");
+        statusMessage("Camera stopped.");
         AbstractModule::stop();
     }
 
