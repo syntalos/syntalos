@@ -221,11 +221,14 @@ void ImageViewWidget::renderImage()
 bool ImageViewWidget::showImage(const vips::VImage &image)
 {
     d->origImage = image;
+    d->rgbImage = image;
 
-    const auto interpretation = image.interpretation();
+    if (d->rgbImage.format() != VIPS_FORMAT_UCHAR)
+        d->rgbImage = d->rgbImage.cast(VIPS_FORMAT_UCHAR, vips::VImage::option()->set("shift", true));
+    const auto interpretation = d->rgbImage.interpretation();
     d->rgbImage = (interpretation == VIPS_INTERPRETATION_sRGB || interpretation == VIPS_INTERPRETATION_RGB)
-                      ? image
-                      : image.colourspace(VIPS_INTERPRETATION_sRGB);
+                      ? d->rgbImage
+                      : d->rgbImage.colourspace(VIPS_INTERPRETATION_sRGB);
     if (d->rgbImage.bands() != 3)
         d->rgbImage = d->rgbImage.extract_band(0, vips::VImage::option()->set("n", 3));
 
