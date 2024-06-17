@@ -104,6 +104,11 @@ module_args = [
     '-DARAVIS_HAVE_08_API',
 ]
 
+# Install udev rules to make GenICam cameras readable for normal users
+install_data('90-syntalos-cameras.rules',
+    install_dir: join_paths(udevdir, 'rules.d')
+)
+
 #
 # Generic module setup
 #
