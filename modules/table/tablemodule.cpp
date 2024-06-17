@@ -98,7 +98,7 @@ public:
 
     void start() override
     {
-        if (m_rowSub.get() == nullptr)
+        if (!m_rowSub)
             return;
 
         const auto mdata = m_rowSub->metadata();
@@ -141,6 +141,9 @@ public:
 
     void processUiEvents() override
     {
+        if (!m_rowSub)
+            return;
+
         auto maybeRow = m_rowSub->peekNext();
         if (!maybeRow.has_value())
             return;
