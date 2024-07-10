@@ -37,6 +37,29 @@ vips::VImage cvMatToVips(const cv::Mat &mat);
 cv::Mat vipsToCvMat(vips::VImage vimg);
 
 /**
+ * @brief Get the size of the VIPS band format at compile-time
+ * @param format The VIPS band format
+ * @return The size of the format in bytes
+ */
+template<VipsBandFormat format>
+constexpr size_t vipsBandFormatSize()
+{
+    switch (format) {
+    case VIPS_FORMAT_UCHAR:
+        return sizeof(uint8_t);
+    case VIPS_FORMAT_CHAR:
+        return sizeof(int8_t);
+    case VIPS_FORMAT_USHORT:
+        return sizeof(uint16_t);
+    case VIPS_FORMAT_SHORT:
+        return sizeof(int16_t);
+    default:
+        static_assert(false, "Selected VIPS band format is currently unsupported by Syntalos");
+        return 0;
+    }
+}
+
+/**
  * @brief Create a new VIPS image with the given dimensions and format
  * @tparam format The VIPS format to use
  * @param width The width of the image
@@ -47,16 +70,8 @@ cv::Mat vipsToCvMat(vips::VImage vimg);
 template<VipsBandFormat format>
 vips::VImage newVipsImage(int width, int height, int bands = 1)
 {
-    size_t buffer_size = 0;
-    switch (format) {
-    case VIPS_FORMAT_USHORT:
-        buffer_size = width * height * sizeof(uint16_t);
-        break;
-    default:
-        static_assert(false, "Unknown VIPS format");
-    }
+    size_t buffer_size = width * height * vipsBandFormatSize<format>();
 
     auto buffer = vips_malloc(nullptr, buffer_size);
-
     return vips::VImage::new_from_memory_steal(buffer, buffer_size, width, height, bands, format);
 }
