@@ -41,7 +41,7 @@ private:
 
     double m_expectedFps;
     double m_currentFps;
-    long m_lastFrameTime;
+    int64_t m_lastFrameTime;
     double m_avgFrameTimeDiffMsec;
 
     double m_expectedDisplayFps;
@@ -91,7 +91,7 @@ public:
 
     void start() override
     {
-        m_lastFrameTime = m_syTimer->timeSinceStartMsec().count();
+        m_lastFrameTime = m_syTimer->timeSinceStartUsec().count();
         if (m_frameSub == nullptr) {
             m_active = false;
             return;
@@ -107,6 +107,7 @@ public:
         m_throttleCount = 144;
         m_frameSub->setThrottleItemsPerSec(m_throttleCount);
         m_expectedDisplayFps = (m_expectedFps < m_throttleCount) ? m_expectedFps : m_throttleCount;
+        m_currentDisplayFps = m_expectedDisplayFps;
 
         // assume perfect frame diff for now
         m_avgFrameTimeDiffMsec = 1000.0 / m_expectedFps;
@@ -126,7 +127,7 @@ public:
             return;
         auto maybeFrame = m_frameSub->peekNext();
 
-        if (m_ctlSub.get() != nullptr) {
+        if (m_ctlSub) {
             auto maybeCtl = m_ctlSub->peekNext();
             if (maybeCtl.has_value()) {
                 const auto ctlValue = maybeCtl.value();
@@ -139,6 +140,7 @@ public:
 
         if (!maybeFrame.has_value())
             return;
+
         const auto skippedFrames = m_frameSub->retrieveApproxSkippedElements();
         const auto framesPendingCount = m_frameSub->approxPendingCount();
         if (framesPendingCount > (m_expectedDisplayFps * 2)) {
@@ -196,31 +198,30 @@ public:
         // get all timing info and show the image
         const auto frame = maybeFrame.value();
         m_cvView->showImage(frame.mat.copy_memory());
-        const auto frameTime = frame.time.count();
+        const auto frameDisplayTime = currentTimePoint();
+        const auto frameTimeUsec = frame.time.count();
 
         if (m_expectedFps == 0) {
-            m_cvView->setStatusText(QTime::fromMSecsSinceStartOfDay(frameTime).toString("hh:mm:ss.zzz"));
+            m_cvView->setStatusText(
+                QTime::fromMSecsSinceStartOfDay(static_cast<int>(frameTimeUsec / 1000.0)).toString("hh:mm:ss.zzz"));
         } else {
             // we use a moving average of the inter-frame-time over two seconds, as the framerate occasionally
             // fluctuates (especially when throttling the subscription) and we want to display a more steady (but
             // accurate) info to the user instead, without twitching around too much
             m_avgFrameTimeDiffMsec = ((m_avgFrameTimeDiffMsec * m_expectedFps)
-                                      + ((frameTime - m_lastFrameTime) / (skippedFrames + 1)))
+                                      + ((frameTimeUsec - m_lastFrameTime) / 1000.0 / (skippedFrames + 1)))
                                      / (m_expectedFps + 1);
-            m_lastFrameTime = frameTime;
+            m_lastFrameTime = frameTimeUsec;
             m_currentFps = (m_avgFrameTimeDiffMsec > 0) ? (1000.0 / m_avgFrameTimeDiffMsec) : m_expectedFps;
 
-            const auto frameDisplayTime = currentTimePoint();
-            if (std::isinf(m_currentDisplayFps))
-                m_currentDisplayFps = 1000.0 / timeDiffMsec(frameDisplayTime, m_lastDisplayTime).count();
-            else
-                m_currentDisplayFps = ((m_currentDisplayFps * m_expectedDisplayFps)
-                                       + (1000.0 / timeDiffMsec(frameDisplayTime, m_lastDisplayTime).count()))
-                                      / (m_expectedDisplayFps + 1);
+            m_currentDisplayFps = ((m_currentDisplayFps * 60)
+                                   + (1000.0 / timeDiffMsec(frameDisplayTime, m_lastDisplayTime).count()))
+                                  / (60 + 1);
             m_lastDisplayTime = frameDisplayTime;
 
             m_cvView->setStatusText(QStringLiteral("%1 | Stream: %2fps (of %3fps) | Display: %4fps")
-                                        .arg(QTime::fromMSecsSinceStartOfDay(frameTime).toString("hh:mm:ss.zzz"))
+                                        .arg(QTime::fromMSecsSinceStartOfDay(static_cast<int>(frameTimeUsec / 1000.0))
+                                                 .toString("hh:mm:ss.zzz"))
                                         .arg(m_currentFps, 0, 'f', 1)
                                         .arg(m_expectedFps, 0, 'f', 1)
                                         .arg(m_currentDisplayFps, 0, 'f', 0));
