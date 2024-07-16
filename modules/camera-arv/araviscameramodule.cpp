@@ -135,73 +135,6 @@ public:
             return;
         }
 
-        uint64_t frameCount = 0;
-        nanoseconds_t offsetToMaster;
-        m_camera->startAcquisition(true, true, [this, &frameCount, &offsetToMaster, &clockSync](ArvBuffer *buffer) {
-            if (!m_running)
-                return;
-            if (frameCount == 0) {
-                // determine the base offset times to the master clock when retrieving the first frame
-                auto firstMasterTime = m_syTimer->timeSinceStartNsec();
-                auto frameSysTimeNs = arv_buffer_get_system_timestamp(buffer);
-
-                offsetToMaster = nanoseconds_t(firstMasterTime.count() - (gint64)frameSysTimeNs);
-            }
-
-            auto frameSysTimeNs = arv_buffer_get_system_timestamp(buffer);
-            auto frameDevTimeNs = arv_buffer_get_timestamp(buffer);
-            if (frameDevTimeNs == 0) {
-                // no timestamp available, use the system timestamp
-                frameDevTimeNs = frameSysTimeNs;
-            }
-            auto masterTime = std::chrono::duration_cast<microseconds_t>(
-                nanoseconds_t(frameSysTimeNs + offsetToMaster.count()));
-
-            QByteArray frame;
-            size_t size;
-            const void *data;
-            data = arv_buffer_get_data(buffer, &size);
-            frame = QByteArray::fromRawData(static_cast<const char *>(data), size);
-
-            if (frame.isEmpty())
-                return;
-            frameCount++;
-            if (!m_decoder)
-                return;
-
-            clockSync->processTimestamp(masterTime, nsecToUsec(nanoseconds_t(frameDevTimeNs)));
-
-            m_decoder->decode(frame);
-            cv::Mat img = m_decoder->getCvImage();
-
-            if (m_tfParams->invert) {
-                int bits = img.depth() == CV_8U ? 8 : 16;
-                cv::subtract((1 << bits) - 1, img, img);
-            }
-
-            if (m_tfParams->flip != -100)
-                cv::flip(img, img, m_tfParams->flip);
-
-            switch (m_tfParams->rot) {
-            case 1:
-                cv::transpose(img, img);
-                cv::flip(img, img, 0);
-                break;
-
-            case 2:
-                cv::flip(img, img, -1);
-                break;
-
-            case 3:
-                cv::transpose(img, img);
-                cv::flip(img, img, 1);
-                break;
-            }
-
-            Frame syFrame(cvMatToVips(img), frameCount, masterTime);
-            m_outStream->push(syFrame);
-        });
-
         auto timeoutCb = [](gpointer data) -> gboolean {
             auto pair = static_cast<std::pair<AravisCameraModule *, GMainLoop *> *>(data);
             auto self = pair->first;
@@ -223,6 +156,78 @@ public:
 
         // wait until we actually start acquiring data
         waitCondition->wait(this);
+
+        uint64_t frameCount = 0;
+        nanoseconds_t sysOffsetToMaster;
+        guint64 devOffsetToSysNs = 0;
+        m_camera->startAcquisition(
+            true, true, [this, &frameCount, &sysOffsetToMaster, &devOffsetToSysNs, &clockSync](ArvBuffer *buffer) {
+                if (!m_running)
+                    return;
+                if (frameCount == 0) {
+                    // determine the base offset times to the master clock when retrieving the first frame
+                    auto firstMasterTime = m_syTimer->timeSinceStartNsec();
+                    auto firstFrameSysTimeNs = arv_buffer_get_system_timestamp(buffer);
+                    auto firstFrameDevTimeNs = arv_buffer_get_timestamp(buffer);
+
+                    sysOffsetToMaster = nanoseconds_t(firstMasterTime.count() - (gint64)firstFrameSysTimeNs);
+                    devOffsetToSysNs = firstFrameSysTimeNs - firstFrameDevTimeNs;
+                }
+
+                auto frameSysTimeNs = arv_buffer_get_system_timestamp(buffer);
+                auto frameDevTimeNs = arv_buffer_get_timestamp(buffer);
+                if (frameDevTimeNs == 0) {
+                    // no timestamp available, use the system timestamp
+                    frameDevTimeNs = frameSysTimeNs;
+                } else {
+                    frameDevTimeNs += devOffsetToSysNs;
+                }
+                auto masterTime = std::chrono::duration_cast<microseconds_t>(
+                    nanoseconds_t(frameSysTimeNs) + sysOffsetToMaster);
+
+                QByteArray frame;
+                size_t size;
+                const void *data;
+                data = arv_buffer_get_data(buffer, &size);
+                frame = QByteArray::fromRawData(static_cast<const char *>(data), size);
+
+                if (frame.isEmpty())
+                    return;
+                if (!m_decoder)
+                    return;
+
+                clockSync->processTimestamp(masterTime, nsecToUsec(nanoseconds_t(frameDevTimeNs)));
+
+                m_decoder->decode(frame);
+                cv::Mat img = m_decoder->getCvImage();
+
+                if (m_tfParams->invert) {
+                    int bits = img.depth() == CV_8U ? 8 : 16;
+                    cv::subtract((1 << bits) - 1, img, img);
+                }
+
+                if (m_tfParams->flip != -100)
+                    cv::flip(img, img, m_tfParams->flip);
+
+                switch (m_tfParams->rot) {
+                case 1:
+                    cv::transpose(img, img);
+                    cv::flip(img, img, 0);
+                    break;
+
+                case 2:
+                    cv::flip(img, img, -1);
+                    break;
+
+                case 3:
+                    cv::transpose(img, img);
+                    cv::flip(img, img, 1);
+                    break;
+                }
+
+                Frame syFrame(cvMatToVips(img), frameCount++, masterTime);
+                m_outStream->push(syFrame);
+            });
 
         // only after the run is started, attach the timeout source
         g_source_attach(timeoutSrc, g_main_loop_get_context(loop));
