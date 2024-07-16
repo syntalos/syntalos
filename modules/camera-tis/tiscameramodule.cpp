@@ -181,7 +181,7 @@ public:
 
         // set up clock synchronizer
         const auto clockSync = initClockSynchronizer(m_fps);
-        clockSync->setStrategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD);
+        clockSync->setStrategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD | TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD);
 
         // start the synchronizer
         if (!clockSync->start()) {

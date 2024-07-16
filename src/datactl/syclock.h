@@ -90,6 +90,16 @@ inline microseconds_t msecToUsec(const milliseconds_t &msec)
     return std::chrono::duration_cast<microseconds_t>(msec);
 }
 
+/**
+ * @brief Convert nanoseconds microseconds
+ *
+ * Shorthand for duration-case to increase code readability.
+ */
+inline microseconds_t nsecToUsec(const nanoseconds_t &msec)
+{
+    return std::chrono::duration_cast<microseconds_t>(msec);
+}
+
 inline milliseconds_t timeDiffMsec(const symaster_timepoint &timePoint1, const symaster_timepoint &timePoint2) noexcept
 {
     return std::chrono::duration_cast<milliseconds_t>(timePoint1 - timePoint2);
