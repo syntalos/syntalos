@@ -123,11 +123,11 @@ public:
     {
         g_autoptr(GMainLoop) loop = g_main_loop_new(nullptr, FALSE);
 
-        m_camera->setFrameQueueSize(10);
+        m_camera->setFrameQueueSize(16);
 
         // set up clock synchronizer
         const auto clockSync = initClockSynchronizer(m_camera->getFPS());
-        clockSync->setStrategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD);
+        clockSync->setStrategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD | TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD);
 
         // start the synchronizer
         if (!clockSync->start()) {
@@ -163,44 +163,43 @@ public:
             data = arv_buffer_get_data(buffer, &size);
             frame = QByteArray::fromRawData(static_cast<const char *>(data), size);
 
-            if (m_decoder) {
-                if (frame.isEmpty())
-                    return;
+            if (frame.isEmpty())
+                return;
+            frameCount++;
+            if (!m_decoder)
+                return;
 
-                clockSync->processTimestamp(
-                    masterTime, std::chrono::duration_cast<microseconds_t>(nanoseconds_t(frameDevTimeNs)));
+            clockSync->processTimestamp(masterTime, nsecToUsec(nanoseconds_t(frameDevTimeNs)));
 
-                m_decoder->decode(frame);
-                cv::Mat img = m_decoder->getCvImage();
+            m_decoder->decode(frame);
+            cv::Mat img = m_decoder->getCvImage();
 
-                if (m_tfParams->invert) {
-                    int bits = img.depth() == CV_8U ? 8 : 16;
-                    cv::subtract((1 << bits) - 1, img, img);
-                }
-
-                if (m_tfParams->flip != -100)
-                    cv::flip(img, img, m_tfParams->flip);
-
-                switch (m_tfParams->rot) {
-                case 1:
-                    cv::transpose(img, img);
-                    cv::flip(img, img, 0);
-                    break;
-
-                case 2:
-                    cv::flip(img, img, -1);
-                    break;
-
-                case 3:
-                    cv::transpose(img, img);
-                    cv::flip(img, img, 1);
-                    break;
-                }
-
-                Frame syFrame(cvMatToVips(img), frameCount, usecToMsec(masterTime));
-                m_outStream->push(syFrame);
-                frameCount++;
+            if (m_tfParams->invert) {
+                int bits = img.depth() == CV_8U ? 8 : 16;
+                cv::subtract((1 << bits) - 1, img, img);
             }
+
+            if (m_tfParams->flip != -100)
+                cv::flip(img, img, m_tfParams->flip);
+
+            switch (m_tfParams->rot) {
+            case 1:
+                cv::transpose(img, img);
+                cv::flip(img, img, 0);
+                break;
+
+            case 2:
+                cv::flip(img, img, -1);
+                break;
+
+            case 3:
+                cv::transpose(img, img);
+                cv::flip(img, img, 1);
+                break;
+            }
+
+            Frame syFrame(cvMatToVips(img), frameCount, masterTime);
+            m_outStream->push(syFrame);
         });
 
         auto timeoutCb = [](gpointer data) -> gboolean {
