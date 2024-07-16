@@ -44,11 +44,17 @@ private:
 QList<QArvCameraId> QArvCamera::cameraList;
 
 void QArvCamera::init() {
+    static bool arvInitialized = false;
+    if (arvInitialized)
+        return;
+
 #if !GLIB_CHECK_VERSION(2, 35, 1)
     g_type_init();
 #endif
     arv_enable_interface("Fake");
     qRegisterMetaType<ArvBuffer*>("ArvBuffer*");
+
+    arvInitialized = true;
 }
 
 QArvCameraId::QArvCameraId() : id(NULL), vendor(NULL), model(NULL) {}
@@ -71,6 +77,11 @@ QArvCameraId::~QArvCameraId() {
     if (id != NULL) free((void*)id);
     if (vendor != NULL) free((void*)vendor);
     if (model != NULL) free((void*)model);
+}
+
+QString QArvCameraId::toString() const
+{
+    return QStringLiteral("%1 %2 (%3)").arg(vendor, model, id);
 }
 
 /*!
@@ -186,11 +197,17 @@ void QArvCamera::setBinning(QSize bin) {
     emit dataChanged(QModelIndex(), QModelIndex());
 }
 
-QList< QString > QArvCamera::getPixelFormats() {
+QList< QString > QArvCamera::getPixelFormats()
+{
     unsigned int numformats;
-    const char **formats = arv_camera_dup_available_pixel_formats_as_strings(
-        camera, &numformats, nullptr);
+    const char **formats = arv_camera_dup_available_pixel_formats_as_strings(camera, &numformats, nullptr);
     QList<QString> list;
+
+    if (formats == nullptr) {
+        qWarning().noquote() << "No pixel formats received for Aravis camera" << getId().toString();
+        return list;
+    }
+
     for (uint i = 0; i < numformats; i++)
         list << formats[i];
     free(formats);
