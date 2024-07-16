@@ -26,12 +26,12 @@
 namespace Syntalos
 {
 
-typedef Eigen::Matrix<qint32, Eigen::Dynamic, 1> VectorXi;
-typedef Eigen::Matrix<quint32, Eigen::Dynamic, 1> VectorXu;
-typedef Eigen::Matrix<qint64, Eigen::Dynamic, 1> VectorXl;
+typedef Eigen::Matrix<qint32, Eigen::Dynamic, 1> VectorXsi;
+typedef Eigen::Matrix<quint64, Eigen::Dynamic, 1> VectorXul;
+typedef Eigen::Matrix<qint64, Eigen::Dynamic, 1> VectorXsl;
 typedef Eigen::Matrix<double, Eigen::Dynamic, 1> VectorXd;
 
-typedef Eigen::Matrix<qint32, Eigen::Dynamic, Eigen::Dynamic> MatrixXi;
+typedef Eigen::Matrix<qint32, Eigen::Dynamic, Eigen::Dynamic> MatrixXsi;
 typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> MatrixXd;
 
 template<typename T>

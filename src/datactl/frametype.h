@@ -32,14 +32,14 @@ struct Frame : BaseDataType {
     SY_DEFINE_DATA_TYPE(Frame)
 
     explicit Frame() {}
-    explicit Frame(const vips::VImage &img, const milliseconds_t &t)
+    explicit Frame(const vips::VImage &img, const microseconds_t &t)
         : index(0),
           time(t),
           mat(img)
     {
     }
 
-    explicit Frame(const vips::VImage &img, const uint64_t &idx, const milliseconds_t &t)
+    explicit Frame(const vips::VImage &img, const uint64_t &idx, const microseconds_t &t)
         : index(idx),
           time(t),
           mat(img)
@@ -48,12 +48,12 @@ struct Frame : BaseDataType {
 
     explicit Frame(const uint64_t &idx)
         : index(idx),
-          time(milliseconds_t(0))
+          time(microseconds_t(0))
     {
     }
 
     uint64_t index;
-    milliseconds_t time;
+    microseconds_t time;
     vips::VImage mat;
 
     void copyMemory(bool safe = true)

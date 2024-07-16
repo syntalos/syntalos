@@ -137,7 +137,7 @@ public:
         const microseconds_t &blocksRecvTimestamp,
         int blockIndex,
         int blockCount,
-        VectorXu &idxTimestamps);
+        VectorXul &idxTimestamps);
 
 private:
     Q_DISABLE_COPY(FreqCounterSynchronizer)
@@ -157,7 +157,7 @@ private:
 
     uint m_calibrationMaxBlockN;
     uint m_calibrationIdx;
-    VectorXl m_tsOffsetsUsec;
+    VectorXsl m_tsOffsetsUsec;
 
     bool m_haveExpectedOffset;
     uint m_expectedOffsetCalCount;
@@ -251,7 +251,7 @@ private:
 
     uint m_calibrationMaxN;
     uint m_calibrationIdx;
-    VectorXl m_clockOffsetsUsec;
+    VectorXsl m_clockOffsetsUsec;
 
     bool m_haveExpectedOffset;
     uint m_expectedOffsetCalCount;

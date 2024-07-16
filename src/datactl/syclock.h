@@ -73,11 +73,21 @@ using nanoseconds_t = std::chrono::duration<int64_t, std::nano>;
 /**
  * @brief Convert microseconds to milliseconds
  *
- * Shorthand for suration-case for easier code readability.
+ * Shorthand for duration-case to increase code readability.
  */
 inline milliseconds_t usecToMsec(const microseconds_t &usec)
 {
     return std::chrono::duration_cast<milliseconds_t>(usec);
+}
+
+/**
+ * @brief Convert milliseconds microseconds
+ *
+ * Shorthand for duration-case to increase code readability.
+ */
+inline microseconds_t msecToUsec(const milliseconds_t &msec)
+{
+    return std::chrono::duration_cast<microseconds_t>(msec);
 }
 
 inline milliseconds_t timeDiffMsec(const symaster_timepoint &timePoint1, const symaster_timepoint &timePoint2) noexcept

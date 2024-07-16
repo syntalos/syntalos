@@ -129,9 +129,8 @@ public:
                 firstFrame = false;
                 startTime = time;
             }
-            auto timestampMsec = std::chrono::milliseconds(time - startTime);
-
-            m_outStream->push(Frame(mat, timestampMsec));
+            auto timestampUsec = msecToUsec(std::chrono::milliseconds(time - startTime));
+            m_outStream->push(Frame(mat, timestampUsec));
 
             // wait a bit if necessary, to keep the right framerate
             const auto cycleTime = timeDiffToNowMsec(cycleStartTime);

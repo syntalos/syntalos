@@ -207,7 +207,7 @@ void TimePlotWidget::addToSeriesI(int seriesIndex, const Eigen::RowVectorXi &vec
         d->xdata[seriesIndex].add(vec(i));
 }
 
-void TimePlotWidget::addToTimeseries(const VectorXu &vec, double divisor)
+void TimePlotWidget::addToTimeseries(const VectorXul &vec, double divisor)
 {
     const std::lock_guard<std::mutex> lock(d->dataMutex);
 

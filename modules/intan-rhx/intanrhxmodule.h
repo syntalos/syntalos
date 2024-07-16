@@ -128,7 +128,11 @@ inline void syntalosModuleSetSignalBlocksTimestamps(IntanRhxModule *mod, const m
     if (mod == nullptr)
         return;
 
-    VectorXu tvm = Eigen::Map<VectorXu, Eigen::Unaligned>(tsBuf, tsLen);
+    // cast timestamps (uint32_t -> uint64_t) and assign them
+    VectorXul tvm(tsLen);
+    for (size_t i = 0; i < tsLen; ++i)
+        tvm[i] = static_cast<uint64_t>(tsBuf[i]);
+
     for (auto &blocks : mod->intSdiByGroupChannel) {
         for (auto &sdi : blocks) {
             if (!sdi.active)

@@ -326,7 +326,7 @@ public:
         stream.flush();
     }
 
-    void writeEntryStart(const VectorXu &timestamps, int i)
+    void writeEntryStart(const VectorXul &timestamps, int i)
     {
         if (i == 0 && m_initFile)
             (*m_textStream) << "[" << intToJsonValue(timestamps(i, 0));

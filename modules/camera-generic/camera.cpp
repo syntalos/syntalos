@@ -363,7 +363,7 @@ bool Camera::recordFrame(Frame &frame, SecondaryClockSynchronizer *clockSync)
     clockSync->processTimestamp(frameRecvTime, driverFrameTimestamp);
 
     // set the adjusted timestamp as frame time
-    frame.time = usecToMsec(frameRecvTime);
+    frame.time = frameRecvTime;
     if (!status) {
         fail("Failed to grab frame.");
         return false;

@@ -113,7 +113,7 @@ public:
             cv::Mat infoMat;
             cv::Mat trackMat;
             cv::Mat frameMat = vipsToCvMat(frame.mat);
-            tracker->analyzeFrame(frameMat, frame.time, &trackMat, &infoMat);
+            tracker->analyzeFrame(frameMat, usecToMsec(frame.time), &trackMat, &infoMat);
 
             m_trackStream->push(Frame(cvMatToVips(trackMat), frame.time));
             m_animalStream->push(Frame(cvMatToVips(infoMat), frame.time));

@@ -71,7 +71,7 @@ public:
     int addSeries(const QString &seriesName, const PlotSeriesSettings &settings = PlotSeriesSettings());
     void addToSeriesF(int seriesIndex, const Eigen::RowVectorXd &vec);
     void addToSeriesI(int seriesIndex, const Eigen::RowVectorXi &vec);
-    void addToTimeseries(const VectorXu &vec, double divisor);
+    void addToTimeseries(const VectorXul &vec, double divisor);
 
 protected:
     void initializeGL() override;

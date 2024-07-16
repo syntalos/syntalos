@@ -498,8 +498,8 @@ struct IntSignalBlock : BaseDataType {
         return data.cols();
     }
 
-    VectorXu timestamps;
-    MatrixXi data;
+    VectorXul timestamps;
+    MatrixXsi data;
 
     QByteArray toBytes() const override
     {
@@ -518,8 +518,8 @@ struct IntSignalBlock : BaseDataType {
         QByteArray block(reinterpret_cast<const char *>(memory), size);
         QDataStream stream(block);
 
-        obj.timestamps = deserializeEigen<VectorXu>(stream);
-        obj.data = deserializeEigen<MatrixXi>(stream);
+        obj.timestamps = deserializeEigen<VectorXul>(stream);
+        obj.data = deserializeEigen<MatrixXsi>(stream);
 
         return obj;
     }
@@ -563,7 +563,7 @@ struct FloatSignalBlock : BaseDataType {
         return data.cols();
     }
 
-    VectorXu timestamps;
+    VectorXul timestamps;
     MatrixXd data;
 
     QByteArray toBytes() const override
@@ -583,7 +583,7 @@ struct FloatSignalBlock : BaseDataType {
         QByteArray block(reinterpret_cast<const char *>(memory), size);
         QDataStream stream(block);
 
-        obj.timestamps = deserializeEigen<VectorXu>(stream);
+        obj.timestamps = deserializeEigen<VectorXul>(stream);
         obj.data = deserializeEigen<MatrixXd>(stream);
 
         return obj;

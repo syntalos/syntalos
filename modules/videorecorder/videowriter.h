@@ -179,11 +179,11 @@ public:
     bool initialized() const;
     bool startNewSection(const QString &fname);
 
-    std::chrono::milliseconds captureStartTimestamp() const;
-    void setCaptureStartTimestamp(const std::chrono::milliseconds &startTimestamp);
+    std::chrono::microseconds captureStartTimestamp() const;
+    void setCaptureStartTimestamp(const std::chrono::microseconds &startTimestamp);
     void setTsyncFileCreationTimeOverride(const QDateTime &dt);
 
-    bool encodeFrame(const vips::VImage &frame, const std::chrono::milliseconds &timestamp);
+    bool encodeFrame(const vips::VImage &frame, const std::chrono::microseconds &timestamp);
 
     CodecProperties codecProps() const;
     void setCodec(VideoCodec codec);

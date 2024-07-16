@@ -284,7 +284,7 @@ public:
                     if (m_firstTimestamp)
                         clockSync->setStrategies(TimeSyncStrategy::NONE);
                 }
-                frame.time = usecToMsec(frameRecvTime);
+                frame.time = frameRecvTime;
 
                 m_outStream->push(frame);
             }

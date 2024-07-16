@@ -130,34 +130,34 @@ public:
             if (row.has_value())
                 m_rowsOut->push(row.value());
 
-            const auto msec = m_syTimer->timeSinceStartMsec().count();
-            if ((msec % 3) == 0) {
+            const auto usec = m_syTimer->timeSinceStartUsec().count();
+            if (((usec / 1000) % 3) == 0) {
                 FirmataControl fctl;
 
                 fctl.command = FirmataCommandKind::WRITE_DIGITAL;
                 fctl.pinId = 2;
                 fctl.pinName = QStringLiteral("custom-pin-name");
-                fctl.value = (msec % 2 == 0) ? 1 : 0;
+                fctl.value = ((usec / 1000) % 2 == 0) ? 1 : 0;
                 m_fctlOut->push(fctl);
             }
 
-            if ((msec > m_prevTimeSData) && (msec % 2) == 0) {
+            if ((usec > m_prevTimeSData) && (usec % 2) == 0) {
                 FloatSignalBlock fsb(2, 3);
-                fsb.timestamps[0] = msec - 1;
-                fsb.timestamps[1] = msec;
-                fsb.data(0, 0) = 0.5f * sinf(50 * ((msec - 1) / 20));
-                fsb.data(1, 0) = 0.5f * sinf(50 * (msec / 20));
+                fsb.timestamps[0] = usec - 1;
+                fsb.timestamps[1] = usec;
+                fsb.data(0, 0) = 0.5f * sinf(50 * ((usec - 1) / 20));
+                fsb.data(1, 0) = 0.5f * sinf(50 * (usec / 20));
 
-                fsb.data(0, 1) = 0.25f * sinf(50 * ((msec - 1) / 5) + 1.5);
-                fsb.data(1, 1) = 0.25f * sinf(50 * (msec / 5) + 1.5);
+                fsb.data(0, 1) = 0.25f * sinf(50 * ((usec - 1) / 5) + 1.5);
+                fsb.data(1, 1) = 0.25f * sinf(50 * (usec / 5) + 1.5);
 
-                fsb.data(0, 2) = 0.4f * sinf(50 * ((msec - 1) / 200));
-                fsb.data(1, 2) = 0.4f * sinf(50 * (msec / 200));
+                fsb.data(0, 2) = 0.4f * sinf(50 * ((usec - 1) / 200));
+                fsb.data(1, 2) = 0.4f * sinf(50 * (usec / 200));
                 m_floatOut->push(fsb);
 
                 IntSignalBlock isb(2, 1);
-                isb.timestamps[0] = msec - 1;
-                isb.timestamps[1] = msec;
+                isb.timestamps[0] = usec - 1;
+                isb.timestamps[1] = usec;
                 if (m_prevIntValue > 10) {
                     isb.data(0, 0) = 8;
                     isb.data(1, 0) = 2;
@@ -169,7 +169,7 @@ public:
                 }
                 m_intOut->push(isb);
 
-                m_prevTimeSData = msec;
+                m_prevTimeSData = usec;
             }
 
             dataIndex++;

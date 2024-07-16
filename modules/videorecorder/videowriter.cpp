@@ -426,7 +426,7 @@ public:
         initialized = false;
         container = VideoContainer::Matroska;
         fileSliceIntervalMin = 0; // never slice our recording by default
-        captureStartTimestamp = std::chrono::milliseconds(
+        captureStartTimestamp = std::chrono::microseconds(
             0); // by default we assume the first frame was recorded at timepoint 0
 
         encFrame = nullptr;
@@ -466,7 +466,7 @@ public:
 
     bool saveTimestamps;
     TimeSyncFileWriter tsfWriter;
-    std::chrono::milliseconds captureStartTimestamp;
+    std::chrono::microseconds captureStartTimestamp;
 
     AVFrame *encFrame;
     AVFrame *inputFrame;
@@ -933,7 +933,7 @@ void VideoWriter::initializeInternal()
         d->tsfWriter.close(); // ensure file is closed
         d->tsfWriter.setSyncMode(TSyncFileMode::CONTINUOUS);
         d->tsfWriter.setTimeNames(QStringLiteral("frame-no"), QStringLiteral("master-time"));
-        d->tsfWriter.setTimeUnits(TSyncFileTimeUnit::INDEX, TSyncFileTimeUnit::MILLISECONDS);
+        d->tsfWriter.setTimeUnits(TSyncFileTimeUnit::INDEX, TSyncFileTimeUnit::MICROSECONDS);
         d->tsfWriter.setTimeDataTypes(TSyncFileDataType::UINT32, TSyncFileDataType::UINT64);
         d->tsfWriter.setChunkSize((d->fps.num / d->fps.den) * 60 * 1); // new chunk about every minute
         d->tsfWriter.setFileName(timestampFname);
@@ -1126,12 +1126,12 @@ bool VideoWriter::startNewSection(const QString &fname)
     return true;
 }
 
-std::chrono::milliseconds VideoWriter::captureStartTimestamp() const
+std::chrono::microseconds VideoWriter::captureStartTimestamp() const
 {
     return d->captureStartTimestamp;
 }
 
-void VideoWriter::setCaptureStartTimestamp(const std::chrono::milliseconds &startTimestamp)
+void VideoWriter::setCaptureStartTimestamp(const std::chrono::microseconds &startTimestamp)
 {
     d->captureStartTimestamp = startTimestamp;
 }
@@ -1264,7 +1264,7 @@ inline bool VideoWriter::prepareFrame(const vips::VImage &inImage)
     return true;
 }
 
-bool VideoWriter::encodeFrame(const vips::VImage &frame, const std::chrono::milliseconds &timestamp)
+bool VideoWriter::encodeFrame(const vips::VImage &frame, const std::chrono::microseconds &timestamp)
 {
     int ret;
     bool success = false;

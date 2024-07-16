@@ -492,7 +492,7 @@ bool FLIRCamera::acquireFrame(Frame &frame, SecondaryClockSynchronizer *clockSyn
         // adjust the received time if necessary, gather clock sync information
         // for some reason the timestamp occasionally is stuck at zero
         clockSync->processTimestamp(frameRecvTime, microseconds_t(timestampUs));
-        frame.time = usecToMsec(frameRecvTime);
+        frame.time = frameRecvTime;
 
         // release image
         image->Release();
