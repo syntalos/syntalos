@@ -64,13 +64,13 @@ SyntalosPyError::SyntalosPyError(const char *what_arg)
 SyntalosPyError::SyntalosPyError(const std::string &what_arg)
     : std::runtime_error(what_arg){};
 
-static long time_since_start_msec()
+static uint64_t time_since_start_msec()
 {
     auto pb = PyBridge::instance();
     return pb->link()->timer()->timeSinceStartMsec().count();
 }
 
-static long time_since_start_usec()
+static uint64_t time_since_start_usec()
 {
     auto pb = PyBridge::instance();
     return pb->link()->timer()->timeSinceStartUsec().count();

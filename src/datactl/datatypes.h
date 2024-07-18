@@ -435,7 +435,7 @@ struct FirmataData : BaseDataType {
         QByteArray bytes;
         QDataStream stream(&bytes, QIODevice::WriteOnly);
 
-        stream << pinId << pinName << value << isDigital << static_cast<quint32>(time.count());
+        stream << pinId << pinName << value << isDigital << static_cast<qint64>(time.count());
 
         return bytes;
     }
@@ -446,7 +446,7 @@ struct FirmataData : BaseDataType {
         QByteArray block(reinterpret_cast<const char *>(memory), size);
         QDataStream stream(block);
 
-        quint32 timeUs;
+        qint64 timeUs;
         stream >> obj.pinId >> obj.pinName >> obj.value >> obj.isDigital >> timeUs;
         obj.time = microseconds_t(timeUs);
 
