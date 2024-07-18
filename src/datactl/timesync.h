@@ -261,6 +261,7 @@ private:
     microseconds_t m_clockCorrectionOffset;
     microseconds_t m_lastMasterTS;
     microseconds_t m_lastSecondaryAcqTS;
+    uint m_clockUpdateWaitPoints;
 
     std::unique_ptr<TimeSyncFileWriter> m_tswriter;
 };
