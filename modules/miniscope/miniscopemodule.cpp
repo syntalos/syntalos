@@ -273,7 +273,7 @@ public:
         if (mat.empty())
             return;
 
-        self->m_rawOut->push(Frame(cvMatToVips(mat), self->m_recFrameCount++, frameTime));
+        self->m_rawOut->push(Frame(cvMatToVips(mat), self->m_recFrameCount++, updatedFrameTime));
 
         if (orientation[4] < 0.05) {
             if (self->m_lastOrientationVec == orientation)
@@ -282,7 +282,7 @@ public:
 
             if (self->m_bnoTabOut->active()) {
                 const auto row = TableRow(
-                    QStringList() << QString::number(frameTime.count()) << QString::number(orientation[0])
+                    QStringList() << QString::number(updatedFrameTime.count()) << QString::number(orientation[0])
                                   << QString::number(orientation[1]) << QString::number(orientation[2])
                                   << QString::number(orientation[3]));
                 self->m_bnoTabOut->push(row);
@@ -290,7 +290,7 @@ public:
 
             if (self->m_bnoVecOut->active()) {
                 FloatSignalBlock sblock(1, 4);
-                sblock.timestamps(0, 0) = frameTime.count();
+                sblock.timestamps(0, 0) = updatedFrameTime.count();
                 sblock.data(0, 0) = orientation[0];
                 sblock.data(0, 1) = orientation[1];
                 sblock.data(0, 2) = orientation[2];
@@ -306,7 +306,7 @@ public:
         const auto self = static_cast<MiniscopeModule *>(udata);
         if (!self->m_acceptFrames)
             return;
-        self->m_dispOut->push(Frame(cvMatToVips(mat), time));
+        self->m_dispOut->push(Frame(cvMatToVips(mat), msecToUsec(time)));
     }
 
     static void on_controlValueChanged(const QString &id, double dispValue, double devValue, void *udata)

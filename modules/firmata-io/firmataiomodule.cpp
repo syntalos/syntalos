@@ -341,7 +341,7 @@ public:
         // value of a digital port changed: 8 possible pin changes
         const int first = port * 8;
         const int last = first + 7;
-        const auto timestamp = m_syTimer->timeSinceStartMsec();
+        const auto timestamp = m_syTimer->timeSinceStartUsec();
 
         qCDebug(logFmMod, "Digital port read: %d (%d - %d)", value, first, last);
         for (const FmPin &p : m_namePinMap.values()) {
@@ -365,7 +365,7 @@ public:
         // WARNING: This method is called from a different thread!
 
         FirmataData fdata;
-        fdata.time = m_syTimer->timeSinceStartMsec();
+        fdata.time = m_syTimer->timeSinceStartUsec();
         fdata.isDigital = true;
         fdata.pinId = pin;
         fdata.pinName = m_pinNameMap.value(pin);

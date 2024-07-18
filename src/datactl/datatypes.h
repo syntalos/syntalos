@@ -428,7 +428,7 @@ struct FirmataData : BaseDataType {
     QString pinName;
     uint16_t value;
     bool isDigital;
-    milliseconds_t time;
+    microseconds_t time;
 
     QByteArray toBytes() const override
     {
@@ -446,9 +446,9 @@ struct FirmataData : BaseDataType {
         QByteArray block(reinterpret_cast<const char *>(memory), size);
         QDataStream stream(block);
 
-        quint32 timeMs;
-        stream >> obj.pinId >> obj.pinName >> obj.value >> obj.isDigital >> timeMs;
-        obj.time = milliseconds_t(timeMs);
+        quint32 timeUs;
+        stream >> obj.pinId >> obj.pinName >> obj.value >> obj.isDigital >> timeUs;
+        obj.time = microseconds_t(timeUs);
 
         return obj;
     }
