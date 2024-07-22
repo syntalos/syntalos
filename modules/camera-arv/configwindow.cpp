@@ -832,6 +832,7 @@ void ArvConfigWindow::loadSettings(const QVariantHash &settings, const QByteArra
         readBack << camera.get();
         readBack << Qt::endl << Qt::endl;
         QApplication::processEvents();
+        QThread::msleep(50);
     }
     QStringList failures;
     wholefile.seek(0);
@@ -856,6 +857,11 @@ void ArvConfigWindow::loadSettings(const QVariantHash &settings, const QByteArra
         QMessageBox::warning(
             this, QStringLiteral("%1 - Failed to load settings").arg(cameraSelector->currentText()), message);
     }
+}
+
+void ArvConfigWindow::refreshCameras()
+{
+    on_refreshCamerasButton_clicked();
 }
 
 void ArvConfigWindow::closeEvent(QCloseEvent *event)

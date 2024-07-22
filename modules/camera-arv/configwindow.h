@@ -69,6 +69,8 @@ public:
     void serializeSettings(QVariantHash &settings, QByteArray &camFeatures);
     void loadSettings(const QVariantHash &settings, const QByteArray &camFeatures);
 
+    void refreshCameras();
+
 signals:
     void recordingStarted(bool started);
     void cameraSelected(const std::shared_ptr<QArvCamera> &camera, const std::shared_ptr<QArvDecoder> &decoder);

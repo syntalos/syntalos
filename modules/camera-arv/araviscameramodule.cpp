@@ -269,6 +269,7 @@ public:
     {
         if (!m_stopped)
             return;
+        m_configWindow->refreshCameras();
     }
 };
 
