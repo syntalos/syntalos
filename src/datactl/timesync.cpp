@@ -740,7 +740,7 @@ void SecondaryClockSynchronizer::processTimestamp(
         && abs(avgOffsetDeviationUsec - m_clockCorrectionOffset.count()) > (m_toleranceUsec / 1.5)) {
         // try to smoothly adjust the offset to the new value
         const auto offsetDiff = avgOffsetDeviationUsec - m_clockCorrectionOffset.count();
-        const auto adjValue = (double)offsetDiff / 2.0;
+        const auto adjValue = (double)offsetDiff / 3.0;
         m_clockCorrectionOffset += microseconds_t((int64_t)std::ceil(adjValue));
 
         // write timestamp correction to tsync file
