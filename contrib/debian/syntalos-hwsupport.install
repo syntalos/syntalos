@@ -1,2 +1,2 @@
-usr/lib/udev/*
 usr/lib/tmpfiles.d/*
+usr/lib/udev/*

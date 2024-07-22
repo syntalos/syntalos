@@ -1,4 +1,8 @@
 usr/bin/*
+usr/include/*
+usr/lib/*/libsyntalos-*
+usr/lib/*/pkgconfig/*.pc
 usr/lib/*/syntalos/*
+usr/lib/python3/dist-packages/syntalos_mlink*
 usr/libexec/*
 usr/share/*
