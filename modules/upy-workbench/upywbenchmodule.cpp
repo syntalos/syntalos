@@ -459,6 +459,9 @@ public:
         m_testRunAction->setEnabled(false);
         m_devResetAction->setEnabled(false);
 
+        // we are not running yet
+        m_stopped = true;
+
         // close the serial connection that the user is using interactively
         m_devConnectAction->setChecked(false);
         if (m_userSerial->isOpen())
