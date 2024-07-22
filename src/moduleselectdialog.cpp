@@ -325,7 +325,7 @@ void ModuleSelectDialog::on_filterEdit_editingFinished()
     }
 }
 
-void ModuleSelectDialog::on_filterEdit_textChanged(const QString &arg1)
+void ModuleSelectDialog::on_filterEdit_textChanged(const QString &)
 {
     if (!m_termFilterPending) {
         m_termFilterPending = true;
@@ -333,4 +333,14 @@ void ModuleSelectDialog::on_filterEdit_textChanged(const QString &arg1)
             filterByTerm(ui->filterEdit->text());
         });
     }
+}
+
+void ModuleSelectDialog::on_filterEdit_textEdited(const QString &arg1)
+{
+    on_filterEdit_textChanged(arg1);
+}
+
+void ModuleSelectDialog::on_filterEdit_returnPressed()
+{
+    on_filterEdit_editingFinished();
 }

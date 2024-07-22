@@ -47,6 +47,8 @@ private slots:
     void on_modListView_doubleClicked(const QModelIndex &index);
     void on_filterEdit_editingFinished();
     void on_filterEdit_textChanged(const QString &arg1);
+    void on_filterEdit_textEdited(const QString &arg1);
+    void on_filterEdit_returnPressed();
 
 private:
     Ui::ModuleSelectDialog *ui;
