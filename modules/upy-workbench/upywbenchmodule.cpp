@@ -548,13 +548,13 @@ public:
 
             // synchronize
             m_clockSync->processTimestamp(recvMasterTime, deviceTimestamp);
-            const auto syncTimestampMsec = static_cast<quint32>(recvMasterTime.count() / 1000);
+            const auto syncTimestampUsec = recvMasterTime.count();
 
             if (isIntBlock) {
                 IntSignalBlock block(arrayLen);
                 for (int i = 0; i < arrayLen; i++) {
                     block.data(i, 0) = array[i].toInt();
-                    block.timestamps(i, 0) = syncTimestampMsec;
+                    block.timestamps(i, 0) = syncTimestampUsec;
                 }
 
                 std::static_pointer_cast<DataStream<IntSignalBlock>>(stream)->push(block);
@@ -562,7 +562,7 @@ public:
                 FloatSignalBlock block(arrayLen);
                 for (int i = 0; i < arrayLen; i++) {
                     block.data(i, 0) = array[i].toDouble();
-                    block.timestamps(i, 0) = syncTimestampMsec;
+                    block.timestamps(i, 0) = syncTimestampUsec;
                 }
 
                 std::static_pointer_cast<DataStream<FloatSignalBlock>>(stream)->push(block);
