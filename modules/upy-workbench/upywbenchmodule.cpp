@@ -469,7 +469,7 @@ public:
             if (p->dataTypeId() == BaseDataType::IntSignalBlock || p->dataTypeId() == BaseDataType::FloatSignalBlock) {
                 auto stream = p->streamVar();
                 stream->setMetadataValue("signal_names", QStringList() << "Data");
-                stream->setMetadataValue("time_unit", "milliseconds");
+                stream->setMetadataValue("time_unit", "microseconds");
             }
 
             p->startStream();
@@ -488,7 +488,7 @@ public:
         m_clockSync->setCalibrationPointsCount(30);
         m_clockSync->setTolerance(milliseconds_t(2));
         m_clockSync->setStrategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD | TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD);
-        m_baseTimeOffset = milliseconds_t(0);
+        m_baseTimeOffset = microseconds_t(0);
 
         // start the synchronizer
         if (!m_clockSync->start()) {
@@ -544,7 +544,7 @@ public:
         if (isIntBlock || isFloatBlock) {
             const auto array = obj["d"].toArray();
             const auto arrayLen = array.size();
-            const auto deviceTimestamp = microseconds_t((obj["t"].toInt() - m_baseTimeOffset.count()) * 1000);
+            const auto deviceTimestamp = microseconds_t(obj["t"].toInt() - m_baseTimeOffset.count());
 
             // synchronize
             m_clockSync->processTimestamp(recvMasterTime, deviceTimestamp);
@@ -726,7 +726,7 @@ public:
                         }
                         streamMap[jd["i"].toInt()] = oport->streamVar();
                     } else if (command == "start-time") {
-                        m_baseTimeOffset = milliseconds_t(jd["t_ms"].toInt());
+                        m_baseTimeOffset = microseconds_t(jd["t_us"].toInt());
                     }
                 }
             }
@@ -830,7 +830,7 @@ private:
 
     std::atomic_bool m_stopped;
     std::vector<std::shared_ptr<StreamInputPort<TableRow>>> m_activeInPorts;
-    milliseconds_t m_baseTimeOffset = milliseconds_t(0);
+    microseconds_t m_baseTimeOffset = microseconds_t(0);
     std::unique_ptr<SecondaryClockSynchronizer> m_clockSync;
 };
 

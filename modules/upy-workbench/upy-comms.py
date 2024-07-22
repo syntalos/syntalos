@@ -23,7 +23,7 @@ class SyntalosOutPort:
         if len(args) == 1 and isinstance(args[0], (list, tuple)):
             args = args[0]
 
-        timestamp = kwargs.get('timestamp_ms')
+        timestamp = kwargs.get('timestamp_us')
         if timestamp:
             self._out_writer.write(
                 dump_json_compact({'p': self._port_idx, 'd': args, 't': timestamp})
@@ -47,7 +47,7 @@ class SyntalosCommunicator:
         self._iport_map = {}
         self._iport_pending = {}
 
-        print(dump_json_compact({'dc': 'start-time', 't_ms': time.ticks_ms()}))
+        print(dump_json_compact({'dc': 'start-time', 't_us': time.ticks_us()}))
 
     def _register_input_port_info(self, hdata):
         if hdata['hc'] == 'in-port':
