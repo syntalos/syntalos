@@ -283,8 +283,8 @@ private slots:
                     qPrintable(
                         QString::number(syncMasterTS.count()) + " < " + QString::number(curMasterTS.count() + 250)));
                 QVERIFY2(
-                    syncMasterTS.count() > secondaryTSOffAdj,
-                    qPrintable(QString::number(syncMasterTS.count()) + " > " + QString::number(secondaryTSOffAdj)));
+                    syncMasterTS.count() >= secondaryTSOffAdj,
+                    qPrintable(QString::number(syncMasterTS.count()) + " >= " + QString::number(secondaryTSOffAdj)));
 
             } else {
                 // we have no fluke divergence

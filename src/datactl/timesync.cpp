@@ -362,14 +362,18 @@ void FreqCounterSynchronizer::processTimestamps(
     }
     m_lastOffsetWithinTolerance = false;
 
-    const int64_t offsetsSD = sqrt(vectorVariance(m_tsOffsetsUsec, avgOffsetUsec));
-    if (abs(avgOffsetUsec - curOffsetUsec) > offsetsSD) {
-        // the current offset diff to the moving average offset is not within standard deviation range.
-        // This means the data point we just added is likely a fluke, potentially due to a context switch
-        // or system load spike. We just ignore those events completely and don't make time adjustments
-        // to index offsets based on them.
-        m_lastTimeIndex = secondaryLastIdx;
-        return;
+    const double offsetDiffToAvg = abs(avgOffsetUsec - curOffsetUsec);
+    if (offsetDiffToAvg > m_expectedSD) {
+        // "sane value threshold" is 1.5x the standard deviation of the offsets
+        const int64_t offsetsSDThr = 1.5 * sqrt(vectorVariance(m_tsOffsetsUsec, avgOffsetUsec, true));
+        if (offsetDiffToAvg > offsetsSDThr) {
+            // the current offset diff to the moving average offset is not within standard deviation range.
+            // This means the data point we just added is likely a fluke, potentially due to a context switch
+            // or system load spike. We just ignore those events completely and don't make time adjustments
+            // to index offsets based on them.
+            m_lastTimeIndex = secondaryLastIdx;
+            return;
+        }
     }
 
     // Don't do even more adjustments until we have lived with the current one for a while.
@@ -661,42 +665,44 @@ void SecondaryClockSynchronizer::processTimestamp(
         return;
     }
 
-    const int64_t offsetsSD = sqrt(vectorVariance(m_clockOffsetsUsec, avgOffsetUsec));
-    if (abs(avgOffsetUsec - curOffsetUsec) > offsetsSD) {
-        // the current offset diff to the moving average offset is not within standard deviation range.
-        // This means the data point we just added is likely a fluke, potentially due to a context switch
-        // or system load spike.
-        // In this case we derive a new master timestamp from the secondary clock using our vector of average
-        // offsets, and then take the mean of that with our original master timestamp to average out potential
-        // defects in either timestamp.
-        const auto masterTimestampAdjAvg = (masterTimestamp + secondaryAcqTimestamp - m_expectedOffset
-                                            - m_clockCorrectionOffset)
-                                           / 2;
+    const double offsetDiffToAvg = abs(avgOffsetUsec - curOffsetUsec);
+    if (offsetDiffToAvg > m_expectedSD) {
+        const double offsetsSDThr = 2 * sqrt(vectorVariance(m_clockOffsetsUsec, avgOffsetUsec, true));
+        if (offsetDiffToAvg > offsetsSDThr) {
+            // the current offset diff to the moving average offset is not within the defined, standard-deviation-based
+            // range. This means the data point we just added is likely a fluke, potentially due to a context switch
+            // or system load spike.
+            // In this case we derive a new master timestamp from the previous master timestamp, by adding the current
+            // delta of the previous secondary clock time to current secondary clock time.
+            // Assuming this issue does not appear too frequently and the secondary clock is not totally off, this
+            // method should yield a good estimate for the correct timestamp.
+            const auto masterTimestampFAdj = m_lastMasterTS + (secondaryAcqTimestamp - m_lastSecondaryAcqTS);
 
-        // correct fluke unconditionally
-        masterTimestamp = masterTimestampAdjAvg;
+            // correct fluke unconditionally
+            masterTimestamp = masterTimestampFAdj;
 
-        // prevent any time-travel into the past
-        if (masterTimestamp < m_lastMasterTS)
-            masterTimestamp = m_lastMasterTS + microseconds_t(1);
+            // prevent any time-travel into the past (this should be impossible, but better be safe)
+            if (masterTimestamp < m_lastMasterTS)
+                masterTimestamp = m_lastMasterTS + microseconds_t(1);
 
-        if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
-            m_tswriter->writeTimes(secondaryAcqTimestamp, masterTimestamp);
+            if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
+                m_tswriter->writeTimes(secondaryAcqTimestamp, masterTimestamp);
 
-        /*
-        qCDebug(logTimeSync).noquote().nospace() << QTime::currentTime().toString() << "[" << m_id << "] "
-                << "Offset deviation diff not within SD. Adjusted for fluke offset by adding " << avgOffsetUsec*-1 <<
-        "µs "
-                << "to secondary clock time " << secondaryAcqTimestamp.count() << "µs "
-                << " SD: " << offsetsSD;
-        */
+            /*
+            qCDebug(logTimeSync).noquote().nospace() << QTime::currentTime().toString() << "[" << m_id << "] "
+                    << "Offset deviation diff not within SD. Adjusted for fluke offset by adding " << avgOffsetUsec*-1
+            << "µs "
+                    << "to secondary clock time " << secondaryAcqTimestamp.count() << "µs "
+                    << " SD: " << offsetsSD;
+            */
 
-        // remember the original timestamp, even if they were a fluke
-        m_lastSecondaryAcqTS = secondaryAcqTimestamp;
-        m_lastMasterTS = masterTimestamp;
+            // remember the original timestamps (master TS having been adjusted)
+            m_lastSecondaryAcqTS = secondaryAcqTimestamp;
+            m_lastMasterTS = masterTimestamp;
 
-        // nothing left to do here, we dealt with the fluke
-        return;
+            // nothing left to do here, we dealt with the fluke
+            return;
+        }
     }
 
     // do nothing if we have not enough average deviation from the norm
@@ -754,9 +760,9 @@ void SecondaryClockSynchronizer::processTimestamp(
     }
 
     // apply any existing timestamp correction offsets
-    if (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD) && m_clockCorrectionOffset.count() < 0)
+    if (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD) && m_clockCorrectionOffset.count() > 0)
         masterTimestamp = secondaryAcqTimestamp - m_expectedOffset - m_clockCorrectionOffset;
-    if (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD) && m_clockCorrectionOffset.count() > 0)
+    if (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD) && m_clockCorrectionOffset.count() < 0)
         masterTimestamp = secondaryAcqTimestamp - m_expectedOffset - m_clockCorrectionOffset;
 
     /*

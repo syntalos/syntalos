@@ -68,15 +68,18 @@ double vectorMedianInplace(Eigen::Matrix<T, Eigen::Dynamic, 1> &vec)
 }
 
 template<typename T>
-double vectorVariance(const Eigen::Matrix<T, Eigen::Dynamic, 1> &vec, const double &mean)
+double vectorVariance(const Eigen::Matrix<T, Eigen::Dynamic, 1> &vec, const double &mean, bool unbiased = true)
 {
-    return (vec.template cast<double>().array() - mean).pow(2).sum() / vec.rows();
+    if (unbiased)
+        return (vec.template cast<double>().array() - mean).pow(2).sum() / (vec.rows() - 1);
+    else
+        return (vec.template cast<double>().array() - mean).pow(2).sum() / vec.rows();
 }
 
 template<typename T>
-double vectorVariance(const Eigen::Matrix<T, Eigen::Dynamic, 1> &vec)
+double vectorVariance(const Eigen::Matrix<T, Eigen::Dynamic, 1> &vec, bool unbiased = true)
 {
-    return vectorVariance(vec, vec.mean());
+    return vectorVariance(vec, vec.mean(), unbiased);
 }
 
 template<typename EigenType>
