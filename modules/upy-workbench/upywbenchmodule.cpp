@@ -549,7 +549,8 @@ public:
             const auto arrayLen = array.size();
             const auto jTs = obj["t"];
             if (!jTs.isUndefined()) {
-                const auto deviceTimestamp = microseconds_t(jTs.toInt() - m_baseTimeOffset.count());
+                const auto deviceTimestamp = microseconds_t(
+                    static_cast<int64_t>(jTs.toDouble() * 1000) - m_baseTimeOffset.count());
 
                 // synchronize
                 m_clockSync->processTimestamp(recvMasterTime, deviceTimestamp);
@@ -731,7 +732,7 @@ public:
                         }
                         streamMap[jd["i"].toInt()] = oport->streamVar();
                     } else if (command == "start-time") {
-                        m_baseTimeOffset = microseconds_t(jd["t_us"].toInt());
+                        m_baseTimeOffset = microseconds_t(static_cast<int64_t>(jd["t_ms"].toDouble() * 1000));
                     }
                 }
             }
