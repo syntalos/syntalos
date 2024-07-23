@@ -547,17 +547,19 @@ public:
         if (isIntBlock || isFloatBlock) {
             const auto array = obj["d"].toArray();
             const auto arrayLen = array.size();
-            const auto deviceTimestamp = microseconds_t(obj["t"].toInt() - m_baseTimeOffset.count());
+            const auto jTs = obj["t"];
+            if (!jTs.isUndefined()) {
+                const auto deviceTimestamp = microseconds_t(jTs.toInt() - m_baseTimeOffset.count());
 
-            // synchronize
-            m_clockSync->processTimestamp(recvMasterTime, deviceTimestamp);
-            const auto syncTimestampUsec = recvMasterTime.count();
+                // synchronize
+                m_clockSync->processTimestamp(recvMasterTime, deviceTimestamp);
+            }
 
             if (isIntBlock) {
                 IntSignalBlock block(arrayLen);
                 for (int i = 0; i < arrayLen; i++) {
                     block.data(i, 0) = array[i].toInt();
-                    block.timestamps(i, 0) = syncTimestampUsec;
+                    block.timestamps(i, 0) = recvMasterTime.count();
                 }
 
                 std::static_pointer_cast<DataStream<IntSignalBlock>>(stream)->push(block);
@@ -565,7 +567,7 @@ public:
                 FloatSignalBlock block(arrayLen);
                 for (int i = 0; i < arrayLen; i++) {
                     block.data(i, 0) = array[i].toDouble();
-                    block.timestamps(i, 0) = syncTimestampUsec;
+                    block.timestamps(i, 0) = recvMasterTime.count();
                 }
 
                 std::static_pointer_cast<DataStream<FloatSignalBlock>>(stream)->push(block);
