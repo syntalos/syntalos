@@ -392,8 +392,11 @@ void FreqCounterSynchronizer::processTimestamps(
         m_lastOffsetEmission = blocksRecvTimestamp;
     }
 
-    // calculate time-based correction offset, a bit less than half of the needed correction time
-    m_timeCorrectionOffset = microseconds_t(static_cast<int64_t>(std::floor((double)avgOffsetDeviationUsec / 2.5)));
+    // calculate time-based correction offset by changing the previous offset by 1/3 of the difference,
+    // to get fairly smooth adjustments
+    const auto corrOffsetDiff = avgOffsetDeviationUsec - m_timeCorrectionOffset.count();
+    m_timeCorrectionOffset += microseconds_t((int64_t)std::ceil((double)corrOffsetDiff / 3.0));
+    //m_timeCorrectionOffset = microseconds_t(static_cast<int64_t>(std::floor((double)avgOffsetDeviationUsec / 2.5)));
 
     // sanity check: we need to correct by at least one datapoint for any synchronization to occur at all
     if (abs(m_timeCorrectionOffset.count()) <= m_timePerPointUs)
@@ -517,7 +520,7 @@ void SecondaryClockSynchronizer::setExpectedClockFrequencyHz(double frequency)
     // if we get a lot of points in a short time, we don't need to wait that long to calculate the
     // average offset, but with a low frequency of new points we need a bit more data to calculate
     // the averages and their SD reliably
-    m_calibrationMaxN = std::ceil((frequency + (1.0 / (0.01 + std::pow(frequency / 200.0, 2)))) * 10.0);
+    m_calibrationMaxN = std::ceil((frequency + (1.0 / (0.01 + std::pow(frequency / 250.0, 2)))) * 10.0);
 
     // limit the number of points to at least 24 and the time to a maximum of 90 seconds
     if (m_calibrationMaxN > (frequency * 90.0))
@@ -724,6 +727,15 @@ void SecondaryClockSynchronizer::processTimestamp(
             else
                 m_clockCorrectionOffset = microseconds_t(
                     static_cast<int64_t>(std::ceil(m_clockCorrectionOffset.count() / 1.25)));
+
+            // we still apply any corrective offset (most likely reduced in the previous step)
+            if (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD) && m_clockCorrectionOffset.count() > 0)
+                masterTimestamp = secondaryAcqTimestamp - m_expectedOffset - m_clockCorrectionOffset;
+            if (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD) && m_clockCorrectionOffset.count() < 0)
+                masterTimestamp = secondaryAcqTimestamp - m_expectedOffset - m_clockCorrectionOffset;
+            // prevent any time-travel into the past
+            if (masterTimestamp < m_lastMasterTS)
+                masterTimestamp = m_lastMasterTS + microseconds_t(1);
         }
 
         // remember the secondary clock timestamp & master timestamp for the next iteration
