@@ -206,11 +206,11 @@ void CropTransform::start()
     m_onlineModified = false;
 }
 
-void CropTransform::process(Frame &frame)
+void CropTransform::process(vips::VImage &image)
 {
     // handle the simple case: no online modifications
     if (!m_onlineModified) {
-        frame.mat = frame.mat.crop(m_activeRoi.left(), m_activeRoi.top(), m_activeRoi.width(), m_activeRoi.height());
+        image = image.crop(m_activeRoi.left(), m_activeRoi.top(), m_activeRoi.width(), m_activeRoi.height());
         return;
     }
 
@@ -219,7 +219,7 @@ void CropTransform::process(Frame &frame)
     const std::lock_guard<std::mutex> lock(m_mutex);
 
     // actually do the "fake resizing"
-    auto cropScaleImg = frame.mat.extract_area(m_roi.left(), m_roi.top(), m_roi.width(), m_roi.height());
+    auto cropScaleImg = image.extract_area(m_roi.left(), m_roi.top(), m_roi.width(), m_roi.height());
     auto outImg = vips::VImage::black(m_activeOutSize.width(), m_activeOutSize.height());
 
     if ((m_roi.width() + m_roi.left() < m_activeOutSize.width())
@@ -244,7 +244,7 @@ void CropTransform::process(Frame &frame)
             outImg.height());
     }
 
-    frame.mat = outImg;
+    image = outImg;
 }
 
 QVariantHash CropTransform::toVariantHash()
@@ -328,9 +328,9 @@ QSize ScaleTransform::resultSize()
     return QSize(round(m_originalSize.width() * m_scaleFactor), round(m_originalSize.height() * m_scaleFactor));
 }
 
-void ScaleTransform::process(Frame &frame)
+void ScaleTransform::process(vips::VImage &image)
 {
-    frame.mat = frame.mat.resize(m_scaleFactor);
+    image = image.resize(m_scaleFactor);
 }
 
 QVariantHash ScaleTransform::toVariantHash()
@@ -367,9 +367,9 @@ void FalseColorTransform::createSettingsUi(QWidget *parent)
     parent->setLayout(formLayout);
 }
 
-void FalseColorTransform::process(Frame &frame)
+void FalseColorTransform::process(vips::VImage &image)
 {
-    frame.mat = frame.mat.falsecolour();
+    image = image.falsecolour();
 }
 
 HistNormTransform::HistNormTransform()
@@ -394,7 +394,7 @@ void HistNormTransform::createSettingsUi(QWidget *parent)
     parent->setLayout(formLayout);
 }
 
-void HistNormTransform::process(Frame &frame)
+void HistNormTransform::process(vips::VImage &image)
 {
-    frame.mat = frame.mat.hist_norm();
+    image = image.hist_norm();
 }

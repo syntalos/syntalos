@@ -12,7 +12,7 @@ module_moc_src = [
 
 module_ui = []
 
-module_deps = [vips_dep]
+module_deps = [opencv_dep]
 
 module_data = [
     'example-cpp.svg',

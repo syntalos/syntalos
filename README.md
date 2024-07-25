@@ -84,15 +84,15 @@ to submit a change, bugfix or new module.
  * [Iceoryx](https://github.com/eclipse-iceoryx/iceoryx) (>= 2.0)
  * Eigen3
  * [TOML++](https://github.com/marzer/tomlplusplus/)
+ * OpenCV (>= 4.1)
  * FFmpeg (>= 4.1)
  * GStreamer (>= 1.0)
  * PipeWire
- * [libVIPS](https://www.libvips.org/) (>= 8.14)
  * KF5 Archive
  * KF5 TextEditor
  * [pybind11](https://github.com/pybind/pybind11)
  * libusb (>= 1.0)
- * OpenCV (>= 4.1) (only for some modules)
+ * [libVIPS](https://www.libvips.org/) (>= 8.14) (only for some modules)
  * ImGui / ImPlot (optional, needed for plotting)
 
 We recommend Debian 13 (Trixie) or Ubuntu 24.04 (Noble Numbat) to build & run Syntalos,

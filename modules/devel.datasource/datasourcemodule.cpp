@@ -19,10 +19,12 @@
 
 #include "datasourcemodule.h"
 #include "datactl/frametype.h"
+#include "datactl/vips8-q.h"
 
 #include <format>
 #include <QInputDialog>
 #include "utils/misc.h"
+#include "../videotransform/vipsutils.h"
 
 SYNTALOS_MODULE(DevelDataSourceModule)
 
@@ -220,20 +222,21 @@ private:
         // render our image
         Frame frame(index);
         auto vblob = vips_blob_new(NULL, graphic.c_str(), graphic.length());
-        frame.mat = vips::VImage::svgload_buffer(vblob);
+        auto image = vips::VImage::svgload_buffer(vblob);
         vips_area_unref(VIPS_AREA(vblob));
 
         // drop alpha channel, if we have one
-        frame.mat = frame.mat.extract_band(0, vips::VImage::option()->set("n", 3));
+        image = image.extract_band(0, vips::VImage::option()->set("n", 3));
 
         frame.time = m_syTimer->timeSinceStartMsec();
 
         // create black/white video if needed
         if (!m_colorVideo)
-            frame.mat = frame.mat.colourspace(VIPS_INTERPRETATION_B_W);
+            image = image.colourspace(VIPS_INTERPRETATION_B_W);
 
         // evaluate the new image immediately
-        vips_image_wio_input(frame.mat.get_image());
+        vips_image_wio_input(image.get_image());
+        frame.mat = vipsToCvMat(image);
 
         std::this_thread::sleep_for(
             std::chrono::microseconds((1000 / fps) * 1000) - timeDiffUsec(currentTimePoint(), startTime));

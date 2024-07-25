@@ -24,7 +24,7 @@ module_moc_src = [
 module_ui = ['recordersettingsdialog.ui']
 
 module_deps = [libsystemd_dep,
-               vips_dep,
+               opencv_dep,
                avcodec_dep,
                avformat_dep,
                avutil_dep,

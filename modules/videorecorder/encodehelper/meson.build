@@ -43,7 +43,7 @@ executable('encodehelper',
                    qt_svg_dep,
 
                    libsystemd_dep,
-                   vips_dep,
+                   opencv_dep,
                    avcodec_dep,
                    avformat_dep,
                    avutil_dep,

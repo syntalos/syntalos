@@ -139,8 +139,16 @@ cv::Mat vipsToCvMat(vips::VImage vimg)
     }
 
     // wrap the data in a cv::Mat
-    cv::Mat mat(cv::Size(vimg.height(), vimg.width()), cvType, (void *)vimg.data());
+    cv::Mat mat(cv::Size(vimg.width(), vimg.height()), cvType, (void *)vimg.data());
 
     // create a copy so the resulting cv::Mat takes ownership of the data
-    return mat.clone();
+    auto resMat = mat.clone();
+
+    // perform color conversion
+    if (channels == 3)
+        cv::cvtColor(resMat, resMat, cv::COLOR_RGB2BGR);
+    else if (channels == 4)
+        cv::cvtColor(resMat, resMat, cv::COLOR_RGBA2BGRA);
+
+    return resMat;
 }

@@ -1,26 +1,28 @@
 # Build definitions for module: videotransform
 
 module_hdr = [
-    'videotransformmodule.h'
+    'videotransformmodule.h',
+    'vipsutils.h',
 ]
 module_moc_hdr = [
     'videotransform.h',
     'vtransformlistmodel.h',
-    'vtransformctldialog.h'
+    'vtransformctldialog.h',
 ]
 
 module_src = [
     'videotransform.cpp',
     'vtransformctldialog.cpp',
-    'vtransformlistmodel.cpp'
+    'vtransformlistmodel.cpp',
+    'vipsutils.cpp',
 ]
 module_moc_src = [
-    'videotransformmodule.cpp'
+    'videotransformmodule.cpp',
 ]
 
 module_ui = ['vtransformctldialog.ui']
 
-module_deps = [vips_dep]
+module_deps = [vips_dep, opencv_dep]
 
 module_data = [
     'videotransform.svg',

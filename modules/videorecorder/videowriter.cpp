@@ -28,6 +28,7 @@
 #include <string.h>
 #include <systemd/sd-device.h>
 #include <thread>
+#include <opencv2/opencv.hpp>
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
@@ -1038,7 +1039,7 @@ void VideoWriter::initialize(
     int width,
     int height,
     int fps,
-    VipsBandFormat bandFormat,
+    int imgDepth,
     bool hasColor,
     bool saveTimestamps)
 {
@@ -1057,11 +1058,11 @@ void VideoWriter::initialize(
     else
         d->fnameBase = fname;
 
-    // select FFmpeg pixel format of VIPS matrices
+    // select FFmpeg pixel format of OpenCV matrices
     if (hasColor) {
-        d->inputPixFormat = AV_PIX_FMT_RGB24;
+        d->inputPixFormat = AV_PIX_FMT_BGR24;
     } else {
-        if (bandFormat == VIPS_FORMAT_USHORT || bandFormat == VIPS_FORMAT_SHORT)
+        if (imgDepth == CV_16U || imgDepth == CV_16S)
             d->inputPixFormat = AV_PIX_FMT_GRAY16LE;
         else
             d->inputPixFormat = AV_PIX_FMT_GRAY8;
@@ -1141,47 +1142,35 @@ void VideoWriter::setTsyncFileCreationTimeOverride(const QDateTime &dt)
     d->tsfWriter.setCreationTimeOverride(dt);
 }
 
-inline bool VideoWriter::prepareFrame(const vips::VImage &inImage)
+inline bool VideoWriter::prepareFrame(const cv::Mat &inImage)
 {
-    vips::VImage image;
-    auto channels = inImage.bands();
+    cv::Mat image;
+    auto channels = inImage.channels();
 
-    // Convert color formats to ensure we match what was actually selected as
+    // Convert color formats around to match what was actually selected as
     // input pixel format
-    if (d->inputPixFormat == AV_PIX_FMT_GRAY8 || d->inputPixFormat == AV_PIX_FMT_GRAY16LE) {
+    if (d->inputPixFormat == AV_PIX_FMT_GRAY8) {
         if (channels != 1)
-            image = inImage.colourspace(VIPS_INTERPRETATION_B_W);
+            cv::cvtColor(inImage, image, cv::COLOR_BGR2GRAY);
         else
             image = inImage;
-    } else if (d->inputPixFormat == AV_PIX_FMT_RGB24) {
+    } else if (d->inputPixFormat == AV_PIX_FMT_BGR24) {
         if (channels == 4)
-            image = inImage.flatten();
+            cv::cvtColor(inImage, image, cv::COLOR_BGRA2BGR);
         else if (channels == 1)
-            image = vips::VImage::bandjoin({inImage, inImage, inImage});
+            cv::cvtColor(inImage, image, cv::COLOR_GRAY2BGR);
         else
             image = inImage;
     } else {
         image = inImage;
     }
 
-    // Ensure all VIPS operations are applied and we have our own immutable copy
-    // of the data at this point
-    int pixSize = 1;
-    if (d->inputPixFormat == AV_PIX_FMT_GRAY16LE) {
-        image = image.cast(VIPS_FORMAT_USHORT, vips::VImage::option()->set("shift", true)).copy_memory();
-        pixSize = 2;
-    } else {
-        image = image.cast(VIPS_FORMAT_UCHAR, vips::VImage::option()->set("shift", true)).copy_memory();
-    }
+    auto step = image.step[0];
+    auto data = image.ptr();
+    channels = image.channels();
 
-    auto data = (const uint8_t *)image.data();
-    channels = image.bands();
-
-    const auto height = image.height();
-    const auto width = image.width();
-
-    // FIXME: We assume 8-bit images here!
-    size_t step = width * channels * pixSize;
+    const auto height = image.rows;
+    const auto width = image.cols;
 
     // sanity checks
     if ((static_cast<int>(height) > d->height) || (static_cast<int>(width) > d->width))
@@ -1264,7 +1253,7 @@ inline bool VideoWriter::prepareFrame(const vips::VImage &inImage)
     return true;
 }
 
-bool VideoWriter::encodeFrame(const vips::VImage &frame, const std::chrono::microseconds &timestamp)
+bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::microseconds &timestamp)
 {
     int ret;
     bool success = false;

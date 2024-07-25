@@ -19,7 +19,7 @@
 
 #pragma once
 #include "datatypes.h"
-#include "vips8-q.h"
+#include <opencv2/core.hpp>
 
 /**
  * @brief A single frame of a video stream
@@ -32,17 +32,17 @@ struct Frame : BaseDataType {
     SY_DEFINE_DATA_TYPE(Frame)
 
     explicit Frame() {}
-    explicit Frame(const vips::VImage &img, const microseconds_t &t)
+    explicit Frame(const cv::Mat imgMat, const microseconds_t &t)
         : index(0),
           time(t),
-          mat(img)
+          mat(imgMat)
     {
     }
 
-    explicit Frame(const vips::VImage &img, const uint64_t &idx, const microseconds_t &t)
+    explicit Frame(const cv::Mat &imgMat, const uint64_t &idx, const microseconds_t &t)
         : index(idx),
           time(t),
-          mat(img)
+          mat(imgMat)
     {
     }
 
@@ -54,20 +54,17 @@ struct Frame : BaseDataType {
 
     uint64_t index;
     microseconds_t time;
-    vips::VImage mat;
+    cv::Mat mat;
 
-    void copyMemory(bool safe = true)
+    inline cv::Mat copyMat() const
     {
-        if (safe)
-            mat = mat.copy_memory();
-        else
-            vips_image_wio_input(mat.get_image());
+        return mat.clone();
     }
 
     ssize_t memorySize() const override
     {
         // Calculate data size based on the format
-        size_t dataSize = VIPS_IMAGE_SIZEOF_ELEMENT(mat.get_image()) * mat.width() * mat.height() * mat.bands();
+        size_t dataSize = mat.elemSize() * mat.cols * mat.rows;
 
         // Calculate total buffer size:
         // 1x uint64 + 1x int64 for index and timestamp
@@ -79,13 +76,13 @@ struct Frame : BaseDataType {
     bool writeToMemory(void *buffer, ssize_t size = -1) const override
     {
         // fetch metadata
-        int width = mat.width();
-        int height = mat.height();
-        int channels = mat.bands();
-        auto format = mat.format();
+        int width = mat.cols;
+        int height = mat.rows;
+        int channels = mat.channels();
+        int type = mat.type();
 
         // Calculate data size based on the format
-        size_t dataSize = VIPS_IMAGE_SIZEOF_ELEMENT(mat.get_image()) * width * height * channels;
+        size_t dataSize = mat.elemSize() * width * height;
 
         // calculate our memory segment size, if it wasn't passed
         if (size < 0)
@@ -102,19 +99,18 @@ struct Frame : BaseDataType {
         std::memcpy(static_cast<unsigned char *>(buffer) + offset, &timeC, sizeof(timeC));
         offset += sizeof(timeC);
 
-        // copy VIPS image metadata
+        // copy image metadata
         std::memcpy(static_cast<unsigned char *>(buffer) + offset, &width, sizeof(width));
         offset += sizeof(width);
         std::memcpy(static_cast<unsigned char *>(buffer) + offset, &height, sizeof(height));
         offset += sizeof(height);
         std::memcpy(static_cast<unsigned char *>(buffer) + offset, &channels, sizeof(channels));
         offset += sizeof(channels);
-        std::memcpy(static_cast<unsigned char *>(buffer) + offset, &format, sizeof(format));
-        offset += sizeof(format);
+        std::memcpy(static_cast<unsigned char *>(buffer) + offset, &type, sizeof(type));
+        offset += sizeof(type);
 
         // copy image data
-        const void *imageData = mat.data();
-        std::memcpy(static_cast<unsigned char *>(buffer) + offset, imageData, dataSize);
+        std::memcpy(static_cast<unsigned char *>(buffer) + offset, mat.data, dataSize);
 
         return true;
     };
@@ -133,8 +129,7 @@ struct Frame : BaseDataType {
     {
         Frame frame;
 
-        int width, height, channels;
-        VipsBandFormat format;
+        int width, height, channels, type;
         int64_t timeC;
         size_t offset = 0;
 
@@ -152,14 +147,11 @@ struct Frame : BaseDataType {
         offset += sizeof(height);
         std::memcpy(&channels, static_cast<const unsigned char *>(buffer) + offset, sizeof(channels));
         offset += sizeof(channels);
-        std::memcpy(&format, static_cast<const unsigned char *>(buffer) + offset, sizeof(format));
-        offset += sizeof(format);
+        std::memcpy(&type, static_cast<const unsigned char *>(buffer) + offset, sizeof(type));
+        offset += sizeof(type);
 
-        size_t sizeOfElement = vips_format_sizeof_unsafe(format);
-        size_t dataSize = sizeOfElement * width * height * channels;
-
-        frame.mat = vips::VImage::new_from_memory_copy(
-            (void *)(static_cast<const unsigned char *>(buffer) + offset), dataSize, width, height, channels, format);
+        // Create cv::Mat from the memory buffer
+        frame.mat = cv::Mat(height, width, type, (void *)(static_cast<const unsigned char *>(buffer) + offset)).clone();
 
         return frame;
     }

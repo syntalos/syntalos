@@ -25,6 +25,7 @@
 #include <QOpenGLShaderProgram>
 #include <QOpenGLBuffer>
 #include <QOpenGLVertexArrayObject>
+#include <opencv2/opencv.hpp>
 
 #if defined(QT_OPENGL_ES)
 #define USE_GLES 1
@@ -90,8 +91,8 @@ public:
     ~Private() {}
 
     QVector4D bgColorVec;
-    vips::VImage rgbImage;
-    vips::VImage origImage;
+    cv::Mat colorImage;
+    cv::Mat origImage;
 
     bool highlightSaturation;
 
@@ -183,7 +184,7 @@ void ImageViewWidget::paintGL()
 
 void ImageViewWidget::renderImage()
 {
-    if (d->rgbImage.is_null())
+    if (d->colorImage.empty())
         return;
 
     if (!d->matTex) {
@@ -193,11 +194,24 @@ void ImageViewWidget::renderImage()
         d->matTex->setMagnificationFilter(QOpenGLTexture::Linear);
     }
 
-    const auto imgWidth = d->rgbImage.width();
-    const auto imgHeight = d->rgbImage.height();
+    const auto imgWidth = d->colorImage.cols;
+    const auto imgHeight = d->colorImage.rows;
 
     d->matTex->bind();
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, imgWidth, imgHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, d->rgbImage.data());
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RGBA,
+        d->colorImage.cols,
+        d->colorImage.rows,
+        0,
+#ifdef USE_GLES
+        GL_RGB,
+#else
+        GL_BGR,
+#endif
+        GL_UNSIGNED_BYTE,
+        d->colorImage.data);
 
     // Render the texture on the surface
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -218,25 +232,32 @@ void ImageViewWidget::renderImage()
     d->shaderProgram.release();
 }
 
-bool ImageViewWidget::showImage(const vips::VImage &image)
+bool ImageViewWidget::showImage(const cv::Mat &mat)
 {
-    d->origImage = image;
-    d->rgbImage = image;
+    auto channels = mat.channels();
+    d->origImage = mat;
 
-    if (d->rgbImage.format() != VIPS_FORMAT_UCHAR)
-        d->rgbImage = d->rgbImage.cast(VIPS_FORMAT_UCHAR, vips::VImage::option()->set("shift", true));
-    const auto interpretation = d->rgbImage.interpretation();
-    d->rgbImage = (interpretation == VIPS_INTERPRETATION_sRGB || interpretation == VIPS_INTERPRETATION_RGB)
-                      ? d->rgbImage
-                      : d->rgbImage.colourspace(VIPS_INTERPRETATION_sRGB);
-    if (d->rgbImage.bands() != 3)
-        d->rgbImage = d->rgbImage.extract_band(0, vips::VImage::option()->set("n", 3));
+#ifdef USE_GLES
+    if (channels == 1)
+        cv::cvtColor(mat, d->colorImage, cv::COLOR_GRAY2RGB);
+    else if (channels == 4)
+        cv::cvtColor(mat, d->colorImage, cv::COLOR_BGRA2RGB);
+    else
+        cv::cvtColor(mat, d->colorImage, cv::COLOR_BGR2RGB);
+#else
+    if (channels == 1)
+        cv::cvtColor(mat, d->colorImage, cv::COLOR_GRAY2BGR);
+    else if (channels == 4)
+        cv::cvtColor(mat, d->colorImage, cv::COLOR_BGRA2BGR);
+    else
+        mat.copyTo(d->colorImage);
+#endif
 
     update();
     return true;
 }
 
-vips::VImage ImageViewWidget::currentRawImage() const
+cv::Mat ImageViewWidget::currentRawImage() const
 {
     return d->origImage;
 }

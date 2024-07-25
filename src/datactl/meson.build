@@ -9,7 +9,6 @@ sy_datactl_pub_hdr = [
     'timesync.h',
     'tsyncfile.h',
     'vips8-q.h',
-    'vipsutils.h',
 ]
 
 sy_datactl_priv_hdr = [
@@ -22,7 +21,6 @@ sy_datactl_src = [
     'syclock.cpp',
     'timesync.cpp',
     'tsyncfile.cpp',
-    'vipsutils.cpp',
 ]
 
 sy_datactl_inc_dirs = [
@@ -45,7 +43,6 @@ syntalos_datactl_lib = shared_library('syntalos-datactl',
     dependencies: [sy_base_deps,
                    eigen_dep,
                    xxhash_dep,
-                   vips_dep,
                    opencv_dep,
                    syntalos_utils_dep,
     ],

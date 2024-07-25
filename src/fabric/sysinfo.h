@@ -91,7 +91,7 @@ public:
     bool syntalosHWSupportInstalled() const;
     QString syntalosVersion() const;
     QString qtVersion() const;
-    QString vipsVersionString() const;
+    QString openCVVersionString() const;
     QString eigenVersionString() const;
     QString ffmpegVersionString() const;
     QString pythonApiVersion() const;

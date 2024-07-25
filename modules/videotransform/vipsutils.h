@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include "vips8-q.h"
+#include "datactl/vips8-q.h"
 #include "opencv2/core.hpp"
 
 /**

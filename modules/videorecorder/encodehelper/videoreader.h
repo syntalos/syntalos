@@ -49,12 +49,12 @@ public:
     ssize_t lastFrameIndex() const;
     double framerate() const;
 
-    std::optional<std::pair<vips::VImage, int64_t>> readFrame();
+    std::optional<std::pair<cv::Mat, int64_t>> readFrame();
 
 private:
     class Private;
     std::unique_ptr<Private> d;
     Q_DISABLE_COPY(VideoReader)
 
-    std::optional<vips::VImage> frameToVImage(AVFrame *frame);
+    std::optional<cv::Mat> frameToCVImage(AVFrame *frame);
 };

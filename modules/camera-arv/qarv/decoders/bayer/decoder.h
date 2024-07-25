@@ -1,9 +1,11 @@
 #pragma once
 
-#include "../../qarvdecoder.h"
+#include <arv.h>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <QDataStream>
-#include <arv.h>
+
+#include "../../qarvdecoder.h"
+
 
 namespace QArv
 {

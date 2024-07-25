@@ -51,7 +51,8 @@ module_res = ['tiscamera.qrc']
 module_deps = [tcam_dep,
                gstreamer_dep,
                gstreamer_app_dep,
-               gstreamer_video_dep
+               gstreamer_video_dep,
+               opencv_dep,
 ]
 
 module_data = [

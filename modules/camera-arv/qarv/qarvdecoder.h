@@ -20,21 +20,18 @@
 #ifndef QARVDECODER_H
 #define QARVDECODER_H
 
+#include <arv.h>
 #include <QByteArray>
 #include <QString>
 #include <QSize>
 #include <QImage>
 #include <QtPlugin>
-#include "datactl/vipsutils.h"
+#include "datactl/frametype.h"
 extern "C" {
 #include <libavutil/pixfmt.h>
 }
 
 #pragma GCC visibility push(default)
-
-#ifndef ARV_PIXEL_FORMAT_MONO_8
-typedef quint32 ArvPixelFormat;
-#endif
 
 //! An abstract interface of a decoder for a particular frame format and size.
 /*!

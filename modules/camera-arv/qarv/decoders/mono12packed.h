@@ -20,8 +20,8 @@
 #ifndef MONO8_H
 #define MONO8_H
 
-#include "../qarvdecoder.h"
 #include <arv.h>
+#include "../qarvdecoder.h"
 
 namespace QArv
 {

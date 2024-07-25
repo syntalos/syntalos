@@ -20,6 +20,7 @@
 #pragma once
 
 #include "datactl/frametype.h"
+#include "datactl/vips8-q.h"
 #include <QIcon>
 #include <QObject>
 #include <QWidget>
@@ -47,7 +48,7 @@ public:
     virtual bool allowOnlineModify() const;
 
     virtual void start();
-    virtual void process(Frame &frame) = 0;
+    virtual void process(vips::VImage &image) = 0;
     virtual void stop();
 
     virtual QVariantHash toVariantHash();
@@ -74,7 +75,7 @@ public:
     QSize resultSize() override;
 
     void start() override;
-    void process(Frame &frame) override;
+    void process(vips::VImage &image) override;
 
     QVariantHash toVariantHash() override;
     void fromVariantHash(const QVariantHash &settings) override;
@@ -107,7 +108,7 @@ public:
     void createSettingsUi(QWidget *parent) override;
 
     QSize resultSize() override;
-    void process(Frame &frame) override;
+    void process(vips::VImage &image) override;
 
     QVariantHash toVariantHash() override;
     void fromVariantHash(const QVariantHash &settings) override;
@@ -130,7 +131,7 @@ public:
 
     void createSettingsUi(QWidget *parent) override;
 
-    void process(Frame &frame) override;
+    void process(vips::VImage &image) override;
 };
 
 /**
@@ -147,5 +148,5 @@ public:
 
     void createSettingsUi(QWidget *parent) override;
 
-    void process(Frame &frame) override;
+    void process(vips::VImage &image) override;
 };

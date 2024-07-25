@@ -763,9 +763,9 @@ void SecondaryClockSynchronizer::processTimestamp(
 
         auto adjValue = (double)offsetDiff / delayFactor;
         if (adjValue < 0)
-            adjValue = adjValue > -1? -1 : adjValue;
+            adjValue = adjValue > -1 ? -1 : adjValue;
         else
-            adjValue = adjValue < 1? 1 : adjValue;
+            adjValue = adjValue < 1 ? 1 : adjValue;
         m_clockCorrectionOffset += microseconds_t((int64_t)std::ceil(adjValue));
 
         // write timestamp correction to tsync file

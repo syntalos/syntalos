@@ -25,7 +25,6 @@
 
 #include "miniscopesettingsdialog.h"
 #include "datactl/frametype.h"
-#include "datactl/vipsutils.h"
 
 SYNTALOS_MODULE(MiniscopeModule)
 
@@ -273,7 +272,7 @@ public:
         if (mat.empty())
             return;
 
-        self->m_rawOut->push(Frame(cvMatToVips(mat), self->m_recFrameCount++, updatedFrameTime));
+        self->m_rawOut->push(Frame(mat, self->m_recFrameCount++, updatedFrameTime));
 
         if (orientation[4] < 0.05) {
             if (self->m_lastOrientationVec == orientation)
@@ -306,7 +305,7 @@ public:
         const auto self = static_cast<MiniscopeModule *>(udata);
         if (!self->m_acceptFrames)
             return;
-        self->m_dispOut->push(Frame(cvMatToVips(mat), msecToUsec(time)));
+        self->m_dispOut->push(Frame(mat, msecToUsec(time)));
     }
 
     static void on_controlValueChanged(const QString &id, double dispValue, double devValue, void *udata)

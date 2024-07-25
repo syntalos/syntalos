@@ -21,24 +21,15 @@
 #include "encodewindow.h"
 
 #include <QApplication>
-#include <QMessageBox>
 
 #include "appstyle.h"
-#include "datactl/vips8-q.h"
 
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
     app.setApplicationName("Syntalos.EncodeHelper");
     app.setOrganizationName("DraguhnLab");
-    app.setOrganizationDomain("draguhnlab.com");
     app.setApplicationVersion(PROJECT_VERSION);
-
-    // initailize VIPS
-    if (VIPS_INIT(argv[0])) {
-        QMessageBox::critical(nullptr, "Critical Error", "Failed to initialize: Unable to start VIPS");
-        vips_error_exit(NULL);
-    }
 
     EncodeWindow w;
 

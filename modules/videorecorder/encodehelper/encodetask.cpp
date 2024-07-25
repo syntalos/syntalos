@@ -150,13 +150,12 @@ void EncodeTask::run()
         auto frame = maybeFrame.value().first;
         auto frameNo = maybeFrame.value().second;
 
-        auto bandFormat = frame.format();
         if (firstFrame) {
             firstFrame = false;
-            frameWidth = frame.width();
-            frameHeight = frame.height();
+            frameWidth = frame.cols;
+            frameHeight = frame.rows;
 
-            useColor = frame.bands() > 1;
+            useColor = frame.channels() > 1;
             try {
                 vwriter.initialize(
                     m_destFname,
@@ -167,7 +166,7 @@ void EncodeTask::run()
                     frameWidth,
                     frameHeight,
                     vsrc.framerate(),
-                    bandFormat,
+                    frame.depth(),
                     useColor,
                     m_writeTsync);
             } catch (const std::runtime_error &e) {

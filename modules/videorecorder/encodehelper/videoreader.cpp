@@ -174,7 +174,7 @@ double VideoReader::framerate() const
     }
 }
 
-std::optional<std::pair<vips::VImage, int64_t>> VideoReader::readFrame()
+std::optional<std::pair<cv::Mat, int64_t>> VideoReader::readFrame()
 {
     AVFrame *frame = av_frame_alloc();
     AVPacket *packet = av_packet_alloc();
@@ -182,7 +182,7 @@ std::optional<std::pair<vips::VImage, int64_t>> VideoReader::readFrame()
         if (packet->stream_index == d->videoStreamIndex) {
             if (avcodec_send_packet(d->codecCtx, packet) == 0) {
                 if (avcodec_receive_frame(d->codecCtx, frame) == 0) {
-                    auto img = frameToVImage(frame);
+                    auto img = frameToCVImage(frame);
                     av_packet_unref(packet);
                     av_frame_free(&frame);
                     av_packet_free(&packet);
@@ -199,26 +199,22 @@ std::optional<std::pair<vips::VImage, int64_t>> VideoReader::readFrame()
     return std::nullopt;
 }
 
-std::optional<vips::VImage> VideoReader::frameToVImage(AVFrame *frame)
+std::optional<cv::Mat> VideoReader::frameToCVImage(AVFrame *frame)
 {
     AVPixelFormat srcFormat = static_cast<AVPixelFormat>(frame->format);
     AVPixelFormat dstFormat;
-    int dstNumChannels;
-    VipsBandFormat vipsFormat;
+    int cvMatType;
 
     // Determine if the source format is grayscale and set the destination format accordingly
     if (srcFormat == AV_PIX_FMT_GRAY8) {
         dstFormat = srcFormat;
-        dstNumChannels = 1;
-        vipsFormat = VIPS_FORMAT_UCHAR;
+        cvMatType = CV_8UC1;
     } else if (srcFormat == AV_PIX_FMT_GRAY16LE || srcFormat == AV_PIX_FMT_GRAY16BE) {
         dstFormat = srcFormat;
-        dstNumChannels = 1;
-        vipsFormat = VIPS_FORMAT_USHORT;
+        cvMatType = CV_16UC1;
     } else {
-        dstFormat = AV_PIX_FMT_RGB24;
-        dstNumChannels = 3;
-        vipsFormat = VIPS_FORMAT_UCHAR;
+        dstFormat = AV_PIX_FMT_BGR24;
+        cvMatType = CV_8UC3;
     }
 
     SwsContext *swsCtx = sws_getContext(
@@ -238,24 +234,19 @@ std::optional<vips::VImage> VideoReader::frameToVImage(AVFrame *frame)
         return std::nullopt;
     }
 
-    int aligns[AV_NUM_DATA_POINTERS];
-    auto bufferWidth = d->codecCtx->width;
-    auto bufferHeight = d->codecCtx->width;
-    avcodec_align_dimensions2(d->codecCtx, &bufferWidth, &bufferHeight, aligns);
+    int dstLinesize[1] = {frame->width * av_get_bits_per_pixel(av_pix_fmt_desc_get(dstFormat)) / 8};
+    uint8_t *dstData[1] = {new uint8_t[dstLinesize[0] * frame->height]};
 
-    int dstLinesize[1] = {dstNumChannels * d->codecCtx->width}; // Calculate the line size for the destination format
-    int numBytes = av_image_get_buffer_size(dstFormat, bufferWidth, bufferHeight, 1);
-    auto frameBuffer = static_cast<uint8_t *>(g_malloc(numBytes * sizeof(uint8_t)));
-    uint8_t *dstData[1] = {frameBuffer};
+    sws_scale(swsCtx, frame->data, frame->linesize, 0, frame->height, dstData, dstLinesize);
 
-    sws_scale(swsCtx, frame->data, frame->linesize, 0, d->codecCtx->height, dstData, dstLinesize);
-
-    vips::VImage img = vips::VImage::new_from_memory_steal(
-        frameBuffer, numBytes * sizeof(uint8_t), d->codecCtx->width, d->codecCtx->height, dstNumChannels, vipsFormat);
+    cv::Mat mat(cv::Size(frame->width, frame->height), cvMatType, dstData[0]);
 
     sws_freeContext(swsCtx);
 
-    return img;
+    // make OpenCV matrix take ownership of the data
+    mat = mat.clone();
+    delete[] dstData[0];
+    return mat;
 }
 
 ssize_t VideoReader::lastFrameIndex() const

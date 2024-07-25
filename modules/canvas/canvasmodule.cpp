@@ -197,7 +197,7 @@ public:
 
         // get all timing info and show the image
         const auto frame = maybeFrame.value();
-        m_cvView->showImage(frame.mat.copy_memory());
+        m_cvView->showImage(frame.mat);
         const auto frameDisplayTime = currentTimePoint();
         const auto frameTimeUsec = frame.time.count();
 

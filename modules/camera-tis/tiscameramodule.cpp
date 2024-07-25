@@ -19,12 +19,13 @@
 
 #include "tiscameramodule.h"
 
-#include "datactl/frametype.h"
-#include "utils/misc.h"
 #include <QDebug>
 #include <QMessageBox>
 #include <gst/app/gstappsink.h>
 #include <tcam-property-1.0.h>
+
+#include "datactl/frametype.h"
+#include "utils/misc.h"
 
 #include "tcamcontroldialog.h"
 
@@ -47,7 +48,7 @@ private:
     Device m_device;
     GstElement *m_pipeline = nullptr;
     GstAppSink *m_appSink = nullptr;
-    QSize m_resolution;
+    cv::Size m_resolution;
 
     double m_fps;
     QString m_imgFormat;
@@ -149,9 +150,9 @@ public:
 
         int value;
         gst_structure_get_int(structure, "width", &value);
-        m_resolution.setWidth(value);
+        m_resolution.width = value;
         gst_structure_get_int(structure, "height", &value);
-        m_resolution.setHeight(value);
+        m_resolution.height = value;
 
         const auto framerate = gst_structure_get_value(structure, "framerate");
         const double fps_n = gst_value_get_fraction_numerator(framerate);
@@ -160,11 +161,11 @@ public:
         m_imgFormat = gst_structure_get_string(structure, "format");
 
         // set the required stream metadata for video capture
-        m_outStream->setMetadataValue("size", m_resolution);
+        m_outStream->setMetadataValue("size", QSize(m_resolution.width, m_resolution.height));
         m_outStream->setMetadataValue("framerate", m_fps);
         m_outStream->setMetadataValue("has_color", !m_imgFormat.toUpper().startsWith("GRAY"));
         if (m_imgFormat.toUpper().startsWith("GRAY16"))
-            m_outStream->setMetadataValue("depth", VIPS_FORMAT_USHORT);
+            m_outStream->setMetadataValue("depth", CV_8U);
 
         // start the stream
         m_outStream->start();
@@ -234,36 +235,14 @@ public:
                 // create our frame and push it to subscribers
                 Frame frame;
                 if (g_strcmp0(format_str, "BGRx") == 0) {
-                    frame.mat = vips::VImage::new_from_memory_copy(
-                        info.data,
-                        m_resolution.width() * m_resolution.height() * 4,
-                        m_resolution.width(),
-                        m_resolution.height(),
-                        4,
-                        VIPS_FORMAT_UCHAR);
-
-                    // BGR to RGB
-                    frame.mat = frame.mat.bandjoin({
-                        frame.mat[2], // Red channel
-                        frame.mat[1], // Green channel
-                        frame.mat[0]  // Blue channel
-                    });
+                    frame.mat.create(m_resolution, CV_8UC(4));
+                    memcpy(frame.mat.data, info.data, m_resolution.width * m_resolution.height * 4);
                 } else if (g_strcmp0(format_str, "GRAY8") == 0) {
-                    frame.mat = vips::VImage::new_from_memory_copy(
-                        info.data,
-                        m_resolution.width() * m_resolution.height(),
-                        m_resolution.width(),
-                        m_resolution.height(),
-                        1,
-                        VIPS_FORMAT_UCHAR);
+                    frame.mat.create(m_resolution, CV_8UC(1));
+                    memcpy(frame.mat.data, info.data, m_resolution.width * m_resolution.height);
                 } else if (g_strcmp0(format_str, "GRAY16_LE") == 0) {
-                    frame.mat = vips::VImage::new_from_memory_copy(
-                        info.data,
-                        m_resolution.width() * m_resolution.height(),
-                        m_resolution.width(),
-                        m_resolution.height(),
-                        1,
-                        VIPS_FORMAT_USHORT);
+                    frame.mat.create(m_resolution, CV_16UC(1));
+                    memcpy(frame.mat.data, info.data, m_resolution.width * m_resolution.height);
                 } else {
                     qCDebug(logTISCam).noquote().nospace() << QString::fromStdString(m_device.str()) << ": "
                                                            << "Received buffer with unsupported format: " << format_str;

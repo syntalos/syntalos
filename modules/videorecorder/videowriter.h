@@ -172,7 +172,7 @@ public:
         int width,
         int height,
         int fps,
-        VipsBandFormat bandFormat,
+        int imgDepth,
         bool hasColor,
         bool saveTimestamps = true);
     void finalize();
@@ -183,7 +183,7 @@ public:
     void setCaptureStartTimestamp(const std::chrono::microseconds &startTimestamp);
     void setTsyncFileCreationTimeOverride(const QDateTime &dt);
 
-    bool encodeFrame(const vips::VImage &frame, const std::chrono::microseconds &timestamp);
+    bool encodeFrame(const cv::Mat &frame, const std::chrono::microseconds &timestamp);
 
     CodecProperties codecProps() const;
     void setCodec(VideoCodec codec);
@@ -210,7 +210,7 @@ private:
     void initializeHWAccell();
     void initializeInternal();
     void finalizeInternal(bool writeTrailer);
-    bool prepareFrame(const vips::VImage &inImage);
+    bool prepareFrame(const cv::Mat &inImage);
 };
 
 #endif // VIDEOWRITER_H

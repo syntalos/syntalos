@@ -245,10 +245,10 @@ CanvasWindow::CanvasWindow(QWidget *parent)
     });
 }
 
-void CanvasWindow::showImage(const vips::VImage &image)
+void CanvasWindow::showImage(const cv::Mat &mat)
 {
     if (isVisible())
-        m_imgView->showImage(image);
+        m_imgView->showImage(mat);
 }
 
 void CanvasWindow::setStatusText(const QString &text)
@@ -287,7 +287,7 @@ void CanvasWindow::setHistogramLogarithmic(bool logarithmic)
 }
 
 template<bool depth8>
-static void computeHistogram(const vips::VImage &image, Histograms *hists, bool grayscale, bool logarithmic = false)
+static void computeHistogram(const cv::Mat &image, Histograms *hists, bool grayscale, bool logarithmic = false)
 {
     typedef typename std::conditional<depth8, uint8_t, uint16_t>::type ImageType;
 
@@ -300,46 +300,39 @@ static void computeHistogram(const vips::VImage &image, Histograms *hists, bool 
     for (int i = 0; i < 256; i++)
         histRed[i] = histGreen[i] = histBlue[i] = 0;
 
-    const int h = image.height();
-    const int w = image.width();
+    const int h = image.rows;
+    const int w = image.cols;
 
     if (grayscale) {
-        auto gray = image.extract_band(0); // Assume single band for grayscale
-        for (int y = 0; y < h; y++) {
-            const ImageType *row = (const ImageType *)gray.data() + y * w;
-            for (int x = 0; x < w; x++) {
-                uint8_t grayValue = depth8 ? row[x] : row[x] >> 8;
-                histRed[grayValue]++;
+        for (int i = 0; i < h; i++) {
+            auto imageLine = image.ptr<ImageType>(i);
+            for (int j = 0; j < w; j++) {
+                uint8_t gray = depth8 ? imageLine[j] : imageLine[j] >> 8;
+                histRed[gray]++;
             }
         }
-
         if (logarithmic) {
             for (int i = 0; i < 256; i++)
                 histRed[i] = log2(histRed[i] + 1);
         }
-
     } else {
         float *histograms[3] = {histRed, histGreen, histBlue};
-        auto rgbImg = image.colourspace(VIPS_INTERPRETATION_sRGB);
-
-        for (int i = 0; i < 3; i++) {
-            auto band = rgbImg.extract_band(i);
-            for (int y = 0; y < h; y++) {
-                const ImageType *row = (const ImageType *)band.data() + y * w;
-                for (int x = 0; x < w; x++) {
-                    uint8_t tmp = depth8 ? row[x] : row[x] >> 8;
-                    histograms[i][tmp]++;
+        for (int i = 0; i < h; i++) {
+            auto imageLine = image.ptr<cv::Vec<ImageType, 3>>(i);
+            for (int j = 0; j < w; j++) {
+                auto &bgr = imageLine[j];
+                for (int px = 0; px < 3; px++) {
+                    uint8_t tmp = depth8 ? bgr[2 - px] : bgr[2 - px] >> 8;
+                    histograms[px][tmp]++;
                 }
             }
         }
-
         if (logarithmic) {
-            for (int c = 0; c < 3; c++) {
+            for (int c = 0; c < 3; c++)
                 for (int i = 0; i < 256; i++) {
-                    float *hv = histograms[c] + i;
-                    *hv = log2(*hv + 1);
+                    float *h = histograms[c] + i;
+                    *h = log2(*h + 1);
                 }
-            }
         }
     }
 }
@@ -349,21 +342,23 @@ void CanvasWindow::updateHistogram()
     auto hists = m_histogramWidget->unusedHistograms();
     const auto image = m_imgView->currentRawImage();
 
-    if (image.is_null())
+    if (image.empty())
         return;
 
     bool grayscale;
-    if (image.bands() == 1)
+    if (image.channels() == 1)
         grayscale = true;
-    else if (image.bands() >= 3)
+    else if (image.channels() >= 3)
         grayscale = false;
     else
         return;
 
     const bool logarithmic = m_histLogarithmicCb->isChecked();
-    if (image.format() == VIPS_FORMAT_UCHAR || image.format() == VIPS_FORMAT_CHAR) {
+    const auto imageDepth = image.depth();
+
+    if (imageDepth == CV_8U || imageDepth == CV_8S) {
         computeHistogram<true>(image, hists, grayscale, logarithmic);
-    } else if (image.format() == VIPS_FORMAT_USHORT || image.format() == VIPS_FORMAT_SHORT) {
+    } else if (imageDepth == CV_16U || imageDepth == CV_16S) {
         computeHistogram<false>(image, hists, grayscale, logarithmic);
     } else {
         m_histTimer->stop();

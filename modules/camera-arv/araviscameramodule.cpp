@@ -19,11 +19,18 @@
 
 #include "araviscameramodule.h"
 
-#include "datactl/frametype.h"
-#include "datactl/vipsutils.h"
-#include <arv.h>
 #include <QDebug>
+#if defined(signals) && defined(Q_SIGNALS)
+#define _SYTMP_QT_SIGNALS_DEFINED
+#undef signals
+#endif
+#include <arv.h>
+#ifdef _SYTMP_QT_SIGNALS_DEFINED
+#define signals Q_SIGNALS
+#undef _SYTMP_QT_SIGNALS_DEFINED
+#endif
 
+#include "datactl/frametype.h"
 #include "configwindow.h"
 
 SYNTALOS_MODULE(AravisCameraModule)
@@ -225,7 +232,7 @@ public:
                     break;
                 }
 
-                Frame syFrame(cvMatToVips(img), frameCount++, masterTime);
+                Frame syFrame(img, frameCount++, masterTime);
                 m_outStream->push(syFrame);
             });
 

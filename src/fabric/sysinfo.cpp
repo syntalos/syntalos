@@ -32,7 +32,7 @@
 #include <QThread>
 #include <stdlib.h>
 #include <sys/utsname.h>
-#include <datactl/vips8-q.h>
+#include <opencv2/core.hpp>
 extern "C" {
 #include <libavutil/avutil.h>
 }
@@ -453,9 +453,9 @@ QString SysInfo::qtVersion() const
     return qVersion();
 }
 
-QString SysInfo::vipsVersionString() const
+QString SysInfo::openCVVersionString() const
 {
-    return QString::fromUtf8(vips_version_string());
+    return QString::fromStdString(cv::getVersionString());
 }
 
 QString SysInfo::eigenVersionString() const
