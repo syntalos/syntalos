@@ -396,7 +396,6 @@ void FreqCounterSynchronizer::processTimestamps(
     // to get fairly smooth adjustments
     const auto corrOffsetDiff = avgOffsetDeviationUsec - m_timeCorrectionOffset.count();
     m_timeCorrectionOffset += microseconds_t((int64_t)std::ceil((double)corrOffsetDiff / 3.0));
-    //m_timeCorrectionOffset = microseconds_t(static_cast<int64_t>(std::floor((double)avgOffsetDeviationUsec / 2.5)));
 
     // sanity check: we need to correct by at least one datapoint for any synchronization to occur at all
     if (abs(m_timeCorrectionOffset.count()) <= m_timePerPointUs)
@@ -758,7 +757,15 @@ void SecondaryClockSynchronizer::processTimestamp(
         && abs(avgOffsetDeviationUsec - m_clockCorrectionOffset.count()) > (m_toleranceUsec / 1.5)) {
         // try to smoothly adjust the offset to the new value
         const auto offsetDiff = avgOffsetDeviationUsec - m_clockCorrectionOffset.count();
-        const auto adjValue = (double)offsetDiff / 3.0;
+        auto delayFactor = (secondaryAcqTimestamp - m_lastSecondaryAcqTS).count() / 800.0;
+        if (delayFactor < 1)
+            delayFactor = 1;
+
+        auto adjValue = (double)offsetDiff / delayFactor;
+        if (adjValue < 0)
+            adjValue = adjValue > -1? -1 : adjValue;
+        else
+            adjValue = adjValue < 1? 1 : adjValue;
         m_clockCorrectionOffset += microseconds_t((int64_t)std::ceil(adjValue));
 
         // write timestamp correction to tsync file
@@ -768,7 +775,7 @@ void SecondaryClockSynchronizer::processTimestamp(
 
         // add a delay before we make any more changes, if we actually made a significant change
         if (abs(m_clockCorrectionOffset.count()) > 1)
-            m_clockUpdateWaitPoints = m_calibrationMaxN + 1;
+            m_clockUpdateWaitPoints = std::ceil(0.75 * m_calibrationMaxN);
     }
 
     // apply any existing timestamp correction offsets
