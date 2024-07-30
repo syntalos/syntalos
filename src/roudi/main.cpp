@@ -34,14 +34,15 @@ int main(int argc, char *argv[])
 
     iox::config::CmdLineArgs_t roudiArgs;
 
-    // disable monitoring for now, as RouDi is far too eager to kill live processes
-    // under very high CPU load, which may happen with Syntalos
-    roudiArgs.monitoringMode = iox::roudi::MonitoringMode::OFF;
+    // Monitoring may cause RouDi to kill processes under very high CPU load.
+    // This setting is enabled for now, but we may not want to keep it, or
+    // work around the behavior if necessary.
+    roudiArgs.monitoringMode = iox::roudi::MonitoringMode::ON;
 
     // set other defaults
     roudiArgs.logLevel = iox::log::LogLevel::kWarn;
     roudiArgs.compatibilityCheckLevel = iox::version::CompatibilityCheckLevel::PATCH;
-    roudiArgs.processKillDelay = iox::units::Duration::fromSeconds(90);
+    roudiArgs.processKillDelay = iox::units::Duration::fromSeconds(120);
     roudiArgs.run = true;
 
     // tear down the daemon if our main process dies
