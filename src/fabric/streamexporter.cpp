@@ -52,10 +52,10 @@ public:
     ~Private() {}
 
     QString threadName;
-    bool running;
-    bool failed;
+    std::atomic_bool running;
+    std::atomic_bool failed;
 
-    bool threadActive;
+    std::atomic_bool threadActive;
     std::thread thread;
     std::atomic<GMainLoop *> activeLoop;
 
@@ -163,7 +163,7 @@ static gboolean recvStreamEventDispatch(gpointer udata)
 {
     const auto ed = static_cast<StreamExportData *>(udata);
 
-    auto sendFn = [ed](const BaseDataType &data) {
+    auto sendFn = [&ed](const BaseDataType &data) {
         auto memSize = data.memorySize();
         if (memSize < 0) {
             // we do not know the required memory size in advance, so we need to
@@ -182,8 +182,9 @@ static gboolean recvStreamEventDispatch(gpointer udata)
             // Higher efficiency code-path since the size is known in advance
             ed->publisher->loan(memSize)
                 .and_then([&](auto &payload) {
-                    if (!data.writeToMemory(payload, memSize))
+                    if (!data.writeToMemory(payload, memSize)) {
                         qCCritical(logSExporter) << "Failed to write data to shared memory!";
+                    }
                     ed->publisher->publish(payload);
                 })
                 .or_else([&](auto &error) {
@@ -192,8 +193,13 @@ static gboolean recvStreamEventDispatch(gpointer udata)
         }
     };
 
-    // send up to 20 samples in one go
+    // Send up to 20 samples in one go, but do not try this if we are shutting down,
+    // as the client we want to communicate with may have crashed.
+    // If we try to communicate with a crashed client, we will wait for a long time
+    // and might run out of memory meanwhile.
     for (uint i = 0; i < 20; i++) {
+        if (!ed->self->isRunning())
+            break;
         if (!ed->subscription->callIfNextVar(sendFn))
             break;
     }
