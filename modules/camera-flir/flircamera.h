@@ -24,9 +24,9 @@
 #include <QSize>
 #include <Spinnaker.h>
 
-#include "streams/frametype.h"
-#include "syclock.h"
-#include "timesync.h"
+#include "datactl/frametype.h"
+#include "datactl/syclock.h"
+#include "datactl/timesync.h"
 
 namespace spn = Spinnaker;
 namespace spn_ga = Spinnaker::GenApi;
