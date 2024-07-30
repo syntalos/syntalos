@@ -30,7 +30,7 @@ root_include_dir = include_directories('.')
 fs     = import('fs')
 qt     = import('qt5')
 pkgc   = import('pkgconfig')
-python = import('python').find_installation('python3')
+python = import('python').find_installation('python3', modules: ['numpy'])
 
 #
 # Feature tests

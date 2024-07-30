@@ -32,6 +32,12 @@ pysy_mlink_src = [
     'pysy-mlink.cpp',
     'sydatatopy.h',
     'qstringtopy.h',
+
+    'cvnp/cvnp.cpp',
+    'cvnp/cvnp.h',
+    'cvnp/cvnp_synonyms.cpp',
+    'cvnp/cvnp_synonyms.h',
+    'cvnp/pydef_cvnp.cpp',
 ]
 
 pysy_mlink_mod = python.extension_module(
@@ -42,13 +48,34 @@ pysy_mlink_mod = python.extension_module(
         syntalos_fabric_dep,
         syntalos_mlink_dep,
         thread_dep,
-        vips_dep,
+        opencv_dep,
         pybind11_dep,
-        python_embed_dep
+        python_embed_dep,
     ],
     include_directories: [include_directories('..')],
     cpp_args: [numpy_inc_arg],
     install: true,
+)
+
+test_cvnp_exe = executable('test-cvnp',
+    ['cvnp/cvnp.cpp',
+     'cvnp/cvnp.h',
+     'cvnp/cvnp_synonyms.cpp',
+     'cvnp/cvnp_synonyms.h',
+     'cvnp/pydef_cvnp.cpp',
+     'cvnp/cvnp_test_helper.cpp',
+     'cvnp/tests/test_cvnp_cpp.cpp'],
+    dependencies: [
+        thread_dep,
+        opencv_dep,
+        pybind11_dep,
+        python_embed_dep,
+    ],
+    cpp_args: ['-Wno-unused-function'],
+)
+test('sy-test-cvnp-cpp',
+     test_cvnp_exe,
+     args: python.get_path('purelib')
 )
 
 sy_pyworker_src = [

@@ -36,6 +36,7 @@
 #include <stdexcept>
 
 #include <syntaloslink.h>
+#include "cvnp/cvnp.h"
 #include "datactl/datatypes.h"
 #include "datactl/frametype.h"
 #include "qstringtopy.h" // needed for QString registration
@@ -386,36 +387,6 @@ static FirmataControl new_firmatactl_with_name(FirmataCommandKind kind, const st
     return {kind, QString::fromStdString(name)};
 }
 
-static py::object vips_image_to_py(const Frame &frame)
-{
-    auto pyvips = py::module_::import("pyvips");
-    auto PyVipsImage = pyvips.attr("Image");
-    auto ffi = pyvips.attr("ffi");
-
-    // create a FFI pointer to our image
-    auto py_ptr = py::cast(reinterpret_cast<uintptr_t>(g_object_ref(frame.mat.get_image())));
-    auto vimg_ffi_ptr = ffi.attr("cast")("VipsImage*", py_ptr);
-
-    // construct our image
-    return PyVipsImage(vimg_ffi_ptr);
-}
-
-static void vips_image_from_py(Frame &frame, const py::object &obj)
-{
-    if (!hasattr(obj, "vobject"))
-        throw SyntalosPyError("The passed instance is not a VIPS Image.");
-
-    auto ffi = py::module_::import("pyvips").attr("ffi");
-
-    // we need to persist the image into memory on the Python side, otherwise we will deadlock
-    // with the PyVIPS integration when the memory copy happens at a later time in the C++ code.
-    auto img_memcpy = obj.attr("copy_memory")();
-    auto vimg_ffi = img_memcpy.attr("vobject");
-    auto vimg_ptr = py::cast<uintptr_t>(ffi.attr("cast")("uintptr_t", vimg_ffi));
-
-    frame.mat = vips::VImage(reinterpret_cast<VipsImage *>(vimg_ptr), vips::NOSTEAL);
-}
-
 static SyntalosLink *init_link(SyntalosLink *slink = nullptr)
 {
     SyntalosLink *finalLink = slink;
@@ -433,6 +404,7 @@ PYBIND11_MODULE(syntalos_mlink, m)
 
     py::bind_vector<std::vector<double>>(m, "VectorDouble");
     py::register_exception<SyntalosPyError>(m, "SyntalosPyError");
+    pydef_cvnp(m);
     py::class_<SyntalosLink>(m, "SyntalosLink");
 
     m.def(
@@ -499,7 +471,7 @@ PYBIND11_MODULE(syntalos_mlink, m)
         .def(py::init<>())
         .def_readwrite("index", &Frame::index, "Number of the frame.")
         .def_readwrite("time_msec", &Frame::time, "Time when the frame was recorded.")
-        .def_property("img", &vips_image_to_py, &vips_image_from_py, "Frame image data.");
+        .def_readwrite("mat", &Frame::mat, "Frame image data.");
 
     /**
      ** Control Command
