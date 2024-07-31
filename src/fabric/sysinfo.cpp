@@ -406,7 +406,7 @@ QString SysInfo::runtimeVersion() const
 
 QString SysInfo::sandboxAppId() const
 {
-    return QStringLiteral("io.github.bothlab.syntalos");
+    return QStringLiteral("io.github.syntalos");
 }
 
 QString SysInfo::supportedAVXInstructions() const

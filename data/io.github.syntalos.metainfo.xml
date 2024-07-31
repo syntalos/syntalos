@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>io.github.bothlab.syntalos</id>
+  <id>io.github.syntalos</id>
 
   <name>Syntalos</name>
   <summary>Synchronized data acquisition from diverse sources and flexible experiment control</summary>
@@ -32,8 +32,8 @@
 
   <launchable type="desktop-id">syntalos.desktop</launchable>
 
-  <url type="homepage">https://github.com/bothlab/syntalos</url>
-  <url type="bugtracker">https://github.com/bothlab/syntalos/issues</url>
+  <url type="homepage">https://github.com/syntalos/syntalos</url>
+  <url type="bugtracker">https://github.com/syntalos/syntalos/issues</url>
 
   <developer id="net.tenstral">
     <name translate="no">Matthias Klumpp</name>
@@ -41,17 +41,24 @@
 
   <content_rating type="oars-1.1" />
 
+  <replaces>
+    <id>io.github.bothlab.syntalos</id>
+  </replaces>
+  <provides>
+    <id>io.github.bothlab.syntalos</id>
+  </provides>
+
   <screenshots>
     <screenshot type="default">
-      <image>https://raw.githubusercontent.com/bothlab/syntalos/master/contrib/screenshots/v0.8.4-ui-overview.png</image>
+      <image>https://raw.githubusercontent.com/syntalos/syntalos/master/contrib/screenshots/v0.8.4-ui-overview.png</image>
       <caption>The Syntalos main window with a few module display and settings windows opened</caption>
     </screenshot>
     <screenshot>
-      <image>https://raw.githubusercontent.com/bothlab/syntalos/master/contrib/screenshots/v0.4.0-miniscope.png</image>
+      <image>https://raw.githubusercontent.com/syntalos/syntalos/master/contrib/screenshots/v0.4.0-miniscope.png</image>
       <caption>Running a very simple experiment, recording from a UCLA Miniscope and a camera simultaneously</caption>
     </screenshot>
     <screenshot>
-      <image>https://raw.githubusercontent.com/bothlab/syntalos/master/contrib/screenshots/v0.4.0-complexboard.png</image>
+      <image>https://raw.githubusercontent.com/syntalos/syntalos/master/contrib/screenshots/v0.4.0-complexboard.png</image>
       <caption>A more complex configuration for an advanced behavior experiment</caption>
     </screenshot>
   </screenshots>

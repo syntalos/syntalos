@@ -23,7 +23,7 @@ if systemd_dep.found()
 endif
 
 # metainfo file
-metainfo_file = files('io.github.bothlab.syntalos.metainfo.xml')
+metainfo_file = files('io.github.syntalos.metainfo.xml')
 ascli_exe = find_program('appstreamcli', required: false)
 if ascli_exe.found()
     test('validate metainfo file',
@@ -36,7 +36,7 @@ if ascli_exe.found()
 
     metainfo_with_rel = custom_target('gen-metainfo-rel',
         input: ['../NEWS.md', metainfo_file],
-        output: ['io.github.bothlab.syntalos.metainfo.xml'],
+        output: ['io.github.syntalos.metainfo.xml'],
         command: [ascli_exe, 'news-to-metainfo',
                   '--format=text', '--limit=6',
                   '@INPUT0@', '@INPUT1@', '@OUTPUT@'],
