@@ -55,6 +55,7 @@ subdir('triled-tracker')
 subdir('sp210-pressuresense')
 subdir('firmata-io')
 subdir('firmata-userctl')
+subdir('galdur-stim')
 
 # Scripting
 subdir('pyscript')

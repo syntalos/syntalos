@@ -40,7 +40,7 @@ public:
     void setRunning(bool running);
 
     QString serialPort() const;
-    void setSerialPort(QString port);
+    void setSerialPort(const QString &port);
 
 private:
     Ui::FirmataSettingsDialog *ui;

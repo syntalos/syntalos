@@ -62,7 +62,7 @@ QString FirmataSettingsDialog::serialPort() const
     return ui->portsComboBox->currentData().toString();
 }
 
-void FirmataSettingsDialog::setSerialPort(QString port)
+void FirmataSettingsDialog::setSerialPort(const QString &port)
 {
     // select the right port
     for (int i = 0; i < ui->portsComboBox->count(); i++) {
