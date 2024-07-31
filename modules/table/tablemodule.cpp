@@ -44,7 +44,6 @@ private:
 
     TableSettingsDialog *m_settingsDlg;
     RecordedTable *m_recTable;
-    QString m_imgWinTitle;
 
 public:
     explicit TableModule(QObject *parent = nullptr)
@@ -132,7 +131,7 @@ public:
 
         auto imgWinTitle = m_rowSub->metadataValue(CommonMetadataKey::SrcModName).toString();
         if (imgWinTitle.isEmpty())
-            imgWinTitle = "Canvas";
+            imgWinTitle = "Table";
         const auto portTitle = m_rowSub->metadataValue(CommonMetadataKey::SrcModPortTitle).toString();
         if (!portTitle.isEmpty())
             imgWinTitle = QStringLiteral("%1 - %2").arg(imgWinTitle).arg(portTitle);
