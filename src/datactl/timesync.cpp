@@ -500,7 +500,7 @@ void SecondaryClockSynchronizer::setCalibrationPointsCount(int timepointCount)
         return;
     }
 
-    m_calibrationMaxN = timepointCount > 24 ? timepointCount : 24;
+    m_calibrationMaxN = timepointCount > 62 ? timepointCount : 62;
 }
 
 void SecondaryClockSynchronizer::setExpectedClockFrequencyHz(double frequency)
@@ -524,7 +524,7 @@ void SecondaryClockSynchronizer::setExpectedClockFrequencyHz(double frequency)
     // limit the number of points to at least 24 and the time to a maximum of 90 seconds
     if (m_calibrationMaxN > (frequency * 90.0))
         m_calibrationMaxN = std::ceil((frequency * 90.0));
-    m_calibrationMaxN = m_calibrationMaxN > 24 ? m_calibrationMaxN : 24;
+    m_calibrationMaxN = m_calibrationMaxN > 62 ? m_calibrationMaxN : 62;
 
     // set tolerance of half the time one sample takes to be acquired
     m_toleranceUsec = std::lround(((1000.0 / frequency) / 2) * 1000.0);
