@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>655</width>
-    <height>691</height>
+    <height>653</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -18,10 +18,6 @@
   </property>
   <property name="windowTitle">
    <string>Labrstim Client</string>
-  </property>
-  <property name="windowIcon">
-   <iconset>
-    <normaloff>:/icons/labrstimclient.svg</normaloff>:/icons/labrstimclient.svg</iconset>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout_2">
    <property name="leftMargin">
@@ -36,7 +32,7 @@
    <item>
     <widget class="QGroupBox" name="generalBox">
      <property name="title">
-      <string>General</string>
+      <string>Module &amp;&amp; Connection</string>
      </property>
      <layout class="QGridLayout" name="gridLayout">
       <item row="0" column="0">
@@ -134,73 +130,6 @@
          <property name="bottomMargin">
           <number>6</number>
          </property>
-         <item row="1" column="0">
-          <widget class="QLabel" name="trialDurationLabel">
-           <property name="text">
-            <string>Trial Duration</string>
-           </property>
-           <property name="buddy">
-            <cstring>trialDurationTimeEdit</cstring>
-           </property>
-          </widget>
-         </item>
-         <item row="1" column="1">
-          <widget class="QTimeEdit" name="trialDurationTimeEdit">
-           <property name="currentSection">
-            <enum>QDateTimeEdit::MinuteSection</enum>
-           </property>
-           <property name="displayFormat">
-            <string>mm:ss</string>
-           </property>
-           <property name="time">
-            <time>
-             <hour>0</hour>
-             <minute>4</minute>
-             <second>0</second>
-            </time>
-           </property>
-          </widget>
-         </item>
-         <item row="2" column="0">
-          <widget class="QLabel" name="pulseDurationLabel">
-           <property name="text">
-            <string>Pulse Duration</string>
-           </property>
-           <property name="buddy">
-            <cstring>pulseDurationSpinBox</cstring>
-           </property>
-          </widget>
-         </item>
-         <item row="2" column="1">
-          <widget class="QDoubleSpinBox" name="pulseDurationSpinBox">
-           <property name="suffix">
-            <string>ms</string>
-           </property>
-           <property name="value">
-            <double>0.000000000000000</double>
-           </property>
-          </widget>
-         </item>
-         <item row="3" column="0">
-          <widget class="QLabel" name="laserIntensityLabel">
-           <property name="text">
-            <string>Laser Intensity</string>
-           </property>
-           <property name="buddy">
-            <cstring>laserIntensitySpinBox</cstring>
-           </property>
-          </widget>
-         </item>
-         <item row="3" column="1">
-          <widget class="QDoubleSpinBox" name="laserIntensitySpinBox">
-           <property name="suffix">
-            <string>V</string>
-           </property>
-           <property name="value">
-            <double>0.000000000000000</double>
-           </property>
-          </widget>
-         </item>
          <item row="0" column="0">
           <widget class="QLabel" name="samplingRateLabel">
            <property name="text">
@@ -221,6 +150,52 @@
            </property>
            <property name="value">
             <number>5000</number>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="pulseDurationLabel">
+           <property name="text">
+            <string>Pulse Duration</string>
+           </property>
+           <property name="buddy">
+            <cstring>pulseDurationSpinBox</cstring>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QDoubleSpinBox" name="pulseDurationSpinBox">
+           <property name="suffix">
+            <string>ms</string>
+           </property>
+           <property name="singleStep">
+            <double>0.200000000000000</double>
+           </property>
+           <property name="value">
+            <double>0.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="0">
+          <widget class="QLabel" name="laserIntensityLabel">
+           <property name="text">
+            <string>Laser Intensity</string>
+           </property>
+           <property name="buddy">
+            <cstring>laserIntensitySpinBox</cstring>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="QDoubleSpinBox" name="laserIntensitySpinBox">
+           <property name="suffix">
+            <string>V</string>
+           </property>
+           <property name="singleStep">
+            <double>0.500000000000000</double>
+           </property>
+           <property name="value">
+            <double>0.000000000000000</double>
            </property>
           </widget>
          </item>

@@ -27,19 +27,16 @@
 
 #include "labrstimclient.h"
 
-GaldurSettingsDialog::GaldurSettingsDialog(LabrstimClient *client, QWidget *parent)
+GaldurSettingsDialog::GaldurSettingsDialog(QWidget *parent)
     : QDialog(parent),
       ui(new Ui::GaldurSettingsDialog),
-      m_client(client)
+      m_currentMode(LabrstimClient::ModeUnknown)
 {
     ui->setupUi(this);
 
     // be safe on what is selected
     ui->stackedWidget->setCurrentIndex(0);
     ui->stimTypeComboBox->setCurrentIndex(0);
-    m_client->setMode(LabrstimClient::ModeSwr);
-
-    // connect(m_client, &LabrstimClient::newRawData, this, &GaldurSettingsDialog::readRawData);
 
     // collapse the log view
     QList<int> list;
@@ -47,9 +44,9 @@ GaldurSettingsDialog::GaldurSettingsDialog(LabrstimClient *client, QWidget *pare
     list.append(0);
     ui->splitter->setSizes(list);
 
-    // set default values (which should trigger value-change slots to set the values on m_client)
+    // set default values
+    setMode(LabrstimClient::ModeSwr);
     ui->samplingRateSpinBox->setValue(20000);
-    ui->trialDurationTimeEdit->setTime(QTime(0, 7, 0));
     ui->pulseDurationSpinBox->setValue(20);
     ui->laserIntensitySpinBox->setValue(2);
     ui->minimumIntervalSpinBox->setValue(10);
@@ -58,6 +55,8 @@ GaldurSettingsDialog::GaldurSettingsDialog(LabrstimClient *client, QWidget *pare
     ui->swrPowerThresholdDoubleSpinBox->setValue(3);
     ui->thetaPhaseSpinBox->setValue(90);
     ui->trainFrequencySpinBox->setValue(6);
+
+    updatePortList();
 }
 
 GaldurSettingsDialog::~GaldurSettingsDialog()
@@ -96,7 +95,7 @@ void GaldurSettingsDialog::setSerialPort(const QString &port)
     }
 }
 
-void GaldurSettingsDialog::readRawData(const QString &data)
+void GaldurSettingsDialog::addRawData(const QString &data)
 {
     ui->logViewBox->insertPlainText(QString(data));
     auto vbar = ui->logViewBox->verticalScrollBar();
@@ -120,51 +119,163 @@ void GaldurSettingsDialog::setStartImmediately(bool start)
     ui->cbStartImmediately->setChecked(start);
 }
 
+LabrstimClient::Mode GaldurSettingsDialog::mode() const
+{
+    return m_currentMode;
+}
+
+void GaldurSettingsDialog::setMode(LabrstimClient::Mode mode)
+{
+    m_currentMode = mode;
+    switch (mode) {
+    case LabrstimClient::ModeSwr:
+        ui->stimTypeComboBox->setCurrentIndex(0);
+        break;
+    case LabrstimClient::ModeTheta:
+        ui->stimTypeComboBox->setCurrentIndex(1);
+        break;
+    case LabrstimClient::ModeTrain:
+        ui->stimTypeComboBox->setCurrentIndex(2);
+        break;
+    default:
+        qWarning() << "Unknown mode selected!";
+    }
+}
+
+double GaldurSettingsDialog::pulseDuration() const
+{
+    return ui->pulseDurationSpinBox->value();
+}
+
+void GaldurSettingsDialog::setPulseDuration(double val)
+{
+    ui->pulseDurationSpinBox->setValue(val);
+}
+
+double GaldurSettingsDialog::laserIntensity() const
+{
+    return ui->laserIntensitySpinBox->value();
+}
+
+void GaldurSettingsDialog::setLaserIntensity(double val)
+{
+    ui->laserIntensitySpinBox->setValue(val);
+}
+
+int GaldurSettingsDialog::samplingFrequency() const
+{
+    return ui->samplingRateSpinBox->value();
+}
+
+void GaldurSettingsDialog::setSamplingFrequency(int hz)
+{
+    ui->samplingRateSpinBox->setValue(hz);
+}
+
+bool GaldurSettingsDialog::randomIntervals() const
+{
+    return ui->randomIntervalCheckBox->isChecked();
+}
+
+void GaldurSettingsDialog::setRandomIntervals(bool random)
+{
+    ui->randomIntervalCheckBox->setChecked(random);
+}
+
+double GaldurSettingsDialog::minimumInterval() const
+{
+    return ui->minimumIntervalSpinBox->value();
+}
+
+void GaldurSettingsDialog::setMinimumInterval(double min)
+{
+    ui->minimumIntervalSpinBox->setValue(min);
+}
+
+double GaldurSettingsDialog::maximumInterval() const
+{
+    return ui->maximumIntervalSpinBox->value();
+}
+
+void GaldurSettingsDialog::setMaximumInterval(double max)
+{
+    ui->maximumIntervalSpinBox->setValue(max);
+}
+
+double GaldurSettingsDialog::swrRefractoryTime() const
+{
+    return ui->swrRefractoryTimeSpinBox->value();
+}
+
+void GaldurSettingsDialog::setSwrRefractoryTime(double val)
+{
+    ui->swrRefractoryTimeSpinBox->setValue(val);
+}
+
+double GaldurSettingsDialog::swrPowerThreshold() const
+{
+    return ui->swrPowerThresholdDoubleSpinBox->value();
+}
+
+void GaldurSettingsDialog::setSwrPowerThreshold(double val)
+{
+    ui->swrPowerThresholdDoubleSpinBox->setValue(val);
+}
+
+double GaldurSettingsDialog::convolutionPeakThreshold() const
+{
+    return ui->convolutionPeakThresholdSpinBox->value();
+}
+
+void GaldurSettingsDialog::setConvolutionPeakThreshold(double val)
+{
+    ui->convolutionPeakThresholdSpinBox->setValue(val);
+}
+
+double GaldurSettingsDialog::thetaPhase() const
+{
+    return ui->thetaPhaseSpinBox->value();
+}
+
+void GaldurSettingsDialog::setThetaPhase(double val)
+{
+    ui->thetaPhaseSpinBox->setValue(val);
+}
+
+double GaldurSettingsDialog::trainFrequency() const
+{
+    return ui->trainFrequencySpinBox->value();
+}
+
+void GaldurSettingsDialog::setTrainFrequency(double val)
+{
+    ui->trainFrequencySpinBox->setValue(val);
+}
+
 void GaldurSettingsDialog::on_stimTypeComboBox_currentIndexChanged(int index)
 {
     ui->randomIntervalCheckBox->setEnabled(true);
     ui->randomIntervalLabel->setEnabled(true);
     switch (index) {
     case 0:
-        m_client->setMode(LabrstimClient::ModeSwr);
+        m_currentMode = LabrstimClient::ModeSwr;
         ui->randomIntervalCheckBox->setEnabled(false);
         ui->randomIntervalLabel->setEnabled(false);
         break;
     case 1:
-        m_client->setMode(LabrstimClient::ModeTheta);
+        m_currentMode = LabrstimClient::ModeTheta;
         break;
     case 2:
-        m_client->setMode(LabrstimClient::ModeTrain);
+        m_currentMode = LabrstimClient::ModeTrain;
         break;
     default:
         qWarning() << "Unknown mode selected!";
-        m_client->setMode(LabrstimClient::ModeUnknown);
+        m_currentMode = LabrstimClient::ModeUnknown;
     }
-}
-
-void GaldurSettingsDialog::on_trialDurationTimeEdit_timeChanged(const QTime &time)
-{
-    m_client->setTrialDuration(QTime(0, 0).secsTo(time));
-}
-
-void GaldurSettingsDialog::on_pulseDurationSpinBox_valueChanged(double arg1)
-{
-    m_client->setPulseDuration(arg1);
-}
-
-void GaldurSettingsDialog::on_laserIntensitySpinBox_valueChanged(double arg1)
-{
-    m_client->setLaserIntensity(arg1);
-}
-
-void GaldurSettingsDialog::on_randomIntervalCheckBox_toggled(bool checked)
-{
-    m_client->setRandomIntervals(checked);
 }
 
 void GaldurSettingsDialog::on_minimumIntervalSpinBox_valueChanged(double arg1)
 {
-    m_client->setMinimumInterval(arg1);
     if (ui->maximumIntervalSpinBox->value() <= arg1) {
         ui->maximumIntervalSpinBox->setValue(arg1 + 1);
     }
@@ -172,38 +283,7 @@ void GaldurSettingsDialog::on_minimumIntervalSpinBox_valueChanged(double arg1)
 
 void GaldurSettingsDialog::on_maximumIntervalSpinBox_valueChanged(double arg1)
 {
-    m_client->setMaximumInterval(arg1);
     if (ui->minimumIntervalSpinBox->value() >= arg1) {
         ui->minimumIntervalSpinBox->setValue(arg1 - 1);
     }
-}
-
-void GaldurSettingsDialog::on_swrRefractoryTimeSpinBox_valueChanged(double arg1)
-{
-    m_client->setSwrRefractoryTime(arg1);
-}
-
-void GaldurSettingsDialog::on_swrPowerThresholdDoubleSpinBox_valueChanged(double arg1)
-{
-    m_client->setSwrPowerThreshold(arg1);
-}
-
-void GaldurSettingsDialog::on_convolutionPeakThresholdSpinBox_valueChanged(double arg1)
-{
-    m_client->setConvolutionPeakThreshold(arg1);
-}
-
-void GaldurSettingsDialog::on_thetaPhaseSpinBox_valueChanged(double arg1)
-{
-    m_client->setThetaPhase(arg1);
-}
-
-void GaldurSettingsDialog::on_trainFrequencySpinBox_valueChanged(double arg1)
-{
-    m_client->setTrainFrequency(arg1);
-}
-
-void GaldurSettingsDialog::on_samplingRateSpinBox_valueChanged(int arg1)
-{
-    m_client->setSamplingFrequency(arg1);
 }

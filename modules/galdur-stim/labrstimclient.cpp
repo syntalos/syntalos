@@ -34,7 +34,8 @@ LabrstimClient::LabrstimClient(QObject *parent)
         m_serial,
         static_cast<void (QSerialPort::*)(QSerialPort::SerialPortError)>(&QSerialPort::error),
         this,
-        &LabrstimClient::handleError);
+        &LabrstimClient::handleError,
+        Qt::DirectConnection);
 
     connect(m_serial, &QSerialPort::readyRead, this, &LabrstimClient::readData);
 
@@ -187,14 +188,15 @@ bool LabrstimClient::runStimulation()
         command.append(QString(" -M %1").arg(m_maximumInterval));
     }
 
+    command.append(QStringLiteral(" --"));
     command.append(QString(" %1").arg(m_samplingFrequency));
     command.append(QString(" %1").arg(m_trialDuration));
     command.append(QString(" %1").arg(m_pulseDuration));
     command.append(QString(" %1").arg(m_laserIntensity));
 
-    auto res = sendRequest(command);
+    const auto res = sendRequest(command);
     if (res != "OK") {
-        emitError(QStringLiteral("Unable to start stimulation. [%1]").arg(res));
+        emitError(QStringLiteral("Unable to start stimulation. [%1]").arg(m_lastError));
         return false;
     }
 
@@ -204,15 +206,10 @@ bool LabrstimClient::runStimulation()
 
 bool LabrstimClient::stopStimulation()
 {
-    if (!m_running) {
-        emitError("Can not stop a stimulation that is not running.");
-        return false;
-    }
-
     auto res = sendRequest("STOP");
-    qDebug() << res;
     if ((res != "OK") && (!res.startsWith("FINISHED"))) {
-        emitError(QStringLiteral("Unable to stop stimulation."));
+        if (m_running)
+            emitError(QStringLiteral("Unable to stop stimulation."));
         return false;
     }
 
@@ -290,6 +287,11 @@ void LabrstimClient::emitError(const QString &message)
 QString LabrstimClient::clientVersion() const
 {
     return m_clientVersion;
+}
+
+bool LabrstimClient::isRunning() const
+{
+    return m_running;
 }
 
 void LabrstimClient::setMode(LabrstimClient::Mode mode)

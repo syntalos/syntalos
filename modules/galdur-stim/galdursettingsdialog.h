@@ -20,25 +20,23 @@
 #ifndef SETTINGSDIALOG_H
 #define SETTINGSDIALOG_H
 
-#include <QtCore/QtGlobal>
-
 #include <QDialog>
 #include <QtSerialPort/QSerialPort>
+
+#include "labrstimclient.h"
 
 namespace Ui
 {
 class GaldurSettingsDialog;
 }
 class QLabel;
-class GaldurSettingsDialog;
-class LabrstimClient;
 
 class GaldurSettingsDialog : public QDialog
 {
     Q_OBJECT
 
 public:
-    explicit GaldurSettingsDialog(LabrstimClient *client, QWidget *parent = nullptr);
+    explicit GaldurSettingsDialog(QWidget *parent = nullptr);
     ~GaldurSettingsDialog();
 
     void updatePortList();
@@ -46,31 +44,55 @@ public:
     void setSerialPort(const QString &port);
 
     void setRunning(bool running);
+    void addRawData(const QString &data);
 
     bool startImmediately() const;
     void setStartImmediately(bool start);
 
+    LabrstimClient::Mode mode() const;
+    void setMode(LabrstimClient::Mode mode);
+
+    double pulseDuration() const;
+    void setPulseDuration(double val);
+
+    double laserIntensity() const;
+    void setLaserIntensity(double val);
+
+    int samplingFrequency() const;
+    void setSamplingFrequency(int hz);
+
+    bool randomIntervals() const;
+    void setRandomIntervals(bool random);
+
+    double minimumInterval() const;
+    void setMinimumInterval(double min);
+    double maximumInterval() const;
+    void setMaximumInterval(double max);
+
+    double swrRefractoryTime() const;
+    void setSwrRefractoryTime(double val);
+
+    double swrPowerThreshold() const;
+    void setSwrPowerThreshold(double val);
+
+    double convolutionPeakThreshold() const;
+    void setConvolutionPeakThreshold(double val);
+
+    double thetaPhase() const;
+    void setThetaPhase(double val);
+
+    double trainFrequency() const;
+    void setTrainFrequency(double val);
+
 private slots:
-    void readRawData(const QString &data);
-
     void on_stimTypeComboBox_currentIndexChanged(int index);
-    void on_trialDurationTimeEdit_timeChanged(const QTime &time);
-    void on_pulseDurationSpinBox_valueChanged(double arg1);
-    void on_laserIntensitySpinBox_valueChanged(double arg1);
-    void on_samplingRateSpinBox_valueChanged(int arg1);
-
-    void on_randomIntervalCheckBox_toggled(bool checked);
     void on_minimumIntervalSpinBox_valueChanged(double arg1);
     void on_maximumIntervalSpinBox_valueChanged(double arg1);
-    void on_swrRefractoryTimeSpinBox_valueChanged(double arg1);
-    void on_swrPowerThresholdDoubleSpinBox_valueChanged(double arg1);
-    void on_convolutionPeakThresholdSpinBox_valueChanged(double arg1);
-    void on_thetaPhaseSpinBox_valueChanged(double arg1);
-    void on_trainFrequencySpinBox_valueChanged(double arg1);
 
 private:
     Ui::GaldurSettingsDialog *ui;
-    LabrstimClient *m_client;
+
+    LabrstimClient::Mode m_currentMode;
 };
 
 #endif // SETTINGSDIALOG_H

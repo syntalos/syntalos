@@ -42,6 +42,8 @@ public:
     QString sendRequest(const QString &req, bool expectReply = true);
     QString clientVersion() const;
 
+    bool isRunning() const;
+
     void setMode(Mode mode);
 
     double trialDuration() const;
