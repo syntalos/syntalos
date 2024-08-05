@@ -92,7 +92,7 @@ private slots:
         std::unique_ptr<SecondaryClockSynchronizer> sync(new SecondaryClockSynchronizer(syTimer, nullptr));
 
         const auto toleranceValue = microseconds_t(1000);
-        const auto calibrationCount = 32;
+        const auto calibrationCount = 48;
         sync->setStrategies(
             TimeSyncStrategy::ADJUST_CLOCK | TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD
             | TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD);
