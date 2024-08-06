@@ -280,12 +280,19 @@ struct OutputPort {
         }
     }
 
-    void set_metadata_value_size(const std::string &key, const py::list &value)
+    void set_metadata_value_size(const std::string &key, const py::object &value)
     {
         if (py::len(value) != 2)
             throw SyntalosPyError("2D Dimension list needs exactly two entries");
-        const int width = value[0].cast<int>();
-        const int height = value[1].cast<int>();
+
+        if (!py::isinstance<py::sequence>(value)) {
+            throw SyntalosPyError("Expected a sequence as size parameter.");
+        }
+
+        const auto seq = value.cast<py::sequence>();
+        const auto width = seq[0].cast<int>();
+        const auto height = seq[1].cast<int>();
+
         QSize size(width, height);
         _set_metadata_value_private(QString::fromStdString(key), QVariant::fromValue(size));
     }
@@ -470,7 +477,7 @@ PYBIND11_MODULE(syntalos_mlink, m)
     py::class_<Frame>(m, "Frame", "A video frame.")
         .def(py::init<>())
         .def_readwrite("index", &Frame::index, "Number of the frame.")
-        .def_readwrite("time_msec", &Frame::time, "Time when the frame was recorded.")
+        .def_readwrite("time_usec", &Frame::time, "Time when the frame was recorded.")
         .def_readwrite("mat", &Frame::mat, "Frame image data.");
 
     /**
