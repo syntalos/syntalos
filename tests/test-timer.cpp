@@ -187,10 +187,10 @@ private slots:
 
                 // clock correction offset must be positive and "reasonably" large
                 QVERIFY2(
-                    sync->clockCorrectionOffset().count() >= (currentDivergenceUsec / 21.0),
+                    sync->clockCorrectionOffset().count() >= (currentDivergenceUsec / 110.0),
                     qPrintable(QStringLiteral("%1 >= %2")
                                    .arg(sync->clockCorrectionOffset().count())
-                                   .arg(currentDivergenceUsec / 21.0)));
+                                   .arg(currentDivergenceUsec / 110.0)));
 
                 // since the master clock is considered accurate, but the secondary clock is "too fast",
                 // we expect timestamps to be shifted forward a bit in order to match them up again
@@ -242,9 +242,12 @@ private slots:
                 // we are still resetting back to normal, test if that's happening
                 if (i > 1)
                     QVERIFY(sync->clockCorrectionOffset().count() <= lastClockCorrectionOffset);
-                QVERIFY2(
-                    syncMasterTS.count() <= curMasterTS.count(),
-                    qPrintable(QString::number(syncMasterTS.count()) + " < " + QString::number(curMasterTS.count())));
+
+                if (i > (calibrationCount / 4))
+                    QVERIFY2(
+                        syncMasterTS.count() <= curMasterTS.count(),
+                        qPrintable(
+                            QString::number(syncMasterTS.count()) + " < " + QString::number(curMasterTS.count())));
             }
 
             lastClockCorrectionOffset = sync->clockCorrectionOffset().count();
@@ -332,10 +335,10 @@ private slots:
 
                 // clock correction offset must be positive and "reasonably" small
                 QVERIFY2(
-                    sync->clockCorrectionOffset().count() <= (currentDivergenceUsec / 21.0),
+                    sync->clockCorrectionOffset().count() <= (currentDivergenceUsec / 68.0),
                     qPrintable(QStringLiteral("%1 <= %2")
                                    .arg(sync->clockCorrectionOffset().count())
-                                   .arg(currentDivergenceUsec / 21.0)));
+                                   .arg(currentDivergenceUsec / 68.0)));
 
                 // since the master clock is considered accurate, but the secondary clock is "too slow",
                 // we expect timestamps to be shifted backward a bit in order to match them up again

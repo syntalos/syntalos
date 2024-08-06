@@ -755,13 +755,14 @@ void SecondaryClockSynchronizer::processTimestamp(
 
     if (m_clockUpdateWaitPoints == 0
         && abs(avgOffsetDeviationUsec - m_clockCorrectionOffset.count()) > (m_toleranceUsec / 1.5)) {
-        // try to smoothly adjust the offset to the new value
+        // try to smoothly adjust offset to the new value, dependent on current detected sampling speed
         const double offsetDiff = (double)avgOffsetDeviationUsec - (double)m_clockCorrectionOffset.count();
-        auto delayFactor = (secondaryAcqTimestamp - m_lastSecondaryAcqTS).count() / 800.0;
-        if (delayFactor < 1)
-            delayFactor = 1;
+        const auto timeGap = (secondaryAcqTimestamp - m_lastSecondaryAcqTS).count();
+        auto delayFactor = 1000 * (1 - std::pow((std::log(timeGap + 1) / std::log(1000000 + 1)), 0.117)) + 1;
         if (delayFactor >= abs(offsetDiff))
             delayFactor = abs(offsetDiff) / 4.0;
+        if (delayFactor < 1)
+            delayFactor = 1;
 
         auto adjValue = offsetDiff / delayFactor;
         m_clockCorrectionOffset += microseconds_t((int64_t)std::ceil(adjValue));

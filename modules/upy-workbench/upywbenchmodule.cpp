@@ -489,7 +489,7 @@ public:
         // set up clock synchronizer
         m_clockSync = initClockSynchronizer();
         // sensible amount of calibration points, since we do not know a framerate
-        m_clockSync->setCalibrationPointsCount(840);
+        m_clockSync->setCalibrationPointsCount(86);
         m_clockSync->setTolerance(milliseconds_t(2));
         m_clockSync->setStrategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD | TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD);
         m_baseTimeOffset = microseconds_t(0);
