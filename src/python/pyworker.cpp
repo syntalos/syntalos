@@ -546,7 +546,8 @@ void PyWorker::makeDocFileAndQuit(const QString &fname)
                          "    pdoc.render.configure(template_directory=tmp_dir)\n"
                          "    html_data = pdoc.render.html_module(module=doc, all_modules={'syntalos_mlink': doc})\n"
                          "    with open('%1', 'w') as f:\n"
-                         "        f.write(html_data)\n"
+                         "        for line in html_data.split('\\n'):\n"
+                         "            f.write(line.strip() + '\\n')\n"
                          "        f.write('\\n')\n"
                          "\n")
               .arg(QString(fname).replace("'", "\\'"))));
