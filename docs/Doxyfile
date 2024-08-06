@@ -1,0 +1,37 @@
+# Doxygen configuration for Syntalos
+
+FULL_PATH_NAMES = YES
+STRIP_FROM_PATH = ../src/
+
+INPUT                = ../src/datactl \
+                        ../src/fabric \
+                        ../src/mlink \
+                        ../src/utils
+BUILTIN_STL_SUPPORT  = YES
+EXTRACT_PRIVATE      = NO
+EXTRACT_PRIV_VIRTUAL = YES
+EXCLUDE_PATTERNS     = *.txt \
+                        *.md \
+                        *.build \
+                        *.ui \
+                        */python/extra/*
+INCLUDE_FILE_PATTERNS = *.h *.hpp
+EXTENSION_MAPPING    = h=C++
+ENABLE_PREPROCESSING = YES
+RECURSIVE            = YES
+EXCLUDE_SYMBOLS      = *::Private \
+                        iox::* \
+                        moodycamel::* \
+                        Q_DECLARE_METATYPE \
+                        Q_DECLARE_FLAGS \
+                        Q_DECLARE_LOGGING_CATEGORY \
+                        Q_LOGGING_CATEGORY \
+                        Q_DECLARE_SMART_POINTER_METATYPE \
+                        Q_GLOBAL_STATIC_WITH_ARGS
+EXTRACT_LOCAL_CLASSES  = NO
+CLANG_ASSISTED_PARSING = YES
+
+GENERATE_XML = YES
+GENERATE_HTML = NO
+GENERATE_LATEX = NO
+XML_OUTPUT = xml

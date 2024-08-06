@@ -1,5 +1,0 @@
-sphinx>5.0,<7.0
-pygments>=2.6
-breathe>=4.16
-exhale
-insipid-sphinx-theme
