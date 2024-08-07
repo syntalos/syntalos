@@ -136,12 +136,10 @@ public:
         toolbar->addWidget(menuButton);
 
         connect(docHelpAction, &QAction::triggered, this, [&](bool) {
-            QDesktopServices::openUrl(
-                QUrl("https://syntalos.readthedocs.io/latest/modules/pyscript.html", QUrl::TolerantMode));
+            QDesktopServices::openUrl(QUrl("https://syntalos.github.io/docs/modules/pyscript/", QUrl::TolerantMode));
         });
         connect(apiHelpAction, &QAction::triggered, this, [&](bool) {
-            QDesktopServices::openUrl(
-                QUrl("https://syntalos.readthedocs.io/latest/pysy-mlink-api.html", QUrl::TolerantMode));
+            QDesktopServices::openUrl(QUrl("https://syntalos.github.io/docs/pysy-mlink-api/", QUrl::TolerantMode));
         });
 
         // Don't trigger the text editor document save dialog

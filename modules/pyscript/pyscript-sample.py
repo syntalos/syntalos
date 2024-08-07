@@ -1,12 +1,12 @@
 import syntalos_mlink as syl
 
 
-# NOTE: Check https://syntalos.readthedocs.io/en/latest/modules/pyscript.html for documentation
+# NOTE: Check https://syntalos.github.io/docs/modules/pyscript/ for documentation
 # on how to write a useful script.
 syl.raise_error(
     (
         'You are running the Python example script - please edit it to work for your experiment!\n'
-        '(Check https://syntalos.readthedocs.io/en/latest/modules/pyscript.html for help)'
+        '(Check https://syntalos.github.io/docs/modules/pyscript/ for help)'
     )
 )
 
