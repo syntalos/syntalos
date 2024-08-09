@@ -4,6 +4,7 @@ from machine import Pin
 
 ledPin = Pin('LED', Pin.OUT)
 testPin = Pin(10, Pin.OUT)
+sy = SyntalosCommunicator()
 
 
 async def blink_led():

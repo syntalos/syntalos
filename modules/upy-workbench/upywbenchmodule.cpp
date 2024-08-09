@@ -750,6 +750,7 @@ public:
 
         m_running = false;
         while (!m_stopped) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
             appProcessEvents();
         }
         safeStopSynchronizer(m_clockSync);

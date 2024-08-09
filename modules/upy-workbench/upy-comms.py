@@ -107,6 +107,3 @@ class SyntalosCommunicator:
             self._iport_pending[port_id] = (-1, callback)
         else:
             self._iport_map[idx] = callback
-
-
-sy = SyntalosCommunicator()
