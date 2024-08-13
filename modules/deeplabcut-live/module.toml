@@ -6,6 +6,7 @@ description = "Run DeepLabCut on a live video stream"
 icon = "dlc-logo.png"
 
 categories = 'processing'
+features = ['show-settings']
 
 main = "dlc-live.py"
 use_venv = true

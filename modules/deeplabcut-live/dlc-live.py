@@ -2,8 +2,7 @@
 import os
 import sys
 import json
-import syio as sy
-from syio import InputWaitResult
+import syntalos_mlink as syl
 
 import cv2 as cv
 from dlclive import DLCLive, Processor
@@ -96,57 +95,59 @@ class DLCLiveModule:
         self._dlc_live = None
         self._model_path = None
         self._first_frame = True
+        self._display = False
         self._dlc_proc = Processor()
 
-    def prepare(self):
         # Get port references
-        self._iport = sy.get_input_port('frames-in')
-        # self._oport_img = sy.get_output_port('frames-out')
-        self._oport_rows = sy.get_output_port('rows-out')
+        self._iport = syl.get_input_port('frames-in')
+        self._oport_rows = syl.get_output_port('rows-out')
+        # self._oport_img = syl.get_output_port('frames-out')
+
+        self._iport.on_data = self._on_input_data
+
+        # show the settings dialog when the user requested it to be shown
+        syl.call_on_show_settings(self.change_settings)
+
+    def prepare(self) -> bool:
         self._oport_rows.set_metadata_value(
-            'table_header', ['Time [ms]', 'Marker', 'X', 'Y', 'Likelihood']
+            'table_header', ['Time [µs]', 'Marker', 'X', 'Y', 'Likelihood']
         )
+
+        if not self._model_path or not os.path.exists(self._model_path):
+            syl.raise_error('Model path does not exist.')
+            return False
+
         self._first_frame = True
         self._dlc_live = DLCLive(self._model_path, processor=self._dlc_proc, display=self._display)
+
+        return True
 
     def start(self):
         pass
 
-    def loop(self) -> bool:
-        # wait for new input to arrive
-        wait_result = sy.await_new_input()
-        if wait_result == InputWaitResult.CANCELLED:
-            return False
+    def _on_input_data(self, frame):
+        """We received a new frame to process."""
+        if frame is None:
+            return
 
-        # retrieve data from our port until we run out of data to process
-        while True:
-            frame = self._iport.next()
-            if frame is None:
-                # no more data, exit
-                break
+        if self._first_frame:
+            self._first_frame = False
+            self._dlc_live.init_inference(frame.mat)
+            return
 
-            if self._first_frame:
-                self._first_frame = False
-                self._dlc_live.init_inference(frame.mat)
-                continue
+        pose = self._dlc_live.get_pose(frame.mat)
+        if pose is None:
+            return
 
-            pose = self._dlc_live.get_pose(frame.mat)
-            if pose is None:
-                continue
+        for i, p in enumerate(pose):
+            self._oport_rows.submit([frame.time_usec, i] + p.tolist())
 
-            for i, p in enumerate(pose):
-                self._oport_rows.submit([frame.time_msec, i] + p.tolist())
-
-            # submit new data to an output port
-            # self._oport_img.submit(frame)
-
-        # we don't want to quite data processing, so return True
-        return True
+        # self._oport_img.submit(frame)
 
     def stop(self):
         pass
 
-    def change_settings(self, old_settings: bytes) -> bytes:
+    def change_settings(self, old_settings: bytes):
         try:
             settings = json.loads(old_settings)
         except Exception as e:
@@ -160,7 +161,8 @@ class DLCLiveModule:
 
         settings['model_path'] = dlg.model_path
         settings['display'] = dlg.display_dlc
-        return bytes(json.dumps(settings), 'utf-8')
+
+        syl.save_settings(bytes(json.dumps(settings), 'utf-8'))
 
     def set_settings(self, data: bytes):
         if not data:
@@ -175,25 +177,23 @@ class DLCLiveModule:
 mod = DLCLiveModule()
 
 
-def set_settings(settings):
+def set_settings(settings: bytes):
     mod.set_settings(settings)
 
 
-def prepare():
-    mod.prepare()
+def prepare() -> bool:
+    return mod.prepare()
 
 
 def start():
     mod.start()
 
 
-def loop() -> bool:
-    return mod.loop()
+def run():
+    # wait for new data to arrive and communicate with Syntalos
+    while syl.is_running():
+        syl.await_data()
 
 
 def stop():
     mod.stop()
-
-
-def change_settings(old_settings: bytes) -> bytes:
-    return mod.change_settings(old_settings)
