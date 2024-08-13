@@ -402,6 +402,7 @@ class Q_DECL_EXPORT AbstractModule : public QObject
 {
     Q_OBJECT
     friend class Engine;
+    friend class MLinkModule;
 
 public:
     explicit AbstractModule(QObject *parent = nullptr);

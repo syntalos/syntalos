@@ -150,7 +150,7 @@ ModuleSelectDialog::ModuleSelectDialog(const QList<QSharedPointer<ModuleInfo>> &
         });
 
     // focus
-    ui->modListView->setFocus();
+    ui->filterEdit->setFocus();
 }
 
 ModuleSelectDialog::~ModuleSelectDialog()

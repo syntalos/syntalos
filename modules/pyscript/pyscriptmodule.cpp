@@ -70,7 +70,7 @@ public:
         samplePyRc.close();
 
         m_scriptWindow = new QWidget;
-        addDisplayWindow(m_scriptWindow);
+        addSettingsWindow(m_scriptWindow);
 
         m_scriptWindow->setWindowIcon(QIcon(":/icons/generic-config"));
         m_scriptWindow->setWindowTitle(QStringLiteral("%1 - Editor").arg(name()));
@@ -156,7 +156,12 @@ public:
 
     ~PyScriptModule() override {}
 
-    void setName(const QString &value) override
+    ModuleFeatures features() const final
+    {
+        return ModuleFeature::SHOW_SETTINGS;
+    }
+
+    void setName(const QString &value) final
     {
         MLinkModule::setName(value);
         m_scriptWindow->setWindowTitle(QStringLiteral("%1 - Editor").arg(name()));
@@ -171,6 +176,21 @@ public:
 
         setInitialized();
         return true;
+    }
+
+    void showSettingsUi() final
+    {
+        m_scriptWindow->setWindowTitle(name());
+
+        // set an initial position if we do not have one yet
+        if (m_scriptWindow->pos().isNull()) {
+            auto pos = QCursor::pos();
+            pos.setY(pos.y() - (m_scriptWindow->height() / 2));
+            m_scriptWindow->move(pos);
+        }
+
+        m_scriptWindow->show();
+        m_scriptWindow->raise();
     }
 
     bool prepare(const TestSubject &testSubject) override

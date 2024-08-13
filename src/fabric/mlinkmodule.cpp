@@ -63,9 +63,11 @@ public:
 
     iox::capro::IdString_t clientId;
     std::unique_ptr<iox::popo::Subscriber<ErrorEvent>> subError;
+    std::unique_ptr<iox::popo::Subscriber<StateChangeEvent>> subStateChange;
 
     std::unique_ptr<iox::popo::UntypedSubscriber> subInPortChange;
     std::unique_ptr<iox::popo::UntypedSubscriber> subOutPortChange;
+    std::unique_ptr<iox::popo::UntypedSubscriber> subSettingsChange;
 
     std::vector<std::pair<std::unique_ptr<iox::popo::UntypedSubscriber>, std::shared_ptr<StreamOutputPort>>>
         outPortSubs;
@@ -253,7 +255,10 @@ MLinkModule::MLinkModule(QObject *parent)
         });
 }
 
-MLinkModule::~MLinkModule() {}
+MLinkModule::~MLinkModule()
+{
+    terminateProcess();
+}
 
 void MLinkModule::onErrorReceivedCb(iox::popo::Subscriber<ErrorEvent> *subscriber, MLinkModule *self)
 {
@@ -264,6 +269,20 @@ void MLinkModule::onErrorReceivedCb(iox::popo::Subscriber<ErrorEvent> *subscribe
             self->raiseError(
                 QStringLiteral("<html><b>%1</b><br/>%2").arg(error->title.c_str(), error->message.c_str()));
         QCoreApplication::processEvents();
+    });
+}
+
+void MLinkModule::onStateChangeReceivedCb(iox::popo::Subscriber<StateChangeEvent> *subscriber, MLinkModule *self)
+{
+    subscriber->take().and_then([subscriber, self](auto &scEvent) {
+        // the error state must only be set by raiseError(), never directly
+        if (scEvent->state == ModuleState::ERROR)
+            return;
+
+        // only some states are allowed to be set by the module
+        if (scEvent->state == ModuleState::DORMANT || scEvent->state == ModuleState::READY
+            || scEvent->state == ModuleState::INITIALIZING || scEvent->state == ModuleState::IDLE)
+            self->setState(scEvent->state);
     });
 }
 
@@ -360,6 +379,31 @@ void MLinkModule::onPortChangedCb(iox::popo::UntypedSubscriber *subscriber, MLin
         });
 }
 
+void MLinkModule::onSettingsChangedCb(iox::popo::UntypedSubscriber *subscriber, MLinkModule *self)
+{
+    // store the changed settings data
+    subscriber->take()
+        .and_then([subscriber, self](const void *payload) {
+            auto eventIdString = subscriber->getServiceDescription().getEventIDString();
+            const auto chunkHeader = iox::mepoo::ChunkHeader::fromUserPayload(payload);
+            const auto size = chunkHeader->usedSizeOfChunk();
+            if (eventIdString != SETTINGS_CHANGE_CHANNEL_ID)
+                return;
+
+            // deserialize
+            const auto scev = SettingsChangeEvent::fromMemory(payload, size);
+            self->setSettingsData(scev.settings);
+
+            // release memory chunk
+            subscriber->release(payload);
+        })
+        .or_else([](auto &result) {
+            if (result != iox::popo::ChunkReceiveResult::NO_CHUNK_AVAILABLE) {
+                qCWarning(logMLinkMod).noquote() << "Failed to receive new module settings!";
+            }
+        });
+}
+
 void MLinkModule::resetConnection()
 {
     d->clientId = iox::capro::IdString_t(
@@ -368,15 +412,21 @@ void MLinkModule::resetConnection()
     // detach all events from the listener
     if (d->subError != nullptr)
         d->ioxListener.detachEvent(*d->subError, iox::popo::SubscriberEvent::DATA_RECEIVED);
+    if (d->subStateChange != nullptr)
+        d->ioxListener.detachEvent(*d->subStateChange, iox::popo::SubscriberEvent::DATA_RECEIVED);
     if (d->subInPortChange != nullptr)
         d->ioxListener.detachEvent(*d->subInPortChange, iox::popo::SubscriberEvent::DATA_RECEIVED);
     if (d->subOutPortChange != nullptr)
         d->ioxListener.detachEvent(*d->subOutPortChange, iox::popo::SubscriberEvent::DATA_RECEIVED);
+    if (d->subSettingsChange != nullptr)
+        d->ioxListener.detachEvent(*d->subSettingsChange, iox::popo::SubscriberEvent::DATA_RECEIVED);
 
     // (re)create subscribers
     d->subError = makeSubscriber<iox::popo::Subscriber<ErrorEvent>>(ERROR_CHANNEL_ID.c_str());
+    d->subStateChange = makeSubscriber<iox::popo::Subscriber<StateChangeEvent>>(STATE_CHANNEL_ID.c_str());
     d->subInPortChange = makeUntypedSubscriber(IN_PORT_CHANGE_CHANNEL_ID.c_str());
     d->subOutPortChange = makeUntypedSubscriber(OUT_PORT_CHANGE_CHANNEL_ID.c_str());
+    d->subSettingsChange = makeUntypedSubscriber(SETTINGS_CHANGE_CHANNEL_ID.c_str());
 
     // attach events again
     d->ioxListener
@@ -386,6 +436,14 @@ void MLinkModule::resetConnection()
             iox::popo::createNotificationCallback(onErrorReceivedCb, *this))
         .or_else([this](auto) {
             raiseError("Unable to attach to Error event! Communication with module is not possible.");
+        });
+    d->ioxListener
+        .attachEvent(
+            *d->subStateChange,
+            iox::popo::SubscriberEvent::DATA_RECEIVED,
+            iox::popo::createNotificationCallback(onStateChangeReceivedCb, *this))
+        .or_else([this](auto) {
+            raiseError("Unable to attach to StateChange event! Communication with module is not possible.");
         });
     d->ioxListener
         .attachEvent(
@@ -402,6 +460,14 @@ void MLinkModule::resetConnection()
             iox::popo::createNotificationCallback(onPortChangedCb, *this))
         .or_else([this](auto) {
             raiseError("Unable to attach event to NewOutPort! Communication with module is not possible.");
+        });
+    d->ioxListener
+        .attachEvent(
+            *d->subSettingsChange,
+            iox::popo::SubscriberEvent::DATA_RECEIVED,
+            iox::popo::createNotificationCallback(onSettingsChangedCb, *this))
+        .or_else([this](auto) {
+            raiseError("Unable to attach event to SettingsChange! Communication with module is not possible.");
         });
 }
 
@@ -485,13 +551,30 @@ void MLinkModule::setSettingsData(const QByteArray &data)
     d->settingsData = data;
 }
 
+void MLinkModule::showDisplayUi()
+{
+    auto callShowDisplay = makeClient<iox::popo::Client<ShowDisplayRequest, DoneResponse>>(
+        SHOW_DISPLAY_CALL_ID.c_str());
+    callClientSimple(callShowDisplay, [&](auto &request) {});
+}
+
+void MLinkModule::showSettingsUi()
+{
+    auto callShowSettings = makeUntypedClient(SHOW_SETTINGS_CALL_ID.c_str());
+    ShowSettingsRequest ssReq;
+    ssReq.settings = d->settingsData;
+    auto ret = callUntypedClientSimple(callShowSettings, ssReq);
+    if (!ret)
+        qCWarning(logMLinkMod).noquote() << "Request to show settings UI has failed!";
+}
+
 void MLinkModule::terminateProcess()
 {
-    auto callShutdown = makeClient<iox::popo::Client<ShutdownRequest, DoneResponse>>(SHUTDOWN_CALL_ID.c_str());
     if (!isProcessRunning())
         return;
 
     // request the module process to terminate itself
+    auto callShutdown = makeClient<iox::popo::Client<ShutdownRequest, DoneResponse>>(SHUTDOWN_CALL_ID.c_str());
     callClientSimple(callShutdown, [&](auto &request) {});
 
     // give the process some time to terminate
@@ -519,6 +602,7 @@ bool MLinkModule::runProcess()
     terminateProcess();
 
     d->subError->releaseQueuedData();
+    d->subStateChange->releaseQueuedData();
     d->subInPortChange->releaseQueuedData();
     d->subOutPortChange->releaseQueuedData();
 
@@ -538,6 +622,10 @@ bool MLinkModule::runProcess()
         penv.insert("VIRTUAL_ENV", d->pyVenvDir);
         penv.insert("PATH", QStringLiteral("%1/bin/:%2").arg(d->pyVenvDir, penv.value("PATH", "")));
     }
+
+    // when launching the external process, we are back at initialization
+    auto prevState = state();
+    setState(ModuleState::INITIALIZING);
 
     d->proc->setProcessEnvironment(penv);
     d->proc->start(d->proc->program(), QStringList());
@@ -561,18 +649,22 @@ bool MLinkModule::runProcess()
         },
         iox::popo::MessagingPattern::PUB_SUB);
 
+    bool moduleInitDone = false;
     QElapsedTimer timer;
     timer.start();
     do {
-        auto notificationVector = waitset.timedWait(iox::units::Duration::fromSeconds(5));
+        auto notificationVector = waitset.timedWait(iox::units::Duration::fromMilliseconds(250));
         for (auto &notification : notificationVector) {
             if (notification->doesOriginateFrom(&sd))
                 workerFound = true;
         }
 
-        if (timer.elapsed() > 5000)
+        if (state() != ModuleState::INITIALIZING)
+            moduleInitDone = true;
+
+        if (timer.elapsed() > 6000)
             break;
-    } while (!workerFound);
+    } while (!workerFound || !moduleInitDone);
 
     if (!workerFound) {
         raiseError(
@@ -582,12 +674,90 @@ bool MLinkModule::runProcess()
         return false;
     }
 
+    if (!moduleInitDone) {
+        raiseError("Module initialization failed! The module might have failed or was taking too long to initialize.");
+        d->proc->kill();
+        return false;
+    }
+
+    if (state() != ModuleState::ERROR)
+        setState(prevState);
+
     return true;
 }
 
 bool MLinkModule::isProcessRunning() const
 {
     return d->proc->state() == QProcess::Running;
+}
+
+bool MLinkModule::loadCurrentScript()
+{
+    auto callLoadScript = makeUntypedClient(LOAD_SCRIPT_CALL_ID.c_str());
+
+    bool success = true;
+    if (!d->scriptContent.isEmpty()) {
+        LoadScriptRequest req;
+        req.workingDir = d->scriptWDir;
+        req.venvDir = d->pyVenvDir;
+        req.script = d->scriptContent;
+        success = callUntypedClientSimple(callLoadScript, req);
+    }
+
+    return success;
+}
+
+bool Syntalos::MLinkModule::sendPortInformation()
+{
+    auto callSetPortsPreset = makeUntypedClient(SET_PORTS_PRESET_CALL_ID.c_str());
+    auto callUpdateIPortMetadata = makeUntypedClient(IN_PORT_UPDATE_METADATA_ID.c_str());
+
+    // set the ports that are selected on this module
+    {
+        SetPortsPresetRequest req;
+        QList<InputPortChange> ipDef;
+        QList<OutputPortChange> opDef;
+
+        for (auto &iport : inPorts()) {
+            InputPortChange ipc(PortAction::CHANGE);
+            ipc.id = iport->id();
+            ipc.dataTypeId = iport->dataTypeId();
+            ipc.title = iport->title();
+            ipDef << ipc;
+        }
+
+        for (auto &oport : outPorts()) {
+            OutputPortChange opc(PortAction::CHANGE);
+            opc.id = oport->id();
+            opc.dataTypeId = oport->dataTypeId();
+            opc.title = oport->title();
+            opDef << opc;
+        }
+
+        req.inPorts = ipDef;
+        req.outPorts = opDef;
+
+        bool ret = callUntypedClientSimple(callSetPortsPreset, req);
+        if (!ret)
+            return false;
+    }
+
+    // update input port metadata
+    for (auto &iport : inPorts()) {
+        UpdateInputPortMetadataRequest req;
+        req.id = iport->id();
+        if (iport->hasSubscription())
+            req.metadata = iport->subscriptionVar()->metadata();
+        else
+            continue;
+
+        d->sentMetadata.insert(req.id, req.metadata);
+        bool ret = callUntypedClientSimple(callUpdateIPortMetadata, req);
+        if (!ret)
+            return false;
+    }
+
+    return true;
 }
 
 QString MLinkModule::readProcessOutput()
@@ -689,10 +859,7 @@ bool MLinkModule::prepare(const TestSubject &subject)
         SET_NICENESS_CALL_ID.c_str());
     auto callSetMaxRealtimePriority = makeClient<iox::popo::Client<SetMaxRealtimePriority, DoneResponse>>(
         SET_MAX_RT_PRIORITY_CALL_ID.c_str());
-    auto callSetPortsPreset = makeUntypedClient(SET_PORTS_PRESET_CALL_ID.c_str());
-    auto callUpdateIPortMetadata = makeUntypedClient(IN_PORT_UPDATE_METADATA_ID.c_str());
-    auto callLoadScript = makeUntypedClient(LOAD_SCRIPT_CALL_ID.c_str());
-    auto callPrepare = makeClient<iox::popo::Client<PrepareStartRequest, DoneResponse>>(PREPARE_START_CALL_ID.c_str());
+    auto callPrepare = makeUntypedClient(PREPARE_START_CALL_ID.c_str());
 
     // set module process niceness
     ret = callClientSimple(callSetNiceness, [&](auto &request) {
@@ -708,66 +875,18 @@ bool MLinkModule::prepare(const TestSubject &subject)
     if (!ret)
         return false;
 
-    // set the ports that are selected on this module
-    {
-        SetPortsPresetRequest req;
-        QList<InputPortChange> ipDef;
-        QList<OutputPortChange> opDef;
-
-        for (auto &iport : inPorts()) {
-            InputPortChange ipc(PortAction::CHANGE);
-            ipc.id = iport->id();
-            ipc.dataTypeId = iport->dataTypeId();
-            ipc.title = iport->title();
-            ipDef << ipc;
-        }
-
-        for (auto &oport : outPorts()) {
-            OutputPortChange opc(PortAction::CHANGE);
-            opc.id = oport->id();
-            opc.dataTypeId = oport->dataTypeId();
-            opc.title = oport->title();
-            opDef << opc;
-        }
-
-        req.inPorts = ipDef;
-        req.outPorts = opDef;
-
-        ret = callUntypedClientSimple(callSetPortsPreset, req);
-        if (!ret)
-            return false;
-    }
-
-    // update input port metadata
-    for (auto &iport : inPorts()) {
-        UpdateInputPortMetadataRequest req;
-        req.id = iport->id();
-        if (iport->hasSubscription())
-            req.metadata = iport->subscriptionVar()->metadata();
-        else
-            continue;
-
-        d->sentMetadata.insert(req.id, req.metadata);
-        ret = callUntypedClientSimple(callUpdateIPortMetadata, req);
-        if (!ret)
-            return false;
-    }
+    // send all port information to the module
+    if (!sendPortInformation())
+        return false;
 
     // set the script to be run, if any exists
-    if (!d->scriptContent.isEmpty()) {
-        LoadScriptRequest req;
-        req.workingDir = d->scriptWDir;
-        req.venvDir = d->pyVenvDir;
-        req.script = d->scriptContent;
-        ret = callUntypedClientSimple(callLoadScript, req);
-        if (!ret)
-            return false;
-    }
+    if (!loadCurrentScript())
+        return false;
 
     // call the module's own startup preparations
-    ret = callClientSimple(callPrepare, [&](auto &request) {
-        request->settings = d->settingsData;
-    });
+    PrepareStartRequest prepReq;
+    prepReq.settings = d->settingsData;
+    ret = callUntypedClientSimple(callPrepare, prepReq);
     if (!ret)
         return false;
 

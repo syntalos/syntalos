@@ -50,8 +50,6 @@ public:
     void raiseError(const QString &message);
     bool loadPythonScript(const QString &script, const QString &wdir);
 
-    QByteArray changeSettings(const QByteArray &oldSettings);
-
     bool prepareStart(const QByteArray &settings);
     void start();
     bool stop();

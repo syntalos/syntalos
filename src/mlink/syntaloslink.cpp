@@ -197,6 +197,7 @@ public:
         pubError = makePublisher<ErrorEvent>(ERROR_CHANNEL_ID);
         pubState = makePublisher<StateChangeEvent>(STATE_CHANNEL_ID);
         pubStatusMessage = makePublisher<StatusMessageEvent>(STATUS_MESSAGE_CHANNEL_ID, false);
+        pubSettingsChange = makeUntypedPublisher(SETTINGS_CHANGE_CHANNEL_ID);
         pubInPortChange = makeUntypedPublisher(IN_PORT_CHANGE_CHANNEL_ID);
         pubOutPortChange = makeUntypedPublisher(OUT_PORT_CHANGE_CHANNEL_ID);
 
@@ -211,6 +212,8 @@ public:
         reqStart = makeServer<StartRequest, DoneResponse>(START_CALL_ID);
         reqStop = makeServer<StopRequest, DoneResponse>(STOP_CALL_ID);
         reqShutdown = makeServer<ShutdownRequest, DoneResponse>(SHUTDOWN_CALL_ID);
+        reqShowDisplay = makeServer<ShowDisplayRequest, DoneResponse>(SHOW_DISPLAY_CALL_ID);
+        reqShowSettings = makeUntypedServer(SHOW_SETTINGS_CALL_ID);
     }
 
     ~Private() {}
@@ -306,6 +309,7 @@ public:
     std::unique_ptr<iox::popo::Publisher<ErrorEvent>> pubError;
     std::unique_ptr<iox::popo::Publisher<StateChangeEvent>> pubState;
     std::unique_ptr<iox::popo::Publisher<StatusMessageEvent>> pubStatusMessage;
+    std::unique_ptr<iox::popo::UntypedPublisher> pubSettingsChange;
     std::unique_ptr<iox::popo::UntypedPublisher> pubInPortChange;
     std::unique_ptr<iox::popo::UntypedPublisher> pubOutPortChange;
     std::unique_ptr<iox::popo::Server<SetNicenessRequest, DoneResponse>> reqSetNiceness;
@@ -320,6 +324,9 @@ public:
     std::unique_ptr<iox::popo::Server<StopRequest, DoneResponse>> reqStop;
     std::unique_ptr<iox::popo::Server<ShutdownRequest, DoneResponse>> reqShutdown;
 
+    std::unique_ptr<iox::popo::Server<ShowDisplayRequest, DoneResponse>> reqShowDisplay;
+    std::unique_ptr<iox::popo::UntypedServer> reqShowSettings;
+
     iox::popo::WaitSet<> waitSet;
 
     ModuleState state;
@@ -333,6 +340,8 @@ public:
     StartFn startCb;
     StopFn stopCb;
     ShutdownFn shutdownCb;
+    ShowSettingsFn showSettingsCb;
+    ShowDisplayFn showDisplayCb;
 };
 
 SyntalosLink::SyntalosLink(const QString &instanceId, QObject *parent)
@@ -341,8 +350,9 @@ SyntalosLink::SyntalosLink(const QString &instanceId, QObject *parent)
 {
     d->syTimer = new SyncTimer;
 
-    // immediately upon creation, we send a message that we are idle now
-    setState(ModuleState::IDLE);
+    // Immediately upon creation, we send a message that we are initializing.
+    // A client using this interface has to set this to IDLE once it has set up the basics.
+    setState(ModuleState::INITIALIZING);
 }
 
 SyntalosLink::~SyntalosLink()
@@ -399,6 +409,30 @@ void SyntalosLink::awaitDataForever()
 
 void SyntalosLink::processNotification(const iox::popo::NotificationInfo *notification)
 {
+    // Input port data received?
+    for (auto &iport : d->inPortInfo) {
+        if (!iport->d->connected)
+            continue;
+
+        iport->d->ioxSub->take()
+            .and_then([&](const void *payload) {
+                const auto chunkHeader = iox::mepoo::ChunkHeader::fromUserPayload(payload);
+                const auto size = chunkHeader->usedSizeOfChunk();
+
+                // call raw data received callback
+                if (iport->d->newDataCb)
+                    iport->d->newDataCb(payload, size);
+
+                // release memory chunk
+                iport->d->ioxSub->release(payload);
+            })
+            .or_else([](auto &result) {
+                if (result != iox::popo::ChunkReceiveResult::NO_CHUNK_AVAILABLE) {
+                    qWarning().noquote() << "Failed to receive new input port info!";
+                }
+            });
+    }
+
     // SetNiceness
     if (notification->doesOriginateFrom(d->reqSetNiceness.get())) {
         d->reqSetNiceness->take().and_then([&](const auto &request) {
@@ -418,6 +452,8 @@ void SyntalosLink::processNotification(const iox::popo::NotificationInfo *notifi
                     std::cerr << "Could not allocate response! Error: " << error << std::endl;
                 });
         });
+
+        return;
     }
 
     // SetMaxRealtimePriority
@@ -435,6 +471,8 @@ void SyntalosLink::processNotification(const iox::popo::NotificationInfo *notifi
                     std::cerr << "Could not allocate response! Error: " << error << std::endl;
                 });
         });
+
+        return;
     }
 
     // SetCPUAffinity
@@ -456,6 +494,8 @@ void SyntalosLink::processNotification(const iox::popo::NotificationInfo *notifi
                     std::cerr << "Could not allocate response! Error: " << error << std::endl;
                 });
         });
+
+        return;
     }
 
     // Load script
@@ -486,6 +526,8 @@ void SyntalosLink::processNotification(const iox::popo::NotificationInfo *notifi
         // load script after sending a reply if we had a valid request
         if (d->loadScriptCb && !scriptReqData.script.isEmpty())
             d->loadScriptCb(scriptReqData.script, scriptReqData.workingDir);
+
+        return;
     }
 
     // Have the master set all preset ports
@@ -538,6 +580,8 @@ void SyntalosLink::processNotification(const iox::popo::NotificationInfo *notifi
 
             d->reqSetPortsPreset->releaseRequest(requestPayload);
         });
+
+        return;
     }
 
     // ConnectInputPort
@@ -577,6 +621,8 @@ void SyntalosLink::processNotification(const iox::popo::NotificationInfo *notifi
                     std::cerr << "Could not allocate response! Error: " << error << std::endl;
                 });
         });
+
+        return;
     }
 
     // Update metadata
@@ -610,6 +656,8 @@ void SyntalosLink::processNotification(const iox::popo::NotificationInfo *notifi
 
             d->reqUpdateIPortMetadata->releaseRequest(requestPayload);
         });
+
+        return;
     }
 
     // Prepare start
@@ -645,6 +693,8 @@ void SyntalosLink::processNotification(const iox::popo::NotificationInfo *notifi
             if (d->prepareStartCb)
                 d->prepareStartCb(prepareSettings);
         }
+
+        return;
     }
 
     // Handle start request
@@ -675,6 +725,8 @@ void SyntalosLink::processNotification(const iox::popo::NotificationInfo *notifi
             if (d->startCb)
                 d->startCb();
         }
+
+        return;
     }
 
     // Handle stop request
@@ -694,6 +746,8 @@ void SyntalosLink::processNotification(const iox::popo::NotificationInfo *notifi
                     std::cerr << "Could not allocate response! Error: " << error << std::endl;
                 });
         });
+
+        return;
     }
 
     // Handle shutdown
@@ -725,30 +779,71 @@ void SyntalosLink::processNotification(const iox::popo::NotificationInfo *notifi
             else
                 qApp->quit();
         }
+
+        return;
     }
 
-    // Data received
-    for (auto &iport : d->inPortInfo) {
-        if (!iport->d->connected)
-            continue;
+    // Handle show display request
+    if (notification->doesOriginateFrom(d->reqShowDisplay.get())) {
+        bool runShowDisplay = false;
+        d->reqShowDisplay->take().and_then([&](const auto &request) {
+            d->reqShowDisplay->loan(request)
+                .and_then([&](auto &response) {
+                    runShowDisplay = true;
 
-        iport->d->ioxSub->take()
-            .and_then([&](const void *payload) {
-                const auto chunkHeader = iox::mepoo::ChunkHeader::fromUserPayload(payload);
-                const auto size = chunkHeader->usedSizeOfChunk();
+                    response->success = true;
+                    response.send().or_else([&](auto &error) {
+                        std::cerr << "Could not respond to ShowDisplay! Error: " << error << std::endl;
+                    });
+                })
+                .or_else([&](auto &error) {
+                    std::cerr << "Could not allocate response! Error: " << error << std::endl;
+                });
+        });
 
-                // call raw data received callback
-                if (iport->d->newDataCb)
-                    iport->d->newDataCb(payload, size);
+        if (runShowDisplay) {
+            if (d->showDisplayCb)
+                d->showDisplayCb();
+        }
 
-                // release memory chunk
-                iport->d->ioxSub->release(payload);
-            })
-            .or_else([](auto &result) {
-                if (result != iox::popo::ChunkReceiveResult::NO_CHUNK_AVAILABLE) {
-                    qWarning().noquote() << "Failed to receive new input port info!";
-                }
-            });
+        return;
+    }
+
+    // Handle show settings request
+    if (notification->doesOriginateFrom(d->reqShowSettings.get())) {
+        QByteArray settingsData;
+        bool runShowSettings = false;
+
+        d->reqShowSettings->take().and_then([&](auto &requestPayload) {
+            const auto chunkHeader = iox::mepoo::ChunkHeader::fromUserPayload(requestPayload);
+            const auto size = chunkHeader->usedSizeOfChunk();
+
+            const auto req = ShowSettingsRequest::fromMemory(requestPayload, size);
+            settingsData = req.settings;
+            runShowSettings = true;
+
+            auto requestHeader = iox::popo::RequestHeader::fromPayload(requestPayload);
+            d->reqShowSettings->loan(requestHeader, sizeof(DoneResponse), alignof(DoneResponse))
+                .and_then([&](auto &responsePayload) {
+                    auto response = static_cast<DoneResponse *>(responsePayload);
+                    response->success = true;
+                    d->reqShowSettings->send(response).or_else([&](auto &error) {
+                        std::cout << "Could not send ShowSettings response! Error: " << error << std::endl;
+                    });
+                })
+                .or_else([&](auto &error) {
+                    std::cout << "Could not allocate ShowSettings response! Error: " << error << std::endl;
+                });
+
+            d->reqShowSettings->releaseRequest(requestPayload);
+        });
+
+        if (runShowSettings) {
+            if (d->showSettingsCb)
+                d->showSettingsCb(settingsData);
+        }
+
+        return;
     }
 }
 
@@ -808,6 +903,32 @@ void SyntalosLink::setShutdownCallback(ShutdownFn callback)
 SyncTimer *SyntalosLink::timer() const
 {
     return d->syTimer;
+}
+
+void SyntalosLink::setSettingsData(const QByteArray &data)
+{
+    SettingsChangeEvent scEv(data);
+
+    const auto scEvData = scEv.toBytes();
+    d->pubSettingsChange->loan(scEvData.size())
+        .and_then([&](auto &payload) {
+            // we copy twice here - but this is a low-volume event, so it should be fine
+            memcpy(payload, scEvData.data(), scEvData.size());
+            d->pubSettingsChange->publish(payload);
+        })
+        .or_else([&](auto &error) {
+            std::cerr << "Unable to loan sample to announce settings change. Error: " << error << std::endl;
+        });
+}
+
+void SyntalosLink::setShowSettingsCallback(ShowSettingsFn callback)
+{
+    d->showSettingsCb = std::move(callback);
+}
+
+void SyntalosLink::setShowDisplayCallback(ShowDisplayFn callback)
+{
+    d->showDisplayCb = std::move(callback);
 }
 
 std::vector<std::shared_ptr<InputPortInfo>> SyntalosLink::inputPorts() const

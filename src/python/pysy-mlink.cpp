@@ -120,9 +120,34 @@ static void schedule_delayed_call(int delay_msec, const std::function<void()> &f
 {
     if (delay_msec < 0)
         throw SyntalosPyError("Delay must be positive or zero.");
-    QTimer::singleShot(delay_msec, [=]() {
+    QTimer::singleShot(delay_msec, [fn]() {
+        py::gil_scoped_acquire acquire;
         fn();
     });
+}
+
+static void call_on_show_settings(const ShowSettingsFn &fn)
+{
+    auto pb = PyBridge::instance();
+    pb->link()->setShowSettingsCallback([fn](const QByteArray &settings) {
+        py::gil_scoped_acquire acquire;
+        fn(settings);
+    });
+}
+
+static void call_on_show_display(const ShowDisplayFn &fn)
+{
+    auto pb = PyBridge::instance();
+    pb->link()->setShowDisplayCallback([fn]() {
+        py::gil_scoped_acquire acquire;
+        fn();
+    });
+}
+
+static void save_settings(const QByteArray &settings_data)
+{
+    auto pb = PyBridge::instance();
+    pb->link()->setSettingsData(settings_data);
 }
 
 struct InputPort {
@@ -591,6 +616,22 @@ PYBIND11_MODULE(syntalos_mlink, m)
 
     m.def("get_input_port", get_input_port, py::arg("id"), "Get reference to input port with the give ID.");
     m.def("get_output_port", get_output_port, py::arg("id"), "Get reference to output port with the give ID.");
+
+    m.def(
+        "call_on_show_settings",
+        &call_on_show_settings,
+        py::arg("callable_fn"),
+        "Call the given function when the module's settings dialog should be shown.");
+    m.def(
+        "call_on_show_display",
+        &call_on_show_display,
+        py::arg("callable_fn"),
+        "Call the given function when the module's display window should be shown.");
+    m.def(
+        "save_settings",
+        &save_settings,
+        py::arg("settings_data"),
+        "Send module settings data to Syntalos for safekeeping.");
 
     // Firmata helpers
     m.def(

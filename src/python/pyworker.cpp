@@ -38,6 +38,7 @@ Q_LOGGING_CATEGORY(logPyWorker, "pyworker")
 PyWorker::PyWorker(SyntalosLink *slink, QObject *parent)
     : QObject(parent),
       m_link(slink),
+      m_pyMain(nullptr),
       m_running(false)
 {
     // set up callbacks
@@ -57,11 +58,14 @@ PyWorker::PyWorker(SyntalosLink *slink, QObject *parent)
         shutdown();
     });
 
+    // signal that we are ready and done with initialization
+    m_link->setState(ModuleState::IDLE);
+
     // process incoming data, so we can react to incoming requests
     m_evTimer = new QTimer(this);
     m_evTimer->setInterval(0);
     connect(m_evTimer, &QTimer::timeout, this, [this]() {
-        m_link->awaitData(500 * 1000);
+        m_link->awaitData(125 * 1000);
     });
     m_evTimer->start();
 
@@ -119,6 +123,16 @@ bool PyWorker::loadPythonScript(const QString &script, const QString &wdir)
 {
     if (!wdir.isEmpty())
         QDir::setCurrent(wdir);
+
+    // cleanup from any previous run
+    if (m_pyMain != nullptr) {
+        Py_XDECREF(m_pyMain);
+        m_pyMain = nullptr;
+    }
+    if (m_pyInitialized) {
+        Py_Finalize();
+        m_pyInitialized = false;
+    }
 
     PyConfig config;
     PyConfig_InitPythonConfig(&config);
@@ -187,51 +201,6 @@ bool PyWorker::loadPythonScript(const QString &script, const QString &wdir)
         qCDebug(logPyWorker).noquote() << "Failed to load Python script data.";
         return false;
     }
-}
-
-QByteArray PyWorker::changeSettings(const QByteArray &oldSettings)
-{
-    if (!m_pyInitialized)
-        return oldSettings;
-
-    // check if we even have a function to change settings
-    if (!PyObject_HasAttrString(m_pyMain, "change_settings"))
-        return oldSettings;
-
-    m_running = true;
-
-    auto pFnSettings = PyObject_GetAttrString(m_pyMain, "change_settings");
-    if (!pFnSettings || !PyCallable_Check(pFnSettings)) {
-        // change_settings was not a callable, we ignore this
-        Py_XDECREF(pFnSettings);
-        return oldSettings;
-    }
-
-    auto pyOldSettings = PyBytes_FromStringAndSize(oldSettings.data(), oldSettings.size());
-    QByteArray settings = oldSettings;
-    const auto pyRes = PyObject_CallFunctionObjArgs(pFnSettings, pyOldSettings, nullptr);
-    if (pyRes == nullptr) {
-        if (PyErr_Occurred()) {
-            emitPyError();
-        } else {
-            raiseError(QStringLiteral("Did not receive settings output from Python script!"));
-        }
-    } else {
-        if (pyRes != Py_None && !PyBytes_Check(pyRes)) {
-            raiseError(QStringLiteral("Did not receive settings output from Python script!"));
-        } else {
-            char *bytes;
-            ssize_t bytes_len;
-            PyBytes_AsStringAndSize(pyRes, &bytes, &bytes_len);
-            settings = QByteArray::fromRawData(bytes, bytes_len);
-        }
-
-        Py_XDECREF(pyRes);
-    }
-
-    Py_XDECREF(pFnSettings);
-    Py_XDECREF(pyOldSettings);
-    return settings;
 }
 
 bool PyWorker::prepareStart(const QByteArray &settings)

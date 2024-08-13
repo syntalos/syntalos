@@ -377,4 +377,77 @@ struct ShutdownRequest {
 };
 static iox::capro::IdString_t SHUTDOWN_CALL_ID = "Shutdown";
 
+/**
+ * Event from the module to indicate a settings change. Syntalos will store the new settings.
+ */
+struct SettingsChangeEvent {
+    QByteArray settings;
+
+    SettingsChangeEvent() = default;
+    explicit SettingsChangeEvent(QByteArray settings)
+        : settings(std::move(settings))
+    {
+    }
+
+    QByteArray toBytes() const
+    {
+        QByteArray bytes;
+        QDataStream stream(&bytes, QIODevice::WriteOnly);
+
+        stream << settings;
+
+        return bytes;
+    }
+
+    static SettingsChangeEvent fromMemory(const void *memory, size_t size)
+    {
+        SettingsChangeEvent ev;
+
+        QByteArray block(reinterpret_cast<const char *>(memory), size);
+        QDataStream stream(block);
+
+        stream >> ev.settings;
+
+        return ev;
+    }
+};
+static iox::capro::IdString_t SETTINGS_CHANGE_CHANNEL_ID = "SettingsChange";
+
+/**
+ * Request to change show the GUI dialog to change settings.
+ */
+struct ShowSettingsRequest {
+    QByteArray settings;
+
+    QByteArray toBytes() const
+    {
+        QByteArray bytes;
+        QDataStream stream(&bytes, QIODevice::WriteOnly);
+
+        stream << settings;
+
+        return bytes;
+    }
+
+    static ShowSettingsRequest fromMemory(const void *memory, size_t size)
+    {
+        ShowSettingsRequest req;
+
+        QByteArray block(reinterpret_cast<const char *>(memory), size);
+        QDataStream stream(block);
+
+        stream >> req.settings;
+
+        return req;
+    }
+};
+static iox::capro::IdString_t SHOW_SETTINGS_CALL_ID = "ShowSettings";
+
+/**
+ * Request to show the display window(s) of the module.
+ */
+struct ShowDisplayRequest {
+};
+static iox::capro::IdString_t SHOW_DISPLAY_CALL_ID = "ShowDisplay";
+
 } // namespace Syntalos

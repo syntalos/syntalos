@@ -38,7 +38,7 @@ class PythonModule : public MLinkModule
 public:
     explicit PythonModule(QObject *parent = nullptr)
         : MLinkModule(parent),
-          m_settingsOpened(false)
+          m_features(ModuleFeature::NONE)
     {
         // we use the generic Python OOP worker process for this
         setModuleBinary(findSyntalosPyWorkerBinary());
@@ -54,7 +54,12 @@ public:
 
     ModuleFeatures features() const override
     {
-        return ModuleFeature::SHOW_SETTINGS;
+        return m_features;
+    }
+
+    void setFeatures(ModuleFeatures features)
+    {
+        m_features = features;
     }
 
     void setupPorts(const QVariantList &varInPorts, const QVariantList &varOutPorts)
@@ -62,7 +67,7 @@ public:
         for (const auto &pv : varInPorts) {
             const auto po = pv.toHash();
             registerInputPortByTypeId(
-                QMetaType::type(qPrintable(po.value("data_type").toString())),
+                BaseDataType::typeIdFromString(po.value("data_type").toString()),
                 po.value("id").toString(),
                 po.value("title").toString());
         }
@@ -70,7 +75,7 @@ public:
         for (const auto &pv : varOutPorts) {
             const auto po = pv.toHash();
             registerOutputPortByTypeId(
-                QMetaType::type(qPrintable(po.value("data_type").toString())),
+                BaseDataType::typeIdFromString(po.value("data_type").toString()),
                 po.value("id").toString(),
                 po.value("title").toString());
         }
@@ -199,6 +204,29 @@ public:
         return false;
     }
 
+    bool ensurePythonCodeRunning()
+    {
+        if (isProcessRunning())
+            return true;
+
+        setPythonVirtualEnv(virtualEnvDir());
+        setOutputCaptured(true);
+        if (!runProcess())
+            return false;
+
+        // run script immediately
+        if (!setScriptFromFile(m_mainPyFname, m_pyModDir)) {
+            raiseError(QStringLiteral("Unable to open Python script file: %1").arg(m_mainPyFname));
+            return false;
+        }
+        if (!sendPortInformation())
+            return false;
+        if (!loadCurrentScript())
+            return false;
+
+        return true;
+    }
+
     bool initialize() override
     {
         if (moduleBinary().isEmpty()) {
@@ -231,6 +259,10 @@ public:
             }
         }
 
+        // native Python modules have their main function launched immediately
+        if (!ensurePythonCodeRunning())
+            return false;
+
         setInitialized();
         return true;
     }
@@ -246,25 +278,23 @@ public:
 
         MLinkModule::prepare(testSubject);
 
-        m_settingsOpened = false;
         return true;
     }
 
     void showSettingsUi() override
     {
-        if (m_running) {
-            QMessageBox::information(
-                nullptr,
-                QStringLiteral("Settings unavailable"),
-                QStringLiteral("Settings can not be shown while the module is running in an experiment."));
+        if (!ensurePythonCodeRunning())
             return;
-        }
 
-        setOutputCaptured(false);
-        setPythonVirtualEnv(virtualEnvDir());
-        setScriptFromFile(m_mainPyFname, m_pyModDir);
+        MLinkModule::showSettingsUi();
+    }
 
-        // TODO
+    void showDisplayUi() override
+    {
+        if (!ensurePythonCodeRunning())
+            return;
+
+        MLinkModule::showDisplayUi();
     }
 
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &extraData) override
@@ -291,8 +321,7 @@ private:
     QString m_mainPyFname;
     QString m_pyModDir;
     bool m_useVEnv;
-
-    bool m_settingsOpened;
+    ModuleFeatures m_features;
 };
 
 class PyModuleInfo : public ModuleInfo
@@ -338,6 +367,7 @@ public:
         auto mod = new PythonModule(parent);
         mod->setPythonInfo(m_pyFname, rootDir(), m_useVEnv);
         mod->setupPorts(m_portDefInput, m_portDefOutput);
+        mod->setFeatures(m_features);
         return mod;
     }
 
@@ -345,10 +375,17 @@ public:
     {
         m_pyFname = pyFname;
     }
+
+    void setFeatures(ModuleFeatures features)
+    {
+        m_features = features;
+    }
+
     void setUseVEnv(bool enabled)
     {
         m_useVEnv = enabled;
     }
+
     void setPortDef(const QVariantList &defInput, const QVariantList &defOutput)
     {
         m_portDefInput = defInput;
@@ -361,6 +398,7 @@ private:
     QString m_description;
     QIcon m_icon;
     ModuleCategories m_categories;
+    ModuleFeatures m_features;
 
     QString m_pyFname;
     bool m_useVEnv;
@@ -378,6 +416,7 @@ ModuleInfo *loadPythonModuleInfo(const QString &modId, const QString &modDir, co
     const auto iconName = modDef.value("icon").toString();
     const auto categories = moduleCategoriesFromString(modDef.value("categories", QString()).toString());
     const auto useVEnv = modDef.value("use_venv", false).toBool();
+    const auto featuresList = modDef.value("features", QStringList()).toStringList();
 
     if (name.isEmpty())
         throw std::runtime_error("Required 'name' key not found in module metadata.");
@@ -398,10 +437,19 @@ ModuleInfo *loadPythonModuleInfo(const QString &modId, const QString &modDir, co
         throw std::runtime_error(
             qPrintable(QStringLiteral("Main entrypoint Python file %1 does not exist").arg(pyFile)));
 
+    ModuleFeatures features;
+    for (const auto &f : featuresList) {
+        if (f == QStringLiteral("show-settings"))
+            features |= ModuleFeature::SHOW_SETTINGS;
+        else if (f == QStringLiteral("show-display"))
+            features |= ModuleFeature::SHOW_DISPLAY;
+    }
+
     modInfo = new PyModuleInfo(modId, name, desc, icon, categories);
     modInfo->setRootDir(modDir);
     modInfo->setMainPyScriptFname(pyFile);
     modInfo->setUseVEnv(useVEnv);
+    modInfo->setFeatures(features);
 
     const auto portsDef = modData.value("ports").toHash();
     if (!portsDef.isEmpty())

@@ -20,6 +20,7 @@
 #pragma once
 
 #include <pybind11/pybind11.h>
+#include <pybind11/pytypes.h>
 #include <QSize>
 #include "datactl/datatypes.h"
 
@@ -153,6 +154,33 @@ public:
             }
         }
         return dict.release();
+    }
+};
+
+/**
+ * QByteArray conversion
+ */
+template<>
+struct type_caster<QByteArray> {
+public:
+    // Declare the type name
+    PYBIND11_TYPE_CASTER(QByteArray, _("QByteArray"));
+
+    bool load(handle src, bool)
+    {
+        if (!PyBytes_Check(src.ptr()))
+            return false;
+
+        Py_ssize_t length = PyBytes_Size(src.ptr());
+        const char *data = PyBytes_AsString(src.ptr());
+        value = QByteArray(data, length);
+
+        return true;
+    }
+
+    static handle cast(const QByteArray &src, return_value_policy /* policy */, handle /* parent */)
+    {
+        return pybind11::bytes(src.constData(), src.size()).release();
     }
 };
 

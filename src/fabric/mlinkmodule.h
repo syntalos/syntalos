@@ -31,6 +31,7 @@ namespace Syntalos
 Q_DECLARE_LOGGING_CATEGORY(logMLinkMod)
 
 struct ErrorEvent;
+struct StateChangeEvent;
 } // namespace Syntalos
 
 namespace iox
@@ -48,6 +49,9 @@ template<typename T, typename H>
 class Subscriber;
 } // namespace popo
 } // namespace iox
+
+namespace Syntalos
+{
 
 /**
  * @brief Master link for out-of-process modules
@@ -78,10 +82,15 @@ public:
     QByteArray settingsData() const;
     void setSettingsData(const QByteArray &data);
 
+    virtual void showDisplayUi() override;
+    virtual void showSettingsUi() override;
+
     void terminateProcess();
     bool runProcess();
-
     bool isProcessRunning() const;
+
+    bool loadCurrentScript();
+    bool sendPortInformation();
 
     QString readProcessOutput();
 
@@ -112,8 +121,12 @@ private:
     static void onErrorReceivedCb(
         iox::popo::Subscriber<ErrorEvent, iox::mepoo::NoUserHeader> *subscriber,
         MLinkModule *self);
+    static void onStateChangeReceivedCb(
+        iox::popo::Subscriber<StateChangeEvent, iox::mepoo::NoUserHeader> *subscriber,
+        MLinkModule *self);
     static void onPortChangedCb(iox::popo::UntypedSubscriber *subscriber, MLinkModule *self);
     static void onOutputDataReceivedCb(iox::popo::UntypedSubscriber *subscriber, VariantDataStream *stream);
+    static void onSettingsChangedCb(iox::popo::UntypedSubscriber *subscriber, MLinkModule *self);
 
     void registerOutPortForwarders();
     void disconnectOutPortForwarders();
@@ -124,3 +137,5 @@ private:
     QScopedPointer<Private> d;
     friend class Private;
 };
+
+} // namespace Syntalos
