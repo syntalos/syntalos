@@ -469,28 +469,33 @@ void PyWorker::makeDocFileAndQuit(const QString &fname)
     // make sure we find the syntalos_mlink module even if it isn't installed yet
     ensureModuleImportPaths();
 
-    py::exec(qPrintable(
-        QStringLiteral("import os\n"
-                       "import tempfile\n"
-                       "import pdoc\n"
-                       "import syntalos_mlink\n"
-                       "\n"
-                       "jinjaTmpl = ")
-        + jinjaTemplatePyLiteral
-        + QStringLiteral("\n"
-                         "\n"
-                         "doc = pdoc.doc.Module(syntalos_mlink)\n"
-                         "with tempfile.TemporaryDirectory() as tmp_dir:\n"
-                         "    with open(os.path.join(tmp_dir, 'frame.html.jinja2'), 'w') as f:\n"
-                         "        f.write(jinjaTmpl)\n"
-                         "    pdoc.render.configure(template_directory=tmp_dir)\n"
-                         "    html_data = pdoc.render.html_module(module=doc, all_modules={'syntalos_mlink': doc})\n"
-                         "    with open('%1', 'w') as f:\n"
-                         "        for line in html_data.split('\\n'):\n"
-                         "            f.write(line.strip() + '\\n')\n"
-                         "        f.write('\\n')\n"
-                         "\n")
-              .arg(QString(fname).replace("'", "\\'"))));
+    try {
+        py::exec(qPrintable(
+            QStringLiteral("import os\n"
+                           "import tempfile\n"
+                           "import pdoc\n"
+                           "import syntalos_mlink\n"
+                           "\n"
+                           "jinjaTmpl = ")
+            + jinjaTemplatePyLiteral
+            + QStringLiteral(
+                  "\n"
+                  "\n"
+                  "doc = pdoc.doc.Module(syntalos_mlink)\n"
+                  "with tempfile.TemporaryDirectory() as tmp_dir:\n"
+                  "    with open(os.path.join(tmp_dir, 'frame.html.jinja2'), 'w') as f:\n"
+                  "        f.write(jinjaTmpl)\n"
+                  "    pdoc.render.configure(template_directory=tmp_dir)\n"
+                  "    html_data = pdoc.render.html_module(module=doc, all_modules={'syntalos_mlink': doc})\n"
+                  "    with open('%1', 'w') as f:\n"
+                  "        for line in html_data.split('\\n'):\n"
+                  "            f.write(line.strip() + '\\n')\n"
+                  "        f.write('\\n')\n"
+                  "\n")
+                  .arg(QString(fname).replace("'", "\\'"))));
+    } catch (py::error_already_set &e) {
+        std::cerr << "Failed to generate syntalos_mlink Python docs: " << e.what() << std::endl;
+    }
 
     // documentation generated successfully, we can quit now
     exit(0);
