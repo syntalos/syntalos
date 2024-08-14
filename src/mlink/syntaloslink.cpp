@@ -360,6 +360,11 @@ SyntalosLink::~SyntalosLink()
     delete d->syTimer;
 }
 
+QString SyntalosLink::instanceId() const
+{
+    return QString::fromUtf8(d->modId.c_str());
+}
+
 void SyntalosLink::raiseError(const QString &title, const QString &message)
 {
     d->pubError->loan().and_then([&](auto &error) {
@@ -708,6 +713,8 @@ void SyntalosLink::processNotification(const iox::popo::NotificationInfo *notifi
                     // via the error channel.
 
                     const auto timePoint = symaster_timepoint(microseconds_t(request->startTimestampUsec));
+                    delete d->syTimer;
+                    d->syTimer = new SyncTimer;
                     d->syTimer->startAt(timePoint);
                     runStartRequested = true;
 

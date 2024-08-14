@@ -39,6 +39,10 @@ int main(int argc, char *argv[])
         return a.exec();
     }
 
+    // never auto-quit when last window is closed, as the hosted script
+    // may want to show transient Qt windows
+    a.setQuitOnLastWindowClosed(false);
+
     // Initialize link to Syntalos. There can only be one.
     auto slink = initSyntalosModuleLink();
     auto worker = std::make_unique<PyWorker>(slink.get(), &a);
@@ -46,6 +50,9 @@ int main(int argc, char *argv[])
 
     // ensure that this process dies with its parent
     prctl(PR_SET_PDEATHSIG, SIGKILL);
+
+    // set the process name to the instance ID, to simplify identification in process trees
+    prctl(PR_SET_NAME, qPrintable(slink->instanceId()), 0, 0, 0);
 
     return a.exec();
 }

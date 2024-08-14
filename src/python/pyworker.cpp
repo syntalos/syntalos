@@ -24,7 +24,7 @@
 #include <QDir>
 #include <QCoreApplication>
 #include <iostream>
-#include <stdlib.h>
+#include <pybind11/embed.h>
 
 #include "cpuaffinity.h"
 #include "rtkit.h"
@@ -38,7 +38,7 @@ Q_LOGGING_CATEGORY(logPyWorker, "pyworker")
 PyWorker::PyWorker(SyntalosLink *slink, QObject *parent)
     : QObject(parent),
       m_link(slink),
-      m_pyMain(nullptr),
+      m_scriptLoaded(false),
       m_running(false)
 {
     // set up callbacks
@@ -58,6 +58,9 @@ PyWorker::PyWorker(SyntalosLink *slink, QObject *parent)
         shutdown();
     });
 
+    // set up embedded Python interpreter
+    initPythonInterpreter();
+
     // signal that we are ready and done with initialization
     m_link->setState(ModuleState::IDLE);
 
@@ -74,10 +77,95 @@ PyWorker::PyWorker(SyntalosLink *slink, QObject *parent)
     setenv("PYTHONUNBUFFERED", "1", 1);
 }
 
+void PyWorker::resetPyCallbacks()
+{
+    m_link->setShowDisplayCallback(nullptr);
+    m_link->setShowSettingsCallback(nullptr);
+
+    for (const auto &iport : m_link->inputPorts())
+        iport->setNewDataRawCallback(nullptr);
+}
+
 PyWorker::~PyWorker()
 {
-    if (m_pyInitialized)
-        Py_Finalize();
+    // Reset any callback that calls into the current Python script directly
+    // before tearing down the interpreter.
+    resetPyCallbacks();
+
+    py::finalize_interpreter();
+}
+
+static void ensureModuleImportPaths()
+{
+    py::exec("import sys");
+    py::exec(QStringLiteral("sys.path.insert(0, '%1')")
+                 .arg(QStringLiteral(SY_PYTHON_MOD_DIR).replace("'", "\\'"))
+                 .toStdString());
+    py::exec(
+        QStringLiteral("sys.path.insert(0, '%1')").arg(qApp->applicationDirPath().replace("'", "\\'")).toStdString());
+}
+
+bool PyWorker::initPythonInterpreter()
+{
+    m_scriptLoaded = false;
+
+    // Reset any callback that calls into the current Python script directly
+    // before tearing down the interpreter.
+    resetPyCallbacks();
+
+    if (Py_IsInitialized())
+        py::finalize_interpreter();
+
+    PyConfig config;
+    PyConfig_InitPythonConfig(&config);
+    auto status = PyConfig_SetString(
+        &config, &config.program_name, QCoreApplication::arguments()[0].toStdWString().c_str());
+    if (PyStatus_Exception(status)) {
+        QTimer::singleShot(0, this, [this, status]() {
+            raiseError(QStringLiteral("Unable to set Python program name: %1").arg(status.err_msg));
+        });
+
+        PyConfig_Clear(&config);
+        return false;
+    }
+
+    // HACK: make Python think *we* are the Python interpreter, so it finds
+    // all modules correctly when we are in a virtual environment.
+    const auto venvDir = QString::fromUtf8(qgetenv("VIRTUAL_ENV"));
+    if (!venvDir.isEmpty()) {
+        qCDebug(logPyWorker).noquote() << "Using virtual environment:" << venvDir;
+        status = PyConfig_SetString(
+            &config, &config.program_name, QDir(venvDir).filePath("bin/python").toStdWString().c_str());
+        if (PyStatus_Exception(status)) {
+            QTimer::singleShot(0, this, [this, status]() {
+                raiseError(QStringLiteral("Unable to set Python program name: %1").arg(status.err_msg));
+            });
+
+            PyConfig_Clear(&config);
+            return false;
+        }
+    }
+
+    py::initialize_interpreter(&config);
+
+    // make sure we find the syntalos_mlink module even if it isn't installed yet
+    try {
+        ensureModuleImportPaths();
+    } catch (py::error_already_set &e) {
+        raiseError(QStringLiteral("%1").arg(e.what()));
+        PyConfig_Clear(&config);
+        return false;
+    }
+
+    // pass our Syntalos link to the Python code
+    {
+        auto mlink_mod = py::module_::import("syntalos_mlink");
+        auto pySLink = py::cast(m_link, py::return_value_policy::reference);
+        mlink_mod.attr("init_link")(pySLink);
+    }
+
+    PyConfig_Clear(&config);
+    return true;
 }
 
 ModuleState PyWorker::state() const
@@ -106,17 +194,9 @@ void PyWorker::raiseError(const QString &message)
     std::cerr << "PyWorker-ERROR: " << message.toStdString() << std::endl;
     m_link->raiseError(message);
 
-    stop();
+    if (m_running)
+        stop();
     shutdown();
-}
-
-static void ensureModuleImportPaths()
-{
-    PyRun_SimpleString("import sys");
-    PyRun_SimpleString(qPrintable(
-        QStringLiteral("sys.path.insert(0, '%1')").arg(QStringLiteral(SY_PYTHON_MOD_DIR).replace("'", "\\'"))));
-    PyRun_SimpleString(
-        qPrintable(QStringLiteral("sys.path.insert(0, '%1')").arg(qApp->applicationDirPath().replace("'", "\\'"))));
 }
 
 bool PyWorker::loadPythonScript(const QString &script, const QString &wdir)
@@ -124,94 +204,78 @@ bool PyWorker::loadPythonScript(const QString &script, const QString &wdir)
     if (!wdir.isEmpty())
         QDir::setCurrent(wdir);
 
-    // cleanup from any previous run
-    if (m_pyMain != nullptr) {
-        Py_XDECREF(m_pyMain);
-        m_pyMain = nullptr;
-    }
-    if (m_pyInitialized) {
-        Py_Finalize();
-        m_pyInitialized = false;
-    }
+    // create a clean slate to load the new script
+    py::globals().clear();
 
-    PyConfig config;
-    PyConfig_InitPythonConfig(&config);
-
-    auto status = PyConfig_SetString(
-        &config, &config.program_name, QCoreApplication::arguments()[0].toStdWString().c_str());
-    if (PyStatus_Exception(status)) {
-        raiseError(QStringLiteral("Unable to set Python program name: %1").arg(status.err_msg));
-        PyConfig_Clear(&config);
+    try {
+        // execute the script
+        py::exec(script.toStdString(), py::globals());
+    } catch (py::error_already_set &e) {
+        raiseError(QStringLiteral("%1").arg(e.what()));
         return false;
     }
 
-    // HACK: make Python think *we* are the Python interpreter, so it finds
-    // all modules correctly when we are in a virtual environment.
-    const auto venvDir = QString::fromUtf8(qgetenv("VIRTUAL_ENV"));
-    if (!venvDir.isEmpty()) {
-        qCDebug(logPyWorker).noquote() << "Using virtual environment:" << venvDir;
-        status = PyConfig_SetString(
-            &config, &config.program_name, QDir(venvDir).filePath("bin/python").toStdWString().c_str());
-        if (PyStatus_Exception(status)) {
-            raiseError(QStringLiteral("Unable to set Python program name: %1").arg(status.err_msg));
-            PyConfig_Clear(&config);
-            return false;
-        }
-    }
-
-    // initialize Python in this process
-    status = Py_InitializeFromConfig(&config);
-    if (PyStatus_Exception(status))
-        Py_ExitStatusException(status);
-    m_pyInitialized = true;
-    PyConfig_Clear(&config);
-
-    // make sure we find the syntalos_mlink module even if it isn't installed yet
-    ensureModuleImportPaths();
-
-    // pass our Syntalos link to the Python code
-    {
-        auto mlink_mod = py::module_::import("syntalos_mlink");
-        auto pySLink = py::cast(m_link, py::return_value_policy::reference);
-        mlink_mod.attr("init_link")(pySLink);
-    }
-
-    // run main
-    PyObject *mainModule = PyImport_AddModule("__main__");
-    if (mainModule == nullptr) {
-        raiseError("Can not execute Python code: No __main__ module.");
-
-        Py_Finalize();
-        return false;
-    }
-    PyObject *mainDict = PyModule_GetDict(mainModule);
-
-    // load script
-    auto res = PyRun_String(qPrintable(script), Py_file_input, mainDict, mainDict);
-    if (res != nullptr) {
-        // everything is good, we can run some Python functions
-        // explicitly now
-        m_pyMain = PyImport_ImportModule("__main__");
-        Py_XDECREF(res);
-        qCDebug(logPyWorker).noquote() << "Script loaded.";
-        return true;
-    } else {
-        if (PyErr_Occurred())
-            emitPyError();
-        qCDebug(logPyWorker).noquote() << "Failed to load Python script data.";
-        return false;
-    }
+    m_scriptLoaded = true;
+    return true;
 }
 
 bool PyWorker::prepareStart(const QByteArray &settings)
 {
     m_settings = settings;
-    QTimer::singleShot(0, this, &PyWorker::prepareAndRun);
-    return m_pyInitialized;
+
+    if (!m_scriptLoaded) {
+        raiseError(QStringLiteral("No Python script loaded."));
+        return false;
+    }
+
+    bool success = true;
+    try {
+        // pass selected settings to the current run
+        if (py::globals().contains("set_settings")) {
+            auto pyFnSetSettings = py::globals()["set_settings"];
+            if (!pyFnSetSettings.is_none())
+                pyFnSetSettings(py::bytes(settings));
+        }
+
+        // run prepare function if it exists for initial setup
+        if (py::globals().contains("prepare")) {
+            auto pyFnPrepare = py::globals()["prepare"];
+            if (!pyFnPrepare.is_none()) {
+                auto res = pyFnPrepare();
+                success = res.cast<bool>();
+            }
+        }
+
+    } catch (py::error_already_set &e) {
+        raiseError(QStringLiteral("%1").arg(e.what()));
+        return false;
+    }
+
+    if (!success)
+        return false;
+
+    // signal that we are ready now, preparations are done
+    m_link->setState(ModuleState::READY);
+
+    // get the main processing loop of this run ready and have it wait for the start signal
+    QTimer::singleShot(0, this, &PyWorker::executePythonRunFn);
+
+    return true;
 }
 
 void PyWorker::start()
 {
+    try {
+        if (py::globals().contains("start")) {
+            auto pyFnStart = py::globals()["start"];
+            if (!pyFnStart.is_none())
+                pyFnStart();
+        }
+    } catch (py::error_already_set &e) {
+        raiseError(QStringLiteral("%1").arg(e.what()));
+        return;
+    }
+
     m_running = true;
 }
 
@@ -219,6 +283,18 @@ bool PyWorker::stop()
 {
     m_running = false;
     QCoreApplication::processEvents();
+
+    try {
+        if (py::globals().contains("stop")) {
+            auto pyFnStop = py::globals()["stop"];
+            if (!pyFnStop.is_none())
+                pyFnStop();
+        }
+    } catch (py::error_already_set &e) {
+        raiseError(QStringLiteral("%1").arg(e.what()));
+        return false;
+    }
+
     return true;
 }
 
@@ -307,153 +383,49 @@ void PyWorker::emitPyError()
     Py_XDECREF(excTraceback);
     Py_XDECREF(excType);
     Py_XDECREF(excValue);
-
-    if (m_pyInitialized) {
-        Py_Finalize();
-        m_pyInitialized = false;
-    }
 }
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wold-style-cast"
-void PyWorker::prepareAndRun()
+void PyWorker::executePythonRunFn()
 {
     // don't attempt to run if we have already failed
     if (m_link->state() == ModuleState::ERROR)
         return;
 
-    if (!m_pyInitialized) {
-        raiseError(QStringLiteral("Can not run module: Python was not initialized."));
-        return;
+    // find the "run" function - if it does not exists, we will create
+    // our own run function that does only listen for messages.
+    py::object pyFnRun = py::none();
+    if (py::globals().contains("run"))
+        pyFnRun = py::globals()["run"];
+
+    // while we are not running, wait for the start signal
+    m_evTimer->stop();
+    while (!m_running) {
+        m_link->awaitData(1 * 1000); // 1ms timeout
+        QCoreApplication::processEvents();
+
+        if (m_link->state() == ModuleState::ERROR) {
+            // bail out if any error was raised
+            m_evTimer->start();
+            return;
+        }
     }
 
-    {
-        // pass selected settings to the current run
-        if (PyObject_HasAttrString(m_pyMain, "set_settings")) {
-            auto pFnSettings = PyObject_GetAttrString(m_pyMain, "set_settings");
-            if (pFnSettings && PyCallable_Check(pFnSettings)) {
-                auto pySettings = PyBytes_FromStringAndSize(m_settings.data(), m_settings.size());
-                const auto pyRes = PyObject_CallFunctionObjArgs(pFnSettings, pySettings, nullptr);
-                if (pyRes == nullptr) {
-                    if (PyErr_Occurred()) {
-                        emitPyError();
-                        goto finalize;
-                    }
-                } else {
-                    Py_XDECREF(pyRes);
-                }
-            }
-            Py_XDECREF(pFnSettings);
-        }
-
-        // run prepare function if it exists for initial setup
-        if (PyObject_HasAttrString(m_pyMain, "prepare")) {
-            auto pFnPrep = PyObject_GetAttrString(m_pyMain, "prepare");
-            if (pFnPrep && PyCallable_Check(pFnPrep)) {
-                const auto pyRes = PyObject_CallObject(pFnPrep, nullptr);
-                if (pyRes == nullptr) {
-                    if (PyErr_Occurred()) {
-                        emitPyError();
-                        goto finalize;
-                    }
-                } else {
-                    Py_XDECREF(pyRes);
-                }
-            }
-            Py_XDECREF(pFnPrep);
-        }
-
-        // check if have failed, and quit in that case
-        if (m_link->state() == ModuleState::ERROR)
-            goto finalize;
-
-        // signal that we are ready now, preparations are done
-        m_link->setState(ModuleState::READY);
-
-        // find the start function if it exists
-        PyObject *pFnStart = nullptr;
-        if (PyObject_HasAttrString(m_pyMain, "start")) {
-            pFnStart = PyObject_GetAttrString(m_pyMain, "start");
-            if (!pFnStart || !PyCallable_Check(pFnStart)) {
-                Py_XDECREF(pFnStart);
-                pFnStart = nullptr;
-            }
-        }
-
-        // find the "run" function - if it does not exists, we will create
-        // our own run function that does only listen for messages.
-        auto pFnRun = PyObject_GetAttrString(m_pyMain, "run");
-        if (!PyCallable_Check(pFnRun)) {
-            Py_XDECREF(pFnRun);
-            pFnRun = nullptr;
-        }
-
-        // while we are not running, wait for the start signal
-        m_evTimer->stop();
-        while (!m_running) {
-            m_link->awaitData(1 * 1000); // 1ms timeout
+    m_link->setState(ModuleState::RUNNING);
+    if (pyFnRun.is_none()) {
+        // we have no run function, so we just listen for events implicitly
+        while (m_running) {
+            m_link->awaitData(250 * 1000); // 250ms timeout
             QCoreApplication::processEvents();
         }
-        m_link->setState(ModuleState::RUNNING);
-
-        // run the start function first, if we have it
-        if (pFnStart != nullptr) {
-            const auto pyRes = PyObject_CallObject(pFnStart, nullptr);
-            if (pyRes == nullptr) {
-                if (PyErr_Occurred()) {
-                    emitPyError();
-                    goto finalize;
-                }
-            } else {
-                Py_XDECREF(pyRes);
-            }
-            Py_XDECREF(pFnStart);
-        }
-
-        // maybe start() failed? Immediately exit in that case
-        if (m_link->state() == ModuleState::ERROR) {
-            Py_XDECREF(pFnRun);
-            goto finalize;
-        }
-
-        if (pFnRun == nullptr) {
-            // we have no run function, so we just listen for events implicitly
-            while (m_running) {
-                m_link->awaitData(500 * 1000); // 500ms timeout
-                QCoreApplication::processEvents();
-            }
-        } else {
-            // call the run function
-            auto runRes = PyObject_CallObject(pFnRun, nullptr);
-            if (runRes == nullptr) {
-                if (PyErr_Occurred())
-                    emitPyError();
-            } else {
-                Py_XDECREF(runRes);
-            }
-
-            Py_XDECREF(pFnRun);
-        }
-
-        // we have stopped, so call the stop function if one exists
-        if (PyObject_HasAttrString(m_pyMain, "stop")) {
-            auto pFnStop = PyObject_GetAttrString(m_pyMain, "stop");
-            if (pFnStop && PyCallable_Check(pFnStop)) {
-                const auto pyRes = PyObject_CallObject(pFnStop, nullptr);
-                if (pyRes == nullptr) {
-                    if (PyErr_Occurred()) {
-                        emitPyError();
-                        goto finalize;
-                    }
-                } else {
-                    Py_XDECREF(pyRes);
-                }
-            }
-            Py_XDECREF(pFnStop);
+    } else {
+        // call the run function
+        try {
+            pyFnRun();
+        } catch (py::error_already_set &e) {
+            raiseError(QStringLiteral("%1").arg(e.what()));
         }
     }
 
-finalize:
     // we aren't ready anymore,
     // and also stopped running the loop
     m_link->setState(ModuleState::IDLE);
@@ -463,7 +435,6 @@ finalize:
     m_evTimer->start();
     qApp->processEvents();
 }
-#pragma GCC diagnostic pop
 
 void PyWorker::setState(ModuleState state)
 {
@@ -493,12 +464,12 @@ void PyWorker::makeDocFileAndQuit(const QString &fname)
 
     QString jinjaTemplatePyLiteral = "\"\"\"" + jinjaTemplate + "\n\"\"\"";
 
-    Py_Initialize();
+    py::scoped_interpreter guard{};
 
     // make sure we find the syntalos_mlink module even if it isn't installed yet
     ensureModuleImportPaths();
 
-    PyRun_SimpleString(qPrintable(
+    py::exec(qPrintable(
         QStringLiteral("import os\n"
                        "import tempfile\n"
                        "import pdoc\n"
@@ -520,8 +491,6 @@ void PyWorker::makeDocFileAndQuit(const QString &fname)
                          "        f.write('\\n')\n"
                          "\n")
               .arg(QString(fname).replace("'", "\\'"))));
-    if (Py_FinalizeEx() < 0)
-        exit(9);
 
     // documentation generated successfully, we can quit now
     exit(0);

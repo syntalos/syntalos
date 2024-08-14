@@ -114,6 +114,8 @@ class SyntalosLink : public QObject
 public:
     ~SyntalosLink();
 
+    QString instanceId() const;
+
     void raiseError(const QString &message);
     void raiseError(const QString &title, const QString &message);
 

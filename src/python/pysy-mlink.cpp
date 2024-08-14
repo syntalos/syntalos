@@ -121,17 +121,27 @@ static void schedule_delayed_call(int delay_msec, const std::function<void()> &f
     if (delay_msec < 0)
         throw SyntalosPyError("Delay must be positive or zero.");
     QTimer::singleShot(delay_msec, [fn]() {
-        py::gil_scoped_acquire acquire;
-        fn();
+        try {
+            fn();
+        } catch (py::error_already_set &e) {
+            auto pb = PyBridge::instance();
+            pb->link()->raiseError(e.what());
+        }
     });
 }
 
-static void call_on_show_settings(const ShowSettingsFn &fn)
+static void call_on_show_settings(ShowSettingsFn fn)
 {
     auto pb = PyBridge::instance();
     pb->link()->setShowSettingsCallback([fn](const QByteArray &settings) {
-        py::gil_scoped_acquire acquire;
-        fn(settings);
+        QTimer::singleShot(0, [fn, settings]() {
+            try {
+                fn(settings);
+            } catch (py::error_already_set &e) {
+                auto pb = PyBridge::instance();
+                pb->link()->raiseError(e.what());
+            }
+        });
     });
 }
 
@@ -139,8 +149,14 @@ static void call_on_show_display(const ShowDisplayFn &fn)
 {
     auto pb = PyBridge::instance();
     pb->link()->setShowDisplayCallback([fn]() {
-        py::gil_scoped_acquire acquire;
-        fn();
+        QTimer::singleShot(0, [fn]() {
+            try {
+                fn();
+            } catch (py::error_already_set &e) {
+                auto pb = PyBridge::instance();
+                pb->link()->raiseError(e.what());
+            }
+        });
     });
 }
 
@@ -167,28 +183,33 @@ struct InputPort {
         }
 
         _iport->setNewDataRawCallback([this](const void *data, size_t size) {
-            switch (_dataTypeId) {
-            case syDataTypeId<ControlCommand>():
-                _on_data_cb(py::cast(ControlCommand::fromMemory(data, size)));
-                break;
-            case syDataTypeId<TableRow>():
-                _on_data_cb(py::cast(TableRow::fromMemory(data, size)));
-                break;
-            case syDataTypeId<Frame>():
-                _on_data_cb(py::cast(Frame::fromMemory(data, size)));
-                break;
-            case syDataTypeId<FirmataControl>():
-                _on_data_cb(py::cast(FirmataControl::fromMemory(data, size)));
-                break;
-            case syDataTypeId<FirmataData>():
-                _on_data_cb(py::cast(FirmataData::fromMemory(data, size)));
-                break;
-            case syDataTypeId<IntSignalBlock>():
-                _on_data_cb(py::cast(IntSignalBlock::fromMemory(data, size)));
-                break;
-            case syDataTypeId<FloatSignalBlock>():
-                _on_data_cb(py::cast(FloatSignalBlock::fromMemory(data, size)));
-                break;
+            try {
+                switch (_dataTypeId) {
+                case syDataTypeId<ControlCommand>():
+                    _on_data_cb(py::cast(ControlCommand::fromMemory(data, size)));
+                    break;
+                case syDataTypeId<TableRow>():
+                    _on_data_cb(py::cast(TableRow::fromMemory(data, size)));
+                    break;
+                case syDataTypeId<Frame>():
+                    _on_data_cb(py::cast(Frame::fromMemory(data, size)));
+                    break;
+                case syDataTypeId<FirmataControl>():
+                    _on_data_cb(py::cast(FirmataControl::fromMemory(data, size)));
+                    break;
+                case syDataTypeId<FirmataData>():
+                    _on_data_cb(py::cast(FirmataData::fromMemory(data, size)));
+                    break;
+                case syDataTypeId<IntSignalBlock>():
+                    _on_data_cb(py::cast(IntSignalBlock::fromMemory(data, size)));
+                    break;
+                case syDataTypeId<FloatSignalBlock>():
+                    _on_data_cb(py::cast(FloatSignalBlock::fromMemory(data, size)));
+                    break;
+                }
+            } catch (py::error_already_set &e) {
+                auto pb = PyBridge::instance();
+                pb->link()->raiseError(e.what());
             }
         });
     }

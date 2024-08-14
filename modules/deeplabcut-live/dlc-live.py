@@ -109,6 +109,10 @@ class DLCLiveModule:
         syl.call_on_show_settings(self.change_settings)
 
     def prepare(self) -> bool:
+        if self._dlc_live:
+            del self._dlc_live
+            self._dlc_live = None
+
         self._oport_rows.set_metadata_value(
             'table_header', ['Time [µs]', 'Marker', 'X', 'Y', 'Likelihood']
         )
