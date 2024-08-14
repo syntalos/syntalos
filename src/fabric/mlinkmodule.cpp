@@ -53,6 +53,8 @@ public:
     QString pyVenvDir;
     QString scriptWDir;
     QString scriptContent;
+    QString scriptFname;
+    QDateTime scriptLastModified;
     QHash<QString, QVariantHash> sentMetadata;
 
     QByteArray settingsData;
@@ -538,7 +540,20 @@ bool MLinkModule::setScriptFromFile(const QString &fname, const QString &wdir)
     QTextStream in(&f);
     setScript(in.readAll(), wdir);
 
+    d->scriptFname = fname;
+    QFileInfo fi(fname);
+    d->scriptLastModified = fi.lastModified();
+
     return true;
+}
+
+bool Syntalos::MLinkModule::isScriptModified() const
+{
+    if (d->scriptFname.isEmpty())
+        return false;
+
+    QFileInfo fi(d->scriptFname);
+    return d->scriptLastModified != fi.lastModified();
 }
 
 QByteArray MLinkModule::settingsData() const

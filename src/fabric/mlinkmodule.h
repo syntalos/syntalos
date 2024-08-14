@@ -78,6 +78,7 @@ public:
     void setPythonVirtualEnv(const QString &venvDir);
     void setScript(const QString &script, const QString &wdir = QString());
     bool setScriptFromFile(const QString &fname, const QString &wdir = QString());
+    bool isScriptModified() const;
 
     QByteArray settingsData() const;
     void setSettingsData(const QByteArray &data);

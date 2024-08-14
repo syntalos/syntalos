@@ -270,10 +270,23 @@ public:
     bool prepare(const TestSubject &testSubject) override
     {
         setOutputCaptured(true);
-        setPythonVirtualEnv(virtualEnvDir());
-        if (!setScriptFromFile(m_mainPyFname, m_pyModDir)) {
-            raiseError(QStringLiteral("Unable to open Python script file: %1").arg(m_mainPyFname));
-            return false;
+
+        if (!isProcessRunning()) {
+            ensurePythonCodeRunning();
+        } else {
+            // reload Python script if it was changed meanwhile
+            if (isScriptModified()) {
+                qDebug().noquote().nospace() << "py." << id() << "(" << name() << "): "
+                                             << "=> Reloading Python script";
+                if (!setScriptFromFile(m_mainPyFname, m_pyModDir)) {
+                    raiseError(QStringLiteral("Unable to open Python script file: %1").arg(m_mainPyFname));
+                    return false;
+                }
+                if (!sendPortInformation())
+                    return false;
+                if (!loadCurrentScript())
+                    return false;
+            }
         }
 
         MLinkModule::prepare(testSubject);
