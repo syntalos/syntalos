@@ -11,15 +11,15 @@ syl.raise_error(
 )
 
 
-def prepare():
+def prepare() -> bool:
     """This function is called before a run is started.
     You can use it for (slow) initializations."""
-    pass
+    return True
 
 
 def start():
     """This function is called immediately when a run is started.
-    This function should complete quickly."""
+    This function should complete extremely quickly."""
     pass
 
 

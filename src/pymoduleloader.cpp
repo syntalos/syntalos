@@ -289,9 +289,7 @@ public:
             }
         }
 
-        MLinkModule::prepare(testSubject);
-
-        return true;
+        return MLinkModule::prepare(testSubject);
     }
 
     void showSettingsUi() override

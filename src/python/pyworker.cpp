@@ -251,13 +251,15 @@ bool PyWorker::prepareStart(const QByteArray &settings)
         return false;
     }
 
-    if (!success)
+    if (!success) {
+        qApp->processEvents();
+        if (m_link->state() != ModuleState::ERROR)
+            raiseError(QStringLiteral("The 'prepare' function returned False (no detailed error was emitted)."));
         return false;
+    }
 
-    // signal that we are ready now, preparations are done
-    m_link->setState(ModuleState::READY);
-
-    // get the main processing loop of this run ready and have it wait for the start signal
+    // Get the main processing loop of this run ready and have it wait for the start signal
+    // It is the "executePythonRunFn" function that will emit the READY state to master in this case.
     QTimer::singleShot(0, this, &PyWorker::executePythonRunFn);
 
     return true;
@@ -396,6 +398,9 @@ void PyWorker::executePythonRunFn()
     py::object pyFnRun = py::none();
     if (py::globals().contains("run"))
         pyFnRun = py::globals()["run"];
+
+    // signal that we are ready now, preparations are done
+    m_link->setState(ModuleState::READY);
 
     // while we are not running, wait for the start signal
     m_evTimer->stop();

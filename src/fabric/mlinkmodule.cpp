@@ -905,6 +905,20 @@ bool MLinkModule::prepare(const TestSubject &subject)
     if (!ret)
         return false;
 
+    QElapsedTimer timer;
+    timer.start();
+    while (state() != ModuleState::READY) {
+        QCoreApplication::processEvents();
+        if (state() == ModuleState::ERROR)
+            return false;
+
+        // wait 10sec for the module to become ready
+        if (timer.elapsed() > 10000) {
+            raiseError("Timeout while waiting for module. Module did not signal 'ready' state in time.");
+            return false;
+        }
+    }
+
     // register output port forwarding from exported data streams to internal data transmission
     registerOutPortForwarders();
     if (state() == ModuleState::ERROR)
