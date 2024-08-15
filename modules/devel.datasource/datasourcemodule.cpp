@@ -106,12 +106,12 @@ public:
             QStringList() << "Sine 1"
                           << "Sine 2"
                           << "Sine 3");
-        m_floatOut->setMetadataValue("time_unit", "milliseconds");
+        m_floatOut->setMetadataValue("time_unit", "microseconds");
         m_floatOut->setMetadataValue("data_unit", "au");
         m_floatOut->start();
 
         m_intOut->setMetadataValue("signal_names", QStringList() << "Int 1");
-        m_intOut->setMetadataValue("time_unit", "milliseconds");
+        m_intOut->setMetadataValue("time_unit", "microseconds");
         m_intOut->setMetadataValue("data_unit", "au");
         m_intOut->start();
 
@@ -133,28 +133,29 @@ public:
                 m_rowsOut->push(row.value());
 
             const auto usec = m_syTimer->timeSinceStartUsec().count();
-            if (((usec / 1000) % 3) == 0) {
+            const auto msec = m_syTimer->timeSinceStartMsec().count();
+            if (((msec / 1000) % 3) == 0) {
                 FirmataControl fctl;
 
                 fctl.command = FirmataCommandKind::WRITE_DIGITAL;
                 fctl.pinId = 2;
                 fctl.pinName = QStringLiteral("custom-pin-name");
-                fctl.value = ((usec / 1000) % 2 == 0) ? 1 : 0;
+                fctl.value = ((msec / 1000) % 2 == 0) ? 1 : 0;
                 m_fctlOut->push(fctl);
             }
 
-            if ((usec > m_prevTimeSData) && (usec % 2) == 0) {
+            if ((usec > m_prevTimeSData) && (msec % 2) == 0) {
                 FloatSignalBlock fsb(2, 3);
                 fsb.timestamps[0] = usec - 1;
                 fsb.timestamps[1] = usec;
-                fsb.data(0, 0) = 0.5f * sinf(50 * ((usec - 1) / 20));
-                fsb.data(1, 0) = 0.5f * sinf(50 * (usec / 20));
+                fsb.data(0, 0) = 0.5f * sinf(50 * ((msec - 1) / 20));
+                fsb.data(1, 0) = 0.5f * sinf(50 * (msec / 20));
 
-                fsb.data(0, 1) = 0.25f * sinf(50 * ((usec - 1) / 5) + 1.5);
-                fsb.data(1, 1) = 0.25f * sinf(50 * (usec / 5) + 1.5);
+                fsb.data(0, 1) = 0.25f * sinf(50 * ((msec - 1) / 5) + 1.5);
+                fsb.data(1, 1) = 0.25f * sinf(50 * (msec / 5) + 1.5);
 
-                fsb.data(0, 2) = 0.4f * sinf(50 * ((usec - 1) / 200));
-                fsb.data(1, 2) = 0.4f * sinf(50 * (usec / 200));
+                fsb.data(0, 2) = 0.4f * sinf(50 * ((msec - 1) / 200));
+                fsb.data(1, 2) = 0.4f * sinf(50 * (msec / 200));
                 m_floatOut->push(fsb);
 
                 IntSignalBlock isb(2, 1);
