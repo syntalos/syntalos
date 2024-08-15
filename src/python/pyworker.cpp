@@ -267,6 +267,9 @@ bool PyWorker::prepareStart(const QByteArray &settings)
 
 void PyWorker::start()
 {
+    if (state() != ModuleState::ERROR)
+        setState(ModuleState::RUNNING);
+
     try {
         if (py::globals().contains("start")) {
             auto pyFnStart = py::globals()["start"];
@@ -297,6 +300,8 @@ bool PyWorker::stop()
         return false;
     }
 
+    if (state() != ModuleState::ERROR)
+        setState(ModuleState::IDLE);
     return true;
 }
 
