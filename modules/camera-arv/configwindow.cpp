@@ -825,14 +825,14 @@ void ArvConfigWindow::loadSettings(const QVariantHash &settings, const QByteArra
     QTextStream readBack(&readBack_);
 
     // Try setting it several times, then check if successful.
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 20; i++) {
         wholefile.seek(0);
         readBack.seek(0);
         wholefile >> camera.get();
         readBack << camera.get();
         readBack << Qt::endl << Qt::endl;
         QApplication::processEvents();
-        QThread::msleep(50);
+        QThread::msleep(10);
     }
     QStringList failures;
     wholefile.seek(0);
