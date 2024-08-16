@@ -1,4 +1,3 @@
-import time
 import machine
 from machine import Pin
 
@@ -11,8 +10,8 @@ async def blink_led():
     oport_f = sy.get_output_port('float-out')
     while True:
         # send some numbers to the host, with the device timestamp
-        timestamp = time.ticks_ms()
-        await oport_f.send_data([0.5, 1 if timestamp % 2 else 0], timestamp_us=timestamp * 1000)
+        timestamp = sy.ticks_ms()
+        await oport_f.send_data([0.5, 1 if timestamp % 2 else 0], timestamp_ms=timestamp)
 
         # toggle the LEDs
         ledPin.high()
