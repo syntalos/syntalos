@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.1
+//  Version 3.3.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2024 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -63,6 +63,8 @@ ControlPanelConfigureTab::ControlPanelConfigureTab(ControllerInterface* controll
     }
     manualDelayEnabledOld.resize(8, false);
     manualDelayOld.resize(8, 1);
+    auxDigOutEnabledOld.resize(8, false);
+    auxDigOutChannelOld.resize(8, 0);
 
     QVBoxLayout *configLayout = new QVBoxLayout;
     scanButton = new QPushButton(tr("Rescan Ports"), this);
@@ -248,6 +250,41 @@ void ControlPanelConfigureTab::updateFromState()
     }
     if (manualDelayChanged) {
         controllerInterface->setManualCableDelays();
+    }
+
+    bool digOutChanged = false;
+    for (int port = 0; port < (int) spiPort.size(); ++port) {
+        if (auxDigOutEnabledOld[port] != spiPort[port]->auxDigOutEnabled->getValue()) {
+            auxDigOutEnabledOld[port] = spiPort[port]->auxDigOutEnabled->getValue();
+            digOutChanged = true;
+        }
+        if (auxDigOutChannelOld[port] != spiPort[port]->auxDigOutChannel->getValue()) {
+            auxDigOutChannelOld[port] = spiPort[port]->auxDigOutChannel->getValue();
+            digOutChanged = true;
+        }
+    }
+    if (digOutChanged) {
+        controllerInterface->enableExternalDigOut(PortA, spiPort[0]->auxDigOutEnabled->getValue());
+        controllerInterface->enableExternalDigOut(PortB, spiPort[1]->auxDigOutEnabled->getValue());
+        controllerInterface->enableExternalDigOut(PortC, spiPort[2]->auxDigOutEnabled->getValue());
+        controllerInterface->enableExternalDigOut(PortD, spiPort[3]->auxDigOutEnabled->getValue());
+        if (state->numSPIPorts == 8) {
+            controllerInterface->enableExternalDigOut(PortE, spiPort[4]->auxDigOutEnabled->getValue());
+            controllerInterface->enableExternalDigOut(PortF, spiPort[5]->auxDigOutEnabled->getValue());
+            controllerInterface->enableExternalDigOut(PortG, spiPort[6]->auxDigOutEnabled->getValue());
+            controllerInterface->enableExternalDigOut(PortH, spiPort[7]->auxDigOutEnabled->getValue());
+        }
+
+        controllerInterface->setExternalDigOutChannel(PortA, spiPort[0]->auxDigOutChannel->getValue());
+        controllerInterface->setExternalDigOutChannel(PortB, spiPort[1]->auxDigOutChannel->getValue());
+        controllerInterface->setExternalDigOutChannel(PortC, spiPort[2]->auxDigOutChannel->getValue());
+        controllerInterface->setExternalDigOutChannel(PortD, spiPort[3]->auxDigOutChannel->getValue());
+        if (state->numSPIPorts == 8) {
+            controllerInterface->setExternalDigOutChannel(PortE, spiPort[4]->auxDigOutChannel->getValue());
+            controllerInterface->setExternalDigOutChannel(PortF, spiPort[5]->auxDigOutChannel->getValue());
+            controllerInterface->setExternalDigOutChannel(PortG, spiPort[6]->auxDigOutChannel->getValue());
+            controllerInterface->setExternalDigOutChannel(PortH, spiPort[7]->auxDigOutChannel->getValue());
+        }
     }
 
     if (!state->testMode->getValue()) {

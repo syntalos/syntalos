@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.1
+//  Version 3.3.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2024 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -1733,7 +1733,7 @@ void RHXController::uploadCommandList(const vector<unsigned int> &commandList, A
 // of USB bus bandwidth.
 int RHXController::findConnectedChips(vector<ChipType> &chipType, vector<int> &portIndex, vector<int> &commandStream,
                                       vector<int> &numChannelsOnPort, bool /* synthMaxChannels */, bool returnToFastSettle,
-                                      bool usePreviousDelay, int selectedPort, int lastDetectedChip)
+                                      bool usePreviousDelay, int selectedPort, int lastDetectedChip, int lastDetectedNumStreams)
 {
     int returnValue = 1;    // return 1 == everything okay
     int maxNumStreams = maxNumDataStreams();
@@ -1895,6 +1895,10 @@ int RHXController::findConnectedChips(vector<ChipType> &chipType, vector<int> &p
         int convertedPortIndex = (int) (2 * selectedPort);
         optimumDelay[convertedPortIndex] = previousDelay;
         chipTypeOld[convertedPortIndex] = (ChipType) lastDetectedChip;
+        if (lastDetectedChip == RHS2116Chip && lastDetectedNumStreams == 2) {
+            optimumDelay[convertedPortIndex + 1] = previousDelay;
+            chipTypeOld[convertedPortIndex + 1] = (ChipType) lastDetectedChip;
+        }
         if (lastDetectedChip == RHD2164Chip) {
             optimumDelay[convertedPortIndex + 1] = previousDelay;
             chipTypeOld[convertedPortIndex + 1] = RHD2164MISOBChip;

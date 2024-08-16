@@ -76,7 +76,7 @@ AdvancedStartupDialog::AdvancedStartupDialog(bool &useOpenCL_, uint8_t &playback
     synthMaxChannelsCheckBox = new QCheckBox(tr("Maximum Number of Channels in Demonstration Mode"), this);
 
     testModeDescription = new QLabel(tr("When running in chip test mode, replace typical recording functionality with\n"
-                                           "automated testing."), this);
+                                           "automated testing.\n\nFor internal factory use only.  Headstage users should not use this mode."), this);
 
     testModeCheckBox = new QCheckBox(tr("Chip Test Mode"));
 

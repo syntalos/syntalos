@@ -94,7 +94,20 @@ TestControlPanel::TestControlPanel(ControllerInterface *controllerInterface_, Ab
     helpDialogTestChip(nullptr),
     helpDialogUploadTestStimParameters(nullptr),
     previousDelay(-1),
-    portComboBox(nullptr)
+    portComboBox(nullptr),
+    auxIn1Min(3.3),
+    auxIn1Max(0),
+    auxIn1Median(0),
+    auxIn2Min(3.3),
+    auxIn2Max(0),
+    auxIn2Median(0),
+    auxIn3Min(3.3),
+    auxIn3Max(0),
+    auxIn3Median(0),
+    auxInExpectedMin(1.0),
+    auxInExpectedMax(2.0),
+    auxInExpectedMedian(1.5),
+    acceptableDifference(0.2)
 {
     setFocusPolicy(Qt::StrongFocus);
     this->setFocus();
@@ -104,10 +117,20 @@ TestControlPanel::TestControlPanel(ControllerInterface *controllerInterface_, Ab
     if (state->numSPIPorts == 8) {
         portComboBox->addItems(QStringList({"Port E", "Port F", "Port G", "Port H"}));
     }
+    connect(portComboBox, SIGNAL(currentTextChanged(QString)), this, SLOT(changePortComboBoxSlot()));
+
+    testAuxInsCheckBox = new QCheckBox(tr("Test Aux Ins"), this);
+    if (state->getControllerTypeEnum() == ControllerStimRecord) {
+        testAuxInsCheckBox->hide();
+    } else {
+        connect(testAuxInsCheckBox, SIGNAL(toggled(bool)), this, SLOT(toggleTestAuxInsSlot()));
+        testAuxInsCheckBox->setChecked(true);
+    }
 
     QHBoxLayout *portRow = new QHBoxLayout;
     portRow->addWidget(portComboBox);
     portRow->addStretch();
+    portRow->addWidget(testAuxInsCheckBox);
 
     QHBoxLayout *checkInputWaveRow = new QHBoxLayout;
     checkInputWaveButton = new QPushButton(tr("Check Input Waveform"), this);
@@ -415,6 +438,16 @@ void TestControlPanel::uploadTestStimParametersHelp()
     helpDialogUploadTestStimParameters->activateWindow();
 }
 
+void TestControlPanel::toggleTestAuxInsSlot()
+{
+    state->testAuxIns->setValue(testAuxInsCheckBox->isChecked());
+}
+
+void TestControlPanel::changePortComboBoxSlot()
+{
+    state->testingPort->setValue(portComboBox->currentText().right(1));
+}
+
 void TestControlPanel::updateFromState()
 {
     state->signalSources->getSelectedSignals(selectedSignals);
@@ -627,10 +660,11 @@ void TestControlPanel::checkInputWave()
     QVector<QVector<double>> channels;
     QVector<QVector<QVector<double>>> ampData;
     QVector<QVector<QString>> ampChannelNames;
-    int numSamples = recordShortSegment(channels, 0.4, portIndex, ampData, ampChannelNames);
+    QVector<QVector<double>> auxInData;
+    int numSamples = recordShortSegment(channels, 0.4, portIndex, ampData, ampChannelNames, auxInData);
 
     // Load this segment into plotter
-    multiColumnDisplay->loadWaveformDataDirectAmp(ampData, ampChannelNames);
+    multiColumnDisplay->loadWaveformDataDirectAmp(ampData, ampChannelNames, auxInData);
 
     // Determine median waveform of the channels
     QVector<double> median;
@@ -807,6 +841,19 @@ void TestControlPanel::allocateDoubleArray3D(QVector<QVector<QVector<double> > >
     }
 }
 
+// Allocates memory for a 2-D array of doubles.
+void TestControlPanel::allocateDoubleArray2D(QVector<QVector<double> > &array2D,
+                                            int xSize, int ySize)
+{
+    int i, j;
+
+    if (xSize == 0) return;
+    array2D.resize(xSize);
+    for (i = 0; i < xSize; ++i) {
+        array2D[i].resize(ySize);
+    }
+}
+
 void TestControlPanel::updateConnectedChannels()
 {
     QString message;
@@ -833,7 +880,8 @@ void TestControlPanel::updateConnectedChannels()
 
 // Record a short segment of 'duration' seconds, placing the data in 'channels' vector
 // A test is run for 64-channel chips (inside the load64() function) to determine if only the inner 32 channels should be considered, or only the outer 32, or all 64
-int TestControlPanel::recordShortSegment(QVector<QVector<double> > &channels, double duration, int portIndex, QVector<QVector<QVector<double>>> &ampData, QVector<QVector<QString>> &ampChannelNames)
+int TestControlPanel::recordShortSegment(QVector<QVector<double> > &channels, double duration, int portIndex,
+                                         QVector<QVector<QVector<double>>> &ampData, QVector<QVector<QString>> &ampChannelNames, QVector<QVector<double>> &auxInData)
 {
     // Disable external fast settling, since this interferes with DAC commands in AuxCmd1.
     rhxController->enableExternalFastSettle(false);
@@ -856,6 +904,7 @@ int TestControlPanel::recordShortSegment(QVector<QVector<double> > &channels, do
 
     // Determine number of channels and streams based on the type of chip plugged in
     int numChannels = state->signalSources->portGroupByIndex(portIndex)->numAmpChannels->getValue();
+    int numAuxChannels = state->signalSources->portGroupByIndex(portIndex)->numAuxChannels->getValue();
     int numStreams = 0;
     int channelsPerStream = RHXDataBlock::channelsPerStream(state->getControllerTypeEnum());
 
@@ -892,6 +941,7 @@ int TestControlPanel::recordShortSegment(QVector<QVector<double> > &channels, do
 
     // BEGIN SIMPLIFY LOADAMPLIFIERDATA
     allocateDoubleArray3D(ampData, numStreams, channelsPerStream, numSamples);
+    allocateDoubleArray2D(auxInData, numAuxChannels, numSamples / 4);
     ampChannelNames.resize(numStreams);
     for (int i = 0; i < ampChannelNames.size(); ++i) {
         ampChannelNames[i].resize(channelsPerStream);
@@ -904,7 +954,7 @@ int TestControlPanel::recordShortSegment(QVector<QVector<double> > &channels, do
     }
 
     int block, t, channel, stream;
-    int indexAmp = 0;
+    int indexAmp = 0, indexAux = 0;
     for (block = 0; block < numBlocks; ++block) {
         // Load and scale amplifier waveforms (sampled at amplifier sampling rate)
         for (t = 0; t < samplesPerDataBlock; ++t) {
@@ -915,6 +965,18 @@ int TestControlPanel::recordShortSegment(QVector<QVector<double> > &channels, do
                 }
             }
             ++indexAmp;
+        }
+
+        // Load and scale aux waveforms (sampled at 1/4 amplifier sampling rate)
+        for (t = 0; t < samplesPerDataBlock / 4; ++t) {
+            // Aux waveform units = volts
+            // t + 0 returns 73 (read from ROM), t + 1 returns AuxIn1, t + 2 returns AuxIn2, t + 3 returns AuxIn3
+            if (state->getControllerTypeEnum() != ControllerStimRecord) {
+                auxInData[0][indexAux] = 0.0000374F * (dataQueue.front()->auxiliaryData(0, 1, 4 * t + 1));
+                auxInData[1][indexAux] = 0.0000374F * (dataQueue.front()->auxiliaryData(0, 1, 4 * t + 2));
+                auxInData[2][indexAux] = 0.0000374F * (dataQueue.front()->auxiliaryData(0, 1, 4 * t + 3));
+            }
+            ++indexAux;
         }
         // We are done with this RHXDataBlock object; remove it from dataQueue
         dataQueue.pop_front();
@@ -1821,6 +1883,8 @@ void TestControlPanel::testChip()
     QVector<QVector<QString>> ampChannelNames;
     QVector<QVector<double>> fastSettleChannels;
 
+    QVector<QVector<double>> auxInData;
+
     QProgressDialog progress(QObject::tr("Testing Chip"), QString(), 0, 12);
     progress.setWindowTitle(tr("Progress"));
     progress.setMinimumDuration(0);
@@ -1850,17 +1914,20 @@ void TestControlPanel::testChip()
     progress.setValue(2);
 
     //Run for 3 seconds for dummy data
-    //for (int i = 0; i < 30; i++) {
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 30; i++) {
+    //for (int i = 0; i < 5; i++) {
+    //for (int i = 0; i < 20; i++) {
         recordDummySegment(0.1, portIndex);
     }
     progress.setValue(3);
 
     ampData.clear();
+    auxInData.clear();
     ampChannelNames.clear();
 
     //Load short segment of data into 'channels' vector
-    int numSamples = recordShortSegment(channels, 0.4, portIndex, ampData, ampChannelNames);
+    int numSamples = recordShortSegment(channels, 0.4, portIndex, ampData, ampChannelNames, auxInData);
+
     progress.setValue(4);
 
     //Subtract the average value from each of the waveforms (to eliminate transient offset)
@@ -1882,6 +1949,28 @@ void TestControlPanel::testChip()
         allChannelsDead = true;
     }
 
+    auxIn1Min = auxIn2Min = auxIn3Min = 3.3;
+    auxIn1Max = auxIn2Max = auxIn3Max = 0;
+    // If testing aux ins is suitable, get median of each channel, and max-min of each channel
+    if (state->getControllerTypeEnum() != ControllerStimRecord) {
+        for (int index = 0; index < auxInData[0].size(); index++) {
+            double thisSample1 = auxInData[0][index];
+            double thisSample2 = auxInData[1][index];
+            double thisSample3 = auxInData[2][index];
+
+            if (thisSample1 > auxIn1Max) auxIn1Max = thisSample1;
+            if (thisSample1 < auxIn1Min) auxIn1Min = thisSample1;
+
+            if (thisSample2 > auxIn2Max) auxIn2Max = thisSample2;
+            if (thisSample2 < auxIn2Min) auxIn2Min = thisSample2;
+
+            if (thisSample3 > auxIn3Max) auxIn3Max = thisSample3;
+            if (thisSample3 < auxIn3Min) auxIn3Min = thisSample3;
+        }
+        auxIn1Median = median(auxInData[0]);
+        auxIn2Median = median(auxInData[1]);
+        auxIn3Median = median(auxInData[2]);
+    }
 
     //Determine median waveform of the channels
     QVector<double> median;
@@ -2037,7 +2126,7 @@ void TestControlPanel::testChip()
             }
             channels_report_settle[channel] = pow(sum/validFastSettleChannels[channel].size(), 0.5);
         }
-        multiColumnDisplay->loadWaveformDataDirectAmp(ampData, ampChannelNames);
+        multiColumnDisplay->loadWaveformDataDirectAmp(ampData, ampChannelNames, auxInData);
     }
 
     else {
@@ -2132,7 +2221,7 @@ void TestControlPanel::generateReport(QVector<QVector<double> > channels)
     int threshold = triangleErrorThresholdLineEdit->text().toDouble();
 
     for (int channel = 0; channel < channels.size(); channel++) {
-        if (channels_report[channel] > threshold) {
+        if (channels_report[channel] > threshold || std::isnan(channels_report[channel])) {
             high_error = true;
         }
         if (state->getControllerTypeEnum() == ControllerStimRecord) {
@@ -2146,11 +2235,29 @@ void TestControlPanel::generateReport(QVector<QVector<double> > channels)
         }
     }
 
+    if (state->getControllerTypeEnum() != ControllerStimRecord && state->testAuxIns->getValue()) {
+        if (isOutsideExpectedValue(auxIn1Min, auxInExpectedMin)) high_error = true;
+        if (isOutsideExpectedValue(auxIn1Max, auxInExpectedMax)) high_error = true;
+        if (isOutsideExpectedValue(auxIn1Median, auxInExpectedMedian)) high_error = true;
+
+        if (isOutsideExpectedValue(auxIn2Min, auxInExpectedMin)) high_error = true;
+        if (isOutsideExpectedValue(auxIn2Max, auxInExpectedMax)) high_error = true;
+        if (isOutsideExpectedValue(auxIn2Median, auxInExpectedMedian)) high_error = true;
+
+        if (isOutsideExpectedValue(auxIn3Min, auxInExpectedMin)) high_error = true;
+        if (isOutsideExpectedValue(auxIn3Max, auxInExpectedMax)) high_error = true;
+        if (isOutsideExpectedValue(auxIn3Median, auxInExpectedMedian)) high_error = true;
+    }
+
     viewReportButton->setStyleSheet(high_error ? "QPushButton {background-color: red; }" : "QPushButton {background-color: green; }");
     reportLabel->setText(high_error ? "Bad" : "Good");
     reportLabel->setStyleSheet(high_error ? "QLabel { color: red; }" : "QLabel { color : green; }");
 }
 
+bool TestControlPanel::isOutsideExpectedValue(double actualValue, double expectedValue)
+{
+    return (actualValue > (1.0 + acceptableDifference) * expectedValue || actualValue < (1.0 - acceptableDifference) * expectedValue);
+}
 
 void TestControlPanel::checkDCWaveforms()
 {
@@ -2605,6 +2712,43 @@ void TestControlPanel::viewReport()
             report_string.append(blackHtml % ". Negative Voltage Avg: ");
             report_string.append(orangeHtml % QString::number(negAvg1, 'f', 2));
             report_string.append(blackHtml % "<br>");
+        }
+    }
+
+    else {
+        if (state->testAuxIns->getValue()) {
+            QString auxIn1MinHtml = isOutsideExpectedValue(auxIn1Min, auxInExpectedMin) ? redHtml : greenHtml;
+            QString auxIn1MaxHtml = isOutsideExpectedValue(auxIn1Max, auxInExpectedMax) ? redHtml : greenHtml;
+            QString auxIn1MedianHtml = isOutsideExpectedValue(auxIn1Median, auxInExpectedMedian) ? redHtml : greenHtml;
+
+            QString auxIn2MinHtml = isOutsideExpectedValue(auxIn2Min, auxInExpectedMin) ? redHtml : greenHtml;
+            QString auxIn2MaxHtml = isOutsideExpectedValue(auxIn2Max, auxInExpectedMax) ? redHtml : greenHtml;
+            QString auxIn2MedianHtml = isOutsideExpectedValue(auxIn2Median, auxInExpectedMedian) ? redHtml : greenHtml;
+
+            QString auxIn3MinHtml = isOutsideExpectedValue(auxIn3Min, auxInExpectedMin) ? redHtml : greenHtml;
+            QString auxIn3MaxHtml = isOutsideExpectedValue(auxIn3Max, auxInExpectedMax) ? redHtml : greenHtml;
+            QString auxIn3MedianHtml = isOutsideExpectedValue(auxIn3Median, auxInExpectedMedian) ? redHtml : greenHtml;
+
+            report_string.append(blackHtml % "<br>AuxIn1: Min: ");
+            report_string.append(auxIn1MinHtml % QString::number(auxIn1Min, 'f', 2));
+            report_string.append(blackHtml % ". Max: ");
+            report_string.append(auxIn1MaxHtml % QString::number(auxIn1Max, 'f', 2));
+            report_string.append(blackHtml % ". Median: ");
+            report_string.append(auxIn1MedianHtml % QString::number(auxIn1Median, 'f', 2) % ".");
+
+            report_string.append(blackHtml % "<br>AuxIn2: Min: ");
+            report_string.append(auxIn2MinHtml % QString::number(auxIn2Min, 'f', 2));
+            report_string.append(blackHtml % ". Max: ");
+            report_string.append(auxIn2MaxHtml % QString::number(auxIn2Max, 'f', 2));
+            report_string.append(blackHtml % ". Median: ");
+            report_string.append(auxIn2MedianHtml % QString::number(auxIn2Median, 'f', 2) % ".");
+
+            report_string.append(blackHtml % "<br>AuxIn3: Min: ");
+            report_string.append(auxIn3MinHtml % QString::number(auxIn3Min, 'f', 2));
+            report_string.append(blackHtml % ". Max: ");
+            report_string.append(auxIn3MaxHtml % QString::number(auxIn3Max, 'f', 2));
+            report_string.append(blackHtml % ". Median: ");
+            report_string.append(auxIn3MedianHtml % QString::number(auxIn3Median, 'f', 2) % ".");
         }
     }
 

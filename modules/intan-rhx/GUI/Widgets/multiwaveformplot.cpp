@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.1
+//  Version 3.3.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2024 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -265,6 +265,10 @@ bool MultiWaveformPlot::event(QEvent* event)
             hoverWaveIndex = findSelectedWaveform(cursor.y());
             if (hoverWaveIndex.index >= 0) {
                 Channel* channel = listManager->displayedWaveform(hoverWaveIndex)->channel;
+                if (!channel) {
+                    // Escape without attempting to use channel if it's a null pointer.
+                    return true;
+                }
                 QString toolTip = channel->getCustomName();
                 if (channel->getCustomName() != channel->getNativeName()) toolTip += " (" + channel->getNativeName() + ")";
                 if (channel->getSignalType() == AmplifierSignal) {
@@ -1612,7 +1616,7 @@ void MultiWaveformPlot::loadWaveformDataFromMemory(WaveformFifo* waveformFifo, i
     update();
 }
 
-void MultiWaveformPlot::loadWaveformDataDirect(QVector<QVector<QVector<double>>> &ampData, QVector<QVector<QString>> &ampChannelNames)
+void MultiWaveformPlot::loadWaveformDataDirect(QVector<QVector<QVector<double>>> &ampData, QVector<QVector<QString>> &ampChannelNames, QVector<QVector<double>> &auxInData)
 {
     for (int i = 0; i < pinnedList.size(); ++i) {
         if (pinnedList.at(i).isCurrentlyVisible) {
@@ -1645,6 +1649,21 @@ void MultiWaveformPlot::loadWaveformDataDirect(QVector<QVector<QVector<double>>>
                     }
                 }
             }
+        }
+    }
+
+    // If testing aux ins, plot them as well
+    if (state->testAuxIns->getValue()) {
+        QVector<double> stretchedAuxData;
+        for (int channel = 0; channel < auxInData.size(); channel++) {
+            stretchedAuxData.resize(auxInData[channel].size() * 4);
+            for (int sample = 0; sample < auxInData[channel].size(); sample++) {
+                stretchedAuxData[4 * sample + 0] = auxInData[channel][sample];
+                stretchedAuxData[4 * sample + 1] = auxInData[channel][sample];
+                stretchedAuxData[4 * sample + 2] = auxInData[channel][sample];
+                stretchedAuxData[4 * sample + 3] = auxInData[channel][sample];
+            }
+            waveformManager->loadDataDirect(stretchedAuxData, state->testingPort->getValueString() + "-AUX" + QString::number(channel + 1));
         }
     }
     update();

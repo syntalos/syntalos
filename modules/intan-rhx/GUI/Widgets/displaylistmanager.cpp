@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.1
+//  Version 3.3.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2024 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -294,7 +294,13 @@ int DisplayListManager::findSelectedWaveform(const QList<DisplayedWaveform>& lis
     int length = list.size();
 
     for (int i = 0; i < length; ++i) {
-        if (y >= list[i].yTop && y <= list[i].yBottom) return i;
+        if (y >= list[i].yTop && y <= list[i].yBottom) {
+            if (list[i].waveformType == WaveformDivider || list[i].waveformType == UnknownWaveform) {
+                // Return with no waveform found if WaveformDivider or UnknownWaveform cases apply.
+                return -1;
+            }
+            return i;
+        }
     }
     if (y < list[0].yTop) return -1;
     if (y > list[length - 1].yBottom) return -(length + 1);

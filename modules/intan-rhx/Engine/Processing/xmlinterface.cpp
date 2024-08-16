@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.1
+//  Version 3.3.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2024 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -121,6 +121,7 @@ bool XMLInterface::parseByteArray(const QByteArray &byteArray, QString &errorMes
                 state->releaseUpdate();
                 return false;
             }
+            parseSignalGroupsAttributes(byteArray, errorMessage);
         }
         if (state->getControllerTypeEnum() == ControllerStimRecord && !ignoreStimParameters &&
                 (includeParameters == XMLIncludeGlobalParameters || includeParameters == XMLIncludeStimParameters)) {
@@ -877,6 +878,73 @@ bool XMLInterface::parseSignalGroups(const QByteArray &byteArray, QString &error
         stream.readNext();
     }
     return true;
+}
+
+void XMLInterface::parseSignalGroupsAttributes(const QByteArray &byteArray, QString &errorMessage) const
+{
+    QXmlStreamReader stream(byteArray);
+    while (!stream.atEnd()) {
+        while (stream.name() != "SignalGroup") {
+            QXmlStreamReader::TokenType token = stream.readNext();
+            if (token == QXmlStreamReader::EndDocument) {
+                return;
+            }
+        }
+
+        QXmlStreamAttributes attributes = stream.attributes();
+        QString portName("");
+        for (auto attribute : attributes) {
+            if (attribute.name().toString().toLower() == "prefix") {
+                portName = "Port " + attribute.value().toString();
+                break;
+            }
+        }
+
+        SignalGroup* thisSignalGroup = state->signalSources->groupByName(portName);
+        if (!thisSignalGroup) {
+            stream.skipCurrentElement();
+            continue;
+        }
+
+        for (auto attribute : attributes) {
+            QString attributeName = attribute.name().toString();
+            QString attributeValue = attribute.value().toString();
+
+            if (attributeValue != "N/A") {
+                StateSingleItem *singleItem = state->locateStateSingleItem(thisSignalGroup->portItems, attributeName);
+
+                // If the attribute is a StateSingleItem, set it according to XMLIncludeParameters.
+                if (singleItem) {
+                    bool changeItem = false;
+                    XMLGroup xmlGroup = singleItem->getXMLGroup();
+
+                    switch (includeParameters) {
+                    case XMLIncludeSpikeSortingParameters:
+                        if (xmlGroup == XMLGroupSpikeSettings) changeItem = true;
+                        break;
+                    case XMLIncludeGlobalParameters:
+                        if (xmlGroup == XMLGroupSpikeSettings || xmlGroup == XMLGroupGeneral) changeItem = true;
+                        break;
+                    case XMLIncludeStimParameters:
+                    case XMLIncludeProbeMapSettings:
+                        cerr << "XMLIncludeStimParameters or XMLIncludeProbeMapSettings somehow reached within SignalGroup element";
+                        return;
+                    }
+
+                    if (changeItem) {
+                        if (!singleItem->setValue(attributeValue)) {
+                            errorMessage.append("Error: Failed to parse " + singleItem->getParameterName());
+                            return;
+                        } else {
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
+        stream.skipCurrentElement();
+        stream.readNextStartElement();
+    }
 }
 
 bool XMLInterface::parseStimParameters(const QByteArray &byteArray, QString &errorMessage) const

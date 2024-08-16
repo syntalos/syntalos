@@ -110,3 +110,9 @@ Intan RHX release notes
 - Improve TCP functionality to allow for multiple connections/disconnections to occur without having to restart software
 - Add TCP "execute" commands: SaveSettingsFile, LoadSettingsFile, SaveStimulationSettingsFile, LoadStimulationSettingsFile, analogous to already present UI elements.
 - Improve test mode: wider acceptable input signal ranges, reduced likelihood of unintentionally entering test mode, and faster chip testing
+
+* Version 3.3.2, 8 July 2024
+- Improve chip testing mode, and give a more direct warning against using chip test mode for headstages
+- Flush livenotes file every time a livenote occurs (useful for real-time applications that rely on livenotes)
+- Fix XML loading of Port-specific parameters (manual delay, auxiliary digital out assignment) failing after Port A
+- Fix intermittent crashing that would occur from hovering cursor in tooltip mode over border between signal types in plot

@@ -105,6 +105,8 @@ private slots:
     void checkInputWaveHelp();
     void testChipHelp();
     void uploadTestStimParametersHelp();
+    void toggleTestAuxInsSlot();
+    void changePortComboBoxSlot();
 
 private:
     QHBoxLayout* createSelectionLayout() override final;
@@ -146,6 +148,8 @@ private:
     QPushButton *saveReportButton;
     bool reportPresent;
 
+    QCheckBox* testAuxInsCheckBox;
+
     QLabel *connectedChannelsLabel;
     ConnectedChannels connectedChannels;
 
@@ -169,7 +173,12 @@ private:
     void recordDummySegment(double duration, int portIndex);
     void allocateDoubleArray3D(QVector<QVector<QVector<double> > > &array3D,
                                int xSize, int ySize, int zSize);
-    int recordShortSegment(QVector<QVector<double>> &channels, double duration, int portIndex, QVector<QVector<QVector<double>>> &ampData, QVector<QVector<QString>> &ampChannelNames);
+    void allocateDoubleArray2D(QVector<QVector<double> > &array2D,
+                               int xSize, int ySize);
+
+    int recordShortSegment(QVector<QVector<double>> &channels, double duration, int portIndex,
+                           QVector<QVector<QVector<double>>> &ampData, QVector<QVector<QString>> &ampChannelNames, QVector<QVector<double>> &auxInData);
+
     int recordDCSegment(QVector<QVector<double> > &channels, double duration, int portIndex, QVector<QVector<QString>> &dcChannelNames);
 
     int recordFSSegment(QVector<QVector<double>> &channels, double duration, int portIndex, QVector<QVector<QVector<double>>> &ampData, QVector<QVector<QString>> &ampChannelNames);
@@ -202,9 +211,31 @@ private:
     double vectorAvg(QVector<double> vect);
     double vectorAvg(QVector<double> vect, int start, int end);
 
+    bool isOutsideExpectedValue(double actualValue, double expectedValue);
+
     int ttlOut[16];
 
     int previousDelay;
+
+    bool testAuxIns;
+
+    double auxIn1Min;
+    double auxIn1Max;
+    double auxIn1Median;
+
+    double auxIn2Min;
+    double auxIn2Max;
+    double auxIn2Median;
+
+    double auxIn3Min;
+    double auxIn3Max;
+    double auxIn3Median;
+
+    double auxInExpectedMin;
+    double auxInExpectedMax;
+    double auxInExpectedMedian;
+
+    double acceptableDifference;
 };
 
 #endif // TESTCONTROLPANEL_H

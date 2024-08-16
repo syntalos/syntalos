@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.1
+//  Version 3.3.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2024 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -329,9 +329,11 @@ int ControllerInterface::scanPorts(vector<ChipType> &chipType, vector<int> &port
                                                         state->manualFastSettleEnabled->getValue(),
                                                         state->usePreviousDelay->getValue(),
                                                         state->previousDelaySelectedPort->getValue(),
-                                                        state->lastDetectedChip->getValue());
+                                                        state->lastDetectedChip->getValue(),
+                                                        state->lastDetectedNumStreams->getValue());
 
     for (size_t i = 0; i < chipType.size(); i++) {
+        qDebug() << "intan: Here... i: " << i << " chip type: " << (int) chipType[i];
         if (chipType[i] != NoChip) {
             state->lastDetectedChip->setValue((int) chipType[i]);
             break;
@@ -355,6 +357,7 @@ int ControllerInterface::scanPorts(vector<ChipType> &chipType, vector<int> &port
     for (int i = 0; i < (int) portIndex.size(); ++i) {
         if (portIndex[i] != -1) ++numDataStreams;
     }
+    state->lastDetectedNumStreams->setValue(numDataStreams);
 
     // Turn on appropriate LEDs for Ports A-H.
     int ledArray[8] = {0, 0, 0, 0, 0, 0, 0, 0};

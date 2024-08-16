@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.1
+//  Version 3.3.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2024 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -795,6 +795,10 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
     usePreviousDelay = new BooleanItem("UsePreviousDelay", globalItems, this, false, XMLGroupNone);
     previousDelaySelectedPort = new IntRangeItem("PreviousDelaySelectedPort", globalItems, this, 0, 7, 0, XMLGroupNone);
     lastDetectedChip = new IntRangeItem("LastDetectedChip", globalItems, this, -1, 1000, -1, XMLGroupNone);
+    lastDetectedNumStreams = new IntRangeItem("LastDetectedNumStreams", globalItems, this, -1, 1000, -1, XMLGroupNone);
+
+    testAuxIns = new BooleanItem("TestAuxIns", globalItems, this, getControllerTypeEnum() != ControllerStimRecord, XMLGroupNone);
+    testingPort = new StringItem("TestingPort", globalItems, this, "A", XMLGroupNone);
 
     // Start timer
     timerId = startTimer(20);  // Minimum time between two stateChanged() signals, in milliseconds.

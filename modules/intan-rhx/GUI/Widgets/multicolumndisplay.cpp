@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.1
+//  Version 3.3.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2024 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -326,12 +326,12 @@ YScaleUsed MultiColumnDisplay::loadWaveformDataFromMemory(WaveformFifo* waveform
     return waveformManager->finishLoading();
 }
 
-YScaleUsed MultiColumnDisplay::loadWaveformDataDirectAmp(QVector<QVector<QVector<double>>> &ampData, QVector<QVector<QString>> &ampChannelNames)
+YScaleUsed MultiColumnDisplay::loadWaveformDataDirectAmp(QVector<QVector<QVector<double>>> &ampData, QVector<QVector<QString>> &ampChannelNames, QVector<QVector<double>> &auxInData)
 {
     waveformManager->resetAll();
     waveformManager->prepForLoadingDataDirect();
     for (int i = 0; i < numColumns(); ++i) {
-        displayColumns[i]->loadWaveformDataDirect(ampData, ampChannelNames);
+        displayColumns[i]->loadWaveformDataDirect(ampData, ampChannelNames, auxInData);
     }
     return waveformManager->finishLoading();
 }
@@ -341,9 +341,10 @@ YScaleUsed MultiColumnDisplay::loadWaveformDataDirectAmpDC(QVector<QVector<QVect
 {
     waveformManager->resetAll();
     waveformManager->prepForLoadingDataDirect();
+    QVector<QVector<double>> dummyAuxInData;
     for (int i = 0; i < numColumns(); ++i) {
-        displayColumns[i]->loadWaveformDataDirect(ampData, ampChannelNames);
-        displayColumns[i]->loadWaveformDataDirect(dcData, dcChannelNames);
+        displayColumns[i]->loadWaveformDataDirect(ampData, ampChannelNames, dummyAuxInData);
+        displayColumns[i]->loadWaveformDataDirect(dcData, dcChannelNames, dummyAuxInData);
     }
     return waveformManager->finishLoading();
 }

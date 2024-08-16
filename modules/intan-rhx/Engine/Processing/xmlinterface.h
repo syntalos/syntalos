@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.1
+//  Version 3.3.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2024 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -70,6 +70,7 @@ private:
     bool checkConsistentChannels(const QByteArray &byteArray, QString &errorMessage) const;
     bool parseGeneralConfig(const QByteArray &byteArray, QString &errorMessage) const;
     bool parseSignalGroups(const QByteArray &byteArray, QString &errorMessage) const;
+    void parseSignalGroupsAttributes(const QByteArray &byteArray, QString &errorMessage) const;
     bool parseStimParameters(const QByteArray &byteArray, QString &errorMessage) const;
 
     vector<string> findUninitializedChannels(vector<string> allChannels, vector<bool> channelInitializedFromXML) const;

@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.1
+//  Version 3.3.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2024 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -46,7 +46,7 @@ const int HASHMARKLENGTH = 5;
 // Software version number (e.g., version 1.3.5)
 #define SOFTWARE_MAIN_VERSION_NUMBER 3
 #define SOFTWARE_SECONDARY_VERSION_NUMBER 3
-#define SOFTWARE_TERTIARY_VERSION_NUMBER 1
+#define SOFTWARE_TERTIARY_VERSION_NUMBER 2
 
 enum ControllerType {
     ControllerRecordUSB2 = 0,
@@ -228,7 +228,7 @@ const uint32_t TCPSpikeMagicNumber = 0x3ae2710f;
 const QString OrganizationName = "Intan Technologies";
 const QString OrganizationDomain = "intantech.com";
 const QString ApplicationName = "IntanRHX";
-const QString ApplicationCopyrightYear = "2020-2023";
+const QString ApplicationCopyrightYear = "2020-2024";
 
 const QString SoftwareVersion = QString::number(SOFTWARE_MAIN_VERSION_NUMBER) + "." +
                                 QString::number(SOFTWARE_SECONDARY_VERSION_NUMBER) + "." +
