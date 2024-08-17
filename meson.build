@@ -268,6 +268,9 @@ sy_base_deps = [rt_lib,
 # sed binary for some file manipulation
 sed_prog = find_program('sed')
 
+# we may need to run some Python code during build
+python3_exe = find_program('python3')
+
 # vendored 3rd-party code
 if 'plot' in get_option('modules')
     subdir('contrib/vendor')

@@ -8,6 +8,7 @@ import uasyncio
 
 
 def dump_json_compact(obj):
+    """Dump a JSON object to a compact string"""
     return json.dumps(obj, separators=(',', ':'))
 
 
@@ -90,7 +91,7 @@ class SyntalosCommunicator:
         self._elapsed_ms += tdiff
         return self._elapsed_ms
 
-    def get_output_port(self, port_id: str):
+    def get_output_port(self, port_id: str) -> SyntalosOutPort:
         """Register a port to be used for communication to the host."""
 
         port_idx = self._oport_count

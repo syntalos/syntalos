@@ -27,6 +27,19 @@ module_data = [
 
 module_res = ['upywbres.qrc']
 
+# Generate some documentation for the µPy Syntalos interface, if we can
+pdoc_exe = find_program('pdoc', required: false)
+if pdoc_exe.found()
+    custom_target('upy-wbench-mkdoc',
+                  build_by_default: true,
+                  command : [python3_exe,
+                             meson.current_source_dir() / 'make-docs.py',
+                             '@OUTPUT0@'],
+                  depend_files: ['make-docs.py', 'upy-comms.py'],
+                  output: 'upy_sycomm_api_embed.html',
+    )
+endif
+
 #
 # Generic module setup
 #

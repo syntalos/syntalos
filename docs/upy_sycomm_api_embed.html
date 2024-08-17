@@ -1,0 +1,461 @@
+
+<div>
+<main class="pdoc">
+<section class="module-info">
+<h1 class="modulename">
+upy-comms    </h1>
+
+
+<input id="mod-upy-comms-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+
+<label class="view-source-button" for="mod-upy-comms-view-source"><span>View Source</span></label>
+
+<div class="pdoc-code codehilite"><pre><span></span><span id="L-1"><a href="#L-1"><span class="linenos">  1</span></a><span class="c1"># Communication glue code to allow MicroPython to interface</span>
+</span><span id="L-2"><a href="#L-2"><span class="linenos">  2</span></a><span class="c1"># with Syntalos ports to transmit tabular data between host and device</span>
+</span><span id="L-3"><a href="#L-3"><span class="linenos">  3</span></a>
+</span><span id="L-4"><a href="#L-4"><span class="linenos">  4</span></a><span class="kn">import</span> <span class="nn">sys</span>
+</span><span id="L-5"><a href="#L-5"><span class="linenos">  5</span></a><span class="kn">import</span> <span class="nn">json</span>
+</span><span id="L-6"><a href="#L-6"><span class="linenos">  6</span></a><span class="kn">import</span> <span class="nn">time</span>
+</span><span id="L-7"><a href="#L-7"><span class="linenos">  7</span></a>
+</span><span id="L-8"><a href="#L-8"><span class="linenos">  8</span></a>
+</span><span id="L-9"><a href="#L-9"><span class="linenos">  9</span></a><span class="k">def</span> <span class="nf">dump_json_compact</span><span class="p">(</span><span class="n">obj</span><span class="p">):</span>
+</span><span id="L-10"><a href="#L-10"><span class="linenos"> 10</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Dump a JSON object to a compact string&quot;&quot;&quot;</span>
+</span><span id="L-11"><a href="#L-11"><span class="linenos"> 11</span></a>    <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">separators</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">,</span> <span class="s1">&#39;:&#39;</span><span class="p">))</span>
+</span><span id="L-12"><a href="#L-12"><span class="linenos"> 12</span></a>
+</span><span id="L-13"><a href="#L-13"><span class="linenos"> 13</span></a>
+</span><span id="L-14"><a href="#L-14"><span class="linenos"> 14</span></a><span class="k">class</span> <span class="nc">SyntalosOutPort</span><span class="p">:</span>
+</span><span id="L-15"><a href="#L-15"><span class="linenos"> 15</span></a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">writer</span><span class="p">,</span> <span class="n">port_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+</span><span id="L-16"><a href="#L-16"><span class="linenos"> 16</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_port_idx</span> <span class="o">=</span> <span class="n">port_idx</span>
+</span><span id="L-17"><a href="#L-17"><span class="linenos"> 17</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_out_writer</span> <span class="o">=</span> <span class="n">writer</span>
+</span><span id="L-18"><a href="#L-18"><span class="linenos"> 18</span></a>
+</span><span id="L-19"><a href="#L-19"><span class="linenos"> 19</span></a>    <span class="k">async</span> <span class="k">def</span> <span class="nf">send_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+</span><span id="L-20"><a href="#L-20"><span class="linenos"> 20</span></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Send tabular data to the host&quot;&quot;&quot;</span>
+</span><span id="L-21"><a href="#L-21"><span class="linenos"> 21</span></a>        <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="p">:</span>
+</span><span id="L-22"><a href="#L-22"><span class="linenos"> 22</span></a>            <span class="k">return</span>
+</span><span id="L-23"><a href="#L-23"><span class="linenos"> 23</span></a>        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+</span><span id="L-24"><a href="#L-24"><span class="linenos"> 24</span></a>            <span class="n">args</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+</span><span id="L-25"><a href="#L-25"><span class="linenos"> 25</span></a>
+</span><span id="L-26"><a href="#L-26"><span class="linenos"> 26</span></a>        <span class="n">timestamp</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;timestamp_ms&#39;</span><span class="p">)</span>
+</span><span id="L-27"><a href="#L-27"><span class="linenos"> 27</span></a>        <span class="k">if</span> <span class="n">timestamp</span><span class="p">:</span>
+</span><span id="L-28"><a href="#L-28"><span class="linenos"> 28</span></a>            <span class="bp">self</span><span class="o">.</span><span class="n">_out_writer</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
+</span><span id="L-29"><a href="#L-29"><span class="linenos"> 29</span></a>                <span class="n">dump_json_compact</span><span class="p">({</span><span class="s1">&#39;p&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_port_idx</span><span class="p">,</span> <span class="s1">&#39;d&#39;</span><span class="p">:</span> <span class="n">args</span><span class="p">,</span> <span class="s1">&#39;t&#39;</span><span class="p">:</span> <span class="n">timestamp</span><span class="p">})</span>
+</span><span id="L-30"><a href="#L-30"><span class="linenos"> 30</span></a>            <span class="p">)</span>
+</span><span id="L-31"><a href="#L-31"><span class="linenos"> 31</span></a>        <span class="k">else</span><span class="p">:</span>
+</span><span id="L-32"><a href="#L-32"><span class="linenos"> 32</span></a>            <span class="bp">self</span><span class="o">.</span><span class="n">_out_writer</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">dump_json_compact</span><span class="p">({</span><span class="s1">&#39;p&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_port_idx</span><span class="p">,</span> <span class="s1">&#39;d&#39;</span><span class="p">:</span> <span class="n">args</span><span class="p">}))</span>
+</span><span id="L-33"><a href="#L-33"><span class="linenos"> 33</span></a>
+</span><span id="L-34"><a href="#L-34"><span class="linenos"> 34</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_out_writer</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+</span><span id="L-35"><a href="#L-35"><span class="linenos"> 35</span></a>        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_out_writer</span><span class="o">.</span><span class="n">drain</span><span class="p">()</span>
+</span><span id="L-36"><a href="#L-36"><span class="linenos"> 36</span></a>
+</span><span id="L-37"><a href="#L-37"><span class="linenos"> 37</span></a>    <span class="k">def</span> <span class="nf">send_data_sync</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+</span><span id="L-38"><a href="#L-38"><span class="linenos"> 38</span></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Synchronous function for sending data.&quot;&quot;&quot;</span>
+</span><span id="L-39"><a href="#L-39"><span class="linenos"> 39</span></a>        <span class="n">uasyncio</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">send_data</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">))</span>
+</span><span id="L-40"><a href="#L-40"><span class="linenos"> 40</span></a>
+</span><span id="L-41"><a href="#L-41"><span class="linenos"> 41</span></a>
+</span><span id="L-42"><a href="#L-42"><span class="linenos"> 42</span></a><span class="k">class</span> <span class="nc">SyntalosCommunicator</span><span class="p">:</span>
+</span><span id="L-43"><a href="#L-43"><span class="linenos"> 43</span></a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="L-44"><a href="#L-44"><span class="linenos"> 44</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_out_writer</span> <span class="o">=</span> <span class="n">uasyncio</span><span class="o">.</span><span class="n">StreamWriter</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="p">)</span>
+</span><span id="L-45"><a href="#L-45"><span class="linenos"> 45</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_in_reader</span> <span class="o">=</span> <span class="n">uasyncio</span><span class="o">.</span><span class="n">StreamReader</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">stdin</span><span class="p">)</span>
+</span><span id="L-46"><a href="#L-46"><span class="linenos"> 46</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_oport_count</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span id="L-47"><a href="#L-47"><span class="linenos"> 47</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_iport_map</span> <span class="o">=</span> <span class="p">{}</span>
+</span><span id="L-48"><a href="#L-48"><span class="linenos"> 48</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_iport_pending</span> <span class="o">=</span> <span class="p">{}</span>
+</span><span id="L-49"><a href="#L-49"><span class="linenos"> 49</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_ref_time_ms</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">ticks_ms</span><span class="p">()</span>
+</span><span id="L-50"><a href="#L-50"><span class="linenos"> 50</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_elapsed_ms</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span id="L-51"><a href="#L-51"><span class="linenos"> 51</span></a>
+</span><span id="L-52"><a href="#L-52"><span class="linenos"> 52</span></a>        <span class="nb">print</span><span class="p">(</span><span class="n">dump_json_compact</span><span class="p">({</span><span class="s1">&#39;dc&#39;</span><span class="p">:</span> <span class="s1">&#39;start-time&#39;</span><span class="p">,</span> <span class="s1">&#39;t_ms&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">ticks_ms</span><span class="p">()}))</span>
+</span><span id="L-53"><a href="#L-53"><span class="linenos"> 53</span></a>
+</span><span id="L-54"><a href="#L-54"><span class="linenos"> 54</span></a>    <span class="k">def</span> <span class="nf">_register_input_port_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hdata</span><span class="p">):</span>
+</span><span id="L-55"><a href="#L-55"><span class="linenos"> 55</span></a>        <span class="k">if</span> <span class="n">hdata</span><span class="p">[</span><span class="s1">&#39;hc&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;in-port&#39;</span><span class="p">:</span>
+</span><span id="L-56"><a href="#L-56"><span class="linenos"> 56</span></a>            <span class="n">_</span><span class="p">,</span> <span class="n">callback</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_iport_pending</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">hdata</span><span class="p">[</span><span class="s1">&#39;p&#39;</span><span class="p">],</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+</span><span id="L-57"><a href="#L-57"><span class="linenos"> 57</span></a>            <span class="k">if</span> <span class="n">callback</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="L-58"><a href="#L-58"><span class="linenos"> 58</span></a>                <span class="bp">self</span><span class="o">.</span><span class="n">_iport_pending</span><span class="p">[</span><span class="n">hdata</span><span class="p">[</span><span class="s1">&#39;p&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="p">(</span><span class="n">hdata</span><span class="p">[</span><span class="s1">&#39;i&#39;</span><span class="p">],</span> <span class="kc">None</span><span class="p">)</span>
+</span><span id="L-59"><a href="#L-59"><span class="linenos"> 59</span></a>            <span class="k">else</span><span class="p">:</span>
+</span><span id="L-60"><a href="#L-60"><span class="linenos"> 60</span></a>                <span class="bp">self</span><span class="o">.</span><span class="n">_iport_map</span><span class="p">[</span><span class="n">hdata</span><span class="p">[</span><span class="s1">&#39;i&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">callback</span>
+</span><span id="L-61"><a href="#L-61"><span class="linenos"> 61</span></a>
+</span><span id="L-62"><a href="#L-62"><span class="linenos"> 62</span></a>    <span class="k">async</span> <span class="k">def</span> <span class="nf">_read_stdin</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="L-63"><a href="#L-63"><span class="linenos"> 63</span></a>        <span class="n">buf</span> <span class="o">=</span> <span class="nb">bytearray</span><span class="p">()</span>
+</span><span id="L-64"><a href="#L-64"><span class="linenos"> 64</span></a>        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+</span><span id="L-65"><a href="#L-65"><span class="linenos"> 65</span></a>            <span class="n">b</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_in_reader</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</span><span id="L-66"><a href="#L-66"><span class="linenos"> 66</span></a>            <span class="k">if</span> <span class="n">b</span> <span class="o">==</span> <span class="s1">&#39;</span><span class="se">\r</span><span class="s1">&#39;</span> <span class="ow">or</span> <span class="n">b</span> <span class="o">==</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">:</span>
+</span><span id="L-67"><a href="#L-67"><span class="linenos"> 67</span></a>                <span class="n">s</span> <span class="o">=</span> <span class="n">buf</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span>
+</span><span id="L-68"><a href="#L-68"><span class="linenos"> 68</span></a>                <span class="k">if</span> <span class="n">s</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;{&#39;</span><span class="p">):</span>
+</span><span id="L-69"><a href="#L-69"><span class="linenos"> 69</span></a>                    <span class="n">obj</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+</span><span id="L-70"><a href="#L-70"><span class="linenos"> 70</span></a>                    <span class="k">if</span> <span class="s1">&#39;hc&#39;</span> <span class="ow">in</span> <span class="n">obj</span><span class="p">:</span>
+</span><span id="L-71"><a href="#L-71"><span class="linenos"> 71</span></a>                        <span class="bp">self</span><span class="o">.</span><span class="n">_register_input_port_info</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+</span><span id="L-72"><a href="#L-72"><span class="linenos"> 72</span></a>                    <span class="k">elif</span> <span class="s1">&#39;d&#39;</span> <span class="ow">in</span> <span class="n">obj</span><span class="p">:</span>
+</span><span id="L-73"><a href="#L-73"><span class="linenos"> 73</span></a>                        <span class="n">idx</span> <span class="o">=</span> <span class="n">obj</span><span class="p">[</span><span class="s1">&#39;p&#39;</span><span class="p">]</span>
+</span><span id="L-74"><a href="#L-74"><span class="linenos"> 74</span></a>                        <span class="n">callback</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_iport_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+</span><span id="L-75"><a href="#L-75"><span class="linenos"> 75</span></a>                        <span class="k">if</span> <span class="n">callback</span><span class="p">:</span>
+</span><span id="L-76"><a href="#L-76"><span class="linenos"> 76</span></a>                            <span class="n">callback</span><span class="p">(</span><span class="n">obj</span><span class="p">[</span><span class="s1">&#39;d&#39;</span><span class="p">])</span>
+</span><span id="L-77"><a href="#L-77"><span class="linenos"> 77</span></a>                <span class="n">buf</span><span class="p">[:]</span> <span class="o">=</span> <span class="sa">b</span><span class="s1">&#39;&#39;</span>
+</span><span id="L-78"><a href="#L-78"><span class="linenos"> 78</span></a>            <span class="k">else</span><span class="p">:</span>
+</span><span id="L-79"><a href="#L-79"><span class="linenos"> 79</span></a>                <span class="n">buf</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">b</span><span class="p">)</span>
+</span><span id="L-80"><a href="#L-80"><span class="linenos"> 80</span></a>
+</span><span id="L-81"><a href="#L-81"><span class="linenos"> 81</span></a>    <span class="k">def</span> <span class="nf">enable_input</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="L-82"><a href="#L-82"><span class="linenos"> 82</span></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Enable host input handling&quot;&quot;&quot;</span>
+</span><span id="L-83"><a href="#L-83"><span class="linenos"> 83</span></a>        <span class="n">uasyncio</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_read_stdin</span><span class="p">())</span>
+</span><span id="L-84"><a href="#L-84"><span class="linenos"> 84</span></a>
+</span><span id="L-85"><a href="#L-85"><span class="linenos"> 85</span></a>    <span class="k">def</span> <span class="nf">ticks_ms</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="L-86"><a href="#L-86"><span class="linenos"> 86</span></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;A safer version of time.ticks_ms() that tries to mitigate the time.ticks_ms() overflow, if possible.&quot;&quot;&quot;</span>
+</span><span id="L-87"><a href="#L-87"><span class="linenos"> 87</span></a>        <span class="n">cticks</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">ticks_ms</span><span class="p">()</span>
+</span><span id="L-88"><a href="#L-88"><span class="linenos"> 88</span></a>        <span class="n">tdiff</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">ticks_diff</span><span class="p">(</span><span class="n">cticks</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ref_time_ms</span><span class="p">)</span>
+</span><span id="L-89"><a href="#L-89"><span class="linenos"> 89</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_ref_time_ms</span> <span class="o">=</span> <span class="n">cticks</span>
+</span><span id="L-90"><a href="#L-90"><span class="linenos"> 90</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_elapsed_ms</span> <span class="o">+=</span> <span class="n">tdiff</span>
+</span><span id="L-91"><a href="#L-91"><span class="linenos"> 91</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_elapsed_ms</span>
+</span><span id="L-92"><a href="#L-92"><span class="linenos"> 92</span></a>
+</span><span id="L-93"><a href="#L-93"><span class="linenos"> 93</span></a>    <span class="k">def</span> <span class="nf">get_output_port</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">port_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SyntalosOutPort</span><span class="p">:</span>
+</span><span id="L-94"><a href="#L-94"><span class="linenos"> 94</span></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Register a port to be used for communication to the host.&quot;&quot;&quot;</span>
+</span><span id="L-95"><a href="#L-95"><span class="linenos"> 95</span></a>
+</span><span id="L-96"><a href="#L-96"><span class="linenos"> 96</span></a>        <span class="n">port_idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_oport_count</span>
+</span><span id="L-97"><a href="#L-97"><span class="linenos"> 97</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_oport_count</span> <span class="o">+=</span> <span class="mi">1</span>
+</span><span id="L-98"><a href="#L-98"><span class="linenos"> 98</span></a>        <span class="nb">print</span><span class="p">(</span><span class="n">dump_json_compact</span><span class="p">({</span><span class="s1">&#39;dc&#39;</span><span class="p">:</span> <span class="s1">&#39;new-out-port&#39;</span><span class="p">,</span> <span class="s1">&#39;i&#39;</span><span class="p">:</span> <span class="n">port_idx</span><span class="p">,</span> <span class="s1">&#39;n&#39;</span><span class="p">:</span> <span class="n">port_id</span><span class="p">}))</span>
+</span><span id="L-99"><a href="#L-99"><span class="linenos"> 99</span></a>
+</span><span id="L-100"><a href="#L-100"><span class="linenos">100</span></a>        <span class="k">return</span> <span class="n">SyntalosOutPort</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_out_writer</span><span class="p">,</span> <span class="n">port_idx</span><span class="p">)</span>
+</span><span id="L-101"><a href="#L-101"><span class="linenos">101</span></a>
+</span><span id="L-102"><a href="#L-102"><span class="linenos">102</span></a>    <span class="k">def</span> <span class="nf">register_on_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">port_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">callback</span><span class="p">):</span>
+</span><span id="L-103"><a href="#L-103"><span class="linenos">103</span></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Register a callback to run when data is received from the host.&quot;&quot;&quot;</span>
+</span><span id="L-104"><a href="#L-104"><span class="linenos">104</span></a>
+</span><span id="L-105"><a href="#L-105"><span class="linenos">105</span></a>        <span class="n">idx</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_iport_pending</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">port_id</span><span class="p">,</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+</span><span id="L-106"><a href="#L-106"><span class="linenos">106</span></a>        <span class="k">if</span> <span class="n">idx</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="L-107"><a href="#L-107"><span class="linenos">107</span></a>            <span class="bp">self</span><span class="o">.</span><span class="n">_iport_pending</span><span class="p">[</span><span class="n">port_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">callback</span><span class="p">)</span>
+</span><span id="L-108"><a href="#L-108"><span class="linenos">108</span></a>        <span class="k">else</span><span class="p">:</span>
+</span><span id="L-109"><a href="#L-109"><span class="linenos">109</span></a>            <span class="bp">self</span><span class="o">.</span><span class="n">_iport_map</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">callback</span>
+</span></pre></div>
+
+
+</section>
+<section id="dump_json_compact">
+<input id="dump_json_compact-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">dump_json_compact</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">obj</span></span><span class="return-annotation">):</span></span>
+
+<label class="view-source-button" for="dump_json_compact-view-source"><span>View Source</span></label>
+
+</div>
+<a class="headerlink" href="#dump_json_compact"></a>
+<div class="pdoc-code codehilite"><pre><span></span><span id="dump_json_compact-10"><a href="#dump_json_compact-10"><span class="linenos">10</span></a><span class="k">def</span> <span class="nf">dump_json_compact</span><span class="p">(</span><span class="n">obj</span><span class="p">):</span>
+</span><span id="dump_json_compact-11"><a href="#dump_json_compact-11"><span class="linenos">11</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Dump a JSON object to a compact string&quot;&quot;&quot;</span>
+</span><span id="dump_json_compact-12"><a href="#dump_json_compact-12"><span class="linenos">12</span></a>    <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">separators</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">,</span> <span class="s1">&#39;:&#39;</span><span class="p">))</span>
+</span></pre></div>
+
+
+<div class="docstring"><p>Dump a JSON object to a compact string</p>
+</div>
+
+
+</section>
+<section id="SyntalosOutPort">
+<input id="SyntalosOutPort-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr class">
+
+<span class="def">class</span>
+<span class="name">SyntalosOutPort</span>:
+
+<label class="view-source-button" for="SyntalosOutPort-view-source"><span>View Source</span></label>
+
+</div>
+<a class="headerlink" href="#SyntalosOutPort"></a>
+<div class="pdoc-code codehilite"><pre><span></span><span id="SyntalosOutPort-15"><a href="#SyntalosOutPort-15"><span class="linenos">15</span></a><span class="k">class</span> <span class="nc">SyntalosOutPort</span><span class="p">:</span>
+</span><span id="SyntalosOutPort-16"><a href="#SyntalosOutPort-16"><span class="linenos">16</span></a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">writer</span><span class="p">,</span> <span class="n">port_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+</span><span id="SyntalosOutPort-17"><a href="#SyntalosOutPort-17"><span class="linenos">17</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_port_idx</span> <span class="o">=</span> <span class="n">port_idx</span>
+</span><span id="SyntalosOutPort-18"><a href="#SyntalosOutPort-18"><span class="linenos">18</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_out_writer</span> <span class="o">=</span> <span class="n">writer</span>
+</span><span id="SyntalosOutPort-19"><a href="#SyntalosOutPort-19"><span class="linenos">19</span></a>
+</span><span id="SyntalosOutPort-20"><a href="#SyntalosOutPort-20"><span class="linenos">20</span></a>    <span class="k">async</span> <span class="k">def</span> <span class="nf">send_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+</span><span id="SyntalosOutPort-21"><a href="#SyntalosOutPort-21"><span class="linenos">21</span></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Send tabular data to the host&quot;&quot;&quot;</span>
+</span><span id="SyntalosOutPort-22"><a href="#SyntalosOutPort-22"><span class="linenos">22</span></a>        <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="p">:</span>
+</span><span id="SyntalosOutPort-23"><a href="#SyntalosOutPort-23"><span class="linenos">23</span></a>            <span class="k">return</span>
+</span><span id="SyntalosOutPort-24"><a href="#SyntalosOutPort-24"><span class="linenos">24</span></a>        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+</span><span id="SyntalosOutPort-25"><a href="#SyntalosOutPort-25"><span class="linenos">25</span></a>            <span class="n">args</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+</span><span id="SyntalosOutPort-26"><a href="#SyntalosOutPort-26"><span class="linenos">26</span></a>
+</span><span id="SyntalosOutPort-27"><a href="#SyntalosOutPort-27"><span class="linenos">27</span></a>        <span class="n">timestamp</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;timestamp_ms&#39;</span><span class="p">)</span>
+</span><span id="SyntalosOutPort-28"><a href="#SyntalosOutPort-28"><span class="linenos">28</span></a>        <span class="k">if</span> <span class="n">timestamp</span><span class="p">:</span>
+</span><span id="SyntalosOutPort-29"><a href="#SyntalosOutPort-29"><span class="linenos">29</span></a>            <span class="bp">self</span><span class="o">.</span><span class="n">_out_writer</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
+</span><span id="SyntalosOutPort-30"><a href="#SyntalosOutPort-30"><span class="linenos">30</span></a>                <span class="n">dump_json_compact</span><span class="p">({</span><span class="s1">&#39;p&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_port_idx</span><span class="p">,</span> <span class="s1">&#39;d&#39;</span><span class="p">:</span> <span class="n">args</span><span class="p">,</span> <span class="s1">&#39;t&#39;</span><span class="p">:</span> <span class="n">timestamp</span><span class="p">})</span>
+</span><span id="SyntalosOutPort-31"><a href="#SyntalosOutPort-31"><span class="linenos">31</span></a>            <span class="p">)</span>
+</span><span id="SyntalosOutPort-32"><a href="#SyntalosOutPort-32"><span class="linenos">32</span></a>        <span class="k">else</span><span class="p">:</span>
+</span><span id="SyntalosOutPort-33"><a href="#SyntalosOutPort-33"><span class="linenos">33</span></a>            <span class="bp">self</span><span class="o">.</span><span class="n">_out_writer</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">dump_json_compact</span><span class="p">({</span><span class="s1">&#39;p&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_port_idx</span><span class="p">,</span> <span class="s1">&#39;d&#39;</span><span class="p">:</span> <span class="n">args</span><span class="p">}))</span>
+</span><span id="SyntalosOutPort-34"><a href="#SyntalosOutPort-34"><span class="linenos">34</span></a>
+</span><span id="SyntalosOutPort-35"><a href="#SyntalosOutPort-35"><span class="linenos">35</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_out_writer</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+</span><span id="SyntalosOutPort-36"><a href="#SyntalosOutPort-36"><span class="linenos">36</span></a>        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_out_writer</span><span class="o">.</span><span class="n">drain</span><span class="p">()</span>
+</span><span id="SyntalosOutPort-37"><a href="#SyntalosOutPort-37"><span class="linenos">37</span></a>
+</span><span id="SyntalosOutPort-38"><a href="#SyntalosOutPort-38"><span class="linenos">38</span></a>    <span class="k">def</span> <span class="nf">send_data_sync</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+</span><span id="SyntalosOutPort-39"><a href="#SyntalosOutPort-39"><span class="linenos">39</span></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Synchronous function for sending data.&quot;&quot;&quot;</span>
+</span><span id="SyntalosOutPort-40"><a href="#SyntalosOutPort-40"><span class="linenos">40</span></a>        <span class="n">uasyncio</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">send_data</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">))</span>
+</span></pre></div>
+
+
+
+
+<div id="SyntalosOutPort.__init__" class="classattr">
+<input id="SyntalosOutPort.__init__-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr function">
+
+<span class="name">SyntalosOutPort</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">writer</span>, </span><span class="param"><span class="n">port_idx</span><span class="p">:</span> <span class="nb">int</span></span>)</span>
+
+<label class="view-source-button" for="SyntalosOutPort.__init__-view-source"><span>View Source</span></label>
+
+</div>
+<a class="headerlink" href="#SyntalosOutPort.__init__"></a>
+<div class="pdoc-code codehilite"><pre><span></span><span id="SyntalosOutPort.__init__-16"><a href="#SyntalosOutPort.__init__-16"><span class="linenos">16</span></a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">writer</span><span class="p">,</span> <span class="n">port_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+</span><span id="SyntalosOutPort.__init__-17"><a href="#SyntalosOutPort.__init__-17"><span class="linenos">17</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_port_idx</span> <span class="o">=</span> <span class="n">port_idx</span>
+</span><span id="SyntalosOutPort.__init__-18"><a href="#SyntalosOutPort.__init__-18"><span class="linenos">18</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_out_writer</span> <span class="o">=</span> <span class="n">writer</span>
+</span></pre></div>
+
+
+
+
+</div>
+<div id="SyntalosOutPort.send_data" class="classattr">
+<input id="SyntalosOutPort.send_data-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr function">
+
+<span class="def">async def</span>
+<span class="name">send_data</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="o">*</span><span class="n">args</span>, </span><span class="param"><span class="o">**</span><span class="n">kwargs</span></span><span class="return-annotation">):</span></span>
+
+<label class="view-source-button" for="SyntalosOutPort.send_data-view-source"><span>View Source</span></label>
+
+</div>
+<a class="headerlink" href="#SyntalosOutPort.send_data"></a>
+<div class="pdoc-code codehilite"><pre><span></span><span id="SyntalosOutPort.send_data-20"><a href="#SyntalosOutPort.send_data-20"><span class="linenos">20</span></a>    <span class="k">async</span> <span class="k">def</span> <span class="nf">send_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+</span><span id="SyntalosOutPort.send_data-21"><a href="#SyntalosOutPort.send_data-21"><span class="linenos">21</span></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Send tabular data to the host&quot;&quot;&quot;</span>
+</span><span id="SyntalosOutPort.send_data-22"><a href="#SyntalosOutPort.send_data-22"><span class="linenos">22</span></a>        <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="p">:</span>
+</span><span id="SyntalosOutPort.send_data-23"><a href="#SyntalosOutPort.send_data-23"><span class="linenos">23</span></a>            <span class="k">return</span>
+</span><span id="SyntalosOutPort.send_data-24"><a href="#SyntalosOutPort.send_data-24"><span class="linenos">24</span></a>        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+</span><span id="SyntalosOutPort.send_data-25"><a href="#SyntalosOutPort.send_data-25"><span class="linenos">25</span></a>            <span class="n">args</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+</span><span id="SyntalosOutPort.send_data-26"><a href="#SyntalosOutPort.send_data-26"><span class="linenos">26</span></a>
+</span><span id="SyntalosOutPort.send_data-27"><a href="#SyntalosOutPort.send_data-27"><span class="linenos">27</span></a>        <span class="n">timestamp</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;timestamp_ms&#39;</span><span class="p">)</span>
+</span><span id="SyntalosOutPort.send_data-28"><a href="#SyntalosOutPort.send_data-28"><span class="linenos">28</span></a>        <span class="k">if</span> <span class="n">timestamp</span><span class="p">:</span>
+</span><span id="SyntalosOutPort.send_data-29"><a href="#SyntalosOutPort.send_data-29"><span class="linenos">29</span></a>            <span class="bp">self</span><span class="o">.</span><span class="n">_out_writer</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
+</span><span id="SyntalosOutPort.send_data-30"><a href="#SyntalosOutPort.send_data-30"><span class="linenos">30</span></a>                <span class="n">dump_json_compact</span><span class="p">({</span><span class="s1">&#39;p&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_port_idx</span><span class="p">,</span> <span class="s1">&#39;d&#39;</span><span class="p">:</span> <span class="n">args</span><span class="p">,</span> <span class="s1">&#39;t&#39;</span><span class="p">:</span> <span class="n">timestamp</span><span class="p">})</span>
+</span><span id="SyntalosOutPort.send_data-31"><a href="#SyntalosOutPort.send_data-31"><span class="linenos">31</span></a>            <span class="p">)</span>
+</span><span id="SyntalosOutPort.send_data-32"><a href="#SyntalosOutPort.send_data-32"><span class="linenos">32</span></a>        <span class="k">else</span><span class="p">:</span>
+</span><span id="SyntalosOutPort.send_data-33"><a href="#SyntalosOutPort.send_data-33"><span class="linenos">33</span></a>            <span class="bp">self</span><span class="o">.</span><span class="n">_out_writer</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">dump_json_compact</span><span class="p">({</span><span class="s1">&#39;p&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_port_idx</span><span class="p">,</span> <span class="s1">&#39;d&#39;</span><span class="p">:</span> <span class="n">args</span><span class="p">}))</span>
+</span><span id="SyntalosOutPort.send_data-34"><a href="#SyntalosOutPort.send_data-34"><span class="linenos">34</span></a>
+</span><span id="SyntalosOutPort.send_data-35"><a href="#SyntalosOutPort.send_data-35"><span class="linenos">35</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_out_writer</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+</span><span id="SyntalosOutPort.send_data-36"><a href="#SyntalosOutPort.send_data-36"><span class="linenos">36</span></a>        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_out_writer</span><span class="o">.</span><span class="n">drain</span><span class="p">()</span>
+</span></pre></div>
+
+
+<div class="docstring"><p>Send tabular data to the host</p>
+</div>
+
+
+</div>
+<div id="SyntalosOutPort.send_data_sync" class="classattr">
+<input id="SyntalosOutPort.send_data_sync-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">send_data_sync</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="o">*</span><span class="n">args</span>, </span><span class="param"><span class="o">**</span><span class="n">kwargs</span></span><span class="return-annotation">):</span></span>
+
+<label class="view-source-button" for="SyntalosOutPort.send_data_sync-view-source"><span>View Source</span></label>
+
+</div>
+<a class="headerlink" href="#SyntalosOutPort.send_data_sync"></a>
+<div class="pdoc-code codehilite"><pre><span></span><span id="SyntalosOutPort.send_data_sync-38"><a href="#SyntalosOutPort.send_data_sync-38"><span class="linenos">38</span></a>    <span class="k">def</span> <span class="nf">send_data_sync</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+</span><span id="SyntalosOutPort.send_data_sync-39"><a href="#SyntalosOutPort.send_data_sync-39"><span class="linenos">39</span></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Synchronous function for sending data.&quot;&quot;&quot;</span>
+</span><span id="SyntalosOutPort.send_data_sync-40"><a href="#SyntalosOutPort.send_data_sync-40"><span class="linenos">40</span></a>        <span class="n">uasyncio</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">send_data</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">))</span>
+</span></pre></div>
+
+
+<div class="docstring"><p>Synchronous function for sending data.</p>
+</div>
+
+
+</div>
+</section>
+<section id="SyntalosCommunicator">
+<input id="SyntalosCommunicator-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr class">
+
+<span class="def">class</span>
+<span class="name">SyntalosCommunicator</span>:
+
+<label class="view-source-button" for="SyntalosCommunicator-view-source"><span>View Source</span></label>
+
+</div>
+<a class="headerlink" href="#SyntalosCommunicator"></a>
+<div class="pdoc-code codehilite"><pre><span></span><span id="SyntalosCommunicator-43"><a href="#SyntalosCommunicator-43"><span class="linenos"> 43</span></a><span class="k">class</span> <span class="nc">SyntalosCommunicator</span><span class="p">:</span>
+</span><span id="SyntalosCommunicator-44"><a href="#SyntalosCommunicator-44"><span class="linenos"> 44</span></a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="SyntalosCommunicator-45"><a href="#SyntalosCommunicator-45"><span class="linenos"> 45</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_out_writer</span> <span class="o">=</span> <span class="n">uasyncio</span><span class="o">.</span><span class="n">StreamWriter</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="p">)</span>
+</span><span id="SyntalosCommunicator-46"><a href="#SyntalosCommunicator-46"><span class="linenos"> 46</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_in_reader</span> <span class="o">=</span> <span class="n">uasyncio</span><span class="o">.</span><span class="n">StreamReader</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">stdin</span><span class="p">)</span>
+</span><span id="SyntalosCommunicator-47"><a href="#SyntalosCommunicator-47"><span class="linenos"> 47</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_oport_count</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span id="SyntalosCommunicator-48"><a href="#SyntalosCommunicator-48"><span class="linenos"> 48</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_iport_map</span> <span class="o">=</span> <span class="p">{}</span>
+</span><span id="SyntalosCommunicator-49"><a href="#SyntalosCommunicator-49"><span class="linenos"> 49</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_iport_pending</span> <span class="o">=</span> <span class="p">{}</span>
+</span><span id="SyntalosCommunicator-50"><a href="#SyntalosCommunicator-50"><span class="linenos"> 50</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_ref_time_ms</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">ticks_ms</span><span class="p">()</span>
+</span><span id="SyntalosCommunicator-51"><a href="#SyntalosCommunicator-51"><span class="linenos"> 51</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_elapsed_ms</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span id="SyntalosCommunicator-52"><a href="#SyntalosCommunicator-52"><span class="linenos"> 52</span></a>
+</span><span id="SyntalosCommunicator-53"><a href="#SyntalosCommunicator-53"><span class="linenos"> 53</span></a>        <span class="nb">print</span><span class="p">(</span><span class="n">dump_json_compact</span><span class="p">({</span><span class="s1">&#39;dc&#39;</span><span class="p">:</span> <span class="s1">&#39;start-time&#39;</span><span class="p">,</span> <span class="s1">&#39;t_ms&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">ticks_ms</span><span class="p">()}))</span>
+</span><span id="SyntalosCommunicator-54"><a href="#SyntalosCommunicator-54"><span class="linenos"> 54</span></a>
+</span><span id="SyntalosCommunicator-55"><a href="#SyntalosCommunicator-55"><span class="linenos"> 55</span></a>    <span class="k">def</span> <span class="nf">_register_input_port_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hdata</span><span class="p">):</span>
+</span><span id="SyntalosCommunicator-56"><a href="#SyntalosCommunicator-56"><span class="linenos"> 56</span></a>        <span class="k">if</span> <span class="n">hdata</span><span class="p">[</span><span class="s1">&#39;hc&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;in-port&#39;</span><span class="p">:</span>
+</span><span id="SyntalosCommunicator-57"><a href="#SyntalosCommunicator-57"><span class="linenos"> 57</span></a>            <span class="n">_</span><span class="p">,</span> <span class="n">callback</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_iport_pending</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">hdata</span><span class="p">[</span><span class="s1">&#39;p&#39;</span><span class="p">],</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+</span><span id="SyntalosCommunicator-58"><a href="#SyntalosCommunicator-58"><span class="linenos"> 58</span></a>            <span class="k">if</span> <span class="n">callback</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="SyntalosCommunicator-59"><a href="#SyntalosCommunicator-59"><span class="linenos"> 59</span></a>                <span class="bp">self</span><span class="o">.</span><span class="n">_iport_pending</span><span class="p">[</span><span class="n">hdata</span><span class="p">[</span><span class="s1">&#39;p&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="p">(</span><span class="n">hdata</span><span class="p">[</span><span class="s1">&#39;i&#39;</span><span class="p">],</span> <span class="kc">None</span><span class="p">)</span>
+</span><span id="SyntalosCommunicator-60"><a href="#SyntalosCommunicator-60"><span class="linenos"> 60</span></a>            <span class="k">else</span><span class="p">:</span>
+</span><span id="SyntalosCommunicator-61"><a href="#SyntalosCommunicator-61"><span class="linenos"> 61</span></a>                <span class="bp">self</span><span class="o">.</span><span class="n">_iport_map</span><span class="p">[</span><span class="n">hdata</span><span class="p">[</span><span class="s1">&#39;i&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">callback</span>
+</span><span id="SyntalosCommunicator-62"><a href="#SyntalosCommunicator-62"><span class="linenos"> 62</span></a>
+</span><span id="SyntalosCommunicator-63"><a href="#SyntalosCommunicator-63"><span class="linenos"> 63</span></a>    <span class="k">async</span> <span class="k">def</span> <span class="nf">_read_stdin</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="SyntalosCommunicator-64"><a href="#SyntalosCommunicator-64"><span class="linenos"> 64</span></a>        <span class="n">buf</span> <span class="o">=</span> <span class="nb">bytearray</span><span class="p">()</span>
+</span><span id="SyntalosCommunicator-65"><a href="#SyntalosCommunicator-65"><span class="linenos"> 65</span></a>        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+</span><span id="SyntalosCommunicator-66"><a href="#SyntalosCommunicator-66"><span class="linenos"> 66</span></a>            <span class="n">b</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_in_reader</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</span><span id="SyntalosCommunicator-67"><a href="#SyntalosCommunicator-67"><span class="linenos"> 67</span></a>            <span class="k">if</span> <span class="n">b</span> <span class="o">==</span> <span class="s1">&#39;</span><span class="se">\r</span><span class="s1">&#39;</span> <span class="ow">or</span> <span class="n">b</span> <span class="o">==</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">:</span>
+</span><span id="SyntalosCommunicator-68"><a href="#SyntalosCommunicator-68"><span class="linenos"> 68</span></a>                <span class="n">s</span> <span class="o">=</span> <span class="n">buf</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span>
+</span><span id="SyntalosCommunicator-69"><a href="#SyntalosCommunicator-69"><span class="linenos"> 69</span></a>                <span class="k">if</span> <span class="n">s</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;{&#39;</span><span class="p">):</span>
+</span><span id="SyntalosCommunicator-70"><a href="#SyntalosCommunicator-70"><span class="linenos"> 70</span></a>                    <span class="n">obj</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+</span><span id="SyntalosCommunicator-71"><a href="#SyntalosCommunicator-71"><span class="linenos"> 71</span></a>                    <span class="k">if</span> <span class="s1">&#39;hc&#39;</span> <span class="ow">in</span> <span class="n">obj</span><span class="p">:</span>
+</span><span id="SyntalosCommunicator-72"><a href="#SyntalosCommunicator-72"><span class="linenos"> 72</span></a>                        <span class="bp">self</span><span class="o">.</span><span class="n">_register_input_port_info</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+</span><span id="SyntalosCommunicator-73"><a href="#SyntalosCommunicator-73"><span class="linenos"> 73</span></a>                    <span class="k">elif</span> <span class="s1">&#39;d&#39;</span> <span class="ow">in</span> <span class="n">obj</span><span class="p">:</span>
+</span><span id="SyntalosCommunicator-74"><a href="#SyntalosCommunicator-74"><span class="linenos"> 74</span></a>                        <span class="n">idx</span> <span class="o">=</span> <span class="n">obj</span><span class="p">[</span><span class="s1">&#39;p&#39;</span><span class="p">]</span>
+</span><span id="SyntalosCommunicator-75"><a href="#SyntalosCommunicator-75"><span class="linenos"> 75</span></a>                        <span class="n">callback</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_iport_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+</span><span id="SyntalosCommunicator-76"><a href="#SyntalosCommunicator-76"><span class="linenos"> 76</span></a>                        <span class="k">if</span> <span class="n">callback</span><span class="p">:</span>
+</span><span id="SyntalosCommunicator-77"><a href="#SyntalosCommunicator-77"><span class="linenos"> 77</span></a>                            <span class="n">callback</span><span class="p">(</span><span class="n">obj</span><span class="p">[</span><span class="s1">&#39;d&#39;</span><span class="p">])</span>
+</span><span id="SyntalosCommunicator-78"><a href="#SyntalosCommunicator-78"><span class="linenos"> 78</span></a>                <span class="n">buf</span><span class="p">[:]</span> <span class="o">=</span> <span class="sa">b</span><span class="s1">&#39;&#39;</span>
+</span><span id="SyntalosCommunicator-79"><a href="#SyntalosCommunicator-79"><span class="linenos"> 79</span></a>            <span class="k">else</span><span class="p">:</span>
+</span><span id="SyntalosCommunicator-80"><a href="#SyntalosCommunicator-80"><span class="linenos"> 80</span></a>                <span class="n">buf</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">b</span><span class="p">)</span>
+</span><span id="SyntalosCommunicator-81"><a href="#SyntalosCommunicator-81"><span class="linenos"> 81</span></a>
+</span><span id="SyntalosCommunicator-82"><a href="#SyntalosCommunicator-82"><span class="linenos"> 82</span></a>    <span class="k">def</span> <span class="nf">enable_input</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="SyntalosCommunicator-83"><a href="#SyntalosCommunicator-83"><span class="linenos"> 83</span></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Enable host input handling&quot;&quot;&quot;</span>
+</span><span id="SyntalosCommunicator-84"><a href="#SyntalosCommunicator-84"><span class="linenos"> 84</span></a>        <span class="n">uasyncio</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_read_stdin</span><span class="p">())</span>
+</span><span id="SyntalosCommunicator-85"><a href="#SyntalosCommunicator-85"><span class="linenos"> 85</span></a>
+</span><span id="SyntalosCommunicator-86"><a href="#SyntalosCommunicator-86"><span class="linenos"> 86</span></a>    <span class="k">def</span> <span class="nf">ticks_ms</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="SyntalosCommunicator-87"><a href="#SyntalosCommunicator-87"><span class="linenos"> 87</span></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;A safer version of time.ticks_ms() that tries to mitigate the time.ticks_ms() overflow, if possible.&quot;&quot;&quot;</span>
+</span><span id="SyntalosCommunicator-88"><a href="#SyntalosCommunicator-88"><span class="linenos"> 88</span></a>        <span class="n">cticks</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">ticks_ms</span><span class="p">()</span>
+</span><span id="SyntalosCommunicator-89"><a href="#SyntalosCommunicator-89"><span class="linenos"> 89</span></a>        <span class="n">tdiff</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">ticks_diff</span><span class="p">(</span><span class="n">cticks</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ref_time_ms</span><span class="p">)</span>
+</span><span id="SyntalosCommunicator-90"><a href="#SyntalosCommunicator-90"><span class="linenos"> 90</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_ref_time_ms</span> <span class="o">=</span> <span class="n">cticks</span>
+</span><span id="SyntalosCommunicator-91"><a href="#SyntalosCommunicator-91"><span class="linenos"> 91</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_elapsed_ms</span> <span class="o">+=</span> <span class="n">tdiff</span>
+</span><span id="SyntalosCommunicator-92"><a href="#SyntalosCommunicator-92"><span class="linenos"> 92</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_elapsed_ms</span>
+</span><span id="SyntalosCommunicator-93"><a href="#SyntalosCommunicator-93"><span class="linenos"> 93</span></a>
+</span><span id="SyntalosCommunicator-94"><a href="#SyntalosCommunicator-94"><span class="linenos"> 94</span></a>    <span class="k">def</span> <span class="nf">get_output_port</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">port_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SyntalosOutPort</span><span class="p">:</span>
+</span><span id="SyntalosCommunicator-95"><a href="#SyntalosCommunicator-95"><span class="linenos"> 95</span></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Register a port to be used for communication to the host.&quot;&quot;&quot;</span>
+</span><span id="SyntalosCommunicator-96"><a href="#SyntalosCommunicator-96"><span class="linenos"> 96</span></a>
+</span><span id="SyntalosCommunicator-97"><a href="#SyntalosCommunicator-97"><span class="linenos"> 97</span></a>        <span class="n">port_idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_oport_count</span>
+</span><span id="SyntalosCommunicator-98"><a href="#SyntalosCommunicator-98"><span class="linenos"> 98</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_oport_count</span> <span class="o">+=</span> <span class="mi">1</span>
+</span><span id="SyntalosCommunicator-99"><a href="#SyntalosCommunicator-99"><span class="linenos"> 99</span></a>        <span class="nb">print</span><span class="p">(</span><span class="n">dump_json_compact</span><span class="p">({</span><span class="s1">&#39;dc&#39;</span><span class="p">:</span> <span class="s1">&#39;new-out-port&#39;</span><span class="p">,</span> <span class="s1">&#39;i&#39;</span><span class="p">:</span> <span class="n">port_idx</span><span class="p">,</span> <span class="s1">&#39;n&#39;</span><span class="p">:</span> <span class="n">port_id</span><span class="p">}))</span>
+</span><span id="SyntalosCommunicator-100"><a href="#SyntalosCommunicator-100"><span class="linenos">100</span></a>
+</span><span id="SyntalosCommunicator-101"><a href="#SyntalosCommunicator-101"><span class="linenos">101</span></a>        <span class="k">return</span> <span class="n">SyntalosOutPort</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_out_writer</span><span class="p">,</span> <span class="n">port_idx</span><span class="p">)</span>
+</span><span id="SyntalosCommunicator-102"><a href="#SyntalosCommunicator-102"><span class="linenos">102</span></a>
+</span><span id="SyntalosCommunicator-103"><a href="#SyntalosCommunicator-103"><span class="linenos">103</span></a>    <span class="k">def</span> <span class="nf">register_on_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">port_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">callback</span><span class="p">):</span>
+</span><span id="SyntalosCommunicator-104"><a href="#SyntalosCommunicator-104"><span class="linenos">104</span></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Register a callback to run when data is received from the host.&quot;&quot;&quot;</span>
+</span><span id="SyntalosCommunicator-105"><a href="#SyntalosCommunicator-105"><span class="linenos">105</span></a>
+</span><span id="SyntalosCommunicator-106"><a href="#SyntalosCommunicator-106"><span class="linenos">106</span></a>        <span class="n">idx</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_iport_pending</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">port_id</span><span class="p">,</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+</span><span id="SyntalosCommunicator-107"><a href="#SyntalosCommunicator-107"><span class="linenos">107</span></a>        <span class="k">if</span> <span class="n">idx</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="SyntalosCommunicator-108"><a href="#SyntalosCommunicator-108"><span class="linenos">108</span></a>            <span class="bp">self</span><span class="o">.</span><span class="n">_iport_pending</span><span class="p">[</span><span class="n">port_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">callback</span><span class="p">)</span>
+</span><span id="SyntalosCommunicator-109"><a href="#SyntalosCommunicator-109"><span class="linenos">109</span></a>        <span class="k">else</span><span class="p">:</span>
+</span><span id="SyntalosCommunicator-110"><a href="#SyntalosCommunicator-110"><span class="linenos">110</span></a>            <span class="bp">self</span><span class="o">.</span><span class="n">_iport_map</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">callback</span>
+</span></pre></div>
+
+
+
+
+<div id="SyntalosCommunicator.enable_input" class="classattr">
+<input id="SyntalosCommunicator.enable_input-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">enable_input</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span></span><span class="return-annotation">):</span></span>
+
+<label class="view-source-button" for="SyntalosCommunicator.enable_input-view-source"><span>View Source</span></label>
+
+</div>
+<a class="headerlink" href="#SyntalosCommunicator.enable_input"></a>
+<div class="pdoc-code codehilite"><pre><span></span><span id="SyntalosCommunicator.enable_input-82"><a href="#SyntalosCommunicator.enable_input-82"><span class="linenos">82</span></a>    <span class="k">def</span> <span class="nf">enable_input</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="SyntalosCommunicator.enable_input-83"><a href="#SyntalosCommunicator.enable_input-83"><span class="linenos">83</span></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Enable host input handling&quot;&quot;&quot;</span>
+</span><span id="SyntalosCommunicator.enable_input-84"><a href="#SyntalosCommunicator.enable_input-84"><span class="linenos">84</span></a>        <span class="n">uasyncio</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_read_stdin</span><span class="p">())</span>
+</span></pre></div>
+
+
+<div class="docstring"><p>Enable host input handling</p>
+</div>
+
+
+</div>
+<div id="SyntalosCommunicator.ticks_ms" class="classattr">
+<input id="SyntalosCommunicator.ticks_ms-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">ticks_ms</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span></span><span class="return-annotation">):</span></span>
+
+<label class="view-source-button" for="SyntalosCommunicator.ticks_ms-view-source"><span>View Source</span></label>
+
+</div>
+<a class="headerlink" href="#SyntalosCommunicator.ticks_ms"></a>
+<div class="pdoc-code codehilite"><pre><span></span><span id="SyntalosCommunicator.ticks_ms-86"><a href="#SyntalosCommunicator.ticks_ms-86"><span class="linenos">86</span></a>    <span class="k">def</span> <span class="nf">ticks_ms</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="SyntalosCommunicator.ticks_ms-87"><a href="#SyntalosCommunicator.ticks_ms-87"><span class="linenos">87</span></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;A safer version of time.ticks_ms() that tries to mitigate the time.ticks_ms() overflow, if possible.&quot;&quot;&quot;</span>
+</span><span id="SyntalosCommunicator.ticks_ms-88"><a href="#SyntalosCommunicator.ticks_ms-88"><span class="linenos">88</span></a>        <span class="n">cticks</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">ticks_ms</span><span class="p">()</span>
+</span><span id="SyntalosCommunicator.ticks_ms-89"><a href="#SyntalosCommunicator.ticks_ms-89"><span class="linenos">89</span></a>        <span class="n">tdiff</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">ticks_diff</span><span class="p">(</span><span class="n">cticks</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ref_time_ms</span><span class="p">)</span>
+</span><span id="SyntalosCommunicator.ticks_ms-90"><a href="#SyntalosCommunicator.ticks_ms-90"><span class="linenos">90</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_ref_time_ms</span> <span class="o">=</span> <span class="n">cticks</span>
+</span><span id="SyntalosCommunicator.ticks_ms-91"><a href="#SyntalosCommunicator.ticks_ms-91"><span class="linenos">91</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_elapsed_ms</span> <span class="o">+=</span> <span class="n">tdiff</span>
+</span><span id="SyntalosCommunicator.ticks_ms-92"><a href="#SyntalosCommunicator.ticks_ms-92"><span class="linenos">92</span></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_elapsed_ms</span>
+</span></pre></div>
+
+
+<div class="docstring"><p>A safer version of time.ticks_ms() that tries to mitigate the time.ticks_ms() overflow, if possible.</p>
+</div>
+
+
+</div>
+<div id="SyntalosCommunicator.get_output_port" class="classattr">
+<input id="SyntalosCommunicator.get_output_port-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">get_output_port</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">port_id</span><span class="p">:</span> <span class="nb">str</span></span><span class="return-annotation">) -> <span class="n">upy</span><span class="o">-</span><span class="n">comms</span><span class="o">.</span><span class="n">SyntalosOutPort</span>:</span></span>
+
+<label class="view-source-button" for="SyntalosCommunicator.get_output_port-view-source"><span>View Source</span></label>
+
+</div>
+<a class="headerlink" href="#SyntalosCommunicator.get_output_port"></a>
+<div class="pdoc-code codehilite"><pre><span></span><span id="SyntalosCommunicator.get_output_port-94"><a href="#SyntalosCommunicator.get_output_port-94"><span class="linenos"> 94</span></a>    <span class="k">def</span> <span class="nf">get_output_port</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">port_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SyntalosOutPort</span><span class="p">:</span>
+</span><span id="SyntalosCommunicator.get_output_port-95"><a href="#SyntalosCommunicator.get_output_port-95"><span class="linenos"> 95</span></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Register a port to be used for communication to the host.&quot;&quot;&quot;</span>
+</span><span id="SyntalosCommunicator.get_output_port-96"><a href="#SyntalosCommunicator.get_output_port-96"><span class="linenos"> 96</span></a>
+</span><span id="SyntalosCommunicator.get_output_port-97"><a href="#SyntalosCommunicator.get_output_port-97"><span class="linenos"> 97</span></a>        <span class="n">port_idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_oport_count</span>
+</span><span id="SyntalosCommunicator.get_output_port-98"><a href="#SyntalosCommunicator.get_output_port-98"><span class="linenos"> 98</span></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_oport_count</span> <span class="o">+=</span> <span class="mi">1</span>
+</span><span id="SyntalosCommunicator.get_output_port-99"><a href="#SyntalosCommunicator.get_output_port-99"><span class="linenos"> 99</span></a>        <span class="nb">print</span><span class="p">(</span><span class="n">dump_json_compact</span><span class="p">({</span><span class="s1">&#39;dc&#39;</span><span class="p">:</span> <span class="s1">&#39;new-out-port&#39;</span><span class="p">,</span> <span class="s1">&#39;i&#39;</span><span class="p">:</span> <span class="n">port_idx</span><span class="p">,</span> <span class="s1">&#39;n&#39;</span><span class="p">:</span> <span class="n">port_id</span><span class="p">}))</span>
+</span><span id="SyntalosCommunicator.get_output_port-100"><a href="#SyntalosCommunicator.get_output_port-100"><span class="linenos">100</span></a>
+</span><span id="SyntalosCommunicator.get_output_port-101"><a href="#SyntalosCommunicator.get_output_port-101"><span class="linenos">101</span></a>        <span class="k">return</span> <span class="n">SyntalosOutPort</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_out_writer</span><span class="p">,</span> <span class="n">port_idx</span><span class="p">)</span>
+</span></pre></div>
+
+
+<div class="docstring"><p>Register a port to be used for communication to the host.</p>
+</div>
+
+
+</div>
+<div id="SyntalosCommunicator.register_on_input" class="classattr">
+<input id="SyntalosCommunicator.register_on_input-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">register_on_input</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">port_id</span><span class="p">:</span> <span class="nb">str</span>, </span><span class="param"><span class="n">callback</span></span><span class="return-annotation">):</span></span>
+
+<label class="view-source-button" for="SyntalosCommunicator.register_on_input-view-source"><span>View Source</span></label>
+
+</div>
+<a class="headerlink" href="#SyntalosCommunicator.register_on_input"></a>
+<div class="pdoc-code codehilite"><pre><span></span><span id="SyntalosCommunicator.register_on_input-103"><a href="#SyntalosCommunicator.register_on_input-103"><span class="linenos">103</span></a>    <span class="k">def</span> <span class="nf">register_on_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">port_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">callback</span><span class="p">):</span>
+</span><span id="SyntalosCommunicator.register_on_input-104"><a href="#SyntalosCommunicator.register_on_input-104"><span class="linenos">104</span></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Register a callback to run when data is received from the host.&quot;&quot;&quot;</span>
+</span><span id="SyntalosCommunicator.register_on_input-105"><a href="#SyntalosCommunicator.register_on_input-105"><span class="linenos">105</span></a>
+</span><span id="SyntalosCommunicator.register_on_input-106"><a href="#SyntalosCommunicator.register_on_input-106"><span class="linenos">106</span></a>        <span class="n">idx</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_iport_pending</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">port_id</span><span class="p">,</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+</span><span id="SyntalosCommunicator.register_on_input-107"><a href="#SyntalosCommunicator.register_on_input-107"><span class="linenos">107</span></a>        <span class="k">if</span> <span class="n">idx</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="SyntalosCommunicator.register_on_input-108"><a href="#SyntalosCommunicator.register_on_input-108"><span class="linenos">108</span></a>            <span class="bp">self</span><span class="o">.</span><span class="n">_iport_pending</span><span class="p">[</span><span class="n">port_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">callback</span><span class="p">)</span>
+</span><span id="SyntalosCommunicator.register_on_input-109"><a href="#SyntalosCommunicator.register_on_input-109"><span class="linenos">109</span></a>        <span class="k">else</span><span class="p">:</span>
+</span><span id="SyntalosCommunicator.register_on_input-110"><a href="#SyntalosCommunicator.register_on_input-110"><span class="linenos">110</span></a>            <span class="bp">self</span><span class="o">.</span><span class="n">_iport_map</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">callback</span>
+</span></pre></div>
+
+
+<div class="docstring"><p>Register a callback to run when data is received from the host.</p>
+</div>
+
+
+</div>
+</section>
+</main>
+
+
+<style>pre{line-height:125%;}span.linenos{color:inherit; background-color:transparent; padding-left:5px; padding-right:20px;}.pdoc-code .hll{background-color:#ffffcc}.pdoc-code{background:#f8f8f8;}.pdoc-code .c{color:#3D7B7B; font-style:italic}.pdoc-code .err{border:1px solid #FF0000}.pdoc-code .k{color:#008000; font-weight:bold}.pdoc-code .o{color:#666666}.pdoc-code .ch{color:#3D7B7B; font-style:italic}.pdoc-code .cm{color:#3D7B7B; font-style:italic}.pdoc-code .cp{color:#9C6500}.pdoc-code .cpf{color:#3D7B7B; font-style:italic}.pdoc-code .c1{color:#3D7B7B; font-style:italic}.pdoc-code .cs{color:#3D7B7B; font-style:italic}.pdoc-code .gd{color:#A00000}.pdoc-code .ge{font-style:italic}.pdoc-code .gr{color:#E40000}.pdoc-code .gh{color:#000080; font-weight:bold}.pdoc-code .gi{color:#008400}.pdoc-code .go{color:#717171}.pdoc-code .gp{color:#000080; font-weight:bold}.pdoc-code .gs{font-weight:bold}.pdoc-code .gu{color:#800080; font-weight:bold}.pdoc-code .gt{color:#0044DD}.pdoc-code .kc{color:#008000; font-weight:bold}.pdoc-code .kd{color:#008000; font-weight:bold}.pdoc-code .kn{color:#008000; font-weight:bold}.pdoc-code .kp{color:#008000}.pdoc-code .kr{color:#008000; font-weight:bold}.pdoc-code .kt{color:#B00040}.pdoc-code .m{color:#666666}.pdoc-code .s{color:#BA2121}.pdoc-code .na{color:#687822}.pdoc-code .nb{color:#008000}.pdoc-code .nc{color:#0000FF; font-weight:bold}.pdoc-code .no{color:#880000}.pdoc-code .nd{color:#AA22FF}.pdoc-code .ni{color:#717171; font-weight:bold}.pdoc-code .ne{color:#CB3F38; font-weight:bold}.pdoc-code .nf{color:#0000FF}.pdoc-code .nl{color:#767600}.pdoc-code .nn{color:#0000FF; font-weight:bold}.pdoc-code .nt{color:#008000; font-weight:bold}.pdoc-code .nv{color:#19177C}.pdoc-code .ow{color:#AA22FF; font-weight:bold}.pdoc-code .w{color:#bbbbbb}.pdoc-code .mb{color:#666666}.pdoc-code .mf{color:#666666}.pdoc-code .mh{color:#666666}.pdoc-code .mi{color:#666666}.pdoc-code .mo{color:#666666}.pdoc-code .sa{color:#BA2121}.pdoc-code .sb{color:#BA2121}.pdoc-code .sc{color:#BA2121}.pdoc-code .dl{color:#BA2121}.pdoc-code .sd{color:#BA2121; font-style:italic}.pdoc-code .s2{color:#BA2121}.pdoc-code .se{color:#AA5D1F; font-weight:bold}.pdoc-code .sh{color:#BA2121}.pdoc-code .si{color:#A45A77; font-weight:bold}.pdoc-code .sx{color:#008000}.pdoc-code .sr{color:#A45A77}.pdoc-code .s1{color:#BA2121}.pdoc-code .ss{color:#19177C}.pdoc-code .bp{color:#008000}.pdoc-code .fm{color:#0000FF}.pdoc-code .vc{color:#19177C}.pdoc-code .vg{color:#19177C}.pdoc-code .vi{color:#19177C}.pdoc-code .vm{color:#19177C}.pdoc-code .il{color:#666666}</style>
+<style>:root{--pdoc-background:#fff;}.pdoc{--text:#212529;--muted:#6c757d;--link:#3660a5;--link-hover:#1659c5;--code:#f8f8f8;--active:#fff598;--accent:#eee;--accent2:#c1c1c1;--nav-hover:rgba(255, 255, 255, 0.5);--name:#0066BB;--def:#008800;--annotation:#007020;}</style>
+<style>.pdoc{color:var(--text);box-sizing:border-box;line-height:1.5;background:none;}.pdoc .pdoc-button{cursor:pointer;display:inline-block;border:solid black 1px;border-radius:2px;font-size:.75rem;padding:calc(0.5em - 1px) 1em;transition:100ms all;}.pdoc .alert{padding:1rem 1rem 1rem calc(1.5rem + 24px);border:1px solid transparent;border-radius:.25rem;background-repeat:no-repeat;background-position:.75rem center;margin-bottom:1rem;}.pdoc .alert > em{display:none;}.pdoc .alert > *:last-child{margin-bottom:0;}.pdoc .alert.note {color:#084298;background-color:#cfe2ff;border-color:#b6d4fe;background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2224%22%20height%3D%2224%22%20fill%3D%22%23084298%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M8%2016A8%208%200%201%200%208%200a8%208%200%200%200%200%2016zm.93-9.412-1%204.705c-.07.34.029.533.304.533.194%200%20.487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703%200-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381%202.29-.287zM8%205.5a1%201%200%201%201%200-2%201%201%200%200%201%200%202z%22/%3E%3C/svg%3E");}.pdoc .alert.warning{color:#664d03;background-color:#fff3cd;border-color:#ffecb5;background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2224%22%20height%3D%2224%22%20fill%3D%22%23664d03%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M8.982%201.566a1.13%201.13%200%200%200-1.96%200L.165%2013.233c-.457.778.091%201.767.98%201.767h13.713c.889%200%201.438-.99.98-1.767L8.982%201.566zM8%205c.535%200%20.954.462.9.995l-.35%203.507a.552.552%200%200%201-1.1%200L7.1%205.995A.905.905%200%200%201%208%205zm.002%206a1%201%200%201%201%200%202%201%201%200%200%201%200-2z%22/%3E%3C/svg%3E");}.pdoc .alert.danger{color:#842029;background-color:#f8d7da;border-color:#f5c2c7;background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2224%22%20height%3D%2224%22%20fill%3D%22%23842029%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M5.52.359A.5.5%200%200%201%206%200h4a.5.5%200%200%201%20.474.658L8.694%206H12.5a.5.5%200%200%201%20.395.807l-7%209a.5.5%200%200%201-.873-.454L6.823%209.5H3.5a.5.5%200%200%201-.48-.641l2.5-8.5z%22/%3E%3C/svg%3E");}.pdoc .visually-hidden{position:absolute !important;width:1px !important;height:1px !important;padding:0 !important;margin:-1px !important;overflow:hidden !important;clip:rect(0, 0, 0, 0) !important;white-space:nowrap !important;border:0 !important;}.pdoc h1, .pdoc h2, .pdoc h3{font-weight:300;margin:.3em 0;padding:.2em 0;}.pdoc > section:not(.module-info) h1{font-size:1.5rem;font-weight:500;}.pdoc > section:not(.module-info) h2{font-size:1.4rem;font-weight:500;}.pdoc > section:not(.module-info) h3{font-size:1.3rem;font-weight:500;}.pdoc > section:not(.module-info) h4{font-size:1.2rem;}.pdoc > section:not(.module-info) h5{font-size:1.1rem;}.pdoc a{text-decoration:none;color:var(--link);}.pdoc a:hover{color:var(--link-hover);}.pdoc blockquote{margin-left:2rem;}.pdoc pre{border-top:1px solid var(--accent2);border-bottom:1px solid var(--accent2);margin-top:0;margin-bottom:1em;padding:.5rem 0 .5rem .5rem;overflow-x:auto;background-color:var(--code);}.pdoc code{color:var(--text);padding:.2em .4em;margin:0;font-size:85%;background-color:var(--accent);border-radius:6px;}.pdoc a > code{color:inherit;}.pdoc pre > code{display:inline-block;font-size:inherit;background:none;border:none;padding:0;}.pdoc > section:not(.module-info){margin-bottom:1.5rem;}.pdoc .modulename{margin-top:0;font-weight:bold;}.pdoc .modulename a{color:var(--link);transition:100ms all;}.pdoc .git-button{float:right;border:solid var(--link) 1px;}.pdoc .git-button:hover{background-color:var(--link);color:var(--pdoc-background);}.view-source-toggle-state,.view-source-toggle-state ~ .pdoc-code{display:none;}.view-source-toggle-state:checked ~ .pdoc-code{display:block;}.view-source-button{display:inline-block;float:right;font-size:.75rem;line-height:1.5rem;color:var(--muted);padding:0 .4rem 0 1.3rem;cursor:pointer;text-indent:-2px;}.view-source-button > span{visibility:hidden;}.module-info .view-source-button{float:none;display:flex;justify-content:flex-end;margin:-1.2rem .4rem -.2rem 0;}.view-source-button::before{position:absolute;content:"View Source";display:list-item;list-style-type:disclosure-closed;}.view-source-toggle-state:checked ~ .attr .view-source-button::before,.view-source-toggle-state:checked ~ .view-source-button::before{list-style-type:disclosure-open;}.pdoc .docstring{margin-bottom:1.5rem;}.pdoc section:not(.module-info) .docstring{margin-left:clamp(0rem, 5vw - 2rem, 1rem);}.pdoc .docstring .pdoc-code{margin-left:1em;margin-right:1em;}.pdoc h1:target,.pdoc h2:target,.pdoc h3:target,.pdoc h4:target,.pdoc h5:target,.pdoc h6:target,.pdoc .pdoc-code > pre > span:target{background-color:var(--active);box-shadow:-1rem 0 0 0 var(--active);}.pdoc .pdoc-code > pre > span:target{display:block;}.pdoc div:target > .attr,.pdoc section:target > .attr,.pdoc dd:target > a{background-color:var(--active);}.pdoc *{scroll-margin:2rem;}.pdoc .pdoc-code .linenos{user-select:none;}.pdoc .attr:hover{filter:contrast(0.95);}.pdoc section, .pdoc .classattr{position:relative;}.pdoc .headerlink{--width:clamp(1rem, 3vw, 2rem);position:absolute;top:0;left:calc(0rem - var(--width));transition:all 100ms ease-in-out;opacity:0;}.pdoc .headerlink::before{content:"#";display:block;text-align:center;width:var(--width);height:2.3rem;line-height:2.3rem;font-size:1.5rem;}.pdoc .attr:hover ~ .headerlink,.pdoc *:target > .headerlink,.pdoc .headerlink:hover{opacity:1;}.pdoc .attr{display:block;margin:.5rem 0 .5rem;padding:.4rem .4rem .4rem 1rem;background-color:var(--accent);overflow-x:auto;}.pdoc .classattr{margin-left:2rem;}.pdoc .name{color:var(--name);font-weight:bold;}.pdoc .def{color:var(--def);font-weight:bold;}.pdoc .signature{background-color:transparent;}.pdoc .param, .pdoc .return-annotation{white-space:pre;}.pdoc .signature.multiline .param{display:block;}.pdoc .signature.condensed .param{display:inline-block;}.pdoc .annotation{color:var(--annotation);}.pdoc .view-value-toggle-state,.pdoc .view-value-toggle-state ~ .default_value{display:none;}.pdoc .view-value-toggle-state:checked ~ .default_value{display:inherit;}.pdoc .view-value-button{font-size:.5rem;vertical-align:middle;border-style:dashed;margin-top:-0.1rem;}.pdoc .view-value-button:hover{background:white;}.pdoc .view-value-button::before{content:"show";text-align:center;width:2.2em;display:inline-block;}.pdoc .view-value-toggle-state:checked ~ .view-value-button::before{content:"hide";}.pdoc .inherited{margin-left:2rem;}.pdoc .inherited dt{font-weight:700;}.pdoc .inherited dt, .pdoc .inherited dd{display:inline;margin-left:0;margin-bottom:.5rem;}.pdoc .inherited dd:not(:last-child):after{content:", ";}.pdoc .inherited .class:before{content:"class ";}.pdoc .inherited .function a:after{content:"()";}.pdoc .search-result .docstring{overflow:auto;max-height:25vh;}.pdoc .search-result.focused > .attr{background-color:var(--active);}.pdoc .attribution{margin-top:2rem;display:block;opacity:0.5;transition:all 200ms;filter:grayscale(100%);}.pdoc .attribution:hover{opacity:1;filter:grayscale(0%);}.pdoc .attribution img{margin-left:5px;height:35px;vertical-align:middle;width:70px;transition:all 200ms;}.pdoc table{display:block;width:max-content;max-width:100%;overflow:auto;margin-bottom:1rem;}.pdoc table th{font-weight:600;}.pdoc table th, .pdoc table td{padding:6px 13px;border:1px solid var(--accent2);}</style></div>
+
