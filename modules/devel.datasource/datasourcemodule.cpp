@@ -18,17 +18,14 @@
  */
 
 #include "datasourcemodule.h"
-#include "datactl/frametype.h"
-#include "datactl/vips8-q.h"
 
 #include <format>
 #include <QInputDialog>
+#include <opencv2/opencv.hpp>
+#include "datactl/frametype.h"
 #include "utils/misc.h"
-#include "../videotransform/vipsutils.h"
 
 SYNTALOS_MODULE(DevelDataSourceModule)
-
-using namespace vips;
 
 class DataSourceModule : public AbstractModule
 {
@@ -184,60 +181,37 @@ private:
     {
         const auto startTime = currentTimePoint();
 
-        const auto graphic = std::format(
-            R"xml(<svg
-   width="{0}"
-   height="{1}">
-  <g>
-    <rect
-       style="fill:rgb(30, 42, 67);stroke:none"
-       width="{0}"
-       height="{1}"
-       x="0"
-       y="0" />
-    <rect
-       style="fill:none;stroke:rgb(40, 174, 96);stroke-width:4"
-       width="{2}"
-       height="{3}"
-       x="10"
-       y="10"
-       rx="2"
-       ry="2" />
-    <line x1="{4}" y1="0" x2="{4}" y2="{1}" style="stroke:rgb(247, 116, 0);stroke-width:4" />
-    <line x1="0" y1="{5}" x2="{0}" y2="{5}" style="stroke:rgb(247, 116, 0);stroke-width:4" />
-    <text
-       xml:space="preserve"
-       style="font-size:38;font-family:Sans;fill:#f9f9f9;"
-       x="24"
-       y="240">Frame: {6}</text>
-  </g>
-</svg>)xml",
-            m_outFrameSize.width(),
-            m_outFrameSize.height(),
-            m_outFrameSize.width() - 20,
-            m_outFrameSize.height() - 20,
-            m_outFrameSize.width() / 2,
-            m_outFrameSize.height() / 2,
-            index);
+        const auto width = m_outFrameSize.width();
+        const auto height = m_outFrameSize.height();
 
-        // render our image
-        Frame frame(index);
-        auto vblob = vips_blob_new(NULL, graphic.c_str(), graphic.length());
-        auto image = vips::VImage::svgload_buffer(vblob);
-        vips_area_unref(VIPS_AREA(vblob));
+        // empty image with blue background
+        cv::Mat image(height, width, CV_8UC3, cv::Scalar(67, 42, 30));
 
-        // drop alpha channel, if we have one
-        image = image.extract_band(0, vips::VImage::option()->set("n", 3));
+        // green rectangle
+        cv::rectangle(image, cv::Point(10, 10), cv::Point(width - 10, height - 10), cv::Scalar(96, 174, 40), 4);
 
-        frame.time = m_syTimer->timeSinceStartMsec();
+        // vertical and horizontal orange lines
+        cv::line(image, cv::Point(width / 2, 0), cv::Point(width / 2, height), cv::Scalar(0, 116, 247), 4);
+        cv::line(image, cv::Point(0, height / 2), cv::Point(width, height / 2), cv::Scalar(0, 116, 247), 4);
+
+        // add text with frame index
+        cv::putText(
+            image,
+            "Frame: " + std::to_string(index),
+            cv::Point(24, 240),
+            cv::FONT_HERSHEY_SIMPLEX,
+            1.2,
+            cv::Scalar(249, 249, 249),
+            2,
+            cv::LINE_AA);
 
         // create black/white video if needed
         if (!m_colorVideo)
-            image = image.colourspace(VIPS_INTERPRETATION_B_W);
+            cv::cvtColor(image, image, cv::COLOR_BGR2GRAY);
 
-        // evaluate the new image immediately
-        vips_image_wio_input(image.get_image());
-        frame.mat = vipsToCvMat(image);
+        Frame frame(index);
+        frame.time = m_syTimer->timeSinceStartUsec();
+        frame.mat = image;
 
         std::this_thread::sleep_for(
             std::chrono::microseconds((1000 / fps) * 1000) - timeDiffUsec(currentTimePoint(), startTime));

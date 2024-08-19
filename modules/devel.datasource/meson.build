@@ -5,16 +5,14 @@ module_hdr = [
 ]
 module_moc_hdr = []
 
-module_src = [
-    '../videotransform/vipsutils.cpp',
-]
+module_src = []
 module_moc_src = [
     'datasourcemodule.cpp',
 ]
 
 module_ui = []
 
-module_deps = [vips_dep, opencv_dep]
+module_deps = [opencv_dep]
 
 module_data = []
 
