@@ -2075,7 +2075,14 @@ bool Engine::runInternal(const QString &exportDirPath)
         // Ultimately though we must join the thread, so we will just give up eventually.
 
         // wait ~20sec for the thread to join
-        if (thread->joinTimeout(20))
+        bool threadJoined = false;
+        for (int tc = 0; tc < 20; tc++) {
+            qApp->processEvents();
+            threadJoined = thread->joinTimeout(1);
+            if (threadJoined)
+                break;
+        }
+        if (threadJoined)
             continue;
 
         // if we are here, we failed to join the thread
