@@ -114,7 +114,7 @@ void SysInfoDialog::on_btnClipboardCopy_clicked()
 {
     auto infoText = QStringLiteral("Syntalos %1 | %2 (Kernel: %3)\n")
                         .arg(ui->valSyntalos->text(), ui->valOSName->text(), ui->valKernel->text());
-    infoText += QStringLiteral("Software: Qt %1 | VIPS %2 | FFMpeg %3 | Python %4\n")
+    infoText += QStringLiteral("Software: Qt %1 | OpenCV %2 | FFMpeg %3 | Python %4\n")
                     .arg(ui->valQt->text(), ui->valOpenCV->text(), ui->valFFmpeg->text(), ui->valPythonAPI->text());
     infoText += QStringLiteral("Sandbox: %1\n").arg(ui->valSandboxInfo->text());
     infoText += QStringLiteral("Architecture: %1 | CPU: %2 | OpenGL: %3\n")

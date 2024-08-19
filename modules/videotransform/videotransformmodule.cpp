@@ -20,7 +20,6 @@
 #include "videotransformmodule.h"
 
 #include "datactl/frametype.h"
-#include "vipsutils.h"
 #include "vtransformctldialog.h"
 
 SYNTALOS_MODULE(VideoTransformModule)
@@ -119,16 +118,13 @@ public:
         auto frame = maybeFrame.value();
 
         // apply transformations
-        auto image = cvMatToVips(frame.mat);
+        auto image = frame.mat.clone();
         for (const auto &vtf : m_activeVTFList) {
             vtf->process(image);
         }
 
-        // apply all pending operations
-        vips_image_wio_input(image.get_image());
-        frame.mat = vipsToCvMat(image);
-
-        // forward the frame
+        // forward the updated frame
+        frame.mat = image;
         m_framesOut->push(frame);
     }
 

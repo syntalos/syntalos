@@ -24,7 +24,8 @@
 #include <QLabel>
 #include <QSpinBox>
 #include <QTimer>
-#include <datactl/vips8-q.h>
+#include <opencv2/opencv.hpp>
+
 
 VideoTransform::VideoTransform()
     : QObject()
@@ -88,25 +89,25 @@ void CropTransform::createSettingsUi(QWidget *parent)
     auto sbWidth = new QSpinBox(parent);
     sbWidth->setRange((m_originalSize.width() > 10) ? 10 : 0, m_originalSize.width());
     sbWidth->setSuffix("px");
-    sbWidth->setValue(m_roi.width());
+    sbWidth->setValue(m_roi.width);
     sbWidth->setMinimumWidth(100);
 
     auto sbX = new QSpinBox(parent);
     sbX->setRange(0, m_originalSize.width() - 10);
     sbX->setSuffix("px");
-    sbX->setValue(m_roi.left());
+    sbX->setValue(m_roi.x);
     sbX->setMinimumWidth(100);
 
     auto sbHeight = new QSpinBox(parent);
     sbHeight->setRange((m_originalSize.height() > 10) ? 10 : 0, m_originalSize.height());
     sbHeight->setSuffix("px");
-    sbHeight->setValue(m_roi.height());
+    sbHeight->setValue(m_roi.height);
     sbHeight->setMinimumWidth(100);
 
     auto sbY = new QSpinBox(parent);
     sbY->setRange(0, m_originalSize.height() - 10);
     sbY->setSuffix("px");
-    sbY->setValue(m_roi.top());
+    sbY->setValue(m_roi.y);
     sbY->setMinimumWidth(100);
 
     connect(sbWidth, qOverload<int>(&QSpinBox::valueChanged), [=](int) {
@@ -115,14 +116,14 @@ void CropTransform::createSettingsUi(QWidget *parent)
     connect(sbWidth, &QSpinBox::editingFinished, [=, this]() {
         {
             const std::lock_guard<std::mutex> lock(m_mutex);
-            m_roi.setWidth(sbWidth->value() - m_roi.left());
+            m_roi.width = sbWidth->value() - m_roi.x;
             m_onlineModified = true;
 
             checkAndUpdateRoi();
         }
-        sbHeight->setValue(m_roi.height() + m_roi.top());
-        sbX->setValue(m_roi.left());
-        sbY->setValue(m_roi.top());
+        sbHeight->setValue(m_roi.height + m_roi.y);
+        sbX->setValue(m_roi.x);
+        sbY->setValue(m_roi.y);
     });
 
     connect(sbHeight, qOverload<int>(&QSpinBox::valueChanged), [=](int) {
@@ -131,13 +132,13 @@ void CropTransform::createSettingsUi(QWidget *parent)
     connect(sbHeight, &QSpinBox::editingFinished, [=, this]() {
         {
             const std::lock_guard<std::mutex> lock(m_mutex);
-            m_roi.setHeight(sbHeight->value() - m_roi.top());
+            m_roi.height = sbHeight->value() - m_roi.y;
             m_onlineModified = true;
             checkAndUpdateRoi();
         }
-        sbWidth->setValue(m_roi.width() + m_roi.left());
-        sbX->setValue(m_roi.left());
-        sbY->setValue(m_roi.top());
+        sbWidth->setValue(m_roi.width + m_roi.x);
+        sbX->setValue(m_roi.x);
+        sbY->setValue(m_roi.y);
     });
 
     connect(sbX, qOverload<int>(&QSpinBox::valueChanged), [=](int) {
@@ -146,13 +147,13 @@ void CropTransform::createSettingsUi(QWidget *parent)
     connect(sbX, &QSpinBox::editingFinished, [=, this]() {
         {
             const std::lock_guard<std::mutex> lock(m_mutex);
-            m_roi.setLeft(sbX->value());
+            m_roi.x = sbX->value();
             m_onlineModified = true;
             checkAndUpdateRoi();
         }
-        sbWidth->setValue(m_roi.width() + m_roi.left());
-        sbHeight->setValue(m_roi.height() + m_roi.top());
-        sbY->setValue(m_roi.top());
+        sbWidth->setValue(m_roi.width + m_roi.x);
+        sbHeight->setValue(m_roi.height + m_roi.y);
+        sbY->setValue(m_roi.y);
     });
 
     connect(sbY, qOverload<int>(&QSpinBox::valueChanged), [=](int) {
@@ -161,16 +162,16 @@ void CropTransform::createSettingsUi(QWidget *parent)
     connect(sbY, &QSpinBox::editingFinished, [=, this]() {
         {
             const std::lock_guard<std::mutex> lock(m_mutex);
-            m_roi.setTop(sbY->value());
+            m_roi.y = sbY->value();
             m_onlineModified = true;
             checkAndUpdateRoi();
         }
-        sbWidth->setValue(m_roi.width() + m_roi.left());
-        sbHeight->setValue(m_roi.height() + m_roi.top());
-        sbX->setValue(m_roi.left());
+        sbWidth->setValue(m_roi.width + m_roi.x);
+        sbHeight->setValue(m_roi.height + m_roi.y);
+        sbX->setValue(m_roi.x);
     });
 
-    QFormLayout *formLayout = new QFormLayout;
+    auto formLayout = new QFormLayout;
     formLayout->addRow(QStringLiteral("Start X:"), sbX);
     formLayout->addRow(QStringLiteral("Width:"), sbWidth);
     formLayout->addRow(QStringLiteral("Start Y:"), sbY);
@@ -186,31 +187,33 @@ bool CropTransform::allowOnlineModify() const
 
 QSize CropTransform::resultSize()
 {
-    if (m_activeRoi.isEmpty())
+    if (m_activeRoi.empty())
         return m_originalSize;
 
     checkAndUpdateRoi();
-    return QSize(m_activeRoi.width(), m_activeRoi.height());
+    return {m_activeRoi.width, m_activeRoi.height};
 }
 
 void CropTransform::start()
 {
-    if (m_roi.isEmpty()) {
-        m_roi.setWidth(m_originalSize.width());
-        m_roi.setHeight(m_originalSize.height());
+    if (m_roi.empty()) {
+        m_roi.width = m_originalSize.width();
+        m_roi.height = m_originalSize.height();
     }
 
     checkAndUpdateRoi();
     m_activeRoi = m_roi;
-    m_activeOutSize = resultSize();
+
+    const auto rSize = resultSize();
+    m_activeOutSize = cv::Size(rSize.width(), rSize.height());
     m_onlineModified = false;
 }
 
-void CropTransform::process(vips::VImage &image)
+void CropTransform::process(cv::Mat &image)
 {
     // handle the simple case: no online modifications
     if (!m_onlineModified) {
-        image = image.crop(m_activeRoi.left(), m_activeRoi.top(), m_activeRoi.width(), m_activeRoi.height());
+        image = image(m_activeRoi);
         return;
     }
 
@@ -219,75 +222,74 @@ void CropTransform::process(vips::VImage &image)
     const std::lock_guard<std::mutex> lock(m_mutex);
 
     // actually do the "fake resizing"
-    auto cropScaleImg = image.extract_area(m_roi.left(), m_roi.top(), m_roi.width(), m_roi.height());
-    auto outImg = vips::VImage::black(m_activeOutSize.width(), m_activeOutSize.height());
+    cv::Mat cropScaleMat(image, m_roi);
+    cv::Mat outMat = cv::Mat::zeros(m_activeOutSize, image.type());
 
-    if ((m_roi.width() + m_roi.left() < m_activeOutSize.width())
-        && (m_roi.height() + m_roi.top() < m_activeOutSize.height())) {
+    if ((m_roi.width + m_roi.x < m_activeOutSize.width) && (m_roi.height + m_roi.y < m_activeOutSize.height)) {
         // the crop dimensions are smaller than our output, so we can simply cut things
-        outImg = cropScaleImg.insert(outImg, m_roi.left(), m_roi.top());
+        cropScaleMat.copyTo(outMat(m_roi));
     } else {
         // the crop dimensions are larger than our output, we need some scaling
         double scaleFactor = 1;
-        if (cropScaleImg.width() > outImg.width())
-            scaleFactor = (double)outImg.width() / (double)cropScaleImg.width();
-        if (cropScaleImg.height() > outImg.height()) {
-            double scale = (double)outImg.height() / (double)cropScaleImg.height();
+        if (cropScaleMat.cols > outMat.cols)
+            scaleFactor = (double)outMat.cols / (double)cropScaleMat.cols;
+        if (cropScaleMat.rows > outMat.rows) {
+            double scale = (double)outMat.rows / (double)cropScaleMat.rows;
             scaleFactor = (scale < scaleFactor) ? scale : scaleFactor;
         }
 
-        cropScaleImg = cropScaleImg.resize(scaleFactor);
-        outImg = cropScaleImg.embed(
-            (outImg.width() - cropScaleImg.width()) / 2,
-            (outImg.height() - cropScaleImg.height()) / 2,
-            outImg.width(),
-            outImg.height());
+        cv::resize(cropScaleMat, cropScaleMat, cv::Size(), scaleFactor, scaleFactor);
+        cropScaleMat.copyTo(outMat(cv::Rect(
+            (outMat.cols - cropScaleMat.cols) / 2,
+            (outMat.rows - cropScaleMat.rows) / 2,
+            cropScaleMat.cols,
+            cropScaleMat.rows)));
     }
 
-    image = outImg;
+    image = outMat;
 }
 
 QVariantHash CropTransform::toVariantHash()
 {
     QVariantHash var;
-    var.insert("crop_x", m_roi.left());
-    var.insert("crop_y", m_roi.top());
-    var.insert("crop_width", m_roi.width());
-    var.insert("crop_height", m_roi.height());
+    var.insert("crop_x", m_roi.x);
+    var.insert("crop_y", m_roi.y);
+    var.insert("crop_width", m_roi.width);
+    var.insert("crop_height", m_roi.height);
     return var;
 }
 
 void CropTransform::fromVariantHash(const QVariantHash &settings)
 {
-    m_roi.setLeft(settings.value("crop_x", 0).toInt());
-    m_roi.setTop(settings.value("crop_y", 0).toInt());
-    m_roi.setWidth(settings.value("crop_width", 0).toInt());
-    m_roi.setHeight(settings.value("crop_height", 0).toInt());
+    m_roi.x = settings.value("crop_x", 0).toInt();
+    m_roi.y = settings.value("crop_y", 0).toInt();
+    m_roi.width = settings.value("crop_width", 0).toInt();
+    m_roi.height = settings.value("crop_height", 0).toInt();
     checkAndUpdateRoi();
 }
 
 void CropTransform::checkAndUpdateRoi()
 {
     // sanity checks
-    if (m_roi.x() + m_roi.width() > m_originalSize.width() || m_roi.width() < 1)
-        m_roi.setWidth(m_originalSize.width() - m_roi.x());
-    if (m_roi.y() + m_roi.height() > m_originalSize.height() || m_roi.height() < 1)
-        m_roi.setHeight(m_originalSize.height() - m_roi.y());
-    if (m_roi.width() < 1)
-        m_roi.setWidth(1);
-    if (m_roi.height() < 1)
-        m_roi.setHeight(1);
+    if (m_roi.x + m_roi.width > m_originalSize.width() || m_roi.width < 1)
+        m_roi.width = m_originalSize.width() - m_roi.x;
+    if (m_roi.y + m_roi.height > m_originalSize.height() || m_roi.height < 1)
+        m_roi.height = m_originalSize.height() - m_roi.y;
+    if (m_roi.width < 1)
+        m_roi.width = 1;
+    if (m_roi.height < 1)
+        m_roi.height = 1;
 
     // give user some info as to what we are actually doing
     if (m_sizeInfoLabel != nullptr) {
         m_sizeInfoLabel->setText(QStringLiteral("Result size: %1x%2px (x%3 - w%4; y%5 - h%6)\n"
                                                 "Original size: %7x%8px")
-                                     .arg(m_roi.width())
-                                     .arg(m_roi.height())
-                                     .arg(m_roi.x())
-                                     .arg(m_roi.width() + m_roi.x())
-                                     .arg(m_roi.y())
-                                     .arg(m_roi.height() + m_roi.y())
+                                     .arg(m_roi.width)
+                                     .arg(m_roi.height)
+                                     .arg(m_roi.x)
+                                     .arg(m_roi.width + m_roi.x)
+                                     .arg(m_roi.y)
+                                     .arg(m_roi.height + m_roi.y)
                                      .arg(m_originalSize.width())
                                      .arg(m_originalSize.height()));
     };
@@ -328,9 +330,11 @@ QSize ScaleTransform::resultSize()
     return QSize(round(m_originalSize.width() * m_scaleFactor), round(m_originalSize.height() * m_scaleFactor));
 }
 
-void ScaleTransform::process(vips::VImage &image)
+void ScaleTransform::process(cv::Mat &image)
 {
-    image = image.resize(m_scaleFactor);
+    cv::Mat outMat(image);
+    cv::resize(outMat, outMat, cv::Size(), m_scaleFactor, m_scaleFactor);
+    image = outMat;
 }
 
 QVariantHash ScaleTransform::toVariantHash()
@@ -367,9 +371,17 @@ void FalseColorTransform::createSettingsUi(QWidget *parent)
     parent->setLayout(formLayout);
 }
 
-void FalseColorTransform::process(vips::VImage &image)
+void FalseColorTransform::process(cv::Mat &image)
 {
-    image = image.falsecolour();
+    // convert the image to grayscale if it's not already
+    cv::Mat gray;
+    if (image.channels() >= 3)
+        cv::cvtColor(image, gray, cv::COLOR_BGR2GRAY);
+    else
+        gray = image;
+
+    // apply a colormap to create a false color image
+    cv::applyColorMap(gray, image, cv::COLORMAP_JET);
 }
 
 HistNormTransform::HistNormTransform()
@@ -394,7 +406,15 @@ void HistNormTransform::createSettingsUi(QWidget *parent)
     parent->setLayout(formLayout);
 }
 
-void HistNormTransform::process(vips::VImage &image)
+void HistNormTransform::process(cv::Mat &image)
 {
-    image = image.hist_norm();
+    std::vector<cv::Mat> channels;
+    cv::split(image, channels);
+
+    // apply histogram equalization to each channel
+    for (auto & channel : channels)
+        cv::equalizeHist(channel, channel);
+
+    // merge the channels back together
+    cv::merge(channels, image);
 }

@@ -8,7 +8,6 @@ sy_datactl_pub_hdr = [
     'syclock.h',
     'timesync.h',
     'tsyncfile.h',
-    'vips8-q.h',
 ]
 
 sy_datactl_priv_hdr = [

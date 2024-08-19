@@ -31,7 +31,6 @@ eatmydata apt-get install -yq --no-install-recommends \
     libkf5texteditor-dev \
     libkf5windowsystem-dev \
     libqtermwidget5-1-dev \
-    libvips-dev \
     libopencv-dev \
     libpipewire-0.3-dev \
     libqt5opengl5-dev \

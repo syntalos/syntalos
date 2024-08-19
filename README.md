@@ -92,7 +92,6 @@ to submit a change, bugfix or new module.
  * KF5 TextEditor
  * [pybind11](https://github.com/pybind/pybind11)
  * libusb (>= 1.0)
- * [libVIPS](https://www.libvips.org/) (>= 8.14) (only for some modules)
  * ImGui / ImPlot (optional, needed for plotting)
 
 We recommend Debian 13 (Trixie) or Ubuntu 24.04 (Noble Numbat) to build & run Syntalos,

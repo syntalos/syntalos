@@ -2,7 +2,6 @@
 
 module_hdr = [
     'videotransformmodule.h',
-    'vipsutils.h',
 ]
 module_moc_hdr = [
     'videotransform.h',
@@ -14,7 +13,6 @@ module_src = [
     'videotransform.cpp',
     'vtransformctldialog.cpp',
     'vtransformlistmodel.cpp',
-    'vipsutils.cpp',
 ]
 module_moc_src = [
     'videotransformmodule.cpp',
@@ -22,7 +20,7 @@ module_moc_src = [
 
 module_ui = ['vtransformctldialog.ui']
 
-module_deps = [vips_dep, opencv_dep]
+module_deps = [opencv_dep]
 
 module_data = [
     'videotransform.svg',

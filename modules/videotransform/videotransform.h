@@ -20,7 +20,6 @@
 #pragma once
 
 #include "datactl/frametype.h"
-#include "datactl/vips8-q.h"
 #include <QIcon>
 #include <QObject>
 #include <QWidget>
@@ -48,7 +47,7 @@ public:
     virtual bool allowOnlineModify() const;
 
     virtual void start();
-    virtual void process(vips::VImage &image) = 0;
+    virtual void process(cv::Mat &image) = 0;
     virtual void stop();
 
     virtual QVariantHash toVariantHash();
@@ -75,7 +74,7 @@ public:
     QSize resultSize() override;
 
     void start() override;
-    void process(vips::VImage &image) override;
+    void process(cv::Mat &image) override;
 
     QVariantHash toVariantHash() override;
     void fromVariantHash(const QVariantHash &settings) override;
@@ -88,9 +87,9 @@ private:
     std::mutex m_mutex;
 
     QSize m_maxima;
-    QRect m_roi;
-    QSize m_activeOutSize;
-    QRect m_activeRoi;
+    cv::Size m_activeOutSize;
+    cv::Rect m_roi;
+    cv::Rect m_activeRoi;
     std::atomic_bool m_onlineModified;
 };
 
@@ -108,7 +107,7 @@ public:
     void createSettingsUi(QWidget *parent) override;
 
     QSize resultSize() override;
-    void process(vips::VImage &image) override;
+    void process(cv::Mat &image) override;
 
     QVariantHash toVariantHash() override;
     void fromVariantHash(const QVariantHash &settings) override;
@@ -131,7 +130,7 @@ public:
 
     void createSettingsUi(QWidget *parent) override;
 
-    void process(vips::VImage &image) override;
+    void process(cv::Mat &image) override;
 };
 
 /**
@@ -148,5 +147,5 @@ public:
 
     void createSettingsUi(QWidget *parent) override;
 
-    void process(vips::VImage &image) override;
+    void process(cv::Mat &image) override;
 };
