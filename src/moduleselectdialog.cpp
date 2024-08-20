@@ -148,6 +148,7 @@ ModuleSelectDialog::ModuleSelectDialog(const QList<QSharedPointer<ModuleInfo>> &
         [this](const QModelIndex &index, const QModelIndex &) {
             setCategoryFromIndex(index);
         });
+    connect(ui->filterEdit, &QLineEdit::editingFinished, this, &ModuleSelectDialog::on_filterEdit_editingFinished);
 
     // focus
     ui->filterEdit->setFocus();
