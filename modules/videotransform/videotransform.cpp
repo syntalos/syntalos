@@ -26,7 +26,6 @@
 #include <QTimer>
 #include <opencv2/opencv.hpp>
 
-
 VideoTransform::VideoTransform()
     : QObject()
 {
@@ -412,7 +411,7 @@ void HistNormTransform::process(cv::Mat &image)
     cv::split(image, channels);
 
     // apply histogram equalization to each channel
-    for (auto & channel : channels)
+    for (auto &channel : channels)
         cv::equalizeHist(channel, channel);
 
     // merge the channels back together
