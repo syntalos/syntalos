@@ -5,12 +5,9 @@ python_inc_args = run_command('python3',
                                ['-c',
                                 'import site\n' +
                                 'import sys\n' +
-                                'for i in site.getsitepackages() + sys.path:\n' +
-                                '    if i: print("-I" + i + "/numpy/core/include")'],
+                                'for p in site.getsitepackages() + sys.path:\n' +
+                                '    if p: print("-I" + p + "/numpy/_core/include\\n" + "-I" + p + "/numpy/core/include")'],
                                check: true).stdout().strip().split()
-python_inc_args += '-I' + run_command('python3',
-                                      ['-m', 'site', '--user-site'],
-                                      check: true).stdout().strip() + '/numpy/core/include'
 
 have_numpy = false
 foreach inc_arg : python_inc_args
