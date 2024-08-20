@@ -877,6 +877,9 @@ bool Syntalos::Engine::ensureRoudi()
         roudiBinary = QStringLiteral("%1/syntalos-roudi").arg(SY_LIBDIR);
         QFileInfo fi(roudiBinary);
         roudiBinary = fi.canonicalFilePath();
+
+        if (!fi.exists())
+            qCCritical(logEngine).noquote() << "RouDi binary not found at expected location:" << roudiBinary;
     }
 
     if (d->roudiPidFd > 0) {
