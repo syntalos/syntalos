@@ -143,7 +143,7 @@ bool isInFlatpakSandbox()
 
     // We check for FLATPAK_ID as well to make this function work for older versions
     // of Flatpak. 1.14.4 or higher is confirmed to not need this check.
-    if (qEnvironmentVariable("FLATPAK_ID").startsWith("io.github"))
+    if (qEnvironmentVariable("FLATPAK_ID").startsWith("org.syntalos"))
         return true;
     return false;
 }

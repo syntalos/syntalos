@@ -43,7 +43,7 @@ GlobalConfig::GlobalConfig(QObject *parent)
 
     m_userHome = QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
     if (isInFlatpakSandbox())
-        m_appDataRoot = QDir(m_userHome).filePath(".var/app/io.github.bothlab.syntalos/data");
+        m_appDataRoot = QDir(m_userHome).filePath(".var/app/org.syntalos.syntalos/data");
     else
         m_appDataRoot = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
 
