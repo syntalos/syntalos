@@ -845,12 +845,18 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         const auto settings = pair.second;
         setStatusText(QStringLiteral("Loading settings for module: %1(%2)").arg(mod->id()).arg(mod->name()));
         if (!mod->loadSettings(confBaseDir.absolutePath(), settings.first, settings.second)) {
-            QMessageBox::critical(
+            auto ret = QMessageBox::critical(
                 this,
                 QStringLiteral("Can not load settings"),
-                QStringLiteral("Unable to load module settings for '%1'.").arg(mod->name()));
-            setStatusText("Failed to load settings.");
-            return false;
+                QStringLiteral("Unable to load module settings for '%1'. Continue loading this project anyway?")
+                    .arg(mod->name()),
+                QMessageBox::Yes | QMessageBox::No);
+            setStatusText(QStringLiteral("Failed to load settings for '%1'").arg(mod->name()));
+
+            if (ret != QMessageBox::Yes) {
+                setStatusText("Failed to load project settings.");
+                return false;
+            }
         }
     }
 
