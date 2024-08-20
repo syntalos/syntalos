@@ -1196,9 +1196,17 @@ void FlowGraphView::addItem(FlowGraphItem *item)
 
     if (item->type() == FlowGraphNode::Type) {
         FlowGraphNode *node = static_cast<FlowGraphNode *>(item);
+
+        const auto centerPoint = mapToScene(viewport()->rect().center());
+        const auto itemRect = node->boundingRect();
+
         if (node) {
             m_nodes.append(node);
             m_nodekeys.insert(FlowGraphNode::NodeKey(node), node);
+
+            // move the new item to the center of the current visible scene by default
+            node->setPos(centerPoint - QPointF(itemRect.width() / 2, itemRect.height() / 2));
+
             restoreNodePos(node);
             emit added(node);
         }
@@ -1500,11 +1508,6 @@ void FlowGraphView::mouseMoveEvent(QMouseEvent *event)
                             m_item->setSelected(true);
                             ++nchanged;
                         }
-                        // Original node position (for move command)...
-                        QPointF pos1 = m_pos;
-                        pos1.setX(4.0 * ::round(0.25 * pos1.x()));
-                        pos1.setY(4.0 * ::round(0.25 * pos1.y()));
-                        m_pos1 = pos1;
                     } else
                         m_item = nullptr;
             }
@@ -1591,8 +1594,60 @@ void FlowGraphView::mouseMoveEvent(QMouseEvent *event)
         break;
     }
 
+    adjustSceneRect();
+
     if (nchanged > 0)
         emit changed();
+}
+
+void FlowGraphView::adjustSceneRect()
+{
+    // never adjust if we only have one or no node
+    if (m_nodes.count() <= 1)
+        return;
+
+    const qreal margin = 1.0;
+    const qreal minSceneSize = 100.0;
+
+    QRectF sceneRect = m_scene->sceneRect();
+    QRectF itemsBoundingRect = m_scene->itemsBoundingRect();
+
+    bool areaChanged = false;
+
+    // Check if we need to expand the scene rect
+    if (itemsBoundingRect.right() > sceneRect.right() - margin) {
+        sceneRect.setRight(itemsBoundingRect.right() + margin);
+        areaChanged = true;
+    }
+    if (itemsBoundingRect.left() < sceneRect.left() + margin) {
+        sceneRect.setLeft(itemsBoundingRect.left() - margin);
+        areaChanged = true;
+    }
+    if (itemsBoundingRect.bottom() > sceneRect.bottom() - margin) {
+        sceneRect.setBottom(itemsBoundingRect.bottom() + margin);
+        areaChanged = true;
+    }
+    if (itemsBoundingRect.top() < sceneRect.top() + margin) {
+        sceneRect.setTop(itemsBoundingRect.top() - margin);
+        areaChanged = true;
+    }
+
+    // Shrink the scene rect if items are moved inward
+    if (sceneRect.width() > itemsBoundingRect.width() + 2 * minSceneSize) {
+        sceneRect.setLeft(itemsBoundingRect.left() - minSceneSize);
+        sceneRect.setRight(itemsBoundingRect.right() + minSceneSize);
+        areaChanged = true;
+    }
+    if (sceneRect.height() > itemsBoundingRect.height() + 2 * minSceneSize) {
+        sceneRect.setTop(itemsBoundingRect.top() - minSceneSize);
+        sceneRect.setBottom(itemsBoundingRect.bottom() + minSceneSize);
+        areaChanged = true;
+    }
+
+    if (areaChanged) {
+        m_scene->setSceneRect(sceneRect);
+        setSceneRect(sceneRect);
+    }
 }
 
 void FlowGraphView::mouseReleaseEvent(QMouseEvent *event)
@@ -2109,7 +2164,7 @@ bool FlowGraphView::saveState()
 
     QVariantHash varCanvas;
     varCanvas.insert(CanvasZoomKey, zoom());
-    varCanvas.insert(CanvasRectKey, qrectfToVarList(QGraphicsView::sceneRect()));
+    varCanvas.insert(CanvasRectKey, qrectfToVarList(mapToScene(viewport()->rect()).boundingRect()));
     m_settings.insert(CanvasGroup, varCanvas);
 
     QVariantHash varColors;
@@ -2147,7 +2202,7 @@ bool FlowGraphView::restoreState()
     const qreal zoom = varCanvas.value(CanvasZoomKey, 1.0).toDouble();
 
     if (rect.isValid())
-        QGraphicsView::setSceneRect(rect);
+        centerOn(rect.center());
 
     setZoom(zoom);
 

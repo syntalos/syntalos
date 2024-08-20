@@ -528,6 +528,8 @@ protected:
     void updateEditorGeometry();
 
 private:
+    void adjustSceneRect();
+
     enum DragState {
         DragNone = 0,
         DragStart,
@@ -556,8 +558,6 @@ private:
     FlowGraphItem *m_edit_item;
     QLineEdit *m_editor;
     int m_edited;
-
-    QPointF m_pos1;
 
     QVariantHash m_settings;
 };
