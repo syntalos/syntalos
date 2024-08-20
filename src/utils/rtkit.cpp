@@ -38,6 +38,11 @@
 #ifndef RLIMIT_RTTIME
 #define RLIMIT_RTTIME 15
 #endif
+
+static const auto RTPORTAL_SERVICE_NAME = QStringLiteral("org.freedesktop.portal.Desktop");
+static const auto RTPORTAL_OBJECT_PATH = QStringLiteral("/org/freedesktop/portal/desktop");
+static const auto RTPORTAL_INTERFACE_NAME = QStringLiteral("org.freedesktop.portal.Realtime");
+
 static const auto RTKIT_SERVICE_NAME = QStringLiteral("org.freedesktop.RealtimeKit1");
 static const auto RTKIT_OBJECT_PATH = QStringLiteral("/org/freedesktop/RealtimeKit1");
 static const auto RTKIT_INTERFACE_NAME = QStringLiteral("org.freedesktop.RealtimeKit1");
@@ -47,6 +52,9 @@ Q_LOGGING_CATEGORY(logRtKit, "rtkit")
 RtKit::RtKit(QObject *parent)
     : QObject(parent)
 {
+    m_rtPortalIntf = new QDBusInterface(
+        RTPORTAL_SERVICE_NAME, RTPORTAL_OBJECT_PATH, RTPORTAL_INTERFACE_NAME, QDBusConnection::sessionBus(), this);
+
     m_rtkitIntf = new QDBusInterface(
         RTKIT_SERVICE_NAME, RTKIT_OBJECT_PATH, RTKIT_INTERFACE_NAME, QDBusConnection::systemBus(), this);
 }
@@ -76,14 +84,24 @@ bool RtKit::makeHighPriority(pid_t thread, int niceLevel)
     if (thread == 0)
         thread = gettid();
 
-    QDBusReply<void> reply = m_rtkitIntf->call(
+    // try using the realtime portal first
+    QDBusReply<void> reply = m_rtPortalIntf->call(
+        QStringLiteral("MakeThreadHighPriorityWithPID"),
+        QVariant::fromValue((qulonglong)getpid()),
+        QVariant::fromValue((qulonglong)thread),
+        QVariant::fromValue((int32_t)niceLevel));
+    if (reply.isValid())
+        return true;
+
+    // fallback to using RtKit directly
+    reply = m_rtkitIntf->call(
         QStringLiteral("MakeThreadHighPriority"),
         QVariant::fromValue((qulonglong)thread),
         QVariant::fromValue((int32_t)niceLevel));
     if (reply.isValid())
         return true;
 
-    m_lastError = QStringLiteral("Unable to change thread priority via RtKit: %1: %2")
+    m_lastError = QStringLiteral("Unable to change thread priority to high: %1: %2")
                       .arg(reply.error().name(), reply.error().message());
     return false;
 }
@@ -101,28 +119,62 @@ bool RtKit::makeRealtime(pid_t thread, uint priority)
         thread = gettid();
     }
 
-    QDBusReply<void> reply = m_rtkitIntf->call(
+    // try using the realtime portal first
+    QDBusReply<void> reply = m_rtPortalIntf->call(
+        QStringLiteral("MakeThreadRealtimeWithPID"),
+        QVariant::fromValue((qulonglong)getpid()),
+        QVariant::fromValue((qulonglong)thread),
+        QVariant::fromValue((uint32_t)priority));
+    if (reply.isValid())
+        return true;
+
+    // fallback to RtKit directly
+    reply = m_rtkitIntf->call(
         QStringLiteral("MakeThreadRealtime"),
         QVariant::fromValue((qulonglong)thread),
         QVariant::fromValue((uint32_t)priority));
     if (reply.isValid())
         return true;
 
-    m_lastError = QStringLiteral("Unable to change thread priority via RtKit: %1: %2")
+    m_lastError = QStringLiteral("Unable to change thread priority to realtime: %1: %2")
                       .arg(reply.error().name(), reply.error().message());
     return false;
 }
 
 long long RtKit::getIntProperty(const QString &propName, bool *ok)
 {
+    // try to get the property from the realtime portal first
     auto m = QDBusMessage::createMethodCall(
+        RTPORTAL_SERVICE_NAME,
+        RTPORTAL_OBJECT_PATH,
+        QStringLiteral("org.freedesktop.DBus.Properties"),
+        QStringLiteral("Get"));
+    m << RTPORTAL_INTERFACE_NAME << propName;
+
+    QDBusReply<QVariant> reply = QDBusConnection::sessionBus().call(m);
+    if (reply.isValid()) {
+        const auto value = reply.value();
+        if (value.isValid()) {
+            if (ok != nullptr)
+                (*ok) = true;
+            return value.toLongLong();
+        } else {
+            m_lastError = QStringLiteral("Reply to Realtime Portal property request for '%1' was empty.").arg(propName);
+        }
+    } else {
+        m_lastError = QStringLiteral("Realtime Portal property DBus request for '%1' failed: %2: %3")
+                          .arg(propName, reply.error().name(), reply.error().message());
+    }
+
+    // fallback to using RtKit directly
+    m = QDBusMessage::createMethodCall(
         RTKIT_SERVICE_NAME,
         RTKIT_OBJECT_PATH,
         QStringLiteral("org.freedesktop.DBus.Properties"),
         QStringLiteral("Get"));
     m << RTKIT_INTERFACE_NAME << propName;
 
-    QDBusReply<QVariant> reply = QDBusConnection::systemBus().call(m);
+    reply = QDBusConnection::systemBus().call(m);
     if (reply.isValid()) {
         const auto value = reply.value();
         if (value.isValid()) {
@@ -157,7 +209,12 @@ bool setCurrentThreadNiceness(int nice)
         }
     }
 
-    return rtkit.makeHighPriority(0, nice);
+    if (!rtkit.makeHighPriority(0, nice)) {
+        qCDebug(logRtKit).noquote().nospace() << rtkit.lastError();
+        return false;
+    }
+
+    return true;
 }
 
 bool setCurrentThreadRealtime(int priority)

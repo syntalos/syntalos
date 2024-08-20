@@ -43,6 +43,7 @@ public:
 
 private:
     QDBusInterface *m_rtkitIntf;
+    QDBusInterface *m_rtPortalIntf;
     QString m_lastError;
 
     long long getIntProperty(const QString &propName, bool *ok = nullptr);
