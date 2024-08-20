@@ -58,6 +58,7 @@ syntalos_fabric_moc = qt.preprocess(
 syntalos_fabric_lib = shared_library('syntalos-fabric',
     [syntalos_fabric_src,
      syntalos_fabric_moc,
+     config_h,
      modconfig_h],
     dependencies: [sy_base_deps,
                    eigen_dep,
