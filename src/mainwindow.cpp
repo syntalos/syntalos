@@ -1567,7 +1567,7 @@ void MainWindow::on_actionIntervalRunConfig_triggered()
 
 void MainWindow::on_actionOnlineDocs_triggered()
 {
-    QDesktopServices::openUrl(QUrl("https://syntalos.github.io/docs/", QUrl::TolerantMode));
+    QDesktopServices::openUrl(QUrl("https://syntalos.org/docs/", QUrl::TolerantMode));
 }
 
 void MainWindow::on_actionReportIssue_triggered()

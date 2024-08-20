@@ -189,8 +189,7 @@ public:
 
         auto docHelpAction = actionsMenu->addAction("Open Module Documentation");
         connect(docHelpAction, &QAction::triggered, this, [](bool) {
-            QDesktopServices::openUrl(
-                QUrl("https://syntalos.github.io/docs/modules/cpp-workbench/", QUrl::TolerantMode));
+            QDesktopServices::openUrl(QUrl("https://syntalos.org/docs/modules/cpp-workbench/", QUrl::TolerantMode));
         });
 
         menuButton->setMenu(actionsMenu);

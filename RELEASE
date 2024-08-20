@@ -35,7 +35,7 @@ git push
 4. Create GitHub release in the same format as usual
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Please refer to the [installation documentation](https://syntalos.github.io/docs/setup/install/) for details
+Please refer to the [installation documentation](https://syntalos.org/docs/setup/install/) for details
 on how to install the provided binary packages for your OS or how to build Syntalos from source.
 
 ### Changes:

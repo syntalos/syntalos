@@ -29,7 +29,7 @@ You can install Syntalos directly [from your App-Center](https://flathub.org/app
 if the Flathub repository is set up on your Linux system.
 
 We also provide prebuilt binaries as native packages as well as more detailed installation instructions
-[in the Syntalos documentation](https://syntalos.github.io/docs/setup/install/).
+[in the Syntalos documentation](https://syntalos.org/docs/setup/install/).
 The documentation also contains information how to best use Syntalos.
 
 To make Syntalos work for your experimental setup, you can either create new modules and integration code, or

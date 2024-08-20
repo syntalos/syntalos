@@ -201,8 +201,7 @@ public:
 
         auto docHelpAction = actionsMenu->addAction("Open Module Documentation");
         connect(docHelpAction, &QAction::triggered, this, [](bool) {
-            QDesktopServices::openUrl(
-                QUrl("https://syntalos.github.io/docs/modules/upy-workbench/", QUrl::TolerantMode));
+            QDesktopServices::openUrl(QUrl("https://syntalos.org/docs/modules/upy-workbench/", QUrl::TolerantMode));
         });
         auto docUPyHelpAction = actionsMenu->addAction("Open MicroPython Documentation");
         connect(docUPyHelpAction, &QAction::triggered, this, [](bool) {
