@@ -180,10 +180,22 @@ void ModuleGraphForm::on_actionAddModule_triggered()
     ModuleSelectDialog modDialog(m_engine->library()->moduleInfo(), this);
     if (modDialog.exec() == QDialog::Accepted) {
         emit busyStart();
+        AbstractModule *mod = nullptr;
         if (!modDialog.selectedEntryId().isEmpty()) {
-            m_engine->createModule(modDialog.selectedEntryId());
+            mod = m_engine->createModule(modDialog.selectedEntryId());
         }
         emit busyEnd();
+
+        if (mod) {
+            QCoreApplication::processEvents();
+            auto newNode = m_modNodeMap.value(mod, nullptr);
+
+            // select the new node, if any was registered
+            if (newNode) {
+                ui->graphView->clearSelection();
+                newNode->setSelected(true);
+            }
+        }
     }
 }
 
