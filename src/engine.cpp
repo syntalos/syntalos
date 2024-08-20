@@ -371,6 +371,39 @@ Engine::~Engine()
 }
 
 /**
+ * Fallback for launchProgram() if the clone3() syscall was not available or is blocked
+ * by seccomp filters.
+ */
+static bool launchProgramNC3Fallback(const QString &exePath, int *pidfd_out)
+{
+    pid_t pid = vfork();
+    if (pid < 0) {
+        perror("vfork");
+        return false;
+    }
+
+    if (pid == 0) {
+        // child process
+        char *const argv[] = {const_cast<char *>(qPrintable(exePath)), nullptr};
+        execvp(qPrintable(exePath), argv);
+        perror("execvp");
+        _exit(EXIT_FAILURE);
+    }
+
+    // parent process
+    int pidfd = syscall(SYS_pidfd_open, pid, 0);
+    if (pidfd < 0) {
+        perror("pidfd_open");
+        return false;
+    }
+
+    if (pidfd_out)
+        *pidfd_out = pidfd;
+
+    return true;
+}
+
+/**
  * @brief Launch a program in a new process, and return the PID of the new process as pidfd.
  *
  * This function is used to launch a new program in a new process, and return the PID as pidfd.
@@ -393,8 +426,12 @@ static bool launchProgram(const QString &exePath, int *pidfd_out)
     char *const argv[] = {const_cast<char *>(qPrintable(exePath)), nullptr};
 
     const auto pid = (pid_t)syscall(SYS_clone3, &cl_args, sizeof(cl_args));
-    if (pid < 0)
+    if (pid < 0) {
+        // clone3 was blocked or is not available, try our fallback
+        if (errno == ENOSYS)
+            return launchProgramNC3Fallback(exePath, pidfd_out);
         return false;
+    }
 
     if (pid == 0) { // Child process
         execvp(qPrintable(exePath), argv);
