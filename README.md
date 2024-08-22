@@ -1,8 +1,8 @@
 Syntalos
 ========
 
-[![Syntalos Screenshot](contrib/screenshots/v0.8.4-ui-overview.png "Syntalos")](https://github.com/bothlab/syntalos/tree/master/contrib/screenshots)
-![Build Test](https://github.com/bothlab/syntalos/workflows/Build%20Test/badge.svg?branch=master)
+[![Syntalos Screenshot](contrib/screenshots/v0.8.4-ui-overview.png "Syntalos")](https://github.com/syntalos/syntalos/tree/master/contrib/screenshots)
+![Build Test](https://github.com/syntalos/syntalos/workflows/Build%20Test/badge.svg?branch=master)
 
 Syntalos (formerly known as MazeAmaze) is a software for timestamp-synchronized parallel data acquisition from diverse data sources,
 such as cameras, microendoscopes, Intan electrophysiology amplifiers or Firmata-based serial interfaces.
@@ -21,11 +21,11 @@ Syntalos is built with a set of core principles in mind:
 
 ## Users
 
-<a href="https://flathub.org/apps/io.github.bothlab.syntalos">
+<a href="https://flathub.org/apps/org.syntalos.syntalos">
 <img src="https://flathub.org/assets/badges/flathub-badge-en.png" width="140"/>
 </a>
 
-You can install Syntalos directly [from your App-Center](https://flathub.org/apps/io.github.bothlab.syntalos)
+You can install Syntalos directly [from your App-Center](https://flathub.org/apps/org.syntalos.syntalos)
 if the Flathub repository is set up on your Linux system.
 
 We also provide prebuilt binaries as native packages as well as more detailed installation instructions
