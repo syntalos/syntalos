@@ -423,6 +423,7 @@ void ArvConfigWindow::setCameraInUseExternal(bool camInUse)
     videoWidget->setImage();
 
     setCameraInUse(camInUse);
+    rotationSelector->setEnabled(!camInUse);
     roiBox->setEnabled(!camInUse);
     playButton->setEnabled(!camInUse);
 }
