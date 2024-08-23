@@ -89,9 +89,15 @@ QString QArvCameraId::toString() const
  */
 QArvCamera::QArvCamera(QArvCameraId id, const QString &modId, QObject* parent) :
     QAbstractItemModel(parent), m_modId(modId), acquiring(false) {
+    g_autoptr(GError) error = nullptr;
+
     ext = new QArvCameraExtension;
     setFrameQueueSize();
-    camera = arv_camera_new(id.id, nullptr);
+
+    camera = arv_camera_new(id.id, &error);
+    if (camera == nullptr)
+        throw std::runtime_error(error->message);
+
     arv_camera_set_acquisition_mode(camera, ARV_ACQUISITION_MODE_CONTINUOUS, nullptr);
     device = arv_camera_get_device(camera);
     genicam = arv_device_get_genicam(device);
@@ -100,9 +106,11 @@ QArvCamera::QArvCamera(QArvCameraId id, const QString &modId, QObject* parent) :
 
 QArvCamera::~QArvCamera() {
     delete ext;
-    QArvFeatureTree::freeFeaturetree(featuretree);
-    stopAcquisition();
-    g_object_unref(camera);
+    if (camera != nullptr) {
+        QArvFeatureTree::freeFeaturetree(featuretree);
+        stopAcquisition();
+        g_object_unref(camera);
+    }
 }
 
 /*!
@@ -199,9 +207,9 @@ void QArvCamera::setBinning(QSize bin) {
 
 QList< QString > QArvCamera::getPixelFormats()
 {
+    QList<QString> list;
     unsigned int numformats;
     const char **formats = arv_camera_dup_available_pixel_formats_as_strings(camera, &numformats, nullptr);
-    QList<QString> list;
 
     if (formats == nullptr) {
         qWarning().noquote() << "No pixel formats received for Aravis camera" << getId().toString();
@@ -210,7 +218,7 @@ QList< QString > QArvCamera::getPixelFormats()
 
     for (uint i = 0; i < numformats; i++)
         list << formats[i];
-    free(formats);
+    g_free(formats);
     return list;
 }
 

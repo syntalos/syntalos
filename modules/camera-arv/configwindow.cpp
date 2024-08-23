@@ -215,7 +215,13 @@ void ArvConfigWindow::on_cameraSelector_currentIndexChanged(int index)
         toggleVideoPreview(false);
         camera.reset();
     }
-    camera = std::make_shared<QArvCamera>(camid, m_modId);
+    try {
+        camera = std::make_shared<QArvCamera>(camid, m_modId);
+    } catch (const std::exception &e) {
+        logMessage() << "Failed to reference camera:" << e.what();
+        cameraSelector->setCurrentIndex(-1);
+        return;
+    }
     connect(camera.get(), &QArvCamera::frameReady, this, &ArvConfigWindow::previewFrameReceived);
     connect(camera.get(), &QArvCamera::bufferUnderrun, this, &ArvConfigWindow::bufferUnderrunOccured);
 
