@@ -74,7 +74,8 @@ public:
         : AbstractModule(parent),
           m_codeWindow(nullptr),
           m_timer(new QTimer(this)),
-          m_userSerial(new QSerialPort(this))
+          m_userSerial(new QSerialPort(this)),
+          m_stopped(true)
     {
         // set up code editor
         auto editor = KTextEditor::Editor::instance();
