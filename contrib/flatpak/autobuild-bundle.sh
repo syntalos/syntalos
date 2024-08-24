@@ -17,13 +17,13 @@ flatpak-builder -y \
 	--repo=tmp_repo \
 	$build_shell \
 	build-dir \
-	io.github.bothlab.syntalos.yaml
+	org.syntalos.syntalos.yaml
 
 rm -f Syntalos.flatpak
 flatpak build-bundle \
 	--runtime-repo=https://flathub.org/repo/flathub.flatpakrepo \
 	tmp_repo/ \
 	Syntalos.flatpak \
-	io.github.bothlab.syntalos
+	org.syntalos.syntalos
 
 rm -r tmp_repo/

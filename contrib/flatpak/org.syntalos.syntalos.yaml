@@ -1,0 +1,215 @@
+id: org.syntalos.syntalos
+runtime: org.kde.Platform
+runtime-version: 5.15-23.08
+sdk: org.kde.Sdk
+base: com.riverbankcomputing.PyQt.BaseApp
+base-version: 5.15-23.08
+separate-locales: false
+
+command: syntalos
+rename-icon: syntalos
+rename-desktop-file: syntalos.desktop
+
+finish-args:
+  - --share=network
+  - --share=ipc
+  - --socket=x11
+  - --device=all
+  - --filesystem=host
+  - --socket=system-bus
+  - --socket=session-bus
+  - --allow=devel
+  - --allow=bluetooth
+  - --env=PATH=/app/bin:/usr/bin:/usr/sbin
+  - --env=GST_PLUGIN_SYSTEM_PATH=/app/lib/gstreamer-1.0:/usr/lib/extensions/gstreamer-1.0
+  - --require-version=1.12.0
+
+cleanup-commands:
+  - /app/cleanup-BaseApp.sh
+
+modules:
+
+- name: OpenCL
+  buildsystem: cmake-ninja
+  sources:
+    - type: archive
+      url: https://github.com/KhronosGroup/OpenCL-Headers/archive/v2023.12.14/OpenCL-Headers-v2023.12.14.tar.gz
+      sha256: 407d5e109a70ec1b6cd3380ce357c21e3d3651a91caae6d0d8e1719c69a1791d
+
+- name: meson
+  buildsystem: simple
+  build-commands:
+    - python3 setup.py build
+    - python3 setup.py install --prefix=/app --root=/
+  sources:
+    - type: git
+      url: https://github.com/mesonbuild/meson.git
+      tag: '1.5.1'
+  cleanup:
+    - '*'
+
+- name: xxhash
+  no-autogen: true
+  make-install-args:
+    - PREFIX=${FLATPAK_DEST}
+  cleanup:
+    - /bin/*
+    - '*.a'
+    - /share
+  sources:
+    - type: archive
+      url: https://github.com/Cyan4973/xxHash/archive/refs/tags/v0.8.2.tar.gz
+      sha256: baee0c6afd4f03165de7a4e67988d16f0f2b257b51d0e3cb91909302a26a79c4
+
+- name: toml++
+  buildsystem: meson
+  builddir: true
+  sources:
+    - type: archive
+      url: https://github.com/marzer/tomlplusplus/archive/refs/tags/v3.4.0.tar.gz
+      sha256: 8517f65938a4faae9ccf8ebb36631a38c1cadfb5efa85d9a72e15b9e97d25155
+
+- name: iceoryx
+  buildsystem: cmake-ninja
+  builddir: true
+  subdir: iceoryx_meta/
+  config-opts:
+    - -DBUILD_DOC=OFF
+    - -DBUILD_SHARED_LIBS=ON
+    - -DINTROSPECTION=ON
+    - -DTOML_CONFIG=OFF
+  sources:
+    - type: archive
+      url: https://github.com/eclipse-iceoryx/iceoryx/archive/refs/tags/v2.0.6.tar.gz
+      sha256: a2add8ffee0c3357ef985cc46c7de79ccb754ea2bed02c61f2ff805ab2c869f1
+
+- name: openblas
+  no-autogen: true
+  make-args:
+    - DYNAMIC_ARCH=1
+    - FC=gfortran
+    - NO_LAPACKE=1
+    - USE_OPENMP=1
+    - NO_WARMUP=1
+    - NUM_THREADS=64
+  make-install-args:
+    - PREFIX=/app
+  sources:
+    - type: archive
+      url: https://github.com/xianyi/OpenBLAS/releases/download/v0.3.28/OpenBLAS-0.3.28.tar.gz
+      sha256: f1003466ad074e9b0c8d421a204121100b0751c96fc6fcf3d1456bd12f8a00a1
+  cleanup:
+    - "*.a"
+    - "/include"
+    - "/lib/cmake"
+    - "/lib/pkgconfig"
+
+- name: eigen3
+  buildsystem: cmake-ninja
+  builddir: true
+  sources:
+    - type: archive
+      url: https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.bz2
+      sha256: b4c198460eba6f28d34894e3a5710998818515104d6e74e5cc331ce31e46e626
+  cleanup:
+    - '*'
+
+- modules/libusb/libusb.json
+- modules/usbutils.yaml
+- modules/ffmpeg.yaml
+
+- name: opencv
+  buildsystem: cmake-ninja
+  builddir: true
+  config-opts:
+    - -DCMAKE_BUILD_TYPE=RelWithDebInfo
+    - -DOPENCV_GENERATE_PKGCONFIG=ON
+    - -DWITH_OPENCL=ON
+    - -DWITH_OPENGL=ON
+    - -DWITH_TBB=ON
+    - -DWITH_OPENMP=ON
+    - -DWITH_IPP=ON
+    - -DWITH_VULKAN=ON
+    - -DWITH_LAPACK=ON
+    - -DBUILD_WITH_DEBUG_INFO=OFF
+    - -DBUILD_TESTS=OFF
+    - -DBUILD_PERF_TESTS=OFF
+    - -DBUILD_EXAMPLES=OFF
+    - -DINSTALL_C_EXAMPLES=OFF
+    - -DINSTALL_PYTHON_EXAMPLES=OFF
+    - -DCPU_BASELINE=AVX2
+    - -DCPU_DISPATCH=AVX,AVX2
+    - -DWITH_1394=OFF
+    - -DWITH_V4L=ON
+    - -DWITH_PROTOBUF=ON
+    - -DWITH_QT=ON
+    - -DWITH_GTK=OFF
+    - -DBUILD_LIST=core,dnn,features2d,flann,highgui,imgcodecs,imgproc,ml,objdetect,photo,python_bindings_generator,stitching,video,videoio
+  build-options:
+    env:
+      BLAS: "/app/lib"
+      LAPACK: "/app/lib"
+    arch:
+      aarch64:
+        config-opts:
+          - -DWITH_CAROTENE=OFF # fails on Flathub ARM builders and is only relevant for ARM
+          # reduced featureset for ARM64 for now: dnn disabled due to build failure
+          - -DBUILD_LIST=core,features2d,flann,highgui,imgcodecs,imgproc,ml,objdetect,photo,python_bindings_generator,stitching,video,videoio
+  cleanup:
+    - /bin
+  sources:
+    - type: archive
+      url: https://github.com/opencv/opencv/archive/refs/tags/4.10.0.tar.gz
+      sha256: b2171af5be6b26f7a06b1229948bbb2bdaa74fcf5cd097e0af6378fce50a6eb9
+    - type: archive
+      url: https://github.com/opencv/opencv_contrib/archive/refs/tags/4.10.0.tar.gz
+      sha256: 65597f8fb8dc2b876c1b45b928bbcc5f772ddbaf97539bf1b737623d0604cba1
+
+- name: pybind11
+  buildsystem: simple
+  build-commands:
+    - python3 setup.py build
+    - cmake -G Ninja -DPYBIND11_INSTALL=ON -DPYBIND11_TEST=OFF -DCMAKE_INSTALL_INCLUDEDIR:PATH=${FLATPAK_DEST}/include
+      -DCMAKE_INSTALL_LIBDIR:PATH=${FLATPAK_DEST}/lib -DCMAKE_INSTALL_DATAROOTDIR:PATH=${FLATPAK_DEST}/share
+      .
+    - python3 setup.py install --prefix=${FLATPAK_DEST}
+    - cmake --build .
+    - cmake --install .
+  sources:
+    - type: archive
+      url: https://github.com/pybind/pybind11/archive/refs/tags/v2.13.4.tar.gz
+      sha256: efc901aa0aab439a3fea6efeaf930b5a349fb06394bf845c64ce15a9cf8f0240
+
+- modules/git.yaml
+- modules/numpy.yaml
+- modules/python/module-requirements.yaml
+- modules/python/tkinter.yaml
+- modules/aravis.yaml
+- modules/tiscamera.yaml
+- modules/qtermwidget.yaml
+
+- name: pomidaq
+  buildsystem: cmake-ninja
+  builddir: true
+  config-opts:
+    - -DPYTHON=OFF
+    - -DGUI=OFF
+  sources:
+    - type: git
+      url: https://github.com/bothlab/pomidaq.git
+      tag: v0.5.2
+
+- name: syntalos
+  buildsystem: meson
+  builddir: true
+  config-opts:
+    - -Doptimize-modern-amd64=true
+    - -Dudevdir=/app/lib/udev
+  build-options:
+    arch:
+      aarch64:
+        config-opts:
+          - -Dmodules=camera-arv,camera-tis,miniscope,plot
+  sources:
+    - type: dir
+      path: ../..
