@@ -1,3 +1,110 @@
+Version 2.0.0
+-------------
+Released: 2024-08-24
+
+Notes:
+ * This is the first release of the 2.0 series, which contains some significant API changes.
+   Please have a look at the documentation of the Python interface specifically to adjust
+   any of your custom code.
+ * This release changes the used IPC mechanism, reducing its latency greatly and also allowing
+   for a lot more capable out-of-process modules. If you are transferring very large chunks
+   of data (e.g. excessively large images) between OOP modules (such as PyScript), you may
+   encounter issues if the frequency of new data is too high.
+   Please file bugs in this case, future releases will address these potential issues.
+ * If you are developing modules: The Syntalos core has been broken up into multiple libraries
+   and headers with stabilized API, which should make it a lot easier to develop modules.
+   Please consult the C++ API documentation for more information!
+ * Operations performed by many Syntalos modules should now have a lot lower latency. Give it a try!
+ * Some user interface components have been refined and new modules have been introduced!
+   Please have a look below for details, or explore the interface on your own.
+
+Features:
+ * videotransform: Add falsecolour/histogram-normalization transformations
+ * Implement new IPC mechanism based on Iceoryx
+ * Refactor and rework IPC interface and OOP module bindings
+ * Rework streaming data type system
+ * Refactor Syntalos core into multiple libraries
+ * python: Rework Python integration, make Python module independent of pyworker
+ * firmata-io: Make module run in a dedicated thread to improve latency
+ * firmata-io: Use an event loop in the dedicated thread to listen for data
+ * firmata-io: Update device list on USB hotplug events
+ * Refactor data types, data storage and clock/sync helpers into their own shlib
+ * Make port editor UI a shared UI component
+ * pyscript: Use QTermWidget for Python output
+ * Introduce a new module state for modules that don't participate in a run
+ * cpp-workbench: Add new module for on-the-fly C++ module coding
+ * engine: Allow SyThread to be backed by QThread, don't override error state
+ * datactl: Add some convenience initializers for FirmataControl
+ * Add categorization for modules
+ * Update module selection dialog with filter & categorization
+ * Categorize all modules
+ * Add devel.latencytest: A simple diagnostic module to test (Firmata) latency
+ * pyscript/cpp-workbench: Disable default editor save action
+ * pyscript/cpp-workbench: Use toolbars instead of main menu in UI
+ * Permit modules to limit port types in the port selector
+ * upy-workbench: Add module to easily program a microcontroller in Python
+ * upy-wbench: Use msec precision for device, but raise to µsec in Syntalos
+ * canvas: Move settings into the main window view
+ * canvas: Add simple image histogram display
+ * Add camera-arv: Aravis-based GenICam support
+ * camera-arv: Install udev rules for access to Basler cameras
+ * Use higher-precision µsec timestamps for frames and data blocks
+ * Use microsecond timestamps explicitly in more places
+ * python: Switch from our own cv::Mat<->ndarray conversion to cvnp
+ * camera-arv: Allow user access to FLIR cameras
+ * galdur-stim: Add new module prototype for the old RT stim processor
+ * python: Improve support for standalone Python modules
+ * deeplabcut: Port to new Python API
+ * python: Auto-reload main Python file of native py-modules on changes
+ * ui: When filtering modules, select the first match by default
+ * intan-rhx: Update to 3.3.2
+ * Allow user to load a project anyway even if some settings failed to load
+
+Bugfixes:
+ * mlink: Forward output ports, fix Python type conversions
+ * mlink: Make sure subscribers are allowed to block producers
+ * engine: Cleanup resources a bit earlier to save memory on idle
+ * Only bubble up the first error to the user per-module, to avoid spam
+ * meson: Strip interfering private library linker lines from pc file
+ * moduleapi: return the same port again if someone tries to register it twice
+ * miniscope: Include frame index in emitted frames
+ * Ensure module visual error state is preserved after a failed run
+ * Replace, not extend UI lists when re-scanning serial devices
+ * videorecorder: Properly handle encoder GAIN and flush last packets
+ * Make module select dialog work better with fractional scaling displays
+ * utils: Add trailing newline when serializing TOML tables
+ * canvas: Render images with higher bit depths correctly
+ * table: Don't crash if no input connection was made
+ * camera-tis: Enable bidirectional time synchronization
+ * camera-arv: Narrow gap between device and system timestamp via constant offset
+ * Adjust clock-sync algorithm behavior to be more similar to freq-counter
+ * Resolve int overflow when using hi-res times for FirmataData & in Python
+ * debian: Use udev rules installed into /usr
+ * timesync: clocksync: Smooth out correction offset a bit
+ * timesync: Make fluke correction less aggressive, smoother and faster
+ * timesync: clock: Attenuate correction speed to current framerate better
+ * engine: Stop stream exporter later and safer
+ * python: Improve start latency and make 'prepare' behave like in C++
+ * engine: Process some UI events while waiting for threads to join
+ * ui: Ensure graph view is always resized to make enough space for nodes
+ * ui: Highlight last-added node after initialization
+ * Try to work around cases where clone3 is blocked by seccomp
+ * rtkit: Try to prefer the XDG portal over direct RtKit communication
+ * intan-rhx: Fix rare crash if module is stopped before it was fully started
+
+Miscellaneous:
+ * Bump OS and compiler dependency
+ * Refine library dependencies to speed up linking a bit
+ * Add helper script to update shared code in module Meson definitions
+ * intan-rhx: Bump default recording interval to 20min
+ * modules: Disable notes for module MOC processing by default
+ * Rename component-ID to reflect the software's new home
+ * docs: Move documentation to separate repository
+ * Update imgui
+ * tests: Add some demo projects
+ * metainfo: Update homepage URL
+ * Rename website and ID to syntalos.org
+
 Version 1.1.0
 -------------
 Released: 2024-02-22
