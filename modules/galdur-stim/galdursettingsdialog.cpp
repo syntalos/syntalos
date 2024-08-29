@@ -72,8 +72,7 @@ void GaldurSettingsDialog::updatePortList()
     // List all serial ports
     auto allPorts = QSerialPortInfo::availablePorts();
     for (auto &port : allPorts) {
-        ui->portsComboBox->addItem(
-            QString("%1 (%2)").arg(port.portName()).arg(port.description()), port.systemLocation());
+        ui->portsComboBox->addItem(QString("%1 (%2)").arg(port.portName(), port.description()), port.systemLocation());
     }
 
     setSerialPort(selectedPort);
@@ -137,9 +136,16 @@ void GaldurSettingsDialog::setMode(LabrstimClient::Mode mode)
     case LabrstimClient::ModeTrain:
         ui->stimTypeComboBox->setCurrentIndex(2);
         break;
+    case LabrstimClient::ModeSpikes:
+        ui->stimTypeComboBox->setCurrentIndex(3);
+        break;
     default:
         qWarning() << "Unknown mode selected!";
     }
+
+    // ensure any update is applied
+    if (m_currentMode != LabrstimClient::ModeUnknown)
+        on_stimTypeComboBox_currentIndexChanged(ui->stimTypeComboBox->currentIndex());
 }
 
 double GaldurSettingsDialog::pulseDuration() const
@@ -268,6 +274,11 @@ void GaldurSettingsDialog::on_stimTypeComboBox_currentIndexChanged(int index)
     case 2:
         m_currentMode = LabrstimClient::ModeTrain;
         break;
+    case 3:
+        m_currentMode = LabrstimClient::ModeSpikes;
+        ui->randomIntervalCheckBox->setEnabled(false);
+        ui->randomIntervalLabel->setEnabled(false);
+        break;
     default:
         qWarning() << "Unknown mode selected!";
         m_currentMode = LabrstimClient::ModeUnknown;
@@ -286,4 +297,44 @@ void GaldurSettingsDialog::on_maximumIntervalSpinBox_valueChanged(double arg1)
     if (ui->minimumIntervalSpinBox->value() >= arg1) {
         ui->minimumIntervalSpinBox->setValue(arg1 - 1);
     }
+}
+
+uint GaldurSettingsDialog::spikeDetectionWindow() const
+{
+    return ui->spikeTimeWindowSpinBox->value();
+}
+
+void GaldurSettingsDialog::setSpikeDetectionWindow(uint val)
+{
+    ui->spikeTimeWindowSpinBox->setValue(val);
+}
+
+uint GaldurSettingsDialog::spikeTriggerFrequency() const
+{
+    return ui->spikeTriggerFrequencySpinBox->value();
+}
+
+void GaldurSettingsDialog::setSpikeTriggerFrequency(uint val)
+{
+    ui->spikeTriggerFrequencySpinBox->setValue(val);
+}
+
+uint GaldurSettingsDialog::spikeStimCooldownTime() const
+{
+    return ui->spikeCooldownTimeSpinBox->value();
+}
+
+void GaldurSettingsDialog::setSpikeStimCooldownTime(uint val)
+{
+    ui->spikeCooldownTimeSpinBox->setValue(val);
+}
+
+int GaldurSettingsDialog::spikeThresholdValue() const
+{
+    return ui->spikeThresholdSpinBox->value();
+}
+
+void GaldurSettingsDialog::setSpikeThresholdValue(int val)
+{
+    ui->spikeThresholdSpinBox->setValue(val);
 }

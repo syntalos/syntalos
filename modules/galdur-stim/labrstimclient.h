@@ -32,10 +32,11 @@ public:
         ModeUnknown,
         ModeTheta,
         ModeSwr,
-        ModeTrain
+        ModeTrain,
+        ModeSpikes
     };
 
-    explicit LabrstimClient(QObject *parent = 0);
+    explicit LabrstimClient(QObject *parent = nullptr);
     ~LabrstimClient();
 
     QString lastError() const;
@@ -83,6 +84,18 @@ public:
 
     double trainFrequency() const;
     void setTrainFrequency(double val);
+
+    uint spikeDetectionWindow() const;
+    void setSpikeDetectionWindow(uint val);
+
+    uint spikeTriggerFrequency() const;
+    void setSpikeTriggerFrequency(uint val);
+
+    uint spikeStimCooldownTime() const;
+    void setSpikeStimCooldownTime(uint val);
+
+    int spikeThresholdValue() const;
+    void setSpikeThresholdValue(int val);
 
 public slots:
     bool open(const QString &portName);
@@ -135,6 +148,11 @@ private:
     double m_thetaPhase;
 
     double m_trainFrequency;
+
+    uint m_spikeDetectionWindow;
+    uint m_spikeTriggerFrequency;
+    uint m_spikeStimCooldownTime;
+    int m_spikeThresholdValue;
 };
 
 #endif // LABRSTIMCLIENT_H

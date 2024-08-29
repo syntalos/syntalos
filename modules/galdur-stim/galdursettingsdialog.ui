@@ -104,6 +104,11 @@
              <string>Train Stimulation</string>
             </property>
            </item>
+           <item>
+            <property name="text">
+             <string>Spikerate Stimulation</string>
+            </property>
+           </item>
           </widget>
          </item>
         </layout>
@@ -133,14 +138,14 @@
          <item row="0" column="0">
           <widget class="QLabel" name="samplingRateLabel">
            <property name="text">
-            <string>Sampling rate</string>
+            <string>Sampling Rate</string>
            </property>
           </widget>
          </item>
          <item row="0" column="1">
           <widget class="QSpinBox" name="samplingRateSpinBox">
            <property name="suffix">
-            <string>Hz</string>
+            <string> sps</string>
            </property>
            <property name="minimum">
             <number>200</number>
@@ -149,7 +154,7 @@
             <number>200000</number>
            </property>
            <property name="value">
-            <number>5000</number>
+            <number>20000</number>
            </property>
           </widget>
          </item>
@@ -166,7 +171,7 @@
          <item row="1" column="1">
           <widget class="QDoubleSpinBox" name="pulseDurationSpinBox">
            <property name="suffix">
-            <string>ms</string>
+            <string> ms</string>
            </property>
            <property name="singleStep">
             <double>0.200000000000000</double>
@@ -189,7 +194,7 @@
          <item row="2" column="1">
           <widget class="QDoubleSpinBox" name="laserIntensitySpinBox">
            <property name="suffix">
-            <string>V</string>
+            <string> V</string>
            </property>
            <property name="singleStep">
             <double>0.500000000000000</double>
@@ -264,7 +269,7 @@
             <bool>false</bool>
            </property>
            <property name="text">
-            <string>&amp;Minimum Interval [ms]</string>
+            <string>&amp;Minimum Interval</string>
            </property>
            <property name="buddy">
             <cstring>minimumIntervalSpinBox</cstring>
@@ -275,6 +280,9 @@
           <widget class="QDoubleSpinBox" name="minimumIntervalSpinBox">
            <property name="enabled">
             <bool>false</bool>
+           </property>
+           <property name="suffix">
+            <string> ms</string>
            </property>
            <property name="minimum">
             <double>1.000000000000000</double>
@@ -287,7 +295,7 @@
             <bool>false</bool>
            </property>
            <property name="text">
-            <string>Maximum Inte&amp;rval [ms]</string>
+            <string>Maximum Inte&amp;rval</string>
            </property>
            <property name="buddy">
             <cstring>maximumIntervalSpinBox</cstring>
@@ -298,6 +306,9 @@
           <widget class="QDoubleSpinBox" name="maximumIntervalSpinBox">
            <property name="enabled">
             <bool>false</bool>
+           </property>
+           <property name="suffix">
+            <string> ms</string>
            </property>
            <property name="minimum">
             <double>2.000000000000000</double>
@@ -588,6 +599,128 @@
            </item>
           </layout>
          </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="spikeStimPage">
+       <layout class="QHBoxLayout" name="horizontalLayout_4">
+        <property name="spacing">
+         <number>4</number>
+        </property>
+        <property name="leftMargin">
+         <number>4</number>
+        </property>
+        <property name="topMargin">
+         <number>4</number>
+        </property>
+        <property name="rightMargin">
+         <number>4</number>
+        </property>
+        <property name="bottomMargin">
+         <number>4</number>
+        </property>
+        <item>
+         <layout class="QFormLayout" name="formLayout_6">
+          <item row="0" column="0">
+           <widget class="QLabel" name="detectionTimeWindowLabel">
+            <property name="text">
+             <string>Detection Time Window</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QSpinBox" name="spikeTimeWindowSpinBox">
+            <property name="suffix">
+             <string> ms</string>
+            </property>
+            <property name="minimum">
+             <number>10</number>
+            </property>
+            <property name="maximum">
+             <number>10000</number>
+            </property>
+            <property name="value">
+             <number>1000</number>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="triggerFrequencyLabel">
+            <property name="text">
+             <string>Trigger Frequency</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QSpinBox" name="spikeTriggerFrequencySpinBox">
+            <property name="suffix">
+             <string> Hz</string>
+            </property>
+            <property name="minimum">
+             <number>1</number>
+            </property>
+            <property name="maximum">
+             <number>200</number>
+            </property>
+            <property name="value">
+             <number>20</number>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="spikeStimCooldownTimeLabel">
+            <property name="text">
+             <string>Stimulation Cooldown Time</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QSpinBox" name="spikeCooldownTimeSpinBox">
+            <property name="suffix">
+             <string> ms</string>
+            </property>
+            <property name="minimum">
+             <number>50</number>
+            </property>
+            <property name="maximum">
+             <number>30000</number>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="0">
+           <widget class="QLabel" name="spikeThresholdValueLabel">
+            <property name="text">
+             <string>Spike Threshold Value</string>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="1">
+           <widget class="QSpinBox" name="spikeThresholdSpinBox">
+            <property name="minimum">
+             <number>-25000</number>
+            </property>
+            <property name="maximum">
+             <number>0</number>
+            </property>
+            <property name="value">
+             <number>-2500</number>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <spacer name="horizontalSpacer_3">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>390</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
         </item>
        </layout>
       </widget>

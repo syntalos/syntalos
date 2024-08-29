@@ -157,13 +157,17 @@ bool LabrstimClient::runStimulation()
     case ModeTrain:
         command.append(" train");
         break;
+    case ModeSpikes:
+        command.append(" spikedetect");
+        break;
     default:
         emitError("No valid stimulation mode set.");
         return false;
     }
 
-    // SWR-specific settings
     if (m_mode == ModeSwr) {
+        // SWR-specific settings
+
         if (m_swrRefractoryTime != 0)
             command.append(QString(" -f %1").arg(m_swrRefractoryTime));
         if (m_swrPowerThreshold != 0)
@@ -172,18 +176,27 @@ bool LabrstimClient::runStimulation()
         command.append(QString(" -C %1").arg(m_convolutionPeakThreshold));
 
     } else if (m_mode == ModeTheta) {
+        // Theta-specific stuff
         command.append(QString(" -t %1").arg(m_thetaPhase));
         if (m_randomIntervals)
             command.append(QString(" -R"));
 
     } else if (m_mode == ModeTrain) {
+        // Train-specific stuff
         command.append(QString(" -T %1").arg(m_trainFrequency));
         if (m_randomIntervals)
             command.append(QString(" -R"));
+
+    } else if (m_mode == ModeSpikes) {
+        // Spike-detection specific stuff
+        command.append(QString(" -t %1").arg(m_spikeTriggerFrequency));
+        command.append(QString(" -w %1").arg(m_spikeDetectionWindow));
+        command.append(QString(" -d %1").arg(m_spikeStimCooldownTime));
+        command.append(QString(" -s %1").arg(m_spikeThresholdValue));
     }
 
     // random intervals count for all modes
-    if (m_randomIntervals) {
+    if (m_randomIntervals && m_mode != ModeSpikes) {
         command.append(QString(" -m %1").arg(m_minimumInterval));
         command.append(QString(" -M %1").arg(m_maximumInterval));
     }
@@ -427,4 +440,44 @@ double LabrstimClient::trainFrequency() const
 void LabrstimClient::setTrainFrequency(double val)
 {
     m_trainFrequency = val;
+}
+
+uint LabrstimClient::spikeDetectionWindow() const
+{
+    return m_spikeDetectionWindow;
+}
+
+void LabrstimClient::setSpikeDetectionWindow(uint val)
+{
+    m_spikeDetectionWindow = val;
+}
+
+uint LabrstimClient::spikeTriggerFrequency() const
+{
+    return m_spikeTriggerFrequency;
+}
+
+void LabrstimClient::setSpikeTriggerFrequency(uint val)
+{
+    m_spikeTriggerFrequency = val;
+}
+
+uint LabrstimClient::spikeStimCooldownTime() const
+{
+    return m_spikeStimCooldownTime;
+}
+
+void LabrstimClient::setSpikeStimCooldownTime(uint val)
+{
+    m_spikeStimCooldownTime = val;
+}
+
+int LabrstimClient::spikeThresholdValue() const
+{
+    return m_spikeThresholdValue;
+}
+
+void LabrstimClient::setSpikeThresholdValue(int val)
+{
+    m_spikeThresholdValue = val;
 }

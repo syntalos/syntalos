@@ -84,6 +84,18 @@ public:
     double trainFrequency() const;
     void setTrainFrequency(double val);
 
+    uint spikeDetectionWindow() const;
+    void setSpikeDetectionWindow(uint val);
+
+    uint spikeTriggerFrequency() const;
+    void setSpikeTriggerFrequency(uint val);
+
+    uint spikeStimCooldownTime() const;
+    void setSpikeStimCooldownTime(uint val);
+
+    int spikeThresholdValue() const;
+    void setSpikeThresholdValue(int val);
+
 private slots:
     void on_stimTypeComboBox_currentIndexChanged(int index);
     void on_minimumIntervalSpinBox_valueChanged(double arg1);

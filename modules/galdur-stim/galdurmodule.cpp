@@ -108,6 +108,11 @@ public:
         lsClient->setThetaPhase(m_settingsDlg->thetaPhase());
         lsClient->setTrainFrequency(m_settingsDlg->trainFrequency());
 
+        lsClient->setSpikeDetectionWindow(m_settingsDlg->spikeDetectionWindow());
+        lsClient->setSpikeTriggerFrequency(m_settingsDlg->spikeTriggerFrequency());
+        lsClient->setSpikeStimCooldownTime(m_settingsDlg->spikeStimCooldownTime());
+        lsClient->setSpikeThresholdValue(m_settingsDlg->spikeThresholdValue());
+
         connect(lsClient.get(), &LabrstimClient::newRawData, [this, &loop](const QString &data) {
             const std::lock_guard<std::mutex> lock(m_rawMsgMutex);
             m_rawMessages.enqueue(data);
@@ -230,13 +235,18 @@ public:
         settings.insert("convolution_peak_threshold", m_settingsDlg->convolutionPeakThreshold());
         settings.insert("theta_phase", m_settingsDlg->thetaPhase());
         settings.insert("train_frequency", m_settingsDlg->trainFrequency());
+
+        settings.insert("spike_detection_window", m_settingsDlg->spikeDetectionWindow());
+        settings.insert("spike_trigger_frequency", m_settingsDlg->spikeTriggerFrequency());
+        settings.insert("spike_stim_cooldown_time", m_settingsDlg->spikeStimCooldownTime());
+        settings.insert("spike_threshold_value", m_settingsDlg->spikeThresholdValue());
     }
 
     bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) final
     {
+        m_settingsDlg->setMode(static_cast<LabrstimClient::Mode>(settings.value("mode").toInt()));
         m_settingsDlg->setSerialPort(settings.value("serial_port").toString());
         m_settingsDlg->setStartImmediately(settings.value("start_immediately").toBool());
-        m_settingsDlg->setMode(static_cast<LabrstimClient::Mode>(settings.value("mode").toInt()));
         m_settingsDlg->setPulseDuration(settings.value("pulse_duration").toDouble());
         m_settingsDlg->setLaserIntensity(settings.value("laser_intensity").toDouble());
         m_settingsDlg->setSamplingFrequency(settings.value("sampling_frequency").toInt());
@@ -248,6 +258,11 @@ public:
         m_settingsDlg->setConvolutionPeakThreshold(settings.value("convolution_peak_threshold").toDouble());
         m_settingsDlg->setThetaPhase(settings.value("theta_phase").toDouble());
         m_settingsDlg->setTrainFrequency(settings.value("train_frequency").toDouble());
+
+        m_settingsDlg->setSpikeDetectionWindow(settings.value("spike_detection_window").toUInt());
+        m_settingsDlg->setSpikeTriggerFrequency(settings.value("spike_trigger_frequency").toUInt());
+        m_settingsDlg->setSpikeStimCooldownTime(settings.value("spike_stim_cooldown_time").toUInt());
+        m_settingsDlg->setSpikeThresholdValue(settings.value("spike_threshold_value").toInt());
 
         return true;
     }
