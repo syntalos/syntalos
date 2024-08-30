@@ -19,15 +19,19 @@ Build-Depends: cmake,
                libiceoryx-introspection-dev,
                libkf5archive-dev,
                libkf5texteditor-dev,
+               libkf5windowsystem-dev,
                libopencv-dev,
                libpipewire-0.3-dev,
                libqt5opengl5-dev,
                libqt5serialport5-dev,
                libqt5svg5-dev,
+               libqtermwidget5-1-dev,
+               libminiscope-dev,
                libswscale-dev,
                libsystemd-dev,
                libudev-dev,
                libusb-1.0-0-dev,
+               libtomlplusplus-dev,
                libv4l-dev,
                libxml2-dev,
                libxxhash-dev,
@@ -38,11 +42,14 @@ Build-Depends: cmake,
                pybind11-dev,
                python3-dev,
                python3-numpy,
+               python3-pip,
                qtbase5-dev,
                qtmultimedia5-dev,
                systemd-dev,
                udev,
-               uuid-dev
+               uuid-dev,
+               xvfb
+Rules-Requires-Root: no
 Standards-Version: 4.6.2
 
 Package: syntalos
@@ -54,7 +61,7 @@ Depends: breeze-icon-theme,
          syntalos-hwsupport (= ${source:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
-Recommends: pomidaq
+Suggests: pomidaq
 Description: Synchronized DAQ from diverse sources and flexible experiment control
  Syntalos is a software for timestamp-synchronized parallel data acquisition
  from diverse data sources, such as cameras, microendoscopes,
@@ -68,7 +75,7 @@ Architecture: all
 Depends: libpam-systemd,
          rtkit,
          ${misc:Depends}
-Recommends: pomidaq
+Suggests: syntalos
 Description: Syntalos DAQ -- Hardware support
  Syntalos is a software for timestamp-synchronized parallel data acquisition
  from diverse data sources, such as cameras, microendoscopes,

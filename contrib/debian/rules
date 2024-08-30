@@ -1,8 +1,36 @@
 #!/usr/bin/make -f
 # -*- mode: makefile; coding: utf-8 -*-
 
+
+ifneq (,$(filter $(DEB_HOST_ARCH), amd64))
+	SY_ENABLED_MODULES=camera-arv,camera-tis,intan-rhx,miniscope,plot
+
+	# FIXME: Super dirty hack to get tiscamera to build - should be replaced
+	# by building a proper tiscam package eventually.
+	export PKG_CONFIG_PATH=$(CURDIR)/contrib/vendor/tiscam/usr/lib/x86_64-linux-gnu/pkgconfig/
+else
+	# We don't build Intan/TIS Camera support on non-amd64
+	# FIXME: Enable tiscam eventually
+	SY_ENABLED_MODULES=camera-arv,miniscope,plot
+endif
+
+SY_CONFIGURE_ARGS = \
+    -Doptimize-modern-amd64=true \
+    -Dmodules=$(SY_ENABLED_MODULES)
+
 %:
 	dh $@
+
+override_dh_auto_configure:
+	# FIXME: Ugly hacks
+	SRC_DIR=$(CURDIR) && \
+	sed -i "s|^prefix=/usr|prefix=$$SRC_DIR/contrib/vendor/tiscam/usr|" \
+		$(CURDIR)/contrib/vendor/tiscam/usr/lib/x86_64-linux-gnu/pkgconfig/tcam.pc
+	SRC_DIR=$(CURDIR) && \
+	sed -i "s|^prefix=/usr|prefix=$$SRC_DIR/contrib/vendor/tiscam/usr|" \
+		$(CURDIR)/contrib/vendor/tiscam/usr/lib/x86_64-linux-gnu/pkgconfig/tcam-property-1.0.pc
+
+	dh_auto_configure -- $(SY_CONFIGURE_ARGS)
 
 override_dh_auto_test:
 	:

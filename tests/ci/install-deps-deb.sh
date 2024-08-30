@@ -38,6 +38,7 @@ eatmydata apt-get install -yq --no-install-recommends \
     libqt5serialport5-dev \
     libqt5svg5-dev \
     libswscale-dev \
+    libtomlplusplus-dev \
     libusb-1.0-0-dev \
     libv4l-dev \
     libxml2-dev \
