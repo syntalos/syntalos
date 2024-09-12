@@ -40,6 +40,6 @@ dch --distribution "UNRELEASED"	--newversion="${upstream_version}" -b \
 # Actually build the package.
 # Use a helper like `debspawn` or `debuild` when building manually!
 mkdir -p result
-dpkg-buildpackage
+dpkg-buildpackage -d
 mv ../*.deb ./result/
 mv ../*.build* ./result/
