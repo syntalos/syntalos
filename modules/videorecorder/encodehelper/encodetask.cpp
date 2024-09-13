@@ -114,7 +114,7 @@ void EncodeTask::run()
     vwriter.setCodecProps(cprops);
 
     // open source tsync file and load it
-    TSyncFileTimeUnit tsyncTimeUnit;
+    TSyncFileTimeUnit tsyncTimeUnit = TSyncFileTimeUnit::MICROSECONDS;
     std::vector<std::pair<long long, long long>> tsyncTimes;
     if (m_writeTsync) {
         TimeSyncFileReader tfr;

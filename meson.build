@@ -93,7 +93,8 @@ if get_option('maintainer')
          '-Wformat-security',
          '-Winit-self',
          '-Wnull-dereference',
-         '-Winline'
+         '-Winline',
+         '-Wmaybe-uninitialized',
     ]
     maintainer_cpp_args = [
         '-Wsuggest-final-methods'
