@@ -23,12 +23,13 @@ SY_CONFIGURE_ARGS = \
 
 override_dh_auto_configure:
 	# FIXME: Ugly hacks
-	SRC_DIR=$(CURDIR) && \
-	sed -i "s|^prefix=/usr|prefix=$$SRC_DIR/contrib/vendor/tiscam/usr|" \
-		$(CURDIR)/contrib/vendor/tiscam/usr/lib/x86_64-linux-gnu/pkgconfig/tcam.pc
-	SRC_DIR=$(CURDIR) && \
-	sed -i "s|^prefix=/usr|prefix=$$SRC_DIR/contrib/vendor/tiscam/usr|" \
-		$(CURDIR)/contrib/vendor/tiscam/usr/lib/x86_64-linux-gnu/pkgconfig/tcam-property-1.0.pc
+	if [ -f $(CURDIR)/contrib/vendor/tiscam/usr/lib/x86_64-linux-gnu/pkgconfig/tcam.pc ]; then \
+		SRC_DIR=$(CURDIR) && \
+		sed -i "s|^prefix=/usr|prefix=$$SRC_DIR/contrib/vendor/tiscam/usr|" \
+			$(CURDIR)/contrib/vendor/tiscam/usr/lib/x86_64-linux-gnu/pkgconfig/tcam.pc; \
+		sed -i "s|^prefix=/usr|prefix=$$SRC_DIR/contrib/vendor/tiscam/usr|" \
+			$(CURDIR)/contrib/vendor/tiscam/usr/lib/x86_64-linux-gnu/pkgconfig/tcam-property-1.0.pc; \
+	fi
 
 	dh_auto_configure -- $(SY_CONFIGURE_ARGS)
 
@@ -36,4 +37,4 @@ override_dh_auto_test:
 	:
 
 override_dh_shlibdeps:
-	dh_shlibdeps -Xsyntalos/modules
+	dh_shlibdeps -Xmodules/miniscope/miniscope.so -Xmodules/camera-tis/camera-tis.so
