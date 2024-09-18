@@ -566,7 +566,7 @@ ModuleDriverKind AbstractModule::driver() const
 
 ModuleFeatures AbstractModule::features() const
 {
-    return ModuleFeature::SHOW_DISPLAY | ModuleFeature::SHOW_SETTINGS | ModuleFeature::SHOW_ACTIONS;
+    return ModuleFeature::SHOW_DISPLAY | ModuleFeature::SHOW_SETTINGS;
 }
 
 bool AbstractModule::initialize()
@@ -663,12 +663,6 @@ void AbstractModule::hideSettingsUi()
 {
     for (auto const wp : d->settingsWindows)
         wp.first->hide();
-}
-
-QList<QAction *> AbstractModule::actions()
-{
-    QList<QAction *> res;
-    return res;
 }
 
 void AbstractModule::serializeSettings(const QString &, QVariantHash &, QByteArray &)

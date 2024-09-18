@@ -20,12 +20,11 @@
 #ifndef MODULEAPI_H
 #define MODULEAPI_H
 
-#include <QAction>
 #include <QByteArray>
 #include <QDebug>
 #include <QList>
 #include <QObject>
-#include <QPixmap>
+#include <QIcon>
 
 #include "modconfig.h"
 #include "optionalwaitcondition.h"
@@ -48,15 +47,14 @@ class StreamOutputPort;
  */
 enum class ModuleFeature {
     NONE = 0,
-    SHOW_SETTINGS = 1 << 0, /// Module can display a settings window
-    SHOW_DISPLAY = 1 << 1,  /// Module has one or more display window(s) to show
-    SHOW_ACTIONS = 1 << 2,  /// Module supports context menu actions
-    REALTIME = 1 << 3,      /// Enable realtime scheduling for the module's thread
+    SHOW_SETTINGS = 1 << 0,  /// Module can display a settings window
+    SHOW_DISPLAY = 1 << 1,   /// Module has one or more display window(s) to show
+    REALTIME = 1 << 2,       /// Enable realtime scheduling for the module's thread
+    CALL_UI_EVENTS = 1 << 3, /// Call direct UI events processing method
     REQUEST_CPU_AFFINITY =
         1 << 4, /// Pin the module's thread to a separate CPU core, if possible (even if the user disabled this)
-    PROHIBIT_CPU_AFFINITY =
-        1 << 5,              /// Never set a core affinity for the thread of this module, even if the user wanted it
-    CALL_UI_EVENTS = 1 << 6, /// Call direct UI events processing method
+    PROHIBIT_CPU_AFFINITY = 1
+                            << 5 /// Never set a core affinity for the thread of this module, even if the user wanted it
 };
 Q_DECLARE_FLAGS(ModuleFeatures, ModuleFeature)
 Q_DECLARE_OPERATORS_FOR_FLAGS(ModuleFeatures)
@@ -650,12 +648,6 @@ public:
     virtual void hideSettingsUi();
 
     /**
-     * @brief Get actions to add to the module's submenu
-     * @return
-     */
-    virtual QList<QAction *> actions();
-
-    /**
      * @brief Serialize the settings of this module
      *
      * Modules can add their settings keys and values to the Variant hashtable,
@@ -732,7 +724,6 @@ public:
     void setTimer(std::shared_ptr<SyncTimer> timer);
 
 Q_SIGNALS:
-    void actionsUpdated();
     void stateChanged(ModuleState state);
     void error(const QString &message);
     void statusMessage(const QString &message);
