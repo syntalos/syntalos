@@ -483,6 +483,8 @@ public:
 
     bool initialized;
     bool runIsEmphemeral;
+
+    ModuleModifiers modifiers;
 };
 
 // instantiate static field
@@ -493,6 +495,7 @@ AbstractModule::AbstractModule(QObject *parent)
       m_running(false),
       d(new AbstractModule::Private)
 {
+    d->modifiers = ModuleModifier::ENABLED | ModuleModifier::STOP_ON_FAILURE;
     d->id = QStringLiteral("unknown");
     d->name = QStringLiteral("Unknown Module");
     d->s_eventsMaxModulesPerThread = -1;
@@ -1139,4 +1142,15 @@ void AbstractModule::setStatusMessage(const QString &message)
 void AbstractModule::setTimer(std::shared_ptr<SyncTimer> timer)
 {
     m_syTimer = timer;
+}
+
+ModuleModifiers Syntalos::AbstractModule::modifiers() const
+{
+    return d->modifiers;
+}
+
+void Syntalos::AbstractModule::setModifiers(ModuleModifiers modifiers)
+{
+    d->modifiers = modifiers;
+    Q_EMIT modifiersUpdated();
 }

@@ -329,6 +329,8 @@ public:
     void setNodeInfoText(const QString &info);
     QString nodeInfoText() const;
 
+    void setStopOnErrorAttribute(bool moduleFailureCritical);
+
     FlowGraphNodePort *addPort(std::shared_ptr<AbstractStreamPort> port);
     QList<FlowGraphNodePort *> ports() const;
     void removePort(FlowGraphNodePort *port);
@@ -363,6 +365,7 @@ private:
 
     QGraphicsPixmapItem *m_pixmap;
     QGraphicsPixmapItem *m_statusPix;
+    QGraphicsPixmapItem *m_canFailPix;
     QGraphicsTextItem *m_titleText;
     QGraphicsTextItem *m_statusText;
     QGraphicsTextItem *m_infoText;

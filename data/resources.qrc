@@ -40,6 +40,7 @@
         <file alias="ready">status/status-ready.svg</file>
         <file alias="running">status/status-running.svg</file>
         <file alias="error">status/status-error.svg</file>
+        <file alias="failure-not-critical">status/module-failure-not-critical.svg</file>
     </qresource>
     <qresource prefix="/module">
         <file alias="generic">modules/generic.svg</file>

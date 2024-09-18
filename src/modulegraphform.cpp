@@ -51,19 +51,19 @@ ModuleGraphForm::ModuleGraphForm(QWidget *parent)
     connect(m_engine, &Engine::moduleCreated, this, &ModuleGraphForm::moduleAdded);
     connect(m_engine, &Engine::modulePreRemove, this, &ModuleGraphForm::on_modulePreRemove);
 
-    ui->actionMenu->setEnabled(false);
     ui->actionRemove->setEnabled(false);
     ui->actionConnect->setEnabled(false);
     ui->actionDisconnect->setEnabled(false);
     ui->actionDisplay->setEnabled(false);
     ui->actionSettings->setEnabled(false);
+    ui->actionModifiers->setEnabled(false);
 
-    m_menu = new QMenu(this);
-    ui->actionMenu->setMenu(m_menu);
+    m_modifiersMenu = new QMenu(this);
+    ui->actionModifiers->setMenu(m_modifiersMenu);
     connect(
-        ui->actionMenu,
+        ui->actionModifiers,
         &QAction::triggered,
-        qobject_cast<QToolButton *>(ui->toolBar->widgetForAction(ui->actionMenu)),
+        qobject_cast<QToolButton *>(ui->toolBar->widgetForAction(ui->actionModifiers)),
         &QToolButton::showMenu);
 
     connect(ui->graphView->scene(), &QGraphicsScene::selectionChanged, this, &ModuleGraphForm::on_selectionChanged);
@@ -79,6 +79,41 @@ ModuleGraphForm::ModuleGraphForm(QWidget *parent)
     ui->graphView->setPortTypeColor(TableRow::staticTypeId(), QColor::fromRgb(0x8FD6FE));
     ui->graphView->setPortTypeColor(IntSignalBlock::staticTypeId(), QColor::fromRgb(0x2ECC71));
     ui->graphView->setPortTypeColor(FloatSignalBlock::staticTypeId(), QColor::fromRgb(0xAECC70));
+
+    // add modifier actions to the menu
+    auto enAction = new QAction("Enabled", this);
+    m_modifierActions[ModuleModifier::ENABLED] = enAction;
+    enAction->setCheckable(true);
+    m_modifiersMenu->addAction(enAction);
+    connect(enAction, &QAction::triggered, [this](bool checked) {
+        auto node = selectedSingleNode();
+        if (node == nullptr)
+            return;
+        auto mod = node->module();
+        if (mod == nullptr)
+            return;
+
+        auto modifiers = mod->modifiers();
+        modifiers.setFlag(ModuleModifier::ENABLED, checked);
+        mod->setModifiers(modifiers);
+    });
+
+    auto errorAction = new QAction("Stop run on module failure", this);
+    m_modifierActions[ModuleModifier::STOP_ON_FAILURE] = errorAction;
+    errorAction->setCheckable(true);
+    m_modifiersMenu->addAction(errorAction);
+    connect(errorAction, &QAction::triggered, [this](bool checked) {
+        auto node = selectedSingleNode();
+        if (node == nullptr)
+            return;
+        auto mod = node->module();
+        if (mod == nullptr)
+            return;
+
+        auto modifiers = mod->modifiers();
+        modifiers.setFlag(ModuleModifier::STOP_ON_FAILURE, checked);
+        mod->setModifiers(modifiers);
+    });
 }
 
 ModuleGraphForm::~ModuleGraphForm()
@@ -91,7 +126,7 @@ void ModuleGraphForm::updateIconStyles()
 {
     bool isDark = currentThemeIsDark();
     setWidgetIconFromResource(ui->actionSettings, "settings", isDark);
-    setWidgetIconFromResource(ui->actionMenu, "menu", isDark);
+    setWidgetIconFromResource(ui->actionModifiers, "menu", isDark);
     setWidgetIconFromResource(ui->actionDisplay, "show-all-windows", isDark);
 }
 
@@ -155,6 +190,7 @@ void ModuleGraphForm::moduleAdded(ModuleInfo *info, AbstractModule *mod)
     connect(mod, &AbstractModule::error, this, &ModuleGraphForm::receiveErrorMessage, Qt::QueuedConnection);
     connect(mod, &AbstractModule::statusMessage, this, &ModuleGraphForm::receiveMessage);
     connect(mod, &AbstractModule::portsConnected, this, &ModuleGraphForm::on_portsConnected);
+    connect(mod, &AbstractModule::modifiersUpdated, this, &ModuleGraphForm::on_moduleModifiersUpdated);
 
     auto node = new FlowGraphNode(mod);
     node->setNodeIcon(info->icon());
@@ -271,30 +307,31 @@ void ModuleGraphForm::on_selectionChanged()
         ui->actionDisconnect->setEnabled(m_modifyPossible);
     }
 
+    ui->actionRemove->setEnabled(false);
+    ui->actionDisplay->setEnabled(false);
+    ui->actionSettings->setEnabled(false);
+    ui->actionModifiers->setEnabled(false);
+
     auto node = selectedSingleNode();
-    m_menu->clear();
-    if (node == nullptr) {
-        ui->actionMenu->setEnabled(false);
-        ui->actionRemove->setEnabled(false);
-        ui->actionDisplay->setEnabled(false);
-        ui->actionSettings->setEnabled(false);
-    } else {
-        auto mod = node->module();
-        if (mod == nullptr)
-            return;
+    if (node == nullptr)
+        return;
 
-        ui->actionRemove->setEnabled(m_modifyPossible);
+    auto mod = node->module();
+    if (mod == nullptr)
+        return;
 
-        const auto features = mod->features();
-        if (features.testFlag(ModuleFeature::SHOW_DISPLAY))
-            ui->actionDisplay->setEnabled(true);
-        if (features.testFlag(ModuleFeature::SHOW_SETTINGS))
-            ui->actionSettings->setEnabled(true);
+    ui->actionRemove->setEnabled(m_modifyPossible);
+    ui->actionModifiers->setEnabled(m_modifyPossible);
 
-        for (auto &action : mod->actions())
-            m_menu->addAction(action);
-        ui->actionMenu->setEnabled(!m_menu->isEmpty());
-    }
+    m_modifierActions[ModuleModifier::ENABLED]->setChecked(mod->modifiers().testFlag(ModuleModifier::ENABLED));
+    m_modifierActions[ModuleModifier::STOP_ON_FAILURE]->setChecked(
+        mod->modifiers().testFlag(ModuleModifier::STOP_ON_FAILURE));
+
+    const auto features = mod->features();
+    if (features.testFlag(ModuleFeature::SHOW_DISPLAY))
+        ui->actionDisplay->setEnabled(true);
+    if (features.testFlag(ModuleFeature::SHOW_SETTINGS))
+        ui->actionSettings->setEnabled(true);
 }
 
 void ModuleGraphForm::on_graphPortsConnected(FlowGraphNodePort *port1, FlowGraphNodePort *port2)
@@ -510,4 +547,20 @@ void ModuleGraphForm::on_modulePortConfigChanged()
     }
 
     ui->graphView->updatePortTypeColors();
+}
+
+void ModuleGraphForm::on_moduleModifiersUpdated()
+{
+    const auto mod = qobject_cast<AbstractModule *>(sender());
+    const auto node = m_modNodeMap.value(mod);
+    if (node == nullptr)
+        return;
+
+    const auto modifiers = mod->modifiers();
+
+    m_modifierActions[ModuleModifier::ENABLED]->setChecked(modifiers.testFlag(ModuleModifier::ENABLED));
+    m_modifierActions[ModuleModifier::STOP_ON_FAILURE]->setChecked(modifiers.testFlag(ModuleModifier::STOP_ON_FAILURE));
+
+    node->setOpacity(modifiers.testFlag(ModuleModifier::ENABLED) ? 1.0 : 0.6);
+    node->setStopOnErrorAttribute(modifiers.testFlag(ModuleModifier::STOP_ON_FAILURE));
 }

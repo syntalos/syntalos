@@ -88,7 +88,7 @@ public:
     bool removeModule(AbstractModule *mod);
     void removeAllModules();
 
-    QList<AbstractModule *> activeModules() const;
+    QList<AbstractModule *> presentModules() const;
     AbstractModule *moduleByName(const QString &name) const;
 
     QString lastRunExportDir() const;

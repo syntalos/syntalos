@@ -21,6 +21,7 @@
 #define MODULEGRAPHFORM_H
 
 #include "flowgraphview.h"
+#include "moduleapi.h"
 #include <QWidget>
 
 #if !defined(DOXYGEN_SHOULD_SKIP_THIS)
@@ -82,6 +83,7 @@ private slots:
     void on_modulePreRemove(AbstractModule *mod);
     void on_portsConnected(const VarStreamInputPort *inPort, const StreamOutputPort *outPort);
     void on_modulePortConfigChanged();
+    void on_moduleModifiersUpdated();
 
     void moduleAdded(ModuleInfo *info, AbstractModule *mod);
     void receiveStateChange(ModuleState state);
@@ -100,7 +102,8 @@ private:
     bool m_modifyPossible;
     bool m_shutdown;
     QHash<AbstractModule *, FlowGraphNode *> m_modNodeMap;
-    QMenu *m_menu;
+    QMenu *m_modifiersMenu;
+    QHash<ModuleModifier, QAction *> m_modifierActions;
 
     QHash<QString, QPair<FlowGraphNode *, QString>> m_connMemory;
 

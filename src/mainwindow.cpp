@@ -615,7 +615,7 @@ bool MainWindow::saveConfiguration(const QString &fileName)
 
     // save module settings
     auto modIndex = 0;
-    for (auto &mod : m_engine->activeModules()) {
+    for (auto &mod : m_engine->presentModules()) {
         if (!tar.writeDir(QString::number(modIndex)))
             return false;
 
@@ -634,6 +634,8 @@ bool MainWindow::saveConfiguration(const QString &fileName)
         modInfo.insert("id", mod->id());
         modInfo.insert("name", mod->name());
         modInfo.insert("ui_display_geometry", mod->serializeDisplayUiGeometry());
+        modInfo.insert("enabled", mod->modifiers().testFlag(ModuleModifier::ENABLED));
+        modInfo.insert("stop_on_failure", mod->modifiers().testFlag(ModuleModifier::STOP_ON_FAILURE));
 
         // save info about port subscriptions in
         // the form inPortId -> sourceModuleName
@@ -811,6 +813,14 @@ bool MainWindow::loadConfiguration(const QString &fileName)
             }
             return false;
         }
+
+        // load module modifiers
+        auto modModifiers = mod->modifiers();
+        modModifiers.setFlag(ModuleModifier::ENABLED, iobj.value("enabled", true).toBool());
+        modModifiers.setFlag(ModuleModifier::STOP_ON_FAILURE, iobj.value("stop_on_failure", true).toBool());
+        mod->setModifiers(modModifiers);
+
+        // load module-specific configuration
         auto sfile = rootDir->file(QStringLiteral("%1/%2.toml").arg(ename).arg(modId));
         QVariantHash modSettings;
         if (sfile != nullptr) {

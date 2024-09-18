@@ -257,7 +257,7 @@ public:
     SysInfo *sysInfo;
     GlobalConfig *gconf;
     QWidget *parentWidget;
-    QList<AbstractModule *> activeModules;
+    QList<AbstractModule *> presentModules;
     ModuleLibrary *modLibrary;
     std::shared_ptr<SyncTimer> timer;
     std::vector<uint> mainThreadCoreAffinity;
@@ -658,7 +658,7 @@ AbstractModule *Engine::createModule(const QString &id, const QString &name)
 
     // Ensure we don't register a module twice that should only exist once
     if (modInfo->singleton()) {
-        for (auto &emod : d->activeModules) {
+        for (auto &emod : d->presentModules) {
             if (emod->id() == id)
                 return nullptr;
         }
@@ -678,7 +678,7 @@ AbstractModule *Engine::createModule(const QString &id, const QString &name)
         mod->setName(simplifyStrForModuleName(name));
     }
 
-    d->activeModules.append(mod);
+    d->presentModules.append(mod);
     emit moduleCreated(modInfo.get(), mod);
 
     // the module has been created and registered, we can
@@ -720,7 +720,7 @@ AbstractModule *Engine::createModule(const QString &id, const QString &name)
 bool Engine::removeModule(AbstractModule *mod)
 {
     auto id = mod->id();
-    if (d->activeModules.removeOne(mod)) {
+    if (d->presentModules.removeOne(mod)) {
         // Update module info
         auto modInfo = d->modLibrary->moduleInfo(id);
         modInfo->setCount(modInfo->count() - 1);
@@ -754,13 +754,13 @@ void Engine::removeAllModules()
         }
     }
 
-    foreach (auto mod, d->activeModules)
+    foreach (auto mod, d->presentModules)
         removeModule(mod);
 }
 
-QList<AbstractModule *> Engine::activeModules() const
+QList<AbstractModule *> Engine::presentModules() const
 {
-    return d->activeModules;
+    return d->presentModules;
 }
 
 AbstractModule *Engine::moduleByName(const QString &name) const
@@ -768,7 +768,7 @@ AbstractModule *Engine::moduleByName(const QString &name) const
     // FIXME: In case we grow projects with huge module counts, we
     // will actually want a QHash index of modules here, so speed up
     // this function (which may otherwise slow down project loading times)
-    for (const auto &mod : d->activeModules) {
+    for (const auto &mod : d->presentModules) {
         if (mod->name() == name)
             return mod;
     }
@@ -958,6 +958,7 @@ bool Syntalos::Engine::ensureRoudi()
 /**
  * @brief Return a list of active modules that have been sorted in the order they
  * should be prepared, run and overall be handled in (but not stopped in!).
+ * Even modules that are not marked as "Enabled" are considered here!
  */
 QList<AbstractModule *> Engine::createModuleExecOrderList()
 {
@@ -972,10 +973,10 @@ QList<AbstractModule *> Engine::createModuleExecOrderList()
     QList<AbstractModule *> orderedActiveModules;
     QSet<AbstractModule *> assignedMods;
 
-    const auto modCount = d->activeModules.length();
+    const auto modCount = d->presentModules.length();
     assignedMods.reserve(modCount);
     orderedActiveModules.reserve(modCount);
-    for (const auto &mod : d->activeModules) {
+    for (const auto &mod : d->presentModules) {
         if (assignedMods.contains(mod))
             continue;
 
@@ -1095,7 +1096,7 @@ void Engine::notifyUsbHotplugEvent(UsbHotplugEventKind kind)
     }
 
     // notify our modules that something changed
-    for (auto mod : d->activeModules)
+    for (auto mod : d->presentModules)
         mod->usbHotplugEvent(kind);
 }
 
@@ -1107,7 +1108,7 @@ bool Engine::run()
     d->failed = true;          // if we exit before this is reset, initialization has failed
     d->runIsEphemeral = false; // not a volatile run
 
-    if (d->activeModules.isEmpty()) {
+    if (d->presentModules.isEmpty()) {
         QMessageBox::warning(
             d->parentWidget,
             QStringLiteral("Configuration error"),
@@ -1186,7 +1187,7 @@ bool Engine::runEphemeral()
         return false;
 
     d->failed = true; // if we exit before this is reset, initialization has failed
-    if (d->activeModules.isEmpty()) {
+    if (d->presentModules.isEmpty()) {
         QMessageBox::warning(
             d->parentWidget,
             QStringLiteral("Configuration error"),
@@ -1620,7 +1621,14 @@ bool Engine::runInternal(const QString &exportDirPath)
     d->internalTSyncWriters.clear();
 
     // fetch list of modules in their activation order
-    auto orderedActiveModules = createModuleExecOrderList();
+    QList<AbstractModule *> orderedActiveModules;
+    QList<AbstractModule *> inactiveModules;
+    for (auto &mod : createModuleExecOrderList()) {
+        if (mod->modifiers().testFlag(ModuleModifier::ENABLED))
+            orderedActiveModules.append(mod);
+        else
+            inactiveModules.append(mod);
+    }
 
     // create a new master timer for synchronization
     d->timer.reset(new SyncTimer);
@@ -1737,6 +1745,11 @@ bool Engine::runInternal(const QString &exportDirPath)
 
         qCDebug(logEngine).noquote().nospace()
             << "Module '" << mod->name() << "' prepared in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
+    }
+
+    // mark all inactive modules as dormant
+    for (auto &mod : inactiveModules) {
+        mod->setState(ModuleState::DORMANT);
     }
 
     // exporter for streams so out-of-process mlink modules can access them
@@ -2206,6 +2219,12 @@ bool Engine::runInternal(const QString &exportDirPath)
         finalizeExperimentMetadata(storageCollection, finishTimestamp, orderedActiveModules);
         qCDebug(logEngine).noquote().nospace()
             << "Manifest and additional data saved in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
+    }
+
+    // mark inactive modules as idle again
+    for (auto &mod : inactiveModules) {
+        if (mod->state() != ModuleState::IDLE)
+            mod->setState(ModuleState::IDLE);
     }
 
     // release system sleep inhibitor lock

@@ -586,6 +586,7 @@ FlowGraphNode::FlowGraphNode(AbstractModule *module, uint type)
     m_titleText = new QGraphicsTextItem(this);
     m_statusText = new QGraphicsTextItem(this);
     m_infoText = new QGraphicsTextItem(this);
+    m_canFailPix = new QGraphicsPixmapItem(this);
 
     QGraphicsPathItem::setFlag(QGraphicsItem::ItemIsMovable);
     QGraphicsPathItem::setFlag(QGraphicsItem::ItemIsSelectable);
@@ -733,6 +734,15 @@ void FlowGraphNode::setNodeInfoText(const QString &info)
 QString FlowGraphNode::nodeInfoText() const
 {
     return m_infoText->toPlainText();
+}
+
+void FlowGraphNode::setStopOnErrorAttribute(bool moduleFailureCritical)
+{
+    if (moduleFailureCritical)
+        m_canFailPix->setPixmap(QPixmap());
+    else
+        m_canFailPix->setPixmap(QIcon(QPixmap(":/status/failure-not-critical")).pixmap(24, 24));
+    m_canFailPix->setEnabled(!moduleFailureCritical);
 }
 
 FlowGraphNodePort *FlowGraphNode::addPort(std::shared_ptr<AbstractStreamPort> streamPort)
@@ -884,6 +894,11 @@ void FlowGraphNode::paint(QPainter *painter, const QStyleOptionGraphicsItem *opt
     const QRectF &node_rect = QGraphicsPathItem::boundingRect();
     m_pixmap->setPos(node_rect.x() + 4, node_rect.y() + 4);
     m_statusPix->setPos(node_rect.x() + node_rect.width() - m_statusPix->pixmap().width() - 4, node_rect.y() + 4);
+
+    if (m_canFailPix->isEnabled())
+        m_canFailPix->setPos(
+            node_rect.x() + node_rect.width() - m_canFailPix->pixmap().width() - 4,
+            node_rect.y() + node_rect.height() - m_canFailPix->pixmap().height() - 4);
 
     const QRectF &title_rect = m_titleText->boundingRect();
     m_titleText->setPos(-title_rect.width() / 2, node_rect.y() + 2);

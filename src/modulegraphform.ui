@@ -48,7 +48,7 @@
      <addaction name="actionDisconnect"/>
      <addaction name="actionSettings"/>
      <addaction name="actionDisplay"/>
-     <addaction name="actionMenu"/>
+     <addaction name="actionModifiers"/>
      <addaction name="actionRemove"/>
     </widget>
    </item>
@@ -86,13 +86,13 @@
     <string>Display</string>
    </property>
   </action>
-  <action name="actionMenu">
+  <action name="actionModifiers">
    <property name="icon">
     <iconset resource="../data/resources.qrc">
      <normaloff>:/icons/menu</normaloff>:/icons/menu</iconset>
    </property>
    <property name="text">
-    <string>Menu</string>
+    <string>Modifiers</string>
    </property>
   </action>
   <action name="actionRemove">
@@ -115,7 +115,8 @@
   </action>
   <action name="actionDisconnect">
    <property name="icon">
-    <iconset theme="remove-link"/>
+    <iconset theme="remove-link">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>Disconnect</string>

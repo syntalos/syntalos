@@ -101,6 +101,24 @@ ModuleCategory moduleCategoryFromString(const QString &categoryStr);
 ModuleCategories moduleCategoriesFromString(const QString &categoriesStr);
 
 /**
+ * @brief The ModuleModifier flags
+ * Flags set by Syntalos or the user to modify the behavior of the module
+ * in the wider context of the running experiment.
+ */
+enum class ModuleModifier {
+    NONE = 0,
+    ENABLED = 1 << 0,         /// The module is enabled
+    STOP_ON_FAILURE = 1 << 1, /// Module has one or more display window(s) to show
+};
+Q_DECLARE_FLAGS(ModuleModifiers, ModuleModifier)
+Q_DECLARE_OPERATORS_FOR_FLAGS(ModuleModifiers)
+
+inline uint qHash(ModuleModifier key, uint seed)
+{
+    return ::qHash(static_cast<int>(key), seed);
+}
+
+/**
  * @brief Static information about a module
  */
 class Q_DECL_EXPORT ModuleInfo
@@ -723,6 +741,15 @@ public:
 
     void setTimer(std::shared_ptr<SyncTimer> timer);
 
+    /**
+     * @brief Return a bitfield of modifiers assigned to this module.
+     *
+     * This API, even though accessible to the module, should not be used
+     * by the module itself and is reserved for Syntalos components.
+     */
+    ModuleModifiers modifiers() const;
+    void setModifiers(ModuleModifiers modifiers);
+
 Q_SIGNALS:
     void stateChanged(ModuleState state);
     void error(const QString &message);
@@ -735,6 +762,7 @@ Q_SIGNALS:
         const Syntalos::TimeSyncStrategies &strategies,
         const Syntalos::microseconds_t &tolerance);
     void synchronizerOffsetChanged(const QString &id, const Syntalos::microseconds_t &currentOffset);
+    void modifiersUpdated();
 
 protected:
     void raiseError(const QString &message);
@@ -1005,7 +1033,7 @@ protected:
 private:
     Q_DISABLE_COPY(AbstractModule)
     class Private;
-    QScopedPointer<Private> d;
+    std::unique_ptr<Private> d;
 
     QMap<QString, std::shared_ptr<StreamOutputPort>> m_outPorts;
     QMap<QString, std::shared_ptr<VarStreamInputPort>> m_inPorts;
