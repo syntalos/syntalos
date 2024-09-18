@@ -371,7 +371,9 @@ bool GPUInterface::findPlatformDevices()
 
     ret = clGetPlatformIDs(10, platformIds, &numPlatforms);
     if (ret != CL_SUCCESS) {
-        gpuErrorMessage(tr("Error finding OpenCL platforms."));
+        qWarning().nospace().noquote() << "intan: Error finding OpenCL platforms: " << ret;
+        state->writeToLog("Error finding OpenCL platforms.");
+        //gpuErrorMessage(tr("Error finding OpenCL platforms."));
         return false;
     }
     state->writeToLog("Finished clGetPlatformIDs(). About to enter platformIndex for loop");
