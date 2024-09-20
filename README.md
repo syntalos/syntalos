@@ -41,29 +41,9 @@ You can find a list of built-in modules below.
 Syntalos modules are self-contained entities which can perform arbitrary data acquisition, processing and/or storage tasks.
 All modules are supervised and driven by the Syntalos Engine and can communicate with each other using data streams.
 
-Currently, the following modules are built-in or can be enabled at build-time:
- * *audiosource*: Play various acoustic signals.
- * *canvas*: An OpenGL-based display for single images and image streams. Will display frame times and framerates for interactive monitoring.
- * *camera-flir*: Use (USB) cameras from [FLIR Systems](https://www.flir.com/) which can be addressed via their Spinnaker SDK.
- * *camera-generic*: Use any camera compatible with UVC or the OpenCV videocapture abstraction (e.g. simple webcams).
- * *camera-tis*: Use a (USB) industrial camera from [The Imaging Source](https://www.theimagingsource.com/) to acquire a video stream.
- * *camera-ueye*: Record video with an uEye industrial camera from [IDS](https://ids-imaging.com) (this module is unmaintained!).
- * *deeplabcut-live*: Example Python module for live animal tracking using [DeepLabCut-live](https://github.com/DeepLabCut/DeepLabCut-live).
- * *firmata-io*: Control a (wired) serial device that speaks the [Firmata](http://firmata.org/wiki/Main_Page) protocol, usually an Arduino.
-   This module can be controlled with a custom user script via the Python module.
- * *firmata-userctl*: Manually send commands to a *firmata-io* module to change pin states using a simple GUI.
- * *intan-rhx*: Use an [RHD2000 USB Interface Board](http://intantech.com/RHD2000_USB_interface_board.html) by [IntanTech](http://intantech.com/)
-   for biopotential recordings of up to 256 channels.
- * *jsonwriter*: Write data to Pandas-compatible JSON files.
- * *miniscope*: Perform calcium imaging in awake, freely moving animals using devices from the [UCLA Miniscope Project](https://github.com/Aharoni-Lab/Miniscope-v4/wiki).
- * *plot-timeseries*: Plot signal traces in real time.
- * *pyscript*: Run arbitrary Python 3 code and send automation commands to other modules in the active experiment.
- * *runcmd*: Run any external command when the experiment was started.
- * *table*: Display & record tabular data in a standardized CSV format.
- * *sp210-pressuresense*: Support for the SP210 differential pressure sensor driven by a Raspberry Pi Pico.
- * *triled-tracker*: Track an animal via three LEDs mounted on a headstage and save various behavior parameters.
- * *videorecorder*: Record image streams from cameras to video files in various formats.
- * *videotransformer*: Perform common transformations on frames, such as cropping & scaling.
+You can find a list of all currently supported modules as well as their documentation [on our website](https://syntalos.org/docs/modules/).
+Be aware that some modules require additional software to run, e.g. camera drivers.
+
 
 ## Developers
 
