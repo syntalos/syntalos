@@ -895,10 +895,11 @@ void FlowGraphNode::paint(QPainter *painter, const QStyleOptionGraphicsItem *opt
     m_pixmap->setPos(node_rect.x() + 4, node_rect.y() + 4);
     m_statusPix->setPos(node_rect.x() + node_rect.width() - m_statusPix->pixmap().width() - 4, node_rect.y() + 4);
 
+    // icon indicator to show this module can fail independently
     if (m_canFailPix->isEnabled())
         m_canFailPix->setPos(
             node_rect.x() + node_rect.width() - m_canFailPix->pixmap().width() - 4,
-            node_rect.y() + node_rect.height() - m_canFailPix->pixmap().height() - 4);
+            node_rect.y() + 4 + m_statusPix->pixmap().height() + 4);
 
     const QRectF &title_rect = m_titleText->boundingRect();
     m_titleText->setPos(-title_rect.width() / 2, node_rect.y() + 2);

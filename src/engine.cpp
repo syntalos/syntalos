@@ -1497,10 +1497,17 @@ bool Engine::finalizeExperimentMetadata(
     extraData.insert("subject_group", d->testSubject.group.isEmpty() ? QVariant() : d->testSubject.group);
     extraData.insert("subject_comment", d->testSubject.comment.isEmpty() ? QVariant() : d->testSubject.comment);
     extraData.insert("recording_length_msec", finishTimestamp);
+
     extraData.insert("success", !d->failed);
-    if (d->failed && !d->runFailedReason.isEmpty()) {
+    if (d->failed && !d->runFailedReason.isEmpty())
         extraData.insert("failure_reason", d->runFailedReason);
+    if (!d->failed && !d->pendingErrors.isEmpty()) {
+        QString errorsText = QStringLiteral("Run succeeded, but the following errors have been reported:\n");
+        for (const auto &errorDetail : d->pendingErrors)
+            errorsText.append(QStringLiteral("* %1: %2\n").arg(errorDetail.first->name(), errorDetail.second));
+        extraData.insert("error_messages", errorsText);
     }
+
     extraData.insert(
         "machine_node",
         QStringLiteral("%1 [%2 %3]")
@@ -2269,19 +2276,26 @@ void Engine::receiveModuleError(const QString &message)
 {
     auto mod = qobject_cast<AbstractModule *>(sender());
     mod->setState(ModuleState::ERROR);
-    if (mod != nullptr)
+    bool stopOnFailure = true;
+    if (mod != nullptr) {
         d->runFailedReason = QStringLiteral("%1(%2): %3").arg(mod->id(), mod->name(), message);
-    else
+        stopOnFailure = mod->modifiers().testFlag(ModuleModifier::STOP_ON_FAILURE);
+    } else {
         d->runFailedReason = QStringLiteral("?(?): %1").arg(message);
+    }
 
     const bool wasRunning = d->running;
-    d->failed = true;
-    d->running = false;
+    if (stopOnFailure) {
+        d->failed = true;
+        d->running = false;
+    }
 
-    // if we were running, defer message emission: We first need to terminate all modules
+    // If we were running, defer message emission: We first need to terminate all modules
     // to ensure that a modal error message (which may be created when this event is received)
     // doesn't lock up the main thread and any other module's drawing buffers run full.
-    if (wasRunning)
+    // If we are not supposed to stop on this module failing, we also just add the error
+    // to the pending errors list.
+    if (wasRunning || !stopOnFailure)
         d->pendingErrors.append(qMakePair(mod, message));
     else
         emit runFailed(mod, message);
