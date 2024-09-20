@@ -80,6 +80,16 @@ ModuleGraphForm::ModuleGraphForm(QWidget *parent)
     ui->graphView->setPortTypeColor(IntSignalBlock::staticTypeId(), QColor::fromRgb(0x2ECC71));
     ui->graphView->setPortTypeColor(FloatSignalBlock::staticTypeId(), QColor::fromRgb(0xAECC70));
 
+    // add rename ation to the menu
+    auto renameAction = new QAction("Rename module", this);
+    m_modifiersMenu->addAction(renameAction);
+    connect(renameAction, &QAction::triggered, [this]() {
+        auto node = selectedSingleNode();
+        if (node == nullptr)
+            return;
+        ui->graphView->renameItem(node);
+    });
+
     // add modifier actions to the menu
     auto enAction = new QAction("Enabled", this);
     m_modifierActions[ModuleModifier::ENABLED] = enAction;

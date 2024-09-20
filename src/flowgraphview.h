@@ -494,7 +494,7 @@ public slots:
     void selectNone();
     void selectInvert();
 
-    void renameItem();
+    void renameItem(FlowGraphItem *item = nullptr);
 
     void zoomIn();
     void zoomOut();

@@ -1964,12 +1964,13 @@ void FlowGraphView::selectInvert(void)
     emit changed();
 }
 
-void FlowGraphView::renameItem(void)
+void FlowGraphView::renameItem(FlowGraphItem *item)
 {
     if (!m_allowEdit)
         return;
 
-    FlowGraphItem *item = currentItem();
+    if (item == nullptr)
+        item = currentItem();
 
     if (item && item->type() == FlowGraphNode::Type) {
         FlowGraphNode *node = static_cast<FlowGraphNode *>(item);
@@ -1987,22 +1988,6 @@ void FlowGraphView::renameItem(void)
             m_editor->setFont(font);
             m_editor->setPlaceholderText(node->nodeName());
             m_editor->setText(node->nodeTitle());
-        }
-    } else if (item && item->type() == FlowGraphNodePort::Type) {
-        FlowGraphNodePort *port = static_cast<FlowGraphNodePort *>(item);
-        if (port) {
-            QPalette pal;
-            const QColor &foreground = port->foreground();
-            const QColor &background = port->background();
-            const bool is_dark = (background.value() < 128);
-            pal.setColor(QPalette::Text, is_dark ? foreground.lighter() : foreground.darker());
-            pal.setColor(QPalette::Base, background.lighter());
-            m_editor->setPalette(pal);
-            QFont font = m_editor->font();
-            font.setBold(false);
-            m_editor->setFont(font);
-            m_editor->setPlaceholderText(port->portId());
-            m_editor->setText(port->portTitle());
         }
     } else
         return;
