@@ -398,7 +398,7 @@ void PyWorker::executePythonRunFn()
     if (m_link->state() == ModuleState::ERROR)
         return;
 
-    // find the "run" function - if it does not exists, we will create
+    // find the "run" function - if it does not exist, we will create
     // our own run function that does only listen for messages.
     py::object pyFnRun = py::none();
     if (py::globals().contains("run"))
@@ -424,7 +424,7 @@ void PyWorker::executePythonRunFn()
     if (pyFnRun.is_none()) {
         // we have no run function, so we just listen for events implicitly
         while (m_running) {
-            m_link->awaitData(250 * 1000); // 250ms timeout
+            m_link->awaitData(100 * 1000); // 100ms timeout
             QCoreApplication::processEvents();
         }
     } else {

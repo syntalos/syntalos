@@ -387,17 +387,24 @@ void SyntalosLink::raiseError(const QString &message)
 void SyntalosLink::awaitData(int timeoutUsec)
 {
     if (timeoutUsec < 0) {
-        auto notificationVector = d->waitSet.wait();
-        for (auto &notification : notificationVector) {
-            processNotification(notification);
+        while (true) {
+            // we do not use wait() here as some functionality depends on the Qt/GLib event loop, and especially
+            // for Python users it can be a bit jarring if that is not available. So we will occasionally
+            // process events here.
+            const auto qevTimeout = iox::units::Duration::fromMicroseconds(250 * 1000); // 250ms timeout
+            auto notificationVector = d->waitSet.timedWait(qevTimeout);
+            for (auto &notification : notificationVector)
+                processNotification(notification);
+
             qApp->processEvents();
+            if (!notificationVector.empty())
+                break;
         }
     } else {
         auto notificationVector = d->waitSet.timedWait(iox::units::Duration::fromMicroseconds(timeoutUsec));
-        for (auto &notification : notificationVector) {
+        for (auto &notification : notificationVector)
             processNotification(notification);
-            qApp->processEvents();
-        }
+        qApp->processEvents();
     }
 }
 
