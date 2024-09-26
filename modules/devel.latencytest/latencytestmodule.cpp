@@ -92,6 +92,12 @@ public:
     {
         startWaitCondition->wait(this);
 
+        // do nothing if we have no connection
+        if (!m_fmDataSub) {
+            setStateDormant();
+            return;
+        }
+
         uint16_t lastValue = 0;
         while (m_running) {
             const auto data = m_fmDataSub->next();
