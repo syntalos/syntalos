@@ -212,6 +212,17 @@ void GlobalConfig::setEmergencyOOMStop(bool enabled)
     m_s->setValue("engine/emergency_oom_stop", enabled);
 }
 
+QString GlobalConfig::lastProjectDir() const
+{
+    return m_s->value("project/last_project_dir", QStandardPaths::writableLocation(QStandardPaths::HomeLocation))
+        .toString();
+}
+
+void GlobalConfig::setLastProjectDir(const QString &dir)
+{
+    m_s->setValue("project/last_project_dir", dir);
+}
+
 QString Syntalos::colorModeToString(ColorMode mode)
 {
     switch (mode) {

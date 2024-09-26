@@ -88,6 +88,9 @@ public:
     bool emergencyOOMStop() const;
     void setEmergencyOOMStop(bool enabled);
 
+    QString lastProjectDir() const;
+    void setLastProjectDir(const QString &dir);
+
 private:
     QSettings *m_s;
     QString m_userHome;

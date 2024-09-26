@@ -1045,7 +1045,7 @@ void MainWindow::projectSaveAsActionTriggered()
     fileName = QFileDialog::getSaveFileName(
         this,
         tr("Select Configuration Filename"),
-        QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
+        m_gconf->lastProjectDir(),
         tr("Syntalos Configuration Files (*.syct)"));
 
     if (fileName.isEmpty())
@@ -1060,6 +1060,7 @@ void MainWindow::projectSaveAsActionTriggered()
             QStringLiteral("Can not save configuration"),
             QStringLiteral("Unable to write configuration file to disk."));
     }
+    m_gconf->setLastProjectDir(QFileInfo(fileName).absoluteDir().absolutePath());
     hideBusyIndicator();
 }
 
@@ -1090,9 +1091,9 @@ void MainWindow::projectOpenActionTriggered()
 {
     auto fileName = QFileDialog::getOpenFileName(
         this,
-        tr("Select Project Filename"),
-        QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
-        tr("Syntalos Project Files (*.syct)"));
+        QStringLiteral("Select Project Filename"),
+        m_gconf->lastProjectDir(),
+        QStringLiteral("Syntalos Project Files (*.syct)"));
     if (fileName.isEmpty())
         return;
 
@@ -1110,6 +1111,7 @@ void MainWindow::projectOpenActionTriggered()
             this, QStringLiteral("Can not load configuration"), QStringLiteral("Failed to load configuration."));
         m_engine->removeAllModules();
     }
+    m_gconf->setLastProjectDir(QFileInfo(fileName).absoluteDir().absolutePath());
     hideBusyIndicator();
 
     // we should be permitted to run and modify things
