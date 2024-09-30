@@ -283,6 +283,9 @@ void GaldurSettingsDialog::on_stimTypeComboBox_currentIndexChanged(int index)
         qWarning() << "Unknown mode selected!";
         m_currentMode = LabrstimClient::ModeUnknown;
     }
+
+    if (m_currentMode != LabrstimClient::ModeUnknown)
+        ui->stackedWidget->setCurrentIndex(index);
 }
 
 void GaldurSettingsDialog::on_minimumIntervalSpinBox_valueChanged(double arg1)
