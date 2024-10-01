@@ -138,7 +138,7 @@ struct Frame : BaseDataType {
         offset += sizeof(frame.index);
         std::memcpy(&timeC, static_cast<const unsigned char *>(buffer) + offset, sizeof(timeC));
         offset += sizeof(timeC);
-        frame.time = milliseconds_t(timeC);
+        frame.time = microseconds_t(timeC);
 
         // unpack image metadata
         std::memcpy(&width, static_cast<const unsigned char *>(buffer) + offset, sizeof(width));
