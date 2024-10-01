@@ -143,7 +143,7 @@ increasing with each successful run.
          <item>
           <widget class="QDoubleSpinBox" name="spinBoxDuration">
            <property name="suffix">
-            <string>min</string>
+            <string> min</string>
            </property>
            <property name="decimals">
             <number>2</number>
@@ -158,7 +158,7 @@ increasing with each successful run.
             <double>0.500000000000000</double>
            </property>
            <property name="value">
-            <double>2.000000000000000</double>
+            <double>5.000000000000000</double>
            </property>
           </widget>
          </item>
@@ -206,7 +206,7 @@ increasing with each successful run.
          <item>
           <widget class="QDoubleSpinBox" name="spinBoxDelay">
            <property name="suffix">
-            <string>min</string>
+            <string> min</string>
            </property>
            <property name="maximum">
             <double>999.000000000000000</double>
