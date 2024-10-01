@@ -50,6 +50,12 @@ class MyExampleModule:
         self._oport_rows = syl.get_output_port('rows-out')
         self._oport_rows.set_metadata_value('table_header', ['Frame Counted'])
 
+        # forward some metadata
+        self._oport_frames.set_metadata_value('framerate', self._iport.metadata.get('framerate', 0))
+        frame_size = self._iport.metadata.get('size', None)
+        if frame_size:
+            self._oport_frames.set_metadata_value_size('size', frame_size)
+
         # call self._on_input_data() once we have new data on this port
         self._iport.on_data = self._on_input_data
 
