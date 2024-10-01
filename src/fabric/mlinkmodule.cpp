@@ -914,7 +914,7 @@ bool MLinkModule::prepare(const TestSubject &subject)
 
         // wait 10sec for the module to become ready
         if (timer.elapsed() > 10000) {
-            raiseError("Timeout while waiting for module. Module did not signal 'ready' state in time.");
+            raiseError("Timeout while waiting for module. Module did not transition to 'ready' state in time.");
             return false;
         }
     }
@@ -964,6 +964,9 @@ void MLinkModule::start()
 
 void MLinkModule::stop()
 {
+    auto callStop = makeClient<iox::popo::Client<StopRequest, DoneResponse>>(STOP_CALL_ID.c_str());
+    callClientSimple(callStop, [&](auto &request) {});
+
     disconnectOutPortForwarders();
     d->sentMetadata.clear();
     d->portChangesAllowed = true;
