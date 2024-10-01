@@ -1,3 +1,32 @@
+Version 2.0.1
+-------------
+Released: 2024-10-01
+
+Features:
+ * Drop module actions menu from API: No module is using this anymore
+ * Add option to disable modules in a project without removing them
+ * Allow user to define if a module failure should be fatal
+ * Add "Rename" action to the modifiers menu
+ * Ensure modifiers menu is disabled when module is selected & run is started
+ * ui: Remember last-used Syntalos project location
+ * galdur-stim: Add spike detection control support code
+ * galdur-stim: Ensure we are on the right page when loading settings
+ * example-py: Update Python example module
+ * example-py: Demonstrate metadata forwarding
+
+Bugfixes:
+ * deb: Don't ignore module dependencies
+ * intan-rhx: Make missing OpenCL platforms warning a lot less noisy
+ * mlink: Always run Qt event loop when waiting for data
+ * mlink: Tell modules when they are stopped, instead of terminating them
+ * Fix bad time conversion for Frames transferred via IPC
+ * devel-ltest: Don't crash if we are not connected to anything
+
+Miscellaneous:
+ * Add PPA package upload to release workflow
+ * README: Just reference module list on the website instead of repeating it
+ * Reorganize example configurations into device-dependent and independent
+
 Version 2.0.0
 -------------
 Released: 2024-08-24
