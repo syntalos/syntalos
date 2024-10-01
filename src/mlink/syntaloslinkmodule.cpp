@@ -105,17 +105,20 @@ void SyntalosLinkModule::setStatusMessage(const QString &message)
 
 bool SyntalosLinkModule::prepare(const QByteArray &settings)
 {
+    setState(ModuleState::PREPARING);
     return true;
 }
 
 void SyntalosLinkModule::start()
 {
     // Implemented by derived classes
+    setState(ModuleState::RUNNING);
 }
 
 void SyntalosLinkModule::stop()
 {
     // Implemented by derived classes
+    setState(ModuleState::IDLE);
 }
 
 } // namespace Syntalos

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-'''
+"""
 Example Standalone Python Module For Syntalos
 
 This demonstrates how a generic Syntalos Python module works.
@@ -8,23 +8,22 @@ you can also use the built-in PyScript module, and not
 go through the more involved process of creating a new
 module from scratch. If you want to do that though, this
 example is a good starting point.
-'''
+"""
 import os
 import sys
-import syio as sy
-from syio import InputWaitResult
+import syntalos_mlink as syl
 
-import tkinter as tk
+from PyQt5.QtWidgets import QDialog, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout
 import json
 import cv2 as cv
 
 
 class MyExampleModule:
-    '''
+    """
     Class wrapper to keep all variables this module uses together.
     You may use just the raw functions below, in case you don't
     want to use objects.
-    '''
+    """
 
     def __init__(self):
         self._iport = None
@@ -32,132 +31,128 @@ class MyExampleModule:
         self._oport_rows = None
         self._label_prefix = {}
         self._frame_count = 0
+        self._settings_dlg = None
 
-    def prepare(self):
-        '''
+        # show the settings dialog when the user requested it to be shown
+        syl.call_on_show_settings(self._change_settings)
+
+    def prepare(self) -> bool:
+        """
         This function is called before a run is started.
         You can use it for (slow) initializations.
         NOTE: You are *not* able to send output to ports here, or access
         any valid master timer time. This function can be slow.
-        '''
+        """
 
         # Get references to your ports by their ID here.
-        self._iport = sy.get_input_port('frames-in')
-        self._oport_frames = sy.get_output_port('frames-out')
-        self._oport_rows = sy.get_output_port('rows-out')
+        self._iport = syl.get_input_port('frames-in')
+        self._oport_frames = syl.get_output_port('frames-out')
+        self._oport_rows = syl.get_output_port('rows-out')
         self._oport_rows.set_metadata_value('table_header', ['Frame Counted'])
 
+        # call self._on_input_data() once we have new data on this port
+        self._iport.on_data = self._on_input_data
+
+        return True
+
     def start(self):
-        '''
+        """
         This function is called immediately when a run is started.
         Access to the timer is available, and data can be sent via ports.
         You can *not* change any port metadata anymore from this point onward.
         This function should be fast, many modules are already running at this point.
-        '''
+        """
         pass
 
-    def loop(self) -> bool:
-        '''
-        This function is executed by Syntalos continuously until it returns False.
-        Use this function to retrieve input and process it, or run any other
-        repeatable action. Keep in mind that you will not receive any new input
-        unless `sy.await_new_input()` is called.
-        '''
+    def _on_input_data(self, frame):
+        if frame is None:
+            # no more data, exit
+            return
 
-        # wait for new input to arrive
-        wait_result = sy.await_new_input()
-        if wait_result == InputWaitResult.CANCELLED:
-            # the run has been cancelled (by the user or an error),
-            # so this function will not be called again
-            return False
+        mat = frame.mat
+        position = (46, 46)
+        cv.putText(
+            mat,
+            '{}: {}'.format(self._label_prefix, self._frame_count),
+            position,
+            cv.FONT_HERSHEY_SIMPLEX,
+            1.2,
+            (0, 116, 246),
+            2,
+            cv.LINE_AA,
+        )
+        self._frame_count += 1
 
-        # retrieve data from our ports until we run out of data to process
-        while True:
-            frame = self._iport.next()
-            if frame is None:
-                # no more data, exit
-                break
-
-            mat = frame.mat
-            position = (46, 46)
-            cv.putText(
-                mat,
-                '{}: {}'.format(self._label_prefix, self._frame_count),
-                position,
-                cv.FONT_HERSHEY_SIMPLEX,
-                1.2,
-                (0, 116, 246),
-                2,
-                cv.LINE_AA,
-            )
-            self._frame_count += 1
-
-            # submit new data to an output port
-            frame.mat = mat
-            self._oport_frames.submit(frame)
-            self._oport_rows.submit([self._frame_count])
-
-        # return True, so the loop function is called again when new data is available
-        return True
+        # submit new data to an output port
+        frame.mat = mat
+        self._oport_frames.submit(frame)
+        self._oport_rows.submit([self._frame_count])
 
     def stop(self):
-        '''
+        """
         This function is called once a run is stopped, by the user, and error or when
         the loop() function returned False.
-        '''
+        """
         pass
 
-    def change_settings(self, old_settings: bytes) -> bytes:
-        '''
+    def _change_settings(self, old_settings: bytes):
+        """
         Show (horrible) GUI to change settings here.
         Settings objects are random bytes which modules
         can use in whichever way they want.
-        '''
+        """
+        # don't open the dialog more than once
+        if self._settings_dlg:
+            return
+
         settings = {}
         if old_settings:
             settings = json.loads(str(old_settings, 'utf-8'))
 
-        window = tk.Tk()
-        window.title('Example Python Module')
+        # Create a dialog window
+        self._settings_dlg = QDialog()
+        self._settings_dlg.setWindowTitle('Example Python Module')
+        layout = QVBoxLayout(self._settings_dlg)
 
-        lbl = tk.Label(window, text='Set prefix text:')
-        lbl.grid(column=0, row=0)
-        txt = tk.Entry(window, width=10)
-        txt.grid(column=1, row=0)
-        txt.insert(0, settings.get('prefix', ''))
+        lbl = QLabel('Set prefix text:')
+        layout.addWidget(lbl)
+
+        txt = QLineEdit()
+        txt.setText(settings.get('prefix', ''))
+        layout.addWidget(txt)
 
         def clicked():
-            window.quit()
+            self._label_prefix = txt.text()
+            settings = dict(prefix=self._label_prefix)
+            syl.save_settings(bytes(json.dumps(settings), 'utf-8'))
 
-        def process_messages():
-            if sy.check_running():
-                window.after(1, process_messages)
-            else:
-                window.quit()
+            self._settings_dlg.accept()
 
-        btn = tk.Button(window, text='Okay', command=clicked)
-        btn.grid(column=1, row=2)
+        def on_dialog_closed():
+            self._settings_dlg = None
 
-        # center the window on screen
-        window.geometry('350x100')
-        positionRight = int(window.winfo_screenwidth() / 2 - window.winfo_reqwidth() / 2)
-        positionDown = int(window.winfo_screenheight() / 2 - window.winfo_reqwidth() / 2)
-        window.geometry('+{}+{}'.format(positionRight, positionDown))
+        # cleanup when the dialog is closed
+        self._settings_dlg.finished.connect(on_dialog_closed)
 
-        # run the mainloop, but also listen if we should quit
-        window.after(1, process_messages)
-        window.mainloop()
+        btn = QPushButton('Okay')
+        btn.clicked.connect(clicked)
+        layout.addWidget(btn)
 
-        self._label_prefix = txt.get()
-        settings = dict(prefix=self._label_prefix)
+        self._settings_dlg.setLayout(layout)
 
-        window.destroy()
-        return bytes(json.dumps(settings), 'utf-8')
+        # Center the dialog on screen
+        self._settings_dlg.setGeometry(0, 0, 350, 100)
+        screen = self._settings_dlg.screen().availableGeometry()
+        positionRight = int((screen.width() - self._settings_dlg.width()) / 2)
+        positionDown = int((screen.height() - self._settings_dlg.height()) / 2)
+        self._settings_dlg.move(positionRight, positionDown)
+
+        self._settings_dlg.show()
 
     def set_settings(self, data: bytes):
-        '''
-        Deserialize settings from bytes. Called right before a new run is started.
-        '''
+        """
+        Deserialize settings from bytes. Called right before a new run is prepared.
+        """
         settings = {}
         if data:
             settings = json.loads(str(data, 'utf-8'))
@@ -168,44 +163,29 @@ class MyExampleModule:
 mod = MyExampleModule()
 
 
-def set_settings(settings):
-    '''
-    Called with the module-defined settings data right before a new run is prepared.
-    '''
+def set_settings(settings: bytes):
     mod.set_settings(settings)
 
 
-def prepare():
-    '''This function is called before a run is started.'''
-    mod.prepare()
+def prepare() -> bool:
+    """This function is called before a run is started."""
+    return mod.prepare()
 
 
 def start():
-    '''This function is called immediately when a run is started.'''
+    """This function is called immediately when a run is started."""
     mod.start()
 
 
-def loop() -> bool:
-    '''
-    This function is executed by Syntalos continuously until it returns False.
-    Use this function to retrieve input and process it, or run any other
-    repeatable action.
-    '''
-    return mod.loop()
+def run():
+    # wait for new data to arrive and communicate with Syntalos
+    while syl.is_running():
+        syl.await_data()
 
 
 def stop():
-    '''
+    """
     This function is called once a run is stopped, by the user, and error or when
     the loop() function returned False.
-    '''
+    """
     mod.stop()
-
-
-def change_settings(old_settings: bytes) -> bytes:
-    '''
-    Called by Syntalos to show a settings UI.
-    Will never be active during a run! (unless
-    shown by the module on its own)
-    '''
-    return mod.change_settings(old_settings)
