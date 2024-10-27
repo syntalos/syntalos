@@ -208,18 +208,32 @@ public:
             return;
         }
 
+        uint framesDropped = 0;
+        GstClockTime sampleTimeout = std::lround((GST_SECOND / m_fps) * 3);
+        if (sampleTimeout < GST_SECOND)
+            sampleTimeout = GST_SECOND;
+
         while (m_running) {
             g_autoptr(GstSample) sample = nullptr;
-            auto frameRecvTime = MTIMER_FUNC_TIMESTAMP(sample = gst_app_sink_pull_sample(m_appSink));
+
+            auto frameRecvTime = MTIMER_FUNC_TIMESTAMP(sample = gst_app_sink_try_pull_sample(m_appSink, sampleTimeout));
             if (sample == nullptr) {
-                // check if the inout stream has ended
+                // check if the input stream has ended
                 if (gst_app_sink_is_eos(m_appSink)) {
                     if (m_running && !m_deviceLost)
                         raiseError(QStringLiteral("Video stream has ended prematurely!"));
                     break;
                 }
-                if (m_running)
-                    qCWarning(logTISCam).noquote() << "Received invalid sample.";
+
+                // we may have timed out, log the invalid samples and quite if this happens too often
+                if (m_running) {
+                    qCWarning(logTISCam).noquote() << "Received invalid sample or timed out waiting.";
+                    framesDropped++;
+                }
+                if (framesDropped > (m_fps * 45)) {
+                    raiseError(QStringLiteral("Too many frames dropped! Please check the connection to the camera."));
+                    break;
+                }
                 continue;
             }
 
