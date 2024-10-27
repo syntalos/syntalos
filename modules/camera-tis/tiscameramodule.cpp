@@ -230,8 +230,12 @@ public:
                     qCWarning(logTISCam).noquote() << "Received invalid sample or timed out waiting.";
                     framesDropped++;
                 }
-                if (framesDropped > (m_fps * 45)) {
-                    raiseError(QStringLiteral("Too many frames dropped! Please check the connection to the camera."));
+                if (framesDropped > 15 && framesDropped > (m_fps / 2.0)) {
+                    // we already set a timeout of 3x the length it would take for the frame to be acquired, so
+                    // any threshold value here is already "3x worse"
+                    raiseError(
+                        QStringLiteral("Too many frames have been missed! Please check the connection to the camera, "
+                                       "and confirm it can output at the requested framerate."));
                     break;
                 }
                 continue;
