@@ -846,6 +846,12 @@ void ArvConfigWindow::loadSettings(const QVariantHash &settings, const QByteArra
     while (!wholefile.atEnd()) {
         QString wanted = wholefile.readLine();
         QString actual = readBack.readLine();
+
+        if (wanted.trimmed().startsWith("DeviceTemperature")) {
+            // Skip temperature-related settings
+            continue;
+        }
+
         if (wanted != actual) {
             logMessage() << "Setting failure, wanted:" << wanted << Qt::endl << "actual:" << actual;
             failures << wanted;

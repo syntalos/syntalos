@@ -162,7 +162,13 @@ public:
         });
 
         // display the connected camera model
-        statusMessage(m_camera->getId().toString());
+        {
+            const auto camId = m_camera->getId();
+            if (camId.id == nullptr)
+                statusMessage(QString::fromUtf8(camId.model));
+            else
+                statusMessage(QStringLiteral("%2 (%3)").arg(camId.model, camId.id));
+        }
 
         // wait until we actually start acquiring data
         waitCondition->wait(this);
