@@ -164,7 +164,7 @@ public:
         // display the connected camera model
         {
             const auto camId = m_camera->getId();
-            if (camId.id == nullptr)
+            if (camId.id == nullptr || camId.id[0] == '\0')
                 statusMessage(QString::fromUtf8(camId.model));
             else
                 statusMessage(QStringLiteral("%2 (%3)").arg(camId.model, camId.id));

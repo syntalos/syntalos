@@ -143,7 +143,7 @@ QArvCameraId QArvCamera::getId() {
     const char* id, * vendor, * model;
     id = arv_camera_get_device_id(camera, nullptr);
     if (id == nullptr)
-        id = "null";
+        id = "";
     vendor = arv_camera_get_vendor_name(camera, nullptr);
     model = arv_camera_get_model_name(camera, nullptr);
     return QArvCameraId(id, vendor, model);
