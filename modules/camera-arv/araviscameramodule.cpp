@@ -161,6 +161,9 @@ public:
             delete static_cast<std::pair<AravisCameraModule *, GMainLoop *> *>(data);
         });
 
+        // display the connected camera model
+        statusMessage(m_camera->getId().toString());
+
         // wait until we actually start acquiring data
         waitCondition->wait(this);
 
