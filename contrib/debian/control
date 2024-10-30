@@ -61,6 +61,7 @@ Depends: breeze-icon-theme,
          syntalos-hwsupport (= ${source:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
+Recommends: kde-style-breeze
 Suggests: pomidaq
 Description: Synchronized DAQ from diverse sources and flexible experiment control
  Syntalos is a software for timestamp-synchronized parallel data acquisition
