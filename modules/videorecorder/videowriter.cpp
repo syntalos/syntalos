@@ -713,6 +713,7 @@ void VideoWriter::initializeInternal()
     d->cctx->workaround_bugs = FF_BUG_AUTODETECT;
 
     // select pixel format
+#if LIBAVCODEC_VERSION_MAJOR >= 59
     const enum AVPixelFormat *fmts = nullptr;
     ret = avcodec_get_supported_config(d->cctx, nullptr, AV_CODEC_CONFIG_PIX_FORMAT, 0, (const void **)&fmts, nullptr);
     if (ret < 0 || fmts == nullptr) {
@@ -722,6 +723,11 @@ void VideoWriter::initializeInternal()
     } else {
         d->encPixFormat = fmts[0];
     }
+#else
+    d->encPixFormat = AV_PIX_FMT_YUV420P;
+    if (vcodec->pix_fmts != nullptr)
+        d->encPixFormat = vcodec->pix_fmts[0];
+#endif
 
     // We must set time_base on the stream as well, otherwise it will be set to default values for some container
     // formats. See https://projects.blender.org/blender/blender/commit/b2e067d98ccf43657404b917b13ad5275f1c96e2 for
