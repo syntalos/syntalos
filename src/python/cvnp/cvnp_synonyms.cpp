@@ -13,10 +13,10 @@ std::vector<TypeSynonyms> sTypeSynonyms{
     {CV_32F, "CV_32F", pybind11::format_descriptor<float>::format(),    "float"     },
     {CV_64F, "CV_64F", pybind11::format_descriptor<double>::format(),   "np.float64"},
 
- // Note: this format needs adaptations
-  //  #if (CV_MAJOR_VERSION >= 4)
-  //        { CV_16F, "CV_16F", pybind11::format_descriptor<cv::float16_t>::format() },
-  //  #endif
+    // Note: this format needs adaptations
+    //  #if (CV_MAJOR_VERSION >= 4)
+    //        { CV_16F, "CV_16F", pybind11::format_descriptor<cv::float16_t>::format() },
+    //  #endif
 };
 
 static size_t sColumnWidth = 12;

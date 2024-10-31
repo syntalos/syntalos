@@ -36,9 +36,9 @@ class TcamSpinBoxImpl
 {
 public:
     TcamSpinBoxImpl(TcamSpinBox *parent)
-        : p_parent(parent){};
+        : p_parent(parent) {};
 
-    virtual ~TcamSpinBoxImpl(){};
+    virtual ~TcamSpinBoxImpl() {};
 
     virtual qlonglong valueFromText(const QString &text) const;
     virtual QString textFromValue(qlonglong val) const;

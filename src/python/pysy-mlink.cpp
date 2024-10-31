@@ -61,9 +61,9 @@ SyntalosLink *PyBridge::link()
 using PyNewDataFn = std::function<void(const py::object &obj)>;
 
 SyntalosPyError::SyntalosPyError(const char *what_arg)
-    : std::runtime_error(what_arg){};
+    : std::runtime_error(what_arg) {};
 SyntalosPyError::SyntalosPyError(const std::string &what_arg)
-    : std::runtime_error(what_arg){};
+    : std::runtime_error(what_arg) {};
 
 static uint64_t time_since_start_msec()
 {

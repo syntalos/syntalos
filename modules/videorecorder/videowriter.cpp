@@ -714,10 +714,10 @@ void VideoWriter::initializeInternal()
 
     // select pixel format
     const enum AVPixelFormat *fmts = nullptr;
-    ret = avcodec_get_supported_config(d->cctx, nullptr, AV_CODEC_CONFIG_PIX_FORMAT,
-                                       0, (const void **) &fmts, nullptr);
+    ret = avcodec_get_supported_config(d->cctx, nullptr, AV_CODEC_CONFIG_PIX_FORMAT, 0, (const void **)&fmts, nullptr);
     if (ret < 0 || fmts == nullptr) {
-        qCWarning(logVRecorder).noquote().nospace() << "Failed to get supported pixel formats for codec " << vcodec->name << ": " << ret;
+        qCWarning(logVRecorder).noquote().nospace()
+            << "Failed to get supported pixel formats for codec " << vcodec->name << ": " << ret;
         d->encPixFormat = AV_PIX_FMT_YUV420P;
     } else {
         d->encPixFormat = fmts[0];

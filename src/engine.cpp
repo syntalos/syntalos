@@ -349,9 +349,7 @@ Engine::Engine(QWidget *parentWidget)
         d->usbHotplugCBHandle = -1;
     } else {
         connect(d->usbEventsTimer, &QTimer::timeout, [=]() {
-            struct timeval tv {
-                0, 0
-            };
+            struct timeval tv{0, 0};
             libusb_handle_events_timeout_completed(nullptr, &tv, nullptr);
         });
         d->usbEventsTimer->start();

@@ -47,7 +47,7 @@ const QHash<int, ImGuiKey> keyMap = {
     {Qt::Key_X,         ImGuiKey_X         },
     {Qt::Key_Y,         ImGuiKey_Y         },
     {Qt::Key_Z,         ImGuiKey_Z         },
- // {(int)Qt::MiddleButton, (ImGuiKey)ImGuiMouseButton_Middle}
+    // {(int)Qt::MiddleButton, (ImGuiKey)ImGuiMouseButton_Middle}
 };
 
 #ifndef QT_NO_CURSOR
@@ -351,7 +351,7 @@ bool ImGuiRenderer::createDeviceObjects()
     glEnableVertexAttribArray(g_AttribLocationUV);
     glEnableVertexAttribArray(g_AttribLocationColor);
 
-#define OFFSETOF(TYPE, ELEMENT) ((size_t) & (((TYPE *)0)->ELEMENT))
+#define OFFSETOF(TYPE, ELEMENT) ((size_t)&(((TYPE *)0)->ELEMENT))
     glVertexAttribPointer(
         g_AttribLocationPosition, 2, GL_FLOAT, GL_FALSE, sizeof(ImDrawVert), (GLvoid *)OFFSETOF(ImDrawVert, pos));
     glVertexAttribPointer(

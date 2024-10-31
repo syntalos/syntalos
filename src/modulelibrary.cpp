@@ -44,7 +44,7 @@ public:
     bool isBuildLocal;
     explicit ModuleLocation(const QString &dir, bool buildLocal = false)
         : path(dir),
-          isBuildLocal(buildLocal){};
+          isBuildLocal(buildLocal) {};
 };
 
 #pragma GCC diagnostic push
