@@ -713,7 +713,7 @@ void VideoWriter::initializeInternal()
     d->cctx->workaround_bugs = FF_BUG_AUTODETECT;
 
     // select pixel format
-#if LIBAVCODEC_VERSION_MAJOR >= 59
+#if LIBAVCODEC_VERSION_MAJOR >= 61
     const enum AVPixelFormat *fmts = nullptr;
     ret = avcodec_get_supported_config(d->cctx, nullptr, AV_CODEC_CONFIG_PIX_FORMAT, 0, (const void **)&fmts, nullptr);
     if (ret < 0 || fmts == nullptr) {
