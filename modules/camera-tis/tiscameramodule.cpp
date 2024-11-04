@@ -334,12 +334,12 @@ public:
 
         QVariantList camProps;
         auto collection = m_ctlDialog->tcamCollection();
-        auto names = collection->get_names();
         if (collection == nullptr) {
             qCWarning(logTISCam, "Unable to save camera properties: No collection for active camera.");
             return;
         }
 
+        auto names = collection->get_names();
         for (const std::string &name : names) {
             g_autoptr(GError) error = nullptr;
             g_autoptr(TcamPropertyBase) prop = collection->get_property(name);
