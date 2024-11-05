@@ -220,7 +220,7 @@ static gboolean bus_callback(GstBus * /*bus*/, GstMessage *message, gpointer use
 void TcamControlDialog::openPipeline(FormatHandling handling)
 {
     std::string pipeline_string = m_capConfig->pipeline.toStdString();
-    GError *err = nullptr;
+    g_autoptr(GError) error = nullptr;
 
     bool set_device = false;
 
@@ -240,7 +240,7 @@ void TcamControlDialog::openPipeline(FormatHandling handling)
         }
     } else {
         set_device = true;
-        m_pipeline = gst_parse_launch(pipeline_string.c_str(), &err);
+        m_pipeline = gst_parse_launch(pipeline_string.c_str(), &error);
 
         auto bus = gst_pipeline_get_bus(GST_PIPELINE(m_pipeline));
         [[maybe_unused]] auto gst_bus_id = gst_bus_add_watch(bus, bus_callback, this);
@@ -248,10 +248,10 @@ void TcamControlDialog::openPipeline(FormatHandling handling)
     }
 
     if (!m_pipeline) {
-        qErrnoWarning("Unable to start pipeline!");
-        if (err) {
-            qErrnoWarning("Reason: %s", err->message);
-        }
+        qCWarning(logTISCam, "Unable to start pipeline!");
+        if (error)
+            qCWarning(logTISCam, "Reason: %s", error->message);
+
         return;
     }
 
@@ -291,6 +291,9 @@ void TcamControlDialog::openPipeline(FormatHandling handling)
     GstElementFactory *factory = gst_element_get_factory(m_source);
     GType element_type = gst_element_factory_get_element_type(factory);
 
+    // attach a bus to the pipeline to capture error messages when starting the pipeline
+    g_autoptr(GstBus) bus = gst_element_get_bus(m_pipeline);
+
     auto src_change_ret = gst_element_set_state(m_source, GST_STATE_READY);
 
     if (src_change_ret == GST_STATE_CHANGE_ASYNC) {
@@ -304,17 +307,40 @@ void TcamControlDialog::openPipeline(FormatHandling handling)
                 gst_element_set_state(m_source, GST_STATE_READY);
             }
         } else {
-            qWarning("Unable to start pipeline. Stopping.");
+            qCWarning(logTISCam, "Unable to start pipeline. Stopping.");
+
+            g_autoptr(GstMessage) msg = gst_bus_timed_pop_filtered(bus, 100 * GST_MSECOND, (GstMessageType)(GST_MESSAGE_ERROR | GST_MESSAGE_STATE_CHANGED));
+            if (msg) {
+                g_autofree gchar *debug_info = nullptr;
+                gst_message_parse_error(msg, &error, &debug_info);
+
+                // emit a detailed error message
+                if (error)
+                    qCWarning(logTISCam, "Error: %s", error->message);
+                if (debug_info)
+                    qCWarning(logTISCam, "Debug info: %s", debug_info);
+            }
+
             closePipeline();
-            // #TODO: what now?
             return;
         }
     } else if (src_change_ret == GST_STATE_CHANGE_FAILURE) {
-        QString err_str = "Unable to open device. Please check gstreamer log 'tcam*:5' for more information.";
-        qWarning("%s", err_str.toStdString().c_str());
-        closePipeline();
+        g_autoptr(GstMessage) msg = gst_bus_timed_pop_filtered(bus, 100 * GST_MSECOND, (GstMessageType)(GST_MESSAGE_ERROR | GST_MESSAGE_STATE_CHANGED));
+        if (msg) {
+            g_autofree gchar *debug_info = nullptr;
+            gst_message_parse_error(msg, &error, &debug_info);
 
-        QMessageBox::critical(this, "Unable to open device", err_str);
+            if (error)
+                QMessageBox::critical(this, "Unable to open device", QString("Error: %1").arg(error->message));
+            if (debug_info)
+                qCWarning(logTISCam, "Unable to open device: %s", debug_info);
+
+        } else {
+            QMessageBox::critical(this, "Unable to open device", "Failed to set pipeline state to READY.");
+            qCWarning(logTISCam, "Unable to open device: Failed to set pipeline state to READY.");
+        }
+
+        closePipeline();
         return;
     }
     // we want the device caps
