@@ -189,12 +189,14 @@ public:
             double yaw2Pi = fmod(yawEuler + 2 * M_PI, 2 * M_PI);
 
             auto turns = computeTurns(yaw2Pi, prevYaw2Pi);
-            prevYaw2Pi = yaw2Pi;
-            if (std::abs(turns) < 0.05)
+            if (std::abs(turns) < 0.001)
                 continue;
 
+            prevYaw2Pi = yaw2Pi;
             if (!writeSerialCommand(serial, QStringLiteral("{turns: %1}").arg(turns, 0, 'f', 3).toUtf8(), false))
                 break;
+
+            // display the change as status - potentially we should rate-limit this display in future?
             statusMessage(QStringLiteral("Turned %1 turns.").arg(turns, 0, 'f', 3));
         }
     }
