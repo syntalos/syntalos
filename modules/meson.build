@@ -52,10 +52,11 @@ endif
 subdir('triled-tracker')
 
 # Device support
-subdir('sp210-pressuresense')
 subdir('firmata-io')
 subdir('firmata-userctl')
 subdir('galdur-stim')
+subdir('onix-commutator')
+subdir('sp210-pressuresense')
 
 # Scripting
 subdir('pyscript')
