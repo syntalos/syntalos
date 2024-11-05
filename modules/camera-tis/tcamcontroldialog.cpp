@@ -309,7 +309,8 @@ void TcamControlDialog::openPipeline(FormatHandling handling)
         } else {
             qCWarning(logTISCam, "Unable to start pipeline. Stopping.");
 
-            g_autoptr(GstMessage) msg = gst_bus_timed_pop_filtered(bus, 100 * GST_MSECOND, (GstMessageType)(GST_MESSAGE_ERROR | GST_MESSAGE_STATE_CHANGED));
+            g_autoptr(GstMessage) msg = gst_bus_timed_pop_filtered(
+                bus, 100 * GST_MSECOND, (GstMessageType)(GST_MESSAGE_ERROR | GST_MESSAGE_STATE_CHANGED));
             if (msg) {
                 g_autofree gchar *debug_info = nullptr;
                 gst_message_parse_error(msg, &error, &debug_info);
@@ -325,7 +326,8 @@ void TcamControlDialog::openPipeline(FormatHandling handling)
             return;
         }
     } else if (src_change_ret == GST_STATE_CHANGE_FAILURE) {
-        g_autoptr(GstMessage) msg = gst_bus_timed_pop_filtered(bus, 100 * GST_MSECOND, (GstMessageType)(GST_MESSAGE_ERROR | GST_MESSAGE_STATE_CHANGED));
+        g_autoptr(GstMessage) msg = gst_bus_timed_pop_filtered(
+            bus, 100 * GST_MSECOND, (GstMessageType)(GST_MESSAGE_ERROR | GST_MESSAGE_STATE_CHANGED));
         if (msg) {
             g_autofree gchar *debug_info = nullptr;
             gst_message_parse_error(msg, &error, &debug_info);
