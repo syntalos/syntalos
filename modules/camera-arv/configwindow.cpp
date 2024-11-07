@@ -294,7 +294,10 @@ void ArvConfigWindow::readExposure()
     bool blocked = exposureSlider->blockSignals(true);
     exposureSlider->setValue(value2slider_log(camera->getExposure(), exposurerange));
     exposureSlider->blockSignals(blocked);
+
+    blocked = exposureSpinbox->blockSignals(true);
     exposureSpinbox->setValue(camera->getExposure() / 1000.);
+    exposureSpinbox->blockSignals(blocked);
 }
 
 void ArvConfigWindow::readGain()
@@ -302,7 +305,10 @@ void ArvConfigWindow::readGain()
     bool blocked = gainSlider->blockSignals(true);
     gainSlider->setValue(value2slider(camera->getGain(), gainrange));
     gainSlider->blockSignals(blocked);
+
+    blocked = gainSpinbox->blockSignals(true);
     gainSpinbox->setValue(camera->getGain());
+    gainSpinbox->blockSignals(blocked);
 }
 
 void ArvConfigWindow::on_exposureSlider_valueChanged(int value)
