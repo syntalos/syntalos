@@ -2113,6 +2113,12 @@ bool Engine::runInternal(const QString &exportDirPath)
             << "Module '" << mod->name() << "' stopped in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
     }
 
+    // Wake up all threads again, just in case one is still stuck waiting
+    // for the start condition.
+    // This can happen to module threads, as well as to the stream exporter that we
+    // are about to stop next.
+    startWaitCondition->wakeAll();
+
     // stop exporting streams to external modules
     emitStatusMessage(QStringLiteral("Stopping IPC stream exporter..."));
     streamExporter->stop();
@@ -2121,7 +2127,6 @@ bool Engine::runInternal(const QString &exportDirPath)
 
     // join all dedicated module threads with the main thread again, waiting for them to terminate
     emitStatusMessage(QStringLiteral("Joining remaining threads."));
-    startWaitCondition->wakeAll(); // wake up all threads again, just in case one is stuck waiting
     for (size_t i = 0; i < dThreads.size(); i++) {
         auto &thread = dThreads[i];
         auto mod = threadedModules[i];
