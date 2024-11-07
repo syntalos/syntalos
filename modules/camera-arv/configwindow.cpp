@@ -682,6 +682,7 @@ void ArvConfigWindow::setupListOfSavedWidgets()
     saved_widgets["roi"]["width"] = wSpinbox;
     saved_widgets["roi"]["height"] = hSpinbox;
     saved_widgets["roi"]["binning"] = binSpinBox;
+    saved_widgets["roi"]["constraint"] = ROIsizeCombo;
 
     // display widgets
     saved_widgets["videodisplay"]["actual_size"] = unzoomButton;
