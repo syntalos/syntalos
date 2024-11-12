@@ -74,7 +74,7 @@ public:
 
     ModuleFeatures features() const override
     {
-        return ModuleFeature::REALTIME | ModuleFeature::REQUEST_CPU_AFFINITY | ModuleFeature::SHOW_SETTINGS;
+        return ModuleFeature::REALTIME | ModuleFeature::SHOW_SETTINGS;
     }
 
     bool prepare(const TestSubject &) override

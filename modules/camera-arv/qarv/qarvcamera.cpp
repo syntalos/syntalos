@@ -376,6 +376,13 @@ inline void QArvStreamCallback(void* vcam, int type, ArvBuffer* bfr) {
 static void QArvStreamCallbackWrap(void* vcam,
                                    ArvStreamCallbackType type,
                                    ArvBuffer* bfr) {
+    if (type == ARV_STREAM_CALLBACK_TYPE_INIT) {
+        // TODO: Fetch thread settings from the Syntalos engine?
+        if (!arv_make_thread_realtime (20) &&
+            !arv_make_thread_high_priority (-10))
+            qWarning().noquote() << "Failed to make Aravis camera stream thread high priority";
+    }
+
     QArvStreamCallback(vcam, type, bfr);
 }
 
