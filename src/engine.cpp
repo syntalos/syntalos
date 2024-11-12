@@ -248,7 +248,8 @@ public:
     Private()
         : initialized(false),
           roudiPidFd(-1),
-          monitoring(new EngineResourceMonitorData)
+          monitoring(new EngineResourceMonitorData),
+          usbCtx(nullptr)
     {
     }
     ~Private() {}
@@ -293,6 +294,7 @@ public:
     int runCount;
     int runCountPadding;
 
+    libusb_context *usbCtx;
     libusb_hotplug_callback_handle usbHotplugCBHandle;
     QTimer *usbEventsTimer;
 };
@@ -318,6 +320,14 @@ Engine::Engine(QWidget *parentWidget)
     d->runCountPadding = 1;
     d->monitoring->emergencyOOMStop = d->gconf->emergencyOOMStop();
 
+#if defined(LIBUSB_API_VERSION) && (LIBUSB_API_VERSION >= 0x0100010A)
+    if (libusb_init_context(&d->usbCtx, nullptr, 0) != 0)
+        qCCritical(logEngine).noquote() << "Unable to initialize libusb context!";
+#else
+    if (libusb_init(&d.usbCtx) != 0)
+        qCCritical(logEngine).noquote() << "Unable to initialize libusb context!";
+#endif
+
     qCDebug(logEngine, "Application data directory: %s", qPrintable(d->gconf->appDataLocation()));
 
     // allow sending states via Qt queued connections,
@@ -334,7 +344,7 @@ Engine::Engine(QWidget *parentWidget)
     d->usbEventsTimer = new QTimer;
     d->usbEventsTimer->setInterval(10);
     int rc = libusb_hotplug_register_callback(
-        nullptr,
+        d->usbCtx,
         (libusb_hotplug_event)(LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED | LIBUSB_HOTPLUG_EVENT_DEVICE_LEFT),
         LIBUSB_HOTPLUG_NO_FLAGS,
         LIBUSB_HOTPLUG_MATCH_ANY,
@@ -348,9 +358,9 @@ Engine::Engine(QWidget *parentWidget)
             << "Unable to register USB hotplug callback: Can not notify modules of USB hotplug events.";
         d->usbHotplugCBHandle = -1;
     } else {
-        connect(d->usbEventsTimer, &QTimer::timeout, [=]() {
+        connect(d->usbEventsTimer, &QTimer::timeout, [this]() {
             struct timeval tv{0, 0};
-            libusb_handle_events_timeout_completed(nullptr, &tv, nullptr);
+            libusb_handle_events_timeout_completed(d->usbCtx, &tv, nullptr);
         });
         d->usbEventsTimer->start();
     }
@@ -360,12 +370,15 @@ Engine::~Engine()
 {
     delete d->usbEventsTimer;
     if (d->usbHotplugCBHandle != -1)
-        libusb_hotplug_deregister_callback(nullptr, d->usbHotplugCBHandle);
+        libusb_hotplug_deregister_callback(d->usbCtx, d->usbHotplugCBHandle);
 
     iox::runtime::PoshRuntime::getInstance().shutdown();
 
     if (d->roudiPidFd > 0)
         close(d->roudiPidFd);
+
+    // delete libusb context
+    libusb_exit(d->usbCtx);
 }
 
 /**

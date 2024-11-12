@@ -27,7 +27,6 @@
 #include <gst/gst.h>
 #include <pipewire/pipewire.h>
 #pragma GCC diagnostic pop
-#include <libusb.h>
 
 #include "mainwindow.h"
 
@@ -35,9 +34,6 @@ int main(int argc, char *argv[])
 {
     // set random seed
     srand(static_cast<uint>(time(nullptr)));
-
-    // initialize libusb
-    libusb_init(nullptr);
 
     // initialize PipeWire
     pw_init(&argc, &argv);
@@ -80,6 +76,5 @@ int main(int argc, char *argv[])
 
     // finalize & quit
     delete w;
-    libusb_exit(nullptr);
     return rc;
 }
