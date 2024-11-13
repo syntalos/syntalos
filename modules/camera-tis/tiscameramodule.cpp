@@ -23,6 +23,7 @@
 #include <QMessageBox>
 #include <gst/app/gstappsink.h>
 #include <tcam-property-1.0.h>
+#include <gstmetatcamstatistics.h>
 
 #include "datactl/frametype.h"
 #include "utils/misc.h"
@@ -178,8 +179,6 @@ public:
 
     void runThread(OptionalWaitCondition *waitCondition) override
     {
-        bool m_firstTimestamp = true;
-
         // set up clock synchronizer
         const auto clockSync = initClockSynchronizer(m_fps);
         clockSync->setStrategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD | TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD);
@@ -192,13 +191,9 @@ public:
 
         setCameraNameStatus();
 
-        // We don't want to hold more than one buffer in the appsink, as otherwise getting the master timestamp
-        // on gst_app_sink_pull_sample() will be even less accurate than it already is (and we would have to correct
-        // timestamps for pending buffer content, which is difficult to do right, and complicated).
-        // If the appsink max buffer count is low, elements upstream in the pipeline will be blocked until we removed
-        // one and free a buffer slot, which means camera DAQ will be delayed to the speed at which we can convert
-        // data into Syntalos stream elements, which is exactly what we want.
-        gst_app_sink_set_max_buffers(m_appSink, 1);
+        // We can carry one second of data or 15 frames in the queue
+        // Timestamps are read and calculated backwards from the buffer statistics.
+        gst_app_sink_set_max_buffers(m_appSink, m_fps > 15 ? static_cast<uint>(std::ceil(m_fps)) + 1 : 15);
 
         // wait until we actually start acquiring data
         waitCondition->wait(this);
@@ -213,10 +208,13 @@ public:
         if (sampleTimeout < GST_SECOND)
             sampleTimeout = GST_SECOND;
 
+        nanoseconds_t sysOffsetToMaster{0};
+        guint64 devOffsetToSysNs = 0;
         while (m_running) {
             g_autoptr(GstSample) sample = nullptr;
 
-            auto frameRecvTime = MTIMER_FUNC_TIMESTAMP(sample = gst_app_sink_try_pull_sample(m_appSink, sampleTimeout));
+            auto frameFetchTime = MTIMER_FUNC_TIMESTAMP(
+                sample = gst_app_sink_try_pull_sample(m_appSink, sampleTimeout));
             if (sample == nullptr) {
                 // check if the input stream has ended
                 if (gst_app_sink_is_eos(m_appSink)) {
@@ -248,46 +246,96 @@ public:
             GstMapInfo info;
 
             gst_buffer_map(buffer, &info, GST_MAP_READ);
-            if (info.data != nullptr) {
-                GstCaps *caps = gst_sample_get_caps(sample);
-                const auto gS = gst_caps_get_structure(caps, 0);
-                const gchar *format_str = gst_structure_get_string(gS, "format");
-
-                // create our frame and push it to subscribers
-                Frame frame;
-                if (g_strcmp0(format_str, "BGRx") == 0) {
-                    frame.mat.create(m_resolution, CV_8UC(4));
-                    memcpy(frame.mat.data, info.data, m_resolution.width * m_resolution.height * 4);
-                } else if (g_strcmp0(format_str, "GRAY8") == 0) {
-                    frame.mat.create(m_resolution, CV_8UC(1));
-                    memcpy(frame.mat.data, info.data, m_resolution.width * m_resolution.height);
-                } else if (g_strcmp0(format_str, "GRAY16_LE") == 0) {
-                    frame.mat.create(m_resolution, CV_16UC(1));
-                    memcpy(frame.mat.data, info.data, m_resolution.width * m_resolution.height);
-                } else {
-                    qCDebug(logTISCam).noquote().nospace() << QString::fromStdString(m_device.str()) << ": "
-                                                           << "Received buffer with unsupported format: " << format_str;
-                    gst_buffer_unmap(buffer, &info);
-                    continue;
-                }
-
-                // only do time adjustment if we have a valid timestamp
-                // NOTE: We use the DTS here as using PTS (as before) has stopped working with newer TIS camera
-                // versions. For our purpose here, PTS and DTS should be identical anyway.
-                const auto pts = GST_BUFFER_DTS(buffer);
-                if (pts != GST_CLOCK_TIME_NONE) {
-                    clockSync->processTimestamp(
-                        frameRecvTime, std::chrono::duration_cast<microseconds_t>(nanoseconds_t(pts)));
-                    m_firstTimestamp = false;
-                } else {
-                    // mark as us not being able to do any time adjustments if no valid timestamps are received
-                    if (m_firstTimestamp)
-                        clockSync->setStrategies(TimeSyncStrategy::NONE);
-                }
-                frame.time = frameRecvTime;
-
-                m_outStream->push(frame);
+            if (info.data == nullptr) {
+                qCWarning(logTISCam).noquote().nospace() << "Received buffer with no data!";
+                gst_buffer_unmap(buffer, &info);
+                continue;
             }
+
+            // fetch buffer statistics for timestamp information
+            auto meta = gst_buffer_get_meta(buffer, g_type_from_name("TcamStatisticsMetaApi"));
+            if (G_UNLIKELY(meta == nullptr)) {
+                gst_buffer_unmap(buffer, &info);
+                raiseError("No buffer metadata received from this camera - is it an Imaging Source camera?");
+                break;
+            }
+            auto metaStruct = ((TcamStatisticsMeta *)meta)->structure;
+
+            guint64 frameCount;
+            guint64 captureTimeNs;
+            guint64 cameraTimeNs;
+            if (G_UNLIKELY(!gst_structure_get_uint64(metaStruct, "frame_count", &frameCount))) {
+                gst_buffer_unmap(buffer, &info);
+                raiseError("Failed to get frame count from buffer metadata");
+                break;
+            }
+            if (G_UNLIKELY(!gst_structure_get_uint64(metaStruct, "capture_time_ns", &captureTimeNs))) {
+                gst_buffer_unmap(buffer, &info);
+                raiseError("Failed to get capture time from buffer metadata");
+                break;
+            }
+            if (G_UNLIKELY(!gst_structure_get_uint64(metaStruct, "camera_time_ns", &cameraTimeNs)))
+                cameraTimeNs = 0;
+            if (cameraTimeNs == 0)
+                cameraTimeNs = captureTimeNs;
+
+            auto pts = GST_BUFFER_DTS(buffer);
+            if (pts == GST_CLOCK_TIME_NONE) {
+                if (frameCount == 0) {
+                    // mark as us not being able to do any time adjustments if no valid timestamps are received
+                    clockSync->setStrategies(TimeSyncStrategy::NONE);
+                    qCWarning(logTISCam).noquote().nospace() << "Time sync disabled: No valid PTS received.";
+                }
+                // paper over the missing PTS, if it does not exist we already disabled time sync before
+                pts = std::chrono::duration_cast<nanoseconds_t>(frameFetchTime).count();
+            }
+
+            if (frameCount == 0) {
+                // determine the base offset times to the master clock when retrieving the first frame
+                const auto firstFrameSysTimeNs = pts;
+                const auto firstFrameDevTimeNs = cameraTimeNs;
+
+                sysOffsetToMaster = nanoseconds_t(frameFetchTime.count() - (gint64)firstFrameSysTimeNs);
+                devOffsetToSysNs = firstFrameSysTimeNs - firstFrameDevTimeNs;
+            }
+
+            // perform time synchronization
+            const auto frameSysTime = nanoseconds_t(pts);
+            auto frameDevTimeNs = cameraTimeNs;
+            if (frameDevTimeNs == 0) {
+                // no timestamp available, use the system timestamp
+                frameDevTimeNs = frameSysTime.count();
+            } else {
+                frameDevTimeNs += devOffsetToSysNs;
+            }
+            auto masterTime = std::chrono::duration_cast<microseconds_t>(frameSysTime + sysOffsetToMaster);
+            clockSync->processTimestamp(masterTime, nsecToUsec(nanoseconds_t(frameDevTimeNs)));
+
+            // read format information
+            GstCaps *caps = gst_sample_get_caps(sample);
+            const auto gS = gst_caps_get_structure(caps, 0);
+            const gchar *format_str = gst_structure_get_string(gS, "format");
+
+            // create our frame and push it to subscribers
+            Frame frame(frameCount);
+            frame.time = masterTime;
+            if (g_strcmp0(format_str, "BGRx") == 0) {
+                frame.mat.create(m_resolution, CV_8UC(4));
+                memcpy(frame.mat.data, info.data, m_resolution.width * m_resolution.height * 4);
+            } else if (g_strcmp0(format_str, "GRAY8") == 0) {
+                frame.mat.create(m_resolution, CV_8UC(1));
+                memcpy(frame.mat.data, info.data, m_resolution.width * m_resolution.height);
+            } else if (g_strcmp0(format_str, "GRAY16_LE") == 0) {
+                frame.mat.create(m_resolution, CV_16UC(1));
+                memcpy(frame.mat.data, info.data, m_resolution.width * m_resolution.height);
+            } else {
+                qCDebug(logTISCam).noquote().nospace() << QString::fromStdString(m_device.str()) << ": "
+                                                       << "Received buffer with unsupported format: " << format_str;
+                gst_buffer_unmap(buffer, &info);
+                continue;
+            }
+
+            m_outStream->push(frame);
 
             // unmap our buffer - all other resources are cleaned up automatically
             gst_buffer_unmap(buffer, &info);

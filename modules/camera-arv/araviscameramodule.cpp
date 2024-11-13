@@ -184,9 +184,9 @@ public:
                     return;
                 if (frameCount == 0) {
                     // determine the base offset times to the master clock when retrieving the first frame
-                    auto firstMasterTime = m_syTimer->timeSinceStartNsec();
-                    auto firstFrameSysTimeNs = arv_buffer_get_system_timestamp(buffer);
-                    auto firstFrameDevTimeNs = arv_buffer_get_timestamp(buffer);
+                    const auto firstMasterTime = m_syTimer->timeSinceStartNsec();
+                    const auto firstFrameSysTimeNs = arv_buffer_get_system_timestamp(buffer);
+                    const auto firstFrameDevTimeNs = arv_buffer_get_timestamp(buffer);
 
                     sysOffsetToMaster = nanoseconds_t(firstMasterTime.count() - (gint64)firstFrameSysTimeNs);
                     devOffsetToSysNs = firstFrameSysTimeNs - firstFrameDevTimeNs;
