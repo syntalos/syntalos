@@ -20,6 +20,8 @@
 #include <arv.h>
 #include <gio/gio.h>
 
+#include "utils/rtkit.h"
+
 extern "C" {
 #include <sys/socket.h>
 }
@@ -378,8 +380,8 @@ static void QArvStreamCallbackWrap(void* vcam,
                                    ArvBuffer* bfr) {
     if (type == ARV_STREAM_CALLBACK_TYPE_INIT) {
         // TODO: Fetch thread settings from the Syntalos engine?
-        if (!arv_make_thread_realtime (20) &&
-            !arv_make_thread_high_priority (-10))
+        if (!setCurrentThreadRealtime (20) &&
+            !setCurrentThreadNiceness (-10))
             qWarning().noquote() << "Failed to make Aravis camera stream thread high priority";
     }
 

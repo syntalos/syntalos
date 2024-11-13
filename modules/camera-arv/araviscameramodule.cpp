@@ -130,7 +130,9 @@ public:
     {
         g_autoptr(GMainLoop) loop = g_main_loop_new(nullptr, FALSE);
 
-        m_camera->setFrameQueueSize(16);
+        // we carry one second of data or 15 frames in the queue
+        m_camera->setFrameQueueSize(
+            m_camera->getFPS() > 15 ? static_cast<uint>(std::ceil(m_camera->getFPS())) + 1 : 15);
 
         // set up clock synchronizer
         const auto clockSync = initClockSynchronizer(m_camera->getFPS());
