@@ -210,10 +210,11 @@ public:
 
         nanoseconds_t sysOffsetToMaster{0};
         guint64 devOffsetToSysNs = 0;
+        uint64_t validFrameCount = 0;
         while (m_running) {
             g_autoptr(GstSample) sample = nullptr;
 
-            auto frameFetchTime = MTIMER_FUNC_TIMESTAMP(
+            const auto frameFetchTime = MTIMER_FUNC_TIMESTAMP(
                 sample = gst_app_sink_try_pull_sample(m_appSink, sampleTimeout));
             if (sample == nullptr) {
                 // check if the input stream has ended
@@ -261,46 +262,34 @@ public:
             }
             auto metaStruct = ((TcamStatisticsMeta *)meta)->structure;
 
-            guint64 frameCount;
             guint64 captureTimeNs;
             guint64 cameraTimeNs;
-            if (G_UNLIKELY(!gst_structure_get_uint64(metaStruct, "frame_count", &frameCount))) {
-                gst_buffer_unmap(buffer, &info);
-                raiseError("Failed to get frame count from buffer metadata");
-                break;
-            }
             if (G_UNLIKELY(!gst_structure_get_uint64(metaStruct, "capture_time_ns", &captureTimeNs))) {
+                if (validFrameCount == 0) {
+                    // mark as us not being able to do any time adjustments if no valid timestamps are received
+                    clockSync->setStrategies(TimeSyncStrategy::NONE);
+                    qCWarning(logTISCam).noquote().nospace() << "Time sync disabled: No valid capture time received.";
+                }
+
                 gst_buffer_unmap(buffer, &info);
                 raiseError("Failed to get capture time from buffer metadata");
                 break;
             }
             if (G_UNLIKELY(!gst_structure_get_uint64(metaStruct, "camera_time_ns", &cameraTimeNs)))
                 cameraTimeNs = 0;
-            if (cameraTimeNs == 0)
-                cameraTimeNs = captureTimeNs;
 
-            auto pts = GST_BUFFER_DTS(buffer);
-            if (pts == GST_CLOCK_TIME_NONE) {
-                if (frameCount == 0) {
-                    // mark as us not being able to do any time adjustments if no valid timestamps are received
-                    clockSync->setStrategies(TimeSyncStrategy::NONE);
-                    qCWarning(logTISCam).noquote().nospace() << "Time sync disabled: No valid PTS received.";
-                }
-                // paper over the missing PTS, if it does not exist we already disabled time sync before
-                pts = std::chrono::duration_cast<nanoseconds_t>(frameFetchTime).count();
-            }
-
-            if (frameCount == 0) {
+            if (validFrameCount == 0) {
                 // determine the base offset times to the master clock when retrieving the first frame
-                const auto firstFrameSysTimeNs = pts;
-                const auto firstFrameDevTimeNs = cameraTimeNs;
+                const auto firstFrameSysTimeNs = captureTimeNs;
+                const auto firstFrameDevTimeNs = cameraTimeNs == 0 ? captureTimeNs : cameraTimeNs;
 
-                sysOffsetToMaster = nanoseconds_t(frameFetchTime.count() - (gint64)firstFrameSysTimeNs);
+                sysOffsetToMaster = nanoseconds_t(
+                    std::chrono::duration_cast<nanoseconds_t>(frameFetchTime).count() - (gint64)firstFrameSysTimeNs);
                 devOffsetToSysNs = firstFrameSysTimeNs - firstFrameDevTimeNs;
             }
 
             // perform time synchronization
-            const auto frameSysTime = nanoseconds_t(pts);
+            const auto frameSysTime = nanoseconds_t(captureTimeNs);
             auto frameDevTimeNs = cameraTimeNs;
             if (frameDevTimeNs == 0) {
                 // no timestamp available, use the system timestamp
@@ -317,8 +306,10 @@ public:
             const gchar *format_str = gst_structure_get_string(gS, "format");
 
             // create our frame and push it to subscribers
-            Frame frame(frameCount);
+            Frame frame(validFrameCount);
             frame.time = masterTime;
+            validFrameCount++;
+
             if (g_strcmp0(format_str, "BGRx") == 0) {
                 frame.mat.create(m_resolution, CV_8UC(4));
                 memcpy(frame.mat.data, info.data, m_resolution.width * m_resolution.height * 4);
