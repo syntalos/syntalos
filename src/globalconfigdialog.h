@@ -39,7 +39,7 @@ public:
 
 private slots:
     void on_colorModeComboBox_currentIndexChanged(int index);
-    void on_emergencyOOMStopCheckBox_toggled(bool checked);
+    void on_cbEmergencyOOMStop_toggled(bool checked);
 
     void on_defaultNicenessSpinBox_valueChanged(int arg1);
     void on_defaultRTPrioSpinBox_valueChanged(int arg1);

@@ -95,7 +95,7 @@ void GlobalConfigDialog::on_colorModeComboBox_currentIndexChanged(int index)
     Q_EMIT defaultColorSchemeChanged();
 }
 
-void GlobalConfigDialog::on_emergencyOOMStopCheckBox_toggled(bool checked)
+void GlobalConfigDialog::on_cbEmergencyOOMStop_toggled(bool checked)
 {
     if (m_acceptChanges)
         m_gc->setEmergencyOOMStop(checked);
