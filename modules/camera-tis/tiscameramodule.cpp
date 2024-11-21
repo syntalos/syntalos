@@ -207,19 +207,6 @@ public:
             return;
         }
 
-        // We use the time it took to fetch the very first frame from the buffer as initial
-        // offset of the master clock to the device clock. To make sure that we do not have a big
-        // constant offset due to waiting for the device while reading the master clock time,
-        // we give the device time to acquire at least one frame here before trying to fetch it
-        // from the buffer. Alternatively, we could use the time when gst_app_sink_try_pull_sample
-        // is done instead, or constantly adjust the offset to make it more accurate. But this method
-        // of delaying the initial frame fetch is simpler and works well enough.
-        auto initialFrameDelayUsec = static_cast<uint>(((1000.0 / m_fps) * 1000.0) * 0.98);
-        if (initialFrameDelayUsec > 10 * 1000 * 1000)
-            initialFrameDelayUsec = 10 * 1000 * 1000; // limit to 10 seconds
-        if (initialFrameDelayUsec > 10)
-            std::this_thread::sleep_for(microseconds_t(initialFrameDelayUsec));
-
         uint framesDropped = 0;
         nanoseconds_t sysOffsetToMaster{0};
         guint64 devOffsetToSysNs = 0;
@@ -227,8 +214,9 @@ public:
         while (m_running) {
             g_autoptr(GstSample) sample = nullptr;
 
-            const auto frameFetchTime = MTIMER_FUNC_TIMESTAMP(
-                sample = gst_app_sink_try_pull_sample(m_appSink, sampleTimeout));
+            sample = gst_app_sink_try_pull_sample(m_appSink, sampleTimeout);
+            const auto frameFetchTimeNs = m_syTimer->timeSinceStartNsec();
+
             if (sample == nullptr) {
                 // check if the input stream has ended
                 if (gst_app_sink_is_eos(m_appSink)) {
@@ -291,14 +279,24 @@ public:
             if (G_UNLIKELY(!gst_structure_get_uint64(metaStruct, "camera_time_ns", &cameraTimeNs)))
                 cameraTimeNs = 0;
 
-            if (validFrameCount == 0) {
-                // determine the base offset times to the master clock when retrieving the first frame
+            if (validFrameCount < 10) {
+                // determine the base offset times to the master clock when retrieving the first 10 frames
                 const auto firstFrameSysTimeNs = captureTimeNs;
                 const auto firstFrameDevTimeNs = cameraTimeNs == 0 ? captureTimeNs : cameraTimeNs;
 
-                sysOffsetToMaster = nanoseconds_t(
-                    std::chrono::duration_cast<nanoseconds_t>(frameFetchTime).count() - (gint64)firstFrameSysTimeNs);
-                devOffsetToSysNs = firstFrameSysTimeNs - firstFrameDevTimeNs;
+                const auto newSysOffsetToMaster = nanoseconds_t(
+                    (frameFetchTimeNs.count() - static_cast<int64_t>((1000.0 * 1000.0 * 1000.0 / m_fps) / 3))
+                    - (gint64)firstFrameSysTimeNs);
+                if (sysOffsetToMaster.count() == 0)
+                    sysOffsetToMaster = newSysOffsetToMaster;
+                else
+                    sysOffsetToMaster = nanoseconds_t(
+                        static_cast<int64_t>((sysOffsetToMaster.count() + newSysOffsetToMaster.count()) / 2.0));
+
+                if (devOffsetToSysNs == 0)
+                    devOffsetToSysNs = firstFrameSysTimeNs - firstFrameDevTimeNs;
+                else
+                    devOffsetToSysNs = (devOffsetToSysNs + (firstFrameSysTimeNs - firstFrameDevTimeNs)) / 2.0;
             }
 
             // perform time synchronization
