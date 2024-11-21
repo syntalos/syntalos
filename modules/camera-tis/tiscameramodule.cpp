@@ -195,6 +195,10 @@ public:
         // Timestamps are read and calculated backwards from the buffer statistics.
         gst_app_sink_set_max_buffers(m_appSink, m_fps > 15 ? static_cast<uint>(std::ceil(m_fps)) + 1 : 15);
 
+        GstClockTime sampleTimeout = std::lround((GST_SECOND / m_fps) * 3);
+        if (sampleTimeout < GST_SECOND)
+            sampleTimeout = GST_SECOND;
+
         // wait until we actually start acquiring data
         waitCondition->wait(this);
 
@@ -203,11 +207,20 @@ public:
             return;
         }
 
-        uint framesDropped = 0;
-        GstClockTime sampleTimeout = std::lround((GST_SECOND / m_fps) * 3);
-        if (sampleTimeout < GST_SECOND)
-            sampleTimeout = GST_SECOND;
+        // We use the time it took to fetch the very first frame from the buffer as initial
+        // offset of the master clock to the device clock. To make sure that we do not have a big
+        // constant offset due to waiting for the device while reading the master clock time,
+        // we give the device time to acquire at least one frame here before trying to fetch it
+        // from the buffer. Alternatively, we could use the time when gst_app_sink_try_pull_sample
+        // is done instead, or constantly adjust the offset to make it more accurate. But this method
+        // of delaying the initial frame fetch is simpler and works well enough.
+        auto initialFrameDelayUsec = static_cast<uint>(((1000.0 / m_fps) * 1000.0) * 0.98);
+        if (initialFrameDelayUsec > 10 * 1000 * 1000)
+            initialFrameDelayUsec = 10 * 1000 * 1000; // limit to 10 seconds
+        if (initialFrameDelayUsec > 10)
+            std::this_thread::sleep_for(microseconds_t(initialFrameDelayUsec));
 
+        uint framesDropped = 0;
         nanoseconds_t sysOffsetToMaster{0};
         guint64 devOffsetToSysNs = 0;
         uint64_t validFrameCount = 0;
