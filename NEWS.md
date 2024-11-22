@@ -1,3 +1,29 @@
+Version 2.0.2
+-------------
+Released: 2024-11-22
+
+Features:
+ * camera-arv: Display the camera ID when running
+ * camera-tis: Use TcamStatistics data to derive timestamp
+ * Add new ONIX Coax Commutator module
+
+Bugfixes:
+ * camera-tis: Add timeout when requesting samples & quit on error
+ * camera-tis: Stop faster if frame retrieval is unreliable
+ * camera-tis: Don't crash if camera connection failed and we try to save settings
+ * camera-tis: Improve error reporting on pipeline start a bit
+ * camera-arv: Explicitly skip loading any "DeviceTemperature" settings
+ * camera-arv: Make changing gain/exposure a bit faster and more reliable
+ * camera-arv: Don't pin to CPU cores and make acq threads realtime
+ * camera-arv: Use Syntalos RtKit link & increase internal frame buffer
+ * debian: Recommend kde-style-breeze for dark theme support
+ * engine: Prevent deadlock in stream exporter when we stop too quickly
+ * Fix OOM stop configuration option, it will now work again
+
+Miscellaneous:
+ * videorecorder: Don't use newly deprecated FFmpeg API, add fallback for older versions
+ * engine: Don't use libusb without context
+
 Version 2.0.1
 -------------
 Released: 2024-10-01
