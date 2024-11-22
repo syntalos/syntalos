@@ -279,24 +279,16 @@ public:
             if (G_UNLIKELY(!gst_structure_get_uint64(metaStruct, "camera_time_ns", &cameraTimeNs)))
                 cameraTimeNs = 0;
 
-            if (validFrameCount < 10) {
+            if (validFrameCount == 0) {
                 // determine the base offset times to the master clock when retrieving the first 10 frames
                 const auto firstFrameSysTimeNs = captureTimeNs;
                 const auto firstFrameDevTimeNs = cameraTimeNs == 0 ? captureTimeNs : cameraTimeNs;
 
-                const auto newSysOffsetToMaster = nanoseconds_t(
+                sysOffsetToMaster = nanoseconds_t(
                     (frameFetchTimeNs.count() - static_cast<int64_t>((1000.0 * 1000.0 * 1000.0 / m_fps) / 3))
                     - (gint64)firstFrameSysTimeNs);
-                if (sysOffsetToMaster.count() == 0)
-                    sysOffsetToMaster = newSysOffsetToMaster;
-                else
-                    sysOffsetToMaster = nanoseconds_t(
-                        static_cast<int64_t>((sysOffsetToMaster.count() + newSysOffsetToMaster.count()) / 2.0));
 
-                if (devOffsetToSysNs == 0)
-                    devOffsetToSysNs = firstFrameSysTimeNs - firstFrameDevTimeNs;
-                else
-                    devOffsetToSysNs = (devOffsetToSysNs + (firstFrameSysTimeNs - firstFrameDevTimeNs)) / 2.0;
+                devOffsetToSysNs = firstFrameSysTimeNs - firstFrameDevTimeNs;
             }
 
             // perform time synchronization
