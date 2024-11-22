@@ -1,18 +1,17 @@
 #!/usr/bin/make -f
 # -*- mode: makefile; coding: utf-8 -*-
 
+SY_ENABLED_MODULES := camera-arv,camera-tis,miniscope,plot
 
 ifneq (,$(filter $(DEB_HOST_ARCH), amd64))
-	SY_ENABLED_MODULES=camera-arv,camera-tis,intan-rhx,miniscope,plot
-
-	# FIXME: Super dirty hack to get tiscamera to build - should be replaced
-	# by building a proper tiscam package eventually.
-	export PKG_CONFIG_PATH=$(CURDIR)/contrib/vendor/tiscam/usr/lib/x86_64-linux-gnu/pkgconfig/
-else
-	# We don't build Intan/TIS Camera support on non-amd64
-	# FIXME: Enable tiscam eventually
-	SY_ENABLED_MODULES=camera-arv,miniscope,plot
+    # We don't build Intan support on non-amd64, Intan does not support this officially
+	SY_ENABLED_MODULES := $(SY_ENABLED_MODULES),intan-rhx
 endif
+
+# FIXME: Super dirty hack to get tiscamera to build - should be replaced
+# by building a proper tiscam package eventually.
+export PKG_CONFIG_PATH=$(CURDIR)/contrib/vendor/tiscam/i/lib/pkgconfig/
+TCAM_DIR=$(CURDIR)/contrib/vendor/tiscam
 
 SY_CONFIGURE_ARGS = \
     -Doptimize-modern-amd64=true \
@@ -22,19 +21,29 @@ SY_CONFIGURE_ARGS = \
 	dh $@
 
 override_dh_auto_configure:
-	# FIXME: Ugly hacks
-	if [ -f $(CURDIR)/contrib/vendor/tiscam/usr/lib/x86_64-linux-gnu/pkgconfig/tcam.pc ]; then \
-		SRC_DIR=$(CURDIR) && \
-		sed -i "s|^prefix=/usr|prefix=$$SRC_DIR/contrib/vendor/tiscam/usr|" \
-			$(CURDIR)/contrib/vendor/tiscam/usr/lib/x86_64-linux-gnu/pkgconfig/tcam.pc; \
-		sed -i "s|^prefix=/usr|prefix=$$SRC_DIR/contrib/vendor/tiscam/usr|" \
-			$(CURDIR)/contrib/vendor/tiscam/usr/lib/x86_64-linux-gnu/pkgconfig/tcam-property-1.0.pc; \
-	fi
+	# FIXME: Ugly hack to avoid us shipping with the tiscamera packages in our PPA
+	mkdir $(TCAM_DIR)/b
+	cd $(TCAM_DIR)/b && cmake -GNinja \
+		-DTCAM_BUILD_DOCUMENTATION=OFF \
+		-DTCAM_BUILD_WITH_GUI=OFF \
+		-DTCAM_DOWNLOAD_MESON=OFF \
+		-DTCAM_INTERNAL_ARAVIS=OFF \
+		-DTCAM_INSTALL_FORCE_PREFIX=ON \
+		-DTCAM_BUILD_WITH_GUI=OFF \
+		-DTCAM_BUILD_DOCUMENTATION=OFF \
+		-DCMAKE_INSTALL_LIBDIR=lib \
+		-DTCAM_PROPERTY_INSTALL_LIB=lib \
+		-DTCAM_PROPERTY_INSTALL_PKGCONFIG=$(TCAM_DIR)/i/lib/pkgconfig \
+		-DGOBJECT_INTROSPECTION_1.0_GIRDIR=$(TCAM_DIR)/i/share/gir-1.0/ \
+		-DGOBJECT_INTROSPECTION_1.0_TYPELIBDIR=$(TCAM_DIR)/i/lib/girepository-1.0 \
+		-DCMAKE_INSTALL_PREFIX=$(TCAM_DIR)/i \
+		..
+	cd $(TCAM_DIR)/b && ninja && ninja install
 
-	dh_auto_configure -- $(SY_CONFIGURE_ARGS)
+	cd $(CURDIR) && dh_auto_configure -- $(SY_CONFIGURE_ARGS)
 
 override_dh_auto_test:
 	:
 
 override_dh_shlibdeps:
-	dh_shlibdeps -Xmodules/miniscope/miniscope.so -Xmodules/camera-tis/camera-tis.so
+	dh_shlibdeps -Xmodules/camera-tis/camera-tis.so

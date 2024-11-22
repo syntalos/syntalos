@@ -23,7 +23,7 @@
 #include <QMessageBox>
 #include <gst/app/gstappsink.h>
 #include <tcam-property-1.0.h>
-#include <gstmetatcamstatistics.h>
+#include <gstreamer-1.0/gstmetatcamstatistics.h>
 
 #include "datactl/frametype.h"
 #include "utils/misc.h"

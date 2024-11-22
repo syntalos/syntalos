@@ -16,32 +16,27 @@ rsync -a $(git rev-parse --show-toplevel)/contrib/vendor/. ./syntalos/contrib/ve
 cd syntalos
 
 #
-# Dirty hack to allow us to build the tiscam module.
+# Dirty hack to allow us to build the tiscam module without having the TIS packages
+# in our PPA.
 #
-mkdir -p contrib/vendor/tiscam
-cd contrib/vendor/tiscam
-
-curl -L -o tiscamera.deb https://github.com/TheImagingSource/tiscamera/releases/download/v-tiscamera-1.1.1/tiscamera_1.1.1.4142_amd64_ubuntu_1804.deb
-curl -L -o tiscamera-dev.deb https://github.com/TheImagingSource/tiscamera/releases/download/v-tiscamera-1.1.1/tiscamera-dev_1.1.1.4142_amd64_ubuntu_1804.deb
-
-dpkg-deb -xv tiscamera.deb .
-dpkg-deb -xv tiscamera-dev.deb .
-rm *.deb
-
-cd ../../..
+mkdir -p contrib/vendor/
+cd contrib/vendor/
+git clone --depth 1 --branch=master https://github.com/TheImagingSource/tiscamera.git tiscam
+rm -rf tiscam/.git
+cd ../../
 
 #
 # Build Debian source package
 #
 
 git_commit=$(git log --pretty="format:%h" -n1)
-git_current_tag=$(git describe --abbrev=0 --tags 2> /dev/null || echo "v3.0.2")
+git_current_tag=$(git describe --abbrev=0 --tags 2> /dev/null || echo "v2.0.0")
 git_commit_no=$(git rev-list --count HEAD)
 upstream_version=$(echo "${git_current_tag}" | sed 's/^v\(.\+\)$/\1/;s/[-]/./g')
 upstream_version="$upstream_version+git$git_commit_no"
 
 mv contrib/debian .
-dch --distribution "noble"	--newversion="${upstream_version}" -b \
+dch --distribution "noble" --newversion="${upstream_version}" -b \
     "New automated build from: ${upstream_version} - ${git_commit}"
 
 # build the source package
