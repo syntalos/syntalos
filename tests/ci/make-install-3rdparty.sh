@@ -19,6 +19,7 @@ cmake -GNinja \
     -DTCAM_BUILD_WITH_GUI=OFF \
     -DTCAM_DOWNLOAD_MESON=OFF \
     -DTCAM_INTERNAL_ARAVIS=OFF \
+    -DTCAM_INSTALL_FORCE_PREFIX=ON \
     ..
 ninja && ninja install
 cd ../..
