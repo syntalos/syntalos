@@ -22,6 +22,7 @@ SY_CONFIGURE_ARGS = \
 
 override_dh_auto_configure:
 	# FIXME: Ugly hack to avoid us shipping with the tiscamera packages in our PPA
+ifneq ($(wildcard $(TCAM_DIR)/*),)
 	mkdir $(TCAM_DIR)/b
 	cd $(TCAM_DIR)/b && cmake -GNinja \
 		-DTCAM_BUILD_DOCUMENTATION=OFF \
@@ -39,6 +40,7 @@ override_dh_auto_configure:
 		-DCMAKE_INSTALL_PREFIX=$(TCAM_DIR)/i \
 		..
 	cd $(TCAM_DIR)/b && ninja && ninja install
+endif
 
 	cd $(CURDIR) && dh_auto_configure -- $(SY_CONFIGURE_ARGS)
 
@@ -46,4 +48,4 @@ override_dh_auto_test:
 	:
 
 override_dh_shlibdeps:
-	dh_shlibdeps -Xmodules/camera-tis/camera-tis.so
+	dh_shlibdeps -Xmodules/camera-tis/camera-tis.so -Xmodules/miniscope/miniscope.so
