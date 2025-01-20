@@ -135,8 +135,8 @@ MainWindow::MainWindow(QWidget *parent)
     ui->panelRunInfo->setEnabled(false);
 
     connect(ui->tbOpenDir, &QToolButton::clicked, this, &MainWindow::openDataExportDirectory);
-    connect(ui->subjectIdEdit, &QLineEdit::textChanged, [=, this](const QString &mouseId) {
-        if (mouseId.isEmpty()) {
+    connect(ui->subjectIdEdit, &QLineEdit::textChanged, [=, this](const QString &subjectId) {
+        if (subjectId.isEmpty()) {
             ui->subjectSelectComboBox->setEnabled(true);
             ui->subjectSelectComboBox->setCurrentIndex(0);
             auto sub = m_subjectList->subject(0);
@@ -144,7 +144,7 @@ MainWindow::MainWindow(QWidget *parent)
             return;
         }
         TestSubject sub;
-        sub.id = mouseId;
+        sub.id = subjectId;
         changeTestSubject(sub);
 
         // we shouldn't use both the subject selector and manual data entry

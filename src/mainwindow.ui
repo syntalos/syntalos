@@ -237,7 +237,7 @@
                    <item>
                     <widget class="QLineEdit" name="subjectIdEdit">
                      <property name="placeholderText">
-                      <string>Manually set a mouse ID, e.g. &quot;MM-18&quot;</string>
+                      <string>Manually set subject ID, e.g. &quot;MKX-018&quot;</string>
                      </property>
                     </widget>
                    </item>
