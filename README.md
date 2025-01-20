@@ -2,7 +2,7 @@ Syntalos
 ========
 
 [![Syntalos Screenshot](contrib/screenshots/v0.8.4-ui-overview.png "Syntalos")](https://github.com/syntalos/syntalos/tree/master/contrib/screenshots)
-![Build Test](https://github.com/syntalos/syntalos/workflows/Build%20Test/badge.svg?branch=master)
+![Build Test](https://github.com/syntalos/syntalos/actions/workflows/build-test.yml/badge.svg)
 
 Syntalos (formerly known as MazeAmaze) is a software for timestamp-synchronized parallel data acquisition from diverse data sources,
 such as cameras, microendoscopes, Intan electrophysiology amplifiers or Firmata-based serial interfaces.
