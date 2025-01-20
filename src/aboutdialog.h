@@ -37,6 +37,9 @@ public:
 
     void addModuleLicense(const QString &modName, const QString &license);
 
+private slots:
+    void on_citationButton_clicked();
+
 private:
     Ui::AboutDialog *ui;
 

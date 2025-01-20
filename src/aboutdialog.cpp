@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2025 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -27,8 +27,7 @@
 
 const QString aboutDlgCopyInfo = QStringLiteral(
     "<html>"
-    "© 2016-2024 Matthias Klumpp"
-    "<p>Developed at the Draguhn Group at Heidelberg University, Germany</p>"
+    "© 2016-2025 Matthias Klumpp"
     "<p>Syntalos is free software: you can redistribute it and/or modify "
     "it under the terms of the GNU General Public License (GPL-3.0+) and "
     "GNU Lesser General Public License (LGPL-3.0+) as published by the Free Software Foundation, "
@@ -44,6 +43,14 @@ const QString aboutDlgCopyInfo = QStringLiteral(
     "Iconset</a> [GPL-3.0+]<br/>"
     "ASCII art credit for this window: hjw `97</p>"
     "<h3>Modules:</h3>");
+
+const QString citationInfoText = QStringLiteral(
+    "<html>"
+    "<p>When using Syntalos in your research, please cite it as follows:</p>"
+    "<p>Klumpp, M. <i>et al</i>. Syntalos: a software for precise synchronization of simultaneous multi-modal data "
+    "acquisition and closed-loop interventions. "
+    "<i>Nat Commun</i> <b>16</b>, 708 (2025). <a "
+    "href=\"https://doi.org/10.1038/s41467-025-56081-9\">https://doi.org/10.1038/s41467-025-56081-9</a></p>");
 
 AboutDialog::AboutDialog(QWidget *parent)
     : QDialog(parent),
@@ -62,6 +69,7 @@ AboutDialog::AboutDialog(QWidget *parent)
     if (parent != nullptr)
         move(parent->geometry().center() - geometry().center());
 
+    ui->licenseTextBrowser->setOpenExternalLinks(true);
     auto palette = ui->licenseTextBrowser->palette();
     palette.setColor(QPalette::Normal, QPalette::Base, this->palette().color(QPalette::Normal, QPalette::Window));
     ui->licenseTextBrowser->setPalette(palette);
@@ -85,4 +93,29 @@ void AboutDialog::addModuleLicense(const QString &modName, const QString &licens
 
     m_licenseText.append(QStringLiteral("<p><b>%2:</b><br/>%3").arg(modName).arg(license));
     ui->licenseTextBrowser->setText(m_licenseText);
+}
+
+void AboutDialog::on_citationButton_clicked()
+{
+    QDialog dialog;
+    dialog.setWindowTitle("Cite Syntalos!");
+    dialog.resize(560, 200);
+
+    auto palette = ui->licenseTextBrowser->palette();
+    auto citeBrowser = new QTextBrowser(&dialog);
+    citeBrowser->setOpenExternalLinks(true);
+    citeBrowser->setText(citationInfoText);
+    palette.setColor(QPalette::Normal, QPalette::Base, this->palette().color(QPalette::Normal, QPalette::Window));
+    citeBrowser->setPalette(palette);
+
+    auto buttonBox = new QDialogButtonBox(QDialogButtonBox::Close, &dialog);
+    connect(buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+
+    QVBoxLayout *layout = new QVBoxLayout();
+    layout->setMargin(4);
+    layout->addWidget(citeBrowser);
+    layout->addWidget(buttonBox);
+    dialog.setLayout(layout);
+
+    dialog.exec();
 }

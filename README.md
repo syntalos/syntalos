@@ -44,6 +44,17 @@ All modules are supervised and driven by the Syntalos Engine and can communicate
 You can find a list of all currently supported modules as well as their documentation [on our website](https://syntalos.org/docs/modules/).
 Be aware that some modules require additional software to run, e.g. camera drivers.
 
+### Citation
+
+If you are using Syntalos for your research, we would be delighted if you would cite our software in your publication!
+Please use the following publication in citations:
+
+> Klumpp, M. *et al.* Syntalos: a software for precise synchronization of simultaneous multi-modal data acquisition and closed-loop interventions.
+> *Nat Commun* **16**, 708 (2025).
+
+DOI: https://doi.org/10.1038/s41467-025-56081-9
+
+----
 
 ## Developers
 
