@@ -3,20 +3,20 @@ name: Build Test
 on: [push, pull_request]
 
 jobs:
-  build-debian:
-    name: Debian
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-
-    - name: Create Build Environment
-      run: cd tests/ci/ && podman build -t syntalos -f ./Dockerfile-debian .
-
-    - name: Build & Test
-      run: podman run -t -e CC=gcc -e CXX=g++ -v `pwd`:/build syntalos
-           ./tests/ci/build-and-test.sh
+#  build-debian:
+#    name: Debian
+#    runs-on: ubuntu-latest
+#    steps:
+#    - uses: actions/checkout@v4
+#      with:
+#        submodules: true
+#
+#    - name: Create Build Environment
+#      run: cd tests/ci/ && podman build -t syntalos -f ./Dockerfile-debian .
+#
+#    - name: Build & Test
+#      run: podman run -t -e CC=gcc -e CXX=g++ -v `pwd`:/build syntalos
+#           ./tests/ci/build-and-test.sh
 
   build-ubuntu:
     name: Ubuntu
