@@ -1,0 +1,40 @@
+cff-version: 1.2.0
+
+type: software
+title: Syntalos
+message: >-
+  If you use this software, please cite it using the
+  preferred citation from this file.
+repository-code: 'https://github.com/syntalos/syntalos'
+url: 'https://syntalos.org/'
+license: LGPL-3.0+
+preferred-citation:
+  title: >-
+    Syntalos: a software for precise synchronization of simultaneous multi-modal
+    data acquisition and closed-loop interventions
+  type: article
+  issue: 1
+  volume: 16
+  journal: Nature Communications
+  url: 'https://www.nature.com/articles/s41467-025-56081-9'
+  authors:
+    - family-names: Klumpp
+      given-names: Matthias
+    - family-names: Embray
+      given-names: Lee
+    - family-names: Heimburg
+      given-names: Filippo
+    - family-names: Alves Dias
+      given-names: Ana Luiza
+    - family-names: Simon
+      given-names: Justus
+    - family-names: Groh
+      given-names: Alexander
+    - family-names: Draguhn
+      given-names: Andreas
+    - family-names: Both
+      given-names: Martin
+  date-published: 2025-01-15
+  identifiers:
+    - type: doi
+      value: 10.1038/s41467-025-56081-9
