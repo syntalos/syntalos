@@ -26,7 +26,7 @@
 #include <KTextEditor/View>
 #include <KActionCollection>
 #pragma GCC diagnostic pop
-#include <qtermwidget5/qtermwidget.h>
+#include <qtermwidget6/qtermwidget.h>
 #include <QTabWidget>
 #include <QCoreApplication>
 #include <QDesktopServices>
@@ -112,7 +112,7 @@ public:
         m_termWidget = new QTermWidget(0, m_consoleTabWidget);
         auto terminalTab = new QWidget(m_consoleTabWidget);
         auto terminalLayout = new QVBoxLayout(terminalTab);
-        terminalLayout->setMargin(2);
+        terminalLayout->setContentsMargins(2, 2, 2, 2);
         terminalLayout->addWidget(m_termWidget);
         terminalTab->setLayout(terminalLayout);
         m_consoleTabWidget->addTab(terminalTab, "Terminal");
@@ -120,7 +120,7 @@ public:
         // add output box to console tab bar
         auto outputTab = new QWidget(m_consoleTabWidget);
         auto outputLayout = new QVBoxLayout(m_consoleTabWidget);
-        outputLayout->setMargin(2);
+        outputLayout->setContentsMargins(2, 2, 2, 2);
         m_logWidget = new QTextBrowser(m_consoleTabWidget);
         outputLayout->addWidget(m_logWidget);
         outputTab->setLayout(outputLayout);
@@ -134,7 +134,7 @@ public:
         // create main toolbar
         auto toolbar = new QToolBar(m_codeWindow);
         toolbar->setMovable(false);
-        toolbar->layout()->setMargin(2);
+        toolbar->layout()->setContentsMargins(2, 2, 2, 2);
         m_codeWindow->resize(800, 920);
         m_manualCompileAction = toolbar->addAction("Compile Code");
         setWidgetIconFromResource(m_manualCompileAction, "cpp-compile");
@@ -155,7 +155,7 @@ public:
         splitter->setStretchFactor(1, 1);
         auto codeLayout = new QVBoxLayout(m_codeWindow);
         m_codeWindow->setLayout(codeLayout);
-        codeLayout->setMargin(0);
+        codeLayout->setContentsMargins(0, 0, 0, 0);
         codeLayout->addWidget(toolbar);
         codeLayout->addWidget(splitter);
 

@@ -440,7 +440,7 @@ public:
                 if (error)
                     break;
 
-                sProp.insert("value", value);
+                sProp.insert("value", QVariant::fromValue(value));
                 break;
             }
             case TCAM_PROPERTY_TYPE_COMMAND:

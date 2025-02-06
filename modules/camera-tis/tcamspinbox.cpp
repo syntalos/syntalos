@@ -16,11 +16,11 @@
 
 #include "tcamspinbox.h"
 
-#include <QApplication>
+#include <QGuiApplication>
 #include <QEvent>
 #include <QLineEdit>
-#include <QStyle>
 #include <QStyleOption>
+#include <QStyleHints>
 #include <cmath>
 
 namespace tcam::tools::capture
@@ -105,10 +105,10 @@ void TcamSpinBoxImpl::emitSignals(SignalEmitPolicy emit_policy, const qlonglong 
 
 QString TcamSpinBoxImpl::stripped(const QString &t, int *pos) const
 {
-    QStringRef text(&t);
+    QStringView text(t);
     if (m_special_value_text.size() == 0 || text != m_special_value_text) {
-        int from = 0;
-        int size = text.size();
+        size_t from = 0;
+        size_t size = text.size();
         bool changed = false;
         if (m_prefix.size() && text.startsWith(m_prefix)) {
             from += m_prefix.size();
@@ -226,7 +226,7 @@ QVariant TcamSpinBoxImpl::validateAndInterpret(QString &input, int &pos, QValida
         } else {
             num = p_parent->locale().toLongLong(copy, &ok);
             if (!ok && (m_maximum >= 1000 || m_minimum <= -1000)) {
-                const QChar sep = p_parent->locale().groupSeparator();
+                const QChar sep = p_parent->locale().groupSeparator().at(0);
                 const QChar doubleSep[2] = {sep, sep};
                 if (copy.contains(sep) && !copy.contains(QString(doubleSep, 2))) {
                     QString copy2 = copy;
@@ -387,7 +387,9 @@ QSize TcamSpinBoxImpl::sizeHint() const
         QSize hint(w, h);
         m_cached_size_hint = p_parent->style()
                                  ->sizeFromContents(QStyle::CT_SpinBox, &opt, hint, p_parent)
-                                 .expandedTo(QApplication::globalStrut());
+                                 .expandedTo(QSize(
+                                     QGuiApplication::styleHints()->startDragDistance(),
+                                     QGuiApplication::styleHints()->startDragDistance()));
     }
     return m_cached_size_hint;
 }
@@ -650,7 +652,9 @@ void TcamSpinBox::connectLineEdit()
     }
     (void)connect(lineEdit(), &QLineEdit::textChanged, this, &TcamSpinBox::slotEditorTextChanged);
     (void)connect(lineEdit(), &QLineEdit::cursorPositionChanged, this, &TcamSpinBox::slotEditorCursorPositionChanged);
-    (void)connect(lineEdit(), &QLineEdit::cursorPositionChanged, this, &TcamSpinBox::updateMicroFocus);
+    (void)connect(lineEdit(), &QLineEdit::cursorPositionChanged, this, [this](int, int) {
+        updateMicroFocus(Qt::InputMethodQuery::ImCursorPosition);
+    });
 }
 
 } // namespace tcam::tools::capture

@@ -135,7 +135,7 @@ int SP210SettingsDialog::samplingRate() const
 void SP210SettingsDialog::setSamplingRate(int rate)
 {
     for (int i = 0; i < ui->rateComboBox->count(); i++) {
-        if (ui->rateComboBox->itemData(i).toString() == rate) {
+        if (ui->rateComboBox->itemData(i).toString() == QString::number(rate)) {
             ui->rateComboBox->setCurrentIndex(i);
             break;
         }

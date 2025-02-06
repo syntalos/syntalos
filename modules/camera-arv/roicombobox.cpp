@@ -35,8 +35,8 @@ ROIcomboBox::ROIcomboBox(QWidget *parent)
     this->addItem("320x240", QVariant(QSize(320, 240)));
     this->addItem(tr("Custom"), QVariant(QSize(-1, -1)));
 
-    QRegExp ROIregExp("[1-9][0-9]*x[1-9][0-9]*");
-    ROIsizeValidator = new QRegExpValidator(ROIregExp, this);
+    QRegularExpression ROIregExp("[1-9][0-9]*x[1-9][0-9]*");
+    ROIsizeValidator = new QRegularExpressionValidator(ROIregExp, this);
 
     this->connect(this, SIGNAL(currentIndexChanged(int)), SLOT(itemSelected(int)));
 }
@@ -66,10 +66,10 @@ void ROIcomboBox::itemSelected(int index)
 
 void ROIcomboBox::customSizeEntered()
 {
-    QRegExp ROIparse("^([0-9]+)x([0-9]+)$");
-    ROIparse.indexIn(this->lineEdit()->text());
-    int width = ROIparse.cap(1).toInt();
-    int height = ROIparse.cap(2).toInt();
+    static QRegularExpression ROIparse("^([0-9]+)x([0-9]+)$");
+    const auto match = ROIparse.match(this->lineEdit()->text());
+    int width = match.captured(1).toInt();
+    int height = match.captured(2).toInt();
 
     clearFocus();
     emit newSizeSelected(QSize(width, height));

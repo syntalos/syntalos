@@ -91,12 +91,10 @@ foreach s : sy_pyworker_src
     endif
 endforeach
 
-sy_pyworker_moc = qt.preprocess(
-    moc_headers: [pyworker_moc_h],
-    moc_sources: pyworker_moc_s,
-    # FIXME: The forced include directive works around a weird issue in KDE's Flatpak runtime,
-    # where some Qt modules are not found properly, resulting in parsing errors.
-    moc_extra_arguments: ['-I/usr/include', '--no-notes']
+sy_pyworker_moc = qt.compile_moc(
+    headers: [pyworker_moc_h],
+    sources: pyworker_moc_s,
+    extra_args: ['--no-notes']
 )
 
 pywconf = configuration_data()
@@ -127,12 +125,23 @@ pyworker_exe = executable('pyworker',
 pdoc_exe = find_program('pdoc', required: false)
 if pdoc_exe.found()
     # the pdoc Python module is probably there, so we can try to refresh the documentation
+
+    # If we have xvfb-run, use it - pyworker is a GUI application,
+    # and this ensures it will complete even in a headless environment.
+    xvfbrun_exe = find_program('xvfb-run', required: false)
+    if xvfbrun_exe.found()
+        pmd_command = [xvfbrun_exe,
+                      '-a', '-s', '-screen 0 1024x768x24 +extension GLX',
+                      pyworker_exe.full_path(), '--doc', '@OUTPUT0@']
+    else
+        pmd_command = [pyworker_exe, '--doc', '@OUTPUT0@']
+    endif
+
+    # refresh documentation
     pysy_mlink_doc_fname = source_root / 'docs' / 'pysy_mlink_api_embed.html'
     custom_target('pysy-mlink-mkdoc',
         build_by_default: true,
-        command : [pyworker_exe,
-                    '--doc',
-                    '@OUTPUT0@'],
+        command: pmd_command,
         depends: [pyworker_exe, pysy_mlink_mod],
         output: 'pysy_mlink_api_embed.html',
         env: ['LSAN_OPTIONS=suppressions=' +

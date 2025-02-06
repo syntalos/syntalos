@@ -113,7 +113,7 @@ void VTransformListModel::fromVariantHash(const QVariantHash &var)
 
     QVariantList vList;
     for (const auto &v : var.values()) {
-        if (v.type() == QVariant::List)
+        if (v.typeId() == QMetaType::QVariantList)
             vList = v.toList();
     }
     if (vList.isEmpty())

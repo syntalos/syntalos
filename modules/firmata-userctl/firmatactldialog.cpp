@@ -69,7 +69,7 @@ FirmataOutputWidget::FirmataOutputWidget(
     vLine2->setFrameShape(QFrame::VLine);
 
     auto layout = new QHBoxLayout;
-    layout->setMargin(0);
+    layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(2);
 
     layout->addWidget(m_btnRemove);
@@ -203,7 +203,7 @@ FirmataInputWidget::FirmataInputWidget(
     vLine2->setFrameShape(QFrame::VLine);
 
     auto layout = new QHBoxLayout;
-    layout->setMargin(0);
+    layout->setContentsMargins(0, 0, 0, 0);
 
     layout->addWidget(m_btnRemove);
     layout->addWidget(vLine1);

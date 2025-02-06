@@ -66,7 +66,7 @@ const cv::Mat Mono12PackedDecoder::getCvImage() {
 
 QByteArray Mono12PackedDecoder::decoderSpecification() {
     QByteArray b;
-    QDataStream s(&b, QIODevice::WriteOnly);
+    QDataStream s(&b, QIODeviceBase::WriteOnly);
     s << QString("Aravis") << size << pixelFormat() << false;
     return b;
 }

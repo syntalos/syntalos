@@ -155,7 +155,7 @@ public:
 
     QByteArray decoderSpecification() override {
         QByteArray b;
-        QDataStream s(&b, QIODevice::WriteOnly);
+        QDataStream s(&b, QIODeviceBase::WriteOnly);
         s << QString("Aravis") << size << pixelFormat() << false;
         return b;
     }

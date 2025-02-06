@@ -25,15 +25,15 @@ sy_crashreport_ui = [
 
 sy_crashreport_res = ['resources.qrc']
 
-sy_crashreport_moc = qt.preprocess(
-    moc_headers: sy_crashreport_moc_hdr,
-    moc_sources: sy_crashreport_moc_src,
-    ui_files: sy_crashreport_ui,
-    qresources: sy_crashreport_res,
+sy_crashreport_moc = qt.compile_moc(
+    headers: sy_crashreport_moc_hdr,
+    sources: sy_crashreport_moc_src,
     dependencies: [qt_core_dep,
                    qt_gui_dep,
-                   qt_concurrent_dep]
+                   qt_concurrent_dep],
 )
+sy_crashreport_moc += qt.compile_ui(sources: sy_crashreport_ui)
+sy_crashreport_moc += qt.compile_resources(sources: sy_crashreport_res)
 
 executable('syntalos-crashreport',
     [sy_crashreport_hdr, sy_crashreport_moc_hdr,

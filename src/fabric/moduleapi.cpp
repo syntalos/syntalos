@@ -611,7 +611,7 @@ void AbstractModule::finalize()
 void AbstractModule::showDisplayUi()
 {
     const bool onlyOne = d->displayWindows.size() == 1;
-    for (auto const wp : d->displayWindows) {
+    for (auto const &wp : d->displayWindows) {
         if (onlyOne)
             wp.first->setWindowTitle(name());
         wp.first->show();
@@ -621,7 +621,7 @@ void AbstractModule::showDisplayUi()
 
 bool AbstractModule::isDisplayUiVisible()
 {
-    for (auto const wp : d->displayWindows) {
+    for (auto const &wp : d->displayWindows) {
         if (wp.first->isVisible())
             return true;
     }
@@ -631,7 +631,7 @@ bool AbstractModule::isDisplayUiVisible()
 void AbstractModule::showSettingsUi()
 {
     const bool onlyOne = d->settingsWindows.size() == 1;
-    for (auto const wp : d->settingsWindows) {
+    for (auto const &wp : d->settingsWindows) {
         if (onlyOne)
             wp.first->setWindowTitle(QStringLiteral("%1 - Settings").arg(name()));
 
@@ -649,7 +649,7 @@ void AbstractModule::showSettingsUi()
 
 bool AbstractModule::isSettingsUiVisible()
 {
-    for (auto const wp : d->settingsWindows) {
+    for (auto const &wp : d->settingsWindows) {
         if (wp.first->isVisible())
             return true;
     }
@@ -658,13 +658,13 @@ bool AbstractModule::isSettingsUiVisible()
 
 void AbstractModule::hideDisplayUi()
 {
-    for (auto const wp : d->displayWindows)
+    for (auto const &wp : d->displayWindows)
         wp.first->hide();
 }
 
 void AbstractModule::hideSettingsUi()
 {
-    for (auto const wp : d->settingsWindows)
+    for (auto const &wp : d->settingsWindows)
         wp.first->hide();
 }
 

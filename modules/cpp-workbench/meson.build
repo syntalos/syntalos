@@ -14,7 +14,7 @@ module_moc_src = [
 
 module_ui = []
 
-qtermwidget_dep = dependency('qtermwidget5')
+qtermwidget_dep = dependency('qtermwidget6')
 module_deps = [
     kftexteditor_dep,
     qtermwidget_dep,
@@ -24,7 +24,7 @@ module_data = [
     'cpp-workbench.svg',
 ]
 
-module_res = ['cppwbres.qrc']
+module_src += qt.compile_resources(sources: ['cppwbres.qrc'])
 
 #
 # Generic module setup
@@ -32,14 +32,18 @@ module_res = ['cppwbres.qrc']
 module_name = fs.name(meson.current_source_dir()).to_lower().underscorify().replace('_', '-')
 mod_install_dir = join_paths(sy_modules_dir, fs.name(meson.current_source_dir()))
 
-module_moc = qt.preprocess(
-    moc_headers: module_moc_hdr,
-    moc_sources: module_moc_src,
-    ui_files: module_ui,
-    qresources: module_res,
-    dependencies: module_deps,
-    moc_extra_arguments: ['--no-notes'],
-)
+module_moc = []
+if module_moc_hdr.length() != 0 or module_moc_src.length() != 0
+    module_moc += qt.compile_moc(
+        headers: module_moc_hdr,
+        sources: module_moc_src,
+        dependencies: module_deps,
+        extra_args: ['--no-notes'],
+    )
+endif
+if module_ui.length() != 0
+    module_moc += qt.compile_ui(sources: module_ui)
+endif
 mod = shared_module(module_name,
     [module_hdr, module_moc_hdr,
      module_src, module_moc_src,
@@ -74,6 +78,5 @@ module_src = []
 module_moc_hdr = []
 module_moc_src = []
 module_ui = []
-module_res = []
 module_deps = []
 module_args = []

@@ -262,7 +262,7 @@ struct ControlCommand : BaseDataType {
     QByteArray toBytes() const override
     {
         QByteArray bytes;
-        QDataStream stream(&bytes, QIODevice::WriteOnly);
+        QDataStream stream(&bytes, QIODeviceBase::WriteOnly);
 
         stream << kind << (quint64)duration.count() << command;
 
@@ -318,7 +318,7 @@ struct TableRow : BaseDataType {
     QByteArray toBytes() const override
     {
         QByteArray bytes;
-        QDataStream stream(&bytes, QIODevice::WriteOnly);
+        QDataStream stream(&bytes, QIODeviceBase::WriteOnly);
 
         stream << data;
 
@@ -399,7 +399,7 @@ struct FirmataControl : BaseDataType {
     QByteArray toBytes() const override
     {
         QByteArray bytes;
-        QDataStream stream(&bytes, QIODevice::WriteOnly);
+        QDataStream stream(&bytes, QIODeviceBase::WriteOnly);
 
         stream << command << pinId << pinName << isOutput << isPullUp << value;
 
@@ -433,7 +433,7 @@ struct FirmataData : BaseDataType {
     QByteArray toBytes() const override
     {
         QByteArray bytes;
-        QDataStream stream(&bytes, QIODevice::WriteOnly);
+        QDataStream stream(&bytes, QIODeviceBase::WriteOnly);
 
         stream << pinId << pinName << value << isDigital << static_cast<qint64>(time.count());
 
@@ -504,7 +504,7 @@ struct IntSignalBlock : BaseDataType {
     QByteArray toBytes() const override
     {
         QByteArray bytes;
-        QDataStream stream(&bytes, QIODevice::WriteOnly);
+        QDataStream stream(&bytes, QIODeviceBase::WriteOnly);
 
         serializeEigen(stream, timestamps);
         serializeEigen(stream, data);
@@ -569,7 +569,7 @@ struct FloatSignalBlock : BaseDataType {
     QByteArray toBytes() const override
     {
         QByteArray bytes;
-        QDataStream stream(&bytes, QIODevice::WriteOnly);
+        QDataStream stream(&bytes, QIODeviceBase::WriteOnly);
 
         serializeEigen(stream, timestamps);
         serializeEigen(stream, data);

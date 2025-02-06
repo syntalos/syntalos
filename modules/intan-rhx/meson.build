@@ -25,9 +25,7 @@ module_moc_src = [
     'chanexportdialog.cpp',
 ]
 
-module_ui = []
-
-module_res = ['IntanRHX.qrc']
+module_src += qt.compile_resources(sources: ['IntanRHX.qrc'])
 
 # OpenCL kernel
 fs.copyfile(
@@ -59,8 +57,8 @@ endforeach
 #
 # Dependencies
 #
-qt_net_dep = dependency('qt5', modules: ['Network'])
-qt_xml_dep = dependency('qt5', modules: ['Xml'])
+qt_net_dep = dependency('qt6', modules: ['Network'])
+qt_xml_dep = dependency('qt6', modules: ['Xml'])
 
 # We should use find_library() but can't do that currently because
 # of Meson bug #7766:
@@ -148,12 +146,11 @@ module_data = [
 #
 module_name = fs.name(meson.current_source_dir()).to_lower().underscorify().replace('_', '-')
 
-module_moc = qt.preprocess(
-    moc_headers: module_moc_hdr,
-    moc_sources: module_moc_src,
-    ui_files: module_ui,
-    qresources: module_res,
-    moc_extra_arguments: ['--no-notes']
+module_moc = qt.compile_moc(
+    headers: module_moc_hdr,
+    sources: module_moc_src,
+    dependencies: module_deps,
+    extra_args: ['--no-notes'],
 )
 mod = shared_module(module_name,
     [module_hdr, module_moc_hdr,
@@ -191,6 +188,4 @@ module_hdr = []
 module_src = []
 module_moc_hdr = []
 module_moc_src = []
-module_ui = []
-module_res = []
 module_cpp_args = []

@@ -38,7 +38,7 @@ TimingDisplayWidget::TimingDisplayWidget(const QString &title, QWidget *parent)
     m_lblInfo = new QLabel(this);
 
     auto layout = new QGridLayout;
-    layout->setMargin(0);
+    layout->getContentsMargins(0, 0, 0, 0);
 
     layout->addWidget(m_lblTitle, 0, 0, 1, 2);
 

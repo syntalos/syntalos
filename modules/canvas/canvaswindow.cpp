@@ -84,7 +84,7 @@ public:
         setGraphicsEffect(olEffect);
 
         auto mainLayout = new QHBoxLayout(this);
-        mainLayout->setMargin(2);
+        mainLayout->setContentsMargins(2, 2, 2, 2);
         setLayout(mainLayout);
 
         // add toggle button
@@ -98,7 +98,7 @@ public:
         // configure controls container
         m_controls = new QWidget(this);
         auto layout = new QHBoxLayout(m_controls);
-        layout->setMargin(0);
+        layout->setContentsMargins(0, 0, 0, 0);
         layout->setSpacing(4);
 
         m_cbHlSaturation = new QCheckBox("Highlight saturation", m_controls);
@@ -193,7 +193,7 @@ CanvasWindow::CanvasWindow(QWidget *parent)
 
     auto container = new QWidget(this);
     auto clayout = new QHBoxLayout;
-    clayout->setMargin(0);
+    clayout->setContentsMargins(0, 0, 0, 0);
     clayout->setSpacing(0);
     clayout->addWidget(m_statusLabel);
     clayout->addStretch();
@@ -205,7 +205,7 @@ CanvasWindow::CanvasWindow(QWidget *parent)
     splitter->setStretchFactor(1, 8);
 
     auto layout = new QVBoxLayout;
-    layout->setMargin(0);
+    layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
     layout->addWidget(splitter);
     layout->addWidget(container);
@@ -368,7 +368,7 @@ void CanvasWindow::updateHistogram()
     m_histogramWidget->swapHistograms(grayscale);
 }
 
-void CanvasWindow::enterEvent(QEvent *event)
+void CanvasWindow::enterEvent(QEnterEvent *event)
 {
     QWidget::enterEvent(event);
     m_toolsOverlay->show();

@@ -11,6 +11,13 @@ apt-get update -qq
 apt-get install -yq \
     eatmydata curl build-essential gdb gcc g++
 
+. /etc/os-release
+if [ "$ID" = "ubuntu" ]; then
+    extra_deps="libqtermwidget6-2-dev"
+else
+    extra_deps="libqtermwidget-dev"
+fi;
+
 # install build dependencies
 eatmydata apt-get install -yq --no-install-recommends \
     git ca-certificates \
@@ -27,16 +34,14 @@ eatmydata apt-get install -yq --no-install-recommends \
     libglib2.0-dev \
     libgstreamer1.0-dev \
     libgstreamer-plugins-base1.0-dev \
-    libkf5archive-dev \
-    libkf5texteditor-dev \
-    libkf5windowsystem-dev \
-    libqtermwidget5-1-dev \
+    libkf6archive-dev \
+    libkf6texteditor-dev \
+    libkf6dbusaddons-dev \
     libopencv-dev \
     libpipewire-0.3-dev \
-    libqt5opengl5-dev \
+    libqt6opengl6-dev \
     libiceoryx-introspection-dev \
-    libqt5serialport5-dev \
-    libqt5svg5-dev \
+    libqt6svg6-dev \
     libswscale-dev \
     libtomlplusplus-dev \
     libusb-1.0-0-dev \
@@ -51,10 +56,13 @@ eatmydata apt-get install -yq --no-install-recommends \
     pybind11-dev \
     python3-dev \
     python3-numpy \
-    qtbase5-dev \
-    qtmultimedia5-dev \
+    python3-pdoc \
+    qt6-base-dev \
+    qt6-serialport-dev \
+    qt6-multimedia-dev \
     udev \
-    uuid-dev
+    uuid-dev \
+    $extra_deps
 
 # install additional dependencies
 eatmydata apt-get install -yq --no-install-recommends \

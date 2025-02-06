@@ -1492,7 +1492,7 @@ void MainWindow::on_actionUsbDevices_triggered()
     QTextEdit lsusbBox;
     layout.addWidget(&lsusbBox);
     dlg.setLayout(&layout);
-    layout.setMargin(4);
+    layout.setContentsMargins(4, 4, 4, 4);
 
     lsusbBox.setWordWrapMode(QTextOption::NoWrap);
     lsusbBox.setReadOnly(true);
@@ -1500,7 +1500,7 @@ void MainWindow::on_actionUsbDevices_triggered()
 
     QWidget buttonBox;
     QHBoxLayout btnLayout;
-    btnLayout.setMargin(2);
+    btnLayout.setContentsMargins(2, 2, 2, 2);
     buttonBox.setLayout(&btnLayout);
 
     QPushButton btnRefresh("Refresh", &dlg);
@@ -1536,7 +1536,7 @@ void MainWindow::on_actionModuleLoadInfo_triggered()
     QDialog dlg;
     QHBoxLayout layout;
     QTextEdit logBox;
-    layout.setMargin(4);
+    layout.setContentsMargins(4, 4, 4, 4);
     layout.addWidget(&logBox);
     dlg.setLayout(&layout);
     auto logText = m_engine->library()->issueLogHtml();

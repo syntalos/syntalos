@@ -214,7 +214,7 @@ QArvDecoder* QArvDecoder::makeDecoder(QByteArray specification) {
         "Aravis",
         "SwScale",
     };
-    QDataStream s(&specification, QIODevice::ReadOnly);
+    QDataStream s(&specification, QIODeviceBase::ReadOnly);
     QString type;
     QSize size;
     s >> type;

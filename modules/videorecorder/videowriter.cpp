@@ -1067,7 +1067,7 @@ void VideoWriter::initialize(
     d->framesN = 0;
     d->saveTimestamps = saveTimestamps;
     d->currentSliceNo = 1;
-    if (fname.midRef(fname.lastIndexOf('.') + 1).length() == 3)
+    if (QStringView{fname}.mid(fname.lastIndexOf('.') + 1).length() == 3)
         d->fnameBase = fname.left(fname.length() - 4); // remove 3-char suffix from filename
     else
         d->fnameBase = fname;
@@ -1124,7 +1124,7 @@ bool VideoWriter::startNewSection(const QString &fname)
         finalizeInternal(true);
 
         // set new filrname for this section
-        if (fname.midRef(fname.lastIndexOf('.') + 1).length() == 3)
+        if (QStringView{fname}.mid(fname.lastIndexOf('.') + 1).length() == 3)
             d->fnameBase = fname.left(fname.length() - 4); // remove 3-char suffix from filename
         else
             d->fnameBase = fname;

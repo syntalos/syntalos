@@ -26,7 +26,7 @@
 #include <KTextEditor/View>
 #include <KActionCollection>
 #pragma GCC diagnostic pop
-#include <qtermwidget5/qtermwidget.h>
+#include <qtermwidget6/qtermwidget.h>
 #include <QCoreApplication>
 #include <QDesktopServices>
 #include <QDebug>
@@ -81,7 +81,7 @@ public:
         // create main toolbar
         auto toolbar = new QToolBar(m_scriptWindow);
         toolbar->setMovable(false);
-        toolbar->layout()->setMargin(2);
+        toolbar->layout()->setContentsMargins(2, 2, 2, 2);
         m_scriptWindow->resize(720, 800);
         m_portEditAction = toolbar->addAction("Edit Ports");
         setWidgetIconFromResource(m_portEditAction, "edit-ports");
@@ -107,7 +107,7 @@ public:
         splitter->setStretchFactor(1, 5);
         auto scriptLayout = new QVBoxLayout(m_scriptWindow);
         m_scriptWindow->setLayout(scriptLayout);
-        scriptLayout->setMargin(0);
+        scriptLayout->setContentsMargins(0, 0, 0, 0);
         scriptLayout->addWidget(toolbar);
         scriptLayout->addWidget(splitter);
 

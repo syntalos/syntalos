@@ -116,12 +116,12 @@ public:
 
     bool injectSystemPyQtBindings(const QString &venvDir)
     {
-        // the PyQt5/PySide modules must be for the same version as Syntalos was compiled for,
+        // the PyQt6/PySide modules must be for the same version as Syntalos was compiled for,
         // as the pyworker binary is linked against Qt as well (and trying to load a different
         // version will fail)
         // therefore, we add this hack and inject just the system Qt Python bindings into the
         // virtual environment.
-        injectSystemPyModule(venvDir, QStringLiteral("PyQt5"));
+        injectSystemPyModule(venvDir, QStringLiteral("PyQt6"));
         return true;
     }
 
@@ -160,7 +160,7 @@ public:
         QTextStream rqfOut(&tmpReqFile);
         while (!rqfIn.atEnd()) {
             QString line = rqfIn.readLine();
-            if (!line.startsWith("PyQt5"))
+            if (!line.startsWith("PyQt6"))
                 rqfOut << line << "\n";
         }
         tmpReqFile.close();

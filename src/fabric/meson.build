@@ -48,12 +48,12 @@ foreach s : syntalos_fabric_src
     endif
 endforeach
 
-syntalos_fabric_moc = qt.preprocess(
-    moc_headers: syntalos_fabric_h,
-    moc_sources: syntalos_fabric_s,
-    ui_files: syntalos_fabric_ui,
-    moc_extra_arguments: ['--no-notes']
+syntalos_fabric_moc = qt.compile_moc(
+    headers: syntalos_fabric_h,
+    sources: syntalos_fabric_s,
+    extra_args: ['--no-notes']
 )
+syntalos_fabric_moc += qt.compile_ui(sources: syntalos_fabric_ui)
 
 syntalos_fabric_lib = shared_library('syntalos-fabric',
     [syntalos_fabric_src,

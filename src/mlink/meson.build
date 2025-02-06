@@ -14,8 +14,8 @@ sy_mlink_src = [
     'syntaloslinkmodule.cpp',
 ]
 
-sy_mlink_moc = qt.preprocess(
-    moc_headers: [sy_mlink_pub_hdr],
+sy_mlink_moc = qt.compile_moc(
+    headers: [sy_mlink_pub_hdr],
     dependencies: [qt_core_dep],
 )
 
@@ -65,7 +65,7 @@ pkgc.generate(
     filebase: 'syntalos-mlink',
     subdirs: 'syntalos',
     requires: [
-        'Qt5Core',
+        'Qt6Core',
         'syntalos-datactl'
     ]
 )

@@ -40,7 +40,7 @@ MiniscopeSettingsDialog::MiniscopeSettingsDialog(MScope::Miniscope *mscope, QWid
 
     // Set up layout for Miniscope controls
     m_controlsLayout = new QVBoxLayout(ui->gbDeviceCtls);
-    m_controlsLayout->setMargin(2);
+    m_controlsLayout->setContentsMargins(2, 2, 2, 2);
     m_controlsLayout->setSpacing(4);
     ui->gbDeviceCtls->setLayout(m_controlsLayout);
     m_controlsLayout->addStretch();

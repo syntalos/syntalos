@@ -144,7 +144,7 @@ static gboolean bus_callback(GstBus * /*bus*/, GstMessage *message, gpointer use
         // infos concerning the caps that are actually set
         // set infos for users
         if (s.startsWith("Working with src caps:")) {
-            s = s.remove(QRegExp("\\(\\w*\\)"));
+            s = s.remove(QRegularExpression("\\(\\w*\\)"));
             s = s.section(":", 1);
             qCInfo(logTISCam, "%s", str);
         }

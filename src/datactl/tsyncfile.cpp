@@ -222,7 +222,7 @@ bool TimeSyncFileWriter::open(const QString &modName, const QUuid &collectionId,
     csWriteValue<quint16>(TSYNC_FILE_VERSION_MAJOR);
     csWriteValue<quint16>(TSYNC_FILE_VERSION_MINOR);
 
-    csWriteValue<qint64>(currentTime.toTime_t());
+    csWriteValue<qint64>(currentTime.toSecsSinceEpoch());
 
     csWriteValue(modName.toUtf8());
     csWriteValue(collectionId.toString(QUuid::WithoutBraces).toUtf8());

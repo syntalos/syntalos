@@ -118,7 +118,7 @@ struct Frame : BaseDataType {
     QByteArray toBytes() const override
     {
         QByteArray bytes;
-        QDataStream stream(&bytes, QIODevice::WriteOnly);
+        QDataStream stream(&bytes, QIODeviceBase::WriteOnly);
 
         // TODO
 

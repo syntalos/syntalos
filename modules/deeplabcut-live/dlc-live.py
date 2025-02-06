@@ -7,8 +7,8 @@ import syntalos_mlink as syl
 import cv2 as cv
 from dlclive import DLCLive, Processor
 
-from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import (
+from PyQt6.QtGui import QIcon
+from PyQt6.QtWidgets import (
     QWidget,
     QDialog,
     QPushButton,

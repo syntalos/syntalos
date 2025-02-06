@@ -21,13 +21,13 @@ encodehelper_ui = [
     'encodewindow.ui'
 ]
 
-encodehelper_moc = qt.preprocess(
-    moc_headers: encodehelper_hdr,
-    moc_sources: encodehelper_src,
-    ui_files: encodehelper_ui,
-    qresources: ['encodehelper.qrc'],
-    moc_extra_arguments: ['--no-notes']
+encodehelper_moc = qt.compile_moc(
+    headers: encodehelper_hdr,
+    sources: encodehelper_src,
+    extra_args: ['--no-notes'],
 )
+encodehelper_moc += qt.compile_ui(sources: encodehelper_ui)
+encodehelper_moc += qt.compile_resources(sources: ['encodehelper.qrc'])
 
 executable('encodehelper',
     ['main.cpp',

@@ -8,6 +8,7 @@ set -e
 
 echo "C compiler: $CC"
 echo "C++ compiler: $CXX"
+export LANG=C.UTF-8
 
 . /etc/os-release
 maintainer_mode=true

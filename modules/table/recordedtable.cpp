@@ -46,7 +46,7 @@ RecordedTable::RecordedTable(QObject *parent, const QIcon &winIcon)
     m_tableWidget->horizontalHeader()->hide();
 
     auto layout = new QVBoxLayout(m_tableBox);
-    layout->setMargin(2);
+    layout->setContentsMargins(2, 2, 2, 2);
     m_tableBox->setLayout(layout);
     layout->addWidget(m_tableWidget);
 

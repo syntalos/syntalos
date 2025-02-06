@@ -30,12 +30,7 @@ LabrstimClient::LabrstimClient(QObject *parent)
 {
     m_serial = new QSerialPort(this);
 
-    connect(
-        m_serial,
-        static_cast<void (QSerialPort::*)(QSerialPort::SerialPortError)>(&QSerialPort::error),
-        this,
-        &LabrstimClient::handleError,
-        Qt::DirectConnection);
+    connect(m_serial, &QSerialPort::errorOccurred, this, &LabrstimClient::handleError, Qt::DirectConnection);
 
     connect(m_serial, &QSerialPort::readyRead, this, &LabrstimClient::readData);
 

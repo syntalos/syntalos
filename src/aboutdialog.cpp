@@ -112,7 +112,7 @@ void AboutDialog::on_citationButton_clicked()
     connect(buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
 
     QVBoxLayout *layout = new QVBoxLayout();
-    layout->setMargin(4);
+    layout->setContentsMargins(4, 4, 4, 4);
     layout->addWidget(citeBrowser);
     layout->addWidget(buttonBox);
     dialog.setLayout(layout);

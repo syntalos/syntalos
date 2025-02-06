@@ -126,7 +126,7 @@ void EncodeTask::run()
 
         tsyncTimes = tfr.times();
         tsyncTimeUnit = tfr.timeUnits().second;
-        vwriter.setTsyncFileCreationTimeOverride(QDateTime::fromTime_t(tfr.creationTime()));
+        vwriter.setTsyncFileCreationTimeOverride(QDateTime::fromSecsSinceEpoch(tfr.creationTime()));
     }
 
     // start encoding

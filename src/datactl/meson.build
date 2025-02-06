@@ -27,9 +27,9 @@ sy_datactl_inc_dirs = [
     include_directories('./include')
 ]
 
-sy_datactl_moc = qt.preprocess(
-    moc_headers: sy_datactl_pub_hdr,
-    moc_extra_arguments: ['--no-notes']
+sy_datactl_moc = qt.compile_moc(
+    headers: sy_datactl_pub_hdr,
+    extra_args: ['--no-notes']
 )
 
 syntalos_datactl_lib = shared_library('syntalos-datactl',
@@ -72,7 +72,7 @@ pkgc.generate(
     filebase: 'syntalos-datactl',
     subdirs: 'syntalos',
     requires: [
-        'Qt5Core',
+        'Qt6Core',
         'eigen3',
     ]
 )

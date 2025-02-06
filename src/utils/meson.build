@@ -23,10 +23,10 @@ foreach s : syntalos_utils_src
     endif
 endforeach
 
-syntalos_utils_moc = qt.preprocess(
-    moc_headers: syntalos_utils_h,
-    moc_sources: syntalos_utils_s,
-    moc_extra_arguments: ['--no-notes']
+syntalos_utils_moc = qt.compile_moc(
+    headers: syntalos_utils_h,
+    sources: syntalos_utils_s,
+    extra_args: ['--no-notes']
 )
 
 syntalos_utils_lib = shared_library('syntalos-utils',

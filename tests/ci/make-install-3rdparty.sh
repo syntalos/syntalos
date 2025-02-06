@@ -1,6 +1,7 @@
 #!/bin/sh
 set -e
 set -x
+export LANG=C.UTF-8
 
 mkdir -p 3rdparty && cd 3rdparty
 

@@ -33,7 +33,7 @@ QArvDebug::~QArvDebug() {
     auto now = QTime::currentTime().toString("[hh:mm:ss] ");
     foreach (auto line, m_message.split('\n')) {
         if (line.startsWith('"')) {
-            auto lineref = line.midRef(1, line.length() - 3);
+            auto lineref = QStringView{line}.mid(1, line.length() - 3);
             qDebug("%s: %s%s",
                    m_modId.toLocal8Bit().constData(),
                    now.toLocal8Bit().constData(),

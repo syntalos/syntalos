@@ -1,5 +1,5 @@
 project('Syntalos', 'c', 'cpp',
-  meson_version: '>=0.64',
+  meson_version: '>=1.2.2',
   default_options: ['c_std=gnu17',
                     'cpp_std=gnu++20',
                     'b_lto=true'],
@@ -28,7 +28,7 @@ root_include_dir = include_directories('.')
 # Modules
 #
 fs     = import('fs')
-qt     = import('qt5')
+qt     = import('qt6')
 pkgc   = import('pkgconfig')
 python = import('python').find_installation('python3', modules: ['numpy'])
 
@@ -208,15 +208,15 @@ endif
 #
 # Dependencies
 #
-qt_core_dep = dependency('qt5', modules: ['Core'], version: '>= 5.12', include_type: 'system')
-qt_gui_dep = dependency('qt5', modules: ['Gui', 'Widgets'])
-qt_test_dep = dependency('qt5', modules: ['Test'])
-qt_opengl_dep = dependency('qt5', modules: ['OpenGL'])
-qt_svg_dep = dependency('qt5', modules: ['Svg'])
-qt_dbus_dep = dependency('qt5', modules: ['DBus'])
-qt_net_dep = dependency('qt5', modules: ['Network'])
-qt_multimedia_dep = dependency('qt5', modules: ['Multimedia'])
-qt_concurrent_dep = dependency('qt5', modules: ['Concurrent'])
+qt_core_dep = dependency('qt6', modules: ['Core'], version: '>= 6.4.2', include_type: 'system')
+qt_gui_dep = dependency('qt6', modules: ['Gui', 'Widgets'])
+qt_test_dep = dependency('qt6', modules: ['Test'])
+qt_opengl_dep = dependency('qt6', modules: ['OpenGL', 'OpenGLWidgets'])
+qt_svg_dep = dependency('qt6', modules: ['Svg', 'SvgWidgets'])
+qt_dbus_dep = dependency('qt6', modules: ['DBus'])
+qt_net_dep = dependency('qt6', modules: ['Network'])
+qt_multimedia_dep = dependency('qt6', modules: ['Multimedia'])
+qt_concurrent_dep = dependency('qt6', modules: ['Concurrent'])
 
 rt_lib = cpp_compiler.find_library('rt')
 thread_dep = dependency('threads')
@@ -236,10 +236,10 @@ iceoryx_hoofs_dep = dependency('iceoryx_hoofs', version: '>= 2.0.5')
 glib_dep = dependency('glib-2.0', version: '>=2.58')
 gobject_dep = dependency('gobject-2.0', version: '>=2.58')
 
-kfarchive_dep = dependency('KF5Archive')
-kfdbusaddons_dep = dependency('KF5DBusAddons')
-kfconfigwidgets_dep = dependency('KF5ConfigWidgets')
-kftexteditor_dep = dependency('KF5TextEditor')
+kfarchive_dep = dependency('KF6Archive')
+kfdbusaddons_dep = dependency('KF6DBusAddons')
+kfconfigwidgets_dep = dependency('KF6ConfigWidgets')
+kftexteditor_dep = dependency('KF6TextEditor')
 
 pipewire_dep = dependency('libpipewire-0.3', version: '>= 0.3.48')
 

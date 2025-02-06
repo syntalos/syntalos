@@ -120,7 +120,7 @@ const cv::Mat SwScaleDecoder::getCvImage() {
 
 QByteArray SwScaleDecoder::decoderSpecification() {
     QByteArray b;
-    QDataStream s(&b, QIODevice::WriteOnly);
+    QDataStream s(&b, QIODeviceBase::WriteOnly);
     s << QString("SwScale") << size << (qlonglong)outputPixFmt << flags;
     return b;
 }

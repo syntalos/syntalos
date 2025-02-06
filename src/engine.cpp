@@ -1828,7 +1828,7 @@ bool Engine::runInternal(const QString &exportDirPath)
             }
 
             // the thread name shouldn't be longer than 16 chars (inlcuding NULL)
-            td.name = QStringLiteral("%1-%2").arg(mod->id().midRef(0, 12)).arg(i);
+            td.name = QStringLiteral("%1-%2").arg(QStringView{mod->id()}.mid(0, 12)).arg(i);
 
             // We create the dedicated module threads as QThread, as it is a bit more convenient and
             // sometimes efficients for modules to have access to an Qt event loop.

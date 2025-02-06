@@ -139,12 +139,6 @@ public:
 private:
     class Private;
     std::unique_ptr<Private> d;
-#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
-    Q_DISABLE_MOVE(CodecProperties)
-#else
-    CodecProperties(CodecProperties &&) = delete;
-    CodecProperties &operator=(CodecProperties &&) = delete;
-#endif
 };
 
 QMap<QString, QString> findVideoRenderNodes();

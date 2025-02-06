@@ -1,5 +1,5 @@
 project('@EXE_NAME@', 'cpp',
-  meson_version: '>=0.64',
+  meson_version: '>=1.0',
   default_options: [
       'cpp_std=gnu++20',
       'buildtype=debugoptimized',
@@ -11,8 +11,8 @@ project('@EXE_NAME@', 'cpp',
 cpp_compiler = meson.get_compiler('cpp')
 
 # find dependencies
-qt = import('qt5')
-qt_core_dep = dependency('qt5', modules: ['Core'], version: '>= 5.15')
+qt = import('qt6')
+qt_core_dep = dependency('qt6', modules: ['Core'], version: '>= 6.4.2')
 sy_mlink_dep = dependency('syntalos-mlink')
 
 # prevent some common mistakes
@@ -40,9 +40,9 @@ add_project_arguments('-march=native', language: 'cpp')
 # define sources & targets
 wbmod_src = ['main.cpp']
 
-wbmod_moc = qt.preprocess(
-    moc_sources: wbmod_src,
-    moc_extra_arguments: ['--no-notes']
+wbmod_moc = qt.compile_moc(
+    sources: wbmod_src,
+    extra_args: ['--no-notes']
 )
 
 executable('@EXE_NAME@',

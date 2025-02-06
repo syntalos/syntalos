@@ -111,7 +111,7 @@ public:
         // create main toolbar
         auto toolbar = new QToolBar(m_codeWindow);
         toolbar->setMovable(false);
-        toolbar->layout()->setMargin(2);
+        toolbar->layout()->setContentsMargins(2, 2, 2, 2);
         m_codeWindow->resize(800, 920);
         m_testRunAction = toolbar->addAction("Test Run");
         setWidgetIconFromResource(m_testRunAction, "upy-testrun");
@@ -153,7 +153,7 @@ public:
         splitter->setStretchFactor(1, 1);
         auto codeLayout = new QVBoxLayout(m_codeWindow);
         m_codeWindow->setLayout(codeLayout);
-        codeLayout->setMargin(0);
+        codeLayout->setContentsMargins(0, 0, 0, 0);
         codeLayout->addWidget(toolbar);
         codeLayout->addWidget(splitter);
 

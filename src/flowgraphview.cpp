@@ -2186,7 +2186,7 @@ bool FlowGraphView::saveState()
 bool FlowGraphView::restoreState()
 {
     auto varColors = m_settings.value(ColorsGroup).toHash();
-    const QRegExp rx("^0x");
+    const QRegularExpression rx("^0x");
     for (const QString &key : varColors.keys()) {
         const QColor &color = QString(varColors.value(key).toString());
         if (color.isValid()) {

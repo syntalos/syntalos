@@ -71,13 +71,13 @@ foreach s : syntalos_src
     endif
 endforeach
 
-syntalos_moc = qt.preprocess(
-    moc_headers: syntalos_moc_h,
-    moc_sources: syntalos_moc_s,
-    ui_files: syntalos_ui,
-    qresources: syntalos_res,
-    moc_extra_arguments: ['--no-notes']
+syntalos_moc = qt.compile_moc(
+    headers: syntalos_moc_h,
+    sources: syntalos_moc_s,
+    extra_args: ['--no-notes'],
 )
+syntalos_moc += qt.compile_ui(sources: syntalos_ui)
+syntalos_moc += qt.compile_resources(sources: syntalos_res)
 
 syntalos_exe = executable('syntalos',
     [syntalos_src, syntalos_moc, config_h, modconfig_h],

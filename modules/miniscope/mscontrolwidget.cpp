@@ -32,7 +32,7 @@ MSControlWidget::MSControlWidget(const MScope::ControlDefinition &ctlDef, QWidge
     m_controlId = ctlDef.id;
 
     const auto layout = new QVBoxLayout(this);
-    layout->setMargin(2);
+    layout->setContentsMargins(2, 2, 2, 2);
     layout->setSpacing(2);
 
     auto lblTitle = new QLabel(this);
@@ -44,7 +44,7 @@ MSControlWidget::MSControlWidget(const MScope::ControlDefinition &ctlDef, QWidge
         const auto selLayout = new QGridLayout(sc);
         const auto valuesCount = ctlDef.labels.length();
         m_slider = new QSlider(Qt::Horizontal, sc);
-        selLayout->setMargin(0);
+        selLayout->setContentsMargins(0, 0, 0, 0);
         selLayout->setSpacing(2);
 
         m_slider->setRange(ctlDef.valueMin, ctlDef.valueMax);
@@ -68,7 +68,7 @@ MSControlWidget::MSControlWidget(const MScope::ControlDefinition &ctlDef, QWidge
     } else {
         const auto slw = new QWidget(this);
         auto slLayout = new QHBoxLayout(slw);
-        slLayout->setMargin(0);
+        slLayout->setContentsMargins(0, 0, 0, 0);
         slLayout->setSpacing(2);
 
         m_slider = new QSlider(Qt::Horizontal, slw);
