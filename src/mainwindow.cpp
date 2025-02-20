@@ -1600,7 +1600,7 @@ void MainWindow::on_actionReportIssue_triggered()
 
 void MainWindow::on_actionHelpDiscuss_triggered()
 {
-    QDesktopServices::openUrl(QUrl("https://github.com/bothlab/syntalos/discussions", QUrl::TolerantMode));
+    QDesktopServices::openUrl(QUrl("https://github.com/syntalos/syntalos/discussions", QUrl::TolerantMode));
 }
 
 void MainWindow::on_actionOpenCrashCollector_triggered()

@@ -23,4 +23,4 @@ pico_enable_stdio_uart(${TPGEN_TARGET} 0)
 pico_add_extra_outputs(${TPGEN_TARGET})
 
 # metadata
-pico_set_program_url(${TPGEN_TARGET} "https://github.com/bothlab/syntalos/tree/master/contrib/testpulse-generator")
+pico_set_program_url(${TPGEN_TARGET} "https://github.com/syntalos/syntalos/tree/master/contrib/testpulse-generator")

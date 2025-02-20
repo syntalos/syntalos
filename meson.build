@@ -8,7 +8,7 @@ project('Syntalos', 'c', 'cpp',
   version: '2.1.0',
 )
 
-bug_report_url = 'https://github.com/bothlab/syntalos/issues'
+bug_report_url = 'https://github.com/syntalos/syntalos/issues'
 
 cpp_compiler = meson.get_compiler('cpp')
 source_root = meson.project_source_root()

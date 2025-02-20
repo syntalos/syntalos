@@ -87,7 +87,7 @@ SysInfoDialog::SysInfoDialog(SysInfo *sysInfo, QWidget *parent)
         setLabelTextStyle(SysInfoCheckResult::OK, ui->valSyHWSupport);
     } else {
         ui->valSyHWSupport->setText(
-            "<html>missing, can be <a href=\"https://github.com/bothlab/syntalos/releases\">downloaded</a>.");
+            "<html>missing, can be <a href=\"https://github.com/syntalos/syntalos/releases\">downloaded</a>.");
         setLabelTextStyle(SysInfoCheckResult::SUSPICIOUS, ui->valSyHWSupport);
     }
 
