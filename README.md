@@ -19,7 +19,7 @@ Syntalos is built with a set of core principles in mind:
  * Syntalos is Linux-native: It is written to be run on Linux, which enables it to make use of some beneficial Linux-specific functionality
    to increase its robustness or performance (a Windows port is likely possible, but would need extensive testing).
 
-## Users
+## For Users
 
 <a href="https://flathub.org/apps/org.syntalos.syntalos">
 <img src="https://flathub.org/assets/badges/flathub-badge-en.png" width="140"/>
@@ -59,7 +59,7 @@ DOI: https://doi.org/10.1038/s41467-025-56081-9
 
 ----
 
-## Developers
+## For Developers
 
 This section is for everyone who wants to build Syntalos from source, or wants to change its code
 to submit a change, bugfix or new module.
@@ -68,7 +68,7 @@ to submit a change, bugfix or new module.
 
  * C++20 compatible compiler
    (GCC >= 12 or Clang >= 18. GCC is recommended)
- * Meson (>= 0.64)
+ * Meson (>= 1.2.2)
  * Qt6 (>= 6.4)
  * Qt6 Test
  * Qt6 OpenGL
@@ -87,6 +87,8 @@ to submit a change, bugfix or new module.
  * [pybind11](https://github.com/pybind/pybind11)
  * libusb (>= 1.0)
  * ImGui / ImPlot (optional, needed for plotting)
+
+### Quick Build Instructions
 
 We recommend Debian 13 (Trixie) or Ubuntu 24.04 (Noble Numbat) to build & run Syntalos,
 but any Linux distribution that has a recent enough C++ compiler and Qt version
@@ -114,6 +116,8 @@ sudo ninja install
 
 Modules can be enabled and disabled via the `-Dmodules` flag - refer to `meson_options.txt` for a list of possible,
 comma-separated values.
+
+### Contributing
 
 Pull-requests for new modules, bugfixes or any changes are very welcome!
 (Code should be valid C++20, use 4 spaces for indentation. With clang-format installed, `autoformat.py` can be used
