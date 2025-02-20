@@ -28,18 +28,21 @@ Syntalos is built with a set of core principles in mind:
 You can install Syntalos directly [from your App-Center](https://flathub.org/apps/org.syntalos.syntalos)
 if the Flathub repository is set up on your Linux system.
 
-We also provide prebuilt binaries as native packages as well as more detailed installation instructions
+You can find quick instructions to install Syntalos on various Linux distributions
+via our [Quick Install Guide](https://syntalos.org/get/).
+
+We also provide more detailed installation instructions and links to prebuilt packages
 [in the Syntalos documentation](https://syntalos.org/docs/setup/install/).
 The documentation also contains information how to best use Syntalos.
 
 To make Syntalos work for your experimental setup, you can either create new modules and integration code, or
 utilize already existing modules to acquire and transform data without any required coding!
-You can find a list of built-in modules below.
+You can find a list of built-in modules [on our website](https://syntalos.org/docs/modules/).
 
 ### Modules
 
 Syntalos modules are self-contained entities which can perform arbitrary data acquisition, processing and/or storage tasks.
-All modules are supervised and driven by the Syntalos Engine and can communicate with each other using data streams.
+All modules are supervised and driven by the Syntalos engine and can communicate with each other using data streams.
 
 You can find a list of all currently supported modules as well as their documentation [on our website](https://syntalos.org/docs/modules/).
 Be aware that some modules require additional software to run, e.g. camera drivers.
@@ -64,13 +67,13 @@ to submit a change, bugfix or new module.
 ### Dependencies
 
  * C++20 compatible compiler
-   (GCC >= 12 or Clang >= 16. GCC is recommended)
+   (GCC >= 12 or Clang >= 18. GCC is recommended)
  * Meson (>= 0.64)
- * Qt5 (>= 5.12)
- * Qt5 Test
- * Qt5 OpenGL
- * Qt5 SVG
- * Qt5 SerialPort
+ * Qt6 (>= 6.4)
+ * Qt6 Test
+ * Qt6 OpenGL
+ * Qt6 SVG
+ * Qt6 SerialPort
  * GLib (>= 2.58)
  * [Iceoryx](https://github.com/eclipse-iceoryx/iceoryx) (>= 2.0)
  * Eigen3
@@ -88,7 +91,8 @@ to submit a change, bugfix or new module.
 We recommend Debian 13 (Trixie) or Ubuntu 24.04 (Noble Numbat) to build & run Syntalos,
 but any Linux distribution that has a recent enough C++ compiler and Qt version
 should work.
-On Ubuntu, you can get some updated dependencies by adding the Syntalos PPA: `sudo add-apt-repository -y ppa:ximion/syntalos`
+On Ubuntu 24.04, you can get some required updated dependencies via the Syntalos PPA.
+The PPA can be added using this command: `sudo add-apt-repository -y ppa:ximion/syntalos`
 
 Some modules may require additional dependencies on libraries to communicate with hardware devices, or to implement
 their repective features.
