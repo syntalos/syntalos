@@ -104,34 +104,17 @@ module_inc_dirs = [intanrhx_engine_inc_dirs,
 # as possible to the pristine Intan code.
 # FIXME! (but upstream)
 module_cpp_args = [
-    '-Wno-error=suggest-override',
-    '-Wno-suggest-override',
-    '-Wno-non-virtual-dtor',
-
-    '-Wno-error=type-limits', # this shows real errors, but we rather want to fix them upstream @ Intan
-    '-Wno-type-limits',
-
     '-Wno-error=reorder',
     '-Wno-reorder',
 
     '-Wno-error=unused-but-set-variable',
     '-Wno-unused-but-set-variable',
-
-    '-Wno-error=unused-variable',
-    '-Wno-unused-variable',
-
-    '-Wno-error=implicit-fallthrough',
-    '-Wno-implicit-fallthrough',
-
-    '-Wno-error=deprecated-declarations',
-    '-Wno-deprecated-declarations',
-    '-Wno-deprecated-enum-enum-conversion',
 ]
 if get_option('maintainer')
-    module_cpp_args += ['-Wno-error=zero-as-null-pointer-constant',
-                        '-Wno-error=non-virtual-dtor',
-                        '-Wno-error=sequence-point',
-    ]
+    #module_cpp_args += [#'-Wno-error=zero-as-null-pointer-constant',
+                        #'-Wno-error=non-virtual-dtor',
+                        #'-Wno-error=sequence-point',
+    #]
 endif
 
 # target OpenCL 3.0

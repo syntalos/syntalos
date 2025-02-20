@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -181,7 +181,7 @@ DiscreteItemList::DiscreteItemList(const QString &parameterName_, SingleItemList
 
 int DiscreteItemList::addItem(const QString &valueName, const QString &displayedValueName, double numericalValue)
 {
-    vector<QString> valueNames;
+    std::vector<QString> valueNames;
     valueNames.push_back(valueName);
     DiscreteItem item = { valueNames, displayedValueName, numericalValue };
     items.push_back(item);

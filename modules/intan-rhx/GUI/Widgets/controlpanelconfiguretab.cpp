@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -37,13 +37,13 @@
 ControlPanelConfigureTab::ControlPanelConfigureTab(ControllerInterface* controllerInterface_, SystemState* state_,
                                                    CommandParser* parser_, QWidget *parent) :
     QWidget(parent),
+    fastSettleCheckBox(nullptr),
     state(state_),
     parser(parser_),
     controllerInterface(controllerInterface_),
     scanButton(nullptr),
     setCableDelayButton(nullptr),
     digOutButton(nullptr),
-    fastSettleCheckBox(nullptr),
     externalFastSettleCheckBox(nullptr),
     externalFastSettleSpinBox(nullptr),
     note1LineEdit(nullptr),
@@ -355,9 +355,9 @@ void ControlPanelConfigureTab::rescanPorts(bool usePreviousDelay, int selectedPo
 void ControlPanelConfigureTab::manualCableDelayControl()
 {
     const int NumPorts = (int) spiPort.size();
-    vector<int> currentDelays(NumPorts, 0);
+    std::vector<int> currentDelays(NumPorts, 0);
     controllerInterface->getCableDelay(currentDelays);
-    vector<bool> manualDelayEnabled(NumPorts, false);
+    std::vector<bool> manualDelayEnabled(NumPorts, false);
     for (int i = 0; i < (int) manualDelayEnabled.size(); ++i) {
         manualDelayEnabled[i] = spiPort[i]->manualDelayEnabled->getValue();
     }
@@ -416,15 +416,15 @@ void ControlPanelConfigureTab::manualCableDelayControl()
 void ControlPanelConfigureTab::configDigOutControl()
 {
     const int NumPorts = state->numSPIPorts;
-    vector<SignalGroup*> spiPort(NumPorts, nullptr);
+    std::vector<SignalGroup*> spiPort(NumPorts, nullptr);
     for (int i = 0; i < (int) spiPort.size(); ++i) {
         spiPort[i] = state->signalSources->portGroupByIndex(i);
     }
-    vector<bool> auxDigOutEnabled(NumPorts, false);
+    std::vector<bool> auxDigOutEnabled(NumPorts, false);
     for (int i = 0; i < (int) auxDigOutEnabled.size(); ++i) {
         auxDigOutEnabled[i] = spiPort[i]->auxDigOutEnabled->getValue();
     }
-    vector<int> auxDigOutChannel(NumPorts, 0);
+    std::vector<int> auxDigOutChannel(NumPorts, 0);
     for (int i = 0; i < (int) auxDigOutEnabled.size(); ++i) {
         auxDigOutChannel[i] = spiPort[i]->auxDigOutChannel->getValue();
     }

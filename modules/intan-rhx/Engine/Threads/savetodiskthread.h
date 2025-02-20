@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -39,8 +39,6 @@
 #include "signalsources.h"
 #include "rhxdatablock.h"
 #include "savemanager.h"
-
-using namespace std;
 
 class SaveToDiskThread : public QThread
 {
@@ -83,7 +81,7 @@ private:
     volatile bool running;
     volatile bool stopThread;
 
-    vector<float*> boardAdcWaveform;
+    std::vector<float*> boardAdcWaveform;
     uint16_t* boardDigitalInWaveform;
 
     bool digitalTrigger;
@@ -91,7 +89,7 @@ private:
     bool triggerOnHigh;
     float analogTriggerThreshold;
 
-    atomic<int64_t> totalRecordedSamples;
+    std::atomic<int64_t> totalRecordedSamples;
 
     int findTrigger(int numSamples, FindTriggerMode mode);
     void setStatusBarRecording(double bytesPerMinute, const QString& dateTimeStamp, int64_t totalBytesSaved);

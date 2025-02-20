@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -57,6 +57,7 @@ TCPDisplay::TCPDisplay(SystemState* state_, QWidget *parent) :
     spikeOutputHostLineEdit = new QLineEdit(state->tcpSpikeDataCommunicator->address, this);
 
     connect(waveformOutputHostLineEdit, SIGNAL(textEdited(QString)), this, SLOT(waveformOutputHostEdited()));
+    connect(spikeOutputHostLineEdit, SIGNAL(textEdited(QString)), this, SLOT(spikeOutputHostEdited()));
 
     commandsPortSpinBox = new QSpinBox(this);
     commandsPortSpinBox->setRange(0,9999);
@@ -462,7 +463,7 @@ void TCPDisplay::updateDataOutputWidgets()
              state->tcpSpikeDataCommunicator->status == TCPCommunicator::Pending) {
         // If waveform port is disconnected but spike port is pending, report it, red
 
-        dataOutputStatus->setText(tr("Waveform Port Pending, Spike Port Disconnected"));
+        dataOutputStatus->setText(tr("Waveform Port Disconnected, Spike Port Pending"));
         dataOutputStatus->setStyleSheet("QLabel { color : red; }");
         waveformOutputConnectButton->setEnabled(true);
         spikeOutputConnectButton->setEnabled(false);
@@ -674,7 +675,7 @@ void TCPDisplay::updateTables()
 void TCPDisplay::updatePresentChannelsTable()
 {
     // Scan through all channels.
-    vector<string> presentChannelsVector;
+    std::vector<std::string> presentChannelsVector;
     for (int group = 0; group < state->signalSources->numGroups(); ++group) {
         SignalGroup* thisGroup = state->signalSources->groupByIndex(group);
         for (int channel = 0; channel < thisGroup->numChannels(); ++channel) {
@@ -733,7 +734,7 @@ void TCPDisplay::updatePresentChannelsTable()
 void TCPDisplay::updateChannelsToStreamTable()
 {
     // Scan through all channels.
-    vector<string> channelsToStreamVector;
+    std::vector<std::string> channelsToStreamVector;
     for (int group = 0; group < state->signalSources->numGroups(); ++group) {
         SignalGroup* thisGroup = state->signalSources->groupByIndex(group);
         for (int channel = 0; channel < thisGroup->numChannels(); ++channel) {

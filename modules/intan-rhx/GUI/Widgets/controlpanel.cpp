@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -28,9 +28,6 @@
 //
 //------------------------------------------------------------------------------
 
-#include "stimparamdialog.h"
-#include "anoutdialog.h"
-#include "digoutdialog.h"
 #include "controlpanelbandwidthtab.h"
 #include "controlpanelimpedancetab.h"
 #include "controlpanelaudioanalogtab.h"
@@ -183,6 +180,8 @@ QString ControlPanel::currentTabName() const
         qDebug() << "Unrecognized tab widget.";
         return QString();
     }
+
+    return QString();
 }
 
 QHBoxLayout* ControlPanel::createSelectionLayout()
@@ -255,7 +254,7 @@ QHBoxLayout* ControlPanel::createDisplayLayout()
     connect(timeScaleComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(changeTimeScale(int)));
 
     clipWaveformsCheckBox = new QCheckBox(tr("Clip Waves"), this);
-    connect(clipWaveformsCheckBox, SIGNAL(stateChanged(int)), this, SLOT(clipWaveforms(int)));
+    connect(clipWaveformsCheckBox, SIGNAL(checkStateChanged(Qt::CheckState)), this, SLOT(clipWaveforms(Qt::CheckState)));
 
     QVBoxLayout *timeScaleColumn = new QVBoxLayout;
     timeScaleColumn->addWidget(clipWaveformsCheckBox);

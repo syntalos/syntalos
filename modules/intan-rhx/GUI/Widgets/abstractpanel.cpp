@@ -32,10 +32,10 @@ void ColorWidget::setColor(QColor color)
 }
 
 AbstractPanel::AbstractPanel(ControllerInterface* controllerInterface_, SystemState* state_, CommandParser* parser_, ControlWindow *parent) :
-    controlWindow(parent),
-    controllerInterface(controllerInterface_),
     state(state_),
     parser(parser_),
+    controlWindow(parent),
+    controllerInterface(controllerInterface_),
     filterDisplaySelector(nullptr),
     tabWidget(nullptr),
     configureTab(nullptr),
@@ -99,9 +99,9 @@ void AbstractPanel::promptColorChange()
     }
 }
 
-void AbstractPanel::clipWaveforms(int checked)
+void AbstractPanel::clipWaveforms(Qt::CheckState checkState)
 {
-    state->clipWaveforms->setValue(checked != 0);
+    state->clipWaveforms->setValue(checkState != Qt::Unchecked);
 }
 
 void AbstractPanel::changeTimeScale(int index)
@@ -152,7 +152,6 @@ void AbstractPanel::openStimParametersDialog()
             stimParamDialog = nullptr;
         }
         stimParamDialog = new StimParamDialog(state, selectedChannel, this);
-        connect(qApp, SIGNAL(focusChanged(QWidget*, QWidget*)), stimParamDialog, SLOT(notifyFocusChanged(QWidget*, QWidget*)));
 
         if (stimParamDialog->exec() == QDialog::Accepted) {
             state->stimParamsHaveChanged = true;
@@ -165,7 +164,6 @@ void AbstractPanel::openStimParametersDialog()
             digOutDialog = nullptr;
         }
         digOutDialog = new DigOutDialog(state, selectedChannel, this);
-        connect(qApp, SIGNAL(focusChanged(QWidget*, QWidget*)), digOutDialog, SLOT(notifyFocusChanged(QWidget*, QWidget*)));
 
         if (digOutDialog->exec() == QDialog::Accepted){
             state->stimParamsHaveChanged = true;
@@ -178,7 +176,6 @@ void AbstractPanel::openStimParametersDialog()
             anOutDialog = nullptr;
         }
         anOutDialog = new AnOutDialog(state, selectedChannel, this);
-        connect(qApp, SIGNAL(focusChanged(QWidget*, QWidget*)), anOutDialog, SLOT(notifyFocusChanged(QWidget*, QWidget*)));
 
         if (anOutDialog->exec() == QDialog::Accepted) {
             state->stimParamsHaveChanged = true;

@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -30,8 +30,6 @@
 
 #include <iostream>
 #include "rhxdatareader.h"
-
-using namespace std;
 
 RHXDataReader::RHXDataReader(ControllerType type_, int numDataStreams_, const uint16_t* start_, int numSamples_) :
     type(type_),
@@ -208,7 +206,7 @@ void RHXDataReader::readAuxInData(float* buffer, int stream, int auxChannel)
         }
         frames += 4;
         if (frames >= numSamples) {
-            cerr << "RHXDataReader::readAuxInData: ROM value not found!\n";
+            std::cerr << "RHXDataReader::readAuxInData: ROM value not found!\n";
             phaseFound = true;
         }
     }

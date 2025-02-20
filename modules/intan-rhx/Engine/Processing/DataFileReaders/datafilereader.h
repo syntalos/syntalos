@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -36,8 +36,6 @@
 #include "signalsources.h"
 #include "datafilemanager.h"
 
-using namespace std;
-
 class DataFileManager;
 
 enum HeaderFileType {
@@ -69,7 +67,7 @@ struct HeaderFileChannel
     double impedanceMagnitude;
     double impedancePhase;
     int channelNumber() const { return nativeChannelName.section('-', -1).toInt(); }
-    int endingNumber(int numChars = 1) const { return nativeChannelName.right(numChars).toInt(); }
+    int endingNumber(int numChars = 1) const { return QStringView{nativeChannelName}.right(numChars).toInt(); }
 };
 
 
@@ -79,7 +77,7 @@ struct HeaderFileGroup
     QString prefix;
     bool enabled;
     int numAmplifierChannels;
-    vector<HeaderFileChannel> channels;
+    std::vector<HeaderFileChannel> channels;
     int numChannels() const { return (int) channels.size(); }
 };
 
@@ -131,7 +129,7 @@ public:
 
     QString refChannelName;
 
-    vector<HeaderFileGroup> groups;
+    std::vector<HeaderFileGroup> groups;
     int numGroups() const { return (int) groups.size(); }
     int groupIndex(const QString& prefix) const;
     int numChannels() const;

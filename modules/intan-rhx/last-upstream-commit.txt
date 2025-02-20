@@ -9,8 +9,8 @@ to avoid conflicts with the POSIX header of the same name that Syntalos relies o
 
 --------------------
 
-commit 946dea6cff43db041c980122c6532d07d3adfe2c (HEAD -> main, tag: v3.3.2, origin/main, origin/HEAD)
+commit a121e798f34c70ea9b72d70a5a928b2ec3987aed (HEAD -> main, origin/main, origin/HEAD)
 Author: Adrian Foy <afoy@intantech.com>
-Date:   Tue Jul 9 09:50:56 2024 -0700
+Date:   Wed Feb 5 14:21:07 2025 -0800
 
-    Update from 3.3.1 to 3.3.2
+    More complete 3.4.0 release notes

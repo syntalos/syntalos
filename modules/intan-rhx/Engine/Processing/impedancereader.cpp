@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -95,7 +95,7 @@ bool ImpedanceReader::measureImpedances()
 
     // Create a command list for the AuxCmd1 slot.
     RHXRegisters chipRegisters(controllerType, state->sampleRate->getNumericValue(), state->getStimStepSizeEnum());
-    vector<unsigned int> commandList;
+    std::vector<unsigned int> commandList;
 
     int commandSequenceLength = chipRegisters.createCommandListZcheckDac(commandList, state->actualImpedanceFreq->getValue(),
                                                                          128.0);
@@ -143,7 +143,7 @@ bool ImpedanceReader::measureImpedances()
     // Create matrices of doubles of size (numStreams x numChannelsPerStream x 3) to store complex amplitudes
     // of all amplifier channels (32 or 16 on each data stream) at three different Cseries values
     int numChannelsPerStream = RHXDataBlock::channelsPerStream(controllerType);
-    vector<vector<vector<ComplexPolar> > > measuredImpedance;
+    std::vector<std::vector<std::vector<ComplexPolar> > > measuredImpedance;
     measuredImpedance.resize(rhxController->getNumEnabledDataStreams());
     for (int i = 0; i < rhxController->getNumEnabledDataStreams(); ++i) {
         measuredImpedance[i].resize(numChannelsPerStream);
@@ -196,10 +196,13 @@ bool ImpedanceReader::measureImpedances()
 
             chipRegisters.setZcheckChannel(channel);
             if (controllerType == ControllerStimRecord) {
-                commandSequenceLength = chipRegisters.createCommandListRHSRegisterConfig(commandList, false);
+                //commandSequenceLength = chipRegisters.createCommandListRHSRegisterConfig(commandList, false);
+                chipRegisters.createCommandListRHSRegisterConfig(commandList, false);
             } else {
-                commandSequenceLength = chipRegisters.createCommandListRHDRegisterConfig(commandList, false,
-                                                                                         RHXDataBlock::samplesPerDataBlock(controllerType));
+                //commandSequenceLength = chipRegisters.createCommandListRHDRegisterConfig(commandList, false,
+                                                                                         //RHXDataBlock::samplesPerDataBlock(controllerType));
+                chipRegisters.createCommandListRHDRegisterConfig(commandList, false,
+                                                                 RHXDataBlock::samplesPerDataBlock(controllerType));
             }
 
             // Upload version with no ADC calibration to AuxCmd3 RAM bank
@@ -209,7 +212,7 @@ bool ImpedanceReader::measureImpedances()
             while (rhxController->isRunning()) {
                 qApp->processEvents();
             }
-            deque<RHXDataBlock*> dataQueue;
+            std::deque<RHXDataBlock*> dataQueue;
             rhxController->readDataBlocks(numBlocks, dataQueue);
 
             for (int stream = 0; stream < rhxController->getNumEnabledDataStreams(); ++stream) {
@@ -251,9 +254,11 @@ bool ImpedanceReader::measureImpedances()
             // and repeat the previous steps.
             if (rhd2164ChipPresent) {
                 chipRegisters.setZcheckChannel(channel + 32);  // Address channels 32-63.
-                commandSequenceLength =
-                        chipRegisters.createCommandListRHDRegisterConfig(commandList, false,
-                                                                         RHXDataBlock::samplesPerDataBlock(controllerType));
+                //commandSequenceLength =
+                        //chipRegisters.createCommandListRHDRegisterConfig(commandList, false,
+                                                                         //RHXDataBlock::samplesPerDataBlock(controllerType));
+                chipRegisters.createCommandListRHDRegisterConfig(commandList, false,
+                                                                 RHXDataBlock::samplesPerDataBlock(controllerType));
                 // Upload version with no ADC calibration to AuxCmd3 RAM Bank 1.
                 rhxController->uploadCommandList(commandList, AbstractRHXController::AuxCmd3, 3);
 
@@ -438,14 +443,14 @@ ComplexPolar ImpedanceReader::factorOutParallelCapacitance(ComplexPolar impedanc
     return result;
 }
 
-ComplexPolar ImpedanceReader::measureComplexAmplitude(const deque<RHXDataBlock*> &dataQueue, int stream, int chipChannel,
+ComplexPolar ImpedanceReader::measureComplexAmplitude(const std::deque<RHXDataBlock*> &dataQueue, int stream, int chipChannel,
                                                       double sampleRate, double frequency, int numPeriods, QDataStream *outStream) const
 {
     int samplesPerDataBlock = RHXDataBlock::samplesPerDataBlock(state->getControllerTypeEnum());
     int numBlocks = (int) dataQueue.size();
 
     // Copy waveform data from data blocks.
-    vector<double> waveform(samplesPerDataBlock * numBlocks);
+    std::vector<double> waveform(samplesPerDataBlock * numBlocks);
     int index = 0;
     for (int block = 0; block < numBlocks; ++block) {
         for (int t = 0; t < samplesPerDataBlock; ++t) {
@@ -474,7 +479,7 @@ ComplexPolar ImpedanceReader::measureComplexAmplitude(const deque<RHXDataBlock*>
     return amplitudeOfFreqComponent(waveform, startIndex, endIndex, sampleRate, frequency);
 }
 
-void ImpedanceReader::applyNotchFilter(vector<double> &waveform, double fNotch, double bandwidth, double sampleRate) const
+void ImpedanceReader::applyNotchFilter(std::vector<double> &waveform, double fNotch, double bandwidth, double sampleRate) const
 {
     double d = exp(-1.0 * Pi * bandwidth / sampleRate);
     double b = (1.0 + d * d) * cos(TwoPi * fNotch / sampleRate);
@@ -495,7 +500,7 @@ void ImpedanceReader::applyNotchFilter(vector<double> &waveform, double fNotch, 
     }
 }
 
-ComplexPolar ImpedanceReader::amplitudeOfFreqComponent(const vector<double> &waveform, int startIndex, int endIndex,
+ComplexPolar ImpedanceReader::amplitudeOfFreqComponent(const std::vector<double> &waveform, int startIndex, int endIndex,
                                                        double sampleRate, double frequency)
 {
     const double K = TwoPi * frequency / sampleRate;  // precalculate for speed

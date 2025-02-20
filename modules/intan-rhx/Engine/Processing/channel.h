@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -37,8 +37,6 @@
 #include <QString>
 #include <QColor>
 #include "systemstate.h"
-
-using namespace std;
 
 class SignalGroup;
 
@@ -91,7 +89,7 @@ public:
     QString getCustomName() const { return customChannelName->getValueString(); }
     QString getNativeAndCustomNames() const;
     void setCustomName(QString customChannelName_) { customChannelName->setValue(customChannelName_); }
-    string getNativeNameString() const { return nativeChannelName->getValue().toStdString(); }
+    std::string getNativeNameString() const { return nativeChannelName->getValue().toStdString(); }
     QString getGroupName() const;
     bool isStimCapable() const { return stimCapable; }
     bool isStimEnabled() const { return stimParameters ? stimParameters->enabled->getValue() : false; }
@@ -169,17 +167,17 @@ public:
     int getAmplifierIndexFromStreamChannel(int stream, int channel) const;
     void print();
 
-    vector<string> amplifier;
-    vector<bool> stimEnabled;
-    vector<string> auxInput;
-    vector<string> supplyVoltage;
-    vector<string> boardAdc;
-    vector<string> boardDac;
-    vector<string> boardDigitalIn;
-    vector<string> boardDigitalOut;
+    std::vector<std::string> amplifier;
+    std::vector<bool> stimEnabled;
+    std::vector<std::string> auxInput;
+    std::vector<std::string> supplyVoltage;
+    std::vector<std::string> boardAdc;
+    std::vector<std::string> boardDac;
+    std::vector<std::string> boardDigitalIn;
+    std::vector<std::string> boardDigitalOut;
 
 private:
-    map<int, int> amplifierIndices;
+    std::map<int, int> amplifierIndices;
 };
 
 #endif // CHANNEL_H

@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -58,7 +58,7 @@ void TCPDataOutputThread::run()
     while (!stopThread) {
         if (keepGoing) {
             running = true;
-            cout << "TCP setup" << '\n';
+            std::cout << "TCP setup" << '\n';
 
             // Any 'start up' code goes here.
             updateEnabledChannels();
@@ -66,7 +66,7 @@ void TCPDataOutputThread::run()
             while (keepGoing && !stopThread) {
 
                 if (closeRequested) {
-                    this->closeInternal();
+                    closeInternal();
                     closeCompleted = true;
                     break;
                 } else {
@@ -129,7 +129,7 @@ void TCPDataOutputThread::run()
                                 if (thisChannel->getSignalType() == AmplifierSignal) {
 
                                     if (thisChannel->getOutputToTcp()) {
-                                        string waveName = QString(enabledChannelNames[channel] + "|WIDE").toStdString();
+                                        std::string waveName = QString(enabledChannelNames[channel] + "|WIDE").toStdString();
                                         if (!waveformFifo->gpuWaveformPresent(waveName)) continue; // Error happened here - we should flag that there was a problem.
                                         GpuWaveformAddress waveformAddress = waveformFifo->getGpuWaveformAddress(waveName);
                                         if (waveformAddress.waveformIndex < 0) continue; // Error happened here - we should flag that there was a problem.
@@ -139,7 +139,7 @@ void TCPDataOutputThread::run()
                                     }
 
                                     if (thisChannel->getOutputToTcpLow()) {
-                                        string waveName = QString(enabledChannelNames[channel] + "|LOW").toStdString();
+                                        std::string waveName = QString(enabledChannelNames[channel] + "|LOW").toStdString();
                                         if (!waveformFifo->gpuWaveformPresent(waveName)) continue; // Error happened here - we should flag that there was a problem.
                                         GpuWaveformAddress waveformAddress = waveformFifo->getGpuWaveformAddress(waveName);
                                         if (waveformAddress.waveformIndex < 0) continue; // Error happened here - we should flag that there was a problem.
@@ -149,7 +149,7 @@ void TCPDataOutputThread::run()
                                     }
 
                                     if (thisChannel->getOutputToTcpHigh()) {
-                                        string waveName = QString(enabledChannelNames[channel] + "|HIGH").toStdString();
+                                        std::string waveName = QString(enabledChannelNames[channel] + "|HIGH").toStdString();
                                         if (!waveformFifo->gpuWaveformPresent(waveName)) continue; // Error happened here - we should flag that there was a problem.
                                         GpuWaveformAddress waveformAddress = waveformFifo->getGpuWaveformAddress(waveName);
                                         if (waveformAddress.waveformIndex < 0) continue; // Error happened here - we should flag that there was a problem.
@@ -159,7 +159,7 @@ void TCPDataOutputThread::run()
                                     }
 
                                     if (thisChannel->getOutputToTcpSpike()) {
-                                        string waveName = QString(enabledChannelNames[channel] + "|SPK").toStdString();
+                                        std::string waveName = QString(enabledChannelNames[channel] + "|SPK").toStdString();
                                         uint16_t* spikeWaveform = waveformFifo->getDigitalWaveformPointer(waveName);
                                         uint8_t spikeId = (uint8_t) waveformFifo->getDigitalData(WaveformFifo::ReaderTCP, spikeWaveform, i);
                                         if (spikeId != SpikeIdNoSpike) {
@@ -183,7 +183,7 @@ void TCPDataOutputThread::run()
                                     }
 
                                     if (thisChannel->getOutputToTcpDc()) {
-                                        string waveName = QString(enabledChannelNames[channel] + "|DC").toStdString();
+                                        std::string waveName = QString(enabledChannelNames[channel] + "|DC").toStdString();
                                         float *dcWaveform = waveformFifo->getAnalogWaveformPointer(waveName);
                                         float thisSampleFloat = waveformFifo->getAnalogData(WaveformFifo::ReaderTCP, dcWaveform, i);
                                         uint16_t thisSample = round((thisSampleFloat / -0.01923) + 512);
@@ -192,7 +192,7 @@ void TCPDataOutputThread::run()
                                     }
 
                                     if (thisChannel->getOutputToTcpStim()) {
-                                        string waveName = QString(enabledChannelNames[channel] + "|STIM").toStdString();
+                                        std::string waveName = QString(enabledChannelNames[channel] + "|STIM").toStdString();
                                         uint16_t *stimWaveform = waveformFifo->getDigitalWaveformPointer(waveName);
                                         uint16_t thisSampleUSB = waveformFifo->getDigitalData(WaveformFifo::ReaderTCP, stimWaveform, i);
                                         bool stimPolarityNegative = thisSampleUSB & (1 << 8);
@@ -217,7 +217,7 @@ void TCPDataOutputThread::run()
                                     if (thisChannel->getOutputToTcp()) {
                                         // Once every 4 samples, aux input actually gets a sample.
                                         if (i % 4 == 0) {
-                                            string waveName = QString(enabledChannelNames[channel]).toStdString();
+                                            std::string waveName = QString(enabledChannelNames[channel]).toStdString();
                                             float *auxWaveform = waveformFifo->getAnalogWaveformPointer(waveName);
                                             float thisSampleFloat = waveformFifo->getAnalogData(WaveformFifo::ReaderTCP, auxWaveform, i / 4);
                                             uint16_t thisSample = round((thisSampleFloat / 37.4e-6));
@@ -239,7 +239,7 @@ void TCPDataOutputThread::run()
                                     if (thisChannel->getOutputToTcp()) {
                                         // Once every data block, supply voltage actually gets a sample
                                         if (i % FramesPerBlock == 0) {
-                                            string waveName = QString(enabledChannelNames[channel]).toStdString();
+                                            std::string waveName = QString(enabledChannelNames[channel]).toStdString();
                                             float *vddWaveform = waveformFifo->getAnalogWaveformPointer(waveName);
                                             float thisSampleFloat = waveformFifo->getAnalogData(WaveformFifo::ReaderTCP, vddWaveform, i / FramesPerBlock);
                                             uint16_t thisSample = round((thisSampleFloat / 74.8e-6));
@@ -259,7 +259,7 @@ void TCPDataOutputThread::run()
                                 if (thisChannel->getSignalType() == BoardAdcSignal) {
 
                                     if (thisChannel->getOutputToTcp()) {
-                                        string waveName = QString(enabledChannelNames[channel]).toStdString();
+                                        std::string waveName = QString(enabledChannelNames[channel]).toStdString();
                                         float *adcWaveform = waveformFifo->getAnalogWaveformPointer(waveName);
                                         float thisSampleFloat = waveformFifo->getAnalogData(WaveformFifo::ReaderTCP, adcWaveform, i);
                                         uint16_t thisSample;
@@ -277,7 +277,7 @@ void TCPDataOutputThread::run()
                                 if (thisChannel->getSignalType() == BoardDacSignal) {
 
                                     if (thisChannel->getOutputToTcp()) {
-                                        string waveName = QString(enabledChannelNames[channel]).toStdString();
+                                        std::string waveName = QString(enabledChannelNames[channel]).toStdString();
                                         float *dacWaveform = waveformFifo->getAnalogWaveformPointer(waveName);
                                         float thisSampleFloat = waveformFifo->getAnalogData(WaveformFifo::ReaderTCP, dacWaveform, i);
                                         uint16_t thisSample = round(thisSampleFloat * 3200) + 32768;

@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -71,15 +71,15 @@ class CurrentSpinBox : public SmartSpinBox
     Q_OBJECT
 public:
     explicit CurrentSpinBox(double step_, QWidget *parent = nullptr);
-    void setTrueMinimum(double min);
+    void setTrueMinimum(double min) override;
 
 public slots:
-    void loadValue(double val);
-    void roundValue();
+    void loadValue(double val) override;
+    void roundValue() override;
 
 private slots:
-    void scaleUnits(double val);
-    void sendSignalValueMicro(double val);
+    void scaleUnits(double val) override;
+    void sendSignalValueMicro(double val) override;
 };
 
 
@@ -88,15 +88,15 @@ class TimeSpinBox : public SmartSpinBox
     Q_OBJECT
 public:
     explicit TimeSpinBox(double step_, QWidget *parent = nullptr);
-    void setTrueMinimum(double min);
+    void setTrueMinimum(double min) override;
 
 public slots:
-    void loadValue(double val);
-    void roundValue();
+    void loadValue(double val) override;
+    void roundValue() override;
 
 private slots:
-    void scaleUnits(double val);
-    void sendSignalValueMicro(double val);
+    void scaleUnits(double val) override;
+    void sendSignalValueMicro(double val) override;
 };
 
 #endif // SMARTSPINBOX_H

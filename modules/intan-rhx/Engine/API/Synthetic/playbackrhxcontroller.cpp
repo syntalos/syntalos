@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -44,12 +44,12 @@ PlaybackRHXController::~PlaybackRHXController()
 // For a physical board, read data block from the USB interface. Fill given dataBlock from USB buffer.
 bool PlaybackRHXController::readDataBlock(RHXDataBlock *dataBlock)
 {
-    lock_guard<mutex> lockOk(okMutex);
+    std::lock_guard<std::mutex> lockOk(okMutex);
 
     unsigned int numBytesToRead = BytesPerWord * RHXDataBlock::dataBlockSizeInWords(type, numDataStreams);
 
     if (numBytesToRead > usbBufferSize) {
-        cerr << "Error in PlaybackRHXController::readDataBlock: USB buffer size exceeded.  " <<
+        std::cerr << "Error in PlaybackRHXController::readDataBlock: USB buffer size exceeded.  " <<
                 "Increase value of MAX_NUM_BLOCKS.\n";
         return false;
     }
@@ -61,9 +61,9 @@ bool PlaybackRHXController::readDataBlock(RHXDataBlock *dataBlock)
 
 // For a physical board, read a certain number of USB data blocks, and append them to queue.
 // Return true if data blocks were available.
-bool PlaybackRHXController::readDataBlocks(int numBlocks, deque<RHXDataBlock*> &dataQueue)
+bool PlaybackRHXController::readDataBlocks(int numBlocks, std::deque<RHXDataBlock*> &dataQueue)
 {
-    lock_guard<mutex> lockOk(okMutex);
+    std::lock_guard<std::mutex> lockOk(okMutex);
 
     unsigned int numWordsToRead = numBlocks * RHXDataBlock::dataBlockSizeInWords(type, numDataStreams);
 
@@ -73,7 +73,7 @@ bool PlaybackRHXController::readDataBlocks(int numBlocks, deque<RHXDataBlock*> &
     unsigned int numBytesToRead = BytesPerWord * numWordsToRead;
 
     if (numBytesToRead > usbBufferSize) {
-        cerr << "Error in PlaybackRHXController::readDataBlocks: USB buffer size exceeded.  " <<
+        std::cerr << "Error in PlaybackRHXController::readDataBlocks: USB buffer size exceeded.  " <<
                 "Increase value of MAX_NUM_BLOCKS.\n";
         return false;
     }
@@ -91,7 +91,7 @@ bool PlaybackRHXController::readDataBlocks(int numBlocks, deque<RHXDataBlock*> &
 // Return total number of bytes read.
 long PlaybackRHXController::readDataBlocksRaw(int numBlocks, uint8_t *buffer)
 {
-    lock_guard<mutex> lockOk(okMutex);
+    std::lock_guard<std::mutex> lockOk(okMutex);
 
     return dataFileReader->readPlaybackDataBlocksRaw(numBlocks, buffer);
 }
@@ -101,10 +101,10 @@ long PlaybackRHXController::readDataBlocksRaw(int numBlocks, uint8_t *buffer)
 // since cable delay calculations are based on the clock frequency!
 void PlaybackRHXController::setCableDelay(BoardPort port, int delay)
 {
-    lock_guard<mutex> lockOk(okMutex);
+    std::lock_guard<std::mutex> lockOk(okMutex);
 
     if ((delay < 0) || (delay > 15)) {
-        cerr << "Warning in PlaybackRHXController::setCableDelay: delay out of range: " << delay << '\n';
+        std::cerr << "Warning in PlaybackRHXController::setCableDelay: delay out of range: " << delay << '\n';
         if (delay < 0) delay = 0;
         else if (delay > 15) delay = 15;
     }
@@ -135,7 +135,7 @@ void PlaybackRHXController::setCableDelay(BoardPort port, int delay)
         cableDelay[7] = delay;
         break;
     default:
-        cerr << "Error in PlaybackRHXController::setCableDelay: unknown port.\n";
+        std::cerr << "Error in PlaybackRHXController::setCableDelay: unknown port.\n";
     }
 }
 
@@ -146,7 +146,7 @@ void PlaybackRHXController::setDataSource(int stream, BoardDataSource dataSource
     if (type != ControllerRecordUSB2) return;
 
     if ((stream < 0) || (stream > 7)) {
-        cerr << "Error in PlaybackRHXController::setDataSource: stream out of range.\n";
+        std::cerr << "Error in PlaybackRHXController::setDataSource: stream out of range.\n";
         return;
     }
     boardDataSources[stream] = dataSource;
@@ -155,7 +155,7 @@ void PlaybackRHXController::setDataSource(int stream, BoardDataSource dataSource
 // Set the per-channel sampling rate of the RHD/RHS chips connected to the FPGA.
 bool PlaybackRHXController::setSampleRate(AmplifierSampleRate newSampleRate)
 {
-    lock_guard<mutex> lockOk(okMutex);
+    std::lock_guard<std::mutex> lockOk(okMutex);
     sampleRate = newSampleRate;
     return true;
 }
@@ -163,10 +163,10 @@ bool PlaybackRHXController::setSampleRate(AmplifierSampleRate newSampleRate)
 // Enable or disable one of the 32 available USB data streams (0-31).
 void PlaybackRHXController::enableDataStream(int stream, bool enabled)
 {
-    lock_guard<mutex> lockOk(okMutex);
+    std::lock_guard<std::mutex> lockOk(okMutex);
 
     if (stream < 0 || stream > (maxNumDataStreams() - 1)) {
-        cerr << "Error in PlaybackRHXController::enableDataStream: stream out of range.\n";
+        std::cerr << "Error in PlaybackRHXController::enableDataStream: stream out of range.\n";
         return;
     }
 
@@ -186,7 +186,7 @@ void PlaybackRHXController::enableDataStream(int stream, bool enabled)
 // Return 4-bit "board mode" input.
 int PlaybackRHXController::getBoardMode()
 {
-    lock_guard<mutex> lockOk(okMutex);
+    std::lock_guard<std::mutex> lockOk(okMutex);
     return boardMode(type);
 }
 
@@ -198,8 +198,8 @@ int PlaybackRHXController::getNumSPIPorts(bool &expanderBoardDetected)
 }
 
 // Not used in playback mode.
-int PlaybackRHXController::findConnectedChips(vector<ChipType>& /* chipType */, vector<int>& /* portIndex */,
-                                              vector<int>& /* commandStream */, vector<int>& /* numChannelsOnPort */,
+int PlaybackRHXController::findConnectedChips(std::vector<ChipType>& /* chipType */, std::vector<int>& /* portIndex */,
+                                              std::vector<int>& /* commandStream */, std::vector<int>& /* numChannelsOnPort */,
                                               bool /* synthMaxChannels */, bool /* returnToFastSettle */,
                                               bool /* usePreviousDelay */, int /* selectedPort */, int /* lastDetectedChip */,
                                               int /* lastDetectedNumStreams */)

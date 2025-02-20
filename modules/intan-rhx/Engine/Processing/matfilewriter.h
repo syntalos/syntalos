@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -33,8 +33,6 @@
 
 #include <QString>
 #include <vector>
-
-using namespace std;
 
 enum StorageDataType {
     StorageDataTypeInvalid = 0,
@@ -126,7 +124,7 @@ protected:
     bool transpose;
     StorageDataType storageDataType;
     int numNonZeroElements;
-    vector<vector<int32_t> > dataArray;
+    std::vector<std::vector<int32_t> > dataArray;
 
     int sizeOfArrayDataInBytes() const;
 };
@@ -134,7 +132,7 @@ protected:
 class MatFileUInt8SparseArray : public MatFileSparseArray
 {
 public:
-    MatFileUInt8SparseArray(const QString& name_, const vector<vector<uint8_t> >& dataArray_);
+    MatFileUInt8SparseArray(const QString& name_, const std::vector<std::vector<uint8_t> >& dataArray_);
     void writeElement(QDataStream& outStream) override;
 };
 
@@ -172,61 +170,61 @@ private:
 class MatFileUInt8Vector : public MatFileNumericArray
 {
 public:
-    MatFileUInt8Vector(const QString& name_, const vector<uint8_t>& dataVector_, MatlabDataType matlabDataType_ = MatlabDataTypeUInt8);
+    MatFileUInt8Vector(const QString& name_, const std::vector<uint8_t>& dataVector_, MatlabDataType matlabDataType_ = MatlabDataTypeUInt8);
     void writeElement(QDataStream& outStream) override;
 
 private:
-    vector<uint8_t> dataVector;
+    std::vector<uint8_t> dataVector;
 };
 
 class MatFileUInt16Vector : public MatFileNumericArray
 {
 public:
-    MatFileUInt16Vector(const QString& name_, const vector<uint16_t>& dataVector_, MatlabDataType matlabDataType_ = MatlabDataTypeUInt16);
+    MatFileUInt16Vector(const QString& name_, const std::vector<uint16_t>& dataVector_, MatlabDataType matlabDataType_ = MatlabDataTypeUInt16);
     void writeElement(QDataStream& outStream) override;
 
 private:
-    vector<uint16_t> dataVector;
+    std::vector<uint16_t> dataVector;
 };
 
 class MatFileInt16Vector : public MatFileNumericArray
 {
 public:
-    MatFileInt16Vector(const QString& name_, const vector<int16_t>& dataVector_, MatlabDataType matlabDataType_ = MatlabDataTypeInt16);
+    MatFileInt16Vector(const QString& name_, const std::vector<int16_t>& dataVector_, MatlabDataType matlabDataType_ = MatlabDataTypeInt16);
     void writeElement(QDataStream& outStream) override;
 
 private:
-    vector<int16_t> dataVector;
+    std::vector<int16_t> dataVector;
 };
 
 class MatFileInt32Vector : public MatFileNumericArray
 {
 public:
-    MatFileInt32Vector(const QString& name_, const vector<int32_t>& dataVector_, MatlabDataType matlabDataType_ = MatlabDataTypeInt32);
+    MatFileInt32Vector(const QString& name_, const std::vector<int32_t>& dataVector_, MatlabDataType matlabDataType_ = MatlabDataTypeInt32);
     void writeElement(QDataStream& outStream) override;
 
 private:
-    vector<int32_t> dataVector;
+    std::vector<int32_t> dataVector;
 };
 
 class MatFileRealVector : public MatFileNumericArray
 {
 public:
-    MatFileRealVector(const QString& name_, const vector<float> &dataVector_, MatlabDataType matlabDataType_ = MatlabDataTypeDouble);
+    MatFileRealVector(const QString& name_, const std::vector<float> &dataVector_, MatlabDataType matlabDataType_ = MatlabDataTypeDouble);
     void writeElement(QDataStream& outStream) override;
 
 private:
-    vector<float> dataVector;
+    std::vector<float> dataVector;
 };
 
 class MatFileRealArray : public MatFileNumericArray
 {
 public:
-    MatFileRealArray(const QString& name_, const vector<vector<float> >& dataArray_, MatlabDataType matlabDataType_ = MatlabDataTypeDouble);
+    MatFileRealArray(const QString& name_, const std::vector<std::vector<float> >& dataArray_, MatlabDataType matlabDataType_ = MatlabDataTypeDouble);
     void writeElement(QDataStream& outStream) override;
 
 private:
-    vector<vector<float> > dataArray;
+    std::vector<std::vector<float> > dataArray;
 };
 
 
@@ -239,19 +237,19 @@ public:
     int addIntegerScalar(const QString& name_, int64_t dataValue_, MatlabDataType matlabDataType_ = MatlabDataTypeInt32);
     int addRealScalar(const QString& name_, double dataValue_, MatlabDataType matlabDataType_ = MatlabDataTypeDouble);
     int addString(const QString& name_, const QString& text_);
-    int addUInt8Vector(const QString& name_, const vector<uint8_t>& dataVector_, MatlabDataType matlabDataType_ = MatlabDataTypeUInt8);
-    int addUInt16Vector(const QString& name_, const vector<uint16_t>& dataVector_, MatlabDataType matlabDataType_ = MatlabDataTypeUInt16);
-    int addInt16Vector(const QString& name_, const vector<int16_t>& dataVector_, MatlabDataType matlabDataType_ = MatlabDataTypeInt16);
-    int addInt32Vector(const QString& name_, const vector<int32_t>& dataVector_, MatlabDataType matlabDataType_ = MatlabDataTypeInt32);
-    int addRealVector(const QString& name_, const vector<float>& dataVector_, MatlabDataType matlabDataType_ = MatlabDataTypeDouble);
-    int addRealArray(const QString& name_, const vector<vector<float> >& dataArray_, MatlabDataType matlabDataType_ = MatlabDataTypeDouble);
-    int addUInt8SparseArray(const QString& name_, const vector<vector<uint8_t> >& dataArray_);
+    int addUInt8Vector(const QString& name_, const std::vector<uint8_t>& dataVector_, MatlabDataType matlabDataType_ = MatlabDataTypeUInt8);
+    int addUInt16Vector(const QString& name_, const std::vector<uint16_t>& dataVector_, MatlabDataType matlabDataType_ = MatlabDataTypeUInt16);
+    int addInt16Vector(const QString& name_, const std::vector<int16_t>& dataVector_, MatlabDataType matlabDataType_ = MatlabDataTypeInt16);
+    int addInt32Vector(const QString& name_, const std::vector<int32_t>& dataVector_, MatlabDataType matlabDataType_ = MatlabDataTypeInt32);
+    int addRealVector(const QString& name_, const std::vector<float>& dataVector_, MatlabDataType matlabDataType_ = MatlabDataTypeDouble);
+    int addRealArray(const QString& name_, const std::vector<std::vector<float> >& dataArray_, MatlabDataType matlabDataType_ = MatlabDataTypeDouble);
+    int addUInt8SparseArray(const QString& name_, const std::vector<std::vector<uint8_t> >& dataArray_);
     void transposeLastElement();
     void removeAllElements();
     bool writeFile(QString fileName);
 
 private:
-    vector<MatFileElement*> elements;
+    std::vector<MatFileElement*> elements;
 
     int addElement(MatFileElement* element);
     void writeHeader(QDataStream &outStream) const;

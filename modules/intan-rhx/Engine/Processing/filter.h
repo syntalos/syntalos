@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -31,8 +31,6 @@
 #define FILTER_H
 
 #include <vector>
-
-using namespace std;
 
 // Base class for all filters.
 // We use float instead of double for input/output values to reduce storage space in the theory that
@@ -123,10 +121,10 @@ public:
     virtual ~HighOrderFilter();
     float filterOne(float in) override;
     void reset() override;
-    vector<BiquadFilter> getFilters() const;
+    std::vector<BiquadFilter> getFilters() const;
 
 protected:
-    vector<BiquadFilter> filters;
+    std::vector<BiquadFilter> filters;
 };
 
 class NotchFilter : public HighOrderFilter

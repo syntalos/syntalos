@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -41,7 +41,7 @@ DataFile::DataFile(const QString& fileName_) :
     file = new QFile(fileName);
     if (!file->open(QIODevice::ReadOnly)) {
         open = false;
-        cerr << "DataFile: Cannot open file " << fileName.toStdString() << " for reading: " <<
+        std::cerr << "DataFile: Cannot open file " << fileName.toStdString() << " for reading: " <<
                 qPrintable(file->errorString()) << '\n';
     } else {
         open = true;

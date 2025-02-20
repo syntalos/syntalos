@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -194,7 +194,7 @@ void AbstractXPUInterface::calculateLowConstants()
     if (typeString.toLower() == "bessel") filter = new BesselLowpassFilter(order, f, sampleRate);
     else filter = new ButterworthLowpassFilter(order, f, sampleRate);
 
-    vector<BiquadFilter> filters = filter->getFilters();
+    std::vector<BiquadFilter> filters = filter->getFilters();
 
     for (int i = 0; i < (int) filters.size(); ++i) {
         filterParameters.lowParams[i].b0 = filters[i].getB0();
@@ -226,7 +226,7 @@ void AbstractXPUInterface::calculateHighConstants()
     if (typeString.toLower() == "bessel") filter = new BesselHighpassFilter(order, f, sampleRate);
     else filter = new ButterworthHighpassFilter(order, f, sampleRate);
 
-    vector<BiquadFilter> filters = filter->getFilters();
+    std::vector<BiquadFilter> filters = filter->getFilters();
 
     for (int i = 0; i < (int) filters.size(); ++i) {
         filterParameters.highParams[i].b0 = filters[i].getB0();
@@ -248,14 +248,14 @@ void AbstractXPUInterface::calculateHighConstants()
 
 void AbstractXPUInterface::updateFromState()
 {
-    lock_guard<mutex> lockFilter(filterMutex);
+    std::lock_guard<std::mutex> lockFilter(filterMutex);
 
     // If any filter params have changed, recalculate them for notch, low, and high.
     updateFilters();
 
     // If any AmplifierSignal spikeThresholds have changed, update value in 'hoops' to inform XPU
-    vector<string> ampChannelNames = state->signalSources->amplifierChannelsNameList();
-    for (auto name : ampChannelNames) {
+    std::vector<std::string> ampChannelNames = state->signalSources->amplifierChannelsNameList();
+    for (auto &name : ampChannelNames) {
         int channelIndex = state->getSerialIndex(QString::fromStdString(name));
         Channel* thisChannel = state->signalSources->channelByName(QString::fromStdString(name));
         hoops[channelIndex].threshold = thisChannel->getSpikeThreshold();

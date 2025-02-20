@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -401,7 +401,7 @@ void RHXDataBlock::fillFromUsbBuffer(uint8_t* usbBuffer, int blockIndex)
 
     for (int t = 0; t < samplesPerDataBlock(); ++t) {
         if (!checkUsbHeader(usbBuffer, index)) {
-            cerr << "Error in RHXDataBlock::fillFromUsbBuffer: Incorrect header.\n";
+            std::cerr << "Error in RHXDataBlock::fillFromUsbBuffer: Incorrect header.\n";
         }
         index += 8;
         timeStampInternal[t] = convertUsbTimeStamp(usbBuffer, index);
@@ -513,10 +513,10 @@ void RHXDataBlock::print(int stream) const
     if (type != ControllerStimRecord) {
         const int RamOffset = 37;
 
-        cout << endl;
-        cout << "RHD 2000 Data Block contents:" << endl;
-        cout << "  ROM contents:" << endl;
-        cout << "    Chip Name: " <<
+        std::cout << std::endl;
+        std::cout << "RHD 2000 Data Block contents:" << std::endl;
+        std::cout << "  ROM contents:" << std::endl;
+        std::cout << "    Chip Name: " <<
                 (char) auxiliaryData(stream, 2, 24) <<
                 (char) auxiliaryData(stream, 2, 25) <<
                 (char) auxiliaryData(stream, 2, 26) <<
@@ -524,65 +524,65 @@ void RHXDataBlock::print(int stream) const
                 (char) auxiliaryData(stream, 2, 28) <<
                 (char) auxiliaryData(stream, 2, 29) <<
                 (char) auxiliaryData(stream, 2, 30) <<
-                (char) auxiliaryData(stream, 2, 31) << endl;
-        cout << "    Company Name:" <<
+                (char) auxiliaryData(stream, 2, 31) << std::endl;
+        std::cout << "    Company Name:" <<
                 (char) auxiliaryData(stream, 2, 32) <<
                 (char) auxiliaryData(stream, 2, 33) <<
                 (char) auxiliaryData(stream, 2, 34) <<
                 (char) auxiliaryData(stream, 2, 35) <<
-                (char) auxiliaryData(stream, 2, 36) << endl;
-        cout << "    Intan Chip ID: " << auxiliaryData(stream, 2, 19) << endl;
-        cout << "    Number of Amps: " << auxiliaryData(stream, 2, 20) << endl;
-        cout << "    Unipolar/Bipolar Amps: ";
+                (char) auxiliaryData(stream, 2, 36) << std::endl;
+        std::cout << "    Intan Chip ID: " << auxiliaryData(stream, 2, 19) << std::endl;
+        std::cout << "    Number of Amps: " << auxiliaryData(stream, 2, 20) << std::endl;
+        std::cout << "    Unipolar/Bipolar Amps: ";
         switch (auxiliaryData(stream, 2, 21)) {
             case 0:
-                cout << "bipolar";
+                std::cout << "bipolar";
                 break;
             case 1:
-                cout << "unipolar";
+                std::cout << "unipolar";
                 break;
             default:
-                cout << "UNKNOWN";
+                std::cout << "UNKNOWN";
         }
-        cout << endl;
-        cout << "    Die Revision: " << auxiliaryData(stream, 2, 22) << endl;
-        cout << "    Future Expansion Register: " << auxiliaryData(stream, 2, 23) << endl;
+        std::cout << std::endl;
+        std::cout << "    Die Revision: " << auxiliaryData(stream, 2, 22) << std::endl;
+        std::cout << "    Future Expansion Register: " << auxiliaryData(stream, 2, 23) << std::endl;
 
-        cout << "  RAM contents:" << endl;
+        std::cout << "  RAM contents:" << std::endl;
 
-        cout << "    ADC reference BW:      " << ((auxiliaryData(stream, 2, RamOffset + 0) & 0xc0) >> 6) << endl;
-        cout << "    amp fast settle:       " << ((auxiliaryData(stream, 2, RamOffset + 0) & 0x20) >> 5) << endl;
-        cout << "    amp Vref enable:       " << ((auxiliaryData(stream, 2, RamOffset + 0) & 0x10) >> 4) << endl;
-        cout << "    ADC comparator bias:   " << ((auxiliaryData(stream, 2, RamOffset + 0) & 0x0c) >> 2) << endl;
-        cout << "    ADC comparator select: " << ((auxiliaryData(stream, 2, RamOffset + 0) & 0x03) >> 0) << endl;
-        cout << "    VDD sense enable:      " << ((auxiliaryData(stream, 2, RamOffset + 1) & 0x40) >> 6) << endl;
-        cout << "    ADC buffer bias:       " << ((auxiliaryData(stream, 2, RamOffset + 1) & 0x3f) >> 0) << endl;
-        cout << "    MUX bias:              " << ((auxiliaryData(stream, 2, RamOffset + 2) & 0x3f) >> 0) << endl;
-        cout << "    MUX load:              " << ((auxiliaryData(stream, 2, RamOffset + 3) & 0xe0) >> 5) << endl;
-        cout << "    tempS2, tempS1:        " << ((auxiliaryData(stream, 2, RamOffset + 3) & 0x10) >> 4) << "," <<
-                ((auxiliaryData(stream, 2, RamOffset + 3) & 0x08) >> 3) << endl;
-        cout << "    tempen:                " << ((auxiliaryData(stream, 2, RamOffset + 3) & 0x04) >> 2) << endl;
-        cout << "    digout HiZ:            " << ((auxiliaryData(stream, 2, RamOffset + 3) & 0x02) >> 1) << endl;
-        cout << "    digout:                " << ((auxiliaryData(stream, 2, RamOffset + 3) & 0x01) >> 0) << endl;
-        cout << "    weak MISO:             " << ((auxiliaryData(stream, 2, RamOffset + 4) & 0x80) >> 7) << endl;
-        cout << "    twoscomp:              " << ((auxiliaryData(stream, 2, RamOffset + 4) & 0x40) >> 6) << endl;
-        cout << "    absmode:               " << ((auxiliaryData(stream, 2, RamOffset + 4) & 0x20) >> 5) << endl;
-        cout << "    DSPen:                 " << ((auxiliaryData(stream, 2, RamOffset + 4) & 0x10) >> 4) << endl;
-        cout << "    DSP cutoff freq:       " << ((auxiliaryData(stream, 2, RamOffset + 4) & 0x0f) >> 0) << endl;
-        cout << "    Zcheck DAC power:      " << ((auxiliaryData(stream, 2, RamOffset + 5) & 0x40) >> 6) << endl;
-        cout << "    Zcheck load:           " << ((auxiliaryData(stream, 2, RamOffset + 5) & 0x20) >> 5) << endl;
-        cout << "    Zcheck scale:          " << ((auxiliaryData(stream, 2, RamOffset + 5) & 0x18) >> 3) << endl;
-        cout << "    Zcheck conn all:       " << ((auxiliaryData(stream, 2, RamOffset + 5) & 0x04) >> 2) << endl;
-        cout << "    Zcheck sel pol:        " << ((auxiliaryData(stream, 2, RamOffset + 5) & 0x02) >> 1) << endl;
-        cout << "    Zcheck en:             " << ((auxiliaryData(stream, 2, RamOffset + 5) & 0x01) >> 0) << endl;
-        cout << "    Zcheck DAC:            " << ((auxiliaryData(stream, 2, RamOffset + 6) & 0xff) >> 0) << endl;
-        cout << "    Zcheck select:         " << ((auxiliaryData(stream, 2, RamOffset + 7) & 0x3f) >> 0) << endl;
-        cout << "    ADC aux1 en            " << ((auxiliaryData(stream, 2, RamOffset + 9) & 0x80) >> 7) << endl;
-        cout << "    ADC aux2 en            " << ((auxiliaryData(stream, 2, RamOffset + 11) & 0x80) >> 7) << endl;
-        cout << "    ADC aux3 en            " << ((auxiliaryData(stream, 2, RamOffset + 13) & 0x80) >> 7) << endl;
-        cout << "    offchip RH1:           " << ((auxiliaryData(stream, 2, RamOffset + 8) & 0x80) >> 7) << endl;
-        cout << "    offchip RH2:           " << ((auxiliaryData(stream, 2, RamOffset + 10) & 0x80) >> 7) << endl;
-        cout << "    offchip RL:            " << ((auxiliaryData(stream, 2, RamOffset + 12) & 0x80) >> 7) << endl;
+        std::cout << "    ADC reference BW:      " << ((auxiliaryData(stream, 2, RamOffset + 0) & 0xc0) >> 6) << std::endl;
+        std::cout << "    amp fast settle:       " << ((auxiliaryData(stream, 2, RamOffset + 0) & 0x20) >> 5) << std::endl;
+        std::cout << "    amp Vref enable:       " << ((auxiliaryData(stream, 2, RamOffset + 0) & 0x10) >> 4) << std::endl;
+        std::cout << "    ADC comparator bias:   " << ((auxiliaryData(stream, 2, RamOffset + 0) & 0x0c) >> 2) << std::endl;
+        std::cout << "    ADC comparator select: " << ((auxiliaryData(stream, 2, RamOffset + 0) & 0x03) >> 0) << std::endl;
+        std::cout << "    VDD sense enable:      " << ((auxiliaryData(stream, 2, RamOffset + 1) & 0x40) >> 6) << std::endl;
+        std::cout << "    ADC buffer bias:       " << ((auxiliaryData(stream, 2, RamOffset + 1) & 0x3f) >> 0) << std::endl;
+        std::cout << "    MUX bias:              " << ((auxiliaryData(stream, 2, RamOffset + 2) & 0x3f) >> 0) << std::endl;
+        std::cout << "    MUX load:              " << ((auxiliaryData(stream, 2, RamOffset + 3) & 0xe0) >> 5) << std::endl;
+        std::cout << "    tempS2, tempS1:        " << ((auxiliaryData(stream, 2, RamOffset + 3) & 0x10) >> 4) << "," <<
+                ((auxiliaryData(stream, 2, RamOffset + 3) & 0x08) >> 3) << std::endl;
+        std::cout << "    tempen:                " << ((auxiliaryData(stream, 2, RamOffset + 3) & 0x04) >> 2) << std::endl;
+        std::cout << "    digout HiZ:            " << ((auxiliaryData(stream, 2, RamOffset + 3) & 0x02) >> 1) << std::endl;
+        std::cout << "    digout:                " << ((auxiliaryData(stream, 2, RamOffset + 3) & 0x01) >> 0) << std::endl;
+        std::cout << "    weak MISO:             " << ((auxiliaryData(stream, 2, RamOffset + 4) & 0x80) >> 7) << std::endl;
+        std::cout << "    twoscomp:              " << ((auxiliaryData(stream, 2, RamOffset + 4) & 0x40) >> 6) << std::endl;
+        std::cout << "    absmode:               " << ((auxiliaryData(stream, 2, RamOffset + 4) & 0x20) >> 5) << std::endl;
+        std::cout << "    DSPen:                 " << ((auxiliaryData(stream, 2, RamOffset + 4) & 0x10) >> 4) << std::endl;
+        std::cout << "    DSP cutoff freq:       " << ((auxiliaryData(stream, 2, RamOffset + 4) & 0x0f) >> 0) << std::endl;
+        std::cout << "    Zcheck DAC power:      " << ((auxiliaryData(stream, 2, RamOffset + 5) & 0x40) >> 6) << std::endl;
+        std::cout << "    Zcheck load:           " << ((auxiliaryData(stream, 2, RamOffset + 5) & 0x20) >> 5) << std::endl;
+        std::cout << "    Zcheck scale:          " << ((auxiliaryData(stream, 2, RamOffset + 5) & 0x18) >> 3) << std::endl;
+        std::cout << "    Zcheck conn all:       " << ((auxiliaryData(stream, 2, RamOffset + 5) & 0x04) >> 2) << std::endl;
+        std::cout << "    Zcheck sel pol:        " << ((auxiliaryData(stream, 2, RamOffset + 5) & 0x02) >> 1) << std::endl;
+        std::cout << "    Zcheck en:             " << ((auxiliaryData(stream, 2, RamOffset + 5) & 0x01) >> 0) << std::endl;
+        std::cout << "    Zcheck DAC:            " << ((auxiliaryData(stream, 2, RamOffset + 6) & 0xff) >> 0) << std::endl;
+        std::cout << "    Zcheck select:         " << ((auxiliaryData(stream, 2, RamOffset + 7) & 0x3f) >> 0) << std::endl;
+        std::cout << "    ADC aux1 en            " << ((auxiliaryData(stream, 2, RamOffset + 9) & 0x80) >> 7) << std::endl;
+        std::cout << "    ADC aux2 en            " << ((auxiliaryData(stream, 2, RamOffset + 11) & 0x80) >> 7) << std::endl;
+        std::cout << "    ADC aux3 en            " << ((auxiliaryData(stream, 2, RamOffset + 13) & 0x80) >> 7) << std::endl;
+        std::cout << "    offchip RH1:           " << ((auxiliaryData(stream, 2, RamOffset + 8) & 0x80) >> 7) << std::endl;
+        std::cout << "    offchip RH2:           " << ((auxiliaryData(stream, 2, RamOffset + 10) & 0x80) >> 7) << std::endl;
+        std::cout << "    offchip RL:            " << ((auxiliaryData(stream, 2, RamOffset + 12) & 0x80) >> 7) << std::endl;
 
         int rH1Dac1 = auxiliaryData(stream, 2, RamOffset + 8) & 0x3f;
         int rH1Dac2 = auxiliaryData(stream, 2, RamOffset + 9) & 0x1f;
@@ -596,16 +596,16 @@ void RHXDataBlock::print(int stream) const
         double rH2 = 8200.0 + rH2Dac2 * 38400.0 + rH2Dac1 * 730.0;
         double rL = 3300.0 + rLDac3 * 3000000.0 + rLDac2 * 15400.0 + rLDac1 * 190.0;
 
-        cout << fixed << setprecision(2);
+        std::cout << std::fixed << std::setprecision(2);
 
-        cout << "    RH1 DAC1, DAC2:        " << rH1Dac1 << " " << rH1Dac2 << " = " << (rH1 / 1000) <<
-                " kOhm" << endl;
-        cout << "    RH2 DAC1, DAC2:        " << rH2Dac1 << " " << rH2Dac2 << " = " << (rH2 / 1000) <<
-                " kOhm" << endl;
-        cout << "    RL DAC1, DAC2, DAC3:   " << rLDac1 << " " << rLDac2 << " " << rLDac3 << " = " <<
-                (rL / 1000) << " kOhm" << endl;
+        std::cout << "    RH1 DAC1, DAC2:        " << rH1Dac1 << " " << rH1Dac2 << " = " << (rH1 / 1000) <<
+                " kOhm" << std::endl;
+        std::cout << "    RH2 DAC1, DAC2:        " << rH2Dac1 << " " << rH2Dac2 << " = " << (rH2 / 1000) <<
+                " kOhm" <<std::endl;
+        std::cout << "    RL DAC1, DAC2, DAC3:   " << rLDac1 << " " << rLDac2 << " " << rLDac3 << " = " <<
+                (rL / 1000) << " kOhm" << std::endl;
 
-        cout << "    amp power[31:0]:       " <<
+        std::cout << "    amp power[31:0]:       " <<
                ((auxiliaryData(stream, 2, RamOffset + 17) & 0x80) >> 7) <<
                ((auxiliaryData(stream, 2, RamOffset + 17) & 0x40) >> 6) <<
                ((auxiliaryData(stream, 2, RamOffset + 17) & 0x20) >> 5) <<
@@ -637,13 +637,13 @@ void RHXDataBlock::print(int stream) const
                ((auxiliaryData(stream, 2, RamOffset + 14) & 0x08) >> 3) <<
                ((auxiliaryData(stream, 2, RamOffset + 14) & 0x04) >> 2) <<
                ((auxiliaryData(stream, 2, RamOffset + 14) & 0x02) >> 1) <<
-               ((auxiliaryData(stream, 2, RamOffset + 14) & 0x01) >> 0) << endl;
+               ((auxiliaryData(stream, 2, RamOffset + 14) & 0x01) >> 0) << std::endl;
 
-        cout << endl;
+        std::cout << std::endl;
 
-        cout << setprecision(6);
-        cout.unsetf(ios::floatfield);
-        cout << endl;
+        std::cout << std::setprecision(6);
+        std::cout.unsetf(std::ios::floatfield);
+        std::cout << std::endl;
     }
 
     else {
@@ -651,45 +651,45 @@ void RHXDataBlock::print(int stream) const
         const int RamOffset = 62; // 61
         const int auxSlot = 0;
 
-//        cout << endl;
-//        cout << "Raw RHS 2000 Data Block contents:" << endl;
+//        std::cout << std::endl;
+//        std::cout << "Raw RHS 2000 Data Block contents:" << std::endl;
 //        for (int i = 0; i < 128; i++) {
-//            cout << "  Data position " << i << ": " << auxiliaryData(stream, auxSlot, i) << endl;
+//            std::cout << "  Data position " << i << ": " << auxiliaryData(stream, auxSlot, i) << std::endl;
 //        }
 
-        cout << endl;
-        cout << "RHS 2000 Data Block contents:" << endl;
-        cout << "  ROM contents:" << endl;
-        cout << "    Company Name:          " <<
+        std::cout << std::endl;
+        std::cout << "RHS 2000 Data Block contents:" << std::endl;
+        std::cout << "  ROM contents:" << std::endl;
+        std::cout << "    Company Name:          " <<
             (char)((auxiliaryData(stream, auxSlot, RomOffset + 4) & 0xff00) >> 8) <<
             (char)((auxiliaryData(stream, auxSlot, RomOffset + 4) & 0x00ff) >> 0) <<
             (char)((auxiliaryData(stream, auxSlot, RomOffset + 3) & 0xff00) >> 8) <<
             (char)((auxiliaryData(stream, auxSlot, RomOffset + 3) & 0x00ff) >> 0) <<
             (char)((auxiliaryData(stream, auxSlot, RomOffset + 2) & 0xff00) >> 8) <<
-            (char)((auxiliaryData(stream, auxSlot, RomOffset + 2) & 0x00ff) >> 0) << endl;
-        cout << "    Intan Chip ID:         " << auxiliaryData(stream, auxSlot, RomOffset + 0) << endl;
-        cout << "    Number of Amps:        " << (auxiliaryData(stream, auxSlot, RomOffset + 1) & 0x00ff) << endl;
-        cout << "    Die Revision:          " << ((auxiliaryData(stream, auxSlot, RomOffset + 1) & 0xff00) >> 8) << endl;
+            (char)((auxiliaryData(stream, auxSlot, RomOffset + 2) & 0x00ff) >> 0) << std::endl;
+        std::cout << "    Intan Chip ID:         " << auxiliaryData(stream, auxSlot, RomOffset + 0) << std::endl;
+        std::cout << "    Number of Amps:        " << (auxiliaryData(stream, auxSlot, RomOffset + 1) & 0x00ff) << std::endl;
+        std::cout << "    Die Revision:          " << ((auxiliaryData(stream, auxSlot, RomOffset + 1) & 0xff00) >> 8) << std::endl;
 
-        cout << "  RAM contents:" << endl;
-        cout << "    ADC buffer bias:       " << ((auxiliaryData(stream, auxSlot, RamOffset + 0) & 0x0fc0) >> 6) << endl;
-        cout << "    MUX bias:              " << ((auxiliaryData(stream, auxSlot, RamOffset + 0) & 0x003f) >> 0) << endl;
-        cout << "    digoutOD:              " << ((auxiliaryData(stream, auxSlot, RamOffset + 1) & 0x1000) >> 12) << endl;
-        cout << "    digout2:               " << ((auxiliaryData(stream, auxSlot, RamOffset + 1) & 0x0800) >> 11) << endl;
-        cout << "    digout2 HiZ:           " << ((auxiliaryData(stream, auxSlot, RamOffset + 1) & 0x0400) >> 10) << endl;
-        cout << "    digout1:               " << ((auxiliaryData(stream, auxSlot, RamOffset + 1) & 0x0200) >> 9) << endl;
-        cout << "    digout1 HiZ:           " << ((auxiliaryData(stream, auxSlot, RamOffset + 1) & 0x0100) >> 8) << endl;
-        cout << "    weak MISO:             " << ((auxiliaryData(stream, auxSlot, RamOffset + 1) & 0x0080) >> 7) << endl;
-        cout << "    twoscomp:              " << ((auxiliaryData(stream, auxSlot, RamOffset + 1) & 0x0040) >> 6) << endl;
-        cout << "    absmode:               " << ((auxiliaryData(stream, auxSlot, RamOffset + 1) & 0x0020) >> 5) << endl;
-        cout << "    DSPen:                 " << ((auxiliaryData(stream, auxSlot, RamOffset + 1) & 0x0010) >> 4) << endl;
-        cout << "    DSP cutoff freq:       " << ((auxiliaryData(stream, auxSlot, RamOffset + 1) & 0x000f) >> 0) << endl;
-        cout << "    Zcheck select:         " << ((auxiliaryData(stream, auxSlot, RamOffset + 2) & 0x3f00) >> 8) << endl;
-        cout << "    Zcheck DAC power:      " << ((auxiliaryData(stream, auxSlot, RamOffset + 2) & 0x0040) >> 6) << endl;
-        cout << "    Zcheck load:           " << ((auxiliaryData(stream, auxSlot, RamOffset + 2) & 0x0020) >> 5) << endl;
-        cout << "    Zcheck scale:          " << ((auxiliaryData(stream, auxSlot, RamOffset + 2) & 0x0018) >> 3) << endl;
-        cout << "    Zcheck en:             " << ((auxiliaryData(stream, auxSlot, RamOffset + 2) & 0x0001) >> 0) << endl;
-        cout << "    Zcheck DAC:            " << ((auxiliaryData(stream, auxSlot, RamOffset + 3) & 0x00ff) >> 0) << endl;
+        std::cout << "  RAM contents:" << std::endl;
+        std::cout << "    ADC buffer bias:       " << ((auxiliaryData(stream, auxSlot, RamOffset + 0) & 0x0fc0) >> 6) << std::endl;
+        std::cout << "    MUX bias:              " << ((auxiliaryData(stream, auxSlot, RamOffset + 0) & 0x003f) >> 0) << std::endl;
+        std::cout << "    digoutOD:              " << ((auxiliaryData(stream, auxSlot, RamOffset + 1) & 0x1000) >> 12) << std::endl;
+        std::cout << "    digout2:               " << ((auxiliaryData(stream, auxSlot, RamOffset + 1) & 0x0800) >> 11) << std::endl;
+        std::cout << "    digout2 HiZ:           " << ((auxiliaryData(stream, auxSlot, RamOffset + 1) & 0x0400) >> 10) << std::endl;
+        std::cout << "    digout1:               " << ((auxiliaryData(stream, auxSlot, RamOffset + 1) & 0x0200) >> 9) << std::endl;
+        std::cout << "    digout1 HiZ:           " << ((auxiliaryData(stream, auxSlot, RamOffset + 1) & 0x0100) >> 8) << std::endl;
+        std::cout << "    weak MISO:             " << ((auxiliaryData(stream, auxSlot, RamOffset + 1) & 0x0080) >> 7) << std::endl;
+        std::cout << "    twoscomp:              " << ((auxiliaryData(stream, auxSlot, RamOffset + 1) & 0x0040) >> 6) << std::endl;
+        std::cout << "    absmode:               " << ((auxiliaryData(stream, auxSlot, RamOffset + 1) & 0x0020) >> 5) << std::endl;
+        std::cout << "    DSPen:                 " << ((auxiliaryData(stream, auxSlot, RamOffset + 1) & 0x0010) >> 4) << std::endl;
+        std::cout << "    DSP cutoff freq:       " << ((auxiliaryData(stream, auxSlot, RamOffset + 1) & 0x000f) >> 0) << std::endl;
+        std::cout << "    Zcheck select:         " << ((auxiliaryData(stream, auxSlot, RamOffset + 2) & 0x3f00) >> 8) << std::endl;
+        std::cout << "    Zcheck DAC power:      " << ((auxiliaryData(stream, auxSlot, RamOffset + 2) & 0x0040) >> 6) << std::endl;
+        std::cout << "    Zcheck load:           " << ((auxiliaryData(stream, auxSlot, RamOffset + 2) & 0x0020) >> 5) << std::endl;
+        std::cout << "    Zcheck scale:          " << ((auxiliaryData(stream, auxSlot, RamOffset + 2) & 0x0018) >> 3) << std::endl;
+        std::cout << "    Zcheck en:             " << ((auxiliaryData(stream, auxSlot, RamOffset + 2) & 0x0001) >> 0) << std::endl;
+        std::cout << "    Zcheck DAC:            " << ((auxiliaryData(stream, auxSlot, RamOffset + 3) & 0x00ff) >> 0) << std::endl;
 
         int rH1Dac1 = (auxiliaryData(stream, auxSlot, RamOffset + 4) & 0x003f) >> 0;
         int rH1Dac2 = (auxiliaryData(stream, auxSlot, RamOffset + 4) & 0x07c0) >> 6;
@@ -707,18 +707,18 @@ void RHXDataBlock::print(int stream) const
         double rLA = 3300.0 + rLDac3A * 3000000.0 + rLDac2A * 15400.0 + rLDac1A * 190.0;
         double rLB = 3300.0 + rLDac3B * 3000000.0 + rLDac2B * 15400.0 + rLDac1B * 190.0;
 
-        cout << fixed << setprecision(2);
+        std::cout << std::fixed << std::setprecision(2);
 
-        cout << "    RH1 DAC1, DAC2:        " << rH1Dac1 << " " << rH1Dac2 << " = " << (rH1 / 1000) <<
-            " kOhm" << endl;
-        cout << "    RH2 DAC1, DAC2:        " << rH2Dac1 << " " << rH2Dac2 << " = " << (rH2 / 1000) <<
-            " kOhm" << endl;
-        cout << "    RL_A DAC1, DAC2, DAC3: " << rLDac1A << " " << rLDac2A << " " << rLDac3A << " = " <<
-            (rLA / 1000) << " kOhm" << endl;
-        cout << "    RL_B DAC1, DAC2, DAC3: " << rLDac1B << " " << rLDac2B << " " << rLDac3B << " = " <<
-            (rLB / 1000) << " kOhm" << endl;
+        std::cout << "    RH1 DAC1, DAC2:        " << rH1Dac1 << " " << rH1Dac2 << " = " << (rH1 / 1000) <<
+            " kOhm" << std::endl;
+        std::cout << "    RH2 DAC1, DAC2:        " << rH2Dac1 << " " << rH2Dac2 << " = " << (rH2 / 1000) <<
+            " kOhm" << std::endl;
+        std::cout << "    RL_A DAC1, DAC2, DAC3: " << rLDac1A << " " << rLDac2A << " " << rLDac3A << " = " <<
+            (rLA / 1000) << " kOhm" << std::endl;
+        std::cout << "    RL_B DAC1, DAC2, DAC3: " << rLDac1B << " " << rLDac2B << " " << rLDac3B << " = " <<
+            (rLB / 1000) << " kOhm" << std::endl;
 
-        cout << "    amp power[15:0]:       " <<
+        std::cout << "    amp power[15:0]:       " <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 8) & 0x8000) >> 15) <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 8) & 0x4000) >> 14) <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 8) & 0x2000) >> 13) <<
@@ -734,9 +734,9 @@ void RHXDataBlock::print(int stream) const
             ((auxiliaryData(stream, auxSlot, RamOffset + 8) & 0x0008) >> 3) <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 8) & 0x0004) >> 2) <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 8) & 0x0002) >> 1) <<
-            ((auxiliaryData(stream, auxSlot, RamOffset + 8) & 0x0001) >> 0) << endl;
+            ((auxiliaryData(stream, auxSlot, RamOffset + 8) & 0x0001) >> 0) << std::endl;
 
-        cout << "    amp fast settle[15:0]: " <<
+        std::cout << "    amp fast settle[15:0]: " <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 9) & 0x8000) >> 15) <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 9) & 0x4000) >> 14) <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 9) & 0x2000) >> 13) <<
@@ -752,9 +752,9 @@ void RHXDataBlock::print(int stream) const
             ((auxiliaryData(stream, auxSlot, RamOffset + 9) & 0x0008) >> 3) <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 9) & 0x0004) >> 2) <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 9) & 0x0002) >> 1) <<
-            ((auxiliaryData(stream, auxSlot, RamOffset + 9) & 0x0001) >> 0) << endl;
+            ((auxiliaryData(stream, auxSlot, RamOffset + 9) & 0x0001) >> 0) << std::endl;
 
-        cout << "    amp fL select[15:0]:   " <<
+        std::cout << "    amp fL select[15:0]:   " <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 10) & 0x8000) >> 15) <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 10) & 0x4000) >> 14) <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 10) & 0x2000) >> 13) <<
@@ -770,21 +770,21 @@ void RHXDataBlock::print(int stream) const
             ((auxiliaryData(stream, auxSlot, RamOffset + 10) & 0x0008) >> 3) <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 10) & 0x0004) >> 2) <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 10) & 0x0002) >> 1) <<
-            ((auxiliaryData(stream, auxSlot, RamOffset + 10) & 0x0001) >> 0) << endl;
+            ((auxiliaryData(stream, auxSlot, RamOffset + 10) & 0x0001) >> 0) << std::endl;
 
-        cout << "    stim enable A (43690): " << ((auxiliaryData(stream, auxSlot, RamOffset + 11) & 0xffff) >> 0) << endl;
-        cout << "    stim enable B (255):   " << ((auxiliaryData(stream, auxSlot, RamOffset + 12) & 0xffff) >> 0) << endl;
-        cout << "    stim step size 1,2,3:  " << ((auxiliaryData(stream, auxSlot, RamOffset + 13) & 0x007f) >> 0) << " " <<
+        std::cout << "    stim enable A (43690): " << ((auxiliaryData(stream, auxSlot, RamOffset + 11) & 0xffff) >> 0) << std::endl;
+        std::cout << "    stim enable B (255):   " << ((auxiliaryData(stream, auxSlot, RamOffset + 12) & 0xffff) >> 0) << std::endl;
+        std::cout << "    stim step size 1,2,3:  " << ((auxiliaryData(stream, auxSlot, RamOffset + 13) & 0x007f) >> 0) << " " <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 13) & 0x1f80) >> 7) << " " <<
-            ((auxiliaryData(stream, auxSlot, RamOffset + 13) & 0x6000) >> 13) << endl;
-        cout << "    stim Pbias:            " << ((auxiliaryData(stream, auxSlot, RamOffset + 14) & 0x00f0) >> 4) << endl;
-        cout << "    stim Nbias:            " << ((auxiliaryData(stream, auxSlot, RamOffset + 14) & 0x000f) >> 0) << endl;
-        cout << "    charge recovery DAC:   " << ((auxiliaryData(stream, auxSlot, RamOffset + 15) & 0x00ff) >> 0) << endl;
-        cout << "    current limit 1,2,3:   " << ((auxiliaryData(stream, auxSlot, RamOffset + 16) & 0x007f) >> 0) << " " <<
+            ((auxiliaryData(stream, auxSlot, RamOffset + 13) & 0x6000) >> 13) << std::endl;
+        std::cout << "    stim Pbias:            " << ((auxiliaryData(stream, auxSlot, RamOffset + 14) & 0x00f0) >> 4) << std::endl;
+        std::cout << "    stim Nbias:            " << ((auxiliaryData(stream, auxSlot, RamOffset + 14) & 0x000f) >> 0) << std::endl;
+        std::cout << "    charge recovery DAC:   " << ((auxiliaryData(stream, auxSlot, RamOffset + 15) & 0x00ff) >> 0) << std::endl;
+        std::cout << "    current limit 1,2,3:   " << ((auxiliaryData(stream, auxSlot, RamOffset + 16) & 0x007f) >> 0) << " " <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 16) & 0x1f80) >> 7) << " " <<
-            ((auxiliaryData(stream, auxSlot, RamOffset + 16) & 0x6000) >> 13) << endl;
+            ((auxiliaryData(stream, auxSlot, RamOffset + 16) & 0x6000) >> 13) << std::endl;
 
-        cout << "    DC amp power[15:0]:    " <<
+        std::cout << "    DC amp power[15:0]:    " <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 17) & 0x8000) >> 15) <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 17) & 0x4000) >> 14) <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 17) & 0x2000) >> 13) <<
@@ -800,9 +800,9 @@ void RHXDataBlock::print(int stream) const
             ((auxiliaryData(stream, auxSlot, RamOffset + 17) & 0x0008) >> 3) <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 17) & 0x0004) >> 2) <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 17) & 0x0002) >> 1) <<
-            ((auxiliaryData(stream, auxSlot, RamOffset + 17) & 0x0001) >> 0) << endl;
+            ((auxiliaryData(stream, auxSlot, RamOffset + 17) & 0x0001) >> 0) << std::endl;
 
-        cout << "    compliance mon[15:0]:  " <<
+        std::cout << "    compliance mon[15:0]:  " <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 18) & 0x8000) >> 15) <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 18) & 0x4000) >> 14) <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 18) & 0x2000) >> 13) <<
@@ -818,9 +818,9 @@ void RHXDataBlock::print(int stream) const
             ((auxiliaryData(stream, auxSlot, RamOffset + 18) & 0x0008) >> 3) <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 18) & 0x0004) >> 2) <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 18) & 0x0002) >> 1) <<
-            ((auxiliaryData(stream, auxSlot, RamOffset + 18) & 0x0001) >> 0) << endl;
+            ((auxiliaryData(stream, auxSlot, RamOffset + 18) & 0x0001) >> 0) << std::endl;
 
-        cout << "    stim on[15:0]:         " <<
+        std::cout << "    stim on[15:0]:         " <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 19) & 0x8000) >> 15) <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 19) & 0x4000) >> 14) <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 19) & 0x2000) >> 13) <<
@@ -836,9 +836,9 @@ void RHXDataBlock::print(int stream) const
             ((auxiliaryData(stream, auxSlot, RamOffset + 19) & 0x0008) >> 3) <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 19) & 0x0004) >> 2) <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 19) & 0x0002) >> 1) <<
-            ((auxiliaryData(stream, auxSlot, RamOffset + 19) & 0x0001) >> 0) << endl;
+            ((auxiliaryData(stream, auxSlot, RamOffset + 19) & 0x0001) >> 0) << std::endl;
 
-        cout << "    stim pol[15:0]:        " <<
+        std::cout << "    stim pol[15:0]:        " <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 20) & 0x8000) >> 15) <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 20) & 0x4000) >> 14) <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 20) & 0x2000) >> 13) <<
@@ -854,9 +854,9 @@ void RHXDataBlock::print(int stream) const
             ((auxiliaryData(stream, auxSlot, RamOffset + 20) & 0x0008) >> 3) <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 20) & 0x0004) >> 2) <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 20) & 0x0002) >> 1) <<
-            ((auxiliaryData(stream, auxSlot, RamOffset + 20) & 0x0001) >> 0) << endl;
+            ((auxiliaryData(stream, auxSlot, RamOffset + 20) & 0x0001) >> 0) << std::endl;
 
-        cout << "    charge recov sw[15:0]: " <<
+        std::cout << "    charge recov sw[15:0]: " <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 21) & 0x8000) >> 15) <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 21) & 0x4000) >> 14) <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 21) & 0x2000) >> 13) <<
@@ -872,9 +872,9 @@ void RHXDataBlock::print(int stream) const
             ((auxiliaryData(stream, auxSlot, RamOffset + 21) & 0x0008) >> 3) <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 21) & 0x0004) >> 2) <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 21) & 0x0002) >> 1) <<
-            ((auxiliaryData(stream, auxSlot, RamOffset + 21) & 0x0001) >> 0) << endl;
+            ((auxiliaryData(stream, auxSlot, RamOffset + 21) & 0x0001) >> 0) << std::endl;
 
-        cout << "    CL recov en[15:0]:     " <<
+        std::cout << "    CL recov en[15:0]:     " <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 22) & 0x8000) >> 15) <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 22) & 0x4000) >> 14) <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 22) & 0x2000) >> 13) <<
@@ -890,28 +890,28 @@ void RHXDataBlock::print(int stream) const
             ((auxiliaryData(stream, auxSlot, RamOffset + 22) & 0x0008) >> 3) <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 22) & 0x0004) >> 2) <<
             ((auxiliaryData(stream, auxSlot, RamOffset + 22) & 0x0002) >> 1) <<
-            ((auxiliaryData(stream, auxSlot, RamOffset + 22) & 0x0001) >> 0) << endl;
+            ((auxiliaryData(stream, auxSlot, RamOffset + 22) & 0x0001) >> 0) << std::endl;
 
-        cout << "    fault current detect:  " << ((auxiliaryData(stream, auxSlot, RamOffset + 23) & 0xffff) >> 0) << endl;
+        std::cout << "    fault current detect:  " << ((auxiliaryData(stream, auxSlot, RamOffset + 23) & 0xffff) >> 0) << std::endl;
 
         for (int channel = 0; channel < 16; channel++) {
-            cout << "    stim magnitude/trim neg/pos[" << channel << "]: " <<
+            std::cout << "    stim magnitude/trim neg/pos[" << channel << "]: " <<
                 ((auxiliaryData(stream, auxSlot, RamOffset + 24 + channel) & 0x00ff) >> 0) << " " <<
                 ((auxiliaryData(stream, auxSlot, RamOffset + 24 + channel) & 0xff00) >> 8) << "   " <<
                 ((auxiliaryData(stream, auxSlot, RamOffset + 40 + channel) & 0x00ff) >> 0) << " " <<
-                ((auxiliaryData(stream, auxSlot, RamOffset + 40 + channel) & 0xff00) >> 8) << " " << endl;
+                ((auxiliaryData(stream, auxSlot, RamOffset + 40 + channel) & 0xff00) >> 8) << " " << std::endl;
         }
 
-        cout << endl;
+        std::cout << std::endl;
 
-        cout << setprecision(6);
-        cout.unsetf(ios::floatfield);
-        cout << endl;
+        std::cout << std::setprecision(6);
+        std::cout.unsetf(std::ios::floatfield);
+        std::cout << std::endl;
     }
 }
 
 // Write contents of data block to a binary output stream (saveOut) in little endian format.
-void RHXDataBlock::write(ofstream &saveOut, int numDataStreams) const
+void RHXDataBlock::write(std::ofstream &saveOut, int numDataStreams) const
 {
     int t, channel, stream, i;
 
@@ -965,7 +965,7 @@ void RHXDataBlock::write(ofstream &saveOut, int numDataStreams) const
 // the processor running the operating system.
 //
 // (See "Endianness" article in Wikipedia for more information.)
-void RHXDataBlock::writeWordLittleEndian(ofstream &outputStream, int dataWord) const
+void RHXDataBlock::writeWordLittleEndian(std::ofstream &outputStream, int dataWord) const
 {
     unsigned short msb, lsb;
 

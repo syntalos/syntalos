@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -36,12 +36,9 @@
 #include <map>
 #include <vector>
 #include <mutex>
-#include "rhxglobals.h"
 #include "rhx-semaphore.h"
 #include "minmax.h"
 #include "signalsources.h"
-
-using namespace std;
 
 // Multi-waveform FIFO implemented as a circular buffer.  Additional buffer space is allocated
 // beyond the end of the buffer to permit continuous writes to the buffer up to a specified
@@ -76,7 +73,7 @@ const uint8_t SpikeIdLikelyArtifact = 0x80u;
 class WaveformFifo
 {
 public:
-    enum Reader {
+    enum Reader : uint {
         ReaderDisplay = 0,
         ReaderDisk,
         ReaderAudio,
@@ -152,7 +149,7 @@ public:
     inline float getAnalogData(Reader reader, const float* waveform, int timeIndex) const  // Call many times to read all data.
     {
         if (timeIndex >= numWordsToBeRead[reader] || timeIndex < -numWordsInMemory(reader)) {
-            cerr << "Error: WaveformFifo::getAnalogData: timeIndex " << timeIndex << " out of range.\n";
+            std::cerr << "Error: WaveformFifo::getAnalogData: timeIndex " << timeIndex << " out of range.\n";
             return 0.0F;
         }
 
@@ -168,7 +165,7 @@ public:
     inline uint16_t getDigitalData(Reader reader, const uint16_t* waveform, int timeIndex) const  // Call many times to read all data.
     {
         if (timeIndex >= numWordsToBeRead[reader] || timeIndex < -numWordsInMemory(reader)) {
-            cerr << "Error: WaveformFifo::getDigitalData: timeIndex " << timeIndex << " out of range.\n";
+            std::cerr << "Error: WaveformFifo::getDigitalData: timeIndex " << timeIndex << " out of range.\n";
             return 0;
         }
 
@@ -184,7 +181,7 @@ public:
     inline uint16_t getAnalogDataAsDigital(Reader reader, const float* waveform, int timeIndex, float threshold) const
     {
         if (timeIndex >= numWordsToBeRead[reader] || timeIndex < -numWordsInMemory(reader)) {
-            cerr << "Error: WaveformFifo::getAnalogDataAsDigital: timeIndex " << timeIndex << " out of range.\n";
+            std::cerr << "Error: WaveformFifo::getAnalogDataAsDigital: timeIndex " << timeIndex << " out of range.\n";
             return 0;
         }
 
@@ -197,7 +194,7 @@ public:
     inline uint32_t getTimeStamp(Reader reader, int timeIndex) const
     {
         if (timeIndex >= numWordsToBeRead[reader] || timeIndex < -numWordsInMemory(reader)) {
-            cerr << "Error: WaveformFifo::getTimeStamp: timeIndex " << timeIndex << " out of range.\n";
+            std::cerr << "Error: WaveformFifo::getTimeStamp: timeIndex " << timeIndex << " out of range.\n";
             return 0;
         }
 
@@ -214,12 +211,12 @@ public:
     void copyGpuAmplifierData(Reader reader, float* dest, GpuWaveformAddress waveformAddress, int timeIndex, int numSamples) const;
     void copyGpuAmplifierDataRaw(Reader reader, uint16_t* dest, GpuWaveformAddress waveformAddress, int timeIndex,
                                  int numSamples, int downsampleFactor = 1) const;
-    void copyGpuAmplifierDataArrayRaw(Reader reader, uint16_t* dest, const vector<GpuWaveformAddress>& waveformAddresses,
+    void copyGpuAmplifierDataArrayRaw(Reader reader, uint16_t* dest, const std::vector<GpuWaveformAddress>& waveformAddresses,
                                       int timeIndex, int numSamples, int downsampleFactor = 1) const;
     void copyAnalogData(Reader reader, float* dest, const float* waveform, int timeIndex, int numSamples) const;
-    void copyAnalogDataArray(Reader reader, float* dest, const vector<float*>& waveforms, int timeIndex, int numSamples) const;
+    void copyAnalogDataArray(Reader reader, float* dest, const std::vector<float*>& waveforms, int timeIndex, int numSamples) const;
     void copyDigitalData(Reader reader, uint16_t* dest, const uint16_t* waveform, int timeIndex, int numSamples) const;
-    void copyDigitalDataArray(Reader reader, uint16_t* dest, const vector<uint16_t*>& waveforms, int timeIndex, int numSamples) const;
+    void copyDigitalDataArray(Reader reader, uint16_t* dest, const std::vector<uint16_t*>& waveforms, int timeIndex, int numSamples) const;
     void copyTimeStamps(Reader reader, uint32_t* dest, int timeIndex, int numSamples) const;
 
     MinMax<float> getMinMaxData(Reader reader, const float* waveform, int timeIndex, int numSamples) const;
@@ -237,10 +234,10 @@ public:
     void resetBuffer();
     void pauseBuffer();
 
-    float* getAnalogWaveformPointer(const string& waveName) const;
-    uint16_t* getDigitalWaveformPointer(const string& waveName) const;
-    GpuWaveformAddress getGpuWaveformAddress(const string& waveName) const;
-    bool gpuWaveformPresent(const string& waveName) const;
+    float* getAnalogWaveformPointer(const std::string& waveName) const;
+    uint16_t* getDigitalWaveformPointer(const std::string& waveName) const;
+    GpuWaveformAddress getGpuWaveformAddress(const std::string& waveName) const;
+    bool gpuWaveformPresent(const std::string& waveName) const;
 
     void updateForRescan();
 
@@ -248,7 +245,7 @@ public:
 
 private:
     SystemState *state;
-    mutex mtx;
+    std::mutex mtx;
     SignalSources *signalSources;
     int numAmplifierChannels;
     int maxSpikesPerDataBlock;
@@ -267,30 +264,30 @@ private:
     uint8_t* gpuSpikeIds;
 
     // Buffers for amplifier waveforms (with stream and channel indexing)
-    vector<float*> amplifierWidebandBuffer;
-    vector<float*> amplifierLfpBandBuffer;
-    vector<float*> amplifierSpikeBandBuffer;
+    std::vector<float*> amplifierWidebandBuffer;
+    std::vector<float*> amplifierLfpBandBuffer;
+    std::vector<float*> amplifierSpikeBandBuffer;
 
     // Buffers for spike detection  (same stream and channel indexing as above)
-    vector<uint16_t*> amplifierSpikeBuffer;
+    std::vector<uint16_t*> amplifierSpikeBuffer;
 
     // Buffers for stimulation-related waveforms (same stream and channel indexing as above)
-    vector<float*> dcAmplifierBuffer;
-    vector<uint16_t*> stimFlagsBuffer;
+    std::vector<float*> dcAmplifierBuffer;
+    std::vector<uint16_t*> stimFlagsBuffer;
 
     // Buffers for auxiliary inputs on chips (e.g., accelerometers) (with stream and channel indexing)
-    vector<float*> auxInputBuffer;
+    std::vector<float*> auxInputBuffer;
 
     // Buffers for supply voltages on chips (with stream and channel indexing)
-    vector<float*> supplyVoltageBuffer;
+    std::vector<float*> supplyVoltageBuffer;
 
     // Buffers for controller-based analog and digital inputs and outputs (implicit indexing)
-    vector<float*> boardDacBuffer;
-    vector<float*> boardAdcBuffer;
-    vector<float*> boardDigInBuffer;            // individual digital in channels (using float for easy plotting)
-    vector<float*> boardDigOutBuffer;           // individual digital out channels (using float for easy plotting)
-    vector<uint16_t*> boardDigInWordBuffer;     // all 16 digital in channels saved as uint16 word (for quick saving)
-    vector<uint16_t*> boardDigOutWordBuffer;    // all 16 digital out channels saved as uint16 word (for quick saving)
+    std::vector<float*> boardDacBuffer;
+    std::vector<float*> boardAdcBuffer;
+    std::vector<float*> boardDigInBuffer;            // individual digital in channels (using float for easy plotting)
+    std::vector<float*> boardDigOutBuffer;           // individual digital out channels (using float for easy plotting)
+    std::vector<uint16_t*> boardDigInWordBuffer;     // all 16 digital in channels saved as uint16 word (for quick saving)
+    std::vector<uint16_t*> boardDigOutWordBuffer;    // all 16 digital out channels saved as uint16 word (for quick saving)
 
     int bufferSizeInDataBlocks;
     int memorySizeInDataBlocks;
@@ -304,20 +301,20 @@ private:
     Semaphore freeWords;
     Semaphore* usedWordsNewData;
     int bufferWriteIndex;
-    vector<int> bufferReadIndex;
-    vector<int> bufferMemoryIndex;
+    std::vector<int> bufferReadIndex;
+    std::vector<int> bufferMemoryIndex;
     int numWordsToBeWritten;
-    vector<int> numWordsToBeRead;
+    std::vector<int> numWordsToBeRead;
 
-    map<string, float*> analogWaveformIndices;
-    map<string, uint16_t*> digitalWaveformIndices;
-    map<string, GpuWaveformAddress> gpuWaveformAddresses;
+    std::map<std::string, float*> analogWaveformIndices;
+    std::map<std::string, uint16_t*> digitalWaveformIndices;
+    std::map<std::string, GpuWaveformAddress> gpuWaveformAddresses;
 
     bool memoryAllocated;
     double memoryNeededGB;
 
-    void allocateAnalogBuffer(vector<float*> &bufferArray, const string& waveName);
-    void allocateDigitalBuffer(vector<uint16_t*> &bufferArray, const string& waveName);
+    void allocateAnalogBuffer(std::vector<float*> &bufferArray, const std::string& waveName);
+    void allocateDigitalBuffer(std::vector<uint16_t*> &bufferArray, const std::string& waveName);
     void allocateMemory();
     void freeMemory();
 };

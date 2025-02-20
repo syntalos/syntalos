@@ -55,7 +55,7 @@ public slots:
 
 protected slots:
     void promptColorChange();
-    void clipWaveforms(int checked);
+    void clipWaveforms(Qt::CheckState checkState);
     void changeTimeScale(int index);
     void changeWideScale(int index);
     void changeLowScale(int index);

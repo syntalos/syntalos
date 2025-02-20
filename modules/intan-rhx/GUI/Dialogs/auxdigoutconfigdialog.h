@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -34,8 +34,6 @@
 #include <vector>
 #include <QDialog>
 
-using namespace std;
-
 class QCheckBox;
 class QComboBox;
 class QDialogButtonBox;
@@ -44,7 +42,7 @@ class AuxDigOutConfigDialog : public QDialog
 {
     Q_OBJECT
 public:
-    explicit AuxDigOutConfigDialog(vector<bool> &auxOutEnabledIn, vector<int> &auxOutChannelIn, int numPorts,
+    explicit AuxDigOutConfigDialog(std::vector<bool> &auxOutEnabledIn, std::vector<int> &auxOutChannelIn, int numPorts,
                                    QWidget *parent = nullptr);
 
     bool enabled(int port);
@@ -69,8 +67,8 @@ private slots:
     void channelPortHChanged(int channel);
 
 private:
-    vector<bool> auxOutEnabled;
-    vector<int> auxOutChannel;
+    std::vector<bool> auxOutEnabled;
+    std::vector<int> auxOutChannel;
 
     QCheckBox *enablePortACheckBox;
     QCheckBox *enablePortBCheckBox;

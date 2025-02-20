@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -50,7 +50,7 @@ SimpleBandwidthDialog::SimpleBandwidthDialog(double lowerBandwidth, double upper
     lowRangeLabel = new QLabel(tr("Lower Bandwidth Range: 0.1 Hz to 500 Hz."), this);
     highRangeLabel = new QLabel(tr("Upper Bandwidth Range: 100 Hz to 20 kHz."), this);
 
-    string sampleRateString =
+    std::string sampleRateString =
             AbstractRHXController::getSampleRateString(AbstractRHXController::nearestSampleRate(sampleRate));
     nyquistWarningLabel = new QLabel(tr("Warning: Nyquist frequency violation (sample rate = ") +
                                      QString::fromStdString(sampleRateString) + ")", this);
@@ -62,7 +62,7 @@ SimpleBandwidthDialog::SimpleBandwidthDialog(double lowerBandwidth, double upper
     lowFreqValidator->setNotation(QDoubleValidator::StandardNotation);
     lowFreqValidator->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));  // Ensure '.' is used as decimal point, not ','
     lowFreqLineEdit->setValidator(lowFreqValidator);
-    connect(lowFreqLineEdit, SIGNAL(textChanged(const QString &)), this, SLOT(onLineEditTextChanged()));
+    connect(lowFreqLineEdit, SIGNAL(textChanged(QString)), this, SLOT(onLineEditTextChanged()));
 
     highFreqLineEdit = new QLineEdit(QString::number(upperBandwidth, 'f', 0), this);
     highFreqLineEdit->setFixedWidth(highFreqLineEdit->fontMetrics().horizontalAdvance("20000.00"));
@@ -70,7 +70,7 @@ SimpleBandwidthDialog::SimpleBandwidthDialog(double lowerBandwidth, double upper
     highFreqValidator->setNotation(QDoubleValidator::StandardNotation);
     highFreqValidator->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));  // Ensure '.' is used as decimal point, not ','
     highFreqLineEdit->setValidator(highFreqValidator);
-    connect(highFreqLineEdit, SIGNAL(textChanged(const QString &)), this, SLOT(onLineEditTextChanged()));
+    connect(highFreqLineEdit, SIGNAL(textChanged(QString)), this, SLOT(onLineEditTextChanged()));
 
     lowFreqSelectLayout->addWidget(new QLabel(tr("Amplifier Lower Bandwidth"), this));
     lowFreqSelectLayout->addWidget(lowFreqLineEdit);
@@ -168,7 +168,7 @@ AdvancedBandwidthDialog::AdvancedBandwidthDialog(double lowerBandwidth, double u
     lowRangeLabel = new QLabel(tr("Valid Range: 0.1 Hz to 500 Hz."), this);
     highRangeLabel = new QLabel(tr("Valid Range: 100 Hz to 20 kHz."), this);
 
-    string sampleRateString =
+    std::string sampleRateString =
             AbstractRHXController::getSampleRateString(AbstractRHXController::nearestSampleRate(sampleRate));
     nyquistWarningLabel = new QLabel(tr("Warning: Nyquist frequency violation (sample rate = ") +
                                      QString::fromStdString(sampleRateString) + ")", this);
@@ -180,7 +180,7 @@ AdvancedBandwidthDialog::AdvancedBandwidthDialog(double lowerBandwidth, double u
     dspFreqValidator->setNotation(QDoubleValidator::StandardNotation);
     dspFreqValidator->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));  // Ensure '.' is used as decimal point, not ','
     dspFreqLineEdit->setValidator(dspFreqValidator);
-    connect(dspFreqLineEdit, SIGNAL(textChanged(const QString &)), this, SLOT(onLineEditTextChanged()));
+    connect(dspFreqLineEdit, SIGNAL(textChanged(QString)), this, SLOT(onLineEditTextChanged()));
 
     lowFreqLineEdit = new QLineEdit(QString::number(lowerBandwidth, 'f', 2), this);
     lowFreqLineEdit->setFixedWidth(lowFreqLineEdit->fontMetrics().horizontalAdvance("500.000"));
@@ -188,7 +188,7 @@ AdvancedBandwidthDialog::AdvancedBandwidthDialog(double lowerBandwidth, double u
     lowFreqValidator->setNotation(QDoubleValidator::StandardNotation);
     lowFreqValidator->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));  // Ensure '.' is used as decimal point, not ','
     lowFreqLineEdit->setValidator(lowFreqValidator);
-    connect(lowFreqLineEdit, SIGNAL(textChanged(const QString &)), this, SLOT(onLineEditTextChanged()));
+    connect(lowFreqLineEdit, SIGNAL(textChanged(QString)), this, SLOT(onLineEditTextChanged()));
 
     highFreqLineEdit = new QLineEdit(QString::number(upperBandwidth, 'f', 0), this);
     highFreqLineEdit->setFixedWidth(highFreqLineEdit->fontMetrics().horizontalAdvance("20000.00"));
@@ -196,7 +196,7 @@ AdvancedBandwidthDialog::AdvancedBandwidthDialog(double lowerBandwidth, double u
     highFreqValidator->setNotation(QDoubleValidator::StandardNotation);
     highFreqValidator->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));  // Ensure '.' is used as decimal point, not ','
     highFreqLineEdit->setValidator(highFreqValidator);
-    connect(highFreqLineEdit, SIGNAL(textChanged(const QString &)), this, SLOT(onLineEditTextChanged()));
+    connect(highFreqLineEdit, SIGNAL(textChanged(QString)), this, SLOT(onLineEditTextChanged()));
 
     dspFreqSelectLayout->addWidget(new QLabel(tr("DSP Cutoff Frequency"), this));
     dspFreqSelectLayout->addWidget(dspFreqLineEdit);

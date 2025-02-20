@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -61,7 +61,7 @@ SpikePlot::SpikePlot(SystemState* state_, QWidget *parent) :
 SpikePlot::~SpikePlot()
 {
     if (!spikeHistoryMap.empty()) {
-        map<string, SpikePlotHistory*>::const_iterator it = spikeHistoryMap.begin();
+        std::map<std::string, SpikePlotHistory*>::const_iterator it = spikeHistoryMap.begin();
         while (it != spikeHistoryMap.end()) {
             delete it->second;
             ++it;
@@ -69,7 +69,7 @@ SpikePlot::~SpikePlot()
     }
 }
 
-void SpikePlot::setWaveform(const string& waveName)
+void SpikePlot::setWaveform(const std::string& waveName)
 {
     channel = state->signalSources->channelByName(waveName);
     if (channel) {
@@ -78,7 +78,7 @@ void SpikePlot::setWaveform(const string& waveName)
         state->spikeScopeChannel->setValue("N/A");
     }
 
-    map<string, SpikePlotHistory*>::const_iterator it = spikeHistoryMap.find(waveName);
+    std::map<std::string, SpikePlotHistory*>::const_iterator it = spikeHistoryMap.find(waveName);
     if (it == spikeHistoryMap.end()) {  // If data structure for this waveform does not already exist...
         spikeHistoryMap[waveName] = new SpikePlotHistory;  // ...add new spike history data structure.
         it = spikeHistoryMap.find(waveName);
@@ -401,7 +401,7 @@ bool SpikePlot::updateWaveforms(WaveformFifo* waveformFifo, int numSamples)
         spikeId = (int) waveformFifo->getDigitalData(WaveformFifo::ReaderDisplay, spikeRaster, t);
         if (spikeId != SpikeIdNoSpike && (t - samplesPreDetect >= -numWordsInMemory)) {
             if (showArtifacts || spikeId != SpikeIdLikelyArtifact) {
-                vector<float> newSnippet(samplesPreDetect + samplesPostDetect);
+                std::vector<float> newSnippet(samplesPreDetect + samplesPostDetect);
                 int index = 0;
                 for (int i = t - samplesPreDetect; i < t + samplesPostDetect; ++i) {
                     newSnippet[index++] = waveformFifo->getGpuAmplifierData(WaveformFifo::ReaderDisplay, waveformAddress, i);
@@ -420,7 +420,7 @@ bool SpikePlot::updateWaveforms(WaveformFifo* waveformFifo, int numSamples)
     latestRmsCalculation = 0.0;
     latestSpikeRateCalculation = 0;
     if (numWordsInMemory > 0) {
-        int numWordsForRms = min(numWordsInMemory, (int)ceil(state->sampleRate->getNumericValue()));  // Last one second of data.
+        int numWordsForRms = std::min(numWordsInMemory, (int)ceil(state->sampleRate->getNumericValue()));  // Last one second of data.
         int numSamples = 0;
         int numSpikes = 0;
         double sumOfSquares = 0.0;

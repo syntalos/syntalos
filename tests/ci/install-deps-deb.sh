@@ -62,7 +62,10 @@ eatmydata apt-get install -yq --no-install-recommends \
     qt6-multimedia-dev \
     udev \
     uuid-dev \
+    liblua5.3-dev \
     $extra_deps
+
+# NOTE: liblua5.3-dev is only needed for Intan RHX
 
 # install additional dependencies
 eatmydata apt-get install -yq --no-install-recommends \

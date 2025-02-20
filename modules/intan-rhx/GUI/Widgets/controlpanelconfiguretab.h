@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -88,11 +88,11 @@ private:
     QPushButton *liveNotesButton;
     QLabel *lastLiveNoteLabel;
 
-    vector<SignalGroup*> spiPort;
-    vector<bool> manualDelayEnabledOld;
-    vector<int> manualDelayOld;
-    vector<bool> auxDigOutEnabledOld;
-    vector<int> auxDigOutChannelOld;
+    std::vector<SignalGroup*> spiPort;
+    std::vector<bool> manualDelayEnabledOld;
+    std::vector<int> manualDelayOld;
+    std::vector<bool> auxDigOutEnabledOld;
+    std::vector<int> auxDigOutChannelOld;
     bool fastSettleEnabledOld;
     bool externalFastSettleEnabledOld;
     int externalFastSettleChannelOld;

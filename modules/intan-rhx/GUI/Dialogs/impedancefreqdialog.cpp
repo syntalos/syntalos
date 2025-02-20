@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -64,7 +64,7 @@ ImpedanceFreqDialog::ImpedanceFreqDialog(double desiredImpedanceFreq, double low
     upperLimitBandwidth = upperBandwidth / 1.5;
 
     impedanceFreqLineEdit = new QLineEdit(QString::number(desiredImpedanceFreq, 'f', 0), this);
-    connect(impedanceFreqLineEdit, SIGNAL(textChanged(const QString &)),
+    connect(impedanceFreqLineEdit, SIGNAL(textChanged(QString)),
             this, SLOT(onLineEditTextChanged()));
 
     QString sampleRangeText(tr("The sampling rate of "));

@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -35,14 +35,12 @@
 #include <QtWidgets>
 #include "systemstate.h"
 
-using namespace std;
-
 class MultiWaveformPlot;
 
 struct ScrollBarState
 {
     int range;                // Scroll bar operates from 0 to this value.
-    vector<int> topPosition;  // Current position of scroll bar on each page; always between 0 and (range - pageSize)
+    std::vector<int> topPosition;  // Current position of scroll bar on each page; always between 0 and (range - pageSize)
     int pageSize;             // Size of one page.  Must be <= range.  Sets scroll bar size.  Increment of movement for page up/down.
     int stepSize;             // Increment of movement from up/down button or cursor up/down
     double zoomFactor;        // Number from 1.0 to ZoomLimit used to expand display

@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -133,36 +133,36 @@ QString IntanHeaderInfo::getChannelName(SignalType signalType, int stream, int c
             }
         }
     }
-    cerr << "IntanHeaderInfo::getChannelName(" << (int) signalType << ", " << stream << ", " << channel << ") not found.\n";
+    std::cerr << "IntanHeaderInfo::getChannelName(" << (int) signalType << ", " << stream << ", " << channel << ") not found.\n";
     return QString("");
 }
 
 void IntanHeaderInfo::printInfo() const
 {
-    cout << "headerSizeInBytes: " << headerSizeInBytes << '\n';
-    cout << "bytesPerDataBlock: " << bytesPerDataBlock << '\n';
-    cout << "numDataStreams: " << numDataStreams << '\n';
-    cout << "numSPIPorts: " << numSPIPorts << '\n';
-    cout << "expanderConnected: " << expanderConnected << '\n';
-    cout << "sampleRate: " << sampleRate << '\n';
-    cout << "stimStepSize: " << stimStepSize << '\n';
-    cout << "controllerType: " << controllerType << '\n';
-    cout << "fileType: " << fileType << '\n';
-    cout << "boardMode: " << boardMode << '\n';
-    cout << "samplesPerDataBlock: " << samplesPerDataBlock << '\n';
-    cout << "dataFileVersionNumber: " << dataFileMainVersionNumber << "." << dataFileSecondaryVersionNumber << '\n';
-    cout << "numEnabledAmplifierChannels: " << numEnabledAmplifierChannels << '\n';
-    cout << "numEnabledAuxInputChannels: " << numEnabledAuxInputChannels << '\n';
-    cout << "numEnabledSupplyVoltageChannels: " << numEnabledSupplyVoltageChannels << '\n';
-    cout << "numEnabledBoardAdcChannels: " << numEnabledBoardAdcChannels << '\n';
-    cout << "numEnabledBoardDacChannels: " << numEnabledBoardDacChannels << '\n';
-    cout << "numEnabledBoardDigitalInChannels: " << numEnabledDigitalInChannels << '\n';
-    cout << "numEnabledBoardDigitalOutChannels: " << numEnabledDigitalOutChannels << '\n';
-    cout << "numTempSensors: " << numTempSensors << '\n';
-    cout << "dcAmplifierDataSaved: " << dcAmplifierDataSaved << '\n';
-    cout << "groups.size() = " << groups.size() << '\n';
+    std::cout << "headerSizeInBytes: " << headerSizeInBytes << '\n';
+    std::cout << "bytesPerDataBlock: " << bytesPerDataBlock << '\n';
+    std::cout << "numDataStreams: " << numDataStreams << '\n';
+    std::cout << "numSPIPorts: " << numSPIPorts << '\n';
+    std::cout << "expanderConnected: " << expanderConnected << '\n';
+    std::cout << "sampleRate: " << sampleRate << '\n';
+    std::cout << "stimStepSize: " << stimStepSize << '\n';
+    std::cout << "controllerType: " << controllerType << '\n';
+    std::cout << "fileType: " << fileType << '\n';
+    std::cout << "boardMode: " << boardMode << '\n';
+    std::cout << "samplesPerDataBlock: " << samplesPerDataBlock << '\n';
+    std::cout << "dataFileVersionNumber: " << dataFileMainVersionNumber << "." << dataFileSecondaryVersionNumber << '\n';
+    std::cout << "numEnabledAmplifierChannels: " << numEnabledAmplifierChannels << '\n';
+    std::cout << "numEnabledAuxInputChannels: " << numEnabledAuxInputChannels << '\n';
+    std::cout << "numEnabledSupplyVoltageChannels: " << numEnabledSupplyVoltageChannels << '\n';
+    std::cout << "numEnabledBoardAdcChannels: " << numEnabledBoardAdcChannels << '\n';
+    std::cout << "numEnabledBoardDacChannels: " << numEnabledBoardDacChannels << '\n';
+    std::cout << "numEnabledBoardDigitalInChannels: " << numEnabledDigitalInChannels << '\n';
+    std::cout << "numEnabledBoardDigitalOutChannels: " << numEnabledDigitalOutChannels << '\n';
+    std::cout << "numTempSensors: " << numTempSensors << '\n';
+    std::cout << "dcAmplifierDataSaved: " << dcAmplifierDataSaved << '\n';
+    std::cout << "groups.size() = " << groups.size() << '\n';
     for (int i = 0; i < (int) groups.size(); ++i) {
-        cout << "  groups[" << i << "].numChannels() = " << groups[i].numChannels() << '\n';
+        std::cout << "  groups[" << i << "].numChannels() = " << groups[i].numChannels() << '\n';
     }
 }
 
@@ -225,9 +225,9 @@ DataFileReader::DataFileReader(const QString& fileName, bool& canReadFile, QStri
             AbstractRHXController::getSampleRate(headerInfo.sampleRate);
 
     // Determine data file format.
-    DataFileFormat format;
+    // DataFileFormat format;
     if (headerInfo.dataSizeInBytes > 0) {
-        format = TraditionalIntanFormat;  // Traditional Intan .rhd/.rhs file format
+        // format = TraditionalIntanFormat;  // Traditional Intan .rhd/.rhs file format
         dataFileManager = new TraditionalIntanFileManager(fileName, &headerInfo, canReadFile, report, this);
     } else {
         QFileInfo fileInfo(fileName);
@@ -257,10 +257,10 @@ DataFileReader::DataFileReader(const QString& fileName, bool& canReadFile, QStri
             }
         }
         if (foundPerSignalTypeFile) {
-            format = FilePerSignalTypeFormat;  // "One file per signal type" format
+            // format = FilePerSignalTypeFormat;  // "One file per signal type" format
             dataFileManager = new FilePerSignalTypeManager(fileName, &headerInfo, canReadFile, report, this);
         } else {
-            format = FilePerChannelFormat; // "One file per channel" format
+            // format = FilePerChannelFormat; // "One file per channel" format
             dataFileManager = new FilePerChannelManager(fileName, &headerInfo, canReadFile, report, this);
         }
     }
@@ -658,48 +658,48 @@ bool DataFileReader::readHeader(const QString& fileName, IntanHeaderInfo& info, 
 
 void DataFileReader::printHeader(const IntanHeaderInfo& info)
 {
-    cout << "File header contents:\n";
-    cout << "Header file type: " << ((info.fileType == RHDHeaderFile) ? "RHD file\n" : "RHS file\n");
-    string controllerString;
+    std::cout << "File header contents:\n";
+    std::cout << "Header file type: " << ((info.fileType == RHDHeaderFile) ? "RHD file\n" : "RHS file\n");
+    std::string controllerString;
     if (info.controllerType == ControllerRecordUSB2) controllerString = "RHD USB interface board";
     else if (info.controllerType == ControllerRecordUSB3) controllerString = "RHD recording controller";
     else if (info.controllerType == ControllerStimRecord) controllerString = "RHS stim/recording controller";
-    cout << "Controller type: " << controllerString << '\n';
-    cout << "Data file version: " << info.dataFileMainVersionNumber << "." << info.dataFileSecondaryVersionNumber << '\n';
-    cout << "Number of samples per data block: " << info.samplesPerDataBlock << '\n';
-    cout << "sample rate: " << AbstractRHXController::getSampleRateString(info.sampleRate) << '\n';
-    cout << "DSP enabled: " << (info.dspEnabled ? "true\n" : "false\n");
+    std::cout << "Controller type: " << controllerString << '\n';
+    std::cout << "Data file version: " << info.dataFileMainVersionNumber << "." << info.dataFileSecondaryVersionNumber << '\n';
+    std::cout << "Number of samples per data block: " << info.samplesPerDataBlock << '\n';
+    std::cout << "sample rate: " << AbstractRHXController::getSampleRateString(info.sampleRate) << '\n';
+    std::cout << "DSP enabled: " << (info.dspEnabled ? "true\n" : "false\n");
 
     // ...
 
     if (info.fileType == RHSHeaderFile) {
-        cout << "stim step size: " << AbstractRHXController::getStimStepSizeString(info.stimStepSize) << '\n';
+        std::cout << "stim step size: " << AbstractRHXController::getStimStepSizeString(info.stimStepSize) << '\n';
     }
 
     // ...
 
-    cout << "board mode: " << info.boardMode << '\n';
+    std::cout << "board mode: " << info.boardMode << '\n';
 
     // ...
 
-    cout << "total number of data streams: " << info.numDataStreams << '\n';
-    cout << "total number of amplifier channels: " << info.numEnabledAmplifierChannels << '\n';
-    cout << "total number of auxiliary input channels: " << info.numEnabledAuxInputChannels << '\n';
-    cout << "total number of supply voltage channels: " << info.numEnabledSupplyVoltageChannels << '\n';
-    cout << "total number of analog input channels: " << info.numEnabledBoardAdcChannels << '\n';
-    cout << "total number of analog output channels: " << info.numEnabledBoardDacChannels << '\n';
-    cout << "total number of digital input channels: " << info.numEnabledDigitalInChannels << '\n';
-    cout << "total number of digital output channels: " << info.numEnabledDigitalOutChannels << '\n';
+    std::cout << "total number of data streams: " << info.numDataStreams << '\n';
+    std::cout << "total number of amplifier channels: " << info.numEnabledAmplifierChannels << '\n';
+    std::cout << "total number of auxiliary input channels: " << info.numEnabledAuxInputChannels << '\n';
+    std::cout << "total number of supply voltage channels: " << info.numEnabledSupplyVoltageChannels << '\n';
+    std::cout << "total number of analog input channels: " << info.numEnabledBoardAdcChannels << '\n';
+    std::cout << "total number of analog output channels: " << info.numEnabledBoardDacChannels << '\n';
+    std::cout << "total number of digital input channels: " << info.numEnabledDigitalInChannels << '\n';
+    std::cout << "total number of digital output channels: " << info.numEnabledDigitalOutChannels << '\n';
 
-    cout << "number of SPI ports: " << info.numSPIPorts << '\n';
-    cout << "expander connected: " << (info.expanderConnected ? "true" : "false") << '\n';
-    cout << "header only: " << (info.headerOnly ? "true" : "false") << '\n';
-    cout << "header size in bytes: " << info.headerSizeInBytes << '\n';
-    cout << "bytes per data block: " << info.bytesPerDataBlock << '\n';
-    cout << "data size in bytes: " << info.dataSizeInBytes << '\n';
-    cout << "number of data blocks in file: " << info.numDataBlocksInFile << '\n';
-    cout << "number of samples in file: " << info.numSamplesInFile << '\n';
-    cout << "time in file: " << info.timeInFile << " s" << '\n';
+    std::cout << "number of SPI ports: " << info.numSPIPorts << '\n';
+    std::cout << "expander connected: " << (info.expanderConnected ? "true" : "false") << '\n';
+    std::cout << "header only: " << (info.headerOnly ? "true" : "false") << '\n';
+    std::cout << "header size in bytes: " << info.headerSizeInBytes << '\n';
+    std::cout << "bytes per data block: " << info.bytesPerDataBlock << '\n';
+    std::cout << "data size in bytes: " << info.dataSizeInBytes << '\n';
+    std::cout << "number of data blocks in file: " << info.numDataBlocksInFile << '\n';
+    std::cout << "number of samples in file: " << info.numSamplesInFile << '\n';
+    std::cout << "time in file: " << info.timeInFile << " s" << '\n';
 }
 
 int64_t DataFileReader::blocksPresent()

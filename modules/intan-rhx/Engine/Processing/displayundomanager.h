@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -36,8 +36,6 @@
 #include <QColor>
 #include "scrollbar.h"
 
-using namespace std;
-
 class SignalSources;
 
 // ChannelState, SignalGroupState, and SignalSourcesState are used to save and restore user-configurable aspects of
@@ -58,7 +56,7 @@ struct ChannelState
 struct SignalGroupState
 {
     QString name;
-    vector<ChannelState> signalChannels;
+    std::vector<ChannelState> signalChannels;
 };
 
 struct DisplayColumnState
@@ -72,8 +70,8 @@ struct DisplayColumnState
 
 struct DisplayState
 {
-    vector<DisplayColumnState> columns;
-    vector<SignalGroupState> groups;
+    std::vector<DisplayColumnState> columns;
+    std::vector<SignalGroupState> groups;
 };
 
 

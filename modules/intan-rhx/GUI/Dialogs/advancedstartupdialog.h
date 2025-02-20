@@ -17,7 +17,7 @@ public:
     static uint8_t portsBoolToInt(QVector<bool> portsBool);
 
 public slots:
-    void accept();
+    void accept() override;
 
 private slots:
     void changeUseOpenCL(bool use);

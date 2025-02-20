@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -1137,7 +1137,7 @@ void SystemState::setupGlobalSettingsLoadSave(ControllerInterface* controllerInt
 bool SystemState::loadGlobalSettings(const QString& filename, QString &errorMessage) const
 {
     if (!globalSettingsInterface) {
-        cerr << "SystemState::loadGlobalSettings: Must run setupGlobalSettingsLoadSave first." << '\n';
+        std::cerr << "SystemState::loadGlobalSettings: Must run setupGlobalSettingsLoadSave first." << '\n';
         return false;
     }
     return globalSettingsInterface->loadFile(filename, errorMessage);
@@ -1146,7 +1146,7 @@ bool SystemState::loadGlobalSettings(const QString& filename, QString &errorMess
 bool SystemState::saveGlobalSettings(const QString& filename) const
 {
     if (!globalSettingsInterface) {
-        cerr << "SystemState::loadGlobalSettings: Must run setupGlobalSettingsLoadSave first." << '\n';
+        std::cerr << "SystemState::loadGlobalSettings: Must run setupGlobalSettingsLoadSave first." << '\n';
         return false;
     }
     return globalSettingsInterface->saveFile(filename);
@@ -1155,7 +1155,7 @@ bool SystemState::saveGlobalSettings(const QString& filename) const
 QByteArray SystemState::globalSettingsAsByteArray() const
 {
     if (!globalSettingsInterface) {
-        cerr << "SystemState::loadGlobalSettings: Must run setupGlobalSettingsLoadSave first." << endl;
+        std::cerr << "SystemState::loadGlobalSettings: Must run setupGlobalSettingsLoadSave first." << std::endl;
         return QByteArray();
     }
     return globalSettingsInterface->saveByteArray();

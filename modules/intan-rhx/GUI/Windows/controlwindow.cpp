@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -40,10 +40,9 @@
 #include "controlwindow.h"
 #include "scrollablemessageboxdialog.h"
 
-using namespace std;
-
 ControlWindow::ControlWindow(SystemState* state_, CommandParser* parser_, ControllerInterface* controllerInterface_, AbstractRHXController* rhxController_) :
     QMainWindow(nullptr), // Since the parent isn't a QMainWindow but a QDialog, just pass a nullptr
+    stimParametersInterface(nullptr),
     state(state_),
     controllerInterface(controllerInterface_),
     rhxController(rhxController_),
@@ -75,8 +74,8 @@ ControlWindow::ControlWindow(SystemState* state_, CommandParser* parser_, Contro
     rewindAction(nullptr),
     fastForwardAction(nullptr),
     fastPlaybackAction(nullptr),
-    jumpToStartAction(nullptr),
     jumpToEndAction(nullptr),
+    jumpToStartAction(nullptr),
     jumpBack1SecAction(nullptr),
     jumpBack10SecAction(nullptr),
     jumpAction(nullptr),
@@ -138,7 +137,6 @@ ControlWindow::ControlWindow(SystemState* state_, CommandParser* parser_, Contro
     tcpDisplay(nullptr),
     showHideRow(nullptr),
     showHideStretch(nullptr),
-    stimParametersInterface(nullptr),
     stimClipboard(nullptr),
     currentlyRunning(false),
     currentlyRecording(false),
@@ -174,7 +172,7 @@ ControlWindow::ControlWindow(SystemState* state_, CommandParser* parser_, Contro
     createActions();
     createMenus();
     createStatusBar();
-    connect(this, SIGNAL(setStatusBar(QString)), this, SLOT(updateStatusBar(QString)));
+    connect(this, SIGNAL(setStatusBarText(QString)), this, SLOT(updateStatusBar(QString)));
     connect(this, SIGNAL(setTimeLabel(QString)), this, SLOT(updateTimeLabel(QString)));
 
     controlButtons = new QToolBar(this);
@@ -222,7 +220,7 @@ ControlWindow::ControlWindow(SystemState* state_, CommandParser* parser_, Contro
         timeLabel = new QLabel("<b>00:00:00</b>", this);
         int fontSize = 14;
         if (state->highDPIScaleFactor > 1) fontSize = 21;
-        QFont timeFont("Courier", fontSize);
+        QFont timeFont("Courier New", fontSize);
         timeLabel->setFont(timeFont);
         timeLabel->setContentsMargins(margin, 0, margin, 0);
         QHBoxLayout* timeLayout = new QHBoxLayout;
@@ -239,7 +237,7 @@ ControlWindow::ControlWindow(SystemState* state_, CommandParser* parser_, Contro
     controlButtons->addWidget(statusBars);
     controlButtons->addWidget(new QLabel("   "));
 
-    string sampleRateString =
+    std::string sampleRateString =
             AbstractRHXController::getSampleRateString(AbstractRHXController::nearestSampleRate(state->sampleRate->getNumericValue()));
     QLabel *sampleRateLabel = new QLabel(QString::fromStdString(sampleRateString) + " " + tr("sample rate"), this);
     sampleRateLabel->setContentsMargins(margin, 0, margin, 0);
@@ -249,7 +247,7 @@ ControlWindow::ControlWindow(SystemState* state_, CommandParser* parser_, Contro
     topStatusLabel->setContentsMargins(margin, 0, margin, 0);
     controlButtons->addWidget(topStatusLabel);
 
-    this->addToolBar(Qt::TopToolBarArea, controlButtons);
+    addToolBar(Qt::TopToolBarArea, controlButtons);
 
     if (state->getControllerTypeEnum() == ControllerStimRecord) {
         stimParametersInterface = new XMLInterface(state, controllerInterface, XMLIncludeStimParameters);
@@ -313,9 +311,9 @@ ControlWindow::ControlWindow(SystemState* state_, CommandParser* parser_, Contro
 
     setStatusBarReady();
 
-    // Get ControlWindow maximize state, size, position, and ControlPanel expanded state and current tab from QSettings.
+    //Get ControlWindow maximize state, size, position, and ControlPanel expanded state and current tab from QSettings.
     QSettings settings;
-    QSize defaultSize = QSize(1080, 870);
+    QSize defaultSize = QSize(1080, 910);
     resize(defaultSize);
     QPoint defaultPos = QPoint(100, 100);
     move(defaultPos);
@@ -323,7 +321,7 @@ ControlWindow::ControlWindow(SystemState* state_, CommandParser* parser_, Contro
     restoreGeometry(settings.value("geometry", defaultGeometry).toByteArray());
 
     if (state->testMode->getValue()) {
-        resize(width(), 875); // Default height for Windows that should match 32 channels vertically for side-by-side column matching
+        resize(width(), 910); // Default height for Windows that fully show at least 32 channels vertically and control panel without needing scrollbars
     } else {
         if (settings.value("isMaximized", isMaximized()).toBool())
             showMaximized();
@@ -643,9 +641,9 @@ void ControlWindow::createActions()
 
 
     QPixmap jumpToEndPixmap(":/images/tostarticon.png");
-    QMatrix rm;
-    rm.rotate(180);
-    jumpToEndPixmap = jumpToEndPixmap.transformed(rm);
+    QTransform transform;
+    transform.rotate(180);
+    jumpToEndPixmap = jumpToEndPixmap.transformed(transform);
     QIcon jumpToEndIcon(jumpToEndPixmap);
     jumpToEndAction = new QAction(jumpToEndIcon, tr("Jump to End"), this);
     connect(jumpToEndAction, SIGNAL(triggered()), this, SLOT(jumpToEndSlot()));
@@ -1067,30 +1065,30 @@ void ControlWindow::stopAndReportAnyErrors()
 void ControlWindow::setStatusBarReady()
 {
     if (state->synthetic->getValue()) {
-        emit setStatusBar(tr("Ready to run with synthesized data."));
+        emit setStatusBarText(tr("Ready to run with synthesized data."));
     } else if (state->playback->getValue()) {
-        emit setStatusBar(tr("Ready to play back data file."));  // This is displayed when software starts, only.
+        emit setStatusBarText(tr("Ready to play back data file."));  // This is displayed when software starts, only.
         emit setStatusBarReadyPlayback();
     } else {
-        emit setStatusBar(tr("Ready."));
+        emit setStatusBarText(tr("Ready."));
     }
 }
 
 void ControlWindow::setStatusBarRunning()
 {
     if (state->synthetic->getValue()) {
-        emit setStatusBar(tr("Running with synthesized data."));
+        emit setStatusBarText(tr("Running with synthesized data."));
     } else if (state->playback->getValue()) {
-        emit setStatusBar(tr("Data playback running."));
+        emit setStatusBarText(tr("Data playback running."));
     } else {
-        emit setStatusBar(tr("Running."));
+        emit setStatusBarText(tr("Running."));
     }
     emit setTimeLabel("00:00:00");
 }
 
 void ControlWindow::setStatusBarLoading()
 {
-    emit setStatusBar(tr("Loading..."));
+    emit setStatusBarText(tr("Loading..."));
 }
 
 void ControlWindow::showControlPanel()
@@ -1541,29 +1539,29 @@ void ControlWindow::keyPressEvent(QKeyEvent *event)
             if (!state->running) {
                 ((TestControlPanel*) controlPanel)->testChip();
             }
-            break;
         }
+        break;
     case Qt::Key_V:
         if (state->testMode->getValue()) {
             if (!state->running) {
                 ((TestControlPanel*) controlPanel)->viewReport();
             }
-            break;
         }
+        break;
     case Qt::Key_U:
         if (state->testMode->getValue()) {
             if (!state->running && state->getControllerTypeEnum() == ControllerStimRecord) {
                 ((TestControlPanel*) controlPanel)->uploadStimManual();
             }
-            break;
         }
+        break;
     case Qt::Key_C:
         if (state->testMode->getValue()) {
             if (!state->running) {
                 ((TestControlPanel*) controlPanel)->checkInputWave();
             }
-            break;
         }
+        break;
     case Qt::Key_Space:
         if (state->testMode->getValue()) {
             if (!state->running) {
@@ -1571,15 +1569,15 @@ void ControlWindow::keyPressEvent(QKeyEvent *event)
             } else {
                 stopControllerSlot();
             }
-            break;
         }
+        break;
     case Qt::Key_R:
         if (state->testMode->getValue()) {
             if (!state->running) {
                 ((TestControlPanel*) controlPanel)->rescanPorts();
             }
-            break;
         }
+        break;
 
     default:
         QWidget::keyPressEvent(event);
@@ -1922,7 +1920,7 @@ void ControlWindow::remoteControl()
         tcpLayout->addWidget(tcpDisplay);
         tcpDialog->setLayout(tcpLayout);
         tcpDialog->setWindowTitle(tr("Remote TCP Control"));
-        connect(tcpDisplay, SIGNAL(sendSetCommand(QString, QString)), parser, SLOT(setCommandSlot(QString, QString)));
+        connect(tcpDisplay, SIGNAL(sendSetCommand(QString,QString)), parser, SLOT(setCommandSlot(QString,QString)));
         connect(tcpDisplay, SIGNAL(sendGetCommand(QString)), parser, SLOT(getCommandSlot(QString)));
         connect(tcpDisplay, SIGNAL(sendExecuteCommand(QString)), parser, SLOT(executeCommandSlot(QString)));
         connect(tcpDisplay, SIGNAL(sendExecuteCommandWithParameter(QString,QString)), parser, SLOT(executeCommandWithParameterSlot(QString,QString)));
@@ -2031,7 +2029,7 @@ void ControlWindow::updateMenus()
                 SignalType firstSignalType = state->signalSources->selectedChannel()->getSignalType();
                 QList<Channel*> selectedChannels;
                 state->signalSources->getSelectedSignals(selectedChannels);
-                for (QList<Channel*>::const_iterator i = selectedChannels.begin(); i != selectedChannels.end(); ++i) {
+                for (QList<Channel*>::iterator i = selectedChannels.begin(); i != selectedChannels.end(); ++i) {
                     if ((*i)->getSignalType() != firstSignalType || (*i)->getSignalType() != stimClipboard->getSignalType()) {
                         enablePaste = false;
                         break;
@@ -2276,7 +2274,7 @@ void ControlWindow::updateHardwareFifoStatus(double percentFull)
                              "Performance will likely be significantly improved."));
     }
 
-    double cpuLoad = max(mainCpuLoad, controllerInterface->latestWaveformProcessorCpuLoad());
+    double cpuLoad = (std::max)(mainCpuLoad, controllerInterface->latestWaveformProcessorCpuLoad());
 
     if (statusBars) statusBars->updateBars(percentFull, swBuffer, cpuLoad);
 }

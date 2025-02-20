@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -40,7 +40,7 @@ class AnOutFigure : public AbstractFigure
     Q_OBJECT
 public:
     explicit AnOutFigure(StimParameters* stimParameters, QWidget *parent = nullptr);
-    void uniqueRedraw(QPainter &painter);
+    void uniqueRedraw(QPainter &painter) override;
 
 public slots:
     void updateMonophasicAndPositive(bool logicValue);
@@ -51,8 +51,8 @@ public slots:
     void highlightBaselineVoltage(bool highlight);
 
 private:
-    QSize sizeHint() const;
-    QSize minimumSizeHint() const;
+    QSize sizeHint() const override;
+    QSize minimumSizeHint() const override;
     bool localMonophasicAndPositive;
     QColor oldColor;
 };

@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -131,8 +131,8 @@ ViewFiltersWindow::ViewFiltersWindow(SystemState* state_, QWidget *parent) :
 
     connect(logarithmicButton, SIGNAL(toggled(bool)), this, SLOT(toggleLogarithmic(bool)));
 
-    connect(filterPlot, SIGNAL(mouseMovedInPlot(double, double, double, double)),
-            this, SLOT(updateStatusBar(double, double, double, double)));
+    connect(filterPlot, SIGNAL(mouseMovedInPlot(double,double,double,double)),
+            this, SLOT(updateStatusBar(double,double,double,double)));
     connect(filterPlot, SIGNAL(mouseLeftPlot()), this, SLOT(clearStatusBar()));
     connect(state, SIGNAL(stateChanged()), this, SLOT(updateFromState()));
 

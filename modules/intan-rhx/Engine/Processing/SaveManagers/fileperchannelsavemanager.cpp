@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -30,8 +30,6 @@
 
 #include <iostream>
 #include "fileperchannelsavemanager.h"
-
-using namespace std;
 
 // One file per signal type file format
 FilePerChannelSaveManager::FilePerChannelSaveManager(WaveformFifo* waveformFifo_, SystemState* state_) :
@@ -64,8 +62,6 @@ FilePerChannelSaveManager::FilePerChannelSaveManager(WaveformFifo* waveformFifo_
 
 FilePerChannelSaveManager::~FilePerChannelSaveManager()
 {
-    closeAllSaveFiles();
-
     if (spikeCounter)
         delete [] spikeCounter;
     if (mostRecentSpikeTimestamp)
@@ -162,7 +158,7 @@ bool FilePerChannelSaveManager::openAllSaveFiles()
 
             // Write amplifier custom names as comma-separated list, zero-terminated string.
             Channel* channel = state->signalSources->channelByName(saveList.amplifier[i]);
-            string customName = "";
+            std::string customName = "";
             if (channel) customName = channel->getCustomName().toStdString();
             spikeFile->writeStringAsCharArray(customName);
             spikeFile->writeUInt8(0);  // 0 to terminate string

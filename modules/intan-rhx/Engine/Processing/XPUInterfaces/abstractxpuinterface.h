@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -32,6 +32,7 @@
 #define ABSTRACTXPUINTERFACE_H
 
 #include <QObject>
+#define CL_USE_DEPRECATED_OPENCL_1_2_APIS
 #ifdef __APPLE__
     #include <OpenCL/opencl.h>
 #else
@@ -116,7 +117,7 @@ protected:
     virtual void updateFilterConstArray();
     virtual void updateConstChars();
     virtual void updateConstFloats();
-    mutex filterMutex;
+    std::mutex filterMutex;
 
     bool allocated;
     double sampleRate;

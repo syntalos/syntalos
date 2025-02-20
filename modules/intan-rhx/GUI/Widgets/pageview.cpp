@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -143,7 +143,7 @@ PageView::PageView(SystemState* state_, int pageIndex, ViewMode viewMode_, QWidg
     for (int text = 0; text < page.texts.size(); ++text) {
 
         // Create dummy QFont (that won't get used) just to get the ratio of width-to-height for this machine's 'TypeWriter' style font.
-        QFont thisText("Courier");
+        QFont thisText("Courier New");
         int dummyHeight = 100; // Arbitrary height for dummy text
         thisText.setPixelSize(dummyHeight);
         QFontMetrics metrics(thisText);
@@ -231,7 +231,7 @@ void PageView::changeView(ViewMode viewMode_)
 void PageView::bestFit()
 {
     // Determine what boundaries of widget are in USER UNITS upon resizing */
-    float widgetAspectRatio = float(this->height()) / float(this->width());
+    float widgetAspectRatio = float(height()) / float(width());
     float bestfitAspectRatio = bestfitHeight/bestfitWidth;
 
     if (widgetAspectRatio < bestfitAspectRatio) {
@@ -240,10 +240,10 @@ void PageView::bestFit()
         visibleFrameYmin = bestfitYmin;
 
         // Get UnitsToPixel ratio from y.
-        unitsToPixel = bestfitHeight/this->height();
+        unitsToPixel = bestfitHeight/height();
 
         // Use UnitsToPixel to determine x limits.
-        visibleFrameWidth = unitsToPixel * this->width();
+        visibleFrameWidth = unitsToPixel * width();
         visibleFrameXmin = (bestfitXmin + (bestfitWidth/2)) - visibleFrameWidth/2;
     } else {
         // If widget aspect ratio is higher than best fit aspect ratio, then lock UnitsToPixel ratio based on width.
@@ -251,10 +251,10 @@ void PageView::bestFit()
         visibleFrameXmin = bestfitXmin;
 
         // Get UnitsToPixel ratio from x.
-        unitsToPixel = bestfitWidth/this->width();
+        unitsToPixel = bestfitWidth/width();
 
         // Use UnitsToPixel to determine y limits.
-        visibleFrameHeight = unitsToPixel * this->height();
+        visibleFrameHeight = unitsToPixel * height();
         visibleFrameYmin = (bestfitYmin + (bestfitHeight/2)) - visibleFrameHeight/2;
     }
 
@@ -373,11 +373,11 @@ void PageView::changeMode(MouseMode mode)
     mouseMode = mode;
 
     if (mouseMode == Select) {
-        this->setCursor(Qt::ArrowCursor);
+        setCursor(Qt::ArrowCursor);
     } else if (mouseMode == Scroll) {
-        this->setCursor(Qt::OpenHandCursor);
+        setCursor(Qt::OpenHandCursor);
     } else if (mouseMode == Resize) {
-        this->setCursor(Qt::CrossCursor);
+        setCursor(Qt::CrossCursor);
     }
 }
 
@@ -401,11 +401,11 @@ void PageView::mousePressEvent(QMouseEvent *event)
     QWidget::mousePressEvent(event);
 
     // If mouse wheel is clicked (regardless of mouse mode), start scrolling.
-    if (event->button() == Qt::MidButton) {
+    if (event->button() == Qt::MiddleButton) {
         scrolling = true;
         scrollStartX = xPixelsToUnitValue(event->pos().x());
         scrollStartY = yPixelsToUnitValue(event->pos().y());
-        this->setCursor(Qt::ClosedHandCursor);
+        setCursor(Qt::ClosedHandCursor);
         return;
     }
 
@@ -434,7 +434,7 @@ void PageView::mousePressEvent(QMouseEvent *event)
         scrolling = true;
         scrollStartX = xPixelsToUnitValue(event->pos().x());
         scrollStartY = yPixelsToUnitValue(event->pos().y());
-        this->setCursor(Qt::ClosedHandCursor);
+        setCursor(Qt::ClosedHandCursor);
         return;
     } else if (mouseMode == Resize) {  // Set resizing mode and get starting coordinates.
         resizing = true;
@@ -451,14 +451,14 @@ void PageView::mouseReleaseEvent(QMouseEvent *event)
     QWidget::mouseReleaseEvent(event);
 
     // If mouse wheel was unclicked (regardless of mouse mode), end scrolling.
-    if (event->button() == Qt::MidButton) {
+    if (event->button() == Qt::MiddleButton) {
         scrolling = false;
         if (mouseMode == Scroll) {
-            this->setCursor(Qt::OpenHandCursor);
+            setCursor(Qt::OpenHandCursor);
         } else if (mouseMode == Select) {
-            this->setCursor(Qt::ArrowCursor);
+            setCursor(Qt::ArrowCursor);
         } else if (mouseMode == Resize) {
-            this->setCursor(Qt::CrossCursor);
+            setCursor(Qt::CrossCursor);
         }
     }
 
@@ -530,7 +530,7 @@ void PageView::mouseReleaseEvent(QMouseEvent *event)
     // Unset scrolling mode, and change the cursor to reflect that scrolling has ended.
     if (mouseMode == Scroll) {
         scrolling = false;
-        this->setCursor(Qt::OpenHandCursor);
+        setCursor(Qt::OpenHandCursor);
     } else if (mouseMode == Resize) {
         // Unset resizing mode, get ending coordinates, zoom to desired size, and emit signal that resize has finished.
         resizing = false;
@@ -587,7 +587,7 @@ void PageView::resizeEvent(QResizeEvent* /* event */)
     update();
 }
 
-void PageView::enterEvent(QEvent* /* event */)
+void PageView::enterEvent(QEnterEvent* /* event */)
 {
     mousePresent = true;
 
@@ -620,8 +620,8 @@ QSize PageView::sizeHint() const
 void PageView::initializeDisplay()
 {
     // Get limits of frame.
-    visibleFrameHeight = unitsToPixel * this->height();
-    visibleFrameWidth = unitsToPixel * this->width();
+    visibleFrameHeight = unitsToPixel * height();
+    visibleFrameWidth = unitsToPixel * width();
 
     // Set frame around center.
     visibleFrameXmin = visibleFrameCenterX - (visibleFrameWidth/2);
@@ -641,7 +641,7 @@ int PageView::xUnitsToPixelValue(float xUnit)
 {
     // Equation for ratio: P = (U - visibleFrameXmin) / visibleFrameWidth
     float ratio = ((xUnit - visibleFrameXmin) / visibleFrameWidth);
-    return (int) (ratio * this->width());
+    return (int) (ratio * width());
 }
 
 int PageView::yUnitsToPixelValue(float yUnit)
@@ -652,18 +652,18 @@ int PageView::yUnitsToPixelValue(float yUnit)
     // Flip, to be consistent with user coordinate system in which y increases north (in software, y increases south).
     ratio = 1 - ratio;
 
-    return (int) (ratio * this->height());
+    return (int) (ratio * height());
 }
 
 float PageView::xPixelsToUnitValue(int xPixel)
 {
-    float ratio = (float) xPixel / (float) this->width();
+    float ratio = (float) xPixel / (float) width();
     return (ratio * visibleFrameWidth) + visibleFrameXmin;
 }
 
 float PageView::yPixelsToUnitValue(int yPixel)
 {
-    float ratio = (float) yPixel / (float) this->height();
+    float ratio = (float) yPixel / (float) height();
     ratio = 1 - ratio;
 
     return (ratio * visibleFrameHeight) + visibleFrameYmin;
@@ -673,14 +673,14 @@ int PageView::xSizeToPixelSize(float xSize)
 {
     // Equation for ratio: P = S / visibleFrameWidth
     float ratio = xSize / visibleFrameWidth;
-    return (int) round(ratio * this->width());
+    return (int) round(ratio * width());
 }
 
 int PageView::ySizeToPixelSize(float ySize)
 {
     // Equation for ratio: P = S / visibleFrameHeight
     float ratio = ySize / visibleFrameHeight;
-    return (int) round(ratio * this->height());
+    return (int) round(ratio * height());
 }
 
 void PageView::getDesiredSize(float &newXMin, float &newXMax, float &newYMin, float &newYMax)
@@ -708,7 +708,7 @@ void PageView::zoomToDesiredSize(float newXMin, float newXMax, float newYMin, fl
     }
 
     // Determine what boundaries of widget are in USER UNITS.
-    float widgetAspectRatio = float(this->height()) / float(this->width());
+    float widgetAspectRatio = float(height()) / float(width());
     float desiredAspectRatio = (newYMax - newYMin) / (newXMax - newXMin);
 
     if (widgetAspectRatio < desiredAspectRatio) {
@@ -716,9 +716,9 @@ void PageView::zoomToDesiredSize(float newXMin, float newXMax, float newYMin, fl
         visibleFrameHeight = newYMax - newYMin;
         visibleFrameYmin = newYMin;
 
-        unitsToPixel = (newYMax - newYMin)/this->height();
+        unitsToPixel = (newYMax - newYMin)/height();
 
-        visibleFrameWidth = unitsToPixel * this->width();
+        visibleFrameWidth = unitsToPixel * width();
         visibleFrameCenterX = (newXMin + newXMax) / 2;
         visibleFrameXmin = visibleFrameCenterX - visibleFrameWidth/2;
         visibleFrameCenterY = visibleFrameYmin + visibleFrameHeight/2;
@@ -727,9 +727,9 @@ void PageView::zoomToDesiredSize(float newXMin, float newXMax, float newYMin, fl
         visibleFrameWidth = newXMax - newXMin;
         visibleFrameXmin = newXMin;
 
-        unitsToPixel = (newXMax - newXMin)/this->width();
+        unitsToPixel = (newXMax - newXMin)/width();
 
-        visibleFrameHeight = unitsToPixel * this->height();
+        visibleFrameHeight = unitsToPixel * height();
         visibleFrameCenterY = (newYMin + newYMax) / 2;
         visibleFrameYmin = visibleFrameCenterY - visibleFrameHeight/2;
         visibleFrameCenterX = visibleFrameXmin + visibleFrameWidth/2;
@@ -1266,8 +1266,8 @@ QString PageView::getSiteShape(int port, int site)
 
 void PageView::overwriteColor(QColor &color, const QString& colorName)
 {
-    if (color.isValidColor(colorName))
-        color.setNamedColor(colorName);
+    if (color.isValidColorName(colorName))
+        color = QColor::fromString(colorName);
 }
 
 void PageView::overwriteFloat(float &original, float newValue) {
@@ -1293,7 +1293,7 @@ void PageView::overwriteAlignment(QString &original, const QString& newString)
 QVector<ElectrodeSite*> PageView::getSitesWithName(const QString& nativeName)
 {
     QString name = nativeName.left(1);
-    int channelNum = nativeName.right(nativeName.length() - 2).toInt();
+    int channelNum = QStringView{nativeName}.right(nativeName.length() - 2).toInt();
     QVector<ElectrodeSite*> sites;
 
     for (int portIndex = 0; portIndex < page.ports.size(); ++portIndex) {

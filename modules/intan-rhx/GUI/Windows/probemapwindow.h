@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -40,7 +40,7 @@
 #include "xmlinterface.h"
 #include "controllerinterface.h"
 
-typedef map<string, double> ChannelList;
+typedef std::map<std::string, double> ChannelList;
 
 class ProbeMapWindow : public QMainWindow
 {
@@ -138,7 +138,7 @@ private:
 
     void updateSpikeTimerSites();
 
-    map<int, double> decayOptions;
+    std::map<int, double> decayOptions;
 };
 
 #endif // PROBEMAPWINDOW_H

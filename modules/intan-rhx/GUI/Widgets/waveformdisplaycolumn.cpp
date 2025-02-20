@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -52,7 +52,7 @@ WaveformDisplayColumn::WaveformDisplayColumn(int columnIndex_, WaveformDisplayMa
     portComboBox->addItems(state->signalSources->populatedGroupListWithChannelCounts());
 
     waveformPlot = new MultiWaveformPlot(columnIndex, waveformManager, controllerInterface, state, this);
-    connect(portComboBox, SIGNAL(currentIndexChanged(QString)), waveformPlot, SLOT(updateFromState()));
+    connect(portComboBox, SIGNAL(currentIndexChanged(int)), waveformPlot, SLOT(updateFromState()));
     if (state->testMode->getValue()) {
         portComboBox->setFocusProxy(waveformPlot);
     }

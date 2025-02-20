@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -33,8 +33,6 @@
 
 #include "systemstate.h"
 #include "displayedwaveform.h"
-
-using namespace std;
 
 const int MaxNumWaveformsInGroup = 4;
 
@@ -87,8 +85,8 @@ public:
     bool selectNextWaveform() { return selectNextOrPreviousWaveform(true); }
     bool selectPreviousWaveform() { return selectNextOrPreviousWaveform(false); }
 
-    vector<bool> selectionRecord() const;
-    bool selectionRecordsAreEqual(const vector<bool>& a, const vector<bool>& b) const;
+    std::vector<bool> selectionRecord() const;
+    bool selectionRecordsAreEqual(const std::vector<bool>& a, const std::vector<bool>& b) const;
 
     // These functions update the system state intelligently, and automatically trigger a state change if anything changed.
     void updateOrderInState(const QString& portName, int numFiltersDisplayed, bool arrangeByFilter);

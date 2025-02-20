@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -65,7 +65,7 @@ ISIPlot::ISIPlot(SystemState* state_, QWidget *parent) :
     updateFromState();
 }
 
-void ISIPlot::setWaveform(const string& waveName_)
+void ISIPlot::setWaveform(const std::string& waveName_)
 {
     if (waveName == waveName_) return;
 
@@ -250,8 +250,8 @@ void ISIPlot::paintEvent(QPaintEvent* /* event */)
 
     // Draw histogram image
     bool yAxisLog = state->yAxisLogISI->getValue();
-    vector<double> yAxisTicks;
-    vector<QString> yAxisLabels;
+    std::vector<double> yAxisTicks;
+    std::vector<QString> yAxisLabels;
     double yMin = 0.0;
     double yMax = 0.0;
     CoordinateTranslator ctHist;

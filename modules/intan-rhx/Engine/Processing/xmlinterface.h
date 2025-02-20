@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -73,7 +73,7 @@ private:
     void parseSignalGroupsAttributes(const QByteArray &byteArray, QString &errorMessage) const;
     bool parseStimParameters(const QByteArray &byteArray, QString &errorMessage) const;
 
-    vector<string> findUninitializedChannels(vector<string> allChannels, vector<bool> channelInitializedFromXML) const;
+    std::vector<std::string> findUninitializedChannels(std::vector<std::string> allChannels, std::vector<bool> channelInitializedFromXML) const;
 
     bool parseProbeMapSettingsDOM(const QByteArray &byteArray, QString &errorMessage) const;
 

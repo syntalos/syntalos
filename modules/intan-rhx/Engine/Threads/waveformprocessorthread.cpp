@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -156,7 +156,7 @@ void WaveformProcessorThread::run()
                         SignalGroup* signalGroup = signalSources->groupByIndex(group);
                         for (int signal = 0; signal < signalGroup->numChannels(); signal++) {
                             Channel* channel = signalGroup->channelByIndex(signal);
-                            string waveName = channel->getNativeNameString();
+                            std::string waveName = channel->getNativeNameString();
                             if (channel->getSignalType() == AmplifierSignal) {
                                 GpuWaveformAddress gpuWaveformAddress = waveformFifo->getGpuWaveformAddress(waveName + "|SPK");
                                 digitalWaveform = waveformFifo->getDigitalWaveformPointer(waveName + "|SPK");

@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -30,8 +30,6 @@
 
 #include <iostream>
 #include "filepersignaltypesavemanager.h"
-
-using namespace std;
 
 // One file per signal type file format
 FilePerSignalTypeSaveManager::FilePerSignalTypeSaveManager(WaveformFifo* waveformFifo_, SystemState* state_) :
@@ -65,7 +63,6 @@ FilePerSignalTypeSaveManager::FilePerSignalTypeSaveManager(WaveformFifo* wavefor
 
 FilePerSignalTypeSaveManager::~FilePerSignalTypeSaveManager()
 {
-    closeAllSaveFiles();
 }
 
 bool FilePerSignalTypeSaveManager::openAllSaveFiles()
@@ -158,7 +155,7 @@ bool FilePerSignalTypeSaveManager::openAllSaveFiles()
             // Write amplifier custom names as comma-separated list, zero-terminated string.
             for (unsigned long i = 0; i < saveList.amplifier.size(); ++i) {
                 Channel* channel = state->signalSources->channelByName(saveList.amplifier[i]);
-                string customName = "";
+                std::string customName = "";
                 if (channel) customName = channel->getCustomName().toStdString();
                 spikeFile->writeStringAsCharArray(customName);
                 if (i != saveList.amplifier.size() - 1) {
@@ -339,11 +336,11 @@ void FilePerSignalTypeSaveManager::closeAllSaveFiles()
 int64_t FilePerSignalTypeSaveManager::writeToSaveFiles(int numSamples, int timeIndex)
 {
     int maxColumns = 1;
-    maxColumns = max(maxColumns, (int) saveList.amplifier.size());
-    maxColumns = max(maxColumns, (int) saveList.auxInput.size());
-    maxColumns = max(maxColumns, (int) saveList.supplyVoltage.size());
-    maxColumns = max(maxColumns, (int) saveList.boardAdc.size());
-    maxColumns = max(maxColumns, (int) saveList.boardDac.size());
+    maxColumns = (std::max)(maxColumns, (int) saveList.amplifier.size());
+    maxColumns = (std::max)(maxColumns, (int) saveList.auxInput.size());
+    maxColumns = (std::max)(maxColumns, (int) saveList.supplyVoltage.size());
+    maxColumns = (std::max)(maxColumns, (int) saveList.boardAdc.size());
+    maxColumns = (std::max)(maxColumns, (int) saveList.boardDac.size());
     float* vArray = new float [maxColumns * numSamples];
     uint16_t* uint16Array = new uint16_t [maxColumns * numSamples];
 

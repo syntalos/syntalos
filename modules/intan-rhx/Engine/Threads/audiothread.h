@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -32,13 +32,12 @@
 #define AUDIOTHREAD_H
 
 #include <QThread>
-#include <QAudioOutput>
+#include <QAudioSink>
+#include <QAudioFormat>
 #include <cstdint>
 #include <mutex>
 #include "systemstate.h"
 #include "waveformfifo.h"
-
-using namespace std;
 
 class AudioThread : public QThread
 {
@@ -65,7 +64,7 @@ private:
 #if __APPLE__
     const int NumSoundSamples = 24000;
 #else
-    const int NumSoundSamples = 5000;
+    const int NumSoundSamples = 8000;
 #endif
     const int NumSoundBytes = 2 * NumSoundSamples;
 
@@ -87,27 +86,25 @@ private:
     float *rawData;
     float *interpFloats;
     int32_t *interpInts;
-    char* finalSoundBytesBuffer;
+    QByteArray finalSoundBytesBuffer;
 
     double dataRatio;
 
     int originalSamplesCopied;
     int soundSamplesCopied;
 
-    volatile bool keepGoing;
-    volatile bool running;
-    volatile bool stopThread;
+    std::atomic_bool keepGoing;
+    std::atomic_bool running;
+    std::atomic_bool stopThread;
 
     float currentValue;
     float nextValue;
     double interpRatio;
     int interpLength;
 
-    QAudioDeviceInfo mDevice;
-    QByteArray* buf;
-    QDataStream* s;
-    QAudioOutput* mAudioOutput;
     QAudioFormat mFormat;
+    std::unique_ptr<QAudioSink> mAudioSink;
+    QDataStream* s;
 
     QString currentChannelString;
 

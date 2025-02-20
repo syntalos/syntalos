@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -49,7 +49,7 @@ ChargeRecoveryDialog::ChargeRecoveryDialog(bool chargeRecoveryMode,
     targetVoltageValidator->setNotation(QDoubleValidator::StandardNotation);
     targetVoltageValidator->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));  // Ensure '.' is used as decimal point, not ','
     targetVoltageLineEdit->setValidator(targetVoltageValidator);
-    connect(targetVoltageLineEdit, SIGNAL(textChanged(const QString &)), this, SLOT(onLineEditTextChanged()));
+    connect(targetVoltageLineEdit, SIGNAL(textChanged(QString)), this, SLOT(onLineEditTextChanged()));
 
     targetVoltageSelectLayout->addWidget(new QLabel(tr("Target Voltage for Current-Limited Charge Recovery"), this));
     targetVoltageSelectLayout->addWidget(targetVoltageLineEdit);

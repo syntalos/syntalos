@@ -122,7 +122,7 @@ ChanExportDialog::ChanExportDialog(SystemState *state, QWidget *parent) :
 void ChanExportDialog::updateAvailableChannelsTable()
 {
     // Scan through all channels.
-    std::vector<string> presentChannelsVector;
+    std::vector<std::string> presentChannelsVector;
     for (int group = 0; group < m_state->signalSources->numGroups(); ++group) {
         SignalGroup* thisGroup = m_state->signalSources->groupByIndex(group);
         for (int channel = 0; channel < thisGroup->numChannels(); ++channel) {

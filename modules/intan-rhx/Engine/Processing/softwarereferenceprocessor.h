@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -63,23 +63,23 @@ private:
     SystemState* state;
 
     // Reference signals consisting of a single channel.
-    vector<SignalWithSoftwareReference> signalListSingleReference;
-    vector<StreamChannelPair> singleReferenceList;
-    vector<int*> singleReferenceData;
+    std::vector<SignalWithSoftwareReference> signalListSingleReference;
+    std::vector<StreamChannelPair> singleReferenceList;
+    std::vector<int*> singleReferenceData;
 
     // Reference signals consisting of an average of multiple channels.
-    vector<SignalWithSoftwareReference> signalListMultiReference;
-    vector<vector<StreamChannelPair> > multiReferenceList;
-    vector<int*> multiReferenceData;
+    std::vector<SignalWithSoftwareReference> signalListMultiReference;
+    std::vector<std::vector<StreamChannelPair> > multiReferenceList;
+    std::vector<int*> multiReferenceData;
 
-    int findSingleReference(StreamChannelPair singleRef, const vector<StreamChannelPair>& singleRefList) const;
-    int findMultiReference(const vector<StreamChannelPair>& multiRef, const vector<vector<StreamChannelPair> >& multiRefList) const;
+    int findSingleReference(StreamChannelPair singleRef, const std::vector<StreamChannelPair>& singleRefList) const;
+    int findMultiReference(const std::vector<StreamChannelPair>& multiRef, const std::vector<std::vector<StreamChannelPair> >& multiRefList) const;
     void calculateReferenceSignals(const uint16_t* start);
     void readReferenceSignal(StreamChannelPair address, int* destination, const uint16_t* start);
     void addReferenceSignal(StreamChannelPair address, int* destination, const uint16_t* start);
     void subtractReferenceSignal(StreamChannelPair address, const int* refSignal, uint16_t* start);
-    void readReferenceSamples(vector<StreamChannelPair> &addresses, int t, vector<int> &destination, const uint16_t* start);
-    int calculateMedian(vector<int> &data);
+    void readReferenceSamples(std::vector<StreamChannelPair> &addresses, int t, std::vector<int> &destination, const uint16_t* start);
+    int calculateMedian(std::vector<int> &data);
     void deleteDataArrays();
 
 };

@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -46,7 +46,7 @@ GPUInterface::~GPUInterface()
 
 void GPUInterface::processDataBlock(uint16_t *data, uint16_t *lowChunk, uint16_t *wideChunk, uint16_t *highChunk, uint32_t *spikeChunk, uint8_t *spikeIDChunk)
 {
-    lock_guard<mutex> lockFilter(filterMutex);
+    std::lock_guard<std::mutex> lockFilter(filterMutex);
 
     if (channels == 0)
         return;

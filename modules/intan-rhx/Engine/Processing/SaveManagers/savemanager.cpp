@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -36,8 +36,6 @@
 #include <cmath>
 #include "abstractrhxcontroller.h"
 #include "savemanager.h"
-
-using namespace std;
 
 SaveManager::SaveManager(WaveformFifo* waveformFifo_, SystemState* state_) :
     waveformFifo(waveformFifo_),
@@ -151,7 +149,7 @@ void SaveManager::writeLiveNoteEntry(uint64_t timestamp, const QString& note)
         liveNotesFile->writeQStringAsAsciiText(timestampString + ", " + timeString + ", " + note + "\r\n");
         liveNotesFile->forceFlush();
     } else {
-        cerr << "SaveManager::writeLiveNoteEntry: live notes file " << liveNotesFileName.toStdString() << " is not open.\n";
+        std::cerr << "SaveManager::writeLiveNoteEntry: live notes file " << liveNotesFileName.toStdString() << " is not open.\n";
     }
 }
 

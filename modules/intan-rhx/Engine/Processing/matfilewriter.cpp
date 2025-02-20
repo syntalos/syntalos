@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -152,16 +152,16 @@ StorageDataType MatFileElement::smallestCompressedStorageDataType(int64_t minVal
     // Note: MATLAB allows only the following integer types to be used for compression of stored data:
     // UInt8, Int16, UInt16, or Int32.
 
-    if (minValue >= (int64_t) numeric_limits<uint8_t>::lowest() && maxValue <= (int64_t) numeric_limits<uint8_t>::max()) {
+    if (minValue >= (int64_t) std::numeric_limits<uint8_t>::lowest() && maxValue <= (int64_t) std::numeric_limits<uint8_t>::max()) {
         return StorageDataType::StorageDataTypeUInt8;
     }
-    if (minValue >= (int64_t) numeric_limits<int16_t>::lowest() && maxValue <= (int64_t) numeric_limits<int16_t>::max()) {
+    if (minValue >= (int64_t) std::numeric_limits<int16_t>::lowest() && maxValue <= (int64_t) std::numeric_limits<int16_t>::max()) {
         return StorageDataType::StorageDataTypeInt16;
     }
-    if (minValue >= (int64_t) numeric_limits<uint16_t>::lowest() && maxValue <= (int64_t) numeric_limits<uint16_t>::max()) {
+    if (minValue >= (int64_t) std::numeric_limits<uint16_t>::lowest() && maxValue <= (int64_t) std::numeric_limits<uint16_t>::max()) {
         return StorageDataType::StorageDataTypeUInt16;
     }
-    if (minValue >= (int64_t) numeric_limits<int32_t>::lowest() && maxValue <= (int64_t) numeric_limits<int32_t>::max()) {
+    if (minValue >= (int64_t) std::numeric_limits<int32_t>::lowest() && maxValue <= (int64_t) std::numeric_limits<int32_t>::max()) {
         return StorageDataType::StorageDataTypeInt32;
     }
     return StorageDataType::StorageDataTypeInt64;
@@ -339,7 +339,7 @@ int MatFileSparseArray::sizeOfArrayDataInBytes() const
 }
 
 
-MatFileUInt8SparseArray::MatFileUInt8SparseArray(const QString& name_, const vector<vector<uint8_t> >& dataArray_) :
+MatFileUInt8SparseArray::MatFileUInt8SparseArray(const QString& name_, const std::vector<std::vector<uint8_t> >& dataArray_) :
     MatFileSparseArray(name_, (int) dataArray_.size(), (int) dataArray_[0].size())
 {
     storageDataType = StorageDataTypeUInt8;
@@ -481,7 +481,7 @@ void MatFileString::writeElement(QDataStream& outStream)
 }
 
 
-MatFileUInt8Vector::MatFileUInt8Vector(const QString& name_, const vector<uint8_t>& dataVector_, MatlabDataType matlabDataType_) :
+MatFileUInt8Vector::MatFileUInt8Vector(const QString& name_, const std::vector<uint8_t>& dataVector_, MatlabDataType matlabDataType_) :
     MatFileNumericArray(name_, (int) dataVector_.size(), 1, matlabDataType_)
 {
     storageDataType = correspondingStorageDataType(matlabDataType);
@@ -504,7 +504,7 @@ void MatFileUInt8Vector::writeElement(QDataStream& outStream)
 }
 
 
-MatFileUInt16Vector::MatFileUInt16Vector(const QString& name_, const vector<uint16_t>& dataVector_, MatlabDataType matlabDataType_) :
+MatFileUInt16Vector::MatFileUInt16Vector(const QString& name_, const std::vector<uint16_t>& dataVector_, MatlabDataType matlabDataType_) :
     MatFileNumericArray(name_, (int) dataVector_.size(), 1, matlabDataType_)
 {
     storageDataType = correspondingStorageDataType(matlabDataType);
@@ -527,7 +527,7 @@ void MatFileUInt16Vector::writeElement(QDataStream& outStream)
 }
 
 
-MatFileInt16Vector::MatFileInt16Vector(const QString& name_, const vector<int16_t>& dataVector_, MatlabDataType matlabDataType_) :
+MatFileInt16Vector::MatFileInt16Vector(const QString& name_, const std::vector<int16_t>& dataVector_, MatlabDataType matlabDataType_) :
     MatFileNumericArray(name_, (int) dataVector_.size(), 1, matlabDataType_)
 {
     storageDataType = correspondingStorageDataType(matlabDataType);
@@ -550,7 +550,7 @@ void MatFileInt16Vector::writeElement(QDataStream& outStream)
 }
 
 
-MatFileInt32Vector::MatFileInt32Vector(const QString& name_, const vector<int32_t>& dataVector_, MatlabDataType matlabDataType_) :
+MatFileInt32Vector::MatFileInt32Vector(const QString& name_, const std::vector<int32_t>& dataVector_, MatlabDataType matlabDataType_) :
     MatFileNumericArray(name_, (int) dataVector_.size(), 1, matlabDataType_)
 {
     storageDataType = correspondingStorageDataType(matlabDataType);
@@ -573,7 +573,7 @@ void MatFileInt32Vector::writeElement(QDataStream& outStream)
 }
 
 
-MatFileRealVector::MatFileRealVector(const QString& name_, const vector<float>& dataVector_, MatlabDataType matlabDataType_) :
+MatFileRealVector::MatFileRealVector(const QString& name_, const std::vector<float>& dataVector_, MatlabDataType matlabDataType_) :
     MatFileNumericArray(name_, (int) dataVector_.size(), 1, matlabDataType_)
 {
     if (matlabDataType != MatlabDataTypeSingle && matlabDataType != MatlabDataTypeDouble) {
@@ -605,7 +605,7 @@ void MatFileRealVector::writeElement(QDataStream& outStream)
 }
 
 
-MatFileRealArray::MatFileRealArray(const QString& name_, const vector<vector<float> >& dataArray_, MatlabDataType matlabDataType_) :
+MatFileRealArray::MatFileRealArray(const QString& name_, const std::vector<std::vector<float> >& dataArray_, MatlabDataType matlabDataType_) :
     MatFileNumericArray(name_, (int) dataArray_.size(), (int) dataArray_[0].size(), matlabDataType_)
 {
     if (matlabDataType != MatlabDataTypeSingle && matlabDataType != MatlabDataTypeDouble) {
@@ -686,37 +686,37 @@ int MatFileWriter::addString(const QString& name_, const QString& text_)
     return addElement(new MatFileString(name_, text_));
 }
 
-int MatFileWriter::addUInt8Vector(const QString& name_, const vector<uint8_t>& dataVector_, MatlabDataType matlabDataType_)
+int MatFileWriter::addUInt8Vector(const QString& name_, const std::vector<uint8_t>& dataVector_, MatlabDataType matlabDataType_)
 {
     return addElement(new MatFileUInt8Vector(name_, dataVector_, matlabDataType_));
 }
 
-int MatFileWriter::addUInt16Vector(const QString& name_, const vector<uint16_t>& dataVector_, MatlabDataType matlabDataType_)
+int MatFileWriter::addUInt16Vector(const QString& name_, const std::vector<uint16_t>& dataVector_, MatlabDataType matlabDataType_)
 {
     return addElement(new MatFileUInt16Vector(name_, dataVector_, matlabDataType_));
 }
 
-int MatFileWriter::addInt16Vector(const QString& name_, const vector<int16_t>& dataVector_, MatlabDataType matlabDataType_)
+int MatFileWriter::addInt16Vector(const QString& name_, const std::vector<int16_t>& dataVector_, MatlabDataType matlabDataType_)
 {
     return addElement(new MatFileInt16Vector(name_, dataVector_, matlabDataType_));
 }
 
-int MatFileWriter::addInt32Vector(const QString& name_, const vector<int32_t>& dataVector_, MatlabDataType matlabDataType_)
+int MatFileWriter::addInt32Vector(const QString& name_, const std::vector<int32_t>& dataVector_, MatlabDataType matlabDataType_)
 {
     return addElement(new MatFileInt32Vector(name_, dataVector_, matlabDataType_));
 }
 
-int MatFileWriter::addRealVector(const QString& name_, const vector<float>& dataVector_, MatlabDataType matlabDataType_)
+int MatFileWriter::addRealVector(const QString& name_, const std::vector<float>& dataVector_, MatlabDataType matlabDataType_)
 {
     return addElement(new MatFileRealVector(name_, dataVector_, matlabDataType_));
 }
 
-int MatFileWriter::addRealArray(const QString& name_, const vector<vector<float> >& dataArray_, MatlabDataType matlabDataType_)
+int MatFileWriter::addRealArray(const QString& name_, const std::vector<std::vector<float> >& dataArray_, MatlabDataType matlabDataType_)
 {
     return addElement(new MatFileRealArray(name_, dataArray_, matlabDataType_));
 }
 
-int MatFileWriter::addUInt8SparseArray(const QString& name_, const vector<vector<uint8_t> >& dataArray_)
+int MatFileWriter::addUInt8SparseArray(const QString& name_, const std::vector<std::vector<uint8_t> >& dataArray_)
 {
     return addElement(new MatFileUInt8SparseArray(name_, dataArray_));
 }

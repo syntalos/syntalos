@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -37,8 +37,6 @@
 #include "datafilemanager.h"
 #include "datafile.h"
 
-using namespace std;
-
 class TraditionalIntanFileManager : public DataFileManager
 {
 public:
@@ -62,24 +60,24 @@ public:
 
 private:
     DataFile* dataFile;
-    vector<consecutiveFile> consecutiveFiles;
+    std::vector<consecutiveFile> consecutiveFiles;
     int consecutiveFileIndex;
     bool atEndOfCurrentFile;
     int samplesPerDataBlock;
     int positionInDataBlock;
 
     //  Buffers for loading entire data block into memory.
-    vector<int32_t> timeStampBuffer;
-    vector<uint16_t> amplifierDataBuffer;
-    vector<uint16_t> dcAmplifierDataBuffer;
-    vector<uint16_t> stimDataBuffer;
-    vector<uint16_t> auxInputDataBuffer;
-    vector<uint16_t> supplyVoltageDataBuffer;
-    vector<uint16_t> analogInDataBuffer;
-    vector<uint16_t> analogOutDataBuffer;
-    vector<uint16_t> digitalInDataBuffer;
-    vector<uint16_t> digitalOutDataBuffer;
-    vector<int16_t> tempSensorBuffer;
+    std::vector<int32_t> timeStampBuffer;
+    std::vector<uint16_t> amplifierDataBuffer;
+    std::vector<uint16_t> dcAmplifierDataBuffer;
+    std::vector<uint16_t> stimDataBuffer;
+    std::vector<uint16_t> auxInputDataBuffer;
+    std::vector<uint16_t> supplyVoltageDataBuffer;
+    std::vector<uint16_t> analogInDataBuffer;
+    std::vector<uint16_t> analogOutDataBuffer;
+    std::vector<uint16_t> digitalInDataBuffer;
+    std::vector<uint16_t> digitalOutDataBuffer;
+    std::vector<int16_t> tempSensorBuffer;
 };
 
 #endif // TRADITIONALINTANFILEMANAGER_H

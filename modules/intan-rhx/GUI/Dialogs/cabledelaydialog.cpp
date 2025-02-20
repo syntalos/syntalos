@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -31,7 +31,7 @@
 #include <QtWidgets>
 #include "cabledelaydialog.h"
 
-CableDelayDialog::CableDelayDialog(vector<bool> &manualDelayEnabled, vector<int> &currentDelay, int numPorts,
+CableDelayDialog::CableDelayDialog(std::vector<bool> &manualDelayEnabled, std::vector<int> &currentDelay, int numPorts,
                                    QWidget *parent) :
     QDialog(parent)
 {

@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -43,8 +43,6 @@
 #include "rhxglobals.h"
 #include "fastfouriertransform.h"
 
-using namespace std;
-
 class SpectrogramPlot : public QWidget
 {
     Q_OBJECT
@@ -52,7 +50,7 @@ public:
     explicit SpectrogramPlot(SystemState* state_, QWidget *parent = nullptr);
     ~SpectrogramPlot();
 
-    void setWaveform(const string& waveName_);
+    void setWaveform(const std::string& waveName_);
     QString getWaveform() const;
     bool updateWaveforms(WaveformFifo* waveformFifo, int numSamples);
     void resetSpectrogram();
@@ -78,12 +76,12 @@ protected:
 
 private:
     SystemState* state;
-    string waveName;
+    std::string waveName;
 
-    deque<float> amplifierWaveformQueue;
-    deque<float> amplifierWaveformRecordQueue;
-    deque<uint16_t> digitalWaveformQueue;
-    deque<uint32_t> waveformTimeStampQueue;
+    std::deque<float> amplifierWaveformQueue;
+    std::deque<float> amplifierWaveformRecordQueue;
+    std::deque<uint16_t> digitalWaveformQueue;
+    std::deque<uint32_t> waveformTimeStampQueue;
 
     FastFourierTransform* fftEngine;
     int fftSize;
@@ -96,12 +94,12 @@ private:
     double tStep;
 
     float* fftInputBuffer;
-    vector<float> frequencyScale;
+    std::vector<float> frequencyScale;
     int fMinIndex;
     int fMaxIndex;
-    vector<float> timeScale;
-    vector<float> psdSpectrum;
-    vector<vector<float> > psdSpectrogram;
+    std::vector<float> timeScale;
+    std::vector<float> psdSpectrum;
+    std::vector<std::vector<float> > psdSpectrogram;
     QImage psdRawImage;
 
     double psdScaleMin;

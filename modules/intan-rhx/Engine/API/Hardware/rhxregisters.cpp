@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -351,9 +351,9 @@ void RHXRegisters::enableDsp(bool enabled)
 
 // Return a size-16 vector containing all possible cutoff frequencies for the on-chip DSP offset
 // removal filter (a one-pole highpass filter).
-vector<double> RHXRegisters::getDspFreqTable(double sampleRate_)
+std::vector<double> RHXRegisters::getDspFreqTable(double sampleRate_)
 {
-    vector<double> fCutoff(16, 0.0);
+    std::vector<double> fCutoff(16, 0.0);
     // Note: fCutoff[0] = 0.0 here, but this index should not be used.
     for (int n = 1; n < 16; ++n) {
         double x = pow(2.0, (double) n);
@@ -366,7 +366,7 @@ vector<double> RHXRegisters::getDspFreqTable(double sampleRate_)
 // newDspCutoffFreq (in Hz) as possible; returns the actual cutoff frequency (in Hz).
 double RHXRegisters::setDspCutoffFreq(double newDspCutoffFreq)
 {
-    vector<double> fCutoff = getDspFreqTable();
+    std::vector<double> fCutoff = getDspFreqTable();
     double logNewDspCutoffFreq = log10(newDspCutoffFreq);
 
     // Find the closest value to the requested cutoff frequency (on a logarithmic scale).
@@ -791,7 +791,7 @@ int RHXRegisters::getRHDRegisterValue(int reg) const
 }
 
 // Convert a 16-bit vector to a 16-bit word.
-int RHXRegisters::vectorToWord(const vector<int> &v)
+int RHXRegisters::vectorToWord(const std::vector<int> &v)
 {
     int word = 0;
 
@@ -1071,7 +1071,7 @@ unsigned int RHXRegisters::createRHXCommand(RHXCommandType commandType)
             return 0xd0ff0000;   // 11010000 11111111 00000000 00000000 (Read from Register 255 with M flag set).
             break;
         default:
-            cerr << "Error in RHXRegisters::createRHXCommand: " <<
+            std::cerr << "Error in RHXRegisters::createRHXCommand: " <<
                 "Only 'Calibrate', 'Clear Calibration', or 'Compliance Monitor Reset' commands take zero arguments.\n";
             return 0xffffffff;
         }
@@ -1084,7 +1084,7 @@ unsigned int RHXRegisters::createRHXCommand(RHXCommandType commandType)
             return 0x6a00;   // 0110101000000000
             break;
         default:
-            cerr << "Error in RHXRegisters::createRHXCommand: " <<
+            std::cerr << "Error in RHXRegisters::createRHXCommand: " <<
                     "Only 'Calibrate' or 'Clear Calibration' commands take zero arguments.\n";
             return 0xffffffff;
         }
@@ -1098,7 +1098,7 @@ unsigned int RHXRegisters::createRHXCommand(RHXCommandType commandType, unsigned
         switch (commandType) {
         case RHXCommandConvert:
             if (arg1 > 15) {
-                cerr << "Error in RHXRegisters::createRHX0Command: " <<
+                std::cerr << "Error in RHXRegisters::createRHX0Command: " <<
                     "Channel number out of range.\n";
                 return 0xffffffff;
             }
@@ -1107,7 +1107,7 @@ unsigned int RHXRegisters::createRHXCommand(RHXCommandType commandType, unsigned
             break;
         case RHXCommandRegRead:
             if (arg1 > 255) {
-                cerr << "Error in RHXRegisters::createRHXCommand: " <<
+                std::cerr << "Error in RHXRegisters::createRHXCommand: " <<
                     "Register address out of range.\n";
                 return 0xffffffff;
             }
@@ -1115,23 +1115,23 @@ unsigned int RHXRegisters::createRHXCommand(RHXCommandType commandType, unsigned
                                                // arg1 is the register address.
             break;
         default:
-            cerr << "Error in RHXRegisters::createRHXCommand: " <<
+            std::cerr << "Error in RHXRegisters::createRHXCommand: " <<
                 "Only 'Convert' and 'Register Read' commands take one argument.\n";
             return 0xffffffff;
         }
     } else {
         switch (commandType) {
         case RHXCommandConvert:
-            if ((arg1 < 0) || (arg1 > 63)) {
-                cerr << "Error in RHXRegisters::createRHXCommand: " <<
+            if (((int)arg1 < 0) || (arg1 > 63)) {
+                std::cerr << "Error in RHXRegisters::createRHXCommand: " <<
                         "Channel number out of range.\n";
                 return -1;
             }
             return 0x0000 + (arg1 << 8);  // 00cccccc0000000h; if the command is 'Convert',
                                           // arg1 is the channel number.
         case RHXCommandRegRead:
-            if ((arg1 < 0) || (arg1 > 63)) {
-                cerr << "Error in RHXRegisters::createRHXCommand: " <<
+            if (((int)arg1 < 0) || (arg1 > 63)) {
+                std::cerr << "Error in RHXRegisters::createRHXCommand: " <<
                         "Register address out of range.\n";
                 return -1;
             }
@@ -1139,7 +1139,7 @@ unsigned int RHXRegisters::createRHXCommand(RHXCommandType commandType, unsigned
                                           // arg1 is the register address.
             break;
         default:
-            cerr << "Error in RHXRegisters::createRHXCommand: " <<
+            std::cerr << "Error in RHXRegisters::createRHXCommand: " <<
                     "Only 'Convert' and 'Register Read' commands take one argument.\n";
             return 0xffffffff;
         }
@@ -1153,12 +1153,12 @@ unsigned int RHXRegisters::createRHXCommand(RHXCommandType commandType, unsigned
         switch (commandType) {
         case RHXCommandRegWrite:
             if (arg1 > 255) {
-                cerr << "Error in RHXRegisters::createRHXCommand: " <<
+                std::cerr << "Error in RHXRegisters::createRHXCommand: " <<
                     "Register address out of range.\n";
                 return 0xffffffff;
             }
             if (arg2 > 65535) {
-                cerr << "Error in RHXRegisters::createRHXCommand: " <<
+                std::cerr << "Error in RHXRegisters::createRHXCommand: " <<
                     "Register data out of range.\n";
                 return 0xffffffff;
             }
@@ -1167,7 +1167,7 @@ unsigned int RHXRegisters::createRHXCommand(RHXCommandType commandType, unsigned
             break;
         case RHXCommandConvert:
             if (arg1 > 15) {
-                cerr << "Error in RHXRegisters::createRHXCommand: " <<
+                std::cerr << "Error in RHXRegisters::createRHXCommand: " <<
                     "Channel number out of range.\n";
                 return 0xffffffff;
             }
@@ -1175,20 +1175,20 @@ unsigned int RHXRegisters::createRHXCommand(RHXCommandType commandType, unsigned
                                                               // arg1 is the channel number and arg2 is the H flag.
             break;
         default:
-            cerr << "Error in RHXRegisters::createRHXCommand: " <<
+            std::cerr << "Error in RHXRegisters::createRHXCommand: " <<
                 "Only 'Register Write' and 'Convert' commands take two arguments.\n";
             return 0xffffffff;
         }
     } else {
         switch (commandType) {
         case RHXCommandRegWrite:
-            if ((arg1 < 0) || (arg1 > 63)) {
-                cerr << "Error in RHXRegisters::createRHXCommand: " <<
+            if (((int)arg1 < 0) || (arg1 > 63)) {
+                std::cerr << "Error in RHXRegisters::createRHXCommand: " <<
                         "Register address out of range.\n";
                 return -1;
             }
-            if ((arg2 < 0) || (arg2 > 255)) {
-                cerr << "Error in RHXRegisters::createRHXCommand: " <<
+            if (((int)arg2 < 0) || (arg2 > 255)) {
+                std::cerr << "Error in RHXRegisters::createRHXCommand: " <<
                         "Register data out of range.\n";
                 return -1;
             }
@@ -1196,7 +1196,7 @@ unsigned int RHXRegisters::createRHXCommand(RHXCommandType commandType, unsigned
                                                 // arg1 is the register address and arg1 is the data.
             break;
         default:
-            cerr << "Error in RHXRegisters::createRHXCommand: " <<
+            std::cerr << "Error in RHXRegisters::createRHXCommand: " <<
                     "Only 'Register Write' commands take two arguments.\n";
             return 0xffffffff;
         }
@@ -1211,12 +1211,12 @@ unsigned int RHXRegisters::createRHXCommand(RHXCommandType commandType, unsigned
         switch (commandType) {
         case RHXCommandRegWrite:
             if (arg1 > 255) {
-                cerr << "Error in RHXRegisters::createRHXCommand: " <<
+                std::cerr << "Error in RHXRegisters::createRHXCommand: " <<
                     "Register address out of range.\n";
                 return 0xffffffff;
             }
             if (arg2 > 65535) {
-                cerr << "Error in RHXRegisters::createRHXCommand: " <<
+                std::cerr << "Error in RHXRegisters::createRHXCommand: " <<
                     "Register data out of range.\n";
                 return 0xffffffff;
             }
@@ -1224,12 +1224,12 @@ unsigned int RHXRegisters::createRHXCommand(RHXCommandType commandType, unsigned
                                                      // arg1 is the register address and arg2 is the data.
             break;
         default:
-            cerr << "Error in RHXRegisters::createRHXCommand: " <<
+            std::cerr << "Error in RHXRegisters::createRHXCommand: " <<
                 "Only 'Register Write' commands take four arguments.\n";
             return 0xffffffff;
         }
     } else {
-        cerr << "Error in RHXRegisters::createRHXCommand: " <<
+        std::cerr << "Error in RHXRegisters::createRHXCommand: " <<
             "Only RHS2000 'Register Write' commands take four arguments.\n";
         return 0xffffffff;
     }
@@ -1317,6 +1317,7 @@ void RHXRegisters::setStimStepSize(StimStepSize step)
         stimNBias = 15;
         break;
     case StimStepSizeMax:
+    default:
         stimStepSel1 = 0;
         stimStepSel2 = 0;
         stimStepSel3 = 0;
@@ -1361,15 +1362,15 @@ double RHXRegisters::stimStepSizeToDouble(StimStepSize step)
 int RHXRegisters::setPosStimMagnitude(int channel, int magnitude, int trim)
 {
     if ((channel < 0) || (channel > 15)) {
-        cerr << "Error in Rhs2000Registers::setPosStimMagnitude: channel out of range.\n";
+        std::cerr << "Error in Rhs2000Registers::setPosStimMagnitude: channel out of range.\n";
         return -1;
     }
     if ((magnitude < 0) || (magnitude > 255)) {
-        cerr << "Error in Rhs2000Registers::setPosStimMagnitude: magnitude out of range.\n";
+        std::cerr << "Error in Rhs2000Registers::setPosStimMagnitude: magnitude out of range.\n";
         return -1;
     }
     if ((trim < -128) || (trim > 127)) {
-        cerr << "Error in Rhs2000Registers::setPosStimMagnitude: trim out of range.\n";
+        std::cerr << "Error in Rhs2000Registers::setPosStimMagnitude: trim out of range.\n";
         return -1;
     }
     posCurrentMag[channel] = magnitude;
@@ -1381,15 +1382,15 @@ int RHXRegisters::setPosStimMagnitude(int channel, int magnitude, int trim)
 int RHXRegisters::setNegStimMagnitude(int channel, int magnitude, int trim)
 {
     if ((channel < 0) || (channel > 15)) {
-        cerr << "Error in Rhs2000Registers::setNegStimMagnitude: channel out of range.\n";
+        std::cerr << "Error in Rhs2000Registers::setNegStimMagnitude: channel out of range.\n";
         return -1;
     }
     if ((magnitude < 0) || (magnitude > 255)) {
-        cerr << "Error in Rhs2000Registers::setNegStimMagnitude: magnitude out of range.\n";
+        std::cerr << "Error in Rhs2000Registers::setNegStimMagnitude: magnitude out of range.\n";
         return -1;
     }
     if ((trim < -128) || (trim > 127)) {
-        cerr << "Error in Rhs2000Registers::setNegStimMagnitude: trim out of range.\n";
+        std::cerr << "Error in Rhs2000Registers::setNegStimMagnitude: trim out of range.\n";
         return -1;
     }
     negCurrentMag[channel] = magnitude;
@@ -1514,7 +1515,7 @@ double RHXRegisters::setChargeRecoveryTargetVoltage(double vTarget)
 // Create a list of numCommands commands to program most RAM registers on a RHD2000 chip, read those values
 // back to confirm programming, read ROM registers, and (if calibrate == true) run ADC calibration.
 // Returns the length of the command list.  numCommands must be 60 or greater.
-int RHXRegisters::createCommandListRHDRegisterConfig(vector<unsigned int> &commandList, bool calibrate,
+int RHXRegisters::createCommandListRHDRegisterConfig(std::vector<unsigned int> &commandList, bool calibrate,
                                                      int numCommands)
 {
     if (type != ControllerRecordUSB2 && type != ControllerRecordUSB3) return -1;
@@ -1604,7 +1605,7 @@ int RHXRegisters::createCommandListRHDRegisterConfig(vector<unsigned int> &comma
 // back to confirm programming, and read ROM registers.
 // If updateStimParams == true, update stimulation amplitudes and other charge-recovery parameters.
 // Return the length of the command list.
-int RHXRegisters::createCommandListRHSRegisterConfig(vector<unsigned int> &commandList, bool updateStimParams)
+int RHXRegisters::createCommandListRHSRegisterConfig(std::vector<unsigned int> &commandList, bool updateStimParams)
 {
     if (type != ControllerStimRecord) return -1;
 
@@ -1714,7 +1715,7 @@ int RHXRegisters::createCommandListRHSRegisterConfig(vector<unsigned int> &comma
 }
 
 // Read all registers from chip without changing any values.
-int RHXRegisters::createCommandListRHSRegisterRead(vector<unsigned int> &commandList)
+int RHXRegisters::createCommandListRHSRegisterRead(std::vector<unsigned int> &commandList)
 {
     if (type != ControllerStimRecord) return -1;
 
@@ -1777,7 +1778,7 @@ int RHXRegisters::createCommandListRHSRegisterRead(vector<unsigned int> &command
 }
 
 // Create a list of dummy commands with a specific command. Return the length of the command list (which should be n).
-int RHXRegisters::createCommandListDummy(vector <unsigned int> &commandList, int n, unsigned int cmd)
+int RHXRegisters::createCommandListDummy(std::vector <unsigned int> &commandList, int n, unsigned int cmd)
 {
     commandList.clear();
 
@@ -1790,7 +1791,7 @@ int RHXRegisters::createCommandListDummy(vector <unsigned int> &commandList, int
 
 // Set positive and negative stimulation magnitude and trim parameters for a single channel.
 // Return the length of the command list (which should be 128).
-int RHXRegisters::createCommandListSetStimMagnitudes(vector<unsigned int> &commandList, int channel,
+int RHXRegisters::createCommandListSetStimMagnitudes(std::vector<unsigned int> &commandList, int channel,
                                                          int posMag, int posTrim, int negMag, int negTrim)
 {
     if (type != ControllerStimRecord) return -1;
@@ -1816,7 +1817,7 @@ int RHXRegisters::createCommandListSetStimMagnitudes(vector<unsigned int> &comma
     return (int)commandList.size();
 }
 
-int RHXRegisters::createCommandListSetStimMagnitudesAllChannels(vector<unsigned int> &commandList, int posMag, int posTrim, int negMag, int negTrim)
+int RHXRegisters::createCommandListSetStimMagnitudesAllChannels(std::vector<unsigned int> &commandList, int posMag, int posTrim, int negMag, int negTrim)
 {
     if (type != ControllerStimRecord) return -1;
 
@@ -1843,7 +1844,7 @@ int RHXRegisters::createCommandListSetStimMagnitudesAllChannels(vector<unsigned 
 
 // Set charge recovery current limit and target voltage (Registers 36 and 37).
 // Return the length of the command list (which should be 128).
-int RHXRegisters::createCommandListConfigChargeRecovery(vector<unsigned int> &commandList,
+int RHXRegisters::createCommandListConfigChargeRecovery(std::vector<unsigned int> &commandList,
                                                             ChargeRecoveryCurrentLimit currentLimit, double targetVoltage)
 {
     if (type != ControllerStimRecord) return -1;
@@ -1873,19 +1874,19 @@ int RHXRegisters::createCommandListConfigChargeRecovery(vector<unsigned int> &co
 // amplitude (in DAC steps, 0-128) using the on-chip impedance testing voltage DAC.  If frequency is set to zero,
 // a DC baseline waveform is created.
 // Return the length of the command list.
-int RHXRegisters::createCommandListZcheckDac(vector<unsigned int> &commandList, double frequency, double amplitude)
+int RHXRegisters::createCommandListZcheckDac(std::vector<unsigned int> &commandList, double frequency, double amplitude)
 {
     commandList.clear();    // if command list already exists, erase it and start a new one
 
     if ((amplitude < 0.0) || (amplitude > 128.0)) {
-        cerr << "Error in RHXRegisters::createCommandListZcheckDac: Amplitude out of range.\n";
+        std::cerr << "Error in RHXRegisters::createCommandListZcheckDac: Amplitude out of range.\n";
         return -1;
     }
     if (frequency < 0.0) {
-        cerr << "Error in RHXRegisters::createCommandListZcheckDac: Negative frequency not allowed.\n";
+        std::cerr << "Error in RHXRegisters::createCommandListZcheckDac: Negative frequency not allowed.\n";
         return -1;
     } else if (frequency > sampleRate / 4.0) {
-        cerr << "Error in RHXRegisters::createCommandListZcheckDac: " <<
+        std::cerr << "Error in RHXRegisters::createCommandListZcheckDac: " <<
             "Frequency too high relative to sampling rate.\n";
         return -1;
     }
@@ -1898,7 +1899,7 @@ int RHXRegisters::createCommandListZcheckDac(vector<unsigned int> &commandList, 
     } else {
         int period = (int)floor(sampleRate / frequency + 0.5);
         if (period > maxCommandLength()) {
-            cerr << "Error in RHXRegisters::createCommandListZcheckDac: Frequency too low.\n";
+            std::cerr << "Error in RHXRegisters::createCommandListZcheckDac: Frequency too low.\n";
             return -1;
         } else {
             double t = 0.0;
@@ -1921,7 +1922,7 @@ int RHXRegisters::createCommandListZcheckDac(vector<unsigned int> &commandList, 
 // Create a list of RHD commands to sample auxiliary ADC inputs 1-3 at 1/4 the amplifier sampling
 // rate.  The reading of a ROM register is interleaved to allow for data frame alignment.
 // Return the length of the command list.  numCommands should be evenly divisible by four.
-int RHXRegisters::createCommandListRHDSampleAuxIns(vector<unsigned int> &commandList, int numCommands)
+int RHXRegisters::createCommandListRHDSampleAuxIns(std::vector<unsigned int> &commandList, int numCommands)
 {
     if (type != ControllerRecordUSB2 && type != ControllerRecordUSB3) return -1;
     if (numCommands < 4) return -1;
@@ -1952,7 +1953,7 @@ int RHXRegisters::createCommandListRHDSampleAuxIns(vector<unsigned int> &command
 // Create a list of commands to update RHD Register 3 (controlling the auxiliary digital ouput
 // pin) every sampling period.
 // Return the length of the command list.
-int RHXRegisters::createCommandListRHDUpdateDigOut(vector<unsigned int> &commandList, int numCommands)
+int RHXRegisters::createCommandListRHDUpdateDigOut(std::vector<unsigned int> &commandList, int numCommands)
 {
     if (type != ControllerRecordUSB2 && type != ControllerRecordUSB3) return -1;
     if (numCommands < 1) return -1;

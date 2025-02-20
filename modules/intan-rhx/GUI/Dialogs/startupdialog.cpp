@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -131,14 +131,11 @@ StartupDialog::StartupDialog(ControllerType controllerType_, AmplifierSampleRate
     }
 
     setWindowTitle(tr("Select Sample Rate"));
+    setWindowFlags(windowFlags() | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
+
     mainLayout->addWidget(rememberSettingsCheckBox);
     mainLayout->addLayout(buttonBoxRow);
     setLayout(mainLayout);
-}
-
-void StartupDialog::closeEvent(QCloseEvent *)
-{
-    exit(EXIT_FAILURE);
 }
 
 void StartupDialog::accept()

@@ -116,3 +116,11 @@ Intan RHX release notes
 - Flush livenotes file every time a livenote occurs (useful for real-time applications that rely on livenotes)
 - Fix XML loading of Port-specific parameters (manual delay, auxiliary digital out assignment) failing after Port A
 - Fix intermittent crashing that would occur from hovering cursor in tooltip mode over border between signal types in plot
+
+* Version 3.4.0, 4 February 2025
+- Comprehensive codebase overhaul from Qt 5 to Qt 6
+- Fix Spike Output TCP GUI unresponsiveness
+- Add OpenCL setting to saved settings, allowing OpenCL to remain disabled between sessions if specified by user
+- Small adjustments to preserve readability with Qt 6 GUI display
+- Fix bug that could cause incorrect fast settle behavior during stimulation pulse trains
+- Fix bug that could, under rare conditions, cause software to enter test mode upon startup

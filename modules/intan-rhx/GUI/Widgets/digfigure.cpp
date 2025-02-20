@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -34,8 +34,6 @@
 #include "stimparameters.h"
 #include "abstractfigure.h"
 #include "digfigure.h"
-
-using namespace std;
 
 DigFigure::DigFigure(StimParameters *stimParameters, QWidget* parent) :
     AbstractFigure()

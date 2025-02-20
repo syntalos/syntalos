@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -42,15 +42,13 @@
 #include "plotutilities.h"
 #include "waveformfifo.h"
 
-using namespace std;
-
 struct SpikePlotHistory
 {
-    deque<vector<float> > snippets;
-    deque<int> spikeIds;
+    std::deque<std::vector<float> > snippets;
+    std::deque<int> spikeIds;
 
-    deque<vector<float> > snapshotSnippets;
-    deque<int> snapshotSpikeIds;
+    std::deque<std::vector<float> > snapshotSnippets;
+    std::deque<int> snapshotSpikeIds;
 };
 
 
@@ -61,7 +59,7 @@ public:
     explicit SpikePlot(SystemState* state_, QWidget *parent = nullptr);
     ~SpikePlot();
 
-    void setWaveform(const string& waveName);
+    void setWaveform(const std::string& waveName);
     QString getWaveform();
     bool updateWaveforms(WaveformFifo* waveformFifo, int numSamples);
     void clearSpikes();
@@ -94,7 +92,7 @@ private:
     QRect scopeFrame;
     QImage image;
 
-    map<string, SpikePlotHistory*> spikeHistoryMap;
+    std::map<std::string, SpikePlotHistory*> spikeHistoryMap;
 
     const QColor SnapshotColor = QColor(140, 83, 25);
 

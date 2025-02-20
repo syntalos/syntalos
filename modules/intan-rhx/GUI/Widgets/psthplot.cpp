@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -55,7 +55,7 @@ PSTHPlot::PSTHPlot(SystemState* state_, QWidget *parent) :
     updateFromState();
 }
 
-void PSTHPlot::setWaveform(const string& waveName_)
+void PSTHPlot::setWaveform(const std::string& waveName_)
 {
     if (waveName == waveName_) return;
 
@@ -177,7 +177,7 @@ void PSTHPlot::calculateHistogram()
 
     // Calculate new histogram
     for (int trial = 0; trial < numTrials; ++trial) {
-        vector<uint8_t>& currentRaster = rasters[trial];
+        std::vector<uint8_t>& currentRaster = rasters[trial];
         int histIndex = 0;
         for (int t = 0; t < numTStepsTotal(); t += numTStepsPerBin()) {
             for (int tt = 0; tt < numTStepsPerBin(); ++tt) {
@@ -281,8 +281,8 @@ void PSTHPlot::addNewRaster(int timeIndex)
     if (numTrials == maxNumTrials) {
         // If raster record is full, shift it back by one.
         for (int trial = 0; trial < maxNumTrials - 1; ++trial) {
-            vector<uint8_t>& currentRaster = rasters[trial];
-            vector<uint8_t>& nextRaster = rasters[trial + 1];
+            std::vector<uint8_t>& currentRaster = rasters[trial];
+            std::vector<uint8_t>& nextRaster = rasters[trial + 1];
             for (int t = 0; t < numTStepsTotal(); ++t) {
                 currentRaster[t] = nextRaster[t];
             }
@@ -298,7 +298,7 @@ void PSTHPlot::addNewRaster(int timeIndex)
     }
     // Add new raster at the end of the raster record.
     timeIndex -= numTStepsPreTrigger();
-    vector<uint8_t>& currentRaster = rasters[numTrials];
+    std::vector<uint8_t>& currentRaster = rasters[numTrials];
     for (int t = 0; t < numTStepsTotal(); ++t) {
         currentRaster[t] = (spikeTrainQueue[timeIndex + t]) ? 1u : 0u;
         triggerWaveform[t] = digitalWaveformQueue[t];
@@ -334,7 +334,7 @@ void PSTHPlot::deleteLastRaster()
 void PSTHPlot::redrawRasterImage()
 {
     for (int trial = 0; trial < numTrials; ++trial) {
-        vector<uint8_t>& currentRaster = rasters[trial];
+        std::vector<uint8_t>& currentRaster = rasters[trial];
         CoordinateTranslator1D ct(0, rasterPlotWidth, 0, numTStepsTotal());
         for (int t = 0; t < numTStepsTotal(); ++t) {
             if (currentRaster[t]) {
@@ -489,8 +489,8 @@ void PSTHPlot::paintEvent(QPaintEvent* /* event */)
     painter.drawLine(zeroX, rasterFrame.top() + 1, zeroX, rasterFrame.bottom());
 
     // Draw histogram image
-    vector<double> yAxisTicks;
-    vector<QString> yAxisLabels;
+    std::vector<double> yAxisTicks;
+    std::vector<QString> yAxisLabels;
     double yMax = plotDecorator.autoCalculateYAxis(maxValueHistogram, yAxisTicks, yAxisLabels);
     CoordinateTranslator ctHist(histogramFrame.adjusted(1, 1, 0, 0),
                                 -preTriggerTimeSpan, postTriggerTimeSpan, 0, yMax);
@@ -601,7 +601,7 @@ bool PSTHPlot::saveMatFile(const QString& fileName) const
     if (numTrials == maxNumTrials) {
         matFileWriter.addUInt8SparseArray(rastersName, rasters);
     } else {
-        vector<vector<uint8_t> > rastersSave;
+        std::vector<std::vector<uint8_t> > rastersSave;
         rastersSave.resize(numTrials);
         for (int trial = 0; trial < numTrials; ++trial) {
             rastersSave[trial].resize(numTStepsTotal());
@@ -613,7 +613,7 @@ bool PSTHPlot::saveMatFile(const QString& fileName) const
     }
     matFileWriter.transposeLastElement();
 
-    vector<float> trials(numTrials);
+    std::vector<float> trials(numTrials);
     for (int i = 0; i < numTrials; ++i) {
         trials[i] = i + 1;
     }
@@ -621,7 +621,7 @@ bool PSTHPlot::saveMatFile(const QString& fileName) const
 
     float tStepSec = 1.0F / state->sampleRate->getNumericValue();
     float tOffsetSec = -0.001F * (float)preTriggerTimeSpan;
-    vector<float> tRasters(numTStepsTotal());
+    std::vector<float> tRasters(numTStepsTotal());
     for (int i = 0; i < numTStepsTotal(); ++i) {
         tRasters[i] = i * tStepSec + tOffsetSec;
     }

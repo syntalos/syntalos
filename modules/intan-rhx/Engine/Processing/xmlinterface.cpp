@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -176,7 +176,7 @@ void XMLInterface::saveAsElement(QXmlStreamWriter &stream) const
         stream.writeStartElement("GeneralConfig");
 
         // Write attributes
-        for (auto attribute : generalConfigList) {
+        for (auto& attribute : generalConfigList) {
             // Separate colon-separated QString subsections into separate QStrings 'name' and 'value'
             QStringList subsections = attribute.split(":_:");
             QString name = "\n\t\t" + subsections.at(0);
@@ -241,7 +241,7 @@ void XMLInterface::saveAsElement(QXmlStreamWriter &stream) const
             stream.writeStartElement("SignalGroup");
 
             // Write attributes
-            for (auto attribute : signalGroupList) {
+            for (auto& attribute : signalGroupList) {
                 // Separate colon-separated QString subsections into separate QStrings 'name' and 'value'
                 QStringList subsections = attribute.split(":_:");
                 QString name = "\n\t\t" + subsections.at(0);
@@ -286,7 +286,7 @@ void XMLInterface::saveAsElement(QXmlStreamWriter &stream) const
                     stream.writeStartElement("Channel");
 
                     // Write stand-alone attributes
-                    for (auto attribute : channelList) {
+                    for (auto& attribute : channelList) {
                         // Separate colon-separated QString subsections into separate QStrings 'name' and 'value'
                         QStringList subsections = attribute.split(":_:");
                         QString name = "\n\t\t\t" + subsections.at(0);
@@ -343,7 +343,7 @@ void XMLInterface::saveAsElement(QXmlStreamWriter &stream) const
                 stream.writeStartElement("StimChannel");
 
                 // Write attributes
-                for (auto attribute : channelList) {
+                for (auto& attribute : channelList) {
                     // Separate colon-separated QString subsections into separate QStrings 'name' and 'value'
                     QStringList subsections = attribute.split(":_:");
                     QString name = "\n\t\t\t" + subsections.at(0);
@@ -376,7 +376,7 @@ bool XMLInterface::parseDocumentStart(const QByteArray &byteArray, QString &erro
 
                 // Iterate through all XML attributes.
                 QXmlStreamAttributes attributes = stream.attributes();
-                for (auto attribute : attributes) {
+                for (auto& attribute : attributes) {
                     // Get the attribute name and value from the XML
                     QString attributeName = attribute.name().toString();
                     QString attributeValue = attribute.value().toString();
@@ -437,16 +437,16 @@ bool XMLInterface::checkConsistentChannels(const QByteArray &byteArray, QString 
     if (!validDocumentStart) return false;
 
     // Get list of all present channels
-    vector<string> allChannels = state->signalSources->completeChannelsNameList();
+    std::vector<std::string> allChannels = state->signalSources->completeChannelsNameList();
 
     // Create a parallel list of bools to represent if these channels have been initialized from XML
-    vector<bool> channelsInitializedFromXML(allChannels.size(), false);
+    std::vector<bool> channelsInitializedFromXML(allChannels.size(), false);
 
     // Get to SignalGroups
     while (!stream.atEnd()) {
 
         // Make sure we enter at least the first SignalGroup element. If we've gone past all the SignalGroups and are at the end of the document, just return
-        while (stream.name() != "SignalGroup") {
+        while (stream.name() != QStringLiteral("SignalGroup")) {
             QXmlStreamReader::TokenType token = stream.readNext();
 
             // Handle if no signal groups at all are present by giving a warning and returning
@@ -505,12 +505,12 @@ bool XMLInterface::checkConsistentChannels(const QByteArray &byteArray, QString 
         while (!stream.atEnd()) {
 
             // Make sure we enter at least the first Channel element. If we've gone past all the Channels and are at the end of the document, just return.
-            while (stream.name() != "Channel") {
+            while (stream.name() != QStringLiteral("Channel")) {
                 QXmlStreamReader::TokenType token = stream.readNext();
                 if (token == QXmlStreamReader::EndDocument) {
 
                     // Before exiting, check all initialized channels against all present channels, giving a warning if channels were not initialized
-                    vector<string> uninitializedChannels = findUninitializedChannels(allChannels, channelsInitializedFromXML);
+                    std::vector<std::string> uninitializedChannels = findUninitializedChannels(allChannels, channelsInitializedFromXML);
 
                     // If at least one channel is uninitialized, populate errorMessage with a description
                     if (uninitializedChannels.size() > 0) {
@@ -554,7 +554,7 @@ bool XMLInterface::checkConsistentChannels(const QByteArray &byteArray, QString 
             } else {
 
                 // If the Channel could be found, set its bool in channelsInitializedFromXML to true to flag that it was found.
-                vector<string>::iterator it;
+                std::vector<std::string>::iterator it;
                 it = find(allChannels.begin(), allChannels.end(), nativeChannelName.toStdString());
                 if (it != allChannels.end()) {
                     int thisChannelIdx = it - allChannels.begin();
@@ -574,9 +574,9 @@ bool XMLInterface::checkConsistentChannels(const QByteArray &byteArray, QString 
     return true;
 }
 
-vector<string> XMLInterface::findUninitializedChannels(vector<string> allChannels, vector<bool> channelsInitializedFromXML) const
+std::vector<std::string> XMLInterface::findUninitializedChannels(std::vector<std::string> allChannels, std::vector<bool> channelsInitializedFromXML) const
 {
-    vector<string> uninitializedChannels;
+    std::vector<std::string> uninitializedChannels;
     for (uint i = 0; i < allChannels.size(); ++i) {
         if (!channelsInitializedFromXML[i]) {
             uninitializedChannels.push_back(allChannels[i]);
@@ -595,7 +595,7 @@ bool XMLInterface::parseGeneralConfig(const QByteArray &byteArray, QString &erro
     if (!validDocumentStart) return false;
 
     // Parse GeneralConfig
-    while (stream.name() != "GeneralConfig") {
+    while (stream.name() != QStringLiteral("GeneralConfig")) {
         stream.readNextStartElement();
         if (stream.atEnd()) return true;
     }
@@ -666,7 +666,7 @@ bool XMLInterface::parseGeneralConfig(const QByteArray &byteArray, QString &erro
                 // Read the attribute value into a QStringList, separated by commas.
                 QStringList tcpChannelList = attributeValue.split(',');
                 // Go through each channel in tcpChannelList and find it in SignalSources
-                for (auto channelName : tcpChannelList) {
+                for (auto& channelName : tcpChannelList) {
                     Channel *thisChannel = state->signalSources->channelByName(channelName);
                     // If this channel couldn't be found, just continue
                     if (!thisChannel) continue;
@@ -698,7 +698,7 @@ bool XMLInterface::parseSignalGroups(const QByteArray &byteArray, QString &error
     while (!stream.atEnd()) {
 
         // Make sure we enter at least the first SignalGroup element. If we've gone past all the SignalGroups and are at the end of the document, just return.
-        while (stream.name() != "SignalGroup") {
+        while (stream.name() != QStringLiteral("SignalGroup")) {
             QXmlStreamReader::TokenType token = stream.readNext();
             if (token == QXmlStreamReader::EndDocument) {
                 return true;
@@ -711,7 +711,7 @@ bool XMLInterface::parseSignalGroups(const QByteArray &byteArray, QString &error
         // Try to find the SignalGroup's name as "Port " + prefix
         QString portName("");
 
-        for (auto attribute : attributes) {
+        for (auto& attribute : attributes) {
             if (attribute.name().toString().toLower() == "prefix") {
                 portName = "Port " + attribute.value().toString();
                 break;
@@ -751,7 +751,7 @@ bool XMLInterface::parseSignalGroups(const QByteArray &byteArray, QString &error
         }
 
         // Iterate through all XML attributes
-        for (auto attribute : attributes) {
+        for (auto& attribute : attributes) {
             // Get the attribute name and vlaue from the XML.
             QString attributeName = attribute.name().toString();
             QString attributeValue = attribute.value().toString();
@@ -778,7 +778,7 @@ bool XMLInterface::parseSignalGroups(const QByteArray &byteArray, QString &error
                         // If we're inside a SignalGroup element, then we shouldn't have either case
                         // XMLIncludeStimParameters or XMLIncludeProbeMapSettings.
                         // If we somehow get here, throw an error and return
-                        cerr << "XMLIncludeStimParameters or XMLIncludeProbeMapSettings somehow reached within SignalGroup element";
+                        std::cerr << "XMLIncludeStimParameters or XMLIncludeProbeMapSettings somehow reached within SignalGroup element";
                         return false;
                     }
 
@@ -798,7 +798,7 @@ bool XMLInterface::parseSignalGroups(const QByteArray &byteArray, QString &error
         while (!stream.atEnd()) {
 
             // Make sure we enter at least the first Channel element. If we've gone past all the Channels and are at the end of the document, just return.
-            while (stream.name() != "Channel") {
+            while (stream.name() != QStringLiteral("Channel")) {
                 QXmlStreamReader::TokenType token = stream.readNext();
                 if (token == QXmlStreamReader::EndDocument) {
                     return true;
@@ -810,7 +810,7 @@ bool XMLInterface::parseSignalGroups(const QByteArray &byteArray, QString &error
 
             // Try to find the Channel's name
             QString nativeChannelName("");
-            for (auto attribute : attributes) {
+            for (auto& attribute : attributes) {
                 if (attribute.name().toString().toLower() == "nativechannelname") {
                     nativeChannelName = attribute.value().toString();
                     break;
@@ -825,7 +825,7 @@ bool XMLInterface::parseSignalGroups(const QByteArray &byteArray, QString &error
             }
 
             // Iterate through all XML attributes
-            for (auto attribute : attributes) {
+            for (auto& attribute : attributes) {
                 // Get the attribute name and value from the XML.
                 QString attributeName = attribute.name().toString();
                 QString attributeValue = attribute.value().toString();
@@ -852,7 +852,7 @@ bool XMLInterface::parseSignalGroups(const QByteArray &byteArray, QString &error
                             // If we're inside a Channel element, then we shouldn't have either case
                             // XMLIncludeStimParameters or XMLIncludeProbeMapSettings.
                             // If we somehow get here, throw an error and return
-                            cerr << "XMLIncludeStimParameters or XMLIncludeProbeMapSettings somehow reached within Channel element";
+                            std::cerr << "XMLIncludeStimParameters or XMLIncludeProbeMapSettings somehow reached within Channel element";
                             return false;
                         }
 
@@ -884,7 +884,7 @@ void XMLInterface::parseSignalGroupsAttributes(const QByteArray &byteArray, QStr
 {
     QXmlStreamReader stream(byteArray);
     while (!stream.atEnd()) {
-        while (stream.name() != "SignalGroup") {
+        while (stream.name() != QStringLiteral("SignalGroup")) {
             QXmlStreamReader::TokenType token = stream.readNext();
             if (token == QXmlStreamReader::EndDocument) {
                 return;
@@ -893,7 +893,7 @@ void XMLInterface::parseSignalGroupsAttributes(const QByteArray &byteArray, QStr
 
         QXmlStreamAttributes attributes = stream.attributes();
         QString portName("");
-        for (auto attribute : attributes) {
+        for (auto& attribute : attributes) {
             if (attribute.name().toString().toLower() == "prefix") {
                 portName = "Port " + attribute.value().toString();
                 break;
@@ -906,7 +906,7 @@ void XMLInterface::parseSignalGroupsAttributes(const QByteArray &byteArray, QStr
             continue;
         }
 
-        for (auto attribute : attributes) {
+        for (auto& attribute : attributes) {
             QString attributeName = attribute.name().toString();
             QString attributeValue = attribute.value().toString();
 
@@ -927,7 +927,7 @@ void XMLInterface::parseSignalGroupsAttributes(const QByteArray &byteArray, QStr
                         break;
                     case XMLIncludeStimParameters:
                     case XMLIncludeProbeMapSettings:
-                        cerr << "XMLIncludeStimParameters or XMLIncludeProbeMapSettings somehow reached within SignalGroup element";
+                        std::cerr << "XMLIncludeStimParameters or XMLIncludeProbeMapSettings somehow reached within SignalGroup element";
                         return;
                     }
 
@@ -957,7 +957,7 @@ bool XMLInterface::parseStimParameters(const QByteArray &byteArray, QString &err
     if (!validDocumentStart) return false;
 
     // Parse StimParameters.
-    while (stream.name() != "StimParameters") {
+    while (stream.name() != QStringLiteral("StimParameters")) {
         stream.readNextStartElement();
         if (stream.atEnd()) return true;
     }
@@ -966,7 +966,7 @@ bool XMLInterface::parseStimParameters(const QByteArray &byteArray, QString &err
     while (!stream.atEnd()) {
 
         // Make sure we enter at least the first StimChannel element. If we've gone past all the StimChannels and are at the end of the document, just return.
-        while (stream.name() != "StimChannel") {
+        while (stream.name() != QStringLiteral("StimChannel")) {
             QXmlStreamReader::TokenType token = stream.readNext();
             if (token == QXmlStreamReader::EndDocument) {
                 return true;
@@ -978,7 +978,7 @@ bool XMLInterface::parseStimParameters(const QByteArray &byteArray, QString &err
 
         // Try to find the StimChannel's name.
         QString nativeChannelName("");
-        for (auto attribute : attributes) {
+        for (auto& attribute : attributes) {
             if (attribute.name().toString().toLower() == "nativechannelname") {
                 nativeChannelName = attribute.value().toString();
                 break;
@@ -993,7 +993,7 @@ bool XMLInterface::parseStimParameters(const QByteArray &byteArray, QString &err
         }
 
         // Iterate through all XML attributes.
-        for (auto attribute : attributes) {
+        for (auto& attribute : attributes) {
             // Get the attribute name and value from XML.
             QString attributeName = attribute.name().toString();
             QString attributeValue = attribute.value().toString();
@@ -1030,7 +1030,7 @@ bool XMLInterface::parseStimParameters(const QByteArray &byteArray, QString &err
 bool XMLInterface::parseStimLegacy(const QByteArray &byteArray, QString &errorMessage) const
 {
     QXmlStreamReader stream(byteArray);
-    if (!stream.readNextStartElement() || stream.name() != "xstim" || stream.attributes().value("", "version").toString() != "1.0") {
+    if (!stream.readNextStartElement() || stream.name() != QStringLiteral("xstim") || stream.attributes().value("", "version").toString() != QStringLiteral("1.0")) {
         errorMessage.append("Error: invalid xstim element and version attribute");
         return false;
     }
@@ -1039,7 +1039,7 @@ bool XMLInterface::parseStimLegacy(const QByteArray &byteArray, QString &errorMe
 
     state->holdUpdate();
 
-    while (stream.readNextStartElement() && stream.name() == "channel") {
+    while (stream.readNextStartElement() && stream.name() == QStringLiteral("channel")) {
 
         QString channelName = stream.attributes().value("", "name").toString();
         channel = state->signalSources->channelByName(channelName);

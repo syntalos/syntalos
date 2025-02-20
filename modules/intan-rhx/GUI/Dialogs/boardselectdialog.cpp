@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -250,7 +250,7 @@ void BoardIdentifier::identifyController(ControllerInfo *controller, int index)
     if (controller->boardMode != RHDUSBInterfaceBoard) {
         dev->UpdateWireOuts();
         controller->numSPIPorts = RHXController::getNumSPIPorts(dev, (controller->usbVersion == USB3 || controller->usbVersion == USB3_7310),
-                                                                controller->expConnected, controller->boardMode == RHSController_7310);
+                                                                controller->expConnected);
     }
 }
 
@@ -379,8 +379,16 @@ BoardSelectDialog::BoardSelectDialog(IntanRhxModule *mod, QWidget *parent) :
     parser(nullptr),
     controlWindow(nullptr),
     useOpenCL(true),
+    playbackPorts(255),
     syMod(mod)
 {
+    // Check for previously saved OpenCL settings.
+    // If not found (first time running this version of RHX), return -1 and set useOpenCL true
+    // If OpenCL should not be used, return 0 and set useOpenCL false
+    // If OpenCL should be used, return 1 and set useOpenCL true
+    QSettings settings;
+    useOpenCL = settings.value("rhxUseOpenCL", true).toBool();
+
     // Initialize Board Identifier.
     boardIdentifier = new BoardIdentifier(mod->moduleRootDir(), this);
 
@@ -516,7 +524,7 @@ void BoardSelectDialog::showDemoMessageBox()
         startSoftware(controllerType, sampleRate, stimStepSize, (controllerType == ControllerRecordUSB3) ? 8 : 4, true, "N/A",
                       SyntheticMode, false);
 
-        this->accept();
+        accept();
     }
 }
 
@@ -583,9 +591,9 @@ void BoardSelectDialog::populateTable()
     boardTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     boardTable->setSelectionMode(QAbstractItemView::SingleSelection);
 
-    connect(boardTable, SIGNAL(cellDoubleClicked(int, int)),
+    connect(boardTable, SIGNAL(cellDoubleClicked(int,int)),
             this, SLOT(startBoard(int)));  // When the user double clicks a row, trigger that board's software.
-    connect(boardTable, SIGNAL(currentCellChanged(int, int, int, int)),
+    connect(boardTable, SIGNAL(currentCellChanged(int,int,int,int)),
             this, SLOT(newRowSelected(int)));  // When the user selects a valid row, enable 'open' button.
 }
 
@@ -626,11 +634,14 @@ void BoardSelectDialog::startSoftware(ControllerType controllerType, AmplifierSa
     }
 
     QSettings settings;
-    bool testMode = (settings.value("chipTestMode", "").toString() == "Intan Chip Test Mode") && mode == LiveMode;
+    bool testMode = false;
+    if ((settings.value("chipTestMode", "").toString() == "Intan Chip Test Mode") && mode == LiveMode) {
+        testMode = true;
+    }
 
     state = new SystemState(rhxController, stimStepSize, numSPIPorts, expanderConnected, testMode, dataFileReader);
     state->setSyntalosModule(syMod);
-    state->highDPIScaleFactor = this->devicePixelRatio();  // Use this to adjust graphics for high-DPI monitors.
+    state->highDPIScaleFactor = devicePixelRatio();  // Use this to adjust graphics for high-DPI monitors.
     state->availableScreenResolution = QGuiApplication::primaryScreen()->geometry();
     controllerInterface = new ControllerInterface(state, rhxController, boardSerialNumber, useOpenCL, syMod, dataFileReader, this, is7310);
     state->setupGlobalSettingsLoadSave(controllerInterface);
@@ -639,9 +650,9 @@ void BoardSelectDialog::startSoftware(ControllerType controllerType, AmplifierSa
     parser->controlWindow = controlWindow;
 
     connect(controlWindow, SIGNAL(sendExecuteCommand(QString)), parser, SLOT(executeCommandSlot(QString)));
-    connect(controlWindow, SIGNAL(sendExecuteCommandWithParameter(QString,QString)), parser, SLOT(executeCommandWithParameterSlot(QString, QString)));
+    connect(controlWindow, SIGNAL(sendExecuteCommandWithParameter(QString,QString)), parser, SLOT(executeCommandWithParameterSlot(QString,QString)));
     connect(controlWindow, SIGNAL(sendGetCommand(QString)), parser, SLOT(getCommandSlot(QString)));
-    connect(controlWindow, SIGNAL(sendSetCommand(QString, QString)), parser, SLOT(setCommandSlot(QString, QString)));
+    connect(controlWindow, SIGNAL(sendSetCommand(QString,QString)), parser, SLOT(setCommandSlot(QString,QString)));
 
     connect(parser, SIGNAL(stimTriggerOn(QString)), controllerInterface, SLOT(manualStimTriggerOn(QString)));
     connect(parser, SIGNAL(stimTriggerOff(QString)), controllerInterface, SLOT(manualStimTriggerOff(QString)));
@@ -673,8 +684,8 @@ void BoardSelectDialog::startSoftware(ControllerType controllerType, AmplifierSa
 
     connect(controllerInterface->saveThread(), SIGNAL(setStatusBar(QString)), controlWindow, SLOT(updateStatusBar(QString)));
     connect(controllerInterface->saveThread(), SIGNAL(setTimeLabel(QString)), controlWindow, SLOT(updateTimeLabel(QString)));
-    connect(controllerInterface->saveThread(), SIGNAL(sendSetCommand(QString, QString)),
-            parser, SLOT(setCommandSlot(QString, QString)));
+    connect(controllerInterface->saveThread(), SIGNAL(sendSetCommand(QString,QString)),
+            parser, SLOT(setCommandSlot(QString,QString)));
     connect(controllerInterface->saveThread(), SIGNAL(error(QString)), controlWindow, SLOT(queueErrorMessage(QString)));
 
     controlWindow->show();
@@ -685,9 +696,9 @@ void BoardSelectDialog::startSoftware(ControllerType controllerType, AmplifierSa
         settings.setValue("loadDefaultSettingsFile", true);
         QString defaultSettingsFile = QString(settings.value("defaultSettingsFile", "").toString());
         if (controlWindow->loadSettingsFile(defaultSettingsFile)) {
-            emit controlWindow->setStatusBar("Loaded default settings file " + defaultSettingsFile);
+            emit controlWindow->setStatusBarText("Loaded default settings file " + defaultSettingsFile);
         } else {
-            emit controlWindow->setStatusBar("Error loading default settings file " + defaultSettingsFile);
+            emit controlWindow->setStatusBarText("Error loading default settings file " + defaultSettingsFile);
         }
     } else {
         settings.setValue("loadDefaultSettingsFile", false);
@@ -767,7 +778,10 @@ void BoardSelectDialog::startBoard(int row)
     if (boardTable->item(row, 0)->text() == RHS128chString || boardTable->item(row, 0)->text() == RHS128ch_7310String) controllerType = ControllerStimRecord;
 
     QSettings settings;
-    bool testMode = settings.value("chipTestMode", "").toString() == "Intan Chip Test Mode";
+    bool testMode = false;
+    if (settings.value("chipTestMode", "").toString() == "Intan Chip Test Mode") {
+        testMode = true;
+    }
     settings.beginGroup(ControllerTypeSettingsGroup[(int)controllerType]);
     if (defaultSampleRateCheckBox->isChecked()) {
         sampleRate = (AmplifierSampleRate) settings.value("defaultSampleRate", 14).toInt();
@@ -789,7 +803,7 @@ void BoardSelectDialog::startBoard(int row)
     startSoftware(controllerType, sampleRate, stimStepSize, controllersInfo.at(row)->numSPIPorts,
                   controllersInfo.at(row)->expConnected, boardTable->item(row, 2)->text(), LiveMode, controllersInfo.at(row)->usbVersion == USB3_7310);
 
-    this->accept();
+    accept();
 }
 
 // Allow user to load an Intan data file for playback.
@@ -823,7 +837,7 @@ void BoardSelectDialog::playbackDataFile()
     startSoftware(dataFileReader->controllerType(), dataFileReader->sampleRate(), dataFileReader->stimStepSize(),
                   dataFileReader->numSPIPorts(), dataFileReader->expanderConnected(), "N/A", PlaybackMode, false, dataFileReader);
 
-    this->accept();
+    accept();
 }
 
 void BoardSelectDialog::advanced()

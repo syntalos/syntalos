@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -88,7 +88,7 @@ private slots:
 private:
     SystemState* state;
     ControllerInterface* controllerInterface;
-    bool eightAnalogOuts;
+    const bool eightAnalogOuts;
 
     QLabel* dac1Label;
     QLabel* dac2Label;

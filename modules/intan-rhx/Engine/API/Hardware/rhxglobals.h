@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -45,8 +45,8 @@ const int HASHMARKLENGTH = 5;
 
 // Software version number (e.g., version 1.3.5)
 #define SOFTWARE_MAIN_VERSION_NUMBER 3
-#define SOFTWARE_SECONDARY_VERSION_NUMBER 3
-#define SOFTWARE_TERTIARY_VERSION_NUMBER 2
+#define SOFTWARE_SECONDARY_VERSION_NUMBER 4
+#define SOFTWARE_TERTIARY_VERSION_NUMBER 0
 
 enum ControllerType {
     ControllerRecordUSB2 = 0,
@@ -62,6 +62,7 @@ enum DemoSelections {
 };
 
 enum AmplifierSampleRate {
+    SampleRateUnrecognized = -1,
     SampleRate1000Hz = 0,
     SampleRate1250Hz = 1,
     SampleRate1500Hz = 2,
@@ -82,6 +83,7 @@ enum AmplifierSampleRate {
 };
 
 enum StimStepSize {
+    StimStepSizeUnrecognized = -1,
     StimStepSizeMin = 0,
     StimStepSize10nA = 1,
     StimStepSize20nA = 2,
@@ -225,10 +227,10 @@ const uint32_t TCPSpikeMagicNumber = 0x3ae2710f;
 #ifdef USE_QT
 #include <QString>
 
-const QString OrganizationName = "Intan Technologies";
+const QString OrganizationName = QStringLiteral("Intan Technologies");
 const QString OrganizationDomain = "intantech.com";
 const QString ApplicationName = "IntanRHX";
-const QString ApplicationCopyrightYear = "2020-2024";
+const QString ApplicationCopyrightYear = "2020-2025";
 
 const QString SoftwareVersion = QString::number(SOFTWARE_MAIN_VERSION_NUMBER) + "." +
                                 QString::number(SOFTWARE_SECONDARY_VERSION_NUMBER) + "." +

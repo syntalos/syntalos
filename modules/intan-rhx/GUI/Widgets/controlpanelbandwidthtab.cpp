@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -33,8 +33,6 @@
 #include "rhxregisters.h"
 #include "bandwidthdialog.h"
 #include "controlpanelbandwidthtab.h"
-
-using namespace std;
 
 ControlPanelBandwidthTab::ControlPanelBandwidthTab(ControllerInterface* controllerInterface_, SystemState* state_,
                                                    QWidget *parent) :
@@ -276,7 +274,7 @@ void ControlPanelBandwidthTab::simpleBandwidthDialog()
                                           state->sampleRate->getNumericValue(), this);
     if (bandwidthDialog.exec()) {
         state->desiredLower3dBCutoff->setValueWithLimits(bandwidthDialog.lowFreqLineEdit->text().toDouble());
-        vector<double> dspCutoffFreq = RHXRegisters::getDspFreqTable(state->sampleRate->getNumericValue());
+        std::vector<double> dspCutoffFreq = RHXRegisters::getDspFreqTable(state->sampleRate->getNumericValue());
         state->desiredDspCutoffFreq->setValueWithLimits(dspCutoffFreq[15]);
         for (int i = 1; i < 16; ++i) {
             if (dspCutoffFreq[i] < state->desiredLower3dBCutoff->getValue()) {

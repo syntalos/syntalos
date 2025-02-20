@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -66,18 +66,18 @@ protected:
     int timeStampOffset;
 
     SignalList saveList;
-    vector<GpuWaveformAddress> amplifierGPUWaveform;
-    vector<GpuWaveformAddress> amplifierLowpassGPUWaveform;
-    vector<GpuWaveformAddress> amplifierHighpassGPUWaveform;
-    vector<float*> dcAmplifierWaveform;
-    vector<uint16_t*> spikeWaveform;
-    vector<uint16_t*> stimFlagsWaveform;
-    vector<uint8_t> posStimAmplitudes;
-    vector<uint8_t> negStimAmplitudes;
-    vector<float*> auxInputWaveform;
-    vector<float*> supplyVoltageWaveform;
-    vector<float*> boardAdcWaveform;
-    vector<float*> boardDacWaveform;
+    std::vector<GpuWaveformAddress> amplifierGPUWaveform;
+    std::vector<GpuWaveformAddress> amplifierLowpassGPUWaveform;
+    std::vector<GpuWaveformAddress> amplifierHighpassGPUWaveform;
+    std::vector<float*> dcAmplifierWaveform;
+    std::vector<uint16_t*> spikeWaveform;
+    std::vector<uint16_t*> stimFlagsWaveform;
+    std::vector<uint8_t> posStimAmplitudes;
+    std::vector<uint8_t> negStimAmplitudes;
+    std::vector<float*> auxInputWaveform;
+    std::vector<float*> supplyVoltageWaveform;
+    std::vector<float*> boardAdcWaveform;
+    std::vector<float*> boardDacWaveform;
     uint16_t* boardDigitalInWaveform;
     uint16_t* boardDigitalOutWaveform;
 

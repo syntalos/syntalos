@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -72,11 +72,11 @@ ProbeMapWindow::ProbeMapWindow(SystemState* state_, ControllerInterface* control
     bestFitAction->setShortcuts(bestFitShortcuts);
 
     zoomInAction = new QAction(QIcon(":/images/zoomin.png"), "Zoom in. Shortcut: 'MouseWheelUp' or 'Shift+UpArrow' or 'Ctrl+UpArrow' or '+'", this);
-    QList<QKeySequence> zoomInShortcuts = QList<QKeySequence>() << Qt::Key_Plus << Qt::Key_Equal << (Qt::SHIFT + Qt::Key_Up) << (Qt::CTRL + Qt::Key_Up);
+    QList<QKeySequence> zoomInShortcuts = QList<QKeySequence>() << Qt::Key_Plus << Qt::Key_Equal << (Qt::SHIFT | Qt::Key_Up) << (Qt::CTRL | Qt::Key_Up);
     zoomInAction->setShortcuts(zoomInShortcuts);
 
     zoomOutAction = new QAction(QIcon(":/images/zoomout.png"), "Zoom out. Shortcut: 'MouseWheelDown' or 'Shift+DownArrow' or 'Ctrl+DownArrow' or '-'", this);
-    QList<QKeySequence> zoomOutShortcuts = QList<QKeySequence>() << Qt::Key_Minus << Qt::Key_Underscore << (Qt::SHIFT + Qt::Key_Down) << (Qt::CTRL + Qt::Key_Down);
+    QList<QKeySequence> zoomOutShortcuts = QList<QKeySequence>() << Qt::Key_Minus << Qt::Key_Underscore << (Qt::SHIFT | Qt::Key_Down) << (Qt::CTRL | Qt::Key_Down);
     zoomOutAction->setShortcuts(zoomOutShortcuts);
 
     scrollUpAction = new QAction(QIcon(":/images/uparrow.png"), "Scroll up. Shortcut: 'Shift+MouseWheelUp' or 'UpArrow' or 'PageUp'", this);
@@ -153,7 +153,7 @@ ProbeMapWindow::ProbeMapWindow(SystemState* state_, ControllerInterface* control
     toolBar->addAction(impedanceViewAction);
     toolBar->addAction(spikeViewAction);
 
-    this->addToolBar(Qt::RightToolBarArea, toolBar);
+    addToolBar(Qt::RightToolBarArea, toolBar);
 
     impedanceGradient = new ImpedanceGradient();
     impedanceGradient->hide();
@@ -305,7 +305,7 @@ void ProbeMapWindow::updateForStop()
 void ProbeMapWindow::catchSpikeReport(QString names)
 {
     // Separate QString out using ','
-    QStringList nameList = names.split(',', QString::SkipEmptyParts);
+    QStringList nameList = names.split(',', Qt::SkipEmptyParts);
 
     // Insert or assign each name within nameList
     for (QStringList::const_iterator it = nameList.constBegin(); it != nameList.constEnd(); ++it) {
@@ -475,7 +475,7 @@ void ProbeMapWindow::changeChannelImpedance(QString nativeName, float impedanceM
 void ProbeMapWindow::linkAndUpdateSites()
 {
     // Go through each amplifier channel in state.
-    vector<string> amplifierChannelNames = state->signalSources->amplifierChannelsNameList();
+    std::vector<std::string> amplifierChannelNames = state->signalSources->amplifierChannelsNameList();
 
     for (unsigned int channel = 0; channel < amplifierChannelNames.size(); channel++) {
         // Find all sites with this name.
@@ -540,7 +540,7 @@ void ProbeMapWindow::clearTabWidget() {
 QVector<ElectrodeSite*> ProbeMapWindow::getSitesWithName(const QString& nativeName)
 {
     QString name = nativeName.left(1);
-    int channelNum = nativeName.right(nativeName.length() - 2).toInt();
+    int channelNum = QStringView{nativeName}.right(nativeName.length() - 2).toInt();
     QVector<ElectrodeSite*> sites;
 
     for (int pageIndex = 0; pageIndex < state->probeMapSettings.pages.size(); pageIndex++) {

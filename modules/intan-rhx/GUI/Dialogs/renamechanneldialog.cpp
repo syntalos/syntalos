@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -30,6 +30,8 @@
 
 #include "renamechanneldialog.h"
 
+#include <QRegularExpressionValidator>
+
 RenameChannelDialog::RenameChannelDialog(const QString& nativeName, const QString& oldName, QWidget* parent) :
     QDialog(parent)
 {
@@ -40,10 +42,11 @@ RenameChannelDialog::RenameChannelDialog(const QString& nativeName, const QStrin
     oldNameLayout->addWidget(new QLabel(tr("Old channel name: ") + oldName + addNativeName, this));
 
     nameLineEdit = new QLineEdit;
-    QRegExp regExp("[\\w-\\+\\./]{1,16}");  // Name must be 1-16 characters, alphanumeric or _-+./
-    nameLineEdit->setValidator(new QRegExpValidator(regExp, this));
+    QRegularExpression regExp("[\\w+./-]{1,16}", QRegularExpression::UseUnicodePropertiesOption); // Name must be 1-16 characters, alphanumeric or _-+./
+    auto reValidator = new QRegularExpressionValidator(regExp, this);
+    nameLineEdit->setValidator(reValidator);
 
-    connect(nameLineEdit, SIGNAL(textChanged(const QString &)),
+    connect(nameLineEdit, SIGNAL(textChanged(QString)),
             this, SLOT(onLineEditTextChanged()));
 
     QHBoxLayout* newNameLayout = new QHBoxLayout;

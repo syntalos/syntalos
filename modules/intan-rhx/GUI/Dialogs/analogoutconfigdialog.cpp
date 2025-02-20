@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -35,10 +35,9 @@
 AnalogOutConfigDialog::AnalogOutConfigDialog(SystemState* state_, ControllerInterface* controllerInterface_, QWidget* parent) :
     QDialog(parent),
     state(state_),
-    controllerInterface(controllerInterface_)
+    controllerInterface(controllerInterface_),
+    eightAnalogOuts(AbstractRHXController::numAnalogIO(state->getControllerTypeEnum(), state->expanderConnected->getValue()) == 8)
 {
-    eightAnalogOuts = AbstractRHXController::numAnalogIO(state->getControllerTypeEnum(), state->expanderConnected->getValue()) == 8;
-
     dacLockToSelectedCheckBox = new QCheckBox(tr("Lock to Selected"), this);
     int dacLockToSelectedCheckBoxWidth = dacLockToSelectedCheckBox->minimumSizeHint().width();
     connect(dacLockToSelectedCheckBox, SIGNAL(clicked(bool)), this, SLOT(dac1LockToSelected(bool)));

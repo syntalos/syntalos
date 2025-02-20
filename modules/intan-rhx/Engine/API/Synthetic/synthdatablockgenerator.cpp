@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -33,8 +33,6 @@
 #include "rhxglobals.h"
 #include "abstractrhxcontroller.h"
 #include "synthdatablockgenerator.h"
-
-using namespace std;
 
 AbstractSynthSource::AbstractSynthSource(RandomNumber* randomGenerator_, double sampleRate) :
     tStepMsec(1.0e3 / sampleRate),
@@ -228,7 +226,7 @@ SynthDataBlockGenerator::SynthDataBlockGenerator(ControllerType type_, double sa
 {
     int bufferSizeInWords = MaxNumBlocksToRead *
             RHXDataBlock::dataBlockSizeInWords(type, AbstractRHXController::maxNumDataStreams(type));
-    cout << "SynthDataBlockGenerator: Allocating " << BytesPerWord * bufferSizeInWords / 1.0e6 << " MBytes for synthetic USB data generator.\n";
+    std::cout << "SynthDataBlockGenerator: Allocating " << BytesPerWord * bufferSizeInWords / 1.0e6 << " MBytes for synthetic USB data generator." << std::endl;
     usbWords = nullptr;
     usbWords = new uint16_t [bufferSizeInWords];
     dataBlockPeriodInNsec = 1.0e9 * ((double)RHXDataBlock::samplesPerDataBlock(type)) / sampleRate;

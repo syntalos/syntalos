@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -31,8 +31,6 @@
 #include <iostream>
 #include "savefile.h"
 
-using namespace std;
-
 SaveFile::SaveFile(const QString& fileName_, int bufferSize_) :
     bufferSize(bufferSize_),
     fileName(fileName_),
@@ -41,7 +39,7 @@ SaveFile::SaveFile(const QString& fileName_, int bufferSize_) :
 {
     file = new QFile(fileName);
     if (!file->open(QIODevice::WriteOnly)) {
-        cerr << "SaveFile: Cannot open file " << fileName.toStdString() << " for writing: " <<
+        std::cerr << "SaveFile: Cannot open file " << fileName.toStdString() << " for writing: " <<
                 qPrintable(file->errorString()) << '\n';
         if (file) delete file;
         file = nullptr;
@@ -258,7 +256,7 @@ void SaveFile::writeUInt16StimData(const uint16_t* wordArray, int numSamples, ui
 }
 
 void SaveFile::writeUInt16StimDataArray(const uint16_t* wordArray, int numSamples, int numWaveforms,
-                                        const vector<uint8_t>& posAmplitudes, const vector<uint8_t>& negAmplitudes)
+                                        const std::vector<uint8_t>& posAmplitudes, const std::vector<uint8_t>& negAmplitudes)
 {
     const uint16_t* word = wordArray;
     const int WordSize = 2;
@@ -300,7 +298,7 @@ void SaveFile::writeUInt16StimDataArray(const uint16_t* wordArray, int numSample
         if (waveformIndex == numWaveforms) waveformIndex = 0;
     }
     if (bufferIndex > bufferSize) {    // Check for overrun since this function can write large numbers of bytes. Note: Was previously >=, likely overreporting this error
-        cerr << "SaveFile::writeUInt16StimDataArray: buffer size exceeded.\n";
+        std::cerr << "SaveFile::writeUInt16StimDataArray: buffer size exceeded.\n";
     }
 }
 
@@ -355,7 +353,7 @@ void SaveFile::writeQStringAsAsciiText(const QString& s)
     numBytesWritten += s.size();
 }
 
-void SaveFile::writeStringAsCharArray(const string& s)
+void SaveFile::writeStringAsCharArray(const std::string& s)
 {
     int length = (int) s.length();
     if (bufferIndex > bufferSize - length) flush();
@@ -446,7 +444,7 @@ void SaveFile::forceFlush()
     }
 
     if (!file->open(QIODevice::Append)) {
-        cerr << "SaveFile:: Cannot open file " << fileName.toStdString() << " for writing: " <<
+        std::cerr << "SaveFile:: Cannot open file " << fileName.toStdString() << " for writing: " <<
                 qPrintable(file->errorString()) << '\n';
         if (file) delete file;
         file = nullptr;
@@ -461,7 +459,7 @@ void SaveFile::openForAppend()
 
     file = new QFile(fileName);
     if (!file->open(QIODevice::Append)) {
-        cerr << "SaveFile: Cannot open file " << fileName.toStdString() << " for appended writing: " <<
+        std::cerr << "SaveFile: Cannot open file " << fileName.toStdString() << " for appended writing: " <<
                 qPrintable(file->errorString()) << '\n';
         if (file) delete file;
         file = nullptr;

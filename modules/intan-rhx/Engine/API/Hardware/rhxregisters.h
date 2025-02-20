@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -35,8 +35,6 @@
 #include "rhxdatablock.h"
 #include <vector>
 
-using namespace std;
-
 class RHXRegisters
 {
 public:
@@ -59,8 +57,8 @@ public:
     void enableAux3(bool enabled);
 
     void enableDsp(bool enabled);
-    static vector<double> getDspFreqTable(double sampleRate_);
-    vector<double> getDspFreqTable() const { return getDspFreqTable(sampleRate); }
+    static std::vector<double> getDspFreqTable(double sampleRate_);
+    std::vector<double> getDspFreqTable() const { return getDspFreqTable(sampleRate); }
     double setDspCutoffFreq(double newDspCutoffFreq);
     double getDspCutoffFreq() const;
 
@@ -120,20 +118,20 @@ public:
     double setUpperBandwidth(double upperBandwidth);
     double setLowerBandwidth(double lowerBandwidth, int select = 0);
 
-    int createCommandListRHDRegisterConfig(vector<unsigned int> &commandList, bool calibrate, int numCommands);
-    int createCommandListRHDSampleAuxIns(vector<unsigned int> &commandList, int numCommands);
-    int createCommandListRHDUpdateDigOut(vector<unsigned int> &commandList, int numCommands);
+    int createCommandListRHDRegisterConfig(std::vector<unsigned int> &commandList, bool calibrate, int numCommands);
+    int createCommandListRHDSampleAuxIns(std::vector<unsigned int> &commandList, int numCommands);
+    int createCommandListRHDUpdateDigOut(std::vector<unsigned int> &commandList, int numCommands);
 
-    int createCommandListRHSRegisterConfig(vector<unsigned int> &commandList, bool updateStimParams);
-    int createCommandListRHSRegisterRead(vector<unsigned int> &commandList);
-    int createCommandListSetStimMagnitudes(vector<unsigned int> &commandList, int channel,
+    int createCommandListRHSRegisterConfig(std::vector<unsigned int> &commandList, bool updateStimParams);
+    int createCommandListRHSRegisterRead(std::vector<unsigned int> &commandList);
+    int createCommandListSetStimMagnitudes(std::vector<unsigned int> &commandList, int channel,
                                            int posMag, int posTrim, int negMag, int negTrim);
-    int createCommandListSetStimMagnitudesAllChannels(vector<unsigned int> &commandList, int posMag, int posTrim, int negMag, int negTrim);
-    int createCommandListConfigChargeRecovery(vector<unsigned int> &commandList, ChargeRecoveryCurrentLimit currentLimit,
+    int createCommandListSetStimMagnitudesAllChannels(std::vector<unsigned int> &commandList, int posMag, int posTrim, int negMag, int negTrim);
+    int createCommandListConfigChargeRecovery(std::vector<unsigned int> &commandList, ChargeRecoveryCurrentLimit currentLimit,
                                               double targetVoltage);
 
-    int createCommandListZcheckDac(vector<unsigned int> &commandList, double frequency, double amplitude);
-    int createCommandListDummy(vector <unsigned int> &commandList, int n, unsigned int cmd);
+    int createCommandListZcheckDac(std::vector<unsigned int> &commandList, double frequency, double amplitude);
+    int createCommandListDummy(std::vector <unsigned int> &commandList, int n, unsigned int cmd);
 
     enum RHXCommandType {
         RHXCommandConvert,
@@ -216,19 +214,19 @@ private:
     int chargeRecoveryCurrentLimitSel1;
     int chargeRecoveryCurrentLimitSel2;
     int chargeRecoveryCurrentLimitSel3;
-    vector<int> ampPwr;
-    vector<int> ampFastSettle;
-    vector<int> ampFLSelect;
-    vector<int> dcAmpPwr;
-    vector<int> complianceMonitor;
-    vector<int> stimOn;
-    vector<int> stimPol;
-    vector<int> chargeRecoverySwitch;
-    vector<int> cLChargeRecoveryEn;
-    vector<int> negCurrentMag;
-    vector<int> negCurrentTrim;
-    vector<int> posCurrentMag;
-    vector<int> posCurrentTrim;
+    std::vector<int> ampPwr;
+    std::vector<int> ampFastSettle;
+    std::vector<int> ampFLSelect;
+    std::vector<int> dcAmpPwr;
+    std::vector<int> complianceMonitor;
+    std::vector<int> stimOn;
+    std::vector<int> stimPol;
+    std::vector<int> chargeRecoverySwitch;
+    std::vector<int> cLChargeRecoveryEn;
+    std::vector<int> negCurrentMag;
+    std::vector<int> negCurrentTrim;
+    std::vector<int> posCurrentMag;
+    std::vector<int> posCurrentTrim;
 
     double rH1FromUpperBandwidth(double upperBandwidth) const;
     double rH2FromUpperBandwidth(double upperBandwidth) const;
@@ -242,7 +240,7 @@ private:
     void setDefaultRHSSettings();
     int getRHDRegisterValue(int reg) const;
     int getRHSRegisterValue(int reg) const;
-    static int vectorToWord(const vector<int> &v);
+    static int vectorToWord(const std::vector<int> &v);
 };
 
 #endif // RHXREGISTERS_H

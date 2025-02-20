@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -33,8 +33,6 @@
 
 #include <QtWidgets>
 #include <vector>
-
-using namespace std;
 
 class CoordinateTranslator
 {
@@ -126,9 +124,9 @@ public:
     void drawLabeledTickMarkTop(const QString& text, CoordinateTranslator& ct, double xReal, int length, bool rightEnd = false) const;
     void drawLabeledTickMarkTop(int number, CoordinateTranslator& ct, double xReal, int length, bool rightEnd = false) const;
 
-    double autoCalculateYAxis(double maxY, vector<double>& yAxisTicks, vector<QString>& yAxisLabels) const;
-    MinMaxPair autoCalculateLogYAxis(double minNonZeroY, double maxY, vector<double>& yAxisTicks,
-                                     vector<QString>& yAxisLabels) const;
+    double autoCalculateYAxis(double maxY, std::vector<double>& yAxisTicks, std::vector<QString>& yAxisLabels) const;
+    MinMaxPair autoCalculateLogYAxis(double minNonZeroY, double maxY, std::vector<double>& yAxisTicks,
+                                     std::vector<QString>& yAxisLabels) const;
 
 private:
     QPainter& painter;
@@ -141,13 +139,13 @@ public:
     void setRange(float minValue_, float maxValue_);
     QColor getColor(double value) const;
     void drawColorScale(QPainter& painter, const QRect& r) const;
-    void copyColorMapToArray(vector<vector<float> >& mapArray) const;
+    void copyColorMapToArray(std::vector<std::vector<float> >& mapArray) const;
 
 private:
     float minValue;
     float maxValue;
     float valueRange;
-    vector<QColor> colorMap;
+    std::vector<QColor> colorMap;
     static const int ColorMapSize = 256;
 
     void calculateColorMap();

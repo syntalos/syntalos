@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -49,6 +49,7 @@ SaveToDiskThread::SaveToDiskThread(WaveformFifo* waveformFifo_, SystemState* sta
 SaveToDiskThread::~SaveToDiskThread()
 {
     if (saveManager) {
+        saveManager->closeAllSaveFiles();
         delete saveManager;
         saveManager = nullptr;
     }
@@ -77,7 +78,7 @@ void SaveToDiskThread::run()
 
         totalRecordedSamples = 0;
         int64_t totalSamplesInFile = 0;
-        int64_t totalBytesWritten = 0;
+        //int64_t totalBytesWritten = 0;
 
         int64_t blocksWritten = 0;
 
@@ -114,7 +115,7 @@ void SaveToDiskThread::run()
                         isRecording = true;
                         totalRecordedSamples = 0;
                         totalSamplesInFile = 0;
-                        totalBytesWritten = 0;
+                        // totalBytesWritten = 0;
                         bytesPerMinute = saveManager->bytesPerMinute();
                     }
                 }
@@ -144,7 +145,7 @@ void SaveToDiskThread::run()
                                 triggerBeginCounter = 0;
                                 totalRecordedSamples = 0;
                                 totalSamplesInFile = 0;
-                                totalBytesWritten = 0;
+                                // totalBytesWritten = 0;
                                 bytesPerMinute = saveManager->bytesPerMinute();
 
                                 saveManager->setTimeStampOffset(waveformFifo->getTimeStamp(WaveformFifo::ReaderDisk, triggerTimeIndex));
@@ -179,7 +180,7 @@ void SaveToDiskThread::run()
 
                     if (isRecording) {
                         // Save new data to disk.
-                        totalBytesWritten = saveManager->writeToSaveFiles(NumSamples);
+                        int64_t totalBytesWritten = saveManager->writeToSaveFiles(NumSamples);
                         if (statusBarUpdateTimer.elapsed() >= 250) {  // Update status bar every 250 msec.
                             setStatusBarRecording(bytesPerMinute, saveManager->saveFileDateTimeStamp(), totalBytesWritten);
                             statusBarUpdateTimer.restart();
@@ -265,7 +266,7 @@ void SaveToDiskThread::run()
             if (isRecording) {
 //                cout << "MANUAL STOP RECORD; CLOSING SAVE FILE" << EndOfLine;
                 saveManager->closeAllSaveFiles();
-                isRecording = false;
+                // isRecording = false;
             }
             running = false;
             state->recording = false;
@@ -273,6 +274,7 @@ void SaveToDiskThread::run()
             state->triggerSet = false;
         } else {
             if (saveManager) {
+                saveManager->closeAllSaveFiles();
                 delete saveManager;
                 saveManager = nullptr;
             }
@@ -280,6 +282,7 @@ void SaveToDiskThread::run()
         }
     }
     if (saveManager) {
+        saveManager->closeAllSaveFiles();
         delete saveManager;
         saveManager = nullptr;
     }
@@ -314,7 +317,7 @@ void SaveToDiskThread::startRunning()
         saveManager = new FilePerChannelSaveManager(waveformFifo, state);
         break;
     default:
-        cerr << "SaveToDiskThread::startRunning: invalid file format enum: " << state->getFileFormatEnum() << '\n';
+        std::cerr << "SaveToDiskThread::startRunning: invalid file format enum: " << state->getFileFormatEnum() << '\n';
         break;
     }
 

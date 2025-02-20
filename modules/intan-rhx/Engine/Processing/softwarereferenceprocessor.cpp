@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -30,8 +30,6 @@
 
 #include <iostream>
 #include "softwarereferenceprocessor.h"
-
-using namespace std;
 
 SoftwareReferenceProcessor::SoftwareReferenceProcessor(ControllerType type_, int numDataStreams_, int numSamples_, SystemState* state_) :
     type(type_),
@@ -80,7 +78,7 @@ void SoftwareReferenceProcessor::updateReferenceInfo(const SignalSources* signal
     // it is encountered.  This saves the time of recreating it and comparing it.  A value of -1 indicates the
     // particular list has not yet been created, otherwise the value holds the index.
     int allRefIndexShortcut = -1;
-    vector<int> portRefIndexShortcut(AbstractRHXController::maxNumSPIPorts(type), -1);
+    std::vector<int> portRefIndexShortcut(AbstractRHXController::maxNumSPIPorts(type), -1);
 
     // Populate with new reference info.
     for (int port = 0; port < signalSources->numPortGroups(); ++port) {
@@ -106,7 +104,7 @@ void SoftwareReferenceProcessor::updateReferenceInfo(const SignalSources* signal
 
                 if ((numRefs > 1) || allRef || portRef) {
                     // Multi-channel average reference
-                    vector<StreamChannelPair> refList;
+                    std::vector<StreamChannelPair> refList;
                     bool shortcutFound = false;
 
                     if (allRef) {
@@ -159,7 +157,7 @@ void SoftwareReferenceProcessor::updateReferenceInfo(const SignalSources* signal
                         for (int i = 0; i < numRefs; ++i) {
                             Channel* refChannel = signalSources->channelByName(refString.section(',', i, i));
                             if (!refChannel) {
-                                cerr << "SoftwareReferenceProcessor: channel not found: " << refString.toStdString() << '\n';
+                                std::cerr << "SoftwareReferenceProcessor: channel not found: " << refString.toStdString() << '\n';
                                 return;
                             }
                             StreamChannelPair refAddress;
@@ -191,7 +189,7 @@ void SoftwareReferenceProcessor::updateReferenceInfo(const SignalSources* signal
                     // Single-channel reference, e.g. "A-031"
                     Channel* refChannel = signalSources->channelByName(refString);
                     if (!refChannel) {
-                        cerr << "SoftwareReferenceProcessor: channel not found: " << refString.toStdString() << '\n';
+                        std::cerr << "SoftwareReferenceProcessor: channel not found: " << refString.toStdString() << '\n';
                         return;
                     }
                     StreamChannelPair refAddress;
@@ -214,7 +212,7 @@ void SoftwareReferenceProcessor::updateReferenceInfo(const SignalSources* signal
 }
 
 int SoftwareReferenceProcessor::findSingleReference(StreamChannelPair singleRef,
-                                                    const vector<StreamChannelPair>& singleRefList) const
+                                                    const std::vector<StreamChannelPair>& singleRefList) const
 {
     for (int i = 0; i < (int) singleRefList.size(); ++i) {
         if (singleRef == singleRefList[i]) return i;
@@ -222,8 +220,8 @@ int SoftwareReferenceProcessor::findSingleReference(StreamChannelPair singleRef,
     return -1;  // Reference not found in list.
 }
 
-int SoftwareReferenceProcessor::findMultiReference(const vector<StreamChannelPair>& multiRef,
-                                                   const vector<vector<StreamChannelPair> >& multiRefList) const
+int SoftwareReferenceProcessor::findMultiReference(const std::vector<StreamChannelPair>& multiRef,
+                                                   const std::vector<std::vector<StreamChannelPair> >& multiRefList) const
 {
     int length = (int) multiRef.size();
     for (int i = 0; i < (int) multiRefList.size(); ++i) {
@@ -277,7 +275,7 @@ void SoftwareReferenceProcessor::calculateReferenceSignals(const uint16_t* start
     } else {
         // Use median
         for (int i = 0; i < (int) multiReferenceList.size(); ++i) {
-            vector<int> samples;
+            std::vector<int> samples;
             samples.resize(multiReferenceList[i].size());
             for (int t = 0; t < numSamples; ++t) {
                 readReferenceSamples(multiReferenceList[i], t, samples, start);
@@ -329,15 +327,15 @@ void SoftwareReferenceProcessor::subtractReferenceSignal(StreamChannelPair addre
     if (type == ControllerStimRecord) pSignal++;  // Skip top 16 bits of 32-bit MISO word from RHS system.
     for (int i = 0; i < numSamples; ++i) {
         int newVal = ((int) *pSignal) - *refSignal;
-        newVal = max(newVal, 0);
-        newVal = min(newVal, 65535);
+        newVal = std::max(newVal, 0);
+        newVal = std::min(newVal, 65535);
         *pSignal = (uint16_t) newVal;
         pSignal += dataFrameSizeInWords;
         refSignal++;
     }
 }
 
-void SoftwareReferenceProcessor::readReferenceSamples(vector<StreamChannelPair> &addresses, int t, vector<int> &destination,
+void SoftwareReferenceProcessor::readReferenceSamples(std::vector<StreamChannelPair> &addresses, int t, std::vector<int> &destination,
                                                       const uint16_t* start)
 {
     const uint16_t* pRead;
@@ -353,7 +351,7 @@ void SoftwareReferenceProcessor::readReferenceSamples(vector<StreamChannelPair> 
     }
 }
 
-int SoftwareReferenceProcessor::calculateMedian(vector<int> &data)
+int SoftwareReferenceProcessor::calculateMedian(std::vector<int> &data)
 {
     int median;
     std::sort(data.begin(), data.end());    // Warning: This function reorders the input vector!

@@ -19,6 +19,7 @@ AdvancedStartupDialog::AdvancedStartupDialog(bool &useOpenCL_, uint8_t &playback
     buttonBox(nullptr),
     useOpenCL(&useOpenCL_),
     tempUseOpenCL(useOpenCL_),
+    tempTest(false),
     playbackPorts(&playbackPorts_),
     demoMode(demoMode_)
 {
@@ -84,8 +85,10 @@ AdvancedStartupDialog::AdvancedStartupDialog(bool &useOpenCL_, uint8_t &playback
     synthMaxChannelsCheckBox->setChecked(settings.value("synthMaxChannels", false).toBool());
     connect(synthMaxChannelsCheckBox, SIGNAL(clicked(bool)), this, SLOT(changeSynthMaxChannels(bool)));
 
-    QString testModeString = settings.value("chipTestMode", "").toString();
-    testModeCheckBox->setChecked(testModeString == "Intan Chip Test Mode");
+    if (settings.value("chipTestMode", "").toString() == "Intan Chip Test Mode") {
+        tempTest = true;
+        testModeCheckBox->setChecked(true);
+    }
     connect(testModeCheckBox, SIGNAL(clicked(bool)), this, SLOT(changeTestMode(bool)));
 
     buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
@@ -213,6 +216,7 @@ void AdvancedStartupDialog::accept()
     settings.setValue("synthMaxChannels", tempSynthMaxChannels);
     QString testModeString = tempTest ? "Intan Chip Test Mode" : "";
     settings.setValue("chipTestMode", testModeString);
+    settings.setValue("rhxUseOpenCL", tempUseOpenCL);
 
     *useOpenCL = tempUseOpenCL;
 

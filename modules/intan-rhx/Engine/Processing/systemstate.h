@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -48,8 +48,6 @@
 #else
     #include "CL/cl.h"
 #endif
-
-using namespace std;
 
 class SignalSources;
 class Channel;
@@ -154,7 +152,7 @@ public:
     int highDPIScaleFactor;  // scale factor for high-DPI monitors (e.g., Retina displays)
     QRect availableScreenResolution;
 
-    vector<ChipType> chipType;  // set when SPI ports are scanned for connected headstages
+    std::vector<ChipType> chipType;  // set when SPI ports are scanned for connected headstages
 
     bool running;  // streaming data from the board
     bool sweeping;  // rewinding or fast-forwarding (but not fast-forwarding in data file playback mode)

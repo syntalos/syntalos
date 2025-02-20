@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -173,9 +173,9 @@ StimParamDialog::StimParamDialog(SystemState* state_, Channel* channel_, QWidget
     connect(buttonBox, SIGNAL(rejected()), this, SLOT(reject()));
 
     // Connect internal signals and slots.
-    connect(enableChargeRecoveryCheckBox, SIGNAL(stateChanged(int)), this, SLOT(enableWidgets()));
-    connect(enableAmpSettleCheckBox, SIGNAL(stateChanged(int)), this, SLOT(enableWidgets()));
-    connect(enableStimCheckBox, SIGNAL(stateChanged(int)), this, SLOT(enableWidgets()));
+    connect(enableChargeRecoveryCheckBox, SIGNAL(checkStateChanged(Qt::CheckState)), this, SLOT(enableWidgets()));
+    connect(enableAmpSettleCheckBox, SIGNAL(checkStateChanged(Qt::CheckState)), this, SLOT(enableWidgets()));
+    connect(enableStimCheckBox, SIGNAL(checkStateChanged(Qt::CheckState)), this, SLOT(enableWidgets()));
     connect(pulseOrTrainComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(enableWidgets()));
     connect(stimShapeComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(enableWidgets()));
 

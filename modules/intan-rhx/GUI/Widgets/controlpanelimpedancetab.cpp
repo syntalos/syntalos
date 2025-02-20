@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -32,8 +32,6 @@
 #include <iostream>
 #include "impedancefreqdialog.h"
 #include "controlpanelimpedancetab.h"
-
-using namespace std;
 
 ControlPanelImpedanceTab::ControlPanelImpedanceTab(ControllerInterface* controllerInterface_, SystemState* state_,
                                                    CommandParser* parser_, QWidget *parent) :
@@ -77,7 +75,7 @@ ControlPanelImpedanceTab::ControlPanelImpedanceTab(ControllerInterface* controll
     mainLayout->addStretch(1);
 
     connect(this, SIGNAL(sendExecuteCommand(QString)), parser, SLOT(executeCommandSlot(QString)));
-    connect(this, SIGNAL(sendSetCommand(QString, QString)), parser, SLOT(setCommandSlot(QString, QString)));
+    connect(this, SIGNAL(sendSetCommand(QString,QString)), parser, SLOT(setCommandSlot(QString,QString)));
     connect(impedanceFreqSelectButton, SIGNAL(clicked()), this, SLOT(changeImpedanceFrequency()));
     connect(runImpedanceTestButton, SIGNAL(clicked()), this, SLOT(runImpedanceTest()));
     connect(saveImpedancesButton, SIGNAL(clicked()), this, SLOT(saveImpedance()));

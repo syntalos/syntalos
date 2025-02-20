@@ -88,7 +88,7 @@ public:
     void updateSlidersEnabled(YScaleUsed yScaleUsed) override final;
     YScaleUsed slidersEnabled() const override;
 
-    void setCurrentTabName(QString tabName) override final;
+    void setCurrentTabName(QString) override final;
     QString currentTabName() const override final;
 
 public slots:
@@ -179,7 +179,7 @@ private:
     int recordShortSegment(QVector<QVector<double>> &channels, double duration, int portIndex,
                            QVector<QVector<QVector<double>>> &ampData, QVector<QVector<QString>> &ampChannelNames, QVector<QVector<double>> &auxInData);
 
-    int recordDCSegment(QVector<QVector<double> > &channels, double duration, int portIndex, QVector<QVector<QString>> &dcChannelNames);
+    int recordDCSegment(double duration, int portIndex, QVector<QVector<QString>> &dcChannelNames);
 
     int recordFSSegment(QVector<QVector<double>> &channels, double duration, int portIndex, QVector<QVector<QVector<double>>> &ampData, QVector<QVector<QString>> &ampChannelNames);
 
@@ -192,7 +192,7 @@ private:
     double rms(const QVector<double> &waveform);
     double estimateAmplitude(const QVector<double> &waveform);
     double estimateFrequency(double A, const QVector<double> &t, const QVector<double> &waveform);
-    double estimatePhase(double f, double A, const QVector<double> &t, const QVector<double> &waveform);
+    double estimatePhase(double f, const QVector<double> &t, const QVector<double> &waveform);
     double rmsError(const QVector<double> &t, const QVector<double> &ytarget, double f, double A, double phase);
     double median(const QVector<double> &arr);
     void addMatrix(const QVector<double> &augend, const QVector<double> &addend, QVector<double> &sum);

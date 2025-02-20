@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -43,8 +43,8 @@ public:
     bool isSynthetic() const override { return true; }
     bool isPlayback() const override { return false; }
     AcquisitionMode acquisitionMode() const override { return SyntheticMode; }
-    int open(const string& /* boardSerialNumber */) override { return 1; }  // Always return 1 to emulate a successful opening.
-    bool uploadFPGABitfile(const string& /* filename */) override { return true; }
+    int open(const std::string& /* boardSerialNumber */) override { return 1; }  // Always return 1 to emulate a successful opening.
+    bool uploadFPGABitfile(const std::string& /* filename */) override { return true; }
     void resetBoard() override {}
 
     void run() override {}
@@ -53,7 +53,7 @@ public:
     void resetFpga() override {}
 
     bool readDataBlock(RHXDataBlock *dataBlock) override;
-    bool readDataBlocks(int numBlocks, deque<RHXDataBlock*> &dataQueue) override;
+    bool readDataBlocks(int numBlocks, std::deque<RHXDataBlock*> &dataQueue) override;
     long readDataBlocksRaw(int numBlocks, uint8_t *buffer) override;
 
     void setContinuousRunMode(bool) override {}
@@ -104,10 +104,10 @@ public:
     void clearTtlOut() override {}
     void resetSequencers() override {}
     void programStimReg(int, int, StimRegister, int) override {}
-    void uploadCommandList(const vector<unsigned int>&, AuxCmdSlot, int) override {}
+    void uploadCommandList(const std::vector<unsigned int>&, AuxCmdSlot, int) override {}
 
-    int findConnectedChips(vector<ChipType> &chipType, vector<int> &portIndex, vector<int> &commandStream,
-                           vector<int> &numChannelsOnPort, bool synthMaxChannels = false, bool returnToFastSettle = false,
+    int findConnectedChips(std::vector<ChipType> &chipType, std::vector<int> &portIndex, std::vector<int> &commandStream,
+                           std::vector<int> &numChannelsOnPort, bool synthMaxChannels = false, bool returnToFastSettle = false,
                            bool usePreviousDelay = false, int selectedPort = 0, int lastDetectedChip = -1, int lastDetectedNumStreams = -1) override;
 
 private:

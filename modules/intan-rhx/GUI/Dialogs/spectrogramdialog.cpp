@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -299,7 +299,7 @@ void SpectrogramDialog::activate()
 
 void SpectrogramDialog::updateSpectrogram(WaveformFifo *waveformFifo, int numSamples)
 {
-    if (this->isHidden()) return;
+    if (isHidden()) return;
     specPlot->updateWaveforms(waveformFifo, numSamples);
 }
 

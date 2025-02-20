@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -115,17 +115,17 @@ void CurrentSpinBox::roundValue()
 {
     // Use modulo to find the difference between the current value and the closest multiple of step.
     // Due to errors in floating point modulo, conduct modulo in the integer domain, and then bring back to double.
-    long valueint = (long) ((this->getTrueValue() * 1000) + 0.5);
+    long valueint = (long) ((getTrueValue() * 1000) + 0.5);
     long currentstepint = (long) (round(step * 1000));
     int modint = valueint % currentstepint;
     double mod = modint / 1000.0;
 
     if (mod != 0.0) {  // If the modulo is not zero, the current value is not a multiple of current step.
         if (mod < step / 2.0) {  // If the modulo is less than half of the current step, the value should round down.
-            if (this->getTrueValue() >= 1000.0) {
+            if (getTrueValue() >= 1000.0) {
                 // If the current units are milliamps, the difference should be scaled to milliamps as well.
                 doubleSpinBox->setValue(doubleSpinBox->value() - mod / 1000.0);
-            } else if (this->getTrueValue() < 1000.0 && this->getTrueValue() >= 1.0) {
+            } else if (getTrueValue() < 1000.0 && getTrueValue() >= 1.0) {
                 // If the current units are microamps, the difference doesn't need to be scaled.
                 doubleSpinBox->setValue(doubleSpinBox->value() - mod);
             } else {
@@ -134,10 +134,10 @@ void CurrentSpinBox::roundValue()
             }
         } else {
             // If the modulo is greater than or equal to half of the current step, the value should round up.
-            if (this->getTrueValue() >= 1000.0) {
+            if (getTrueValue() >= 1000.0) {
                 // If the current units are milliamps, the difference should be scaled to milliamps as well.
                 doubleSpinBox->setValue(doubleSpinBox->value() + (step - mod) / 1000.0);
-            } else if (this->getTrueValue() < 1000.0 && this->getTrueValue() >= 1.0) {
+            } else if (getTrueValue() < 1000.0 && getTrueValue() >= 1.0) {
                 // If the current units are microamps, the difference doesn't need to be scaled.
                 doubleSpinBox->setValue(doubleSpinBox->value() + (step - mod));
             } else {
@@ -294,7 +294,7 @@ void TimeSpinBox::roundValue()
 {
     // Use modulo to find the difference between the current value and the closest multiple of step.
     // Due to errors in floating point modulo, coduct modulo in the integer domain, and then bring back to double.
-    long valueint = (long) ((this->getTrueValue() * 1000) + 0.5);
+    long valueint = (long) ((getTrueValue() * 1000) + 0.5);
     long timestepint = (long) (round(step * 1000));
     int modint = valueint % timestepint;
     double mod = modint / 1000.0;
@@ -303,7 +303,7 @@ void TimeSpinBox::roundValue()
     if (mod != 0.0) {
         // If the modulo is less than half of the time step, the value should round down.
         if (mod < step / 2.0) {
-            if (this->getTrueValue() < 1000.0) {
+            if (getTrueValue() < 1000.0) {
                 // If the current units are microseconds, the difference doesn't need to be scaled.
                 doubleSpinBox->setValue(doubleSpinBox->value() - mod);
             } else {
@@ -312,7 +312,7 @@ void TimeSpinBox::roundValue()
             }
         } else {  // If the modulo is greater than or equal to half of the time step, the value should round up.
             // If the current units are microseconds, the difference doesn't need to be scaled.
-            if (this->getTrueValue() < 1000) {
+            if (getTrueValue() < 1000) {
                 doubleSpinBox->setValue(doubleSpinBox->value() + (step - mod));
             } else {
             // If the current units are milliseconds, the difference should be scaled to milliseconds as well.

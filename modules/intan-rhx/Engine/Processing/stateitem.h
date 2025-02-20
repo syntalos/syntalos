@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -40,8 +40,6 @@ class QSpinBox;
 class QDoubleSpinBox;
 class SystemState;
 
-using namespace std;
-
 const QString GlobalLevel = "Global";
 
 enum XMLGroup {
@@ -61,8 +59,8 @@ enum TypeDependency {
 class StateSingleItem;
 class StateFilenameItem;
 
-typedef map<string, StateSingleItem*> SingleItemList;
-typedef map<string, StateFilenameItem*> FilenameItemList;
+typedef std::map<std::string, StateSingleItem*> SingleItemList;
+typedef std::map<std::string, StateFilenameItem*> FilenameItemList;
 
 class StateItem
 {
@@ -186,7 +184,7 @@ class DiscreteItemList : public StateSingleItem
 {
 public:
     struct DiscreteItem {
-        vector<QString> valueNames;  // e.g. { "1.0", "1" }
+        std::vector<QString> valueNames;  // e.g. { "1.0", "1" }
         QString displayedValueName;  // e.g. "1.0 mV"
         double numericValue;
     };
@@ -217,7 +215,7 @@ public:
     void setupComboBox(QComboBox* comboBox) const;
 
 private:
-    vector<DiscreteItem> items;
+    std::vector<DiscreteItem> items;
     int currentIndex;
 };
 

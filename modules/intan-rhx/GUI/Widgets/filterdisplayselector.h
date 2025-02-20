@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -35,8 +35,6 @@
 #include <vector>
 #include "systemstate.h"
 
-using namespace std;
-
 class FilterDisplaySelector : public QWidget
 {
     Q_OBJECT
@@ -47,22 +45,22 @@ public slots:
     void updateFromState();
 
 private slots:
-    void enableOrder1(int checked);
-    void enableOrder2(int checked);
-    void enableOrder3(int checked);
-    void enableOrder4(int checked);
+    void enableOrder1(Qt::CheckState checkState);
+    void enableOrder2(Qt::CheckState checkState);
+    void enableOrder3(Qt::CheckState checkState);
+    void enableOrder4(Qt::CheckState checkState);
     void filterOrderChanged();
     void arrangeByChanged(int index);
     void displayLabelTextChanged(int index);
     void changeLabelWidth(int index);
-    void showDisabledChannels(int checked);
+    void showDisabledChannels(Qt::CheckState checkState);
 
 private:
     void boldSelectedFilters();
 
     SystemState* state;
     bool stimController;
-    vector<QLabel*> filterLabels;
+    std::vector<QLabel*> filterLabels;
 
     QRadioButton* wide1Button;
     QRadioButton* wide2Button;
@@ -105,7 +103,7 @@ private:
     QCheckBox* clipWaveformsCheckBox;
     QCheckBox* showDisabledCheckBox;
 
-    vector<QString> filterText;
+    std::vector<QString> filterText;
 };
 
 #endif // FILTERDISPLAYSELECTOR_H

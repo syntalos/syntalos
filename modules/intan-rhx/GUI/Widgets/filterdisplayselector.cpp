@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -126,20 +126,20 @@ FilterDisplaySelector::FilterDisplaySelector(SystemState* state_, QWidget* paren
     order3CheckBox = new QCheckBox(this);
     order4CheckBox = new QCheckBox(this);
 
-    connect(order1CheckBox, SIGNAL(stateChanged(int)), this, SLOT(enableOrder1(int)));
-    connect(order2CheckBox, SIGNAL(stateChanged(int)), this, SLOT(enableOrder2(int)));
-    connect(order3CheckBox, SIGNAL(stateChanged(int)), this, SLOT(enableOrder3(int)));
-    connect(order4CheckBox, SIGNAL(stateChanged(int)), this, SLOT(enableOrder4(int)));
+    connect(order1CheckBox, SIGNAL(checkStateChanged(Qt::CheckState)), this, SLOT(enableOrder1(Qt::CheckState)));
+    connect(order2CheckBox, SIGNAL(checkStateChanged(Qt::CheckState)), this, SLOT(enableOrder2(Qt::CheckState)));
+    connect(order3CheckBox, SIGNAL(checkStateChanged(Qt::CheckState)), this, SLOT(enableOrder3(Qt::CheckState)));
+    connect(order4CheckBox, SIGNAL(checkStateChanged(Qt::CheckState)), this, SLOT(enableOrder4(Qt::CheckState)));
 
     connect(order1CheckBox, SIGNAL(clicked(bool)), this, SLOT(filterOrderChanged()));
     connect(order2CheckBox, SIGNAL(clicked(bool)), this, SLOT(filterOrderChanged()));
     connect(order3CheckBox, SIGNAL(clicked(bool)), this, SLOT(filterOrderChanged()));
     connect(order4CheckBox, SIGNAL(clicked(bool)), this, SLOT(filterOrderChanged()));
 
-    connect(order1ButtonGroup, SIGNAL(buttonClicked(int)), this, SLOT(filterOrderChanged()));
-    connect(order2ButtonGroup, SIGNAL(buttonClicked(int)), this, SLOT(filterOrderChanged()));
-    connect(order3ButtonGroup, SIGNAL(buttonClicked(int)), this, SLOT(filterOrderChanged()));
-    connect(order4ButtonGroup, SIGNAL(buttonClicked(int)), this, SLOT(filterOrderChanged()));
+    connect(order1ButtonGroup, SIGNAL(buttonClicked(QAbstractButton*)), this, SLOT(filterOrderChanged()));
+    connect(order2ButtonGroup, SIGNAL(buttonClicked(QAbstractButton*)), this, SLOT(filterOrderChanged()));
+    connect(order3ButtonGroup, SIGNAL(buttonClicked(QAbstractButton*)), this, SLOT(filterOrderChanged()));
+    connect(order4ButtonGroup, SIGNAL(buttonClicked(QAbstractButton*)), this, SLOT(filterOrderChanged()));
 
     order1CheckBox->setChecked(true);
     order2CheckBox->setChecked(false);
@@ -219,7 +219,7 @@ FilterDisplaySelector::FilterDisplaySelector(SystemState* state_, QWidget* paren
 
     showDisabledCheckBox = new QCheckBox(tr("Show Disabled Channels"), this);
     showDisabledCheckBox->setChecked(true);
-    connect(showDisabledCheckBox, SIGNAL(stateChanged(int)), this, SLOT(showDisabledChannels(int)));
+    connect(showDisabledCheckBox, SIGNAL(checkStateChanged(Qt::CheckState)), this, SLOT(showDisabledChannels(Qt::CheckState)));
 
     QVBoxLayout* vLayout = new QVBoxLayout;
     vLayout->addWidget(arrangeByComboBox);
@@ -250,9 +250,9 @@ FilterDisplaySelector::FilterDisplaySelector(SystemState* state_, QWidget* paren
     boldSelectedFilters();
 }
 
-void FilterDisplaySelector::enableOrder1(int checked)
+void FilterDisplaySelector::enableOrder1(Qt::CheckState checkState)
 {
-    bool enable = (checked == Qt::Checked);
+    bool enable = (checkState == Qt::Checked);
     wide1Button->setEnabled(enable);
     high1Button->setEnabled(enable);
     low1Button->setEnabled(enable);
@@ -260,9 +260,9 @@ void FilterDisplaySelector::enableOrder1(int checked)
     if (dc1Button) dc1Button->setEnabled(enable);
 }
 
-void FilterDisplaySelector::enableOrder2(int checked)
+void FilterDisplaySelector::enableOrder2(Qt::CheckState checkState)
 {
-    bool enable = (checked == Qt::Checked);
+    bool enable = (checkState == Qt::Checked);
     wide2Button->setEnabled(enable);
     high2Button->setEnabled(enable);
     low2Button->setEnabled(enable);
@@ -270,9 +270,9 @@ void FilterDisplaySelector::enableOrder2(int checked)
     if (dc2Button) dc2Button->setEnabled(enable);
 }
 
-void FilterDisplaySelector::enableOrder3(int checked)
+void FilterDisplaySelector::enableOrder3(Qt::CheckState checkState)
 {
-    bool enable = (checked == Qt::Checked);
+    bool enable = (checkState == Qt::Checked);
     wide3Button->setEnabled(enable);
     high3Button->setEnabled(enable);
     low3Button->setEnabled(enable);
@@ -280,9 +280,9 @@ void FilterDisplaySelector::enableOrder3(int checked)
     if (dc3Button) dc3Button->setEnabled(enable);
 }
 
-void FilterDisplaySelector::enableOrder4(int checked)
+void FilterDisplaySelector::enableOrder4(Qt::CheckState checkState)
 {
-    bool enable = (checked == Qt::Checked);
+    bool enable = (checkState == Qt::Checked);
     wide4Button->setEnabled(enable);
     high4Button->setEnabled(enable);
     low4Button->setEnabled(enable);
@@ -338,14 +338,14 @@ void FilterDisplaySelector::changeLabelWidth(int index)
     state->labelWidth->setIndex(index);
 }
 
-void FilterDisplaySelector::showDisabledChannels(int checked)
+void FilterDisplaySelector::showDisabledChannels(Qt::CheckState checkState)
 {
-    state->showDisabledChannels->setValue(checked != 0);
+    state->showDisabledChannels->setValue(checkState != Qt::Unchecked);
 }
 
 void FilterDisplaySelector::boldSelectedFilters()
 {
-    vector<bool> alreadySelected(filterText.size(), false);
+    std::vector<bool> alreadySelected(filterText.size(), false);
 
     if (order1CheckBox->isChecked()) {
         int filterIndex = order1ButtonGroup->checkedId();

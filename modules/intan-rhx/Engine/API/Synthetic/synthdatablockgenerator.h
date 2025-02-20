@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.3.2
+//  Version 3.4.0
 //
-//  Copyright (c) 2020-2024 Intan Technologies
+//  Copyright (c) 2020-2025 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -38,8 +38,6 @@
 #include <cstdint>
 #include <vector>
 
-using namespace std;
-
 class AbstractSynthSource
 {
 public:
@@ -65,11 +63,11 @@ public:
 
 private:
     int nUnits;
-    vector<double> spikeAmplitude;
-    vector<double> spikeDurationMsec;
-    vector<double> spikeRateHz;
-    vector<bool> firing;
-    vector<double> spikeTimeMsec;
+    std::vector<double> spikeAmplitude;
+    std::vector<double> spikeDurationMsec;
+    std::vector<double> spikeRateHz;
+    std::vector<bool> firing;
+    std::vector<double> spikeTimeMsec;
 
     const double NoiseRMSLevelMicroVolts = 5.0;  // 5 uV rms typical cortical background noise
     const double SpikeRefractoryPeriodMsec = 5.0;
@@ -132,9 +130,9 @@ private:
     QElapsedTimer timer;
     double dataBlockPeriodInNsec;
     double timeDeficitInNsec;
-    vector<vector<AbstractSynthSource*> > synthSources;
-    vector<ADCSynthSource*> adcSynthSources;
-    vector<DigitalSynthSource*> digitalSynthSources;
+    std::vector<std::vector<AbstractSynthSource*> > synthSources;
+    std::vector<ADCSynthSource*> adcSynthSources;
+    std::vector<DigitalSynthSource*> digitalSynthSources;
 
     uint16_t auxInSample;
     uint16_t vddSample;
