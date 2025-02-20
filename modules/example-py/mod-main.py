@@ -13,7 +13,7 @@ import os
 import sys
 import syntalos_mlink as syl
 
-from PyQt5.QtWidgets import QDialog, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout
+from PyQt6.QtWidgets import QDialog, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout
 import json
 import cv2 as cv
 

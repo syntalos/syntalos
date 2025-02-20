@@ -4,7 +4,6 @@ import sys
 import json
 import syntalos_mlink as syl
 
-import cv2 as cv
 from dlclive import DLCLive, Processor
 
 from PyQt6.QtGui import QIcon
@@ -29,7 +28,7 @@ class SettingsDialog(QDialog):
 
         self.setWindowTitle('DeepLabCutLive Settings')
 
-        bbox = QDialogButtonBox(QDialogButtonBox.Ok)
+        bbox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok)
         bbox.accepted.connect(self.accept)
 
         main_layout = QVBoxLayout()
@@ -161,7 +160,7 @@ class DLCLiveModule:
         dlg = SettingsDialog()
         dlg.model_path = settings.get('model_path', None)
         dlg.display_dlc = settings.get('display', False)
-        dlg.exec_()
+        dlg.exec()
 
         settings['model_path'] = dlg.model_path
         settings['display'] = dlg.display_dlc
