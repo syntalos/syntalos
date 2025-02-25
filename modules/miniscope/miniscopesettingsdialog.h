@@ -52,7 +52,7 @@ public:
     void updateCurrentDeviceName();
 
 private slots:
-    void on_deviceTypeCB_currentIndexChanged(const QString &arg1);
+    void on_deviceTypeCB_currentIndexChanged(int index);
     void on_sbCamId_valueChanged(int arg1);
     void on_cbExtRecTrigger_toggled(bool checked);
 

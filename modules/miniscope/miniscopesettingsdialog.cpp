@@ -126,7 +126,7 @@ void MiniscopeSettingsDialog::updateCurrentDeviceName()
     on_sbCamId_valueChanged(ui->sbCamId->value());
 }
 
-void MiniscopeSettingsDialog::on_deviceTypeCB_currentIndexChanged(const QString &arg1)
+void MiniscopeSettingsDialog::on_deviceTypeCB_currentIndexChanged(int index)
 {
     if (!m_initDone)
         return;
@@ -137,7 +137,7 @@ void MiniscopeSettingsDialog::on_deviceTypeCB_currentIndexChanged(const QString 
     m_controls.clear();
 
     // load new controls
-    if (!m_mscope->loadDeviceConfig(arg1)) {
+    if (!m_mscope->loadDeviceConfig(ui->deviceTypeCB->currentText())) {
         QMessageBox::critical(
             this, "Error", QString("Unable to load device configuration: %1").arg(m_mscope->lastError()));
         return;
