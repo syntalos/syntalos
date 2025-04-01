@@ -263,8 +263,13 @@ void Syntalos::findSyntalosLibraryPaths(QString &pkgConfigPath, QString &ldLibra
 
     // If the file does not exist, we are not running from the build directory
     // and can assume the libraries are found in system search paths
-    if (!siFile.exists())
+    if (!siFile.exists()) {
+        if (isInFlatpakSandbox()) {
+            // we are running in a Flatpak sandbox, so we need to set the pkgconfig path explicitly
+            pkgConfigPath = QStringLiteral("/app/lib/pkgconfig:/app/share/pkgconfig");
+        }
         return;
+    }
 
     if (!siFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
         qWarning().noquote()
