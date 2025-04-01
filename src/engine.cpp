@@ -675,6 +675,9 @@ AbstractModule *Engine::createModule(const QString &id, const QString &name)
         }
     }
 
+    // notify others that we started to create & initialize a module
+    emit moduleInitStarted();
+
     auto mod = modInfo->createModule();
     assert(mod);
     mod->setId(modInfo->id());
@@ -695,7 +698,7 @@ AbstractModule *Engine::createModule(const QString &id, const QString &name)
     // the module has been created and registered, we can
     // safely initialize it now.
     mod->setState(ModuleState::INITIALIZING);
-    QCoreApplication::processEvents();
+    qApp->processEvents();
     if (!mod->initialize()) {
         QMessageBox::critical(
             d->parentWidget,
@@ -704,6 +707,7 @@ AbstractModule *Engine::createModule(const QString &id, const QString &name)
                 .arg(mod->id(), mod->lastError()),
             QMessageBox::Ok);
         removeModule(mod);
+        emit moduleInitDone();
         return nullptr;
     }
 
@@ -725,6 +729,9 @@ AbstractModule *Engine::createModule(const QString &id, const QString &name)
         Qt::QueuedConnection);
 
     mod->setState(ModuleState::IDLE);
+
+    // module initialization is done
+    emit moduleInitDone();
     return mod;
 }
 

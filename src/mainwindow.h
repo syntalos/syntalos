@@ -127,6 +127,7 @@ private:
 
     void setRunPossible(bool enabled);
     void setRunUiControlStates(bool engineRunning, bool stopPossible);
+    void setConfigModifyAllowed(bool allowed);
     void setExperimenterSelectVisible(bool visible);
 
     bool saveConfiguration(const QString &fileName);

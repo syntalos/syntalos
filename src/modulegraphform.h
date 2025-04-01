@@ -91,10 +91,6 @@ private slots:
     void receiveMessage(const QString &message);
     void itemRenamed(FlowGraphItem *item, const QString &name);
 
-signals:
-    void busyStart();
-    void busyEnd();
-
 private:
     Ui::ModuleGraphForm *ui;
 

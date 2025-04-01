@@ -125,6 +125,9 @@ signals:
     void moduleCreated(ModuleInfo *info, AbstractModule *mod);
     void modulePreRemove(AbstractModule *mod);
 
+    void moduleInitStarted();
+    void moduleInitDone();
+
     void statusMessage(const QString &message);
     void preRunStart();
     void runStarted();

@@ -21,6 +21,7 @@
 
 #include <QDebug>
 #include <QFile>
+#include <QApplication>
 #include <QFileInfo>
 #include <QProcess>
 #include <QStandardPaths>
@@ -165,7 +166,14 @@ int runInExternalTerminal(const QString &cmd, const QStringList &args, const QSt
 
         proc.start(terminalExe, extraTermArgs + termArgs);
     }
-    proc.waitForFinished(-1);
+
+    while (!proc.waitForStarted(25))
+        QApplication::processEvents();
+    while (!proc.waitForFinished(50)) {
+        if (proc.state() == QProcess::NotRunning)
+            break;
+        QApplication::processEvents();
+    }
     shFile.remove();
 
     // the terminal itself failed, so the command can't have worked

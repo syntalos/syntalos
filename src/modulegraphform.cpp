@@ -226,12 +226,10 @@ void ModuleGraphForm::on_actionAddModule_triggered()
 {
     ModuleSelectDialog modDialog(m_engine->library()->moduleInfo(), this);
     if (modDialog.exec() == QDialog::Accepted) {
-        emit busyStart();
         AbstractModule *mod = nullptr;
         if (!modDialog.selectedEntryId().isEmpty()) {
             mod = m_engine->createModule(modDialog.selectedEntryId());
         }
-        emit busyEnd();
 
         if (mod) {
             QCoreApplication::processEvents();

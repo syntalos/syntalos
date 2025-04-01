@@ -322,8 +322,14 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_engine, &Engine::runStopped, this, &MainWindow::onEngineStopped);
     connect(m_engine, &Engine::resourceWarningUpdate, this, &MainWindow::onEngineResourceWarningUpdate);
     connect(m_engine, &Engine::connectionHeatChangedAtPort, this, &MainWindow::onEngineConnectionHeatChanged);
-    connect(ui->graphForm, &ModuleGraphForm::busyStart, this, &MainWindow::showBusyIndicatorProcessing);
-    connect(ui->graphForm, &ModuleGraphForm::busyEnd, this, &MainWindow::hideBusyIndicator);
+    connect(m_engine, &Engine::moduleInitStarted, this, [this]() {
+        showBusyIndicatorProcessing();
+        setConfigModifyAllowed(false);
+    });
+    connect(m_engine, &Engine::moduleInitDone, this, [this]() {
+        hideBusyIndicator();
+        setConfigModifyAllowed(true);
+    });
 
     // create loading indicator for long loading/running tasks
     m_busyIndicator = new QSvgWidget(this);
@@ -437,6 +443,14 @@ void MainWindow::setRunUiControlStates(bool engineRunning, bool stopPossible)
     if (!engineRunning)
         hideBusyIndicator();
     qApp->processEvents();
+}
+
+void MainWindow::setConfigModifyAllowed(bool allowed)
+{
+    ui->centralWidget->setEnabled(allowed);
+    ui->menuBar->setEnabled(allowed);
+    ui->mainToolBar->setEnabled(allowed);
+    ui->projectToolBar->setEnabled(allowed);
 }
 
 void MainWindow::setExperimenterSelectVisible(bool visible)
@@ -1100,11 +1114,7 @@ void MainWindow::projectOpenActionTriggered()
     setStatusText("Loading settings...");
 
     // prevent any start/stop/modify action while loading the board
-    ui->centralWidget->setEnabled(false);
-    ui->menuBar->setEnabled(false);
-    ui->mainToolBar->setEnabled(false);
-    ui->projectToolBar->setEnabled(false);
-    ;
+    setConfigModifyAllowed(false);
     showBusyIndicatorProcessing();
     if (!loadConfiguration(fileName)) {
         QMessageBox::critical(
@@ -1112,13 +1122,10 @@ void MainWindow::projectOpenActionTriggered()
         m_engine->removeAllModules();
     }
     m_gconf->setLastProjectDir(QFileInfo(fileName).absoluteDir().absolutePath());
-    hideBusyIndicator();
 
     // we should be permitted to run and modify things
-    ui->centralWidget->setEnabled(true);
-    ui->menuBar->setEnabled(true);
-    ui->mainToolBar->setEnabled(true);
-    ui->projectToolBar->setEnabled(true);
+    hideBusyIndicator();
+    setConfigModifyAllowed(true);
 }
 
 void MainWindow::on_actionProjectDetails_toggled(bool arg1)

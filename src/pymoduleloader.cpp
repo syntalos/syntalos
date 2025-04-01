@@ -99,7 +99,8 @@ public:
 
         QStringList systemPyModPaths = QStringList()
                                        << QStringLiteral("/usr/lib/python3/dist-packages/%1/").arg(pyModName)
-                                       << QStringLiteral("/usr/local/lib/python3/dist-packages/%1/").arg(pyModName);
+                                       << QStringLiteral("/usr/local/lib/python3/dist-packages/%1/").arg(pyModName)
+                                       << QStringLiteral("/app/lib/python/site-packages/%1/").arg(pyModName);
 
         for (const auto &systemPyQtPath : systemPyModPaths) {
             QDir sysPyQtDir(systemPyQtPath);
