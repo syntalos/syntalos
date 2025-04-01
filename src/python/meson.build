@@ -94,7 +94,9 @@ endforeach
 sy_pyworker_moc = qt.compile_moc(
     headers: [pyworker_moc_h],
     sources: pyworker_moc_s,
-    extra_args: ['--no-notes']
+    # FIXME: The forced include directive works around a weird issue in KDE's Flatpak runtime, where
+    # some Qt modules are not found properly without the explicit include, resulting in parsing errors.
+    extra_args: ['-I/usr/include', '--no-notes']
 )
 
 pywconf = configuration_data()
