@@ -209,6 +209,7 @@ public:
 
     ~CppWBenchModule() override
     {
+        delete m_codeView;
         if (!m_wsDirPath.isEmpty()) {
             // clean up workspace
             QDir oldWsDir(m_wsDirPath);

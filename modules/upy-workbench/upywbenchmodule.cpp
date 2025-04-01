@@ -259,7 +259,10 @@ public:
         });
     }
 
-    ~UPyWBenchModule() override {}
+    ~UPyWBenchModule() override
+    {
+        delete m_codeView;
+    }
 
     ModuleDriverKind driver() const override
     {

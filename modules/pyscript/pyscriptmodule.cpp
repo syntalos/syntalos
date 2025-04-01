@@ -154,7 +154,10 @@ public:
         }
     }
 
-    ~PyScriptModule() override {}
+    ~PyScriptModule() override
+    {
+        delete m_scriptView;
+    }
 
     ModuleFeatures features() const final
     {
