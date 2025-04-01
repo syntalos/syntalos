@@ -668,7 +668,7 @@ bool MLinkModule::runProcess()
     QElapsedTimer timer;
     timer.start();
     do {
-        auto notificationVector = waitset.timedWait(iox::units::Duration::fromMilliseconds(250));
+        auto notificationVector = waitset.timedWait(iox::units::Duration::fromMilliseconds(200));
         for (auto &notification : notificationVector) {
             if (notification->doesOriginateFrom(&sd))
                 workerFound = true;
@@ -677,7 +677,8 @@ bool MLinkModule::runProcess()
         if (state() != ModuleState::INITIALIZING)
             moduleInitDone = true;
 
-        if (timer.elapsed() > 6000)
+        qApp->processEvents();
+        if (timer.elapsed() > 15 * 1000)
             break;
     } while (!workerFound || !moduleInitDone);
 

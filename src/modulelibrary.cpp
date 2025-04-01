@@ -58,6 +58,7 @@ public:
     QString syntalosApiId;
     QList<ModuleLocation> locations;
     QMap<QString, QSharedPointer<ModuleInfo>> modInfos;
+    bool isInFlatpakSandbox = false;
 
     QStringList issueLog;
 };
@@ -69,10 +70,11 @@ ModuleLibrary::ModuleLibrary(GlobalConfig *gconf, QObject *parent)
 {
     d->syntalosApiId = QStringLiteral(SY_MODULE_API_TAG);
     auto sysInfo = SysInfo::get();
+    d->isInFlatpakSandbox = sysInfo->inFlatpakSandbox();
 
     const auto appDirPath = QCoreApplication::applicationDirPath();
     bool haveLocalModDir = false;
-    if (!appDirPath.startsWith("/usr/") && !sysInfo->inFlatpakSandbox() && !appDirPath.startsWith("/app/")) {
+    if (!appDirPath.startsWith("/usr/") && !d->isInFlatpakSandbox && !appDirPath.startsWith("/app/")) {
         const auto path = QDir(QStringLiteral("%1/%2").arg(appDirPath).arg("../modules")).canonicalPath();
         if (QDir(path).exists()) {
             d->locations.append(ModuleLocation(path, true));
@@ -101,8 +103,29 @@ ModuleLibrary::ModuleLibrary(GlobalConfig *gconf, QObject *parent)
 
 ModuleLibrary::~ModuleLibrary() {}
 
+static void ensureLinkerLibraryPath(const QString &newPath)
+{
+    QByteArray envVar = qgetenv("LD_LIBRARY_PATH");
+    QStringList paths = QString::fromUtf8(envVar).split(':', Qt::SkipEmptyParts);
+
+    if (paths.contains(newPath))
+        return;
+
+    paths.append(newPath);
+    QString updated = paths.join(':');
+    qputenv("LD_LIBRARY_PATH", updated.toUtf8());
+}
+
 bool ModuleLibrary::load()
 {
+    if (d->isInFlatpakSandbox) {
+        // In the Flatpak sandbox, the linker sometimes does not find secondary libraries
+        // that the dynamically loaded module depends on and that have been placed in /app.
+        // That may be an issue with the Flatpak runtime, but we can work around it by giving
+        // the linker and explicit hint.
+        ensureLinkerLibraryPath("/app/lib");
+    }
+
     for (const auto &loc : d->locations) {
         qCDebug(logModLibrary).noquote() << "Loading modules from location:" << loc.path;
         d->issueLog.append(QStringLiteral("Loading modules from: %1").arg(loc.path));
