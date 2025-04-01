@@ -127,7 +127,9 @@ module_moc = qt.compile_moc(
     headers: module_moc_hdr,
     sources: module_moc_src,
     dependencies: module_deps,
-    extra_args: ['--no-notes'],
+    # FIXME: The forced include directive works around a weird issue in KDE's Flatpak runtime, where
+    # some Qt modules are not found properly without the explicit include, resulting in parsing errors.
+    extra_args: ['-I/usr/include', '--no-notes'],
 )
 mod = shared_module(module_name,
     [module_hdr, module_moc_hdr,
