@@ -20,6 +20,7 @@
 #include "tomlutils.h"
 
 #include <QDebug>
+#include <QTimeZone>
 #include <fstream>
 #include <iostream>
 
@@ -200,7 +201,7 @@ static QDate tomlDateToQ(const toml::date &tdate)
 static QDateTime tomlDateTimeToQ(const toml::date_time &tdt)
 {
     QDateTime qdt(tomlDateToQ(tdt.date), tomlTimeToQ(tdt.time));
-    qdt.setOffsetFromUtc(tdt.offset->minutes * 60);
+    qdt.setTimeZone(QTimeZone::fromSecondsAheadOfUtc(tdt.offset->minutes * 60));
     return qdt;
 }
 
