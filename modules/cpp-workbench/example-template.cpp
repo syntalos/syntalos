@@ -17,6 +17,9 @@ public:
         // Register some example ports
         m_tabOut = registerOutputPort<TableRow>("table-out", "Example Out");
         registerInputPort<TableRow>("table-in", "Example In", this, &MyCppModule::onTableDataReceived);
+
+        // notify that initialization is done and the module is idle now
+        setState(ModuleState::IDLE);
     }
 
     ~MyCppModule() = default;
@@ -25,7 +28,8 @@ public:
     {
         // Actions to prepare an acquisition run go here!
 
-        // success
+        // success, we need to signal "ready" here
+        setState(ModuleState::READY);
         return true;
     }
 
