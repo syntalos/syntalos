@@ -50,7 +50,7 @@
       <enum>QTabWidget::West</enum>
      </property>
      <property name="currentIndex">
-      <number>2</number>
+      <number>0</number>
      </property>
      <property name="iconSize">
       <size>
@@ -66,8 +66,7 @@
      </property>
      <widget class="QWidget" name="tabGeneral">
       <attribute name="icon">
-       <iconset theme="settings-configure">
-        <normaloff>.</normaloff>.</iconset>
+       <iconset theme="settings-configure"/>
       </attribute>
       <attribute name="title">
        <string>General</string>
@@ -178,8 +177,7 @@
      </widget>
      <widget class="QWidget" name="tabAdvanced">
       <attribute name="icon">
-       <iconset theme="remmina-system-run-symbolic">
-        <normaloff>.</normaloff>.</iconset>
+       <iconset theme="blur"/>
       </attribute>
       <attribute name="title">
        <string>Advanced</string>
@@ -343,8 +341,7 @@
      </widget>
      <widget class="QWidget" name="tabDevel">
       <attribute name="icon">
-       <iconset theme="code-context">
-        <normaloff>.</normaloff>.</iconset>
+       <iconset theme="code-context"/>
       </attribute>
       <attribute name="title">
        <string>Developer</string>
@@ -394,6 +391,16 @@
               <widget class="QCheckBox" name="cbSaveDiagnostic">
                <property name="text">
                 <string>Save additional diagnostic data with experiment</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QCheckBox" name="cbRoudiMonitoringDisabled">
+               <property name="toolTip">
+                <string>The IPC communication daemon monitors all processes for being alive and kills unresponsive tasks. For debugging, it can sometimes be useful to disable monitoring.</string>
+               </property>
+               <property name="text">
+                <string>Disable IPC process alive monitoring</string>
                </property>
               </widget>
              </item>

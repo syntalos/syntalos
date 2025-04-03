@@ -25,6 +25,16 @@
 #include <iceoryx_posh/roudi/iceoryx_roudi_app.hpp>
 #include <iceoryx_posh/roudi/roudi_cmd_line_parser_config_file_option.hpp>
 
+#include <QDebug>
+#include <QLoggingCategory>
+
+#include "../utils/ipcconfig.h"
+#include "utils/ipcconfig.h"
+#include "utils/rtkit.h"
+
+Q_DECLARE_LOGGING_CATEGORY(logRouDi)
+Q_LOGGING_CATEGORY(logRouDi, "roudi")
+
 static constexpr uint32_t ONE_KILOBYTE = 1024U;
 static constexpr uint32_t ONE_MEGABYTE = 1024U * 1024;
 
@@ -33,11 +43,16 @@ int main(int argc, char *argv[])
     using iox::roudi::IceOryxRouDiApp;
 
     iox::config::CmdLineArgs_t roudiArgs;
+    auto ipcc = std::make_unique<Syntalos::IPCConfig>();
 
     // Monitoring may cause RouDi to kill processes under very high CPU load.
-    // This setting is enabled for now, but we may not want to keep it, or
-    // work around the behavior if necessary.
-    roudiArgs.monitoringMode = iox::roudi::MonitoringMode::ON;
+    // It is also undesirable if you are going to attach a debugger to any process
+    // that is using RouDi, as it tends to kill processes that are even briefly unresponsive.
+    // Therefore, it's a developer option to disable monitoring
+    roudiArgs.monitoringMode = ipcc->roudiMonitoringEnabled() ? iox::roudi::MonitoringMode::ON
+                                                              : iox::roudi::MonitoringMode::OFF;
+    if (roudiArgs.monitoringMode == iox::roudi::MonitoringMode::OFF)
+        qCWarning(logRouDi).noquote() << "RouDi monitoring is disabled!";
 
     // set other defaults
     roudiArgs.logLevel = iox::log::LogLevel::kWarn;

@@ -39,6 +39,7 @@ GlobalConfigDialog::GlobalConfigDialog(QWidget *parent)
     setWindowModality(Qt::WindowModal);
 
     m_gc = new GlobalConfig(this);
+    m_ipcc = new IPCConfig(this);
 
     RtKit rtkit;
 
@@ -70,6 +71,7 @@ GlobalConfigDialog::GlobalConfigDialog(QWidget *parent)
     // devel section
     ui->cbDisplayDevModules->setChecked(m_gc->showDevelModules());
     ui->cbSaveDiagnostic->setChecked(m_gc->saveExperimentDiagnostics());
+    ui->cbRoudiMonitoringDisabled->setChecked(!m_ipcc->roudiMonitoringEnabled());
     ui->cbPythonVenvForScripts->setChecked(m_gc->useVenvForPyScript());
     updateCreateDevDirButtonState();
 
@@ -196,4 +198,9 @@ void GlobalConfigDialog::on_cbPythonVenvForScripts_toggled(bool checked)
 {
     if (m_acceptChanges)
         m_gc->setUseVenvForPyScript(checked);
+}
+
+void GlobalConfigDialog::on_cbRoudiMonitoringDisabled_toggled(bool checked)
+{
+    m_ipcc->setRoudiMonitoringEnabled(!checked);
 }

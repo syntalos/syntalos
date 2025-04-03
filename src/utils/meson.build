@@ -3,6 +3,8 @@
 syntalos_utils_src = [
     'cpuaffinity.h',
     'cpuaffinity.cpp',
+    'ipcconfig.h',
+    'ipcconfig.cpp',
     'misc.h',
     'misc.cpp',
     'rtkit.h',

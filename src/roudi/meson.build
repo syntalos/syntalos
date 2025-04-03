@@ -10,7 +10,8 @@ syntalos_roudi_exe = executable('syntalos-roudi',
     gnu_symbol_visibility: 'hidden',
     dependencies: [iceoryx_posh_dep,
                    iceoryx_posh_roudi_dep,
-                   iceoryx_hoofs_dep
+                   iceoryx_hoofs_dep,
+                   syntalos_utils_dep,
     ],
     install: true,
     install_dir: sy_libdir

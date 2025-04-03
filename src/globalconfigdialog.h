@@ -23,6 +23,7 @@
 #include <QSettings>
 
 #include "globalconfig.h"
+#include "utils/ipcconfig.h"
 
 namespace Ui
 {
@@ -51,6 +52,8 @@ private slots:
     void on_btnCreateDevDir_clicked();
     void on_cbPythonVenvForScripts_toggled(bool checked);
 
+    void on_cbRoudiMonitoringDisabled_toggled(bool checked);
+
 signals:
     void defaultColorSchemeChanged();
 
@@ -59,5 +62,6 @@ private:
 
     Ui::GlobalConfigDialog *ui;
     Syntalos::GlobalConfig *m_gc;
+    Syntalos::IPCConfig *m_ipcc;
     bool m_acceptChanges;
 };
