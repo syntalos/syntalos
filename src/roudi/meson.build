@@ -14,5 +14,6 @@ syntalos_roudi_exe = executable('syntalos-roudi',
                    syntalos_utils_dep,
     ],
     install: true,
-    install_dir: sy_libdir
+    install_dir: sy_libdir,
+    install_rpath: sy_libdir,
 )
