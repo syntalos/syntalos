@@ -39,7 +39,7 @@ Q_LOGGING_CATEGORY(logGlobalConfig, "global.config")
 GlobalConfig::GlobalConfig(QObject *parent)
     : QObject(parent)
 {
-    m_s = new QSettings("DraguhnLab", "Syntalos", this);
+    m_s = new QSettings("Syntalos", "Syntalos", this);
 
     m_userHome = QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
     if (isInFlatpakSandbox())

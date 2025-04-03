@@ -29,8 +29,8 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
     app.setApplicationName("syntalos-crash-reporter");
-    app.setOrganizationName("DraguhnLab");
-    app.setOrganizationDomain("draguhnlab.com");
+    app.setOrganizationName("Syntalos");
+    app.setOrganizationDomain("syntalos.org");
     app.setApplicationVersion(PROJECT_VERSION);
 
     QCommandLineParser parser;
