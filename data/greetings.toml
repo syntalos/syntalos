@@ -5,9 +5,9 @@ greetings = [
 
   { msg = "If we knew what it was we were doing, it would not be called research, would it?", source = "Albert Einstein" },
 
-  { msg = "Somewhere, something incredible is waiting to be known.", source = "Carl Sagan" },
+  { msg = "Somewhere, something incredible is waiting to be known.", source = "Sharon Begley" },
 
-  { msg = "I am MazeAmaze, right? That's my real name. Controlling amazing mazes for amazing mice.", source = "Syntalos" },
+  { msg = "I am MazeAmaze, right?", source = "Syntalos" },
 
   { msg = "I'm sure the universe is full of intelligent life. It's just been too intelligent to come here.", source = "Arthur C. Clarke" },
 
@@ -17,11 +17,11 @@ greetings = [
 
   { msg = "I don't believe in astrology; I'm a Sagittarian and we're skeptical.", source = "Arthur C. Clarke" },
 
-  { msg = "Electricity is really just organized lightning.", source = "George Carlin" },
+  { msg = "Science is organized knowledge. Wisdom is organized life.", source = "Immanuel Kant" },
 
-  { msg = "My theory of evolution is that Darwin was adopted.", source = "Steven Wright" },
+  { msg = "I have not failed. I've just found 10,000 ways that won't work.", source = "Thomas Alva Edison" },
 
-  { msg = "We don't devote enough scientific research to finding a cure for jerks.", source = "Bill Watterson" },
+  { msg = "The best way to get a good idea is to have a lot of ideas.", source = "Linus Pauling" },
 
   { msg = "Maybe this world is another planet's hell.", source = "Aldous Huxley" },
 
@@ -29,15 +29,15 @@ greetings = [
 
   { msg = "In all science, error precedes the truth, and it is better it should go first than last.", source = "Horace Walpole" },
 
-  { msg = "There is no complete theory of anything.", source = "Robert Anton Wilson" },
+  { msg = "Science moves but slowly, slowly, creeping on from point to point.", source = "Alfred Lord Tennyson" },
 
   { msg = "Everything is theoretically impossible, until it is done.", source = "Robert A. Heinlein" },
 
-  { msg = "If a cluttered desk is a sign of a cluttered mind, of what, then, is an empty desk a sign?", source = "Albert Einstein" },
+  { msg = "If a cluttered desk is a sign of a cluttered mind then what are we to think of an empty desk?", source = "Dr. Laurence J. Peter" },
 
   { msg = "Science is not only a disciple of reason but also one of romance and passion.", source = "Stephen Hawking" },
 
-  { msg = "Biologically speaking, if something bites you, it is more likely to be female.", source = "Desmond Morris" },
+  { msg = "An expert is a person who has made all the mistakes that can be made in a very narrow field.", source = "Niels Bohr" },
 
   { msg = "Being a scientist is like doing a jigsaw puzzle in a snowstorm at night, with some pieces missing, and with no idea what the finished picture looks like.", source = "Anonymous" },
 
@@ -47,10 +47,14 @@ greetings = [
 
   { msg = "Basic research is what I am doing when I don't know what I am doing.", source = "Wernher von Braun" },
 
-  { msg = "We cannot solve problems with the same thinking we used to create them.", source = "Albert Einstein" },
+  { msg = "We cannot solve problems with the same thinking we used to create them.", source = "attributed to Albert Einstein" },
 
   { msg = "Science knows no country, because knowledge belongs to humanity, and is the torch which illuminates the world.", source = "Louis Pasteur" },
 
+  { msg = "Science has taught me that everything is more complicated than we first assume, and that being able to derive happiness from discovery is a recipe for a beautiful life.", source = "Hope Jahren" },
+
   { msg = "Intelligence is the ability to avoid doing work, yet getting the work done.", source = "Linus Torvalds" },
+
+  { msg = "The most exciting phrase to hear in science, the one that heralds new discoveries, is not 'Eureka!' but 'That's funny...'", source = "Isaac Asimov" },
 
 ]
