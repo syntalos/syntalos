@@ -564,7 +564,8 @@ QRectF FlowGraphNodePort::editorRect(void) const
 FlowGraphNode::FlowGraphNode(AbstractModule *module, uint type)
     : FlowGraphItem(nullptr),
       m_module(module),
-      m_type(type)
+      m_type(type),
+      m_hasDisabledMark(false)
 {
     QGraphicsPathItem::setZValue(0);
 
@@ -734,6 +735,11 @@ void FlowGraphNode::setNodeInfoText(const QString &info)
 QString FlowGraphNode::nodeInfoText() const
 {
     return m_infoText->toPlainText();
+}
+
+void FlowGraphNode::setDisabledAttribute(bool disabled)
+{
+    m_hasDisabledMark = disabled;
 }
 
 void FlowGraphNode::setStopOnErrorAttribute(bool moduleFailureCritical)
@@ -908,6 +914,14 @@ void FlowGraphNode::paint(QPainter *painter, const QStyleOptionGraphicsItem *opt
     m_statusText->setPos(node_rect.x() + 4, title_rect.y() + title_rect.height());
 
     m_infoText->setPos(node_rect.x() + 4, status_rect.y() + (status_rect.height() * 2) - 4);
+
+    if (m_hasDisabledMark) {
+        QPen pen(Qt::gray, 2);
+        pen.setCapStyle(Qt::RoundCap);
+        painter->setPen(pen);
+        painter->drawLine(node_rect.topLeft(), node_rect.bottomRight());
+        painter->drawLine(node_rect.topRight(), node_rect.bottomLeft());
+    }
 }
 
 QVariant FlowGraphNode::itemChange(GraphicsItemChange change, const QVariant &value)

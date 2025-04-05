@@ -570,6 +570,6 @@ void ModuleGraphForm::on_moduleModifiersUpdated()
     m_modifierActions[ModuleModifier::ENABLED]->setChecked(modifiers.testFlag(ModuleModifier::ENABLED));
     m_modifierActions[ModuleModifier::STOP_ON_FAILURE]->setChecked(modifiers.testFlag(ModuleModifier::STOP_ON_FAILURE));
 
-    node->setOpacity(modifiers.testFlag(ModuleModifier::ENABLED) ? 1.0 : 0.6);
+    node->setDisabledAttribute(!modifiers.testFlag(ModuleModifier::ENABLED));
     node->setStopOnErrorAttribute(modifiers.testFlag(ModuleModifier::STOP_ON_FAILURE));
 }

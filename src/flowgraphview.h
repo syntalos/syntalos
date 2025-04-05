@@ -330,6 +330,7 @@ public:
     QString nodeInfoText() const;
 
     void setStopOnErrorAttribute(bool moduleFailureCritical);
+    void setDisabledAttribute(bool disabled);
 
     FlowGraphNodePort *addPort(std::shared_ptr<AbstractStreamPort> port);
     QList<FlowGraphNodePort *> ports() const;
@@ -369,6 +370,7 @@ private:
     QGraphicsTextItem *m_titleText;
     QGraphicsTextItem *m_statusText;
     QGraphicsTextItem *m_infoText;
+    bool m_hasDisabledMark;
 
     FlowGraphNodePort::ItemKeys m_portkeys;
     QList<FlowGraphNodePort *> m_ports;
