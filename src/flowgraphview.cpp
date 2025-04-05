@@ -916,7 +916,7 @@ void FlowGraphNode::paint(QPainter *painter, const QStyleOptionGraphicsItem *opt
     m_infoText->setPos(node_rect.x() + 4, status_rect.y() + (status_rect.height() * 2) - 4);
 
     if (m_hasDisabledMark) {
-        QPen pen(Qt::gray, 2);
+        QPen pen(Qt::gray, 4);
         pen.setCapStyle(Qt::RoundCap);
         painter->setPen(pen);
         painter->drawLine(node_rect.topLeft(), node_rect.bottomRight());
