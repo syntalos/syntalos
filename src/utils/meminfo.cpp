@@ -93,9 +93,9 @@ static long long available_guesstimate(const char *buf)
 }
 
 /**
- * Read some data from meminfo that is relevant to Syntalos/the user.
+ * Read some data from meminfo that is relevant to Syntalos.
  */
-MemInfo read_meminfo()
+MemInfo readMemInfo()
 {
     // Note that we do not need to close static FDs that we ensure to
     // `fopen()` maximally once.

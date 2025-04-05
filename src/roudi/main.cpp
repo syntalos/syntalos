@@ -67,13 +67,41 @@ int main(int argc, char *argv[])
     iox::RouDiConfig_t roudiConfig;
     iox::mepoo::MePooConfig mpConfig;
 
-    mpConfig.addMemPool({ONE_KILOBYTE, 50});
-    mpConfig.addMemPool({ONE_KILOBYTE * 512, 50});
-    mpConfig.addMemPool({ONE_MEGABYTE, 20});
-    mpConfig.addMemPool({ONE_MEGABYTE * 6, 20});
-    mpConfig.addMemPool({ONE_MEGABYTE * 24, 10});
+    {
+        // configure our shared memory pools
+        if (!ipcc->checkMemPoolValuesSane(50)) {
+            qCWarning(logRouDi).noquote()
+                << "Reset memory pool configuration to defaults: Would otherwise consume more than 60% of system RAM.";
+            ipcc->resetMemPoolDefaults();
+        }
 
-    /// use the Shared Memory Segment for the current user
+        auto mpool1Info = ipcc->memPool1Info();
+        auto mpool2Info = ipcc->memPool2Info();
+        if (mpool1Info.chunkSizeMb == mpool2Info.chunkSizeMb) {
+            // the chunk sizes can not be the same! - so we adjust one down
+            // to not overrun the memory limit
+            if (mpool1Info.chunkSizeMb >= 2)
+                mpool1Info.chunkSizeMb = mpool2Info.chunkSizeMb - 1;
+            else if (mpool2Info.chunkSizeMb >= 2)
+                mpool2Info.chunkSizeMb = mpool2Info.chunkSizeMb - 1;
+            ipcc->setMemPool1Info(mpool1Info);
+            ipcc->setMemPool2Info(mpool2Info);
+        }
+
+        mpConfig.addMemPool({ONE_KILOBYTE, 50});
+        mpConfig.addMemPool({ONE_KILOBYTE * 512, 50});
+        mpConfig.addMemPool({ONE_MEGABYTE, 20});
+
+        if (mpool1Info.chunkSizeMb > mpool2Info.chunkSizeMb) {
+            mpConfig.addMemPool({ONE_MEGABYTE * mpool2Info.chunkSizeMb, mpool2Info.chunkCount});
+            mpConfig.addMemPool({ONE_MEGABYTE * mpool1Info.chunkSizeMb, mpool1Info.chunkCount});
+        } else {
+            mpConfig.addMemPool({ONE_MEGABYTE * mpool1Info.chunkSizeMb, mpool1Info.chunkCount});
+            mpConfig.addMemPool({ONE_MEGABYTE * mpool2Info.chunkSizeMb, mpool2Info.chunkCount});
+        }
+    }
+
+    // use the Shared Memory Segment for the current user
     auto currentGroup = iox::posix::PosixGroup::getGroupOfCurrentProcess();
 
     // create an Entry for a new Shared Memory Segment from the MempoolConfig and add it to the RouDiConfig

@@ -29,6 +29,14 @@ namespace Syntalos
 
 Q_DECLARE_LOGGING_CATEGORY(logIPCConfig)
 
+struct IPCMemPoolInfo {
+    uint32_t chunkSizeMb;
+    uint32_t chunkCount;
+};
+
+/**
+ * @brief IPC (RouDi) configuration for Syntalos
+ */
 class IPCConfig : public QObject
 {
     Q_OBJECT
@@ -36,8 +44,21 @@ class IPCConfig : public QObject
 public:
     explicit IPCConfig(QObject *parent = nullptr);
 
+    void sync();
+
     bool roudiMonitoringEnabled() const;
     void setRoudiMonitoringEnabled(bool enabled);
+
+    IPCMemPoolInfo memPool1Info() const;
+    IPCMemPoolInfo memPool1InfoDefaults() const;
+    void setMemPool1Info(const IPCMemPoolInfo &memPoolInfo);
+
+    IPCMemPoolInfo memPool2Info() const;
+    IPCMemPoolInfo memPool2InfoDefaults() const;
+    void setMemPool2Info(const IPCMemPoolInfo &memPoolInfo);
+
+    bool checkMemPoolValuesSane(uint maxRamPercentageUsed = 80) const;
+    void resetMemPoolDefaults();
 
 private:
     QSettings *m_s;

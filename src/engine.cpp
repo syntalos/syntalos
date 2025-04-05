@@ -1341,7 +1341,7 @@ void Engine::onDiskspaceMonitorEvent()
 
 void Engine::onMemoryMonitorEvent()
 {
-    const auto memInfo = read_meminfo();
+    const auto memInfo = readMemInfo();
 
     if (memInfo.memAvailablePercent < d->monitoring->prevMemAvailablePercent && memInfo.memAvailablePercent < 1.6
         && d->monitoring->emergencyOOMStop) {

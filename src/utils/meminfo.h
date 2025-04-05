@@ -28,4 +28,4 @@ typedef struct {
     double memAvailablePercent;
 } MemInfo;
 
-MemInfo read_meminfo();
+MemInfo readMemInfo();

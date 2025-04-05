@@ -29,8 +29,6 @@ syntalos_src = [
     'main.cpp',
     'mainwindow.h',
     'mainwindow.cpp',
-    'meminfo.h',
-    'meminfo.cpp',
     'moduleeventthread.h',
     'moduleeventthread.cpp',
     'modulegraphform.h',

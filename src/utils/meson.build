@@ -5,6 +5,8 @@ syntalos_utils_src = [
     'cpuaffinity.cpp',
     'ipcconfig.h',
     'ipcconfig.cpp',
+    'meminfo.h',
+    'meminfo.cpp',
     'misc.h',
     'misc.cpp',
     'rtkit.h',
