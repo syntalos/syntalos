@@ -1,10 +1,10 @@
 name: usbutils
-config-opts:
-  - --datadir=/app/share/hwdata
+buildsystem: meson
+builddir: true
 cleanup:
   - /include
   - /bin/lsusb.py
 sources:
   - type: git
     url: https://github.com/gregkh/usbutils.git
-    tag: v017
+    tag: v018

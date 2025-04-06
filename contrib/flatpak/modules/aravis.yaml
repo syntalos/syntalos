@@ -11,4 +11,4 @@ modules:
   sources:
     - type: git
       url: https://github.com/AravisProject/aravis.git
-      tag: '0.8.31'
+      tag: '0.8.34'

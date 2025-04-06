@@ -1,9 +1,9 @@
 id: org.syntalos.syntalos
-runtime: org.kde.Platform
-runtime-version: 5.15-23.08
+runtime: org.kde.Sdk
+runtime-version: '6.8'
 sdk: org.kde.Sdk
 base: com.riverbankcomputing.PyQt.BaseApp
-base-version: 5.15-23.08
+base-version: '6.8'
 separate-locales: false
 
 command: syntalos
@@ -18,14 +18,28 @@ finish-args:
   - --filesystem=host
   - --socket=system-bus
   - --socket=session-bus
+  - --socket=pulseaudio
   - --allow=devel
   - --allow=bluetooth
+  - --filesystem=xdg-run/pipewire-0:ro
   - --env=PATH=/app/bin:/usr/bin:/usr/sbin
-  - --env=GST_PLUGIN_SYSTEM_PATH=/app/lib/gstreamer-1.0:/usr/lib/extensions/gstreamer-1.0
-  - --require-version=1.12.0
+  - --env=GST_PLUGIN_PATH=/app/lib/gstreamer-1.0:/usr/lib/extensions/gstreamer-1.0
+  - --require-version=1.14.0
 
 cleanup-commands:
+  # we can't run the "cleanup-BaseApp-QtWebEngine.sh" script, as it will nuke
+  # include files and pkgconfig data that we want to keep in the final bundle
+  - rm /app/cleanup-BaseApp-QtWebEngine.sh
   - /app/cleanup-BaseApp.sh
+  - rm -rfv ${FLATPAK_DEST}/bin/event_rpcgen.py
+  - rm -rfv ${FLATPAK_DEST}/bin/qwebengine_convert_dict
+  - rm -rfv ${FLATPAK_DEST}/lib/${FLATPAK_ARCH}-linux-gnu/metatypes
+  - rm -rfv ${FLATPAK_DEST}/lib/${FLATPAK_ARCH}-linux-gnu/*.prl
+  - rm -rfv ${FLATPAK_DEST}/lib/libexec/{gn,qwebengine_convert_dict}
+  - rm -rfv ${FLATPAK_DEST}/lib/metatypes
+  - rm -rfv ${FLATPAK_DEST}/mkspecs
+  - rm -rfv ${FLATPAK_DEST}/lib/modules
+  - rm -rfv ${FLATPAK_DEST}/lib/plugins/designer
 
 modules:
 
@@ -33,29 +47,17 @@ modules:
   buildsystem: cmake-ninja
   sources:
     - type: archive
-      url: https://github.com/KhronosGroup/OpenCL-Headers/archive/v2023.12.14/OpenCL-Headers-v2023.12.14.tar.gz
-      sha256: 407d5e109a70ec1b6cd3380ce357c21e3d3651a91caae6d0d8e1719c69a1791d
-
-- name: meson
-  buildsystem: simple
-  build-commands:
-    - python3 setup.py build
-    - python3 setup.py install --prefix=/app --root=/
-  sources:
-    - type: git
-      url: https://github.com/mesonbuild/meson.git
-      tag: '1.5.1'
-  cleanup:
-    - '*'
+      url: https://github.com/KhronosGroup/OpenCL-Headers/archive/refs/tags/v2024.10.24.tar.gz
+      sha256: 159f2a550592bae49859fee83d372acd152328fdf95c0dcd8b9409f8fad5db93
 
 - name: xxhash
   no-autogen: true
   make-install-args:
     - PREFIX=${FLATPAK_DEST}
   cleanup:
-    - /bin/*
+    - bin/*
     - '*.a'
-    - /share
+    - share/
   sources:
     - type: archive
       url: https://github.com/Cyan4973/xxHash/archive/refs/tags/v0.8.2.tar.gz
@@ -102,17 +104,15 @@ modules:
     - "*.a"
     - "/include"
     - "/lib/cmake"
-    - "/lib/pkgconfig"
 
 - name: eigen3
   buildsystem: cmake-ninja
   builddir: true
+  build-extension: true # we don't cleanup headers for Syntalos C++ developer modules
   sources:
     - type: archive
       url: https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.bz2
       sha256: b4c198460eba6f28d34894e3a5710998818515104d6e74e5cc331ce31e46e626
-  cleanup:
-    - '*'
 
 - modules/libusb/libusb.json
 - modules/usbutils.yaml
@@ -121,6 +121,7 @@ modules:
 - name: opencv
   buildsystem: cmake-ninja
   builddir: true
+  build-extension: true # we don't cleanup headers for Syntalos C++ developer modules
   config-opts:
     - -DCMAKE_BUILD_TYPE=RelWithDebInfo
     - -DOPENCV_GENERATE_PKGCONFIG=ON
@@ -156,14 +157,14 @@ modules:
           # reduced featureset for ARM64 for now: dnn disabled due to build failure
           - -DBUILD_LIST=core,features2d,flann,highgui,imgcodecs,imgproc,ml,objdetect,photo,python_bindings_generator,stitching,video,videoio
   cleanup:
-    - /bin
+    - bin
   sources:
     - type: archive
-      url: https://github.com/opencv/opencv/archive/refs/tags/4.10.0.tar.gz
-      sha256: b2171af5be6b26f7a06b1229948bbb2bdaa74fcf5cd097e0af6378fce50a6eb9
+      url: https://github.com/opencv/opencv/archive/refs/tags/4.11.0.tar.gz
+      sha256: 9a7c11f924eff5f8d8070e297b322ee68b9227e003fd600d4b8122198091665f
     - type: archive
-      url: https://github.com/opencv/opencv_contrib/archive/refs/tags/4.10.0.tar.gz
-      sha256: 65597f8fb8dc2b876c1b45b928bbcc5f772ddbaf97539bf1b737623d0604cba1
+      url: https://github.com/opencv/opencv_contrib/archive/refs/tags/4.11.0.tar.gz
+      sha256: 2dfc5957201de2aa785064711125af6abb2e80a64e2dc246aca4119b19687041
 
 - name: pybind11
   buildsystem: simple
@@ -177,17 +178,24 @@ modules:
     - cmake --install .
   sources:
     - type: archive
-      url: https://github.com/pybind/pybind11/archive/refs/tags/v2.13.4.tar.gz
-      sha256: efc901aa0aab439a3fea6efeaf930b5a349fb06394bf845c64ce15a9cf8f0240
+      url: https://github.com/pybind/pybind11/archive/refs/tags/v2.13.6.tar.gz
+      sha256: e08cb87f4773da97fa7b5f035de8763abc656d87d5773e62f6da0587d1f0ec20
 
 - modules/git.yaml
 - modules/numpy.yaml
 - modules/python/module-requirements.yaml
-- modules/python/tkinter.yaml
 - modules/aravis.yaml
 - modules/tiscamera.yaml
 - modules/qtermwidget.yaml
 
+# Syntalos' Intan-RHX module requires Lua 5.3 for the OpalKelly FrontPanel library
+- modules/lua5.3/lua-5.3.5.json
+- name: okfrontpanel-liblua-compat-symlink
+  buildsystem: simple
+  build-commands:
+    - ln -sf liblua.so.5.3 /app/lib/liblua5.3.so.0
+
+# the Miniscope module needs libminiscope via PoMiDAQ
 - name: pomidaq
   buildsystem: cmake-ninja
   builddir: true
@@ -197,11 +205,12 @@ modules:
   sources:
     - type: git
       url: https://github.com/bothlab/pomidaq.git
-      tag: v0.5.2
+      tag: v0.6.0
 
 - name: syntalos
   buildsystem: meson
   builddir: true
+  build-extension: true # we don't clean up development headers for the C++ workbench Syntalos module
   config-opts:
     - -Doptimize-modern-amd64=true
     - -Dudevdir=/app/lib/udev
@@ -211,5 +220,6 @@ modules:
         config-opts:
           - -Dmodules=camera-arv,camera-tis,miniscope,plot
   sources:
-    - type: dir
+    - type: git
+      url: https://github.com/syntalos/syntalos.git
       path: ../..

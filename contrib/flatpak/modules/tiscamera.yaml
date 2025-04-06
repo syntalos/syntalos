@@ -7,7 +7,6 @@ modules:
     - "/include"
     - "/bin"
     - "/share"
-    - "/lib/pkgconfig"
     - "*.la"
   sources:
     - type: archive

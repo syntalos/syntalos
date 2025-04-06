@@ -4,9 +4,8 @@ make-args:
 make-install-args:
 - INSTALL_SYMLINKS=1
 cleanup:
-- "/lib/pkgconfig"
 - "/man"
 sources:
 - type: archive
-  url: https://mirrors.edge.kernel.org/pub/software/scm/git/git-2.46.0.tar.xz
-  sha256: 7f123462a28b7ca3ebe2607485f7168554c2b10dfc155c7ec46300666ac27f95
+  url: https://mirrors.edge.kernel.org/pub/software/scm/git/git-2.48.1.tar.xz
+  sha256: 1c5d545f5dc1eb51e95d2c50d98fdf88b1a36ba1fa30e9ae5d5385c6024f82ad
