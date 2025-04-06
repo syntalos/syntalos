@@ -1,3 +1,31 @@
+Version 2.1.0
+-------------
+Released: 2025-04-06
+
+Features:
+ * Port to Qt6
+ * intan-rhx: Update to 3.4.0
+ * Move all configuration under the new Syntalos.org umbrella
+ * Allow users to globally configure IPC memory pools
+ * Cross out disabled modules instead of changing their opacity
+
+Bugfixes:
+ * Prevent user interactions with the GUI while initializing slow modules
+ * Prevent crash when destroying modules containing text editor views
+ * Fix quirks with dynamic module loading & mlink perf in Flatpak sandboxes
+ * cpp-wbench: Find libraries in a Flatpak sandbox too
+ * cpp-wbench: Add missing state transition notifications to the template
+ * intan-rhx: Use rpath to make the linker find new deps of lOkFrontpanel
+ * debian: Fix PPA build on Ubuntu Noble
+
+Miscellaneous:
+ * logo: Make Syntalos app icon box more "Breeze-like"
+ * sp210-pressuresense: Drop the Raspberry Pi Pico pictogram from the icon
+ * deeplabcut-live: Update logo image
+ * firmata: Make module icons a bit more generic
+ * Add CITATION.cff data
+ * Sync Flatpak recipe with Flathub
+
 Version 2.0.2
 -------------
 Released: 2024-11-22
