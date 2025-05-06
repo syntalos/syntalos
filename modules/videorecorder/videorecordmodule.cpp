@@ -71,6 +71,8 @@ private:
 public:
     explicit VideoRecorderModule(QObject *parent = nullptr)
         : AbstractModule(parent),
+          m_recording(false),
+          m_recordingFinished(true),
           m_settingsDialog(nullptr),
           m_subjectName(QString())
     {
@@ -167,7 +169,6 @@ public:
 
         m_inSub = m_inPort->subscription();
         m_recording = true;
-        m_recordingFinished = false;
 
         m_subjectName = subject.id;
 
@@ -262,6 +263,7 @@ public:
                                     QStringLiteral("%1%2").arg(vidSavePathBase, currentSecSuffix))) {
                                 raiseError(QStringLiteral("Unable to initialize recording of a new section: %1")
                                                .arg(QString::fromStdString(m_videoWriter->lastError())));
+                                m_recordingFinished = true;
                                 return;
                             }
                         }
@@ -327,10 +329,12 @@ public:
 
                 if (!frameSize.isValid()) {
                     raiseError(QStringLiteral("Frame source did not provide image dimensions!"));
+                    m_recordingFinished = true;
                     return;
                 }
                 if (framerate == 0) {
                     raiseError(QStringLiteral("Frame source did not provide a framerate!"));
+                    m_recordingFinished = true;
                     return;
                 }
 
@@ -364,6 +368,7 @@ public:
                         m_settingsDialog->saveTimestamps());
                 } catch (const std::runtime_error &e) {
                     raiseError(QStringLiteral("Unable to initialize recording: %1").arg(e.what()));
+                    m_recordingFinished = true;
                     return;
                 }
 
@@ -403,6 +408,7 @@ public:
                 else
                     raiseError(QString::fromStdString(m_videoWriter->lastError()));
                 m_running = false;
+                m_recordingFinished = true;
                 break;
             }
         }
