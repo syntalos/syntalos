@@ -82,8 +82,8 @@ to submit a change, bugfix or new module.
  * FFmpeg (>= 4.1)
  * GStreamer (>= 1.0)
  * PipeWire
- * KF5 Archive
- * KF5 TextEditor
+ * KF6 Archive
+ * KF6 TextEditor
  * [pybind11](https://github.com/pybind/pybind11)
  * libusb (>= 1.0)
  * ImGui / ImPlot (optional, needed for plotting)
