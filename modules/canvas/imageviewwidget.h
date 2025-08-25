@@ -46,5 +46,5 @@ protected:
 private:
     class Private;
     Q_DISABLE_COPY(ImageViewWidget)
-    QScopedPointer<Private> d;
+    std::unique_ptr<Private> d;
 };

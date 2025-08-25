@@ -26,6 +26,8 @@
 #include <QOpenGLBuffer>
 #include <QOpenGLVertexArrayObject>
 #include <opencv2/opencv.hpp>
+#include <cmath>
+#include <cstring>
 
 #if defined(QT_OPENGL_ES)
 #define USE_GLES 1
@@ -51,6 +53,7 @@ static const char *vertexShaderSource =
 static const char *fragmentShaderSource =
 #ifdef USE_GLES
     "#version 300 es\n"
+    "precision mediump float;\n"
 #else
     "#version 330 core\n"
 #endif
@@ -60,6 +63,7 @@ static const char *fragmentShaderSource =
     "uniform float aspectRatio;\n"
     "uniform vec4 bgColor;\n"
     "uniform lowp float showSaturation;\n"
+    "uniform lowp float isGrayscale;\n"
     "\n"
     "void main()\n"
     "{\n"
@@ -68,17 +72,24 @@ static const char *fragmentShaderSource =
     "        sceneCoord.x *= aspectRatio;\n"
     "        sceneCoord.x -= (aspectRatio - 1.0) * 0.5;\n"
     "    } else {\n"
-    "        sceneCoord.y *= 1.0 / aspectRatio; // Adjust for vertical centering\n"
+    "        sceneCoord.y *= 1.0 / aspectRatio;\n" // Adjust for vertical centering
     "        sceneCoord.y += (1.0 - (1.0 / aspectRatio)) * 0.5;\n"
     "    }\n"
     "    if (sceneCoord.x < 0.0 || sceneCoord.x > 1.0 || "
     "        sceneCoord.y < 0.0 || sceneCoord.y > 1.0) {\n"
-    "        FragColor = bgColor; // Bars around image\n"
+    "        FragColor = bgColor;\n" // Bars around image
     "    } else {\n"
-    "        FragColor = texture(tex, sceneCoord);\n"
-    "        lowp float cVal = (FragColor.r + FragColor.g + FragColor.b) / 3.0;\n"
-    "        if (cVal >= .99 && showSaturation == 1.0)\n"
-    "            FragColor = vec4(1.0, 0.0, 0.0, 1.0);\n"
+    "        vec4 texColor = texture(tex, sceneCoord);\n"
+    "        if (isGrayscale > 0.5) {\n"
+    "            FragColor = vec4(texColor.rrr, 1.0);\n"
+    "        } else {\n"
+    "            FragColor = texColor;\n"
+    "        }\n"
+    "        if (showSaturation > 0.5) {\n"
+    "            lowp float cVal = dot(FragColor.rgb, vec3(0.299, 0.587, 0.114));\n"
+    "            if (cVal >= 0.99)\n"
+    "                FragColor = vec4(1.0, 0.0, 0.0, 1.0);\n"
+    "        }\n"
     "    }\n"
     "}\n";
 
@@ -87,19 +98,79 @@ static const char *fragmentShaderSource =
 class ImageViewWidget::Private
 {
 public:
-    Private() {}
-    ~Private() {}
+    Private()
+        : textureId(0),
+          textureWidth(0),
+          textureHeight(0),
+          lastAspectRatio(-1.0f),
+          lastHighlightSaturation(false),
+          lastBgColor(-1.0f, -1.0f, -1.0f, -1.0f),
+          lastChannels(-1),
+          pboIndex(0),
+          pboSize(0)
+    {
+        pboIds[0] = pboIds[1] = 0;
+    }
+
+    ~Private()
+    {
+        // Note: OpenGL cleanup should be done in widget destructor when context is current
+    }
 
     QVector4D bgColorVec;
-    cv::Mat colorImage;
     cv::Mat origImage;
 
     bool highlightSaturation;
 
+    // OpenGL resources
     QOpenGLVertexArrayObject vao;
     QOpenGLBuffer vbo;
-    std::unique_ptr<QOpenGLTexture> matTex;
     QOpenGLShaderProgram shaderProgram;
+
+    // Optimized texture handling
+    GLuint textureId;
+    int textureWidth, textureHeight;
+    GLenum textureFormat;
+    GLenum textureInternalFormat;
+
+    // Cache uniforms to avoid redundant updates
+    float lastAspectRatio;
+    bool lastHighlightSaturation;
+    QVector4D lastBgColor;
+    int lastChannels;
+
+    // Pixel Buffer Objects for async texture uploads
+    GLuint pboIds[2]; // Double buffering
+    int pboIndex;
+    size_t pboSize;
+
+    void setupTextureFormat(int channels)
+    {
+#ifdef USE_GLES
+        // GL_LUMINANCE is deprecated in ES 3.0+, use GL_RED instead
+        if (channels == 1) {
+            textureInternalFormat = GL_RED;
+            textureFormat = GL_RED;
+        } else if (channels == 3) {
+            textureInternalFormat = GL_RGB;
+            textureFormat = GL_RGB;
+        } else {
+            textureInternalFormat = GL_RGBA;
+            textureFormat = GL_RGBA;
+        }
+#else
+        if (channels == 1) {
+            textureInternalFormat = GL_RED;
+            textureFormat = GL_RED;
+        } else if (channels == 3) {
+            textureInternalFormat = GL_RGB;
+            textureFormat = GL_BGR;
+        } else {
+            textureInternalFormat = GL_RGBA;
+            textureFormat = GL_BGRA;
+        }
+#endif
+    }
 };
 #pragma GCC diagnostic pop
 
@@ -116,8 +187,18 @@ ImageViewWidget::ImageViewWidget(QWidget *parent)
 
 ImageViewWidget::~ImageViewWidget()
 {
+    // Clean up OpenGL resources when context is still current
+    makeCurrent();
+
+    if (d->textureId != 0)
+        glDeleteTextures(1, &d->textureId);
+    if (d->pboIds[0] != 0)
+        glDeleteBuffers(2, d->pboIds);
+
     d->vao.destroy();
     d->vbo.destroy();
+
+    doneCurrent();
 }
 
 void ImageViewWidget::initializeGL()
@@ -175,6 +256,12 @@ void ImageViewWidget::initializeGL()
 
     d->vbo.release();
     d->vao.release();
+
+    // Initialize PBOs for async texture uploads (if supported)
+    d->pboIds[0] = d->pboIds[1] = 0;
+    if (context()->hasExtension("GL_ARB_pixel_buffer_object") || context()->format().majorVersion() >= 3) {
+        glGenBuffers(2, d->pboIds);
+    }
 }
 
 void ImageViewWidget::paintGL()
@@ -184,74 +271,125 @@ void ImageViewWidget::paintGL()
 
 void ImageViewWidget::renderImage()
 {
-    if (d->colorImage.empty())
+    if (d->origImage.empty())
         return;
 
-    if (!d->matTex) {
-        d->matTex.reset(new QOpenGLTexture(QOpenGLTexture::Target2D));
-        d->matTex->setWrapMode(QOpenGLTexture::ClampToEdge);
-        d->matTex->setMinificationFilter(QOpenGLTexture::Linear);
-        d->matTex->setMagnificationFilter(QOpenGLTexture::Linear);
+    const auto imgWidth = d->origImage.cols;
+    const auto imgHeight = d->origImage.rows;
+    const auto channels = d->origImage.channels();
+
+    // Setup or recreate texture only when dimensions change
+    if (d->textureId == 0 || d->textureWidth != imgWidth || d->textureHeight != imgHeight) {
+        if (d->textureId != 0) {
+            glDeleteTextures(1, &d->textureId);
+        }
+
+        glGenTextures(1, &d->textureId);
+        glBindTexture(GL_TEXTURE_2D, d->textureId);
+
+        // Set texture parameters
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        d->setupTextureFormat(channels);
+        d->textureWidth = imgWidth;
+        d->textureHeight = imgHeight;
+
+        // Allocate texture storage
+        glTexImage2D(
+            GL_TEXTURE_2D,
+            0,
+            d->textureInternalFormat,
+            imgWidth,
+            imgHeight,
+            0,
+            d->textureFormat,
+            GL_UNSIGNED_BYTE,
+            nullptr);
+
+        // Setup PBOs if available
+        if (d->pboIds[0] != 0) {
+            const size_t dataSize = imgWidth * imgHeight * channels;
+            if (d->pboSize != dataSize) {
+                d->pboSize = dataSize;
+                glBindBuffer(GL_PIXEL_UNPACK_BUFFER, d->pboIds[0]);
+                glBufferData(GL_PIXEL_UNPACK_BUFFER, dataSize, nullptr, GL_STREAM_DRAW);
+                glBindBuffer(GL_PIXEL_UNPACK_BUFFER, d->pboIds[1]);
+                glBufferData(GL_PIXEL_UNPACK_BUFFER, dataSize, nullptr, GL_STREAM_DRAW);
+                glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+            }
+        }
+    } else {
+        glBindTexture(GL_TEXTURE_2D, d->textureId);
     }
 
-    const auto imgWidth = d->colorImage.cols;
-    const auto imgHeight = d->colorImage.rows;
+    // Upload texture data
+    if (d->pboIds[0] != 0) {
+        // Use PBO for asynchronous texture upload
+        d->pboIndex = (d->pboIndex + 1) % 2;
+        const int nextIndex = (d->pboIndex + 1) % 2;
 
-    d->matTex->bind();
-    glTexImage2D(
-        GL_TEXTURE_2D,
-        0,
-        GL_RGBA,
-        d->colorImage.cols,
-        d->colorImage.rows,
-        0,
-#ifdef USE_GLES
-        GL_RGB,
-#else
-        GL_BGR,
-#endif
-        GL_UNSIGNED_BYTE,
-        d->colorImage.data);
+        // Bind PBO to upload data from previous frame
+        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, d->pboIds[d->pboIndex]);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, imgWidth, imgHeight, d->textureFormat, GL_UNSIGNED_BYTE, nullptr);
 
-    // Render the texture on the surface
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        // Bind next PBO and update data for next frame
+        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, d->pboIds[nextIndex]);
+
+        glBufferSubData(GL_PIXEL_UNPACK_BUFFER, 0, d->pboSize, d->origImage.data);
+
+        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+    } else {
+        // Direct texture upload, if we have no PBO support
+        glTexSubImage2D(
+            GL_TEXTURE_2D, 0, 0, 0, imgWidth, imgHeight, d->textureFormat, GL_UNSIGNED_BYTE, d->origImage.data);
+    }
+
+    // Render
     glClear(GL_COLOR_BUFFER_BIT);
 
+    d->shaderProgram.bind();
+
+    // Semi-static uniforms
+    if (d->lastBgColor != d->bgColorVec || d->lastChannels != channels) {
+        d->shaderProgram.setUniformValue("bgColor", d->bgColorVec);
+        d->shaderProgram.setUniformValue("isGrayscale", channels == 1 ? 1.0f : 0.0f);
+        d->lastBgColor = d->bgColorVec;
+        d->lastChannels = channels;
+    }
+
+    // Only update uniforms when they change
     const float imageAspectRatio = static_cast<float>(imgWidth) / imgHeight;
     const float aspectRatio = static_cast<float>(width()) / height() / imageAspectRatio;
-    d->shaderProgram.bind();
-    d->shaderProgram.setUniformValue("bgColor", d->bgColorVec);
-    d->shaderProgram.setUniformValue("aspectRatio", aspectRatio);
-    d->shaderProgram.setUniformValue("showSaturation", d->highlightSaturation ? (GLfloat)1.0 : (GLfloat)0.0);
+
+    if (std::abs(aspectRatio - d->lastAspectRatio) > 0.001f) {
+        d->shaderProgram.setUniformValue("aspectRatio", aspectRatio);
+        d->lastAspectRatio = aspectRatio;
+    }
+
+    if (d->highlightSaturation != d->lastHighlightSaturation) {
+        d->shaderProgram.setUniformValue("showSaturation", d->highlightSaturation ? 1.0f : 0.0f);
+        d->lastHighlightSaturation = d->highlightSaturation;
+    }
 
     d->vao.bind();
     glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
     d->vao.release();
 
-    d->matTex->release();
     d->shaderProgram.release();
 }
 
 bool ImageViewWidget::showImage(const cv::Mat &mat)
 {
-    auto channels = mat.channels();
-    d->origImage = mat;
+    if (mat.empty())
+        return false;
 
-#ifdef USE_GLES
-    if (channels == 1)
-        cv::cvtColor(mat, d->colorImage, cv::COLOR_GRAY2RGB);
-    else if (channels == 4)
-        cv::cvtColor(mat, d->colorImage, cv::COLOR_BGRA2RGB);
-    else
-        cv::cvtColor(mat, d->colorImage, cv::COLOR_BGR2RGB);
-#else
-    if (channels == 1)
-        cv::cvtColor(mat, d->colorImage, cv::COLOR_GRAY2BGR);
-    else if (channels == 4)
-        cv::cvtColor(mat, d->colorImage, cv::COLOR_BGRA2BGR);
-    else
-        mat.copyTo(d->colorImage);
-#endif
+    // Store reference to the original image (its data *must* not be touched externally at this point,
+    // which it won't - but sadly OpenCV doesn't allow us to lock this matrix or describe immutability
+    // in the type system, so we need to assume all upstream components play nice)
+    d->origImage = mat;
 
     update();
     return true;
