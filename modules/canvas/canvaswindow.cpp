@@ -340,7 +340,7 @@ static void computeHistogram(const cv::Mat &image, Histograms *hists, bool grays
 void CanvasWindow::updateHistogram()
 {
     auto hists = m_histogramWidget->unusedHistograms();
-    const auto image = m_imgView->currentRawImage();
+    const auto image = m_imgView->currentImage();
 
     if (image.empty())
         return;

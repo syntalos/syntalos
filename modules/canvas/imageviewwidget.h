@@ -28,15 +28,15 @@ class ImageViewWidget : public QOpenGLWidget, protected QOpenGLFunctions
     Q_OBJECT
 public:
     explicit ImageViewWidget(QWidget *parent = nullptr);
-    ~ImageViewWidget();
+    ~ImageViewWidget() override;
 
 public slots:
     bool showImage(const cv::Mat &mat);
-    cv::Mat currentRawImage() const;
+    [[nodiscard]] cv::Mat currentImage() const;
 
     void setMinimumSize(const QSize &size);
     void setHighlightSaturation(bool enabled);
-    bool highlightSaturation() const;
+    [[nodiscard]] bool highlightSaturation() const;
 
 protected:
     void initializeGL() override;

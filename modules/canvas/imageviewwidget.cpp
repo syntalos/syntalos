@@ -99,9 +99,12 @@ class ImageViewWidget::Private
 {
 public:
     Private()
-        : textureId(0),
+        : highlightSaturation(false),
+          textureId(0),
           textureWidth(0),
           textureHeight(0),
+          textureFormat(GL_RGB),
+          textureInternalFormat(GL_RGB),
           lastAspectRatio(-1.0f),
           lastHighlightSaturation(false),
           lastBgColor(-1.0f, -1.0f, -1.0f, -1.0f),
@@ -112,13 +115,10 @@ public:
         pboIds[0] = pboIds[1] = 0;
     }
 
-    ~Private()
-    {
-        // Note: OpenGL cleanup should be done in widget destructor when context is current
-    }
+    ~Private() = default;
 
     QVector4D bgColorVec;
-    cv::Mat origImage;
+    cv::Mat glImage; // Image reference (possibly color-converted on GLES)
 
     bool highlightSaturation;
 
@@ -146,43 +146,42 @@ public:
 
     void setupTextureFormat(int channels)
     {
+        // Set internal format (same for both desktop GL and GLES)
+        switch (channels) {
+        case 1:
+            textureInternalFormat = GL_RED;
+            textureFormat = GL_RED;
+            break;
+        case 3:
+            textureInternalFormat = GL_RGB;
 #ifdef USE_GLES
-        // GL_LUMINANCE is deprecated in ES 3.0+, use GL_RED instead
-        if (channels == 1) {
-            textureInternalFormat = GL_RED;
-            textureFormat = GL_RED;
-        } else if (channels == 3) {
-            textureInternalFormat = GL_RGB;
+            // GLES doesn't support GL_BGR, so we ensure data is RGB beforehand
             textureFormat = GL_RGB;
-        } else {
-            textureInternalFormat = GL_RGBA;
-            textureFormat = GL_RGBA;
-        }
 #else
-        if (channels == 1) {
-            textureInternalFormat = GL_RED;
-            textureFormat = GL_RED;
-        } else if (channels == 3) {
-            textureInternalFormat = GL_RGB;
             textureFormat = GL_BGR;
-        } else {
-            textureInternalFormat = GL_RGBA;
-            textureFormat = GL_BGRA;
-        }
 #endif
+            break;
+        default: // 4 channels
+            textureInternalFormat = GL_RGBA;
+#ifdef USE_GLES
+            // GLES doesn't support GL_BGRA
+            textureFormat = GL_RGBA;
+#else
+            textureFormat = GL_BGRA;
+#endif
+            break;
+        }
     }
 };
 #pragma GCC diagnostic pop
 
 ImageViewWidget::ImageViewWidget(QWidget *parent)
     : QOpenGLWidget(parent),
-      d(new ImageViewWidget::Private)
+      d(std::make_unique<ImageViewWidget::Private>())
 {
-    d->highlightSaturation = false;
-    d->bgColorVec = QVector4D(0.46, 0.46, 0.46, 1.0);
+    d->bgColorVec = QVector4D(0.46f, 0.46f, 0.46f, 1.0f);
     setWindowTitle("Video");
-
-    setMinimumSize(QSize(320, 256));
+    QWidget::setMinimumSize(QSize(320, 256));
 }
 
 ImageViewWidget::~ImageViewWidget()
@@ -271,18 +270,17 @@ void ImageViewWidget::paintGL()
 
 void ImageViewWidget::renderImage()
 {
-    if (d->origImage.empty())
+    if (d->glImage.empty())
         return;
 
-    const auto imgWidth = d->origImage.cols;
-    const auto imgHeight = d->origImage.rows;
-    const auto channels = d->origImage.channels();
+    const auto imgWidth = d->glImage.cols;
+    const auto imgHeight = d->glImage.rows;
+    const auto channels = d->glImage.channels();
 
     // Setup or recreate texture only when dimensions change
     if (d->textureId == 0 || d->textureWidth != imgWidth || d->textureHeight != imgHeight) {
-        if (d->textureId != 0) {
+        if (d->textureId != 0)
             glDeleteTextures(1, &d->textureId);
-        }
 
         glGenTextures(1, &d->textureId);
         glBindTexture(GL_TEXTURE_2D, d->textureId);
@@ -337,14 +335,12 @@ void ImageViewWidget::renderImage()
 
         // Bind next PBO and update data for next frame
         glBindBuffer(GL_PIXEL_UNPACK_BUFFER, d->pboIds[nextIndex]);
-
-        glBufferSubData(GL_PIXEL_UNPACK_BUFFER, 0, d->pboSize, d->origImage.data);
-
+        glBufferSubData(GL_PIXEL_UNPACK_BUFFER, 0, d->pboSize, d->glImage.data);
         glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
     } else {
         // Direct texture upload, if we have no PBO support
         glTexSubImage2D(
-            GL_TEXTURE_2D, 0, 0, 0, imgWidth, imgHeight, d->textureFormat, GL_UNSIGNED_BYTE, d->origImage.data);
+            GL_TEXTURE_2D, 0, 0, 0, imgWidth, imgHeight, d->textureFormat, GL_UNSIGNED_BYTE, d->glImage.data);
     }
 
     // Render
@@ -386,18 +382,31 @@ bool ImageViewWidget::showImage(const cv::Mat &mat)
     if (mat.empty())
         return false;
 
+#ifdef USE_GLES
+    // On GLES, we need to convert BGR/BGRA to RGB/RGBA on the CPU
+    // since GLES doesn't support GL_BGR/GL_BGRA formats
+    if (mat.channels() == 3) {
+        cv::cvtColor(mat, d->glImage, cv::COLOR_BGR2RGB);
+    } else if (mat.channels() == 4) {
+        cv::cvtColor(mat, d->glImage, cv::COLOR_BGRA2RGBA);
+    } else {
+        d->glImage = mat; // Grayscale or unknown, use as-is
+    }
+#else
     // Store reference to the original image (its data *must* not be touched externally at this point,
     // which it won't - but sadly OpenCV doesn't allow us to lock this matrix or describe immutability
-    // in the type system, so we need to assume all upstream components play nice)
-    d->origImage = mat;
+    // in the type system, so we need to assume all upstream components play nice).
+    // Fortunately, on desktop OpenGL, we can let the GPU handle BGR/BGRA conversion.
+    d->glImage = mat;
+#endif
 
     update();
     return true;
 }
 
-cv::Mat ImageViewWidget::currentRawImage() const
+cv::Mat ImageViewWidget::currentImage() const
 {
-    return d->origImage;
+    return d->glImage;
 }
 
 void ImageViewWidget::setMinimumSize(const QSize &size)
