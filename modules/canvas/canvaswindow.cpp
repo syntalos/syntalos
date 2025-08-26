@@ -286,7 +286,7 @@ void CanvasWindow::setHistogramLogarithmic(bool logarithmic)
     m_histLogarithmicCb->setChecked(logarithmic);
 }
 
-template<bool depth8>
+template<bool depth8, bool swapRedBlue>
 static void computeHistogram(const cv::Mat &image, Histograms *hists, bool grayscale, bool logarithmic = false)
 {
     typedef typename std::conditional<depth8, uint8_t, uint16_t>::type ImageType;
@@ -313,26 +313,37 @@ static void computeHistogram(const cv::Mat &image, Histograms *hists, bool grays
         }
         if (logarithmic) {
             for (int i = 0; i < 256; i++)
-                histRed[i] = log2(histRed[i] + 1);
+                histRed[i] = std::log2f(histRed[i] + 1.0f);
         }
     } else {
-        float *histograms[3] = {histRed, histGreen, histBlue};
+        float *histograms[3];
+        if constexpr (swapRedBlue) {
+            // BGR input -> map to RGB 'histograms' array
+            histograms[0] = histBlue;
+            histograms[1] = histGreen;
+            histograms[2] = histRed;
+        } else {
+            // RGB input -> no channel swap needed
+            histograms[0] = histRed;
+            histograms[1] = histGreen;
+            histograms[2] = histBlue;
+        }
+
         for (int i = 0; i < h; i++) {
             auto imageLine = image.ptr<cv::Vec<ImageType, 3>>(i);
             for (int j = 0; j < w; j++) {
-                auto &bgr = imageLine[j];
-                for (int px = 0; px < 3; px++) {
-                    uint8_t tmp = depth8 ? bgr[2 - px] : bgr[2 - px] >> 8;
-                    histograms[px][tmp]++;
+                auto &pixel = imageLine[j];
+                for (int ch = 0; ch < 3; ch++) {
+                    uint8_t value = depth8 ? pixel[ch] : pixel[ch] >> 8;
+                    histograms[ch][value]++;
                 }
             }
         }
         if (logarithmic) {
-            for (int c = 0; c < 3; c++)
-                for (int i = 0; i < 256; i++) {
-                    float *h = histograms[c] + i;
-                    *h = log2(*h + 1);
-                }
+            for (auto *histogram : histograms) {
+                for (int i = 0; i < 256; i++)
+                    histogram[i] = std::log2f(histogram[i] + 1.0f);
+            }
         }
     }
 }
@@ -356,10 +367,19 @@ void CanvasWindow::updateHistogram()
     const bool logarithmic = m_histLogarithmicCb->isChecked();
     const auto imageDepth = image.depth();
 
+    // Determine if we need to swap red and blue channels for correct histogram display.
+    // The histogram widget expects RGB order, but we may have BGR data on desktop OpenGL.
+    // Sadly, OpenCV provides no way to query the colorspace/order of a cv::Mat.
+#if defined(QT_OPENGL_ES)
+    constexpr bool swapRedBlue = false; // GLES images are already converted to RGB
+#else
+    constexpr bool swapRedBlue = true; // Desktop GL images are BGR, need to swap for display
+#endif
+
     if (imageDepth == CV_8U || imageDepth == CV_8S) {
-        computeHistogram<true>(image, hists, grayscale, logarithmic);
+        computeHistogram<true, swapRedBlue>(image, hists, grayscale, logarithmic);
     } else if (imageDepth == CV_16U || imageDepth == CV_16S) {
-        computeHistogram<false>(image, hists, grayscale, logarithmic);
+        computeHistogram<false, swapRedBlue>(image, hists, grayscale, logarithmic);
     } else {
         m_histTimer->stop();
         qWarning().noquote() << "Unsupported image format for histogram computation, disabling rendering.";

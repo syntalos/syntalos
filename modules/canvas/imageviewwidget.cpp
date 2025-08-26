@@ -424,3 +424,12 @@ bool ImageViewWidget::highlightSaturation() const
 {
     return d->highlightSaturation;
 }
+
+bool ImageViewWidget::usesGLES() const
+{
+#ifdef USE_GLES
+    return true;
+#else
+    return false;
+#endif
+}

@@ -38,6 +38,8 @@ public slots:
     void setHighlightSaturation(bool enabled);
     [[nodiscard]] bool highlightSaturation() const;
 
+    [[nodiscard]] bool usesGLES() const;
+
 protected:
     void initializeGL() override;
     void paintGL() override;
