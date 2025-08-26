@@ -1,7 +1,13 @@
 # Udev config to allow non-root access to various GenICam cameras
 
-# Enable user access to all Basler cameras
-SUBSYSTEM=="usb", ATTRS{idVendor}=="2676", MODE:="0666", TAG+="uaccess", TAG+="udev-acl"
+# Enable user access to all Basler cameras, disable powersaving
+SUBSYSTEM=="usb", ATTRS{idVendor}=="2676", GROUP="video", MODE="0666", TAG+="uaccess"
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="2676", TEST=="power/control", ATTR{power/control}="on"
 
 # FLIR Integrated Imaging Solutions
-SUBSYSTEM=="usb", ATTRS {idVendor}=="1e10", MODE:="0666", TAG+="uaccess", TAG+="udev-acl"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="1e10", GROUP="video", MODE="0666", TAG+="uaccess"
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="1e10", TEST=="power/control", ATTR{power/control}="on"
+
+# Give users permission to interact with The Imaging Source cameras, disable powersaving on them
+SUBSYSTEM=="usb", ATTRS{idVendor}=="199e", GROUP="video", MODE="0666", TAG+="uaccess"
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="199e", TEST=="power/control", ATTR{power/control}="on"
