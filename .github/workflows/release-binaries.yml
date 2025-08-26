@@ -21,7 +21,7 @@ jobs:
         submodules: true
 
     - name: Create Build Environment
-      run: cd tests/ci/ && podman build -t syntalos -f ./Dockerfile-debian .
+      run: cd tests/ci/ && podman build -t syntalos -f ./Dockerfile-debian-stable .
 
     - name: Package Build
       run: |
@@ -48,7 +48,7 @@ jobs:
         submodules: true
 
     - name: Create Build Environment
-      run: cd tests/ci/ && podman build -t syntalos -f Dockerfile-ubuntu .
+      run: cd tests/ci/ && podman build -t syntalos -f Dockerfile-ubuntu-lts .
 
     - name: Package Build
       run: |

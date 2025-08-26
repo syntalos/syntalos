@@ -1,12 +1,9 @@
 #
-# Docker file for Syntalos CI on Ubuntu
+# Docker file for Syntalos CI on Debian (stable)
 #
-FROM ubuntu:noble
+FROM debian:trixie
 
 # prepare
-RUN apt-get update -qq
-RUN apt-get install -yq --no-install-recommends software-properties-common
-RUN add-apt-repository -y ppa:ximion/syntalos
 RUN apt-get update -qq
 RUN mkdir -p /build/ci/
 
