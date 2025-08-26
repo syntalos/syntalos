@@ -75,7 +75,7 @@ using nanoseconds_t = std::chrono::duration<int64_t, std::nano>;
  *
  * Shorthand for duration-case to increase code readability.
  */
-inline milliseconds_t usecToMsec(const microseconds_t &usec)
+inline auto usecToMsec(const microseconds_t &usec)
 {
     return std::chrono::duration_cast<milliseconds_t>(usec);
 }
@@ -85,7 +85,7 @@ inline milliseconds_t usecToMsec(const microseconds_t &usec)
  *
  * Shorthand for duration-case to increase code readability.
  */
-inline microseconds_t msecToUsec(const milliseconds_t &msec)
+inline auto msecToUsec(const milliseconds_t &msec)
 {
     return std::chrono::duration_cast<microseconds_t>(msec);
 }
@@ -95,22 +95,27 @@ inline microseconds_t msecToUsec(const milliseconds_t &msec)
  *
  * Shorthand for duration-case to increase code readability.
  */
-inline microseconds_t nsecToUsec(const nanoseconds_t &msec)
+inline auto nsecToUsec(const nanoseconds_t &msec)
 {
     return std::chrono::duration_cast<microseconds_t>(msec);
 }
 
-inline milliseconds_t timeDiffMsec(const symaster_timepoint &timePoint1, const symaster_timepoint &timePoint2) noexcept
+inline auto timeDiffSec(const symaster_timepoint &timePoint1, const symaster_timepoint &timePoint2) noexcept
+{
+    return std::chrono::duration_cast<std::chrono::seconds>(timePoint1 - timePoint2);
+}
+
+inline auto timeDiffMsec(const symaster_timepoint &timePoint1, const symaster_timepoint &timePoint2) noexcept
 {
     return std::chrono::duration_cast<milliseconds_t>(timePoint1 - timePoint2);
 }
 
-inline microseconds_t timeDiffUsec(const symaster_timepoint &timePoint1, const symaster_timepoint &timePoint2) noexcept
+inline auto timeDiffUsec(const symaster_timepoint &timePoint1, const symaster_timepoint &timePoint2) noexcept
 {
     return std::chrono::duration_cast<microseconds_t>(timePoint1 - timePoint2);
 }
 
-inline milliseconds_t timeDiffToNowMsec(const std::chrono::time_point<symaster_clock> &timePoint) noexcept
+inline auto timeDiffToNowMsec(const std::chrono::time_point<symaster_clock> &timePoint) noexcept
 {
     return std::chrono::duration_cast<milliseconds_t>(symaster_clock::now() - timePoint);
 }
