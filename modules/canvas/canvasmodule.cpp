@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2025 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -39,17 +39,30 @@ private:
 
     CanvasWindow *m_cvView;
 
-    double m_expectedFps;
-    double m_currentFps;
-    int64_t m_lastFrameTime;
-    double m_avgFrameTimeDiffMsec;
+    static constexpr double DISPLAY_EMA_ALPHA = 0.05; // EMA smoothing factor for FPS updates for displayed frames
+    static constexpr double STREAM_EMA_ALPHA = 0.25;  // EMA smoothing factor for FPS updates for streamed frames
 
+    // Framerate tracking for display
     double m_expectedDisplayFps;
     double m_currentDisplayFps;
     symaster_timepoint m_lastDisplayTime;
+    double m_avgDisplayTimeMs; // Moving average of display intervals in ms
 
+    // Stream FPS tracking
+    symaster_timepoint m_lastStreamCalcTime;
+    uint32_t m_streamedFramesSinceLastCalc;
+    double m_expectedFps;
+    double m_currentFpsEma; // Exponential moving average of stream FPS
+
+    // Status text update optimization
+    QString m_cachedStatusText;
+    symaster_timepoint m_lastStatusUpdateTime;
+    static constexpr double STATUS_UPDATE_INTERVAL_MS = 125.0; // Update status text only every 125ms
+
+    // Stream speed throttling
     uint m_throttleCount;
     uint m_blackOutCount;
+
     bool m_active;
     bool m_paused;
 
@@ -82,6 +95,7 @@ public:
         // set some default values, these will be overridden immediately
         // with real values once we are displaying an image
         m_lastDisplayTime = currentTimePoint();
+        m_lastStatusUpdateTime = currentTimePoint();
         m_currentDisplayFps = 60.0;
         m_blackOutCount = 0;
         m_paused = false;
@@ -91,7 +105,6 @@ public:
 
     void start() override
     {
-        m_lastFrameTime = m_syTimer->timeSinceStartUsec().count();
         if (m_frameSub == nullptr) {
             m_active = false;
             return;
@@ -102,15 +115,20 @@ public:
         // case so the user is aware that they're not seeing every single frame
         m_expectedFps = m_frameSub->metadata().value("framerate", 60).toDouble();
 
-        // never ever try to display more than 144fps by default
+        // initialize stream FPS tracking
+        m_lastStreamCalcTime = currentTimePoint();
+        m_streamedFramesSinceLastCalc = 0;
+        m_currentFpsEma = -1; // Signal that we begin a new measurement
+
+        // initialize display tracking
+        m_avgDisplayTimeMs = (m_expectedFps > 0) ? (1000.0 / m_expectedFps) : (1000.0 / 60.0);
+
+        // never ever try to display more than 240 fps by default
         // the module will lower this on its own if too much data is queued
-        m_throttleCount = 144;
+        m_throttleCount = 240;
         m_frameSub->setThrottleItemsPerSec(m_throttleCount);
         m_expectedDisplayFps = (m_expectedFps < m_throttleCount) ? m_expectedFps : m_throttleCount;
         m_currentDisplayFps = m_expectedDisplayFps;
-
-        // assume perfect frame diff for now
-        m_avgFrameTimeDiffMsec = 1000.0 / m_expectedFps;
 
         auto imgWinTitle = m_frameSub->metadataValue(CommonMetadataKey::SrcModName).toString();
         if (imgWinTitle.isEmpty())
@@ -143,6 +161,12 @@ public:
 
         const auto skippedFrames = m_frameSub->retrieveApproxSkippedElements();
         const auto framesPendingCount = m_frameSub->approxPendingCount();
+
+        // Count ALL frames that arrive from the source (both processed and skipped)
+        // This gives us the true source rate
+        // (we add one to account for the frame we are about to process)
+        m_streamedFramesSinceLastCalc += skippedFrames + 1;
+
         if (framesPendingCount > (m_expectedDisplayFps * 2)) {
             // we have too many frames pending in the queue, we may have to throttle
             // the subscription more
@@ -186,7 +210,6 @@ public:
 
             m_frameSub->setThrottleItemsPerSec(m_throttleCount);
             m_expectedDisplayFps = m_throttleCount;
-            m_currentFps = m_expectedFps;
 
             // we don't show the current image, so the fps values of display and stream can
             // be updated properly in the next run.
@@ -198,33 +221,63 @@ public:
         // get all timing info and show the image
         const auto frame = maybeFrame.value();
         m_cvView->showImage(frame.mat);
-        const auto frameDisplayTime = currentTimePoint();
         const auto frameTimeUsec = frame.time.count();
 
         if (m_expectedFps == 0) {
             m_cvView->setStatusText(
                 QTime::fromMSecsSinceStartOfDay(static_cast<int>(frameTimeUsec / 1000.0)).toString("hh:mm:ss.zzz"));
-        } else {
-            // we use a moving average of the inter-frame-time over two seconds, as the framerate occasionally
-            // fluctuates (especially when throttling the subscription) and we want to display a more steady (but
-            // accurate) info to the user instead, without twitching around too much
-            m_avgFrameTimeDiffMsec = ((m_avgFrameTimeDiffMsec * m_expectedFps)
-                                      + ((frameTimeUsec - m_lastFrameTime) / 1000.0 / (skippedFrames + 1)))
-                                     / (m_expectedFps + 1);
-            m_lastFrameTime = frameTimeUsec;
-            m_currentFps = (m_avgFrameTimeDiffMsec > 0) ? (1000.0 / m_avgFrameTimeDiffMsec) : m_expectedFps;
 
-            m_currentDisplayFps = ((m_currentDisplayFps * 60)
-                                   + (1000.0 / timeDiffMsec(frameDisplayTime, m_lastDisplayTime).count()))
-                                  / (60 + 1);
-            m_lastDisplayTime = frameDisplayTime;
+            // skip all further calculation, we don't know a framerate and are probably not displaying a video,
+            // but just static images instead.
+            return;
+        }
 
-            m_cvView->setStatusText(QStringLiteral("%1 | Stream: %2fps (of %3fps) | Display: %4fps")
-                                        .arg(QTime::fromMSecsSinceStartOfDay(static_cast<int>(frameTimeUsec / 1000.0))
-                                                 .toString("hh:mm:ss.zzz"))
-                                        .arg(m_currentFps, 0, 'f', 1)
-                                        .arg(m_expectedFps, 0, 'f', 1)
-                                        .arg(m_currentDisplayFps, 0, 'f', 0));
+        const auto timeNow = currentTimePoint();
+        if (m_currentFpsEma < 0) {
+            // The run has (very likely) just started!
+            // We need to set the timepoint right here for accurate measurements of initial framerates
+            m_lastStreamCalcTime = timeNow;
+            m_currentFpsEma = m_expectedFps;
+        }
+
+        // Calculate display FPS from actual display intervals
+        const double displayIntervalMs = timeDiffMsec(timeNow, m_lastDisplayTime).count();
+        if (displayIntervalMs > 0) {
+            m_avgDisplayTimeMs = (DISPLAY_EMA_ALPHA * displayIntervalMs)
+                                 + ((1 - DISPLAY_EMA_ALPHA) * m_avgDisplayTimeMs);
+            m_currentDisplayFps = 1000.0 / m_avgDisplayTimeMs;
+        }
+
+        // Stream FPS calculation
+        if (m_streamedFramesSinceLastCalc >= 24) {
+            const double streamElapsedSec = timeDiffMsec(timeNow, m_lastStreamCalcTime).count() / 1000.0;
+            const double streamRate = static_cast<double>(m_streamedFramesSinceLastCalc) / streamElapsedSec;
+
+            // EMA smoothing
+            m_currentFpsEma = (STREAM_EMA_ALPHA * streamRate) + ((1 - STREAM_EMA_ALPHA) * m_currentFpsEma);
+
+            // Reset stream counters and timing
+            m_streamedFramesSinceLastCalc = 0;
+            m_lastStreamCalcTime = timeNow;
+        }
+
+        // update last time we calculated speeds and displayed a frame
+        m_lastDisplayTime = timeNow;
+
+        // Update status text at a reduced rate to optimize performance
+        const double timeSinceLastUpdate = timeDiffMsec(timeNow, m_lastStatusUpdateTime).count();
+        if (timeSinceLastUpdate >= STATUS_UPDATE_INTERVAL_MS) {
+            // Format status text efficiently using QStringLiteral for compile-time string construction
+            m_cachedStatusText = QStringLiteral("%1 | Stream: %2fps (of %3fps) | Display: %4fps")
+                                     .arg(QTime::fromMSecsSinceStartOfDay(static_cast<int>(frameTimeUsec / 1000.0))
+                                              .toString(QStringLiteral("hh:mm:ss.zzz")))
+                                     .arg(m_currentFpsEma, 0, 'f', 1)
+                                     .arg(m_expectedFps, 0, 'f', 1)
+                                     .arg(m_currentDisplayFps, 0, 'f', 0);
+
+            m_cvView->setStatusText(m_cachedStatusText);
+
+            m_lastStatusUpdateTime = timeNow;
         }
     }
 

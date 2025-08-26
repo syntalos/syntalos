@@ -41,6 +41,7 @@ private:
     int m_fps;
     QSize m_outFrameSize;
     bool m_colorVideo;
+    microseconds_t m_prevFrameTime;
 
     time_t m_prevRowTime;
     time_t m_prevTimeSData;
@@ -89,6 +90,7 @@ public:
         m_frameOut->setMetadataValue("framerate", (double)m_fps);
         m_frameOut->setMetadataValue("size", m_outFrameSize);
         m_frameOut->start();
+        m_prevFrameTime = microseconds_t(0);
 
         m_rowsOut->setSuggestedDataName(QStringLiteral("table-%1/testvalues").arg(datasetNameSuggestion()));
         m_rowsOut->setMetadataValue(
@@ -179,7 +181,18 @@ public:
 private:
     Frame createFrame_sleep(size_t index, int fps)
     {
-        const auto startTime = currentTimePoint();
+        const auto targetIntervalUsec = microseconds_t(static_cast<long>(std::round(1000000.0 / fps)));
+
+        // time when the next frame should be output
+        const auto nextFrameTime = m_prevFrameTime + targetIntervalUsec;
+        const auto startTime = m_syTimer->timeSinceStartUsec();
+
+        // sleep until it's time for the next frame (if we're ahead of schedule)
+        if (startTime < nextFrameTime) {
+            const auto sleepDuration = nextFrameTime - startTime;
+            if (startTime.count() > 0)
+                std::this_thread::sleep_for(sleepDuration);
+        }
 
         const auto width = m_outFrameSize.width();
         const auto height = m_outFrameSize.height();
@@ -210,11 +223,10 @@ private:
             cv::cvtColor(image, image, cv::COLOR_BGR2GRAY);
 
         Frame frame(index);
-        frame.time = m_syTimer->timeSinceStartUsec();
+        frame.time = nextFrameTime;
         frame.mat = image;
 
-        std::this_thread::sleep_for(
-            std::chrono::microseconds((1000 / fps) * 1000) - timeDiffUsec(currentTimePoint(), startTime));
+        m_prevFrameTime = frame.time;
         return frame;
     }
 
