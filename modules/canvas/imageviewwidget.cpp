@@ -37,9 +37,9 @@
 
 static const char *vertexShaderSource =
 #ifdef USE_GLES
-    "#version 300 es\n"
+    "#version 320 es\n"
 #else
-    "#version 330 core\n"
+    "#version 410 core\n"
 #endif
     "layout(location = 0) in vec2 position;\n"
     "out vec2 texCoord;\n"
@@ -52,10 +52,13 @@ static const char *vertexShaderSource =
 
 static const char *fragmentShaderSource =
 #ifdef USE_GLES
-    "#version 300 es\n"
-    "precision mediump float;\n"
+    "#version 320 es\n"
+    "precision highp float;\n"
 #else
-    "#version 330 core\n"
+    "#version 410 core\n"
+    "#define lowp\n"
+    "#define mediump\n"
+    "#define highp\n"
 #endif
     "in vec2 texCoord;\n"
     "out vec4 FragColor;\n"
@@ -230,8 +233,7 @@ void ImageViewWidget::initializeGL()
             QStringLiteral("Unable to initialize OpenGL"),
             QStringLiteral(
                 "Unable to compiler or link OpenGL shader or initialize vertex array object. Your system needs at "
-                "least "
-                "OpenGL/GLES 3.2 to run this application.\n"
+                "least OpenGL 4.1 or GLES 3.2 to run this application.\n"
                 "You may want to try to upgrade your graphics drivers, or check the application log for details."),
             QMessageBox::Ok);
         qFatal(
