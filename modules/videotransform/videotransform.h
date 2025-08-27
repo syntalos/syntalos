@@ -20,11 +20,11 @@
 #pragma once
 
 #include "datactl/frametype.h"
-#include <QIcon>
 #include <QObject>
 #include <QWidget>
 
 class QLabel;
+class QSpinBox;
 
 /**
  * @brief Interface for all transformation classes
@@ -34,8 +34,8 @@ class VideoTransform : public QObject
 public:
     explicit VideoTransform();
 
-    virtual QString name() const = 0;
-    virtual QIcon icon() const
+    [[nodiscard]] virtual QString name() const = 0;
+    [[nodiscard]] virtual QIcon icon() const
     {
         return QIcon::fromTheme("view-filter");
     };
@@ -44,7 +44,7 @@ public:
     void setOriginalSize(const QSize &size);
     virtual QSize resultSize();
 
-    virtual bool allowOnlineModify() const;
+    [[nodiscard]] virtual bool allowOnlineModify() const;
 
     virtual void start();
     virtual void process(cv::Mat &image) = 0;
@@ -66,11 +66,11 @@ class CropTransform : public VideoTransform
 public:
     explicit CropTransform();
 
-    QString name() const override;
-    QIcon icon() const override;
+    [[nodiscard]] QString name() const override;
+    [[nodiscard]] QIcon icon() const override;
     void createSettingsUi(QWidget *parent) override;
 
-    bool allowOnlineModify() const override;
+    [[nodiscard]] bool allowOnlineModify() const override;
     QSize resultSize() override;
 
     void start() override;
@@ -82,19 +82,23 @@ public:
 private:
     void checkAndUpdateRoi();
 
-    QLabel *m_sizeInfoLabel;
+    QLabel *m_sizeInfoLabel{nullptr};
+    QSpinBox *m_sbWidth{nullptr};
+    QSpinBox *m_sbHeight{nullptr};
+    QSpinBox *m_sbX{nullptr};
+    QSpinBox *m_sbY{nullptr};
 
     std::mutex m_mutex;
 
     QSize m_maxima;
-    cv::Size m_activeOutSize;
-    cv::Rect m_roi;
-    cv::Rect m_activeRoi;
-    std::atomic_bool m_onlineModified;
+    cv::Size m_activeOutSize{0, 0};
+    cv::Rect m_roi{0, 0, 0, 0};
+    cv::Rect m_activeRoi{0, 0, 0, 0};
+    std::atomic_bool m_onlineModified{false};
 };
 
 /**
- * @brief Crop frames to match a certain size
+ * @brief Scale frames by a factor
  */
 class ScaleTransform : public VideoTransform
 {
@@ -102,8 +106,8 @@ class ScaleTransform : public VideoTransform
 public:
     explicit ScaleTransform();
 
-    QString name() const override;
-    QIcon icon() const override;
+    [[nodiscard]] QString name() const override;
+    [[nodiscard]] QIcon icon() const override;
     void createSettingsUi(QWidget *parent) override;
 
     QSize resultSize() override;
@@ -113,7 +117,7 @@ public:
     void fromVariantHash(const QVariantHash &settings) override;
 
 private:
-    double m_scaleFactor;
+    double m_scaleFactor{1.0};
 };
 
 /**
@@ -125,8 +129,8 @@ class FalseColorTransform : public VideoTransform
 public:
     explicit FalseColorTransform();
 
-    QString name() const override;
-    QIcon icon() const override;
+    [[nodiscard]] QString name() const override;
+    [[nodiscard]] QIcon icon() const override;
 
     void createSettingsUi(QWidget *parent) override;
 
@@ -142,8 +146,8 @@ class HistNormTransform : public VideoTransform
 public:
     explicit HistNormTransform();
 
-    QString name() const override;
-    QIcon icon() const override;
+    [[nodiscard]] QString name() const override;
+    [[nodiscard]] QIcon icon() const override;
 
     void createSettingsUi(QWidget *parent) override;
 

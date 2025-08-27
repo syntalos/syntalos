@@ -19,7 +19,6 @@
 
 #include "videotransform.h"
 
-#include <QDoubleSpinBox>
 #include <QFormLayout>
 #include <QLabel>
 #include <QSpinBox>
@@ -29,7 +28,7 @@
 VideoTransform::VideoTransform()
     : QObject()
 {
-    m_originalSize = QSize(999999, 999999);
+    m_originalSize = QSize(INT_MAX, INT_MAX);
 }
 
 void VideoTransform::setOriginalSize(const QSize &size)
@@ -53,14 +52,13 @@ void VideoTransform::stop() {}
 
 QVariantHash VideoTransform::toVariantHash()
 {
-    return QVariantHash();
+    return {};
 }
 
 void VideoTransform::fromVariantHash(const QVariantHash &) {}
 
 CropTransform::CropTransform()
-    : VideoTransform(),
-      m_sizeInfoLabel(nullptr)
+    : VideoTransform()
 {
 }
 
@@ -81,102 +79,84 @@ void CropTransform::createSettingsUi(QWidget *parent)
         return;
     }
     m_sizeInfoLabel = new QLabel(parent);
-    connect(m_sizeInfoLabel, &QWidget::destroyed, [&]() {
+    connect(m_sizeInfoLabel, &QWidget::destroyed, [this]() {
         m_sizeInfoLabel = nullptr;
+        m_sbWidth = nullptr;
+        m_sbHeight = nullptr;
+        m_sbX = nullptr;
+        m_sbY = nullptr;
     });
 
-    auto sbWidth = new QSpinBox(parent);
-    sbWidth->setRange((m_originalSize.width() > 10) ? 10 : 0, m_originalSize.width());
-    sbWidth->setSuffix("px");
-    sbWidth->setValue(m_roi.width);
-    sbWidth->setMinimumWidth(100);
+    m_sbX = new QSpinBox(parent);
+    m_sbX->setSuffix("px");
+    m_sbX->setValue(m_roi.x);
+    m_sbX->setMinimumWidth(100);
 
-    auto sbX = new QSpinBox(parent);
-    sbX->setRange(0, m_originalSize.width() - 10);
-    sbX->setSuffix("px");
-    sbX->setValue(m_roi.x);
-    sbX->setMinimumWidth(100);
+    m_sbWidth = new QSpinBox(parent);
+    m_sbWidth->setSuffix("px");
+    m_sbWidth->setValue(m_roi.width);
+    m_sbWidth->setMinimumWidth(100);
 
-    auto sbHeight = new QSpinBox(parent);
-    sbHeight->setRange((m_originalSize.height() > 10) ? 10 : 0, m_originalSize.height());
-    sbHeight->setSuffix("px");
-    sbHeight->setValue(m_roi.height);
-    sbHeight->setMinimumWidth(100);
+    m_sbY = new QSpinBox(parent);
+    m_sbY->setSuffix("px");
+    m_sbY->setValue(m_roi.y);
+    m_sbY->setMinimumWidth(100);
 
-    auto sbY = new QSpinBox(parent);
-    sbY->setRange(0, m_originalSize.height() - 10);
-    sbY->setSuffix("px");
-    sbY->setValue(m_roi.y);
-    sbY->setMinimumWidth(100);
+    m_sbHeight = new QSpinBox(parent);
+    m_sbHeight->setSuffix("px");
+    m_sbHeight->setValue(m_roi.height);
+    m_sbHeight->setMinimumWidth(100);
 
-    connect(sbWidth, qOverload<int>(&QSpinBox::valueChanged), [=](int) {
-        QTimer::singleShot(600, sbWidth, &QSpinBox::editingFinished);
+    connect(m_sbX, qOverload<int>(&QSpinBox::valueChanged), [this](int) {
+        QTimer::singleShot(300, m_sbX, &QSpinBox::editingFinished);
     });
-    connect(sbWidth, &QSpinBox::editingFinished, [=, this]() {
-        {
-            const std::lock_guard<std::mutex> lock(m_mutex);
-            m_roi.width = sbWidth->value() - m_roi.x;
-            m_onlineModified = true;
-
-            checkAndUpdateRoi();
-        }
-        sbHeight->setValue(m_roi.height + m_roi.y);
-        sbX->setValue(m_roi.x);
-        sbY->setValue(m_roi.y);
+    connect(m_sbX, &QSpinBox::editingFinished, [this]() {
+        const std::lock_guard<std::mutex> lock(m_mutex);
+        m_roi.x = m_sbX->value();
+        m_onlineModified = true;
+        checkAndUpdateRoi();
     });
 
-    connect(sbHeight, qOverload<int>(&QSpinBox::valueChanged), [=](int) {
-        QTimer::singleShot(500, sbHeight, &QSpinBox::editingFinished);
+    connect(m_sbWidth, qOverload<int>(&QSpinBox::valueChanged), [this](int) {
+        QTimer::singleShot(300, m_sbWidth, &QSpinBox::editingFinished);
     });
-    connect(sbHeight, &QSpinBox::editingFinished, [=, this]() {
-        {
-            const std::lock_guard<std::mutex> lock(m_mutex);
-            m_roi.height = sbHeight->value() - m_roi.y;
-            m_onlineModified = true;
-            checkAndUpdateRoi();
-        }
-        sbWidth->setValue(m_roi.width + m_roi.x);
-        sbX->setValue(m_roi.x);
-        sbY->setValue(m_roi.y);
+    connect(m_sbWidth, &QSpinBox::editingFinished, [this]() {
+        const std::lock_guard<std::mutex> lock(m_mutex);
+        m_roi.width = m_sbWidth->value();
+        m_onlineModified = true;
+        checkAndUpdateRoi();
     });
 
-    connect(sbX, qOverload<int>(&QSpinBox::valueChanged), [=](int) {
-        QTimer::singleShot(500, sbX, &QSpinBox::editingFinished);
+    connect(m_sbY, qOverload<int>(&QSpinBox::valueChanged), [this](int) {
+        QTimer::singleShot(300, m_sbY, &QSpinBox::editingFinished);
     });
-    connect(sbX, &QSpinBox::editingFinished, [=, this]() {
-        {
-            const std::lock_guard<std::mutex> lock(m_mutex);
-            m_roi.x = sbX->value();
-            m_onlineModified = true;
-            checkAndUpdateRoi();
-        }
-        sbWidth->setValue(m_roi.width + m_roi.x);
-        sbHeight->setValue(m_roi.height + m_roi.y);
-        sbY->setValue(m_roi.y);
+    connect(m_sbY, &QSpinBox::editingFinished, [this]() {
+        const std::lock_guard<std::mutex> lock(m_mutex);
+        m_roi.y = m_sbY->value();
+        m_onlineModified = true;
+        checkAndUpdateRoi();
     });
 
-    connect(sbY, qOverload<int>(&QSpinBox::valueChanged), [=](int) {
-        QTimer::singleShot(500, sbY, &QSpinBox::editingFinished);
+    connect(m_sbHeight, qOverload<int>(&QSpinBox::valueChanged), [this](int) {
+        QTimer::singleShot(300, m_sbHeight, &QSpinBox::editingFinished);
     });
-    connect(sbY, &QSpinBox::editingFinished, [=, this]() {
-        {
-            const std::lock_guard<std::mutex> lock(m_mutex);
-            m_roi.y = sbY->value();
-            m_onlineModified = true;
-            checkAndUpdateRoi();
-        }
-        sbWidth->setValue(m_roi.width + m_roi.x);
-        sbHeight->setValue(m_roi.height + m_roi.y);
-        sbX->setValue(m_roi.x);
+    connect(m_sbHeight, &QSpinBox::editingFinished, [this]() {
+        const std::lock_guard<std::mutex> lock(m_mutex);
+        m_roi.height = m_sbHeight->value();
+        m_onlineModified = true;
+        checkAndUpdateRoi();
     });
 
-    auto formLayout = new QFormLayout;
-    formLayout->addRow(QStringLiteral("Start X:"), sbX);
-    formLayout->addRow(QStringLiteral("Width:"), sbWidth);
-    formLayout->addRow(QStringLiteral("Start Y:"), sbY);
-    formLayout->addRow(QStringLiteral("Height:"), sbHeight);
+    auto formLayout = new QFormLayout(parent);
+    formLayout->addRow(QStringLiteral("Start X:"), m_sbX);
+    formLayout->addRow(QStringLiteral("Width:"), m_sbWidth);
+    formLayout->addRow(QStringLiteral("Start Y:"), m_sbY);
+    formLayout->addRow(QStringLiteral("Height:"), m_sbHeight);
     formLayout->addWidget(m_sizeInfoLabel);
     parent->setLayout(formLayout);
+
+    // Update initial values and safe ranges
+    checkAndUpdateRoi();
 }
 
 bool CropTransform::allowOnlineModify() const
@@ -189,6 +169,7 @@ QSize CropTransform::resultSize()
     if (m_activeRoi.empty())
         return m_originalSize;
 
+    const std::lock_guard<std::mutex> lock(m_mutex);
     checkAndUpdateRoi();
     return {m_activeRoi.width, m_activeRoi.height};
 }
@@ -200,7 +181,10 @@ void CropTransform::start()
         m_roi.height = m_originalSize.height();
     }
 
-    checkAndUpdateRoi();
+    {
+        const std::lock_guard<std::mutex> lock(m_mutex);
+        checkAndUpdateRoi();
+    }
     m_activeRoi = m_roi;
 
     const auto rSize = resultSize();
@@ -224,9 +208,12 @@ void CropTransform::process(cv::Mat &image)
     cv::Mat cropScaleMat(image, m_roi);
     cv::Mat outMat = cv::Mat::zeros(m_activeOutSize, image.type());
 
-    if ((m_roi.width + m_roi.x < m_activeOutSize.width) && (m_roi.height + m_roi.y < m_activeOutSize.height)) {
-        // the crop dimensions are smaller than our output, so we can simply cut things
-        cropScaleMat.copyTo(outMat(m_roi));
+    if ((m_roi.width <= m_activeOutSize.width) && (m_roi.height <= m_activeOutSize.height)) {
+        // the crop dimensions are smaller than or equal to our output, so we can simply center it
+        const int offsetX = (m_activeOutSize.width - m_roi.width) / 2;
+        const int offsetY = (m_activeOutSize.height - m_roi.height) / 2;
+        cv::Rect targetRect(offsetX, offsetY, m_roi.width, m_roi.height);
+        cropScaleMat.copyTo(outMat(targetRect));
     } else {
         // the crop dimensions are larger than our output, we need some scaling
         double scaleFactor = 1;
@@ -269,17 +256,15 @@ void CropTransform::fromVariantHash(const QVariantHash &settings)
 
 void CropTransform::checkAndUpdateRoi()
 {
-    // sanity checks
-    if (m_roi.x + m_roi.width > m_originalSize.width() || m_roi.width < 1)
-        m_roi.width = m_originalSize.width() - m_roi.x;
-    if (m_roi.y + m_roi.height > m_originalSize.height() || m_roi.height < 1)
-        m_roi.height = m_originalSize.height() - m_roi.y;
-    if (m_roi.width < 1)
-        m_roi.width = 1;
-    if (m_roi.height < 1)
-        m_roi.height = 1;
+    // Ensure ROI stays within bounds and has valid dimensions
+    m_roi.x = std::max(0, std::min(m_roi.x, m_originalSize.width() - 1));
+    m_roi.y = std::max(0, std::min(m_roi.y, m_originalSize.height() - 1));
 
-    // give user some info as to what we are actually doing
+    // Adjust width and height to stay within bounds
+    m_roi.width = std::max(1, std::min(m_roi.width, m_originalSize.width() - m_roi.x));
+    m_roi.height = std::max(1, std::min(m_roi.height, m_originalSize.height() - m_roi.y));
+
+    // give user some info as to what we are actually doing, if the GUI is set up
     if (m_sizeInfoLabel != nullptr) {
         m_sizeInfoLabel->setText(QStringLiteral("Result size: %1x%2px (x%3 - w%4; y%5 - h%6)\n"
                                                 "Original size: %7x%8px")
@@ -291,13 +276,39 @@ void CropTransform::checkAndUpdateRoi()
                                      .arg(m_roi.height + m_roi.y)
                                      .arg(m_originalSize.width())
                                      .arg(m_originalSize.height()));
-    };
+
+        m_sbX->setRange(0, std::max(0, m_originalSize.width() - m_sbWidth->value()));
+        m_sbWidth->setRange(1, std::max(1, m_originalSize.width() - m_sbX->value()));
+        m_sbY->setRange(0, std::max(0, m_originalSize.height() - m_sbHeight->value()));
+        m_sbHeight->setRange(1, std::max(1, m_originalSize.height() - m_sbY->value()));
+
+        // Update spinboxes with the correct values - now they represent actual width/height, not end coordinates
+        if (m_sbWidth->value() != m_roi.width) {
+            m_sbWidth->blockSignals(true);
+            m_sbWidth->setValue(m_roi.width);
+            m_sbWidth->blockSignals(false);
+        }
+        if (m_sbHeight->value() != m_roi.height) {
+            m_sbHeight->blockSignals(true);
+            m_sbHeight->setValue(m_roi.height);
+            m_sbHeight->blockSignals(false);
+        }
+        if (m_sbX->value() != m_roi.x) {
+            m_sbX->blockSignals(true);
+            m_sbX->setValue(m_roi.x);
+            m_sbX->blockSignals(false);
+        }
+        if (m_sbY->value() != m_roi.y) {
+            m_sbY->blockSignals(true);
+            m_sbY->setValue(m_roi.y);
+            m_sbY->blockSignals(false);
+        }
+    }
 }
 
 ScaleTransform::ScaleTransform()
     : VideoTransform()
 {
-    m_scaleFactor = 1;
 }
 
 QString ScaleTransform::name() const
@@ -312,27 +323,33 @@ QIcon ScaleTransform::icon() const
 
 void ScaleTransform::createSettingsUi(QWidget *parent)
 {
-    auto sbSymScale = new QDoubleSpinBox(parent);
+    auto *sbSymScale = new QDoubleSpinBox(parent);
     sbSymScale->setRange(0.01, 10);
     sbSymScale->setValue(m_scaleFactor);
-    connect(sbSymScale, qOverload<double>(&QDoubleSpinBox::valueChanged), [=, this](double value) {
+    connect(sbSymScale, qOverload<double>(&QDoubleSpinBox::valueChanged), [this](double value) {
         m_scaleFactor = value;
     });
 
-    QFormLayout *formLayout = new QFormLayout;
+    auto formLayout = new QFormLayout;
     formLayout->addRow(QStringLiteral("Scale Factor:"), sbSymScale);
     parent->setLayout(formLayout);
 }
 
 QSize ScaleTransform::resultSize()
 {
-    return QSize(round(m_originalSize.width() * m_scaleFactor), round(m_originalSize.height() * m_scaleFactor));
+    return {
+        static_cast<int>(std::round(m_originalSize.width() * m_scaleFactor)),
+        static_cast<int>(std::round(m_originalSize.height() * m_scaleFactor))};
 }
 
 void ScaleTransform::process(cv::Mat &image)
 {
-    cv::Mat outMat(image);
-    cv::resize(outMat, outMat, cv::Size(), m_scaleFactor, m_scaleFactor);
+    // Only process if scale factor is not 1.0 to avoid unnecessary work
+    if (std::abs(m_scaleFactor - 1.0) < 1e-6)
+        return;
+
+    cv::Mat outMat;
+    cv::resize(image, outMat, cv::Size(), m_scaleFactor, m_scaleFactor, cv::INTER_LINEAR);
     image = outMat;
 }
 
@@ -365,7 +382,7 @@ QIcon FalseColorTransform::icon() const
 
 void FalseColorTransform::createSettingsUi(QWidget *parent)
 {
-    QFormLayout *formLayout = new QFormLayout(parent);
+    auto formLayout = new QFormLayout(parent);
     formLayout->addRow(QStringLiteral("This transformation has no settings."), new QLabel(parent));
     parent->setLayout(formLayout);
 }
@@ -400,7 +417,7 @@ QIcon HistNormTransform::icon() const
 
 void HistNormTransform::createSettingsUi(QWidget *parent)
 {
-    QFormLayout *formLayout = new QFormLayout(parent);
+    auto formLayout = new QFormLayout(parent);
     formLayout->addRow(QStringLiteral("This transformation has no settings."), new QLabel(parent));
     parent->setLayout(formLayout);
 }

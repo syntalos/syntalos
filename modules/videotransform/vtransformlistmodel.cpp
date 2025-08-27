@@ -126,12 +126,17 @@ void VTransformListModel::fromVariantHash(const QVariantHash &var)
             continue;
         const auto objType = vh.value("type").toString();
 
-        VideoTransform *tf;
+        VideoTransform *tf = nullptr;
         if (objType == CropTransform::staticMetaObject.className())
             tf = new CropTransform;
         else if (objType == ScaleTransform::staticMetaObject.className())
             tf = new ScaleTransform;
-        else
+        else if (objType == FalseColorTransform::staticMetaObject.className())
+            tf = new FalseColorTransform;
+        else if (objType == HistNormTransform::staticMetaObject.className())
+            tf = new HistNormTransform;
+
+        if (tf == nullptr)
             continue;
 
         tf->fromVariantHash(vh);
