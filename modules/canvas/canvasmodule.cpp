@@ -40,7 +40,7 @@ private:
     CanvasWindow *m_cvView;
 
     static constexpr double DISPLAY_EMA_ALPHA = 0.05; // EMA smoothing factor for FPS updates for displayed frames
-    static constexpr double STREAM_EMA_ALPHA = 0.25;  // EMA smoothing factor for FPS updates for streamed frames
+    static constexpr double STREAM_EMA_ALPHA = 0.5;   // EMA smoothing factor for FPS updates for streamed frames
 
     // Framerate tracking for display
     double m_expectedDisplayFps;
