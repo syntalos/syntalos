@@ -118,8 +118,20 @@ public:
         auto frame = maybeFrame.value();
 
         // apply transformations
-        auto image = frame.mat.clone();
+        cv::Mat &image = frame.mat;
+        bool prevTransformCreatedCopy = false;
         for (const auto &vtf : m_activeVTFList) {
+            if (vtf->needsIndependentCopy()) {
+                if (!prevTransformCreatedCopy) {
+                    // make sure we have our own copy of the data and don't modify the original
+                    // data pool that is shared between threads
+                    image = image.clone();
+                    prevTransformCreatedCopy = true;
+                }
+            } else {
+                // the transform will copy the data by itself, so we can assume it was copied after this point
+                prevTransformCreatedCopy = true;
+            }
             vtf->process(image);
         }
 

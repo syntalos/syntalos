@@ -50,6 +50,17 @@ public:
     virtual void process(cv::Mat &image) = 0;
     virtual void stop();
 
+    /**
+     * @brief Indicates if this transform needs the caller to provide an independent copy
+     * @return true if the transform needs an independent copy of the image data,
+     *         false if the transform will create its own copy during processing
+     *
+     * Note: If this returns false, the transform MUST ensure that it creates
+     * an independent copy of the image data during process() to avoid modifying
+     * the original data that may be shared with other modules/threads.
+     */
+    [[nodiscard]] virtual bool needsIndependentCopy() const;
+
     virtual QVariantHash toVariantHash();
     virtual void fromVariantHash(const QVariantHash &settings);
 
@@ -78,6 +89,8 @@ public:
 
     QVariantHash toVariantHash() override;
     void fromVariantHash(const QVariantHash &settings) override;
+
+    bool needsIndependentCopy() const override;
 
 private:
     void checkAndUpdateRoi();
@@ -115,6 +128,8 @@ public:
 
     QVariantHash toVariantHash() override;
     void fromVariantHash(const QVariantHash &settings) override;
+
+    [[nodiscard]] bool needsIndependentCopy() const override;
 
 private:
     double m_scaleFactor{1.0};

@@ -50,6 +50,12 @@ void VideoTransform::start() {}
 
 void VideoTransform::stop() {}
 
+bool VideoTransform::needsIndependentCopy() const
+{
+    // it's the safer default assumption to always assume data is modified in-place and we need an independent copy
+    return true;
+}
+
 QVariantHash VideoTransform::toVariantHash()
 {
     return {};
@@ -196,7 +202,10 @@ void CropTransform::process(cv::Mat &image)
 {
     // handle the simple case: no online modifications
     if (!m_onlineModified) {
-        image = image(m_activeRoi);
+        // Create a proper copy of the ROI to avoid sharing data with the original image
+        // This is necessary because image(m_activeRoi) creates a view, not an independent copy,
+        // and for some reason this causes downstream pixel corruption for some cropping regions.
+        image = image(m_activeRoi).clone();
         return;
     }
 
@@ -252,6 +261,12 @@ void CropTransform::fromVariantHash(const QVariantHash &settings)
     m_roi.width = settings.value("crop_width", 0).toInt();
     m_roi.height = settings.value("crop_height", 0).toInt();
     checkAndUpdateRoi();
+}
+
+bool CropTransform::needsIndependentCopy() const
+{
+    // we always have to create a data copy as part of the cropping process (thanks, OpenCV!)
+    return false;
 }
 
 void CropTransform::checkAndUpdateRoi()
@@ -363,6 +378,12 @@ QVariantHash ScaleTransform::toVariantHash()
 void ScaleTransform::fromVariantHash(const QVariantHash &settings)
 {
     m_scaleFactor = settings.value("scale_factor", 1).toDouble();
+}
+
+bool ScaleTransform::needsIndependentCopy() const
+{
+    // Only need a copy if we're actually scaling (scale factor != 1.0)
+    return std::abs(m_scaleFactor - 1.0) >= 1e-6;
 }
 
 FalseColorTransform::FalseColorTransform()
