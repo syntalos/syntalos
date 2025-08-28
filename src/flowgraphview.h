@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2025 Matthias Klumpp <matthias@tenstral.net>
  * Copyright (C) 2003-2019, rncbc aka Rui Nuno Capela, qjackctl
  *
  * Licensed under the GNU General Public License Version 3
@@ -534,6 +534,9 @@ protected:
 
 private:
     void adjustSceneRect();
+
+    QPointF findOptimalNodePosition(FlowGraphNode *node);
+    bool isPositionOccupied(const QPointF &pos, const QSizeF &size, FlowGraphNode *excludeNode = nullptr);
 
     enum DragState {
         DragNone = 0,

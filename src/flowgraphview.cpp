@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2025 Matthias Klumpp <matthias@tenstral.net>
  * Copyright (C) 2003-2019, rncbc aka Rui Nuno Capela, qjackctl
  *
  * Licensed under the GNU General Public License Version 3
@@ -41,8 +41,7 @@
 #include <QMouseEvent>
 #include <QWheelEvent>
 
-#include <algorithm>
-#include <math.h>
+#include <cmath>
 
 #include "moduleapi.h"
 #include "utils/misc.h"
@@ -1225,19 +1224,22 @@ void FlowGraphView::addItem(FlowGraphItem *item)
     m_scene->addItem(item);
 
     if (item->type() == FlowGraphNode::Type) {
-        FlowGraphNode *node = static_cast<FlowGraphNode *>(item);
-
-        const auto centerPoint = mapToScene(viewport()->rect().center());
-        const auto itemRect = node->boundingRect();
+        auto node = static_cast<FlowGraphNode *>(item);
 
         if (node) {
             m_nodes.append(node);
             m_nodekeys.insert(FlowGraphNode::NodeKey(node), node);
 
-            // move the new item to the center of the current visible scene by default
-            node->setPos(centerPoint - QPointF(itemRect.width() / 2, itemRect.height() / 2));
+            // Use smart positioning to avoid overlaps
+            const QPointF optimalPos = findOptimalNodePosition(node);
+            node->setPos(optimalPos);
 
-            restoreNodePos(node);
+            // Try to restore saved position if available
+            if (!restoreNodePos(node)) {
+                // If no saved position, keep the optimal position
+                node->setPos(optimalPos);
+            }
+
             emit added(node);
         }
 
@@ -1636,8 +1638,8 @@ void FlowGraphView::adjustSceneRect()
     if (m_nodes.count() <= 1)
         return;
 
-    const qreal margin = 1.0;
-    const qreal minSceneSize = 100.0;
+    const qreal margin = 20.0;
+    const qreal minSceneSize = 200.0;
 
     QRectF sceneRect = m_scene->sceneRect();
     QRectF itemsBoundingRect = m_scene->itemsBoundingRect();
@@ -1799,9 +1801,15 @@ void FlowGraphView::wheelEvent(QWheelEvent *event)
 {
     if (event->modifiers() & Qt::ControlModifier) {
         const int delta = event->angleDelta().y();
-        setZoom(zoom() + qreal(delta) / 1200.0);
-    } else
+        const qreal zoomFactor = std::pow(1.1, delta / 120.0);
+        const qreal newZoom = zoom() * zoomFactor;
+        setZoom(newZoom);
+
+        // Accept the event to prevent it from being passed to parent
+        event->accept();
+    } else {
         QGraphicsView::wheelEvent(event);
+    }
 }
 
 void FlowGraphView::keyPressEvent(QKeyEvent *event)
@@ -2304,4 +2312,98 @@ void FlowGraphView::editingFinished(void)
         m_editor->hide();
         m_edited = 0;
     }
+}
+
+/**
+ * @brief Find optimal position for a new node to avoid overlaps
+ */
+QPointF FlowGraphView::findOptimalNodePosition(FlowGraphNode *node)
+{
+    if (!node)
+        return {};
+
+    // Get the current viewport bounds in scene coordinates
+    const QRectF viewportRect = mapToScene(viewport()->rect()).boundingRect();
+    const QPointF centerPoint = viewportRect.center();
+    const QSizeF nodeSize = node->boundingRect().size();
+
+    // Ensure we have some margin from the viewport edges
+    const qreal viewportMargin = 30.0;
+    const QRectF constrainedArea = viewportRect.adjusted(
+        viewportMargin, viewportMargin, -viewportMargin, -viewportMargin);
+
+    // If this is the first node or no existing nodes, place at center
+    if (m_nodes.size() <= 1)
+        return centerPoint - QPointF(nodeSize.width() / 2, nodeSize.height() / 2);
+
+    // Try the center first
+    const QPointF centerPos = centerPoint - QPointF(nodeSize.width() / 2, nodeSize.height() / 2);
+    if (!isPositionOccupied(centerPos, nodeSize, node) && constrainedArea.contains(QRectF(centerPos, nodeSize)))
+        return centerPos;
+
+    // Spiral outward from center to find free space within viewport
+    const qreal spacing = 50.0; // Minimum spacing between nodes
+    const qreal step = spacing;
+
+    for (int radius = 1; radius <= 15; ++radius) {
+        const qreal distance = radius * step;
+        const int numPositions = qMax(8, radius * 8); // More positions for larger radii
+
+        for (int i = 0; i < numPositions; ++i) {
+            const qreal angle = (2.0 * M_PI * i) / numPositions;
+            const QPointF candidate = centerPoint
+                                      + QPointF(
+                                          distance * std::cos(angle) - nodeSize.width() / 2,
+                                          distance * std::sin(angle) - nodeSize.height() / 2);
+
+            // Check if candidate is within viewport bounds
+            const QRectF candidateRect(candidate, nodeSize);
+            if (constrainedArea.contains(candidateRect) && !isPositionOccupied(candidate, nodeSize, node))
+                return candidate;
+        }
+    }
+
+    // Fallback: try to find any free space within the current viewport
+    const qreal gridStep = spacing;
+    for (qreal y = constrainedArea.top(); y <= constrainedArea.bottom() - nodeSize.height(); y += gridStep) {
+        for (qreal x = constrainedArea.left(); x <= constrainedArea.right() - nodeSize.width(); x += gridStep) {
+            const QPointF candidate(x, y);
+            const QRectF candidateRect(candidate, nodeSize);
+
+            if (constrainedArea.contains(candidateRect) && !isPositionOccupied(candidate, nodeSize, node))
+                return candidate;
+        }
+    }
+
+    // Final fallback: place at center even if it overlaps, but ensure it's visible
+    const QPointF fallbackPos = centerPoint - QPointF(nodeSize.width() / 2, nodeSize.height() / 2);
+
+    // If the fallback position would be outside the viewport, adjust it
+    if (!constrainedArea.contains(QRectF(fallbackPos, nodeSize))) {
+        // Place it in the top-left corner of the constrained area
+        return constrainedArea.topLeft();
+    }
+
+    return fallbackPos;
+}
+
+/**
+ * @brief Check if a position would cause the node to overlap with existing nodes
+ */
+bool FlowGraphView::isPositionOccupied(const QPointF &pos, const QSizeF &size, FlowGraphNode *excludeNode)
+{
+    const QRectF testRect(pos, size);
+    const qreal margin = 20.0; // Minimum spacing between nodes
+    const QRectF expandedRect = testRect.adjusted(-margin, -margin, margin, margin);
+
+    for (const auto *existingNode : m_nodes) {
+        if (existingNode == excludeNode)
+            continue;
+
+        const QRectF existingRect(existingNode->pos(), existingNode->boundingRect().size());
+        if (expandedRect.intersects(existingRect))
+            return true;
+    }
+
+    return false;
 }
