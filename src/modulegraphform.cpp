@@ -361,7 +361,7 @@ void ModuleGraphForm::on_graphPortsConnected(FlowGraphNodePort *port1, FlowGraph
     if (port1->isOutput())
         outPort = dynamic_cast<StreamOutputPort *>(port1->streamPort().get());
     if (port2->isOutput())
-        outPort = dynamic_cast<StreamOutputPort *>(port1->streamPort().get());
+        outPort = dynamic_cast<StreamOutputPort *>(port2->streamPort().get());
 
     if ((inPort == nullptr || outPort == nullptr)) {
         // something went wrong or we connected two ports of the same type
@@ -408,7 +408,7 @@ void ModuleGraphForm::on_graphPortsDisconnected(FlowGraphNodePort *port1, FlowGr
     if (port1->isOutput())
         outPort = dynamic_cast<StreamOutputPort *>(port1->streamPort().get());
     if (port2->isOutput())
-        outPort = dynamic_cast<StreamOutputPort *>(port1->streamPort().get());
+        outPort = dynamic_cast<StreamOutputPort *>(port2->streamPort().get());
 
     if (inPort == nullptr || outPort == nullptr) {
         qCCritical(logGraphUi).noquote() << "Disconnected nonexisting ports. This should not be possible.";
