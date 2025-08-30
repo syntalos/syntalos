@@ -110,19 +110,8 @@ void ArvConfigWindow::on_refreshCamerasButton_clicked(bool clicked)
     cameraSelector->setEnabled(false);
     cameraSelector->addItem(tr("Looking for cameras..."));
     QApplication::processEvents();
-    cameraSelector->clear();
-    auto cameras = QArvCamera::listCameras();
-    foreach (auto cam, cameras) {
-        QString display;
-        display = display + cam.vendor + " (" + cam.model + ")";
-        cameraSelector->addItem(display, QVariant::fromValue<QArvCameraId>(cam));
-    }
-    cameraSelector->setCurrentIndex(-1);
-    cameraSelector->setEnabled(true);
-    cameraSelector->blockSignals(false);
-    QString message = tr("Found %n cameras.", "Number of cameras", cameraSelector->count());
-    statusBar()->showMessage(statusBar()->currentMessage() + " " + message, statusTimeoutMsec);
-    logMessage() << message;
+
+    refreshCameras();
 }
 
 void ArvConfigWindow::on_unzoomButton_toggled(bool checked)
@@ -881,7 +870,33 @@ void ArvConfigWindow::loadSettings(const QVariantHash &settings, const QByteArra
 
 void ArvConfigWindow::refreshCameras()
 {
-    on_refreshCamerasButton_clicked();
+    cameraSelector->blockSignals(true);
+    refreshCamerasButton->setEnabled(false);
+    cameraSelector->setEnabled(false);
+
+    auto oldCam = cameraSelector->itemData(cameraSelector->currentIndex()).value<QArvCameraId>();
+    cameraSelector->clear();
+
+    int newIndex = -1;
+    auto cameras = QArvCamera::listCameras();
+    for (int i = 0; i < cameras.size(); i++) {
+        auto &cam = cameras[i];
+
+        QString display;
+        display = display + cam.vendor + " (" + cam.model + ")";
+        cameraSelector->addItem(display, QVariant::fromValue<QArvCameraId>(cam));
+        if (oldCam.id != nullptr && cam.toString() == oldCam.toString())
+            newIndex = i;
+    }
+
+    cameraSelector->setCurrentIndex(newIndex);
+    refreshCamerasButton->setEnabled(true);
+    cameraSelector->setEnabled(true);
+    cameraSelector->blockSignals(false);
+
+    QString message = tr("Found %n cameras.", "Number of cameras", cameraSelector->count());
+    statusBar()->showMessage(statusBar()->currentMessage() + " " + message, statusTimeoutMsec);
+    logMessage() << message;
 }
 
 void ArvConfigWindow::closeEvent(QCloseEvent *event)
