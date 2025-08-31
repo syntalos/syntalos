@@ -4,7 +4,10 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-  - package-ecosystem: "gitsubmodule"
-    directory: "/"
-    schedule:
-      interval: "monthly"
+
+# We only would want to update to tagged versions, but Dependabot does not
+# support that feature yet. See https://github.com/dependabot/dependabot-core/issues/1639
+#  - package-ecosystem: "gitsubmodule"
+#    directory: "/"
+#    schedule:
+#      interval: "monthly"
