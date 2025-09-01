@@ -29,11 +29,13 @@ cd ../../
 # Build Debian source package
 #
 
-git_commit=$(git log --pretty="format:%h" -n1)
-git_current_tag=$(git describe --abbrev=0 --tags 2> /dev/null || echo "v2.0.0")
-git_commit_no=$(git rev-list --count HEAD)
-upstream_version=$(echo "${git_current_tag}" | sed 's/^v\(.\+\)$/\1/;s/[-]/./g')
-upstream_version="$upstream_version+git$git_commit_no"
+git_commit=$(git rev-parse --short HEAD)
+git_current_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo v2.0.0)
+git_commit_no=$(git rev-list --count "${git_current_tag}..HEAD" 2>/dev/null)
+upstream_version=${git_current_tag#v}; upstream_version=${upstream_version//-/.}
+if [ "$git_commit_no" -gt 0 ]; then
+  upstream_version+="+git$git_commit_no"
+fi
 
 mv contrib/debian .
 dch --distribution "noble" --newversion="${upstream_version}" -b \
