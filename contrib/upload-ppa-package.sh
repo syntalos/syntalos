@@ -1,5 +1,5 @@
-#!/bin/sh
-set -e
+#!/bin/bash
+set -euo pipefail
 
 #
 # This script will create the Syntalos Debian package & upload it to the PPA

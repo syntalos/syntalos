@@ -19,7 +19,7 @@ private slots:
         auto tsFilename = QStringLiteral("/tmp/tstest-%1").arg(createRandomString(8));
 
         // write a timesync file
-        auto tswriter = new TimeSyncFileWriter;
+        auto tswriter = std::make_unique<TimeSyncFileWriter>();
         tswriter->setFileName(tsFilename);
         tswriter->setTimeDataTypes(dt1, dt2);
         auto ret = tswriter->open(
@@ -32,11 +32,11 @@ private slots:
             const auto tbase = microseconds_t(i * 1000);
             tswriter->writeTimes(tbase, tbase + microseconds_t(i * 51));
         }
-        delete tswriter;
+        tswriter->close();
         qDebug().noquote() << "TSync write operation took" << timer.elapsed() << "milliseconds";
 
         // read the timesync file
-        auto tsreader = new TimeSyncFileReader;
+        auto tsreader = std::make_unique<TimeSyncFileReader>();
         timer.start();
         ret = tsreader->open(tsFilename + QStringLiteral(".tsync"));
         QVERIFY2(ret, qPrintable(tsreader->lastError()));
@@ -56,7 +56,6 @@ private slots:
             QCOMPARE(pair.first, tbase);
             QCOMPARE(pair.second, tbase + (long)i * 51);
         }
-        delete tsreader;
 
         // delete temporary file
         QFile file(tsFilename + QStringLiteral(".tsync"));

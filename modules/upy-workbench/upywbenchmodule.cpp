@@ -437,7 +437,7 @@ public:
         port->flush();
 
         port->waitForReadyRead(20000);
-        if (port->read(2) != "OK") {
+        if (port->read(2) != QStringLiteral("OK")) {
             port->blockSignals(false);
             return false;
         }
