@@ -1,3 +1,26 @@
+Version 2.1.1
+-------------
+Released: 2025-09-20
+
+Features:
+ * canvas: Optimize render performance
+ * canvas: Improve OpenGL shader compatibility
+ * camera-arv: udev: Disable powersaving on all USB cameras
+ * Position module nodes in free and visible spaces, if possible
+
+Bugfixes:
+ * videorecorder: Prevent deadlock if uninitialized module is stopped prematurely
+ * canvas: Do color-conversion on the CPU if we only have GLES
+ * canvas: Ensure histogram is displayed correctly on GLES-only platforms
+ * videotransform: Modernize code of transformers and make them more robust
+ * videotransform: Fix possible data corruption when cropping, minimize deep copies
+ * Fix reverse port connections (in->out) by the user when dragging in the GUI
+ * camera-arv: Improve behavior if camera rescan is triggered by USB event
+
+Miscellaneous:
+ * ci: Build on Debian Testing (forky) as well
+ * ppa: Only include +git part in version string if necessary
+
 Version 2.1.0
 -------------
 Released: 2025-04-06
