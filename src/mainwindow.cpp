@@ -1525,7 +1525,7 @@ void MainWindow::on_actionUsbDevices_triggered()
         if (usbViewFound)
             runHostExecutable("usbview", QStringList(), false);
         else
-            QProcess::startDetached("xdg-open", QStringList() << "appstream:usbview.desktop");
+            QProcess::startDetached("xdg-open", QStringList() << "appstream:com.kroah.usbview");
         QTimer::singleShot(0, [&]() {
             dlg.close();
         });
