@@ -104,6 +104,7 @@ int runHostExecutable(const QString &exe, const QStringList &args, bool waitForF
 int runInExternalTerminal(const QString &cmd, const QStringList &args, const QString &wdir)
 {
     QString terminalExe;
+    QString terminalArg = "-e";
     QStringList extraTermArgs;
     auto sysInfo = SysInfo::get();
 
@@ -113,10 +114,12 @@ int runInExternalTerminal(const QString &cmd, const QStringList &args, const QSt
     }
     if (terminalExe.isEmpty()) {
         terminalExe = findHostExecutable("gnome-terminal");
+        terminalArg = "--"; // "-e" is deprecated in newer versions
         extraTermArgs.append("--hide-menubar");
     }
     if (terminalExe.isEmpty())
         terminalExe = findHostExecutable("xterm");
+
     if (terminalExe.isEmpty())
         terminalExe = findHostExecutable("x-terminal-emulator");
 
@@ -153,12 +156,12 @@ int runInExternalTerminal(const QString &cmd, const QStringList &args, const QSt
             fpsArgs << "--directory=" + wdir;
         fpsArgs << terminalExe;
 
-        const auto termArgs = QStringList() << "-e"
+        const auto termArgs = QStringList() << terminalArg
                                             << "flatpak enter " + sysInfo->sandboxAppId() + " sh -c " + shHelperFname;
         proc.start("flatpak-spawn", fpsArgs + extraTermArgs + termArgs);
     } else {
         // no sandbox, we can run the command directly
-        const auto termArgs = QStringList() << "-e"
+        const auto termArgs = QStringList() << terminalArg
                                             << "sh"
                                             << "-c" << shHelperFname;
         if (!wdir.isEmpty())
