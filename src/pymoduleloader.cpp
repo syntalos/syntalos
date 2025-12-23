@@ -188,18 +188,28 @@ public:
             << "run_check pip install -r " << shellQuote(tmpRequirementsFname) << "\n"
 
             << "echo \"\"\n"
-            << "read -p \"Success! Press any key to exit.\""
-            << "\n";
+            << "echo -e \"\\033[1;32m✓\\033[0m \\033[1mSuccess! Virtual environment created.\\033[0m\"\n"
+            << "echo \"Closing in 2 seconds...\"\n"
+            << "sleep 2\n";
         shFile.flush();
         shFile.setPermissions(QFileDevice::ExeUser | QFileDevice::ReadUser | QFileDevice::WriteUser);
         shFile.close();
 
         int ret = runInExternalTerminal(tmpCommandFile, QStringList(), venvDir);
 
+        // Clean up temporary files now that the terminal has finished
         shFile.remove();
         tmpReqFile.remove();
-        if (ret == 0)
+
+        if (ret == 0) {
+            qDebug().noquote() << "Virtual environment created successfully for module:" << id();
             return injectSystemPyQtBindings(venvDir);
+        } else if (ret == -255) {
+            qWarning().noquote() << "Failed to launch terminal or read exit code for module:" << id();
+        } else {
+            qWarning().noquote() << "Virtual environment creation failed with exit code" << ret << "for module:" << id();
+        }
+
         // failure, let's try to remove the bad virtualenv (failures to do so are ignored)
         QDir(venvDir).removeRecursively();
         return false;

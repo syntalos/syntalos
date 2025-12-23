@@ -25,6 +25,7 @@
 #include <QFileInfo>
 #include <QProcess>
 #include <QStandardPaths>
+#include <QThread>
 #include <glib.h>
 
 #include "sysinfo.h"
@@ -169,24 +170,49 @@ int runInExternalTerminal(const QString &cmd, const QStringList &args, const QSt
 
     while (!proc.waitForStarted(25))
         QApplication::processEvents();
+
+    // Wait for the terminal to start, but don't wait for it to finish
+    // (modern terminals like konsole/gnome-terminal detach immediately)
     while (!proc.waitForFinished(50)) {
         if (proc.state() == QProcess::NotRunning)
             break;
         QApplication::processEvents();
     }
-    shFile.remove();
 
-    // the terminal itself failed, so the command can't have worked
-    if (proc.exitStatus() != 0) {
-        QFile::remove(exitFname);
-        return proc.exitStatus();
+    // The terminal emulator may have detached, so we can't rely on proc.waitForFinished()
+    // Instead, we poll for the exit file that the shell script creates when it completes
+    qDebug().noquote() << "Waiting for command to complete in external terminal...";
+
+    const int pollIntervalMs = 200;
+    int elapsedMs = 0;
+
+    while (!QFile::exists(exitFname)) {
+        QApplication::processEvents();
+        QThread::msleep(pollIntervalMs);
+        elapsedMs += pollIntervalMs;
     }
 
-    QFile file(exitFname);
-    if (!file.open(QIODevice::ReadWrite | QIODevice::Text))
-        return -255;
+    qDebug().noquote() << "External terminal command completed";
+    shFile.remove();
 
-    int ret = QString::fromUtf8(file.readAll()).toInt();
+    // Read the exit code from the file
+    QFile file(exitFname);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qWarning().noquote() << "Unable to read exit code from" << exitFname;
+        QFile::remove(exitFname);
+        return -255;
+    }
+
+    QString exitCodeStr = QString::fromUtf8(file.readAll()).trimmed();
+    file.close();
     file.remove();
+
+    bool ok;
+    int ret = exitCodeStr.toInt(&ok);
+    if (!ok) {
+        qWarning().noquote() << "Invalid exit code in file:" << exitCodeStr;
+        return -255;
+    }
+
     return ret;
 }
