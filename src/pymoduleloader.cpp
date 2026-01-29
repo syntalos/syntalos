@@ -194,7 +194,8 @@ public:
         shFile.setPermissions(QFileDevice::ExeUser | QFileDevice::ReadUser | QFileDevice::WriteUser);
         shFile.close();
 
-        int ret = runInExternalTerminal(tmpCommandFile, QStringList(), venvDir);
+        int ret = runInTerminal(
+            tmpCommandFile, QStringList(), venvDir, QStringLiteral("Creating virtual Python environment"));
 
         shFile.remove();
         tmpReqFile.remove();

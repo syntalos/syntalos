@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -25,13 +25,15 @@
 #include <QFileInfo>
 #include <QProcess>
 #include <QStandardPaths>
+#include <QEventLoop>
 #include <glib.h>
 
+#include "simpleterminal.h"
 #include "sysinfo.h"
 #include "utils/misc.h"
 
-using namespace Syntalos;
-
+namespace Syntalos
+{
 QString shellQuote(const QString &str)
 {
     auto cs = g_shell_quote(qPrintable(str));
@@ -101,31 +103,17 @@ int runHostExecutable(const QString &exe, const QStringList &args, bool waitForF
     }
 }
 
-int runInExternalTerminal(const QString &cmd, const QStringList &args, const QString &wdir)
+int runInTerminal(const QString &cmd, const QStringList &args, const QString &wdir, const QString &title)
 {
-    QString terminalExe;
-    QString terminalArg = "-e";
-    QStringList extraTermArgs;
-    auto sysInfo = SysInfo::get();
+    auto termWin = new SimpleTerminal();
+    termWin->setAttribute(Qt::WA_DeleteOnClose);
+    if (!title.isEmpty())
+        termWin->setWindowTitle(title);
 
-    if (terminalExe.isEmpty()) {
-        terminalExe = findHostExecutable("konsole");
-        extraTermArgs.append("--hide-menubar");
-    }
-    if (terminalExe.isEmpty()) {
-        terminalExe = findHostExecutable("gnome-terminal");
-        terminalArg = "--"; // "-e" is deprecated in newer versions
-        extraTermArgs.append("--hide-menubar");
-    }
-    if (terminalExe.isEmpty())
-        terminalExe = findHostExecutable("xterm");
+    if (!wdir.isEmpty())
+        termWin->setWorkingDirectory(wdir);
 
-    if (terminalExe.isEmpty())
-        terminalExe = findHostExecutable("x-terminal-emulator");
-
-    if (terminalExe.isEmpty())
-        return -255;
-
+    // create our helper script
     auto rtdDir = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
     if (rtdDir.isEmpty())
         rtdDir = "/tmp";
@@ -147,48 +135,48 @@ int runInExternalTerminal(const QString &cmd, const QStringList &args, const QSt
     shFile.setPermissions(QFileDevice::ExeUser | QFileDevice::ReadUser | QFileDevice::WriteUser);
     shFile.close();
 
-    QProcess proc;
-    proc.setProcessChannelMode(QProcess::ForwardedChannels);
-    if (sysInfo->inFlatpakSandbox()) {
-        // in sandbox, go via flatpak-spawn
-        QStringList fpsArgs = QStringList() << "--host";
-        if (!wdir.isEmpty())
-            fpsArgs << "--directory=" + wdir;
-        fpsArgs << terminalExe;
+    // show the terminal window
+    termWin->show();
+    termWin->raise();
+    termWin->activateWindow();
 
-        const auto termArgs = QStringList()
-                              << terminalArg << "flatpak enter " + sysInfo->sandboxAppId() + " sh -c " + shHelperFname;
-        proc.start("flatpak-spawn", fpsArgs + extraTermArgs + termArgs);
-    } else {
-        // no sandbox, we can run the command directly
-        const auto termArgs = QStringList() << terminalArg << "sh"
-                                            << "-c" << shHelperFname;
-        if (!wdir.isEmpty())
-            proc.setWorkingDirectory(wdir);
+    // run our helper script as shell
+    termWin->setShellProgram(shHelperFname);
+    termWin->startShell();
 
-        proc.start(terminalExe, extraTermArgs + termArgs);
-    }
+    // wait for the terminal to close
+    QEventLoop loop;
+    int exitCode = std::numeric_limits<int>::max();
+    bool terminated = false;
 
-    while (!proc.waitForStarted(25))
-        QApplication::processEvents();
-    while (!proc.waitForFinished(50)) {
-        if (proc.state() == QProcess::NotRunning)
-            break;
-        QApplication::processEvents();
-    }
-    shFile.remove();
+    // detect when the shell exits
+    QObject::connect(termWin, &SimpleTerminal::finished, [&exitCode, &terminated, &loop, exitFname]() {
+        // read the exit code from the temp file
+        QFile file(exitFname);
+        if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            exitCode = QString::fromUtf8(file.readAll()).trimmed().toInt();
+            file.close();
+        }
+        file.remove();
+        terminated = true;
+        loop.quit();
+    });
 
-    // the terminal itself failed, so the command can't have worked
-    if (proc.exitStatus() != 0) {
-        QFile::remove(exitFname);
-        return proc.exitStatus();
-    }
+    // quit loop when window is closed
+    QObject::connect(termWin, &QObject::destroyed, [&exitCode, &terminated, &loop, exitFname]() {
+        if (!terminated) {
+            // Window was closed before command finished
+            QFile::remove(exitFname);
+            exitCode = 255;
+        }
+        loop.quit();
+    });
 
-    QFile file(exitFname);
-    if (!file.open(QIODevice::ReadWrite | QIODevice::Text))
-        return -255;
+    // run the event loop until the command is done or the window is closed
+    loop.exec();
+    QApplication::processEvents();
 
-    int ret = QString::fromUtf8(file.readAll()).toInt();
-    file.remove();
-    return ret;
+    return exitCode;
 }
+
+} // namespace Syntalos

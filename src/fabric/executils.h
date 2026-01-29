@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -21,6 +21,9 @@
 
 #include <QObject>
 
+namespace Syntalos
+{
+
 /**
  * @brief Shell-escape a string
  */
@@ -29,4 +32,10 @@ QString shellQuote(const QString &str);
 QString findHostExecutable(const QString &exe);
 int runHostExecutable(const QString &exe, const QStringList &args, bool waitForFinished);
 
-int runInExternalTerminal(const QString &cmd, const QStringList &args = QStringList(), const QString &wdir = QString());
+int runInTerminal(
+    const QString &cmd,
+    const QStringList &args = QStringList(),
+    const QString &wdir = QString(),
+    const QString &title = QString());
+
+} // namespace Syntalos

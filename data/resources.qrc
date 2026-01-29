@@ -16,6 +16,7 @@
         <file alias="project-settings">project-settings.svg</file>
         <file alias="usb-device">usb-device.svg</file>
         <file alias="chip-connect">chip-connect.svg</file>
+        <file alias="terminal">terminal.svg</file>
     </qresource>
     <qresource prefix="/icons/dark">
         <file alias="run">dark/run.svg</file>
