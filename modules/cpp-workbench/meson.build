@@ -14,7 +14,6 @@ module_moc_src = [
 
 module_ui = []
 
-qtermwidget_dep = dependency('qtermwidget6')
 module_deps = [
     kftexteditor_dep,
     qtermwidget_dep,

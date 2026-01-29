@@ -16,7 +16,6 @@ module_ui = []
 
 module_src += qt.compile_resources(sources: ['pyscriptres.qrc'])
 
-qtermwidget_dep = dependency('qtermwidget6')
 module_deps = [
     kftexteditor_dep,
     qtermwidget_dep,

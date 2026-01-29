@@ -217,6 +217,7 @@ qt_dbus_dep = dependency('qt6', modules: ['DBus'])
 qt_net_dep = dependency('qt6', modules: ['Network'])
 qt_multimedia_dep = dependency('qt6', modules: ['Multimedia'])
 qt_concurrent_dep = dependency('qt6', modules: ['Concurrent'])
+qtermwidget_dep = dependency('qtermwidget6')
 
 rt_lib = cpp_compiler.find_library('rt')
 thread_dep = dependency('threads')
