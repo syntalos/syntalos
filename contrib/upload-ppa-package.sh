@@ -38,7 +38,7 @@ if [ "$git_commit_no" -gt 0 ]; then
 fi
 
 mv contrib/debian .
-dch --distribution "noble" --newversion="${upstream_version}" -b \
+dch --distribution "resolute" --newversion="${upstream_version}" -b \
     "New automated build from: ${upstream_version} - ${git_commit}"
 
 # build the source package
