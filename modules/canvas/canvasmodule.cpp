@@ -188,13 +188,13 @@ public:
                 m_blackOutCount++;
 
                 if (m_blackOutCount >= 3) {
-                    raiseError(
-                        QStringLiteral("Dropped below 2fps in display render speed multiple times. Even when "
-                                       "discarding most frames we still "
-                                       "can not display images fast enough to empty the pending data queue.\n"
-                                       "Either the displayed frames are excessively large, something is wrong with the "
-                                       "display hardware, "
-                                       "or there is a bug in the display code."));
+                    raiseError(QStringLiteral(
+                        "Dropped below 2fps in display render speed multiple times. Even when "
+                        "discarding most frames we still "
+                        "can not display images fast enough to empty the pending data queue.\n"
+                        "Either the displayed frames are excessively large, something is wrong with the "
+                        "display hardware, "
+                        "or there is a bug in the display code."));
                     return;
                 }
 
@@ -269,8 +269,9 @@ public:
         if (timeSinceLastUpdate >= STATUS_UPDATE_INTERVAL_MS) {
             // Format status text efficiently using QStringLiteral for compile-time string construction
             m_cachedStatusText = QStringLiteral("%1 | Stream: %2fps (of %3fps) | Display: %4fps")
-                                     .arg(QTime::fromMSecsSinceStartOfDay(static_cast<int>(frameTimeUsec / 1000.0))
-                                              .toString(QStringLiteral("hh:mm:ss.zzz")))
+                                     .arg(
+                                         QTime::fromMSecsSinceStartOfDay(static_cast<int>(frameTimeUsec / 1000.0))
+                                             .toString(QStringLiteral("hh:mm:ss.zzz")))
                                      .arg(m_currentFpsEma, 0, 'f', 1)
                                      .arg(m_expectedFps, 0, 'f', 1)
                                      .arg(m_currentDisplayFps, 0, 'f', 0);

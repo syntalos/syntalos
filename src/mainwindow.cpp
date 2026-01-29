@@ -485,9 +485,10 @@ void MainWindow::runActionTriggered()
             QMessageBox::critical(
                 this,
                 QStringLiteral("Can not start interval run"),
-                QStringLiteral("The interval run can not be started, as the experiment ID is missing "
-                               "a time/run-based substitution variable.\n"
-                               "Check out the documentation on information on this."));
+                QStringLiteral(
+                    "The interval run can not be started, as the experiment ID is missing "
+                    "a time/run-based substitution variable.\n"
+                    "Check out the documentation on information on this."));
             setRunUiControlStates(false, false);
             setRunPossible(true);
             return;
@@ -713,9 +714,10 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         auto reply = QMessageBox::question(
             this,
             "Incompatible configuration",
-            QStringLiteral("The settings file you want to load was created with a different, possibly older version of "
-                           "Syntalos and may not work correctly in this version.\n"
-                           "Should we attempt to load it anyway? (This may result in unexpected behavior)"),
+            QStringLiteral(
+                "The settings file you want to load was created with a different, possibly older version of "
+                "Syntalos and may not work correctly in this version.\n"
+                "Should we attempt to load it anyway? (This may result in unexpected behavior)"),
             QMessageBox::Yes | QMessageBox::No);
         if (reply == QMessageBox::No) {
             this->setEnabled(true);
@@ -808,16 +810,18 @@ bool MainWindow::loadConfiguration(const QString &fileName)
             QMessageBox::critical(
                 this,
                 QStringLiteral("Can not load settings"),
-                QStringLiteral("Unable to find module '%1' - please install the module first, then "
-                               "attempt to load this configuration again.")
+                QStringLiteral(
+                    "Unable to find module '%1' - please install the module first, then "
+                    "attempt to load this configuration again.")
                     .arg(modId));
             setStatusText("Failed to load settings.");
 
             const auto reply = QMessageBox::question(
                 this,
                 QStringLiteral("Ignore missing module?"),
-                QStringLiteral("While installing thie missing module is the right solution to load this board, "
-                               "you can also enforce loading it. Please be aware that loading may fail. Load anyway?"),
+                QStringLiteral(
+                    "While installing thie missing module is the right solution to load this board, "
+                    "you can also enforce loading it. Please be aware that loading may fail. Load anyway?"),
                 QMessageBox::Yes | QMessageBox::No);
             if (reply == QMessageBox::Yes) {
                 qWarning().noquote().nospace()
@@ -934,10 +938,10 @@ bool MainWindow::loadConfiguration(const QString &fileName)
             changeExperimenter(m_experimenterList->person(0));
         } else {
             // we have many people registered for this board, ask user to choose one!
-            showExperimenterSelector(
-                QStringLiteral("Welcome to this experiment!\n"
-                               "Please select your name from the list - in case you can't find it,\n"
-                               "you may select \"[Not selected]\" to select no experimenter."));
+            showExperimenterSelector(QStringLiteral(
+                "Welcome to this experiment!\n"
+                "Please select your name from the list - in case you can't find it,\n"
+                "you may select \"[Not selected]\" to select no experimenter."));
         }
 
         if (m_engine->experimenter().isValid())
@@ -1594,14 +1598,15 @@ void MainWindow::on_actionReportIssue_triggered()
     QMessageBox::information(
         this,
         QStringLiteral("Info on reporting issues"),
-        QStringLiteral("You will be redirected to GitHub where you can file an issue (you may need to register an "
-                       "account there first).\n"
-                       "To file an actionable issue report, please think about these things:\n"
-                       "  • What did you want or expect to happen?\n"
-                       "  • What happened instead?\n"
-                       "  • What kind of configuration were you trying to run?\n"
-                       "  • Are there any warnings listed on the system diagnostics page of Syntalos?\n"
-                       "Happy issue reporting!"));
+        QStringLiteral(
+            "You will be redirected to GitHub where you can file an issue (you may need to register an "
+            "account there first).\n"
+            "To file an actionable issue report, please think about these things:\n"
+            "  • What did you want or expect to happen?\n"
+            "  • What happened instead?\n"
+            "  • What kind of configuration were you trying to run?\n"
+            "  • Are there any warnings listed on the system diagnostics page of Syntalos?\n"
+            "Happy issue reporting!"));
     QDesktopServices::openUrl(QUrl(SY_BUG_REPORT_URL, QUrl::TolerantMode));
 }
 

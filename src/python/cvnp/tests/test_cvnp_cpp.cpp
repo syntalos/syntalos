@@ -181,8 +181,7 @@ static void test_lifetime()
 #ifdef __cplusplus
 extern "C"
 #endif
-    const char *
-    __asan_default_options();
+    const char *__asan_default_options();
 
 const char *__asan_default_options()
 {

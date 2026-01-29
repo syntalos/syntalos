@@ -237,9 +237,10 @@ void CrashReportDialog::runPastCrashCollect()
     if (!m_allToolsFound)
         ui->doneInfoLabel->setText(
             ui->doneInfoLabel->text()
-            + QStringLiteral("<br/>"
-                             "Please keep in mind that this report may be <b>incomplete</b> "
-                             "due to missing analysis tools on this system."));
+            + QStringLiteral(
+                "<br/>"
+                "Please keep in mind that this report may be <b>incomplete</b> "
+                "due to missing analysis tools on this system."));
 }
 
 void CrashReportDialog::runFreezeDebug()
@@ -273,9 +274,10 @@ void CrashReportDialog::runFreezeDebug()
     if (!m_allToolsFound)
         ui->doneInfoLabel->setText(
             ui->doneInfoLabel->text()
-            + QStringLiteral("<br/>"
-                             "Please keep in mind that this report may be <b>incomplete</b> "
-                             "due to missing analysis tools on this system."));
+            + QStringLiteral(
+                "<br/>"
+                "Please keep in mind that this report may be <b>incomplete</b> "
+                "due to missing analysis tools on this system."));
 }
 
 void CrashReportDialog::on_nextButton_clicked()

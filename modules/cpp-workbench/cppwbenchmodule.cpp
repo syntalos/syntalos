@@ -267,13 +267,14 @@ public:
                 QMessageBox::warning(
                     m_codeWindow,
                     QStringLiteral("Missing dependencies"),
-                    QStringLiteral("<html><b>System dependencies are missing to compile & run this code!</b><br>"
-                                   "You are missing the following components:"
-                                   "<pre>%1</pre>"
-                                   "Please install them in order to run this module. On Debian-based systems, "
-                                   "you can install them by running:"
-                                   "<pre>sudo apt install gcc g++ pkgconf meson ninja-build</pre>"
-                                   "Please also ensure that the Syntalos development package is installed.")
+                    QStringLiteral(
+                        "<html><b>System dependencies are missing to compile & run this code!</b><br>"
+                        "You are missing the following components:"
+                        "<pre>%1</pre>"
+                        "Please install them in order to run this module. On Debian-based systems, "
+                        "you can install them by running:"
+                        "<pre>sudo apt install gcc g++ pkgconf meson ninja-build</pre>"
+                        "Please also ensure that the Syntalos development package is installed.")
                         .arg(missingDeps.join(", ")));
             }
         });

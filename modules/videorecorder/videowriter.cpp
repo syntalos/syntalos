@@ -667,8 +667,9 @@ void VideoWriter::initializeInternal()
             throw std::runtime_error("Unable to find hardware-accelerated version of the selected codec.");
 
         if (vcodec == nullptr)
-            throw std::runtime_error(QStringLiteral("Unable to find suitable hardware video encoder for codec %1. Your "
-                                                    "accelerator may not support encoding with this codec.")
+            throw std::runtime_error(QStringLiteral(
+                                         "Unable to find suitable hardware video encoder for codec %1. Your "
+                                         "accelerator may not support encoding with this codec.")
                                          .arg(videoCodecToString(d->codecProps.codec()).c_str())
                                          .toStdString());
     } else {
@@ -683,8 +684,9 @@ void VideoWriter::initializeInternal()
     }
     if (vcodec == nullptr)
         throw std::runtime_error(
-            QStringLiteral("Unable to find suitable video encoder for codec %1. This codec may not have been enabled "
-                           "at compile time or the system is missing the required encoder.")
+            QStringLiteral(
+                "Unable to find suitable video encoder for codec %1. This codec may not have been enabled "
+                "at compile time or the system is missing the required encoder.")
                 .arg(videoCodecToString(d->codecProps.codec()).c_str())
                 .toStdString());
 

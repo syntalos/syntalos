@@ -277,8 +277,9 @@ void FreqCounterSynchronizer::processTimestamps(
     // it to the output data and are just writing a tsync file)
     const auto secondaryLastTS = m_applyIndexOffset
                                      ? microseconds_t(std::lround((secondaryLastIdx + 1) * m_timePerPointUs))
-                                     : microseconds_t(std::lround(
-                                           (secondaryLastIdxUnadjusted + 1 - m_indexOffset) * m_timePerPointUs));
+                                     : microseconds_t(
+                                           std::lround(
+                                               (secondaryLastIdxUnadjusted + 1 - m_indexOffset) * m_timePerPointUs));
 
     // calculate time offset
     const int64_t curOffsetUsec = (secondaryLastTS - masterAssumedAcqTS).count();

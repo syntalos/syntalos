@@ -949,8 +949,9 @@ bool Syntalos::Engine::ensureRoudi()
         QMessageBox::critical(
             d->parentWidget,
             QStringLiteral("System Error"),
-            QStringLiteral("Unable to start the Syntalos IPC communication and shared-memory management daemon. "
-                           "Something might be wrong with the system configuration. %1")
+            QStringLiteral(
+                "Unable to start the Syntalos IPC communication and shared-memory management daemon. "
+                "Something might be wrong with the system configuration. %1")
                 .arg(std::strerror(errno)));
         return false;
     }
@@ -1156,9 +1157,10 @@ bool Engine::run()
             auto reply = QMessageBox::question(
                 d->parentWidget,
                 QStringLiteral("Disk is almost full - Continue anyway?"),
-                QStringLiteral("The disk '%1' is located on has low amounts of space available (< 8 GB). "
-                               "If this run generates more data than we have space for, it will fail (possibly "
-                               "corrupting data). Continue anyway?")
+                QStringLiteral(
+                    "The disk '%1' is located on has low amounts of space available (< 8 GB). "
+                    "If this run generates more data than we have space for, it will fail (possibly "
+                    "corrupting data). Continue anyway?")
                     .arg(d->exportBaseDir),
                 QMessageBox::Yes | QMessageBox::No);
             if (reply == QMessageBox::No)
@@ -1184,8 +1186,9 @@ bool Engine::run()
         auto reply = QMessageBox::question(
             d->parentWidget,
             QStringLiteral("Existing data found - Continue anyway?"),
-            QStringLiteral("The directory '%1' already contains data (likely from a previous run). "
-                           "If you continue, the old data will be deleted. Continue and delete data?")
+            QStringLiteral(
+                "The directory '%1' already contains data (likely from a previous run). "
+                "If you continue, the old data will be deleted. Continue and delete data?")
                 .arg(d->exportDir),
             QMessageBox::Yes | QMessageBox::No);
         if (reply == QMessageBox::No)
@@ -1585,8 +1588,9 @@ bool Engine::runInternal(const QString &exportDirPath)
         QMessageBox::critical(
             d->parentWidget,
             QStringLiteral("Internal Error"),
-            QStringLiteral("Directory '%1' was expected to be nonexistent, but the directory exists. "
-                           "Stopped run to prevent potential data loss. This condition should never happen.")
+            QStringLiteral(
+                "Directory '%1' was expected to be nonexistent, but the directory exists. "
+                "Stopped run to prevent potential data loss. This condition should never happen.")
                 .arg(exportDirPath));
         return false;
     }
@@ -1680,9 +1684,10 @@ bool Engine::runInternal(const QString &exportDirPath)
                 QMessageBox::critical(
                     d->parentWidget,
                     QStringLiteral("Can not run this board"),
-                    QStringLiteral("A module with the name '%1' exists twice in this board, or another module has a "
-                                   "very similar name. "
-                                   "Please give the duplicate a unique name in order to execute this board.")
+                    QStringLiteral(
+                        "A module with the name '%1' exists twice in this board, or another module has a "
+                        "very similar name. "
+                        "Please give the duplicate a unique name in order to execute this board.")
                         .arg(mod->name()));
                 d->active = false;
                 d->failed = true;
@@ -2207,14 +2212,15 @@ bool Engine::runInternal(const QString &exportDirPath)
             QMessageBox::critical(
                 d->parentWidget,
                 QStringLiteral("Critical failure"),
-                QStringLiteral("While stopping this experiment, module \"%1\" stalled and any attempts to wake it up "
-                               "and return the application to a safe state have failed.\n"
-                               "We tried to save all experiment metadata in emergency mode, so with luck no data "
-                               "should have been lost.\n"
-                               "If this happens again, please check your hardware for defects and if there are no "
-                               "issues, consider filing a bug against Syntalos so we can look into this issue.\n"
-                               "We will still try to enter a safe state, but this will likely fail and the application "
-                               "may lock up now and might need to be terminated forcefully by you.")
+                QStringLiteral(
+                    "While stopping this experiment, module \"%1\" stalled and any attempts to wake it up "
+                    "and return the application to a safe state have failed.\n"
+                    "We tried to save all experiment metadata in emergency mode, so with luck no data "
+                    "should have been lost.\n"
+                    "If this happens again, please check your hardware for defects and if there are no "
+                    "issues, consider filing a bug against Syntalos so we can look into this issue.\n"
+                    "We will still try to enter a safe state, but this will likely fail and the application "
+                    "may lock up now and might need to be terminated forcefully by you.")
                     .arg(mod->name()));
         }
 

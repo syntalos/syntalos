@@ -481,12 +481,13 @@ void PyWorker::makeDocFileAndQuit(const QString &fname)
 
     try {
         py::exec(qPrintable(
-            QStringLiteral("import os\n"
-                           "import tempfile\n"
-                           "import pdoc\n"
-                           "import syntalos_mlink\n"
-                           "\n"
-                           "jinjaTmpl = ")
+            QStringLiteral(
+                "import os\n"
+                "import tempfile\n"
+                "import pdoc\n"
+                "import syntalos_mlink\n"
+                "\n"
+                "jinjaTmpl = ")
             + jinjaTemplatePyLiteral
             + QStringLiteral(
                   "\n"

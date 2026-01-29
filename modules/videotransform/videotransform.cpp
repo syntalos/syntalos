@@ -234,11 +234,12 @@ void CropTransform::process(cv::Mat &image)
         }
 
         cv::resize(cropScaleMat, cropScaleMat, cv::Size(), scaleFactor, scaleFactor);
-        cropScaleMat.copyTo(outMat(cv::Rect(
-            (outMat.cols - cropScaleMat.cols) / 2,
-            (outMat.rows - cropScaleMat.rows) / 2,
-            cropScaleMat.cols,
-            cropScaleMat.rows)));
+        cropScaleMat.copyTo(outMat(
+            cv::Rect(
+                (outMat.cols - cropScaleMat.cols) / 2,
+                (outMat.rows - cropScaleMat.rows) / 2,
+                cropScaleMat.cols,
+                cropScaleMat.rows)));
     }
 
     image = outMat;
@@ -281,8 +282,9 @@ void CropTransform::checkAndUpdateRoi()
 
     // give user some info as to what we are actually doing, if the GUI is set up
     if (m_sizeInfoLabel != nullptr) {
-        m_sizeInfoLabel->setText(QStringLiteral("Result size: %1x%2px (x%3 - w%4; y%5 - h%6)\n"
-                                                "Original size: %7x%8px")
+        m_sizeInfoLabel->setText(QStringLiteral(
+                                     "Result size: %1x%2px (x%3 - w%4; y%5 - h%6)\n"
+                                     "Original size: %7x%8px")
                                      .arg(m_roi.width)
                                      .arg(m_roi.height)
                                      .arg(m_roi.x)

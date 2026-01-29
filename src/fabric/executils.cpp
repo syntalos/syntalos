@@ -156,13 +156,12 @@ int runInExternalTerminal(const QString &cmd, const QStringList &args, const QSt
             fpsArgs << "--directory=" + wdir;
         fpsArgs << terminalExe;
 
-        const auto termArgs = QStringList() << terminalArg
-                                            << "flatpak enter " + sysInfo->sandboxAppId() + " sh -c " + shHelperFname;
+        const auto termArgs = QStringList()
+                              << terminalArg << "flatpak enter " + sysInfo->sandboxAppId() + " sh -c " + shHelperFname;
         proc.start("flatpak-spawn", fpsArgs + extraTermArgs + termArgs);
     } else {
         // no sandbox, we can run the command directly
-        const auto termArgs = QStringList() << terminalArg
-                                            << "sh"
+        const auto termArgs = QStringList() << terminalArg << "sh"
                                             << "-c" << shHelperFname;
         if (!wdir.isEmpty())
             proc.setWorkingDirectory(wdir);

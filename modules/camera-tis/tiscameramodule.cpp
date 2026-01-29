@@ -88,11 +88,12 @@ public:
             QMessageBox::warning(
                 nullptr,
                 QStringLiteral("Hardware configuration not installed"),
-                QStringLiteral("<html>The hardware definitions for The Imaging Source cameras are not installed.\n"
-                               "To ensure the devices are detected and work properly, please "
-                               "<a href=\"https://www.theimagingsource.com/support/download/\">download & install the "
-                               "driver package</a> "
-                               "from the Imaging Source website."),
+                QStringLiteral(
+                    "<html>The hardware definitions for The Imaging Source cameras are not installed.\n"
+                    "To ensure the devices are detected and work properly, please "
+                    "<a href=\"https://www.theimagingsource.com/support/download/\">download & install the "
+                    "driver package</a> "
+                    "from the Imaging Source website."),
                 QMessageBox::Ok);
         }
 

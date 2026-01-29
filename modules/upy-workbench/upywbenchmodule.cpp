@@ -314,8 +314,9 @@ public:
                     QMessageBox::warning(
                         m_codeWindow,
                         QStringLiteral("Serial Port Error"),
-                        QStringLiteral("Failed to send code to the device. Check the log output. Is MicroPython "
-                                       "flashed to the device?"));
+                        QStringLiteral(
+                            "Failed to send code to the device. Check the log output. Is MicroPython "
+                            "flashed to the device?"));
                     return;
                 }
             });
@@ -323,8 +324,9 @@ public:
             QMessageBox::warning(
                 m_codeWindow,
                 QStringLiteral("Serial Port Error"),
-                QStringLiteral("Failed to open serial port %1.\n"
-                               "Error: %2")
+                QStringLiteral(
+                    "Failed to open serial port %1.\n"
+                    "Error: %2")
                     .arg(m_userSerial->portName(), m_userSerial->errorString()));
             return false;
         }
@@ -526,8 +528,9 @@ public:
         stream = streamMap.value(portId);
 
         if (!stream) {
-            raiseError(QStringLiteral("Unable to find port with ID %1, as requested by the device. Was the port "
-                                      "properly registered with the host?")
+            raiseError(QStringLiteral(
+                           "Unable to find port with ID %1, as requested by the device. Was the port "
+                           "properly registered with the host?")
                            .arg(portId));
             return;
         }
@@ -616,8 +619,9 @@ public:
 
         setSerialPortParameters(&serialPort, serialDevice);
         if (!serialPort.open(QIODevice::ReadWrite)) {
-            raiseError(QStringLiteral("Failed to open serial port %1.\n"
-                                      "Error: %2")
+            raiseError(QStringLiteral(
+                           "Failed to open serial port %1.\n"
+                           "Error: %2")
                            .arg(serialPort.portName(), serialPort.errorString()));
             return;
         }
@@ -729,8 +733,9 @@ public:
                         const auto portId = jd["n"].toString();
                         auto oport = outPortById(portId);
                         if (!oport) {
-                            raiseError(QStringLiteral("Device requested output port of ID '%1', but no such port has "
-                                                      "been registered on the host!")
+                            raiseError(QStringLiteral(
+                                           "Device requested output port of ID '%1', but no such port has "
+                                           "been registered on the host!")
                                            .arg(portId));
                             break;
                         }

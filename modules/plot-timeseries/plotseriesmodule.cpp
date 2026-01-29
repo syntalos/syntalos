@@ -149,10 +149,11 @@ public:
         else if (timeUnitStr == "index") {
             const auto sampleRate = sd.sub->metadataValue("sample_rate", -1).toDouble();
             if (sampleRate < 0) {
-                raiseError(QStringLiteral("The signal-series on port %1 provides timestamps at indices, but no "
-                                          "\"sample_rate\" metadata value.\n"
-                                          "This value is needed to calculate timestamps. This is a bug in the module "
-                                          "we receive data from.")
+                raiseError(QStringLiteral(
+                               "The signal-series on port %1 provides timestamps at indices, but no "
+                               "\"sample_rate\" metadata value.\n"
+                               "This value is needed to calculate timestamps. This is a bug in the module "
+                               "we receive data from.")
                                .arg(sd.port->title()));
                 return;
             }
@@ -203,12 +204,12 @@ public:
 
         // sanity check
         if (data.data.cols() != sd.expectedSigSeriesCount) {
-            raiseError(
-                QStringLiteral("Unexpected amount of signal-series received on port %1: Expected %2, but got %3. "
-                               "This is a bug in the module we receive data from.")
-                    .arg(sd.port->title())
-                    .arg(sd.expectedSigSeriesCount)
-                    .arg(data.data.cols()));
+            raiseError(QStringLiteral(
+                           "Unexpected amount of signal-series received on port %1: Expected %2, but got %3. "
+                           "This is a bug in the module we receive data from.")
+                           .arg(sd.port->title())
+                           .arg(sd.expectedSigSeriesCount)
+                           .arg(data.data.cols()));
             return;
         }
 

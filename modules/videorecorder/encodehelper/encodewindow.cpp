@@ -193,8 +193,9 @@ void EncodeWindow::closeEvent(QCloseEvent *event)
         QMessageBox::warning(
             this,
             QStringLiteral("Encoding in progress"),
-            QStringLiteral("You can not close this tool while there are still encoding tasks ongoing or pending.\n"
-                           "Please encode all videos before quitting."));
+            QStringLiteral(
+                "You can not close this tool while there are still encoding tasks ongoing or pending.\n"
+                "Please encode all videos before quitting."));
         event->ignore();
     }
 }

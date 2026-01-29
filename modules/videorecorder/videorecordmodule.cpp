@@ -465,10 +465,10 @@ public:
         }
 
         if (!iface->isValid()) {
-            raiseError(
-                QStringLiteral("Unable to connect to the encode queue service via D-Bus. "
-                               "Videos of this run will remain unencoded. Did the encoding service crash? Message: %1")
-                    .arg(QDBusConnection::sessionBus().lastError().message()));
+            raiseError(QStringLiteral(
+                           "Unable to connect to the encode queue service via D-Bus. "
+                           "Videos of this run will remain unencoded. Did the encoding service crash? Message: %1")
+                           .arg(QDBusConnection::sessionBus().lastError().message()));
             return;
         }
 

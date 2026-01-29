@@ -902,8 +902,9 @@ std::shared_ptr<EDLDataset> AbstractModule::createDatasetInGroup(
     auto dset = group->datasetByName(datasetName);
     if (dset.get() != nullptr) {
         if (!dset->isEmpty()) {
-            raiseError(QStringLiteral("Tried to use dataset '%1' for storage, but the dataset was already in use. "
-                                      "Please ensure unique names for data storage!")
+            raiseError(QStringLiteral(
+                           "Tried to use dataset '%1' for storage, but the dataset was already in use. "
+                           "Please ensure unique names for data storage!")
                            .arg(datasetName));
             return nullptr;
         }

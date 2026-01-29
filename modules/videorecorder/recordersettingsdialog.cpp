@@ -346,14 +346,15 @@ void RecorderSettingsDialog::on_sliceWarnButton_clicked()
     QMessageBox::information(
         this,
         QStringLiteral("Codec slicing warning"),
-        QStringLiteral("Some codecs (such as the currently selected one) require a bunch of input frames to initialize "
-                       "before they can produce an output frame. "
-                       "Since by slicing the data we need to re-initialize the video encoding for each new file, some "
-                       "frames may be lost when a new slice is started.\n"
-                       "This is usually only a very small quantity, but depending on the video's purpose and "
-                       "framerate, it may be noticeable and could be an issue.\n"
-                       "Please verify if this is an issue for you, and if it is, consider creating bigger slices, not "
-                       "using slicing or choosing a different codec."));
+        QStringLiteral(
+            "Some codecs (such as the currently selected one) require a bunch of input frames to initialize "
+            "before they can produce an output frame. "
+            "Since by slicing the data we need to re-initialize the video encoding for each new file, some "
+            "frames may be lost when a new slice is started.\n"
+            "This is usually only a very small quantity, but depending on the video's purpose and "
+            "framerate, it may be noticeable and could be an issue.\n"
+            "Please verify if this is an issue for you, and if it is, consider creating bigger slices, not "
+            "using slicing or choosing a different codec."));
 }
 
 void RecorderSettingsDialog::on_deferredEncodeWarnButton_clicked()

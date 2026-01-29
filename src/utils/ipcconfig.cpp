@@ -59,14 +59,16 @@ static IPCMemPoolInfo getMemPoolInfo(QSettings *settings, const QString &poolNam
 {
     QVariant defaultValue;
     if (poolName == "mempool1") {
-        defaultValue = QVariant::fromValue(QHash<QString, QVariant>({
-            {"chunk_size_mb", 6 },
-            {"chunk_count",   20}
+        defaultValue = QVariant::fromValue(
+            QHash<QString, QVariant>({
+                {"chunk_size_mb", 6 },
+                {"chunk_count",   20}
         }));
     } else if (poolName == "mempool2") {
-        defaultValue = QVariant::fromValue(QHash<QString, QVariant>({
-            {"chunk_size_mb", 24},
-            {"chunk_count",   10}
+        defaultValue = QVariant::fromValue(
+            QHash<QString, QVariant>({
+                {"chunk_size_mb", 24},
+                {"chunk_count",   10}
         }));
     } else {
         qCCritical(logIPCConfig).noquote() << "Unknown IPC mempool name" << poolName;

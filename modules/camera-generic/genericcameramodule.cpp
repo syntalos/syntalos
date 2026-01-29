@@ -143,9 +143,9 @@ public:
                 frameRecordFailedCount++;
                 if (frameRecordFailedCount > 32) {
                     m_running = false;
-                    raiseError(
-                        QStringLiteral("Too many attempts to record frames from this camera have failed. Is the camera "
-                                       "connected properly?"));
+                    raiseError(QStringLiteral(
+                        "Too many attempts to record frames from this camera have failed. Is the camera "
+                        "connected properly?"));
                 }
                 continue;
             }
