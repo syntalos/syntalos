@@ -102,13 +102,9 @@ private slots:
 
 private:
     QTermWidget *m_termWidget;
-    QLineEdit *m_searchEdit;
     QToolButton *m_copyBtn;
     QToolButton *m_pasteBtn;
     QToolButton *m_searchBtn;
-    QPushButton *m_findNextBtn;
-    QPushButton *m_findPrevBtn;
-    QWidget *m_searchBar;
 };
 
 } // namespace Syntalos
