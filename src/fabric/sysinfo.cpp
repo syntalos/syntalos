@@ -158,7 +158,7 @@ SysInfo::SysInfo()
     d->cpuPhysicalCoreCount = d->cpuCount;
 #ifndef Q_OS_LINUX
     qCritical()
-        << "We are not running on Linux - please make sure to adjust the SysInfo code when porting to other systems!";
+        << "We are not building for Linux - please make sure to adjust the SysInfo code when porting to other systems!";
     return;
 #endif
 

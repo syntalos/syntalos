@@ -122,7 +122,7 @@ QStringList stringListNaturalSort(QStringList &list)
  */
 QString syntalosVersionFull()
 {
-    auto syVersion = QCoreApplication::applicationVersion();
+    auto syVersion = QStringLiteral(PROJECT_VERSION);
     auto syVcs = QStringLiteral(SY_VCS_TAG).replace(syVersion, "");
     if (syVcs.contains("-"))
         syVcs = syVcs.section('-', 1);

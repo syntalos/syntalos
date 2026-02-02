@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
     // set up GUI application and application details
     QApplication app(argc, argv);
     app.setApplicationName("Syntalos");
-    app.setApplicationVersion(PROJECT_VERSION);
+    app.setApplicationVersion(syntalosVersionFull());
 
     // we deliberately do not set an organization, so QSettings
     // and other will use the app name only
