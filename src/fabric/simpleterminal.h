@@ -94,11 +94,19 @@ signals:
      */
     void activity();
 
+    /**
+     * @brief Emitted when the terminal window is closed
+     */
+    void windowClosed();
+
 private slots:
     void onCopyClicked();
     void onPasteClicked();
     void onClearClicked();
     void onSearchToggled(bool checked);
+
+protected:
+    void closeEvent(QCloseEvent *event) override;
 
 private:
     QTermWidget *m_termWidget;

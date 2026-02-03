@@ -105,8 +105,7 @@ int runHostExecutable(const QString &exe, const QStringList &args, bool waitForF
 
 int runInTerminal(const QString &cmd, const QStringList &args, const QString &wdir, const QString &title)
 {
-    auto termWin = new SimpleTerminal();
-    termWin->setAttribute(Qt::WA_DeleteOnClose);
+    auto termWin = std::make_unique<SimpleTerminal>();
     if (!title.isEmpty())
         termWin->setWindowTitle(title);
 
@@ -146,29 +145,13 @@ int runInTerminal(const QString &cmd, const QStringList &args, const QString &wd
 
     // wait for the terminal to close
     QEventLoop loop;
-    int exitCode = std::numeric_limits<int>::max();
-    bool terminated = false;
+    bool finished = false;
 
-    // detect when the shell exits
-    QObject::connect(termWin, &SimpleTerminal::finished, [&exitCode, &terminated, &loop, exitFname]() {
-        // read the exit code from the temp file
-        QFile file(exitFname);
-        if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-            exitCode = QString::fromUtf8(file.readAll()).trimmed().toInt();
-            file.close();
-        }
-        file.remove();
-        terminated = true;
+    QObject::connect(termWin.get(), &SimpleTerminal::finished, [&finished, &loop]() {
+        finished = true;
         loop.quit();
     });
-
-    // quit loop when window is closed
-    QObject::connect(termWin, &QObject::destroyed, [&exitCode, &terminated, &loop, exitFname]() {
-        if (!terminated) {
-            // Window was closed before command finished
-            QFile::remove(exitFname);
-            exitCode = 255;
-        }
+    QObject::connect(termWin.get(), &SimpleTerminal::windowClosed, [&loop]() {
         loop.quit();
     });
 
@@ -176,7 +159,22 @@ int runInTerminal(const QString &cmd, const QStringList &args, const QString &wd
     loop.exec();
     QApplication::processEvents();
 
-    return exitCode;
+    if (finished) {
+        // read the exit code from the temp file
+        QFile file(exitFname);
+        int exitCode = 255;
+        if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            exitCode = QString::fromUtf8(file.readAll()).trimmed().toInt();
+            file.close();
+        }
+        file.remove();
+
+        return exitCode;
+    } else {
+        // window was closed before command finished
+        QFile::remove(exitFname);
+        return std::numeric_limits<int>::max();
+    }
 }
 
 } // namespace Syntalos

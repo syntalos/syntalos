@@ -163,3 +163,9 @@ void SimpleTerminal::onSearchToggled(bool checked)
 {
     m_termWidget->toggleShowSearchBar();
 }
+
+void SimpleTerminal::closeEvent(QCloseEvent *event)
+{
+    Q_EMIT windowClosed();
+    QWidget::closeEvent(event);
+}
