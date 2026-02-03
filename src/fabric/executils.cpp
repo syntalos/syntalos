@@ -27,6 +27,7 @@
 #include <QStandardPaths>
 #include <QEventLoop>
 #include <QPointer>
+#include <QTimer>
 #include <glib.h>
 
 #include "simpleterminal.h"
@@ -155,7 +156,7 @@ int runInTerminal(const QString &cmd, const QStringList &args, const QString &wd
     QMetaObject::Connection destroyedConn;
 
     // detect when the shell exits
-    finishedConn = QObject::connect(termWin, &SimpleTerminal::finished, [&exitCode, &terminated, &loop, exitFname]() {
+    finishedConn = QObject::connect(termWin, &SimpleTerminal::finished, [termWinGuard, &exitCode, &terminated, &loop, exitFname]() {
         // read the exit code from the temp file
         QFile file(exitFname);
         if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -165,6 +166,8 @@ int runInTerminal(const QString &cmd, const QStringList &args, const QString &wd
         file.remove();
         terminated = true;
         loop.quit();
+        if (termWinGuard)
+            QTimer::singleShot(0, termWinGuard, &QWidget::close);
     });
 
     // quit loop when window is closed
