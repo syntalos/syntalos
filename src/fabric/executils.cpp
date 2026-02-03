@@ -26,6 +26,7 @@
 #include <QProcess>
 #include <QStandardPaths>
 #include <QEventLoop>
+#include <QPointer>
 #include <glib.h>
 
 #include "simpleterminal.h"
@@ -106,6 +107,7 @@ int runHostExecutable(const QString &exe, const QStringList &args, bool waitForF
 int runInTerminal(const QString &cmd, const QStringList &args, const QString &wdir, const QString &title)
 {
     auto termWin = new SimpleTerminal();
+    QPointer<SimpleTerminal> termWinGuard(termWin);
     termWin->setAttribute(Qt::WA_DeleteOnClose);
     if (!title.isEmpty())
         termWin->setWindowTitle(title);
@@ -149,8 +151,11 @@ int runInTerminal(const QString &cmd, const QStringList &args, const QString &wd
     int exitCode = std::numeric_limits<int>::max();
     bool terminated = false;
 
+    QMetaObject::Connection finishedConn;
+    QMetaObject::Connection destroyedConn;
+
     // detect when the shell exits
-    QObject::connect(termWin, &SimpleTerminal::finished, [&exitCode, &terminated, &loop, exitFname]() {
+    finishedConn = QObject::connect(termWin, &SimpleTerminal::finished, [&exitCode, &terminated, &loop, exitFname]() {
         // read the exit code from the temp file
         QFile file(exitFname);
         if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -163,7 +168,7 @@ int runInTerminal(const QString &cmd, const QStringList &args, const QString &wd
     });
 
     // quit loop when window is closed
-    QObject::connect(termWin, &QObject::destroyed, [&exitCode, &terminated, &loop, exitFname]() {
+    destroyedConn = QObject::connect(termWin, &QObject::destroyed, [&exitCode, &terminated, &loop, exitFname]() {
         if (!terminated) {
             // Window was closed before command finished
             QFile::remove(exitFname);
@@ -175,6 +180,11 @@ int runInTerminal(const QString &cmd, const QStringList &args, const QString &wd
     // run the event loop until the command is done or the window is closed
     loop.exec();
     QApplication::processEvents();
+
+    if (termWinGuard) {
+        QObject::disconnect(finishedConn);
+        QObject::disconnect(destroyedConn);
+    }
 
     return exitCode;
 }
