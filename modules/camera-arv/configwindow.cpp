@@ -148,6 +148,8 @@ static inline int value2slider(double value, QPair<double, double> &range)
 
 void ArvConfigWindow::readROILimits()
 {
+    if (!camera)
+        return;
     auto wBounds = camera->getROIWidthBounds();
     auto hBounds = camera->getROIHeightBounds();
     roirange = QRect(QPoint(0, 0), QSize(wBounds.second, hBounds.second));
@@ -159,6 +161,11 @@ void ArvConfigWindow::readROILimits()
 
 void ArvConfigWindow::readAllValues()
 {
+    // safeguard in case all cameras suddenly vanished, or this
+    // is called too early while no camera was selected yet
+    if (!camera)
+        return;
+
     const auto fpsBounds = camera->getFPSBounds();
     fpsSpinbox->setRange(fpsBounds.first, fpsBounds.second);
     fpsSpinbox->setValue(camera->getFPS());
@@ -282,6 +289,9 @@ void ArvConfigWindow::on_cameraSelector_currentIndexChanged(int index)
 
 void ArvConfigWindow::readExposure()
 {
+    if (!camera)
+        return;
+
     bool blocked = exposureSlider->blockSignals(true);
     exposureSlider->setValue(value2slider_log(camera->getExposure(), exposurerange));
     exposureSlider->blockSignals(blocked);
@@ -293,6 +303,9 @@ void ArvConfigWindow::readExposure()
 
 void ArvConfigWindow::readGain()
 {
+    if (!camera)
+        return;
+
     bool blocked = gainSlider->blockSignals(true);
     gainSlider->setValue(value2slider(camera->getGain(), gainrange));
     gainSlider->blockSignals(blocked);
@@ -304,16 +317,22 @@ void ArvConfigWindow::readGain()
 
 void ArvConfigWindow::on_exposureSlider_valueChanged(int value)
 {
+    if (!camera)
+        return;
     camera->setExposure(slider2value_log(value, exposurerange));
 }
 
 void ArvConfigWindow::on_gainSlider_valueChanged(int value)
 {
+    if (!camera)
+        return;
     camera->setGain(slider2value(value, gainrange));
 }
 
 void ArvConfigWindow::on_exposureAutoButton_toggled(bool checked)
 {
+    if (!camera)
+        return;
     exposureSlider->setEnabled(!checked);
     exposureSpinbox->setEnabled(!checked);
     camera->setAutoExposure(checked);
@@ -321,6 +340,8 @@ void ArvConfigWindow::on_exposureAutoButton_toggled(bool checked)
 
 void ArvConfigWindow::on_gainAutoButton_toggled(bool checked)
 {
+    if (!camera)
+        return;
     gainSlider->setEnabled(!checked);
     gainSpinbox->setEnabled(!checked);
     camera->setAutoGain(checked);
@@ -328,6 +349,8 @@ void ArvConfigWindow::on_gainAutoButton_toggled(bool checked)
 
 void ArvConfigWindow::on_pixelFormatSelector_currentIndexChanged(int index)
 {
+    if (!camera)
+        return;
     auto format = pixelFormatSelector->itemData(index).toString();
     camera->setPixelFormat(format);
 
@@ -337,6 +360,9 @@ void ArvConfigWindow::on_pixelFormatSelector_currentIndexChanged(int index)
 
 void ArvConfigWindow::on_applyROIButton_clicked(bool clicked)
 {
+    if (!camera)
+        return;
+
     xSpinbox->setValue((xSpinbox->value() / 2) * 2);
     ySpinbox->setValue((ySpinbox->value() / 2) * 2);
     double tmp;
@@ -367,6 +393,9 @@ void ArvConfigWindow::on_applyROIButton_clicked(bool clicked)
 
 void ArvConfigWindow::on_resetROIButton_clicked(bool clicked)
 {
+    if (!camera)
+        return;
+
     auto hBounds = camera->getROIHeightBounds();
     auto wBounds = camera->getROIWidthBounds();
     xSpinbox->setValue(0);
@@ -378,6 +407,9 @@ void ArvConfigWindow::on_resetROIButton_clicked(bool clicked)
 
 void ArvConfigWindow::on_binSpinBox_valueChanged(int value)
 {
+    if (!camera)
+        return;
+
     bool tostart = started;
     toggleVideoPreview(false);
     int bin = binSpinBox->value();
@@ -387,6 +419,9 @@ void ArvConfigWindow::on_binSpinBox_valueChanged(int value)
 
 void ArvConfigWindow::updateDecoder()
 {
+    if (!camera)
+        return;
+
     decoder.reset();
     decoder = std::shared_ptr<QArvDecoder>(QArvDecoder::makeDecoder(
         camera->getPixelFormatId(), camera->getROI().size(), useFastInterpolator->isChecked()));
@@ -472,12 +507,18 @@ void ArvConfigWindow::on_playButton_toggled(bool checked)
 
 void ArvConfigWindow::on_fpsSpinbox_valueChanged(int value)
 {
+    if (!camera)
+        return;
+
     camera->setFPS(value);
     fpsSpinbox->setValue(camera->getFPS());
 }
 
 void ArvConfigWindow::pickedROI(QRect roi)
 {
+    if (!camera)
+        return;
+
     pickROIButton->setChecked(false);
     QRect current = camera->getROI();
 
@@ -497,6 +538,9 @@ void ArvConfigWindow::pickedROI(QRect roi)
 
 void ArvConfigWindow::updateBandwidthEstimation()
 {
+    if (!camera)
+        return;
+
     int bw = camera->getEstimatedBW();
     if (bw == 0) {
         bandwidthDescription->setText(tr("Not an ethernet camera."));
@@ -552,6 +596,9 @@ void ArvConfigWindow::on_editGainButton_clicked(bool checked)
 
 void ArvConfigWindow::on_gainSpinbox_editingFinished()
 {
+    if (!camera)
+        return;
+
     camera->setGain(gainSpinbox->value());
     gainSpinbox->setReadOnly(true);
     gainSpinbox->clearFocus();
@@ -561,6 +608,9 @@ void ArvConfigWindow::on_gainSpinbox_editingFinished()
 
 void ArvConfigWindow::on_exposureSpinbox_editingFinished()
 {
+    if (!camera)
+        return;
+
     camera->setExposure(exposureSpinbox->value() * 1000);
     exposureSpinbox->setReadOnly(true);
     exposureSpinbox->clearFocus();
@@ -691,6 +741,11 @@ void ArvConfigWindow::setupListOfSavedWidgets()
 
 void ArvConfigWindow::serializeSettings(QVariantHash &settings, QByteArray &camFeatures)
 {
+    if (!camera) {
+        qWarning().noquote() << "camera-arv: Tried to serialize settings, but no camera was selected!";
+        return;
+    }
+
     // buttons, combo boxes, text fields etc.
     for (auto i = saved_widgets.begin(); i != saved_widgets.end(); i++) {
         ;
@@ -739,6 +794,11 @@ void ArvConfigWindow::serializeSettings(QVariantHash &settings, QByteArray &camF
 
 void ArvConfigWindow::loadSettings(const QVariantHash &settings, const QByteArray &camFeatures)
 {
+    if (!camera) {
+        qWarning().noquote() << "camera-arv: Tried to load settings, but no camera was selected!";
+        return;
+    }
+
     // buttons, combo boxes, text fields etc.
     for (auto i = saved_widgets.begin(); i != saved_widgets.end(); i++) {
         const auto entry = i.value();
@@ -910,6 +970,8 @@ void ArvConfigWindow::closeEvent(QCloseEvent *event)
 
 void ArvConfigWindow::on_registerCacheCheck_stateChanged(int state)
 {
+    if (!camera)
+        return;
     bool enable = state != Qt::Unchecked;
     bool debug = state == Qt::PartiallyChecked;
     camera->enableRegisterCache(enable, debug);
