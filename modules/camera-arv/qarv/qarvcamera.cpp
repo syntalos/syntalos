@@ -535,7 +535,9 @@ QTextStream& operator>>(QTextStream& in, QArvCamera* camera) {
     in >> vendor >> model >> id;
     if (!(vendor == ID.vendor && model == ID.model && id == ID.id)) {
         camera->logMessage()
-            << QObject::tr("Incompatible camera settings", "QArvCamera");
+            << "Incompatible camera settings:"
+            << "expected" << ID.toString() << "but got"
+            << QStringLiteral("%1 %2 (%3)").arg(vendor, model, id);
         return in;
     }
 
