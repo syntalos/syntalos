@@ -58,6 +58,7 @@ Architecture: any
 Depends: breeze-icon-theme,
          gstreamer1.0-plugins-bad,
          libpam-systemd,
+         python3-pyqt6,
          python3-virtualenv,
          rtkit,
          syntalos-hwsupport (= ${source:Version}),
