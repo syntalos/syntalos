@@ -138,7 +138,8 @@ void ArvConfigWindow::on_unzoomButton_toggled(bool checked)
 
 static inline double slider2value(int slidervalue, QPair<double, double> &range)
 {
-    return range.first + (range.second - range.first) * slidervalue / slidersteps;
+    const auto raw = range.first + (range.second - range.first) * slidervalue / (double)slidersteps;
+    return std::clamp(raw, range.first, range.second);
 }
 
 static inline int value2slider(double value, QPair<double, double> &range)
@@ -187,9 +188,9 @@ void ArvConfigWindow::readAllValues()
 
     gainrange = camera->getGainBounds();
     exposurerange = camera->getExposureBounds();
-    gainSlider->setRange(0, slidersteps);
-    exposureSlider->setRange(0, slidersteps);
+    gainSlider->setRange(0, value2slider(gainrange.second, gainrange));
     gainSpinbox->setRange(gainrange.first, gainrange.second);
+    exposureSlider->setRange(0, value2slider(exposurerange.second, exposurerange));
     exposureSpinbox->setRange(exposurerange.first / 1000., exposurerange.second / 1000.);
     readGain();
     readExposure();
