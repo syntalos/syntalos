@@ -66,6 +66,12 @@ void ROIcomboBox::itemSelected(int index)
 
 void ROIcomboBox::customSizeEntered()
 {
+    if (!this->isEditable()) {
+        // This can happen just before the combo box reverts back to being
+        // non-editable.
+        return;
+    }
+
     static QRegularExpression ROIparse("^([0-9]+)x([0-9]+)$");
     const auto match = ROIparse.match(this->lineEdit()->text());
     int width = match.captured(1).toInt();
