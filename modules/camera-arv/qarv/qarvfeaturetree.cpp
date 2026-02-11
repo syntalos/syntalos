@@ -116,6 +116,13 @@ void QArvCamera::QArvFeatureTree::recursiveSerialization(
 
     if (ARV_IS_GC_COMMAND(node)) return;
 
+    // Skip read-only features (diagnostics, temperatures, etc.)
+    if (ARV_IS_GC_FEATURE_NODE(node)) {
+        auto accessMode = arv_gc_feature_node_get_actual_access_mode(ARV_GC_FEATURE_NODE(node));
+        if (accessMode == ARV_GC_ACCESS_MODE_RO)
+            return;
+    }
+
     out << "\t" << tree->feature() << "\t";
     if (ARV_IS_GC_REGISTER_NODE(node)
         && QString(arv_dom_node_get_node_name(ARV_DOM_NODE(node)))
