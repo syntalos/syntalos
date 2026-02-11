@@ -521,9 +521,10 @@ int QArvCamera::getEstimatedBW() {
 
 QTextStream& operator<<(QTextStream& out, QArvCamera* camera) {
     auto id = camera->getId();
-    out << id.vendor << Qt::endl
-        << id.model << Qt::endl
-        << id.id << Qt::endl;
+    out << "CameraID:\t"
+        << QString::fromUtf8(id.vendor) << "\t"
+        << QString::fromUtf8(id.model) << "\t"
+        << QString::fromUtf8(id.id) << Qt::endl;
     QArvCamera::QArvFeatureTree::recursiveSerialization(out,
                                                         camera,
                                                         camera->featuretree);
@@ -538,8 +539,23 @@ QTextStream& operator<<(QTextStream& out, QArvCamera* camera) {
  */
 QTextStream& operator>>(QTextStream& in, QArvCamera* camera) {
     auto ID = camera->getId();
+    const auto camIdLine = in.readLine();
+    QStringList parts = camIdLine.split('\t');
+
+    // Handle both old (3 newline-separated lines) and new (tab-separated) formats
     QString vendor, model, id;
-    in >> vendor >> model >> id;
+    if (parts.size() >= 4 && parts[0] == "CameraID:") {
+        // New format: CameraID:\tvendor\tmodel\tid
+        vendor = parts[1];
+        model = parts[2];
+        id = parts[3];
+    } else {
+        // Old format compatibility: first line is vendor, need to read model and id
+        vendor = camIdLine;
+        model = in.readLine();
+        id = in.readLine();
+    }
+
     if (!(vendor == ID.vendor && model == ID.model && id == ID.id)) {
         camera->logMessage()
             << "Incompatible camera settings:"
