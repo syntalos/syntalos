@@ -64,15 +64,15 @@ QArvCameraId::QArvCameraId() : id(NULL), vendor(NULL), model(NULL) {}
 QArvCameraId::QArvCameraId(const char* id_,
                            const char* vendor_,
                            const char* model_) {
-    id = strdup(id_ ? id_ : "");
-    vendor = strdup(vendor_ ? vendor_ : "");
-    model = strdup(model_ ? model_ : "");
+    id = g_strdup(id_ ? id_ : "");
+    vendor = g_strdup(vendor_ ? vendor_ : "");
+    model = g_strdup(model_ ? model_ : "");
 }
 
 QArvCameraId::QArvCameraId(const QArvCameraId& camid) {
-    id = strdup(camid.id ? camid.id : "");
-    vendor = strdup(camid.vendor ? camid.vendor : "");
-    model = strdup(camid.model ? camid.model : "");
+    id = g_strdup(camid.id ? camid.id : "");
+    vendor = g_strdup(camid.vendor ? camid.vendor : "");
+    model = g_strdup(camid.model ? camid.model : "");
 }
 
 QArvCameraId::~QArvCameraId() {
@@ -84,6 +84,13 @@ QArvCameraId::~QArvCameraId() {
 QString QArvCameraId::toString() const
 {
     return QStringLiteral("%1 %2 (%3)").arg(vendor, model, id);
+}
+
+bool QArvCameraId::operator==(const QArvCameraId& other) const
+{
+    return g_strcmp0(id, other.id) == 0 &&
+           g_strcmp0(vendor, other.vendor) == 0 &&
+           g_strcmp0(model, other.model) == 0;
 }
 
 /*!

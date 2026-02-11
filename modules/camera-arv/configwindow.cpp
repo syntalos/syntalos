@@ -206,9 +206,16 @@ void ArvConfigWindow::readAllValues()
 
 void ArvConfigWindow::on_cameraSelector_currentIndexChanged(int index)
 {
-    autoreadexposure->stop();
-
     auto camid = cameraSelector->itemData(index).value<QArvCameraId>();
+
+    if (camera) {
+        // Check if we somehow re-selected the same camera and still ended up in this event.
+        // If so, we do nothing.
+        if (camid == camera->getId())
+            return;
+    }
+
+    autoreadexposure->stop();
     if (camera) {
         toggleVideoPreview(false);
         camera.reset();
@@ -794,11 +801,6 @@ void ArvConfigWindow::serializeSettings(QVariantHash &settings, QByteArray &camF
 
 void ArvConfigWindow::loadSettings(const QVariantHash &settings, const QByteArray &camFeatures)
 {
-    if (!camera) {
-        qWarning().noquote() << "camera-arv: Tried to load settings, but no camera was selected!";
-        return;
-    }
-
     // buttons, combo boxes, text fields etc.
     for (auto i = saved_widgets.begin(); i != saved_widgets.end(); i++) {
         const auto entry = i.value();

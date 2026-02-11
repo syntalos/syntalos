@@ -67,8 +67,10 @@ public:
     QArvCameraId();
     QArvCameraId(const char* id, const char* vendor, const char* model);
     QArvCameraId(const QArvCameraId& camid);
-    QString toString() const;
     ~QArvCameraId();
+    QString toString() const;
+    bool operator==(const QArvCameraId& other) const;
+
     const char* id, * vendor, * model;
 };
 
