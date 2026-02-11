@@ -395,6 +395,14 @@ void ArvConfigWindow::on_applyROIButton_clicked(bool clicked)
     bool tostart = started;
     toggleVideoPreview(false);
     camera->setROI(ROI);
+
+    // read back the ROI the camera has actually accepted
+    ROI = camera->getROI();
+    xSpinbox->setValue(ROI.x());
+    ySpinbox->setValue(ROI.y());
+    wSpinbox->setValue(ROI.width());
+    hSpinbox->setValue(ROI.height());
+
     toggleVideoPreview(tostart);
 }
 
