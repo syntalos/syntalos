@@ -125,7 +125,7 @@ public:
 
     static QList<QArvCameraId> listCameras(); //!< Returns a list of all cameras found.
 
-    QArvCameraId getId(); //!< Returns the ID of the camera.
+    QArvCameraId getId() const; //!< Returns the ID of the camera.
 
     //! Returns the underlying Aravis camera struct.
     ArvCamera* aravisCamera();
@@ -167,6 +167,8 @@ public:
     double getFPS();
     void setFPS(double fps);
     /**@}*/
+
+    QPair<double, double> getFPSBounds();
 
     //! \name Manipulate exposure time (in microseconds)
     /**@{*/

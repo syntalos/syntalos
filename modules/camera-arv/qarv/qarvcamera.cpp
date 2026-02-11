@@ -130,18 +130,18 @@ QList<QArvCameraId> QArvCamera::listCameras() {
         if (!camid)
             continue;
 
-        ArvCamera* camera = arv_camera_new(camid, nullptr);
+        g_autoptr(ArvCamera) camera = arv_camera_new(camid, nullptr);
         if (camera == nullptr)
             continue;
         QArvCameraId id(camid, arv_camera_get_vendor_name(camera, nullptr),
                         arv_camera_get_model_name(camera, nullptr));
-        g_object_unref(camera);
+
         cameraList << id;
     }
     return QList<QArvCameraId>(cameraList);
 }
 
-QArvCameraId QArvCamera::getId() {
+QArvCameraId QArvCamera::getId() const {
     const char* id, * vendor, * model;
     id = arv_camera_get_device_id(camera, nullptr);
     if (id == nullptr)
@@ -271,6 +271,19 @@ double QArvCamera::getFPS() {
 void QArvCamera::setFPS(double fps) {
     arv_camera_set_frame_rate(camera, fps, nullptr);
     emit dataChanged(QModelIndex(), QModelIndex());
+}
+
+QPair<double, double> QArvCamera::getFPSBounds()
+{
+    g_autoptr(GError) error = nullptr;
+    double min, max;
+    arv_camera_get_frame_rate_bounds(camera, &min, &max, &error);
+    if (error != nullptr) {
+        qWarning().noquote() <<
+            "Failed to get FPS bounds for Aravis camera" << getId().toString() << ":" << error->message;
+        return QPair<double, double>(0, 60);
+    }
+    return qMakePair(min, max);
 }
 
 int QArvCamera::getMTU() {

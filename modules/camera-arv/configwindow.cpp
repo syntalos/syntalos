@@ -159,6 +159,8 @@ void ArvConfigWindow::readROILimits()
 
 void ArvConfigWindow::readAllValues()
 {
+    const auto fpsBounds = camera->getFPSBounds();
+    fpsSpinbox->setRange(fpsBounds.first, fpsBounds.second);
     fpsSpinbox->setValue(camera->getFPS());
 
     auto formats = camera->getPixelFormats();
