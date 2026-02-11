@@ -965,8 +965,14 @@ void ArvConfigWindow::refreshCameras()
 
 void ArvConfigWindow::closeEvent(QCloseEvent *event)
 {
-    playButton->setChecked(false);
-    toggleVideoPreview(false);
+    if (playButton->isEnabled()) {
+        // We only terminate the running stream if the user clicked on the
+        // "preview" button. If the button is disabled, there's no need
+        // to toggle anything *and* there may be a stream running that was
+        // triggered by automation, so we must not stop it.
+        playButton->setChecked(false);
+        toggleVideoPreview(false);
+    }
     event->accept();
 }
 
