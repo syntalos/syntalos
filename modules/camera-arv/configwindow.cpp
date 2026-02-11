@@ -789,6 +789,8 @@ void ArvConfigWindow::serializeSettings(QVariantHash &settings, QByteArray &camF
         if (camera) {
             camSettings["pixel_format"] = camera->getPixelFormat();
             camSettings["fps"] = camera->getFPS();
+            camSettings["gain"] = camera->getGain();
+            camSettings["exposure"] = camera->getExposure();
         }
         settings["camera"] = camSettings;
 
@@ -875,7 +877,6 @@ void ArvConfigWindow::loadSettings(const QVariantHash &settings, const QByteArra
         roiSettings["y"].toInt(),
         roiSettings["width"].toInt(),
         roiSettings["height"].toInt()));
-    camera->setFPS(camSettings["fps"].toInt());
 
     // reload pixel format and update decoder with new ROI as well
     on_pixelFormatSelector_currentIndexChanged(pixelFormatSelector->currentIndex());
@@ -917,6 +918,7 @@ void ArvConfigWindow::loadSettings(const QVariantHash &settings, const QByteArra
             failures << wanted;
         }
     }
+
     if (failures.count() != 0) {
         QString message = "<html><head/><body><p>"
                           + tr(
@@ -930,6 +932,12 @@ void ArvConfigWindow::loadSettings(const QVariantHash &settings, const QByteArra
         QMessageBox::warning(
             this, QStringLiteral("%1 - Failed to load settings").arg(cameraSelector->currentText()), message);
     }
+
+    // Set fps/gain/exposure explicitly, as those may be software settings
+    // and not camera attributes that were restored previously
+    camera->setFPS(camSettings["fps"].toInt());
+    camera->setGain(camSettings["gain"].toDouble());
+    camera->setExposure(camSettings["exposure"].toDouble());
 }
 
 void ArvConfigWindow::refreshCameras()
