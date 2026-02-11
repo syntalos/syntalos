@@ -114,7 +114,7 @@ bool JournalCollector::findCoredumpEntries(const QString &exeNameFilter, int lim
         return false;
     }
 
-    const auto jFilters = QStringList() << "CODE_FUNC=submit_coredump";
+    const auto jFilters = QStringList() << "SYSLOG_IDENTIFIER=systemd-coredump";
 
     for (const QString &filter : jFilters) {
         res = sd_journal_add_match(journal, filter.toUtf8().constData(), 0);
