@@ -303,6 +303,11 @@ void QArvCamera::setMTU(int mtu) {
     emit dataChanged(QModelIndex(), QModelIndex());
 }
 
+bool QArvCamera::isGvDevice() const
+{
+    return ARV_IS_GV_DEVICE(device);
+}
+
 double QArvCamera::getExposure() {
     return arv_camera_get_exposure_time(camera, nullptr);
 }

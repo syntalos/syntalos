@@ -235,18 +235,20 @@ void ArvConfigWindow::on_cameraSelector_currentIndexChanged(int index)
 
     auto ifaceIP = camera->getHostIP();
     QNetworkInterface cameraIface;
-    if (!ifaceIP.isNull()) {
-        auto ifaces = QNetworkInterface::allInterfaces();
-        bool process_loop = true;
-        foreach (QNetworkInterface iface, ifaces) {
-            if (!process_loop)
-                break;
-            auto addresses = iface.addressEntries();
-            foreach (QNetworkAddressEntry addr, addresses) {
-                if (addr.ip() == ifaceIP) {
-                    cameraIface = iface;
-                    process_loop = false;
+    if (camera->isGvDevice()) {
+        if (!ifaceIP.isNull()) {
+            auto ifaces = QNetworkInterface::allInterfaces();
+            bool process_loop = true;
+            foreach (QNetworkInterface iface, ifaces) {
+                if (!process_loop)
                     break;
+                auto addresses = iface.addressEntries();
+                foreach (QNetworkAddressEntry addr, addresses) {
+                    if (addr.ip() == ifaceIP) {
+                        cameraIface = iface;
+                        process_loop = false;
+                        break;
+                    }
                 }
             }
         }
@@ -254,23 +256,25 @@ void ArvConfigWindow::on_cameraSelector_currentIndexChanged(int index)
         if (cameraIface.isValid()) {
             int mtu = getMTU(cameraIface.name());
             camera->setMTU(mtu);
+        } else {
+            QString message = tr(
+                "Network address not found, "
+                "trying best-effort MTU %1.");
+            int mtu = 1500;
+            message = message.arg(mtu);
+            statusBar()->showMessage(message, statusTimeoutMsec);
+            logMessage() << message;
+            camera->setMTU(mtu);
         }
-    } else {
-        QString message = tr(
-            "Network address not found, "
-            "trying best-effort MTU %1.");
-        int mtu = 1500;
-        message = message.arg(mtu);
-        statusBar()->showMessage(message, statusTimeoutMsec);
-        logMessage() << message;
-        camera->setMTU(mtu);
     }
 
-    if (camera->getMTU() == 0)
+    if (!camera->isGvDevice())
         cameraMTUDescription->setText(tr("Not an ethernet camera."));
     else {
         int mtu = camera->getMTU();
         QString ifname = cameraIface.name();
+        if (ifname.isEmpty())
+            ifname = tr("unknown");
         QString description = tr("Camera is on interface %1,\nMTU set to %2.");
         description = description.arg(ifname);
         description = description.arg(QString::number(mtu));

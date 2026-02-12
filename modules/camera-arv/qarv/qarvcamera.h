@@ -205,6 +205,7 @@ public:
     /**@{*/
     void setMTU(int mtu);
     int getMTU();
+    bool isGvDevice() const;
     QHostAddress getIP();
     QHostAddress getHostIP();
     int getEstimatedBW();
