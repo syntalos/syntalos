@@ -76,7 +76,7 @@ public:
         m_scriptWindow->setWindowTitle(QStringLiteral("%1 - Editor").arg(name()));
 
         m_scriptView = pyDoc->createView(m_scriptWindow);
-        pyDoc->setHighlightingMode("python");
+        pyDoc->setMode(QStringLiteral("Python"));
 
         // create main toolbar
         auto toolbar = new QToolBar(m_scriptWindow);
