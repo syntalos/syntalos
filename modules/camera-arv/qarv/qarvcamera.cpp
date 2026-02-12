@@ -552,7 +552,7 @@ QTextStream& operator>>(QTextStream& in, QArvCamera* camera) {
         // Old format or broken configuration: Some cameras hang indefinitely
         // if we try to load old (or broken) configuration, so we just bail.
         camera->logMessage()
-            << "Not loading invalid configuration for camera:"
+            << "Refused to load invalid configuration for camera:"
             << ID.toString();
         return in;
     }
