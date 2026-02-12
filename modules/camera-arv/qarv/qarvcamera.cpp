@@ -542,7 +542,6 @@ QTextStream& operator>>(QTextStream& in, QArvCamera* camera) {
     const auto camIdLine = in.readLine();
     QStringList parts = camIdLine.split('\t');
 
-    // Handle both old (3 newline-separated lines) and new (tab-separated) formats
     QString vendor, model, id;
     if (parts.size() >= 4 && parts[0] == "CameraID:") {
         // New format: CameraID:\tvendor\tmodel\tid
@@ -550,10 +549,12 @@ QTextStream& operator>>(QTextStream& in, QArvCamera* camera) {
         model = parts[2];
         id = parts[3];
     } else {
-        // Old format compatibility: first line is vendor, need to read model and id
-        vendor = camIdLine;
-        model = in.readLine();
-        id = in.readLine();
+        // Old format or broken configuration: Some cameras hang indefinitely
+        // if we try to load old (or broken) configuration, so we just bail.
+        camera->logMessage()
+            << "Not loading invalid configuration for camera:"
+            << ID.toString();
+        return in;
     }
 
     if (!(vendor == ID.vendor && model == ID.model && id == ID.id)) {
