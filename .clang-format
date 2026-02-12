@@ -3,7 +3,7 @@ BasedOnStyle: LLVM
 IndentWidth: 4
 ---
 Language: Cpp
-Standard: Cpp11
+Standard: c++20
 ColumnLimit: 120
 BreakBeforeBraces: Linux
 PointerAlignment: Right
