@@ -278,7 +278,7 @@ public:
             qCCritical(logFmMod)
                 << QStringLiteral(
                        "Unable to deliver message to pin '%1' (pin does not exist, it needs to be registered first)")
-                       .arg(pinName);
+                       .arg(pinName.c_str());
         return pin;
     }
 
