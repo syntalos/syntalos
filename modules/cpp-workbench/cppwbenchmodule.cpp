@@ -102,7 +102,7 @@ public:
         m_codeWindow->setWindowTitle(QStringLiteral("%1 - Editor").arg(name()));
 
         m_codeView = cppDoc->createView(m_codeWindow);
-        cppDoc->setHighlightingMode("C++");
+        cppDoc->setMode(QStringLiteral("C++"));
 
         // set up program output area
         m_consoleTabWidget = new QTabWidget(m_codeWindow);

@@ -104,7 +104,7 @@ public:
         m_codeWindow->setWindowTitle(QStringLiteral("%1 - Editor").arg(name()));
 
         m_codeView = upyDoc->createView(m_codeWindow);
-        upyDoc->setHighlightingMode("Python");
+        upyDoc->setMode(QStringLiteral("Python"));
 
         m_consoleWidget = new UPyConsole(m_codeWindow);
 
