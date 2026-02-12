@@ -31,7 +31,7 @@
 #include <QHash>
 #include <QList>
 
-#include "datactl/datatypes.h"
+#include "fabric/moduleapi.h"
 
 class FlowGraphView;
 class FlowGraphNode;

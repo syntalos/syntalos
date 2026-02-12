@@ -33,6 +33,22 @@
 
 using namespace Syntalos;
 
+QString connectionHeatToHumanString(ConnectionHeatLevel heat)
+{
+    switch (heat) {
+    case ConnectionHeatLevel::NONE:
+        return QStringLiteral("none");
+    case ConnectionHeatLevel::LOW:
+        return QStringLiteral("low");
+    case ConnectionHeatLevel::MEDIUM:
+        return QStringLiteral("medium");
+    case ConnectionHeatLevel::HIGH:
+        return QStringLiteral("high");
+    }
+
+    return QStringLiteral("unknown");
+}
+
 class ModuleInfo::Private
 {
 public:

@@ -20,40 +20,22 @@
 #include "datatypes.h"
 #include "frametype.h"
 
-static QMap<QString, int> g_streamTypeIdMap;
+static std::vector<std::pair<std::string, int>> g_streamTypeIdIndex;
 
 void registerStreamMetaTypes()
 {
     // only register the types if we have not created the global registry yet
-    if (!g_streamTypeIdMap.isEmpty())
+    if (!g_streamTypeIdIndex.empty())
         return;
 
+    g_streamTypeIdIndex.reserve(static_cast<size_t>(BaseDataType::Last) - 1);
     for (auto i = BaseDataType::Unknown + 1; i < BaseDataType::Last; ++i) {
         const auto typeId = static_cast<BaseDataType::TypeId>(i);
-        g_streamTypeIdMap[BaseDataType::typeIdToString(typeId)] = typeId;
+        g_streamTypeIdIndex.emplace_back(BaseDataType::typeIdToString(typeId), typeId);
     }
-
-    // register some Qt types
-    qRegisterMetaType<ModuleState>();
 }
 
-QMap<QString, int> streamTypeIdMap()
+std::vector<std::pair<std::string, int>> streamTypeIdIndex()
 {
-    return g_streamTypeIdMap;
-}
-
-QString connectionHeatToHumanString(ConnectionHeatLevel heat)
-{
-    switch (heat) {
-    case ConnectionHeatLevel::NONE:
-        return QStringLiteral("none");
-    case ConnectionHeatLevel::LOW:
-        return QStringLiteral("low");
-    case ConnectionHeatLevel::MEDIUM:
-        return QStringLiteral("medium");
-    case ConnectionHeatLevel::HIGH:
-        return QStringLiteral("high");
-    }
-
-    return QStringLiteral("unknown");
+    return g_streamTypeIdIndex;
 }

@@ -95,26 +95,26 @@ void Tracker::analyzeFrame(const cv::Mat &frame, const milliseconds_t time, cv::
     posInfo.reserve(10);
 
     // store time value
-    posInfo.append(QString::number(time.count()));
+    posInfo.append(numToString(time.count()));
 
     // red
-    posInfo.append(QString::number(triangle.red.x));
-    posInfo.append(QString::number(triangle.red.y));
+    posInfo.append(numToString(triangle.red.x));
+    posInfo.append(numToString(triangle.red.y));
 
     // green
-    posInfo.append(QString::number(triangle.green.x));
-    posInfo.append(QString::number(triangle.green.y));
+    posInfo.append(numToString(triangle.green.x));
+    posInfo.append(numToString(triangle.green.y));
 
     // blue
-    posInfo.append(QString::number(triangle.blue.x));
-    posInfo.append(QString::number(triangle.blue.y));
+    posInfo.append(numToString(triangle.blue.x));
+    posInfo.append(numToString(triangle.blue.y));
 
     // center
-    posInfo.append(QString::number(triangle.center.x));
-    posInfo.append(QString::number(triangle.center.y));
+    posInfo.append(numToString(triangle.center.x));
+    posInfo.append(numToString(triangle.center.y));
 
     // turn angle
-    posInfo.append(QString::number(triangle.turnAngle));
+    posInfo.append(numToString(triangle.turnAngle));
 
     m_dataStream->push(posInfo);
 }

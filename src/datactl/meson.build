@@ -1,6 +1,7 @@
 # Syntalos Data Types and Time Sync Library
 
 sy_datactl_pub_hdr = [
+    'binarystream.h',
     'datatypes.h',
     'frametype.h',
     'edlstorage.h',

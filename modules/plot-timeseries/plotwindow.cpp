@@ -295,13 +295,13 @@ void PlotWindow::on_sigListWidget_clicked(const QModelIndex &index)
 void PlotWindow::on_addPortBtn_clicked()
 {
     QMap<QString, int> streamSignalTypeMap;
-    const auto allStreamTypes = streamTypeIdMap();
+    const auto allStreamTypes = streamTypeIdIndex();
 
-    for (const auto &key : allStreamTypes.keys()) {
+    for (const auto &[key, value] : allStreamTypes) {
         if (key == "FloatSignalBlock")
-            streamSignalTypeMap["Float"] = allStreamTypes[key];
+            streamSignalTypeMap["Float"] = value;
         else if (key == "IntSignalBlock")
-            streamSignalTypeMap["Int"] = allStreamTypes[key];
+            streamSignalTypeMap["Int"] = value;
     }
 
     int newPortNumber = m_mod->inPorts().length() + 1;

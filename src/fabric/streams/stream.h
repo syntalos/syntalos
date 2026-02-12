@@ -200,7 +200,7 @@ public:
 
     QString dataTypeName() const override
     {
-        return BaseDataType::typeIdToString(syDataTypeId<T>());
+        return QString::fromStdString(BaseDataType::typeIdToString(syDataTypeId<T>()));
     }
 
     QHash<QString, QVariant> metadata() const override
@@ -438,7 +438,7 @@ public:
 
     QString dataTypeName() const override
     {
-        return BaseDataType::typeIdToString(syDataTypeId<T>());
+        return QString::fromStdString(BaseDataType::typeIdToString(syDataTypeId<T>()));
     }
 
     QHash<QString, QVariant> metadata() override

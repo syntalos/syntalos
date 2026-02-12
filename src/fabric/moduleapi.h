@@ -34,6 +34,25 @@
 #include "datactl/syclock.h"
 #include "datactl/timesync.h"
 
+/**
+ * @brief Connection heat level
+ *
+ * Warning level dependent on how full the buffer that is
+ * repesented by a connection is.
+ * A high heat means lots of pending stuff and potentially a
+ * slow receiving module or not enough system resources.
+ * This state is managed internally by Syntalos.
+ */
+enum class ConnectionHeatLevel {
+    NONE,
+    LOW,
+    MEDIUM,
+    HIGH
+};
+Q_DECLARE_METATYPE(ConnectionHeatLevel)
+
+QString connectionHeatToHumanString(ConnectionHeatLevel heat);
+
 namespace Syntalos
 {
 
@@ -314,7 +333,7 @@ public:
         : VarStreamInputPort(owner, id, title)
     {
         m_acceptedTypeId = syDataTypeId<T>();
-        m_acceptedTypeName = BaseDataType::typeIdToString(m_acceptedTypeId);
+        m_acceptedTypeName = QString::fromStdString(BaseDataType::typeIdToString(m_acceptedTypeId));
     }
 
     std::shared_ptr<StreamSubscription<T>> subscription()

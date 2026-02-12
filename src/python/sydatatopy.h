@@ -45,14 +45,14 @@ public:
 
         auto seq = reinterpret_borrow<sequence>(src);
         for (size_t i = 0; i < seq.size(); i++)
-            value.append(seq[i].cast<QString>());
+            value.append(seq[i].cast<std::string>());
         return true;
     }
 
     static handle cast(const TableRow &row, return_value_policy /* policy */, handle /* parent */)
     {
         list lst;
-        for (const QString &s : row.data)
+        for (const std::string &s : row.data)
             lst.append(pybind11::cast(s));
         return lst.release();
     }

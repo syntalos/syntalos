@@ -201,15 +201,28 @@ public:
         m_initFile = true;
     }
 
-    static QString toJsonValue(QString str)
+    static QString toJsonValue(const QString &str)
     {
-        str.replace("\\", "\\\\");
-        str.replace("\"", "\\\"");
-        str.replace("\n", "\\n");
-        str.replace("\r", "\\r");
-        str.replace("\t", "\\t");
+        QString res = str;
+        res.replace("\\", "\\\\");
+        res.replace("\"", "\\\"");
+        res.replace("\n", "\\n");
+        res.replace("\r", "\\r");
+        res.replace("\t", "\\t");
 
-        return "\"" + str + "\"";
+        return "\"" + res + "\"";
+    }
+
+    static QString toJsonValue(const std::string &str)
+    {
+        QString res = QString::fromStdString(str);
+        res.replace("\\", "\\\\");
+        res.replace("\"", "\\\"");
+        res.replace("\n", "\\n");
+        res.replace("\r", "\\r");
+        res.replace("\t", "\\t");
+
+        return "\"" + res + "\"";
     }
 
     QString floatToJsonValue(double value)

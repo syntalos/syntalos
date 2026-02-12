@@ -67,7 +67,7 @@ public:
         for (const auto &pv : varInPorts) {
             const auto po = pv.toHash();
             registerInputPortByTypeId(
-                BaseDataType::typeIdFromString(po.value("data_type").toString()),
+                BaseDataType::typeIdFromString(po.value("data_type").toString().toStdString()),
                 po.value("id").toString(),
                 po.value("title").toString());
         }
@@ -75,7 +75,7 @@ public:
         for (const auto &pv : varOutPorts) {
             const auto po = pv.toHash();
             registerOutputPortByTypeId(
-                BaseDataType::typeIdFromString(po.value("data_type").toString()),
+                BaseDataType::typeIdFromString(po.value("data_type").toString().toStdString()),
                 po.value("id").toString(),
                 po.value("title").toString());
         }

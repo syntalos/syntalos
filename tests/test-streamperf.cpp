@@ -18,12 +18,13 @@ struct MyDataFrame : BaseDataType {
     time_t timestamp;
     cv::Mat frame;
 
-    QByteArray toBytes() const override
+    [[nodiscard]] std::vector<std::byte> toBytes() const override
     {
-        QByteArray bytes;
-        QDataStream stream(&bytes, QIODevice::WriteOnly);
+        std::vector<std::byte> bytes;
+        BinaryStreamWriter stream(bytes);
 
-        stream << (quint64)id << (quint64)timestamp;
+        stream.write(id);
+        stream.write(timestamp);
 
         return bytes;
     }
@@ -31,9 +32,7 @@ struct MyDataFrame : BaseDataType {
     static MyDataFrame fromMemory(const void *memory, size_t size)
     {
         MyDataFrame obj;
-
-        QByteArray block(reinterpret_cast<const char *>(memory), size);
-        QDataStream stream(block);
+        BinaryStreamReader stream(memory, size);
 
         // STUB
 

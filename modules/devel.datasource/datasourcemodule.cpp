@@ -138,7 +138,7 @@ public:
 
                 fctl.command = FirmataCommandKind::WRITE_DIGITAL;
                 fctl.pinId = 2;
-                fctl.pinName = QStringLiteral("custom-pin-name");
+                fctl.pinName = "custom-pin-name";
                 fctl.value = ((msec / 1000) % 2 == 0) ? 1 : 0;
                 m_fctlOut->push(fctl);
             }
@@ -210,7 +210,7 @@ private:
         // add text with frame index
         cv::putText(
             image,
-            "Frame: " + std::to_string(index),
+            "Frame: " + numToString(index),
             cv::Point(24, 240),
             cv::FONT_HERSHEY_SIMPLEX,
             1.2,
@@ -239,9 +239,9 @@ private:
 
         TableRow row;
         row.reserve(3);
-        row.append(QString::number(msec));
-        row.append((msec % 2) ? QStringLiteral("beta") : QStringLiteral("alpha"));
-        row.append(createRandomString(14));
+        row.append(numToString(msec));
+        row.append((msec % 2) ? std::string("beta") : std::string("alpha"));
+        row.append(createRandomString(14).toStdString());
 
         return row;
     }

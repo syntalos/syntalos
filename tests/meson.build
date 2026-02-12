@@ -2,6 +2,21 @@
 subdir('rwqueue')
 
 #
+# Core Utilities Test
+#
+test_basic_moc_src = ['test-basic.cpp']
+test_basic_moc = qt.compile_moc(sources: test_basic_moc_src)
+test_basic_exe = executable('test-basic',
+                            [test_basic_moc_src, test_basic_moc],
+                            dependencies: [syntalos_fabric_dep,
+                                           qt_test_dep]
+)
+test('sy-test-basic',
+     test_basic_exe,
+     is_parallel: true
+)
+
+#
 # Basic Stream Performance Test
 #
 test_streamperf_moc_src = ['test-streamperf.cpp']

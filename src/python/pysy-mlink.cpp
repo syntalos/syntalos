@@ -351,7 +351,7 @@ struct OutputPort {
     {
         FirmataControl ctl;
         ctl.command = FirmataCommandKind::NEW_DIG_PIN;
-        ctl.pinName = QString::fromStdString(name);
+        ctl.pinName = name;
         ctl.pinId = pinId;
         ctl.isOutput = isOutput;
         ctl.isPullUp = isPullUp;
@@ -364,7 +364,7 @@ struct OutputPort {
     {
         FirmataControl ctl;
         ctl.command = FirmataCommandKind::WRITE_DIGITAL;
-        ctl.pinName = QString::fromStdString(name);
+        ctl.pinName = name;
         ctl.value = value;
 
         submit(py::cast(ctl));
@@ -375,7 +375,7 @@ struct OutputPort {
     {
         FirmataControl ctl;
         ctl.command = FirmataCommandKind::WRITE_DIGITAL_PULSE;
-        ctl.pinName = QString::fromStdString(name);
+        ctl.pinName = name;
         ctl.value = duration_msec;
 
         submit(py::cast(ctl));
@@ -427,7 +427,7 @@ static py::object get_output_port(const std::string &id)
 
 static FirmataControl new_firmatactl_with_id_name(FirmataCommandKind kind, int pinId, const std::string &name)
 {
-    return {kind, pinId, QString::fromStdString(name)};
+    return {kind, pinId, name};
 }
 
 static FirmataControl new_firmatactl_with_id(FirmataCommandKind kind, int pinId)
@@ -437,7 +437,7 @@ static FirmataControl new_firmatactl_with_id(FirmataCommandKind kind, int pinId)
 
 static FirmataControl new_firmatactl_with_name(FirmataCommandKind kind, const std::string &name)
 {
-    return {kind, QString::fromStdString(name)};
+    return {kind, name};
 }
 
 static SyntalosLink *init_link(SyntalosLink *slink = nullptr)

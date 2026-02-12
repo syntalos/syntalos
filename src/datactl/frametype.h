@@ -115,12 +115,12 @@ struct Frame : BaseDataType {
         return true;
     };
 
-    QByteArray toBytes() const override
+    [[nodiscard]] std::vector<std::byte> toBytes() const override
     {
-        QByteArray bytes;
-        QDataStream stream(&bytes, QIODeviceBase::WriteOnly);
+        std::vector<std::byte> bytes;
 
-        // TODO
+        // TODO: Implement serialization if needed
+        assert(0 && "toBytes() is not implemented for Frame. Use writeToMemory() instead.");
 
         return bytes;
     }

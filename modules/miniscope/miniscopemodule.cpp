@@ -281,9 +281,11 @@ public:
 
             if (self->m_bnoTabOut->active()) {
                 const auto row = TableRow(
-                    QStringList() << QString::number(updatedFrameTime.count()) << QString::number(orientation[0])
-                                  << QString::number(orientation[1]) << QString::number(orientation[2])
-                                  << QString::number(orientation[3]));
+                    {numToString(updatedFrameTime.count()),
+                     numToString(orientation[0]),
+                     numToString(orientation[1]),
+                     numToString(orientation[2]),
+                     numToString(orientation[3])});
                 self->m_bnoTabOut->push(row);
             }
 

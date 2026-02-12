@@ -964,7 +964,7 @@ std::shared_ptr<InputPortInfo> SyntalosLink::registerInputPort(
     InputPortChange ipc(PortAction::ADD);
     ipc.id = id;
     ipc.title = title;
-    ipc.dataTypeId = BaseDataType::typeIdFromString(dataTypeName);
+    ipc.dataTypeId = BaseDataType::typeIdFromString(dataTypeName.toStdString());
 
     // check for duplicates
     for (const auto &ip : d->inPortInfo) {
@@ -1006,7 +1006,7 @@ std::shared_ptr<OutputPortInfo> SyntalosLink::registerOutputPort(
     OutputPortChange opc(PortAction::ADD);
     opc.id = id;
     opc.title = title;
-    opc.dataTypeId = BaseDataType::typeIdFromString(dataTypeName);
+    opc.dataTypeId = BaseDataType::typeIdFromString(dataTypeName.toStdString());
     opc.metadata = metadata;
 
     // check for duplicates

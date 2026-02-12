@@ -50,7 +50,7 @@ public:
 
     void reset();
     void setHeader(const QStringList &headers);
-    void addRows(const QStringList &data);
+    void addRows(const std::vector<std::string> &data);
 
     const QRect &geometry() const;
     void setGeometry(const QRect &rect);

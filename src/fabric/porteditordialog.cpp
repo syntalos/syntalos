@@ -53,13 +53,15 @@ void PortEditorDialog::on_tbAddInputPort_clicked()
 {
     QMap<QString, int> streamTypeMap;
     if (!m_allowedInputTypes.empty()) {
-        const auto fullStMap = streamTypeIdMap();
-        for (auto it = fullStMap.keyValueBegin(); it != fullStMap.keyValueEnd(); ++it) {
-            if (m_allowedInputTypes.contains(static_cast<BaseDataType::TypeId>(it->second)))
-                streamTypeMap[it->first] = it->second;
+        const auto fullStMap = streamTypeIdIndex();
+        for (const auto &[key, value] : fullStMap) {
+            if (m_allowedInputTypes.contains(static_cast<BaseDataType::TypeId>(value)))
+                streamTypeMap[QString::fromStdString(key)] = value;
         }
     } else {
-        streamTypeMap = streamTypeIdMap();
+        const auto fullStMap = streamTypeIdIndex();
+        for (const auto &[key, value] : fullStMap)
+            streamTypeMap[QString::fromStdString(key)] = value;
     }
 
     bool ok;
@@ -107,13 +109,15 @@ void PortEditorDialog::on_tbAddOutputPort_clicked()
 {
     QMap<QString, int> streamTypeMap;
     if (!m_allowedOutputTypes.empty()) {
-        const auto fullStMap = streamTypeIdMap();
-        for (auto it = fullStMap.keyValueBegin(); it != fullStMap.keyValueEnd(); ++it) {
-            if (m_allowedOutputTypes.contains(static_cast<BaseDataType::TypeId>(it->second)))
-                streamTypeMap[it->first] = it->second;
+        const auto fullStMap = streamTypeIdIndex();
+        for (const auto &[key, value] : fullStMap) {
+            if (m_allowedOutputTypes.contains(static_cast<BaseDataType::TypeId>(value)))
+                streamTypeMap[QString::fromStdString(key)] = value;
         }
     } else {
-        streamTypeMap = streamTypeIdMap();
+        const auto fullStMap = streamTypeIdIndex();
+        for (const auto &[key, value] : fullStMap)
+            streamTypeMap[QString::fromStdString(key)] = value;
     }
 
     bool ok;

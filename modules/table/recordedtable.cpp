@@ -151,7 +151,7 @@ void RecordedTable::setHeader(const QStringList &headers)
     tsout << csvHdr.replaceInStrings(QStringLiteral(";"), QStringLiteral("；")).join(";") << "\n";
 }
 
-void RecordedTable::addRows(const QStringList &data)
+void RecordedTable::addRows(const std::vector<std::string> &data)
 {
     m_haveEvents = true;
 
@@ -164,7 +164,10 @@ void RecordedTable::addRows(const QStringList &data)
         // since our tables are semicolon-separated, we replace the "regular" semicolon
         // with a unicode fullwith semicolon (U+FF1B). That way, users of the table module
         // can use pretty much any character they want and a machine-readable CSV table will be generated.
-        auto csvRows = data;
+        QStringList csvRows;
+        csvRows.reserve(data.size());
+        for (const auto &s : data)
+            csvRows.append(QString::fromStdString(s));
         tsout << csvRows.replaceInStrings(QStringLiteral(";"), QStringLiteral("；")).join(";") << "\n";
     }
 
@@ -172,13 +175,13 @@ void RecordedTable::addRows(const QStringList &data)
     if (!m_displayData)
         return;
 
-    auto columnCount = m_tableWidget->columnCount();
-    if (columnCount < data.count()) {
+    size_t columnCount = m_tableWidget->columnCount();
+    if (columnCount < data.size()) {
         // create necessary amount of columns
         if (columnCount == 0) {
-            m_tableWidget->setColumnCount(data.count());
+            m_tableWidget->setColumnCount(data.size());
         } else {
-            for (auto i = columnCount; i < data.count(); i++)
+            for (auto i = columnCount; i < data.size(); i++)
                 m_tableWidget->insertColumn(i);
         }
     }
@@ -186,8 +189,8 @@ void RecordedTable::addRows(const QStringList &data)
     auto lastRowId = m_tableWidget->rowCount();
     m_tableWidget->setRowCount(lastRowId + 1);
 
-    for (auto i = 0; i < data.count(); i++) {
-        auto item = new QTableWidgetItem(data.at(i));
+    for (size_t i = 0; i < data.size(); i++) {
+        auto item = new QTableWidgetItem(QString::fromStdString(data.at(i)));
         item->setFlags(item->flags() ^ Qt::ItemIsEditable);
         m_tableWidget->setItem(lastRowId, i, item);
     }

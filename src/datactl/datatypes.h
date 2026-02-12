@@ -19,54 +19,20 @@
 
 #pragma once
 
-#include <QDataStream>
-#include <QMetaType>
-#include <QMetaEnum>
 #include <memory>
+#include <string>
+#include <vector>
+#include <charconv>
+#include <cstdint>
+#include <cassert>
+#include <array>
+#include <cmath>
 
 #include "syclock.h"
+#include "binarystream.h"
 #include "eigenaux.h"
 
 using namespace Syntalos;
-
-Q_DECLARE_SMART_POINTER_METATYPE(std::shared_ptr)
-
-/**
- * Helpers to (de)serialize enum classes into streams, in case
- * we are compiling with older versions of Qt.
- */
-#if (QT_VERSION < QT_VERSION_CHECK(5, 14, 0))
-template<typename T>
-typename std::enable_if<std::is_enum<T>::value, QDataStream &>::type &operator<<(QDataStream &s, const T &t)
-{
-    return s << static_cast<typename std::underlying_type<T>::type>(t);
-}
-
-template<typename T>
-typename std::enable_if<std::is_enum<T>::value, QDataStream &>::type &operator>>(QDataStream &s, T &t)
-{
-    return s >> reinterpret_cast<typename std::underlying_type<T>::type &>(t);
-}
-#endif
-
-/**
- * @brief Connection heat level
- *
- * Warning level dependent on how full the buffer that is
- * repesented by a connection is.
- * A high heat means lots of pending stuff and potentially a
- * slow receiving module or not enough system resources.
- * This state is managed internally by Syntalos.
- */
-enum class ConnectionHeatLevel {
-    NONE,
-    LOW,
-    MEDIUM,
-    HIGH
-};
-Q_DECLARE_METATYPE(ConnectionHeatLevel)
-
-QString connectionHeatToHumanString(ConnectionHeatLevel heat);
 
 /**
  * @brief The ModuleState enum
@@ -84,7 +50,6 @@ enum class ModuleState : uint16_t {
     RUNNING,      /// Module is running
     ERROR         /// Module failed to run / is in an error state
 };
-Q_DECLARE_METATYPE(ModuleState)
 
 /**
  * @brief Base interface for all data types
@@ -93,7 +58,6 @@ Q_DECLARE_METATYPE(ModuleState)
  * need to possess.
  */
 struct BaseDataType {
-    Q_GADGET
 public:
     /**
      * @brief The TypeId enum
@@ -113,36 +77,63 @@ public:
         FloatSignalBlock,
         Last
     };
-    Q_ENUM(TypeId)
 
-    static QString typeIdToString(TypeId value)
-    {
-        const auto metaEnum = QMetaEnum::fromType<TypeId>();
-        return QString(metaEnum.valueToKey(static_cast<int>(value)));
-    }
-
-    static QString typeIdToString(int value)
+    static std::string typeIdToString(int value)
     {
         if (value < 1 || value >= TypeId::Last)
-            return QStringLiteral("<<unknown>>");
+            return "<<unknown>>";
         return typeIdToString(static_cast<TypeId>(value));
     }
 
-    static TypeId typeIdFromString(const QString &str)
+    static std::string typeIdToString(TypeId value)
     {
-        const auto metaEnum = QMetaEnum::fromType<TypeId>();
-        bool ok;
-        auto enumVal = static_cast<TypeId>(metaEnum.keyToValue(str.toLatin1(), &ok));
-        if (ok)
-            return enumVal;
-        else
+        switch (value) {
+        case Unknown:
+            return "Unknown";
+        case ControlCommand:
+            return "ControlCommand";
+        case TableRow:
+            return "TableRow";
+        case Frame:
+            return "Frame";
+        case FirmataControl:
+            return "FirmataControl";
+        case FirmataData:
+            return "FirmataData";
+        case IntSignalBlock:
+            return "IntSignalBlock";
+        case FloatSignalBlock:
+            return "FloatSignalBlock";
+        default:
+            return "<<unknown>>";
+        }
+    }
+
+    static TypeId typeIdFromString(const std::string &str)
+    {
+        if (str == "Unknown")
             return TypeId::Unknown;
+        if (str == "ControlCommand")
+            return TypeId::ControlCommand;
+        if (str == "TableRow")
+            return TypeId::TableRow;
+        if (str == "Frame")
+            return TypeId::Frame;
+        if (str == "FirmataControl")
+            return TypeId::FirmataControl;
+        if (str == "FirmataData")
+            return TypeId::FirmataData;
+        if (str == "IntSignalBlock")
+            return TypeId::IntSignalBlock;
+        if (str == "FloatSignalBlock")
+            return TypeId::FloatSignalBlock;
+        return TypeId::Unknown;
     }
 
     /**
      * Unique ID for the respective data type.
      */
-    virtual TypeId typeId() const = 0;
+    [[nodiscard]] virtual TypeId typeId() const = 0;
 
     /**
      * @brief Calculate the size of the data in memory
@@ -152,7 +143,7 @@ public:
      * shared memory blocks in advance.
      * Return -1 if the size is unknown.
      */
-    virtual ssize_t memorySize() const
+    [[nodiscard]] virtual ssize_t memorySize() const
     {
         // Size is not known in advance
         return -1;
@@ -177,7 +168,7 @@ public:
      *
      * Serialize the data to a byte array for local transmission.
      */
-    virtual QByteArray toBytes() const = 0;
+    [[nodiscard]] virtual std::vector<std::byte> toBytes() const = 0;
 };
 
 /**
@@ -237,7 +228,7 @@ struct ControlCommand : BaseDataType {
 
     ControlCommandKind kind{ControlCommandKind::UNKNOWN}; /// The command type
     milliseconds_t duration; /// Duration of the command before resetting to the previous state (zero for infinite)
-    QString command;         /// Custom command name, if in custom mode
+    std::string command;     /// Custom command name, if in custom mode
 
     explicit ControlCommand()
         : duration(0)
@@ -254,17 +245,19 @@ struct ControlCommand : BaseDataType {
         duration = milliseconds_t(value);
     }
 
-    ulong getDurationAsInt() const
+    [[nodiscard]] ulong getDurationAsInt() const
     {
         return duration.count();
     }
 
-    QByteArray toBytes() const override
+    [[nodiscard]] std::vector<std::byte> toBytes() const override
     {
-        QByteArray bytes;
-        QDataStream stream(&bytes, QIODeviceBase::WriteOnly);
+        std::vector<std::byte> bytes;
+        BinaryStreamWriter stream(bytes);
 
-        stream << kind << (quint64)duration.count() << command;
+        stream.write(kind);
+        stream.write(static_cast<uint64_t>(duration.count()));
+        stream.write(command);
 
         return bytes;
     }
@@ -272,12 +265,12 @@ struct ControlCommand : BaseDataType {
     static ControlCommand fromMemory(const void *memory, size_t size)
     {
         ControlCommand obj;
+        BinaryStreamReader stream(memory, size);
 
-        QByteArray block(reinterpret_cast<const char *>(memory), size);
-        QDataStream stream(block);
-
-        quint64 durationValue;
-        stream >> obj.kind >> durationValue >> obj.command;
+        uint64_t durationValue;
+        stream.read(obj.kind);
+        stream.read(durationValue);
+        stream.read(obj.command);
         obj.duration = milliseconds_t(durationValue);
 
         return obj;
@@ -292,10 +285,10 @@ struct ControlCommand : BaseDataType {
 struct TableRow : BaseDataType {
     SY_DEFINE_DATA_TYPE(TableRow)
 
-    QList<QString> data;
+    std::vector<std::string> data;
 
-    explicit TableRow() {}
-    explicit TableRow(const QList<QString> &row)
+    explicit TableRow() = default;
+    explicit TableRow(const std::vector<std::string> &row)
         : data(row)
     {
     }
@@ -305,22 +298,22 @@ struct TableRow : BaseDataType {
         data.reserve(size);
     }
 
-    void append(const QString &t)
+    void append(const std::string &t)
     {
-        data.append(t);
+        data.push_back(t);
     }
 
-    int length() const
+    [[nodiscard]] int length() const
     {
-        return data.length();
+        return data.size();
     }
 
-    QByteArray toBytes() const override
+    std::vector<std::byte> toBytes() const override
     {
-        QByteArray bytes;
-        QDataStream stream(&bytes, QIODeviceBase::WriteOnly);
+        std::vector<std::byte> bytes;
+        BinaryStreamWriter stream(bytes);
 
-        stream << data;
+        stream.write(data);
 
         return bytes;
     }
@@ -328,10 +321,9 @@ struct TableRow : BaseDataType {
     static TableRow fromMemory(const void *memory, size_t size)
     {
         TableRow obj;
-        QByteArray block(reinterpret_cast<const char *>(memory), size);
-        QDataStream stream(block);
+        BinaryStreamReader stream(memory, size);
 
-        stream >> obj.data;
+        stream.read(obj.data);
 
         return obj;
     }
@@ -361,7 +353,7 @@ struct FirmataControl : BaseDataType {
 
     FirmataCommandKind command;
     uint8_t pinId{0};
-    QString pinName;
+    std::string pinName;
     bool isOutput{false};
     bool isPullUp{false};
     uint16_t value;
@@ -379,7 +371,7 @@ struct FirmataControl : BaseDataType {
     {
     }
 
-    FirmataControl(FirmataCommandKind kind, int pinId, QString name = QString())
+    FirmataControl(FirmataCommandKind kind, int pinId, std::string name = std::string())
         : command(kind),
           pinId(pinId),
           pinName(std::move(name)),
@@ -388,7 +380,7 @@ struct FirmataControl : BaseDataType {
     {
     }
 
-    FirmataControl(FirmataCommandKind kind, QString name)
+    FirmataControl(FirmataCommandKind kind, std::string name)
         : command(kind),
           pinName(std::move(name)),
           isPullUp(false),
@@ -396,12 +388,17 @@ struct FirmataControl : BaseDataType {
     {
     }
 
-    QByteArray toBytes() const override
+    std::vector<std::byte> toBytes() const override
     {
-        QByteArray bytes;
-        QDataStream stream(&bytes, QIODeviceBase::WriteOnly);
+        std::vector<std::byte> bytes;
+        BinaryStreamWriter stream(bytes);
 
-        stream << command << pinId << pinName << isOutput << isPullUp << value;
+        stream.write(command);
+        stream.write(pinId);
+        stream.write(pinName);
+        stream.write(isOutput);
+        stream.write(isPullUp);
+        stream.write(value);
 
         return bytes;
     }
@@ -409,10 +406,14 @@ struct FirmataControl : BaseDataType {
     static FirmataControl fromMemory(const void *memory, size_t size)
     {
         FirmataControl obj;
-        QByteArray block(reinterpret_cast<const char *>(memory), size);
-        QDataStream stream(block);
+        BinaryStreamReader stream(memory, size);
 
-        stream >> obj.command >> obj.pinId >> obj.pinName >> obj.isOutput >> obj.isPullUp >> obj.value;
+        stream.read(obj.command);
+        stream.read(obj.pinId);
+        stream.read(obj.pinName);
+        stream.read(obj.isOutput);
+        stream.read(obj.isPullUp);
+        stream.read(obj.value);
 
         return obj;
     }
@@ -425,17 +426,21 @@ struct FirmataData : BaseDataType {
     SY_DEFINE_DATA_TYPE(FirmataData)
 
     uint8_t pinId;
-    QString pinName;
+    std::string pinName;
     uint16_t value;
     bool isDigital;
     microseconds_t time;
 
-    QByteArray toBytes() const override
+    std::vector<std::byte> toBytes() const override
     {
-        QByteArray bytes;
-        QDataStream stream(&bytes, QIODeviceBase::WriteOnly);
+        std::vector<std::byte> bytes;
+        BinaryStreamWriter stream(bytes);
 
-        stream << pinId << pinName << value << isDigital << static_cast<qint64>(time.count());
+        stream.write(pinId);
+        stream.write(pinName);
+        stream.write(value);
+        stream.write(isDigital);
+        stream.write(static_cast<int64_t>(time.count()));
 
         return bytes;
     }
@@ -443,11 +448,14 @@ struct FirmataData : BaseDataType {
     static FirmataData fromMemory(const void *memory, size_t size)
     {
         FirmataData obj;
-        QByteArray block(reinterpret_cast<const char *>(memory), size);
-        QDataStream stream(block);
+        BinaryStreamReader stream(memory, size);
 
-        qint64 timeUs;
-        stream >> obj.pinId >> obj.pinName >> obj.value >> obj.isDigital >> timeUs;
+        int64_t timeUs;
+        stream.read(obj.pinId);
+        stream.read(obj.pinName);
+        stream.read(obj.value);
+        stream.read(obj.isDigital);
+        stream.read(timeUs);
         obj.time = microseconds_t(timeUs);
 
         return obj;
@@ -479,7 +487,7 @@ struct IntSignalBlock : BaseDataType {
 
     explicit IntSignalBlock(uint sampleCount = 60, uint channelCount = 1)
     {
-        Q_ASSERT(channelCount > 0);
+        assert(channelCount > 0);
         timestamps.resize(sampleCount);
         data.resize(sampleCount, channelCount);
     }
@@ -501,10 +509,10 @@ struct IntSignalBlock : BaseDataType {
     VectorXul timestamps;
     MatrixXsi data;
 
-    QByteArray toBytes() const override
+    std::vector<std::byte> toBytes() const override
     {
-        QByteArray bytes;
-        QDataStream stream(&bytes, QIODeviceBase::WriteOnly);
+        std::vector<std::byte> bytes;
+        BinaryStreamWriter stream(bytes);
 
         serializeEigen(stream, timestamps);
         serializeEigen(stream, data);
@@ -515,8 +523,7 @@ struct IntSignalBlock : BaseDataType {
     static IntSignalBlock fromMemory(const void *memory, size_t size)
     {
         IntSignalBlock obj;
-        QByteArray block(reinterpret_cast<const char *>(memory), size);
-        QDataStream stream(block);
+        BinaryStreamReader stream(memory, size);
 
         obj.timestamps = deserializeEigen<VectorXul>(stream);
         obj.data = deserializeEigen<MatrixXsi>(stream);
@@ -536,7 +543,7 @@ struct FloatSignalBlock : BaseDataType {
 
     explicit FloatSignalBlock(uint sampleCount = 60, uint channelCount = 1)
     {
-        Q_ASSERT(channelCount > 0);
+        assert(channelCount > 0);
         timestamps.resize(sampleCount);
         data.resize(sampleCount, channelCount);
     }
@@ -566,10 +573,10 @@ struct FloatSignalBlock : BaseDataType {
     VectorXul timestamps;
     MatrixXd data;
 
-    QByteArray toBytes() const override
+    std::vector<std::byte> toBytes() const override
     {
-        QByteArray bytes;
-        QDataStream stream(&bytes, QIODeviceBase::WriteOnly);
+        std::vector<std::byte> bytes;
+        BinaryStreamWriter stream(bytes);
 
         serializeEigen(stream, timestamps);
         serializeEigen(stream, data);
@@ -580,8 +587,7 @@ struct FloatSignalBlock : BaseDataType {
     static FloatSignalBlock fromMemory(const void *memory, size_t size)
     {
         FloatSignalBlock obj;
-        QByteArray block(reinterpret_cast<const char *>(memory), size);
-        QDataStream stream(block);
+        BinaryStreamReader stream(memory, size);
 
         obj.timestamps = deserializeEigen<VectorXul>(stream);
         obj.data = deserializeEigen<MatrixXd>(stream);
@@ -601,12 +607,46 @@ void registerStreamMetaTypes();
 /**
  * @brief Get a mapping of type names to their IDs.
  */
-QMap<QString, int> streamTypeIdMap();
+std::vector<std::pair<std::string, int>> streamTypeIdIndex();
 
-class VariantDataStream;
-namespace Syntalos
+/**
+ * @brief Convert a numeric value to a string using Syntalos' default notation.
+ *
+ * This function converts arithmetic types to strings in a locale-independent way.
+ * For floating-point types, it uses the "general" format (shortest representation).
+ * Special values (NaN, infinity) are handled consistently across all types.
+ */
+template<typename T>
+inline std::string numToString(T x)
+    requires std::is_arithmetic_v<T>
 {
-class VarStreamInputPort;
-class AbstractModule;
+    if constexpr (std::is_same_v<T, bool>) {
+        return x ? "true" : "false";
+    } else {
+        // Handle floating-point special cases
+        if constexpr (std::is_floating_point_v<T>) {
+            if (std::isnan(x))
+                return "nan";
+            if (std::isinf(x))
+                return std::signbit(x) ? "-inf" : "inf";
+            if (x == 0.0)
+                x = 0.0; // canonicalize -0 to +0
+        }
 
-} // namespace Syntalos
+        std::array<char, 128> buf{};
+        std::to_chars_result result{};
+
+        if constexpr (std::is_floating_point_v<T>) {
+            result = std::to_chars(buf.data(), buf.data() + buf.size(), x, std::chars_format::general);
+        } else {
+            result = std::to_chars(buf.data(), buf.data() + buf.size(), x);
+        }
+
+        if (result.ec != std::errc{}) {
+            assert(false);
+            return "<<conversion error>>";
+        }
+
+        return {buf.data(), result.ptr};
+    }
+}

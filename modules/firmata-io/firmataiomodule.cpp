@@ -56,8 +56,8 @@ private:
     FirmataSettingsDialog *m_settingsDialog;
     std::atomic_bool m_stopped;
 
-    QHash<QString, FmPin> m_namePinMap;
-    QHash<int, QString> m_pinNameMap;
+    QHash<std::string, FmPin> m_namePinMap;
+    QHash<int, std::string> m_pinNameMap;
 
     std::shared_ptr<StreamInputPort<FirmataControl>> m_inFmCtl;
     std::shared_ptr<DataStream<FirmataData>> m_fmStream;
@@ -212,19 +212,19 @@ public:
         switch (ctl.command) {
         case FirmataCommandKind::NEW_DIG_PIN:
             newDigitalPin(firmata, ctl.pinId, ctl.pinName, ctl.isOutput, ctl.isPullUp);
-            if (ctl.pinName.isEmpty())
+            if (ctl.pinName.empty())
                 pinSetValue(firmata, ctl.pinId, ctl.value);
             else
                 pinSetValue(firmata, ctl.pinName, ctl.value);
             break;
         case FirmataCommandKind::WRITE_DIGITAL:
-            if (ctl.pinName.isEmpty())
+            if (ctl.pinName.empty())
                 pinSetValue(firmata, ctl.pinId, ctl.value);
             else
                 pinSetValue(firmata, ctl.pinName, ctl.value);
             break;
         case FirmataCommandKind::WRITE_DIGITAL_PULSE:
-            if (ctl.pinName.isEmpty())
+            if (ctl.pinName.empty())
                 pinSignalPulse(firmata, ctl.pinId, ctl.value);
             else
                 pinSignalPulse(firmata, ctl.pinName, ctl.value);
@@ -238,7 +238,7 @@ public:
         return true;
     }
 
-    void newDigitalPin(SerialFirmata *firmata, int pinId, const QString &pinName, bool output, bool pullUp)
+    void newDigitalPin(SerialFirmata *firmata, int pinId, const std::string &pinName, bool output, bool pullUp)
     {
         FmPin pin;
         pin.kind = PinKind::Digital;
@@ -264,14 +264,14 @@ public:
         }
 
         auto pname = pinName;
-        if (pname.isEmpty())
-            pname = QStringLiteral("pin-%1").arg(pinId);
+        if (pname.empty())
+            pname = QStringLiteral("pin-%1").arg(pinId).toStdString();
 
         m_namePinMap.insert(pname, pin);
         m_pinNameMap.insert(pin.id, pname);
     }
 
-    FmPin findPin(const QString &pinName)
+    FmPin findPin(const std::string &pinName)
     {
         auto pin = m_namePinMap.value(pinName);
         if (pin.kind == PinKind::Unknown)
@@ -287,7 +287,7 @@ public:
         firmata->writeDigitalPin(pinId, value);
     }
 
-    void pinSetValue(SerialFirmata *firmata, const QString &pinName, bool value)
+    void pinSetValue(SerialFirmata *firmata, const std::string &pinName, bool value)
     {
         auto pin = findPin(pinName);
         if (pin.kind == PinKind::Unknown)
@@ -306,7 +306,7 @@ public:
         pinSetValue(firmata, pinId, false);
     }
 
-    void pinSignalPulse(SerialFirmata *firmata, const QString &pinName, int pulseDuration = 0)
+    void pinSignalPulse(SerialFirmata *firmata, const std::string &pinName, int pulseDuration = 0)
     {
         auto pin = findPin(pinName);
         if (pin.kind == PinKind::Unknown)
@@ -370,7 +370,7 @@ public:
         fdata.pinId = pin;
         fdata.pinName = m_pinNameMap.value(pin);
         fdata.value = value;
-        if (fdata.pinName.isEmpty()) {
+        if (fdata.pinName.empty()) {
             qWarning() << "Received state change for unknown pin:" << pin;
             return;
         }

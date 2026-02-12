@@ -21,17 +21,20 @@
 
 #include <Eigen/Dense>
 #include <algorithm>
-#include <QDataStream>
+#include <cstdint>
+#include <vector>
+
+#include "binarystream.h"
 
 namespace Syntalos
 {
 
-typedef Eigen::Matrix<qint32, Eigen::Dynamic, 1> VectorXsi;
-typedef Eigen::Matrix<quint64, Eigen::Dynamic, 1> VectorXul;
-typedef Eigen::Matrix<qint64, Eigen::Dynamic, 1> VectorXsl;
+typedef Eigen::Matrix<int32_t, Eigen::Dynamic, 1> VectorXsi;
+typedef Eigen::Matrix<uint64_t, Eigen::Dynamic, 1> VectorXul;
+typedef Eigen::Matrix<int64_t, Eigen::Dynamic, 1> VectorXsl;
 typedef Eigen::Matrix<double, Eigen::Dynamic, 1> VectorXd;
 
-typedef Eigen::Matrix<qint32, Eigen::Dynamic, Eigen::Dynamic> MatrixXsi;
+typedef Eigen::Matrix<int32_t, Eigen::Dynamic, Eigen::Dynamic> MatrixXsi;
 typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> MatrixXd;
 
 template<typename T>
@@ -83,33 +86,35 @@ double vectorVariance(const Eigen::Matrix<T, Eigen::Dynamic, 1> &vec, bool unbia
 }
 
 template<typename EigenType>
-void serializeEigen(QDataStream &stream, const EigenType &matrix)
+void serializeEigen(BinaryStreamWriter &stream, const EigenType &matrix)
 {
-    const auto rows = static_cast<quint64>(matrix.rows());
-    const auto cols = static_cast<quint64>(matrix.cols());
-    stream << rows << cols;
+    const auto rows = static_cast<uint64_t>(matrix.rows());
+    const auto cols = static_cast<uint64_t>(matrix.cols());
+    stream.write(rows);
+    stream.write(cols);
 
-    for (quint64 i = 0; i < rows; ++i) {
-        for (quint64 j = 0; j < cols; ++j) {
+    for (uint64_t i = 0; i < rows; ++i) {
+        for (uint64_t j = 0; j < cols; ++j) {
             typename EigenType::Scalar value = matrix(i, j);
-            stream << value;
+            stream.write(value);
         }
     }
 }
 
 template<typename EigenType>
-EigenType deserializeEigen(QDataStream &stream)
+EigenType deserializeEigen(BinaryStreamReader &stream)
 {
     EigenType matrix;
 
-    quint64 rows, cols;
-    stream >> rows >> cols;
+    uint64_t rows, cols;
+    stream.read(rows);
+    stream.read(cols);
 
     matrix.resize(rows, cols);
-    for (quint64 i = 0; i < rows; ++i) {
-        for (quint64 j = 0; j < cols; ++j) {
+    for (uint64_t i = 0; i < rows; ++i) {
+        for (uint64_t j = 0; j < cols; ++j) {
             typename EigenType::Scalar value;
-            stream >> value;
+            stream.read(value);
             matrix(i, j) = value;
         }
     }

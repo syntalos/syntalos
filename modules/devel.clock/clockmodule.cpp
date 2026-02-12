@@ -130,8 +130,8 @@ public:
         ControlCommand cmd;
         cmd.kind = ControlCommandKind::STEP;
 
-        QStringList row;
-        row.append(QString());
+        std::vector<std::string> row;
+        row.push_back(std::string());
 
         startWaitCondition->wait(this);
 
@@ -177,7 +177,7 @@ public:
             const auto tsUsec = m_syTimer->timeSinceStartUsec().count();
 
             m_ctlOut->push(cmd);
-            row[0] = QString::number(tsUsec);
+            row[0] = numToString(tsUsec);
             m_tabOut->push(TableRow(row));
             m_tsWriter.writeTimes(++index, tsUsec);
         }

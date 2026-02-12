@@ -539,9 +539,9 @@ public:
             TableRow row;
             for (const auto &e : obj["d"].toArray()) {
                 if (e.isDouble())
-                    row.append(QString::number(e.toDouble()));
+                    row.append(numToString(e.toDouble()));
                 else
-                    row.append(e.toString());
+                    row.append(e.toString().toStdString());
             }
 
             std::static_pointer_cast<DataStream<TableRow>>(stream)->push(row);
@@ -598,7 +598,7 @@ public:
             obj.insert("p", (qint64)i);
             QJsonArray data;
             for (const auto &e : row.data)
-                data.append(e);
+                data.append(QString::fromStdString(e));
             obj.insert("d", data);
             port->write(QJsonDocument(obj).toJson(QJsonDocument::Compact));
             port->write("\n");

@@ -116,8 +116,10 @@ public:
             }
 
             m_tabStream->push(TableRow(
-                QStringList() << QString::number(data->time.count()) << QString::number(data->value)
-                              << QString::number(m_syTimer->timeSinceStartMsec().count())));
+                std::vector<std::string>{
+                    numToString(data->time.count()),
+                    numToString(data->value),
+                    numToString(m_syTimer->timeSinceStartMsec().count())}));
             lastValue = data->value;
         }
     }
