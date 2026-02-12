@@ -107,7 +107,7 @@ public:
                 continue;
             if (lastValue == data->value)
                 continue;
-            if (data->pinName != QStringLiteral("testIn"))
+            if (data->pinName != "testIn")
                 continue;
 
             if (data->value) {
