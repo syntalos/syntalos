@@ -593,6 +593,13 @@ void MainWindow::stopActionTriggered()
 
 bool MainWindow::saveConfiguration(const QString &fileName)
 {
+    setConfigModifyAllowed(false);
+    showBusyIndicatorProcessing();
+    auto uiInhibitCleanup = qScopeGuard([this]() {
+        hideBusyIndicator();
+        setConfigModifyAllowed(true);
+    });
+
     qDebug().noquote() << "Saving board as" << fileName;
     KTar tar(fileName);
     if (!tar.open(QIODevice::WriteOnly)) {
@@ -678,6 +685,15 @@ bool MainWindow::saveConfiguration(const QString &fileName)
 
 bool MainWindow::loadConfiguration(const QString &fileName)
 {
+    // prevent any start/stop/modify action while loading the board
+    setConfigModifyAllowed(false);
+    showBusyIndicatorProcessing();
+    auto uiInhibitCleanup = qScopeGuard([this]() {
+        // we should be permitted to run and modify things
+        hideBusyIndicator();
+        setConfigModifyAllowed(true);
+    });
+
     KTar tar(fileName);
     if (!tar.open(QIODevice::ReadOnly)) {
         qCritical() << "Unable to open settings file for reading.";
@@ -1071,7 +1087,6 @@ void MainWindow::projectSaveAsActionTriggered()
     if (!fileName.endsWith(".syct"))
         fileName = QStringLiteral("%1.syct").arg(fileName);
 
-    showBusyIndicatorProcessing();
     if (!saveConfiguration(fileName)) {
         QMessageBox::critical(
             this,
@@ -1079,7 +1094,6 @@ void MainWindow::projectSaveAsActionTriggered()
             QStringLiteral("Unable to write configuration file to disk."));
     }
     m_gconf->setLastProjectDir(QFileInfo(fileName).absoluteDir().absolutePath());
-    hideBusyIndicator();
 }
 
 void MainWindow::projectSaveActionTriggered()
@@ -1117,19 +1131,12 @@ void MainWindow::projectOpenActionTriggered()
 
     setStatusText("Loading settings...");
 
-    // prevent any start/stop/modify action while loading the board
-    setConfigModifyAllowed(false);
-    showBusyIndicatorProcessing();
     if (!loadConfiguration(fileName)) {
         QMessageBox::critical(
             this, QStringLiteral("Can not load configuration"), QStringLiteral("Failed to load configuration."));
         m_engine->removeAllModules();
     }
     m_gconf->setLastProjectDir(QFileInfo(fileName).absoluteDir().absolutePath());
-
-    // we should be permitted to run and modify things
-    hideBusyIndicator();
-    setConfigModifyAllowed(true);
 }
 
 void MainWindow::on_actionProjectDetails_toggled(bool arg1)
