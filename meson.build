@@ -260,7 +260,16 @@ pybind11_dep = dependency('pybind11')
 
 # handle iceoryx2 (build it from source or find a system version)
 iox2_min_ver = '0.8.1'
-iox2_dep = dependency('iceoryx2-cxx', version: f'>= @iox2_min_ver@', required: false)
+iox2_dep = dependency('iceoryx2-cxx',
+                      modules: ['iceoryx2-cxx::shared-lib-cxx'],
+                      version: f'>= @iox2_min_ver@',
+                      required: false)
+if not iox2_dep.found()
+    iox2_dep = dependency('iceoryx2-cxx',
+                          modules: ['iceoryx2-cxx::static-lib-cxx'],
+                          version: f'>= @iox2_min_ver@',
+                          required: false)
+endif
 if not iox2_dep.found()
     # Unfortunately we can't use the Meson cmake integration, since that
     # misses all Rust steps and make the build fail.

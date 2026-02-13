@@ -73,4 +73,5 @@ eatmydata apt-get install -yq --no-install-recommends \
     libgirepository1.0-dev \
     libusb-1.0-0-dev \
     libzip-dev \
-    libudev-dev
+    libudev-dev \
+    cargo
