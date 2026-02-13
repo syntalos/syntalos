@@ -573,7 +573,8 @@ QTextStream& operator>>(QTextStream& in, QArvCamera* camera) {
     while (!in.atEnd()) {
         QString name, type, v;
         in >> name;
-        if (name == "Category") continue;
+
+        if (name == "Category:") continue;
         ArvGcFeatureNode* node =
             ARV_GC_FEATURE_NODE(arv_gc_get_node(camera->genicam,
                                                 name.toLatin1()));

@@ -145,7 +145,7 @@ void QArvCamera::QArvFeatureTree::recursiveSerialization(
     } else if (ARV_IS_GC_FLOAT(node)) {
       out << "Float\t"
           << QString::number(arv_gc_float_get_value(ARV_GC_FLOAT(node), NULL), 'g', 17)
-          << "\t" << arv_gc_float_get_unit(ARV_GC_FLOAT(node)) << Qt::endl;
+          << Qt::endl;
     } else if (ARV_IS_GC_BOOLEAN(node)) {
         out << "Boolean\t" << arv_gc_boolean_get_value(ARV_GC_BOOLEAN(node),
                                                        NULL) << Qt::endl;
