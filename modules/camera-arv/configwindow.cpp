@@ -45,6 +45,7 @@ using namespace QArv;
 ArvConfigWindow::ArvConfigWindow(const QString &modId, QWidget *parent)
     : QMainWindow(parent),
       m_modId(modId),
+      m_realFps(0),
       camera(nullptr),
       decoder(nullptr),
       playing(false),
@@ -477,6 +478,11 @@ void ArvConfigWindow::setCameraInUseExternal(bool camInUse)
     toggleVideoPreview(false);
     videoWidget->setImage();
 
+    // Update realFps, an externally started run is never a preview
+    // action and we need to ensure this value reflects what the user
+    // has set in case it is later used to restore the framerate.
+    m_realFps = camera->getFPS();
+
     setCameraInUse(camInUse);
     rotationSelector->setEnabled(!camInUse);
     roiBox->setEnabled(!camInUse);
@@ -502,7 +508,8 @@ void ArvConfigWindow::toggleVideoPreview(bool start)
             Q_EMIT cameraSelected(camera, decoder);
             camera->setFrameQueueSize(20);
 
-            // we only record with a low framerate for the preview
+            // we only record with a low framerate for the preview,
+            // as the preview display can't handle very fast framerates
             m_realFps = camera->getFPS();
             camera->setFPS(10);
             pixelFormatSelector->setEnabled(false);
