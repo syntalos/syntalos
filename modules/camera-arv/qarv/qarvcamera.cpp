@@ -571,34 +571,57 @@ QTextStream& operator>>(QTextStream& in, QArvCamera* camera) {
     }
 
     while (!in.atEnd()) {
-        QString name, type, v;
-        in >> name;
-        if (name == "Category") continue;
-        ArvGcFeatureNode* node =
-            ARV_GC_FEATURE_NODE(arv_gc_get_node(camera->genicam,
-                                                name.toLatin1()));
+        auto line = in.readLine();
+        if (line.trimmed().isEmpty())
+            continue;
 
-        in >> type;
-        in >> v;
-        if (type == "Register") {
-            QString hex;
-            in >> hex;
-            arv_gc_register_set(ARV_GC_REGISTER(node), v.data(), v.toLongLong(),
-                                NULL);
-        } else if (type == "Enumeration") {
-            arv_gc_enumeration_set_string_value(ARV_GC_ENUMERATION(node),
-                                                v.toLatin1().data(), NULL);
-        } else if (type == "String") {
-            arv_gc_string_set_value(ARV_GC_STRING(node),
-                                    v.toLatin1().data(),
-                                    NULL);
-        } else if (type == "Float") {
+        // Category lines are serialized as "Category: <name>".
+        if (line.startsWith("Category:") || line.startsWith("Category"))
+            continue;
+
+        while (line.startsWith('\t'))
+            line.remove(0, 1);
+
+        // Feature lines are tab-separated: <name>\t<type>\t<value>[\t<unit>]
+        const auto fields = line.split('\t', Qt::KeepEmptyParts);
+        if (fields.size() < 3)
+            continue;
+
+        const auto name = fields.at(0).trimmed();
+        const auto type = fields.at(1).trimmed();
+        const auto v = fields.at(2).trimmed();
+        if (name.isEmpty() || type.isEmpty())
+            continue;
+
+        ArvGcNode *node = arv_gc_get_node(camera->genicam, name.toLatin1().constData());
+        if (node == nullptr)
+            continue;
+
+        if (type == "Register" && ARV_IS_GC_REGISTER(node)) {
+            // Register lines store the expected length and the hex payload.
+            const auto regHex = fields.size() >= 4 ? fields.at(3).trimmed() : QString();
+            auto hexPayload = regHex;
+            if (hexPayload.startsWith("0x"))
+                hexPayload.remove(0, 2);
+            const auto bytes = QByteArray::fromHex(hexPayload.toLatin1());
+            if (!bytes.isEmpty()) {
+                arv_gc_register_set(
+                    ARV_GC_REGISTER(node),
+                    const_cast<char *>(bytes.constData()),
+                    bytes.size(),
+                    NULL);
+            }
+        } else if (type == "Enumeration" && ARV_IS_GC_ENUMERATION(node)) {
+            arv_gc_enumeration_set_string_value(ARV_GC_ENUMERATION(node), v.toLatin1().data(), NULL);
+        } else if (type == "String" && ARV_IS_GC_STRING(node)) {
+            arv_gc_string_set_value(ARV_GC_STRING(node), v.toLatin1().data(), NULL);
+        } else if (type == "Float" && ARV_IS_GC_FLOAT(node)) {
+            // Ignore optional unit in fields.at(3), value is always field 2.
             arv_gc_float_set_value(ARV_GC_FLOAT(node), v.toDouble(), NULL);
-        } else if (type == "Boolean") {
+        } else if (type == "Boolean" && ARV_IS_GC_BOOLEAN(node)) {
             arv_gc_boolean_set_value(ARV_GC_BOOLEAN(node), v.toInt(), NULL);
-        } else if (type == "Integer") {
-            arv_gc_integer_set_value(ARV_GC_INTEGER(node), v.toLongLong(),
-                                     NULL);
+        } else if (type == "Integer" && ARV_IS_GC_INTEGER(node)) {
+            arv_gc_integer_set_value(ARV_GC_INTEGER(node), v.toLongLong(), NULL);
         }
     }
 
