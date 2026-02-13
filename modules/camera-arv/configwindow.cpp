@@ -45,6 +45,7 @@ using namespace QArv;
 ArvConfigWindow::ArvConfigWindow(const QString &modId, QWidget *parent)
     : QMainWindow(parent),
       m_modId(modId),
+      m_previewFpsCaptured(false),
       camera(nullptr),
       decoder(nullptr),
       playing(false),
@@ -504,6 +505,7 @@ void ArvConfigWindow::toggleVideoPreview(bool start)
 
             // we only record with a low framerate for the preview
             m_realFps = camera->getFPS();
+            m_previewFpsCaptured = true;
             camera->setFPS(10);
             pixelFormatSelector->setEnabled(false);
             camera->startAcquisition();
@@ -511,7 +513,11 @@ void ArvConfigWindow::toggleVideoPreview(bool start)
     } else if (!start && started) {
         started = false;
         camera->stopAcquisition();
-        camera->setFPS(m_realFps);
+
+        // External run teardown also lands here; only restore preview baseline if it was captured.
+        if (m_previewFpsCaptured)
+            camera->setFPS(m_realFps);
+        m_previewFpsCaptured = false;
         decoder.reset();
 
         setCameraInUse(false);

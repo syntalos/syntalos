@@ -129,6 +129,7 @@ private:
     QString m_modId;
     QMetaObject::Connection m_debugConnection;
     int m_realFps;
+    bool m_previewFpsCaptured;
     std::shared_ptr<QArvCamera> camera;
     std::shared_ptr<QArvDecoder> decoder;
 
