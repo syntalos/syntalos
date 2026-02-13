@@ -115,6 +115,7 @@ private slots:
     void previewFrameReceived(const QByteArray &frame, ArvBuffer *aravisFrame);
 
 private:
+    void configureEthernetCamera();
     void updateDecoder();
     void readROILimits();
     void closeEvent(QCloseEvent *event) override;

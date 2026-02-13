@@ -205,33 +205,12 @@ void ArvConfigWindow::readAllValues()
     hSpinbox->setValue(roi.height());
 }
 
-void ArvConfigWindow::on_cameraSelector_currentIndexChanged(int index)
+void ArvConfigWindow::configureEthernetCamera()
 {
-    auto camid = cameraSelector->itemData(index).value<QArvCameraId>();
-
-    if (camera) {
-        // Check if we somehow re-selected the same camera and still ended up in this event.
-        // If so, we do nothing.
-        if (camid == camera->getId())
-            return;
-    }
-
-    autoreadexposure->stop();
-    if (camera) {
-        toggleVideoPreview(false);
-        camera.reset();
-    }
-    try {
-        camera = std::make_shared<QArvCamera>(camid, m_modId);
-    } catch (const std::exception &e) {
-        logMessage() << "Failed to reference camera:" << e.what();
-        cameraSelector->setCurrentIndex(-1);
+    if (!camera->isGvDevice()) {
+        cameraMTUDescription->setText(tr("Not an ethernet camera."));
         return;
     }
-    connect(camera.get(), &QArvCamera::frameReady, this, &ArvConfigWindow::previewFrameReceived);
-    connect(camera.get(), &QArvCamera::bufferUnderrun, this, &ArvConfigWindow::bufferUnderrunOccured);
-
-    logMessage() << "Pixel formats:" << camera->getPixelFormats();
 
     auto ifaceIP = camera->getHostIP();
     QNetworkInterface cameraIface;
@@ -266,18 +245,46 @@ void ArvConfigWindow::on_cameraSelector_currentIndexChanged(int index)
         camera->setMTU(mtu);
     }
 
-    if (camera->getMTU() == 0)
-        cameraMTUDescription->setText(tr("Not an ethernet camera."));
-    else {
-        int mtu = camera->getMTU();
-        QString ifname = cameraIface.name();
-        QString description = tr("Camera is on interface %1,\nMTU set to %2.");
-        description = description.arg(ifname);
-        description = description.arg(QString::number(mtu));
-        if (mtu < 3000)
-            description += tr("\nConsider increasing the MTU!");
-        cameraMTUDescription->setText(description);
+    int mtu = camera->getMTU();
+    QString ifname = cameraIface.name();
+    if (ifname.isEmpty())
+        ifname = tr("<unknown>");
+    QString description = tr("Camera is on interface %1,\nMTU set to %2.").arg(ifname).arg(QString::number(mtu));
+    if (mtu < 3000)
+        description += tr("\nConsider increasing the MTU!");
+    cameraMTUDescription->setText(description);
+}
+
+void ArvConfigWindow::on_cameraSelector_currentIndexChanged(int index)
+{
+    auto camid = cameraSelector->itemData(index).value<QArvCameraId>();
+
+    if (camera) {
+        // Check if we somehow re-selected the same camera and still ended up in this event.
+        // If so, we do nothing.
+        if (camid == camera->getId())
+            return;
     }
+
+    autoreadexposure->stop();
+    if (camera) {
+        toggleVideoPreview(false);
+        camera.reset();
+    }
+    try {
+        camera = std::make_shared<QArvCamera>(camid, m_modId);
+    } catch (const std::exception &e) {
+        logMessage() << "Failed to reference camera:" << e.what();
+        cameraSelector->setCurrentIndex(-1);
+        return;
+    }
+    connect(camera.get(), &QArvCamera::frameReady, this, &ArvConfigWindow::previewFrameReceived);
+    connect(camera.get(), &QArvCamera::bufferUnderrun, this, &ArvConfigWindow::bufferUnderrunOccured);
+
+    logMessage() << "Pixel formats:" << camera->getPixelFormats().join(", ");
+
+    // configure GigEVision camera, if the device is an ethernet camera
+    configureEthernetCamera();
 
     camera->setAutoGain(false);
     camera->setAutoExposure(false);
@@ -555,6 +562,8 @@ void ArvConfigWindow::pickedROI(QRect roi)
 void ArvConfigWindow::updateBandwidthEstimation()
 {
     if (!camera)
+        return;
+    if (!camera->isGvDevice())
         return;
 
     int bw = camera->getEstimatedBW();

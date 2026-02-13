@@ -293,6 +293,11 @@ QPair<double, double> QArvCamera::getFPSBounds()
     return qMakePair(min, max);
 }
 
+bool QArvCamera::isGvDevice() const
+{
+    return ARV_IS_GV_DEVICE(device);
+}
+
 int QArvCamera::getMTU() {
     return arv_device_get_integer_feature_value(device, "GevSCPSPacketSize", nullptr);
 }

@@ -197,6 +197,11 @@ public:
     void setFrameQueueSize(uint size = 30);
     /**@}*/
 
+    /**
+     * \return true if the camera is a GigEVision ethernet camera.
+     */
+    bool isGvDevice() const;
+
     /*! \name Manipulate network parameters of an ethernet camera
      * MTU corresponds to "GevSCPSPacketSize", which should be set to the
      * MTU of the network interface. getHostIP() can be used to detect the
