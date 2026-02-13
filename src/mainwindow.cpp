@@ -74,7 +74,8 @@ static const QString CONFIG_FILE_FORMAT_VERSION = QStringLiteral("1");
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent),
-      ui(new Ui::MainWindow)
+      ui(new Ui::MainWindow),
+      m_configLoadInProgress(false)
 {
     // Load settings and set icon theme explicitly
     // (otherwise the application may look ugly or incomplete on GNOME)
@@ -327,6 +328,10 @@ MainWindow::MainWindow(QWidget *parent)
         setConfigModifyAllowed(false);
     });
     connect(m_engine, &Engine::moduleInitDone, this, [this]() {
+        // we only allow editing again if this was triggered by the user adding a module,
+        // and not if this was part of the whole loading chain while we load an entire board
+        if (m_configLoadInProgress)
+            return;
         hideBusyIndicator();
         setConfigModifyAllowed(true);
     });
@@ -688,8 +693,10 @@ bool MainWindow::loadConfiguration(const QString &fileName)
     // prevent any start/stop/modify action while loading the board
     setConfigModifyAllowed(false);
     showBusyIndicatorProcessing();
+    m_configLoadInProgress = true;
     auto uiInhibitCleanup = qScopeGuard([this]() {
         // we should be permitted to run and modify things
+        m_configLoadInProgress = false;
         hideBusyIndicator();
         setConfigModifyAllowed(true);
     });

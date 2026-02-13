@@ -140,6 +140,7 @@ private:
     Engine *m_engine;
     QString m_currentProjectFname;
     bool m_isIntervalRun;
+    bool m_configLoadInProgress;
 
     QLabel *m_statusBarLabel;
     QSvgWidget *m_busyIndicator;
