@@ -31,6 +31,7 @@ fs     = import('fs')
 qt     = import('qt6')
 pkgc   = import('pkgconfig')
 python = import('python').find_installation('python3', modules: ['numpy'])
+cmake  = import('cmake')
 
 #
 # Feature tests
@@ -256,6 +257,83 @@ gstreamer_video_dep = dependency('gstreamer-video-1.0')
 python_dep = dependency('python3')
 python_embed_dep = dependency('python3-embed')
 pybind11_dep = dependency('pybind11')
+
+# handle iceoryx2 (build it from source or find a system version)
+iox2_min_ver = '0.8.1'
+iox2_dep = dependency('iceoryx2-cxx', version: f'>= @iox2_min_ver@', required: false)
+if not iox2_dep.found()
+    # Unfortunately we can't use the Meson cmake integration, since that
+    # misses all Rust steps and make the build fail.
+    # So we hack around it and call cmake directly instead to build
+    # the dependency at configure-time. Ewww...
+
+    iox2_src = source_root / 'contrib' / 'vendor' / 'iceoryx2'
+    iox2_bld = meson.current_build_dir() / 'iox2-build'
+    iox2_pre = meson.current_build_dir() / 'iox2-target'
+    cmake_exe = find_program('cmake')
+
+    if not fs.is_dir(iox2_src)
+        message('Fetching iceoryx2 source via git...')
+        git_exe = find_program('git')
+        fetch_result = run_command(
+            git_exe, 'clone', '--depth=1', '-b', f'v@iox2_min_ver@',
+            'https://github.com/eclipse-iceoryx/iceoryx2.git',
+            iox2_src,
+            check: true,
+        )
+    endif
+
+    # build and install iceoryx2 at configure time if not already done
+    iox2_stamp = iox2_pre / 'lib' / 'cmake' / 'iceoryx2-cxx'
+    if not fs.is_dir(iox2_stamp)
+        message('Building iceoryx2 from source (this may take a while)...')
+
+        cmake_result = run_command(
+            cmake_exe,
+            '-S', iox2_src,
+            '-B', iox2_bld,
+            '-G', 'Ninja',
+            '-DBUILD_CXX_BINDING=ON',
+            '-DBUILD_TESTING=OFF',
+            '-DBUILD_EXAMPLES=OFF',
+            '-DIOX2_FEATURE_LIBC_PLATFORM=ON',
+            '-DCMAKE_INSTALL_PREFIX=' + iox2_pre,
+            check: false,
+        )
+        if cmake_result.returncode() != 0
+            error('iceoryx2 CMake configure failed:\n' + cmake_result.stderr())
+        endif
+
+        build_result = run_command(
+            cmake_exe, '--build', iox2_bld,
+            check: false,
+        )
+        if build_result.returncode() != 0
+            error('iceoryx2 build failed:\n' + build_result.stderr())
+        endif
+
+        install_result = run_command(
+            cmake_exe, '--install', iox2_bld,
+            check: false,
+        )
+        if install_result.returncode() != 0
+            error('iceoryx2 install failed:\n' + install_result.stderr())
+        endif
+    else
+        message('Using previously built iceoryx2')
+    endif
+
+    # Somehow, Meson's cmake integration fails to find a package installed this way, so we will
+    # do this step manually.
+    iox2_cxx_lib = cpp_compiler.find_library('iceoryx2_cxx',
+                                              dirs: iox2_pre / 'lib')
+    iox2_ffi_lib = cpp_compiler.find_library('iceoryx2_ffi_c',
+                                              dirs: iox2_pre / 'lib')
+    iox2_dep = declare_dependency(
+        dependencies: [iox2_cxx_lib, iox2_ffi_lib],
+        include_directories: include_directories('iox2-target' / 'include', is_system: true)
+    )
+endif
 
 # check for OpenCL headers
 cpp_compiler.has_header('CL/cl.h', required: true)
