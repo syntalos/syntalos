@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2025 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -27,7 +27,7 @@
 
 const QString aboutDlgCopyInfo = QStringLiteral(
     "<html>"
-    "© 2016-2025 Matthias Klumpp"
+    "© 2016-2026 Matthias Klumpp"
     "<p>Syntalos is free software: you can redistribute it and/or modify "
     "it under the terms of the GNU General Public License (GPL-3.0+) and "
     "GNU Lesser General Public License (LGPL-3.0+) as published by the Free Software Foundation, "
