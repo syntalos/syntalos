@@ -1,3 +1,42 @@
+Version 2.1.2
+-------------
+Released: 2026-02-14
+
+Features:
+ * datactl: Stop using Qt in any streamed data type, reduce memory copies
+
+Bugfixes:
+ * Adjust for new component-ID of USBView for on-demand installation
+ * fabric: Rely on our own terminal emulator instead of spawning an external one
+ * debian: Explicitly add python-virtualenv as runtime dependency
+ * debian: Add runtime dependency on pyqt6
+ * Set identical version information everywhere
+ * crashreport: Find coredumps more reliably
+ * cpp-wbench/upy-wbench/pyscript: Set editor language mode instead of highlight mode
+ * ui: Don't unlock GUI in module-init-done when part of a loading sequence
+ * camera-arv: Fix an unhandled corner case in ROIcomboBox
+ * camera-arv: Guard against GUI crashes if camera disappears / was never found
+ * camera-arv: Log a better warning when loading incompatible settings
+ * camera-arv: Never serialize RO feature nodes into settings data
+ * camera-arv: Do not needlessly reload the same camera on GUI actions
+ * camera-arv: Only quit running *user*-initiated stream when closing settings
+ * camera-arv: Ensure framerate bounds are reflected in the GUI
+ * camera-arv: Handle empty/null camera serials in save data
+ * camera-arv: Explicitly & separately store gain/exposure
+ * camera-arv: When applying a ROI, read back the ROI the camera actually used
+ * camera-arv: Ensure slider float values are clamped to target range
+ * camera-arv: Do not load old or broken config data
+ * camera-arv: Avoid MTU warnings for non-GigEVision cameras
+ * camera-arv: Ensure the realFps variable is always set to the correct value
+ * camera-arv: (De)serialize settings consistently
+ * camera-arv: Save floats with maximum precision
+
+Miscellaneous:
+ * Use a scope guard to prevent UI interactions on save/load
+
+Contributors:
+ Matthias Klumpp, Victor Negîrneac
+
 Version 2.1.1
 -------------
 Released: 2025-09-20
