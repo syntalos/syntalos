@@ -387,6 +387,9 @@ Engine::~Engine()
  */
 static bool launchProgramNC3Fallback(const QString &exePath, int *pidfd_out)
 {
+    // this may allocate, so we do it before vfork to avoid memory allocation in the child process
+    const auto exePathBytes = exePath.toLocal8Bit();
+
     pid_t pid = vfork();
     if (pid < 0) {
         perror("vfork");
@@ -395,8 +398,9 @@ static bool launchProgramNC3Fallback(const QString &exePath, int *pidfd_out)
 
     if (pid == 0) {
         // child process
-        char *const argv[] = {const_cast<char *>(qPrintable(exePath)), nullptr};
-        execvp(qPrintable(exePath), argv);
+        char *const argv[] = {const_cast<char *>(exePathBytes.data()), nullptr};
+        extern char **environ;
+        execve(argv[0], argv, environ);
         perror("execvp");
         _exit(EXIT_FAILURE);
     }
