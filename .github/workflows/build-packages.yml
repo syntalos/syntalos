@@ -1,18 +1,44 @@
-name: Release Builds
+name: Package Builds
 
 on:
   push:
     tags:
       - 'v*'
+  workflow_call:
   workflow_dispatch:
   schedule:
     - cron: '0 10 * * 1'
 
 jobs:
+  get-version:
+    name: Determine revision number
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      version-numeric: ${{ steps.version.outputs.version-numeric }}
+
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+
+    - name: Determine revision number
+      id: version
+      run: |
+        git_commit=$(git rev-parse --short HEAD)
+        git_current_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo v2.0.0)
+        git_commit_no=$(git rev-list --count "${git_current_tag}..HEAD" 2>/dev/null)
+        SY_VERSION=${git_current_tag#v}; SY_VERSION=${SY_VERSION//-/.}
+        if [ "$git_commit_no" -gt 0 ]; then
+            SY_VERSION+="+git$git_commit_no"
+        fi
+        echo "version=${SY_VERSION}" >> $GITHUB_OUTPUT
+
 
   package-debian:
     name: Debian Stable
     runs-on: ubuntu-latest
+    needs: get-version
 
     steps:
     - uses: actions/checkout@v6
@@ -31,7 +57,7 @@ jobs:
     - name: Upload Debian package artifact
       uses: actions/upload-artifact@v6
       with:
-        name: Debian Package
+        name: syntalos_${{ needs.get-version.outputs.version }}_debian13_amd64
         path: |
           result/*.deb
           result/*.build*
@@ -40,6 +66,7 @@ jobs:
   package-ubuntu:
     name: Ubuntu LTS
     runs-on: ubuntu-latest
+    needs: get-version
 
     steps:
     - uses: actions/checkout@v6
@@ -58,7 +85,7 @@ jobs:
     - name: Upload Ubuntu package artifact
       uses: actions/upload-artifact@v6
       with:
-        name: Ubuntu LTS Package
+        name: syntalos_${{ needs.get-version.outputs.version }}_ubuntu26.04_amd64
         path: |
           result/*.deb
           result/*.build*
