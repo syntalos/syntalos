@@ -133,13 +133,10 @@ if pdoc_exe.found()
     pmd_env.set('SYNTALOS_MODULE_ID', 'build_docgen')
     pmd_env.set('QT_QPA_PLATFORM', 'offscreen')
 
-    pmd_command = [pyworker_exe, '--doc', '@OUTPUT0@']
-
-    # refresh documentation
     pysy_mlink_doc_fname = source_root / 'docs' / 'pysy_mlink_api_embed.html'
     custom_target('pysy-mlink-mkdoc',
         build_by_default: true,
-        command: pmd_command,
+        command: [pyworker_exe, '--doc', '@OUTPUT0@'],
         depends: [pyworker_exe, pysy_mlink_mod],
         output: 'pysy_mlink_api_embed.html',
         env: pmd_env,
