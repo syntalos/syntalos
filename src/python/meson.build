@@ -131,19 +131,9 @@ if pdoc_exe.found()
     pmd_env = environment()
     pmd_env.set('LSAN_OPTIONS', 'suppressions=' + join_paths(source_root, 'tests', 'lsan-suppr.txt'))
     pmd_env.set('SYNTALOS_MODULE_ID', 'build_docgen')
+    pmd_env.set('QT_QPA_PLATFORM', 'offscreen')
 
-    # If we have Xvfb, use it - pyworker is a GUI application,
-    # and this ensures it will complete even in a headless environment.
-    xvfb_exe = find_program('Xvfb', required: false)
-    xdpyinfo_exe = find_program('xdpyinfo', required: false)
-    if xvfb_exe.found() and xdpyinfo_exe.found()
-        xvfb_run_sh = files(source_root / 'tools' / 'xvfb-run.sh')
-        pmd_command = [xvfb_run_sh,
-                       '-a', '-s', '-screen 0 1024x768x24 +extension GLX',
-                       pyworker_exe.full_path(), '--doc', '@OUTPUT0@']
-    else
-        pmd_command = [pyworker_exe, '--doc', '@OUTPUT0@']
-    endif
+    pmd_command = [pyworker_exe, '--doc', '@OUTPUT0@']
 
     # refresh documentation
     pysy_mlink_doc_fname = source_root / 'docs' / 'pysy_mlink_api_embed.html'
