@@ -137,11 +137,10 @@ if pdoc_exe.found()
     xvfb_exe = find_program('Xvfb', required: false)
     xdpyinfo_exe = find_program('xdpyinfo', required: false)
     if xvfb_exe.found() and xdpyinfo_exe.found()
-        run_with_xvfb_sh = files(source_root / 'tools' / 'run-with-xvfb.sh')
-        pmd_command = [run_with_xvfb_sh,
-                      '--screen', '1024x768x24',
-                      '--',
-                      pyworker_exe.full_path(), '--doc', '@OUTPUT0@']
+        xvfb_run_sh = files(source_root / 'tools' / 'xvfb-run.sh')
+        pmd_command = [xvfb_run_sh,
+                       '-a', '-s', '-screen 0 1024x768x24 +extension GLX',
+                       pyworker_exe.full_path(), '--doc', '@OUTPUT0@']
     else
         pmd_command = [pyworker_exe, '--doc', '@OUTPUT0@']
     endif
