@@ -128,12 +128,19 @@ pdoc_exe = find_program('pdoc', required: false)
 if pdoc_exe.found()
     # the pdoc Python module is probably there, so we can try to refresh the documentation
 
-    # If we have xvfb-run, use it - pyworker is a GUI application,
+    pmd_env = environment()
+    pmd_env.set('LSAN_OPTIONS', 'suppressions=' + join_paths(source_root, 'tests', 'lsan-suppr.txt'))
+    pmd_env.set('SYNTALOS_MODULE_ID', 'build_docgen')
+
+    # If we have Xvfb, use it - pyworker is a GUI application,
     # and this ensures it will complete even in a headless environment.
-    xvfbrun_exe = find_program('xvfb-run', required: false)
-    if xvfbrun_exe.found()
-        pmd_command = [xvfbrun_exe,
-                      '-a', '-s', '-screen 0 1024x768x24 +extension GLX',
+    xvfb_exe = find_program('Xvfb', required: false)
+    xdpyinfo_exe = find_program('xdpyinfo', required: false)
+    if xvfb_exe.found() and xdpyinfo_exe.found()
+        run_with_xvfb_sh = files(source_root / 'tools' / 'run-with-xvfb.sh')
+        pmd_command = [run_with_xvfb_sh,
+                      '--screen', '1024x768x24',
+                      '--',
                       pyworker_exe.full_path(), '--doc', '@OUTPUT0@']
     else
         pmd_command = [pyworker_exe, '--doc', '@OUTPUT0@']
@@ -146,8 +153,6 @@ if pdoc_exe.found()
         command: pmd_command,
         depends: [pyworker_exe, pysy_mlink_mod],
         output: 'pysy_mlink_api_embed.html',
-        env: ['LSAN_OPTIONS=suppressions=' +
-                join_paths(source_root, 'tests', 'lsan-suppr.txt'),
-              'SYNTALOS_MODULE_ID=build_docgen']
+        env: pmd_env,
     )
 endif
