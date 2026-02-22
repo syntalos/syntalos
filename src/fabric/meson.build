@@ -1,6 +1,8 @@
 # Syntalos Shared and Binding Code
 
 syntalos_fabric_src = [
+    'cvutils.h',
+    'cvutils.cpp',
     'elidedlabel.h',
     'elidedlabel.cpp',
     'executils.h',

@@ -21,9 +21,14 @@
 
 #include <QFormLayout>
 #include <QLabel>
+#include <QPushButton>
 #include <QSpinBox>
 #include <QTimer>
+#include <KPixmapRegionSelectorDialog>
+#include <KPixmapRegionSelectorWidget>
 #include <opencv2/opencv.hpp>
+
+#include "fabric/cvutils.h"
 
 VideoTransform::VideoTransform()
     : QObject()
@@ -45,6 +50,8 @@ bool VideoTransform::allowOnlineModify() const
 {
     return false;
 }
+
+void VideoTransform::setUiDisplayed(bool) {}
 
 void VideoTransform::start() {}
 
@@ -87,6 +94,7 @@ void CropTransform::createSettingsUi(QWidget *parent)
     m_sizeInfoLabel = new QLabel(parent);
     connect(m_sizeInfoLabel, &QWidget::destroyed, [this]() {
         m_sizeInfoLabel = nullptr;
+        m_btnSelectRegion = nullptr;
         m_sbWidth = nullptr;
         m_sbHeight = nullptr;
         m_sbX = nullptr;
@@ -158,7 +166,47 @@ void CropTransform::createSettingsUi(QWidget *parent)
     formLayout->addRow(QStringLiteral("Width:"), m_sbWidth);
     formLayout->addRow(QStringLiteral("Start Y:"), m_sbY);
     formLayout->addRow(QStringLiteral("Height:"), m_sbHeight);
+    m_btnSelectRegion = new QPushButton(QIcon::fromTheme("transform-crop"), QStringLiteral("Select Region…"), parent);
+    m_btnSelectRegion->setEnabled(m_hasCachedFrame);
+    formLayout->addRow(m_btnSelectRegion);
     formLayout->addWidget(m_sizeInfoLabel);
+
+    connect(m_btnSelectRegion, &QPushButton::clicked, [this, parent]() {
+        std::optional<QPixmap> pixmap;
+        {
+            const std::lock_guard<std::mutex> lock(m_mutex);
+            if (m_cachedFrame.empty())
+                return;
+            pixmap = cvMatToQPixmap(m_cachedFrame);
+        }
+        if (!pixmap.has_value())
+            return;
+
+        auto dlg = new KPixmapRegionSelectorDialog(parent);
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
+        dlg->pixmapRegionSelectorWidget()->setPixmap(pixmap.value());
+
+        // Pre-select the current ROI
+        if (m_roi.width > 0 && m_roi.height > 0)
+            dlg->pixmapRegionSelectorWidget()->setSelectedRegion(QRect(m_roi.x, m_roi.y, m_roi.width, m_roi.height));
+
+        connect(dlg, &QDialog::accepted, [this, dlg]() {
+            const QRect selected = dlg->pixmapRegionSelectorWidget()->unzoomedSelectedRegion();
+            if (selected.isValid()) {
+                const std::lock_guard<std::mutex> lock(m_mutex);
+                m_roi.x = selected.x();
+                m_roi.y = selected.y();
+                m_roi.width = selected.width();
+                m_roi.height = selected.height();
+                m_onlineModified = true;
+                checkAndUpdateRoi();
+            }
+        });
+
+        dlg->open();
+    });
+    m_btnSelectRegion->setEnabled(m_hasCachedFrame);
+
     parent->setLayout(formLayout);
 
     // Update initial values and safe ranges
@@ -200,6 +248,20 @@ void CropTransform::start()
 
 void CropTransform::process(cv::Mat &image)
 {
+    // Cache a copy of the incoming frame for the region selector dialog.
+    // Always grab the very first frame so the button becomes enabled immediately,
+    // then only refresh when the settings widget is actually visible (cheap guard
+    // that avoids the copy cost during normal background operation).
+    if (!m_hasCachedFrame || (m_settingsVisible && m_frameCacheCounter++ >= 300)) {
+        m_frameCacheCounter = 0;
+        {
+            const std::lock_guard<std::mutex> lock(m_mutex);
+            image.copyTo(m_cachedFrame);
+        }
+
+        m_hasCachedFrame = true;
+    }
+
     // handle the simple case: no online modifications
     if (!m_onlineModified) {
         // Create a proper copy of the ROI to avoid sharing data with the original image
@@ -268,6 +330,13 @@ bool CropTransform::needsIndependentCopy() const
 {
     // we always have to create a data copy as part of the cropping process (thanks, OpenCV!)
     return false;
+}
+
+void CropTransform::setUiDisplayed(bool visible)
+{
+    m_settingsVisible = visible;
+    if (m_btnSelectRegion != nullptr)
+        m_btnSelectRegion->setEnabled(m_hasCachedFrame);
 }
 
 void CropTransform::checkAndUpdateRoi()

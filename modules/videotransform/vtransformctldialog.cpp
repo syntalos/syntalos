@@ -90,6 +90,20 @@ void VTransformCtlDialog::loadSettings(const QVariantHash &settings)
     updateUi();
 }
 
+void VTransformCtlDialog::showEvent(QShowEvent *event)
+{
+    QDialog::showEvent(event);
+    for (const auto &tf : m_vtfListModel->toList())
+        tf->setUiDisplayed(true);
+}
+
+void VTransformCtlDialog::hideEvent(QHideEvent *event)
+{
+    QDialog::hideEvent(event);
+    for (const auto &tf : m_vtfListModel->toList())
+        tf->setUiDisplayed(false);
+}
+
 void VTransformCtlDialog::on_btnAdd_clicked()
 {
     bool ok;

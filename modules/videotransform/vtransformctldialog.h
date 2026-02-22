@@ -51,6 +51,10 @@ private slots:
 
     void on_activeTFListView_activated(const QModelIndex &index);
 
+protected:
+    void showEvent(QShowEvent *event) override;
+    void hideEvent(QHideEvent *event) override;
+
 private:
     void transformListViewSelectionChanged(const QModelIndex &index);
 

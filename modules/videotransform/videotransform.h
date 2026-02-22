@@ -24,6 +24,7 @@
 #include <QWidget>
 
 class QLabel;
+class QPushButton;
 class QSpinBox;
 
 /**
@@ -45,6 +46,8 @@ public:
     virtual QSize resultSize();
 
     [[nodiscard]] virtual bool allowOnlineModify() const;
+
+    virtual void setUiDisplayed(bool visible);
 
     virtual void start();
     virtual void process(cv::Mat &image) = 0;
@@ -91,11 +94,13 @@ public:
     void fromVariantHash(const QVariantHash &settings) override;
 
     bool needsIndependentCopy() const override;
+    void setUiDisplayed(bool visible) override;
 
 private:
     void checkAndUpdateRoi();
 
     QLabel *m_sizeInfoLabel{nullptr};
+    QPushButton *m_btnSelectRegion{nullptr};
     QSpinBox *m_sbWidth{nullptr};
     QSpinBox *m_sbHeight{nullptr};
     QSpinBox *m_sbX{nullptr};
@@ -108,6 +113,11 @@ private:
     cv::Rect m_roi{0, 0, 0, 0};
     cv::Rect m_activeRoi{0, 0, 0, 0};
     std::atomic_bool m_onlineModified{false};
+
+    cv::Mat m_cachedFrame;
+    std::atomic_bool m_hasCachedFrame{false};
+    std::atomic_bool m_settingsVisible{false};
+    int m_frameCacheCounter{0};
 };
 
 /**
