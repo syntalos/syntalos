@@ -1786,6 +1786,26 @@ bool Engine::runInternal(const QString &exportDirPath)
         mod->setState(ModuleState::DORMANT);
     }
 
+    // Disabled or dormant modules do not actively process input, so their
+    // subscription queues must be suspended to avoid unbounded buffering.
+    std::vector<std::shared_ptr<VariantStreamSubscription>> suspendedInputSubscriptions;
+    auto suspendInputsForModule = [&suspendedInputSubscriptions](AbstractModule *mod) {
+        for (const auto &iport : mod->inPorts()) {
+            if (!iport->hasSubscription())
+                continue;
+            auto sub = iport->subscriptionVar();
+            sub->suspend();
+            suspendedInputSubscriptions.push_back(std::move(sub));
+        }
+    };
+
+    for (auto &mod : orderedActiveModules) {
+        if (mod->state() == ModuleState::DORMANT)
+            suspendInputsForModule(mod);
+    }
+    for (auto &mod : inactiveModules)
+        suspendInputsForModule(mod);
+
     // exporter for streams so out-of-process mlink modules can access them
     emitStatusMessage(QStringLiteral("Exporting streams for external modules..."));
     auto streamExporter = std::make_unique<StreamExporter>();
@@ -2260,6 +2280,13 @@ bool Engine::runInternal(const QString &exportDirPath)
         qCDebug(logEngine).noquote().nospace()
             << "Manifest and additional data saved in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
     }
+
+    // Restore subscriptions after the run finished, keeping the queue empty.
+    for (auto &sub : suspendedInputSubscriptions) {
+        sub->clearPending();
+        sub->resume();
+    }
+    suspendedInputSubscriptions.clear();
 
     // mark inactive modules as idle again
     for (auto &mod : inactiveModules) {
