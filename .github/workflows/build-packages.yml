@@ -55,7 +55,7 @@ jobs:
             ./tests/ci/auto-build-deb.sh
 
     - name: Upload Debian package artifact
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: syntalos_${{ needs.get-version.outputs.version }}_debian13_amd64
         path: |
@@ -83,7 +83,7 @@ jobs:
             ./tests/ci/auto-build-deb.sh
 
     - name: Upload Ubuntu package artifact
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: syntalos_${{ needs.get-version.outputs.version }}_ubuntu26.04_amd64
         path: |
