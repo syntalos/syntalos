@@ -1578,6 +1578,36 @@ bool Engine::finalizeExperimentMetadata(
 }
 
 /**
+ * Ensure all module input ports are resumed, but suspend input to input
+ * ports of any disabled modules if @param suspended is set to true.
+ *
+ * @param suspended Whether to suspend input to disabled modules.
+ */
+void Engine::setInactiveModuleInputPortsSuspended(bool suspended)
+{
+    for (auto &mod : d->presentModules) {
+        for (const auto &iport : mod->inPorts()) {
+            if (!iport->hasSubscription())
+                continue;
+            auto sub = iport->subscriptionVar();
+
+            // make sure that the input port is active, to ensure *only* inactive modules have
+            // their inputs suspended (this sets all modules to a known state)
+            sub->clearPending();
+            sub->resume();
+
+            // if we are only activating inputs, not suspending, we can stop here
+            if (!suspended)
+                continue;
+
+            // suspend inputs on dormant or disabled modules
+            if (!mod->modifiers().testFlag(ModuleModifier::ENABLED) || mod->state() == ModuleState::DORMANT)
+                sub->suspend();
+        }
+    }
+}
+
+/**
  * @brief Actually run an experiment module board
  * @return true on succees
  *
@@ -1785,6 +1815,9 @@ bool Engine::runInternal(const QString &exportDirPath)
     for (auto &mod : inactiveModules) {
         mod->setState(ModuleState::DORMANT);
     }
+
+    // suspend input to all inactive modules
+    setInactiveModuleInputPortsSuspended(true);
 
     // exporter for streams so out-of-process mlink modules can access them
     emitStatusMessage(QStringLiteral("Exporting streams for external modules..."));
@@ -2026,7 +2059,7 @@ bool Engine::runInternal(const QString &exportDirPath)
         emit runStarted();
 
         emitStatusMessage(QStringLiteral("Running..."));
-        QCoreApplication::processEvents();
+        qApp->processEvents();
 
         // apply main thread core affinity now
         // (this must not be done earlier, as otherwise external module threads may inherit
@@ -2260,6 +2293,9 @@ bool Engine::runInternal(const QString &exportDirPath)
         qCDebug(logEngine).noquote().nospace()
             << "Manifest and additional data saved in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
     }
+
+    // unsuspend input ports on modules that were inactive this run
+    setInactiveModuleInputPortsSuspended(false);
 
     // mark inactive modules as idle again
     for (auto &mod : inactiveModules) {
