@@ -1,0 +1,36 @@
+
+mlink:
+- changed-files:
+  - any-glob-to-any-file: src/mlink/**
+
+fabric:
+- changed-files:
+  - any-glob-to-any-file: src/fabric/**
+
+python:
+- changed-files:
+  - any-glob-to-any-file: src/python/**
+
+datactl:
+- changed-files:
+  - any-glob-to-any-file: src/datactl/**
+
+core:
+- changed-files:
+  - any-glob-to-any-file: src/**
+
+documentation:
+- changed-files:
+  - any-glob-to-any-file: docs/**
+
+tests:
+- changed-files:
+  - any-glob-to-any-file: tests/**
+
+tools:
+- changed-files:
+  - any-glob-to-any-file: tools/**
+
+modules:
+- changed-files:
+  - any-glob-to-any-file: modules/**
