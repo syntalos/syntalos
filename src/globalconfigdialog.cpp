@@ -248,7 +248,7 @@ void GlobalConfigDialog::on_sbPool1ChunkSize_editingFinished()
 void GlobalConfigDialog::on_sbPool2ChunkCount_editingFinished()
 {
     IPCMemPoolInfo memPoolInfo{
-        static_cast<uint>(ui->sbPool1ChunkSize->value()), static_cast<uint>(ui->sbPool1ChunkCount->value())};
+        static_cast<uint>(ui->sbPool2ChunkSize->value()), static_cast<uint>(ui->sbPool2ChunkCount->value())};
     m_ipcc->setMemPool2Info(memPoolInfo);
     checkMemPoolValuesValid();
 }
