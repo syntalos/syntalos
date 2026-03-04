@@ -512,7 +512,6 @@ VideoWriter::~VideoWriter()
 static AVFrame *vw_alloc_frame(int pix_fmt, int width, int height, bool allocate)
 {
     AVFrame *aframe;
-    uint8_t *aframe_buf;
 
     aframe = av_frame_alloc();
     if (!aframe)
@@ -522,15 +521,11 @@ static AVFrame *vw_alloc_frame(int pix_fmt, int width, int height, bool allocate
     aframe->width = width;
     aframe->height = height;
 
-    auto size = av_image_get_buffer_size(static_cast<AVPixelFormat>(pix_fmt), width, height, 1);
     if (allocate) {
-        aframe_buf = static_cast<uint8_t *>(malloc(static_cast<size_t>(size)));
-        if (!aframe_buf) {
-            av_free(aframe);
+        if (av_frame_get_buffer(aframe, 32) < 0) {
+            av_frame_free(&aframe);
             return nullptr;
         }
-        av_image_fill_arrays(
-            aframe->data, aframe->linesize, aframe_buf, static_cast<AVPixelFormat>(pix_fmt), width, height, 1);
     }
 
     return aframe;
