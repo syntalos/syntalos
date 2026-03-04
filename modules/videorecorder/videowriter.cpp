@@ -997,6 +997,7 @@ void VideoWriter::finalizeInternal(bool writeTrailer)
 
                 av_packet_unref(pkt);
             }
+            av_packet_free(&pkt);
         }
 
         // write trailer
