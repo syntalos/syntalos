@@ -973,29 +973,31 @@ void VideoWriter::finalizeInternal(bool writeTrailer)
             AVPacket *pkt = av_packet_alloc();
             if (!pkt)
                 qCCritical(logVRecorder).noquote() << "Unable to allocate packet for flushing.";
+            if (pkt != nullptr) {
+                while (true) {
+                    auto ret = avcodec_receive_packet(d->cctx, pkt);
+                    if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
+                        break;
+                    } else if (ret < 0) {
+                        qCCritical(logVRecorder).noquote()
+                            << "Unable to receive packet during flush:" << averrorToString(ret);
+                        break;
+                    }
 
-            while (true) {
-                auto ret = avcodec_receive_packet(d->cctx, pkt);
-                if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
-                    break;
-                } else if (ret < 0) {
-                    qCCritical(logVRecorder).noquote()
-                        << "Unable to receive packet during flush:" << averrorToString(ret);
-                    break;
+                    // rescale packet timestamp
+                    pkt->duration = 1;
+                    av_packet_rescale_ts(pkt, d->cctx->time_base, d->vstrm->time_base);
+
+                    // write packet
+                    ret = av_write_frame(d->octx, pkt);
+                    if (ret < 0) {
+                        qCCritical(logVRecorder).noquote()
+                            << "Unable to write frame during flush:" << averrorToString(ret);
+                        break;
+                    }
+
+                    av_packet_unref(pkt);
                 }
-
-                // rescale packet timestamp
-                pkt->duration = 1;
-                av_packet_rescale_ts(pkt, d->cctx->time_base, d->vstrm->time_base);
-
-                // write packet
-                ret = av_write_frame(d->octx, pkt);
-                if (ret < 0) {
-                    qCCritical(logVRecorder).noquote() << "Unable to write frame during flush:" << averrorToString(ret);
-                    break;
-                }
-
-                av_packet_unref(pkt);
             }
             av_packet_free(&pkt);
         }
