@@ -1025,7 +1025,7 @@ void VideoWriter::finalizeInternal(bool writeTrailer)
     if (d->hwDevCtx != nullptr)
         av_buffer_unref(&d->hwDevCtx);
     if (d->hwFrameCtx != nullptr)
-        av_buffer_unref(&d->hwDevCtx);
+        av_buffer_unref(&d->hwFrameCtx);
 
     if (d->cctx != nullptr) {
         avcodec_free_context(&d->cctx);
