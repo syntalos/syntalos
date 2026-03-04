@@ -878,9 +878,9 @@ void VideoWriter::initializeInternal()
 
     // open video encoder
     ret = avcodec_open2(d->cctx, vcodec, &codecopts);
+    av_dict_free(&codecopts);
     if (ret < 0) {
         finalizeInternal(false);
-        av_dict_free(&codecopts);
         throw std::runtime_error(
             QStringLiteral("Failed to open video encoder with the current parameters: %1").arg(ret).toStdString());
     }
