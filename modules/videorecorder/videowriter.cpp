@@ -569,10 +569,13 @@ void VideoWriter::initializeHWAccell()
     ctx->sw_format = AV_PIX_FMT_NV12;
 
     if ((ret = av_hwframe_ctx_init(d->hwFrameCtx))) {
+        av_hwframe_constraints_free(&cst);
         av_buffer_unref(&d->hwDevCtx);
         av_buffer_unref(&d->hwFrameCtx);
         throw std::runtime_error(QStringLiteral("Failed to initialize hwframe context: %1").arg(ret).toStdString());
     }
+
+    av_hwframe_constraints_free(&cst);
 }
 
 void VideoWriter::initializeInternal()
