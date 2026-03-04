@@ -1034,6 +1034,10 @@ void VideoWriter::finalizeInternal(bool writeTrailer)
         avcodec_free_context(&d->cctx);
         d->cctx = nullptr;
     }
+    if (d->swsctx != nullptr) {
+        sws_freeContext(d->swsctx);
+        d->swsctx = nullptr;
+    }
     if (d->octx != nullptr) {
         if (d->octx->pb != nullptr)
             avio_close(d->octx->pb);
