@@ -778,7 +778,7 @@ void SyntalosLink::processNotification(const iox::popo::NotificationInfo *notifi
 
                     response->success = true;
                     response.send().or_else([&](auto &error) {
-                        std::cerr << "Could not respond to Start! Error: " << error << std::endl;
+                        std::cerr << "Could not respond to Shutdown! Error: " << error << std::endl;
                     });
                 })
                 .or_else([&](auto &error) {
