@@ -188,6 +188,8 @@ void TaskManager::obtainSleepShutdownIdleInhibitor()
 
 void TaskManager::releaseSleepShutdownIdleInhibitor()
 {
-    if (m_idleInhibitFd != -1)
+    if (m_idleInhibitFd != -1) {
         ::close(m_idleInhibitFd);
+        m_idleInhibitFd = -1;
+    }
 }
