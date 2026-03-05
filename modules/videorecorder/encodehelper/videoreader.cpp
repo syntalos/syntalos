@@ -186,6 +186,10 @@ std::optional<std::pair<cv::Mat, int64_t>> VideoReader::readFrame()
                     av_packet_unref(packet);
                     av_frame_free(&frame);
                     av_packet_free(&packet);
+                    if (!img.has_value()) {
+                        d->lastError = "Failed to convert frame to OpenCV image.";
+                        return std::nullopt;
+                    }
                     return std::make_pair(img.value(), d->frameIndex++);
                 }
             }
