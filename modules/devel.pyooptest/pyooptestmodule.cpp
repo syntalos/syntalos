@@ -18,11 +18,13 @@
  */
 
 #include "pyooptestmodule.h"
+
+#include <QMessageBox>
+#include <filesystem>
+
 #include "mlinkmodule.h"
 #include "datactl/frametype.h"
 #include "globalconfig.h"
-
-#include <QMessageBox>
 
 SYNTALOS_MODULE(PyOOPTestModule)
 
@@ -37,16 +39,21 @@ public:
         : MLinkModule(parent)
     {
         // we use the generic Python OOP worker process for this
-        setModuleBinary(findSyntalosPyWorkerBinary());
+        if (std::filesystem::exists("/usr/bin/gdb")) {
+            setModuleBinary("/usr/bin/gdb");
+            setModuleBinaryArgs(QStringList() << "-q" << "-batch" << "-ex" << "run" << "-ex" << "bt" << "--args" << findSyntalosPyWorkerBinary());
+        } else {
+            setModuleBinary(findSyntalosPyWorkerBinary());
+        }
 
         setScript(
-            "import syio as sy\n"
+            "import syntalos_mlink as syl\n"
             "import cv2 as cv\n"
             "\n"
-            "iport = sy.get_input_port('nonexistent')\n"
+            "iport = syl.get_input_port('nonexistent')\n"
             "print('IPort (nonexistent): ' + str(iport))\n"
-            "iport = sy.get_input_port('video-in')\n"
-            "oport = sy.get_output_port('video-out')\n"
+            "iport = syl.get_input_port('video-in')\n"
+            "oport = syl.get_output_port('video-out')\n"
             "print('IPort: ' + str(iport))\n"
             "print('OPort: ' + str(oport))\n"
             "oport.set_metadata_value('framerate', 200)\n"
@@ -57,8 +64,8 @@ public:
             "    return True\n"
             "\n"
             "def run() -> bool:\n"
-            "    while sy.is_running():\n"
-            "        sy.await_data()\n"
+            "    while syl.is_running():\n"
+            "        syl.await_data()\n"
             "    print('Quitting PyOOPTestModule Loop!')\n"
             "\n"
             "def new_data_event(frame) -> None:\n"
