@@ -256,6 +256,7 @@ QString Syntalos::findSyntalosPyWorkerBinary()
 
     return workerBinary;
 }
+
 void Syntalos::findSyntalosLibraryPaths(QString &pkgConfigPath, QString &ldLibraryPath, QString &includePath)
 {
     // check if we are running from the build directory
