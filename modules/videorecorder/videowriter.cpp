@@ -22,6 +22,7 @@
 #include <QDateTime>
 #include <QFileInfo>
 #include <atomic>
+#include <cmath>
 #include <fstream>
 #include <iostream>
 #include <queue>
@@ -695,7 +696,7 @@ void VideoWriter::initializeInternal()
                 .arg(videoCodecToString(d->codecProps.codec()).c_str())
                 .toStdString());
 
-    if ((d->fps.num / d->fps.den) > 240 && QString::fromUtf8(vcodec->name) == "libsvtav1")
+    if (av_q2d(d->fps) > 240.0 && QString::fromUtf8(vcodec->name) == "libsvtav1")
         throw std::runtime_error(
             QStringLiteral("Can not encode videos with a framerate higher than 240 FPS using the %1 encoder.")
                 .arg(vcodec->name)
@@ -957,7 +958,7 @@ void VideoWriter::initializeInternal()
         d->tsfWriter.setTimeNames(QStringLiteral("frame-no"), QStringLiteral("master-time"));
         d->tsfWriter.setTimeUnits(TSyncFileTimeUnit::INDEX, TSyncFileTimeUnit::MICROSECONDS);
         d->tsfWriter.setTimeDataTypes(TSyncFileDataType::UINT32, TSyncFileDataType::UINT64);
-        d->tsfWriter.setChunkSize((d->fps.num / d->fps.den) * 60 * 1); // new chunk about every minute
+        d->tsfWriter.setChunkSize(std::lround(av_q2d(d->fps) * 60.0)); // new chunk about every minute
         d->tsfWriter.setFileName(timestampFname);
         if (!d->tsfWriter.open(d->modName, d->collectionId)) {
             finalizeInternal(false);
@@ -1059,17 +1060,22 @@ void VideoWriter::initialize(
     const QString &subjectName,
     int width,
     int height,
-    int fps,
+    double fps,
     int imgDepth,
     bool hasColor,
     bool saveTimestamps)
 {
     if (d->initialized)
         throw std::runtime_error("Tried to initialize an already initialized video writer.");
+    if (!std::isfinite(fps) || fps <= 0.0)
+        throw std::runtime_error(QStringLiteral("Received invalid framerate: %1").arg(fps).toStdString());
 
     d->width = width;
     d->height = height;
-    d->fps = {fps, 1};
+    d->fps = av_d2q(fps, 1000000);
+    if (d->fps.num <= 0 || d->fps.den <= 0)
+        throw std::runtime_error(
+            QStringLiteral("Unable to convert framerate %1 to rational value.").arg(fps).toStdString());
     d->alignedInputSize = 0;
     d->framesN = 0;
     d->saveTimestamps = saveTimestamps;
@@ -1416,9 +1422,9 @@ int VideoWriter::height() const
     return d->height;
 }
 
-int VideoWriter::fps() const
+double VideoWriter::fps() const
 {
-    return d->fps.num;
+    return av_q2d(d->fps);
 }
 
 uint VideoWriter::fileSliceInterval() const
