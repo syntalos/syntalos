@@ -177,16 +177,16 @@ void EncodeTask::run()
         }
 
         // write timestamp info
-        auto timestamp = milliseconds_t(0);
+        auto timestamp = microseconds_t(0);
         size_t frameIdx = frameNo - 1;
         if (m_writeTsync) {
             if (frameIdx < tsyncTimes.size()) {
                 if (tsyncTimeUnit == TSyncFileTimeUnit::MILLISECONDS)
-                    timestamp = milliseconds_t(tsyncTimes[frameIdx].second);
+                    timestamp = msecToUsec(milliseconds_t(tsyncTimes[frameIdx].second));
                 else if (tsyncTimeUnit == TSyncFileTimeUnit::MICROSECONDS)
-                    timestamp = std::chrono::duration_cast<milliseconds_t>(microseconds_t(tsyncTimes[frameIdx].second));
+                    timestamp = microseconds_t(tsyncTimes[frameIdx].second);
                 else if (tsyncTimeUnit == TSyncFileTimeUnit::NANOSECONDS)
-                    timestamp = std::chrono::duration_cast<milliseconds_t>(nanoseconds_t(tsyncTimes[frameIdx].second));
+                    timestamp = nsecToUsec(nanoseconds_t(tsyncTimes[frameIdx].second));
             }
         }
 
