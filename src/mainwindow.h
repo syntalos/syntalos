@@ -49,6 +49,17 @@ namespace Ui
 class MainWindow;
 }
 
+// Exit codes for the application
+constexpr int SY_EXIT_SUCCESS = 0;
+constexpr int SY_EXIT_FAILURE = 1;
+constexpr int SY_EXIT_LOAD_ERROR = 2;
+constexpr int SY_EXIT_PERMISSION_ERROR = 3;
+constexpr int SY_EXIT_NOT_FOUND = 4;
+constexpr int SY_EXIT_RUN_FAILED = 5;
+
+/**
+ * @brief Main application window
+ */
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -60,6 +71,11 @@ public:
     void setStatusText(const QString &msg);
 
     void loadProjectFilename(const QString &fname);
+    void scheduleProjectAutorun(
+        const QString &projectFname,
+        const QString &overrideExportDir,
+        bool noninteractive,
+        int runDurationSec = 0);
 
 private slots:
     void runActionTriggered();
@@ -114,12 +130,12 @@ protected:
 private:
     void applySelectedAppStyle(bool updateIcons = true);
     void updateIconStyles();
-    void shutdown();
+    void shutdown(int errorCode = 0);
     void setCurrentProjectFile(const QString &fileName);
     void setDataExportBaseDir(const QString &dir);
     void updateExportDirDisplay();
     void updateIntervalRunMessage();
-    QByteArray loadBusyAnimation(const QString &name) const;
+    [[nodiscard]] QByteArray loadBusyAnimation(const QString &name) const;
 
     void changeExperimenter(const EDLAuthor &person);
     void changeTestSubject(const TestSubject &subject);
@@ -141,6 +157,7 @@ private:
     QString m_currentProjectFname;
     bool m_isIntervalRun;
     bool m_configLoadInProgress;
+    seconds_t m_runMaxDuration;
 
     QLabel *m_statusBarLabel;
     QSvgWidget *m_busyIndicator;

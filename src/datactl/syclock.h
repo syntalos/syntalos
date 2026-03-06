@@ -61,6 +61,9 @@ struct symaster_clock {
 /// A timepoint on the master clock
 using symaster_timepoint = std::chrono::time_point<symaster_clock>;
 
+/// Shorthand for seconds
+using seconds_t = std::chrono::seconds;
+
 /// Shorthand for milliseconds
 using milliseconds_t = std::chrono::milliseconds;
 

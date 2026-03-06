@@ -33,6 +33,7 @@
 #include <QThread>
 #include <QTimer>
 #include <QVector>
+#include <memory>
 #include <filesystem>
 #include <libusb.h>
 #include <pthread.h>
@@ -248,6 +249,7 @@ public:
     Private()
         : initialized(false),
           roudiPidFd(-1),
+          alwaysOverrideExportDir(false),
           monitoring(new EngineResourceMonitorData),
           usbCtx(nullptr)
     {
@@ -268,6 +270,7 @@ public:
     QString exportDir;
     bool exportDirIsTempDir;
     bool exportDirIsValid;
+    bool alwaysOverrideExportDir;
 
     EDLAuthor experimenter;
     TestSubject testSubject;
@@ -290,7 +293,7 @@ public:
     std::shared_ptr<EDLGroup> edlInternalData;
     QHash<QString, std::shared_ptr<TimeSyncFileWriter>> internalTSyncWriters;
 
-    QScopedPointer<EngineResourceMonitorData> monitoring;
+    std::unique_ptr<EngineResourceMonitorData> monitoring;
     int runCount;
     int runCountPadding;
 
@@ -308,12 +311,13 @@ Engine::Engine(QWidget *parentWidget)
     d->saveInternal = false;
     d->sysInfo = SysInfo::get();
     d->exportDirIsValid = false;
+    d->alwaysOverrideExportDir = false;
     d->active = false;
     d->running = false;
     d->simpleStorageNames = true;
     d->modLibrary = new ModuleLibrary(d->gconf, this);
     d->parentWidget = parentWidget;
-    d->timer.reset(new SyncTimer);
+    d->timer = std::make_shared<SyncTimer>();
     d->runIsEphemeral = false;
     d->mainThreadCoreAffinity.clear();
     d->runCount = 0;
@@ -568,6 +572,16 @@ bool Engine::exportDirIsTempDir() const
 bool Engine::exportDirIsValid() const
 {
     return d->exportDirIsValid;
+}
+
+void Engine::setAlwaysOverrideExportDir(bool alwaysOverride)
+{
+    d->alwaysOverrideExportDir = alwaysOverride;
+}
+
+bool Engine::alwaysOverrideExportDir() const
+{
+    return d->alwaysOverrideExportDir;
 }
 
 TestSubject Engine::testSubject() const
@@ -1187,16 +1201,21 @@ bool Engine::run()
     // safeguard against accidental data removals
     QDir deDir(d->exportDir);
     if (deDir.exists()) {
-        auto reply = QMessageBox::question(
-            d->parentWidget,
-            QStringLiteral("Existing data found - Continue anyway?"),
-            QStringLiteral(
-                "The directory '%1' already contains data (likely from a previous run). "
-                "If you continue, the old data will be deleted. Continue and delete data?")
-                .arg(d->exportDir),
-            QMessageBox::Yes | QMessageBox::No);
-        if (reply == QMessageBox::No)
-            return false;
+        if (!d->alwaysOverrideExportDir) {
+            auto reply = QMessageBox::question(
+                d->parentWidget,
+                QStringLiteral("Existing data found - Continue anyway?"),
+                QStringLiteral(
+                    "The directory '%1' already contains data (likely from a previous run). "
+                    "If you continue, the old data will be deleted. Continue and delete data?")
+                    .arg(d->exportDir),
+                QMessageBox::Yes | QMessageBox::No);
+            if (reply == QMessageBox::No)
+                return false;
+        } else {
+            qWarning().noquote().nospace() << "Overriding existing export directory \"" << d->exportDir
+                                           << "\" without asking, because 'always override' setting is enabled.";
+        }
 
         emitStatusMessage(QStringLiteral("Removing data from an old run..."));
         deDir.removeRecursively();

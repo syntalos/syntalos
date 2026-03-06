@@ -75,7 +75,8 @@ static const QString CONFIG_FILE_FORMAT_VERSION = QStringLiteral("1");
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent),
       ui(new Ui::MainWindow),
-      m_configLoadInProgress(false)
+      m_configLoadInProgress(false),
+      m_runMaxDuration(0)
 {
     // Load settings and set icon theme explicitly
     // (otherwise the application may look ugly or incomplete on GNOME)
@@ -358,7 +359,7 @@ MainWindow::MainWindow(QWidget *parent)
         });
     }
 
-    // timer to update verious time display during a run
+    // timer to update various time display during a run
     m_rtElapsedTimer = new QTimer(this);
     m_rtElapsedTimer->setInterval(1000);
     connect(m_rtElapsedTimer, &QTimer::timeout, this, &MainWindow::onElapsedTimeUpdate);
@@ -1039,15 +1040,21 @@ void MainWindow::updateIconStyles()
     setWidgetIconFromResource(ui->actionUsbDevices, "usb-device", isDark);
 }
 
-void MainWindow::shutdown()
+void MainWindow::shutdown(int errorCode)
 {
+    if (errorCode != 0)
+        qWarning().noquote() << "Shutting down with error code:" << errorCode;
+
     // The Spinnaker module crashes in an assertion in proprietary code if the application shuts down when
     // Spinnakers "System" singleton is also destroyed.
     // This does not happen on regular module destruction, for some reason. That and the fact that it  looks
     // nicer UI wise to remove modules early, is why modules are destroyed a bit earlier and explicitly here.
     m_engine->removeAllModules();
 
-    QApplication::quit();
+    if (errorCode == 0)
+        qApp->quit();
+    else
+        qApp->exit(errorCode);
 }
 
 void MainWindow::closeEvent(QCloseEvent *event)
@@ -1056,7 +1063,9 @@ void MainWindow::closeEvent(QCloseEvent *event)
     QApplication::processEvents();
 
     if (m_engine->isActive()) {
-        connect(m_engine, &Engine::runStopped, this, &MainWindow::shutdown);
+        connect(m_engine, &Engine::runStopped, this, [this]() {
+            shutdown();
+        });
         stopActionTriggered();
         event->accept();
     } else {
@@ -1267,6 +1276,12 @@ void MainWindow::onElapsedTimeUpdate()
         // stop the current run, the interval loop will start another one unless we
         // reached the expected run count
         m_engine->stop();
+    } else if (m_runMaxDuration.count() > 0) {
+        // stop the current run when the maximum runtime was reached
+        if (std::chrono::duration_cast<std::chrono::seconds>(elapsedTime) < m_runMaxDuration)
+            return;
+
+        stopActionTriggered();
     }
 }
 
@@ -1280,6 +1295,96 @@ void MainWindow::loadProjectFilename(const QString &fname)
 {
     QTimer::singleShot(0, [&]() {
         loadConfiguration(fname);
+    });
+}
+
+/**
+ * @brief Schedule running a project file autonomously.
+ *
+ * This function is mainly used for automation, and can be used to trigger a project
+ * to be loaded, and then optionally launched for a period of time before quitting
+ * the application, without any user interaction.
+ *
+ * @param projectFname       The project file to load and run.
+ * @param overrideExportDir  If non-empty, overrides the export base
+ *                           directory stored in the project file.
+ * @param noninteractive     If true, try to reduce GUI interactions.
+ * @param runDurationSec     If > 0, stop the run automatically after this
+ *                           many seconds and quit.  Implies @p autoRun.
+ */
+void MainWindow::scheduleProjectAutorun(
+    const QString &projectFname,
+    const QString &overrideExportDir,
+    bool noninteractive,
+    int runDurationSec)
+{
+    // set run time limit
+    if (runDurationSec > 0)
+        m_runMaxDuration = seconds_t(runDurationSec);
+
+    // defer until the main application has loaded.
+    QTimer::singleShot(0, [this, projectFname, overrideExportDir, noninteractive]() {
+        // load requested project file
+        if (!loadConfiguration(projectFname)) {
+            shutdown(SY_EXIT_LOAD_ERROR);
+            return;
+        }
+        qApp->processEvents();
+
+        // override export directory if requested
+        if (!overrideExportDir.isEmpty())
+            setDataExportBaseDir(overrideExportDir);
+
+        // check if we can actually run
+        if (!m_engine->exportDirIsValid() && noninteractive) {
+            qCritical().noquote() << "Export directory is not valid, cannot start run.";
+            shutdown(SY_EXIT_NOT_FOUND);
+            return;
+        }
+
+        // print message on error, instead of showing a message box which would require user interaction
+        if (noninteractive) {
+            disconnect(m_engine, &Engine::runFailed, this, nullptr);
+            connect(
+                m_engine,
+                &Engine::runFailed,
+                this,
+                [this](AbstractModule *mod, const QString &message) {
+                    if (mod != nullptr)
+                        qWarning().noquote().nospace() << "Run failed in '" << mod->name() << "': " << message;
+                    else
+                        qWarning().noquote() << "Run failed: " << message;
+
+                    connect(m_engine, &Engine::runFailed, this, &MainWindow::moduleErrorReceived);
+                },
+                Qt::SingleShotConnection);
+        }
+
+        // quit cleanly once the run has finished
+        connect(
+            m_engine,
+            &Engine::runStopped,
+            this,
+            [this]() {
+                if (m_runMaxDuration.count() > 0) {
+                    QTimer::singleShot(0, this, [this]() {
+                        shutdown(m_engine->hasFailed() ? SY_EXIT_RUN_FAILED : SY_EXIT_SUCCESS);
+                    });
+                }
+
+                m_runMaxDuration = seconds_t(0);
+                m_engine->setAlwaysOverrideExportDir(false);
+            },
+            Qt::SingleShotConnection);
+
+        // override existing data if we run in non-interactive mode, to avoid asking the user about it
+        // (This is dangerous, which is why this option should only be used for testing, or in well-designed automation)
+        if (noninteractive)
+            m_engine->setAlwaysOverrideExportDir(true);
+
+        // trigger the actual run
+        qApp->processEvents();
+        runActionTriggered();
     });
 }
 

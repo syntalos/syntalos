@@ -60,6 +60,8 @@ public:
     void setExportBaseDir(const QString &dataDir);
     bool exportDirIsTempDir() const;
     bool exportDirIsValid() const;
+    void setAlwaysOverrideExportDir(bool alwaysOverride);
+    bool alwaysOverrideExportDir() const;
 
     TestSubject testSubject() const;
     void setTestSubject(const TestSubject &ts);
@@ -152,7 +154,7 @@ private slots:
 private:
     class Private;
     Q_DISABLE_COPY(Engine)
-    QScopedPointer<Private> d;
+    std::unique_ptr<Private> d;
 
     int obtainSleepShutdownIdleInhibitor();
     bool makeDirectory(const QString &dir);
