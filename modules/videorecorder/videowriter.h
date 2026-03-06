@@ -165,7 +165,7 @@ public:
         const QString &subjectName,
         int width,
         int height,
-        int fps,
+        double fps,
         int imgDepth,
         bool hasColor,
         bool saveTimestamps = true);
@@ -189,7 +189,7 @@ public:
 
     int width() const;
     int height() const;
-    int fps() const;
+    double fps() const;
 
     uint fileSliceInterval() const;
     void setFileSliceInterval(uint minutes);
