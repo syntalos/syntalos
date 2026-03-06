@@ -223,7 +223,7 @@ bool setCurrentThreadRealtime(int priority)
 
     RtKit rtkit;
     const auto maxRTTimeUsec = rtkit.queryRTTimeUSecMax();
-    if (maxRTTimeUsec < (100 * US_PER_MS)) {
+    if (maxRTTimeUsec < (100 * 1000)) {
         qCWarning(logRtKit).noquote()
             << "Unable to set realtime priority: Permitted RLIMIT_RTTIME is too low (< 100ms)";
         return false;
