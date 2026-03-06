@@ -158,7 +158,6 @@ private:
 
     int obtainSleepShutdownIdleInhibitor();
     bool makeDirectory(const QString &dir);
-    bool ensureRoudi();
 
     QHash<AbstractModule *, std::vector<uint>> setupCoreAffinityConfig(const QList<AbstractModule *> &threadedModules);
     void startResourceMonitoring(QList<AbstractModule *> activeModules, const QString &exportDirPath);

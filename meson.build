@@ -1,7 +1,7 @@
 project('Syntalos', 'c', 'cpp',
   meson_version: '>=1.4.0',
-  default_options: ['c_std=gnu17',
-                    'cpp_std=gnu++20',
+  default_options: ['c_std=gnu23',
+                    'cpp_std=gnu++23',
                     'b_lto=true'],
 
   license: 'LGPL-3.0+ and GPL-3.0+',
@@ -256,9 +256,6 @@ opencv_dep = dependency('opencv4', include_type: 'system')
 libusb_dep = dependency('libusb-1.0')
 libsystemd_dep = dependency('libsystemd')
 systemd_dep = dependency('systemd', required: false)
-iceoryx_posh_dep = dependency('iceoryx_posh', version: '>= 2.0.5',
-                              modules: ['iceoryx_posh::iceoryx_posh'])
-iceoryx_hoofs_dep = dependency('iceoryx_hoofs', version: '>= 2.0.5')
 
 glib_dep = dependency('glib-2.0', version: '>=2.58')
 gobject_dep = dependency('gobject-2.0', version: '>=2.58')

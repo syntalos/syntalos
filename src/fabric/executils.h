@@ -38,4 +38,7 @@ int runInTerminal(
     const QString &wdir = QString(),
     const QString &title = QString());
 
+bool launchProgramPidFd(const QString &exePath, int *pidfd_out);
+bool isProcessRunning(int pidfd);
+
 } // namespace Syntalos

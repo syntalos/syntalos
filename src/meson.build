@@ -5,7 +5,6 @@ syntalos_main_inc_dir = include_directories('.')
 subdir('utils')
 subdir('datactl')
 subdir('fabric')
-subdir('roudi')
 subdir('mlink')
 subdir('python')
 
@@ -87,8 +86,7 @@ syntalos_exe = executable('syntalos',
                    qt_opengl_dep,
                    qt_svg_dep,
                    qt_dbus_dep,
-                   iceoryx_posh_dep,
-                   iceoryx_hoofs_dep,
+                   iox2_dep,
 
                    kfdbusaddons_dep,
                    kfarchive_dep,

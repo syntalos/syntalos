@@ -55,12 +55,6 @@
 #include <filesystem>
 #include <libusb.h>
 #include <pthread.h>
-#include <sched.h>
-#include <linux/sched.h>
-#include <sys/syscall.h>
-#include <sys/wait.h>
-#include <iceoryx_posh/runtime/posh_runtime.hpp>
-#include <iceoryx_hoofs/error_handling/error_handling.hpp>
 
 #include "cpuaffinity.h"
 #include "globalconfig.h"
@@ -266,7 +260,6 @@ class Engine::Private
 public:
     Private()
         : initialized(false),
-          roudiPidFd(-1),
           alwaysOverrideExportDir(false),
           monitoring(new EngineResourceMonitorData),
           usbCtx(nullptr)
@@ -282,7 +275,6 @@ public:
     ModuleLibrary *modLibrary;
     std::shared_ptr<SyncTimer> timer;
     std::vector<uint> mainThreadCoreAffinity;
-    int roudiPidFd;
 
     QString exportBaseDir;
     QString exportDir;
@@ -394,116 +386,8 @@ Engine::~Engine()
     if (d->usbHotplugCBHandle != -1)
         libusb_hotplug_deregister_callback(d->usbCtx, d->usbHotplugCBHandle);
 
-    iox::runtime::PoshRuntime::getInstance().shutdown();
-
-    if (d->roudiPidFd > 0)
-        close(d->roudiPidFd);
-
     // delete libusb context
     libusb_exit(d->usbCtx);
-}
-
-/**
- * Fallback for launchProgram() if the clone3() syscall was not available or is blocked
- * by seccomp filters.
- */
-static bool launchProgramNC3Fallback(const QString &exePath, int *pidfd_out)
-{
-    // this may allocate, so we do it before vfork to avoid memory allocation in the child process
-    const auto exePathBytes = exePath.toLocal8Bit();
-
-    pid_t pid = vfork();
-    if (pid < 0) {
-        perror("vfork");
-        return false;
-    }
-
-    if (pid == 0) {
-        // child process
-        char *const argv[] = {const_cast<char *>(exePathBytes.data()), nullptr};
-        extern char **environ;
-        execve(argv[0], argv, environ);
-        perror("execvp");
-        _exit(EXIT_FAILURE);
-    }
-
-    // parent process
-    int pidfd = syscall(SYS_pidfd_open, pid, 0);
-    if (pidfd < 0) {
-        perror("pidfd_open");
-        return false;
-    }
-
-    if (pidfd_out)
-        *pidfd_out = pidfd;
-
-    return true;
-}
-
-/**
- * @brief Launch a program in a new process, and return the PID of the new process as pidfd.
- *
- * This function is used to launch a new program in a new process, and return the PID as pidfd.
- *
- * @param exePath The path to the executable to launch.
- * @param pidfd_out A pointer to an integer, which will be set to the PID of the new process.
- * @return true if the program was successfully launched, false otherwise.
- */
-static bool launchProgram(const QString &exePath, int *pidfd_out)
-{
-    struct clone_args cl_args = {0};
-    int pidfd;
-    pid_t parent_tid = -1;
-
-    cl_args.parent_tid = __u64((uintptr_t)&parent_tid);
-    cl_args.pidfd = __u64((uintptr_t)&pidfd);
-    cl_args.flags = CLONE_PIDFD | CLONE_PARENT_SETTID;
-    cl_args.exit_signal = SIGCHLD;
-
-    char *const argv[] = {const_cast<char *>(qPrintable(exePath)), nullptr};
-
-    const auto pid = (pid_t)syscall(SYS_clone3, &cl_args, sizeof(cl_args));
-    if (pid < 0) {
-        // clone3 was blocked or is not available, try our fallback
-        if (errno == ENOSYS)
-            return launchProgramNC3Fallback(exePath, pidfd_out);
-        return false;
-    }
-
-    if (pid == 0) { // Child process
-        execvp(qPrintable(exePath), argv);
-        perror("execvp"); // execvp only returns on error
-        exit(EXIT_FAILURE);
-    }
-
-    if (pidfd_out)
-        *pidfd_out = pidfd;
-
-    return true;
-}
-
-/**
- * @brief Check if a process is still running using a pidfd.
- *
- * This function checks if a process is still running, by checking if the process
- * has exited or not.
- *
- * @param pidfd The PIDFD of the process to check.
- * @return true if the process is still running, false otherwise.
- */
-static bool isProcessRunning(int pidfd)
-{
-    siginfo_t si;
-    int result;
-
-    si.si_pid = 0;
-
-    result = waitid(P_PIDFD, pidfd, &si, WEXITED | WNOHANG);
-    if (result == -1) {
-        return false; // Assuming failure means the process is not running
-    }
-
-    return si.si_pid == 0;
 }
 
 static int engineUsbHotplugDispatchCB(
@@ -536,9 +420,6 @@ bool Engine::initialize()
         qCCritical(logEngine).noquote() << "Tried to initialize engine twice! This is an error.";
         return true;
     }
-
-    if (!ensureRoudi())
-        return false;
 
     if (d->modLibrary->load()) {
         d->initialized = true;
@@ -961,57 +842,6 @@ void Engine::emitStatusMessage(const QString &message)
 {
     qCDebug(logEngine).noquote() << message;
     emit statusMessage(message);
-}
-
-bool Syntalos::Engine::ensureRoudi()
-{
-    // find RouDi so communication with module processes works
-    auto roudiBinary = QStringLiteral("%1/roudi/syntalos-roudi").arg(QCoreApplication::applicationDirPath());
-    QFileInfo checkBin(roudiBinary);
-    if (!checkBin.exists() || roudiBinary.startsWith("/usr/")) {
-        roudiBinary = QStringLiteral("%1/syntalos-roudi").arg(SY_LIBDIR);
-        QFileInfo fi(roudiBinary);
-        roudiBinary = fi.canonicalFilePath();
-
-        if (!fi.exists())
-            qCCritical(logEngine).noquote() << "RouDi binary not found at expected location:" << roudiBinary;
-    }
-
-    if (d->roudiPidFd > 0) {
-        // don't try to restart RouDi if it is already running
-        if (isProcessRunning(d->roudiPidFd))
-            return true;
-        close(d->roudiPidFd);
-    }
-
-    qCDebug(logEngine).noquote() << "RouDi is not running, trying to restart it...";
-    if (!launchProgram(roudiBinary, &d->roudiPidFd)) {
-        QMessageBox::critical(
-            d->parentWidget,
-            QStringLiteral("System Error"),
-            QStringLiteral(
-                "Unable to start the Syntalos IPC communication and shared-memory management daemon. "
-                "Something might be wrong with the system configuration. %1")
-                .arg(std::strerror(errno)));
-        return false;
-    }
-
-    bool fatalError = false;
-    auto temporaryErrorHandler = iox::ErrorHandler::setTemporaryErrorHandler(
-        [&](const iox::Error e, std::function<void()>, const iox::ErrorLevel level) {
-            if (level == iox::ErrorLevel::FATAL) {
-                QMessageBox::critical(
-                    d->parentWidget,
-                    QStringLiteral("System Error"),
-                    QStringLiteral("Failed to set up IPC services: %1").arg(iox::ErrorHandler::toString(e)));
-                qFatal("IOX runtime setup failed.");
-            }
-        });
-    iox::runtime::PoshRuntime::initRuntime("syntalos");
-    if (fatalError)
-        return false;
-
-    return true;
 }
 
 /**
@@ -1671,10 +1501,6 @@ bool Engine::runInternal(const QString &exportDirPath)
     }
 
     if (!makeDirectory(exportDirPath))
-        return false;
-
-    // ensure the RouDi daemon is running
-    if (!ensureRoudi())
         return false;
 
     // ensure error queue is clean
