@@ -1336,7 +1336,13 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::microseco
         av_packet_rescale_ts(pkt, d->cctx->time_base, d->vstrm->time_base);
 
         // write packet
-        av_write_frame(d->octx, pkt);
+        ret = av_write_frame(d->octx, pkt);
+        if (ret < 0) {
+            d->lastError =
+                QStringLiteral("Unable to write frame packet to output: %1").arg(averrorToString(ret)).toStdString();
+            std::cerr << d->lastError << std::endl;
+            goto out;
+        }
     }
 
     // store timestamp (if necessary)
