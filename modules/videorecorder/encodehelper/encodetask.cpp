@@ -178,7 +178,7 @@ void EncodeTask::run()
 
         // write timestamp info
         auto timestamp = milliseconds_t(0);
-        size_t frameIdx = frameNo - 1;
+        size_t frameIdx = frameNo;
         if (m_writeTsync) {
             if (frameIdx < tsyncTimes.size()) {
                 if (tsyncTimeUnit == TSyncFileTimeUnit::MILLISECONDS)
