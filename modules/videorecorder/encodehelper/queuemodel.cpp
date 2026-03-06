@@ -131,6 +131,12 @@ QVariant QueueModel::data(const QModelIndex &index, int role) const
 {
     if (role != Qt::DisplayRole && role != Qt::EditRole)
         return QVariant();
+    if (!index.isValid())
+        return QVariant();
+    if (index.row() < 0 || index.row() >= m_data.count())
+        return QVariant();
+    if (index.column() < 0 || index.column() >= columnCount(QModelIndex()))
+        return QVariant();
 
     const QueueItem *queueItem = m_data[index.row()];
     switch (index.column()) {
@@ -192,7 +198,9 @@ QVariant QueueModel::headerData(int section, Qt::Orientation orientation, int ro
 
 void QueueModel::refresh()
 {
-    emit dataChanged(index(0, 0), index(m_data.count() - 1, 5));
+    if (m_data.isEmpty())
+        return;
+    emit dataChanged(index(0, 0), index(m_data.count() - 1, columnCount(QModelIndex()) - 1));
 }
 
 void QueueModel::append(QueueItem *queueItem)
@@ -205,17 +213,21 @@ void QueueModel::append(QueueItem *queueItem)
 
 void QueueModel::remove(QSet<QueueItem *> rmItems)
 {
-    beginRemoveRows(QModelIndex(), 0, m_data.count());
+    if (rmItems.isEmpty())
+        return;
 
-    QMutableListIterator<QueueItem *> i(m_data);
-    while (i.hasNext()) {
-        auto item = i.next();
-        if (rmItems.contains(item))
-            i.remove();
+    for (int row = m_data.count() - 1; row >= 0; --row) {
+        auto item = m_data.at(row);
+        if (!rmItems.contains(item))
+            continue;
+
+        beginRemoveRows(QModelIndex(), row, row);
+        m_data.removeAt(row);
+        endRemoveRows();
+
         disconnect(item, &QueueItem::dataChanged, this, &QueueModel::itemDataChanged);
+        item->deleteLater();
     }
-    endRemoveRows();
-    refresh();
 }
 
 QList<QueueItem *> QueueModel::queueItems()
@@ -225,7 +237,7 @@ QList<QueueItem *> QueueModel::queueItems()
 
 QueueItem *QueueModel::itemByIndex(const QModelIndex &index)
 {
-    if (index.row() > m_data.count())
+    if (index.row() >= m_data.count())
         return nullptr;
     if (index.row() < 0)
         return nullptr;
@@ -235,7 +247,9 @@ QueueItem *QueueModel::itemByIndex(const QModelIndex &index)
 void QueueModel::itemDataChanged()
 {
     // auto item = qobject_cast<QueueItem*>(sender());
-    emit dataChanged(index(0, 0), index(m_data.count() - 1, 5));
+    if (m_data.isEmpty())
+        return;
+    emit dataChanged(index(0, 0), index(m_data.count() - 1, columnCount(QModelIndex()) - 1));
     // QModelIndex startOfRow = this->index(row, 0);
     // QModelIndex endOfRow   = this->index(row, Column::MaxColumns);
     // emit QAbstractItemModel::dataChanged(startOfRow, endOfRow);
