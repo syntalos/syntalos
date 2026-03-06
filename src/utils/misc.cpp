@@ -229,3 +229,10 @@ bool isBinaryInPath(const QString &binaryName)
 
     return false;
 }
+
+std::string makeModuleServiceName(const std::string &instanceId, const std::string &channelName)
+{
+    // the total resulting length of this string must not be longer than 1024 characters, because
+    // that is the length we set for IDs in SY_IOX_ID_MAX_LEN
+    return "SyMod/" + instanceId.substr(0, 512) + "/" + channelName.substr(0, 384);
+}
