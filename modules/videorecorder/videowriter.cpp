@@ -187,6 +187,7 @@ CodecProperties::CodecProperties(VideoCodec codec)
 
     case VideoCodec::AV1:
         d->losslessMode = Option;
+        d->lossless = false;
         d->canUseVaapi = true;
         d->slicingAllowed = false; // codec needs init frames
 
@@ -198,6 +199,7 @@ CodecProperties::CodecProperties(VideoCodec codec)
 
     case VideoCodec::VP9:
         d->losslessMode = Option;
+        d->lossless = false;
         d->canUseVaapi = true;
         d->slicingAllowed = false; // codec needs init frames
 
@@ -210,6 +212,7 @@ CodecProperties::CodecProperties(VideoCodec codec)
 
     case VideoCodec::H264:
         d->losslessMode = Option;
+        d->lossless = false;
         d->canUseVaapi = true;
         d->slicingAllowed = false; // codec needs init frames
 
@@ -221,6 +224,7 @@ CodecProperties::CodecProperties(VideoCodec codec)
 
     case VideoCodec::HEVC:
         d->losslessMode = Option;
+        d->lossless = false;
         d->canUseVaapi = true;
         d->slicingAllowed = false; // codec needs init frames
 
@@ -232,6 +236,7 @@ CodecProperties::CodecProperties(VideoCodec codec)
 
     case VideoCodec::MPEG4:
         d->losslessMode = Never;
+        d->lossless = false;
         d->aviAllowed = true;
 
         d->quality = 3;
