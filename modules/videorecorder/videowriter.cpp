@@ -1289,7 +1289,7 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::microseco
     AVBufferRef *savedBuf0 = nullptr;
     auto outputFrame = d->encFrame;
 
-    const auto tsMsec = timestamp.count();
+    const auto tsUsec = timestamp.count();
 
     if (d->hwDevCtx == nullptr) {
         // force FFmpeg to create a copy of the frame, if the codec needs it
@@ -1341,10 +1341,10 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::microseco
 
     // store timestamp (if necessary)
     if (d->saveTimestamps)
-        d->tsfWriter.writeTimes(d->framePts, tsMsec);
+        d->tsfWriter.writeTimes(d->framePts, tsUsec);
 
     if (d->fileSliceIntervalMin != 0) {
-        const auto tsMin = static_cast<double>(tsMsec - d->captureStartTimestamp.count()) / 1000.0 / 60.0;
+        const auto tsMin = static_cast<double>(tsUsec - d->captureStartTimestamp.count()) / US_PER_MIN;
         if (tsMin >= (d->fileSliceIntervalMin * d->currentSliceNo)) {
             try {
                 // we need to start a new file now since the maximum time for this file has elapsed,
