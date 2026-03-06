@@ -17,8 +17,7 @@
  * along with this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef UTILS_H
-#define UTILS_H
+#pragma once
 
 #include <QString>
 #include <QStringList>
@@ -106,4 +105,4 @@ bool isBinaryInPath(const QString &binaryName);
  */
 void delay(int waitMsec);
 
-#endif // UTILS_H
+std::string makeModuleServiceName(const std::string &instanceId, const std::string &channelName);

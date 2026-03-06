@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2020-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -20,21 +20,24 @@
 #pragma once
 
 #include <QObject>
+#include <QIODevice>
 #include <QVariantHash>
 #include <QDataStream>
-#include <iceoryx_hoofs/cxx/string.hpp>
-#include <iceoryx_hoofs/cxx/vector.hpp>
-#include <iceoryx_posh/popo/untyped_publisher.hpp>
-#include <iceoryx_posh/popo/untyped_subscriber.hpp>
+
+#include <iox2/bb/static_string.hpp>
+#include <iox2/bb/static_vector.hpp>
 
 namespace Syntalos
 {
 
-// number of elements to hold in the IPC queue
-static const uint64_t SY_IOX_QUEUE_CAPACITY = 1U;
+// number of elements to hold in the IPC queues
+static constexpr uint64_t SY_IOX_QUEUE_CAPACITY = 24U;
 
-// number of elements to keep for late connectors
-static const uint64_t SY_IOX_HISTORY_SIZE = 0U;
+// initial size of the shared memory block for IPC communication
+static constexpr uint64_t SY_IOX_INITIAL_SLICE_LEN = 4096;
+
+// maximum length for IPC service name components
+static constexpr size_t SY_IOX_ID_MAX_LEN = 1024;
 
 /**
  * @brief Action performed to modify a module port
@@ -100,7 +103,7 @@ struct InputPortChange {
         return in;
     }
 };
-static iox::capro::IdString_t IN_PORT_CHANGE_CHANNEL_ID = "InPortChange";
+static const std::string IN_PORT_CHANGE_CHANNEL_ID = "InPortChange";
 
 /**
  * @brief Information about an output port change
@@ -154,7 +157,7 @@ struct OutputPortChange {
         return in;
     }
 };
-static iox::capro::IdString_t OUT_PORT_CHANGE_CHANNEL_ID = "OutPortChange";
+static const std::string OUT_PORT_CHANGE_CHANNEL_ID = "OutPortChange";
 
 /**
  * @brief request to update the metadata of an input port
@@ -188,7 +191,7 @@ struct UpdateInputPortMetadataRequest {
         return req;
     }
 };
-static iox::capro::IdString_t IN_PORT_UPDATE_METADATA_ID = "UpdateInputPortMetadata";
+static const std::string IN_PORT_UPDATE_METADATA_ID = "UpdateInputPortMetadata";
 
 /**
  * Generic response to a request.
@@ -201,10 +204,10 @@ struct DoneResponse {
  * Event indicating an error
  */
 struct ErrorEvent {
-    iox::cxx::string<128> title;
-    iox::cxx::string<2048> message;
+    iox2::bb::StaticString<128> title;
+    iox2::bb::StaticString<2048> message;
 };
-static iox::capro::IdString_t ERROR_CHANNEL_ID = "Error";
+static const std::string ERROR_CHANNEL_ID = "Error";
 
 /**
  * Module state change event
@@ -212,15 +215,15 @@ static iox::capro::IdString_t ERROR_CHANNEL_ID = "Error";
 struct StateChangeEvent {
     ModuleState state;
 };
-static iox::capro::IdString_t STATE_CHANNEL_ID = "State";
+static const std::string STATE_CHANNEL_ID = "State";
 
 /**
  * Event sending a status message to master.
  */
 struct StatusMessageEvent {
-    iox::cxx::string<512> text;
+    iox2::bb::StaticString<512> text;
 };
-static iox::capro::IdString_t STATUS_MESSAGE_CHANNEL_ID = "StatusMessage";
+static const std::string STATUS_MESSAGE_CHANNEL_ID = "StatusMessage";
 
 /**
  * Request to set the niceness of a worker
@@ -228,7 +231,7 @@ static iox::capro::IdString_t STATUS_MESSAGE_CHANNEL_ID = "StatusMessage";
 struct SetNicenessRequest {
     int nice;
 };
-static iox::capro::IdString_t SET_NICENESS_CALL_ID = "SetNiceness";
+static const std::string SET_NICENESS_CALL_ID = "SetNiceness";
 
 /**
  * Request to set the maximum realtime priority of a worker
@@ -236,15 +239,15 @@ static iox::capro::IdString_t SET_NICENESS_CALL_ID = "SetNiceness";
 struct SetMaxRealtimePriority {
     int priority;
 };
-static iox::capro::IdString_t SET_MAX_RT_PRIORITY_CALL_ID = "SetMaxRealtimePriority";
+static const std::string SET_MAX_RT_PRIORITY_CALL_ID = "SetMaxRealtimePriority";
 
 /**
  * Request to set the CPU affinity of a worker
  */
 struct SetCPUAffinityRequest {
-    iox::cxx::vector<uint, 256> cores;
+    iox2::bb::StaticVector<uint32_t, 256> cores; // array of CPU core indices to set affinity to
 };
-static iox::capro::IdString_t SET_CPU_AFFINITY_CALL_ID = "SetCPUAffinity";
+static const std::string SET_CPU_AFFINITY_CALL_ID = "SetCPUAffinity";
 
 /**
  * Request to delete an input or output port
@@ -252,17 +255,17 @@ static iox::capro::IdString_t SET_CPU_AFFINITY_CALL_ID = "SetCPUAffinity";
 struct DeletePortRequest {
     int portId;
 };
-static iox::capro::IdString_t DELETE_PORT_CALL_ID = "DeletePort";
+static const std::string DELETE_PORT_CALL_ID = "DeletePort";
 
 /**
- * Connect the input port of a linked module to an exported output
+ * Connect the input port of a linked module to an exported output.
  */
 struct ConnectInputRequest {
-    iox::capro::IdString_t portId;
-    iox::capro::IdString_t instanceId;
-    iox::capro::IdString_t channelId;
+    iox2::bb::StaticString<SY_IOX_ID_MAX_LEN> portId;
+    iox2::bb::StaticString<SY_IOX_ID_MAX_LEN> instanceId;
+    iox2::bb::StaticString<SY_IOX_ID_MAX_LEN> channelId;
 };
-static iox::capro::IdString_t CONNECT_INPUT_CALL_ID = "ConnectInputPort";
+static const std::string CONNECT_INPUT_CALL_ID = "ConnectInputPort";
 
 /**
  * Instruct the module to load a script
@@ -294,7 +297,7 @@ struct LoadScriptRequest {
         return req;
     }
 };
-static iox::capro::IdString_t LOAD_SCRIPT_CALL_ID = "LoadScript";
+static const std::string LOAD_SCRIPT_CALL_ID = "LoadScript";
 
 struct SetPortsPresetRequest {
     QList<InputPortChange> inPorts;
@@ -322,7 +325,7 @@ struct SetPortsPresetRequest {
         return req;
     }
 };
-static iox::capro::IdString_t SET_PORTS_PRESET_CALL_ID = "SetPortsPresetRequest";
+static const std::string SET_PORTS_PRESET_CALL_ID = "SetPortsPresetRequest";
 
 /**
  * Request to prepare the module for starting,
@@ -353,7 +356,7 @@ struct PrepareStartRequest {
         return req;
     }
 };
-static iox::capro::IdString_t PREPARE_START_CALL_ID = "PrepareStart";
+static const std::string PREPARE_START_CALL_ID = "PrepareStart";
 
 /**
  * Start module run, this enters the RUNNING stage
@@ -361,21 +364,21 @@ static iox::capro::IdString_t PREPARE_START_CALL_ID = "PrepareStart";
 struct StartRequest {
     int64_t startTimestampUsec;
 };
-static iox::capro::IdString_t START_CALL_ID = "Start";
+static const std::string START_CALL_ID = "Start";
 
 /**
  * Stop module run, this enters the IDLE stage
  */
 struct StopRequest {
 };
-static iox::capro::IdString_t STOP_CALL_ID = "Stop";
+static const std::string STOP_CALL_ID = "Stop";
 
 /**
  * Request to shutdown the module process cleanly
  */
 struct ShutdownRequest {
 };
-static iox::capro::IdString_t SHUTDOWN_CALL_ID = "Shutdown";
+static const std::string SHUTDOWN_CALL_ID = "Shutdown";
 
 /**
  * Event from the module to indicate a settings change. Syntalos will store the new settings.
@@ -411,7 +414,7 @@ struct SettingsChangeEvent {
         return ev;
     }
 };
-static iox::capro::IdString_t SETTINGS_CHANGE_CHANNEL_ID = "SettingsChange";
+static const std::string SETTINGS_CHANGE_CHANNEL_ID = "SettingsChange";
 
 /**
  * Request to change show the GUI dialog to change settings.
@@ -441,13 +444,13 @@ struct ShowSettingsRequest {
         return req;
     }
 };
-static iox::capro::IdString_t SHOW_SETTINGS_CALL_ID = "ShowSettings";
+static const std::string SHOW_SETTINGS_CALL_ID = "ShowSettings";
 
 /**
  * Request to show the display window(s) of the module.
  */
 struct ShowDisplayRequest {
 };
-static iox::capro::IdString_t SHOW_DISPLAY_CALL_ID = "ShowDisplay";
+static const std::string SHOW_DISPLAY_CALL_ID = "ShowDisplay";
 
 } // namespace Syntalos
