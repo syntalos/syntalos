@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -69,6 +69,16 @@ using microseconds_t = std::chrono::duration<int64_t, std::micro>;
 
 /// Shorthand for nanoseconds
 using nanoseconds_t = std::chrono::duration<int64_t, std::nano>;
+
+// Time conversion helper constants, if we really can't use std::chrono
+constexpr int64_t US_PER_MS = 1'000;
+constexpr int64_t US_PER_S = 1'000 * US_PER_MS;
+constexpr int64_t US_PER_MIN = 60 * US_PER_S;
+constexpr int64_t US_PER_H = 60 * US_PER_MIN;
+
+constexpr int64_t NS_PER_US = 1'000;
+constexpr int64_t MS_PER_S = 1'000;
+constexpr int64_t MS_PER_MIN = 60 * MS_PER_S;
 
 /**
  * @brief Convert microseconds to milliseconds

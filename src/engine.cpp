@@ -155,7 +155,7 @@ public:
     bool joinTimeout(uint seconds)
     {
         if (m_threadBackend == BackendQThread) {
-            return m_qThread->wait(seconds * 1000);
+            return m_qThread->wait(seconds * MS_PER_S);
         } else {
             struct timespec ts = {0};
 
@@ -1447,14 +1447,14 @@ void Engine::startResourceMonitoring(QList<AbstractModule *> activeModules, cons
     // watcher for disk space
     d->monitoring->exportDirPath = exportDirPath;
     d->monitoring->diskSpaceWarningEmitted = false;
-    d->monitoring->diskSpaceCheckTimer.setInterval(60 * 1000); // check every 60sec
+    d->monitoring->diskSpaceCheckTimer.setInterval(60 * MS_PER_S); // check every 60sec
     connect(&d->monitoring->diskSpaceCheckTimer, &QTimer::timeout, this, &Engine::onDiskspaceMonitorEvent);
 
     // watcher for remaining system memory
     d->monitoring->prevMemAvailablePercent = 100;
     d->monitoring->emergencyOOMStop = d->gconf->emergencyOOMStop();
     d->monitoring->memoryWarningEmitted = false;
-    d->monitoring->memCheckTimer.setInterval(10 * 1000); // check every 10sec
+    d->monitoring->memCheckTimer.setInterval(10 * MS_PER_S); // check every 10sec
     connect(&d->monitoring->memCheckTimer, &QTimer::timeout, this, &Engine::onMemoryMonitorEvent);
 
     // watcher for subscription buffer
@@ -1475,7 +1475,7 @@ void Engine::startResourceMonitoring(QList<AbstractModule *> activeModules, cons
     }
 
     d->monitoring->subBufferWarningEmitted = false;
-    d->monitoring->subBufferCheckTimer.setInterval(10 * 1000); // check every 10sec
+    d->monitoring->subBufferCheckTimer.setInterval(10 * MS_PER_S); // check every 10sec
     connect(&d->monitoring->subBufferCheckTimer, &QTimer::timeout, this, &Engine::onBufferMonitorEvent);
 
     // start resource watchers

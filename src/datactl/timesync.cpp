@@ -97,7 +97,7 @@ FreqCounterSynchronizer::FreqCounterSynchronizer(
         m_id = createRandomString(4);
 
     // time one datapoint takes to acquire, if the frequency in Hz is accurate, in microseconds
-    m_timePerPointUs = (1.0 / m_freq) * 1000.0 * 1000.0;
+    m_timePerPointUs = (1.0 / m_freq) * US_PER_S;
 }
 
 FreqCounterSynchronizer::~FreqCounterSynchronizer()
@@ -340,7 +340,7 @@ void FreqCounterSynchronizer::processTimestamps(
         // share the good news with the controller! (immediately on change, or every 30sec otherwise)
         if ((blockIndex == 0)
             && ((!m_lastOffsetWithinTolerance)
-                || (blocksRecvTimestamp.count() > (m_lastOffsetEmission.count() + (30 * 1000 * 1000))))) {
+                || (blocksRecvTimestamp.count() > (m_lastOffsetEmission.count() + (30 * US_PER_S))))) {
             if (m_offsetChangeNotifyFn)
                 m_offsetChangeNotifyFn(m_id, microseconds_t(avgOffsetDeviationUsec));
             m_lastOffsetEmission = blocksRecvTimestamp;
@@ -387,7 +387,7 @@ void FreqCounterSynchronizer::processTimestamps(
 
     // Emit offset information to the main controller about every 10sec or slower
     // in case we run at slower speeds
-    if ((blockIndex == 0) && (masterAssumedAcqTS.count() > (m_lastOffsetEmission.count() + (15 * 1000 * 1000)))) {
+    if ((blockIndex == 0) && (masterAssumedAcqTS.count() > (m_lastOffsetEmission.count() + (15 * US_PER_S)))) {
         if (m_offsetChangeNotifyFn)
             m_offsetChangeNotifyFn(m_id, microseconds_t(avgOffsetDeviationUsec));
         m_lastOffsetEmission = blocksRecvTimestamp;
@@ -405,7 +405,7 @@ void FreqCounterSynchronizer::processTimestamps(
     // translate the clock update offset to indices. We round up here as we are already below threshold,
     // and overshooting slightly appears to be the better solution than being too conservative
     const bool initialOffset = m_indexOffset == 0;
-    const int newIndexOffset = static_cast<int64_t>((m_timeCorrectionOffset.count() / 1000.0 / 1000.0) * m_freq);
+    const int newIndexOffset = static_cast<int64_t>((m_timeCorrectionOffset.count() / (double)US_PER_S) * m_freq);
 
     // only make adjustments (and potentially write to a tsync file) if we actually changed
     // the index offset and not just the time value associated with it
@@ -713,7 +713,7 @@ void SecondaryClockSynchronizer::processTimestamp(
         // we are within tolerance range!
         // share the good news with the controller! (immediately on change, or every 30sec otherwise)
         if ((!m_lastOffsetWithinTolerance)
-            || (masterTimestamp.count() > (m_lastOffsetEmission.count() + (30 * 1000 * 1000)))) {
+            || (masterTimestamp.count() > (m_lastOffsetEmission.count() + (30 * US_PER_S)))) {
             if (m_offsetChangeNotifyFn)
                 m_offsetChangeNotifyFn(m_id, microseconds_t(avgOffsetDeviationUsec));
             m_lastOffsetEmission = masterTimestamp;
@@ -748,7 +748,7 @@ void SecondaryClockSynchronizer::processTimestamp(
 
     // Emit offset information to the main controller about every 15sec or slower
     // in case we run at slower speeds
-    if (masterTimestamp.count() > (m_lastOffsetEmission.count() + (15 * 1000 * 1000))) {
+    if (masterTimestamp.count() > (m_lastOffsetEmission.count() + (15 * US_PER_S))) {
         if (m_offsetChangeNotifyFn)
             m_offsetChangeNotifyFn(m_id, microseconds_t(avgOffsetDeviationUsec));
         m_lastOffsetEmission = masterTimestamp;
