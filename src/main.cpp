@@ -59,30 +59,35 @@ int main(int argc, char *argv[])
 
     parser.addPositionalArgument("project", QStringLiteral("Syntalos project file to open on startup."), "[project]");
 
-    QCommandLineOption outputDirOption(
+    QCommandLineOption optnExportDir(
         QStringList() << "o" << "export-dir",
         QStringLiteral("Override the data export base directory set in the project file."),
         "directory");
-    parser.addOption(outputDirOption);
+    parser.addOption(optnExportDir);
 
-    QCommandLineOption autoRunOption(
+    QCommandLineOption optnAutoRun(
         QStringList() << "r" << "run",
         QStringLiteral("Automatically start a run immediately after the project has been loaded."));
-    parser.addOption(autoRunOption);
+    parser.addOption(optnAutoRun);
 
-    QCommandLineOption runForOption(
+    QCommandLineOption optnRunFor(
         QStringList() << "t" << "run-for",
         QStringLiteral(
             "Automatically start a run and stop it after the given number of seconds, "
             "then quit the application. Implies --run."),
         "seconds");
-    parser.addOption(runForOption);
+    parser.addOption(optnRunFor);
 
-    QCommandLineOption noninteractiveOption(
+    QCommandLineOption optnEphemeralRun(
+        QStringList() << "ephemeral",
+        QStringLiteral("If --run* is passed, run the project file without saving any experiment data."));
+    parser.addOption(optnEphemeralRun);
+
+    QCommandLineOption optnNonInteractive(
         QStringList() << "n" << "non-interactive",
         QStringLiteral(
             "Try to reduce GUI user interactions when auto-running a project file, print to stderr instead."));
-    parser.addOption(noninteractiveOption);
+    parser.addOption(optnNonInteractive);
 
     parser.process(app);
 
@@ -91,8 +96,8 @@ int main(int argc, char *argv[])
     const auto projectFname = positionalArgs.isEmpty() ? QString() : positionalArgs.last();
 
     // fetch automation / testing options
-    const int runForSecs = parser.isSet(runForOption) ? parser.value(runForOption).toInt() : -1;
-    const bool autoRun = parser.isSet(autoRunOption) || runForSecs > 0;
+    const int runForSecs = parser.isSet(optnRunFor) ? parser.value(optnRunFor).toInt() : -1;
+    const bool autoRun = parser.isSet(optnAutoRun) || runForSecs > 0;
 
     // ensure we only ever run one instance of the application
     KDBusService service(KDBusService::Unique);
@@ -102,15 +107,16 @@ int main(int argc, char *argv[])
     w->show();
     if (autoRun) {
         // automation-specific options
-        const auto overrideExportDir = parser.value(outputDirOption);
-        const bool nonInteractive = parser.isSet(noninteractiveOption);
+        const auto overrideExportDir = parser.value(optnExportDir);
+        const bool nonInteractive = parser.isSet(optnNonInteractive);
+        const bool ephemeralRun = parser.isSet(optnEphemeralRun);
 
         if (projectFname.isEmpty()) {
             qCritical().noquote()
                 << "No project filename specified, despite requesting autorun. Please specify a project file to run.";
             return SY_EXIT_LOAD_ERROR;
         }
-        w->scheduleProjectAutorun(projectFname, overrideExportDir, nonInteractive, runForSecs);
+        w->scheduleProjectAutorun(projectFname, overrideExportDir, ephemeralRun, nonInteractive, runForSecs);
     } else {
         if (!projectFname.isEmpty())
             w->loadProjectFilename(projectFname);

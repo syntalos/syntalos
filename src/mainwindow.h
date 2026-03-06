@@ -70,10 +70,35 @@ public:
 
     void setStatusText(const QString &msg);
 
+    /**
+     * @brief Load a project file and apply its configuration.
+     *
+     * This will load the project file, apply all settings, and prepare the engine for a run,
+     * but it will not start the run.
+     *
+     * @param fname The project file to load.
+     */
     void loadProjectFilename(const QString &fname);
+
+    /**
+     * @brief Schedule running a project file autonomously.
+     *
+     * This function is mainly used for automation, and can be used to trigger a project
+     * to be loaded, and then optionally launched for a period of time before quitting
+     * the application, without any user interaction.
+     *
+     * @param projectFname       The project file to load and run.
+     * @param overrideExportDir  If non-empty, overrides the export base
+     *                           directory stored in the project file.
+     * @param ephemeral          If true, the run will be ephemeral, meaning that
+     * @param noninteractive     If true, try to reduce GUI interactions.
+     * @param runDurationSec     If > 0, stop the run automatically after this
+     *                           many seconds and quit.  Implies @p autoRun.
+     */
     void scheduleProjectAutorun(
         const QString &projectFname,
         const QString &overrideExportDir,
+        bool ephemeral,
         bool noninteractive,
         int runDurationSec = 0);
 

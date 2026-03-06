@@ -1298,23 +1298,10 @@ void MainWindow::loadProjectFilename(const QString &fname)
     });
 }
 
-/**
- * @brief Schedule running a project file autonomously.
- *
- * This function is mainly used for automation, and can be used to trigger a project
- * to be loaded, and then optionally launched for a period of time before quitting
- * the application, without any user interaction.
- *
- * @param projectFname       The project file to load and run.
- * @param overrideExportDir  If non-empty, overrides the export base
- *                           directory stored in the project file.
- * @param noninteractive     If true, try to reduce GUI interactions.
- * @param runDurationSec     If > 0, stop the run automatically after this
- *                           many seconds and quit.  Implies @p autoRun.
- */
 void MainWindow::scheduleProjectAutorun(
     const QString &projectFname,
     const QString &overrideExportDir,
+    bool ephemeral,
     bool noninteractive,
     int runDurationSec)
 {
@@ -1323,7 +1310,7 @@ void MainWindow::scheduleProjectAutorun(
         m_runMaxDuration = seconds_t(runDurationSec);
 
     // defer until the main application has loaded.
-    QTimer::singleShot(0, [this, projectFname, overrideExportDir, noninteractive]() {
+    QTimer::singleShot(0, [this, projectFname, overrideExportDir, ephemeral, noninteractive]() {
         // load requested project file
         if (!loadConfiguration(projectFname)) {
             shutdown(SY_EXIT_LOAD_ERROR);
@@ -1384,7 +1371,10 @@ void MainWindow::scheduleProjectAutorun(
 
         // trigger the actual run
         qApp->processEvents();
-        runActionTriggered();
+        if (ephemeral)
+            temporaryRunActionTriggered();
+        else
+            runActionTriggered();
     });
 }
 
