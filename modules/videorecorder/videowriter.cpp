@@ -123,7 +123,7 @@ VideoContainer stringToVideoContainer(const std::string &str)
 static QString averrorToString(int err)
 {
     char errbuf[AV_ERROR_MAX_STRING_SIZE + 16] = {0};
-    av_strerror(AVERROR(err), errbuf, sizeof(errbuf));
+    av_strerror(err, errbuf, sizeof(errbuf));
 
     return QString::fromUtf8(errbuf);
 }
@@ -887,7 +887,7 @@ void VideoWriter::initializeInternal()
         finalizeInternal(false);
         av_dict_free(&codecopts);
         throw std::runtime_error(
-            QStringLiteral("Failed to open video encoder with the current parameters: %1").arg(ret).toStdString());
+            QStringLiteral("Failed to open video encoder with the current parameters: %1").arg(averrorToString(ret)).toStdString());
     }
 
     // stream codec parameters must be set after opening the encoder
