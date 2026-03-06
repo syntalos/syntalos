@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -490,7 +490,13 @@ QString MLinkModule::moduleBinary() const
 
 void MLinkModule::setModuleBinary(const QString &binaryPath)
 {
+    d->proc->setArguments(QStringList());
     d->proc->setProgram(binaryPath);
+}
+
+void MLinkModule::setModuleBinaryArgs(const QStringList &args)
+{
+    d->proc->setArguments(args);
 }
 
 QProcessEnvironment MLinkModule::moduleBinaryEnv() const
@@ -643,7 +649,7 @@ bool MLinkModule::runProcess()
     setState(ModuleState::INITIALIZING);
 
     d->proc->setProcessEnvironment(penv);
-    d->proc->start(d->proc->program(), QStringList());
+    d->proc->start(d->proc->program(), d->proc->arguments());
     if (!d->proc->waitForStarted())
         return false;
 
