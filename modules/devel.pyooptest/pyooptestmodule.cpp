@@ -41,7 +41,9 @@ public:
         // we use the generic Python OOP worker process for this
         if (std::filesystem::exists("/usr/bin/gdb")) {
             setModuleBinary("/usr/bin/gdb");
-            setModuleBinaryArgs(QStringList() << "-q" << "-batch" << "-ex" << "run" << "-ex" << "bt" << "--args" << findSyntalosPyWorkerBinary());
+            setModuleBinaryArgs(
+                QStringList() << "-q" << "-batch" << "-ex" << "run" << "-ex" << "bt" << "--args"
+                              << findSyntalosPyWorkerBinary());
         } else {
             setModuleBinary(findSyntalosPyWorkerBinary());
         }
