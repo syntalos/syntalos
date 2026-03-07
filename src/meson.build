@@ -4,8 +4,8 @@ syntalos_main_inc_dir = include_directories('.')
 
 subdir('utils')
 subdir('datactl')
-subdir('fabric')
 subdir('mlink')
+subdir('fabric')
 subdir('python')
 
 syntalos_src = [
@@ -79,29 +79,31 @@ syntalos_moc += qt.compile_resources(sources: syntalos_res)
 syntalos_exe = executable('syntalos',
     [syntalos_src, syntalos_moc, config_h, modconfig_h],
     gnu_symbol_visibility: 'hidden',
-    dependencies: [syntalos_fabric_dep,
-                   thread_dep,
-                   qt_core_dep,
-                   qt_gui_dep,
-                   qt_opengl_dep,
-                   qt_svg_dep,
-                   qt_dbus_dep,
-                   iox2_dep,
+    dependencies: [
+        thread_dep,
+        syntalos_fabric_dep,
+        syntalos_mlink_dep,
 
-                   kfdbusaddons_dep,
-                   kfarchive_dep,
-                   kfconfigwidgets_dep,
+        qt_core_dep,
+        qt_gui_dep,
+        qt_opengl_dep,
+        qt_svg_dep,
+        qt_dbus_dep,
 
-                   libusb_dep,
-                   avutil_dep,
-                   eigen_dep,
-                   glib_dep,
-                   gobject_dep,
-                   opengl_dep,
-                   opencv_dep,
-                   pipewire_dep,
-                   gstreamer_dep,
-                ],
+        kfdbusaddons_dep,
+        kfarchive_dep,
+        kfconfigwidgets_dep,
+
+        libusb_dep,
+        avutil_dep,
+        eigen_dep,
+        glib_dep,
+        gobject_dep,
+        opengl_dep,
+        opencv_dep,
+        pipewire_dep,
+        gstreamer_dep,
+    ],
     include_directories: [root_include_dir],
     install: true,
     install_rpath: sy_libdir

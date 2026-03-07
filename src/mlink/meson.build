@@ -7,11 +7,13 @@ sy_mlink_pub_hdr = [
 
 sy_mlink_priv_hdr = [
     'ipc-types-private.h',
+    'ipc-config-private.h',
 ]
 
 sy_mlink_src = [
     'syntaloslink.cpp',
     'syntaloslinkmodule.cpp',
+    'ipc-config-private.cpp',
 ]
 
 sy_mlink_moc = qt.compile_moc(
@@ -48,7 +50,6 @@ syntalos_mlink_dep = declare_dependency(
         syntalos_datactl_dep,
     ],
     include_directories: [
-        include_directories('.'),
         include_directories('./include')
     ],
 )

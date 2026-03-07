@@ -104,5 +104,3 @@ bool isBinaryInPath(const QString &binaryName);
  * @param waitMsec Time to wait.
  */
 void delay(int waitMsec);
-
-std::string makeModuleServiceName(const std::string &instanceId, const std::string &channelName);

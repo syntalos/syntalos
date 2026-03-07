@@ -27,6 +27,8 @@
 #include <iox2/bb/static_string.hpp>
 #include <iox2/bb/static_vector.hpp>
 
+#include "syntalos-datactl"
+
 namespace Syntalos
 {
 

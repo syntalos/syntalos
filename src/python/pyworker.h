@@ -23,7 +23,7 @@
 #include <QObject>
 #include <QHash>
 #include <QTimer>
-#include <syntaloslink.h>
+#include <syntalos-mlink>
 
 namespace py = pybind11;
 using namespace Syntalos;

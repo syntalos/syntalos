@@ -35,7 +35,7 @@
 #include <pybind11/eigen.h>
 #include <stdexcept>
 
-#include <syntaloslink.h>
+#include <syntalos-mlink>
 #include "cvnp/cvnp.h"
 #include "datactl/datatypes.h"
 #include "datactl/frametype.h"
