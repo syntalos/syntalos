@@ -28,6 +28,53 @@
 
 SYNTALOS_MODULE(PyOOPTestModule)
 
+static QString PYOOP_TEST_SCRIPT = QStringLiteral(R"%py(
+import syntalos_mlink as syl
+import cv2 as cv
+
+iport = syl.get_input_port('nonexistent')
+print('IPort (nonexistent): ' + str(iport))
+iport_frames = syl.get_input_port('video-in')
+oport_frames = syl.get_output_port('video-out')
+oport_tab = syl.get_output_port('table-out')
+print('IPort: ' + str(iport_frames))
+print('OPorts: ' + str([oport_frames, oport_tab]))
+
+def prepare() -> bool:
+    iport_frames.on_data = new_data_event
+    return True
+
+def start():
+    # copy the framerate from input to output
+    oport_frames.set_metadata_value('framerate', iport_frames.metadata['framerate'])
+    oport_frames.set_metadata_value_size('size', iport_frames.metadata['size'])
+
+    # table metadata
+    oport_tab.set_metadata_value('table_header', ['Index', 'Frame Time'])
+
+def run() -> bool:
+    while syl.is_running():
+        syl.await_data()
+    print('Quitting PyOOPTestModule Loop!')
+
+def new_data_event(frame) -> None:
+    img = frame.mat
+    text = 'pyOOPTest'
+    font = cv.FONT_HERSHEY_SIMPLEX
+    font_scale = 1.5
+    thickness = 3
+    color = (0, 255, 0)
+    (text_w, text_h), _ = cv.getTextSize(text, font, font_scale, thickness)
+    h, w = img.shape[:2]
+    org = ((w - text_w) // 2, (h + text_h) // 2)
+    cv.putText(img, text, org, font, font_scale, color, thickness, cv.LINE_AA)
+    frame.mat = img
+    oport_frames.submit(frame)
+
+    if frame.index % 100 == 0:
+        oport_tab.submit([frame.index, frame.time_usec])
+)%py");
+
 class PyOOPTestModule : public MLinkModule
 {
     Q_OBJECT
@@ -48,33 +95,7 @@ public:
             setModuleBinary(findSyntalosPyWorkerBinary());
         }
 
-        setScript(
-            "import syntalos_mlink as syl\n"
-            "import cv2 as cv\n"
-            "\n"
-            "iport = syl.get_input_port('nonexistent')\n"
-            "print('IPort (nonexistent): ' + str(iport))\n"
-            "iport = syl.get_input_port('video-in')\n"
-            "oport = syl.get_output_port('video-out')\n"
-            "print('IPort: ' + str(iport))\n"
-            "print('OPort: ' + str(oport))\n"
-            "oport.set_metadata_value('framerate', 200)\n"
-            "oport.set_metadata_value_size('size', [960, 600])\n"
-            "\n"
-            "def prepare() -> bool:\n"
-            "    iport.on_data = new_data_event\n"
-            "    return True\n"
-            "\n"
-            "def run() -> bool:\n"
-            "    while syl.is_running():\n"
-            "        syl.await_data()\n"
-            "    print('Quitting PyOOPTestModule Loop!')\n"
-            "\n"
-            "def new_data_event(frame) -> None:\n"
-            "    blur = cv.blur(frame.mat, (5,5))\n"
-            "    frame.mat = blur\n"
-            "    oport.submit(frame)\n"
-            "\n");
+        setScript(PYOOP_TEST_SCRIPT);
 
         registerInputPort<FirmataData>("firmata-in", "Pin Data");
         registerOutputPort<FirmataControl>("firmata-out", "Pin Control");
