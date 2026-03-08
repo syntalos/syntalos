@@ -336,7 +336,7 @@ Engine::Engine(QWidget *parentWidget)
     d->runCountPadding = 1;
     d->monitoring->emergencyOOMStop = d->gconf->emergencyOOMStop();
 
-    auto ioxSetupResult = setupIoxConfiguration();
+    auto ioxSetupResult = ipc::setupIoxConfiguration();
     d->ioxReady = ioxSetupResult.has_value() && ioxSetupResult.value();
     if (!d->ioxReady)
         qCritical().noquote() << "Failed to set up IOX:" << ioxSetupResult.error();
@@ -430,7 +430,7 @@ bool Engine::initialize()
 
     if (!d->ioxReady) {
         qCritical().noquote() << "IOX configuration was not loaded. Trying again.";
-        auto ioxSetupResult = setupIoxConfiguration();
+        auto ioxSetupResult = ipc::setupIoxConfiguration();
         d->ioxReady = ioxSetupResult.has_value() && ioxSetupResult.value();
         if (!d->ioxReady) {
             QMessageBox::critical(

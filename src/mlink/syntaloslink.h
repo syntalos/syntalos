@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2020-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -23,11 +23,6 @@
 #include <QVariantHash>
 #include <datactl/syclock.h>
 #include <datactl/datatypes.h>
-
-namespace iox::popo
-{
-class NotificationInfo;
-}
 
 namespace Syntalos
 {
@@ -72,7 +67,7 @@ private:
 private:
     class Private;
     Q_DISABLE_COPY(InputPortInfo)
-    QScopedPointer<Private> d;
+    std::unique_ptr<Private> d;
 };
 
 /**
@@ -92,7 +87,7 @@ private:
 private:
     class Private;
     Q_DISABLE_COPY(OutputPortInfo)
-    QScopedPointer<Private> d;
+    std::unique_ptr<Private> d;
 };
 
 /**
@@ -166,7 +161,7 @@ private:
 private:
     class Private;
     Q_DISABLE_COPY(SyntalosLink)
-    QScopedPointer<Private> d;
+    std::unique_ptr<Private> d;
 
     void processNotification(const iox::popo::NotificationInfo *notification);
 };
