@@ -38,17 +38,17 @@ cleanup-dead-nodes-on-destruction = true
 max-subscribers = 16
 max-publishers = 16
 max-nodes = 48
-subscriber-max-buffer-size = 6
+subscriber-max-buffer-size = 48
 subscriber-max-borrowed-samples = 8
 publisher-max-loaned-samples = 8
 publisher-history-size = 4
 enable-safe-overflow = true
 unable-to-deliver-strategy = "Block"
-subscriber-expired-connection-buffer = 128
+subscriber-expired-connection-buffer = 256
 
 [defaults.event]
-max-listeners = 32
-max-notifiers = 32
+max-listeners = 128
+max-notifiers = 128
 max-nodes = 48
 event-id-max-value = 255
 
@@ -70,7 +70,7 @@ enable-fire-and-forget-requests = true
 server-expired-connection-buffer = 128
 )";
 
-std::string Syntalos::makeModuleServiceName(const std::string &instanceId, const std::string &channelName)
+std::string ipc::makeModuleServiceName(const std::string &instanceId, const std::string &channelName)
 {
     // the total resulting length of this string must not be longer than 1024 characters, because
     // that is the length we set for IDs in SY_IOX_ID_MAX_LEN
@@ -79,7 +79,7 @@ std::string Syntalos::makeModuleServiceName(const std::string &instanceId, const
     return svcId;
 }
 
-std::expected<bool, std::string> Syntalos::setupIoxConfiguration()
+std::expected<bool, std::string> ipc::setupIoxConfiguration()
 {
     auto configDir = QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation);
     if (configDir.isEmpty())

@@ -44,7 +44,7 @@ public:
             return false;
 
         auto seq = reinterpret_borrow<sequence>(src);
-        for (auto && i : seq) {
+        for (auto &&i : seq) {
             auto item = i;
             if (py::isinstance<py::str>(item))
                 value.append(item.cast<std::string>());

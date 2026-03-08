@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2020-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -20,24 +20,20 @@
 #include "syntaloslink.h"
 
 #include <QDebug>
-#include <QBuffer>
 #include <QCoreApplication>
 #include <signal.h>
 #include <sys/prctl.h>
-#include <iceoryx_posh/runtime/posh_runtime.hpp>
-#include <iceoryx_posh/popo/server.hpp>
-#include <iceoryx_posh/popo/untyped_server.hpp>
-#include <iceoryx_posh/popo/publisher.hpp>
-#include <iceoryx_posh/popo/untyped_publisher.hpp>
-#include <iceoryx_posh/popo/untyped_subscriber.hpp>
-#include <iceoryx_hoofs/posix_wrapper/signal_watcher.hpp>
-#include <iceoryx_hoofs/log/logmanager.hpp>
+#include <iox2/iceoryx2.hpp>
 
-#include "ipc-types-private.h"
-#include "rtkit.h"
-#include "cpuaffinity.h"
+#include "mlink/ipc-types-private.h"
+#include "mlink/ipc-config-private.h"
+#include "mlink/ipc-iox-private.h"
+#include "utils/misc.h"
+#include "utils/rtkit.h"
+#include "utils/cpuaffinity.h"
 
 using namespace Syntalos;
+using namespace Syntalos::ipc;
 
 namespace Syntalos
 {

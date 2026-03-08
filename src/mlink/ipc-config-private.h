@@ -22,13 +22,11 @@
 #include <string>
 #include <expected>
 
-class QSettings;
-
-namespace Syntalos
+namespace Syntalos::ipc
 {
 
 std::string makeModuleServiceName(const std::string &instanceId, const std::string &channelName);
 
 std::expected<bool, std::string> setupIoxConfiguration();
 
-} // namespace Syntalos
+} // namespace Syntalos::ipc

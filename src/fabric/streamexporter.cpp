@@ -21,14 +21,17 @@
 
 #include <glib.h>
 #include <thread>
-#include <iceoryx_posh/runtime/posh_runtime.hpp>
-#include <iceoryx_posh/popo/untyped_publisher.hpp>
+#include <iox2/iceoryx2.hpp>
 
 #include "streams/stream.h"
 #include "utils/misc.h"
 #include "mlinkmodule.h"
+#include "mlink/ipc-types-private.h"
+#include "mlink/ipc-iox-private.h"
+#include "mlink/syntaloslink.h"
 
 using namespace Syntalos;
+using namespace Syntalos::ipc;
 
 namespace Syntalos
 {
