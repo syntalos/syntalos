@@ -32,6 +32,9 @@ namespace Syntalos::ipc
 template<typename T>
 using IoxPublisher = iox2::Publisher<iox2::ServiceType::Ipc, T, void>;
 
+template<typename T>
+using IoxSubscriber = iox2::Subscriber<iox2::ServiceType::Ipc, T, void>;
+
 using IoxSlicePublisher = iox2::Publisher<iox2::ServiceType::Ipc, iox2::bb::Slice<std::byte>, void>;
 using IoxSliceSubscriber = iox2::Subscriber<iox2::ServiceType::Ipc, iox2::bb::Slice<std::byte>, void>;
 using IoxListener = iox2::Listener<iox2::ServiceType::Ipc>;
@@ -46,6 +49,10 @@ using IoxClient = iox2::Client<iox2::ServiceType::Ipc, Req, void, Res, void>;
 using IoxUntypedClient = iox2::Client<iox2::ServiceType::Ipc, iox2::bb::Slice<std::byte>, void, DoneResponse, void>;
 
 using IoxByteSlice = iox2::bb::ImmutableSlice<std::byte>;
+using IoxServiceNameString = iox2::bb::StaticString<IOX2_SERVICE_NAME_LENGTH>;
+
+using IoxWaitSet = iox2::WaitSet<iox2::ServiceType::Ipc>;
+using IoxWaitSetGuard = iox2::WaitSetGuard<iox2::ServiceType::Ipc>;
 
 /**
  * @brief Event identifiers for the per-channel event service.
@@ -237,7 +244,7 @@ public:
         auto maybeSlice = m_publisher.loan_slice_uninit(static_cast<uint64_t>(size));
         if (!maybeSlice.has_value())
             throw std::runtime_error(
-                std::string("SyPublisher::loanSlice: failed to loan slice: ")
+                std::string("Publisher::loanSlice: failed to loan slice: ")
                 + iox2::bb::into<const char *>(maybeSlice.error()));
         return std::move(maybeSlice).value();
     }
@@ -431,6 +438,24 @@ public:
                 }
                 continue;
             }
+        }
+    }
+
+    /**
+     * Discard any pending data.
+     */
+    void drain()
+    {
+        for (;;) {
+            auto ev = m_listener.try_wait_one();
+            if (!ev.has_value() || !ev->has_value())
+                break;
+        }
+
+        for (;;) {
+            auto sample = m_subscriber.receive().value();
+            if (!sample.has_value())
+                break;
         }
     }
 

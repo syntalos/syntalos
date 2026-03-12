@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2020-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -19,9 +19,11 @@
 
 #pragma once
 
+#include <QObject>
+#include <expected>
+
 #include "moduleapi.h"
 #include "optionalwaitcondition.h"
-#include <QObject>
 
 namespace Syntalos
 {
@@ -49,7 +51,7 @@ public:
 
     void setFailed(bool failed);
 
-    std::optional<ExportedStreamInfo> publishStreamByPort(std::shared_ptr<VarStreamInputPort> iport);
+    auto publishStreamByPort(std::shared_ptr<VarStreamInputPort> iport) -> std::expected<std::optional<ExportedStreamInfo>, QString>;
 
     void run(OptionalWaitCondition *waitCondition);
     void stop();
@@ -60,7 +62,7 @@ signals:
 private:
     class Private;
     Q_DISABLE_COPY(StreamExporter)
-    QScopedPointer<Private> d;
+    std::unique_ptr<Private> d;
 
     void shutdownThread();
     void streamEventThreadFunc(OptionalWaitCondition *waitCondition);
