@@ -163,7 +163,7 @@ private:
     Q_DISABLE_COPY(SyntalosLink)
     std::unique_ptr<Private> d;
 
-    void processNotification(const iox::popo::NotificationInfo *notification);
+    void processPendingControl();
 };
 
 std::unique_ptr<SyntalosLink> initSyntalosModuleLink();
