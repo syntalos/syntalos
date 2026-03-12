@@ -435,6 +435,14 @@ void SyntalosLink::raiseError(const QString &message)
 
 void SyntalosLink::processPendingControl()
 {
+    // Drain the master control listener to keep its socket buffer clear.
+    // We *must* drain at the start to immediately consume the notification that
+    // triggered this call.
+    // Any new notifications arriving DURING processing are left intact,  preventing
+    // the race where a notification for a freshly-queued request arrives just before
+    // an end-of-function drain and gets silently discarded, stranding the request.
+    drainListenerEvents(*d->masterCtlEventListener);
+
     // ---- SetNiceness ----
     while (true) {
         auto req = d->srvSetNiceness->receive().value();
@@ -668,9 +676,6 @@ void SyntalosLink::processPendingControl()
         if (d->showSettingsCb)
             d->showSettingsCb(settingsData);
     }
-
-    // we should have processed everything by this point - if not, we will be called again
-    drainListenerEvents(*d->masterCtlEventListener);
 }
 
 void SyntalosLink::awaitData(int timeoutUsec)

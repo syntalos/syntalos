@@ -296,6 +296,12 @@ MLinkModule::~MLinkModule()
  */
 void MLinkModule::handleIncomingControl()
 {
+    // Drain the control event listener to keep its socket buffer clear.
+    // We *must* drain at the start to immediately consume the notification that triggered this call,
+    // and to prevent race conditions with new events arriving while we process the previous one.
+    if (d->workerCtlEventListener.has_value())
+        drainListenerEvents(*d->workerCtlEventListener);
+
     // Error events
     d->checkClientError(this);
 
@@ -396,10 +402,6 @@ void MLinkModule::handleIncomingControl()
             setSettingsData(scev.settings);
         }
     }
-
-    // drain the control event listener to keep its socket buffer clear.
-    if (d->workerCtlEventListener.has_value())
-        drainListenerEvents(*d->workerCtlEventListener);
 }
 
 void MLinkModule::resetConnection()
