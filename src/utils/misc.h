@@ -22,6 +22,38 @@
 #include <QString>
 #include <QStringList>
 
+namespace Syntalos
+{
+// Conversion helpers to convert a bunch of random stuff into QString
+// This is especially useful for supporting Qt versions < 6.9, which
+// didn't accept QUtf8StringView-style arguments yet in some places.
+
+inline const QString &qstr(const QString &s) noexcept
+{
+    return s;
+}
+
+inline QString qstr(QStringView s)
+{
+    return s.toString();
+}
+
+inline QString qstr(const char *s)
+{
+    return QString::fromUtf8(s);
+}
+
+inline QString qstr(std::string_view s)
+{
+    return QString::fromUtf8(s.data(), static_cast<qsizetype>(s.size()));
+}
+
+inline QString qstr(const std::string &s)
+{
+    return QString::fromUtf8(s.data(), static_cast<qsizetype>(s.size()));
+}
+} // namespace Syntalos
+
 /**
  * @brief Create a random alphanumeric string with the given length.
  */

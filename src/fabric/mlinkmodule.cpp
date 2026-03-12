@@ -166,8 +166,9 @@ public:
 
         auto maybeReq = client.loan_uninit();
         if (!maybeReq.has_value()) {
-            self->raiseError(QStringLiteral("Failed to loan shared memory for request on channel '%1': %2")
-                                 .arg(channel, QString::fromUtf8(iox2::bb::into<const char *>(maybeReq.error()))));
+            self->raiseError(
+                QStringLiteral("Failed to loan shared memory for request on channel '%1': %2")
+                    .arg(qstr(channel), QString::fromUtf8(iox2::bb::into<const char *>(maybeReq.error()))));
             return false;
         }
         auto pendingReq = std::move(maybeReq).value();
@@ -190,8 +191,7 @@ public:
                 return false;
 
             if (timer.elapsed() > timeoutSec * 1000) {
-                self->raiseError(
-                    QStringLiteral("Timeout while waiting for response on: %1").arg(QString::fromStdString(channel)));
+                self->raiseError(QStringLiteral("Timeout while waiting for response on: %1").arg(qstr(channel)));
                 return false;
             }
 
@@ -218,7 +218,7 @@ public:
         auto maybeSlice = client.loan_slice_uninit(static_cast<uint64_t>(bytes.size()));
         if (!maybeSlice.has_value()) {
             self->raiseError(QStringLiteral("Failed to loan shared memory for request on '%1': %2")
-                                 .arg(channel, iox2::bb::into<const char *>(maybeSlice.error())));
+                                 .arg(qstr(channel), iox2::bb::into<const char *>(maybeSlice.error())));
             return false;
         }
         auto rawSlice = std::move(maybeSlice).value();
@@ -240,8 +240,7 @@ public:
                 return false;
 
             if (timer.elapsed() > timeoutSec * 1000) {
-                self->raiseError(
-                    QStringLiteral("Timeout while waiting for response on: %1").arg(QString::fromStdString(channel)));
+                self->raiseError(QStringLiteral("Timeout while waiting for response on: %1").arg(qstr(channel)));
                 return false;
             }
             std::this_thread::sleep_for(microseconds_t(25));
