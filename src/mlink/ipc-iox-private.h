@@ -134,8 +134,15 @@ public:
         const std::string &instanceId,
         const std::string &channelName)
     {
+        // Main service name to emit samples & sample notifications
         const auto svcNameStr = makeModuleServiceName(instanceId, channelName);
         auto svcName = iox2::ServiceName::create(svcNameStr.c_str()).value();
+
+        // We need to create a separate service name to receive events from the clients,
+        // otherwise we will end up talking to ourselves on the same service when emitting
+        // samples, which is extremely inefficient.
+        const auto svcNameCtlEvStr = makeModuleServiceName("Ctl/" + instanceId, channelName);
+        auto svcNameCtlEv = iox2::ServiceName::create(svcNameCtlEvStr.c_str()).value();
 
         auto maybePubSvc = node.service_builder(svcName)
                                .publish_subscribe<iox2::bb::Slice<std::byte>>()
@@ -159,7 +166,7 @@ public:
                 "Publisher: Failed to create publisher for '" + svcNameStr
                 + "': " + iox2::bb::into<const char *>(maybePub.error()));
 
-        // Shared event service (same name)
+        // Shared event service to notify clients
         auto maybeEvSvc = node.service_builder(svcName).event().open_or_create();
         if (!maybeEvSvc.has_value())
             throw std::runtime_error(
@@ -172,10 +179,17 @@ public:
                 "Publisher: Failed to create notifier for '" + svcNameStr
                 + "': " + iox2::bb::into<const char *>(maybeNotifier.error()));
 
-        auto maybeListener = std::move(maybeEvSvc).value().listener_builder().create();
+        // Event service for the clients to notify the publisher (us)
+        auto maybeCtlEvSv = node.service_builder(svcNameCtlEv).event().open_or_create();
+        if (!maybeCtlEvSv.has_value())
+            throw std::runtime_error(
+                "Publisher: Failed to open/create control event service for '" + svcNameCtlEvStr
+                + "': " + iox2::bb::into<const char *>(maybeCtlEvSv.error()));
+
+        auto maybeListener = std::move(maybeCtlEvSv).value().listener_builder().create();
         if (!maybeListener.has_value())
             throw std::runtime_error(
-                "Publisher: Failed to create listener for '" + svcNameStr
+                "Publisher: Failed to create control listener for '" + svcNameCtlEvStr
                 + "': " + iox2::bb::into<const char *>(maybeListener.error()));
 
         SyPublisher pub{
@@ -348,8 +362,13 @@ public:
         const std::string &instanceId,
         const std::string &channelName)
     {
+        // Main service name to receive samples & notifications
         const auto svcNameStr = makeModuleServiceName(instanceId, channelName);
         auto svcName = iox2::ServiceName::create(svcNameStr.c_str()).value();
+
+        // Separate service name to send control events bck to the publisher
+        const auto svcNameCtlEvStr = makeModuleServiceName("Ctl/" + instanceId, channelName);
+        auto svcNameCtlEv = iox2::ServiceName::create(svcNameCtlEvStr.c_str()).value();
 
         auto maybeSubSvc = node.service_builder(svcName)
                                .publish_subscribe<iox2::bb::Slice<std::byte>>()
@@ -367,24 +386,31 @@ public:
                 "Subscriber: failed to create subscriber for '" + svcNameStr
                 + "': " + iox2::bb::into<const char *>(maybeSub.error()));
 
-        // Shared event service (same name)
+        // Event service to get notified about new samples
         auto maybeEvSvc = node.service_builder(svcName).event().open_or_create();
         if (!maybeEvSvc.has_value())
             throw std::runtime_error(
                 "Subscriber: failed to open/create event service for '" + svcNameStr
                 + "': " + iox2::bb::into<const char *>(maybeEvSvc.error()));
 
-        auto maybeNotifier = maybeEvSvc.value().notifier_builder().create();
-        if (!maybeNotifier.has_value())
-            throw std::runtime_error(
-                "Subscriber: failed to create notifier for '" + svcNameStr
-                + "': " + iox2::bb::into<const char *>(maybeNotifier.error()));
-
         auto maybeListener = std::move(maybeEvSvc).value().listener_builder().create();
         if (!maybeListener.has_value())
             throw std::runtime_error(
                 "Subscriber: failed to create listener for '" + svcNameStr
                 + "': " + iox2::bb::into<const char *>(maybeListener.error()));
+
+        // Event service to notify the publisher that we exist
+        auto maybeCtlEvSvc = node.service_builder(svcNameCtlEv).event().open_or_create();
+        if (!maybeCtlEvSvc.has_value())
+            throw std::runtime_error(
+                "Subscriber: failed to open/create control event service for '" + svcNameCtlEvStr
+                + "': " + iox2::bb::into<const char *>(maybeCtlEvSvc.error()));
+
+        auto maybeNotifier = maybeCtlEvSvc.value().notifier_builder().create();
+        if (!maybeNotifier.has_value())
+            throw std::runtime_error(
+                "Subscriber: failed to create notifier for '" + svcNameCtlEvStr
+                + "': " + iox2::bb::into<const char *>(maybeNotifier.error()));
 
         SySubscriber sub{
             std::move(svcName),

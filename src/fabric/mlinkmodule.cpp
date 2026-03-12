@@ -776,7 +776,6 @@ void MLinkModule::disconnectOutPortForwarders()
 bool MLinkModule::prepare(const TestSubject &subject)
 {
     GlobalConfig gconf;
-    bool ret;
 
     // ensure we are reading any messages from the module process
     d->ctlEventTimer->start();
