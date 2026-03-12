@@ -79,6 +79,21 @@ std::string ipc::makeModuleServiceName(const std::string &instanceId, const std:
     return svcId;
 }
 
+static void findAndCleanupDeadNodes()
+{
+    iox2::Node<iox2::ServiceType::Ipc>::list(iox2::Config::global_config(), [](auto node_state) -> auto {
+        node_state.dead([](auto view) -> auto {
+            std::cout << "ipc: Detected dead node: ";
+            if (view.details().has_value()) {
+                std::cout << view.details().value().name().to_string().unchecked_access().c_str();
+            }
+            std::cout << std::endl;
+            IOX2_DISCARD_RESULT(view.remove_stale_resources().value());
+        });
+        return iox2::CallbackProgression::Continue;
+    }).value();
+}
+
 std::expected<bool, std::string> ipc::setupIoxConfiguration()
 {
     auto configDir = QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation);
@@ -106,6 +121,9 @@ std::expected<bool, std::string> ipc::setupIoxConfiguration()
     auto res = iox2::Config::setup_global_config_from_file(ioxConfPath);
     if (!res.has_value())
         return std::unexpected(iox2::bb::into<const char *>(res.error()));
+
+    // cleanup
+    findAndCleanupDeadNodes();
 
     return true;
 }
