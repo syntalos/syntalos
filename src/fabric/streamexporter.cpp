@@ -113,7 +113,8 @@ void StreamExporter::setFailed(bool failed)
     d->failed = failed;
 }
 
-auto StreamExporter::publishStreamByPort(std::shared_ptr<VarStreamInputPort> iport) -> std::expected<std::optional<ExportedStreamInfo>, QString>
+auto StreamExporter::publishStreamByPort(std::shared_ptr<VarStreamInputPort> iport)
+    -> std::expected<std::optional<ExportedStreamInfo>, QString>
 {
     // we don't export unsubscribed ports
     if (!iport->hasSubscription())
@@ -122,7 +123,7 @@ auto StreamExporter::publishStreamByPort(std::shared_ptr<VarStreamInputPort> ipo
     // create unique ID for this output port
     auto modId =
         QStringLiteral("%1_%2").arg(iport->outPort()->owner()->id().mid(0, 80)).arg(iport->outPort()->owner()->index());
-    auto channelId = QStringLiteral("oport_%1").arg(iport->outPort()->id());
+    auto channelId = QStringLiteral("o/%1").arg(iport->outPort()->id());
 
     ExportedStreamInfo result;
     result.instanceId = modId;

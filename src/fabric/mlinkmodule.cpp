@@ -24,6 +24,7 @@
 #include <QTimer>
 #include <QElapsedTimer>
 #include <QCoreApplication>
+#include <iox2/iceoryx2.hpp>
 
 #include "mlink/ipc-types-private.h"
 #include "mlink/ipc-iox-private.h"
@@ -723,7 +724,7 @@ void MLinkModule::markIncomingForExport(StreamExporter *exporter)
             raiseError(res.error());
             continue;
         }
-        const auto& details = res.value();
+        const auto &details = res.value();
         if (!details.has_value())
             continue;
 
@@ -755,7 +756,7 @@ void MLinkModule::registerOutPortForwarders()
 
         Private::OutPortSub ps;
         // SySubscriber handles the event/listening actions internally, we only need to call it in runThread()
-        ps.sub.emplace(SySubscriber::create(*d->node, d->clientId, "oport_" + oport->id().toStdString()));
+        ps.sub.emplace(SySubscriber::create(*d->node, d->clientId, "o/" + oport->id().toStdString()));
         ps.oport = oport;
         d->outPortSubs.push_back(std::move(ps));
         oport->startStream();
@@ -884,7 +885,8 @@ void MLinkModule::runThread(OptionalWaitCondition *startWaitCondition)
     }
 
     auto onEvent =
-        [&](const iox2::WaitSetAttachmentId<iox2::ServiceType::Ipc> &attachmentId) -> iox2::CallbackProgression {
+        [this, &waitSetCtlGuard](
+            const iox2::WaitSetAttachmentId<iox2::ServiceType::Ipc> &attachmentId) -> iox2::CallbackProgression {
         // handle control messages
         if (attachmentId.has_event_from(waitSetCtlGuard)) {
             handleIncomingControl();

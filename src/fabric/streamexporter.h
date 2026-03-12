@@ -51,7 +51,8 @@ public:
 
     void setFailed(bool failed);
 
-    auto publishStreamByPort(std::shared_ptr<VarStreamInputPort> iport) -> std::expected<std::optional<ExportedStreamInfo>, QString>;
+    auto publishStreamByPort(std::shared_ptr<VarStreamInputPort> iport)
+        -> std::expected<std::optional<ExportedStreamInfo>, QString>;
 
     void run(OptionalWaitCondition *waitCondition);
     void stop();

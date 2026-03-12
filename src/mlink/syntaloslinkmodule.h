@@ -137,7 +137,7 @@ private:
 
     class Private;
     Q_DISABLE_COPY(SyntalosLinkModule)
-    QScopedPointer<Private> d;
+    std::unique_ptr<Private> d;
     SyntalosLink *m_slink;
 };
 
