@@ -436,7 +436,7 @@ bool Engine::initialize()
             QMessageBox::critical(
                 d->parentWidget,
                 QStringLiteral("Initialization failed"),
-                QStringLiteral("Failed to set up IOX configuration: %1").arg(ioxSetupResult.error()),
+                QStringLiteral("Failed to set up IOX configuration: %1").arg(qstr(ioxSetupResult.error())),
                 QMessageBox::Ok);
             return false;
         }
