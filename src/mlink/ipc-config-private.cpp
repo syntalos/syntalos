@@ -72,9 +72,9 @@ server-expired-connection-buffer = 128
 
 std::string ipc::makeModuleServiceName(const std::string &instanceId, const std::string &channelName)
 {
-    // the total resulting length of this string must not be longer than 1024 characters, because
-    // that is the length we set for IDs in SY_IOX_ID_MAX_LEN
-    std::string svcId = "SyMod/" + instanceId.substr(0, 512) + "/" + channelName.substr(0, 384);
+    // the total resulting length of this string must not be longer than 255 characters, because
+    // that is the length set for IDs in SY_IOX_ID_MAX_LEN
+    std::string svcId = "SyMod/" + instanceId.substr(0, 120) + "/" + channelName.substr(0, 128);
     assert(svcId.length() <= SY_IOX_ID_MAX_LEN);
     return svcId;
 }

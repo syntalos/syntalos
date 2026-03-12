@@ -35,11 +35,14 @@ namespace Syntalos
 // number of elements to hold in the IPC queues
 static constexpr uint64_t SY_IOX_QUEUE_CAPACITY = 24U;
 
+// number of elements to hold in the publisher history
+static constexpr uint64_t SY_IOX_HISTORY_SIZE = 2U;
+
 // initial size of the shared memory block for IPC communication
 static constexpr uint64_t SY_IOX_INITIAL_SLICE_LEN = 4096;
 
 // maximum length for IPC service name components
-static constexpr size_t SY_IOX_ID_MAX_LEN = 1024;
+static constexpr size_t SY_IOX_ID_MAX_LEN = IOX2_SERVICE_NAME_LENGTH;
 
 /**
  * @brief Action performed to modify a module port
@@ -201,6 +204,19 @@ static const std::string IN_PORT_UPDATE_METADATA_ID = "UpdateInputPortMetadata";
 struct DoneResponse {
     bool success;
 };
+
+/**
+ * Shared wakeup event service names for the control channel.
+ *
+ *  WORKER_CTL_EVENT_ID - the worker notifies the master whenever it publishes
+ *                        on a control channel (error, state, port-changes …).
+ *                        The master attaches one listener for this to its WaitSet.
+ *
+ *  MASTER_CTL_EVENT_ID - the master notifies the worker whenever it sends a
+ *                        request (request-response commands).
+ */
+static const std::string WORKER_CTL_EVENT_ID = "worker-event";
+static const std::string MASTER_CTL_EVENT_ID = "master-event";
 
 /**
  * Event indicating an error
