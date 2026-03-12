@@ -433,61 +433,6 @@ void SyntalosLink::raiseError(const QString &message)
     setState(ModuleState::ERROR);
 }
 
-void SyntalosLink::awaitData(int timeoutUsec)
-{
-    if (d->waitSetDirty)
-        d->rebuildWaitSet();
-
-    auto onEvent =
-        [this](const iox2::WaitSetAttachmentId<iox2::ServiceType::Ipc> &attachmentId) -> iox2::CallbackProgression {
-        // handle control messages
-        if (attachmentId.has_event_from(*d->waitSetCtrlGuard)) {
-            processPendingControl();
-        } else {
-            // handle incoming data
-            d->processPendingData(attachmentId);
-        }
-
-        qApp->processEvents();
-        return iox2::CallbackProgression::Continue;
-    };
-
-    if (timeoutUsec < 0) {
-        while (d->state != ModuleState::ERROR) {
-            // we do not use wait() here as some functionality depends on the Qt/GLib event loop, and especially
-            // for Python users it can be a bit jarring if that is not available. So we will occasionally
-            // process events here.
-            d->waitSet->wait_and_process_once_with_timeout(onEvent, iox2::bb::Duration::from_millis(250)).value();
-            qApp->processEvents();
-        }
-    } else {
-        d->waitSet->wait_and_process_once_with_timeout(onEvent, iox2::bb::Duration::from_micros(timeoutUsec)).value();
-        qApp->processEvents();
-    }
-}
-
-void SyntalosLink::awaitDataForever()
-{
-    if (d->waitSetDirty)
-        d->rebuildWaitSet();
-
-    d->waitSet
-        ->wait_and_process(
-            [this](const iox2::WaitSetAttachmentId<iox2::ServiceType::Ipc> &attachmentId) -> iox2::CallbackProgression {
-                // handle control messages
-                if (attachmentId.has_event_from(*d->waitSetCtrlGuard)) {
-                    processPendingControl();
-                } else {
-                    // handle incoming data
-                    d->processPendingData(attachmentId);
-                }
-
-                qApp->processEvents();
-                return iox2::CallbackProgression::Continue;
-            })
-        .value();
-}
-
 void SyntalosLink::processPendingControl()
 {
     // ---- SetNiceness ----
@@ -562,6 +507,9 @@ void SyntalosLink::processPendingControl()
             if (skip)
                 continue;
             d->inPortInfo.push_back(std::shared_ptr<InputPortInfo>(new InputPortInfo(ipc)));
+
+            // we will have to rebuild the waitset after ports changed
+            d->waitSetDirty = true;
         }
 
         for (const auto &opc : sppReq.outPorts) {
@@ -576,6 +524,9 @@ void SyntalosLink::processPendingControl()
             auto oport = std::shared_ptr<OutputPortInfo>(new OutputPortInfo(opc));
             oport->d->ioxPub = SyPublisher::create(*d->node, d->modId, oport->d->ipcChannelId());
             d->outPortInfo.push_back(oport);
+
+            // we will have to rebuild the waitset after ports changed
+            d->waitSetDirty = true;
         }
 
         Private::replyDoneSlice(*req, true);
@@ -609,6 +560,9 @@ void SyntalosLink::processPendingControl()
                 std::string(r.channelId.unchecked_access().c_str())));
 
         Private::replyDone(*req, true);
+
+        // we will have to rebuild the waitset after ports changed
+        d->waitSetDirty = true;
     }
 
     // ---- UpdateInputPortMetadata ----
@@ -717,6 +671,61 @@ void SyntalosLink::processPendingControl()
 
     // we should have processed everything by this point - if not, we will be called again
     drainListenerEvents(*d->masterCtlEventListener);
+}
+
+void SyntalosLink::awaitData(int timeoutUsec)
+{
+    if (d->waitSetDirty)
+        d->rebuildWaitSet();
+
+    auto onEvent =
+        [this](const iox2::WaitSetAttachmentId<iox2::ServiceType::Ipc> &attachmentId) -> iox2::CallbackProgression {
+        // handle control messages
+        if (attachmentId.has_event_from(*d->waitSetCtrlGuard)) {
+            processPendingControl();
+        } else {
+            // handle incoming data
+            d->processPendingData(attachmentId);
+        }
+
+        qApp->processEvents();
+        return iox2::CallbackProgression::Continue;
+    };
+
+    if (timeoutUsec < 0) {
+        do {
+            // we do not use wait() here as some functionality depends on the Qt/GLib event loop, and especially
+            // for Python users it can be a bit jarring if that is not available. So we will occasionally
+            // process events here.
+            d->waitSet->wait_and_process_once_with_timeout(onEvent, iox2::bb::Duration::from_millis(250)).value();
+            qApp->processEvents();
+        } while (d->state == ModuleState::RUNNING);
+    } else {
+        d->waitSet->wait_and_process_once_with_timeout(onEvent, iox2::bb::Duration::from_micros(timeoutUsec)).value();
+        qApp->processEvents();
+    }
+}
+
+void SyntalosLink::awaitDataForever()
+{
+    if (d->waitSetDirty)
+        d->rebuildWaitSet();
+
+    d->waitSet
+        ->wait_and_process(
+            [this](const iox2::WaitSetAttachmentId<iox2::ServiceType::Ipc> &attachmentId) -> iox2::CallbackProgression {
+                // handle control messages
+                if (attachmentId.has_event_from(*d->waitSetCtrlGuard)) {
+                    processPendingControl();
+                } else {
+                    // handle incoming data
+                    d->processPendingData(attachmentId);
+                }
+
+                qApp->processEvents();
+                return iox2::CallbackProgression::Continue;
+            })
+        .value();
 }
 
 ModuleState SyntalosLink::state() const
@@ -898,9 +907,6 @@ void SyntalosLink::updateOutputPort(const std::shared_ptr<OutputPortInfo> &oport
         return static_cast<std::byte>(oportData[static_cast<int>(i)]);
     })).value();
     d->notifyMaster();
-
-    // we need to rebuild the waitset
-    d->waitSetDirty = true;
 }
 
 void SyntalosLink::updateInputPort(const std::shared_ptr<InputPortInfo> &iport)
@@ -919,9 +925,6 @@ void SyntalosLink::updateInputPort(const std::shared_ptr<InputPortInfo> &iport)
         return static_cast<std::byte>(iportData[static_cast<int>(i)]);
     })).value();
     d->notifyMaster();
-
-    // we need to rebuild the waitset
-    d->waitSetDirty = true;
 }
 
 bool SyntalosLink::submitOutput(const std::shared_ptr<OutputPortInfo> &oport, const BaseDataType &data)
