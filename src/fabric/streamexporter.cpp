@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2020-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -21,7 +21,6 @@
 
 #include <glib.h>
 #include <thread>
-#include <iox2/iceoryx2.hpp>
 
 #include "streams/stream.h"
 #include "utils/misc.h"
@@ -39,7 +38,7 @@ Q_LOGGING_CATEGORY(logSExporter, "stream-exporter")
 }
 
 struct StreamExportData {
-    std::unique_ptr<iox::popo::UntypedPublisher> publisher;
+    std::optional<SyPublisher> publisher;
     std::shared_ptr<VariantStreamSubscription> subscription;
 
     StreamExporter *self;
@@ -51,8 +50,10 @@ struct StreamExportData {
 class StreamExporter::Private
 {
 public:
-    Private() {}
-    ~Private() {}
+    Private() = default;
+    ~Private() = default;
+
+    std::optional<iox2::Node<iox2::ServiceType::Ipc>> node;
 
     QString threadName;
     std::atomic_bool running;
@@ -79,6 +80,12 @@ StreamExporter::StreamExporter(const QString &threadName, QObject *parent)
         d->threadName = QStringLiteral("se:%1").arg(createRandomString(9));
     else
         d->threadName = QStringLiteral("se:%1").arg(threadName);
+
+    d->node.emplace(
+        iox2::NodeBuilder()
+            .name(iox2::NodeName::create("syntalos-stream-exporter").value())
+            .create<iox2::ServiceType::Ipc>()
+            .value());
 }
 
 StreamExporter::~StreamExporter()
@@ -106,26 +113,7 @@ void StreamExporter::setFailed(bool failed)
     d->failed = failed;
 }
 
-static std::unique_ptr<iox::popo::UntypedPublisher> makeIoxPublisher(
-    const iox::capro::IdString_t &modId,
-    const iox::capro::IdString_t &channelId,
-    bool waitForConsumer = true)
-{
-    iox::popo::PublisherOptions publisherOptn;
-
-    // store the last 2 samples in queue
-    publisherOptn.historyCapacity = 2U;
-
-    if (waitForConsumer) {
-        // allow the subscriber to block us, to ensure we don't lose data
-        publisherOptn.subscriberTooSlowPolicy = iox::popo::ConsumerTooSlowPolicy::WAIT_FOR_CONSUMER;
-    }
-
-    return std::make_unique<iox::popo::UntypedPublisher>(
-        iox::capro::ServiceDescription{"SyntalosModule", modId, channelId}, publisherOptn);
-}
-
-std::optional<ExportedStreamInfo> StreamExporter::publishStreamByPort(std::shared_ptr<VarStreamInputPort> iport)
+auto StreamExporter::publishStreamByPort(std::shared_ptr<VarStreamInputPort> iport) -> std::expected<std::optional<ExportedStreamInfo>, QString>
 {
     // we don't export unsubscribed ports
     if (!iport->hasSubscription())
@@ -134,13 +122,13 @@ std::optional<ExportedStreamInfo> StreamExporter::publishStreamByPort(std::share
     // create unique ID for this output port
     auto modId =
         QStringLiteral("%1_%2").arg(iport->outPort()->owner()->id().mid(0, 80)).arg(iport->outPort()->owner()->index());
-    auto channelId = QStringLiteral("oport_%1").arg(iport->outPort()->id().mid(0, 80));
+    auto channelId = QStringLiteral("oport_%1").arg(iport->outPort()->id());
 
     ExportedStreamInfo result;
     result.instanceId = modId;
     result.channelId = channelId;
 
-    // if the emitter is an MLink module, the stream is already exported and we just return its expected info
+    // if the emitter is an MLink module, the stream is already exported, and we just return its expected info
     if (dynamic_cast<MLinkModule *>(iport->outPort()->owner()) != nullptr)
         return result;
 
@@ -150,10 +138,13 @@ std::optional<ExportedStreamInfo> StreamExporter::publishStreamByPort(std::share
 
     StreamExportData edata;
     edata.self = this;
-    edata.publisher = makeIoxPublisher(
-        iox::capro::IdString_t(iox::cxx::TruncateToCapacity, modId.toStdString()),
-        iox::capro::IdString_t(iox::cxx::TruncateToCapacity, channelId.toStdString()));
     edata.subscription = iport->subscriptionVar();
+
+    try {
+        edata.publisher.emplace(SyPublisher::create(*d->node, modId.toStdString(), channelId.toStdString()));
+    } catch (const std::exception &ex) {
+        return std::unexpected("Failed to set up IPC export for " + modId + "/" + channelId + ": " + ex.what());
+    }
 
     // register
     d->exports.push_back(std::move(edata));
@@ -167,32 +158,26 @@ static gboolean recvStreamEventDispatch(gpointer udata)
     const auto ed = static_cast<StreamExportData *>(udata);
 
     auto sendFn = [&ed](const BaseDataType &data) {
-        auto memSize = data.memorySize();
-        if (memSize < 0) {
-            // we do not know the required memory size in advance, so we need to
-            // perform a serialization and extra copy operation
-            const auto bytes = data.toBytes();
-
-            ed->publisher->loan(bytes.size())
-                .and_then([&](auto &payload) {
-                    memcpy(payload, bytes.data(), bytes.size());
-                    ed->publisher->publish(payload);
-                })
-                .or_else([&](auto &error) {
-                    std::cerr << "Unable to loan sample. Error: " << error << std::endl;
-                });
-        } else {
-            // Higher efficiency code-path since the size is known in advance
-            ed->publisher->loan(memSize)
-                .and_then([&](auto &payload) {
-                    if (!data.writeToMemory(payload, memSize)) {
-                        qCCritical(logSExporter) << "Failed to write data to shared memory!";
-                    }
-                    ed->publisher->publish(payload);
-                })
-                .or_else([&](auto &error) {
-                    std::cerr << "Unable to loan sample. Error: " << error << std::endl;
-                });
+        try {
+            auto memSize = data.memorySize();
+            if (memSize < 0) {
+                // we do not know the required memory size in advance, so we need to
+                // perform a serialization and extra copy operation
+                const auto bytes = data.toBytes();
+                auto slice = ed->publisher->loanSlice(static_cast<size_t>(bytes.size()));
+                std::memmove(slice.payload_mut().data(), bytes.data(), bytes.size());
+                ed->publisher->sendSlice(std::move(slice));
+            } else {
+                // Higher efficiency code-path since the size is known in advance
+                auto slice = ed->publisher->loanSlice(static_cast<size_t>(memSize));
+                if (!data.writeToMemory(slice.payload_mut().data(), static_cast<ssize_t>(memSize))) {
+                    qCCritical(logSExporter) << "Failed to serialize data for export!";
+                    return;
+                }
+                ed->publisher->sendSlice(std::move(slice));
+            }
+        } catch (const std::exception &e) {
+            qCWarning(logSExporter) << "Failed to transmit sample to other process:" << e.what();
         }
     };
 
@@ -206,6 +191,9 @@ static gboolean recvStreamEventDispatch(gpointer udata)
         if (!ed->subscription->callIfNextVar(sendFn))
             break;
     }
+
+    // handle any auxiliary publisher events
+    ed->publisher->handleEvents();
 
     return TRUE;
 }

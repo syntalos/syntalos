@@ -97,38 +97,19 @@ public:
     QString readProcessOutput();
 
     void markIncomingForExport(StreamExporter *exporter);
-    virtual bool prepare(const TestSubject &subject) override;
-    virtual void start() override;
-    virtual void stop() override;
+    bool prepare(const TestSubject &subject) override;
+    void start() override;
+    void stop() override;
+    void runThread(OptionalWaitCondition *startWaitCondition) override;
 
 signals:
     void processOutputReceived(const QString &text);
 
 private:
-    template<typename T>
-    std::unique_ptr<T> makeSubscriber(const QString &eventName);
-    std::unique_ptr<iox::popo::UntypedSubscriber> makeUntypedSubscriber(const QString &eventName);
-    template<typename T>
-    std::unique_ptr<T> makeClient(const QString &callName);
-    std::unique_ptr<iox::popo::UntypedClient> makeUntypedClient(const QString &callName);
-    template<typename ReqData>
-    bool callUntypedClientSimple(
-        const std::unique_ptr<iox::popo::UntypedClient> &client,
-        const ReqData &reqEntity,
-        int timeoutSec = 8);
-    template<typename Client, typename Func>
-    bool callClientSimple(const Client &client, Func func, int timeoutSec = 8);
+    void handleIncomingControl();
 
     void resetConnection();
-    static void onErrorReceivedCb(
-        iox::popo::Subscriber<ErrorEvent, iox::mepoo::NoUserHeader> *subscriber,
-        MLinkModule *self);
-    static void onStateChangeReceivedCb(
-        iox::popo::Subscriber<StateChangeEvent, iox::mepoo::NoUserHeader> *subscriber,
-        MLinkModule *self);
-    static void onPortChangedCb(iox::popo::UntypedSubscriber *subscriber, MLinkModule *self);
     static void onOutputDataReceivedCb(iox::popo::UntypedSubscriber *subscriber, VariantDataStream *stream);
-    static void onSettingsChangedCb(iox::popo::UntypedSubscriber *subscriber, MLinkModule *self);
 
     void registerOutPortForwarders();
     void disconnectOutPortForwarders();
@@ -136,7 +117,7 @@ private:
 private:
     class Private;
     Q_DISABLE_COPY(MLinkModule)
-    QScopedPointer<Private> d;
+    std::unique_ptr<Private> d;
     friend class Private;
 };
 
