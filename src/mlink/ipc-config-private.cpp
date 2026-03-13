@@ -29,6 +29,7 @@ using namespace Syntalos;
 
 static constexpr const char IOX_DEFAULT_CONFIG[] = R"([global]
 root-path = "/tmp/syntalos-iox/"
+prefix = "syiox_"
 
 [global.node]
 cleanup-dead-nodes-on-creation = true
