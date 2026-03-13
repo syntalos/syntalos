@@ -17,19 +17,21 @@ option('udevdir',
 
 option('modules',
     type: 'array',
-    choices: ['camera-arv',   # Module for GenICam camera support via Aravis
-              'camera-flir',  # FLIR camera module using the Spinnaker API
-              'camera-tis',   # Camera module for The Imaging Source cameras
-              'camera-ueye',  # uEye camera module
-              'intan-rhx',    # Intan RHX DAQ module
-              'miniscope',    # UCLA Miniscope module
-              'plot',         # Plotting modules using ImGui
+    choices: [
+      'camera-arv',   # Module for GenICam camera support via Aravis
+      'camera-flir',  # FLIR camera module using the Spinnaker API
+      'camera-tis',   # Camera module for The Imaging Source cameras
+      'camera-ueye',  # uEye camera module
+      'intan-rhx',    # Intan RHX DAQ module
+      'miniscope',    # UCLA Miniscope module
+      'plot',         # Plotting modules using ImGui
     ],
-    value : ['camera-arv',
-             'camera-tis',
-             'intan-rhx',
-             'miniscope',
-             'plot',
+    value : [
+      'camera-arv',
+      'camera-tis',
+      'intan-rhx',
+      'miniscope',
+      'plot',
     ],
     description: 'Select modules to enable.'
 )
@@ -56,4 +58,9 @@ option('tracing',
        type : 'boolean',
        value : false,
        description : 'Compile with -pg flag for function tracing & profiling'
+)
+option('explicit-mimalloc',
+       type : 'boolean',
+       value : false,
+       description : 'Ensure we build with a version of mimalloc that never overrides standard allocators.'
 )

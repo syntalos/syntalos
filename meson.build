@@ -3,6 +3,7 @@ project('Syntalos', 'c', 'cpp',
   default_options: ['c_std=gnu23',
                     'cpp_std=gnu++23',
                     'b_lto=true'],
+  subproject_dir : 'contrib/subprojects',
 
   license: 'LGPL-3.0+ and GPL-3.0+',
   version: '2.2.0',
@@ -246,6 +247,13 @@ qt_concurrent_dep = dependency('qt6', modules: ['Concurrent'])
 qtermwidget_dep = dependency('qtermwidget6')
 
 rt_lib = cpp_compiler.find_library('rt')
+if get_option('explicit-mimalloc')
+    mimalloc_proj = subproject('mimalloc', default_options: ['override=false'])
+    mimalloc_dep = mimalloc_proj.get_variable('mi_dep')
+else
+    mimalloc_dep = dependency('mimalloc', allow_fallback: false, required: false)
+endif
+
 thread_dep = dependency('threads')
 opengl_dep = dependency('GL')
 opencl_dep = dependency('OpenCL')
