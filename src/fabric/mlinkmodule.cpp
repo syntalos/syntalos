@@ -916,6 +916,11 @@ void MLinkModule::runThread(OptionalWaitCondition *startWaitCondition)
         waitSet.wait_and_process_once_with_timeout(onEvent, iox2::bb::Duration::from_millis(50)).value();
     }
 
+    // MUST reset output-port guards before the local WaitSet goes out of scope.
+    // iceoryx2 contract: "WaitSetGuard must live at most as long as the WaitSet."
+    for (auto &ps : d->outPortSubs)
+        ps.guard.reset();
+
     // we finished - drain incoming control messages from the module process one more time
     handleIncomingControl();
 }
