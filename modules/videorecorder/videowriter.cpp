@@ -44,6 +44,7 @@ extern "C" {
 #include "datactl/tsyncfile.h"
 #include "ffmpeg-utils.h"
 
+using namespace Syntalos;
 namespace Syntalos
 {
 Q_LOGGING_CATEGORY(logVRecorder, "mod.videorecorder")

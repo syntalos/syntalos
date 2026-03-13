@@ -251,7 +251,7 @@ if get_option('explicit-mimalloc')
     mimalloc_proj = subproject('mimalloc', default_options: ['override=false'])
     mimalloc_dep = mimalloc_proj.get_variable('mi_dep')
 else
-    mimalloc_dep = dependency('mimalloc', allow_fallback: false, required: false)
+    mimalloc_dep = dependency('mimalloc', allow_fallback: false)
 endif
 
 thread_dep = dependency('threads')

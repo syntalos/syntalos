@@ -21,6 +21,8 @@
 #include "datatypes.h"
 #include <opencv2/core.hpp>
 
+namespace Syntalos
+{
 /**
  * @brief A single frame of a video stream
  *
@@ -115,44 +117,72 @@ struct Frame : BaseDataType {
         return true;
     };
 
-    [[nodiscard]] std::vector<std::byte> toBytes() const override
+    bool toBytes(ByteVector &output) const override
     {
-        std::vector<std::byte> bytes;
-
         // TODO: Implement serialization if needed
         assert(0 && "toBytes() is not implemented for Frame. Use writeToMemory() instead.");
 
-        return bytes;
+        return false;
     }
 
     static Frame fromMemory(const void *buffer, size_t size)
     {
         Frame frame;
+        fromMemoryInto(buffer, size, frame);
+        return frame;
+    }
 
+    /**
+     * @brief Deserialize a Frame from @p buffer into @p frame, reusing its
+     *        cv::Mat pixel buffer when possible.
+     *
+     * Unlike fromMemory(), this variant avoids a malloc/free pair on every
+     * call when the frame dimensions and type are unchanged between calls AND
+     * @p frame is the exclusive owner of its mat data (cv::Mat refcount == 1).
+     *
+     * If the buffer is shared with subscriber queues (refcount > 1) the old
+     * data is released safely - each subscriber still holds its own reference
+     * - and a fresh allocation is made for this frame.
+     */
+    static void fromMemoryInto(const void *buffer, size_t size, Frame &frame)
+    {
+        const auto *ptr = static_cast<const unsigned char *>(buffer);
         int width, height, channels, type;
         int64_t timeC;
         size_t offset = 0;
 
         // unpack index and timestamp
-        std::memcpy(&frame.index, static_cast<const unsigned char *>(buffer) + offset, sizeof(frame.index));
+        std::memcpy(&frame.index, ptr + offset, sizeof(frame.index));
         offset += sizeof(frame.index);
-        std::memcpy(&timeC, static_cast<const unsigned char *>(buffer) + offset, sizeof(timeC));
+        std::memcpy(&timeC, ptr + offset, sizeof(timeC));
         offset += sizeof(timeC);
         frame.time = microseconds_t(timeC);
 
         // unpack image metadata
-        std::memcpy(&width, static_cast<const unsigned char *>(buffer) + offset, sizeof(width));
+        std::memcpy(&width, ptr + offset, sizeof(width));
         offset += sizeof(width);
-        std::memcpy(&height, static_cast<const unsigned char *>(buffer) + offset, sizeof(height));
+        std::memcpy(&height, ptr + offset, sizeof(height));
         offset += sizeof(height);
-        std::memcpy(&channels, static_cast<const unsigned char *>(buffer) + offset, sizeof(channels));
+        std::memcpy(&channels, ptr + offset, sizeof(channels));
         offset += sizeof(channels);
-        std::memcpy(&type, static_cast<const unsigned char *>(buffer) + offset, sizeof(type));
+        std::memcpy(&type, ptr + offset, sizeof(type));
         offset += sizeof(type);
 
-        // Create cv::Mat from the memory buffer
-        frame.mat = cv::Mat(height, width, type, (void *)(static_cast<const unsigned char *>(buffer) + offset)).clone();
+        // Reuse the existing cv::Mat pixel buffer when:
+        // - same dimensions and type (no reallocation needed), AND
+        // - refcount == 1, i.e. we are the sole owner.
+        // If refcount > 1 the subscriber queues still hold references to the
+        // previous frame's pixels.  Assigning a new cv::Mat decrements the old
+        // refcount (keeping their copies valid) and allocates a fresh buffer
+        // so we never overwrite data that is still in use downstream.
+        const bool canReuse = (frame.mat.data != nullptr) && (frame.mat.u != nullptr && frame.mat.u->refcount == 1)
+                              && (frame.mat.rows == height) && (frame.mat.cols == width) && (frame.mat.type() == type);
+        if (!canReuse)
+            frame.mat = cv::Mat(height, width, type);
 
-        return frame;
+        const size_t dataSize = frame.mat.elemSize() * static_cast<size_t>(width * height);
+        std::memcpy(frame.mat.data, ptr + offset, dataSize);
     }
 };
+
+} // namespace Syntalos

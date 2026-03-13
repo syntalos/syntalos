@@ -18,15 +18,14 @@ struct MyDataFrame : BaseDataType {
     time_t timestamp;
     cv::Mat frame;
 
-    [[nodiscard]] std::vector<std::byte> toBytes() const override
+    bool toBytes(ByteVector &output) const override
     {
-        std::vector<std::byte> bytes;
-        BinaryStreamWriter stream(bytes);
+        BinaryStreamWriter stream(output);
 
         stream.write(id);
         stream.write(timestamp);
 
-        return bytes;
+        return true;
     }
 
     static MyDataFrame fromMemory(const void *memory, size_t size)

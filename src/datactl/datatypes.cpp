@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -22,7 +22,7 @@
 
 static std::vector<std::pair<std::string, int>> g_streamTypeIdIndex;
 
-void registerStreamMetaTypes()
+void Syntalos::registerStreamMetaTypes()
 {
     // only register the types if we have not created the global registry yet
     if (!g_streamTypeIdIndex.empty())
@@ -35,7 +35,7 @@ void registerStreamMetaTypes()
     }
 }
 
-std::vector<std::pair<std::string, int>> streamTypeIdIndex()
+std::vector<std::pair<std::string, int>> Syntalos::streamTypeIdIndex()
 {
     return g_streamTypeIdIndex;
 }

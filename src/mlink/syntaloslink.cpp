@@ -158,6 +158,9 @@ public:
     int dataTypeId;
     QVariantHash metadata;
 
+    // utilized to reuse allocated memory when sending data, to prevent fragmentation
+    ByteVector outBuffer;
+
     [[nodiscard]] std::string ipcChannelId() const
     {
         return "o/" + id.toStdString();
@@ -998,9 +1001,12 @@ bool SyntalosLink::submitOutput(const std::shared_ptr<OutputPortInfo> &oport, co
         if (memSize < 0) {
             // we do not know the required memory size in advance, so we need to
             // perform a serialization and extra copy operation
-            const auto bytes = data.toBytes();
-            auto slice = pub.loanSlice(static_cast<size_t>(bytes.size()));
-            std::memmove(slice.payload_mut().data(), bytes.data(), static_cast<size_t>(bytes.size()));
+            data.toBytes(oport->d->outBuffer);
+            auto slice = pub.loanSlice(static_cast<size_t>(oport->d->outBuffer.size()));
+            std::memcpy(
+                slice.payload_mut().data(),
+                oport->d->outBuffer.data(),
+                static_cast<size_t>(oport->d->outBuffer.size()));
             pub.sendSlice(std::move(slice));
         } else {
             // Higher efficiency code-path since the size is known in advance
