@@ -506,7 +506,7 @@ std::vector<struct caps_format> Caps::generate_from_caps_list(GstElement &elemen
     std::vector<struct caps_format> tmp;
 
     for (unsigned int i = 0; i < gst_caps_get_size(p_caps); ++i) {
-        caps_format *fmt;
+        caps_format *fmt = nullptr;
         // int width;
         // int height;
 
@@ -593,6 +593,11 @@ std::vector<struct caps_format> Caps::generate_from_caps_list(GstElement &elemen
 
             res.width = resolution.width;
             res.height = resolution.height;
+
+            if (fmt == nullptr) {
+                qCritical() << "Did not find format for resolution " << res.width << "x" << res.height;
+                continue;
+            }
 
             res.framerates = index_framerates(element, fmt->gst_format, res, framerate);
             fmt->resolutions.push_back(res);

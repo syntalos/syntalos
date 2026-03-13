@@ -329,6 +329,9 @@ void IntWidget::setup_ui()
             scale = TcamSliderScale::Linear;
         } else if (representation == TCAM_PROPERTY_INTREPRESENTATION_LOGARITHMIC) {
             scale = TcamSliderScale::Logarithmic;
+        } else {
+            qCritical() << "Tcam: Scale representation not implemented:" << representation;
+            scale = TcamSliderScale::Linear;
         }
 
         p_slider = new TcamSlider(scale);

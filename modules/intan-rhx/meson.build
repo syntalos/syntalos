@@ -110,6 +110,9 @@ module_cpp_args = [
     '-Wno-error=unused-but-set-variable',
     '-Wno-unused-but-set-variable',
 ]
+if get_option('sanitize') != 'none' or get_option('tracing')
+    module_cpp_args += ['-Wno-maybe-uninitialized']
+endif
 
 # target OpenCL 3.0
 module_cpp_args += ['-DCL_TARGET_OPENCL_VERSION=300']

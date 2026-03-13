@@ -132,8 +132,8 @@ void EncodeTask::run()
     // start encoding
     bool firstFrame = true;
     bool success = true;
-    int frameWidth;
-    int frameHeight;
+    int frameWidth = -1;
+    int frameHeight = -1;
     bool useColor = true;
     int progress = 0;
     const auto frameCount = vsrc.totalFrames();
@@ -150,7 +150,7 @@ void EncodeTask::run()
         auto frame = maybeFrame.value().first;
         auto frameNo = maybeFrame.value().second;
 
-        if (firstFrame) {
+        if (firstFrame || frameWidth <= 0) {
             firstFrame = false;
             frameWidth = frame.cols;
             frameHeight = frame.rows;
