@@ -59,6 +59,7 @@ syntalos_datactl_lib = shared_library('syntalos-datactl',
 syntalos_datactl_dep = declare_dependency(
     link_with: syntalos_datactl_lib,
     dependencies: [
+        mimalloc_dep,
         sy_base_deps,
         eigen_dep,
         syntalos_utils_dep

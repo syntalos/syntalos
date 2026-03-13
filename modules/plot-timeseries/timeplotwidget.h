@@ -24,6 +24,8 @@
 
 #include "datactl/datatypes.h"
 
+using namespace Syntalos;
+
 class PlotSeriesSettings
 {
 public:

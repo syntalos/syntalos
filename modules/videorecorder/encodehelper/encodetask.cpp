@@ -33,6 +33,8 @@
 #include "utils/misc.h"
 #include "utils/tomlutils.h"
 
+using namespace Syntalos;
+
 Q_LOGGING_CATEGORY(logEncodeTask, "encoder.task")
 
 EncodeTask::EncodeTask(QueueItem *item, bool updateAttrs, int codecThreadN)

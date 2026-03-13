@@ -22,9 +22,23 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <mimalloc.h>
 
 namespace Syntalos
 {
+
+/**
+ * @brief ByteVector is a vector of bytes using mimalloc as allocator.
+ *
+ * In Syntalos' heavily threaded environment, where in the worst case a
+ * ton of these vectors may be created and destroyed in quick succession,
+ * the default glibc allocator is less than optimal.
+ * Mimalloc has shown to perform a lot better for this burst-like, threaded
+ * activity, therefore we prefer it.
+ * Please try to reuse buffers whenever possible still though - while
+ * mimalloc is a significant improvement, reusing memory segments is even better.
+ */
+using ByteVector = std::vector<std::byte, mi_stl_allocator<std::byte>>;
 
 /**
  * @brief Writer for Syntalos data entity serialization
@@ -32,13 +46,14 @@ namespace Syntalos
 class BinaryStreamWriter
 {
 public:
-    explicit BinaryStreamWriter(std::vector<std::byte> &buf)
+    explicit BinaryStreamWriter(ByteVector &buf)
         : m_buffer(buf)
     {
+        m_buffer.clear();
     }
 
-    explicit BinaryStreamWriter(const std::vector<std::byte> &buf)
-        : m_buffer(const_cast<std::vector<std::byte> &>(buf))
+    explicit BinaryStreamWriter(const ByteVector &buf)
+        : m_buffer(const_cast<ByteVector &>(buf))
     {
     }
 
@@ -82,7 +97,7 @@ public:
     }
 
 private:
-    std::vector<std::byte> &m_buffer;
+    ByteVector &m_buffer;
 };
 
 /**

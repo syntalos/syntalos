@@ -29,6 +29,8 @@
 #include "datactl/syclock.h"
 #include "datactl/timesync.h"
 
+using namespace Syntalos;
+
 namespace Syntalos
 {
 Q_DECLARE_LOGGING_CATEGORY(logGenCamera)

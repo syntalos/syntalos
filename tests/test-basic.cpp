@@ -5,6 +5,8 @@
 #include <limits>
 #include "datactl/datatypes.h"
 
+using namespace Syntalos;
+
 class TestBasic : public QObject
 {
     Q_OBJECT

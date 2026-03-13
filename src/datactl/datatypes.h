@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -32,7 +32,33 @@
 #include "binarystream.h"
 #include "eigenaux.h"
 
-using namespace Syntalos;
+namespace Syntalos
+{
+
+// ---------------------------------------------------------------------------
+// Opt-in trait for buffer-reuse in DataStream<T>.
+//
+// When supports_buffer_reuse<T>::value is true, DataStream<T> holds a single
+// per-stream scratch object of type T and calls T::fromMemoryInto() on every
+// received raw buffer instead of constructing a fresh T.  This avoids a
+// malloc/free round-trip for types that carry large heap-allocated payloads
+// (e.g. Frame's cv::Mat pixel buffer).
+//
+// To opt a type in:
+//   1. Implement  static void T::fromMemoryInto(const void*, size_t, T&)
+//      that deserializes into an existing T, reusing its internal buffers
+//      when the incoming data fits and the buffer is exclusively owned.
+//   2. Add a full specialization of supports_buffer_reuse below.
+// ---------------------------------------------------------------------------
+template<typename T>
+struct supports_buffer_reuse : std::false_type {
+};
+
+// Frame carries a cv::Mat whose pixel buffer can be reused across frames.
+struct Frame;
+template<>
+struct supports_buffer_reuse<Frame> : std::true_type {
+};
 
 /**
  * @brief The ModuleState enum
@@ -168,7 +194,7 @@ public:
      *
      * Serialize the data to a byte array for local transmission.
      */
-    [[nodiscard]] virtual std::vector<std::byte> toBytes() const = 0;
+    virtual bool toBytes(ByteVector &output) const = 0;
 };
 
 /**
@@ -250,16 +276,15 @@ struct ControlCommand : BaseDataType {
         return duration.count();
     }
 
-    [[nodiscard]] std::vector<std::byte> toBytes() const override
+    bool toBytes(ByteVector &output) const override
     {
-        std::vector<std::byte> bytes;
-        BinaryStreamWriter stream(bytes);
+        BinaryStreamWriter stream(output);
 
         stream.write(kind);
         stream.write(static_cast<uint64_t>(duration.count()));
         stream.write(command);
 
-        return bytes;
+        return true;
     }
 
     static ControlCommand fromMemory(const void *memory, size_t size)
@@ -308,14 +333,13 @@ struct TableRow : BaseDataType {
         return data.size();
     }
 
-    std::vector<std::byte> toBytes() const override
+    bool toBytes(ByteVector &output) const override
     {
-        std::vector<std::byte> bytes;
-        BinaryStreamWriter stream(bytes);
+        BinaryStreamWriter stream(output);
 
         stream.write(data);
 
-        return bytes;
+        return true;
     }
 
     static TableRow fromMemory(const void *memory, size_t size)
@@ -388,10 +412,9 @@ struct FirmataControl : BaseDataType {
     {
     }
 
-    std::vector<std::byte> toBytes() const override
+    bool toBytes(ByteVector &output) const override
     {
-        std::vector<std::byte> bytes;
-        BinaryStreamWriter stream(bytes);
+        BinaryStreamWriter stream(output);
 
         stream.write(command);
         stream.write(pinId);
@@ -400,7 +423,7 @@ struct FirmataControl : BaseDataType {
         stream.write(isPullUp);
         stream.write(value);
 
-        return bytes;
+        return true;
     }
 
     static FirmataControl fromMemory(const void *memory, size_t size)
@@ -431,10 +454,9 @@ struct FirmataData : BaseDataType {
     bool isDigital;
     microseconds_t time;
 
-    std::vector<std::byte> toBytes() const override
+    bool toBytes(ByteVector &output) const override
     {
-        std::vector<std::byte> bytes;
-        BinaryStreamWriter stream(bytes);
+        BinaryStreamWriter stream(output);
 
         stream.write(pinId);
         stream.write(pinName);
@@ -442,7 +464,7 @@ struct FirmataData : BaseDataType {
         stream.write(isDigital);
         stream.write(static_cast<int64_t>(time.count()));
 
-        return bytes;
+        return true;
     }
 
     static FirmataData fromMemory(const void *memory, size_t size)
@@ -509,15 +531,14 @@ struct IntSignalBlock : BaseDataType {
     VectorXul timestamps;
     MatrixXsi data;
 
-    std::vector<std::byte> toBytes() const override
+    bool toBytes(ByteVector &output) const override
     {
-        std::vector<std::byte> bytes;
-        BinaryStreamWriter stream(bytes);
+        BinaryStreamWriter stream(output);
 
         serializeEigen(stream, timestamps);
         serializeEigen(stream, data);
 
-        return bytes;
+        return true;
     }
 
     static IntSignalBlock fromMemory(const void *memory, size_t size)
@@ -573,15 +594,14 @@ struct FloatSignalBlock : BaseDataType {
     VectorXul timestamps;
     MatrixXd data;
 
-    std::vector<std::byte> toBytes() const override
+    bool toBytes(ByteVector &output) const override
     {
-        std::vector<std::byte> bytes;
-        BinaryStreamWriter stream(bytes);
+        BinaryStreamWriter stream(output);
 
         serializeEigen(stream, timestamps);
         serializeEigen(stream, data);
 
-        return bytes;
+        return true;
     }
 
     static FloatSignalBlock fromMemory(const void *memory, size_t size)
@@ -650,3 +670,5 @@ inline std::string numToString(T x)
         return {buf.data(), result.ptr};
     }
 }
+
+} // namespace Syntalos

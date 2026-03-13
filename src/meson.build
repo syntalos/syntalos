@@ -81,6 +81,7 @@ syntalos_exe = executable('syntalos',
     gnu_symbol_visibility: 'hidden',
     dependencies: [
         thread_dep,
+        mimalloc_dep,
         syntalos_fabric_dep,
         syntalos_mlink_dep,
 

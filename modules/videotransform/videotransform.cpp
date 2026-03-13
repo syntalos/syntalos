@@ -30,6 +30,8 @@
 
 #include "fabric/cvutils.h"
 
+using namespace Syntalos;
+
 VideoTransform::VideoTransform()
     : QObject()
 {

@@ -41,6 +41,9 @@ struct StreamExportData {
     std::optional<SyPublisher> publisher;
     std::shared_ptr<VariantStreamSubscription> subscription;
 
+    // reused memory segment to avoid memory fragmentation
+    ByteVector buffer;
+
     StreamExporter *self;
     GSource *source;
 };
@@ -165,9 +168,9 @@ static gboolean recvStreamEventDispatch(gpointer udata)
             if (memSize < 0) {
                 // we do not know the required memory size in advance, so we need to
                 // perform a serialization and extra copy operation
-                const auto bytes = data.toBytes();
-                auto slice = ed->publisher->loanSlice(static_cast<size_t>(bytes.size()));
-                std::memmove(slice.payload_mut().data(), bytes.data(), bytes.size());
+                data.toBytes(ed->buffer);
+                auto slice = ed->publisher->loanSlice(static_cast<size_t>(ed->buffer.size()));
+                std::memcpy(slice.payload_mut().data(), ed->buffer.data(), ed->buffer.size());
                 ed->publisher->sendSlice(std::move(slice));
             } else {
                 // Higher efficiency code-path since the size is known in advance
