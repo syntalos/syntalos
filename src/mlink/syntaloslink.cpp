@@ -342,18 +342,27 @@ public:
      */
     void rebuildWaitSet()
     {
+        // MUST drop ALL WaitSet guards before destroying the WaitSet itself.
+        // iceoryx2 contract: "WaitSetGuard must live at most as long as the WaitSet."
+        // Dropping a guard after the WaitSet is destroyed is use-after-free on
+        // the Rust side and causes EBADF errors and corrupted event state on the
+        // next run.
         waitSetCtrlGuard.reset();
+        for (auto &iport : inPortInfo)
+            iport->d->ioxGuard.reset();
+
+        // Now safe to destroy the old WaitSet
         waitSet.reset();
 
+        // Build a fresh WaitSet and re-attach everything
         waitSet.emplace(iox2::WaitSetBuilder().create<iox2::ServiceType::Ipc>().value());
 
-        // Control attachment: wakes for requests from the master.
+        // Control attachment: wakes for requests from the master
         if (masterCtlEventListener.has_value())
             waitSetCtrlGuard.emplace(waitSet->attach_notification(*masterCtlEventListener).value());
 
         // Per-input-port attachments
         for (auto &iport : inPortInfo) {
-            iport->d->ioxGuard.reset();
             if (!iport->d->connected || !iport->d->ioxSub.has_value())
                 continue;
             iport->d->ioxGuard.emplace(waitSet->attach_notification(*iport->d->ioxSub).value());
@@ -561,6 +570,9 @@ void SyntalosLink::processPendingControl()
 
         // connect the port
         iport->d->connected = true;
+
+        // MUST reset the WaitSet guard BEFORE replacing the old subscriber
+        iport->d->ioxGuard.reset();
         iport->d->ioxSub.emplace(
             SySubscriber::create(
                 *d->node,
