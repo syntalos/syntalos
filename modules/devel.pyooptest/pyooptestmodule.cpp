@@ -58,17 +58,15 @@ def run() -> bool:
     print('Quitting PyOOPTestModule Loop!')
 
 def new_data_event(frame) -> None:
-    img = frame.mat
     text = 'pyOOPTest'
     font = cv.FONT_HERSHEY_SIMPLEX
     font_scale = 1.5
     thickness = 3
     color = (0, 255, 0)
     (text_w, text_h), _ = cv.getTextSize(text, font, font_scale, thickness)
-    h, w = img.shape[:2]
+    h, w = frame.mat.shape[:2]
     org = ((w - text_w) // 2, (h + text_h) // 2)
-    cv.putText(img, text, org, font, font_scale, color, thickness, cv.LINE_AA)
-    frame.mat = img
+    cv.putText(frame.mat, text, org, font, font_scale, color, thickness, cv.LINE_AA)
     oport_frames.submit(frame)
 
     if frame.index % 100 == 0:
