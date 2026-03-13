@@ -37,6 +37,7 @@ eatmydata apt-get install -yq --no-install-recommends \
     libkf6archive-dev \
     libkf6texteditor-dev \
     libkf6dbusaddons-dev \
+    libmimalloc-dev \
     libopencv-dev \
     libpipewire-0.3-dev \
     libqt6opengl6-dev \
