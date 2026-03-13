@@ -38,6 +38,7 @@ syntalos_src = [
     'moduleselectdialog.cpp',
     'pymoduleloader.h',
     'pymoduleloader.cpp',
+    'symemopt.h',
     'sysinfodialog.h',
     'sysinfodialog.cpp',
     'timingsdialog.h',
