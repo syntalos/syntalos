@@ -24,18 +24,18 @@
 // LSan leak check after every run so leaks are surfaced between runs, not only
 // at process exit.
 #if defined(__has_feature)
-#  if __has_feature(address_sanitizer)
-#    define SY_HAS_LSAN 1
-#  endif
+#if __has_feature(address_sanitizer)
+#define SY_HAS_LSAN 1
+#endif
 #endif
 #if !defined(SY_HAS_LSAN) && defined(__SANITIZE_ADDRESS__)
-#  define SY_HAS_LSAN 1
+#define SY_HAS_LSAN 1
 #endif
 #if !defined(SY_HAS_LSAN) && defined(__SANITIZE_LEAK__)
-#  define SY_HAS_LSAN 1
+#define SY_HAS_LSAN 1
 #endif
 #ifdef SY_HAS_LSAN
-#  include <sanitizer/lsan_interface.h>
+#include <sanitizer/lsan_interface.h>
 #endif
 
 #include <QCoreApplication>
@@ -1844,7 +1844,7 @@ bool Engine::runInternal(const QString &exportDirPath)
                 continue;
             emitStatusMessage(QStringLiteral("Waiting for '%1' to get ready...").arg(mod->name()));
             while (mod->state() != ModuleState::READY) {
-                QThread::msleep(500);
+                QThread::msleep(250);
                 qApp->processEvents();
                 if (mod->state() == ModuleState::ERROR) {
                     emitStatusMessage(QStringLiteral("Module '%1' failed to initialize.").arg(mod->name()));
@@ -1917,7 +1917,7 @@ bool Engine::runInternal(const QString &exportDirPath)
             << "Threaded/evented module startup completed, took " << d->timer->timeSinceStartMsec().count() << "msec";
         lastPhaseTimepoint = d->timer->currentTimePoint();
 
-        // tell all non-threaded modules individuall now that we started
+        // tell all non-threaded modules individually now that we started
         for (auto &mod : orderedActiveModules) {
             // ignore threaded & evented
             if ((mod->driver() == ModuleDriverKind::THREAD_DEDICATED)
@@ -2068,6 +2068,7 @@ bool Engine::runInternal(const QString &exportDirPath)
     // stop exporting streams to external modules
     emitStatusMessage(QStringLiteral("Stopping IPC stream exporter..."));
     streamExporter->stop();
+    streamExporter.reset();
 
     lastPhaseTimepoint = d->timer->currentTimePoint();
 
