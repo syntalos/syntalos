@@ -35,6 +35,7 @@ private:
 
     VTransformCtlDialog *m_settingsDlg;
     QList<std::shared_ptr<VideoTransform>> m_activeVTFList;
+    QSize m_expectedInputSize;
 
 public:
     explicit VideoTransformModule(QObject *parent = nullptr)
@@ -62,6 +63,7 @@ public:
     bool prepare(const TestSubject &) override
     {
         m_framesIn = nullptr;
+        m_expectedInputSize = {};
         // check if there even is something to do for us
         if (!m_framesInPort->hasSubscription()) {
             setStateDormant();
@@ -83,6 +85,7 @@ public:
 
         // notify transformers about original data
         const auto origQSize = m_framesIn->metadataValue("size", QSize()).toSize();
+        m_expectedInputSize = origQSize;
         QSize tfISize = origQSize;
         for (const auto &vtf : m_activeVTFList) {
             vtf->setOriginalSize(tfISize);
@@ -116,6 +119,28 @@ public:
 
         // get the frame
         auto frame = maybeFrame.value();
+        if (m_expectedInputSize.isValid()) {
+            const QSize actualInputSize(frame.mat.cols, frame.mat.rows);
+            if (actualInputSize != m_expectedInputSize) {
+                auto srcLabel = m_framesIn->metadataValue(CommonMetadataKey::SrcModName).toString();
+                const auto srcPortTitle = m_framesIn->metadataValue(CommonMetadataKey::SrcModPortTitle).toString();
+                if (!srcPortTitle.isEmpty())
+                    srcLabel = srcLabel.isEmpty() ? srcPortTitle : QStringLiteral("%1 (%2)").arg(srcLabel, srcPortTitle);
+                if (srcLabel.isEmpty())
+                    srcLabel = QStringLiteral("upstream frame source");
+
+                raiseError(QStringLiteral(
+                    "Input frame size contract violated by %1: stream metadata declared %2x%3px, "
+                    "but the received frame was %4x%5px. This indicates an upstream bug in the "
+                    "frame source or its metadata handling.")
+                               .arg(srcLabel)
+                               .arg(m_expectedInputSize.width())
+                               .arg(m_expectedInputSize.height())
+                               .arg(actualInputSize.width())
+                               .arg(actualInputSize.height()));
+                return;
+            }
+        }
 
         // apply transformations
         cv::Mat &image = frame.mat;
@@ -145,6 +170,7 @@ public:
         for (const auto &vtf : m_activeVTFList)
             vtf->stop();
         m_activeVTFList.clear();
+        m_expectedInputSize = {};
 
         // unlock UI
         m_settingsDlg->setRunning(false);
