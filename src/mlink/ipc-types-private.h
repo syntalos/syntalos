@@ -34,7 +34,7 @@ namespace Syntalos
 {
 
 // number of elements to hold in the IPC queues
-static constexpr uint64_t SY_IOX_QUEUE_CAPACITY = 24U;
+static constexpr uint64_t SY_IOX_QUEUE_CAPACITY = 12U;
 
 // number of elements to hold in the publisher history
 static constexpr uint64_t SY_IOX_HISTORY_SIZE = 2U;

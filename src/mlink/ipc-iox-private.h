@@ -148,6 +148,7 @@ public:
                                .publish_subscribe<iox2::bb::Slice<std::byte>>()
                                .history_size(SY_IOX_HISTORY_SIZE)
                                .subscriber_max_buffer_size(SY_IOX_QUEUE_CAPACITY)
+                               .subscriber_max_borrowed_samples(1)
                                .open_or_create();
         if (!maybePubSvc.has_value())
             throw std::runtime_error(
@@ -374,6 +375,7 @@ public:
                                .publish_subscribe<iox2::bb::Slice<std::byte>>()
                                .history_size(SY_IOX_HISTORY_SIZE)
                                .subscriber_max_buffer_size(SY_IOX_QUEUE_CAPACITY)
+                               .subscriber_max_borrowed_samples(1)
                                .open_or_create();
         if (!maybeSubSvc.has_value())
             throw std::runtime_error(
@@ -520,6 +522,7 @@ IoxPublisher<T> makeTypedPublisher(iox2::Node<iox2::ServiceType::Ipc> &node, con
     auto maybeSvc = node.service_builder(iox2::ServiceName::create(svcNameStr.c_str()).value())
                         .publish_subscribe<T>()
                         .subscriber_max_buffer_size(SY_IOX_QUEUE_CAPACITY)
+                        .subscriber_max_borrowed_samples(1)
                         .open_or_create();
     if (!maybeSvc.has_value())
         throw std::runtime_error(
@@ -548,6 +551,7 @@ iox2::Subscriber<iox2::ServiceType::Ipc, T, void> makeTypedSubscriber(
     auto maybeSvc = node.service_builder(iox2::ServiceName::create(svcNameStr.c_str()).value())
                         .publish_subscribe<T>()
                         .subscriber_max_buffer_size(SY_IOX_QUEUE_CAPACITY)
+                        .subscriber_max_borrowed_samples(1)
                         .open_or_create();
     if (!maybeSvc.has_value())
         throw std::runtime_error(
@@ -570,6 +574,7 @@ inline IoxSlicePublisher makeSlicePublisher(iox2::Node<iox2::ServiceType::Ipc> &
     auto maybeSvc = node.service_builder(iox2::ServiceName::create(svcNameStr.c_str()).value())
                         .publish_subscribe<iox2::bb::Slice<std::byte>>()
                         .subscriber_max_buffer_size(SY_IOX_QUEUE_CAPACITY)
+                        .subscriber_max_borrowed_samples(1)
                         .open_or_create();
     if (!maybeSvc.has_value())
         throw std::runtime_error(
@@ -600,6 +605,7 @@ inline IoxSliceSubscriber makeSliceSubscriber(iox2::Node<iox2::ServiceType::Ipc>
     auto maybeSvc = node.service_builder(iox2::ServiceName::create(svcNameStr.c_str()).value())
                         .publish_subscribe<iox2::bb::Slice<std::byte>>()
                         .subscriber_max_buffer_size(SY_IOX_QUEUE_CAPACITY)
+                        .subscriber_max_borrowed_samples(1)
                         .open_or_create();
     if (!maybeSvc.has_value())
         throw std::runtime_error(
