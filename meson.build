@@ -163,6 +163,10 @@ if sanitize_opt != 'none'
 endif
 
 if get_option('tracing')
+    if get_option('b_lto')
+        error('Building with tracing works best without LTO. Disable it with -Db_lto=false')
+    endif
+
     add_project_arguments(
         '-pg',
         '-fno-omit-frame-pointer',
@@ -173,7 +177,7 @@ if get_option('tracing')
         '-fno-omit-frame-pointer',
         language: 'cpp'
     )
-    add_project_link_arguments('-pg')
+    add_project_link_arguments('-pg', language: ['c', 'cpp'])
 endif
 
 # set x86_64 specific optimization flags
