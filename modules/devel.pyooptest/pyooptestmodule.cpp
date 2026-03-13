@@ -120,8 +120,6 @@ public:
 
         return MLinkModule::prepare(subject);
     }
-
-    void stop() override {}
 };
 
 QString PyOOPTestModuleInfo::id() const
