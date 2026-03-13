@@ -151,13 +151,14 @@ public:
     int index;
     bool connected;
     std::optional<SyPublisher> ioxPub;
+    std::optional<IoxWaitSetGuard> ioxGuard;
 
     QString id;
     QString title;
     int dataTypeId;
     QVariantHash metadata;
 
-    std::string ipcChannelId() const
+    [[nodiscard]] std::string ipcChannelId() const
     {
         return "o/" + id.toStdString();
     }
@@ -350,6 +351,8 @@ public:
         waitSetCtrlGuard.reset();
         for (auto &iport : inPortInfo)
             iport->d->ioxGuard.reset();
+        for (auto &oport : outPortInfo)
+            oport->d->ioxGuard.reset();
 
         // Now safe to destroy the old WaitSet
         waitSet.reset();
@@ -366,6 +369,15 @@ public:
             if (!iport->d->connected || !iport->d->ioxSub.has_value())
                 continue;
             iport->d->ioxGuard.emplace(waitSet->attach_notification(*iport->d->ioxSub).value());
+        }
+
+        // Per-output-port publisher attachments
+        for (auto &oport : outPortInfo) {
+            if (!oport->d->ioxPub.has_value())
+                continue;
+            // Proactively update connections for events that queued up while WaitSet was not active
+            oport->d->ioxPub->handleEvents();
+            oport->d->ioxGuard.emplace(waitSet->attach_notification(*oport->d->ioxPub).value());
         }
 
         waitSetDirty = false;
@@ -390,6 +402,15 @@ public:
                 // Still drain to prevent the queue filling up even if there's no callback.
                 iport->d->ioxSub->handleEvents([](const IoxByteSlice &) {});
             }
+        }
+
+        // Handle output-port publisher events (SubscriberConnected / SubscriberDisconnected).
+        for (auto &oport : outPortInfo) {
+            if (!oport->d->ioxPub.has_value() || !oport->d->ioxGuard.has_value())
+                continue;
+            if (!attachmentId.has_event_from(*oport->d->ioxGuard))
+                continue;
+            oport->d->ioxPub->handleEvents();
         }
     }
 };
@@ -631,6 +652,13 @@ void SyntalosLink::processPendingControl()
         d->syTimer = new SyncTimer;
         d->syTimer->startAt(timePoint);
 
+        // Ensure all output-port publishers know about subscribers that connected
+        // during the prepare phase.
+        for (auto &oport : d->outPortInfo) {
+            if (oport->d->ioxPub.has_value())
+                oport->d->ioxPub->handleEvents();
+        }
+
         Private::replyDone(*req, true);
         if (d->startCb)
             d->startCb();
@@ -645,6 +673,18 @@ void SyntalosLink::processPendingControl()
         if (d->stopCb)
             d->stopCb();
         Private::replyDone(*req, true);
+
+        // After a stop, drop all input-port subscribers so upstream publishers
+        // immediately stop sending notifications to us. This prevents their event
+        // socket buffers from filling up while we are in IDLE state in case for
+        // whatever reason the master still tries to send something.
+        for (auto &iport : d->inPortInfo) {
+            iport->d->ioxGuard.reset();
+            iport->d->ioxSub.reset();
+            iport->d->connected = false;
+        }
+        if (!d->inPortInfo.empty())
+            d->waitSetDirty = true;
     }
 
     // ---- Shutdown ----
