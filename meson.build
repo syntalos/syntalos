@@ -282,7 +282,7 @@ python_embed_dep = dependency('python3-embed')
 pybind11_dep = dependency('pybind11')
 
 # handle iceoryx2 (build it from source or find a system version)
-iox2_min_ver = '0.8.1'
+iox2_min_ver = '0.8.999'
 iox2_dep = dependency('iceoryx2-cxx',
                       modules: ['iceoryx2-cxx::shared-lib-cxx'],
                       version: f'>= @iox2_min_ver@',
