@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -19,6 +19,24 @@
 
 #include "config.h"
 #include "engine.h"
+
+// When compiled with -fsanitize=address or -fsanitize=leak, trigger an explicit
+// LSan leak check after every run so leaks are surfaced between runs, not only
+// at process exit.
+#if defined(__has_feature)
+#  if __has_feature(address_sanitizer)
+#    define SY_HAS_LSAN 1
+#  endif
+#endif
+#if !defined(SY_HAS_LSAN) && defined(__SANITIZE_ADDRESS__)
+#  define SY_HAS_LSAN 1
+#endif
+#if !defined(SY_HAS_LSAN) && defined(__SANITIZE_LEAK__)
+#  define SY_HAS_LSAN 1
+#endif
+#ifdef SY_HAS_LSAN
+#  include <sanitizer/lsan_interface.h>
+#endif
 
 #include <QCoreApplication>
 #include <QDBusInterface>
@@ -2347,6 +2365,14 @@ bool Engine::runInternal(const QString &exportDirPath)
 
     // notify modules about any deferred USB events again
     d->usbEventsTimer->start();
+
+#ifdef SY_HAS_LSAN
+    // Trigger an explicit LSan report now that all module threads are joined and
+    // all data structures have been cleaned up.  Running this here (rather than
+    // relying on the at-exit check) surfaces inter-run leaks before Python / Qt
+    // global state pollution makes them impossible to distinguish.
+    __lsan_do_recoverable_leak_check();
+#endif
 
     // tell listeners that we are stopped now
     emit runStopped();

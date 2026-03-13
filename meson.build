@@ -141,15 +141,36 @@ add_project_arguments(
   language: 'cpp'
 )
 
+sanitize_opt = get_option('sanitize')
+if sanitize_opt != 'none'
+    if get_option('b_lto')
+        error('Building with sanitizers works best without LTO. Disable it with -Db_lto=false')
+    endif
+
+    sanitize_compile_flags = [
+        '-fsanitize=' + sanitize_opt,
+        '-fno-omit-frame-pointer',
+        '-fno-lto',
+        '-g',
+    ]
+    if sanitize_opt == 'address' or sanitize_opt == 'leak'
+        sanitize_compile_flags += '-fno-sanitize-recover=all'
+    endif
+    add_project_arguments(sanitize_compile_flags, language: 'c')
+    add_project_arguments(sanitize_compile_flags, language: 'cpp')
+    add_project_link_arguments(['-fsanitize=' + sanitize_opt, '-fno-lto'], language: ['c', 'cpp'])
+    message('Sanitizer enabled: ' + sanitize_opt + ' (LTO disabled)')
+endif
+
 if get_option('tracing')
     add_project_arguments(
         '-pg',
-        '-fno-omit-frame-pointers',
+        '-fno-omit-frame-pointer',
         language: 'c'
     )
     add_project_arguments(
         '-pg',
-        '-fno-omit-frame-pointers',
+        '-fno-omit-frame-pointer',
         language: 'cpp'
     )
     add_project_link_arguments('-pg')

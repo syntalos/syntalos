@@ -129,7 +129,7 @@ if pdoc_exe.found()
     # the pdoc Python module is probably there, so we can try to refresh the documentation
 
     pmd_env = environment()
-    pmd_env.set('LSAN_OPTIONS', 'suppressions=' + join_paths(source_root, 'tests', 'lsan-suppr.txt'))
+    pmd_env.set('LSAN_OPTIONS', 'suppressions=' + join_paths(source_root, 'tests', 'lsan-suppress.txt'))
     pmd_env.set('SYNTALOS_MODULE_ID', 'build_docgen')
     pmd_env.set('QT_QPA_PLATFORM', 'offscreen')
 

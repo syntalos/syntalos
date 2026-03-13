@@ -1,0 +1,27 @@
+# LSan suppression file for Syntalos
+#
+# Python embeds its own allocator and keeps large amounts of global state alive
+# intentionally; suppress all of that so only Syntalos-owned allocations appear.
+leak:*/libpython3.*.so.*
+leak:pybind11
+
+# Ignore libcrypto singletons
+leak:*/libcrypto.so.*
+
+# Qt / glib global singletons
+leak:QCoreApplication
+leak:QApplication
+leak:QFontDatabase
+leak:QIconLoader
+leak:QMimeDatabase
+leak:QStandardPaths
+leak:g_type_register_static
+leak:g_type_init
+leak:g_quark_from_string
+leak:g_hash_table_new
+leak:g_main_context_new
+
+# Rust / iceoryx2: the Rust runtime keeps global state alive intentionally
+leak:__rust_alloc
+leak:std::rt::lang_start
+leak:iox2

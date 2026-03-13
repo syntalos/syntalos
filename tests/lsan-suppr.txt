@@ -1,2 +1,0 @@
-leak:*/libpython3.*.so.*
-leak:*/libcrypto.so.*

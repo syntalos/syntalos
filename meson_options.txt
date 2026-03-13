@@ -37,13 +37,23 @@ option('modules',
 #
 # For development
 #
-option('tracing',
-       type : 'boolean',
-       value : false,
-       description : 'Compile with -pg flag for function tracing & profiling'
-)
 option('maintainer',
        type : 'boolean',
        value : false,
        description : 'Enable maintainer mode (use strict compiler flags, e.g. -Werror)'
+)
+option('sanitize',
+       type : 'combo',
+       choices : ['none', 'address', 'leak', 'thread', 'undefined'],
+       value : 'none',
+       description : 'Compile with a sanitizer. ' +
+       '"address" enables AddressSanitizer+LeakSanitizer. ' +
+       '"leak" enables LeakSanitizer only (faster). ' +
+       '"thread" enables ThreadSanitizer. ' +
+       '"undefined" enables UndefinedBehaviorSanitizer.'
+)
+option('tracing',
+       type : 'boolean',
+       value : false,
+       description : 'Compile with -pg flag for function tracing & profiling'
 )
