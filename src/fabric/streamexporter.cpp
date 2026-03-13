@@ -291,10 +291,13 @@ void StreamExporter::streamEventThreadFunc(OptionalWaitCondition *waitCondition)
 out:
     d->activeLoop = nullptr;
 
-    // clean up sources (shouldn't be necessary, but we do it anyway)
     for (auto &ed : d->exports) {
+        // clean up sources (shouldn't be necessary, but we do it anyway)
         g_source_destroy(ed.source);
         g_source_unref(ed.source);
+
+        // drain any pending data
+        ed.subscription->clearPending();
     }
 }
 

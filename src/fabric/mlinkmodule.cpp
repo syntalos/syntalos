@@ -760,7 +760,14 @@ void MLinkModule::registerOutPortForwarders()
         ps.sub.emplace(SySubscriber::create(*d->node, d->clientId, "o/" + oport->id().toStdString()));
         ps.oport = oport;
         d->outPortSubs.push_back(std::move(ps));
-        oport->startStream();
+
+        // NOTE: oport->startStream() is intentionally NOT called here.
+        // The stream is started in MLinkModule::start(), after the worker's
+        // start() callback has run and any OutputPortChange messages (e.g.
+        // metadata set via set_metadata_value in Python start()) have been
+        // processed by handleIncomingControl(). This ensures that
+        // DataStream::start() snapshots the complete, final metadata into every
+        // subscription.
     }
 }
 
@@ -865,9 +872,19 @@ void MLinkModule::start()
         req.startTimestampUsec = timestampUs;
     });
 
-    // stop reading control events in the GUI thread - the module thread will do that for us now
+    // stop reading control events in the GUI thread - the module thread will do that for us soon
     d->ctlEventTimer->stop();
 
+    // The worker's start() callback has already run before the Done reply
+    // arrived. Drain any OutputPortChange messages it published (e.g. metadata
+    // updates from Python start()) before we start the output streams below.
+    handleIncomingControl();
+
+    // Start all output-port streams now that metadata is complete
+    for (auto &ps : d->outPortSubs)
+        ps.oport->startStream();
+
+    // call generic
     AbstractModule::start();
 }
 
