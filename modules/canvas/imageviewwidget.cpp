@@ -279,6 +279,10 @@ void ImageViewWidget::renderImage()
     const auto imgHeight = d->glImage.rows;
     const auto channels = d->glImage.channels();
 
+    // Canvas receives arbitrary crop widths, so we must not rely on OpenGL's default
+    // 4-byte unpack alignment when uploading rows.
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
     // Setup or recreate texture only when dimensions change
     if (d->textureId == 0 || d->textureWidth != imgWidth || d->textureHeight != imgHeight) {
         if (d->textureId != 0)
