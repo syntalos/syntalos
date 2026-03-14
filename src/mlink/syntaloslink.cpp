@@ -214,6 +214,7 @@ public:
         reqShutdown = makeServer<ShutdownRequest, DoneResponse>(SHUTDOWN_CALL_ID);
         reqShowDisplay = makeServer<ShowDisplayRequest, DoneResponse>(SHOW_DISPLAY_CALL_ID);
         reqShowSettings = makeUntypedServer(SHOW_SETTINGS_CALL_ID);
+        refreshPersistentIpcSendersPending = false;
     }
 
     ~Private() {}
@@ -304,6 +305,102 @@ public:
         return subscr;
     }
 
+    void schedulePersistentIpcSenderRefresh()
+    {
+        refreshPersistentIpcSendersPending = true;
+    }
+
+    void runDeferredMaintenance()
+    {
+        if (!refreshPersistentIpcSendersPending)
+            return;
+
+        refreshPersistentIpcSendersPending = false;
+        refreshPersistentIpcSenders();
+    }
+
+    void refreshPersistentIpcSenders()
+    {
+        auto recyclePublisher = [&](auto &publisher, auto &&factory, const char *endpointName) {
+            publisher.reset();
+            publisher = factory();
+        };
+
+        auto recycleServer = [&](auto &server, auto &&factory, const char *endpointName) {
+            if (server != nullptr) {
+                waitSet.detachState(*server, iox::popo::ServerState::HAS_REQUEST);
+                server->releaseQueuedRequests();
+            }
+            server.reset();
+            server = factory();
+        };
+
+        recyclePublisher(pubError, [&]() { return makePublisher<ErrorEvent>(ERROR_CHANNEL_ID); }, "pubError");
+        recyclePublisher(pubState, [&]() { return makePublisher<StateChangeEvent>(STATE_CHANNEL_ID); }, "pubState");
+        recyclePublisher(
+            pubStatusMessage,
+            [&]() { return makePublisher<StatusMessageEvent>(STATUS_MESSAGE_CHANNEL_ID, false); },
+            "pubStatusMessage");
+        recyclePublisher(
+            pubSettingsChange,
+            [&]() { return makeUntypedPublisher(SETTINGS_CHANGE_CHANNEL_ID); },
+            "pubSettingsChange");
+        recyclePublisher(pubInPortChange, [&]() { return makeUntypedPublisher(IN_PORT_CHANGE_CHANNEL_ID); }, "pubInPortChange");
+        recyclePublisher(
+            pubOutPortChange,
+            [&]() { return makeUntypedPublisher(OUT_PORT_CHANGE_CHANNEL_ID); },
+            "pubOutPortChange");
+
+        recycleServer(
+            reqSetNiceness,
+            [&]() { return makeServer<SetNicenessRequest, DoneResponse>(SET_NICENESS_CALL_ID); },
+            "reqSetNiceness");
+        recycleServer(
+            reqSetMaxRTPriority,
+            [&]() { return makeServer<SetMaxRealtimePriority, DoneResponse>(SET_MAX_RT_PRIORITY_CALL_ID); },
+            "reqSetMaxRTPriority");
+        recycleServer(
+            reqSetCPUAffinity,
+            [&]() { return makeServer<SetCPUAffinityRequest, DoneResponse>(SET_CPU_AFFINITY_CALL_ID); },
+            "reqSetCPUAffinity");
+        recycleServer(reqLoadScript, [&]() { return makeUntypedServer(LOAD_SCRIPT_CALL_ID); }, "reqLoadScript");
+        recycleServer(
+            reqSetPortsPreset,
+            [&]() { return makeUntypedServer(SET_PORTS_PRESET_CALL_ID); },
+            "reqSetPortsPreset");
+        recycleServer(
+            reqUpdateIPortMetadata,
+            [&]() { return makeUntypedServer(IN_PORT_UPDATE_METADATA_ID); },
+            "reqUpdateIPortMetadata");
+        recycleServer(
+            reqConnectIPort,
+            [&]() { return makeServer<ConnectInputRequest, DoneResponse>(CONNECT_INPUT_CALL_ID); },
+            "reqConnectIPort");
+        recycleServer(
+            reqPrepareStart,
+            [&]() { return makeUntypedServer(PREPARE_START_CALL_ID); },
+            "reqPrepareStart");
+        recycleServer(reqStart, [&]() { return makeServer<StartRequest, DoneResponse>(START_CALL_ID); }, "reqStart");
+        recycleServer(reqStop, [&]() { return makeServer<StopRequest, DoneResponse>(STOP_CALL_ID); }, "reqStop");
+        recycleServer(
+            reqShutdown,
+            [&]() { return makeServer<ShutdownRequest, DoneResponse>(SHUTDOWN_CALL_ID); },
+            "reqShutdown");
+        recycleServer(
+            reqShowDisplay,
+            [&]() { return makeServer<ShowDisplayRequest, DoneResponse>(SHOW_DISPLAY_CALL_ID); },
+            "reqShowDisplay");
+        recycleServer(
+            reqShowSettings,
+            [&]() { return makeUntypedServer(SHOW_SETTINGS_CALL_ID); },
+            "reqShowSettings");
+
+        for (auto &oport : outPortInfo) {
+            oport->d->ioxPub.reset();
+            oport->d->ioxPub = makeUntypedPublisher(oport->d->publisherId());
+        }
+    }
+
     iox::capro::IdString_t modId;
 
     std::unique_ptr<iox::popo::Publisher<ErrorEvent>> pubError;
@@ -342,6 +439,7 @@ public:
     ShutdownFn shutdownCb;
     ShowSettingsFn showSettingsCb;
     ShowDisplayFn showDisplayCb;
+    bool refreshPersistentIpcSendersPending;
 };
 
 SyntalosLink::SyntalosLink(const QString &instanceId, QObject *parent)
@@ -393,8 +491,10 @@ void SyntalosLink::awaitData(int timeoutUsec)
             // process events here.
             const auto qevTimeout = iox::units::Duration::fromMicroseconds(250 * 1000); // 250ms timeout
             auto notificationVector = d->waitSet.timedWait(qevTimeout);
-            for (auto &notification : notificationVector)
+            for (auto &notification : notificationVector) {
                 processNotification(notification);
+                d->runDeferredMaintenance();
+            }
 
             qApp->processEvents();
             if (!notificationVector.empty())
@@ -402,8 +502,10 @@ void SyntalosLink::awaitData(int timeoutUsec)
         }
     } else {
         auto notificationVector = d->waitSet.timedWait(iox::units::Duration::fromMicroseconds(timeoutUsec));
-        for (auto &notification : notificationVector)
+        for (auto &notification : notificationVector) {
             processNotification(notification);
+            d->runDeferredMaintenance();
+        }
         qApp->processEvents();
     }
 }
@@ -414,6 +516,7 @@ void SyntalosLink::awaitDataForever()
         auto notificationVector = d->waitSet.wait();
         for (auto &notification : notificationVector) {
             processNotification(notification);
+            d->runDeferredMaintenance();
             qApp->processEvents();
         }
     }
@@ -755,6 +858,7 @@ void SyntalosLink::processNotification(const iox::popo::NotificationInfo *notifi
                     response.send().or_else([&](auto &error) {
                         std::cerr << "Could not respond to Stop! Error: " << error << std::endl;
                     });
+                    d->schedulePersistentIpcSenderRefresh();
                 })
                 .or_else([&](auto &error) {
                     std::cerr << "Could not allocate response! Error: " << error << std::endl;
