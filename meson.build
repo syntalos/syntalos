@@ -290,7 +290,7 @@ python_embed_dep = dependency('python3-embed')
 pybind11_dep = dependency('pybind11')
 
 # handle iceoryx2 (build it from source or find a system version)
-iox2_min_ver = '0.8.999'
+iox2_min_ver = '0.8.999'  # FIXME: We need Git master right now, change to 0.9.0 once released
 iox2_dep = dependency('iceoryx2-cxx',
                       modules: ['iceoryx2-cxx::shared-lib-cxx'],
                       version: f'>= @iox2_min_ver@',
@@ -312,55 +312,21 @@ if not iox2_dep.found()
     iox2_pre = meson.current_build_dir() / 'iox2-target'
     cmake_exe = find_program('cmake')
 
-    if not fs.is_dir(iox2_src)
-        message('Fetching iceoryx2 source via git...')
-        git_exe = find_program('git')
-        fetch_result = run_command(
-            git_exe, 'clone', '--depth=1', '-b', f'v@iox2_min_ver@',
-            'https://github.com/eclipse-iceoryx/iceoryx2.git',
-            iox2_src,
-            check: true,
-        )
+    message('Building iceoryx2 from source (this may take a while)...')
+    iox2_build_result = run_command(
+        python, source_root / 'contrib' / 'vendor' / 'build-iox2.py',
+        '--source-dir', iox2_src,
+        '--build-dir',  iox2_bld,
+        '--prefix',     iox2_pre,
+        '--version',    iox2_min_ver,
+        '--cmake',      cmake_exe,
+        check: false,
+    )
+    if iox2_build_result.stdout() != ''
+        message(iox2_build_result.stdout().strip())
     endif
-
-    # build and install iceoryx2 at configure time if not already done
-    iox2_stamp = iox2_pre / 'lib' / 'cmake' / 'iceoryx2-cxx'
-    if not fs.is_dir(iox2_stamp)
-        message('Building iceoryx2 from source (this may take a while)...')
-
-        cmake_result = run_command(
-            cmake_exe,
-            '-S', iox2_src,
-            '-B', iox2_bld,
-            '-G', 'Ninja',
-            '-DBUILD_CXX=ON',
-            '-DBUILD_TESTING=OFF',
-            '-DBUILD_EXAMPLES=OFF',
-            '-DIOX2_FEATURE_LIBC_PLATFORM=ON',
-            '-DCMAKE_INSTALL_PREFIX=' + iox2_pre,
-            check: false,
-        )
-        if cmake_result.returncode() != 0
-            error('iceoryx2 CMake configure failed:\n' + cmake_result.stderr())
-        endif
-
-        build_result = run_command(
-            cmake_exe, '--build', iox2_bld,
-            check: false,
-        )
-        if build_result.returncode() != 0
-            error('iceoryx2 build failed:\n' + build_result.stderr())
-        endif
-
-        install_result = run_command(
-            cmake_exe, '--install', iox2_bld,
-            check: false,
-        )
-        if install_result.returncode() != 0
-            error('iceoryx2 install failed:\n' + install_result.stderr())
-        endif
-    else
-        message('Using previously built iceoryx2')
+    if iox2_build_result.returncode() != 0
+        error('iceoryx2 build failed:\n' + iox2_build_result.stderr())
     endif
 
     # Somehow, Meson's cmake integration fails to find a package installed this way, so we will
@@ -386,9 +352,6 @@ sy_base_deps = [rt_lib,
 
 # sed binary for some file manipulation
 sed_prog = find_program('sed')
-
-# we may need to run some Python code during build
-python3_exe = find_program('python3')
 
 # vendored 3rd-party code
 if 'plot' in get_option('modules')
