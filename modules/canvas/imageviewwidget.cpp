@@ -21,7 +21,6 @@
 
 #include <QDebug>
 #include <QMessageBox>
-#include <QOpenGLTexture>
 #include <QOpenGLShaderProgram>
 #include <QOpenGLBuffer>
 #include <QOpenGLVertexArrayObject>
@@ -67,7 +66,6 @@ static const char *fragmentShaderSource =
     "uniform float aspectRatio;\n"
     "uniform vec4 bgColor;\n"
     "uniform lowp float showSaturation;\n"
-    "uniform lowp float isGrayscale;\n"
     "\n"
     "void main()\n"
     "{\n"
@@ -83,12 +81,7 @@ static const char *fragmentShaderSource =
     "        sceneCoord.y < 0.0 || sceneCoord.y > 1.0) {\n"
     "        FragColor = bgColor;\n" // Bars around image
     "    } else {\n"
-    "        vec4 texColor = texture(tex, sceneCoord);\n"
-    "        if (isGrayscale > 0.5) {\n"
-    "            FragColor = vec4(texColor.rrr, 1.0);\n"
-    "        } else {\n"
-    "            FragColor = texColor;\n"
-    "        }\n"
+    "        FragColor = texture(tex, sceneCoord);\n" // swizzle mask handles grayscale expansion
     "        if (showSaturation > 0.5) {\n"
     "            lowp float cVal = dot(FragColor.rgb, vec3(0.299, 0.587, 0.114));\n"
     "            if (cVal >= 0.99)\n"
@@ -116,7 +109,9 @@ public:
           lastAspectRatio(-1.0f),
           lastHighlightSaturation(false),
           lastBgColor(-1.0f, -1.0f, -1.0f, -1.0f),
-          lastChannels(-1),
+          uniLocAspectRatio(-1),
+          uniLocBgColor(-1),
+          uniLocShowSaturation(-1),
           pboIndex(0),
           pboSize(0),
           pboReady(false)
@@ -149,7 +144,9 @@ public:
     float lastAspectRatio;
     bool lastHighlightSaturation;
     QVector4D lastBgColor;
-    int lastChannels;
+    int uniLocAspectRatio; // glGetUniformLocation result, cached once after link
+    int uniLocBgColor;
+    int uniLocShowSaturation;
 
     // Pixel Buffer Objects for async texture uploads
     GLuint pboIds[2]; // Double buffering
@@ -163,6 +160,8 @@ public:
         textureDataType = is16bit ? GL_UNSIGNED_SHORT : GL_UNSIGNED_BYTE;
         bytesPerElement = is16bit ? 2 : 1;
 
+        // clang-format off
+        // (formatter created buggy result for this section)
         switch (channels) {
         case 1:
             textureFormat = GL_RED;
@@ -193,6 +192,7 @@ public:
 #endif
             break;
         }
+        // clang-format on
     }
 };
 #pragma GCC diagnostic pop
@@ -282,6 +282,20 @@ void ImageViewWidget::initializeGL()
     if (context()->hasExtension("GL_ARB_pixel_buffer_object") || context()->format().majorVersion() >= 3) {
         glGenBuffers(2, d->pboIds);
     }
+
+    // Cache uniform locations to avoid per-frame string lookups (glGetUniformLocation)
+    d->uniLocAspectRatio = d->shaderProgram.uniformLocation("aspectRatio");
+    d->uniLocBgColor = d->shaderProgram.uniformLocation("bgColor");
+    d->uniLocShowSaturation = d->shaderProgram.uniformLocation("showSaturation");
+
+    // Bind the sampler once to texture unit 0; it never changes
+    d->shaderProgram.bind();
+    d->shaderProgram.setUniformValue("tex", 0);
+    d->shaderProgram.release();
+
+    // Canvas receives arbitrary crop widths, so we must not rely on OpenGL's default
+    // 4-byte unpack alignment when uploading rows.
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 }
 
 void ImageViewWidget::paintGL()
@@ -298,10 +312,6 @@ void ImageViewWidget::renderImage()
     const auto imgHeight = d->glImage.rows;
     const auto channels = d->glImage.channels();
     const auto depth = d->glImage.depth();
-
-    // Canvas receives arbitrary crop widths, so we must not rely on OpenGL's default
-    // 4-byte unpack alignment when uploading rows.
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
     // Setup or recreate texture when dimensions, channel count, or bit-depth change
     if (d->textureId == 0 || d->textureWidth != imgWidth || d->textureHeight != imgHeight
@@ -336,6 +346,16 @@ void ImageViewWidget::renderImage()
             d->textureDataType,
             nullptr);
 
+        // For single-channel textures, set a swizzle mask so the GPU expands
+        // (r) -> (r, r, r, 1) automatically
+        if (channels == 1) {
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_RED);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_RED);
+        } else {
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_GREEN);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_BLUE);
+        }
+
         // (Re-)allocate PBOs to match the new image size and data type
         if (d->pboIds[0] != 0) {
             const size_t dataSize = (size_t)imgWidth * imgHeight * channels * d->bytesPerElement;
@@ -359,13 +379,14 @@ void ImageViewWidget::renderImage()
             // Warm-up: upload this frame directly so no garbage is shown, then fill PBO[0]
             // so the regular double-buffered pipeline can start on the very next frame.
             glTexSubImage2D(
-                GL_TEXTURE_2D, 0, 0, 0, imgWidth, imgHeight,
-                d->textureFormat, d->textureDataType, d->glImage.data);
+                GL_TEXTURE_2D, 0, 0, 0, imgWidth, imgHeight, d->textureFormat, d->textureDataType, d->glImage.data);
 
             glBindBuffer(GL_PIXEL_UNPACK_BUFFER, d->pboIds[0]);
             auto *ptr = static_cast<GLubyte *>(glMapBufferRange(
-                GL_PIXEL_UNPACK_BUFFER, 0, d->pboSize,
-                GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT));
+                GL_PIXEL_UNPACK_BUFFER,
+                0,
+                d->pboSize,
+                GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_UNSYNCHRONIZED_BIT));
             if (ptr) {
                 std::memcpy(ptr, d->glImage.data, d->pboSize);
                 glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER);
@@ -381,14 +402,14 @@ void ImageViewWidget::renderImage()
             const int writeIdx = 1 - d->pboIndex;
 
             glBindBuffer(GL_PIXEL_UNPACK_BUFFER, d->pboIds[readIdx]);
-            glTexSubImage2D(
-                GL_TEXTURE_2D, 0, 0, 0, imgWidth, imgHeight,
-                d->textureFormat, d->textureDataType, nullptr);
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, imgWidth, imgHeight, d->textureFormat, d->textureDataType, nullptr);
 
             glBindBuffer(GL_PIXEL_UNPACK_BUFFER, d->pboIds[writeIdx]);
             auto *ptr = static_cast<GLubyte *>(glMapBufferRange(
-                GL_PIXEL_UNPACK_BUFFER, 0, d->pboSize,
-                GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT));
+                GL_PIXEL_UNPACK_BUFFER,
+                0,
+                d->pboSize,
+                GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_UNSYNCHRONIZED_BIT));
             if (ptr) {
                 std::memcpy(ptr, d->glImage.data, d->pboSize);
                 glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER);
@@ -402,8 +423,7 @@ void ImageViewWidget::renderImage()
     } else {
         // Direct texture upload (no PBO support)
         glTexSubImage2D(
-            GL_TEXTURE_2D, 0, 0, 0, imgWidth, imgHeight,
-            d->textureFormat, d->textureDataType, d->glImage.data);
+            GL_TEXTURE_2D, 0, 0, 0, imgWidth, imgHeight, d->textureFormat, d->textureDataType, d->glImage.data);
     }
 
     // Render
@@ -411,25 +431,22 @@ void ImageViewWidget::renderImage()
 
     d->shaderProgram.bind();
 
-    // Semi-static uniforms
-    if (d->lastBgColor != d->bgColorVec || d->lastChannels != channels) {
-        d->shaderProgram.setUniformValue("bgColor", d->bgColorVec);
-        d->shaderProgram.setUniformValue("isGrayscale", channels == 1 ? 1.0f : 0.0f);
+    // Only update uniforms when their values change
+    if (d->lastBgColor != d->bgColorVec) {
+        d->shaderProgram.setUniformValue(d->uniLocBgColor, d->bgColorVec);
         d->lastBgColor = d->bgColorVec;
-        d->lastChannels = channels;
     }
 
-    // Only update uniforms when they change
     const float imageAspectRatio = static_cast<float>(imgWidth) / imgHeight;
     const float aspectRatio = static_cast<float>(width()) / height() / imageAspectRatio;
 
     if (std::abs(aspectRatio - d->lastAspectRatio) > 0.001f) {
-        d->shaderProgram.setUniformValue("aspectRatio", aspectRatio);
+        d->shaderProgram.setUniformValue(d->uniLocAspectRatio, aspectRatio);
         d->lastAspectRatio = aspectRatio;
     }
 
     if (d->highlightSaturation != d->lastHighlightSaturation) {
-        d->shaderProgram.setUniformValue("showSaturation", d->highlightSaturation ? 1.0f : 0.0f);
+        d->shaderProgram.setUniformValue(d->uniLocShowSaturation, d->highlightSaturation ? 1.0f : 0.0f);
         d->lastHighlightSaturation = d->highlightSaturation;
     }
 
