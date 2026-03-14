@@ -35,26 +35,27 @@
 namespace Syntalos
 {
 
-// ---------------------------------------------------------------------------
-// Opt-in trait for buffer-reuse in DataStream<T>.
-//
-// When supports_buffer_reuse<T>::value is true, DataStream<T> holds a single
-// per-stream scratch object of type T and calls T::fromMemoryInto() on every
-// received raw buffer instead of constructing a fresh T.  This avoids a
-// malloc/free round-trip for types that carry large heap-allocated payloads
-// (e.g. Frame's cv::Mat pixel buffer).
-//
-// To opt a type in:
-//   1. Implement  static void T::fromMemoryInto(const void*, size_t, T&)
-//      that deserializes into an existing T, reusing its internal buffers
-//      when the incoming data fits and the buffer is exclusively owned.
-//   2. Add a full specialization of supports_buffer_reuse below.
-// ---------------------------------------------------------------------------
+/**
+ * Opt-in trait for buffer-reuse in DataStream<T>.
+ *
+ * When supports_buffer_reuse<T>::value is true, DataStream<T> holds a single
+ * per-stream scratch object of type T and calls T::fromMemoryInto() on every
+ * received raw buffer instead of constructing a fresh T.  This avoids a
+ * malloc/free round-trip for types that carry large heap-allocated payloads
+ * (e.g. Frame's cv::Mat pixel buffer).
+ *
+ * To opt a type in:
+ *   1. Implement  static void T::fromMemoryInto(const void*, size_t, T&)
+ *   that deserializes into an existing T, reusing its internal buffers
+ *   when the incoming data fits and the buffer is exclusively owned.
+ *   REMEMBER TO CHECK REFCOUNT OF TARGET OBJECT BEFORE WRITING!!!
+ *   2. Add a full specialization of supports_buffer_reuse below.
+ */
 template<typename T>
 struct supports_buffer_reuse : std::false_type {
 };
 
-// Frame carries a cv::Mat whose pixel buffer can be reused across frames.
+// Frame carries a cv::Mat whose pixel buffer can be reused
 struct Frame;
 template<>
 struct supports_buffer_reuse<Frame> : std::true_type {
