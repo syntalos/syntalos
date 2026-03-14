@@ -588,7 +588,19 @@ public:
             return;
         }
 
-        push(T::fromMemory(data, size));
+        if constexpr (supports_buffer_reuse<T>::value) {
+            // Deserialize into the per-stream scratch object, reusing its
+            // internal heap buffers whenever the scratch object is the sole
+            // owner of that memory.
+            // Each sub->push() enqueues a shallow copy (ref-counted), so the
+            // scratch object's refcount rises until subscribers consume their
+            // items; fromMemoryInto() allocates a fresh buffer automatically
+            // when refcount > 1, keeping all queued copies valid.
+            T::fromMemoryInto(data, size, m_scratchObj);
+            push(m_scratchObj);
+        } else {
+            push(T::fromMemory(data, size));
+        }
     }
 
     void terminate()
@@ -613,9 +625,16 @@ public:
     }
 
 private:
+    // Empty tag type used as the scratch member when buffer reuse is disabled.
+    struct NoScratch {};
+
     std::thread::id m_ownerId;
     std::atomic_bool m_active;
     std::mutex m_mutex;
     std::vector<std::shared_ptr<StreamSubscription<T>>> m_subs;
     QHash<QString, QVariant> m_metadata;
+
+    // Per-stream scratch object for buffer-reuse types (e.g. Frame).
+    // For all other types this collapses to a zero-size NoScratch member.
+    [[no_unique_address]] std::conditional_t<supports_buffer_reuse<T>::value, T, NoScratch> m_scratchObj;
 };
