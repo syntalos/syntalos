@@ -25,6 +25,7 @@
 #include <QOpenGLShaderProgram>
 #include <QOpenGLBuffer>
 #include <QOpenGLVertexArrayObject>
+#include <QOpenGLExtraFunctions>
 #include <opencv2/opencv.hpp>
 #include <cmath>
 #include <cstring>
@@ -107,6 +108,9 @@ public:
           textureWidth(0),
           textureHeight(0),
           textureChannels(0),
+          textureDepth(-1),
+          textureDataType(GL_UNSIGNED_BYTE),
+          bytesPerElement(1),
           textureFormat(GL_RGB),
           textureInternalFormat(GL_RGB),
           lastAspectRatio(-1.0f),
@@ -114,7 +118,8 @@ public:
           lastBgColor(-1.0f, -1.0f, -1.0f, -1.0f),
           lastChannels(-1),
           pboIndex(0),
-          pboSize(0)
+          pboSize(0),
+          pboReady(false)
     {
         pboIds[0] = pboIds[1] = 0;
     }
@@ -134,6 +139,9 @@ public:
     // Optimized texture handling
     GLuint textureId;
     int textureWidth, textureHeight, textureChannels;
+    int textureDepth;       // OpenCV depth type of the current texture (e.g. CV_8U)
+    GLenum textureDataType; // GL upload type matching textureDepth
+    int bytesPerElement;    // bytes per channel element: 1 for 8-bit, 2 for 16-bit
     GLenum textureFormat;
     GLenum textureInternalFormat;
 
@@ -147,30 +155,40 @@ public:
     GLuint pboIds[2]; // Double buffering
     int pboIndex;
     size_t pboSize;
+    bool pboReady; // true once PBO[pboIndex] has been primed with valid data
 
-    void setupTextureFormat(int channels)
+    void setupTextureFormat(int channels, int depth)
     {
-        // Set internal format (same for both desktop GL and GLES)
+        const bool is16bit = (depth == CV_16U);
+        textureDataType = is16bit ? GL_UNSIGNED_SHORT : GL_UNSIGNED_BYTE;
+        bytesPerElement = is16bit ? 2 : 1;
+
         switch (channels) {
         case 1:
-            textureInternalFormat = GL_RED;
             textureFormat = GL_RED;
+#ifdef USE_GLES
+            textureInternalFormat = GL_RED; // GLES: 16-bit already down-converted in showImage
+#else
+            textureInternalFormat = is16bit ? GL_R16 : GL_RED;
+#endif
             break;
         case 3:
-            textureInternalFormat = GL_RGB;
 #ifdef USE_GLES
-            // GLES doesn't support GL_BGR, so we ensure data is RGB beforehand
+            // GLES doesn't support GL_BGR, data is pre-converted to RGB in showImage
+            textureInternalFormat = GL_RGB;
             textureFormat = GL_RGB;
 #else
+            textureInternalFormat = is16bit ? GL_RGB16 : GL_RGB;
             textureFormat = GL_BGR;
 #endif
             break;
         default: // 4 channels
-            textureInternalFormat = GL_RGBA;
 #ifdef USE_GLES
             // GLES doesn't support GL_BGRA
+            textureInternalFormat = GL_RGBA;
             textureFormat = GL_RGBA;
 #else
+            textureInternalFormat = is16bit ? GL_RGBA16 : GL_RGBA;
             textureFormat = GL_BGRA;
 #endif
             break;
@@ -279,14 +297,15 @@ void ImageViewWidget::renderImage()
     const auto imgWidth = d->glImage.cols;
     const auto imgHeight = d->glImage.rows;
     const auto channels = d->glImage.channels();
+    const auto depth = d->glImage.depth();
 
     // Canvas receives arbitrary crop widths, so we must not rely on OpenGL's default
     // 4-byte unpack alignment when uploading rows.
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-ola    // Setup or recreate texture only when dimensions or channel count change
+    // Setup or recreate texture when dimensions, channel count, or bit-depth change
     if (d->textureId == 0 || d->textureWidth != imgWidth || d->textureHeight != imgHeight
-        || d->textureChannels != channels) {
+        || d->textureChannels != channels || d->textureDepth != depth) {
         if (d->textureId != 0)
             glDeleteTextures(1, &d->textureId);
 
@@ -299,10 +318,11 @@ ola    // Setup or recreate texture only when dimensions or channel count change
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-        d->setupTextureFormat(channels);
+        d->setupTextureFormat(channels, depth);
         d->textureWidth = imgWidth;
         d->textureHeight = imgHeight;
         d->textureChannels = channels;
+        d->textureDepth = depth;
 
         // Allocate texture storage
         glTexImage2D(
@@ -313,43 +333,77 @@ ola    // Setup or recreate texture only when dimensions or channel count change
             imgHeight,
             0,
             d->textureFormat,
-            GL_UNSIGNED_BYTE,
+            d->textureDataType,
             nullptr);
 
-        // Setup PBOs if available
+        // (Re-)allocate PBOs to match the new image size and data type
         if (d->pboIds[0] != 0) {
-            const size_t dataSize = imgWidth * imgHeight * channels;
-            if (d->pboSize != dataSize) {
-                d->pboSize = dataSize;
-                glBindBuffer(GL_PIXEL_UNPACK_BUFFER, d->pboIds[0]);
-                glBufferData(GL_PIXEL_UNPACK_BUFFER, dataSize, nullptr, GL_STREAM_DRAW);
-                glBindBuffer(GL_PIXEL_UNPACK_BUFFER, d->pboIds[1]);
-                glBufferData(GL_PIXEL_UNPACK_BUFFER, dataSize, nullptr, GL_STREAM_DRAW);
-                glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
-            }
+            const size_t dataSize = (size_t)imgWidth * imgHeight * channels * d->bytesPerElement;
+            d->pboSize = dataSize;
+            glBindBuffer(GL_PIXEL_UNPACK_BUFFER, d->pboIds[0]);
+            glBufferData(GL_PIXEL_UNPACK_BUFFER, dataSize, nullptr, GL_STREAM_DRAW);
+            glBindBuffer(GL_PIXEL_UNPACK_BUFFER, d->pboIds[1]);
+            glBufferData(GL_PIXEL_UNPACK_BUFFER, dataSize, nullptr, GL_STREAM_DRAW);
+            glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
         }
+
+        // Force warm-up path on next upload so we never read from an uninitialised PBO
+        d->pboReady = false;
     } else {
         glBindTexture(GL_TEXTURE_2D, d->textureId);
     }
 
     // Upload texture data
     if (d->pboIds[0] != 0) {
-        // Use PBO for asynchronous texture upload
-        d->pboIndex = (d->pboIndex + 1) % 2;
-        const int nextIndex = (d->pboIndex + 1) % 2;
+        if (!d->pboReady) {
+            // Warm-up: upload this frame directly so no garbage is shown, then fill PBO[0]
+            // so the regular double-buffered pipeline can start on the very next frame.
+            glTexSubImage2D(
+                GL_TEXTURE_2D, 0, 0, 0, imgWidth, imgHeight,
+                d->textureFormat, d->textureDataType, d->glImage.data);
 
-        // Bind PBO to upload data from previous frame
-        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, d->pboIds[d->pboIndex]);
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, imgWidth, imgHeight, d->textureFormat, GL_UNSIGNED_BYTE, nullptr);
+            glBindBuffer(GL_PIXEL_UNPACK_BUFFER, d->pboIds[0]);
+            auto *ptr = static_cast<GLubyte *>(glMapBufferRange(
+                GL_PIXEL_UNPACK_BUFFER, 0, d->pboSize,
+                GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT));
+            if (ptr) {
+                std::memcpy(ptr, d->glImage.data, d->pboSize);
+                glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER);
+            }
+            glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+            d->pboIndex = 0; // PBO[0] holds current frame; GPU will read it next frame
+            d->pboReady = true;
+        } else {
+            // Double-buffered async upload:
+            //   GPU reads the texture from readIdx (last frame's data written by CPU)
+            //   CPU simultaneously writes the new frame into writeIdx
+            const int readIdx = d->pboIndex;
+            const int writeIdx = 1 - d->pboIndex;
 
-        // Bind next PBO and update data for next frame
-        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, d->pboIds[nextIndex]);
-        glBufferSubData(GL_PIXEL_UNPACK_BUFFER, 0, d->pboSize, d->glImage.data);
-        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+            glBindBuffer(GL_PIXEL_UNPACK_BUFFER, d->pboIds[readIdx]);
+            glTexSubImage2D(
+                GL_TEXTURE_2D, 0, 0, 0, imgWidth, imgHeight,
+                d->textureFormat, d->textureDataType, nullptr);
+
+            glBindBuffer(GL_PIXEL_UNPACK_BUFFER, d->pboIds[writeIdx]);
+            auto *ptr = static_cast<GLubyte *>(glMapBufferRange(
+                GL_PIXEL_UNPACK_BUFFER, 0, d->pboSize,
+                GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT));
+            if (ptr) {
+                std::memcpy(ptr, d->glImage.data, d->pboSize);
+                glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER);
+            } else {
+                // Fallback if buffer mapping is unavailable
+                glBufferSubData(GL_PIXEL_UNPACK_BUFFER, 0, d->pboSize, d->glImage.data);
+            }
+            glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+            d->pboIndex = writeIdx;
+        }
     } else {
-        // Direct texture upload, if we have no PBO support
+        // Direct texture upload (no PBO support)
         glTexSubImage2D(
-            GL_TEXTURE_2D, 0, 0, 0, imgWidth, imgHeight, d->textureFormat, GL_UNSIGNED_BYTE, d->glImage.data);
+            GL_TEXTURE_2D, 0, 0, 0, imgWidth, imgHeight,
+            d->textureFormat, d->textureDataType, d->glImage.data);
     }
 
     // Render
@@ -399,7 +453,15 @@ bool ImageViewWidget::showImage(const cv::Mat &mat)
     } else if (mat.channels() == 4) {
         cv::cvtColor(mat, d->glImage, cv::COLOR_BGRA2RGBA);
     } else {
-        d->glImage = mat; // Grayscale or unknown, use as-is
+        d->glImage = mat;
+    }
+    // GLES lacks 16-bit normalized texture support without extensions; downconvert to 8-bit
+    {
+        const auto depth = d->glImage.depth();
+        if (depth == CV_16U || depth == CV_16S)
+            d->glImage.convertTo(d->glImage, CV_8U, 1.0 / 256.0);
+        else if (depth != CV_8U)
+            d->glImage.convertTo(d->glImage, CV_8U);
     }
 #else
     // Store reference to the original image (its data *must* not be touched externally at this point,
@@ -407,13 +469,26 @@ bool ImageViewWidget::showImage(const cv::Mat &mat)
     // in the type system, so we need to assume all upstream components play nice).
     // Fortunately, on desktop OpenGL, we can let the GPU handle BGR/BGRA conversion.
     d->glImage = mat;
+
+    // Normalize to a GL-uploadable depth: CV_8U and CV_16U are rendered natively;
+    // everything else is converted to the closest sensible target.
+    {
+        const auto depth = d->glImage.depth();
+        if (depth == CV_16S || depth == CV_32S) {
+            // Shift signed -> unsigned 16-bit
+            d->glImage.convertTo(d->glImage, CV_16U, 1.0, 32768.0);
+        } else if (depth == CV_32F || depth == CV_64F) {
+            // Assume values in [0, 1]; scale to full 16-bit range
+            d->glImage.convertTo(d->glImage, CV_16U, 65535.0);
+        } else if (depth != CV_8U && depth != CV_16U) {
+            d->glImage.convertTo(d->glImage, CV_8U);
+        }
+    }
 #endif
 
-    // Convert image to 8-bit, if needed
-    // FIXME: This is very inefficient, we may need a 16+-bit render path
-    const auto depth = d->glImage.depth();
-    if (depth != CV_8U && depth != CV_8S)
-        d->glImage.convertTo(d->glImage, CV_8U);
+    // GL texture upload requires a single contiguous memory block (e.g. not an OpenCV ROI)
+    if (!d->glImage.isContinuous())
+        d->glImage = d->glImage.clone();
 
     update();
     return true;
