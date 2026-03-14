@@ -246,13 +246,9 @@ QueueItem *QueueModel::itemByIndex(const QModelIndex &index)
 
 void QueueModel::itemDataChanged()
 {
-    // auto item = qobject_cast<QueueItem*>(sender());
     if (m_data.isEmpty())
         return;
     emit dataChanged(index(0, 0), index(m_data.count() - 1, columnCount(QModelIndex()) - 1));
-    // QModelIndex startOfRow = this->index(row, 0);
-    // QModelIndex endOfRow   = this->index(row, Column::MaxColumns);
-    // emit QAbstractItemModel::dataChanged(startOfRow, endOfRow);
 }
 
 ProgressBarDelegate::ProgressBarDelegate(QObject *parent)
