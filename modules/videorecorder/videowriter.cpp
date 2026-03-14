@@ -165,6 +165,7 @@ CodecProperties::CodecProperties(VideoCodec codec)
     d->useVaapi = false;
     d->slicingAllowed = true;
     d->aviAllowed = false;
+    d->lossless = false;
     d->mode = ConstantQuality;
     d->bitrate = 8000;
     d->quality = 0;
