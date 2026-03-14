@@ -21,8 +21,8 @@
 
 #include <QDateTime>
 #include <QDebug>
-#include <iostream>
 #include <algorithm>
+#include <cstdlib>
 
 #include "utils/misc.h"
 
@@ -205,6 +205,7 @@ bool FreqCounterSynchronizer::start()
     m_calibrationIdx = 0;
     m_expectedOffsetCalCount = 0;
     m_tsOffsetsUsec = VectorXsl::Zero(m_calibrationMaxBlockN);
+    m_runningOffsetSum = 0;
     m_lastTimeIndex = 0;
     m_indexOffset = 0;
     m_offsetChangeWaitBlocks = 0;
@@ -284,13 +285,15 @@ void FreqCounterSynchronizer::processTimestamps(
     // calculate time offset
     const int64_t curOffsetUsec = (secondaryLastTS - masterAssumedAcqTS).count();
 
-    // add new datapoint to our "memory" vector
-    m_tsOffsetsUsec[m_calibrationIdx++] = curOffsetUsec;
-    if (m_calibrationIdx >= m_calibrationMaxBlockN)
+    // add new datapoint to our "memory" vector, maintaining a running sum for O(1) mean
+    m_runningOffsetSum -= m_tsOffsetsUsec[m_calibrationIdx];
+    m_tsOffsetsUsec[m_calibrationIdx] = curOffsetUsec;
+    m_runningOffsetSum += curOffsetUsec;
+    if (++m_calibrationIdx >= m_calibrationMaxBlockN)
         m_calibrationIdx = 0;
 
     // calculate offsets and offset expectation delta
-    const int64_t avgOffsetUsec = m_tsOffsetsUsec.mean();
+    const int64_t avgOffsetUsec = m_runningOffsetSum / static_cast<int64_t>(m_calibrationMaxBlockN);
     const int64_t avgOffsetDeviationUsec = avgOffsetUsec - m_expectedOffset.count();
 
     // we do nothing more until we have enough measurements to estimate the "natural" timer offset
@@ -335,7 +338,7 @@ void FreqCounterSynchronizer::processTimestamps(
         m_offsetChangeWaitBlocks--;
 
     // do nothing if we have not enough average deviation from the norm
-    if (abs(avgOffsetDeviationUsec) < m_toleranceUsec) {
+    if (std::abs(avgOffsetDeviationUsec) < m_toleranceUsec) {
         // we are within tolerance range!
         // share the good news with the controller! (immediately on change, or every 30sec otherwise)
         if ((blockIndex == 0)
@@ -348,13 +351,13 @@ void FreqCounterSynchronizer::processTimestamps(
 
         // check if we would still be within third-of-tolerance with the correction offset applied, and if that's
         // the case, consider gradually resetting it (as the external clock for some reason may be accurate again)
-        if ((m_indexOffset != 0) && (abs(avgOffsetDeviationUsec) < (m_toleranceUsec / 3))) {
-            m_indexOffset /= 2.0;
+        if ((m_indexOffset != 0) && (std::abs(avgOffsetDeviationUsec) < (m_toleranceUsec / 3))) {
+            m_indexOffset /= 2;
 
             if (m_indexOffset == 0)
                 m_timeCorrectionOffset = microseconds_t(0);
             else
-                m_timeCorrectionOffset = microseconds_t(static_cast<long>(floor(m_timeCorrectionOffset.count() / 2.0)));
+                m_timeCorrectionOffset /= 2;
         }
 
         m_lastOffsetWithinTolerance = true;
@@ -363,11 +366,11 @@ void FreqCounterSynchronizer::processTimestamps(
     }
     m_lastOffsetWithinTolerance = false;
 
-    const double offsetDiffToAvg = abs(avgOffsetUsec - curOffsetUsec);
+    const double offsetDiffToAvg = std::abs(avgOffsetUsec - curOffsetUsec);
     if (offsetDiffToAvg > m_expectedSD) {
-        // "sane value threshold" is 1.5x the standard deviation of the offsets
-        const int64_t offsetsSDThr = 1.5 * sqrt(vectorVariance(m_tsOffsetsUsec, avgOffsetUsec, true));
-        if (offsetDiffToAvg > offsetsSDThr) {
+        // "sane value threshold" is 1.5x the standard deviation of the offsets.
+        // We can avoid sqrt for the SD because: offsetDiffToAvg > 1.5*SD  ⟺  offsetDiffToAvg² > 2.25*variance
+        if (offsetDiffToAvg * offsetDiffToAvg > 2.25 * vectorVariance(m_tsOffsetsUsec, avgOffsetUsec, true)) {
             // the current offset diff to the moving average offset is not within standard deviation range.
             // This means the data point we just added is likely a fluke, potentially due to a context switch
             // or system load spike. We just ignore those events completely and don't make time adjustments
@@ -396,16 +399,16 @@ void FreqCounterSynchronizer::processTimestamps(
     // calculate time-based correction offset by changing the previous offset by 1/3 of the difference,
     // to get fairly smooth adjustments
     const auto corrOffsetDiff = avgOffsetDeviationUsec - m_timeCorrectionOffset.count();
-    m_timeCorrectionOffset += microseconds_t((int64_t)std::ceil((double)corrOffsetDiff / 3.0));
+    m_timeCorrectionOffset += microseconds_t(static_cast<int64_t>(std::ceil((double)corrOffsetDiff / 3.0)));
 
     // sanity check: we need to correct by at least one datapoint for any synchronization to occur at all
-    if (abs(m_timeCorrectionOffset.count()) <= m_timePerPointUs)
-        m_timeCorrectionOffset = microseconds_t(static_cast<int64_t>(ceil(m_timePerPointUs)));
+    if (std::abs(m_timeCorrectionOffset.count()) <= m_timePerPointUs)
+        m_timeCorrectionOffset = microseconds_t(static_cast<int64_t>(std::ceil(m_timePerPointUs)));
 
     // translate the clock update offset to indices. We round up here as we are already below threshold,
     // and overshooting slightly appears to be the better solution than being too conservative
     const bool initialOffset = m_indexOffset == 0;
-    const int newIndexOffset = static_cast<int64_t>((m_timeCorrectionOffset.count() / (double)US_PER_S) * m_freq);
+    const auto newIndexOffset = static_cast<int>((m_timeCorrectionOffset.count() / (double)US_PER_S) * m_freq);
 
     // only make adjustments (and potentially write to a tsync file) if we actually changed
     // the index offset and not just the time value associated with it
@@ -599,6 +602,7 @@ bool SecondaryClockSynchronizer::start()
     m_expectedOffsetCalCount = 0;
     m_expectedOffset = microseconds_t(0);
     m_clockOffsetsUsec = VectorXsl::Zero(m_calibrationMaxN);
+    m_runningOffsetSum = 0;
     m_lastMasterTS = m_syTimer->timeSinceStartMsec();
     m_lastSecondaryAcqTS = microseconds_t(0);
     m_clockUpdateWaitPoints = 0;
@@ -623,14 +627,16 @@ void SecondaryClockSynchronizer::processTimestamp(
 {
     const int64_t curOffsetUsec = (secondaryAcqTimestamp - masterTimestamp).count();
 
-    // calculate offsets without the new datapoint included
-    const int64_t avgOffsetUsec = m_clockOffsetsUsec.mean();
-    const int64_t avgOffsetDeviationUsec = avgOffsetUsec - m_expectedOffset.count();
-
-    // add new datapoint to our "memory" vector
-    m_clockOffsetsUsec[m_calibrationIdx++] = curOffsetUsec;
-    if (m_calibrationIdx >= m_calibrationMaxN)
+    // add new datapoint to our "memory" vector, maintaining the running sum
+    m_runningOffsetSum -= m_clockOffsetsUsec[m_calibrationIdx];
+    m_clockOffsetsUsec[m_calibrationIdx] = curOffsetUsec;
+    m_runningOffsetSum += curOffsetUsec;
+    if (++m_calibrationIdx >= m_calibrationMaxN)
         m_calibrationIdx = 0;
+
+    // calculate offsets and offset expectation delta
+    const int64_t avgOffsetUsec = m_runningOffsetSum / static_cast<int64_t>(m_calibrationMaxN);
+    const int64_t avgOffsetDeviationUsec = avgOffsetUsec - m_expectedOffset.count();
 
     // update delay-after-adjustment counter
     if (m_clockUpdateWaitPoints > 0)
@@ -668,10 +674,10 @@ void SecondaryClockSynchronizer::processTimestamp(
         return;
     }
 
-    const double offsetDiffToAvg = abs(avgOffsetUsec - curOffsetUsec);
+    const double offsetDiffToAvg = std::abs(avgOffsetUsec - curOffsetUsec);
     if (offsetDiffToAvg > m_expectedSD) {
-        const double offsetsSDThr = 2 * sqrt(vectorVariance(m_clockOffsetsUsec, avgOffsetUsec, true));
-        if (offsetDiffToAvg > offsetsSDThr) {
+        // threshold is 2x SD; avoid sqrt: offsetDiffToAvg > 2*SD  ⟺  offsetDiffToAvg² > 4*variance
+        if (offsetDiffToAvg * offsetDiffToAvg > 4.0 * vectorVariance(m_clockOffsetsUsec, avgOffsetUsec, true)) {
             // the current offset diff to the moving average offset is not within the defined, standard-deviation-based
             // range. This means the data point we just added is likely a fluke, potentially due to a context switch
             // or system load spike.
@@ -709,7 +715,7 @@ void SecondaryClockSynchronizer::processTimestamp(
     }
 
     // do nothing if we have not enough average deviation from the norm
-    if (abs(avgOffsetDeviationUsec) < m_toleranceUsec) {
+    if (std::abs(avgOffsetDeviationUsec) < m_toleranceUsec) {
         // we are within tolerance range!
         // share the good news with the controller! (immediately on change, or every 30sec otherwise)
         if ((!m_lastOffsetWithinTolerance)
@@ -722,16 +728,16 @@ void SecondaryClockSynchronizer::processTimestamp(
         // check if we would still be within third-of-tolerance with the correction offset applied, and if that's
         // the case, gradually reset it (as the external clock may be accurate again)
         if (m_clockCorrectionOffset.count() != 0) {
-            if (abs(avgOffsetDeviationUsec) < (m_toleranceUsec / 3))
+            if (std::abs(avgOffsetDeviationUsec) < (m_toleranceUsec / 3))
                 m_clockCorrectionOffset = microseconds_t(0);
             else
                 m_clockCorrectionOffset = microseconds_t(
                     static_cast<int64_t>(std::ceil(m_clockCorrectionOffset.count() / 1.25)));
 
             // we still apply any corrective offset (most likely reduced in the previous step)
-            if (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD) && m_clockCorrectionOffset.count() > 0)
-                masterTimestamp = secondaryAcqTimestamp - m_expectedOffset - m_clockCorrectionOffset;
-            if (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD) && m_clockCorrectionOffset.count() < 0)
+            if ((m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD) && m_clockCorrectionOffset.count() > 0)
+                || (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD)
+                    && m_clockCorrectionOffset.count() < 0))
                 masterTimestamp = secondaryAcqTimestamp - m_expectedOffset - m_clockCorrectionOffset;
             // prevent any time-travel into the past
             if (masterTimestamp < m_lastMasterTS)
@@ -755,18 +761,18 @@ void SecondaryClockSynchronizer::processTimestamp(
     }
 
     if (m_clockUpdateWaitPoints == 0
-        && abs(avgOffsetDeviationUsec - m_clockCorrectionOffset.count()) > (m_toleranceUsec / 1.5)) {
+        && std::abs(avgOffsetDeviationUsec - m_clockCorrectionOffset.count()) > (m_toleranceUsec / 1.5)) {
         // try to smoothly adjust offset to the new value, dependent on current detected sampling speed
         const double offsetDiff = (double)avgOffsetDeviationUsec - (double)m_clockCorrectionOffset.count();
         const auto timeGap = (secondaryAcqTimestamp - m_lastSecondaryAcqTS).count();
         auto delayFactor = 1000 * (1 - std::pow((std::log(timeGap + 1) / std::log(1000000 + 1)), 0.117)) + 1;
-        if (delayFactor >= abs(offsetDiff))
-            delayFactor = abs(offsetDiff) / 4.0;
+        if (delayFactor >= std::abs(offsetDiff))
+            delayFactor = std::abs(offsetDiff) / 4.0;
         if (delayFactor < 1)
             delayFactor = 1;
 
         auto adjValue = offsetDiff / delayFactor;
-        m_clockCorrectionOffset += microseconds_t((int64_t)std::ceil(adjValue));
+        m_clockCorrectionOffset += microseconds_t(static_cast<int64_t>(std::ceil(adjValue)));
 
         // write timestamp correction to tsync file
         if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
@@ -774,14 +780,13 @@ void SecondaryClockSynchronizer::processTimestamp(
                 secondaryAcqTimestamp, secondaryAcqTimestamp - m_expectedOffset - m_clockCorrectionOffset);
 
         // add a delay before we make any more changes, if we actually made a significant change
-        if (abs(m_clockCorrectionOffset.count()) > 1)
+        if (std::abs(m_clockCorrectionOffset.count()) > 1)
             m_clockUpdateWaitPoints = std::ceil(0.65 * m_calibrationMaxN);
     }
 
     // apply any existing timestamp correction offsets
-    if (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD) && m_clockCorrectionOffset.count() > 0)
-        masterTimestamp = secondaryAcqTimestamp - m_expectedOffset - m_clockCorrectionOffset;
-    if (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD) && m_clockCorrectionOffset.count() < 0)
+    if ((m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD) && m_clockCorrectionOffset.count() > 0)
+        || (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD) && m_clockCorrectionOffset.count() < 0))
         masterTimestamp = secondaryAcqTimestamp - m_expectedOffset - m_clockCorrectionOffset;
 
     /*
@@ -799,7 +804,7 @@ void SecondaryClockSynchronizer::processTimestamp(
             << "[" << m_id << "] "
             << "Timestamp moved backwards when calculating adjusted new time: " << masterTimestamp.count() << " < "
             << m_lastMasterTS.count() << " (mitigated by reusing previous time)";
-        masterTimestamp = m_lastMasterTS + microseconds_t(0);
+        masterTimestamp = m_lastMasterTS;
     }
 
     // remember the secondary clock timestamp & master timestamp for the next iteration
