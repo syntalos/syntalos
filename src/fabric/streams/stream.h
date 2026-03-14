@@ -626,7 +626,8 @@ public:
 
 private:
     // Empty tag type used as the scratch member when buffer reuse is disabled.
-    struct NoScratch {};
+    struct NoScratch {
+    };
 
     std::thread::id m_ownerId;
     std::atomic_bool m_active;

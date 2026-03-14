@@ -32,7 +32,7 @@
 #include <pipewire/pipewire.h>
 #pragma GCC diagnostic pop
 
-#include "symemopt.h"
+#include "datactl/symemopt.h"
 #include "mainwindow.h"
 
 int main(int argc, char *argv[])
@@ -46,8 +46,11 @@ int main(int argc, char *argv[])
     // initialize GStreamer so modules can use it if they need to
     gst_init(&argc, &argv);
 
+    // use mimalloc as OpenCV's Mat allocator, it works better for Syntalos
+    setCvMiMatAllocator();
+
     // Debugging: Tune the Glibc allocator parameters
-    //! tuneGlibcMalloc();
+    //! configureGlibcAllocator();
 
     // set up GUI application and application details
     QApplication app(argc, argv);
