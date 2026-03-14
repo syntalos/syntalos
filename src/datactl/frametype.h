@@ -32,7 +32,7 @@ struct Frame : BaseDataType {
     SY_DEFINE_DATA_TYPE(Frame)
 
     explicit Frame() {}
-    explicit Frame(const cv::Mat imgMat, const microseconds_t &t)
+    explicit Frame(const cv::Mat &imgMat, const microseconds_t &t)
         : index(0),
           time(t),
           mat(imgMat)
