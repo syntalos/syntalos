@@ -184,11 +184,15 @@ void CropTransform::createSettingsUi(QWidget *parent)
 
         auto dlg = new KPixmapRegionSelectorDialog(parent);
         dlg->setAttribute(Qt::WA_DeleteOnClose);
-        dlg->pixmapRegionSelectorWidget()->setPixmap(pixmap.value());
+        auto selector = dlg->pixmapRegionSelectorWidget();
+        selector->setPixmap(pixmap.value());
 
-        // Pre-select the current ROI
+        // Pre-select the current ROI in the original image coordinates
         if (m_roi.width > 0 && m_roi.height > 0)
-            dlg->pixmapRegionSelectorWidget()->setSelectedRegion(QRect(m_roi.x, m_roi.y, m_roi.width, m_roi.height));
+            selector->setSelectedRegion(QRect(m_roi.x, m_roi.y, m_roi.width, m_roi.height));
+        // Adjust the dialog size to fit the screen, the image size on screen will be fixed
+        // even if the user maximizes the dialog.
+        dlg->adjustRegionSelectorWidgetSizeToFitScreen();
 
         connect(dlg, &QDialog::accepted, [this, dlg]() {
             const QRect selected = dlg->pixmapRegionSelectorWidget()->unzoomedSelectedRegion();
