@@ -106,6 +106,7 @@ public:
           textureId(0),
           textureWidth(0),
           textureHeight(0),
+          textureChannels(0),
           textureFormat(GL_RGB),
           textureInternalFormat(GL_RGB),
           lastAspectRatio(-1.0f),
@@ -132,7 +133,7 @@ public:
 
     // Optimized texture handling
     GLuint textureId;
-    int textureWidth, textureHeight;
+    int textureWidth, textureHeight, textureChannels;
     GLenum textureFormat;
     GLenum textureInternalFormat;
 
@@ -283,8 +284,9 @@ void ImageViewWidget::renderImage()
     // 4-byte unpack alignment when uploading rows.
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-    // Setup or recreate texture only when dimensions change
-    if (d->textureId == 0 || d->textureWidth != imgWidth || d->textureHeight != imgHeight) {
+ola    // Setup or recreate texture only when dimensions or channel count change
+    if (d->textureId == 0 || d->textureWidth != imgWidth || d->textureHeight != imgHeight
+        || d->textureChannels != channels) {
         if (d->textureId != 0)
             glDeleteTextures(1, &d->textureId);
 
@@ -300,6 +302,7 @@ void ImageViewWidget::renderImage()
         d->setupTextureFormat(channels);
         d->textureWidth = imgWidth;
         d->textureHeight = imgHeight;
+        d->textureChannels = channels;
 
         // Allocate texture storage
         glTexImage2D(
