@@ -1491,7 +1491,7 @@ void Engine::startResourceMonitoring(QList<AbstractModule *> activeModules, cons
     d->monitoring->prevMemAvailablePercent = 100;
     d->monitoring->emergencyOOMStop = d->gconf->emergencyOOMStop();
     d->monitoring->memoryWarningEmitted = false;
-    d->monitoring->memCheckTimer.setInterval(10 * MS_PER_S); // check every 10sec
+    d->monitoring->memCheckTimer.setInterval(5 * MS_PER_S); // check every 5sec
     connect(&d->monitoring->memCheckTimer, &QTimer::timeout, this, &Engine::onMemoryMonitorEvent);
 
     // watcher for subscription buffer
@@ -1512,7 +1512,7 @@ void Engine::startResourceMonitoring(QList<AbstractModule *> activeModules, cons
     }
 
     d->monitoring->subBufferWarningEmitted = false;
-    d->monitoring->subBufferCheckTimer.setInterval(10 * MS_PER_S); // check every 10sec
+    d->monitoring->subBufferCheckTimer.setInterval(5 * MS_PER_S); // check every 5sec
     connect(&d->monitoring->subBufferCheckTimer, &QTimer::timeout, this, &Engine::onBufferMonitorEvent);
 
     // start resource watchers
