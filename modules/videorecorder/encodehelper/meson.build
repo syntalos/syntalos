@@ -1,20 +1,23 @@
 
 encodehelper_hdr = [
     'encodewindow.h',
-    '../videowriter.h',
     'queuemodel.h',
     'taskmanager.h',
     'encodetask.h',
     'videoreader.h',
+
+    '../videowriter.h',
+    '../ffmpeg-utils.h',
 ]
 
 encodehelper_src = [
     'encodewindow.cpp',
-    '../videowriter.cpp',
     'queuemodel.cpp',
     'taskmanager.cpp',
     'encodetask.cpp',
     'videoreader.cpp',
+
+    '../videowriter.cpp',
 ]
 
 encodehelper_ui = [

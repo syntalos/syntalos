@@ -42,6 +42,7 @@ extern "C" {
 }
 
 #include "datactl/tsyncfile.h"
+#include "ffmpeg-utils.h"
 
 namespace Syntalos
 {
@@ -509,31 +510,6 @@ VideoWriter::~VideoWriter()
 }
 
 /**
- * Get the required buffer alignment for AVFrame.
- *
- * Thanks to Blender for figuring out the AVX512 bug, we are using
- * their code & comment here.
- */
-static size_t ffmpeg_get_buffer_alignment()
-{
-    /* NOTE: even if av_frame_get_buffer suggests to pass 0 for alignment,
-     * as of ffmpeg 6.1/7.0 it does not use correct alignment for AVX512
-     * CPU (frame.c get_video_buffer ends up always using 32 alignment,
-     * whereas it should have used 64). Reported upstream:
-     * https://trac.ffmpeg.org/ticket/11116 and the fix on their code
-     * side is to use 64 byte alignment as soon as AVX512 is compiled
-     * in (even if CPU might not support it). So play safe and
-     * use at least 64 byte alignment here too. Currently larger than
-     * 64 alignment would not happen anywhere, but keep on querying
-     * av_cpu_max_align just in case some future platform might. */
-    size_t align = av_cpu_max_align();
-    if (align < 64) {
-        align = 64;
-    }
-    return align;
-}
-
-/**
  * Allocate an AVFrame with the given properties.
  *
  * If allocate is true, also allocates the frame buffer and fill the data pointers.
@@ -920,8 +896,9 @@ void VideoWriter::initializeInternal()
     if (ret < 0) {
         finalizeInternal(false);
         av_dict_free(&codecopts);
-        throw std::runtime_error(
-            QStringLiteral("Failed to open video encoder with the current parameters: %1").arg(averrorToString(ret)).toStdString());
+        throw std::runtime_error(QStringLiteral("Failed to open video encoder with the current parameters: %1")
+                                     .arg(averrorToString(ret))
+                                     .toStdString());
     }
 
     // stream codec parameters must be set after opening the encoder

@@ -7,7 +7,8 @@ subdir('encodehelper')
 
 module_hdr = [
     'videorecordmodule.h',
-    'videowriter.h'
+    'videowriter.h',
+    'ffmpeg-utils.h',
 ]
 module_moc_hdr = [
     'recordersettingsdialog.h',

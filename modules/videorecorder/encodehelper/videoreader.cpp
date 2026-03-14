@@ -22,12 +22,14 @@
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
-#include <libavutil/avconfig.h>
 #include <libavutil/avutil.h>
 #include <libavutil/imgutils.h>
+#include <libavutil/mem.h>
 #include <libavutil/pixdesc.h>
 #include <libswscale/swscale.h>
 }
+
+#include "../ffmpeg-utils.h"
 
 static double r2d(AVRational r)
 {
@@ -45,6 +47,15 @@ public:
     AVCodecContext *codecCtx = nullptr;
     int videoStreamIndex = -1;
     size_t frameIndex = 0;
+
+    // cached swscale state
+    SwsContext *swsCtx = nullptr;
+    AVPixelFormat swsSrcFmt = AV_PIX_FMT_NONE;
+    AVPixelFormat swsDstFmt = AV_PIX_FMT_NONE;
+    int swsWidth = -1;
+    int swsHeight = -1;
+    uint8_t *swsDstData[4] = {nullptr};
+    int swsDstLinesize[4] = {0};
 };
 
 VideoReader::VideoReader()
@@ -54,6 +65,10 @@ VideoReader::VideoReader()
 
 VideoReader::~VideoReader()
 {
+    if (d->swsCtx)
+        sws_freeContext(d->swsCtx);
+    if (d->swsDstData[0])
+        av_freep(&d->swsDstData[0]);
     if (d->codecCtx)
         avcodec_free_context(&d->codecCtx);
     if (d->formatCtx)
@@ -205,6 +220,11 @@ std::optional<std::pair<cv::Mat, size_t>> VideoReader::readFrame()
 
 std::optional<cv::Mat> VideoReader::frameToCVImage(AVFrame *frame)
 {
+    if (frame == nullptr || frame->width <= 0 || frame->height <= 0) {
+        d->lastError = "Invalid frame received from decoder.";
+        return std::nullopt;
+    }
+
     AVPixelFormat srcFormat = static_cast<AVPixelFormat>(frame->format);
     AVPixelFormat dstFormat;
     int cvMatType;
@@ -221,36 +241,57 @@ std::optional<cv::Mat> VideoReader::frameToCVImage(AVFrame *frame)
         cvMatType = CV_8UC3;
     }
 
-    SwsContext *swsCtx = sws_getContext(
-        d->codecCtx->width,
-        d->codecCtx->height,
-        srcFormat,
-        d->codecCtx->width,
-        d->codecCtx->height,
-        dstFormat,
-        SWS_BILINEAR,
-        nullptr,
-        nullptr,
-        nullptr);
-
-    if (swsCtx == nullptr) {
-        d->lastError = "Could not initialize the conversion context.";
+    if (sws_isSupportedInput(srcFormat) <= 0 || sws_isSupportedOutput(dstFormat) <= 0) {
+        d->lastError = "Unsupported pixel format conversion requested.";
         return std::nullopt;
     }
 
-    int dstLinesize[1] = {frame->width * av_get_bits_per_pixel(av_pix_fmt_desc_get(dstFormat)) / 8};
-    uint8_t *dstData[1] = {new uint8_t[dstLinesize[0] * frame->height]};
+    const int width = frame->width;
+    const int height = frame->height;
 
-    sws_scale(swsCtx, frame->data, frame->linesize, 0, frame->height, dstData, dstLinesize);
+    // Recreate the swscale context and destination buffer only when format or dimensions change.
+    // For a normal video file this happens at most once.
+    if (d->swsCtx == nullptr || d->swsSrcFmt != srcFormat || d->swsDstFmt != dstFormat || d->swsWidth != width
+        || d->swsHeight != height) {
 
-    cv::Mat mat(cv::Size(frame->width, frame->height), cvMatType, dstData[0]);
+        if (d->swsCtx) {
+            sws_freeContext(d->swsCtx);
+            d->swsCtx = nullptr;
+        }
+        if (d->swsDstData[0])
+            av_freep(&d->swsDstData[0]);
 
-    sws_freeContext(swsCtx);
+        d->swsCtx = sws_getContext(
+            width, height, srcFormat, width, height, dstFormat, SWS_BILINEAR, nullptr, nullptr, nullptr);
+        if (d->swsCtx == nullptr) {
+            d->lastError = "Could not initialize conversion context.";
+            return std::nullopt;
+        }
 
-    // make OpenCV matrix take ownership of the data
-    mat = mat.clone();
-    delete[] dstData[0];
-    return mat;
+        const auto align = ffmpeg_get_buffer_alignment();
+        if (av_image_alloc(d->swsDstData, d->swsDstLinesize, width, height, dstFormat, align) < 0) {
+            sws_freeContext(d->swsCtx);
+            d->swsCtx = nullptr;
+            d->lastError = "Could not allocate conversion buffer.";
+            return std::nullopt;
+        }
+
+        d->swsSrcFmt = srcFormat;
+        d->swsDstFmt = dstFormat;
+        d->swsWidth = width;
+        d->swsHeight = height;
+    }
+
+    const auto scaledHeight = sws_scale(
+        d->swsCtx, frame->data, frame->linesize, 0, height, d->swsDstData, d->swsDstLinesize);
+    if (scaledHeight != height) {
+        d->lastError = "Failed to scale the frame into the destination pixel format.";
+        return std::nullopt;
+    }
+
+    // clone immediately so swsDstData is free for the next frame
+    cv::Mat mat(height, width, cvMatType, d->swsDstData[0], d->swsDstLinesize[0]);
+    return mat.clone();
 }
 
 ssize_t VideoReader::lastFrameIndex() const
