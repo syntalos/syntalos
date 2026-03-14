@@ -32,6 +32,7 @@
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
+#include <libavutil/cpu.h>
 #include <libavutil/avconfig.h>
 #include <libavutil/avutil.h>
 #include <libavutil/imgutils.h>
@@ -506,31 +507,67 @@ VideoWriter::~VideoWriter()
 }
 
 /**
- * the following function is a modified version of code
- * found in ffmpeg-0.4.9-pre1/output_example.c
+ * Get the required buffer alignment for AVFrame.
+ *
+ * Thanks to Blender for figuring out the AVX512 bug, we are using
+ * their code & comment here.
  */
-static AVFrame *vw_alloc_frame(int pix_fmt, int width, int height, bool allocate)
+static size_t ffmpeg_get_buffer_alignment()
+{
+    /* NOTE: even if av_frame_get_buffer suggests to pass 0 for alignment,
+     * as of ffmpeg 6.1/7.0 it does not use correct alignment for AVX512
+     * CPU (frame.c get_video_buffer ends up always using 32 alignment,
+     * whereas it should have used 64). Reported upstream:
+     * https://trac.ffmpeg.org/ticket/11116 and the fix on their code
+     * side is to use 64 byte alignment as soon as AVX512 is compiled
+     * in (even if CPU might not support it). So play safe and
+     * use at least 64 byte alignment here too. Currently larger than
+     * 64 alignment would not happen anywhere, but keep on querying
+     * av_cpu_max_align just in case some future platform might. */
+    size_t align = av_cpu_max_align();
+    if (align < 64) {
+        align = 64;
+    }
+    return align;
+}
+
+/**
+ * Allocate an AVFrame with the given properties.
+ *
+ * If allocate is true, also allocates the frame buffer and fill the data pointers.
+ * If false, just allocates the AVFrame struct and set the properties.
+ */
+static AVFrame *vw_alloc_frame(AVPixelFormat pix_fmt, int width, int height, bool allocate)
 {
     AVFrame *aframe;
-    uint8_t *aframe_buf;
 
     aframe = av_frame_alloc();
-    if (!aframe)
+    if (aframe == nullptr)
         return nullptr;
 
     aframe->format = pix_fmt;
     aframe->width = width;
     aframe->height = height;
 
-    auto size = av_image_get_buffer_size(static_cast<AVPixelFormat>(pix_fmt), width, height, 1);
     if (allocate) {
-        aframe_buf = static_cast<uint8_t *>(malloc(static_cast<size_t>(size)));
-        if (!aframe_buf) {
-            av_free(aframe);
+        // allocate the image buffer
+        const size_t align = ffmpeg_get_buffer_alignment();
+        int size = av_image_get_buffer_size(pix_fmt, width, height, align);
+
+        AVBufferRef *buf = av_buffer_alloc(size);
+        if (buf == nullptr) {
+            av_frame_free(&aframe);
             return nullptr;
         }
-        av_image_fill_arrays(
-            aframe->data, aframe->linesize, aframe_buf, static_cast<AVPixelFormat>(pix_fmt), width, height, 1);
+
+        auto ret = av_image_fill_arrays(aframe->data, aframe->linesize, buf->data, pix_fmt, width, height, align);
+        if (ret < 0) {
+            av_buffer_unref(&buf);
+            av_frame_free(&aframe);
+            return nullptr;
+        }
+
+        aframe->buf[0] = buf;
     }
 
     return aframe;
