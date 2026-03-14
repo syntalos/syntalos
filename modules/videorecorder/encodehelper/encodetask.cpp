@@ -178,15 +178,14 @@ void EncodeTask::run()
 
         // write timestamp info
         auto timestamp = microseconds_t(0);
-        size_t frameIdx = frameNo - 1;
         if (m_writeTsync) {
-            if (frameIdx < tsyncTimes.size()) {
+            if (frameNo < tsyncTimes.size()) {
                 if (tsyncTimeUnit == TSyncFileTimeUnit::MILLISECONDS)
-                    timestamp = msecToUsec(milliseconds_t(tsyncTimes[frameIdx].second));
+                    timestamp = msecToUsec(milliseconds_t(tsyncTimes[frameNo].second));
                 else if (tsyncTimeUnit == TSyncFileTimeUnit::MICROSECONDS)
-                    timestamp = microseconds_t(tsyncTimes[frameIdx].second);
+                    timestamp = microseconds_t(tsyncTimes[frameNo].second);
                 else if (tsyncTimeUnit == TSyncFileTimeUnit::NANOSECONDS)
-                    timestamp = nsecToUsec(nanoseconds_t(tsyncTimes[frameIdx].second));
+                    timestamp = nsecToUsec(nanoseconds_t(tsyncTimes[frameNo].second));
             }
         }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -44,7 +44,7 @@ public:
     AVFormatContext *formatCtx = nullptr;
     AVCodecContext *codecCtx = nullptr;
     int videoStreamIndex = -1;
-    size_t frameIndex;
+    size_t frameIndex = 0;
 };
 
 VideoReader::VideoReader()
@@ -174,7 +174,7 @@ double VideoReader::framerate() const
     }
 }
 
-std::optional<std::pair<cv::Mat, int64_t>> VideoReader::readFrame()
+std::optional<std::pair<cv::Mat, size_t>> VideoReader::readFrame()
 {
     AVFrame *frame = av_frame_alloc();
     AVPacket *packet = av_packet_alloc();

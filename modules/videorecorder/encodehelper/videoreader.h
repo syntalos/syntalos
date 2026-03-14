@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -49,7 +49,7 @@ public:
     ssize_t lastFrameIndex() const;
     double framerate() const;
 
-    std::optional<std::pair<cv::Mat, int64_t>> readFrame();
+    std::optional<std::pair<cv::Mat, size_t>> readFrame();
 
 private:
     class Private;

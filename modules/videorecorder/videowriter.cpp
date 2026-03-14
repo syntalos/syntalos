@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -1390,8 +1390,11 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::microseco
     }
 
     // store timestamp (if necessary)
-    if (d->saveTimestamps)
-        d->tsfWriter.writeTimes(d->framePts, tsUsec);
+    if (d->saveTimestamps) {
+        // framePts - 1 is used because the counter has already advanced to the next index
+        // at this point, so we need to go back by one
+        d->tsfWriter.writeTimes(d->framePts - 1, tsUsec);
+    }
 
     if (d->fileSliceIntervalMin != 0) {
         const auto tsMin = static_cast<double>(tsUsec - d->captureStartTimestamp.count()) / US_PER_MIN;
