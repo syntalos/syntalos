@@ -986,12 +986,12 @@ void VideoWriter::initializeInternal()
 void VideoWriter::finalizeInternal(bool writeTrailer)
 {
     if (d->initialized) {
-        if (d->vstrm != nullptr) {
-            avcodec_send_frame(d->cctx, nullptr);
+        AVPacket *pkt = av_packet_alloc();
+        if (pkt == nullptr)
+            qCCritical(logVRecorder).noquote() << "Unable to allocate packet for flushing.";
 
-            AVPacket *pkt = av_packet_alloc();
-            if (!pkt)
-                qCCritical(logVRecorder).noquote() << "Unable to allocate packet for flushing.";
+        if (d->vstrm != nullptr && pkt != nullptr) {
+            avcodec_send_frame(d->cctx, nullptr);
 
             while (true) {
                 auto ret = avcodec_receive_packet(d->cctx, pkt);
@@ -1016,8 +1016,8 @@ void VideoWriter::finalizeInternal(bool writeTrailer)
 
                 av_packet_unref(pkt);
             }
-            av_packet_free(&pkt);
         }
+        av_packet_free(&pkt);
 
         // write trailer
         if (writeTrailer && (d->octx != nullptr))
