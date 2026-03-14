@@ -370,7 +370,10 @@ private:
         m_metadata = metadata;
     }
 
-    void push(const T &data)
+    // Common implementation for both lvalue and rvalue push paths.
+    // U is deduced as either `const T &` (copy) or `T` (move) via std::forward.
+    template<typename U>
+    void pushImpl(U &&data)
     {
         // don't accept any new data if we are suspended
         if (m_suspended)
@@ -387,8 +390,9 @@ private:
             m_lastItemTime = timeNow;
         }
 
-        // actually send the data to the subscriber
-        m_queue.enqueue(std::optional<T>(data));
+        // Actually send the data to the subscribers
+        // Construct std::optional<T> directly in the ring-buffer slot.
+        m_queue.emplace(std::in_place, std::forward<U>(data));
 
         // ping the eventfd, in case anyone is listening for messages
         if (m_notify) {
@@ -397,6 +401,25 @@ private:
                 qWarning().noquote() << "Unable to write to eventfd in" << dataTypeName()
                                      << "data subscription. FD:" << m_eventfd << "Error:" << std::strerror(errno);
         }
+    }
+
+    /**
+     * Push an element into the subscription queue.
+     */
+    void push(const T &data)
+    {
+        pushImpl(data);
+    }
+
+    /**
+     * Move an element into the subscription queue.
+     *
+     * This moves the element if possible, zero-copy when
+     * the caller can donate ownership.
+     */
+    void push(T &&data)
+    {
+        pushImpl(std::move(data));
     }
 
     void stop()
@@ -526,12 +549,34 @@ public:
         m_active = false;
     }
 
+    /**
+     * Push data to subscribers, copying it.
+     */
     void push(const T &data)
     {
         if (!m_active)
             return;
         for (auto &sub : m_subs)
             sub->push(data);
+    }
+
+    /**
+     * Push data to subscribers: copies to all but the last subscriber, moves into the last.
+     *
+     * In the common single-subscriber case this is a zero-copy push.
+     * Callers that already own a temporary (or use std::move) should prefer this overload.
+     */
+    void push(T &&data)
+    {
+        if (!m_active)
+            return;
+        if (m_subs.empty())
+            return;
+        // copy to every subscriber except the last, then donate ownership to the last one
+        const auto lastIdx = m_subs.size() - 1;
+        for (size_t i = 0; i < lastIdx; ++i)
+            m_subs[i]->push(static_cast<const T &>(data));
+        m_subs[lastIdx]->push(std::move(data));
     }
 
     void pushRawData(int typeId, const void *data, size_t size) override
@@ -543,9 +588,7 @@ public:
             return;
         }
 
-        const T &entity = T::fromMemory(data, size);
-        for (auto &sub : m_subs)
-            sub->push(entity);
+        push(T::fromMemory(data, size));
     }
 
     void terminate()
