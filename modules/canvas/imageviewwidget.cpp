@@ -406,6 +406,12 @@ bool ImageViewWidget::showImage(const cv::Mat &mat)
     d->glImage = mat;
 #endif
 
+    // Convert image to 8-bit, if needed
+    // FIXME: This is very inefficient, we may need a 16+-bit render path
+    const auto depth = d->glImage.depth();
+    if (depth != CV_8U && depth != CV_8S)
+        d->glImage.convertTo(d->glImage, CV_8U);
+
     update();
     return true;
 }
