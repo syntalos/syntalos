@@ -48,10 +48,15 @@ private:
     std::shared_ptr<QArvDecoder> m_decoder;
     TransformParams *m_tfParams;
 
+    int m_expectedWidth;
+    int m_expectedHeight;
+
 public:
     explicit AravisCameraModule(AravisCameraModuleInfo *modInfo, QObject *parent = nullptr)
         : AbstractModule(parent),
-          m_stopped(true)
+          m_stopped(true),
+          m_expectedWidth(-1),
+          m_expectedHeight(-1)
     {
         QArvCamera::init();
 
@@ -115,8 +120,11 @@ public:
         m_tfParams = m_configWindow->currentTransformParams();
 
         const auto roi = m_camera->getROI();
+        m_expectedWidth = roi.width();
+        m_expectedHeight = roi.height();
+
         // set the required stream metadata for video capture
-        m_outStream->setMetadataValue("size", QSize(roi.width(), roi.height()));
+        m_outStream->setMetadataValue("size", QSize(m_expectedWidth, m_expectedHeight));
         m_outStream->setMetadataValue("framerate", m_camera->getFPS());
 
         // start the stream
@@ -218,6 +226,17 @@ public:
 
                 m_decoder->decode(frame);
                 cv::Mat img = m_decoder->getCvImage();
+
+                // sanity check, because sometimes this camera doesn't adhere to the contract...
+                if (Q_UNLIKELY(img.cols != m_expectedWidth || img.rows != m_expectedHeight)) {
+                    raiseError(
+                        QStringLiteral("Camera returned frame with unexpected dimensions %1x%2 (expected %3x%4)!")
+                            .arg(img.cols)
+                            .arg(img.rows)
+                            .arg(m_expectedWidth)
+                            .arg(m_expectedHeight));
+                    return;
+                }
 
                 if (m_tfParams->invert) {
                     int bits = img.depth() == CV_8U ? 8 : 16;
