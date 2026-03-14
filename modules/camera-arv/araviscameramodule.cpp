@@ -243,8 +243,7 @@ public:
                     break;
                 }
 
-                Frame syFrame(img, frameCount++, masterTime);
-                m_outStream->push(syFrame);
+                m_outStream->push(Frame(img, frameCount++, masterTime));
             });
 
         // only after the run is started, attach the timeout source

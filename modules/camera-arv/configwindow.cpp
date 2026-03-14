@@ -300,7 +300,6 @@ void ArvConfigWindow::on_cameraSelector_currentIndexChanged(int index)
     this->connect(camera.get(), SIGNAL(dataChanged(QModelIndex, QModelIndex)), SLOT(readAllValues()));
 
     updateDecoder();
-    Q_EMIT cameraSelected(camera, decoder);
 }
 
 void ArvConfigWindow::readExposure()
@@ -371,7 +370,6 @@ void ArvConfigWindow::on_pixelFormatSelector_currentIndexChanged(int index)
     camera->setPixelFormat(format);
 
     updateDecoder();
-    Q_EMIT cameraSelected(camera, decoder);
 }
 
 void ArvConfigWindow::on_applyROIButton_clicked(bool clicked)
@@ -413,6 +411,9 @@ void ArvConfigWindow::on_applyROIButton_clicked(bool clicked)
     hSpinbox->setValue(ROI.height());
 
     toggleVideoPreview(tostart);
+
+    // update decoder with new ROI
+    updateDecoder();
 }
 
 void ArvConfigWindow::on_resetROIButton_clicked(bool clicked)
@@ -456,6 +457,8 @@ void ArvConfigWindow::updateDecoder()
         statusBar()->showMessage(message, statusTimeoutMsec);
         decoder = std::make_shared<Unsupported>(camera->getPixelFormatId(), camera->getROI().size());
     }
+
+    Q_EMIT cameraSelected(camera, decoder);
 }
 
 void ArvConfigWindow::setCameraInUse(bool camInUse)
