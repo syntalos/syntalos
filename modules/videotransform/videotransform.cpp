@@ -241,6 +241,12 @@ void CropTransform::start()
 
     {
         const std::lock_guard<std::mutex> lock(m_mutex);
+
+        // reset cached info
+        m_cachedFrame = cv::Mat();
+        m_hasCachedFrame = false;
+        m_frameCacheCounter = false;
+
         checkAndUpdateRoi();
     }
     m_activeRoi = m_roi;
