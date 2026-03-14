@@ -1087,6 +1087,8 @@ void VideoWriter::initialize(
         throw std::runtime_error("Tried to initialize an already initialized video writer.");
     if (!std::isfinite(fps) || fps <= 0.0)
         throw std::runtime_error(QStringLiteral("Received invalid framerate: %1").arg(fps).toStdString());
+    if (width < 64 || height < 64)
+        throw std::runtime_error("Frame dimensions are to small: Need to be at least 64x64px for most decoders.");
 
     d->width = width;
     d->height = height;
