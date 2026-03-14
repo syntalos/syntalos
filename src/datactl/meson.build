@@ -7,6 +7,7 @@ sy_datactl_pub_hdr = [
     'edlstorage.h',
     'eigenaux.h',
     'syclock.h',
+    'symemopt.h',
     'timesync.h',
     'tsyncfile.h',
 ]
@@ -19,6 +20,7 @@ sy_datactl_src = [
     'datatypes.cpp',
     'edlstorage.cpp',
     'syclock.cpp',
+    'symemopt.cpp',
     'timesync.cpp',
     'tsyncfile.cpp',
 ]
