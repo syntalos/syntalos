@@ -1105,7 +1105,7 @@ void VideoWriter::initialize(
 
     d->width = width;
     d->height = height;
-    d->fps = av_d2q(fps, 1000000);
+    d->fps = av_d2q(fps, INT_MAX);
     if (d->fps.num <= 0 || d->fps.den <= 0)
         throw std::runtime_error(
             QStringLiteral("Unable to convert framerate %1 to rational value.").arg(fps).toStdString());
