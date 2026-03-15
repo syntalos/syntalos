@@ -1,18 +1,15 @@
-name: Package Builds
+name: Package Build
 
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_call:
   workflow_dispatch:
   schedule:
     - cron: '0 10 * * 1'
 
 jobs:
-  get-version:
-    name: Determine revision number
-    runs-on: ubuntu-latest
+  revision:
+    name: Revision check
+    runs-on: ubuntu-slim
     outputs:
       version: ${{ steps.version.outputs.version }}
       version-numeric: ${{ steps.version.outputs.version-numeric }}
@@ -35,10 +32,49 @@ jobs:
         echo "version=${SY_VERSION}" >> $GITHUB_OUTPUT
 
 
-  package-debian:
-    name: Debian Stable
-    runs-on: ubuntu-latest
-    needs: get-version
+  setup:
+    name: Generate build matrix
+    runs-on: ubuntu-slim
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Generate matrix from distros.json
+      id: matrix
+      run: |
+        python3 << 'EOF'
+        import json, os
+
+        distros = json.load(open('.github/distros.json'))
+        runners = [
+            {'runner': 'ubuntu-latest',    'arch': 'amd64'},
+            {'runner': 'ubuntu-24.04-arm', 'arch': 'arm64'},
+        ]
+
+        includes = []
+        for d in distros:
+            for r in runners:
+                includes.append({
+                    **d, **r,
+                    'name': f"{d['distro-name']} [{r['arch']}]",
+                })
+
+        matrix = json.dumps({'include': includes})
+        with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+            f.write(f'matrix={matrix}\n')
+        EOF
+
+
+  package-build:
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
+
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    needs: [revision, setup]
 
     steps:
     - uses: actions/checkout@v6
@@ -46,46 +82,38 @@ jobs:
         fetch-depth: 0
         submodules: true
 
-    - name: Create Build Environment
-      run: cd tests/ci/ && podman build -t syntalos -f ./Dockerfile-debian-stable .
+    - name: Update cache
+      run: sudo apt-get update -qq
 
-    - name: Package Build
+    - name: Install system prerequisites
+      run: sudo apt-get install -yq debspawn mmdebstrap debian-archive-keyring ubuntu-keyring
+
+      # NOTE: Once changes are released, we can drop this hack
+    - name: Upgrade debspawn
       run: |
-        podman run -t -e CI=true -e DEBEMAIL=no-reply@physiologie.uni-heidelberg.de -v `pwd`:/build syntalos \
-            ./tests/ci/auto-build-deb.sh
-
-    - name: Upload Debian package artifact
-      uses: actions/upload-artifact@v7
-      with:
-        name: syntalos_${{ needs.get-version.outputs.version }}_debian13_amd64
-        path: |
-          result/*.deb
-          result/*.build*
-
-
-  package-ubuntu:
-    name: Ubuntu LTS
-    runs-on: ubuntu-latest
-    needs: get-version
-
-    steps:
-    - uses: actions/checkout@v6
-      with:
-        fetch-depth: 0
-        submodules: true
+          sudo rm /usr/bin/debspawn
+          sudo git clone --depth 1 https://github.com/lkhq/debspawn.git /srv/debspawn
+          sudo ln -s /srv/debspawn/debspawn.py /usr/bin/debspawn
 
     - name: Create Build Environment
-      run: cd tests/ci/ && podman build -t syntalos -f Dockerfile-ubuntu-lts .
+      run: debspawn create ${{ matrix.create-args }} --extra-packages=curl,ca-certificates ${{ matrix.suite }}
+
+    - name: Configure Syntalos APT Repository
+      run: |
+          curl -LO https://raw.githubusercontent.com/syntalos/repo/refs/heads/main/publish/setup-syntalos-repo.sh
+          chmod +x setup-syntalos-repo.sh
+          debspawn run --persistent -x ${{ matrix.suite }} ./setup-syntalos-repo.sh
+
+    - name: Configure Package Build
+      run: ./tests/ci/configure-deb-build.sh "${{ matrix.suite }}" "${{ matrix.slug }}"
 
     - name: Package Build
-      run: |
-        podman run -t -e CI=true -e DEBEMAIL=no-reply@physiologie.uni-heidelberg.de -v `pwd`:/build syntalos \
-            ./tests/ci/auto-build-deb.sh
+      run: debspawn build ${{ matrix.suite }}
 
-    - name: Upload Ubuntu package artifact
+    - name: Upload package artifact
       uses: actions/upload-artifact@v7
       with:
-        name: syntalos_${{ needs.get-version.outputs.version }}_ubuntu26.04_amd64
+        name: syntalos_${{ needs.revision.outputs.version }}_${{ matrix.artifact-id }}_${{ matrix.arch }}
         path: |
-          result/*.deb
-          result/*.build*
+          /var/lib/debspawn/results/*.deb
+          /var/lib/debspawn/results/*.build*

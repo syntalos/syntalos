@@ -1,0 +1,173 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  discussions: write
+
+jobs:
+  revision:
+    name: Revision check
+    runs-on: ubuntu-slim
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - name: Derive version string
+        id: version
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+  build-test:
+    name: Test
+    uses: ./.github/workflows/build-test.yml
+
+  build-packages:
+      name: Build Packages
+      uses: ./.github/workflows/build-packages.yml
+
+  release:
+    name: Create Release
+    needs: [revision, build-test, build-packages]
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Extract release notes from NEWS.md
+        env:
+          RELEASE_HEADER: |
+              Please refer to the [installation documentation](https://syntalos.org/docs/setup/install/) for details
+              on how to install the provided binary packages for your OS or how to build Syntalos from source.
+
+              ## Changes:
+        run: |
+          VERSION="${{ needs.revision.outputs.version }}"
+
+          # write header
+          printf '%s' "$RELEASE_HEADER" >> release_notes.md
+
+          # Extract the block for this version from NEWS.md.
+          # The block starts with "Version X.Y.Z" and ends before the next "Version " line.
+          awk -v ver="$VERSION" '
+            BEGIN { found=0 }
+            /^Version / {
+              if (found) exit
+              if ($2 == ver) { found=1; next }
+            }
+            /^-+$/ && found && !body { next }
+            /^Released: / && found { next }
+            found { body=1; print }
+          ' NEWS.md >> release_notes.md
+
+          if [ ! -s release_notes.md ]; then
+            echo "::warning::No release notes found for version $VERSION in NEWS.md"
+            echo "Release $VERSION" > release_notes.md
+          fi
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+          skip-decompress: true
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release_assets
+
+          # choose what we want to attach
+          for artifact_dir in artifacts/*/; do
+            cp "$artifact_dir"/*.zip "$GITHUB_WORKSPACE/release_assets/"
+          done
+
+          echo "Assets to upload:"
+          ls -la release_assets/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2.4.2
+        with:
+          name: Version ${{ needs.revision.outputs.version }}
+          discussion_category_name: announcements
+          body_path: release_notes.md
+          draft: false
+          prerelease: false
+          files: release_assets/*
+
+
+  repo-publish:
+    name: Publish to package repository
+    needs: [revision, release]
+    runs-on: ubuntu-slim
+
+    steps:
+      - name: Checkout Syntalos repo
+        uses: actions/checkout@v6
+
+      - name: Checkout package config repo
+        uses: actions/checkout@v4
+        with:
+          repository: syntalos/repo
+          token: ${{ secrets.PKGREPO_COMMIT_TOKEN }}
+          path: pkg-repo
+
+      - name: Update cache
+        run: sudo apt-get update -qq
+
+      - name: Install prerequisites
+        run: sudo ./pkg-repo/install-deb-deps.sh
+
+      - name: Download and register all release assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.revision.outputs.version }}
+        run: |
+          python3 << 'EOF'
+          import json, os, subprocess, glob
+
+          workspace = os.environ['GITHUB_WORKSPACE']
+          version   = os.environ['VERSION']
+          repo      = os.environ['GITHUB_REPOSITORY']
+          base_url  = f'https://github.com/{repo}/releases/download/v{version}'
+
+          distros = json.load(open(os.path.join(workspace, '.github/distros.json')))
+
+          for d in distros:
+              suite       = d['suite']
+              artifact_id = d['artifact-id']
+              distro_id   = d['distro-id']
+
+              dl_dir = os.path.join(workspace, 'new-release', suite)
+              os.makedirs(dl_dir, exist_ok=True)
+
+              subprocess.run([
+                  'gh', 'release', 'download', f'v{version}',
+                  '--repo',    repo,
+                  '--pattern', f'syntalos_*{artifact_id}*.zip',
+                  '--dir',     dl_dir,
+              ], check=True)
+
+              assets = sorted(glob.glob(os.path.join(dl_dir, '*.zip')))
+              subprocess.run([
+                  './update-manifest.py',
+                  '--distro',   distro_id,
+                  '--suite',    suite,
+                  '--channel',  'stable',
+                  '--name',     'syntalos',
+                  '--version',  version,
+                  '--base-url', base_url,
+              ] + assets, check=True, cwd=os.path.join(workspace, 'pkg-repo'))
+          EOF
+
+      - name: Commit and push
+        env:
+          VERSION: ${{ needs.revision.outputs.version }}
+        working-directory: pkg-repo
+        run: |
+          git config user.name "syntalos-robot"
+          git config user.email "noreply@syntalos.org"
+          git commit -a -m "Add Syntalos ${VERSION}"
+          git push
