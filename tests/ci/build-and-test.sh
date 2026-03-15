@@ -10,19 +10,21 @@ echo "C compiler: $CC"
 echo "C++ compiler: $CXX"
 export LANG=C.UTF-8
 
-. /etc/os-release
-maintainer_mode=true
-if [ "$ID" = "ubuntu" ] && [ "$VERSION_CODENAME" = "focal" ]; then
-    maintainer_mode=false
-fi;
-
 set -x
 $CXX --version
+
+# intan-rhx only builds on amd64
+if [ "$(uname -m)" = "x86_64" ]; then
+    extra_modules=",intan-rhx"
+else
+    extra_modules=""
+fi
 
 # configure Syntalos build with all flags enabled
 mkdir build && cd build
 meson \
-    -Dmaintainer=$maintainer_mode \
+    -Dmaintainer=true \
+    -Dmodules="camera-arv,camera-tis,miniscope,plot${extra_modules}" \
     ..
 
 # Build, Test & Install
