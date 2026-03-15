@@ -1,11 +1,15 @@
 #!/usr/bin/make -f
 # -*- mode: makefile; coding: utf-8 -*-
 
-SY_ENABLED_MODULES := camera-arv,camera-tis,miniscope,plot
+SY_ENABLED_MODULES := camera-arv,miniscope,plot
 
 ifneq (,$(filter $(DEB_HOST_ARCH), amd64))
     # We don't build Intan support on non-amd64, Intan does not support this officially
 	SY_ENABLED_MODULES := $(SY_ENABLED_MODULES),intan-rhx
+
+	# Disable TIS camera support as well, upstream-provided binaries are broken,
+	# and we haven't decided if we want to crossbuild this stuff yet
+	SY_ENABLED_MODULES := $(SY_ENABLED_MODULES),camera-tis
 endif
 
 # FIXME: Super dirty hack to get tiscamera to build - should be replaced
@@ -30,8 +34,6 @@ ifneq ($(wildcard $(TCAM_DIR)/*),)
 		-DTCAM_DOWNLOAD_MESON=OFF \
 		-DTCAM_INTERNAL_ARAVIS=OFF \
 		-DTCAM_INSTALL_FORCE_PREFIX=ON \
-		-DTCAM_BUILD_WITH_GUI=OFF \
-		-DTCAM_BUILD_DOCUMENTATION=OFF \
 		-DCMAKE_INSTALL_LIBDIR=lib \
 		-DTCAM_PROPERTY_INSTALL_LIB=lib \
 		-DTCAM_PROPERTY_INSTALL_PKGCONFIG=$(TCAM_DIR)/i/lib/pkgconfig \
