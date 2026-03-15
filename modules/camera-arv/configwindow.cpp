@@ -484,7 +484,8 @@ void ArvConfigWindow::setCameraInUseExternal(bool camInUse)
     // Update realFps, an externally started run is never a preview
     // action and we need to ensure this value reflects what the user
     // has set in case it is later used to restore the framerate.
-    m_realFps = camera->getFPS();
+    if (camera)
+        m_realFps = camera->getFPS();
 
     setCameraInUse(camInUse);
     rotationSelector->setEnabled(!camInUse);
