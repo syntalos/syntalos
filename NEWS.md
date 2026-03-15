@@ -2,10 +2,10 @@ Version 2.1.2
 -------------
 Released: 2026-02-14
 
-Features:
+### Features:
  * datactl: Stop using Qt in any streamed data type, reduce memory copies
 
-Bugfixes:
+### Bugfixes:
  * Adjust for new component-ID of USBView for on-demand installation
  * fabric: Rely on our own terminal emulator instead of spawning an external one
  * debian: Explicitly add python-virtualenv as runtime dependency
@@ -31,23 +31,23 @@ Bugfixes:
  * camera-arv: (De)serialize settings consistently
  * camera-arv: Save floats with maximum precision
 
-Miscellaneous:
+### Miscellaneous:
  * Use a scope guard to prevent UI interactions on save/load
 
-Contributors:
+### Contributors:
  Matthias Klumpp, Victor Negîrneac
 
 Version 2.1.1
 -------------
 Released: 2025-09-20
 
-Features:
+### Features:
  * canvas: Optimize render performance
  * canvas: Improve OpenGL shader compatibility
  * camera-arv: udev: Disable powersaving on all USB cameras
  * Position module nodes in free and visible spaces, if possible
 
-Bugfixes:
+### Bugfixes:
  * videorecorder: Prevent deadlock if uninitialized module is stopped prematurely
  * canvas: Do color-conversion on the CPU if we only have GLES
  * canvas: Ensure histogram is displayed correctly on GLES-only platforms
@@ -56,7 +56,7 @@ Bugfixes:
  * Fix reverse port connections (in->out) by the user when dragging in the GUI
  * camera-arv: Improve behavior if camera rescan is triggered by USB event
 
-Miscellaneous:
+### Miscellaneous:
  * ci: Build on Debian Testing (forky) as well
  * ppa: Only include +git part in version string if necessary
 
@@ -64,14 +64,14 @@ Version 2.1.0
 -------------
 Released: 2025-04-06
 
-Features:
+### Features:
  * Port to Qt6
  * intan-rhx: Update to 3.4.0
  * Move all configuration under the new Syntalos.org umbrella
  * Allow users to globally configure IPC memory pools
  * Cross out disabled modules instead of changing their opacity
 
-Bugfixes:
+### Bugfixes:
  * Prevent user interactions with the GUI while initializing slow modules
  * Prevent crash when destroying modules containing text editor views
  * Fix quirks with dynamic module loading & mlink perf in Flatpak sandboxes
@@ -80,7 +80,7 @@ Bugfixes:
  * intan-rhx: Use rpath to make the linker find new deps of lOkFrontpanel
  * debian: Fix PPA build on Ubuntu Noble
 
-Miscellaneous:
+### Miscellaneous:
  * logo: Make Syntalos app icon box more "Breeze-like"
  * sp210-pressuresense: Drop the Raspberry Pi Pico pictogram from the icon
  * deeplabcut-live: Update logo image
@@ -92,12 +92,12 @@ Version 2.0.2
 -------------
 Released: 2024-11-22
 
-Features:
+### Features:
  * camera-arv: Display the camera ID when running
  * camera-tis: Use TcamStatistics data to derive timestamp
  * Add new ONIX Coax Commutator module
 
-Bugfixes:
+### Bugfixes:
  * camera-tis: Add timeout when requesting samples & quit on error
  * camera-tis: Stop faster if frame retrieval is unreliable
  * camera-tis: Don't crash if camera connection failed and we try to save settings
@@ -110,7 +110,7 @@ Bugfixes:
  * engine: Prevent deadlock in stream exporter when we stop too quickly
  * Fix OOM stop configuration option, it will now work again
 
-Miscellaneous:
+### Miscellaneous:
  * videorecorder: Don't use newly deprecated FFmpeg API, add fallback for older versions
  * engine: Don't use libusb without context
 
@@ -118,7 +118,7 @@ Version 2.0.1
 -------------
 Released: 2024-10-01
 
-Features:
+### Features:
  * Drop module actions menu from API: No module is using this anymore
  * Add option to disable modules in a project without removing them
  * Allow user to define if a module failure should be fatal
@@ -130,7 +130,7 @@ Features:
  * example-py: Update Python example module
  * example-py: Demonstrate metadata forwarding
 
-Bugfixes:
+### Bugfixes:
  * deb: Don't ignore module dependencies
  * intan-rhx: Make missing OpenCL platforms warning a lot less noisy
  * mlink: Always run Qt event loop when waiting for data
@@ -138,7 +138,7 @@ Bugfixes:
  * Fix bad time conversion for Frames transferred via IPC
  * devel-ltest: Don't crash if we are not connected to anything
 
-Miscellaneous:
+### Miscellaneous:
  * Add PPA package upload to release workflow
  * README: Just reference module list on the website instead of repeating it
  * Reorganize example configurations into device-dependent and independent
@@ -147,7 +147,7 @@ Version 2.0.0
 -------------
 Released: 2024-08-24
 
-Notes:
+### Notes:
  * This is the first release of the 2.0 series, which contains some significant API changes.
    Please have a look at the documentation of the Python interface specifically to adjust
    any of your custom code.
@@ -163,7 +163,7 @@ Notes:
  * Some user interface components have been refined and new modules have been introduced!
    Please have a look below for details, or explore the interface on your own.
 
-Features:
+### Features:
  * videotransform: Add falsecolour/histogram-normalization transformations
  * Implement new IPC mechanism based on Iceoryx
  * Refactor and rework IPC interface and OOP module bindings
@@ -205,7 +205,7 @@ Features:
  * intan-rhx: Update to 3.3.2
  * Allow user to load a project anyway even if some settings failed to load
 
-Bugfixes:
+### Bugfixes:
  * mlink: Forward output ports, fix Python type conversions
  * mlink: Make sure subscribers are allowed to block producers
  * engine: Cleanup resources a bit earlier to save memory on idle
@@ -237,7 +237,7 @@ Bugfixes:
  * rtkit: Try to prefer the XDG portal over direct RtKit communication
  * intan-rhx: Fix rare crash if module is stopped before it was fully started
 
-Miscellaneous:
+### Miscellaneous:
  * Bump OS and compiler dependency
  * Refine library dependencies to speed up linking a bit
  * Add helper script to update shared code in module Meson definitions
@@ -254,11 +254,11 @@ Version 1.1.0
 -------------
 Released: 2024-02-22
 
-Notes:
+### Notes:
  * The "traceplot" module has been replaced with "plot-timeseries".
    Older projects may need a bit of manual adjustment to the new module.
 
-Features:
+### Features:
  * plot-timeseries: Add efficient timeseries plotting module
  * sp210-pressuresense: Add module for the differential pressure sensor
  * Add SP210 pressure sensor firmware
@@ -277,7 +277,7 @@ Features:
  * datasource: Add demo float signal data source
  * Load project when project file is passed as parameter
 
-Bugfixes:
+### Bugfixes:
  * Fix module loader on older versions of Flatpak / Ubuntu 20.04
  * stream: Make integer sizes for signal types more clearly defined
  * engine: Protect better against wrong event API use with dead subscriptions
@@ -294,7 +294,7 @@ Bugfixes:
  * Fail immediately if any two modules try to write to the same EDL dataset
  * Disable some more UI-blocking dialog actions during a run
 
-Miscellaneous:
+### Miscellaneous:
  * docs: Add time series plotter module documentation
  * Increase default size of module select dialog/entries a bit
  * Update dependency information
@@ -305,20 +305,20 @@ Version 1.0.1
 -------------
 Released: 2023-12-22
 
-Features:
+### Features:
  * Add signal block serialization support
  * canvas: Port to modern OpenGL
  * canvas: Port display functions to work with GLES
  * canvas: Add setting to highlight saturated pixels
  * moduleapi: Auto-name windows if window convenience methods are used
 
-Bugfixes:
+### Bugfixes:
  * videorecorder: Set framerate correctly if AVI container is used
  * camera-generic: Ensure pixel format is (re)set before framerate is changed
  * camera-generic: Ensure image dimensions are actually applied again
  * deb: Set build-deps, so shlibdeps are populated correctly
 
-Miscellaneous:
+### Miscellaneous:
  * docs: Document the tsync binary format
  * docs: Add "Windows" installation instructions
  * Make options to manage custom Python modules and venvs more obvious
@@ -327,7 +327,7 @@ Version 1.0.0
 -------------
 Released: 2023-08-08
 
-Features:
+### Features:
  * firmata-io: Allow variable pulse lengths and improve logging
  * pyscript: Add some convenience functions for Firmata handling
  * python: syio: Make Firmata convenience functions members of OutputPort
@@ -337,11 +337,11 @@ Features:
  * canvas: Implement start/stop/pause controls
  * videorecorder: Disable video slicing by default
 
-Bugfixes:
+### Bugfixes:
  * utils: Don't delay thread for too long in delay()
  * firmata: Ensure pin pulse lengths are clamped to a maximum length
 
-Miscellaneous:
+### Miscellaneous:
  * ci: Update action versions
  * Relax module ABI check slightly
  * Add example C++ module
@@ -356,7 +356,7 @@ Version 0.8.4
 -------------
 Released: 2023-05-26
 
-Features:
+### Features:
  * Add USB connection diagram display to diagnostics toolbox
  * Display smaller status steps when saving a file
  * Allow module icons to be auto-loaded from files instead of embedded resources
@@ -372,7 +372,7 @@ Features:
  * videotransform: crop: Improve performance
  * videorecorder: Make AV1 codec work, allow hardware acceleration for it
 
-Bugfixes:
+### Bugfixes:
  * Make dark/light color scheme switching work with recent Breeze versions
  * Try to break thread deadlocks in misbehaving modules
  * Set no-omit-frame-pointers explicitly when tracing
@@ -392,7 +392,7 @@ Bugfixes:
  * videorecorder: Don't crash if deferred encoder initialization fails
  * videorecorder: Make combined hardware & deferred encoding work properly
 
-Miscellaneous:
+### Miscellaneous:
  * Apply some stricter compile-time checks
  * Move module icons out of global resources and load from files
  * timesync: Adjust times a bit more slowly
@@ -409,7 +409,7 @@ Version 0.8.3
 -------------
 Released: 2022-09-01
 
-Features:
+### Features:
  * Add initial code to make Syntalos play well with Flatpak sandboxes
  * canvas: Allow for smaller minimum display window size
  * Implement crash reporter tool
@@ -427,7 +427,7 @@ Features:
  * Allow loading modules from user locations
  * Add a few quicklaunch actions for useful tools and websites
 
-Bugfixes:
+### Bugfixes:
  * table: Adjust module icon to dark mode
  * Defer error emission of module errors emitted while running to shutdown
  * canvas: Try even harder to resume image display when we are too slow
@@ -454,7 +454,7 @@ Bugfixes:
  * Ensure ephemeral run data is not stored on a tmpfs-backed temporary location
  * Apply uaccess tag to udev rules
 
-Miscellaneous:
+### Miscellaneous:
  * canvas: Reduce display fps accuracy
  * intan-rhx: Tweak defaults for Syntalos
  * metainfo: Automatically add release information
@@ -465,7 +465,7 @@ Version 0.8.2
 -------------
 Released: 2022-01-22
 
-Features:
+### Features:
  * py: Allow floats to be emitted as table values
  * deeplabcut: Add very simple settings UI
  * Ensure more x86_64 extensions are enabled if possible and useful
@@ -476,7 +476,7 @@ Features:
  * Add support for dark themes
  * Allow user to select a dark color scheme, more darkness fixes
 
-Bugfixes:
+### Bugfixes:
  * intan-rhx: Don't halt recording if display window is closed
  * intan-rhx: Udev rules should not be executable
  * intan-rhx: Give save thread some time to write the last data to disk
@@ -494,7 +494,7 @@ Bugfixes:
  * timesync: counter: Consider block count when setting initial offset
  * Tweak alignment for a few icons
 
-Miscellaneous:
+### Miscellaneous:
  * Improve license explanation in "About" dialog
  * Use the same app version format for our EDL metadata and about dialog
 
@@ -502,13 +502,13 @@ Version 0.8.1
 -------------
 Released: 2021-09-10
 
-Features:
+### Features:
  * Auto-switch to registered subject list if no override is set
  * Add easy way for modules to react to USB hotplug events
  * Add feature to auto-repeat an experiment run at set intervals
  * intan-rhx: Merge 3.0.4 upstream changes
 
-Bugfixes:
+### Bugfixes:
  * Correctly list all aux data files in EDL manifests
  * Ensure experiment ID and animal ID are always trimmed
  * encodehelper: Never have two threads write to the same metadata file
@@ -517,13 +517,13 @@ Bugfixes:
  * videorecorder: Fix deprecation warning
  * Fix docs generation by ignoring even more code for API docs
 
-Miscellaneous:
+### Miscellaneous:
  * Mention the CI package install script in README
 
 Version 0.8.0
 -------------
 Released: 2021-05-24
 
-Notes:
+### Notes:
  * NEWS file created
  * Project is now known as Syntalos
