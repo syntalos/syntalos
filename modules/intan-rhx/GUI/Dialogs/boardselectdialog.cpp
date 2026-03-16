@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.4.0
+//  Version 3.5.0
 //
-//  Copyright (c) 2020-2025 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -364,7 +364,7 @@ bool BoardIdentifier::uploadFpgaBitfileQMessageBox(const QString& filename)
 }
 
 // Create a dialog window for user to select which board's software to initialize.
-BoardSelectDialog::BoardSelectDialog(IntanRhxModule *mod, QWidget *parent) :
+BoardSelectDialog::BoardSelectDialog(IntanRhxModule *mod, QString settingsFileName, QWidget *parent) :
     QDialog(parent),
     boardTable(nullptr),
     openButton(nullptr),
@@ -437,9 +437,20 @@ BoardSelectDialog::BoardSelectDialog(IntanRhxModule *mod, QWidget *parent) :
     resize(minimumSize());
 
     if (!validControllersPresent(controllersInfo)) {
+        if (settingsFileName != "") {
+            QMessageBox::critical(nullptr, QObject::tr("No Hardware Detected: Software Aborting"),
+                                  QObject::tr("While using --settings argument to configure hardware autonomously,"
+                                              "no Intan controllers were detected. Make sure controllers are powered on"
+                                              "and plugged in via USB before starting RHX when using --settings."));
+            exit(EXIT_FAILURE);
+        }
         showDemoMessageBox();
     } else {
-        show();
+        if (settingsFileName != "") {
+            hide();
+        } else {
+            show();
+        }
     }
 
     // Highlight first enabled row.
@@ -455,6 +466,10 @@ BoardSelectDialog::BoardSelectDialog(IntanRhxModule *mod, QWidget *parent) :
             boardTable->setFocus();
             break;
         }
+    }
+
+    if (settingsFileName != "") {
+        startSoftwareFromSettings(settingsFileName);
     }
 }
 
@@ -620,6 +635,72 @@ QSize BoardSelectDialog::calculateTableSize()
     return QSize(width, height);
 }
 
+AmplifierSampleRate BoardSelectDialog::parseSampleRate(const QString& sampleRateStr, ControllerType controllerType) {
+    int sampleRate = sampleRateStr.toInt();
+    for (auto [key, value] : sampleRateTable) {
+        if (key == sampleRate) {
+            // For RHS, don't accept anything but 20k, 25k, and 30k
+            if (controllerType == ControllerStimRecord && sampleRate < 20000) break;
+            return value;
+        }
+    }
+    // Default to 20k for RHD, 30k for RHS
+    return (controllerType != ControllerStimRecord) ? SampleRate20000Hz : SampleRate30000Hz;
+}
+
+StimStepSize BoardSelectDialog::parseStimStepSize(const QString& stimStepSizeStr) {
+    double stimStepSize = stimStepSizeStr.toDouble();
+    for (auto [key, value] : stimStepSizeTable) {
+        if (qFuzzyCompare(stimStepSize, key)) return value;
+    }
+    // Default to 0.1 uA
+    return StimStepSize100nA;
+}
+
+ControllerType BoardSelectDialog::getControllerType(const ControllerInfo& info) {
+    switch (info.boardMode) {
+    case RHDUSBInterfaceBoard: return ControllerRecordUSB2;
+    case RHDController:
+    case RHDController_7310:   return ControllerRecordUSB3;
+    case RHSController:
+    case RHSController_7310:   return ControllerStimRecord;
+    default:                   return ControllerRecordUSB2;
+    }
+}
+
+void BoardSelectDialog::startSoftwareFromSettings(QString settingsFileName)
+{
+    // Read "device_serial", "sample_rate_hz", and "stim_step_size_ua" from provided .ini file
+    QSettings startupSettings(settingsFileName, QSettings::IniFormat);
+
+    QString deviceSerial = startupSettings.value("device_serial").toString().toLower();
+    QString sampleRateHz = startupSettings.value("sample_rate_hz").toString().toLower();
+    QString stimStepSizeuA = startupSettings.value("stim_step_size_ua").toString().toLower();
+
+    // Determine which entry in controllersInfo corresponds to the provided serial number.
+    // Default to first entry in controllersInfo (earlier call to validControllersPresent ensures this object exists).
+    ControllerInfo thisController = *controllersInfo[0];
+    auto it = std::find_if(controllersInfo.begin(), controllersInfo.end(),
+                           [&](const auto& c){ return c->serialNumber.toLower() == deviceSerial; });
+    if (it != controllersInfo.end()) thisController = **it;
+
+    // Determine controller type
+    ControllerType controllerType = getControllerType(thisController);
+
+    // Determine serial
+    QString thisSerial = thisController.serialNumber;
+
+    // Determine sample rate, defaulting to 20k for RHD and 30k for RHS
+    AmplifierSampleRate thisSampleRate = parseSampleRate(sampleRateHz, controllerType);
+
+    // Determine stim step size, defaulting to 0.1 uA
+    StimStepSize thisStimStepSize = parseStimStepSize(stimStepSizeuA);
+
+    startSoftware(controllerType, thisSampleRate, thisStimStepSize, thisController.numSPIPorts,
+                  thisController.expConnected, thisSerial, LiveMode, thisController.usbVersion == USB3_7310);
+    accept();
+}
+
 void BoardSelectDialog::startSoftware(ControllerType controllerType, AmplifierSampleRate sampleRate, StimStepSize stimStepSize,
                                       int numSPIPorts, bool expanderConnected, const QString& boardSerialNumber, AcquisitionMode mode, bool is7310, DataFileReader* dataFileReader)
 {
@@ -662,6 +743,7 @@ void BoardSelectDialog::startSoftware(ControllerType controllerType, AmplifierSa
     connect(parser, SIGNAL(sendLiveNote(QString)), controllerInterface->saveThread(), SLOT(saveLiveNote(QString)));
 
     connect(controllerInterface, SIGNAL(TCPErrorMessage(QString)), parser, SLOT(TCPErrorSlot(QString)));
+    connect(controllerInterface, SIGNAL(TCPWarningMessage(QString)), parser, SLOT(TCPWarningSlot(QString)));
 
     if (dataFileReader) {
         connect(controlWindow, SIGNAL(setDataFileReaderSpeed(double)), dataFileReader, SLOT(setPlaybackSpeed(double)));

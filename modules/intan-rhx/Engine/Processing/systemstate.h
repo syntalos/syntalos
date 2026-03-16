@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.4.0
+//  Version 3.5.0
 //
-//  Copyright (c) 2020-2025 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -100,8 +100,12 @@ public:
 
     void addStateSingleItem(SingleItemList &hList, StateSingleItem* item) const;
     StateSingleItem* locateStateSingleItem(SingleItemList &hList, const QString& parameterName) const;
+
     void addStateFilenameItem(FilenameItemList &hList, StateFilenameItem* item) const;
-    StateFilenameItem* locateStateFilenameItem(FilenameItemList &hList, const QString& fullParameterName, QString &pathOrBase_) const;
+    StateFilenameItem* locateStateFilenameItem(FilenameItemList &hList, const QString& fullParameterName, QString &pathOrBaseOrTimestamp_) const;
+
+    void addStateTCPCommunicatorItem(TCPCommunicatorItemList &hList, StateTCPCommunicatorItem* item) const;
+    StateTCPCommunicatorItem* locateStateTCPCommunicatorItem(TCPCommunicatorItemList &hList, const QString& fullParameterName, QString &hostOrPortOrStatus_) const;
 
     void holdUpdate();
     void releaseUpdate();
@@ -164,25 +168,25 @@ public:
     QString logFileName;
 
     // Read-only variables
-    StringItem *softwareVersion;
-    BooleanItem *uploadInProgress;
-    BooleanItem *headstagePresent;
+    StringItem* softwareVersion;
+    BooleanItem* uploadInProgress;
+    BooleanItem* headstagePresent;
 
     // Saving data
-    DiscreteItemList *fileFormat;
-    DiscreteItemList *writeToDiskLatency;
-    BooleanItem *createNewDirectory;
-    BooleanItem *saveAuxInWithAmpWaveforms;
-    BooleanItem *saveWidebandAmplifierWaveforms;
-    BooleanItem *saveLowpassAmplifierWaveforms;
-    DiscreteItemList *lowpassWaveformDownsampleRate;
-    BooleanItem *saveHighpassAmplifierWaveforms;
-    BooleanItem *saveSpikeData;
-    BooleanItem *saveSpikeSnapshots;
-    IntRangeItem *spikeSnapshotPreDetect;
-    IntRangeItem *spikeSnapshotPostDetect;
-    BooleanItem *saveDCAmplifierWaveforms;
-    IntRangeItem *newSaveFilePeriodMinutes;
+    DiscreteItemList* fileFormat;
+    DiscreteItemList* writeToDiskLatency;
+    BooleanItem* createNewDirectory;
+    BooleanItem* saveAuxInWithAmpWaveforms;
+    BooleanItem* saveWidebandAmplifierWaveforms;
+    BooleanItem* saveLowpassAmplifierWaveforms;
+    DiscreteItemList* lowpassWaveformDownsampleRate;
+    BooleanItem* saveHighpassAmplifierWaveforms;
+    BooleanItem* saveSpikeData;
+    BooleanItem* saveSpikeSnapshots;
+    IntRangeItem* spikeSnapshotPreDetect;
+    IntRangeItem* spikeSnapshotPostDetect;
+    BooleanItem* saveDCAmplifierWaveforms;
+    IntRangeItem* newSaveFilePeriodMinutes;
     StateFilenameItem* filename;
     bool recording;
     bool triggerSet;
@@ -193,86 +197,89 @@ public:
     IntRangeItem* preTriggerBuffer;
     IntRangeItem* postTriggerBuffer;
     BooleanItem* saveTriggerSource;
+    BooleanItem* playTriggerSound;
     StringItem *note1;
     StringItem *note2;
     StringItem *note3;
 
     // TCP
     IntRangeItem* tcpNumDataBlocksWrite;
-    TCPCommunicator *tcpCommandCommunicator;
-    TCPCommunicator *tcpWaveformDataCommunicator;
-    TCPCommunicator *tcpSpikeDataCommunicator;
+
+    StateTCPCommunicatorItem* tcpCommandCommunicator;
+    StateTCPCommunicatorItem* tcpWaveformDataCommunicator;
+    StateTCPCommunicatorItem* tcpSpikeDataCommunicator;
 
     // XML
     ProbeMapSettings probeMapSettings;
 
     // Software Audio
-    BooleanItem *audioEnabled;
-    DiscreteItemList *audioFilter;
-    IntRangeItem *audioVolume;
-    IntRangeItem *audioThreshold;
+    BooleanItem* audioEnabled;
+    DiscreteItemList* audioFilter;
+    IntRangeItem* audioVolume;
+    IntRangeItem* audioThreshold;
+    BooleanItem* bufferWarningSoundsEnabled;
 
     // Hardware Audio/Analog Out
-    IntRangeItem *analogOutGainIndex;
-    IntRangeItem *analogOutNoiseSlicerIndex;
-    BooleanItem *analogOut1LockToSelected;
-    BooleanItem *analogOutHighpassFilterEnabled;
-    DoubleRangeItem *analogOutHighpassFilterFrequency;
-    StringItem *analogOut1Channel;
-    StringItem *analogOut2Channel;
-    StringItem *analogOut3Channel;
-    StringItem *analogOut4Channel;
-    StringItem *analogOut5Channel;
-    StringItem *analogOut6Channel;
-    StringItem *analogOut7Channel;
-    StringItem *analogOut8Channel;
-    StringItem *analogOutRefChannel;
-    IntRangeItem *analogOut1Threshold;
-    IntRangeItem *analogOut2Threshold;
-    IntRangeItem *analogOut3Threshold;
-    IntRangeItem *analogOut4Threshold;
-    IntRangeItem *analogOut5Threshold;
-    IntRangeItem *analogOut6Threshold;
-    IntRangeItem *analogOut7Threshold;
-    IntRangeItem *analogOut8Threshold;
-    BooleanItem *analogOut1ThresholdEnabled;
-    BooleanItem *analogOut2ThresholdEnabled;
-    BooleanItem *analogOut3ThresholdEnabled;
-    BooleanItem *analogOut4ThresholdEnabled;
-    BooleanItem *analogOut5ThresholdEnabled;
-    BooleanItem *analogOut6ThresholdEnabled;
-    BooleanItem *analogOut7ThresholdEnabled;
-    BooleanItem *analogOut8ThresholdEnabled;
+    IntRangeItem* analogOutGainIndex;
+    IntRangeItem* analogOutNoiseSlicerIndex;
+    BooleanItem* analogOut1LockToSelected;
+    BooleanItem* analogOutHighpassFilterEnabled;
+    DoubleRangeItem* analogOutHighpassFilterFrequency;
+    StringItem* analogOut1Channel;
+    StringItem* analogOut2Channel;
+    StringItem* analogOut3Channel;
+    StringItem* analogOut4Channel;
+    StringItem* analogOut5Channel;
+    StringItem* analogOut6Channel;
+    StringItem* analogOut7Channel;
+    StringItem* analogOut8Channel;
+    StringItem* analogOutRefChannel;
+    IntRangeItem* analogOut1Threshold;
+    IntRangeItem* analogOut2Threshold;
+    IntRangeItem* analogOut3Threshold;
+    IntRangeItem* analogOut4Threshold;
+    IntRangeItem* analogOut5Threshold;
+    IntRangeItem* analogOut6Threshold;
+    IntRangeItem* analogOut7Threshold;
+    IntRangeItem* analogOut8Threshold;
+    BooleanItem* analogOut1ThresholdEnabled;
+    BooleanItem* analogOut2ThresholdEnabled;
+    BooleanItem* analogOut3ThresholdEnabled;
+    BooleanItem* analogOut4ThresholdEnabled;
+    BooleanItem* analogOut5ThresholdEnabled;
+    BooleanItem* analogOut6ThresholdEnabled;
+    BooleanItem* analogOut7ThresholdEnabled;
+    BooleanItem* analogOut8ThresholdEnabled;
 
     // Impedance testing
-    BooleanItem *impedancesHaveBeenMeasured;
-    BooleanItem *impedanceFreqValid;
-    DoubleRangeItem *desiredImpedanceFreq;
-    DoubleRangeItem *actualImpedanceFreq;
-    StateFilenameItem *impedanceFilename;
+    BooleanItem* impedancesHaveBeenMeasured;
+    BooleanItem* impedanceFreqValid;
+    DoubleRangeItem* desiredImpedanceFreq;
+    DoubleRangeItem* actualImpedanceFreq;
+    StateFilenameItem* impedanceFilename;
 
     // Referencing
-    BooleanItem *useMedianReference;
+    BooleanItem* useMedianReference;
 
     // Filtering
-    BooleanItem *dspEnabled;
-    DoubleRangeItem *desiredDspCutoffFreq;
-    DoubleRangeItem *actualDspCutoffFreq;
-    DoubleRangeItem *desiredLowerBandwidth;
-    DoubleRangeItem *actualLowerBandwidth;
-    DoubleRangeItem *desiredLower3dBCutoff;
-    DoubleRangeItem *actualLower3dBCutoff;
-    DoubleRangeItem *desiredUpperBandwidth;
-    DoubleRangeItem *actualUpperBandwidth;
+    BooleanItem* dspEnabled;
+    DoubleRangeItem* desiredDspCutoffFreq;
+    DoubleRangeItem* actualDspCutoffFreq;
+    DoubleRangeItem* desiredLowerBandwidth;
+    DoubleRangeItem* actualLowerBandwidth;
+    DoubleRangeItem* desiredLower3dBCutoff;
+    DoubleRangeItem* actualLower3dBCutoff;
+    DoubleRangeItem* desiredUpperBandwidth;
+    DoubleRangeItem* actualUpperBandwidth;
 
-    DiscreteItemList *notchFreq;
+    DiscreteItemList* notchFreq;
 
-    IntRangeItem *lowOrder;
-    DiscreteItemList *lowType;
-    DoubleRangeItem *lowSWCutoffFreq;
-    IntRangeItem *highOrder;
-    DiscreteItemList *highType;
-    DoubleRangeItem *highSWCutoffFreq;
+    IntRangeItem* lowOrder;
+    DiscreteItemList* lowType;
+    DoubleRangeItem* lowSWCutoffFreq;
+    IntRangeItem* highOrder;
+    DiscreteItemList* highType;
+    DoubleRangeItem* highSWCutoffFreq;
 
     // Display options
     DiscreteItemList* filterDisplay1;
@@ -315,10 +322,10 @@ public:
     ChannelNameItem* isiChannel;
     DiscreteItemList* tSpanISI;
     DiscreteItemList* binSizeISI;
-    BooleanItem *yAxisLogISI;
-    BooleanItem *saveCsvFileISI;
-    BooleanItem *saveMatFileISI;
-    BooleanItem *savePngFileISI;
+    BooleanItem* yAxisLogISI;
+    BooleanItem* saveCsvFileISI;
+    BooleanItem* saveMatFileISI;
+    BooleanItem* savePngFileISI;
 
     // PSTH
     ChannelNameItem* psthChannel;
@@ -328,9 +335,9 @@ public:
     DiscreteItemList* maxNumTrialsPSTH;
     DiscreteItemList* digitalTriggerPSTH;
     DiscreteItemList* triggerPolarityPSTH;
-    BooleanItem *saveCsvFilePSTH;
-    BooleanItem *saveMatFilePSTH;
-    BooleanItem *savePngFilePSTH;
+    BooleanItem* saveCsvFilePSTH;
+    BooleanItem* saveMatFilePSTH;
+    BooleanItem* savePngFilePSTH;
 
     // Spectrogram
     ChannelNameItem* spectrogramChannel;
@@ -343,9 +350,9 @@ public:
     BooleanItem* showFMarkerSpectrogram;
     IntRangeItem* numHarmonicsSpectrogram;
     DiscreteItemList* digitalDisplaySpectrogram;
-    BooleanItem *saveCsvFileSpectrogram;
-    BooleanItem *saveMatFileSpectrogram;
-    BooleanItem *savePngFileSpectrogram;
+    BooleanItem* saveCsvFileSpectrogram;
+    BooleanItem* saveMatFileSpectrogram;
+    BooleanItem* savePngFileSpectrogram;
 
     // Spike sorting
     ChannelNameItem* spikeScopeChannel;
@@ -357,10 +364,10 @@ public:
     IntRangeItem* suppressionThreshold;
 
     // Spike detection threshold setting options
-    BooleanItem *absoluteThresholdsEnabled;
-    IntRangeItem *absoluteThreshold;
-    DoubleRangeItem *rmsMultipleThreshold;
-    BooleanItem *negativeRelativeThreshold;
+    BooleanItem* absoluteThresholdsEnabled;
+    IntRangeItem* absoluteThreshold;
+    DoubleRangeItem* rmsMultipleThreshold;
+    BooleanItem* negativeRelativeThreshold;
 
     // Configure tab
     BooleanItem* manualFastSettleEnabled;
@@ -368,27 +375,28 @@ public:
     IntRangeItem* externalFastSettleChannel;
 
     // Stimulation only
-    DoubleRangeItem *desiredLowerSettleBandwidth;
-    DoubleRangeItem *actualLowerSettleBandwidth;
-    BooleanItem *useFastSettle;
-    BooleanItem *headstageGlobalSettle;
-    BooleanItem *chargeRecoveryMode;
-    DiscreteItemList *chargeRecoveryCurrentLimit;
-    DoubleRangeItem *chargeRecoveryTargetVoltage;
+    DoubleRangeItem* desiredLowerSettleBandwidth;
+    DoubleRangeItem* actualLowerSettleBandwidth;
+    BooleanItem* useFastSettle;
+    BooleanItem* headstageGlobalSettle;
+    BooleanItem* chargeRecoveryMode;
+    DiscreteItemList* chargeRecoveryCurrentLimit;
+    DoubleRangeItem* chargeRecoveryTargetVoltage;
     bool stimParamsHaveChanged;
 
     SingleItemList globalItems;
     FilenameItemList stateFilenameItems;
+    TCPCommunicatorItemList stateTCPCommunicatorItems;
 
     IntanRhxModule *syMod;
 
     // Chip Testing
-    BooleanItem *usePreviousDelay;
-    IntRangeItem *previousDelaySelectedPort;
-    IntRangeItem *lastDetectedChip;
-    IntRangeItem *lastDetectedNumStreams;
-    BooleanItem *testAuxIns;
-    StringItem *testingPort;
+    BooleanItem* usePreviousDelay;
+    IntRangeItem* previousDelaySelectedPort;
+    IntRangeItem* lastDetectedChip;
+    IntRangeItem* lastDetectedNumStreams;
+    BooleanItem* testAuxIns;
+    StringItem* testingPort;
 
     int64_t getPlaybackBlocks();
     void setLastTimestamp(int timestamp) { lastTimestamp = timestamp; }

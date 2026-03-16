@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.4.0
+//  Version 3.5.0
 //
-//  Copyright (c) 2020-2025 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -642,20 +642,46 @@ bool XMLInterface::parseGeneralConfig(const QByteArray &byteArray, QString &erro
             }
 
             // Try to find the attribute as a StateFilenameItem
-            QString pathOrBase;
-            StateFilenameItem *filenameItem = state->locateStateFilenameItem(state->stateFilenameItems, attributeName.toLower(), pathOrBase);
+            QString pathOrBaseOrTimestamp;
+            StateFilenameItem *filenameItem = state->locateStateFilenameItem(state->stateFilenameItems, attributeName.toLower(), pathOrBaseOrTimestamp);
 
             // If the attribute is a StateFilenameItem, set it according to XMLIncludeParameters.
             if (filenameItem) {
                 if (includeParameters == XMLIncludeGlobalParameters) {
-                    if (pathOrBase == filenameItem->getPathParameterName().toLower()) {
+                    if (pathOrBaseOrTimestamp == filenameItem->getPathParameterName().toLower()) {
                         filenameItem->setPath(attributeValue);
                         continue;
-                    } else if (pathOrBase == filenameItem->getBaseFilenameParameterName().toLower()) {
+                    } else if (pathOrBaseOrTimestamp == filenameItem->getBaseFilenameParameterName().toLower()) {
                         filenameItem->setBaseFilename(attributeValue);
                         continue;
+                    } else if (pathOrBaseOrTimestamp == filenameItem->getTimestampParameterName().toLower()) {
+                        // Don't set the timestamp parameter name, as this should change session-to-session.
+                        continue;
                     } else {
-                        qDebug() << "Error: seems to be neither path nor basefilename... pathorbase: " << pathOrBase;
+                        qDebug() << "Error: seems to be neither path nor basefilename nor timestamp... pathOrBaseOrTimestamp: " << pathOrBaseOrTimestamp;
+                        continue;
+                    }
+                }
+            }
+
+            // Try to find the attribute as a StateTCPCommunicatorItem
+            QString hostOrPortOrStatus;
+            StateTCPCommunicatorItem *tcpCommunicatorItem = state->locateStateTCPCommunicatorItem(state->stateTCPCommunicatorItems, attributeName.toLower(), hostOrPortOrStatus);
+
+            // If the attribute is a StateTCPCommunicatorItem, set it according to XMLIncludeParameters.
+            if (tcpCommunicatorItem) {
+                if (includeParameters == XMLIncludeGlobalParameters) {
+                    if (hostOrPortOrStatus == tcpCommunicatorItem->getHostParameterName().toLower()) {
+                        tcpCommunicatorItem->setHost(attributeValue);
+                        continue;
+                    } else if (hostOrPortOrStatus == tcpCommunicatorItem->getPortParameterName().toLower()) {
+                        tcpCommunicatorItem->setPort(attributeValue);
+                        continue;
+                    } else if (hostOrPortOrStatus == tcpCommunicatorItem->getStatusParameterName().toLower()) {
+                        tcpCommunicatorItem->setStatus(attributeValue);
+                        continue;
+                    } else {
+                        qDebug() << "Error: seems to be neither host nor port nor status... hostOrPortOrStatus: " << hostOrPortOrStatus;
                         continue;
                     }
                 }

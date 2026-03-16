@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.4.0
+//  Version 3.5.0
 //
-//  Copyright (c) 2020-2025 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -42,7 +42,6 @@ TriggerRecordDialog::TriggerRecordDialog(SystemState* state_, QWidget *parent) :
 
     QLabel *label1 = new QLabel(tr("Digital or analog inputs lines may be used to trigger "
                                    "recording."), this);
-    label1->setWordWrap(true);
 
     digitalInputComboBox = new QComboBox(this);
     state->triggerSource->setupComboBox(digitalInputComboBox);
@@ -60,10 +59,14 @@ TriggerRecordDialog::TriggerRecordDialog(SystemState* state_, QWidget *parent) :
     triggerSaveCheckBox = new QCheckBox(tr("Automatically Save Trigger Channel"), this);
     triggerSaveCheckBox->setChecked(state->saveTriggerSource->getValue());
 
+    triggerSoundCheckBox = new QCheckBox(tr("Play Tone on Trigger Start and Trigger End"), this);
+    triggerSoundCheckBox->setChecked(state->playTriggerSound->getValue());
+
     QVBoxLayout *triggerControls = new QVBoxLayout;
     triggerControls->addWidget(digitalInputComboBox);
     triggerControls->addWidget(triggerPolarityComboBox);
     triggerControls->addWidget(triggerSaveCheckBox);
+    triggerControls->addWidget(triggerSoundCheckBox);
 
     QHBoxLayout *triggerHBox = new QHBoxLayout;
     triggerHBox->addLayout(triggerControls);
@@ -135,9 +138,7 @@ TriggerRecordDialog::TriggerRecordDialog(SystemState* state_, QWidget *parent) :
 
     QLabel *label3 = new QLabel(tr("Press OK to start triggered recording with selected settings.  "
                                    "Waveforms will be displayed in real time, but recording will "
-                                   "not start until the trigger is detected.  A tone will indicate "
-                                   "when the trigger has been detected.  A different tone indicates "
-                                   "that recording has stopped after a trigger has been de-asserted.  "
+                                   "not start until the trigger is detected.  "
                                    "Successive trigger events will create new saved data files.  "
                                    "Press the Stop button to exit triggered recording mode."), this);
     label3->setWordWrap(true);
@@ -159,11 +160,17 @@ void TriggerRecordDialog::updateFromState()
     recordBufferSpinBox->setValue(state->preTriggerBuffer->getValue());
     postTriggerSpinBox->setValue(state->postTriggerBuffer->getValue());
     triggerSaveCheckBox->setChecked(state->saveTriggerSource->getValue());
+    triggerSoundCheckBox->setChecked(state->playTriggerSound->getValue());
 }
 
 QString TriggerRecordDialog::getTriggerSave()
 {
     return (triggerSaveCheckBox->isChecked() ? "True" : "False");
+}
+
+QString TriggerRecordDialog::getTriggerSound()
+{
+    return (triggerSoundCheckBox->isChecked() ? "True" : "False");
 }
 
 QString TriggerRecordDialog::getTriggerInput()

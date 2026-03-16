@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.4.0
+//  Version 3.5.0
 //
-//  Copyright (c) 2020-2025 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -45,7 +45,7 @@ const int HASHMARKLENGTH = 5;
 
 // Software version number (e.g., version 1.3.5)
 #define SOFTWARE_MAIN_VERSION_NUMBER 3
-#define SOFTWARE_SECONDARY_VERSION_NUMBER 4
+#define SOFTWARE_SECONDARY_VERSION_NUMBER 5
 #define SOFTWARE_TERTIARY_VERSION_NUMBER 0
 
 enum ControllerType {
@@ -173,6 +173,12 @@ enum BoardMode {
     UnknownUSB3_7310Device
 };
 
+enum ConnectionStatus {
+    Disconnected,
+    Pending,
+    Connected
+};
+
 const unsigned int FIFOCapacityInWords = 67108864;
 
 // Maximum number of data blocks to read at once (limited by low-frequency impedance measurements)
@@ -230,7 +236,7 @@ const uint32_t TCPSpikeMagicNumber = 0x3ae2710f;
 const QString OrganizationName = QStringLiteral("Intan Technologies");
 const QString OrganizationDomain = "intantech.com";
 const QString ApplicationName = "IntanRHX";
-const QString ApplicationCopyrightYear = "2020-2025";
+const QString ApplicationCopyrightYear = "2020-2026";
 
 const QString SoftwareVersion = QString::number(SOFTWARE_MAIN_VERSION_NUMBER) + "." +
                                 QString::number(SOFTWARE_SECONDARY_VERSION_NUMBER) + "." +

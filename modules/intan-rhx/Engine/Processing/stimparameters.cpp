@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.4.0
+//  Version 3.5.0
 //
-//  Copyright (c) 2020-2025 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -293,4 +293,69 @@ void StimParameters::populateParametersFrom(StimParameters *originalStimParamete
 
     if (numberOfStimPulses)
         numberOfStimPulses->setValue(originalStimParameters->numberOfStimPulses->getValue());
+}
+
+
+QString StimParameters::validate()
+{
+    double stimDuration = 0;
+
+    switch (getSignalType()) {
+    case AmplifierSignal:
+        // PostTriggerDelay cannot be less than PreStimAmpSettle
+        if (postTriggerDelay->getValue() < preStimAmpSettle->getValue())
+            return "PostTriggerDelayMicroseconds cannot be less than PreStimAmpSettleMicroseconds";
+
+        // PostStimChargeRecovOff cannot be less than PostStimChargeRecovOn
+        if (postStimChargeRecovOff->getValue() < postStimChargeRecovOn->getValue())
+            return "PostStimChargeRecovOffMicroseconds cannot be less than PostStimChargeRecovOnMicroseconds";
+
+        // RefractoryPeriod cannot be less than PostStimAmpSettle OR PostStimChargeRecovOff
+        if (refractoryPeriod->getValue() < postStimAmpSettle->getValue())
+            return "RefractoryPeriodMicroseconds cannot be less than PostStimAmpSettleMicroseconds";
+        if (refractoryPeriod->getValue() < postStimChargeRecovOff->getValue())
+            return "RefractoryPeriodMicroseconds cannot be less than PostStimChargeRecovOffMicroseconds";
+
+        // PulseTrainPeriod cannot be less than stimDuration (which depends on Shape)
+        // Biphasic: stimDuration = FirstPhaseDuration + SecondPhaseDuration
+        // BiphasicWithInterphaseDelay: stimDuration = FirstPhaseDuration + InterphaseDelay + SecondPhaseDuration
+        // Triphasic: stimDuration = 2*FirstPhaseDuration + SecondPhaseDuration
+        if (stimShape->getValue() == "Biphasic")
+            stimDuration = firstPhaseDuration->getValue() + secondPhaseDuration->getValue();
+        else if (stimShape->getValue() == "BiphasicWithInterphaseDelay")
+            stimDuration = firstPhaseDuration->getValue() + interphaseDelay->getValue() + secondPhaseDuration->getValue();
+        else
+            stimDuration = 2.0 * firstPhaseDuration->getValue() + secondPhaseDuration->getValue();
+        if (pulseTrainPeriod->getValue() < stimDuration)
+            return "PulseTrainPeriodMicroseconds cannot be less than total pulse duration (sum of all phases used for this Shape)";
+        break;
+
+    case BoardDacSignal:
+        // PulseTrainPeriod cannot be less than stimDuration (which depends on Shape)
+        // Biphasic: stimDuration = FirstPhaseDuration + SecondPhaseDuration
+        // BiphasicWithInterphaseDelay: stimDuration = FirstPhaseDuration + InterphaseDelay + SecondPhaseDuration
+        // Triphasic: stimDuration = 2*FirstPhaseDuration + SecondPhaseDuration
+        // Monophasic: stimDuration = FirstPhaseDuration
+        if (stimShape->getValue() == "Biphasic")
+            stimDuration = firstPhaseDuration->getValue() + secondPhaseDuration->getValue();
+        else if (stimShape->getValue() == "BiphasicWithInterphaseDelay")
+            stimDuration = firstPhaseDuration->getValue() + interphaseDelay->getValue() + secondPhaseDuration->getValue();
+        else if (stimShape->getValue() == "Triphasic")
+            stimDuration = 2.0 * firstPhaseDuration->getValue() + secondPhaseDuration->getValue();
+        else
+            stimDuration = firstPhaseDuration->getValue();
+        if (pulseTrainPeriod->getValue() < stimDuration)
+            return "PulseTrainPeriodMicroseconds cannot be less than total pulse duration (sum of all phases used for this Shape)";
+        break;
+
+    case BoardDigitalOutSignal:
+        // PulseTrainPeriod cannot be less than FirstPhaseDuration
+        if (pulseTrainPeriod->getValue() < firstPhaseDuration->getValue())
+            return "PulseTrainPeriodMicroseconds cannot be less than pulse duration (FirstPhaseDurationMicroseconds)";
+        break;
+
+    default:
+        break;
+    }
+    return "";
 }

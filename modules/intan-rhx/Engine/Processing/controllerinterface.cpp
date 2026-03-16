@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.4.0
+//  Version 3.5.0
 //
-//  Copyright (c) 2020-2025 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,19 +18,20 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
 #include <QApplication>
 #include <QtGlobal>
 #include <QElapsedTimer>
+#include <QtMultimedia>
 #include <iostream>
 #include "controlpanel.h"
 #include "impedancereader.h"
@@ -148,6 +149,8 @@ ControllerInterface::ControllerInterface(SystemState* state_, AbstractRHXControl
 
     saveToDiskThread = new SaveToDiskThread(waveformFifo, state, this);
     connect(saveToDiskThread, SIGNAL(finished()), saveToDiskThread, SLOT(deleteLater()));
+    connect(saveToDiskThread, SIGNAL(triggerStart()), this, SLOT(playSoundTriggerStart()));
+    connect(saveToDiskThread, SIGNAL(triggerEnd()), this, SLOT(playSoundTriggerEnd()));
     if (dataFileReader) {
         // Establish connections so that stimulation amplitudes read from playback file can be re-saved.
         connect(dataFileReader, SIGNAL(setPosStimAmplitude(int,int,int)),
@@ -159,6 +162,16 @@ ControllerInterface::ControllerInterface(SystemState* state_, AbstractRHXControl
     currentSweepPosition = 0;
 
     cpuLoadHistory.resize(20, 0.0);
+
+    triggerStartBeep = new QSoundEffect(this);
+    triggerStartBeep->setSource(QUrl("qrc:/sounds/triggerstartbeep.wav"));
+    triggerStartBeep->setLoopCount(0);
+    triggerStartBeep->setVolume(0.5f);
+
+    triggerEndBeep = new QSoundEffect(this);
+    triggerEndBeep->setSource(QUrl("qrc:/sounds/triggerendbeep.wav"));
+    triggerEndBeep->setLoopCount(0);
+    triggerEndBeep->setVolume(0.5f);
 }
 
 ControllerInterface::~ControllerInterface()
@@ -174,6 +187,9 @@ ControllerInterface::~ControllerInterface()
     usbDataThread->close();
     usbDataThread->wait();
     delete usbDataThread;
+
+    delete triggerStartBeep;
+    delete triggerEndBeep;
 
     saveToDiskThread->close();
     saveToDiskThread->wait();
@@ -257,8 +273,8 @@ void ControllerInterface::runTCPDataOutputThread()
             tcpDataOutputThread = new TCPDataOutputThread(waveformFifo, rhxController->getSampleRate(), state, this);
         }
 
-        state->tcpWaveformDataCommunicator->moveToThread(tcpDataOutputThread);
-        state->tcpSpikeDataCommunicator->moveToThread(tcpDataOutputThread);
+        state->tcpWaveformDataCommunicator->communicator->moveToThread(tcpDataOutputThread);
+        state->tcpSpikeDataCommunicator->communicator->moveToThread(tcpDataOutputThread);
 
         connect(tcpDataOutputThread, SIGNAL(finished()), tcpDataOutputThread, SLOT(deleteLater()));
 
@@ -1387,14 +1403,6 @@ void ControllerInterface::setStimSequenceParameters(Channel* ampChannel)
     rhxController->programStimReg(stream, channel, AbstractRHXController::EventAmpSettleOffRepeat, eventAmpSettleOffRepeat);
     rhxController->programStimReg(stream, channel, AbstractRHXController::EventEnd, eventEnd);
 
-    qDebug() << "event amp settle on: " << eventAmpSettleOn;
-    qDebug() << "Event start stim: " << eventStartStim;
-    qDebug() << "Event end stim: " << eventEndStim;
-    qDebug() << "Event repeat stim: " << eventRepeatStim;
-    qDebug() << "Event amp settle off: " << eventAmpSettleOff;
-    qDebug() << "Event amp settle on repeat: " << eventAmpSettleOnRepeat;
-    qDebug() << "Event amp settle off repeat: " << eventAmpSettleOffRepeat;
-
     rhxController->enableAuxCommandsOnOneStream(stream);
 
     RHXRegisters chipRegisters(rhxController->getType(), rhxController->getSampleRate(), state->getStimStepSizeEnum());
@@ -1722,6 +1730,16 @@ void ControllerInterface::manualStimTriggerPulse(QString keyName)
     }
 }
 
+void ControllerInterface::playSoundTriggerStart()
+{
+    triggerStartBeep->play();
+}
+
+void ControllerInterface::playSoundTriggerEnd()
+{
+    triggerEndBeep->play();
+}
+
 void ControllerInterface::pipeReadErrorMessage(int errorID)
 {
     QString errorMessage;
@@ -2035,6 +2053,19 @@ void ControllerInterface::uploadStimParameters(Channel* channel)
         sendTCPError("Error - Another upload cannot be started until the previous upload completes");
         return;
     }
+
+    if (channel->getSignalType() != AmplifierSignal &&
+        channel->getSignalType() != BoardDacSignal &&
+        channel->getSignalType() != BoardDigitalOutSignal) {
+        return;
+    }
+
+    QString warningMessage = channel->stimParameters->validate();
+    if (warningMessage != "") {
+        sendTCPWarning("Warning: " + warningMessage);
+        return;
+    }
+
     state->uploadInProgress->setValue(true);
     if (channel->getSignalType() == AmplifierSignal) {
         setStimSequenceParameters(channel);
@@ -2078,4 +2109,9 @@ AbstractRHXController *ControllerInterface::getRhxController() const
 void ControllerInterface::sendTCPError(QString errorMessage)
 {
     emit TCPErrorMessage(errorMessage);
+}
+
+void ControllerInterface::sendTCPWarning(QString warningMessage)
+{
+    emit TCPWarningMessage(warningMessage);
 }

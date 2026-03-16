@@ -80,7 +80,10 @@ IntanRhxModule::IntanRhxModule(const QString &id, IntanRhxModuleInfo *modInfo, Q
       m_sysState(nullptr)
 {
     blocksPerTimestamp = 5;
-    m_boardSelectDlg = new BoardSelectDialog(this);
+    // TODO: Since Intan RHS v3.5.0 we can pass a startup config file here, that we should load
+    // from the Syntalos configuration somehow (likely just generate it from there) to avoid
+    // extra dialogs.
+    m_boardSelectDlg = new BoardSelectDialog(this, QString());
     m_modIcon = modInfo->icon();
     m_boardSelectDlg->setWindowIcon(m_modIcon);
 }

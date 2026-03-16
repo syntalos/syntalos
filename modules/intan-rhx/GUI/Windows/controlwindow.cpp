@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.4.0
+//  Version 3.5.0
 //
-//  Copyright (c) 2020-2025 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,17 +18,18 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
 #include <QSettings>
+#include <QtMultimedia>
 #include "setthresholdsdialog.h"
 #include "autocolordialog.h"
 #include "autogroupdialog.h"
@@ -236,6 +237,7 @@ ControlWindow::ControlWindow(SystemState* state_, CommandParser* parser_, Contro
     controlButtons->addWidget(new QLabel("   "));
     controlButtons->addWidget(statusBars);
     controlButtons->addWidget(new QLabel("   "));
+    connect(statusBars, SIGNAL(bufferStatusChanged(BufferStatus)), this, SLOT(receiveBufferWarning(BufferStatus)));
 
     std::string sampleRateString =
             AbstractRHXController::getSampleRateString(AbstractRHXController::nearestSampleRate(state->sampleRate->getNumericValue()));
@@ -266,6 +268,16 @@ ControlWindow::ControlWindow(SystemState* state_, CommandParser* parser_, Contro
     controlPanel->hide();
 
     controllerInterface->setControlPanel(controlPanel);
+
+    minorBufferWarning = new QSoundEffect(this);
+    minorBufferWarning->setSource(QUrl("qrc:/sounds/minorwarning.wav"));
+    minorBufferWarning->setLoopCount(0);
+    minorBufferWarning->setVolume(0.5f);
+
+    majorBufferWarning = new QSoundEffect(this);
+    majorBufferWarning->setSource(QUrl("qrc:/sounds/majorwarning.wav"));
+    majorBufferWarning->setLoopCount(0);
+    majorBufferWarning->setVolume(0.5f);
 
     QVBoxLayout *controlPanelCol = new QVBoxLayout;
     if (!state->testMode->getValue()) {
@@ -321,7 +333,7 @@ ControlWindow::ControlWindow(SystemState* state_, CommandParser* parser_, Contro
     restoreGeometry(settings.value("geometry", defaultGeometry).toByteArray());
 
     if (state->testMode->getValue()) {
-        resize(width(), 910); // Default height for Windows that fully show at least 32 channels vertically and control panel without needing scrollbars
+        resize(width(), 940); // Default height for Windows that fully show at least 32 channels vertically and control panel without needing scrollbars
     } else {
         if (settings.value("isMaximized", isMaximized()).toBool())
             showMaximized();
@@ -334,6 +346,22 @@ ControlWindow::ControlWindow(SystemState* state_, CommandParser* parser_, Contro
             showControlPanel();
         controlPanel->setCurrentTabName(settings.value("controlPanelTab", "BW").toString());
     }
+
+    tcpDialog = new QDialog(this);
+    tcpDialog->hide();
+    tcpDisplay = new TCPDisplay(state, this);
+    QVBoxLayout *tcpLayout = new QVBoxLayout;
+    tcpLayout->addWidget(tcpDisplay);
+    tcpDialog->setLayout(tcpLayout);
+    tcpDialog->setWindowTitle(tr("Remote TCP Control"));
+    connect(tcpDisplay, SIGNAL(sendSetCommand(QString,QString)), parser, SLOT(setCommandSlot(QString,QString)));
+    connect(tcpDisplay, SIGNAL(sendGetCommand(QString)), parser, SLOT(getCommandSlot(QString)));
+    connect(tcpDisplay, SIGNAL(sendExecuteCommand(QString)), parser, SLOT(executeCommandSlot(QString)));
+    connect(tcpDisplay, SIGNAL(sendExecuteCommandWithParameter(QString,QString)), parser, SLOT(executeCommandWithParameterSlot(QString,QString)));
+    connect(tcpDisplay, SIGNAL(sendNoteCommand(QString)), parser, SLOT(noteCommandSlot(QString)));
+    connect(parser, SIGNAL(TCPReturnSignal(QString)), tcpDisplay, SLOT(TCPReturn(QString)));
+    connect(parser, SIGNAL(TCPErrorSignal(QString)), tcpDisplay, SLOT(TCPError(QString)));
+    connect(parser, SIGNAL(TCPWarningSignal(QString)), tcpDisplay, SLOT(TCPWarning(QString)));
 
     updateMenus();
 }
@@ -1200,7 +1228,7 @@ void ControlWindow::enableLoggingSlot(bool enable)
 
 void ControlWindow::openIntanWebsite()
 {
-    QDesktopServices::openUrl(QUrl("Http://www.intantech.com", QUrl::TolerantMode));
+    QDesktopServices::openUrl(QUrl("https://www.intantech.com", QUrl::TolerantMode));
 }
 
 void ControlWindow::about()
@@ -1233,6 +1261,7 @@ void ControlWindow::performance()
         changeUsedXPUIndex(performanceDialog.XPUSelectionComboBox->currentIndex());
         state->writeToDiskLatency->setIndex(performanceDialog.writeLatencyComboBox->currentIndex());
         state->plottingMode->setIndex(performanceDialog.plottingModeComboBox->currentIndex());
+        state->bufferWarningSoundsEnabled->setValue(performanceDialog.bufferWarningSoundCheckBox->isChecked());
     }
 }
 
@@ -1406,14 +1435,19 @@ void ControlWindow::triggeredRecordControllerSlot()
         QString triggerSource = triggerRecordDialog->getTriggerInput();
         QString triggerPolarity = triggerRecordDialog->getTriggerPolarity();
         QString triggerSave = triggerRecordDialog->getTriggerSave();
+        QString triggerSound = triggerRecordDialog->getTriggerSound();
         QString preTriggerBufferSeconds = triggerRecordDialog->getRecordBuffer();
         QString postTriggerBufferSeconds = triggerRecordDialog->getPostTriggerBufferSeconds();
 
         state->triggerSource->setValue(triggerSource);
         state->triggerPolarity->setValue(triggerPolarity);
         state->saveTriggerSource->setValue(triggerSave);
+        state->playTriggerSound->setValue(triggerSound);
         state->preTriggerBuffer->setValue(preTriggerBufferSeconds);
         state->postTriggerBuffer->setValue(postTriggerBufferSeconds);
+
+        QSettings settings;
+        settings.setValue("playTriggerSound", triggerSound);
 
         // Automatically enable channel used for recording trigger if user has selected this option.
         if (state->saveTriggerSource->getValue()) {
@@ -1913,22 +1947,6 @@ void ControlWindow::changeAudioThreshold(int threshold)
 
 void ControlWindow::remoteControl()
 {
-    if (!tcpDialog) {
-        tcpDialog = new QDialog(this);
-        tcpDisplay = new TCPDisplay(state, this);
-        QVBoxLayout *tcpLayout = new QVBoxLayout;
-        tcpLayout->addWidget(tcpDisplay);
-        tcpDialog->setLayout(tcpLayout);
-        tcpDialog->setWindowTitle(tr("Remote TCP Control"));
-        connect(tcpDisplay, SIGNAL(sendSetCommand(QString,QString)), parser, SLOT(setCommandSlot(QString,QString)));
-        connect(tcpDisplay, SIGNAL(sendGetCommand(QString)), parser, SLOT(getCommandSlot(QString)));
-        connect(tcpDisplay, SIGNAL(sendExecuteCommand(QString)), parser, SLOT(executeCommandSlot(QString)));
-        connect(tcpDisplay, SIGNAL(sendExecuteCommandWithParameter(QString,QString)), parser, SLOT(executeCommandWithParameterSlot(QString,QString)));
-        connect(tcpDisplay, SIGNAL(sendNoteCommand(QString)), parser, SLOT(noteCommandSlot(QString)));
-        connect(parser, SIGNAL(TCPReturnSignal(QString)), tcpDisplay, SLOT(TCPReturn(QString)));
-        connect(parser, SIGNAL(TCPErrorSignal(QString)), tcpDisplay, SLOT(TCPError(QString)));
-        connect(parser, SIGNAL(TCPWarningSignal(QString)), tcpDisplay, SLOT(TCPWarning(QString)));
-    }
     tcpDialog->show();
     tcpDialog->raise();
     tcpDialog->activateWindow();
@@ -2277,4 +2295,15 @@ void ControlWindow::updateHardwareFifoStatus(double percentFull)
     double cpuLoad = (std::max)(mainCpuLoad, controllerInterface->latestWaveformProcessorCpuLoad());
 
     if (statusBars) statusBars->updateBars(percentFull, swBuffer, cpuLoad);
+}
+
+void ControlWindow::receiveBufferWarning(BufferStatus newStatus)
+{
+    if (!state->bufferWarningSoundsEnabled->getValue()) return;
+
+    if (newStatus == BufferMinorWarning) {
+        minorBufferWarning->play();
+    } else if (newStatus == BufferMajorWarning) {
+        majorBufferWarning->play();
+    }
 }

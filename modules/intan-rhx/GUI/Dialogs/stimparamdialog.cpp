@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.4.0
+//  Version 3.5.0
 //
-//  Copyright (c) 2020-2025 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -127,7 +127,13 @@ StimParamDialog::StimParamDialog(SystemState* state_, Channel* channel_, QWidget
 
     numberOfStimPulsesLabel = new QLabel(tr("Number of Stim Pulses"), this);
     numberOfStimPulsesSpinBox = new QSpinBox(this);
-    numberOfStimPulsesSpinBox->setMaximumWidth(numberOfStimPulsesSpinBox->fontMetrics().horizontalAdvance("99999  "));
+    QStyleOptionSpinBox opt;
+    opt.initFrom(numberOfStimPulsesSpinBox);
+    QRect upRect = numberOfStimPulsesSpinBox->style()->subControlRect(QStyle::CC_SpinBox, &opt, QStyle::SC_SpinBoxUp, numberOfStimPulsesSpinBox);
+    QRect downRect = numberOfStimPulsesSpinBox->style()->subControlRect(QStyle::CC_SpinBox, &opt, QStyle::SC_SpinBoxDown, numberOfStimPulsesSpinBox);
+    int buttonWidth = qMax(upRect.width(), downRect.width());
+    int textWidth = numberOfStimPulsesSpinBox->fontMetrics().horizontalAdvance("99999  ");
+    numberOfStimPulsesSpinBox->setMaximumWidth(textWidth + buttonWidth + 4);
     numberOfStimPulsesSpinBox->setRange(2, 256);
 
     pulseTrainPeriodLabel = new QLabel(tr("Pulse Train Period:"), this);

@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.4.0
+//  Version 3.5.0
 //
-//  Copyright (c) 2020-2025 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -69,6 +69,44 @@ void StatusBars::paintEvent(QPaintEvent* /* event */)
 
 void StatusBars::updateBars(double hwBufferPercent_, double swBufferPercent_, double cpuLoadPercent_)
 {
+    // Emit signal for changes in hw buffer warning status
+    if (hwBufferPercent_ >= MajorWarningThreshold) {
+        if (hwBufferPercent < MajorWarningThreshold) {
+            emit bufferStatusChanged(BufferMajorWarning); // When entering MajorWarning zone from below, emit MajorWarning signal
+        }
+    }
+
+    else if (hwBufferPercent_ >= MinorWarningThreshold) {
+        if (hwBufferPercent < MinorWarningThreshold || hwBufferPercent >= MajorWarningThreshold) {
+            emit bufferStatusChanged(BufferMinorWarning); // When entering MinorWarning zone from below or above, emit MinorWarning signal
+        }
+    }
+
+    else {
+        if (hwBufferPercent >= MinorWarningThreshold) {
+            emit bufferStatusChanged(BufferNoWarning); // When entering NoWarning zone from above, emit NoWarning signal
+        }
+    }
+
+    // Emit signal for changes in sw buffer warning status
+    if (swBufferPercent_ >= MajorWarningThreshold) {
+        if (swBufferPercent < MajorWarningThreshold) {
+            emit bufferStatusChanged(BufferMajorWarning); // When entering MajorWarning zone from below, emit MajorWarning signal
+        }
+    }
+
+    else if (swBufferPercent_ >= MinorWarningThreshold) {
+        if (swBufferPercent < MinorWarningThreshold || swBufferPercent >= MajorWarningThreshold) {
+            emit bufferStatusChanged(BufferMinorWarning); // When entering MinorWarning zone from below or above, emit MinorWarning signal
+        }
+    }
+
+    else {
+        if (swBufferPercent >= MinorWarningThreshold) {
+            emit bufferStatusChanged(BufferNoWarning); // When entering NoWarning zone from above, emit NoWarning signal
+        }
+    }
+
     hwBufferPercent = hwBufferPercent_;
     swBufferPercent = swBufferPercent_;
     cpuLoadPercent = cpuLoadPercent_;
@@ -77,7 +115,7 @@ void StatusBars::updateBars(double hwBufferPercent_, double swBufferPercent_, do
 
 QColor StatusBars::colorFromPercent(double percent) const
 {
-    if (percent >= 90.0) return QColor(245, 10, 0);  // red
-    else if (percent >= 80.0) return QColor(255, 191, 0);  // amber
-    else return QColor(0, 150, 0);  // green
+    if (percent >= MajorWarningThreshold) return QColor(245, 10, 0); // red
+    else if (percent >= MinorWarningThreshold) return QColor(255, 191, 0); // amber
+    else return QColor(0, 150, 0); // green
 }

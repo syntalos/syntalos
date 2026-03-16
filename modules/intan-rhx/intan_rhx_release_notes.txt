@@ -124,3 +124,23 @@ Intan RHX release notes
 - Small adjustments to preserve readability with Qt 6 GUI display
 - Fix bug that could cause incorrect fast settle behavior during stimulation pulse trains
 - Fix bug that could, under rare conditions, cause software to enter test mode upon startup
+
+* Version 3.5.0, 8 January 2026
+- Add start/end beep sounds for triggered recording
+- Add "ActiveFileTimestamp" as a TCP-queryable variable to Filename
+- Fix broken connect() assignments in various dialogs
+- Replace "http" addresses with "https"
+- Fix analog/digital out StimParamDialog not highlighting illustration waveform properly
+- Improve audio output formatting to be compatible with a wider range of formats and systems
+- Fix FPGA programming bug that could, under rare circumstances, overwrite user-specified registers with their default values during stimulation
+- Add HW/SW buffer warning filling sounds
+- Replace limited TCP command syntax for TCP sockets, so that TCP configuration can now be set through saved settings and TCP commands
+- Limit TCP display command/error TextEdit sizes to limit memory usage for long recordings with continuous TCP interaction
+- Improve test mode detection of 128-ch headstages
+- Issue warnings when setting and uploading stim parameters that violate timing requirements (for instance, PreStimAmpSettle larger than PostTriggerDelay)
+- Add command-line options for a startup settings INI file to skip board select dialog
+- Adjust default advanced dialog size to show in full
+- Adjust test control panel default height
+- Improve spacing of StimParam widgets so that some fields are no longer visibly obstructed on Windows 11
+- Set default style to Fusion for all platforms to limit future platform-specific widget display issues
+- Upgrade from Qt 6.8.3 to 6.10.1

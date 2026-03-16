@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.4.0
+//  Version 3.5.0
 //
-//  Copyright (c) 2020-2025 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -59,7 +59,13 @@ CurrentSpinBox::CurrentSpinBox(double step_, QWidget *parent) :
 {
     doubleSpinBox->setDecimals(2);
     doubleSpinBox->setSuffix(" " + MicroAmpsSymbol);
-    doubleSpinBox->setMaximumWidth(doubleSpinBox->fontMetrics().horizontalAdvance("99999999  uA  +-"));
+    QStyleOptionSpinBox opt;
+    opt.initFrom(doubleSpinBox);
+    QRect upRect = doubleSpinBox->style()->subControlRect(QStyle::CC_SpinBox, &opt, QStyle::SC_SpinBoxUp, doubleSpinBox);
+    QRect downRect = doubleSpinBox->style()->subControlRect(QStyle::CC_SpinBox, &opt, QStyle::SC_SpinBoxDown, doubleSpinBox);
+    int buttonWidth = qMax(upRect.width(), downRect.width());
+    int textWidth = doubleSpinBox->fontMetrics().horizontalAdvance("99999999  uA  +-");
+    doubleSpinBox->setMaximumWidth(textWidth + buttonWidth + 4);
 }
 
 void CurrentSpinBox::setTrueMinimum(double min)
@@ -235,7 +241,13 @@ TimeSpinBox::TimeSpinBox(double step_, QWidget *parent) :
 {
     doubleSpinBox->setDecimals(1);
     doubleSpinBox->setSuffix(" " + MicroSecondsSymbol);
-    doubleSpinBox->setMaximumWidth(doubleSpinBox->fontMetrics().horizontalAdvance("99999999  ms  +-"));
+    QStyleOptionSpinBox opt;
+    opt.initFrom(doubleSpinBox);
+    QRect upRect = doubleSpinBox->style()->subControlRect(QStyle::CC_SpinBox, &opt, QStyle::SC_SpinBoxUp, doubleSpinBox);
+    QRect downRect = doubleSpinBox->style()->subControlRect(QStyle::CC_SpinBox, &opt, QStyle::SC_SpinBoxDown, doubleSpinBox);
+    int buttonWidth = qMax(upRect.width(), downRect.width());
+    int textWidth = doubleSpinBox->fontMetrics().horizontalAdvance("99999999  ms  +-");
+    doubleSpinBox->setMaximumWidth(textWidth + buttonWidth + 4);
 }
 
 void TimeSpinBox::setTrueMinimum(double min)

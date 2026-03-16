@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.4.0
+//  Version 3.5.0
 //
-//  Copyright (c) 2020-2025 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -54,6 +54,7 @@
 #include "spikesortingdialog.h"
 
 class AbstractPanel;
+class QSoundEffect;
 class ControllerRunStateData;
 class IntanRhxModule;
 
@@ -162,6 +163,7 @@ signals:
     void setHardwareFifoStatus(double percentFull);
     void cpuLoadPercent(double percent);
     void TCPErrorMessage(QString errorMessage);
+    void TCPWarningMessage(QString warningMessage);
 
 public slots:
     void updateFromState();
@@ -169,6 +171,8 @@ public slots:
     void manualStimTriggerOn(QString keyName);
     void manualStimTriggerOff(QString keyName);
     void manualStimTriggerPulse(QString keyName);
+    void playSoundTriggerStart();
+    void playSoundTriggerEnd();
 
 private slots:
     void updateHardwareFifo(double percentFull) { emit setHardwareFifoStatus(percentFull); }
@@ -185,7 +189,11 @@ private:
     void addPlaybackHeadstageChannels();
 
     void sendTCPError(QString errorMessage);
+    void sendTCPWarning(QString warningMessage);
     void pipeReadErrorMessage(int errorID);
+
+    QSoundEffect* triggerStartBeep;
+    QSoundEffect* triggerEndBeep;
 
     SystemState* state;
     AbstractRHXController* rhxController;

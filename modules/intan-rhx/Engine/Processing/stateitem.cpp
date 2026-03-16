@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.4.0
+//  Version 3.5.0
 //
-//  Copyright (c) 2020-2025 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -99,12 +99,13 @@ bool ChannelNameItem::setValue(const QString& value)
 }
 
 
-StateFilenameItem::StateFilenameItem(const QString &parameterName_, FilenameItemList *hList_, SystemState *state_,
-                                     const QString &defaultPath, const QString &defaultBaseFilename,
+StateFilenameItem::StateFilenameItem(const QString &parameterName_, FilenameItemList *hList_, SystemState *state_, const QString &defaultPath,
+                                     const QString &defaultBaseFilename, const QString &defaultTimestamp,
                                      XMLGroup xmlGroup_, TypeDependency typeDependency_) :
     StateItem(parameterName_, state_, xmlGroup_, typeDependency_),
     path(defaultPath),
-    baseFilename(defaultBaseFilename)
+    baseFilename(defaultBaseFilename),
+    timestamp(defaultTimestamp)
 {
     state->addStateFilenameItem(*hList_, this);
 }
@@ -125,6 +126,67 @@ void StateFilenameItem::setPath(const QString& path_)
     state->forceUpdate();
 }
 
+void StateFilenameItem::setTimestamp(const QString &timestamp_)
+{
+    timestamp = timestamp_;
+    state->forceUpdate();
+}
+
+
+StateTCPCommunicatorItem::StateTCPCommunicatorItem(const QString &parameterName_, TCPCommunicatorItemList *hList_, SystemState *state_,
+                                                   const QString &defaultHost, int defaultPort, ConnectionStatus defaultStatus,
+                                                   XMLGroup xmlGroup_, TypeDependency typeDependency_) :
+    StateItem(parameterName_, state_, xmlGroup_, typeDependency_)
+{
+    state->addStateTCPCommunicatorItem(*hList_, this);
+    communicator = new TCPCommunicator(defaultHost, defaultPort, defaultStatus);
+}
+
+StateTCPCommunicatorItem::~StateTCPCommunicatorItem()
+{
+    delete communicator;
+}
+
+QString StateTCPCommunicatorItem::getHost() const
+{
+    return communicator->host;
+}
+
+QString StateTCPCommunicatorItem::getPort() const
+{
+    return QString::number(communicator->port);
+}
+
+QString StateTCPCommunicatorItem::getStatus() const
+{
+    switch (communicator->status) {
+    case Connected: return "Connected";
+    case Pending: return "Pending";
+    default: return "Disconnected";
+    }
+}
+
+void StateTCPCommunicatorItem::setHost(const QString &host_)
+{
+    communicator->host = host_;
+    state->forceUpdate();
+}
+
+void StateTCPCommunicatorItem::setPort(const QString &port_)
+{
+    communicator->port = port_.toInt();
+    state->forceUpdate();
+}
+
+void StateTCPCommunicatorItem::setStatus(const QString &status_)
+{
+    if (status_.toLower() == "pending" || status_.toLower() == "connected") {
+        communicator->attemptNewConnection();
+    } else {
+        communicator->returnToDisconnected();
+    }
+    state->forceUpdate();
+}
 
 BooleanItem::BooleanItem(const QString &parameterName_, SingleItemList &hList_, SystemState *state_, bool defaultState,
                          XMLGroup xmlGroup_, TypeDependency typeDependency_) :

@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.4.0
+//  Version 3.5.0
 //
-//  Copyright (c) 2020-2025 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,23 +18,23 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
 #include "tcpcommunicator.h"
 
-TCPCommunicator::TCPCommunicator(QString address_, int port_, QObject *parent) :
+TCPCommunicator::TCPCommunicator(QString host_, int port_, ConnectionStatus status_, QObject *parent) :
     QObject(parent),
     passwordCleared(false),
-    status(Disconnected),
-    address(address_),
+    status(status_),
+    host(host_),
     port(port_),
     server(nullptr),
     socket(nullptr)
@@ -65,7 +65,7 @@ bool TCPCommunicator::serverListening()
     return server->isListening();
 }
 
-bool TCPCommunicator::listen(QString host, int port)
+bool TCPCommunicator::listen()
 {
     status = Pending;
     emit statusChanged();
@@ -108,7 +108,7 @@ void TCPCommunicator::writeData(char *data, qint64 len)
 void TCPCommunicator::attemptNewConnection()
 {
     if (!serverListening()) {
-        listen(address, port);
+        listen();
     }
 }
 

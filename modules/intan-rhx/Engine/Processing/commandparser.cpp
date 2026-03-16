@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.4.0
+//  Version 3.5.0
 //
-//  Copyright (c) 2020-2025 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -37,12 +37,6 @@ CommandParser::CommandParser(SystemState* state_, ControllerInterface *controlle
     controllerInterface(controllerInterface_),
     state(state_)
 {
-    // These connections allow for interactions with communicators that may live in another thread
-    connect(this, SIGNAL(connectTCPWaveformDataOutput()), state->tcpWaveformDataCommunicator, SLOT(attemptNewConnection()));
-    connect(this, SIGNAL(connectTCPSpikeDataOutput()), state->tcpSpikeDataCommunicator, SLOT(attemptNewConnection()));
-
-    connect(this, SIGNAL(disconnectTCPWaveformDataOutput()), state->tcpWaveformDataCommunicator, SLOT(returnToDisconnected()));
-    connect(this, SIGNAL(disconnectTCPSpikeDataOutput()), state->tcpSpikeDataCommunicator, SLOT(returnToDisconnected()));
 }
 
 // Return a pointer to a Channel given a channel name in parameter.  If parameter doesn't fit any channel,
@@ -94,21 +88,56 @@ void CommandParser::setStateItemCommand(StateSingleItem* item, const QString& va
     }
 }
 
-void CommandParser::setStateFilenameItemCommand(StateFilenameItem *item, const QString& pathOrBase, const QString& value)
+void CommandParser::setStateFilenameItemCommand(StateFilenameItem *item, const QString& pathOrBaseOrTimestamp, const QString& value)
 {
-    if (pathOrBase.toLower() == item->getPathParameterName().toLower()) {
+    if (pathOrBaseOrTimestamp.toLower() == item->getPathParameterName().toLower()) {
         item->setPath(value);
-    } else if (pathOrBase.toLower() == item->getBaseFilenameParameterName().toLower()) {
+    } else if (pathOrBaseOrTimestamp.toLower() == item->getBaseFilenameParameterName().toLower()) {
         item->setBaseFilename(value);
+    } else if (pathOrBaseOrTimestamp.toLower() == item->getTimestampParameterName().toLower()) {
+        std::cerr << "CommandParser::setStateItemCommand: invalid value for " << item->getParameterName().toStdString() << '\n';
+        errorTCP(item->getParameterName(), item->getValidValues());
     }
 }
 
-void CommandParser::getStateFilenameItemCommand(StateFilenameItem* item, const QString& pathOrBase)
+void CommandParser::getStateFilenameItemCommand(StateFilenameItem* item, const QString& pathOrBaseOrTimestamp)
 {
-    if (pathOrBase.toLower() == item->getPathParameterName().toLower()) {
-        returnTCP(item->getParameterName() + "." + pathOrBase, item->getPath());
-    } else if (pathOrBase.toLower() == item->getBaseFilenameParameterName().toLower()) {
-        returnTCP(item->getParameterName() + "." + pathOrBase, item->getBaseFilename());
+    if (pathOrBaseOrTimestamp.toLower() == item->getPathParameterName().toLower()) {
+        returnTCP(item->getParameterName() + "." + pathOrBaseOrTimestamp, item->getPath());
+    } else if (pathOrBaseOrTimestamp.toLower() == item->getBaseFilenameParameterName().toLower()) {
+        returnTCP(item->getParameterName() + "." + pathOrBaseOrTimestamp, item->getBaseFilename());
+    } else if (pathOrBaseOrTimestamp.toLower() == item->getTimestampParameterName().toLower()) {
+        returnTCP(item->getParameterName() + "." + pathOrBaseOrTimestamp, item->getTimestamp());
+    }
+}
+
+void CommandParser::setStateTCPCommunicatorItemCommand(StateTCPCommunicatorItem *item, const QString &hostOrPortOrStatus, const QString &value)
+{
+    if (hostOrPortOrStatus.toLower() == item->getHostParameterName().toLower()) {
+        if (item->communicator->status != Disconnected) {
+            const QString warning = "Warning: Changes to host will not take effect until socket reconnects; disconnect then connect to switch to new host.";
+            emit TCPWarningSignal(warning);
+        }
+        item->setHost(value);
+    } else if (hostOrPortOrStatus.toLower() == item->getPortParameterName().toLower()) {
+        if (item->communicator->status != Disconnected) {
+            const QString warning = "Warning: Changes to port will not take effect until socket reconnects; disconnect then connect to switch to new port.";
+            emit TCPWarningSignal(warning);
+        }
+        item->setPort(value);
+    } else if (hostOrPortOrStatus.toLower() == item->getStatusParameterName().toLower()) {
+        item->setStatus(value);
+    }
+}
+
+void CommandParser::getStateTCPCommunicatorItemCommand(StateTCPCommunicatorItem *item, const QString &hostOrPortOrStatus)
+{
+    if (hostOrPortOrStatus.toLower() == item->getHostParameterName().toLower()) {
+        returnTCP(item->getParameterName() + "." + hostOrPortOrStatus, item->getHost());
+    } else if (hostOrPortOrStatus.toLower() == item->getPortParameterName().toLower()) {
+        returnTCP(item->getParameterName() + "." + hostOrPortOrStatus, item->getPort());
+    } else if (hostOrPortOrStatus.toLower() == item->getStatusParameterName().toLower()) {
+        returnTCP(item->getParameterName() + "." + hostOrPortOrStatus, item->getStatus());
     }
 }
 
@@ -119,11 +148,20 @@ void CommandParser::getCommandSlot(QString parameter)
     QString parameterLower = parameter.toLower();
 
     // Check in Global-level list for filename items
-    QString pathOrBase;
-    StateFilenameItem* filenameItem = state->locateStateFilenameItem(state->stateFilenameItems, parameterLower, pathOrBase); // Can be filename.path or filename.basefilename
+    QString pathOrBaseOrTimestamp;
+    StateFilenameItem* filenameItem = state->locateStateFilenameItem(state->stateFilenameItems, parameterLower, pathOrBaseOrTimestamp); // Can be filename.path, filename.basefilename or filename.activefiletimestamp
     if (filenameItem) {
-        std::cout << ">> " << (filenameItem->getParameterName().toLower() + "." + pathOrBase).toStdString() << '\n';
-        getStateFilenameItemCommand(filenameItem, pathOrBase);
+        std::cout << ">> " << (filenameItem->getParameterName().toLower() + "." + pathOrBaseOrTimestamp).toStdString() << '\n';
+        getStateFilenameItemCommand(filenameItem, pathOrBaseOrTimestamp);
+        return;
+    }
+
+    // Check in Global-level list for tcpcommunicator items
+    QString hostOrPortOrStatus;
+    StateTCPCommunicatorItem* tcpCommunicatorItem = state->locateStateTCPCommunicatorItem(state->stateTCPCommunicatorItems, parameterLower, hostOrPortOrStatus); // Can be <tcpsocket>.host, <tcpsocket>.port, or <tcpsocket>.status
+    if (tcpCommunicatorItem) {
+        std::cout << ">> " << (tcpCommunicatorItem->getParameterName().toLower() + "." + hostOrPortOrStatus).toStdString() << '\n';
+        getStateTCPCommunicatorItemCommand(tcpCommunicatorItem, hostOrPortOrStatus);
         return;
     }
 
@@ -164,18 +202,6 @@ void CommandParser::getCommandSlot(QString parameter)
         getUsedXPUIndexCommand();
     else if (parameterLower == "runmode")
         getRunModeCommand();
-    else if (parameterLower == "tcpwaveformdataoutputhost")
-        getTCPWaveformDataOutputHostCommand();
-    else if (parameterLower == "tcpspikedataoutputhost")
-        getTCPSpikeDataOutputHostCommand();
-    else if (parameterLower == "tcpwaveformdataoutputport")
-        getTCPWaveformDataOutputPortCommand();
-    else if (parameterLower == "tcpspikedataoutputport")
-        getTCPSpikeDataOutputPortCommand();
-    else if (parameterLower == "tcpwaveformdataoutputconnectionstatus")
-        getTCPWaveformDataConnectionStatusCommand();
-    else if (parameterLower == "tcpspikedataoutputconnectionstatus")
-        getTCPSpikeDataConnectionStatusCommand();
     else if (parameterLower == "currenttimestamp")
         getCurrentTimestampCommand();
     else if (parameterLower == "currenttimeseconds")
@@ -193,14 +219,26 @@ void CommandParser::setCommandSlot(QString parameter, QString value)
     QString valueLower = value.toLower();
 
     // Check in Global-level list for filename items
-    QString pathOrBase;
-    StateFilenameItem* filenameItem = state->locateStateFilenameItem(state->stateFilenameItems, parameterLower, pathOrBase); // Can be filename.path or filename.basefilename
+    QString pathOrBaseOrTimestamp;
+    StateFilenameItem* filenameItem = state->locateStateFilenameItem(state->stateFilenameItems, parameterLower, pathOrBaseOrTimestamp); // Can be filename.path, filename.basefilename, or filename.activefiletimestamp
     if (filenameItem) {
         if (filenameItem->isRestricted()) {
             emit TCPErrorSignal(filenameItem->getRestrictErrorMessage());
             return;
         }
-        setStateFilenameItemCommand(filenameItem, pathOrBase, value);
+        setStateFilenameItemCommand(filenameItem, pathOrBaseOrTimestamp, value);
+        return;
+    }
+
+    // Check in Global-level list for tcpcommunicator items
+    QString hostOrPortOrStatus;
+    StateTCPCommunicatorItem* tcpCommunicatorItem = state->locateStateTCPCommunicatorItem(state->stateTCPCommunicatorItems, parameterLower, hostOrPortOrStatus); // Can be <tcpsocket>.host, <tcpsocket>.port, or <tcpsocket>.status
+    if (tcpCommunicatorItem) {
+        if (tcpCommunicatorItem->isRestricted()) {
+            emit TCPErrorSignal(tcpCommunicatorItem->getRestrictErrorMessage());
+            return;
+        }
+        setStateTCPCommunicatorItemCommand(tcpCommunicatorItem, hostOrPortOrStatus, value);
         return;
     }
 
@@ -218,10 +256,10 @@ void CommandParser::setCommandSlot(QString parameter, QString value)
             }
             setStateItemCommand(item, valueLower);
 
-            // Check if this is a Stim Parameter, and if it is, check validity and potentially emit a TCPErrorSignal
+            // Check if this is a Stim Parameter, and if it is, check validity and potentially emit a TCPWarningSignal
             if (!isDependencyRelated(item->getParameterName())) return;
 
-            QString warningMessage = validateStimParams(channel->stimParameters);
+            QString warningMessage = channel->stimParameters->validate();
             if (warningMessage != "") {
                 emit TCPWarningSignal("Warning: " + warningMessage);
             }
@@ -262,18 +300,6 @@ void CommandParser::setCommandSlot(QString parameter, QString value)
         setUsedXPUIndexCommand(valueLower);
     else if (parameterLower == "runmode")
         setRunModeCommand(valueLower);
-    else if (parameterLower == "tcpwaveformdataoutputhost")
-        setTCPWaveformDataOutputHostCommand(valueLower);
-    else if (parameterLower == "tcpspikedataoutputhost")
-        setTCPSpikeDataOutputHostCommand(valueLower);
-    else if (parameterLower == "tcpwaveformdataoutputport")
-        setTCPWaveformDataOutputPortCommand(valueLower);
-    else if (parameterLower == "tcpspikedataoutputport")
-        setTCPSpikeDataOutputPortCommand(valueLower);
-    else if (parameterLower == "tcpwaveformdataoutputconnectionstatus")
-        setTCPWaveformDataConnectionStatusCommand(valueLower);
-    else if (parameterLower == "tcpspikedataoutputconnectionstatus")
-        setTCPSpikeDataConnectionStatusCommand(valueLower);
     // If parameter doesn't match an acceptable command, return an error.
     else emit TCPErrorSignal("Unrecognized parameter");
 }
@@ -296,14 +322,6 @@ void CommandParser::executeCommandSlot(QString action)
         } else {
             emit TCPErrorSignal("RescanPorts cannot be executed while the board is running");
         }
-    } else if (actionLower == "connecttcpwaveformdataoutput") {
-        connectTCPWaveformDataOutputCommand();
-    } else if (actionLower == "connecttcpspikedataoutput") {
-        connectTCPSpikeDataOutputCommand();
-    } else if (actionLower == "disconnecttcpwaveformdataoutput") {
-        disconnectTCPWaveformDataOutputCommand();
-    } else if (actionLower == "disconnecttcpspikedataoutput") {
-        disconnectTCPSpikeDataOutputCommand();
     } else if (actionLower == "clearalldataoutputs") {
         clearAllDataOutputsCommand();
     } else if (actionLower == "uploadampsettlesettings") {
@@ -407,6 +425,11 @@ void CommandParser::noteCommandSlot(QString note)
 void CommandParser::TCPErrorSlot(QString errorMessage)
 {
     emit TCPErrorSignal(errorMessage);
+}
+
+void CommandParser::TCPWarningSlot(QString warningMessage)
+{
+    emit TCPWarningSignal(warningMessage);
 }
 
 void CommandParser::setAvailableXPUListCommand(const QString& /* value */)
@@ -537,107 +560,6 @@ void CommandParser::getRunModeCommand()
         emit TCPReturnSignal("Return: RunMode Stop");
 }
 
-void CommandParser::setTCPWaveformDataOutputHostCommand(const QString &value)
-{
-    if (state->running) {
-        emit TCPErrorSignal("TCPWaveformDataOutputHost cannot be set while controller is running.");
-        return;
-    }
-    state->tcpWaveformDataCommunicator->address = value;
-}
-
-void CommandParser::getTCPWaveformDataOutputHostCommand()
-{
-    if (!state->tcpWaveformDataCommunicator->address.isEmpty())
-        emit TCPReturnSignal("Return: TCPWaveformDataOutputHost " + state->tcpWaveformDataCommunicator->address);
-    else
-        emit TCPReturnSignal("Return: Empty TCPWaveformDataOutputHost");
-}
-
-
-void CommandParser::setTCPSpikeDataOutputHostCommand(const QString &value)
-{
-    if (state->running) {
-        emit TCPErrorSignal("TCPSpikeDataOutputHost cannot be set while controller is running.");
-        return;
-    }
-    state->tcpSpikeDataCommunicator->address = value;
-}
-
-void CommandParser::getTCPSpikeDataOutputHostCommand()
-{
-    if (!state->tcpSpikeDataCommunicator->address.isEmpty())
-        emit TCPReturnSignal("Return: TCPSpikeDataOutputHost " + state->tcpSpikeDataCommunicator->address);
-    else
-        emit TCPReturnSignal("Return: Empty TCPSpikeDataOutputHost");
-}
-
-void CommandParser::setTCPWaveformDataOutputPortCommand(const QString &value)
-{
-    if (state->running) {
-        emit TCPErrorSignal("TCPWaveformDataOutputPort cannot be set while controller is running.");
-        return;
-    }
-    int port = value.toInt();
-    if (port >= 0 && port <= 9999)
-        state->tcpWaveformDataCommunicator->port = port;
-    else
-        emit TCPErrorSignal("Invalid value for TCPWaveformDataOutputPort command");
-}
-
-void CommandParser::setTCPSpikeDataOutputPortCommand(const QString &value)
-{
-    if (state->running) {
-        emit TCPErrorSignal("TCPSpikeDataOutputPort cannot be set while controller is running.");
-        return;
-    }
-    int port = value.toInt();
-    if (port >= 0 && port <= 9999)
-        state->tcpSpikeDataCommunicator->port = port;
-    else
-        emit TCPErrorSignal("Invalid value for TPCSpikeDataOutputPort command");
-}
-
-void CommandParser::getTCPWaveformDataOutputPortCommand()
-{
-    emit TCPReturnSignal("Return: TCPWaveformDataOutputPort " + QString::number(state->tcpWaveformDataCommunicator->port));
-}
-
-void CommandParser::getTCPSpikeDataOutputPortCommand()
-{
-    emit TCPReturnSignal("Return: TCPSpikeDataOutputPort " + QString::number(state->tcpSpikeDataCommunicator->port));
-}
-
-void CommandParser::setTCPWaveformDataConnectionStatusCommand(const QString & /* value */)
-{
-    emit TCPErrorSignal("Connection status cannot be changed through this command. Execute ConnectTCPWaveformDataOutput or DisconnectTCPWaveformDataOutput");
-}
-
-void CommandParser::setTCPSpikeDataConnectionStatusCommand(const QString & /* value */)
-{
-    emit TCPErrorSignal("Connection status cannot be changed through this command. Execute ConnectTCPSpikeDataOutput or DisconnectTCPSpikeDataOutput");
-}
-
-void CommandParser::getTCPWaveformDataConnectionStatusCommand()
-{
-    if (state->tcpWaveformDataCommunicator->status == TCPCommunicator::Connected)
-        emit TCPReturnSignal("Return: TCPWaveformDataOutputConnectionStatus Connected");
-    else if (state->tcpWaveformDataCommunicator->status == TCPCommunicator::Pending)
-        emit TCPReturnSignal("Return: TCPWaveformDataOutputConnectionStatus Pending");
-    else if (state->tcpWaveformDataCommunicator->status == TCPCommunicator::Disconnected)
-        emit TCPReturnSignal("Return: TCPWaveformDataOutputConnectionStatus Disconnected");
-}
-
-void CommandParser::getTCPSpikeDataConnectionStatusCommand()
-{
-    if (state->tcpSpikeDataCommunicator->status == TCPCommunicator::Connected)
-        emit TCPReturnSignal("Return: TCPSpikeDataOutputConnectionStatus Connected");
-    else if (state->tcpSpikeDataCommunicator->status == TCPCommunicator::Pending)
-        emit TCPReturnSignal("Return: TCPSpikeDataOutputConnectionStatus Pending");
-    else if (state->tcpSpikeDataCommunicator->status == TCPCommunicator::Disconnected)
-        emit TCPReturnSignal("Return: TCPSpikeDataOutputConnectionStatus Disconnected");
-}
-
 void CommandParser::getCurrentTimestampCommand()
 {
     if (state->running) {
@@ -670,30 +592,6 @@ void CommandParser::rescanPortsCommand()
 {
     state->signalSources->undoManager->clearUndoStack();
     controllerInterface->rescanPorts(true);
-}
-
-void CommandParser::connectTCPWaveformDataOutputCommand()
-{
-    // Since tcpWaveformDataCommunicator might be in TCPDataOutputThread, instead of calling the slot directly, emit a signal that calls the slot
-    emit connectTCPWaveformDataOutput();
-}
-
-void CommandParser::connectTCPSpikeDataOutputCommand()
-{
-    // Since tcpSpikeDataCommunicator might be in TCPDataOutputThread, instead of calling the slot directly, emit a signal that calls the slot
-    emit connectTCPSpikeDataOutput();
-}
-
-void CommandParser::disconnectTCPWaveformDataOutputCommand()
-{
-    // Since tcpWaveformDataCommunicator might be in TCPDataOutputThread, instead of calling the slot directly, emit a signal that calls the slot
-    emit disconnectTCPWaveformDataOutput();
-}
-
-void CommandParser::disconnectTCPSpikeDataOutputCommand()
-{
-    // Since tcpSpikeDataCommunicator might be in TCPDataOutputThread, instead of calling the slot directly, emit a signal that calls the slot
-    emit disconnectTCPSpikeDataOutput();
 }
 
 void CommandParser::clearAllDataOutputsCommand()
@@ -763,7 +661,6 @@ void CommandParser::saveSettingsFileCommand(QString fileName)
     QFileInfo fileInfo(fileName);
     QSettings settings;
     settings.setValue("settingsDirectory", fileInfo.absolutePath());
-    settings.endGroup();
 
     // Generate display settings string to record state of multi-column display, scroll bars, pinned waveforms, etc.
     state->displaySettings->setValue(controlWindow->getDisplaySettingsString());
@@ -837,68 +734,4 @@ bool CommandParser::isDependencyRelated(QString parameter) const
         return true;
     }
     return false;
-}
-
-QString CommandParser::validateStimParams(StimParameters *stimParams) const
-{
-    double stimDuration = 0;
-
-    switch (stimParams->getSignalType()) {
-    case AmplifierSignal:
-        // PostTriggerDelay cannot be less than PreStimAmpSettle
-        if (stimParams->postTriggerDelay->getValue() < stimParams->preStimAmpSettle->getValue())
-            return "PostTriggerDelayMicroseconds cannot be less than PreStimAmpSettleMicroseconds";
-
-        // PostStimChargeRecovOff cannot be less than PostStimChargeRecovOn
-        if (stimParams->postStimChargeRecovOff->getValue() < stimParams->postStimChargeRecovOn->getValue())
-            return "PostStimChargeRecovOffMicroseconds cannot be less than PostStimChargeRecovOnMicroseconds";
-
-        // RefractoryPeriod cannot be less than PostStimAmpSettle OR PostStimChargeRecovOff
-        if (stimParams->refractoryPeriod->getValue() < stimParams->postStimAmpSettle->getValue())
-            return "RefractoryPeriodMicroseconds cannot be less than PostStimAmpSettleMicroseconds";
-        if (stimParams->refractoryPeriod->getValue() < stimParams->postStimChargeRecovOff->getValue())
-            return "RefractoryPeriodMicroseconds cannot be less than PostStimChargeRecovOffMicroseconds";
-
-        // PulseTrainPeriod cannot be less than stimDuration (which depends on Shape)
-        // Biphasic: stimDuration = FirstPhaseDuration + SecondPhaseDuration
-        // BiphasicWithInterphaseDelay: stimDuration = FirstPhaseDuration + InterphaseDelay + SecondPhaseDuration
-        // Triphasic: stimDuration = 2*FirstPhaseDuration + SecondPhaseDuration
-        if (stimParams->stimShape->getValue() == "Biphasic")
-            stimDuration = stimParams->firstPhaseDuration->getValue() + stimParams->secondPhaseDuration->getValue();
-        else if (stimParams->stimShape->getValue() == "BiphasicWithInterphaseDelay")
-            stimDuration = stimParams->firstPhaseDuration->getValue() + stimParams->interphaseDelay->getValue() + stimParams->secondPhaseDuration->getValue();
-        else
-            stimDuration = 2.0 * stimParams->firstPhaseDuration->getValue() + stimParams->secondPhaseDuration->getValue();
-        if (stimParams->pulseTrainPeriod->getValue() < stimDuration)
-            return "PulseTrainPeriodMicroseconds cannot be less than total pulse duration (sum of all phases used for this Shape)";
-        break;
-
-    case BoardDacSignal:
-        // PulseTrainPeriod cannot be less than stimDuration (which depends on Shape)
-        // Biphasic: stimDuration = FirstPhaseDuration + SecondPhaseDuration
-        // BiphasicWithInterphaseDelay: stimDuration = FirstPhaseDuration + InterphaseDelay + SecondPhaseDuration
-        // Triphasic: stimDuration = 2*FirstPhaseDuration + SecondPhaseDuration
-        // Monophasic: stimDuration = FirstPhaseDuration
-        if (stimParams->stimShape->getValue() == "Biphasic")
-            stimDuration = stimParams->firstPhaseDuration->getValue() + stimParams->secondPhaseDuration->getValue();
-        else if (stimParams->stimShape->getValue() == "BiphasicWithInterphaseDelay")
-            stimDuration = stimParams->firstPhaseDuration->getValue() + stimParams->interphaseDelay->getValue() + stimParams->secondPhaseDuration->getValue();
-        else if (stimParams->stimShape->getValue() == "Triphasic")
-            stimDuration = 2.0 * stimParams->firstPhaseDuration->getValue() + stimParams->secondPhaseDuration->getValue();
-        else
-            stimDuration = stimParams->firstPhaseDuration->getValue();
-        if (stimParams->pulseTrainPeriod->getValue() < stimDuration)
-            return "PulseTrainPeriodMicroseconds cannot be less than total pulse duration (sum of all phases used for this Shape)";
-        break;
-
-    case BoardDigitalOutSignal:
-        // PulseTrainPeriod cannot be less than FirstPhaseDuration
-        if (stimParams->pulseTrainPeriod->getValue() < stimParams->firstPhaseDuration->getValue())
-            return "PulseTrainPeriodMicroseconds cannot be less than pulse duration (FirstPhaseDurationMicroseconds)";
-        break;
-
-    default:
-        break;
-    }
-    return "";
 }

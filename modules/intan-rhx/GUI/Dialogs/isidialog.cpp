@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.4.0
+//  Version 3.5.0
 //
-//  Copyright (c) 2020-2025 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -67,7 +67,7 @@ ISIDialog::ISIDialog(SystemState *state_, QWidget *parent) :
     yAxisLinearRadioButton->setChecked(true);
     QGroupBox* yAxisGroup = new QGroupBox(tr("Y Axis"), this);
     yAxisGroup->setLayout(yAxisColumn);
-    connect(yAxisButtonGroup, SIGNAL(buttonClicked(int)), this, SLOT(changeYAxisMode(int)));
+    connect(yAxisButtonGroup, SIGNAL(buttonClicked(QAbstractButton*)), this, SLOT(changeYAxisMode()));
 
     clearISIPushButton = new QPushButton(tr("Clear ISI Plot"), this);
     connect(clearISIPushButton, SIGNAL(clicked(bool)), this, SLOT(clearISI()));

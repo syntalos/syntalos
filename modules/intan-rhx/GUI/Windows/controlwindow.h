@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.4.0
+//  Version 3.5.0
 //
-//  Copyright (c) 2020-2025 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -103,6 +103,8 @@ signals:
     void jumpRelative(double jumpInSeconds);
     void setDataFileReaderSpeed(double playbackSpeed);
     void setDataFileReaderLive(bool isLive);
+    void establishWaveformConnection();
+    void establishSpikeConnection();
 
 public slots:
     void updateFromState();
@@ -196,7 +198,9 @@ private slots:
     void changeAudioVolume(int volume);
     void changeAudioThreshold(int threshold);
 
-    void remoteControl(); // Create a non-modal dialog window governing TCP communication.
+    void remoteControl();
+
+    void receiveBufferWarning(BufferStatus newStatus);
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;
@@ -325,6 +329,9 @@ private:
     QSpacerItem *showHideStretch;
 
     StimParametersClipboard *stimClipboard;
+
+    QSoundEffect *minorBufferWarning;
+    QSoundEffect *majorBufferWarning;
 
     bool currentlyRunning;
     bool currentlyRecording;

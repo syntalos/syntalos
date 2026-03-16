@@ -154,6 +154,9 @@ AdvancedStartupDialog::AdvancedStartupDialog(bool &useOpenCL_, uint8_t &playback
 
     setLayout(scrollLayout);
 
+    // Set initial size to slightly larger than main widget's sizeHint - should avoid scroll bars for default size.
+    resize(mainWidget->sizeHint() + QSize(40, 30));
+
     setWindowTitle(tr("Advanced Startup Settings"));
     updateUIForTestMode();
 }

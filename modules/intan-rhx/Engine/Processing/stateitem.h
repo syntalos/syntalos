@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.4.0
+//  Version 3.5.0
 //
-//  Copyright (c) 2020-2025 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -34,6 +34,7 @@
 #include <vector>
 #include <QString>
 #include <map>
+#include "rhxglobals.h"
 
 class QComboBox;
 class QSpinBox;
@@ -58,9 +59,13 @@ enum TypeDependency {
 
 class StateSingleItem;
 class StateFilenameItem;
+class StateTCPCommunicatorItem;
 
 typedef std::map<std::string, StateSingleItem*> SingleItemList;
 typedef std::map<std::string, StateFilenameItem*> FilenameItemList;
+typedef std::map<std::string, StateTCPCommunicatorItem*> TCPCommunicatorItemList;
+
+class TCPCommunicator;
 
 class StateItem
 {
@@ -125,26 +130,56 @@ class StateFilenameItem : public StateItem
 {
 public:
     StateFilenameItem(const QString &parameterName_, FilenameItemList *hList_, SystemState *state_, const QString &defaultPath = "",
-                      const QString &defaultBaseFilename = "", XMLGroup xmlGroup_ = XMLGroupGeneral, TypeDependency typeDependency_ = TypeDependencyNone);
+                      const QString &defaultBaseFilename = "", const QString &defaultTimestamp = "RecordingNotStarted",
+                      XMLGroup xmlGroup_ = XMLGroupGeneral, TypeDependency typeDependency_ = TypeDependencyNone);
     virtual ~StateFilenameItem();
 
     QString getPathParameterName() const { return "Path"; }
     QString getBaseFilenameParameterName() const { return "BaseFilename"; }
+    QString getTimestampParameterName() const { return "ActiveFileTimestamp"; }
 
     QString getBaseFilename() const { return baseFilename; }
     QString getPath() const { return path; }
+    QString getTimestamp() const { return timestamp; }
 
     void setBaseFilename(const QString& baseFilename_);
     void setPath(const QString& path_);
+    void setTimestamp(const QString& timestamp_);
 
     bool isValid() const { return !path.isEmpty() && !baseFilename.isEmpty(); }
     QString getFullFilename() const { return isValid() ? path + "/" + baseFilename : ""; }
 
-    QString getValidValues() const override { return "Path: [path/to/file], BaseFilename: [filename.rhx]"; }
+    QString getValidValues() const override { return "Path: [path/to/file], BaseFilename: [filename.rhx] (ActiveFileTimestamp cannot be set)"; }
 
 private:
     QString path;
     QString baseFilename;
+    QString timestamp;
+};
+
+class StateTCPCommunicatorItem : public StateItem
+{
+public:
+    StateTCPCommunicatorItem(const QString &parameterName_, TCPCommunicatorItemList *hList_, SystemState *state_,
+                             const QString &defaultHost = "127.0.0.1", int defaultPort = 5000, ConnectionStatus defaultStatus = Disconnected,
+                             XMLGroup xmlGroup_ = XMLGroupGeneral, TypeDependency typeDependency_ = TypeDependencyNone);
+    virtual ~StateTCPCommunicatorItem();
+
+    QString getHostParameterName() const { return "Host"; }
+    QString getPortParameterName() const { return "Port"; }
+    QString getStatusParameterName() const { return "Status"; }
+
+    QString getHost() const;
+    QString getPort() const;
+    QString getStatus() const;
+
+    void setHost(const QString& host_);
+    void setPort(const QString& port_);
+    void setStatus(const QString& status_);
+
+    QString getValidValues() const override { return "Host: IP host address, Port: 0-9999, Status: \"Disconnected\", \"Pending\", or \"Connected\""; }
+
+    TCPCommunicator *communicator;
 };
 
 class BooleanItem : public StateSingleItem

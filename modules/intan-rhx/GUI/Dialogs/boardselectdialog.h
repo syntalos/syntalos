@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.4.0
+//  Version 3.5.0
 //
-//  Copyright (c) 2020-2025 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -56,6 +56,39 @@ const QString UnknownString = "Unknown Device";
 const QString RHS128ch_7310String = "RHS 128ch Stim/Recording Controller (7310)";
 const QString RHD512ch_7310String = "RHD 512ch Recording Controller (7310)";
 const QString RHD1024ch_7310String = "RHD 1024ch Recording Controller (7310)";
+
+constexpr std::array<std::pair<int, AmplifierSampleRate>, 17> sampleRateTable {{
+    {1000, SampleRate1000Hz},
+    {1250, SampleRate1250Hz},
+    {1500, SampleRate1500Hz},
+    {2000, SampleRate2000Hz},
+    {2500, SampleRate2500Hz},
+    {3000, SampleRate3000Hz},
+    {3333, SampleRate3333Hz},
+    {4000, SampleRate4000Hz},
+    {5000, SampleRate5000Hz},
+    {6250, SampleRate6250Hz},
+    {8000, SampleRate8000Hz},
+    {10000, SampleRate10000Hz},
+    {12500, SampleRate12500Hz},
+    {15000, SampleRate15000Hz},
+    {20000, SampleRate20000Hz},
+    {25000, SampleRate25000Hz},
+    {30000, SampleRate30000Hz}
+}};
+
+constexpr std::array<std::pair<double, StimStepSize>, 10> stimStepSizeTable {{
+    {0.01, StimStepSize10nA},
+    {0.02, StimStepSize20nA},
+    {0.05, StimStepSize50nA},
+    {0.1,  StimStepSize100nA},
+    {0.2,  StimStepSize200nA},
+    {0.5,  StimStepSize500nA},
+    {1.0,  StimStepSize1uA},
+    {2.0,  StimStepSize2uA},
+    {5.0,  StimStepSize5uA},
+    {10.0, StimStepSize10uA}
+}};
 
 enum UsbVersion {
     USB2,
@@ -101,7 +134,7 @@ class BoardSelectDialog : public QDialog
 {
     Q_OBJECT
 public:
-    BoardSelectDialog(IntanRhxModule *mod, QWidget *parent = nullptr);
+    BoardSelectDialog(IntanRhxModule *mod, QString settingsFileName, QWidget *parent = nullptr);
     ~BoardSelectDialog();
 
     static bool validControllersPresent(QVector<ControllerInfo*> cInfo);
@@ -124,6 +157,11 @@ private:
     void showDemoMessageBox();
     void startSoftware(ControllerType controllerType, AmplifierSampleRate sampleRate, StimStepSize stimStepSize,
                        int numSPIPorts, bool expanderConnected, const QString& boardSerialNumber, AcquisitionMode mode, bool is7310, DataFileReader* dataFileReader=nullptr);
+    void startSoftwareFromSettings(QString settingsFileName);
+
+    AmplifierSampleRate parseSampleRate(const QString& sampleRateStr, ControllerType controllerType);
+    StimStepSize parseStimStepSize(const QString& stimStepSizeStr);
+    ControllerType getControllerType(const ControllerInfo& info);
 
     QTableWidget *boardTable;
     QPushButton *openButton;

@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.4.0
+//  Version 3.5.0
 //
-//  Copyright (c) 2020-2025 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -60,6 +60,9 @@ PerformanceOptimizationDialog::PerformanceOptimizationDialog(SystemState* state_
     plottingModeComboBox = new QComboBox(this);
     state->plottingMode->setupComboBox(plottingModeComboBox);
 
+    bufferWarningSoundCheckBox = new QCheckBox("Play warning sounds as HW/SW buffers fill.", this);
+    bufferWarningSoundCheckBox->setChecked(state->bufferWarningSoundsEnabled->getValue());
+
     QHBoxLayout *XPUSelectionRow = new QHBoxLayout;
     XPUSelectionRow->addWidget(new QLabel(tr("Selected XPU:"), this));
     XPUSelectionRow->addWidget(XPUSelectionComboBox);
@@ -71,6 +74,9 @@ PerformanceOptimizationDialog::PerformanceOptimizationDialog(SystemState* state_
     QHBoxLayout *plottingModeRow = new QHBoxLayout;
     plottingModeRow->addWidget(new QLabel(tr("Plotting Mode:"), this));
     plottingModeRow->addWidget(plottingModeComboBox);
+
+    QHBoxLayout *bufferWarningSoundRow = new QHBoxLayout;
+    bufferWarningSoundRow->addWidget(bufferWarningSoundCheckBox);
 
     QVBoxLayout *XPUGroupBoxLayout = new QVBoxLayout;
     XPUGroupBoxLayout->addWidget(new QLabel(tr(         "This software can use any connected XPU (CPU or GPU) to accelerate filtering\n"
@@ -95,6 +101,9 @@ PerformanceOptimizationDialog::PerformanceOptimizationDialog(SystemState* state_
                                                         "of the waveforms. This feature works only for sweep mode."), this));
     plottingModeGroupBoxLayout->addLayout(plottingModeRow);
 
+    QVBoxLayout *bufferWarningSoundGroupBoxLayout = new QVBoxLayout;
+    bufferWarningSoundGroupBoxLayout->addLayout(bufferWarningSoundRow);
+
     QGroupBox *XPUGroupBox = new QGroupBox(tr("XPU"), this);
     XPUGroupBox->setLayout(XPUGroupBoxLayout);
 
@@ -103,6 +112,9 @@ PerformanceOptimizationDialog::PerformanceOptimizationDialog(SystemState* state_
 
     QGroupBox *plottingModeGroupBox = new QGroupBox(tr("Plotting Mode"), this);
     plottingModeGroupBox->setLayout(plottingModeGroupBoxLayout);
+
+    QGroupBox *bufferWarningSoundGroupBox = new QGroupBox(tr("HW/SW Buffer Warning Sounds"), this);
+    bufferWarningSoundGroupBox->setLayout(bufferWarningSoundGroupBoxLayout);
 
     buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
 
@@ -113,6 +125,7 @@ PerformanceOptimizationDialog::PerformanceOptimizationDialog(SystemState* state_
     mainLayout->addWidget(XPUGroupBox);
     mainLayout->addWidget(writeLatencyGroupBox);
     mainLayout->addWidget(plottingModeGroupBox);
+    mainLayout->addWidget(bufferWarningSoundGroupBox);
     mainLayout->addWidget(buttonBox);
 
     setLayout(mainLayout);
@@ -134,6 +147,9 @@ void PerformanceOptimizationDialog::initialize()
 
     // Find the current plottingMode state and make the selected entry in its combo box.
     plottingModeComboBox->setCurrentIndex(state->plottingMode->getIndex());
+
+    // Find the current bufferWarningSoundsEnabled state and update its check box.
+    bufferWarningSoundCheckBox->setChecked(state->bufferWarningSoundsEnabled->getValue());
 
     if (state->testMode->getValue()) {
         writeLatencyComboBox->setEnabled(false);
