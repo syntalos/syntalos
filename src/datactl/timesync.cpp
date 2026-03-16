@@ -627,16 +627,17 @@ void SecondaryClockSynchronizer::processTimestamp(
 {
     const int64_t curOffsetUsec = (secondaryAcqTimestamp - masterTimestamp).count();
 
-    // add new datapoint to our "memory" vector, maintaining the running sum
+    // Use only historical samples when deciding how to react to the current datapoint.
+    // This preserves the pre-optimization behavior while still keeping the O(1) running-sum mean.
+    const int64_t avgOffsetUsec = m_runningOffsetSum / static_cast<int64_t>(m_calibrationMaxN);
+    const int64_t avgOffsetDeviationUsec = avgOffsetUsec - m_expectedOffset.count();
+
+    // add new datapoint to our "memory" vector, maintaining the running sum for subsequent calls
     m_runningOffsetSum -= m_clockOffsetsUsec[m_calibrationIdx];
     m_clockOffsetsUsec[m_calibrationIdx] = curOffsetUsec;
     m_runningOffsetSum += curOffsetUsec;
     if (++m_calibrationIdx >= m_calibrationMaxN)
         m_calibrationIdx = 0;
-
-    // calculate offsets and offset expectation delta
-    const int64_t avgOffsetUsec = m_runningOffsetSum / static_cast<int64_t>(m_calibrationMaxN);
-    const int64_t avgOffsetDeviationUsec = avgOffsetUsec - m_expectedOffset.count();
 
     // update delay-after-adjustment counter
     if (m_clockUpdateWaitPoints > 0)
