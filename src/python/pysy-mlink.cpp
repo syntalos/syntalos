@@ -523,8 +523,15 @@ PYBIND11_MODULE(syntalos_mlink, m)
     py::class_<Frame>(m, "Frame", "A video frame.")
         .def(py::init<>())
         .def_readwrite("index", &Frame::index, "Number of the frame.")
-        .def_readwrite("time_usec", &Frame::time, "Time when the frame was recorded.")
-        .def_readwrite("mat", &Frame::mat, "Frame image data.");
+        .def_readwrite("time", &Frame::time, "Time when the frame was recorded.")
+        .def_readwrite("mat", &Frame::mat, "Frame image data.")
+        // Convenience helpers
+        .def_property_readonly(
+            "time_usec",
+            [](const Frame &f) {
+                return f.time.count();
+            },
+            "Time when the frame was recorded, as integer in µs.");
 
     /**
      ** Control Command
@@ -575,7 +582,14 @@ PYBIND11_MODULE(syntalos_mlink, m)
         .def_readwrite("pin_name", &FirmataData::pinName)
         .def_readwrite("value", &FirmataData::value)
         .def_readwrite("is_digital", &FirmataData::isDigital)
-        .def_readwrite("time", &FirmataData::time, "Time when the data was acquired.");
+        .def_readwrite("time", &FirmataData::time, "Time when the data was acquired.")
+        // Convenience helpers
+        .def_property_readonly(
+            "time_usec",
+            [](const FirmataData &fm) {
+                return fm.time.count();
+            },
+            "Time when the data was acquired, as integer in µs.");
 
     /**
      ** Signal Blocks
