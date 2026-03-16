@@ -1,18 +1,14 @@
 #!/usr/bin/make -f
 # -*- mode: makefile; coding: utf-8 -*-
 
-SY_ENABLED_MODULES := camera-arv,miniscope,plot
+SY_ENABLED_MODULES := camera-arv,camera-tis,miniscope,plot
 
 ifneq (,$(filter $(DEB_HOST_ARCH), amd64))
     # We don't build Intan support on non-amd64, Intan does not support this officially
 	SY_ENABLED_MODULES := $(SY_ENABLED_MODULES),intan-rhx
-
-	# Disable TIS camera support as well, upstream-provided binaries are broken,
-	# and we haven't decided if we want to crossbuild this stuff yet
-	SY_ENABLED_MODULES := $(SY_ENABLED_MODULES),camera-tis
 endif
 
-# FIXME: Super dirty hack to get tiscamera to build - should be replaced
+# FIXME: Super dirty hack to get tiscamera to build for the PPA - should be replaced
 # by building a proper tiscam package eventually.
 export PKG_CONFIG_PATH=$(CURDIR)/contrib/vendor/tiscam/i/lib/pkgconfig/
 TCAM_DIR=$(CURDIR)/contrib/vendor/tiscam
@@ -50,4 +46,5 @@ override_dh_auto_test:
 	:
 
 override_dh_shlibdeps:
+	# we make some modules runtime-optional, so the user can install support on-demand
 	dh_shlibdeps -Xmodules/camera-tis/camera-tis.so -Xmodules/miniscope/miniscope.so

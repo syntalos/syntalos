@@ -37,7 +37,11 @@ if [ "$git_commit_no" -gt 0 ]; then
   upstream_version+="+git$git_commit_no"
 fi
 
-mv contrib/debian .
+cp -dpr contrib/debian .
+
+# remove tiscamera-dev dependency - that package is not available in the PPA
+sed -i '/tiscamera-dev,/d' debian/control
+
 dch --distribution "noble" --newversion="${upstream_version}" -b \
     "New automated build from: ${upstream_version} - ${git_commit}"
 

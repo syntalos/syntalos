@@ -47,7 +47,7 @@ Build-Depends: debhelper-compat (= 13),
                qt6-multimedia-dev,
                qt6-serialport-dev,
                systemd-dev,
-               tiscamera-dev [amd64],
+               tiscamera-dev,
                udev,
                uuid-dev,
                xvfb
