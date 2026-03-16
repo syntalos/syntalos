@@ -361,6 +361,98 @@ private slots:
         }
     }
 
+    void runExClockSynchronizerMovingAverage()
+    {
+        qDebug() << "\n#\n# External Clock Synchronizer Moving Average\n#";
+        std::shared_ptr<SyncTimer> syTimer(new SyncTimer());
+        std::unique_ptr<SecondaryClockSynchronizer> sync(new SecondaryClockSynchronizer(syTimer, nullptr));
+
+        const auto toleranceValue = microseconds_t(4500);
+        const auto calibrationCount = 46;
+        const auto sampleInterval = milliseconds_t(20);
+        const auto steadyOffset = microseconds_t(-500000);
+        const auto calibrationJitter = microseconds_t(5000);
+        const auto divergenceStep = microseconds_t(4600);
+
+        sync->setStrategies(
+            TimeSyncStrategy::ADJUST_CLOCK | TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD
+            | TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD);
+        sync->setCalibrationPointsCount(calibrationCount);
+        sync->setTolerance(toleranceValue);
+
+        syTimer->start();
+        QVERIFY(sync->start());
+
+        auto curMasterTS = microseconds_t(500 * 1000);
+        int calibrationSamples = 0;
+        for (; !sync->isCalibrated(); ++calibrationSamples) {
+            const auto curSecondaryTS = curMasterTS + steadyOffset
+                                        + ((calibrationSamples % 2 == 0) ? -calibrationJitter : calibrationJitter);
+
+            auto syncMasterTS = curMasterTS;
+            sync->processTimestamp(syncMasterTS, curSecondaryTS);
+
+            QCOMPARE(sync->clockCorrectionOffset().count(), 0);
+            QCOMPARE(syncMasterTS.count(), curMasterTS.count());
+
+            curMasterTS += sampleInterval;
+            QVERIFY(calibrationSamples < (calibrationCount * 4));
+        }
+
+        QCOMPARE(sync->expectedOffsetToMaster().count(), steadyOffset.count());
+
+        // Flush the calibration samples out of the moving window while keeping the clock steady.
+        for (auto i = 0; i < calibrationCount; ++i) {
+            const auto curSecondaryTS = curMasterTS + steadyOffset;
+
+            auto syncMasterTS = curMasterTS;
+            sync->processTimestamp(syncMasterTS, curSecondaryTS);
+
+            QCOMPARE(sync->clockCorrectionOffset().count(), 0);
+            QCOMPARE(syncMasterTS.count(), curMasterTS.count());
+
+            curMasterTS += sampleInterval;
+        }
+
+        // With a 46-point window and 4600us sustained divergence, the historic mean reaches the
+        // 4500us tolerance only on the 46th shifted sample. If the implementation incorrectly
+        // includes the current sample in that mean, correction starts one sample too early.
+        for (auto i = 0; i < (calibrationCount - 1); ++i) {
+            const auto curSecondaryTS = curMasterTS + steadyOffset + divergenceStep;
+
+            auto syncMasterTS = curMasterTS;
+            sync->processTimestamp(syncMasterTS, curSecondaryTS);
+
+            QVERIFY2(
+                sync->clockCorrectionOffset().count() == 0,
+                qPrintable(QStringLiteral("shifted sample %1 of %2 changed correction offset to %3")
+                               .arg(i + 1)
+                               .arg(calibrationCount - 1)
+                               .arg(sync->clockCorrectionOffset().count())));
+            QVERIFY2(
+                syncMasterTS.count() == curMasterTS.count(),
+                qPrintable(QStringLiteral("shifted sample %1 of %2 changed master timestamp from %3 to %4")
+                               .arg(i + 1)
+                               .arg(calibrationCount - 1)
+                               .arg(curMasterTS.count())
+                               .arg(syncMasterTS.count())));
+
+            curMasterTS += sampleInterval;
+        }
+
+        const auto curSecondaryTS = curMasterTS + steadyOffset + divergenceStep;
+
+        auto syncMasterTS = curMasterTS;
+        sync->processTimestamp(syncMasterTS, curSecondaryTS);
+
+        QVERIFY2(
+            sync->clockCorrectionOffset().count() > 0,
+            qPrintable(QString::number(sync->clockCorrectionOffset().count()) + " > 0"));
+        QVERIFY2(
+            syncMasterTS.count() > curMasterTS.count(),
+            qPrintable(QString::number(syncMasterTS.count()) + " > " + QString::number(curMasterTS.count())));
+    }
+
     void runFreqCounterSynchronizer()
     {
         qDebug() << "\n#\n# External FreqCounter Synchronizer\n#";
