@@ -766,26 +766,31 @@ void SyntalosLink::awaitData(int timeoutUsec)
     }
 }
 
-void SyntalosLink::awaitDataForever()
+void SyntalosLink::awaitDataForever(const std::function<void()> &eventFn, int intervalMsec)
 {
     if (d->waitSetDirty)
         d->rebuildWaitSet();
 
-    d->waitSet
-        ->wait_and_process(
-            [this](const iox2::WaitSetAttachmentId<iox2::ServiceType::Ipc> &attachmentId) -> iox2::CallbackProgression {
-                // handle control messages
-                if (attachmentId.has_event_from(*d->waitSetCtrlGuard)) {
-                    processPendingControl();
-                } else {
-                    // handle incoming data
-                    d->processPendingData(attachmentId);
-                }
+    auto onEvent =
+        [this](const iox2::WaitSetAttachmentId<iox2::ServiceType::Ipc> &attachmentId) -> iox2::CallbackProgression {
+        if (attachmentId.has_event_from(*d->waitSetCtrlGuard)) {
+            processPendingControl();
+        } else {
+            d->processPendingData(attachmentId);
+        }
+        return iox2::CallbackProgression::Continue;
+    };
 
-                qApp->processEvents();
-                return iox2::CallbackProgression::Continue;
-            })
-        .value();
+    while (true) {
+        const auto res = d->waitSet->wait_and_process_once_with_timeout(
+            onEvent, iox2::bb::Duration::from_millis(intervalMsec));
+        if (!res.has_value()) {
+            qDebug().noquote() << "Event loop terminated unexpectedly:" << iox2::bb::into<const char *>(res.error());
+            return;
+        }
+        if (eventFn)
+            eventFn();
+    }
 }
 
 ModuleState SyntalosLink::state() const

@@ -82,5 +82,10 @@ pkgc.generate(
     requires: [
         'Qt6Core',
         'eigen3',
-    ]
+    ],
+    # mimalloc is exposed in headers where we explicitly use it as allocator,
+    # but we do not force it on the application linking against this library
+    # If a dynamic-malloc-overriding library becomes a problem in future, we
+    # can force datactl to link mimalloc statically.
+    libraries: ['-lmimalloc'],
 )

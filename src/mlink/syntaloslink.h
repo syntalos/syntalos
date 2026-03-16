@@ -123,7 +123,7 @@ public:
     SyncTimer *timer() const;
 
     void awaitData(int timeoutUsec = -1);
-    void awaitDataForever();
+    void awaitDataForever(const std::function<void()> &eventFn = nullptr, int intervalMsec = 125);
 
     ModuleState state() const;
     void setState(ModuleState state);

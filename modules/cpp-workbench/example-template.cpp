@@ -36,17 +36,19 @@ public:
     void start() override
     {
         // Actions to perform immediately before data is first acquired go here
+        SyntalosLinkModule::start();
     }
 
     void onTableDataReceived(const TableRow &row)
     {
-        // we just fast-forward the row without any edits to the output port
+        // We just fast-forward the row without any edits to the output port
         m_tabOut->submit(row);
     }
 
     void stop() override
     {
         // Actions to perform once the run is stopped go here
+        SyntalosLinkModule::stop();
     }
 };
 
@@ -59,7 +61,9 @@ int main(int argc, char *argv[])
 
     // Create & run module
     auto mod = std::make_unique<MyCppModule>(slink.get());
-    slink->awaitDataForever();
+    slink->awaitDataForever([]() {
+        QCoreApplication::processEvents();
+    });
 
     return a.exec();
 }

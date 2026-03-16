@@ -64,6 +64,9 @@ SyntalosLinkModule::SyntalosLinkModule(SyntalosLink *slink)
         m_running = false;
         stop();
     });
+
+    // signal that we are ready and done with initialization
+    m_slink->setState(ModuleState::IDLE);
 }
 
 SyntalosLinkModule::~SyntalosLinkModule() {}
