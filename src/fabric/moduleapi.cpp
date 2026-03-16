@@ -20,6 +20,7 @@
 #include "moduleapi.h"
 
 #include "config.h"
+#include <cmath>
 #include <QCoreApplication>
 #include <QDebug>
 #include <QDir>
@@ -30,6 +31,7 @@
 
 #include "datactl/frametype.h"
 #include "utils/misc.h"
+#include "utils/style.h"
 
 using namespace Syntalos;
 
@@ -138,40 +140,72 @@ QColor ModuleInfo::color() const
     if (img.isNull())
         return Qt::lightGray;
 
-    int redBucket = 0;
-    int greenBucket = 0;
-    int blueBucket = 0;
-    int totalColorCount = 0;
+    // Compute a saturation-weighted circular mean in HSV space.
+    // Working in HSV lets us filter dark/light/gray pixels directly, and
+    // weighting by saturation ensures vivid, representative pixels
+    // dominate over washed-out ones.
+    double weightedHueX = 0.0;
+    double weightedHueY = 0.0;
+    double weightedSat = 0.0;
+    double weightedVal = 0.0;
+    double totalWeight = 0.0;
 
-    auto bits = img.constBits();
-
+    const auto bits = img.constBits();
     for (int y = 0, h = img.height(); y < h; y++) {
         for (int x = 0, w = img.width(); x < w; x++) {
-            QRgb color = ((uint *)bits)[x + y * w];
-            if (qAlpha(color) < 100)
+            const QRgb c = reinterpret_cast<const uint *>(bits)[x + y * w];
+            if (qAlpha(c) < 100)
                 continue;
 
-            const auto red = qRed(color);
-            const auto green = qGreen(color);
-            const auto blue = qBlue(color);
+            int hue, sat, val;
+            QColor::fromRgb(c).getHsv(&hue, &sat, &val);
 
-            // try to ignore colors too close to white or black
-            if ((abs(red - green) < 38) && (abs(green - blue) < 38))
+            // Skip near-black or near-white pixels
+            if (val < 40 || val > 220)
+                continue;
+            // Skip unsaturated (gray-ish) pixels; hue is -1 for achromatic colors in Qt
+            if (sat < 60 || hue < 0)
                 continue;
 
-            redBucket += red;
-            greenBucket += green;
-            blueBucket += blue;
-            totalColorCount++;
+            // Weight by saturation so the most vivid pixels dominate
+            const double weight = sat / 255.0;
+
+            // Accumulate circular (angular) mean components for hue
+            const double hueRad = hue * M_PI / 180.0;
+            weightedHueX += std::cos(hueRad) * weight;
+            weightedHueY += std::sin(hueRad) * weight;
+            weightedSat += sat * weight;
+            weightedVal += val * weight;
+            totalWeight += weight;
         }
     }
 
-    // return a gray/black-ish color in case everything was black
-    // or has no usable colors
-    if (totalColorCount == 0)
+    // Return a gray/black-ish color if no usable pixels were found
+    if (totalWeight == 0.0)
         return QColor::fromRgb(77, 77, 77);
 
-    return QColor::fromRgb(redBucket / totalColorCount, greenBucket / totalColorCount, blueBucket / totalColorCount);
+    // Recover mean hue from the circular mean vector
+    double meanHueDeg = std::atan2(weightedHueY, weightedHueX) * 180.0 / M_PI;
+    if (meanHueDeg < 0.0)
+        meanHueDeg += 360.0;
+
+    int meanHue = qBound(0, static_cast<int>(std::round(meanHueDeg)), 359);
+    int meanSat = qBound(0, static_cast<int>(std::round(weightedSat / totalWeight)), 255);
+    int meanVal = qBound(0, static_cast<int>(std::round(weightedVal / totalWeight)), 255);
+
+    // If the derived color falls too close to SyColorDanger, a red color we use to signal failure,
+    // shift it just past the "danger zone" toward orange so it stays visually distinct from an
+    // actual error indication.
+    const int dangerHue = SyColorDanger.hsvHue();
+    constexpr int dangerTolerance = 24;                                  // degrees either side of the danger hue
+    const int hueDiff = qAbs(((meanHue - dangerHue) + 540) % 360 - 180); // circular distance
+    const bool inDangerRedZone = hueDiff <= dangerTolerance && meanSat > 80;
+    if (inDangerRedZone) {
+        meanHue = (dangerHue + dangerTolerance + 12) % 360; // shift just past the zone, toward orange
+        meanSat = qMin(meanSat, 210);                       // slightly reduce saturation to look less alarming
+    }
+
+    return QColor::fromHsv(meanHue, meanSat, meanVal);
 }
 
 ModuleCategories ModuleInfo::categories() const
