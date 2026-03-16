@@ -430,10 +430,8 @@ void MainWindow::setRunUiControlStates(bool engineRunning, bool stopPossible)
     ui->actionIntervalRunConfig->setEnabled(!engineRunning);
 
     // these actions show dialogs that would block the UI processing loop
-    ui->actionSystemInfo->setEnabled(!engineRunning);
     ui->actionModuleLoadInfo->setEnabled(!engineRunning);
     ui->actionUsbDevices->setEnabled(!engineRunning);
-    ui->actionAbout->setEnabled(!engineRunning);
 
     // do not permit save/load while we are running
     ui->actionProjectNew->setEnabled(!engineRunning);
@@ -1271,12 +1269,14 @@ void MainWindow::updateIntervalRunMessage()
 
 void MainWindow::aboutActionTriggered()
 {
-    AboutDialog about(this);
+    auto about = new AboutDialog(this);
+    about->setAttribute(Qt::WA_DeleteOnClose);
 
     for (auto &info : m_engine->library()->moduleInfo())
-        about.addModuleLicense(info->name(), info->license());
+        about->addModuleLicense(info->name(), info->license());
 
-    about.exec();
+    // we must not use exec() here to prevent blocking the GUI during a run
+    about->open();
 }
 
 void MainWindow::onModuleCreated(ModuleInfo *, AbstractModule *mod)
@@ -1554,8 +1554,10 @@ void MainWindow::hideBusyIndicator()
 
 void MainWindow::on_actionEditComment_triggered()
 {
-    CommentDialog dlg(m_engine, this);
-    dlg.exec();
+    auto dlg = new CommentDialog(m_engine, this);
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    // we must not use dlg.exec() here to prevent blocking the GUI during a run
+    dlg->open();
 }
 
 void MainWindow::on_actionSubjectsLoad_triggered()
@@ -1616,8 +1618,10 @@ void MainWindow::on_actionTimings_triggered()
 
 void MainWindow::on_actionSystemInfo_triggered()
 {
-    SysInfoDialog sysInfoDlg(m_engine->sysInfo(), this);
-    sysInfoDlg.exec();
+    auto sysInfoDlg = new SysInfoDialog(m_engine->sysInfo(), this);
+    sysInfoDlg->setAttribute(Qt::WA_DeleteOnClose);
+    // we must not use exec() here to prevent blocking the GUI during a run
+    sysInfoDlg->open();
 }
 
 /**
