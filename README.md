@@ -12,7 +12,7 @@ It is specifically designed for use in (neuro)scientific in vivo behavior experi
 Syntalos is built with a set of core principles in mind:
  * Timestamps of all data sources of an experiment should be synchronized (within tolerance limits), so data at
    specific points in time can be directly compared. If hardware synchronization is unavailable, a software solution is used.
- * A data acquistion task must not block a different acquistion or processing task.
+ * A data acquisition task must not block a different acquisition or processing task.
  * Data is stored in a fixed directory structure (Experiment Directory Layout, EDL) with all metadata alongside the data.
  * The software must account for experimenter error and have sane failure modes (autocorrect bad experimenter input, never have a component fail silently, ...)
  * The software must never auto-adjust parameters without logging the fact
@@ -21,19 +21,19 @@ Syntalos is built with a set of core principles in mind:
 
 ## For Users
 
-<a href="https://flathub.org/apps/org.syntalos.syntalos">
-<img src="https://flathub.org/assets/badges/flathub-badge-en.png" width="140"/>
-</a>
-
-You can install Syntalos directly [from your App-Center](https://flathub.org/apps/org.syntalos.syntalos)
-if the Flathub repository is set up on your Linux system.
-
 You can find quick instructions to install Syntalos on various Linux distributions
 via our [Quick Install Guide](https://syntalos.org/get/).
 
 We also provide more detailed installation instructions and links to prebuilt packages
 [in the Syntalos documentation](https://syntalos.org/docs/setup/install/).
 The documentation also contains information how to best use Syntalos.
+
+<a href="https://flathub.org/apps/org.syntalos.syntalos">
+<img src="https://flathub.org/assets/badges/flathub-badge-en.png" width="140"/>
+</a>
+
+Alternatively, you can install Syntalos directly [from your App-Center](https://flathub.org/apps/org.syntalos.syntalos)
+if the Flathub repository is set up on your Linux system.
 
 To make Syntalos work for your experimental setup, you can either create new modules and integration code, or
 utilize already existing modules to acquire and transform data without any required coding!
@@ -66,16 +66,16 @@ to submit a change, bugfix or new module.
 
 ### Dependencies
 
- * C++20 compatible compiler
-   (GCC >= 12 or Clang >= 18. GCC is recommended)
- * Meson (>= 1.2.2)
+ * C++23 compatible compiler
+   (GCC >= 14 or Clang >= 19. GCC is recommended)
+ * Meson (>= 1.4.0)
  * Qt6 (>= 6.4)
  * Qt6 Test
  * Qt6 OpenGL
  * Qt6 SVG
  * Qt6 SerialPort
  * GLib (>= 2.58)
- * [Iceoryx](https://github.com/eclipse-iceoryx/iceoryx) (>= 2.0)
+ * [iceoryx2](https://github.com/eclipse-iceoryx/iceoryx2) (>= 0.9.0)
  * Eigen3
  * [TOML++](https://github.com/marzer/tomlplusplus/)
  * OpenCV (>= 4.1)
@@ -86,18 +86,17 @@ to submit a change, bugfix or new module.
  * KF6 TextEditor
  * [pybind11](https://github.com/pybind/pybind11)
  * libusb (>= 1.0)
+ * [mimalloc](https://github.com/microsoft/mimalloc)
  * ImGui / ImPlot (optional, needed for plotting)
 
 ### Quick Build Instructions
 
-We recommend Debian 13 (Trixie) or Ubuntu 24.04 (Noble Numbat) to build & run Syntalos,
+We recommend Debian 13 (Trixie) or Ubuntu 26.04 (Resolute Raccoon) to build & run Syntalos,
 but any Linux distribution that has a recent enough C++ compiler and Qt version
 should work.
-On Ubuntu 24.04, you can get some required updated dependencies via the Syntalos PPA.
-The PPA can be added using this command: `sudo add-apt-repository -y ppa:ximion/syntalos`
 
 Some modules may require additional dependencies on libraries to communicate with hardware devices, or to implement
-their repective features.
+their respective features.
 In case you get a dependency error when running `meson`, install the missing dependency or try to build with less modules enabled.
 
 Before attempting to build Syntalos, ensure all dependencies (and their development files) are installed on your system.
@@ -109,7 +108,7 @@ If you are concerned by this, please install the packages mentioned in the scrip
 After installing all dependencies, you should be able to build the software after configuring the build for your platform using Meson:
 ```sh
 mkdir build && cd build
-meson --buildtype=debugoptimized -Doptimize-native=true ..
+meson setup --buildtype=debugoptimized -Doptimize-native=true ..
 ninja
 sudo ninja install
 ```
@@ -120,5 +119,5 @@ comma-separated values.
 ### Contributing
 
 Pull-requests for new modules, bugfixes or any changes are very welcome!
-(Code should be valid C++20, use 4 spaces for indentation. With clang-format installed, `autoformat.py` can be used
+(Code should be valid C++23, use 4 spaces for indentation. With clang-format installed, `autoformat.py` can be used
 to automatically format C++ and Python code)
