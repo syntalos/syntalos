@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2020-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -206,12 +206,26 @@ void CropTransform::createSettingsUi(QWidget *parent)
         auto selector = dlg->pixmapRegionSelectorWidget();
         selector->setPixmap(pixmap.value());
 
-        // Pre-select the current ROI in the original image coordinates
-        if (m_roi.width > 0 && m_roi.height > 0)
-            selector->setSelectedRegion(QRect(m_roi.x, m_roi.y, m_roi.width, m_roi.height));
-        // Adjust the dialog size to fit the screen, the image size on screen will be fixed
-        // even if the user maximizes the dialog.
+        // Establish the zoom factor first: the dialog may scale down large images to
+        // fit on screen, and setSelectedRegion() expects *zoomed* (screen) coordinates.
+        // Calling this before setSelectedRegion avoids a double-truncation bug where
+        // setMaximumWidgetSize() would rescale the already-stored region with integer
+        // math, shifting coordinates by several pixels on large images.
         dlg->adjustRegionSelectorWidgetSizeToFitScreen();
+
+        // Pre-select the current ROI, converting from original to zoomed coordinates.
+        // The zoom factor is derived from the ratio of the displayed full-image rect
+        // (which setMaximumWidgetSize() just set) to the original pixmap dimensions.
+        if (m_roi.width > 0 && m_roi.height > 0) {
+            const QRect fullZoomed = selector->selectedRegion();
+            const double zoomX = (double)fullZoomed.width() / pixmap.value().width();
+            const double zoomY = (double)fullZoomed.height() / pixmap.value().height();
+            selector->setSelectedRegion(QRect(
+                qRound(m_roi.x * zoomX),
+                qRound(m_roi.y * zoomY),
+                qRound(m_roi.width * zoomX),
+                qRound(m_roi.height * zoomY)));
+        }
 
         connect(dlg, &QDialog::accepted, [this, dlg]() {
             const QRect selected = dlg->pixmapRegionSelectorWidget()->unzoomedSelectedRegion();
