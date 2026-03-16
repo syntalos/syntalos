@@ -88,7 +88,7 @@ jobs:
           ls -la release_assets/
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2.4.2
+        uses: softprops/action-gh-release@v2.6.1
         with:
           name: Version ${{ needs.revision.outputs.version }}
           discussion_category_name: announcements
