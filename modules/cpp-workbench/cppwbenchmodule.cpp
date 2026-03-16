@@ -259,6 +259,7 @@ public:
         const auto wasVisible = m_codeWindow->isVisible();
         m_codeWindow->show();
         m_codeWindow->raise();
+        m_codeWindow->activateWindow();
         appProcessEvents();
 
         QTimer::singleShot(100, this, [this, wasVisible]() {

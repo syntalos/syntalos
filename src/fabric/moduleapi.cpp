@@ -631,7 +631,13 @@ void AbstractModule::showDisplayUi()
         if (onlyOne)
             wp.first->setWindowTitle(name());
         wp.first->show();
+
+        // raise() is a no-op on Wayland, but activate does bring
+        // the window to the front if it was hidden on most Wayland
+        // compositors... On X11, raise() is enough, but activating
+        // the window too does not hurt and is what the user expects.
         wp.first->raise();
+        wp.first->activateWindow();
     }
 }
 
@@ -659,7 +665,13 @@ void AbstractModule::showSettingsUi()
         }
 
         wp.first->show();
+
+        // raise() is a no-op on Wayland, but activate does bring
+        // the window to the front if it was hidden on most Wayland
+        // compositors... On X11, raise() is enough, but activating
+        // the window too does not hurt and is what the user expects.
         wp.first->raise();
+        wp.first->activateWindow();
     }
 }
 

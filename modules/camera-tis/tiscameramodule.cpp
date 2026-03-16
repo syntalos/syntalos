@@ -105,6 +105,7 @@ public:
         m_ctlDialog->setWindowTitle(QStringLiteral("%1 - Settings").arg(name()));
         m_ctlDialog->show();
         m_ctlDialog->raise();
+        m_ctlDialog->activateWindow();
         setCameraNameStatus();
     }
 

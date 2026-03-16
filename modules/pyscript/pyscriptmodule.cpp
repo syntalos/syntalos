@@ -194,6 +194,7 @@ public:
 
         m_scriptWindow->show();
         m_scriptWindow->raise();
+        m_scriptWindow->activateWindow();
     }
 
     bool prepare(const TestSubject &testSubject) override
