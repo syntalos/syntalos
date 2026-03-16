@@ -59,6 +59,8 @@ enum class ModuleState : uint16_t {
  */
 struct BaseDataType {
 public:
+    virtual ~BaseDataType() = default;
+
     /**
      * @brief The TypeId enum
      *
