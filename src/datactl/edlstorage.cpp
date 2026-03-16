@@ -228,7 +228,7 @@ bool EDLUnit::save()
     return saveAttributes();
 }
 
-bool EDLUnit::validate()
+bool EDLUnit::validate(bool recursive)
 {
     return true;
 }
@@ -759,7 +759,7 @@ bool EDLGroup::save()
         setLastError(QStringLiteral("Unable to save experiment data: No root directory is set."));
         return false;
     }
-    if (!validate())
+    if (!validate(false))
         return false;
 
     // save all our subnodes first
@@ -781,7 +781,7 @@ bool EDLGroup::save()
     return EDLUnit::save();
 }
 
-bool EDLGroup::validate()
+bool EDLGroup::validate(bool recursive)
 {
     if (rootPath().isEmpty()) {
         setLastError(QStringLiteral("Group %1 is missing a root path.").arg(name()));
@@ -800,10 +800,8 @@ bool EDLGroup::validate()
         }
         seenNames.insert(childName);
 
-        qDebug() << "!!!!!!!!!" << name() << "->" << childName;
-
         // recursively validate child nodes
-        if (!obj->validate()) {
+        if (recursive && !obj->validate(recursive)) {
             setLastError(obj->lastError());
             return false;
         }

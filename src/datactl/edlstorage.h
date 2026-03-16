@@ -132,7 +132,7 @@ public:
     void insertAttribute(const QString &key, const QVariant &value);
 
     virtual bool save();
-    virtual bool validate();
+    virtual bool validate(bool recursive = true);
 
     QString lastError() const;
 
@@ -259,7 +259,7 @@ public:
     std::shared_ptr<EDLDataset> datasetByName(const QString &name, EDLCreateFlag flag = EDLCreateFlag::OPEN_ONLY);
 
     bool save() override;
-    bool validate() override;
+    bool validate(bool recursive = true) override;
 
 private:
     class Private;
