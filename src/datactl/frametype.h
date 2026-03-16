@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -17,7 +17,12 @@
  * along with this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+// We allow the "Frame" type to not be compiled in, since anyone
+// linking against datactl does not also want to link against
+// OpenCV, which is a very heavy dependency.
+#ifndef SY_DATACTL_NO_FRAMETYPE
 #pragma once
+
 #include "datatypes.h"
 #include <opencv2/core.hpp>
 
@@ -186,3 +191,5 @@ struct Frame : BaseDataType {
 };
 
 } // namespace Syntalos
+
+#endif // SY_DATACTL_NO_FRAMETYPE

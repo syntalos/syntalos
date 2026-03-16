@@ -2,6 +2,7 @@
 
 #pragma once
 #include <datactl/datatypes.h>
+#include <datactl/frametype.h>
 #include <datactl/edlstorage.h>
 #include <datactl/syclock.h>
 #include <datactl/symemopt.h>

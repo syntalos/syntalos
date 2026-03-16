@@ -23,7 +23,9 @@
 #include <QObject>
 #include <QHash>
 #include <QTimer>
+#define SY_DATACTL_NO_FRAMETYPE
 #include <syntalos-mlink>
+#undef SY_DATACTL_NO_FRAMETYPE
 
 namespace py = pybind11;
 using namespace Syntalos;
