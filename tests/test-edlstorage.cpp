@@ -88,7 +88,7 @@ private slots:
 
         collection->setGeneratorId(QCoreApplication::applicationName());
 
-        auto dset = collection->datasetByName("mydata", true);
+        auto dset = collection->datasetByName("mydata", EDLCreateFlag::MUST_CREATE);
         dset->addDataFilePart("/usr/local/share/blah.test");
 
         QVariantHash attrs;
@@ -106,10 +106,10 @@ private slots:
         attrs.insert("hello", subMap);
         dset->setAttributes(attrs);
 
-        auto vidGroup = collection->groupByName("videos", true);
-        auto dsCam = vidGroup->datasetByName("Top Camera", true);
+        auto vidGroup = collection->groupByName("videos", EDLCreateFlag::CREATE_OR_OPEN);
+        auto dsCam = vidGroup->datasetByName("Top Camera", EDLCreateFlag::MUST_CREATE);
         dsCam->addDataFilePart("camera-video.mkv");
-        vidGroup->groupByName("cats", true);
+        vidGroup->groupByName("cats", EDLCreateFlag::CREATE_OR_OPEN);
 
         QTemporaryDir dir;
         QVERIFY(dir.isValid());

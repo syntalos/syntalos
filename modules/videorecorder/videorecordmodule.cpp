@@ -193,8 +193,6 @@ public:
             m_vidDataset = createDefaultDataset(name(), m_inSub->metadata());
         else
             m_vidDataset = createDefaultDataset(m_settingsDialog->videoName());
-        if (m_vidDataset.get() == nullptr)
-            return;
     }
 
     void runThread(OptionalWaitCondition *startWaitCondition) override
@@ -225,6 +223,13 @@ public:
         if (state != RecordingState::RUNNING) {
             m_inSub->suspend();
             statusMessage(QStringLiteral("Waiting for start command."));
+        }
+
+        // exit immediately if we don't have a dataset
+        if (!m_vidDataset) {
+            // an error is already emitted at this point, via createDefaultDataset()
+            m_running = false;
+            return;
         }
 
         while (m_running) {
@@ -286,7 +291,7 @@ public:
             // the data source has completed delivering data and will not send any more
             if (!maybeFrame.has_value())
                 break;
-            const auto frame = maybeFrame.value();
+            const auto &frame = maybeFrame.value();
 
             if (m_checkCommands && m_ctlSub->hasPending()) {
                 // process control commands - we only do this when we also have got a frame,
@@ -423,7 +428,7 @@ public:
                                          << "Not performing deferred encoding, run was ephemeral.";
             return;
         }
-        if (m_vidDataset.get() == nullptr) {
+        if (m_vidDataset == nullptr) {
             qDebug().noquote().nospace()
                 << name() << ": "
                 << "Not performing deferred encoding, video dataset was not set (we probably failed the run early).";

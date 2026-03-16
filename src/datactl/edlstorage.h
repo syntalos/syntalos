@@ -27,6 +27,9 @@
 #include <memory>
 #include <optional>
 
+/**
+ * Type of an EDL unit.
+ */
 enum class EDLUnitKind {
     UNKNOWN,
     COLLECTION,
@@ -34,6 +37,9 @@ enum class EDLUnitKind {
     DATASET
 };
 
+/**
+ * Author information for an EDL collection.
+ */
 class EDLAuthor
 {
 public:
@@ -126,6 +132,7 @@ public:
     void insertAttribute(const QString &key, const QVariant &value);
 
     virtual bool save();
+    virtual bool validate();
 
     QString lastError() const;
 
@@ -224,6 +231,15 @@ private:
 };
 
 /**
+ * Flag to influence how EDL units are loaded.
+ */
+enum class EDLCreateFlag {
+    OPEN_ONLY,      /// Unit will only be opened, never created
+    CREATE_OR_OPEN, /// Unit will be opened if it exists, and created otherwise
+    MUST_CREATE     /// Unit *must* be created, it is an error if it already exists
+};
+
+/**
  * @brief A grouping of groups or datasets
  */
 class EDLGroup : public EDLUnit
@@ -239,10 +255,11 @@ public:
     QList<std::shared_ptr<EDLUnit>> children() const;
     void addChild(std::shared_ptr<EDLUnit> edlObj);
 
-    std::shared_ptr<EDLGroup> groupByName(const QString &name, bool create = false);
-    std::shared_ptr<EDLDataset> datasetByName(const QString &name, bool create = false);
+    std::shared_ptr<EDLGroup> groupByName(const QString &name, EDLCreateFlag flag = EDLCreateFlag::OPEN_ONLY);
+    std::shared_ptr<EDLDataset> datasetByName(const QString &name, EDLCreateFlag flag = EDLCreateFlag::OPEN_ONLY);
 
     bool save() override;
+    bool validate() override;
 
 private:
     class Private;

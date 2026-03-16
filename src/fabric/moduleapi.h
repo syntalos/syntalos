@@ -869,10 +869,6 @@ protected:
      * it. Otherwise return NULL.
      */
     std::shared_ptr<EDLDataset> getDefaultDataset();
-    std::shared_ptr<EDLDataset> getDatasetInGroup(
-        std::shared_ptr<EDLGroup> group,
-        const QString &preferredName = QString(),
-        const QVariantHash &subMetadata = QVariantHash());
 
     /**
      * @brief Create new data storage group with the given name

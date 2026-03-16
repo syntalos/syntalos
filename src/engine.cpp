@@ -1819,7 +1819,8 @@ bool Engine::runInternal(const QString &exportDirPath)
 
         mod->setSimpleStorageNames(d->simpleStorageNames);
         if ((modInfo != nullptr) && (!modInfo->storageGroupName().isEmpty())) {
-            auto storageGroup = storageCollection->groupByName(modInfo->storageGroupName(), true);
+            auto storageGroup = storageCollection->groupByName(
+                modInfo->storageGroupName(), EDLCreateFlag::CREATE_OR_OPEN);
             if (storageGroup == nullptr) {
                 qCCritical(logEngine) << "Unable to create data storage group with name" << modInfo->storageGroupName();
                 mod->setStorageGroup(storageCollection);
@@ -1857,9 +1858,9 @@ bool Engine::runInternal(const QString &exportDirPath)
     setInactiveModuleInputPortsSuspended(true);
 
     // exporter for streams so out-of-process mlink modules can access them
-    emitStatusMessage(QStringLiteral("Exporting streams for external modules..."));
     auto streamExporter = std::make_unique<StreamExporter>();
     if (initSuccessful) {
+        emitStatusMessage(QStringLiteral("Exporting streams for external modules..."));
         for (auto &mod : orderedActiveModules) {
             auto mlinkMod = qobject_cast<MLinkModule *>(mod);
             if (mlinkMod != nullptr)
@@ -2070,7 +2071,7 @@ bool Engine::runInternal(const QString &exportDirPath)
             << "Threaded/evented module startup completed, took " << d->timer->timeSinceStartMsec().count() << "msec";
         lastPhaseTimepoint = d->timer->currentTimePoint();
 
-        // tell all non-threaded modules individuall now that we started
+        // tell all non-threaded modules individually now that we started
         for (auto &mod : orderedActiveModules) {
             // ignore threaded & evented
             if ((mod->driver() == ModuleDriverKind::THREAD_DEDICATED)

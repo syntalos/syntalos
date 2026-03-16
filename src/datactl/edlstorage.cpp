@@ -27,6 +27,7 @@
 #include <chrono>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <mutex>
 #include <toml++/toml.h>
 
@@ -225,6 +226,11 @@ bool EDLUnit::save()
     if (!saveManifest())
         return false;
     return saveAttributes();
+}
+
+bool EDLUnit::validate()
+{
+    return true;
 }
 
 QString EDLUnit::lastError() const
@@ -696,17 +702,24 @@ void EDLGroup::addChild(std::shared_ptr<EDLUnit> edlObj)
     d->children.append(edlObj);
 }
 
-std::shared_ptr<EDLGroup> EDLGroup::groupByName(const QString &name, bool create)
+std::shared_ptr<EDLGroup> EDLGroup::groupByName(const QString &name, EDLCreateFlag flag)
 {
     const std::lock_guard<std::mutex> lock(d->mutex);
     for (auto &node : d->children) {
-        if (node->name() == name)
+        if (node->name() == name) {
+            if (flag == EDLCreateFlag::MUST_CREATE) {
+                setLastError(QStringLiteral("Group '%1' already exists in group '%2'.").arg(name, this->name()));
+                return nullptr;
+            }
             return std::dynamic_pointer_cast<EDLGroup>(node);
+        }
     }
-    if (!create)
+    if (flag == EDLCreateFlag::OPEN_ONLY) {
+        setLastError(QStringLiteral("Group '%1' not found in group '%2'.").arg(name, this->name()));
         return nullptr;
+    }
 
-    std::shared_ptr<EDLGroup> eg(new EDLGroup);
+    auto eg = std::make_shared<EDLGroup>();
     eg->setName(name);
 
     d->mutex.unlock();
@@ -714,17 +727,24 @@ std::shared_ptr<EDLGroup> EDLGroup::groupByName(const QString &name, bool create
     return eg;
 }
 
-std::shared_ptr<EDLDataset> EDLGroup::datasetByName(const QString &name, bool create)
+std::shared_ptr<EDLDataset> EDLGroup::datasetByName(const QString &name, EDLCreateFlag flag)
 {
     const std::lock_guard<std::mutex> lock(d->mutex);
     for (auto &node : d->children) {
-        if (node->name() == name)
+        if (node->name() == name) {
+            if (flag == EDLCreateFlag::MUST_CREATE) {
+                setLastError(QStringLiteral("Group '%1' already exists in group '%2'.").arg(name, this->name()));
+                return nullptr;
+            }
             return std::dynamic_pointer_cast<EDLDataset>(node);
+        }
     }
-    if (!create)
+    if (flag == EDLCreateFlag::OPEN_ONLY) {
+        setLastError(QStringLiteral("Dataset '%1' not found in group '%2'.").arg(name, this->name()));
         return nullptr;
+    }
 
-    std::shared_ptr<EDLDataset> ds(new EDLDataset);
+    auto ds = std::make_shared<EDLDataset>();
     ds->setName(name);
 
     d->mutex.unlock();
@@ -739,6 +759,8 @@ bool EDLGroup::save()
         setLastError(QStringLiteral("Unable to save experiment data: No root directory is set."));
         return false;
     }
+    if (!validate())
+        return false;
 
     // save all our subnodes first
     QMutableListIterator<std::shared_ptr<EDLUnit>> i(d->children);
@@ -757,6 +779,37 @@ bool EDLGroup::save()
     }
 
     return EDLUnit::save();
+}
+
+bool EDLGroup::validate()
+{
+    if (rootPath().isEmpty()) {
+        setLastError(QStringLiteral("Group %1 is missing a root path.").arg(name()));
+        return false;
+    }
+
+    QSet<QString> seenNames;
+    QListIterator<std::shared_ptr<EDLUnit>> i(d->children);
+    while (i.hasNext()) {
+        auto obj = i.next();
+
+        const auto childName = obj->name();
+        if (seenNames.contains(childName)) {
+            setLastError(QStringLiteral("Duplicate child name '%1' in group '%2'.").arg(childName, name()));
+            return false;
+        }
+        seenNames.insert(childName);
+
+        qDebug() << "!!!!!!!!!" << name() << "->" << childName;
+
+        // recursively validate child nodes
+        if (!obj->validate()) {
+            setLastError(obj->lastError());
+            return false;
+        }
+    }
+
+    return true;
 }
 
 class EDLCollection::Private

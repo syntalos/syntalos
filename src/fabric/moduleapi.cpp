@@ -898,8 +898,11 @@ std::shared_ptr<EDLDataset> AbstractModule::createDefaultDataset(
         return d->defaultDataset;
     if (d->rootDataGroup.get() == nullptr) {
         qCritical().noquote().nospace()
-            << "Module \"" << name()
-            << "\" tried to obtain its default dataset, but no root storage group has been set yet.";
+            << "Module \"" << name() << "\" "
+            << "tried to obtain its default dataset, but no root storage group has been set yet.";
+        raiseError(
+            "Module tried to obtain its default dataset before a storage group was set. This is a programming error in "
+            "the module.");
         return nullptr;
     }
 
@@ -915,32 +918,25 @@ std::shared_ptr<EDLDataset> AbstractModule::createDatasetInGroup(
     const auto datasetName = datasetNameFromParameters(preferredName, subMetadata);
 
     // check if the dataset already exists
-    auto dset = group->datasetByName(datasetName);
-    if (dset.get() != nullptr) {
-        if (!dset->isEmpty()) {
-            raiseError(QStringLiteral(
-                           "Tried to use dataset '%1' for storage, but the dataset was already in use. "
-                           "Please ensure unique names for data storage!")
-                           .arg(datasetName));
-            return nullptr;
-        }
+    auto dset = group->datasetByName(datasetName, EDLCreateFlag::MUST_CREATE);
+    if (dset == nullptr || (dset != nullptr && !dset->isEmpty())) {
+        const auto dsetInfo = group == d->rootDataGroup
+                                  ? QStringLiteral("'%1'").arg(datasetName)
+                                  : QStringLiteral("'%1' in '%2'").arg(datasetName, group->name());
+        raiseError(QStringLiteral(
+                       "Tried to use dataset %1 for storage, but the dataset was already in use. "
+                       "Please ensure unique names for data storage!")
+                       .arg(dsetInfo));
+
+        return nullptr;
     }
 
-    return group->datasetByName(datasetName, true);
+    return dset;
 }
 
 std::shared_ptr<EDLDataset> AbstractModule::getDefaultDataset()
 {
     return d->defaultDataset;
-}
-
-std::shared_ptr<EDLDataset> AbstractModule::getDatasetInGroup(
-    std::shared_ptr<EDLGroup> group,
-    const QString &preferredName,
-    const QVariantHash &subMetadata)
-{
-    const auto datasetName = datasetNameFromParameters(preferredName, subMetadata);
-    return group->datasetByName(datasetName);
 }
 
 std::shared_ptr<EDLGroup> AbstractModule::createStorageGroup(const QString &groupName)
@@ -951,7 +947,7 @@ std::shared_ptr<EDLGroup> AbstractModule::createStorageGroup(const QString &grou
         return nullptr;
     }
 
-    return d->rootDataGroup->groupByName(groupName, true);
+    return d->rootDataGroup->groupByName(groupName, EDLCreateFlag::CREATE_OR_OPEN);
 }
 
 QWidget *AbstractModule::addDisplayWindow(QWidget *window, bool owned)
