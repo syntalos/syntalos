@@ -20,6 +20,7 @@
 #include "videotransform.h"
 
 #include <QFormLayout>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QPushButton>
 #include <QSpinBox>
@@ -95,6 +96,7 @@ void CropTransform::createSettingsUi(QWidget *parent)
     connect(m_sizeInfoLabel, &QWidget::destroyed, [this]() {
         m_sizeInfoLabel = nullptr;
         m_btnSelectRegion = nullptr;
+        m_btnReset = nullptr;
         m_sbWidth = nullptr;
         m_sbHeight = nullptr;
         m_sbX = nullptr;
@@ -168,8 +170,25 @@ void CropTransform::createSettingsUi(QWidget *parent)
     formLayout->addRow(QStringLiteral("Height:"), m_sbHeight);
     m_btnSelectRegion = new QPushButton(QIcon::fromTheme("transform-crop"), QStringLiteral("Select Region…"), parent);
     m_btnSelectRegion->setEnabled(m_hasCachedFrame);
-    formLayout->addRow(m_btnSelectRegion);
+    m_btnSelectRegion->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+
+    m_btnReset = new QPushButton(QIcon::fromTheme("edit-clear"), QStringLiteral("Reset"), parent);
+    m_btnReset->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
+    auto *btnRow = new QHBoxLayout;
+    btnRow->addWidget(m_btnSelectRegion);
+    btnRow->addWidget(m_btnReset);
+    formLayout->addRow(btnRow);
     formLayout->addWidget(m_sizeInfoLabel);
+
+    connect(m_btnReset, &QPushButton::clicked, [this]() {
+        const std::lock_guard<std::mutex> lock(m_mutex);
+        m_roi.x = 0;
+        m_roi.y = 0;
+        m_roi.width = m_originalSize.width();
+        m_roi.height = m_originalSize.height();
+        m_onlineModified = true;
+        checkAndUpdateRoi();
+    });
 
     connect(m_btnSelectRegion, &QPushButton::clicked, [this, parent]() {
         std::optional<QPixmap> pixmap;

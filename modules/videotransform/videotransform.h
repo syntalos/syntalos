@@ -101,6 +101,7 @@ private:
 
     QLabel *m_sizeInfoLabel{nullptr};
     QPushButton *m_btnSelectRegion{nullptr};
+    QPushButton *m_btnReset{nullptr};
     QSpinBox *m_sbWidth{nullptr};
     QSpinBox *m_sbHeight{nullptr};
     QSpinBox *m_sbX{nullptr};
