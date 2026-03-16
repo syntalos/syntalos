@@ -436,6 +436,7 @@ void MainWindow::setRunUiControlStates(bool engineRunning, bool stopPossible)
     ui->actionAbout->setEnabled(!engineRunning);
 
     // do not permit save/load while we are running
+    ui->actionProjectNew->setEnabled(!engineRunning);
     ui->actionProjectOpen->setEnabled(!engineRunning);
     ui->actionProjectSave->setEnabled(!engineRunning);
     ui->actionProjectSaveAs->setEnabled(!engineRunning);
