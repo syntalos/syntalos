@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -110,6 +110,7 @@ private slots:
     void openDataExportDirectory();
     void showExperimenterSelector(const QString &message);
 
+    void projectNewActionTriggered();
     void projectSaveAsActionTriggered();
     void projectSaveActionTriggered();
     void projectOpenActionTriggered();

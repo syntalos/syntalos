@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -302,6 +302,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->actionRun, &QAction::triggered, this, &MainWindow::runActionTriggered);
     connect(ui->actionRunTemp, &QAction::triggered, this, &MainWindow::temporaryRunActionTriggered);
     connect(ui->actionStop, &QAction::triggered, this, &MainWindow::stopActionTriggered);
+    connect(ui->actionProjectNew, &QAction::triggered, this, &MainWindow::projectNewActionTriggered);
     connect(ui->actionProjectSaveAs, &QAction::triggered, this, &MainWindow::projectSaveAsActionTriggered);
     connect(ui->actionProjectSave, &QAction::triggered, this, &MainWindow::projectSaveActionTriggered);
     connect(ui->actionProjectOpen, &QAction::triggered, this, &MainWindow::projectOpenActionTriggered);
@@ -1087,6 +1088,43 @@ void MainWindow::showEvent(QShowEvent *event)
 {
     QMainWindow::showEvent(event);
     m_busyIndicator->move(ui->stackedWidget->width() - m_busyIndicator->width() - 4, ui->menuBar->height() + 4);
+}
+
+void MainWindow::projectNewActionTriggered()
+{
+    if (m_engine->presentModules().length() > 0) {
+        auto reply = QMessageBox::question(
+            this,
+            QStringLiteral("New project"),
+            QStringLiteral(
+                "Are you sure you want to start a new project? This will remove all modules and unsaved settings!"),
+            QMessageBox::Yes | QMessageBox::No);
+        if (reply == QMessageBox::No)
+            return;
+    }
+
+    // prevent any start/stop/modify action while we are resetting
+    setConfigModifyAllowed(false);
+    showBusyIndicatorProcessing();
+    m_configLoadInProgress = true;
+    auto uiInhibitCleanup = qScopeGuard([this]() {
+        // we should be permitted to run and modify things
+        m_configLoadInProgress = false;
+        hideBusyIndicator();
+        setConfigModifyAllowed(true);
+    });
+
+    setCurrentProjectFile(QString());
+
+    m_subjectList->clear();
+    m_experimenterList->clear();
+    changeExperimenter(EDLAuthor());
+    setExperimenterSelectVisible(!m_experimenterList->isEmpty());
+
+    setStatusText("Destroying old modules...");
+    m_engine->removeAllModules();
+
+    setStatusText("New project created.");
 }
 
 void MainWindow::projectSaveAsActionTriggered()

@@ -92,7 +92,7 @@
               <item>
                <layout class="QFormLayout" name="expDetailsLayout">
                 <property name="formAlignment">
-                 <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+                 <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter</set>
                 </property>
                 <property name="horizontalSpacing">
                  <number>4</number>
@@ -189,8 +189,7 @@
                          <string/>
                         </property>
                         <property name="icon">
-                         <iconset theme="folder-open">
-                          <normaloff>.</normaloff>.</iconset>
+                         <iconset theme="folder-open"/>
                         </property>
                         <property name="iconSize">
                          <size>
@@ -324,8 +323,7 @@
                          <string/>
                         </property>
                         <property name="icon">
-                         <iconset theme="edit-entry">
-                          <normaloff>.</normaloff>.</iconset>
+                         <iconset theme="edit-entry"/>
                         </property>
                         <property name="iconSize">
                          <size>
@@ -349,7 +347,7 @@
            <item>
             <widget class="Line" name="line">
              <property name="orientation">
-              <enum>Qt::Vertical</enum>
+              <enum>Qt::Orientation::Vertical</enum>
              </property>
             </widget>
            </item>
@@ -409,10 +407,10 @@
                    </font>
                   </property>
                   <property name="frameShape">
-                   <enum>QFrame::NoFrame</enum>
+                   <enum>QFrame::Shape::NoFrame</enum>
                   </property>
                   <property name="frameShadow">
-                   <enum>QFrame::Plain</enum>
+                   <enum>QFrame::Shadow::Plain</enum>
                   </property>
                  </widget>
                 </item>
@@ -435,7 +433,7 @@
                    <string>00:00:00</string>
                   </property>
                   <property name="textFormat">
-                   <enum>Qt::PlainText</enum>
+                   <enum>Qt::TextFormat::PlainText</enum>
                   </property>
                  </widget>
                 </item>
@@ -820,7 +818,7 @@
         <item>
          <widget class="Line" name="line_2">
           <property name="orientation">
-           <enum>Qt::Horizontal</enum>
+           <enum>Qt::Orientation::Horizontal</enum>
           </property>
          </widget>
         </item>
@@ -905,7 +903,7 @@
                  <item row="0" column="0" colspan="2">
                   <layout class="QFormLayout" name="layoutSubjectDetails">
                    <property name="sizeConstraint">
-                    <enum>QLayout::SetDefaultConstraint</enum>
+                    <enum>QLayout::SizeConstraint::SetDefaultConstraint</enum>
                    </property>
                    <property name="horizontalSpacing">
                     <number>4</number>
@@ -1043,8 +1041,7 @@
                     <string>...</string>
                    </property>
                    <property name="icon">
-                    <iconset theme="list-add">
-                     <normaloff>.</normaloff>.</iconset>
+                    <iconset theme="list-add"/>
                    </property>
                   </widget>
                  </item>
@@ -1057,8 +1054,7 @@
                     <string>E</string>
                    </property>
                    <property name="icon">
-                    <iconset theme="edit-entry">
-                     <normaloff>.</normaloff>.</iconset>
+                    <iconset theme="edit-entry"/>
                    </property>
                   </widget>
                  </item>
@@ -1071,8 +1067,7 @@
                     <string>...</string>
                    </property>
                    <property name="icon">
-                    <iconset theme="list-remove">
-                     <normaloff>.</normaloff>.</iconset>
+                    <iconset theme="list-remove"/>
                    </property>
                   </widget>
                  </item>
@@ -1112,7 +1107,7 @@
            <item>
             <widget class="Line" name="line_3">
              <property name="orientation">
-              <enum>Qt::Horizontal</enum>
+              <enum>Qt::Orientation::Horizontal</enum>
              </property>
             </widget>
            </item>
@@ -1188,8 +1183,7 @@
                        <string>...</string>
                       </property>
                       <property name="icon">
-                       <iconset theme="list-add">
-                        <normaloff>.</normaloff>.</iconset>
+                       <iconset theme="list-add"/>
                       </property>
                      </widget>
                     </item>
@@ -1199,15 +1193,14 @@
                        <string>...</string>
                       </property>
                       <property name="icon">
-                       <iconset theme="list-remove">
-                        <normaloff>.</normaloff>.</iconset>
+                       <iconset theme="list-remove"/>
                       </property>
                      </widget>
                     </item>
                     <item>
                      <spacer name="horizontalSpacer">
                       <property name="orientation">
-                       <enum>Qt::Horizontal</enum>
+                       <enum>Qt::Orientation::Horizontal</enum>
                       </property>
                       <property name="sizeHint" stdset="0">
                        <size>
@@ -1244,7 +1237,7 @@
      <x>0</x>
      <y>0</y>
      <width>1000</width>
-     <height>22</height>
+     <height>23</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuHelp">
@@ -1266,12 +1259,12 @@
       <string>Test Subjects</string>
      </property>
      <property name="icon">
-      <iconset theme="view-list-details">
-       <normaloff>.</normaloff>.</iconset>
+      <iconset theme="view-list-details"/>
      </property>
      <addaction name="actionSubjectsLoad"/>
      <addaction name="actionSubjectsSave"/>
     </widget>
+    <addaction name="actionProjectNew"/>
     <addaction name="actionProjectOpen"/>
     <addaction name="actionProjectSave"/>
     <addaction name="actionProjectSaveAs"/>
@@ -1306,7 +1299,7 @@
     <bool>true</bool>
    </property>
    <property name="allowedAreas">
-    <set>Qt::AllToolBarAreas</set>
+    <set>Qt::ToolBarArea::AllToolBarAreas</set>
    </property>
    <property name="iconSize">
     <size>
@@ -1345,6 +1338,7 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
+   <addaction name="actionProjectNew"/>
    <addaction name="actionProjectOpen"/>
    <addaction name="actionProjectSave"/>
    <addaction name="separator"/>
@@ -1359,7 +1353,7 @@
     <bool>false</bool>
    </property>
    <property name="allowedAreas">
-    <set>Qt::NoToolBarArea</set>
+    <set>Qt::ToolBarArea::NoToolBarArea</set>
    </property>
    <property name="floatable">
     <bool>false</bool>
@@ -1373,8 +1367,7 @@
   </widget>
   <action name="actionQuit">
    <property name="icon">
-    <iconset theme="window-close">
-     <normaloff>.</normaloff>.</iconset>
+    <iconset theme="window-close"/>
    </property>
    <property name="text">
     <string>&amp;Quit</string>
@@ -1409,8 +1402,7 @@
   </action>
   <action name="actionProjectOpen">
    <property name="icon">
-    <iconset theme="document-open">
-     <normaloff>.</normaloff>.</iconset>
+    <iconset theme="document-open"/>
    </property>
    <property name="text">
     <string>&amp;Open Project</string>
@@ -1424,8 +1416,7 @@
   </action>
   <action name="actionProjectSave">
    <property name="icon">
-    <iconset theme="document-save-all">
-     <normaloff>.</normaloff>.</iconset>
+    <iconset theme="document-save-all"/>
    </property>
    <property name="text">
     <string>&amp;Save Project</string>
@@ -1439,8 +1430,7 @@
   </action>
   <action name="actionProjectSaveAs">
    <property name="icon">
-    <iconset theme="document-save-as">
-     <normaloff>.</normaloff>.</iconset>
+    <iconset theme="document-save-as"/>
    </property>
    <property name="text">
     <string>Save Project As...</string>
@@ -1454,8 +1444,7 @@
   </action>
   <action name="actionAbout">
    <property name="icon">
-    <iconset theme="help-about">
-     <normaloff>.</normaloff>.</iconset>
+    <iconset theme="help-about"/>
    </property>
    <property name="text">
     <string>&amp;About</string>
@@ -1463,32 +1452,29 @@
   </action>
   <action name="actionSubjectsLoad">
    <property name="icon">
-    <iconset theme="view-list-details">
-     <normaloff>.</normaloff>.</iconset>
+    <iconset theme="view-list-details"/>
    </property>
    <property name="text">
     <string>&amp;Load from file</string>
    </property>
    <property name="shortcut">
-    <string>Ctrl+N</string>
+    <string>Ctrl+J</string>
    </property>
   </action>
   <action name="actionSubjectsSave">
    <property name="icon">
-    <iconset theme="document-save-as">
-     <normaloff>.</normaloff>.</iconset>
+    <iconset theme="document-save-as"/>
    </property>
    <property name="text">
     <string>&amp;Save to file</string>
    </property>
    <property name="shortcut">
-    <string>Ctrl+M</string>
+    <string>Ctrl+K</string>
    </property>
   </action>
   <action name="actionTimings">
    <property name="icon">
-    <iconset theme="clock">
-     <normaloff>.</normaloff>.</iconset>
+    <iconset theme="clock"/>
    </property>
    <property name="text">
     <string>Timings</string>
@@ -1508,8 +1494,7 @@
   </action>
   <action name="actionGlobalConfig">
    <property name="icon">
-    <iconset theme="settings-configure">
-     <normaloff>.</normaloff>.</iconset>
+    <iconset theme="settings-configure"/>
    </property>
    <property name="text">
     <string>Global Settings</string>
@@ -1517,8 +1502,7 @@
   </action>
   <action name="actionSystemInfo">
    <property name="icon">
-    <iconset theme="cpu">
-     <normaloff>.</normaloff>.</iconset>
+    <iconset theme="cpu"/>
    </property>
    <property name="text">
     <string>System</string>
@@ -1550,8 +1534,7 @@
   </action>
   <action name="actionIntervalRunConfig">
    <property name="icon">
-    <iconset theme="view-time-schedule-edit">
-     <normaloff>.</normaloff>.</iconset>
+    <iconset theme="view-time-schedule-edit"/>
    </property>
    <property name="text">
     <string>Interval Run</string>
@@ -1559,8 +1542,7 @@
   </action>
   <action name="actionReportIssue">
    <property name="icon">
-    <iconset theme="tools-report-bug">
-     <normaloff>.</normaloff>.</iconset>
+    <iconset theme="tools-report-bug"/>
    </property>
    <property name="text">
     <string>Report an issue</string>
@@ -1571,8 +1553,7 @@
   </action>
   <action name="actionOnlineDocs">
    <property name="icon">
-    <iconset theme="internet-web-browser">
-     <normaloff>.</normaloff>.</iconset>
+    <iconset theme="internet-web-browser"/>
    </property>
    <property name="text">
     <string>Online documentation</string>
@@ -1580,8 +1561,7 @@
   </action>
   <action name="actionOpenCrashCollector">
    <property name="icon">
-    <iconset theme="quickopen">
-     <normaloff>.</normaloff>.</iconset>
+    <iconset theme="quickopen"/>
    </property>
    <property name="text">
     <string>Open crash collector</string>
@@ -1598,8 +1578,7 @@
   </action>
   <action name="actionEditComment">
    <property name="icon">
-    <iconset theme="edit-comment">
-     <normaloff>.</normaloff>.</iconset>
+    <iconset theme="edit-comment"/>
    </property>
    <property name="text">
     <string>Add Comment</string>
@@ -1610,11 +1589,24 @@
   </action>
   <action name="actionHelpDiscuss">
    <property name="icon">
-    <iconset theme="dialog-question">
-     <normaloff>.</normaloff>.</iconset>
+    <iconset theme="dialog-question"/>
    </property>
    <property name="text">
     <string>Ask a question</string>
+   </property>
+  </action>
+  <action name="actionProjectNew">
+   <property name="icon">
+    <iconset theme="document-new-from-template"/>
+   </property>
+   <property name="text">
+    <string>&amp;New Project</string>
+   </property>
+   <property name="toolTip">
+    <string>Create new project</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+N</string>
    </property>
   </action>
  </widget>
