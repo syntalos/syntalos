@@ -37,7 +37,7 @@ const QString aboutDlgCopyInfo = QStringLiteral(
     "<p>Syntalos is distributed in the hope that it will be useful, "
     "but WITHOUT ANY WARRANTY; without even the implied warranty of "
     "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the "
-    "GNU General Public License for more details.</p>"
+    "GNU Lesser General Public License for more details.</p>"
     "<p>Icons are based on the Breeze Iconset by the <a href=\"https://kde.org/\">KDE Community</a> [LGPL-3.0+],<br/>"
     "some icons are based on the <a href=\"https://github.com/PapirusDevelopmentTeam/papirus-icon-theme/\">Papirus "
     "Iconset</a> [GPL-3.0+]<br/>"
