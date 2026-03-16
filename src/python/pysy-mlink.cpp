@@ -526,10 +526,13 @@ PYBIND11_MODULE(syntalos_mlink, m)
         .def_readwrite("time", &Frame::time, "Time when the frame was recorded.")
         .def_readwrite("mat", &Frame::mat, "Frame image data.")
         // Convenience helpers
-        .def_property_readonly(
+        .def_property(
             "time_usec",
             [](const Frame &f) {
                 return f.time.count();
+            },
+            [](Frame &f, uint64_t v) {
+                f.time = microseconds_t(v);
             },
             "Time when the frame was recorded, as integer in µs.");
 
@@ -584,10 +587,13 @@ PYBIND11_MODULE(syntalos_mlink, m)
         .def_readwrite("is_digital", &FirmataData::isDigital)
         .def_readwrite("time", &FirmataData::time, "Time when the data was acquired.")
         // Convenience helpers
-        .def_property_readonly(
+        .def_property(
             "time_usec",
             [](const FirmataData &fm) {
                 return fm.time.count();
+            },
+            [](FirmataData &fm, uint64_t v) {
+                fm.time = microseconds_t(v);
             },
             "Time when the data was acquired, as integer in µs.");
 
