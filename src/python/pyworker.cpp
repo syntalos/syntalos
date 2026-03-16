@@ -185,7 +185,9 @@ bool PyWorker::isRunning() const
 
 void PyWorker::awaitData(int timeoutUsec)
 {
-    m_link->awaitData(timeoutUsec);
+    m_link->awaitData(timeoutUsec, []() {
+        qApp->processEvents();
+    });
 }
 
 void PyWorker::raiseError(const QString &message)

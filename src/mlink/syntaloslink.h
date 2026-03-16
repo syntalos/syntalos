@@ -107,9 +107,9 @@ class SyntalosLink : public QObject
 {
     Q_GADGET
 public:
-    ~SyntalosLink();
+    ~SyntalosLink() override;
 
-    QString instanceId() const;
+    [[nodiscard]] QString instanceId() const;
 
     void raiseError(const QString &message);
     void raiseError(const QString &title, const QString &message);
@@ -120,12 +120,29 @@ public:
     void setStopCallback(StopFn callback);
     void setShutdownCallback(ShutdownFn callback);
 
-    SyncTimer *timer() const;
+    [[nodiscard]] SyncTimer *timer() const;
 
-    void awaitData(int timeoutUsec = -1);
-    void awaitDataForever(const std::function<void()> &eventFn = nullptr, int intervalMsec = 125);
+    /**
+     * Wait for incoming messages for the given amount of microseconds, then return.
+     *
+     * When messages arrive, the respective callbacks are called.
+     *
+     * @param timeoutUsec Timeout after which we return, or -1 to loop forever.
+     * @param eventFn Callback to an external even processing function to be called occasionally.
+     */
+    void awaitData(int timeoutUsec = -1, const std::function<void()> &eventFn = nullptr);
 
-    ModuleState state() const;
+    /**
+     * Wait for incoming messages forever, calling callbacks in the current thread when they arrive.
+     *
+     * If an event function is provided, it is called at the respective interval while we loop.
+     *
+     * @param eventFn The event processing function to call.
+     * @param intervalUsec The interval at which the function should be called.
+     */
+    void awaitDataForever(const std::function<void()> &eventFn = nullptr, int intervalUsec = 125 * 1000);
+
+    [[nodiscard]] ModuleState state() const;
     void setState(ModuleState state);
 
     void setStatusMessage(const QString &message);
@@ -136,8 +153,8 @@ public:
     void setShowSettingsCallback(ShowSettingsFn callback);
     void setShowDisplayCallback(ShowDisplayFn callback);
 
-    std::vector<std::shared_ptr<InputPortInfo>> inputPorts() const;
-    std::vector<std::shared_ptr<OutputPortInfo>> outputPorts() const;
+    [[nodiscard]] std::vector<std::shared_ptr<InputPortInfo>> inputPorts() const;
+    [[nodiscard]] std::vector<std::shared_ptr<OutputPortInfo>> outputPorts() const;
 
     std::shared_ptr<InputPortInfo> registerInputPort(
         const QString &id,

@@ -733,7 +733,7 @@ void SyntalosLink::processPendingControl()
     }
 }
 
-void SyntalosLink::awaitData(int timeoutUsec)
+void SyntalosLink::awaitData(int timeoutUsec, const std::function<void()> &eventFn)
 {
     if (d->waitSetDirty)
         d->rebuildWaitSet();
@@ -743,30 +743,37 @@ void SyntalosLink::awaitData(int timeoutUsec)
         // handle control messages
         if (attachmentId.has_event_from(*d->waitSetCtrlGuard)) {
             processPendingControl();
+            if (d->waitSetDirty)
+                return iox2::CallbackProgression::Stop;
         } else {
             // handle incoming data
             d->processPendingData(attachmentId);
         }
 
-        qApp->processEvents();
         return iox2::CallbackProgression::Continue;
     };
 
     if (timeoutUsec < 0) {
         do {
+            // Rebuild the WaitSet if ports were connected/disconnected since the last iteration
+            if (d->waitSetDirty)
+                d->rebuildWaitSet();
+
             // we do not use wait() here as some functionality depends on the Qt/GLib event loop, and especially
             // for Python users it can be a bit jarring if that is not available. So we will occasionally
             // process events here.
             d->waitSet->wait_and_process_once_with_timeout(onEvent, iox2::bb::Duration::from_millis(250)).value();
-            qApp->processEvents();
+            if (eventFn)
+                eventFn();
         } while (d->state == ModuleState::RUNNING);
     } else {
         d->waitSet->wait_and_process_once_with_timeout(onEvent, iox2::bb::Duration::from_micros(timeoutUsec)).value();
-        qApp->processEvents();
+        if (eventFn)
+            eventFn();
     }
 }
 
-void SyntalosLink::awaitDataForever(const std::function<void()> &eventFn, int intervalMsec)
+void SyntalosLink::awaitDataForever(const std::function<void()> &eventFn, int intervalUsec)
 {
     if (d->waitSetDirty)
         d->rebuildWaitSet();
@@ -775,6 +782,8 @@ void SyntalosLink::awaitDataForever(const std::function<void()> &eventFn, int in
         [this](const iox2::WaitSetAttachmentId<iox2::ServiceType::Ipc> &attachmentId) -> iox2::CallbackProgression {
         if (attachmentId.has_event_from(*d->waitSetCtrlGuard)) {
             processPendingControl();
+            if (d->waitSetDirty)
+                return iox2::CallbackProgression::Stop;
         } else {
             d->processPendingData(attachmentId);
         }
@@ -782,8 +791,13 @@ void SyntalosLink::awaitDataForever(const std::function<void()> &eventFn, int in
     };
 
     while (true) {
+        // Rebuild the WaitSet if ports were connected/disconnected since the last iteration
+        // (processPendingControl() sets waitSetDirty when that happens).
+        if (d->waitSetDirty)
+            d->rebuildWaitSet();
+
         const auto res = d->waitSet->wait_and_process_once_with_timeout(
-            onEvent, iox2::bb::Duration::from_millis(intervalMsec));
+            onEvent, iox2::bb::Duration::from_micros(intervalUsec));
         if (!res.has_value()) {
             qDebug().noquote() << "Event loop terminated unexpectedly:" << iox2::bb::into<const char *>(res.error());
             return;
