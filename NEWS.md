@@ -1,3 +1,58 @@
+Version 2.1.3
+-------------
+Released: 2026-03-16
+
+### Features:
+ * canvas: Implement native support for 16-bit image display via the GPU
+ * canvas: Add some performance micro-optimizations for image display
+ * camera-arv: Don't try to fetch framerate from nonexistent camera on stop
+ * intan-rhx: Sync with upstream: 3.4.0 -> 3.5.0
+ * videotransform: Add a nice region selector GUI to the crop transform
+ * videotransform: crop: Add a value reset button
+ * videorecorder: Improve frame allocation function
+ * videorecorder: Improve delayed encoder by recycling buffers in video reader
+ * Permit triggering an ephemeral run via command-line options
+ * datactl: Optimize stream submission copy/move semantics
+ * datactl: Performance & correctness optimizations for timesync algorithm
+ * ui: Add action to create a new, blank project
+ * ui: Make less dialogs blocking dialogs
+ * ui: Determine better primary module color
+ * python: Add some convenience helpers for data timestamps as integers
+
+### Bugfixes:
+ * engine: Don't allocate in child or use execvp in clone3 fallback path
+ * engine: Ensure input to disabled modules is suspended
+ * engine: Check for memory pressure a little more often
+ * Avoid race condition if two modules try to use the same dataset name
+ * Fix build stalling on Wayland
+ * camera-arv: Return non-broken frames when ROI is adjusted
+ * camera-arv: Sanity-check returned frames
+ * canvas: Reinitialize if channel count changes as well
+ * canvas: Fix black frames for oddly sized frames or crops
+ * videorecorder: Fix off-by-one frame indices
+ * videorecorder: Enforce minimum frame dimensions
+ * videorecorder: Minor memory leak fixes
+ * videorecorder: Fix timestamp units for deferred encoding, match writer
+ * videorecorder: Use fractional fps instead of truncating to integer
+ * videotransform: crop: Properly set spinbox ranges
+ * ui: Fix windows not being called to the front on user request on Wayland
+ * ui: Fix second pool size assignment spinbox
+
+### Miscellaneous:
+ * datactl: Add time conversion helper constants
+ * datactl: Fix missing by-reference frame constructor
+ * rtkit: We actually need at least 100ms RLIMIT_RTTIME (not µs, fix warning)
+ * tests: Improve application project launch automation options
+ * Add back built-in explicit asan instrumentation support
+ * dist: Split package building into configure & build step
+ * ci: Run tests on one arm64 machine
+ * ci: Overhaul release construction pipeline
+ * Update missing-hardware-support info URL
+ * tests: Add moving average regression test for timesync
+
+### Contributors:
+ Matthias Klumpp, Victor Negîrneac
+
 Version 2.1.2
 -------------
 Released: 2026-02-14
