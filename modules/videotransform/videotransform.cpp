@@ -392,10 +392,10 @@ void CropTransform::checkAndUpdateRoi()
                                      .arg(m_originalSize.width())
                                      .arg(m_originalSize.height()));
 
-        m_sbX->setRange(0, std::max(0, m_originalSize.width() - m_sbWidth->value()));
-        m_sbWidth->setRange(1, std::max(1, m_originalSize.width() - m_sbX->value()));
-        m_sbY->setRange(0, std::max(0, m_originalSize.height() - m_sbHeight->value()));
-        m_sbHeight->setRange(1, std::max(1, m_originalSize.height() - m_sbY->value()));
+        m_sbX->setRange(0, std::max(0, m_originalSize.width() - m_roi.width));
+        m_sbWidth->setRange(1, std::max(1, m_originalSize.width() - m_roi.x));
+        m_sbY->setRange(0, std::max(0, m_originalSize.height() - m_roi.height));
+        m_sbHeight->setRange(1, std::max(1, m_originalSize.height() - m_roi.y));
 
         // Update spinboxes with the correct values - now they represent actual width/height, not end coordinates
         if (m_sbWidth->value() != m_roi.width) {
