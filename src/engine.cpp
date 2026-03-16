@@ -567,8 +567,12 @@ void Engine::setExportBaseDir(const QString &dataDir)
 {
     d->exportBaseDir = dataDir;
 
-    if (dataDir.isEmpty())
+    if (dataDir.isEmpty()) {
+        d->exportDir.clear();
+        d->exportDirIsValid = false;
+        d->exportDirIsTempDir = false;
         return;
+    }
 
     d->exportDirIsValid = QDir().exists(d->exportBaseDir);
     d->exportDirIsTempDir = false;

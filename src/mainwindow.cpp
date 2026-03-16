@@ -1120,6 +1120,9 @@ void MainWindow::projectNewActionTriggered()
     changeExperimenter(EDLAuthor());
     setExperimenterSelectVisible(!m_experimenterList->isEmpty());
 
+    m_engine->setExportBaseDir(QString());
+    updateExportDirDisplay();
+
     setStatusText("Destroying old modules...");
     m_engine->removeAllModules();
 
@@ -1230,20 +1233,30 @@ void MainWindow::setCurrentProjectFile(const QString &fileName)
 
 void MainWindow::updateExportDirDisplay()
 {
+    // reset any previously applied visual style changes
+    auto font = ui->exportBaseDirLabel->font();
+    auto palette = QApplication::palette(ui->exportBaseDirLabel);
+    font.setBold(false);
+    ui->exportBaseDirLabel->setPalette(palette);
+    ui->exportBaseDirLabel->setFont(font);
+
+    // reset label on empty, do nothing more if invalid
+    if (m_engine->exportBaseDir().isEmpty()) {
+        ui->exportBaseDirLabel->setText(QStringLiteral("[No directory selected]"));
+        ui->exportDirLabel->setText(QStringLiteral("???"));
+        ui->exportDirLabel->setPalette(palette);
+    }
     if (!m_engine->exportDirIsValid())
         return;
 
     ui->exportBaseDirLabel->setText(m_engine->exportBaseDir());
-
-    auto font = ui->exportBaseDirLabel->font();
-    font.setBold(false);
-    auto palette = QApplication::palette(ui->exportBaseDirLabel);
     if (m_engine->exportDirIsTempDir()) {
+        // make it REALLY obvious when we are "saving" data in a temporary directory
         font.setBold(true);
         palette.setColor(QPalette::WindowText, SyColorDangerHigh);
+        ui->exportBaseDirLabel->setPalette(palette);
+        ui->exportBaseDirLabel->setFont(font);
     }
-    ui->exportBaseDirLabel->setPalette(palette);
-    ui->exportBaseDirLabel->setFont(font);
 
     // we can run as soon as we have a valid base directory
     if (!m_engine->isRunning())
