@@ -58,7 +58,7 @@ public:
     void shutdown();
     void executePythonRunFn();
 
-    static void makeDocFileAndQuit(const QString &fname);
+    static bool makeDocFile(const QString &fname);
 
 protected:
     void setState(ModuleState state);

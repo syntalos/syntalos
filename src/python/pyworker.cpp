@@ -313,7 +313,9 @@ void PyWorker::shutdown()
     qCDebug(logPyWorker).noquote() << "Shutting down.";
     QCoreApplication::processEvents();
     awaitData(1000);
-    exit(0);
+    // Use quit() instead of exit() so the Qt event loop returns from a.exec() in main(),
+    // allowing the C++ stack to unwind and all destructors to run properly.
+    qApp->quit();
 }
 
 static QString pyObjectToQStr(PyObject *pyObj)
@@ -453,7 +455,7 @@ void PyWorker::setState(ModuleState state)
     m_link->setState(state);
 }
 
-void PyWorker::makeDocFileAndQuit(const QString &fname)
+bool PyWorker::makeDocFile(const QString &fname)
 {
     // FIXME: We ignore Python warnings for now, as we otherwise get lots of
     // "Couldn't read PEP-224 variable docstrings from <Class X>: <class  X> is a built-in class"
@@ -508,8 +510,8 @@ void PyWorker::makeDocFileAndQuit(const QString &fname)
                   .arg(QString(fname).replace("'", "\\'"))));
     } catch (py::error_already_set &e) {
         std::cerr << "Failed to generate syntalos_mlink Python docs: " << e.what() << std::endl;
+        return false;
     }
 
-    // documentation generated successfully, we can quit now
-    exit(0);
+    return true;
 }

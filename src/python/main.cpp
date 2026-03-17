@@ -36,8 +36,8 @@ int main(int argc, char *argv[])
             qCritical().noquote() << "Documentation: Invalid amount of arguments!";
             return 2;
         }
-        PyWorker::makeDocFileAndQuit(a.arguments()[2]);
-        return a.exec();
+        const auto ret = PyWorker::makeDocFile(a.arguments()[2]);
+        return ret ? 0 : 1;
     }
 
     // never auto-quit when last window is closed, as the hosted script

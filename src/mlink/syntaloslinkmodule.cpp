@@ -48,7 +48,9 @@ SyntalosLinkModule::SyntalosLinkModule(SyntalosLink *slink)
         qDebug().noquote() << "Shutting down.";
         QCoreApplication::processEvents();
         awaitData(1000);
-        exit(0);
+        // Use quit() instead of exit() so the Qt event loop returns from any a.exec() in main(),
+        // allowing the C++ stack to unwind and all destructors to run properly.
+        QCoreApplication::quit();
     });
 
     m_slink->setPrepareStartCallback([this](const QByteArray &settings) {
