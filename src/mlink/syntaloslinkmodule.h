@@ -55,6 +55,11 @@ public:
     virtual void start();
     virtual void stop();
 
+    /**
+     * Called when Syntalos wants this module to quit.
+     */
+    virtual void shutdown();
+
 protected:
     SyncTimer *timer() const;
 

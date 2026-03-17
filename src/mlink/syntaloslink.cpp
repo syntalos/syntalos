@@ -210,7 +210,8 @@ public:
         : modId(instanceId.toStdString()),
           state(ModuleState::UNKNOWN),
           maxRTPriority(0),
-          syTimer(nullptr)
+          syTimer(nullptr),
+          shutdownPending(false)
     {
         node.emplace(
             iox2::NodeBuilder()
@@ -302,6 +303,8 @@ public:
     ShutdownFn shutdownCb;
     ShowSettingsFn showSettingsCb;
     ShowDisplayFn showDisplayCb;
+
+    bool shutdownPending; /// Set to true if we received a shutdown request and are expected to handle no more events.
 
     [[nodiscard]] std::string svcName(const std::string &channel) const
     {
@@ -720,8 +723,7 @@ void SyntalosLink::processPendingControl()
         // if no callback is defined, we just exit()
         if (d->shutdownCb)
             d->shutdownCb();
-        else
-            qApp->quit();
+        d->shutdownPending = true;
         break;
     }
 
@@ -766,7 +768,7 @@ void SyntalosLink::awaitData(int timeoutUsec, const std::function<void()> &event
             d->processPendingData(attachmentId);
         }
 
-        return iox2::CallbackProgression::Continue;
+        return d->shutdownPending ? iox2::CallbackProgression::Stop : iox2::CallbackProgression::Continue;
     };
 
     if (timeoutUsec < 0) {
@@ -781,6 +783,10 @@ void SyntalosLink::awaitData(int timeoutUsec, const std::function<void()> &event
             d->waitSet->wait_and_process_once_with_timeout(onEvent, iox2::bb::Duration::from_millis(250)).value();
             if (eventFn)
                 eventFn();
+
+            // exit if we are supposed to shutdown
+            if (d->shutdownPending)
+                break;
         } while (d->state == ModuleState::RUNNING);
     } else {
         d->waitSet->wait_and_process_once_with_timeout(onEvent, iox2::bb::Duration::from_micros(timeoutUsec)).value();
@@ -803,7 +809,7 @@ void SyntalosLink::awaitDataForever(const std::function<void()> &eventFn, int in
         } else {
             d->processPendingData(attachmentId);
         }
-        return iox2::CallbackProgression::Continue;
+        return d->shutdownPending ? iox2::CallbackProgression::Stop : iox2::CallbackProgression::Continue;
     };
 
     while (true) {
@@ -820,6 +826,9 @@ void SyntalosLink::awaitDataForever(const std::function<void()> &eventFn, int in
         }
         if (eventFn)
             eventFn();
+        // exit if we are about to shutdown
+        if (d->shutdownPending)
+            break;
     }
 }
 

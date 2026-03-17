@@ -20,6 +20,7 @@
 #include "syntaloslinkmodule.h"
 
 #include <QDebug>
+#include <QTimer>
 #include <QCoreApplication>
 
 using namespace Syntalos;
@@ -45,12 +46,7 @@ SyntalosLinkModule::SyntalosLinkModule(SyntalosLink *slink)
     // set callbacks
     m_slink->setShutdownCallback([this]() {
         m_running = false;
-        qDebug().noquote() << "Shutting down.";
-        QCoreApplication::processEvents();
-        awaitData(1000);
-        // Use quit() instead of exit() so the Qt event loop returns from any a.exec() in main(),
-        // allowing the C++ stack to unwind and all destructors to run properly.
-        QCoreApplication::quit();
+        shutdown();
     });
 
     m_slink->setPrepareStartCallback([this](const QByteArray &settings) {
@@ -124,6 +120,16 @@ void SyntalosLinkModule::stop()
 {
     // Implemented by derived classes
     setState(ModuleState::IDLE);
+}
+
+void SyntalosLinkModule::shutdown()
+{
+    qDebug().noquote() << "Shutting down.";
+    QCoreApplication::processEvents();
+    awaitData(1000);
+    // Use quit() instead of exit() so the Qt event loop returns from any a.exec() in main(),
+    // allowing the C++ stack to unwind and all destructors to run properly.
+    QTimer::singleShot(0, qApp, &QCoreApplication::quit);
 }
 
 } // namespace Syntalos
