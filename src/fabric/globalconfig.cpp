@@ -137,6 +137,25 @@ void GlobalConfig::setDefaultRTThreadPriority(int priority)
     m_s->setValue("engine/default_rt_thread_priority", priority);
 }
 
+int GlobalConfig::externalModulePrepareTimeoutSec() const
+{
+    int timeoutSec = m_s->value("engine/external_module_prepare_timeout_sec", 10).toInt();
+    if (timeoutSec < 1)
+        timeoutSec = 1;
+    else if (timeoutSec > 600)
+        timeoutSec = 600;
+    return timeoutSec;
+}
+
+void GlobalConfig::setExternalModulePrepareTimeoutSec(int timeoutSec)
+{
+    if (timeoutSec < 1)
+        timeoutSec = 1;
+    else if (timeoutSec > 600)
+        timeoutSec = 600;
+    m_s->setValue("engine/external_module_prepare_timeout_sec", timeoutSec);
+}
+
 bool GlobalConfig::explicitCoreAffinities() const
 {
     return m_s->value("engine/explicit_core_affinities", false).toBool();

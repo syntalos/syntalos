@@ -55,6 +55,7 @@ GlobalConfigDialog::GlobalConfigDialog(QWidget *parent)
         ui->colorModeComboBox->setCurrentIndex(static_cast<int>(m_gc->appColorMode()));
     }
     ui->cbEmergencyOOMStop->setChecked(m_gc->emergencyOOMStop());
+    ui->externalModulePrepareTimeoutSpinBox->setValue(m_gc->externalModulePrepareTimeoutSec());
 
     // advanced section
     ui->defaultNicenessSpinBox->setMaximum(20);
@@ -111,6 +112,12 @@ void GlobalConfigDialog::on_cbEmergencyOOMStop_toggled(bool checked)
 {
     if (m_acceptChanges)
         m_gc->setEmergencyOOMStop(checked);
+}
+
+void GlobalConfigDialog::on_externalModulePrepareTimeoutSpinBox_valueChanged(int arg1)
+{
+    if (m_acceptChanges)
+        m_gc->setExternalModulePrepareTimeoutSec(arg1);
 }
 
 void GlobalConfigDialog::on_defaultNicenessSpinBox_valueChanged(int arg1)

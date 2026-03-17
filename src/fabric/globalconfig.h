@@ -66,6 +66,9 @@ public:
     int defaultRTThreadPriority() const;
     void setDefaultRTThreadPriority(int priority);
 
+    int externalModulePrepareTimeoutSec() const;
+    void setExternalModulePrepareTimeoutSec(int timeoutSec);
+
     bool explicitCoreAffinities() const;
     void setExplicitCoreAffinities(bool enabled);
 

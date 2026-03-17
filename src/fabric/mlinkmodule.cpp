@@ -803,6 +803,8 @@ void MLinkModule::disconnectOutPortForwarders()
 bool MLinkModule::prepare(const TestSubject &subject)
 {
     GlobalConfig gconf;
+    const auto timeoutSec = gconf.externalModulePrepareTimeoutSec();
+    const auto timeoutMsec = timeoutSec * 1000;
 
     // ensure we are reading any messages from the module process
     d->ctlEventTimer->start();
@@ -847,9 +849,10 @@ bool MLinkModule::prepare(const TestSubject &subject)
         if (state() == ModuleState::ERROR)
             return false;
 
-        // wait 10sec for the module to become ready
-        if (timer.elapsed() > 10000) {
-            raiseError("Timeout while waiting for module. Module did not transition to 'ready' state in time.");
+        if (timer.elapsed() > timeoutMsec) {
+            raiseError(QStringLiteral("Timeout while waiting for module. Module did not transition to 'ready' state "
+                                      "within %1 seconds.")
+                           .arg(timeoutSec));
             return false;
         }
     }
