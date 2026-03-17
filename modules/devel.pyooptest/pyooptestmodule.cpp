@@ -103,7 +103,7 @@ public:
         m_vOut = registerOutputPort<Frame>("video-out", "Processed Frames");
     }
 
-    ~PyOOPTestModule() override {}
+    ~PyOOPTestModule() override = default;
 
     ModuleFeatures features() const override
     {

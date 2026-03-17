@@ -25,6 +25,7 @@
 #include <QIcon>
 #include <QMessageBox>
 #include <QStandardPaths>
+#include <QTimer>
 #include <iostream>
 
 #include "globalconfig.h"
@@ -87,7 +88,7 @@ public:
         return QStringLiteral("%1/%2").arg(gconf.virtualenvDir(), id());
     }
 
-    bool virtualEnvExists()
+    bool virtualEnvExists() const
     {
         return QFile::exists(QStringLiteral("%1/bin/python").arg(virtualEnvDir()));
     }
@@ -308,6 +309,22 @@ public:
             return;
 
         MLinkModule::showDisplayUi();
+    }
+
+    void stop() override
+    {
+        // If the process is already dead when stop() is called, it crashed during
+        // the run.
+        // The error has already been raised and will end the run; schedule an
+        // async restart so the module is immediately ready again afterwards.
+        const bool didCrash = !isProcessRunning() && state() != ModuleState::DORMANT;
+        if (didCrash) {
+            QTimer::singleShot(0, this, [this]() {
+                ensurePythonCodeRunning();
+            });
+        } else {
+            MLinkModule::stop();
+        }
     }
 
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &extraData) override
