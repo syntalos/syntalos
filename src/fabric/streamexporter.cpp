@@ -137,9 +137,20 @@ auto StreamExporter::publishStreamByPort(std::shared_ptr<VarStreamInputPort> ipo
     if (dynamic_cast<MLinkModule *>(iport->outPort()->owner()) != nullptr)
         return result;
 
-    // return if we are already exporting this exact stream
-    if (d->exportedIds.contains(modId + channelId))
+    // If this exact stream is already being exported, the IPC publisher is already
+    // set up and IOX takes care of fan-out to multiple IPC subscribers.
+    // Register a sink-only entry (no publisher): on first dispatch the subscription
+    // will be suspended and the event source removed, so after one wakeup neither
+    // the queue nor the event loop carry any overhead for this duplicate.
+    // NOTE: We can't suspend here already, as modules may still reset() the stream
+    if (d->exportedIds.contains(modId + channelId)) {
+        StreamExportData drainEd;
+        drainEd.self = this;
+        drainEd.subscription = iport->subscriptionVar();
+        drainEd.publisher = std::nullopt;
+        d->exports.push_back(std::move(drainEd));
         return result;
+    }
 
     StreamExportData edata;
     edata.self = this;
@@ -161,6 +172,13 @@ auto StreamExporter::publishStreamByPort(std::shared_ptr<VarStreamInputPort> ipo
 static gboolean recvStreamEventDispatch(gpointer udata)
 {
     const auto ed = static_cast<StreamExportData *>(udata);
+
+    // Duplicate-subscription entry: suspend to drain the queue and prevent future
+    // enqueues, then evict this source from the event loop.
+    if (!ed->publisher.has_value()) {
+        ed->subscription->suspend();
+        return G_SOURCE_REMOVE;
+    }
 
     auto sendFn = [&ed](const BaseDataType &data) {
         try {
