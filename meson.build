@@ -332,9 +332,11 @@ if not iox2_dep.found()
     # Somehow, Meson's cmake integration fails to find a package installed this way, so we will
     # do this step manually.
     iox2_cxx_lib = cpp_compiler.find_library('iceoryx2_cxx',
-                                              dirs: iox2_pre / 'lib')
+                                             dirs: iox2_pre / 'lib',
+                                             static: true)
     iox2_ffi_lib = cpp_compiler.find_library('iceoryx2_ffi_c',
-                                              dirs: iox2_pre / 'lib')
+                                             dirs: iox2_pre / 'lib',
+                                             static: true)
     iox2_dep = declare_dependency(
         dependencies: [iox2_cxx_lib, iox2_ffi_lib],
         include_directories: include_directories('iox2-target' / 'include' / 'iceoryx2' / f'v@iox2_min_ver@', is_system: true)
