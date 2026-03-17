@@ -228,6 +228,7 @@ public:
         pubInPortChange.emplace(makeSlicePublisher(*node, svcName(IN_PORT_CHANGE_CHANNEL_ID)));
         pubOutPortChange.emplace(makeSlicePublisher(*node, svcName(OUT_PORT_CHANGE_CHANNEL_ID)));
 
+        srvPingPong.emplace(makeTypedServer<PingRequest, DoneResponse>(*node, svcName(PING_CALL_ID)));
         srvSetNiceness.emplace(makeTypedServer<SetNicenessRequest, DoneResponse>(*node, svcName(SET_NICENESS_CALL_ID)));
         srvSetMaxRTPriority.emplace(
             makeTypedServer<SetMaxRealtimePriority, DoneResponse>(*node, svcName(SET_MAX_RT_PRIORITY_CALL_ID)));
@@ -264,6 +265,7 @@ public:
     std::optional<IoxSlicePublisher> pubOutPortChange;
 
     // Servers: Syntalos master -> Module process commands
+    std::optional<IoxServer<PingRequest, DoneResponse>> srvPingPong;
     std::optional<IoxServer<SetNicenessRequest, DoneResponse>> srvSetNiceness;
     std::optional<IoxServer<SetMaxRealtimePriority, DoneResponse>> srvSetMaxRTPriority;
     std::optional<IoxServer<SetCPUAffinityRequest, DoneResponse>> srvSetCPUAffinity;
@@ -494,6 +496,16 @@ void SyntalosLink::processPendingControl()
     // the race where a notification for a freshly-queued request arrives just before
     // an end-of-function drain and gets silently discarded, stranding the request.
     drainListenerEvents(*d->masterCtlEventListener);
+
+    // ---- Ping ----
+    while (true) {
+        auto req = safeReceive(*d->srvPingPong);
+        if (!req.has_value())
+            break;
+
+        // just respond as fast as we can
+        Private::replyDone(*req, true);
+    }
 
     // ---- SetNiceness ----
     while (true) {

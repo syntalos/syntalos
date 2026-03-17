@@ -173,7 +173,12 @@ public:
      * Synchronously call the client and wait for a "Done" response or an error.
      */
     template<typename Req, typename Func>
-    bool callClientSimple(MLinkModule *self, const std::string &channel, Func fillReqFn, int timeoutSec = 8)
+    bool callClientSimple(
+        MLinkModule *self,
+        const std::string &channel,
+        Func fillReqFn,
+        int timeoutSec = 8,
+        bool timeoutIsError = true)
     {
         if (!node.has_value()) {
             qCCritical(logMLinkMod).noquote()
@@ -210,7 +215,8 @@ public:
                 return false;
 
             if (timer.elapsed() > timeoutSec * 1000) {
-                self->raiseError(QStringLiteral("Timeout while waiting for response on: %1").arg(qstr(channel)));
+                if (timeoutIsError)
+                    self->raiseError(QStringLiteral("Timeout while waiting for response on: %1").arg(qstr(channel)));
                 return false;
             }
 
@@ -811,6 +817,12 @@ bool MLinkModule::prepare(const TestSubject &subject)
     if (!isProcessRunning()) {
         if (!runProcess())
             return false;
+    }
+
+    // ping module to see if it is alive
+    if (!d->callClientSimple<PingRequest>(this, PING_CALL_ID, [&](auto &req) {}, 10, false)) {
+        raiseError("Unable to communicate with module: The module process may have died or is unresponsive.");
+        return false;
     }
 
     // set module process niceness

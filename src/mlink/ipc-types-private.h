@@ -63,9 +63,9 @@ struct InputPortChange {
 
     QString id;
     QString title;
-    int dataTypeId;
+    int dataTypeId{};
     QVariantHash metadata;
-    uint throttleItemsPerSec;
+    uint throttleItemsPerSec{};
 
     InputPortChange() = default;
     explicit InputPortChange(PortAction pa)
@@ -243,6 +243,13 @@ struct StatusMessageEvent {
     iox2::bb::StaticString<512> text;
 };
 static const std::string STATUS_MESSAGE_CHANNEL_ID = "StatusMessage";
+
+/**
+ * Ping the worker, it must respond to signal that it is alive.
+ */
+struct PingRequest {
+};
+static const std::string PING_CALL_ID = "Ping";
 
 /**
  * Request to set the niceness of a worker
