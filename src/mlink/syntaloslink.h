@@ -145,6 +145,13 @@ public:
     [[nodiscard]] ModuleState state() const;
     void setState(ModuleState state);
 
+    /**
+     * @brief Returns true if a shutdown (via IPC or SIGTERM/SIGINT) has been requested.
+     *
+     * Callers with their own spin loops should check this flag and exit promptly.
+     */
+    [[nodiscard]] bool isShutdownPending() const;
+
     void setStatusMessage(const QString &message);
 
     int maxRealtimePriority() const;

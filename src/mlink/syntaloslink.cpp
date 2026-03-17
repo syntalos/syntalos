@@ -216,6 +216,7 @@ public:
         node.emplace(
             iox2::NodeBuilder()
                 .name(iox2::NodeName::create(modId.c_str()).value())
+                .signal_handling_mode(iox2::SignalHandlingMode::HandleTerminationRequests)
                 .create<iox2::ServiceType::Ipc>()
                 .value());
 
@@ -382,7 +383,11 @@ public:
         waitSet.reset();
 
         // Build a fresh WaitSet and re-attach everything
-        waitSet.emplace(iox2::WaitSetBuilder().create<iox2::ServiceType::Ipc>().value());
+        waitSet.emplace(
+            iox2::WaitSetBuilder()
+                .signal_handling_mode(iox2::SignalHandlingMode::HandleTerminationRequests)
+                .create<iox2::ServiceType::Ipc>()
+                .value());
 
         // Control attachment: wakes for requests from the master
         if (masterCtlEventListener.has_value())
@@ -765,6 +770,11 @@ void SyntalosLink::processPendingControl()
 
 void SyntalosLink::awaitData(int timeoutUsec, const std::function<void()> &eventFn)
 {
+    // If a shutdown request was processed, we should die ASAP and this function
+    // should no longer run - otherwise we may block forever and get killed
+    if (d->shutdownPending)
+        return;
+
     if (d->waitSetDirty)
         d->rebuildWaitSet();
 
@@ -783,6 +793,16 @@ void SyntalosLink::awaitData(int timeoutUsec, const std::function<void()> &event
         return d->shutdownPending ? iox2::CallbackProgression::Stop : iox2::CallbackProgression::Continue;
     };
 
+    // Helper: inspect the WaitSet run-result and trigger a clean shutdown when
+    // IOX reports that SIGTERM/SIGINT was received
+    auto handleRunResult = [this](const iox2::bb::Expected<iox2::WaitSetRunResult, iox2::WaitSetRunError> &res) {
+        if (!res.has_value())
+            return;
+        const auto r = res.value();
+        if (r == iox2::WaitSetRunResult::Interrupt || r == iox2::WaitSetRunResult::TerminationRequest)
+            d->shutdownPending = true;
+    };
+
     if (timeoutUsec < 0) {
         do {
             // Rebuild the WaitSet if ports were connected/disconnected since the last iteration
@@ -792,7 +812,8 @@ void SyntalosLink::awaitData(int timeoutUsec, const std::function<void()> &event
             // we do not use wait() here as some functionality depends on the Qt/GLib event loop, and especially
             // for Python users it can be a bit jarring if that is not available. So we will occasionally
             // process events here.
-            d->waitSet->wait_and_process_once_with_timeout(onEvent, iox2::bb::Duration::from_millis(250)).value();
+            handleRunResult(
+                d->waitSet->wait_and_process_once_with_timeout(onEvent, iox2::bb::Duration::from_millis(250)));
             if (eventFn)
                 eventFn();
 
@@ -801,7 +822,8 @@ void SyntalosLink::awaitData(int timeoutUsec, const std::function<void()> &event
                 break;
         } while (d->state == ModuleState::RUNNING);
     } else {
-        d->waitSet->wait_and_process_once_with_timeout(onEvent, iox2::bb::Duration::from_micros(timeoutUsec)).value();
+        handleRunResult(
+            d->waitSet->wait_and_process_once_with_timeout(onEvent, iox2::bb::Duration::from_micros(timeoutUsec)));
         if (eventFn)
             eventFn();
     }
@@ -836,8 +858,15 @@ void SyntalosLink::awaitDataForever(const std::function<void()> &eventFn, int in
             qDebug().noquote() << "Event loop terminated unexpectedly:" << iox2::bb::into<const char *>(res.error());
             return;
         }
+        // Treat SIGTERM/SIGINT as a shutdown request
+        const auto r = res.value();
+        if (r == iox2::WaitSetRunResult::Interrupt || r == iox2::WaitSetRunResult::TerminationRequest)
+            d->shutdownPending = true;
+
+        // call external event function
         if (eventFn)
             eventFn();
+
         // exit if we are about to shutdown
         if (d->shutdownPending)
             break;
@@ -847,6 +876,11 @@ void SyntalosLink::awaitDataForever(const std::function<void()> &eventFn, int in
 ModuleState SyntalosLink::state() const
 {
     return d->state;
+}
+
+bool SyntalosLink::isShutdownPending() const
+{
+    return d->shutdownPending;
 }
 
 void SyntalosLink::setState(ModuleState state)

@@ -436,6 +436,7 @@ void MLinkModule::resetConnection()
     d->node.emplace(
         iox2::NodeBuilder()
             .name(iox2::NodeName::create(("syntalos-master-" + d->clientId).c_str()).value())
+            .signal_handling_mode(iox2::SignalHandlingMode::HandleTerminationRequests)
             .create<iox2::ServiceType::Ipc>()
             .value());
 
@@ -922,7 +923,10 @@ void MLinkModule::start()
 void MLinkModule::runThread(OptionalWaitCondition *startWaitCondition)
 {
     // create waitset and attach control guard
-    auto waitSet = iox2::WaitSetBuilder().create<iox2::ServiceType::Ipc>().value();
+    auto waitSet = iox2::WaitSetBuilder()
+                       .signal_handling_mode(iox2::SignalHandlingMode::HandleTerminationRequests)
+                       .create<iox2::ServiceType::Ipc>()
+                       .value();
     auto waitSetCtlGuard = waitSet.attach_notification(*d->workerCtlEventListener).value();
 
     // prepare guards for output port forwarding

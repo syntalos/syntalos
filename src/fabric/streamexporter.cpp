@@ -87,6 +87,7 @@ StreamExporter::StreamExporter(const QString &threadName, QObject *parent)
     d->node.emplace(
         iox2::NodeBuilder()
             .name(iox2::NodeName::create("syntalos-stream-exporter").value())
+            .signal_handling_mode(iox2::SignalHandlingMode::HandleTerminationRequests)
             .create<iox2::ServiceType::Ipc>()
             .value());
 }

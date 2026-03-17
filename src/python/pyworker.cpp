@@ -417,6 +417,12 @@ void PyWorker::executePythonRunFn()
         m_link->awaitData(1 * 1000); // 1ms timeout
         QCoreApplication::processEvents();
 
+        // exit promptly on SIGTERM/SIGINT so the outer exec() can process the quit.
+        if (m_link->isShutdownPending()) {
+            qApp->quit();
+            return;
+        }
+
         if (m_link->state() == ModuleState::ERROR) {
             // bail out if any error was raised
             m_evTimer->start();
@@ -430,6 +436,8 @@ void PyWorker::executePythonRunFn()
         while (m_running) {
             m_link->awaitData(100 * 1000); // 100ms timeout
             QCoreApplication::processEvents();
+            if (m_link->isShutdownPending())
+                return;
         }
     } else {
         // call the run function
