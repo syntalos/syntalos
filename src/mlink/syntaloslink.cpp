@@ -38,6 +38,22 @@ using namespace Syntalos::ipc;
 namespace Syntalos
 {
 
+/**
+ * Safely receive from a subscriber on the client.
+ * Returns the inner optional (empty = no data available) and logs a warning
+ * instead of crashing when the receive itself fails.
+ */
+template<typename Sub>
+static auto safeReceive(Sub &sub) -> std::remove_cvref_t<decltype(sub.receive().value())>
+{
+    auto result = sub.receive();
+    if (!result.has_value()) {
+        std::cerr << "Client IPC receive failed:" << iox2::bb::into<const char *>(result.error());
+        return {};
+    }
+    return std::move(result).value();
+}
+
 std::unique_ptr<SyntalosLink> initSyntalosModuleLink()
 {
     auto syModuleId = qgetenv("SYNTALOS_MODULE_ID");
@@ -478,7 +494,7 @@ void SyntalosLink::processPendingControl()
 
     // ---- SetNiceness ----
     while (true) {
-        auto req = d->srvSetNiceness->receive().value();
+        auto req = safeReceive(*d->srvSetNiceness);
         if (!req.has_value())
             break;
 
@@ -491,7 +507,7 @@ void SyntalosLink::processPendingControl()
 
     // ---- SetMaxRealtimePriority ----
     while (true) {
-        auto req = d->srvSetMaxRTPriority->receive().value();
+        auto req = safeReceive(*d->srvSetMaxRTPriority);
         if (!req.has_value())
             break;
         d->maxRTPriority = req->payload().priority;
@@ -500,7 +516,7 @@ void SyntalosLink::processPendingControl()
 
     // ---- SetCPUAffinity ----
     while (true) {
-        auto req = d->srvSetCPUAffinity->receive().value();
+        auto req = safeReceive(*d->srvSetCPUAffinity);
         if (!req.has_value())
             break;
         const auto &cores = req->payload().cores;
@@ -516,7 +532,7 @@ void SyntalosLink::processPendingControl()
 
     // ---- LoadScript ----
     while (true) {
-        auto req = d->srvLoadScript->receive().value();
+        auto req = safeReceive(*d->srvLoadScript);
         if (!req.has_value())
             break;
         const auto pl = req->payload();
@@ -531,7 +547,7 @@ void SyntalosLink::processPendingControl()
     // ---- SetPortsPreset ----
     // Add any ports not yet known; never remove existing ones (they may be in use).
     while (true) {
-        auto req = d->srvSetPortsPreset->receive().value();
+        auto req = safeReceive(*d->srvSetPortsPreset);
         if (!req.has_value())
             break;
         const auto pl = req->payload();
@@ -575,7 +591,7 @@ void SyntalosLink::processPendingControl()
 
     // ---- ConnectInputPort ----
     while (true) {
-        auto req = d->srvConnectIPort->receive().value();
+        auto req = safeReceive(*d->srvConnectIPort);
         if (!req.has_value())
             break;
         const auto &r = req->payload();
@@ -611,7 +627,7 @@ void SyntalosLink::processPendingControl()
 
     // ---- UpdateInputPortMetadata ----
     while (true) {
-        auto req = d->srvUpdateIPortMetadata->receive().value();
+        auto req = safeReceive(*d->srvUpdateIPortMetadata);
         if (!req.has_value())
             break;
         const auto pl = req->payload();
@@ -630,7 +646,7 @@ void SyntalosLink::processPendingControl()
 
     // ---- PrepareStart ----
     while (true) {
-        auto req = d->srvPrepareStart->receive().value();
+        auto req = safeReceive(*d->srvPrepareStart);
         if (!req.has_value())
             break;
         const auto pl = req->payload();
@@ -643,7 +659,7 @@ void SyntalosLink::processPendingControl()
 
     // ---- Start ----
     while (true) {
-        auto req = d->srvStart->receive().value();
+        auto req = safeReceive(*d->srvStart);
         if (!req.has_value())
             break;
         // NOTE: We reply immediately here and defer processing of the call,
@@ -669,7 +685,7 @@ void SyntalosLink::processPendingControl()
 
     // ---- Stop ----
     while (true) {
-        auto req = d->srvStop->receive().value();
+        auto req = safeReceive(*d->srvStop);
         if (!req.has_value())
             break;
         // we wait for the stop callback to finish before responding
@@ -692,7 +708,7 @@ void SyntalosLink::processPendingControl()
 
     // ---- Shutdown ----
     while (true) {
-        auto req = d->srvShutdown->receive().value();
+        auto req = safeReceive(*d->srvShutdown);
         if (!req.has_value())
             break;
         // NOTE: We reply immediately here and defer processing of the call,
@@ -711,7 +727,7 @@ void SyntalosLink::processPendingControl()
 
     // ---- ShowDisplay ----
     while (true) {
-        auto req = d->srvShowDisplay->receive().value();
+        auto req = safeReceive(*d->srvShowDisplay);
         if (!req.has_value())
             break;
         Private::replyDone(*req, true);
@@ -721,7 +737,7 @@ void SyntalosLink::processPendingControl()
 
     // ---- ShowSettings ----
     while (true) {
-        auto req = d->srvShowSettings->receive().value();
+        auto req = safeReceive(*d->srvShowSettings);
         if (!req.has_value())
             break;
         const auto pl = req->payload();

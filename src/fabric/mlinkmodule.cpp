@@ -38,6 +38,22 @@ Q_LOGGING_CATEGORY(logMLinkMod, "mlink-master")
 
 using namespace Syntalos::ipc;
 
+/**
+ * Safely receive from an iceoryx2 subscriber.
+ * Returns the inner optional (empty = no data available) and logs a warning
+ * instead of crashing when the receive itself fails.
+ */
+template<typename Sub>
+static auto safeReceive(Sub &sub) -> std::remove_cvref_t<decltype(sub.receive().value())>
+{
+    auto result = sub.receive();
+    if (!result.has_value()) {
+        qCWarning(logMLinkMod) << "IPC receive failed:" << iox2::bb::into<const char *>(result.error());
+        return {};
+    }
+    return std::move(result).value();
+}
+
 class MLinkModule::Private
 {
 public:
@@ -115,7 +131,10 @@ public:
             return;
 
         while (true) {
-            auto sample = subError->receive().value();
+            auto mSample = subError->receive();
+            if (!mSample.has_value())
+                break;
+            const auto &sample = mSample.value();
             if (!sample.has_value())
                 break;
             const auto &ev = sample->payload();
@@ -134,7 +153,7 @@ public:
             return;
 
         while (true) {
-            auto sample = subStateChange->receive().value();
+            auto sample = safeReceive(*subStateChange);
             if (!sample.has_value())
                 break;
             const auto newState = sample->payload().state;
@@ -310,7 +329,7 @@ void MLinkModule::handleIncomingControl()
     // Input port change events
     if (d->subInPortChange.has_value()) {
         while (true) {
-            auto sample = d->subInPortChange->receive().value();
+            auto sample = safeReceive(*d->subInPortChange);
             if (!sample.has_value())
                 break;
 
@@ -342,7 +361,7 @@ void MLinkModule::handleIncomingControl()
     // Output port change events
     if (d->subOutPortChange.has_value()) {
         while (true) {
-            auto sample = d->subOutPortChange->receive().value();
+            auto sample = safeReceive(*d->subOutPortChange);
             if (!sample.has_value())
                 break;
 
@@ -393,7 +412,7 @@ void MLinkModule::handleIncomingControl()
     // Settings change events
     if (d->subSettingsChange.has_value()) {
         while (true) {
-            auto sample = d->subSettingsChange->receive().value();
+            auto sample = safeReceive(*d->subSettingsChange);
             if (!sample.has_value())
                 break;
             const auto pl = sample->payload();

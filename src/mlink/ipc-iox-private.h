@@ -459,7 +459,14 @@ public:
                 // in the pipeline, however, if we ever miss an event, we would miss a sample. So we over-run
                 // the sample-received check by 8x to make sure we always got everything.
                 for (int i = 0; i < 8; ++i) {
-                    auto sample = m_subscriber.receive().value();
+                    const auto &maybeReceived = m_subscriber.receive();
+                    if (!maybeReceived.has_value()) [[unlikely]] {
+                        std::cerr << "ipc: Failed to receive sample on "
+                                  << m_serviceName.to_string().unchecked_access().c_str() << ": "
+                                  << iox2::bb::into<const char *>(maybeReceived.error()) << std::endl;
+                        continue;
+                    }
+                    const auto &sample = maybeReceived.value();
                     if (!sample.has_value())
                         break;
                     callback(sample->payload());
@@ -481,8 +488,8 @@ public:
         }
 
         for (;;) {
-            auto sample = m_subscriber.receive().value();
-            if (!sample.has_value())
+            auto mSample = m_subscriber.receive();
+            if (!mSample.has_value() || !mSample.value().has_value())
                 break;
         }
     }
