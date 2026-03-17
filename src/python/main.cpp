@@ -50,7 +50,6 @@ int main(int argc, char *argv[])
     // Initialize link to Syntalos. There can only be one.
     auto slink = initSyntalosModuleLink();
     auto worker = std::make_unique<PyWorker>(slink.get(), &a);
-    worker->awaitData(1000);
 
     // ensure that this process dies with its parent
     prctl(PR_SET_PDEATHSIG, SIGKILL);
