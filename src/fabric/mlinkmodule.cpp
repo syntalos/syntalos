@@ -177,7 +177,7 @@ public:
         MLinkModule *self,
         const std::string &channel,
         Func fillReqFn,
-        int timeoutSec = 8,
+        int timeoutSec = 5,
         bool timeoutIsError = true)
     {
         if (!node.has_value()) {
@@ -229,7 +229,7 @@ public:
         MLinkModule *self,
         const std::string &channel,
         const ReqData &reqEntity,
-        int timeoutSec = 8)
+        int timeoutSec = 5)
     {
         if (!node.has_value()) {
             qCCritical(logMLinkMod).noquote()
@@ -849,7 +849,7 @@ bool MLinkModule::prepare(const TestSubject &subject)
     // call the module's own startup preparations
     PrepareStartRequest prepReq;
     prepReq.settings = d->settingsData;
-    if (!d->callSliceClientSimple(this, PREPARE_START_CALL_ID, prepReq))
+    if (!d->callSliceClientSimple(this, PREPARE_START_CALL_ID, prepReq, 10))
         return false;
 
     QElapsedTimer timer;
@@ -860,9 +860,9 @@ bool MLinkModule::prepare(const TestSubject &subject)
         if (state() == ModuleState::ERROR)
             return false;
 
-        // wait 10sec for the module to become ready
-        if (timer.elapsed() > 10000) {
-            raiseError("Timeout while waiting for module. Module did not transition to 'ready' state in time.");
+        // we give modules 30sec to prepare, in case they are very slow
+        if (timer.elapsed() > 30 * MS_PER_S) {
+            raiseError("Timeout while waiting for module. Module did not transition to 'ready' state in 30 seconds.");
             return false;
         }
     }
@@ -980,7 +980,7 @@ void MLinkModule::runThread(OptionalWaitCondition *startWaitCondition)
 void MLinkModule::stop()
 {
     if (isProcessRunning())
-        d->callClientSimple<StopRequest>(this, STOP_CALL_ID, [](auto &) {});
+        d->callClientSimple<StopRequest>(this, STOP_CALL_ID, [](auto &) {}, 15);
 
     disconnectOutPortForwarders();
     d->sentMetadata.clear();
