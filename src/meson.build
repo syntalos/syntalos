@@ -105,6 +105,8 @@ syntalos_exe = executable('syntalos',
         pipewire_dep,
         gstreamer_dep,
     ],
+    # ensure mimalloc in datactl is switched on
+    cpp_args: ['-DSY_USE_MIMALLOC'],
     include_directories: [root_include_dir],
     install: true,
     install_rpath: sy_libdir

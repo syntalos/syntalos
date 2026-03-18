@@ -21,6 +21,8 @@ syntalos_fabric_src = [
     'rangeslider.cpp',
     'subscriptionwatcher.h',
     'subscriptionwatcher.cpp',
+    'symemopt.h',
+    'symemopt.cpp',
     'streamexporter.h',
     'streamexporter.cpp',
     'sysinfo.h',
@@ -84,6 +86,8 @@ syntalos_fabric_lib = shared_library('syntalos-fabric',
         root_include_dir,
         syntalos_fabric_inc_dir
     ],
+    # ensure mimalloc in datactl is switched on for fabric
+    cpp_args: ['-DSY_USE_MIMALLOC'],
     install: true,
     install_dir: sy_libdir,
     install_rpath: sy_libdir,

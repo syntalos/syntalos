@@ -23,9 +23,9 @@
 #include <algorithm>
 #include <cstdint>
 #include <vector>
-#include <mimalloc.h>
 
-#include "binarystream.h"
+#include "datactl/allocutil.h"
+#include "datactl/binarystream.h"
 
 namespace Syntalos
 {
@@ -45,7 +45,7 @@ double vectorMedian(const Eigen::Matrix<T, Eigen::Dynamic, 1> &vec)
     if (size == 0)
         return nan(""); // what is the median of an empty vector?
 
-    std::vector<T, mi_stl_allocator<T>> vecSorted(vec.size());
+    std::vector<T, DefaultAllocator<T>> vecSorted(vec.size());
     std::partial_sort_copy(vec.data(), vec.data() + vec.size(), std::begin(vecSorted), std::end(vecSorted));
 
     if (size % 2 == 0)

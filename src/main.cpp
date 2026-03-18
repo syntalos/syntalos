@@ -32,7 +32,7 @@
 #include <pipewire/pipewire.h>
 #pragma GCC diagnostic pop
 
-#include "datactl/symemopt.h"
+#include "fabric/symemopt.h"
 #include "mainwindow.h"
 
 int main(int argc, char *argv[])

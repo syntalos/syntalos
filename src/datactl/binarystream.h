@@ -22,13 +22,14 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include <mimalloc.h>
+
+#include "datactl/allocutil.h"
 
 namespace Syntalos
 {
 
 /**
- * @brief ByteVector is a vector of bytes using mimalloc as allocator.
+ * @brief ByteVector is a vector of bytes optionally using mimalloc as allocator.
  *
  * In Syntalos' heavily threaded environment, where in the worst case a
  * ton of these vectors may be created and destroyed in quick succession,
@@ -38,7 +39,7 @@ namespace Syntalos
  * Please try to reuse buffers whenever possible still though - while
  * mimalloc is a significant improvement, reusing memory segments is even better.
  */
-using ByteVector = std::vector<std::byte, mi_stl_allocator<std::byte>>;
+using ByteVector = std::vector<std::byte, DefaultAllocator<std::byte>>;
 
 /**
  * @brief Writer for Syntalos data entity serialization

@@ -23,7 +23,6 @@
 
 #include <signal.h>
 #include <sys/prctl.h>
-#include "datactl/symemopt.h"
 
 #include "pyworker.h"
 
@@ -43,9 +42,6 @@ int main(int argc, char *argv[])
     // never auto-quit when last window is closed, as the hosted script
     // may want to show transient Qt windows
     a.setQuitOnLastWindowClosed(false);
-
-    // prefer mimalloc for OpenCV matrices
-    setCvMiMatAllocator();
 
     // Initialize link to Syntalos. There can only be one.
     auto slink = initSyntalosModuleLink();

@@ -1,13 +1,13 @@
 # Syntalos Data Types and Time Sync Library
 
 sy_datactl_pub_hdr = [
+    'allocutil.h',
     'binarystream.h',
     'datatypes.h',
     'frametype.h',
     'edlstorage.h',
     'eigenaux.h',
     'syclock.h',
-    'symemopt.h',
     'timesync.h',
     'tsyncfile.h',
 ]
@@ -20,7 +20,6 @@ sy_datactl_src = [
     'datatypes.cpp',
     'edlstorage.cpp',
     'syclock.cpp',
-    'symemopt.cpp',
     'timesync.cpp',
     'tsyncfile.cpp',
 ]
@@ -44,7 +43,6 @@ syntalos_datactl_lib = shared_library('syntalos-datactl',
     version: sy_version,
     dependencies: [
         sy_base_deps,
-        mimalloc_dep,
         eigen_dep,
         xxhash_dep,
         opencv_dep,
@@ -61,7 +59,6 @@ syntalos_datactl_lib = shared_library('syntalos-datactl',
 syntalos_datactl_dep = declare_dependency(
     link_with: syntalos_datactl_lib,
     dependencies: [
-        mimalloc_dep,
         sy_base_deps,
         eigen_dep,
         syntalos_utils_dep
@@ -83,9 +80,4 @@ pkgc.generate(
         'Qt6Core',
         'eigen3',
     ],
-    # mimalloc is exposed in headers where we explicitly use it as allocator,
-    # but we do not force it on the application linking against this library
-    # If a dynamic-malloc-overriding library becomes a problem in future, we
-    # can force datactl to link mimalloc statically.
-    libraries: ['-lmimalloc'],
 )
