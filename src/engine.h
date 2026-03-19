@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -105,7 +105,7 @@ public:
     bool saveInternalDiagnostics() const;
     void setSaveInternalDiagnostics(bool save);
 
-    void notifyUsbHotplugEvent(UsbHotplugEventKind kind);
+    void notifyUsbHotplugEvent(UsbHotplugEventKind kind) const;
 
 public slots:
     /**
@@ -172,8 +172,17 @@ private:
     void makeFinalExperimentId();
     void refreshExportDirPath();
     void emitStatusMessage(const QString &message);
-    QList<AbstractModule *> createModuleExecOrderList();
-    static QList<AbstractModule *> createModuleStopOrderFromExecOrder(const QList<AbstractModule *> &modExecList);
+
+    /**
+     * @brief Holds the pre-computed start and stop ordering for one run.
+     */
+    struct ModuleRunOrder {
+        QList<AbstractModule *> start;
+        QList<AbstractModule *> stop;
+        QList<AbstractModule *> inactive;
+    };
+
+    ModuleRunOrder createModuleRunOrder() const;
 };
 
 } // namespace Syntalos

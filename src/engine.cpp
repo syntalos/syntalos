@@ -20,9 +20,9 @@
 #include "config.h"
 #include "engine.h"
 
-// When compiled with -fsanitize=address or -fsanitize=leak, trigger an explicit
-// LSan leak check after every run so leaks are surfaced between runs, not only
-// at process exit.
+// When compiled with -fsanitize=address or -fsanitize=leak, we modify behavior
+// a bit. E.g. we may trigger an explicit LSan leak check after every run, so
+// leaks are surfaced between runs, not only at process exit.
 #if defined(__has_feature)
 #if __has_feature(address_sanitizer)
 #define SY_HAS_LSAN 1
@@ -52,6 +52,7 @@
 #include <QTimer>
 #include <QVector>
 #include <memory>
+#include <functional>
 #include <filesystem>
 #include <libusb.h>
 #include <pthread.h>
@@ -866,137 +867,200 @@ void Engine::emitStatusMessage(const QString &message)
 }
 
 /**
- * @brief Return a list of active modules that have been sorted in the order they
- * should be prepared, run and overall be handled in (but not stopped in!).
- * Even modules that are not marked as "Enabled" are considered here!
+ * @brief Core topological sort (Kahn's algorithm) shared by start and stop ordering.
+ *
+ * @param mods               Closed set of modules to order.
+ * @param categoryPriorityFn Returns a numeric priority used only when all remaining
+ *                           modules form a cycle. Lower value = placed earlier.
+ *                           In the acyclic parts of the graph the standard topological
+ *                           order (source-first, sink-last) is always used instead.
+ * @param context            Label used in the cycle-resolution debug log ("start" / "stop").
  */
-QList<AbstractModule *> Engine::createModuleExecOrderList()
+static QList<AbstractModule *> computeModuleOrder(
+    const QList<AbstractModule *> &mods,
+    const std::function<int(const AbstractModule *)> &categoryPriorityFn,
+    const char *context)
 {
-    // While modules could in theory be initialized in arbitrary order,
-    // it is more efficient and more predicatble if we initialize data-generating
-    // modules and modules which do not receive input first, and the initialize
-    // the ones which rely on data created by those modules.
-    // Proper dependency resolution would be needed for a perfect solution,
-    // but we only need one that's "good enough" here for now. So this algorithm
-    // will not produce a perfect result, especially if there are cycles in the
-    // module graph.
-    QList<AbstractModule *> orderedActiveModules;
-    QSet<AbstractModule *> assignedMods;
+    const auto modCount = mods.size();
 
-    const auto modCount = d->presentModules.length();
-    assignedMods.reserve(modCount);
-    orderedActiveModules.reserve(modCount);
-    for (const auto &mod : d->presentModules) {
-        if (assignedMods.contains(mod))
-            continue;
+    QList<AbstractModule *> result;
+    result.reserve(modCount);
 
-        // modules with no input ports go first
-        if (mod->inPorts().isEmpty()) {
-            orderedActiveModules.prepend(mod);
-            assignedMods.insert(mod);
-            continue;
-        }
+    if (modCount == 0)
+        return result;
 
-        auto anySubscribed = false;
-        for (const auto &iport : mod->inPorts()) {
-            if (iport->hasSubscription()) {
-                anySubscribed = true;
-                const auto upstreamMod = iport->outPort()->owner();
-                if (!assignedMods.contains(upstreamMod)) {
-                    orderedActiveModules.append(upstreamMod);
-                    assignedMods.insert(upstreamMod);
-                }
-            }
-        }
-
-        // just stop if all modules have been assigned
-        if (assignedMods.size() == modCount)
-            break;
-
-        if (assignedMods.contains(mod))
-            continue;
-
-        if (!anySubscribed)
-            orderedActiveModules.prepend(mod);
-        else
-            orderedActiveModules.append(mod);
-        assignedMods.insert(mod);
+    // Build directed edges upstream->downstream, deduplicating parallel edges
+    // (a module may have several input ports all fed by the same upstream).
+    QHash<AbstractModule *, QSet<AbstractModule *>> downstreams;
+    QHash<AbstractModule *, int> remainingInDeg;
+    downstreams.reserve(modCount);
+    remainingInDeg.reserve(modCount);
+    for (auto mod : mods) {
+        downstreams.insert(mod, {});
+        remainingInDeg.insert(mod, 0);
     }
 
-    if (orderedActiveModules.length() != modCount)
-        qCCritical(logEngine).noquote() << "Invalid count of ordered modules:" << orderedActiveModules.length()
-                                        << "!=" << modCount;
-    assert(orderedActiveModules.length() == modCount);
+    for (auto mod : mods) {
+        QSet<AbstractModule *> seenUpstream;
+        for (const auto &iport : mod->inPorts()) {
+            if (!iport->hasSubscription())
+                continue;
+            auto up = iport->outPort()->owner();
+            // Skip self-loops and modules outside the active set.
+            if (up == mod || !downstreams.contains(up))
+                continue;
+            // Count each unique upstream module only once per downstream module.
+            if (seenUpstream.contains(up))
+                continue;
+            seenUpstream.insert(up);
+            downstreams[up].insert(mod);
+            remainingInDeg[mod]++;
+        }
+    }
 
-    auto debugText = QStringLiteral("Running modules in order: ");
-    for (auto &mod : orderedActiveModules)
-        debugText.append(mod->name() + QStringLiteral("; "));
-    qCDebug(logEngine).noquote() << debugText;
+    // Seed the ready queue with source modules (in-degree 0), in original list order.
+    QList<AbstractModule *> queue;
+    for (auto mod : mods) {
+        if (remainingInDeg[mod] == 0)
+            queue.append(mod);
+    }
 
-    return orderedActiveModules;
+    QSet<AbstractModule *> placed;
+    placed.reserve(modCount);
+
+    while (result.size() < modCount) {
+        if (queue.isEmpty()) {
+            // All remaining modules are in cycle(s).
+            // We break each cycle greedily by selecting the not-yet-placed module that
+            // is most "source-like":
+            //   1. Fewest remaining unresolved upstream edges (closest to a source).
+            //   2. Category priority function.
+            //   3. Most outgoing edges (unblocks the most successors).
+            //   4. Alphabetical module name (for fully deterministic output).
+            AbstractModule *best = nullptr;
+            int bestIn = INT_MAX;
+            int bestCatPri = INT_MAX;
+            int bestOut = -1;
+            for (auto mod : mods) {
+                if (placed.contains(mod))
+                    continue;
+                const int inDeg = remainingInDeg[mod];
+                const int catPri = categoryPriorityFn(mod);
+                const int outDeg = static_cast<int>(downstreams[mod].size());
+                if (!best || inDeg < bestIn || (inDeg == bestIn && catPri < bestCatPri)
+                    || (inDeg == bestIn && catPri == bestCatPri && outDeg > bestOut)
+                    || (inDeg == bestIn && catPri == bestCatPri && outDeg == bestOut && mod->name() < best->name())) {
+                    best = mod;
+                    bestIn = inDeg;
+                    bestCatPri = catPri;
+                    bestOut = outDeg;
+                }
+            }
+            qCDebug(logEngine).noquote().nospace()
+                << "Resolving module graph cycle for " << context << "-order by placing module '" << best->name()
+                << "' first (remaining unresolved upstream edges: " << bestIn << ", category priority: " << bestCatPri
+                << ")";
+            queue.append(best);
+        }
+
+        auto mod = queue.takeFirst();
+        // Guard: a module may be queued as a normal zero-in-degree candidate and
+        // again as a cycle-breaker - place it only once.
+        if (placed.contains(mod))
+            continue;
+
+        result.append(mod);
+        placed.insert(mod);
+
+        // Enqueue newly-unblocked downstreams in original list order.
+        for (auto down : mods) {
+            if (placed.contains(down) || !downstreams[mod].contains(down))
+                continue;
+            if (--remainingInDeg[down] == 0)
+                queue.append(down);
+        }
+    }
+
+    if (result.size() != modCount)
+        qCCritical(logEngine).noquote() << "Invalid count of ordered modules:" << result.size() << "!=" << modCount;
+    assert(result.size() == modCount);
+
+    return result;
 }
 
 /**
- * @brief Create new module stop order from their exec order.
+ * @brief Compute both the start order and stop order for all active modules.
+ *
+ * Both lists are derived from the same topological sort (Kahn's algorithm) so
+ * that in the acyclic parts of the graph sources always come first and sinks
+ * last. Cycle-breaking uses different category priorities for start vs. stop:
+ *
+ *   Start: DEVICES > GENERATORS > others > SCRIPTING
+ *          Hardware is ready before scripting modules begin to interact with it.
+ *
+ *   Stop:  SCRIPTING > others > GENERATORS > DEVICES
+ *          Scripts stop issuing commands before the hardware they talk to shuts
+ *          down; sources stop before sinks so recorders can drain their buffers.
+ *
+ * Inactive modules not considered for this run are collected as "inactive".
  */
-QList<AbstractModule *> Engine::createModuleStopOrderFromExecOrder(const QList<AbstractModule *> &modExecList)
+Engine::ModuleRunOrder Engine::createModuleRunOrder() const
 {
-    QList<AbstractModule *> stopOrderMods;
-    QSet<AbstractModule *> assignedMods;
-    stopOrderMods.reserve(modExecList.length());
+    auto categoryStartPriority = [this](const AbstractModule *mod) -> int {
+        const auto info = d->modLibrary->moduleInfo(mod->id());
+        if (!info)
+            return 3;
+        const auto cats = info->categories();
+        if (cats.testFlag(ModuleCategory::DEVICES))
+            return 1;
+        if (cats.testFlag(ModuleCategory::GENERATORS))
+            return 2;
+        if (cats.testFlag(ModuleCategory::SCRIPTING))
+            return 4;
+        return 3;
+    };
 
-    for (auto &mod : modExecList) {
-        if (assignedMods.contains(mod))
-            continue;
+    // Stop priorities are the exact inverse of start priorities.
+    auto categoryStopPriority = [this](const AbstractModule *mod) -> int {
+        const auto info = d->modLibrary->moduleInfo(mod->id());
+        if (!info)
+            return 2;
+        const auto cats = info->categories();
+        if (cats.testFlag(ModuleCategory::SCRIPTING))
+            return 1;
+        if (cats.testFlag(ModuleCategory::GENERATORS))
+            return 3;
+        if (cats.testFlag(ModuleCategory::DEVICES))
+            return 4;
+        return 2;
+    };
 
-        // FIXME: This is very ugly special-casing of a single module type, but we want to give users
-        // a chance to still send Firmata commands when the system is terminating.
-        // Possibly replace this with module-defined declarative StartupOrder/TerminateOrder later?
-        if (mod->id() == QStringLiteral("firmata-io")) {
-            for (const auto &iport : mod->inPorts()) {
-                if (iport->hasSubscription()) {
-                    const auto upstreamMod = iport->outPort()->owner();
-                    if (upstreamMod->id() == QStringLiteral("pyscript")) {
-                        if (!assignedMods.contains(upstreamMod)) {
-                            stopOrderMods.append(upstreamMod);
-                            assignedMods.insert(upstreamMod);
-
-                            stopOrderMods.append(mod);
-                            assignedMods.insert(mod);
-                        } else {
-                            // inefficiently search for the module we should stop after
-                            for (ssize_t i = 0; i < stopOrderMods.length(); i++) {
-                                if (upstreamMod == stopOrderMods[i]) {
-                                    stopOrderMods.insert(i + 1, mod);
-                                    assignedMods.insert(mod);
-                                    break;
-                                }
-                            }
-                        }
-
-                        break;
-                    }
-                }
-            }
-        }
-
-        // we need to check the set again here, as modules may have been
-        // added while we were in this loop
-        if (!assignedMods.contains(mod)) {
-            stopOrderMods.append(mod);
-            assignedMods.insert(mod);
-        }
+    ModuleRunOrder order;
+    QList<AbstractModule *> activeMods;
+    for (auto &mod : d->presentModules) {
+        if (mod->modifiers().testFlag(ModuleModifier::ENABLED))
+            activeMods.append(mod);
+        else
+            order.inactive.append(mod);
     }
 
-    if (stopOrderMods.length() != modExecList.length())
-        qCCritical(logEngine).noquote() << "Invalid count of stop-ordered modules:" << stopOrderMods.length()
-                                        << "!=" << modExecList.length();
-    assert(stopOrderMods.length() == modExecList.length());
+    order.start = computeModuleOrder(activeMods, categoryStartPriority, "start");
+    order.stop = computeModuleOrder(activeMods, categoryStopPriority, "stop");
 
-    return stopOrderMods;
+    auto startText = QStringLiteral("Module start order: ");
+    for (auto mod : order.start)
+        startText.append(mod->name() + QStringLiteral("; "));
+    qCDebug(logEngine).noquote() << startText;
+
+    auto stopText = QStringLiteral("Module stop order:  ");
+    for (auto mod : order.stop)
+        stopText.append(mod->name() + QStringLiteral("; "));
+    qCDebug(logEngine).noquote() << stopText;
+
+    return order;
 }
 
-void Engine::notifyUsbHotplugEvent(UsbHotplugEventKind kind)
+void Engine::notifyUsbHotplugEvent(UsbHotplugEventKind kind) const
 {
     if (kind == UsbHotplugEventKind::NONE)
         return;
@@ -1571,15 +1635,8 @@ bool Engine::runInternal(const QString &exportDirPath)
     }
     d->internalTSyncWriters.clear();
 
-    // fetch list of modules in their activation order
-    QList<AbstractModule *> orderedActiveModules;
-    QList<AbstractModule *> inactiveModules;
-    for (auto &mod : createModuleExecOrderList()) {
-        if (mod->modifiers().testFlag(ModuleModifier::ENABLED))
-            orderedActiveModules.append(mod);
-        else
-            inactiveModules.append(mod);
-    }
+    // compute start and stop orders for all active modules
+    const auto modOrder = createModuleRunOrder();
 
     // create a new master timer for synchronization
     d->timer.reset(new SyncTimer);
@@ -1592,7 +1649,7 @@ bool Engine::runInternal(const QString &exportDirPath)
     // perform module name sanity check
     {
         QSet<QString> modNameSet;
-        for (auto &mod : orderedActiveModules) {
+        for (auto &mod : modOrder.start) {
             const auto expectedName = simplifyStrForModuleName(mod->name());
             if (mod->name() != expectedName) {
                 qCWarning(logEngine).noquote()
@@ -1636,7 +1693,7 @@ bool Engine::runInternal(const QString &exportDirPath)
     QHash<QString, std::shared_ptr<ModuleEventThread>> evThreads;
 
     // filter out dedicated-thread modules, those get special treatment
-    for (auto &mod : orderedActiveModules) {
+    for (auto &mod : modOrder.start) {
         mod->setDefaultRTPriority(defaultRTPriority);
         if (mod->driver() == ModuleDriverKind::THREAD_DEDICATED)
             threadedModules.append(mod);
@@ -1649,13 +1706,13 @@ bool Engine::runInternal(const QString &exportDirPath)
         potentialNoaffinityCPUCount = cpuCoreCount - threadedModulesTotalN - 1;
     qCDebug(logEngine).noquote() << "Predicted amount of CPU cores with no (explicitly known) occupation:"
                                  << potentialNoaffinityCPUCount;
-    for (auto &mod : orderedActiveModules)
+    for (auto &mod : modOrder.start)
         mod->setPotentialNoaffinityCPUCount(potentialNoaffinityCPUCount);
 
-    QCoreApplication::processEvents();
+    qApp->processEvents();
 
     // prepare modules
-    for (auto &mod : orderedActiveModules) {
+    for (auto &mod : modOrder.start) {
         // Prepare module. At this point it should have a timer,
         // the location where data is saved and be in the PREPARING state.
         emitStatusMessage(QStringLiteral("Preparing '%1'...").arg(mod->name()));
@@ -1701,7 +1758,7 @@ bool Engine::runInternal(const QString &exportDirPath)
     }
 
     // mark all inactive modules as dormant
-    for (auto &mod : inactiveModules) {
+    for (auto &mod : modOrder.inactive) {
         mod->setState(ModuleState::DORMANT);
     }
 
@@ -1712,7 +1769,7 @@ bool Engine::runInternal(const QString &exportDirPath)
     auto streamExporter = std::make_unique<StreamExporter>();
     if (initSuccessful) {
         emitStatusMessage(QStringLiteral("Exporting streams for external modules..."));
-        for (auto &mod : orderedActiveModules) {
+        for (auto &mod : modOrder.start) {
             auto mlinkMod = qobject_cast<MLinkModule *>(mod);
             if (mlinkMod != nullptr)
                 mlinkMod->markIncomingForExport(streamExporter.get());
@@ -1779,7 +1836,7 @@ bool Engine::runInternal(const QString &exportDirPath)
         // collect all modules which do some kind of event-based execution
         {
             QHash<QString, int> remainingEvModCountById;
-            for (auto &mod : orderedActiveModules) {
+            for (auto &mod : modOrder.start) {
                 if ((mod->driver() == ModuleDriverKind::EVENTS_SHARED)
                     || (mod->driver() == ModuleDriverKind::EVENTS_DEDICATED)) {
                     if (!remainingEvModCountById.contains(mod->id()))
@@ -1789,7 +1846,7 @@ bool Engine::runInternal(const QString &exportDirPath)
             }
 
             // assign modules to their threads and give the groups an ID
-            for (auto &mod : orderedActiveModules) {
+            for (auto &mod : modOrder.start) {
                 QString evGroupId;
                 if (mod->driver() == ModuleDriverKind::EVENTS_SHARED) {
                     evGroupId = QStringLiteral("shared_0");
@@ -1818,7 +1875,7 @@ bool Engine::runInternal(const QString &exportDirPath)
 
         // give modules which roll their own threads their own start-wait-conditions at this point
         // (right before the PREPARE stage is reached)
-        for (auto &mod : orderedActiveModules)
+        for (auto &mod : modOrder.start)
             mod->updateStartWaitCondition(startWaitCondition.get());
 
         // run special threads with built-in event loops for modules that selected an event-based driver
@@ -1840,7 +1897,7 @@ bool Engine::runInternal(const QString &exportDirPath)
         // (modules may take a bit of time to prepare their threads)
         // FIXME: Maybe add a timeout on this, in case a module doesn't
         // behave and never ever leaves its preparation phase?
-        for (auto &mod : orderedActiveModules) {
+        for (auto &mod : modOrder.start) {
             if (mod->state() == ModuleState::READY)
                 continue;
             // DORMANT is also a valid state at this point, the module may not
@@ -1875,7 +1932,7 @@ bool Engine::runInternal(const QString &exportDirPath)
 
         // collect modules which have an explicit UI callback method
         std::vector<AbstractModule *> callUiEventModules;
-        for (auto &mod : orderedActiveModules) {
+        for (auto &mod : modOrder.start) {
             if (mod->features().testFlag(ModuleFeature::CALL_UI_EVENTS)) {
                 // we do not call UI events for modules that have marked themselves as dormant
                 if (mod->state() != ModuleState::DORMANT)
@@ -1884,14 +1941,14 @@ bool Engine::runInternal(const QString &exportDirPath)
         }
 
         // start monitoring resource issues during this run
-        startResourceMonitoring(orderedActiveModules, exportDirPath);
+        startResourceMonitoring(modOrder.start, exportDirPath);
 
         // we officially start now, launch the timer
         d->timer->start();
         d->running = true;
 
         // first, launch all threaded and evented modules
-        for (auto &mod : orderedActiveModules) {
+        for (auto &mod : modOrder.start) {
             if ((mod->driver() != ModuleDriverKind::THREAD_DEDICATED)
                 && (mod->driver() != ModuleDriverKind::EVENTS_DEDICATED)
                 && (mod->driver() != ModuleDriverKind::EVENTS_SHARED))
@@ -1923,7 +1980,7 @@ bool Engine::runInternal(const QString &exportDirPath)
         lastPhaseTimepoint = d->timer->currentTimePoint();
 
         // tell all non-threaded modules individually now that we started
-        for (auto &mod : orderedActiveModules) {
+        for (auto &mod : modOrder.start) {
             // ignore threaded & evented
             if ((mod->driver() == ModuleDriverKind::THREAD_DEDICATED)
                 || (mod->driver() == ModuleDriverKind::EVENTS_DEDICATED)
@@ -2008,8 +2065,11 @@ bool Engine::runInternal(const QString &exportDirPath)
     qCDebug(logEngine).noquote().nospace()
         << "Waited " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec for event threads to stop.";
 
-    // send stop command to all modules
-    for (auto &mod : createModuleStopOrderFromExecOrder(orderedActiveModules)) {
+    // send stop command to all active modules in their designated stop order
+    for (auto &mod : modOrder.stop) {
+        if (!mod->modifiers().testFlag(ModuleModifier::ENABLED))
+            continue;
+
         emitStatusMessage(QStringLiteral("Stopping '%1'...").arg(mod->name()));
         lastPhaseTimepoint = d->timer->currentTimePoint();
 
@@ -2132,7 +2192,7 @@ bool Engine::runInternal(const QString &exportDirPath)
             }
 
             if (initSuccessful)
-                finalizeExperimentMetadata(storageCollection, finishTimestamp, orderedActiveModules);
+                finalizeExperimentMetadata(storageCollection, finishTimestamp, modOrder.start);
 
             emitStatusMessage(QStringLiteral("Unable to recover stalled module '%1' (⚠️ application may deadlock now)")
                                   .arg(mod->name()));
@@ -2163,7 +2223,7 @@ bool Engine::runInternal(const QString &exportDirPath)
     // so the module will trigger an error message if is still tries to access the final
     // data. We mast do this in a separate loop, as some modules may share an EDL group
     // to store data in.
-    for (auto &mod : orderedActiveModules)
+    for (auto &mod : modOrder.start)
         mod->setStorageGroup(nullptr);
 
     if (d->saveInternal) {
@@ -2179,7 +2239,7 @@ bool Engine::runInternal(const QString &exportDirPath)
         emitStatusMessage(QStringLiteral("Removing broken data..."));
         edlDir.removeRecursively();
     } else {
-        finalizeExperimentMetadata(storageCollection, finishTimestamp, orderedActiveModules);
+        finalizeExperimentMetadata(storageCollection, finishTimestamp, modOrder.start);
         qCDebug(logEngine).noquote().nospace()
             << "Manifest and additional data saved in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
     }
@@ -2188,7 +2248,7 @@ bool Engine::runInternal(const QString &exportDirPath)
     setInactiveModuleInputPortsSuspended(false);
 
     // mark inactive modules as idle again
-    for (auto &mod : inactiveModules) {
+    for (auto &mod : modOrder.inactive) {
         if (mod->state() != ModuleState::IDLE)
             mod->setState(ModuleState::IDLE);
     }

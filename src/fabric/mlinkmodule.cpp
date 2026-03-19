@@ -39,7 +39,7 @@ Q_LOGGING_CATEGORY(logMLinkMod, "mlink-master")
 using namespace Syntalos::ipc;
 
 /**
- * Safely receive from an iceoryx2 subscriber.
+ * Safely receive from an iceoryx subscriber.
  * Returns the inner optional (empty = no data available) and logs a warning
  * instead of crashing when the receive itself fails.
  */
