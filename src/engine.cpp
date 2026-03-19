@@ -2067,9 +2067,6 @@ bool Engine::runInternal(const QString &exportDirPath)
 
     // send stop command to all active modules in their designated stop order
     for (auto &mod : modOrder.stop) {
-        if (!mod->modifiers().testFlag(ModuleModifier::ENABLED))
-            continue;
-
         emitStatusMessage(QStringLiteral("Stopping '%1'...").arg(mod->name()));
         lastPhaseTimepoint = d->timer->currentTimePoint();
 
