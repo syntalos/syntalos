@@ -788,12 +788,13 @@ void MLinkModule::registerOutPortForwarders()
         d->outPortSubs.push_back(std::move(ps));
 
         // NOTE: oport->startStream() is intentionally NOT called here.
-        // The stream is started in MLinkModule::start(), after the worker's
-        // start() callback has run and any OutputPortChange messages (e.g.
-        // metadata set via set_metadata_value in Python start()) have been
-        // processed by handleIncomingControl(). This ensures that
+        // It is called at the end of MLinkModule::prepare(), after all
+        // OutputPortChange messages from the worker's prepare() callback have
+        // been processed by handleIncomingControl(). This ensures that
         // DataStream::start() snapshots the complete, final metadata into every
-        // subscription.
+        // subscription so that downstream modules see correct values during
+        // their own prepare() phase. The snapshot is repeated in start() to
+        // pick up any last-minute changes from the worker's start() callback.
     }
 }
 
@@ -867,10 +868,29 @@ bool MLinkModule::prepare(const TestSubject &subject)
         }
     }
 
+    // Extra drain: READY (on subStateChange) and any OutputPortChange::CHANGE messages
+    // (on subOutPortChange) travel through two separate channels.
+    // Although the worker always publishes CHANGE before READY (in the same thread),
+    // the loop above may exit as soon as READY is visible on its service, before the
+    // CHANGE sample has been committed to the subOutPortChange subscriber buffer on the
+    // master side. One additional drain pass here ensures that metadata set by the worker
+    // is applied to the DataStream's metadata before we commit it into subscriptions.
+    handleIncomingControl();
+
     // register output port forwarding from exported data streams to internal data transmission
     registerOutPortForwarders();
     if (state() == ModuleState::ERROR)
         return false;
+
+    // Snapshot the now-final post-prepare() metadata into every output-port subscription.
+    // This is done here - before start() - so that downstream modules can already read the
+    // correct metadata from their input-port subscriptions during their own prepare() phase.
+    // The engine prepares modules in graph order, so a downstream module's prepare() runs
+    // after this point and will see the up-to-date values.
+    // The snapshot is repeated implicitly in start() too, via startStream(), so we pick
+    // up any last-minute changes as well.
+    for (auto &ps : d->outPortSubs)
+        ps.oport->streamVar()->commitMetadata();
 
     d->portChangesAllowed = false;
     return true;
@@ -912,7 +932,11 @@ void MLinkModule::start()
     // updates from Python start()) before we start the output streams below.
     handleIncomingControl();
 
-    // Start all output-port streams now that metadata is complete
+    // Start all streams. This re-snapshots the (now-final and immutable) metadata
+    // into all output-port subscriptions.
+    // The first snapshot was taken at the end of prepare(); this second pass picks
+    // up any last-minute changes the worker's start() callback may have published,
+    // as a last-minute safety net.
     for (auto &ps : d->outPortSubs)
         ps.oport->startStream();
 

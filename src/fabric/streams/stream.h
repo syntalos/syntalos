@@ -102,6 +102,7 @@ public:
     virtual QString dataTypeName() const = 0;
     virtual int dataTypeId() const = 0;
     virtual std::shared_ptr<VariantStreamSubscription> subscribeVar() = 0;
+    virtual bool commitMetadata() = 0;
     virtual void start() = 0;
     virtual void stop() = 0;
     virtual bool active() const = 0;
@@ -532,13 +533,25 @@ public:
         return false;
     }
 
-    void start() override
+    bool commitMetadata() override
     {
-        m_ownerId = std::this_thread::get_id();
+        if (m_active) {
+            qWarning().noquote() << "Attempted to commit metadata to an active stream. This is not permitted and may "
+                                    "lead to undefined behavior.";
+            return false;
+        }
         for (auto const &sub : m_subs) {
             sub->reset();
             sub->setMetadata(m_metadata);
         }
+
+        return true;
+    }
+
+    void start() override
+    {
+        m_ownerId = std::this_thread::get_id();
+        commitMetadata();
         m_active = true;
     }
 
