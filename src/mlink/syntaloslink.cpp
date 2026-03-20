@@ -521,8 +521,11 @@ void SyntalosLink::processPendingControl()
         // apply niceness request immediately to current thread
         const bool ok = setCurrentThreadNiceness(req->payload().nice);
         if (!ok)
-            raiseError("Could not set niceness to " + QString::number(req->payload().nice));
-        Private::replyDone(*req, ok);
+            // Rtkit may have hit its per-user concurrent-thread limit.
+            // The module will continue at default priority rather than failing to start entirely.
+            std::cerr << "Worker thread niceness could not be set to " << req->payload().nice
+                      << " - module will run at default priority." << std::endl;
+        Private::replyDone(*req, true);
     }
 
     // ---- SetMaxRealtimePriority ----

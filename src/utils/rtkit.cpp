@@ -103,6 +103,18 @@ bool RtKit::makeHighPriority(pid_t thread, int niceLevel)
 
     m_lastError = QStringLiteral("Unable to change thread priority to high: %1: %2")
                       .arg(reply.error().name(), reply.error().message());
+
+    // rtkit maps EBUSY to org.freedesktop.DBus.Error.AccessDenied when the per-user
+    // MaxConcurrentThreads limit is exceeded. The error name looks like a plain
+    // permission problem but is actually resource exhaustion, so disambiguate.
+    if (reply.error().name() == QLatin1String("org.freedesktop.DBus.Error.AccessDenied")
+        && reply.error().message().contains(QLatin1String("busy"), Qt::CaseInsensitive)) {
+        m_lastError = QStringLiteral(
+            "Unable to change thread priority to high: RtKit's per-user "
+            "concurrent-thread limit has been reached - too many worker threads "
+            "are already elevated simultaneously.");
+    }
+
     return false;
 }
 
@@ -112,8 +124,8 @@ bool RtKit::makeRealtime(pid_t thread, uint priority)
         struct sched_param sp = {};
         sp.sched_priority = priority;
 
-        if (pthread_setschedparam(pthread_self(), SCHED_OTHER | SCHED_RESET_ON_FORK, &sp) == 0) {
-            qCDebug(logRtKit).noquote() << "Realtime priority obtained via SCHED_OTHER | SCHED_RESET_ON_FORK directly";
+        if (pthread_setschedparam(pthread_self(), SCHED_RR | SCHED_RESET_ON_FORK, &sp) == 0) {
+            qCDebug(logRtKit).noquote() << "Realtime priority obtained via SCHED_RR | SCHED_RESET_ON_FORK directly";
             return true;
         }
         thread = gettid();
@@ -210,7 +222,7 @@ bool setCurrentThreadNiceness(int nice)
     }
 
     if (!rtkit.makeHighPriority(0, nice)) {
-        qCDebug(logRtKit).noquote().nospace() << rtkit.lastError();
+        qCWarning(logRtKit).noquote().nospace() << rtkit.lastError();
         return false;
     }
 

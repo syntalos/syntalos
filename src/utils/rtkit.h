@@ -32,7 +32,7 @@ class RtKit : public QObject
 public:
     explicit RtKit(QObject *parent = nullptr);
 
-    QString lastError() const;
+    [[nodiscard]] QString lastError() const;
 
     int queryMaxRealtimePriority(bool *ok = nullptr);
     int queryMinNiceLevel(bool *ok = nullptr);

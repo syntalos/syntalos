@@ -28,7 +28,6 @@
 
 #include "mlink/ipc-types-private.h"
 #include "mlink/ipc-iox-private.h"
-#include "globalconfig.h"
 #include "utils/misc.h"
 
 namespace Syntalos
@@ -810,8 +809,6 @@ void MLinkModule::disconnectOutPortForwarders()
 
 bool MLinkModule::prepare(const TestSubject &subject)
 {
-    GlobalConfig gconf;
-
     // ensure we are reading any messages from the module process
     d->ctlEventTimer->start();
 
@@ -829,13 +826,13 @@ bool MLinkModule::prepare(const TestSubject &subject)
 
     // set module process niceness
     if (!d->callClientSimple<SetNicenessRequest>(this, SET_NICENESS_CALL_ID, [&](auto &req) {
-            req.nice = gconf.defaultThreadNice();
+            req.nice = defaultThreadNiceness();
         }))
         return false;
 
     // set module process realtime priority
     if (!d->callClientSimple<SetMaxRealtimePriority>(this, SET_MAX_RT_PRIORITY_CALL_ID, [&](auto &req) {
-            req.priority = gconf.defaultRTThreadPriority();
+            req.priority = defaultRealtimePriority();
         }))
         return false;
 

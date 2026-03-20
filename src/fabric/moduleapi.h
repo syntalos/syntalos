@@ -1016,6 +1016,15 @@ protected:
     int defaultRealtimePriority() const;
 
     /**
+     * @brief Returns the thread niceness value for this run
+     *
+     * The engine computes this once before any module is prepared, taking the global
+     * configuration and the system's slot budget into account. A value of 0 means
+     * no elevation will be requested.
+     */
+    int defaultThreadNiceness() const;
+
+    /**
      * @brief Returns true if the currently ongoing or last run is/was ephemeral
      *
      * An emphameral (or volatile) run is a type of run where no data is stored permanently.
@@ -1064,6 +1073,7 @@ private:
     void resetEventCallbacks();
     void setPotentialNoaffinityCPUCount(uint coreN);
     void setDefaultRTPriority(int prio);
+    void setDefaultThreadNiceness(int nice);
     void setEphemeralRun(bool isEphemeral);
 };
 

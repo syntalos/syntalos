@@ -522,6 +522,7 @@ public:
     int modIndex;
     uint potentialNoaffinityCPUCount;
     int defaultRealtimePriority;
+    int defaultThreadNiceness;
     static int s_eventsMaxModulesPerThread;
 
     QList<QPair<QWidget *, bool>> displayWindows;
@@ -1061,6 +1062,11 @@ int AbstractModule::defaultRealtimePriority() const
     return d->defaultRealtimePriority;
 }
 
+int AbstractModule::defaultThreadNiceness() const
+{
+    return d->defaultThreadNiceness;
+}
+
 bool AbstractModule::isEphemeralRun() const
 {
     return d->runIsEmphemeral;
@@ -1186,6 +1192,11 @@ void AbstractModule::setPotentialNoaffinityCPUCount(uint coreN)
 void AbstractModule::setDefaultRTPriority(int prio)
 {
     d->defaultRealtimePriority = prio;
+}
+
+void AbstractModule::setDefaultThreadNiceness(int nice)
+{
+    d->defaultThreadNiceness = nice;
 }
 
 void AbstractModule::setEphemeralRun(bool isEphemeral)

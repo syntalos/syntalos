@@ -156,6 +156,15 @@ private:
     Q_DISABLE_COPY(Engine)
     std::unique_ptr<Private> d;
 
+    /**
+     * @brief Holds the pre-computed start and stop ordering for one run.
+     */
+    struct ModuleRunOrder {
+        QList<AbstractModule *> start;
+        QList<AbstractModule *> stop;
+        QList<AbstractModule *> inactive;
+    };
+
     int obtainSleepShutdownIdleInhibitor();
     bool makeDirectory(const QString &dir);
 
@@ -168,20 +177,12 @@ private:
         qint64 finishTimestamp,
         const QList<AbstractModule *> &activeModules);
     void setInactiveModuleInputPortsSuspended(bool suspended);
+
+    void allocateNicenessBudget(const ModuleRunOrder &modOrder, uint maxRtThreads, int defaultThreadNice);
     bool runInternal(const QString &exportDirPath);
     void makeFinalExperimentId();
     void refreshExportDirPath();
     void emitStatusMessage(const QString &message);
-
-    /**
-     * @brief Holds the pre-computed start and stop ordering for one run.
-     */
-    struct ModuleRunOrder {
-        QList<AbstractModule *> start;
-        QList<AbstractModule *> stop;
-        QList<AbstractModule *> inactive;
-    };
-
     ModuleRunOrder createModuleRunOrder() const;
 };
 

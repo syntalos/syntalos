@@ -94,6 +94,17 @@ void GlobalConfig::setMainWinState(const QByteArray &state)
     m_s->setValue("ui/window_state", state);
 }
 
+uint GlobalConfig::defaultRtKitThreadsMax() const
+{
+    // RtKit has a default limit of 25 per user, we try to take 20 at max by default, if we can.
+    return m_s->value("engine/default_rtkit_threads_max", 20).toUInt();
+}
+
+void GlobalConfig::setDefaultRtKitThreadsMax(uint max)
+{
+    m_s->setValue("engine/default_rtkit_threads_max", max);
+}
+
 int GlobalConfig::defaultThreadNice() const
 {
     RtKit rtkit;

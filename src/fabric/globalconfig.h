@@ -60,6 +60,9 @@ public:
     QByteArray mainWinState() const;
     void setMainWinState(const QByteArray &state);
 
+    uint defaultRtKitThreadsMax() const;
+    void setDefaultRtKitThreadsMax(uint max);
+
     int defaultThreadNice() const;
     void setDefaultThreadNice(int nice);
 

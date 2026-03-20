@@ -192,7 +192,7 @@ public:
 
 private:
     bool m_created;
-    bool m_threadBackend;
+    Backend m_threadBackend;
     pthread_t m_pThread;
     std::unique_ptr<QThread> m_qThread;
 
@@ -1564,6 +1564,78 @@ void Engine::setInactiveModuleInputPortsSuspended(bool suspended)
 }
 
 /**
+ * @brief Distribute niceness elevation slots among all module threads for a run.
+ *
+ * RtKit enforces a per-user limit across all elevated threads that we do not know,
+ * but guess to be around 20.
+ * This function pre-assigns which threads get elevation, so that:
+ *   a) we never make D-Bus calls that will likely be rejected, and
+ *   b) the most important threads - those whose modules appear earliest in the topological
+ *      run order - are prioritized across both  in-process dedicated threads and
+ *      out-of-process workers.
+ *
+ * One slot is always reserved for the main engine thread (it is never in the returned set).
+ * The remaining slots are distributed in topological order across all module types.
+ *
+ * @param modOrder          The pre-computed module run order for this run.
+ * @param maxRtThreads      Maximum amount of concurrent RT threads.
+ * @param defaultThreadNice The configured default thread niceness (0 = no elevation wanted).
+ */
+void Engine::allocateNicenessBudget(const ModuleRunOrder &modOrder, uint maxRtThreads, int defaultThreadNice)
+{
+    // Set the default niceness on every module upfront.
+    // Modules whose driver neither spawns a dedicated thread nor an MLink worker
+    // (e.g. event-loop modules) keep the value but never act on it.
+    for (auto &mod : modOrder.start)
+        mod->setDefaultThreadNiceness(defaultThreadNice);
+
+    // If elevation is not wanted at all, we are done.
+    if (defaultThreadNice == 0 || maxRtThreads == 0)
+        return;
+
+    // Count modules that will actually request elevation.
+    int dedicatedCount = 0;
+    int mlinkCount = 0;
+    for (auto &mod : modOrder.start) {
+        if (qobject_cast<MLinkModule *>(mod) != nullptr)
+            ++mlinkCount;
+        else if (mod->driver() == ModuleDriverKind::THREAD_DEDICATED)
+            ++dedicatedCount;
+    }
+
+    if (dedicatedCount == 0 && mlinkCount == 0)
+        return;
+
+    // Reserve 1 slot for the main engine thread (always elevated, starts first).
+    // Distribute the remaining slots in topological order across all module types.
+    const int totalWanting = dedicatedCount + mlinkCount;
+    const long long slotsForModules = std::max(0LL, maxRtThreads - 1LL);
+
+    if (slotsForModules >= totalWanting)
+        return; // everything fits — nothing to restrict
+
+    qCWarning(logEngine).noquote().nospace()
+        << "Concurrent RT thread limit is " << maxRtThreads << " (1 main + " << dedicatedCount << " dedicated + "
+        << mlinkCount << " MLink = " << (1 + totalWanting) << " total requested). "
+        << "Only the first " << slotsForModules << " module threads will be elevated to nice " << defaultThreadNice
+        << "; the remaining " << (totalWanting - slotsForModules) << " will run at default priority. ";
+
+    // Walk in topological order: give slots to the first slotsForModules threads,
+    // cap the rest to niceness=0 directly on the module object.
+    long long remaining = slotsForModules;
+    for (auto &mod : modOrder.start) {
+        const bool isMLink = qobject_cast<MLinkModule *>(mod) != nullptr;
+        const bool isDedicated = mod->driver() == ModuleDriverKind::THREAD_DEDICATED;
+        if (!isMLink && !isDedicated)
+            continue;
+        if (remaining > 0)
+            --remaining;
+        else
+            mod->setDefaultThreadNiceness(0);
+    }
+}
+
+/**
  * @brief Actually run an experiment module board
  * @return true on succees
  *
@@ -1711,6 +1783,9 @@ bool Engine::runInternal(const QString &exportDirPath)
 
     qApp->processEvents();
 
+    // distribute niceness slots across all module threads before preparing any module
+    allocateNicenessBudget(modOrder, d->gconf->defaultRtKitThreadsMax(), defaultThreadNice);
+
     // prepare modules
     for (auto &mod : modOrder.start) {
         // Prepare module. At this point it should have a timer,
@@ -1808,7 +1883,7 @@ bool Engine::runInternal(const QString &exportDirPath)
             mod->setState(ModuleState::PREPARING);
 
             ThreadDetails td;
-            td.niceness = defaultThreadNice;
+            td.niceness = mod->defaultThreadNiceness();
             td.allowedRTPriority = defaultRTPriority;
 
             if (modCPUMap.contains(mod)) {
