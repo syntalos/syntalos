@@ -59,13 +59,13 @@ enum class PortAction : uint8_t {
  * @brief Information about an input port change
  */
 struct InputPortChange {
-    PortAction action;
+    PortAction action{PortAction::UNKNOWN};
 
     QString id;
     QString title;
-    int dataTypeId{};
+    int dataTypeId{-1};
     QVariantHash metadata;
-    uint throttleItemsPerSec{};
+    uint throttleItemsPerSec{0};
 
     InputPortChange() = default;
     explicit InputPortChange(PortAction pa)
@@ -75,7 +75,7 @@ struct InputPortChange {
     {
     }
 
-    QByteArray toBytes() const
+    [[nodiscard]] QByteArray toBytes() const
     {
         QByteArray bytes;
         QDataStream stream(&bytes, QIODevice::WriteOnly);
@@ -115,11 +115,11 @@ static const std::string IN_PORT_CHANGE_CHANNEL_ID = "InPortChange";
  * @brief Information about an output port change
  */
 struct OutputPortChange {
-    PortAction action;
+    PortAction action{PortAction::UNKNOWN};
 
     QString id;
     QString title;
-    int dataTypeId;
+    int dataTypeId{-1};
     QVariantHash metadata;
 
     OutputPortChange() = default;
@@ -129,7 +129,7 @@ struct OutputPortChange {
     {
     }
 
-    QByteArray toBytes()
+    [[nodiscard]] QByteArray toBytes() const
     {
         QByteArray bytes;
         QDataStream stream(&bytes, QIODevice::WriteOnly);
@@ -175,7 +175,7 @@ struct UpdateInputPortMetadataRequest {
 
     UpdateInputPortMetadataRequest() = default;
 
-    QByteArray toBytes() const
+    [[nodiscard]] QByteArray toBytes() const
     {
         QByteArray bytes;
         QDataStream stream(&bytes, QIODevice::WriteOnly);
@@ -301,7 +301,7 @@ struct LoadScriptRequest {
     QString venvDir;
     QString script;
 
-    QByteArray toBytes() const
+    [[nodiscard]] QByteArray toBytes() const
     {
         QByteArray bytes;
         QDataStream stream(&bytes, QIODevice::WriteOnly);
@@ -329,7 +329,7 @@ struct SetPortsPresetRequest {
     QList<InputPortChange> inPorts;
     QList<OutputPortChange> outPorts;
 
-    QByteArray toBytes() const
+    [[nodiscard]] QByteArray toBytes() const
     {
         QByteArray bytes;
         QDataStream stream(&bytes, QIODevice::WriteOnly);
@@ -360,7 +360,7 @@ static const std::string SET_PORTS_PRESET_CALL_ID = "SetPortsPresetRequest";
 struct PrepareStartRequest {
     QByteArray settings;
 
-    QByteArray toBytes() const
+    [[nodiscard]] QByteArray toBytes() const
     {
         QByteArray bytes;
         QDataStream stream(&bytes, QIODevice::WriteOnly);
@@ -418,7 +418,7 @@ struct SettingsChangeEvent {
     {
     }
 
-    QByteArray toBytes() const
+    [[nodiscard]] QByteArray toBytes() const
     {
         QByteArray bytes;
         QDataStream stream(&bytes, QIODevice::WriteOnly);
@@ -448,7 +448,7 @@ static const std::string SETTINGS_CHANGE_CHANNEL_ID = "SettingsChange";
 struct ShowSettingsRequest {
     QByteArray settings;
 
-    QByteArray toBytes() const
+    [[nodiscard]] QByteArray toBytes() const
     {
         QByteArray bytes;
         QDataStream stream(&bytes, QIODevice::WriteOnly);

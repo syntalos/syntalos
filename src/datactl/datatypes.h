@@ -451,11 +451,11 @@ struct FirmataControl : BaseDataType {
 struct FirmataData : BaseDataType {
     SY_DEFINE_DATA_TYPE(FirmataData)
 
-    uint8_t pinId;
+    uint8_t pinId{};
     std::string pinName;
-    uint16_t value;
-    bool isDigital;
-    microseconds_t time;
+    uint16_t value{};
+    bool isDigital{};
+    microseconds_t time{};
 
     bool toBytes(ByteVector &output) const override
     {
@@ -517,16 +517,17 @@ struct IntSignalBlock : BaseDataType {
         data.resize(sampleCount, channelCount);
     }
 
-    size_t length() const
+    [[nodiscard]] size_t length() const
     {
         return timestamps.size();
     }
 
-    size_t rows() const
+    [[nodiscard]] size_t rows() const
     {
         return data.rows();
     }
-    size_t cols() const
+
+    [[nodiscard]] size_t cols() const
     {
         return data.cols();
     }
@@ -580,16 +581,17 @@ struct FloatSignalBlock : BaseDataType {
             data(0, i) = floatVec[i];
     }
 
-    size_t length() const
+    [[nodiscard]] size_t length() const
     {
         return timestamps.size();
     }
 
-    size_t rows() const
+    [[nodiscard]] size_t rows() const
     {
         return data.rows();
     }
-    size_t cols() const
+
+    [[nodiscard]] size_t cols() const
     {
         return data.cols();
     }

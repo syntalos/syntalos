@@ -74,7 +74,7 @@ enum class SyPubSubEvent : size_t {
  * @brief Publisher side of a Syntalos data channel.
  *
  * Combines a byte-slice iox2 publisher with an event notifier and listener
- * on the same service name. On creation it fires PublisherConnected; on
+ * on the same service name. On creation, it fires PublisherConnected; on
  * destruction it fires PublisherDisconnected. Every send() fires SentSample
  * so attached subscribers wake immediately.
  *
@@ -447,7 +447,7 @@ public:
     template<typename Fn>
     void handleEvents(Fn &&callback)
     {
-        // Per the iceoryx2 FAQ: you MUST drain all pending events before returning,
+        // Per the iceoryx2 FAQ: We MUST drain all pending events before returning,
         // otherwise the WaitSet fires again immediately (100% CPU / notification flood).
         // try_wait_all() only returns a "reasonable batch", so we loop with
         // try_wait_one() until the listener is truly empty.
@@ -515,10 +515,6 @@ private:
     bool m_valid = false;
 };
 
-// ---------------------------------------------------------------------------
-// Port factory helpers (low-level — used for typed/control channels)
-// ---------------------------------------------------------------------------
-
 /**
  * Create a typed fixed-size publisher on an open-or-created pub-sub service.
  * Uses blocking delivery.
@@ -573,8 +569,8 @@ iox2::Subscriber<iox2::ServiceType::Ipc, T, void> makeTypedSubscriber(
 
 /**
  * Create a dynamic-size (byte-slice) publisher on an open-or-created pub-sub service.
- * Used for variable-size control-plane channels (port changes, settings, …).
- * For data-plane output ports, use SyPublisher::create() instead.
+ * Used for variable-size control-plane channels (port changes, settings, ...).
+ * For data-plane output ports, use SyPublisher instead.
  */
 inline IoxSlicePublisher makeSlicePublisher(iox2::Node<iox2::ServiceType::Ipc> &node, const std::string &svcNameStr)
 {
@@ -604,8 +600,8 @@ inline IoxSlicePublisher makeSlicePublisher(iox2::Node<iox2::ServiceType::Ipc> &
 
 /**
  * Create a dynamic-size (byte-slice) subscriber.
- * Used for variable-size control-plane channels (port changes, settings, …).
- * For data-plane output ports, use SySubscriber::create() instead.
+ * Used for variable-size control-plane channels (port changes, settings, ...).
+ * For data-plane output ports, use SySubscriber instead.
  */
 inline IoxSliceSubscriber makeSliceSubscriber(iox2::Node<iox2::ServiceType::Ipc> &node, const std::string &svcNameStr)
 {
@@ -627,7 +623,7 @@ inline IoxSliceSubscriber makeSliceSubscriber(iox2::Node<iox2::ServiceType::Ipc>
 }
 
 /**
- * Create an event-service listener (open_or_create).
+ * Create/open an event-service listener.
  */
 inline IoxListener makeEventListener(iox2::Node<iox2::ServiceType::Ipc> &node, const std::string &svcNameStr)
 {
@@ -665,7 +661,7 @@ inline IoxNotifier makeEventNotifier(iox2::Node<iox2::ServiceType::Ipc> &node, c
 }
 
 /**
- * Create/open a typed request-response server with blocking response delivery.
+ * Create/open a typed request-response server.
  */
 template<typename Req, typename Res>
 IoxServer<Req, Res> makeTypedServer(iox2::Node<iox2::ServiceType::Ipc> &node, const std::string &svcNameStr)
@@ -709,7 +705,7 @@ IoxClient<Req, Res> makeTypedClient(iox2::Node<iox2::ServiceType::Ipc> &node, co
 }
 
 /**
- * Create/open a sliced request-response server with blocking response delivery.
+ * Create/open a sliced request-response server.
  */
 inline IoxUntypedServer makeSliceServer(iox2::Node<iox2::ServiceType::Ipc> &node, const std::string &svcNameStr)
 {
