@@ -132,7 +132,8 @@ public:
     static SyPublisher create(
         iox2::Node<iox2::ServiceType::Ipc> &node,
         const std::string &instanceId,
-        const std::string &channelName)
+        const std::string &channelName,
+        const IpcServiceTopology &topology = IpcServiceTopology())
     {
         // Main service name to emit samples & sample notifications
         const auto svcNameStr = makeModuleServiceName(instanceId, channelName);
@@ -146,6 +147,9 @@ public:
 
         auto maybePubSvc = node.service_builder(svcName)
                                .publish_subscribe<iox2::bb::Slice<std::byte>>()
+                               .max_publishers(topology.maxSenders)
+                               .max_subscribers(topology.maxReceivers)
+                               .max_nodes(topology.maxNodes)
                                .history_size(SY_IOX_HISTORY_SIZE)
                                .subscriber_max_buffer_size(SY_IOX_QUEUE_CAPACITY)
                                .subscriber_max_borrowed_samples(1)
@@ -168,7 +172,12 @@ public:
                 + "': " + iox2::bb::into<const char *>(maybePub.error()));
 
         // Shared event service to notify clients
-        auto maybeEvSvc = node.service_builder(svcName).event().open_or_create();
+        auto maybeEvSvc = node.service_builder(svcName)
+                              .event()
+                              .max_notifiers(topology.maxSenders)
+                              .max_listeners(topology.maxReceivers)
+                              .max_nodes(topology.maxNodes)
+                              .open_or_create();
         if (!maybeEvSvc.has_value())
             throw std::runtime_error(
                 "Publisher: Failed to open/create event service for '" + svcNameStr
@@ -181,7 +190,12 @@ public:
                 + "': " + iox2::bb::into<const char *>(maybeNotifier.error()));
 
         // Event service for the clients to notify the publisher (us)
-        auto maybeCtlEvSv = node.service_builder(svcNameCtlEv).event().open_or_create();
+        auto maybeCtlEvSv = node.service_builder(svcNameCtlEv)
+                                .event()
+                                .max_notifiers(topology.maxReceivers)
+                                .max_listeners(topology.maxSenders)
+                                .max_nodes(topology.maxNodes)
+                                .open_or_create();
         if (!maybeCtlEvSv.has_value())
             throw std::runtime_error(
                 "Publisher: Failed to open/create control event service for '" + svcNameCtlEvStr
@@ -361,7 +375,8 @@ public:
     static SySubscriber create(
         iox2::Node<iox2::ServiceType::Ipc> &node,
         const std::string &instanceId,
-        const std::string &channelName)
+        const std::string &channelName,
+        const IpcServiceTopology &topology = IpcServiceTopology())
     {
         // Main service name to receive samples & notifications
         const auto svcNameStr = makeModuleServiceName(instanceId, channelName);
@@ -373,6 +388,9 @@ public:
 
         auto maybeSubSvc = node.service_builder(svcName)
                                .publish_subscribe<iox2::bb::Slice<std::byte>>()
+                               .max_publishers(topology.maxSenders)
+                               .max_subscribers(topology.maxReceivers)
+                               .max_nodes(topology.maxNodes)
                                .history_size(SY_IOX_HISTORY_SIZE)
                                .subscriber_max_buffer_size(SY_IOX_QUEUE_CAPACITY)
                                .subscriber_max_borrowed_samples(1)
@@ -389,7 +407,12 @@ public:
                 + "': " + iox2::bb::into<const char *>(maybeSub.error()));
 
         // Event service to get notified about new samples
-        auto maybeEvSvc = node.service_builder(svcName).event().open_or_create();
+        auto maybeEvSvc = node.service_builder(svcName)
+                              .event()
+                              .max_notifiers(topology.maxSenders)
+                              .max_listeners(topology.maxReceivers)
+                              .max_nodes(topology.maxNodes)
+                              .open_or_create();
         if (!maybeEvSvc.has_value())
             throw std::runtime_error(
                 "Subscriber: failed to open/create event service for '" + svcNameStr
@@ -402,7 +425,12 @@ public:
                 + "': " + iox2::bb::into<const char *>(maybeListener.error()));
 
         // Event service to notify the publisher that we exist
-        auto maybeCtlEvSvc = node.service_builder(svcNameCtlEv).event().open_or_create();
+        auto maybeCtlEvSvc = node.service_builder(svcNameCtlEv)
+                                 .event()
+                                 .max_notifiers(topology.maxReceivers)
+                                 .max_listeners(topology.maxSenders)
+                                 .max_nodes(topology.maxNodes)
+                                 .open_or_create();
         if (!maybeCtlEvSvc.has_value())
             throw std::runtime_error(
                 "Subscriber: failed to open/create control event service for '" + svcNameCtlEvStr
@@ -520,10 +548,13 @@ private:
  * Uses blocking delivery.
  */
 template<typename T>
-IoxPublisher<T> makeTypedPublisher(iox2::Node<iox2::ServiceType::Ipc> &node, const std::string &svcNameStr)
+IoxPublisher<T> makeTypedPublisher(iox2::Node<iox2::ServiceType::Ipc> &node, const std::string &svcNameStr, const IpcServiceTopology &topology = IpcServiceTopology())
 {
     auto maybeSvc = node.service_builder(iox2::ServiceName::create(svcNameStr.c_str()).value())
                         .publish_subscribe<T>()
+                        .max_publishers(topology.maxSenders)
+                        .max_subscribers(topology.maxReceivers)
+                        .max_nodes(topology.maxNodes)
                         .subscriber_max_buffer_size(SY_IOX_QUEUE_CAPACITY)
                         .subscriber_max_borrowed_samples(1)
                         .open_or_create();
@@ -549,10 +580,14 @@ IoxPublisher<T> makeTypedPublisher(iox2::Node<iox2::ServiceType::Ipc> &node, con
 template<typename T>
 iox2::Subscriber<iox2::ServiceType::Ipc, T, void> makeTypedSubscriber(
     iox2::Node<iox2::ServiceType::Ipc> &node,
-    const std::string &svcNameStr)
+    const std::string &svcNameStr,
+    const IpcServiceTopology &topology = IpcServiceTopology())
 {
     auto maybeSvc = node.service_builder(iox2::ServiceName::create(svcNameStr.c_str()).value())
                         .publish_subscribe<T>()
+                        .max_publishers(topology.maxSenders)
+                        .max_subscribers(topology.maxReceivers)
+                        .max_nodes(topology.maxNodes)
                         .subscriber_max_buffer_size(SY_IOX_QUEUE_CAPACITY)
                         .subscriber_max_borrowed_samples(1)
                         .open_or_create();
@@ -572,10 +607,13 @@ iox2::Subscriber<iox2::ServiceType::Ipc, T, void> makeTypedSubscriber(
  * Used for variable-size control-plane channels (port changes, settings, ...).
  * For data-plane output ports, use SyPublisher instead.
  */
-inline IoxSlicePublisher makeSlicePublisher(iox2::Node<iox2::ServiceType::Ipc> &node, const std::string &svcNameStr)
+inline IoxSlicePublisher makeSlicePublisher(iox2::Node<iox2::ServiceType::Ipc> &node, const std::string &svcNameStr, const IpcServiceTopology &topology = IpcServiceTopology())
 {
     auto maybeSvc = node.service_builder(iox2::ServiceName::create(svcNameStr.c_str()).value())
                         .publish_subscribe<iox2::bb::Slice<std::byte>>()
+                        .max_publishers(topology.maxSenders)
+                        .max_subscribers(topology.maxReceivers)
+                        .max_nodes(topology.maxNodes)
                         .subscriber_max_buffer_size(SY_IOX_QUEUE_CAPACITY)
                         .subscriber_max_borrowed_samples(1)
                         .open_or_create();
@@ -603,10 +641,13 @@ inline IoxSlicePublisher makeSlicePublisher(iox2::Node<iox2::ServiceType::Ipc> &
  * Used for variable-size control-plane channels (port changes, settings, ...).
  * For data-plane output ports, use SySubscriber instead.
  */
-inline IoxSliceSubscriber makeSliceSubscriber(iox2::Node<iox2::ServiceType::Ipc> &node, const std::string &svcNameStr)
+inline IoxSliceSubscriber makeSliceSubscriber(iox2::Node<iox2::ServiceType::Ipc> &node, const std::string &svcNameStr, const IpcServiceTopology &topology = IpcServiceTopology())
 {
     auto maybeSvc = node.service_builder(iox2::ServiceName::create(svcNameStr.c_str()).value())
                         .publish_subscribe<iox2::bb::Slice<std::byte>>()
+                        .max_publishers(topology.maxSenders)
+                        .max_subscribers(topology.maxReceivers)
+                        .max_nodes(topology.maxNodes)
                         .subscriber_max_buffer_size(SY_IOX_QUEUE_CAPACITY)
                         .subscriber_max_borrowed_samples(1)
                         .open_or_create();
@@ -625,10 +666,15 @@ inline IoxSliceSubscriber makeSliceSubscriber(iox2::Node<iox2::ServiceType::Ipc>
 /**
  * Create/open an event-service listener.
  */
-inline IoxListener makeEventListener(iox2::Node<iox2::ServiceType::Ipc> &node, const std::string &svcNameStr)
+inline IoxListener makeEventListener(iox2::Node<iox2::ServiceType::Ipc> &node, const std::string &svcNameStr, const IpcServiceTopology &topology = IpcServiceTopology())
 {
     auto maybeSvc =
-        node.service_builder(iox2::ServiceName::create(svcNameStr.c_str()).value()).event().open_or_create();
+        node.service_builder(iox2::ServiceName::create(svcNameStr.c_str()).value())
+            .event()
+            .max_notifiers(topology.maxSenders)
+            .max_listeners(topology.maxReceivers)
+            .max_nodes(topology.maxNodes)
+            .open_or_create();
     if (!maybeSvc.has_value())
         throw std::runtime_error(
             "Failed to open/create event service for '" + svcNameStr
@@ -644,10 +690,15 @@ inline IoxListener makeEventListener(iox2::Node<iox2::ServiceType::Ipc> &node, c
 /**
  * Create/open an event-service notifier.
  */
-inline IoxNotifier makeEventNotifier(iox2::Node<iox2::ServiceType::Ipc> &node, const std::string &svcNameStr)
+inline IoxNotifier makeEventNotifier(iox2::Node<iox2::ServiceType::Ipc> &node, const std::string &svcNameStr, const IpcServiceTopology &topology = IpcServiceTopology())
 {
     auto maybeSvc =
-        node.service_builder(iox2::ServiceName::create(svcNameStr.c_str()).value()).event().open_or_create();
+        node.service_builder(iox2::ServiceName::create(svcNameStr.c_str()).value())
+            .event()
+            .max_notifiers(topology.maxSenders)
+            .max_listeners(topology.maxReceivers)
+            .max_nodes(topology.maxNodes)
+            .open_or_create();
     if (!maybeSvc.has_value())
         throw std::runtime_error(
             "Failed to open/create event service for '" + svcNameStr
@@ -664,10 +715,13 @@ inline IoxNotifier makeEventNotifier(iox2::Node<iox2::ServiceType::Ipc> &node, c
  * Create/open a typed request-response server.
  */
 template<typename Req, typename Res>
-IoxServer<Req, Res> makeTypedServer(iox2::Node<iox2::ServiceType::Ipc> &node, const std::string &svcNameStr)
+IoxServer<Req, Res> makeTypedServer(iox2::Node<iox2::ServiceType::Ipc> &node, const std::string &svcNameStr, const IpcServiceTopology &topology = IpcServiceTopology())
 {
     auto maybeSvc = node.service_builder(iox2::ServiceName::create(svcNameStr.c_str()).value())
                         .request_response<Req, Res>()
+                        .max_servers(topology.maxSenders)
+                        .max_clients(topology.maxReceivers)
+                        .max_nodes(topology.maxNodes)
                         .open_or_create();
     if (!maybeSvc.has_value())
         throw std::runtime_error(
@@ -688,10 +742,13 @@ IoxServer<Req, Res> makeTypedServer(iox2::Node<iox2::ServiceType::Ipc> &node, co
  * Create/open a typed request-response client.
  */
 template<typename Req, typename Res>
-IoxClient<Req, Res> makeTypedClient(iox2::Node<iox2::ServiceType::Ipc> &node, const std::string &svcNameStr)
+IoxClient<Req, Res> makeTypedClient(iox2::Node<iox2::ServiceType::Ipc> &node, const std::string &svcNameStr, const IpcServiceTopology &topology = IpcServiceTopology())
 {
     auto maybeSvc = node.service_builder(iox2::ServiceName::create(svcNameStr.c_str()).value())
                         .request_response<Req, Res>()
+                        .max_servers(topology.maxSenders)
+                        .max_clients(topology.maxReceivers)
+                        .max_nodes(topology.maxNodes)
                         .open_or_create();
     if (!maybeSvc.has_value())
         throw std::runtime_error(
@@ -707,10 +764,13 @@ IoxClient<Req, Res> makeTypedClient(iox2::Node<iox2::ServiceType::Ipc> &node, co
 /**
  * Create/open a sliced request-response server.
  */
-inline IoxUntypedServer makeSliceServer(iox2::Node<iox2::ServiceType::Ipc> &node, const std::string &svcNameStr)
+inline IoxUntypedServer makeSliceServer(iox2::Node<iox2::ServiceType::Ipc> &node, const std::string &svcNameStr, const IpcServiceTopology &topology = IpcServiceTopology())
 {
     auto maybeSvc = node.service_builder(iox2::ServiceName::create(svcNameStr.c_str()).value())
                         .request_response<iox2::bb::Slice<std::byte>, DoneResponse>()
+                        .max_servers(topology.maxSenders)
+                        .max_clients(topology.maxReceivers)
+                        .max_nodes(topology.maxNodes)
                         .open_or_create();
     if (!maybeSvc.has_value())
         throw std::runtime_error(
@@ -731,10 +791,13 @@ inline IoxUntypedServer makeSliceServer(iox2::Node<iox2::ServiceType::Ipc> &node
 /**
  * Create/open a sliced request-response client.
  */
-inline IoxUntypedClient makeSliceClient(iox2::Node<iox2::ServiceType::Ipc> &node, const std::string &svcNameStr)
+inline IoxUntypedClient makeSliceClient(iox2::Node<iox2::ServiceType::Ipc> &node, const std::string &svcNameStr, const IpcServiceTopology &topology = IpcServiceTopology())
 {
     auto maybeSvc = node.service_builder(iox2::ServiceName::create(svcNameStr.c_str()).value())
                         .request_response<iox2::bb::Slice<std::byte>, DoneResponse>()
+                        .max_servers(topology.maxSenders)
+                        .max_clients(topology.maxReceivers)
+                        .max_nodes(topology.maxNodes)
                         .open_or_create();
     if (!maybeSvc.has_value())
         throw std::runtime_error(

@@ -707,6 +707,10 @@ bool MLinkModule::sendPortInformation()
             opc.id = oport->id();
             opc.dataTypeId = oport->dataTypeId();
             opc.title = oport->title();
+
+            // topology for one publisher
+            opc.topology = makeIpcServiceTopology(1, oport->streamVar()->subscriberCount());
+
             opDef << opc;
         }
 
@@ -761,6 +765,7 @@ void MLinkModule::markIncomingForExport(StreamExporter *exporter)
             details->instanceId.toUtf8().constData(), details->instanceId.toUtf8().size());
         req.channelId = IoxServiceNameString::from_utf8_null_terminated_unchecked_truncated(
             details->channelId.toUtf8().constData(), details->channelId.toUtf8().size());
+        req.topology = makeIpcServiceTopology(1, iport->outPort()->streamVar()->subscriberCount());
 
         bool ret = d->callClientSimple<ConnectInputRequest>(this, CONNECT_INPUT_CALL_ID, [&req](auto &payload) {
             payload = req;
@@ -781,8 +786,8 @@ void MLinkModule::registerOutPortForwarders()
             continue;
 
         Private::OutPortSub ps;
-        // SySubscriber handles the event/listening actions internally, we only need to call it in runThread()
-        ps.sub.emplace(SySubscriber::create(*d->node, d->clientId, "o/" + oport->id().toStdString()));
+        const auto topology = makeIpcServiceTopology(1, oport->streamVar()->subscriberCount());
+        ps.sub.emplace(SySubscriber::create(*d->node, d->clientId, "o/" + oport->id().toStdString(), topology));
         ps.oport = oport;
         d->outPortSubs.push_back(std::move(ps));
 

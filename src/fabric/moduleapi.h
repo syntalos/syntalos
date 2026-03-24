@@ -105,8 +105,8 @@ enum class ModuleCategory : uint32_t {
     NONE = 0,              /// Not categorized
     SYNTALOS_DEV = 1 << 0, /// A development/test tool for Syntalos itself
     EXAMPLES = 1 << 1,     /// An example / template module
-    DEVICES = 1 << 2,      /// Modules which communicate with hwrdware devices
-    GENERATORS = 1 << 3,   /// (Test)data generators)
+    DEVICES = 1 << 2,      /// Modules which communicate with hardware devices
+    GENERATORS = 1 << 3,   /// (Test)data generators
     SCRIPTING = 1 << 4,    /// Scripting & customization
     DISPLAY = 1 << 5,      /// Display modules
     WRITERS = 1 << 6,      /// Modules which write data to disk

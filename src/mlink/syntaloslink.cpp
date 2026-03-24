@@ -602,7 +602,7 @@ void SyntalosLink::processPendingControl()
                 continue;
 
             auto oport = std::shared_ptr<OutputPortInfo>(new OutputPortInfo(opc));
-            oport->d->ioxPub = SyPublisher::create(*d->node, d->modId, oport->d->ipcChannelId());
+            oport->d->ioxPub = SyPublisher::create(*d->node, d->modId, oport->d->ipcChannelId(), opc.topology);
             d->outPortInfo.push_back(oport);
 
             // we will have to rebuild the waitset after ports changed
@@ -640,7 +640,8 @@ void SyntalosLink::processPendingControl()
             SySubscriber::create(
                 *d->node,
                 std::string(r.instanceId.unchecked_access().c_str()),
-                std::string(r.channelId.unchecked_access().c_str())));
+                std::string(r.channelId.unchecked_access().c_str()),
+                r.topology));
 
         Private::replyDone(*req, true);
 
@@ -1040,7 +1041,7 @@ std::shared_ptr<OutputPortInfo> SyntalosLink::registerOutputPort(
 
     // construct proxy
     auto oport = std::shared_ptr<OutputPortInfo>(new OutputPortInfo(opc));
-    oport->d->ioxPub = SyPublisher::create(*d->node, d->modId, oport->d->ipcChannelId());
+    oport->d->ioxPub = SyPublisher::create(*d->node, d->modId, oport->d->ipcChannelId(), opc.topology);
     d->outPortInfo.push_back(oport);
     return oport;
 }

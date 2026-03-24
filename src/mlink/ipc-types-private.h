@@ -46,6 +46,36 @@ static constexpr uint64_t SY_IOX_INITIAL_SLICE_LEN = 4096;
 static constexpr size_t SY_IOX_ID_MAX_LEN = IOX2_SERVICE_NAME_LENGTH;
 
 /**
+ * @brief IPC service topology limits
+ */
+struct IpcServiceTopology {
+    // we set minimum safe values as defaults
+    // (1 sender/receiver, +1 against races, 2 nodes)
+    uint maxSenders{2};
+    uint maxReceivers{2};
+    uint maxNodes{2};
+
+    IpcServiceTopology() = default;
+    IpcServiceTopology(uint sendN, uint recvN, uint nodes = 2)
+        : maxSenders(sendN),
+          maxReceivers(recvN),
+          maxNodes(nodes)
+    {
+    }
+};
+
+/**
+ * Helper to create a Syntalos IPC service topology, for setting limits on IOX connections.
+ */
+[[nodiscard]] inline constexpr IpcServiceTopology makeIpcServiceTopology(uint senderCount, uint receiverCount)
+{
+    const auto sendN = senderCount > 0 ? senderCount : 1U;
+    // Keep one additional subscriber slot to tolerate reconnect races.
+    const auto recvN = receiverCount + 1U;
+    return IpcServiceTopology(sendN, recvN, sendN + receiverCount);
+}
+
+/**
  * @brief Action performed to modify a module port
  */
 enum class PortAction : uint8_t {
@@ -121,6 +151,7 @@ struct OutputPortChange {
     QString title;
     int dataTypeId{-1};
     QVariantHash metadata;
+    IpcServiceTopology topology;
 
     OutputPortChange() = default;
     explicit OutputPortChange(PortAction pa)
@@ -134,7 +165,8 @@ struct OutputPortChange {
         QByteArray bytes;
         QDataStream stream(&bytes, QIODevice::WriteOnly);
 
-        stream << action << id << title << dataTypeId << metadata;
+        stream << action << id << title << dataTypeId << metadata << topology.maxSenders << topology.maxReceivers
+               << topology.maxNodes;
 
         return bytes;
     }
@@ -146,20 +178,23 @@ struct OutputPortChange {
         QByteArray block(reinterpret_cast<const char *>(memory), size);
         QDataStream stream(block);
 
-        stream >> info.action >> info.id >> info.title >> info.dataTypeId >> info.metadata;
+        stream >> info.action >> info.id >> info.title >> info.dataTypeId >> info.metadata
+            >> info.topology.maxSenders >> info.topology.maxReceivers >> info.topology.maxNodes;
 
         return info;
     }
 
     friend QDataStream &operator<<(QDataStream &out, const OutputPortChange &info)
     {
-        out << info.action << info.id << info.title << info.dataTypeId << info.metadata;
+        out << info.action << info.id << info.title << info.dataTypeId << info.metadata << info.topology.maxSenders
+            << info.topology.maxReceivers << info.topology.maxNodes;
         return out;
     }
 
     friend QDataStream &operator>>(QDataStream &in, OutputPortChange &info)
     {
-        in >> info.action >> info.id >> info.title >> info.dataTypeId >> info.metadata;
+        in >> info.action >> info.id >> info.title >> info.dataTypeId >> info.metadata >> info.topology.maxSenders
+            >> info.topology.maxReceivers >> info.topology.maxNodes;
         return in;
     }
 };
@@ -290,6 +325,7 @@ struct ConnectInputRequest {
     iox2::bb::StaticString<SY_IOX_ID_MAX_LEN> portId;
     iox2::bb::StaticString<SY_IOX_ID_MAX_LEN> instanceId;
     iox2::bb::StaticString<SY_IOX_ID_MAX_LEN> channelId;
+    IpcServiceTopology topology;
 };
 static const std::string CONNECT_INPUT_CALL_ID = "ConnectInputPort";
 

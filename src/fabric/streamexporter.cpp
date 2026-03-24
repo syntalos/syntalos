@@ -157,8 +157,15 @@ auto StreamExporter::publishStreamByPort(std::shared_ptr<VarStreamInputPort> ipo
     edata.self = this;
     edata.subscription = iport->subscriptionVar();
 
+    // The output port may have multiple MLink consumers; size the IPC service
+    // from the currently connected downstream subscribers.
+    // This means we will likely overcommit on possible subscribers, since some subscribers may be in-process,
+    // but this is an acceptable tradeoff for now. If we want to be more efficient in future, we can propagate
+    // the subscriber's type through the system and count only MLink modules here.
+    const auto topology = makeIpcServiceTopology(1, iport->outPort()->streamVar()->subscriberCount());
+
     try {
-        edata.publisher.emplace(SyPublisher::create(*d->node, modId.toStdString(), channelId.toStdString()));
+        edata.publisher.emplace(SyPublisher::create(*d->node, modId.toStdString(), channelId.toStdString(), topology));
     } catch (const std::exception &ex) {
         return std::unexpected("Failed to set up IPC export for " + modId + "/" + channelId + ": " + ex.what());
     }

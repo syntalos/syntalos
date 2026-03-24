@@ -99,14 +99,15 @@ class VariantDataStream
 {
 public:
     virtual ~VariantDataStream();
-    virtual QString dataTypeName() const = 0;
-    virtual int dataTypeId() const = 0;
+    [[nodiscard]] virtual QString dataTypeName() const = 0;
+    [[nodiscard]] virtual int dataTypeId() const = 0;
     virtual std::shared_ptr<VariantStreamSubscription> subscribeVar() = 0;
     virtual bool commitMetadata() = 0;
     virtual void start() = 0;
     virtual void stop() = 0;
-    virtual bool active() const = 0;
-    virtual bool hasSubscribers() const = 0;
+    [[nodiscard]] virtual bool active() const = 0;
+    [[nodiscard]] virtual bool hasSubscribers() const = 0;
+    [[nodiscard]] virtual size_t subscriberCount() const = 0;
     virtual void pushRawData(int typeId, const void *data, size_t size) = 0;
     virtual QHash<QString, QVariant> metadata() = 0;
     virtual void setMetadata(const QHash<QString, QVariant> &metadata) = 0;
@@ -632,9 +633,14 @@ public:
         return m_active;
     }
 
-    bool hasSubscribers() const override
+    [[nodiscard]] bool hasSubscribers() const override
     {
         return !m_subs.empty();
+    }
+
+    [[nodiscard]] size_t subscriberCount() const override
+    {
+        return m_subs.size();
     }
 
 private:
