@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -373,7 +373,7 @@ void ModuleGraphForm::on_graphPortsConnected(FlowGraphNodePort *port1, FlowGraph
 
     if (!inPort->acceptsSubscription(outPort->dataTypeName())) {
         qCWarning(logGraphUi).noquote().nospace() << "Tried to connect incompatible ports. (" << outPort->dataTypeName()
-                                                  << " -> " << inPort->dataTypeName() << ")";
+                                                  << " → " << inPort->dataTypeName() << ")";
         ui->graphView->disconnectItems(port1, port2);
         return;
     }
@@ -386,8 +386,8 @@ void ModuleGraphForm::on_graphPortsConnected(FlowGraphNodePort *port1, FlowGraph
 
     inPort->setSubscription(outPort, outPort->subscribe());
     qCDebug(logGraphUi).noquote() << "Connected ports:"
-                                  << QString("%1[>%2]").arg(outPort->title()).arg(outPort->dataTypeName()) << "->"
-                                  << QString("%1[<%2]").arg(inPort->title()).arg(inPort->dataTypeName());
+                                  << QString("%1[▷%2]").arg(outPort->title()).arg(outPort->dataTypeName()) << "→"
+                                  << QString("%1[◁%2]").arg(inPort->title()).arg(inPort->dataTypeName());
 }
 
 void ModuleGraphForm::on_graphPortsDisconnected(FlowGraphNodePort *port1, FlowGraphNodePort *port2)
@@ -421,8 +421,8 @@ void ModuleGraphForm::on_graphPortsDisconnected(FlowGraphNodePort *port1, FlowGr
     inPort->resetSubscription();
     if (subscriptionExisted)
         qCDebug(logGraphUi).noquote() << "Disconnected ports:"
-                                      << QString("%1[>%2]").arg(outPort->title()).arg(outPort->dataTypeName()) << "->"
-                                      << QString("%1[<%2]").arg(inPort->title()).arg(inPort->dataTypeName());
+                                      << QString("%1[▷%2]").arg(outPort->title()).arg(outPort->dataTypeName()) << "→"
+                                      << QString("%1[◁%2]").arg(inPort->title()).arg(inPort->dataTypeName());
 }
 
 void ModuleGraphForm::on_actionConnect_triggered()

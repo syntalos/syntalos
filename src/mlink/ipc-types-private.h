@@ -178,8 +178,8 @@ struct OutputPortChange {
         QByteArray block(reinterpret_cast<const char *>(memory), size);
         QDataStream stream(block);
 
-        stream >> info.action >> info.id >> info.title >> info.dataTypeId >> info.metadata
-            >> info.topology.maxSenders >> info.topology.maxReceivers >> info.topology.maxNodes;
+        stream >> info.action >> info.id >> info.title >> info.dataTypeId >> info.metadata >> info.topology.maxSenders
+            >> info.topology.maxReceivers >> info.topology.maxNodes;
 
         return info;
     }

@@ -548,7 +548,10 @@ private:
  * Uses blocking delivery.
  */
 template<typename T>
-IoxPublisher<T> makeTypedPublisher(iox2::Node<iox2::ServiceType::Ipc> &node, const std::string &svcNameStr, const IpcServiceTopology &topology = IpcServiceTopology())
+IoxPublisher<T> makeTypedPublisher(
+    iox2::Node<iox2::ServiceType::Ipc> &node,
+    const std::string &svcNameStr,
+    const IpcServiceTopology &topology = IpcServiceTopology())
 {
     auto maybeSvc = node.service_builder(iox2::ServiceName::create(svcNameStr.c_str()).value())
                         .publish_subscribe<T>()
@@ -607,7 +610,10 @@ iox2::Subscriber<iox2::ServiceType::Ipc, T, void> makeTypedSubscriber(
  * Used for variable-size control-plane channels (port changes, settings, ...).
  * For data-plane output ports, use SyPublisher instead.
  */
-inline IoxSlicePublisher makeSlicePublisher(iox2::Node<iox2::ServiceType::Ipc> &node, const std::string &svcNameStr, const IpcServiceTopology &topology = IpcServiceTopology())
+inline IoxSlicePublisher makeSlicePublisher(
+    iox2::Node<iox2::ServiceType::Ipc> &node,
+    const std::string &svcNameStr,
+    const IpcServiceTopology &topology = IpcServiceTopology())
 {
     auto maybeSvc = node.service_builder(iox2::ServiceName::create(svcNameStr.c_str()).value())
                         .publish_subscribe<iox2::bb::Slice<std::byte>>()
@@ -641,7 +647,10 @@ inline IoxSlicePublisher makeSlicePublisher(iox2::Node<iox2::ServiceType::Ipc> &
  * Used for variable-size control-plane channels (port changes, settings, ...).
  * For data-plane output ports, use SySubscriber instead.
  */
-inline IoxSliceSubscriber makeSliceSubscriber(iox2::Node<iox2::ServiceType::Ipc> &node, const std::string &svcNameStr, const IpcServiceTopology &topology = IpcServiceTopology())
+inline IoxSliceSubscriber makeSliceSubscriber(
+    iox2::Node<iox2::ServiceType::Ipc> &node,
+    const std::string &svcNameStr,
+    const IpcServiceTopology &topology = IpcServiceTopology())
 {
     auto maybeSvc = node.service_builder(iox2::ServiceName::create(svcNameStr.c_str()).value())
                         .publish_subscribe<iox2::bb::Slice<std::byte>>()
@@ -666,15 +675,17 @@ inline IoxSliceSubscriber makeSliceSubscriber(iox2::Node<iox2::ServiceType::Ipc>
 /**
  * Create/open an event-service listener.
  */
-inline IoxListener makeEventListener(iox2::Node<iox2::ServiceType::Ipc> &node, const std::string &svcNameStr, const IpcServiceTopology &topology = IpcServiceTopology())
+inline IoxListener makeEventListener(
+    iox2::Node<iox2::ServiceType::Ipc> &node,
+    const std::string &svcNameStr,
+    const IpcServiceTopology &topology = IpcServiceTopology())
 {
-    auto maybeSvc =
-        node.service_builder(iox2::ServiceName::create(svcNameStr.c_str()).value())
-            .event()
-            .max_notifiers(topology.maxSenders)
-            .max_listeners(topology.maxReceivers)
-            .max_nodes(topology.maxNodes)
-            .open_or_create();
+    auto maybeSvc = node.service_builder(iox2::ServiceName::create(svcNameStr.c_str()).value())
+                        .event()
+                        .max_notifiers(topology.maxSenders)
+                        .max_listeners(topology.maxReceivers)
+                        .max_nodes(topology.maxNodes)
+                        .open_or_create();
     if (!maybeSvc.has_value())
         throw std::runtime_error(
             "Failed to open/create event service for '" + svcNameStr
@@ -690,15 +701,17 @@ inline IoxListener makeEventListener(iox2::Node<iox2::ServiceType::Ipc> &node, c
 /**
  * Create/open an event-service notifier.
  */
-inline IoxNotifier makeEventNotifier(iox2::Node<iox2::ServiceType::Ipc> &node, const std::string &svcNameStr, const IpcServiceTopology &topology = IpcServiceTopology())
+inline IoxNotifier makeEventNotifier(
+    iox2::Node<iox2::ServiceType::Ipc> &node,
+    const std::string &svcNameStr,
+    const IpcServiceTopology &topology = IpcServiceTopology())
 {
-    auto maybeSvc =
-        node.service_builder(iox2::ServiceName::create(svcNameStr.c_str()).value())
-            .event()
-            .max_notifiers(topology.maxSenders)
-            .max_listeners(topology.maxReceivers)
-            .max_nodes(topology.maxNodes)
-            .open_or_create();
+    auto maybeSvc = node.service_builder(iox2::ServiceName::create(svcNameStr.c_str()).value())
+                        .event()
+                        .max_notifiers(topology.maxSenders)
+                        .max_listeners(topology.maxReceivers)
+                        .max_nodes(topology.maxNodes)
+                        .open_or_create();
     if (!maybeSvc.has_value())
         throw std::runtime_error(
             "Failed to open/create event service for '" + svcNameStr
@@ -715,7 +728,10 @@ inline IoxNotifier makeEventNotifier(iox2::Node<iox2::ServiceType::Ipc> &node, c
  * Create/open a typed request-response server.
  */
 template<typename Req, typename Res>
-IoxServer<Req, Res> makeTypedServer(iox2::Node<iox2::ServiceType::Ipc> &node, const std::string &svcNameStr, const IpcServiceTopology &topology = IpcServiceTopology())
+IoxServer<Req, Res> makeTypedServer(
+    iox2::Node<iox2::ServiceType::Ipc> &node,
+    const std::string &svcNameStr,
+    const IpcServiceTopology &topology = IpcServiceTopology())
 {
     auto maybeSvc = node.service_builder(iox2::ServiceName::create(svcNameStr.c_str()).value())
                         .request_response<Req, Res>()
@@ -742,7 +758,10 @@ IoxServer<Req, Res> makeTypedServer(iox2::Node<iox2::ServiceType::Ipc> &node, co
  * Create/open a typed request-response client.
  */
 template<typename Req, typename Res>
-IoxClient<Req, Res> makeTypedClient(iox2::Node<iox2::ServiceType::Ipc> &node, const std::string &svcNameStr, const IpcServiceTopology &topology = IpcServiceTopology())
+IoxClient<Req, Res> makeTypedClient(
+    iox2::Node<iox2::ServiceType::Ipc> &node,
+    const std::string &svcNameStr,
+    const IpcServiceTopology &topology = IpcServiceTopology())
 {
     auto maybeSvc = node.service_builder(iox2::ServiceName::create(svcNameStr.c_str()).value())
                         .request_response<Req, Res>()
@@ -764,7 +783,10 @@ IoxClient<Req, Res> makeTypedClient(iox2::Node<iox2::ServiceType::Ipc> &node, co
 /**
  * Create/open a sliced request-response server.
  */
-inline IoxUntypedServer makeSliceServer(iox2::Node<iox2::ServiceType::Ipc> &node, const std::string &svcNameStr, const IpcServiceTopology &topology = IpcServiceTopology())
+inline IoxUntypedServer makeSliceServer(
+    iox2::Node<iox2::ServiceType::Ipc> &node,
+    const std::string &svcNameStr,
+    const IpcServiceTopology &topology = IpcServiceTopology())
 {
     auto maybeSvc = node.service_builder(iox2::ServiceName::create(svcNameStr.c_str()).value())
                         .request_response<iox2::bb::Slice<std::byte>, DoneResponse>()
@@ -791,7 +813,10 @@ inline IoxUntypedServer makeSliceServer(iox2::Node<iox2::ServiceType::Ipc> &node
 /**
  * Create/open a sliced request-response client.
  */
-inline IoxUntypedClient makeSliceClient(iox2::Node<iox2::ServiceType::Ipc> &node, const std::string &svcNameStr, const IpcServiceTopology &topology = IpcServiceTopology())
+inline IoxUntypedClient makeSliceClient(
+    iox2::Node<iox2::ServiceType::Ipc> &node,
+    const std::string &svcNameStr,
+    const IpcServiceTopology &topology = IpcServiceTopology())
 {
     auto maybeSvc = node.service_builder(iox2::ServiceName::create(svcNameStr.c_str()).value())
                         .request_response<iox2::bb::Slice<std::byte>, DoneResponse>()

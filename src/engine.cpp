@@ -1047,15 +1047,18 @@ Engine::ModuleRunOrder Engine::createModuleRunOrder() const
     order.start = computeModuleOrder(activeMods, categoryStartPriority, "start");
     order.stop = computeModuleOrder(activeMods, categoryStopPriority, "stop");
 
-    auto startText = QStringLiteral("Module start order: ");
+    QStringList startNames;
+    startNames.reserve(order.start.size());
     for (auto mod : order.start)
-        startText.append(mod->name() + QStringLiteral("; "));
-    qCDebug(logEngine).noquote() << startText;
+        startNames.append(mod->name());
+    qCDebug(logEngine).noquote()
+        << QStringLiteral("Module start order: %1").arg(startNames.join(QStringLiteral(" ⇢ ")));
 
-    auto stopText = QStringLiteral("Module stop order:  ");
+    QStringList stopNames;
+    stopNames.reserve(order.stop.size());
     for (auto mod : order.stop)
-        stopText.append(mod->name() + QStringLiteral("; "));
-    qCDebug(logEngine).noquote() << stopText;
+        stopNames.append(mod->name());
+    qCDebug(logEngine).noquote() << QStringLiteral("Module stop order:  %1").arg(stopNames.join(QStringLiteral(" ⇢ ")));
 
     return order;
 }
@@ -1354,7 +1357,7 @@ void Engine::onBufferMonitorEvent()
                 msd.heat = ConnectionHeatLevel::NONE;
                 qCDebug(logEngine).noquote()
                     << "Connection heat removed from"
-                    << QString("%1:%2[<%3]")
+                    << QString("%1:%2[◁%3]")
                            .arg(msd.port->owner()->name(), msd.port->title(), msd.port->dataTypeName());
             }
             continue;
@@ -1373,7 +1376,7 @@ void Engine::onBufferMonitorEvent()
             Q_EMIT connectionHeatChangedAtPort(msd.port, msd.heat);
             qCDebug(logEngine).noquote().nospace()
                 << "Connection heat changed to \"" << connectionHeatToHumanString(msd.heat) << "\" for "
-                << QString("%1:%2[<%3]").arg(msd.port->owner()->name(), msd.port->title(), msd.port->dataTypeName())
+                << QString("%1:%2[◁%3]").arg(msd.port->owner()->name(), msd.port->title(), msd.port->dataTypeName())
                 << " (level: " << approxPendingCount << ")";
         }
 
