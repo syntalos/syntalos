@@ -61,7 +61,8 @@ class MLinkModule : public AbstractModule
     Q_OBJECT
 public:
     explicit MLinkModule(QObject *parent = nullptr);
-    virtual ~MLinkModule() override;
+    ~MLinkModule() override;
+    bool initialize() override;
 
     ModuleDriverKind driver() const override;
     virtual ModuleFeatures features() const override;
@@ -111,7 +112,7 @@ private:
     void resetConnection();
     static void onOutputDataReceivedCb(iox::popo::UntypedSubscriber *subscriber, VariantDataStream *stream);
 
-    void registerOutPortForwarders();
+    bool registerOutPortForwarders();
     void disconnectOutPortForwarders();
 
 private:

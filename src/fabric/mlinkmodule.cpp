@@ -286,7 +286,6 @@ MLinkModule::MLinkModule(QObject *parent)
 {
     d->proc = new QProcess(this);
     d->portChangesAllowed = true;
-    resetConnection();
 
     // merge stdout/stderr of external process with ours by default
     setOutputCaptured(false);
@@ -313,6 +312,14 @@ MLinkModule::MLinkModule(QObject *parent)
     });
 }
 
+bool MLinkModule::initialize()
+{
+    // We need to initialize the connection here, since only now do we know the
+    // module ID and index and can react to & recover from errors properly.
+    resetConnection();
+    return AbstractModule::initialize();
+}
+
 MLinkModule::~MLinkModule()
 {
     d->ctlEventTimer->stop();
@@ -327,6 +334,10 @@ MLinkModule::~MLinkModule()
  */
 void MLinkModule::handleIncomingControl()
 {
+    // do nothing if the error channel does not exist yet
+    if (!d->subError)
+        return;
+
     // Drain the control event listener to keep its socket buffer clear.
     // We *must* drain at the start to immediately consume the notification that triggered this call,
     // and to prevent race conditions with new events arriving while we process the previous one.
@@ -446,6 +457,15 @@ void MLinkModule::resetConnection()
             .signal_handling_mode(iox2::SignalHandlingMode::HandleTerminationRequests)
             .create<iox2::ServiceType::Ipc>()
             .value());
+
+    // ensure the old connections are gone before we are trying to create new ones
+    d->subError.reset();
+    d->subStateChange.reset();
+    d->subInPortChange.reset();
+    d->subOutPortChange.reset();
+    d->subSettingsChange.reset();
+    d->workerCtlEventListener.reset();
+    d->ctlEventNotifier.reset();
 
     // (re)create subscribers for client -> master data channels
     d->subError.emplace(makeTypedSubscriber<ErrorEvent>(*d->node, d->svcName(ERROR_CHANNEL_ID)));
@@ -783,7 +803,7 @@ void MLinkModule::markIncomingForExport(StreamExporter *exporter)
     }
 }
 
-void MLinkModule::registerOutPortForwarders()
+bool MLinkModule::registerOutPortForwarders()
 {
     // ensure we are disconnected
     disconnectOutPortForwarders();
@@ -795,9 +815,15 @@ void MLinkModule::registerOutPortForwarders()
 
         Private::OutPortSub ps;
         const auto topology = makeIpcServiceTopology(1, oport->streamVar()->subscriberCount());
-        ps.sub.emplace(SySubscriber::create(*d->node, d->clientId, "o/" + oport->id().toStdString(), topology));
-        ps.oport = oport;
-        d->outPortSubs.push_back(std::move(ps));
+        try {
+            ps.sub.reset(); // ensure the old subscription is gone before we try to create a new one
+            ps.sub.emplace(SySubscriber::create(*d->node, d->clientId, "o/" + oport->id().toStdString(), topology));
+            ps.oport = oport;
+            d->outPortSubs.push_back(std::move(ps));
+        } catch (const std::exception &e) {
+            raiseError(QStringLiteral("Failed to connect output port '%1': %2").arg(oport->title(), e.what()));
+            return false;
+        }
 
         // NOTE: oport->startStream() is intentionally NOT called here.
         // It is called at the end of MLinkModule::prepare(), after all
@@ -808,6 +834,8 @@ void MLinkModule::registerOutPortForwarders()
         // their own prepare() phase. The snapshot is repeated in start() to
         // pick up any last-minute changes from the worker's start() callback.
     }
+
+    return true;
 }
 
 void MLinkModule::disconnectOutPortForwarders()
@@ -888,7 +916,8 @@ bool MLinkModule::prepare(const TestSubject &subject)
     handleIncomingControl();
 
     // register output port forwarding from exported data streams to internal data transmission
-    registerOutPortForwarders();
+    if (!registerOutPortForwarders())
+        return false;
     if (state() == ModuleState::ERROR)
         return false;
 

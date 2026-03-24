@@ -50,10 +50,11 @@ static constexpr size_t SY_IOX_ID_MAX_LEN = IOX2_SERVICE_NAME_LENGTH;
  */
 struct IpcServiceTopology {
     // we set minimum safe values as defaults
-    // (1 sender/receiver, +1 against races, 2 nodes)
-    uint maxSenders{2};
-    uint maxReceivers{2};
-    uint maxNodes{2};
+    // (1 sender/receiver, 2 nodes, but doubled to prevent races and have two entities
+    // exist in parallel briefly, as one replaces the other in any reset operations)
+    uint maxSenders{1 * 2};
+    uint maxReceivers{1 * 2};
+    uint maxNodes{2 * 2};
 
     IpcServiceTopology() = default;
     IpcServiceTopology(uint sendN, uint recvN, uint nodes = 2)

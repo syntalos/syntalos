@@ -593,17 +593,24 @@ void SyntalosLink::processPendingControl()
         }
 
         for (const auto &opc : sppReq.outPorts) {
-            bool skip = false;
+            std::shared_ptr<OutputPortInfo> oport;
+            bool update = false;
             for (const auto &op : d->outPortInfo) {
-                if (op->id() == opc.id)
-                    skip = true;
+                if (op->id() != opc.id)
+                    continue;
+                oport = op;
+                update = true;
+                break;
             }
-            if (skip)
-                continue;
+            if (!oport)
+                oport = std::shared_ptr<OutputPortInfo>(new OutputPortInfo(opc));
 
-            auto oport = std::shared_ptr<OutputPortInfo>(new OutputPortInfo(opc));
-            oport->d->ioxPub = SyPublisher::create(*d->node, d->modId, oport->d->ipcChannelId(), opc.topology);
-            d->outPortInfo.push_back(oport);
+            // Detach old publisher from WaitSet before replacement.
+            oport->d->ioxGuard.reset();
+            oport->d->ioxPub.reset(); // drop the old connection first, before trying to create a new one
+            oport->d->ioxPub.emplace(SyPublisher::create(*d->node, d->modId, oport->d->ipcChannelId(), opc.topology));
+            if (!update)
+                d->outPortInfo.push_back(oport);
 
             // we will have to rebuild the waitset after ports changed
             d->waitSetDirty = true;
@@ -636,6 +643,7 @@ void SyntalosLink::processPendingControl()
 
         // MUST reset the WaitSet guard BEFORE replacing the old subscriber
         iport->d->ioxGuard.reset();
+        iport->d->ioxSub.reset(); // drop the old connection first, before trying to create a new one
         iport->d->ioxSub.emplace(
             SySubscriber::create(
                 *d->node,
@@ -1041,7 +1049,8 @@ std::shared_ptr<OutputPortInfo> SyntalosLink::registerOutputPort(
 
     // construct proxy
     auto oport = std::shared_ptr<OutputPortInfo>(new OutputPortInfo(opc));
-    oport->d->ioxPub = SyPublisher::create(*d->node, d->modId, oport->d->ipcChannelId(), opc.topology);
+    oport->d->ioxPub.reset();
+    oport->d->ioxPub.emplace(SyPublisher::create(*d->node, d->modId, oport->d->ipcChannelId(), opc.topology));
     d->outPortInfo.push_back(oport);
     return oport;
 }
