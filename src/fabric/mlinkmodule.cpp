@@ -213,6 +213,10 @@ public:
             if (self->state() == ModuleState::ERROR)
                 return false;
 
+            // if we stopped running (crashed or existed) we no longer need to wait
+            if (!self->isProcessRunning())
+                return false;
+
             if (timer.elapsed() > timeoutSec * 1000) {
                 if (timeoutIsError)
                     self->raiseError(QStringLiteral("Timeout while waiting for response on: %1").arg(qstr(channel)));
@@ -261,6 +265,10 @@ public:
 
             // quit immediately if an error was already emitted
             if (self->state() == ModuleState::ERROR)
+                return false;
+
+            // if we stopped running (crashed or existed) we no longer need to wait
+            if (!self->isProcessRunning())
                 return false;
 
             if (timer.elapsed() > timeoutSec * 1000) {
