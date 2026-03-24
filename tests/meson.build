@@ -1,6 +1,9 @@
 
 subdir('rwqueue')
 
+test_env = environment()
+test_env.set('MIMALLOC_SHOW_ERRORS', '1')
+
 #
 # Core Utilities Test
 #
@@ -13,7 +16,8 @@ test_basic_exe = executable('test-basic',
 )
 test('sy-test-basic',
      test_basic_exe,
-     is_parallel: true
+     env: test_env,
+     is_parallel: true,
 )
 
 #
@@ -24,14 +28,17 @@ test_streamperf_moc = qt.compile_moc(sources: test_streamperf_moc_src)
 test_streamperf_exe = executable('test-streamperf',
     [test_streamperf_moc_src, test_streamperf_moc,
      'testbarrier.h'],
-    dependencies: [syntalos_fabric_dep,
-                   qt_test_dep,
-                   opencv_dep]
+    dependencies: [
+        syntalos_fabric_dep,
+        qt_test_dep,
+        opencv_dep
+    ]
 )
 test('sy-test-streamperf',
     test_streamperf_exe,
+    env: test_env,
     timeout: 120,
-    is_parallel: false
+    is_parallel: false,
 )
 
 
@@ -47,7 +54,8 @@ test_timer_exe = executable('test-timer',
 )
 test('sy-test-timer',
     test_timer_exe,
-    is_parallel: false
+    env: test_env,
+    is_parallel: false,
 )
 
 #
@@ -61,7 +69,8 @@ test_edlstorage_exe = executable('test-edlstorage',
                    qt_test_dep]
 )
 test('sy-test-edlstorage',
-    test_edlstorage_exe
+    test_edlstorage_exe,
+    env: test_env,
 )
 
 #
@@ -71,9 +80,9 @@ test_tsyncfile_moc_src = ['test-tsyncfile.cpp']
 test_tsyncfile_moc = qt.compile_moc(sources: test_tsyncfile_moc_src)
 test_tsyncfile_exe = executable('test-tsyncfile',
     [test_tsyncfile_moc_src, test_tsyncfile_moc],
-    dependencies: [syntalos_fabric_dep,
-                   qt_test_dep]
+    dependencies: [syntalos_fabric_dep, qt_test_dep]
 )
 test('sy-test-tsyncfile',
-    test_tsyncfile_exe
+    test_tsyncfile_exe,
+    env: test_env,
 )
