@@ -67,7 +67,7 @@ syntalos_fabric_lib = shared_library('syntalos-fabric',
      config_h,
      modconfig_h],
     dependencies: [
-        mimalloc_dep,
+        mimalloc_static_dep,
         sy_base_deps,
         eigen_dep,
         glib_dep,
@@ -96,7 +96,6 @@ syntalos_fabric_lib = shared_library('syntalos-fabric',
 syntalos_fabric_dep = declare_dependency(
     link_with: syntalos_fabric_lib,
     dependencies: [
-        mimalloc_dep,
         sy_base_deps,
         qt_gui_dep,
         syntalos_datactl_dep,

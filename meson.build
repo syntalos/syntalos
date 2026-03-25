@@ -3,7 +3,7 @@ project('Syntalos', 'c', 'cpp',
   default_options: ['c_std=gnu23',
                     'cpp_std=gnu++23',
                     'b_lto=true'],
-  subproject_dir : 'vendor/subprojects',
+  subproject_dir : 'vendor/wrap',
 
   license: 'LGPL-3.0+ and GPL-3.0+',
   version: '2.2.0',
@@ -233,6 +233,29 @@ if get_option('optimize-native')
 endif
 
 #
+# Subprojects
+#
+mi_opt = cmake.subproject_options()
+# LTO messes with symbol visibility, which we require for mimalloc
+mi_opt.set_override_option('b_lto', 'false')
+mi_opt.add_cmake_defines({
+    'MI_BUILD_SHARED': false,
+    'MI_BUILD_STATIC': true,
+    'MI_BUILD_OBJECT': true,
+    'MI_OVERRIDE': true,
+})
+if sanitize_opt != 'none'
+    mi_opt.add_cmake_defines({'MI_TRACK_ASAN': true})
+endif
+if get_option('valgrind')
+    mi_opt.add_cmake_defines({'MI_TRACK_VALGRIND': true})
+endif
+mimalloc_proj = cmake.subproject('mimalloc', options: mi_opt)
+
+mimalloc_obj_o = mimalloc_proj.target('mimalloc-obj').extract_all_objects()
+mimalloc_static_dep = mimalloc_proj.dependency('mimalloc-static')
+
+#
 # Dependencies
 #
 qt_core_dep = dependency('qt6', modules: ['Core'], version: '>= 6.4.2', include_type: 'system')
@@ -247,13 +270,6 @@ qt_concurrent_dep = dependency('qt6', modules: ['Concurrent'])
 qtermwidget_dep = dependency('qtermwidget6')
 
 rt_lib = cpp_compiler.find_library('rt')
-if get_option('explicit-mimalloc')
-    mimalloc_proj = subproject('mimalloc', default_options: ['override=false'])
-    mimalloc_dep = mimalloc_proj.get_variable('mi_dep')
-else
-    mimalloc_dep = dependency('mimalloc', allow_fallback: false)
-endif
-
 thread_dep = dependency('threads')
 opengl_dep = dependency('GL')
 opencl_dep = dependency('OpenCL')

@@ -17,6 +17,10 @@ fi
 SUITE="$1"
 SLUG_EXT="$2"
 
+# Make subprojects available locally
+git submodule update --init --recursive
+meson subprojects download
+
 #
 # Set up the debian/ directory for the build.
 #

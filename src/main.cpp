@@ -19,9 +19,6 @@
 
 #include "config.h"
 
-// prefer mimalloc for standard new/delete
-#include <mimalloc-new-delete.h>
-
 #include <KDBusService>
 #include <QApplication>
 #include <QCommandLineParser>

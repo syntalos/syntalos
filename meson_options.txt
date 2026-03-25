@@ -59,8 +59,8 @@ option('tracing',
        value : false,
        description : 'Compile with -pg flag for function tracing & profiling'
 )
-option('explicit-mimalloc',
+option('valgrind',
        type : 'boolean',
        value : false,
-       description : 'Ensure we build with a version of mimalloc that never overrides standard allocators.'
+       description : 'Build with Valgrind support.'
 )

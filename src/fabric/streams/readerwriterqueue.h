@@ -222,7 +222,7 @@ public:
 
 			auto rawBlock = block->rawThis;
 			block->~Block();
-			mi_free(rawBlock);
+			std::free(rawBlock);
 			block = nextBlock;
 		} while (block != frontBlock_);
 	}
@@ -730,7 +730,7 @@ private:
 		// Allocate enough memory for the block itself, as well as all the elements it will contain
 		auto size = sizeof(Block) + std::alignment_of<Block>::value - 1;
 		size += sizeof(T) * capacity + std::alignment_of<T>::value - 1;
-		auto newBlockRaw = static_cast<char*>(mi_malloc(size));
+		auto newBlockRaw = static_cast<char*>(std::malloc(size));
 		if (newBlockRaw == nullptr) {
 			return nullptr;
 		}
