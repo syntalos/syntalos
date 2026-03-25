@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -503,8 +503,9 @@ bool ImageViewWidget::showImage(const cv::Mat &mat)
     }
 #endif
 
-    // GL texture upload requires a single contiguous memory block (e.g. not an OpenCV ROI)
-    if (!d->glImage.isContinuous())
+    // Deferred upload means ROI/submatrix views can alias parent buffers that get reused.
+    // Clone when layout is unsuitable or the Mat is just a window into larger storage.
+    if (!d->glImage.isContinuous() || d->glImage.isSubmatrix())
         d->glImage = d->glImage.clone();
 
     update();
