@@ -19,6 +19,11 @@
 
 #include "config.h"
 
+#ifndef SY_STATIC_MIMALLOC
+// prefer mimalloc for standard new/delete
+#include <mimalloc-new-delete.h>
+#endif
+
 #include <KDBusService>
 #include <QApplication>
 #include <QCommandLineParser>
