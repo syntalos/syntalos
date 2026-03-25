@@ -7,14 +7,13 @@ sy_mlink_pub_hdr = [
 
 sy_mlink_priv_hdr = [
     'ipc-types-private.h',
-    'ipc-config-private.h',
     'ipc-iox-private.h',
 ]
 
 sy_mlink_src = [
     'syntaloslink.cpp',
     'syntaloslinkmodule.cpp',
-    'ipc-config-private.cpp',
+    'ipc-iox-private.cpp',
 ]
 
 sy_mlink_moc = qt.compile_moc(

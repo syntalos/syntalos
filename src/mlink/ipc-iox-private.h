@@ -24,7 +24,6 @@
 #include <iox2/iceoryx2.hpp>
 
 #include "mlink/ipc-types-private.h"
-#include "mlink/ipc-config-private.h"
 
 namespace Syntalos::ipc
 {
@@ -53,6 +52,34 @@ using IoxServiceNameString = iox2::bb::StaticString<IOX2_SERVICE_NAME_LENGTH>;
 
 using IoxWaitSet = iox2::WaitSet<iox2::ServiceType::Ipc>;
 using IoxWaitSetGuard = iox2::WaitSetGuard<iox2::ServiceType::Ipc>;
+
+/**
+ * @brief Construct the service name for a given module instance and channel.
+ */
+std::string makeModuleServiceName(const std::string &instanceId, const std::string &channelName);
+
+/**
+ * @brief Find and cleanup dead nodes explicitly.
+ */
+void findAndCleanupDeadNodes();
+
+/**
+ * The iox2 configuration for Syntalos IPC services.
+ */
+const iox2::Config &ioxDefaultConfig();
+
+/**
+ * Create a node with Syntalos' default configuration.
+ */
+inline auto makeIoxNode(const std::string &nodeName)
+{
+    return iox2::NodeBuilder()
+        .config(ioxDefaultConfig())
+        .name(iox2::NodeName::create(nodeName.c_str()).value())
+        .signal_handling_mode(iox2::SignalHandlingMode::HandleTerminationRequests)
+        .create<iox2::ServiceType::Ipc>()
+        .value();
+}
 
 /**
  * @brief Event identifiers for the per-channel event service.

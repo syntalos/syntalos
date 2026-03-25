@@ -67,7 +67,6 @@
 #include "sysinfo.h"
 #include "datactl/syclock.h"
 #include "datactl/edlstorage.h"
-#include "mlink/ipc-config-private.h"
 #include "utils/misc.h"
 #include "utils/tomlutils.h"
 
@@ -270,7 +269,6 @@ public:
     ~Private() {}
 
     bool initialized;
-    bool ioxReady;
     SysInfo *sysInfo;
     GlobalConfig *gconf;
     QWidget *parentWidget;
@@ -336,11 +334,6 @@ Engine::Engine(QWidget *parentWidget)
     d->runCount = 0;
     d->runCountPadding = 1;
     d->monitoring->emergencyOOMStop = d->gconf->emergencyOOMStop();
-
-    auto ioxSetupResult = ipc::setupIoxConfiguration();
-    d->ioxReady = ioxSetupResult.has_value() && ioxSetupResult.value();
-    if (!d->ioxReady)
-        qCritical().noquote() << "Failed to set up IOX:" << ioxSetupResult.error();
 
 #if defined(LIBUSB_API_VERSION) && (LIBUSB_API_VERSION >= 0x0100010A)
     if (libusb_init_context(&d->usbCtx, nullptr, 0) != 0)
@@ -427,20 +420,6 @@ bool Engine::initialize()
     if (d->initialized) {
         qCCritical(logEngine).noquote() << "Tried to initialize engine twice! This is an error.";
         return true;
-    }
-
-    if (!d->ioxReady) {
-        qCritical().noquote() << "IOX configuration was not loaded. Trying again.";
-        auto ioxSetupResult = ipc::setupIoxConfiguration();
-        d->ioxReady = ioxSetupResult.has_value() && ioxSetupResult.value();
-        if (!d->ioxReady) {
-            QMessageBox::critical(
-                d->parentWidget,
-                QStringLiteral("Initialization failed"),
-                QStringLiteral("Failed to set up IOX configuration: %1").arg(qstr(ioxSetupResult.error())),
-                QMessageBox::Ok);
-            return false;
-        }
     }
 
     if (d->modLibrary->load()) {

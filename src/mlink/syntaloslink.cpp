@@ -26,7 +26,6 @@
 #include <iox2/iceoryx2.hpp>
 
 #include "mlink/ipc-types-private.h"
-#include "mlink/ipc-config-private.h"
 #include "mlink/ipc-iox-private.h"
 #include "utils/misc.h"
 #include "utils/rtkit.h"
@@ -62,12 +61,6 @@ std::unique_ptr<SyntalosLink> initSyntalosModuleLink()
 
     // set up stream data type mapping, if it hasn't been initialized yet
     registerStreamMetaTypes();
-
-    // load shared iceoryx2 configuration
-    if (auto res = setupIoxConfiguration(); !res.has_value()) {
-        qCritical().noquote() << "Failed to set up IOX configuration:" << QString::fromStdString(res.error());
-        throw std::runtime_error("Failed to set up IOX configuration: " + res.error());
-    }
 
     // set IOX log level
     auto verboseLevel = qgetenv("SY_VERBOSE");
@@ -213,12 +206,8 @@ public:
           syTimer(nullptr),
           shutdownPending(false)
     {
-        node.emplace(
-            iox2::NodeBuilder()
-                .name(iox2::NodeName::create(modId.c_str()).value())
-                .signal_handling_mode(iox2::SignalHandlingMode::HandleTerminationRequests)
-                .create<iox2::ServiceType::Ipc>()
-                .value());
+        // make a new node for this module
+        node.emplace(makeIoxNode(modId));
 
         // interfaces
         pubError.emplace(makeTypedPublisher<ErrorEvent>(*node, svcName(ERROR_CHANNEL_ID)));

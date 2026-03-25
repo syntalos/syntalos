@@ -23,7 +23,6 @@
 #include <QSettings>
 
 #include "globalconfig.h"
-#include "utils/ipcconfig.h"
 
 namespace Ui
 {
@@ -52,22 +51,13 @@ private slots:
     void on_btnCreateDevDir_clicked();
     void on_cbPythonVenvForScripts_toggled(bool checked);
 
-    void on_cbRoudiMonitoringDisabled_toggled(bool checked);
-    void on_sbPool1ChunkCount_editingFinished();
-    void on_sbPool1ChunkSize_editingFinished();
-    void on_sbPool2ChunkCount_editingFinished();
-    void on_sbPool2ChunkSize_editingFinished();
-    void on_btnIpcPoolReset_clicked();
-
 signals:
     void defaultColorSchemeChanged();
 
 private:
     void updateCreateDevDirButtonState();
-    void checkMemPoolValuesValid();
 
     Ui::GlobalConfigDialog *ui;
     Syntalos::GlobalConfig *m_gc;
-    Syntalos::IPCConfig *m_ipcc;
     bool m_acceptChanges;
 };

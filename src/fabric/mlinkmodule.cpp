@@ -451,12 +451,7 @@ void MLinkModule::resetConnection()
     d->clientId = QStringLiteral("%1_%2").arg(id()).arg(index()).toStdString();
 
     // create a fresh node for this module connection
-    d->node.emplace(
-        iox2::NodeBuilder()
-            .name(iox2::NodeName::create(("syntalos-master-" + d->clientId).c_str()).value())
-            .signal_handling_mode(iox2::SignalHandlingMode::HandleTerminationRequests)
-            .create<iox2::ServiceType::Ipc>()
-            .value());
+    d->node.emplace(makeIoxNode("syntalos-master-" + d->clientId));
 
     // ensure the old connections are gone before we are trying to create new ones
     d->subError.reset();

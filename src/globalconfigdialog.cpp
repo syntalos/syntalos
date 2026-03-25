@@ -39,7 +39,6 @@ GlobalConfigDialog::GlobalConfigDialog(QWidget *parent)
     setWindowModality(Qt::WindowModal);
 
     m_gc = new GlobalConfig(this);
-    m_ipcc = new IPCConfig(this);
 
     RtKit rtkit;
 
@@ -68,20 +67,9 @@ GlobalConfigDialog::GlobalConfigDialog(QWidget *parent)
     ui->cpuAffinityWarnButton->setVisible(false);
     ui->explicitCoreAffinitiesCheckBox->setChecked(m_gc->explicitCoreAffinities());
 
-    IPCMemPoolInfo mpoolInfo1 = m_ipcc->memPool1Info();
-    IPCMemPoolInfo mpoolInfo2 = m_ipcc->memPool2Info();
-    ui->sbPool1ChunkCount->setValue(mpoolInfo1.chunkCount);
-    ui->sbPool1ChunkSize->setValue(mpoolInfo1.chunkSizeMb);
-    ui->sbPool2ChunkCount->setValue(mpoolInfo2.chunkCount);
-    ui->sbPool2ChunkSize->setValue(mpoolInfo2.chunkSizeMb);
-
-    // show warning if memory pool values are not sane
-    checkMemPoolValuesValid();
-
     // devel section
     ui->cbDisplayDevModules->setChecked(m_gc->showDevelModules());
     ui->cbSaveDiagnostic->setChecked(m_gc->saveExperimentDiagnostics());
-    ui->cbRoudiMonitoringDisabled->setChecked(!m_ipcc->roudiMonitoringEnabled());
     ui->cbPythonVenvForScripts->setChecked(m_gc->useVenvForPyScript());
     updateCreateDevDirButtonState();
 
@@ -176,23 +164,6 @@ void GlobalConfigDialog::updateCreateDevDirButtonState()
         ui->btnCreateDevDir->setText("Create directory in home directory");
 }
 
-void GlobalConfigDialog::checkMemPoolValuesValid()
-{
-    const auto isValid = m_ipcc->checkMemPoolValuesSane(50);
-    ui->lblPopMemWarning->setVisible(!isValid);
-    if (isValid) {
-        ui->sbPool1ChunkCount->setStyleSheet("");
-        ui->sbPool1ChunkSize->setStyleSheet("");
-        ui->sbPool2ChunkCount->setStyleSheet("");
-        ui->sbPool2ChunkSize->setStyleSheet("");
-    } else {
-        ui->sbPool1ChunkCount->setStyleSheet("background-color: red;");
-        ui->sbPool1ChunkSize->setStyleSheet("background-color: red;");
-        ui->sbPool2ChunkCount->setStyleSheet("background-color: red;");
-        ui->sbPool2ChunkSize->setStyleSheet("background-color: red;");
-    }
-}
-
 void GlobalConfigDialog::on_btnCreateDevDir_clicked()
 {
     QDir homeDevDir(m_gc->homeDevelDir());
@@ -225,48 +196,4 @@ void GlobalConfigDialog::on_cbPythonVenvForScripts_toggled(bool checked)
 {
     if (m_acceptChanges)
         m_gc->setUseVenvForPyScript(checked);
-}
-
-void GlobalConfigDialog::on_cbRoudiMonitoringDisabled_toggled(bool checked)
-{
-    m_ipcc->setRoudiMonitoringEnabled(!checked);
-}
-
-void GlobalConfigDialog::on_sbPool1ChunkCount_editingFinished()
-{
-    IPCMemPoolInfo memPoolInfo{
-        static_cast<uint>(ui->sbPool1ChunkSize->value()), static_cast<uint>(ui->sbPool1ChunkCount->value())};
-    m_ipcc->setMemPool1Info(memPoolInfo);
-    checkMemPoolValuesValid();
-}
-
-void GlobalConfigDialog::on_sbPool1ChunkSize_editingFinished()
-{
-    on_sbPool1ChunkCount_editingFinished();
-}
-
-void GlobalConfigDialog::on_sbPool2ChunkCount_editingFinished()
-{
-    IPCMemPoolInfo memPoolInfo{
-        static_cast<uint>(ui->sbPool2ChunkSize->value()), static_cast<uint>(ui->sbPool2ChunkCount->value())};
-    m_ipcc->setMemPool2Info(memPoolInfo);
-    checkMemPoolValuesValid();
-}
-
-void GlobalConfigDialog::on_sbPool2ChunkSize_editingFinished()
-{
-    on_sbPool2ChunkCount_editingFinished();
-}
-
-void GlobalConfigDialog::on_btnIpcPoolReset_clicked()
-{
-    m_ipcc->resetMemPoolDefaults();
-
-    IPCMemPoolInfo mpoolInfo1 = m_ipcc->memPool1Info();
-    IPCMemPoolInfo mpoolInfo2 = m_ipcc->memPool2Info();
-    ui->sbPool1ChunkCount->setValue(mpoolInfo1.chunkCount);
-    ui->sbPool1ChunkSize->setValue(mpoolInfo1.chunkSizeMb);
-    ui->sbPool2ChunkCount->setValue(mpoolInfo2.chunkCount);
-    ui->sbPool2ChunkSize->setValue(mpoolInfo2.chunkSizeMb);
-    checkMemPoolValuesValid();
 }
