@@ -1549,7 +1549,8 @@ void Engine::setInactiveModuleInputPortsSuspended(bool suspended)
  * @brief Distribute niceness elevation slots among all module threads for a run.
  *
  * RtKit enforces a per-user limit across all elevated threads that we do not know,
- * but guess to be around 20.
+ * but guess to be around 16 (it is hardcoded at 25, but other processes have elevated
+ * priorities as well).
  * This function pre-assigns which threads get elevation, so that:
  *   a) we never make D-Bus calls that will likely be rejected, and
  *   b) the most important threads - those whose modules appear earliest in the topological
@@ -1565,55 +1566,66 @@ void Engine::setInactiveModuleInputPortsSuspended(bool suspended)
  */
 void Engine::allocateNicenessBudget(const ModuleRunOrder &modOrder, uint maxRtThreads, int defaultThreadNice)
 {
-    // Set the default niceness on every module upfront.
-    // Modules whose driver neither spawns a dedicated thread nor an MLink worker
-    // (e.g. event-loop modules) keep the value but never act on it.
+    // Initialize all modules to default priority (0). We then assign elevated
+    // niceness to the selected eligible modules later.
     for (auto &mod : modOrder.start)
-        mod->setDefaultThreadNiceness(defaultThreadNice);
+        mod->setDefaultThreadNiceness(0);
 
     // If elevation is not wanted at all, we are done.
     if (defaultThreadNice == 0 || maxRtThreads == 0)
         return;
 
-    // Count modules that will actually request elevation.
-    int dedicatedCount = 0;
-    int mlinkCount = 0;
-    for (auto &mod : modOrder.start) {
-        if (qobject_cast<MLinkModule *>(mod) != nullptr)
-            ++mlinkCount;
-        else if (mod->driver() == ModuleDriverKind::THREAD_DEDICATED)
-            ++dedicatedCount;
-    }
-
-    if (dedicatedCount == 0 && mlinkCount == 0)
-        return;
-
-    // Reserve 1 slot for the main engine thread (always elevated, starts first).
-    // Distribute the remaining slots in topological order across all module types.
-    const int totalWanting = dedicatedCount + mlinkCount;
-    const long long slotsForModules = std::max(0LL, maxRtThreads - 1LL);
-
-    if (slotsForModules >= totalWanting)
-        return; // everything fits — nothing to restrict
-
-    qCWarning(logEngine).noquote().nospace()
-        << "Concurrent RT thread limit is " << maxRtThreads << " (1 main + " << dedicatedCount << " dedicated + "
-        << mlinkCount << " MLink = " << (1 + totalWanting) << " total requested). "
-        << "Only the first " << slotsForModules << " module threads will be elevated to nice " << defaultThreadNice
-        << "; the remaining " << (totalWanting - slotsForModules) << " will run at default priority. ";
-
-    // Walk in topological order: give slots to the first slotsForModules threads,
-    // cap the rest to niceness=0 directly on the module object.
-    long long remaining = slotsForModules;
+    QList<AbstractModule *> deviceEligibleMods;
+    QList<AbstractModule *> otherEligibleMods;
     for (auto &mod : modOrder.start) {
         const bool isMLink = qobject_cast<MLinkModule *>(mod) != nullptr;
         const bool isDedicated = mod->driver() == ModuleDriverKind::THREAD_DEDICATED;
         if (!isMLink && !isDedicated)
             continue;
-        if (remaining > 0)
-            --remaining;
+
+        const auto info = d->modLibrary->moduleInfo(mod->id());
+        const bool isDevice = info && info->categories().testFlag(ModuleCategory::DEVICES);
+        if (isDevice)
+            deviceEligibleMods.append(mod);
         else
-            mod->setDefaultThreadNiceness(0);
+            otherEligibleMods.append(mod);
+    }
+
+    if (deviceEligibleMods.isEmpty() && otherEligibleMods.isEmpty())
+        return;
+
+    // Reserve 1 slot for the main engine thread (always elevated, starts first).
+    // Distribute the remaining slots in topological order across all module types.
+    const size_t totalWanting = deviceEligibleMods.length() + otherEligibleMods.length();
+    const size_t slotsForModules = std::max(0LL, maxRtThreads - 1LL);
+
+    if (slotsForModules >= totalWanting) {
+        for (auto &mod : deviceEligibleMods)
+            mod->setDefaultThreadNiceness(defaultThreadNice);
+        for (auto &mod : otherEligibleMods)
+            mod->setDefaultThreadNiceness(defaultThreadNice);
+        return; // everything fits - elevated all eligible modules
+    }
+
+    qCWarning(logEngine).noquote().nospace()
+        << "Concurrent RT thread limit is " << maxRtThreads << " (1 main + " << totalWanting << " total requested). "
+        << "Only the first " << slotsForModules << " module threads will be elevated to nice " << defaultThreadNice
+        << "; the remaining " << (totalWanting - slotsForModules) << " will run at default priority. ";
+
+    // Generally walk in topological order, but prioritize DEVICE modules first.
+    auto remaining = slotsForModules;
+    for (auto &mod : deviceEligibleMods) {
+        if (remaining <= 0)
+            break;
+        mod->setDefaultThreadNiceness(defaultThreadNice);
+        --remaining;
+    }
+
+    for (auto &mod : otherEligibleMods) {
+        if (remaining <= 0)
+            break;
+        mod->setDefaultThreadNiceness(defaultThreadNice);
+        --remaining;
     }
 }
 
