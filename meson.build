@@ -3,7 +3,7 @@ project('Syntalos', 'c', 'cpp',
   default_options: ['c_std=gnu23',
                     'cpp_std=gnu++23',
                     'b_lto=true'],
-  subproject_dir : 'contrib/subprojects',
+  subproject_dir : 'vendor/subprojects',
 
   license: 'LGPL-3.0+ and GPL-3.0+',
   version: '2.2.0',
@@ -307,14 +307,14 @@ if not iox2_dep.found()
     # So we hack around it and call cmake directly instead to build
     # the dependency at configure-time. Ewww...
 
-    iox2_src = source_root / 'contrib' / 'vendor' / 'iceoryx2'
+    iox2_src = source_root / 'vendor' / 'iceoryx2'
     iox2_bld = meson.current_build_dir() / 'iox2-build'
     iox2_pre = meson.current_build_dir() / 'iox2-target'
     cmake_exe = find_program('cmake')
 
     message('Building iceoryx2 from source (this may take a while)...')
     iox2_build_result = run_command(
-        python, source_root / 'contrib' / 'vendor' / 'build-iox2.py',
+        python, source_root / 'vendor' / 'build-iox2.py',
         '--source-dir', iox2_src,
         '--build-dir',  iox2_bld,
         '--prefix',     iox2_pre,
@@ -357,7 +357,7 @@ sed_prog = find_program('sed')
 
 # vendored 3rd-party code
 if 'plot' in get_option('modules')
-    subdir('contrib/vendor')
+    subdir('vendor')
 endif
 
 #

@@ -1,6 +1,6 @@
-[submodule "contrib/vendor/imgui"]
-	path = contrib/vendor/imgui
+[submodule "vendor/imgui"]
+	path = vendor/imgui
 	url = https://github.com/ocornut/imgui.git
-[submodule "contrib/vendor/implot"]
-	path = contrib/vendor/implot
+[submodule "vendor/implot"]
+	path = vendor/implot
 	url = https://github.com/epezent/implot.git
