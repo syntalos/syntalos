@@ -81,9 +81,9 @@ syntalos_exe = executable('syntalos',
     gnu_symbol_visibility: 'hidden',
     objects: [mimalloc_obj_o],
     dependencies: [
+        mimalloc_inc_dep,
         thread_dep,
-        syntalos_fabric_dep,
-        syntalos_mlink_dep,
+        syntalos_fabric_nomi_dep,
 
         qt_core_dep,
         qt_gui_dep,
@@ -105,11 +105,10 @@ syntalos_exe = executable('syntalos',
         pipewire_dep,
         gstreamer_dep,
     ],
-    # ensure mimalloc in datactl is switched on
-    cpp_args: ['-DSY_USE_MIMALLOC', '-DSY_STATIC_MIMALLOC'],
+    # flag to gate code we may need if we would link mimalloc dynamically again
+    cpp_args: ['-DSY_STATIC_MIMALLOC'],
     include_directories: [
         root_include_dir,
-        mimalloc_inc,
     ],
     install: true,
     install_rpath: sy_libdir

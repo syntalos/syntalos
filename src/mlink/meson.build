@@ -32,7 +32,7 @@ syntalos_mlink_lib = library('syntalos-mlink',
         qt_core_dep,
         iox2_dep,
         opencv_dep,
-        syntalos_datactl_dep,
+        syntalos_datactl_stdalloc_dep,
         syntalos_utils_dep,
     ],
     include_directories: [],
@@ -47,7 +47,7 @@ syntalos_mlink_dep = declare_dependency(
     ],
     dependencies: [
         qt_core_dep,
-        syntalos_datactl_dep,
+        syntalos_datactl_stdalloc_dep,
     ],
     include_directories: [
         include_directories('./include')

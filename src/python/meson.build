@@ -42,7 +42,6 @@ pysy_mlink_mod = python.extension_module(
     pysy_mlink_src,
     gnu_symbol_visibility: 'hidden',
     dependencies: [
-        syntalos_fabric_dep,
         syntalos_mlink_dep,
         thread_dep,
         opencv_dep,
