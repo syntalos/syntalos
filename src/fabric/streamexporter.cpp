@@ -44,8 +44,8 @@ struct StreamExportData {
     // reused memory segment to avoid memory fragmentation
     ByteVector buffer;
 
-    StreamExporter *self;
-    GSource *source;
+    StreamExporter *self{};
+    GSource *source{};
 };
 
 #pragma GCC diagnostic push
