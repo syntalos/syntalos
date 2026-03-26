@@ -16,7 +16,6 @@
 #include <cstdlib>		// For malloc/free/abort & size_t
 #include <memory>
 #include <chrono>
-#include <mimalloc.h>
 
 
 // A lock-free queue for a single-consumer, single-producer architecture.

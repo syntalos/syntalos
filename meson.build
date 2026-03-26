@@ -253,7 +253,12 @@ endif
 mimalloc_proj = cmake.subproject('mimalloc', options: mi_opt)
 
 mimalloc_obj_o = mimalloc_proj.target('mimalloc-obj').extract_all_objects()
-mimalloc_static_dep = mimalloc_proj.dependency('mimalloc-static')
+mimalloc_static_lib_dep = mimalloc_proj.dependency('mimalloc-static')
+mimalloc_inc = include_directories('vendor' / 'wrap' / 'mimalloc' / 'include')
+mimalloc_static_dep = declare_dependency(
+    dependencies: mimalloc_static_lib_dep,
+    include_directories: mimalloc_inc
+)
 
 #
 # Dependencies

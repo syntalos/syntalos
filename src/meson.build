@@ -107,7 +107,10 @@ syntalos_exe = executable('syntalos',
     ],
     # ensure mimalloc in datactl is switched on
     cpp_args: ['-DSY_USE_MIMALLOC', '-DSY_STATIC_MIMALLOC'],
-    include_directories: [root_include_dir],
+    include_directories: [
+        root_include_dir,
+        mimalloc_inc,
+    ],
     install: true,
     install_rpath: sy_libdir
 )
