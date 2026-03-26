@@ -3,6 +3,7 @@ subdir('rwqueue')
 
 test_env = environment()
 test_env.set('MIMALLOC_SHOW_ERRORS', '1')
+test_env.set('QT_QPA_PLATFORM', 'offscreen')
 
 #
 # Core Utilities Test
@@ -86,3 +87,28 @@ test('sy-test-tsyncfile',
     test_tsyncfile_exe,
     env: test_env,
 )
+
+#
+# Sample Python GUI Project Tests
+#
+gui_project_test_runner = find_program('run-project-test.py')
+
+test_manifests = [
+    #'scenarios/ipc-test.toml',
+    #'scenarios/ipc-pyproducer.toml',
+    'scenarios/jsonwriter-test.toml'
+]
+
+if get_option('gui-tests')
+    foreach manifest : test_manifests
+        test_name = 'sy-test-project-@0@'.format(manifest.split('/')[-1].split('.')[0])
+        test(test_name,
+            gui_project_test_runner,
+            args: ['--syntalos-bin', syntalos_exe, '--manifest', files(manifest)],
+            env: test_env,
+            timeout: 600,
+            is_parallel: false,
+            suite: 'gui',
+        )
+    endforeach
+endif

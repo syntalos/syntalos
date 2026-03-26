@@ -24,13 +24,20 @@ fi
 mkdir build && cd build
 meson \
     -Dmaintainer=true \
+    -Dgui-tests=true \
     -Dmodules="camera-arv,camera-tis,miniscope,plot${extra_modules}" \
     ..
 
-# Build, Test & Install
+# Build, Install & Test
 ninja
 DESTDIR=/tmp/install_root/ ninja install
-export CTEST_PROGRESS_OUTPUT=1
-export CTEST_OUTPUT_ON_FAILURE=1
-xvfb-run -a -s "-screen 0 1024x768x24 +extension GLX" \
+
+# We need a (fake) display, because GUI tests are enabled
+if [ -z "$DISPLAY" ] && [ -z "$WAYLAND_DISPLAY" ]; then
+    echo "Running headless with xvfb and dbus"
+    xvfb-run -a -s "-screen 0 1400x900x24" \
+            dbus-run-session -- \
+            meson test -v --print-errorlogs
+else
     meson test --print-errorlogs
+fi

@@ -21,7 +21,6 @@ fi;
 # install build dependencies
 eatmydata apt-get install -yq --no-install-recommends \
     git ca-certificates \
-    xvfb xauth \
     python3-pip \
     cmake \
     gettext \
@@ -37,7 +36,6 @@ eatmydata apt-get install -yq --no-install-recommends \
     libkf6archive-dev \
     libkf6texteditor-dev \
     libkf6dbusaddons-dev \
-    libmimalloc-dev \
     libopencv-dev \
     libpipewire-0.3-dev \
     libqt6opengl6-dev \
@@ -65,6 +63,13 @@ eatmydata apt-get install -yq --no-install-recommends \
     uuid-dev \
     liblua5.3-dev \
     $extra_deps
+
+# test dependencies
+eatmydata apt-get install -yq --no-install-recommends \
+    python3-zstandard \
+    xvfb \
+    xauth \
+    dbus-daemon
 
 # NOTE: liblua5.3-dev is only needed for Intan RHX
 

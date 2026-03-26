@@ -1,3 +1,27 @@
+#
+# General Options
+#
+option('modules',
+       type: 'array',
+       choices: [
+           'camera-arv',   # Module for GenICam camera support via Aravis
+           'camera-flir',  # FLIR camera module using the Spinnaker API
+           'camera-tis',   # Camera module for The Imaging Source cameras
+           'camera-ueye',  # uEye camera module
+           'intan-rhx',    # Intan RHX DAQ module
+           'miniscope',    # UCLA Miniscope module
+           'plot',         # Plotting modules using ImGui
+       ],
+       value : [
+           'camera-arv',
+           'camera-tis',
+           'intan-rhx',
+           'miniscope',
+           'plot',
+       ],
+       description: 'Select modules to enable.'
+)
+
 option('optimize-modern-amd64',
     type : 'boolean',
     value : true,
@@ -14,30 +38,14 @@ option('udevdir',
     value: '',
     description: 'Directory for udev rules'
 )
-
-option('modules',
-    type: 'array',
-    choices: [
-      'camera-arv',   # Module for GenICam camera support via Aravis
-      'camera-flir',  # FLIR camera module using the Spinnaker API
-      'camera-tis',   # Camera module for The Imaging Source cameras
-      'camera-ueye',  # uEye camera module
-      'intan-rhx',    # Intan RHX DAQ module
-      'miniscope',    # UCLA Miniscope module
-      'plot',         # Plotting modules using ImGui
-    ],
-    value : [
-      'camera-arv',
-      'camera-tis',
-      'intan-rhx',
-      'miniscope',
-      'plot',
-    ],
-    description: 'Select modules to enable.'
+option('gui-tests',
+       type : 'boolean',
+       value : false,
+       description : 'Enable GUI project smoketests.'
 )
 
 #
-# For development
+# For Development
 #
 option('maintainer',
        type : 'boolean',

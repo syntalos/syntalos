@@ -1,0 +1,30 @@
+[test]
+name = "JSON Writer Test"
+project_file = "projects/jsonwriter-test.syct"
+run_duration_sec = 16
+expected_exit_code = 0
+expected_datasets = ["table-json", "sines-json"]
+
+[[test.expected_output_files]]
+path = "attributes.toml"
+toml_fields = ["machine_node", "success"]
+
+[[test.expected_output_files]]
+path = "manifest.toml"
+toml_fields = ["collection_id", "format_version", "time_created", "type", "generator"]
+
+[[test.expected_output_files]]
+path = "table-json/manifest.toml"
+toml_fields = ["data.media_type", "data.parts"]
+
+[[test.expected_output_files]]
+path = "table-json/testvalues.json.zst"
+json_validation = { required_keys = ["data"], min_array_length = { data = 1 } }
+
+[[test.expected_output_files]]
+path = "sines-json/manifest.toml"
+toml_fields = ["data.media_type", "data.parts"]
+
+[[test.expected_output_files]]
+path = "sines-json/data.json.zst"
+json_validation = { required_keys = ["data"], min_array_length = { data = 5 } }
