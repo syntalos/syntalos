@@ -74,7 +74,7 @@ syntalos_fabric_lib = shared_library('syntalos-fabric',
         qt_dbus_dep,
         qt_gui_dep,
         qtermwidget_dep,
-        syntalos_datactl_dep,
+        syntalos_datactl_mimalloc_dep,
         syntalos_utils_dep,
         syntalos_mlink_dep,
         iox2_dep,
@@ -96,11 +96,13 @@ syntalos_fabric_lib = shared_library('syntalos-fabric',
 syntalos_fabric_dep = declare_dependency(
     link_with: syntalos_fabric_lib,
     dependencies: [
+        mimalloc_static_dep,
         sy_base_deps,
         qt_gui_dep,
-        syntalos_datactl_dep,
+        syntalos_datactl_mimalloc_dep,
         syntalos_utils_dep,
     ],
+    compile_args: ['-DSY_USE_MIMALLOC'],
     include_directories: [root_include_dir,
                           syntalos_fabric_inc_dir]
 )

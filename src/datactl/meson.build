@@ -66,6 +66,16 @@ syntalos_datactl_dep = declare_dependency(
     include_directories: [sy_datactl_inc_dirs]
 )
 
+# Internal consumers can opt into the bundled mimalloc surface explicitly.
+# Keep the default datactl dependency allocator-neutral for external users.
+syntalos_datactl_mimalloc_dep = declare_dependency(
+    dependencies: [
+        mimalloc_static_dep,
+        syntalos_datactl_dep,
+    ],
+    compile_args: ['-DSY_USE_MIMALLOC'],
+)
+
 install_headers(sy_datactl_pub_hdr, subdir: 'syntalos' / 'datactl')
 install_headers('include/syntalos-datactl', subdir: 'syntalos')
 
