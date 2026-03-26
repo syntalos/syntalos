@@ -844,7 +844,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
                 this,
                 QStringLiteral("Ignore missing module?"),
                 QStringLiteral(
-                    "While installing thie missing module is the right solution to load this board, "
+                    "While installing the missing module is the right solution to load this board, "
                     "you can also enforce loading it. Please be aware that loading may fail. Load anyway?"),
                 QMessageBox::Yes | QMessageBox::No);
             if (reply == QMessageBox::Yes) {
