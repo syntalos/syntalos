@@ -98,6 +98,7 @@ public:
     std::optional<IoxListener> workerCtlEventListener;
     std::optional<IoxNotifier> ctlEventNotifier;
     QTimer *ctlEventTimer = nullptr;
+    std::atomic_bool threadStopped = true;
 
     /**
      * Construct service name for a channel on this module.
@@ -980,6 +981,8 @@ void MLinkModule::start()
 
 void MLinkModule::runThread(OptionalWaitCondition *startWaitCondition)
 {
+    d->threadStopped = false;
+
     // create waitset and attach control guard
     auto waitSet = iox2::WaitSetBuilder()
                        .signal_handling_mode(iox2::SignalHandlingMode::HandleTerminationRequests)
@@ -1033,6 +1036,11 @@ void MLinkModule::runThread(OptionalWaitCondition *startWaitCondition)
 
     // we finished - drain incoming control messages from the module process one more time
     handleIncomingControl();
+
+    // disconnect forwarders
+    disconnectOutPortForwarders();
+
+    d->threadStopped = true;
 }
 
 void MLinkModule::stop()
@@ -1040,12 +1048,19 @@ void MLinkModule::stop()
     if (isProcessRunning())
         d->callClientSimple<StopRequest>(this, STOP_CALL_ID, [](auto &) {}, 15);
 
-    disconnectOutPortForwarders();
+    // stop the module thread first
+    AbstractModule::stop();
+
+    // wait for our thread to stop, so we do not access iox objects from two threads by accident
+    // in the brief period while the thread isn't shut down yet but we still receive messages
+    while (!d->threadStopped) {
+        std::this_thread::sleep_for(milliseconds_t(5));
+        processUiEvents();
+    }
+
     d->sentMetadata.clear();
     d->portChangesAllowed = true;
 
     // start reading client responses in the GUI thread again
     d->ctlEventTimer->start();
-
-    AbstractModule::stop();
 }
