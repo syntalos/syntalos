@@ -36,6 +36,11 @@ syntalos_fabric_src = [
     'streams/stream.cpp',
     'streams/subscriptionnotifier.h',
     'streams/subscriptionnotifier.cpp',
+
+    # we reuse some shared primitives from mlink, to avoid linking
+    # the mlink library into fabric
+    '../mlink/ipc-iox-private.h',
+    '../mlink/ipc-iox-private.cpp',
 ]
 
 syntalos_fabric_ui = [
@@ -76,7 +81,6 @@ syntalos_fabric_lib = shared_library('syntalos-fabric',
         qtermwidget_dep,
         syntalos_datactl_mimalloc_dep,
         syntalos_utils_dep,
-        syntalos_mlink_dep,
         iox2_dep,
         opengl_dep,
         avutil_dep,
