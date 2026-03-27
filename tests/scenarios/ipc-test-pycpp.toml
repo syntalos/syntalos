@@ -1,0 +1,30 @@
+[test]
+name = "IPC Test - Python/C++"
+project_file = "projects/ipc-test-pycpp.syct"
+run_duration_sec = 10
+expected_exit_code = 0
+expected_stderr_contains = ["Module start order: Devel: DataSource ⇢ Python Script ⇢ C++ Workbench ⇢ Input Tab ⇢ Canvas 2 ⇢ Canvas ⇢ Output Tab"]
+
+[[test.expected_output_files]]
+path = "attributes.toml"
+toml_fields = ["machine_node", "success"]
+
+[[test.expected_output_files]]
+path = "manifest.toml"
+toml_fields = ["collection_id", "format_version", "time_created", "type", "generator"]
+
+[[test.expected_output_files]]
+path = "output-tab/manifest.toml"
+toml_fields = ["data.media_type", "data.parts"]
+
+[[test.expected_output_files]]
+path = "output-tab/table.csv"
+csv_validation = { expected_headers = ['Time', 'Tag', 'Value'], min_rows = 2 }
+
+[[test.expected_output_files]]
+path = "table-devel-datasource/manifest.toml"
+toml_fields = ["data.media_type", "data.parts"]
+
+[[test.expected_output_files]]
+path = "table-devel-datasource/testvalues.csv"
+csv_validation = { expected_headers = ['Time', 'Tag', 'Value'], min_rows = 2 }

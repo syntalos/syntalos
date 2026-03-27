@@ -66,10 +66,11 @@ eatmydata apt-get install -yq --no-install-recommends \
 
 # test dependencies
 eatmydata apt-get install -yq --no-install-recommends \
-    python3-zstandard \
     xvfb \
     xauth \
-    dbus-daemon
+    dbus-daemon \
+    python3-zstandard \
+    python3-opencv
 
 # NOTE: liblua5.3-dev is only needed for Intan RHX
 

@@ -20,7 +20,7 @@ import json
 import csv
 import tomllib
 import zstandard as zstd
-import shutil
+import fnmatch
 
 
 def validate_toml_fields(file_path, required_fields):
@@ -137,6 +137,13 @@ def validate_json_file(file_path, required_keys=None, schema=None, min_array_len
     return True, None
 
 
+def path_matches(actual_path, expected_pattern):
+    """Match expected output paths with optional wildcard support."""
+    if fnmatch.fnmatch(actual_path, f"*/{expected_pattern}"):
+        return True
+    return False
+
+
 def check_expected_output(export_dir, expected_files):
     if not os.path.exists(export_dir):
         return False, f"Export directory {export_dir} does not exist"
@@ -151,7 +158,7 @@ def check_expected_output(export_dir, expected_files):
             # Just check if file exists
             found = False
             for actual in actual_files:
-                if actual.endswith(expected) or actual == expected:
+                if path_matches(actual, expected):
                     found = True
                     break
             if not found:
@@ -167,7 +174,7 @@ def check_expected_output(export_dir, expected_files):
 
             found_path = None
             for actual in actual_files:
-                if actual.endswith(path_pattern) or actual == path_pattern:
+                if path_matches(actual, path_pattern):
                     found_path = os.path.join(export_dir, actual)
                     break
 
@@ -257,9 +264,16 @@ def run_test(syntalos_bin, manifest_path):
     name = test_config.get("name", os.path.basename(manifest_path))
     project_file = test_config.get("project_file")
     run_duration = test_config.get("run_duration_sec", 10)
-    timeout = test_config.get("timeout_sec", run_duration + 15)
+    timeout = test_config.get("timeout_sec", run_duration + 30)
     expected_exit = test_config.get("expected_exit_code", 0)
+    expected_datasets = test_config.get("expected_datasets", [])
     expected_output = test_config.get("expected_output_files", [])
+    expected_stdout_contains = test_config.get("expected_stdout_contains", [])
+    expected_stderr_contains = test_config.get("expected_stderr_contains", [])
+
+    # Add expected datasets as simple file existence checks
+    for dataset in expected_datasets:
+        expected_output.append(f"{dataset}/manifest.toml")
 
     if not project_file:
         print(f"Error: 'project_file' not specified in {manifest_path}", file=sys.stderr)
@@ -273,7 +287,7 @@ def run_test(syntalos_bin, manifest_path):
         print(f"Error: Project file {project_path} not found.", file=sys.stderr)
         return False
 
-    sytmp_prefix = "sytest_" + str(name).replace(" ", "_").replace("/", ".")
+    sytmp_prefix = "sytest_{}_".format(str(name).replace(" ", "").replace("/", "."))
     with tempfile.TemporaryDirectory(dir="/var/tmp", prefix=sytmp_prefix) as export_dir:
         cmd = [
             syntalos_bin,
@@ -299,11 +313,12 @@ def run_test(syntalos_bin, manifest_path):
             )
 
             try:
-                exit_code = process.wait(timeout=timeout)
+                stdout_data, stderr_data = process.communicate(timeout=timeout)
+                exit_code = process.returncode
             except subprocess.TimeoutExpired:
                 print(f"  [!] Test timed out after {timeout} seconds", file=sys.stderr)
                 process.kill()
-                process.wait()
+                process.communicate()
                 return False
 
             runtime = time.time() - start_time
@@ -314,9 +329,29 @@ def run_test(syntalos_bin, manifest_path):
                     f"  [!] Exit code mismatch: expected {expected_exit}, got {exit_code}",
                     file=sys.stderr,
                 )
-                print("  --- STDOUT ---\n" + process.stdout.read())
-                print("  --- STDERR ---\n" + process.stderr.read())
+                if stdout_data:
+                    print("  --- STDOUT ---", file=sys.stderr)
+                    print(stdout_data, file=sys.stderr)
+                if stderr_data:
+                    print("  --- STDERR ---", file=sys.stderr)
+                    print(stderr_data, file=sys.stderr)
                 return False
+
+            if expected_stdout_contains:
+                for text in expected_stdout_contains:
+                    if text not in stdout_data:
+                        print(f"  [!] Expected text not found in STDOUT: '{text}'", file=sys.stderr)
+                        print("  --- STDOUT ---")
+                        print(stdout_data)
+                        return False
+
+            if expected_stderr_contains:
+                for text in expected_stderr_contains:
+                    if text not in stderr_data:
+                        print(f"  [!] Expected text not found in STDERR: '{text}'", file=sys.stderr)
+                        print("  --- STDERR ---")
+                        print(stderr_data)
+                        return False
 
             if expected_output:
                 success, msg = check_expected_output(export_dir, expected_output)

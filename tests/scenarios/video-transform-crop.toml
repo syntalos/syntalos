@@ -1,0 +1,41 @@
+[test]
+name = "Video Transform Crop"
+project_file = "projects/video-transform-crop.syct"
+run_duration_sec = 5
+expected_exit_code = 0
+
+[[test.expected_output_files]]
+path = "attributes.toml"
+toml_fields = ["machine_node", "success"]
+
+[[test.expected_output_files]]
+path = "manifest.toml"
+toml_fields = ["collection_id", "format_version", "time_created", "type", "generator"]
+
+[[test.expected_output_files]]
+path = "videos/manifest.toml"
+toml_fields = ["collection_id", "type"]
+
+[[test.expected_output_files]]
+path = "videos/raw-video/manifest.toml"
+toml_fields = ["data.media_type", "data.parts"]
+
+[[test.expected_output_files]]
+path = "videos/raw-video/*-video.mkv"
+min_size_bytes = 20000
+
+[[test.expected_output_files]]
+path = "videos/raw-video/*-video_timestamps.tsync"
+min_size_bytes = 500
+
+[[test.expected_output_files]]
+path = "videos/cropped-video/manifest.toml"
+toml_fields = ["data.media_type", "data.parts"]
+
+[[test.expected_output_files]]
+path = "videos/cropped-video/*-video.mkv"
+min_size_bytes = 10000
+
+[[test.expected_output_files]]
+path = "videos/cropped-video/*-video_timestamps.tsync"
+min_size_bytes = 500

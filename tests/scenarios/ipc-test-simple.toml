@@ -1,0 +1,37 @@
+[test]
+name = "IPC Test - Simple"
+project_file = "projects/ipc-test-simple.syct"
+run_duration_sec = 6
+expected_exit_code = 0
+
+[[test.expected_output_files]]
+path = "attributes.toml"
+toml_fields = ["machine_node", "success"]
+
+[[test.expected_output_files]]
+path = "manifest.toml"
+toml_fields = ["collection_id", "format_version", "time_created", "type", "generator"]
+
+[[test.expected_output_files]]
+path = "table/manifest.toml"
+toml_fields = ["data.media_type", "data.parts"]
+
+[[test.expected_output_files]]
+path = "table/table.csv"
+csv_validation = { expected_headers = ["Index", "Frame Time"], min_rows = 5 }
+
+[[test.expected_output_files]]
+path = "videos/manifest.toml"
+toml_fields = ["collection_id", "type"]
+
+[[test.expected_output_files]]
+path = "videos/video-recorder/manifest.toml"
+toml_fields = ["data.media_type", "data.parts"]
+
+[[test.expected_output_files]]
+path = "videos/video-recorder/*-video.mkv"
+min_size_bytes = 2650542
+
+[[test.expected_output_files]]
+path = "videos/video-recorder/*-video_timestamps.tsync"
+min_size_bytes = 12000
