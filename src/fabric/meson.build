@@ -91,23 +91,15 @@ syntalos_fabric_lib = shared_library('syntalos-fabric',
     install_rpath: sy_libdir,
 )
 
-# dependency for the main executable that links with the mimalloc object files directly
-syntalos_fabric_nomi_dep = declare_dependency(
+syntalos_fabric_dep = declare_dependency(
     link_with: syntalos_fabric_lib,
     dependencies: [
         sy_base_deps,
         qt_gui_dep,
+        mimalloc_static_dep,
         syntalos_datactl_mimalloc_dep,
         syntalos_utils_dep,
     ],
     include_directories: [root_include_dir,
                           syntalos_fabric_inc_dir]
-)
-
-# dependency for everything else that needs a static mimalloc
-syntalos_fabric_dep = declare_dependency(
-    dependencies: [
-        syntalos_fabric_nomi_dep,
-        mimalloc_static_dep,
-    ],
 )

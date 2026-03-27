@@ -79,11 +79,10 @@ syntalos_moc += qt.compile_resources(sources: syntalos_res)
 syntalos_exe = executable('syntalos',
     [syntalos_src, syntalos_moc, config_h, modconfig_h],
     gnu_symbol_visibility: 'hidden',
-    objects: [mimalloc_obj_o],
     dependencies: [
-        mimalloc_inc_dep,
+        mimalloc_static_dep,
         thread_dep,
-        syntalos_fabric_nomi_dep,
+        syntalos_fabric_dep,
 
         qt_core_dep,
         qt_gui_dep,
