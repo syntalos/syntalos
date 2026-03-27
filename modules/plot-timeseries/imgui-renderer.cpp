@@ -5,6 +5,7 @@
 #include <QMouseEvent>
 #include <QClipboard>
 #include <QCursor>
+#include <cfloat>
 
 #ifdef ANDROID
 #define GL_VERTEX_ARRAY_BINDING 0x85B5 // Missing in android as of May 2020
@@ -84,6 +85,7 @@ void ImGuiRenderer::initialize(WindowWrapper *window)
         ImGuiBackendFlags_HasSetMousePos; // We can honor io.WantSetMousePos requests (optional, rarely used)
 #endif
     io.BackendPlatformName = "qtimgui";
+    io.BackendRendererName = "qtimgui_opengl";
     io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
 
     // Setup keyboard mapping
@@ -416,25 +418,13 @@ void ImGuiRenderer::newFrame()
     // we need to do it here (before getting `QCursor::pos()` below).
     setCursorPos(io);
 
-    // Setup inputs
-    // (we already got mouse wheel, keyboard keys & characters from glfw callbacks polled in glfwPollEvents())
+    // Queue current mouse position every frame so interactions keep working while dragging.
     if (m_window->isActive()) {
         const QPoint pos = m_window->mapFromGlobal(QCursor::pos());
-        io.MousePos = ImVec2(
-            pos.x(),
-            pos.y()); // Mouse position in screen coordinates (set to -1,-1 if no mouse / on another screen, etc.)
+        io.AddMousePosEvent((float)pos.x(), (float)pos.y());
     } else {
-        io.MousePos = ImVec2(-1, -1);
+        io.AddMousePosEvent(-FLT_MAX, -FLT_MAX);
     }
-
-    for (int i = 0; i < 3; i++) {
-        io.MouseDown[i] = g_MousePressed[i];
-    }
-
-    io.MouseWheelH = g_MouseWheelH;
-    io.MouseWheel = g_MouseWheel;
-    g_MouseWheelH = 0;
-    g_MouseWheel = 0;
 
     updateCursorShape(io);
 
@@ -452,9 +442,7 @@ void ImGuiRenderer::render()
 }
 
 ImGuiRenderer::ImGuiRenderer()
-    : g_MouseWheel(0.0f),
-      g_MouseWheelH(0.0f),
-      g_ctx(nullptr)
+    : g_ctx(nullptr)
 {
 }
 
@@ -466,9 +454,33 @@ ImGuiRenderer::~ImGuiRenderer()
 
 void ImGuiRenderer::onMousePressedChange(QMouseEvent *event)
 {
-    g_MousePressed[0] = event->buttons() & Qt::LeftButton;
-    g_MousePressed[1] = event->buttons() & Qt::RightButton;
-    g_MousePressed[2] = event->buttons() & Qt::MiddleButton;
+    // Select current context
+    ImGui::SetCurrentContext(g_ctx);
+
+    ImGuiIO &io = ImGui::GetIO();
+    const QPointF pos = event->position();
+    io.AddMousePosEvent((float)pos.x(), (float)pos.y());
+
+    int button = -1;
+    if (event->button() == Qt::LeftButton)
+        button = ImGuiMouseButton_Left;
+    else if (event->button() == Qt::RightButton)
+        button = ImGuiMouseButton_Right;
+    else if (event->button() == Qt::MiddleButton)
+        button = ImGuiMouseButton_Middle;
+
+    if (button != -1)
+        io.AddMouseButtonEvent(button, event->type() != QEvent::MouseButtonRelease);
+}
+
+void ImGuiRenderer::onMouseMove(QMouseEvent *event)
+{
+    // Select current context
+    ImGui::SetCurrentContext(g_ctx);
+
+    ImGuiIO &io = ImGui::GetIO();
+    const QPointF pos = event->position();
+    io.AddMousePosEvent((float)pos.x(), (float)pos.y());
 }
 
 void ImGuiRenderer::onWheel(QWheelEvent *event)
@@ -476,22 +488,27 @@ void ImGuiRenderer::onWheel(QWheelEvent *event)
     // Select current context
     ImGui::SetCurrentContext(g_ctx);
 
+    float wheelX = 0.0f;
+    float wheelY = 0.0f;
+
     // Handle horizontal component
     if (event->pixelDelta().x() != 0) {
-        g_MouseWheelH += event->pixelDelta().x() / (ImGui::GetTextLineHeight());
+        wheelX = event->pixelDelta().x() / (ImGui::GetTextLineHeight());
     } else {
         // Magic number of 120 comes from Qt doc on QWheelEvent::pixelDelta()
-        g_MouseWheelH += event->angleDelta().x() / 120.0f;
+        wheelX = event->angleDelta().x() / 120.0f;
     }
 
     // Handle vertical component
     if (event->pixelDelta().y() != 0) {
         // 5 lines per unit
-        g_MouseWheel += event->pixelDelta().y() / (5.0 * ImGui::GetTextLineHeight());
+        wheelY = event->pixelDelta().y() / (5.0f * ImGui::GetTextLineHeight());
     } else {
         // Magic number of 120 comes from Qt doc on QWheelEvent::pixelDelta()
-        g_MouseWheel += event->angleDelta().y() / 120.0f;
+        wheelY = event->angleDelta().y() / 120.0f;
     }
+
+    ImGui::GetIO().AddMouseWheelEvent(wheelX, wheelY);
 }
 
 void ImGuiRenderer::onKeyPressRelease(QKeyEvent *event)
@@ -510,11 +527,9 @@ void ImGuiRenderer::onKeyPressRelease(QKeyEvent *event)
         io.AddKeyEvent(imgui_key, key_pressed);
     }
 
-    if (key_pressed) {
-        const QString text = event->text();
-        if (text.size() == 1) {
-            io.AddInputCharacter(text.at(0).unicode());
-        }
+    if (key_pressed && !event->text().isEmpty()) {
+        const QByteArray utf8 = event->text().toUtf8();
+        io.AddInputCharactersUTF8(utf8.constData());
     }
 
 #ifdef Q_OS_MAC
@@ -528,6 +543,17 @@ void ImGuiRenderer::onKeyPressRelease(QKeyEvent *event)
     io.AddKeyEvent(ImGuiMod_Alt, event->modifiers() & Qt::AltModifier);
     io.AddKeyEvent(ImGuiMod_Super, event->modifiers() & Qt::MetaModifier);
 #endif
+}
+
+void ImGuiRenderer::onFocusChanged(bool focused)
+{
+    // Select current context
+    ImGui::SetCurrentContext(g_ctx);
+
+    ImGuiIO &io = ImGui::GetIO();
+    io.AddFocusEvent(focused);
+    if (!focused)
+        io.AddMousePosEvent(-FLT_MAX, -FLT_MAX);
 }
 
 void ImGuiRenderer::updateCursorShape(const ImGuiIO &io)
@@ -587,8 +613,22 @@ bool ImGuiRenderer::eventFilter(QObject *watched, QEvent *event)
         case QEvent::MouseButtonRelease:
             this->onMousePressedChange(static_cast<QMouseEvent *>(event));
             break;
+        case QEvent::MouseMove:
+            this->onMouseMove(static_cast<QMouseEvent *>(event));
+            break;
         case QEvent::Wheel:
             this->onWheel(static_cast<QWheelEvent *>(event));
+            break;
+        case QEvent::FocusIn:
+            this->onFocusChanged(true);
+            break;
+        case QEvent::FocusOut:
+            this->onFocusChanged(false);
+            break;
+        case QEvent::Leave:
+            // Keep hover state in sync when cursor leaves the widget.
+            ImGui::SetCurrentContext(g_ctx);
+            ImGui::GetIO().AddMousePosEvent(-FLT_MAX, -FLT_MAX);
             break;
         case QEvent::KeyPress:
         case QEvent::KeyRelease:
