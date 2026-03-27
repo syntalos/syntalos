@@ -34,6 +34,8 @@ def main() -> None:
     parser.add_argument('--prefix',     required=True, help='CMake install prefix')
     parser.add_argument('--version',    required=True, help='iceoryx2 version tag to clone')
     parser.add_argument('--cmake',      required=True, help='Path to the cmake executable')
+    parser.add_argument('--cmake-build-type', default='RelWithDebInfo',
+                        help='CMake build type to configure for iceoryx2')
     args = parser.parse_args()
 
     if not os.path.isdir(args.source_dir):
@@ -51,16 +53,29 @@ def main() -> None:
         )
 
     stamp = os.path.join(args.prefix, 'lib', 'cmake', 'iceoryx2-cxx')
+    build_stamp = os.path.join(args.prefix, '.syntalos-build-iox2')
+    build_stamp_data = (
+        'stamp-version=1\n'
+        f'cmake-build-type={args.cmake_build_type}\n'
+        f'iceoryx2-version={args.version}\n'
+    )
+    if os.path.isdir(stamp) and os.path.isfile(build_stamp):
+        with open(build_stamp, encoding='utf-8') as fh:
+            if fh.read() == build_stamp_data:
+                print('Using previously built iceoryx2')
+                return
+
     if os.path.isdir(stamp):
-        print('Using previously built iceoryx2')
-        return
+        print('Removing stale iceoryx2 build artifacts')
+        shutil.rmtree(args.build_dir, ignore_errors=True)
+        shutil.rmtree(args.prefix, ignore_errors=True)
 
     run(
         [args.cmake,
          '-S', args.source_dir,
          '-B', args.build_dir,
          '-G', 'Ninja',
-         '-DCMAKE_BUILD_TYPE=RelWithDebInfo',
+         f'-DCMAKE_BUILD_TYPE={args.cmake_build_type}',
          '-DBUILD_CXX=ON',
          '-DBUILD_TESTING=OFF',
          '-DBUILD_EXAMPLES=OFF',
@@ -72,6 +87,10 @@ def main() -> None:
     run([args.cmake, '--build', args.build_dir], 'Compiling iceoryx2...')
 
     run([args.cmake, '--install', args.build_dir], 'Installing iceoryx2...')
+
+    os.makedirs(args.prefix, exist_ok=True)
+    with open(build_stamp, 'w', encoding='utf-8') as fh:
+        fh.write(build_stamp_data)
 
 
 if __name__ == '__main__':

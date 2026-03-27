@@ -328,6 +328,30 @@ if not iox2_dep.found()
     iox2_bld = meson.current_build_dir() / 'iox2-build'
     iox2_pre = meson.current_build_dir() / 'iox2-target'
     cmake_exe = find_program('cmake')
+    iox2_cmake_build_type = 'RelWithDebInfo'
+    if get_option('buildtype') == 'debug'
+        iox2_cmake_build_type = 'Debug'
+    elif get_option('buildtype') == 'release'
+        iox2_cmake_build_type = 'Release'
+    elif get_option('buildtype') == 'minsize'
+        iox2_cmake_build_type = 'MinSizeRel'
+    elif get_option('buildtype') == 'plain'
+        if get_option('debug')
+            iox2_cmake_build_type = 'Debug'
+        else
+            iox2_cmake_build_type = 'Release'
+        endif
+    elif get_option('buildtype') == 'custom'
+        if get_option('debug')
+            if get_option('optimization') == '0'
+                iox2_cmake_build_type = 'Debug'
+            else
+                iox2_cmake_build_type = 'RelWithDebInfo'
+            endif
+        else
+            iox2_cmake_build_type = 'Release'
+        endif
+    endif
 
     message('Building iceoryx2 from source (this may take a while)...')
     iox2_build_result = run_command(
@@ -337,6 +361,7 @@ if not iox2_dep.found()
         '--prefix',     iox2_pre,
         '--version',    iox2_min_ver,
         '--cmake',      cmake_exe,
+        '--cmake-build-type', iox2_cmake_build_type,
         check: false,
     )
     if iox2_build_result.stdout() != ''
