@@ -13,7 +13,6 @@ import sys
 from pathlib import Path
 from glob import glob
 
-
 # these modules should have their build definitions
 # updated manually and shouldn't use the updater script
 MANUAL_MODULES = set(

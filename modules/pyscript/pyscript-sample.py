@@ -1,6 +1,5 @@
 import syntalos_mlink as syl
 
-
 # NOTE: Check https://syntalos.org/docs/modules/pyscript/ for documentation
 # on how to write a useful script.
 syl.raise_error(

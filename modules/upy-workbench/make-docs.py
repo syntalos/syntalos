@@ -9,7 +9,6 @@ import sys
 import tempfile
 import pdoc
 
-
 jinjaTmpl = """
 <div>
     {% block content %}{% endblock %}

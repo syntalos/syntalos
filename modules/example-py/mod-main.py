@@ -9,6 +9,7 @@ go through the more involved process of creating a new
 module from scratch. If you want to do that though, this
 example is a good starting point.
 """
+
 import os
 import sys
 import syntalos_mlink as syl
