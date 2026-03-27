@@ -9,7 +9,7 @@
 class BarrierData
 {
 public:
-    BarrierData(int count)
+    BarrierData(size_t count)
         : count(count),
           goal(count)
     {
@@ -36,15 +36,15 @@ public:
         count = goal;
     }
 
-    double timeElapsed() const
+    [[nodiscard]] double timeElapsed() const
     {
         return m_timeElapsed;
     }
 
 private:
     Q_DISABLE_COPY(BarrierData)
-    int count;
-    int goal;
+    size_t count;
+    size_t goal;
     QMutex mutex;
     QWaitCondition condition;
     std::chrono::time_point<std::chrono::high_resolution_clock> m_startTime;
@@ -55,7 +55,7 @@ class Barrier
 {
 public:
     // Create a barrier that will wait for count threads
-    Barrier(int count)
+    Barrier(size_t count)
         : d(new BarrierData(count))
     {
     }
@@ -64,13 +64,13 @@ public:
         d->wait();
     }
 
-    double timeElapsed() const
+    [[nodiscard]] double timeElapsed() const
     {
         return d->timeElapsed();
     }
 
 private:
-    QSharedPointer<BarrierData> d;
+    std::unique_ptr<BarrierData> d;
 };
 
 #endif // BARRIER_H

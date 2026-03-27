@@ -31,8 +31,8 @@ test_streamperf_exe = executable('test-streamperf',
      'testbarrier.h'],
     dependencies: [
         syntalos_fabric_dep,
+        symemopt_dep,
         qt_test_dep,
-        opencv_dep
     ]
 )
 test('sy-test-streamperf',

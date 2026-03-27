@@ -6,6 +6,7 @@
 #include <pthread.h>
 #include <thread>
 
+#include "symemopt.h"
 #include "streams/stream.h"
 #include "testbarrier.h"
 
@@ -196,6 +197,14 @@ static void transformer_fast(
 class TestStreamPerf : public QObject
 {
     Q_OBJECT
+
+public:
+    TestStreamPerf()
+    {
+        // we want to use mimalloc for this (threaded) test
+        configureMimallocDefaultAllocator();
+    }
+
 private slots:
     void run6threads()
     {
@@ -223,36 +232,27 @@ private slots:
     void runOvercapacity()
     {
         std::vector<std::thread> threads;
-        const auto threadCount = std::thread::hardware_concurrency() * 2 + 2;
+        const size_t threadCount = std::thread::hardware_concurrency() * 2 + 2;
         Barrier barrier(threadCount);
 
-        std::shared_ptr<DataStream<MyDataFrame>> prodStream(new DataStream<MyDataFrame>());
-        std::shared_ptr<DataStream<MyDataFrame>> transStream(new DataStream<MyDataFrame>());
+        auto prodStream = std::make_shared<DataStream<MyDataFrame>>();
+        auto transStream = std::make_shared<DataStream<MyDataFrame>>();
 
         QBENCHMARK {
-            threads.push_back(std::thread(producer_fast, "producer", &barrier, prodStream.get()));
-            threads.push_back(std::thread(consumer_fast, "consumer_fast", &barrier, prodStream.get()));
-            threads.push_back(std::thread(consumer_instant, "consumer_instant", &barrier, prodStream.get()));
+            threads.emplace_back(producer_fast, "producer", &barrier, prodStream.get());
+            threads.emplace_back(consumer_fast, "consumer_fast", &barrier, prodStream.get());
+            threads.emplace_back(consumer_instant, "consumer_instant", &barrier, prodStream.get());
 
-            threads.push_back(
-                std::thread(transformer_fast, "transformer", &barrier, prodStream.get(), transStream.get()));
+            threads.emplace_back(transformer_fast, "transformer", &barrier, prodStream.get(), transStream.get());
 
             for (uint i = 0; i < threadCount - 4; ++i) {
                 // we connect half of the regular consumers to the producer, the rest goes to the transformer
                 if ((i % 2) == 0)
-                    threads.push_back(
-                        std::thread(
-                            consumer_fast,
-                            std::string("consumer_raw_") + std::to_string(i),
-                            &barrier,
-                            prodStream.get()));
+                    threads.emplace_back(
+                        consumer_fast, std::string("consumer_raw_") + std::to_string(i), &barrier, prodStream.get());
                 else
-                    threads.push_back(
-                        std::thread(
-                            consumer_fast,
-                            std::string("consumer_tf_") + std::to_string(i),
-                            &barrier,
-                            transStream.get()));
+                    threads.emplace_back(
+                        consumer_fast, std::string("consumer_tf_") + std::to_string(i), &barrier, transStream.get());
             }
 
             std::cout << "Running " << threads.size() << " threads." << std::endl;

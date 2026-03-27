@@ -44,6 +44,11 @@ syntalos_src = [
     'timingsdialog.cpp',
 ]
 
+syntalos_memory_src = [
+    'symemopt.h',
+    'symemopt.cpp',
+]
+
 syntalos_ui = [
     'aboutdialog.ui',
     'commentdialog.ui',
@@ -76,8 +81,19 @@ syntalos_moc = qt.compile_moc(
 syntalos_moc += qt.compile_ui(sources: syntalos_ui)
 syntalos_moc += qt.compile_resources(sources: syntalos_res)
 
+symemopt_lib = static_library('symalloc',
+    syntalos_memory_src,
+    dependencies: [mimalloc_dep, opencv_dep],
+    include_directories: include_directories('.'),
+)
+symemopt_dep = declare_dependency(
+    link_with: symemopt_lib,
+    dependencies: [mimalloc_dep, opencv_dep],
+    include_directories: include_directories('.'),
+)
+
 syntalos_exe = executable('syntalos',
-    [syntalos_src, syntalos_moc, config_h, modconfig_h],
+    [syntalos_src,syntalos_moc, config_h, modconfig_h],
     gnu_symbol_visibility: 'hidden',
     dependencies: [
         mimalloc_dep,
@@ -104,6 +120,7 @@ syntalos_exe = executable('syntalos',
         pipewire_dep,
         gstreamer_dep,
     ],
+    link_with: [symemopt_lib],
     include_directories: [
         root_include_dir,
     ],

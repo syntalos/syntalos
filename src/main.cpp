@@ -34,7 +34,7 @@
 #include <pipewire/pipewire.h>
 #pragma GCC diagnostic pop
 
-#include "fabric/symemopt.h"
+#include "symemopt.h"
 #include "mainwindow.h"
 
 int main(int argc, char *argv[])
