@@ -583,15 +583,24 @@ void MLinkModule::showDisplayUi()
 
 void MLinkModule::showSettingsUi()
 {
+    // pick up any recently saved settings before we hand them back to the worker UI
+    handleIncomingControl();
+
     ShowSettingsRequest ssReq;
     ssReq.settings = d->settingsData;
 
     if (!d->callSliceClientSimple(this, SHOW_SETTINGS_CALL_ID, ssReq))
         qCWarning(logMLinkMod).noquote() << "Request to show settings UI has failed!";
+
+    // drain immediate updates emitted while handling the request
+    handleIncomingControl();
 }
 
 void MLinkModule::terminateProcess()
 {
+    // control polling in the GUI thread is only needed while the worker is alive
+    d->ctlEventTimer->stop();
+
     if (!isProcessRunning())
         return;
 
@@ -688,6 +697,9 @@ bool MLinkModule::runProcess()
 
     if (state() != ModuleState::ERROR)
         setState(prevState);
+
+    // Keep control events flowing while the worker is alive and no module run thread is active.
+    d->ctlEventTimer->start();
 
     return true;
 }
@@ -880,6 +892,9 @@ bool MLinkModule::prepare(const TestSubject &subject)
     // set the script to be run, if any exists
     if (!loadCurrentScript())
         return false;
+
+    // ensure we use the latest settings data received from the worker
+    handleIncomingControl();
 
     // call the module's own startup preparations
     PrepareStartRequest prepReq;
