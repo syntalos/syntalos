@@ -80,7 +80,7 @@ syntalos_exe = executable('syntalos',
     [syntalos_src, syntalos_moc, config_h, modconfig_h],
     gnu_symbol_visibility: 'hidden',
     dependencies: [
-        mimalloc_static_dep,
+        mimalloc_dep,
         thread_dep,
         syntalos_fabric_dep,
 
@@ -104,8 +104,6 @@ syntalos_exe = executable('syntalos',
         pipewire_dep,
         gstreamer_dep,
     ],
-    # flag to gate code we may need if we would link mimalloc dynamically again
-    cpp_args: ['-DSY_STATIC_MIMALLOC'],
     include_directories: [
         root_include_dir,
     ],

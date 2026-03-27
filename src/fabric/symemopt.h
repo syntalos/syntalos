@@ -19,6 +19,8 @@
 
 #pragma once
 
+#include <memory_resource>
+
 namespace Syntalos
 {
 
@@ -27,7 +29,7 @@ namespace Syntalos
  * and match Syntalos' allocation patterns better.
  * Not needed if mimalloc is used.
  */
-void configureGlibcAllocator();
+void configureGlibcAllocator() noexcept;
 
 /**
  * Install the mimalloc-backed allocator as OpenCV's
@@ -36,6 +38,16 @@ void configureGlibcAllocator();
  * Call this once early in main(), before any cv::Mat
  * is created.
  */
-void setCvMiMatAllocator();
+void setCvMiMatAllocator() noexcept;
+
+/**
+ * Set Mimalloc-based allocator as the default PMR memory resource.
+ */
+std::pmr::memory_resource *setDefaultPmrMemResourceMimalloc() noexcept;
+
+/**
+ * Set Mimalloc as default allocator for cases where we want it in Syntalos.
+ */
+void configureMimallocDefaultAllocator() noexcept;
 
 } // namespace Syntalos

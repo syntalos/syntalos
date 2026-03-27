@@ -235,26 +235,40 @@ endif
 #
 # Subprojects
 #
-mi_opt = cmake.subproject_options()
-# LTO messes with symbol visibility, which we require for mimalloc
-mi_opt.set_override_option('b_lto', 'false')
-mi_opt.add_cmake_defines({
-    'MI_BUILD_SHARED': false,
-    'MI_BUILD_STATIC': true,
-    'MI_BUILD_OBJECT': true,
-    'MI_OVERRIDE': true,
-})
-if sanitize_opt != 'none'
-    mi_opt.add_cmake_defines({'MI_TRACK_ASAN': true})
+mimalloc_dep = dependency('', required: false)
+if sanitize_opt == 'none' and not get_option('valgrind')
+    # Use system mimalloc only if it is recent enough and we aren't using sanitizers or valgrind,
+    # both of which need special mimalloc builds.
+    mimalloc_system_dep = dependency('mimalloc', version: '>= 3.2.8',
+                                     required: false, static: false)
+    if mimalloc_system_dep.found()
+        mimalloc_dep = declare_dependency(
+            dependencies: mimalloc_dep,
+            compile_args: ['-DSY_SHARED_MIMALLOC'],
+        )
+    endif
 endif
-if get_option('valgrind')
-    mi_opt.add_cmake_defines({'MI_TRACK_VALGRIND': true})
+if not mimalloc_dep.found()
+    mi_opt = cmake.subproject_options()
+    # Disable LTO for mimalloc - inline allocator functions conflict with LTO's aggressive
+    # inlining optimization, causing memory validation failures.
+    mi_opt.set_override_option('b_lto', 'false')
+    mi_opt.add_cmake_defines({
+        'MI_BUILD_SHARED': false,
+        'MI_BUILD_STATIC': true,
+        'MI_BUILD_OBJECT': true,
+        'MI_OVERRIDE': true,
+        'MI_OPT_ARCH': true,
+    })
+    if sanitize_opt != 'none'
+        mi_opt.add_cmake_defines({'MI_TRACK_ASAN': true})
+    endif
+    if get_option('valgrind')
+        mi_opt.add_cmake_defines({'MI_TRACK_VALGRIND': true})
+    endif
+    mimalloc_proj = cmake.subproject('mimalloc', options: mi_opt)
+    mimalloc_dep = mimalloc_proj.dependency('mimalloc-static')
 endif
-mimalloc_proj = cmake.subproject('mimalloc', options: mi_opt)
-
-mimalloc_obj_o = mimalloc_proj.target('mimalloc-obj').extract_all_objects()
-mimalloc_static_dep = mimalloc_proj.dependency('mimalloc-static')
-mimalloc_inc_dep = mimalloc_static_dep.partial_dependency(includes: true)
 
 #
 # Dependencies

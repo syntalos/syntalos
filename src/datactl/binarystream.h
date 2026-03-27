@@ -23,23 +23,26 @@
 #include <string>
 #include <vector>
 
-#include "datactl/allocutil.h"
-
 namespace Syntalos
 {
 
 /**
- * @brief ByteVector is a vector of bytes optionally using mimalloc as allocator.
+ * @brief ByteVector is a vector of bytes using the polymorphic allocator.
  *
  * In Syntalos' heavily threaded environment, where in the worst case a
  * ton of these vectors may be created and destroyed in quick succession,
  * the default glibc allocator is less than optimal.
  * Mimalloc has shown to perform a lot better for this burst-like, threaded
  * activity, therefore we prefer it.
- * Please try to reuse buffers whenever possible still though - while
- * mimalloc is a significant improvement, reusing memory segments is even better.
+ * Please try to reuse buffers whenever possible though - while mimalloc is
+ * a significant improvement, reusing memory segments is even better.
+ *
+ * We do use the C++ polymorphic allocator since datactl is used in places
+ * where swapping the allocator is undesirable, e.g. in mlink that may be
+ * linked into non-Syntalos processes. These processes may use the default
+ * allocator instead of Syntalos' mimalloc-based one.
  */
-using ByteVector = std::vector<std::byte, DefaultAllocator<std::byte>>;
+using ByteVector = std::pmr::vector<std::byte>;
 
 /**
  * @brief Writer for Syntalos data entity serialization

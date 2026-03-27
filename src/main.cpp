@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2012-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -19,7 +19,7 @@
 
 #include "config.h"
 
-#ifndef SY_STATIC_MIMALLOC
+#ifdef SY_SHARED_MIMALLOC
 // prefer mimalloc for standard new/delete
 #include <mimalloc-new-delete.h>
 #endif
@@ -48,8 +48,8 @@ int main(int argc, char *argv[])
     // initialize GStreamer so modules can use it if they need to
     gst_init(&argc, &argv);
 
-    // use mimalloc as OpenCV's Mat allocator, it works better for Syntalos
-    setCvMiMatAllocator();
+    // use mimalloc as allocator for PMR and OpenCV Mats
+    configureMimallocDefaultAllocator();
 
     // Debugging: Tune the Glibc allocator parameters
     //! configureGlibcAllocator();

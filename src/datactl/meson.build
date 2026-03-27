@@ -1,7 +1,6 @@
 # Syntalos Data Types and Time Sync Library
 
 sy_datactl_pub_hdr = [
-    'allocutil.h',
     'binarystream.h',
     'datatypes.h',
     'frametype.h',
@@ -56,7 +55,7 @@ syntalos_datactl_lib = shared_library('syntalos-datactl',
     install_rpath: sy_libdir,
 )
 
-syntalos_datactl_stdalloc_dep = declare_dependency(
+syntalos_datactl_dep = declare_dependency(
     link_with: syntalos_datactl_lib,
     dependencies: [
         sy_base_deps,
@@ -64,12 +63,6 @@ syntalos_datactl_stdalloc_dep = declare_dependency(
         syntalos_utils_dep
     ],
     include_directories: [sy_datactl_inc_dirs]
-)
-
-syntalos_datactl_mimalloc_dep = declare_dependency(
-    dependencies: [syntalos_datactl_stdalloc_dep],
-    include_directories: [sy_datactl_inc_dirs],
-    compile_args: ['-DSY_USE_MIMALLOC'],
 )
 
 install_headers(sy_datactl_pub_hdr, subdir: 'syntalos' / 'datactl')

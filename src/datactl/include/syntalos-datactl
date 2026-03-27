@@ -1,7 +1,6 @@
 // Syntalos-Datactl include file
 
 #pragma once
-#include <datactl/allocutil.h>
 #include <datactl/datatypes.h>
 #include <datactl/frametype.h>
 #include <datactl/edlstorage.h>

@@ -26,7 +26,7 @@
 
 using namespace Syntalos;
 
-void Syntalos::configureGlibcAllocator()
+void Syntalos::configureGlibcAllocator() noexcept
 {
     // Pin glibc's mmap threshold and disable its adaptive growth.
     //
@@ -139,10 +139,74 @@ public:
     }
 };
 
+/**
+ * @brief Mimalloc-backed PMR memory resource.
+ *
+ * A mimalloc-based implementation of the polymorphic memory resource,
+ * which is used a lot in the dataplane layer (datactl, streams).
+ */
+class MimallocMemoryResource final : public std::pmr::memory_resource
+{
+public:
+    MimallocMemoryResource() = default;
+    MimallocMemoryResource(const MimallocMemoryResource &) = delete;
+    MimallocMemoryResource &operator=(const MimallocMemoryResource &) = delete;
+
+    ~MimallocMemoryResource() override = default;
+
+private:
+    void *do_allocate(std::size_t bytes, std::size_t alignment) override
+    {
+        // Always use aligned allocation for consistency. mimalloc is smart about
+        // this and will use regular allocation when alignment == max_align_t.
+        // This ensures that do_deallocate can always safely use mi_free_size_aligned.
+        void *p = mi_malloc_aligned(bytes, alignment);
+
+        if (p == nullptr)
+            throw std::bad_alloc{};
+
+        return p;
+    }
+
+    void do_deallocate(void *p, std::size_t bytes, std::size_t alignment) noexcept override
+    {
+        // Always provide size and alignment hints to match what we allocated with.
+        // This allows mimalloc to skip size-class lookup and return memory to
+        // the arena faster, which is beneficial in our heavily-threaded workload.
+        // Since we always allocate with mi_malloc_aligned, we can always use
+        // mi_free_size_aligned without worrying about allocation method mismatches.
+        mi_free_size_aligned(p, bytes, alignment);
+    }
+
+    [[nodiscard]] bool do_is_equal(const std::pmr::memory_resource &other) const noexcept override
+    {
+        // Conservative and correct:
+        // two resources compare equal only if they are the same object.
+        //
+        // This satisfies PMR's requirement that equal resources must allow
+        // cross-deallocation between each other.
+        return this == &other;
+    }
+};
+
 /// Global instance of the mimalloc-backed OpenCV Mat allocator
 static MiMatAllocator g_mi_mat_allocator;
 
-void Syntalos::setCvMiMatAllocator()
+/// Global instance of the mimalloc-backed PMR memory resource
+static MimallocMemoryResource g_mi_pmr_resource;
+
+std::pmr::memory_resource *Syntalos::setDefaultPmrMemResourceMimalloc() noexcept
+{
+    return std::pmr::set_default_resource(&g_mi_pmr_resource);
+}
+
+void Syntalos::setCvMiMatAllocator() noexcept
 {
     cv::Mat::setDefaultAllocator(&g_mi_mat_allocator);
+}
+
+void Syntalos::configureMimallocDefaultAllocator() noexcept
+{
+    setDefaultPmrMemResourceMimalloc();
+    setCvMiMatAllocator();
 }
