@@ -216,7 +216,7 @@ void ImGuiRenderer::renderDrawList(ImDrawData *draw_data)
                     (int)(clip_max.y - clip_min.y));
 
                 // Bind texture, Draw
-                glBindTexture(GL_TEXTURE_2D, (GLuint)(size_t)pcmd->TextureId);
+                glBindTexture(GL_TEXTURE_2D, (GLuint)(size_t)pcmd->GetTexID());
                 glDrawElements(
                     GL_TRIANGLES,
                     (GLsizei)pcmd->ElemCount,
@@ -483,8 +483,8 @@ void ImGuiRenderer::onKeyPressRelease(QKeyEvent *event)
     // Translate `Qt::Key` into `ImGuiKey`, and apply 'pressed' state for that key
     const auto key_it = keyMap.constFind(event->key());
     if (key_it != keyMap.constEnd()) { // Qt's key found in keyMap
-        const int imgui_key = *(key_it);
-        io.KeysDown[imgui_key] = key_pressed;
+        const ImGuiKey imgui_key = *(key_it);
+        io.AddKeyEvent(imgui_key, key_pressed);
     }
 
     if (key_pressed) {
@@ -495,15 +495,15 @@ void ImGuiRenderer::onKeyPressRelease(QKeyEvent *event)
     }
 
 #ifdef Q_OS_MAC
-    io.KeyCtrl = event->modifiers() & Qt::MetaModifier;
-    io.KeyShift = event->modifiers() & Qt::ShiftModifier;
-    io.KeyAlt = event->modifiers() & Qt::AltModifier;
-    io.KeySuper = event->modifiers() & Qt::ControlModifier; // Comamnd key
+    io.AddKeyEvent(ImGuiMod_Ctrl, event->modifiers() & Qt::MetaModifier);
+    io.AddKeyEvent(ImGuiMod_Shift, event->modifiers() & Qt::ShiftModifier);
+    io.AddKeyEvent(ImGuiMod_Alt, event->modifiers() & Qt::AltModifier);
+    io.AddKeyEvent(ImGuiMod_Super, event->modifiers() & Qt::ControlModifier); // Command key
 #else
-    io.KeyCtrl = event->modifiers() & Qt::ControlModifier;
-    io.KeyShift = event->modifiers() & Qt::ShiftModifier;
-    io.KeyAlt = event->modifiers() & Qt::AltModifier;
-    io.KeySuper = event->modifiers() & Qt::MetaModifier;
+    io.AddKeyEvent(ImGuiMod_Ctrl, event->modifiers() & Qt::ControlModifier);
+    io.AddKeyEvent(ImGuiMod_Shift, event->modifiers() & Qt::ShiftModifier);
+    io.AddKeyEvent(ImGuiMod_Alt, event->modifiers() & Qt::AltModifier);
+    io.AddKeyEvent(ImGuiMod_Super, event->modifiers() & Qt::MetaModifier);
 #endif
 }
 
