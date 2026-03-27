@@ -84,6 +84,7 @@ void ImGuiRenderer::initialize(WindowWrapper *window)
         ImGuiBackendFlags_HasSetMousePos; // We can honor io.WantSetMousePos requests (optional, rarely used)
 #endif
     io.BackendPlatformName = "qtimgui";
+    io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
 
     // Setup keyboard mapping
     for (ImGuiKey key : keyMap.values()) {
@@ -115,8 +116,6 @@ void ImGuiRenderer::renderDrawList(ImDrawData *draw_data)
     int fb_height = (int)(io.DisplaySize.y * io.DisplayFramebufferScale.y);
     if (fb_width == 0 || fb_height == 0)
         return;
-    draw_data->ScaleClipRects(io.DisplayFramebufferScale);
-
     // Backup GL state
     GLint last_active_texture;
     glGetIntegerv(GL_ACTIVE_TEXTURE, &last_active_texture);
@@ -131,6 +130,10 @@ void ImGuiRenderer::renderDrawList(ImDrawData *draw_data)
     glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &last_element_array_buffer);
     GLint last_vertex_array;
     glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &last_vertex_array);
+#ifdef GL_SAMPLER_BINDING
+    GLint last_sampler;
+    glGetIntegerv(GL_SAMPLER_BINDING, &last_sampler);
+#endif
     GLint last_blend_src_rgb;
     glGetIntegerv(GL_BLEND_SRC_RGB, &last_blend_src_rgb);
     GLint last_blend_dst_rgb;
@@ -152,26 +155,38 @@ void ImGuiRenderer::renderDrawList(ImDrawData *draw_data)
     GLboolean last_enable_depth_test = glIsEnabled(GL_DEPTH_TEST);
     GLboolean last_enable_scissor_test = glIsEnabled(GL_SCISSOR_TEST);
 
-    // Setup render state: alpha-blending enabled, no face culling, no depth testing, scissor enabled
-    glEnable(GL_BLEND);
-    glBlendEquation(GL_FUNC_ADD);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glDisable(GL_CULL_FACE);
-    glDisable(GL_DEPTH_TEST);
-    glEnable(GL_SCISSOR_TEST);
+    auto setupRenderState = [&]() {
+        // Setup render state: alpha-blending enabled, no face culling, no depth testing, scissor enabled
+        glEnable(GL_BLEND);
+        glBlendEquation(GL_FUNC_ADD);
+        glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+        glDisable(GL_CULL_FACE);
+        glDisable(GL_DEPTH_TEST);
+        glEnable(GL_SCISSOR_TEST);
 
-    // Setup viewport, orthographic projection matrix
-    glViewport(0, 0, (GLsizei)fb_width, (GLsizei)fb_height);
-    const float ortho_projection[4][4] = {
-        {2.0f / io.DisplaySize.x, 0.0f,                     0.0f,  0.0f},
-        {0.0f,                    2.0f / -io.DisplaySize.y, 0.0f,  0.0f},
-        {0.0f,                    0.0f,                     -1.0f, 0.0f},
-        {-1.0f,                   1.0f,                     0.0f,  1.0f},
+        // Setup viewport, orthographic projection matrix
+        glViewport(0, 0, (GLsizei)fb_width, (GLsizei)fb_height);
+        const float L = draw_data->DisplayPos.x;
+        const float R = draw_data->DisplayPos.x + draw_data->DisplaySize.x;
+        const float T = draw_data->DisplayPos.y;
+        const float B = draw_data->DisplayPos.y + draw_data->DisplaySize.y;
+        const float ortho_projection[4][4] = {
+            {2.0f / (R - L),    0.0f,              0.0f,  0.0f},
+            {0.0f,              2.0f / (T - B),    0.0f,  0.0f},
+            {0.0f,              0.0f,              -1.0f, 0.0f},
+            {(R + L) / (L - R), (T + B) / (B - T), 0.0f,  1.0f},
+        };
+
+        glUseProgram(g_ShaderHandle);
+        glUniform1i(g_AttribLocationTex, 0);
+        glUniformMatrix4fv(g_AttribLocationProjMtx, 1, GL_FALSE, &ortho_projection[0][0]);
+#ifdef GL_SAMPLER_BINDING
+        glBindSampler(0, 0);
+#endif
+        glBindVertexArray(g_VaoHandle);
     };
-    glUseProgram(g_ShaderHandle);
-    glUniform1i(g_AttribLocationTex, 0);
-    glUniformMatrix4fv(g_AttribLocationProjMtx, 1, GL_FALSE, &ortho_projection[0][0]);
-    glBindVertexArray(g_VaoHandle);
+
+    setupRenderState();
 
     // Will project scissor/clipping rectangles into framebuffer space
     ImVec2 clip_off = draw_data->DisplayPos;         // (0,0) unless using multi-viewports
@@ -179,7 +194,6 @@ void ImGuiRenderer::renderDrawList(ImDrawData *draw_data)
 
     for (int n = 0; n < draw_data->CmdListsCount; n++) {
         const ImDrawList *cmd_list = draw_data->CmdLists[n];
-        const ImDrawIdx *idx_buffer_offset = 0;
 
         glBindBuffer(GL_ARRAY_BUFFER, g_VboHandle);
         glBufferData(
@@ -198,7 +212,10 @@ void ImGuiRenderer::renderDrawList(ImDrawData *draw_data)
         for (int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++) {
             const ImDrawCmd *pcmd = &cmd_list->CmdBuffer[cmd_i];
             if (pcmd->UserCallback) {
-                pcmd->UserCallback(cmd_list, pcmd);
+                if (pcmd->UserCallback == ImDrawCallback_ResetRenderState)
+                    setupRenderState();
+                else
+                    pcmd->UserCallback(cmd_list, pcmd);
             } else {
                 // Project scissor/clipping rectangles into framebuffer space
                 ImVec2 clip_min(
@@ -217,11 +234,12 @@ void ImGuiRenderer::renderDrawList(ImDrawData *draw_data)
 
                 // Bind texture, Draw
                 glBindTexture(GL_TEXTURE_2D, (GLuint)(size_t)pcmd->GetTexID());
-                glDrawElements(
+                glDrawElementsBaseVertex(
                     GL_TRIANGLES,
                     (GLsizei)pcmd->ElemCount,
                     sizeof(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT,
-                    idx_buffer_offset + pcmd->IdxOffset);
+                    (void *)(size_t)(pcmd->IdxOffset * sizeof(ImDrawIdx)),
+                    (GLint)pcmd->VtxOffset);
             }
         }
     }
@@ -231,6 +249,9 @@ void ImGuiRenderer::renderDrawList(ImDrawData *draw_data)
     glBindTexture(GL_TEXTURE_2D, last_texture);
     glActiveTexture(last_active_texture);
     glBindVertexArray(last_vertex_array);
+#ifdef GL_SAMPLER_BINDING
+    glBindSampler(0, last_sampler);
+#endif
     glBindBuffer(GL_ARRAY_BUFFER, last_array_buffer);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, last_element_array_buffer);
     glBlendEquationSeparate(last_blend_equation_rgb, last_blend_equation_alpha);
@@ -280,7 +301,7 @@ bool ImGuiRenderer::createFontsTexture()
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 
     // Store our identifier
-    io.Fonts->TexID = (void *)(size_t)g_FontTexture;
+    io.Fonts->SetTexID((ImTextureID)(size_t)g_FontTexture);
 
     // Restore state
     glBindTexture(GL_TEXTURE_2D, last_texture);
@@ -431,7 +452,9 @@ void ImGuiRenderer::render()
 }
 
 ImGuiRenderer::ImGuiRenderer()
-    : g_ctx(nullptr)
+    : g_MouseWheel(0.0f),
+      g_MouseWheelH(0.0f),
+      g_ctx(nullptr)
 {
 }
 
