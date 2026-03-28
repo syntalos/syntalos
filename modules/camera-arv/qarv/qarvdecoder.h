@@ -43,7 +43,7 @@ public:
     virtual ~QArvDecoder() {};
 
     //! Decodes the given frame.
-    virtual void decode(QByteArray frame) = 0;
+    virtual void decode(const QByteArray &frame) = 0;
 
     /*!
      * Returns the decoded frame as an OpenCv matrix. See cvType() for possible

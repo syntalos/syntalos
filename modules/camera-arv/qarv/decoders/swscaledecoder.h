@@ -44,7 +44,7 @@ public:
                    ArvPixelFormat arvPixFmt,
                    int swsFlags = SWS_FAST_BILINEAR | SWS_BITEXACT);
     virtual ~SwScaleDecoder();
-    void decode(QByteArray frame) override;
+    void decode(const QByteArray &frame) override;
     const cv::Mat getCvImage() override;
     int cvType() override;
     ArvPixelFormat pixelFormat() override;

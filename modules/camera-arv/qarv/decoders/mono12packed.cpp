@@ -25,7 +25,7 @@ Mono12PackedDecoder::Mono12PackedDecoder(QSize size_) :
     size(size_), M(size_.height(), size_.width(), CV_16U) {}
 
 
-void Mono12PackedDecoder::decode(QByteArray frame) {
+void Mono12PackedDecoder::decode(const QByteArray &frame) {
     const uchar* dta = reinterpret_cast<const uchar*>(frame.constData());
     const int h = size.height(), w = size.width();
 

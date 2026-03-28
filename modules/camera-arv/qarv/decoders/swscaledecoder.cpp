@@ -97,7 +97,7 @@ int SwScaleDecoder::cvType() {
     return cvMatType;
 }
 
-void SwScaleDecoder::decode(QByteArray frame) {
+void SwScaleDecoder::decode(const QByteArray &frame) {
     if (!OK) return;
     auto dataptr = reinterpret_cast<const uint8_t*>(frame.constData());
     av_image_fill_arrays(srcInfo.data, srcInfo.linesize,

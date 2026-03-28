@@ -211,20 +211,17 @@ public:
                 auto masterTime = std::chrono::duration_cast<microseconds_t>(
                     nanoseconds_t(frameSysTimeNs) + sysOffsetToMaster);
 
-                QByteArray frame;
-                size_t size;
-                const void *data;
-                data = arv_buffer_get_data(buffer, &size);
-                frame = QByteArray::fromRawData(static_cast<const char *>(data), size);
-
-                if (frame.isEmpty())
-                    return;
                 if (!m_decoder)
+                    return;
+
+                size_t size = 0;
+                const auto data = static_cast<const char *>(arv_buffer_get_data(buffer, &size));
+                if (size == 0 || data == nullptr)
                     return;
 
                 clockSync->processTimestamp(masterTime, nsecToUsec(nanoseconds_t(frameDevTimeNs)));
 
-                m_decoder->decode(frame);
+                m_decoder->decode(QByteArray::fromRawData(data, static_cast<qsizetype>(size)));
                 cv::Mat img = m_decoder->getCvImage();
 
                 // sanity check, because sometimes this camera doesn't adhere to the contract...

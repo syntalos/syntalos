@@ -58,7 +58,7 @@ public:
 
     int cvType() override { return cvMatType; };
 
-    void decode(QByteArray frame) override {
+    void decode(const QByteArray &frame) override {
         const InputType* dta =
             reinterpret_cast<const InputType*>(frame.constData());
         const int h = size.height(), w = size.width();

@@ -160,7 +160,7 @@ public:
         return b;
     }
 
-    void decode(QByteArray frame) override {
+    void decode(const QByteArray &frame) override {
         // Workaround: cv::Mat has no const data constructor, but data need
         // not be copied, as QByteArray::data() does.
         void* data =
