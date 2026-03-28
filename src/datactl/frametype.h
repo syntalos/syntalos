@@ -116,8 +116,17 @@ struct Frame : BaseDataType {
         std::memcpy(static_cast<unsigned char *>(buffer) + offset, &type, sizeof(type));
         offset += sizeof(type);
 
-        // copy image data
-        std::memcpy(static_cast<unsigned char *>(buffer) + offset, mat.data, dataSize);
+        // copy image data as tightly packed rows
+        auto dst = static_cast<unsigned char *>(buffer) + offset;
+        if (mat.isContinuous()) {
+            std::memcpy(dst, mat.data, dataSize);
+        } else {
+            const size_t rowBytes = static_cast<size_t>(width) * mat.elemSize();
+            for (int y = 0; y < height; ++y) {
+                const auto srcRow = mat.ptr(y);
+                std::memcpy(dst + static_cast<size_t>(y) * rowBytes, srcRow, rowBytes);
+            }
+        }
 
         return true;
     };
