@@ -296,6 +296,8 @@ void ImageViewWidget::initializeGL()
     // Canvas receives arbitrary crop widths, so we must not rely on OpenGL's default
     // 4-byte unpack alignment when uploading rows.
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
+    glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
 }
 
 void ImageViewWidget::paintGL()
@@ -374,7 +376,14 @@ void ImageViewWidget::renderImage()
     }
 
     // Upload texture data
-    if (d->pboIds[0] != 0) {
+    // Set OpenGL unpack state to handle row stride
+    const int unpackRowLengthPx = static_cast<int>(d->glImage.step / d->glImage.elemSize());
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, unpackRowLengthPx);
+
+    // PBO staging uses contiguous memcpy into the upload buffer; for non-contiguous
+    // Mats that would scramble rows. Fall back to direct upload in that case.
+    const bool usePboUpload = (d->pboIds[0] != 0) && d->glImage.isContinuous();
+    if (usePboUpload) {
         if (!d->pboReady) {
             // Warm-up: upload this frame directly so no garbage is shown, then fill PBO[0]
             // so the regular double-buffered pipeline can start on the very next frame.

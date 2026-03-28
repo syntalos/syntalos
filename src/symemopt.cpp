@@ -96,9 +96,11 @@ public:
                     CV_Assert(total <= step[i]);
                     total = step[i];
                 } else {
-                    // Pad intermediate strides to kAlignment so every scanline
-                    // starts at an aligned address when we own the buffer.
-                    if (!data0 && i < dims - 1)
+                    // Pad only inner strides for N-D allocations.
+                    // For regular 2D images we keep tight rows (step[0] == cols*elemSize)
+                    // so OpenCV marks Mats as continuous and downstream consumers that
+                    // assume tight packing keep working.
+                    if (!data0 && dims > 2 && i > 0 && i < dims - 1)
                         total = (total + kAlignment - 1) & ~(kAlignment - 1);
                     step[i] = total;
                 }
