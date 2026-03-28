@@ -229,17 +229,20 @@ void CropTransform::createSettingsUi(QWidget *parent)
                 qRound(m_roi.height * zoomY)));
         }
 
-        connect(dlg, &QDialog::accepted, [this, dlg]() {
+        const auto baselineRoi = qRectToCvRect(selector->unzoomedSelectedRegion());
+        connect(dlg, &QDialog::accepted, [this, dlg, baselineRoi]() {
             const QRect selected = dlg->pixmapRegionSelectorWidget()->unzoomedSelectedRegion();
-            if (selected.isValid()) {
-                const std::lock_guard<std::mutex> lock(m_mutex);
-                m_roi.x = selected.x();
-                m_roi.y = selected.y();
-                m_roi.width = selected.width();
-                m_roi.height = selected.height();
-                m_onlineModified = true;
-                checkAndUpdateRoi();
-            }
+            if (!selected.isValid())
+                return;
+
+            const cv::Rect selectedRoi = qRectToCvRect(selected);
+            if (selectedRoi == baselineRoi)
+                return;
+
+            const std::lock_guard<std::mutex> lock(m_mutex);
+            m_roi = selectedRoi;
+            m_onlineModified = true;
+            checkAndUpdateRoi();
         });
 
         dlg->open();

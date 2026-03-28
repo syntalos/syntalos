@@ -20,6 +20,7 @@
 #pragma once
 
 #include <QObject>
+#include <QRect>
 #include <opencv2/core.hpp>
 
 namespace Syntalos
@@ -37,5 +38,17 @@ namespace Syntalos
  */
 std::optional<QImage> cvMatToQImage(const cv::Mat &mat);
 std::optional<QPixmap> cvMatToQPixmap(const cv::Mat &mat);
+
+/**
+ * Helper to convert a QRect into a cv::Rect
+ *
+ * For a cv::Rect, right and bottom edges are exclusive,
+ * while they are inclusive for a QRect. This helper just
+ * ensures we don't accidentally make any conversion mistakes.
+ */
+inline cv::Rect qRectToCvRect(const QRect &r)
+{
+    return cv::Rect(r.x(), r.y(), r.width(), r.height());
+}
 
 } // namespace Syntalos
