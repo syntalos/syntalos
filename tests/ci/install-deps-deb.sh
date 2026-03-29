@@ -62,7 +62,6 @@ eatmydata apt-get install -yq --no-install-recommends \
     qt6-multimedia-dev \
     udev \
     uuid-dev \
-    liblua5.3-dev \
     $extra_deps
 
 # test dependencies
@@ -72,14 +71,3 @@ eatmydata apt-get install -yq --no-install-recommends \
     dbus-daemon \
     python3-zstandard \
     python3-opencv
-
-# NOTE: liblua5.3-dev is only needed for Intan RHX
-
-# install additional dependencies
-eatmydata apt-get install -yq --no-install-recommends \
-    gobject-introspection \
-    libgirepository1.0-dev \
-    libusb-1.0-0-dev \
-    libzip-dev \
-    libudev-dev \
-    cargo
