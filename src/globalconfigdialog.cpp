@@ -174,9 +174,9 @@ void GlobalConfigDialog::on_btnCreateDevDir_clicked()
     QFileInfo fiVenvLink(venvLinkPath);
     if (!fiVenvLink.exists() || fiVenvLink.isSymLink()) {
         QFile::remove(venvLinkPath);
-        QDir().mkpath(m_gc->virtualenvDir());
-        if (!QFile::link(m_gc->virtualenvDir(), venvLinkPath))
-            qDebug().noquote() << "Failed to create symlink from" << m_gc->virtualenvDir() << "to" << venvLinkPath;
+        QDir().mkpath(m_gc->virtualEnvDir());
+        if (!QFile::link(m_gc->virtualEnvDir(), venvLinkPath))
+            qDebug().noquote() << "Failed to create symlink from" << m_gc->virtualEnvDir() << "to" << venvLinkPath;
     }
 
     // create link to user modules directory

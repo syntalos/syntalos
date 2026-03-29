@@ -188,7 +188,7 @@ QString GlobalConfig::userModulesDir() const
     return QDir(m_appDataRoot).filePath("modules");
 }
 
-QString GlobalConfig::virtualenvDir() const
+QString GlobalConfig::virtualEnvDir() const
 {
     return QDir(m_appDataRoot).filePath("venv");
 }

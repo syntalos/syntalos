@@ -19,7 +19,21 @@
 
 #pragma once
 
-#include "moduleapi.h"
-#include <QObject>
+#include <QString>
+#include <QLoggingCategory>
 
-ModuleInfo *loadPythonModuleInfo(const QString &modId, const QString &modDir, const QVariantHash &modData);
+namespace Syntalos
+{
+
+Q_DECLARE_LOGGING_CATEGORY(logVEnv)
+
+/**
+ * Get the absolute directory path of a virtual environment with the given name.
+ */
+QString pythonVEnvDirForName(const QString &venvName);
+
+bool pythonVirtualEnvExists(const QString &venvName);
+
+bool createPythonVirtualEnv(const QString &venvName, const QString &requirementsFile = QString());
+
+} // namespace Syntalos

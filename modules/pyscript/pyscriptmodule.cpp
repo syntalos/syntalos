@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -34,6 +34,7 @@
 #include <QHBoxLayout>
 #include <QMenuBar>
 #include <QMetaType>
+#include <QMessageBox>
 #include <QProcess>
 #include <QShortcut>
 #include <QSplitter>
@@ -43,6 +44,7 @@
 #include "mlinkmodule.h"
 #include "porteditordialog.h"
 #include "globalconfig.h"
+#include "pyvenvmanager.h"
 #include "utils/style.h"
 
 SYNTALOS_MODULE(PyScriptModule);
@@ -177,6 +179,9 @@ public:
             return false;
         }
 
+        if (!ensureBaseVirtualEnv())
+            return false;
+
         setInitialized();
         return true;
     }
@@ -199,6 +204,9 @@ public:
 
     bool prepare(const TestSubject &testSubject) override
     {
+        if (!ensureBaseVirtualEnv())
+            return false;
+
         m_portEditAction->setEnabled(false);
         m_pyconsoleWidget->clear();
         setScript(m_scriptView->document()->text());
@@ -269,6 +277,45 @@ public:
     }
 
 private:
+    bool ensureBaseVirtualEnv()
+    {
+        GlobalConfig gconf;
+        if (!gconf.useVenvForPyScript()) {
+            setPythonVirtualEnv(QString());
+            return true;
+        }
+
+        const auto venvDir = pythonVEnvDirForName("base");
+        setPythonVirtualEnv(venvDir);
+        if (pythonVirtualEnvExists("base"))
+            return true;
+
+        const auto reply = QMessageBox::question(
+            nullptr,
+            QStringLiteral("Create shared Python virtual environment?"),
+            QStringLiteral(
+                "Python Script modules are configured to use a shared virtual environment, but the base "
+                "environment does not exist yet.\n\n"
+                "Should Syntalos create it now? "
+                "(This will open a system terminal and run the necessary commands, which may take some time)"),
+            QMessageBox::Yes | QMessageBox::No);
+        if (reply == QMessageBox::No)
+            return false;
+
+        processUiEvents();
+        if (!createPythonVirtualEnv(QStringLiteral("base"))) {
+            QMessageBox::warning(
+                nullptr,
+                QStringLiteral("Failed to create shared Python virtual environment"),
+                QStringLiteral(
+                    "Failed to set up the shared Python virtual environment - refer to the terminal log for "
+                    "more information."));
+            return false;
+        }
+
+        return true;
+    }
+
     QTermWidget *m_pyconsoleWidget;
     KTextEditor::View *m_scriptView;
     PortEditorDialog *m_portsDialog;

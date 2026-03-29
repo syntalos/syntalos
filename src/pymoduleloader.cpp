@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2020-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -24,14 +24,12 @@
 #include <QFile>
 #include <QIcon>
 #include <QMessageBox>
-#include <QStandardPaths>
 #include <QTimer>
 #include <iostream>
 
 #include "globalconfig.h"
 #include "mlinkmodule.h"
-#include "fabric/executils.h"
-#include "utils/misc.h"
+#include "pyvenvmanager.h"
 
 class PythonModule : public MLinkModule
 {
@@ -82,129 +80,15 @@ public:
         }
     }
 
-    QString virtualEnvDir() const
-    {
-        GlobalConfig gconf;
-        return QStringLiteral("%1/%2").arg(gconf.virtualenvDir(), id());
-    }
-
     bool virtualEnvExists() const
     {
-        return QFile::exists(QStringLiteral("%1/bin/python").arg(virtualEnvDir()));
-    }
-
-    void injectSystemPyModule(const QString &venvDir, const QString &pyModName)
-    {
-        QDir dir(QStringLiteral("%1/lib/").arg(venvDir));
-        QStringList vpDirs = dir.entryList(QStringList() << QStringLiteral("python*"));
-
-        QStringList systemPyModPaths = QStringList()
-                                       << QStringLiteral("/usr/lib/python3/dist-packages/%1/").arg(pyModName)
-                                       << QStringLiteral("/usr/local/lib/python3/dist-packages/%1/").arg(pyModName)
-                                       << QStringLiteral("/app/lib/python/site-packages/%1/").arg(pyModName);
-
-        for (const auto &systemPyQtPath : systemPyModPaths) {
-            QDir sysPyQtDir(systemPyQtPath);
-            if (!sysPyQtDir.exists())
-                continue;
-
-            for (const auto &pyDir : vpDirs) {
-                qDebug().noquote() << "Adding system Python module to venv:" << systemPyQtPath;
-                QFile::link(
-                    systemPyQtPath, QStringLiteral("%1/lib/%2/site-packages/%3").arg(venvDir, pyDir, pyModName));
-            }
-        }
-    }
-
-    bool injectSystemPyQtBindings(const QString &venvDir)
-    {
-        // the PyQt6/PySide modules must be for the same version as Syntalos was compiled for,
-        // as the pyworker binary is linked against Qt as well (and trying to load a different
-        // version will fail)
-        // therefore, we add this hack and inject just the system Qt Python bindings into the
-        // virtual environment.
-        injectSystemPyModule(venvDir, QStringLiteral("PyQt6"));
-        return true;
+        return pythonVirtualEnvExists(id());
     }
 
     bool installVirtualEnv()
     {
-        GlobalConfig gconf;
-        auto rtdDir = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
-        if (rtdDir.isEmpty())
-            rtdDir = "/tmp";
-        const auto venvDir = virtualEnvDir();
-        QDir().mkpath(venvDir);
-
-        const auto tmpCommandFile = QStringLiteral("%1/sy-venv-%2.sh").arg(rtdDir, createRandomString(6));
-        QFile shFile(tmpCommandFile);
-        if (!shFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
-            qWarning().noquote() << "Unable to open temporary file" << tmpCommandFile << "for writing.";
-            return false;
-        }
-
-        const auto origRequirementsFname = QStringLiteral("%1/requirements.txt").arg(m_pyModDir);
-        const auto tmpRequirementsFname = QStringLiteral("%1/%2-requirements_%3.txt")
-                                              .arg(rtdDir, id(), createRandomString(4));
-        QFile tmpReqFile(tmpRequirementsFname);
-        if (!tmpReqFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
-            qWarning().noquote() << "Unable to open temporary file" << tmpRequirementsFname << "for writing.";
-            return false;
-        }
-
-        QFile reqFile(origRequirementsFname);
-        if (!reqFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-            qWarning().noquote() << "Unable to open file" << origRequirementsFname << "for reading.";
-            return false;
-        }
-
-        QTextStream rqfIn(&reqFile);
-        QTextStream rqfOut(&tmpReqFile);
-        while (!rqfIn.atEnd()) {
-            QString line = rqfIn.readLine();
-            if (!line.startsWith("PyQt6"))
-                rqfOut << line << "\n";
-        }
-        tmpReqFile.close();
-
-        qDebug().noquote() << "Creating new Python virtualenv in:" << venvDir;
-        QTextStream out(&shFile);
-        out << "#!/bin/bash\n\n"
-            << "run_check() {\n"
-            << "    echo -e \"\\033[1;33m-\\033[0m \\033[1m$@\\033[0m\"\n"
-            << "    $@\n"
-            << "    if [ $? -ne 0 ]\n"
-            << "    then\n"
-            << "        echo \"\"\n"
-            << "        read -p \"Command failed to run. Press enter to exit.\"\n"
-            << "        exit 1\n"
-            << "    fi\n"
-            << "}\n"
-            << "export PATH=$PATH:/app/bin\n\n"
-
-            << "cd " << shellQuote(venvDir) << "\n"
-            << "run_check virtualenv ."
-            << "\n"
-            << "run_check source " << shellQuote(QStringLiteral("%1/bin/activate").arg(venvDir)) << "\n"
-            << "run_check pip install -r " << shellQuote(tmpRequirementsFname) << "\n"
-
-            << "echo \"\"\n"
-            << "read -p \"Success! Press any key to exit.\""
-            << "\n";
-        shFile.flush();
-        shFile.setPermissions(QFileDevice::ExeUser | QFileDevice::ReadUser | QFileDevice::WriteUser);
-        shFile.close();
-
-        int ret = runInTerminal(
-            tmpCommandFile, QStringList(), venvDir, QStringLiteral("Creating virtual Python environment"));
-
-        shFile.remove();
-        tmpReqFile.remove();
-        if (ret == 0)
-            return injectSystemPyQtBindings(venvDir);
-        // failure, let's try to remove the bad virtualenv (failures to do so are ignored)
-        QDir(venvDir).removeRecursively();
-        return false;
+        const auto reqFile = QStringLiteral("%1/requirements.txt").arg(m_pyModDir);
+        return createPythonVirtualEnv(id(), reqFile);
     }
 
     bool ensurePythonCodeRunning()
@@ -212,7 +96,7 @@ public:
         if (isProcessRunning())
             return true;
 
-        setPythonVirtualEnv(virtualEnvDir());
+        setPythonVirtualEnv(pythonVEnvDirForName(id()));
         setOutputCaptured(true);
         if (!runProcess())
             return false;

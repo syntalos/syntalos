@@ -81,7 +81,7 @@ public:
     QString appDataLocation() const;
 
     QString userModulesDir() const;
-    QString virtualenvDir() const;
+    QString virtualEnvDir() const;
     QString homeDevelDir() const;
     QString userCacheDir() const;
 

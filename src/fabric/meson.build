@@ -17,6 +17,8 @@ syntalos_fabric_src = [
     'optionalwaitcondition.cpp',
     'porteditordialog.h',
     'porteditordialog.cpp',
+    'pyvenvmanager.h',
+    'pyvenvmanager.cpp',
     'rangeslider.h',
     'rangeslider.cpp',
     'subscriptionwatcher.h',
