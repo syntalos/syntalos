@@ -196,9 +196,8 @@ void PyWorker::raiseError(const QString &message)
     std::cerr << "PyWorker-ERROR: " << message.toStdString() << std::endl;
     m_link->raiseError(message);
 
-    if (m_running)
-        stop();
-    shutdown();
+    // if we were running, ensure we are processing messages again
+    m_evTimer->start();
 }
 
 bool PyWorker::loadPythonScript(const QString &script, const QString &wdir)
@@ -208,6 +207,7 @@ bool PyWorker::loadPythonScript(const QString &script, const QString &wdir)
 
     // create a clean slate to load the new script
     py::globals().clear();
+    m_scriptLoaded = false;
 
     try {
         // execute the script

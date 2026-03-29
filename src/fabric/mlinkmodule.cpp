@@ -178,7 +178,8 @@ public:
         const std::string &channel,
         Func fillReqFn,
         int timeoutSec = 5,
-        bool timeoutIsError = true)
+        bool timeoutIsError = true,
+        bool skipIfModuleError = true)
     {
         if (!node.has_value()) {
             qCCritical(logMLinkMod).noquote()
@@ -211,7 +212,7 @@ public:
                 return response->payload().success;
 
             // quit immediately if an error was already emitted
-            if (self->state() == ModuleState::ERROR)
+            if (skipIfModuleError && self->state() == ModuleState::ERROR)
                 return false;
 
             // if we stopped running (crashed or existed) we no longer need to wait
@@ -605,7 +606,14 @@ void MLinkModule::terminateProcess()
         return;
 
     // request the module process to terminate itself
-    d->callClientSimple<ShutdownRequest>(this, SHUTDOWN_CALL_ID, [](auto &) {});
+    d->callClientSimple<ShutdownRequest>(
+        this,
+        SHUTDOWN_CALL_ID,
+        [](auto &) {},
+        5,     // timeout seconds
+        false, // timeout is not an error
+        false  // we do not fast-exit if the module is in an error-state
+    );
 
     // give the process some time to terminate
     d->proc->waitForFinished(5000);
@@ -615,7 +623,9 @@ void MLinkModule::terminateProcess()
         qCDebug(logMLinkMod).noquote() << "Module process" << d->proc->program()
                                        << "did not terminate on request. Sending SIGTERM.";
         d->proc->terminate();
-        d->proc->waitForFinished(5000);
+        d->proc->waitForFinished(3000);
+        d->proc->terminate();
+        d->proc->waitForFinished(3000);
     }
 
     // no response? kill it!
