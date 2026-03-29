@@ -28,6 +28,7 @@ eatmydata apt-get install -yq --no-install-recommends \
     libavcodec-dev \
     libavformat-dev \
     libavutil-dev \
+    libblake3-dev \
     libegl-dev \
     libeigen3-dev \
     libglib2.0-dev \

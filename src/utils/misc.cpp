@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -23,6 +23,7 @@
 #include <filesystem>
 #include <linux/magic.h>
 #include <sys/vfs.h>
+#include <blake3.h>
 
 #include <QCollator>
 #include <QCoreApplication>
@@ -228,4 +229,34 @@ bool isBinaryInPath(const QString &binaryName)
     }
 
     return false;
+}
+
+QByteArray blake3HashForData(const QByteArray &data)
+{
+    blake3_hasher hasher;
+    blake3_hasher_init(&hasher);
+    blake3_hasher_update(&hasher, data.constData(), data.size());
+
+    uint8_t out[BLAKE3_OUT_LEN];
+    blake3_hasher_finalize(&hasher, out, BLAKE3_OUT_LEN);
+
+    return QByteArray(reinterpret_cast<const char *>(out), BLAKE3_OUT_LEN);
+}
+
+auto blake3HashForFile(const QString &filename) -> std::expected<QByteArray, QString>
+{
+    QFile file(filename);
+    if (!file.open(QIODevice::ReadOnly))
+        return std::unexpected(
+            QStringLiteral("Unable to open file %1 for hashing: %2").arg(filename, file.errorString()));
+
+    const auto data = file.readAll();
+    blake3_hasher hasher;
+    blake3_hasher_init(&hasher);
+    blake3_hasher_update(&hasher, data.constData(), data.size());
+
+    uint8_t out[BLAKE3_OUT_LEN];
+    blake3_hasher_finalize(&hasher, out, BLAKE3_OUT_LEN);
+
+    return QByteArray(reinterpret_cast<const char *>(out), BLAKE3_OUT_LEN);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include <QString>
+#include <expected>
 #include <QStringList>
 
 namespace Syntalos
@@ -136,3 +136,13 @@ bool isBinaryInPath(const QString &binaryName);
  * @param waitMsec Time to wait.
  */
 void delay(int waitMsec);
+
+/**
+ * @brief Calculate the BLAKE3 hash for the given data.
+ */
+QByteArray blake3HashForData(const QByteArray &data);
+
+/**
+ * @brief Calculate the BLAKE3 hash for the given file.
+ */
+auto blake3HashForFile(const QString &filename) -> std::expected<QByteArray, QString>;

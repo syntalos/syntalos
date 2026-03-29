@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <expected>
 #include <QString>
 #include <QLoggingCategory>
 
@@ -27,13 +28,21 @@ namespace Syntalos
 
 Q_DECLARE_LOGGING_CATEGORY(logVEnv)
 
+enum class PyVirtualEnvStatus {
+    VALID,
+    MISSING,
+    REQUIREMENTS_CHANGED,
+    INTERPRETER_MISSING
+};
+
 /**
  * Get the absolute directory path of a virtual environment with the given name.
  */
 QString pythonVEnvDirForName(const QString &venvName);
 
-bool pythonVirtualEnvExists(const QString &venvName);
+PyVirtualEnvStatus pythonVirtualEnvStatus(const QString &venvName, const QString &requirementsFile = QString());
 
-bool createPythonVirtualEnv(const QString &venvName, const QString &requirementsFile = QString());
+auto createPythonVirtualEnv(const QString &venvName, const QString &requirementsFile = QString(), bool recreate = false)
+    -> std::expected<QString, QString>;
 
 } // namespace Syntalos

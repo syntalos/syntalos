@@ -80,15 +80,16 @@ public:
         }
     }
 
-    bool virtualEnvExists() const
-    {
-        return pythonVirtualEnvExists(id());
-    }
-
-    bool installVirtualEnv()
+    bool installVirtualEnv(bool recreate)
     {
         const auto reqFile = QStringLiteral("%1/requirements.txt").arg(m_pyModDir);
-        return createPythonVirtualEnv(id(), reqFile);
+        const auto result = createPythonVirtualEnv(id(), reqFile, recreate);
+        if (result.has_value())
+            return true;
+
+        QMessageBox::warning(
+            nullptr, QStringLiteral("Failed to create virtual environment for %1").arg(id()), result.error());
+        return false;
     }
 
     bool ensurePythonCodeRunning()
@@ -121,28 +122,57 @@ public:
             return false;
         }
 
-        if (m_useVEnv && !virtualEnvExists() && QFile::exists(QStringLiteral("%1/requirements.txt").arg(m_pyModDir))) {
-            auto reply = QMessageBox::question(
-                nullptr,
-                QStringLiteral("Create virtual environment for %1?").arg(id()),
-                QStringLiteral(
-                    "The '%1' module requested to run its Python code in a virtual environment, however "
-                    "a virtual Python environment for modules of type '%2' does not exist yet. "
-                    "Should Syntalos attempt to set up the environment automatically? "
-                    "(This will open a system terminal and run the necessary commands, which may take some time)")
-                    .arg(name(), id()),
-                QMessageBox::Yes | QMessageBox::No);
-            if (reply == QMessageBox::No)
-                return false;
+        if (m_useVEnv && QFile::exists(QStringLiteral("%1/requirements.txt").arg(m_pyModDir))) {
+            const auto reqFile = QStringLiteral("%1/requirements.txt").arg(m_pyModDir);
+            const auto venvStatus = pythonVirtualEnvStatus(id(), reqFile);
 
-            QCoreApplication::processEvents();
-            if (!installVirtualEnv()) {
-                QMessageBox::warning(
+            if (venvStatus == PyVirtualEnvStatus::MISSING) {
+                const auto reply = QMessageBox::question(
                     nullptr,
-                    QStringLiteral("Failed to create virtual environment for %1?").arg(id()),
+                    QStringLiteral("Create virtual environment for %1?").arg(id()),
                     QStringLiteral(
-                        "Failed to set up the virtual environment - refer to the terminal log for more information."));
-                return false;
+                        "The '%1' module requested to run its Python code in a virtual environment, however "
+                        "a virtual Python environment for modules of type '%2' does not exist yet. "
+                        "Should Syntalos attempt to set up the environment automatically? "
+                        "(This will open a terminal and run the necessary commands, which may take some time)")
+                        .arg(name(), id()),
+                    QMessageBox::Yes | QMessageBox::No);
+                if (reply == QMessageBox::No)
+                    return false;
+
+                processUiEvents();
+                if (!installVirtualEnv(false))
+                    return false;
+            } else if (venvStatus == PyVirtualEnvStatus::REQUIREMENTS_CHANGED) {
+                const auto reply = QMessageBox::question(
+                    nullptr,
+                    QStringLiteral("Recreate virtual environment for %1?").arg(id()),
+                    QStringLiteral(
+                        "The requirements for '%1' have changed since this virtual environment was created. "
+                        "Should Syntalos recreate the environment now? "
+                        "(This will open a terminal and reinstall the module dependencies)")
+                        .arg(name()),
+                    QMessageBox::Yes | QMessageBox::No);
+
+                // we reuse the old environment if the user selected "No"
+                if (reply == QMessageBox::No)
+                    return true;
+
+                processUiEvents();
+                if (!installVirtualEnv(true))
+                    return false;
+            } else if (venvStatus == PyVirtualEnvStatus::INTERPRETER_MISSING) {
+                QMessageBox::information(
+                    nullptr,
+                    QStringLiteral("Recreating virtual environment for %1").arg(id()),
+                    QStringLiteral(
+                        "The Python interpreter used to create the '%1' environment is no longer available. "
+                        "Syntalos must recreate the virtual environment before this module can start.")
+                        .arg(name()));
+
+                processUiEvents();
+                if (!installVirtualEnv(true))
+                    return false;
             }
         }
 

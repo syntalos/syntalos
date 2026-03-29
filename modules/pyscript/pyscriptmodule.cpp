@@ -27,7 +27,7 @@
 #include <KActionCollection>
 #pragma GCC diagnostic pop
 #include <qtermwidget6/qtermwidget.h>
-#include <QCoreApplication>
+#include <QDir>
 #include <QDesktopServices>
 #include <QDebug>
 #include <QFileInfo>
@@ -35,8 +35,6 @@
 #include <QMenuBar>
 #include <QMetaType>
 #include <QMessageBox>
-#include <QProcess>
-#include <QShortcut>
 #include <QSplitter>
 #include <QTextBrowser>
 #include <QToolBar>
@@ -204,7 +202,7 @@ public:
 
     bool prepare(const TestSubject &testSubject) override
     {
-        if (!ensureBaseVirtualEnv())
+        if (!ensureAndSetBaseVirtualEnv())
             return false;
 
         m_portEditAction->setEnabled(false);
@@ -277,6 +275,29 @@ public:
     }
 
 private:
+    /**
+     * Quicker function that just ensures that the base venv exists at all,
+     * if we are configured to use it.
+     */
+    bool ensureAndSetBaseVirtualEnv()
+    {
+        GlobalConfig gconf;
+        if (!gconf.useVenvForPyScript()) {
+            setPythonVirtualEnv(QString());
+            return true;
+        }
+
+        const auto venvDir = pythonVEnvDirForName("base");
+        setPythonVirtualEnv(venvDir);
+        if (QDir(venvDir).exists())
+            return true;
+
+        return ensureBaseVirtualEnv();
+    }
+
+    /**
+     * Make sure the base virtualenv is set up properly, if we are using one.
+     */
     bool ensureBaseVirtualEnv()
     {
         GlobalConfig gconf;
@@ -287,30 +308,48 @@ private:
 
         const auto venvDir = pythonVEnvDirForName("base");
         setPythonVirtualEnv(venvDir);
-        if (pythonVirtualEnvExists("base"))
+        const auto venvStatus = pythonVirtualEnvStatus(QStringLiteral("base"));
+        if (venvStatus == PyVirtualEnvStatus::VALID)
             return true;
 
-        const auto reply = QMessageBox::question(
-            nullptr,
-            QStringLiteral("Create shared Python virtual environment?"),
-            QStringLiteral(
-                "Python Script modules are configured to use a shared virtual environment, but the base "
-                "environment does not exist yet.\n\n"
-                "Should Syntalos create it now? "
-                "(This will open a system terminal and run the necessary commands, which may take some time)"),
-            QMessageBox::Yes | QMessageBox::No);
-        if (reply == QMessageBox::No)
-            return false;
-
-        processUiEvents();
-        if (!createPythonVirtualEnv(QStringLiteral("base"))) {
-            QMessageBox::warning(
+        if (venvStatus == PyVirtualEnvStatus::MISSING) {
+            const auto reply = QMessageBox::question(
                 nullptr,
-                QStringLiteral("Failed to create shared Python virtual environment"),
+                QStringLiteral("Create shared Python virtual environment?"),
                 QStringLiteral(
-                    "Failed to set up the shared Python virtual environment - refer to the terminal log for "
-                    "more information."));
-            return false;
+                    "Python Script modules are configured to use a shared virtual environment, but the base "
+                    "environment does not exist yet.\n\n"
+                    "Should Syntalos create it now?"),
+                QMessageBox::Yes | QMessageBox::No);
+            if (reply == QMessageBox::No)
+                return false;
+
+            processUiEvents();
+            const auto result = createPythonVirtualEnv(QStringLiteral("base"));
+            if (!result.has_value()) {
+                QMessageBox::warning(
+                    nullptr,
+                    QStringLiteral("Failed to create shared Python virtual environment"),
+                    QStringLiteral("Failed to set up the shared Python virtual environment: %1").arg(result.error()));
+                return false;
+            }
+        } else if (venvStatus == PyVirtualEnvStatus::INTERPRETER_MISSING) {
+            QMessageBox::information(
+                nullptr,
+                QStringLiteral("Recreating shared Python virtual environment"),
+                QStringLiteral(
+                    "The Python interpreter used to create the shared virtual environment is no longer "
+                    "available. Syntalos must recreate the environment before Python Script modules can run."));
+
+            processUiEvents();
+            const auto result = createPythonVirtualEnv(QStringLiteral("base"), QString(), true);
+            if (!result.has_value()) {
+                QMessageBox::warning(
+                    nullptr,
+                    QStringLiteral("Failed to create shared Python virtual environment"),
+                    QStringLiteral("Failed to set up the shared Python virtual environment: %1").arg(result.error()));
+                return false;
+            }
         }
 
         return true;
