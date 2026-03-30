@@ -288,6 +288,7 @@ public:
     QString experimentIdTmpl;
     QString experimentIdFinal;
     bool simpleStorageNames;
+    bool clockTimeInStorageDir;
 
     std::atomic_bool active;
     std::atomic_bool running;
@@ -326,6 +327,7 @@ Engine::Engine(QWidget *parentWidget)
     d->active = false;
     d->running = false;
     d->simpleStorageNames = true;
+    d->clockTimeInStorageDir = false;
     d->modLibrary = new ModuleLibrary(d->gconf, this);
     d->parentWidget = parentWidget;
     d->timer = std::make_shared<SyncTimer>();
@@ -534,6 +536,17 @@ bool Engine::simpleStorageNames() const
 void Engine::setSimpleStorageNames(bool enabled)
 {
     d->simpleStorageNames = enabled;
+}
+
+bool Engine::clockTimeInStorageDir() const
+{
+    return d->clockTimeInStorageDir;
+}
+
+void Engine::setClockTimeInStorageDir(bool enabled)
+{
+    d->clockTimeInStorageDir = enabled;
+    refreshExportDirPath();
 }
 
 QString Engine::exportDir() const
@@ -830,6 +843,8 @@ void Engine::refreshExportDirPath()
 {
     auto time = QDateTime::currentDateTime();
     auto currentDate = time.date().toString("yyyy-MM-dd");
+    if (d->clockTimeInStorageDir)
+        currentDate = QStringLiteral("%1_%2").arg(currentDate, time.toString("hhmm"));
 
     makeFinalExperimentId();
     d->exportDir = QDir::cleanPath(QStringLiteral("%1/%2/%3/%4")

@@ -338,6 +338,13 @@ MainWindow::MainWindow(QWidget *parent)
         setConfigModifyAllowed(true);
     });
 
+    // keep the export directory preview in sync with the optional hour/minute suffix setting
+    m_engine->setClockTimeInStorageDir(ui->cbClockTimeInStorageDir->isChecked());
+    connect(ui->cbClockTimeInStorageDir, &QCheckBox::toggled, [this](bool checked) {
+        m_engine->setClockTimeInStorageDir(checked);
+        updateExportDirDisplay();
+    });
+
     // create loading indicator for long loading/running tasks
     m_busyIndicator = new QSvgWidget(this);
     const auto indicatorWidgetDim = ui->mainToolBar->height() - 2;
@@ -502,6 +509,7 @@ void MainWindow::runActionTriggered()
     }
 
     m_engine->setSaveInternalDiagnostics(m_gconf->saveExperimentDiagnostics());
+    m_engine->setClockTimeInStorageDir(ui->cbClockTimeInStorageDir->isChecked());
     m_engine->setSimpleStorageNames(ui->cbSimpleStorageNames->isChecked());
 
     if (m_isIntervalRun) {
@@ -626,7 +634,11 @@ bool MainWindow::saveConfiguration(const QString &fileName)
     settings.insert("export_base_dir", m_engine->exportBaseDir());
     settings.insert("experiment_id", m_engine->experimentId());
 
-    settings.insert("simple_storage_names", ui->cbSimpleStorageNames->isChecked());
+    QVariantHash storageSettings;
+    storageSettings.insert("clock_time_in_dir", ui->cbClockTimeInStorageDir->isChecked());
+    storageSettings.insert("simple_names", ui->cbSimpleStorageNames->isChecked());
+
+    settings.insert("storage", storageSettings);
 
     // basic configuration
     tar.writeFile("main.toml", qVariantHashToTomlData(settings));
@@ -750,9 +762,12 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         }
     }
 
+    auto storageObj = rootObj.value("storage").toHash();
+    ui->cbClockTimeInStorageDir->setChecked(storageObj.value("clock_time_in_dir", false).toBool());
+    ui->cbSimpleStorageNames->setChecked(storageObj.value("simple_names", true).toBool());
+
     setDataExportBaseDir(rootObj.value("export_base_dir").toString());
     ui->expIdEdit->setText(rootObj.value("experiment_id").toString());
-    ui->cbSimpleStorageNames->setChecked(rootObj.value("simple_storage_names", true).toBool());
 
     // load list of subjects
     m_subjectList->clear();
@@ -1450,6 +1465,14 @@ void MainWindow::onEnginePreRunStart()
 
     // ensure the edge cache is cleared, it may be invalid
     m_portGraphEdgeCache.clear();
+
+    // Tf we include the clock time, we need to update the export dir display
+    // on every run, since the current time has changed.
+    // (Technically, we would also have to do that for day changes at 00:00, but
+    // we just pretend like PhD students don't run experiments that late...
+    // Optimism is bliss, and simpler code in this case.)
+    if (ui->cbClockTimeInStorageDir->isChecked())
+        updateExportDirDisplay();
 }
 
 void MainWindow::onEngineRunStarted()

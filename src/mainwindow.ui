@@ -787,9 +787,9 @@
                </layout>
               </item>
               <item>
-               <widget class="QCheckBox" name="checkBox">
+               <widget class="QCheckBox" name="cbClockTimeInStorageDir">
                 <property name="enabled">
-                 <bool>false</bool>
+                 <bool>true</bool>
                 </property>
                 <property name="text">
                  <string>Add hour/minute to storage directory names</string>

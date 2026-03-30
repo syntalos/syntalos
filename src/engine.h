@@ -76,6 +76,9 @@ public:
     bool simpleStorageNames() const;
     void setSimpleStorageNames(bool enabled);
 
+    bool clockTimeInStorageDir() const;
+    void setClockTimeInStorageDir(bool enabled);
+
     QString exportDir() const;
     bool isRunning() const;
     bool isActive() const;
