@@ -289,7 +289,7 @@ public:
     QString experimentIdFinal;
     bool simpleStorageNames;
     bool clockTimeInExportDir;
-    ExportDirOrder exportDirOrder;
+    QList<ExportPathComponent> exportDirLayout;
 
     std::atomic_bool active;
     std::atomic_bool running;
@@ -329,7 +329,11 @@ Engine::Engine(QWidget *parentWidget)
     d->running = false;
     d->simpleStorageNames = true;
     d->clockTimeInExportDir = false;
-    d->exportDirOrder = ExportDirOrder::SubjectFirst;
+    d->exportDirLayout = {
+        ExportPathComponent::SubjectId,
+        ExportPathComponent::Time,
+        ExportPathComponent::ExperimentId,
+    };
     d->modLibrary = new ModuleLibrary(d->gconf, this);
     d->parentWidget = parentWidget;
     d->timer = std::make_shared<SyncTimer>();
@@ -551,14 +555,14 @@ void Engine::setClockTimeInExportDir(bool enabled)
     refreshExportDirPath();
 }
 
-Engine::ExportDirOrder Engine::exportDirOrder() const
+QList<ExportPathComponent> Engine::exportDirLayout() const
 {
-    return d->exportDirOrder;
+    return d->exportDirLayout;
 }
 
-void Engine::setExportDirOrder(ExportDirOrder order)
+void Engine::setExportDirLayout(const QList<ExportPathComponent> &layout)
 {
-    d->exportDirOrder = order;
+    d->exportDirLayout = normalizeExportDirLayout(layout);
     refreshExportDirPath();
 }
 
@@ -858,18 +862,25 @@ void Engine::refreshExportDirPath()
     auto currentDate = time.date().toString("yyyy-MM-dd");
     if (d->clockTimeInExportDir)
         currentDate = QStringLiteral("%1_%2").arg(currentDate, time.toString("hhmm"));
-
-    QString firstPathPart = d->testSubject.id.trimmed().replace('/', '_').replace('\\', '_');
-    QString secondPathPart = currentDate;
-    if (d->exportDirOrder == ExportDirOrder::DateFirst)
-        std::swap(firstPathPart, secondPathPart);
-
     makeFinalExperimentId();
-    d->exportDir = QDir::cleanPath(QStringLiteral("%1/%2/%3/%4")
-                                       .arg(d->exportBaseDir)
-                                       .arg(firstPathPart)
-                                       .arg(secondPathPart)
-                                       .arg(d->experimentIdFinal.trimmed()));
+
+    const auto safeSubjectId = d->testSubject.id.trimmed().replace('/', '_').replace('\\', '_');
+    const auto expId = d->experimentIdFinal.trimmed();
+
+    QStringList parts;
+    for (const auto &part : d->exportDirLayout) {
+        if (part == ExportPathComponent::SubjectId)
+            parts.append(safeSubjectId);
+        else if (part == ExportPathComponent::Time)
+            parts.append(currentDate);
+        else if (part == ExportPathComponent::ExperimentId)
+            parts.append(expId);
+    }
+    if (parts.size() != 3)
+        parts = {safeSubjectId, currentDate, expId};
+
+    d->exportDir = QDir::cleanPath(
+        QStringLiteral("%1/%2/%3/%4").arg(d->exportBaseDir, parts.at(0), parts.at(1), parts.at(2)));
 }
 
 void Engine::emitStatusMessage(const QString &message)

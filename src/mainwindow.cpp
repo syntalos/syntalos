@@ -29,18 +29,13 @@
 #include <QDebug>
 #include <QDesktopServices>
 #include <QDir>
-#include <QDoubleSpinBox>
-#include <QErrorMessage>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFontDatabase>
-#include <QFontMetricsF>
 #include <QGroupBox>
 #include <QHeaderView>
 #include <QInputDialog>
 #include <QLineEdit>
-#include <QListWidgetItem>
-#include <QMdiSubWindow>
 #include <QMessageBox>
 #include <QProcess>
 #include <QProgressDialog>
@@ -51,13 +46,14 @@
 #include <QStandardPaths>
 #include <QSvgRenderer>
 #include <QSvgWidget>
-#include <QTableWidget>
 #include <QTimer>
 #include <QToolButton>
 #include <memory>
+#include <optional>
 
 #include "aboutdialog.h"
 #include "appstyle.h"
+#include "chiporderwidget.h"
 #include "commentdialog.h"
 #include "engine.h"
 #include "globalconfig.h"
@@ -345,10 +341,10 @@ MainWindow::MainWindow(QWidget *parent)
         updateExportDirDisplay();
     });
 
-    // keep export path order (Subject/Time vs Time/Subject) in sync with UI selection
-    m_engine->setExportDirOrder(static_cast<Engine::ExportDirOrder>(ui->exportDirOrderComboBox->currentIndex()));
-    connect(ui->exportDirOrderComboBox, &QComboBox::currentIndexChanged, [this](int index) {
-        m_engine->setExportDirOrder(static_cast<Engine::ExportDirOrder>(index));
+    // keep export path order in sync with draggable UI ordering
+    changeExportDirLayout(DefaultExportPathComponentOrder);
+    connect(ui->exportDirOrderWidget, &ChipOrderWidget::orderChanged, this, [this]() {
+        m_engine->setExportDirLayout(exportDirLayoutFromUi());
         updateExportDirDisplay();
     });
 
@@ -642,7 +638,10 @@ bool MainWindow::saveConfiguration(const QString &fileName)
     settings.insert("experiment_id", m_engine->experimentId());
 
     QVariantHash storageSettings;
-    storageSettings.insert("dir_order", ui->exportDirOrderComboBox->currentIndex());
+    QStringList exportDirOrder;
+    for (const auto &part : exportDirLayoutFromUi())
+        exportDirOrder.append(exportDirPathComponentToKey(part));
+    storageSettings.insert("order", exportDirOrder);
     storageSettings.insert("clock_time_in_dir", ui->cbClockTimeInExportDir->isChecked());
     storageSettings.insert("simple_names", ui->cbSimpleStorageNames->isChecked());
 
@@ -771,10 +770,17 @@ bool MainWindow::loadConfiguration(const QString &fileName)
     }
 
     auto storageObj = rootObj.value("storage").toHash();
-    ui->exportDirOrderComboBox->setCurrentIndex(
-        qBound(0, storageObj.value("dir_order", 0).toInt(), ui->exportDirOrderComboBox->count() - 1));
     ui->cbClockTimeInExportDir->setChecked(storageObj.value("clock_time_in_dir", false).toBool());
     ui->cbSimpleStorageNames->setChecked(storageObj.value("simple_names", true).toBool());
+
+    QList<ExportPathComponent> exportDirLayout;
+    const auto exportDirLayoutValues = storageObj.value("order").toList();
+    for (const auto &value : exportDirLayoutValues) {
+        const auto maybePart = exportDirPathComponentFromKey(value.toString().trimmed().toLower());
+        if (maybePart.has_value() && !exportDirLayout.contains(maybePart.value()))
+            exportDirLayout.append(maybePart.value());
+    }
+    changeExportDirLayout(exportDirLayout);
 
     setDataExportBaseDir(rootObj.value("export_base_dir").toString());
     ui->expIdEdit->setText(rootObj.value("experiment_id").toString());
@@ -1052,6 +1058,31 @@ void MainWindow::changeExperimentId(const QString &text)
 {
     m_engine->setExperimentId(text);
     updateExportDirDisplay();
+}
+
+QList<ExportPathComponent> MainWindow::exportDirLayoutFromUi() const
+{
+    QList<ExportPathComponent> layout;
+    for (const auto &chipId : ui->exportDirOrderWidget->chipIds()) {
+        const auto maybePart = exportDirPathComponentFromKey(chipId.trimmed().toLower());
+        if (maybePart.has_value() && !layout.contains(maybePart.value()))
+            layout.append(maybePart.value());
+    }
+
+    return normalizeExportDirLayout(layout);
+}
+
+void MainWindow::changeExportDirLayout(const QList<ExportPathComponent> &layout)
+{
+    auto normalizedLayout = normalizeExportDirLayout(layout);
+
+    QList<QPair<QString, QString>> chips;
+    for (const auto &part : normalizedLayout)
+        chips.append(qMakePair(exportDirPathComponentToKey(part), exportDirPathComponentTitle(part)));
+    ui->exportDirOrderWidget->setChips(chips);
+
+    // apply to the engine
+    m_engine->setExportDirLayout(normalizedLayout);
 }
 
 void MainWindow::updateIconStyles()

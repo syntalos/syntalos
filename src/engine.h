@@ -23,6 +23,7 @@
 #include <QObject>
 #include <memory>
 
+#include "exportdirutils.h"
 #include "moduleapi.h"
 #include "modulelibrary.h"
 #include "sysinfo.h"
@@ -40,16 +41,8 @@ class Engine : public QObject
     friend class ModuleManager;
 
 public:
-    /**
-     * Order in which directories are placed in the export location
-     */
-    enum class ExportDirOrder {
-        SubjectFirst = 0,
-        DateFirst = 1,
-    };
-
     explicit Engine(QWidget *parentWidget = nullptr);
-    ~Engine();
+    ~Engine() override;
 
     enum SystemResource {
         StorageSpace,
@@ -87,8 +80,8 @@ public:
     bool clockTimeInExportDir() const;
     void setClockTimeInExportDir(bool enabled);
 
-    ExportDirOrder exportDirOrder() const;
-    void setExportDirOrder(ExportDirOrder order);
+    QList<ExportPathComponent> exportDirLayout() const;
+    void setExportDirLayout(const QList<ExportPathComponent> &layout);
 
     QString exportDir() const;
     bool isRunning() const;

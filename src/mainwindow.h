@@ -167,6 +167,9 @@ private:
     void changeTestSubject(const TestSubject &subject);
     void changeExperimentId(const QString &text);
 
+    QList<ExportPathComponent> exportDirLayoutFromUi() const;
+    void changeExportDirLayout(const QList<ExportPathComponent> &layout);
+
     void setRunPossible(bool enabled);
     void setRunUiControlStates(bool engineRunning, bool stopPossible);
     void setConfigModifyAllowed(bool allowed);
