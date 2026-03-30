@@ -339,9 +339,16 @@ MainWindow::MainWindow(QWidget *parent)
     });
 
     // keep the export directory preview in sync with the optional hour/minute suffix setting
-    m_engine->setClockTimeInStorageDir(ui->cbClockTimeInStorageDir->isChecked());
-    connect(ui->cbClockTimeInStorageDir, &QCheckBox::toggled, [this](bool checked) {
-        m_engine->setClockTimeInStorageDir(checked);
+    m_engine->setClockTimeInExportDir(ui->cbClockTimeInExportDir->isChecked());
+    connect(ui->cbClockTimeInExportDir, &QCheckBox::toggled, [this](bool checked) {
+        m_engine->setClockTimeInExportDir(checked);
+        updateExportDirDisplay();
+    });
+
+    // keep export path order (Subject/Time vs Time/Subject) in sync with UI selection
+    m_engine->setExportDirOrder(static_cast<Engine::ExportDirOrder>(ui->exportDirOrderComboBox->currentIndex()));
+    connect(ui->exportDirOrderComboBox, &QComboBox::currentIndexChanged, [this](int index) {
+        m_engine->setExportDirOrder(static_cast<Engine::ExportDirOrder>(index));
         updateExportDirDisplay();
     });
 
@@ -509,7 +516,7 @@ void MainWindow::runActionTriggered()
     }
 
     m_engine->setSaveInternalDiagnostics(m_gconf->saveExperimentDiagnostics());
-    m_engine->setClockTimeInStorageDir(ui->cbClockTimeInStorageDir->isChecked());
+    m_engine->setClockTimeInExportDir(ui->cbClockTimeInExportDir->isChecked());
     m_engine->setSimpleStorageNames(ui->cbSimpleStorageNames->isChecked());
 
     if (m_isIntervalRun) {
@@ -635,7 +642,8 @@ bool MainWindow::saveConfiguration(const QString &fileName)
     settings.insert("experiment_id", m_engine->experimentId());
 
     QVariantHash storageSettings;
-    storageSettings.insert("clock_time_in_dir", ui->cbClockTimeInStorageDir->isChecked());
+    storageSettings.insert("dir_order", ui->exportDirOrderComboBox->currentIndex());
+    storageSettings.insert("clock_time_in_dir", ui->cbClockTimeInExportDir->isChecked());
     storageSettings.insert("simple_names", ui->cbSimpleStorageNames->isChecked());
 
     settings.insert("storage", storageSettings);
@@ -763,7 +771,9 @@ bool MainWindow::loadConfiguration(const QString &fileName)
     }
 
     auto storageObj = rootObj.value("storage").toHash();
-    ui->cbClockTimeInStorageDir->setChecked(storageObj.value("clock_time_in_dir", false).toBool());
+    ui->exportDirOrderComboBox->setCurrentIndex(
+        qBound(0, storageObj.value("dir_order", 0).toInt(), ui->exportDirOrderComboBox->count() - 1));
+    ui->cbClockTimeInExportDir->setChecked(storageObj.value("clock_time_in_dir", false).toBool());
     ui->cbSimpleStorageNames->setChecked(storageObj.value("simple_names", true).toBool());
 
     setDataExportBaseDir(rootObj.value("export_base_dir").toString());
@@ -1471,7 +1481,7 @@ void MainWindow::onEnginePreRunStart()
     // (Technically, we would also have to do that for day changes at 00:00, but
     // we just pretend like PhD students don't run experiments that late...
     // Optimism is bliss, and simpler code in this case.)
-    if (ui->cbClockTimeInStorageDir->isChecked())
+    if (ui->cbClockTimeInExportDir->isChecked())
         updateExportDirDisplay();
 }
 

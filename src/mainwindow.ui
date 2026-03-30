@@ -761,25 +761,25 @@
                  <number>4</number>
                 </property>
                 <item row="0" column="0">
-                 <widget class="QLabel" name="storageLayoutLabel">
+                 <widget class="QLabel" name="exportDirOrderLabel">
                   <property name="text">
                    <string>Storage Layout</string>
                   </property>
                  </widget>
                 </item>
                 <item row="0" column="1">
-                 <widget class="QComboBox" name="storageLayoutComboBox">
+                 <widget class="QComboBox" name="exportDirOrderComboBox">
                   <property name="enabled">
-                   <bool>false</bool>
+                   <bool>true</bool>
                   </property>
                   <item>
                    <property name="text">
-                    <string>Subject-ID/Date</string>
+                    <string>Subject-ID/Time</string>
                    </property>
                   </item>
                   <item>
                    <property name="text">
-                    <string>Date/Subject-ID</string>
+                    <string>Time/Subject-ID</string>
                    </property>
                   </item>
                  </widget>
@@ -787,12 +787,12 @@
                </layout>
               </item>
               <item>
-               <widget class="QCheckBox" name="cbClockTimeInStorageDir">
+               <widget class="QCheckBox" name="cbClockTimeInExportDir">
                 <property name="enabled">
                  <bool>true</bool>
                 </property>
                 <property name="text">
-                 <string>Add hour/minute to storage directory names</string>
+                 <string>Add hour/minute to export directory name</string>
                 </property>
                </widget>
               </item>

@@ -40,6 +40,14 @@ class Engine : public QObject
     friend class ModuleManager;
 
 public:
+    /**
+     * Order in which directories are placed in the export location
+     */
+    enum class ExportDirOrder {
+        SubjectFirst = 0,
+        DateFirst = 1,
+    };
+
     explicit Engine(QWidget *parentWidget = nullptr);
     ~Engine();
 
@@ -76,8 +84,11 @@ public:
     bool simpleStorageNames() const;
     void setSimpleStorageNames(bool enabled);
 
-    bool clockTimeInStorageDir() const;
-    void setClockTimeInStorageDir(bool enabled);
+    bool clockTimeInExportDir() const;
+    void setClockTimeInExportDir(bool enabled);
+
+    ExportDirOrder exportDirOrder() const;
+    void setExportDirOrder(ExportDirOrder order);
 
     QString exportDir() const;
     bool isRunning() const;

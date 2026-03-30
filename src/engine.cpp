@@ -288,7 +288,8 @@ public:
     QString experimentIdTmpl;
     QString experimentIdFinal;
     bool simpleStorageNames;
-    bool clockTimeInStorageDir;
+    bool clockTimeInExportDir;
+    ExportDirOrder exportDirOrder;
 
     std::atomic_bool active;
     std::atomic_bool running;
@@ -327,7 +328,8 @@ Engine::Engine(QWidget *parentWidget)
     d->active = false;
     d->running = false;
     d->simpleStorageNames = true;
-    d->clockTimeInStorageDir = false;
+    d->clockTimeInExportDir = false;
+    d->exportDirOrder = ExportDirOrder::SubjectFirst;
     d->modLibrary = new ModuleLibrary(d->gconf, this);
     d->parentWidget = parentWidget;
     d->timer = std::make_shared<SyncTimer>();
@@ -538,14 +540,25 @@ void Engine::setSimpleStorageNames(bool enabled)
     d->simpleStorageNames = enabled;
 }
 
-bool Engine::clockTimeInStorageDir() const
+bool Engine::clockTimeInExportDir() const
 {
-    return d->clockTimeInStorageDir;
+    return d->clockTimeInExportDir;
 }
 
-void Engine::setClockTimeInStorageDir(bool enabled)
+void Engine::setClockTimeInExportDir(bool enabled)
 {
-    d->clockTimeInStorageDir = enabled;
+    d->clockTimeInExportDir = enabled;
+    refreshExportDirPath();
+}
+
+Engine::ExportDirOrder Engine::exportDirOrder() const
+{
+    return d->exportDirOrder;
+}
+
+void Engine::setExportDirOrder(ExportDirOrder order)
+{
+    d->exportDirOrder = order;
     refreshExportDirPath();
 }
 
@@ -843,14 +856,19 @@ void Engine::refreshExportDirPath()
 {
     auto time = QDateTime::currentDateTime();
     auto currentDate = time.date().toString("yyyy-MM-dd");
-    if (d->clockTimeInStorageDir)
+    if (d->clockTimeInExportDir)
         currentDate = QStringLiteral("%1_%2").arg(currentDate, time.toString("hhmm"));
+
+    QString firstPathPart = d->testSubject.id.trimmed().replace('/', '_').replace('\\', '_');
+    QString secondPathPart = currentDate;
+    if (d->exportDirOrder == ExportDirOrder::DateFirst)
+        std::swap(firstPathPart, secondPathPart);
 
     makeFinalExperimentId();
     d->exportDir = QDir::cleanPath(QStringLiteral("%1/%2/%3/%4")
                                        .arg(d->exportBaseDir)
-                                       .arg(d->testSubject.id.trimmed())
-                                       .arg(currentDate)
+                                       .arg(firstPathPart)
+                                       .arg(secondPathPart)
                                        .arg(d->experimentIdFinal.trimmed()));
 }
 
