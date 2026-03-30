@@ -17,9 +17,11 @@ fi
 SUITE="$1"
 SLUG_EXT="$2"
 
-# Make subprojects available locally
+# Make subprojects available locally - we need to ignore meson error, since
+# it downloads things, but fails after because it does not recognize the
+# cmake subproject (this is a Meson bug).
 git submodule update --init --recursive
-meson subprojects download
+meson subprojects download || true
 
 #
 # Set up the debian/ directory for the build.

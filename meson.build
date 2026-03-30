@@ -239,7 +239,7 @@ mimalloc_dep = dependency('', required: false)
 if sanitize_opt == 'none' and not get_option('valgrind')
     # Use system mimalloc only if it is recent enough and we aren't using sanitizers or valgrind,
     # both of which need special mimalloc builds.
-    mimalloc_system_dep = dependency('mimalloc', version: '>= 3.2.8',
+    mimalloc_system_dep = dependency('mimalloc', version: '>= 3.2.0',
                                      required: false, static: false)
     if mimalloc_system_dep.found()
         mimalloc_dep = declare_dependency(

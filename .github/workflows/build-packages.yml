@@ -96,7 +96,10 @@ jobs:
           sudo ln -s /srv/debspawn/debspawn.py /usr/bin/debspawn
 
     - name: Create Build Environment
-      run: debspawn create ${{ matrix.create-args }} --extra-packages=curl,ca-certificates ${{ matrix.suite }}
+      run: |
+          debspawn create ${{ matrix.create-args }} --extra-packages=curl,ca-certificates ${{ matrix.suite }}
+          # needed for configure-deb-build.sh
+          sudo apt-get install -yq meson
 
     - name: Configure Syntalos APT Repository
       run: |
