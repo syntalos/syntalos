@@ -161,7 +161,9 @@ void EDLUnit::setCollectionId(const QUuid &uuid)
  */
 QString EDLUnit::collectionShortTag() const
 {
-    return d->collectionId.toString(QUuid::WithoutBraces).left(6);
+    // we need to take from the right, because we use UUID7 and to get a varying tag
+    // from the timestamp component, we would need the first 12+ chars
+    return d->collectionId.toString(QUuid::WithoutBraces).right(8);
 }
 
 void EDLUnit::addAuthor(const EDLAuthor &author)
@@ -822,11 +824,16 @@ EDLCollection::EDLCollection(const QString &name)
 {
     setObjectKind(EDLUnitKind::COLLECTION);
     setParent(nullptr);
-    setName(name);
+    insertAttribute("collection_name", name);
 
-    // a collection must have a unique ID to identify all nodes that belong to it
-    // by default, we set a version 4 (random) UUID
-    setCollectionId(QUuid::createUuid());
+    // A collection must have a unique ID to identify all nodes that belong to it.
+    // We do prefer a version 7 UUID (random, timestamp-based) but can also use
+    // a version 4 UUID if the Qt version is older.
+#if QT_VERSION >= QT_VERSION_CHECK(6, 9, 0)
+    EDLGroup::setCollectionId(QUuid::createUuidV7());
+#else
+    EDLGroup::setCollectionId(QUuid::createUuid());
+#endif
 }
 
 EDLCollection::~EDLCollection() {}
