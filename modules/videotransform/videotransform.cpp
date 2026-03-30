@@ -223,10 +223,10 @@ void CropTransform::createSettingsUi(QWidget *parent)
             const double zoomX = (double)fullZoomed.width() / pixmap.value().width();
             const double zoomY = (double)fullZoomed.height() / pixmap.value().height();
             selector->setSelectedRegion(QRect(
-                qRound(m_roi.x * zoomX),
-                qRound(m_roi.y * zoomY),
-                qRound(m_roi.width * zoomX),
-                qRound(m_roi.height * zoomY)));
+                std::floor(m_roi.x * zoomX),
+                std::floor(m_roi.y * zoomY),
+                std::ceil(m_roi.width * zoomX),
+                std::ceil(m_roi.height * zoomY)));
         }
 
         const auto baselineRoi = qRectToCvRect(selector->unzoomedSelectedRegion());
