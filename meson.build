@@ -236,7 +236,8 @@ endif
 # Subprojects
 #
 mimalloc_dep = dependency('', required: false)
-if sanitize_opt == 'none' and not get_option('valgrind')
+mimalloc_dbg_opt = get_option('mimalloc-debug')
+if sanitize_opt == 'none' and mimalloc_dbg_opt == 'none' and not get_option('valgrind')
     # Use system mimalloc only if it is recent enough and we aren't using sanitizers or valgrind,
     # both of which need special mimalloc builds.
     mimalloc_system_dep = dependency('mimalloc', version: '>= 3.2.0',
@@ -253,6 +254,7 @@ if not mimalloc_dep.found()
     # Disable LTO for mimalloc - inline allocator functions conflict with LTO's aggressive
     # inlining optimization, causing memory validation failures.
     mi_opt.set_override_option('b_lto', 'false')
+    mi_opt.add_cmake_defines({'CMAKE_BUILD_TYPE': 'Release'})
     mi_opt.add_cmake_defines({
         'MI_BUILD_SHARED': false,
         'MI_BUILD_STATIC': true,
@@ -260,6 +262,12 @@ if not mimalloc_dep.found()
         'MI_OVERRIDE': true,
         'MI_OPT_ARCH': true,
     })
+    if mimalloc_dbg_opt != 'none'
+        mi_opt.add_cmake_defines({'MI_DEBUG': true, 'MI_DEBUG_INTERNAL': true})
+    endif
+    if mimalloc_dbg_opt == 'strict'
+        mi_opt.add_cmake_defines({'MI_DEBUG_FULL': true, 'MI_GUARDED': true})
+    endif
     if sanitize_opt != 'none'
         mi_opt.add_cmake_defines({'MI_TRACK_ASAN': true})
     endif

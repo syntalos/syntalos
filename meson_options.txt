@@ -72,3 +72,9 @@ option('valgrind',
        value : false,
        description : 'Build with Valgrind support.'
 )
+option('mimalloc-debug',
+       type : 'combo',
+       choices : ['none', 'normal', 'strict'],
+       value: 'none',
+       description : 'Enable debug checks in mimalloc.'
+)
