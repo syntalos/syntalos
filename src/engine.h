@@ -80,6 +80,9 @@ public:
     bool clockTimeInExportDir() const;
     void setClockTimeInExportDir(bool enabled);
 
+    bool flatExportDir() const;
+    void setFlatExportDir(bool enabled);
+
     QList<ExportPathComponent> exportDirLayout() const;
     void setExportDirLayout(const QList<ExportPathComponent> &layout);
 

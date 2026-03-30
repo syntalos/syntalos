@@ -73,4 +73,45 @@ QList<ExportPathComponent> normalizeExportDirLayout(const QList<ExportPathCompon
     return normalized;
 }
 
+ExportDirNameResult arrangeExportDirName(
+    const QList<ExportPathComponent> &layout,
+    const QString &subjectId,
+    const QString &time,
+    const QString &experimentId,
+    bool flat)
+{
+    const auto safeSubjectId = subjectId.trimmed().replace('/', '_').replace('\\', '_');
+    const auto safeExperimentId = experimentId.trimmed().replace('/', '_').replace('\\', '_');
+    ;
+
+    QStringList parts;
+    for (const auto &part : layout) {
+        if (part == ExportPathComponent::SubjectId)
+            parts.append(safeSubjectId);
+        else if (part == ExportPathComponent::Time)
+            parts.append(time);
+        else if (part == ExportPathComponent::ExperimentId)
+            parts.append(safeExperimentId);
+    }
+    if (parts.size() != 3)
+        parts = {safeSubjectId, time, safeExperimentId};
+
+    ExportDirNameResult result;
+    if (!parts[0].isEmpty())
+        result.flatId = parts[0] + "_";
+    if (!parts[1].isEmpty())
+        result.flatId.append(parts[1] + "_");
+    if (!parts[2].isEmpty())
+        result.flatId.append(parts[2] + "_");
+    result.flatId.removeLast();
+
+    if (flat) {
+        result.dirName = result.flatId;
+        return result;
+    } else {
+        result.dirName = QStringLiteral("%1/%2/%3").arg(parts.at(0), parts.at(1), parts.at(2));
+        return result;
+    }
+}
+
 } // namespace Syntalos

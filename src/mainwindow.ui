@@ -795,7 +795,7 @@
                   </property>
                  </widget>
                 </item>
-                <item row="1" column="0">
+                <item row="2" column="0">
                  <widget class="QLabel" name="addClockTimeToExportDirLabel">
                   <property name="toolTip">
                    <string/>
@@ -805,14 +805,14 @@
                   </property>
                  </widget>
                 </item>
-                <item row="1" column="1">
+                <item row="2" column="1">
                  <widget class="QCheckBox" name="cbClockTimeInExportDir">
                   <property name="toolTip">
                    <string>Include hours/minutes in export directory name, not just the current date</string>
                   </property>
                  </widget>
                 </item>
-                <item row="2" column="0">
+                <item row="3" column="0">
                  <widget class="QLabel" name="simplifiedStorageNamesLabel">
                   <property name="toolTip">
                    <string/>
@@ -822,10 +822,24 @@
                   </property>
                  </widget>
                 </item>
-                <item row="2" column="1">
+                <item row="3" column="1">
                  <widget class="QCheckBox" name="cbSimpleStorageNames">
                   <property name="toolTip">
                    <string>Simplify the names of datasets that are saved to disk, e.g. they will be lowercased, some characters may be replaced and no whitespaces will be used.</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="1" column="0">
+                 <widget class="QLabel" name="flatExportDirNameLabel">
+                  <property name="text">
+                   <string>Flat export directory name</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="1" column="1">
+                 <widget class="QCheckBox" name="cbFlatExportDirName">
+                  <property name="toolTip">
+                   <string>Do not create a hierarchical export directory structure, but just one folder instead</string>
                   </property>
                  </widget>
                 </item>

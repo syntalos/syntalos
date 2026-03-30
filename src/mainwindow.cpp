@@ -348,6 +348,13 @@ MainWindow::MainWindow(QWidget *parent)
         updateExportDirDisplay();
     });
 
+    // also update if we change the export hierarchy to flat
+    m_engine->setFlatExportDir(ui->cbFlatExportDirName->isChecked());
+    connect(ui->cbFlatExportDirName, &QCheckBox::toggled, [this](bool checked) {
+        m_engine->setFlatExportDir(checked);
+        updateExportDirDisplay();
+    });
+
     // create loading indicator for long loading/running tasks
     m_busyIndicator = new QSvgWidget(this);
     const auto indicatorWidgetDim = ui->mainToolBar->height() - 2;
@@ -513,6 +520,7 @@ void MainWindow::runActionTriggered()
 
     m_engine->setSaveInternalDiagnostics(m_gconf->saveExperimentDiagnostics());
     m_engine->setClockTimeInExportDir(ui->cbClockTimeInExportDir->isChecked());
+    m_engine->setFlatExportDir(ui->cbFlatExportDirName->isChecked());
     m_engine->setSimpleStorageNames(ui->cbSimpleStorageNames->isChecked());
 
     if (m_isIntervalRun) {
@@ -644,6 +652,7 @@ bool MainWindow::saveConfiguration(const QString &fileName)
     storageSettings.insert("order", exportDirOrder);
     storageSettings.insert("clock_time_in_dir", ui->cbClockTimeInExportDir->isChecked());
     storageSettings.insert("simple_names", ui->cbSimpleStorageNames->isChecked());
+    storageSettings.insert("flat_root", ui->cbFlatExportDirName->isChecked());
 
     settings.insert("storage", storageSettings);
 
@@ -772,6 +781,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
     auto storageObj = rootObj.value("storage").toHash();
     ui->cbClockTimeInExportDir->setChecked(storageObj.value("clock_time_in_dir", false).toBool());
     ui->cbSimpleStorageNames->setChecked(storageObj.value("simple_names", true).toBool());
+    ui->cbFlatExportDirName->setChecked(storageObj.value("flat_root", false).toBool());
 
     QList<ExportPathComponent> exportDirLayout;
     const auto exportDirLayoutValues = storageObj.value("order").toList();

@@ -279,6 +279,7 @@ public:
 
     QString exportBaseDir;
     QString exportDir;
+    QString exportName;
     bool exportDirIsTempDir;
     bool exportDirIsValid;
     bool alwaysOverrideExportDir;
@@ -289,6 +290,7 @@ public:
     QString experimentIdFinal;
     bool simpleStorageNames;
     bool clockTimeInExportDir;
+    bool flatExportDirName;
     QList<ExportPathComponent> exportDirLayout;
 
     std::atomic_bool active;
@@ -329,6 +331,7 @@ Engine::Engine(QWidget *parentWidget)
     d->running = false;
     d->simpleStorageNames = true;
     d->clockTimeInExportDir = false;
+    d->flatExportDirName = false;
     d->exportDirLayout = {
         ExportPathComponent::SubjectId,
         ExportPathComponent::Time,
@@ -551,8 +554,23 @@ bool Engine::clockTimeInExportDir() const
 
 void Engine::setClockTimeInExportDir(bool enabled)
 {
+    bool update = d->clockTimeInExportDir != enabled;
     d->clockTimeInExportDir = enabled;
-    refreshExportDirPath();
+    if (update)
+        refreshExportDirPath();
+}
+
+bool Engine::flatExportDir() const
+{
+    return d->flatExportDirName;
+}
+
+void Engine::setFlatExportDir(bool enabled)
+{
+    bool update = d->flatExportDirName != enabled;
+    d->flatExportDirName = enabled;
+    if (update)
+        refreshExportDirPath();
 }
 
 QList<ExportPathComponent> Engine::exportDirLayout() const
@@ -861,26 +879,13 @@ void Engine::refreshExportDirPath()
     auto time = QDateTime::currentDateTime();
     auto currentDate = time.date().toString("yyyy-MM-dd");
     if (d->clockTimeInExportDir)
-        currentDate = QStringLiteral("%1_%2").arg(currentDate, time.toString("hhmm"));
+        currentDate = QStringLiteral("%1T%2").arg(currentDate, time.toString("hhmm"));
     makeFinalExperimentId();
 
-    const auto safeSubjectId = d->testSubject.id.trimmed().replace('/', '_').replace('\\', '_');
-    const auto expId = d->experimentIdFinal.trimmed();
-
-    QStringList parts;
-    for (const auto &part : d->exportDirLayout) {
-        if (part == ExportPathComponent::SubjectId)
-            parts.append(safeSubjectId);
-        else if (part == ExportPathComponent::Time)
-            parts.append(currentDate);
-        else if (part == ExportPathComponent::ExperimentId)
-            parts.append(expId);
-    }
-    if (parts.size() != 3)
-        parts = {safeSubjectId, currentDate, expId};
-
-    d->exportDir = QDir::cleanPath(
-        QStringLiteral("%1/%2/%3/%4").arg(d->exportBaseDir, parts.at(0), parts.at(1), parts.at(2)));
+    const auto result = arrangeExportDirName(
+        d->exportDirLayout, d->testSubject.id, currentDate, d->experimentIdFinal, d->flatExportDirName);
+    d->exportDir = QDir::cleanPath(QStringLiteral("%1/%2").arg(d->exportBaseDir, result.dirName));
+    d->exportName = result.flatId;
 }
 
 void Engine::emitStatusMessage(const QString &message)
@@ -1500,6 +1505,7 @@ bool Engine::finalizeExperimentMetadata(
         storageCollection->addAuthor(d->experimenter);
 
     QVariantHash extraData;
+    extraData.insert("collection_name", d->exportName);
     extraData.insert("subject_id", d->testSubject.id.isEmpty() ? QVariant() : d->testSubject.id);
     extraData.insert("subject_group", d->testSubject.group.isEmpty() ? QVariant() : d->testSubject.group);
     extraData.insert("subject_comment", d->testSubject.comment.isEmpty() ? QVariant() : d->testSubject.comment);
@@ -1729,11 +1735,7 @@ bool Engine::runInternal(const QString &exportDirPath)
 
     // create new experiment directory layout (EDL) collection to store
     // all data modules generate in
-    std::shared_ptr<EDLCollection> storageCollection(
-        new EDLCollection(QStringLiteral("%1_%2_%3")
-                              .arg(d->testSubject.id)
-                              .arg(d->experimentIdFinal)
-                              .arg(QDateTime::currentDateTime().toString("yy-MM-dd hh:mm"))));
+    auto storageCollection = std::make_shared<EDLCollection>(d->exportName);
     storageCollection->setPath(exportDirPath);
 
     // if we should save internal diagnostic data, create a group for it!

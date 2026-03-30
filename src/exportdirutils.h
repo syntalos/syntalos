@@ -46,4 +46,28 @@ QString exportDirPathComponentTitle(ExportPathComponent component);
 
 QList<ExportPathComponent> normalizeExportDirLayout(const QList<ExportPathComponent> &layout);
 
+struct ExportDirNameResult {
+    QString dirName; /// Export directory name to use
+    QString flatId;  /// ID for this EDL collection as flat string
+};
+
+/**
+ * Arrange the given export directory elements into a path segment that can be used as export directory when combined
+ * with a root.
+ *
+ * @param layout The layout to arrange the elements into.
+ * @param subjectId The Subject ID
+ * @param time The formatted time element
+ * @param experimentId The experiment ID
+ * @param flat True if we do not want any subdirectories.
+ *
+ * @return The arranged export directory segment.
+ */
+ExportDirNameResult arrangeExportDirName(
+    const QList<ExportPathComponent> &layout,
+    const QString &subjectId,
+    const QString &time,
+    const QString &experimentId,
+    bool flat = false);
+
 } // namespace Syntalos
