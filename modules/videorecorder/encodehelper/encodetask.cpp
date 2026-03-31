@@ -122,7 +122,7 @@ void EncodeTask::run()
         TimeSyncFileReader tfr;
         if (!tfr.open(m_tsyncSrcFname.toStdString())) {
             m_item->setError(
-                QStringLiteral("Unable to open tsync file of this video for reading: %1").arg(tfr.lastError()));
+                QStringLiteral("Unable to open tsync file of this video for reading: %1").arg(qstr(tfr.lastError())));
             return;
         }
 
@@ -143,7 +143,7 @@ void EncodeTask::run()
         m_item->setError(QStringLiteral("No frames found in video file."));
         return;
     }
-    double onePerc = 100.0 / frameCount;
+    double onePerc = 100.0 / (double)frameCount;
 
     while (true) {
         auto maybeFrame = vsrc.readFrame();

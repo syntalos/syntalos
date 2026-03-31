@@ -976,8 +976,7 @@ void VideoWriter::initializeInternal()
         d->tsfWriter.setFileName(timestampFname.toStdString());
         if (!d->tsfWriter.open(d->modName.toStdString(), d->collectionId)) {
             finalizeInternal(false);
-            throw std::runtime_error(
-                QStringLiteral("Unable to initialize timesync file: %1").arg(d->tsfWriter.lastError()).toStdString());
+            throw std::runtime_error(std::format("Unable to initialize timesync file: {}", d->tsfWriter.lastError()));
         }
     }
 
