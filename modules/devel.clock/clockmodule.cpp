@@ -24,6 +24,7 @@
 
 #include "clocksettingsdialog.h"
 #include "datactl/tsyncfile.h"
+#include "utils/misc.h"
 
 #define NSEC_IN_SEC 1000000000
 
@@ -113,7 +114,7 @@ public:
 
         // open writer
         if (!m_tsWriter.open(name().toStdString(), dstore->collectionId(), userData)) {
-            raiseError(QStringLiteral("Unable to open timesync file %1").arg(m_tsWriter.fileName()));
+            raiseError(QStringLiteral("Unable to open timesync file %1").arg(qstr(m_tsWriter.fileName())));
             return false;
         }
 

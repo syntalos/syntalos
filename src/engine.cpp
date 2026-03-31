@@ -2451,7 +2451,7 @@ void Engine::onSynchronizerDetailsChanged(const std::string &id, const TimeSyncS
     if (mod != nullptr)
         modId = mod->id();
 
-    std::shared_ptr<EDLDataset> ds(new EDLDataset);
+    auto ds = std::make_shared<EDLDataset>();
     ds->setName(QStringLiteral("%1-%2").arg(modId, qstr(id)));
     d->edlInternalData->addChild(ds);
 
@@ -2472,7 +2472,7 @@ void Engine::onSynchronizerOffsetChanged(const std::string &id, const microsecon
         return;
 
     auto tsw = d->internalTSyncWriters.value(id);
-    if (tsw.get() == nullptr)
+    if (tsw == nullptr)
         return;
 
     tsw->writeTimes(d->timer->timeSinceStartUsec(), currentOffset);
