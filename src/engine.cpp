@@ -2452,7 +2452,7 @@ void Engine::onSynchronizerDetailsChanged(const std::string &id, const TimeSyncS
         modId = mod->id();
 
     std::shared_ptr<EDLDataset> ds(new EDLDataset);
-    ds->setName(QStringLiteral("%1-%2").arg(modId).arg(id));
+    ds->setName(QStringLiteral("%1-%2").arg(modId, qstr(id)));
     d->edlInternalData->addChild(ds);
 
     auto tsw = std::make_shared<TimeSyncFileWriter>();

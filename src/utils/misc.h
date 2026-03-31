@@ -52,6 +52,7 @@ inline QString qstr(const std::string &s)
 {
     return QString::fromUtf8(s.data(), static_cast<qsizetype>(s.size()));
 }
+
 } // namespace Syntalos
 
 /**
