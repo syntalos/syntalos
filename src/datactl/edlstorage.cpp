@@ -29,6 +29,7 @@
 #include <iostream>
 #include <memory>
 #include <mutex>
+#include <utility>
 #include <toml++/toml.h>
 
 #include "utils/misc.h"
@@ -47,8 +48,8 @@ static QString edlSanitizeFilename(const QString &name)
 class EDLUnit::Private
 {
 public:
-    Private() {}
-    ~Private() {}
+    Private() = default;
+    ~Private() = default;
 
     EDLUnitKind objectKind;
     QString formatVersion;
@@ -79,7 +80,7 @@ EDLUnit::EDLUnit(EDLUnitKind kind, EDLUnit *parent)
     d->parent = parent;
 }
 
-EDLUnit::~EDLUnit() {}
+EDLUnit::~EDLUnit() = default;
 
 EDLUnitKind EDLUnit::objectKind() const
 {
@@ -187,7 +188,7 @@ void EDLUnit::setPath(const QString &path)
 QString EDLUnit::path() const
 {
     if (d->rootPath.isEmpty())
-        return QString();
+        return {};
     return QDir::cleanPath(d->rootPath + QStringLiteral("/") + name());
 }
 
@@ -257,7 +258,7 @@ void EDLUnit::setLastError(const QString &message)
 
 void EDLUnit::setDataObjects(std::optional<EDLDataFile> dataFile, const QList<EDLDataFile> &auxDataFiles)
 {
-    d->dataFile = dataFile;
+    d->dataFile = std::move(dataFile);
     d->auxDataFiles = auxDataFiles;
 }
 
@@ -359,7 +360,7 @@ QString EDLUnit::serializeManifest()
         document.insert("data", std::move(dataTab));
     }
 
-    // register auxilary data files (metadata or extra data accompanying the main data files)
+    // register auxiliary data files (metadata or extra data accompanying the main data files)
     if (!d->auxDataFiles.isEmpty()) {
         toml::array auxDataArr;
         for (auto &adf : d->auxDataFiles) {
@@ -383,7 +384,7 @@ QString EDLUnit::serializeAttributes()
     const std::lock_guard<std::mutex> lock(d->mutex);
     // no user-defined attributes means the document is empty
     if (d->attrs.isEmpty())
-        return QString();
+        return {};
 
     auto document = qVariantHashToTomlTable(d->attrs);
 
@@ -457,8 +458,8 @@ void EDLUnit::setGeneratorId(const QString &idString)
 class EDLDataset::Private
 {
 public:
-    Private() {}
-    ~Private() {}
+    Private() = default;
+    ~Private() = default;
 
     EDLDataFile dataFile;
     QMap<QString, EDLDataFile> auxFiles;
@@ -473,7 +474,7 @@ EDLDataset::EDLDataset(EDLGroup *parent)
 {
 }
 
-EDLDataset::~EDLDataset() {}
+EDLDataset::~EDLDataset() = default;
 
 bool EDLDataset::save()
 {
@@ -519,13 +520,13 @@ bool EDLDataset::save()
             qWarning().noquote().nospace() << "Dataset '" << name() << "' expected to find data matching pattern `"
                                            << d->dataScanPattern.first << "`, but no data was found.";
         } else {
-            for (int i = 0; i < files.size(); ++i) {
-                if (auxFiles.contains(files[i]))
+            for (const auto &file : files) {
+                if (auxFiles.contains(file))
                     continue;
                 if (d->dataFile.parts.isEmpty())
-                    setDataFile(files[i], d->dataScanPattern.second.summary);
+                    setDataFile(file, d->dataScanPattern.second.summary);
                 else
-                    addDataFilePart(files[i]);
+                    addDataFilePart(file);
             }
         }
     }
@@ -614,7 +615,7 @@ QString EDLDataset::pathForDataBasename(const QString &baseName)
     QDir dir(path());
     if (path().isEmpty() || !dir.mkpath(path())) {
         setLastError(QStringLiteral("Unable to create EDL directory: '%1'").arg(path()));
-        return QString();
+        return {};
     }
     return dir.filePath(bname);
 }
@@ -625,7 +626,7 @@ QString EDLDataset::pathForDataPart(const EDLDataPart &dpart)
     return dir.filePath(dpart.fname);
 }
 
-QStringList EDLDataset::findFilesByPattern(const QString &wildcard)
+QStringList EDLDataset::findFilesByPattern(const QString &wildcard) const
 {
     QDir dir(path());
     const auto filters = QStringList() << wildcard;
@@ -645,8 +646,8 @@ QStringList EDLDataset::findFilesByPattern(const QString &wildcard)
 class EDLGroup::Private
 {
 public:
-    Private() {}
-    ~Private() {}
+    Private() = default;
+    ~Private() = default;
 
     QList<std::shared_ptr<EDLUnit>> children;
     std::mutex mutex;
@@ -658,7 +659,7 @@ EDLGroup::EDLGroup(EDLGroup *parent)
 {
 }
 
-EDLGroup::~EDLGroup() {}
+EDLGroup::~EDLGroup() = default;
 
 bool EDLGroup::setName(const QString &name)
 {
@@ -695,7 +696,7 @@ QList<std::shared_ptr<EDLUnit>> EDLGroup::children() const
     return d->children;
 }
 
-void EDLGroup::addChild(std::shared_ptr<EDLUnit> edlObj)
+void EDLGroup::addChild(const std::shared_ptr<EDLUnit> &edlObj)
 {
     const std::lock_guard<std::mutex> lock(d->mutex);
     edlObj->setParent(this);
@@ -815,8 +816,8 @@ bool EDLGroup::validate(bool recursive)
 class EDLCollection::Private
 {
 public:
-    Private() {}
-    ~Private() {}
+    Private() = default;
+    ~Private() = default;
 };
 
 EDLCollection::EDLCollection(const QString &name)
@@ -824,7 +825,10 @@ EDLCollection::EDLCollection(const QString &name)
 {
     setObjectKind(EDLUnitKind::COLLECTION);
     setParent(nullptr);
-    insertAttribute("collection_name", name);
+    if (!name.isEmpty()) {
+        EDLGroup::setName(name);
+        insertAttribute("collection_name", name);
+    }
 
     // A collection must have a unique ID to identify all nodes that belong to it.
     // We do prefer a version 7 UUID (random, timestamp-based) but can also use
@@ -836,7 +840,7 @@ EDLCollection::EDLCollection(const QString &name)
 #endif
 }
 
-EDLCollection::~EDLCollection() {}
+EDLCollection::~EDLCollection() = default;
 
 QString EDLCollection::generatorId() const
 {

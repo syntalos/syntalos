@@ -227,7 +227,7 @@ private:
     Q_DISABLE_COPY(EDLDataset)
     std::unique_ptr<Private> d;
 
-    QStringList findFilesByPattern(const QString &wildcard);
+    QStringList findFilesByPattern(const QString &wildcard) const;
 };
 
 /**
@@ -253,7 +253,7 @@ public:
     void setCollectionId(const QUuid &uuid) override;
 
     QList<std::shared_ptr<EDLUnit>> children() const;
-    void addChild(std::shared_ptr<EDLUnit> edlObj);
+    void addChild(const std::shared_ptr<EDLUnit> &edlObj);
 
     std::shared_ptr<EDLGroup> groupByName(const QString &name, EDLCreateFlag flag = EDLCreateFlag::OPEN_ONLY);
     std::shared_ptr<EDLDataset> datasetByName(const QString &name, EDLCreateFlag flag = EDLCreateFlag::OPEN_ONLY);
@@ -273,7 +273,7 @@ private:
 class EDLCollection : public EDLGroup
 {
 public:
-    explicit EDLCollection(const QString &name);
+    explicit EDLCollection(const QString &name = QString());
     ~EDLCollection();
 
     QString generatorId() const;
