@@ -306,7 +306,7 @@ public:
 
     bool saveInternal;
     std::shared_ptr<EDLGroup> edlInternalData;
-    QHash<QString, std::shared_ptr<TimeSyncFileWriter>> internalTSyncWriters;
+    QHash<std::string, std::shared_ptr<TimeSyncFileWriter>> internalTSyncWriters;
 
     std::unique_ptr<EngineResourceMonitorData> monitoring;
     int runCount;
@@ -2440,7 +2440,7 @@ void Engine::receiveModuleError(const QString &message)
         emit runFailed(mod, message);
 }
 
-void Engine::onSynchronizerDetailsChanged(const QString &id, const TimeSyncStrategies &, const microseconds_t &)
+void Engine::onSynchronizerDetailsChanged(const std::string &id, const TimeSyncStrategies &, const microseconds_t &)
 {
     if (!d->saveInternal)
         return;
@@ -2455,16 +2455,18 @@ void Engine::onSynchronizerDetailsChanged(const QString &id, const TimeSyncStrat
     ds->setName(QStringLiteral("%1-%2").arg(modId).arg(id));
     d->edlInternalData->addChild(ds);
 
-    std::shared_ptr<TimeSyncFileWriter> tsw(new TimeSyncFileWriter);
-    tsw->setFileName(ds->setDataFile("offsets.tsync"));
+    auto tsw = std::make_shared<TimeSyncFileWriter>();
+    tsw->setFileName(ds->setDataFile("offsets.tsync").toStdString());
     tsw->setTimeUnits(TSyncFileTimeUnit::MICROSECONDS, TSyncFileTimeUnit::MICROSECONDS);
     tsw->setTimeDataTypes(TSyncFileDataType::INT64, TSyncFileDataType::INT64);
-    tsw->setTimeNames(QStringLiteral("approx-master-time"), QStringLiteral("sync-offset"));
-    tsw->open(QStringLiteral("SyntalosInternal::%1_%2").arg(modId, mod->name().simplified()), ds->collectionId());
+    tsw->setTimeNames("approx-master-time", "sync-offset");
+    tsw->open(
+        QStringLiteral("SyntalosInternal::%1_%2").arg(modId, mod->name().simplified()).toStdString(),
+        ds->collectionId());
     d->internalTSyncWriters[id] = tsw;
 }
 
-void Engine::onSynchronizerOffsetChanged(const QString &id, const microseconds_t &currentOffset)
+void Engine::onSynchronizerOffsetChanged(const std::string &id, const microseconds_t &currentOffset)
 {
     if (!d->saveInternal)
         return;

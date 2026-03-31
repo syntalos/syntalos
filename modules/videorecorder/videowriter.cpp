@@ -969,12 +969,12 @@ void VideoWriter::initializeInternal()
     if (d->saveTimestamps) {
         d->tsfWriter.close(); // ensure file is closed
         d->tsfWriter.setSyncMode(TSyncFileMode::CONTINUOUS);
-        d->tsfWriter.setTimeNames(QStringLiteral("frame-no"), QStringLiteral("master-time"));
+        d->tsfWriter.setTimeNames("frame-no", "master-time");
         d->tsfWriter.setTimeUnits(TSyncFileTimeUnit::INDEX, TSyncFileTimeUnit::MICROSECONDS);
         d->tsfWriter.setTimeDataTypes(TSyncFileDataType::UINT32, TSyncFileDataType::UINT64);
         d->tsfWriter.setChunkSize(std::lround(av_q2d(d->fps) * 60.0)); // new chunk about every minute
-        d->tsfWriter.setFileName(timestampFname);
-        if (!d->tsfWriter.open(d->modName, d->collectionId)) {
+        d->tsfWriter.setFileName(timestampFname.toStdString());
+        if (!d->tsfWriter.open(d->modName.toStdString(), d->collectionId)) {
             finalizeInternal(false);
             throw std::runtime_error(
                 QStringLiteral("Unable to initialize timesync file: %1").arg(d->tsfWriter.lastError()).toStdString());

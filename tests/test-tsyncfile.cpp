@@ -16,15 +16,15 @@ private slots:
 
     void tsyncFileRWForDTypes(TSyncFileDataType dt1, TSyncFileDataType dt2, int values_n = 142000)
     {
-        auto tsFilename = QStringLiteral("/tmp/tstest-%1").arg(createRandomString(8));
+        auto tsFilename = QStringLiteral("/tmp/tstest-%1").arg(createRandomString(8)).toStdString();
 
         // write a timesync file
         auto tswriter = std::make_unique<TimeSyncFileWriter>();
         tswriter->setFileName(tsFilename);
         tswriter->setTimeDataTypes(dt1, dt2);
         auto ret = tswriter->open(
-            QStringLiteral("UnittestDummyModule"), QUuid("a12975f1-84b7-4350-8683-7a5fe9ed968f"), microseconds_t(1500));
-        QVERIFY2(ret, qPrintable(tswriter->lastError()));
+            "UnittestDummyModule", QUuid("a12975f1-84b7-4350-8683-7a5fe9ed968f"), microseconds_t(1500));
+        QVERIFY2(ret, tswriter->lastError().c_str());
 
         QElapsedTimer timer;
         timer.start();
@@ -38,8 +38,8 @@ private slots:
         // read the timesync file
         auto tsreader = std::make_unique<TimeSyncFileReader>();
         timer.start();
-        ret = tsreader->open(tsFilename + QStringLiteral(".tsync"));
-        QVERIFY2(ret, qPrintable(tsreader->lastError()));
+        ret = tsreader->open(tsFilename + ".tsync");
+        QVERIFY2(ret, tsreader->lastError().c_str());
         qDebug().noquote() << "TSync read operation took" << timer.elapsed() << "milliseconds";
 
         QCOMPARE(tsreader->moduleName(), QStringLiteral("UnittestDummyModule"));
@@ -58,7 +58,7 @@ private slots:
         }
 
         // delete temporary file
-        QFile file(tsFilename + QStringLiteral(".tsync"));
+        QFile file(QString::fromUtf8(tsFilename + ".tsync"));
         file.remove();
     }
 

@@ -777,10 +777,10 @@ Q_SIGNALS:
     void portsConnected(const VarStreamInputPort *inPort, const StreamOutputPort *outPort);
     void portConfigurationUpdated();
     void synchronizerDetailsChanged(
-        const QString &id,
+        const std::string &id,
         const Syntalos::TimeSyncStrategies &strategies,
         const Syntalos::microseconds_t &tolerance);
-    void synchronizerOffsetChanged(const QString &id, const Syntalos::microseconds_t &currentOffset);
+    void synchronizerOffsetChanged(const std::string &id, const Syntalos::microseconds_t &currentOffset);
     void modifiersUpdated();
 
 protected:

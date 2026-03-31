@@ -1020,12 +1020,12 @@ std::unique_ptr<FreqCounterSynchronizer> AbstractModule::initCounterSynchronizer
         return nullptr;
     assert(frequencyHz > 0);
 
-    auto synchronizer = std::make_unique<FreqCounterSynchronizer>(m_syTimer, name(), frequencyHz);
+    auto synchronizer = std::make_unique<FreqCounterSynchronizer>(m_syTimer, name().toStdString(), frequencyHz);
     synchronizer->setNotifyCallbacks(
-        [this](const QString &id, const TimeSyncStrategies &strategies, const microseconds_t &tolerance) {
+        [this](const std::string &id, const TimeSyncStrategies &strategies, const microseconds_t &tolerance) {
             Q_EMIT synchronizerDetailsChanged(id, strategies, tolerance);
         },
-        [this](const QString &id, const microseconds_t &currentOffset) {
+        [this](const std::string &id, const microseconds_t &currentOffset) {
             Q_EMIT synchronizerOffsetChanged(id, currentOffset);
         });
 
@@ -1037,15 +1037,15 @@ std::unique_ptr<SecondaryClockSynchronizer> AbstractModule::initClockSynchronize
     if ((d->state != ModuleState::PREPARING) && (d->state != ModuleState::READY) && (d->state != ModuleState::RUNNING))
         return nullptr;
 
-    auto synchronizer = std::make_unique<SecondaryClockSynchronizer>(m_syTimer, name());
+    auto synchronizer = std::make_unique<SecondaryClockSynchronizer>(m_syTimer, name().toStdString());
     if (expectedFrequencyHz > 0)
         synchronizer->setExpectedClockFrequencyHz(expectedFrequencyHz);
 
     synchronizer->setNotifyCallbacks(
-        [this](const QString &id, const TimeSyncStrategies &strategies, const microseconds_t &tolerance) {
+        [this](const std::string &id, const TimeSyncStrategies &strategies, const microseconds_t &tolerance) {
             Q_EMIT synchronizerDetailsChanged(id, strategies, tolerance);
         },
-        [this](const QString &id, const microseconds_t &currentOffset) {
+        [this](const std::string &id, const microseconds_t &currentOffset) {
             Q_EMIT synchronizerOffsetChanged(id, currentOffset);
         });
 

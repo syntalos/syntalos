@@ -2,6 +2,7 @@
 #include <QDebug>
 #include <QtTest>
 #include <iostream>
+#include <memory>
 #include <thread>
 
 #include "datactl/syclock.h"
@@ -88,8 +89,8 @@ private slots:
     void runExClockSynchronizer()
     {
         qDebug() << "\n#\n# External Clock Synchronizer\n#";
-        std::shared_ptr<SyncTimer> syTimer(new SyncTimer());
-        std::unique_ptr<SecondaryClockSynchronizer> sync(new SecondaryClockSynchronizer(syTimer, nullptr));
+        auto syTimer = std::make_shared<SyncTimer>();
+        std::unique_ptr<SecondaryClockSynchronizer> sync(new SecondaryClockSynchronizer(syTimer, {}));
 
         const auto toleranceValue = microseconds_t(1000);
         const auto calibrationCount = 48;
@@ -364,8 +365,8 @@ private slots:
     void runExClockSynchronizerMovingAverage()
     {
         qDebug() << "\n#\n# External Clock Synchronizer Moving Average\n#";
-        std::shared_ptr<SyncTimer> syTimer(new SyncTimer());
-        std::unique_ptr<SecondaryClockSynchronizer> sync(new SecondaryClockSynchronizer(syTimer, nullptr));
+        auto syTimer = std::make_shared<SyncTimer>();
+        std::unique_ptr<SecondaryClockSynchronizer> sync(new SecondaryClockSynchronizer(syTimer, {}));
 
         const auto toleranceValue = microseconds_t(4500);
         const auto calibrationCount = 46;
@@ -462,7 +463,7 @@ private slots:
         std::unique_ptr<FakeIndexDevice> idxDev(new FakeIndexDevice());
 
         // new synchronizer for 20kHz clock source
-        std::unique_ptr<FreqCounterSynchronizer> sync(new FreqCounterSynchronizer(syTimer, nullptr, idxDev->freqHz()));
+        std::unique_ptr<FreqCounterSynchronizer> sync(new FreqCounterSynchronizer(syTimer, {}, idxDev->freqHz()));
 
         const auto toleranceValue = microseconds_t(1000);
         const int calibrationCount = (idxDev->freqHz() / idxDev->blockSize()) / 2; // half a second of data

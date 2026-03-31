@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -23,6 +23,7 @@
 #include <QDebug>
 #include <algorithm>
 #include <cstdlib>
+#include <ranges>
 
 #include "utils/misc.h"
 
@@ -34,41 +35,41 @@ Q_LOGGING_CATEGORY(logTimeSync, "time.synchronizer")
 using namespace Syntalos;
 using namespace Eigen;
 
-const QString Syntalos::timeSyncStrategyToHString(const TimeSyncStrategy &strategy)
+const std::string Syntalos::timeSyncStrategyToHString(const TimeSyncStrategy &strategy)
 {
     switch (strategy) {
     case TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD:
-        return QStringLiteral("shift timestamps (fwd)");
+        return "shift timestamps (fwd)";
     case TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD:
-        return QStringLiteral("shift timestamps (bwd)");
+        return "shift timestamps (bwd)";
     case TimeSyncStrategy::ADJUST_CLOCK:
-        return QStringLiteral("align secondary clock");
+        return "align secondary clock";
     case TimeSyncStrategy::WRITE_TSYNCFILE:
-        return QStringLiteral("write time-sync file");
+        return "write time-sync file";
     default:
-        return QStringLiteral("invalid");
+        return "invalid";
     }
 }
 
-const QString Syntalos::timeSyncStrategiesToHString(const TimeSyncStrategies &strategies)
+const std::string Syntalos::timeSyncStrategiesToHString(const TimeSyncStrategies &strategies)
 {
-    QStringList sl;
+    std::vector<std::string> sl;
 
     if (strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD)
         && strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD)) {
-        sl.append(QStringLiteral("shift timestamps"));
+        sl.emplace_back("shift timestamps");
     } else {
         if (strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD))
-            sl.append(timeSyncStrategyToHString(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD));
+            sl.emplace_back(timeSyncStrategyToHString(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD));
         if (strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD))
-            sl.append(timeSyncStrategyToHString(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD));
+            sl.emplace_back(timeSyncStrategyToHString(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD));
     }
     if (strategies.testFlag(TimeSyncStrategy::ADJUST_CLOCK))
-        sl.append(timeSyncStrategyToHString(TimeSyncStrategy::ADJUST_CLOCK));
+        sl.emplace_back(timeSyncStrategyToHString(TimeSyncStrategy::ADJUST_CLOCK));
     if (strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
-        sl.append(timeSyncStrategyToHString(TimeSyncStrategy::WRITE_TSYNCFILE));
+        sl.emplace_back(timeSyncStrategyToHString(TimeSyncStrategy::WRITE_TSYNCFILE));
 
-    return sl.join(" and ");
+    return std::ranges::to<std::string>(sl | std::views::join_with(std::string(" and ")));
 }
 
 // -----------------------
@@ -77,9 +78,9 @@ const QString Syntalos::timeSyncStrategiesToHString(const TimeSyncStrategies &st
 
 FreqCounterSynchronizer::FreqCounterSynchronizer(
     std::shared_ptr<SyncTimer> masterTimer,
-    const QString &modName,
+    const std::string &modName,
     double frequencyHz,
-    const QString &id)
+    const std::string &id)
     : m_modName(modName),
       m_id(id),
       m_strategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD | TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD),
@@ -93,8 +94,8 @@ FreqCounterSynchronizer::FreqCounterSynchronizer(
       m_lastValidMasterTimestamp(0),
       m_tswriter(new TimeSyncFileWriter)
 {
-    if (m_id.isEmpty())
-        m_id = createRandomString(4);
+    if (m_id.empty())
+        m_id = createRandomString(4).toStdString();
 
     // time one datapoint takes to acquire, if the frequency in Hz is accurate, in microseconds
     m_timePerPointUs = (1.0 / m_freq) * US_PER_S;
@@ -129,11 +130,11 @@ void FreqCounterSynchronizer::setCalibrationBlocksCount(int count)
     m_calibrationMaxBlockN = count;
 }
 
-void FreqCounterSynchronizer::setTimeSyncBasename(const QString &fname, const QUuid &collectionId)
+void FreqCounterSynchronizer::setTimeSyncBasename(const std::string &fname, const QUuid &collectionId)
 {
     m_collectionId = collectionId;
     m_tswriter->setFileName(fname);
-    m_strategies = m_strategies.setFlag(TimeSyncStrategy::WRITE_TSYNCFILE, !fname.isEmpty());
+    m_strategies = m_strategies.setFlag(TimeSyncStrategy::WRITE_TSYNCFILE, !fname.empty());
 }
 
 /**
@@ -455,8 +456,8 @@ void FreqCounterSynchronizer::processTimestamps(
 
 SecondaryClockSynchronizer::SecondaryClockSynchronizer(
     std::shared_ptr<SyncTimer> masterTimer,
-    const QString &modName,
-    const QString &id)
+    const std::string &modName,
+    const std::string &id)
     : m_modName(modName),
       m_id(id),
       m_strategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD | TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD),
@@ -468,8 +469,8 @@ SecondaryClockSynchronizer::SecondaryClockSynchronizer(
       m_haveExpectedOffset(false),
       m_tswriter(new TimeSyncFileWriter)
 {
-    if (m_id.isEmpty())
-        m_id = createRandomString(4);
+    if (m_id.empty())
+        m_id = createRandomString(4).toStdString();
 
     // make our existence known to the system
     emitSyncDetailsChanged();
@@ -535,11 +536,11 @@ void SecondaryClockSynchronizer::setExpectedClockFrequencyHz(double frequency)
     emitSyncDetailsChanged();
 }
 
-void SecondaryClockSynchronizer::setTimeSyncBasename(const QString &fname, const QUuid &collectionId)
+void SecondaryClockSynchronizer::setTimeSyncBasename(const std::string &fname, const QUuid &collectionId)
 {
     m_collectionId = collectionId;
     m_tswriter->setFileName(fname);
-    m_strategies = m_strategies.setFlag(TimeSyncStrategy::WRITE_TSYNCFILE, !fname.isEmpty());
+    m_strategies = m_strategies.setFlag(TimeSyncStrategy::WRITE_TSYNCFILE, !fname.empty());
 }
 
 bool SecondaryClockSynchronizer::isCalibrated() const

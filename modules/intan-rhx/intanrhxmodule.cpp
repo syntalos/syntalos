@@ -204,7 +204,7 @@ bool IntanRhxModule::prepare(const TestSubject &)
     // set up slave-clock synchronizer
     clockSync = initCounterSynchronizer(sampleRate);
     clockSync->setStrategies(TimeSyncStrategy::WRITE_TSYNCFILE);
-    clockSync->setTimeSyncBasename(intanBaseFilename, dstore->collectionId());
+    clockSync->setTimeSyncBasename(intanBaseFilename.toStdString(), dstore->collectionId());
 
     // permit 1.4ms tolerance - this was a very realistic tolerance to achieve in tests,
     // while lower values resulted in constant adjustment attempts

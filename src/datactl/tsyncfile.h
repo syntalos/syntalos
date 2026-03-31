@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -68,9 +68,9 @@ enum class TSyncFileDataType {
     UINT64 = 8
 };
 
-QString tsyncFileTimeUnitToString(const TSyncFileTimeUnit &tsftunit);
-QString tsyncFileDataTypeToString(const TSyncFileDataType &dtype);
-QString tsyncFileModeToString(const TSyncFileMode &mode);
+std::string tsyncFileTimeUnitToString(const TSyncFileTimeUnit &tsftunit);
+std::string tsyncFileDataTypeToString(const TSyncFileDataType &dtype);
+std::string tsyncFileModeToString(const TSyncFileMode &mode);
 
 /**
  * @brief Write a timestamp synchronization file
@@ -87,23 +87,23 @@ public:
     explicit TimeSyncFileWriter();
     ~TimeSyncFileWriter();
 
-    QString lastError() const;
+    [[nodiscard]] std::string lastError() const;
 
-    void setTimeNames(const QString &time1Name, const QString &time2Name);
+    void setTimeNames(const std::string &time1Name, const std::string &time2Name);
     void setTimeUnits(TSyncFileTimeUnit time1Unit, TSyncFileTimeUnit time2Unit);
     void setTimeDataTypes(TSyncFileDataType time1DType, TSyncFileDataType time2DType);
 
-    QString fileName() const;
-    void setFileName(const QString &fname);
+    std::string fileName() const;
+    void setFileName(const std::string &fname);
 
     void setSyncMode(TSyncFileMode mode);
     void setChunkSize(int size);
 
     void setCreationTimeOverride(const QDateTime &dt);
 
-    bool open(const QString &modName, const QUuid &collectionId, const QVariantHash &userData = QVariantHash());
+    bool open(const std::string &modName, const QUuid &collectionId, const QVariantHash &userData = QVariantHash());
     bool open(
-        const QString &modName,
+        const std::string &modName,
         const QUuid &collectionId,
         const microseconds_t &tolerance,
         const QVariantHash &userData = QVariantHash());
@@ -122,10 +122,10 @@ private:
     int m_blockSize;
     int m_bIndex;
     XXH3_state_t *m_xxh3State;
-    QString m_lastError;
+    std::string m_lastError;
     QDateTime m_creationTimeOverride;
 
-    QPair<QString, QString> m_timeNames;
+    QPair<std::string, std::string> m_timeNames;
     QPair<TSyncFileTimeUnit, TSyncFileTimeUnit> m_timeUnits;
     TSyncFileDataType m_time1DType;
     TSyncFileDataType m_time2DType;
@@ -149,10 +149,10 @@ class TimeSyncFileReader
 public:
     explicit TimeSyncFileReader();
 
-    bool open(const QString &fname);
-    QString lastError() const;
+    bool open(const std::string &fname);
+    [[nodiscard]] std::string lastError() const;
 
-    QString moduleName() const;
+    [[nodiscard]] std::string moduleName() const;
     QUuid collectionId() const;
     time_t creationTime() const;
     TSyncFileMode syncMode() const;
@@ -160,15 +160,15 @@ public:
     QVariantHash userData() const;
     microseconds_t tolerance() const;
 
-    QPair<QString, QString> timeNames() const;
+    QPair<std::string, std::string> timeNames() const;
     QPair<TSyncFileTimeUnit, TSyncFileTimeUnit> timeUnits() const;
     QPair<TSyncFileDataType, TSyncFileDataType> timeDTypes() const;
 
     std::vector<std::pair<long long, long long>> times() const;
 
 private:
-    QString m_lastError;
-    QString m_moduleName;
+    std::string m_lastError;
+    std::string m_moduleName;
     qint64 m_creationTime;
     QUuid m_collectionId;
     QVariantHash m_userData;
@@ -178,7 +178,7 @@ private:
 
     microseconds_t m_tolerance;
     std::vector<std::pair<long long, long long>> m_times;
-    QPair<QString, QString> m_timeNames;
+    QPair<std::string, std::string> m_timeNames;
     QPair<TSyncFileTimeUnit, TSyncFileTimeUnit> m_timeUnits;
     QPair<TSyncFileDataType, TSyncFileDataType> m_timeDTypes;
 };

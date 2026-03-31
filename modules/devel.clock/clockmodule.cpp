@@ -97,7 +97,7 @@ public:
         // prepare pulse info writer
         m_tsWriter.close();
         m_tsWriter.setSyncMode(TSyncFileMode::CONTINUOUS);
-        m_tsWriter.setTimeNames(QStringLiteral("no"), QStringLiteral("master-time"));
+        m_tsWriter.setTimeNames("no", "master-time");
         m_tsWriter.setTimeUnits(TSyncFileTimeUnit::INDEX, TSyncFileTimeUnit::MICROSECONDS);
         m_tsWriter.setTimeDataTypes(TSyncFileDataType::UINT32, TSyncFileDataType::UINT64);
         m_tsWriter.setChunkSize(
@@ -107,12 +107,12 @@ public:
         auto dstore = createDefaultDataset(name());
         if (dstore.get() == nullptr)
             return false;
-        m_tsWriter.setFileName(dstore->setDataFile("time-pulses.tsync"));
+        m_tsWriter.setFileName(dstore->setDataFile("time-pulses.tsync").toStdString());
         QVariantHash userData;
         userData["interval_us"] = QVariant::fromValue(m_settingsDlg->pulseIntervalUs());
 
         // open writer
-        if (!m_tsWriter.open(name(), dstore->collectionId(), userData)) {
+        if (!m_tsWriter.open(name().toStdString(), dstore->collectionId(), userData)) {
             raiseError(QStringLiteral("Unable to open timesync file %1").arg(m_tsWriter.fileName()));
             return false;
         }

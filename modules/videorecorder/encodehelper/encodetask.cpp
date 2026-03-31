@@ -120,7 +120,7 @@ void EncodeTask::run()
     std::vector<std::pair<long long, long long>> tsyncTimes;
     if (m_writeTsync) {
         TimeSyncFileReader tfr;
-        if (!tfr.open(m_tsyncSrcFname)) {
+        if (!tfr.open(m_tsyncSrcFname.toStdString())) {
             m_item->setError(
                 QStringLiteral("Unable to open tsync file of this video for reading: %1").arg(tfr.lastError()));
             return;

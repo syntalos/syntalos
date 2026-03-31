@@ -153,10 +153,10 @@ private slots:
     void receiveModuleError(const QString &message);
 
     void onSynchronizerDetailsChanged(
-        const QString &id,
+        const std::string &id,
         const TimeSyncStrategies &strategies,
         const microseconds_t &tolerance);
-    void onSynchronizerOffsetChanged(const QString &id, const microseconds_t &currentOffset);
+    void onSynchronizerOffsetChanged(const std::string &id, const microseconds_t &currentOffset);
     void onDiskspaceMonitorEvent();
     void onMemoryMonitorEvent();
     void onBufferMonitorEvent();

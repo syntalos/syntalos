@@ -59,7 +59,7 @@ TimingDisplayWidget::TimingDisplayWidget(const QString &title, QWidget *parent)
 
 void TimingDisplayWidget::setStrategies(const TimeSyncStrategies &strategies)
 {
-    m_lblStrategies->setText(timeSyncStrategiesToHString(strategies));
+    m_lblStrategies->setText(QString::fromStdString(timeSyncStrategiesToHString(strategies)));
 }
 
 void TimingDisplayWidget::setTolerance(const std::chrono::microseconds &tolerance)
@@ -87,7 +87,7 @@ TimingsDialog::~TimingsDialog()
 }
 
 void TimingsDialog::onSynchronizerDetailsChanged(
-    const QString &id,
+    const std::string &id,
     const TimeSyncStrategies &strategies,
     const microseconds_t &tolerance)
 {
@@ -108,7 +108,7 @@ void TimingsDialog::onSynchronizerDetailsChanged(
     tdisp->setTolerance(tolerance);
 }
 
-void TimingsDialog::onSynchronizerOffsetChanged(const QString &id, const microseconds_t &currentOffset)
+void TimingsDialog::onSynchronizerOffsetChanged(const std::string &id, const microseconds_t &currentOffset)
 {
     Q_UNUSED(id)
     auto mod = ::qobject_cast<AbstractModule *>(sender());

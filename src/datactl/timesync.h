@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -19,10 +19,7 @@
 
 #pragma once
 
-#include <QDataStream>
 #include <QLoggingCategory>
-#include <QMetaType>
-#include <QString>
 #include <QUuid>
 #include <fstream>
 #include <memory>
@@ -72,8 +69,8 @@ enum class TimeSyncStrategy {
 Q_DECLARE_FLAGS(TimeSyncStrategies, TimeSyncStrategy)
 Q_DECLARE_OPERATORS_FOR_FLAGS(TimeSyncStrategies)
 
-const QString timeSyncStrategyToHString(const TimeSyncStrategy &strategy);
-const QString timeSyncStrategiesToHString(const TimeSyncStrategies &strategies);
+const std::string timeSyncStrategyToHString(const TimeSyncStrategy &strategy);
+const std::string timeSyncStrategiesToHString(const TimeSyncStrategies &strategies);
 
 } // namespace Syntalos
 
@@ -86,12 +83,12 @@ namespace Syntalos
  * @brief Function to call when synchronizer details have changed
  */
 using SyncDetailsChangeNotifyFn =
-    std::function<void(const QString &id, const TimeSyncStrategies &strategies, const microseconds_t &tolerance)>;
+    std::function<void(const std::string &id, const TimeSyncStrategies &strategies, const microseconds_t &tolerance)>;
 
 /**
  * @brief Function to call to notify about an offset change
  */
-using OffsetChangeNotifyFn = std::function<void(const QString &id, const microseconds_t &currentOffset)>;
+using OffsetChangeNotifyFn = std::function<void(const std::string &id, const microseconds_t &currentOffset)>;
 
 /**
  * @brief Synchronizer for a monotonic counter, given a frequency
@@ -108,9 +105,9 @@ class FreqCounterSynchronizer
 public:
     explicit FreqCounterSynchronizer(
         std::shared_ptr<SyncTimer> masterTimer,
-        const QString &modName,
+        const std::string &modName,
         double frequencyHz,
-        const QString &id = nullptr);
+        const std::string &id = {});
     ~FreqCounterSynchronizer();
 
     /**
@@ -123,7 +120,7 @@ public:
     void setCalibrationBlocksCount(int count);
     void setStrategies(const TimeSyncStrategies &strategies);
     void setTolerance(const std::chrono::microseconds &tolerance);
-    void setTimeSyncBasename(const QString &fname, const QUuid &collectionId);
+    void setTimeSyncBasename(const std::string &fname, const QUuid &collectionId);
     void setLastValidMasterTimestamp(microseconds_t masterTimestamp);
 
     microseconds_t lastMasterAssumedAcqTS() const;
@@ -142,9 +139,9 @@ public:
 private:
     Q_DISABLE_COPY(FreqCounterSynchronizer)
 
-    QString m_modName;
+    std::string m_modName;
     QUuid m_collectionId;
-    QString m_id;
+    std::string m_id;
     TimeSyncStrategies m_strategies;
     microseconds_t m_lastOffsetEmission;
     std::shared_ptr<SyncTimer> m_syTimer;
@@ -192,8 +189,8 @@ class SecondaryClockSynchronizer
 public:
     explicit SecondaryClockSynchronizer(
         std::shared_ptr<SyncTimer> masterTimer,
-        const QString &modName,
-        const QString &id = QString());
+        const std::string &modName,
+        const std::string &id = {});
     ~SecondaryClockSynchronizer();
 
     /**
@@ -223,7 +220,7 @@ public:
 
     void setStrategies(const TimeSyncStrategies &strategies);
     void setTolerance(const microseconds_t &tolerance);
-    void setTimeSyncBasename(const QString &fname, const QUuid &collectionId);
+    void setTimeSyncBasename(const std::string &fname, const QUuid &collectionId);
 
     bool isCalibrated() const;
     microseconds_t expectedOffsetToMaster() const;
@@ -237,9 +234,9 @@ private:
 
     void emitSyncDetailsChanged();
 
-    QString m_modName;
+    std::string m_modName;
     QUuid m_collectionId;
-    QString m_id;
+    std::string m_id;
     TimeSyncStrategies m_strategies;
     microseconds_t m_lastOffsetEmission;
     std::shared_ptr<SyncTimer> m_syTimer;
