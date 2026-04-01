@@ -307,6 +307,7 @@ systemd_dep = dependency('systemd', required: false)
 
 glib_dep = dependency('glib-2.0', version: '>=2.58')
 gobject_dep = dependency('gobject-2.0', version: '>=2.58')
+gio_dep = dependency('gio-2.0', version: '>= 2.62')
 
 kfarchive_dep = dependency('KF6Archive')
 kfdbusaddons_dep = dependency('KF6DBusAddons')

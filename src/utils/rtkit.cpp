@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -23,60 +23,131 @@
 #define _GNU_SOURCE
 #endif
 
-#include <string.h>
+#ifdef signals
+#define SY_RESTORE_QT_SIGNALS
+#undef signals
+#endif
+#include <gio/gio.h>
+#ifdef SY_RESTORE_QT_SIGNALS
+#define signals Q_SIGNALS
+#undef SY_RESTORE_QT_SIGNALS
+#endif
+
+#include <climits>
+#include <format>
 #include <sys/resource.h>
 #include <sys/syscall.h>
-#include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
 
-#include <QDBusArgument>
-#include <QDBusInterface>
-#include <QDBusReply>
 #include <QDebug>
+#include <pthread.h>
+#include <sched.h>
 
 #ifndef RLIMIT_RTTIME
 #define RLIMIT_RTTIME 15
 #endif
 
-static const auto RTPORTAL_SERVICE_NAME = QStringLiteral("org.freedesktop.portal.Desktop");
-static const auto RTPORTAL_OBJECT_PATH = QStringLiteral("/org/freedesktop/portal/desktop");
-static const auto RTPORTAL_INTERFACE_NAME = QStringLiteral("org.freedesktop.portal.Realtime");
-
-static const auto RTKIT_SERVICE_NAME = QStringLiteral("org.freedesktop.RealtimeKit1");
-static const auto RTKIT_OBJECT_PATH = QStringLiteral("/org/freedesktop/RealtimeKit1");
-static const auto RTKIT_INTERFACE_NAME = QStringLiteral("org.freedesktop.RealtimeKit1");
-
 Q_LOGGING_CATEGORY(logRtKit, "rtkit")
 
-RtKit::RtKit(QObject *parent)
-    : QObject(parent)
-{
-    m_rtPortalIntf = new QDBusInterface(
-        RTPORTAL_SERVICE_NAME, RTPORTAL_OBJECT_PATH, RTPORTAL_INTERFACE_NAME, QDBusConnection::sessionBus(), this);
+static const char RTPORTAL_SERVICE_NAME[] = "org.freedesktop.portal.Desktop";
+static const char RTPORTAL_OBJECT_PATH[] = "/org/freedesktop/portal/desktop";
+static const char RTPORTAL_INTERFACE_NAME[] = "org.freedesktop.portal.Realtime";
 
-    m_rtkitIntf = new QDBusInterface(
-        RTKIT_SERVICE_NAME, RTKIT_OBJECT_PATH, RTKIT_INTERFACE_NAME, QDBusConnection::systemBus(), this);
+static const char RTKIT_SERVICE_NAME[] = "org.freedesktop.RealtimeKit1";
+static const char RTKIT_OBJECT_PATH[] = "/org/freedesktop/RealtimeKit1";
+static const char RTKIT_INTERFACE_NAME[] = "org.freedesktop.RealtimeKit1";
+
+static bool variantToInt64(GVariant *variant, int64_t *value)
+{
+    if (variant == nullptr || value == nullptr)
+        return false;
+
+    if (g_variant_is_of_type(variant, G_VARIANT_TYPE_INT64)) {
+        *value = g_variant_get_int64(variant);
+        return true;
+    }
+    if (g_variant_is_of_type(variant, G_VARIANT_TYPE_UINT64)) {
+        *value = static_cast<long long>(g_variant_get_uint64(variant));
+        return true;
+    }
+    if (g_variant_is_of_type(variant, G_VARIANT_TYPE_INT32)) {
+        *value = g_variant_get_int32(variant);
+        return true;
+    }
+    if (g_variant_is_of_type(variant, G_VARIANT_TYPE_UINT32)) {
+        *value = g_variant_get_uint32(variant);
+        return true;
+    }
+
+    return false;
 }
 
-QString RtKit::lastError() const
+RtKit::RtKit()
+    : m_rtkitProxy(nullptr),
+      m_rtPortalProxy(nullptr)
+{
+    g_autoptr(GError) error = nullptr;
+
+    // Create proxy for realtime portal (session bus)
+    m_rtPortalProxy = g_dbus_proxy_new_for_bus_sync(
+        G_BUS_TYPE_SESSION,
+        G_DBUS_PROXY_FLAGS_NONE,
+        nullptr,
+        RTPORTAL_SERVICE_NAME,
+        RTPORTAL_OBJECT_PATH,
+        RTPORTAL_INTERFACE_NAME,
+        nullptr,
+        &error);
+
+    if (error != nullptr) {
+        m_lastError = std::format("Failed to create Realtime Portal proxy: {}", error->message);
+        g_clear_error(&error);
+    }
+
+    // Create proxy for RtKit (system bus)
+    m_rtkitProxy = g_dbus_proxy_new_for_bus_sync(
+        G_BUS_TYPE_SYSTEM,
+        G_DBUS_PROXY_FLAGS_NONE,
+        nullptr,
+        RTKIT_SERVICE_NAME,
+        RTKIT_OBJECT_PATH,
+        RTKIT_INTERFACE_NAME,
+        nullptr,
+        &error);
+
+    if (error != nullptr) {
+        m_lastError = std::format("Failed to create RtKit proxy: {}", error->message);
+        g_clear_error(&error);
+    }
+}
+
+RtKit::~RtKit()
+{
+    if (m_rtkitProxy != nullptr)
+        g_object_unref(m_rtkitProxy);
+    if (m_rtPortalProxy != nullptr)
+        g_object_unref(m_rtPortalProxy);
+}
+
+std::string RtKit::lastError() const
 {
     return m_lastError;
 }
 
 int RtKit::queryMaxRealtimePriority(bool *ok)
 {
-    return getIntProperty(QStringLiteral("MaxRealtimePriority"), ok);
+    return getIntProperty("MaxRealtimePriority", ok);
 }
 
 int RtKit::queryMinNiceLevel(bool *ok)
 {
-    return getIntProperty(QStringLiteral("MinNiceLevel"), ok);
+    return getIntProperty("MinNiceLevel", ok);
 }
 
 long long RtKit::queryRTTimeUSecMax(bool *ok)
 {
-    return getIntProperty(QStringLiteral("RTTimeUSecMax"), ok);
+    return getIntProperty("RTTimeUSecMax", ok);
 }
 
 bool RtKit::makeHighPriority(pid_t thread, int niceLevel)
@@ -84,35 +155,54 @@ bool RtKit::makeHighPriority(pid_t thread, int niceLevel)
     if (thread == 0)
         thread = gettid();
 
-    // try using the realtime portal first
-    QDBusReply<void> reply = m_rtPortalIntf->call(
-        QStringLiteral("MakeThreadHighPriorityWithPID"),
-        QVariant::fromValue((qulonglong)getpid()),
-        QVariant::fromValue((qulonglong)thread),
-        QVariant::fromValue((int32_t)niceLevel));
-    if (reply.isValid())
-        return true;
+    // Try using the realtime portal first
+    if (m_rtPortalProxy != nullptr) {
+        g_autoptr(GError) error = nullptr;
+        g_autoptr(GVariant) result = g_dbus_proxy_call_sync(
+            m_rtPortalProxy,
+            "MakeThreadHighPriorityWithPID",
+            g_variant_new("(tti)", (guint64)getpid(), (guint64)thread, (gint32)niceLevel),
+            G_DBUS_CALL_FLAGS_NONE,
+            -1,
+            nullptr,
+            &error);
 
-    // fallback to using RtKit directly
-    reply = m_rtkitIntf->call(
-        QStringLiteral("MakeThreadHighPriority"),
-        QVariant::fromValue((qulonglong)thread),
-        QVariant::fromValue((int32_t)niceLevel));
-    if (reply.isValid())
-        return true;
+        if (result != nullptr)
+            return true;
+    }
 
-    m_lastError = QStringLiteral("Unable to change thread priority to high: %1: %2")
-                      .arg(reply.error().name(), reply.error().message());
+    // Fallback to using RtKit directly
+    if (m_rtkitProxy != nullptr) {
+        g_autoptr(GError) error = nullptr;
+        g_autoptr(GVariant) result = g_dbus_proxy_call_sync(
+            m_rtkitProxy,
+            "MakeThreadHighPriority",
+            g_variant_new("(ti)", (guint64)thread, (gint32)niceLevel),
+            G_DBUS_CALL_FLAGS_NONE,
+            -1,
+            nullptr,
+            &error);
 
-    // rtkit maps EBUSY to org.freedesktop.DBus.Error.AccessDenied when the per-user
-    // MaxConcurrentThreads limit is exceeded. The error name looks like a plain
-    // permission problem but is actually resource exhaustion, so disambiguate.
-    if (reply.error().name() == QLatin1String("org.freedesktop.DBus.Error.AccessDenied")
-        && reply.error().message().contains(QLatin1String("busy"), Qt::CaseInsensitive)) {
-        m_lastError = QStringLiteral(
-            "Unable to change thread priority to high: RtKit's per-user "
-            "concurrent-thread limit has been reached - too many worker threads "
-            "are already elevated simultaneously.");
+        if (result != nullptr)
+            return true;
+
+        if (error != nullptr) {
+            m_lastError = std::format(
+                "Unable to change thread priority to high: {}: {}",
+                error->domain == G_DBUS_ERROR ? error->code : 0,
+                error->message);
+
+            // rtkit maps EBUSY to org.freedesktop.DBus.Error.AccessDenied when the per-user
+            // MaxConcurrentThreads limit is exceeded. The error name looks like a plain
+            // permission problem but is actually resource exhaustion, so disambiguate.
+            if (error->domain == G_DBUS_ERROR && error->code == G_DBUS_ERROR_ACCESS_DENIED
+                && g_strrstr(error->message, "busy") != nullptr) {
+                m_lastError =
+                    "Unable to change thread priority to high: RtKit's per-user "
+                    "concurrent-thread limit has been reached - too many worker threads "
+                    "are already elevated simultaneously.";
+            }
+        }
     }
 
     return false;
@@ -131,74 +221,119 @@ bool RtKit::makeRealtime(pid_t thread, uint priority)
         thread = gettid();
     }
 
-    // try using the realtime portal first
-    QDBusReply<void> reply = m_rtPortalIntf->call(
-        QStringLiteral("MakeThreadRealtimeWithPID"),
-        QVariant::fromValue((qulonglong)getpid()),
-        QVariant::fromValue((qulonglong)thread),
-        QVariant::fromValue((uint32_t)priority));
-    if (reply.isValid())
-        return true;
+    // Try using the realtime portal first
+    if (m_rtPortalProxy != nullptr) {
+        g_autoptr(GError) error = nullptr;
+        g_autoptr(GVariant) result = g_dbus_proxy_call_sync(
+            m_rtPortalProxy,
+            "MakeThreadRealtimeWithPID",
+            g_variant_new("(ttu)", (guint64)getpid(), (guint64)thread, (guint32)priority),
+            G_DBUS_CALL_FLAGS_NONE,
+            -1,
+            nullptr,
+            &error);
 
-    // fallback to RtKit directly
-    reply = m_rtkitIntf->call(
-        QStringLiteral("MakeThreadRealtime"),
-        QVariant::fromValue((qulonglong)thread),
-        QVariant::fromValue((uint32_t)priority));
-    if (reply.isValid())
-        return true;
+        if (result != nullptr)
+            return true;
+    }
 
-    m_lastError = QStringLiteral("Unable to change thread priority to realtime: %1: %2")
-                      .arg(reply.error().name(), reply.error().message());
+    // Fallback to RtKit directly
+    if (m_rtkitProxy != nullptr) {
+        g_autoptr(GError) error = nullptr;
+        g_autoptr(GVariant) result = g_dbus_proxy_call_sync(
+            m_rtkitProxy,
+            "MakeThreadRealtime",
+            g_variant_new("(tu)", (guint64)thread, (guint32)priority),
+            G_DBUS_CALL_FLAGS_NONE,
+            -1,
+            nullptr,
+            &error);
+
+        if (result != nullptr)
+            return true;
+
+        if (error != nullptr) {
+            m_lastError = std::format(
+                "Unable to change thread priority to realtime: {}: {}",
+                error->domain == G_DBUS_ERROR ? error->code : 0,
+                error->message);
+        }
+    }
+
     return false;
 }
 
-long long RtKit::getIntProperty(const QString &propName, bool *ok)
+int64_t RtKit::getIntProperty(const std::string &propName, bool *ok)
 {
-    // try to get the property from the realtime portal first
-    auto m = QDBusMessage::createMethodCall(
-        RTPORTAL_SERVICE_NAME,
-        RTPORTAL_OBJECT_PATH,
-        QStringLiteral("org.freedesktop.DBus.Properties"),
-        QStringLiteral("Get"));
-    m << RTPORTAL_INTERFACE_NAME << propName;
+    // Try to get the property from the realtime portal first
+    if (m_rtPortalProxy != nullptr) {
+        g_autoptr(GError) error = nullptr;
+        g_autoptr(GVariant) result = g_dbus_proxy_call_sync(
+            m_rtPortalProxy,
+            "org.freedesktop.DBus.Properties.Get",
+            g_variant_new("(ss)", RTPORTAL_INTERFACE_NAME, propName.c_str()),
+            G_DBUS_CALL_FLAGS_NONE,
+            -1,
+            nullptr,
+            &error);
 
-    QDBusReply<QVariant> reply = QDBusConnection::sessionBus().call(m);
-    if (reply.isValid()) {
-        const auto value = reply.value();
-        if (value.isValid()) {
-            if (ok != nullptr)
-                (*ok) = true;
-            return value.toLongLong();
-        } else {
-            m_lastError = QStringLiteral("Reply to Realtime Portal property request for '%1' was empty.").arg(propName);
+        if (result != nullptr) {
+            g_autoptr(GVariant) variant = nullptr;
+            g_variant_get(result, "(v)", &variant);
+            if (variant != nullptr) {
+                int64_t value = 0;
+                if (variantToInt64(variant, &value)) {
+                    if (ok != nullptr)
+                        (*ok) = true;
+                    return value;
+                }
+
+                m_lastError = std::format(
+                    "Realtime Portal property '{}' has unsupported type '{}'.",
+                    propName,
+                    g_variant_get_type_string(variant));
+                if (ok != nullptr)
+                    (*ok) = false;
+            }
+        } else if (error != nullptr) {
+            m_lastError = std::format(
+                "Realtime Portal property DBus request for '{}' failed: {}", propName, error->message);
         }
-    } else {
-        m_lastError = QStringLiteral("Realtime Portal property DBus request for '%1' failed: %2: %3")
-                          .arg(propName, reply.error().name(), reply.error().message());
     }
 
-    // fallback to using RtKit directly
-    m = QDBusMessage::createMethodCall(
-        RTKIT_SERVICE_NAME,
-        RTKIT_OBJECT_PATH,
-        QStringLiteral("org.freedesktop.DBus.Properties"),
-        QStringLiteral("Get"));
-    m << RTKIT_INTERFACE_NAME << propName;
+    // Fallback to using RtKit directly
+    if (m_rtkitProxy != nullptr) {
+        g_autoptr(GError) error = nullptr;
+        g_autoptr(GVariant) result = g_dbus_proxy_call_sync(
+            m_rtkitProxy,
+            "org.freedesktop.DBus.Properties.Get",
+            g_variant_new("(ss)", RTKIT_INTERFACE_NAME, propName.c_str()),
+            G_DBUS_CALL_FLAGS_NONE,
+            -1,
+            nullptr,
+            &error);
 
-    reply = QDBusConnection::systemBus().call(m);
-    if (reply.isValid()) {
-        const auto value = reply.value();
-        if (value.isValid()) {
-            if (ok != nullptr)
-                (*ok) = true;
-            return value.toLongLong();
-        } else {
-            m_lastError = QStringLiteral("Reply to RtKit property request for '%1' was empty.").arg(propName);
+        if (result != nullptr) {
+            g_autoptr(GVariant) variant = nullptr;
+            g_variant_get(result, "(v)", &variant);
+            if (variant != nullptr) {
+                int64_t value = 0;
+                if (variantToInt64(variant, &value)) {
+                    if (ok != nullptr)
+                        (*ok) = true;
+                    return value;
+                }
+
+                m_lastError = std::format(
+                    "RtKit property '{}' has unsupported type '{}'.", propName, g_variant_get_type_string(variant));
+                if (ok != nullptr)
+                    (*ok) = false;
+            } else {
+                m_lastError = std::format("Reply to RtKit property request for '{}' was empty.", propName);
+            }
+        } else if (error != nullptr) {
+            m_lastError = std::format("RtKit property DBus request for '{}' failed: {}", propName, error->message);
         }
-    } else {
-        m_lastError = QStringLiteral("RtKit property DBus request for '%1' failed: %2: %3")
-                          .arg(propName, reply.error().name(), reply.error().message());
     }
 
     if (ok == nullptr)

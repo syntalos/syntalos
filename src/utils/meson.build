@@ -38,7 +38,7 @@ syntalos_utils_lib = shared_library('syntalos-utils',
     dependencies: [
         sy_base_deps,
         blake3_dep,
-        qt_dbus_dep,
+        gio_dep,
         qt_gui_dep,
         opengl_dep,
     ],

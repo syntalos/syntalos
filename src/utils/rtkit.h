@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -19,20 +19,21 @@
 
 #pragma once
 
+#include <string>
+
 #include <QLoggingCategory>
-#include <QObject>
 
 Q_DECLARE_LOGGING_CATEGORY(logRtKit)
 
-class QDBusInterface;
+typedef struct _GDBusProxy GDBusProxy;
 
-class RtKit : public QObject
+class RtKit
 {
-    Q_OBJECT
 public:
-    explicit RtKit(QObject *parent = nullptr);
+    explicit RtKit();
+    ~RtKit();
 
-    [[nodiscard]] QString lastError() const;
+    [[nodiscard]] std::string lastError() const;
 
     int queryMaxRealtimePriority(bool *ok = nullptr);
     int queryMinNiceLevel(bool *ok = nullptr);
@@ -42,11 +43,11 @@ public:
     bool makeRealtime(pid_t thread, uint priority);
 
 private:
-    QDBusInterface *m_rtkitIntf;
-    QDBusInterface *m_rtPortalIntf;
-    QString m_lastError;
+    GDBusProxy *m_rtkitProxy;
+    GDBusProxy *m_rtPortalProxy;
+    std::string m_lastError;
 
-    long long getIntProperty(const QString &propName, bool *ok = nullptr);
+    int64_t getIntProperty(const std::string &propName, bool *ok = nullptr);
 };
 
 bool setCurrentThreadNiceness(int nice);
