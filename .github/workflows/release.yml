@@ -107,26 +107,19 @@ jobs:
       - name: Checkout Syntalos repo
         uses: actions/checkout@v6
 
-      - name: Checkout package config repo
-        uses: actions/checkout@v6
+      - name: Install Cloudsmith CLI
+        uses: cloudsmith-io/cloudsmith-cli-action@v2
         with:
-          repository: syntalos/repo
-          token: ${{ secrets.PKGREPO_COMMIT_TOKEN }}
-          path: pkg-repo
+          api-key: ${{ secrets.CLOUDSMITH_KEY }}
 
-      - name: Update cache
-        run: sudo apt-get update -qq
-
-      - name: Install prerequisites
-        run: sudo ./pkg-repo/install-deb-deps.sh
-
-      - name: Download and register all release assets
+      - name: Upload assets to repository
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ needs.revision.outputs.version }}
         run: |
           python3 << 'EOF'
-          import json, os, subprocess, glob
+          import json, os, subprocess, zipfile
+          from pathlib import Path
 
           workspace = os.environ['GITHUB_WORKSPACE']
           version   = os.environ['VERSION']
@@ -139,35 +132,29 @@ jobs:
               suite       = d['suite']
               artifact_id = d['artifact-id']
               distro_id   = d['distro-id']
+              print(f'----\nProcessing: {distro_id}/{suite}\n----', flush=True)
 
-              dl_dir = os.path.join(workspace, 'new-release', suite)
-              os.makedirs(dl_dir, exist_ok=True)
+              staging_dir = os.path.join(workspace, 'upload', artifact_id)
+              os.makedirs(staging_dir, exist_ok=True)
 
               subprocess.run([
                   'gh', 'release', 'download', f'v{version}',
                   '--repo',    repo,
                   '--pattern', f'syntalos_*{artifact_id}*.zip',
-                  '--dir',     dl_dir,
+                  '--dir',     staging_dir,
               ], check=True)
 
-              assets = sorted(glob.glob(os.path.join(dl_dir, '*.zip')))
-              subprocess.run([
-                  './update-manifest.py',
-                  '--distro',   distro_id,
-                  '--suite',    suite,
-                  '--channel',  'stable',
-                  '--name',     'syntalos',
-                  '--version',  version,
-                  '--base-url', base_url,
-              ] + assets, check=True, cwd=os.path.join(workspace, 'pkg-repo'))
-          EOF
+              for zpath in Path(staging_dir).glob(f"syntalos_*{artifact_id}*.zip"):
+                  with zipfile.ZipFile(zpath) as z:
+                      z.extractall(staging_dir)
 
-      - name: Commit and push
-        env:
-          VERSION: ${{ needs.revision.outputs.version }}
-        working-directory: pkg-repo
-        run: |
-          git config user.name "syntalos-robot"
-          git config user.email "noreply@syntalos.org"
-          git commit -a -m "Add Syntalos ${VERSION}"
-          git push
+              for asset in sorted(Path(staging_dir).glob('*.deb')):
+                  subprocess.run([
+                      'cloudsmith',
+                      'push',
+                      'deb',
+                      '--republish',
+                      f'syntalos/syntalos/{distro_id}/{suite}',
+                      asset
+                  ], check=True, cwd=os.path.join(workspace))
+          EOF
