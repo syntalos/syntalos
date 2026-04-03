@@ -3,6 +3,7 @@ Syntalos
 
 [![Syntalos Screenshot](contrib/screenshots/v0.8.4-ui-overview.png "Syntalos")](https://github.com/syntalos/syntalos/tree/master/contrib/screenshots)
 ![Build Test](https://github.com/syntalos/syntalos/actions/workflows/build-test.yml/badge.svg)
+[![Hosted By: Cloudsmith](https://img.shields.io/badge/OSS%20hosting%20by-cloudsmith-blue?logo=cloudsmith&style=flat-square)](https://cloudsmith.com)
 
 Syntalos (formerly known as MazeAmaze) is a software for timestamp-synchronized parallel data acquisition from diverse data sources,
 such as cameras, microendoscopes, Intan electrophysiology amplifiers or Firmata-based serial interfaces.
@@ -58,7 +59,6 @@ Please use the following publication in citations:
 DOI: https://doi.org/10.1038/s41467-025-56081-9
 
 ----
-
 ## For Developers
 
 This section is for everyone who wants to build Syntalos from source, or wants to change its code
@@ -69,11 +69,7 @@ to submit a change, bugfix or new module.
  * C++23 compatible compiler
    (GCC >= 14 or Clang >= 19. GCC is recommended)
  * Meson (>= 1.4.0)
- * Qt6 (>= 6.4)
- * Qt6 Test
- * Qt6 OpenGL
- * Qt6 SVG
- * Qt6 SerialPort
+ * Qt6 (>= 6.4), plus Qt6 Test, OpenGL, SVG, and SerialPort
  * GLib (>= 2.58)
  * [iceoryx2](https://github.com/eclipse-iceoryx/iceoryx2) (>= 0.9.0)
  * Eigen3
@@ -121,3 +117,15 @@ comma-separated values.
 Pull-requests for new modules, bugfixes or any changes are very welcome!
 (Code should be valid C++23, use 4 spaces for indentation. With clang-format installed, `autoformat.py` can be used
 to automatically format C++ and Python code)
+
+----
+## Sponsors
+
+We are grateful for any support we receive to keep Syntalos running and improving.
+If you want to support the project, please consider sponsoring us on GitHub. Paid development
+and support is currently available as well.
+
+Our Debian package repository hosting is graciously provided by [Cloudsmith](https://cloudsmith.com).
+Cloudsmith is the only fully hosted, cloud-native, universal package management solution, that
+enables your organization to create, store and share packages in any format, to any place, with total
+confidence.
