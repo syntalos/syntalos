@@ -5,7 +5,7 @@ FROM ubuntu:resolute
 
 # add Syntalos package repo
 RUN apt-get update -qq && apt-get install -y --no-install-recommends curl ca-certificates
-RUN curl -fsSL https://raw.githubusercontent.com/syntalos/repo/refs/heads/main/publish/setup-syntalos-repo.sh | sh
+RUN curl -fsSL https://syntalos.org/setup/setup-syntalos-repo.sh | sh
 
 # prepare
 RUN apt-get update -qq
