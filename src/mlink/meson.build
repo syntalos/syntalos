@@ -35,7 +35,9 @@ syntalos_mlink_lib = library('syntalos-mlink',
         syntalos_datactl_dep,
         syntalos_utils_dep,
     ],
-    include_directories: [],
+    include_directories: [
+        root_include_dir,
+    ],
     install: true,
     install_rpath: sy_libdir,
 )

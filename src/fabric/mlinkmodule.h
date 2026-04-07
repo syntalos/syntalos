@@ -106,6 +106,9 @@ public:
 signals:
     void processOutputReceived(const QString &text);
 
+protected:
+    bool testIpcApiVersion(bool emitErrors = true);
+
 private:
     void handleIncomingControl();
 

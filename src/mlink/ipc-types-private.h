@@ -281,11 +281,18 @@ struct StatusMessageEvent {
 static const std::string STATUS_MESSAGE_CHANNEL_ID = "StatusMessage";
 
 /**
- * Ping the worker, it must respond to signal that it is alive.
+ * Request the module API version supported by the worker.
  */
-struct PingRequest {
+struct ApiVersionRequest {
 };
-static const std::string PING_CALL_ID = "Ping";
+static const std::string API_VERSION_CALL_ID = "ApiVersion";
+
+/**
+ * Response to an ApiVersionRequest
+ */
+struct ApiVersionResponse {
+    iox2::bb::StaticString<64> apiVersion;
+};
 
 /**
  * Request to set the niceness of a worker

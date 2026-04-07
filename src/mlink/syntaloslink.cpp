@@ -19,9 +19,11 @@
 
 #include "syntaloslink.h"
 
+#include "modconfig.h"
 #include <QDebug>
 #include <QCoreApplication>
 #include <csignal>
+#include <cstring>
 #include <sys/prctl.h>
 #include <iox2/iceoryx2.hpp>
 
@@ -218,7 +220,8 @@ public:
         pubInPortChange.emplace(makeSlicePublisher(*node, svcName(IN_PORT_CHANGE_CHANNEL_ID)));
         pubOutPortChange.emplace(makeSlicePublisher(*node, svcName(OUT_PORT_CHANGE_CHANNEL_ID)));
 
-        srvPingPong.emplace(makeTypedServer<PingRequest, DoneResponse>(*node, svcName(PING_CALL_ID)));
+        srvApiVersion.emplace(
+            makeTypedServer<ApiVersionRequest, ApiVersionResponse>(*node, svcName(API_VERSION_CALL_ID)));
         srvSetNiceness.emplace(makeTypedServer<SetNicenessRequest, DoneResponse>(*node, svcName(SET_NICENESS_CALL_ID)));
         srvSetMaxRTPriority.emplace(
             makeTypedServer<SetMaxRealtimePriority, DoneResponse>(*node, svcName(SET_MAX_RT_PRIORITY_CALL_ID)));
@@ -255,7 +258,7 @@ public:
     std::optional<IoxSlicePublisher> pubOutPortChange;
 
     // Servers: Syntalos master -> Module process commands
-    std::optional<IoxServer<PingRequest, DoneResponse>> srvPingPong;
+    std::optional<IoxServer<ApiVersionRequest, ApiVersionResponse>> srvApiVersion;
     std::optional<IoxServer<SetNicenessRequest, DoneResponse>> srvSetNiceness;
     std::optional<IoxServer<SetMaxRealtimePriority, DoneResponse>> srvSetMaxRTPriority;
     std::optional<IoxServer<SetCPUAffinityRequest, DoneResponse>> srvSetCPUAffinity;
@@ -491,14 +494,23 @@ void SyntalosLink::processPendingControl()
     // an end-of-function drain and gets silently discarded, stranding the request.
     drainListenerEvents(*d->masterCtlEventListener);
 
-    // ---- Ping ----
+    // ---- ApiVersion ----
     while (true) {
-        auto req = safeReceive(*d->srvPingPong);
+        auto req = safeReceive(*d->srvApiVersion);
         if (!req.has_value())
             break;
 
-        // just respond as fast as we can
-        Private::replyDone(*req, true);
+        auto maybeResponse = req->loan_uninit();
+        if (!maybeResponse.has_value()) {
+            std::cerr << "Failed to loan response for API version request: "
+                      << iox2::bb::into<const char *>(maybeResponse.error()) << '\n';
+            continue;
+        }
+
+        ApiVersionResponse resp;
+        resp.apiVersion = iox2::bb::StaticString<64>::from_utf8_null_terminated_unchecked_truncated(
+            SY_MODULE_API_TAG, std::strlen(SY_MODULE_API_TAG));
+        iox2::send(std::move(maybeResponse).value().write_payload(std::move(resp))).value();
     }
 
     // ---- SetNiceness ----

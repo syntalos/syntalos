@@ -170,10 +170,10 @@ public:
     }
 
     /**
-     * Synchronously call the client and wait for a "Done" response or an error.
+     * Synchronously call the client and wait for a response or an error.
      */
-    template<typename Req, typename Func>
-    bool callClientSimple(
+    template<typename Req, typename Res, typename Func>
+    std::optional<Res> callClientSimple(
         MLinkModule *self,
         const std::string &channel,
         Func fillReqFn,
@@ -184,17 +184,17 @@ public:
         if (!node.has_value()) {
             qCCritical(logMLinkMod).noquote()
                 << "callClientSimple: IOX node not initialized, failing call on channel:" << channel;
-            return false;
+            return std::nullopt;
         }
 
-        auto client = makeTypedClient<Req, DoneResponse>(*node, svcName(channel));
+        auto client = makeTypedClient<Req, Res>(*node, svcName(channel));
 
         auto maybeReq = client.loan_uninit();
         if (!maybeReq.has_value()) {
             self->raiseError(
                 QStringLiteral("Failed to loan shared memory for request on channel '%1': %2")
                     .arg(qstr(channel), QString::fromUtf8(iox2::bb::into<const char *>(maybeReq.error()))));
-            return false;
+            return std::nullopt;
         }
         auto pendingReq = std::move(maybeReq).value();
 
@@ -209,24 +209,43 @@ public:
             qApp->processEvents();
             auto response = pending.receive().value();
             if (response.has_value())
-                return response->payload().success;
+                return response->payload();
 
             // quit immediately if an error was already emitted
             if (skipIfModuleError && self->state() == ModuleState::ERROR)
-                return false;
+                return std::nullopt;
 
             // if we stopped running (crashed or existed) we no longer need to wait
             if (!self->isProcessRunning())
-                return false;
+                return std::nullopt;
 
             if (timer.elapsed() > timeoutSec * 1000) {
                 if (timeoutIsError)
                     self->raiseError(QStringLiteral("Timeout while waiting for response on: %1").arg(qstr(channel)));
-                return false;
+                return std::nullopt;
             }
 
             std::this_thread::sleep_for(microseconds_t(25));
         }
+    }
+
+    /**
+     * Synchronously call the client and wait for a "Done" response or an error.
+     */
+    template<typename Req, typename Func>
+    bool callClientSimple(
+        MLinkModule *self,
+        const std::string &channel,
+        Func fillReqFn,
+        int timeoutSec = 5,
+        bool timeoutIsError = true,
+        bool skipIfModuleError = true)
+    {
+        auto res = callClientSimple<Req, DoneResponse>(
+            self, channel, fillReqFn, timeoutSec, timeoutIsError, skipIfModuleError);
+        if (!res.has_value())
+            return false;
+        return res->success;
     }
 
     template<typename ReqData>
@@ -326,6 +345,39 @@ MLinkModule::~MLinkModule()
 {
     d->ctlEventTimer->stop();
     terminateProcess();
+}
+
+/**
+ * Test if module communication works and the module has a suitable IPC API level.
+ *
+ * @param emitErrors If true, an error will be raised if the version is unsuitable or communication fails
+ * @return True if the version is suitable, false if communication failed or API level is unsuitable.
+ */
+bool MLinkModule::testIpcApiVersion(bool emitErrors)
+{
+    // do nothing if the error channel does not exist yet
+    if (!d->subError)
+        return false;
+
+    auto modApiTagResponse = d->callClientSimple<ApiVersionRequest, ApiVersionResponse>(
+        this, API_VERSION_CALL_ID, [&](auto &) {});
+    if (!modApiTagResponse.has_value()) {
+        if (emitErrors)
+            raiseError(QStringLiteral("Failed to communicate with module process to check API version!"));
+        return false;
+    }
+
+    auto modApiVersion = QString::fromUtf8(modApiTagResponse->apiVersion.unchecked_access().c_str());
+    const auto syApiVersion = QStringLiteral(SY_MODULE_API_TAG);
+
+    if (modApiVersion != syApiVersion) {
+        if (emitErrors)
+            raiseError(QStringLiteral("Module API version mismatch: worker reports '%1', expected '%2'.")
+                           .arg(modApiVersion, syApiVersion));
+        return false;
+    }
+
+    return true;
 }
 
 /**
@@ -705,6 +757,12 @@ bool MLinkModule::runProcess()
         return false;
     }
 
+    // verify IPC/API compatibility before issuing further control commands
+    if (!testIpcApiVersion(true)) {
+        d->proc->terminate();
+        return false;
+    }
+
     if (state() != ModuleState::ERROR)
         setState(prevState);
 
@@ -877,9 +935,9 @@ bool MLinkModule::prepare(const TestSubject &subject)
             return false;
     }
 
-    // ping module to see if it is alive
-    if (!d->callClientSimple<PingRequest>(this, PING_CALL_ID, [&](auto &req) {}, 10, false)) {
-        raiseError("Unable to communicate with module: The module process may have died or is unresponsive.");
+    // use version check as a "ping" to see if the worker is alive
+    if (!testIpcApiVersion(false)) {
+        raiseError("Failed to communicate with module process! Version check failed.");
         return false;
     }
 
