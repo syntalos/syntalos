@@ -34,11 +34,13 @@
 #include "datactl/syclock.h"
 #include "datactl/timesync.h"
 
+namespace Syntalos
+{
 /**
  * @brief Connection heat level
  *
  * Warning level dependent on how full the buffer that is
- * repesented by a connection is.
+ * represented by a connection is.
  * A high heat means lots of pending stuff and potentially a
  * slow receiving module or not enough system resources.
  * This state is managed internally by Syntalos.
@@ -49,13 +51,12 @@ enum class ConnectionHeatLevel {
     MEDIUM,
     HIGH
 };
-Q_DECLARE_METATYPE(ConnectionHeatLevel)
 
 QString connectionHeatToHumanString(ConnectionHeatLevel heat);
-
+} // namespace Syntalos
+Q_DECLARE_METATYPE(Syntalos::ConnectionHeatLevel)
 namespace Syntalos
 {
-
 class AbstractModule;
 class StreamOutputPort;
 

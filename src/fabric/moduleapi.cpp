@@ -35,7 +35,7 @@
 
 using namespace Syntalos;
 
-QString connectionHeatToHumanString(ConnectionHeatLevel heat)
+QString Syntalos::connectionHeatToHumanString(ConnectionHeatLevel heat)
 {
     switch (heat) {
     case ConnectionHeatLevel::NONE:
