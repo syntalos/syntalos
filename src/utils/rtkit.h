@@ -33,6 +33,11 @@ public:
     explicit RtKit();
     ~RtKit();
 
+    RtKit(const RtKit &) = delete;
+    RtKit &operator=(const RtKit &) = delete;
+    RtKit(RtKit &&) = delete;
+    RtKit &operator=(RtKit &&) = delete;
+
     [[nodiscard]] std::string lastError() const;
 
     int queryMaxRealtimePriority(bool *ok = nullptr);
