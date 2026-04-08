@@ -54,6 +54,7 @@ eatmydata apt-get install -yq --no-install-recommends \
     ninja-build \
     ocl-icd-opencl-dev \
     pybind11-dev \
+    pybind11-stubgen \
     python3-dev \
     python3-numpy \
     python3-pdoc \

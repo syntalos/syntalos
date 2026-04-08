@@ -30,15 +30,6 @@ int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
 
-    if (a.arguments().length() >= 2 && a.arguments()[1] == "--doc") {
-        if (a.arguments().length() != 3) {
-            qCritical().noquote() << "Documentation: Invalid amount of arguments!";
-            return 2;
-        }
-        const auto ret = PyWorker::makeDocFile(a.arguments()[2]);
-        return ret ? 0 : 1;
-    }
-
     // never auto-quit when last window is closed, as the hosted script
     // may want to show transient Qt windows
     a.setQuitOnLastWindowClosed(false);

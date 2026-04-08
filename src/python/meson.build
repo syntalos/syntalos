@@ -121,23 +121,35 @@ pyworker_exe = executable('pyworker',
     install_dir: sy_libdir,
 )
 
-# Generate some documentation files for the embedded scripting interface,
-# if we can
-pdoc_exe = find_program('pdoc', required: false)
-if pdoc_exe.found()
-    # the pdoc Python module is probably there, so we can try to refresh the documentation
+pb11_stubgen_exe = find_program('pybind11-stubgen', required: false)
+if pb11_stubgen_exe.found()
+    pysy_mlink_stub = custom_target('pysy-mlink-stubgen',
+        build_by_default: true,
+        command: [pb11_stubgen_exe, '-o', meson.current_build_dir(), 'syntalos_mlink'],
+        depends: [pysy_mlink_mod],
+        input: pysy_mlink_mod,
+        output: 'syntalos_mlink.pyi',
+        env: {'PYTHONPATH': meson.current_build_dir()},
+        install: true,
+        install_dir: python.get_install_dir(),
+    )
+endif
 
-    pmd_env = environment()
-    pmd_env.set('LSAN_OPTIONS', 'suppressions=' + join_paths(source_root, 'tests', 'lsan-suppress.txt'))
-    pmd_env.set('SYNTALOS_MODULE_ID', 'build_docgen')
-    pmd_env.set('QT_QPA_PLATFORM', 'offscreen')
-
+# Generate some documentation files for the embedded scripting interface, if we can
+make_pydocs_exe = find_program('make-pydocs.py')
+have_python_pdoc = run_command(python, make_pydocs_exe.full_path(), 'have-pdoc', check: false).returncode() == 0
+if have_python_pdoc and pb11_stubgen_exe.found()
     pysy_mlink_doc_fname = source_root / 'docs' / 'pysy_mlink_api_embed.html'
     custom_target('pysy-mlink-mkdoc',
         build_by_default: true,
-        command: [pyworker_exe, '--doc', '@OUTPUT0@'],
-        depends: [pyworker_exe, pysy_mlink_mod],
+        command: [
+            python, make_pydocs_exe.full_path(),
+            'generate',
+            '--module', 'syntalos_mlink',
+            '@OUTPUT0@'
+        ],
+        depends: [pysy_mlink_stub, pysy_mlink_mod],
         output: 'pysy_mlink_api_embed.html',
-        env: pmd_env,
+        env: {'PYTHONPATH': meson.current_build_dir()},
     )
 endif
