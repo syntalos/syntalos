@@ -466,56 +466,6 @@ PYBIND11_MODULE(syntalos_mlink, m)
         py::arg("slink") = nullptr,
         "Initialize the connection with a running Syntalos instance.");
 
-    py::class_<InputPort>(m, "InputPort", "Representation of a module input port.")
-        .def_property(
-            "on_data",
-            &InputPort::get_on_data,
-            &InputPort::set_on_data,
-            "Set function to be called when new data arrives.")
-        .def_property_readonly("metadata", &InputPort::metadata, "Obtain the metadata associated with this input port.")
-        .def(
-            "set_throttle_items_per_sec",
-            &InputPort::set_throttle_items_per_sec,
-            "Limit the amount of input received to a set amount of elements per second.",
-            py::arg("items_per_sec"))
-        .def_readonly("name", &InputPort::_id);
-
-    py::class_<OutputPort>(m, "OutputPort", "Representation of a module output port.")
-        .def(
-            "submit",
-            &OutputPort::submit,
-            "Submit the given entity to the output port for transfer to its destination(s).")
-        .def_readonly("name", &OutputPort::_id)
-        .def("set_metadata_value", &OutputPort::set_metadata_value, "Set (immutable) metadata value for this port.")
-        .def(
-            "set_metadata_value_size",
-            &OutputPort::set_metadata_value_size,
-            "Set (immutable) metadata value for a 2D size type for this port.")
-
-        // convenience functions
-        .def(
-            "firmata_register_digital_pin",
-            &OutputPort::firmata_register_digital_pin,
-            py::arg("pin_id"),
-            py::arg("name"),
-            py::arg("is_output"),
-            py::arg("is_pullup") = false,
-            "Convenience function to create a command to register a named digital pin and immediately submit it on "
-            "this port. "
-            "The registered pin can later be referred to by its name.")
-        .def(
-            "firmata_submit_digital_value",
-            &OutputPort::firmata_submit_digital_value,
-            py::arg("name"),
-            py::arg("value"),
-            "Convenience function to write a digital value to a named pin.")
-        .def(
-            "firmata_submit_digital_pulse",
-            &OutputPort::firmata_submit_digital_pulse,
-            py::arg("name"),
-            py::arg("duration_msec") = 50,
-            "Convenience function to emit a digital pulse on a named pin.");
-
     /**
      ** Frames
      **/
@@ -615,6 +565,60 @@ PYBIND11_MODULE(syntalos_mlink, m)
         .def_property_readonly("length", &FloatSignalBlock::length)
         .def_property_readonly("rows", &FloatSignalBlock::rows)
         .def_property_readonly("cols", &FloatSignalBlock::cols);
+
+    /**
+     * Ports
+     */
+
+    py::class_<InputPort>(m, "InputPort", "Representation of a module input port.")
+        .def_property(
+            "on_data",
+            &InputPort::get_on_data,
+            &InputPort::set_on_data,
+            "Set function to be called when new data arrives.")
+        .def_property_readonly("metadata", &InputPort::metadata, "Obtain the metadata associated with this input port.")
+        .def(
+            "set_throttle_items_per_sec",
+            &InputPort::set_throttle_items_per_sec,
+            "Limit the amount of input received to a set amount of elements per second.",
+            py::arg("items_per_sec"))
+        .def_readonly("name", &InputPort::_id);
+
+    py::class_<OutputPort>(m, "OutputPort", "Representation of a module output port.")
+        .def(
+            "submit",
+            &OutputPort::submit,
+            "Submit the given entity to the output port for transfer to its destination(s).")
+        .def_readonly("name", &OutputPort::_id)
+        .def("set_metadata_value", &OutputPort::set_metadata_value, "Set (immutable) metadata value for this port.")
+        .def(
+            "set_metadata_value_size",
+            &OutputPort::set_metadata_value_size,
+            "Set (immutable) metadata value for a 2D size type for this port.")
+
+        // convenience functions
+        .def(
+            "firmata_register_digital_pin",
+            &OutputPort::firmata_register_digital_pin,
+            py::arg("pin_id"),
+            py::arg("name"),
+            py::arg("is_output"),
+            py::arg("is_pullup") = false,
+            "Convenience function to create a command to register a named digital pin and immediately submit it on "
+            "this port. "
+            "The registered pin can later be referred to by its name.")
+        .def(
+            "firmata_submit_digital_value",
+            &OutputPort::firmata_submit_digital_value,
+            py::arg("name"),
+            py::arg("value"),
+            "Convenience function to write a digital value to a named pin.")
+        .def(
+            "firmata_submit_digital_pulse",
+            &OutputPort::firmata_submit_digital_pulse,
+            py::arg("name"),
+            py::arg("duration_msec") = 50,
+            "Convenience function to emit a digital pulse on a named pin.");
 
     /**
      ** Additional Functions
