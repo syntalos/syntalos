@@ -255,193 +255,6 @@ Overloaded function.</p>
 
 
 </section>
-<section id="InputPort">
-<div class="attr class">
-
-<span class="def">class</span>
-<span class="name">InputPort</span><wbr>(<span class="base">pybind11_builtins.pybind11_object</span>):
-
-
-</div>
-<a class="headerlink" href="#InputPort"></a>
-
-<div class="docstring"><p>Representation of a module input port.</p>
-</div>
-
-
-<div id="InputPort.on_data" class="classattr">
-<div class="attr variable">
-<span class="name">on_data</span><span class="annotation">: Callable[[typing.Any], None]</span>
-
-
-</div>
-<a class="headerlink" href="#InputPort.on_data"></a>
-
-<div class="docstring"><p>Set function to be called when new data arrives.</p>
-</div>
-
-
-</div>
-<div id="InputPort.metadata" class="classattr">
-<div class="attr variable">
-<span class="name">metadata</span><span class="annotation">: &#39;QVariantHash&#39;</span>
-
-
-</div>
-<a class="headerlink" href="#InputPort.metadata"></a>
-
-<div class="docstring"><p>Obtain the metadata associated with this input port.</p>
-</div>
-
-
-</div>
-<div id="InputPort.set_throttle_items_per_sec" class="classattr">
-<div class="attr function">
-
-<span class="def">def</span>
-<span class="name">set_throttle_items_per_sec</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param">items_per_sec: &lt;class &#x27;SupportsInt&#x27;&gt;</span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
-
-
-</div>
-<a class="headerlink" href="#InputPort.set_throttle_items_per_sec"></a>
-
-<div class="docstring"><p>Limit the amount of input received to a set amount of elements per second.</p>
-</div>
-
-
-</div>
-<div id="InputPort.name" class="classattr">
-<div class="attr variable">
-<span class="name">name</span><span class="annotation">: str</span>
-
-
-</div>
-<a class="headerlink" href="#InputPort.name"></a>
-
-<div class="docstring"><p>(self: <a href="#InputPort">syntalos_mlink.InputPort</a>) -> str</p>
-</div>
-
-
-</div>
-</section>
-<section id="OutputPort">
-<div class="attr class">
-
-<span class="def">class</span>
-<span class="name">OutputPort</span><wbr>(<span class="base">pybind11_builtins.pybind11_object</span>):
-
-
-</div>
-<a class="headerlink" href="#OutputPort"></a>
-
-<div class="docstring"><p>Representation of a module output port.</p>
-</div>
-
-
-<div id="OutputPort.submit" class="classattr">
-<div class="attr function">
-
-<span class="def">def</span>
-<span class="name">submit</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">arg0</span><span class="p">:</span> <span class="n">Any</span></span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
-
-
-</div>
-<a class="headerlink" href="#OutputPort.submit"></a>
-
-<div class="docstring"><p>Submit the given entity to the output port for transfer to its destination(s).</p>
-</div>
-
-
-</div>
-<div id="OutputPort.name" class="classattr">
-<div class="attr variable">
-<span class="name">name</span><span class="annotation">: str</span>
-
-
-</div>
-<a class="headerlink" href="#OutputPort.name"></a>
-
-<div class="docstring"><p>(self: <a href="#OutputPort">syntalos_mlink.OutputPort</a>) -> str</p>
-</div>
-
-
-</div>
-<div id="OutputPort.set_metadata_value" class="classattr">
-<div class="attr function">
-
-<span class="def">def</span>
-<span class="name">set_metadata_value</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">arg0</span><span class="p">:</span> <span class="nb">str</span>, </span><span class="param"><span class="n">arg1</span><span class="p">:</span> <span class="n">Any</span></span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
-
-
-</div>
-<a class="headerlink" href="#OutputPort.set_metadata_value"></a>
-
-<div class="docstring"><p>Set (immutable) metadata value for this port.</p>
-</div>
-
-
-</div>
-<div id="OutputPort.set_metadata_value_size" class="classattr">
-<div class="attr function">
-
-<span class="def">def</span>
-<span class="name">set_metadata_value_size</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">arg0</span><span class="p">:</span> <span class="nb">str</span>, </span><span class="param"><span class="n">arg1</span><span class="p">:</span> <span class="n">Any</span></span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
-
-
-</div>
-<a class="headerlink" href="#OutputPort.set_metadata_value_size"></a>
-
-<div class="docstring"><p>Set (immutable) metadata value for a 2D size type for this port.</p>
-</div>
-
-
-</div>
-<div id="OutputPort.firmata_register_digital_pin" class="classattr">
-<div class="attr function">
-
-<span class="def">def</span>
-<span class="name">firmata_register_digital_pin</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="bp">self</span>,</span><span class="param">	pin_id: &lt;class &#x27;SupportsInt&#x27;&gt;,</span><span class="param">	<span class="n">name</span><span class="p">:</span> <span class="nb">str</span>,</span><span class="param">	<span class="n">is_output</span><span class="p">:</span> <span class="nb">bool</span>,</span><span class="param">	<span class="n">is_pullup</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span></span><span class="return-annotation">) -> <span class="bp">Ellipsis</span>:</span></span>
-
-
-</div>
-<a class="headerlink" href="#OutputPort.firmata_register_digital_pin"></a>
-
-<div class="docstring"><p>Convenience function to create a command to register a named digital pin and immediately submit it on this port. The registered pin can later be referred to by its name.</p>
-</div>
-
-
-</div>
-<div id="OutputPort.firmata_submit_digital_value" class="classattr">
-<div class="attr function">
-
-<span class="def">def</span>
-<span class="name">firmata_submit_digital_value</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">name</span><span class="p">:</span> <span class="nb">str</span>, </span><span class="param"><span class="n">value</span><span class="p">:</span> <span class="nb">bool</span></span><span class="return-annotation">) -> <span class="bp">Ellipsis</span>:</span></span>
-
-
-</div>
-<a class="headerlink" href="#OutputPort.firmata_submit_digital_value"></a>
-
-<div class="docstring"><p>Convenience function to write a digital value to a named pin.</p>
-</div>
-
-
-</div>
-<div id="OutputPort.firmata_submit_digital_pulse" class="classattr">
-<div class="attr function">
-
-<span class="def">def</span>
-<span class="name">firmata_submit_digital_pulse</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">name</span><span class="p">:</span> <span class="nb">str</span>, </span><span class="param">duration_msec: &lt;class &#x27;SupportsInt&#x27;&gt; = 50</span><span class="return-annotation">) -> <span class="bp">Ellipsis</span>:</span></span>
-
-
-</div>
-<a class="headerlink" href="#OutputPort.firmata_submit_digital_pulse"></a>
-
-<div class="docstring"><p>Convenience function to emit a digital pulse on a named pin.</p>
-</div>
-
-
-</div>
-</section>
 <section id="Frame">
 <div class="attr class">
 
@@ -1305,6 +1118,193 @@ Overloaded function.</p>
 
 </div>
 </section>
+<section id="InputPort">
+<div class="attr class">
+
+<span class="def">class</span>
+<span class="name">InputPort</span><wbr>(<span class="base">pybind11_builtins.pybind11_object</span>):
+
+
+</div>
+<a class="headerlink" href="#InputPort"></a>
+
+<div class="docstring"><p>Representation of a module input port.</p>
+</div>
+
+
+<div id="InputPort.on_data" class="classattr">
+<div class="attr variable">
+<span class="name">on_data</span><span class="annotation">: Callable[[typing.Any], None]</span>
+
+
+</div>
+<a class="headerlink" href="#InputPort.on_data"></a>
+
+<div class="docstring"><p>Set function to be called when new data arrives.</p>
+</div>
+
+
+</div>
+<div id="InputPort.metadata" class="classattr">
+<div class="attr variable">
+<span class="name">metadata</span><span class="annotation">: dict[str, typing.Any]</span>
+
+
+</div>
+<a class="headerlink" href="#InputPort.metadata"></a>
+
+<div class="docstring"><p>Obtain the metadata associated with this input port.</p>
+</div>
+
+
+</div>
+<div id="InputPort.set_throttle_items_per_sec" class="classattr">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">set_throttle_items_per_sec</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param">items_per_sec: &lt;class &#x27;SupportsInt&#x27;&gt;</span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#InputPort.set_throttle_items_per_sec"></a>
+
+<div class="docstring"><p>Limit the amount of input received to a set amount of elements per second.</p>
+</div>
+
+
+</div>
+<div id="InputPort.name" class="classattr">
+<div class="attr variable">
+<span class="name">name</span><span class="annotation">: str</span>
+
+
+</div>
+<a class="headerlink" href="#InputPort.name"></a>
+
+<div class="docstring"><p>(self: <a href="#InputPort">syntalos_mlink.InputPort</a>) -> str</p>
+</div>
+
+
+</div>
+</section>
+<section id="OutputPort">
+<div class="attr class">
+
+<span class="def">class</span>
+<span class="name">OutputPort</span><wbr>(<span class="base">pybind11_builtins.pybind11_object</span>):
+
+
+</div>
+<a class="headerlink" href="#OutputPort"></a>
+
+<div class="docstring"><p>Representation of a module output port.</p>
+</div>
+
+
+<div id="OutputPort.submit" class="classattr">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">submit</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">arg0</span><span class="p">:</span> <span class="n">Any</span></span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#OutputPort.submit"></a>
+
+<div class="docstring"><p>Submit the given entity to the output port for transfer to its destination(s).</p>
+</div>
+
+
+</div>
+<div id="OutputPort.name" class="classattr">
+<div class="attr variable">
+<span class="name">name</span><span class="annotation">: str</span>
+
+
+</div>
+<a class="headerlink" href="#OutputPort.name"></a>
+
+<div class="docstring"><p>(self: <a href="#OutputPort">syntalos_mlink.OutputPort</a>) -> str</p>
+</div>
+
+
+</div>
+<div id="OutputPort.set_metadata_value" class="classattr">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">set_metadata_value</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">arg0</span><span class="p">:</span> <span class="nb">str</span>, </span><span class="param"><span class="n">arg1</span><span class="p">:</span> <span class="n">Any</span></span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#OutputPort.set_metadata_value"></a>
+
+<div class="docstring"><p>Set (immutable) metadata value for this port.</p>
+</div>
+
+
+</div>
+<div id="OutputPort.set_metadata_value_size" class="classattr">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">set_metadata_value_size</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">arg0</span><span class="p">:</span> <span class="nb">str</span>, </span><span class="param"><span class="n">arg1</span><span class="p">:</span> <span class="n">Any</span></span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#OutputPort.set_metadata_value_size"></a>
+
+<div class="docstring"><p>Set (immutable) metadata value for a 2D size type for this port.</p>
+</div>
+
+
+</div>
+<div id="OutputPort.firmata_register_digital_pin" class="classattr">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">firmata_register_digital_pin</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="bp">self</span>,</span><span class="param">	pin_id: &lt;class &#x27;SupportsInt&#x27;&gt;,</span><span class="param">	<span class="n">name</span><span class="p">:</span> <span class="nb">str</span>,</span><span class="param">	<span class="n">is_output</span><span class="p">:</span> <span class="nb">bool</span>,</span><span class="param">	<span class="n">is_pullup</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span></span><span class="return-annotation">) -> <span class="n"><a href="#FirmataControl">FirmataControl</a></span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#OutputPort.firmata_register_digital_pin"></a>
+
+<div class="docstring"><p>Convenience function to create a command to register a named digital pin and immediately submit it on this port. The registered pin can later be referred to by its name.</p>
+</div>
+
+
+</div>
+<div id="OutputPort.firmata_submit_digital_value" class="classattr">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">firmata_submit_digital_value</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">name</span><span class="p">:</span> <span class="nb">str</span>, </span><span class="param"><span class="n">value</span><span class="p">:</span> <span class="nb">bool</span></span><span class="return-annotation">) -> <span class="n"><a href="#FirmataControl">FirmataControl</a></span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#OutputPort.firmata_submit_digital_value"></a>
+
+<div class="docstring"><p>Convenience function to write a digital value to a named pin.</p>
+</div>
+
+
+</div>
+<div id="OutputPort.firmata_submit_digital_pulse" class="classattr">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">firmata_submit_digital_pulse</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="bp">self</span>,</span><span class="param">	<span class="n">name</span><span class="p">:</span> <span class="nb">str</span>,</span><span class="param">	duration_msec: &lt;class &#x27;SupportsInt&#x27;&gt; = 50</span><span class="return-annotation">) -> <span class="n"><a href="#FirmataControl">FirmataControl</a></span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#OutputPort.firmata_submit_digital_pulse"></a>
+
+<div class="docstring"><p>Convenience function to emit a digital pulse on a named pin.</p>
+</div>
+
+
+</div>
+</section>
 <section id="println">
 <div class="attr function">
 
@@ -1474,13 +1474,13 @@ Overloaded function.</p>
 <div class="attr function">
 
 <span class="def">def</span>
-<span class="name">call_on_show_settings</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">callable_fn</span><span class="p">:</span> <span class="s1">&#39;Callable[[QByteArray], None]&#39;</span></span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
+<span class="name">call_on_show_settings</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">callable_fn</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="nb">bytearray</span><span class="p">],</span> <span class="kc">None</span><span class="p">]</span></span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
 
 
 </div>
 <a class="headerlink" href="#call_on_show_settings"></a>
 
-<div class="docstring"><p>Call the given function when the module's settings dialog should be shown.</p>
+<div class="docstring"><p>Call the given function when the module's settings dialog should be shown. The callback receives settings as bytes.</p>
 </div>
 
 
@@ -1504,13 +1504,13 @@ Overloaded function.</p>
 <div class="attr function">
 
 <span class="def">def</span>
-<span class="name">save_settings</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">settings_data</span><span class="p">:</span> <span class="s1">&#39;QByteArray&#39;</span></span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
+<span class="name">save_settings</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">settings_data</span><span class="p">:</span> <span class="nb">bytearray</span></span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
 
 
 </div>
 <a class="headerlink" href="#save_settings"></a>
 
-<div class="docstring"><p>Send module settings data to Syntalos for safekeeping.</p>
+<div class="docstring"><p>Send module settings data as bytes to Syntalos for safekeeping.</p>
 </div>
 
 
