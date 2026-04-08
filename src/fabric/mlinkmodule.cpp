@@ -61,6 +61,7 @@ public:
     ~Private() {}
 
     QProcess *proc = nullptr;
+    ModuleWorkerMode workerMode;
     bool outputCaptured = false;
     QString pyVenvDir;
     QString scriptWDir;
@@ -306,6 +307,7 @@ MLinkModule::MLinkModule(QObject *parent)
       d(new MLinkModule::Private)
 {
     d->proc = new QProcess(this);
+    d->workerMode = ModuleWorkerMode::PERSISTENT;
     d->portChangesAllowed = true;
 
     // merge stdout/stderr of external process with ours by default
@@ -566,6 +568,16 @@ QProcessEnvironment MLinkModule::moduleBinaryEnv() const
 void MLinkModule::setModuleBinaryEnv(const QProcessEnvironment &env)
 {
     d->proc->setProcessEnvironment(env);
+}
+
+ModuleWorkerMode MLinkModule::workerMode() const
+{
+    return d->workerMode;
+}
+
+void MLinkModule::setWorkerMode(ModuleWorkerMode mode)
+{
+    d->workerMode = mode;
 }
 
 bool MLinkModule::outputCaptured() const
@@ -957,9 +969,12 @@ bool MLinkModule::prepare(const TestSubject &subject)
     if (!sendPortInformation())
         return false;
 
-    // set the script to be run, if any exists
-    if (!loadCurrentScript())
-        return false;
+    // set the script to be run, if any exists and we are using a transient worker
+    // (for persistent workers, the script has already been loaded)
+    if (d->workerMode == ModuleWorkerMode::TRANSIENT) {
+        if (!loadCurrentScript())
+            return false;
+    }
 
     // ensure we use the latest settings data received from the worker
     handleIncomingControl();

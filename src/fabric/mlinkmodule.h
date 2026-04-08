@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -35,6 +35,14 @@ struct ErrorEvent;
 struct StateChangeEvent;
 
 /**
+ * @brief Worker mode for out-of-process modules
+ */
+enum class ModuleWorkerMode {
+    PERSISTENT, /// Worker is started once, and runs while the module is present on the board
+    TRANSIENT   /// Worker run only for the duration of the experiment, and terminated afterwards
+};
+
+/**
  * @brief Master link for out-of-process modules
  */
 class MLinkModule : public AbstractModule
@@ -54,6 +62,9 @@ public:
 
     QProcessEnvironment moduleBinaryEnv() const;
     void setModuleBinaryEnv(const QProcessEnvironment &env);
+
+    ModuleWorkerMode workerMode() const;
+    void setWorkerMode(ModuleWorkerMode mode);
 
     bool outputCaptured() const;
     void setOutputCaptured(bool capture);

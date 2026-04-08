@@ -58,6 +58,9 @@ public:
         // we use the generic Python OOP worker process for this
         setModuleBinary(findSyntalosPyWorkerBinary());
 
+        // script modules are transient
+        setWorkerMode(ModuleWorkerMode::TRANSIENT);
+
         // set up code editor
         auto editor = KTextEditor::Editor::instance();
         // create a new document

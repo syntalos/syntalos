@@ -42,6 +42,9 @@ public:
         // we use the generic Python OOP worker process for this
         setModuleBinary(findSyntalosPyWorkerBinary());
 
+        // Python modules are persistently running
+        setWorkerMode(ModuleWorkerMode::PERSISTENT);
+
         setOutputCaptured(false); // don't capture stdout until we are running
         connect(this, &MLinkModule::processOutputReceived, this, [&](const QString &data) {
             std::cout << "py." << id().toStdString() << "(" << name().toStdString() << "): " << data.toStdString()
@@ -49,7 +52,7 @@ public:
         });
     }
 
-    ~PythonModule() override {}
+    ~PythonModule() override = default;
 
     ModuleFeatures features() const override
     {
@@ -181,7 +184,7 @@ public:
             return false;
 
         setInitialized();
-        return true;
+        return MLinkModule::initialize();
     }
 
     bool prepare(const TestSubject &testSubject) override
