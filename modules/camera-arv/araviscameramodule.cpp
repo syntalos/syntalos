@@ -298,11 +298,13 @@ public:
         return true;
     }
 
-    void usbHotplugEvent(UsbHotplugEventKind) final
+protected:
+    void usbHotplugEvent(UsbHotplugEventKind kind) final
     {
         if (!m_stopped)
             return;
-        m_configWindow->refreshCameras();
+        if (kind == UsbHotplugEventKind::DEVICE_ARRIVED || kind == UsbHotplugEventKind::DEVICES_CHANGE)
+            m_configWindow->refreshCameras();
     }
 };
 
