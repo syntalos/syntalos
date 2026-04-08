@@ -455,9 +455,8 @@ PYBIND11_MODULE(syntalos_mlink, m)
 {
     m.doc() = "Syntalos Python Module Interface";
 
-    py::bind_vector<std::vector<double>>(m, "VectorDouble");
-    py::register_exception<SyntalosPyError>(m, "SyntalosPyError");
     pydef_cvnp(m);
+    py::register_exception<SyntalosPyError>(m, "SyntalosPyError");
     py::class_<SyntalosLink>(m, "SyntalosLink");
 
     m.def(
