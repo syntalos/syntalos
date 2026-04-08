@@ -28,30 +28,11 @@
 
 namespace Syntalos
 {
+
 Q_DECLARE_LOGGING_CATEGORY(logMLinkMod)
 
 struct ErrorEvent;
 struct StateChangeEvent;
-} // namespace Syntalos
-
-namespace iox
-{
-namespace mepoo
-{
-struct NoUserHeader;
-}
-namespace popo
-{
-using namespace iox;
-class UntypedSubscriber;
-class UntypedClient;
-template<typename T, typename H>
-class Subscriber;
-} // namespace popo
-} // namespace iox
-
-namespace Syntalos
-{
 
 /**
  * @brief Master link for out-of-process modules
@@ -111,9 +92,7 @@ protected:
 
 private:
     void handleIncomingControl();
-
     void resetConnection();
-    static void onOutputDataReceivedCb(iox::popo::UntypedSubscriber *subscriber, VariantDataStream *stream);
 
     bool registerOutPortForwarders();
     void disconnectOutPortForwarders();
