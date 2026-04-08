@@ -201,8 +201,8 @@ public:
         if (actionCollection) {
             auto saveAction = actionCollection->action("file_save");
             if (saveAction) {
-                // Remove default connections to disable default save behavior
-                disconnect(saveAction, nullptr, nullptr, nullptr);
+                // avoid KTextEditor's default save dialog in the embedded editor
+                saveAction->setEnabled(false);
             }
         }
     }
