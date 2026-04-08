@@ -32,13 +32,13 @@ struct OutputPortChange;
 struct InputPortChange;
 
 using LoadScriptFn = std::function<void(const QString &script, const QString &wdir)>;
-using PrepareStartFn = std::function<void(const QByteArray &settings)>;
+using PrepareStartFn = std::function<void(const ByteVector &settings)>;
 using StartFn = std::function<void()>;
 using StopFn = std::function<void()>;
 using ShutdownFn = std::function<void()>;
 using NewDataRawFn = std::function<void(const void *data, size_t size)>;
 
-using ShowSettingsFn = std::function<void(const QByteArray &settings)>;
+using ShowSettingsFn = std::function<void(const ByteVector &settings)>;
 using ShowDisplayFn = std::function<void(void)>;
 
 /**
@@ -156,7 +156,7 @@ public:
 
     int maxRealtimePriority() const;
 
-    void setSettingsData(const QByteArray &data);
+    void setSettingsData(const ByteVector &data);
     void setShowSettingsCallback(ShowSettingsFn callback);
     void setShowDisplayCallback(ShowDisplayFn callback);
 

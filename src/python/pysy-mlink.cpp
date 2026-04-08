@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2018 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -133,7 +133,7 @@ static void schedule_delayed_call(int delay_msec, const std::function<void()> &f
 static void call_on_show_settings(ShowSettingsFn fn)
 {
     auto pb = PyBridge::instance();
-    pb->link()->setShowSettingsCallback([fn](const QByteArray &settings) {
+    pb->link()->setShowSettingsCallback([fn](const ByteVector &settings) {
         QTimer::singleShot(0, [fn, settings]() {
             try {
                 fn(settings);
@@ -160,7 +160,7 @@ static void call_on_show_display(const ShowDisplayFn &fn)
     });
 }
 
-static void save_settings(const QByteArray &settings_data)
+static void save_settings(const ByteVector &settings_data)
 {
     auto pb = PyBridge::instance();
     pb->link()->setSettingsData(settings_data);
@@ -662,7 +662,8 @@ PYBIND11_MODULE(syntalos_mlink, m)
         "call_on_show_settings",
         &call_on_show_settings,
         py::arg("callable_fn"),
-        "Call the given function when the module's settings dialog should be shown.");
+        "Call the given function when the module's settings dialog should be shown. The callback receives settings as "
+        "bytes.");
     m.def(
         "call_on_show_display",
         &call_on_show_display,
@@ -672,7 +673,7 @@ PYBIND11_MODULE(syntalos_mlink, m)
         "save_settings",
         &save_settings,
         py::arg("settings_data"),
-        "Send module settings data to Syntalos for safekeeping.");
+        "Send module settings data as bytes to Syntalos for safekeeping.");
 
     // Firmata helpers
     m.def(

@@ -52,13 +52,11 @@ public:
     void raiseError(const QString &message);
     bool loadPythonScript(const QString &script, const QString &wdir);
 
-    bool prepareStart(const QByteArray &settings);
+    bool prepareStart(const ByteVector &settings);
     void start();
     bool stop();
     void shutdown();
     void executePythonRunFn();
-
-    static bool makeDocFile(const QString &fname);
 
 protected:
     void setState(ModuleState state);
@@ -69,7 +67,7 @@ private:
     bool m_scriptLoaded;
 
     bool m_running;
-    QByteArray m_settings;
+    ByteVector m_settings;
 
     void resetPyCallbacks();
     bool initPythonInterpreter();

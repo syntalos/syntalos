@@ -22,6 +22,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/pytypes.h>
 #include <QSize>
+
 #include "datactl/datatypes.h"
 
 namespace pybind11
@@ -102,7 +103,7 @@ template<>
 class type_caster<QVariantHash>
 {
 public:
-    PYBIND11_TYPE_CASTER(QVariantHash, const_name("QVariantHash"));
+    PYBIND11_TYPE_CASTER(QVariantHash, const_name("dict[str, object]"));
 
     bool load(const handle &src, bool)
     {
@@ -163,29 +164,31 @@ public:
 };
 
 /**
- * QByteArray conversion
+ * ByteVector conversion
  */
 template<>
-struct type_caster<QByteArray> {
+struct type_caster<Syntalos::ByteVector> {
 public:
-    // Declare the type name
-    PYBIND11_TYPE_CASTER(QByteArray, _("QByteArray"));
+    PYBIND11_TYPE_CASTER(Syntalos::ByteVector, _("bytearray"));
 
     bool load(handle src, bool)
     {
         if (!PyBytes_Check(src.ptr()))
             return false;
 
-        Py_ssize_t length = PyBytes_Size(src.ptr());
-        const char *data = PyBytes_AsString(src.ptr());
-        value = QByteArray(data, length);
+        Py_ssize_t length = 0;
+        char *data = nullptr;
+        if (PyBytes_AsStringAndSize(src.ptr(), &data, &length) != 0)
+            return false;
 
+        value = ByteVector(
+            reinterpret_cast<const std::byte *>(data), reinterpret_cast<const std::byte *>(data) + length);
         return true;
     }
 
-    static handle cast(const QByteArray &src, return_value_policy /* policy */, handle /* parent */)
+    static handle cast(const Syntalos::ByteVector &src, return_value_policy /* policy */, handle /* parent */)
     {
-        return pybind11::bytes(src.constData(), src.size()).release();
+        return pybind11::bytearray(reinterpret_cast<const char *>(src.data()), src.size()).release();
     }
 };
 

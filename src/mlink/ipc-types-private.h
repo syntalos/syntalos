@@ -457,6 +457,11 @@ struct SettingsChangeEvent {
     QByteArray settings;
 
     SettingsChangeEvent() = default;
+    explicit SettingsChangeEvent(const ByteVector &bytes)
+        : settings(reinterpret_cast<const char *>(bytes.data()), static_cast<qsizetype>(bytes.size()))
+    {
+    }
+
     explicit SettingsChangeEvent(QByteArray settings)
         : settings(std::move(settings))
     {

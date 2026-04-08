@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -45,7 +45,7 @@ PyWorker::PyWorker(SyntalosLink *slink, QObject *parent)
     m_link->setLoadScriptCallback([this](const QString &script, const QString &wdir) {
         return loadPythonScript(script, wdir);
     });
-    m_link->setPrepareStartCallback([this](const QByteArray &settings) {
+    m_link->setPrepareStartCallback([this](const ByteVector &settings) {
         return prepareStart(settings);
     });
     m_link->setStartCallback([this]() {
@@ -221,7 +221,7 @@ bool PyWorker::loadPythonScript(const QString &script, const QString &wdir)
     return true;
 }
 
-bool PyWorker::prepareStart(const QByteArray &settings)
+bool PyWorker::prepareStart(const ByteVector &settings)
 {
     m_settings = settings;
 
@@ -236,7 +236,7 @@ bool PyWorker::prepareStart(const QByteArray &settings)
         if (py::globals().contains("set_settings")) {
             auto pyFnSetSettings = py::globals()["set_settings"];
             if (!pyFnSetSettings.is_none())
-                pyFnSetSettings(py::bytes(settings));
+                pyFnSetSettings(py::bytes(reinterpret_cast<const char *>(settings.data()), settings.size()));
         }
 
         // run prepare function if it exists for initial setup

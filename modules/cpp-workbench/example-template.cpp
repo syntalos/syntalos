@@ -24,7 +24,7 @@ public:
 
     ~MyCppModule() = default;
 
-    bool prepare(const QByteArray &) override
+    bool prepare(const ByteVector &) override
     {
         // Actions to prepare an acquisition run go here!
 

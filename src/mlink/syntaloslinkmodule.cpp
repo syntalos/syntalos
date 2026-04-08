@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2020-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -49,7 +49,7 @@ SyntalosLinkModule::SyntalosLinkModule(SyntalosLink *slink)
         shutdown();
     });
 
-    m_slink->setPrepareStartCallback([this](const QByteArray &settings) {
+    m_slink->setPrepareStartCallback([this](const ByteVector &settings) {
         prepare(settings);
     });
 
@@ -104,7 +104,7 @@ void SyntalosLinkModule::setStatusMessage(const QString &message)
     m_slink->setStatusMessage(message);
 }
 
-bool SyntalosLinkModule::prepare(const QByteArray &settings)
+bool SyntalosLinkModule::prepare(const ByteVector &settings)
 {
     setState(ModuleState::PREPARING);
     return true;

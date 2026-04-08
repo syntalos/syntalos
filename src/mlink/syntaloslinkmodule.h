@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2020-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -51,7 +51,7 @@ public:
 
     void setStatusMessage(const QString &message);
 
-    virtual bool prepare(const QByteArray &settings);
+    virtual bool prepare(const ByteVector &settings);
     virtual void start();
     virtual void stop();
 

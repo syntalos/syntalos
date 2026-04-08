@@ -684,7 +684,9 @@ void SyntalosLink::processPendingControl()
             break;
         const auto pl = req->payload();
         const auto prepReq = PrepareStartRequest::fromMemory(pl.data(), pl.number_of_bytes());
-        const auto prepareSettings = prepReq.settings;
+        ByteVector prepareSettings(
+            reinterpret_cast<const std::byte *>(prepReq.settings.constData()),
+            reinterpret_cast<const std::byte *>(prepReq.settings.constData()) + prepReq.settings.size());
         Private::replyDoneSlice(*req, true); // reply before callback so master is not blocked
         if (d->prepareStartCb)
             d->prepareStartCb(prepareSettings);
@@ -774,7 +776,9 @@ void SyntalosLink::processPendingControl()
             break;
         const auto pl = req->payload();
         const auto showReq = ShowSettingsRequest::fromMemory(pl.data(), pl.number_of_bytes());
-        const QByteArray settingsData = showReq.settings;
+        ByteVector settingsData(
+            reinterpret_cast<const std::byte *>(showReq.settings.constData()),
+            reinterpret_cast<const std::byte *>(showReq.settings.constData()) + showReq.settings.size());
         Private::replyDoneSlice(*req, true);
         if (d->showSettingsCb)
             d->showSettingsCb(settingsData);
@@ -950,7 +954,7 @@ SyncTimer *SyntalosLink::timer() const
     return d->syTimer;
 }
 
-void SyntalosLink::setSettingsData(const QByteArray &data)
+void SyntalosLink::setSettingsData(const ByteVector &data)
 {
     // we copy twice here - but this is a low-volume event, so it should be fine
     const auto scEvData = SettingsChangeEvent(data).toBytes();
