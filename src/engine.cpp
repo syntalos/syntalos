@@ -680,6 +680,7 @@ AbstractModule *Engine::createModule(const QString &id, const QString &name)
         emit moduleInitDone();
         return nullptr;
     }
+    mod->setInitialized();
 
     // now listen to errors emitted by this module
     connect(mod, &AbstractModule::error, this, &Engine::receiveModuleError);
