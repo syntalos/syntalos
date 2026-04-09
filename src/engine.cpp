@@ -680,6 +680,8 @@ AbstractModule *Engine::createModule(const QString &id, const QString &name)
         emit moduleInitDone();
         return nullptr;
     }
+    // Ensure modules are marked as initialized at this point, to make the initialize() guards
+    // work. This call is inert if the module has already set it by itself.
     mod->setInitialized();
 
     // now listen to errors emitted by this module
