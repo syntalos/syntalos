@@ -240,7 +240,7 @@ QByteArray blake3HashForData(const QByteArray &data)
     uint8_t out[BLAKE3_OUT_LEN];
     blake3_hasher_finalize(&hasher, out, BLAKE3_OUT_LEN);
 
-    return QByteArray(reinterpret_cast<const char *>(out), BLAKE3_OUT_LEN);
+    return {reinterpret_cast<const char *>(out), BLAKE3_OUT_LEN};
 }
 
 auto blake3HashForFile(const QString &filename) -> std::expected<QByteArray, QString>
