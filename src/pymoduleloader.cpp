@@ -184,7 +184,7 @@ public:
             return false;
 
         setInitialized();
-        return MLinkModule::initialize();
+        return true;
     }
 
     bool prepare(const TestSubject &testSubject) override
