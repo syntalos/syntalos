@@ -202,12 +202,17 @@ void PyWorker::raiseError(const QString &message)
 
 bool PyWorker::loadPythonScript(const QString &script, const QString &wdir)
 {
-    if (!wdir.isEmpty())
-        QDir::setCurrent(wdir);
+    // drop callbacks that may still reference objects/functions from the previously loaded script.
+    resetPyCallbacks();
 
     // create a clean slate to load the new script
     py::globals().clear();
     m_scriptLoaded = false;
+
+    if (!wdir.isEmpty() && !QDir::setCurrent(wdir)) {
+        raiseError(QStringLiteral("Unable to change working directory to '%1'.").arg(wdir));
+        return false;
+    }
 
     try {
         // execute the script
