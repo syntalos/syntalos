@@ -183,8 +183,7 @@ public:
         if (!ensurePythonCodeRunning())
             return false;
 
-        setInitialized();
-        return true;
+        return MLinkModule::initialize();
     }
 
     bool prepare(const TestSubject &testSubject) override
