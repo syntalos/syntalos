@@ -157,13 +157,12 @@ public:
                         .arg(name()),
                     QMessageBox::Yes | QMessageBox::No);
 
-                // we reuse the old environment if the user selected "No"
-                if (reply == QMessageBox::No)
-                    return true;
-
-                processUiEvents();
-                if (!installVirtualEnv(true))
-                    return false;
+                // if the user selected "No", continue with the existing environment
+                if (reply == QMessageBox::Yes) {
+                    processUiEvents();
+                    if (!installVirtualEnv(true))
+                        return false;
+                }
             } else if (venvStatus == PyVirtualEnvStatus::INTERPRETER_MISSING) {
                 QMessageBox::information(
                     nullptr,
