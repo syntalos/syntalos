@@ -309,8 +309,12 @@ void Syntalos::findSyntalosLibraryPaths(QString &pkgConfigPath, QString &ldLibra
         includePath = QStringLiteral("%1/src:%1/src/mlink/include:%1/src/datactl/include").arg(srcRootPath);
     }
 
-    QFileInfo pkgCRootFi(QStringLiteral("%1/../meson-private/").arg(QCoreApplication::applicationDirPath()));
+    QFileInfo pkgCRootFi(QStringLiteral("%1/../meson-uninstalled/").arg(QCoreApplication::applicationDirPath()));
     pkgConfigPath = pkgCRootFi.canonicalFilePath();
+    if (pkgConfigPath.isEmpty()) {
+        QFileInfo pkgCPrivateFi(QStringLiteral("%1/../meson-private/").arg(QCoreApplication::applicationDirPath()));
+        pkgConfigPath = pkgCPrivateFi.canonicalFilePath();
+    }
     ldLibraryPath = QStringLiteral("%1/mlink").arg(QCoreApplication::applicationDirPath()) + ":"
                     + QStringLiteral("%1/datactl").arg(QCoreApplication::applicationDirPath()) + ":"
                     + QStringLiteral("%1/utils").arg(QCoreApplication::applicationDirPath());
