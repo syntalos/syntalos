@@ -62,7 +62,7 @@ public:
     bool initialize() override
     {
         m_camSettingsWindow->updateValues();
-        return true;
+        return AbstractModule::initialize();
     }
 
     ~FLIRCameraMod()

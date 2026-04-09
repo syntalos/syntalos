@@ -97,7 +97,7 @@ public:
                 QMessageBox::Ok);
         }
 
-        return true;
+        return AbstractModule::initialize();
     }
 
     void showSettingsUi() override

@@ -88,7 +88,7 @@ public:
         // set initial window titles
         setName(name());
 
-        return true;
+        return AbstractModule::initialize();
     }
 
     ~AravisCameraModule() {}

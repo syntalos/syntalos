@@ -132,7 +132,7 @@ bool IntanRhxModule::initialize()
                              QMessageBox::Ok);
     }
 
-    return true;
+    return AbstractModule::initialize();
 }
 
 ModuleFeatures IntanRhxModule::features() const
