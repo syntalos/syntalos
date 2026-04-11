@@ -102,6 +102,7 @@ test_manifests = [
     'scenarios/video-transform-crop.toml',
     'scenarios/ipc-test-simple.toml',
     'scenarios/ipc-test-pycpp.toml',
+    'scenarios/zarr-writer-test.toml',
 ]
 
 if get_option('gui-tests')

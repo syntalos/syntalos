@@ -69,6 +69,7 @@ endif
 
 # Misc
 subdir('jsonwriter')
+subdir('zarrwriter')
 subdir('runcmd')
 subdir('deeplabcut-live')
 

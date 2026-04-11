@@ -1,0 +1,16 @@
+[test]
+name = "Zarr Writer Test"
+project_file = "projects/zarr-writer-test.syct"
+run_duration_sec = 10
+expected_exit_code = 0
+expected_datasets = ["numbersource", "sinesource"]
+expected_stderr_contains = ["Module start order: NumberSource ⇢ SineSource ⇢ Zarr Writer ⇢ Zarr Writer 2"]
+validator_script = "zarr_writer_validator.py"
+
+[[test.expected_output_files]]
+path = "attributes.toml"
+toml_fields = ["machine_node", "success"]
+
+[[test.expected_output_files]]
+path = "manifest.toml"
+toml_fields = ["collection_id", "format_version", "time_created", "type", "generator"]

@@ -71,4 +71,5 @@ eatmydata apt-get install -yq --no-install-recommends \
     xauth \
     dbus-daemon \
     python3-zstandard \
-    python3-opencv
+    python3-opencv \
+    python3-zarr
