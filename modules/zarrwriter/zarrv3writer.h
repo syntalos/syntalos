@@ -27,6 +27,8 @@
 #include <QString>
 #include <QStringList>
 
+#include <zstd.h>
+
 #include "datactl/binarystream.h"
 
 /**
@@ -90,6 +92,9 @@ private:
     // 1-D arrays: <arrayDir>/c/0
     // 2-D arrays: <arrayDir>/c/0/0
     QFile m_shardFile;
+
+    // ZSTD compression context
+    ZSTD_CCtx *m_cctx;
 
     // Shard index: one (byte_offset, byte_length) pair per inner chunk
     // stored as raw little-endian uint64_t pairs, appended at finalize().

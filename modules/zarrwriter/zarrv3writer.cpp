@@ -25,8 +25,6 @@
 #include <QJsonObject>
 #include <utility>
 
-#include <zstd.h>
-
 using namespace Syntalos;
 
 ZarrV3Array::ZarrV3Array(
@@ -42,6 +40,7 @@ ZarrV3Array::ZarrV3Array(
       m_nCols(nCols),
       m_dimNames(std::move(dimNames)),
       m_typeSize(0),
+      m_cctx(nullptr),
       m_shardOffset(0),
       m_bufferOffset(0),
       m_totalRows(0),
@@ -87,6 +86,12 @@ std::expected<void, QString> ZarrV3Array::open()
         return std::unexpected(
             QStringLiteral("Failed to open shard file for writing: ") + shardPath + ": " + m_shardFile.errorString());
 
+    m_cctx = ZSTD_createCCtx();
+    if (!m_cctx)
+        return std::unexpected(QStringLiteral("Failed to create ZSTD compression context"));
+    ZSTD_CCtx_setParameter(m_cctx, ZSTD_c_compressionLevel, 3);
+    ZSTD_CCtx_setParameter(m_cctx, ZSTD_c_checksumFlag, 1);
+
     return {};
 }
 
@@ -131,6 +136,11 @@ bool ZarrV3Array::finalize()
     m_buffer.clear();
     m_bufferOffset = 0;
 
+    if (m_cctx != nullptr) {
+        ZSTD_freeCCtx(m_cctx);
+        m_cctx = nullptr;
+    }
+
     // Append the shard index (N x 16 bytes: offset + length per inner chunk)
     // at the end of the shard file, then close it.
     if (m_shardFile.isOpen()) {
@@ -157,7 +167,7 @@ bool ZarrV3Array::writeChunk(const void *data, int64_t nRows)
     const size_t destCapacity = ZSTD_compressBound(srcSize);
     ByteVector dest(destCapacity);
 
-    const size_t csize = ZSTD_compress(dest.data(), destCapacity, data, srcSize, 3);
+    const size_t csize = ZSTD_compress2(m_cctx, dest.data(), destCapacity, data, srcSize);
     if (ZSTD_isError(csize))
         return false;
 
@@ -253,7 +263,7 @@ bool ZarrV3Array::writeMetadata()
 
     QJsonObject zstdConf;
     zstdConf["level"] = 3;
-    zstdConf["checksum"] = false;
+    zstdConf["checksum"] = true;
     QJsonObject zstdCodec;
     zstdCodec["name"] = QStringLiteral("zstd");
     zstdCodec["configuration"] = zstdConf;
