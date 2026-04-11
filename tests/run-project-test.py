@@ -270,6 +270,7 @@ def run_test(syntalos_bin, manifest_path):
     expected_output = test_config.get("expected_output_files", [])
     expected_stdout_contains = test_config.get("expected_stdout_contains", [])
     expected_stderr_contains = test_config.get("expected_stderr_contains", [])
+    validator_script = test_config.get("validator_script")
 
     # Add expected datasets as simple file existence checks
     for dataset in expected_datasets:
@@ -360,6 +361,29 @@ def run_test(syntalos_bin, manifest_path):
                     return False
                 else:
                     print("  [+] Output validation passed")
+
+            if validator_script:
+                validator_path = os.path.join(manifest_dir, "validators", validator_script)
+                if not os.path.exists(validator_path):
+                    print(f"  [!] Validator script not found: {validator_path}", file=sys.stderr)
+                    return False
+                print(f"  Running validator: {validator_script}")
+                val_result = subprocess.run(
+                    [sys.executable, validator_path, export_dir],
+                    capture_output=True,
+                    text=True,
+                )
+                if val_result.returncode != 0:
+                    print(f"  [!] Validator {validator_script} failed:", file=sys.stderr)
+                    if val_result.stdout:
+                        print(val_result.stdout, file=sys.stderr)
+                    if val_result.stderr:
+                        print(val_result.stderr, file=sys.stderr)
+                    return False
+                else:
+                    if val_result.stdout:
+                        print(val_result.stdout.rstrip())
+                    print(f"  [+] Validator {validator_script} passed")
 
             print(f"  [+] Test {name} passed!")
             return True
