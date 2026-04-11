@@ -48,6 +48,7 @@ eatmydata apt-get install -yq --no-install-recommends \
     libv4l-dev \
     libxml2-dev \
     libxxhash-dev \
+    libzstd-dev \
     libsystemd-dev \
     systemd-dev \
     meson \
