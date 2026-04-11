@@ -34,8 +34,10 @@ typedef Eigen::Matrix<uint64_t, Eigen::Dynamic, 1> VectorXul;
 typedef Eigen::Matrix<int64_t, Eigen::Dynamic, 1> VectorXsl;
 typedef Eigen::Matrix<double, Eigen::Dynamic, 1> VectorXd;
 
-typedef Eigen::Matrix<int32_t, Eigen::Dynamic, Eigen::Dynamic> MatrixXsi;
-typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> MatrixXd;
+// Our default matrices are row-major, as this is beneficial for common operations done within Syntalos
+// (like appending, writing to most file formats, or iterating over them).
+typedef Eigen::Matrix<int32_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> MatrixXsi;
+typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> MatrixXd;
 
 template<typename T>
 double vectorMedian(const Eigen::Matrix<T, Eigen::Dynamic, 1> &vec)
