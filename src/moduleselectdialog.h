@@ -26,6 +26,7 @@
 
 class QStandardItemModel;
 class QStandardItem;
+class QTimer;
 
 namespace Ui
 {
@@ -61,10 +62,10 @@ private:
     void filterByTerm(const QString &filterTerm);
 
     bool m_showDevModules;
-    bool m_termFilterPending;
     QStandardItemModel *m_catModel;
     QStandardItemModel *m_modModel;
     QStandardItemModel *m_filterModel;
+    QTimer *m_filterDebounceTimer;
     QHash<QString, QSharedPointer<ModuleInfo>> m_modInfoLib;
     QHash<Syntalos::ModuleCategory, QList<QString>> m_modCats;
     QString m_selectedEntryId;

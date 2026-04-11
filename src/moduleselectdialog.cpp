@@ -86,7 +86,12 @@ void HtmlDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, 
 
 ModuleSelectDialog::ModuleSelectDialog(const QList<QSharedPointer<ModuleInfo>> &infos, QWidget *parent)
     : QDialog(parent),
-      ui(new Ui::ModuleSelectDialog)
+      ui(new Ui::ModuleSelectDialog),
+      m_showDevModules(false),
+      m_catModel(nullptr),
+      m_modModel(nullptr),
+      m_filterModel(nullptr),
+      m_filterDebounceTimer(nullptr)
 {
     ui->setupUi(this);
     this->setWindowModality(Qt::ApplicationModal);
@@ -141,15 +146,19 @@ ModuleSelectDialog::ModuleSelectDialog(const QList<QSharedPointer<ModuleInfo>> &
     ui->filterEdit->addAction(QIcon::fromTheme("search"), QLineEdit::LeadingPosition);
     ui->filterEdit->setPlaceholderText("Filter...");
 
-    // connections
+    m_filterDebounceTimer = new QTimer(this);
+    m_filterDebounceTimer->setSingleShot(true);
+    m_filterDebounceTimer->setInterval(150);
+    connect(m_filterDebounceTimer, &QTimer::timeout, this, [this]() {
+        filterByTerm(ui->filterEdit->text());
+    });
+
     connect(
         ui->categoryListView->selectionModel(),
         &QItemSelectionModel::currentChanged,
         [this](const QModelIndex &index, const QModelIndex &) {
             setCategoryFromIndex(index);
         });
-    connect(ui->filterEdit, &QLineEdit::editingFinished, this, &ModuleSelectDialog::on_filterEdit_editingFinished);
-    connect(ui->filterEdit, &QLineEdit::textChanged, this, &ModuleSelectDialog::on_filterEdit_textChanged);
 
     // focus
     ui->filterEdit->setFocus();
@@ -295,7 +304,6 @@ void ModuleSelectDialog::filterByTerm(const QString &filterTerm)
         // show all modules
         setModuleViewModel(m_modModel);
         ui->categoryListView->setEnabled(true);
-        m_termFilterPending = false;
         return;
     }
 
@@ -318,28 +326,17 @@ void ModuleSelectDialog::filterByTerm(const QString &filterTerm)
     // select the first entry by default
     if (m_filterModel->rowCount() > 0)
         ui->modListView->setCurrentIndex(m_filterModel->index(0, 0));
-
-    m_termFilterPending = false;
 }
 
 void ModuleSelectDialog::on_filterEdit_editingFinished()
 {
-    if (!m_termFilterPending) {
-        m_termFilterPending = true;
-        QTimer::singleShot(200, this, [&]() {
-            filterByTerm(ui->filterEdit->text());
-        });
-    }
+    m_filterDebounceTimer->stop();
+    filterByTerm(ui->filterEdit->text());
 }
 
 void ModuleSelectDialog::on_filterEdit_textChanged(const QString &)
 {
-    if (!m_termFilterPending) {
-        m_termFilterPending = true;
-        QTimer::singleShot(200, this, [&]() {
-            filterByTerm(ui->filterEdit->text());
-        });
-    }
+    m_filterDebounceTimer->start();
 }
 
 void ModuleSelectDialog::on_filterEdit_textEdited(const QString &arg1)
