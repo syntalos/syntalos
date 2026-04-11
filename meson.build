@@ -281,7 +281,7 @@ endif
 #
 # Dependencies
 #
-qt_core_dep = dependency('qt6', modules: ['Core'], version: '>= 6.4.2', include_type: 'system')
+qt_core_dep = dependency('qt6', modules: ['Core'], version: '>= 6.8.2', include_type: 'system')
 qt_gui_dep = dependency('qt6', modules: ['Gui', 'Widgets'])
 qt_test_dep = dependency('qt6', modules: ['Test'])
 qt_opengl_dep = dependency('qt6', modules: ['OpenGL', 'OpenGLWidgets'])
