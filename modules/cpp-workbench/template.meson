@@ -1,7 +1,7 @@
 project('@EXE_NAME@', 'cpp',
   meson_version: '>=1.0',
   default_options: [
-      'cpp_std=gnu++20',
+      'cpp_std=gnu++23',
       'buildtype=debugoptimized',
       'optimization=3'
   ],
@@ -12,7 +12,7 @@ cpp_compiler = meson.get_compiler('cpp')
 
 # find dependencies
 qt = import('qt6')
-qt_core_dep = dependency('qt6', modules: ['Core'], version: '>= 6.4.2')
+qt_core_dep = dependency('qt6', modules: ['Core'], version: '>= 6.8')
 sy_mlink_dep = dependency('syntalos-mlink')
 opencv_dep = dependency('opencv4', include_type: 'system')
 
