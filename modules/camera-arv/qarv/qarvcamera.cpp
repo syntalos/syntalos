@@ -133,19 +133,17 @@ QList<QArvCameraId> QArvCamera::listCameras() {
     arv_update_device_list();
     unsigned int N = arv_get_n_devices();
     for (unsigned int i = 0; i < N; i++) {
-        const char* camid = arv_get_device_id(i);
+        const char *camid = arv_get_device_id(i);
         if (!camid)
             continue;
+        const char *vendor = arv_get_device_vendor(i);
+        const char *model  = arv_get_device_model(i);
 
-        g_autoptr(ArvCamera) camera = arv_camera_new(camid, nullptr);
-        if (camera == nullptr)
-            continue;
-        QArvCameraId id(camid, arv_camera_get_vendor_name(camera, nullptr),
-                        arv_camera_get_model_name(camera, nullptr));
-
+        QArvCameraId id(camid, vendor, model);
         cameraList << id;
     }
-    return QList<QArvCameraId>(cameraList);
+
+    return cameraList;
 }
 
 QArvCameraId QArvCamera::getId() const {
@@ -241,7 +239,7 @@ QList< QString > QArvCamera::getPixelFormatNames() {
     for (uint i = 0; i < numformats; i++) {
         list << formats[i];
     }
-    free(formats);
+    g_free(formats);
     return list;
 }
 
@@ -253,7 +251,7 @@ QList<ArvPixelFormat> QArvCamera::getPixelFormatIds() {
     for (uint i = 0; i < numformats; i++) {
         list << formats[i];
     }
-    free(formats);
+    g_free(formats);
     return list;
 }
 
