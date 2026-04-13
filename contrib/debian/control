@@ -81,7 +81,7 @@ Description: Synchronized DAQ from diverse sources and flexible experiment contr
  in vivo behavior experiments.
 
 Package: syntalos-hwsupport
-Architecture: all
+Architecture: any
 Depends: libpam-systemd,
          rtkit,
          ${misc:Depends}
