@@ -143,6 +143,10 @@ private:
     QMap<QString, QMap<QString, QWidget *>> saved_widgets;
     QFile timestampFile;
 
+    // settings to apply later for a delayed camera connection
+    QString m_pendingCameraId{};
+    QPair<QVariantHash, QByteArray> m_pendingCamSettings;
+
     friend class ::QArvGui;
 };
 

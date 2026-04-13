@@ -878,21 +878,34 @@ void ArvConfigWindow::loadSettings(const QVariantHash &settings, const QByteArra
     QApplication::processEvents();
 
     const auto camSettings = settings["camera"].toHash();
-    QVariant data = camSettings.value("device");
+    const auto desiredCameraId = camSettings.value("device").toString();
     int prevCamIdx = -1;
     for (int i = 0; i < cameraSelector->count(); i++) {
-        if (cameraSelector->itemData(i).value<QArvCameraId>().id == data.toString()) {
+        if (cameraSelector->itemData(i).value<QArvCameraId>().id == desiredCameraId) {
             prevCamIdx = i;
             break;
         }
     }
-    if (prevCamIdx >= 0)
+
+    // clear any old deferred state
+    m_pendingCamSettings = qMakePair(QVariantHash(), QByteArray());
+    m_pendingCameraId.clear();
+
+    if (prevCamIdx >= 0) {
+        // Target camera is available
         cameraSelector->setCurrentIndex(prevCamIdx);
-    else
-        cameraSelector->setCurrentIndex(0);
+    } else {
+        // Target camera not found, we select nothing and wait for it to show up
+        cameraSelector->setCurrentIndex(-1);
+
+        if (!desiredCameraId.isEmpty()) {
+            m_pendingCamSettings = qMakePair(settings, camFeatures);
+            m_pendingCameraId = desiredCameraId;
+        }
+    }
 
     if (!camera || prevCamIdx < 0) {
-        logMessage() << "Not loading camera settings: No suitable camera selected";
+        logMessage() << "Not loading camera settings: Saved camera is not available yet";
         return;
     }
 
@@ -987,6 +1000,7 @@ void ArvConfigWindow::refreshCameras()
     cameraSelector->clear();
 
     int newIndex = -1;
+    int pendingIndex = -1;
     auto cameras = QArvCamera::listCameras();
     for (int i = 0; i < cameras.size(); i++) {
         auto &cam = cameras[i];
@@ -996,6 +1010,9 @@ void ArvConfigWindow::refreshCameras()
         cameraSelector->addItem(display, QVariant::fromValue<QArvCameraId>(cam));
         if (oldCam.id != nullptr && cam.toString() == oldCam.toString())
             newIndex = i;
+
+        if (!m_pendingCameraId.isEmpty() && cam.id == m_pendingCameraId)
+            pendingIndex = i;
     }
 
     cameraSelector->setCurrentIndex(newIndex);
@@ -1006,6 +1023,21 @@ void ArvConfigWindow::refreshCameras()
     QString message = tr("Found %n cameras.", "Number of cameras", cameraSelector->count());
     statusBar()->showMessage(statusBar()->currentMessage() + " " + message, statusTimeoutMsec);
     logMessage() << message;
+
+    if (pendingIndex < 0 || m_pendingCameraId.isEmpty())
+        return;
+
+    cameraSelector->setCurrentIndex(pendingIndex);
+
+    if (!camera) {
+        // Camera selection failed; keep settings deferred for a later retry.
+        return;
+    }
+
+    logMessage() << "Saved camera became available again, applying deferred settings.";
+    loadSettings(m_pendingCamSettings.first, m_pendingCamSettings.second);
+    m_pendingCamSettings = qMakePair(QVariantHash(), QByteArray());
+    m_pendingCameraId.clear();
 }
 
 void ArvConfigWindow::closeEvent(QCloseEvent *event)
