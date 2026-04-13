@@ -921,40 +921,50 @@ void ArvConfigWindow::loadSettings(const QVariantHash &settings, const QByteArra
     QTextStream wholefile(&wholefile_);
     QTextStream readBack(&readBack_);
 
-    // Try setting it several times, then check if successful.
-    for (int i = 0; i < 16; i++) {
+    QStringList failures;
+
+    // Try setting features repeatedly, but stop once all values match.
+    for (int i = 0; i < 12; i++) {
         wholefile.seek(0);
+        readBack_.clear();
         readBack.seek(0);
         wholefile >> camera.get();
         readBack << camera.get();
         readBack << Qt::endl << Qt::endl;
-    }
-    QStringList failures;
-    wholefile.seek(0);
-    while (!wholefile.atEnd()) {
-        QString wanted = wholefile.readLine();
-        QString actual = readBack.readLine();
 
-        if (wanted.trimmed().startsWith("DeviceTemperature")) {
-            // Skip temperature-related settings
-            continue;
+        failures.clear();
+        wholefile.seek(0);
+        readBack.seek(0);
+        while (!wholefile.atEnd()) {
+            QString wanted = wholefile.readLine();
+            QString actual = readBack.readLine();
+
+            if (wanted.trimmed().startsWith("DeviceTemperature")) {
+                // Skip temperature-related settings
+                continue;
+            }
+
+            if (wanted != actual)
+                failures << wanted + "(was: " + actual + ")";
         }
 
-        if (wanted != actual) {
-            logMessage() << "Setting failure, wanted:" << wanted << Qt::endl << "actual:" << actual;
-            failures << wanted;
-        }
+        if (failures.isEmpty())
+            break;
+        QThread::usleep(256);
     }
 
-    if (failures.count() != 0) {
+    if (!failures.isEmpty()) {
+        for (const auto &errItem : failures)
+            logMessage() << "Unable to set setting:" << errItem;
+
         QString message = "<html><head/><body><p>"
                           + tr(
                               "Settings could not be completely loaded. "
                               "This can happen because camera features are interdependent and may "
                               "require a specific loading order. The following settings failed:")
                           + "</p>";
-        foreach (auto fail, failures)
-            message += fail;
+        for (const auto &errItem : failures)
+            message += errItem + "<br/>";
         message += "</body></html>";
         QMessageBox::warning(
             this, QStringLiteral("%1 - Failed to load settings").arg(cameraSelector->currentText()), message);
