@@ -55,7 +55,11 @@ def generate_docs_file(source_file, out_fname):
         with open(os.path.join(tpl_dir, 'frame.html.jinja2'), 'w') as f:
             f.write(JINJA_TEMPLATE)
 
-        staged_source = os.path.join(tmp_dir, os.path.basename(source_file))
+        staged_basename = os.path.basename(source_file)
+        if staged_basename.endswith('.pyi'):
+            # pdoc expects an importable Python module path, so stage stubs as .py files.
+            staged_basename = staged_basename[:-1]
+        staged_source = os.path.join(tmp_dir, staged_basename)
         with open(source_file, 'r') as sf:
             with open(staged_source, 'w') as df:
                 for line in sf.readlines():
