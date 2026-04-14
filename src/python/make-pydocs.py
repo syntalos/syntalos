@@ -43,7 +43,7 @@ def _write_html_output(fname, html_data):
         f.write('\n')
 
 
-def generate_docs_file(source_file, out_fname):
+def generate_docs_file(source_file, out_fname, show_source=True):
     import pdoc
 
     source_file = os.path.abspath(source_file)
@@ -59,6 +59,7 @@ def generate_docs_file(source_file, out_fname):
         if staged_basename.endswith('.pyi'):
             # pdoc expects an importable Python module path, so stage stubs as .py files.
             staged_basename = staged_basename[:-1]
+            show_source = False
         staged_source = os.path.join(tmp_dir, staged_basename)
         with open(source_file, 'r') as sf:
             with open(staged_source, 'w') as df:
@@ -69,7 +70,7 @@ def generate_docs_file(source_file, out_fname):
                     else:
                         df.write(line)
 
-        pdoc.render.configure(template_directory=tpl_dir)
+        pdoc.render.configure(template_directory=tpl_dir, search=False, show_source=show_source)
 
         # generate documentation
         doc = pdoc.doc.Module.from_name(pdoc.extract.parse_spec(staged_source))
@@ -79,7 +80,7 @@ def generate_docs_file(source_file, out_fname):
         _write_html_output(out_fname, html_data)
 
 
-def generate_docs_module(module_name, out_fname):
+def generate_docs_module(module_name, out_fname, show_source=True):
     import pdoc
 
     imported_module = importlib.import_module(module_name)
@@ -88,7 +89,7 @@ def generate_docs_module(module_name, out_fname):
     with tempfile.TemporaryDirectory() as tmp_dir:
         with open(os.path.join(tmp_dir, 'frame.html.jinja2'), 'w') as f:
             f.write(JINJA_TEMPLATE)
-        pdoc.render.configure(template_directory=tmp_dir)
+        pdoc.render.configure(template_directory=tmp_dir, search=False, show_source=show_source)
         html_data = pdoc.render.html_module(module=doc, all_modules={doc.fullname: doc})
         _write_html_output(out_fname, html_data)
 
