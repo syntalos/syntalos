@@ -125,7 +125,12 @@ pb11_stubgen_exe = find_program('pybind11-stubgen', required: false)
 if pb11_stubgen_exe.found()
     pysy_mlink_stub = custom_target('pysy-mlink-stubgen',
         build_by_default: true,
-        command: [pb11_stubgen_exe, '-o', meson.current_build_dir(), 'syntalos_mlink'],
+        command: [
+            pb11_stubgen_exe,
+            '--numpy-array-wrap-with-annotated',
+            '-o', meson.current_build_dir(),
+            'syntalos_mlink'
+        ],
         depends: [pysy_mlink_mod],
         input: pysy_mlink_mod,
         output: 'syntalos_mlink.pyi',
@@ -142,14 +147,13 @@ if have_python_pdoc and pb11_stubgen_exe.found()
     pysy_mlink_doc_fname = source_root / 'docs' / 'pysy_mlink_api_embed.html'
     custom_target('pysy-mlink-mkdoc',
         build_by_default: true,
+        input: [pysy_mlink_stub],
         command: [
             python, make_pydocs_exe.full_path(),
             'generate',
-            '--module', 'syntalos_mlink',
+            '--file', '@INPUT0@',
             '@OUTPUT0@'
         ],
-        depends: [pysy_mlink_stub, pysy_mlink_mod],
         output: 'pysy_mlink_api_embed.html',
-        env: {'PYTHONPATH': meson.current_build_dir()},
     )
 endif
