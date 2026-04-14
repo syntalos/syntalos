@@ -489,15 +489,16 @@ PYBIND11_MODULE(syntalos_mlink, m)
      ** Control Command
      **/
 
-    py::enum_<ControlCommandKind>(m, "ControlCommandKind")
+    py::enum_<ControlCommandKind>(
+        m, "ControlCommandKind", "The type of a control command sent to controllable modules.")
         .value("UNKNOWN", ControlCommandKind::UNKNOWN)
-        .value("START", ControlCommandKind::START)
-        .value("PAUSE", ControlCommandKind::PAUSE)
-        .value("STOP", ControlCommandKind::STOP)
-        .value("STEP", ControlCommandKind::STEP)
-        .value("CUSTOM", ControlCommandKind::CUSTOM);
+        .value("START", ControlCommandKind::START, "Start an operation.")
+        .value("PAUSE", ControlCommandKind::PAUSE, "Pause an operation, can be resumed with START.")
+        .value("STOP", ControlCommandKind::STOP, "Stop an operation.")
+        .value("STEP", ControlCommandKind::STEP, "Advance operation by one step.")
+        .value("CUSTOM", ControlCommandKind::CUSTOM, "Custom command.");
 
-    py::class_<ControlCommand>(m, "ControlCommand")
+    py::class_<ControlCommand>(m, "ControlCommand", "A control command for a module.")
         .def(py::init<>())
         .def(py::init<ControlCommandKind>())
         .def_readwrite("kind", &ControlCommand::kind)
@@ -508,7 +509,7 @@ PYBIND11_MODULE(syntalos_mlink, m)
      ** Firmata
      **/
 
-    py::enum_<FirmataCommandKind>(m, "FirmataCommandKind")
+    py::enum_<FirmataCommandKind>(m, "FirmataCommandKind", "Type of change to be be made on a Firmata interface.")
         .value("UNKNOWN", FirmataCommandKind::UNKNOWN)
         .value("NEW_DIG_PIN", FirmataCommandKind::NEW_DIG_PIN)
         .value("NEW_ANA_PIN", FirmataCommandKind::NEW_ANA_PIN)
@@ -518,7 +519,7 @@ PYBIND11_MODULE(syntalos_mlink, m)
         .value("WRITE_DIGITAL_PULSE", FirmataCommandKind::WRITE_DIGITAL_PULSE)
         .value("SYSEX", FirmataCommandKind::SYSEX);
 
-    py::class_<FirmataControl>(m, "FirmataControl")
+    py::class_<FirmataControl>(m, "FirmataControl", "Control command for a Firmata device.")
         .def(py::init<>())
         .def(py::init<FirmataCommandKind>())
         .def_readwrite("command", &FirmataControl::command)
@@ -528,7 +529,7 @@ PYBIND11_MODULE(syntalos_mlink, m)
         .def_readwrite("is_pullup", &FirmataControl::isPullUp)
         .def_readwrite("value", &FirmataControl::value);
 
-    py::class_<FirmataData>(m, "FirmataData")
+    py::class_<FirmataData>(m, "FirmataData", "Data received from a Firmata device.")
         .def(py::init<>())
         .def_readwrite("pin_id", &FirmataData::pinId)
         .def_readwrite("pin_name", &FirmataData::pinName)

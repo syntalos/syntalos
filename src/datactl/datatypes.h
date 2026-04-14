@@ -359,7 +359,7 @@ struct TableRow : BaseDataType {
 /**
  * @brief The FirmataCommandKind enum
  *
- * Set which type of change should be made on a Firmata interface.
+ * Type of change to be be made on a Firmata interface.
  */
 enum class FirmataCommandKind {
     UNKNOWN,
@@ -373,7 +373,7 @@ enum class FirmataCommandKind {
 };
 
 /**
- * @brief Commands to control Firmata output.
+ * @brief Control command for a Firmata device.
  */
 struct FirmataControl : BaseDataType {
     SY_DEFINE_DATA_TYPE(FirmataControl)
@@ -446,7 +446,7 @@ struct FirmataControl : BaseDataType {
 };
 
 /**
- * @brief Output data returned from a Firmata device.
+ * @brief Data received from a Firmata device.
  */
 struct FirmataData : BaseDataType {
     SY_DEFINE_DATA_TYPE(FirmataData)
