@@ -3,18 +3,34 @@ name: Build Test
 on: [push, pull_request, workflow_call]
 
 jobs:
-  build-debian-stable:
-    name: Debian Stable (${{ matrix.arch }})
+  build-test:
+    name: ${{ matrix.display_name }}
     runs-on: ${{ matrix.runner }}
 
     strategy:
       fail-fast: false
       matrix:
         include:
+          - id: debian-stable
+            display_name: Debian Stable
+            suite: trixie
+            components: main
+            runner: ubuntu-latest
+          - id: debian-stable-arm64
+            display_name: Debian Stable (arm64)
+            suite: trixie
+            components: main
+            runner: ubuntu-24.04-arm
           - runner: ubuntu-latest
-            arch: amd64
-          - runner: ubuntu-24.04-arm
-            arch: arm64
+            id: debian-testing
+            display_name: Debian Testing
+            suite: testing
+            components: main
+          - id: ubuntu-lts
+            display_name: Ubuntu LTS
+            suite: resolute
+            components: main universe
+            runner: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v6
@@ -22,38 +38,31 @@ jobs:
         submodules: true
 
     - name: Create Build Environment
-      run: cd tests/ci/ && podman build -t syntalos -f ./Dockerfile-debian-stable .
-
-    - name: Build & Test
-      run: podman run -t -e CC=gcc -e CXX=g++ -v `pwd`:/build syntalos
-           ./tests/ci/build-and-test.sh
-
-  build-debian-testing:
-    name: Debian Testing
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          submodules: true
-
-      - name: Create Build Environment
-        run: cd tests/ci/ && podman build -t syntalos -f ./Dockerfile-debian-testing .
-
-      - name: Build & Test
-        run: podman run -t -e CC=gcc -e CXX=g++ -v `pwd`:/build syntalos
-          ./tests/ci/build-and-test.sh
-
-  build-ubuntu-lts:
-    name: Ubuntu LTS
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v6
+      uses: ximion/debspawn-action/setup@v1
       with:
-        submodules: true
+        name: ci-${{ matrix.id }}
+        suite: ${{ matrix.suite }}
+        components: ${{ matrix.components }}
+        cache-suffix: 'ci'
+        packages: >-
+          ca-certificates
+          curl
+          git
+        script: |
+          # Setup Syntalos APT Repository
+          curl -fsSL https://syntalos.org/setup/setup-syntalos-repo.sh | sh
 
-    - name: Create Build Environment
-      run: cd tests/ci/ && podman build -t syntalos -f ./Dockerfile-ubuntu-lts .
+          # install build dependencies
+          ./tests/ci/install-deps-deb.sh
+
+          # install extra dependencies
+          ./tests/ci/install-deps-deb-extra.sh
 
     - name: Build & Test
-      run: podman run -t -e CC=gcc -e CXX=g++ -v `pwd`:/build syntalos
-           ./tests/ci/build-and-test.sh
+      uses: ximion/debspawn-action/run@v1
+      with:
+        name: ci-${{ matrix.id }}
+        suite: ${{ matrix.suite }}
+        summary: "Build & Test Syntalos on ${{ matrix.display_name }}"
+        commands: |
+          CC=gcc CXX=g++ ./tests/ci/build-and-test.sh

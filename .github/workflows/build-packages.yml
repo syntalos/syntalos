@@ -87,6 +87,7 @@ jobs:
       with:
         suite: ${{ matrix.suite }}
         components: ${{ matrix.components }}
+        cache-suffix: 'deploy'
         packages: >-
           ca-certificates
           curl
