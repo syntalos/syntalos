@@ -1103,9 +1103,18 @@ void Engine::notifyUsbHotplugEvent(UsbHotplugEventKind kind) const
         return;
     }
 
-    // notify our modules that something changed
-    for (auto mod : d->presentModules)
-        mod->usbHotplugEvent(kind);
+    // Notify modules via a queued invocation so the libusb hotplug/timer callback
+    // returns before any module runs its handler. Without this deferral, a module
+    // could open a modal dialog (e.g. QMessageBox) from within the callback, which
+    // creates a nested event loop and can crash GLX context creation.
+    for (auto mod : d->presentModules) {
+        QMetaObject::invokeMethod(
+            mod,
+            [mod, kind] {
+                mod->usbHotplugEvent(kind);
+            },
+            Qt::QueuedConnection);
+    }
 }
 
 bool Engine::run()
