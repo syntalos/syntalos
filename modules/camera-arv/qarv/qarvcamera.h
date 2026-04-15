@@ -21,6 +21,7 @@
 #define QARVCAMERA_H
 
 #include <gio/gio.h>  // Workaround for gdbusintrospection's use of "signal".
+#include <expected>
 #include <QList>
 #include <QString>
 #include <QRect>
@@ -192,7 +193,7 @@ public:
 
     //! \name Control acquisition
     /**@{*/
-    void startAcquisition(bool zeroCopy = true, bool dropInvalidFrames = true, const NewFrameFn &newBufferCb = nullptr);
+    std::expected<void, QString> startAcquisition(bool zeroCopy = true, bool dropInvalidFrames = true, const NewFrameFn &newBufferCb = nullptr);
     void stopAcquisition();
     void setFrameQueueSize(uint size = 30);
     /**@}*/

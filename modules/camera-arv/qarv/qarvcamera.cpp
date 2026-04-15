@@ -450,12 +450,16 @@ bool QArvCamera::rawFrameCallback()
  * Also note that zeroCopy only applies to the QBytearray; the ArvBuffer is
  * never copied.
  */
-void QArvCamera::startAcquisition(bool zeroCopy, bool dropInvalidFrames, const NewFrameFn &newBufferCb) {
+std::expected<void, QString> QArvCamera::startAcquisition(bool zeroCopy, bool dropInvalidFrames, const NewFrameFn &newBufferCb) {
     nocopy = zeroCopy;
     dropInvalid = dropInvalidFrames;
     fnNewFrameBuffer = newBufferCb;
-    if (acquiring) return;
+    if (acquiring) return {};
     unsigned int framesize = arv_camera_get_payload(camera, nullptr);
+    if (framesize == 0)
+        return std::unexpected(QStringLiteral(
+            "Camera reported a payload size of zero. "
+            "Ensure ROI dimensions and pixel format are properly configured."));
     stream = arv_camera_create_stream(camera, QArvStreamCallbackWrap, this, nullptr);
     for (uint i = 0; i < frameQueueSize; i++) {
         arv_stream_push_buffer(stream, arv_buffer_new(framesize, NULL));
@@ -464,6 +468,8 @@ void QArvCamera::startAcquisition(bool zeroCopy, bool dropInvalidFrames, const N
     acquiring = true;
     underruns = 0;
     emit dataChanged(QModelIndex(), QModelIndex());
+
+    return {};
 }
 
 void QArvCamera::stopAcquisition() {

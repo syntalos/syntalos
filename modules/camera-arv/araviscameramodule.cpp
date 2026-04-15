@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2023-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -186,7 +186,7 @@ public:
         uint64_t frameCount = 0;
         nanoseconds_t sysOffsetToMaster;
         guint64 devOffsetToSysNs = 0;
-        m_camera->startAcquisition(
+        auto acqStartResult = m_camera->startAcquisition(
             true, true, [this, &frameCount, &sysOffsetToMaster, &devOffsetToSysNs, &clockSync](ArvBuffer *buffer) {
                 if (!m_running)
                     return;
@@ -261,6 +261,13 @@ public:
 
                 m_outStream->push(Frame(img, frameCount++, masterTime));
             });
+
+        if (!acqStartResult) {
+            raiseError(acqStartResult.error());
+            safeStopSynchronizer(clockSync);
+            m_stopped = true;
+            return;
+        }
 
         // only after the run is started, attach the timeout source
         g_source_attach(timeoutSrc, g_main_loop_get_context(loop));
