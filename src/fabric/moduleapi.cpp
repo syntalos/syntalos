@@ -332,8 +332,8 @@ AbstractModule *VarStreamInputPort::owner() const
 class StreamOutputPort::Private
 {
 public:
-    Private() {}
-    ~Private() {}
+    Private() = default;
+    ~Private() = default;
 
     QString id;
     QString title;
@@ -665,14 +665,17 @@ void AbstractModule::showDisplayUi()
     for (auto const &wp : d->displayWindows) {
         if (onlyOne)
             wp.first->setWindowTitle(name());
-        wp.first->show();
 
-        // raise() is a no-op on Wayland, but activate does bring
-        // the window to the front if it was hidden on most Wayland
-        // compositors... On X11, raise() is enough, but activating
-        // the window too does not hurt and is what the user expects.
-        wp.first->raise();
-        wp.first->activateWindow();
+        // defer via queued connection - see showSettingsUi() for the rationale
+        auto *w = wp.first;
+        QMetaObject::invokeMethod(
+            w,
+            [w]() {
+                w->show();
+                w->raise();
+                w->activateWindow();
+            },
+            Qt::QueuedConnection);
     }
 }
 
@@ -699,14 +702,26 @@ void AbstractModule::showSettingsUi()
             wp.first->move(pos);
         }
 
-        wp.first->show();
-
-        // raise() is a no-op on Wayland, but activate does bring
-        // the window to the front if it was hidden on most Wayland
-        // compositors... On X11, raise() is enough, but activating
-        // the window too does not hurt and is what the user expects.
-        wp.first->raise();
-        wp.first->activateWindow();
+        // Use a queued invocation to avoid triggering synchronous X11/GLX operations
+        // (native window and GL context creation) from within xcbSourceDispatch's call
+        // chain. If show() is called directly while Qt's event dispatcher is mid-dispatch,
+        // xcb_wait_for_special_event takes a poll() path on the raw XCB socket that can
+        // miss a DRI3 response already consumed by QXcbEventQueue, causing an indefinite
+        // stall. Deferring to the next event loop iteration ensures QXcbEventQueue is
+        // quiescent and the DRI3 handshake completes safely.
+        auto *w = wp.first;
+        QMetaObject::invokeMethod(
+            w,
+            [w]() {
+                w->show();
+                // raise() is a no-op on Wayland, but activate does bring
+                // the window to the front if it was hidden on most Wayland
+                // compositors... On X11, raise() is enough, but activating
+                // the window too does not hurt and is what the user expects.
+                w->raise();
+                w->activateWindow();
+            },
+            Qt::QueuedConnection);
     }
 }
 
