@@ -832,6 +832,12 @@ void ArvConfigWindow::serializeSettings(QVariantHash &settings, QByteArray &camF
 
 void ArvConfigWindow::loadSettings(const QVariantHash &settings, const QByteArray &camFeatures)
 {
+    // When called from the deferred path, camFeatures is a const reference to
+    // m_pendingCamSettings.second. That member is cleared further below (to reset
+    // the deferred state), which would destroy the data the reference points to
+    // before we actually read it. Take a local copy up-front to avoid this.
+    const QByteArray localCamFeatures = camFeatures;
+
     // buttons, combo boxes, text fields etc.
     for (auto i = saved_widgets.begin(); i != saved_widgets.end(); i++) {
         const auto entry = i.value();
@@ -899,7 +905,7 @@ void ArvConfigWindow::loadSettings(const QVariantHash &settings, const QByteArra
         cameraSelector->setCurrentIndex(-1);
 
         if (!desiredCameraId.isEmpty()) {
-            m_pendingCamSettings = qMakePair(settings, camFeatures);
+            m_pendingCamSettings = qMakePair(settings, localCamFeatures);
             m_pendingCameraId = desiredCameraId;
         }
     }
@@ -927,7 +933,7 @@ void ArvConfigWindow::loadSettings(const QVariantHash &settings, const QByteArra
     if (!saveAdvancedCb->isChecked())
         return;
 
-    QByteArray camFeatureBuffer = camFeatures;
+    QByteArray camFeatureBuffer = localCamFeatures;
     QTextStream file(&camFeatureBuffer);
     auto wholefile_ = file.readAll();
     QString readBack_;
