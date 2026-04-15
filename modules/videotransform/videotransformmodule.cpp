@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2020-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -35,6 +35,7 @@ private:
 
     VTransformCtlDialog *m_settingsDlg;
     QList<std::shared_ptr<VideoTransform>> m_activeVTFList;
+    cv::Size m_expectedFrameSize;
 
 public:
     explicit VideoTransformModule(QObject *parent = nullptr)
@@ -83,6 +84,7 @@ public:
 
         // notify transformers about original data
         const auto origQSize = m_framesIn->metadataValue("size", QSize()).toSize();
+        m_expectedFrameSize = cv::Size(origQSize.width(), origQSize.height());
         QSize tfISize = origQSize;
         for (const auto &vtf : m_activeVTFList) {
             vtf->setOriginalSize(tfISize);
@@ -116,6 +118,19 @@ public:
 
         // get the frame
         auto frame = maybeFrame.value();
+
+        // ensure the frame dimensions match what the stream metadata advertises;
+        // the transforms rely on this guarantee and must not receive unexpected sizes
+        if (frame.mat.cols != m_expectedFrameSize.width || frame.mat.rows != m_expectedFrameSize.height) [[unlikely]] {
+            raiseError(QStringLiteral(
+                           "Received frame with unexpected dimensions %1x%2 (expected %3x%4). "
+                           "The video source is sending invalid frames.")
+                           .arg(frame.mat.cols)
+                           .arg(frame.mat.rows)
+                           .arg(m_expectedFrameSize.width)
+                           .arg(m_expectedFrameSize.height));
+            return;
+        }
 
         // apply transformations
         cv::Mat &image = frame.mat;
