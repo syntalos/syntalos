@@ -1,18 +1,18 @@
 [
   {
-    "suite":        "trixie",
-    "slug":         "deb13",
-    "artifact-id":  "debian13",
-    "distro-name":  "Debian 13 (trixie)",
-    "distro-id":    "debian",
-    "create-args":  ""
+    "suite":       "trixie",
+    "slug":        "deb13",
+    "artifact-id": "debian13",
+    "distro-name": "Debian 13 (trixie)",
+    "distro-id":   "debian",
+    "components":  "main"
   },
   {
-    "suite":        "resolute",
-    "slug":         "ubu26",
-    "artifact-id":  "ubuntu26",
-    "distro-name":  "Ubuntu 26.04 (resolute)",
-    "distro-id":    "ubuntu",
-    "create-args":  "--components main,universe"
+    "suite":       "resolute",
+    "slug":        "ubu26",
+    "artifact-id": "ubuntu26",
+    "distro-name": "Ubuntu 26.04 (resolute)",
+    "distro-id":   "ubuntu",
+    "components":  "main universe"
   }
 ]

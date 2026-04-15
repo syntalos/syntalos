@@ -82,41 +82,48 @@ jobs:
         fetch-depth: 0
         submodules: true
 
-    - name: Update cache
-      run: sudo apt-get update -qq
+    - name: Setup debspawn
+      uses: ximion/debspawn-action/setup@v1
+      with:
+        suite: ${{ matrix.suite }}
+        components: ${{ matrix.components }}
+        packages: >-
+          ca-certificates
+          curl
+          git
+        script: |
+          # Setup Syntalos APT Repository
+          curl -fsSL https://syntalos.org/setup/setup-syntalos-repo.sh | sh
 
-    - name: Install system prerequisites
-      run: sudo apt-get install -yq debspawn mmdebstrap debian-archive-keyring ubuntu-keyring
+          # TODO: Remove this one iceoryx2 is available as package
+          eatmydata apt-get install -yq cargo
 
-      # NOTE: Once changes are released, we can drop this hack
-    - name: Upgrade debspawn
+    - name: Prepare Build
       run: |
-          sudo rm /usr/bin/debspawn
-          sudo git clone --depth 1 https://github.com/lkhq/debspawn.git /srv/debspawn
-          sudo ln -s /srv/debspawn/debspawn.py /usr/bin/debspawn
+        sudo apt-get install -yq meson
 
-    - name: Create Build Environment
-      run: |
-          debspawn create ${{ matrix.create-args }} --extra-packages=curl,ca-certificates ${{ matrix.suite }}
-          # needed for configure-deb-build.sh
-          sudo apt-get install -yq meson
+        # Make subprojects available locally - we need to ignore meson error, since
+        # it downloads things, but fails after because it does not recognize the
+        # cmake subproject (this is a Meson bug).
+        git submodule update --init --recursive
+        meson subprojects download || true
 
-    - name: Configure Syntalos APT Repository
-      run: |
-          curl -LO https://raw.githubusercontent.com/syntalos/repo/refs/heads/main/publish/setup-syntalos-repo.sh
-          chmod +x setup-syntalos-repo.sh
-          debspawn run --persistent -x ${{ matrix.suite }} ./setup-syntalos-repo.sh
+        # TODO: Remove this one iceoryx2 is available as package
+        git clone --depth=1 https://github.com/eclipse-iceoryx/iceoryx2.git vendor/iceoryx2
 
-    - name: Configure Package Build
-      run: ./tests/ci/configure-deb-build.sh "${{ matrix.suite }}" "${{ matrix.slug }}"
-
-    - name: Package Build
-      run: debspawn build ${{ matrix.suite }}
+    - name: Build Package
+      uses: ximion/debspawn-action/build@v1
+      with:
+        suite: ${{ matrix.suite }}
+        version-slug: ${{ matrix.slug }}
+        debian-dir: 'contrib/debian'
+        # TODO: Remove this one iceoryx2 is available as package
+        network: true
 
     - name: Upload package artifact
       uses: actions/upload-artifact@v7
       with:
         name: syntalos_${{ needs.revision.outputs.version }}_${{ matrix.artifact-id }}_${{ matrix.arch }}
         path: |
-          /var/lib/debspawn/results/*.deb
-          /var/lib/debspawn/results/*.build*
+          build-results/*.deb
+          build-results/*.build*
