@@ -695,25 +695,28 @@ void AbstractModule::showSettingsUi()
         if (onlyOne)
             wp.first->setWindowTitle(QStringLiteral("%1 - Settings").arg(name()));
 
-        // set an initial position if we do not have one yet
-        if (wp.first->pos().isNull()) {
-            auto pos = QCursor::pos();
-            pos.setY(pos.y() - (wp.first->height() / 2));
-            wp.first->move(pos);
-        }
-
-        // Use a queued invocation to avoid triggering synchronous X11/GLX operations
-        // (native window and GL context creation) from within xcbSourceDispatch's call
-        // chain. If show() is called directly while Qt's event dispatcher is mid-dispatch,
-        // xcb_wait_for_special_event takes a poll() path on the raw XCB socket that can
-        // miss a DRI3 response already consumed by QXcbEventQueue, causing an indefinite
-        // stall. Deferring to the next event loop iteration ensures QXcbEventQueue is
+        // The deferred show() (via Qt::QueuedConnection) avoids triggering
+        // synchronous X11/GLX operations (native window + GL context creation) from
+        // within xcbSourceDispatch's call chain. If show() were called directly here
+        // while Qt's event dispatcher is mid-dispatch, xcb_wait_for_special_event
+        // would take a poll() path on the raw XCB socket that can miss a DRI3
+        // response already consumed by QXcbEventQueue, causing an indefinite stall.
+        // Deferring to the next event loop iteration ensures QXcbEventQueue is
         // quiescent and the DRI3 handshake completes safely.
-        auto *w = wp.first;
+        auto w = wp.first;
+        const bool needsInitialPos = w->pos().isNull();
+        const auto cursorPos = QCursor::pos();
         QMetaObject::invokeMethod(
             w,
-            [w]() {
+            [w, needsInitialPos, cursorPos]() {
                 w->show();
+                if (needsInitialPos) {
+                    // height() is valid now because show() has triggered a layout
+                    // pass; center the window vertically on the cursor.
+                    auto pos = cursorPos;
+                    pos.setY(pos.y() - (w->height() / 2));
+                    w->move(pos);
+                }
                 // raise() is a no-op on Wayland, but activate does bring
                 // the window to the front if it was hidden on most Wayland
                 // compositors... On X11, raise() is enough, but activating
