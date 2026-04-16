@@ -142,7 +142,7 @@ static gboolean timerEventDispatch(gpointer udata)
 static gboolean recvDataEventDispatch(gpointer udata)
 {
     const auto pl = static_cast<RecvDataEventPayload *>(udata);
-    std::invoke(pl->fn, pl->module);
+    pl->fn();
 
     if (pl->module->state() == ModuleState::ERROR) {
         // ewww, this module failed. suspend execution
