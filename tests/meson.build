@@ -99,6 +99,7 @@ test_gui_env.set('MIMALLOC_SHOW_ERRORS', '1')
 test_manifests = [
     'scenarios/jsonwriter-test.toml',
     'scenarios/plotter-smoketest.toml',
+    'scenarios/prism-smoketest.toml',
     'scenarios/video-transform-crop.toml',
     'scenarios/ipc-test-simple.toml',
     'scenarios/ipc-test-pycpp.toml',

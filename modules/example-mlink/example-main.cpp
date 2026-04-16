@@ -11,6 +11,7 @@ using namespace Syntalos;
 class ExampleModule : public SyntalosLinkModule
 {
 private:
+    std::shared_ptr<InputPortInfo> m_tabIn;
     std::shared_ptr<OutputPortLink<TableRow>> m_tabOut;
 
 public:
@@ -19,7 +20,7 @@ public:
     {
         // Register some example ports
         m_tabOut = registerOutputPort<TableRow>("table-out", "Example Out");
-        registerInputPort<TableRow>("table-in", "Example In", this, &ExampleModule::onTableDataReceived);
+        m_tabIn = registerInputPort<TableRow>("table-in", "Example In", this, &ExampleModule::onTableDataReceived);
 
         // notify that initialization is done and the module is idle now
         setState(ModuleState::IDLE);
@@ -30,6 +31,7 @@ public:
     bool prepare(const ByteVector &) override
     {
         // Actions to prepare an acquisition run go here!
+        m_tabOut->setMetadataVar("table_header", m_tabIn->metadata().value("table_header"));
 
         // success, we need to signal "ready" here
         setState(ModuleState::READY);

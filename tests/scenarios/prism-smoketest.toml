@@ -1,0 +1,7 @@
+[test]
+name = "Prism Smoketest"
+project_file = "projects/prism-smoketest.syct"
+run_duration_sec = 4
+expected_exit_code = 0
+expected_datasets = []
+expected_stderr_contains = ["Module start order: Devel: DataSource ⇢ Prism ⇢ Gray Prism ⇢ Red ⇢ Green ⇢ Blue ⇢ Prism 2 ⇢ Gray ⇢ Combined"]

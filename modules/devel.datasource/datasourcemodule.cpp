@@ -19,6 +19,7 @@
 
 #include "datasourcemodule.h"
 
+#include <algorithm>
 #include <format>
 #include <QInputDialog>
 #include <opencv2/opencv.hpp>
@@ -85,6 +86,21 @@ public:
             m_fps = intVal;
     }
 
+    void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
+    {
+        settings.insert(QStringLiteral("fps"), m_fps);
+        settings.insert(QStringLiteral("color_video"), m_colorVideo);
+    }
+
+    bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
+    {
+        const int fps = settings.value(QStringLiteral("fps"), 200).toInt();
+        m_fps = std::clamp(fps, 2, 10000);
+        m_colorVideo = settings.value(QStringLiteral("color_video"), true).toBool();
+
+        return true;
+    }
+
     bool prepare(const TestSubject &) override
     {
         m_frameOut->setMetadataValue("framerate", (double)m_fps);
@@ -100,6 +116,7 @@ public:
         m_prevRowTime = 0;
 
         m_prevTimeSData = 0;
+        m_prevIntValue = 0;
         m_floatOut->setMetadataValue(
             "signal_names",
             QStringList() << "Sine 1"

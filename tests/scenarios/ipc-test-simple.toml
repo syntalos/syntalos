@@ -13,12 +13,20 @@ path = "manifest.toml"
 toml_fields = ["collection_id", "format_version", "time_created", "type", "generator"]
 
 [[test.expected_output_files]]
-path = "table/manifest.toml"
+path = "oop-dev-tab/manifest.toml"
 toml_fields = ["data.media_type", "data.parts"]
 
 [[test.expected_output_files]]
-path = "table/table.csv"
+path = "oop-dev-tab/table.csv"
 csv_validation = { expected_headers = ["Index", "Frame Time"], min_rows = 5 }
+
+[[test.expected_output_files]]
+path = "oop-example-tab/manifest.toml"
+toml_fields = ["data.media_type", "data.parts"]
+
+[[test.expected_output_files]]
+path = "oop-example-tab/table.csv"
+csv_validation = { expected_headers = ["Time", "Tag", "Value"], min_rows = 1 }
 
 [[test.expected_output_files]]
 path = "videos/manifest.toml"
