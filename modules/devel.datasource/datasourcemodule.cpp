@@ -250,7 +250,7 @@ private:
     std::optional<TableRow> createTablerow()
     {
         const auto msec = m_syTimer->timeSinceStartMsec().count();
-        if ((msec - m_prevRowTime) < 4000)
+        if ((msec - m_prevRowTime) < 2000)
             return std::nullopt;
         m_prevRowTime = msec;
 
