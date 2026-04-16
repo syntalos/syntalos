@@ -26,6 +26,8 @@
 #include <QObject>
 #include <QIcon>
 
+#include <functional>
+
 #include "modconfig.h"
 #include "optionalwaitcondition.h"
 #include "streams/stream.h"
@@ -425,8 +427,8 @@ VarStreamInputPort *newInputPortForType(int typeId, AbstractModule *mod, const Q
 /// Event function type for timed callbacks
 using intervalEventFunc_t = void (AbstractModule::*)(int &);
 
-/// Event function type for subscription new data callbacks
-using recvDataEventFunc_t = void (AbstractModule::*)();
+/// Callable type used for subscription new-data callbacks
+using recvDataEventFunc_t = std::function<void()>;
 
 /**
  * @brief Abstract base class for all modules
@@ -952,8 +954,25 @@ protected:
         static_assert(
             std::is_base_of<AbstractModule, T>::value,
             "Callback needs to point to a member function of a class derived from AbstractModule");
-        const auto amFn = static_cast<recvDataEventFunc_t>(fn);
-        m_recvDataEventCBList.append(qMakePair(amFn, subscription));
+        auto self = static_cast<T *>(this);
+        m_recvDataEventCBList.append(qMakePair(
+            recvDataEventFunc_t([self, fn]() {
+                (self->*fn)();
+            }),
+            subscription));
+    }
+
+    /**
+     * @brief Request an arbitrary callable to be called when a subscription has new data.
+     *
+     * Overload accepting any callable (lambda, std::function, ...) instead of a member function pointer.
+     * The same threading and blocking rules as for the member-function-pointer overload apply.
+     */
+    template<typename Callable>
+        requires std::invocable<Callable>
+    void registerDataReceivedEvent(Callable &&fn, std::shared_ptr<VariantStreamSubscription> subscription)
+    {
+        m_recvDataEventCBList.append(qMakePair(recvDataEventFunc_t(std::forward<Callable>(fn)), subscription));
     }
 
     /**
