@@ -284,6 +284,10 @@ public:
     std::optional<IoxWaitSet> waitSet;
     std::optional<IoxWaitSetGuard> waitSetCtrlGuard;
     bool waitSetDirty = true;
+    // Set to true when a Stop command has been processed but input-port subscribers have
+    // not yet been dropped. The actual drop is deferred until the current WaitSet iteration
+    // finishes so that data events that arrived in the same iteration as Stop are not lost.
+    bool inputPortResetPending = false;
 
     ModuleState state;
     int maxRTPriority;
@@ -402,6 +406,25 @@ public:
         }
 
         waitSetDirty = false;
+    }
+
+    /**
+     * Perform the deferred input-port subscriber drop that was requested by a Stop command.
+     * Must be called OUTSIDE of a WaitSet onEvent callback (i.e. after
+     * wait_and_process_once_with_timeout returns) so the guards are not invalidated
+     * while we are still iterating over triggered events.
+     */
+    void processPendingIPortReset()
+    {
+        if (!inputPortResetPending)
+            return;
+        for (auto &iport : inPortInfo) {
+            iport->d->ioxGuard.reset();
+            iport->d->ioxSub.reset();
+            iport->d->connected = false;
+        }
+        inputPortResetPending = false;
+        waitSetDirty = true;
     }
 
     /**
@@ -736,17 +759,15 @@ void SyntalosLink::processPendingControl()
             d->stopCb();
         Private::replyDone(*req, true);
 
-        // After a stop, drop all input-port subscribers so upstream publishers
-        // immediately stop sending notifications to us. This prevents their event
-        // socket buffers from filling up while we are in IDLE state in case for
-        // whatever reason the master still tries to send something.
-        for (auto &iport : d->inPortInfo) {
-            iport->d->ioxGuard.reset();
-            iport->d->ioxSub.reset();
-            iport->d->connected = false;
-        }
+        // Mark input ports for deferred dropping. We do NOT drop them here because
+        // this function may be called from inside a WaitSet onEvent callback
+        // (awaitData / awaitDataForever). If we drop the subscriber guards while the
+        // WaitSet is still iterating over triggered events, any data event that fired
+        // in the same cycle as this Stop would be silently discarded.
+        // By deferring the drop to the end of the WaitSet iteration, concurrent data
+        // events are still delivered before the ports are torn down.
         if (!d->inPortInfo.empty())
-            d->waitSetDirty = true;
+            d->inputPortResetPending = true;
     }
 
     // ---- Shutdown ----
@@ -800,6 +821,9 @@ void SyntalosLink::awaitData(int timeoutUsec, const std::function<void()> &event
     if (d->shutdownPending)
         return;
 
+    // Complete any deferred input-port subscriber drop from a previous Stop command,
+    // the rebuild the WaitSet if needed.
+    d->processPendingIPortReset();
     if (d->waitSetDirty)
         d->rebuildWaitSet();
 
@@ -830,7 +854,8 @@ void SyntalosLink::awaitData(int timeoutUsec, const std::function<void()> &event
 
     if (timeoutUsec < 0) {
         do {
-            // Rebuild the WaitSet if ports were connected/disconnected since the last iteration
+            // Complete deferred input-port subscriber drop, then rebuild WaitSet if needed.
+            d->processPendingIPortReset();
             if (d->waitSetDirty)
                 d->rebuildWaitSet();
 
@@ -872,8 +897,9 @@ void SyntalosLink::awaitDataForever(const std::function<void()> &eventFn, int in
     };
 
     while (true) {
-        // Rebuild the WaitSet if ports were connected/disconnected since the last iteration
-        // (processPendingControl() sets waitSetDirty when that happens).
+        // Complete deferred input-port subscriber drop, then rebuild WaitSet if ports were connected/disconnected
+        // since the last iteration (processPendingControl() sets waitSetDirty when that happens).
+        d->processPendingIPortReset();
         if (d->waitSetDirty)
             d->rebuildWaitSet();
 
