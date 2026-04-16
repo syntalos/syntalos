@@ -47,9 +47,9 @@ using ShowDisplayFn = std::function<void(void)>;
 class InputPortInfo
 {
 public:
-    QString id() const;
+    std::string id() const;
     int dataTypeId() const;
-    QString title() const;
+    std::string title() const;
     QVariantHash metadata() const;
 
     /**
@@ -76,7 +76,7 @@ private:
 class OutputPortInfo
 {
 public:
-    QString id() const;
+    std::string id() const;
     int dataTypeId() const;
     void setMetadataVar(const QString &key, const QVariant &value);
 
@@ -164,17 +164,29 @@ public:
     [[nodiscard]] std::vector<std::shared_ptr<OutputPortInfo>> outputPorts() const;
 
     std::shared_ptr<InputPortInfo> registerInputPort(
-        const QString &id,
-        const QString &title,
-        const QString &dataTypeName);
+        const std::string &id,
+        const std::string &title,
+        const std::string &dataTypeName);
     std::shared_ptr<OutputPortInfo> registerOutputPort(
-        const QString &id,
-        const QString &title,
-        const QString &dataTypeName,
+        const std::string &id,
+        const std::string &title,
+        const std::string &dataTypeName,
         const QVariantHash &metadata = QVariantHash());
 
-    void updateOutputPort(const std::shared_ptr<OutputPortInfo> &oport);
     void updateInputPort(const std::shared_ptr<InputPortInfo> &iport);
+    void updateOutputPort(const std::shared_ptr<OutputPortInfo> &oport);
+
+    void removeInputPort(const std::shared_ptr<InputPortInfo> &iport);
+    void removeOutputPort(const std::shared_ptr<OutputPortInfo> &oport);
+
+    /**
+     * @brief Drop all registered ports.
+     *
+     * This tears down every IPC publisher/subscriber and clears the port lists,
+     * so the next round of registerInputPort() / registerOutputPort() calls starts
+     * from a clean slate.
+     */
+    void resetPorts();
 
     bool submitOutput(const std::shared_ptr<OutputPortInfo> &oport, const BaseDataType &data);
 

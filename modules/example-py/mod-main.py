@@ -175,6 +175,12 @@ class MyExampleModule:
 mod = MyExampleModule()
 
 
+def register_ports() -> None:
+    syl.register_input_port('frames-in', 'Frames', 'Frame')
+    syl.register_output_port('rows-out', 'Indices', 'TableRow')
+    syl.register_output_port('frames-out', 'Marked Frames', 'Frame')
+
+
 def set_settings(settings: bytes):
     mod.set_settings(settings)
 
@@ -201,3 +207,8 @@ def stop():
     the loop() function returned False.
     """
     mod.stop()
+
+
+# Register ports at module level so Syntalos knows the port topology before
+# trying to restore project connections.
+register_ports()

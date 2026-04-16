@@ -86,8 +86,8 @@ public:
     explicit Private(const InputPortChange &pc)
         : index(0),
           connected(false),
-          id(pc.id),
-          title(pc.title),
+          id(pc.id.toStdString()),
+          title(pc.title.toStdString()),
           dataTypeId(pc.dataTypeId),
           metadata(pc.metadata),
           throttleItemsPerSec(0)
@@ -99,8 +99,8 @@ public:
     std::optional<SySubscriber> ioxSub;
     std::optional<IoxWaitSetGuard> ioxGuard;
 
-    QString id;
-    QString title;
+    std::string id;
+    std::string title;
     int dataTypeId;
     QVariantHash metadata;
 
@@ -113,7 +113,7 @@ InputPortInfo::InputPortInfo(const InputPortChange &pc)
 {
 }
 
-QString InputPortInfo::id() const
+std::string InputPortInfo::id() const
 {
     return d->id;
 }
@@ -123,7 +123,7 @@ int InputPortInfo::dataTypeId() const
     return d->dataTypeId;
 }
 
-QString InputPortInfo::title() const
+std::string InputPortInfo::title() const
 {
     return d->title;
 }
@@ -152,8 +152,8 @@ public:
     explicit Private(const OutputPortChange &pc)
         : index(0),
           connected(false),
-          id(pc.id),
-          title(pc.title),
+          id(pc.id.toStdString()),
+          title(pc.title.toStdString()),
           dataTypeId(pc.dataTypeId),
           metadata(pc.metadata)
     {
@@ -164,8 +164,8 @@ public:
     std::optional<SyPublisher> ioxPub;
     std::optional<IoxWaitSetGuard> ioxGuard;
 
-    QString id;
-    QString title;
+    std::string id;
+    std::string title;
     int dataTypeId;
     QVariantHash metadata;
 
@@ -174,7 +174,7 @@ public:
 
     [[nodiscard]] std::string ipcChannelId() const
     {
-        return "o/" + id.toStdString();
+        return "o/" + id;
     }
 };
 
@@ -183,7 +183,7 @@ OutputPortInfo::OutputPortInfo(const OutputPortChange &pc)
 {
 }
 
-QString OutputPortInfo::id() const
+std::string OutputPortInfo::id() const
 {
     return d->id;
 }
@@ -555,17 +555,25 @@ void SyntalosLink::processPendingControl()
     }
 
     // ---- LoadScript ----
+    // Execute the script callback BEFORE replying so that by the time the master's
+    // callSliceClientSimple() returns, all port ADD/REMOVE messages that the script
+    // published are already in the IPC queues.  The master can then drain them with
+    // a single handleIncomingControl() call and be guaranteed to see all ports.
     while (true) {
         auto req = safeReceive(*d->srvLoadScript);
         if (!req.has_value())
             break;
         const auto pl = req->payload();
         const auto scriptReqData = LoadScriptRequest::fromMemory(pl.data(), pl.number_of_bytes());
-        // reply before invoking callback so master is not blocked longer than needed
-        Private::replyDoneSlice(*req, true);
-        // set script
+        // If the caller requested a port reset, clear all existing port state first so
+        // the script starts with a clean slate (needed when reloading persistent-mode scripts).
+        if (scriptReqData.resetPorts)
+            resetPorts();
+        // execute script first - any registerInput/OutputPort() calls happen here
         if (d->loadScriptCb && !scriptReqData.script.isEmpty())
             d->loadScriptCb(scriptReqData.script, scriptReqData.workingDir);
+        // only then reply, so the master knows ports are settled
+        Private::replyDoneSlice(*req, true);
     }
 
     // ---- SetPortsPreset ----
@@ -987,19 +995,25 @@ std::vector<std::shared_ptr<OutputPortInfo>> SyntalosLink::outputPorts() const
 }
 
 std::shared_ptr<InputPortInfo> SyntalosLink::registerInputPort(
-    const QString &id,
-    const QString &title,
-    const QString &dataTypeName)
+    const std::string &id,
+    const std::string &title,
+    const std::string &dataTypeName)
 {
     // construct our reference for this port
     InputPortChange ipc(PortAction::ADD);
-    ipc.id = id;
-    ipc.title = title;
-    ipc.dataTypeId = BaseDataType::typeIdFromString(dataTypeName.toStdString());
+    ipc.id = QString::fromStdString(id);
+    ipc.title = QString::fromStdString(title);
+    ipc.dataTypeId = BaseDataType::typeIdFromString(dataTypeName);
+
+    // passing an invalid data type is a hard error
+    if (ipc.dataTypeId == BaseDataType::Unknown) {
+        throw std::runtime_error("Can not register input port. Data type is unknown: " + dataTypeName);
+        return nullptr;
+    }
 
     // check for duplicates
     for (const auto &ip : d->inPortInfo) {
-        if (ip->id() == ipc.id)
+        if (ip->id() == ipc.id.toStdString())
             return nullptr;
     }
 
@@ -1022,21 +1036,27 @@ std::shared_ptr<InputPortInfo> SyntalosLink::registerInputPort(
 }
 
 std::shared_ptr<OutputPortInfo> SyntalosLink::registerOutputPort(
-    const QString &id,
-    const QString &title,
-    const QString &dataTypeName,
+    const std::string &id,
+    const std::string &title,
+    const std::string &dataTypeName,
     const QVariantHash &metadata)
 {
     // construct our reference for this port
     OutputPortChange opc(PortAction::ADD);
-    opc.id = id;
-    opc.title = title;
-    opc.dataTypeId = BaseDataType::typeIdFromString(dataTypeName.toStdString());
+    opc.id = QString::fromStdString(id);
+    opc.title = QString::fromStdString(title);
+    opc.dataTypeId = BaseDataType::typeIdFromString(dataTypeName);
     opc.metadata = metadata;
+
+    // passing an invalid data type is a hard error
+    if (opc.dataTypeId == BaseDataType::Unknown) {
+        throw std::runtime_error("Can not register output port. Data type is unknown: " + dataTypeName);
+        return nullptr;
+    }
 
     // check for duplicates
     for (const auto &op : d->outPortInfo) {
-        if (op->id() == opc.id)
+        if (op->id() == opc.id.toStdString())
             return nullptr;
     }
 
@@ -1060,11 +1080,29 @@ std::shared_ptr<OutputPortInfo> SyntalosLink::registerOutputPort(
     return oport;
 }
 
+void SyntalosLink::updateInputPort(const std::shared_ptr<InputPortInfo> &iport)
+{
+    InputPortChange ipc(PortAction::CHANGE);
+    ipc.id = QString::fromStdString(iport->id());
+    ipc.title = QString::fromStdString(iport->d->title);
+    ipc.dataTypeId = iport->d->dataTypeId;
+    ipc.metadata = iport->d->metadata;
+    ipc.throttleItemsPerSec = iport->d->throttleItemsPerSec;
+
+    const auto iportData = ipc.toBytes();
+    auto uninit = d->pubInPortChange->loan_slice_uninit(static_cast<uint64_t>(iportData.size())).value();
+    // we copy twice here - but this is a low-volume event, so it should be fine
+    iox2::send(uninit.write_from_fn([&](uint64_t i) {
+        return static_cast<std::byte>(iportData[static_cast<int>(i)]);
+    })).value();
+    d->notifyMaster();
+}
+
 void SyntalosLink::updateOutputPort(const std::shared_ptr<OutputPortInfo> &oport)
 {
     OutputPortChange opc(PortAction::CHANGE);
-    opc.id = oport->id();
-    opc.title = oport->d->title;
+    opc.id = QString::fromStdString(oport->id());
+    opc.title = QString::fromStdString(oport->d->title);
     opc.dataTypeId = oport->dataTypeId();
     opc.metadata = oport->d->metadata;
 
@@ -1077,14 +1115,11 @@ void SyntalosLink::updateOutputPort(const std::shared_ptr<OutputPortInfo> &oport
     d->notifyMaster();
 }
 
-void SyntalosLink::updateInputPort(const std::shared_ptr<InputPortInfo> &iport)
+void SyntalosLink::removeInputPort(const std::shared_ptr<InputPortInfo> &iport)
 {
-    InputPortChange ipc(PortAction::CHANGE);
-    ipc.id = iport->id();
-    ipc.title = iport->d->title;
-    ipc.dataTypeId = iport->d->dataTypeId;
-    ipc.metadata = iport->d->metadata;
-    ipc.throttleItemsPerSec = iport->d->throttleItemsPerSec;
+    // notify master
+    InputPortChange ipc(PortAction::REMOVE);
+    ipc.id = QString::fromStdString(iport->id());
 
     const auto iportData = ipc.toBytes();
     auto uninit = d->pubInPortChange->loan_slice_uninit(static_cast<uint64_t>(iportData.size())).value();
@@ -1093,6 +1128,49 @@ void SyntalosLink::updateInputPort(const std::shared_ptr<InputPortInfo> &iport)
         return static_cast<std::byte>(iportData[static_cast<int>(i)]);
     })).value();
     d->notifyMaster();
+
+    // reset our reference (it will not be usable afterwards)
+    iport->d->ioxGuard.reset();
+    iport->d->ioxSub.reset();
+    iport->d->connected = false;
+    d->waitSetDirty = true;
+}
+
+void SyntalosLink::removeOutputPort(const std::shared_ptr<OutputPortInfo> &oport)
+{
+    // notify master
+    OutputPortChange opc(PortAction::REMOVE);
+    opc.id = QString::fromStdString(oport->id());
+
+    const auto oportData = opc.toBytes();
+    auto uninit = d->pubOutPortChange->loan_slice_uninit(static_cast<uint64_t>(oportData.size())).value();
+    // we copy twice here - but this is a low-volume event, so it should be fine
+    iox2::send(uninit.write_from_fn([&](uint64_t i) {
+        return static_cast<std::byte>(oportData[static_cast<int>(i)]);
+    })).value();
+    d->notifyMaster();
+
+    // reset
+    oport->d->ioxGuard.reset();
+    oport->d->ioxPub.reset();
+    d->waitSetDirty = true;
+}
+
+void SyntalosLink::resetPorts()
+{
+    // Tear down every IPC publisher and subscriber.
+    // WaitSet guards must be dropped before the publishers/subscribers they
+    // guard are destroyed (iceoryx2 contract: guard must not outlive the WaitSet).
+    for (auto &op : d->outPortInfo)
+        removeOutputPort(op);
+    for (auto &ip : d->inPortInfo)
+        removeInputPort(ip);
+
+    d->outPortInfo.clear();
+    d->inPortInfo.clear();
+
+    // request a WaitSet rebuild (already done by the port removal calls, this is just to be explicit)
+    d->waitSetDirty = true;
 }
 
 bool SyntalosLink::submitOutput(const std::shared_ptr<OutputPortInfo> &oport, const BaseDataType &data)

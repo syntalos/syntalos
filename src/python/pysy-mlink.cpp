@@ -170,7 +170,7 @@ struct InputPort {
     InputPort(const std::shared_ptr<InputPortInfo> &iport)
         : _iport(iport)
     {
-        _id = _iport->id().toStdString();
+        _id = _iport->id();
         _dataTypeId = _iport->dataTypeId();
     }
 
@@ -241,7 +241,7 @@ struct OutputPort {
     OutputPort(const std::shared_ptr<OutputPortInfo> &oport)
         : _oport(oport)
     {
-        _id = _oport->id().toStdString();
+        _id = _oport->id();
         _dataTypeId = _oport->dataTypeId();
     }
 
@@ -418,6 +418,50 @@ static py::object get_output_port(const std::string &id)
             break;
         }
     }
+    if (!res)
+        return py::none();
+
+    OutputPort pyPort(res);
+    return py::cast(pyPort);
+}
+
+/**
+ * Declare a new input port for this module.
+ *
+ * Must be called at module level (top-level script code) so ports are registered
+ * before Syntalos tries to restore project connections.
+ *
+ * @param id          Unique port identifier string.
+ * @param title       Human-readable port title shown in the flow graph.
+ * @param data_type   Data type name (e.g. "Frame", "TableRow", "IntSignalBlock").
+ * @returns InputPort handle, or None if registration failed (e.g. duplicate ID).
+ */
+static py::object register_input_port(const std::string &id, const std::string &title, const std::string &data_type)
+{
+    auto pb = PyBridge::instance();
+    auto res = pb->link()->registerInputPort(id, title, data_type);
+    if (!res)
+        return py::none();
+
+    InputPort pyPort(res);
+    return py::cast(pyPort);
+}
+
+/**
+ * Declare a new output port for this module.
+ *
+ * Must be called at module level (top-level script code) so ports are registered
+ * before Syntalos tries to restore project connections.
+ *
+ * @param id          Unique port identifier string.
+ * @param title       Human-readable port title shown in the flow graph.
+ * @param data_type   Data type name (e.g. "Frame", "TableRow", "IntSignalBlock").
+ * @returns OutputPort handle, or None if registration failed (e.g. duplicate ID).
+ */
+static py::object register_output_port(const std::string &id, const std::string &title, const std::string &data_type)
+{
+    auto pb = PyBridge::instance();
+    auto res = pb->link()->registerOutputPort(id, title, data_type);
     if (!res)
         return py::none();
 
@@ -658,6 +702,24 @@ PYBIND11_MODULE(syntalos_mlink, m)
         py::arg("delay_msec"),
         py::arg("callable_fn"),
         "Schedule call to a callable to be processed after a set amount of milliseconds.");
+
+    m.def(
+        "register_input_port",
+        register_input_port,
+        py::arg("id"),
+        py::arg("title"),
+        py::arg("data_type"),
+        "Register (declare) a new input port for this module. Call at module level so ports are known before "
+        "Syntalos restores project connections. Returns an InputPort handle, or None on failure.");
+
+    m.def(
+        "register_output_port",
+        register_output_port,
+        py::arg("id"),
+        py::arg("title"),
+        py::arg("data_type"),
+        "Register (declare) a new output port for this module. Call at module level so ports are known before "
+        "Syntalos restores project connections. Returns an OutputPort handle, or None on failure.");
 
     m.def("get_input_port", get_input_port, py::arg("id"), "Get reference to input port with the give ID.");
     m.def("get_output_port", get_output_port, py::arg("id"), "Get reference to output port with the give ID.");

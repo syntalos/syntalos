@@ -789,7 +789,7 @@ bool MLinkModule::isProcessRunning() const
     return d->proc->state() == QProcess::Running;
 }
 
-bool MLinkModule::loadCurrentScript()
+bool MLinkModule::loadCurrentScript(bool resetPorts)
 {
     if (d->scriptContent.isEmpty())
         return true;
@@ -798,8 +798,12 @@ bool MLinkModule::loadCurrentScript()
     req.workingDir = d->scriptWDir;
     req.venvDir = d->pyVenvDir;
     req.script = d->scriptContent;
+    req.resetPorts = resetPorts;
 
-    return d->callSliceClientSimple(this, LOAD_SCRIPT_CALL_ID, req);
+    // The worker executes the script before sending the Done reply, so we must
+    // allow enough time for module-level code to finish (e.g., heavy imports).
+    // 60 seconds is generous and should avoid false timeouts for slow environments.
+    return d->callSliceClientSimple(this, LOAD_SCRIPT_CALL_ID, req, 60);
 }
 
 bool MLinkModule::sendPortInformation()
@@ -965,14 +969,16 @@ bool MLinkModule::prepare(const TestSubject &subject)
         }))
         return false;
 
-    // send all port information to the module
+    // send all port information to the module (sets topology / metadata on worker side)
     if (!sendPortInformation())
         return false;
 
     // set the script to be run, if any exists and we are using a transient worker
-    // (for persistent workers, the script has already been loaded)
+    // (for persistent workers, the script has already been loaded in initialize())
+    // resetPorts is NOT requested here: the worker keeps the ports that sendPortInformation()
+    // just provided so the script can call get_input_port() / get_output_port() at module level.
     if (d->workerMode == ModuleWorkerMode::TRANSIENT) {
-        if (!loadCurrentScript())
+        if (!loadCurrentScript(false))
             return false;
     }
 

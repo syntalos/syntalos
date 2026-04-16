@@ -64,25 +64,6 @@ public:
         m_features = features;
     }
 
-    void setupPorts(const QVariantList &varInPorts, const QVariantList &varOutPorts)
-    {
-        for (const auto &pv : varInPorts) {
-            const auto po = pv.toHash();
-            registerInputPortByTypeId(
-                BaseDataType::typeIdFromString(po.value("data_type").toString().toStdString()),
-                po.value("id").toString(),
-                po.value("title").toString());
-        }
-
-        for (const auto &pv : varOutPorts) {
-            const auto po = pv.toHash();
-            registerOutputPortByTypeId(
-                BaseDataType::typeIdFromString(po.value("data_type").toString().toStdString()),
-                po.value("id").toString(),
-                po.value("title").toString());
-        }
-    }
-
     bool installVirtualEnv(bool recreate)
     {
         const auto reqFile = QStringLiteral("%1/requirements.txt").arg(m_pyModDir);
@@ -105,15 +86,24 @@ public:
         if (!runProcess())
             return false;
 
-        // run script immediately
+        // Load the script immediately.
+        // The LoadScript handler executes the script BEFORE replying, so by the
+        // time loadCurrentScript() returns all port registration messages are in
+        // the IPC queue. A single handleIncomingControl() call below drains them.
         if (!setScriptFromFile(m_mainPyFname, m_pyModDir)) {
             raiseError(QStringLiteral("Unable to open Python script file: %1").arg(m_mainPyFname));
             return false;
         }
-        if (!sendPortInformation())
+        // resetPorts=true: the worker clears its port state before executing the script,
+        // so self-registered ports from any previous load are removed first.
+        if (!loadCurrentScript(true))
             return false;
-        if (!loadCurrentScript())
-            return false;
+
+        // Drain all InputPortChange / OutputPortChange ADD messages published
+        // during script execution so ports are present on the master side before
+        // we return. This is the guarantee that lets project loading restore
+        // port connections immediately after initialize().
+        handleIncomingControl();
 
         return true;
     }
@@ -201,10 +191,13 @@ public:
                     raiseError(QStringLiteral("Unable to open Python script file: %1").arg(m_mainPyFname));
                     return false;
                 }
-                if (!sendPortInformation())
+                // resetPorts=true: the worker clears its port state and re-registers ports
+                // during script execution. Drain the resulting ADD messages now so that
+                // any changed ports are reflected on the master side before
+                // MLinkModule::prepare() sends the port topology to the worker.
+                if (!loadCurrentScript(true))
                     return false;
-                if (!loadCurrentScript())
-                    return false;
+                handleIncomingControl();
             }
         }
 
@@ -312,7 +305,6 @@ public:
     {
         auto mod = new PythonModule(parent);
         mod->setPythonInfo(m_pyFname, rootDir(), m_useVEnv);
-        mod->setupPorts(m_portDefInput, m_portDefOutput);
         mod->setFeatures(m_features);
         return mod;
     }
@@ -332,12 +324,6 @@ public:
         m_useVEnv = enabled;
     }
 
-    void setPortDef(const QVariantList &defInput, const QVariantList &defOutput)
-    {
-        m_portDefInput = defInput;
-        m_portDefOutput = defOutput;
-    }
-
 private:
     QString m_id;
     QString m_name;
@@ -348,9 +334,6 @@ private:
 
     QString m_pyFname;
     bool m_useVEnv;
-
-    QVariantList m_portDefInput;
-    QVariantList m_portDefOutput;
 };
 
 ModuleInfo *loadPythonModuleInfo(const QString &modId, const QString &modDir, const QVariantHash &modData)
@@ -396,10 +379,6 @@ ModuleInfo *loadPythonModuleInfo(const QString &modId, const QString &modDir, co
     modInfo->setMainPyScriptFname(pyFile);
     modInfo->setUseVEnv(useVEnv);
     modInfo->setFeatures(features);
-
-    const auto portsDef = modData.value("ports").toHash();
-    if (!portsDef.isEmpty())
-        modInfo->setPortDef(portsDef.value("in").toList(), portsDef.value("out").toList());
 
     return modInfo;
 }

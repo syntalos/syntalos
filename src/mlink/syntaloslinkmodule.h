@@ -74,8 +74,8 @@ protected:
     template<typename T>
         requires std::is_base_of_v<BaseDataType, T>
     std::shared_ptr<OutputPortLink<T>> registerOutputPort(
-        const QString &id,
-        const QString &title = QString(),
+        const std::string &id,
+        const std::string &title = {},
         const QVariantHash &metadata = QVariantHash())
     {
         // fetch existing output port first, if any exists
@@ -86,8 +86,7 @@ protected:
         }
 
         // register a new port if we found none
-        auto opInfo = m_slink->registerOutputPort(
-            id, title, QString::fromStdString(BaseDataType::typeIdToString(syDataTypeId<T>())), metadata);
+        auto opInfo = m_slink->registerOutputPort(id, title, BaseDataType::typeIdToString(syDataTypeId<T>()), metadata);
         if (!opInfo) {
             qWarning().noquote() << "Failed to register output port with ID:" << id;
             return nullptr;
@@ -110,8 +109,8 @@ protected:
     template<typename T, typename U>
         requires std::is_base_of_v<BaseDataType, T>
     std::shared_ptr<InputPortInfo> registerInputPort(
-        const QString &id,
-        const QString &title,
+        const std::string &id,
+        const std::string &title,
         U *instance,
         void (U::*fn)(const T &data))
     {
@@ -121,8 +120,7 @@ protected:
                 return eip;
         }
 
-        auto iport = m_slink->registerInputPort(
-            id, title, QString::fromStdString(BaseDataType::typeIdToString(syDataTypeId<T>())));
+        auto iport = m_slink->registerInputPort(id, title, BaseDataType::typeIdToString(syDataTypeId<T>()));
         if (!iport) {
             qWarning().noquote() << "Failed to register input port" << id;
             return nullptr;
@@ -156,7 +154,7 @@ template<typename T>
 class OutputPortLink
 {
 public:
-    QString id() const
+    std::string id() const
     {
         return m_info->id();
     }

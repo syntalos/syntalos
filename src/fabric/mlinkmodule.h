@@ -84,7 +84,7 @@ public:
     bool runProcess();
     bool isProcessRunning() const;
 
-    bool loadCurrentScript();
+    bool loadCurrentScript(bool resetPorts = false);
     bool sendPortInformation();
 
     QString readProcessOutput();
@@ -101,8 +101,16 @@ signals:
 protected:
     bool testIpcApiVersion(bool emitErrors = true);
 
-private:
+    /**
+     * Process all pending IPC control messages from the worker.
+     *
+     * Drains error, state-change, port-change and settings-change channels.
+     * Subclasses may call this after operations that are expected to trigger
+     * port registrations (e.g. after loading a script in Python modules).
+     */
     void handleIncomingControl();
+
+private:
     void resetConnection();
 
     bool registerOutPortForwarders();

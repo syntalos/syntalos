@@ -344,13 +344,14 @@ struct LoadScriptRequest {
     QString workingDir;
     QString venvDir;
     QString script;
+    bool resetPorts = false; /// If true, the worker should reset its port state before executing the script.
 
     [[nodiscard]] QByteArray toBytes() const
     {
         QByteArray bytes;
         QDataStream stream(&bytes, QIODevice::WriteOnly);
 
-        stream << workingDir << script;
+        stream << workingDir << script << resetPorts;
 
         return bytes;
     }
@@ -362,7 +363,7 @@ struct LoadScriptRequest {
         QByteArray block(reinterpret_cast<const char *>(memory), size);
         QDataStream stream(block);
 
-        stream >> req.workingDir >> req.script;
+        stream >> req.workingDir >> req.script >> req.resetPorts;
 
         return req;
     }

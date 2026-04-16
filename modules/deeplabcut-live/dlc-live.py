@@ -97,11 +97,13 @@ class DLCLiveModule:
         self._display = False
         self._dlc_proc = Processor()
 
-        # Get port references
-        self._iport = syl.get_input_port('frames-in')
-        self._oport_rows = syl.get_output_port('rows-out')
-        # self._oport_img = syl.get_output_port('frames-out')
+        # An instance of this class is created t the module level, at which point we need to register
+        # our ports, so Syntalos knows them early when restoring connections at project-load time.
+        self._iport = syl.register_input_port('frames-in', 'Frames', 'Frame')
+        self._oport_rows = syl.register_output_port('rows-out', 'Tracking', 'TableRow')
+        # self._oport_img = syl.register_output_port('frames-out', 'Labeled Frames', 'Frame')
 
+        # collect event callbacks
         self._iport.on_data = self._on_input_data
 
         # show the settings dialog when the user requested it to be shown
