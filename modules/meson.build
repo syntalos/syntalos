@@ -31,6 +31,7 @@ subdir('audiosource')
 # Video
 subdir('videorecorder')
 subdir('videotransform')
+subdir('prism')
 subdir('camera-generic')
 
 if 'camera-arv' in modules_enabled
