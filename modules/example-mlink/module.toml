@@ -1,0 +1,11 @@
+[syntalos_module]
+type = "executable"
+
+name = "External Module Example"
+description = "Example & template for a Syntalos MLink module."
+icon = "example-mlink.svg"
+
+binary = "example-mlink"
+
+categories = 'sydevel;example'
+features = []

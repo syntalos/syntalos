@@ -76,3 +76,4 @@ subdir('deeplabcut-live')
 # Examples
 subdir('example-py')
 subdir('example-cpp')
+subdir('example-mlink')

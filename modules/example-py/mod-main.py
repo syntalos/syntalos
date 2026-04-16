@@ -1,4 +1,9 @@
 # -*- coding: utf-8 -*-
+#
+# Copyright 2022-2026 Matthias Klumpp <matthias@tenstral.net>
+#
+# SPDX-License-Identifier: MIT
+
 """
 Example Standalone Python Module For Syntalos
 
