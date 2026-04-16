@@ -228,34 +228,34 @@ the script automatically if it changes on disk).
 
 ```
 modules/example-py/
-  module.toml     # type=python, main=<script>, optional ports section
-  mod-main.py     # entry point; imports syio from syntalos_mlink
+  module.toml         # type=python, main=<script>
+  mod-main.py         # entry point; imports syntalos_mlink as syl
   icon.svg
-  requirements.txt  # optional: pip packages to install in a venv
+  requirements.txt    # optional: PyPI packages to install in a venv
 ```
 
-`module.toml` for a Python module (ports are declared here, not in code):
+`module.toml` for a Python module:
 ```toml
 [syntalos_module]
-type     = "python"
-name     = "My Python Module"
+type        = "python"
+name        = "My Python Module"
 description = "What it does."
-icon     = "icon.svg"
-main     = "mod-main.py"
-use_venv = false           # set true to install requirements.txt in a venv
+icon        = "icon.svg"
+main        = "mod-main.py"
+use_venv    = false           # set true to install requirements.txt in a venv
 categories  = 'category1'
 features    = ['show-settings', 'show-display']
+```
 
-[ports]
-  [[ports.in]]
-  data_type = 'Frame'
-  id        = 'frames-in'
-  title     = 'Frames'
+Ports are registered in the Python script at module level (i.e. as top-level code that runs
+when the script is first loaded), not in `module.toml`:
+```python
+import syntalos_mlink as syl
 
-  [[ports.out]]
-  data_type = 'TableRow'
-  id        = 'rows-out'
-  title     = 'Results'
+# Register ports at module load time so Syntalos knows the topology.
+# IDs must match what get_input_port / get_output_port use later.
+syl.register_input_port('frames-in', 'Frames', 'Frame')
+syl.register_output_port('rows-out', 'Results', 'TableRow')
 ```
 
 ---

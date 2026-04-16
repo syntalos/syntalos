@@ -507,7 +507,10 @@ PYBIND11_MODULE(syntalos_mlink, m)
         "init_link",
         init_link,
         py::arg("slink") = nullptr,
-        "Initialize the connection with a running Syntalos instance.");
+        "Initialize the connection with a running Syntalos instance.\n"
+        "\n"
+        ":return: The active :class:`SyntalosLink` instance.\n"
+        ":rtype: SyntalosLink");
 
     /**
      ** Frames
@@ -516,8 +519,8 @@ PYBIND11_MODULE(syntalos_mlink, m)
     py::class_<Frame>(m, "Frame", "A video frame.")
         .def(py::init<>())
         .def_readwrite("index", &Frame::index, "Number of the frame.")
-        .def_readwrite("time", &Frame::time, "Time when the frame was recorded.")
-        .def_readwrite("mat", &Frame::mat, "Frame image data.")
+        .def_readwrite("time", &Frame::time, "Time when the frame was recorded, as a duration.")
+        .def_readwrite("mat", &Frame::mat, "Frame image data as a NumPy array (OpenCV ``Mat``).")
         // Convenience helpers
         .def_property(
             "time_usec",
@@ -527,7 +530,7 @@ PYBIND11_MODULE(syntalos_mlink, m)
             [](Frame &f, uint64_t v) {
                 f.time = microseconds_t(v);
             },
-            "Time when the frame was recorded, as integer in µs.");
+            "Time when the frame was recorded, as an integer in µs.");
 
     /**
      ** Control Command
@@ -537,7 +540,7 @@ PYBIND11_MODULE(syntalos_mlink, m)
         m, "ControlCommandKind", "The type of a control command sent to controllable modules.")
         .value("UNKNOWN", ControlCommandKind::UNKNOWN)
         .value("START", ControlCommandKind::START, "Start an operation.")
-        .value("PAUSE", ControlCommandKind::PAUSE, "Pause an operation, can be resumed with START.")
+        .value("PAUSE", ControlCommandKind::PAUSE, "Pause an operation; can be resumed with ``START``.")
         .value("STOP", ControlCommandKind::STOP, "Stop an operation.")
         .value("STEP", ControlCommandKind::STEP, "Advance operation by one step.")
         .value("CUSTOM", ControlCommandKind::CUSTOM, "Custom command.");
@@ -545,41 +548,46 @@ PYBIND11_MODULE(syntalos_mlink, m)
     py::class_<ControlCommand>(m, "ControlCommand", "A control command for a module.")
         .def(py::init<>())
         .def(py::init<ControlCommandKind>())
-        .def_readwrite("kind", &ControlCommand::kind)
-        .def_property("duration", &ControlCommand::getDurationAsInt, &ControlCommand::setDuration)
-        .def_readwrite("command", &ControlCommand::command);
+        .def_readwrite("kind", &ControlCommand::kind, "The :class:`ControlCommandKind` of this command.")
+        .def_property(
+            "duration",
+            &ControlCommand::getDurationAsInt,
+            &ControlCommand::setDuration,
+            "Optional duration associated with this command, in milliseconds.")
+        .def_readwrite(
+            "command", &ControlCommand::command, "Custom command string (used when ``kind`` is ``CUSTOM``).");
 
     /**
      ** Firmata
      **/
 
-    py::enum_<FirmataCommandKind>(m, "FirmataCommandKind", "Type of change to be be made on a Firmata interface.")
+    py::enum_<FirmataCommandKind>(m, "FirmataCommandKind", "Type of change to be made on a Firmata interface.")
         .value("UNKNOWN", FirmataCommandKind::UNKNOWN)
-        .value("NEW_DIG_PIN", FirmataCommandKind::NEW_DIG_PIN)
-        .value("NEW_ANA_PIN", FirmataCommandKind::NEW_ANA_PIN)
-        .value("IO_MODE", FirmataCommandKind::IO_MODE)
-        .value("WRITE_ANALOG", FirmataCommandKind::WRITE_ANALOG)
-        .value("WRITE_DIGITAL", FirmataCommandKind::WRITE_DIGITAL)
-        .value("WRITE_DIGITAL_PULSE", FirmataCommandKind::WRITE_DIGITAL_PULSE)
-        .value("SYSEX", FirmataCommandKind::SYSEX);
+        .value("NEW_DIG_PIN", FirmataCommandKind::NEW_DIG_PIN, "Register a new digital pin.")
+        .value("NEW_ANA_PIN", FirmataCommandKind::NEW_ANA_PIN, "Register a new analog pin.")
+        .value("IO_MODE", FirmataCommandKind::IO_MODE, "Change a pin's I/O mode.")
+        .value("WRITE_ANALOG", FirmataCommandKind::WRITE_ANALOG, "Write an analog value to a pin.")
+        .value("WRITE_DIGITAL", FirmataCommandKind::WRITE_DIGITAL, "Write a digital value to a pin.")
+        .value("WRITE_DIGITAL_PULSE", FirmataCommandKind::WRITE_DIGITAL_PULSE, "Emit a digital pulse on a pin.")
+        .value("SYSEX", FirmataCommandKind::SYSEX, "Send a raw SysEx message.");
 
     py::class_<FirmataControl>(m, "FirmataControl", "Control command for a Firmata device.")
         .def(py::init<>())
         .def(py::init<FirmataCommandKind>())
-        .def_readwrite("command", &FirmataControl::command)
-        .def_readwrite("pin_id", &FirmataControl::pinId)
-        .def_readwrite("pin_name", &FirmataControl::pinName)
-        .def_readwrite("is_output", &FirmataControl::isOutput)
-        .def_readwrite("is_pullup", &FirmataControl::isPullUp)
-        .def_readwrite("value", &FirmataControl::value);
+        .def_readwrite("command", &FirmataControl::command, "The :class:`FirmataCommandKind` to execute.")
+        .def_readwrite("pin_id", &FirmataControl::pinId, "Numeric pin identifier.")
+        .def_readwrite("pin_name", &FirmataControl::pinName, "Registered name of the pin.")
+        .def_readwrite("is_output", &FirmataControl::isOutput, "``True`` if the pin is configured as output.")
+        .def_readwrite("is_pullup", &FirmataControl::isPullUp, "``True`` if the internal pull-up resistor is enabled.")
+        .def_readwrite("value", &FirmataControl::value, "Value to write, or pulse duration in ms.");
 
     py::class_<FirmataData>(m, "FirmataData", "Data received from a Firmata device.")
         .def(py::init<>())
-        .def_readwrite("pin_id", &FirmataData::pinId)
-        .def_readwrite("pin_name", &FirmataData::pinName)
-        .def_readwrite("value", &FirmataData::value)
-        .def_readwrite("is_digital", &FirmataData::isDigital)
-        .def_readwrite("time", &FirmataData::time, "Time when the data was acquired.")
+        .def_readwrite("pin_id", &FirmataData::pinId, "Numeric pin identifier.")
+        .def_readwrite("pin_name", &FirmataData::pinName, "Registered name of the pin.")
+        .def_readwrite("value", &FirmataData::value, "Received pin value.")
+        .def_readwrite("is_digital", &FirmataData::isDigital, "``True`` if the value is digital, ``False`` if analog.")
+        .def_readwrite("time", &FirmataData::time, "Time when the data was acquired, as a duration.")
         // Convenience helpers
         .def_property(
             "time_usec",
@@ -589,7 +597,7 @@ PYBIND11_MODULE(syntalos_mlink, m)
             [](FirmataData &fm, uint64_t v) {
                 fm.time = microseconds_t(v);
             },
-            "Time when the data was acquired, as integer in µs.");
+            "Time when the data was acquired, as an integer in µs.");
 
     /**
      ** Signal Blocks
@@ -597,48 +605,75 @@ PYBIND11_MODULE(syntalos_mlink, m)
 
     py::class_<IntSignalBlock>(m, "IntSignalBlock", "A block of timestamped integer signal data.")
         .def(py::init<>())
-        .def_readwrite("timestamps", &IntSignalBlock::timestamps, "Timestamps of the data blocks.")
-        .def_readwrite("data", &IntSignalBlock::data, "The data matrix.")
-        .def_property_readonly("length", &IntSignalBlock::length)
-        .def_property_readonly("rows", &IntSignalBlock::rows)
-        .def_property_readonly("cols", &IntSignalBlock::cols);
+        .def_readwrite("timestamps", &IntSignalBlock::timestamps, "1-D array of sample timestamps in µs.")
+        .def_readwrite("data", &IntSignalBlock::data, "2-D data matrix: rows = samples, columns = channels.")
+        .def_property_readonly("length", &IntSignalBlock::length, "Number of samples (rows) in this block.")
+        .def_property_readonly("rows", &IntSignalBlock::rows, "Number of rows (samples).")
+        .def_property_readonly("cols", &IntSignalBlock::cols, "Number of columns (channels).");
+
     py::class_<FloatSignalBlock>(m, "FloatSignalBlock", "A block of timestamped float signal data.")
         .def(py::init<>())
-        .def_readwrite("timestamps", &FloatSignalBlock::timestamps, "Timestamps of the data blocks.")
-        .def_readwrite("data", &FloatSignalBlock::data, "The data matrix.")
-        .def_property_readonly("length", &FloatSignalBlock::length)
-        .def_property_readonly("rows", &FloatSignalBlock::rows)
-        .def_property_readonly("cols", &FloatSignalBlock::cols);
+        .def_readwrite("timestamps", &FloatSignalBlock::timestamps, "1-D array of sample timestamps in µs.")
+        .def_readwrite("data", &FloatSignalBlock::data, "2-D data matrix: rows = samples, columns = channels.")
+        .def_property_readonly("length", &FloatSignalBlock::length, "Number of samples (rows) in this block.")
+        .def_property_readonly("rows", &FloatSignalBlock::rows, "Number of rows (samples).")
+        .def_property_readonly("cols", &FloatSignalBlock::cols, "Number of columns (channels).");
 
     /**
      * Ports
      */
 
-    py::class_<InputPort>(m, "InputPort", "Representation of a module input port.")
+    py::class_<InputPort>(m, "InputPort", "A module input port.\n\nObtain an instance via :func:`get_input_port`.")
         .def_property(
             "on_data",
             &InputPort::get_on_data,
             &InputPort::set_on_data,
-            "Set function to be called when new data arrives.")
-        .def_property_readonly("metadata", &InputPort::metadata, "Obtain the metadata associated with this input port.")
+            "Callback invoked with each incoming data item.\n"
+            "\n"
+            "Assign a callable that accepts a single argument of the port's data type\n"
+            "(e.g. :class:`Frame`, :class:`TableRow`). Set to ``None`` to remove the callback.")
+        .def_property_readonly(
+            "metadata",
+            &InputPort::metadata,
+            "Read-only dict of metadata provided by the upstream module for this port.")
         .def(
             "set_throttle_items_per_sec",
             &InputPort::set_throttle_items_per_sec,
-            "Limit the amount of input received to a set amount of elements per second.",
+            "Limit the number of items delivered to ``on_data`` per second.\n"
+            "\n"
+            ":param items_per_sec: Maximum items per second; ``0`` disables throttling.\n"
+            ":type items_per_sec: int",
             py::arg("items_per_sec"))
-        .def_readonly("name", &InputPort::_id);
+        .def_readonly("name", &InputPort::_id, "The unique port ID string.");
 
-    py::class_<OutputPort>(m, "OutputPort", "Representation of a module output port.")
+    py::class_<OutputPort>(m, "OutputPort", "A module output port.\n\nObtain an instance via :func:`get_output_port`.")
         .def(
             "submit",
             &OutputPort::submit,
-            "Submit the given entity to the output port for transfer to its destination(s).")
-        .def_readonly("name", &OutputPort::_id)
-        .def("set_metadata_value", &OutputPort::set_metadata_value, "Set (immutable) metadata value for this port.")
+            "Send a data item to all modules connected to this port.\n"
+            "\n"
+            ":param data: Data item matching this port's type (e.g. :class:`Frame`, :class:`TableRow`).\n"
+            ":raises SyntalosPyError: If the item type does not match the port's declared data type.")
+        .def_readonly("name", &OutputPort::_id, "The unique port ID string.")
+        .def(
+            "set_metadata_value",
+            &OutputPort::set_metadata_value,
+            "Set a metadata entry for this port.\n"
+            "\n"
+            "Metadata must be set before the run starts (i.e. in ``prepare()``); it is immutable once\n"
+            "acquisition begins.\n"
+            "\n"
+            ":param key: Metadata key string.\n"
+            ":param value: Metadata value. Accepted types: ``int``, ``float``, ``str``, or ``list`` of those.\n"
+            ":raises SyntalosPyError: If the value type is not supported.")
         .def(
             "set_metadata_value_size",
             &OutputPort::set_metadata_value_size,
-            "Set (immutable) metadata value for a 2D size type for this port.")
+            "Set a 2-D size metadata entry for this port (e.g. ``'size'`` for video streams).\n"
+            "\n"
+            ":param key: Metadata key string.\n"
+            ":param value: A sequence of exactly two integers ``[width, height]``.\n"
+            ":raises SyntalosPyError: If ``value`` does not have exactly two elements.")
 
         // convenience functions
         .def(
@@ -648,60 +683,131 @@ PYBIND11_MODULE(syntalos_mlink, m)
             py::arg("name"),
             py::arg("is_output"),
             py::arg("is_pullup") = false,
-            "Convenience function to create a command to register a named digital pin and immediately submit it on "
-            "this port. "
-            "The registered pin can later be referred to by its name.")
+            "Register a named digital pin on the connected Firmata device and submit the command immediately.\n"
+            "\n"
+            "The pin can subsequently be referenced by ``name`` in :meth:`firmata_submit_digital_value`\n"
+            "and :meth:`firmata_submit_digital_pulse`.\n"
+            "\n"
+            ":param pin_id: Numeric pin identifier on the device.\n"
+            ":param name: Human-readable name to register for this pin.\n"
+            ":param is_output: ``True`` to configure the pin as output, ``False`` for input.\n"
+            ":param is_pullup: ``True`` to enable the internal pull-up resistor (default: ``False``).\n"
+            ":return: The :class:`FirmataControl` command that was submitted.\n"
+            ":rtype: FirmataControl")
         .def(
             "firmata_submit_digital_value",
             &OutputPort::firmata_submit_digital_value,
             py::arg("name"),
             py::arg("value"),
-            "Convenience function to write a digital value to a named pin.")
+            "Write a digital value to a previously registered pin.\n"
+            "\n"
+            ":param name: Registered pin name.\n"
+            ":param value: ``True`` / ``1`` for HIGH, ``False`` / ``0`` for LOW.\n"
+            ":return: The :class:`FirmataControl` command that was submitted.\n"
+            ":rtype: FirmataControl")
         .def(
             "firmata_submit_digital_pulse",
             &OutputPort::firmata_submit_digital_pulse,
             py::arg("name"),
             py::arg("duration_msec") = 50,
-            "Convenience function to emit a digital pulse on a named pin.");
+            "Emit a digital pulse on a previously registered pin.\n"
+            "\n"
+            ":param name: Registered pin name.\n"
+            ":param duration_msec: Pulse duration in milliseconds (default: 50).\n"
+            ":return: The :class:`FirmataControl` command that was submitted.\n"
+            ":rtype: FirmataControl");
 
     /**
      ** Additional Functions
      **/
 
-    m.def("println", println, py::arg("text"), "Print text to stdout.");
+    m.def(
+        "println",
+        println,
+        py::arg("text"),
+        "Print a line of text to stdout.\n"
+        "\n"
+        ":param text: The text to print.");
+
     m.def(
         "raise_error",
         raise_error,
         py::arg("message"),
-        "Emit an error message string, immediately terminating the current action and (if applicable) the experiment.");
-    m.def("time_since_start_msec", time_since_start_msec, "Get time since experiment started in milliseconds.");
-    m.def("time_since_start_usec", time_since_start_usec, "Get time since experiment started in microseconds.");
+        "Raise a module error, immediately stopping the current run.\n"
+        "\n"
+        ":param message: Human-readable error description.");
+
+    m.def(
+        "time_since_start_msec",
+        time_since_start_msec,
+        "Return the time elapsed since the experiment started.\n"
+        "\n"
+        ":return: Elapsed time in milliseconds.\n"
+        ":rtype: int");
+
+    m.def(
+        "time_since_start_usec",
+        time_since_start_usec,
+        "Return the time elapsed since the experiment started.\n"
+        "\n"
+        ":return: Elapsed time in microseconds.\n"
+        ":rtype: int");
+
     m.def(
         "wait",
         wait,
         py::arg("msec"),
-        "Wait (roughly) for the given amount of milliseconds without blocking communication with the master process.");
+        "Sleep for approximately the given number of milliseconds.\n"
+        "\n"
+        "Unlike a plain ``time.sleep()``, this keeps the communication channel to Syntalos\n"
+        "alive so that control messages (e.g. stop requests) are still handled.\n"
+        "\n"
+        ":param msec: Duration to wait in milliseconds.");
+
     m.def(
         "wait_sec",
         wait_sec,
         py::arg("sec"),
-        "Wait (roughly) for the given amount of seconds without blocking communication with the master process.");
+        "Sleep for approximately the given number of seconds.\n"
+        "\n"
+        "Unlike a plain ``time.sleep()``, this keeps the communication channel to Syntalos\n"
+        "alive so that control messages (e.g. stop requests) are still handled.\n"
+        "\n"
+        ":param sec: Duration to wait in seconds.");
+
     m.def(
         "await_data",
         await_data,
         py::arg("timeout_usec") = -1,
-        "Wait for new data to arrive and call selected callbacks. Also keep communication with the Syntalos master "
-        "process.");
+        "Wait for incoming data and dispatch it to registered ``on_data`` callbacks.\n"
+        "\n"
+        "Also services the IPC channel to the Syntalos process. Call this regularly\n"
+        "inside a ``run()`` loop to keep the module responsive.\n"
+        "\n"
+        ":param timeout_usec: Maximum time to block in microseconds. Pass ``-1`` (default) to\n"
+        "    wait until the module is no longer in ``RUNNING`` state.");
+
     m.def(
         "is_running",
         is_running,
-        "Return True if the experiment is still running, False if we are supposed to shut down.");
+        "Check whether the experiment is still active.\n"
+        "\n"
+        ":return: ``True`` while the run is in progress, ``False`` once a stop has been requested.\n"
+        ":rtype: bool");
+
     m.def(
         "schedule_delayed_call",
         &schedule_delayed_call,
         py::arg("delay_msec"),
         py::arg("callable_fn"),
-        "Schedule call to a callable to be processed after a set amount of milliseconds.");
+        "Schedule a callable to be invoked after a delay.\n"
+        "\n"
+        "The call is executed on the module's event loop, so it is safe to interact\n"
+        "with ports and other module state from the callback.\n"
+        "\n"
+        ":param delay_msec: Delay before the call is made, in milliseconds. Must be ≥ 0.\n"
+        ":param callable_fn: Zero-argument callable to invoke.\n"
+        ":raises SyntalosPyError: If ``delay_msec`` is negative.");
 
     m.def(
         "register_input_port",
@@ -709,8 +815,16 @@ PYBIND11_MODULE(syntalos_mlink, m)
         py::arg("id"),
         py::arg("title"),
         py::arg("data_type"),
-        "Register (declare) a new input port for this module. Call at module level so ports are known before "
-        "Syntalos restores project connections. Returns an InputPort handle, or None on failure.");
+        "Declare a new input port for this module.\n"
+        "\n"
+        "Must be called at module level so that Syntalos can discover the port topology and\n"
+        "restore project connections before the first run is prepared.\n"
+        "\n"
+        ":param id: Unique port identifier used in :func:`get_input_port`.\n"
+        ":param title: Human-readable port label shown in the flow-graph editor.\n"
+        ":param data_type: Data type name, e.g. ``'Frame'``, ``'TableRow'``, ``'IntSignalBlock'``, etc.\n"
+        ":return: An :class:`InputPort` handle, or ``None`` if registration failed (e.g. duplicate ID).\n"
+        ":rtype: InputPort or None");
 
     m.def(
         "register_output_port",
@@ -718,28 +832,65 @@ PYBIND11_MODULE(syntalos_mlink, m)
         py::arg("id"),
         py::arg("title"),
         py::arg("data_type"),
-        "Register (declare) a new output port for this module. Call at module level so ports are known before "
-        "Syntalos restores project connections. Returns an OutputPort handle, or None on failure.");
+        "Declare a new output port for this module.\n"
+        "\n"
+        "Must be called at module level (top-level script code, not inside a function)\n"
+        "so that Syntalos can discover the port topology and restore project connections\n"
+        "before the first run is prepared.\n"
+        "\n"
+        ":param id: Unique port identifier used in :func:`get_output_port`.\n"
+        ":param title: Human-readable port label shown in the flow-graph editor.\n"
+        ":param data_type: Data type name, e.g. ``'Frame'``, ``'TableRow'``, etc.\n"
+        ":return: An :class:`OutputPort` handle, or ``None`` if registration failed (e.g. duplicate ID).\n"
+        ":rtype: OutputPort or None");
 
-    m.def("get_input_port", get_input_port, py::arg("id"), "Get reference to input port with the give ID.");
-    m.def("get_output_port", get_output_port, py::arg("id"), "Get reference to output port with the give ID.");
+    m.def(
+        "get_input_port",
+        get_input_port,
+        py::arg("id"),
+        "Retrieve a reference to an input port by its ID.\n"
+        "\n"
+        ":param id: The port ID passed to :func:`register_input_port`.\n"
+        ":return: An :class:`InputPort` handle, or ``None`` if no port with that ID exists.\n"
+        ":rtype: InputPort or None");
+
+    m.def(
+        "get_output_port",
+        get_output_port,
+        py::arg("id"),
+        "Retrieve a reference to an output port by its ID.\n"
+        "\n"
+        ":param id: The port ID passed to :func:`register_output_port`.\n"
+        ":return: An :class:`OutputPort` handle, or ``None`` if no port with that ID exists.\n"
+        ":rtype: OutputPort or None");
 
     m.def(
         "call_on_show_settings",
         &call_on_show_settings,
         py::arg("callable_fn"),
-        "Call the given function when the module's settings dialog should be shown. The callback receives settings as "
-        "bytes.");
+        "Register a callback to be invoked when the user opens the module's settings dialog.\n"
+        "\n"
+        ":param callable_fn: Callable with signature ``fn(old_settings: bytes)``.");
+
     m.def(
         "call_on_show_display",
         &call_on_show_display,
         py::arg("callable_fn"),
-        "Call the given function when the module's display window should be shown.");
+        "Register a callback to be invoked when the user opens the module's display window.\n"
+        "\n"
+        ":param callable_fn: Zero-argument callable.");
+
     m.def(
         "save_settings",
         &save_settings,
         py::arg("settings_data"),
-        "Send module settings data as bytes to Syntalos for safekeeping.");
+        "Persist the module's settings with Syntalos.\n"
+        "\n"
+        "The saved blob is passed back to the module as ``old_settings`` the next time the\n"
+        "settings callback (see :func:`call_on_show_settings`) is invoked, and also delivered\n"
+        "via ``set_settings()`` before each run.\n"
+        "\n"
+        ":param settings_data: Arbitrary settings payload serialized as ``bytes``.");
 
     // Firmata helpers
     m.def(
@@ -748,19 +899,39 @@ PYBIND11_MODULE(syntalos_mlink, m)
         py::arg("kind"),
         py::arg("pin_id"),
         py::arg("name"),
-        "Create new Firmata control command with a given pin ID and registered name.");
+        "Create a :class:`FirmataControl` command identified by both numeric ID and name.\n"
+        "\n"
+        ":param kind: The :class:`FirmataCommandKind` to execute.\n"
+        ":param pin_id: Numeric pin identifier.\n"
+        ":param name: Registered pin name.\n"
+        ":return: A new :class:`FirmataControl` instance.\n"
+        ":rtype: FirmataControl");
+
     m.def(
         "new_firmatactl_with_id",
         new_firmatactl_with_id,
         py::arg("kind"),
         py::arg("pin_id"),
-        "Create new Firmata control command with a given pin ID.");
+        "Create a :class:`FirmataControl` command identified by numeric pin ID only.\n"
+        "\n"
+        ":param kind: The :class:`FirmataCommandKind` to execute.\n"
+        ":param pin_id: Numeric pin identifier.\n"
+        ":return: A new :class:`FirmataControl` instance.\n"
+        ":rtype: FirmataControl");
+
     m.def(
         "new_firmatactl_with_name",
         new_firmatactl_with_name,
         py::arg("kind"),
         py::arg("name"),
-        "Create new Firmata control command with a given pin name (the name needs to be registered previously).");
+        "Create a :class:`FirmataControl` command identified by a registered pin name.\n"
+        "\n"
+        "The pin must have been previously registered with :meth:`OutputPort.firmata_register_digital_pin`.\n"
+        "\n"
+        ":param kind: The :class:`FirmataCommandKind` to execute.\n"
+        ":param name: Registered pin name.\n"
+        ":return: A new :class:`FirmataControl` instance.\n"
+        ":rtype: FirmataControl");
 };
 #pragma GCC visibility pop
 

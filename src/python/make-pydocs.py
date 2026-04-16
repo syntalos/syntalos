@@ -70,7 +70,12 @@ def generate_docs_file(source_file, out_fname, show_source=True):
                     else:
                         df.write(line)
 
-        pdoc.render.configure(template_directory=tpl_dir, search=False, show_source=show_source)
+        pdoc.render.configure(
+            docformat='restructuredtext',
+            search=False,
+            show_source=show_source,
+            template_directory=tpl_dir,
+        )
 
         # generate documentation
         doc = pdoc.doc.Module.from_name(pdoc.extract.parse_spec(staged_source))
@@ -89,7 +94,12 @@ def generate_docs_module(module_name, out_fname, show_source=True):
     with tempfile.TemporaryDirectory() as tmp_dir:
         with open(os.path.join(tmp_dir, 'frame.html.jinja2'), 'w') as f:
             f.write(JINJA_TEMPLATE)
-        pdoc.render.configure(template_directory=tmp_dir, search=False, show_source=show_source)
+        pdoc.render.configure(
+            docformat='restructuredtext',
+            search=False,
+            show_source=show_source,
+            template_directory=tmp_dir,
+        )
         html_data = pdoc.render.html_module(module=doc, all_modules={doc.fullname: doc})
         _write_html_output(out_fname, html_data)
 

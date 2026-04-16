@@ -48,17 +48,8 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#ControlCommand.command"></a>
 
-
-
+<div class="docstring"><p>Custom command string (used when <code><a href="#ControlCommand.kind">kind</a></code> is <code>CUSTOM</code>).</p>
 </div>
-<div id="ControlCommand.kind" class="classattr">
-<div class="attr variable">
-<span class="name">kind</span><span class="annotation">: <a href="#ControlCommandKind">ControlCommandKind</a></span>
-
-
-</div>
-<a class="headerlink" href="#ControlCommand.kind"></a>
-
 
 
 </div>
@@ -70,6 +61,21 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#ControlCommand.duration"></a>
 
+<div class="docstring"><p>Optional duration associated with this command, in milliseconds.</p>
+</div>
+
+
+</div>
+<div id="ControlCommand.kind" class="classattr">
+<div class="attr variable">
+<span class="name">kind</span><span class="annotation">: <a href="#ControlCommandKind">ControlCommandKind</a></span>
+
+
+</div>
+<a class="headerlink" href="#ControlCommand.kind"></a>
+
+<div class="docstring"><p>The <code><a href="#ControlCommandKind">ControlCommandKind</a></code> of this command.</p>
+</div>
 
 
 </div>
@@ -92,7 +98,7 @@ syntalos_mlink    </h1>
 
 <p>START : Start an operation.</p>
 
-<p>PAUSE : Pause an operation, can be resumed with START.</p>
+<p>PAUSE : Pause an operation; can be resumed with <code><a href="#ControlCommandKind.START">START</a></code>.</p>
 
 <p>STOP : Stop an operation.</p>
 
@@ -213,25 +219,25 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#FirmataCommandKind"></a>
 
-<div class="docstring"><p>Type of change to be be made on a Firmata interface.</p>
+<div class="docstring"><p>Type of change to be made on a Firmata interface.</p>
 
 <p>Members:</p>
 
 <p>UNKNOWN</p>
 
-<p>NEW_DIG_PIN</p>
+<p>NEW_DIG_PIN : Register a new digital pin.</p>
 
-<p>NEW_ANA_PIN</p>
+<p>NEW_ANA_PIN : Register a new analog pin.</p>
 
-<p>IO_MODE</p>
+<p>IO_MODE : Change a pin's I/O mode.</p>
 
-<p>WRITE_ANALOG</p>
+<p>WRITE_ANALOG : Write an analog value to a pin.</p>
 
-<p>WRITE_DIGITAL</p>
+<p>WRITE_DIGITAL : Write a digital value to a pin.</p>
 
-<p>WRITE_DIGITAL_PULSE</p>
+<p>WRITE_DIGITAL_PULSE : Emit a digital pulse on a pin.</p>
 
-<p>SYSEX</p>
+<p>SYSEX : Send a raw SysEx message.</p>
 </div>
 
 
@@ -394,6 +400,8 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#FirmataControl.command"></a>
 
+<div class="docstring"><p>The <code><a href="#FirmataCommandKind">FirmataCommandKind</a></code> to execute.</p>
+</div>
 
 
 </div>
@@ -405,6 +413,8 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#FirmataControl.is_output"></a>
 
+<div class="docstring"><p><code>True</code> if the pin is configured as output.</p>
+</div>
 
 
 </div>
@@ -416,17 +426,8 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#FirmataControl.is_pullup"></a>
 
-
-
+<div class="docstring"><p><code>True</code> if the internal pull-up resistor is enabled.</p>
 </div>
-<div id="FirmataControl.pin_name" class="classattr">
-<div class="attr variable">
-<span class="name">pin_name</span><span class="annotation">: str</span>
-
-
-</div>
-<a class="headerlink" href="#FirmataControl.pin_name"></a>
-
 
 
 </div>
@@ -438,6 +439,21 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#FirmataControl.pin_id"></a>
 
+<div class="docstring"><p>Numeric pin identifier.</p>
+</div>
+
+
+</div>
+<div id="FirmataControl.pin_name" class="classattr">
+<div class="attr variable">
+<span class="name">pin_name</span><span class="annotation">: str</span>
+
+
+</div>
+<a class="headerlink" href="#FirmataControl.pin_name"></a>
+
+<div class="docstring"><p>Registered name of the pin.</p>
+</div>
 
 
 </div>
@@ -449,6 +465,8 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#FirmataControl.value"></a>
 
+<div class="docstring"><p>Value to write, or pulse duration in ms.</p>
+</div>
 
 
 </div>
@@ -475,17 +493,8 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#FirmataData.is_digital"></a>
 
-
-
+<div class="docstring"><p><code>True</code> if the value is digital, <code>False</code> if analog.</p>
 </div>
-<div id="FirmataData.pin_name" class="classattr">
-<div class="attr variable">
-<span class="name">pin_name</span><span class="annotation">: str</span>
-
-
-</div>
-<a class="headerlink" href="#FirmataData.pin_name"></a>
-
 
 
 </div>
@@ -497,6 +506,21 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#FirmataData.pin_id"></a>
 
+<div class="docstring"><p>Numeric pin identifier.</p>
+</div>
+
+
+</div>
+<div id="FirmataData.pin_name" class="classattr">
+<div class="attr variable">
+<span class="name">pin_name</span><span class="annotation">: str</span>
+
+
+</div>
+<a class="headerlink" href="#FirmataData.pin_name"></a>
+
+<div class="docstring"><p>Registered name of the pin.</p>
+</div>
 
 
 </div>
@@ -508,7 +532,7 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#FirmataData.time"></a>
 
-<div class="docstring"><p>Time when the data was acquired.</p>
+<div class="docstring"><p>Time when the data was acquired, as a duration.</p>
 </div>
 
 
@@ -521,7 +545,7 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#FirmataData.time_usec"></a>
 
-<div class="docstring"><p>Time when the data was acquired, as integer in µs.</p>
+<div class="docstring"><p>Time when the data was acquired, as an integer in µs.</p>
 </div>
 
 
@@ -534,6 +558,8 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#FirmataData.value"></a>
 
+<div class="docstring"><p>Received pin value.</p>
+</div>
 
 
 </div>
@@ -560,6 +586,8 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#FloatSignalBlock.cols"></a>
 
+<div class="docstring"><p>Number of columns (channels).</p>
+</div>
 
 
 </div>
@@ -571,7 +599,7 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#FloatSignalBlock.data"></a>
 
-<div class="docstring"><p>The data matrix.</p>
+<div class="docstring"><p>2-D data matrix: rows = samples, columns = channels.</p>
 </div>
 
 
@@ -584,6 +612,8 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#FloatSignalBlock.length"></a>
 
+<div class="docstring"><p>Number of samples (rows) in this block.</p>
+</div>
 
 
 </div>
@@ -595,6 +625,8 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#FloatSignalBlock.rows"></a>
 
+<div class="docstring"><p>Number of rows (samples).</p>
+</div>
 
 
 </div>
@@ -606,7 +638,7 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#FloatSignalBlock.timestamps"></a>
 
-<div class="docstring"><p>Timestamps of the data blocks.</p>
+<div class="docstring"><p>1-D array of sample timestamps in µs.</p>
 </div>
 
 
@@ -647,7 +679,7 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#Frame.mat"></a>
 
-<div class="docstring"><p>Frame image data.</p>
+<div class="docstring"><p>Frame image data as a NumPy array (OpenCV <code>Mat</code>).</p>
 </div>
 
 
@@ -660,7 +692,7 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#Frame.time"></a>
 
-<div class="docstring"><p>Time when the frame was recorded.</p>
+<div class="docstring"><p>Time when the frame was recorded, as a duration.</p>
 </div>
 
 
@@ -673,7 +705,7 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#Frame.time_usec"></a>
 
-<div class="docstring"><p>Time when the frame was recorded, as integer in µs.</p>
+<div class="docstring"><p>Time when the frame was recorded, as an integer in µs.</p>
 </div>
 
 
@@ -689,7 +721,9 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#InputPort"></a>
 
-<div class="docstring"><p>Representation of a module input port.</p>
+<div class="docstring"><p>A module input port.</p>
+
+<p>Obtain an instance via <code><a href="#get_input_port">get_input_port()</a></code>.</p>
 </div>
 
 
@@ -703,7 +737,13 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#InputPort.set_throttle_items_per_sec"></a>
 
-<div class="docstring"><p>Limit the amount of input received to a set amount of elements per second.</p>
+<div class="docstring"><p>Limit the number of items delivered to <code><a href="#InputPort.on_data">on_data</a></code> per second.</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>items_per_sec</strong>:  Maximum items per second; <code>0</code> disables throttling.</li>
+</ul>
 </div>
 
 
@@ -716,7 +756,7 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#InputPort.metadata"></a>
 
-<div class="docstring"><p>Obtain the metadata associated with this input port.</p>
+<div class="docstring"><p>Read-only dict of metadata provided by the upstream module for this port.</p>
 </div>
 
 
@@ -729,6 +769,8 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#InputPort.name"></a>
 
+<div class="docstring"><p>The unique port ID string.</p>
+</div>
 
 
 </div>
@@ -740,7 +782,10 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#InputPort.on_data"></a>
 
-<div class="docstring"><p>Set function to be called when new data arrives.</p>
+<div class="docstring"><p>Callback invoked with each incoming data item.</p>
+
+<p>Assign a callable that accepts a single argument of the port's data type
+(e.g. <code><a href="#Frame">Frame</a></code>, <code>TableRow</code>). Set to <code>None</code> to remove the callback.</p>
 </div>
 
 
@@ -768,6 +813,8 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#IntSignalBlock.cols"></a>
 
+<div class="docstring"><p>Number of columns (channels).</p>
+</div>
 
 
 </div>
@@ -779,7 +826,7 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#IntSignalBlock.data"></a>
 
-<div class="docstring"><p>The data matrix.</p>
+<div class="docstring"><p>2-D data matrix: rows = samples, columns = channels.</p>
 </div>
 
 
@@ -792,6 +839,8 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#IntSignalBlock.length"></a>
 
+<div class="docstring"><p>Number of samples (rows) in this block.</p>
+</div>
 
 
 </div>
@@ -803,6 +852,8 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#IntSignalBlock.rows"></a>
 
+<div class="docstring"><p>Number of rows (samples).</p>
+</div>
 
 
 </div>
@@ -814,7 +865,7 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#IntSignalBlock.timestamps"></a>
 
-<div class="docstring"><p>Timestamps of the data blocks.</p>
+<div class="docstring"><p>1-D array of sample timestamps in µs.</p>
 </div>
 
 
@@ -830,7 +881,9 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#OutputPort"></a>
 
-<div class="docstring"><p>Representation of a module output port.</p>
+<div class="docstring"><p>A module output port.</p>
+
+<p>Obtain an instance via <code><a href="#get_output_port">get_output_port()</a></code>.</p>
 </div>
 
 
@@ -844,7 +897,25 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#OutputPort.firmata_register_digital_pin"></a>
 
-<div class="docstring"><p>Convenience function to create a command to register a named digital pin and immediately submit it on this port. The registered pin can later be referred to by its name.</p>
+<div class="docstring"><p>Register a named digital pin on the connected Firmata device and submit the command immediately.</p>
+
+<p>The pin can subsequently be referenced by <code><a href="#OutputPort.name">name</a></code> in <code><a href="#OutputPort.firmata_submit_digital_value">firmata_submit_digital_value()</a></code>
+and <code><a href="#OutputPort.firmata_submit_digital_pulse">firmata_submit_digital_pulse()</a></code>.</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>pin_id</strong>:  Numeric pin identifier on the device.</li>
+<li><strong>name</strong>:  Human-readable name to register for this pin.</li>
+<li><strong>is_output</strong>:  <code>True</code> to configure the pin as output, <code>False</code> for input.</li>
+<li><strong>is_pullup: <code>True</code> to enable the internal pull-up resistor (default</strong>:  <code>False</code>).</li>
+</ul>
+
+<h6 id="returns">Returns</h6>
+
+<blockquote>
+<p>The <code><a href="#FirmataControl">FirmataControl</a></code> command that was submitted.</p>
+</blockquote>
 </div>
 
 
@@ -859,7 +930,20 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#OutputPort.firmata_submit_digital_pulse"></a>
 
-<div class="docstring"><p>Convenience function to emit a digital pulse on a named pin.</p>
+<div class="docstring"><p>Emit a digital pulse on a previously registered pin.</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>name</strong>:  Registered pin name.</li>
+<li><strong>duration_msec: Pulse duration in milliseconds (default</strong>:  50).</li>
+</ul>
+
+<h6 id="returns">Returns</h6>
+
+<blockquote>
+<p>The <code><a href="#FirmataControl">FirmataControl</a></code> command that was submitted.</p>
+</blockquote>
 </div>
 
 
@@ -874,7 +958,20 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#OutputPort.firmata_submit_digital_value"></a>
 
-<div class="docstring"><p>Convenience function to write a digital value to a named pin.</p>
+<div class="docstring"><p>Write a digital value to a previously registered pin.</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>name</strong>:  Registered pin name.</li>
+<li><strong>value</strong>:  <code>True</code> / <code>1</code> for HIGH, <code>False</code> / <code>0</code> for LOW.</li>
+</ul>
+
+<h6 id="returns">Returns</h6>
+
+<blockquote>
+<p>The <code><a href="#FirmataControl">FirmataControl</a></code> command that was submitted.</p>
+</blockquote>
 </div>
 
 
@@ -889,7 +986,23 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#OutputPort.set_metadata_value"></a>
 
-<div class="docstring"><p>Set (immutable) metadata value for this port.</p>
+<div class="docstring"><p>Set a metadata entry for this port.</p>
+
+<p>Metadata must be set before the run starts (i.e. in <code>prepare()</code>); it is immutable once
+acquisition begins.</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>key</strong>:  Metadata key string.</li>
+<li><strong>value: Metadata value. Accepted types</strong>:  <code>int</code>, <code>float</code>, <code>str</code>, or <code>list</code> of those.</li>
+</ul>
+
+<h6 id="raises">Raises</h6>
+
+<ul>
+<li><strong>SyntalosPyError</strong>:  If the value type is not supported.</li>
+</ul>
 </div>
 
 
@@ -904,7 +1017,20 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#OutputPort.set_metadata_value_size"></a>
 
-<div class="docstring"><p>Set (immutable) metadata value for a 2D size type for this port.</p>
+<div class="docstring"><p>Set a 2-D size metadata entry for this port (e.g. <code>'size'</code> for video streams).</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>key</strong>:  Metadata key string.</li>
+<li><strong>value</strong>:  A sequence of exactly two integers <code>[width, height]</code>.</li>
+</ul>
+
+<h6 id="raises">Raises</h6>
+
+<ul>
+<li><strong>SyntalosPyError</strong>:  If <code>value</code> does not have exactly two elements.</li>
+</ul>
 </div>
 
 
@@ -919,7 +1045,19 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#OutputPort.submit"></a>
 
-<div class="docstring"><p>Submit the given entity to the output port for transfer to its destination(s).</p>
+<div class="docstring"><p>Send a data item to all modules connected to this port.</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>data</strong>:  Data item matching this port's type (e.g. <code><a href="#Frame">Frame</a></code>, <code>TableRow</code>).</li>
+</ul>
+
+<h6 id="raises">Raises</h6>
+
+<ul>
+<li><strong>SyntalosPyError</strong>:  If the item type does not match the port's declared data type.</li>
+</ul>
 </div>
 
 
@@ -932,6 +1070,8 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#OutputPort.name"></a>
 
+<div class="docstring"><p>The unique port ID string.</p>
+</div>
 
 
 </div>
@@ -974,7 +1114,17 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#await_data"></a>
 
-<div class="docstring"><p>Wait for new data to arrive and call selected callbacks. Also keep communication with the Syntalos master process.</p>
+<div class="docstring"><p>Wait for incoming data and dispatch it to registered <code>on_data</code> callbacks.</p>
+
+<p>Also services the IPC channel to the Syntalos process. Call this regularly
+inside a <code>run()</code> loop to keep the module responsive.</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>timeout_usec</strong>:  Maximum time to block in microseconds. Pass <code>-1</code> (default) to
+wait until the module is no longer in <code>RUNNING</code> state.</li>
+</ul>
 </div>
 
 
@@ -989,7 +1139,13 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#call_on_show_display"></a>
 
-<div class="docstring"><p>Call the given function when the module's display window should be shown.</p>
+<div class="docstring"><p>Register a callback to be invoked when the user opens the module's display window.</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>callable_fn</strong>:  Zero-argument callable.</li>
+</ul>
 </div>
 
 
@@ -1004,7 +1160,13 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#call_on_show_settings"></a>
 
-<div class="docstring"><p>Call the given function when the module's settings dialog should be shown. The callback receives settings as bytes.</p>
+<div class="docstring"><p>Register a callback to be invoked when the user opens the module's settings dialog.</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li>**callable_fn: Callable with signature <code>fn(old_settings**:  bytes)</code>.</li>
+</ul>
 </div>
 
 
@@ -1019,7 +1181,19 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#get_input_port"></a>
 
-<div class="docstring"><p>Get reference to input port with the give ID.</p>
+<div class="docstring"><p>Retrieve a reference to an input port by its ID.</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>id</strong>:  The port ID passed to <code><a href="#register_input_port">register_input_port()</a></code>.</li>
+</ul>
+
+<h6 id="returns">Returns</h6>
+
+<blockquote>
+<p>An <code><a href="#InputPort">InputPort</a></code> handle, or <code>None</code> if no port with that ID exists.</p>
+</blockquote>
 </div>
 
 
@@ -1034,7 +1208,19 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#get_output_port"></a>
 
-<div class="docstring"><p>Get reference to output port with the give ID.</p>
+<div class="docstring"><p>Retrieve a reference to an output port by its ID.</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>id</strong>:  The port ID passed to <code><a href="#register_output_port">register_output_port()</a></code>.</li>
+</ul>
+
+<h6 id="returns">Returns</h6>
+
+<blockquote>
+<p>An <code><a href="#OutputPort">OutputPort</a></code> handle, or <code>None</code> if no port with that ID exists.</p>
+</blockquote>
 </div>
 
 
@@ -1050,6 +1236,12 @@ syntalos_mlink    </h1>
 <a class="headerlink" href="#init_link"></a>
 
 <div class="docstring"><p>Initialize the connection with a running Syntalos instance.</p>
+
+<h6 id="returns">Returns</h6>
+
+<blockquote>
+<p>The active <code><a href="#SyntalosLink">SyntalosLink</a></code> instance.</p>
+</blockquote>
 </div>
 
 
@@ -1064,7 +1256,13 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#is_running"></a>
 
-<div class="docstring"><p>Return True if the experiment is still running, False if we are supposed to shut down.</p>
+<div class="docstring"><p>Check whether the experiment is still active.</p>
+
+<h6 id="returns">Returns</h6>
+
+<blockquote>
+<p><code>True</code> while the run is in progress, <code>False</code> once a stop has been requested.</p>
+</blockquote>
 </div>
 
 
@@ -1092,7 +1290,20 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#new_firmatactl_with_id"></a>
 
-<div class="docstring"><p>Create new Firmata control command with a given pin ID.</p>
+<div class="docstring"><p>Create a <code><a href="#FirmataControl">FirmataControl</a></code> command identified by numeric pin ID only.</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>kind</strong>:  The <code><a href="#FirmataCommandKind">FirmataCommandKind</a></code> to execute.</li>
+<li><strong>pin_id</strong>:  Numeric pin identifier.</li>
+</ul>
+
+<h6 id="returns">Returns</h6>
+
+<blockquote>
+<p>A new <code><a href="#FirmataControl">FirmataControl</a></code> instance.</p>
+</blockquote>
 </div>
 
 
@@ -1107,7 +1318,21 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#new_firmatactl_with_id_name"></a>
 
-<div class="docstring"><p>Create new Firmata control command with a given pin ID and registered name.</p>
+<div class="docstring"><p>Create a <code><a href="#FirmataControl">FirmataControl</a></code> command identified by both numeric ID and name.</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>kind</strong>:  The <code><a href="#FirmataCommandKind">FirmataCommandKind</a></code> to execute.</li>
+<li><strong>pin_id</strong>:  Numeric pin identifier.</li>
+<li><strong>name</strong>:  Registered pin name.</li>
+</ul>
+
+<h6 id="returns">Returns</h6>
+
+<blockquote>
+<p>A new <code><a href="#FirmataControl">FirmataControl</a></code> instance.</p>
+</blockquote>
 </div>
 
 
@@ -1122,7 +1347,22 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#new_firmatactl_with_name"></a>
 
-<div class="docstring"><p>Create new Firmata control command with a given pin name (the name needs to be registered previously).</p>
+<div class="docstring"><p>Create a <code><a href="#FirmataControl">FirmataControl</a></code> command identified by a registered pin name.</p>
+
+<p>The pin must have been previously registered with <code><a href="#OutputPort.firmata_register_digital_pin">OutputPort.firmata_register_digital_pin()</a></code>.</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>kind</strong>:  The <code><a href="#FirmataCommandKind">FirmataCommandKind</a></code> to execute.</li>
+<li><strong>name</strong>:  Registered pin name.</li>
+</ul>
+
+<h6 id="returns">Returns</h6>
+
+<blockquote>
+<p>A new <code><a href="#FirmataControl">FirmataControl</a></code> instance.</p>
+</blockquote>
 </div>
 
 
@@ -1150,7 +1390,13 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#println"></a>
 
-<div class="docstring"><p>Print text to stdout.</p>
+<div class="docstring"><p>Print a line of text to stdout.</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>text</strong>:  The text to print.</li>
+</ul>
 </div>
 
 
@@ -1165,7 +1411,78 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#raise_error"></a>
 
-<div class="docstring"><p>Emit an error message string, immediately terminating the current action and (if applicable) the experiment.</p>
+<div class="docstring"><p>Raise a module error, immediately stopping the current run.</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>message</strong>:  Human-readable error description.</li>
+</ul>
+</div>
+
+
+</section>
+<section id="register_input_port">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">register_input_port</span><span class="signature pdoc-code condensed">(<span class="param"><span class="nb">id</span><span class="p">:</span> <span class="nb">str</span>, </span><span class="param"><span class="n">title</span><span class="p">:</span> <span class="nb">str</span>, </span><span class="param"><span class="n">data_type</span><span class="p">:</span> <span class="nb">str</span></span><span class="return-annotation">) -> <span class="n">Any</span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#register_input_port"></a>
+
+<div class="docstring"><p>Declare a new input port for this module.</p>
+
+<p>Must be called at module level so that Syntalos can discover the port topology and
+restore project connections before the first run is prepared.</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>id</strong>:  Unique port identifier used in <code><a href="#get_input_port">get_input_port()</a></code>.</li>
+<li><strong>title</strong>:  Human-readable port label shown in the flow-graph editor.</li>
+<li><strong>data_type</strong>:  Data type name, e.g. <code>'Frame'</code>, <code>'TableRow'</code>, <code>'IntSignalBlock'</code>, etc.</li>
+</ul>
+
+<h6 id="returns">Returns</h6>
+
+<blockquote>
+<p>An <code><a href="#InputPort">InputPort</a></code> handle, or <code>None</code> if registration failed (e.g. duplicate ID).</p>
+</blockquote>
+</div>
+
+
+</section>
+<section id="register_output_port">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">register_output_port</span><span class="signature pdoc-code condensed">(<span class="param"><span class="nb">id</span><span class="p">:</span> <span class="nb">str</span>, </span><span class="param"><span class="n">title</span><span class="p">:</span> <span class="nb">str</span>, </span><span class="param"><span class="n">data_type</span><span class="p">:</span> <span class="nb">str</span></span><span class="return-annotation">) -> <span class="n">Any</span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#register_output_port"></a>
+
+<div class="docstring"><p>Declare a new output port for this module.</p>
+
+<p>Must be called at module level (top-level script code, not inside a function)
+so that Syntalos can discover the port topology and restore project connections
+before the first run is prepared.</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>id</strong>:  Unique port identifier used in <code><a href="#get_output_port">get_output_port()</a></code>.</li>
+<li><strong>title</strong>:  Human-readable port label shown in the flow-graph editor.</li>
+<li><strong>data_type</strong>:  Data type name, e.g. <code>'Frame'</code>, <code>'TableRow'</code>, etc.</li>
+</ul>
+
+<h6 id="returns">Returns</h6>
+
+<blockquote>
+<p>An <code><a href="#OutputPort">OutputPort</a></code> handle, or <code>None</code> if registration failed (e.g. duplicate ID).</p>
+</blockquote>
 </div>
 
 
@@ -1180,7 +1497,17 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#save_settings"></a>
 
-<div class="docstring"><p>Send module settings data as bytes to Syntalos for safekeeping.</p>
+<div class="docstring"><p>Persist the module's settings with Syntalos.</p>
+
+<p>The saved blob is passed back to the module as <code>old_settings</code> the next time the
+settings callback (see <code><a href="#call_on_show_settings">call_on_show_settings()</a></code>) is invoked, and also delivered
+via <code>set_settings()</code> before each run.</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>settings_data</strong>:  Arbitrary settings payload serialized as <code>bytes</code>.</li>
+</ul>
 </div>
 
 
@@ -1195,7 +1522,23 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#schedule_delayed_call"></a>
 
-<div class="docstring"><p>Schedule call to a callable to be processed after a set amount of milliseconds.</p>
+<div class="docstring"><p>Schedule a callable to be invoked after a delay.</p>
+
+<p>The call is executed on the module's event loop, so it is safe to interact
+with ports and other module state from the callback.</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>delay_msec</strong>:  Delay before the call is made, in milliseconds. Must be ≥ 0.</li>
+<li><strong>callable_fn</strong>:  Zero-argument callable to invoke.</li>
+</ul>
+
+<h6 id="raises">Raises</h6>
+
+<ul>
+<li><strong>SyntalosPyError</strong>:  If <code>delay_msec</code> is negative.</li>
+</ul>
 </div>
 
 
@@ -1210,7 +1553,13 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#time_since_start_msec"></a>
 
-<div class="docstring"><p>Get time since experiment started in milliseconds.</p>
+<div class="docstring"><p>Return the time elapsed since the experiment started.</p>
+
+<h6 id="returns">Returns</h6>
+
+<blockquote>
+<p>Elapsed time in milliseconds.</p>
+</blockquote>
 </div>
 
 
@@ -1225,7 +1574,13 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#time_since_start_usec"></a>
 
-<div class="docstring"><p>Get time since experiment started in microseconds.</p>
+<div class="docstring"><p>Return the time elapsed since the experiment started.</p>
+
+<h6 id="returns">Returns</h6>
+
+<blockquote>
+<p>Elapsed time in microseconds.</p>
+</blockquote>
 </div>
 
 
@@ -1240,7 +1595,16 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#wait"></a>
 
-<div class="docstring"><p>Wait (roughly) for the given amount of milliseconds without blocking communication with the master process.</p>
+<div class="docstring"><p>Sleep for approximately the given number of milliseconds.</p>
+
+<p>Unlike a plain <code>time.sleep()</code>, this keeps the communication channel to Syntalos
+alive so that control messages (e.g. stop requests) are still handled.</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>msec</strong>:  Duration to wait in milliseconds.</li>
+</ul>
 </div>
 
 
@@ -1255,7 +1619,16 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#wait_sec"></a>
 
-<div class="docstring"><p>Wait (roughly) for the given amount of seconds without blocking communication with the master process.</p>
+<div class="docstring"><p>Sleep for approximately the given number of seconds.</p>
+
+<p>Unlike a plain <code>time.sleep()</code>, this keeps the communication channel to Syntalos
+alive so that control messages (e.g. stop requests) are still handled.</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>sec</strong>:  Duration to wait in seconds.</li>
+</ul>
 </div>
 
 
