@@ -208,7 +208,7 @@ ModuleInfo *loadExtModuleInfo(const QString &modId, const QString &modDir, const
     const auto name = modDef.value("name").toString();
     const auto desc = modDef.value("description").toString();
     const auto iconName = modDef.value("icon").toString();
-    const auto categories = moduleCategoriesFromString(modDef.value("categories", QString()).toString());
+    const auto categories = moduleCategoriesFromVariant(modDef.value("categories"));
     const auto featuresList = modDef.value("features", QStringList()).toStringList();
     const auto binaryName = modDef.value("binary").toString();
 

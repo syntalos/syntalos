@@ -493,14 +493,19 @@ ModuleCategory Syntalos::moduleCategoryFromString(const QString &categoryStr)
     return categoryMap.value(categoryStr, ModuleCategory::NONE);
 }
 
-ModuleCategories Syntalos::moduleCategoriesFromString(const QString &categoriesStr)
+ModuleCategories Syntalos::moduleCategoriesFromVariant(const QVariant &value)
 {
-    ModuleCategories categories = ModuleCategory::NONE;
-    auto catsList = categoriesStr.split(';', Qt::SkipEmptyParts);
-    for (const QString &name : catsList)
-        categories |= moduleCategoryFromString(name);
+    if (value.typeId() == QMetaType::QString)
+        return moduleCategoryFromString(value.toString());
 
-    return categories;
+    if (value.canConvert<QVariantList>()) {
+        ModuleCategories categories = ModuleCategory::NONE;
+        for (const auto &item : value.toList())
+            categories |= moduleCategoryFromString(item.toString());
+        return categories;
+    }
+
+    return ModuleCategory::NONE;
 }
 
 class AbstractModule::Private

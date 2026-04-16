@@ -5,7 +5,7 @@ name = "DeepLabCut Live"
 description = "Run DeepLabCut on a live video stream"
 icon = "dlc-logo.png"
 
-categories = 'processing'
+categories = ['processing']
 features = ['show-settings']
 
 main = "dlc-live.py"

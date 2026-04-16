@@ -120,7 +120,7 @@ Q_DECLARE_OPERATORS_FOR_FLAGS(ModuleCategories)
 
 QString toString(ModuleCategory category);
 ModuleCategory moduleCategoryFromString(const QString &categoryStr);
-ModuleCategories moduleCategoriesFromString(const QString &categoriesStr);
+ModuleCategories moduleCategoriesFromVariant(const QVariant &value);
 
 /**
  * @brief The ModuleModifier flags
