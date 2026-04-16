@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -28,8 +28,9 @@
 #include <QMessageBox>
 
 #include "globalconfig.h"
-#include "pymoduleloader.h"
 #include "sysinfo.h"
+#include "moduleloader-ext.h"
+#include "moduleloader-py.h"
 #include "utils/tomlutils.h"
 
 namespace Syntalos
@@ -168,6 +169,9 @@ bool ModuleLibrary::load()
             } else if (modDef.value("type") == "python") {
                 if (loadPythonModInfo(modId, modDir, modData))
                     count++;
+            } else if (modDef.value("type") == "executable") {
+                if (loadExtModInfo(modId, modDir, modData))
+                    count++;
             } else {
                 qCWarning(logModLibrary).noquote().nospace() << "Unable to load module '" << modId << "': "
                                                              << "Module type is unknown.";
@@ -257,6 +261,26 @@ bool ModuleLibrary::loadPythonModInfo(const QString &modId, const QString &modDi
     }
     if (modInfo == nullptr) {
         logModuleIssue(modId, "internal", "Unable to load Python module.");
+        return false;
+    }
+
+    // register
+    QSharedPointer<ModuleInfo> info(modInfo);
+    d->modInfos.insert(info->id(), info);
+    return true;
+}
+
+bool ModuleLibrary::loadExtModInfo(const QString &modId, const QString &modDir, const QVariantHash &modData)
+{
+    ModuleInfo *modInfo = nullptr;
+    try {
+        modInfo = loadExtModuleInfo(modId, modDir, modData);
+    } catch (std::runtime_error &e) {
+        logModuleIssue(modId, "ext", QString::fromUtf8(e.what()));
+        return false;
+    }
+    if (modInfo == nullptr) {
+        logModuleIssue(modId, "internal", "Unable to load executable module.");
         return false;
     }
 

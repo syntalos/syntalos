@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -60,5 +60,6 @@ private:
 
     bool loadLibraryModInfo(const QString &modId, const QString &modDir, const QString &libFname);
     bool loadPythonModInfo(const QString &modId, const QString &modDir, const QVariantHash &modData);
+    bool loadExtModInfo(const QString &modId, const QString &modDir, const QVariantHash &modData);
     void logModuleIssue(const QString &modId, const QString &context, const QString &msg);
 };

@@ -17,7 +17,7 @@
  * along with this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "pymoduleloader.h"
+#include "moduleloader-py.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -404,4 +404,4 @@ ModuleInfo *loadPythonModuleInfo(const QString &modId, const QString &modDir, co
     return modInfo;
 }
 
-#include "pymoduleloader.moc"
+#include "moduleloader-py.moc"
