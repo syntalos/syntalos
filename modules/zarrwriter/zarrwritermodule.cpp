@@ -146,7 +146,7 @@ private:
     ZarrSettingsDialog *m_settingsDlg;
 
 public:
-    explicit ZarrWriterModule(QObject *parent = nullptr)
+    explicit ZarrWriterModule(ZarrWriterModuleInfo *modInfo, QObject *parent = nullptr)
         : AbstractModule(parent),
           m_isrcKind(InputSourceKind::NONE),
           m_writeData(false),
@@ -157,6 +157,7 @@ public:
         m_intIn = registerInputPort<IntSignalBlock>(QStringLiteral("intsig1-in"), QStringLiteral("Int32 Signals"));
 
         m_settingsDlg = new ZarrSettingsDialog();
+        m_settingsDlg->setWindowIcon(modInfo->icon());
         addSettingsWindow(m_settingsDlg);
     }
 
@@ -443,7 +444,7 @@ ModuleCategories ZarrWriterModuleInfo::categories() const
 
 AbstractModule *ZarrWriterModuleInfo::createModule(QObject *parent)
 {
-    return new ZarrWriterModule(parent);
+    return new ZarrWriterModule(this, parent);
 }
 
 #include "zarrwritermodule.moc"
