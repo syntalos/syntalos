@@ -498,6 +498,13 @@ public:
      * Drain the event listener completely, calling @p callback(payload) for every sample.
      *
      * Any event that isn't on a received sample is handled internally.
+     *
+     * After draining all listener events we also pull any samples that are already
+     * in the subscriber's internal buffer but whose Sample notification FD-event has
+     * not yet been delivered to the listener. This closes the race between
+     * sendSlice() (which enqueues the sample) and notify() (which fires the FD-event):
+     * without this extra pass a sample could sit in the buffer indefinitely if the
+     * caller stops polling the WaitSet before the notification arrives.
      */
     template<typename Fn>
     void handleEvents(Fn &&callback)
@@ -511,23 +518,36 @@ public:
             const auto eventId = static_cast<SyPubSubEvent>(event->value().as_value());
             if (eventId == SyPubSubEvent::Sample) {
                 // We received a sample. We should receive exactly the same amount of events as samples are
-                // in the pipeline, however, if we ever miss an event, we would miss a sample. So we over-run
-                // the sample-received check by 8x to make sure we always got everything.
-                for (int i = 0; i < 8; ++i) {
-                    const auto &maybeReceived = m_subscriber.receive();
-                    if (!maybeReceived.has_value()) [[unlikely]] {
-                        std::cerr << "ipc: Failed to receive sample on "
-                                  << m_serviceName.to_string().unchecked_access().c_str() << ": "
-                                  << iox2::bb::into<const char *>(maybeReceived.error()) << std::endl;
-                        continue;
-                    }
-                    const auto &sample = maybeReceived.value();
-                    if (!sample.has_value())
-                        break;
-                    callback(sample->payload());
+                // in the pipeline, however, if we ever miss an event, we would miss a sample.
+                // This is handled by the extra pass on the listener after draining all events.
+                const auto &maybeReceived = m_subscriber.receive();
+                if (!maybeReceived.has_value()) [[unlikely]] {
+                    std::cerr << "ipc: Failed to receive sample on "
+                              << m_serviceName.to_string().unchecked_access().c_str() << ": "
+                              << iox2::bb::into<const char *>(maybeReceived.error()) << std::endl;
+                    continue;
                 }
+                const auto &sample = maybeReceived.value();
+                if (sample.has_value())
+                    callback(sample->payload());
                 continue;
             }
+        }
+
+        // Flush any samples that arrived in the subscriber buffer before their
+        // Sample notification FD-event reached the listener, or for which we may
+        // have missed a sample notification.
+        for (;;) {
+            const auto &maybeReceived = m_subscriber.receive();
+            if (!maybeReceived.has_value()) [[unlikely]] {
+                std::cerr << "ipc: Failed to receive sample on " << m_serviceName.to_string().unchecked_access().c_str()
+                          << ": " << iox2::bb::into<const char *>(maybeReceived.error()) << std::endl;
+                break;
+            }
+            const auto &sample = maybeReceived.value();
+            if (!sample.has_value())
+                break;
+            callback(sample->payload());
         }
     }
 
