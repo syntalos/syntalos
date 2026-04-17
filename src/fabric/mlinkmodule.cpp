@@ -1140,6 +1140,16 @@ void MLinkModule::runThread(OptionalWaitCondition *startWaitCondition)
     // we finished - drain incoming control messages from the module process one more time
     handleIncomingControl();
 
+    // Drain any data the OOP process published before responding to the stop signal
+    // but that the WaitSet loop hadn't yet forwarded.
+    for (auto &ps : d->outPortSubs) {
+        if (!ps.sub.has_value())
+            continue;
+        ps.sub->handleEvents([&ps](const IoxByteSlice &pl) {
+            ps.oport->streamVar()->pushRawData(ps.oport->dataTypeId(), pl.data(), pl.number_of_bytes());
+        });
+    }
+
     // disconnect forwarders
     disconnectOutPortForwarders();
 

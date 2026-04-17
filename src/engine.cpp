@@ -2215,6 +2215,10 @@ bool Engine::runInternal(const QString &exportDirPath)
                 // (in many cases, the last entity will be a nullopt anyway, so we can ignore it)
                 if (remainingElements <= 1)
                     break;
+                // CALL_UI_EVENTS modules may drain their subscriptions via processUiEvents()
+                // instead of Qt events, so we must call it explicitly here
+                if (mod->features().testFlag(ModuleFeature::CALL_UI_EVENTS))
+                    mod->processUiEvents();
                 qApp->processEvents();
             } while ((d->timer->timeSinceStartMsec() - startPortWaitTS).count() <= 1600);
 
