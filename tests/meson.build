@@ -75,6 +75,22 @@ test('sy-test-edlstorage',
 )
 
 #
+# MetaValue tests
+#
+test_metavalue_moc_src = ['test-metavalue.cpp']
+test_metavalue_moc = qt.compile_moc(sources: test_metavalue_moc_src)
+test_metavalue_exe = executable('test-metavalue',
+    [test_metavalue_moc_src, test_metavalue_moc],
+    dependencies: [syntalos_fabric_dep,
+                   qt_test_dep]
+)
+test('sy-test-metavalue',
+    test_metavalue_exe,
+    env: test_env,
+    is_parallel: true,
+)
+
+#
 # TSync file verification
 #
 test_tsyncfile_moc_src = ['test-tsyncfile.cpp']
