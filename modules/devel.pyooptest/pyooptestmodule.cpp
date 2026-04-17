@@ -110,14 +110,6 @@ public:
     {
         return MLinkModule::features();
     }
-
-    bool prepare(const TestSubject &subject) override
-    {
-        m_vOut->setMetadataValue("size", MetaSize(960, 600));
-        m_vOut->setMetadataValue("framerate", (double)200.0);
-
-        return MLinkModule::prepare(subject);
-    }
 };
 
 QString PyOOPTestModuleInfo::id() const
