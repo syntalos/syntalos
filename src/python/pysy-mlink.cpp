@@ -288,14 +288,14 @@ struct OutputPort {
     {
         if (PyLong_CheckExact(obj.ptr())) {
             // we have an integer type
-            const auto value = obj.cast<int64_t>();
-            _set_metadata_value_private(key, value);
+            _set_metadata_value_private(key, obj.cast<int64_t>());
         } else if (py::isinstance<py::float_>(obj)) {
             _set_metadata_value_private(key, obj.cast<double>());
         } else if (PyUnicode_CheckExact(obj.ptr())) {
             // we have a (unicode) string type
-            const auto value = obj.cast<std::string>();
-            _set_metadata_value_private(key, value);
+            _set_metadata_value_private(key, obj.cast<std::string>());
+        } else if (py::isinstance<MetaSize>(obj)) {
+            _set_metadata_value_private(key, obj.cast<MetaSize>());
         } else if (PyList_Check(obj.ptr())) {
             const auto pyList = obj.cast<py::list>();
             const auto pyListLen = py::len(pyList);
@@ -306,40 +306,38 @@ struct OutputPort {
             for (size_t i = 0; i < pyListLen; i++) {
                 const auto lo = pyList[i];
                 if (PyLong_CheckExact(lo.ptr())) {
-                    const auto value = lo.cast<int64_t>();
-                    varList.push_back(value);
+                    varList.push_back(lo.cast<int64_t>());
                 } else if (PyUnicode_CheckExact(lo.ptr())) {
-                    const auto value = lo.cast<std::string>();
-                    varList.push_back(value);
+                    varList.push_back(lo.cast<std::string>());
                 } else {
                     throw SyntalosPyError(
                         std::string("Invalid type found in list metadata entry: ")
-                        + std::string(lo.attr("__py::class__").attr("__name__").cast<std::string>()));
+                        + lo.attr("__class__").attr("__name__").cast<std::string>());
                 }
             }
             _set_metadata_value_private(key, varList);
         } else {
             throw SyntalosPyError(
-                std::string("Can not set a metadata value for this type: ")
-                + std::string(obj.attr("__py::class__").attr("__name__").cast<std::string>()));
+                std::string("Cannot set metadata value of type: ")
+                + obj.attr("__class__").attr("__name__").cast<std::string>());
         }
     }
 
     void set_metadata_value_size(const std::string &key, const py::object &value)
     {
-        if (py::len(value) != 2)
-            throw SyntalosPyError("2D Dimension list needs exactly two entries");
-
-        if (!py::isinstance<py::sequence>(value)) {
-            throw SyntalosPyError("Expected a sequence as size parameter.");
+        // Accept a MetaSize object directly
+        if (py::isinstance<MetaSize>(value)) {
+            _set_metadata_value_private(key, value.cast<MetaSize>());
+            return;
         }
 
-        const auto seq = value.cast<py::sequence>();
-        const auto width = seq[0].cast<int>();
-        const auto height = seq[1].cast<int>();
+        if (!py::isinstance<py::sequence>(value))
+            throw SyntalosPyError("Expected a MetaSize or a [width, height] sequence.");
+        if (py::len(value) != 2)
+            throw SyntalosPyError("Size sequence must have exactly two entries: [width, height].");
 
-        MetaSize size(width, height);
-        _set_metadata_value_private(key, size);
+        const auto seq = value.cast<py::sequence>();
+        _set_metadata_value_private(key, MetaSize(seq[0].cast<int32_t>(), seq[1].cast<int32_t>()));
     }
 
     FirmataControl firmata_register_digital_pin(
@@ -512,6 +510,26 @@ PYBIND11_MODULE(syntalos_mlink, m)
         ":rtype: SyntalosLink");
 
     /**
+     ** MetaSize
+     **/
+
+    py::class_<MetaSize>(m, "MetaSize", "Two-dimensional size value used in stream metadata.")
+        .def(py::init<>(), "Construct a zero-size MetaSize.")
+        .def(py::init<int32_t, int32_t>(), py::arg("width"), py::arg("height"), "Construct with explicit dimensions.")
+        .def_readwrite("width", &MetaSize::width, "Width in pixels (or other integer units).")
+        .def_readwrite("height", &MetaSize::height, "Height in pixels (or other integer units).")
+        .def(
+            "__repr__",
+            [](const MetaSize &s) {
+                return "MetaSize(" + std::to_string(s.width) + ", " + std::to_string(s.height) + ")";
+            })
+        .def("__eq__", &MetaSize::operator==)
+        .def("__iter__", [](const MetaSize &s) {
+            // Allow unpacking: width, height = meta_size
+            return py::iter(py::make_tuple(s.width, s.height));
+        });
+
+    /**
      ** Frames
      **/
 
@@ -634,7 +652,10 @@ PYBIND11_MODULE(syntalos_mlink, m)
         .def_property_readonly(
             "metadata",
             &InputPort::metadata,
-            "Read-only dict of metadata provided by the upstream module for this port.")
+            "Read-only ``dict[str, object]`` of metadata provided by the upstream module for this port.\n"
+            "\n"
+            "Values are native Python types: ``int``, ``float``, ``str``, ``bool``, ``None``,\n"
+            ":class:`MetaSize`, or ``list`` / ``dict`` for nested structures.")
         .def(
             "set_throttle_items_per_sec",
             &InputPort::set_throttle_items_per_sec,
@@ -663,7 +684,8 @@ PYBIND11_MODULE(syntalos_mlink, m)
             "acquisition begins.\n"
             "\n"
             ":param key: Metadata key string.\n"
-            ":param value: Metadata value. Accepted types: ``int``, ``float``, ``str``, or ``list`` of those.\n"
+            ":param value: Metadata value. Accepted types: ``int``, ``float``, ``str``, :class:`MetaSize`,\n"
+            "    or ``list`` of ``int``/``str`` values.\n"
             ":raises SyntalosPyError: If the value type is not supported.")
         .def(
             "set_metadata_value_size",
@@ -671,7 +693,8 @@ PYBIND11_MODULE(syntalos_mlink, m)
             "Set a 2-D size metadata entry for this port (e.g. ``'size'`` for video streams).\n"
             "\n"
             ":param key: Metadata key string.\n"
-            ":param value: A sequence of exactly two integers ``[width, height]``.\n"
+            ":param value: Either a :class:`MetaSize` object or a sequence of exactly two integers ``[width, "
+            "height]``.\n"
             ":raises SyntalosPyError: If ``value`` does not have exactly two elements.")
 
         // convenience functions

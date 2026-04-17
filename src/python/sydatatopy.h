@@ -63,32 +63,6 @@ public:
     }
 };
 
-/**
- * MetaSize: maps to/from Python (width, height) tuple
- */
-template<>
-struct type_caster<Syntalos::MetaSize> {
-public:
-    PYBIND11_TYPE_CASTER(Syntalos::MetaSize, const_name("tuple[int, int]"));
-
-    bool load(handle src, bool)
-    {
-        if (!py::isinstance<py::tuple>(src))
-            return false;
-        auto t = reinterpret_borrow<py::tuple>(src);
-        if (t.size() != 2)
-            return false;
-        value.width = t[0].cast<int32_t>();
-        value.height = t[1].cast<int32_t>();
-        return true;
-    }
-
-    static handle cast(const Syntalos::MetaSize &src, return_value_policy /* policy */, handle /* parent */)
-    {
-        return py::make_tuple(src.width, src.height).release();
-    }
-};
-
 template<>
 struct type_caster<Syntalos::MetaValue> {
 public:
@@ -150,17 +124,10 @@ inline bool type_caster<Syntalos::MetaValue>::load(handle src, bool convert)
         value = static_cast<Syntalos::MetaStringMap &>(mcaster);
         return true;
     }
-    // FIXME: A 2-element tuple is treated as a MetaSize - we need to make this a dedicated type to handle the
-    // distinction...
-    if (py::isinstance<py::tuple>(src)) {
-        auto t = reinterpret_borrow<py::tuple>(src);
-        if (t.size() == 2) {
-            try {
-                value = Syntalos::MetaSize(t[0].cast<int32_t>(), t[1].cast<int32_t>());
-                return true;
-            } catch (...) {
-            }
-        }
+    // MetaSize is a registered pybind11 class - check it unambiguously by type.
+    if (py::isinstance<Syntalos::MetaSize>(src)) {
+        value = src.cast<Syntalos::MetaSize>();
+        return true;
     }
     return false;
 }
@@ -184,7 +151,7 @@ inline handle type_caster<Syntalos::MetaValue>::cast(
             else if constexpr (std::is_same_v<T, std::string>)
                 return py::str(v).release();
             else if constexpr (std::is_same_v<T, Syntalos::MetaSize>)
-                return type_caster<Syntalos::MetaSize>::cast(v, policy, parent);
+                return py::cast(v, policy, parent).release();
             else if constexpr (std::is_same_v<T, Syntalos::MetaArray>)
                 return type_caster<Syntalos::MetaArray>::cast(v, policy, parent);
             else if constexpr (std::is_same_v<T, Syntalos::MetaStringMap>)
