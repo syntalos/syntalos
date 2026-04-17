@@ -29,7 +29,6 @@ syntalos_mlink_lib = library('syntalos-mlink',
     soversion: sy_mlink_abi_level,
     version: sy_version,
     dependencies: [
-        qt_core_dep,
         iox2_dep,
         opencv_dep,
         syntalos_datactl_dep,
@@ -48,7 +47,6 @@ syntalos_mlink_dep = declare_dependency(
         sy_mlink_pub_hdr,
     ],
     dependencies: [
-        qt_core_dep,
         syntalos_datactl_dep,
     ],
     include_directories: [
@@ -67,7 +65,6 @@ pkgc.generate(
     filebase: 'syntalos-mlink',
     subdirs: 'syntalos',
     requires: [
-        'Qt6Core',
         'syntalos-datactl'
     ]
 )
