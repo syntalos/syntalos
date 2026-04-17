@@ -114,7 +114,7 @@ protected:
         U *instance,
         void (U::*fn)(const T &data))
     {
-        // fetch existing output port first, if any exists
+        // fetch existing input port first, if any exists
         for (auto &eip : m_slink->inputPorts()) {
             if (eip->id() == id)
                 return eip;

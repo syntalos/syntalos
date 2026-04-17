@@ -67,8 +67,14 @@ public:
      * @return An optional MetaValue containing the value associated with the key,
      *         or std::nullopt if the key does not exist.
      */
-    std::optional<MetaValue> metadataValue(const std::string &key) const;
-    MetaValue metadataValueOr(const std::string &key, const MetaValue &defaultVal) const;
+    [[nodiscard]] std::optional<MetaValue> metadataValue(const std::string &key) const;
+    [[nodiscard]] MetaValue metadataValueOr(const std::string &key, const MetaValue &defaultVal) const;
+
+    template<typename T>
+    [[nodiscard]] T metadataValueOr(const std::string &key, T fallback) const
+    {
+        return metadata().valueOr<T>(key, std::move(fallback));
+    }
 
 private:
     friend SyntalosLink;

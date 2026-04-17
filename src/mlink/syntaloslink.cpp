@@ -669,7 +669,7 @@ void SyntalosLink::processPendingControl()
         if (!req.has_value())
             break;
         const auto &r = req->payload();
-        const auto portId = QString::fromUtf8(r.portId.unchecked_access().c_str());
+        const std::string_view portId = r.portId.unchecked_access().c_str();
 
         // find the port
         auto it = std::find_if(d->inPortInfo.begin(), d->inPortInfo.end(), [&](const auto &ip) {

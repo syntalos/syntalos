@@ -32,7 +32,6 @@ class SyntalosLinkModule::Private
 {
 public:
     Private() {}
-
     ~Private() {}
 };
 
@@ -50,7 +49,10 @@ SyntalosLinkModule::SyntalosLinkModule(SyntalosLink *slink)
     });
 
     m_slink->setPrepareStartCallback([this](const ByteVector &settings) {
-        prepare(settings);
+        if (!prepare(settings)) {
+            if (m_slink->state() != ModuleState::ERROR)
+                raiseError("Module preparation failed.");
+        }
     });
 
     m_slink->setStartCallback([this]() {
