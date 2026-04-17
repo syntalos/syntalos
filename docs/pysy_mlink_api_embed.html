@@ -756,7 +756,10 @@ syntalos_mlink    </h1>
 </div>
 <a class="headerlink" href="#InputPort.metadata"></a>
 
-<div class="docstring"><p>Read-only dict of metadata provided by the upstream module for this port.</p>
+<div class="docstring"><p>Read-only <code>dict[str, object]</code> of metadata provided by the upstream module for this port.</p>
+
+<p>Values are native Python types: <code>int</code>, <code>float</code>, <code>str</code>, <code>bool</code>, <code>None</code>,
+<code><a href="#MetaSize">MetaSize</a></code>, or <code>list</code> / <code>dict</code> for nested structures.</p>
 </div>
 
 
@@ -866,6 +869,61 @@ syntalos_mlink    </h1>
 <a class="headerlink" href="#IntSignalBlock.timestamps"></a>
 
 <div class="docstring"><p>1-D array of sample timestamps in µs.</p>
+</div>
+
+
+</div>
+</section>
+<section id="MetaSize">
+<div class="attr class">
+
+<span class="def">class</span>
+<span class="name">MetaSize</span>:
+
+
+</div>
+<a class="headerlink" href="#MetaSize"></a>
+
+<div class="docstring"><p>Two-dimensional size value used in stream metadata.</p>
+</div>
+
+
+<div id="MetaSize.__init__" class="classattr">
+<div class="attr function">
+
+<span class="name">MetaSize</span><span class="signature pdoc-code condensed">(<span class="param"><span class="o">**</span><span class="n">kwds</span></span>)</span>
+
+
+</div>
+<a class="headerlink" href="#MetaSize.__init__"></a>
+
+<div class="docstring"><p>Helper for @overload to raise when called.</p>
+</div>
+
+
+</div>
+<div id="MetaSize.height" class="classattr">
+<div class="attr variable">
+<span class="name">height</span><span class="annotation">: int</span>
+
+
+</div>
+<a class="headerlink" href="#MetaSize.height"></a>
+
+<div class="docstring"><p>Height in pixels (or other integer units).</p>
+</div>
+
+
+</div>
+<div id="MetaSize.width" class="classattr">
+<div class="attr variable">
+<span class="name">width</span><span class="annotation">: int</span>
+
+
+</div>
+<a class="headerlink" href="#MetaSize.width"></a>
+
+<div class="docstring"><p>Width in pixels (or other integer units).</p>
 </div>
 
 
@@ -995,7 +1053,8 @@ acquisition begins.</p>
 
 <ul>
 <li><strong>key</strong>:  Metadata key string.</li>
-<li><strong>value: Metadata value. Accepted types</strong>:  <code>int</code>, <code>float</code>, <code>str</code>, or <code>list</code> of those.</li>
+<li><strong>value: Metadata value. Accepted types</strong>:  <code>int</code>, <code>float</code>, <code>str</code>, <code><a href="#MetaSize">MetaSize</a></code>,
+or <code>list</code> of <code>int</code>/<code>str</code> values.</li>
 </ul>
 
 <h6 id="raises">Raises</h6>
@@ -1023,7 +1082,7 @@ acquisition begins.</p>
 
 <ul>
 <li><strong>key</strong>:  Metadata key string.</li>
-<li><strong>value</strong>:  A sequence of exactly two integers <code>[width, height]</code>.</li>
+<li><strong>value</strong>:  Either a <code><a href="#MetaSize">MetaSize</a></code> object or a sequence of exactly two integers <code>[width, height]</code>.</li>
 </ul>
 
 <h6 id="raises">Raises</h6>
