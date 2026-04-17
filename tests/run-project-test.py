@@ -23,6 +23,18 @@ import zstandard as zstd
 import fnmatch
 
 
+class TermColor:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+
 def validate_toml_fields(file_path, required_fields):
     """Validate that a TOML file contains specific fields."""
     try:
@@ -427,10 +439,14 @@ def main():
         else:
             failed += 1
 
-    print("\n--- Summary ---")
-    print(f"Passed: {passed}")
-    print(f"Failed: {failed}")
-    print(f"Total:  {passed + failed}")
+    if passed + failed == 1:
+        text = f"{TermColor.OKGREEN}PASSED" if passed >= 1 else f"{TermColor.FAIL}FAILED"
+        print(f"\n{text}{TermColor.ENDC}")
+    else:
+        print("\n--- Summary ---")
+        print(f"Passed: {passed}")
+        print(f"Failed: {failed}")
+        print(f"Total:  {passed + failed}")
 
     if failed > 0:
         sys.exit(1)
