@@ -60,6 +60,16 @@ public:
     void setNewDataRawCallback(NewDataRawFn callback);
     void setThrottleItemsPerSec(uint itemsPerSec);
 
+    /**
+     * @brief Retrieves the metadata value associated with a given key.
+     *
+     * @param key The key to look up in the metadata.
+     * @return An optional MetaValue containing the value associated with the key,
+     *         or std::nullopt if the key does not exist.
+     */
+    std::optional<MetaValue> metadataValue(const std::string &key) const;
+    MetaValue metadataValueOr(const std::string &key, const MetaValue &defaultVal) const;
+
 private:
     friend SyntalosLink;
     explicit InputPortInfo(const InputPortChange &pc);

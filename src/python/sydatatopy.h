@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -21,7 +21,6 @@
 
 #include <pybind11/pybind11.h>
 #include <pybind11/pytypes.h>
-#include <QSize>
 
 #include "datactl/datatypes.h"
 
@@ -65,103 +64,188 @@ public:
 };
 
 /**
- * QSize conversion
+ * MetaSize: maps to/from Python (width, height) tuple
  */
 template<>
-struct type_caster<QSize> {
+struct type_caster<Syntalos::MetaSize> {
 public:
-    PYBIND11_TYPE_CASTER(QSize, const_name("QSize"));
+    PYBIND11_TYPE_CASTER(Syntalos::MetaSize, const_name("tuple[int, int]"));
 
     bool load(handle src, bool)
     {
-        /* Extract PyObject from handle */
-        if (!py::isinstance<py::tuple>(src)) {
+        if (!py::isinstance<py::tuple>(src))
             return false;
-        }
         auto t = reinterpret_borrow<py::tuple>(src);
-        if (t.size() != 2) {
+        if (t.size() != 2)
             return false;
-        }
-
-        value.setWidth(t[0].cast<int>());
-        value.setHeight(t[1].cast<int>());
-
-        /* Indicate success */
+        value.width = t[0].cast<int32_t>();
+        value.height = t[1].cast<int32_t>();
         return true;
     }
 
-    static handle cast(const QSize &src, return_value_policy /* policy */, handle /* parent */)
+    static handle cast(const Syntalos::MetaSize &src, return_value_policy /* policy */, handle /* parent */)
     {
-        return py::make_tuple(src.width(), src.height()).release();
+        return py::make_tuple(src.width, src.height).release();
     }
 };
 
-/**
- * QVariantHash conversion
- */
 template<>
-class type_caster<QVariantHash>
-{
+struct type_caster<Syntalos::MetaValue> {
 public:
-    PYBIND11_TYPE_CASTER(QVariantHash, const_name("dict[str, object]"));
+    PYBIND11_TYPE_CASTER(Syntalos::MetaValue, const_name("object"));
+    bool load(handle src, bool convert);
+    static handle cast(const Syntalos::MetaValue &src, return_value_policy policy, handle parent);
+};
 
-    bool load(const handle &src, bool)
-    {
-        if (!py::isinstance<py::dict>(src)) {
-            return false;
-        }
+template<>
+struct type_caster<Syntalos::MetaArray> {
+public:
+    PYBIND11_TYPE_CASTER(Syntalos::MetaArray, const_name("list"));
+    bool load(handle src, bool convert);
+    static handle cast(const Syntalos::MetaArray &src, return_value_policy policy, handle parent);
+};
 
-        auto dict = py::cast<py::dict>(src);
-        for (auto item : dict) {
-            auto key = py::cast<QString>(item.first);
-            auto &val = item.second;
+template<>
+struct type_caster<Syntalos::MetaStringMap> {
+public:
+    PYBIND11_TYPE_CASTER(Syntalos::MetaStringMap, const_name("dict[str, object]"));
+    bool load(handle src, bool convert);
+    static handle cast(const Syntalos::MetaStringMap &src, return_value_policy policy, handle parent);
+};
 
-            if (py::isinstance<py::bool_>(val)) {
-                value.insert(key, py::cast<bool>(val));
-            } else if (py::isinstance<py::int_>(val)) {
-                value.insert(key, py::cast<int>(val));
-            } else if (py::isinstance<py::float_>(val)) {
-                value.insert(key, py::cast<double>(val));
-            } else if (py::isinstance<QSize>(val)) {
-                value.insert(key, py::cast<QSize>(val));
-            } else {
-                value.insert(key, py::cast<QString>(val));
-            }
-        }
+inline bool type_caster<Syntalos::MetaValue>::load(handle src, bool convert)
+{
+    if (src.is_none()) {
+        value = nullptr;
         return true;
     }
-
-    static handle cast(const QVariantHash &src, return_value_policy /* policy */, handle /* parent */)
-    {
-        py::dict dict;
-        for (auto it = src.constBegin(); it != src.constEnd(); ++it) {
-            const auto &val = it.value();
-            switch (val.userType()) {
-            case QMetaType::Bool:
-                dict[py::cast(it.key().toStdString())] = py::cast(val.toBool());
-                break;
-            case QMetaType::Int:
-                dict[py::cast(it.key().toStdString())] = py::cast(val.toInt());
-                break;
-            case QMetaType::Double:
-                dict[py::cast(it.key().toStdString())] = py::cast(val.toDouble());
-                break;
-            case QMetaType::QString:
-                dict[py::cast(it.key().toStdString())] = py::cast(val.toString());
-                break;
-            case QMetaType::QSize:
-                dict[py::cast(it.key().toStdString())] = py::cast(val.toSize());
-                break;
-            case QMetaType::QStringList:
-                dict[py::cast(it.key().toStdString())] = py::cast(val.toStringList());
-                break;
-            default:
-                dict[py::cast(it.key().toStdString())] = py::cast(val.toString());
+    // bool must be checked before int (Python bool is a subclass of int)
+    if (py::isinstance<py::bool_>(src)) {
+        value = src.cast<bool>();
+        return true;
+    }
+    if (PyLong_CheckExact(src.ptr())) {
+        value = src.cast<int64_t>();
+        return true;
+    }
+    if (py::isinstance<py::float_>(src)) {
+        value = src.cast<double>();
+        return true;
+    }
+    if (PyUnicode_CheckExact(src.ptr())) {
+        value = src.cast<std::string>();
+        return true;
+    }
+    if (py::isinstance<py::list>(src)) {
+        type_caster<Syntalos::MetaArray> acaster;
+        if (!acaster.load(src, convert))
+            return false;
+        value = static_cast<Syntalos::MetaArray &>(acaster);
+        return true;
+    }
+    if (py::isinstance<py::dict>(src)) {
+        type_caster<Syntalos::MetaStringMap> mcaster;
+        if (!mcaster.load(src, convert))
+            return false;
+        value = static_cast<Syntalos::MetaStringMap &>(mcaster);
+        return true;
+    }
+    // FIXME: A 2-element tuple is treated as a MetaSize - we need to make this a dedicated type to handle the
+    // distinction...
+    if (py::isinstance<py::tuple>(src)) {
+        auto t = reinterpret_borrow<py::tuple>(src);
+        if (t.size() == 2) {
+            try {
+                value = Syntalos::MetaSize(t[0].cast<int32_t>(), t[1].cast<int32_t>());
+                return true;
+            } catch (...) {
             }
         }
-        return dict.release();
     }
-};
+    return false;
+}
+
+inline handle type_caster<Syntalos::MetaValue>::cast(
+    const Syntalos::MetaValue &src,
+    return_value_policy policy,
+    handle parent)
+{
+    return std::visit(
+        [&](const auto &v) -> handle {
+            using T = std::decay_t<decltype(v)>;
+            if constexpr (std::is_same_v<T, std::nullptr_t>)
+                return py::none().release();
+            else if constexpr (std::is_same_v<T, bool>)
+                return py::bool_(v).release();
+            else if constexpr (std::is_same_v<T, int64_t>)
+                return py::int_(v).release();
+            else if constexpr (std::is_same_v<T, double>)
+                return py::float_(v).release();
+            else if constexpr (std::is_same_v<T, std::string>)
+                return py::str(v).release();
+            else if constexpr (std::is_same_v<T, Syntalos::MetaSize>)
+                return type_caster<Syntalos::MetaSize>::cast(v, policy, parent);
+            else if constexpr (std::is_same_v<T, Syntalos::MetaArray>)
+                return type_caster<Syntalos::MetaArray>::cast(v, policy, parent);
+            else if constexpr (std::is_same_v<T, Syntalos::MetaStringMap>)
+                return type_caster<Syntalos::MetaStringMap>::cast(v, policy, parent);
+            else
+                return py::none().release();
+        },
+        static_cast<const Syntalos::MetaValue::Base &>(src));
+}
+
+inline bool type_caster<Syntalos::MetaArray>::load(handle src, bool convert)
+{
+    if (!py::isinstance<py::list>(src))
+        return false;
+    auto lst = reinterpret_borrow<py::list>(src);
+    value.clear();
+    for (auto item : lst) {
+        type_caster<Syntalos::MetaValue> vcaster;
+        if (!vcaster.load(item, convert))
+            return false;
+        value.push_back(static_cast<Syntalos::MetaValue &>(vcaster));
+    }
+    return true;
+}
+
+inline handle type_caster<Syntalos::MetaArray>::cast(
+    const Syntalos::MetaArray &src,
+    return_value_policy policy,
+    handle parent)
+{
+    py::list lst;
+    for (const auto &elem : src)
+        lst.append(type_caster<Syntalos::MetaValue>::cast(elem, policy, parent));
+    return lst.release();
+}
+
+inline bool type_caster<Syntalos::MetaStringMap>::load(handle src, bool convert)
+{
+    if (!py::isinstance<py::dict>(src))
+        return false;
+    auto dict = reinterpret_borrow<py::dict>(src);
+    value.clear();
+    for (auto item : dict) {
+        type_caster<Syntalos::MetaValue> vcaster;
+        if (!vcaster.load(item.second, convert))
+            return false;
+        value[item.first.cast<std::string>()] = static_cast<Syntalos::MetaValue &>(vcaster);
+    }
+    return true;
+}
+
+inline handle type_caster<Syntalos::MetaStringMap>::cast(
+    const Syntalos::MetaStringMap &src,
+    return_value_policy policy,
+    handle parent)
+{
+    py::dict dict;
+    for (const auto &[key, val] : src)
+        dict[py::str(key)] = type_caster<Syntalos::MetaValue>::cast(val, policy, parent);
+    return dict.release();
+}
 
 /**
  * ByteVector conversion

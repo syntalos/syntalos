@@ -138,6 +138,19 @@ void InputPortInfo::setThrottleItemsPerSec(uint itemsPerSec)
     d->throttleItemsPerSec = itemsPerSec;
 }
 
+std::optional<MetaValue> InputPortInfo::metadataValue(const std::string &key) const
+{
+    return d->metadata.value(key);
+}
+
+MetaValue InputPortInfo::metadataValueOr(const std::string &key, const MetaValue &defaultVal) const
+{
+    const auto val = d->metadata.value(key);
+    if (val.has_value())
+        return *val;
+    return defaultVal;
+}
+
 MetaStringMap InputPortInfo::metadata() const
 {
     return d->metadata;
