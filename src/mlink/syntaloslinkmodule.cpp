@@ -69,12 +69,12 @@ SyntalosLinkModule::SyntalosLinkModule(SyntalosLink *slink)
 
 SyntalosLinkModule::~SyntalosLinkModule() {}
 
-void SyntalosLinkModule::raiseError(const QString &title, const QString &message)
+void SyntalosLinkModule::raiseError(const std::string &title, const std::string &message)
 {
     m_slink->raiseError(title, message);
 }
 
-void SyntalosLinkModule::raiseError(const QString &message)
+void SyntalosLinkModule::raiseError(const std::string &message)
 {
     m_slink->raiseError(message);
 }
@@ -99,7 +99,7 @@ void SyntalosLinkModule::setState(ModuleState state)
     m_slink->setState(state);
 }
 
-void SyntalosLinkModule::setStatusMessage(const QString &message)
+void SyntalosLinkModule::setStatusMessage(const std::string &message)
 {
     m_slink->setStatusMessage(message);
 }

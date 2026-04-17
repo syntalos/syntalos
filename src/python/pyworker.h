@@ -49,8 +49,8 @@ public:
 
     void awaitData(int timeoutUsec = -1);
 
-    void raiseError(const QString &message);
-    bool loadPythonScript(const QString &script, const QString &wdir);
+    void raiseError(const std::string &message);
+    bool loadPythonScript(const std::string &script, const std::string &wdir);
 
     bool prepareStart(const ByteVector &settings);
     void start();

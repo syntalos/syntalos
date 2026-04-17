@@ -85,7 +85,7 @@ static void println(const std::string &text)
 static void raise_error(const std::string &message)
 {
     auto pb = PyBridge::instance();
-    pb->link()->raiseError(QString::fromStdString(message));
+    pb->link()->raiseError(message);
 }
 
 static void wait(uint msec)

@@ -493,27 +493,26 @@ std::string SyntalosLink::instanceId() const
     return d->modId;
 }
 
-void SyntalosLink::raiseError(const QString &title, const QString &message)
+void SyntalosLink::raiseError(const std::string &title, const std::string &message)
 {
     auto uninit = d->pubError->loan_uninit().value();
     auto &ev = uninit.payload_mut();
-    ev.title = iox2::bb::StaticString<128>::from_utf8_null_terminated_unchecked_truncated(
-        title.toUtf8().constData(), title.toUtf8().size());
+    ev.title = iox2::bb::StaticString<128>::from_utf8_null_terminated_unchecked_truncated(title.c_str(), title.size());
     ev.message = iox2::bb::StaticString<2048>::from_utf8_null_terminated_unchecked_truncated(
-        message.toUtf8().constData(), message.toUtf8().size());
+        message.c_str(), message.size());
     iox2::send(iox2::assume_init(std::move(uninit))).value();
     d->notifyMaster();
 
     setState(ModuleState::ERROR);
 }
 
-void SyntalosLink::raiseError(const QString &message)
+void SyntalosLink::raiseError(const std::string &message)
 {
     auto uninit = d->pubError->loan_uninit().value();
     auto &ev = uninit.payload_mut();
     ev.title = iox2::bb::StaticString<128>();
     ev.message = iox2::bb::StaticString<2048>::from_utf8_null_terminated_unchecked_truncated(
-        message.toUtf8().constData(), message.toUtf8().size());
+        message.c_str(), message.size());
     iox2::send(iox2::assume_init(std::move(uninit))).value();
     d->notifyMaster();
 
@@ -951,11 +950,11 @@ void SyntalosLink::setState(ModuleState state)
     d->state = state;
 }
 
-void SyntalosLink::setStatusMessage(const QString &message)
+void SyntalosLink::setStatusMessage(const std::string &message)
 {
     auto uninit = d->pubStatusMsg->loan_uninit().value();
     uninit.payload_mut().text = iox2::bb::StaticString<512>::from_utf8_null_terminated_unchecked_truncated(
-        message.toUtf8().constData(), message.toUtf8().size());
+        message.c_str(), message.size());
     iox2::send(iox2::assume_init(std::move(uninit))).value();
     d->notifyMaster();
 }
@@ -1209,8 +1208,7 @@ void SyntalosLink::resetPorts()
 bool SyntalosLink::submitOutput(const std::shared_ptr<OutputPortInfo> &oport, const BaseDataType &data)
 {
     if (!oport->d->ioxPub.has_value()) {
-        raiseError(
-            QStringLiteral("Failed to send data on output port '%1': Publisher was not initialized!").arg(oport->id()));
+        raiseError(std::format("Failed to send data on output port '{}': Publisher was not initialized!", oport->id()));
         return false;
     }
     auto &pub = *oport->d->ioxPub;
@@ -1231,14 +1229,13 @@ bool SyntalosLink::submitOutput(const std::shared_ptr<OutputPortInfo> &oport, co
             // Higher efficiency code-path since the size is known in advance
             auto loan = pub.loanSlice(static_cast<size_t>(memSize));
             if (!data.writeToMemory(loan.payload_mut().data(), static_cast<ssize_t>(memSize))) {
-                raiseError(QStringLiteral("Failed to serialize data for output port '%1'.").arg(oport->id()));
+                raiseError(std::format("Failed to serialize data for output port '{}'.", oport->id()));
                 return false;
             }
             pub.sendSlice(std::move(loan));
         }
     } catch (std::exception &e) {
-        raiseError(QStringLiteral("Failed to send data on output port '%1': %2")
-                       .arg(oport->id(), QString::fromUtf8(e.what())));
+        raiseError(std::format("Failed to send data on output port '{}': {}", oport->id(), e.what()));
         return false;
     }
 

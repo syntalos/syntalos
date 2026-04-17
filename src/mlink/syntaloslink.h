@@ -121,8 +121,8 @@ public:
 
     [[nodiscard]] std::string instanceId() const;
 
-    void raiseError(const QString &message);
-    void raiseError(const QString &title, const QString &message);
+    void raiseError(const std::string &message);
+    void raiseError(const std::string &title, const std::string &message);
 
     void setLoadScriptCallback(LoadScriptFn callback);
     void setPrepareStartCallback(PrepareStartFn callback);
@@ -162,7 +162,7 @@ public:
      */
     [[nodiscard]] bool isShutdownPending() const;
 
-    void setStatusMessage(const QString &message);
+    void setStatusMessage(const std::string &message);
 
     int maxRealtimePriority() const;
 

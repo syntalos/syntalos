@@ -43,7 +43,7 @@ PyWorker::PyWorker(SyntalosLink *slink, QObject *parent)
 {
     // set up callbacks
     m_link->setLoadScriptCallback([this](const std::string &script, const std::string &wdir) {
-        return loadPythonScript(QString::fromStdString(script), QString::fromStdString(wdir));
+        return loadPythonScript(script, wdir);
     });
     m_link->setPrepareStartCallback([this](const ByteVector &settings) {
         return prepareStart(settings);
@@ -122,7 +122,7 @@ bool PyWorker::initPythonInterpreter()
         &config, &config.program_name, QCoreApplication::arguments()[0].toStdWString().c_str());
     if (PyStatus_Exception(status)) {
         QTimer::singleShot(0, this, [this, status]() {
-            raiseError(QStringLiteral("Unable to set Python program name: %1").arg(status.err_msg));
+            raiseError(std::format("Unable to set Python program name: {}", status.err_msg));
         });
 
         PyConfig_Clear(&config);
@@ -138,7 +138,7 @@ bool PyWorker::initPythonInterpreter()
             &config, &config.program_name, QDir(venvDir).filePath("bin/python").toStdWString().c_str());
         if (PyStatus_Exception(status)) {
             QTimer::singleShot(0, this, [this, status]() {
-                raiseError(QStringLiteral("Unable to set Python program name: %1").arg(status.err_msg));
+                raiseError(std::format("Unable to set Python program name: {}", status.err_msg));
             });
 
             PyConfig_Clear(&config);
@@ -152,7 +152,7 @@ bool PyWorker::initPythonInterpreter()
     try {
         ensureModuleImportPaths();
     } catch (py::error_already_set &e) {
-        raiseError(QStringLiteral("%1").arg(e.what()));
+        raiseError(e.what());
         PyConfig_Clear(&config);
         return false;
     }
@@ -190,17 +190,17 @@ void PyWorker::awaitData(int timeoutUsec)
     });
 }
 
-void PyWorker::raiseError(const QString &message)
+void PyWorker::raiseError(const std::string &message)
 {
     m_running = false;
-    std::cerr << "PyWorker-ERROR: " << message.toStdString() << std::endl;
+    std::cerr << "PyWorker-ERROR: " << message << std::endl;
     m_link->raiseError(message);
 
     // if we were running, ensure we are processing messages again
     m_evTimer->start();
 }
 
-bool PyWorker::loadPythonScript(const QString &script, const QString &wdir)
+bool PyWorker::loadPythonScript(const std::string &script, const std::string &wdir)
 {
     // drop callbacks that may still reference objects/functions from the previously loaded script.
     resetPyCallbacks();
@@ -209,16 +209,16 @@ bool PyWorker::loadPythonScript(const QString &script, const QString &wdir)
     py::globals().clear();
     m_scriptLoaded = false;
 
-    if (!wdir.isEmpty() && !QDir::setCurrent(wdir)) {
-        raiseError(QStringLiteral("Unable to change working directory to '%1'.").arg(wdir));
+    if (!wdir.empty() && !QDir::setCurrent(QString::fromStdString(wdir))) {
+        raiseError(std::format("Unable to change working directory to '{}'.", wdir));
         return false;
     }
 
     try {
         // execute the script
-        py::exec(script.toStdString(), py::globals());
+        py::exec(script, py::globals());
     } catch (py::error_already_set &e) {
-        raiseError(QStringLiteral("%1").arg(e.what()));
+        raiseError(e.what());
         return false;
     }
 
@@ -231,7 +231,7 @@ bool PyWorker::prepareStart(const ByteVector &settings)
     m_settings = settings;
 
     if (!m_scriptLoaded) {
-        raiseError(QStringLiteral("No Python script loaded."));
+        raiseError("No Python script loaded.");
         return false;
     }
 
@@ -254,14 +254,14 @@ bool PyWorker::prepareStart(const ByteVector &settings)
         }
 
     } catch (py::error_already_set &e) {
-        raiseError(QStringLiteral("%1").arg(e.what()));
+        raiseError(e.what());
         return false;
     }
 
     if (!success) {
         qApp->processEvents();
         if (m_link->state() != ModuleState::ERROR)
-            raiseError(QStringLiteral("The 'prepare' function returned False (no detailed error was emitted)."));
+            raiseError("The 'prepare' function returned False (no detailed error was emitted).");
         return false;
     }
 
@@ -284,7 +284,7 @@ void PyWorker::start()
                 pyFnStart();
         }
     } catch (py::error_already_set &e) {
-        raiseError(QStringLiteral("%1").arg(e.what()));
+        raiseError(e.what());
         return;
     }
 
@@ -303,7 +303,7 @@ bool PyWorker::stop()
                 pyFnStop();
         }
     } catch (py::error_already_set &e) {
-        raiseError(QStringLiteral("%1").arg(e.what()));
+        raiseError(e.what());
         return false;
     }
 
@@ -394,7 +394,7 @@ void PyWorker::emitPyError()
     if (message.isEmpty())
         message = QStringLiteral("An unknown Python error occured.");
 
-    raiseError(QStringLiteral("Python:\n%1").arg(message));
+    raiseError("Python:\n" + message.toStdString());
 
     Py_XDECREF(excTraceback);
     Py_XDECREF(excType);
@@ -449,7 +449,7 @@ void PyWorker::executePythonRunFn()
         try {
             pyFnRun();
         } catch (py::error_already_set &e) {
-            raiseError(QStringLiteral("%1").arg(e.what()));
+            raiseError(e.what());
         }
     }
 

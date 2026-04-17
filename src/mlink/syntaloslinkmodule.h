@@ -41,15 +41,15 @@ public:
     explicit SyntalosLinkModule(SyntalosLink *slink);
     ~SyntalosLinkModule();
 
-    void raiseError(const QString &message);
-    void raiseError(const QString &title, const QString &message);
+    void raiseError(const std::string &message);
+    void raiseError(const std::string &title, const std::string &message);
 
     void awaitData(int timeoutUsec = -1);
 
     ModuleState state() const;
     void setState(ModuleState state);
 
-    void setStatusMessage(const QString &message);
+    void setStatusMessage(const std::string &message);
 
     virtual bool prepare(const ByteVector &settings);
     virtual void start();
