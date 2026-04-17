@@ -67,12 +67,7 @@ public:
 
         m_bnoVecOut->setMetadataValue("time_unit", "milliseconds");
         m_bnoVecOut->setMetadataValue("data_unit", "au");
-        m_bnoVecOut->setMetadataValue(
-            "signal_names",
-            QStringList() << "qw"
-                          << "qx"
-                          << "qy"
-                          << "qz");
+        m_bnoVecOut->setMetadataValue("signal_names", MetaArray{"qw", "qx", "qy", "qz"});
 
         m_valChangeLogFile = new QFile();
 
@@ -187,23 +182,12 @@ public:
         m_dispOut->setMetadataValue("has_color", true);
         m_dispOut->setSuggestedDataName(QStringLiteral("%1_display/mscope_display").arg(datasetNameSuggestion()));
 
-        m_bnoTabOut->setMetadataValue(
-            "table_header",
-            QStringList() << "Time [ms]"
-                          << "qw"
-                          << "qx"
-                          << "qy"
-                          << "qz");
+        m_bnoTabOut->setMetadataValue("table_header", MetaArray{"Time [ms]", "qw", "qx", "qy", "qz"});
         m_bnoTabOut->setSuggestedDataName(QStringLiteral("%1_bno/orientation").arg(datasetNameSuggestion()));
 
         m_bnoVecOut->setMetadataValue("time_unit", "milliseconds");
         m_bnoVecOut->setMetadataValue("data_unit", "au");
-        m_bnoVecOut->setMetadataValue(
-            "signal_names",
-            QStringList() << "qw"
-                          << "qx"
-                          << "qy"
-                          << "qz");
+        m_bnoVecOut->setMetadataValue("signal_names", MetaArray{"qw", "qx", "qy", "qz"});
         m_bnoVecOut->setSuggestedDataName(QStringLiteral("%1_bno/orientation").arg(datasetNameSuggestion()));
 
         // start the streams

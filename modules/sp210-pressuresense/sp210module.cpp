@@ -79,11 +79,11 @@ public:
     {
         m_settingsDlg->setRunning(true);
 
-        m_paStream->setMetadataValue("signal_names", QStringList() << "Pressure");
+        m_paStream->setMetadataValue("signal_names", MetaArray{"Pressure"});
         m_paStream->setMetadataValue("time_unit", "milliseconds");
         m_paStream->setMetadataValue("data_unit", "mPa");
 
-        m_tempStream->setMetadataValue("signal_names", QStringList() << "Temperature");
+        m_tempStream->setMetadataValue("signal_names", MetaArray{"Temperature"});
         m_tempStream->setMetadataValue("time_unit", "milliseconds");
         m_tempStream->setMetadataValue("data_unit", "°C");
 

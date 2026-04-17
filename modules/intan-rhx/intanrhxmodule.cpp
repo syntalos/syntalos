@@ -179,10 +179,10 @@ bool IntanRhxModule::prepare(const TestSubject &)
             auto &sdi = blocks[i];
             if (!sdi.active)
                 continue;
-            sdi.stream->setMetadataValue(QStringLiteral("sample_rate"), sampleRate);
+            sdi.stream->setMetadataValue("sample_rate", (double)sampleRate);
             sdi.stream->setMetadataValue("time_unit", "index");
             sdi.stream->setMetadataValue("data_unit", "µV");
-            sdi.stream->setMetadataValue("signal_names", QStringList() << QStringLiteral("I%1").arg(i));
+            sdi.stream->setMetadataValue("signal_names", MetaArray{QStringLiteral("I%1").arg(i).toStdString()});
         }
     }
     for (auto &blocks : floatSdiByGroupChannel) {
@@ -190,10 +190,10 @@ bool IntanRhxModule::prepare(const TestSubject &)
             auto &sdi = blocks[i];
             if (!sdi.active)
                 continue;
-            sdi.stream->setMetadataValue(QStringLiteral("sample_rate"), sampleRate);
+            sdi.stream->setMetadataValue("sample_rate", (double)sampleRate);
             sdi.stream->setMetadataValue("time_unit", "index");
             sdi.stream->setMetadataValue("data_unit", "µV");
-            sdi.stream->setMetadataValue("signal_names", QStringList() << QStringLiteral("F%1").arg(i));
+            sdi.stream->setMetadataValue("signal_names", MetaArray{QStringLiteral("F%1").arg(i).toStdString()});
         }
     }
 

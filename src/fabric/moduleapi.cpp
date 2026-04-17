@@ -900,7 +900,7 @@ QString AbstractModule::datasetNameFromSubMetadata(const MetaStringMap &subMetad
 
     auto dataName = QString::fromStdString(subMetadata.valueOr<std::string>(DataNameProposalKey, {}));
     if (dataName.isEmpty()) {
-        dataName = srcModName.isEmpty()? datasetNameSuggestion() : srcModName;
+        dataName = srcModName.isEmpty() ? datasetNameSuggestion() : srcModName;
     } else {
         if (dataName.contains('/')) {
             const auto parts = qStringSplitLimit(dataName, '/', 1);

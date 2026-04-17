@@ -123,13 +123,17 @@ public:
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &extraData) override
     {
         Q_UNUSED(settings)
-        extraData = settingsData();
+        const auto sd = settingsData();
+        extraData = QByteArray(reinterpret_cast<const char *>(sd.data()), static_cast<qsizetype>(sd.size()));
     }
 
     bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &extraData) override
     {
         Q_UNUSED(settings)
-        setSettingsData(extraData);
+        ByteVector bv(
+            reinterpret_cast<const std::byte *>(extraData.constData()),
+            reinterpret_cast<const std::byte *>(extraData.constData()) + extraData.size());
+        setSettingsData(bv);
         return true;
     }
 

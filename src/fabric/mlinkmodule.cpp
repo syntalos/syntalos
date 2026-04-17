@@ -56,9 +56,8 @@ static auto safeReceive(Sub &sub) -> std::remove_cvref_t<decltype(sub.receive().
 class MLinkModule::Private
 {
 public:
-    Private() {}
-
-    ~Private() {}
+    Private() = default;
+    ~Private() = default;
 
     QProcess *proc = nullptr;
     ModuleWorkerMode workerMode;
@@ -68,13 +67,13 @@ public:
     QString scriptContent;
     QString scriptFname;
     QDateTime scriptLastModified;
-    QHash<QString, QVariantHash> sentMetadata;
+    QHash<std::string, MetaStringMap> sentMetadata;
 
-    QByteArray settingsData;
+    ByteVector settingsData;
 
     bool portChangesAllowed = true;
-    QHash<QString, std::shared_ptr<VarStreamInputPort>> inPortIdMap;
-    QHash<QString, std::shared_ptr<VariantDataStream>> outPortIdMap;
+    QHash<std::string, std::shared_ptr<VarStreamInputPort>> inPortIdMap;
+    QHash<std::string, std::shared_ptr<VariantDataStream>> outPortIdMap;
 
     std::string clientId;
     std::optional<iox2::Node<iox2::ServiceType::Ipc>> node;
@@ -423,16 +422,18 @@ void MLinkModule::handleIncomingControl()
             }
             if (action == PortAction::ADD) {
                 // only register a new input port if we don't have one already
-                auto iport = inPortById(ipc.id);
+                const auto portId = QString::fromStdString(ipc.id);
+                const auto portTitle = QString::fromStdString(ipc.title);
+                auto iport = inPortById(portId);
                 if (iport && iport->dataTypeId() != ipc.dataTypeId) {
-                    removeInPortById(ipc.id);
+                    removeInPortById(portId);
                     iport = nullptr;
                 }
                 if (!iport)
-                    iport = registerInputPortByTypeId(ipc.dataTypeId, ipc.id, ipc.title);
-                d->inPortIdMap.insert(ipc.id, iport);
+                    iport = registerInputPortByTypeId(ipc.dataTypeId, portId, portTitle);
+                d->inPortIdMap[ipc.id] = iport;
             } else if (action == PortAction::REMOVE) {
-                removeInPortById(ipc.id);
+                removeInPortById(QString::fromStdString(ipc.id));
                 d->inPortIdMap.remove(ipc.id);
             }
         }
@@ -456,32 +457,34 @@ void MLinkModule::handleIncomingControl()
                 }
 
                 // only register a new output port if we don't have one with that ID already
-                auto oport = outPortById(opc.id);
+                const auto portId = QString::fromStdString(opc.id);
+                const auto portTitle = QString::fromStdString(opc.title);
+                auto oport = outPortById(portId);
                 std::shared_ptr<VariantDataStream> ostream;
                 if (oport) {
                     if (oport->dataTypeId() != opc.dataTypeId) {
-                        removeOutPortById(opc.id);
+                        removeOutPortById(portId);
                         oport = nullptr;
                     } else {
                         ostream = oport->streamVar();
                     }
                 }
                 if (!ostream)
-                    ostream = registerOutputPortByTypeId(opc.dataTypeId, opc.id, opc.title);
+                    ostream = registerOutputPortByTypeId(opc.dataTypeId, portId, portTitle);
                 ostream->setMetadata(opc.metadata);
-                d->outPortIdMap.insert(opc.id, ostream);
+                d->outPortIdMap[opc.id] = ostream;
             } else if (action == PortAction::REMOVE) {
                 if (!d->portChangesAllowed) {
                     qCDebug(logMLinkMod).noquote() << "Output port removal ignored: No changes are allowed.";
                     continue;
                 }
-                removeOutPortById(opc.id);
+                removeOutPortById(QString::fromStdString(opc.id));
                 d->outPortIdMap.remove(opc.id);
             } else if (action == PortAction::CHANGE) {
                 std::shared_ptr<VariantDataStream> ostream;
                 if (d->outPortIdMap.contains(opc.id))
                     ostream = d->outPortIdMap.value(opc.id);
-                else if (auto oport = outPortById(opc.id))
+                else if (auto oport = outPortById(qstr(opc.id)))
                     ostream = oport->streamVar();
                 if (ostream)
                     ostream->setMetadata(opc.metadata);
@@ -630,12 +633,12 @@ bool MLinkModule::isScriptModified() const
     return d->scriptLastModified != fi.lastModified();
 }
 
-QByteArray MLinkModule::settingsData() const
+ByteVector MLinkModule::settingsData() const
 {
     return d->settingsData;
 }
 
-void MLinkModule::setSettingsData(const QByteArray &data)
+void MLinkModule::setSettingsData(const ByteVector &data)
 {
     d->settingsData = data;
 }
@@ -795,9 +798,9 @@ bool MLinkModule::loadCurrentScript(bool resetPorts)
         return true;
 
     LoadScriptRequest req;
-    req.workingDir = d->scriptWDir;
-    req.venvDir = d->pyVenvDir;
-    req.script = d->scriptContent;
+    req.workingDir = d->scriptWDir.toStdString();
+    req.venvDir = d->pyVenvDir.toStdString();
+    req.script = d->scriptContent.toStdString();
     req.resetPorts = resetPorts;
 
     // The worker executes the script before sending the Done reply, so we must
@@ -811,31 +814,26 @@ bool MLinkModule::sendPortInformation()
     // set the ports that are selected on this module
     {
         SetPortsPresetRequest req;
-        QList<InputPortChange> ipDef;
-        QList<OutputPortChange> opDef;
 
         for (const auto &iport : inPorts()) {
             InputPortChange ipc(PortAction::CHANGE);
-            ipc.id = iport->id();
+            ipc.id = iport->id().toStdString();
             ipc.dataTypeId = iport->dataTypeId();
-            ipc.title = iport->title();
-            ipDef << ipc;
+            ipc.title = iport->title().toStdString();
+            req.inPorts.push_back(std::move(ipc));
         }
 
         for (const auto &oport : outPorts()) {
             OutputPortChange opc(PortAction::CHANGE);
-            opc.id = oport->id();
+            opc.id = oport->id().toStdString();
             opc.dataTypeId = oport->dataTypeId();
-            opc.title = oport->title();
+            opc.title = oport->title().toStdString();
 
             // topology for one publisher
             opc.topology = makeIpcServiceTopology(1, oport->streamVar()->subscriberCount());
 
-            opDef << opc;
+            req.outPorts.push_back(std::move(opc));
         }
-
-        req.inPorts = ipDef;
-        req.outPorts = opDef;
 
         if (!d->callSliceClientSimple(this, SET_PORTS_PRESET_CALL_ID, req))
             return false;
@@ -847,10 +845,10 @@ bool MLinkModule::sendPortInformation()
             continue;
 
         UpdateInputPortMetadataRequest req;
-        req.id = iport->id();
+        req.id = iport->id().toStdString();
         req.metadata = iport->subscriptionVar()->metadata();
 
-        d->sentMetadata.insert(req.id, req.metadata);
+        d->sentMetadata[req.id] = req.metadata;
         if (!d->callSliceClientSimple(this, IN_PORT_UPDATE_METADATA_ID, req))
             return false;
     }
@@ -1045,11 +1043,12 @@ void MLinkModule::start()
             continue;
 
         const auto mdata = iport->subscriptionVar()->metadata();
-        if (d->sentMetadata.value(iport->id(), QVariantHash()) == mdata)
+        const auto portId = iport->id().toStdString();
+        if (d->sentMetadata.value(portId, MetaStringMap()) == mdata)
             continue;
 
         UpdateInputPortMetadataRequest req;
-        req.id = iport->id();
+        req.id = portId;
         req.metadata = mdata;
         if (!d->callSliceClientSimple(this, IN_PORT_UPDATE_METADATA_ID, req))
             return;

@@ -321,18 +321,18 @@ public:
 
             if (!m_initDone) {
                 const auto mdata = m_inSub->metadata();
-                auto frameSize = mdata.value("size", QSize()).toSize();
-                const auto framerate = mdata.value("framerate", 0).toDouble();
-                const auto depth = mdata.value("depth", CV_8U).toInt();
-                const auto useColor = mdata.value("has_color", frame.mat.channels() > 1).toBool();
+                auto frameSize = mdata.valueOr<MetaSize>("size", {});
+                const auto framerate = mdata.valueOr<double>("framerate", 0.0);
+                const auto depth = static_cast<int>(mdata.valueOr<int64_t>("depth", CV_8U));
+                const auto useColor = mdata.valueOr<bool>("has_color", frame.mat.channels() > 1);
 
-                if (!frameSize.isValid()) {
+                if (frameSize.isEmpty()) {
                     // we didn't get the dimensions from metadata - let's see if the current frame can
                     // be used to get dimensions.
-                    frameSize = QSize(frame.mat.cols, frame.mat.rows);
+                    frameSize = MetaSize(frame.mat.cols, frame.mat.rows);
                 }
 
-                if (!frameSize.isValid()) {
+                if (frameSize.isEmpty()) {
                     raiseError(QStringLiteral("Frame source did not provide image dimensions!"));
                     m_recordingFinished = true;
                     return;
@@ -343,14 +343,14 @@ public:
                     return;
                 }
 
-                const auto inSubSrcModName = m_inSub->metadataValue(CommonMetadataKey::SrcModName).toString();
+                const auto inSubSrcModName = m_inSub->metadataValue<std::string>(CommonMetadataKey::SrcModName, {});
                 const auto dataBasename = dataBasenameFromSubMetadata(
                     m_inSub->metadata(), QStringLiteral("%1-video").arg(m_vidDataset->collectionShortTag()));
                 vidSavePathBase = m_vidDataset->pathForDataBasename(dataBasename);
                 m_vidDataset->setDataScanPattern(
                     QStringLiteral("%1*").arg(dataBasename),
-                    inSubSrcModName.isEmpty() ? QString()
-                                              : QStringLiteral("Video recording from %1").arg(inSubSrcModName));
+                    inSubSrcModName.empty() ? QString()
+                                            : QStringLiteral("Video recording from %1").arg(inSubSrcModName.c_str()));
                 m_vidDataset->addAuxDataScanPattern(
                     QStringLiteral("%1*.tsync").arg(dataBasename), QStringLiteral("Video timestamps"));
 
@@ -362,11 +362,11 @@ public:
                     m_videoWriter->initialize(
                         vidSecFnameBase,
                         name(),
-                        inSubSrcModName,
+                        QString::fromStdString(inSubSrcModName),
                         m_vidDataset->collectionId(),
                         m_subjectName,
-                        frameSize.width(),
-                        frameSize.height(),
+                        frameSize.width,
+                        frameSize.height,
                         framerate,
                         depth,
                         useColor,
@@ -380,8 +380,8 @@ public:
                 // write info video info file with auxiliary information about the video we encoded
                 // (this is useful to gather intel about the video without opening the video file)
                 QVariantHash vInfo;
-                vInfo.insert("frame_width", frameSize.width());
-                vInfo.insert("frame_height", frameSize.height());
+                vInfo.insert("frame_width", frameSize.width);
+                vInfo.insert("frame_height", frameSize.height);
                 vInfo.insert("framerate", framerate);
                 vInfo.insert("colored", useColor);
 
@@ -496,7 +496,8 @@ public:
         for (auto &dataPart : m_vidDataset->dataFile().parts) {
             QVariantHash mdata;
             mdata["mod-name"] = QVariant::fromValue(name());
-            mdata["src-mod-name"] = m_inSub->metadataValue(CommonMetadataKey::SrcModName).toString();
+            mdata["src-mod-name"] = QString::fromStdString(
+                m_inSub->metadataValue(CommonMetadataKey::SrcModName, std::string{}));
             mdata["collection-id"] = m_vidDataset->collectionId().toString(QUuid::WithoutBraces);
             mdata["subject-name"] = m_subjectName;
             mdata["save-timestamps"] = m_settingsDialog->saveTimestamps();

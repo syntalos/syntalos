@@ -476,7 +476,7 @@ public:
         for (auto &p : outPorts()) {
             if (p->dataTypeId() == BaseDataType::IntSignalBlock || p->dataTypeId() == BaseDataType::FloatSignalBlock) {
                 auto stream = p->streamVar();
-                stream->setMetadataValue("signal_names", QStringList() << "Data");
+                stream->setMetadataValue("signal_names", MetaArray{"Data"});
                 stream->setMetadataValue("time_unit", "microseconds");
             }
 

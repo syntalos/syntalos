@@ -219,7 +219,7 @@ struct InputPort {
         return _on_data_cb;
     }
 
-    QVariantHash metadata() const
+    MetaStringMap metadata() const
     {
         return _iport->metadata();
     }
@@ -277,7 +277,7 @@ struct OutputPort {
                 "data can't be serialized).");
     }
 
-    void _set_metadata_value_private(const QString &key, const QVariant &value)
+    void _set_metadata_value_private(const std::string &key, const MetaValue &value)
     {
         auto slink = PyBridge::instance()->link();
         _oport->setMetadataVar(key, value);
@@ -288,37 +288,36 @@ struct OutputPort {
     {
         if (PyLong_CheckExact(obj.ptr())) {
             // we have an integer type
-            const long value = obj.cast<long>();
-            _set_metadata_value_private(QString::fromStdString(key), QVariant::fromValue(value));
+            const auto value = obj.cast<int64_t>();
+            _set_metadata_value_private(key, value);
         } else if (py::isinstance<py::float_>(obj)) {
-            _set_metadata_value_private(QString::fromStdString(key), QVariant::fromValue(obj.cast<double>()));
+            _set_metadata_value_private(key, obj.cast<double>());
         } else if (PyUnicode_CheckExact(obj.ptr())) {
             // we have a (unicode) string type
             const auto value = obj.cast<std::string>();
-            _set_metadata_value_private(
-                QString::fromStdString(key), QVariant::fromValue(QString::fromStdString(value)));
+            _set_metadata_value_private(key, value);
         } else if (PyList_Check(obj.ptr())) {
             const auto pyList = obj.cast<py::list>();
             const auto pyListLen = py::len(pyList);
             if (pyListLen == 0)
                 return;
-            QVariantList varList;
+            MetaArray varList;
             varList.reserve(pyListLen);
             for (size_t i = 0; i < pyListLen; i++) {
                 const auto lo = pyList[i];
                 if (PyLong_CheckExact(lo.ptr())) {
-                    const long value = lo.cast<long>();
-                    varList.append(QVariant::fromValue(value));
+                    const auto value = lo.cast<int64_t>();
+                    varList.push_back(value);
                 } else if (PyUnicode_CheckExact(lo.ptr())) {
                     const auto value = lo.cast<std::string>();
-                    varList.append(QString::fromStdString(value));
+                    varList.push_back(value);
                 } else {
                     throw SyntalosPyError(
                         std::string("Invalid type found in list metadata entry: ")
                         + std::string(lo.attr("__py::class__").attr("__name__").cast<std::string>()));
                 }
             }
-            _set_metadata_value_private(QString::fromStdString(key), varList);
+            _set_metadata_value_private(key, varList);
         } else {
             throw SyntalosPyError(
                 std::string("Can not set a metadata value for this type: ")
@@ -339,8 +338,8 @@ struct OutputPort {
         const auto width = seq[0].cast<int>();
         const auto height = seq[1].cast<int>();
 
-        QSize size(width, height);
-        _set_metadata_value_private(QString::fromStdString(key), QVariant::fromValue(size));
+        MetaSize size(width, height);
+        _set_metadata_value_private(key, size);
     }
 
     FirmataControl firmata_register_digital_pin(

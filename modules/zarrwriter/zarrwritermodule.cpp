@@ -216,24 +216,30 @@ public:
             return;
 
         // collect stream metadata
-        QHash<QString, QVariant> mdata;
+        MetaStringMap mdata;
         switch (m_isrcKind) {
-        case InputSourceKind::FLOAT:
+        case InputSourceKind::FLOAT: {
             mdata = m_floatSub->metadata();
-            m_signalNames = m_floatSub->metadataValue(QStringLiteral("signal_names"), QStringList()).toStringList();
-            m_timeUnit = m_floatSub->metadataValue(QStringLiteral("time_unit"), QString()).toString();
-            m_dataUnit = m_floatSub->metadataValue(QStringLiteral("data_unit"), QString()).toString();
-            m_chunkCount = chunkCountFromSampleRate(
-                m_floatSub->metadataValue(QStringLiteral("sample_rate"), -1.0).toDouble());
+            m_signalNames.clear();
+            for (const auto &v : m_floatSub->metadataValue("signal_names", MetaArray{}))
+                if (const auto s = v.get<std::string>())
+                    m_signalNames << QString::fromStdString(*s);
+            m_timeUnit = QString::fromStdString(m_floatSub->metadataValue("time_unit", std::string{}));
+            m_dataUnit = QString::fromStdString(m_floatSub->metadataValue("data_unit", std::string{}));
+            m_chunkCount = chunkCountFromSampleRate(m_floatSub->metadataValue("sample_rate", -1.0));
             break;
-        case InputSourceKind::INT:
+        }
+        case InputSourceKind::INT: {
             mdata = m_intSub->metadata();
-            m_signalNames = m_intSub->metadataValue(QStringLiteral("signal_names"), QStringList()).toStringList();
-            m_timeUnit = m_intSub->metadataValue(QStringLiteral("time_unit"), QString()).toString();
-            m_dataUnit = m_intSub->metadataValue(QStringLiteral("data_unit"), QString()).toString();
-            m_chunkCount = chunkCountFromSampleRate(
-                m_intSub->metadataValue(QStringLiteral("sample_rate"), -1.0).toDouble());
+            m_signalNames.clear();
+            for (const auto &v : m_intSub->metadataValue("signal_names", MetaArray{}))
+                if (const auto s = v.get<std::string>())
+                    m_signalNames << QString::fromStdString(*s);
+            m_timeUnit = QString::fromStdString(m_intSub->metadataValue("time_unit", std::string{}));
+            m_dataUnit = QString::fromStdString(m_intSub->metadataValue("data_unit", std::string{}));
+            m_chunkCount = chunkCountFromSampleRate(m_intSub->metadataValue("sample_rate", -1.0));
             break;
+        }
         default:
             return;
         }

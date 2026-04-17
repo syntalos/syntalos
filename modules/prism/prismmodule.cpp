@@ -216,20 +216,20 @@ private:
         m_mainSub = m_mainIn->subscription();
         registerDataReceivedEvent(&PrismModule::onMainFrameReceived, m_mainSub);
 
-        const auto framerate = m_mainSub->metadataValue(QStringLiteral("framerate"), 0.0).toDouble();
-        const auto size = m_mainSub->metadataValue(QStringLiteral("size"), QSize()).toSize();
+        const auto framerate = m_mainSub->metadataValue<double>(QStringLiteral("framerate"), 0.0);
+        const auto size = m_mainSub->metadataValue<MetaSize>(QStringLiteral("size"), {});
 
         if (m_currentMode == PrismMode::GRAYSCALE) {
-            m_grayOut->setMetadataValue(QStringLiteral("framerate"), framerate);
-            m_grayOut->setMetadataValue(QStringLiteral("size"), size);
+            m_grayOut->setMetadataValue("framerate", framerate);
+            m_grayOut->setMetadataValue("size", size);
             m_grayOut->start();
         } else {
             // Split mode
             for (int ch = 0; ch < 4; ch++) {
                 if (!m_channelStreams[ch])
                     continue;
-                m_channelStreams[ch]->setMetadataValue(QStringLiteral("framerate"), framerate);
-                m_channelStreams[ch]->setMetadataValue(QStringLiteral("size"), size);
+                m_channelStreams[ch]->setMetadataValue("framerate", framerate);
+                m_channelStreams[ch]->setMetadataValue("size", size);
                 m_channelStreams[ch]->start();
             }
         }
@@ -249,11 +249,11 @@ private:
 
             // Use the first connected channel for output metadata
             if (!anyConnected) {
-                const auto fr = m_channelSubs[ch]->metadataValue(QStringLiteral("framerate"), 0.0).toDouble();
-                const auto sz = m_channelSubs[ch]->metadataValue(QStringLiteral("size"), QSize()).toSize();
-                m_expectedSize = cv::Size(sz.width(), sz.height());
-                m_combinedOut->setMetadataValue(QStringLiteral("framerate"), fr);
-                m_combinedOut->setMetadataValue(QStringLiteral("size"), sz);
+                const auto fr = m_channelSubs[ch]->metadataValue<double>(QStringLiteral("framerate"), 0.0);
+                const auto sz = m_channelSubs[ch]->metadataValue<MetaSize>(QStringLiteral("size"), {});
+                m_expectedSize = cv::Size(sz.width, sz.height);
+                m_combinedOut->setMetadataValue("framerate", fr);
+                m_combinedOut->setMetadataValue("size", sz);
             }
 
             anyConnected = true;

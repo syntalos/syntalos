@@ -131,7 +131,12 @@ public:
 
         auto qSub = m_qIn->subscription();
 
-        const auto signalNames = qSub->metadataValue("signal_names", QStringList()).toStringList();
+        const auto sigNamesArr = qSub->metadataValue("signal_names", MetaArray{});
+        QStringList signalNames;
+        for (const auto &v : sigNamesArr) {
+            if (const auto s = v.get<std::string>())
+                signalNames << QString::fromStdString(*s);
+        }
         const auto expectedSignalNames = QStringList() << "qw"
                                                        << "qx"
                                                        << "qy"

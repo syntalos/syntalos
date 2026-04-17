@@ -20,9 +20,9 @@
 #pragma once
 
 #include <QObject>
-#include <QVariantHash>
 #include <datactl/syclock.h>
 #include <datactl/datatypes.h>
+#include <datactl/streammeta.h>
 
 namespace Syntalos
 {
@@ -31,7 +31,7 @@ class SyntalosLink;
 struct OutputPortChange;
 struct InputPortChange;
 
-using LoadScriptFn = std::function<void(const QString &script, const QString &wdir)>;
+using LoadScriptFn = std::function<void(const std::string &script, const std::string &wdir)>;
 using PrepareStartFn = std::function<void(const ByteVector &settings)>;
 using StartFn = std::function<void()>;
 using StopFn = std::function<void()>;
@@ -50,7 +50,7 @@ public:
     std::string id() const;
     int dataTypeId() const;
     std::string title() const;
-    QVariantHash metadata() const;
+    MetaStringMap metadata() const;
 
     /**
      * @brief Sets a function to be called when new data arrives
@@ -78,7 +78,7 @@ class OutputPortInfo
 public:
     std::string id() const;
     int dataTypeId() const;
-    void setMetadataVar(const QString &key, const QVariant &value);
+    void setMetadataVar(const std::string &key, const MetaValue &value);
 
 private:
     friend SyntalosLink;
@@ -109,7 +109,7 @@ class SyntalosLink : public QObject
 public:
     ~SyntalosLink() override;
 
-    [[nodiscard]] QString instanceId() const;
+    [[nodiscard]] std::string instanceId() const;
 
     void raiseError(const QString &message);
     void raiseError(const QString &title, const QString &message);
@@ -171,7 +171,7 @@ public:
         const std::string &id,
         const std::string &title,
         const std::string &dataTypeName,
-        const QVariantHash &metadata = QVariantHash());
+        const MetaStringMap &metadata = {});
 
     void updateInputPort(const std::shared_ptr<InputPortInfo> &iport);
     void updateOutputPort(const std::shared_ptr<OutputPortInfo> &oport);
@@ -191,7 +191,7 @@ public:
     bool submitOutput(const std::shared_ptr<OutputPortInfo> &oport, const BaseDataType &data);
 
 private:
-    explicit SyntalosLink(const QString &instanceId, QObject *parent = nullptr);
+    explicit SyntalosLink(const std::string &instanceId, QObject *parent = nullptr);
     friend std::unique_ptr<SyntalosLink> initSyntalosModuleLink();
 
 private:

@@ -52,6 +52,8 @@ struct MetaSize {
     {
         return width <= 0 || height <= 0;
     }
+
+    bool operator==(const MetaSize &) const = default;
 };
 
 struct MetaValue;
@@ -84,6 +86,7 @@ struct MetaStringMap : std::map<std::string, MetaValue> {
  */
 struct MetaValue
     : std::variant<std::nullptr_t, bool, int64_t, double, std::string, MetaSize, MetaArray, MetaStringMap> {
+    using Base = std::variant<std::nullptr_t, bool, int64_t, double, std::string, MetaSize, MetaArray, MetaStringMap>;
     using variant::variant;
 
     MetaValue(const char *s)
@@ -91,9 +94,14 @@ struct MetaValue
     {
     }
 
-    MetaValue(int v)
-        : variant((int64_t)v)
+    MetaValue(int32_t v)
+        : variant(static_cast<int64_t>(v))
     {
+    }
+
+    bool operator==(const MetaValue &other) const
+    {
+        return static_cast<const Base &>(*this) == static_cast<const Base &>(other);
     }
 
     /**

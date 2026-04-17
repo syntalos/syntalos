@@ -139,7 +139,7 @@ public:
     template<typename T>
     void applyMetadataForSubscription(PlotSubscriptionDetails<T> &sd)
     {
-        const auto timeUnitStr = sd.sub->metadataValue("time_unit", "milliseconds").toString();
+        const auto timeUnitStr = sd.sub->metadataValue("time_unit", std::string{"milliseconds"});
         if (timeUnitStr == "seconds")
             sd.timestampDivisor = 1;
         else if (timeUnitStr == "milliseconds")
@@ -147,7 +147,7 @@ public:
         else if (timeUnitStr == "microseconds")
             sd.timestampDivisor = 1000 * 1000;
         else if (timeUnitStr == "index") {
-            const auto sampleRate = sd.sub->metadataValue("sample_rate", -1).toDouble();
+            const auto sampleRate = sd.sub->metadataValue("sample_rate", -1.0);
             if (sampleRate < 0) {
                 raiseError(QStringLiteral(
                                "The signal-series on port %1 provides timestamps at indices, but no "
@@ -160,12 +160,17 @@ public:
             sd.timestampDivisor = sampleRate;
         }
 
-        sd.plotWidget->setYAxisLabel(sd.sub->metadataValue("data_unit", "y").toString());
+        sd.plotWidget->setYAxisLabel(QString::fromStdString(sd.sub->metadataValue("data_unit", std::string{"y"})));
 
         sd.expectedSigSeriesCount = 0;
         sd.showSignal.clear();
 
-        const auto signalNames = sd.sub->metadataValue("signal_names", QStringList()).toStringList();
+        const auto sigNamesArr = sd.sub->metadataValue("signal_names", MetaArray{});
+        QStringList signalNames;
+        for (const auto &v : sigNamesArr) {
+            if (const auto s = v.template get<std::string>())
+                signalNames << QString::fromStdString(*s);
+        }
         m_plotWindow->setSignalsForPort(sd.port->id(), signalNames);
         for (const auto &name : signalNames) {
             const auto sps = m_plotWindow->signalPlotSettingsFor(sd.port->id(), name);

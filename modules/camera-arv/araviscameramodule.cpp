@@ -124,7 +124,7 @@ public:
         m_expectedHeight = roi.height();
 
         // set the required stream metadata for video capture
-        m_outStream->setMetadataValue("size", QSize(m_expectedWidth, m_expectedHeight));
+        m_outStream->setMetadataValue("size", MetaSize(m_expectedWidth, m_expectedHeight));
         m_outStream->setMetadataValue("framerate", m_camera->getFPS());
 
         // start the stream

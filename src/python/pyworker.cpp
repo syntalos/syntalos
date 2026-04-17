@@ -42,8 +42,8 @@ PyWorker::PyWorker(SyntalosLink *slink, QObject *parent)
       m_running(false)
 {
     // set up callbacks
-    m_link->setLoadScriptCallback([this](const QString &script, const QString &wdir) {
-        return loadPythonScript(script, wdir);
+    m_link->setLoadScriptCallback([this](const std::string &script, const std::string &wdir) {
+        return loadPythonScript(QString::fromStdString(script), QString::fromStdString(wdir));
     });
     m_link->setPrepareStartCallback([this](const ByteVector &settings) {
         return prepareStart(settings);

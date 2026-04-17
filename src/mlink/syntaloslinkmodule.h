@@ -76,7 +76,7 @@ protected:
     std::shared_ptr<OutputPortLink<T>> registerOutputPort(
         const std::string &id,
         const std::string &title = {},
-        const QVariantHash &metadata = QVariantHash())
+        const MetaStringMap &metadata = {})
     {
         // fetch existing output port first, if any exists
         for (auto &eop : m_slink->outputPorts()) {
@@ -164,7 +164,7 @@ public:
         return m_info->dataTypeId();
     }
 
-    void setMetadataVar(const QString &key, const QVariant &value)
+    void setMetadataVar(const std::string &key, const MetaValue &value)
     {
         m_info->setMetadataVar(key, value);
         m_mod->m_slink->updateOutputPort(m_info);

@@ -60,7 +60,7 @@ public:
             auto framesSub = m_frameIn->subscription();
 
             // just copy the framerate from input to output port
-            m_frameOut->setMetadataValue("framerate", framesSub->metadataValue("framerate").toDouble());
+            m_frameOut->setMetadataValue("framerate", framesSub->metadataValue<double>("framerate", 0.0));
 
             // do not forget to start active output channels
             m_frameOut->start();

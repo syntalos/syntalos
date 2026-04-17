@@ -96,7 +96,7 @@ public:
         m_camera->setFramerate(m_fps);
 
         // set the required stream metadata for video capture
-        m_outStream->setMetadataValue("size", QSize(m_camera->resolution().width, m_camera->resolution().height));
+        m_outStream->setMetadataValue("size", MetaSize(m_camera->resolution().width, m_camera->resolution().height));
         m_outStream->setMetadataValue("framerate", m_fps);
 
         // start the stream

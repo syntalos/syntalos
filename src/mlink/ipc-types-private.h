@@ -19,11 +19,6 @@
 
 #pragma once
 
-#include <QObject>
-#include <QIODevice>
-#include <QVariantHash>
-#include <QDataStream>
-
 #include <iox2/bb/static_string.hpp>
 #include <iox2/bb/static_vector.hpp>
 #include <iox2/iceoryx2.hpp>
@@ -92,10 +87,10 @@ enum class PortAction : uint8_t {
 struct InputPortChange {
     PortAction action{PortAction::UNKNOWN};
 
-    QString id;
-    QString title;
+    std::string id;
+    std::string title;
     int dataTypeId{-1};
-    QVariantHash metadata;
+    MetaStringMap metadata;
     uint throttleItemsPerSec{0};
 
     InputPortChange() = default;
@@ -106,38 +101,40 @@ struct InputPortChange {
     {
     }
 
-    [[nodiscard]] QByteArray toBytes() const
+    void writeTo(BinaryStreamWriter &out) const
     {
-        QByteArray bytes;
-        QDataStream stream(&bytes, QIODevice::WriteOnly);
+        out.write(action);
+        out.write(id);
+        out.write(title);
+        out.write(dataTypeId);
+        out.write(metadata);
+        out.write(throttleItemsPerSec);
+    }
 
-        stream << action << id << title << dataTypeId << metadata << throttleItemsPerSec;
+    static InputPortChange readFrom(BinaryStreamReader &in)
+    {
+        InputPortChange info;
+        in.read(info.action);
+        in.read(info.id);
+        in.read(info.title);
+        in.read(info.dataTypeId);
+        in.read(info.metadata);
+        in.read(info.throttleItemsPerSec);
+        return info;
+    }
 
+    [[nodiscard]] ByteVector toBytes() const
+    {
+        ByteVector bytes;
+        BinaryStreamWriter stream(bytes);
+        writeTo(stream);
         return bytes;
     }
 
     static InputPortChange fromMemory(const void *memory, size_t size)
     {
-        InputPortChange info;
-
-        QByteArray block(reinterpret_cast<const char *>(memory), size);
-        QDataStream stream(block);
-
-        stream >> info.action >> info.id >> info.title >> info.dataTypeId >> info.metadata >> info.throttleItemsPerSec;
-
-        return info;
-    }
-
-    friend QDataStream &operator<<(QDataStream &out, const InputPortChange &info)
-    {
-        out << info.action << info.id << info.title << info.dataTypeId << info.metadata << info.throttleItemsPerSec;
-        return out;
-    }
-
-    friend QDataStream &operator>>(QDataStream &in, InputPortChange &info)
-    {
-        in >> info.action >> info.id >> info.title >> info.dataTypeId >> info.metadata >> info.throttleItemsPerSec;
-        return in;
+        BinaryStreamReader stream(memory, size);
+        return readFrom(stream);
     }
 };
 static const std::string IN_PORT_CHANGE_CHANNEL_ID = "InPortChange";
@@ -148,10 +145,10 @@ static const std::string IN_PORT_CHANGE_CHANNEL_ID = "InPortChange";
 struct OutputPortChange {
     PortAction action{PortAction::UNKNOWN};
 
-    QString id;
-    QString title;
+    std::string id;
+    std::string title;
     int dataTypeId{-1};
-    QVariantHash metadata;
+    MetaStringMap metadata;
     IpcServiceTopology topology;
 
     OutputPortChange() = default;
@@ -161,42 +158,44 @@ struct OutputPortChange {
     {
     }
 
-    [[nodiscard]] QByteArray toBytes() const
+    void writeTo(BinaryStreamWriter &out) const
     {
-        QByteArray bytes;
-        QDataStream stream(&bytes, QIODevice::WriteOnly);
+        out.write(action);
+        out.write(id);
+        out.write(title);
+        out.write(dataTypeId);
+        out.write(metadata);
+        out.write(topology.maxSenders);
+        out.write(topology.maxReceivers);
+        out.write(topology.maxNodes);
+    }
 
-        stream << action << id << title << dataTypeId << metadata << topology.maxSenders << topology.maxReceivers
-               << topology.maxNodes;
+    static OutputPortChange readFrom(BinaryStreamReader &in)
+    {
+        OutputPortChange info;
+        in.read(info.action);
+        in.read(info.id);
+        in.read(info.title);
+        in.read(info.dataTypeId);
+        in.read(info.metadata);
+        in.read(info.topology.maxSenders);
+        in.read(info.topology.maxReceivers);
+        in.read(info.topology.maxNodes);
+        return info;
+    }
 
+    [[nodiscard]] ByteVector toBytes() const
+    {
+        ByteVector bytes;
+        BinaryStreamWriter stream(bytes);
+        writeTo(stream);
         return bytes;
     }
 
     static OutputPortChange fromMemory(const void *memory, size_t size)
     {
-        OutputPortChange info;
-
-        QByteArray block(reinterpret_cast<const char *>(memory), size);
-        QDataStream stream(block);
-
-        stream >> info.action >> info.id >> info.title >> info.dataTypeId >> info.metadata >> info.topology.maxSenders
-            >> info.topology.maxReceivers >> info.topology.maxNodes;
-
-        return info;
-    }
-
-    friend QDataStream &operator<<(QDataStream &out, const OutputPortChange &info)
-    {
-        out << info.action << info.id << info.title << info.dataTypeId << info.metadata << info.topology.maxSenders
-            << info.topology.maxReceivers << info.topology.maxNodes;
-        return out;
-    }
-
-    friend QDataStream &operator>>(QDataStream &in, OutputPortChange &info)
-    {
-        in >> info.action >> info.id >> info.title >> info.dataTypeId >> info.metadata >> info.topology.maxSenders
-            >> info.topology.maxReceivers >> info.topology.maxNodes;
-        return in;
+        BinaryStreamReader stream(memory, size);
+        return readFrom(stream);
     }
 };
 static const std::string OUT_PORT_CHANGE_CHANNEL_ID = "OutPortChange";
@@ -206,30 +205,26 @@ static const std::string OUT_PORT_CHANGE_CHANNEL_ID = "OutPortChange";
  */
 struct UpdateInputPortMetadataRequest {
 
-    QString id;
-    QVariantHash metadata;
+    std::string id;
+    MetaStringMap metadata;
 
     UpdateInputPortMetadataRequest() = default;
 
-    [[nodiscard]] QByteArray toBytes() const
+    [[nodiscard]] ByteVector toBytes() const
     {
-        QByteArray bytes;
-        QDataStream stream(&bytes, QIODevice::WriteOnly);
-
-        stream << id << metadata;
-
+        ByteVector bytes;
+        BinaryStreamWriter stream(bytes);
+        stream.write(id);
+        stream.write(metadata);
         return bytes;
     }
 
     static UpdateInputPortMetadataRequest fromMemory(const void *memory, size_t size)
     {
         UpdateInputPortMetadataRequest req;
-
-        QByteArray block(reinterpret_cast<const char *>(memory), size);
-        QDataStream stream(block);
-
-        stream >> req.id >> req.metadata;
-
+        BinaryStreamReader stream(memory, size);
+        stream.read(req.id);
+        stream.read(req.metadata);
         return req;
     }
 };
@@ -341,58 +336,65 @@ static const std::string CONNECT_INPUT_CALL_ID = "ConnectInputPort";
  * Instruct the module to load a script
  */
 struct LoadScriptRequest {
-    QString workingDir;
-    QString venvDir;
-    QString script;
+    std::string workingDir;
+    std::string venvDir;
+    std::string script;
     bool resetPorts = false; /// If true, the worker should reset its port state before executing the script.
 
-    [[nodiscard]] QByteArray toBytes() const
+    [[nodiscard]] ByteVector toBytes() const
     {
-        QByteArray bytes;
-        QDataStream stream(&bytes, QIODevice::WriteOnly);
-
-        stream << workingDir << script << resetPorts;
-
+        ByteVector bytes;
+        BinaryStreamWriter stream(bytes);
+        stream.write(workingDir);
+        stream.write(venvDir);
+        stream.write(script);
+        stream.write(resetPorts);
         return bytes;
     }
 
     static LoadScriptRequest fromMemory(const void *memory, size_t size)
     {
         LoadScriptRequest req;
-
-        QByteArray block(reinterpret_cast<const char *>(memory), size);
-        QDataStream stream(block);
-
-        stream >> req.workingDir >> req.script >> req.resetPorts;
-
+        BinaryStreamReader stream(memory, size);
+        stream.read(req.workingDir);
+        stream.read(req.venvDir);
+        stream.read(req.script);
+        stream.read(req.resetPorts);
         return req;
     }
 };
 static const std::string LOAD_SCRIPT_CALL_ID = "LoadScript";
 
 struct SetPortsPresetRequest {
-    QList<InputPortChange> inPorts;
-    QList<OutputPortChange> outPorts;
+    std::vector<InputPortChange> inPorts;
+    std::vector<OutputPortChange> outPorts;
 
-    [[nodiscard]] QByteArray toBytes() const
+    [[nodiscard]] ByteVector toBytes() const
     {
-        QByteArray bytes;
-        QDataStream stream(&bytes, QIODevice::WriteOnly);
-
-        stream << inPorts << outPorts;
-
+        ByteVector bytes;
+        BinaryStreamWriter stream(bytes);
+        stream.write(static_cast<uint64_t>(inPorts.size()));
+        for (const auto &ip : inPorts)
+            ip.writeTo(stream);
+        stream.write(static_cast<uint64_t>(outPorts.size()));
+        for (const auto &op : outPorts)
+            op.writeTo(stream);
         return bytes;
     }
 
     static SetPortsPresetRequest fromMemory(const void *memory, size_t size)
     {
         SetPortsPresetRequest req;
-
-        QByteArray block(reinterpret_cast<const char *>(memory), size);
-        QDataStream stream(block);
-
-        stream >> req.inPorts >> req.outPorts;
-
+        BinaryStreamReader stream(memory, size);
+        uint64_t count;
+        stream.read(count);
+        req.inPorts.reserve(count);
+        for (uint64_t i = 0; i < count; ++i)
+            req.inPorts.push_back(InputPortChange::readFrom(stream));
+        stream.read(count);
+        req.outPorts.reserve(count);
+        for (uint64_t i = 0; i < count; ++i)
+            req.outPorts.push_back(OutputPortChange::readFrom(stream));
         return req;
     }
 };
@@ -403,27 +405,21 @@ static const std::string SET_PORTS_PRESET_CALL_ID = "SetPortsPresetRequest";
  * this enters the PREPARING stage
  */
 struct PrepareStartRequest {
-    QByteArray settings;
+    ByteVector settings;
 
-    [[nodiscard]] QByteArray toBytes() const
+    [[nodiscard]] ByteVector toBytes() const
     {
-        QByteArray bytes;
-        QDataStream stream(&bytes, QIODevice::WriteOnly);
-
-        stream << settings;
-
+        ByteVector bytes;
+        BinaryStreamWriter stream(bytes);
+        stream.write(settings);
         return bytes;
     }
 
     static PrepareStartRequest fromMemory(const void *memory, size_t size)
     {
         PrepareStartRequest req;
-
-        QByteArray block(reinterpret_cast<const char *>(memory), size);
-        QDataStream stream(block);
-
-        stream >> req.settings;
-
+        BinaryStreamReader stream(memory, size);
+        stream.read(req.settings);
         return req;
     }
 };
@@ -455,38 +451,27 @@ static const std::string SHUTDOWN_CALL_ID = "Shutdown";
  * Event from the module to indicate a settings change. Syntalos will store the new settings.
  */
 struct SettingsChangeEvent {
-    QByteArray settings;
+    ByteVector settings;
 
     SettingsChangeEvent() = default;
     explicit SettingsChangeEvent(const ByteVector &bytes)
-        : settings(reinterpret_cast<const char *>(bytes.data()), static_cast<qsizetype>(bytes.size()))
+        : settings(bytes)
     {
     }
 
-    explicit SettingsChangeEvent(QByteArray settings)
-        : settings(std::move(settings))
+    [[nodiscard]] ByteVector toBytes() const
     {
-    }
-
-    [[nodiscard]] QByteArray toBytes() const
-    {
-        QByteArray bytes;
-        QDataStream stream(&bytes, QIODevice::WriteOnly);
-
-        stream << settings;
-
+        ByteVector bytes;
+        BinaryStreamWriter stream(bytes);
+        stream.write(settings);
         return bytes;
     }
 
     static SettingsChangeEvent fromMemory(const void *memory, size_t size)
     {
         SettingsChangeEvent ev;
-
-        QByteArray block(reinterpret_cast<const char *>(memory), size);
-        QDataStream stream(block);
-
-        stream >> ev.settings;
-
+        BinaryStreamReader stream(memory, size);
+        stream.read(ev.settings);
         return ev;
     }
 };
@@ -496,27 +481,21 @@ static const std::string SETTINGS_CHANGE_CHANNEL_ID = "SettingsChange";
  * Request to change show the GUI dialog to change settings.
  */
 struct ShowSettingsRequest {
-    QByteArray settings;
+    ByteVector settings;
 
-    [[nodiscard]] QByteArray toBytes() const
+    [[nodiscard]] ByteVector toBytes() const
     {
-        QByteArray bytes;
-        QDataStream stream(&bytes, QIODevice::WriteOnly);
-
-        stream << settings;
-
+        ByteVector bytes;
+        BinaryStreamWriter stream(bytes);
+        stream.write(settings);
         return bytes;
     }
 
     static ShowSettingsRequest fromMemory(const void *memory, size_t size)
     {
         ShowSettingsRequest req;
-
-        QByteArray block(reinterpret_cast<const char *>(memory), size);
-        QDataStream stream(block);
-
-        stream >> req.settings;
-
+        BinaryStreamReader stream(memory, size);
+        stream.read(req.settings);
         return req;
     }
 };

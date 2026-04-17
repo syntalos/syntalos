@@ -74,8 +74,8 @@ public:
     bool setScriptFromFile(const QString &fname, const QString &wdir = QString());
     bool isScriptModified() const;
 
-    QByteArray settingsData() const;
-    void setSettingsData(const QByteArray &data);
+    ByteVector settingsData() const;
+    void setSettingsData(const ByteVector &data);
 
     virtual void showDisplayUi() override;
     virtual void showSettingsUi() override;

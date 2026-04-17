@@ -186,8 +186,8 @@ void CropTransform::createSettingsUi(QWidget *parent)
         const std::lock_guard<std::mutex> lock(m_mutex);
         m_roi.x = 0;
         m_roi.y = 0;
-        m_roi.width = m_originalSize.width();
-        m_roi.height = m_originalSize.height();
+        m_roi.width = m_originalSize.width;
+        m_roi.height = m_originalSize.height;
         m_onlineModified = true;
         checkAndUpdateRoi();
     });
@@ -273,8 +273,8 @@ MetaSize CropTransform::resultSize()
 void CropTransform::start()
 {
     if (m_roi.empty()) {
-        m_roi.width = m_originalSize.width();
-        m_roi.height = m_originalSize.height();
+        m_roi.width = m_originalSize.width;
+        m_roi.height = m_originalSize.height;
     }
 
     {
@@ -290,7 +290,7 @@ void CropTransform::start()
     m_activeRoi = m_roi;
 
     const auto rSize = resultSize();
-    m_activeOutSize = cv::Size(rSize.width(), rSize.height());
+    m_activeOutSize = cv::Size(rSize.width, rSize.height);
     m_onlineModified = false;
 }
 
@@ -390,12 +390,12 @@ void CropTransform::setUiDisplayed(bool visible)
 void CropTransform::checkAndUpdateRoi()
 {
     // Ensure ROI stays within bounds and has valid dimensions
-    m_roi.x = std::max(0, std::min(m_roi.x, m_originalSize.width() - 1));
-    m_roi.y = std::max(0, std::min(m_roi.y, m_originalSize.height() - 1));
+    m_roi.x = std::max(0, std::min(m_roi.x, m_originalSize.width - 1));
+    m_roi.y = std::max(0, std::min(m_roi.y, m_originalSize.height - 1));
 
     // Adjust width and height to stay within bounds
-    m_roi.width = std::max(1, std::min(m_roi.width, m_originalSize.width() - m_roi.x));
-    m_roi.height = std::max(1, std::min(m_roi.height, m_originalSize.height() - m_roi.y));
+    m_roi.width = std::max(1, std::min(m_roi.width, m_originalSize.width - m_roi.x));
+    m_roi.height = std::max(1, std::min(m_roi.height, m_originalSize.height - m_roi.y));
 
     // give user some info as to what we are actually doing, if the GUI is set up
     if (m_sizeInfoLabel != nullptr) {
@@ -408,13 +408,13 @@ void CropTransform::checkAndUpdateRoi()
                                      .arg(m_roi.width + m_roi.x)
                                      .arg(m_roi.y)
                                      .arg(m_roi.height + m_roi.y)
-                                     .arg(m_originalSize.width())
-                                     .arg(m_originalSize.height()));
+                                     .arg(m_originalSize.width)
+                                     .arg(m_originalSize.height));
 
-        m_sbX->setRange(0, std::max(0, m_originalSize.width() - m_roi.width));
-        m_sbWidth->setRange(1, std::max(1, m_originalSize.width() - m_roi.x));
-        m_sbY->setRange(0, std::max(0, m_originalSize.height() - m_roi.height));
-        m_sbHeight->setRange(1, std::max(1, m_originalSize.height() - m_roi.y));
+        m_sbX->setRange(0, std::max(0, m_originalSize.width - m_roi.width));
+        m_sbWidth->setRange(1, std::max(1, m_originalSize.width - m_roi.x));
+        m_sbY->setRange(0, std::max(0, m_originalSize.height - m_roi.height));
+        m_sbHeight->setRange(1, std::max(1, m_originalSize.height - m_roi.y));
 
         // Update spinboxes with the correct values - now they represent actual width/height, not end coordinates
         if (m_sbWidth->value() != m_roi.width) {
@@ -472,8 +472,8 @@ void ScaleTransform::createSettingsUi(QWidget *parent)
 MetaSize ScaleTransform::resultSize()
 {
     return {
-        static_cast<int>(std::round(m_originalSize.width() * m_scaleFactor)),
-        static_cast<int>(std::round(m_originalSize.height() * m_scaleFactor))};
+        static_cast<int>(std::round(m_originalSize.width * m_scaleFactor)),
+        static_cast<int>(std::round(m_originalSize.height * m_scaleFactor))};
 }
 
 void ScaleTransform::process(cv::Mat &image)

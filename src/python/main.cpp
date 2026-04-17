@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
     prctl(PR_SET_PDEATHSIG, SIGKILL);
 
     // set the process name to the instance ID, to simplify identification in process trees
-    prctl(PR_SET_NAME, qPrintable(slink->instanceId()), 0, 0, 0);
+    prctl(PR_SET_NAME, slink->instanceId().c_str(), 0, 0, 0);
 
     return a.exec();
 }

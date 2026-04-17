@@ -74,7 +74,7 @@ std::unique_ptr<SyntalosLink> initSyntalosModuleLink()
     // ensure we (try to) die if Syntalos, our parent, dies
     prctl(PR_SET_PDEATHSIG, SIGTERM);
 
-    return std::unique_ptr<SyntalosLink>(new SyntalosLink(syModuleId));
+    return std::unique_ptr<SyntalosLink>(new SyntalosLink(syModuleId.toStdString()));
 }
 
 /**
@@ -86,8 +86,8 @@ public:
     explicit Private(const InputPortChange &pc)
         : index(0),
           connected(false),
-          id(pc.id.toStdString()),
-          title(pc.title.toStdString()),
+          id(pc.id),
+          title(pc.title),
           dataTypeId(pc.dataTypeId),
           metadata(pc.metadata),
           throttleItemsPerSec(0)
@@ -102,7 +102,7 @@ public:
     std::string id;
     std::string title;
     int dataTypeId;
-    QVariantHash metadata;
+    MetaStringMap metadata;
 
     NewDataRawFn newDataCb;
     uint throttleItemsPerSec;
@@ -138,7 +138,7 @@ void InputPortInfo::setThrottleItemsPerSec(uint itemsPerSec)
     d->throttleItemsPerSec = itemsPerSec;
 }
 
-QVariantHash InputPortInfo::metadata() const
+MetaStringMap InputPortInfo::metadata() const
 {
     return d->metadata;
 }
@@ -152,8 +152,8 @@ public:
     explicit Private(const OutputPortChange &pc)
         : index(0),
           connected(false),
-          id(pc.id.toStdString()),
-          title(pc.title.toStdString()),
+          id(pc.id),
+          title(pc.title),
           dataTypeId(pc.dataTypeId),
           metadata(pc.metadata)
     {
@@ -167,7 +167,7 @@ public:
     std::string id;
     std::string title;
     int dataTypeId;
-    QVariantHash metadata;
+    MetaStringMap metadata;
 
     // utilized to reuse allocated memory when sending data, to prevent fragmentation
     ByteVector outBuffer;
@@ -193,7 +193,7 @@ int OutputPortInfo::dataTypeId() const
     return d->dataTypeId;
 }
 
-void OutputPortInfo::setMetadataVar(const QString &key, const QVariant &value)
+void OutputPortInfo::setMetadataVar(const std::string &key, const MetaValue &value)
 {
     d->metadata[key] = value;
 }
@@ -201,8 +201,8 @@ void OutputPortInfo::setMetadataVar(const QString &key, const QVariant &value)
 class SyntalosLink::Private
 {
 public:
-    Private(const QString &instanceId)
-        : modId(instanceId.toStdString()),
+    Private(const std::string &instanceId)
+        : modId(instanceId),
           state(ModuleState::UNKNOWN),
           maxRTPriority(0),
           syTimer(nullptr),
@@ -459,7 +459,7 @@ public:
     }
 };
 
-SyntalosLink::SyntalosLink(const QString &instanceId, QObject *parent)
+SyntalosLink::SyntalosLink(const std::string &instanceId, QObject *parent)
     : QObject(parent),
       d(new SyntalosLink::Private(instanceId))
 {
@@ -475,9 +475,9 @@ SyntalosLink::~SyntalosLink()
     delete d->syTimer;
 }
 
-QString SyntalosLink::instanceId() const
+std::string SyntalosLink::instanceId() const
 {
-    return QString::fromUtf8(d->modId.c_str());
+    return d->modId;
 }
 
 void SyntalosLink::raiseError(const QString &title, const QString &message)
@@ -593,7 +593,7 @@ void SyntalosLink::processPendingControl()
         if (scriptReqData.resetPorts)
             resetPorts();
         // execute script first - any registerInput/OutputPort() calls happen here
-        if (d->loadScriptCb && !scriptReqData.script.isEmpty())
+        if (d->loadScriptCb && !scriptReqData.script.empty())
             d->loadScriptCb(scriptReqData.script, scriptReqData.workingDir);
         // only then reply, so the master knows ports are settled
         Private::replyDoneSlice(*req, true);
@@ -715,12 +715,9 @@ void SyntalosLink::processPendingControl()
             break;
         const auto pl = req->payload();
         const auto prepReq = PrepareStartRequest::fromMemory(pl.data(), pl.number_of_bytes());
-        ByteVector prepareSettings(
-            reinterpret_cast<const std::byte *>(prepReq.settings.constData()),
-            reinterpret_cast<const std::byte *>(prepReq.settings.constData()) + prepReq.settings.size());
         Private::replyDoneSlice(*req, true); // reply before callback so master is not blocked
         if (d->prepareStartCb)
-            d->prepareStartCb(prepareSettings);
+            d->prepareStartCb(prepReq.settings);
     }
 
     // ---- Start ----
@@ -805,12 +802,9 @@ void SyntalosLink::processPendingControl()
             break;
         const auto pl = req->payload();
         const auto showReq = ShowSettingsRequest::fromMemory(pl.data(), pl.number_of_bytes());
-        ByteVector settingsData(
-            reinterpret_cast<const std::byte *>(showReq.settings.constData()),
-            reinterpret_cast<const std::byte *>(showReq.settings.constData()) + showReq.settings.size());
         Private::replyDoneSlice(*req, true);
         if (d->showSettingsCb)
-            d->showSettingsCb(settingsData);
+            d->showSettingsCb(showReq.settings);
     }
 }
 
@@ -1027,8 +1021,8 @@ std::shared_ptr<InputPortInfo> SyntalosLink::registerInputPort(
 {
     // construct our reference for this port
     InputPortChange ipc(PortAction::ADD);
-    ipc.id = QString::fromStdString(id);
-    ipc.title = QString::fromStdString(title);
+    ipc.id = id;
+    ipc.title = title;
     ipc.dataTypeId = BaseDataType::typeIdFromString(dataTypeName);
 
     // passing an invalid data type is a hard error
@@ -1039,7 +1033,7 @@ std::shared_ptr<InputPortInfo> SyntalosLink::registerInputPort(
 
     // check for duplicates
     for (const auto &ip : d->inPortInfo) {
-        if (ip->id() == ipc.id.toStdString())
+        if (ip->id() == ipc.id)
             return nullptr;
     }
 
@@ -1065,12 +1059,12 @@ std::shared_ptr<OutputPortInfo> SyntalosLink::registerOutputPort(
     const std::string &id,
     const std::string &title,
     const std::string &dataTypeName,
-    const QVariantHash &metadata)
+    const MetaStringMap &metadata)
 {
     // construct our reference for this port
     OutputPortChange opc(PortAction::ADD);
-    opc.id = QString::fromStdString(id);
-    opc.title = QString::fromStdString(title);
+    opc.id = id;
+    opc.title = title;
     opc.dataTypeId = BaseDataType::typeIdFromString(dataTypeName);
     opc.metadata = metadata;
 
@@ -1082,7 +1076,7 @@ std::shared_ptr<OutputPortInfo> SyntalosLink::registerOutputPort(
 
     // check for duplicates
     for (const auto &op : d->outPortInfo) {
-        if (op->id() == opc.id.toStdString())
+        if (op->id() == opc.id)
             return nullptr;
     }
 
@@ -1109,8 +1103,8 @@ std::shared_ptr<OutputPortInfo> SyntalosLink::registerOutputPort(
 void SyntalosLink::updateInputPort(const std::shared_ptr<InputPortInfo> &iport)
 {
     InputPortChange ipc(PortAction::CHANGE);
-    ipc.id = QString::fromStdString(iport->id());
-    ipc.title = QString::fromStdString(iport->d->title);
+    ipc.id = iport->id();
+    ipc.title = iport->d->title;
     ipc.dataTypeId = iport->d->dataTypeId;
     ipc.metadata = iport->d->metadata;
     ipc.throttleItemsPerSec = iport->d->throttleItemsPerSec;
@@ -1127,8 +1121,8 @@ void SyntalosLink::updateInputPort(const std::shared_ptr<InputPortInfo> &iport)
 void SyntalosLink::updateOutputPort(const std::shared_ptr<OutputPortInfo> &oport)
 {
     OutputPortChange opc(PortAction::CHANGE);
-    opc.id = QString::fromStdString(oport->id());
-    opc.title = QString::fromStdString(oport->d->title);
+    opc.id = oport->id();
+    opc.title = oport->d->title;
     opc.dataTypeId = oport->dataTypeId();
     opc.metadata = oport->d->metadata;
 
@@ -1145,7 +1139,7 @@ void SyntalosLink::removeInputPort(const std::shared_ptr<InputPortInfo> &iport)
 {
     // notify master
     InputPortChange ipc(PortAction::REMOVE);
-    ipc.id = QString::fromStdString(iport->id());
+    ipc.id = iport->id();
 
     const auto iportData = ipc.toBytes();
     auto uninit = d->pubInPortChange->loan_slice_uninit(static_cast<uint64_t>(iportData.size())).value();
@@ -1166,7 +1160,7 @@ void SyntalosLink::removeOutputPort(const std::shared_ptr<OutputPortInfo> &oport
 {
     // notify master
     OutputPortChange opc(PortAction::REMOVE);
-    opc.id = QString::fromStdString(oport->id());
+    opc.id = oport->id();
 
     const auto oportData = opc.toBytes();
     auto uninit = d->pubOutPortChange->loan_slice_uninit(static_cast<uint64_t>(oportData.size())).value();

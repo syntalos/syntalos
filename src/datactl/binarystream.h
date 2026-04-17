@@ -20,8 +20,12 @@
 #pragma once
 
 #include <memory>
+#include <span>
+#include <stdexcept>
 #include <string>
 #include <vector>
+
+#include "streammeta.h"
 
 namespace Syntalos
 {
@@ -43,6 +47,21 @@ namespace Syntalos
  * allocator instead of Syntalos' mimalloc-based one.
  */
 using ByteVector = std::pmr::vector<std::byte>;
+
+/**
+ * @brief Type tag used in MetaValue binary serialization.
+ */
+enum class MetaTypeTag : uint8_t {
+    Null = 0,
+    BoolFalse = 1,
+    BoolTrue = 2,
+    Int64 = 3,
+    Double = 4,
+    String = 5,
+    Size = 6,
+    Array = 7,
+    Object = 8,
+};
 
 /**
  * @brief Writer for Syntalos data entity serialization
@@ -89,6 +108,11 @@ public:
         for (const auto &str : vec)
             write(str);
     }
+
+    void write(const ByteVector &blob);
+    void write(const MetaValue &v);
+    void write(const MetaArray &arr);
+    void write(const MetaStringMap &map);
 
     void reserve(size_t capacity)
     {
@@ -159,6 +183,11 @@ public:
         }
     }
 
+    void read(ByteVector &blob);
+    void read(MetaValue &v);
+    void read(MetaArray &arr);
+    void read(MetaStringMap &map);
+
     [[nodiscard]] size_t position() const
     {
         return m_pos;
@@ -173,5 +202,167 @@ private:
     std::span<const std::byte> m_buffer;
     size_t m_pos;
 };
+
+// ---------------------------------------------------------------------------
+// Out-of-line inline definitions for MetaValue / MetaStringMap / ByteVector
+// ---------------------------------------------------------------------------
+
+inline void BinaryStreamWriter::write(const ByteVector &blob)
+{
+    write(static_cast<uint64_t>(blob.size()));
+    if (blob.empty())
+        return;
+    const size_t oldSize = m_buffer.size();
+    m_buffer.resize(oldSize + blob.size());
+    std::memcpy(m_buffer.data() + oldSize, blob.data(), blob.size());
+}
+
+inline void BinaryStreamWriter::write(const MetaArray &arr)
+{
+    write(static_cast<uint64_t>(arr.size()));
+    for (const auto &elem : arr)
+        write(elem);
+}
+
+inline void BinaryStreamWriter::write(const MetaStringMap &map)
+{
+    write(static_cast<uint64_t>(map.size()));
+    for (const auto &[key, val] : map) {
+        write(key);
+        write(val);
+    }
+}
+
+inline void BinaryStreamWriter::write(const MetaValue &v)
+{
+    const auto &var = static_cast<const MetaValue::Base &>(v);
+    switch (var.index()) {
+    case 0: // nullptr_t
+        write(static_cast<uint8_t>(MetaTypeTag::Null));
+        break;
+    case 1: // bool
+        write(static_cast<uint8_t>(std::get<bool>(var) ? MetaTypeTag::BoolTrue : MetaTypeTag::BoolFalse));
+        break;
+    case 2: // int64_t
+        write(static_cast<uint8_t>(MetaTypeTag::Int64));
+        write(std::get<int64_t>(var));
+        break;
+    case 3: // double
+        write(static_cast<uint8_t>(MetaTypeTag::Double));
+        write(std::get<double>(var));
+        break;
+    case 4: // string
+        write(static_cast<uint8_t>(MetaTypeTag::String));
+        write(std::get<std::string>(var));
+        break;
+    case 5: // MetaSize (trivially copyable - written as raw bytes)
+        write(static_cast<uint8_t>(MetaTypeTag::Size));
+        write(std::get<MetaSize>(var));
+        break;
+    case 6: // MetaArray
+        write(static_cast<uint8_t>(MetaTypeTag::Array));
+        write(std::get<MetaArray>(var));
+        break;
+    case 7: // MetaStringMap
+        write(static_cast<uint8_t>(MetaTypeTag::Object));
+        write(std::get<MetaStringMap>(var));
+        break;
+    default:
+        break;
+    }
+}
+
+inline void BinaryStreamReader::read(ByteVector &blob)
+{
+    uint64_t size;
+    read(size);
+    blob.clear();
+    if (size == 0)
+        return;
+    if (m_pos + size > m_buffer.size())
+        throw std::runtime_error("BinaryStream read overflow");
+    blob.resize(size);
+    std::memcpy(blob.data(), m_buffer.data() + m_pos, size);
+    m_pos += size;
+}
+
+inline void BinaryStreamReader::read(MetaArray &arr)
+{
+    uint64_t count;
+    read(count);
+    arr.clear();
+    arr.resize(count);
+    for (auto &elem : arr)
+        read(elem);
+}
+
+inline void BinaryStreamReader::read(MetaStringMap &map)
+{
+    uint64_t count;
+    read(count);
+    map.clear();
+    for (uint64_t i = 0; i < count; ++i) {
+        std::string key;
+        MetaValue val;
+        read(key);
+        read(val);
+        map[std::move(key)] = std::move(val);
+    }
+}
+
+inline void BinaryStreamReader::read(MetaValue &v)
+{
+    uint8_t tagByte;
+    read(tagByte);
+    switch (static_cast<MetaTypeTag>(tagByte)) {
+    case MetaTypeTag::Null:
+        v = nullptr;
+        break;
+    case MetaTypeTag::BoolFalse:
+        v = false;
+        break;
+    case MetaTypeTag::BoolTrue:
+        v = true;
+        break;
+    case MetaTypeTag::Int64: {
+        int64_t val;
+        read(val);
+        v = val;
+        break;
+    }
+    case MetaTypeTag::Double: {
+        double val;
+        read(val);
+        v = val;
+        break;
+    }
+    case MetaTypeTag::String: {
+        std::string val;
+        read(val);
+        v = std::move(val);
+        break;
+    }
+    case MetaTypeTag::Size: {
+        MetaSize val;
+        read(val);
+        v = val;
+        break;
+    }
+    case MetaTypeTag::Array: {
+        MetaArray arr;
+        read(arr);
+        v = std::move(arr);
+        break;
+    }
+    case MetaTypeTag::Object: {
+        MetaStringMap map;
+        read(map);
+        v = std::move(map);
+        break;
+    }
+    default:
+        throw std::runtime_error("BinaryStream: unknown MetaTypeTag");
+    }
+}
 
 } // namespace Syntalos

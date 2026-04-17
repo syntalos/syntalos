@@ -164,7 +164,7 @@ public:
         m_imgFormat = gst_structure_get_string(structure, "format");
 
         // set the required stream metadata for video capture
-        m_outStream->setMetadataValue("size", QSize(m_resolution.width, m_resolution.height));
+        m_outStream->setMetadataValue("size", MetaSize(m_resolution.width, m_resolution.height));
         m_outStream->setMetadataValue("framerate", m_fps);
         m_outStream->setMetadataValue("has_color", !m_imgFormat.toUpper().startsWith("GRAY"));
         if (m_imgFormat.toUpper().startsWith("GRAY16"))

@@ -31,7 +31,7 @@ public:
     bool prepare(const ByteVector &) override
     {
         // Actions to prepare an acquisition run go here!
-        m_tabOut->setMetadataVar("table_header", m_tabIn->metadata().value("table_header"));
+        m_tabOut->setMetadataVar("table_header", m_tabIn->metadata().valueOr("table_header", MetaArray{}));
 
         // success, we need to signal "ready" here
         setState(ModuleState::READY);

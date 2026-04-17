@@ -141,16 +141,20 @@ public:
         if (m_isrcKind == InputSourceKind::NONE)
             return;
 
-        QHash<QString, QVariant> mdata;
+        MetaStringMap mdata;
         QStringList signalNames;
         switch (m_isrcKind) {
         case InputSourceKind::FLOAT:
             mdata = m_floatSub->metadata();
-            signalNames = m_floatSub->metadataValue("signal_names", QStringList()).toStringList();
+            for (const auto &v : m_floatSub->metadataValue("signal_names", MetaArray{}))
+                if (const auto s = v.get<std::string>())
+                    signalNames << QString::fromStdString(*s);
             break;
         case InputSourceKind::INT:
             mdata = m_intSub->metadata();
-            signalNames = m_intSub->metadataValue("signal_names", QStringList()).toStringList();
+            for (const auto &v : m_intSub->metadataValue("signal_names", MetaArray{}))
+                if (const auto s = v.get<std::string>())
+                    signalNames << QString::fromStdString(*s);
             break;
         case InputSourceKind::ROW:
             mdata = m_rowSub->metadata();
@@ -273,17 +277,23 @@ public:
 
         switch (m_isrcKind) {
         case InputSourceKind::FLOAT:
-            columns = m_floatSub->metadataValue("signal_names", QStringList()).toStringList();
-            timeUnit = m_floatSub->metadataValue("time_unit", QString()).toString();
-            dataUnit = m_floatSub->metadataValue("data_unit", QString()).toString();
+            for (const auto &v : m_floatSub->metadataValue("signal_names", MetaArray{}))
+                if (const auto s = v.get<std::string>())
+                    columns << QString::fromStdString(*s);
+            timeUnit = QString::fromStdString(m_floatSub->metadataValue("time_unit", std::string{}));
+            dataUnit = QString::fromStdString(m_floatSub->metadataValue("data_unit", std::string{}));
             break;
         case InputSourceKind::INT:
-            columns = m_intSub->metadataValue("signal_names", QStringList()).toStringList();
-            timeUnit = m_intSub->metadataValue("time_unit", QString()).toString();
-            dataUnit = m_intSub->metadataValue("data_unit", QString()).toString();
+            for (const auto &v : m_intSub->metadataValue("signal_names", MetaArray{}))
+                if (const auto s = v.get<std::string>())
+                    columns << QString::fromStdString(*s);
+            timeUnit = QString::fromStdString(m_intSub->metadataValue("time_unit", std::string{}));
+            dataUnit = QString::fromStdString(m_intSub->metadataValue("data_unit", std::string{}));
             break;
         case InputSourceKind::ROW:
-            columns = m_rowSub->metadataValue("table_header", QStringList()).toStringList();
+            for (const auto &v : m_rowSub->metadataValue("table_header", MetaArray{}))
+                if (const auto s = v.get<std::string>())
+                    columns << QString::fromStdString(*s);
             break;
         default:
             return;
