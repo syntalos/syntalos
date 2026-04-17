@@ -275,8 +275,13 @@ initialize()        ← module added to board; start persistent worker if needed
 ### Ports and Streams
 
 Modules expose typed `StreamInputPort` / `StreamOutputPort` instances.
-Data types are defined in `src/datactl/datatypes.h`:
+All supported data types are defined in `src/datactl/datatypes.h`:
 `Frame`, `TableRow`, `ControlCommand`, `FirmataData`, `FloatSignalBlock`, `IntSignalBlock`, etc.
+
+Stream metadata is carried as `MetaStringMap` (a `std::map<std::string, MetaValue>`) where
+`MetaValue` is a `std::variant`. These types are defined in `src/datactl/streammeta.h`.
+Use `setMetadataVar()` on output ports to publish metadata; read it via `metadataValue()` /
+`metadataValueOr<T>()` on input ports.
 
 In C++ library modules, register ports in the module constructor:
 ```cpp
@@ -315,7 +320,8 @@ Key control channels (defined in `src/mlink/ipc-types-private.h`):
 - Modules must not block each other; long-running work goes in the module's own thread.
 - `runThread()` must periodically check `m_running` (or `waitCondition`) to allow clean shutdown.
 - `runThread()` is not a `QThread` - never use GUI from it or assume signals/slots work. Use `std::mutex` and atomic operations if needed.
-- Settings are serialized as opaque `QByteArray` blobs via `serializeSettings` / `loadSettings`.
+- Settings are serialized as structured `QVariantHash` and/or `QByteArray` for library modules via `serializeSettings` / `loadSettings`.
+  Other module types serialize to an opaque `ByteVector` blob and send that to Syntalos for storage.
   For out-of-process modules this blob is passed to the worker on each `prepare()` call.
 - Use `processUiEvents()` (not raw `QCoreApplication::processEvents()`) inside long-running
   `initialize()` paths that show dialogs.

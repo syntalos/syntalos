@@ -114,9 +114,9 @@ comma-separated values.
 
 ### Contributing
 
-Pull-requests for new modules, bugfixes or any changes are very welcome!
-(Code should be valid C++23, use 4 spaces for indentation. With clang-format installed, `autoformat.py` can be used
-to automatically format C++ and Python code)
+Pull-requests for new modules, bugfixes, or any other changes are very welcome!
+Please refer to [CONTRIBUTING.md](CONTRIBUTING.md) for an overview of the codebase and details on how to build,
+test, and submit changes.
 
 ----
 ## Sponsors
