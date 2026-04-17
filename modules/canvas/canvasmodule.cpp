@@ -24,6 +24,7 @@
 
 #include "canvaswindow.h"
 #include "datactl/frametype.h"
+#include "utils/misc.h"
 
 SYNTALOS_MODULE(CanvasModule)
 
@@ -113,7 +114,7 @@ public:
 
         // check framerate and throttle it, showing a remark in the latter
         // case so the user is aware that they're not seeing every single frame
-        m_expectedFps = m_frameSub->metadata().value("framerate", 60).toDouble();
+        m_expectedFps = m_frameSub->metadataValue<double>("framerate", 60);
 
         // initialize stream FPS tracking
         m_lastStreamCalcTime = currentTimePoint();
@@ -130,12 +131,12 @@ public:
         m_expectedDisplayFps = (m_expectedFps < m_throttleCount) ? m_expectedFps : m_throttleCount;
         m_currentDisplayFps = m_expectedDisplayFps;
 
-        auto imgWinTitle = m_frameSub->metadataValue(CommonMetadataKey::SrcModName).toString();
+        auto imgWinTitle = qstr(m_frameSub->metadataValue<std::string>(CommonMetadataKey::SrcModName, {}));
         if (imgWinTitle.isEmpty())
             imgWinTitle = "Canvas";
-        const auto portTitle = m_frameSub->metadataValue(CommonMetadataKey::SrcModPortTitle).toString();
+        const auto portTitle = qstr(m_frameSub->metadataValue<std::string>(CommonMetadataKey::SrcModPortTitle, {}));
         if (!portTitle.isEmpty())
-            imgWinTitle = QStringLiteral("%1 - %2").arg(imgWinTitle).arg(portTitle);
+            imgWinTitle = QStringLiteral("%1 - %2").arg(imgWinTitle, portTitle);
         m_cvView->setWindowTitle(imgWinTitle);
     }
 

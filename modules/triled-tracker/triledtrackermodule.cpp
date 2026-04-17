@@ -86,8 +86,8 @@ public:
         frameSub->setThrottleItemsPerSec(MAX_FPS);
 
         const auto outFramerate = frameSub->metadataValue(QStringLiteral("framerate"), MAX_FPS);
-        m_trackStream->setMetadataValue(QStringLiteral("framerate"), outFramerate);
-        m_animalStream->setMetadataValue(QStringLiteral("framerate"), outFramerate);
+        m_trackStream->setMetadataValue("framerate", outFramerate);
+        m_animalStream->setMetadataValue("framerate", outFramerate);
         m_trackStream->start();
         m_animalStream->start();
 

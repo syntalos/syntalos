@@ -32,6 +32,7 @@
 #include <unistd.h>
 
 #include "datactl/datatypes.h"
+#include "datactl/streammeta.h"
 #include "readerwriterqueue.h"
 #include "datactl/syclock.h"
 
@@ -51,14 +52,14 @@ inline uint qHash(CommonMetadataKey key, uint seed)
 }
 
 // clang-format off
-typedef QHash<CommonMetadataKey, QString> CommonMetadataKeyMap;
+typedef QHash<CommonMetadataKey, std::string> CommonMetadataKeyMap;
 Q_GLOBAL_STATIC_WITH_ARGS(CommonMetadataKeyMap,
       _commonMetadataKeyMap,
       ({
-          {CommonMetadataKey::SrcModType, QLatin1String("src_mod_type")},
-          {CommonMetadataKey::SrcModName, QLatin1String("src_mod_name")},
-          {CommonMetadataKey::SrcModPortTitle, QLatin1String("src_mod_port_title")},
-          {CommonMetadataKey::DataNameProposal, QLatin1String("data_name_proposal")},
+          {CommonMetadataKey::SrcModType, "src_mod_type"},
+          {CommonMetadataKey::SrcModName, "src_mod_name"},
+          {CommonMetadataKey::SrcModPortTitle, "src_mod_port_title"},
+          {CommonMetadataKey::DataNameProposal, "data_name_proposal"},
       })
 );
 // clang-format on
@@ -87,9 +88,9 @@ public:
     virtual void resume() = 0;
     virtual void clearPending() = 0;
 
-    virtual QHash<QString, QVariant> metadata() const = 0;
-    virtual QVariant metadataValue(const QString &key, const QVariant &defaultValue = QVariant()) const = 0;
-    virtual QVariant metadataValue(CommonMetadataKey key, const QVariant &defaultValue = QVariant()) const = 0;
+    virtual MetaStringMap metadata() const = 0;
+    virtual MetaValue metadataValue(const QString &key, const MetaValue &defaultValue = nullptr) const = 0;
+    virtual MetaValue metadataValue(CommonMetadataKey key, const MetaValue &defaultValue = nullptr) const = 0;
 
     // used internally by Syntalos
     virtual void forcePushNullopt() = 0;
@@ -109,9 +110,9 @@ public:
     [[nodiscard]] virtual bool hasSubscribers() const = 0;
     [[nodiscard]] virtual size_t subscriberCount() const = 0;
     virtual void pushRawData(int typeId, const void *data, size_t size) = 0;
-    virtual QHash<QString, QVariant> metadata() = 0;
-    virtual void setMetadata(const QHash<QString, QVariant> &metadata) = 0;
-    virtual void setMetadataValue(const QString &key, const QVariant &value) = 0;
+    virtual MetaStringMap metadata() = 0;
+    virtual void setMetadata(const MetaStringMap &metadata) = 0;
+    virtual void setMetadataValue(const std::string &key, const MetaValue &value) = 0;
     virtual void setCommonMetadata(const QString &srcModType, const QString &srcModName, const QString &portTitle) = 0;
 };
 
@@ -205,19 +206,33 @@ public:
         return QString::fromStdString(BaseDataType::typeIdToString(syDataTypeId<T>()));
     }
 
-    QHash<QString, QVariant> metadata() const override
+    MetaStringMap metadata() const override
     {
         return m_metadata;
     }
 
-    QVariant metadataValue(const QString &key, const QVariant &defaultValue = QVariant()) const override
+    MetaValue metadataValue(const QString &key, const MetaValue &defaultValue = nullptr) const override
     {
-        return m_metadata.value(key, defaultValue);
+        return m_metadata.valueOr(key.toStdString(), defaultValue);
     }
 
-    QVariant metadataValue(CommonMetadataKey key, const QVariant &defaultValue = QVariant()) const override
+    MetaValue metadataValue(CommonMetadataKey key, const MetaValue &defaultValue = nullptr) const override
     {
-        return m_metadata.value(_commonMetadataKeyMap->value(key), defaultValue);
+        return m_metadata.valueOr(_commonMetadataKeyMap->value(key), defaultValue);
+    }
+
+    template<typename MT>
+    [[nodiscard]] MT metadataValue(const QString &key, MT fallback) const
+    {
+        const auto v = m_metadata.value(key.toStdString());
+        return v.has_value() ? v->template getOr<MT>(std::move(fallback)) : std::move(fallback);
+    }
+
+    template<typename MT>
+    [[nodiscard]] MT metadataValue(CommonMetadataKey key, MT fallback) const
+    {
+        const auto v = m_metadata.value(_commonMetadataKeyMap->value(key));
+        return v.has_value() ? v->template getOr<MT>(std::move(fallback)) : std::move(fallback);
     }
 
     bool unsubscribe() override
@@ -364,10 +379,10 @@ private:
     // NOTE: These two variables are intentionally *not* threadsafe and are
     // only ever manipulated by the stream (in case of the time) or only
     // touched once when a stream is started (in case of the metadata).
-    QHash<QString, QVariant> m_metadata;
+    MetaStringMap m_metadata;
     symaster_timepoint m_lastItemTime;
 
-    void setMetadata(const QHash<QString, QVariant> &metadata)
+    void setMetadata(const MetaStringMap &metadata)
     {
         m_metadata = metadata;
     }
@@ -466,37 +481,37 @@ public:
         return QString::fromStdString(BaseDataType::typeIdToString(syDataTypeId<T>()));
     }
 
-    QHash<QString, QVariant> metadata() override
+    MetaStringMap metadata() override
     {
         return m_metadata;
     }
 
-    void setMetadata(const QHash<QString, QVariant> &metadata) override
+    void setMetadata(const MetaStringMap &metadata) override
     {
         m_metadata = metadata;
     }
 
-    void setMetadataValue(const QString &key, const QVariant &value) override
+    void setMetadataValue(const std::string &key, const MetaValue &value) override
     {
         m_metadata[key] = value;
     }
 
     void setSuggestedDataName(const QString &value)
     {
-        m_metadata[_commonMetadataKeyMap->value(CommonMetadataKey::DataNameProposal)] = value;
+        m_metadata[_commonMetadataKeyMap->value(CommonMetadataKey::DataNameProposal)] = value.toStdString();
     }
 
     void removeMetadata(const QString &key)
     {
-        m_metadata.remove(key);
+        m_metadata.erase(key.toStdString());
     }
 
     void setCommonMetadata(const QString &srcModType, const QString &srcModName, const QString &portTitle) override
     {
-        setMetadataValue(_commonMetadataKeyMap->value(CommonMetadataKey::SrcModType), srcModType);
-        setMetadataValue(_commonMetadataKeyMap->value(CommonMetadataKey::SrcModName), srcModName);
+        setMetadataValue(_commonMetadataKeyMap->value(CommonMetadataKey::SrcModType), srcModType.toStdString());
+        setMetadataValue(_commonMetadataKeyMap->value(CommonMetadataKey::SrcModName), srcModName.toStdString());
         if (!portTitle.isEmpty())
-            setMetadataValue(_commonMetadataKeyMap->value(CommonMetadataKey::SrcModPortTitle), portTitle);
+            setMetadataValue(_commonMetadataKeyMap->value(CommonMetadataKey::SrcModPortTitle), portTitle.toStdString());
     }
 
     std::shared_ptr<StreamSubscription<T>> subscribe()
@@ -652,7 +667,7 @@ private:
     std::atomic_bool m_active;
     std::mutex m_mutex;
     std::vector<std::shared_ptr<StreamSubscription<T>>> m_subs;
-    QHash<QString, QVariant> m_metadata;
+    MetaStringMap m_metadata;
 
     // Per-stream scratch object for buffer-reuse types (e.g. Frame).
     // For all other types this collapses to a zero-size NoScratch member.

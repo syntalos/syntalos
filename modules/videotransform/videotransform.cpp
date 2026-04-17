@@ -36,15 +36,15 @@ using namespace Syntalos;
 VideoTransform::VideoTransform()
     : QObject()
 {
-    m_originalSize = QSize(INT_MAX, INT_MAX);
+    m_originalSize = MetaSize(INT_MAX, INT_MAX);
 }
 
-void VideoTransform::setOriginalSize(const QSize &size)
+void VideoTransform::setOriginalSize(const MetaSize &size)
 {
     m_originalSize = size;
 }
 
-QSize VideoTransform::resultSize()
+MetaSize VideoTransform::resultSize()
 {
     return m_originalSize;
 }
@@ -260,7 +260,7 @@ bool CropTransform::allowOnlineModify() const
     return true;
 }
 
-QSize CropTransform::resultSize()
+MetaSize CropTransform::resultSize()
 {
     if (m_activeRoi.empty())
         return m_originalSize;
@@ -469,7 +469,7 @@ void ScaleTransform::createSettingsUi(QWidget *parent)
     parent->setLayout(formLayout);
 }
 
-QSize ScaleTransform::resultSize()
+MetaSize ScaleTransform::resultSize()
 {
     return {
         static_cast<int>(std::round(m_originalSize.width() * m_scaleFactor)),

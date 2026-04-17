@@ -57,11 +57,8 @@ public:
 
     bool prepare(const TestSubject &) final
     {
-        m_tabStream->setMetadataValue(
-            "table_header",
-            QStringList() << "RecTime"
-                          << "State"
-                          << "ProcTime");
+
+        m_tabStream->setMetadataValue("table_header", MetaArray{"RecTime", "State", "ProcTime"});
         m_tabStream->setMetadataValue("data_name_proposal", "events/table");
         m_tabStream->start();
 

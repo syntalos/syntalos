@@ -891,20 +891,22 @@ QString AbstractModule::datasetNameSuggestion(bool lowercase) const
     return datasetName;
 }
 
-QString AbstractModule::datasetNameFromSubMetadata(const QVariantHash &subMetadata) const
+QString AbstractModule::datasetNameFromSubMetadata(const MetaStringMap &subMetadata) const
 {
-    const auto srcModNameKey = _commonMetadataKeyMap->value(CommonMetadataKey::SrcModName);
-    const auto dataNameProposalKey = _commonMetadataKeyMap->value(CommonMetadataKey::DataNameProposal);
+    const auto SrcModNameKey = _commonMetadataKeyMap->value(CommonMetadataKey::SrcModName);
+    const auto DataNameProposalKey = _commonMetadataKeyMap->value(CommonMetadataKey::DataNameProposal);
 
-    auto dataName = subMetadata.value(dataNameProposalKey).toString();
-    if (dataName.isEmpty())
-        dataName = subMetadata.value(srcModNameKey, datasetNameSuggestion()).toString();
-    else {
+    const auto srcModName = QString::fromStdString(subMetadata.valueOr<std::string>(SrcModNameKey, {}));
+
+    auto dataName = QString::fromStdString(subMetadata.valueOr<std::string>(DataNameProposalKey, {}));
+    if (dataName.isEmpty()) {
+        dataName = srcModName.isEmpty()? datasetNameSuggestion() : srcModName;
+    } else {
         if (dataName.contains('/')) {
             const auto parts = qStringSplitLimit(dataName, '/', 1);
             dataName = parts[0];
         } else {
-            dataName = subMetadata.value(srcModNameKey).toString();
+            dataName = srcModName;
         }
     }
 
@@ -916,9 +918,10 @@ QString AbstractModule::datasetNameFromSubMetadata(const QVariantHash &subMetada
     return dataName;
 }
 
-QString AbstractModule::dataBasenameFromSubMetadata(const QVariantHash &subMetadata, const QString &defaultName)
+QString AbstractModule::dataBasenameFromSubMetadata(const MetaStringMap &subMetadata, const QString &defaultName)
 {
-    auto dataName = subMetadata.value(_commonMetadataKeyMap->value(CommonMetadataKey::DataNameProposal)).toString();
+    auto dataName = qstr(
+        subMetadata.valueOr<std::string>(_commonMetadataKeyMap->value(CommonMetadataKey::DataNameProposal), ""));
     if (dataName.contains('/')) {
         const auto parts = qStringSplitLimit(dataName, '/', 1);
         dataName = parts[1];
@@ -934,13 +937,13 @@ QString AbstractModule::dataBasenameFromSubMetadata(const QVariantHash &subMetad
     return dataName;
 }
 
-QString AbstractModule::datasetNameFromParameters(const QString &preferredName, const QVariantHash &subMetadata) const
+QString AbstractModule::datasetNameFromParameters(const QString &preferredName, const MetaStringMap &subMetadata) const
 {
     QString datasetName;
 
     // if we have subscription metadata, try to use that data to determine the
     // data set name
-    if (!subMetadata.isEmpty()) {
+    if (!subMetadata.empty()) {
         datasetName = datasetNameFromSubMetadata(subMetadata);
     }
 
@@ -962,7 +965,7 @@ QString AbstractModule::datasetNameFromParameters(const QString &preferredName, 
 
 std::shared_ptr<EDLDataset> AbstractModule::createDefaultDataset(
     const QString &preferredName,
-    const QVariantHash &subMetadata)
+    const MetaStringMap &subMetadata)
 {
     if (d->defaultDataset.get() != nullptr)
         return d->defaultDataset;
@@ -983,7 +986,7 @@ std::shared_ptr<EDLDataset> AbstractModule::createDefaultDataset(
 std::shared_ptr<EDLDataset> AbstractModule::createDatasetInGroup(
     std::shared_ptr<EDLGroup> group,
     const QString &preferredName,
-    const QVariantHash &subMetadata)
+    const MetaStringMap &subMetadata)
 {
     const auto datasetName = datasetNameFromParameters(preferredName, subMetadata);
 

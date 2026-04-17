@@ -83,9 +83,8 @@ public:
         m_framesOut->setMetadata(m_framesIn->metadata());
 
         // notify transformers about original data
-        const auto origQSize = m_framesIn->metadataValue("size", QSize()).toSize();
-        m_expectedFrameSize = cv::Size(origQSize.width(), origQSize.height());
-        QSize tfISize = origQSize;
+        MetaSize tfISize = m_framesIn->metadataValue<MetaSize>("size", {});
+        m_expectedFrameSize = cv::Size(tfISize.width, tfISize.height);
         for (const auto &vtf : m_activeVTFList) {
             vtf->setOriginalSize(tfISize);
             vtf->start();

@@ -84,7 +84,7 @@ public:
     {
         m_stopped = true;
         m_tabOut->setSuggestedDataName(QStringLiteral("table-%1/time-pulses").arg(datasetNameSuggestion()));
-        m_tabOut->setMetadataValue("table_header", QStringList() << QStringLiteral("Time (µs)"));
+        m_tabOut->setMetadataValue("table_header", MetaArray{"Time (µs)"});
 
         // start the streams
         m_ctlOut->start();

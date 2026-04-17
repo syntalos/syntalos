@@ -113,8 +113,8 @@ public:
 
     bool prepare(const TestSubject &subject) override
     {
-        m_vOut->setMetadataValue("size", QSize(960, 600));
-        m_vOut->setMetadataValue("framerate", (double)200);
+        m_vOut->setMetadataValue("size", MetaSize(960, 600));
+        m_vOut->setMetadataValue("framerate", (double)200.0);
         m_vOut->start();
 
         return MLinkModule::prepare(subject);

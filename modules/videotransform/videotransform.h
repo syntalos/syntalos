@@ -20,12 +20,15 @@
 #pragma once
 
 #include "datactl/frametype.h"
+#include "datactl/streammeta.h"
 #include <QObject>
 #include <QWidget>
 
 class QLabel;
 class QPushButton;
 class QSpinBox;
+
+using namespace Syntalos;
 
 /**
  * @brief Interface for all transformation classes
@@ -42,8 +45,8 @@ public:
     };
     virtual void createSettingsUi(QWidget *parent) = 0;
 
-    void setOriginalSize(const QSize &size);
-    virtual QSize resultSize();
+    void setOriginalSize(const MetaSize &size);
+    virtual MetaSize resultSize();
 
     [[nodiscard]] virtual bool allowOnlineModify() const;
 
@@ -68,7 +71,7 @@ public:
     virtual void fromVariantHash(const QVariantHash &settings);
 
 protected:
-    QSize m_originalSize;
+    MetaSize m_originalSize;
 };
 
 /**
@@ -85,7 +88,7 @@ public:
     void createSettingsUi(QWidget *parent) override;
 
     [[nodiscard]] bool allowOnlineModify() const override;
-    QSize resultSize() override;
+    MetaSize resultSize() override;
 
     void start() override;
     void process(cv::Mat &image) override;
@@ -134,7 +137,7 @@ public:
     [[nodiscard]] QIcon icon() const override;
     void createSettingsUi(QWidget *parent) override;
 
-    QSize resultSize() override;
+    MetaSize resultSize() override;
     void process(cv::Mat &image) override;
 
     QVariantHash toVariantHash() override;

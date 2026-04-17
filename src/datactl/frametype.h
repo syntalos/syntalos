@@ -17,7 +17,7 @@
  * along with this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-// We allow the "Frame" type to not be compiled in, since anyone
+// We allow the "Frame" type to not be visible, since anyone
 // linking against datactl does not also want to link against
 // OpenCV, which is a very heavy dependency.
 #ifndef SY_DATACTL_NO_FRAMETYPE

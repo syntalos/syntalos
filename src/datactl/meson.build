@@ -6,6 +6,7 @@ sy_datactl_pub_hdr = [
     'frametype.h',
     'edlstorage.h',
     'eigenaux.h',
+    'streammeta.h',
     'syclock.h',
     'timesync.h',
     'tsyncfile.h',

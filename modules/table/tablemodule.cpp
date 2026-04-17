@@ -126,15 +126,20 @@ public:
         // remove any old data from the table display
         m_recTable->reset();
 
-        const auto header = mdata.value("table_header").toStringList();
+        const auto headerRaw = mdata.valueOr<MetaArray>("table_header", {});
+        QStringList header;
+        for (const auto &v : headerRaw)
+            header.append(QString::fromStdString(v.getOr<std::string>("")));
         m_recTable->setHeader(header);
 
-        auto imgWinTitle = m_rowSub->metadataValue(CommonMetadataKey::SrcModName).toString();
+        auto imgWinTitle = QString::fromStdString(
+            m_rowSub->metadataValue<std::string>(CommonMetadataKey::SrcModName, {}));
         if (imgWinTitle.isEmpty())
             imgWinTitle = "Table";
-        const auto portTitle = m_rowSub->metadataValue(CommonMetadataKey::SrcModPortTitle).toString();
+        const auto portTitle = QString::fromStdString(
+            m_rowSub->metadataValue<std::string>(CommonMetadataKey::SrcModPortTitle, {}));
         if (!portTitle.isEmpty())
-            imgWinTitle = QStringLiteral("%1 - %2").arg(imgWinTitle).arg(portTitle);
+            imgWinTitle = QStringLiteral("%1 - %2").arg(imgWinTitle, portTitle);
         m_recTable->widget()->setWindowTitle(imgWinTitle);
     }
 

@@ -104,29 +104,23 @@ public:
     bool prepare(const TestSubject &) override
     {
         m_frameOut->setMetadataValue("framerate", (double)m_fps);
-        m_frameOut->setMetadataValue("size", m_outFrameSize);
+        m_frameOut->setMetadataValue("size", MetaSize(m_outFrameSize.width(), m_outFrameSize.height()));
         m_frameOut->start();
         m_prevFrameTime = microseconds_t(0);
 
         m_rowsOut->setSuggestedDataName(QStringLiteral("table-%1/testvalues").arg(datasetNameSuggestion()));
-        m_rowsOut->setMetadataValue(
-            "table_header",
-            QStringList() << QStringLiteral("Time") << QStringLiteral("Tag") << QStringLiteral("Value"));
+        m_rowsOut->setMetadataValue("table_header", MetaArray{"Time", "Tag", "Value"});
         m_rowsOut->start();
         m_prevRowTime = 0;
 
         m_prevTimeSData = 0;
         m_prevIntValue = 0;
-        m_floatOut->setMetadataValue(
-            "signal_names",
-            QStringList() << "Sine 1"
-                          << "Sine 2"
-                          << "Sine 3");
+        m_floatOut->setMetadataValue("signal_names", MetaArray{"Sine 1", "Sine 2", "Sine 3"});
         m_floatOut->setMetadataValue("time_unit", "microseconds");
         m_floatOut->setMetadataValue("data_unit", "au");
         m_floatOut->start();
 
-        m_intOut->setMetadataValue("signal_names", QStringList() << "Int 1");
+        m_intOut->setMetadataValue("signal_names", MetaArray{"Int 1"});
         m_intOut->setMetadataValue("time_unit", "microseconds");
         m_intOut->setMetadataValue("data_unit", "au");
         m_intOut->start();

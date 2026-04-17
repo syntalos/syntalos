@@ -71,10 +71,17 @@ bool Tracker::initialize()
     // set position header and start the output data stream
     m_dataStream->setMetadataValue(
         "table_header",
-        QStringList() << QStringLiteral("Time") << QStringLiteral("Red X") << QStringLiteral("Red Y")
-                      << QStringLiteral("Green X") << QStringLiteral("Green Y") << QStringLiteral("Blue X")
-                      << QStringLiteral("Blue Y") << QStringLiteral("Center X") << QStringLiteral("Center Y")
-                      << QStringLiteral("Turn Angle (deg)"));
+        MetaArray{
+            "Time",
+            "Red X",
+            "Red Y",
+            "Green X",
+            "Green Y",
+            "Blue X",
+            "Blue Y",
+            "Center X",
+            "Center Y",
+            "Turn Angle (deg)"});
     m_dataStream->start();
 
     // clear maze position data

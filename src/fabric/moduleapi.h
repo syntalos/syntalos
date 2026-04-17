@@ -815,7 +815,7 @@ protected:
      * This function always returns a valid name, if no suggestion
      * is given from the subscriber, the module's name is used.
      */
-    QString datasetNameFromSubMetadata(const QVariantHash &subMetadata) const;
+    QString datasetNameFromSubMetadata(const MetaStringMap &subMetadata) const;
 
     /**
      * @brief Get name of a dataset from subscription metadata and preferred name
@@ -826,7 +826,7 @@ protected:
      * This function always returns a valid name, if no suggestion
      * is given from the subscriber, the module's name is used.
      */
-    QString datasetNameFromParameters(const QString &preferredName, const QVariantHash &subMetadata) const;
+    QString datasetNameFromParameters(const QString &preferredName, const MetaStringMap &subMetadata) const;
 
     /**
      * @brief Get file basename for data from subscription metadata
@@ -838,7 +838,7 @@ protected:
      * This function returns the "default" string if no suggestion was made.
      */
     QString dataBasenameFromSubMetadata(
-        const QVariantHash &subMetadata,
+        const MetaStringMap &subMetadata,
         const QString &defaultName = QStringLiteral("data"));
 
     /**
@@ -859,11 +859,11 @@ protected:
      */
     std::shared_ptr<EDLDataset> createDefaultDataset(
         const QString &preferredName = QString(),
-        const QVariantHash &subMetadata = QVariantHash());
+        const MetaStringMap &subMetadata = {});
     std::shared_ptr<EDLDataset> createDatasetInGroup(
         std::shared_ptr<EDLGroup> group,
         const QString &preferredName = QString(),
-        const QVariantHash &subMetadata = QVariantHash());
+        const MetaStringMap &subMetadata = {});
 
     /**
      * @brief Obtain the module's default dataset if it exists
