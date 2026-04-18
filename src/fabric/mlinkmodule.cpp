@@ -336,9 +336,17 @@ MLinkModule::MLinkModule(QObject *parent)
 
 bool MLinkModule::initialize()
 {
-    // We need to initialize the connection here, since only now do we know the
+    if (moduleBinary().isEmpty()) {
+        raiseError("Unable to find module binary. Is the module installed correctly?");
+        return false;
+    }
+
+    // Ensure the module process is running. This will also call resetConnection()
+    // to initialize the connection at this point, since only now do we know the
     // module ID and index and can react to & recover from errors properly.
-    resetConnection();
+    if (!runProcess())
+        return false;
+
     return AbstractModule::initialize();
 }
 
@@ -711,13 +719,13 @@ bool MLinkModule::runProcess()
     // ensure any existing process does not exist
     terminateProcess();
 
+    // reset connection, just in case we changed our ID
+    resetConnection();
+
     if (d->proc->program().isEmpty()) {
         qCWarning(logMLinkMod).noquote() << "MLink module has not set a worker binary";
         return false;
     }
-
-    // reset connection, just in case we changed our ID
-    resetConnection();
 
     auto penv = moduleBinaryEnv();
     penv.insert("SYNTALOS_VERSION", syntalosVersionFull());

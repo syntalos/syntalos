@@ -66,19 +66,6 @@ public:
         return runProcess();
     }
 
-    bool initialize() override
-    {
-        if (moduleBinary().isEmpty()) {
-            raiseError("Unable to find module binary. Is the module installed correctly?");
-            return false;
-        }
-
-        if (!ensureModuleRunning())
-            return false;
-
-        return MLinkModule::initialize();
-    }
-
     bool prepare(const TestSubject &testSubject) override
     {
         setOutputCaptured(true);
