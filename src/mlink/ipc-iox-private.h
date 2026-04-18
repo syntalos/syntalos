@@ -47,6 +47,9 @@ template<typename Req, typename Res>
 using IoxClient = iox2::Client<iox2::ServiceType::Ipc, Req, void, Res, void>;
 using IoxUntypedClient = iox2::Client<iox2::ServiceType::Ipc, iox2::bb::Slice<std::byte>, void, DoneResponse, void>;
 
+using SliceActiveRequest =
+    iox2::ActiveRequest<iox2::ServiceType::Ipc, iox2::bb::Slice<std::byte>, void, DoneResponse, void>;
+
 using IoxByteSlice = iox2::bb::ImmutableSlice<std::byte>;
 using IoxServiceNameString = iox2::bb::StaticString<IOX2_SERVICE_NAME_LENGTH>;
 

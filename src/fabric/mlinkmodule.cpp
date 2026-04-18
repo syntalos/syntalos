@@ -81,9 +81,9 @@ public:
     // Subscribers to receive information from module processes
     std::optional<IoxSubscriber<ErrorEvent>> subError;
     std::optional<IoxSubscriber<StateChangeEvent>> subStateChange;
-    std::optional<IoxSliceSubscriber> subInPortChange;
-    std::optional<IoxSliceSubscriber> subOutPortChange;
     std::optional<IoxSliceSubscriber> subSettingsChange;
+    std::optional<IoxUntypedServer> srvInPortChange;
+    std::optional<IoxUntypedServer> srvOutPortChange;
 
     // Output port forwarders
     struct OutPortSub {
@@ -147,6 +147,17 @@ public:
         }
     }
 
+    static void replyDoneSlice(SliceActiveRequest &req, bool success)
+    {
+        auto maybeResponse = req.loan_uninit();
+        if (!maybeResponse.has_value()) {
+            qCWarning(logMLinkMod) << "Failed to loan response for port change reply:"
+                                   << iox2::bb::into<const char *>(maybeResponse.error());
+            return;
+        }
+        iox2::send(std::move(maybeResponse).value().write_payload(DoneResponse{success})).value();
+    }
+
     void checkClientStateChange(MLinkModule *self)
     {
         if (!subStateChange.has_value())
@@ -207,6 +218,12 @@ public:
         while (true) {
             checkClientError(self);
             qApp->processEvents();
+            // Pump worker-initiated port-change requests from the main thread only when
+            // the dedicated module thread is not active. When the thread is running, it
+            // handles these requests itself via its WaitSet; calling handleIncomingControl()
+            // from both threads simultaneously would race on the server objects.
+            if (threadStopped)
+                self->handleIncomingControl();
             auto response = pending.receive().value();
             if (response.has_value())
                 return response->payload();
@@ -280,6 +297,8 @@ public:
         while (true) {
             checkClientError(self);
             qApp->processEvents();
+            if (threadStopped)
+                self->handleIncomingControl();
             auto response = pending.receive().value();
             if (response.has_value())
                 return response->payload().success;
@@ -413,23 +432,20 @@ void MLinkModule::handleIncomingControl()
     // State changes
     d->checkClientStateChange(this);
 
-    // Input port change events
-    if (d->subInPortChange.has_value()) {
+    // Input port change requests
+    if (d->srvInPortChange.has_value()) {
         while (true) {
-            auto sample = safeReceive(*d->subInPortChange);
-            if (!sample.has_value())
+            auto req = safeReceive(*d->srvInPortChange);
+            if (!req.has_value())
                 break;
 
             // deserialize
-            const auto pl = sample->payload();
-            const auto ipc = InputPortChange::fromMemory(pl.data(), pl.number_of_bytes());
+            const auto pl = req->payload();
+            const auto ipc = InputPortChangeRequest::fromMemory(pl.data(), pl.number_of_bytes());
             const auto action = ipc.action;
             if (!d->portChangesAllowed) {
                 qCDebug(logMLinkMod).noquote() << "Input port change request ignored: No changes are allowed.";
-                continue;
-            }
-            if (action == PortAction::ADD) {
-                // only register a new input port if we don't have one already
+            } else if (action == PortAction::ADD) {
                 const auto portId = QString::fromStdString(ipc.id);
                 const auto portTitle = QString::fromStdString(ipc.title);
                 auto iport = inPortById(portId);
@@ -444,50 +460,52 @@ void MLinkModule::handleIncomingControl()
                 removeInPortById(QString::fromStdString(ipc.id));
                 d->inPortIdMap.remove(ipc.id);
             }
+
+            // always acknowledge so the worker never waits too long
+            Private::replyDoneSlice(*req, true);
         }
     }
 
-    // Output port change events
-    if (d->subOutPortChange.has_value()) {
+    // Output port change requests
+    if (d->srvOutPortChange.has_value()) {
         while (true) {
-            auto sample = safeReceive(*d->subOutPortChange);
-            if (!sample.has_value())
+            auto req = safeReceive(*d->srvOutPortChange);
+            if (!req.has_value())
                 break;
 
             // deserialize
-            const auto pl = sample->payload();
-            const auto opc = OutputPortChange::fromMemory(pl.data(), pl.number_of_bytes());
+            const auto pl = req->payload();
+            const auto opc = OutputPortChangeRequest::fromMemory(pl.data(), pl.number_of_bytes());
             const auto action = opc.action;
             if (action == PortAction::ADD) {
                 if (!d->portChangesAllowed) {
                     qCDebug(logMLinkMod).noquote() << "Output port addition ignored: No changes are allowed.";
-                    continue;
-                }
-
-                // only register a new output port if we don't have one with that ID already
-                const auto portId = QString::fromStdString(opc.id);
-                const auto portTitle = QString::fromStdString(opc.title);
-                auto oport = outPortById(portId);
-                std::shared_ptr<VariantDataStream> ostream;
-                if (oport) {
-                    if (oport->dataTypeId() != opc.dataTypeId) {
-                        removeOutPortById(portId);
-                        oport = nullptr;
-                    } else {
-                        ostream = oport->streamVar();
+                } else {
+                    // only register a new output port if we don't have one with that ID already
+                    const auto portId = QString::fromStdString(opc.id);
+                    const auto portTitle = QString::fromStdString(opc.title);
+                    auto oport = outPortById(portId);
+                    std::shared_ptr<VariantDataStream> ostream;
+                    if (oport) {
+                        if (oport->dataTypeId() != opc.dataTypeId) {
+                            removeOutPortById(portId);
+                            oport = nullptr;
+                        } else {
+                            ostream = oport->streamVar();
+                        }
                     }
+                    if (!ostream)
+                        ostream = registerOutputPortByTypeId(opc.dataTypeId, portId, portTitle);
+                    ostream->setMetadata(opc.metadata);
+                    d->outPortIdMap[opc.id] = ostream;
                 }
-                if (!ostream)
-                    ostream = registerOutputPortByTypeId(opc.dataTypeId, portId, portTitle);
-                ostream->setMetadata(opc.metadata);
-                d->outPortIdMap[opc.id] = ostream;
             } else if (action == PortAction::REMOVE) {
                 if (!d->portChangesAllowed) {
                     qCDebug(logMLinkMod).noquote() << "Output port removal ignored: No changes are allowed.";
-                    continue;
+                } else {
+                    removeOutPortById(QString::fromStdString(opc.id));
+                    d->outPortIdMap.remove(opc.id);
                 }
-                removeOutPortById(QString::fromStdString(opc.id));
-                d->outPortIdMap.remove(opc.id);
             } else if (action == PortAction::CHANGE) {
                 std::shared_ptr<VariantDataStream> ostream;
                 if (d->outPortIdMap.contains(opc.id))
@@ -497,6 +515,9 @@ void MLinkModule::handleIncomingControl()
                 if (ostream)
                     ostream->setMetadata(opc.metadata);
             }
+
+            // always acknowledge so the worker never blocks indefinitely
+            Private::replyDoneSlice(*req, true);
         }
     }
 
@@ -523,18 +544,18 @@ void MLinkModule::resetConnection()
     // ensure the old connections are gone before we are trying to create new ones
     d->subError.reset();
     d->subStateChange.reset();
-    d->subInPortChange.reset();
-    d->subOutPortChange.reset();
+    d->srvInPortChange.reset();
+    d->srvOutPortChange.reset();
     d->subSettingsChange.reset();
     d->workerCtlEventListener.reset();
     d->ctlEventNotifier.reset();
 
-    // (re)create subscribers for client -> master data channels
+    // (re)create subscribers/servers for client -> master data channels
     d->subError.emplace(makeTypedSubscriber<ErrorEvent>(*d->node, d->svcName(ERROR_CHANNEL_ID)));
     d->subStateChange.emplace(makeTypedSubscriber<StateChangeEvent>(*d->node, d->svcName(STATE_CHANNEL_ID)));
-    d->subInPortChange.emplace(makeSliceSubscriber(*d->node, d->svcName(IN_PORT_CHANGE_CHANNEL_ID)));
-    d->subOutPortChange.emplace(makeSliceSubscriber(*d->node, d->svcName(OUT_PORT_CHANGE_CHANNEL_ID)));
     d->subSettingsChange.emplace(makeSliceSubscriber(*d->node, d->svcName(SETTINGS_CHANGE_CHANNEL_ID)));
+    d->srvInPortChange.emplace(makeSliceServer(*d->node, d->svcName(IN_PORT_CHANGE_CHANNEL_ID)));
+    d->srvOutPortChange.emplace(makeSliceServer(*d->node, d->svcName(OUT_PORT_CHANGE_CHANNEL_ID)));
 
     // control listener: Called when the client publishes a control command
     d->workerCtlEventListener.emplace(ipc::makeEventListener(*d->node, d->svcName(WORKER_CTL_EVENT_ID)));
@@ -751,7 +772,7 @@ bool MLinkModule::runProcess()
     QElapsedTimer timer;
     timer.start();
     do {
-        QCoreApplication::processEvents();
+        qApp->processEvents();
         handleIncomingControl();
 
         if (!workerFound && state() != prevState)
@@ -824,7 +845,7 @@ bool MLinkModule::sendPortInformation()
         SetPortsPresetRequest req;
 
         for (const auto &iport : inPorts()) {
-            InputPortChange ipc(PortAction::CHANGE);
+            InputPortChangeRequest ipc(PortAction::CHANGE);
             ipc.id = iport->id().toStdString();
             ipc.dataTypeId = iport->dataTypeId();
             ipc.title = iport->title().toStdString();
@@ -832,7 +853,7 @@ bool MLinkModule::sendPortInformation()
         }
 
         for (const auto &oport : outPorts()) {
-            OutputPortChange opc(PortAction::CHANGE);
+            OutputPortChangeRequest opc(PortAction::CHANGE);
             opc.id = oport->id().toStdString();
             opc.dataTypeId = oport->dataTypeId();
             opc.title = oport->title().toStdString();
@@ -1012,13 +1033,9 @@ bool MLinkModule::prepare(const TestSubject &subject)
         }
     }
 
-    // Extra drain: READY (on subStateChange) and any OutputPortChange::CHANGE messages
-    // (on subOutPortChange) travel through two separate channels.
-    // Although the worker always publishes CHANGE before READY (in the same thread),
-    // the loop above may exit as soon as READY is visible on its service, before the
-    // CHANGE sample has been committed to the subOutPortChange subscriber buffer on the
-    // master side. One additional drain pass here ensures that metadata set by the worker
-    // is applied to the DataStream's metadata before we commit it into subscriptions.
+    // Final drain to pick up any control events (e.g. settings changes) that arrived
+    // concurrently with the READY state. Port changes are acknowledged synchronously
+    // via request-response, so they are already applied by the time READY is seen.
     handleIncomingControl();
 
     // register output port forwarding from exported data streams to internal data transmission
@@ -1045,6 +1062,10 @@ void MLinkModule::start()
 {
     d->portChangesAllowed = false;
 
+    // timestamp when this module was started
+    auto startTimestampUs =
+        std::chrono::duration_cast<std::chrono::microseconds>(m_syTimer->currentTimePoint().time_since_epoch()).count();
+
     // update input port metadata if the metadata has changed - this may happen in case of circular module connections
     for (auto &iport : inPorts()) {
         if (!iport->hasSubscription())
@@ -1064,19 +1085,12 @@ void MLinkModule::start()
     d->sentMetadata.clear();
 
     // tell the module to launch!
-    auto timestampUs =
-        std::chrono::duration_cast<std::chrono::microseconds>(m_syTimer->currentTimePoint().time_since_epoch()).count();
     d->callClientSimple<StartRequest>(this, START_CALL_ID, [&](auto &req) {
-        req.startTimestampUsec = timestampUs;
+        req.startTimestampUsec = startTimestampUs;
     });
 
     // stop reading control events in the GUI thread - the module thread will do that for us soon
     d->ctlEventTimer->stop();
-
-    // The worker's start() callback has already run before the Done reply
-    // arrived. Drain any OutputPortChange messages it published (e.g. metadata
-    // updates from Python start()) before we start the output streams below.
-    handleIncomingControl();
 
     // Start all streams. This re-snapshots the (now-final and immutable) metadata
     // into all output-port subscriptions.

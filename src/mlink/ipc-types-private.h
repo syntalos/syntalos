@@ -84,7 +84,7 @@ enum class PortAction : uint8_t {
 /**
  * @brief Information about an input port change
  */
-struct InputPortChange {
+struct InputPortChangeRequest {
     PortAction action{PortAction::UNKNOWN};
 
     std::string id;
@@ -93,8 +93,8 @@ struct InputPortChange {
     MetaStringMap metadata;
     uint throttleItemsPerSec{0};
 
-    InputPortChange() = default;
-    explicit InputPortChange(PortAction pa)
+    InputPortChangeRequest() = default;
+    explicit InputPortChangeRequest(PortAction pa)
         : action(pa),
           dataTypeId(-1),
           throttleItemsPerSec(0)
@@ -111,9 +111,9 @@ struct InputPortChange {
         out.write(throttleItemsPerSec);
     }
 
-    static InputPortChange readFrom(BinaryStreamReader &in)
+    static InputPortChangeRequest readFrom(BinaryStreamReader &in)
     {
-        InputPortChange info;
+        InputPortChangeRequest info;
         in.read(info.action);
         in.read(info.id);
         in.read(info.title);
@@ -131,7 +131,7 @@ struct InputPortChange {
         return bytes;
     }
 
-    static InputPortChange fromMemory(const void *memory, size_t size)
+    static InputPortChangeRequest fromMemory(const void *memory, size_t size)
     {
         BinaryStreamReader stream(memory, size);
         return readFrom(stream);
@@ -142,7 +142,7 @@ static const std::string IN_PORT_CHANGE_CHANNEL_ID = "InPortChange";
 /**
  * @brief Information about an output port change
  */
-struct OutputPortChange {
+struct OutputPortChangeRequest {
     PortAction action{PortAction::UNKNOWN};
 
     std::string id;
@@ -151,8 +151,8 @@ struct OutputPortChange {
     MetaStringMap metadata;
     IpcServiceTopology topology;
 
-    OutputPortChange() = default;
-    explicit OutputPortChange(PortAction pa)
+    OutputPortChangeRequest() = default;
+    explicit OutputPortChangeRequest(PortAction pa)
         : action(pa),
           dataTypeId(-1)
     {
@@ -170,9 +170,9 @@ struct OutputPortChange {
         out.write(topology.maxNodes);
     }
 
-    static OutputPortChange readFrom(BinaryStreamReader &in)
+    static OutputPortChangeRequest readFrom(BinaryStreamReader &in)
     {
-        OutputPortChange info;
+        OutputPortChangeRequest info;
         in.read(info.action);
         in.read(info.id);
         in.read(info.title);
@@ -192,7 +192,7 @@ struct OutputPortChange {
         return bytes;
     }
 
-    static OutputPortChange fromMemory(const void *memory, size_t size)
+    static OutputPortChangeRequest fromMemory(const void *memory, size_t size)
     {
         BinaryStreamReader stream(memory, size);
         return readFrom(stream);
@@ -366,8 +366,8 @@ struct LoadScriptRequest {
 static const std::string LOAD_SCRIPT_CALL_ID = "LoadScript";
 
 struct SetPortsPresetRequest {
-    std::vector<InputPortChange> inPorts;
-    std::vector<OutputPortChange> outPorts;
+    std::vector<InputPortChangeRequest> inPorts;
+    std::vector<OutputPortChangeRequest> outPorts;
 
     [[nodiscard]] ByteVector toBytes() const
     {
@@ -390,11 +390,11 @@ struct SetPortsPresetRequest {
         stream.read(count);
         req.inPorts.reserve(count);
         for (uint64_t i = 0; i < count; ++i)
-            req.inPorts.push_back(InputPortChange::readFrom(stream));
+            req.inPorts.push_back(InputPortChangeRequest::readFrom(stream));
         stream.read(count);
         req.outPorts.reserve(count);
         for (uint64_t i = 0; i < count; ++i)
-            req.outPorts.push_back(OutputPortChange::readFrom(stream));
+            req.outPorts.push_back(OutputPortChangeRequest::readFrom(stream));
         return req;
     }
 };

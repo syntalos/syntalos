@@ -83,7 +83,7 @@ std::unique_ptr<SyntalosLink> initSyntalosModuleLink()
 class InputPortInfo::Private
 {
 public:
-    explicit Private(const InputPortChange &pc)
+    explicit Private(const InputPortChangeRequest &pc)
         : index(0),
           connected(false),
           id(pc.id),
@@ -108,7 +108,7 @@ public:
     uint throttleItemsPerSec;
 };
 
-InputPortInfo::InputPortInfo(const InputPortChange &pc)
+InputPortInfo::InputPortInfo(const InputPortChangeRequest &pc)
     : d(new InputPortInfo::Private(pc))
 {
 }
@@ -162,7 +162,7 @@ MetaStringMap InputPortInfo::metadata() const
 class OutputPortInfo::Private
 {
 public:
-    explicit Private(const OutputPortChange &pc)
+    explicit Private(const OutputPortChangeRequest &pc)
         : index(0),
           connected(false),
           id(pc.id),
@@ -191,7 +191,7 @@ public:
     }
 };
 
-OutputPortInfo::OutputPortInfo(const OutputPortChange &pc)
+OutputPortInfo::OutputPortInfo(const OutputPortChangeRequest &pc)
     : d(new OutputPortInfo::Private(pc))
 {
 }
@@ -228,10 +228,10 @@ public:
         pubError.emplace(makeTypedPublisher<ErrorEvent>(*node, svcName(ERROR_CHANNEL_ID)));
         pubState.emplace(makeTypedPublisher<StateChangeEvent>(*node, svcName(STATE_CHANNEL_ID)));
         pubStatusMsg.emplace(makeTypedPublisher<StatusMessageEvent>(*node, svcName(STATUS_MESSAGE_CHANNEL_ID)));
-
         pubSettingsChange.emplace(makeSlicePublisher(*node, svcName(SETTINGS_CHANGE_CHANNEL_ID)));
-        pubInPortChange.emplace(makeSlicePublisher(*node, svcName(IN_PORT_CHANGE_CHANNEL_ID)));
-        pubOutPortChange.emplace(makeSlicePublisher(*node, svcName(OUT_PORT_CHANGE_CHANNEL_ID)));
+
+        cltInPortChange.emplace(makeSliceClient(*node, svcName(IN_PORT_CHANGE_CHANNEL_ID)));
+        cltOutPortChange.emplace(makeSliceClient(*node, svcName(OUT_PORT_CHANGE_CHANNEL_ID)));
 
         srvApiVersion.emplace(
             makeTypedServer<ApiVersionRequest, ApiVersionResponse>(*node, svcName(API_VERSION_CALL_ID)));
@@ -267,8 +267,10 @@ public:
     std::optional<IoxPublisher<StateChangeEvent>> pubState;
     std::optional<IoxPublisher<StatusMessageEvent>> pubStatusMsg;
     std::optional<IoxSlicePublisher> pubSettingsChange;
-    std::optional<IoxSlicePublisher> pubInPortChange;
-    std::optional<IoxSlicePublisher> pubOutPortChange;
+
+    // Clients: Module -> Syntalos master
+    std::optional<IoxUntypedClient> cltInPortChange;
+    std::optional<IoxUntypedClient> cltOutPortChange;
 
     // Servers: Syntalos master -> Module process commands
     std::optional<IoxServer<ApiVersionRequest, ApiVersionResponse>> srvApiVersion;
@@ -341,6 +343,36 @@ public:
     }
 
     /**
+     * Send a port change to master and block until acknowledged.
+     */
+    void sendPortChangeData(IoxUntypedClient &clt, const ByteVector &data)
+    {
+        auto maybeSlice = clt.loan_slice_uninit(static_cast<uint64_t>(data.size()));
+        if (!maybeSlice.has_value()) {
+            std::cerr << "Failed to loan memory for port change request: "
+                      << iox2::bb::into<const char *>(maybeSlice.error()) << '\n';
+            return;
+        }
+        auto rawSlice = std::move(maybeSlice).value();
+        std::memmove(rawSlice.payload_mut().data(), data.data(), data.size());
+        auto pending = iox2::send(iox2::assume_init(std::move(rawSlice))).value();
+        notifyMaster();
+
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(60);
+        while (true) {
+            auto response = pending.receive().value();
+            if (response.has_value())
+                return;
+            if (std::chrono::steady_clock::now() >= deadline) {
+                std::cerr << "Port change acknowledgment from master timed out after 60s - aborting worker."
+                          << std::endl;
+                std::abort();
+            }
+            std::this_thread::sleep_for(std::chrono::microseconds(25));
+        }
+    }
+
+    /**
      * Send a typed DoneResponse from a typed active request.
      */
     template<typename Req>
@@ -354,9 +386,6 @@ public:
         }
         iox2::send(std::move(maybeResponse).value().write_payload(DoneResponse{success})).value();
     }
-
-    using SliceActiveRequest =
-        iox2::ActiveRequest<iox2::ServiceType::Ipc, iox2::bb::Slice<std::byte>, void, DoneResponse, void>;
 
     /**
      * Send a DoneResponse from a slice active request.
@@ -737,9 +766,6 @@ void SyntalosLink::processPendingControl()
         auto req = safeReceive(*d->srvStart);
         if (!req.has_value())
             break;
-        // NOTE: We reply immediately here and defer processing of the call,
-        // so the master will not wait for us. Errors are reported exclusively
-        // via the error channel.
 
         const auto timePoint = symaster_timepoint(microseconds_t(req->payload().startTimestampUsec));
         delete d->syTimer;
@@ -753,9 +779,14 @@ void SyntalosLink::processPendingControl()
                 oport->d->ioxPub->handleEvents();
         }
 
-        Private::replyDone(*req, true);
+        // Run the start callback BEFORE sending Done so that any port metadata
+        // updates (e.g. forwarding framerate to output ports) are acknowledged
+        // by the master while it is still in the callClientSimple(START) wait loop.
+        // This guarantees that startStream() on the master side sees the final metadata.
+        // Any errors are reported via the error channel.
         if (d->startCb)
             d->startCb();
+        Private::replyDone(*req, true);
     }
 
     // ---- Stop ----
@@ -1032,7 +1063,7 @@ std::shared_ptr<InputPortInfo> SyntalosLink::registerInputPort(
     const std::string &dataTypeName)
 {
     // construct our reference for this port
-    InputPortChange ipc(PortAction::ADD);
+    InputPortChangeRequest ipc(PortAction::ADD);
     ipc.id = id;
     ipc.title = title;
     ipc.dataTypeId = BaseDataType::typeIdFromString(dataTypeName);
@@ -1049,14 +1080,9 @@ std::shared_ptr<InputPortInfo> SyntalosLink::registerInputPort(
             return nullptr;
     }
 
-    const auto iportData = ipc.toBytes();
-
     // announce the new port to master
-    auto uninit = d->pubInPortChange->loan_slice_uninit(static_cast<uint64_t>(iportData.size())).value();
-    iox2::send(uninit.write_from_fn([&](uint64_t i) {
-        return static_cast<std::byte>(iportData[static_cast<int>(i)]);
-    })).value();
-    d->notifyMaster();
+    const auto iportData = ipc.toBytes();
+    d->sendPortChangeData(*d->cltInPortChange, iportData);
 
     // we need to rebuild the waitset
     d->waitSetDirty = true;
@@ -1074,7 +1100,7 @@ std::shared_ptr<OutputPortInfo> SyntalosLink::registerOutputPort(
     const MetaStringMap &metadata)
 {
     // construct our reference for this port
-    OutputPortChange opc(PortAction::ADD);
+    OutputPortChangeRequest opc(PortAction::ADD);
     opc.id = id;
     opc.title = title;
     opc.dataTypeId = BaseDataType::typeIdFromString(dataTypeName);
@@ -1092,14 +1118,9 @@ std::shared_ptr<OutputPortInfo> SyntalosLink::registerOutputPort(
             return nullptr;
     }
 
-    const auto oportData = opc.toBytes();
-
     // announce the new port to master
-    auto uninit = d->pubOutPortChange->loan_slice_uninit(static_cast<uint64_t>(oportData.size())).value();
-    iox2::send(uninit.write_from_fn([&](uint64_t i) {
-        return static_cast<std::byte>(oportData[static_cast<int>(i)]);
-    })).value();
-    d->notifyMaster();
+    const auto oportData = opc.toBytes();
+    d->sendPortChangeData(*d->cltOutPortChange, oportData);
 
     // we need to rebuild the waitset
     d->waitSetDirty = true;
@@ -1114,7 +1135,7 @@ std::shared_ptr<OutputPortInfo> SyntalosLink::registerOutputPort(
 
 void SyntalosLink::updateInputPort(const std::shared_ptr<InputPortInfo> &iport)
 {
-    InputPortChange ipc(PortAction::CHANGE);
+    InputPortChangeRequest ipc(PortAction::CHANGE);
     ipc.id = iport->id();
     ipc.title = iport->d->title;
     ipc.dataTypeId = iport->d->dataTypeId;
@@ -1122,44 +1143,29 @@ void SyntalosLink::updateInputPort(const std::shared_ptr<InputPortInfo> &iport)
     ipc.throttleItemsPerSec = iport->d->throttleItemsPerSec;
 
     const auto iportData = ipc.toBytes();
-    auto uninit = d->pubInPortChange->loan_slice_uninit(static_cast<uint64_t>(iportData.size())).value();
-    // we copy twice here - but this is a low-volume event, so it should be fine
-    iox2::send(uninit.write_from_fn([&](uint64_t i) {
-        return static_cast<std::byte>(iportData[static_cast<int>(i)]);
-    })).value();
-    d->notifyMaster();
+    d->sendPortChangeData(*d->cltInPortChange, iportData);
 }
 
 void SyntalosLink::updateOutputPort(const std::shared_ptr<OutputPortInfo> &oport)
 {
-    OutputPortChange opc(PortAction::CHANGE);
+    OutputPortChangeRequest opc(PortAction::CHANGE);
     opc.id = oport->id();
     opc.title = oport->d->title;
     opc.dataTypeId = oport->dataTypeId();
     opc.metadata = oport->d->metadata;
 
     const auto oportData = opc.toBytes();
-    auto uninit = d->pubOutPortChange->loan_slice_uninit(static_cast<uint64_t>(oportData.size())).value();
-    // we copy twice here - but this is a low-volume event, so it should be fine
-    iox2::send(uninit.write_from_fn([&](uint64_t i) {
-        return static_cast<std::byte>(oportData[static_cast<int>(i)]);
-    })).value();
-    d->notifyMaster();
+    d->sendPortChangeData(*d->cltOutPortChange, oportData);
 }
 
 void SyntalosLink::removeInputPort(const std::shared_ptr<InputPortInfo> &iport)
 {
-    // notify master
-    InputPortChange ipc(PortAction::REMOVE);
+    InputPortChangeRequest ipc(PortAction::REMOVE);
     ipc.id = iport->id();
 
+    // notify master
     const auto iportData = ipc.toBytes();
-    auto uninit = d->pubInPortChange->loan_slice_uninit(static_cast<uint64_t>(iportData.size())).value();
-    // we copy twice here - but this is a low-volume event, so it should be fine
-    iox2::send(uninit.write_from_fn([&](uint64_t i) {
-        return static_cast<std::byte>(iportData[static_cast<int>(i)]);
-    })).value();
-    d->notifyMaster();
+    d->sendPortChangeData(*d->cltInPortChange, iportData);
 
     // reset our reference (it will not be usable afterwards)
     iport->d->ioxGuard.reset();
@@ -1170,17 +1176,12 @@ void SyntalosLink::removeInputPort(const std::shared_ptr<InputPortInfo> &iport)
 
 void SyntalosLink::removeOutputPort(const std::shared_ptr<OutputPortInfo> &oport)
 {
-    // notify master
-    OutputPortChange opc(PortAction::REMOVE);
+    OutputPortChangeRequest opc(PortAction::REMOVE);
     opc.id = oport->id();
 
     const auto oportData = opc.toBytes();
-    auto uninit = d->pubOutPortChange->loan_slice_uninit(static_cast<uint64_t>(oportData.size())).value();
-    // we copy twice here - but this is a low-volume event, so it should be fine
-    iox2::send(uninit.write_from_fn([&](uint64_t i) {
-        return static_cast<std::byte>(oportData[static_cast<int>(i)]);
-    })).value();
-    d->notifyMaster();
+    // notify master
+    d->sendPortChangeData(*d->cltOutPortChange, oportData);
 
     // reset
     oport->d->ioxGuard.reset();

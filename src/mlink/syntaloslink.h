@@ -28,8 +28,8 @@ namespace Syntalos
 {
 
 class SyntalosLink;
-struct OutputPortChange;
-struct InputPortChange;
+struct OutputPortChangeRequest;
+struct InputPortChangeRequest;
 
 using LoadScriptFn = std::function<void(const std::string &script, const std::string &wdir)>;
 using PrepareStartFn = std::function<void(const ByteVector &settings)>;
@@ -78,7 +78,7 @@ public:
 
 private:
     friend SyntalosLink;
-    explicit InputPortInfo(const InputPortChange &pc);
+    explicit InputPortInfo(const InputPortChangeRequest &pc);
 
 private:
     class Private;
@@ -98,7 +98,7 @@ public:
 
 private:
     friend SyntalosLink;
-    explicit OutputPortInfo(const OutputPortChange &pc);
+    explicit OutputPortInfo(const OutputPortChangeRequest &pc);
 
 private:
     class Private;
