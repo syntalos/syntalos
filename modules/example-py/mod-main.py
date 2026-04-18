@@ -54,7 +54,7 @@ class MyExampleModule:
         self._iport = syl.get_input_port('frames-in')
         self._oport_frames = syl.get_output_port('frames-out')
         self._oport_rows = syl.get_output_port('rows-out')
-        self._oport_rows.set_metadata_value('table_header', ['Frame Counted'])
+        self._oport_rows.set_metadata_value('table_header', ['Time Received [us]', 'Frame Number'])
 
         # forward some metadata
         self._oport_frames.set_metadata_value('framerate', self._iport.metadata.get('framerate', 0))
@@ -98,7 +98,7 @@ class MyExampleModule:
         # submit new data to an output port
         frame.mat = mat
         self._oport_frames.submit(frame)
-        self._oport_rows.submit([self._frame_count])
+        self._oport_rows.submit([syl.time_since_start_usec(), self._frame_count])
 
     def stop(self):
         """

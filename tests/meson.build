@@ -118,7 +118,8 @@ test_manifests = [
     'scenarios/prism-smoketest.toml',
     'scenarios/video-transform-crop.toml',
     'scenarios/ipc-test-simple.toml',
-    'scenarios/ipc-test-pycpp.toml',
+    'scenarios/ipc-test-pycpp-mods.toml',
+    'scenarios/ipc-test-pycpp-scripts.toml',
     'scenarios/zarr-writer-test.toml',
 ]
 

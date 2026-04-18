@@ -1,0 +1,62 @@
+[test]
+name = "IPC Test - Python/C++ Modules"
+project_file = "projects/ipc-test-pycpp-mods.syct"
+run_duration_sec = 8
+expected_exit_code = 0
+expected_stderr_contains = ["Module start order: Devel: DataSource ⇢ LibMod Example ⇢ ExtMod Example ⇢ Raw Table ⇢ PyMod Example ⇢ Video Recorder 2 ⇢ LibMod Canvas ⇢ ExtMod Table ⇢ PyMod Table ⇢ Video Recorder ⇢ PyMod Canvas"]
+
+[[test.expected_output_files]]
+path = "attributes.toml"
+toml_fields = ["machine_node", "success"]
+
+[[test.expected_output_files]]
+path = "manifest.toml"
+toml_fields = ["collection_id", "format_version", "time_created", "type", "generator"]
+
+[[test.expected_output_files]]
+path = "table-input/manifest.toml"
+toml_fields = ["data.media_type", "data.parts"]
+
+[[test.expected_output_files]]
+path = "table-input/testvalues.csv"
+csv_validation = { expected_headers = ['Time', 'Tag', 'Value'], min_rows = 4 }
+
+[[test.expected_output_files]]
+path = "extmod-example/manifest.toml"
+toml_fields = ["data.media_type", "data.parts"]
+
+[[test.expected_output_files]]
+path = "extmod-example/table.csv"
+csv_validation = { expected_headers = ['Time', 'Tag', 'Value'], min_rows = 4 }
+
+[[test.expected_output_files]]
+path = "pymod-example/manifest.toml"
+toml_fields = ["data.media_type", "data.parts"]
+
+[[test.expected_output_files]]
+path = "pymod-example/table.csv"
+csv_validation = { expected_headers = ['Time Received [us]', 'Frame Number'], min_rows = 20 }
+
+[[test.expected_output_files]]
+path = "videos/libmod-example/manifest.toml"
+toml_fields = ["data.media_type", "data.parts"]
+
+[[test.expected_output_files]]
+path = "videos/libmod-example/*-video.mkv"
+min_size_bytes = 10146702
+
+[[test.expected_output_files]]
+path = "videos/libmod-example/*-video_timestamps.tsync"
+min_size_bytes = 12040
+
+[[test.expected_output_files]]
+path = "videos/pymod-example/manifest.toml"
+toml_fields = ["data.media_type", "data.parts"]
+
+[[test.expected_output_files]]
+path = "videos/pymod-example/*-video.mkv"
+min_size_bytes = 10146702
+
+[[test.expected_output_files]]
+path = "videos/pymod-example/*-video_timestamps.tsync"
+min_size_bytes = 12040

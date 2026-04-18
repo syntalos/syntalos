@@ -1,8 +1,9 @@
 [test]
-name = "IPC Test - Simple"
-project_file = "projects/ipc-test-simple.syct"
-run_duration_sec = 6
+name = "IPC Test - Python/C++ Scripting"
+project_file = "projects/ipc-test-pycpp-scripts.syct"
+run_duration_sec = 10
 expected_exit_code = 0
+expected_stderr_contains = ["Module start order: Devel: DataSource ⇢ Python Script ⇢ C++ Workbench ⇢ Input Tab ⇢ PyScript Canvas ⇢ Py Video Recorder ⇢ C++ Canvas ⇢ Output Tab ⇢ Cpp Video Recorder"]
 
 [[test.expected_output_files]]
 path = "attributes.toml"
@@ -13,24 +14,24 @@ path = "manifest.toml"
 toml_fields = ["collection_id", "format_version", "time_created", "type", "generator"]
 
 [[test.expected_output_files]]
-path = "oop-dev-tab/manifest.toml"
+path = "table-input/manifest.toml"
 toml_fields = ["data.media_type", "data.parts"]
 
 [[test.expected_output_files]]
-path = "oop-dev-tab/table.csv"
-csv_validation = { expected_headers = ["Index", "Frame Time"], min_rows = 5 }
+path = "table-input/testvalues.csv"
+csv_validation = { expected_headers = ['Time', 'Tag', 'Value'], min_rows = 4 }
 
 [[test.expected_output_files]]
-path = "oop-example-tab/manifest.toml"
+path = "videos/c++-workbench/manifest.toml"
 toml_fields = ["data.media_type", "data.parts"]
 
 [[test.expected_output_files]]
-path = "oop-example-tab/table.csv"
-csv_validation = { expected_headers = ["Time", "Tag", "Value"], min_rows = 2 }
+path = "videos/c++-workbench/*-video.mkv"
+min_size_bytes = 3136412
 
 [[test.expected_output_files]]
-path = "videos/manifest.toml"
-toml_fields = ["collection_id", "type"]
+path = "videos/c++-workbench/*-video_timestamps.tsync"
+min_size_bytes = 3864
 
 [[test.expected_output_files]]
 path = "videos/python-script/manifest.toml"
@@ -38,8 +39,8 @@ toml_fields = ["data.media_type", "data.parts"]
 
 [[test.expected_output_files]]
 path = "videos/python-script/*-video.mkv"
-min_size_bytes = 2650542
+min_size_bytes = 3136412
 
 [[test.expected_output_files]]
 path = "videos/python-script/*-video_timestamps.tsync"
-min_size_bytes = 12000
+min_size_bytes = 3864
