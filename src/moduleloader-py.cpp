@@ -148,8 +148,10 @@ public:
                     QMessageBox::Yes | QMessageBox::No);
 
                 // we reuse the old environment if the user selected "No"
-                if (reply == QMessageBox::No)
-                    return MLinkModule::initialize();
+                if (reply == QMessageBox::No) {
+                    setInitialized();
+                    return true;
+                }
 
                 processUiEvents();
                 if (!installVirtualEnv(true))
@@ -173,7 +175,8 @@ public:
         if (!ensurePythonCodeRunning())
             return false;
 
-        return MLinkModule::initialize();
+        setInitialized();
+        return true;
     }
 
     bool prepare(const TestSubject &testSubject) override
