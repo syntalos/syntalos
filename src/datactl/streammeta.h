@@ -56,6 +56,12 @@ struct MetaSize {
     bool operator==(const MetaSize &) const = default;
 };
 
+inline std::ostream &operator<<(std::ostream &os, const MetaSize &sz)
+{
+    os << "MetaSize(" << sz.width << ", " << sz.height << ")";
+    return os;
+}
+
 struct MetaValue;
 
 /**
@@ -80,6 +86,10 @@ struct MetaStringMap : std::map<std::string, MetaValue> {
     template<typename T>
     [[nodiscard]] T valueOr(const std::string &key, T fallback) const;
 };
+
+std::ostream &operator<<(std::ostream &os, const MetaArray &arr);
+std::ostream &operator<<(std::ostream &os, const MetaValue &v);
+std::ostream &operator<<(std::ostream &os, const MetaStringMap &map);
 
 /**
  * @brief Data type that can be used as stream metadata.
@@ -174,6 +184,55 @@ template<typename T>
 {
     const auto v = this->value(key);
     return v.has_value() ? v->template getOr<T>(std::move(fallback)) : std::move(fallback);
+}
+
+inline std::ostream &operator<<(std::ostream &os, const MetaArray &arr)
+{
+    os << '[';
+    bool first = true;
+    for (const auto &v : arr) {
+        if (!first)
+            os << ", ";
+        first = false;
+        os << v;
+    }
+    os << ']';
+    return os;
+}
+
+inline std::ostream &operator<<(std::ostream &os, const MetaStringMap &map)
+{
+    os << '{';
+    bool first = true;
+    for (const auto &[key, value] : map) {
+        if (!first)
+            os << ", ";
+        first = false;
+        os << '"' << key << "\": " << value;
+    }
+    os << '}';
+    return os;
+}
+
+inline std::ostream &operator<<(std::ostream &os, const MetaValue &v)
+{
+    std::visit(
+        [&os](const auto &value) {
+            using T = std::decay_t<decltype(value)>;
+
+            if constexpr (std::is_same_v<T, std::nullptr_t>) {
+                os << "null";
+            } else if constexpr (std::is_same_v<T, bool>) {
+                os << (value ? "true" : "false");
+            } else if constexpr (std::is_same_v<T, std::string>) {
+                os << '"' << value << '"';
+            } else {
+                os << value;
+            }
+        },
+        static_cast<const MetaValue::Base &>(v));
+
+    return os;
 }
 
 } // namespace Syntalos
