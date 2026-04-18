@@ -302,6 +302,16 @@ void StreamExporter::streamEventThreadFunc(OptionalWaitCondition *waitCondition)
     if (!d->running)
         goto out;
 
+    // Process any SubscriberConnected events that arrived during module startup
+    // before any data flows. This ensures update_connections() is called on all
+    // publishers so late-joining subscribers are in the publisher's list before
+    // the first data item is sent. Without this, history-delivered samples arrive
+    // silently (no Sample notification) and the worker never wakes up.
+    for (auto &ed : d->exports) {
+        if (ed.publisher.has_value())
+            ed.publisher->handleEvents();
+    }
+
     // run the event loop
     g_main_loop_run(loop);
 
