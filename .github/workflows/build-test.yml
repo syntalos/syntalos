@@ -63,7 +63,6 @@ jobs:
       with:
         name: ci-${{ matrix.id }}
         suite: ${{ matrix.suite }}
-        root: false
         summary: "Build & Test Syntalos on ${{ matrix.display_name }}"
         commands: |
           CC=gcc CXX=g++ ./tests/ci/build-and-test.sh
