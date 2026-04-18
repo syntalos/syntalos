@@ -54,10 +54,10 @@ QString Syntalos::connectionHeatToHumanString(ConnectionHeatLevel heat)
 class ModuleInfo::Private
 {
 public:
-    Private() {}
-    ~Private() {}
+    Private() = default;
+    ~Private() = default;
 
-    int count;
+    int count{};
     QString rootDir;
     QIcon icon;
 };
@@ -68,7 +68,7 @@ ModuleInfo::ModuleInfo()
     d->count = 0;
 }
 
-ModuleInfo::~ModuleInfo() {}
+ModuleInfo::~ModuleInfo() = default;
 
 QString ModuleInfo::id() const
 {
@@ -82,7 +82,7 @@ QString ModuleInfo::name() const
 
 QString ModuleInfo::summary() const
 {
-    const auto desc = description();
+    auto desc = description();
     if (desc.length() <= 80)
         return desc;
     return desc.left(80) + QStringLiteral("...");
@@ -95,12 +95,12 @@ QString ModuleInfo::description() const
 
 QString ModuleInfo::authors() const
 {
-    return QString();
+    return {};
 }
 
 QString ModuleInfo::license() const
 {
-    return QString();
+    return {};
 }
 
 QIcon ModuleInfo::icon() const
@@ -612,10 +612,8 @@ QString AbstractModule::name() const
 void AbstractModule::setName(const QString &name)
 {
     d->name = simplifyStrForModuleName(name);
-    for (auto &oport : outPorts()) {
-        oport->streamVar()->setCommonMetadata(d->id, d->name, oport->title());
-    }
-    emit nameChanged(d->name);
+    updateCommonStreamMetadata();
+    Q_EMIT nameChanged(d->name);
 }
 
 ModuleDriverKind AbstractModule::driver() const
@@ -626,6 +624,13 @@ ModuleDriverKind AbstractModule::driver() const
 ModuleFeatures AbstractModule::features() const
 {
     return ModuleFeature::SHOW_DISPLAY | ModuleFeature::SHOW_SETTINGS;
+}
+
+void AbstractModule::updateCommonStreamMetadata()
+{
+    for (auto &oport : outPorts()) {
+        oport->streamVar()->setCommonMetadata(d->id, d->name, oport->title());
+    }
 }
 
 bool AbstractModule::initialize()

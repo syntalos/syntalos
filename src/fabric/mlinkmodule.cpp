@@ -512,8 +512,10 @@ void MLinkModule::handleIncomingControl()
                     ostream = d->outPortIdMap.value(opc.id);
                 else if (auto oport = outPortById(qstr(opc.id)))
                     ostream = oport->streamVar();
-                if (ostream)
+                if (ostream) {
                     ostream->setMetadata(opc.metadata);
+                    updateCommonStreamMetadata();
+                }
             }
 
             // always acknowledge so the worker never blocks indefinitely
@@ -1043,6 +1045,9 @@ bool MLinkModule::prepare(const TestSubject &subject)
         return false;
     if (state() == ModuleState::ERROR)
         return false;
+
+    // ensure common metadata on the output ports is up-to-date
+    updateCommonStreamMetadata();
 
     // Snapshot the now-final post-prepare() metadata into every output-port subscription.
     // This is done here - before start() - so that downstream modules can already read the

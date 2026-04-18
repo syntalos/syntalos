@@ -602,6 +602,16 @@ public:
     }
 
     /**
+     * @brief Update the common metadata of all output streams of this module.
+     *
+     * This function is usually called automatically (e.g. if the module changes
+     * its name due to user interaction), but in certain scenarios an implementing
+     * class may call it explicitly (e.g. if output ports have dynamically been added
+     * from external sources).
+     */
+    void updateCommonStreamMetadata();
+
+    /**
      * @brief Initialize the module
      *
      * Initialize this module. This method is called once after construction,
