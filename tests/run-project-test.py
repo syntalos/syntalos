@@ -262,6 +262,15 @@ def check_expected_output(export_dir, expected_files):
     return True, None
 
 
+def print_stdout_stderr(stdout_data=None, stderr_data=None):
+    if stdout_data:
+        print("  --- STDOUT ---", file=sys.stderr)
+        print(stdout_data, file=sys.stderr)
+    if stderr_data:
+        print("  --- STDERR ---", file=sys.stderr)
+        print(stderr_data, file=sys.stderr)
+
+
 def run_test(syntalos_bin, manifest_path):
     print(f"Running test manifest: {manifest_path}")
 
@@ -342,33 +351,27 @@ def run_test(syntalos_bin, manifest_path):
                     f"  [!] Exit code mismatch: expected {expected_exit}, got {exit_code}",
                     file=sys.stderr,
                 )
-                if stdout_data:
-                    print("  --- STDOUT ---", file=sys.stderr)
-                    print(stdout_data, file=sys.stderr)
-                if stderr_data:
-                    print("  --- STDERR ---", file=sys.stderr)
-                    print(stderr_data, file=sys.stderr)
+                print_stdout_stderr(stdout_data, stderr_data)
                 return False
 
             if expected_stdout_contains:
                 for text in expected_stdout_contains:
                     if text not in stdout_data:
                         print(f"  [!] Expected text not found in STDOUT: '{text}'", file=sys.stderr)
-                        print("  --- STDOUT ---")
-                        print(stdout_data)
+                        print_stdout_stderr(stdout_data)
                         return False
 
             if expected_stderr_contains:
                 for text in expected_stderr_contains:
                     if text not in stderr_data:
                         print(f"  [!] Expected text not found in STDERR: '{text}'", file=sys.stderr)
-                        print("  --- STDERR ---")
-                        print(stderr_data)
+                        print_stdout_stderr(None, stderr_data)
                         return False
 
             if expected_output:
                 success, msg = check_expected_output(export_dir, expected_output)
                 if not success:
+                    print_stdout_stderr(stdout_data, stderr_data)
                     print(f"  [!] Output validation failed: {msg}", file=sys.stderr)
                     return False
                 else:
@@ -386,6 +389,8 @@ def run_test(syntalos_bin, manifest_path):
                     text=True,
                 )
                 if val_result.returncode != 0:
+                    print_stdout_stderr(stdout_data, stderr_data)
+                    print("\n")
                     print(f"  [!] Validator {validator_script} failed:", file=sys.stderr)
                     if val_result.stdout:
                         print(val_result.stdout, file=sys.stderr)
