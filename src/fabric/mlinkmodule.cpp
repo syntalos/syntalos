@@ -591,6 +591,11 @@ void MLinkModule::setModuleBinaryArgs(const QStringList &args)
     d->proc->setArguments(args);
 }
 
+void MLinkModule::setModuleBinaryWorkDir(const QString &wdir)
+{
+    d->proc->setWorkingDirectory(wdir);
+}
+
 QProcessEnvironment MLinkModule::moduleBinaryEnv() const
 {
     const auto env = d->proc->processEnvironment();
