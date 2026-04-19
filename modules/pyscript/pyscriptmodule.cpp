@@ -313,6 +313,10 @@ private:
 
         const auto gdbExe = QStandardPaths::findExecutable(QStringLiteral("gdb"));
         if (gdbExe.isEmpty()) {
+            // text warning, to we at least know what happened if this times out on noninteractive CI
+            qWarning().noquote() << "The `gdb` debugger binary was not found!";
+
+            // user warning
             QMessageBox::warning(
                 m_scriptWindow,
                 QStringLiteral("GNU Debugger not found"),

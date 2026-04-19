@@ -16,7 +16,6 @@ module_args = []
 subdir('devel.clock')
 subdir('devel.datasource')
 subdir('devel.latencytest')
-subdir('devel.pyooptest')
 
 # Display / Aux modules
 subdir('canvas')
