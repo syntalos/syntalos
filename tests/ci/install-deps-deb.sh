@@ -70,7 +70,11 @@ eatmydata apt-get install -yq --no-install-recommends \
 eatmydata apt-get install -yq --no-install-recommends \
     xvfb \
     xauth \
+    breeze-icon-theme \
     dbus-daemon \
     python3-zstandard \
     python3-opencv \
-    python3-zarr
+    python3-pyqt6 \
+    python3-virtualenv \
+    python3-zarr \
+    rtkit
