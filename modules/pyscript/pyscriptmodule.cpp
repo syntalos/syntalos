@@ -36,8 +36,10 @@
 #include <QMetaType>
 #include <QMessageBox>
 #include <QSplitter>
+#include <QStandardPaths>
 #include <QTextBrowser>
 #include <QToolBar>
+#include <iostream>
 
 #include "mlinkmodule.h"
 #include "porteditordialog.h"
@@ -55,8 +57,7 @@ public:
         : MLinkModule(parent),
           m_scriptWindow(nullptr)
     {
-        // we use the generic Python OOP worker process for this
-        setModuleBinary(findSyntalosPyWorkerBinary());
+        GlobalConfig gconf;
 
         // script modules are transient
         setWorkerMode(ModuleWorkerMode::TRANSIENT);
@@ -132,6 +133,15 @@ public:
         menuButton->setIcon(QIcon::fromTheme("application-menu"));
         menuButton->setPopupMode(QToolButton::InstantPopup);
         auto actionsMenu = new QMenu(m_scriptWindow);
+
+        m_runInGdbAction = actionsMenu->addAction("Run under GDB");
+        m_runInGdbAction->setCheckable(true);
+        connect(m_runInGdbAction, &QAction::toggled, this, [this](bool enabled) {
+            setPyWorkerBinary(enabled);
+        });
+        if (!gconf.showDevelModules())
+            m_runInGdbAction->setVisible(false);
+
         auto docHelpAction = actionsMenu->addAction("Documentation");
         auto apiHelpAction = actionsMenu->addAction("MLink API Reference");
 
@@ -155,6 +165,9 @@ public:
                 saveAction->setEnabled(false);
             }
         }
+
+        // we use the generic Python OOP worker process for this module
+        setPyWorkerBinary(false);
     }
 
     ~PyScriptModule() override
@@ -246,6 +259,8 @@ public:
 
         settings.insert("ports_in", varInPorts);
         settings.insert("ports_out", varOutPorts);
+        if (m_runInGdbAction->isChecked())
+            settings.insert("run_in_debugger", true);
     }
 
     bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &extraData) override
@@ -274,10 +289,56 @@ public:
         // update port listing in UI
         m_portsDialog->updatePortLists();
 
+        if (settings.value("run_in_debugger", false).toBool())
+            setPyWorkerBinary(true);
+
         return true;
     }
 
 private:
+    void setPyWorkerBinary(bool runInDebugger)
+    {
+        disconnect(m_outFwdConn);
+
+        const auto pyWorkerBinary = findSyntalosPyWorkerBinary();
+        if (!runInDebugger) {
+            setModuleBinary(pyWorkerBinary);
+            setModuleBinaryArgs(QStringList());
+
+            m_runInGdbAction->blockSignals(true);
+            m_runInGdbAction->setChecked(false);
+            m_runInGdbAction->blockSignals(false);
+            return;
+        }
+
+        const auto gdbExe = QStandardPaths::findExecutable(QStringLiteral("gdb"));
+        if (gdbExe.isEmpty()) {
+            QMessageBox::warning(
+                m_scriptWindow,
+                QStringLiteral("GNU Debugger not found"),
+                QStringLiteral("Unable to run under GDB because the `gdb` executable could not be found."));
+
+            m_runInGdbAction->blockSignals(true);
+            m_runInGdbAction->setChecked(false);
+            m_runInGdbAction->blockSignals(false);
+            return;
+        }
+
+        setModuleBinary(gdbExe);
+        setModuleBinaryArgs(
+            QStringList() << QStringLiteral("-q") << QStringLiteral("-batch") << QStringLiteral("-ex")
+                          << QStringLiteral("run") << QStringLiteral("-ex") << QStringLiteral("bt")
+                          << QStringLiteral("--args") << pyWorkerBinary);
+        m_runInGdbAction->blockSignals(true);
+        m_runInGdbAction->setChecked(true);
+        m_runInGdbAction->blockSignals(false);
+
+        // we also forward output to stdout when running under gdb
+        m_outFwdConn = connect(this, &MLinkModule::processOutputReceived, this, [&](const QString &data) {
+            std::cerr << data.toStdString();
+        });
+    }
+
     /**
      * Quicker function that just ensures that the base venv exists at all,
      * if we are configured to use it.
@@ -362,6 +423,8 @@ private:
     KTextEditor::View *m_scriptView;
     PortEditorDialog *m_portsDialog;
     QAction *m_portEditAction;
+    QAction *m_runInGdbAction;
+    QMetaObject::Connection m_outFwdConn;
 
     QWidget *m_scriptWindow;
 };
