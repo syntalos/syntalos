@@ -119,11 +119,13 @@ T streamDataFromRawMemory(const void *data, size_t size)
 /**
  * @brief Connection to a Syntalos instance
  */
-class SyntalosLink : public QObject
+class SyntalosLink
 {
-    Q_GADGET
+
 public:
-    ~SyntalosLink() override;
+    ~SyntalosLink();
+    SyntalosLink(const SyntalosLink &) = delete;
+    SyntalosLink &operator=(const SyntalosLink &) = delete;
 
     [[nodiscard]] std::string instanceId() const;
 
@@ -207,12 +209,11 @@ public:
     bool submitOutput(const std::shared_ptr<OutputPortInfo> &oport, const BaseDataType &data);
 
 private:
-    explicit SyntalosLink(const std::string &instanceId, QObject *parent = nullptr);
+    explicit SyntalosLink(const std::string &instanceId);
     friend std::unique_ptr<SyntalosLink> initSyntalosModuleLink();
 
 private:
     class Private;
-    Q_DISABLE_COPY(SyntalosLink)
     std::unique_ptr<Private> d;
 
     void processPendingControl();

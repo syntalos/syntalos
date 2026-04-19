@@ -22,8 +22,7 @@
 #include "pysy-mlink.h"
 
 #include <QDebug>
-#include <QStringList>
-#include <QTime>
+#include <QTimer>
 #include <QCoreApplication>
 
 #include <iostream>
@@ -41,13 +40,11 @@
 #include "datactl/frametype.h"
 #include "qstringtopy.h" // needed for QString registration
 #include "sydatatopy.h"  // needed for stream data type conversion
-#include "pyworker.h"
 
 namespace py = pybind11;
 
 PyBridge::PyBridge(SyntalosLink *mlink)
-    : QObject(mlink),
-      m_mlink(mlink)
+    : m_mlink(mlink)
 {
 }
 

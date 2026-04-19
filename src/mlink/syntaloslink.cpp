@@ -501,9 +501,8 @@ public:
     }
 };
 
-SyntalosLink::SyntalosLink(const std::string &instanceId, QObject *parent)
-    : QObject(parent),
-      d(new SyntalosLink::Private(instanceId))
+SyntalosLink::SyntalosLink(const std::string &instanceId)
+    : d(new SyntalosLink::Private(instanceId))
 {
     d->syTimer = new SyncTimer;
 

@@ -31,17 +31,15 @@ namespace Syntalos
 class SyntalosLinkModule::Private
 {
 public:
-    Private() {}
-    ~Private() {}
+    Private() = default;
+    ~Private() = default;
 };
 
 SyntalosLinkModule::SyntalosLinkModule(SyntalosLink *slink)
-    : QObject(slink),
-      m_running(false),
+    : m_running(false),
       d(new SyntalosLinkModule::Private),
       m_slink(slink)
 {
-
     // set callbacks
     m_slink->setShutdownCallback([this]() {
         m_running = false;

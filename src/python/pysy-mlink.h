@@ -41,9 +41,8 @@ struct SyntalosPyError : std::runtime_error {
     explicit SyntalosPyError(const std::string &what_arg);
 };
 
-class Q_DECL_HIDDEN PyBridge : public QObject
+class Q_DECL_HIDDEN PyBridge
 {
-    Q_GADGET
 public:
     static PyBridge *instance(SyntalosLink *mlink = nullptr)
     {
@@ -62,12 +61,13 @@ public:
     }
 
     explicit PyBridge(SyntalosLink *mlink = nullptr);
+    PyBridge(const PyBridge &) = delete;
+    PyBridge &operator=(const PyBridge &) = delete;
     ~PyBridge();
 
     SyntalosLink *link();
 
 private:
-    Q_DISABLE_COPY(PyBridge)
     SyntalosLink *m_mlink;
 };
 
