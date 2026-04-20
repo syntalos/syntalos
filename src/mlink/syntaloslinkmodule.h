@@ -95,7 +95,8 @@ protected:
         }
 
         // register a new port if we found none
-        auto opInfo = m_slink->registerOutputPort(id, title, BaseDataType::typeIdToString(syDataTypeId<T>()), metadata);
+        auto opInfo = m_slink->registerOutputPort(
+            id, title, static_cast<BaseDataType::TypeId>(syDataTypeId<T>()), metadata);
         if (!opInfo) {
             qWarning().noquote() << "Failed to register output port with ID:" << id;
             return nullptr;
@@ -129,7 +130,7 @@ protected:
                 return eip;
         }
 
-        auto iport = m_slink->registerInputPort(id, title, BaseDataType::typeIdToString(syDataTypeId<T>()));
+        auto iport = m_slink->registerInputPort(id, title, static_cast<BaseDataType::TypeId>(syDataTypeId<T>()));
         if (!iport) {
             qWarning().noquote() << "Failed to register input port" << id;
             return nullptr;

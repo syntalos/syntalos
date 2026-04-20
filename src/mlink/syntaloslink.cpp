@@ -1114,17 +1114,18 @@ std::vector<std::shared_ptr<OutputPortInfo>> SyntalosLink::outputPorts() const
 std::shared_ptr<InputPortInfo> SyntalosLink::registerInputPort(
     const std::string &id,
     const std::string &title,
-    const std::string &dataTypeName)
+    BaseDataType::TypeId typeId)
 {
     // construct our reference for this port
     InputPortChangeRequest ipc(PortAction::ADD);
     ipc.id = id;
     ipc.title = title;
-    ipc.dataTypeId = BaseDataType::typeIdFromString(dataTypeName);
+    ipc.dataTypeId = typeId;
 
     // passing an invalid data type is a hard error
-    if (ipc.dataTypeId == BaseDataType::Unknown) {
-        throw std::runtime_error("Can not register input port. Data type is unknown: " + dataTypeName);
+    if (!BaseDataType::typeIdIsValid(ipc.dataTypeId)) {
+        throw std::runtime_error(
+            std::format("Can not register input port. Data type with ID '{}' is unknown.", ipc.dataTypeId));
         return nullptr;
     }
 
@@ -1150,19 +1151,20 @@ std::shared_ptr<InputPortInfo> SyntalosLink::registerInputPort(
 std::shared_ptr<OutputPortInfo> SyntalosLink::registerOutputPort(
     const std::string &id,
     const std::string &title,
-    const std::string &dataTypeName,
+    BaseDataType::TypeId typeId,
     const MetaStringMap &metadata)
 {
     // construct our reference for this port
     OutputPortChangeRequest opc(PortAction::ADD);
     opc.id = id;
     opc.title = title;
-    opc.dataTypeId = BaseDataType::typeIdFromString(dataTypeName);
+    opc.dataTypeId = typeId;
     opc.metadata = metadata;
 
     // passing an invalid data type is a hard error
-    if (opc.dataTypeId == BaseDataType::Unknown) {
-        throw std::runtime_error("Can not register output port. Data type is unknown: " + dataTypeName);
+    if (!BaseDataType::typeIdIsValid(opc.dataTypeId)) {
+        throw std::runtime_error(
+            std::format("Can not register output port. Data type with ID '{}' is unknown.", opc.dataTypeId));
         return nullptr;
     }
 

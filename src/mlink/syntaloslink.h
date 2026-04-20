@@ -198,11 +198,11 @@ public:
     std::shared_ptr<InputPortInfo> registerInputPort(
         const std::string &id,
         const std::string &title,
-        const std::string &dataTypeName);
+        BaseDataType::TypeId typeId);
     std::shared_ptr<OutputPortInfo> registerOutputPort(
         const std::string &id,
         const std::string &title,
-        const std::string &dataTypeName,
+        BaseDataType::TypeId typeId,
         const MetaStringMap &metadata = {});
 
     void updateInputPort(const std::shared_ptr<InputPortInfo> &iport);

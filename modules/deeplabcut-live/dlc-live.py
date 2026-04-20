@@ -97,9 +97,11 @@ class DLCLiveModule:
 
         # An instance of this class is created t the module level, at which point we need to register
         # our ports, so Syntalos knows them early when restoring connections at project-load time.
-        self._iport = syLink.register_input_port('frames-in', 'Frames', 'Frame')
-        self._oport_rows = syLink.register_output_port('rows-out', 'Tracking', 'TableRow')
-        # self._oport_img = syLink.register_output_port('frames-out', 'Labeled Frames', 'Frame')
+        self._iport = syLink.register_input_port('frames-in', 'Frames', syl.DataType.Frame)
+        self._oport_rows = syLink.register_output_port(
+            'rows-out', 'Tracking', syl.DataType.TableRow
+        )
+        # self._oport_img = syLink.register_output_port('frames-out', 'Labeled Frames', syl.DataType.Frame)
 
         # collect event callbacks
         self._iport.on_data = self._on_input_data

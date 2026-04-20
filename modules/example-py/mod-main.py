@@ -46,10 +46,12 @@ class MyExampleModule:
         self._settings_dlg = None
 
         # register ports that this module supports
-        self._iport = self._modLink.register_input_port('frames-in', 'Frames', 'Frame')
-        self._oport_rows = self._modLink.register_output_port('rows-out', 'Indices', 'TableRow')
+        self._iport = self._modLink.register_input_port('frames-in', 'Frames', syl.DataType.Frame)
+        self._oport_rows = self._modLink.register_output_port(
+            'rows-out', 'Indices', syl.DataType.TableRow
+        )
         self._oport_frames = self._modLink.register_output_port(
-            'frames-out', 'Marked Frames', 'Frame'
+            'frames-out', 'Marked Frames', syl.DataType.Frame
         )
 
         # call self._on_input_data() once we have new data on this port

@@ -107,9 +107,14 @@ public:
         Last
     };
 
+    static bool typeIdIsValid(int value)
+    {
+        return value >= 1 && value < TypeId::Last;
+    }
+
     static std::string typeIdToString(int value)
     {
-        if (value < 1 || value >= TypeId::Last)
+        if (!typeIdIsValid(value))
             return "<<unknown>>";
         return typeIdToString(static_cast<TypeId>(value));
     }

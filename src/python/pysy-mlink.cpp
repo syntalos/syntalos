@@ -564,10 +564,10 @@ public:
      *
      * @param id          Unique port identifier string.
      * @param title       Human-readable port title shown in the flow graph.
-     * @param data_type   Data type name (e.g. "Frame", "TableRow", "IntSignalBlock").
+     * @param data_type   Data type ID (e.g. DataType.Frame, DataType.TableRow).
      * @returns InputPort handle, or None if registration failed (e.g. duplicate ID).
      */
-    py::object registerInputPort(const std::string &id, const std::string &title, const std::string &data_type)
+    py::object registerInputPort(const std::string &id, const std::string &title, BaseDataType::TypeId data_type)
     {
         auto res = m_slink->registerInputPort(id, title, data_type);
         if (!res)
@@ -585,10 +585,10 @@ public:
      *
      * @param id          Unique port identifier string.
      * @param title       Human-readable port title shown in the flow graph.
-     * @param data_type   Data type name (e.g. "Frame", "TableRow", "IntSignalBlock").
+     * @param data_type   Data type ID (e.g. DataType.Frame, DataType.TableRow).
      * @returns OutputPort handle, or None if registration failed (e.g. duplicate ID).
      */
-    py::object registerOutputPort(const std::string &id, const std::string &title, const std::string &data_type)
+    py::object registerOutputPort(const std::string &id, const std::string &title, BaseDataType::TypeId data_type)
     {
         auto res = m_slink->registerOutputPort(id, title, data_type);
         if (!res)
@@ -841,6 +841,19 @@ PYBIND11_MODULE(syntalos_mlink, m)
                 f.time = microseconds_t(v);
             },
             "Time when the frame was recorded, as an integer in µs.");
+
+    /**
+     ** Data Type IDs
+     **/
+
+    py::enum_<BaseDataType::TypeId>(m, "DataType", "Identifies the data type of a port / stream.")
+        .value("ControlCommand", BaseDataType::TypeId::ControlCommand, "Module control command.")
+        .value("TableRow", BaseDataType::TypeId::TableRow, "A row of tabular data.")
+        .value("Frame", BaseDataType::TypeId::Frame, "A video frame.")
+        .value("FirmataControl", BaseDataType::TypeId::FirmataControl, "Firmata device control message.")
+        .value("FirmataData", BaseDataType::TypeId::FirmataData, "Data received from a Firmata device.")
+        .value("IntSignalBlock", BaseDataType::TypeId::IntSignalBlock, "A block of integer signal samples.")
+        .value("FloatSignalBlock", BaseDataType::TypeId::FloatSignalBlock, "A block of float signal samples.");
 
     /**
      ** Control Command
@@ -1287,7 +1300,7 @@ PYBIND11_MODULE(syntalos_mlink, m)
             "\n"
             ":param id: Unique port identifier used in :func:`get_input_port`.\n"
             ":param title: Human-readable port label shown in the flow-graph editor.\n"
-            ":param data_type: Data type name, e.g. ``'Frame'``, ``'TableRow'``, ``'IntSignalBlock'``, etc.\n"
+            ":param data_type: :class:`DataType` value, e.g. ``DataType.Frame``, ``DataType.TableRow``.\n"
             ":return: An :class:`InputPort` handle, or ``None`` if registration failed (e.g. duplicate ID).\n"
             ":rtype: InputPort or None")
         .def(
@@ -1304,7 +1317,7 @@ PYBIND11_MODULE(syntalos_mlink, m)
             "\n"
             ":param id: Unique port identifier used in :func:`get_output_port`.\n"
             ":param title: Human-readable port label shown in the flow-graph editor.\n"
-            ":param data_type: Data type name, e.g. ``'Frame'``, ``'TableRow'``, etc.\n"
+            ":param data_type: :class:`DataType` value, e.g. ``DataType.Frame``, ``DataType.TableRow``.\n"
             ":return: An :class:`OutputPort` handle, or ``None`` if registration failed (e.g. duplicate ID).\n"
             ":rtype: OutputPort or None")
 
