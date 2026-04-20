@@ -209,6 +209,148 @@ syntalos_mlink    </h1>
 
 </div>
 </section>
+<section id="DataType">
+<div class="attr class">
+
+<span class="def">class</span>
+<span class="name">DataType</span>:
+
+
+</div>
+<a class="headerlink" href="#DataType"></a>
+
+<div class="docstring"><p>Identifies the data type of a port / stream.</p>
+
+<p>Members:</p>
+
+<p>ControlCommand : Module control command.</p>
+
+<p>TableRow : A row of tabular data.</p>
+
+<p>Frame : A video frame.</p>
+
+<p>FirmataControl : Firmata device control message.</p>
+
+<p>FirmataData : Data received from a Firmata device.</p>
+
+<p>IntSignalBlock : A block of integer signal samples.</p>
+
+<p>FloatSignalBlock : A block of float signal samples.</p>
+</div>
+
+
+<div id="DataType.__init__" class="classattr">
+<div class="attr function">
+
+<span class="name">DataType</span><span class="signature pdoc-code condensed">(<span class="param">value: &lt;class &#x27;SupportsInt&#x27;&gt;</span>)</span>
+
+
+</div>
+<a class="headerlink" href="#DataType.__init__"></a>
+
+
+
+</div>
+<div id="DataType.ControlCommand" class="classattr">
+<div class="attr variable">
+<span class="name">ControlCommand</span><span class="annotation">: ClassVar[<a href="#DataType">DataType</a>]</span>
+
+
+</div>
+<a class="headerlink" href="#DataType.ControlCommand"></a>
+
+
+
+</div>
+<div id="DataType.FirmataControl" class="classattr">
+<div class="attr variable">
+<span class="name">FirmataControl</span><span class="annotation">: ClassVar[<a href="#DataType">DataType</a>]</span>
+
+
+</div>
+<a class="headerlink" href="#DataType.FirmataControl"></a>
+
+
+
+</div>
+<div id="DataType.FirmataData" class="classattr">
+<div class="attr variable">
+<span class="name">FirmataData</span><span class="annotation">: ClassVar[<a href="#DataType">DataType</a>]</span>
+
+
+</div>
+<a class="headerlink" href="#DataType.FirmataData"></a>
+
+
+
+</div>
+<div id="DataType.FloatSignalBlock" class="classattr">
+<div class="attr variable">
+<span class="name">FloatSignalBlock</span><span class="annotation">: ClassVar[<a href="#DataType">DataType</a>]</span>
+
+
+</div>
+<a class="headerlink" href="#DataType.FloatSignalBlock"></a>
+
+
+
+</div>
+<div id="DataType.Frame" class="classattr">
+<div class="attr variable">
+<span class="name">Frame</span><span class="annotation">: ClassVar[<a href="#DataType">DataType</a>]</span>
+
+
+</div>
+<a class="headerlink" href="#DataType.Frame"></a>
+
+
+
+</div>
+<div id="DataType.IntSignalBlock" class="classattr">
+<div class="attr variable">
+<span class="name">IntSignalBlock</span><span class="annotation">: ClassVar[<a href="#DataType">DataType</a>]</span>
+
+
+</div>
+<a class="headerlink" href="#DataType.IntSignalBlock"></a>
+
+
+
+</div>
+<div id="DataType.TableRow" class="classattr">
+<div class="attr variable">
+<span class="name">TableRow</span><span class="annotation">: ClassVar[<a href="#DataType">DataType</a>]</span>
+
+
+</div>
+<a class="headerlink" href="#DataType.TableRow"></a>
+
+
+
+</div>
+<div id="DataType.name" class="classattr">
+<div class="attr variable">
+<span class="name">name</span><span class="annotation">: str</span>
+
+
+</div>
+<a class="headerlink" href="#DataType.name"></a>
+
+
+
+</div>
+<div id="DataType.value" class="classattr">
+<div class="attr variable">
+<span class="name">value</span><span class="annotation">: int</span>
+
+
+</div>
+<a class="headerlink" href="#DataType.value"></a>
+
+
+
+</div>
+</section>
 <section id="FirmataCommandKind">
 <div class="attr class">
 
@@ -789,6 +931,8 @@ syntalos_mlink    </h1>
 
 <p>Assign a callable that accepts a single argument of the port's data type
 (e.g. <code><a href="#Frame">Frame</a></code>, <code>TableRow</code>). Set to <code>None</code> to remove the callback.</p>
+
+<p>Type: <code>Callable[[object], None] | None</code>.</p>
 </div>
 
 
@@ -1038,7 +1182,7 @@ and <code><a href="#OutputPort.firmata_submit_digital_pulse">firmata_submit_digi
 <div class="attr function">
 
 <span class="def">def</span>
-<span class="name">set_metadata_value</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">arg0</span><span class="p">:</span> <span class="nb">str</span>, </span><span class="param"><span class="n">arg1</span><span class="p">:</span> <span class="n">Any</span></span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
+<span class="name">set_metadata_value</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">key</span><span class="p">:</span> <span class="nb">str</span>, </span><span class="param"><span class="n">value</span><span class="p">:</span> <span class="n">Any</span></span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
 
 
 </div>
@@ -1070,7 +1214,7 @@ or <code>list</code> of <code>int</code>/<code>str</code> values.</li>
 <div class="attr function">
 
 <span class="def">def</span>
-<span class="name">set_metadata_value_size</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">arg0</span><span class="p">:</span> <span class="nb">str</span>, </span><span class="param"><span class="n">arg1</span><span class="p">:</span> <span class="n">Any</span></span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
+<span class="name">set_metadata_value_size</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">key</span><span class="p">:</span> <span class="nb">str</span>, </span><span class="param"><span class="n">value</span><span class="p">:</span> <span class="n">Any</span></span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
 
 
 </div>
@@ -1098,7 +1242,7 @@ or <code>list</code> of <code>int</code>/<code>str</code> values.</li>
 <div class="attr function">
 
 <span class="def">def</span>
-<span class="name">submit</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">arg0</span><span class="p">:</span> <span class="n">Any</span></span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
+<span class="name">submit</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">data</span><span class="p">:</span> <span class="n">Any</span></span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
 
 
 </div>
@@ -1145,8 +1289,271 @@ or <code>list</code> of <code>int</code>/<code>str</code> values.</li>
 </div>
 <a class="headerlink" href="#SyntalosLink"></a>
 
+<div class="docstring"><p>Manages the connection to Syntalos.</p>
+</div>
 
 
+<div id="SyntalosLink.await_data" class="classattr">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">await_data</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param">timeout_usec: &lt;class &#x27;SupportsInt&#x27;&gt; = -1</span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#SyntalosLink.await_data"></a>
+
+<div class="docstring"><p>Single-shot data poll for use inside a custom event loop.</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>timeout_usec</strong>:  Maximum time to block in µs; <code>-1</code> waits indefinitely.</li>
+</ul>
+</div>
+
+
+</div>
+<div id="SyntalosLink.await_data_forever" class="classattr">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">await_data_forever</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">event_fn</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span></span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#SyntalosLink.await_data_forever"></a>
+
+<div class="docstring"><p>Signal initialization complete and run the module event loop.</p>
+
+<p>Signals IDLE to Syntalos then blocks until a shutdown is requested.</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>event_fn</strong>:  Optional zero-argument callable, invoked regularly to pump an external event loop.</li>
+</ul>
+</div>
+
+
+</div>
+<div id="SyntalosLink.register_input_port" class="classattr">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">register_input_port</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="nb">id</span><span class="p">:</span> <span class="nb">str</span>, </span><span class="param"><span class="n">title</span><span class="p">:</span> <span class="nb">str</span>, </span><span class="param"><span class="n">data_type</span><span class="p">:</span> <span class="n"><a href="#DataType">DataType</a></span></span><span class="return-annotation">) -> <span class="n">Any</span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#SyntalosLink.register_input_port"></a>
+
+<div class="docstring"><p>Declare a new input port for this module.</p>
+
+<p>Must be called at module level so that Syntalos can discover the port topology and
+restore project connections before the first run is prepared.</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>id</strong>:  Unique port identifier used in <code><a href="#get_input_port">get_input_port()</a></code>.</li>
+<li><strong>title</strong>:  Human-readable port label shown in the flow-graph editor.</li>
+<li><strong>data_type</strong>:  <code><a href="#DataType">DataType</a></code> value, e.g. <code><a href="#DataType.Frame">DataType.Frame</a></code>, <code><a href="#DataType.TableRow">DataType.TableRow</a></code>.</li>
+</ul>
+
+<h6 id="returns">Returns</h6>
+
+<blockquote>
+<p>An <code><a href="#InputPort">InputPort</a></code> handle, or <code>None</code> if registration failed (e.g. duplicate ID).</p>
+</blockquote>
+</div>
+
+
+</div>
+<div id="SyntalosLink.register_output_port" class="classattr">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">register_output_port</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="nb">id</span><span class="p">:</span> <span class="nb">str</span>, </span><span class="param"><span class="n">title</span><span class="p">:</span> <span class="nb">str</span>, </span><span class="param"><span class="n">data_type</span><span class="p">:</span> <span class="n"><a href="#DataType">DataType</a></span></span><span class="return-annotation">) -> <span class="n">Any</span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#SyntalosLink.register_output_port"></a>
+
+<div class="docstring"><p>Declare a new output port for this module.</p>
+
+<p>Must be called at module level (top-level script code, not inside a function)
+so that Syntalos can discover the port topology and restore project connections
+before the first run is prepared.</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>id</strong>:  Unique port identifier used in <code><a href="#get_output_port">get_output_port()</a></code>.</li>
+<li><strong>title</strong>:  Human-readable port label shown in the flow-graph editor.</li>
+<li><strong>data_type</strong>:  <code><a href="#DataType">DataType</a></code> value, e.g. <code><a href="#DataType.Frame">DataType.Frame</a></code>, <code><a href="#DataType.TableRow">DataType.TableRow</a></code>.</li>
+</ul>
+
+<h6 id="returns">Returns</h6>
+
+<blockquote>
+<p>An <code><a href="#OutputPort">OutputPort</a></code> handle, or <code>None</code> if registration failed (e.g. duplicate ID).</p>
+</blockquote>
+</div>
+
+
+</div>
+<div id="SyntalosLink.signal_idle" class="classattr">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">signal_idle</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span></span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#SyntalosLink.signal_idle"></a>
+
+<div class="docstring"><p>Signal IDLE (initialization complete) without entering the built-in event loop.</p>
+
+<p>Call this before starting a custom loop with <code><a href="#SyntalosLink.await_data">await_data()</a></code>.</p>
+</div>
+
+
+</div>
+<div id="SyntalosLink.is_running" class="classattr">
+<div class="attr variable">
+<span class="name">is_running</span><span class="annotation">: bool</span>
+
+
+</div>
+<a class="headerlink" href="#SyntalosLink.is_running"></a>
+
+<div class="docstring"><p>Check whether the experiment is still active.</p>
+
+<h6 id="returns">Returns</h6>
+
+<blockquote>
+<p><code>True</code> while the run is in progress, <code>False</code> once a stop has been requested.</p>
+</blockquote>
+</div>
+
+
+</div>
+<div id="SyntalosLink.on_load_settings" class="classattr">
+<div class="attr variable">
+<span class="name">on_load_settings</span><span class="annotation">: Callable[[bytearray, os.PathLike | str | bytes], bool]</span>
+
+
+</div>
+<a class="headerlink" href="#SyntalosLink.on_load_settings"></a>
+
+<div class="docstring"><p>Register a callback invoked when Syntalos loads settings for this module.</p>
+
+<p>The callback receives the base project directory as a string and the loaded settings as a <code>bytes</code> object.
+The callback must return <code>True</code> to signal that the settings were loaded successfully, or <code>False</code> / use <code><a href="#raise_error">raise_error</a></code> to signal a loading failure.
+If not registered, incoming settings are ignored.</p>
+
+<p>Type: <code>Callable[[bytes, str], bool] | None</code>.</p>
+</div>
+
+
+</div>
+<div id="SyntalosLink.on_prepare" class="classattr">
+<div class="attr variable">
+<span class="name">on_prepare</span><span class="annotation">: Callable[[], bool]</span>
+
+
+</div>
+<a class="headerlink" href="#SyntalosLink.on_prepare"></a>
+
+<div class="docstring"><p>Register a callback invoked when Syntalos prepares a new run.</p>
+
+<p>The callback must return <code>True</code> to signal that preparation succeeded,
+or <code>False</code> / raise an exception to abort.
+If not registered the module automatically signals readiness.</p>
+
+<p>Type: <code>Callable[[], bool] | None</code>.</p>
+</div>
+
+
+</div>
+<div id="SyntalosLink.on_save_settings" class="classattr">
+<div class="attr variable">
+<span class="name">on_save_settings</span><span class="annotation">: Callable[[os.PathLike | str | bytes], bytearray]</span>
+
+
+</div>
+<a class="headerlink" href="#SyntalosLink.on_save_settings"></a>
+
+<div class="docstring"><p>Register a callback invoked when Syntalos saves settings for this module.</p>
+
+<p>The callback receives the base project directory as a string and must return the
+settings to save as a <code>bytes</code> object. If not registered, no module settings are saved.</p>
+
+<p>Type: <code>Callable[[str], bytes] | None</code>.</p>
+</div>
+
+
+</div>
+<div id="SyntalosLink.on_show_display" class="classattr">
+<div class="attr variable">
+<span class="name">on_show_display</span><span class="annotation">: Callable[[], None]</span>
+
+
+</div>
+<a class="headerlink" href="#SyntalosLink.on_show_display"></a>
+
+<div class="docstring"><p>Register a callback invoked when the user opens the module display window.</p>
+
+<p>Type: <code>Callable[[], None] | None</code>.</p>
+</div>
+
+
+</div>
+<div id="SyntalosLink.on_show_settings" class="classattr">
+<div class="attr variable">
+<span class="name">on_show_settings</span><span class="annotation">: Callable[[], None]</span>
+
+
+</div>
+<a class="headerlink" href="#SyntalosLink.on_show_settings"></a>
+
+<div class="docstring"><p>Register a callback invoked when the user opens the module settings dialog.</p>
+
+<p>Type: <code>Callable[[], None] | None</code>.</p>
+</div>
+
+
+</div>
+<div id="SyntalosLink.on_start" class="classattr">
+<div class="attr variable">
+<span class="name">on_start</span><span class="annotation">: Callable[[], None]</span>
+
+
+</div>
+<a class="headerlink" href="#SyntalosLink.on_start"></a>
+
+<div class="docstring"><p>Register a callback invoked when Syntalos starts a run.</p>
+
+<p>Type: <code>Callable[[], None] | None</code>.</p>
+</div>
+
+
+</div>
+<div id="SyntalosLink.on_stop" class="classattr">
+<div class="attr variable">
+<span class="name">on_stop</span><span class="annotation">: Callable[[], None]</span>
+
+
+</div>
+<a class="headerlink" href="#SyntalosLink.on_stop"></a>
+
+<div class="docstring"><p>Register a callback invoked when Syntalos stops a run.</p>
+
+<p>Type: <code>Callable[[], None] | None</code>.</p>
+</div>
+
+
+</div>
 </section>
 <section id="SyntalosPyError">
 <div class="attr class">
@@ -1188,48 +1595,6 @@ wait until the module is no longer in <code>RUNNING</code> state.</li>
 
 
 </section>
-<section id="call_on_show_display">
-<div class="attr function">
-
-<span class="def">def</span>
-<span class="name">call_on_show_display</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">callable_fn</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="kc">None</span><span class="p">]</span></span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
-
-
-</div>
-<a class="headerlink" href="#call_on_show_display"></a>
-
-<div class="docstring"><p>Register a callback to be invoked when the user opens the module's display window.</p>
-
-<h6 id="parameters">Parameters</h6>
-
-<ul>
-<li><strong>callable_fn</strong>:  Zero-argument callable.</li>
-</ul>
-</div>
-
-
-</section>
-<section id="call_on_show_settings">
-<div class="attr function">
-
-<span class="def">def</span>
-<span class="name">call_on_show_settings</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">callable_fn</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="nb">bytearray</span><span class="p">],</span> <span class="kc">None</span><span class="p">]</span></span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
-
-
-</div>
-<a class="headerlink" href="#call_on_show_settings"></a>
-
-<div class="docstring"><p>Register a callback to be invoked when the user opens the module's settings dialog.</p>
-
-<h6 id="parameters">Parameters</h6>
-
-<ul>
-<li>**callable_fn: Callable with signature <code>fn(old_settings**:  bytes)</code>.</li>
-</ul>
-</div>
-
-
-</section>
 <section id="get_input_port">
 <div class="attr function">
 
@@ -1245,7 +1610,7 @@ wait until the module is no longer in <code>RUNNING</code> state.</li>
 <h6 id="parameters">Parameters</h6>
 
 <ul>
-<li><strong>id</strong>:  The port ID passed to <code><a href="#register_input_port">register_input_port()</a></code>.</li>
+<li><strong>id</strong>:  The port ID (assigned via <code><a href="#SyntalosLink.register_input_port">SyntalosLink.register_input_port()</a></code> or via the PyScript GUI editor).</li>
 </ul>
 
 <h6 id="returns">Returns</h6>
@@ -1272,7 +1637,7 @@ wait until the module is no longer in <code>RUNNING</code> state.</li>
 <h6 id="parameters">Parameters</h6>
 
 <ul>
-<li><strong>id</strong>:  The port ID passed to <code><a href="#register_output_port">register_output_port()</a></code>.</li>
+<li><strong>id</strong>:  The port ID (assigned via <code><a href="#SyntalosLink.register_output_port">SyntalosLink.register_output_port()</a></code> or via the PyScript GUI editor).</li>
 </ul>
 
 <h6 id="returns">Returns</h6>
@@ -1288,18 +1653,21 @@ wait until the module is no longer in <code>RUNNING</code> state.</li>
 <div class="attr function">
 
 <span class="def">def</span>
-<span class="name">init_link</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">slink</span><span class="p">:</span> <span class="n"><a href="#SyntalosLink">SyntalosLink</a></span> <span class="o">=</span> <span class="kc">None</span></span><span class="return-annotation">) -> <span class="n"><a href="#SyntalosLink">SyntalosLink</a></span>:</span></span>
+<span class="name">init_link</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">slink</span><span class="p">:</span> <span class="n">syntalos_mlink</span><span class="o">.</span><span class="n">_SyntalosLinkHandle</span> <span class="o">=</span> <span class="kc">None</span></span><span class="return-annotation">) -> <span class="n">Any</span>:</span></span>
 
 
 </div>
 <a class="headerlink" href="#init_link"></a>
 
-<div class="docstring"><p>Initialize the connection with a running Syntalos instance.</p>
+<div class="docstring"><p>Initialize a connection with Syntalos.</p>
+
+<p>This function must be called only once at program startup, before invoking any
+other methods on this module.</p>
 
 <h6 id="returns">Returns</h6>
 
 <blockquote>
-<p>The active <code><a href="#SyntalosLink">SyntalosLink</a></code> instance.</p>
+<p>The active <code><a href="#SyntalosLink">SyntalosLink</a></code> registry object.</p>
 </blockquote>
 </div>
 
@@ -1481,96 +1849,6 @@ wait until the module is no longer in <code>RUNNING</code> state.</li>
 
 
 </section>
-<section id="register_input_port">
-<div class="attr function">
-
-<span class="def">def</span>
-<span class="name">register_input_port</span><span class="signature pdoc-code condensed">(<span class="param"><span class="nb">id</span><span class="p">:</span> <span class="nb">str</span>, </span><span class="param"><span class="n">title</span><span class="p">:</span> <span class="nb">str</span>, </span><span class="param"><span class="n">data_type</span><span class="p">:</span> <span class="nb">str</span></span><span class="return-annotation">) -> <span class="n">Any</span>:</span></span>
-
-
-</div>
-<a class="headerlink" href="#register_input_port"></a>
-
-<div class="docstring"><p>Declare a new input port for this module.</p>
-
-<p>Must be called at module level so that Syntalos can discover the port topology and
-restore project connections before the first run is prepared.</p>
-
-<h6 id="parameters">Parameters</h6>
-
-<ul>
-<li><strong>id</strong>:  Unique port identifier used in <code><a href="#get_input_port">get_input_port()</a></code>.</li>
-<li><strong>title</strong>:  Human-readable port label shown in the flow-graph editor.</li>
-<li><strong>data_type</strong>:  Data type name, e.g. <code>'Frame'</code>, <code>'TableRow'</code>, <code>'IntSignalBlock'</code>, etc.</li>
-</ul>
-
-<h6 id="returns">Returns</h6>
-
-<blockquote>
-<p>An <code><a href="#InputPort">InputPort</a></code> handle, or <code>None</code> if registration failed (e.g. duplicate ID).</p>
-</blockquote>
-</div>
-
-
-</section>
-<section id="register_output_port">
-<div class="attr function">
-
-<span class="def">def</span>
-<span class="name">register_output_port</span><span class="signature pdoc-code condensed">(<span class="param"><span class="nb">id</span><span class="p">:</span> <span class="nb">str</span>, </span><span class="param"><span class="n">title</span><span class="p">:</span> <span class="nb">str</span>, </span><span class="param"><span class="n">data_type</span><span class="p">:</span> <span class="nb">str</span></span><span class="return-annotation">) -> <span class="n">Any</span>:</span></span>
-
-
-</div>
-<a class="headerlink" href="#register_output_port"></a>
-
-<div class="docstring"><p>Declare a new output port for this module.</p>
-
-<p>Must be called at module level (top-level script code, not inside a function)
-so that Syntalos can discover the port topology and restore project connections
-before the first run is prepared.</p>
-
-<h6 id="parameters">Parameters</h6>
-
-<ul>
-<li><strong>id</strong>:  Unique port identifier used in <code><a href="#get_output_port">get_output_port()</a></code>.</li>
-<li><strong>title</strong>:  Human-readable port label shown in the flow-graph editor.</li>
-<li><strong>data_type</strong>:  Data type name, e.g. <code>'Frame'</code>, <code>'TableRow'</code>, etc.</li>
-</ul>
-
-<h6 id="returns">Returns</h6>
-
-<blockquote>
-<p>An <code><a href="#OutputPort">OutputPort</a></code> handle, or <code>None</code> if registration failed (e.g. duplicate ID).</p>
-</blockquote>
-</div>
-
-
-</section>
-<section id="save_settings">
-<div class="attr function">
-
-<span class="def">def</span>
-<span class="name">save_settings</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">settings_data</span><span class="p">:</span> <span class="nb">bytearray</span></span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
-
-
-</div>
-<a class="headerlink" href="#save_settings"></a>
-
-<div class="docstring"><p>Persist the module's settings with Syntalos.</p>
-
-<p>The saved blob is passed back to the module as <code>old_settings</code> the next time the
-settings callback (see <code><a href="#call_on_show_settings">call_on_show_settings()</a></code>) is invoked, and also delivered
-via <code>set_settings()</code> before each run.</p>
-
-<h6 id="parameters">Parameters</h6>
-
-<ul>
-<li><strong>settings_data</strong>:  Arbitrary settings payload serialized as <code>bytes</code>.</li>
-</ul>
-</div>
-
-
-</section>
 <section id="schedule_delayed_call">
 <div class="attr function">
 
@@ -1586,10 +1864,12 @@ via <code>set_settings()</code> before each run.</p>
 <p>The call is executed on the module's event loop, so it is safe to interact
 with ports and other module state from the callback.</p>
 
+<p>Signature: <code>schedule_delayed_call(delay_msec: int, callable_fn: Callable[[], None]) -&gt; None</code>.</p>
+
 <h6 id="parameters">Parameters</h6>
 
 <ul>
-<li><strong>delay_msec</strong>:  Delay before the call is made, in milliseconds. Must be ≥ 0.</li>
+<li><strong>delay_msec</strong>:  Delay before the call is made, in milliseconds. Must be &gt;= 0.</li>
 <li><strong>callable_fn</strong>:  Zero-argument callable to invoke.</li>
 </ul>
 
