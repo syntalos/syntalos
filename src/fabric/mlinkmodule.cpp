@@ -98,6 +98,7 @@ public:
     std::optional<IoxNotifier> ctlEventNotifier;
     QTimer *ctlEventTimer = nullptr;
     std::atomic_bool threadStopped = true;
+    std::atomic_bool threadHandlingEvents = false;
 
     /**
      * Construct service name for a channel on this module.
@@ -217,12 +218,6 @@ public:
         while (true) {
             checkClientError(self);
 
-            // Pump worker-initiated port-change requests from the main thread only when
-            // the dedicated module thread is not active. When the thread is running, it
-            // handles these requests itself via its WaitSet; calling handleIncomingControl()
-            // from both threads simultaneously would race on the server objects.
-            if (threadStopped)
-                self->handleIncomingControl();
             auto response = pending.receive().value();
             if (response.has_value())
                 return response->payload();
@@ -241,8 +236,16 @@ public:
                 return std::nullopt;
             }
 
-            if (timeoutSec > 4)
-                qApp->processEvents();
+            // Pump worker-initiated port-change requests from the main thread only when
+            // the dedicated module thread is not active. When the thread is running, it
+            // handles these requests itself via its WaitSet; calling handleIncomingControl()
+            // from both threads simultaneously would race on the server objects.
+            if (!threadHandlingEvents) {
+                self->handleIncomingControl();
+                if (timeoutSec > 4)
+                    qApp->processEvents();
+            }
+
             std::this_thread::sleep_for(microseconds_t(5 * timeoutSec));
         }
     }
@@ -297,8 +300,11 @@ public:
         timer.start();
         while (true) {
             checkClientError(self);
-            if (threadStopped)
+            if (!threadHandlingEvents) {
                 self->handleIncomingControl();
+                if (timeoutSec > 4)
+                    qApp->processEvents();
+            }
             auto response = pending.receive().value();
             if (response.has_value())
                 return response->payload().success;
@@ -316,8 +322,6 @@ public:
                 return false;
             }
 
-            if (timeoutSec > 4)
-                qApp->processEvents();
             std::this_thread::sleep_for(microseconds_t(5 * timeoutSec));
         }
     }
@@ -353,8 +357,11 @@ public:
         timer.start();
         while (true) {
             checkClientError(self);
-            if (threadStopped)
+            if (!threadHandlingEvents) {
                 self->handleIncomingControl();
+                if (timeoutSec > 4)
+                    qApp->processEvents();
+            }
 
             auto response = pending.receive().value();
             if (response.has_value()) {
@@ -375,8 +382,6 @@ public:
                 return std::nullopt;
             }
 
-            if (timeoutSec > 4)
-                qApp->processEvents();
             std::this_thread::sleep_for(microseconds_t(5 * timeoutSec));
         }
     }
@@ -798,9 +803,6 @@ void MLinkModule::showSettingsUi()
 {
     // pick up any recently saved settings before we hand them back to the worker UI
     handleIncomingControl();
-
-    // send fresh settings, if we have any
-    sendSettings();
 
     if (!d->callClientSimple<ShowSettingsRequest>(this, SHOW_SETTINGS_CALL_ID, [](auto &) {}))
         qCWarning(logMLinkMod).noquote() << "Request to show settings UI has failed!";
@@ -1278,10 +1280,12 @@ void MLinkModule::runThread(OptionalWaitCondition *startWaitCondition)
 
     startWaitCondition->wait(this);
 
+    d->threadHandlingEvents = true;
     while (m_running) {
         // wait for data - we need to time out every once in a while to check if we are still running
         waitSet.wait_and_process_once_with_timeout(onEvent, iox2::bb::Duration::from_millis(50)).value();
     }
+    d->threadHandlingEvents = false;
 
     // MUST reset output-port guards before the local WaitSet goes out of scope.
     // iceoryx2 contract: "WaitSetGuard must live at most as long as the WaitSet."
