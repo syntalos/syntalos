@@ -300,6 +300,9 @@ private:
     py::object m_saveSettingsFn;
     py::object m_loadSettingsFn;
 
+    py::object m_showSettingsFn;
+    py::object m_showDisplayFn;
+
 public:
     /**
      * Standalone mode: creates and owns a new SyntalosLink.
@@ -309,7 +312,9 @@ public:
           m_startFn(py::none()),
           m_stopFn(py::none()),
           m_saveSettingsFn(py::none()),
-          m_loadSettingsFn(py::none())
+          m_loadSettingsFn(py::none()),
+          m_showSettingsFn(py::none()),
+          m_showDisplayFn(py::none())
     {
         m_ownedSLink = initSyntalosModuleLink();
         m_slink = m_ownedSLink.get();
@@ -324,7 +329,9 @@ public:
           m_startFn(py::none()),
           m_stopFn(py::none()),
           m_saveSettingsFn(py::none()),
-          m_loadSettingsFn(py::none())
+          m_loadSettingsFn(py::none()),
+          m_showSettingsFn(py::none()),
+          m_showDisplayFn(py::none())
     {
     }
 
@@ -354,11 +361,12 @@ public:
         m_slink->setPrepareRunCallback(nullptr);
         m_slink->setStartCallback(nullptr);
         m_slink->setStopCallback(nullptr);
-        m_slink->setShowSettingsCallback(nullptr);
-        m_slink->setShowDisplayCallback(nullptr);
 
         m_slink->setSaveSettingsCallback(nullptr);
         m_slink->setLoadSettingsCallback(nullptr);
+
+        m_slink->setShowSettingsCallback(nullptr);
+        m_slink->setShowDisplayCallback(nullptr);
 
         m_prepareFn = py::none();
         m_startFn = py::none();
@@ -380,19 +388,25 @@ public:
         return m_slink;
     }
 
-    void onPrepare(py::object fn)
+    void setOnPrepare(py::object fn)
     {
         m_prepareFn = std::move(fn);
-        m_slink->setPrepareRunCallback([this]() {
-            if (m_prepareFn.is_none()) {
+        if (fn.is_none()) {
+            m_slink->setPrepareRunCallback([this]() {
                 m_slink->setState(ModuleState::READY);
-                return;
-            }
+                return true;
+            });
+            return;
+        }
+
+        m_slink->setPrepareRunCallback([this]() {
             try {
                 auto result = m_prepareFn();
-                if (result.cast<bool>())
+                if (result.cast<bool>()) {
                     m_slink->setState(ModuleState::READY);
-                else if (m_slink->state() != ModuleState::ERROR)
+                    return true;
+                }
+                if (m_slink->state() != ModuleState::ERROR)
                     m_slink->raiseError("Module preparation failed (prepare() returned False).");
             } catch (py::error_already_set &e) {
                 if (m_slink->state() != ModuleState::ERROR)
@@ -400,12 +414,24 @@ public:
                 else
                     throw;
             }
+
+            return false;
         });
     }
 
-    void onStart(py::object fn)
+    py::object onPrepare()
+    {
+        return m_prepareFn;
+    }
+
+    void setOnStart(py::object fn)
     {
         m_startFn = std::move(fn);
+        if (fn.is_none()) {
+            m_slink->setStartCallback(nullptr);
+            return;
+        }
+
         m_slink->setStartCallback([this]() {
             m_slink->setState(ModuleState::RUNNING);
             if (!m_startFn.is_none()) {
@@ -421,9 +447,19 @@ public:
         });
     }
 
-    void onStop(py::object fn)
+    py::object onStart()
+    {
+        return m_startFn;
+    }
+
+    void setOnStop(py::object fn)
     {
         m_stopFn = std::move(fn);
+        if (fn.is_none()) {
+            m_slink->setStopCallback(nullptr);
+            return;
+        }
+
         m_slink->setStopCallback([this]() {
             if (!m_stopFn.is_none()) {
                 try {
@@ -439,11 +475,22 @@ public:
         });
     }
 
-    void onShowSettings(py::object fn)
+    py::object onStop()
     {
-        m_slink->setShowSettingsCallback([fn]() {
+        return m_stopFn;
+    }
+
+    void setOnShowSettings(py::object fn)
+    {
+        m_showSettingsFn = std::move(fn);
+        if (fn.is_none()) {
+            m_slink->setShowSettingsCallback(nullptr);
+            return;
+        }
+
+        m_slink->setShowSettingsCallback([this]() {
             try {
-                fn();
+                m_showSettingsFn();
             } catch (py::error_already_set &e) {
                 if (g_pslMgr && g_pslMgr->link())
                     g_pslMgr->link()->raiseError(e.what());
@@ -451,11 +498,22 @@ public:
         });
     }
 
-    void onShowDisplay(py::object fn)
+    py::object onShowSettings()
     {
-        m_slink->setShowDisplayCallback([fn]() {
+        return m_showSettingsFn;
+    }
+
+    void setOnShowDisplay(py::object fn)
+    {
+        m_showDisplayFn = std::move(fn);
+        if (fn.is_none()) {
+            m_slink->setShowDisplayCallback(nullptr);
+            return;
+        }
+
+        m_slink->setShowDisplayCallback([this]() {
             try {
-                fn();
+                m_showDisplayFn();
             } catch (py::error_already_set &e) {
                 if (g_pslMgr && g_pslMgr->link())
                     g_pslMgr->link()->raiseError(e.what());
@@ -463,13 +521,22 @@ public:
         });
     }
 
-    void onSaveSettings(py::object fn)
+    py::object onShowDisplay()
     {
-        m_slink->setSaveSettingsCallback([this, fn](const std::string &baseDir, ByteVector &settings) {
-            if (fn.is_none())
-                return true;
+        return m_showDisplayFn;
+    }
+
+    void setOnSaveSettings(py::object fn)
+    {
+        m_saveSettingsFn = std::move(fn);
+        if (fn.is_none()) {
+            m_slink->setSaveSettingsCallback(nullptr);
+            return;
+        }
+
+        m_slink->setSaveSettingsCallback([this](const std::string &baseDir, ByteVector &settings) {
             try {
-                auto pyBytes = fn(baseDir);
+                auto pyBytes = m_saveSettingsFn(baseDir);
                 settings = pyBytes.cast<ByteVector>();
                 return true;
             } catch (py::error_already_set &e) {
@@ -482,13 +549,23 @@ public:
         });
     }
 
-    void onLoadSettings(py::object fn)
+    py::object onSaveSettings()
     {
-        m_slink->setLoadSettingsCallback([this, fn](const std::string &baseDir, const ByteVector &settings) {
-            if (fn.is_none())
-                return true;
+        return m_saveSettingsFn;
+    }
+
+    void setOnLoadSettings(py::object fn)
+    {
+        m_loadSettingsFn = std::move(fn);
+        if (fn.is_none()) {
+            m_slink->setLoadSettingsCallback(nullptr);
+            return;
+        }
+
+        m_slink->setLoadSettingsCallback([this](const std::string &baseDir, const ByteVector &settings) {
             try {
-                auto result = fn(baseDir, py::bytes(reinterpret_cast<const char *>(settings.data()), settings.size()));
+                auto result = m_loadSettingsFn(
+                    baseDir, py::bytes(reinterpret_cast<const char *>(settings.data()), settings.size()));
                 return result.cast<bool>();
             } catch (py::error_already_set &e) {
                 if (m_slink->state() != ModuleState::ERROR)
@@ -500,9 +577,9 @@ public:
         });
     }
 
-    void throwWriteOnlyError(py::object obj)
+    py::object onLoadSettings()
     {
-        throw py::attribute_error("This object attribute is write-only");
+        return m_loadSettingsFn;
     }
 
     /**
@@ -1152,8 +1229,8 @@ PYBIND11_MODULE(syntalos_mlink, m)
     py::class_<PySyLinkManager>(m, "SyntalosLink", "Manages the connection to Syntalos.")
         .def_property(
             "on_prepare",
-            &PySyLinkManager::throwWriteOnlyError,
             &PySyLinkManager::onPrepare,
+            &PySyLinkManager::setOnPrepare,
             "Register a callback invoked when Syntalos prepares a new run.\n"
             "\n"
             "The callback receives the current settings as ``bytes`` and must return ``True``\n"
@@ -1163,37 +1240,37 @@ PYBIND11_MODULE(syntalos_mlink, m)
             "Callable needs to have signature ``fn() -> bool``.")
         .def_property(
             "on_start",
-            &PySyLinkManager::throwWriteOnlyError,
             &PySyLinkManager::onStart,
+            &PySyLinkManager::setOnStart,
             "Register a callback invoked when Syntalos starts a run.\n"
             "\n"
             "Callable needs to have zero-arguments.")
         .def_property(
             "on_stop",
-            &PySyLinkManager::throwWriteOnlyError,
             &PySyLinkManager::onStop,
+            &PySyLinkManager::setOnStop,
             "Register a callback invoked when Syntalos stops a run.\n"
             "\n"
             "Callable needs to have zero-arguments.")
         .def_property(
             "on_show_settings",
-            &PySyLinkManager::throwWriteOnlyError,
             &PySyLinkManager::onShowSettings,
+            &PySyLinkManager::setOnShowSettings,
             "Register a callback invoked when the user opens the module settings dialog.\n"
             "\n"
             "Callable needs to have zero-arguments.")
         .def_property(
             "on_show_display",
-            &PySyLinkManager::throwWriteOnlyError,
             &PySyLinkManager::onShowDisplay,
+            &PySyLinkManager::setOnShowDisplay,
             "Register a callback invoked when the user opens the module display window.\n"
             "\n"
             "Callable needs to have zero-arguments.")
 
         .def_property(
             "on_save_settings",
-            &PySyLinkManager::throwWriteOnlyError,
-            &PySyLinkManager::onSaveSettings,
+            &PySyLinkManager::setOnSaveSettings,
+            &PySyLinkManager::setOnSaveSettings,
             "Register a callback invoked when Syntalos saves settings for this module.\n"
             "\n"
             "The callback receives the base project directory as a string and must return the\n"
@@ -1203,8 +1280,8 @@ PYBIND11_MODULE(syntalos_mlink, m)
             "Callable needs to have signature ``fn(base_dir: str) -> bytes``.")
         .def_property(
             "on_load_settings",
-            &PySyLinkManager::throwWriteOnlyError,
-            &PySyLinkManager::onLoadSettings,
+            &PySyLinkManager::setOnLoadSettings,
+            &PySyLinkManager::setOnLoadSettings,
             "Register a callback invoked when Syntalos loads settings for this module.\n"
             "\n"
             "The callback receives the base project directory as a string and the loaded settings as a ``bytes`` "
