@@ -1140,7 +1140,7 @@ PYBIND11_MODULE(syntalos_mlink, m)
         py::arg("id"),
         "Retrieve a reference to an input port by its ID.\n"
         "\n"
-        ":param id: The port ID passed to :func:`register_input_port`.\n"
+        ":param id: The port ID (assigned via :meth:`SyntalosLink.register_input_port` or via the PyScript GUI editor).\n"
         ":return: An :class:`InputPort` handle, or ``None`` if no port with that ID exists.\n"
         ":rtype: InputPort or None");
 
@@ -1150,7 +1150,7 @@ PYBIND11_MODULE(syntalos_mlink, m)
         py::arg("id"),
         "Retrieve a reference to an output port by its ID.\n"
         "\n"
-        ":param id: The port ID passed to :func:`register_output_port`.\n"
+        ":param id: The port ID (assigned via :meth:`SyntalosLink.register_output_port` or via the PyScript GUI editor).\n"
         ":return: An :class:`OutputPort` handle, or ``None`` if no port with that ID exists.\n"
         ":rtype: OutputPort or None");
 
@@ -1233,8 +1233,8 @@ PYBIND11_MODULE(syntalos_mlink, m)
             &PySyLinkManager::setOnPrepare,
             "Register a callback invoked when Syntalos prepares a new run.\n"
             "\n"
-            "The callback receives the current settings as ``bytes`` and must return ``True``\n"
-            "to signal that preparation succeeded, or ``False`` / raise an exception to abort.\n"
+            "The callback must return ``True`` to signal that preparation succeeded,\n"
+            "or ``False`` / raise an exception to abort.\n"
             "If not registered the module automatically signals readiness.\n"
             "\n"
             "Callable needs to have signature ``fn() -> bool``.")
@@ -1269,7 +1269,7 @@ PYBIND11_MODULE(syntalos_mlink, m)
 
         .def_property(
             "on_save_settings",
-            &PySyLinkManager::setOnSaveSettings,
+            &PySyLinkManager::onSaveSettings,
             &PySyLinkManager::setOnSaveSettings,
             "Register a callback invoked when Syntalos saves settings for this module.\n"
             "\n"
@@ -1280,7 +1280,7 @@ PYBIND11_MODULE(syntalos_mlink, m)
             "Callable needs to have signature ``fn(base_dir: str) -> bytes``.")
         .def_property(
             "on_load_settings",
-            &PySyLinkManager::setOnLoadSettings,
+            &PySyLinkManager::onLoadSettings,
             &PySyLinkManager::setOnLoadSettings,
             "Register a callback invoked when Syntalos loads settings for this module.\n"
             "\n"
@@ -1288,6 +1288,7 @@ PYBIND11_MODULE(syntalos_mlink, m)
             "object.\n"
             "The callback must return ``True`` to signal that the settings were loaded successfully, or"
             " ``False`` / use ``raise_error`` to signal a loading failure.\n"
+            "If not registered, incoming settings are ignored.\n"
             "\n"
             "Callable needs to have signature ``fn(base_dir: str, settings: bytes) -> bool``.")
 
