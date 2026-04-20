@@ -152,25 +152,17 @@ class DLCLiveModule:
     def stop(self):
         pass
 
-    def _show_settings_dialog(self, old_settings: bytes):
-        try:
-            settings = json.loads(old_settings)
-        except Exception as e:
-            print('Error while reading old settings:', e)
-            settings = {}
-
+    def _show_settings_dialog(self):
         dlg = SettingsDialog()
-        dlg.model_path = settings.get('model_path', None)
-        dlg.display_dlc = settings.get('display', False)
+        dlg.model_path = self._model_path
+        dlg.display_dlc = self._display
         dlg.exec()
 
-        settings['model_path'] = dlg.model_path
-        settings['display'] = dlg.display_dlc
-
-        syl.save_settings(bytes(json.dumps(settings), 'utf-8'))
+        self._model_path = dlg.model_path
+        self._display = dlg.display_dlc
 
     def _save_settings_data(self, baseDir: str) -> bytes:
-        settings = dict(prefix=self._label_prefix)
+        settings = dict(model_path=self._model_path, display=self._display)
         return bytes(json.dumps(settings), 'utf-8')
 
     def _load_settings_data(self, data: bytes, baseDir: os.PathLike[str]) -> bool:
