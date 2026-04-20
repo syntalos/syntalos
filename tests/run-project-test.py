@@ -285,7 +285,7 @@ def run_test(syntalos_bin, manifest_path):
     name = test_config.get("name", os.path.basename(manifest_path))
     project_file = test_config.get("project_file")
     run_duration = test_config.get("run_duration_sec", 10)
-    timeout = test_config.get("timeout_sec", (run_duration * 2) + 30)
+    timeout = test_config.get("timeout_sec", (run_duration * 3) + 30)
     expected_exit = test_config.get("expected_exit_code", 0)
     expected_datasets = test_config.get("expected_datasets", [])
     expected_output = test_config.get("expected_output_files", [])

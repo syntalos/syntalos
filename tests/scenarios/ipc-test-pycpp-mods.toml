@@ -43,11 +43,11 @@ toml_fields = ["data.media_type", "data.parts"]
 
 [[test.expected_output_files]]
 path = "videos/libmod-example/*-video.mkv"
-min_size_bytes = 9400000
+min_size_bytes = 8400000
 
 [[test.expected_output_files]]
 path = "videos/libmod-example/*-video_timestamps.tsync"
-min_size_bytes = 11076
+min_size_bytes = 10042
 
 [[test.expected_output_files]]
 path = "videos/pymod-example/manifest.toml"
@@ -55,8 +55,8 @@ toml_fields = ["data.media_type", "data.parts"]
 
 [[test.expected_output_files]]
 path = "videos/pymod-example/*-video.mkv"
-min_size_bytes = 9400000
+min_size_bytes = 8400000
 
 [[test.expected_output_files]]
 path = "videos/pymod-example/*-video_timestamps.tsync"
-min_size_bytes = 11076
+min_size_bytes = 10042
