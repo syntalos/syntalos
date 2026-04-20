@@ -149,7 +149,7 @@ public:
         if (m_ctlSub) {
             auto maybeCtl = m_ctlSub->peekNext();
             if (maybeCtl.has_value()) {
-                const auto ctlValue = maybeCtl.value();
+                const auto ctlValue = std::move(maybeCtl.value());
                 m_paused = ctlValue.kind == ControlCommandKind::STOP || ctlValue.kind == ControlCommandKind::PAUSE;
             }
 
@@ -220,7 +220,7 @@ public:
         }
 
         // get all timing info and show the image
-        const auto frame = maybeFrame.value();
+        const auto &frame = maybeFrame.value();
         m_cvView->showImage(frame.mat);
         const auto frameTimeUsec = frame.time.count();
 

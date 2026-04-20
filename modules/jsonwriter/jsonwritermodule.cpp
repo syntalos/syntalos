@@ -362,7 +362,7 @@ public:
         auto maybeData = m_floatSub->peekNext();
         if (!maybeData.has_value())
             return;
-        const auto data = maybeData.value();
+        const auto &data = *maybeData;
         if (!m_writeData)
             return;
 
@@ -391,7 +391,7 @@ public:
         auto maybeData = m_intSub->peekNext();
         if (!maybeData.has_value())
             return;
-        const auto data = maybeData.value();
+        const auto &data = maybeData.value();
         if (!m_writeData)
             return;
 
@@ -420,7 +420,7 @@ public:
         auto maybeData = m_rowSub->peekNext();
         if (!maybeData.has_value())
             return;
-        const auto row = maybeData.value();
+        const auto &row = *maybeData;
         if (!m_writeData)
             return;
 

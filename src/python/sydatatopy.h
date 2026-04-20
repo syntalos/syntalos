@@ -77,7 +77,7 @@ public:
 template<>
 struct type_caster<Syntalos::MetaArray> {
 public:
-    PYBIND11_TYPE_CASTER(Syntalos::MetaArray, const_name("list"));
+    PYBIND11_TYPE_CASTER(Syntalos::MetaArray, const_name("list[typing.Any]"));
     bool load(handle src, bool convert);
     static handle cast(const Syntalos::MetaArray &src, return_value_policy policy, handle parent);
 };
