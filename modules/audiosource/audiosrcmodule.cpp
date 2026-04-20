@@ -207,7 +207,7 @@ public:
         if (!maybeCtl.has_value())
             return;
 
-        auto ctl = maybeCtl.value();
+        const auto &ctl = maybeCtl.value();
 
         setPlayStateFromCommand(ctl.kind);
         if (ctl.duration.count() == 0)

@@ -593,7 +593,7 @@ public:
             auto maybeRow = activeSubs[i]->peekNext();
             if (!maybeRow.has_value())
                 continue;
-            auto row = maybeRow.value();
+            auto row = std::move(*maybeRow);
             QJsonObject obj;
             obj.insert("p", (qint64)i);
             QJsonArray data;

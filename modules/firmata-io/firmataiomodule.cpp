@@ -208,7 +208,7 @@ public:
         const auto maybeCtl = m_fmCtlSub->peekNext();
         if (!maybeCtl.has_value())
             return false;
-        const auto ctl = maybeCtl.value();
+        const auto &ctl = maybeCtl.value();
         switch (ctl.command) {
         case FirmataCommandKind::NEW_DIG_PIN:
             newDigitalPin(firmata, ctl.pinId, ctl.pinName, ctl.isOutput, ctl.isPullUp);

@@ -114,12 +114,12 @@ public:
 
     void onFrameReceived()
     {
-        const auto maybeFrame = m_framesIn->peekNext();
+        auto maybeFrame = m_framesIn->peekNext();
         if (!maybeFrame.has_value())
             return;
 
         // get the frame
-        auto frame = maybeFrame.value();
+        auto frame = std::move(*maybeFrame);
 
         // ensure the frame dimensions match what the stream metadata advertises;
         // the transforms rely on this guarantee and must not receive unexpected sizes
@@ -135,7 +135,7 @@ public:
         }
 
         // apply transformations
-        cv::Mat &image = frame.mat;
+        cv::Mat image = frame.mat;
         bool prevTransformCreatedCopy = false;
         for (const auto &vtf : m_activeVTFList) {
             if (vtf->needsIndependentCopy()) {
@@ -153,7 +153,7 @@ public:
         }
 
         // forward the updated frame
-        frame.mat = image;
+        frame.mat = std::move(image);
         m_framesOut->push(frame);
     }
 

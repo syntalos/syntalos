@@ -107,7 +107,7 @@ public:
             // no value means the subscription has been terminated
             if (!mFrame.has_value())
                 break;
-            const auto frame = mFrame.value();
+            const auto &frame = mFrame.value();
 
             cv::Mat infoMat;
             cv::Mat trackMat;

@@ -7,80 +7,55 @@
 #include <thread>
 
 #include "symemopt.h"
+#include "datactl/frametype.h"
 #include "streams/stream.h"
 #include "testbarrier.h"
 
 static const int N_OF_DATAFRAMES = 2000;
 
-struct MyDataFrame : BaseDataType {
-    SY_DEFINE_DATA_TYPE(Frame)
+using namespace Syntalos;
 
-    size_t id;
-    time_t timestamp;
-    cv::Mat frame;
-
-    bool toBytes(ByteVector &output) const override
-    {
-        BinaryStreamWriter stream(output);
-
-        stream.write(id);
-        stream.write(timestamp);
-
-        return true;
-    }
-
-    static MyDataFrame fromMemory(const void *memory, size_t size)
-    {
-        MyDataFrame obj;
-        BinaryStreamReader stream(memory, size);
-
-        // STUB
-
-        return obj;
-    }
-};
-
-static cv::Mat process_data_instant(const MyDataFrame &data)
+static cv::Mat process_data_instant(const Frame &data)
 {
-    return data.frame;
+    return data.mat;
 }
 
-static cv::Mat process_data_fast(const MyDataFrame &data)
+static cv::Mat process_data_fast(const Frame &data)
 {
-    auto result = data.frame.clone();
+    auto result = data.mat.clone();
     cv::blur(result, result, cv::Size(5, 5));
 
     return result;
 }
 
-static cv::Mat process_data_slow(const MyDataFrame &data)
+static cv::Mat process_data_slow(const Frame &data)
 {
     for (uint i = 0; i < 4; ++i)
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     return process_data_fast(data);
 }
 
-static MyDataFrame transform_data_fast(const MyDataFrame &data, size_t id)
+static Frame transform_data_fast(const Frame &data, size_t id)
 {
-    MyDataFrame newData;
+    Frame newData;
 
-    newData.frame = process_data_fast(data);
+    newData.mat = process_data_fast(data);
     cv::putText(
-        newData.frame,
+        newData.mat,
         std::string("E ") + std::to_string(id),
         cv::Point(24, 320),
         cv::FONT_HERSHEY_COMPLEX,
         1.5,
         cv::Scalar(140, 140, 255));
-    newData.id = id;
+    newData.index = id;
 
     return newData;
 }
 
-static MyDataFrame create_data_200Hz(size_t index)
+static Frame create_data_200Hz(size_t index)
 {
-    MyDataFrame data;
-    data.id = index;
+    Frame data;
+    data.index = index;
 
     cv::Mat frame(cv::Size(800, 600), CV_8UC3);
     frame.setTo(cv::Scalar(67, 42, 30));
@@ -91,13 +66,13 @@ static MyDataFrame create_data_200Hz(size_t index)
         cv::FONT_HERSHEY_COMPLEX,
         1.5,
         cv::Scalar(255, 255, 255));
-    data.frame = frame;
+    data.mat = frame;
 
     std::this_thread::sleep_for(std::chrono::milliseconds(5));
     return data;
 }
 
-static void producer_fast(const std::string &threadName, Barrier *barrier, DataStream<MyDataFrame> *stream)
+static void producer_fast(const std::string &threadName, Barrier *barrier, DataStream<Frame> *stream)
 {
     pthread_setname_np(pthread_self(), threadName.c_str());
 
@@ -109,7 +84,7 @@ static void producer_fast(const std::string &threadName, Barrier *barrier, DataS
     stream->terminate();
 }
 
-static void consumer_fast(const std::string &threadName, Barrier *barrier, DataStream<MyDataFrame> *stream)
+static void consumer_fast(const std::string &threadName, Barrier *barrier, DataStream<Frame> *stream)
 {
     pthread_setname_np(pthread_self(), threadName.c_str());
     size_t lastId = 0;
@@ -124,16 +99,16 @@ static void consumer_fast(const std::string &threadName, Barrier *barrier, DataS
 
         // display_frame(result, sub->name());
 
-        if (data->id != (lastId + 1))
-            std::cout << "Value dropped (fast consumer) [" << data->id << "]" << std::endl;
-        lastId = data->id;
+        if (data->index != (lastId + 1))
+            std::cout << "Value dropped (fast consumer) [" << data->index << "]" << std::endl;
+        lastId = data->index;
     }
     if (lastId != N_OF_DATAFRAMES)
         std::cout << "Fast consumer received only " << lastId << " data elements out of " << N_OF_DATAFRAMES
                   << std::endl;
 }
 
-static void consumer_slow(const std::string &threadName, Barrier *barrier, DataStream<MyDataFrame> *stream)
+static void consumer_slow(const std::string &threadName, Barrier *barrier, DataStream<Frame> *stream)
 {
     pthread_setname_np(pthread_self(), threadName.c_str());
     size_t lastId = 0;
@@ -146,9 +121,9 @@ static void consumer_slow(const std::string &threadName, Barrier *barrier, DataS
             break; // subscription has been terminated
         process_data_slow(data.value());
 
-        if (data->id != (lastId + 1))
-            std::cout << "Value dropped (slow consumer) [" << data->id << "]" << std::endl;
-        lastId = data->id;
+        if (data->index != (lastId + 1))
+            std::cout << "Value dropped (slow consumer) [" << data->index << "]" << std::endl;
+        lastId = data->index;
     }
 
     if (lastId != N_OF_DATAFRAMES)
@@ -156,7 +131,7 @@ static void consumer_slow(const std::string &threadName, Barrier *barrier, DataS
                   << std::endl;
 }
 
-static void consumer_instant(const std::string &threadName, Barrier *barrier, DataStream<MyDataFrame> *stream)
+static void consumer_instant(const std::string &threadName, Barrier *barrier, DataStream<Frame> *stream)
 {
     pthread_setname_np(pthread_self(), threadName.c_str());
 
@@ -173,8 +148,8 @@ static void consumer_instant(const std::string &threadName, Barrier *barrier, Da
 static void transformer_fast(
     const std::string &threadName,
     Barrier *barrier,
-    DataStream<MyDataFrame> *recvStream,
-    DataStream<MyDataFrame> *prodStream)
+    DataStream<Frame> *recvStream,
+    DataStream<Frame> *prodStream)
 {
     pthread_setname_np(pthread_self(), threadName.c_str());
     size_t count = 1;
@@ -211,8 +186,8 @@ private slots:
         Barrier barrier(6);
 
         std::vector<std::thread> threads;
-        std::shared_ptr<DataStream<MyDataFrame>> prodStream(new DataStream<MyDataFrame>());
-        std::shared_ptr<DataStream<MyDataFrame>> transStream(new DataStream<MyDataFrame>());
+        std::shared_ptr<DataStream<Frame>> prodStream(new DataStream<Frame>());
+        std::shared_ptr<DataStream<Frame>> transStream(new DataStream<Frame>());
 
         QBENCHMARK {
             threads.push_back(std::thread(producer_fast, "producer", &barrier, prodStream.get()));
@@ -235,8 +210,8 @@ private slots:
         const size_t threadCount = std::thread::hardware_concurrency() * 2 + 2;
         Barrier barrier(threadCount);
 
-        auto prodStream = std::make_shared<DataStream<MyDataFrame>>();
-        auto transStream = std::make_shared<DataStream<MyDataFrame>>();
+        auto prodStream = std::make_shared<DataStream<Frame>>();
+        auto transStream = std::make_shared<DataStream<Frame>>();
 
         QBENCHMARK {
             threads.emplace_back(producer_fast, "producer", &barrier, prodStream.get());

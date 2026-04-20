@@ -345,11 +345,11 @@ private:
     {
         if (!m_channelSubs[ch])
             return;
-        const auto maybeFrame = m_channelSubs[ch]->peekNext();
+        auto maybeFrame = m_channelSubs[ch]->peekNext();
         if (!maybeFrame.has_value())
             return;
 
-        m_channelBuffers[ch] = maybeFrame.value();
+        m_channelBuffers[ch] = std::move(*maybeFrame);
         tryCombine();
     }
 

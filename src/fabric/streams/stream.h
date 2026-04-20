@@ -380,8 +380,7 @@ public:
 
     void forcePushNullopt() override
     {
-        std::optional<T> v;
-        m_queue.enqueue(v);
+        m_queue.emplace(std::nullopt);
     }
 
 private:
@@ -443,7 +442,7 @@ private:
      */
     void push(const T &data)
     {
-        pushImpl(data);
+        pushImpl(data.clone());
     }
 
     /**
@@ -460,7 +459,7 @@ private:
     void stop()
     {
         m_active = false;
-        m_queue.enqueue(std::nullopt);
+        m_queue.emplace(std::nullopt);
     }
 
     void reset()
@@ -478,6 +477,9 @@ template<typename T>
 class DataStream : public VariantDataStream
 {
 public:
+    static_assert(std::derived_from<T, BaseDataType>, "DataStream<T> requires T to derive from BaseDataType.");
+    static_assert(supports_explicit_clone<T>, "DataStream<T> requires T to implement T clone() const.");
+
     DataStream()
         : m_active(false),
           m_explicitDormant(false)

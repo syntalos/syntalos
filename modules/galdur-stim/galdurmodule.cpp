@@ -147,7 +147,7 @@ public:
                     const auto maybeCtlCmd = m_ctlSub->peekNext();
                     if (!maybeCtlCmd.has_value())
                         break;
-                    const auto ctlCmd = maybeCtlCmd.value();
+                    const auto &ctlCmd = maybeCtlCmd.value();
 
                     if (ctlCmd.kind == ControlCommandKind::START) {
                         setStatusMessage("Stimulating...");

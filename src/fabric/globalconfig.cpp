@@ -302,3 +302,40 @@ void Syntalos::findSyntalosLibraryPaths(QString &pkgConfigPath, QString &ldLibra
                     + QStringLiteral("%1/datactl").arg(QCoreApplication::applicationDirPath()) + ":"
                     + QStringLiteral("%1/utils").arg(QCoreApplication::applicationDirPath());
 }
+
+/**
+ * Get a directory to prepend to PYTHONPATH so the syntalos_mlink C extension
+ * can be imported even if we are running from a not-installed copy of Syntalos.
+ */
+static QString syntalosLocalPyMlinkPath()
+{
+    // In dev / uninstalled builds the extension is built alongside the application
+    // binary in a "python/" subdirectory.
+    const QString devDir = QCoreApplication::applicationDirPath() + QStringLiteral("/python");
+
+    // prefer the dev-build directory when it contains the extension
+    if (!QDir(devDir).entryList({"syntalos_mlink*.so"}, QDir::Files).isEmpty())
+        return devDir;
+
+    return {};
+}
+
+/**
+ * Build an ordered list of directories that can contain syntalos_mlink.
+ * Dev/build paths are preferred over installed paths.
+ */
+QStringList Syntalos::findSyntalosMlinkPyModulePaths()
+{
+    QStringList paths;
+
+    const auto appendIfContainsMlink = [&paths](const QString &dir) {
+        if (dir.isEmpty())
+            return;
+        if (!QDir(dir).entryList({"syntalos_mlink*.so"}, QDir::Files).isEmpty())
+            paths << dir;
+    };
+
+    appendIfContainsMlink(syntalosLocalPyMlinkPath());
+    appendIfContainsMlink(QStringLiteral(PYTHON_INSTALL_PATH));
+    return paths;
+}

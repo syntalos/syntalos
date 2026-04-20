@@ -152,7 +152,7 @@ public:
         if (!maybeRow.has_value())
             return;
 
-        const auto row = maybeRow.value();
+        const auto row = std::move(maybeRow.value());
         m_recTable->addRows(row.data);
     }
 

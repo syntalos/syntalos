@@ -148,19 +148,22 @@ struct OutputPort {
         auto slink = getActiveLink();
         switch (_oport->dataTypeId()) {
         case syDataTypeId<ControlCommand>():
-            return slink->submitOutput(_oport, py::cast<ControlCommand>(pyObj));
-        case syDataTypeId<TableRow>():
-            return slink->submitOutput(_oport, py::cast<TableRow>(pyObj));
+            return slink->submitOutput(_oport, py::cast<ControlCommand &>(pyObj));
+        case syDataTypeId<TableRow>(): {
+            // value-cast for sequence-construction path
+            auto row = py::cast<TableRow>(pyObj);
+            return slink->submitOutput(_oport, row);
+        }
         case syDataTypeId<Frame>():
-            return slink->submitOutput(_oport, py::cast<Frame>(pyObj));
+            return slink->submitOutput(_oport, py::cast<Frame &>(pyObj));
         case syDataTypeId<FirmataControl>():
-            return slink->submitOutput(_oport, py::cast<FirmataControl>(pyObj));
+            return slink->submitOutput(_oport, py::cast<FirmataControl &>(pyObj));
         case syDataTypeId<FirmataData>():
-            return slink->submitOutput(_oport, py::cast<FirmataData>(pyObj));
+            return slink->submitOutput(_oport, py::cast<FirmataData &>(pyObj));
         case syDataTypeId<IntSignalBlock>():
-            return slink->submitOutput(_oport, py::cast<IntSignalBlock>(pyObj));
+            return slink->submitOutput(_oport, py::cast<IntSignalBlock &>(pyObj));
         case syDataTypeId<FloatSignalBlock>():
-            return slink->submitOutput(_oport, py::cast<FloatSignalBlock>(pyObj));
+            return slink->submitOutput(_oport, py::cast<FloatSignalBlock &>(pyObj));
         default:
             return false;
         }

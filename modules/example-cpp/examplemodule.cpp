@@ -86,8 +86,8 @@ public:
             if (!maybeFrame.has_value())
                 return; // end of stream
 
-            // just copy input to output
-            const auto frame = maybeFrame.value();
+            // just move input to output
+            auto frame = std::move(*maybeFrame);
             m_frameOut->push(frame);
         }
     }

@@ -22,11 +22,13 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <concepts>
 #include <charconv>
 #include <cstdint>
 #include <cassert>
 #include <array>
 #include <cmath>
+#include <type_traits>
 
 #include "syclock.h"
 #include "binarystream.h"
@@ -88,6 +90,14 @@ struct BaseDataType {
 public:
     virtual ~BaseDataType() = default;
 
+protected:
+    BaseDataType() = default;
+    BaseDataType(const BaseDataType &) = default;
+    BaseDataType &operator=(const BaseDataType &) = default;
+    BaseDataType(BaseDataType &&) noexcept = default;
+    BaseDataType &operator=(BaseDataType &&) noexcept = default;
+
+public:
     /**
      * @brief The TypeId enum
      *
@@ -209,6 +219,7 @@ public:
  * @brief Helper macro to define a Syntalos stream data type.
  */
 #define SY_DEFINE_DATA_TYPE(TypeName)                    \
+public:                                                  \
     BaseDataType::TypeId typeId() const override         \
     {                                                    \
         return BaseDataType::TypeName;                   \
@@ -216,7 +227,27 @@ public:
     static constexpr BaseDataType::TypeId staticTypeId() \
     {                                                    \
         return BaseDataType::TypeName;                   \
+    }                                                    \
+                                                         \
+private:                                                 \
+    TypeName(const TypeName &) = default;                \
+    TypeName &operator=(const TypeName &) = default;     \
+                                                         \
+public:                                                  \
+    TypeName(TypeName &&) noexcept = default;            \
+    TypeName &operator=(TypeName &&) noexcept = default; \
+    [[nodiscard]] TypeName clone() const                 \
+    {                                                    \
+        return TypeName(*this);                          \
     }
+
+/**
+ * @brief Check if a type supports explicit cloning semantics.
+ */
+template<typename T>
+concept supports_explicit_clone = requires(const T &obj) {
+    { obj.clone() } -> std::same_as<T>;
+};
 
 /**
  * @brief Helper function to get the type ID of a data type
@@ -461,6 +492,8 @@ struct FirmataData : BaseDataType {
     uint16_t value{};
     bool isDigital{};
     microseconds_t time{};
+
+    explicit FirmataData() = default;
 
     bool toBytes(ByteVector &output) const override
     {
