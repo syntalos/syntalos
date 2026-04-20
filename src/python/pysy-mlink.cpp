@@ -1273,7 +1273,7 @@ PYBIND11_MODULE(syntalos_mlink, m)
             " ``False`` / use ``raise_error`` to signal a loading failure.\n"
             "If not registered, incoming settings are ignored.\n"
             "\n"
-            "Type: ``Callable[[str, bytes], bool] | None``.")
+            "Type: ``Callable[[bytes, str], bool] | None``.")
         .def(
             "register_input_port",
             &PySyLinkManager::registerInputPort,
