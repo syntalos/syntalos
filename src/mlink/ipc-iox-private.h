@@ -34,27 +34,38 @@ using IoxPublisher = iox2::Publisher<iox2::ServiceType::Ipc, T, void>;
 template<typename T>
 using IoxSubscriber = iox2::Subscriber<iox2::ServiceType::Ipc, T, void>;
 
-using IoxSlicePublisher = iox2::Publisher<iox2::ServiceType::Ipc, iox2::bb::Slice<std::byte>, void>;
-using IoxSliceSubscriber = iox2::Subscriber<iox2::ServiceType::Ipc, iox2::bb::Slice<std::byte>, void>;
+using IoxByteSlice = iox2::bb::Slice<std::byte>;
+
+using IoxSlicePublisher = iox2::Publisher<iox2::ServiceType::Ipc, IoxByteSlice, void>;
+using IoxSliceSubscriber = iox2::Subscriber<iox2::ServiceType::Ipc, IoxByteSlice, void>;
 using IoxListener = iox2::Listener<iox2::ServiceType::Ipc>;
 using IoxNotifier = iox2::Notifier<iox2::ServiceType::Ipc>;
 
 template<typename Req, typename Res>
 using IoxServer = iox2::Server<iox2::ServiceType::Ipc, Req, void, Res, void>;
-using IoxUntypedServer = iox2::Server<iox2::ServiceType::Ipc, iox2::bb::Slice<std::byte>, void, DoneResponse, void>;
+using IoxUntypedReqServer = iox2::Server<iox2::ServiceType::Ipc, IoxByteSlice, void, DoneResponse, void>;
+using IoxUntypedReqResServer = iox2::Server<iox2::ServiceType::Ipc, IoxByteSlice, void, IoxByteSlice, void>;
 
 template<typename Req, typename Res>
 using IoxClient = iox2::Client<iox2::ServiceType::Ipc, Req, void, Res, void>;
-using IoxUntypedClient = iox2::Client<iox2::ServiceType::Ipc, iox2::bb::Slice<std::byte>, void, DoneResponse, void>;
+using IoxUntypedClient = iox2::Client<iox2::ServiceType::Ipc, IoxByteSlice, void, DoneResponse, void>;
 
-using SliceActiveRequest =
-    iox2::ActiveRequest<iox2::ServiceType::Ipc, iox2::bb::Slice<std::byte>, void, DoneResponse, void>;
+using SliceActiveRequest = iox2::ActiveRequest<iox2::ServiceType::Ipc, IoxByteSlice, void, DoneResponse, void>;
 
-using IoxByteSlice = iox2::bb::ImmutableSlice<std::byte>;
+using IoxImmutableByteSlice = iox2::bb::ImmutableSlice<std::byte>;
 using IoxServiceNameString = iox2::bb::StaticString<IOX2_SERVICE_NAME_LENGTH>;
 
 using IoxWaitSet = iox2::WaitSet<iox2::ServiceType::Ipc>;
 using IoxWaitSetGuard = iox2::WaitSetGuard<iox2::ServiceType::Ipc>;
+
+/**
+ * Test if a type is a iox2::bb::Slice specialization.
+ */
+template<class T>
+constexpr bool is_iox_slice = false;
+
+template<class U>
+constexpr bool is_iox_slice<iox2::bb::Slice<U>> = true;
 
 /**
  * @brief Construct the service name for a given module instance and channel.
@@ -176,7 +187,7 @@ public:
         auto svcNameCtlEv = iox2::ServiceName::create(svcNameCtlEvStr.c_str()).value();
 
         auto maybePubSvc = node.service_builder(svcName)
-                               .publish_subscribe<iox2::bb::Slice<std::byte>>()
+                               .publish_subscribe<IoxByteSlice>()
                                .max_publishers(topology.maxSenders)
                                .max_subscribers(topology.maxReceivers)
                                .max_nodes(topology.maxNodes)
@@ -290,7 +301,7 @@ public:
     }
 
     /// The uninitialised loan type returned by loanSlice().
-    using SliceLoan = iox2::SampleMutUninit<iox2::ServiceType::Ipc, iox2::bb::Slice<std::byte>, void>;
+    using SliceLoan = iox2::SampleMutUninit<iox2::ServiceType::Ipc, IoxByteSlice, void>;
 
     /**
      * Loan a shared-memory slice of @p size bytes from the publisher.
@@ -417,7 +428,7 @@ public:
         auto svcNameCtlEv = iox2::ServiceName::create(svcNameCtlEvStr.c_str()).value();
 
         auto maybeSubSvc = node.service_builder(svcName)
-                               .publish_subscribe<iox2::bb::Slice<std::byte>>()
+                               .publish_subscribe<IoxByteSlice>()
                                .max_publishers(topology.maxSenders)
                                .max_subscribers(topology.maxReceivers)
                                .max_nodes(topology.maxNodes)
@@ -666,7 +677,7 @@ inline IoxSlicePublisher makeSlicePublisher(
     const IpcServiceTopology &topology = IpcServiceTopology())
 {
     auto maybeSvc = node.service_builder(iox2::ServiceName::create(svcNameStr.c_str()).value())
-                        .publish_subscribe<iox2::bb::Slice<std::byte>>()
+                        .publish_subscribe<IoxByteSlice>()
                         .max_publishers(topology.maxSenders)
                         .max_subscribers(topology.maxReceivers)
                         .max_nodes(topology.maxNodes)
@@ -703,7 +714,7 @@ inline IoxSliceSubscriber makeSliceSubscriber(
     const IpcServiceTopology &topology = IpcServiceTopology())
 {
     auto maybeSvc = node.service_builder(iox2::ServiceName::create(svcNameStr.c_str()).value())
-                        .publish_subscribe<iox2::bb::Slice<std::byte>>()
+                        .publish_subscribe<IoxByteSlice>()
                         .max_publishers(topology.maxSenders)
                         .max_subscribers(topology.maxReceivers)
                         .max_nodes(topology.maxNodes)
@@ -785,6 +796,7 @@ IoxServer<Req, Res> makeTypedServer(
 {
     auto maybeSvc = node.service_builder(iox2::ServiceName::create(svcNameStr.c_str()).value())
                         .request_response<Req, Res>()
+                        .max_response_buffer_size(SY_IOX_MAX_RESPONSE_BUF_SIZE)
                         .max_servers(topology.maxSenders)
                         .max_clients(topology.maxReceivers)
                         .max_nodes(topology.maxNodes)
@@ -815,6 +827,7 @@ IoxClient<Req, Res> makeTypedClient(
 {
     auto maybeSvc = node.service_builder(iox2::ServiceName::create(svcNameStr.c_str()).value())
                         .request_response<Req, Res>()
+                        .max_response_buffer_size(SY_IOX_MAX_RESPONSE_BUF_SIZE)
                         .max_servers(topology.maxSenders)
                         .max_clients(topology.maxReceivers)
                         .max_nodes(topology.maxNodes)
@@ -833,26 +846,33 @@ IoxClient<Req, Res> makeTypedClient(
 /**
  * Create/open a sliced request-response server.
  */
-inline IoxUntypedServer makeSliceServer(
+template<typename ResponseT = DoneResponse>
+inline auto makeSliceServer(
     iox2::Node<iox2::ServiceType::Ipc> &node,
     const std::string &svcNameStr,
     const IpcServiceTopology &topology = IpcServiceTopology())
+    -> iox2::Server<iox2::ServiceType::Ipc, IoxByteSlice, void, ResponseT, void>
 {
     auto maybeSvc = node.service_builder(iox2::ServiceName::create(svcNameStr.c_str()).value())
-                        .request_response<iox2::bb::Slice<std::byte>, DoneResponse>()
+                        .request_response<IoxByteSlice, ResponseT>()
+                        .max_response_buffer_size(SY_IOX_MAX_RESPONSE_BUF_SIZE)
                         .max_servers(topology.maxSenders)
                         .max_clients(topology.maxReceivers)
                         .max_nodes(topology.maxNodes)
                         .open_or_create();
     if (!maybeSvc.has_value())
         throw std::runtime_error(
-            "Failed to open/create untyped request-response service for '" + svcNameStr
+            "Failed to open/create untyped request-response service for server on '" + svcNameStr
             + "': " + iox2::bb::into<const char *>(maybeSvc.error()));
-    auto maybeSrv = std::move(maybeSvc)
-                        .value()
-                        .server_builder()
-                        .unable_to_deliver_strategy(iox2::UnableToDeliverStrategy::Block)
-                        .create();
+    auto srvBuilder = std::move(maybeSvc).value().server_builder().unable_to_deliver_strategy(
+        iox2::UnableToDeliverStrategy::Block);
+    if constexpr (is_iox_slice<ResponseT>) {
+        std::move(srvBuilder)
+            .initial_max_slice_len(SY_IOX_INITIAL_SLICE_LEN)
+            .allocation_strategy(iox2::AllocationStrategy::PowerOfTwo);
+    }
+
+    auto maybeSrv = std::move(srvBuilder).create();
     if (!maybeSrv.has_value())
         throw std::runtime_error(
             "Failed to create untyped server for '" + svcNameStr
@@ -863,20 +883,23 @@ inline IoxUntypedServer makeSliceServer(
 /**
  * Create/open a sliced request-response client.
  */
-inline IoxUntypedClient makeSliceClient(
+template<typename ResponseT = DoneResponse>
+inline auto makeSliceClient(
     iox2::Node<iox2::ServiceType::Ipc> &node,
     const std::string &svcNameStr,
     const IpcServiceTopology &topology = IpcServiceTopology())
+    -> iox2::Client<iox2::ServiceType::Ipc, IoxByteSlice, void, ResponseT, void>
 {
     auto maybeSvc = node.service_builder(iox2::ServiceName::create(svcNameStr.c_str()).value())
-                        .request_response<iox2::bb::Slice<std::byte>, DoneResponse>()
+                        .request_response<IoxByteSlice, ResponseT>()
+                        .max_response_buffer_size(SY_IOX_MAX_RESPONSE_BUF_SIZE)
                         .max_servers(topology.maxSenders)
                         .max_clients(topology.maxReceivers)
                         .max_nodes(topology.maxNodes)
                         .open_or_create();
     if (!maybeSvc.has_value())
         throw std::runtime_error(
-            "Failed to open/create untyped request-response service for '" + svcNameStr
+            "Failed to open/create untyped request-response service for client on '" + svcNameStr
             + "': " + iox2::bb::into<const char *>(maybeSvc.error()));
     auto maybeClient = std::move(maybeSvc)
                            .value()

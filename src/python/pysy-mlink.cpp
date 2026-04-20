@@ -297,6 +297,9 @@ private:
     py::object m_startFn;
     py::object m_stopFn;
 
+    py::object m_saveSettingsFn;
+    py::object m_loadSettingsFn;
+
 public:
     /**
      * Standalone mode: creates and owns a new SyntalosLink.
@@ -304,7 +307,9 @@ public:
     PySyLinkManager()
         : m_prepareFn(py::none()),
           m_startFn(py::none()),
-          m_stopFn(py::none())
+          m_stopFn(py::none()),
+          m_saveSettingsFn(py::none()),
+          m_loadSettingsFn(py::none())
     {
         m_ownedSLink = initSyntalosModuleLink();
         m_slink = m_ownedSLink.get();
@@ -317,7 +322,9 @@ public:
         : m_slink(borrowedLink),
           m_prepareFn(py::none()),
           m_startFn(py::none()),
-          m_stopFn(py::none())
+          m_stopFn(py::none()),
+          m_saveSettingsFn(py::none()),
+          m_loadSettingsFn(py::none())
     {
     }
 
@@ -344,15 +351,20 @@ public:
         for (const auto &iport : m_slink->inputPorts())
             iport->setNewDataRawCallback(nullptr);
 
-        m_slink->setPrepareStartCallback(nullptr);
+        m_slink->setPrepareRunCallback(nullptr);
         m_slink->setStartCallback(nullptr);
         m_slink->setStopCallback(nullptr);
         m_slink->setShowSettingsCallback(nullptr);
         m_slink->setShowDisplayCallback(nullptr);
 
+        m_slink->setSaveSettingsCallback(nullptr);
+        m_slink->setLoadSettingsCallback(nullptr);
+
         m_prepareFn = py::none();
         m_startFn = py::none();
         m_stopFn = py::none();
+        m_saveSettingsFn = py::none();
+        m_loadSettingsFn = py::none();
 
         // In standalone mode, destroy the SyntalosLink now (while interpreter is valid).
         // In pyworker mode m_ownedSLink is empty, so this is a no-op.
@@ -371,13 +383,13 @@ public:
     void onPrepare(py::object fn)
     {
         m_prepareFn = std::move(fn);
-        m_slink->setPrepareStartCallback([this](const ByteVector &settings) {
+        m_slink->setPrepareRunCallback([this]() {
             if (m_prepareFn.is_none()) {
                 m_slink->setState(ModuleState::READY);
                 return;
             }
             try {
-                auto result = m_prepareFn(py::bytes(reinterpret_cast<const char *>(settings.data()), settings.size()));
+                auto result = m_prepareFn();
                 if (result.cast<bool>())
                     m_slink->setState(ModuleState::READY);
                 else if (m_slink->state() != ModuleState::ERROR)
@@ -429,9 +441,9 @@ public:
 
     void onShowSettings(py::object fn)
     {
-        m_slink->setShowSettingsCallback([fn](const ByteVector &settings) {
+        m_slink->setShowSettingsCallback([fn]() {
             try {
-                fn(settings);
+                fn();
             } catch (py::error_already_set &e) {
                 if (g_pslMgr && g_pslMgr->link())
                     g_pslMgr->link()->raiseError(e.what());
@@ -451,9 +463,46 @@ public:
         });
     }
 
-    void saveSettings(const ByteVector &settings_data)
+    void onSaveSettings(py::object fn)
     {
-        m_slink->setSettingsData(settings_data);
+        m_slink->setSaveSettingsCallback([this, fn](const std::string &baseDir, ByteVector &settings) {
+            if (fn.is_none())
+                return true;
+            try {
+                auto pyBytes = fn(baseDir);
+                settings = pyBytes.cast<ByteVector>();
+                return true;
+            } catch (py::error_already_set &e) {
+                if (m_slink->state() != ModuleState::ERROR)
+                    m_slink->raiseError(e.what());
+                else
+                    throw;
+                return false;
+            }
+        });
+    }
+
+    void onLoadSettings(py::object fn)
+    {
+        m_slink->setLoadSettingsCallback([this, fn](const std::string &baseDir, const ByteVector &settings) {
+            if (fn.is_none())
+                return true;
+            try {
+                auto result = fn(baseDir, py::bytes(reinterpret_cast<const char *>(settings.data()), settings.size()));
+                return result.cast<bool>();
+            } catch (py::error_already_set &e) {
+                if (m_slink->state() != ModuleState::ERROR)
+                    m_slink->raiseError(e.what());
+                else
+                    throw;
+                return false;
+            }
+        });
+    }
+
+    void throwWriteOnlyError(py::object obj)
+    {
+        throw py::attribute_error("This object attribute is write-only");
     }
 
     /**
@@ -1101,56 +1150,69 @@ PYBIND11_MODULE(syntalos_mlink, m)
     py::class_<SyntalosLink>(m, "_SyntalosLinkHandle");
 
     py::class_<PySyLinkManager>(m, "SyntalosLink", "Manages the connection to Syntalos.")
-        .def(
+        .def_property(
             "on_prepare",
+            &PySyLinkManager::throwWriteOnlyError,
             &PySyLinkManager::onPrepare,
-            py::arg("callable_fn"),
             "Register a callback invoked when Syntalos prepares a new run.\n"
             "\n"
             "The callback receives the current settings as ``bytes`` and must return ``True``\n"
             "to signal that preparation succeeded, or ``False`` / raise an exception to abort.\n"
             "If not registered the module automatically signals readiness.\n"
             "\n"
-            ":param callable_fn: Callable with signature ``fn(settings: bytes) -> bool``.")
-        .def(
+            "Callable needs to have signature ``fn() -> bool``.")
+        .def_property(
             "on_start",
+            &PySyLinkManager::throwWriteOnlyError,
             &PySyLinkManager::onStart,
-            py::arg("callable_fn"),
             "Register a callback invoked when Syntalos starts a run.\n"
             "\n"
-            ":param callable_fn: Zero-argument callable.")
-        .def(
+            "Callable needs to have zero-arguments.")
+        .def_property(
             "on_stop",
+            &PySyLinkManager::throwWriteOnlyError,
             &PySyLinkManager::onStop,
-            py::arg("callable_fn"),
             "Register a callback invoked when Syntalos stops a run.\n"
             "\n"
-            ":param callable_fn: Zero-argument callable.")
-        .def(
+            "Callable needs to have zero-arguments.")
+        .def_property(
             "on_show_settings",
+            &PySyLinkManager::throwWriteOnlyError,
             &PySyLinkManager::onShowSettings,
-            py::arg("callable_fn"),
             "Register a callback invoked when the user opens the module settings dialog.\n"
             "\n"
-            ":param callable_fn: Callable with signature ``fn(old_settings: bytes)``.")
-        .def(
+            "Callable needs to have zero-arguments.")
+        .def_property(
             "on_show_display",
+            &PySyLinkManager::throwWriteOnlyError,
             &PySyLinkManager::onShowDisplay,
-            py::arg("callable_fn"),
             "Register a callback invoked when the user opens the module display window.\n"
             "\n"
-            ":param callable_fn: Zero-argument callable.")
-        .def(
-            "save_settings",
-            &PySyLinkManager::saveSettings,
-            py::arg("settings_data"),
-            "Persist the module's settings with Syntalos.\n"
+            "Callable needs to have zero-arguments.")
+
+        .def_property(
+            "on_save_settings",
+            &PySyLinkManager::throwWriteOnlyError,
+            &PySyLinkManager::onSaveSettings,
+            "Register a callback invoked when Syntalos saves settings for this module.\n"
             "\n"
-            "The saved blob is passed back to the module as ``old_settings`` the next time the\n"
-            "settings callback (see :func:`call_on_show_settings`) is invoked, and also delivered\n"
-            "via ``set_settings()`` before each run.\n"
+            "The callback receives the base project directory as a string and must return the\n"
+            "settings to save as a ``bytes`` object. If not registered, no module settings"
+            " are saved.\n"
             "\n"
-            ":param settings_data: Arbitrary settings payload serialized as ``bytes``.")
+            "Callable needs to have signature ``fn(base_dir: str) -> bytes``.")
+        .def_property(
+            "on_load_settings",
+            &PySyLinkManager::throwWriteOnlyError,
+            &PySyLinkManager::onLoadSettings,
+            "Register a callback invoked when Syntalos loads settings for this module.\n"
+            "\n"
+            "The callback receives the base project directory as a string and the loaded settings as a ``bytes`` "
+            "object.\n"
+            "The callback must return ``True`` to signal that the settings were loaded successfully, or"
+            " ``False`` / use ``raise_error`` to signal a loading failure.\n"
+            "\n"
+            "Callable needs to have signature ``fn(base_dir: str, settings: bytes) -> bool``.")
 
         .def(
             "register_input_port",
@@ -1186,7 +1248,7 @@ PYBIND11_MODULE(syntalos_mlink, m)
             ":return: An :class:`OutputPort` handle, or ``None`` if registration failed (e.g. duplicate ID).\n"
             ":rtype: OutputPort or None")
 
-        .def(
+        .def_property_readonly(
             "is_running",
             &PySyLinkManager::isRunning,
             "Check whether the experiment is still active.\n"

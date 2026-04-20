@@ -51,7 +51,7 @@ public:
     void raiseError(const std::string &message);
     bool loadPythonScript(const std::string &script, const std::string &wdir);
 
-    bool prepareStart(const ByteVector &settings);
+    bool prepareRun();
     void start();
     bool stop();
     void shutdown();
@@ -63,10 +63,9 @@ protected:
 private:
     SyntalosLink *m_link;
     QTimer *m_evTimer;
-    bool m_scriptLoaded;
 
+    bool m_scriptLoaded;
     bool m_running;
-    ByteVector m_settings;
 
     py::module_ m_mlinkMod; // keeps syntalos_mlink alive for the interpreter lifetime
     py::object m_mlinkObj;  // keeps the PySyLinkManager wrapper alive

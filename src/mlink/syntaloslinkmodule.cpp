@@ -46,8 +46,8 @@ SyntalosLinkModule::SyntalosLinkModule(SyntalosLink *slink)
         shutdown();
     });
 
-    m_slink->setPrepareStartCallback([this](const ByteVector &settings) {
-        if (!prepare(settings)) {
+    m_slink->setPrepareRunCallback([this]() {
+        if (!prepare()) {
             if (m_slink->state() != ModuleState::ERROR)
                 raiseError("Module preparation failed.");
         }
@@ -61,6 +61,21 @@ SyntalosLinkModule::SyntalosLinkModule(SyntalosLink *slink)
     m_slink->setStopCallback([this]() {
         m_running = false;
         stop();
+    });
+
+    m_slink->setLoadSettingsCallback([this](const std::string &baseDir, const ByteVector &settings) {
+        if (!loadSettings(baseDir, settings)) {
+            if (m_slink->state() != ModuleState::ERROR)
+                raiseError("Loading settings failed.");
+            return false;
+        }
+
+        return true;
+    });
+
+    m_slink->setSaveSettingsCallback([this](const std::string &baseDir, ByteVector &settings) {
+        saveSettings(baseDir, settings);
+        return true;
     });
 
     // signal that we are ready and done with initialization
@@ -104,7 +119,7 @@ void SyntalosLinkModule::setStatusMessage(const std::string &message)
     m_slink->setStatusMessage(message);
 }
 
-bool SyntalosLinkModule::prepare(const ByteVector &settings)
+bool SyntalosLinkModule::prepare()
 {
     setState(ModuleState::PREPARING);
     return true;
@@ -130,6 +145,21 @@ void SyntalosLinkModule::shutdown()
     // Use quit() instead of exit() so the Qt event loop returns from any a.exec() in main(),
     // allowing the C++ stack to unwind and all destructors to run properly.
     QTimer::singleShot(0, qApp, &QCoreApplication::quit);
+}
+
+const TestSubjectInfo &SyntalosLinkModule::testSubject() const
+{
+    return m_slink->testSubject();
+}
+
+void SyntalosLinkModule::saveSettings(const std::string &baseDir, ByteVector &settings)
+{
+    // to be implemented by child classes
+}
+
+bool SyntalosLinkModule::loadSettings(const std::string &baseDir, const ByteVector &settings)
+{
+    return true;
 }
 
 } // namespace Syntalos

@@ -53,16 +53,19 @@ class MyExampleModule:
         )
 
         # show the settings dialog when the user requested it to be shown
-        modLink.on_show_settings(self._change_settings)
+        self._modLink.on_show_settings = self._show_settings_dialog
 
-    def prepare(self, settings: bytes) -> bool:
+        # save / load settings
+        self._modLink.on_save_settings = self._save_settings_data
+        self._modLink.on_load_settings = self._load_settings_data
+
+    def prepare(self) -> bool:
         """
         This function is called before a run is started.
         You can use it for (slow) initializations.
-        NOTE: You are *not* able to send output to ports here, or access
-        any valid master timer time. This function can be slow.
+        NOTE: You are *not* able to send output to ports here or access
+        any valid master-timer time. This function is allowed to be slow.
         """
-        self.set_settings(settings)
 
         # set our own port metadata
         self._oport_rows.set_metadata_value('table_header', ['Time Received [us]', 'Frame Number'])
@@ -120,7 +123,7 @@ class MyExampleModule:
         """
         pass
 
-    def _change_settings(self, old_settings: bytes):
+    def _show_settings_dialog(self):
         """
         Show (horrible) GUI to change settings here.
         Settings objects are random bytes which modules
@@ -129,10 +132,6 @@ class MyExampleModule:
         # don't open the dialog more than once
         if self._settings_dlg:
             return
-
-        settings = {}
-        if old_settings:
-            settings = json.loads(str(old_settings, 'utf-8'))
 
         # Create a dialog window
         self._settings_dlg = QDialog()
@@ -143,14 +142,11 @@ class MyExampleModule:
         layout.addWidget(lbl)
 
         txt = QLineEdit()
-        txt.setText(settings.get('prefix', ''))
+        txt.setText(self._label_prefix)
         layout.addWidget(txt)
 
         def clicked():
             self._label_prefix = txt.text()
-            settings = dict(prefix=self._label_prefix)
-            self._modLink.save_settings(bytes(json.dumps(settings), 'utf-8'))
-
             self._settings_dlg.accept()
 
         def on_dialog_closed():
@@ -174,14 +170,24 @@ class MyExampleModule:
 
         self._settings_dlg.show()
 
-    def set_settings(self, data: bytes):
+    def _save_settings_data(self, baseDir: str) -> bytes:
         """
-        Deserialize settings from bytes. Called right before a new run is prepared.
+        Serialize settings to bytes so Syntalos can store them for us.
+        """
+
+        settings = dict(prefix=self._label_prefix)
+        return bytes(json.dumps(settings), 'utf-8')
+
+    def _load_settings_data(self, baseDir: str, data: bytes) -> bool:
+        """
+        Deserialize user settings from previously stored bytes.
         """
         settings = {}
         if data:
             settings = json.loads(str(data, 'utf-8'))
         self._label_prefix = settings.get('prefix', '')
+
+        return True
 
 
 def main() -> int:
@@ -197,9 +203,9 @@ def main() -> int:
     mod = MyExampleModule(modLink)
 
     # Register lifecycle callbacks on the link object.
-    modLink.on_prepare(mod.prepare)
-    modLink.on_start(mod.start)
-    modLink.on_stop(mod.stop)
+    modLink.on_prepare = mod.prepare
+    modLink.on_start = mod.start
+    modLink.on_stop = mod.stop
 
     # Signal initialization complete and run the event loop.
     # This call blocks until Syntalos requests a shutdown.

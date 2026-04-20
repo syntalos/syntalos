@@ -51,7 +51,7 @@ public:
 
     void setStatusMessage(const std::string &message);
 
-    virtual bool prepare(const ByteVector &settings);
+    virtual bool prepare();
     virtual void start();
     virtual void stop();
 
@@ -61,7 +61,16 @@ public:
     virtual void shutdown();
 
 protected:
+    /**
+     * The global experiment timer.
+     */
     SyncTimer *timer() const;
+
+    /**
+     * Information about the current test subject. Refreshed
+     * before prepare() is called.
+     */
+    const TestSubjectInfo &testSubject() const;
 
     /**
      * @brief Register an output port for this module
@@ -133,6 +142,24 @@ protected:
         return iport;
     }
 
+    /**
+     * Called when settings should be saved.
+     *
+     * @param baseDir Base directory where the settings file will be stored.
+     * @param settings The settings data.
+     */
+    virtual void saveSettings(const std::string &baseDir, ByteVector &settings);
+
+    /**
+     * Called when settings should be loaded.
+     *
+     * @param baseDir Base directory from where the settings were loaded.
+     * @param settings The settings data.
+     * @return Return true if loading was successful, false on error.
+     */
+    virtual bool loadSettings(const std::string &baseDir, const ByteVector &settings);
+
+protected:
     bool m_running;
 
 private:

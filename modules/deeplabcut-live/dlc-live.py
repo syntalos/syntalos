@@ -104,9 +104,10 @@ class DLCLiveModule:
         # collect event callbacks
         self._iport.on_data = self._on_input_data
 
-        # show the settings dialog when the user requested it to be shown
-        #mod.set_settings(settings)
-        #syLink.call_on_show_settings(self.change_settings)
+        # settings stuff
+        syLink.on_show_settings = self._show_settings_dialog
+        syLink.on_save_settings = self._save_settings_data
+        syLink.on_load_settings = self._load_settings_data
 
     def prepare(self) -> bool:
         if self._dlc_live:
@@ -151,7 +152,7 @@ class DLCLiveModule:
     def stop(self):
         pass
 
-    def change_settings(self, old_settings: bytes):
+    def _show_settings_dialog(self, old_settings: bytes):
         try:
             settings = json.loads(old_settings)
         except Exception as e:
@@ -168,13 +169,19 @@ class DLCLiveModule:
 
         syl.save_settings(bytes(json.dumps(settings), 'utf-8'))
 
-    def set_settings(self, data: bytes):
+    def _save_settings_data(self, baseDir: str) -> bytes:
+        settings = dict(prefix=self._label_prefix)
+        return bytes(json.dumps(settings), 'utf-8')
+
+    def _load_settings_data(self, baseDir: str, data: bytes) -> bool:
         if not data:
-            return
+            return True
 
         settings = json.loads(data)
         self._model_path = settings.get('model_path', None)
         self._display = settings.get('display', False)
+
+        return True
 
 
 def main() -> int:
@@ -189,9 +196,9 @@ def main() -> int:
     mod = DLCLiveModule(syLink)
 
     # lifecycle callbacks
-    syLink.on_prepare(mod.prepare)
-    syLink.on_start(mod.start)
-    syLink.on_stop(mod.stop)
+    syLink.on_prepare = mod.prepare
+    syLink.on_start = mod.start
+    syLink.on_stop = mod.stop
 
     # run the module!
     syLink.await_data_forever(app.processEvents)

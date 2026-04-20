@@ -40,6 +40,9 @@ static constexpr uint64_t SY_IOX_INITIAL_SLICE_LEN = 4096;
 // maximum length for IPC service name components
 static constexpr size_t SY_IOX_ID_MAX_LEN = IOX2_SERVICE_NAME_LENGTH;
 
+// max response buffer size
+static constexpr uint64_t SY_IOX_MAX_RESPONSE_BUF_SIZE = 2U;
+
 /**
  * @brief IPC service topology limits
  */
@@ -401,29 +404,109 @@ struct SetPortsPresetRequest {
 static const std::string SET_PORTS_PRESET_CALL_ID = "SetPortsPresetRequest";
 
 /**
- * Request to prepare the module for starting,
- * this enters the PREPARING stage
+ * Request the module to save project settings.
  */
-struct PrepareStartRequest {
-    ByteVector settings;
+struct SaveSettingsRequest {
+    std::string baseDir;
 
     [[nodiscard]] ByteVector toBytes() const
     {
         ByteVector bytes;
         BinaryStreamWriter stream(bytes);
-        stream.write(settings);
+        stream.write(baseDir);
         return bytes;
     }
 
-    static PrepareStartRequest fromMemory(const void *memory, size_t size)
+    static SaveSettingsRequest fromMemory(const void *memory, size_t size)
     {
-        PrepareStartRequest req;
+        SaveSettingsRequest req;
         BinaryStreamReader stream(memory, size);
-        stream.read(req.settings);
+        stream.read(req.baseDir);
         return req;
     }
 };
-static const std::string PREPARE_START_CALL_ID = "PrepareStart";
+
+/**
+ * Generic response to a request.
+ */
+struct SaveSettingsResponse {
+    bool success{false};
+    ByteVector data{};
+
+    [[nodiscard]] ByteVector toBytes() const
+    {
+        ByteVector bytes;
+        BinaryStreamWriter stream(bytes);
+        stream.write(success);
+        stream.write(data);
+        return bytes;
+    }
+
+    static SaveSettingsResponse fromMemory(const void *memory, size_t size)
+    {
+        SaveSettingsResponse res;
+        BinaryStreamReader stream(memory, size);
+        stream.read(res.success);
+        stream.read(res.data);
+        return res;
+    }
+};
+static const std::string SAVE_SETTINGS_CALL_ID = "SaveSettings";
+
+/**
+ * Request the module to load project settings.
+ */
+struct LoadSettingsRequest {
+    std::string baseDir;
+    ByteVector data;
+
+    [[nodiscard]] ByteVector toBytes() const
+    {
+        ByteVector bytes;
+        BinaryStreamWriter stream(bytes);
+        stream.write(baseDir);
+        stream.write(data);
+        return bytes;
+    }
+
+    static LoadSettingsRequest fromMemory(const void *memory, size_t size)
+    {
+        LoadSettingsRequest req;
+        BinaryStreamReader stream(memory, size);
+        stream.read(req.baseDir);
+        stream.read(req.data);
+        return req;
+    }
+};
+static const std::string LOAD_SETTINGS_CALL_ID = "LoadSettings";
+
+/**
+ * Request to prepare the module for the upcoming run.
+ * This makes the module enter the PREPARING stage.
+ */
+struct PrepareRunRequest {
+    std::string subjectId;
+    std::string subjectGroup;
+
+    [[nodiscard]] ByteVector toBytes() const
+    {
+        ByteVector bytes;
+        BinaryStreamWriter stream(bytes);
+        stream.write(subjectId);
+        stream.write(subjectGroup);
+        return bytes;
+    }
+
+    static PrepareRunRequest fromMemory(const void *memory, size_t size)
+    {
+        PrepareRunRequest req;
+        BinaryStreamReader stream(memory, size);
+        stream.read(req.subjectId);
+        stream.read(req.subjectGroup);
+        return req;
+    }
+};
+static const std::string PREPARE_RUN_CALL_ID = "PrepareRun";
 
 /**
  * Start module run, this enters the RUNNING stage
@@ -448,56 +531,9 @@ struct ShutdownRequest {
 static const std::string SHUTDOWN_CALL_ID = "Shutdown";
 
 /**
- * Event from the module to indicate a settings change. Syntalos will store the new settings.
- */
-struct SettingsChangeEvent {
-    ByteVector settings;
-
-    SettingsChangeEvent() = default;
-    explicit SettingsChangeEvent(const ByteVector &bytes)
-        : settings(bytes)
-    {
-    }
-
-    [[nodiscard]] ByteVector toBytes() const
-    {
-        ByteVector bytes;
-        BinaryStreamWriter stream(bytes);
-        stream.write(settings);
-        return bytes;
-    }
-
-    static SettingsChangeEvent fromMemory(const void *memory, size_t size)
-    {
-        SettingsChangeEvent ev;
-        BinaryStreamReader stream(memory, size);
-        stream.read(ev.settings);
-        return ev;
-    }
-};
-static const std::string SETTINGS_CHANGE_CHANNEL_ID = "SettingsChange";
-
-/**
- * Request to change show the GUI dialog to change settings.
+ * Request to show the GUI dialog to change settings.
  */
 struct ShowSettingsRequest {
-    ByteVector settings;
-
-    [[nodiscard]] ByteVector toBytes() const
-    {
-        ByteVector bytes;
-        BinaryStreamWriter stream(bytes);
-        stream.write(settings);
-        return bytes;
-    }
-
-    static ShowSettingsRequest fromMemory(const void *memory, size_t size)
-    {
-        ShowSettingsRequest req;
-        BinaryStreamReader stream(memory, size);
-        stream.read(req.settings);
-        return req;
-    }
 };
 static const std::string SHOW_SETTINGS_CALL_ID = "ShowSettings";
 

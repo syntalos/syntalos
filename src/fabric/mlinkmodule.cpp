@@ -69,7 +69,7 @@ public:
     QDateTime scriptLastModified;
     QHash<std::string, MetaStringMap> sentMetadata;
 
-    ByteVector settingsData;
+    LoadSettingsRequest settingsReq;
 
     bool portChangesAllowed = true;
     QHash<std::string, std::shared_ptr<VarStreamInputPort>> inPortIdMap;
@@ -81,9 +81,8 @@ public:
     // Subscribers to receive information from module processes
     std::optional<IoxSubscriber<ErrorEvent>> subError;
     std::optional<IoxSubscriber<StateChangeEvent>> subStateChange;
-    std::optional<IoxSliceSubscriber> subSettingsChange;
-    std::optional<IoxUntypedServer> srvInPortChange;
-    std::optional<IoxUntypedServer> srvOutPortChange;
+    std::optional<IoxUntypedReqServer> srvInPortChange;
+    std::optional<IoxUntypedReqServer> srvOutPortChange;
 
     // Output port forwarders
     struct OutPortSub {
@@ -278,7 +277,7 @@ public:
             return false;
         }
 
-        auto client = makeSliceClient(*node, svcName(channel));
+        auto client = makeSliceClient<DoneResponse>(*node, svcName(channel));
 
         const auto bytes = reqEntity.toBytes();
         auto maybeSlice = client.loan_slice_uninit(static_cast<uint64_t>(bytes.size()));
@@ -307,13 +306,69 @@ public:
             if (self->state() == ModuleState::ERROR)
                 return false;
 
-            // if we stopped running (crashed or existed) we no longer need to wait
+            // if we stopped running (crashed or exited) we no longer need to wait
             if (!self->isProcessRunning())
                 return false;
 
             if (timer.elapsed() > timeoutSec * 1000) {
                 self->raiseError(QStringLiteral("Timeout while waiting for response on: %1").arg(qstr(channel)));
                 return false;
+            }
+            std::this_thread::sleep_for(microseconds_t(25));
+        }
+    }
+
+    template<typename ReqData, typename ResData>
+    std::optional<ResData> callSliceClient(
+        MLinkModule *self,
+        const std::string &channel,
+        const ReqData &reqEntity,
+        int timeoutSec = 5)
+    {
+        if (!node.has_value()) {
+            qCCritical(logMLinkMod).noquote()
+                << "callClientSimple: IOX node not initialized, failing call on channel:" << channel;
+            return std::nullopt;
+        }
+
+        auto client = makeSliceClient<IoxByteSlice>(*node, svcName(channel));
+
+        const auto bytes = reqEntity.toBytes();
+        auto maybeSlice = client.loan_slice_uninit(static_cast<uint64_t>(bytes.size()));
+        if (!maybeSlice.has_value()) {
+            self->raiseError(QStringLiteral("Failed to loan shared memory for request on '%1': %2")
+                                 .arg(qstr(channel), iox2::bb::into<const char *>(maybeSlice.error())));
+            return std::nullopt;
+        }
+        auto rawSlice = std::move(maybeSlice).value();
+        std::memmove(rawSlice.payload_mut().data(), bytes.data(), bytes.size());
+        auto pending = iox2::send(iox2::assume_init(std::move(rawSlice))).value();
+        notifyClient();
+
+        QElapsedTimer timer;
+        timer.start();
+        while (true) {
+            checkClientError(self);
+            qApp->processEvents();
+            if (threadStopped)
+                self->handleIncomingControl();
+            auto response = pending.receive().value();
+            if (response.has_value()) {
+                const auto pl = response->payload();
+                return ResData::fromMemory(pl.data(), pl.number_of_bytes());
+            }
+
+            // quit immediately if an error was already emitted
+            if (self->state() == ModuleState::ERROR)
+                return std::nullopt;
+
+            // if we stopped running (crashed or exited) we no longer need to wait
+            if (!self->isProcessRunning())
+                return std::nullopt;
+
+            if (timer.elapsed() > timeoutSec * 1000) {
+                self->raiseError(QStringLiteral("Timeout while waiting for response on: %1").arg(qstr(channel)));
+                return std::nullopt;
             }
             std::this_thread::sleep_for(microseconds_t(25));
         }
@@ -522,18 +577,6 @@ void MLinkModule::handleIncomingControl()
             Private::replyDoneSlice(*req, true);
         }
     }
-
-    // Settings change events
-    if (d->subSettingsChange.has_value()) {
-        while (true) {
-            auto sample = safeReceive(*d->subSettingsChange);
-            if (!sample.has_value())
-                break;
-            const auto pl = sample->payload();
-            const auto scev = SettingsChangeEvent::fromMemory(pl.data(), pl.number_of_bytes());
-            setSettingsData(scev.settings);
-        }
-    }
 }
 
 void MLinkModule::resetConnection()
@@ -548,14 +591,12 @@ void MLinkModule::resetConnection()
     d->subStateChange.reset();
     d->srvInPortChange.reset();
     d->srvOutPortChange.reset();
-    d->subSettingsChange.reset();
     d->workerCtlEventListener.reset();
     d->ctlEventNotifier.reset();
 
     // (re)create subscribers/servers for client -> master data channels
     d->subError.emplace(makeTypedSubscriber<ErrorEvent>(*d->node, d->svcName(ERROR_CHANNEL_ID)));
     d->subStateChange.emplace(makeTypedSubscriber<StateChangeEvent>(*d->node, d->svcName(STATE_CHANNEL_ID)));
-    d->subSettingsChange.emplace(makeSliceSubscriber(*d->node, d->svcName(SETTINGS_CHANGE_CHANNEL_ID)));
     d->srvInPortChange.emplace(makeSliceServer(*d->node, d->svcName(IN_PORT_CHANGE_CHANNEL_ID)));
     d->srvOutPortChange.emplace(makeSliceServer(*d->node, d->svcName(OUT_PORT_CHANGE_CHANNEL_ID)));
 
@@ -669,14 +710,75 @@ bool MLinkModule::isScriptModified() const
     return d->scriptLastModified != fi.lastModified();
 }
 
-ByteVector MLinkModule::settingsData() const
+bool MLinkModule::sendSettings()
 {
-    return d->settingsData;
+    if (d->settingsReq.data.empty())
+        return true;
+
+    if (!isProcessRunning()) {
+        qDebug() << "Tried to send settings data to dead module process.";
+        return false;
+    }
+
+    if (!d->callSliceClientSimple(this, LOAD_SETTINGS_CALL_ID, d->settingsReq, 10))
+        return false;
+    return true;
 }
 
-void MLinkModule::setSettingsData(const ByteVector &data)
+static QByteArray byteVectorToQByteArray(const ByteVector &bv)
 {
-    d->settingsData = data;
+    return QByteArray(reinterpret_cast<const char *>(bv.data()), static_cast<qsizetype>(bv.size()));
+}
+
+void MLinkModule::serializeSettings(const QString &confBaseDir, QVariantHash &settings, QByteArray &extraData)
+{
+    Q_UNUSED(settings)
+
+    d->settingsReq.baseDir = confBaseDir.toStdString();
+    if (!isProcessRunning()) {
+        qCWarning(logMLinkMod) << "Tried to save settings, but module process is dead. Reusing old settings.";
+        extraData = byteVectorToQByteArray(d->settingsReq.data);
+        return;
+    }
+
+    SaveSettingsRequest ssReq{
+        .baseDir = confBaseDir.toStdString(),
+    };
+
+    auto response = d->callSliceClient<SaveSettingsRequest, SaveSettingsResponse>(
+        this, SAVE_SETTINGS_CALL_ID, ssReq, 15);
+    if (!response.has_value()) {
+        qCWarning(logMLinkMod)
+            << "Failed to save settings (issue communicating with the module). Reusing old settings.";
+        extraData = byteVectorToQByteArray(d->settingsReq.data);
+        return;
+    }
+    const auto &ssRes = response.value();
+    if (!ssRes.success) {
+        qCWarning(logMLinkMod) << "Module failed to serialize settings. Reusing old settings.";
+        extraData = byteVectorToQByteArray(d->settingsReq.data);
+        return;
+    }
+
+    // finally, we got proper settings
+    extraData = byteVectorToQByteArray(ssRes.data);
+    d->settingsReq.data = ssRes.data;
+}
+
+bool MLinkModule::loadSettings(const QString &confBaseDir, const QVariantHash &settings, const QByteArray &extraData)
+{
+    Q_UNUSED(settings)
+    ByteVector bv(
+        reinterpret_cast<const std::byte *>(extraData.constData()),
+        reinterpret_cast<const std::byte *>(extraData.constData()) + extraData.size());
+
+    d->settingsReq.baseDir = confBaseDir.toStdString();
+    d->settingsReq.data = std::move(bv);
+
+    // tell the module
+    sendSettings();
+
+    return true;
 }
 
 void MLinkModule::showDisplayUi()
@@ -690,10 +792,10 @@ void MLinkModule::showSettingsUi()
     // pick up any recently saved settings before we hand them back to the worker UI
     handleIncomingControl();
 
-    ShowSettingsRequest ssReq;
-    ssReq.settings = d->settingsData;
+    // send fresh settings, if we have any
+    sendSettings();
 
-    if (!d->callSliceClientSimple(this, SHOW_SETTINGS_CALL_ID, ssReq))
+    if (!d->callClientSimple<ShowSettingsRequest>(this, SHOW_SETTINGS_CALL_ID, [](auto &) {}))
         qCWarning(logMLinkMod).noquote() << "Request to show settings UI has failed!";
 
     // drain immediate updates emitted while handling the request
@@ -816,6 +918,10 @@ bool MLinkModule::runProcess()
 
     if (state() != ModuleState::ERROR)
         setState(prevState);
+
+    // send settings to the worker, if we have any (might be the case if we are trying
+    // to resurrect a crashed worker)
+    sendSettings();
 
     // Keep control events flowing while the worker is alive and no module run thread is active.
     d->ctlEventTimer->start();
@@ -1020,9 +1126,11 @@ bool MLinkModule::prepare(const TestSubject &subject)
     handleIncomingControl();
 
     // call the module's own startup preparations
-    PrepareStartRequest prepReq;
-    prepReq.settings = d->settingsData;
-    if (!d->callSliceClientSimple(this, PREPARE_START_CALL_ID, prepReq, 10))
+    PrepareRunRequest prepReq{
+        .subjectId = subject.id.toStdString(),
+        .subjectGroup = subject.group.toStdString(),
+    };
+    if (!d->callSliceClientSimple(this, PREPARE_RUN_CALL_ID, prepReq, 15))
         return false;
 
     QElapsedTimer timer;
@@ -1147,7 +1255,7 @@ void MLinkModule::runThread(OptionalWaitCondition *startWaitCondition)
 
                 // We have incoming data! - handle it, the break because the event
                 // is per single attachment ID.
-                ps.sub->handleEvents([&ps](const IoxByteSlice &pl) {
+                ps.sub->handleEvents([&ps](const IoxImmutableByteSlice &pl) {
                     ps.oport->streamVar()->pushRawData(ps.oport->dataTypeId(), pl.data(), pl.number_of_bytes());
                 });
                 break;
@@ -1177,7 +1285,7 @@ void MLinkModule::runThread(OptionalWaitCondition *startWaitCondition)
     for (auto &ps : d->outPortSubs) {
         if (!ps.sub.has_value())
             continue;
-        ps.sub->handleEvents([&ps](const IoxByteSlice &pl) {
+        ps.sub->handleEvents([&ps](const IoxImmutableByteSlice &pl) {
             ps.oport->streamVar()->pushRawData(ps.oport->dataTypeId(), pl.data(), pl.number_of_bytes());
         });
     }

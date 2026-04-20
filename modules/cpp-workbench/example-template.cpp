@@ -24,7 +24,7 @@ public:
 
     ~MyCppModule() = default;
 
-    bool prepare(const ByteVector &) override
+    bool prepare() override
     {
         // Actions to prepare an acquisition run go here!
 

@@ -75,8 +75,8 @@ public:
     bool setScriptFromFile(const QString &fname, const QString &wdir = QString());
     bool isScriptModified() const;
 
-    ByteVector settingsData() const;
-    void setSettingsData(const ByteVector &data);
+    void serializeSettings(const QString &confBaseDir, QVariantHash &settings, QByteArray &extraData) override;
+    bool loadSettings(const QString &confBaseDir, const QVariantHash &settings, const QByteArray &extraData) override;
 
     virtual void showDisplayUi() override;
     virtual void showSettingsUi() override;
@@ -113,6 +113,7 @@ protected:
 
 private:
     void resetConnection();
+    bool sendSettings();
 
     bool registerOutPortForwarders();
     void disconnectOutPortForwarders();

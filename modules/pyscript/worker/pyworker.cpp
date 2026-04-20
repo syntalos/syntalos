@@ -45,8 +45,8 @@ PyWorker::PyWorker(SyntalosLink *slink, QObject *parent)
     m_link->setLoadScriptCallback([this](const std::string &script, const std::string &wdir) {
         return loadPythonScript(script, wdir);
     });
-    m_link->setPrepareStartCallback([this](const ByteVector &settings) {
-        return prepareStart(settings);
+    m_link->setPrepareRunCallback([this]() {
+        return prepareRun();
     });
     m_link->setStartCallback([this]() {
         start();
@@ -234,10 +234,8 @@ bool PyWorker::loadPythonScript(const std::string &script, const std::string &wd
     return true;
 }
 
-bool PyWorker::prepareStart(const ByteVector &settings)
+bool PyWorker::prepareRun()
 {
-    m_settings = settings;
-
     if (!m_scriptLoaded) {
         raiseError("No Python script loaded.");
         return false;
@@ -245,13 +243,6 @@ bool PyWorker::prepareStart(const ByteVector &settings)
 
     bool success = true;
     try {
-        // pass selected settings to the current run
-        if (py::globals().contains("set_settings")) {
-            auto pyFnSetSettings = py::globals()["set_settings"];
-            if (!pyFnSetSettings.is_none())
-                pyFnSetSettings(py::bytes(reinterpret_cast<const char *>(settings.data()), settings.size()));
-        }
-
         // run prepare function if it exists for initial setup
         if (py::globals().contains("prepare")) {
             auto pyFnPrepare = py::globals()["prepare"];

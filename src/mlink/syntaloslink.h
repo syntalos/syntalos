@@ -32,13 +32,15 @@ struct OutputPortChangeRequest;
 struct InputPortChangeRequest;
 
 using LoadScriptFn = std::function<void(const std::string &script, const std::string &wdir)>;
-using PrepareStartFn = std::function<void(const ByteVector &settings)>;
+using SaveSettingsFn = std::function<bool(const std::string &baseDir, ByteVector &settings)>;
+using LoadSettingsFn = std::function<bool(const std::string &baseDir, const ByteVector &settings)>;
+using PrepareRunFn = std::function<void()>;
 using StartFn = std::function<void()>;
 using StopFn = std::function<void()>;
 using ShutdownFn = std::function<void()>;
 using NewDataRawFn = std::function<void(const void *data, size_t size)>;
 
-using ShowSettingsFn = std::function<void(const ByteVector &settings)>;
+using ShowSettingsFn = std::function<void(void)>;
 using ShowDisplayFn = std::function<void(void)>;
 
 /**
@@ -117,6 +119,14 @@ T streamDataFromRawMemory(const void *data, size_t size)
 }
 
 /**
+ * @brief Information about the current test subject.
+ */
+struct TestSubjectInfo {
+    std::string id;
+    std::string group;
+};
+
+/**
  * @brief Connection to a Syntalos instance
  */
 class SyntalosLink
@@ -133,12 +143,19 @@ public:
     void raiseError(const std::string &title, const std::string &message);
 
     void setLoadScriptCallback(LoadScriptFn callback);
-    void setPrepareStartCallback(PrepareStartFn callback);
+    void setSaveSettingsCallback(SaveSettingsFn callback);
+    void setLoadSettingsCallback(LoadSettingsFn callback);
+    void setPrepareRunCallback(PrepareRunFn callback);
     void setStartCallback(StartFn callback);
     void setStopCallback(StopFn callback);
     void setShutdownCallback(ShutdownFn callback);
 
+    void setShowSettingsCallback(ShowSettingsFn callback);
+    void setShowDisplayCallback(ShowDisplayFn callback);
+
     [[nodiscard]] SyncTimer *timer() const;
+
+    const TestSubjectInfo &testSubject() const;
 
     /**
      * Wait for incoming messages for the given amount of microseconds, then return.
@@ -173,10 +190,6 @@ public:
     void setStatusMessage(const std::string &message);
 
     int maxRealtimePriority() const;
-
-    void setSettingsData(const ByteVector &data);
-    void setShowSettingsCallback(ShowSettingsFn callback);
-    void setShowDisplayCallback(ShowDisplayFn callback);
 
     [[nodiscard]] std::vector<std::shared_ptr<InputPortInfo>> inputPorts() const;
     [[nodiscard]] std::vector<std::shared_ptr<OutputPortInfo>> outputPorts() const;

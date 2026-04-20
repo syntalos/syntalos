@@ -28,7 +28,7 @@ public:
 
     ~ExampleModule() override = default;
 
-    bool prepare(const ByteVector &) override
+    bool prepare() override
     {
         // Actions to prepare an acquisition run go here!
         m_tabOut->setMetadataVar("table_header", m_tabIn->metadata().valueOr("table_header", MetaArray{}));

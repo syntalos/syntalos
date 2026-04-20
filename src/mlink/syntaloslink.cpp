@@ -228,7 +228,6 @@ public:
         pubError.emplace(makeTypedPublisher<ErrorEvent>(*node, svcName(ERROR_CHANNEL_ID)));
         pubState.emplace(makeTypedPublisher<StateChangeEvent>(*node, svcName(STATE_CHANNEL_ID)));
         pubStatusMsg.emplace(makeTypedPublisher<StatusMessageEvent>(*node, svcName(STATUS_MESSAGE_CHANNEL_ID)));
-        pubSettingsChange.emplace(makeSlicePublisher(*node, svcName(SETTINGS_CHANGE_CHANNEL_ID)));
 
         cltInPortChange.emplace(makeSliceClient(*node, svcName(IN_PORT_CHANGE_CHANNEL_ID)));
         cltOutPortChange.emplace(makeSliceClient(*node, svcName(OUT_PORT_CHANGE_CHANNEL_ID)));
@@ -246,11 +245,14 @@ public:
         srvStop.emplace(makeTypedServer<StopRequest, DoneResponse>(*node, svcName(STOP_CALL_ID)));
         srvShutdown.emplace(makeTypedServer<ShutdownRequest, DoneResponse>(*node, svcName(SHUTDOWN_CALL_ID)));
         srvShowDisplay.emplace(makeTypedServer<ShowDisplayRequest, DoneResponse>(*node, svcName(SHOW_DISPLAY_CALL_ID)));
+        srvShowSettings.emplace(
+            makeTypedServer<ShowSettingsRequest, DoneResponse>(*node, svcName(SHOW_SETTINGS_CALL_ID)));
         srvLoadScript.emplace(makeSliceServer(*node, svcName(LOAD_SCRIPT_CALL_ID)));
         srvSetPortsPreset.emplace(makeSliceServer(*node, svcName(SET_PORTS_PRESET_CALL_ID)));
         srvUpdateIPortMetadata.emplace(makeSliceServer(*node, svcName(IN_PORT_UPDATE_METADATA_ID)));
-        srvPrepareStart.emplace(makeSliceServer(*node, svcName(PREPARE_START_CALL_ID)));
-        srvShowSettings.emplace(makeSliceServer(*node, svcName(SHOW_SETTINGS_CALL_ID)));
+        srvSaveSettings.emplace(makeSliceServer<IoxByteSlice>(*node, svcName(SAVE_SETTINGS_CALL_ID)));
+        srvLoadSettings.emplace(makeSliceServer(*node, svcName(LOAD_SETTINGS_CALL_ID)));
+        srvPrepareRun.emplace(makeSliceServer(*node, svcName(PREPARE_RUN_CALL_ID)));
 
         // control event notifications
         masterCtlEventListener.emplace(makeEventListener(*node, svcName(MASTER_CTL_EVENT_ID)));
@@ -266,7 +268,6 @@ public:
     std::optional<IoxPublisher<ErrorEvent>> pubError;
     std::optional<IoxPublisher<StateChangeEvent>> pubState;
     std::optional<IoxPublisher<StatusMessageEvent>> pubStatusMsg;
-    std::optional<IoxSlicePublisher> pubSettingsChange;
 
     // Clients: Module -> Syntalos master
     std::optional<IoxUntypedClient> cltInPortChange;
@@ -281,13 +282,15 @@ public:
     std::optional<IoxServer<StartRequest, DoneResponse>> srvStart;
     std::optional<IoxServer<StopRequest, DoneResponse>> srvStop;
     std::optional<IoxServer<ShutdownRequest, DoneResponse>> srvShutdown;
-    std::optional<IoxUntypedServer> srvLoadScript;
-    std::optional<IoxUntypedServer> srvSetPortsPreset;
-    std::optional<IoxUntypedServer> srvUpdateIPortMetadata;
-    std::optional<IoxUntypedServer> srvPrepareStart;
+    std::optional<IoxUntypedReqServer> srvLoadScript;
+    std::optional<IoxUntypedReqServer> srvSetPortsPreset;
+    std::optional<IoxUntypedReqServer> srvUpdateIPortMetadata;
+    std::optional<IoxUntypedReqResServer> srvSaveSettings;
+    std::optional<IoxUntypedReqServer> srvLoadSettings;
+    std::optional<IoxUntypedReqServer> srvPrepareRun;
 
     std::optional<IoxServer<ShowDisplayRequest, DoneResponse>> srvShowDisplay;
-    std::optional<IoxUntypedServer> srvShowSettings;
+    std::optional<IoxServer<ShowSettingsRequest, DoneResponse>> srvShowSettings;
 
     // Listens for messages from the server
     std::optional<IoxListener> masterCtlEventListener;
@@ -309,9 +312,12 @@ public:
     std::vector<std::shared_ptr<InputPortInfo>> inPortInfo;
     std::vector<std::shared_ptr<OutputPortInfo>> outPortInfo;
     SyncTimer *syTimer;
+    TestSubjectInfo testSubject;
 
     LoadScriptFn loadScriptCb;
-    PrepareStartFn prepareStartCb;
+    SaveSettingsFn saveSettingsCb;
+    LoadSettingsFn loadSettingsCb;
+    PrepareRunFn prepareRunCb;
     StartFn startCb;
     StopFn stopCb;
     ShutdownFn shutdownCb;
@@ -481,12 +487,12 @@ public:
                 continue;
 
             if (iport->d->newDataCb) {
-                iport->d->ioxSub->handleEvents([&](const IoxByteSlice &pl) {
+                iport->d->ioxSub->handleEvents([&](const IoxImmutableByteSlice &pl) {
                     iport->d->newDataCb(pl.data(), pl.number_of_bytes());
                 });
             } else {
                 // Still drain to prevent the queue filling up even if there's no callback.
-                iport->d->ioxSub->handleEvents([](const IoxByteSlice &) {});
+                iport->d->ioxSub->handleEvents([](const IoxImmutableByteSlice &) {});
             }
         }
 
@@ -748,16 +754,60 @@ void SyntalosLink::processPendingControl()
         Private::replyDoneSlice(*req, true);
     }
 
-    // ---- PrepareStart ----
+    // ---- SaveSettings ----
     while (true) {
-        auto req = safeReceive(*d->srvPrepareStart);
+        auto req = safeReceive(*d->srvSaveSettings);
         if (!req.has_value())
             break;
         const auto pl = req->payload();
-        const auto prepReq = PrepareStartRequest::fromMemory(pl.data(), pl.number_of_bytes());
+        const auto ssReq = SaveSettingsRequest::fromMemory(pl.data(), pl.number_of_bytes());
+        SaveSettingsResponse ssResp;
+        ssResp.success = true;
+        if (d->saveSettingsCb)
+            ssResp.success = d->saveSettingsCb(ssReq.baseDir, ssResp.data);
+
+        auto ssRespData = ssResp.toBytes();
+        auto maybeResponse = req->loan_slice_uninit(ssRespData.size());
+        if (!maybeResponse.has_value()) {
+            std::cerr << "Failed to loan response (" << ssRespData.size()
+                      << " bytes) for reply to SaveSettings: " << iox2::bb::into<const char *>(maybeResponse.error())
+                      << '\n';
+            break;
+        }
+
+        auto rawResponse = std::move(maybeResponse).value();
+        std::memcpy(rawResponse.payload_mut().data(), ssRespData.data(), ssRespData.size());
+        iox2::send(iox2::assume_init(std::move(rawResponse))).value();
+    }
+
+    // ---- LoadSettings ----
+    while (true) {
+        auto req = safeReceive(*d->srvLoadSettings);
+        if (!req.has_value())
+            break;
+        const auto pl = req->payload();
+        const auto lsReq = LoadSettingsRequest::fromMemory(pl.data(), pl.number_of_bytes());
         Private::replyDoneSlice(*req, true); // reply before callback so master is not blocked
-        if (d->prepareStartCb)
-            d->prepareStartCb(prepReq.settings);
+        if (d->loadSettingsCb)
+            d->loadSettingsCb(lsReq.baseDir, lsReq.data);
+    }
+
+    // ---- PrepareRun ----
+    while (true) {
+        auto req = safeReceive(*d->srvPrepareRun);
+        if (!req.has_value())
+            break;
+        const auto pl = req->payload();
+        const auto prepReq = PrepareRunRequest::fromMemory(pl.data(), pl.number_of_bytes());
+        Private::replyDoneSlice(*req, true); // reply before callback so master is not blocked
+
+        // update test subject details
+        d->testSubject.id = prepReq.subjectId;
+        d->testSubject.group = prepReq.subjectGroup;
+
+        // prepare the run
+        if (d->prepareRunCb)
+            d->prepareRunCb();
     }
 
     // ---- Start ----
@@ -842,11 +892,9 @@ void SyntalosLink::processPendingControl()
         auto req = safeReceive(*d->srvShowSettings);
         if (!req.has_value())
             break;
-        const auto pl = req->payload();
-        const auto showReq = ShowSettingsRequest::fromMemory(pl.data(), pl.number_of_bytes());
-        Private::replyDoneSlice(*req, true);
+        Private::replyDone(*req, true);
         if (d->showSettingsCb)
-            d->showSettingsCb(showReq.settings);
+            d->showSettingsCb();
     }
 }
 
@@ -999,9 +1047,19 @@ void SyntalosLink::setLoadScriptCallback(LoadScriptFn callback)
     d->loadScriptCb = std::move(callback);
 }
 
-void SyntalosLink::setPrepareStartCallback(PrepareStartFn callback)
+void SyntalosLink::setSaveSettingsCallback(SaveSettingsFn callback)
 {
-    d->prepareStartCb = std::move(callback);
+    d->saveSettingsCb = std::move(callback);
+}
+
+void SyntalosLink::setLoadSettingsCallback(LoadSettingsFn callback)
+{
+    d->loadSettingsCb = std::move(callback);
+}
+
+void SyntalosLink::setPrepareRunCallback(PrepareRunFn callback)
+{
+    d->prepareRunCb = std::move(callback);
 }
 
 void SyntalosLink::setStartCallback(StartFn callback)
@@ -1024,16 +1082,9 @@ SyncTimer *SyntalosLink::timer() const
     return d->syTimer;
 }
 
-void SyntalosLink::setSettingsData(const ByteVector &data)
+const TestSubjectInfo &SyntalosLink::testSubject() const
 {
-    // we copy twice here - but this is a low-volume event, so it should be fine
-    const auto scEvData = SettingsChangeEvent(data).toBytes();
-    auto uninit = d->pubSettingsChange->loan_slice_uninit(static_cast<uint64_t>(scEvData.size())).value();
-    auto initialized = uninit.write_from_fn([&](uint64_t i) {
-        return static_cast<std::byte>(scEvData[static_cast<int>(i)]);
-    });
-    iox2::send(std::move(initialized)).value();
-    d->notifyMaster();
+    return d->testSubject;
 }
 
 void SyntalosLink::setShowSettingsCallback(ShowSettingsFn callback)
