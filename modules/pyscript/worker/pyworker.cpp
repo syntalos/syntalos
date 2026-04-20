@@ -18,8 +18,8 @@
  */
 
 #define QT_NO_KEYWORDS
+#include "config.h"
 #include "pyworker.h"
-#include "pyw-config.h"
 
 #include <QDir>
 #include <QCoreApplication>
@@ -92,6 +92,12 @@ PyWorker::~PyWorker()
     // before tearing down the interpreter.
     resetPyCallbacks();
 
+    // Release all py::object members while the interpreter is still valid.
+    // Without this, their destructors would decrement Python refcounts after
+    // finalize_interpreter(), which is undefined behaviour in pybind11.
+    m_mlinkObj = py::object{};
+    m_mlinkMod = py::object{};
+
     py::finalize_interpreter();
 }
 
@@ -113,8 +119,11 @@ bool PyWorker::initPythonInterpreter()
     // before tearing down the interpreter.
     resetPyCallbacks();
 
-    if (Py_IsInitialized())
+    if (Py_IsInitialized()) {
+        m_mlinkObj = py::object{};
+        m_mlinkMod = py::object{};
         py::finalize_interpreter();
+    }
 
     PyConfig config;
     PyConfig_InitPythonConfig(&config);
@@ -157,12 +166,11 @@ bool PyWorker::initPythonInterpreter()
         return false;
     }
 
-    // pass our Syntalos link to the Python code
-    {
-        auto mlink_mod = py::module_::import("syntalos_mlink");
-        auto pySLink = py::cast(m_link, py::return_value_policy::reference);
-        mlink_mod.attr("init_link")(pySLink);
-    }
+    // Import syntalos_mlink and keep a reference alive for the interpreter lifetime.
+    // Pass m_link directly - SyntalosLink is registered as an opaque pybind11 type
+    // inside the extension so py::cast can wrap the pointer without exposing its API.
+    m_mlinkMod = py::module_::import("syntalos_mlink");
+    m_mlinkObj = m_mlinkMod.attr("init_link")(py::cast(m_link, py::return_value_policy::reference));
 
     PyConfig_Clear(&config);
     return true;

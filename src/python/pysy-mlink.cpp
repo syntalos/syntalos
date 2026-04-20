@@ -43,17 +43,11 @@
 
 namespace py = pybind11;
 
-PyBridge::PyBridge(SyntalosLink *mlink)
-    : m_mlink(mlink)
-{
-}
+class PySyLinkManager;
+static SyntalosLink *getActiveLink();
 
-PyBridge::~PyBridge() {}
-
-SyntalosLink *PyBridge::link()
-{
-    return m_mlink;
-}
+// Global Python interface object for the Syntalos link
+static PySyLinkManager *g_pslMgr = nullptr;
 
 using PyNewDataFn = std::function<void(const py::object &obj)>;
 
@@ -62,107 +56,9 @@ SyntalosPyError::SyntalosPyError(const char *what_arg)
 SyntalosPyError::SyntalosPyError(const std::string &what_arg)
     : std::runtime_error(what_arg) {};
 
-static uint64_t time_since_start_msec()
-{
-    auto pb = PyBridge::instance();
-    return pb->link()->timer()->timeSinceStartMsec().count();
-}
-
-static uint64_t time_since_start_usec()
-{
-    auto pb = PyBridge::instance();
-    return pb->link()->timer()->timeSinceStartUsec().count();
-}
-
-static void println(const std::string &text)
-{
-    std::cout << text << std::endl;
-}
-
-static void raise_error(const std::string &message)
-{
-    auto pb = PyBridge::instance();
-    pb->link()->raiseError(message);
-}
-
-static void wait(uint msec)
-{
-    auto pb = PyBridge::instance();
-    auto timer = QTime::currentTime().addMSecs(msec);
-    while (QTime::currentTime() < timer)
-        pb->link()->awaitData(10 * 1000);
-}
-
-static void wait_sec(uint sec)
-{
-    auto pb = PyBridge::instance();
-    auto timer = QTime::currentTime().addMSecs(sec * 1000);
-    while (QTime::currentTime() < timer)
-        pb->link()->awaitData(100 * 1000);
-}
-
-static bool is_running()
-{
-    auto pb = PyBridge::instance();
-    return pb->link()->state() == ModuleState::RUNNING;
-}
-
-static void await_data(int timeout_usec)
-{
-    auto pb = PyBridge::instance();
-    pb->link()->awaitData(timeout_usec);
-}
-
-static void schedule_delayed_call(int delay_msec, const std::function<void()> &fn)
-{
-    if (delay_msec < 0)
-        throw SyntalosPyError("Delay must be positive or zero.");
-    QTimer::singleShot(delay_msec, [fn]() {
-        try {
-            fn();
-        } catch (py::error_already_set &e) {
-            auto pb = PyBridge::instance();
-            pb->link()->raiseError(e.what());
-        }
-    });
-}
-
-static void call_on_show_settings(ShowSettingsFn fn)
-{
-    auto pb = PyBridge::instance();
-    pb->link()->setShowSettingsCallback([fn](const ByteVector &settings) {
-        QTimer::singleShot(0, [fn, settings]() {
-            try {
-                fn(settings);
-            } catch (py::error_already_set &e) {
-                auto pb = PyBridge::instance();
-                pb->link()->raiseError(e.what());
-            }
-        });
-    });
-}
-
-static void call_on_show_display(const ShowDisplayFn &fn)
-{
-    auto pb = PyBridge::instance();
-    pb->link()->setShowDisplayCallback([fn]() {
-        QTimer::singleShot(0, [fn]() {
-            try {
-                fn();
-            } catch (py::error_already_set &e) {
-                auto pb = PyBridge::instance();
-                pb->link()->raiseError(e.what());
-            }
-        });
-    });
-}
-
-static void save_settings(const ByteVector &settings_data)
-{
-    auto pb = PyBridge::instance();
-    pb->link()->setSettingsData(settings_data);
-}
-
+/**
+ * Python binding for a Syntalos input port.
+ */
 struct InputPort {
     InputPort(const std::shared_ptr<InputPortInfo> &iport)
         : _iport(iport)
@@ -203,29 +99,29 @@ struct InputPort {
                 case syDataTypeId<FloatSignalBlock>():
                     _on_data_cb(py::cast(FloatSignalBlock::fromMemory(data, size)));
                     break;
+                default:
+                    throw SyntalosPyError(std::format("Received data of unknown type on input port: {}", _id));
                 }
             } catch (py::error_already_set &e) {
-                auto pb = PyBridge::instance();
-                pb->link()->raiseError(e.what());
+                getActiveLink()->raiseError(e.what());
             }
         });
     }
 
-    PyNewDataFn get_on_data() const
+    [[nodiscard]] PyNewDataFn get_on_data() const
     {
         return _on_data_cb;
     }
 
-    MetaStringMap metadata() const
+    [[nodiscard]] MetaStringMap metadata() const
     {
         return _iport->metadata();
     }
 
     void set_throttle_items_per_sec(uint itemsPerSec)
     {
-        auto pb = PyBridge::instance();
         _iport->setThrottleItemsPerSec(itemsPerSec);
-        pb->link()->updateInputPort(_iport);
+        getActiveLink()->updateInputPort(_iport);
     }
 
     std::string _id;
@@ -234,6 +130,9 @@ struct InputPort {
     PyNewDataFn _on_data_cb;
 };
 
+/**
+ * Python binding for a Syntalos output port.
+ */
 struct OutputPort {
     OutputPort(const std::shared_ptr<OutputPortInfo> &oport)
         : _oport(oport)
@@ -244,7 +143,7 @@ struct OutputPort {
 
     bool _submit_output_private(const py::object &pyObj)
     {
-        auto slink = PyBridge::instance()->link();
+        auto slink = getActiveLink();
         switch (_oport->dataTypeId()) {
         case syDataTypeId<ControlCommand>():
             return slink->submitOutput(_oport, py::cast<ControlCommand>(pyObj));
@@ -276,7 +175,7 @@ struct OutputPort {
 
     void _set_metadata_value_private(const std::string &key, const MetaValue &value)
     {
-        auto slink = PyBridge::instance()->link();
+        auto slink = getActiveLink();
         _oport->setMetadataVar(key, value);
         slink->updateOutputPort(_oport);
     }
@@ -381,14 +280,354 @@ struct OutputPort {
     const std::shared_ptr<OutputPortInfo> _oport;
 };
 
+/**
+ * Central link object for Syntalos Python modules.
+ *
+ * Returned by init_link() and exposed to Python as syntalos_mlink.SyntalosLink.
+ * It serves as both the connection to Syntalos and the registry for all
+ * lifecycle callbacks.
+ */
+class PySyLinkManager
+{
+private:
+    SyntalosLink *m_slink;
+    std::unique_ptr<SyntalosLink> m_ownedSLink;
+
+    py::object m_prepareFn;
+    py::object m_startFn;
+    py::object m_stopFn;
+
+public:
+    /**
+     * Standalone mode: creates and owns a new SyntalosLink.
+     */
+    PySyLinkManager()
+        : m_prepareFn(py::none()),
+          m_startFn(py::none()),
+          m_stopFn(py::none())
+    {
+        m_ownedSLink = initSyntalosModuleLink();
+        m_slink = m_ownedSLink.get();
+    }
+
+    /**
+     * PyWorker mode: borrows an existing SyntalosLink (caller retains ownership).
+     */
+    PySyLinkManager(SyntalosLink *borrowedLink)
+        : m_slink(borrowedLink),
+          m_prepareFn(py::none()),
+          m_startFn(py::none()),
+          m_stopFn(py::none())
+    {
+    }
+
+    PySyLinkManager(const PySyLinkManager &) = delete;
+    PySyLinkManager &operator=(const PySyLinkManager &) = delete;
+    ~PySyLinkManager()
+    {
+        cleanup();
+    }
+
+    /**
+     * Drops all Python-capturing callbacks and (in standalone mode) destroys
+     * the underlying SyntalosLink. Safe to call multiple times, but the object
+     * must not be used anymore after calling this function.
+     * /!\ This must only ever be called by Python when the object will be destroyed anyway!
+     */
+    void cleanup()
+    {
+        if (!m_slink)
+            return;
+
+        // Drop all C++ callbacks that capture Python objects while the interpreter
+        // is still in a valid state.
+        for (const auto &iport : m_slink->inputPorts())
+            iport->setNewDataRawCallback(nullptr);
+
+        m_slink->setPrepareStartCallback(nullptr);
+        m_slink->setStartCallback(nullptr);
+        m_slink->setStopCallback(nullptr);
+        m_slink->setShowSettingsCallback(nullptr);
+        m_slink->setShowDisplayCallback(nullptr);
+
+        m_prepareFn = py::none();
+        m_startFn = py::none();
+        m_stopFn = py::none();
+
+        // In standalone mode, destroy the SyntalosLink now (while interpreter is valid).
+        // In pyworker mode m_ownedSLink is empty, so this is a no-op.
+        m_ownedSLink.reset();
+        m_slink = nullptr;
+
+        if (g_pslMgr == this)
+            g_pslMgr = nullptr;
+    }
+
+    [[nodiscard]] SyntalosLink *link() const
+    {
+        return m_slink;
+    }
+
+    void onPrepare(py::object fn)
+    {
+        m_prepareFn = std::move(fn);
+        m_slink->setPrepareStartCallback([this](const ByteVector &settings) {
+            if (m_prepareFn.is_none()) {
+                m_slink->setState(ModuleState::READY);
+                return;
+            }
+            try {
+                auto result = m_prepareFn(py::bytes(reinterpret_cast<const char *>(settings.data()), settings.size()));
+                if (result.cast<bool>())
+                    m_slink->setState(ModuleState::READY);
+                else if (m_slink->state() != ModuleState::ERROR)
+                    m_slink->raiseError("Module preparation failed (prepare() returned False).");
+            } catch (py::error_already_set &e) {
+                if (m_slink->state() != ModuleState::ERROR)
+                    m_slink->raiseError(e.what());
+                else
+                    throw;
+            }
+        });
+    }
+
+    void onStart(py::object fn)
+    {
+        m_startFn = std::move(fn);
+        m_slink->setStartCallback([this]() {
+            m_slink->setState(ModuleState::RUNNING);
+            if (!m_startFn.is_none()) {
+                try {
+                    m_startFn();
+                } catch (py::error_already_set &e) {
+                    if (m_slink->state() != ModuleState::ERROR)
+                        m_slink->raiseError(e.what());
+                    else
+                        throw;
+                }
+            }
+        });
+    }
+
+    void onStop(py::object fn)
+    {
+        m_stopFn = std::move(fn);
+        m_slink->setStopCallback([this]() {
+            if (!m_stopFn.is_none()) {
+                try {
+                    m_stopFn();
+                } catch (py::error_already_set &e) {
+                    if (m_slink->state() != ModuleState::ERROR)
+                        m_slink->raiseError(e.what());
+                    else
+                        throw;
+                }
+            }
+            m_slink->setState(ModuleState::IDLE);
+        });
+    }
+
+    void onShowSettings(py::object fn)
+    {
+        m_slink->setShowSettingsCallback([fn](const ByteVector &settings) {
+            try {
+                fn(settings);
+            } catch (py::error_already_set &e) {
+                if (g_pslMgr && g_pslMgr->link())
+                    g_pslMgr->link()->raiseError(e.what());
+            }
+        });
+    }
+
+    void onShowDisplay(py::object fn)
+    {
+        m_slink->setShowDisplayCallback([fn]() {
+            try {
+                fn();
+            } catch (py::error_already_set &e) {
+                if (g_pslMgr && g_pslMgr->link())
+                    g_pslMgr->link()->raiseError(e.what());
+            }
+        });
+    }
+
+    void saveSettings(const ByteVector &settings_data)
+    {
+        m_slink->setSettingsData(settings_data);
+    }
+
+    /**
+     * Declare a new input port for this module.
+     *
+     * Must be called at module level (top-level script code) so ports are registered
+     * before Syntalos tries to restore project connections.
+     *
+     * @param id          Unique port identifier string.
+     * @param title       Human-readable port title shown in the flow graph.
+     * @param data_type   Data type name (e.g. "Frame", "TableRow", "IntSignalBlock").
+     * @returns InputPort handle, or None if registration failed (e.g. duplicate ID).
+     */
+    py::object registerInputPort(const std::string &id, const std::string &title, const std::string &data_type)
+    {
+        auto res = m_slink->registerInputPort(id, title, data_type);
+        if (!res)
+            return py::none();
+
+        InputPort pyPort(res);
+        return py::cast(pyPort);
+    }
+
+    /**
+     * Declare a new output port for this module.
+     *
+     * Must be called at module level (top-level script code) so ports are registered
+     * before Syntalos tries to restore project connections.
+     *
+     * @param id          Unique port identifier string.
+     * @param title       Human-readable port title shown in the flow graph.
+     * @param data_type   Data type name (e.g. "Frame", "TableRow", "IntSignalBlock").
+     * @returns OutputPort handle, or None if registration failed (e.g. duplicate ID).
+     */
+    py::object registerOutputPort(const std::string &id, const std::string &title, const std::string &data_type)
+    {
+        auto res = m_slink->registerOutputPort(id, title, data_type);
+        if (!res)
+            return py::none();
+
+        OutputPort pyPort(res);
+        return py::cast(pyPort);
+    }
+
+    /**
+     * Signal IDLE without entering the event loop (for custom loops).
+     */
+    void signalIdle()
+    {
+        m_slink->setState(ModuleState::IDLE);
+    }
+
+    /**
+     * Returns true if the experiment is currently running.
+     */
+    bool isRunning()
+    {
+        return m_slink->state() == ModuleState::RUNNING;
+    }
+
+    /**
+     * Single-shot data poll (for custom event loops).
+     */
+    void awaitData(int timeoutUsec)
+    {
+        m_slink->awaitData(timeoutUsec);
+    }
+
+    /**
+     * Signal IDLE (initialization complete) and run the built-in event loop.
+     */
+    void awaitDataForever(py::object eventFn)
+    {
+        signalIdle();
+
+        std::function<void()> evtFn;
+        if (!eventFn.is_none()) {
+            evtFn = [eventFn, this]() {
+                try {
+                    eventFn();
+                } catch (py::error_already_set &e) {
+                    if (m_slink)
+                        m_slink->raiseError(e.what());
+                }
+            };
+        } else {
+            evtFn = []() {
+                if (QCoreApplication::instance())
+                    QCoreApplication::processEvents();
+            };
+        }
+
+        m_slink->awaitDataForever(evtFn, 25 * 1000); // 25ms interval for Qt event responsiveness
+    }
+};
+
+static SyntalosLink *getActiveLink()
+{
+    if (g_pslMgr == nullptr)
+        throw SyntalosPyError("Syntalos Module Link was not initialized. Call `syntalos_mlink.init_link()` first!");
+    return g_pslMgr->link();
+}
+
+static PySyLinkManager *getActiveManager()
+{
+    if (g_pslMgr == nullptr)
+        throw SyntalosPyError("Syntalos Module Link was not initialized. Call `syntalos_mlink.init_link()` first!");
+    return g_pslMgr;
+}
+
+static uint64_t time_since_start_msec()
+{
+    return getActiveLink()->timer()->timeSinceStartMsec().count();
+}
+
+static uint64_t time_since_start_usec()
+{
+    return getActiveLink()->timer()->timeSinceStartUsec().count();
+}
+
+static void println(const std::string &text)
+{
+    std::cout << text << std::endl;
+}
+
+static void raise_error(const std::string &message)
+{
+    getActiveLink()->raiseError(message);
+}
+
+static void wait(uint msec)
+{
+    auto slink = getActiveLink();
+    auto timer = QTime::currentTime().addMSecs(static_cast<int>(msec));
+    while (QTime::currentTime() < timer)
+        slink->awaitData(10 * 1000);
+}
+
+static void wait_sec(uint sec)
+{
+    auto slink = getActiveLink();
+    auto timer = QTime::currentTime().addMSecs(static_cast<int>(sec * 1000));
+    while (QTime::currentTime() < timer)
+        slink->awaitData(100 * 1000);
+}
+
+static bool is_running()
+{
+    return getActiveManager()->isRunning();
+}
+
+static void await_data(int timeout_usec)
+{
+    getActiveLink()->awaitData(timeout_usec);
+}
+
+static void schedule_delayed_call(int delay_msec, const std::function<void()> &fn)
+{
+    if (delay_msec < 0)
+        throw SyntalosPyError("Delay must be positive or zero.");
+    QTimer::singleShot(delay_msec, [fn]() {
+        try {
+            fn();
+        } catch (py::error_already_set &e) {
+            getActiveLink()->raiseError(e.what());
+        }
+    });
+}
+
 static py::object get_input_port(const std::string &id)
 {
-    auto pb = PyBridge::instance();
-
     std::shared_ptr<InputPortInfo> res = nullptr;
-    const auto idstr = QString::fromStdString(id);
-    for (auto &iport : pb->link()->inputPorts()) {
-        if (iport->id() == idstr) {
+    for (auto &iport : getActiveLink()->inputPorts()) {
+        if (iport->id() == id) {
             res = iport;
             break;
         }
@@ -402,60 +641,13 @@ static py::object get_input_port(const std::string &id)
 
 static py::object get_output_port(const std::string &id)
 {
-    auto pb = PyBridge::instance();
-
-    const auto idstr = QString::fromStdString(id);
     std::shared_ptr<OutputPortInfo> res = nullptr;
-    for (auto &oport : pb->link()->outputPorts()) {
-        if (oport->id() == idstr) {
+    for (auto &oport : getActiveLink()->outputPorts()) {
+        if (oport->id() == id) {
             res = oport;
             break;
         }
     }
-    if (!res)
-        return py::none();
-
-    OutputPort pyPort(res);
-    return py::cast(pyPort);
-}
-
-/**
- * Declare a new input port for this module.
- *
- * Must be called at module level (top-level script code) so ports are registered
- * before Syntalos tries to restore project connections.
- *
- * @param id          Unique port identifier string.
- * @param title       Human-readable port title shown in the flow graph.
- * @param data_type   Data type name (e.g. "Frame", "TableRow", "IntSignalBlock").
- * @returns InputPort handle, or None if registration failed (e.g. duplicate ID).
- */
-static py::object register_input_port(const std::string &id, const std::string &title, const std::string &data_type)
-{
-    auto pb = PyBridge::instance();
-    auto res = pb->link()->registerInputPort(id, title, data_type);
-    if (!res)
-        return py::none();
-
-    InputPort pyPort(res);
-    return py::cast(pyPort);
-}
-
-/**
- * Declare a new output port for this module.
- *
- * Must be called at module level (top-level script code) so ports are registered
- * before Syntalos tries to restore project connections.
- *
- * @param id          Unique port identifier string.
- * @param title       Human-readable port title shown in the flow graph.
- * @param data_type   Data type name (e.g. "Frame", "TableRow", "IntSignalBlock").
- * @returns OutputPort handle, or None if registration failed (e.g. duplicate ID).
- */
-static py::object register_output_port(const std::string &id, const std::string &title, const std::string &data_type)
-{
-    auto pb = PyBridge::instance();
-    auto res = pb->link()->registerOutputPort(id, title, data_type);
     if (!res)
         return py::none();
 
@@ -478,14 +670,28 @@ static FirmataControl new_firmatactl_with_name(FirmataCommandKind kind, const st
     return {kind, name};
 }
 
-static SyntalosLink *init_link(SyntalosLink *slink = nullptr)
+static py::object init_link(SyntalosLink *slink = nullptr)
 {
-    SyntalosLink *finalLink = slink;
-    if (finalLink == nullptr)
-        finalLink = initSyntalosModuleLink().get();
-    PyBridge::instance(finalLink);
+    if (g_pslMgr != nullptr)
+        throw SyntalosPyError(
+            "Syntalos Module Link was already initialized. It is not allowed to run `init_link()` twice!");
 
-    return finalLink;
+    g_pslMgr = (slink != nullptr) ? new PySyLinkManager(slink) : new PySyLinkManager();
+    py::object pyObj = py::cast(g_pslMgr, py::return_value_policy::take_ownership);
+
+    if (slink == nullptr) {
+        // Standalone mode: register a Python atexit handler that calls cleanup().
+        // We capture pyObj (not a raw pointer) so that the lambda holds a Python reference to
+        // the PySyLinkManager wrapper. Without this, Python GC could collect the wrapper before
+        // atexit fires (e.g. when main() returns and the last Python-side reference is released),
+        // turning rawMgr into a dangling pointer and causing a crash on cleanup.
+        py::module_::import("atexit").attr("register")(py::cpp_function([pyObj]() {
+            if (g_pslMgr)
+                g_pslMgr->cleanup();
+        }));
+    }
+
+    return pyObj;
 }
 
 #pragma GCC visibility push(default)
@@ -495,16 +701,6 @@ PYBIND11_MODULE(syntalos_mlink, m)
 
     pydef_cvnp(m);
     py::register_exception<SyntalosPyError>(m, "SyntalosPyError");
-    py::class_<SyntalosLink>(m, "SyntalosLink");
-
-    m.def(
-        "init_link",
-        init_link,
-        py::arg("slink") = nullptr,
-        "Initialize the connection with a running Syntalos instance.\n"
-        "\n"
-        ":return: The active :class:`SyntalosLink` instance.\n"
-        ":rtype: SyntalosLink");
 
     /**
      ** MetaSize
@@ -795,26 +991,6 @@ PYBIND11_MODULE(syntalos_mlink, m)
         ":param sec: Duration to wait in seconds.");
 
     m.def(
-        "await_data",
-        await_data,
-        py::arg("timeout_usec") = -1,
-        "Wait for incoming data and dispatch it to registered ``on_data`` callbacks.\n"
-        "\n"
-        "Also services the IPC channel to the Syntalos process. Call this regularly\n"
-        "inside a ``run()`` loop to keep the module responsive.\n"
-        "\n"
-        ":param timeout_usec: Maximum time to block in microseconds. Pass ``-1`` (default) to\n"
-        "    wait until the module is no longer in ``RUNNING`` state.");
-
-    m.def(
-        "is_running",
-        is_running,
-        "Check whether the experiment is still active.\n"
-        "\n"
-        ":return: ``True`` while the run is in progress, ``False`` once a stop has been requested.\n"
-        ":rtype: bool");
-
-    m.def(
         "schedule_delayed_call",
         &schedule_delayed_call,
         py::arg("delay_msec"),
@@ -828,40 +1004,9 @@ PYBIND11_MODULE(syntalos_mlink, m)
         ":param callable_fn: Zero-argument callable to invoke.\n"
         ":raises SyntalosPyError: If ``delay_msec`` is negative.");
 
-    m.def(
-        "register_input_port",
-        register_input_port,
-        py::arg("id"),
-        py::arg("title"),
-        py::arg("data_type"),
-        "Declare a new input port for this module.\n"
-        "\n"
-        "Must be called at module level so that Syntalos can discover the port topology and\n"
-        "restore project connections before the first run is prepared.\n"
-        "\n"
-        ":param id: Unique port identifier used in :func:`get_input_port`.\n"
-        ":param title: Human-readable port label shown in the flow-graph editor.\n"
-        ":param data_type: Data type name, e.g. ``'Frame'``, ``'TableRow'``, ``'IntSignalBlock'``, etc.\n"
-        ":return: An :class:`InputPort` handle, or ``None`` if registration failed (e.g. duplicate ID).\n"
-        ":rtype: InputPort or None");
-
-    m.def(
-        "register_output_port",
-        register_output_port,
-        py::arg("id"),
-        py::arg("title"),
-        py::arg("data_type"),
-        "Declare a new output port for this module.\n"
-        "\n"
-        "Must be called at module level (top-level script code, not inside a function)\n"
-        "so that Syntalos can discover the port topology and restore project connections\n"
-        "before the first run is prepared.\n"
-        "\n"
-        ":param id: Unique port identifier used in :func:`get_output_port`.\n"
-        ":param title: Human-readable port label shown in the flow-graph editor.\n"
-        ":param data_type: Data type name, e.g. ``'Frame'``, ``'TableRow'``, etc.\n"
-        ":return: An :class:`OutputPort` handle, or ``None`` if registration failed (e.g. duplicate ID).\n"
-        ":rtype: OutputPort or None");
+    /**
+     ** Functions for the PyScript module (where ports are defined externally, in GUI)
+     **/
 
     m.def(
         "get_input_port",
@@ -884,34 +1029,29 @@ PYBIND11_MODULE(syntalos_mlink, m)
         ":rtype: OutputPort or None");
 
     m.def(
-        "call_on_show_settings",
-        &call_on_show_settings,
-        py::arg("callable_fn"),
-        "Register a callback to be invoked when the user opens the module's settings dialog.\n"
+        "is_running",
+        is_running,
+        "Check whether the experiment is still active.\n"
         "\n"
-        ":param callable_fn: Callable with signature ``fn(old_settings: bytes)``.");
+        ":return: ``True`` while the run is in progress, ``False`` once a stop has been requested.\n"
+        ":rtype: bool");
 
     m.def(
-        "call_on_show_display",
-        &call_on_show_display,
-        py::arg("callable_fn"),
-        "Register a callback to be invoked when the user opens the module's display window.\n"
+        "await_data",
+        await_data,
+        py::arg("timeout_usec") = -1,
+        "Wait for incoming data and dispatch it to registered ``on_data`` callbacks.\n"
         "\n"
-        ":param callable_fn: Zero-argument callable.");
+        "Also services the IPC channel to the Syntalos process. Call this regularly\n"
+        "inside a ``run()`` loop to keep the module responsive.\n"
+        "\n"
+        ":param timeout_usec: Maximum time to block in microseconds. Pass ``-1`` (default) to\n"
+        "    wait until the module is no longer in ``RUNNING`` state.");
 
-    m.def(
-        "save_settings",
-        &save_settings,
-        py::arg("settings_data"),
-        "Persist the module's settings with Syntalos.\n"
-        "\n"
-        "The saved blob is passed back to the module as ``old_settings`` the next time the\n"
-        "settings callback (see :func:`call_on_show_settings`) is invoked, and also delivered\n"
-        "via ``set_settings()`` before each run.\n"
-        "\n"
-        ":param settings_data: Arbitrary settings payload serialized as ``bytes``.");
+    /**
+     ** Firmata helpers
+     **/
 
-    // Firmata helpers
     m.def(
         "new_firmatactl_with_id_name",
         new_firmatactl_with_id_name,
@@ -951,6 +1091,143 @@ PYBIND11_MODULE(syntalos_mlink, m)
         ":param name: Registered pin name.\n"
         ":return: A new :class:`FirmataControl` instance.\n"
         ":rtype: FirmataControl");
+
+    /**
+     * Module registration (for standalone Python modules)
+     **/
+
+    // Register SyntalosLink as an opaque handle so pyworker can pass its pointer
+    // to init_link() via py::cast without exposing any of its C++ API to Python.
+    py::class_<SyntalosLink>(m, "_SyntalosLinkHandle");
+
+    py::class_<PySyLinkManager>(m, "SyntalosLink", "Manages the connection to Syntalos.")
+        .def(
+            "on_prepare",
+            &PySyLinkManager::onPrepare,
+            py::arg("callable_fn"),
+            "Register a callback invoked when Syntalos prepares a new run.\n"
+            "\n"
+            "The callback receives the current settings as ``bytes`` and must return ``True``\n"
+            "to signal that preparation succeeded, or ``False`` / raise an exception to abort.\n"
+            "If not registered the module automatically signals readiness.\n"
+            "\n"
+            ":param callable_fn: Callable with signature ``fn(settings: bytes) -> bool``.")
+        .def(
+            "on_start",
+            &PySyLinkManager::onStart,
+            py::arg("callable_fn"),
+            "Register a callback invoked when Syntalos starts a run.\n"
+            "\n"
+            ":param callable_fn: Zero-argument callable.")
+        .def(
+            "on_stop",
+            &PySyLinkManager::onStop,
+            py::arg("callable_fn"),
+            "Register a callback invoked when Syntalos stops a run.\n"
+            "\n"
+            ":param callable_fn: Zero-argument callable.")
+        .def(
+            "on_show_settings",
+            &PySyLinkManager::onShowSettings,
+            py::arg("callable_fn"),
+            "Register a callback invoked when the user opens the module settings dialog.\n"
+            "\n"
+            ":param callable_fn: Callable with signature ``fn(old_settings: bytes)``.")
+        .def(
+            "on_show_display",
+            &PySyLinkManager::onShowDisplay,
+            py::arg("callable_fn"),
+            "Register a callback invoked when the user opens the module display window.\n"
+            "\n"
+            ":param callable_fn: Zero-argument callable.")
+        .def(
+            "save_settings",
+            &PySyLinkManager::saveSettings,
+            py::arg("settings_data"),
+            "Persist the module's settings with Syntalos.\n"
+            "\n"
+            "The saved blob is passed back to the module as ``old_settings`` the next time the\n"
+            "settings callback (see :func:`call_on_show_settings`) is invoked, and also delivered\n"
+            "via ``set_settings()`` before each run.\n"
+            "\n"
+            ":param settings_data: Arbitrary settings payload serialized as ``bytes``.")
+
+        .def(
+            "register_input_port",
+            &PySyLinkManager::registerInputPort,
+            py::arg("id"),
+            py::arg("title"),
+            py::arg("data_type"),
+            "Declare a new input port for this module.\n"
+            "\n"
+            "Must be called at module level so that Syntalos can discover the port topology and\n"
+            "restore project connections before the first run is prepared.\n"
+            "\n"
+            ":param id: Unique port identifier used in :func:`get_input_port`.\n"
+            ":param title: Human-readable port label shown in the flow-graph editor.\n"
+            ":param data_type: Data type name, e.g. ``'Frame'``, ``'TableRow'``, ``'IntSignalBlock'``, etc.\n"
+            ":return: An :class:`InputPort` handle, or ``None`` if registration failed (e.g. duplicate ID).\n"
+            ":rtype: InputPort or None")
+        .def(
+            "register_output_port",
+            &PySyLinkManager::registerOutputPort,
+            py::arg("id"),
+            py::arg("title"),
+            py::arg("data_type"),
+            "Declare a new output port for this module.\n"
+            "\n"
+            "Must be called at module level (top-level script code, not inside a function)\n"
+            "so that Syntalos can discover the port topology and restore project connections\n"
+            "before the first run is prepared.\n"
+            "\n"
+            ":param id: Unique port identifier used in :func:`get_output_port`.\n"
+            ":param title: Human-readable port label shown in the flow-graph editor.\n"
+            ":param data_type: Data type name, e.g. ``'Frame'``, ``'TableRow'``, etc.\n"
+            ":return: An :class:`OutputPort` handle, or ``None`` if registration failed (e.g. duplicate ID).\n"
+            ":rtype: OutputPort or None")
+
+        .def(
+            "is_running",
+            &PySyLinkManager::isRunning,
+            "Check whether the experiment is still active.\n"
+            "\n"
+            ":return: ``True`` while the run is in progress, ``False`` once a stop has been requested.\n"
+            ":rtype: bool")
+
+        .def(
+            "await_data",
+            &PySyLinkManager::awaitData,
+            py::arg("timeout_usec") = -1,
+            "Single-shot data poll for use inside a custom event loop.\n"
+            "\n"
+            ":param timeout_usec: Maximum time to block in µs; ``-1`` waits indefinitely.")
+        .def(
+            "await_data_forever",
+            &PySyLinkManager::awaitDataForever,
+            py::arg("event_fn") = py::none(),
+            "Signal initialization complete and run the module event loop.\n"
+            "\n"
+            "Signals IDLE to Syntalos then blocks until a shutdown is requested.\n"
+            "\n"
+            ":param event_fn: Optional zero-argument callable, invoked regularly to pump an external event loop.")
+        .def(
+            "signal_idle",
+            &PySyLinkManager::signalIdle,
+            "Signal IDLE (initialization complete) without entering the built-in event loop.\n"
+            "\n"
+            "Call this before starting a custom loop with :meth:`await_data`.");
+
+    m.def(
+        "init_link",
+        &init_link,
+        py::arg("slink") = nullptr,
+        "Initialize a connection with Syntalos.\n"
+        "\n"
+        "This function must be called only once at program startup, before invoking any\n"
+        "other methods on this module.\n"
+        "\n"
+        ":return: The active :class:`SyntalosLink` registry object.\n"
+        ":rtype: SyntalosLink");
 };
 #pragma GCC visibility pop
 

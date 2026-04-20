@@ -17,8 +17,10 @@
  * along with this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "config.h"
 #include "pyvenvmanager.h"
 
+#include <QCoreApplication>
 #include <QDebug>
 #include <QDir>
 #include <QFile>
@@ -190,6 +192,52 @@ static void injectSystemPyModule(const QString &venvDir, const QString &pyModNam
     }
 }
 
+static void injectSyntalosMlinkIntoVenv(const QString &venvDir)
+{
+    // Locate the syntalos_mlink extension: prefer a dev-build next to the app binary,
+    // fall back to the installed system path.
+    const QString devDir = QCoreApplication::applicationDirPath() + QStringLiteral("/python");
+    const QString installedDir = QStringLiteral(PYTHON_INSTALL_PATH);
+
+    QString soDir;
+    for (const auto &dir : {devDir, installedDir}) {
+        if (!QDir(dir).entryList({"syntalos_mlink*.so"}, QDir::Files).isEmpty()) {
+            soDir = dir;
+            break;
+        }
+    }
+
+    if (soDir.isEmpty()) {
+        qCWarning(logVEnv) << "Could not find syntalos_mlink extension to inject into venv";
+        return;
+    }
+
+    const auto soFiles = QDir(soDir).entryList({"syntalos_mlink*.so"}, QDir::Files);
+    const QString pyiSrc = QStringLiteral("%1/syntalos_mlink.pyi").arg(soDir);
+
+    QDir libDir(QStringLiteral("%1/lib").arg(venvDir));
+    const auto pyDirs = libDir.entryList({"python*"}, QDir::Dirs);
+    for (const auto &pyDir : pyDirs) {
+        const auto sitePkgs = QStringLiteral("%1/lib/%2/site-packages").arg(venvDir, pyDir);
+        if (!QDir(sitePkgs).exists())
+            continue;
+
+        for (const auto &soFile : soFiles) {
+            const auto dst = QStringLiteral("%1/%2").arg(sitePkgs, soFile);
+            if (QFile::exists(dst))
+                QFile::remove(dst);
+            QFile::link(QStringLiteral("%1/%2").arg(soDir, soFile), dst);
+        }
+
+        if (QFile::exists(pyiSrc)) {
+            const auto dst = QStringLiteral("%1/syntalos_mlink.pyi").arg(sitePkgs);
+            if (QFile::exists(dst))
+                QFile::remove(dst);
+            QFile::link(pyiSrc, dst);
+        }
+    }
+}
+
 static bool injectSystemPyQtBindings(const QString &venvDir)
 {
     // the PyQt6/PySide modules must be for the same version as Syntalos was compiled for,
@@ -302,6 +350,7 @@ auto createPythonVirtualEnv(const QString &venvName, const QString &requirements
     if (ret == 0) {
         if (!injectSystemPyQtBindings(venvDir))
             return std::unexpected("Unable to inject system PyQt bindings into virtualenv");
+        injectSyntalosMlinkIntoVenv(venvDir);
 
         if (!requirementsFile.isEmpty()) {
             const auto b3sumResult = blake3HashForFile(requirementsFile);

@@ -22,14 +22,51 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QIcon>
 #include <QMessageBox>
+#include <QProcessEnvironment>
 #include <QTimer>
 #include <iostream>
 
+#include "config.h"
 #include "globalconfig.h"
 #include "mlinkmodule.h"
 #include "pyvenvmanager.h"
+
+/**
+ * Get a directory to prepend to PYTHONPATH so the syntalos_mlink C extension
+ * can be imported even if we are running from a not-installed copy of Syntalos.
+ */
+static QString syntalosLocalPyMlinkPath()
+{
+    // In dev / uninstalled builds the extension is built alongside the application
+    // binary in a "python/" subdirectory.
+    const QString devDir = QCoreApplication::applicationDirPath() + QStringLiteral("/python");
+
+    // prefer the dev-build directory when it contains the extension
+    if (!QDir(devDir).entryList({"syntalos_mlink*.so"}, QDir::Files).isEmpty())
+        return devDir;
+
+    return {};
+}
+
+/**
+ * Find the system python3 interpreter.
+ */
+static QString findSystemPython3Interpreter()
+{
+    const QStringList candidates = {
+        QStringLiteral("/usr/bin/python3"),
+        QStringLiteral("/usr/local/bin/python3"),
+    };
+
+    for (const auto &p : candidates) {
+        if (QFileInfo::exists(p))
+            return p;
+    }
+    return QStringLiteral("python3"); // rely on PATH
+}
 
 class PythonModule : public MLinkModule
 {
@@ -37,12 +74,13 @@ class PythonModule : public MLinkModule
 public:
     explicit PythonModule(QObject *parent = nullptr)
         : MLinkModule(parent),
-          m_features(ModuleFeature::NONE)
+          m_features(ModuleFeature::NONE),
+          m_useVEnv(false),
+          m_runGdb(false)
     {
-        // we use the generic Python OOP worker process for this
-        setModuleBinary(findSyntalosPyWorkerBinary());
-
-        // Python modules are persistently running
+        // Python modules run persistently: the process is started at initialization
+        // and kept alive between runs so settings UI and port connections remain
+        // available without relaunching the script.
         setWorkerMode(ModuleWorkerMode::PERSISTENT);
 
         setOutputCaptured(false); // don't capture stdout until we are running
@@ -76,33 +114,73 @@ public:
         return false;
     }
 
+    /**
+     * Configure and launch the Python script as a direct subprocess.
+     *
+     * Sets the Python interpreter as the module binary (the venv's interpreter if
+     * applicable), passes the script path as its sole argument, and prepends the
+     * syntalos_mlink search directories to PYTHONPATH so the extension is always
+     * importable, even when not using a venv (in venvs, we symlink the extension
+     * into the environment).
+     */
     bool ensurePythonCodeRunning()
     {
         if (isProcessRunning())
             return true;
 
-        setPythonVirtualEnv(pythonVEnvDirForName(id()));
+        // Build PYTHONPATH: syntalos_mlink search paths take priority so the
+        // extension is always importable.
+        const auto localPyModPath = syntalosLocalPyMlinkPath();
+        if (!localPyModPath.isEmpty()) {
+            auto penv = QProcessEnvironment::systemEnvironment();
+            QStringList pythonPath;
+            pythonPath << localPyModPath;
+            const QString existingPythonPath = penv.value(QStringLiteral("PYTHONPATH"));
+            if (!existingPythonPath.isEmpty())
+                pythonPath << existingPythonPath;
+            penv.insert(QStringLiteral("PYTHONPATH"), pythonPath.join(':'));
+            setModuleBinaryEnv(penv);
+        }
+
+        // Resolve interpreter: use the venv's python when a venv is requested.
+        // setPythonVirtualEnv() tells runProcess() to set VIRTUAL_ENV and prepend
+        // the venv's bin/ directory to PATH, which fully activates the environment.
+        const QString venvDir = m_useVEnv ? pythonVEnvDirForName(id()) : QString();
+        if (!venvDir.isEmpty()) {
+            const QString venvPython = venvDir + QStringLiteral("/bin/python");
+            setModuleBinary(QFileInfo::exists(venvPython) ? venvPython : findSystemPython3Interpreter());
+            setPythonVirtualEnv(venvDir);
+        } else {
+            setModuleBinary(findSystemPython3Interpreter());
+        }
+
+        setModuleBinaryArgs({m_mainPyFname});
+        if (m_runGdb) {
+            // NOTE: This is currently for debugging during development only!
+            setModuleBinary("/usr/bin/gdb");
+            setModuleBinaryArgs(
+                {"-q",
+                 "-batch",
+                 "-ex",
+                 "run",
+                 "-ex",
+                 "bt full",
+                 "--args",
+                 findSystemPython3Interpreter(),
+                 m_mainPyFname});
+        }
+
+        setModuleBinaryWorkDir(m_pyModDir);
         setOutputCaptured(true);
+
+        // run!
         if (!runProcess())
             return false;
 
-        // Load the script immediately.
-        // The LoadScript handler executes the script BEFORE replying, so by the
-        // time loadCurrentScript() returns all port registration messages are in
-        // the IPC queue. A single handleIncomingControl() call below drains them.
-        if (!setScriptFromFile(m_mainPyFname, m_pyModDir)) {
-            raiseError(QStringLiteral("Unable to open Python script file: %1").arg(m_mainPyFname));
-            return false;
-        }
-        // resetPorts=true: the worker clears its port state before executing the script,
-        // so self-registered ports from any previous load are removed first.
-        if (!loadCurrentScript(true))
-            return false;
-
-        // Drain all InputPortChange / OutputPortChange ADD messages published
-        // during script execution so ports are present on the master side before
-        // we return. This is the guarantee that lets project loading restore
-        // port connections immediately after initialize().
+        // Drain all InputPortChange / OutputPortChange ADD messages emitted during
+        // script-level port registration so ports are available on the master side
+        // before we return. This lets project loading restore connections immediately
+        // after initialize() completes.
         handleIncomingControl();
 
         return true;
@@ -110,8 +188,8 @@ public:
 
     bool initialize() override
     {
-        if (moduleBinary().isEmpty()) {
-            raiseError("Unable to find Python worker binary. Is Syntalos installed correctly?");
+        if (m_mainPyFname.isEmpty()) {
+            raiseError("No Python script file set for this module.");
             return false;
         }
 
@@ -171,7 +249,6 @@ public:
             }
         }
 
-        // native Python modules have their main function launched immediately
         if (!ensurePythonCodeRunning())
             return false;
 
@@ -183,26 +260,8 @@ public:
     {
         setOutputCaptured(true);
 
-        if (!isProcessRunning()) {
+        if (!isProcessRunning())
             ensurePythonCodeRunning();
-        } else {
-            // reload Python script if it was changed meanwhile
-            if (isScriptModified()) {
-                qDebug().noquote().nospace() << "py." << id() << "(" << name() << "): "
-                                             << "=> Reloading Python script";
-                if (!setScriptFromFile(m_mainPyFname, m_pyModDir)) {
-                    raiseError(QStringLiteral("Unable to open Python script file: %1").arg(m_mainPyFname));
-                    return false;
-                }
-                // resetPorts=true: the worker clears its port state and re-registers ports
-                // during script execution. Drain the resulting ADD messages now so that
-                // any changed ports are reflected on the master side before
-                // MLinkModule::prepare() sends the port topology to the worker.
-                if (!loadCurrentScript(true))
-                    return false;
-                handleIncomingControl();
-            }
-        }
 
         return MLinkModule::prepare(testSubject);
     }
@@ -226,9 +285,8 @@ public:
     void stop() override
     {
         // If the process is already dead when stop() is called, it crashed during
-        // the run.
-        // The error has already been raised and will end the run; schedule an
-        // async restart so the module is immediately ready again afterwards.
+        // the run. The error has already been raised and will end the run; schedule
+        // an async restart so the module is immediately ready again afterwards.
         const bool didCrash = !isProcessRunning() && state() != ModuleState::DORMANT;
         if (didCrash) {
             QTimer::singleShot(0, this, [this]() {
@@ -256,7 +314,7 @@ public:
         return true;
     }
 
-    void setPythonInfo(const QString &fname, const QString wdir, bool useVEnv)
+    void setPythonInfo(const QString &fname, const QString &wdir, bool useVEnv)
     {
         m_mainPyFname = fname;
         m_pyModDir = wdir;
@@ -266,8 +324,9 @@ public:
 private:
     QString m_mainPyFname;
     QString m_pyModDir;
-    bool m_useVEnv;
     ModuleFeatures m_features;
+    bool m_useVEnv;
+    bool m_runGdb;
 };
 
 class PyModuleInfo : public ModuleInfo

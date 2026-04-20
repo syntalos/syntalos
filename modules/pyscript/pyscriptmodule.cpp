@@ -27,10 +27,12 @@
 #include <KActionCollection>
 #pragma GCC diagnostic pop
 #include <qtermwidget6/qtermwidget.h>
+#include <QCoreApplication>
 #include <QDir>
 #include <QDesktopServices>
 #include <QDebug>
 #include <QFileInfo>
+#include <QProcessEnvironment>
 #include <QHBoxLayout>
 #include <QMenuBar>
 #include <QMetaType>
@@ -165,9 +167,6 @@ public:
                 saveAction->setEnabled(false);
             }
         }
-
-        // we use the generic Python OOP worker process for this module
-        setPyWorkerBinary(false);
     }
 
     ~PyScriptModule() override
@@ -180,6 +179,15 @@ public:
         return ModuleFeature::SHOW_SETTINGS;
     }
 
+    QString findPyWorkerBinary()
+    {
+        QString workerBinary = moduleRootDir() + "/worker/pyworker";
+        QFileInfo fi(workerBinary);
+        if (!fi.exists())
+            workerBinary = moduleRootDir() + "/pyworker";
+        return workerBinary;
+    }
+
     void setName(const QString &value) final
     {
         MLinkModule::setName(value);
@@ -188,6 +196,10 @@ public:
 
     bool initialize() override
     {
+        // id() is not set during construction, so resolve the worker binary here
+        // when the module identity is available.
+        setPyWorkerBinary(m_runInGdbAction->isChecked());
+
         if (moduleBinary().isEmpty()) {
             raiseError("Unable to find Python worker binary. Is Syntalos installed correctly?");
             return false;
@@ -300,7 +312,19 @@ private:
     {
         disconnect(m_outFwdConn);
 
-        const auto pyWorkerBinary = findSyntalosPyWorkerBinary();
+        // Ensure pyworker can import syntalos_mlink regardless of install state.
+        // In dev builds syntalos_mlink.so lives in src/python/ next to the app binary;
+        // prepend that directory to PYTHONPATH so the embedded interpreter finds it.
+        auto penv = QProcessEnvironment::systemEnvironment();
+        const QString appPythonDir = QCoreApplication::applicationDirPath() + QStringLiteral("/python");
+        if (QDir(appPythonDir).exists()) {
+            const QString existingPP = penv.value(QStringLiteral("PYTHONPATH"));
+            penv.insert(
+                QStringLiteral("PYTHONPATH"), existingPP.isEmpty() ? appPythonDir : appPythonDir + ':' + existingPP);
+            setModuleBinaryEnv(penv);
+        }
+
+        const auto pyWorkerBinary = findPyWorkerBinary();
         if (!runInDebugger) {
             setModuleBinary(pyWorkerBinary);
             setModuleBinaryArgs(QStringList());

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -29,7 +29,6 @@
 
 namespace py = pybind11;
 using namespace Syntalos;
-class PyBridge;
 
 namespace Syntalos
 {
@@ -68,6 +67,9 @@ private:
 
     bool m_running;
     ByteVector m_settings;
+
+    py::module_ m_mlinkMod; // keeps syntalos_mlink alive for the interpreter lifetime
+    py::object m_mlinkObj;  // keeps the PySyLinkManager wrapper alive
 
     void resetPyCallbacks();
     bool initPythonInterpreter();

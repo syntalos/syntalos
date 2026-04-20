@@ -8,6 +8,7 @@ from dlclive import DLCLive, Processor
 
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
+    QApplication,
     QWidget,
     QDialog,
     QPushButton,
@@ -87,10 +88,7 @@ class SettingsDialog(QDialog):
 class DLCLiveModule:
     '''DeepLabCut Live Syntalos Module'''
 
-    def __init__(self):
-        self._iport = None
-        self._oport_img = None
-        self._oport_rows = None
+    def __init__(self, syLink):
         self._dlc_live = None
         self._model_path = None
         self._first_frame = True
@@ -99,15 +97,16 @@ class DLCLiveModule:
 
         # An instance of this class is created t the module level, at which point we need to register
         # our ports, so Syntalos knows them early when restoring connections at project-load time.
-        self._iport = syl.register_input_port('frames-in', 'Frames', 'Frame')
-        self._oport_rows = syl.register_output_port('rows-out', 'Tracking', 'TableRow')
-        # self._oport_img = syl.register_output_port('frames-out', 'Labeled Frames', 'Frame')
+        self._iport = syLink.register_input_port('frames-in', 'Frames', 'Frame')
+        self._oport_rows = syLink.register_output_port('rows-out', 'Tracking', 'TableRow')
+        # self._oport_img = syLink.register_output_port('frames-out', 'Labeled Frames', 'Frame')
 
         # collect event callbacks
         self._iport.on_data = self._on_input_data
 
         # show the settings dialog when the user requested it to be shown
-        syl.call_on_show_settings(self.change_settings)
+        #mod.set_settings(settings)
+        #syLink.call_on_show_settings(self.change_settings)
 
     def prepare(self) -> bool:
         if self._dlc_live:
@@ -178,27 +177,27 @@ class DLCLiveModule:
         self._display = settings.get('display', False)
 
 
-# create our module wrapper object
-mod = DLCLiveModule()
+def main() -> int:
+    # Qt, for GUI display
+    app = QApplication(sys.argv)
+    app.setQuitOnLastWindowClosed(False)
+
+    # initialize connection to Syntalos
+    syLink = syl.init_link()
+
+    # create our module wrapper object
+    mod = DLCLiveModule(syLink)
+
+    # lifecycle callbacks
+    syLink.on_prepare(mod.prepare)
+    syLink.on_start(mod.start)
+    syLink.on_stop(mod.stop)
+
+    # run the module!
+    syLink.await_data_forever(app.processEvents)
+
+    return 0
 
 
-def set_settings(settings: bytes):
-    mod.set_settings(settings)
-
-
-def prepare() -> bool:
-    return mod.prepare()
-
-
-def start():
-    mod.start()
-
-
-def run():
-    # wait for new data to arrive and communicate with Syntalos
-    while syl.is_running():
-        syl.await_data()
-
-
-def stop():
-    mod.stop()
+if __name__ == '__main__':
+    sys.exit(main())

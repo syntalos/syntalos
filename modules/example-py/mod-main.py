@@ -19,7 +19,15 @@ import os
 import sys
 import syntalos_mlink as syl
 
-from PyQt6.QtWidgets import QDialog, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout
+from PyQt6.QtWidgets import (
+    QApplication,
+    QDialog,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QVBoxLayout,
+    QHBoxLayout,
+)
 import json
 import cv2 as cv
 
@@ -31,29 +39,32 @@ class MyExampleModule:
     want to use objects.
     """
 
-    def __init__(self):
-        self._iport = None
-        self._oport_frames = None
-        self._oport_rows = None
-        self._label_prefix = {}
+    def __init__(self, modLink):
+        self._modLink = modLink
+        self._label_prefix = ''
         self._frame_count = 0
         self._settings_dlg = None
 
-        # show the settings dialog when the user requested it to be shown
-        syl.call_on_show_settings(self._change_settings)
+        # register ports that this module supports
+        self._iport = self._modLink.register_input_port('frames-in', 'Frames', 'Frame')
+        self._oport_rows = self._modLink.register_output_port('rows-out', 'Indices', 'TableRow')
+        self._oport_frames = self._modLink.register_output_port(
+            'frames-out', 'Marked Frames', 'Frame'
+        )
 
-    def prepare(self) -> bool:
+        # show the settings dialog when the user requested it to be shown
+        modLink.on_show_settings(self._change_settings)
+
+    def prepare(self, settings: bytes) -> bool:
         """
         This function is called before a run is started.
         You can use it for (slow) initializations.
         NOTE: You are *not* able to send output to ports here, or access
         any valid master timer time. This function can be slow.
         """
+        self.set_settings(settings)
 
-        # Get references to your ports by their ID here.
-        self._iport = syl.get_input_port('frames-in')
-        self._oport_frames = syl.get_output_port('frames-out')
-        self._oport_rows = syl.get_output_port('rows-out')
+        # set our own port metadata
         self._oport_rows.set_metadata_value('table_header', ['Time Received [us]', 'Frame Number'])
 
         # forward some metadata
@@ -95,10 +106,12 @@ class MyExampleModule:
         )
         self._frame_count += 1
 
-        # submit new data to an output port
+        # submit new data to our output ports
         frame.mat = mat
         self._oport_frames.submit(frame)
-        self._oport_rows.submit([syl.time_since_start_usec(), self._frame_count])
+
+        if self._frame_count % 100 == 0:
+            self._oport_rows.submit([syl.time_since_start_usec(), self._frame_count])
 
     def stop(self):
         """
@@ -136,7 +149,7 @@ class MyExampleModule:
         def clicked():
             self._label_prefix = txt.text()
             settings = dict(prefix=self._label_prefix)
-            syl.save_settings(bytes(json.dumps(settings), 'utf-8'))
+            self._modLink.save_settings(bytes(json.dumps(settings), 'utf-8'))
 
             self._settings_dlg.accept()
 
@@ -171,44 +184,29 @@ class MyExampleModule:
         self._label_prefix = settings.get('prefix', '')
 
 
-# create our module wrapper object
-mod = MyExampleModule()
+def main() -> int:
+    # Create Qt application, so we can use it for our GUI
+    app = QApplication(sys.argv)
+    app.setQuitOnLastWindowClosed(False)
+
+    # Initialize connection to Syntalos. The returned link object is the registry
+    # for all lifecycle callbacks and owns the IPC channel.
+    modLink = syl.init_link()
+
+    # Create module instance (also registers the show-settings callback via link).
+    mod = MyExampleModule(modLink)
+
+    # Register lifecycle callbacks on the link object.
+    modLink.on_prepare(mod.prepare)
+    modLink.on_start(mod.start)
+    modLink.on_stop(mod.stop)
+
+    # Signal initialization complete and run the event loop.
+    # This call blocks until Syntalos requests a shutdown.
+    modLink.await_data_forever(app.processEvents)
+
+    return 0
 
 
-def register_ports() -> None:
-    syl.register_input_port('frames-in', 'Frames', 'Frame')
-    syl.register_output_port('rows-out', 'Indices', 'TableRow')
-    syl.register_output_port('frames-out', 'Marked Frames', 'Frame')
-
-
-def set_settings(settings: bytes):
-    mod.set_settings(settings)
-
-
-def prepare() -> bool:
-    """This function is called before a run is started."""
-    return mod.prepare()
-
-
-def start():
-    """This function is called immediately when a run is started."""
-    mod.start()
-
-
-def run():
-    # wait for new data to arrive and communicate with Syntalos
-    while syl.is_running():
-        syl.await_data()
-
-
-def stop():
-    """
-    This function is called once a run is stopped, by the user, and error or when
-    the loop() function returned False.
-    """
-    mod.stop()
-
-
-# Register ports at module level so Syntalos knows the port topology before
-# trying to restore project connections.
-register_ports()
+if __name__ == '__main__':
+    sys.exit(main())

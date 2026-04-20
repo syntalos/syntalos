@@ -22,14 +22,6 @@ def start():
     pass
 
 
-def run():
-    """This function is called once the experiment run has started."""
-
-    # wait for new data to arrive and communicate with Syntalos
-    while syl.is_running():
-        syl.await_data()
-
-
 def stop():
     """This function is called once a run is stopped."""
     pass

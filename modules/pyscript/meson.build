@@ -1,5 +1,9 @@
 # Build definitions for module: pyscript
 
+pysmod_install_dir = join_paths(sy_modules_dir, fs.name(meson.current_source_dir()))
+
+subdir('worker/')
+
 module_hdr = [
     'pyscriptmodule.h'
 ]

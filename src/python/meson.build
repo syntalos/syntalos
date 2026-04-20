@@ -74,53 +74,6 @@ test('sy-test-cvnp-cpp',
      args: python.get_path('purelib')
 )
 
-sy_pyworker_src = [
-    'main.cpp',
-    'pyworker.h',
-    'pyworker.cpp',
-]
-
-pyworker_moc_h = []
-pyworker_moc_s = []
-foreach s : sy_pyworker_src
-    if s.endswith('.h')
-        pyworker_moc_h += s
-    elif s.endswith('.cpp')
-        pyworker_moc_s += s
-    endif
-endforeach
-
-sy_pyworker_moc = qt.compile_moc(
-    headers: [pyworker_moc_h],
-    sources: pyworker_moc_s,
-    # FIXME: The forced include directive works around a weird issue in KDE's Flatpak runtime, where
-    # some Qt modules are not found properly without the explicit include, resulting in parsing errors.
-    extra_args: ['-I/usr/include', '--no-notes']
-)
-
-pywconf = configuration_data()
-pywconf.set_quoted('SY_PYTHON_MOD_DIR', python.get_install_dir(pure: false))
-pyw_config_h = configure_file(output: 'pyw-config.h', configuration: pywconf)
-
-pyworker_exe = executable('pyworker',
-    [pyw_config_h,
-     sy_pyworker_src,
-     sy_pyworker_moc],
-    gnu_symbol_visibility: 'hidden',
-    dependencies: [
-        syntalos_mlink_dep,
-        thread_dep,
-        qt_dbus_dep,
-        qt_gui_dep,
-        pybind11_dep,
-        python_embed_dep
-    ],
-    include_directories: [include_directories('..')],
-    cpp_args: [numpy_inc_arg],
-    install: true,
-    install_dir: sy_libdir,
-)
-
 pb11_stubgen_exe = find_program('pybind11-stubgen', required: false)
 if pb11_stubgen_exe.found()
     pysy_mlink_stub = custom_target('pysy-mlink-stubgen',

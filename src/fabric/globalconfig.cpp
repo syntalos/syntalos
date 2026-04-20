@@ -255,19 +255,6 @@ ColorMode Syntalos::colorModeFromString(const QString &str)
     return ColorMode::SYSTEM;
 }
 
-QString Syntalos::findSyntalosPyWorkerBinary()
-{
-    auto workerBinary = QStringLiteral("%1/python/pyworker").arg(QCoreApplication::applicationDirPath());
-    QFileInfo checkBin(workerBinary);
-    if (!checkBin.exists() || workerBinary.startsWith("/usr/")) {
-        workerBinary = QStringLiteral("%1/pyworker").arg(SY_LIBDIR);
-        QFileInfo fi(workerBinary);
-        workerBinary = fi.canonicalFilePath();
-    }
-
-    return workerBinary;
-}
-
 void Syntalos::findSyntalosLibraryPaths(QString &pkgConfigPath, QString &ldLibraryPath, QString &includePath)
 {
     // check if we are running from the build directory
