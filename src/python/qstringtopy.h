@@ -82,8 +82,10 @@ public:
 
             Py_ssize_t size;
             const char *buffer = PyUnicode_AsUTF8AndSize(str_obj, &size);
-            if (!buffer)
+            if (!buffer) {
+                Py_DECREF(str_obj);
                 return false;
+            }
             value = QString::fromUtf8(buffer, static_cast<int>(size));
 
             Py_DECREF(str_obj);

@@ -30,6 +30,9 @@ namespace pybind11
 namespace detail
 {
 
+namespace py = pybind11;
+using namespace Syntalos;
+
 /**
  * TableRow conversion
  */
@@ -151,7 +154,9 @@ inline handle type_caster<Syntalos::MetaValue>::cast(
             else if constexpr (std::is_same_v<T, std::string>)
                 return py::str(v).release();
             else if constexpr (std::is_same_v<T, Syntalos::MetaSize>)
-                return py::cast(v, policy, parent).release();
+                // Always copy MetaSize into Python: this converter is often used on
+                // temporary metadata maps, so returning references can dangle.
+                return py::cast(v, py::return_value_policy::copy, parent).release();
             else if constexpr (std::is_same_v<T, Syntalos::MetaArray>)
                 return type_caster<Syntalos::MetaArray>::cast(v, policy, parent);
             else if constexpr (std::is_same_v<T, Syntalos::MetaStringMap>)

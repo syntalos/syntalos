@@ -74,6 +74,17 @@ test('sy-test-cvnp-cpp',
      args: python.get_path('purelib')
 )
 
+test_sydatatopy_exe = executable('test-sydatatopy',
+    ['tests/test-sydatatopy.cpp'],
+    dependencies: [
+        syntalos_mlink_dep,
+        pybind11_dep,
+        python_embed_dep,
+    ],
+    include_directories: [include_directories('..')],
+)
+test('sy-test-sydatatopy', test_sydatatopy_exe)
+
 pb11_stubgen_exe = find_program('pybind11-stubgen', required: false)
 if pb11_stubgen_exe.found()
     pysy_mlink_stub = custom_target('pysy-mlink-stubgen',
