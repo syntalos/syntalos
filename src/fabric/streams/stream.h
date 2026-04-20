@@ -77,7 +77,7 @@ public:
     virtual QString dataTypeName() const = 0;
     virtual bool callIfNextVar(const ProcessVarFn &fn) = 0;
     virtual bool unsubscribe() = 0;
-    virtual bool active() const = 0;
+    virtual bool isActive() const = 0;
     virtual bool hasPending() const = 0;
     virtual size_t approxPendingCount() const = 0;
     virtual int enableNotify() = 0;
@@ -106,7 +106,7 @@ public:
     virtual bool commitMetadata() = 0;
     virtual void start() = 0;
     virtual void stop() = 0;
-    [[nodiscard]] virtual bool active() const = 0;
+    [[nodiscard]] virtual bool isActive() const = 0;
     [[nodiscard]] virtual bool hasSubscribers() const = 0;
     [[nodiscard]] virtual size_t subscriberCount() const = 0;
     virtual void pushRawData(int typeId, const void *data, size_t size) = 0;
@@ -114,6 +114,19 @@ public:
     virtual void setMetadata(const MetaStringMap &metadata) = 0;
     virtual void setMetadataValue(const std::string &key, const MetaValue &value) = 0;
     virtual void setCommonMetadata(const QString &srcModType, const QString &srcModName, const QString &portTitle) = 0;
+
+    /**
+     * Set if this stream will not be used. A dormant stream can not receive any data.
+     * @param dormant True if dormant.
+     */
+    virtual void setDormant(bool dormant) = 0;
+
+    /**
+     * Check if this stream is dormant (either by having no subscribers, or by
+     * being set to dormant explicitly).
+     * @return True if stream is dormant.
+     */
+    virtual bool isDormant() const = 0;
 };
 
 template<typename T>
@@ -248,9 +261,14 @@ public:
         return false;
     }
 
-    bool active() const override
+    bool isActive() const override
     {
         return m_active;
+    }
+
+    bool isSuspended() const
+    {
+        return m_suspended;
     }
 
     /**
@@ -461,7 +479,8 @@ class DataStream : public VariantDataStream
 {
 public:
     DataStream()
-        : m_active(false)
+        : m_active(false),
+          m_explicitDormant(false)
     {
         m_ownerId = std::this_thread::get_id();
     }
@@ -524,6 +543,13 @@ public:
         std::shared_ptr<StreamSubscription<T>> sub(new StreamSubscription<T>(this));
         sub->setMetadata(m_metadata);
         m_subs.push_back(sub);
+
+        // suspend if we are dormant
+        if (m_explicitDormant)
+            sub->suspend();
+        else
+            sub->resume();
+
         return sub;
     }
 
@@ -568,6 +594,22 @@ public:
     {
         m_ownerId = std::this_thread::get_id();
         commitMetadata();
+
+        // Trying to start a dormant stream is illegal, so we
+        // do not allow this action - this is a bug in the caller,
+        // and needs to be fixed.
+        if (m_explicitDormant) {
+            qWarning().noquote() << "Attempted to start a stream that is set to dormant. This is not permitted. "
+                                    "Offending stream is set to inactive:"
+                                 << streamDebugId();
+            m_active = false;
+
+            // if this stream is dormant, then we suspend all subscribers
+            for (auto &sub : m_subs)
+                sub->suspend();
+            return;
+        }
+
         m_active = true;
     }
 
@@ -613,7 +655,7 @@ public:
         if (!m_active)
             return;
         if (typeId != syDataTypeId<T>()) {
-            qCritical().noquote() << "Invalid data type ID" << typeId << "for stream of type" << dataTypeName();
+            qCritical().noquote() << "Invalid data type ID" << typeId << "for stream " << streamDebugId();
             return;
         }
 
@@ -643,9 +685,29 @@ public:
         m_subs.clear();
     }
 
-    bool active() const override
+    bool isActive() const override
     {
         return m_active;
+    }
+
+    bool isDormant() const override
+    {
+        if (m_explicitDormant)
+            return true;
+        return m_subs.empty();
+    }
+
+    void setDormant(bool dormant) override
+    {
+        m_explicitDormant = dormant;
+
+        // if this stream is dormant, then we suspend all subscribers
+        for (auto &sub : m_subs) {
+            if (dormant)
+                sub->suspend();
+            else
+                sub->resume();
+        }
     }
 
     [[nodiscard]] bool hasSubscribers() const override
@@ -663,8 +725,9 @@ private:
     struct NoScratch {
     };
 
-    std::thread::id m_ownerId;
+    std::thread::id m_ownerId{};
     std::atomic_bool m_active;
+    std::atomic_bool m_explicitDormant;
     std::mutex m_mutex;
     std::vector<std::shared_ptr<StreamSubscription<T>>> m_subs;
     MetaStringMap m_metadata;
@@ -672,4 +735,17 @@ private:
     // Per-stream scratch object for buffer-reuse types (e.g. Frame).
     // For all other types this collapses to a zero-size NoScratch member.
     [[no_unique_address]] std::conditional_t<supports_buffer_reuse<T>::value, T, NoScratch> m_scratchObj;
+
+    /**
+     * Create a simple ID for this stream, for log messages only.
+     */
+    QString streamDebugId()
+    {
+        const auto modName = m_metadata.valueOr<std::string>(
+            _commonMetadataKeyMap->value(CommonMetadataKey::SrcModName), "unknown-module");
+        const auto portName = m_metadata.valueOr<std::string>(
+            _commonMetadataKeyMap->value(CommonMetadataKey::SrcModPortTitle), "unknown-port");
+        const auto dataTypeStr = dataTypeName().toStdString();
+        return QString::fromStdString(modName + "▶ " + portName + "[" + dataTypeStr + "]");
+    }
 };

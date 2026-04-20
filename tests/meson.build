@@ -113,6 +113,7 @@ test_gui_env = environment()
 test_gui_env.set('MIMALLOC_SHOW_ERRORS', '1')
 
 test_manifests = [
+    'scenarios/inactive-subscriptions-test.toml',
     'scenarios/jsonwriter-test.toml',
     'scenarios/plotter-smoketest.toml',
     'scenarios/prism-smoketest.toml',

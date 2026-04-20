@@ -67,7 +67,7 @@ struct supports_buffer_reuse<Frame> : std::true_type {
  * Describes the state a module can be in. The state is usually displayed
  * to the user via a module indicator widget.
  */
-enum class ModuleState : uint16_t {
+enum class ModuleState : uint8_t {
     UNKNOWN,      /// Module is in an unknown state
     INITIALIZING, /// Module is initializing after being added
     IDLE,         /// Module is inactive and not started

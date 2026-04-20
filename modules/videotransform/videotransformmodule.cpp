@@ -48,7 +48,7 @@ public:
         addSettingsWindow(m_settingsDlg);
     }
 
-    ~VideoTransformModule() {}
+    ~VideoTransformModule() override = default;
 
     ModuleDriverKind driver() const override
     {
@@ -64,8 +64,11 @@ public:
     {
         m_framesIn = nullptr;
         // check if there even is something to do for us
-        if (!m_framesInPort->hasSubscription()) {
+        if (m_framesInPort->isDormant()) {
             setStateDormant();
+
+            // we will never emit output if we do not have any input
+            m_framesOut->setDormant(true);
             return true;
         }
 

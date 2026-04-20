@@ -263,7 +263,7 @@ public:
                 return;
             self->m_lastOrientationVec = orientation;
 
-            if (self->m_bnoTabOut->active()) {
+            if (self->m_bnoTabOut->isActive()) {
                 const auto row = TableRow(
                     {numToString(updatedFrameTime.count()),
                      numToString(orientation[0]),
@@ -273,7 +273,7 @@ public:
                 self->m_bnoTabOut->push(row);
             }
 
-            if (self->m_bnoVecOut->active()) {
+            if (self->m_bnoVecOut->isActive()) {
                 FloatSignalBlock sblock(1, 4);
                 sblock.timestamps(0, 0) = updatedFrameTime.count();
                 sblock.data(0, 0) = orientation[0];

@@ -157,8 +157,10 @@ public:
         m_startStopped = m_settingsDialog->startStopped();
         m_inSub.reset();
         m_ctlSub.reset();
-        if (!m_inPort->hasSubscription())
+        if (m_inPort->isDormant()) {
+            setStateDormant();
             return true;
+        }
 
         // get controller subscription, if we have any
         m_checkCommands = false;
@@ -167,9 +169,9 @@ public:
             m_checkCommands = true;
         }
 
+        // we can record!
         m_inSub = m_inPort->subscription();
         m_recording = true;
-
         m_subjectName = subject.id;
 
         // don't permit configuration changes while we are running
@@ -186,7 +188,7 @@ public:
         if (!m_recording && (state() != ModuleState::ERROR))
             setStateDormant();
 
-        if (m_inSub.get() == nullptr)
+        if (!m_inSub)
             return;
 
         if (m_settingsDialog->videoNameFromSource())

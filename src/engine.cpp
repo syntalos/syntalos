@@ -1866,6 +1866,13 @@ bool Engine::runInternal(const QString &exportDirPath)
             mod->setStorageGroup(storageCollection);
         }
 
+        // Ensure all ports are not set to dormant before the prepare step - modules must do that
+        // explicitly every time, and we do not want any port to be left dormant from a previous
+        // run by accident.
+        for (auto const &port : mod->outPorts())
+            port->setDormant(false);
+
+        // prepare the module
         if (!mod->prepare(d->testSubject)) {
             initSuccessful = false;
             d->failed = true;
@@ -1887,6 +1894,11 @@ bool Engine::runInternal(const QString &exportDirPath)
     // mark all inactive modules as dormant
     for (auto &mod : modOrder.inactive) {
         mod->setState(ModuleState::DORMANT);
+    }
+    for (auto &mod : modOrder.start) {
+        if (mod->state() == ModuleState::DORMANT)
+            qCDebug(logEngine).noquote().nospace()
+                << "Module '" << mod->name() << "' is marked dormant, it will not be started.";
     }
 
     // suspend input to all inactive modules
@@ -1928,6 +1940,12 @@ bool Engine::runInternal(const QString &exportDirPath)
         // modules - they get special treatment
         for (int i = 0; i < threadedModules.size(); i++) {
             auto mod = threadedModules[i];
+
+            // we do nothing for modules that flagged themselves as dormant
+            if (mod->state() == ModuleState::DORMANT) {
+                dThreads.push_back(nullptr);
+                continue;
+            }
 
             // we are preparing again, this time for threading!
             // this is important, as we will only start when the module
@@ -2269,6 +2287,9 @@ bool Engine::runInternal(const QString &exportDirPath)
     emitStatusMessage(QStringLiteral("Joining remaining threads."));
     for (size_t i = 0; i < dThreads.size(); i++) {
         auto &thread = dThreads[i];
+        if (!thread)
+            continue;
+
         auto mod = threadedModules[i];
         emitStatusMessage(QStringLiteral("Waiting for '%1'...").arg(mod->name()));
         qApp->processEvents();

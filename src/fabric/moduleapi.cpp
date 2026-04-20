@@ -265,7 +265,7 @@ VarStreamInputPort::VarStreamInputPort(AbstractModule *owner, const QString &id,
     d->outPort = nullptr;
 }
 
-VarStreamInputPort::~VarStreamInputPort() {}
+VarStreamInputPort::~VarStreamInputPort() = default;
 
 bool VarStreamInputPort::hasSubscription() const
 {
@@ -307,6 +307,13 @@ std::shared_ptr<VariantStreamSubscription> VarStreamInputPort::subscriptionVar()
             << "Tried to obtain variant subscription from a port that was not subscribed to anything.";
     }
     return sub;
+}
+
+bool VarStreamInputPort::isDormant() const
+{
+    if (hasSubscription())
+        return d->outPort->isDormant();
+    return true;
 }
 
 QString VarStreamInputPort::id() const
@@ -381,15 +388,26 @@ std::shared_ptr<VariantStreamSubscription> StreamOutputPort::subscribe()
     return d->stream->subscribeVar();
 }
 
+void StreamOutputPort::setDormant(bool dormant)
+{
+    d->stream->setDormant(dormant);
+}
+
+bool StreamOutputPort::isDormant() const
+{
+    return d->stream->isDormant();
+}
+
 void StreamOutputPort::stopStream()
 {
-    if (d->stream->active())
+    if (d->stream->isActive())
         d->stream->stop();
 }
 
 void StreamOutputPort::startStream()
 {
-    d->stream->start();
+    if (!d->stream->isDormant())
+        d->stream->start();
 }
 
 QString StreamOutputPort::id() const
@@ -584,7 +602,7 @@ ModuleState AbstractModule::state() const
 
 void AbstractModule::setStateDormant()
 {
-    if ((d->state == ModuleState::RUNNING) || (d->state == ModuleState::INITIALIZING))
+    if (d->state != ModuleState::RUNNING && d->state != ModuleState::INITIALIZING)
         setState(ModuleState::DORMANT);
 }
 

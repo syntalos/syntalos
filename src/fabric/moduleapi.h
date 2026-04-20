@@ -314,6 +314,12 @@ public:
 
     std::shared_ptr<VariantStreamSubscription> subscriptionVar();
 
+    /**
+     * A dormant port will not receive data during the current run.
+     * @return
+     */
+    bool isDormant() const;
+
     QString id() const override;
     QString title() const override;
     PortDirection direction() const override;
@@ -399,6 +405,14 @@ public:
     std::shared_ptr<VariantDataStream> streamVar();
 
     std::shared_ptr<VariantStreamSubscription> subscribe();
+
+    /**
+     * Explicitly marks this port/stream as dormant.
+     * A dormant stream will not, and can not, publish any data.
+     * @param dormant True if port id disabled.
+     */
+    void setDormant(bool dormant);
+    bool isDormant() const;
 
     void startStream();
     void stopStream();
