@@ -31,6 +31,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
+#include <pybind11/stl/filesystem.h>
 #include <pybind11/eigen.h>
 #include <stdexcept>
 
@@ -280,6 +281,8 @@ struct OutputPort {
     const std::shared_ptr<OutputPortInfo> _oport;
 };
 
+using PySaveSettingsFn = std::function<ByteVector(const fs::path &baseDir)>;
+
 /**
  * Central link object for Syntalos Python modules.
  *
@@ -293,28 +296,21 @@ private:
     SyntalosLink *m_slink;
     std::unique_ptr<SyntalosLink> m_ownedSLink;
 
-    py::object m_prepareFn;
-    py::object m_startFn;
-    py::object m_stopFn;
+    PrepareRunFn m_prepareFn;
+    StartFn m_startFn;
+    StopFn m_stopFn;
 
-    py::object m_saveSettingsFn;
-    py::object m_loadSettingsFn;
+    PySaveSettingsFn m_saveSettingsFn;
+    LoadSettingsFn m_loadSettingsFn;
 
-    py::object m_showSettingsFn;
-    py::object m_showDisplayFn;
+    ShowSettingsFn m_showSettingsFn;
+    ShowDisplayFn m_showDisplayFn;
 
 public:
     /**
      * Standalone mode: creates and owns a new SyntalosLink.
      */
     PySyLinkManager()
-        : m_prepareFn(py::none()),
-          m_startFn(py::none()),
-          m_stopFn(py::none()),
-          m_saveSettingsFn(py::none()),
-          m_loadSettingsFn(py::none()),
-          m_showSettingsFn(py::none()),
-          m_showDisplayFn(py::none())
     {
         m_ownedSLink = initSyntalosModuleLink();
         m_slink = m_ownedSLink.get();
@@ -324,14 +320,7 @@ public:
      * PyWorker mode: borrows an existing SyntalosLink (caller retains ownership).
      */
     PySyLinkManager(SyntalosLink *borrowedLink)
-        : m_slink(borrowedLink),
-          m_prepareFn(py::none()),
-          m_startFn(py::none()),
-          m_stopFn(py::none()),
-          m_saveSettingsFn(py::none()),
-          m_loadSettingsFn(py::none()),
-          m_showSettingsFn(py::none()),
-          m_showDisplayFn(py::none())
+        : m_slink(borrowedLink)
     {
     }
 
@@ -368,12 +357,6 @@ public:
         m_slink->setShowSettingsCallback(nullptr);
         m_slink->setShowDisplayCallback(nullptr);
 
-        m_prepareFn = py::none();
-        m_startFn = py::none();
-        m_stopFn = py::none();
-        m_saveSettingsFn = py::none();
-        m_loadSettingsFn = py::none();
-
         // In standalone mode, destroy the SyntalosLink now (while interpreter is valid).
         // In pyworker mode m_ownedSLink is empty, so this is a no-op.
         m_ownedSLink.reset();
@@ -388,10 +371,10 @@ public:
         return m_slink;
     }
 
-    void setOnPrepare(py::object fn)
+    void setOnPrepare(PrepareRunFn fn)
     {
         m_prepareFn = std::move(fn);
-        if (fn.is_none()) {
+        if (!m_prepareFn) {
             m_slink->setPrepareRunCallback([this]() {
                 m_slink->setState(ModuleState::READY);
                 return true;
@@ -401,8 +384,8 @@ public:
 
         m_slink->setPrepareRunCallback([this]() {
             try {
-                auto result = m_prepareFn();
-                if (result.cast<bool>()) {
+                bool result = m_prepareFn();
+                if (result) {
                     m_slink->setState(ModuleState::READY);
                     return true;
                 }
@@ -419,71 +402,67 @@ public:
         });
     }
 
-    py::object onPrepare()
+    auto onPrepare()
     {
         return m_prepareFn;
     }
 
-    void setOnStart(py::object fn)
+    void setOnStart(StartFn fn)
     {
         m_startFn = std::move(fn);
-        if (fn.is_none()) {
+        if (!m_startFn) {
             m_slink->setStartCallback(nullptr);
             return;
         }
 
         m_slink->setStartCallback([this]() {
             m_slink->setState(ModuleState::RUNNING);
-            if (!m_startFn.is_none()) {
-                try {
-                    m_startFn();
-                } catch (py::error_already_set &e) {
-                    if (m_slink->state() != ModuleState::ERROR)
-                        m_slink->raiseError(e.what());
-                    else
-                        throw;
-                }
+            try {
+                m_startFn();
+            } catch (py::error_already_set &e) {
+                if (m_slink->state() != ModuleState::ERROR)
+                    m_slink->raiseError(e.what());
+                else
+                    throw;
             }
         });
     }
 
-    py::object onStart()
+    auto onStart()
     {
         return m_startFn;
     }
 
-    void setOnStop(py::object fn)
+    void setOnStop(StopFn fn)
     {
         m_stopFn = std::move(fn);
-        if (fn.is_none()) {
+        if (!m_stopFn) {
             m_slink->setStopCallback(nullptr);
             return;
         }
 
         m_slink->setStopCallback([this]() {
-            if (!m_stopFn.is_none()) {
-                try {
-                    m_stopFn();
-                } catch (py::error_already_set &e) {
-                    if (m_slink->state() != ModuleState::ERROR)
-                        m_slink->raiseError(e.what());
-                    else
-                        throw;
-                }
+            try {
+                m_stopFn();
+            } catch (py::error_already_set &e) {
+                if (m_slink->state() != ModuleState::ERROR)
+                    m_slink->raiseError(e.what());
+                else
+                    throw;
             }
             m_slink->setState(ModuleState::IDLE);
         });
     }
 
-    py::object onStop()
+    auto onStop()
     {
         return m_stopFn;
     }
 
-    void setOnShowSettings(py::object fn)
+    void setOnShowSettings(ShowSettingsFn fn)
     {
         m_showSettingsFn = std::move(fn);
-        if (fn.is_none()) {
+        if (!m_showSettingsFn) {
             m_slink->setShowSettingsCallback(nullptr);
             return;
         }
@@ -492,21 +471,20 @@ public:
             try {
                 m_showSettingsFn();
             } catch (py::error_already_set &e) {
-                if (g_pslMgr && g_pslMgr->link())
-                    g_pslMgr->link()->raiseError(e.what());
+                m_slink->raiseError(e.what());
             }
         });
     }
 
-    py::object onShowSettings()
+    auto onShowSettings()
     {
         return m_showSettingsFn;
     }
 
-    void setOnShowDisplay(py::object fn)
+    void setOnShowDisplay(ShowDisplayFn fn)
     {
         m_showDisplayFn = std::move(fn);
-        if (fn.is_none()) {
+        if (!m_showDisplayFn) {
             m_slink->setShowDisplayCallback(nullptr);
             return;
         }
@@ -515,29 +493,27 @@ public:
             try {
                 m_showDisplayFn();
             } catch (py::error_already_set &e) {
-                if (g_pslMgr && g_pslMgr->link())
-                    g_pslMgr->link()->raiseError(e.what());
+                m_slink->raiseError(e.what());
             }
         });
     }
 
-    py::object onShowDisplay()
+    auto onShowDisplay()
     {
         return m_showDisplayFn;
     }
 
-    void setOnSaveSettings(py::object fn)
+    void setOnSaveSettings(PySaveSettingsFn fn)
     {
         m_saveSettingsFn = std::move(fn);
-        if (fn.is_none()) {
+        if (!m_saveSettingsFn) {
             m_slink->setSaveSettingsCallback(nullptr);
             return;
         }
 
-        m_slink->setSaveSettingsCallback([this](const std::string &baseDir, ByteVector &settings) {
+        m_slink->setSaveSettingsCallback([this](ByteVector &settings, const fs::path &baseDir) {
             try {
-                auto pyBytes = m_saveSettingsFn(baseDir);
-                settings = pyBytes.cast<ByteVector>();
+                settings = m_saveSettingsFn(baseDir);
                 return true;
             } catch (py::error_already_set &e) {
                 if (m_slink->state() != ModuleState::ERROR)
@@ -549,24 +525,22 @@ public:
         });
     }
 
-    py::object onSaveSettings()
+    auto onSaveSettings()
     {
         return m_saveSettingsFn;
     }
 
-    void setOnLoadSettings(py::object fn)
+    void setOnLoadSettings(LoadSettingsFn fn)
     {
         m_loadSettingsFn = std::move(fn);
-        if (fn.is_none()) {
+        if (!m_loadSettingsFn) {
             m_slink->setLoadSettingsCallback(nullptr);
             return;
         }
 
-        m_slink->setLoadSettingsCallback([this](const std::string &baseDir, const ByteVector &settings) {
+        m_slink->setLoadSettingsCallback([this](const ByteVector &settings, const fs::path &baseDir) {
             try {
-                auto result = m_loadSettingsFn(
-                    baseDir, py::bytes(reinterpret_cast<const char *>(settings.data()), settings.size()));
-                return result.cast<bool>();
+                return m_loadSettingsFn(settings, baseDir);
             } catch (py::error_already_set &e) {
                 if (m_slink->state() != ModuleState::ERROR)
                     m_slink->raiseError(e.what());
@@ -577,7 +551,7 @@ public:
         });
     }
 
-    py::object onLoadSettings()
+    auto onLoadSettings()
     {
         return m_loadSettingsFn;
     }
@@ -842,7 +816,7 @@ PYBIND11_MODULE(syntalos_mlink, m)
             [](const MetaSize &s) {
                 return "MetaSize(" + std::to_string(s.width) + ", " + std::to_string(s.height) + ")";
             })
-        .def("__eq__", &MetaSize::operator==)
+        .def("__eq__", &MetaSize::operator==, py::arg("other"))
         .def("__iter__", [](const MetaSize &s) {
             // Allow unpacking: width, height = meta_size
             return py::iter(py::make_tuple(s.width, s.height));
@@ -967,7 +941,9 @@ PYBIND11_MODULE(syntalos_mlink, m)
             "Callback invoked with each incoming data item.\n"
             "\n"
             "Assign a callable that accepts a single argument of the port's data type\n"
-            "(e.g. :class:`Frame`, :class:`TableRow`). Set to ``None`` to remove the callback.")
+            "(e.g. :class:`Frame`, :class:`TableRow`). Set to ``None`` to remove the callback.\n"
+            "\n"
+            "Type: ``Callable[[object], None] | None``.")
         .def_property_readonly(
             "metadata",
             &InputPort::metadata,
@@ -989,6 +965,7 @@ PYBIND11_MODULE(syntalos_mlink, m)
         .def(
             "submit",
             &OutputPort::submit,
+            py::arg("data"),
             "Send a data item to all modules connected to this port.\n"
             "\n"
             ":param data: Data item matching this port's type (e.g. :class:`Frame`, :class:`TableRow`).\n"
@@ -997,6 +974,8 @@ PYBIND11_MODULE(syntalos_mlink, m)
         .def(
             "set_metadata_value",
             &OutputPort::set_metadata_value,
+            py::arg("key"),
+            py::arg("value"),
             "Set a metadata entry for this port.\n"
             "\n"
             "Metadata must be set before the run starts (i.e. in ``prepare()``); it is immutable once\n"
@@ -1009,6 +988,8 @@ PYBIND11_MODULE(syntalos_mlink, m)
         .def(
             "set_metadata_value_size",
             &OutputPort::set_metadata_value_size,
+            py::arg("key"),
+            py::arg("value"),
             "Set a 2-D size metadata entry for this port (e.g. ``'size'`` for video streams).\n"
             "\n"
             ":param key: Metadata key string.\n"
@@ -1126,7 +1107,9 @@ PYBIND11_MODULE(syntalos_mlink, m)
         "The call is executed on the module's event loop, so it is safe to interact\n"
         "with ports and other module state from the callback.\n"
         "\n"
-        ":param delay_msec: Delay before the call is made, in milliseconds. Must be ≥ 0.\n"
+        "Signature: ``schedule_delayed_call(delay_msec: int, callable_fn: Callable[[], None]) -> None``.\n"
+        "\n"
+        ":param delay_msec: Delay before the call is made, in milliseconds. Must be >= 0.\n"
         ":param callable_fn: Zero-argument callable to invoke.\n"
         ":raises SyntalosPyError: If ``delay_msec`` is negative.");
 
@@ -1140,7 +1123,8 @@ PYBIND11_MODULE(syntalos_mlink, m)
         py::arg("id"),
         "Retrieve a reference to an input port by its ID.\n"
         "\n"
-        ":param id: The port ID (assigned via :meth:`SyntalosLink.register_input_port` or via the PyScript GUI editor).\n"
+        ":param id: The port ID (assigned via :meth:`SyntalosLink.register_input_port` or via the PyScript GUI "
+        "editor).\n"
         ":return: An :class:`InputPort` handle, or ``None`` if no port with that ID exists.\n"
         ":rtype: InputPort or None");
 
@@ -1150,7 +1134,8 @@ PYBIND11_MODULE(syntalos_mlink, m)
         py::arg("id"),
         "Retrieve a reference to an output port by its ID.\n"
         "\n"
-        ":param id: The port ID (assigned via :meth:`SyntalosLink.register_output_port` or via the PyScript GUI editor).\n"
+        ":param id: The port ID (assigned via :meth:`SyntalosLink.register_output_port` or via the PyScript GUI "
+        "editor).\n"
         ":return: An :class:`OutputPort` handle, or ``None`` if no port with that ID exists.\n"
         ":rtype: OutputPort or None");
 
@@ -1237,36 +1222,35 @@ PYBIND11_MODULE(syntalos_mlink, m)
             "or ``False`` / raise an exception to abort.\n"
             "If not registered the module automatically signals readiness.\n"
             "\n"
-            "Callable needs to have signature ``fn() -> bool``.")
+            "Type: ``Callable[[], bool] | None``.")
         .def_property(
             "on_start",
             &PySyLinkManager::onStart,
             &PySyLinkManager::setOnStart,
             "Register a callback invoked when Syntalos starts a run.\n"
             "\n"
-            "Callable needs to have zero-arguments.")
+            "Type: ``Callable[[], None] | None``.")
         .def_property(
             "on_stop",
             &PySyLinkManager::onStop,
             &PySyLinkManager::setOnStop,
             "Register a callback invoked when Syntalos stops a run.\n"
             "\n"
-            "Callable needs to have zero-arguments.")
+            "Type: ``Callable[[], None] | None``.")
         .def_property(
             "on_show_settings",
             &PySyLinkManager::onShowSettings,
             &PySyLinkManager::setOnShowSettings,
             "Register a callback invoked when the user opens the module settings dialog.\n"
             "\n"
-            "Callable needs to have zero-arguments.")
+            "Type: ``Callable[[], None] | None``.")
         .def_property(
             "on_show_display",
             &PySyLinkManager::onShowDisplay,
             &PySyLinkManager::setOnShowDisplay,
             "Register a callback invoked when the user opens the module display window.\n"
             "\n"
-            "Callable needs to have zero-arguments.")
-
+            "Type: ``Callable[[], None] | None``.")
         .def_property(
             "on_save_settings",
             &PySyLinkManager::onSaveSettings,
@@ -1274,10 +1258,9 @@ PYBIND11_MODULE(syntalos_mlink, m)
             "Register a callback invoked when Syntalos saves settings for this module.\n"
             "\n"
             "The callback receives the base project directory as a string and must return the\n"
-            "settings to save as a ``bytes`` object. If not registered, no module settings"
-            " are saved.\n"
+            "settings to save as a ``bytes`` object. If not registered, no module settings are saved.\n"
             "\n"
-            "Callable needs to have signature ``fn(base_dir: str) -> bytes``.")
+            "Type: ``Callable[[str], bytes] | None``.")
         .def_property(
             "on_load_settings",
             &PySyLinkManager::onLoadSettings,
@@ -1290,8 +1273,7 @@ PYBIND11_MODULE(syntalos_mlink, m)
             " ``False`` / use ``raise_error`` to signal a loading failure.\n"
             "If not registered, incoming settings are ignored.\n"
             "\n"
-            "Callable needs to have signature ``fn(base_dir: str, settings: bytes) -> bool``.")
-
+            "Type: ``Callable[[str, bytes], bool] | None``.")
         .def(
             "register_input_port",
             &PySyLinkManager::registerInputPort,

@@ -145,19 +145,19 @@ protected:
     /**
      * Called when settings should be saved.
      *
-     * @param baseDir Base directory where the settings file will be stored.
      * @param settings The settings data.
+     * @param baseDir Base directory where the settings file will be stored.
      */
-    virtual void saveSettings(const std::string &baseDir, ByteVector &settings);
+    virtual void saveSettings(ByteVector &settings, const fs::path &baseDir);
 
     /**
      * Called when settings should be loaded.
      *
-     * @param baseDir Base directory from where the settings were loaded.
      * @param settings The settings data.
+     * @param baseDir Base directory from where the settings were loaded.
      * @return Return true if loading was successful, false on error.
      */
-    virtual bool loadSettings(const std::string &baseDir, const ByteVector &settings);
+    virtual bool loadSettings(const ByteVector &settings, const fs::path &baseDir);
 
 protected:
     bool m_running;

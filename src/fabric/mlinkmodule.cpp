@@ -216,7 +216,7 @@ public:
         timer.start();
         while (true) {
             checkClientError(self);
-            qApp->processEvents();
+
             // Pump worker-initiated port-change requests from the main thread only when
             // the dedicated module thread is not active. When the thread is running, it
             // handles these requests itself via its WaitSet; calling handleIncomingControl()
@@ -241,7 +241,9 @@ public:
                 return std::nullopt;
             }
 
-            std::this_thread::sleep_for(microseconds_t(25));
+            if (timeoutSec > 4)
+                qApp->processEvents();
+            std::this_thread::sleep_for(microseconds_t(5 * timeoutSec));
         }
     }
 
@@ -295,7 +297,6 @@ public:
         timer.start();
         while (true) {
             checkClientError(self);
-            qApp->processEvents();
             if (threadStopped)
                 self->handleIncomingControl();
             auto response = pending.receive().value();
@@ -314,7 +315,10 @@ public:
                 self->raiseError(QStringLiteral("Timeout while waiting for response on: %1").arg(qstr(channel)));
                 return false;
             }
-            std::this_thread::sleep_for(microseconds_t(25));
+
+            if (timeoutSec > 4)
+                qApp->processEvents();
+            std::this_thread::sleep_for(microseconds_t(5 * timeoutSec));
         }
     }
 
@@ -349,9 +353,9 @@ public:
         timer.start();
         while (true) {
             checkClientError(self);
-            qApp->processEvents();
             if (threadStopped)
                 self->handleIncomingControl();
+
             auto response = pending.receive().value();
             if (response.has_value()) {
                 const auto pl = response->payload();
@@ -370,7 +374,10 @@ public:
                 self->raiseError(QStringLiteral("Timeout while waiting for response on: %1").arg(qstr(channel)));
                 return std::nullopt;
             }
-            std::this_thread::sleep_for(microseconds_t(25));
+
+            if (timeoutSec > 4)
+                qApp->processEvents();
+            std::this_thread::sleep_for(microseconds_t(5 * timeoutSec));
         }
     }
 };
@@ -1203,9 +1210,13 @@ void MLinkModule::start()
     d->sentMetadata.clear();
 
     // tell the module to launch!
-    d->callClientSimple<StartRequest>(this, START_CALL_ID, [&](auto &req) {
-        req.startTimestampUsec = startTimestampUs;
-    });
+    d->callClientSimple<StartRequest>(
+        this,
+        START_CALL_ID,
+        [&](auto &req) {
+            req.startTimestampUsec = startTimestampUs;
+        },
+        2);
 
     // stop reading control events in the GUI thread - the module thread will do that for us soon
     d->ctlEventTimer->stop();

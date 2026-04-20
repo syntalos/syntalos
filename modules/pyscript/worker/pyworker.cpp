@@ -208,7 +208,7 @@ void PyWorker::raiseError(const std::string &message)
     m_evTimer->start();
 }
 
-bool PyWorker::loadPythonScript(const std::string &script, const std::string &wdir)
+bool PyWorker::loadPythonScript(const std::string &script, const fs::path &wdir)
 {
     // drop callbacks that may still reference objects/functions from the previously loaded script.
     resetPyCallbacks();
@@ -218,7 +218,7 @@ bool PyWorker::loadPythonScript(const std::string &script, const std::string &wd
     m_scriptLoaded = false;
 
     if (!wdir.empty() && !QDir::setCurrent(QString::fromStdString(wdir))) {
-        raiseError(std::format("Unable to change working directory to '{}'.", wdir));
+        raiseError(std::format("Unable to change working directory to '{}'.", wdir.c_str()));
         return false;
     }
 

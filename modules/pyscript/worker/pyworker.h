@@ -49,7 +49,7 @@ public:
     void awaitData(int timeoutUsec = -1);
 
     void raiseError(const std::string &message);
-    bool loadPythonScript(const std::string &script, const std::string &wdir);
+    bool loadPythonScript(const std::string &script, const fs::path &wdir);
 
     bool prepareRun();
     void start();

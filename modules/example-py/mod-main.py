@@ -52,6 +52,9 @@ class MyExampleModule:
             'frames-out', 'Marked Frames', 'Frame'
         )
 
+        # call self._on_input_data() once we have new data on this port
+        self._iport.on_data = self._on_input_data
+
         # show the settings dialog when the user requested it to be shown
         self._modLink.on_show_settings = self._show_settings_dialog
 
@@ -75,9 +78,6 @@ class MyExampleModule:
         frame_size = self._iport.metadata.get('size', None)
         if frame_size:
             self._oport_frames.set_metadata_value_size('size', frame_size)
-
-        # call self._on_input_data() once we have new data on this port
-        self._iport.on_data = self._on_input_data
 
         return True
 
@@ -170,7 +170,7 @@ class MyExampleModule:
 
         self._settings_dlg.show()
 
-    def _save_settings_data(self, baseDir: str) -> bytes:
+    def _save_settings_data(self, baseDir: os.PathLike[str]) -> bytes:
         """
         Serialize settings to bytes so Syntalos can store them for us.
         """
@@ -178,7 +178,7 @@ class MyExampleModule:
         settings = dict(prefix=self._label_prefix)
         return bytes(json.dumps(settings), 'utf-8')
 
-    def _load_settings_data(self, baseDir: str, data: bytes) -> bool:
+    def _load_settings_data(self, data: bytes, baseDir: os.PathLike[str]) -> bool:
         """
         Deserialize user settings from previously stored bytes.
         """

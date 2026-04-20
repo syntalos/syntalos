@@ -173,7 +173,7 @@ class DLCLiveModule:
         settings = dict(prefix=self._label_prefix)
         return bytes(json.dumps(settings), 'utf-8')
 
-    def _load_settings_data(self, baseDir: str, data: bytes) -> bool:
+    def _load_settings_data(self, data: bytes, baseDir: os.PathLike[str]) -> bool:
         if not data:
             return True
 

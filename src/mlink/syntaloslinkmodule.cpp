@@ -50,7 +50,9 @@ SyntalosLinkModule::SyntalosLinkModule(SyntalosLink *slink)
         if (!prepare()) {
             if (m_slink->state() != ModuleState::ERROR)
                 raiseError("Module preparation failed.");
+            return false;
         }
+        return true;
     });
 
     m_slink->setStartCallback([this]() {
@@ -63,8 +65,8 @@ SyntalosLinkModule::SyntalosLinkModule(SyntalosLink *slink)
         stop();
     });
 
-    m_slink->setLoadSettingsCallback([this](const std::string &baseDir, const ByteVector &settings) {
-        if (!loadSettings(baseDir, settings)) {
+    m_slink->setLoadSettingsCallback([this](const ByteVector &settings, const fs::path &baseDir) {
+        if (!loadSettings(settings, baseDir)) {
             if (m_slink->state() != ModuleState::ERROR)
                 raiseError("Loading settings failed.");
             return false;
@@ -73,8 +75,8 @@ SyntalosLinkModule::SyntalosLinkModule(SyntalosLink *slink)
         return true;
     });
 
-    m_slink->setSaveSettingsCallback([this](const std::string &baseDir, ByteVector &settings) {
-        saveSettings(baseDir, settings);
+    m_slink->setSaveSettingsCallback([this](ByteVector &settings, const fs::path &baseDir) {
+        saveSettings(settings, baseDir);
         return true;
     });
 
@@ -82,7 +84,7 @@ SyntalosLinkModule::SyntalosLinkModule(SyntalosLink *slink)
     m_slink->setState(ModuleState::IDLE);
 }
 
-SyntalosLinkModule::~SyntalosLinkModule() {}
+SyntalosLinkModule::~SyntalosLinkModule() = default;
 
 void SyntalosLinkModule::raiseError(const std::string &title, const std::string &message)
 {
@@ -152,12 +154,12 @@ const TestSubjectInfo &SyntalosLinkModule::testSubject() const
     return m_slink->testSubject();
 }
 
-void SyntalosLinkModule::saveSettings(const std::string &baseDir, ByteVector &settings)
+void SyntalosLinkModule::saveSettings(ByteVector &settings, const fs::path &baseDir)
 {
     // to be implemented by child classes
 }
 
-bool SyntalosLinkModule::loadSettings(const std::string &baseDir, const ByteVector &settings)
+bool SyntalosLinkModule::loadSettings(const ByteVector &settings, const fs::path &baseDir)
 {
     return true;
 }

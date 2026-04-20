@@ -764,7 +764,7 @@ void SyntalosLink::processPendingControl()
         SaveSettingsResponse ssResp;
         ssResp.success = true;
         if (d->saveSettingsCb)
-            ssResp.success = d->saveSettingsCb(ssReq.baseDir, ssResp.data);
+            ssResp.success = d->saveSettingsCb(ssResp.data, ssReq.baseDir);
 
         auto ssRespData = ssResp.toBytes();
         auto maybeResponse = req->loan_slice_uninit(ssRespData.size());
@@ -787,9 +787,11 @@ void SyntalosLink::processPendingControl()
             break;
         const auto pl = req->payload();
         const auto lsReq = LoadSettingsRequest::fromMemory(pl.data(), pl.number_of_bytes());
-        Private::replyDoneSlice(*req, true); // reply before callback so master is not blocked
+        auto success = true;
         if (d->loadSettingsCb)
-            d->loadSettingsCb(lsReq.baseDir, lsReq.data);
+            success = d->loadSettingsCb(lsReq.data, lsReq.baseDir);
+
+        Private::replyDoneSlice(*req, success);
     }
 
     // ---- PrepareRun ----
@@ -799,15 +801,17 @@ void SyntalosLink::processPendingControl()
             break;
         const auto pl = req->payload();
         const auto prepReq = PrepareRunRequest::fromMemory(pl.data(), pl.number_of_bytes());
-        Private::replyDoneSlice(*req, true); // reply before callback so master is not blocked
 
         // update test subject details
         d->testSubject.id = prepReq.subjectId;
         d->testSubject.group = prepReq.subjectGroup;
 
         // prepare the run
+        auto success = true;
         if (d->prepareRunCb)
-            d->prepareRunCb();
+            success = d->prepareRunCb();
+
+        Private::replyDoneSlice(*req, success);
     }
 
     // ---- Start ----

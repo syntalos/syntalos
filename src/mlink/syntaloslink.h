@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include <QObject>
+#include <filesystem>
 #include <datactl/syclock.h>
 #include <datactl/datatypes.h>
 #include <datactl/streammeta.h>
@@ -30,11 +30,12 @@ namespace Syntalos
 class SyntalosLink;
 struct OutputPortChangeRequest;
 struct InputPortChangeRequest;
+namespace fs = std::filesystem;
 
-using LoadScriptFn = std::function<void(const std::string &script, const std::string &wdir)>;
-using SaveSettingsFn = std::function<bool(const std::string &baseDir, ByteVector &settings)>;
-using LoadSettingsFn = std::function<bool(const std::string &baseDir, const ByteVector &settings)>;
-using PrepareRunFn = std::function<void()>;
+using LoadScriptFn = std::function<void(const std::string &script, const fs::path &wdir)>;
+using SaveSettingsFn = std::function<bool(ByteVector &settings, const fs::path &baseDir)>;
+using LoadSettingsFn = std::function<bool(const ByteVector &settings, const fs::path &baseDir)>;
+using PrepareRunFn = std::function<bool()>;
 using StartFn = std::function<void()>;
 using StopFn = std::function<void()>;
 using ShutdownFn = std::function<void()>;
