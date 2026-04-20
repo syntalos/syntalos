@@ -33,6 +33,7 @@
 #include <pybind11/stl_bind.h>
 #include <pybind11/stl/filesystem.h>
 #include <pybind11/eigen.h>
+#include <optional>
 #include <stdexcept>
 
 #include <syntalos-mlink>
@@ -68,9 +69,9 @@ struct InputPort {
         _dataTypeId = _iport->dataTypeId();
     }
 
-    void set_on_data(const PyNewDataFn &fn)
+    void set_on_data(PyNewDataFn fn)
     {
-        _on_data_cb = fn;
+        _on_data_cb = std::move(fn);
         if (!_on_data_cb) {
             _iport->setNewDataRawCallback(nullptr);
             return;
@@ -567,14 +568,16 @@ public:
      * @param data_type   Data type ID (e.g. DataType.Frame, DataType.TableRow).
      * @returns InputPort handle, or None if registration failed (e.g. duplicate ID).
      */
-    py::object registerInputPort(const std::string &id, const std::string &title, BaseDataType::TypeId data_type)
+    std::optional<InputPort> registerInputPort(
+        const std::string &id,
+        const std::string &title,
+        BaseDataType::TypeId data_type)
     {
         auto res = m_slink->registerInputPort(id, title, data_type);
         if (!res)
-            return py::none();
+            return std::nullopt;
 
-        InputPort pyPort(res);
-        return py::cast(pyPort);
+        return InputPort(res);
     }
 
     /**
@@ -588,14 +591,16 @@ public:
      * @param data_type   Data type ID (e.g. DataType.Frame, DataType.TableRow).
      * @returns OutputPort handle, or None if registration failed (e.g. duplicate ID).
      */
-    py::object registerOutputPort(const std::string &id, const std::string &title, BaseDataType::TypeId data_type)
+    std::optional<OutputPort> registerOutputPort(
+        const std::string &id,
+        const std::string &title,
+        BaseDataType::TypeId data_type)
     {
         auto res = m_slink->registerOutputPort(id, title, data_type);
         if (!res)
-            return py::none();
+            return std::nullopt;
 
-        OutputPort pyPort(res);
-        return py::cast(pyPort);
+        return OutputPort(res);
     }
 
     /**
@@ -625,13 +630,13 @@ public:
     /**
      * Signal IDLE (initialization complete) and run the built-in event loop.
      */
-    void awaitDataForever(py::object eventFn)
+    void awaitDataForever(std::function<void()> eventFn)
     {
         signalIdle();
 
         std::function<void()> evtFn;
-        if (!eventFn.is_none()) {
-            evtFn = [eventFn, this]() {
+        if (eventFn) {
+            evtFn = [eventFn = std::move(eventFn), this]() mutable {
                 try {
                     eventFn();
                 } catch (py::error_already_set &e) {
@@ -723,7 +728,7 @@ static void schedule_delayed_call(int delay_msec, const std::function<void()> &f
     });
 }
 
-static py::object get_input_port(const std::string &id)
+static std::optional<InputPort> get_input_port(const std::string &id)
 {
     std::shared_ptr<InputPortInfo> res = nullptr;
     for (auto &iport : getActiveLink()->inputPorts()) {
@@ -733,13 +738,12 @@ static py::object get_input_port(const std::string &id)
         }
     }
     if (!res)
-        return py::none();
+        return std::nullopt;
 
-    InputPort pyPort(res);
-    return py::cast(pyPort);
+    return InputPort(res);
 }
 
-static py::object get_output_port(const std::string &id)
+static std::optional<OutputPort> get_output_port(const std::string &id)
 {
     std::shared_ptr<OutputPortInfo> res = nullptr;
     for (auto &oport : getActiveLink()->outputPorts()) {
@@ -749,10 +753,9 @@ static py::object get_output_port(const std::string &id)
         }
     }
     if (!res)
-        return py::none();
+        return std::nullopt;
 
-    OutputPort pyPort(res);
-    return py::cast(pyPort);
+    return OutputPort(res);
 }
 
 static FirmataControl new_firmatactl_with_id_name(FirmataCommandKind kind, int pinId, const std::string &name)
@@ -969,7 +972,8 @@ PYBIND11_MODULE(syntalos_mlink, m)
             "Assign a callable that accepts a single argument of the port's data type\n"
             "(e.g. :class:`Frame`, :class:`TableRow`). Set to ``None`` to remove the callback.\n"
             "\n"
-            "Type: ``Callable[[object], None] | None``.")
+            "Type: ``Callable[[ControlCommand | typing.Sequence[str] | Frame | FirmataControl | FirmataData | "
+            "IntSignalBlock | FloatSignalBlock], None] | None``.")
         .def_property_readonly(
             "metadata",
             &InputPort::metadata,
@@ -994,7 +998,8 @@ PYBIND11_MODULE(syntalos_mlink, m)
             py::arg("data"),
             "Send a data item to all modules connected to this port.\n"
             "\n"
-            ":param data: Data item matching this port's type (e.g. :class:`Frame`, :class:`TableRow`).\n"
+            ":param data: Data item matching this port's type (e.g. :class:`Frame`, ``typing.Sequence[str]`` for "
+            ":class:`TableRow`).\n"
             ":raises SyntalosPyError: If the item type does not match the port's declared data type.")
         .def_readonly("name", &OutputPort::_id, "The unique port ID string.")
         .def(
@@ -1279,23 +1284,23 @@ PYBIND11_MODULE(syntalos_mlink, m)
             &PySyLinkManager::setOnSaveSettings,
             "Register a callback invoked when Syntalos saves settings for this module.\n"
             "\n"
-            "The callback receives the base project directory as a string and must return the\n"
+            "The callback receives the base project directory as a path-like object and must return the\n"
             "settings to save as a ``bytes`` object. If not registered, no module settings are saved.\n"
             "\n"
-            "Type: ``Callable[[str], bytes] | None``.")
+            "Type: ``Callable[[os.PathLike[str] | str], bytes] | None``.")
         .def_property(
             "on_load_settings",
             &PySyLinkManager::onLoadSettings,
             &PySyLinkManager::setOnLoadSettings,
             "Register a callback invoked when Syntalos loads settings for this module.\n"
             "\n"
-            "The callback receives the base project directory as a string and the loaded settings as a ``bytes`` "
-            "object.\n"
+            "The callback receives the loaded settings as a ``bytes`` and the base project directory as a "
+            "path-like object.\n"
             "The callback must return ``True`` to signal that the settings were loaded successfully, or"
             " ``False`` / use ``raise_error`` to signal a loading failure.\n"
             "If not registered, incoming settings are ignored.\n"
             "\n"
-            "Type: ``Callable[[bytes, str], bool] | None``.")
+            "Type: ``Callable[[bytes, os.PathLike[str] | str], bool] | None``.")
         .def(
             "register_input_port",
             &PySyLinkManager::registerInputPort,

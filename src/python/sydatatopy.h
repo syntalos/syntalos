@@ -39,7 +39,7 @@ using namespace Syntalos;
 template<>
 struct type_caster<TableRow> {
 public:
-    PYBIND11_TYPE_CASTER(TableRow, const_name("TableRow"));
+    PYBIND11_TYPE_CASTER(TableRow, const_name("typing.Sequence[str]"));
 
     bool load(handle src, bool)
     {
@@ -225,26 +225,32 @@ inline handle type_caster<Syntalos::MetaStringMap>::cast(
 template<>
 struct type_caster<Syntalos::ByteVector> {
 public:
-    PYBIND11_TYPE_CASTER(Syntalos::ByteVector, _("bytearray"));
+    PYBIND11_TYPE_CASTER(Syntalos::ByteVector, _("bytes"));
 
     bool load(handle src, bool)
     {
-        if (!PyBytes_Check(src.ptr()))
-            return false;
-
+        const std::byte *data = nullptr;
         Py_ssize_t length = 0;
-        char *data = nullptr;
-        if (PyBytes_AsStringAndSize(src.ptr(), &data, &length) != 0)
-            return false;
 
-        value = ByteVector(
-            reinterpret_cast<const std::byte *>(data), reinterpret_cast<const std::byte *>(data) + length);
+        if (PyBytes_Check(src.ptr())) {
+            char *bytesData = nullptr;
+            if (PyBytes_AsStringAndSize(src.ptr(), &bytesData, &length) != 0)
+                return false;
+            data = reinterpret_cast<const std::byte *>(bytesData);
+        } else if (PyByteArray_Check(src.ptr())) {
+            length = PyByteArray_Size(src.ptr());
+            data = reinterpret_cast<const std::byte *>(PyByteArray_AsString(src.ptr()));
+        } else {
+            return false;
+        }
+
+        value = ByteVector(data, data + length);
         return true;
     }
 
     static handle cast(const Syntalos::ByteVector &src, return_value_policy /* policy */, handle /* parent */)
     {
-        return pybind11::bytearray(reinterpret_cast<const char *>(src.data()), src.size()).release();
+        return py::bytes(reinterpret_cast<const char *>(src.data()), src.size()).release();
     }
 };
 
