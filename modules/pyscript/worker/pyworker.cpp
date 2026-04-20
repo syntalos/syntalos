@@ -170,7 +170,7 @@ bool PyWorker::initPythonInterpreter()
     // Pass m_link directly - SyntalosLink is registered as an opaque pybind11 type
     // inside the extension so py::cast can wrap the pointer without exposing its API.
     m_mlinkMod = py::module_::import("syntalos_mlink");
-    m_mlinkObj = m_mlinkMod.attr("init_link")(py::cast(m_link, py::return_value_policy::reference));
+    m_mlinkObj = m_mlinkMod.attr("_init_link_with_handle")(py::cast(m_link, py::return_value_policy::reference));
 
     PyConfig_Clear(&config);
     return true;

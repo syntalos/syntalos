@@ -770,16 +770,17 @@ static FirmataControl new_firmatactl_with_name(FirmataCommandKind kind, const st
     return {kind, name};
 }
 
-static py::object init_link(SyntalosLink *slink = nullptr)
+static PySyLinkManager *init_link_impl(SyntalosLink *slink = nullptr)
 {
     if (g_pslMgr != nullptr)
         throw SyntalosPyError(
             "Syntalos Module Link was already initialized. It is not allowed to run `init_link()` twice!");
 
     g_pslMgr = (slink != nullptr) ? new PySyLinkManager(slink) : new PySyLinkManager();
-    py::object pyObj = py::cast(g_pslMgr, py::return_value_policy::take_ownership);
 
     if (slink == nullptr) {
+        // Hold a Python-side reference so the wrapper survives until atexit.
+        py::object pyObj = py::cast(g_pslMgr, py::return_value_policy::reference);
         // Standalone mode: register a Python atexit handler that calls cleanup().
         // We capture pyObj (not a raw pointer) so that the lambda holds a Python reference to
         // the PySyLinkManager wrapper. Without this, Python GC could collect the wrapper before
@@ -791,7 +792,19 @@ static py::object init_link(SyntalosLink *slink = nullptr)
         }));
     }
 
-    return pyObj;
+    return g_pslMgr;
+}
+
+static PySyLinkManager *init_link()
+{
+    return init_link_impl(nullptr);
+}
+
+static PySyLinkManager *_init_link_with_handle(SyntalosLink *slink)
+{
+    if (slink == nullptr)
+        throw SyntalosPyError("_init_link_with_handle() requires a valid Syntalos link handle.");
+    return init_link_impl(slink);
 }
 
 #pragma GCC visibility push(default)
@@ -1220,10 +1233,6 @@ PYBIND11_MODULE(syntalos_mlink, m)
      * Module registration (for standalone Python modules)
      **/
 
-    // Register SyntalosLink as an opaque handle so pyworker can pass its pointer
-    // to init_link() via py::cast without exposing any of its C++ API to Python.
-    py::class_<SyntalosLink>(m, "_SyntalosLinkHandle");
-
     py::class_<PySyLinkManager>(m, "SyntalosLink", "Manages the connection to Syntalos.")
         .def_property(
             "on_prepare",
@@ -1355,7 +1364,7 @@ PYBIND11_MODULE(syntalos_mlink, m)
     m.def(
         "init_link",
         &init_link,
-        py::arg("slink") = nullptr,
+        py::return_value_policy::take_ownership,
         "Initialize a connection with Syntalos.\n"
         "\n"
         "This function must be called only once at program startup, before invoking any\n"
@@ -1363,6 +1372,13 @@ PYBIND11_MODULE(syntalos_mlink, m)
         "\n"
         ":return: The active :class:`SyntalosLink` registry object.\n"
         ":rtype: SyntalosLink");
+
+    // Register SyntalosLink as an opaque handle so pyworker can pass its pointer
+    // to init_link() via py::cast without exposing any of its C++ API to Python.
+    py::class_<SyntalosLink>(m, "_SyntalosLinkHandle");
+
+    // Internal entry point for the embedded PyWorker runtime.
+    m.def("_init_link_with_handle", &_init_link_with_handle, py::return_value_policy::take_ownership, py::arg("slink"));
 };
 #pragma GCC visibility pop
 
