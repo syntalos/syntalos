@@ -222,9 +222,8 @@ Ports are discovered dynamically by the master side via IPC - no port declaratio
 
 #### 3. Python MLink modules (`type = "python"`)
 
-Run out-of-process via a shared Python worker binary. The worker is persistent: it starts on module
-initialization, loads the Python script immediately, and stays alive between experiment runs (reloading
-the script automatically if it changes on disk).
+Run out-of-process as a standalone Python script. The process is persistent: it starts on module
+initialization, runs the script immediately, and stays alive between experiment runs.
 
 ```
 modules/example-py/
@@ -247,15 +246,31 @@ categories  = 'category1'
 features    = ['show-settings', 'show-display']
 ```
 
-Ports are registered in the Python script at module level (i.e. as top-level code that runs
-when the script is first loaded), not in `module.toml`:
+The script is a self-contained Python program with a `main()` entry point. Ports are registered
+via the `SyntalosLink` object returned by `syl.init_link()`, which must happen early:
 ```python
+import sys
 import syntalos_mlink as syl
 
-# Register ports at module load time so Syntalos knows the topology.
-# IDs must match what get_input_port / get_output_port use later.
-syl.register_input_port('frames-in', 'Frames', 'Frame')
-syl.register_output_port('rows-out', 'Results', 'TableRow')
+def main() -> int:
+    syLink = syl.init_link()
+
+    # Register ports at init time so Syntalos knows the topology.
+    iport = syLink.register_input_port('frames-in', 'Frames', syl.DataType.Frame)
+    oport = syLink.register_output_port('rows-out', 'Results', syl.DataType.TableRow)
+
+    # Register lifecycle and settings callbacks, then hand over to the event loop.
+    syLink.on_prepare = ...
+    syLink.on_start   = ...
+    syLink.on_stop    = ...
+    syLink.on_save_settings = ...   # serialize settings to bytes
+    syLink.on_load_settings = ...   # deserialize settings from bytes
+
+    syLink.await_data_forever()     # signals IDLE and blocks until shutdown
+    return 0
+
+if __name__ == '__main__':
+    sys.exit(main())
 ```
 
 ---
@@ -309,8 +324,9 @@ Key control channels (defined in `src/mlink/ipc-types-private.h`):
 - `ERROR_CHANNEL_ID` - worker → master error events
 - `STATE_CHANNEL_ID` - worker → master state changes
 - `IN_PORT_CHANGE_CHANNEL_ID` / `OUT_PORT_CHANGE_CHANNEL_ID` - port registration (executable modules)
-- `SETTINGS_CHANGE_CHANNEL_ID` - worker → master settings updates
-- `PREPARE_START_CALL_ID`, `SHOW_SETTINGS_CALL_ID`, `SHOW_DISPLAY_CALL_ID` - master → worker RPC
+- `SAVE_SETTINGS_CALL_ID` / `LOAD_SETTINGS_CALL_ID` - master ↔ worker settings serialization RPC
+- `PREPARE_RUN_CALL_ID`, `START_CALL_ID`, `STOP_CALL_ID` - master → worker lifecycle RPC
+- `SHOW_SETTINGS_CALL_ID`, `SHOW_DISPLAY_CALL_ID` - master → worker UI RPC
 
 ## Important Conventions
 
@@ -321,8 +337,10 @@ Key control channels (defined in `src/mlink/ipc-types-private.h`):
 - `runThread()` must periodically check `m_running` (or `waitCondition`) to allow clean shutdown.
 - `runThread()` is not a `QThread` - never use GUI from it or assume signals/slots work. Use `std::mutex` and atomic operations if needed.
 - Settings are serialized as structured `QVariantHash` and/or `QByteArray` for library modules via `serializeSettings` / `loadSettings`.
-  Other module types serialize to an opaque `ByteVector` blob and send that to Syntalos for storage.
-  For out-of-process modules this blob is passed to the worker on each `prepare()` call.
+  Out-of-process modules (executable and Python) serialize to an opaque `ByteVector` blob. The master side
+  requests serialization and deserialization from the worker via the `SaveSettings` / `LoadSettings` IPC RPC
+  calls (see `src/mlink/ipc-types-private.h`). Python modules register `syLink.on_save_settings` /
+  `syLink.on_load_settings` to participate; if unregistered, no settings are saved.
 - Use `processUiEvents()` (not raw `QCoreApplication::processEvents()`) inside long-running
   `initialize()` paths that show dialogs.
 - Modules that may be run in a Flatpak sandbox must not assume `/usr/`-relative paths;
