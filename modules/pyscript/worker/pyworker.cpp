@@ -101,16 +101,6 @@ PyWorker::~PyWorker()
     py::finalize_interpreter();
 }
 
-static void ensureModuleImportPaths()
-{
-    py::exec("import sys");
-    py::exec(QStringLiteral("sys.path.insert(0, '%1')")
-                 .arg(QStringLiteral(SY_PYTHON_MOD_DIR).replace("'", "\\'"))
-                 .toStdString());
-    py::exec(
-        QStringLiteral("sys.path.insert(0, '%1')").arg(qApp->applicationDirPath().replace("'", "\\'")).toStdString());
-}
-
 bool PyWorker::initPythonInterpreter()
 {
     m_scriptLoaded = false;
@@ -156,15 +146,6 @@ bool PyWorker::initPythonInterpreter()
     }
 
     py::initialize_interpreter(&config);
-
-    // make sure we find the syntalos_mlink module even if it isn't installed yet
-    try {
-        ensureModuleImportPaths();
-    } catch (py::error_already_set &e) {
-        raiseError(e.what());
-        PyConfig_Clear(&config);
-        return false;
-    }
 
     // Import syntalos_mlink and keep a reference alive for the interpreter lifetime.
     // Pass m_link directly - SyntalosLink is registered as an opaque pybind11 type

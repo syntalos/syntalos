@@ -312,15 +312,16 @@ private:
     {
         disconnect(m_outFwdConn);
 
-        // Ensure pyworker can import syntalos_mlink regardless of install state.
-        // In dev builds syntalos_mlink.so lives in src/python/ next to the app binary;
-        // prepend that directory to PYTHONPATH so the embedded interpreter finds it.
+        // Ensure pyworker can import syntalos_mlink with deterministic precedence:
+        // build-tree first, installed fallback second, inherited paths last.
         auto penv = QProcessEnvironment::systemEnvironment();
-        const QString appPythonDir = QCoreApplication::applicationDirPath() + QStringLiteral("/python");
-        if (QDir(appPythonDir).exists()) {
-            const QString existingPP = penv.value(QStringLiteral("PYTHONPATH"));
-            penv.insert(
-                QStringLiteral("PYTHONPATH"), existingPP.isEmpty() ? appPythonDir : appPythonDir + ':' + existingPP);
+        QStringList pythonPath = findSyntalosMlinkPyModulePaths();
+        const QString existingPP = penv.value(QStringLiteral("PYTHONPATH"));
+        if (!existingPP.isEmpty())
+            pythonPath << existingPP.split(':', Qt::SkipEmptyParts);
+        pythonPath.removeDuplicates();
+        if (!pythonPath.isEmpty()) {
+            penv.insert(QStringLiteral("PYTHONPATH"), pythonPath.join(':'));
             setModuleBinaryEnv(penv);
         }
 

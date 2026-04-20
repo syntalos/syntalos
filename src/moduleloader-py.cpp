@@ -35,23 +35,6 @@
 #include "pyvenvmanager.h"
 
 /**
- * Get a directory to prepend to PYTHONPATH so the syntalos_mlink C extension
- * can be imported even if we are running from a not-installed copy of Syntalos.
- */
-static QString syntalosLocalPyMlinkPath()
-{
-    // In dev / uninstalled builds the extension is built alongside the application
-    // binary in a "python/" subdirectory.
-    const QString devDir = QCoreApplication::applicationDirPath() + QStringLiteral("/python");
-
-    // prefer the dev-build directory when it contains the extension
-    if (!QDir(devDir).entryList({"syntalos_mlink*.so"}, QDir::Files).isEmpty())
-        return devDir;
-
-    return {};
-}
-
-/**
  * Find the system python3 interpreter.
  */
 static QString findSystemPython3Interpreter()
@@ -128,16 +111,17 @@ public:
         if (isProcessRunning())
             return true;
 
-        // Build PYTHONPATH: syntalos_mlink search paths take priority so the
-        // extension is always importable.
-        const auto localPyModPath = syntalosLocalPyMlinkPath();
-        if (!localPyModPath.isEmpty()) {
-            auto penv = QProcessEnvironment::systemEnvironment();
-            QStringList pythonPath;
-            pythonPath << localPyModPath;
-            const QString existingPythonPath = penv.value(QStringLiteral("PYTHONPATH"));
-            if (!existingPythonPath.isEmpty())
-                pythonPath << existingPythonPath;
+        // Build PYTHONPATH with explicit priority:
+        // 1) dev/build syntalos_mlink
+        // 2) installed syntalos_mlink
+        // 3) inherited PYTHONPATH
+        auto penv = QProcessEnvironment::systemEnvironment();
+        QStringList pythonPath = findSyntalosMlinkPyModulePaths();
+        const QString existingPythonPath = penv.value(QStringLiteral("PYTHONPATH"));
+        if (!existingPythonPath.isEmpty())
+            pythonPath << existingPythonPath.split(':', Qt::SkipEmptyParts);
+        pythonPath.removeDuplicates();
+        if (!pythonPath.isEmpty()) {
             penv.insert(QStringLiteral("PYTHONPATH"), pythonPath.join(':'));
             setModuleBinaryEnv(penv);
         }
