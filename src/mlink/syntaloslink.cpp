@@ -1116,24 +1116,24 @@ std::shared_ptr<InputPortInfo> SyntalosLink::registerInputPort(
     const std::string &title,
     BaseDataType::TypeId typeId)
 {
-    // construct our reference for this port
-    InputPortChangeRequest ipc(PortAction::ADD);
-    ipc.id = id;
-    ipc.title = title;
-    ipc.dataTypeId = typeId;
-
     // passing an invalid data type is a hard error
-    if (!BaseDataType::typeIdIsValid(ipc.dataTypeId)) {
+    if (!BaseDataType::typeIdIsValid(typeId)) {
         throw std::runtime_error(
-            std::format("Can not register input port. Data type with ID '{}' is unknown.", ipc.dataTypeId));
+            std::format("Can not register input port. Data type with ID '{}' is unknown.", static_cast<int>(typeId)));
         return nullptr;
     }
 
     // check for duplicates
     for (const auto &ip : d->inPortInfo) {
-        if (ip->id() == ipc.id)
-            return nullptr;
+        if (ip->id() == id)
+            return ip;
     }
+
+    // construct our reference for this port
+    InputPortChangeRequest ipc(PortAction::ADD);
+    ipc.id = id;
+    ipc.title = title;
+    ipc.dataTypeId = typeId;
 
     // announce the new port to master
     const auto iportData = ipc.toBytes();
@@ -1154,25 +1154,25 @@ std::shared_ptr<OutputPortInfo> SyntalosLink::registerOutputPort(
     BaseDataType::TypeId typeId,
     const MetaStringMap &metadata)
 {
+    // passing an invalid data type is a hard error
+    if (!BaseDataType::typeIdIsValid(typeId)) {
+        throw std::runtime_error(
+            std::format("Can not register output port. Data type with ID '{}' is unknown.", static_cast<int>(typeId)));
+        return nullptr;
+    }
+
+    // check for duplicates
+    for (const auto &op : d->outPortInfo) {
+        if (op->id() == id)
+            return op;
+    }
+
     // construct our reference for this port
     OutputPortChangeRequest opc(PortAction::ADD);
     opc.id = id;
     opc.title = title;
     opc.dataTypeId = typeId;
     opc.metadata = metadata;
-
-    // passing an invalid data type is a hard error
-    if (!BaseDataType::typeIdIsValid(opc.dataTypeId)) {
-        throw std::runtime_error(
-            std::format("Can not register output port. Data type with ID '{}' is unknown.", opc.dataTypeId));
-        return nullptr;
-    }
-
-    // check for duplicates
-    for (const auto &op : d->outPortInfo) {
-        if (op->id() == opc.id)
-            return nullptr;
-    }
 
     // announce the new port to master
     const auto oportData = opc.toBytes();
@@ -1186,6 +1186,7 @@ std::shared_ptr<OutputPortInfo> SyntalosLink::registerOutputPort(
     oport->d->ioxPub.reset();
     oport->d->ioxPub.emplace(SyPublisher::create(*d->node, d->modId, oport->d->ipcChannelId(), opc.topology));
     d->outPortInfo.push_back(oport);
+
     return oport;
 }
 

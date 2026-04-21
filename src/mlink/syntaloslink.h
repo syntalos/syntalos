@@ -195,10 +195,36 @@ public:
     [[nodiscard]] std::vector<std::shared_ptr<InputPortInfo>> inputPorts() const;
     [[nodiscard]] std::vector<std::shared_ptr<OutputPortInfo>> outputPorts() const;
 
+    /**
+     * Declare a new input port for this module.
+     *
+     * Must be called at initialization time to tell Syntalos the port topology
+     * for this module. Will throw a runtime error if an invalid type is passed
+     * or communication with Syntalos failed.
+     *
+     * @param id     Unique port identifier string.
+     * @param title  Human-readable port title shown in the flow graph.
+     * @param typeId Data type ID (e.g. DataType.Frame, DataType.TableRow).
+     * @returns InputPortInfo handle.
+     */
     std::shared_ptr<InputPortInfo> registerInputPort(
         const std::string &id,
         const std::string &title,
         BaseDataType::TypeId typeId);
+
+    /**
+     * Declare a new output port for this module.
+     *
+     * Must be called at initialization time to tell Syntalos the port topology
+     * for this module. Will throw a runtime error if an invalid type is passed
+     * or communication with Syntalos failed.
+     *
+     * @param id       Unique port identifier string.
+     * @param title    Human-readable port title shown in the flow graph.
+     * @param typeId   Data type ID (e.g. DataType.Frame, DataType.TableRow).
+     * @param metadata Metadata associated with this port.
+     * @returns OutputPortInfo handle.
+     */
     std::shared_ptr<OutputPortInfo> registerOutputPort(
         const std::string &id,
         const std::string &title,
