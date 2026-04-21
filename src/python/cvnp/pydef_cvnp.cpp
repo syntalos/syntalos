@@ -5,7 +5,7 @@
 
 namespace py = pybind11;
 
-static py::object list_types_synonyms_as_dict()
+static py::list list_types_synonyms_as_dict()
 {
     py::list r;
     for (const auto &format : cvnp::sTypeSynonyms) {
