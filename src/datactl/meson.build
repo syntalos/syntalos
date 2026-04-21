@@ -42,7 +42,7 @@ syntalos_datactl_lib = shared_library('syntalos-datactl',
     soversion: sy_mlink_abi_level,
     version: sy_version,
     dependencies: [
-        sy_base_deps,
+        qt_core_dep,
         eigen_dep,
         xxhash_dep,
         opencv_dep,
@@ -59,7 +59,7 @@ syntalos_datactl_lib = shared_library('syntalos-datactl',
 syntalos_datactl_dep = declare_dependency(
     link_with: syntalos_datactl_lib,
     dependencies: [
-        sy_base_deps,
+        qt_core_dep,
         eigen_dep,
         syntalos_utils_dep
     ],

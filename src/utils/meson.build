@@ -36,7 +36,9 @@ syntalos_utils_lib = shared_library('syntalos-utils',
      syntalos_utils_moc,
      config_h],
     dependencies: [
-        sy_base_deps,
+        rt_lib,
+        thread_dep,
+        qt_core_dep,
         blake3_dep,
         gio_dep,
         qt_gui_dep,
@@ -51,7 +53,9 @@ syntalos_utils_lib = shared_library('syntalos-utils',
 
 syntalos_utils_dep = declare_dependency(
     link_with: syntalos_utils_lib,
-    dependencies: [sy_base_deps],
+    dependencies: [
+        qt_core_dep,
+    ],
     include_directories: [include_directories('.'),
                           syntalos_main_inc_dir
     ]

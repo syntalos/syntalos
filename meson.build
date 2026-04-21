@@ -388,12 +388,6 @@ endif
 # check for OpenCL headers
 cpp_compiler.has_header('CL/cl.h', required: true)
 
-# essential dependencies definitely required by any Syntalos binary
-sy_base_deps = [rt_lib,
-                thread_dep,
-                qt_core_dep,
-]
-
 # sed binary for some file manipulation
 sed_prog = find_program('sed')
 
