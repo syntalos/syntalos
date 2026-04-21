@@ -331,6 +331,14 @@ python_dep = dependency('python3')
 python_embed_dep = dependency('python3-embed')
 pybind11_dep = dependency('pybind11')
 
+# We set strict API bounds to allow the MLink and Datactl libraries to be compatible
+# with a wide range of GLib versions, as they may be used in e.g. Python virtualenvs
+# that (pre)load older GLib versions.
+glib_api_limit_flags = [
+    '-DGLIB_VERSION_MIN_REQUIRED=GLIB_VERSION_2_84',
+    '-DGLIB_VERSION_MAX_ALLOWED=GLIB_VERSION_2_84',
+]
+
 # handle iceoryx2 (build it from source or find a system version)
 iox2_min_ver = '0.8.999'  # FIXME: We need Git master right now, change to 0.9.0 once released
 iox2_dep = dependency('iceoryx2-cxx',

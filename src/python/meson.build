@@ -50,7 +50,10 @@ pysy_mlink_mod = python.extension_module(
         python_embed_dep,
     ],
     include_directories: [include_directories('..')],
-    cpp_args: [numpy_inc_arg],
+    cpp_args: [
+        numpy_inc_arg,
+        glib_api_limit_flags,
+    ],
     install: true,
 )
 

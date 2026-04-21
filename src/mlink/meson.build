@@ -38,6 +38,7 @@ syntalos_mlink_lib = library('syntalos-mlink',
     include_directories: [
         root_include_dir,
     ],
+    cpp_args: [glib_api_limit_flags],
     install: true,
     install_rpath: sy_libdir,
 )
