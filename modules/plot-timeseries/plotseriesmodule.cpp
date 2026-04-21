@@ -203,7 +203,7 @@ public:
         auto maybeData = sd.sub->peekNext();
         if (!maybeData.has_value())
             return;
-        const auto data = std::move(maybeData.value());
+        const auto &data = *maybeData;
 
         sd.plotWidget->addToTimeseries(data.timestamps, sd.timestampDivisor);
 
