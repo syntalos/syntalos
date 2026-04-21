@@ -329,7 +329,7 @@ gstreamer_video_dep = dependency('gstreamer-video-1.0')
 
 python_dep = dependency('python3')
 python_embed_dep = dependency('python3-embed')
-pybind11_dep = dependency('pybind11')
+pybind11_dep = dependency('pybind11', version: '>= 2.12')
 
 # We set strict API bounds to allow the MLink and Datactl libraries to be compatible
 # with a wide range of GLib versions, as they may be used in e.g. Python virtualenvs

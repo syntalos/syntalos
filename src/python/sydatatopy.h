@@ -40,7 +40,7 @@ template<>
 struct type_caster<TableRow> {
 public:
     // Accept any sequence and stringify each item when loading a TableRow.
-    PYBIND11_TYPE_CASTER(TableRow, const_name("typing.Sequence[typing.Any]"));
+    PYBIND11_TYPE_CASTER(TableRow, io_name("typing.Sequence[typing.Any]", "typing.Sequence[str]"));
 
     bool load(handle src, bool)
     {
@@ -226,7 +226,7 @@ inline handle type_caster<Syntalos::MetaStringMap>::cast(
 template<>
 struct type_caster<Syntalos::ByteVector> {
 public:
-    PYBIND11_TYPE_CASTER(Syntalos::ByteVector, const_name("bytes | bytearray"));
+    PYBIND11_TYPE_CASTER(Syntalos::ByteVector, io_name("bytes | bytearray", "bytes"));
 
     bool load(handle src, bool)
     {
@@ -254,7 +254,7 @@ public:
 
     static handle cast(const Syntalos::ByteVector &src, return_value_policy /* policy */, handle /* parent */)
     {
-        return pybind11::bytearray(reinterpret_cast<const char *>(src.data()), src.size()).release();
+        return py::bytes(reinterpret_cast<const char *>(src.data()), src.size()).release();
     }
 };
 
