@@ -168,13 +168,13 @@ void PortEditorDialog::updatePortLists()
 
     for (const auto &port : m_mod->inPorts()) {
         auto item = new QListWidgetItem(
-            QStringLiteral("%1 (%2) [>>%3]").arg(port->title(), port->id(), port->dataTypeName()), ui->lwInputPorts);
+            QStringLiteral("%1 (%2) [🠊%3]").arg(port->title(), port->id(), port->dataTypeName()), ui->lwInputPorts);
         item->setData(Qt::UserRole, port->id());
     }
 
     for (const auto &port : m_mod->outPorts()) {
         auto item = new QListWidgetItem(
-            QStringLiteral("%1 (%2) [<<%3]").arg(port->title(), port->id(), port->dataTypeName()), ui->lwOutputPorts);
+            QStringLiteral("%1 (%2) [🠈%3]").arg(port->title(), port->id(), port->dataTypeName()), ui->lwOutputPorts);
         item->setData(Qt::UserRole, port->id());
     }
 }
