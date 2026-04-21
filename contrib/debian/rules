@@ -48,3 +48,6 @@ override_dh_auto_test:
 override_dh_shlibdeps:
 	# we make some modules runtime-optional, so the user can install support on-demand
 	dh_shlibdeps -Xmodules/camera-tis/camera-tis.so -Xmodules/miniscope/miniscope.so
+
+override_dh_strip:
+	dh_strip --automatic-dbgsym

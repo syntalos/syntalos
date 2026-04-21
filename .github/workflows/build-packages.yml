@@ -121,6 +121,14 @@ jobs:
         # TODO: Remove this one iceoryx2 is available as package
         network: true
 
+    - name: Rename ddebs
+      run: |
+        for f in build-results/*.ddeb; do
+          [ -e "$f" ] || continue
+          new="${f%.ddeb}.deb"
+          [ -e "$new" ] || mv -- "$f" "$new"
+        done
+
     - name: Upload package artifact
       uses: actions/upload-artifact@v7
       with:
