@@ -21,10 +21,9 @@
 #include <Python.h>
 #include "pysy-mlink.h"
 
-#include <QDebug>
-#include <QTimer>
-#include <QCoreApplication>
+#include <glib.h>
 
+#include <chrono>
 #include <iostream>
 #include <pybind11/chrono.h>
 #include <pybind11/functional.h>
@@ -608,7 +607,7 @@ public:
     {
         signalIdle();
 
-        std::function<void()> evtFn;
+        std::function<void()> evtFn = nullptr;
         if (eventFn) {
             evtFn = [eventFn = std::move(eventFn), this]() {
                 try {
@@ -618,14 +617,9 @@ public:
                         m_slink->raiseError(e.what());
                 }
             };
-        } else {
-            evtFn = []() {
-                if (QCoreApplication::instance())
-                    QCoreApplication::processEvents();
-            };
         }
 
-        m_slink->awaitDataForever(evtFn, 25 * 1000); // 25ms interval for Qt event responsiveness
+        m_slink->awaitDataForever(evtFn, 25 * 1000); // 25ms interval keeps GLib sources responsive
     }
 };
 
@@ -666,17 +660,17 @@ static void raise_error(const std::string &message)
 static void wait(uint msec)
 {
     auto slink = getActiveLink();
-    auto timer = QTime::currentTime().addMSecs(static_cast<int>(msec));
-    while (QTime::currentTime() < timer)
-        slink->awaitData(10 * 1000);
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(msec);
+    while (std::chrono::steady_clock::now() < deadline)
+        slink->awaitData(5 * 1000);
 }
 
 static void wait_sec(uint sec)
 {
     auto slink = getActiveLink();
-    auto timer = QTime::currentTime().addMSecs(static_cast<int>(sec * 1000));
-    while (QTime::currentTime() < timer)
-        slink->awaitData(100 * 1000);
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(sec);
+    while (std::chrono::steady_clock::now() < deadline)
+        slink->awaitData(50 * 1000);
 }
 
 static bool is_running()
@@ -689,17 +683,32 @@ static void await_data(int timeout_usec)
     getActiveLink()->awaitData(timeout_usec);
 }
 
+struct DelayedCallPayload {
+    std::function<void()> fn;
+};
+
+static gboolean dispatch_delayed_call(gpointer userData)
+{
+    std::unique_ptr<DelayedCallPayload> payload(static_cast<DelayedCallPayload *>(userData));
+    try {
+        payload->fn();
+    } catch (py::error_already_set &e) {
+        getActiveLink()->raiseError(e.what());
+    }
+    return G_SOURCE_REMOVE;
+}
+
 static void schedule_delayed_call(int delay_msec, const std::function<void()> &fn)
 {
     if (delay_msec < 0)
         throw SyntalosPyError("Delay must be positive or zero.");
-    QTimer::singleShot(delay_msec, [fn]() {
-        try {
-            fn();
-        } catch (py::error_already_set &e) {
-            getActiveLink()->raiseError(e.what());
-        }
-    });
+
+    auto payload = std::make_unique<DelayedCallPayload>();
+    payload->fn = fn;
+
+    g_autoptr(GSource) source = g_timeout_source_new(static_cast<guint>(delay_msec));
+    g_source_set_callback(source, &dispatch_delayed_call, payload.release(), nullptr);
+    g_source_attach(source, g_main_context_default());
 }
 
 static std::optional<InputPort> get_input_port(const std::string &id)

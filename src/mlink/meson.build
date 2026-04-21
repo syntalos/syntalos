@@ -30,6 +30,7 @@ syntalos_mlink_lib = library('syntalos-mlink',
     version: sy_version,
     dependencies: [
         iox2_dep,
+        glib_dep,
         opencv_dep,
         syntalos_datactl_dep,
         syntalos_utils_dep,

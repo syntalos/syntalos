@@ -20,8 +20,7 @@
 #include "syntaloslink.h"
 
 #include "modconfig.h"
-#include <QDebug>
-#include <QCoreApplication>
+#include <glib.h>
 #include <csignal>
 #include <cstring>
 #include <sys/prctl.h>
@@ -35,6 +34,26 @@
 
 using namespace Syntalos;
 using namespace Syntalos::ipc;
+
+namespace
+{
+
+constexpr int MAIN_CONTEXT_MAX_ITER_PER_TICK = 32;
+
+void iterateDefaultMainContextNonBlocking()
+{
+    // keep timers and other GLib sources responsive without starving IPC handling
+    auto *const mainContext = g_main_context_default();
+    if (!mainContext)
+        return;
+
+    for (int i = 0; i < MAIN_CONTEXT_MAX_ITER_PER_TICK; ++i) {
+        if (!g_main_context_iteration(mainContext, FALSE))
+            break;
+    }
+}
+
+} // namespace
 
 namespace Syntalos
 {
@@ -947,13 +966,13 @@ void SyntalosLink::awaitData(int timeoutUsec, const std::function<void()> &event
             if (d->waitSetDirty)
                 d->rebuildWaitSet();
 
-            // we do not use wait() here as some functionality depends on the Qt/GLib event loop, and especially
-            // for Python users it can be a bit jarring if that is not available. So we will occasionally
-            // process events here.
             handleRunResult(
                 d->waitSet->wait_and_process_once_with_timeout(onEvent, iox2::bb::Duration::from_millis(250)));
             if (eventFn)
                 eventFn();
+
+            // Keep the default GLib context alive so timer/idle sources are dispatched.
+            iterateDefaultMainContextNonBlocking();
 
             // exit if we are supposed to shutdown
             if (d->shutdownPending)
@@ -984,6 +1003,8 @@ void SyntalosLink::awaitDataForever(const std::function<void()> &eventFn, int in
         return d->shutdownPending ? iox2::CallbackProgression::Stop : iox2::CallbackProgression::Continue;
     };
 
+    iterateDefaultMainContextNonBlocking();
+
     while (true) {
         // Complete deferred input-port subscriber drop, then rebuild WaitSet if ports were connected/disconnected
         // since the last iteration (processPendingControl() sets waitSetDirty when that happens).
@@ -994,7 +1015,7 @@ void SyntalosLink::awaitDataForever(const std::function<void()> &eventFn, int in
         const auto res = d->waitSet->wait_and_process_once_with_timeout(
             onEvent, iox2::bb::Duration::from_micros(intervalUsec));
         if (!res.has_value()) {
-            qDebug().noquote() << "Event loop terminated unexpectedly:" << iox2::bb::into<const char *>(res.error());
+            g_warning("Event loop terminated unexpectedly: %s", iox2::bb::into<const char *>(res.error()));
             return;
         }
         // Treat SIGTERM/SIGINT as a shutdown request
@@ -1005,6 +1026,9 @@ void SyntalosLink::awaitDataForever(const std::function<void()> &eventFn, int in
         // call external event function
         if (eventFn)
             eventFn();
+
+        // Dispatch GLib events periodically so external sources can run on the default context.
+        iterateDefaultMainContextNonBlocking();
 
         // exit if we are about to shutdown
         if (d->shutdownPending)

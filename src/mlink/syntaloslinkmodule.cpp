@@ -19,9 +19,7 @@
 
 #include "syntaloslinkmodule.h"
 
-#include <QDebug>
-#include <QTimer>
-#include <QCoreApplication>
+#include <glib.h>
 
 using namespace Syntalos;
 
@@ -141,12 +139,8 @@ void SyntalosLinkModule::stop()
 
 void SyntalosLinkModule::shutdown()
 {
-    qDebug().noquote() << "Shutting down.";
-    QCoreApplication::processEvents();
+    g_debug("Shutting down.");
     awaitData(1000);
-    // Use quit() instead of exit() so the Qt event loop returns from any a.exec() in main(),
-    // allowing the C++ stack to unwind and all destructors to run properly.
-    QTimer::singleShot(0, qApp, &QCoreApplication::quit);
 }
 
 const TestSubjectInfo &SyntalosLinkModule::testSubject() const

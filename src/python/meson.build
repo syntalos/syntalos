@@ -44,6 +44,7 @@ pysy_mlink_mod = python.extension_module(
     dependencies: [
         syntalos_mlink_dep,
         thread_dep,
+        glib_dep,
         opencv_dep,
         pybind11_dep,
         python_embed_dep,
