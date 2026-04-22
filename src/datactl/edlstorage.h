@@ -27,6 +27,10 @@
 #include <memory>
 #include <optional>
 
+#include <datactl/dcutils.h>
+
+namespace Syntalos
+{
 /**
  * Type of an EDL unit.
  */
@@ -284,3 +288,4 @@ private:
     Q_DISABLE_COPY(EDLCollection)
     std::unique_ptr<Private> d;
 };
+} // namespace Syntalos

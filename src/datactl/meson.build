@@ -3,6 +3,7 @@
 sy_datactl_pub_hdr = [
     'binarystream.h',
     'datatypes.h',
+    'dcutils.h',
     'frametype.h',
     'edlstorage.h',
     'eigenaux.h',
@@ -19,6 +20,7 @@ sy_datactl_priv_hdr = [
 
 sy_datactl_src = [
     'datatypes.cpp',
+    'dcutils.cpp',
     'edlstorage.cpp',
     'logging.cpp',
     'syclock.cpp',

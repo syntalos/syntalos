@@ -24,7 +24,6 @@
 #include "eigenaux.h"
 #include "loginternal.h"
 
-
 using namespace Syntalos;
 using namespace Eigen;
 

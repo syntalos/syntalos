@@ -1,11 +1,15 @@
 
 #include <QDebug>
+#include <QRegularExpression>
 #include <QtTest>
+#include <chrono>
+#include <cstdint>
 #include <iostream>
 
 #include "datactl/edlstorage.h"
-#include "utils/misc.h"
 #include "utils/tomlutils.h"
+
+using namespace Syntalos;
 
 class TestEDL : public QObject
 {
@@ -141,6 +145,38 @@ private slots:
         QCOMPARE(files[3], "test_9.mkv");
         QCOMPARE(files[4], "test_10.mkv");
         QCOMPARE(files[5], "test_11.mkv");
+    }
+
+    void runUuidTest()
+    {
+        const QRegularExpression uuidRe(
+            QStringLiteral("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"));
+
+        const auto beforeMs = static_cast<uint64_t>(
+            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
+                .count());
+        const auto uuid = newUuid7();
+        const auto afterMs = static_cast<uint64_t>(
+            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
+                .count());
+
+        const auto uuidStr = QString::fromStdString(toHex(uuid));
+        qDebug() << "Generated sample UUIDv7:" << uuidStr;
+        QVERIFY2(uuidRe.match(uuidStr).hasMatch(), qPrintable(uuidStr));
+        QCOMPARE(uuidStr.size(), 36);
+        QCOMPARE(uuidStr[8], '-');
+        QCOMPARE(uuidStr[13], '-');
+        QCOMPARE(uuidStr[18], '-');
+        QCOMPARE(uuidStr[23], '-');
+
+        QCOMPARE((uuid[6] >> 4), 0x7);
+        QCOMPARE((uuid[8] >> 6), 0x2);
+
+        const auto tsMs = (static_cast<uint64_t>(uuid[0]) << 40) | (static_cast<uint64_t>(uuid[1]) << 32)
+                          | (static_cast<uint64_t>(uuid[2]) << 24) | (static_cast<uint64_t>(uuid[3]) << 16)
+                          | (static_cast<uint64_t>(uuid[4]) << 8) | static_cast<uint64_t>(uuid[5]);
+        QVERIFY(tsMs >= beforeMs);
+        QVERIFY(tsMs <= (afterMs + 1));
     }
 };
 

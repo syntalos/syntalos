@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -19,7 +19,6 @@
 
 #include "edlstorage.h"
 
-#include <QDebug>
 #include <QDir>
 #include <QFileInfo>
 #include <QMimeDatabase>
@@ -34,6 +33,8 @@
 
 #include "utils/misc.h"
 #include "utils/tomlutils.h"
+
+using namespace Syntalos;
 
 static const QString EDL_FORMAT_VERSION = QStringLiteral("1");
 
