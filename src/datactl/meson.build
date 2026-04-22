@@ -26,10 +26,6 @@ sy_datactl_src = [
     'tsyncfile.cpp',
 ]
 
-sy_datactl_inc_dirs = [
-    include_directories('./include')
-]
-
 sy_datactl_moc = qt.compile_moc(
     headers: sy_datactl_pub_hdr,
     extra_args: ['--no-notes']
@@ -51,7 +47,7 @@ syntalos_datactl_lib = shared_library('syntalos-datactl',
     ],
     include_directories: [
         root_include_dir,
-        sy_datactl_inc_dirs
+        include_directories('../'),
     ],
     install: true,
     install_rpath: sy_libdir,
@@ -62,9 +58,10 @@ syntalos_datactl_dep = declare_dependency(
     dependencies: [
         qt_core_dep,
         eigen_dep,
-        syntalos_utils_dep,
     ],
-    include_directories: [sy_datactl_inc_dirs]
+    include_directories: [
+        include_directories('./include'),
+    ]
 )
 
 install_headers(sy_datactl_pub_hdr, subdir: 'syntalos' / 'datactl')

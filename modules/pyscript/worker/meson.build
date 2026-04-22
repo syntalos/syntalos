@@ -31,6 +31,7 @@ pyworker_exe = executable('pyworker',
     gnu_symbol_visibility: 'hidden',
     dependencies: [
         syntalos_mlink_dep,
+        syntalos_utils_dep,
         thread_dep,
         qt_dbus_dep,
         qt_gui_dep,

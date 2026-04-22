@@ -52,7 +52,8 @@ syntalos_mlink_dep = declare_dependency(
         syntalos_datactl_dep,
     ],
     include_directories: [
-        include_directories('./include')
+        include_directories('./include'),
+        include_directories('../'),
     ],
 )
 
