@@ -73,7 +73,6 @@ public:
     void setPythonVirtualEnv(const QString &venvDir);
     void setScript(const QString &script, const QString &wdir = QString());
     bool setScriptFromFile(const QString &fname, const QString &wdir = QString());
-    bool isScriptModified() const;
 
     void serializeSettings(const QString &confBaseDir, QVariantHash &settings, QByteArray &extraData) override;
     bool loadSettings(const QString &confBaseDir, const QVariantHash &settings, const QByteArray &extraData) override;

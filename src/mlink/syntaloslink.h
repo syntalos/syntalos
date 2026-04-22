@@ -55,6 +55,9 @@ public:
     std::string title() const;
     MetaStringMap metadata() const;
 
+    InputPortInfo(const InputPortInfo &) = delete;
+    InputPortInfo &operator=(const InputPortInfo &) = delete;
+
     /**
      * @brief Sets a function to be called when new data arrives
      *
@@ -85,7 +88,6 @@ private:
 
 private:
     class Private;
-    Q_DISABLE_COPY(InputPortInfo)
     std::unique_ptr<Private> d;
 };
 
@@ -95,6 +97,9 @@ private:
 class OutputPortInfo
 {
 public:
+    OutputPortInfo(const OutputPortInfo &) = delete;
+    OutputPortInfo &operator=(const OutputPortInfo &) = delete;
+
     std::string id() const;
     int dataTypeId() const;
     void setMetadataVar(const std::string &key, const MetaValue &value);
@@ -105,7 +110,6 @@ private:
 
 private:
     class Private;
-    Q_DISABLE_COPY(OutputPortInfo)
     std::unique_ptr<Private> d;
 };
 

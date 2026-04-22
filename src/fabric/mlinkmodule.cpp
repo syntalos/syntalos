@@ -17,13 +17,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "config.h"
 #include "mlinkmodule.h"
 
-#include "config.h"
 #include <QDebug>
 #include <QProcess>
 #include <QTimer>
 #include <QElapsedTimer>
+#include <QFile>
+#include <QFileInfo>
 #include <QCoreApplication>
 #include <iox2/iceoryx2.hpp>
 
@@ -67,7 +69,6 @@ public:
     QString scriptWDir;
     QString scriptContent;
     QString scriptFname;
-    QDateTime scriptLastModified;
     QHash<std::string, MetaStringMap> sentMetadata;
 
     LoadSettingsRequest settingsReq;
@@ -708,19 +709,7 @@ bool MLinkModule::setScriptFromFile(const QString &fname, const QString &wdir)
     setScript(in.readAll(), wdir);
 
     d->scriptFname = fname;
-    QFileInfo fi(fname);
-    d->scriptLastModified = fi.lastModified();
-
     return true;
-}
-
-bool MLinkModule::isScriptModified() const
-{
-    if (d->scriptFname.isEmpty())
-        return false;
-
-    QFileInfo fi(d->scriptFname);
-    return d->scriptLastModified != fi.lastModified();
 }
 
 bool MLinkModule::sendSettings()

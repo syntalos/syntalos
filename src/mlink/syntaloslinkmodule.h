@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include <QObject>
+#include <QDebug>
 #include <syntalos-datactl>
 
 #include "syntaloslink.h"
@@ -34,12 +34,14 @@ class OutputPortLink;
 /**
  * @brief Convenience interface to write an OOP Syntalos module
  */
-class SyntalosLinkModule : public QObject
+class SyntalosLinkModule
 {
-    Q_GADGET
 public:
     explicit SyntalosLinkModule(SyntalosLink *slink);
-    ~SyntalosLinkModule();
+    virtual ~SyntalosLinkModule();
+
+    SyntalosLinkModule(const SyntalosLinkModule &) = delete;
+    SyntalosLinkModule &operator=(const SyntalosLinkModule &) = delete;
 
     void raiseError(const std::string &message);
     void raiseError(const std::string &title, const std::string &message);
@@ -169,7 +171,6 @@ private:
     friend class OutputPortLink;
 
     class Private;
-    Q_DISABLE_COPY(SyntalosLinkModule)
     std::unique_ptr<Private> d;
     SyntalosLink *m_slink;
 };
