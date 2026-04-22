@@ -95,7 +95,6 @@ if get_option('maintainer')
          '-Wformat-security',
          '-Winit-self',
          '-Wnull-dereference',
-         '-Winline',
          '-Wmaybe-uninitialized',
     ]
     maintainer_cpp_args = [
