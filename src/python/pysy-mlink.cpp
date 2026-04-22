@@ -167,13 +167,25 @@ struct OutputPort {
         }
     }
 
+    [[noreturn]] static void _throw_submit_failed()
+    {
+        throw SyntalosPyError(
+            "Data submission failed: "
+            "Tried to send data via output port that can't carry it (sent data and port type are mismatched, or "
+            "data can't be serialized).");
+    }
+
+    template<typename T>
+    void _submit_typed_or_throw(const T &obj)
+    {
+        if (!getActiveLink()->submitOutput(_oport, obj))
+            _throw_submit_failed();
+    }
+
     void submit(const py::object &pyObj)
     {
         if (!_submit_output_private(pyObj))
-            throw SyntalosPyError(
-                "Data submission failed: "
-                "Tried to send data via output port that can't carry it (sent data and port type are mismatched, or "
-                "data can't be serialized).");
+            _throw_submit_failed();
     }
 
     void _set_metadata_value_private(const std::string &key, const MetaValue &value)
@@ -252,7 +264,7 @@ struct OutputPort {
         ctl.isOutput = isOutput;
         ctl.isPullUp = isPullUp;
 
-        submit(py::cast(ctl));
+        _submit_typed_or_throw(ctl);
         return ctl;
     }
 
@@ -263,7 +275,7 @@ struct OutputPort {
         ctl.pinName = name;
         ctl.value = value;
 
-        submit(py::cast(ctl));
+        _submit_typed_or_throw(ctl);
         return ctl;
     }
 
@@ -274,7 +286,7 @@ struct OutputPort {
         ctl.pinName = name;
         ctl.value = duration_msec;
 
-        submit(py::cast(ctl));
+        _submit_typed_or_throw(ctl);
         return ctl;
     }
 
@@ -1014,6 +1026,7 @@ PYBIND11_MODULE(syntalos_mlink, m)
         .def(
             "firmata_register_digital_pin",
             &OutputPort::firmata_register_digital_pin,
+            py::return_value_policy::move,
             py::arg("pin_id"),
             py::arg("name"),
             py::arg("is_output"),
@@ -1032,6 +1045,7 @@ PYBIND11_MODULE(syntalos_mlink, m)
         .def(
             "firmata_submit_digital_value",
             &OutputPort::firmata_submit_digital_value,
+            py::return_value_policy::move,
             py::arg("name"),
             py::arg("value"),
             "Write a digital value to a previously registered pin.\n"
@@ -1043,6 +1057,7 @@ PYBIND11_MODULE(syntalos_mlink, m)
         .def(
             "firmata_submit_digital_pulse",
             &OutputPort::firmata_submit_digital_pulse,
+            py::return_value_policy::move,
             py::arg("name"),
             py::arg("duration_msec") = 50,
             "Emit a digital pulse on a previously registered pin.\n"
@@ -1179,6 +1194,7 @@ PYBIND11_MODULE(syntalos_mlink, m)
     m.def(
         "new_firmatactl_with_id_name",
         new_firmatactl_with_id_name,
+        py::return_value_policy::move,
         py::arg("kind"),
         py::arg("pin_id"),
         py::arg("name"),
@@ -1193,6 +1209,7 @@ PYBIND11_MODULE(syntalos_mlink, m)
     m.def(
         "new_firmatactl_with_id",
         new_firmatactl_with_id,
+        py::return_value_policy::move,
         py::arg("kind"),
         py::arg("pin_id"),
         "Create a :class:`FirmataControl` command identified by numeric pin ID only.\n"
@@ -1205,6 +1222,7 @@ PYBIND11_MODULE(syntalos_mlink, m)
     m.def(
         "new_firmatactl_with_name",
         new_firmatactl_with_name,
+        py::return_value_policy::move,
         py::arg("kind"),
         py::arg("name"),
         "Create a :class:`FirmataControl` command identified by a registered pin name.\n"
