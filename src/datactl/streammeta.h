@@ -25,6 +25,8 @@
 #include <string>
 #include <variant>
 #include <vector>
+#include <optional>
+#include <ostream>
 
 namespace Syntalos
 {
@@ -234,5 +236,11 @@ inline std::ostream &operator<<(std::ostream &os, const MetaValue &v)
 
     return os;
 }
+
+/**
+ * Write a MetaValue to an output as JSON.
+ */
+void writeJson(std::ostream &os, const MetaValue &val);
+void writeJsonObject(std::ostream &os, const std::map<std::string, MetaValue> &obj);
 
 } // namespace Syntalos

@@ -20,7 +20,6 @@ sy_datactl_priv_hdr = [
 
 sy_datactl_src = [
     'datatypes.cpp',
-    'dcutils.cpp',
     'edlstorage.cpp',
     'logging.cpp',
     'streammeta.cpp',
