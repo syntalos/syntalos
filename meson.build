@@ -305,6 +305,7 @@ opencv_dep = dependency('opencv4', include_type: 'system')
 libusb_dep = dependency('libusb-1.0')
 libsystemd_dep = dependency('libsystemd')
 systemd_dep = dependency('systemd', required: false)
+quill_dep = dependency('quill', version: '>= 11.1', fallback: ['quill', 'quill_dep'])
 
 glib_dep = dependency('glib-2.0', version: '>=2.58')
 gobject_dep = dependency('gobject-2.0', version: '>=2.58')

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -19,15 +19,11 @@
 
 #include "syclock.h"
 
-#include <QDebug>
 #include <time.h>
 
 #include "eigenaux.h"
+#include "loginternal.h"
 
-namespace Syntalos
-{
-Q_LOGGING_CATEGORY(logTimeClock, "time.clock")
-}
 
 using namespace Syntalos;
 using namespace Eigen;
@@ -37,6 +33,8 @@ using namespace Eigen;
 #else
 #define STEADY_CLOCK_ID CLOCK_MONOTONIC
 #endif
+
+SY_DEFINE_LOG_CATEGORY(logTimeClock, "time.clock");
 
 symaster_clock::time_point symaster_clock::now() noexcept
 {
@@ -60,8 +58,8 @@ void SyncTimer::start() noexcept
 {
     // we should probably crash here, but let's show a warning for now
     if (m_started)
-        qCCritical(logTimeClock).noquote()
-            << "The master sync timer was restarted after it was already running! This must never happen.";
+        SY_LOG_CRITICAL(
+            logTimeClock, "The master sync timer was restarted after it was already running! This must never happen.");
 
     m_startTime = symaster_clock::now();
     m_started = true;
@@ -70,8 +68,8 @@ void SyncTimer::start() noexcept
 void SyncTimer::startAt(const Syntalos::symaster_timepoint &startTimePoint) noexcept
 {
     if (m_started)
-        qCCritical(logTimeClock).noquote()
-            << "The master sync timer was restarted after it was already running! This must never happen.";
+        SY_LOG_CRITICAL(
+            logTimeClock, "The master sync timer was restarted after it was already running! This must never happen.");
 
     m_startTime = startTimePoint;
     m_started = true;

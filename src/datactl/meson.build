@@ -6,6 +6,7 @@ sy_datactl_pub_hdr = [
     'frametype.h',
     'edlstorage.h',
     'eigenaux.h',
+    'logging.h',
     'streammeta.h',
     'syclock.h',
     'timesync.h',
@@ -13,19 +14,19 @@ sy_datactl_pub_hdr = [
 ]
 
 sy_datactl_priv_hdr = [
-
+    'loginternal.h',
 ]
 
 sy_datactl_src = [
     'datatypes.cpp',
     'edlstorage.cpp',
+    'logging.cpp',
     'syclock.cpp',
     'timesync.cpp',
     'tsyncfile.cpp',
 ]
 
 sy_datactl_inc_dirs = [
-    include_directories('..'),
     include_directories('./include')
 ]
 
@@ -61,7 +62,7 @@ syntalos_datactl_dep = declare_dependency(
     dependencies: [
         qt_core_dep,
         eigen_dep,
-        syntalos_utils_dep
+        syntalos_utils_dep,
     ],
     include_directories: [sy_datactl_inc_dirs]
 )

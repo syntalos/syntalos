@@ -25,6 +25,7 @@
 #include <QList>
 #include <QObject>
 #include <QIcon>
+#include <QLoggingCategory>
 
 #include <functional>
 

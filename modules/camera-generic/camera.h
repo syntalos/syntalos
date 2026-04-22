@@ -20,8 +20,7 @@
 #ifndef GENERIC_CAMERA_H
 #define GENERIC_CAMERA_H
 
-#include <QObject>
-#include <QScopedPointer>
+#include <QLoggingCategory>
 #include <QSize>
 #include <opencv2/core.hpp>
 
@@ -38,7 +37,7 @@ Q_DECLARE_LOGGING_CATEGORY(logGenCamera)
 
 struct CameraPixelFormat {
     QString name;
-    unsigned int fourcc;
+    unsigned int fourcc{};
 
     friend QDataStream &operator<<(QDataStream &out, const CameraPixelFormat &obj)
     {

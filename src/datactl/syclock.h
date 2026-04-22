@@ -19,7 +19,6 @@
 
 #pragma once
 
-#include <QLoggingCategory>
 #include <QMetaType>
 #include <atomic>
 #include <chrono>
@@ -32,8 +31,6 @@ Q_DECLARE_METATYPE(std::chrono::nanoseconds);
 
 namespace Syntalos
 {
-
-Q_DECLARE_LOGGING_CATEGORY(logTimeClock)
 
 /**
  * @brief Syntalos Master Clock

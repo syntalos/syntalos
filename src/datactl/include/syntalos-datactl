@@ -5,4 +5,5 @@
 #include <datactl/streammeta.h>
 #include <datactl/frametype.h>
 #include <datactl/edlstorage.h>
+#include <datactl/logging.h>
 #include <datactl/syclock.h>

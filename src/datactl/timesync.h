@@ -19,7 +19,6 @@
 
 #pragma once
 
-#include <QLoggingCategory>
 #include <QUuid>
 #include <fstream>
 #include <memory>
@@ -32,8 +31,6 @@ class QFile;
 
 namespace Syntalos
 {
-
-Q_DECLARE_LOGGING_CATEGORY(logTimeSync)
 
 /**
  * @brief The amount of time a secondary clock is allowed to deviate from the master.

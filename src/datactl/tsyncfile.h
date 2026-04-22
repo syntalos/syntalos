@@ -21,7 +21,6 @@
 
 #include <QDataStream>
 #include <QDateTime>
-#include <QLoggingCategory>
 #include <QUuid>
 #include <memory>
 #include <xxhash.h>
@@ -32,8 +31,6 @@ class QFile;
 
 namespace Syntalos
 {
-
-Q_DECLARE_LOGGING_CATEGORY(logTSyncFile)
 
 /**
  * @brief Timepoint storage of a TSync file

@@ -104,6 +104,7 @@ syntalos_exe = executable('syntalos',
     dependencies: [
         mimalloc_dep,
         thread_dep,
+        syntalos_datactl_dep,
         syntalos_fabric_dep,
 
         qt_core_dep,
@@ -116,6 +117,7 @@ syntalos_exe = executable('syntalos',
         kfarchive_dep,
         kfconfigwidgets_dep,
 
+        quill_dep,
         libusb_dep,
         avutil_dep,
         eigen_dep,

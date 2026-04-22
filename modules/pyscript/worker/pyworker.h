@@ -20,8 +20,7 @@
 #pragma once
 
 #include <pybind11/pybind11.h>
-#include <QObject>
-#include <QHash>
+#include <QLoggingCategory>
 #include <QTimer>
 #define SY_DATACTL_NO_FRAMETYPE
 #include <syntalos-mlink>

@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include <QObject>
+#include <QLoggingCategory>
 #include <expected>
 
 #include "moduleapi.h"

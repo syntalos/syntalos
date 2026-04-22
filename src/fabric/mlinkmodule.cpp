@@ -20,6 +20,7 @@
 #include "mlinkmodule.h"
 
 #include "config.h"
+#include <QDebug>
 #include <QProcess>
 #include <QTimer>
 #include <QElapsedTimer>

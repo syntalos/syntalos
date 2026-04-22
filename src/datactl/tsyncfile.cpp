@@ -20,19 +20,15 @@
 #include "tsyncfile.h"
 
 #include <QDateTime>
-#include <QDebug>
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
 
+#include "loginternal.h"
 #include "utils/misc.h"
 
-namespace Syntalos
-{
-Q_LOGGING_CATEGORY(logTSyncFile, "tsyncfile")
-}
-
 using namespace Syntalos;
+SY_DEFINE_LOG_CATEGORY(logTSyncFile, "tsyncfile");
 
 // TSYNC file magic number (saved as LE): 8A T S Y N C ⏲
 #define TSYNC_FILE_MAGIC 0xF223434E5953548A
@@ -519,8 +515,7 @@ bool TimeSyncFileReader::open(const std::string &fname)
                 return false;
             }
             if (expectedCRC != XXH3_64bits_digest(csState))
-                qCWarning(logTSyncFile).noquote()
-                    << "CRC check failed for last tsync data block: Data is likely corrupted.";
+                SY_LOG_WARNING(logTSyncFile, "CRC check failed for last tsync data block: Data is likely corrupted.");
             break;
         }
 
@@ -588,7 +583,7 @@ bool TimeSyncFileReader::open(const std::string &fname)
                 return false;
             }
             if (expectedCRC != XXH3_64bits_digest(csState))
-                qCWarning(logTSyncFile).noquote() << "CRC check failed for tsync data block: Data is likely corrupted.";
+                SY_LOG_WARNING(logTSyncFile, "CRC check failed for tsync data block: Data is likely corrupted.");
 
             XXH3_64bits_reset(csState);
             bIndex = 0;

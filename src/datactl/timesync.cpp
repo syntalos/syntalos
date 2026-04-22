@@ -19,21 +19,17 @@
 
 #include "timesync.h"
 
-#include <QDateTime>
-#include <QDebug>
 #include <algorithm>
 #include <cstdlib>
 #include <ranges>
 
+#include "loginternal.h"
 #include "utils/misc.h"
-
-namespace Syntalos
-{
-Q_LOGGING_CATEGORY(logTimeSync, "time.synchronizer")
-}
 
 using namespace Syntalos;
 using namespace Eigen;
+
+SY_DEFINE_LOG_CATEGORY(logTimeSync, "time.synchronizer");
 
 const std::string Syntalos::timeSyncStrategyToHString(const TimeSyncStrategy &strategy)
 {
@@ -161,8 +157,7 @@ bool FreqCounterSynchronizer::isCalibrated() const
 void FreqCounterSynchronizer::setStrategies(const TimeSyncStrategies &strategies)
 {
     if (m_haveExpectedOffset) {
-        qCWarning(logTimeSync).noquote() << "Rejected strategy change on active FreqCounter Synchronizer for"
-                                         << m_modName;
+        SY_LOG_WARNING(logTimeSync, "Rejected strategy change on active FreqCounter Synchronizer for {}", m_modName);
         return;
     }
     m_strategies = strategies;
@@ -173,8 +168,7 @@ void FreqCounterSynchronizer::setStrategies(const TimeSyncStrategies &strategies
 void FreqCounterSynchronizer::setTolerance(const std::chrono::microseconds &tolerance)
 {
     if (m_haveExpectedOffset) {
-        qCWarning(logTimeSync).noquote() << "Rejected tolerance change on active FreqCounter Synchronizer for"
-                                         << m_modName;
+        SY_LOG_WARNING(logTimeSync, "Rejected tolerance change on active FreqCounter Synchronizer for {}", m_modName);
         return;
     }
     m_toleranceUsec = tolerance.count();
@@ -185,17 +179,18 @@ void FreqCounterSynchronizer::setTolerance(const std::chrono::microseconds &tole
 bool FreqCounterSynchronizer::start()
 {
     if (m_haveExpectedOffset) {
-        qCWarning(logTimeSync).noquote()
-            << "Restarting a FreqCounter Synchronizer that has already been used is not permitted. This is an issue in"
-            << m_modName;
+        SY_LOG_WARNING(
+            logTimeSync,
+            "Restarting a FreqCounter Synchronizer that has already been used is not permitted. This is an issue in {}",
+            m_modName);
         return false;
     }
     if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE)) {
         m_tswriter->setSyncMode(TSyncFileMode::SYNCPOINTS);
         m_tswriter->setTimeDataTypes(TSyncFileDataType::INT64, TSyncFileDataType::INT64);
         if (!m_tswriter->open(m_modName, m_collectionId, microseconds_t(m_toleranceUsec))) {
-            qCCritical(logTimeSync).noquote().nospace()
-                << "Unable to open timesync file for " << m_modName << "[" << m_id << "]: " << m_tswriter->lastError();
+            SY_LOG_CRITICAL(
+                logTimeSync, "Unable to open timesync file for {}[{}]: {}", m_modName, m_id, m_tswriter->lastError());
             return false;
         }
     }
@@ -229,8 +224,11 @@ void FreqCounterSynchronizer::stop()
             if (offset.count() > 0)
                 offset = microseconds_t(0);
             else if (offset.count() != 0)
-                qCDebug(logTimeSync).noquote()
-                    << "Cutting off" << offset.count() << "µs from timesync file to align endpoint for" << m_modName;
+                SY_LOG_DEBUG(
+                    logTimeSync,
+                    "Cutting off {} µs from timesync file to align endpoint for {}",
+                    offset.count(),
+                    m_modName);
 
             m_tswriter->writeTimes(
                 microseconds_t(std::lround((m_lastSecondaryIdxUnandjusted + 1) * m_timePerPointUs)) + offset,
@@ -312,10 +310,12 @@ void FreqCounterSynchronizer::processTimestamps(
         m_expectedSD = sqrt(vectorVariance(m_tsOffsetsUsec));
         m_expectedOffset = microseconds_t(std::lround(vectorMedian(m_tsOffsetsUsec)));
 
-        qCDebug(logTimeSync).noquote().nospace()
-            << QTime::currentTime().toString() << "[" << m_id << "] "
-            << "Determined expected time offset: " << m_expectedOffset.count() << "µs "
-            << "SD: " << m_expectedSD;
+        SY_LOG_DEBUG(
+            logTimeSync,
+            "[{}] Determined expected time offset: {} µs SD: {}",
+            m_id,
+            m_expectedOffset.count(),
+            m_expectedSD);
         m_haveExpectedOffset = true;
 
         // send (possibly initial) offset info to the controller)
@@ -500,8 +500,8 @@ microseconds_t SecondaryClockSynchronizer::clockCorrectionOffset() const
 void SecondaryClockSynchronizer::setCalibrationPointsCount(int timepointCount)
 {
     if (m_haveExpectedOffset) {
-        qCWarning(logTimeSync).noquote() << "Rejected calibration point count change on active Clock Synchronizer for"
-                                         << m_modName;
+        SY_LOG_WARNING(
+            logTimeSync, "Rejected calibration point count change on active Clock Synchronizer for {}", m_modName);
         return;
     }
 
@@ -511,12 +511,12 @@ void SecondaryClockSynchronizer::setCalibrationPointsCount(int timepointCount)
 void SecondaryClockSynchronizer::setExpectedClockFrequencyHz(double frequency)
 {
     if (m_haveExpectedOffset) {
-        qCWarning(logTimeSync).noquote() << "Rejected frequency change on active Clock Synchronizer for" << m_modName;
+        SY_LOG_WARNING(logTimeSync, "Rejected frequency change on active Clock Synchronizer for {}", m_modName);
         return;
     }
 
     if (frequency <= 0) {
-        qCWarning(logTimeSync).noquote() << "Rejected bogus frequency change to <= 0 for" << m_modName;
+        SY_LOG_WARNING(logTimeSync, "Rejected bogus frequency change to <= 0 for {}", m_modName);
         return;
     }
 
@@ -556,7 +556,7 @@ microseconds_t SecondaryClockSynchronizer::expectedOffsetToMaster() const
 void SecondaryClockSynchronizer::setStrategies(const TimeSyncStrategies &strategies)
 {
     if (m_haveExpectedOffset) {
-        qCWarning(logTimeSync).noquote() << "Rejected strategy change on active Clock Synchronizer for" << m_modName;
+        SY_LOG_WARNING(logTimeSync, "Rejected strategy change on active Clock Synchronizer for {}", m_modName);
         return;
     }
     m_strategies = strategies;
@@ -566,7 +566,7 @@ void SecondaryClockSynchronizer::setStrategies(const TimeSyncStrategies &strateg
 void SecondaryClockSynchronizer::setTolerance(const microseconds_t &tolerance)
 {
     if (m_haveExpectedOffset) {
-        qCWarning(logTimeSync).noquote() << "Rejected tolerance change on active Clock Synchronizer for" << m_modName;
+        SY_LOG_WARNING(logTimeSync, "Rejected tolerance change on active Clock Synchronizer for {}", m_modName);
         return;
     }
     m_toleranceUsec = tolerance.count();
@@ -576,24 +576,25 @@ void SecondaryClockSynchronizer::setTolerance(const microseconds_t &tolerance)
 bool SecondaryClockSynchronizer::start()
 {
     if (m_haveExpectedOffset) {
-        qCWarning(logTimeSync).noquote()
-            << "Restarting a Clock Synchronizer that has already been used is not permitted. This is an issue in "
-            << m_modName;
+        SY_LOG_WARNING(
+            logTimeSync,
+            "Restarting a Clock Synchronizer that has already been used is not permitted. This is an issue in {}",
+            m_modName);
         return false;
     }
     if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE)) {
         m_tswriter->setSyncMode(TSyncFileMode::SYNCPOINTS);
         m_tswriter->setTimeDataTypes(TSyncFileDataType::INT64, TSyncFileDataType::INT64);
         if (!m_tswriter->open(m_modName, m_collectionId, microseconds_t(m_toleranceUsec))) {
-            qCCritical(logTimeSync).noquote().nospace()
-                << "Unable to open timesync file for " << m_modName << "[" << m_id << "]: " << m_tswriter->lastError();
+            SY_LOG_CRITICAL(
+                logTimeSync, "Unable to open timesync file for {}[{}]: {}", m_modName, m_id, m_tswriter->lastError());
             return false;
         }
     }
 
     if (m_calibrationMaxN <= 4)
-        qCCritical(logTimeSync).noquote().nospace()
-            << "Clock synchronizer for " << m_modName << "[" << m_id << "] uses a tiny calibration array (length <= 4)";
+        SY_LOG_CRITICAL(
+            logTimeSync, "Clock synchronizer for {}[{}] uses a tiny calibration array (length <= 4)", m_modName, m_id);
     assert(m_calibrationMaxN > 0);
 
     m_lastOffsetWithinTolerance = false;
@@ -658,10 +659,12 @@ void SecondaryClockSynchronizer::processTimestamp(
         m_expectedSD = sqrt(vectorVariance(m_clockOffsetsUsec));
         m_expectedOffset = microseconds_t(std::lround(vectorMedian(m_clockOffsetsUsec)));
 
-        qCDebug(logTimeSync).noquote().nospace()
-            << QTime::currentTime().toString() << "[" << m_id << "] "
-            << "Determined expected time offset: " << m_expectedOffset.count() << "µs "
-            << "SD: " << m_expectedSD;
+        SY_LOG_DEBUG(
+            logTimeSync,
+            "[{}] Determined expected time offset: {} µs SD: {}",
+            m_id,
+            m_expectedOffset.count(),
+            m_expectedSD);
         m_haveExpectedOffset = true;
 
         // if we are writing a timesync-file, always write the initial secondary clock time
@@ -699,11 +702,9 @@ void SecondaryClockSynchronizer::processTimestamp(
                 m_tswriter->writeTimes(secondaryAcqTimestamp, masterTimestamp);
 
             /*
-            qCDebug(logTimeSync).noquote().nospace() << QTime::currentTime().toString() << "[" << m_id << "] "
-                    << "Offset deviation diff not within SD. Adjusted for fluke offset by adding " << avgOffsetUsec*-1
-            << "µs "
-                    << "to secondary clock time " << secondaryAcqTimestamp.count() << "µs "
-                    << " SD: " << offsetsSD;
+            SY_LOG_DEBUG(logTimeSync, "[{}] Offset deviation diff not within SD. Adjusted for fluke offset
+            by adding {}µs to secondary clock time {}µs SD: {}", m_id, avgOffsetUsec *
+            -1, secondaryAcqTimestamp.count(), offsetsSD);
             */
 
             // remember the original timestamps (master TS having been adjusted)
@@ -791,20 +792,21 @@ void SecondaryClockSynchronizer::processTimestamp(
         masterTimestamp = secondaryAcqTimestamp - m_expectedOffset - m_clockCorrectionOffset;
 
     /*
-    qCDebug(logTimeSync).noquote().nospace() << "[" << m_id << "] "
-            << "Clocks out of sync. Mean offset deviation: " << avgOffsetDeviationUsec << "µs, "
-            << "Current: " << (curOffsetUsec - m_expectedOffset.count()) << "µs, "
-            << "Active SD: " << offsetsSD << " "
-            << "Correction offset: " << m_clockCorrectionOffset.count() << "µs";
+    SY_LOG_DEBUG(logTimeSync, "[{}] Clocks out of sync. Mean offset deviation: {}µs, Current: {}µs, Active SD: {}
+    Correction offset: {}µs", m_id, avgOffsetDeviationUsec, curOffsetUsec - m_expectedOffset.count(), offsetsSD,
+    m_clockCorrectionOffset.count());
     */
 
     // ensure time doesn't run backwards - this really shouldn't happen at this
     // point, but we prevent this just in case
     if (masterTimestamp < m_lastMasterTS) {
-        qCWarning(logTimeSync).noquote().nospace()
-            << "[" << m_id << "] "
-            << "Timestamp moved backwards when calculating adjusted new time: " << masterTimestamp.count() << " < "
-            << m_lastMasterTS.count() << " (mitigated by reusing previous time)";
+        SY_LOG_WARNING(
+            logTimeSync,
+            "[{}] Timestamp moved backwards when calculating adjusted new time: {} < {} (mitigated by reusing previous "
+            "time)",
+            m_id,
+            masterTimestamp.count(),
+            m_lastMasterTS.count());
         masterTimestamp = m_lastMasterTS;
     }
 

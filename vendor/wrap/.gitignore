@@ -1,3 +1,4 @@
 mimalloc/
+quill-*/
 packagecache/
 .wraplock

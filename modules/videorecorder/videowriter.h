@@ -20,7 +20,7 @@
 #ifndef VIDEOWRITER_H
 #define VIDEOWRITER_H
 
-#include <QMetaType>
+#include <QLoggingCategory>
 #include <chrono>
 #include <memory>
 
