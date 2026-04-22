@@ -22,7 +22,7 @@
 #include <array>
 #include <cstdint>
 #include <string>
-#include <QStringList>
+#include <optional>
 
 namespace Syntalos
 {
@@ -30,7 +30,44 @@ namespace Syntalos
 /**
  * @brief A 16-byte UUID (Universally Unique Identifier).
  */
-using Uuid = std::array<uint8_t, 16>;
+struct Uuid {
+    std::array<uint8_t, 16> bytes{};
+
+    explicit Uuid() {};
+    explicit Uuid(const std::array<uint8_t, 16> &bytes)
+        : bytes(bytes)
+    {
+    }
+
+    bool operator==(const Uuid &other) const
+    {
+        return bytes == other.bytes;
+    }
+
+    uint8_t &operator[](size_t i)
+    {
+        return bytes[i];
+    }
+    const uint8_t &operator[](size_t i) const
+    {
+        return bytes[i];
+    }
+
+    /**
+     * @brief Convert UUID to a canonical lowercase string representation.
+     *
+     * @return The UUID in 8-4-4-4-12 format.
+     */
+    std::string toHex() const;
+
+    /**
+     * Create new UUID from a hex string.
+     * @param str The UUID string.
+     *
+     * @return A new UUID, or std::nullopt if conversion failed.
+     */
+    static std::optional<Uuid> fromHex(const std::string &str);
+};
 
 /**
  * @brief Generate a Version 7 UUID (UUIDv7) based on a timestamp and random data.
@@ -40,18 +77,5 @@ using Uuid = std::array<uint8_t, 16>;
  * @return A new UUIDv7.
  */
 Uuid newUuid7();
-
-/**
- * @brief Convert a UUID to a canonical lowercase string representation.
- *
- * @param uuid The UUID to be converted.
- * @return The UUID in 8-4-4-4-12 format.
- */
-std::string toHex(const Uuid &uuid);
-
-/**
- * @brief Naturally sort the give string list (sorting "10" after "9")
- **/
-QStringList stringListNaturalSort(QStringList &list);
 
 } // namespace Syntalos

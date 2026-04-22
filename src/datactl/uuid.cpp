@@ -17,22 +17,73 @@
  * along with this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "dcutils.h"
+#include "uuid.h"
 
 #include <algorithm>
 #include <array>
 #include <chrono>
 #include <cstdint>
-#include <cstdio>
 #include <random>
-#include <QCollator>
 
 namespace Syntalos
 {
 
+std::string Uuid::toHex() const
+{
+    static constexpr char hex[] = "0123456789abcdef";
+    std::string out;
+    out.reserve(36);
+
+    for (size_t i = 0; i < bytes.size(); ++i) {
+        if (i == 4 || i == 6 || i == 8 || i == 10)
+            out += '-';
+
+        const auto b = bytes[i];
+        out += hex[(b >> 4) & 0x0F];
+        out += hex[b & 0x0F];
+    }
+
+    return out;
+}
+
+std::optional<Uuid> Uuid::fromHex(const std::string &str)
+{
+    Uuid uuid{};
+    int nibble = -1;
+    size_t byteIdx = 0;
+    for (const auto c : str) {
+        if (c == '-')
+            continue;
+
+        int v = -1;
+        if (c >= '0' && c <= '9')
+            v = c - '0';
+        else if (c >= 'a' && c <= 'f')
+            v = c - 'a' + 10;
+        else if (c >= 'A' && c <= 'F')
+            v = c - 'A' + 10;
+        else
+            return std::nullopt;
+
+        if (nibble < 0) {
+            nibble = v;
+        } else {
+            if (byteIdx >= uuid.bytes.size())
+                return std::nullopt;
+            uuid.bytes[byteIdx++] = static_cast<uint8_t>((nibble << 4) | v);
+            nibble = -1;
+        }
+    }
+
+    if (byteIdx != uuid.bytes.size() || nibble >= 0)
+        return std::nullopt;
+
+    return uuid;
+}
+
 Uuid newUuid7()
 {
-    Uuid value;
+    std::array<uint8_t, 16> value;
 
     // random bytes
     std::random_device rd;
@@ -58,49 +109,7 @@ Uuid newUuid7()
     value[6] = (value[6] & 0x0F) | 0x70;
     value[8] = (value[8] & 0x3F) | 0x80;
 
-    return value;
-}
-
-std::string toHex(const Uuid &uuid)
-{
-    static constexpr char hex[] = "0123456789abcdef";
-    std::string out;
-    out.reserve(36);
-
-    for (size_t i = 0; i < uuid.size(); ++i) {
-        if (i == 4 || i == 6 || i == 8 || i == 10)
-            out += '-';
-
-        const auto b = uuid[i];
-        out += hex[(b >> 4) & 0x0F];
-        out += hex[b & 0x0F];
-    }
-
-    return out;
-}
-
-QStringList stringListNaturalSort(QStringList &list)
-{
-    if (list.isEmpty())
-        return list;
-
-    // prefer en_DK unless that isn't available.
-    // we previously defaulted to "C", but doing that
-    // will produce the wrong sorting order
-    QCollator collator(QLocale("en_DK.UTF-8"));
-    if (collator.locale().language() == QLocale::C) {
-        collator = QCollator();
-        if (collator.locale().language() == QLocale::C) {
-            collator = QCollator(QLocale("en"));
-            if (collator.locale().language() == QLocale::C)
-                qWarning() << "Unable to find a non-C locale for collator.";
-        }
-    }
-    collator.setNumericMode(true);
-
-    std::sort(list.begin(), list.end(), collator);
-
-    return list;
+    return Uuid(value);
 }
 
 } // namespace Syntalos

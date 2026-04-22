@@ -3,7 +3,6 @@
 sy_datactl_pub_hdr = [
     'binarystream.h',
     'datatypes.h',
-    'dcutils.h',
     'frametype.h',
     'edlstorage.h',
     'eigenaux.h',
@@ -12,6 +11,7 @@ sy_datactl_pub_hdr = [
     'syclock.h',
     'timesync.h',
     'tsyncfile.h',
+    'uuid.h',
 ]
 
 sy_datactl_priv_hdr = [
@@ -23,9 +23,11 @@ sy_datactl_src = [
     'dcutils.cpp',
     'edlstorage.cpp',
     'logging.cpp',
+    'streammeta.cpp',
     'syclock.cpp',
     'timesync.cpp',
     'tsyncfile.cpp',
+    'uuid.cpp',
 ]
 
 sy_datactl_moc = qt.compile_moc(
