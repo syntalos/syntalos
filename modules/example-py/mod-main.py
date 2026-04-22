@@ -15,7 +15,7 @@ module from scratch. If you want to do that though, this
 example is a good starting point.
 """
 
-import os
+import pathlib
 import sys
 import syntalos_mlink as syl
 
@@ -26,7 +26,6 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QPushButton,
     QVBoxLayout,
-    QHBoxLayout,
 )
 import json
 import cv2 as cv
@@ -39,18 +38,20 @@ class MyExampleModule:
     want to use objects.
     """
 
-    def __init__(self, modLink):
-        self._modLink = modLink
-        self._label_prefix = ''
-        self._frame_count = 0
-        self._settings_dlg = None
+    def __init__(self, modLink: syl.SyntalosLink):
+        self._modLink: syl.SyntalosLink = modLink
+        self._label_prefix: str = ''
+        self._frame_count: int = 0
+        self._settings_dlg: None | QDialog = None
 
         # register ports that this module supports
-        self._iport = self._modLink.register_input_port('frames-in', 'Frames', syl.DataType.Frame)
-        self._oport_rows = self._modLink.register_output_port(
+        self._iport: syl.InputPort = self._modLink.register_input_port(
+            'frames-in', 'Frames', syl.DataType.Frame
+        )
+        self._oport_rows: syl.OutputPort = self._modLink.register_output_port(
             'rows-out', 'Indices', syl.DataType.TableRow
         )
-        self._oport_frames = self._modLink.register_output_port(
+        self._oport_frames: syl.OutputPort = self._modLink.register_output_port(
             'frames-out', 'Marked Frames', syl.DataType.Frame
         )
 
@@ -92,7 +93,7 @@ class MyExampleModule:
         """
         pass
 
-    def _on_input_data(self, frame):
+    def _on_input_data(self, frame: syl.Frame | None):
         if frame is None:
             # no more data, exit
             return
@@ -172,7 +173,7 @@ class MyExampleModule:
 
         self._settings_dlg.show()
 
-    def _save_settings_data(self, baseDir: os.PathLike[str]) -> bytes:
+    def _save_settings_data(self, baseDir: pathlib.Path) -> bytes:
         """
         Serialize settings to bytes so Syntalos can store them for us.
         """
@@ -180,14 +181,14 @@ class MyExampleModule:
         settings = dict(prefix=self._label_prefix)
         return bytes(json.dumps(settings), 'utf-8')
 
-    def _load_settings_data(self, data: bytes, baseDir: os.PathLike[str]) -> bool:
+    def _load_settings_data(self, data: bytes, baseDir: pathlib.Path) -> bool:
         """
         Deserialize user settings from previously stored bytes.
         """
         settings = {}
         if data:
             settings = json.loads(str(data, 'utf-8'))
-        self._label_prefix = settings.get('prefix', '')
+        self._label_prefix = str(settings.get('prefix', ''))
 
         return True
 
