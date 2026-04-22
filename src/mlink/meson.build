@@ -50,6 +50,7 @@ syntalos_mlink_dep = declare_dependency(
     ],
     dependencies: [
         syntalos_datactl_dep,
+        qt_core_dep,
     ],
     include_directories: [
         include_directories('./include'),

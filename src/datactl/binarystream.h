@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <cstring>
 #include <memory>
 #include <span>
 #include <stdexcept>

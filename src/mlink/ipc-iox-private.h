@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <QDebug>
 #include <string>
 #include <expected>
 #include <iox2/iceoryx2.hpp>

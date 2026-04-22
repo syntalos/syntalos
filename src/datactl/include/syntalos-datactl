@@ -7,4 +7,4 @@
 #include <datactl/edlstorage.h>
 #include <datactl/logging.h>
 #include <datactl/syclock.h>
-#include <datactl/dcutils.h>
+#include <datactl/uuid.h>

@@ -44,6 +44,7 @@
 #include <quill/sinks/ConsoleSink.h>
 
 #include "symemopt.h"
+#include "qmeta.h"
 #include "mainwindow.h"
 
 int main(int argc, char *argv[])
@@ -72,6 +73,9 @@ int main(int argc, char *argv[])
     // and other will use the app name only
     app.setOrganizationName(QString());
     app.setOrganizationDomain(QString());
+
+    // register some datatypes with the Qt type system
+    registerSyMetaTypes();
 
     // parse command-line arguments
     QCommandLineParser parser;
