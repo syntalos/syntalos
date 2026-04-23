@@ -211,6 +211,8 @@ public:
 
                 // we reuse the old environment if the user selected "No"
                 if (reply == QMessageBox::No) {
+                    if (!ensurePythonCodeRunning())
+                        return false;
                     setInitialized();
                     return true;
                 }
