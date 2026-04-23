@@ -266,8 +266,9 @@ public:
                         // be deferred to that point
                         if (m_initDone) {
                             // start our new section
-                            if (!m_videoWriter->startNewSection(
-                                    QStringLiteral("%1%2").arg(vidSavePathBase, currentSecSuffix))) {
+                            if (!m_videoWriter->startNewSection(QStringLiteral("%1%2").arg(
+                                    QString::fromStdString(vidSavePathBase),
+                                    QString::fromStdString(currentSecSuffix)))) {
                                 raiseError(QStringLiteral("Unable to initialize recording of a new section: %1")
                                                .arg(QString::fromStdString(m_videoWriter->lastError())));
                                 m_recordingFinished = true;
@@ -484,7 +485,9 @@ public:
         const auto time = QDateTime::currentDateTime();
         const auto projectName = m_subjectName.isEmpty()
                                      ? QStringLiteral("%1 on %2")
-                                           .arg(m_vidDataset->name(), time.toString("HH:mm yy-MM-dd"))
+                                           .arg(
+                                               QString::fromStdString(m_vidDataset->name()),
+                                               time.toString("HH:mm yy-MM-dd"))
                                      : QStringLiteral("%1 @ %2 on %3")
                                            .arg(m_subjectName, m_vidDataset->name(), time.toString("HH:mm yy-MM-dd"));
 

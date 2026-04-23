@@ -22,7 +22,6 @@
 #include "config.h"
 #include <cmath>
 #include <QCoreApplication>
-#include <QDebug>
 #include <QDir>
 #include <QMainWindow>
 #include <QMessageBox>
@@ -1226,14 +1225,13 @@ void AbstractModule::raiseError(const QString &message)
 {
     // if there is multiple errors emitted, likely caused by the first one, we only bubble up the first one
     if (d->state == ModuleState::ERROR) {
-        qCritical().noquote().nospace() << "Not escalating subsequent error from module '" << name()
-                                        << "': " << message;
+        LOG_ERROR(m_log, "Not escalating subsequent error from '{}': {}", name(), message);
         return;
     }
 
     d->lastError = message;
     setState(ModuleState::ERROR);
-    qCritical().noquote().nospace() << "Error raised by module '" << name() << "': " << message;
+    LOG_ERROR(m_log, "Error raised by '{}': {}", name(), message);
     emit error(message);
 }
 

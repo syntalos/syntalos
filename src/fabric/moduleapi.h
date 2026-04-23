@@ -348,14 +348,19 @@ public:
         auto sub = std::dynamic_pointer_cast<StreamSubscription<T>>(m_sub.value());
         if (sub == nullptr) {
             if (hasSubscription()) {
-                qCritical().noquote() << "Conversion of variant subscription to dedicated type" << typeid(T).name()
-                                      << "failed."
-                                      << "Modules are connected in a way they shouldn't be (terminating now).";
+                LOG_CRITICAL(
+                    logRoot,
+                    "Conversion of variant subscription to dedicated type {} failed. Modules are connected in a way "
+                    "they shouldn't be (terminating now).",
+                    typeid(T).name());
+                logRoot->flush_log();
                 qFatal("Bad module connection.");
                 assert(0);
             } else {
-                qWarning().noquote() << "Tried to obtain" << typeid(T).name()
-                                     << "subscription from a port that was not subscribed to anything.";
+                LOG_WARNING(
+                    logRoot,
+                    "Tried to obtain {} subscription from a port that was not subscribed to anything.",
+                    typeid(T).name());
             }
         }
         return sub;
@@ -520,7 +525,7 @@ public:
     std::shared_ptr<DataStream<T>> registerOutputPort(const QString &id, const QString &title = QString())
     {
         if (m_outPorts.contains(id)) {
-            qWarning().noquote() << "Module" << name() << "already registered an output port with ID:" << id;
+            LOG_WARNING(m_log, "Module {} already registered an output port with ID: {}", name(), id);
             return m_outPorts[id]->stream<T>();
         }
 
@@ -547,7 +552,7 @@ public:
     std::shared_ptr<StreamInputPort<T>> registerInputPort(const QString &id, const QString &title = QString())
     {
         if (m_inPorts.contains(id)) {
-            qWarning().noquote() << "Module" << name() << "already registered an input port with ID:" << id;
+            LOG_WARNING(m_log, "Module {} already registered an input port with ID: {}", name(), id);
             return std::dynamic_pointer_cast<StreamInputPort<T>>(m_inPorts[id]);
         }
 
@@ -572,7 +577,7 @@ public:
         const QString &title = QString())
     {
         if (m_outPorts.contains(id)) {
-            qWarning().noquote() << "Module" << name() << "already registered an output port with ID:" << id;
+            LOG_WARNING(m_log, "Module {} already registered an output port with ID: {}", name(), id);
             return m_outPorts[id]->streamVar();
         }
 
@@ -599,7 +604,7 @@ public:
         const QString &title = QString())
     {
         if (m_inPorts.contains(id)) {
-            qWarning().noquote() << "Module" << name() << "already registered an input port with ID:" << id;
+            LOG_WARNING(m_log, "Module {} already registered an input port with ID: {}", name(), id);
             return m_inPorts[id];
         }
 
