@@ -24,7 +24,6 @@
 #include "moduleapi.h"
 
 SYNTALOS_DECLARE_MODULE
-Q_DECLARE_LOGGING_CATEGORY(logModAudio)
 
 class AudioSourceModuleInfo : public ModuleInfo
 {

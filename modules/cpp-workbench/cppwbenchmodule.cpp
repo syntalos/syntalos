@@ -51,11 +51,6 @@
 
 SYNTALOS_MODULE(CppWBenchModule);
 
-namespace Syntalos
-{
-Q_LOGGING_CATEGORY(logCppWB, "mod.cpp-workbench")
-}
-
 class CppWBenchModule : public MLinkModule
 {
     Q_OBJECT
@@ -84,14 +79,14 @@ public:
         if (mesonDefTplRc.open(QIODevice::ReadOnly))
             m_mesonDefTmpl = mesonDefTplRc.readAll();
         else
-            qCCritical(logCppWB, "Failed to load Meson template");
+            LOG_ERROR(m_log, "Failed to load Meson template");
         mesonDefTplRc.close();
 
         QFile autoBuildTplRc(QStringLiteral(":/code/autobuild.sh"));
         if (autoBuildTplRc.open(QIODevice::ReadOnly))
             m_autobuildScript = autoBuildTplRc.readAll();
         else
-            qCCritical(logCppWB, "Failed to load autobuild helper");
+            LOG_ERROR(m_log, "Failed to load autobuild helper");
         autoBuildTplRc.close();
 
         // configure UI

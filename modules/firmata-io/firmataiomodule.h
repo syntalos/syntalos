@@ -28,11 +28,6 @@
 
 SYNTALOS_DECLARE_MODULE
 
-namespace Syntalos
-{
-Q_DECLARE_LOGGING_CATEGORY(logFmMod)
-}
-
 class SerialFirmata;
 class FirmataSettingsDialog;
 

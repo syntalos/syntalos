@@ -32,11 +32,6 @@
 
 SYNTALOS_MODULE(TISCameraModule)
 
-namespace Syntalos
-{
-Q_LOGGING_CATEGORY(logTISCam, "mod.tiscam")
-}
-
 class TISCameraModule : public AbstractModule
 {
     Q_OBJECT
@@ -62,7 +57,7 @@ public:
     {
         m_outStream = registerOutputPort<Frame>(QStringLiteral("video"), QStringLiteral("Video"));
 
-        m_ctlDialog = new TcamControlDialog(m_capConfig);
+        m_ctlDialog = new TcamControlDialog(m_capConfig, m_log);
         connect(m_ctlDialog, &TcamControlDialog::deviceLost, this, &TISCameraModule::onDeviceLost);
     }
 
@@ -83,6 +78,9 @@ public:
 
     bool initialize() override
     {
+        // update dialog logger
+        m_ctlDialog->setLogger(m_log);
+
         // be nice and warn the user in case udev rules are missing
         if (!hostUdevRuleExists("80-theimagingsource-cameras.rules")) {
             QMessageBox::warning(
@@ -231,8 +229,7 @@ public:
                 if (m_running) {
                     framesDropped++;
 
-                    qCWarning(logTISCam).noquote().nospace()
-                        << "Received invalid sample or timed out waiting for data (x" << framesDropped << ")";
+                    LOG_WARNING(m_log, "Received invalid sample or timed out waiting for data (x{})", framesDropped);
                     if (framesDropped > 10 && framesDropped > (m_fps / 2.0)) {
                         // we already set a timeout of 3x the length it would take for the frame to be acquired, so
                         // any threshold value here is already "3x worse"
@@ -251,7 +248,7 @@ public:
 
             gst_buffer_map(buffer, &info, GST_MAP_READ);
             if (info.data == nullptr) {
-                qCWarning(logTISCam).noquote().nospace() << "Received buffer with no data!";
+                LOG_WARNING(m_log, "Received buffer with no data!");
                 gst_buffer_unmap(buffer, &info);
                 continue;
             }
@@ -271,7 +268,7 @@ public:
                 if (validFrameCount == 0) {
                     // mark as us not being able to do any time adjustments if no valid timestamps are received
                     clockSync->setStrategies(TimeSyncStrategy::NONE);
-                    qCWarning(logTISCam).noquote().nospace() << "Time sync disabled: No valid capture time received.";
+                    LOG_WARNING(m_log, "Time sync disabled: No valid capture time received.");
                 }
 
                 gst_buffer_unmap(buffer, &info);
@@ -325,8 +322,7 @@ public:
                 frame.mat.create(m_resolution, CV_16UC(1));
                 memcpy(frame.mat.data, info.data, m_resolution.width * m_resolution.height);
             } else {
-                qCDebug(logTISCam).noquote().nospace() << QString::fromStdString(m_device.str()) << ": "
-                                                       << "Received buffer with unsupported format: " << format_str;
+                LOG_INFO(m_log, "{}: Received buffer with unsupported format: {}", m_device.str(), format_str);
                 gst_buffer_unmap(buffer, &info);
                 continue;
             }
@@ -366,7 +362,7 @@ public:
     {
         m_device = m_ctlDialog->selectedDevice();
         if (m_device.serial().empty()) {
-            qCWarning(logTISCam).noquote().nospace() << "No TIS camera selected, will not save settings to file.";
+            LOG_WARNING(m_log, "No TIS camera selected, will not save settings to file.");
             return;
         }
 
@@ -379,7 +375,7 @@ public:
         QVariantList camProps;
         auto collection = m_ctlDialog->tcamCollection();
         if (collection == nullptr) {
-            qCWarning(logTISCam, "Unable to save camera properties: No collection for active camera.");
+            LOG_WARNING(m_log, "Unable to save camera properties: No collection for active camera.");
             return;
         }
 
@@ -389,7 +385,7 @@ public:
             g_autoptr(TcamPropertyBase) prop = collection->get_property(name);
 
             if (!prop) {
-                qCWarning(logTISCam, "Unable to retrieve property: %s", name.c_str());
+                LOG_WARNING(m_log, "Unable to retrieve property: {}", name);
                 continue;
             }
 
@@ -450,9 +446,7 @@ public:
             }
 
             if (error != nullptr) {
-                qCWarning(logTISCam).noquote().nospace()
-                    << QString::fromStdString(m_device.serial()) << ": "
-                    << "Unable to save camera property: " << QString::fromUtf8(error->message);
+                LOG_WARNING(m_log, "{}: Unable to save camera property: {}", m_device.serial(), error->message);
                 continue;
             }
 
@@ -475,11 +469,12 @@ public:
 
         // only continue loading camera settings if we selected the right camera
         if (!ret) {
-            qCWarning(logTISCam).noquote().nospace()
-                << "Unable to load find exact camera match for '" << settings.value("camera_model").toString() << " "
-                << settings.value("camera_serial").toString() << " [" << settings.value("camera_type").toString() << "]"
-                << "' "
-                << "Will not load camera settings.";
+            LOG_WARNING(
+                m_log,
+                "Unable to find exact camera match for '{} {} [{}]'. Will not load camera settings.",
+                settings.value("camera_model").toString(),
+                settings.value("camera_serial").toString(),
+                settings.value("camera_type").toString());
             setStatusMessage(
                 QStringLiteral("<html><font color=\"red\">Missing:</font> %1 <small>%2</small>")
                     .arg(settings.value("camera_model").toString(), settings.value("camera_serial").toString()));
@@ -492,7 +487,7 @@ public:
         const auto camProps = settings.value("camera_properties").toList();
         auto collection = m_ctlDialog->tcamCollection();
         if (collection == nullptr) {
-            qCWarning(logTISCam, "Unable to load camera properties: No collection for active camera.");
+            LOG_WARNING(m_log, "Unable to load camera properties: No collection for active camera.");
             return true;
         }
         for (const auto &cpropVar : camProps) {
@@ -515,13 +510,11 @@ public:
 
             // only load values for properties that we can write to
             if (tcam_property_base_get_access(prop) == TCAM_PROPERTY_ACCESS_RO) {
-                qCDebug(logTISCam).noquote().nospace() << QString::fromStdString(m_device.serial()) << ": "
-                                                       << "Skipped loading read-only property '" << name << "'";
+                LOG_INFO(m_log, "{}: Skipped loading read-only property '{}'", m_device.serial(), name);
                 continue;
             }
             if (tcam_property_base_is_locked(prop, nullptr)) {
-                qCDebug(logTISCam).noquote().nospace() << QString::fromStdString(m_device.serial()) << ": "
-                                                       << "Skipped loading locked property '" << name << "'";
+                LOG_INFO(m_log, "{}: Skipped loading locked property '{}'", m_device.serial(), name);
                 continue;
             }
 
@@ -552,9 +545,8 @@ public:
             }
 
             if (error != nullptr) {
-                qCWarning(logTISCam).noquote().nospace()
-                    << QString::fromStdString(m_device.serial()) << ": "
-                    << "Unable to load camera property '" << name << "': " << QString::fromUtf8(error->message);
+                LOG_WARNING(
+                    m_log, "{}: Unable to load camera property '{}': {}", m_device.serial(), name, error->message);
                 continue;
             }
         }

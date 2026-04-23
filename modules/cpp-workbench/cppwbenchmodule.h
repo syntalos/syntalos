@@ -25,11 +25,6 @@
 
 SYNTALOS_DECLARE_MODULE
 
-namespace Syntalos
-{
-Q_DECLARE_LOGGING_CATEGORY(logCppWB)
-}
-
 using namespace Syntalos;
 
 class CppWBenchModuleInfo : public ModuleInfo

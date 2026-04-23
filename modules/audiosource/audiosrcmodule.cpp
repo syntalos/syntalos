@@ -35,7 +35,6 @@
 #include "utils/style.h"
 
 SYNTALOS_MODULE(AudioSourceModule)
-Q_LOGGING_CATEGORY(logModAudio, "mod.audiosource")
 
 static gboolean audiosrc_pipeline_watch_func(GstBus *bus, GstMessage *message, gpointer udata);
 
@@ -94,7 +93,7 @@ public:
     bool setupPipeline()
     {
         if (m_pipeline != nullptr) {
-            qCCritical(logModAudio).noquote() << "Tried to re-setup pipeline that already existed!";
+            LOG_CRITICAL(m_log, "Tried to re-setup pipeline that already existed!");
             return true;
         }
         m_pipeline = gst_pipeline_new("sy_audiogen");
@@ -165,8 +164,12 @@ public:
         g_object_set(m_audioSource, "wave", m_settingsDialog->waveKind(), NULL);
         g_object_set(m_audioSource, "freq", m_settingsDialog->frequency(), NULL);
         g_object_set(m_audioSource, "volume", m_settingsDialog->volume(), NULL);
-        qCDebug(logModAudio).noquote() << "Playing wave" << m_settingsDialog->waveKind() << "@"
-                                       << m_settingsDialog->frequency() << "Hz, volume:" << m_settingsDialog->volume();
+        LOG_INFO(
+            m_log,
+            "Playing wave {} @ {} Hz, volume: {}",
+            m_settingsDialog->waveKind(),
+            m_settingsDialog->frequency(),
+            m_settingsDialog->volume());
 
         return true;
     }

@@ -564,11 +564,20 @@ public:
 // instantiate static field
 int AbstractModule::Private::s_eventsMaxModulesPerThread = -1;
 
-AbstractModule::AbstractModule(QObject *parent)
+AbstractModule::AbstractModule(const QString &id, QObject *parent)
     : QObject(parent),
       m_running(false),
       d(new AbstractModule::Private)
 {
+    d->id = id.isEmpty() ? QStringLiteral("unknown") : id;
+
+    // Make a dummy logger immediately available, even if we don't know the
+    // ID of the module yet.
+    if (id.isEmpty())
+        m_log = getLogger("mod.new");
+    else
+        m_log = getLogger(QStringLiteral("mod.%1").arg(d->id));
+
     d->modifiers = ModuleModifier::ENABLED | ModuleModifier::STOP_ON_FAILURE;
     d->id = QStringLiteral("unknown");
     d->name = QStringLiteral("Unknown Module");
@@ -576,10 +585,9 @@ AbstractModule::AbstractModule(QObject *parent)
     d->runIsEmphemeral = false;
 }
 
-AbstractModule::AbstractModule(const QString &id, QObject *parent)
-    : AbstractModule(parent)
+AbstractModule::AbstractModule(QObject *parent)
+    : AbstractModule(QString(), parent)
 {
-    setId(id);
 }
 
 AbstractModule::~AbstractModule()
@@ -1232,6 +1240,11 @@ void AbstractModule::raiseError(const QString &message)
 void AbstractModule::setId(const QString &id)
 {
     d->id = id;
+
+    // ensure the logger name matches the ID
+    const auto expectedLogName = QStringLiteral("mod.%1").arg(d->id);
+    if (QString::fromStdString(m_log->get_logger_name()) != expectedLogName)
+        m_log = getLogger(expectedLogName);
 }
 
 void AbstractModule::setIndex(int index)

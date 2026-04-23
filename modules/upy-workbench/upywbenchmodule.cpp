@@ -55,11 +55,6 @@
 
 SYNTALOS_MODULE(UPyWBenchModule);
 
-namespace Syntalos
-{
-Q_LOGGING_CATEGORY(logUPyWB, "mod.upy-workbench")
-}
-
 static constexpr std::chrono::seconds UPY_SERIAL_WRITE_TIMEOUT = std::chrono::seconds{6};
 
 class UPyWBenchModule : public AbstractModule
@@ -93,7 +88,7 @@ public:
         if (upyCommsRc.open(QIODevice::ReadOnly))
             m_commCode = upyCommsRc.readAll();
         else
-            qCCritical(logUPyWB, "Failed to load autobuild helper");
+            LOG_ERROR(m_log, "Failed to load autobuild helper");
         upyCommsRc.close();
 
         // configure UI

@@ -31,11 +31,6 @@
 
 SYNTALOS_MODULE(FirmataIOModule)
 
-namespace Syntalos
-{
-Q_LOGGING_CATEGORY(logFmMod, "mod.firmata")
-}
-
 enum class PinKind {
     Unknown,
     Digital,
@@ -130,7 +125,7 @@ public:
             return;
         }
 
-        qCDebug(logFmMod) << "Loading Firmata interface" << serialDevice;
+        LOG_INFO(m_log, "Loading Firmata interface: {}", serialDevice);
         if (firmata->device().isEmpty()) {
             if (!firmata->setDevice(serialDevice)) {
                 raiseError(QStringLiteral("Unable to open serial interface: %1").arg(firmata->statusText()));
@@ -230,8 +225,8 @@ public:
                 pinSignalPulse(firmata, ctl.pinName, ctl.value);
             break;
         default:
-            qCWarning(logFmMod) << "Received not-implemented Firmata instruction of type"
-                                << QString::number(static_cast<int>(ctl.command));
+            LOG_WARNING(
+                m_log, "Received not-implemented Firmata instruction of type: {}", static_cast<int>(ctl.command));
             break;
         }
 
@@ -249,7 +244,7 @@ public:
             // initialize output pin
             firmata->setPinMode(pin.id, IoMode::Output);
             firmata->writeDigitalPin(pin.id, false);
-            qCDebug(logFmMod) << "Firmata: Pin" << pinId << "set as output";
+            LOG_INFO(m_log, "Firmata: Pin {} set as output", pinId);
         } else {
             // connect input pin
             if (pullUp)
@@ -260,7 +255,7 @@ public:
             uint8_t port = pin.id >> 3;
             firmata->reportDigitalPort(port, true);
 
-            qCDebug(logFmMod) << "Firmata: Pin" << pinId << "set as input";
+            LOG_INFO(m_log, "Firmata: Pin {} set as input", pinId);
         }
 
         auto pname = pinName;
@@ -275,10 +270,10 @@ public:
     {
         auto pin = m_namePinMap.value(pinName);
         if (pin.kind == PinKind::Unknown)
-            qCCritical(logFmMod)
-                << QStringLiteral(
-                       "Unable to deliver message to pin '%1' (pin does not exist, it needs to be registered first)")
-                       .arg(pinName.c_str());
+            LOG_ERROR(
+                m_log,
+                "Unable to deliver message to pin '{}' (pin does not exist, it needs to be registered first)",
+                pinName);
         return pin;
     }
 
@@ -343,7 +338,7 @@ public:
         const int last = first + 7;
         const auto timestamp = m_syTimer->timeSinceStartUsec();
 
-        qCDebug(logFmMod, "Digital port read: %d (%d - %d)", value, first, last);
+        LOG_DEBUG(m_log, "Digital port read: {} ({} - {})", value, first, last);
         for (const FmPin &p : m_namePinMap.values()) {
             if ((!p.output) && (p.kind != PinKind::Unknown)) {
                 if ((p.id >= first) && (p.id <= last)) {
@@ -371,11 +366,11 @@ public:
         fdata.pinName = m_pinNameMap.value(pin);
         fdata.value = value;
         if (fdata.pinName.empty()) {
-            qWarning() << "Received state change for unknown pin:" << pin;
+            LOG_WARNING(m_log, "Received state change for unknown pin: {}", pin);
             return;
         }
 
-        qCDebug(logFmMod, "Digital pin read: %d=%d", pin, value);
+        LOG_DEBUG(m_log, "Digital pin read: {}={}", pin, value);
         m_fmStream->push(fdata);
     }
 };

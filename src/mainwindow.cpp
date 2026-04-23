@@ -1013,7 +1013,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
 
         if (m_engine->experimenter().isValid())
             setStatusText(
-                QStringLiteral("Welcome %1! - Board successfully loaded.").arg(m_engine->experimenter().name));
+                QStringLiteral("Welcome %1! – Board loaded successfully.").arg(qstr(m_engine->experimenter().name)));
     }
 
     return true;

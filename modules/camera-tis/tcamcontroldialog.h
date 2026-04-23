@@ -12,6 +12,7 @@
 #include "gst/app/gstappsink.h"
 #include "indexer.h"
 #include "propertiesbox.h"
+#include "quill/Logger.h"
 
 struct TcamCaptureConfig {
     FormatHandling format_selection_type = FormatHandling::Auto;
@@ -37,8 +38,14 @@ class TcamControlDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit TcamControlDialog(std::shared_ptr<TcamCaptureConfig> config, QWidget *parent = nullptr);
+    explicit TcamControlDialog(
+        std::shared_ptr<TcamCaptureConfig> config,
+        quill::Logger *logger,
+        QWidget *parent = nullptr);
     ~TcamControlDialog();
+
+    void setLogger(quill::Logger *logger);
+    quill::Logger *logger() const;
 
     GstElement *pipeline() const;
     GstAppSink *videoSink() const;
@@ -92,4 +99,6 @@ private:
     GstCaps *m_currentCaps = nullptr;
     GstCaps *m_selectedCaps = nullptr;
     QString m_device_caps;
+
+    quill::Logger *m_log;
 };

@@ -25,11 +25,6 @@
 
 SYNTALOS_DECLARE_MODULE
 
-namespace Syntalos
-{
-Q_DECLARE_LOGGING_CATEGORY(logUPyWB)
-}
-
 using namespace Syntalos;
 
 class UPyWBenchModuleInfo : public ModuleInfo

@@ -15,10 +15,11 @@
 #include "devicedialog.h"
 #include "tiscameramodule.h"
 
-TcamControlDialog::TcamControlDialog(std::shared_ptr<TcamCaptureConfig> config, QWidget *parent)
+TcamControlDialog::TcamControlDialog(std::shared_ptr<TcamCaptureConfig> config, quill::Logger *logger, QWidget *parent)
     : QDialog(parent),
       ui(new Ui::TcamControlDialog),
-      m_tcamCollection(nullptr)
+      m_tcamCollection(nullptr),
+      m_log(logger)
 {
     ui->setupUi(this);
 
@@ -34,6 +35,16 @@ TcamControlDialog::~TcamControlDialog()
         gst_caps_unref(m_currentCaps);
     if (m_tcamCollection)
         delete m_tcamCollection;
+}
+
+void TcamControlDialog::setLogger(quill::Logger *logger)
+{
+    m_log = logger;
+}
+
+quill::Logger *TcamControlDialog::logger() const
+{
+    return m_log;
 }
 
 GstElement *TcamControlDialog::pipeline() const
@@ -105,7 +116,7 @@ void TcamControlDialog::setRunning(bool running)
 void TcamControlDialog::emitDeviceLostBySerial(const QString &serial)
 {
     if (!serial.isEmpty())
-        qCWarning(logTISCam, "Device lost: %s", qPrintable(serial));
+        LOG_WARNING(m_log, "Device lost: %s", qPrintable(serial));
 
     if (serial != QString::fromStdString(m_selectedDevice.serial()))
         return;
@@ -131,13 +142,14 @@ void TcamControlDialog::showEvent(QShowEvent *event)
 
 static gboolean bus_callback(GstBus * /*bus*/, GstMessage *message, gpointer user_data)
 {
+    auto self = ((TcamControlDialog *)user_data);
+    auto logger = self->logger();
+
     switch (GST_MESSAGE_TYPE(message)) {
     case GST_MESSAGE_INFO: {
         char *str;
         GError *err = nullptr;
         gst_message_parse_info(message, &err, &str);
-
-        // qCInfo(logTISCam, "INFO: %s", str);
 
         QString s = str;
 
@@ -146,11 +158,11 @@ static gboolean bus_callback(GstBus * /*bus*/, GstMessage *message, gpointer use
         if (s.startsWith("Working with src caps:")) {
             s = s.remove(QRegularExpression("\\(\\w*\\)"));
             s = s.section(":", 1);
-            qCInfo(logTISCam, "%s", str);
+            LOG_INFO(logger, "{}", str);
         }
 
         if (err) {
-            qCInfo(logTISCam, "%s", err->message);
+            LOG_INFO(logger, "{}", err->message);
             g_clear_error(&err);
         }
         break;
@@ -173,7 +185,7 @@ static gboolean bus_callback(GstBus * /*bus*/, GstMessage *message, gpointer use
         break;
     }
     case GST_MESSAGE_EOS: {
-        qCInfo(logTISCam, "Received EOS");
+        LOG_INFO(logger, "Received EOS");
 
         break;
     }
@@ -209,7 +221,7 @@ static gboolean bus_callback(GstBus * /*bus*/, GstMessage *message, gpointer use
         break;
     }
     default: {
-        qCInfo(logTISCam, "Message handling not implemented: %s", GST_MESSAGE_TYPE_NAME(message));
+        LOG_INFO(logger, "Message handling not implemented: %s", GST_MESSAGE_TYPE_NAME(message));
         break;
     }
     }
@@ -248,9 +260,9 @@ void TcamControlDialog::openPipeline(FormatHandling handling)
     }
 
     if (!m_pipeline) {
-        qCWarning(logTISCam, "Unable to start pipeline!");
+        LOG_WARNING(m_log, "Unable to start pipeline!");
         if (error)
-            qCWarning(logTISCam, "Reason: %s", error->message);
+            LOG_WARNING(m_log, "Reason: %s", error->message);
 
         return;
     }
@@ -264,7 +276,7 @@ void TcamControlDialog::openPipeline(FormatHandling handling)
 
         if (!m_source) {
             // TODO throw error to user
-            qCInfo(logTISCam, "NO source for you");
+            LOG_INFO(m_log, "NO source for you");
             return;
         }
 
@@ -279,9 +291,9 @@ void TcamControlDialog::openPipeline(FormatHandling handling)
         }
 
         if (has_property(m_source, "conversion-element")) {
-            qCDebug(
-                logTISCam,
-                "Setting 'conversion-element' property to '%s'",
+            LOG_INFO(
+                m_log,
+                "Setting 'conversion-element' property to '{}'",
                 conversion_element_to_string(m_capConfig->conversion_element));
             g_object_set(m_source, "conversion-element", m_capConfig->conversion_element, nullptr);
         }
@@ -307,7 +319,7 @@ void TcamControlDialog::openPipeline(FormatHandling handling)
                 gst_element_set_state(m_source, GST_STATE_READY);
             }
         } else {
-            qCWarning(logTISCam, "Unable to start pipeline. Stopping.");
+            LOG_WARNING(m_log, "Unable to start pipeline. Stopping.");
 
             g_autoptr(GstMessage) msg = gst_bus_timed_pop_filtered(
                 bus, 100 * GST_MSECOND, (GstMessageType)(GST_MESSAGE_ERROR | GST_MESSAGE_STATE_CHANGED));
@@ -317,9 +329,9 @@ void TcamControlDialog::openPipeline(FormatHandling handling)
 
                 // emit a detailed error message
                 if (error)
-                    qCWarning(logTISCam, "Error: %s", error->message);
+                    LOG_WARNING(m_log, "Error: {}", error->message);
                 if (debug_info)
-                    qCWarning(logTISCam, "Debug info: %s", debug_info);
+                    LOG_WARNING(m_log, "Debug info: {}", debug_info);
             }
 
             closePipeline();
@@ -335,11 +347,11 @@ void TcamControlDialog::openPipeline(FormatHandling handling)
             if (error)
                 QMessageBox::critical(this, "Unable to open device", QString("Error: %1").arg(error->message));
             if (debug_info)
-                qCWarning(logTISCam, "Unable to open device: %s", debug_info);
+                LOG_WARNING(m_log, "Unable to open device: {}", debug_info);
 
         } else {
             QMessageBox::critical(this, "Unable to open device", "Failed to set pipeline state to READY.");
-            qCWarning(logTISCam, "Unable to open device: Failed to set pipeline state to READY.");
+            LOG_WARNING(m_log, "Unable to open device: Failed to set pipeline state to READY.");
         }
 
         closePipeline();
@@ -399,7 +411,7 @@ void TcamControlDialog::openPipeline(FormatHandling handling)
     }
 
     if (has_property(m_source, "device-caps")) {
-        qCInfo(logTISCam, "setting caps to: %s", gst_caps_to_string(caps));
+        LOG_INFO(m_log, "setting caps to: {}", gst_caps_to_string(caps));
         g_object_set(m_source, "device-caps", gst_caps_to_string(caps), nullptr);
     } else {
         auto capsfilter = gst_bin_get_by_name(GST_BIN(m_pipeline), "device-caps");
@@ -466,13 +478,13 @@ void TcamControlDialog::on_selectDeviceButton_clicked()
         }
 
         m_selectedDevice = dialog.get_selected_device();
-        qCInfo(logTISCam, "device selected: %s", m_selectedDevice.str().c_str());
+        LOG_INFO(m_log, "device selected: {}", m_selectedDevice.str().c_str());
 
         openPipeline(m_capConfig->format_selection_type);
         createPropertiesBox();
         setEnabled(true);
     } else {
-        qCInfo(logTISCam, "No device selected");
+        LOG_INFO(m_log, "No device selected");
     }
 }
 

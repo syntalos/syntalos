@@ -21,11 +21,7 @@
 #define MODULEAPI_H
 
 #include <QByteArray>
-#include <QDebug>
-#include <QList>
-#include <QObject>
 #include <QIcon>
-#include <QLoggingCategory>
 
 #include <functional>
 
@@ -36,6 +32,7 @@
 #include "datactl/edlstorage.h"
 #include "datactl/syclock.h"
 #include "datactl/timesync.h"
+#include "logging.h"
 
 namespace Syntalos
 {
@@ -458,9 +455,9 @@ class Q_DECL_EXPORT AbstractModule : public QObject
     friend class MLinkModule;
 
 public:
+    explicit AbstractModule(const QString &id = {}, QObject *parent = nullptr);
     explicit AbstractModule(QObject *parent = nullptr);
-    explicit AbstractModule(const QString &id, QObject *parent = nullptr);
-    virtual ~AbstractModule();
+    ~AbstractModule() override;
 
     ModuleState state() const;
 
@@ -817,6 +814,11 @@ protected:
     void setStatusMessage(const QString &message);
     bool makeDirectory(const QString &dir);
     void appProcessEvents();
+
+    /**
+     * Personal, threadsafe logger for this module.
+     */
+    quill::Logger *m_log;
 
     /**
      * @brief Suggested name for datasets from this module

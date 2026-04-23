@@ -184,7 +184,7 @@ void Indexer::add_device(GstDevice *new_device)
     }
     if (is_new_device) // moved out of scope of lock
     {
-        qCInfo(logTISCam, "New device: %s", dev.serial_long().c_str());
+        LOG_INFO(logModTmp("camera-tis"), "New device: {}", dev.serial_long());
 
         postToObject(this, [this, dev] {
             emit this->new_device(dev);
@@ -209,7 +209,7 @@ void Indexer::remove_device(GstDevice *device)
 
     m_mutex.unlock();
 
-    qCInfo(logTISCam, "Device lost: %s", dev.serial_long().c_str());
+    LOG_INFO(logModTmp("camera-tis"), "Device lost: %s", dev.serial_long());
 
     postToObject(this, [this, dev] {
         emit this->device_lost(dev);
