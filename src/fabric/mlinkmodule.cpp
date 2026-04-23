@@ -852,6 +852,10 @@ bool MLinkModule::runProcess()
         return false;
     }
 
+    // If we (re)launch, we always go through another initialization phase
+    // This also clears previous state.
+    setState(ModuleState::INITIALIZING);
+
     auto penv = moduleBinaryEnv();
     penv.insert("SYNTALOS_VERSION", syntalosVersionFull());
     penv.insert("SYNTALOS_MODULE_ID", d->clientId.c_str());
