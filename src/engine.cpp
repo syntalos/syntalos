@@ -651,9 +651,12 @@ AbstractModule *Engine::createModule(const QString &id, const QString &name)
 
     auto mod = modInfo->createModule();
     assert(mod);
-    mod->setId(modInfo->id());
-    mod->setIndex(modInfo->count() + 1);
-    modInfo->setCount(mod->index());
+
+    // Ensure the module has exactly the ID we think it should have, and also
+    // assign a sequential index to distinguish it.
+    mod->setIdentity(modInfo->id(), modInfo->count());
+
+    modInfo->setCount(mod->index() + 1);
     if (name.isEmpty()) {
         if (modInfo->count() > 1)
             mod->setName(QStringLiteral("%1 %2").arg(modInfo->name()).arg(modInfo->count()));

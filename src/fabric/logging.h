@@ -52,9 +52,16 @@ inline quill::Logger *getDefaultLogger()
 }
 
 /**
+ * Remove a logger explicitly. Should usually not be needed.
+ */
+void removeLogger(quill::Logger *logger);
+
+/**
  * Initialize Syntalos logging. Must only ever be called once, at program startup.
  * Purely internal API.
  */
 void initializeSyLogSystem(quill::LogLevel consoleLogLevel = quill::LogLevel::Info);
+
+void shutdownSyLogSystem();
 
 } // namespace Syntalos

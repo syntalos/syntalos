@@ -823,7 +823,7 @@ protected:
     /**
      * Personal, threadsafe logger for this module.
      */
-    quill::Logger *m_log;
+    QuillLogger *m_log;
 
     /**
      * @brief Suggested name for datasets from this module
@@ -1125,9 +1125,8 @@ private:
     QList<QPair<intervalEventFunc_t, int>> m_intervalEventCBList;
     QList<QPair<recvDataEventFunc_t, std::shared_ptr<VariantStreamSubscription>>> m_recvDataEventCBList;
 
+    void setIdentity(const QString &id, int index);
     void setState(ModuleState state);
-    void setId(const QString &id);
-    void setIndex(int index);
     void setSimpleStorageNames(bool enabled);
     void setStorageGroup(std::shared_ptr<EDLGroup> edlGroup);
     void resetEventCallbacks();

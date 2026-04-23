@@ -530,7 +530,7 @@ class AbstractModule::Private
 public:
     Private()
         : state(ModuleState::INITIALIZING),
-          modIndex(0),
+          modIndex(-1),
           simpleStorageNames(true),
           initialized(false)
     {
@@ -563,6 +563,8 @@ public:
 // instantiate static field
 int AbstractModule::Private::s_eventsMaxModulesPerThread = -1;
 
+static constexpr std::string SY_ANON_MOD_LOGGER_NAME = "mod.new";
+
 AbstractModule::AbstractModule(const QString &id, QObject *parent)
     : QObject(parent),
       m_running(false),
@@ -573,7 +575,7 @@ AbstractModule::AbstractModule(const QString &id, QObject *parent)
     // Make a dummy logger immediately available, even if we don't know the
     // ID of the module yet.
     if (id.isEmpty())
-        m_log = getLogger("mod.new");
+        m_log = getLogger(SY_ANON_MOD_LOGGER_NAME);
     else
         m_log = getLogger(QStringLiteral("mod.%1").arg(d->id));
 
@@ -600,6 +602,10 @@ AbstractModule::~AbstractModule()
         if (wp.second)
             delete wp.first;
     }
+
+    // if we don't use a generic logger, delete our specific one
+    if (d->modIndex >= 0 && m_log->get_logger_name() != SY_ANON_MOD_LOGGER_NAME)
+        removeLogger(m_log);
 }
 
 ModuleState AbstractModule::state() const
@@ -1215,6 +1221,17 @@ void AbstractModule::restoreDisplayUiGeometry(const QVariant &var)
     }
 }
 
+void AbstractModule::setIdentity(const QString &id, int index)
+{
+    d->id = id;
+    d->modIndex = index;
+
+    // ensure the logger name matches the ID
+    const auto expectedLogName = QStringLiteral("mod.%1-%2").arg(d->id).arg(d->modIndex);
+    if (QString::fromStdString(m_log->get_logger_name()) != expectedLogName)
+        m_log = getLogger(expectedLogName);
+}
+
 void AbstractModule::setState(ModuleState state)
 {
     d->state = state;
@@ -1233,21 +1250,6 @@ void AbstractModule::raiseError(const QString &message)
     setState(ModuleState::ERROR);
     LOG_ERROR(m_log, "Error raised by '{}': {}", name(), message);
     emit error(message);
-}
-
-void AbstractModule::setId(const QString &id)
-{
-    d->id = id;
-
-    // ensure the logger name matches the ID
-    const auto expectedLogName = QStringLiteral("mod.%1").arg(d->id);
-    if (QString::fromStdString(m_log->get_logger_name()) != expectedLogName)
-        m_log = getLogger(expectedLogName);
-}
-
-void AbstractModule::setIndex(int index)
-{
-    d->modIndex = index;
 }
 
 void AbstractModule::setSimpleStorageNames(bool enabled)

@@ -79,6 +79,11 @@ static void datactlLogHandler(const datactl::LogMessage &m)
         m.message);
 }
 
+void removeLogger(quill::Logger *logger)
+{
+    quill::Frontend::remove_logger_blocking(logger);
+}
+
 void initializeSyLogSystem(quill::LogLevel consoleLogLevel)
 {
     // trying to initialize the log system twice is a critical error
@@ -105,6 +110,11 @@ void initializeSyLogSystem(quill::LogLevel consoleLogLevel)
     // configure defaults
     g_defaultLogLevel = consoleLogLevel;
     g_consoleSink->set_log_level_filter(consoleLogLevel);
+}
+
+void shutdownSyLogSystem()
+{
+    quill::Backend::stop();
 }
 
 } // namespace Syntalos

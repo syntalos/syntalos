@@ -149,7 +149,13 @@ int main(int argc, char *argv[])
             w->loadProjectFilename(projectFname);
     }
 
-    // run application & return result
+    // run application
     auto rc = app.exec();
+
+    // cleanup
+    gst_deinit();
+    pw_deinit();
+    shutdownSyLogSystem();
+
     return rc;
 }
