@@ -1149,8 +1149,10 @@ std::shared_ptr<InputPortInfo> SyntalosLink::registerInputPort(
 
     // check for duplicates
     for (const auto &ip : d->inPortInfo) {
-        if (ip->id() == id)
-            return ip;
+        if (ip->id() == id) {
+            throw std::runtime_error(
+                std::format("Can not register input port. A port with ID '{}' already exists.", id));
+        }
     }
 
     // construct our reference for this port
@@ -1187,8 +1189,10 @@ std::shared_ptr<OutputPortInfo> SyntalosLink::registerOutputPort(
 
     // check for duplicates
     for (const auto &op : d->outPortInfo) {
-        if (op->id() == id)
-            return op;
+        if (op->id() == id) {
+            throw std::runtime_error(
+                std::format("Can not register output port. A port with ID '{}' already exists.", id));
+        }
     }
 
     // construct our reference for this port
