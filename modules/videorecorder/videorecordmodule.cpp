@@ -483,13 +483,13 @@ public:
 
         // display some "project name" useful for humans
         const auto time = QDateTime::currentDateTime();
-        const auto projectName = m_subjectName.isEmpty()
-                                     ? QStringLiteral("%1 on %2")
-                                           .arg(
-                                               QString::fromStdString(m_vidDataset->name()),
-                                               time.toString("HH:mm yy-MM-dd"))
-                                     : QStringLiteral("%1 @ %2 on %3")
-                                           .arg(m_subjectName, m_vidDataset->name(), time.toString("HH:mm yy-MM-dd"));
+        const auto projectName =
+            m_subjectName.isEmpty()
+                ? QStringLiteral("%1 on %2")
+                      .arg(QString::fromStdString(m_vidDataset->name()), time.toString("HH:mm yy-MM-dd"))
+                : QStringLiteral("%1 @ %2 on %3")
+                      .arg(
+                          m_subjectName, QString::fromStdString(m_vidDataset->name()), time.toString("HH:mm yy-MM-dd"));
 
         // we need to explicitly save the dataset here to ensure any globs are finalized into
         // actual data- and aux file parts.
