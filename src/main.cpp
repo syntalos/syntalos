@@ -36,15 +36,9 @@
 
 #include <unordered_map>
 
-#include <datactl/logging.h>
-#include <quill/Backend.h>
-#include <quill/Frontend.h>
-#include <quill/LogMacros.h>
-#include <quill/Logger.h>
-#include <quill/sinks/ConsoleSink.h>
-
 #include "symemopt.h"
 #include "qmeta.h"
+#include "logging.h"
 #include "mainwindow.h"
 
 int main(int argc, char *argv[])
@@ -84,6 +78,9 @@ int main(int argc, char *argv[])
     parser.addVersionOption();
 
     parser.addPositionalArgument("project", QStringLiteral("Syntalos project file to open on startup."), "[project]");
+
+    QCommandLineOption optnVerbose(QStringList() << "verbose", QStringLiteral("Increase console logging output."));
+    parser.addOption(optnVerbose);
 
     QCommandLineOption optnExportDir(
         QStringList() << "o" << "export-dir",
@@ -128,33 +125,9 @@ int main(int argc, char *argv[])
     // ensure we only ever run one instance of the application
     KDBusService service(KDBusService::Unique);
 
-    // start Quill's async logging backend
-    quill::Backend::start();
-
-    // forward datactl library log messages into Quill
-    {
-        auto consoleSink = quill::Frontend::create_or_get_sink<quill::ConsoleSink>("sy_console");
-        quill::PatternFormatterOptions fmtOpt{"%(time) %(thread_name):%(logger): %(message)", "%H:%M:%S.%Qus"};
-
-        datactl::setLogHandler([consoleSink, fmtOpt](const datactl::LogMessage &m) {
-            // cache one Quill logger per datactl category (categories are static strings, map by pointer)
-            thread_local std::unordered_map<const char *, quill::Logger *> loggers;
-            auto [it, inserted] = loggers.emplace(m.category, nullptr);
-            if (inserted)
-                it->second = quill::Frontend::create_or_get_logger(m.category, consoleSink, fmtOpt);
-
-            QUILL_LOG_RUNTIME_METADATA_CALL(
-                quill::MacroMetadata::Event::LogWithRuntimeMetadataShallowCopy,
-                it->second,
-                static_cast<quill::LogLevel>(m.severity),
-                m.file,
-                m.line,
-                m.function,
-                "",
-                "{}",
-                m.message);
-        });
-    }
+    // at this point, we have all startup information and can launch the logging system
+    // before anything tries to log using it.
+    initializeSyLogSystem(parser.isSet(optnVerbose) ? quill::LogLevel::Debug : quill::LogLevel::Info);
 
     // launch Syntalos with the provided options
     auto w = std::make_unique<MainWindow>();
