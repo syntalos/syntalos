@@ -179,6 +179,7 @@ private:
     bool loadConfiguration(const QString &fileName);
 
     Ui::MainWindow *ui;
+    QuillLogger *m_log;
 
     Syntalos::GlobalConfig *m_gconf;
     QTimer *m_rtElapsedTimer;

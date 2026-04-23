@@ -44,6 +44,8 @@ syntalos_src = [
     'moduleloader-py.cpp',
     'moduleselectdialog.h',
     'moduleselectdialog.cpp',
+    'projectfile.h',
+    'projectfile.cpp',
     'qmeta.h',
     'qmeta.cpp',
     'sysinfodialog.h',

@@ -21,14 +21,12 @@
 #include "config.h"
 #include "ui_mainwindow.h"
 
-#include <KTar>
 #include <QApplication>
 #include <QCloseEvent>
 #include <QComboBox>
 #include <QDateTime>
 #include <QDebug>
 #include <QDesktopServices>
-#include <QDir>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFontDatabase>
@@ -38,11 +36,7 @@
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QProcess>
-#include <QProgressDialog>
 #include <QPushButton>
-#include <QRadioButton>
-#include <QScrollBar>
-#include <QSpinBox>
 #include <QStandardPaths>
 #include <QSvgRenderer>
 #include <QSvgWidget>
@@ -63,10 +57,8 @@
 #include "timingsdialog.h"
 
 #include "executils.h"
+#include "projectfile.h"
 #include "utils/tomlutils.h"
-
-// config format API level
-static const QString CONFIG_FILE_FORMAT_VERSION = QStringLiteral("1");
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent),
@@ -74,6 +66,9 @@ MainWindow::MainWindow(QWidget *parent)
       m_configLoadInProgress(false),
       m_runMaxDuration(0)
 {
+    m_log = getLogger("main");
+    LOG_INFO(m_log, "This is Syntalos {} - Starting up.", syntalosVersionFull());
+
     // Load settings and set icon theme explicitly
     // (otherwise the application may look ugly or incomplete on GNOME)
     m_gconf = new GlobalConfig(this);
@@ -627,96 +622,38 @@ bool MainWindow::saveConfiguration(const QString &fileName)
         setConfigModifyAllowed(true);
     });
 
-    qDebug().noquote() << "Saving board as" << fileName;
-    KTar tar(fileName);
-    if (!tar.open(QIODevice::WriteOnly)) {
-        qWarning().noquote() << "Unable to open new configuration file for writing.";
-        return false;
+    ProjectStorageSettings ss{
+        .exportDirLayout = exportDirLayoutFromUi(),
+        .clockTimeInDir = ui->cbClockTimeInExportDir->isChecked(),
+        .simpleNames = ui->cbSimpleStorageNames->isChecked(),
+        .flatRoot = ui->cbFlatExportDirName->isChecked(),
+        .exportBaseDir = m_engine->exportBaseDir(),
+        .experimentId = ui->expIdEdit->text(),
+    };
+
+    const auto res = saveProjectConfiguration(
+        m_engine,
+        ui->graphForm->graphView(),
+        m_subjectList,
+        m_experimenterList,
+        ss,
+        fileName,
+        [this](const QString &msg) {
+            setStatusText(msg);
+        });
+
+    if (!res) {
+        QMessageBox::critical(
+            this,
+            QStringLiteral("Error saving project"),
+            QStringLiteral(
+                "An error occurred while saving the project configuration. Do you have permission to write to the "
+                "destination?"));
     }
-    setStatusText("Saving configuration to file...");
-
-    setCurrentProjectFile(QString());
-    QDir confBaseDir(QStringLiteral("%1/..").arg(fileName));
-
-    // save basic settings
-    QVariantHash settings;
-    settings.insert("version_format", CONFIG_FILE_FORMAT_VERSION);
-    settings.insert("version_app", QCoreApplication::applicationVersion());
-    settings.insert("time_created", QDateTime::currentDateTime());
-
-    settings.insert("export_base_dir", m_engine->exportBaseDir());
-    settings.insert("experiment_id", m_engine->experimentId());
-
-    QVariantHash storageSettings;
-    QStringList exportDirOrder;
-    for (const auto &part : exportDirLayoutFromUi())
-        exportDirOrder.append(exportDirPathComponentToKey(part));
-    storageSettings.insert("order", exportDirOrder);
-    storageSettings.insert("clock_time_in_dir", ui->cbClockTimeInExportDir->isChecked());
-    storageSettings.insert("simple_names", ui->cbSimpleStorageNames->isChecked());
-    storageSettings.insert("flat_root", ui->cbFlatExportDirName->isChecked());
-
-    settings.insert("storage", storageSettings);
-
-    // basic configuration
-    tar.writeFile("main.toml", qVariantHashToTomlData(settings));
-
-    // save list of subjects
-    tar.writeFile("subjects.toml", qVariantHashToTomlData(m_subjectList->toVariantHash()));
-
-    // save list of experimenters
-    tar.writeFile("experimenters.toml", qVariantHashToTomlData(m_experimenterList->toVariantHash()));
-
-    // save graph settings
-    ui->graphForm->graphView()->saveState();
-    tar.writeFile("graph.toml", qVariantHashToTomlData(ui->graphForm->graphView()->settings()));
-
-    // save module settings
-    auto modIndex = 0;
-    for (auto &mod : m_engine->presentModules()) {
-        if (!tar.writeDir(QString::number(modIndex)))
-            return false;
-
-        QVariantHash modSettings;
-        QByteArray modExtraData;
-        setStatusText(QStringLiteral("Saving data for '%1'...").arg(mod->name()));
-
-        mod->serializeSettings(confBaseDir.absolutePath(), modSettings, modExtraData);
-        if (!modSettings.isEmpty())
-            tar.writeFile(
-                QStringLiteral("%1/%2.toml").arg(modIndex).arg(mod->id()), qVariantHashToTomlData(modSettings));
-        if (!modExtraData.isEmpty())
-            tar.writeFile(QStringLiteral("%1/%2.dat").arg(modIndex).arg(mod->id()), modExtraData);
-
-        QVariantHash modInfo;
-        modInfo.insert("id", mod->id());
-        modInfo.insert("name", mod->name());
-        modInfo.insert("ui_display_geometry", mod->serializeDisplayUiGeometry());
-        modInfo.insert("enabled", mod->modifiers().testFlag(ModuleModifier::ENABLED));
-        modInfo.insert("stop_on_failure", mod->modifiers().testFlag(ModuleModifier::STOP_ON_FAILURE));
-
-        // save info about port subscriptions in
-        // the form inPortId -> sourceModuleName
-        QVariantHash modSubs;
-        for (const auto &iport : mod->inPorts()) {
-            if (!iport->hasSubscription())
-                continue;
-            QVariantList srcVal = {iport->outPort()->owner()->name(), iport->outPort()->id()};
-            modSubs.insert(iport->id(), srcVal);
-        }
-
-        modInfo.insert("subscriptions", modSubs);
-        tar.writeFile(QStringLiteral("%1/info.toml").arg(modIndex), qVariantHashToTomlData(modInfo));
-
-        modIndex++;
-    }
-
-    setStatusText("Saving configuration to file...");
-    tar.close();
 
     setCurrentProjectFile(fileName);
-    setStatusText(QStringLiteral("Board saved at %1.").arg(QTime::currentTime().toString(Qt::TextDate)));
-    return true;
+
+    return res;
 }
 
 bool MainWindow::loadConfiguration(const QString &fileName)
@@ -732,272 +669,41 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         setConfigModifyAllowed(true);
     });
 
-    KTar tar(fileName);
-    if (!tar.open(QIODevice::ReadOnly)) {
-        qCritical() << "Unable to open settings file for reading.";
+    ProjectStorageSettings storageSettings;
+    auto res = loadProjectConfigurationInteractive(
+        m_engine,
+        ui->graphForm->graphView(),
+        m_subjectList,
+        m_experimenterList,
+        storageSettings,
+        fileName,
+        this,
+        [this]() {
+            // This is called just before we start making changes to the current settings,
+            // so we need to make sure the user can't accidentally override the previous
+            // file by hitting "Save" again if the current project fails to load.
+            setCurrentProjectFile(QString());
+            changeExperimenter(EDLAuthor());
+        },
+        [this](const QString &msg) {
+            setStatusText(msg);
+        });
+
+    if (!res)
         return false;
-    }
 
-    setCurrentProjectFile(QString());
-    auto rootDir = tar.directory();
-
-    // load main settings
-    auto globalSettingsFile = rootDir->file("main.toml");
-    if (globalSettingsFile == nullptr) {
-        QMessageBox::critical(
-            this,
-            QStringLiteral("Can not load settings"),
-            QStringLiteral("The settings file is damaged or is no valid Syntalos configuration bundle."));
-        setStatusText("");
-        return false;
-    }
-
-    QString parseError;
-    const auto rootObj = parseTomlData(globalSettingsFile->data(), parseError);
-    if (!parseError.isEmpty()) {
-        QMessageBox::critical(
-            this,
-            QStringLiteral("Can not load settings"),
-            QStringLiteral("The settings file is damaged or is no valid Syntalos configuration file. %1")
-                .arg(parseError));
-        setStatusText("");
-        return false;
-    }
-
-    if (rootObj.value("version_format").toString() != CONFIG_FILE_FORMAT_VERSION) {
-        auto reply = QMessageBox::question(
-            this,
-            "Incompatible configuration",
-            QStringLiteral(
-                "The settings file you want to load was created with a different, possibly older version of "
-                "Syntalos and may not work correctly in this version.\n"
-                "Should we attempt to load it anyway? (This may result in unexpected behavior)"),
-            QMessageBox::Yes | QMessageBox::No);
-        if (reply == QMessageBox::No) {
-            this->setEnabled(true);
-            setStatusText("Aborted configuration loading.");
-            return true;
-        }
-    }
-
-    auto storageObj = rootObj.value("storage").toHash();
-    ui->cbClockTimeInExportDir->setChecked(storageObj.value("clock_time_in_dir", false).toBool());
-    ui->cbSimpleStorageNames->setChecked(storageObj.value("simple_names", true).toBool());
-    ui->cbFlatExportDirName->setChecked(storageObj.value("flat_root", false).toBool());
-
-    QList<ExportPathComponent> exportDirLayout;
-    const auto exportDirLayoutValues = storageObj.value("order").toList();
-    for (const auto &value : exportDirLayoutValues) {
-        const auto maybePart = exportDirPathComponentFromKey(value.toString().trimmed().toLower());
-        if (maybePart.has_value() && !exportDirLayout.contains(maybePart.value()))
-            exportDirLayout.append(maybePart.value());
-    }
-    changeExportDirLayout(exportDirLayout);
-
-    setDataExportBaseDir(rootObj.value("export_base_dir").toString());
-    ui->expIdEdit->setText(rootObj.value("experiment_id").toString());
-
-    // load list of subjects
-    m_subjectList->clear();
-    auto subjectsFile = rootDir->file("subjects.toml");
-    if (subjectsFile != nullptr) {
-        // not having a list of subjects is totally fine
-
-        setStatusText("Loading subject information...");
-        const auto subjData = parseTomlData(subjectsFile->data(), parseError);
-        if (parseError.isEmpty())
-            m_subjectList->fromVariantHash(subjData);
-        else
-            qWarning().noquote() << "Unable to load test-subject data:" << parseError;
-    }
-
-    // load list of experimenters
-    m_experimenterList->clear();
-    changeExperimenter(EDLAuthor());
-    auto experimentersFile = rootDir->file("experimenters.toml");
-    if (experimentersFile != nullptr) {
-        // not having a list of subjects is totally fine
-
-        setStatusText("Loading experimenter data...");
-        const auto peopleData = parseTomlData(experimentersFile->data(), parseError);
-        if (parseError.isEmpty())
-            m_experimenterList->fromVariantHash(peopleData);
-        else
-            qWarning().noquote() << "Unable to load experimenter data:" << parseError;
-    }
-    setExperimenterSelectVisible(!m_experimenterList->isEmpty());
-
-    setStatusText("Destroying old modules...");
-    m_engine->removeAllModules();
-    auto rootEntries = rootDir->entries();
-    rootEntries.sort();
-
-    // load graph settings
-    auto graphFile = rootDir->file("graph.toml");
-    if (graphFile != nullptr) {
-        setStatusText("Caching graph settings...");
-        const auto graphConfig = parseTomlData(graphFile->data(), parseError);
-        if (parseError.isEmpty()) {
-            // the graph view will apply stored settings to new nodes automatically
-            // from here on.
-            ui->graphForm->graphView()->setSettings(graphConfig);
-            ui->graphForm->graphView()->restoreState();
-        } else {
-            qWarning().noquote() << "Unable to parse graph configuration:" << parseError;
-        }
-    }
-
-    // we load the modules in two passes, to ensure they can all register
-    // their interdependencies correctly.
-    QList<QPair<AbstractModule *, QPair<QVariantHash, QByteArray>>> modSettingsList;
-    QList<QPair<AbstractModule *, QVariantHash>> modDisplayGeometryList;
-
-    // add modules
-    QList<QPair<AbstractModule *, QVariantHash>> jSubInfo;
-    for (auto &ename : rootEntries) {
-        auto e = rootDir->entry(ename);
-        if (!e->isDirectory())
-            continue;
-        auto ifile = rootDir->file(QStringLiteral("%1/info.toml").arg(ename));
-        if (ifile == nullptr)
-            continue;
-
-        auto iobj = parseTomlData(ifile->data(), parseError);
-        if (!parseError.isEmpty())
-            qWarning().noquote().nospace() << "Issue while loading module info: " << parseError;
-
-        const auto modId = iobj.value("id").toString();
-        const auto modName = iobj.value("name").toString();
-        const auto uiDisplayGeometry = iobj.value("ui_display_geometry").toHash();
-        const auto jSubs = iobj.value("subscriptions").toHash();
-
-        setStatusText(QStringLiteral("Instantiating module: %1(%2)").arg(modId, modName));
-        auto mod = m_engine->createModule(modId, modName);
-        if (mod == nullptr) {
-            QMessageBox::critical(
-                this,
-                QStringLiteral("Can not load settings"),
-                QStringLiteral(
-                    "Unable to find module '%1' - please install the module first, then "
-                    "attempt to load this configuration again.")
-                    .arg(modId));
-            setStatusText("Failed to load settings.");
-
-            const auto reply = QMessageBox::question(
-                this,
-                QStringLiteral("Ignore missing module?"),
-                QStringLiteral(
-                    "While installing the missing module is the right solution to load this board, "
-                    "you can also enforce loading it. Please be aware that loading may fail. Load anyway?"),
-                QMessageBox::Yes | QMessageBox::No);
-            if (reply == QMessageBox::Yes) {
-                qWarning().noquote().nospace()
-                    << QStringLiteral("Module %1[%2] was missing, but trying to load board anyway.")
-                           .arg(modId, modName);
-                continue;
-            }
-            return false;
-        }
-
-        // load module modifiers
-        auto modModifiers = mod->modifiers();
-        modModifiers.setFlag(ModuleModifier::ENABLED, iobj.value("enabled", true).toBool());
-        modModifiers.setFlag(ModuleModifier::STOP_ON_FAILURE, iobj.value("stop_on_failure", true).toBool());
-        mod->setModifiers(modModifiers);
-
-        // load module-specific configuration
-        auto sfile = rootDir->file(QStringLiteral("%1/%2.toml").arg(ename).arg(modId));
-        QVariantHash modSettings;
-        if (sfile != nullptr) {
-            modSettings = parseTomlData(sfile->data(), parseError);
-            if (!parseError.isEmpty())
-                qWarning().noquote().nospace()
-                    << "Issue while loading module configuration for " << mod->name() << ": " << parseError;
-        }
-        sfile = rootDir->file(QStringLiteral("%1/%2.dat").arg(ename).arg(modId));
-        QByteArray modSettingsEx;
-        if (sfile != nullptr)
-            modSettingsEx = sfile->data();
-
-        // save display geometries - we apply them after settings have been loaded,
-        // as some modules do odd things in their settings loading phase which impact
-        // display UI geometry loading
-        if (!uiDisplayGeometry.isEmpty())
-            modDisplayGeometryList.append(qMakePair(mod, uiDisplayGeometry));
-
-        // store subscription info to connect modules later
-        jSubInfo.append(qMakePair(mod, jSubs));
-
-        // store module-owned configuration for later
-        modSettingsList.append(qMakePair(mod, qMakePair(modSettings, modSettingsEx)));
-    }
-
-    QDir confBaseDir(QString("%1/..").arg(fileName));
-
-    // load module-owned configurations
-    for (auto &pair : modSettingsList) {
-        const auto mod = pair.first;
-        const auto settings = pair.second;
-        setStatusText(QStringLiteral("Loading settings for module: %1(%2)").arg(mod->id()).arg(mod->name()));
-        if (!mod->loadSettings(confBaseDir.absolutePath(), settings.first, settings.second)) {
-            auto ret = QMessageBox::critical(
-                this,
-                QStringLiteral("Can not load settings"),
-                QStringLiteral("Unable to load module settings for '%1'. Continue loading this project anyway?")
-                    .arg(mod->name()),
-                QMessageBox::Yes | QMessageBox::No);
-            setStatusText(QStringLiteral("Failed to load settings for '%1'").arg(mod->name()));
-
-            if (ret != QMessageBox::Yes) {
-                setStatusText("Failed to load project settings.");
-                return false;
-            }
-        }
-    }
-
-    // apply module view geometries
-    for (auto &pair : modDisplayGeometryList)
-        pair.first->restoreDisplayUiGeometry(pair.second);
-
-    // create module connections
-    setStatusText("Restoring streams and subscriptions...");
-    for (auto &pair : jSubInfo) {
-        auto mod = pair.first;
-        const auto jSubs = pair.second;
-        for (const QString &iPortId : jSubs.keys()) {
-            const auto modPortPair = jSubs.value(iPortId).toList();
-            if (modPortPair.size() != 2) {
-                qWarning().noquote() << "Malformed project data: Invalid project port pair in" << mod->name()
-                                     << "settings.";
-                continue;
-            }
-            const auto srcModName = modPortPair[0].toString();
-            const auto srcModOutPortId = modPortPair[1].toString();
-            const auto srcMod = m_engine->moduleByName(srcModName);
-            if (srcMod == nullptr) {
-                qWarning().noquote() << "Error when loading project: Source module" << srcModName << "plugged into"
-                                     << iPortId << "of" << mod->name() << "was not found. Skipped connection.";
-                continue;
-            }
-            auto inPort = mod->inPortById(iPortId);
-            if (inPort.get() == nullptr) {
-                qWarning().noquote() << "Error when loading project: Module" << mod->name()
-                                     << "has no input port with ID" << iPortId;
-                continue;
-            }
-            auto outPort = srcMod->outPortById(srcModOutPortId);
-            if (outPort.get() == nullptr) {
-                qWarning().noquote() << "Error when loading project: Module" << srcMod->name()
-                                     << "has no output port with ID" << srcModOutPortId;
-                continue;
-            }
-            inPort->setSubscription(outPort.get(), outPort->subscribe());
-        }
-    }
-
-    // we are ready now
+    // project was loaded successfully!
     setCurrentProjectFile(fileName);
-    setStatusText("Board successfully loaded from file.");
+
+    ui->cbClockTimeInExportDir->setChecked(storageSettings.clockTimeInDir);
+    ui->cbSimpleStorageNames->setChecked(storageSettings.simpleNames);
+    ui->cbFlatExportDirName->setChecked(storageSettings.flatRoot);
+
+    changeExportDirLayout(storageSettings.exportDirLayout);
+    setDataExportBaseDir(storageSettings.exportBaseDir);
+    ui->expIdEdit->setText(storageSettings.experimentId);
+
+    setExperimenterSelectVisible(!m_experimenterList->isEmpty());
 
     // (ask to) select an experimenter, if this board file knows some
     if (!m_experimenterList->isEmpty()) {
@@ -1016,7 +722,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
                 QStringLiteral("Welcome %1! – Board loaded successfully.").arg(qstr(m_engine->experimenter().name)));
     }
 
-    return true;
+    return res;
 }
 
 void MainWindow::setDataExportBaseDir(const QString &dir)
@@ -1208,8 +914,6 @@ void MainWindow::projectSaveAsActionTriggered()
 
     if (fileName.isEmpty())
         return;
-    if (!fileName.endsWith(".syct"))
-        fileName = QStringLiteral("%1.syct").arg(fileName);
 
     if (!saveConfiguration(fileName)) {
         QMessageBox::critical(
