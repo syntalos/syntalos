@@ -88,8 +88,13 @@ void initializeSyLogSystem(quill::LogLevel consoleLogLevel)
         return;
     }
 
+    quill::BackendOptions backendOptn;
+
+    // we want to log UTF-8 characters, so disable sanitization
+    backendOptn.check_printable_char = {};
+
     // start Quill's async logging backend
-    quill::Backend::start();
+    quill::Backend::start(backendOptn);
 
     // register our console sink
     g_consoleSink = quill::Frontend::create_or_get_sink<quill::ConsoleSink>("sy_console");

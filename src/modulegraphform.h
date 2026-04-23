@@ -33,18 +33,12 @@ class AbstractModule;
 class VarStreamInputPort;
 class StreamOutputPort;
 
-Q_DECLARE_LOGGING_CATEGORY(logGraphUi)
 } // namespace Syntalos
 #endif // DOXYGEN_SHOULD_SKIP_THIS
 
 namespace Ui
 {
 class ModuleGraphForm;
-}
-
-namespace Syntalos
-{
-Q_DECLARE_LOGGING_CATEGORY(logGraphUi)
 }
 
 using namespace Syntalos;
@@ -93,6 +87,7 @@ private slots:
 
 private:
     Ui::ModuleGraphForm *ui;
+    QuillLogger *m_log;
 
     Engine *m_engine;
     bool m_modifyPossible;
