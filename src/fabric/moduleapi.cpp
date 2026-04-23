@@ -1025,7 +1025,7 @@ std::shared_ptr<EDLDataset> AbstractModule::createDatasetInGroup(
     if (dset == nullptr || (dset != nullptr && !dset->isEmpty())) {
         const auto dsetInfo = group == d->rootDataGroup
                                   ? QStringLiteral("'%1'").arg(datasetName)
-                                  : QStringLiteral("'%1' in '%2'").arg(datasetName, group->name());
+                                  : QStringLiteral("'%1' in '%2'").arg(datasetName, qstr(group->name()));
         raiseError(QStringLiteral(
                        "Tried to use dataset %1 for storage, but the dataset was already in use. "
                        "Please ensure unique names for data storage!")
