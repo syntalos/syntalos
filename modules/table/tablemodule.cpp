@@ -118,7 +118,7 @@ public:
             // this turns it into an absolute path we can open for data storage
             fname = dstore->setDataFile(fname);
             if (!m_recTable->open(QString::fromStdString(fname))) {
-                raiseError(QStringLiteral("Unable to open file %1").arg(fname));
+                raiseError(QStringLiteral("Unable to open file %1").arg(QString::fromStdString(fname)));
                 return;
             }
         }
